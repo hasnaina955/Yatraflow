@@ -560,15 +560,22 @@ export function useReorder<T extends { id: string }>(
 }
 
 export function useClickOutside(onOutside: () => void) {
+  // Two refs: the in-flow anchor (trigger + wrapper) and the floating panel,
+  // which may be portaled elsewhere in the DOM (e.g. document.body to escape
+  // a backdrop-filter ancestor). A click inside EITHER keeps the panel open.
   const ref = useRef<HTMLDivElement | null>(null)
+  const portalRef = useRef<HTMLDivElement | null>(null)
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) onOutside()
+      const target = e.target as Node
+      if (ref.current?.contains(target)) return
+      if (portalRef.current?.contains(target)) return
+      onOutside()
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [onOutside])
-  return ref
+  return [ref, portalRef] as const
 }
 
 export function BrandMark({ size = 26 }: { size?: number }) {

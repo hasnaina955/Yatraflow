@@ -513,3 +513,4 @@ Real accounts and shared persistence: YatraFlow moves from a single-browser loca
 
 ### Added
 - Initial MVP: hash-routed React 18 + TypeScript app, localStorage store with seed data, trip creation, day-by-day timeline editor, schedule/budget estimation engine with transparent assumptions, decisions, budget tracking, light/dark theme, India-first seed content (Kerala / Goa / Rajasthan).
+\n- Added documentation for Plan Bench UI changes

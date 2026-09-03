@@ -1,154 +1,215 @@
-# YatraFlow Roadmap
+# YatraFlow — Master Roadmap
 
-Living document — reviewed each session, updated as items land. Done items move
-to [CHANGELOG.md](CHANGELOG.md); this file only tracks what's ahead.
+The single plan of record. Every roadmap, phase and tracked backlog now lives
+here — merged from the phased plan (Sep 2026), the executed v0.23.0/CTI
+implementation plan, the CTI alignment deferrals, the completed UI-audit
+tracker, and the Sep 2026 comprehensive review (CSS / React / UX audits).
 
-**Snapshot (2026-09-03):** **v0.25.0 merged to `main`** — the full "Calm Travel
-Intelligence" redesign (M1–M7), the motion system, the user-driven halt
-planner and the post-merge fix batch are now live on production (Vercel
-auto-deploys `main`). 273 tests green (25 files). CI gates `main`, `test`
-and `redesign/**` pushes. `main..test` is the integration line; feature
-work happens on branches and merges to `test` via PR.
+Living document — reviewed each session, updated as items land. Done items
+move to [CHANGELOG.md](CHANGELOG.md); this file only tracks what's ahead.
 
-**Going forward — phased plan (sequenced by user direction, 2026-09-03):**
-- **Phase 1 — Real AI companion (v0.26.0, ~5h):** backlog #22 → #20.
-  User-configurable OpenAI-compatible endpoint (Profile settings,
-  `src/lib/aiProvider.ts`), real LLM answers with the deterministic router
-  kept as offline fallback + "(LLM)/(offline)" badge.
-- **Phase 2 — v0.27.0 "Together" (collaboration depth):** Supabase
-  integration/RLS test suite first (opt-in `VITE_RUN_INTEGRATION`), then
-  live multi-user editing sync + split-expense settlement.
-- **Phase 3 — v0.28.0 "Premium" (monetization):** gateway integration
-  (Razorpay fits INR), order/entitlement tables + webhook, purchase state,
-  unlock flow replacing the placeholder toasts. Needs an external gateway
-  account. Deliberately after the collaboration + test-suite groundwork.
-- **Phase 4 — 1.0 enablers:** offline-first (IndexedDB + service worker/
-  PWA), i18n (EN + HI), then the 1.0 cut.
-- **P4 nice-to-haves** (explore pagination, extra undos, feedback button,
-  trash purge, debounced writes) stay as a backlog pool slotted into
-  whatever phase has slack.
-- `main` merges stay explicitly user-gated per AGENTS rule 1.
+**Release protocol:** every milestone below ships as a **release on
+`redesign/calm-travel-intelligence`** — version bump (`package.json` +
+lockfile), CHANGELOG entry, README update when feature-worthy, `npm run verify`
+green, both themes QA'd, user confirmation before any push. When **all
+milestones** are done, the branch progresses to `test` **via pull request**
+(never a direct push). `main` merges stay explicitly user-gated (AGENTS rule 1).
+
+**Snapshot (2026-09-03):** v0.25.0 on `main`; `[Unreleased]` carries the
+demo-seed revert; comprehensive review complete → stabilization track (M0–M4)
+inserted ahead of the strategic track. Current version: **0.25.0** → next
+release: **v0.26.0 (M0)**.
+
 ---
 
-## 🔴 P0 — Compliance & licensing
+## Progress ledger
 
-### 1. ~~#23 — Basemap licensing swap~~ ✅ shipped (see CHANGELOG `[Unreleased]`)
-CARTO Basemaps + Esri World Imagery replaced with keyless
-[OpenFreeMap](https://openfreemap.org) vector styles (`positron` / `dark`) —
-same look, MIT service, ODbL map data, no request limits, no key, no bill.
-Attribution arrives via the TileJSON (`tiles.openfreemap.org/planet`) that the
-style's `openmaptiles` source resolves — MapLibre renders it automatically, so
-no `customAttribution` injection is needed (injecting one duplicates the
-credit). Google tiles rejected: not licensed to
-third-party renderers, and would need a Maps JS API rewrite plus a mandatory
-billing account. **No P0 items remain.**
+One checkbox per major update, from the first commit to the 1.0 cut. Shipped
+items stay checked (never deleted — this is the at-a-glance history);
+remaining items tick in the **same commit as their release** (with the version
+and date), per the AGENTS §6 same-edit rule. Detail lives in
+[CHANGELOG.md](CHANGELOG.md); this is only the map.
 
-## 🟡 P1 — AI / LLM (issues #22 → #20, in that order)
+### Shipped — foundation (Aug 23–28, 2026)
+- [x] **v0.1.0** — Initial MVP: React 18 + TS app, localStorage store, day-by-day timeline, schedule/budget engine, light/dark theme, India-first seed content
+- [x] **v0.2.0** — Collaboration layer: invite-by-link, suggestions with votes/comments, decision polls, activity feed, notifications
+- [x] **v0.3.0 → v0.11.x** — early polish wave: onboarding/UX fixes, confirm dialogs, export/import trip JSON, decision & notification hardening, cross-device URL state
+- [x] **v0.12.0** — Supabase backend: real accounts, shared persistence, RLS — the app leaves single-browser localStorage
+- [x] **v0.13.0 → v0.16.0** — timeline becomes a real itinerary view (time rail, cross-day drag-and-drop), Mappls India-grade place data, opening-hours model
 
-### 2. #22 — OpenAI-compatible AI provider endpoint
-- Config surface (`baseUrl` + API key — decide: encrypted `profiles` column vs
-  localStorage-with-warning) so the app can call any OpenAI-compatible
-  endpoint (OmniRoute, OpenAI, Groq, Together…).
-- **Effort:** ~2 h · new `src/lib/aiProvider.ts` + Profile settings section.
-- **Blocks:** #20.
+### Shipped — data & platform (Aug 29 – Sep 3, 2026)
+- [x] **v0.17.0** — Google Places integration (opt-in key, quota-guarded, free-stack fallback) + full mobile usability pass
+- [x] **v0.18.0** — unified journey engine (one travel system for every day), touch drag-and-drop, 12h/24h clock pref, `npm run verify` gate, AGENTS.md founded
+- [x] **v0.19.0** — 3-layer design tokens, vite 8 + plugin-react 6, CSS build-blocker fix (#14)
+- [x] **v0.20.0** — CI gate (#21), live realtime collaboration (#18), OpenFreeMap basemap swap (#23), fatigue-aware ride-plan suggestions, Google routing (#6)
+- [x] **v0.21.0** — vehicle profiles (fuel/EV/CNG range), purpose-tuned halt queries, trip-scoped suggestion cache, fixed impact sheet
+- [x] **v0.22.0** — expandable map view, suggestion persistence across tab switches
+- [x] **v0.23.0** — publish write-through fix, hydration error logging, **UI audit 32/32 complete** (6 batches)
+- [x] **v0.25.0** — Calm Travel Intelligence redesign (M0–M7), user-driven halt planner, contrib integration
+- [x] **[Unreleased]** — demo-seed revert + one-off DB prune, master-roadmap consolidation, Sep 2026 comprehensive review
 
-### 3. #20 — AI companion: wire real LLM, keep offline fallback
-- `src/lib/ai.ts` is a keyword router with canned answers. Add a real
-  `answerQuestion` path: trip-context prompt → `/v1/chat/completions` → text.
-  Keep the deterministic router as the honest offline fallback; badge the
-  AiDrawer "(LLM)" vs "(offline rules)"; keep the "not live data" disclaimer.
-- **Effort:** ~3 h · depends on #22.
+### Remaining — in release order (details in the tracks below)
+- [ ] **v0.26.0 (M0)** — Trust & navigation: P0 bug batch
+- [ ] **v0.27.0 (M1)** — Theme integrity & mobile: dark contrast, touch targets, focus rings
+- [ ] **v0.28.0 (M2)** — State honesty & UX: loading/error/empty separation, a11y flow traps
+- [ ] **v0.29.0 (M3)** — Performance architecture: store immutability → selectors → memo → workspace split
+- [ ] **v0.30.0 (M4)** — Design-system hygiene: dead CSS purge, mobile-block consolidation, glass/z-index tokens
+- [ ] **v0.31.0 (M5)** — AI companion: user-configurable LLM endpoint (#22 → #20)
+- [ ] **v0.32.0 (M6)** — Together: integration test suite, live co-editing depth, split expenses
+- [ ] **v0.33.0 (M7)** — Premium: payment gateway, entitlements, unlock flow
+- [ ] **1.0 (M8)** — offline-first/PWA, i18n (EN+HI), the 1.0 cut → then PR to `test`
 
-## 🟣 UI-audit remediation — 32 findings (Vercel Web Interface Guidelines + WCAG 2.2 AA)
+---
 
-Full report: [`docs/UI_AUDIT.md`](docs/UI_AUDIT.md) — 2 P0 · 15 P1 · 15 P2, each
-with `file:line` + a concrete example fix (on `test` until merged to `main`).
-This section is the **live tracker**: tick a finding in the same commit that
-fixes it; CHANGELOG carries the narrative.
+## Stabilization track (from the Sep 2026 review — before new features)
 
-| Batch | Scope | Findings | Status |
-|---|---|---|---|
-| 1 | Theming & touch CSS (`color-scheme`, `theme-color`, `touch-action`, `overscroll-behavior`, safe areas, `accent-color`, `text-wrap: balance`, `tabular-nums`, title clamp) | F-18 F-19 F-20 F-23 F-24 F-25 F-26 F-27 F-28 ✅ F-29 F-30 | ✅ `6a96914` |
-| 2 | Shared primitives — the `Field` label fix covers ~30 call sites | F-01 (P0) ✅ F-03 ✅ F-11 ✅ | ✅ this commit |
-| 3 | Focus ring (17 selectors) + reduced-motion guard | F-12 ✅ F-17 ✅ | ✅ this commit |
-| 4 | A11y attributes & navigation semantics (+ orphaned F-04 folded in) | F-02 ✅ F-04 ✅ F-05 ✅ F-06 ✅ F-07 ✅ F-08 ✅ F-09 ✅ F-10 ✅ | ✅ this commit |
-| 5 | Form hygiene (autocomplete, focus-first-error, unsaved-changes guard) | F-13 ✅ F-14 ✅ F-15 ✅ F-16 ✅ | ✅ this commit |
-| 6 | URL state (tabs, Explore filters) + copy | F-21 ✅ F-22 ✅ F-31 ✅ F-32 ✅ | ✅ this commit |
+### M0 — v0.26.0 "Trust & navigation" (P0 bugs, ~half a day)
+Small diffs, outsized trust impact. Cut the pending `[Unreleased]`
+(demo-seed revert) together with these:
+- **"View public page" is a broken route** — `TripWorkspace.tsx` emits
+  `pub:<id>`, the router splits on `/` → lands on Landing. Publishers can
+  never reach their own published page.
+- **Failed hydration fakes an empty state and re-seeds demo data** —
+  `store.ts` logs query errors then seeds on `tripList.length === 0`: a
+  network failure injects duplicate demo trips (the exact accumulation trap
+  from the Sep DB prune — AGENTS §5). Skip seeding when any query errored;
+  surface a retry banner.
+- **Invite links flash "broken" on cold load** — `InviteGate` shows the error
+  whenever `trip` is undefined, which it is until hydration finishes.
+- **Deep-link reload lands on Landing first** — mid-hydration `me === null`
+  funnels `#/trip/...` to Landing; on failure the user is stranded.
+- **Silent delete failure** — `deleteTrip`'s Supabase error restores the row
+  with no toast (the undo has expired), so the delete "doesn't work".
+- Housekeeping: fix the stale UI-audit progress line (done in this rewrite).
 
-**Progress: 16/32** · P0s: **2 of 2 closed** (F-28 ✅, F-01 ✅) · ~6 h remaining.
-CSS-only batches are invisible to tsc+tests — always gate on the full
-`npm run verify` (vite build is the step that catches them).
+### M1 — v0.27.0 "Theme integrity & mobile" (dark mode + touch, ~1 day)
+- **White-on-light-teal in dark mode** — `.vote-btn.on`, `.btn-teal`,
+  `.step-num` keep `#fff` text while `--teal` flips light (~2.3:1). Sibling
+  rules already use `#06251f`; these were missed. Also `.ha-sync` is
+  dark-on-dark.
+- **iOS zoom-on-focus** — the 16px mobile bump loses specificity to
+  `.role-select` (12.5px) and two 13px time/number inputs.
+- **Touch targets <40px** — `.theme-toggle` 36px, `.avatar-btn` 26px,
+  `.dest-chip` delete ~18px, `.toast-action`, `.board-fit`, filter chips, etc.
+- **Focus-ring gaps** — ~10 interactive controls missing from the shared
+  `:focus-visible` list (`.clamp-toggle`, `.board-fit`, `.save-heart`,
+  `.dest-chip button`, `.role-select`, bare inputs…).
+- Reduced-motion gap: `transition-delay` stagger survives the global freeze.
 
-## 🟠 P2 — Polish & UX debt (not yet tracked as issues)
+### M2 — v0.28.0 "State honesty & UX" (~1 day)
+Error / loading / empty must never impersonate each other (folds in the old
+"loading skeleton on first boot" item):
+- Loading vs empty distinction on My Trips + Explore ("No trips yet" /
+  "Nothing matches" render before or without data).
+- Profile save: inline validation + disabled-while-saving (match CreateTrip).
+- AI drawer: Escape + focus trap + focus restore (reuse Modal logic); nav
+  popovers restore trigger focus on close.
+- Keyboard: day-rename clickable `<h3>` → real button; heading hierarchy
+  (h1→h3 skips in 5 tabs; SharedTrip/Invite pages lack h1).
+- Landing "demo mode" copy over-promises (no anonymous demo; seed inserts
+  trips only) — rewrite copy to match reality.
+- Dead "Book a planning consultation" button; "places" vs "stops" terminology.
 
-### 4. Loading skeleton on first boot
-- Blank landing page 1–3 s while the store hydrates. Show a branded pulse
-  during the initial `init()` window in `App.tsx`. **~30 min.**
+### M3 — v0.29.0 "Performance architecture" (~2 days, sequence inside matters)
+1. **Store immutability first** — `Object.assign`/`push` in-place mutations
+   make every `useMemo([trip])` stale-prone; it works today by accident.
+2. **Slice-level selectors** — `useDb()` returns the whole cache and every
+   `commit()` re-renders every subscriber (realtime activity pings re-render
+   the whole workspace, re-running `simulateDay` per day).
+3. **Memoize the hot path** — `React.memo(DaySection)` + handler `useCallback`s.
+4. **Split `TripWorkspace.tsx`** (2,932 lines, 8 tabs) into `pages/trip/*` —
+   natural boundary: each tab shares only `applyChange`/`pending`.
+5. Fetch dedup: `DayWeatherChip` N-per-day weather calls vs Overview forecast;
+   `ClampedText` doubles the DOM per stop; route-level `React.lazy` for
+   Auth/Profile/CreateTrip/PublicItinerary.
 
-### 5. Profile page: surface all UserProfile fields
-- `homeCity`, `travelStyles`, `languages`, `socialLinks`, `creatorBio`,
-  `isCreator` exist in the type + `updateProfile()` exists in the store but
-  are not editable in `Profile.tsx`. **~1.5 h.**
+### M4 — v0.30.0 "Design-system hygiene" (~1 day, CSS-only batch)
+- Purge ~100+ lines dead CSS (hero-preview block, `.route-flow`, `.filter-bar`,
+  duplicates, contradictory `.locked-overlay` pair) — template-literal-safe
+  recheck first.
+- Consolidate the 9 scattered mobile blocks (real conflicts: `.map-day-chip`,
+  `.vote-btn` sized differently in two blocks) back toward the single-block
+  convention.
+- Glass tokens: add `--yf-blur-*`; migrate 3 raw-rgba stragglers; normalize
+  saturate; z-index ties (`ai-drawer` 90, `ai-fab` 70, `user-menu` 60).
+- Tokenize hardcoded hero-gradient hexes + the 25× shadow navy; fold one-off
+  radii into the ladder; adopt-or-delete unused custom properties.
 
-### 6. Route polylines on the map
-- `routing.ts` already returns road geometry (`RoadLeg.geometry`), but
-  `TripMap.tsx` renders only point markers. Add a MapLibre `LineString`
-  source + dashed line layer between stops. **~1 h.**
+---
 
-### 7. Browser push notifications
-- In-app bell only today. Request `Notification` permission on login; fire a
-  native notification when realtime delivers an event for the current user;
-  respect the read flag; don't duplicate. **~1 h** — plumbing exists in
-  `src/lib/realtimeCore.ts`.
+## Strategic track (user-directed phases, renumbered after stabilization)
 
-## 🔵 P3 — Foundation for growth (1.0 enablers)
+### M5 — v0.31.0 "AI companion" (old Phase 1 — issues #22 → #20, ~5h)
+User-configurable OpenAI-compatible endpoint (Profile settings,
+`src/lib/aiProvider.ts`), real LLM answers with the deterministic router kept
+as offline fallback + "(LLM)/(offline)" badge. #22 (~2h) blocks #20 (~3h).
 
-### 8. Offline-first (IndexedDB cache + service worker / PWA)
-- Hydrate IndexedDB instantly on `init()`, sync Supabase in background;
-  `manifest.json` + offline shell. Cache-invalidation strategy makes this
-  **4–6 h** — likely post-1.0.
+### M6 — v0.32.0 "Together" (old Phase 2 — collaboration depth)
+Supabase integration/RLS test suite first (opt-in `VITE_RUN_INTEGRATION`,
+~3h — old item #10), then live multi-user editing sync + split-expense
+settlement.
 
-### 9. i18n (English + Hindi minimum)
-- Extract hardcoded UI strings into `locales/en.json` / `locales/hi.json`;
-  lightweight `useT()` hook or react-i18next; switcher in Profile. Tedious:
-  **6–8 h.**
+### M7 — v0.33.0 "Premium" (old Phase 3 — monetization)
+Gateway integration (Razorpay fits INR), order/entitlement tables + webhook,
+purchase state, unlock flow replacing placeholder toasts. Needs an external
+gateway account. Deliberately after M6's test-suite groundwork.
 
-### 10. Integration tests: Supabase client + RLS contract
-- All 138 tests are pure logic; nothing guards the live schema/RLS. Add an
-  opt-in suite (`VITE_RUN_INTEGRATION=true`, never in CI by default): auth,
-  trip CRUD, RLS denial, realtime pub/sub. **~3 h.**
+### M8 — 1.0 enablers (old Phase 4) → the 1.0 cut
+Offline-first (IndexedDB + service worker/PWA, ~4–6h), i18n (EN + HI, ~6–8h),
+then the 1.0 release.
 
-## ⚪ P4 — Nice-to-have
+---
 
+## 🟣 UI-audit remediation — COMPLETE (32/32)
+
+Full report: [`docs/UI_AUDIT.md`](docs/UI_AUDIT.md). All six batches shipped in
+v0.23.0 (both P0s closed: F-28, F-01); narrative in the CHANGELOG. This
+section remains the tracker of record per AGENTS rule 5 — reopened findings
+get a row here again.
+
+| Batch | Scope | Status |
+|---|---|---|
+| 1 | Theming & touch CSS (F-18–F-20, F-23–F-30) | ✅ `6a96914` |
+| 2 | Shared primitives — `Field` label fix (~30 call sites) (F-01, F-03, F-11) | ✅ |
+| 3 | Focus ring (17 selectors) + reduced-motion guard (F-12, F-17) | ✅ |
+| 4 | A11y attributes & nav semantics (F-02, F-04–F-10) | ✅ |
+| 5 | Form hygiene (F-13–F-16) | ✅ |
+| 6 | URL state (tabs, Explore filters) + copy (F-21, F-22, F-31, F-32) | ✅ |
+
+---
+
+## Backlog pool (pull into any milestone with slack)
+
+*From the old P2 polish list:*
 | Item | Note | Effort |
 |---|---|---|
-| Explore pagination | gallery loads all published trips into memory | 2 h |
-| Undo for more operations | reorder/move/vote/removeMember (delete already has it) | 2 h |
-| Feedback button | floating widget → GitHub issue | 1 h |
-| Permanent purge for deleted trips | trash + 30-day auto-purge | 1.5 h |
-| Debounced store writes | rapid stop edits UPSERT per keystroke today | 1 h |
+| Profile: surface all UserProfile fields | `homeCity`, `travelStyles`, `languages`, `socialLinks`, `creatorBio`, `isCreator` exist but aren't editable | 1.5 h |
+| Route polylines on the map | `routing.ts` already returns geometry; `TripMap` renders markers only | 1 h |
+| Browser push notifications | plumbing exists in `realtimeCore.ts`; permission on login, dedupe vs read flag | 1 h |
+
+*From the CTI alignment deferrals ([docs/redesign/ALIGNMENT.md](docs/redesign/ALIGNMENT.md)) — must enter this pool in the same commit they're deferred:*
+| Item | Note |
+|---|---|
+| In-map place search | design doc §6.5 remainder |
+| Map popup → Board/Timeline cross-links | §6.5 remainder |
+| Per-decision route/budget impact panel + grounded assistant | §6.8 — needs engine data |
+| Suggestions "why it fits" route-position copy | §6.6 remainder |
+
+*Old P4 nice-to-haves:* Explore pagination (2h) · undo for more operations
+(2h) · feedback button (1h) · trash + 30-day purge (1.5h) · debounced store
+writes (1h — pairs naturally with M3).
 
 ---
 
-## 📋 Recommended order
+## Historical plans (executed — kept for the record, not live guidance)
 
-```
-1. #23  basemap licensing swap      (P0, 1h,  zero risk)
-2. #22  OpenAI-compatible endpoint  (P1, 2h,  blocks #20)
-3. #20  AI companion → real LLM     (P1, 3h)
-4.      loading skeleton            (30m, quick win)
-5.      profile fields editable     (1.5h)
-6.      route polylines             (1h, visual payoff)
-7.      push notifications          (1h)
-8.      integration tests           (3h, protects schema+RLS)
-```
-
-Interleaved with items 2–3: **UI-audit batches 2–6** (~9 h) — tracked in the
-🟣 section above; batches 2 and 3 are the highest fix-per-risk ratio left.
-
-Items 1–7 ≈ **10 h** and reach a solid 1.0-ready state: everything marketed
-works end-to-end, no legal exposure, no UX dead-ends. Items 8–10 are the
-post-1.0 enablers.
+- [implementation plan for v0.23.0 + the CTI redesign](docs/history/implementation-plan-v0.23.0-cti.md)
+  — all milestones shipped (M0–M7 + polish passes); superseded by this file.
+- [docs/REPORT-2026-08-29-nearby-rework-and-google-maps.md](docs/REPORT-2026-08-29-nearby-rework-and-google-maps.md)
+  — shipped in 0.17.0.
+- The old phased plan (AI/Together/Premium/1.0) is preserved as the strategic
+  track above; the old P0–P4 lettered sections are merged into M0–M4 and the
+  pool.
 
 ---
 
@@ -156,5 +217,8 @@ post-1.0 enablers.
 
 - Every push ships a CHANGELOG entry; releases bump `package.json` + README.
 - `npm run verify` before every push; bare commands only (no `cmd /c`).
-- Push `test` freely; `main` only with the user's explicit confirmation.
-- Stage explicit paths — never `git add -A` in this shared working copy.
+- Milestones release on `redesign/**`; all-done → PR to `test`; `main` only
+  with the user's explicit confirmation.
+- Stage explicit paths — never `git add -A` in a shared working copy.
+- Update this file (and the UI-audit tracker) in the same commit as the work;
+  when ticking tracker rows, update progress lines in the same edit.

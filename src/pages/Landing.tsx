@@ -20,6 +20,10 @@ export function LandingPage({ onNavigate }: { onNavigate: (r: string) => void })
             <div className="hero-ctas">
               <a className="btn btn-primary btn-lg" href="#/auth?mode=signup">Start planning free →</a>
               <a className="btn btn-saffron btn-lg" href="#/explore">Explore itineraries</a>
+              <button type="button" className="hero-bench-cta"
+                onClick={() => document.getElementById('plan-bench')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>
+                <span className="hbc-label">Price a trip in 10 seconds <span className="hbc-arrow" aria-hidden="true">⬇</span></span>
+              </button>
             </div>
             <p className="small muted" style={{ marginTop: 16 }}>No card needed · Free forever · Your planning data is yours</p>
           </div>
@@ -43,6 +47,9 @@ export function LandingPage({ onNavigate }: { onNavigate: (r: string) => void })
         </div>
       </section>
 
+      {/* ---------- Plan Bench (interactive cost calculator) — the showpiece, one scroll from the fold ---------- */}
+      <PlanBench />
+
       {/* ---------- What changes for you ---------- */}
       <section className="container" style={{ paddingBottom: 8 }}>
         <p className="small" style={{ textAlign: 'center', fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--yf-teal-600)', marginBottom: 8 }}>One place for the reality of a trip</p>
@@ -64,9 +71,6 @@ export function LandingPage({ onNavigate }: { onNavigate: (r: string) => void })
           <Step n={4} title="Lock it & go" body="Resolve decisions, confirm bookings-worthy stops, publish if you like." />
         </div>
       </section>
-
-      {/* ---------- Plan Bench (interactive cost calculator) ---------- */}
-      <PlanBench />
 
       {/* ---------- Demo CTA ---------- */}
       <section className="container" style={{ paddingBottom: 70 }}>

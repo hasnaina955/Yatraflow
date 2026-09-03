@@ -1,6 +1,11 @@
 # Implementation Plan — v0.23.0 release + "Calm Travel Intelligence" redesign
 
-**Status:** Approved — in execution
+> ⚠️ **HISTORICAL — executed in full (v0.23.0 shipped; redesign milestones
+> M0–M7 + polish passes all landed, merged as v0.24.0/v0.25.0).** Kept as a
+> decision record, not live guidance. Live planning lives in
+> [`ROADMAP.md`](../../ROADMAP.md).
+
+**Status:** Executed (originally "Approved — in execution")
 **Scope:** Two sequential workstreams — (A) cut the pending `[Unreleased]` work as a proper **v0.23.0** release on `main` per repo protocol, then (B) a **redesign branch** implementing `docs/redesign/YATRAFLOW_DESIGN_DIRECTION.md` ("Calm Travel Intelligence") in the doc's own milestone order, with the 10 SVG mockups as visual reference.
 **Branch strategy:** Release lands on `main` first; redesign happens on `redesign/calm-travel-intelligence` branched from that release; merges back only with user confirmation.
 

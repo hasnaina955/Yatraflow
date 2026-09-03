@@ -1,6 +1,7 @@
 // ============ YatraFlow app shell ============
 // Hash-based routing so the built app works from any static host or file://.
 import { useEffect, useRef, useState, type MouseEvent } from 'react'
+import { createPortal } from 'react-dom'
 import type { Trip } from './data/types'
 import { useDb, currentUser, logout, notificationsFor, markAllNotificationsRead, tripById, joinViaInvite, duplicateTrip, init } from './store/store'
 import { Avatar, BrandMark, ToastZone, useClickOutside, toast } from './components/ui'
@@ -26,8 +27,22 @@ export default function App() {
   const [notifOpen, setNotifOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [mobileNav, setMobileNav] = useState(false)
-  const notifRef = useClickOutside(() => setNotifOpen(false))
-  const menuRef = useClickOutside(() => setMenuOpen(false))
+  const [notifRef, notifPopRef] = useClickOutside(() => setNotifOpen(false))
+  const [menuRef, userMenuRef] = useClickOutside(() => setMenuOpen(false))
+  // Both popovers portal to document.body: nested inside .topnav (which has
+  // its own backdrop-filter), their backdrop blur would only sample the nav's
+  // own interior — the page behind stayed sharp. Portaled panels need
+  // position: fixed, so capture the trigger's viewport rect at open time.
+  const [notifPos, setNotifPos] = useState({ top: 0, right: 0 })
+  const [menuPos, setMenuPos] = useState({ top: 0, right: 0 })
+  const syncNotifPos = () => {
+    const el = notifRef.current
+    if (el) { const r = el.getBoundingClientRect(); setNotifPos({ top: r.bottom + 8, right: window.innerWidth - r.right }) }
+  }
+  const syncMenuPos = () => {
+    const el = menuRef.current
+    if (el) { const r = el.getBoundingClientRect(); setMenuPos({ top: r.bottom + 8, right: window.innerWidth - r.right }) }
+  }
 
   useEffect(() => {
     const onHash = () => { setRoute(currentRoute()); setMobileNav(false); window.scrollTo(0, 0) }
@@ -91,6 +106,13 @@ export default function App() {
       root.style.removeProperty('--vt-x'); root.style.removeProperty('--vt-y'); root.style.removeProperty('--vt-r')
     }).catch(() => { /* nothing to clean up further */ })
   }
+
+  // Portaled panels sit at the end of <body>: without an explicit focus grab,
+  // Tab from the trigger would skip the menu and wander into the page instead.
+  useEffect(() => {
+    if (notifOpen) notifPopRef.current?.focus({ preventScroll: true })
+    if (menuOpen) userMenuRef.current?.focus({ preventScroll: true })
+  }, [notifOpen, menuOpen, notifPopRef, userMenuRef])
 
   // Escape closes any open popover (UI audit F-10) — outside-click alone
   // leaves keyboard users stranded.
@@ -194,16 +216,16 @@ export default function App() {
             </button>
             {me && (
               <div style={{ position: 'relative' }} ref={notifRef}>
-                  <button className="icon-btn" onClick={() => setNotifOpen(o => !o)} aria-label={`Notifications (${unread} unread)`} aria-expanded={notifOpen} aria-controls="notif-pop">
+                  <button className="icon-btn" onClick={() => { syncNotifPos(); setNotifOpen(o => !o) }} aria-label={`Notifications (${unread} unread)`} aria-expanded={notifOpen} aria-controls="notif-pop">
                     🔔{unread > 0 && <span className="notif-badge">{unread}</span>}
                   </button>
-              {notifOpen && (
-                <div className="notif-pop" id="notif-pop">
+              {notifOpen && createPortal(
+                <div className="notif-pop" id="notif-pop" ref={notifPopRef} tabIndex={-1} style={{ top: notifPos.top, right: notifPos.right }}>
                   <div className="row-between" style={{ padding: '10px 14px', borderBottom: '1px solid var(--line)' }}>
                     <b>Notifications</b>
                     {unread > 0 && <button className="btn btn-ghost btn-sm" onClick={() => markAllNotificationsRead(me.id)}>Mark all read</button>}
                   </div>
-                  <div style={{ maxHeight: 320, overflowY: 'auto' }}>
+                  <div style={{ maxHeight: 320, overflowY: 'auto', overscrollBehavior: 'contain' }}>
                     {notifs.length === 0 && <p className="muted small" style={{ padding: 16 }}>You’re all caught up ✨</p>}
                     {notifs.slice(0, 12).map(n => (
                       <div key={n.id} className={`notif-item ${n.read ? '' : 'unread'}`}>
@@ -212,17 +234,18 @@ export default function App() {
                       </div>
                     ))}
                   </div>
-                </div>
+                </div>,
+                document.body
               )}
             </div>
           )}
           {me && (
             <div style={{ position: 'relative' }} ref={menuRef}>
-              <button className="avatar-btn" onClick={() => setMenuOpen(o => !o)} aria-label="Account menu" aria-expanded={menuOpen} aria-controls="user-menu">
+              <button className="avatar-btn" onClick={() => { syncMenuPos(); setMenuOpen(o => !o) }} aria-label="Account menu" aria-expanded={menuOpen} aria-controls="user-menu">
                 <Avatar user={me} />
               </button>
-              {menuOpen && (
-                <div className="user-menu" id="user-menu">
+              {menuOpen && createPortal(
+                <div className="user-menu" id="user-menu" ref={userMenuRef} tabIndex={-1} style={{ top: menuPos.top, right: menuPos.right }}>
                   <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--line)' }}>
                     <b>{me.profile.name}</b>
                     <div className="small muted">{me.email}</div>
@@ -231,7 +254,8 @@ export default function App() {
                   <button className="user-menu-item" onClick={() => { setMenuOpen(false); navigate('/profile') }}>Profile & settings</button>
                   <button className="user-menu-item" onClick={() => { setMenuOpen(false); navigate('/explore') }}>Explore itineraries</button>
                   <button className="user-menu-item danger" onClick={() => { logout(); setMenuOpen(false); navigate('/') }}>Log out</button>
-                </div>
+                </div>,
+                document.body
               )}
             </div>
           )}

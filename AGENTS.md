@@ -243,7 +243,21 @@ Hard rules (each learned the hard way — do not relearn them):
   by just the next heading, **deletes the bullets**, not only the heading.
   After any heading-level restructure (CHANGELOG releases especially),
   re-grep all headings and re-read the affected range before trusting it.
-  (The 0.18.0 restructure briefly lost four Fixed bullets this way.)
+  (The 0.18.0 restructure briefly lost four Fixed bullets this way.) A
+  variant: replacing a long bullet's **lead sentence as a prefix substring**
+  splits the bullet — the orphaned tail stays glued to whatever the
+  replacement ends with (a duplicated `### Fixed` + a Frankenstein bullet,
+  Sep 2026). Never match a bullet by its lead alone; include the full line or
+  re-read the section after the edit.
+- **In-page anchors on hash-routed pages must be `button` + `scrollIntoView`,
+  never `href="#id"`** — the router owns `location.hash`, so a plain anchor link
+  rewrites the hash to `#plan-bench` and the router treats it as an unknown
+  route (the Plan Bench hero anchor, Sep 2026). Pair the target section with
+  `scroll-margin-top` so the sticky nav doesn't cover it.
+- **A `role="switch"` with only an on/off state reads poorly when both states
+  are first-class** — the bench's return toggle became a segmented control
+  (two `aria-pressed` buttons in a `role="group"`); prefer that pattern when
+  neither state is "off".
 - **Supabase failures come back as `{ error }`, not rejections — a `void supabase…write()` with no `.then(({ error }))` is a silent data-loss hole.** `publishItinerary` fire-and-forget its upsert while the optimistic in-memory write made the UI look successful; the next refresh hydrated the (empty) table and the data "vanished" (Sep 2026). Rule: every write-through checks its error and either toasts or rolls back the optimistic cache (see `updateProfile`, `publishItinerary`); every hydration table result is error-logged, because a failed `select` also returns `{ data: null, error }` rather than throwing — a denied/missing table silently hydrates as `[]`.
 - **When diagnosing "works in the session, gone after refresh"**, probe the live table with the anon key via PostgREST (`GET /rest/v1/<table>?select=…` — RLS SELECT policies decide what's readable; `published_itineraries` is public) before touching code: it immediately separates "never persisted" from "persisted but not rendered". Column-existence probes work on empty tables (`select=<cols>&limit=1` errors naming a missing column); the OpenAPI root (`/rest/v1/`) needs the service-role key, so it's useless with the anon key. To test an *authenticated* write, sign up a throwaway QA account via `POST /auth/v1/signup` (email confirmation off → session token in the response) and replay the insert — but record the generated email immediately (it's randomized and unrecoverable from auth without the service key; the profiles table's public read policy can restore it).
 - **`git diff --check` before committing any merge** — conflict markers in
@@ -284,6 +298,21 @@ Hard rules (each learned the hard way — do not relearn them):
 - **The impact dialog's time delta must include dwell, not just driving.** `computeImpact` summed `totalTravelMinutes` (wheel time only), so adding a 20-minute halt showed a ~0 time extension and the preview looked broken. `DaySchedule` now exposes `dwellMinutes` (visit minutes + per-stop buffers) and the delta sums both — relabelled "Time on the road (driving + stops)" so the semantics are visible. Note `computeTotals.totalTravelMinutes` is still driving-only for budget/warning math; don't "fix" one and silently change the other.
 - **Planned halts are on-route by default; real spots are opt-in.** The halt planner's `pin` flag must default to `false` — the planner auto-attaches the best place found near a km point, and a `true` default silently redirected every halt to that place. The row shows an explicit "detour to <place> instead of the route point" checkbox.
 - **Coerce persisted numeric fields before math, never trust them as numbers.** Rows hydrated from Supabase (or hand-edited JSON) can carry `undefined`/`null` for numeric columns — a stop's `visitMinutes` arriving as `undefined` once made `undefined + bufferMinutesPerStop = NaN` poison the whole day's dwell and the impact dialog rendered `NaNh NaNm`. `simulateDay` coerces `visitMinutes` to a finite number (0 fallback) before use, and `minutesToHM` renders `—` for non-finite input as a last-resort display guard. When adding new numeric trip/stop math, apply the same finite-check at the point of use.
+
+- **A `backdrop-filter` ancestor is a blur root — nested glass silently can't frost.** The nav
+  popovers used the navbar's exact glass recipe yet stayed sharp-edged: their blur sampled the
+  topnav's own interior; the page behind never entered their backdrop. Floating panels must
+  render outside the filtered ancestor — portal to `document.body` + `position: fixed`, with the
+  rect captured from the trigger at open time (see `App.tsx` notif/user-menu). Corollaries:
+  click-outside guards must cover BOTH the trigger wrapper and the portaled node
+  (`useClickOutside` returns `[ref, portalRef]`), and focus must be moved into the open panel
+  explicitly (`tabIndex={-1}` + `focus({ preventScroll: true })`) — portaled nodes leave the
+  trigger's tab neighbourhood.
+
+- **Buttons without an explicit colour inherit UA `buttontext` (black)** — fine on light
+  surfaces, invisible on dark ones (Profile travel-style chips rendered black-on-navy in dark
+  mode). The global `button { color: inherit }` reset in `styles.css` makes every button take
+  theme text; set a colour explicitly only when a button deliberately differs.
 
 ## 5. External services
 
@@ -330,3 +359,27 @@ by orphan check** (Sep 2026): the reported "802 orphan rows" turned out to be
   write-through failures kept the hydrated trip count at zero. The
   scoped-hydration + write-through fixes close the loop; if bloat reappears,
   look for a new path that re-seeds non-idempotently.
+
+## 6. Documentation protocol
+
+- **`ROADMAP.md` is the single plan of record** (milestone/release structure:
+  stabilization + strategic tracks, backlog pool). New plans/phases merge into
+  it — don't open competing plan files. Executed plans get archived to
+  `docs/history/` with a `⚠️ HISTORICAL` banner and their status line flipped
+  (a plan saying "in execution" while every milestone is ✅ cost a re-read to
+  distrust, Sep 2026).
+- **Update progress lines in the same edit as tracker ticks.** The UI-audit
+  table read 32/32 ✅ while the "Progress" line said 16/32 for two releases —
+  any counter derived from ticked rows must be recomputed in the commit that
+  ticks them.
+- **Deferrals must land in the roadmap pool the same commit they're deferred**
+  (ALIGNMENT/plan docs saying "deliberately deferred" is not enough — the item
+  disappears otherwise).
+- **Keep-a-Changelog with a lead sentence.** CHANGELOG entries: first bold
+  sentence = user-visible outcome; detail after; deep technical dives belong
+  in `docs/` or the commit body, not a 300-word bullet. Categories stay
+  Added/Changed/Fixed/Removed per release.
+- **`docs/README.md` is the doc index** — every new doc gets a row there
+  (Diátaxis flavor: tutorials / how-to / reference / explanation — tag the
+  row with which it is). Root stays lean: README, AGENTS, CONTRIBUTING,
+  CHANGELOG, ROADMAP, DESIGN_TOKENS; everything else lives in `docs/`.

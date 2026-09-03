@@ -11,7 +11,9 @@ Start here. The codebase is documented across the files below — read the ones 
 | [`USER_GUIDE.md`](USER_GUIDE.md) | End-user how-to: planning a trip, the timeline, map, budget, sharing. |
 | [`UI_AUDIT.md`](UI_AUDIT.md) | Full UI audit (2026-09-01, v0.22.0): 32 findings vs the Vercel Web Interface Guidelines — file:line references, severity, and an example fix for every finding, plus a 6-batch fix roadmap. |
 | [`CONTRIBUTING.md`](../CONTRIBUTING.md) | Setup + ground rules for contributors. |
-| [`AGENTS.md`](../AGENTS.md) | Operating manual for AI coding agents (Cline/Hermes). **Read fully before automating any change here.** |
+| [`AGENTS.md`](../AGENTS.md) | Operating manual for AI coding agents (Cline/Hermes). **Read fully before automating any change here.** Includes the documentation protocol (§6). |
+| [`ROADMAP.md`](../ROADMAP.md) | **Single plan of record**: stabilization + strategic milestone tracks, UI-audit tracker, backlog pool. |
+| [`history/implementation-plan-v0.23.0-cti.md`](history/implementation-plan-v0.23.0-cti.md) | ⚠️ HISTORICAL decision record — the executed v0.23.0 + CTI redesign plan (all milestones shipped). |
 | [`REPORT-2026-08-29-nearby-rework-and-google-maps.md`](REPORT-2026-08-29-nearby-rework-and-google-maps.md) | ⚠️ HISTORICAL design record (shipped in 0.17.0). Decision log, not live guidance. |
 
 ## Diagrams

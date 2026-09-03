@@ -247,18 +247,19 @@ export function benchInputsEqual(a: BenchInputs, b: BenchInputs): boolean {
 
 // ---------------- Share text ----------------
 
-/** Clipboard-friendly plain-text receipt — the transparency promise, portable. */
+/** Clipboard-friendly plain-text receipt — the transparency promise, portable.
+ *  (formatInr already renders the ₹ sign.) */
 export function formatBenchShareText(bill: BenchBill, input: BenchInputs): string {
   const rideWord = input.mode === 'bus' || input.mode === 'train' ? 'on the move' : 'driving'
   return [
     'YatraFlow — trip cost estimate',
     `${bill.roadKm} km road · ${bill.days} days · ${input.crew} traveller${input.crew === 1 ? '' : 's'} · ${input.mode}${input.roundTrip ? ' (return)' : ''}`,
     '',
-    `Transport  ₹${formatInr(bill.transportCost)} — ${bill.transportFormula}`,
-    `Stay  ₹${formatInr(bill.stayCost)} — ${bill.stayFormula}`,
-    `Food  ₹${formatInr(bill.mealCost)} — ${bill.mealFormula}`,
+    `Transport  ${formatInr(bill.transportCost)} — ${bill.transportFormula}`,
+    `Stay  ${formatInr(bill.stayCost)} — ${bill.stayFormula}`,
+    `Food  ${formatInr(bill.mealCost)} — ${bill.mealFormula}`,
     '',
-    `Total ₹${formatInr(bill.total)} · ₹${formatInr(bill.perHead)} per person`,
+    `Total ${formatInr(bill.total)} · ${formatInr(bill.perHead)} per person`,
     `${bill.fatigue.verdict} (~${Math.round(bill.wheelHours)}h ${rideWord}, ~${bill.hoursPerDay.toFixed(1)}h/day)`,
     '',
     'Excludes tolls, parking and entry fees. Price your own trip on the Plan Bench → https://yatraflow-blond.vercel.app/',

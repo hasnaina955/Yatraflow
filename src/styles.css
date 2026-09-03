@@ -2660,13 +2660,186 @@ html.vt-active :where(*) {
 .bench-receipt-actions { display: flex; justify-content: center; }
 .bench-fineprint { font-size: 11px; color: var(--text-3); text-align: center; margin: 0; line-height: 1.5; }
 
-/* hero anchor → smooth scroll to the bench (button, not href — hash routing owns location.hash) */
-.hero-bench-link { margin: 10px 0 0; }
-.hero-bench-link button {
-  background: none; border: none; padding: 0;
-  font-size: 13.5px; font-weight: 700; color: var(--yf-teal-600);
-  text-decoration: underline; text-underline-offset: 3px; cursor: pointer;
+/* ---------- Plan Bench 3.0 — motion system (transform/opacity only) ---------- */
+
+/* identity badge — the tool finally wears its name */
+.bench-badge {
+  display: flex; align-items: center; gap: 8px; width: fit-content;
+  margin: 0 auto 16px; padding: 7px 16px; border-radius: 999px;
+  font-size: 12.5px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase;
+  color: var(--yf-teal-700);
+  background: linear-gradient(var(--card), var(--card)) padding-box,
+    linear-gradient(90deg, var(--yf-teal-600), var(--yf-saffron)) border-box;
+  border: 1.5px solid transparent;
+  box-shadow: 0 4px 18px rgba(13, 141, 130, .16);
 }
+.bench-badge-dot { position: relative; width: 8px; height: 8px; border-radius: 50%; background: var(--yf-teal-600); }
+@media (prefers-reduced-motion: no-preference) {
+  .bench-badge-dot::after {
+    content: ''; position: absolute; inset: -3px; border-radius: 50%;
+    border: 2px solid var(--yf-teal-600); opacity: 0;
+    animation: bench-ping 2.4s ease-out infinite;
+  }
+}
+@keyframes bench-ping { 0% { transform: scale(.5); opacity: .8; } 70%, 100% { transform: scale(1.7); opacity: 0; } }
+
+/* saffron underline draws itself when the section scrolls into view */
+.bench-underline { position: relative; white-space: nowrap; }
+.bench-underline svg { position: absolute; left: -2%; bottom: -.16em; width: 104%; height: .3em; overflow: visible; }
+.bench-underline path {
+  fill: none; stroke: var(--yf-saffron); stroke-width: 6; stroke-linecap: round;
+  stroke-dasharray: 230; stroke-dashoffset: 230;
+}
+.bench-live .bench-underline path { stroke-dashoffset: 0; transition: stroke-dashoffset .9s cubic-bezier(.22, 1, .36, 1) .45s; }
+
+.bench-sub { text-align: center; max-width: 560px; margin: 0 auto 18px; }
+
+/* drifting atmosphere blobs behind the section */
+.plan-bench { position: relative; overflow: hidden; }
+.bench-blob { position: absolute; z-index: 0; width: 340px; height: 340px; border-radius: 50%; filter: blur(70px); opacity: .55; pointer-events: none; }
+.bench-blob-a { top: -90px; left: -130px; background: var(--yf-atmos-peach); }
+.bench-blob-b { bottom: -70px; right: -150px; background: var(--yf-atmos-mint); }
+.plan-bench > *:not(.bench-blob) { position: relative; z-index: 1; }
+@media (prefers-reduced-motion: no-preference) {
+  .bench-blob-a { animation: blob-drift 19s ease-in-out infinite alternate; }
+  .bench-blob-b { animation: blob-drift 26s ease-in-out infinite alternate-reverse; }
+}
+@keyframes blob-drift { from { transform: translate(0, 0) scale(1); } to { transform: translate(46px, 26px) scale(1.12); } }
+
+/* scroll-in choreography */
+@media (prefers-reduced-motion: no-preference) {
+  .bench-live .bench-badge, .bench-live .bench-title, .bench-live .bench-sub, .bench-live .bench-preset-row { animation: bench-rise .55s cubic-bezier(.22, 1, .36, 1) backwards; }
+  .bench-live .bench-title { animation-delay: .07s; }
+  .bench-live .bench-sub { animation-delay: .14s; }
+  .bench-live .bench-preset-row { animation-delay: .2s; }
+  .bench-live .bench-control-block { animation: bench-rise .5s cubic-bezier(.22, 1, .36, 1) backwards; }
+  .bench-live .bench-control-block:nth-child(1) { animation-delay: .22s; }
+  .bench-live .bench-control-block:nth-child(2) { animation-delay: .28s; }
+  .bench-live .bench-control-block:nth-child(3) { animation-delay: .34s; }
+  .bench-live .bench-control-block:nth-child(4) { animation-delay: .4s; }
+  .bench-live .bench-control-block:nth-child(5) { animation-delay: .46s; }
+  .bench-live .bench-control-block:nth-child(6) { animation-delay: .52s; }
+  .bench-live .bench-receipt { animation: bench-receipt-in .65s cubic-bezier(.22, 1, .36, 1) .24s backwards; }
+}
+@keyframes bench-rise { from { opacity: 0; transform: translateY(16px); } }
+@keyframes bench-receipt-in { from { opacity: 0; transform: translateY(26px) rotate(-1.4deg); } }
+
+/* odometer money figures — per-digit vertical strips */
+.odo { display: inline-flex; line-height: 1; vertical-align: baseline; }
+.odo-char { display: inline-block; height: 1em; line-height: 1; }
+.odo-digit {
+  position: relative; display: inline-block; height: 1em; overflow: hidden;
+  -webkit-mask-image: linear-gradient(transparent 0, #000 16%, #000 84%, transparent 100%);
+  mask-image: linear-gradient(transparent 0, #000 16%, #000 84%, transparent 100%);
+}
+.odo-strip { display: flex; flex-direction: column; transition: transform .55s cubic-bezier(.22, 1.35, .36, 1); }
+.odo-num { display: block; height: 1em; line-height: 1; text-align: center; }
+@media (prefers-reduced-motion: reduce) { .odo-strip { transition: none; } }
+
+/* slider drag bubble */
+.bench-slider { position: relative; }
+.bench-bubble {
+  position: absolute; top: -37px; transform: translateX(-50%); z-index: 2;
+  background: var(--yf-teal-700); color: #fff; font-size: 12px; font-weight: 800;
+  padding: 4px 10px; border-radius: 9px; white-space: nowrap; pointer-events: none;
+  font-variant-numeric: tabular-nums; animation: bench-pop .16s ease-out;
+}
+.bench-bubble::after {
+  content: ''; position: absolute; left: 50%; bottom: -4px; transform: translateX(-50%);
+  border: 4px solid transparent; border-top-color: var(--yf-teal-700); border-bottom: none;
+}
+@keyframes bench-pop { from { opacity: 0; } }
+
+/* fatigue needle gauge */
+.bench-gauge { width: 74px; height: 40px; flex-shrink: 0; color: var(--yf-teal-600); }
+.bench-gauge.tone-warn { color: var(--yf-saffron); }
+.bench-gauge.tone-hot { color: #e05656; }
+.bench-gauge-needle { transform-origin: 60px 58px; }
+@media (prefers-reduced-motion: no-preference) {
+  .bench-gauge-needle { transition: transform .7s cubic-bezier(.22, 1.35, .36, 1); }
+}
+
+/* stamp thud — hidden until the section lives, restamps on preset apply */
+.bench-stamp { opacity: 0; }
+.bench-live .bench-stamp { animation: bench-stamp-in .5s cubic-bezier(.2, 2, .4, 1) .6s both; }
+@keyframes bench-stamp-in {
+  0% { opacity: 0; transform: rotate(16deg) scale(2.1); }
+  60% { opacity: .8; }
+  100% { opacity: .55; transform: rotate(7deg) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) { .bench-stamp { opacity: .55; } }
+
+/* receipt tilt (pointer-follow, desktop only) + tear-off + reprint flicker */
+.bench-receipt {
+  transform: perspective(1100px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+  transition: transform .18s ease-out;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .bench-receipt.tearing { animation: bench-tear .38s ease-in both; }
+  .bench-receipt-lines { animation: bench-reprint .32s ease-out backwards; }
+}
+@keyframes bench-tear { to { transform: rotate(-2deg) translateY(14px); opacity: .4; } }
+@keyframes bench-reprint { from { opacity: 0; transform: translateY(-7px); } }
+
+/* dice roll + disabled surprise */
+.bench-dice { display: inline-block; }
+@media (prefers-reduced-motion: no-preference) {
+  .bench-surprise.rolling .bench-dice { animation: dice-roll .6s cubic-bezier(.22, 1, .36, 1); }
+}
+@keyframes dice-roll { 0% { transform: rotate(0) scale(1); } 60% { transform: rotate(300deg) scale(1.25); } 100% { transform: rotate(360deg) scale(1); } }
+.bench-surprise:disabled { opacity: .65; cursor: default; }
+
+/* copy celebration — confetti + copied tint */
+.bench-receipt-actions { position: relative; }
+.chip-copied { border-color: var(--yf-teal-600) !important; color: var(--yf-teal-700) !important; }
+.bench-confetti { position: absolute; left: 50%; top: 0; pointer-events: none; }
+.cf-bit { position: absolute; width: 7px; height: 7px; border-radius: 2px; background: var(--c); opacity: 0; }
+@media (prefers-reduced-motion: no-preference) {
+  .cf-bit { animation: cf-pop .7s ease-out forwards; }
+}
+@keyframes cf-pop {
+  0% { opacity: 1; transform: translate(0, 0) rotate(0) scale(1); }
+  100% { opacity: 0; transform: translate(var(--dx), var(--dy)) rotate(var(--rot)) scale(.7); }
+}
+
+/* CTA shine sweep + press feedback (transform-only) */
+.bench-cta { position: relative; overflow: hidden; }
+.bench-cta:active { transform: scale(.97); }
+@media (prefers-reduced-motion: no-preference) {
+  .bench-cta::after {
+    content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 55%;
+    background: linear-gradient(105deg, transparent, rgba(255, 255, 255, .35), transparent);
+    transform: translateX(-140%) skewX(-18deg);
+    animation: bench-shine 4.2s ease-in-out infinite;
+  }
+}
+@keyframes bench-shine {
+  0%, 55% { transform: translateX(-140%) skewX(-18deg); }
+  80%, 100% { transform: translateX(330%) skewX(-18deg); }
+}
+
+/* hero CTA — animated gradient border + bouncing arrow */
+.hero-bench-cta {
+  position: relative; display: inline-flex; padding: 2px; border: none; border-radius: 999px; cursor: pointer;
+  background: linear-gradient(90deg, var(--yf-teal-600), var(--yf-saffron), var(--yf-teal-600));
+  background-size: 220% 100%; background-position: 0 0;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .hero-bench-cta {
+    animation: hbc-slide 3.5s linear infinite;
+    box-shadow: 0 6px 22px rgba(13, 141, 130, .28);
+  }
+  .hero-bench-cta .hbc-arrow { animation: hbc-nudge 1.6s ease-in-out infinite; }
+}
+@keyframes hbc-slide { to { background-position: 220% 0; } }
+@keyframes hbc-nudge { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(4px); } }
+.hero-bench-cta .hbc-label {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--bg); border-radius: 999px; padding: 13px 22px;
+  font-size: 15px; font-weight: 800; color: var(--text);
+}
+.hero-bench-cta .hbc-arrow { color: var(--yf-teal-600); display: inline-block; }
+.hero-bench-cta:hover .hbc-label { background: var(--yf-teal-100); }
 
 @media (max-width:  720px) {
   .bench-grid { grid-template-columns: 1fr; }
@@ -2677,6 +2850,8 @@ html.vt-active :where(*) {
   .bench-preset-row .chip, .bench-receipt-actions .chip { min-height: 40px; }
   .bench-receipt-head { padding-right: 78px; }
   .bench-receipt-rules::before { left: -8px; }
+  .bench-badge { font-size: 11.5px; padding: 6px 13px; }
+  .bench-gauge { width: 60px; height: 33px; }
   .bench-receipt-rules::after { right: -10px; }
   .bench-total-main { font-size:  30px; }
   .pub-hero { padding: 64px 0 120px; }

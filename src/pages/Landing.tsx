@@ -20,13 +20,12 @@ export function LandingPage({ onNavigate }: { onNavigate: (r: string) => void })
             <div className="hero-ctas">
               <a className="btn btn-primary btn-lg" href="#/auth?mode=signup">Start planning free →</a>
               <a className="btn btn-saffron btn-lg" href="#/explore">Explore itineraries</a>
+              <button type="button" className="hero-bench-cta"
+                onClick={() => document.getElementById('plan-bench')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>
+                <span className="hbc-label">Price a trip in 10 seconds <span className="hbc-arrow" aria-hidden="true">⬇</span></span>
+              </button>
             </div>
             <p className="small muted" style={{ marginTop: 16 }}>No card needed · Free forever · Your planning data is yours</p>
-            <p className="hero-bench-link">
-              <button type="button" onClick={() => document.getElementById('plan-bench')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>
-                Price a trip in 10 seconds ⬇
-              </button>
-            </p>
           </div>
 
           {/* Adventure preview card (dark navy, route illustration, mockup) */}
@@ -48,6 +47,9 @@ export function LandingPage({ onNavigate }: { onNavigate: (r: string) => void })
         </div>
       </section>
 
+      {/* ---------- Plan Bench (interactive cost calculator) — the showpiece, one scroll from the fold ---------- */}
+      <PlanBench />
+
       {/* ---------- What changes for you ---------- */}
       <section className="container" style={{ paddingBottom: 8 }}>
         <p className="small" style={{ textAlign: 'center', fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--yf-teal-600)', marginBottom: 8 }}>One place for the reality of a trip</p>
@@ -58,9 +60,6 @@ export function LandingPage({ onNavigate }: { onNavigate: (r: string) => void })
           <FeatureCard icon="👥" title="Keep the whole group aligned" body="Share the itinerary, decide together, and know what still needs an answer." />
         </div>
       </section>
-
-      {/* ---------- Plan Bench (interactive cost calculator) ---------- */}
-      <PlanBench />
 
       {/* ---------- How it works ---------- */}
       <section className="container" style={{ paddingBottom: 60 }}>

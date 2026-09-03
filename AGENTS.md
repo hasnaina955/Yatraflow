@@ -70,6 +70,13 @@ Key locations:
    screen (e.g. `http://localhost:5173/#/` for Landing,
    `http://localhost:5173/#/trips` for My Trips) and say what to check
    (themes, mobile width, specific interactions).
+8. **Build locally first; confirm the target branch before every push.** A feature
+   or fix is always implemented and verified (`npm run verify`) on the current
+   local branch before any push is even discussed. When the work is ready, tell
+   the user which branch you propose to push to and wait for explicit
+   confirmation — never push to `main`, `test`, or any other branch as part of
+   the implementation step. This prevents unauthorized code from reaching a
+   shared branch and keeps the user in control of what ships.
 
 
 ## 3. Verification before every push

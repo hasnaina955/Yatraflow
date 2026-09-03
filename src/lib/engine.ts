@@ -19,10 +19,13 @@ export interface EngineAssumptions {
   fuelPriceIsUserSet?: boolean
 }
 
-const MODE_SPEED: Record<string, number> = {
+/** Average door-to-door speed per mode (km/h) — shared by the scheduling
+ *  engine and the Landing page's Plan Bench (issue #37). */
+export const MODE_SPEED: Record<string, number> = {
   car: 42, motorcycle: 44, taxi: 38, bus: 34, train: 55, flight: 320, mixed: 45,
 }
-const MODE_COST_PER_KM: Record<string, number> = {
+/** Blended all-in ₹/km rate per mode when no fuel economy is stated. */
+export const MODE_COST_PER_KM: Record<string, number> = {
   car: 9, motorcycle: 4.5, taxi: 16, bus: 2.2, train: 1.6, flight: 6.5, mixed: 8,
 }
 

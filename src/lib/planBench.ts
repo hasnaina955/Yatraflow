@@ -1,0 +1,191 @@
+// ============ Plan Bench — homepage what-if cost calculator ============
+// Pure math behind the Landing page's interactive "honest bill" (issue #37).
+// Transport mirrors the workspace engine's assumption tables (MODE_SPEED /
+// MODE_COST_PER_KM / FUEL_PRICE_INR_PER_L) so the bench tells the same story
+// as a real trip. Stay and meal rates are bench-local assumptions and every
+// bill line renders its own formula — the transparency promise is the feature.
+
+import { FUEL_PRICE_INR_PER_L, MODE_SPEED, MODE_COST_PER_KM } from './engine'
+import type { TravelStyle } from '../data/types'
+
+/** Modes the bench offers ('motorcycle' is the engine's name for a bike). */
+export const BENCH_MODES = ['car', 'motorcycle', 'bus', 'train'] as const
+export type BenchMode = (typeof BENCH_MODES)[number]
+
+export const STAY_STYLES = ['budget', 'comfort', 'luxury'] as const
+export type BenchStayStyle = (typeof STAY_STYLES)[number]
+
+/** Stay style → trip travel style, applied when the bench hands off to trip creation. */
+export const STAY_TO_TRAVEL_STYLE: Record<BenchStayStyle, TravelStyle> = {
+  budget: 'budget',
+  comfort: 'balanced',
+  luxury: 'luxury',
+}
+
+/** Bench-local lodging assumption: ₹ per room per night, two guests per room. */
+export const STAY_RATE_PER_NIGHT: Record<BenchStayStyle, number> = {
+  budget: 1200, comfort: 3200, luxury: 8000,
+}
+/** Bench-local food assumption: ₹ per head per day. */
+export const MEALS_PER_HEAD_DAY = 600
+
+/** Slider/control bounds (also the clamps applied by the math below). */
+export const BENCH_LIMITS = {
+  km: [100, 900] as const,
+  nights: [1, 7] as const,
+  crew: [1, 8] as const,
+  kmPerL: [2, 80] as const,   // mirrors parseFuelEconomyKmL's hard band
+  inrPerL: [50, 250] as const, // mirrors parseFuelPricePerL's hard band
+}
+
+/** True when the mode is priced through its own fuel economy (vs a blended fare). */
+export function isBenchFuelMode(mode: BenchMode): boolean {
+  return mode === 'car' || mode === 'motorcycle'
+}
+
+export interface BenchInputs {
+  km: number
+  mode: BenchMode
+  nights: number
+  crew: number
+  roundTrip: boolean
+  kmPerL: number
+  inrPerL: number
+  stay: BenchStayStyle
+}
+
+export interface BenchBill {
+  roadKm: number
+  transportCost: number
+  transportFormula: string
+  rooms: number
+  stayCost: number
+  stayFormula: string
+  mealCost: number
+  mealFormula: string
+  perHead: number
+  total: number
+  wheelHours: number
+  days: number
+  hoursPerDay: number
+  fatigue: { verdict: string; tone: 'calm' | 'warn' | 'hot' }
+}
+
+function clamp(n: number, [lo, hi]: readonly [number, number]): number {
+  return Math.min(hi, Math.max(lo, Number.isFinite(n) ? n : lo))
+}
+
+/** The whole bill in one pure pass — clamps every input, derives every line
+ *  and the formula string that explains it. */
+export function computeBenchBill(input: BenchInputs): BenchBill {
+  const km = clamp(input.km, BENCH_LIMITS.km)
+  const nights = Math.round(clamp(input.nights, BENCH_LIMITS.nights))
+  const crew = Math.round(clamp(input.crew, BENCH_LIMITS.crew))
+  const kmPerL = clamp(input.kmPerL, BENCH_LIMITS.kmPerL)
+  const inrPerL = clamp(input.inrPerL, BENCH_LIMITS.inrPerL)
+  const roadKm = input.roundTrip ? km * 2 : km
+  const days = nights + 1
+
+  // Transport: self-drive burns litres (km ÷ economy × pump price); bus/train
+  // ride the blended fare table — the same split the engine draws.
+  let transportCost: number
+  let transportFormula: string
+  if (isBenchFuelMode(input.mode)) {
+    transportCost = Math.round((roadKm / kmPerL) * inrPerL)
+    transportFormula = `${roadKm} km ÷ ${kmPerL} km/L × ₹${inrPerL}`
+  } else {
+    const rate = MODE_COST_PER_KM[input.mode]
+    transportCost = Math.round(roadKm * rate)
+    transportFormula = `${roadKm} km × ₹${rate}/km fare`
+  }
+
+  const rooms = Math.ceil(crew / 2)
+  const stayRate = STAY_RATE_PER_NIGHT[input.stay]
+  const stayCost = nights * rooms * stayRate
+  const stayFormula = `${nights} night${nights === 1 ? '' : 's'} × ${rooms} room${rooms === 1 ? '' : 's'} × ₹${stayRate}`
+
+  const mealCost = days * crew * MEALS_PER_HEAD_DAY
+  const mealFormula = `${days} day${days === 1 ? '' : 's'} × ${crew} head${crew === 1 ? '' : 's'} × ₹${MEALS_PER_HEAD_DAY}`
+
+  const total = transportCost + stayCost + mealCost
+  const perHead = Math.round(total / crew)
+
+  const wheelHours = roadKm / (MODE_SPEED[input.mode] ?? 40)
+  const hoursPerDay = wheelHours / days
+  const fatigue =
+    hoursPerDay <= 4 ? { verdict: 'Easy going — time for detours', tone: 'calm' as const }
+    : hoursPerDay <= 7 ? { verdict: 'Full driving days — pace yourself', tone: 'warn' as const }
+    : { verdict: 'Long haul — split it or take the train', tone: 'hot' as const }
+
+  return {
+    roadKm, transportCost, transportFormula, rooms, stayCost, stayFormula,
+    mealCost, mealFormula, perHead, total, wheelHours, days, hoursPerDay, fatigue,
+  }
+}
+
+/** One-tap route presets (issue #37's table). */
+export const BENCH_PRESETS: Array<{ label: string; km: number; mode: BenchMode; nights: number; crew: number }> = [
+  { label: 'Kerala loop', km: 612, mode: 'car', nights: 4, crew: 4 },
+  { label: 'Golden Triangle', km: 780, mode: 'car', nights: 5, crew: 6 },
+  { label: 'Goa coast', km: 330, mode: 'motorcycle', nights: 3, crew: 2 },
+  { label: 'Himalayan loop', km: 470, mode: 'car', nights: 4, crew: 3 },
+]
+
+export const BENCH_DEFAULTS: BenchInputs = {
+  km: 612, mode: 'car', nights: 4, crew: 4, roundTrip: true,
+  kmPerL: 15, inrPerL: FUEL_PRICE_INR_PER_L, stay: 'comfort',
+}
+
+// ---------------- Hand-off to trip creation ----------------
+// The bench is stateless by design; the only thing that crosses into the app
+// is this one-shot sessionStorage stash that CreateTrip reads (and clears)
+// exactly once on mount to pre-fill travellers / mode / budget / fuel fields.
+
+export interface BenchPrefill {
+  travellers: number
+  transportMode: BenchMode
+  budgetPerPersonInr: number
+  travelStyle: TravelStyle
+  roundTrip: boolean
+  kmPerL?: number
+  inrPerL?: number
+}
+
+export const BENCH_PREFILL_KEY = 'yatraflow_bench_prefill'
+
+/** Pure parser — same contract as uiPrefs: assert on this in node-env tests;
+ *  the storage wrappers below just degrade to no-ops when storage is missing. */
+export function parseBenchPrefill(raw: string | null | undefined): BenchPrefill | null {
+  if (!raw) return null
+  try {
+    const p = JSON.parse(raw) as Partial<BenchPrefill>
+    if (
+      !Number.isFinite(p.travellers) || !p.transportMode || !BENCH_MODES.includes(p.transportMode as BenchMode) ||
+      !Number.isFinite(p.budgetPerPersonInr) || !p.travelStyle
+    ) return null
+    return p as BenchPrefill
+  } catch { return null }
+}
+
+export function stashBenchPrefill(bill: BenchBill, input: BenchInputs): void {
+  const prefill: BenchPrefill = {
+    travellers: input.crew,
+    transportMode: input.mode,
+    budgetPerPersonInr: bill.perHead,
+    travelStyle: STAY_TO_TRAVEL_STYLE[input.stay],
+    roundTrip: input.roundTrip,
+    ...(isBenchFuelMode(input.mode) ? { kmPerL: input.kmPerL, inrPerL: input.inrPerL } : {}),
+  }
+  try { sessionStorage.setItem(BENCH_PREFILL_KEY, JSON.stringify(prefill)) } catch { /* private mode etc. */ }
+}
+
+/** Read-and-clear the bench hand-off. Returns null when absent or unusable —
+ *  a corrupt stash must never block the plain form. */
+export function readBenchPrefill(): BenchPrefill | null {
+  try {
+    const raw = sessionStorage.getItem(BENCH_PREFILL_KEY)
+    if (!raw) return null
+    sessionStorage.removeItem(BENCH_PREFILL_KEY)
+    return parseBenchPrefill(raw)
+  } catch { return null }
+}

@@ -2468,8 +2468,139 @@ html.vt-active :where(*) {
 [data-theme='dark'] .save-heart { background: rgba(20, 32, 46, .85); color: #e58875; }
 .itin-card { position: relative; }
 
-/* M7 mobile (single ≤720px block additions) */
-@media (max-width: 720px) {
+/* ---------- Plan Bench (issue #37) — homepage cost calculator ---------- */
+.plan-bench { padding-top: 30px; }
+.bench-grid {
+  display: grid; grid-template-columns: minmax(320px, 1.05fr) minmax(300px, 0.95fr);
+  gap: 18px; align-items: start; margin-top: 8px;
+}
+.bench-controls { display: flex; flex-direction: column; gap: 18px; }
+.bench-control-block { display: flex; flex-direction: column; gap: 8px; }
+.bench-control-label { font-size: 12.5px; font-weight: 700; color: var(--text-2); letter-spacing: .02em; }
+
+/* range sliders — filled track + brand thumb (webkit first per lightningcss) */
+.yf-range {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 28px; background: transparent; cursor: pointer;
+}
+.yf-range::-webkit-slider-runnable-track {
+  height: 8px; border-radius: 999px;
+  background: linear-gradient(90deg, var(--yf-teal-600) var(--fill, 50%), var(--line) var(--fill, 50%));
+}
+.yf-range::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 22px; height: 22px; margin-top: -7px; border-radius: 50%;
+  background: var(--card); border: 3.5px solid var(--yf-teal-600);
+  box-shadow: 0 3px 10px rgba(14, 33, 30, .28);
+  transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease;
+}
+.yf-range:hover::-webkit-slider-thumb { transform: scale(1.12); border-color: var(--yf-teal-700); }
+.yf-range:active::-webkit-slider-thumb {
+  transform: scale(1.3); border-color: var(--yf-coral);
+  box-shadow: 0 0 0 8px color-mix(in srgb, var(--yf-teal-600) 18%, transparent);
+}
+.yf-range::-moz-range-track { height: 8px; border-radius: 999px; background: var(--line); }
+.yf-range::-moz-range-progress { height: 8px; border-radius: 999px; background: var(--yf-teal-600); }
+.yf-range::-moz-range-thumb {
+  width: 16px; height: 16px; border-radius: 50%;
+  background: var(--card); border: 3.5px solid var(--yf-teal-600);
+  transition: transform .15s ease;
+}
+.yf-range:hover::-moz-range-thumb { transform: scale(1.12); }
+.bench-range-row { display: flex; flex-direction: column; gap: 2px; }
+.bench-range-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.bench-range-value { font-variant-numeric: tabular-nums; font-size: 13px; font-weight: 700; color: var(--text); }
+
+/* return-leg switch */
+.bench-toggle-row { display: flex; align-items: center; gap: 10px; margin-top: 4px; }
+.bench-switch {
+  position: relative; width: 44px; height: 26px; border-radius: 999px; flex-shrink: 0;
+  border: 1.5px solid var(--line); background: var(--bg-soft); cursor: pointer;
+  transition: background .15s ease, border-color .15s ease;
+}
+.bench-switch.on { background: var(--yf-teal-600); border-color: var(--yf-teal-600); }
+.bench-switch-knob {
+  position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; border-radius: 50%;
+  background: var(--card); box-shadow: 0 1px 3px rgba(0,0,0,.25);
+  transition: transform .18s var(--ease-out);
+}
+.bench-switch.on .bench-switch-knob { transform: translateX(18px); }
+.bench-toggle-hint { font-size: 12.5px; color: var(--text-3); }
+
+/* crew avatar buttons */
+.bench-crew { display: flex; flex-wrap: wrap; gap: 8px; }
+.bench-crew-btn {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+  min-width: 44px; height: 46px; padding: 4px 8px; border-radius: 14px;
+  border: 1.5px solid var(--line); background: var(--card); cursor: pointer;
+  font-size: 12px; font-weight: 700; color: var(--text-2);
+  transition: transform .12s var(--ease-out), border-color .12s var(--ease-out), background .12s var(--ease-out);
+}
+.bench-crew-btn:hover { transform: translateY(-1px); }
+.bench-crew-btn.on { border-color: var(--yf-teal-600); background: var(--yf-teal-100); color: var(--yf-teal-700); }
+.bench-crew-emoji { font-size: 15px; line-height: 1; }
+
+/* receipt */
+.bench-receipt {
+  display: flex; flex-direction: column; gap: 14px;
+  background:
+    radial-gradient(120% 90% at 100% 0%, var(--yf-atmos-peach), transparent 55%),
+    radial-gradient(120% 90% at 0% 100%, var(--yf-atmos-mint), transparent 55%),
+    var(--card);
+}
+.bench-receipt-head { display: flex; justify-content: space-between; align-items: center; gap:  10px; }
+.bench-receipt-kicker { font-size: 11px; font-weight: 800; letter-spacing: .14em; color: var(--yf-teal-600); }
+.bench-total { text-align: center; padding: 4px 0 2px; }
+.bench-total-main { display: block; font-size: clamp(30px, 4.5vw,  42px); font-weight: 800; color: var(--text); font-variant-numeric: tabular-nums; }
+.bench-total-main small { font-size: 15px; font-weight:  650; color: var(--text-3); }
+.bench-total-sub { display: block; font-size: 13px; color: var(--text-3); margin-top: 2px; font-variant-numeric: tabular-nums; }
+@keyframes yf-flashnum { 0% { background: color-mix(in srgb, var(--yf-saffron) 30%, transparent); } 100% { background: transparent; } }
+.flash-num { animation: yf-flashnum .65s ease-out; border-radius: 8px; }
+@media (prefers-reduced-motion: reduce) { .flash-num { animation: none; } }
+
+/* split bar */
+.bench-split { display: flex; height: 10px; border-radius: 999px; overflow: hidden; border: 1px solid var(--line); }
+.bench-split-bar { height: 100%; transition: width .35s var(--ease-out); }
+.bench-split-transport { background: var(--yf-teal-600); }
+.bench-split-stay { background: var(--yf-saffron); }
+.bench-split-meal { background: var(--yf-purple); }
+.bench-split-legend { display: flex; flex-wrap: wrap; gap:  12px; font-size: 12px; color: var(--text-2); }
+.bench-split-legend .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; vertical-align: baseline; }
+.dot-transport { background: var(--yf-teal-600); }
+.dot-stay { background: var(--yf-saffron); }
+.dot-meal { background: var(--yf-purple); }
+
+/* receipt lines + perforated divider */
+.bench-receipt-lines { display: flex; flex-direction: column; gap:  8px; }
+.bench-line { display: flex; flex-direction: column; gap:  1px; padding: 8px 0; border-top: 1px dashed var(--line); }
+.bench-line-head { display: flex; justify-content: space-between; align-items: baseline; gap:  10px; font-size: 13.5px; }
+.bench-line-head b { font-variant-numeric: tabular-nums; }
+.bench-line-formula { font-size:  11.5px; }
+.bench-receipt-rules {
+  border-top: 2px dashed var(--yf-border); position: relative; height: 0; margin: 2px 0;
+}
+.bench-receipt-rules::before, .bench-receipt-rules::after {
+  content: ''; position: absolute; top: -5px; width: 11px; height: 11px; border-radius: 50%;
+  background: var(--bg); border: 1px solid var(--line);
+}
+.bench-receipt-rules::before { left: -14px; }
+.bench-receipt-rules::after { right: -10px; }
+
+/* fatigue gauge */
+.bench-fatigue { display: flex; align-items: center; gap:  12px; padding: 10px 12px; border-radius: 14px; border:  1px solid var(--line); background: var(--card-soft); }
+.bench-fatigue-ico { display: grid; place-items: center; width: 34px; height:  34px; border-radius: 50%; font-size:  17px; flex-shrink: 0; }
+.bench-fatigue-ico.tone-calm { background: var(--yf-mint); }
+.bench-fatigue-ico.tone-warn { background: var(--yf-amber-100); }
+.bench-fatigue-ico.tone-hot { background: var(--yf-coral-100); }
+.bench-fatigue-title { display: block; font-size:  13px; font-weight: 700; color: var(--text); }
+
+.bench-cta { margin-top: 2px; }
+
+@media (max-width:  720px) {
+  .bench-grid { grid-template-columns: 1fr; }
+  .bench-crew-btn { min-width:  40px; height:  40px; }
+  .bench-receipt-rules::before { left: -8px; }
+  .bench-receipt-rules::after { right: -10px; }
+  .bench-total-main { font-size:  30px; }
   .pub-hero { padding: 64px 0 120px; }
   .pub-hero-stats { position: static; width: auto; margin: 0 16px; }
   .pub-body { padding-top: 16px; }

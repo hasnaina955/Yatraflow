@@ -1,5 +1,6 @@
 // ============ Landing page ============
 import { BrandMark, RouteSquiggle } from '../components/ui'
+import { PlanBench } from '../components/PlanBench'
 
 export function LandingPage({ onNavigate }: { onNavigate: (r: string) => void }) {
   return (
@@ -63,6 +64,9 @@ export function LandingPage({ onNavigate }: { onNavigate: (r: string) => void })
           <Step n={4} title="Lock it & go" body="Resolve decisions, confirm bookings-worthy stops, publish if you like." />
         </div>
       </section>
+
+      {/* ---------- Plan Bench (interactive cost calculator) ---------- */}
+      <PlanBench />
 
       {/* ---------- Demo CTA ---------- */}
       <section className="container" style={{ paddingBottom: 70 }}>

@@ -1,5 +1,5 @@
 // ============ Create trip ============
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { FixedCommitment, LatLngPoint, TransportMode, TravelStyle } from '../data/types'
 import { TRANSPORT_MODES, TRAVEL_STYLES } from '../data/types'
 import { useDb, currentUser, createTrip } from '../store/store'
@@ -7,6 +7,7 @@ import { FUEL_PRICE_INR_PER_L, isFuelEconomyMode, parseFuelEconomyKmL, parseFuel
 import { fetchTripThumbUrl } from '../lib/tripThumb'
 import { Field, Chip, toast } from '../components/ui'
 import { useTimeFormat, formatHM } from '../lib/timefmt'
+import { readBenchPrefill } from '../lib/planBench'
 import { LocationInput } from '../components/LocationInput'
 import type { PlaceHit } from '../components/LocationInput'
 
@@ -50,6 +51,25 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
   const [busyCover, setBusyCover] = useState(false)
   /** first-invalid focus targets (F-15) — plain inputs only register here */
   const fieldRefs = useRef<Record<string, HTMLElement | null>>({})
+
+  // Plan Bench hand-off (issue #37): when the homepage calculator stashed its
+  // inputs into sessionStorage, pre-fill the matching fields. Read-once — the
+  // stash clears itself on read, so a refresh returns to the plain form.
+  useEffect(() => {
+    const p = readBenchPrefill()
+    if (!p) return
+    setF(prev => ({
+      ...prev,
+      travellers: p.travellers,
+      transportMode: p.transportMode,
+      budgetPerPersonInr: p.budgetPerPersonInr,
+      travelStyle: p.travelStyle,
+      roundTrip: p.roundTrip,
+      ...(isFuelEconomyMode(p.transportMode) && p.kmPerL != null && p.inrPerL != null
+        ? { fuelEconomy: String(p.kmPerL), fuelPrice: String(p.inrPerL) }
+        : {}),
+    }))
+  }, [])
 
   function addDest(d: DestDraft) {
     const name = d.name.trim()

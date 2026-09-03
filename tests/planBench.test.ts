@@ -4,10 +4,12 @@
 // room derivation, mode re-rating, the return-leg double, formula strings,
 // the fatigue verdict thresholds and the one-shot prefill hand-off.
 import { describe, it, expect, beforeEach } from 'vitest'
+import { formatInr } from '../src/lib/engine'
 import {
   computeBenchBill, BENCH_DEFAULTS, BENCH_LIMITS, BENCH_PRESETS,
   STAY_RATE_PER_NIGHT, MEALS_PER_HEAD_DAY, STAY_TO_TRAVEL_STYLE,
   parseBenchPrefill, readBenchPrefill, isBenchFuelMode,
+  parseBenchInputs, benchInputsEqual, formatBenchShareText,
   type BenchInputs,
 } from '../src/lib/planBench'
 
@@ -37,6 +39,14 @@ describe('computeBenchBill — transport', () => {
     const train = computeBenchBill(input({ mode: 'train', kmPerL: 2, inrPerL: 250, km: 400, roundTrip: false }))
     const train2 = computeBenchBill(input({ mode: 'train', kmPerL: 80, inrPerL: 50, km: 400, roundTrip: false }))
     expect(train.transportCost).toBe(train2.transportCost)
+  })
+
+  it('rounds fuel through the engine’s 2-dp ₹/km path (rupee parity with a real trip)', () => {
+    // 100/30 = 3.333… → engine rate 3.33 → 300 × 3.33 = 999 (a naive
+    // (300/30)×100 = 1000 would disagree with the workspace by ₹1)
+    const b = computeBenchBill(input({ km: 300, mode: 'car', roundTrip: false, kmPerL: 30, inrPerL: 100 }))
+    expect(b.transportCost).toBe(Math.round(300 * (Math.round((100 / 30) * 100) / 100)))
+    expect(b.transportCost).toBe(999)
   })
 })
 
@@ -88,6 +98,29 @@ describe('computeBenchBill — clamps and fatigue', () => {
       expect(b.total).toBeGreaterThan(0)
     }
   })
+
+  it('bills loop presets as complete circuits, out-and-back presets as doubled', () => {
+    for (const p of BENCH_PRESETS) {
+      const b = computeBenchBill(input(p))
+      expect(b.roadKm).toBe(p.roundTrip ? p.km * 2 : p.km)
+    }
+    // Kerala / Golden Triangle / Himalayan loops already return to their start
+    expect(BENCH_PRESETS.find(p => p.label === 'Kerala loop')!.roundTrip).toBe(false)
+    expect(BENCH_PRESETS.find(p => p.label === 'Golden Triangle')!.roundTrip).toBe(false)
+    expect(BENCH_PRESETS.find(p => p.label === 'Himalayan loop')!.roundTrip).toBe(false)
+    // Goa coast is modelled as an out-and-back weekend
+    expect(BENCH_PRESETS.find(p => p.label === 'Goa coast')!.roundTrip).toBe(true)
+  })
+
+  it('frames fatigue for passenger modes instead of self-drive advice', () => {
+    const train = computeBenchBill(input({ km: 900, mode: 'train', nights: 1, roundTrip: false }))
+    expect(train.fatigue.tone).toBe('hot')
+    expect(train.fatigue.verdict).not.toContain('take the train')
+    expect(train.fatigue.verdict).toContain('sleeper')
+    const calmTrain = computeBenchBill(input({ km: 300, mode: 'train', nights: 5, roundTrip: false }))
+    expect(calmTrain.fatigue.tone).toBe('calm')
+    expect(calmTrain.fatigue.verdict).toBe('Easy riding — sit back and enjoy')
+  })
 })
 
 describe('prefill hand-off', () => {
@@ -136,5 +169,51 @@ describe('prefill hand-off', () => {
     expect(isBenchFuelMode('motorcycle')).toBe(true)
     expect(isBenchFuelMode('bus')).toBe(false)
     expect(isBenchFuelMode('train')).toBe(false)
+  })
+})
+
+describe('bench inputs persistence', () => {
+  it('round-trips a valid stash', () => {
+    const stash: BenchInputs = { ...BENCH_DEFAULTS, crew: 6, stay: 'luxury', roundTrip: false }
+    const parsed = parseBenchInputs(JSON.stringify(stash))
+    expect(parsed).toEqual(stash)
+    expect(benchInputsEqual(parsed!, stash)).toBe(true)
+    expect(benchInputsEqual(stash, BENCH_DEFAULTS)).toBe(false)
+  })
+
+  it('rejects corrupt shapes instead of trusting them', () => {
+    expect(parseBenchInputs(null)).toBeNull()
+    expect(parseBenchInputs(undefined)).toBeNull()
+    expect(parseBenchInputs('')).toBeNull()
+    expect(parseBenchInputs('{not json')).toBeNull()
+    expect(parseBenchInputs(JSON.stringify({ ...BENCH_DEFAULTS, km: '900' }))).toBeNull()
+    expect(parseBenchInputs(JSON.stringify({ ...BENCH_DEFAULTS, roundTrip: 'yes' }))).toBeNull()
+    expect(parseBenchInputs(JSON.stringify({ ...BENCH_DEFAULTS, stay: 'palace' }))).toBeNull()
+    expect(parseBenchInputs(JSON.stringify({ ...BENCH_DEFAULTS, mode: 'camel' }))).toBeNull()
+    expect(parseBenchInputs(JSON.stringify({ ...BENCH_DEFAULTS, crew: NaN }))).toBeNull()
+  })
+})
+
+describe('share text', () => {
+  it('renders a clipboard-friendly receipt with the formulas intact', () => {
+    const inp = input({ km: 612, mode: 'car', roundTrip: false, crew: 4, nights: 4 })
+    const bill = computeBenchBill(inp)
+    const text = formatBenchShareText(bill, inp)
+    expect(text).toContain('YatraFlow')
+    expect(text).toContain('612 km road · 5 days · 4 travellers · car')
+    expect(text).toContain(`₹${formatInr(bill.total)}`)
+    expect(text).toContain(`₹${formatInr(bill.perHead)} per person`)
+    expect(text).toContain(bill.transportFormula)
+    expect(text).toContain(bill.stayFormula)
+    expect(text).toContain('Excludes tolls')
+  })
+
+  it('uses return notation and ride wording for passenger modes', () => {
+    const inp = input({ km: 400, mode: 'train', roundTrip: true, crew: 2, nights: 3 })
+    const bill = computeBenchBill(inp)
+    const text = formatBenchShareText(bill, inp)
+    expect(text).toContain('train (return)')
+    expect(text).toContain('on the move')
+    expect(text).not.toContain('driving')
   })
 })

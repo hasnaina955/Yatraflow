@@ -480,6 +480,7 @@ a.btn { text-decoration: none; }
   border: 1px solid transparent;
 }
 .chip-teal { background: var(--teal-soft); color: var(--teal-deep); }
+.chip-outline { background: var(--card); color: var(--text-2); border-color: var(--line); }
 .chip-saffron { background: var(--saffron-soft); color: var(--warn); }
 .chip-danger { background: var(--danger-soft); color: var(--danger); }
 .chip-ok { background: var(--ok-soft); color: var(--ok); }
@@ -1991,7 +1992,10 @@ main:focus { outline: none; }
 .day-rail-chip:focus-visible,
 .map-day-chip:focus-visible, .map-idea-chip:focus-visible, .map-legend-toggle:focus-visible,
 .map-expand-chip:focus-visible, .loc-option:focus-visible, .ai-fab:focus-visible,
-.trip-card-hit:focus-visible, .skip-link:focus-visible, .yf-map-pin:focus-visible {
+.trip-card-hit:focus-visible, .skip-link:focus-visible, .yf-map-pin:focus-visible,
+.yf-range:focus-visible, .bench-pill:focus-visible, .bench-crew-btn:focus-visible,
+.bench-seg button:focus-visible, .bench-preset-row .chip:focus-visible,
+.bench-receipt-actions .chip:focus-visible, .bench-surprise:focus-visible {
   outline: none;
   box-shadow: var(--ring);
 }
@@ -2478,7 +2482,10 @@ html.vt-active :where(*) {
 .itin-card { position: relative; }
 
 /* ---------- Plan Bench (issue #37) — homepage cost calculator ---------- */
-.plan-bench { padding-top: 30px; }
+.plan-bench {
+  padding-top: 30px; scroll-margin-top: 76px;
+  --bench-mono: ui-monospace, 'SF Mono', 'Cascadia Mono', 'Roboto Mono', Consolas, monospace;
+}
 .bench-grid {
   display: grid; grid-template-columns: minmax(320px, 1.05fr) minmax(300px, 0.95fr);
   gap: 18px; align-items: start; margin-top: 8px;
@@ -2517,23 +2524,38 @@ html.vt-active :where(*) {
 .yf-range:hover::-moz-range-thumb { transform: scale(1.12); }
 .bench-range-row { display: flex; flex-direction: column; gap: 2px; }
 .bench-range-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
-.bench-range-value { font-variant-numeric: tabular-nums; font-size: 13px; font-weight: 700; color: var(--text); }
+.bench-range-value { font-variant-numeric: tabular-nums; font-size: 13px; font-weight: 700; color: var(--text); font-family: var(--bench-mono); }
 
-/* return-leg switch */
-.bench-toggle-row { display: flex; align-items: center; gap: 10px; margin-top: 4px; }
-.bench-switch {
-  position: relative; width: 44px; height: 26px; border-radius: 999px; flex-shrink: 0;
-  border: 1.5px solid var(--line); background: var(--bg-soft); cursor: pointer;
-  transition: background .15s ease, border-color .15s ease;
+/* one-way / round-trip segmented control */
+.bench-seg-row { display: flex; align-items: center; gap: 10px; margin-top: 2px; flex-wrap: wrap; }
+.bench-seg {
+  display: inline-flex; gap: 3px; padding: 3px; border-radius: 999px;
+  border: 1.5px solid var(--line); background: var(--bg-soft);
 }
-.bench-switch.on { background: var(--yf-teal-600); border-color: var(--yf-teal-600); }
-.bench-switch-knob {
-  position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; border-radius: 50%;
-  background: var(--card); box-shadow: 0 1px 3px rgba(0,0,0,.25);
-  transition: transform .18s var(--ease-out);
+.bench-seg button {
+  border: none; border-radius: 999px; padding: 8px 14px; cursor: pointer;
+  font-size: 13px; font-weight: 700; color: var(--text-2); background: transparent;
+  transition: background .15s ease, color .15s ease;
 }
-.bench-switch.on .bench-switch-knob { transform: translateX(18px); }
-.bench-toggle-hint { font-size: 12.5px; color: var(--text-3); }
+.bench-seg button.on { border-color: var(--yf-teal-600); background: var(--yf-teal-100); color: var(--yf-teal-700); }
+.bench-seg-badge {
+  font-size: 12.5px; font-weight: 700; color: var(--text-3);
+  font-variant-numeric: tabular-nums; font-family: var(--bench-mono);
+}
+
+/* preset chips + mode/stay pills */
+.bench-preset-row { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 18px; }
+.bench-preset-row .chip, .bench-receipt-actions .chip { cursor: pointer; font-size: 12px; font-weight: 650; }
+.bench-pills { display: flex; flex-wrap: wrap; gap: 8px; }
+.bench-pill {
+  border: 1.5px solid var(--line); background: var(--card); cursor: pointer;
+  padding: 9px 14px; border-radius: 999px;
+  font-size: 13px; font-weight: 700; color: var(--text-2); text-transform: capitalize;
+  transition: transform .12s var(--ease-out), border-color .12s var(--ease-out), background .12s var(--ease-out);
+}
+.bench-pill:hover { transform: translateY(-1px); border-color: var(--yf-teal-600); }
+.bench-pill.on { border-color: var(--yf-teal-600); background: var(--yf-teal-100); color: var(--yf-teal-700); }
+.bench-hint { font-size: 12px; color: var(--text-3); margin: 0; }
 
 /* crew avatar buttons */
 .bench-crew { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -2548,27 +2570,56 @@ html.vt-active :where(*) {
 .bench-crew-btn.on { border-color: var(--yf-teal-600); background: var(--yf-teal-100); color: var(--yf-teal-700); }
 .bench-crew-emoji { font-size: 15px; line-height: 1; }
 
-/* receipt */
+/* receipt v2 — paper bill: torn bottom edge, stamp, mono numerals */
 .bench-receipt {
+  position: relative;
   display: flex; flex-direction: column; gap: 14px;
   background:
     radial-gradient(120% 90% at 100% 0%, var(--yf-atmos-peach), transparent 55%),
     radial-gradient(120% 90% at 0% 100%, var(--yf-atmos-mint), transparent 55%),
     var(--card);
+  clip-path: polygon(
+    0 0, 100% 0, 100% calc(100% - 9px),
+    96.875% 100%, 93.75% calc(100% - 9px), 90.625% 100%, 87.5% calc(100% - 9px),
+    84.375% 100%, 81.25% calc(100% - 9px), 78.125% 100%, 75% calc(100% - 9px),
+    71.875% 100%, 68.75% calc(100% - 9px), 65.625% 100%, 62.5% calc(100% - 9px),
+    59.375% 100%, 56.25% calc(100% - 9px), 53.125% 100%, 50% calc(100% - 9px),
+    46.875% 100%, 43.75% calc(100% - 9px), 40.625% 100%, 37.5% calc(100% - 9px),
+    34.375% 100%, 31.25% calc(100% - 9px), 28.125% 100%, 25% calc(100% - 9px),
+    21.875% 100%, 18.75% calc(100% - 9px), 15.625% 100%, 12.5% calc(100% - 9px),
+    9.375% 100%, 6.25% calc(100% - 9px), 3.125% 100%, 0 calc(100% - 9px)
+  );
 }
-.bench-receipt-head { display: flex; justify-content: space-between; align-items: center; gap:  10px; }
-.bench-receipt-kicker { font-size: 11px; font-weight: 800; letter-spacing: .14em; color: var(--yf-teal-600); }
+.bench-stamp {
+  position: absolute; top: 12px; right: 12px; z-index: 1;
+  transform: rotate(7deg);
+  border: 2px solid var(--yf-teal-600); color: var(--yf-teal-600);
+  border-radius: 6px; padding: 2px 9px;
+  font-size: 11px; font-weight: 800; letter-spacing: .18em;
+  opacity: .55; pointer-events: none; user-select: none;
+}
+.bench-receipt-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 2px 10px; padding-right: 92px; }
+.bench-receipt-kicker { font-size: 11px; font-weight: 800; letter-spacing: .14em; color: var(--yf-teal-600); white-space: nowrap; }
+.bench-receipt-date { font-size: 11px; color: var(--text-3); white-space: nowrap; }
 .bench-total { text-align: center; padding: 4px 0 2px; }
-.bench-total-main { display: block; font-size: clamp(30px, 4.5vw,  42px); font-weight: 800; color: var(--text); font-variant-numeric: tabular-nums; }
-.bench-total-main small { font-size: 15px; font-weight:  650; color: var(--text-3); }
-.bench-total-sub { display: block; font-size: 13px; color: var(--text-3); margin-top: 2px; font-variant-numeric: tabular-nums; }
-@keyframes yf-flashnum { 0% { background: color-mix(in srgb, var(--yf-saffron) 30%, transparent); } 100% { background: transparent; } }
-.flash-num { animation: yf-flashnum .65s ease-out; border-radius: 8px; }
-@media (prefers-reduced-motion: reduce) { .flash-num { animation: none; } }
+.bench-total-label { display: block; font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--text-3); }
+.bench-total-main {
+  display: block; font-size: clamp(30px, 4.5vw, 42px); font-weight: 800; color: var(--text);
+  font-variant-numeric: tabular-nums; font-family: var(--bench-mono);
+}
+.bench-total-main small { display: block; font-size: 15px; font-weight: 650; color: var(--text-2); margin-top: 3px; }
+.bench-total-sub { display: block; font-size: 13px; color: var(--text-3); margin-top: 4px; font-variant-numeric: tabular-nums; }
 
 /* split bar */
 .bench-split { display: flex; height: 10px; border-radius: 999px; overflow: hidden; border: 1px solid var(--line); }
-.bench-split-bar { height: 100%; transition: width .35s var(--ease-out); }
+.bench-split-bar {
+  height: 100%; transition: width .35s var(--ease-out);
+  display: flex; align-items: center; justify-content: center; min-width: 0; overflow: hidden;
+}
+.bench-split-bar span {
+  font-size: 8.5px; font-weight: 800; letter-spacing: .04em; white-space: nowrap;
+  color: #06251f; opacity: .8; font-variant-numeric: tabular-nums;
+}
 .bench-split-transport { background: var(--yf-teal-600); }
 .bench-split-stay { background: var(--yf-saffron); }
 .bench-split-meal { background: var(--yf-purple); }
@@ -2582,7 +2633,7 @@ html.vt-active :where(*) {
 .bench-receipt-lines { display: flex; flex-direction: column; gap:  8px; }
 .bench-line { display: flex; flex-direction: column; gap:  1px; padding: 8px 0; border-top: 1px dashed var(--line); }
 .bench-line-head { display: flex; justify-content: space-between; align-items: baseline; gap:  10px; font-size: 13.5px; }
-.bench-line-head b { font-variant-numeric: tabular-nums; }
+.bench-line-head b { font-variant-numeric: tabular-nums; font-family: var(--bench-mono); }
 .bench-line-formula { font-size:  11.5px; }
 .bench-receipt-rules {
   border-top: 2px dashed var(--yf-border); position: relative; height: 0; margin: 2px 0;
@@ -2602,11 +2653,29 @@ html.vt-active :where(*) {
 .bench-fatigue-ico.tone-hot { background: var(--yf-coral-100); }
 .bench-fatigue-title { display: block; font-size:  13px; font-weight: 700; color: var(--text); }
 
-.bench-cta { margin-top: 2px; }
+.bench-cta-row { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-top: 2px; }
+.bench-cta { width: 100%; }
+.bench-alt-link { font-size: 13px; font-weight: 650; color: var(--yf-teal-600); text-decoration: none; }
+.bench-alt-link:hover { text-decoration: underline; }
+.bench-receipt-actions { display: flex; justify-content: center; }
+.bench-fineprint { font-size: 11px; color: var(--text-3); text-align: center; margin: 0; line-height: 1.5; }
+
+/* hero anchor → smooth scroll to the bench (button, not href — hash routing owns location.hash) */
+.hero-bench-link { margin: 10px 0 0; }
+.hero-bench-link button {
+  background: none; border: none; padding: 0;
+  font-size: 13.5px; font-weight: 700; color: var(--yf-teal-600);
+  text-decoration: underline; text-underline-offset: 3px; cursor: pointer;
+}
 
 @media (max-width:  720px) {
   .bench-grid { grid-template-columns: 1fr; }
+  .bench-receipt { order: -1; }
   .bench-crew-btn { min-width:  40px; height:  40px; }
+  .bench-pill { min-height: 40px; }
+  .bench-seg button { min-height: 40px; }
+  .bench-preset-row .chip, .bench-receipt-actions .chip { min-height: 40px; }
+  .bench-receipt-head { padding-right: 78px; }
   .bench-receipt-rules::before { left: -8px; }
   .bench-receipt-rules::after { right: -10px; }
   .bench-total-main { font-size:  30px; }

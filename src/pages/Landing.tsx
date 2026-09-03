@@ -22,6 +22,11 @@ export function LandingPage({ onNavigate }: { onNavigate: (r: string) => void })
               <a className="btn btn-saffron btn-lg" href="#/explore">Explore itineraries</a>
             </div>
             <p className="small muted" style={{ marginTop: 16 }}>No card needed · Free forever · Your planning data is yours</p>
+            <p className="hero-bench-link">
+              <button type="button" onClick={() => document.getElementById('plan-bench')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>
+                Price a trip in 10 seconds ⬇
+              </button>
+            </p>
           </div>
 
           {/* Adventure preview card (dark navy, route illustration, mockup) */}
@@ -54,6 +59,9 @@ export function LandingPage({ onNavigate }: { onNavigate: (r: string) => void })
         </div>
       </section>
 
+      {/* ---------- Plan Bench (interactive cost calculator) ---------- */}
+      <PlanBench />
+
       {/* ---------- How it works ---------- */}
       <section className="container" style={{ paddingBottom: 60 }}>
         <h2 className="section-title">From chaos to itinerary in four steps</h2>
@@ -64,9 +72,6 @@ export function LandingPage({ onNavigate }: { onNavigate: (r: string) => void })
           <Step n={4} title="Lock it & go" body="Resolve decisions, confirm bookings-worthy stops, publish if you like." />
         </div>
       </section>
-
-      {/* ---------- Plan Bench (interactive cost calculator) ---------- */}
-      <PlanBench />
 
       {/* ---------- Demo CTA ---------- */}
       <section className="container" style={{ paddingBottom: 70 }}>

@@ -249,6 +249,15 @@ Hard rules (each learned the hard way — do not relearn them):
   replacement ends with (a duplicated `### Fixed` + a Frankenstein bullet,
   Sep 2026). Never match a bullet by its lead alone; include the full line or
   re-read the section after the edit.
+- **In-page anchors on hash-routed pages must be `button` + `scrollIntoView`,
+  never `href="#id"`** — the router owns `location.hash`, so a plain anchor link
+  rewrites the hash to `#plan-bench` and the router treats it as an unknown
+  route (the Plan Bench hero anchor, Sep 2026). Pair the target section with
+  `scroll-margin-top` so the sticky nav doesn't cover it.
+- **A `role="switch"` with only an on/off state reads poorly when both states
+  are first-class** — the bench's return toggle became a segmented control
+  (two `aria-pressed` buttons in a `role="group"`); prefer that pattern when
+  neither state is "off".
 - **Supabase failures come back as `{ error }`, not rejections — a `void supabase…write()` with no `.then(({ error }))` is a silent data-loss hole.** `publishItinerary` fire-and-forget its upsert while the optimistic in-memory write made the UI look successful; the next refresh hydrated the (empty) table and the data "vanished" (Sep 2026). Rule: every write-through checks its error and either toasts or rolls back the optimistic cache (see `updateProfile`, `publishItinerary`); every hydration table result is error-logged, because a failed `select` also returns `{ data: null, error }` rather than throwing — a denied/missing table silently hydrates as `[]`.
 - **When diagnosing "works in the session, gone after refresh"**, probe the live table with the anon key via PostgREST (`GET /rest/v1/<table>?select=…` — RLS SELECT policies decide what's readable; `published_itineraries` is public) before touching code: it immediately separates "never persisted" from "persisted but not rendered". Column-existence probes work on empty tables (`select=<cols>&limit=1` errors naming a missing column); the OpenAPI root (`/rest/v1/`) needs the service-role key, so it's useless with the anon key. To test an *authenticated* write, sign up a throwaway QA account via `POST /auth/v1/signup` (email confirmation off → session token in the response) and replay the insert — but record the generated email immediately (it's randomized and unrecoverable from auth without the service key; the profiles table's public read policy can restore it).
 - **`git diff --check` before committing any merge** — conflict markers in

@@ -383,3 +383,5 @@ by orphan check** (Sep 2026): the reported "802 orphan rows" turned out to be
   (Diátaxis flavor: tutorials / how-to / reference / explanation — tag the
   row with which it is). Root stays lean: README, AGENTS, CONTRIBUTING,
   CHANGELOG, ROADMAP, DESIGN_TOKENS; everything else lives in `docs/`.
+
+- **iOS Safari never vibrates — only Capacitor native does.** `navigator.vibrate` is unsupported on all iOS browsers (WebKit). Haptics that must work on iPhone require `@capacitor/haptics` inside a Capacitor iOS shell (`Capacitor.isNativePlatform()`). Keep the web vibrate fallback for Android Chrome; never assume a pure-web PWA will taptic on iOS.

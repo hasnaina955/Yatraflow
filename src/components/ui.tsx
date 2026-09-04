@@ -1,5 +1,6 @@
 // ============ Reusable UI components ============
 import React, { useEffect, useId, useRef, useState } from 'react'
+import { Check, Copy, Map as MapIcon, TriangleAlert, Users, X } from 'lucide-react'
 import { formatInr } from '../lib/engine'
 import { registerTouchDnd, touchPressAbort, touchPressStart, encodeDropKey, isInteractiveTarget } from '../lib/touchDnd'
 
@@ -13,9 +14,9 @@ export function Avatar({ user, size = 'sm' }: { user?: { profile: { name: string
   return <span className={cls}>{initials}</span>
 }
 
-export function Chip({ children, tone, onClick, active }: { children: React.ReactNode; tone?: 'teal' | 'saffron' | 'danger' | 'ok' | 'info'; onClick?: () => void; active?: boolean }) {
+export function Chip({ children, tone, onClick, active, 'aria-pressed': ariaPressed }: { children: React.ReactNode; tone?: 'teal' | 'saffron' | 'danger' | 'ok' | 'info'; onClick?: () => void; active?: boolean; 'aria-pressed'?: boolean }) {
   if (onClick) {
-    return <button type="button" className={`clickable-chip ${tone === 'teal' ? 'on-teal' : tone === 'saffron' ? 'on-saffron' : ''} ${active ? 'on-teal' : ''}`} onClick={onClick}>{children}</button>
+    return <button type="button" aria-pressed={ariaPressed} className={`clickable-chip ${tone === 'teal' ? 'on-teal' : tone === 'saffron' ? 'on-saffron' : ''} ${active ? 'on-teal' : ''}`} onClick={onClick}>{children}</button>
   }
   const cls = tone ? `chip chip-${tone}` : 'chip'
   return <span className={cls}>{children}</span>
@@ -70,7 +71,7 @@ export function Modal({ open, onClose, title, children, initialFocus }: { open: 
       <div ref={dialogRef} className="modal" role="dialog" aria-modal="true" aria-labelledby={titleId}>
         <div className="modal-head">
           <h2 id={titleId}>{title}</h2>
-          <button className="icon-btn" onClick={onClose} aria-label="Close">✕</button>
+          <button className="icon-btn" onClick={onClose} aria-label="Close"><X size={16} aria-hidden /></button>
         </div>
         <div ref={bodyRef}>
           {children}
@@ -119,24 +120,32 @@ export function Field(props: {
   children: React.ReactNode
 }) {
   const controlId = useId()
+  const hintId = `${controlId}-hint`
+  const errId = `${controlId}-err`
   let associated = false
   const wired = React.Children.toArray(props.children).map(child => {
     if (associated || !React.isValidElement(child)) return child
-    const el = child as React.ReactElement<{ id?: string }>
+    const el = child as React.ReactElement<{ id?: string; 'aria-describedby'?: string; 'aria-invalid'?: boolean }>
     const tag = typeof el.type === 'string' ? el.type : null
     const isHostControl = tag === 'input' || tag === 'select' || tag === 'textarea'
     const isCustomControl = typeof el.type === 'function'
     if (!isHostControl && !isCustomControl) return child
     if (el.props.id != null) { associated = true; return child }
     associated = true
-    return React.cloneElement(el, { id: controlId })
+    // The hint/error live outside the control — describe them so SR users
+    // tabbing back to the field hear them, and flag the failing field.
+    return React.cloneElement(el, {
+      id: controlId,
+      'aria-describedby': props.error ? errId : props.hint ? hintId : undefined,
+      'aria-invalid': props.error ? true : undefined,
+    })
   })
   return (
     <div className="field">
       <label className="label" htmlFor={associated ? controlId : undefined}>{props.label}</label>
       {wired}
-      {props.hint && !props.error && <span className="hint-text">{props.hint}</span>}
-      {props.error && <span className="err-text" role="alert">{props.error}</span>}
+      {props.hint && !props.error && <span className="hint-text" id={hintId}>{props.hint}</span>}
+      {props.error && <span className="err-text" role="alert" id={errId}>{props.error}</span>}
     </div>
   )
 }
@@ -165,7 +174,7 @@ export function ToastZone() {
   return (
     <div className="toast-zone" role="status" aria-live="polite">
       {toasts.map(t => (
-        <div key={t.id} className={`toast ${t.kind}`}>
+        <div key={t.id} className={`toast ${t.kind}`} role={t.kind === 'err' ? 'alert' : undefined}>
           <span>{t.msg}</span>
           {t.action && (
             <button
@@ -183,11 +192,11 @@ export function Loading({ label = 'Loading…' }: { label?: string }) {
   return <div className="loading-block"><div className="spinner" style={{ marginBottom: 12 }} /><div>{label}</div></div>
 }
 
-export function EmptyState({ icon = '🗺️', title, body, action }: { icon?: string; title: string; body?: string; action?: React.ReactNode }) {
+export function EmptyState({ icon = <MapIcon size={38} aria-hidden />, title, body, action }: { icon?: React.ReactNode; title: string; body?: string; action?: React.ReactNode }) {
   return (
     <div className="empty-state">
       <div className="big">{icon}</div>
-      <h3>{title}</h3>
+      <h2>{title}</h2>
       {body && <p style={{ marginTop: 6 }}>{body}</p>}
       {action && <div style={{ marginTop: 16 }}>{action}</div>}
     </div>
@@ -281,6 +290,10 @@ export function RouteSquiggle() {
   // crossfade). Undefined until the first tick; only a single outgoing exists at
   // a time because each tick overwrites it with the previously-active trip.
   const [outgoing, setOutgoing] = React.useState<number | null>(null)
+  // The travelling dot is SMIL motion — CSS kill-switches can't reach it, so
+  // it renders only when the user hasn't asked for reduced motion.
+  const [reduced] = React.useState(() =>
+    typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches)
   const activeRef = React.useRef(0)
   React.useEffect(() => { activeRef.current = idx }, [idx])
   React.useEffect(() => {
@@ -322,7 +335,7 @@ export function RouteSquiggle() {
           className="rs-layer rs-layer-active"
           road={scen.road}
           stops={scen.stops}
-          dots
+          dots={!reduced}
         />
       </svg>
       <div className="rs-caption" key={`cap-${idx}`} aria-hidden="true">
@@ -373,8 +386,8 @@ function ScenarioStats({ scen }: { scen: (typeof ROUTE_SCENARIOS)[number] }) {
         <div className="rs-stat rs-stat-d2"><b style={{ color: '#F3AA3D' }}>{health}</b><span>trip health</span></div>
       </div>
       <div className="ha-row">
-        <div className="ha-warn">⚠️ {scen.warn[0]}<span>{scen.warn[1]}</span></div>
-        <div className="ha-sync">👥 {scen.sync[0]}<span>{scen.sync[1]}</span></div>
+        <div className="ha-warn"><TriangleAlert size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />{scen.warn[0]}<span>{scen.warn[1]}</span></div>
+        <div className="ha-sync"><Users size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />{scen.sync[0]}<span>{scen.sync[1]}</span></div>
       </div>
     </>
   )
@@ -601,7 +614,7 @@ export function CopyButton({ text, label = 'Copy link', onCopied }: { text: stri
         setTimeout(() => setDone(false), 1800)
         onCopied?.()
       }}
-    >{done ? '✓ Copied' : label}</button>
+    >{done ? <><Check size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Copied</> : label}</button>
   )
 }
 

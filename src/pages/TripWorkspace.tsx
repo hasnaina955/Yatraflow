@@ -1,6 +1,12 @@
 // ============ Trip workspace ============
 // Tabs: Overview / Timeline / Map / Suggestions / Budget / Decisions / Share
 import React, { useEffect, useMemo, useRef, useState } from 'react'
+import {
+  ArrowRight, Ban, Car, ChevronDown, ChevronUp, CircleCheck, CircleHelp, Clock, CloudRain, CloudSun,
+  Copy, Download, Droplets, Flag, Lightbulb, Link2, MapPin, MoveHorizontal,
+  PenLine, Pencil, Pin, Plus, RotateCcw, Scale, Search, Siren, Ticket, Trash2, TriangleAlert,
+  Upload, X,
+} from 'lucide-react'
 import type { Trip, ItineraryStop, Expense, LatLngPoint } from '../data/types'
 import { TRANSPORT_MODES, TRAVEL_STYLES } from '../data/types'
 import {
@@ -322,7 +328,11 @@ function OverviewTab({ trip, editable, onOpenDecisions, onOpenTimeline, onOpenMa
                 {health.warnings.length === 0
                   ? <li>No schedule issues detected — buffers look healthy. 🎉</li>
                   : health.warnings.slice(0, 3).map(w => (
-                    <li key={w.code + w.title}>{w.severity === 'high' ? '🚨 ' : w.severity === 'medium' ? '⚠️ ' : '💡 '}{w.title}</li>
+                    <li key={w.code + w.title}>{w.severity === 'high'
+                      ? <><Siren size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} /></>
+                      : w.severity === 'medium'
+                      ? <><TriangleAlert size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} /></>
+                      : <><Lightbulb size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} /></>}{w.title}</li>
                   ))}
               </ul>
             </div>
@@ -351,10 +361,10 @@ function OverviewTab({ trip, editable, onOpenDecisions, onOpenTimeline, onOpenMa
             <div className="warn-list">
               {priorityActions.map(w => (
                 <div key={w.code + w.title} className={`warn-item ${w.severity === 'high' ? 'sev-high' : w.severity === 'low' ? 'sev-low' : ''}`}>
-                  <span className="warn-icon">{w.severity === 'high' ? '🚨' : w.severity === 'medium' ? '⚠️' : '💡'}</span>
+                  <span className="warn-icon">{w.severity === 'high' ? <Siren size={13} aria-hidden /> : w.severity === 'medium' ? <TriangleAlert size={13} aria-hidden /> : <Lightbulb size={13} aria-hidden />}</span>
                   <div>
                     <div className="warn-title">{w.title}</div>
-                    <div className="warn-fix">✅ {w.fix}</div>
+                    <div className="warn-fix"><CircleCheck size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />{w.fix}</div>
                   </div>
                 </div>
               ))}
@@ -395,7 +405,7 @@ function OverviewTab({ trip, editable, onOpenDecisions, onOpenTimeline, onOpenMa
           {nextCommitment ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div className="warn-item sev-low">
-                <span className="warn-icon">📌</span>
+                <span className="warn-icon"><Pin size={13} aria-hidden /></span>
                 <div>
                   <div className="warn-title">Next: {nextCommitment.title}</div>
                   <div className="warn-fix">Day {nextCommitment.dayIndex + 1} at {formatHM(nextCommitment.time, timeFormat)}{nextCommitment.notes ? ` — ${nextCommitment.notes}` : ''}</div>
@@ -461,7 +471,7 @@ function DayWeatherChip({ trip, dayIndex }: { trip: Trip; dayIndex: number }) {
   const info = wmoInfo(w.code)
   return (
     <span className="weather-chip" title={`${info.label} · ${Math.round(w.tempMinC)}–${Math.round(w.tempMaxC)}°C · ${w.rainChancePct}% rain chance`}>
-      {info.icon} {Math.round(w.tempMaxC)}° 💧{w.rainChancePct}%
+      {info.icon} {Math.round(w.tempMaxC)}°<Droplets size={11} aria-hidden style={{ verticalAlign: '-1px', marginLeft: 4, marginRight: 2 }} />{w.rainChancePct}%
     </span>
   )
 }
@@ -658,7 +668,7 @@ function TimelineTab({ trip, editable, applyChange, legCorrections, suggestionCa
         <span className="tl-total-dot" aria-hidden="true">·</span>
         <span>{formatInr(totals.totalCostInr)} estimated</span>
         {warnDayCount > 0 && (
-          <span className="tl-total-warn">⚠ {warnDayCount} day{warnDayCount !== 1 ? 's' : ''} need{warnDayCount === 1 ? 's' : ''} attention</span>
+          <span className="tl-total-warn"><TriangleAlert size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />{warnDayCount} day{warnDayCount !== 1 ? 's' : ''} need{warnDayCount === 1 ? 's' : ''} attention</span>
         )}
       </div>
 
@@ -670,7 +680,7 @@ function TimelineTab({ trip, editable, applyChange, legCorrections, suggestionCa
               const hasWarn = (dayWarnings[d.index] ?? []).length > 0
               return (
                 <button key={d.id} type="button" className={`day-rail-chip ${hasWarn ? 'warn' : ''}`} onClick={() => jumpToDay(d.index)}>
-                  Day {d.index + 1}{hasWarn ? ' ⚠' : ''}
+                  Day {d.index + 1}{hasWarn && <TriangleAlert size={11} aria-hidden style={{ verticalAlign: '-1px', marginLeft: 3 }} />}
                 </button>
               )
             })}
@@ -893,14 +903,15 @@ function DaySection({ day, trip, editable, onAdd, onEdit, onDelete, onMoveWithin
                 if (e.key === 'Escape') { setTitleDraft(day.title ?? ''); setEditingTitle(false) }
               }}
             />
-          ) : (
-            <h3
-              onClick={editable ? () => { setTitleDraft(day.title ?? ''); setEditingTitle(true) } : undefined}
-              style={{ cursor: editable ? 'pointer' : 'default' }}
-              title={editable ? 'Click to rename this day' : undefined}
+          ) : editable ? (
+            <button type="button" className="day-title-btn" onClick={() => { setTitleDraft(day.title ?? ''); setEditingTitle(true) }}
+              title="Click to rename this day"
+              aria-label={`Rename Day ${day.index + 1}`}
             >
               {day.title ?? `Day ${day.index + 1}`}
-            </h3>
+            </button>
+          ) : (
+            <h3>{day.title ?? `Day ${day.index + 1}`}</h3>
           )}
           <div className="small muted">
             {isStayDay ? (
@@ -925,7 +936,7 @@ function DaySection({ day, trip, editable, onAdd, onEdit, onDelete, onMoveWithin
         </div>
         {sev !== 'ok' && (
           <span className={`day-warn-pill sev-${sev}`} title={warnings.map(w => w.title).join('\n')}>
-            ⚠ {warnings[0].title.replace(/^Day \d+:\s*/, '')}{warnings.length > 1 ? ` +${warnings.length - 1}` : ''}
+            <TriangleAlert size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />{warnings[0].title.replace(/^Day \d+:\s*/, '')}{warnings.length > 1 ? ` +${warnings.length - 1}` : ''}
           </span>
         )}
         {ordered.filter(s => s.status !== 'rejected').length >= 2 && <DaySpark stops={ordered.filter(s => s.status !== 'rejected')} />}
@@ -936,7 +947,7 @@ function DaySection({ day, trip, editable, onAdd, onEdit, onDelete, onMoveWithin
               disabled={ordered.length === 0 || day.index + 1 >= trip.days.length}
               onClick={() => onCopyDay(day.index)}
               title={ordered.length ? `Copy these stops to Day ${day.index + 2}` : 'Nothing to copy yet'}
-            >⧉ Copy</button>
+            ><Copy size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Copy</button>
             <button className="btn btn-outline btn-sm" onClick={onAdd}>+ Add here</button>
           </div>
         )}
@@ -957,7 +968,7 @@ function DaySection({ day, trip, editable, onAdd, onEdit, onDelete, onMoveWithin
           prefix is redundant here, the pill + card already say which day. */}
       {warnings.map((w, i) => (
         <div key={i} className={`warn-item ${w.severity === 'high' ? 'sev-high' : w.severity === 'medium' ? '' : 'sev-low'}`} style={{ marginBottom: 8 }}>
-          <span className="warn-icon">{w.severity === 'high' ? '⛔' : '⚠️'}</span>
+          <span className="warn-icon">{w.severity === 'high' ? <Ban size={13} aria-hidden /> : <TriangleAlert size={13} aria-hidden />}</span>
           <div>
             <div className="warn-title">{w.title.replace(/^Day \d+:\s*/, '')}</div>
             {w.fix && <div className="warn-fix">{w.fix}</div>}
@@ -969,13 +980,13 @@ function DaySection({ day, trip, editable, onAdd, onEdit, onDelete, onMoveWithin
         onSetDayStart={onSetDayStart} onAddPlannedHalts={onAddPlannedHalts} />
 
       {ordered.length === 0 && (<>
-        <EmptyState icon="🌤️" title="Nothing planned yet" body="Add your first stop for this day — or drag one here from another day."
+        <EmptyState icon={<CloudSun size={38} aria-hidden />} title="Nothing planned yet" body="Add your first stop for this day — or drag one here from another day."
           action={editable ? <button className="btn btn-primary btn-sm" onClick={onAdd}>+ Add stop</button> : undefined} />
         {editable && ((nextAnchor && !alreadyAtNext) || nearby.length > 0) && (
           <div className="day-suggest">
             {nextAnchor && !alreadyAtNext && (
               <button className="chip-btn" onClick={() => onAddQuickStop(day.index, nextWaypointStop(nextAnchor))} title="Add this as a route waypoint">
-                ➡ Continue to {nextAnchor.name.replace(/ \((start|end)\)$/, '')}
+                <ArrowRight size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />Continue to {nextAnchor.name.replace(/ \((start|end)\)$/, '')}
               </button>
             )}
             {nearby.map(h => (
@@ -1007,7 +1018,7 @@ function DaySection({ day, trip, editable, onAdd, onEdit, onDelete, onMoveWithin
                 <div key={s.id} className="tl-row tl-anchor" {...(editable ? dndHandlers(i) : {})}>
                   <div className="tl-gutter" aria-hidden="true" />
                   <div className="travel-endpoint">
-                    <span className="travel-anchor-ico">📍</span>
+                    <span className="travel-anchor-ico"><MapPin size={13} aria-hidden /></span>
                     <span>Based in {cleanName}</span>
                   </div>
                 </div>
@@ -1019,7 +1030,7 @@ function DaySection({ day, trip, editable, onAdd, onEdit, onDelete, onMoveWithin
                   <span className="tl-time">{isFinal ? (sim.arrivalTimes[i] ? formatHM(sim.arrivalTimes[i], timeFormat) : '--:--') : (sim.departures[i] ? formatHM(sim.departures[i], timeFormat) : '--:--')}</span>
                 </div>
                 <div className="travel-endpoint">
-                  <span className="travel-anchor-ico">{i === 0 ? '🏁' : isFinal ? '🏁' : '📍'}</span>
+                  <span className="travel-anchor-ico">{i === 0 || isFinal ? <Flag size={13} aria-hidden /> : <MapPin size={13} aria-hidden />}</span>
                   <span>
                     {i === 0 ? `Start — ${cleanName}` : isFinal ? `Destination — ${cleanName}` : cleanName}
                   </span>
@@ -1051,34 +1062,34 @@ function DaySection({ day, trip, editable, onAdd, onEdit, onDelete, onMoveWithin
                   <span className={`stop-kind-tag kind-${kind}`}>{STOP_KIND_LABELS[kind]}</span>
                   {s.priority === 'must-do' && <Chip tone="danger">Must do</Chip>}
                   {s.priority === 'optional' && <Chip tone="saffron">Optional</Chip>}
-                  {s.weatherSensitive && <Chip tone="info">🌧️ weather-sensitive</Chip>}
+                  {s.weatherSensitive && <Chip tone="info"><CloudRain size={11} aria-hidden style={{ verticalAlign: '-1px', marginRight: 3 }} />weather-sensitive</Chip>}
                 </div>
                 <div className="stop-meta">
-                  <span>📍 {s.locationName}</span>
-                  <span>⏱ {minutesToHM(s.visitMinutes)}</span>
-                  {s.openTime && <span>🕒 {formatHMRange(s.openTime, s.closeTime, timeFormat)}</span>}
-                  <span>🎫 ₹{s.entryFeeInrPerPerson}/person</span>
-                  <span>🚗 ₹{s.transportCostInrTotal} transport</span>
+                  <span><MapPin size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />{s.locationName}</span>
+                  <span><Clock size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />{minutesToHM(s.visitMinutes)}</span>
+                  {s.openTime && <span><Clock size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />{formatHMRange(s.openTime, s.closeTime, timeFormat)}</span>}
+                  <span><Ticket size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />₹{s.entryFeeInrPerPerson}/person</span>
+                  <span><Car size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />₹{s.transportCostInrTotal} transport</span>
                   {s.departTime && s.arrivalTime && (
-                    <span>🕰 dep {formatHM(s.departTime, timeFormat)} · arr {formatHM(s.arrivalTime, timeFormat)}{s.legDistanceKm ? ` · ${s.legDistanceKm.toFixed(0)} km` : ''}</span>
+                    <span><Clock size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />dep {formatHM(s.departTime, timeFormat)} · arr {formatHM(s.arrivalTime, timeFormat)}{s.legDistanceKm ? ` · ${s.legDistanceKm.toFixed(0)} km` : ''}</span>
                   )}
                 </div>
                 {s.description && <ClampedText className="stop-desc">{s.description}</ClampedText>}
-                {s.notes && <ClampedText className="stop-desc muted">📝 {s.notes}</ClampedText>}
+                {s.notes && <ClampedText className="stop-desc muted"><PenLine size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />{s.notes}</ClampedText>}
                 {s.sourceUrl && <a href={s.sourceUrl} target="_blank" rel="noreferrer" className="small">Source ↗</a>}
               </div>
               {editable && (
                 <div className="stop-actions">
                   <div className="move-btns">
-                    <button className="move-btn" disabled={i === 0} onClick={() => moveUp(i)} aria-label={`Move ${s.title} up`}>▲</button>
-                    <button className="move-btn" disabled={i === ordered.length - 1} onClick={() => moveDown(i)} aria-label={`Move ${s.title} down`}>▼</button>
+                    <button className="move-btn" disabled={i === 0} onClick={() => moveUp(i)} aria-label={`Move ${s.title} up`}><ChevronUp size={12} aria-hidden /></button>
+                    <button className="move-btn" disabled={i === ordered.length - 1} onClick={() => moveDown(i)} aria-label={`Move ${s.title} down`}><ChevronDown size={12} aria-hidden /></button>
                   </div>
-                  <button className="icon-btn" onClick={() => onEdit(s.id)} aria-label={`Edit ${s.title}`}>✏️</button>
+                  <button className="icon-btn" onClick={() => onEdit(s.id)} aria-label={`Edit ${s.title}`}><Pencil size={14} aria-hidden /></button>
                   {s.status !== 'confirmed'
-                    ? <button className="icon-btn" title="Mark confirmed" aria-label={`Mark ${s.title} confirmed`} onClick={() => onStatus(s, 'confirmed')}>✔️</button>
-                    : <button className="icon-btn" title="Mark maybe" aria-label={`Mark ${s.title} maybe`} onClick={() => onStatus(s, 'maybe')}>❓</button>}
-                  <button className="icon-btn" title="Move to another day" aria-label={`Move ${s.title} to another day`} onClick={() => onMoveBetweenDays(s)}>↔️</button>
-                  <button className="icon-btn" onClick={() => onDelete(s.id, day.index)} aria-label={`Delete ${s.title}`}>🗑️</button>
+                    ? <button className="icon-btn" title="Mark confirmed" aria-label={`Mark ${s.title} confirmed`} onClick={() => onStatus(s, 'confirmed')}><CircleCheck size={14} aria-hidden /></button>
+                    : <button className="icon-btn" title="Mark maybe" aria-label={`Mark ${s.title} maybe`} onClick={() => onStatus(s, 'maybe')}><CircleHelp size={14} aria-hidden /></button>}
+                  <button className="icon-btn" title="Move to another day" aria-label={`Move ${s.title} to another day`} onClick={() => onMoveBetweenDays(s)}><MoveHorizontal size={14} aria-hidden /></button>
+                  <button className="icon-btn" onClick={() => onDelete(s.id, day.index)} aria-label={`Delete ${s.title}`}><Trash2 size={14} aria-hidden /></button>
                 </div>
               )}
               </div>
@@ -1091,7 +1102,7 @@ function DaySection({ day, trip, editable, onAdd, onEdit, onDelete, onMoveWithin
                   <div className="tl-legrow" {...(editable ? dayDropHandlers(i + 1) : {})}>
                     <div className="tl-gutter tl-gutter-leg"><span className="tl-line tl-line-leg" /></div>
                     <div className={`travel-leg ${foreignOver === i + 1 && dragging === null ? 'foreign-over' : ''}`}>
-                      🚗 ~{leg.distanceKm.toFixed(0)} km · ~{Math.round(leg.durationMinutes)} min from {leg.fromTitle.replace(/ \((start|end)\)$/, '')} · est ₹{Math.round(leg.distanceKm * (A.inrPerKm ?? 8))} ({A.mode})
+                      <Car size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />~{leg.distanceKm.toFixed(0)} km · ~{Math.round(leg.durationMinutes)} min from {leg.fromTitle.replace(/ \((start|end)\)$/, '')} · est ₹{Math.round(leg.distanceKm * (A.inrPerKm ?? 8))} ({A.mode})
                     </div>
                   </div>
                 )
@@ -1110,7 +1121,7 @@ function DaySection({ day, trip, editable, onAdd, onEdit, onDelete, onMoveWithin
                 <div className="tl-legrow">
                   <div className="tl-gutter tl-gutter-leg"><span className="tl-line tl-line-leg" /></div>
                   <div className="travel-leg">
-                    🚗 ~{last.legIn.distanceKm.toFixed(0)} km · ~{Math.round(last.legIn.durationMinutes)} min from {last.legIn.fromTitle} · est ₹{Math.round(last.legIn.distanceKm * (A.inrPerKm ?? 8))} ({A.mode})
+                    <Car size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />~{last.legIn.distanceKm.toFixed(0)} km · ~{Math.round(last.legIn.durationMinutes)} min from {last.legIn.fromTitle} · est ₹{Math.round(last.legIn.distanceKm * (A.inrPerKm ?? 8))} ({A.mode})
                   </div>
                 </div>
               )}
@@ -1119,7 +1130,7 @@ function DaySection({ day, trip, editable, onAdd, onEdit, onDelete, onMoveWithin
                   <span className="tl-time tl-arr">{last.arrive ? formatHM(last.arrive, timeFormat) : '--:--'}</span>
                 </div>
                 <div className="travel-endpoint">
-                  <span className="travel-anchor-ico">🏁</span>
+                  <span className="travel-anchor-ico"><Flag size={13} aria-hidden /></span>
                   <span>{journey.direction === 'return' ? `Home — ${last.title}` : `Destination — ${last.title}`}</span>
                   <span className="small muted" style={{ marginLeft: 6 }}>arrives ~{last.arrive ? formatHM(last.arrive, timeFormat) : '--:--'}</span>
                 </div>
@@ -1461,9 +1472,11 @@ function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAddPlanned
                 </span>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button className="btn btn-outline btn-sm" onClick={resolveSpots} disabled={resolving}>
-                    {resolving ? 'Searching the route…' : plan.some(p => p.hit) ? '↻ Re-find real spots' : '🔎 Find real spots'}
+                    {resolving ? 'Searching the route…'
+                      : plan.some(p => p.hit) ? <><RotateCcw size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Re-find real spots</>
+                      : <><Search size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Find real spots</>}
                   </button>
-                  <button className="btn btn-primary btn-sm" onClick={addHaltsToDay}>➕ Add {plan.length} to the day</button>
+                  <button className="btn btn-primary btn-sm" onClick={addHaltsToDay}><Plus size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Add {plan.length} to the day</button>
                 </div>
               </div>
               {searched && !plan.some(p => p.hit) && (
@@ -2006,7 +2019,7 @@ function SuggestionsTab({ trip, editable, me }: {
     <div className="two-col">
       <div>
         {suggestions.length === 0 && (
-          <EmptyState icon="💡" title="No suggestions yet" body="Group members can propose stops; everyone votes and comments." />
+          <EmptyState icon={<Lightbulb size={38} aria-hidden />} title="No suggestions yet" body="Group members can propose stops; everyone votes and comments." />
         )}
         {suggestions.map(sg => {
           const ups = sg.votes.filter(v => v.value === 1).length
@@ -2326,7 +2339,7 @@ function DecisionsTab({ trip, me, editable }: { trip: Trip; me: { id: string }; 
           ))}
         </div>
         {decisions.length === 0 && (
-          <EmptyState icon="⚖️" title="No decisions tracked"
+          <EmptyState icon={<Scale size={38} aria-hidden />} title="No decisions tracked"
             body='Raise questions like "houseboat menu — veg or mixed?" so nothing gets lost in a chaotic group chat.' />
         )}
         {decisions.length > 0 && shown.length === 0 && (
@@ -2437,9 +2450,9 @@ function SnapshotCard({ trip, me, onNavigate }: {
         Take the whole plan anywhere — no server stores it. Snapshot links embed the trip in the URL itself.
       </p>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <button className="btn btn-outline btn-sm" onClick={() => downloadTripJson(trip)}>⬇️ Download JSON</button>
-        <button className="btn btn-outline btn-sm" onClick={() => fileRef.current?.click()}>⬆️ Import JSON</button>
-        <button className="btn btn-teal btn-sm" onClick={makeLink}>🔗 Create snapshot link</button>
+                  <button className="btn btn-outline btn-sm" onClick={() => downloadTripJson(trip)}><Download size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Download JSON</button>
+                  <button className="btn btn-outline btn-sm" onClick={() => fileRef.current?.click()}><Upload size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Import JSON</button>
+                  <button className="btn btn-teal btn-sm" onClick={makeLink}><Link2 size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Create snapshot link</button>
         <input ref={fileRef} type="file" accept="application/json,.json" hidden onChange={onFile} />
       </div>
       {link && (
@@ -2669,20 +2682,20 @@ function TripSettingsForm({ trip, editable }: { trip: Trip; editable: boolean })
                     ;[list[i - 1], list[i]] = [list[i], list[i - 1]]
                     const dc = [...destCoords]; [dc[i - 1], dc[i]] = [dc[i], dc[i - 1]]; setDestCoords(dc)
                     return { ...x, destinations: list }
-                  })} style={{ opacity: i === 0 ? .25 : undefined }}>↑</button>
+                  })} style={{ opacity: i === 0 ? .25 : undefined }}><ChevronUp size={12} aria-hidden /></button>
                 <button type="button" aria-label={`Move ${d} later`} disabled={!editable || i === f.destinations.length - 1}
                   onClick={() => setF(x => {
                     const list = [...x.destinations]; if (i >= list.length - 1) return x
                     ;[list[i + 1], list[i]] = [list[i], list[i + 1]]
                     const dc = [...destCoords]; [dc[i + 1], dc[i]] = [dc[i], dc[i + 1]]; setDestCoords(dc)
                     return { ...x, destinations: list }
-                  })} style={{ opacity: i === f.destinations.length - 1 ? .25 : undefined }}>↓</button>
+                  })} style={{ opacity: i === f.destinations.length - 1 ? .25 : undefined }}><ChevronDown size={12} aria-hidden /></button>
                 {editable && (
                   <button type="button" aria-label={`Remove ${d}`}
                     onClick={() => {
                       setF(x => ({ ...x, destinations: x.destinations.filter((_, j) => j !== i) }))
                       setDestCoords(list => list.filter((_, j) => j !== i))
-                    }}>✕</button>
+                    }}><X size={12} aria-hidden /></button>
                 )}
               </span>
             ))}

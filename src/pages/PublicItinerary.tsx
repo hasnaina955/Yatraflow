@@ -3,6 +3,10 @@
 // creator attribution, "why this route works" story, a practical stat cluster,
 // and curated day highlights ahead of the detailed (and premium-gated) plan.
 import { useEffect, useMemo } from 'react'
+import {
+  Calendar, Camera, Car, Clock, Flag, GitFork, Heart, Link2, Lock, MapPin,
+  Route, Sparkles, Ticket, TriangleAlert,
+} from 'lucide-react'
 import type { Trip, PublishedItinerary } from '../data/types'
 import { useDb, currentUser, tripById, userById, duplicateTrip, registerPubCopy, registerPubView } from '../store/store'
 import { simulateDay, originOf, minutesToHM, formatInr, getAssumptions, computeTotals, isRoundTrip } from '../lib/engine'
@@ -27,7 +31,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
   if (!pub || !trip) {
     return (
       <div className="container">
-        <EmptyState icon="🔗" title="Itinerary not found"
+        <EmptyState icon={<Link2 size={38} aria-hidden />} title="Itinerary not found"
           body="This public page may have been unpublished."
           action={<button className="btn btn-primary" onClick={() => onNavigate('/explore')}>Back to Explore</button>} />
       </div>
@@ -104,7 +108,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
           <p className="pub-hero-story">{pub.tagline}</p>
           <p className="pub-hero-byline">
             BY {creator?.profile.name ?? 'a YatraFlow traveller'} · {pub.durationDays} DAYS · {trip.travellers} TRAVELLERS · {cap(trip.transportMode)}
-            {creator?.profile.isCreator && <> · ✨ VERIFIED CREATOR</>}
+            {creator?.profile.isCreator && <> · <Sparkles size={11} aria-hidden style={{ verticalAlign: '-1px', margin: '0 2px' }} />VERIFIED CREATOR</>}
           </p>
         </div>
         {/* "The practical bit" — the evidence cluster, floating over the hero */}
@@ -114,10 +118,10 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
           <span className="pub-stats-sub">estimated per traveller</span>
           <hr className="pub-stats-divider" />
           <div className="pub-stats-row">
-            <span>📍 {pub.routeSummary.length} place{pub.routeSummary.length === 1 ? '' : 's'}</span>
-            <span>🛣 {totals.totalDistanceKm.toFixed(0)} km</span>
-            <span>🕒 {minutesToHM(totals.totalTravelMinutes)} on the road</span>
-            <span>🗓 {pub.durationDays} days</span>
+            <span><MapPin size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />{pub.routeSummary.length} place{pub.routeSummary.length === 1 ? '' : 's'}</span>
+            <span><Route size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />{totals.totalDistanceKm.toFixed(0)} km</span>
+            <span><Clock size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />{minutesToHM(totals.totalTravelMinutes)} on the road</span>
+            <span><Calendar size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />{pub.durationDays} days</span>
           </div>
         </aside>
       </section>
@@ -129,7 +133,8 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
             <b>Made to be copied, adjusted and made your own.</b>
             <div className="pub-actions-btns">
               <button className="btn save-btn" onClick={saveThis} aria-pressed={savedFlag}>
-                {savedFlag ? '♥ Saved' : '♡ Save itinerary'}
+                <Heart size={13} aria-hidden fill={savedFlag ? 'currentColor' : 'none'} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+                {savedFlag ? 'Saved' : 'Save itinerary'}
               </button>
               <button className="btn fork-btn" onClick={copyThis}>Fork this trip →</button>
             </div>
@@ -194,18 +199,15 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
               <div className="creator-line">
                 <Avatar user={creator} size="lg" />
                 <div>
-                  <b>{creator?.profile.name ?? 'Creator'}</b>{creator?.profile.isCreator && <span className="chip chip-saffron" style={{ marginLeft: 8 }}>✨ Creator</span>}
+                  <b>{creator?.profile.name ?? 'Creator'}</b>{creator?.profile.isCreator && <span className="chip chip-saffron" style={{ marginLeft: 8 }}><Sparkles size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />Creator</span>}
                   {creator?.profile.creatorBio && <p className="small muted" style={{ margin: '5px 0 0' }}>{creator.profile.creatorBio}</p>}
                 </div>
               </div>
               {creator?.profile.socialLinks && (
                 <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
                   {creator.profile.socialLinks.youtube && <a className="chip chip-info" href={creator.profile.socialLinks.youtube} target="_blank" rel="noreferrer">▶ YouTube</a>}
-                  {creator.profile.socialLinks.instagram && <a className="chip chip-info" href={creator.profile.socialLinks.instagram} target="_blank" rel="noreferrer">📷 Instagram</a>}
+                  {creator.profile.socialLinks.instagram && <a className="chip chip-info" href={creator.profile.socialLinks.instagram} target="_blank" rel="noreferrer"><Camera size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />Instagram</a>}
                 </div>
-              )}
-              {creator?.profile.socialLinks?.instagram == null && creator?.profile.socialLinks?.youtube == null && (
-                <button className="btn btn-outline btn-sm" style={{ marginTop: 10 }}>Book a planning consultation</button>
               )}
             </div>
 
@@ -227,7 +229,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
                           : `${stops.length} stops · ~${minutesToHM(sim.totalTravelMinutes)} travel`}
                       </div>
                     </div>
-                    {!isFree && <Chip tone="saffron">🔒 Premium</Chip>}
+                    {!isFree && <Chip tone="saffron"><Lock size={11} aria-hidden style={{ verticalAlign: '-1px', marginRight: 3 }} />Premium</Chip>}
                   </div>
 
                   {isFree ? (
@@ -243,7 +245,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
                           return (
                             <div key={s.id} className="travel-anchor">
                               <div className="travel-anchor-title">
-                                <span className="travel-anchor-ico">📍</span>
+                                <span className="travel-anchor-ico"><MapPin size={13} aria-hidden /></span>
                                 <span>Based in {cleanName}</span>
                               </div>
                             </div>
@@ -258,16 +260,16 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
                         return (
                           <div key={s.id} className="travel-anchor">
                             <div className="travel-anchor-title">
-                              <span className="travel-anchor-ico">{i === 0 ? '🏁' : '🚗'}</span>
+                              <span className="travel-anchor-ico">{i === 0 ? <Flag size={13} aria-hidden /> : <Car size={13} aria-hidden />}</span>
                               <span>{i === 0 ? `Start · ${cleanName}` : `Travelling to ${cleanName}`}</span>
                             </div>
                             <div className="travel-anchor-meta">
                               {inbound ? (
                                 <>
-                                  <span>🕰 Depart {depHM} → arrive {arrHM}</span>
-                                  <span>⏱ {minutesToHM(inbound.durationMinutes)}</span>
-                                  <span>📍 {inbound.distanceKm.toFixed(0)} km</span>
-                                  <span>🚗 est ₹{formatInr(cost)} ({A.mode})</span>
+                                  <span><Clock size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />Depart {depHM} → arrive {arrHM}</span>
+                                  <span><Clock size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />{minutesToHM(inbound.durationMinutes)}</span>
+                                  <span><MapPin size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />{inbound.distanceKm.toFixed(0)} km</span>
+                                  <span><Car size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />est ₹{formatInr(cost)} ({A.mode})</span>
                                 </>
                               ) : (
                                 <span>Departure {depHM}</span>
@@ -283,12 +285,12 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
                             <div className="stop-toprow">
                               <span className="stop-title">{s.title}</span>
                               <Chip tone="info">{labelCat(s.category)}</Chip>
-                              {s.openTime && <span className="small muted">🕒 {formatHMRange(s.openTime, s.closeTime, timeFormat)}</span>}
+                              {s.openTime && <span className="small muted"><Clock size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />{formatHMRange(s.openTime, s.closeTime, timeFormat)}</span>}
                             </div>
                             <div className="stop-meta">
-                              <span>📍 {s.locationName}</span>
-                              <span>⏱ {minutesToHM(s.visitMinutes)}</span>
-                              {s.entryFeeInrPerPerson > 0 && <span>🎫 ₹{s.entryFeeInrPerPerson}/person</span>}
+                              <span><MapPin size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />{s.locationName}</span>
+                              <span><Clock size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />{minutesToHM(s.visitMinutes)}</span>
+                              {s.entryFeeInrPerPerson > 0 && <span><Ticket size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />₹{s.entryFeeInrPerPerson}/person</span>}
                             </div>
                             {s.description && <div className="stop-desc">{s.description}</div>}
                           </div>
@@ -304,7 +306,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
                           ))}
                         </div>
                         <div className="locked-cta">
-                          <b>🔒 {stops.length} more stops on this day</b>
+                          <b><Lock size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />{stops.length} more stops on this day</b>
                           <p className="small">Unlock the full day-by-day plan with stay contacts, timings and budget breakdown.</p>
                           <button className="btn btn-saffron" onClick={() => toast('Premium unlock is a placeholder — no payments in this MVP.')}>Unlock Premium · ₹{price}</button>
                         </div>
@@ -328,7 +330,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
                 <h3>Warnings & assumptions</h3>
                 <hr className="divider" />
                 <ul style={{ paddingLeft: 18, lineHeight: 1.9, margin: 0 }}>
-                  {pub.warningsAndAssumptions.map((t, i) => <li key={i}>⚠️ {t}</li>)}
+                  {pub.warningsAndAssumptions.map((t, i) => <li key={i}><TriangleAlert size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />{t}</li>)}
                 </ul>
               </div>
             </div>
@@ -342,11 +344,11 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
                 Forks the full plan into your YatraFlow account — editable timeline, impact previews and collaboration included.
               </p>
               <button className="btn fork-btn btn-lg" style={{ width: '100%' }} onClick={copyThis}>
-                🍴 Fork this trip
+                <GitFork size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 5 }} />Fork this trip
               </button>
               <button className="btn btn-saffron btn-lg" style={{ width: '100%', marginTop: 10 }}
                 onClick={() => toast('Premium unlock is a placeholder — no payments in this MVP.')}>
-                🔒 Unlock Premium · ₹{price}
+                <Lock size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 5 }} />Unlock Premium · ₹{price}
               </button>
               {pub.subscriberCta && <p className="hint-text" style={{ textAlign: 'center', marginTop: 8 }}>{pub.subscriberCta}</p>}
               <hr className="divider" />

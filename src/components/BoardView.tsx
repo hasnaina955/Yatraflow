@@ -4,6 +4,11 @@
 // change routes through the same applyChange → impact-preview flow as the
 // Timeline, so nothing persists without its consequence visible first.
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import {
+  ArrowLeft, ChevronDown, ChevronUp, LocateFixed, Map as MapIcon, MoveHorizontal,
+  Plus, TriangleAlert,
+} from 'lucide-react'
+import { prefersReducedMotion } from '../lib/motion'
 import type { Trip, ItineraryStop } from '../data/types'
 import { computeTotals, computeHealth, collectWarnings, minutesToHM, formatInr } from '../lib/engine'
 import type { ScheduleWarning } from '../lib/engine'
@@ -11,7 +16,7 @@ import type { ImpactResult } from '../lib/impact'
 import { useTimeFormat, formatHM } from '../lib/timefmt'
 import { stopKindOf, STOP_KIND_LABELS } from '../lib/stopKind'
 import { useDb } from '../store/store'
-import { useReorder } from './ui'
+import { useReorder, Modal } from './ui'
 import { TripMap } from './TripMap'
 
 export function BoardView({ trip, editable, applyChange, health, totals, onOpenOverview, onOpenTimeline }: {
@@ -103,9 +108,11 @@ export function BoardView({ trip, editable, applyChange, health, totals, onOpenO
             <button type="button" className={`btn btn-sm ${mapFocus ? 'btn-primary' : 'btn-outline'}`}
               onClick={() => setMapFocus(f => !f)} aria-pressed={mapFocus}
               title={mapFocus ? 'Bring the day columns back' : 'Slide the columns aside and read the map full-bleed (Esc)'}>
-              {mapFocus ? '⬅ Back to cards' : '🗺 View map'}
+              {mapFocus
+                ? <><ArrowLeft size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Back to cards</>
+                : <><MapIcon size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />View map</>}
             </button>
-            <button className="btn btn-primary btn-sm" onClick={onOpenTimeline}>＋ Add a stop</button>
+            <button className="btn btn-primary btn-sm" onClick={onOpenTimeline}><Plus size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Add a stop</button>
           </div>
         )}
       </div>
@@ -124,7 +131,7 @@ export function BoardView({ trip, editable, applyChange, health, totals, onOpenO
             <span className="small muted" style={{ display: 'block', marginTop: 3 }}>
               Drag a stop to another day — its impact previews before saving. Click a column to focus its route.
             </span>
-            <button type="button" className="board-fit" onClick={fitToTrip}>🎯 Fit route</button>
+            <button type="button" className="board-fit" onClick={fitToTrip}><LocateFixed size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Fit route</button>
           </div>
 
           {/* Trip Pulse — health, decisions, budget (doc §6.4) */}
@@ -142,7 +149,7 @@ export function BoardView({ trip, editable, applyChange, health, totals, onOpenO
               <i className={health.score >= 70 ? 'ok' : health.score >= 40 ? 'mid' : 'bad'} style={{ width: `${Math.max(4, health.score)}%` }} />
             </div>
             <div className="board-pulse-lines">
-              {warnDayCount > 0 && <span>⚠ {warnDayCount} route day{warnDayCount === 1 ? '' : 's'} overloaded</span>}
+              {warnDayCount > 0 && <span><TriangleAlert size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />{warnDayCount} route day{warnDayCount === 1 ? '' : 's'} overloaded</span>}
               {openDecisions > 0 && <span>{openDecisions} open decision{openDecisions === 1 ? '' : 's'}</span>}
               <span>{formatInr(totals.totalCostInr)} est. budget{optionalExpenses > 0 ? ` · ${optionalExpenses} optional item${optionalExpenses === 1 ? '' : 's'}` : ''}</span>
             </div>
@@ -153,7 +160,7 @@ export function BoardView({ trip, editable, applyChange, health, totals, onOpenO
         {/* floating day columns — near-opaque so cards stay readable (§3.1) */}
         <div className="board-cols" role="list" aria-label="Trip days">
           {days.map(day => (
-            <BoardColumn key={day.id} day={day} editable={editable}
+            <BoardColumn key={day.id} day={day} allDays={days} editable={editable}
               warnings={dayWarnings[day.index] ?? []}
               focused={focusedDay === day.index}
               onToggleFocus={(focus) => setFocusedDay(focus ? day.index : focusedDay === day.index ? 'all' : day.index)}
@@ -165,8 +172,9 @@ export function BoardView({ trip, editable, applyChange, health, totals, onOpenO
     </div>
   )
 }
-function BoardColumn({ day, editable, warnings, focused, onToggleFocus, onMoveStopIn, onReorder }: {
+function BoardColumn({ day, allDays, editable, warnings, focused, onToggleFocus, onMoveStopIn, onReorder }: {
   day: Trip['days'][number]
+  allDays: Trip['days']
   editable: boolean
   warnings: ScheduleWarning[]
   focused: boolean
@@ -175,6 +183,9 @@ function BoardColumn({ day, editable, warnings, focused, onToggleFocus, onMoveSt
   onReorder: (dayIndex: number, fromIdx: number, toIdx: number) => void
 }) {
   const timeFormat = useTimeFormat()
+  // Keyboard/touch alternative to dragging: ▲▼ reorders within the day, the
+  // ↔ button opens a move-to-day modal (UI audit: Board was drag-only).
+  const [moveStop, setMoveStop] = useState<ItineraryStop | null>(null)
   const ordered = useMemo(
     () => [...day.stops].filter(s => s.status !== 'rejected').sort((a, b) => a.orderInDay - b.orderInDay),
     [day],
@@ -266,7 +277,7 @@ function BoardColumn({ day, editable, warnings, focused, onToggleFocus, onMoveSt
       now.set(el.dataset.stopId!, { x: r.left, y: r.top })
     }
     const prev = prevRects.current
-    if (prev) {
+    if (prev && !prefersReducedMotion()) {
       for (const [id, p] of now) {
         const q = prev.get(id)
         if (!q) continue
@@ -291,7 +302,7 @@ function BoardColumn({ day, editable, warnings, focused, onToggleFocus, onMoveSt
         <span className="board-col-day">Day {day.index + 1}</span>
         <span className="board-col-count">{focused ? 'Focused · ' : ''}{totalStops} stop{totalStops === 1 ? '' : 's'}</span>
         <span className="board-col-subtitle">{day.title || `Day ${day.index + 1}`}</span>
-        {topWarn && <span className={`day-warn-pill ${sev === 'high' ? 'sev-high' : ''}`}>⚠ {topWarn.title.replace(/^Day \d+: /, '')}{warnings.length > 1 ? ` +${warnings.length - 1}` : ''}</span>}
+        {topWarn && <span className={`day-warn-pill ${sev === 'high' ? 'sev-high' : ''}`}><TriangleAlert size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />{topWarn.title.replace(/^Day \d+: /, '')}{warnings.length > 1 ? ` +${warnings.length - 1}` : ''}</span>}
       </button>
 
       <div className={`board-col-stops${dragging !== null ? ' is-dragging' : ''}`} ref={stopsRef}
@@ -318,6 +329,26 @@ function BoardColumn({ day, editable, warnings, focused, onToggleFocus, onMoveSt
                 <span className="stop-title">{s.title}</span>
                 {meta && <span className="board-stop-meta">{meta}</span>}
               </div>
+              {editable && (
+                <div className="stop-actions board-stop-actions">
+                  <div className="move-btns">
+                    <button type="button" className="move-btn" disabled={i === 0}
+                      onClick={() => onReorder(day.index, i, i - 1)} aria-label={`Move ${s.title} up`}>
+                      <ChevronUp size={12} aria-hidden />
+                    </button>
+                    <button type="button" className="move-btn" disabled={i === ordered.length - 1}
+                      onClick={() => onReorder(day.index, i, i + 1)} aria-label={`Move ${s.title} down`}>
+                      <ChevronDown size={12} aria-hidden />
+                    </button>
+                  </div>
+                  {allDays.length > 1 && (
+                    <button type="button" className="move-btn" onClick={() => setMoveStop(s)}
+                      title="Move to another day" aria-label={`Move ${s.title} to another day`}>
+                      <MoveHorizontal size={12} aria-hidden />
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           )
         })}
@@ -326,7 +357,7 @@ function BoardColumn({ day, editable, warnings, focused, onToggleFocus, onMoveSt
           role="note">
           {editable ? (
             <>
-              <b>＋ Add or drop a stop</b>
+              <b><Plus size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />Add or drop a stop</b>
               <span className="small">Impact preview before saving</span>
             </>
           ) : (
@@ -334,6 +365,20 @@ function BoardColumn({ day, editable, warnings, focused, onToggleFocus, onMoveSt
           )}
         </div>
       </div>
+
+      {moveStop && (
+        <Modal open title={`Move “${moveStop.title}” to…`} onClose={() => setMoveStop(null)}>
+          <p className="small muted" style={{ margin: '0 0 12px' }}>It lands at the end of the chosen day — reorder from there.</p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {allDays.filter(d => d.index !== day.index).map(d => (
+              <button key={d.id} type="button" className="btn btn-outline" style={{ width: '100%', justifyContent: 'flex-start' }}
+                onClick={() => { onMoveStopIn(moveStop.id, day.index, d.index, d.stops.length); setMoveStop(null) }}>
+                Day {d.index + 1}{d.title ? ` — ${d.title}` : ''} · {d.stops.length} stop{d.stops.length === 1 ? '' : 's'}
+              </button>
+            ))}
+          </div>
+        </Modal>
+      )}
     </div>
   )
 }

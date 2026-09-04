@@ -1,5 +1,6 @@
 // ============ Create trip ============
 import { useEffect, useRef, useState } from 'react'
+import { Calendar, ChevronDown, ChevronUp, Pin, TriangleAlert, X } from 'lucide-react'
 import type { FixedCommitment, LatLngPoint, TransportMode, TravelStyle } from '../data/types'
 import { TRANSPORT_MODES, TRAVEL_STYLES } from '../data/types'
 import { useDb, currentUser, createTrip } from '../store/store'
@@ -110,10 +111,16 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
       // F-15: move focus to the first invalid field so keyboard / screen-reader
       // users don't have to hunt for what failed (the Field error span carries
       // role="alert", so the message itself is announced on arrival). Fields
-      // rendered through LocationInput don't register a ref — the first
-      // focusable invalid input wins in that case.
+      // rendered through LocationInput don't register a ref — fall back to
+      // focusing that field's own error message so the failure is still
+      // announced and the viewport lands on it.
       const first = Object.keys(next).find(k => fieldRefs.current[k])
-      if (first) fieldRefs.current[first]!.focus()
+      if (first) {
+        fieldRefs.current[first]!.focus()
+      } else {
+        const firstErr = document.querySelector<HTMLElement>('.field .err-text')
+        if (firstErr) { firstErr.setAttribute('tabindex', '-1'); firstErr.focus() }
+      }
       return
     }
 
@@ -189,10 +196,10 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
                       <span className="dest-order">{i + 1}</span>
                       {d.name}
                       <button type="button" aria-label={`Move ${d.name} earlier`} disabled={i === 0}
-                        onClick={() => moveDest(i, -1)} style={{ opacity: i === 0 ? .25 : undefined }}>↑</button>
+                        onClick={() => moveDest(i, -1)} style={{ opacity: i === 0 ? .25 : undefined }}><ChevronUp size={12} aria-hidden /></button>
                       <button type="button" aria-label={`Move ${d.name} later`} disabled={i === dests.length - 1}
-                        onClick={() => moveDest(i, 1)} style={{ opacity: i === dests.length - 1 ? .25 : undefined }}>↓</button>
-                      <button type="button" aria-label={`Remove ${d.name}`} onClick={() => removeDest(i)}>✕</button>
+                        onClick={() => moveDest(i, 1)} style={{ opacity: i === dests.length - 1 ? .25 : undefined }}><ChevronDown size={12} aria-hidden /></button>
+                      <button type="button" aria-label={`Remove ${d.name}`} onClick={() => removeDest(i)}><X size={12} aria-hidden /></button>
                     </span>
                   ))}
                 </div>
@@ -210,7 +217,7 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
               </Field>
             </div>
             {dayCount > 0 && (
-              <p className="hint-text">📅 That’s {dayCount} day{dayCount !== 1 ? 's' : ''} of planning.</p>
+              <p className="hint-text"><Calendar size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />That’s {dayCount} day{dayCount !== 1 ? 's' : ''} of planning.</p>
             )}
           </div>
 
@@ -237,8 +244,8 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
                   <input className="input" type="number" min={2} max={80} step={0.1} value={f.fuelEconomy}
                     onChange={e => setF(x => ({ ...x, fuelEconomy: e.target.value }))} placeholder="e.g. 18" />
                   {isImplausibleFuelEconomy(f.transportMode, parseFuelEconomyKmL(f.fuelEconomy)) && (
-                    <p className="hint-text" style={{ marginTop: 5, color: '#b45309' }}>
-                      ⚠️ Unusual for a {f.transportMode} — most do far better. Double-check the value (km per litre).
+                    <p className="hint-text" style={{ marginTop: 5, color: 'var(--warn)' }}>
+                      <TriangleAlert size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />Unusual for a {f.transportMode} — most do far better. Double-check the value (km per litre).
                     </p>
                   )}
                 </Field>
@@ -248,7 +255,7 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
                 </Field>
               </div>
               <div className="chip-row" style={{ margin: '4px 0 12px' }}>
-                <Chip active={f.roundTrip} onClick={() => setF(x => ({ ...x, roundTrip: !x.roundTrip }))}>
+                <Chip active={f.roundTrip} onClick={() => setF(x => ({ ...x, roundTrip: !x.roundTrip }))} aria-pressed={f.roundTrip}>
                   Round trip — return to start
                 </Chip>
               </div>
@@ -301,17 +308,17 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
             <div style={{ marginBottom: 12 }}>
               {commitments.map((x, i) => (
                 <div key={i} className="warn-item sev-low" style={{ marginBottom: 7 }}>
-                  <span className="warn-icon">📌</span>
+                  <span className="warn-icon"><Pin size={13} aria-hidden /></span>
                   <div style={{ flex: 1 }}>
                     <div className="warn-title">{x.title}</div>
                     <div className="warn-fix">Day {x.dayIndex + 1} at {formatHM(x.time, timeFormat)}</div>
                   </div>
-                  <button type="button" className="icon-btn" aria-label={`Remove ${x.title}`} onClick={() => setCommitments(l => l.filter((_, j) => j !== i))}>✕</button>
+                  <button type="button" className="icon-btn" aria-label={`Remove ${x.title}`} onClick={() => setCommitments(l => l.filter((_, j) => j !== i))}><X size={12} aria-hidden /></button>
                 </div>
               ))}
             </div>
           )}
-          <div className="form-row" style={{ gridTemplateColumns: '2fr 1fr .8fr .8fr auto', alignItems: 'end', gap: 10 }}>
+          <div className="form-row commitment-row">
             <Field label="What"><input className="input" value={c.title} onChange={e => setC(x => ({ ...x, title: e.target.value }))} placeholder="e.g. Houseboat boarding" /></Field>
             <Field label="Type">
               <select className="select" value={c.type} onChange={e => setC(x => ({ ...x, type: e.target.value as FixedCommitment['type'] }))}>

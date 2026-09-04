@@ -1,5 +1,6 @@
 // ============ Auth page ============
 import { useEffect, useState } from 'react'
+import { TriangleAlert } from 'lucide-react'
 import { useDb, currentUser, login, signup } from '../store/store'
 import { isSupabaseConfigured } from '../lib/supabase'
 import { MISSING_BACKEND_MESSAGE } from '../lib/authErrors'
@@ -44,21 +45,21 @@ export function AuthPage({ onNavigate }: { onNavigate: (r: string) => void }) {
   return (
     <div className="auth-wrap">
       <div className="card auth-card">
-        <h1 style={{ fontSize: 26 }}>{mode === 'login' ? 'Welcome back 👋' : 'Create your account'}</h1>
+        <h1 style={{ fontSize: 26 }}>{mode === 'login' ? 'Welcome back' : 'Create your account'}</h1>
         <p className="muted small" style={{ marginTop: 4 }}>
           {mode === 'login' ? 'Log in to your trip plans.' : 'Free forever for planning. No card needed.'}
         </p>
 
         <div className="tabbar" style={{ margin: '18px 0' }}>
-          <button className={`tab-btn ${mode === 'login' ? 'active' : ''}`} onClick={() => { setMode('login'); setError(null) }}>Log in</button>
-          <button className={`tab-btn ${mode === 'signup' ? 'active' : ''}`} onClick={() => { setMode('signup'); setError(null) }}>Sign up</button>
+          <button className={`tab-btn ${mode === 'login' ? 'active' : ''}`} aria-pressed={mode === 'login'} onClick={() => { setMode('login'); setError(null) }}>Log in</button>
+          <button className={`tab-btn ${mode === 'signup' ? 'active' : ''}`} aria-pressed={mode === 'signup'} onClick={() => { setMode('signup'); setError(null) }}>Sign up</button>
         </div>
 
         {/* Say so up front: a build with no Supabase project compiled in can
             only ever fail, and "Failed to fetch" blames the wrong thing. */}
         {!isSupabaseConfigured && (
           <div className="err-text" style={{ marginBottom: 12 }}>
-            ⚠️ <strong>This build has no backend configured.</strong>
+            <TriangleAlert size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} /><strong>This build has no backend configured.</strong>
             <div className="small" style={{ marginTop: 4 }}>{MISSING_BACKEND_MESSAGE}</div>
           </div>
         )}
@@ -71,9 +72,9 @@ export function AuthPage({ onNavigate }: { onNavigate: (r: string) => void }) {
           <Field label="Password" hint={mode === 'signup' ? 'At least 8 characters' : undefined}>
             <input className="input" type="password" name="password" autoComplete={mode === 'signup' ? 'new-password' : 'current-password'} value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" />
           </Field>
-          {error && <div className="err-text" role="alert" style={{ marginBottom: 10 }}>⚠️ {error}</div>}
+          {error && <div className="err-text" role="alert" style={{ marginBottom: 10 }}><TriangleAlert size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />{error}</div>}
           <button type="submit" className="btn btn-primary btn-lg" style={{ width: '100%' }} disabled={saving}>
-            {saving ? 'Signing in…' : mode === 'login' ? 'Log in' : 'Create account'}
+            {saving ? (mode === 'login' ? 'Signing in…' : 'Creating account…') : mode === 'login' ? 'Log in' : 'Create account'}
           </button>
         </form>
 

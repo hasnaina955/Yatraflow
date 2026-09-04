@@ -1155,13 +1155,11 @@ a.btn { text-decoration: none; }
 .auth-hero-line { font-size: 15px; color: var(--text-2); margin-top: 8px; }
 
 /* ---------- Hero (landing) — split layout per CTI homepage mockup ---------- */
+/* The hero itself is transparent: the atmospheric ramp lives on the page-level
+   .landing-canvas (fixed attachment), so no hard gradient edge can appear at
+   the hero/bench boundary or behind the floating nav pill. */
 .hero {
-  /* Level-1 atmospheric canvas (CTI §4.2): quiet mint/cream/peach. */
-  background:
-    radial-gradient(circle at 18% 12%, var(--yf-atmos-mint), transparent 32%),
-    radial-gradient(circle at 88% 28%, var(--yf-atmos-peach), transparent 30%),
-    linear-gradient(135deg, var(--yf-mist) 0%, var(--yf-cream) 52%, var(--yf-peach) 100%);
-  padding: 64px 0 64px; text-align: center;
+  padding: 26px 0 8px; text-align: center;
 }
 .hero-split { display: grid; grid-template-columns: 1.05fr .95fr; gap: 44px; align-items: center; text-align: left; }
 .hero-copy .hero-sub { margin-left: 0; }
@@ -2483,7 +2481,7 @@ html.vt-active :where(*) {
 
 /* ---------- Plan Bench (issue #37) — homepage cost calculator ---------- */
 .plan-bench {
-  padding-top: 30px; scroll-margin-top: 76px;
+  padding-top: 14px; scroll-margin-top: 76px;
   --bench-mono: ui-monospace, 'SF Mono', 'Cascadia Mono', 'Roboto Mono', Consolas, monospace;
 }
 .bench-grid {
@@ -2665,7 +2663,7 @@ html.vt-active :where(*) {
 /* identity badge — the tool finally wears its name */
 .bench-badge {
   display: flex; align-items: center; gap: 8px; width: fit-content;
-  margin: 0 auto 16px; padding: 7px 16px; border-radius: 999px;
+  margin: 0 auto 12px; padding: 7px 16px; border-radius: 999px;
   font-size: 12.5px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase;
   color: var(--yf-teal-700);
   background: linear-gradient(var(--card), var(--card)) padding-box,
@@ -2696,7 +2694,7 @@ html.vt-active :where(*) {
 
 /* drifting atmosphere blobs behind the section */
 .plan-bench { position: relative; overflow: hidden; }
-.bench-blob { position: absolute; z-index: 0; width: 340px; height: 340px; border-radius: 50%; filter: blur(70px); opacity: .55; pointer-events: none; }
+.bench-blob { position: absolute; z-index: 0; width: 340px; height: 340px; border-radius: 50%; filter: blur(80px); opacity: .28; pointer-events: none; }
 .bench-blob-a { top: -90px; left: -130px; background: var(--yf-atmos-peach); }
 .bench-blob-b { bottom: -70px; right: -150px; background: var(--yf-atmos-mint); }
 .plan-bench > *:not(.bench-blob) { position: relative; z-index: 1; }
@@ -2704,7 +2702,7 @@ html.vt-active :where(*) {
   .bench-blob-a { animation: blob-drift 19s ease-in-out infinite alternate; }
   .bench-blob-b { animation: blob-drift 26s ease-in-out infinite alternate-reverse; }
 }
-@keyframes blob-drift { from { transform: translate(0, 0) scale(1); } to { transform: translate(46px, 26px) scale(1.12); } }
+@keyframes blob-drift { from { transform: translate(0, 0) scale(1); } to { transform: translate(16px, 9px) scale(1.05); } }
 
 /* scroll-in choreography */
 @media (prefers-reduced-motion: no-preference) {
@@ -2845,10 +2843,23 @@ html.vt-active :where(*) {
    Homepage motion & one-screen Plan Bench (homepage-build)
    ============================================================ */
 
-/* ---------- Living atmosphere: hero blobs drift (reuses bench blob-drift) ---------- */
-.hero { position: relative; overflow: hidden; }
+/* ---------- Living atmosphere: one continuous page canvas ---------- */
+/* The whole landing page sits on a single fixed-attachment atmospheric ramp:
+   the mint→cream→peach gradient never scrolls or restarts per section, so the
+   topnav area, hero and bench read as one seamless surface (no white band
+   above the nav pill, no hard edge where the hero section ends). */
+.landing-canvas {
+  margin-top: calc(-1 * (var(--nav-h) + 12px));   /* pull up behind the floating pill */
+  padding-top: calc(var(--nav-h) + 12px);
+  background:
+    radial-gradient(circle at 18% 12%, var(--yf-atmos-mint), transparent 34%),
+    radial-gradient(circle at 88% 28%, var(--yf-atmos-peach), transparent 32%),
+    linear-gradient(135deg, var(--yf-mist) 0%, var(--yf-cream) 52%, var(--yf-peach) 100%);
+  background-attachment: fixed;
+}
+.hero { position: relative; }
 .hero-split { position: relative; z-index: 1; }
-.hero-blob { position: absolute; z-index: 0; border-radius: 50%; filter: blur(70px); opacity: .5; pointer-events: none; }
+.hero-blob { position: absolute; z-index: 0; border-radius: 50%; filter: blur(70px); opacity: .32; pointer-events: none; }
 .hero-blob-a { width: 380px; height: 380px; top: -110px; left: -140px; background: var(--yf-atmos-mint); }
 .hero-blob-b { width: 340px; height: 340px; bottom: -130px; right: -120px; background: var(--yf-atmos-peach); }
 

@@ -8,7 +8,11 @@ export function LandingPage({ onNavigate }: { onNavigate: (r: string) => void })
       {/* ---------- Hero (split layout, per CTI homepage mockup) ---------- */}
       {/* hero-blob spans + hero-rise choreography: the atmosphere drifts slowly
           and the copy rises in one orchestrated stagger on load. */}
-      <section className="hero atmos">
+      {/* One continuous atmospheric canvas behind the whole page — hero, bench and
+          sections share a single fixed-attachment ramp, so there are no section
+          seams; the canvas is pulled up behind the floating nav pill too. */}
+      <div className="landing-canvas">
+      <section className="hero">
         <span className="hero-blob hero-blob-a" aria-hidden="true" />
         <span className="hero-blob hero-blob-b" aria-hidden="true" />
         <div className="container hero-split">
@@ -91,6 +95,7 @@ export function LandingPage({ onNavigate }: { onNavigate: (r: string) => void })
       <footer className="container small muted" style={{ textAlign: 'center', padding: '26px 20px 34px', borderTop: '1px solid var(--line)' }}>
         YatraFlow · Plan real trips, together.
       </footer>
+      </div>
     </div>
   )
 }

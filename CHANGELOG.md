@@ -2,9 +2,9 @@
 
 All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](https://keepachangelog.com/); versions are pre-1.0 MVP milestones.
 
-## [Unreleased]
+## [0.27.0] — 2026-09-04
 
-**Interface-quality pass — one icon pack, accessible controls, and the six highest-severity UI defects fixed.** Full per-commit detail lives in the commit bodies on `redesign/homepage-build`.
+**Interface-quality release — one icon pack, accessible controls, and the six highest-severity UI defects fixed.** Full per-commit detail lives in the commit bodies on `redesign/homepage-build`.
 
 ### Changed
 - **Buttons, chips and pills now agree with each other.** One press scale and one hover-lift across every clickable control, one pill padding rhythm, one teal glow token replacing three competing shadow triplets, and radii folded back onto the 12/18/24px scale (the modal was 22px, the pricing stat card 21px). Cards lift −2px instead of −1/−2/−3 depending on where you were. Dead-feeling CTAs (Save/Fork/heart) respond to hover and press again.

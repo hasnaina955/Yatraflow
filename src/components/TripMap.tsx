@@ -11,6 +11,10 @@ import { loadFlag, saveFlag } from '../lib/uiPrefs'
 import type { MapRef } from './mapcn/map'
 import { CatIcon } from './icons'
 import {
+  Flag, Home, Info, Lightbulb, LocateFixed, Map as MapIcon, PlaneTakeoff,
+  RotateCcw, TriangleAlert, X,
+} from 'lucide-react'
+import {
   Map as MapLibreMap,
   MapMarker,
   MarkerContent,
@@ -394,14 +398,14 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
               Day {d.index + 1}
             </button>
           ))}
-          <button className="map-day-chip map-recenter" onClick={fitToTrip} title="Recentre the map on the trip route">🎯 Recentre</button>
+          <button className="map-day-chip map-recenter" onClick={fitToTrip} title="Recentre the map on the trip route"><LocateFixed size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Recentre</button>
           {returnLeg && (
             <button
               className={`map-day-chip ${showReturn ? 'on' : ''}`}
               onClick={() => setShowReturn(s => !s)}
               title="Show or hide the drive back home"
             >
-             ↩ Return home
+              <RotateCcw size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Return home
             </button>
           )}
           {/* Nearby-idea category filters — hide/show the gold idea markers by
@@ -436,7 +440,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
 
       <div className="map-frame">
         {allPoints.length === 0 ? (
-          <div className="empty-state"><div className="big">🗺️</div><p>No confirmed stops to plot yet — add some in the Timeline.</p></div>
+          <div className="empty-state"><div className="big"><MapIcon size={38} aria-hidden /></div><p>No confirmed stops to plot yet — add some in the Timeline.</p></div>
         ) : (
           <MapLibreMap
             ref={mapRef}
@@ -528,7 +532,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                 const isFirst = idx === 0
                 const isLast = idx === allPoints.length - 1
                 if (p.auto) {
-                  const label = isLast ? '🏁' : '🛫'
+                  const label = isLast ? <Flag size={13} aria-hidden /> : <PlaneTakeoff size={13} aria-hidden />
                   return (
                     <MapMarker key={p.id} longitude={p.lng} latitude={p.lat}>
                       <MarkerContent>
@@ -564,7 +568,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
             {dayFilter === 'all' && returnLeg && (
               <MapMarker longitude={returnLeg.home.lng} latitude={returnLeg.home.lat}>
                 <MarkerContent>
-                  <span className="yf-map-pin yf-map-flag" title={trip.startLocation}>🏠</span>
+                  <span className="yf-map-pin yf-map-flag" title={trip.startLocation}><Home size={13} aria-hidden /></span>
                 </MarkerContent>
                 <MarkerTooltip>Home — return drive ends here ({trip.startLocation})</MarkerTooltip>
               </MapMarker>
@@ -583,12 +587,12 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                         +
                       </button>
                     ) : (
-                      <span className="yf-map-pin yf-map-pin-idea" aria-label={hit.name}>💡</span>
+                      <span className="yf-map-pin yf-map-pin-idea" aria-label={hit.name}><Lightbulb size={13} aria-hidden /></span>
                     )}
                   </span>
                 </MarkerContent>
                 <MarkerTooltip>
-                  💡 {hit.name}{hit.haltPurpose ? ` · ${hit.haltPurpose === 'overnight' ? 'overnight option' : hit.haltPurpose}` : ''}{hit.cumKm != null ? ` · ~${hit.cumKm} km in` : ''}{hit.nearestCity ? ` · near ${hit.nearestCity}` : ''}
+                  <Lightbulb size={11} aria-hidden style={{ verticalAlign: '-1px', marginRight: 3 }} />{hit.name}{hit.haltPurpose ? ` · ${hit.haltPurpose === 'overnight' ? 'overnight option' : hit.haltPurpose}` : ''}{hit.cumKm != null ? ` · ~${hit.cumKm} km in` : ''}{hit.nearestCity ? ` · near ${hit.nearestCity}` : ''}
                 </MarkerTooltip>
               </MapMarker>
             ))}
@@ -603,20 +607,20 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
             title={legendOpen ? 'Hide the map key' : 'Show the map key'}
             aria-label={legendOpen ? 'Hide the map key' : 'Show the map key'}
           >
-            {legendOpen ? '✕ Hide key' : 'ⓘ Key'}
+            {legendOpen ? <><X size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />Hide key</> : <><Info size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />Key</>}
           </button>
           {legendOpen && (
             <div className="map-legend-body">
               {dayFilter === 'all'
                 ? <>blue line = whole route{returnLeg ? ' · dashed = drive back home' : ''} · </>
                 : <>colours = day · </>}
-              pin icon = stop type · number = timeline order · dashed pin = "maybe" · 🛫/🏁 = start & final destination · 💡 gold markers = nearby ideas{onAddNearby ? ' (+ to add)' : ''}{ideaCats.length > 0 ? ' · chips filter ideas by type' : ''} · click a pin for details
+              pin icon = stop type · number = timeline order · dashed pin = "maybe" · plane/flag pins = start & final destination · gold bulb markers = nearby ideas{onAddNearby ? ' (+ to add)' : ''}{ideaCats.length > 0 ? ' · chips filter ideas by type' : ''} · click a pin for details
             </div>
           )}
         </div>
       </div>
       <p className="hint-text" style={{ marginTop: 8 }}>
-        ⚠️ Route lines follow real roads (© OSRM/OpenStreetMap) when available; distances/durations in the plan are real-road estimates for ground travel, falling back to transparent haversine assumptions when offline/other modes — no live traffic data.
+        <TriangleAlert size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />Route lines follow real roads (© OSRM/OpenStreetMap) when available; distances/durations in the plan are real-road estimates for ground travel, falling back to transparent haversine assumptions when offline/other modes — no live traffic data.
       </p>
     </div>
   )

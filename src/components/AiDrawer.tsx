@@ -1,5 +1,6 @@
 // ============ AI travel companion drawer ============
 import React, { useEffect, useRef, useState } from 'react'
+import { ClipboardList, Sparkles, X } from 'lucide-react'
 import type { Trip } from '../data/types'
 import { answerQuestion, quickPrompts, type AiReply } from '../lib/ai'
 import { scrollBehavior } from '../lib/motion'
@@ -47,23 +48,23 @@ export function AiDrawer({ trip, open, onOpen, onClose }: { trip: Trip; open: bo
   return (
     <>
       {!open && (
-        <button className="ai-fab" onClick={onOpen} aria-label="Open AI travel companion">✨</button>
+        <button className="ai-fab" onClick={onOpen} aria-label="Open AI travel companion"><Sparkles size={20} aria-hidden /></button>
       )}
       <div className="ai-drawer" style={{ display: open ? 'flex' : 'none' }} role="dialog" aria-label="AI travel companion">
         <div className="ai-head">
-          <span style={{ fontSize: 20 }}>✨</span>
+          <span style={{ display: 'inline-flex' }}><Sparkles size={20} aria-hidden /></span>
           <div>
             <b style={{ fontFamily: 'var(--font-display)' }}>YatraFlow Companion</b>
             <div className="small muted">Grounded in this trip’s data · estimates only</div>
           </div>
-          <button className="icon-btn" style={{ marginLeft: 'auto' }} onClick={onClose} aria-label="Close assistant">✕</button>
+          <button className="icon-btn" style={{ marginLeft: 'auto' }} onClick={onClose} aria-label="Close assistant"><X size={16} aria-hidden /></button>
         </div>
 
         <div className="ai-msgs" ref={scrollRef} role="log" aria-live="polite">
           {msgs.map(m => (
             <div key={m.id} className={`ai-bubble ${m.role}`}>
               {m.text}
-              {m.assumptions && <div className="ai-assumption">📋 {m.assumptions}</div>}
+              {m.assumptions && <div className="ai-assumption"><ClipboardList size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />{m.assumptions}</div>}
             </div>
           ))}
           {thinking && (

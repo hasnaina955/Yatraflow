@@ -77,14 +77,20 @@ export default function App() {
   //     holds the end state until teardown (no end flash).
   // Dark → light: the new light view radiates OUT of the icon (slow → zap).
   // Light → dark: the old light view collapses INTO the icon (fast → settle).
+  // The landing page runs continuous CSS animations (atmosphere blobs, route
+  // line draw, ticker, odometer). A full-page View-Transition snapshots the DOM,
+  // so all of that scenery visibly freezes for the ~700 ms the snapshot plays.
+  // Swap instantly there — no radiate — keeping the homepage alive; the radiate
+  // stays for the calmer in-app pages. (Also fixes the mobile eruption point,
+  // which was only ever observed on the landing route.)
   function toggleTheme(e: MouseEvent<HTMLButtonElement>) {
+    if (route === '/' || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setDark(d => !d); return
+    }
     const rect = e.currentTarget.getBoundingClientRect()
     const x = rect.left + rect.width / 2
     const y = rect.top + rect.height / 2
     const root = document.documentElement
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      setDark(d => !d); return
-    }
     const radius = Math.hypot(Math.max(x, window.innerWidth - x), Math.max(y, window.innerHeight - y))
     root.style.setProperty('--vt-x', `${x}px`)
     root.style.setProperty('--vt-y', `${y}px`)

@@ -254,6 +254,13 @@
 
 * { box-sizing: border-box; }
 
+/* Root-level horizontal clip. The hero/bench atmosphere blobs and the full-bleed
+   destination ticker deliberately paint past the 100vw edge for a soft diffused
+   glow. `clip` (unlike `hidden`) prunes that overflow to a clean page width
+   WITHOUT becoming a scroll container — so no horizontal scrollbar appears AND
+   the floating `position: sticky` topnav keeps working. */
+html { overflow-x: clip; }
+
 /* ---------- Overview Bento briefing (CTI §6.2) ---------- */
 /* Large-radius, softly-shadowed cards; the briefing reads as tiles, not a form. */
 .bento .card, .bento .stat-tile { border-radius: var(--radius-lg); box-shadow: var(--shadow-soft); }
@@ -2698,10 +2705,13 @@ html.vt-active :where(*) {
 .bench-sub { text-align: center; max-width: 560px; margin: 0 auto 18px; }
 
 /* drifting atmosphere blobs behind the section */
-/* No overflow: hidden — the blobs blur freely across the section bounds onto the
-   shared fixed canvas, so there is no hard clipped edge (the "bench seam").
-   Horizontal bleed is clipped to avoid page scrollbars. */
-.plan-bench { position: relative; overflow-x: clip; }
+/* No overflow on the section itself — the blobs blur freely across the section
+   bounds onto the shared fixed canvas, so there is no hard clipped edge (the
+   "bench seam"). Beware the pair rule: even `overflow-x: clip` alone makes the
+   OTHER axis compute to clip too, which slices the blobs' top/bottom bleed
+   into hard lines. Horizontal page blowout is handled once at the root
+   (html { overflow-x: clip }), which is not a scroll container. */
+.plan-bench { position: relative; }
 .bench-blob { position: absolute; z-index: 0; width: 340px; height: 340px; border-radius: 50%; filter: blur(80px); opacity: .5; pointer-events: none; }
 .bench-blob-a { top: -90px; left: -130px; background: var(--yf-atmos-peach); }
 .bench-blob-b { bottom: -70px; right: -150px; background: var(--yf-atmos-mint); }

@@ -177,6 +177,17 @@ export function PlanBench() {
     return () => io.disconnect()
   }, [])
 
+  // The mobile bill dock tracks visibility continuously — it slides away when
+  // the bench (with its full receipt) is off-screen and follows while tuning.
+  const [inView, setInView] = useState(false)
+  useEffect(() => {
+    const el = sectionRef.current
+    if (!el || typeof IntersectionObserver === 'undefined') { setInView(true); return }
+    const io = new IntersectionObserver(es => setInView(es.some(e => e.isIntersecting)), { threshold: 0.08 })
+    io.observe(el)
+    return () => io.disconnect()
+  }, [])
+
   // One exit-swept list: surprise cooldown, copy flash, tear timing.
   useEffect(() => () => {
     timersRef.current.forEach(clearTimeout)
@@ -303,7 +314,7 @@ export function PlanBench() {
   const stampTone = shown.fatigue.tone
 
   return (
-    <section className={`container plan-bench${live ? ' bench-live' : ''}`} id="plan-bench" aria-label="Trip cost calculator" ref={sectionRef}>
+    <section className={`container plan-bench${live ? ' bench-live' : ''}${inView ? ' bench-inview' : ''}`} id="plan-bench" aria-label="Trip cost calculator" ref={sectionRef}>
       <div className="bench-blob bench-blob-a" aria-hidden="true" />
       <div className="bench-blob bench-blob-b" aria-hidden="true" />
       <div className="bench-badge"><span className="bench-badge-dot" aria-hidden="true" />🧾 The Plan Bench</div>
@@ -487,6 +498,17 @@ export function PlanBench() {
             We pre-fill your new trip with these numbers · excludes tolls, parking & entry fees · stay ₹{STAY_RATE_PER_NIGHT[input.stay]}/room-night, 2 per room · food ₹{MEALS_PER_HEAD_DAY}/head/day
           </p>
         </div>
+      </div>
+      {/* Mobile bill dock — the total follows the user while they tune the dials
+          (one-screen rule: never scroll away from the number you're changing). */}
+      <div className="bench-dock">
+        <div className="bench-dock-figures">
+          <b>{formatInr(shown.total)}</b>
+          <span>{formatInr(shown.perHead)}/head · {input.crew} travelling</span>
+        </div>
+        <button type="button" className="btn btn-primary bench-dock-cta" onClick={handleCta}>
+          Use these numbers →
+        </button>
       </div>
     </section>
   )

@@ -6,30 +6,34 @@ export function LandingPage({ onNavigate }: { onNavigate: (r: string) => void })
   return (
     <div>
       {/* ---------- Hero (split layout, per CTI homepage mockup) ---------- */}
-      <section className="hero">
+      {/* hero-blob spans + hero-rise choreography: the atmosphere drifts slowly
+          and the copy rises in one orchestrated stagger on load. */}
+      <section className="hero atmos">
+        <span className="hero-blob hero-blob-a" aria-hidden="true" />
+        <span className="hero-blob hero-blob-b" aria-hidden="true" />
         <div className="container hero-split">
           <div className="hero-copy">
-            <span className="chip chip-saffron">🇮🇳 Built for Indian travellers</span>
-            <h1 style={{ fontSize: 'clamp(2.4rem, 5vw, 3.7rem)', margin: '18px 0 14px', lineHeight: 1.12 }}>
+            <span className="chip chip-saffron hero-rise">🇮🇳 Built for Indian travellers</span>
+            <h1 className="hero-rise rise-d1" style={{ fontSize: 'clamp(2.4rem, 5vw, 3.7rem)', margin: '18px 0 14px', lineHeight: 1.12 }}>
               Plan trips that actually <span style={{ color: 'var(--yf-teal-600)' }}>flow together</span>
             </h1>
-            <p className="hero-sub">
+            <p className="hero-sub hero-rise rise-d2">
               Build the route, see every time and cost impact,
               and keep your whole crew on the same page.
             </p>
-            <div className="hero-ctas">
+            <div className="hero-ctas hero-rise rise-d3">
               <a className="btn btn-primary btn-lg" href="#/auth?mode=signup">Start planning free →</a>
               <a className="btn btn-saffron btn-lg" href="#/explore">Explore itineraries</a>
-              <button type="button" className="hero-bench-cta"
+              <button type="button" className="hero-bench-cta hero-rise rise-d4"
                 onClick={() => document.getElementById('plan-bench')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>
                 <span className="hbc-label">Price a trip in 10 seconds <span className="hbc-arrow" aria-hidden="true">⬇</span></span>
               </button>
             </div>
-            <p className="small muted" style={{ marginTop: 16 }}>No card needed · Free forever · Your planning data is yours</p>
+            <p className="small muted hero-rise rise-d5" style={{ marginTop: 16 }}>No card needed · Free forever · Your planning data is yours</p>
           </div>
 
           {/* Adventure preview card (dark navy, route illustration, mockup) */}
-          <div className="hero-adventure" aria-hidden="true">
+          <div className="hero-adventure hero-rise rise-d2" aria-hidden="true">
             <div className="ha-kicker">Your next adventure</div>
             <div className="ha-name">🏔️ Leh–Ladakh road escape</div>
             <div className="ha-meta">12–21 Sep · 10 days · 4 travellers · Motorcycle</div>

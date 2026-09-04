@@ -220,6 +220,7 @@ export function HealthRing({ score, band }: { score: number; band: string }) {
 export function RouteSquiggle({ height }: { height?: number }) {
   const gid = React.useId().replace(/[:]/g, '')
   const stops: Array<[number, number, number]> = [[21, 91, 1], [176, 55, 3], [361, 67, 6], [510, 36, 10]]
+  const road = 'M21 104 C 83 40, 139 107, 197 55 S 320 5, 382 67 S 484 128, 531 36'
   return (
     <svg viewBox="0 0 532 132" style={height ? { width: '100%', height, display: 'block' } : { width: '100%', height: 'auto', display: 'block' }} aria-hidden="true" role="presentation">
       <defs>
@@ -227,16 +228,25 @@ export function RouteSquiggle({ height }: { height?: number }) {
           <stop stopColor="#EFAD54" /><stop offset=".5" stopColor="#FFDF93" /><stop offset="1" stopColor="#E8684C" />
         </linearGradient>
       </defs>
-      <path d="M21 104 C 83 40, 139 107, 197 55 S 320 5, 382 67 S 484 128, 531 36"
-        fill="none" stroke={`url(#rg-${gid})`} strokeWidth="8" strokeLinecap="round" />
-      <path d="M21 104 C 83 40, 139 107, 197 55 S 320 5, 382 67 S 484 128, 531 36"
+      {/* The road draws itself on first paint (pathLength=1 normalises the dash math). */}
+      <path id={`rp-${gid}`} className="rs-road" d={road}
+        fill="none" stroke={`url(#rg-${gid})`} strokeWidth="8" strokeLinecap="round" pathLength={1} />
+      {/* Cream centreline endlessly flows along the road — the "route is alive" cue. */}
+      <path className="rs-dash" d={road}
         fill="none" stroke="#FFF8D7" strokeWidth="2" strokeDasharray="7 9" strokeLinecap="round" />
-      {stops.map(([x, y, n]) => (
-        <g key={n}>
+      {stops.map(([x, y, n], i) => (
+        <g key={n} className="rs-stop" style={{ animationDelay: `${0.85 + i * 0.15}s` }}>
           <circle cx={x} cy={y} r="13" fill="#FFFFFF" />
           <text x={x} y={y + 4} textAnchor="middle" fontSize="11" fontWeight="700" fill="#155B60">{n}</text>
         </g>
       ))}
+      {/* A traveller dot loops the road forever (SMIL — no JS timer, no re-render). */}
+      <g className="rs-vehicle">
+        <circle r="5.5" fill="#2BB8AC" stroke="#FFFFFF" strokeWidth="2" />
+        <animateMotion dur="11s" repeatCount="indefinite" rotate="auto">
+          <mpath href={`#rp-${gid}`} />
+        </animateMotion>
+      </g>
     </svg>
   )
 }

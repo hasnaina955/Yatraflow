@@ -7,12 +7,16 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 **Interface-quality pass — one icon pack, accessible controls, and the six highest-severity UI defects fixed.** Full per-commit detail lives in the commit bodies on `redesign/homepage-build`.
 
 ### Changed
+- **Buttons, chips and pills now agree with each other.** One press scale and one hover-lift across every clickable control, one pill padding rhythm, one teal glow token replacing three competing shadow triplets, and radii folded back onto the 12/18/24px scale (the modal was 22px, the pricing stat card 21px). Cards lift −2px instead of −1/−2/−3 depending on where you were. Dead-feeling CTAs (Save/Fork/heart) respond to hover and press again.
 - **Every icon in the app now comes from one consistent pack.** Platform emoji in ~60 buttons, chips and pills are replaced with Lucide stroke icons that follow dark mode and render identically on every OS. Trip cover emoji and toast tone stay emoji by design.
 - **Forms and toggles now announce themselves properly.** Field errors and hints are read out with their field, failing fields are flagged, error toasts announce immediately, and every chip or tab that shows a selected state exposes that state to screen readers.
 - **The Plan Board works without a mouse.** Cards gained move-up/down controls and a move-to-day picker alongside drag, with the same impact preview before saving.
 - **Smaller interaction cleanups.** Day titles rename via a real button, the AI panel traps focus and closes on Escape, toasts no longer cover the impact sheet's Keep/Remove decision, tab count badges are calm teal instead of alarm red, a dead "consultation" button is gone, and the commitments row collapses properly on phones.
 
 ### Fixed
+- **Drag-to-reorder feedback works on desktop again.** The wiggle and dashed empty-slot styling was accidentally trapped inside the mobile-only CSS block, so desktop drags showed no row feedback.
+- **Cost-split percentage labels are no longer clipped** by the 10px bar they sit in.
+- **Smaller visual corrections.** The Explore search box matches the pill-shaped filter selects beside it, "Surprise me" no longer out-shouts the preset chips beside it, auth inputs are distinguishable from the card in dark mode, and the decorative travel motifs read as illustration instead of specks.
 - **"Sign up free" no longer clips off-screen on narrow phones.** The nav tightens below 480px so both auth buttons stay inside the viewport.
 - **Dark mode is readable everywhere.** The hero card's "friends synced" and warning chips and the select dropdown chevron keep proper contrast on dark surfaces.
 - **Motion respects the OS "reduce motion" setting everywhere.** Route-change scrolling, the boarding-pass glide, the hero's travelling dot, map re-fits and board settle animations all go still with the preference.

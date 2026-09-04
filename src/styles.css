@@ -70,6 +70,9 @@
   --t-med: 300ms;
   --t-slow: 440ms;
 
+  /* Brand teal glow for selected/primary pill states — one triplet, not three. */
+  --shadow-glow-teal: 0 2px 10px rgba(13, 141, 130, .35);
+
   /* ---- 2. SEMANTICS (light) ---- */
   --color-background: var(--yf-cream);   /* CTI canvas (was --gray-50) */
   --color-foreground: var(--gray-900);
@@ -493,7 +496,7 @@ a.btn { text-decoration: none; }
 /* ---------- Chips & badges ---------- */
 .chip {
   display: inline-flex; align-items: center; gap: 5px;
-  padding: 4px 11px; border-radius: 999px;
+  padding: 5px 12px; border-radius: 999px;
   font-size: 12px; font-weight: 650;
   background: var(--bg-soft); color: var(--text-2);
   border: 1px solid transparent;
@@ -521,7 +524,7 @@ a.btn { text-decoration: none; }
 }
 .filter-pillbar .clickable-chip { border: none; background: transparent; }
 .filter-pillbar .clickable-chip:hover { transform: none; }
-.filter-pillbar .clickable-chip.on-teal { background: var(--teal-deep); color: #fff; box-shadow: 0 2px 10px rgba(11,138,128,.35); }
+.filter-pillbar .clickable-chip.on-teal { background: var(--teal-deep); color: #fff; box-shadow: var(--shadow-glow-teal); }
 [data-theme='dark'] .filter-pillbar .clickable-chip.on-teal { background: var(--teal); color: #06251f; }
 .filter-pillbar .clickable-chip.on-saffron { background: var(--saffron); color: #fff; }
 
@@ -544,7 +547,7 @@ a.btn { text-decoration: none; }
 }
 .explore-chips .clickable-chip.chip-teal {
   background: var(--teal-deep); color: #fff; border-color: transparent;
-  box-shadow: 0 2px 10px rgba(11,138,128,.35);
+  box-shadow: var(--shadow-glow-teal);
 }
 [data-theme='dark'] .explore-chips .clickable-chip.chip-teal { background: var(--teal); color: #06251f; }
 .explore-chips .clickable-chip.chip-saffron {
@@ -1146,7 +1149,7 @@ a.btn { text-decoration: none; }
 }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 .modal {
-  background: var(--card); border-radius: 22px 22px 0 0;
+  background: var(--card); border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   width: 100%; max-width: 620px; max-height: 92vh; overflow-y: auto;
   padding: 22px; animation: slideUp var(--t-med) var(--ease-out);
   /* Stop the sheet's scroll from chaining to the page behind it. */
@@ -1154,7 +1157,7 @@ a.btn { text-decoration: none; }
 }
 @media (min-width: 640px) {
   .modal-overlay { align-items: center; padding: 20px; }
-  .modal { border-radius: 22px; }
+  .modal { border-radius: var(--radius-lg); }
 }
 .modal-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; gap: 10px; }
 .toast-zone { position: fixed; bottom: calc(18px + env(safe-area-inset-bottom)); left: 0; right: 0; display: flex; flex-direction: column; align-items: center; gap: 8px; z-index: 200; pointer-events: none; padding: 0 14px; }
@@ -1181,6 +1184,8 @@ a.btn { text-decoration: none; }
 /* ---------- Auth ---------- */
 .auth-page { min-height: calc(100vh - var(--nav-h)); display: grid; place-items: center; padding: 34px 16px; }
 .auth-card { width: 100%; max-width: 430px; }
+/* Dark inputs otherwise sit nearly flush with the card surface — lift them. */
+[data-theme='dark'] .auth-card .input { background: rgba(255, 255, 255, .06); }
 .auth-hero-line { font-size: 15px; color: var(--text-2); margin-top: 8px; }
 
 /* ---------- Hero (landing) — split layout per CTI homepage mockup ---------- */
@@ -1262,7 +1267,7 @@ a.btn { text-decoration: none; }
 .section-sub { text-align: center; max-width: 480px; margin: 0 auto 26px; }
 .feature-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 14px; margin: 0 0 44px; }
 .feature-card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 21px; box-shadow: var(--shadow-sm); transition: transform .15s ease, box-shadow .15s ease; }
-.feature-card:hover { transform: translateY(-3px); box-shadow: 0 4px 8px rgba(11,37,69,.06), 0 16px 40px rgba(11,37,69,.12); }
+.feature-card:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(11,37,69,.06), 0 16px 40px rgba(11,37,69,.12); }
 .feature-card h3 { font-size: 15.5px; }
 .feature-ico { width: 42px; height: 42px; border-radius: 12px; background: var(--teal-soft); display: flex; align-items: center; justify-content: center; font-size: 20px; margin-bottom: 12px; }
 .feature-card p { font-size: 13.5px; color: var(--text-2); margin-top: 6px; line-height: 1.55; }
@@ -1297,7 +1302,7 @@ a.btn { text-decoration: none; }
 /* ---------- Explore cards ---------- */
 .explore-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 16px; }
 .itin-card { overflow: hidden; padding: 0; display: flex; flex-direction: column; transition: transform .15s ease, box-shadow .15s ease; }
-.itin-card:hover { transform: translateY(-3px); box-shadow: 0 4px 8px rgba(11,37,69,.06), 0 16px 40px rgba(11,37,69,.12); }
+.itin-card:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(11,37,69,.06), 0 16px 40px rgba(11,37,69,.12); }
 .itin-cover { position: relative; aspect-ratio: 16/9; background: linear-gradient(135deg, var(--teal-deep), var(--text)); overflow: hidden; }
 .itin-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .itin-cover-route {
@@ -1353,19 +1358,19 @@ a.btn { text-decoration: none; }
   border: 1px solid var(--yf-glass-border); background: var(--yf-glass);
   -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
   color: var(--text-2); border-radius: 999px; font-size: 12px; font-weight: 700;
-  padding: 4px 13px; white-space: nowrap; transition: background var(--t-fast) var(--ease-out),
+  padding: 5px 12px; white-space: nowrap; transition: background var(--t-fast) var(--ease-out),
     color var(--t-fast) var(--ease-out), border-color var(--t-fast) var(--ease-out), box-shadow var(--t-fast) var(--ease-out);
 }
 .map-day-chip:hover { color: var(--text); border-color: var(--teal); }
-.map-day-chip.on { background: var(--teal-deep); color: #fff; border-color: var(--teal-deep); box-shadow: 0 2px 10px rgba(11,138,128,.35); }
+.map-day-chip.on { background: var(--teal-deep); color: #fff; border-color: var(--teal-deep); box-shadow: var(--shadow-glow-teal); }
 .map-expand-chip { margin-left: auto; }
 [data-theme='dark'] .map-day-chip { background: rgba(22,35,58,.72); color: var(--text); }
 [data-theme='dark'] .map-day-chip:hover { background: rgba(22,35,58,.95); }
-[data-theme='dark'] .map-day-chip.on { background: var(--teal); color: #06251f; border-color: var(--teal); box-shadow: 0 2px 12px rgba(11,138,128,.4); }
+[data-theme='dark'] .map-day-chip.on { background: var(--teal); color: #06251f; border-color: var(--teal); box-shadow: 0 2px 12px rgba(13,141,130,.4); }
 /* Map key: hidden behind a small ⓘ chip by default (it used to blanket the
    bottom-right corner); the body card reopens above the same corner. */
 .map-legend { position: absolute; right: 12px; bottom: 12px; z-index: 5; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
-.map-legend-toggle { border: 1.5px solid rgba(255,255,255,.5); background: rgba(255,255,255,.85); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); color: var(--text); border-radius: 999px; font-size: 12px; font-weight: 700; padding: 4px 11px; white-space: nowrap; }
+.map-legend-toggle { border: 1.5px solid rgba(255,255,255,.5); background: rgba(255,255,255,.85); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); color: var(--text); border-radius: 999px; font-size: 12px; font-weight: 700; padding: 5px 12px; white-space: nowrap; }
 .map-legend-body { background: rgba(255,255,255,.92); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); border-radius: 12px; padding: 8px 12px; font-size: 11.5px; color: var(--text-2); font-weight: 600; max-width: min(440px, 78vw); }
 [data-theme='dark'] .map-legend-toggle { background: rgba(22,35,58,.88); color: var(--text); }
 [data-theme='dark'] .map-legend-body { background: rgba(22,35,58,.92); }
@@ -1540,7 +1545,7 @@ a.btn { text-decoration: none; }
 /* "The practical bit" — evidence card floating over the hero's right edge */
 .pub-hero-stats {
   position: absolute; z-index: 2; right: max(20px, calc((100% - 1180px) / 2 + 20px)); bottom: -66px;
-  width: 300px; border-radius: 21px; padding: 15px 18px;
+  width: 300px; border-radius: var(--radius-lg); padding: 15px 18px;
   background: rgba(255, 253, 245, .96); color: var(--text); box-shadow: var(--shadow-soft);
 }
 .pub-stats-label { display: block; font-size: 10.5px; font-weight: 800; letter-spacing: .1em; color: #6b8080; }
@@ -1913,7 +1918,14 @@ a.btn { text-decoration: none; }
      callout while the hold timer runs; a pressing row reads as "grabbed". */
   .tl-row { -webkit-user-select: none; -webkit-touch-callout: none; user-select: none; }
   .tl-row.yf-pressing { transform: scale(.98); opacity: .8; }
-  .tl.is-dragging .tl-row:not(.dragging):not(.drag-over):not(.foreign-over) {
+  /* Workspace header: let long trip names wrap instead of forcing overflow. */
+  .trip-head-card { padding: 16px; }
+  .trip-head-card h1 { font-size: clamp(22px, 6vw, 30px); }
+}
+/* Drag feedback is NOT touch-only — desktop HTML5 drag drives .is-dragging
+   too. These lived inside the <=720px block, so desktop drags never got the
+   wiggle or the dashed empty slot. */
+.tl.is-dragging .tl-row:not(.dragging):not(.drag-over):not(.foreign-over) {
   animation: stopWiggle 460ms var(--ease-out) 3;
 }
 @keyframes stopWiggle {
@@ -1927,10 +1939,6 @@ a.btn { text-decoration: none; }
 .tl-row.dragging { opacity: .45; border: 1.5px dashed var(--teal); box-shadow: none; }
 .tl-row.dragging > * { visibility: hidden; }
 .tl-row.dragging { min-height: 44px; }
-  /* Workspace header: let long trip names wrap instead of forcing overflow. */
-  .trip-head-card { padding: 16px; }
-  .trip-head-card h1 { font-size: clamp(22px, 6vw, 30px); }
-}
 .loc-option.hl { background: color-mix(in srgb, var(--accent, #149A90) 14%, transparent); }
 .loc-pin { flex: none; font-size: 13px; }
 .loc-name { font-weight: 600; white-space: nowrap; }
@@ -2341,7 +2349,7 @@ main:focus { outline: none; }
     border-color var(--t-fast) var(--ease-out), box-shadow var(--t-fast) var(--ease-out),
     transform var(--t-fast) var(--ease-out), filter var(--t-fast) var(--ease-out);
 }
-.btn:active, .tab-btn:active { transform: scale(.98); }
+.btn:active, .tab-btn:active { transform: scale(.97); }
 
 /* Theme cross-fade: light↔dark glides instead of snapping. */
 body, .topnav, .glass, .board, .board-col, .modal, .toast {
@@ -2385,7 +2393,7 @@ body, .topnav, .glass, .board, .board-col, .modal, .toast {
 }
 .pub-actions {
   display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;
-  border-radius: 18px; padding: 12px 16px; margin-bottom: 22px;
+  border-radius: var(--radius); padding: 12px 16px; margin-bottom: 22px;
   background: color-mix(in srgb, var(--card) 80%, transparent);
   border: 1px solid var(--yf-glass-border);
 }
@@ -2393,14 +2401,21 @@ body, .topnav, .glass, .board, .board-col, .modal, .toast {
 .pub-actions-btns { display: flex; gap: 10px; }
 .save-btn {
   background: var(--yf-saffron-100); color: #a25f25; border: 1px solid #ead9bd; font-weight: 800;
-  border-radius: 999px; padding: 9px 16px;
+  border-radius: 999px; padding: 9px 17px;
 }
+.save-btn:hover { filter: brightness(.97); }
 [data-theme='dark'] .save-btn { background: rgba(240, 165, 63, .12); color: #ffcf96; border-color: rgba(240, 165, 63, .25); }
 .fork-btn {
   background: linear-gradient(120deg, #0e9185, #0b6e69); color: #fff; border: none; font-weight: 800;
-  border-radius: 999px; padding: 9px 18px; box-shadow: 0 6px 16px rgba(11, 110, 105, .28);
+  border-radius: 999px; padding: 9px 17px; box-shadow: 0 6px 16px rgba(13, 141, 130, .28);
 }
+.fork-btn:hover { background: linear-gradient(120deg, var(--yf-teal-600), var(--yf-teal-700)); }
 [data-theme='dark'] .fork-btn { filter: brightness(.94); }
+/* One press scale (.97, matching .btn) and one hover lift (-2px cards, -1px
+   chips) across every clickable control — no more three languages. */
+.icon-btn:active, .move-btn:active, .vote-btn:active, .clickable-chip:active,
+.chip-btn:active, .map-day-chip:active, .map-legend-toggle:active, .tab-btn:active { transform: scale(.97); }
+.save-heart:hover { transform: scale(1.08); }
 
 /* editorial narrative + route glance */
 .pub-editorial { align-items: start; margin-bottom: 8px; }
@@ -2465,7 +2480,7 @@ html.vt-active :where(*) {
 }
 .day-highlight-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-top: 12px; }
 .day-highlight-card {
-  background: var(--card); border: 1px solid var(--yf-border); border-radius: 19px; padding: 14px 16px;
+  background: var(--card); border: 1px solid var(--yf-border); border-radius: var(--radius); padding: 14px 16px;
   display: flex; flex-direction: column; gap: 6px;
 }
 .day-highlight-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
@@ -2491,7 +2506,7 @@ html.vt-active :where(*) {
 .explore-hero-kicker { color: #a9eadc; }
 .explore-hero-sub { color: #d9efeb; font-size: clamp(14px, 1.6vw, 16.5px); max-width: 620px; margin: 10px 0 18px; line-height: 1.6; }
 .explore-hero-search {
-  max-width: 520px; width: 100%; border-radius: 14px; padding: 13px 16px;
+  max-width: 520px; width: 100%; border-radius: 999px; padding: 13px 18px;
   border: 1px solid rgba(255, 255, 255, .3); background: rgba(255, 255, 255, .12); color: #fff;
   -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
 }
@@ -2665,7 +2680,7 @@ html.vt-active :where(*) {
   display: flex; align-items: center; justify-content: center; min-width: 0; overflow: hidden;
 }
 .bench-split-bar span {
-  font-size: 8.5px; font-weight: 800; letter-spacing: .04em; white-space: nowrap;
+  font-size: 8.5px; line-height: 10px; font-weight: 800; letter-spacing: .04em; white-space: nowrap;
   color: #06251f; opacity: .8; font-variant-numeric: tabular-nums;
 }
 .bench-split-transport { background: var(--yf-teal-600); }
@@ -2846,6 +2861,10 @@ html.vt-active :where(*) {
 }
 @keyframes dice-roll { 0% { transform: rotate(0) scale(1); } 60% { transform: rotate(300deg) scale(1.25); } 100% { transform: rotate(360deg) scale(1); } }
 .bench-surprise:disabled { opacity: .65; cursor: default; }
+/* Surprise sits beside the preset chips as a tertiary action — outline with an
+   amber accent instead of a filled pill that out-shouts its neighbours. */
+.bench-surprise { border-color: var(--yf-amber); color: var(--warn); }
+.bench-surprise .bench-dice { color: var(--yf-amber); }
 
 /* copy celebration — confetti + copied tint */
 .bench-receipt-actions { position: relative; }
@@ -2879,7 +2898,7 @@ html.vt-active :where(*) {
 /* hero CTA — boarding-pass ticket: stub + tear line + flight code */
 .hero-bench-cta {
   position: relative; display: flex; align-items: stretch; width: min(100%, 460px);
-  margin-top: 14px; padding: 0; border: none; border-radius: 18px; cursor: pointer;
+  margin-top: 14px; padding: 0; border: none; border-radius: var(--radius); cursor: pointer;
   background: var(--card); color: var(--text); text-align: left;
   box-shadow: 0 16px 38px -14px rgba(11, 37, 69, .35);
   transition: transform .2s var(--ease-out), box-shadow .2s var(--ease-out);
@@ -2888,7 +2907,7 @@ html.vt-active :where(*) {
 /* animated brand strip along the top edge (ticket stripe) */
 .hero-bench-cta::before {
   content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px;
-  border-radius: 18px 18px 0 0;
+  border-radius: var(--radius) var(--radius) 0 0;
   background: linear-gradient(90deg, var(--yf-teal-600), var(--yf-saffron), var(--yf-teal-600));
   background-size: 220% 100%;
 }
@@ -3200,7 +3219,9 @@ html.vt-active :where(*) {
 body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 
 /* ---------- Travel motif accents (feature + steps sections) ---------- */
-.motif { position: absolute; pointer-events: none; opacity: .85; z-index: 0; color: var(--yf-teal-600); filter: drop-shadow(0 6px 14px rgba(13,141,130,.35)); }
+.motif { position: absolute; pointer-events: none; opacity: .9; z-index: 0; color: var(--yf-teal-600); filter: drop-shadow(0 6px 14px rgba(13,141,130,.35)); }
+/* Read as illustration, not specks: the inline SVGs render small. */
+.motif svg { transform: scale(1.3); transform-origin: center; }
 .motif-compass { animation: spin 22s linear infinite; transform-origin: 50% 50%; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .motif-bob { animation: bob 3.4s ease-in-out infinite; }

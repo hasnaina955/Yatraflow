@@ -344,7 +344,7 @@ export function PlanBench() {
             </button>
           )
         })}
-        <button type="button" className={`chip chip-saffron bench-surprise${rolling ? ' rolling' : ''}`} onClick={surpriseMe} disabled={surpriseCooldown} aria-label="Surprise me with a random trip">
+        <button type="button" className={`chip chip-outline bench-surprise${rolling ? ' rolling' : ''}`} onClick={surpriseMe} disabled={surpriseCooldown} aria-label="Surprise me with a random trip">
           <span className="bench-dice" aria-hidden="true"><Dices size={14} /></span> Surprise me
         </button>
         {dirty(input) && (

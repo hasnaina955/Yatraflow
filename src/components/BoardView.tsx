@@ -4,7 +4,11 @@
 // change routes through the same applyChange → impact-preview flow as the
 // Timeline, so nothing persists without its consequence visible first.
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { ArrowLeft, LocateFixed, Map as MapIcon, Plus, TriangleAlert } from 'lucide-react'
+import {
+  ArrowLeft, ChevronDown, ChevronUp, LocateFixed, Map as MapIcon, MoveHorizontal,
+  Plus, TriangleAlert,
+} from 'lucide-react'
+import { prefersReducedMotion } from '../lib/motion'
 import type { Trip, ItineraryStop } from '../data/types'
 import { computeTotals, computeHealth, collectWarnings, minutesToHM, formatInr } from '../lib/engine'
 import type { ScheduleWarning } from '../lib/engine'
@@ -12,7 +16,7 @@ import type { ImpactResult } from '../lib/impact'
 import { useTimeFormat, formatHM } from '../lib/timefmt'
 import { stopKindOf, STOP_KIND_LABELS } from '../lib/stopKind'
 import { useDb } from '../store/store'
-import { useReorder } from './ui'
+import { useReorder, Modal } from './ui'
 import { TripMap } from './TripMap'
 
 export function BoardView({ trip, editable, applyChange, health, totals, onOpenOverview, onOpenTimeline }: {
@@ -156,7 +160,7 @@ export function BoardView({ trip, editable, applyChange, health, totals, onOpenO
         {/* floating day columns — near-opaque so cards stay readable (§3.1) */}
         <div className="board-cols" role="list" aria-label="Trip days">
           {days.map(day => (
-            <BoardColumn key={day.id} day={day} editable={editable}
+            <BoardColumn key={day.id} day={day} allDays={days} editable={editable}
               warnings={dayWarnings[day.index] ?? []}
               focused={focusedDay === day.index}
               onToggleFocus={(focus) => setFocusedDay(focus ? day.index : focusedDay === day.index ? 'all' : day.index)}
@@ -168,8 +172,9 @@ export function BoardView({ trip, editable, applyChange, health, totals, onOpenO
     </div>
   )
 }
-function BoardColumn({ day, editable, warnings, focused, onToggleFocus, onMoveStopIn, onReorder }: {
+function BoardColumn({ day, allDays, editable, warnings, focused, onToggleFocus, onMoveStopIn, onReorder }: {
   day: Trip['days'][number]
+  allDays: Trip['days']
   editable: boolean
   warnings: ScheduleWarning[]
   focused: boolean
@@ -178,6 +183,9 @@ function BoardColumn({ day, editable, warnings, focused, onToggleFocus, onMoveSt
   onReorder: (dayIndex: number, fromIdx: number, toIdx: number) => void
 }) {
   const timeFormat = useTimeFormat()
+  // Keyboard/touch alternative to dragging: ▲▼ reorders within the day, the
+  // ↔ button opens a move-to-day modal (UI audit: Board was drag-only).
+  const [moveStop, setMoveStop] = useState<ItineraryStop | null>(null)
   const ordered = useMemo(
     () => [...day.stops].filter(s => s.status !== 'rejected').sort((a, b) => a.orderInDay - b.orderInDay),
     [day],
@@ -269,7 +277,7 @@ function BoardColumn({ day, editable, warnings, focused, onToggleFocus, onMoveSt
       now.set(el.dataset.stopId!, { x: r.left, y: r.top })
     }
     const prev = prevRects.current
-    if (prev) {
+    if (prev && !prefersReducedMotion()) {
       for (const [id, p] of now) {
         const q = prev.get(id)
         if (!q) continue
@@ -321,6 +329,26 @@ function BoardColumn({ day, editable, warnings, focused, onToggleFocus, onMoveSt
                 <span className="stop-title">{s.title}</span>
                 {meta && <span className="board-stop-meta">{meta}</span>}
               </div>
+              {editable && (
+                <div className="stop-actions board-stop-actions">
+                  <div className="move-btns">
+                    <button type="button" className="move-btn" disabled={i === 0}
+                      onClick={() => onReorder(day.index, i, i - 1)} aria-label={`Move ${s.title} up`}>
+                      <ChevronUp size={12} aria-hidden />
+                    </button>
+                    <button type="button" className="move-btn" disabled={i === ordered.length - 1}
+                      onClick={() => onReorder(day.index, i, i + 1)} aria-label={`Move ${s.title} down`}>
+                      <ChevronDown size={12} aria-hidden />
+                    </button>
+                  </div>
+                  {allDays.length > 1 && (
+                    <button type="button" className="move-btn" onClick={() => setMoveStop(s)}
+                      title="Move to another day" aria-label={`Move ${s.title} to another day`}>
+                      <MoveHorizontal size={12} aria-hidden />
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           )
         })}
@@ -337,6 +365,20 @@ function BoardColumn({ day, editable, warnings, focused, onToggleFocus, onMoveSt
           )}
         </div>
       </div>
+
+      {moveStop && (
+        <Modal open title={`Move “${moveStop.title}” to…`} onClose={() => setMoveStop(null)}>
+          <p className="small muted" style={{ margin: '0 0 12px' }}>It lands at the end of the chosen day — reorder from there.</p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {allDays.filter(d => d.index !== day.index).map(d => (
+              <button key={d.id} type="button" className="btn btn-outline" style={{ width: '100%', justifyContent: 'flex-start' }}
+                onClick={() => { onMoveStopIn(moveStop.id, day.index, d.index, d.stops.length); setMoveStop(null) }}>
+                Day {d.index + 1}{d.title ? ` — ${d.title}` : ''} · {d.stops.length} stop{d.stops.length === 1 ? '' : 's'}
+              </button>
+            ))}
+          </div>
+        </Modal>
+      )}
     </div>
   )
 }

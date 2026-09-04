@@ -1,7 +1,7 @@
 // ============ Explore public itineraries — discover, trust and fork (CTI §6.10) ============
 import { useMemo, useState } from 'react'
 import {
-  Calendar, Eye, GitFork, Heart, MapPin, Search, Sparkles, Star, Wallet, X,
+  Calendar, Compass, Eye, GitFork, Heart, MapPin, Search, Sparkles, Star, Wallet, X,
 } from 'lucide-react'
 import { useDb, currentUser, tripById, duplicateTrip, registerPubCopy } from '../store/store'
 import { computeHealth, formatInr } from '../lib/engine'
@@ -99,6 +99,7 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
   }
 
   const stylesWithCounts = STYLES.filter(s => (styleCounts.get(s) ?? 0) > 0)
+  const filtersActive = Boolean(q.trim()) || style !== 'all' || maxBudget !== '' || duration !== 'all' || savedOnly
 
   return (
     <div>
@@ -152,7 +153,7 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
               <option value="budget-desc">Budget: high → low</option>
               <option value="duration">Longest first</option>
             </select>
-            {(q || style !== 'all' || maxBudget !== '' || duration !== 'all' || savedOnly) && (
+            {filtersActive && (
               <button className="btn btn-ghost btn-sm" onClick={() => { setQ(''); setStyle('all'); setMaxBudget(''); setDuration('all'); setSavedOnly(false); syncUrl({ q: '', style: 'all', max: '', dur: 'all' }) }}><X size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Clear filters</button>
             )}
           </div>
@@ -190,8 +191,25 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
         )}
 
         {pubs.length === 0 ? (
-          <EmptyState icon={<Search size={38} aria-hidden />} title="Nothing matches those filters"
-            body="Try widening the budget or clearing a filter." />
+          filtersActive ? (
+            <EmptyState icon={<Search size={38} aria-hidden />} title="Nothing matches those filters"
+              body="Try widening the budget or clearing a filter." />
+          ) : (
+            /* Fresh catalog with no active filters: "nothing matches" would be a
+               dead end (and a lie — nothing was filtered). Point forward instead. */
+            <EmptyState icon={<Compass size={38} aria-hidden />}
+              title={me ? 'No itineraries published yet' : 'The community catalog is just getting started'}
+              body={me
+                ? 'Publish one of your trips from its Share tab and it will appear here.'
+                : 'Sign in to fork community itineraries into your own trips — or load the demo from My trips to look around first.'}
+              action={!me ? (
+                <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
+                  <button className="btn btn-primary" onClick={() => onNavigate('/auth?mode=signup')}>Sign up free</button>
+                  <button className="btn btn-outline" onClick={() => onNavigate('/auth')}>Log in</button>
+                </div>
+              ) : undefined}
+            />
+          )
         ) : (
           <div className="explore-grid">
             {pubs.map(p => {

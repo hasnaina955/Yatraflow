@@ -5,7 +5,6 @@ import type { Trip } from '../data/types'
 import { answerQuestion, quickPrompts, type AiReply } from '../lib/ai'
 import { scrollBehavior } from '../lib/motion'
 import { Chip } from './ui'
-
 interface Msg {
   id: number
   role: 'user' | 'bot'
@@ -21,6 +20,36 @@ export function AiDrawer({ trip, open, onOpen, onClose }: { trip: Trip; open: bo
   const [input, setInput] = useState('')
   const [thinking, setThinking] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const drawerRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  // The drawer behaves as a dialog (fixed full-height panel), so it gets the
+  // dialog contract: focus moves in on open, Tab cycles inside, Escape closes,
+  // and focus returns to whatever triggered it (UI audit finding).
+  useEffect(() => {
+    if (!open) return
+    const prev = document.activeElement as HTMLElement | null
+    inputRef.current?.focus({ preventScroll: true })
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { e.stopPropagation(); onClose(); return }
+      if (e.key !== 'Tab') return
+      const root = drawerRef.current
+      if (!root) return
+      const focusables = Array.from(
+        root.querySelectorAll<HTMLElement>('button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])'),
+      )
+      if (!focusables.length) return
+      const first = focusables[0]
+      const last = focusables[focusables.length - 1]
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus() }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus() }
+    }
+    window.addEventListener('keydown', onKey, true)
+    return () => {
+      window.removeEventListener('keydown', onKey, true)
+      if (prev?.isConnected) prev.focus()
+    }
+  }, [open, onClose])
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: scrollBehavior() })
@@ -50,7 +79,7 @@ export function AiDrawer({ trip, open, onOpen, onClose }: { trip: Trip; open: bo
       {!open && (
         <button className="ai-fab" onClick={onOpen} aria-label="Open AI travel companion"><Sparkles size={20} aria-hidden /></button>
       )}
-      <div className="ai-drawer" style={{ display: open ? 'flex' : 'none' }} role="dialog" aria-label="AI travel companion">
+      <div ref={drawerRef} className="ai-drawer" style={{ display: open ? 'flex' : 'none' }} role="dialog" aria-modal="true" aria-label="AI travel companion">
         <div className="ai-head">
           <span style={{ display: 'inline-flex' }}><Sparkles size={20} aria-hidden /></span>
           <div>
@@ -82,6 +111,7 @@ export function AiDrawer({ trip, open, onOpen, onClose }: { trip: Trip; open: bo
 
         <form className="ai-input-row" onSubmit={e => { e.preventDefault(); ask(input) }}>
           <input
+            ref={inputRef}
             className="input"
             placeholder="Ask about this trip…"
             aria-label="Ask the travel companion"

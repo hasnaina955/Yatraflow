@@ -45,7 +45,7 @@ export default function App() {
   }
 
   useEffect(() => {
-    const onHash = () => { setRoute(currentRoute()); setMobileNav(false); window.scrollTo(0, 0) }
+    const onHash = () => { setRoute(currentRoute()); setMobileNav(false); window.scrollTo({ top: 0, behavior: 'smooth' }) }
     window.addEventListener('hashchange', onHash)
     return () => window.removeEventListener('hashchange', onHash)
   }, [])

@@ -183,17 +183,22 @@ function DestTicker() {
 }
 
 /** Lightweight travel-silhouette SVG motifs behind the feature/steps grids —
- *  spinning compass, plane on a dashed float, bobbing trekker. transform-only,
- *  off under reduced motion. */
+ *  spinning compass, floating plane, bobbing trekker, swaying boat, drifting
+ *  hot-air balloon, gliding birds. transform-only, off under reduced motion. */
 function TravelMotifs({ mode }: { mode: 'features' | 'steps' }) {
   return (
     <>
       {mode === 'features' ? (<>
         <span className="motif motif-compass" style={{ top: 30, right: 44 }}><CompassSvg /></span>
         <span className="motif motif-float" style={{ bottom: 34, left: 24 }}><PlaneSvg /></span>
+        <span className="motif motif-rise" style={{ top: '38%', right: '8%' }}><BalloonSvg /></span>
+        <span className="motif motif-birds" style={{ top: 70, left: '12%' }}><BirdsSvg /></span>
       </>) : (<>
         <span className="motif motif-bob" style={{ top: 22, left: 48 }}><TrekkerSvg /></span>
         <span className="motif motif-float" style={{ bottom: 40, right: 34 }}><PlaneSvg /></span>
+        <span className="motif motif-sway" style={{ bottom: 90, left: '6%' }}><BoatSvg /></span>
+        <span className="motif motif-birds" style={{ top: 90, right: '14%' }}><BirdsSvg /></span>
+        <span className="motif motif-rise" style={{ top: '30%', left: '22%' }}><BalloonSvg /></span>
       </>)}
     </>
   )
@@ -220,6 +225,34 @@ function TrekkerSvg() {
       <circle cx="12" cy="6" r="3" />
       <path d="M12 10c-4 2-6 1.4-6 1.4L7 21h10l1-9.6-5-1.4z" />
       <path d="M7 18l-2.5 3m12.5-3l2.5 3" stroke="currentColor" strokeWidth="1.4" fill="none" />
+    </svg>
+  )
+}
+function BalloonSvg() {
+  return (
+    <svg width="30" height="34" viewBox="0 0 24 28" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+      <path d="M12 2a8 8 0 0 1 8 8c0 4.5-4.5 8-8 12-3.5-4-8-7.5-8-12a8 8 0 0 1 8-8z" fill="currentColor" opacity=".9" />
+      <path d="M12 2c-2.5 2-3.5 5-3.5 8S10 16 12 22c2-6 3.5-9 3.5-12S14.5 4 12 2z" fill="none" opacity=".45" />
+      <path d="M9.5 23.5h5M10.5 26h3" stroke="currentColor" strokeWidth="1.2" />
+    </svg>
+  )
+}
+function BoatSvg() {
+  return (
+    <svg width="28" height="22" viewBox="0 0 28 22" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 15h20l-3.5 5h-13z" fill="currentColor" opacity=".9" />
+      <path d="M14 3v12M14 4l6 9h-6" fill="none" />
+      <path d="M13 5l-5 8h5" fill="none" opacity=".55" />
+      <path d="M2 20c2-1.5 4-1.5 6 0s4 1.5 6 0 4-1.5 6 0 4 1.5 6 0" fill="none" strokeWidth="1.2" opacity=".5" />
+    </svg>
+  )
+}
+function BirdsSvg() {
+  return (
+    <svg width="34" height="14" viewBox="0 0 34 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+      <path d="M2 8c2-2.5 4-2.5 5 0 1-2.5 3-2.5 5 0" />
+      <path d="M14 4c1.7-2 3.3-2 4.2 0 .9-2 2.5-2 4.2 0" opacity=".75" />
+      <path d="M25 9c1.4-1.8 2.6-1.8 3.4 0 .8-1.8 2-1.8 3.4 0" opacity=".5" />
     </svg>
   )
 }

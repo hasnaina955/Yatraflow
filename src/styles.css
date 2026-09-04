@@ -2216,6 +2216,11 @@ main:focus { outline: none; }
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: none; }
 }
+/* page-change entrance: slow, gentle rise — no jerk between hash routes */
+@keyframes routeIn {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: none; }
+}
 .tab-panel { animation: panelIn var(--t-med) var(--ease-out); }
 
 /* Board choreography: day columns drift in with a light stagger on mount. */
@@ -2305,7 +2310,7 @@ body, .topnav, .glass, .board, .board-col, .modal, .toast {
 
 /* Route-level entrance: every main page change (My trips ↔ Explore ↔ a trip)
    replays the same gentle fade+rise as workspace tab switches. */
-.route-panel { animation: panelIn var(--t-med) var(--ease-out); }
+.route-panel { animation: routeIn .55s cubic-bezier(.22, 1, .36, 1) backwards; }
 
 /* Drag-and-drop feedback: the carried card's original becomes a dashed slot
    (above), while any valid drop target breathes a teal ring so the landing
@@ -2912,15 +2917,22 @@ html.vt-active :where(*) {
 .rise-d3 { animation-delay: .21s; } .rise-d4 { animation-delay: .28s; }
 .rise-d5 { animation-delay: .35s; }
 
-/* ---------- RouteSquiggle: draw → flow → pop → traveller ---------- */
+/* ---------- RouteSquiggle: draw → flow → pop → traveller (calm timeline) ---------- */
+/* Smooth programmatic scrolling everywhere (bench CTA, route changes) — reduced
+   motion users keep instant jumps. */
+@media (prefers-reduced-motion: no-preference) {
+  html { scroll-behavior: smooth; }
+}
+/* Scenario cycle is 8s; everything below is choreographed inside it:
+   0.3–2.3s road draws · 1.6s+ badges pop · 2.3–7.5s dot glides · 7.0–8.0s crossfade */
 .rs-road {
   stroke-dasharray: 1; stroke-dashoffset: 1;
-  animation: rs-draw 1.25s var(--ease-out) .3s forwards;
+  animation: rs-draw 2s cubic-bezier(.45, .05, .35, 1) .3s forwards;
 }
 @keyframes rs-draw { to { stroke-dashoffset: 0; } }
 /* centreline flow: offset shifts by 7+9=16 per dash cycle; -160 = 10 cycles.
    Delayed to begin as the road finishes drawing — flow never outruns the draw. */
-.rs-dash { animation: rs-flow 2.8s linear infinite 1.35s; }
+.rs-dash { animation: rs-flow 4.5s linear infinite 1.9s; }
 @keyframes rs-flow { to { stroke-dashoffset: -160; } }
 /* per-scenario live figures: staggered rise-in on every trip switch */
 @media (prefers-reduced-motion: no-preference) {
@@ -2939,9 +2951,14 @@ html.vt-active :where(*) {
 }
 
 /* ---------- One-screen bench: controls + receipt share the viewport ---------- */
+/* Height = viewport minus the floating nav (and its gap), so scrolling to the
+   bench fits the ENTIRE calculator on screen — nothing cropped below the fold. */
+.plan-bench { scroll-margin-top: calc(var(--nav-h, 64px) + 8px); }
 @media (min-width: 721px) {
   .plan-bench {
-    min-height: 100vh; min-height: 100svh;
+    min-height: calc(100vh - var(--nav-h, 64px) - 24px);
+    min-height: calc(100svh - var(--nav-h, 64px) - 24px);
+    scroll-margin-top: calc(var(--nav-h, 64px) + 12px);
     display: flex; flex-direction: column; justify-content: center;
     padding-block: clamp(24px, 3.5vh, 48px);
   }
@@ -3001,7 +3018,7 @@ html.vt-active :where(*) {
   .glass-btn, .glass-btn::after { box-shadow: none; animation: none; }
   .glass-cta::after { box-shadow: none; animation: none; }
   .hero .btn, .hero .btn::after { animation: none; box-shadow: none; }
-  .motif-compass, .motif-bob, .motif-float { animation: none; }
+  .motif-compass, .motif-bob, .motif-float, .motif-sway, .motif-rise, .motif-birds { animation: none; }
   .hbc-plane { animation: none; }
   .hero-bench-cta::before { animation: none; }
   .reveal-underline::after { transform: scaleX(1); }
@@ -3044,27 +3061,32 @@ html.vt-active :where(*) {
 .rs-svg { width: 100%; height: auto; display: block; }
 .rs-layer { opacity: 0; }
 .rs-layer-active { opacity: 1; }
-/* Incoming road: draw in + fade up; outgoing: whisper back out (crossfade pair). */
+/* Incoming road: slow eased draw-in; outgoing: whisper back out (crossfade pair). */
 @media (prefers-reduced-motion: no-preference) {
-  .rs-layer-active { opacity: 1; animation: rs-in .7s var(--ease-out) both; }
-  .rs-layer-out { animation: rs-out .7s var(--ease-soft) both; }
+  .rs-layer-active { opacity: 1; animation: rs-in 1s cubic-bezier(.22, 1, .36, 1) both; }
+  .rs-layer-out { animation: rs-out 1s cubic-bezier(.45, .05, .35, 1) both; }
 }
 @keyframes rs-in {
-  0% { opacity: 0; transform: translateY(6px); }
+  0% { opacity: 0; transform: translateY(8px); }
   100% { opacity: 1; transform: translateY(0); }
 }
 @keyframes rs-out {
   from { opacity: .55; transform: translateY(0); }
-  to   { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 0; transform: translateY(-8px); }
 }
 .rs-caption { display: flex; flex-direction: column; gap: 2px; margin-top: 8px; line-height: 1.25; }
 .rs-caption-name { font-weight: 800; font-size: 13.5px; color: #fff; }
 .rs-caption-meta { font-size: 11px; opacity: .66; color: #fff; letter-spacing: .01em; }
+/* caption is remounted with the scenario (key=cap-idx), so it fades in exactly
+   when the new road starts drawing — no independent loop to drift out of sync */
 @media (prefers-reduced-motion: no-preference) {
-  .rs-caption-name { animation: rs-cap 4.5s linear infinite; }
-  .rs-caption-meta { animation: rs-cap 4.5s linear infinite .06s; }
+  .rs-caption-name { animation: rs-cap-in .8s cubic-bezier(.22, 1, .36, 1) both; }
+  .rs-caption-meta { animation: rs-cap-in .8s cubic-bezier(.22, 1, .36, 1) .12s both; }
 }
-@keyframes rs-cap { 0%, 82% { opacity: 1; } 100% { opacity: .15; } }
+@keyframes rs-cap-in {
+  0% { opacity: 0; transform: translateY(6px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
 /* ---------- Rich, solid CTAs (hero) — colour must not be washed by glass ---------- */
 .hero .btn-lg {
   position: relative; overflow: hidden; letter-spacing: .01em;
@@ -3142,6 +3164,23 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
   50%  { transform: translate(74px, 2px); }
   75%  { transform: translate(38px, 12px); }
   100% { transform: translate(0, 0); }
+}
+/* boat: gentle rocking on the spot */
+.motif-sway { animation: sway 5.5s ease-in-out infinite; transform-origin: 50% 80%; }
+@keyframes sway { 0%,100% { transform: rotate(-6deg) translateY(0); } 50% { transform: rotate(6deg) translateY(-4px); } }
+/* hot-air balloon: slow vertical drift with a hint of horizontal wander */
+.motif-rise { animation: balloonRise 11s ease-in-out infinite; }
+@keyframes balloonRise {
+  0%, 100% { transform: translate(0, 0) rotate(-2deg); }
+  35%      { transform: translate(10px, -26px) rotate(3deg); }
+  70%      { transform: translate(-8px, -6px) rotate(-3deg); }
+}
+/* bird flock: glides across and loops back, wings implied by opacity shimmer */
+.motif-birds { animation: glide 13s ease-in-out infinite; }
+@keyframes glide {
+  0%, 100% { transform: translate(0, 0); }
+  45%      { transform: translate(-46px, -14px); }
+  60%      { transform: translate(-50px, -16px); }
 }
 
 @media (max-width:  720px) {

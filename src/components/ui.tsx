@@ -272,7 +272,7 @@ const ROUTE_SCENARIOS: Array<{
   },
 ]
 
-const SCENARIO_MS = 4500
+const SCENARIO_MS = 8000
 
 export function RouteSquiggle() {
   const gid = React.useId().replace(/[:]/g, '')
@@ -325,7 +325,7 @@ export function RouteSquiggle() {
           dots
         />
       </svg>
-      <div className="rs-caption" aria-hidden="true">
+      <div className="rs-caption" key={`cap-${idx}`} aria-hidden="true">
         <span className="rs-caption-name">{scen.name}</span>
         <span className="rs-caption-meta">{scen.meta}</span>
       </div>
@@ -398,7 +398,7 @@ function RouteLayer({
       <path className="rs-dash" d={road}
         fill="none" stroke="#FFF8D7" strokeWidth="2" strokeDasharray="7 9" strokeLinecap="round" />
       {stops.map(([x, y, n], i) => (
-        <g key={`${className}-${n}`} className="rs-stop" style={{ animationDelay: `${1.15 + i * 0.22}s` }}>
+        <g key={`${className}-${n}`} className="rs-stop" style={{ animationDelay: `${1.6 + i * 0.3}s` }}>
           <circle cx={x} cy={y} r="13" fill="#FFFFFF" />
           <text x={x} y={y + 4} textAnchor="middle" fontSize="11" fontWeight="700" fill="#155B60">{n}</text>
         </g>
@@ -406,10 +406,11 @@ function RouteLayer({
       {dots && (
         <g className="rs-vehicle">
           <circle r="5.5" fill="#2BB8AC" stroke="#FFFFFF" strokeWidth="2" />
-          {/* one full pass per scenario, timed to start as the road finishes
-              drawing (1.55s) — the layer remounts on every switch, so the dot
+          {/* one gentle eased pass per scenario, starting as the road finishes
+              drawing (2.3s) — the layer remounts on every switch, so the dot
               never jumps mid-loop or runs ahead of an undrawn road */}
-          <animateMotion dur="2.9s" begin="1.55s" fill="freeze" rotate="auto">
+          <animateMotion dur="5.2s" begin="2.3s" fill="freeze" rotate="auto" calcMode="spline"
+            keyTimes="0;1" keySplines="0.42 0 0.35 1">
             <mpath href={`#${rid}`} />
           </animateMotion>
         </g>

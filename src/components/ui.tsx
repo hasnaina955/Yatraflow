@@ -216,38 +216,136 @@ export function HealthRing({ score, band }: { score: number; band: string }) {
  *  route as an illustration — a gradient road (saffron→gold→coral) with a dashed
  *  cream centreline and white day-numbered badges (1 · 3 · 6 · 10), exactly the
  *  mockup's grammar. Aspect preserved: 'none' stretching is what made the old
- *  version read as a decorative wave instead of a route. */
-export function RouteSquiggle({ height }: { height?: number }) {
+ *  version read as a decorative wave instead of a route.
+ *
+ *  Scenario carousel: instead of a single static trip, the card cycles through
+ *  a handful of India trip scenarios on autopilot — each draws its own road,
+ *  pops its day badges and slides out before the next. One shared timer;
+ *  calm cadence + slow crossfade so it reads satisfying, not frantic. */
+const ROUTE_SCENARIOS: Array<{
+  name: string
+  meta: string
+  road: string
+  stops: Array<[number, number, number]>
+}> = [
+  {
+    name: '🏔️ Leh–Ladakh road escape',
+    meta: '12–21 Sep · 10 days · 4 travellers · Motorcycle',
+    road: 'M21 104 C 83 40, 139 107, 197 55 S 320 5, 382 67 S 484 128, 531 36',
+    stops: [[21, 91, 1], [176, 55, 3], [361, 67, 6], [510, 36, 10]],
+  },
+  {
+    name: '🛶 Kerala backwaters drift',
+    meta: 'Oct 4–8 · 5 days · 2 travellers · Houseboat',
+    road: 'M20 92 C 62 62, 101 118, 160 96 S 278 30, 336 74 S 442 120, 516 48',
+    stops: [[20, 92, 1], [160, 87, 2], [336, 70, 3], [516, 51, 5]],
+  },
+  {
+    name: '⛰️ Spiti high-pass loop',
+    meta: 'Jun 18–27 · 10 days · 3 travellers · SUV',
+    road: 'M24 44 C 88 100, 150 22, 214 64 S 340 120, 402 60 S 468 108, 526 74',
+    stops: [[24, 44, 1], [214, 62, 4], [402, 66, 7], [526, 74, 10]],
+  },
+  {
+    name: '🌿 Meghalaya double-decker trail',
+    meta: 'Nov 11–16 · 6 days · 3 travellers · Trek',
+    road: 'M22 84 C 78 30, 128 110, 190 72 S 320 20, 388 58 S 462 116, 528 40',
+    stops: [[22, 84, 1], [190, 78, 2], [388, 60, 4], [528, 40, 6]],
+  },
+]
+
+const SCENARIO_MS = 4500
+
+export function RouteSquiggle() {
   const gid = React.useId().replace(/[:]/g, '')
-  const stops: Array<[number, number, number]> = [[21, 91, 1], [176, 55, 3], [361, 67, 6], [510, 36, 10]]
-  const road = 'M21 104 C 83 40, 139 107, 197 55 S 320 5, 382 67 S 484 128, 531 36'
+  const [idx, setIdx] = React.useState(0)
+  // The scenario currently animating out (kept mounted one extra cycle for the
+  // crossfade). Undefined until the first tick; only a single outgoing exists at
+  // a time because each tick overwrites it with the previously-active trip.
+  const [outgoing, setOutgoing] = React.useState<number | null>(null)
+  const activeRef = React.useRef(0)
+  React.useEffect(() => { activeRef.current = idx }, [idx])
+  React.useEffect(() => {
+    if (typeof window !== 'undefined' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const t = window.setInterval(() => {
+      setOutgoing(activeRef.current)
+      setIdx(i => (i + 1) % ROUTE_SCENARIOS.length)
+    }, SCENARIO_MS)
+    return () => window.clearInterval(t)
+  }, [])
+  const out = outgoing !== null ? ROUTE_SCENARIOS[outgoing] : null
   return (
-    <svg viewBox="0 0 532 132" style={height ? { width: '100%', height, display: 'block' } : { width: '100%', height: 'auto', display: 'block' }} aria-hidden="true" role="presentation">
-      <defs>
-        <linearGradient id={`rg-${gid}`} x1="0" x2="1">
-          <stop stopColor="#EFAD54" /><stop offset=".5" stopColor="#FFDF93" /><stop offset="1" stopColor="#E8684C" />
-        </linearGradient>
-      </defs>
-      {/* The road draws itself on first paint (pathLength=1 normalises the dash math). */}
-      <path id={`rp-${gid}`} className="rs-road" d={road}
-        fill="none" stroke={`url(#rg-${gid})`} strokeWidth="8" strokeLinecap="round" pathLength={1} />
-      {/* Cream centreline endlessly flows along the road — the "route is alive" cue. */}
+    <div className="rs-shell">
+      <svg viewBox="0 0 532 132" className="rs-svg" aria-hidden="true" role="presentation">
+        <defs>
+          <linearGradient id={`rg-${gid}`} x1="0" x2="1">
+            <stop stopColor="#EFAD54" /><stop offset=".5" stopColor="#FFDF93" /><stop offset="1" stopColor="#E8684C" />
+          </linearGradient>
+        </defs>
+        {/*
+          Layers stack inside one viewBox: the outgoing trip animates to a whisper
+          while the incoming one draws in over it — a true crossfade, driven by the
+          SCENARIO_CROSSFADE_MS duration in CSS (rs-layer-in / rs-layer-out).
+        */}
+        {out && (
+          <RouteLayer
+            rid={`rp-${gid}-out`}
+            key={`out-${outgoing}`}
+            className="rs-layer rs-layer-out"
+            road={out.road}
+            stops={out.stops}
+          />
+        )}
+        <RouteLayer
+          rid={`rp-${gid}-in`}
+          key={`active-${idx}`}
+          className="rs-layer rs-layer-active"
+          road={ROUTE_SCENARIOS[idx].road}
+          stops={ROUTE_SCENARIOS[idx].stops}
+          dots
+        />
+      </svg>
+      <div className="rs-caption" aria-hidden="true">
+        <span className="rs-caption-name">{ROUTE_SCENARIOS[idx].name}</span>
+        <span className="rs-caption-meta">{ROUTE_SCENARIOS[idx].meta}</span>
+      </div>
+    </div>
+  )
+}
+
+/** One road layer: gradient road + flowing centreline + day badges + traveller dot. */
+function RouteLayer({
+  rid, className, road, stops, dots,
+}: {
+  rid: string
+  className: string
+  road: string
+  stops: Array<[number, number, number]>
+  /** drive the animated traveller dot only on the visible (active) layer */
+  dots?: boolean
+}) {
+  return (
+    <g className={className}>
+      <path id={rid} className="rs-road" d={road}
+        fill="none" stroke={`url(#rg-${rid.split('-')[1]})`} strokeWidth="8" strokeLinecap="round" pathLength={1} />
       <path className="rs-dash" d={road}
         fill="none" stroke="#FFF8D7" strokeWidth="2" strokeDasharray="7 9" strokeLinecap="round" />
       {stops.map(([x, y, n], i) => (
-        <g key={n} className="rs-stop" style={{ animationDelay: `${0.85 + i * 0.15}s` }}>
+        <g key={`${className}-${n}`} className="rs-stop" style={{ animationDelay: `${0.85 + i * 0.15}s` }}>
           <circle cx={x} cy={y} r="13" fill="#FFFFFF" />
           <text x={x} y={y + 4} textAnchor="middle" fontSize="11" fontWeight="700" fill="#155B60">{n}</text>
         </g>
       ))}
-      {/* A traveller dot loops the road forever (SMIL — no JS timer, no re-render). */}
-      <g className="rs-vehicle">
-        <circle r="5.5" fill="#2BB8AC" stroke="#FFFFFF" strokeWidth="2" />
-        <animateMotion dur="11s" repeatCount="indefinite" rotate="auto">
-          <mpath href={`#rp-${gid}`} />
-        </animateMotion>
-      </g>
-    </svg>
+      {dots && (
+        <g className="rs-vehicle">
+          <circle r="5.5" fill="#2BB8AC" stroke="#FFFFFF" strokeWidth="2" />
+          <animateMotion dur="11s" repeatCount="indefinite" rotate="auto">
+            <mpath href={`#${rid}`} />
+          </animateMotion>
+        </g>
+      )}
+    </g>
   )
 }
 

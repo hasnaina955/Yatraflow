@@ -2694,15 +2694,19 @@ html.vt-active :where(*) {
 
 /* drifting atmosphere blobs behind the section */
 .plan-bench { position: relative; overflow: hidden; }
-.bench-blob { position: absolute; z-index: 0; width: 340px; height: 340px; border-radius: 50%; filter: blur(80px); opacity: .28; pointer-events: none; }
+.bench-blob { position: absolute; z-index: 0; width: 340px; height: 340px; border-radius: 50%; filter: blur(80px); opacity: .5; pointer-events: none; }
 .bench-blob-a { top: -90px; left: -130px; background: var(--yf-atmos-peach); }
 .bench-blob-b { bottom: -70px; right: -150px; background: var(--yf-atmos-mint); }
 .plan-bench > *:not(.bench-blob) { position: relative; z-index: 1; }
 @media (prefers-reduced-motion: no-preference) {
-  .bench-blob-a { animation: blob-drift 19s ease-in-out infinite alternate; }
-  .bench-blob-b { animation: blob-drift 26s ease-in-out infinite alternate-reverse; }
+  .bench-blob-a { animation: blob-drift 15s ease-in-out infinite alternate; }
+  .bench-blob-b { animation: blob-drift 22s ease-in-out infinite alternate-reverse; }
 }
-@keyframes blob-drift { from { transform: translate(0, 0) scale(1); } to { transform: translate(16px, 9px) scale(1.05); } }
+@keyframes blob-drift {
+  from { transform: translate(0, 0) scale(1); }
+  50%  { transform: translate(-26px, 18px) scale(1.08); }
+  to   { transform: translate(34px, -24px) scale(1.16); }
+}
 
 /* scroll-in choreography */
 @media (prefers-reduced-motion: no-preference) {
@@ -2859,7 +2863,7 @@ html.vt-active :where(*) {
 }
 .hero { position: relative; }
 .hero-split { position: relative; z-index: 1; }
-.hero-blob { position: absolute; z-index: 0; border-radius: 50%; filter: blur(70px); opacity: .32; pointer-events: none; }
+.hero-blob { position: absolute; z-index: 0; border-radius: 50%; filter: blur(70px); opacity: .5; pointer-events: none; }
 .hero-blob-a { width: 380px; height: 380px; top: -110px; left: -140px; background: var(--yf-atmos-mint); }
 .hero-blob-b { width: 340px; height: 340px; bottom: -130px; right: -120px; background: var(--yf-atmos-peach); }
 
@@ -2935,15 +2939,167 @@ html.vt-active :where(*) {
 
 @media (prefers-reduced-motion: no-preference) {
   .hero-rise { animation: hero-rise .65s var(--ease-out) both; }
-  .hero-blob-a { animation: blob-drift 23s ease-in-out infinite alternate; }
-  .hero-blob-b { animation: blob-drift 29s ease-in-out infinite alternate-reverse; }
+  .hero-blob-a { animation: blob-drift 16s ease-in-out infinite alternate; }
+  .hero-blob-b { animation: blob-drift 22s ease-in-out infinite alternate-reverse; }
 }
 @media (prefers-reduced-motion: reduce) {
   .rs-road { stroke-dasharray: none; stroke-dashoffset: 0; animation: none; }
   .rs-dash, .rs-stop { animation: none; opacity: 1; }
   .rs-vehicle { display: none; }
+  .rs-layer-out { opacity: 0; }
+  .rs-caption-name, .rs-caption-meta { animation: none; }
   .hero-rise { animation: none; }
-  .hero-blob-a, .hero-blob-b { animation: none; }
+  .hero-blob-a, .hero-blob-b, .bench-blob-a, .bench-blob-b { animation: none; }
+  .ticker-track { animation: none; }
+  .ticker-track > * { animation: none; }
+  .glass-btn, .glass-btn::after { box-shadow: none; animation: none; }
+  .glass-cta::after { box-shadow: none; animation: none; }
+  .hero .btn, .hero .btn::after { animation: none; box-shadow: none; }
+  .motif-compass, .motif-bob, .motif-float { animation: none; }
+  .reveal-underline::after { transform: scaleX(1); }
+}
+/* ============================================================
+   Homepage "wow" pass (build 2):
+   live destination ticker · multi-trip route carousel crossfade ·
+   glass glowing CTAs · scroll-reveal choreography · travel SVG motifs
+   ============================================================ */
+
+/* ---------- Infinite destination ticker (hero → Plan Bench band) ---------- */
+.dest-ticker {
+  position: relative; overflow: hidden; padding: 18px 0;
+  border-top: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
+  background: color-mix(in srgb, var(--yf-glass) 42%, var(--bg));
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+}
+.ticker-track { display: flex; width: max-content; animation: ticker-scroll 38s linear infinite; }
+.ticker-track:hover { animation-play-state: paused; }
+.ticker-set { display: flex; align-items: center; flex-shrink: 0; }
+.ticker-item {
+  display: inline-flex; align-items: center; gap: 8px; white-space: nowrap;
+  padding: 6px 18px; margin: 0 6px; font-size: 13px; font-weight: 650; color: var(--text-2);
+  border-radius: 999px; background: var(--card); border: 1px solid var(--line);
+  box-shadow: 0 1px 0 rgba(255,255,255,.5) inset;
+}
+.ticker-item .t-ico { font-size: 14px; line-height: 1; }
+.ticker-item .t-tag { font-size: 10px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase;
+  color: var(--yf-teal-700); background: color-mix(in srgb, var(--yf-teal-600) 12%, transparent);
+  padding: 1px 7px; border-radius: 999px; }
+.ticker-sep { color: var(--yf-saffron); font-size: 12px; margin: 0 4px; opacity: .7; }
+@keyframes ticker-scroll { to { transform: translateX(-50%); } }
+/* offbeat items get a purple tag tint to separate "common" from "offbeat" */
+.t-off { color: var(--yf-purple); background: color-mix(in srgb, var(--yf-purple) 12%, transparent); }
+
+/* ---------- RouteSquiggle → multi-trip scenario carousel ---------- */
+.rs-shell { position: relative; margin: 14px 0 4px; }
+.rs-svg { width: 100%; height: auto; display: block; }
+.rs-layer { opacity: 0; }
+.rs-layer-active { opacity: 1; }
+/* Incoming road: draw in + fade up; outgoing: whisper back out (crossfade pair). */
+@media (prefers-reduced-motion: no-preference) {
+  .rs-layer-active { opacity: 1; animation: rs-in .7s var(--ease-out) both; }
+  .rs-layer-out { animation: rs-out .7s var(--ease-soft) both; }
+}
+@keyframes rs-in {
+  0% { opacity: 0; transform: translateY(6px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+@keyframes rs-out {
+  from { opacity: .55; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(-6px); }
+}
+.rs-caption { display: flex; flex-direction: column; gap: 2px; margin-top: 8px; line-height: 1.25; }
+.rs-caption-name { font-weight: 800; font-size: 13.5px; color: #fff; }
+.rs-caption-meta { font-size: 11px; opacity: .66; color: #fff; letter-spacing: .01em; }
+@media (prefers-reduced-motion: no-preference) {
+  .rs-caption-name { animation: rs-cap 4.5s linear infinite; }
+  .rs-caption-meta { animation: rs-cap 4.5s linear infinite .06s; }
+}
+@keyframes rs-cap { 0%, 82% { opacity: 1; } 100% { opacity: .15; } }
+/* ---------- Glass, glowing CTAs (hero) ---------- */
+.hero .btn-lg {
+  position: relative; border: 1px solid rgba(255,255,255,.6);
+  backdrop-filter: blur(12px) saturate(1.3); -webkit-backdrop-filter: blur(12px) saturate(1.3);
+  overflow: hidden;
+}
+.hero .btn-primary {
+  background: linear-gradient(120deg, rgba(13,141,130,.72), rgba(13,141,130,.55));
+  color: #fff; border-color: rgba(255,255,255,.45);
+}
+.hero .btn-saffron {
+  background: linear-gradient(120deg, rgba(243,170,61,.8), rgba(243,170,61,.62));
+  color: #fff; border-color: rgba(255,255,255,.5);
+}
+@media (prefers-reduced-motion: no-preference) {
+  /* soft breathing outer glow — box-shadow only, transform-free */
+  .hero .btn-primary { animation: glow-breathe-teal 3.2s ease-in-out infinite; }
+  .hero .btn-saffron { animation: glow-breathe-saffron 3.2s ease-in-out infinite; }
+  /* keyboard focus must win over the breathing glow (focus ring, not glow) */
+  .hero .btn:focus-visible { animation: none; box-shadow: var(--ring); }
+  /* glass sheen sweep across the button face */
+  .hero .btn::after {
+    content: ''; position: absolute; top: 0; bottom: 0; left: -45%; width: 40%;
+    background: linear-gradient(105deg, transparent, rgba(255,255,255,.5), transparent);
+    transform: skewX(-20deg); pointer-events: none;
+    animation: glass-sheen 4.6s ease-in-out infinite;
+  }
+}
+@keyframes glow-breathe-teal {
+  0%, 100% { box-shadow: 0 8px 22px rgba(13,141,130,.34); }
+  50%      { box-shadow: 0 10px 38px rgba(13,141,130,.6); }
+}
+@keyframes glow-breathe-saffron {
+  0%, 100% { box-shadow: 0 8px 22px rgba(243,170,61,.36); }
+  50%      { box-shadow: 0 10px 38px rgba(243,170,61,.62); }
+}
+@keyframes glass-sheen { 0%, 55% { transform: skewX(-20deg) translateX(-130%); } 85%, 100% { transform: skewX(-20deg) translateX(380%); } }
+/* the animated-gradient "Price a trip" pill: glass the inner label */
+.hero-bench-cta .hbc-label {
+  background: color-mix(in srgb, var(--yf-glass) 60%, #fff);
+  backdrop-filter: blur(12px) saturate(1.3); -webkit-backdrop-filter: blur(12px) saturate(1.3);
+}
+[data-theme='dark'] .hero .btn-primary,
+[data-theme='dark'] .hero .btn-saffron {
+  border-color: rgba(255,255,255,.16);
+  background: linear-gradient(120deg, rgba(13,141,130,.5), rgba(13,141,130,.34));
+}
+
+/* ---------- Scroll-reveal choreography ---------- */
+.reveal-d1 { transition-delay: .06s; } .reveal-d2 { transition-delay: .12s; }
+.reveal-d3 { transition-delay: .18s; } .reveal-d4 { transition-delay: .24s; } .reveal-d5 { transition-delay: .3s; }
+/* Hidden state is only applied once the observer is live (body.reveal-armed), so
+   content stays visible if JS is off or JS hasn't run yet. */
+@media (prefers-reduced-motion: no-preference) {
+  body.reveal-armed .reveal {
+    opacity: 0; transform: translateY(22px);
+    transition: opacity .6s var(--ease-out), transform .6s var(--ease-out);
+  }
+  body.reveal-armed .reveal.io-inview { opacity: 1; transform: none; }
+}
+/* heading underline draws itself past the fold */
+.reveal-underline { position: relative; display: inline-block; }
+.reveal-underline::after {
+  content: ''; position: absolute; left: 0; right: 0; bottom: -6px; height: 3px; border-radius: 3px;
+  background: linear-gradient(90deg, var(--yf-teal-600), var(--yf-saffron));
+  transform: scaleX(0); transform-origin: left;
+  transition: transform .8s var(--ease-out) .15s;
+}
+body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
+
+/* ---------- Travel motif accents (feature + steps sections) ---------- */
+.motif { position: absolute; pointer-events: none; opacity: .5; z-index: 0; color: var(--yf-teal-600); }
+.motif-compass { animation: spin 22s linear infinite; transform-origin: 50% 50%; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.motif-bob { animation: bob 3.4s ease-in-out infinite; }
+@keyframes bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+.motif-float { animation: floatPath 8s ease-in-out infinite; }
+@keyframes floatPath {
+  0%   { transform: translate(0, 0); }
+  25%  { transform: translate(38px, -10px); }
+  50%  { transform: translate(74px, 2px); }
+  75%  { transform: translate(38px, 12px); }
+  100% { transform: translate(0, 0); }
 }
 
 @media (max-width:  720px) {

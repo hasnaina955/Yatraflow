@@ -1,5 +1,5 @@
 // ============ Profile & settings ============
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { TravelStyle } from '../data/types'
 import { TRAVEL_STYLES } from '../data/types'
 import { useDb, currentUser, updateProfile, tripsForUser } from '../store/store'
@@ -20,6 +20,9 @@ export function ProfilePage({ onNavigate }: { onNavigate: (r: string) => void })
   const [creatorBio, setCreatorBio] = useState(me?.profile.creatorBio ?? '')
   const [youtube, setYoutube] = useState(me?.profile.socialLinks?.youtube ?? '')
   const [instagram, setInstagram] = useState(me?.profile.socialLinks?.instagram ?? '')
+  // Not logged in: route to auth instead of rendering a blank page.
+  const loggedIn = Boolean(me)
+  useEffect(() => { if (!loggedIn) onNavigate('/auth') })
   if (!me) return null
 
   function toggleStyle(s: TravelStyle) {
@@ -53,7 +56,7 @@ export function ProfilePage({ onNavigate }: { onNavigate: (r: string) => void })
             <p className="hint-text" style={{ margin: '6px 0 10px' }}>Pick all that fit — helps collaborators know what kind of trip to invite you to.</p>
             <div className="chip-row">
               {TRAVEL_STYLES.map(s => (
-                <Chip key={s} active={me.profile.travelStyles.includes(s)} onClick={() => toggleStyle(s)}>{cap(s)}</Chip>
+                <Chip key={s} active={me.profile.travelStyles.includes(s)} aria-pressed={me.profile.travelStyles.includes(s)} onClick={() => toggleStyle(s)}>{cap(s)}</Chip>
               ))}
             </div>
           </div>
@@ -64,7 +67,7 @@ export function ProfilePage({ onNavigate }: { onNavigate: (r: string) => void })
             <Field label="Clock format" hint={`Applies across the app. Example: ${formatHM('18:30', timeFormat)}`}>
               <div className="chip-row">
                 {(['12h', '24h'] as TimeFormat[]).map(opt => (
-                  <Chip key={opt} active={timeFormat === opt} onClick={() => setTimeFormat(opt)}>
+                  <Chip key={opt} active={timeFormat === opt} aria-pressed={timeFormat === opt} onClick={() => setTimeFormat(opt)}>
                     {opt === '12h' ? '12h (AM/PM)' : '24h'}
                   </Chip>
                 ))}

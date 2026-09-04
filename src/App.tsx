@@ -125,6 +125,18 @@ export default function App() {
     if (menuOpen) userMenuRef.current?.focus({ preventScroll: true })
   }, [notifOpen, menuOpen, notifPopRef, userMenuRef])
 
+  // On close, hand focus back to the trigger so keyboard users aren't stranded
+  // at the end of <body> (the close paths are Escape, outside-click and the
+  // menu items themselves — all leave the trigger as the right landing spot).
+  const prevNotifOpen = useRef(false)
+  const prevMenuOpen = useRef(false)
+  useEffect(() => {
+    if (prevNotifOpen.current && !notifOpen) notifRef.current?.focus({ preventScroll: true })
+    prevNotifOpen.current = notifOpen
+    if (prevMenuOpen.current && !menuOpen) menuRef.current?.focus({ preventScroll: true })
+    prevMenuOpen.current = menuOpen
+  }, [notifOpen, menuOpen, notifRef, menuRef])
+
   // Escape closes any open popover (UI audit F-10) — outside-click alone
   // leaves keyboard users stranded.
   useEffect(() => {

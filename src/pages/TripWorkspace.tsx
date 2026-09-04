@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import {
   ArrowRight, Ban, Car, ChevronDown, ChevronUp, CircleCheck, CircleHelp, Clock, CloudRain, CloudSun,
   Copy, Download, Droplets, Flag, Lightbulb, Link2, MapPin, MoveHorizontal,
-  PenLine, Pencil, Pin, Plus, RotateCcw, Search, Siren, Ticket, Trash2, TriangleAlert,
+  PenLine, Pencil, Pin, Plus, RotateCcw, Scale, Search, Siren, Ticket, Trash2, TriangleAlert,
   Upload, X,
 } from 'lucide-react'
 import type { Trip, ItineraryStop, Expense, LatLngPoint } from '../data/types'
@@ -903,14 +903,15 @@ function DaySection({ day, trip, editable, onAdd, onEdit, onDelete, onMoveWithin
                 if (e.key === 'Escape') { setTitleDraft(day.title ?? ''); setEditingTitle(false) }
               }}
             />
-          ) : (
-            <h3
-              onClick={editable ? () => { setTitleDraft(day.title ?? ''); setEditingTitle(true) } : undefined}
-              style={{ cursor: editable ? 'pointer' : 'default' }}
-              title={editable ? 'Click to rename this day' : undefined}
+          ) : editable ? (
+            <button type="button" className="day-title-btn" onClick={() => { setTitleDraft(day.title ?? ''); setEditingTitle(true) }}
+              title="Click to rename this day"
+              aria-label={`Rename Day ${day.index + 1}`}
             >
               {day.title ?? `Day ${day.index + 1}`}
-            </h3>
+            </button>
+          ) : (
+            <h3>{day.title ?? `Day ${day.index + 1}`}</h3>
           )}
           <div className="small muted">
             {isStayDay ? (
@@ -2018,7 +2019,7 @@ function SuggestionsTab({ trip, editable, me }: {
     <div className="two-col">
       <div>
         {suggestions.length === 0 && (
-          <EmptyState icon="💡" title="No suggestions yet" body="Group members can propose stops; everyone votes and comments." />
+          <EmptyState icon={<Lightbulb size={38} aria-hidden />} title="No suggestions yet" body="Group members can propose stops; everyone votes and comments." />
         )}
         {suggestions.map(sg => {
           const ups = sg.votes.filter(v => v.value === 1).length
@@ -2338,7 +2339,7 @@ function DecisionsTab({ trip, me, editable }: { trip: Trip; me: { id: string }; 
           ))}
         </div>
         {decisions.length === 0 && (
-          <EmptyState icon="⚖️" title="No decisions tracked"
+          <EmptyState icon={<Scale size={38} aria-hidden />} title="No decisions tracked"
             body='Raise questions like "houseboat menu — veg or mixed?" so nothing gets lost in a chaotic group chat.' />
         )}
         {decisions.length > 0 && shown.length === 0 && (

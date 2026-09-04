@@ -51,8 +51,8 @@ export function AuthPage({ onNavigate }: { onNavigate: (r: string) => void }) {
         </p>
 
         <div className="tabbar" style={{ margin: '18px 0' }}>
-          <button className={`tab-btn ${mode === 'login' ? 'active' : ''}`} onClick={() => { setMode('login'); setError(null) }}>Log in</button>
-          <button className={`tab-btn ${mode === 'signup' ? 'active' : ''}`} onClick={() => { setMode('signup'); setError(null) }}>Sign up</button>
+          <button className={`tab-btn ${mode === 'login' ? 'active' : ''}`} aria-pressed={mode === 'login'} onClick={() => { setMode('login'); setError(null) }}>Log in</button>
+          <button className={`tab-btn ${mode === 'signup' ? 'active' : ''}`} aria-pressed={mode === 'signup'} onClick={() => { setMode('signup'); setError(null) }}>Sign up</button>
         </div>
 
         {/* Say so up front: a build with no Supabase project compiled in can
@@ -74,7 +74,7 @@ export function AuthPage({ onNavigate }: { onNavigate: (r: string) => void }) {
           </Field>
           {error && <div className="err-text" role="alert" style={{ marginBottom: 10 }}><TriangleAlert size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />{error}</div>}
           <button type="submit" className="btn btn-primary btn-lg" style={{ width: '100%' }} disabled={saving}>
-            {saving ? 'Signing in…' : mode === 'login' ? 'Log in' : 'Create account'}
+            {saving ? (mode === 'login' ? 'Signing in…' : 'Creating account…') : mode === 'login' ? 'Log in' : 'Create account'}
           </button>
         </form>
 

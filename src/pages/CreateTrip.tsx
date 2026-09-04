@@ -111,10 +111,16 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
       // F-15: move focus to the first invalid field so keyboard / screen-reader
       // users don't have to hunt for what failed (the Field error span carries
       // role="alert", so the message itself is announced on arrival). Fields
-      // rendered through LocationInput don't register a ref — the first
-      // focusable invalid input wins in that case.
+      // rendered through LocationInput don't register a ref — fall back to
+      // focusing that field's own error message so the failure is still
+      // announced and the viewport lands on it.
       const first = Object.keys(next).find(k => fieldRefs.current[k])
-      if (first) fieldRefs.current[first]!.focus()
+      if (first) {
+        fieldRefs.current[first]!.focus()
+      } else {
+        const firstErr = document.querySelector<HTMLElement>('.field .err-text')
+        if (firstErr) { firstErr.setAttribute('tabindex', '-1'); firstErr.focus() }
+      }
       return
     }
 
@@ -238,7 +244,7 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
                   <input className="input" type="number" min={2} max={80} step={0.1} value={f.fuelEconomy}
                     onChange={e => setF(x => ({ ...x, fuelEconomy: e.target.value }))} placeholder="e.g. 18" />
                   {isImplausibleFuelEconomy(f.transportMode, parseFuelEconomyKmL(f.fuelEconomy)) && (
-                    <p className="hint-text" style={{ marginTop: 5, color: '#b45309' }}>
+                    <p className="hint-text" style={{ marginTop: 5, color: 'var(--warn)' }}>
                       <TriangleAlert size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />Unusual for a {f.transportMode} — most do far better. Double-check the value (km per litre).
                     </p>
                   )}
@@ -249,7 +255,7 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
                 </Field>
               </div>
               <div className="chip-row" style={{ margin: '4px 0 12px' }}>
-                <Chip active={f.roundTrip} onClick={() => setF(x => ({ ...x, roundTrip: !x.roundTrip }))}>
+                <Chip active={f.roundTrip} onClick={() => setF(x => ({ ...x, roundTrip: !x.roundTrip }))} aria-pressed={f.roundTrip}>
                   Round trip — return to start
                 </Chip>
               </div>
@@ -312,7 +318,7 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
               ))}
             </div>
           )}
-          <div className="form-row" style={{ gridTemplateColumns: '2fr 1fr .8fr .8fr auto', alignItems: 'end', gap: 10 }}>
+          <div className="form-row commitment-row">
             <Field label="What"><input className="input" value={c.title} onChange={e => setC(x => ({ ...x, title: e.target.value }))} placeholder="e.g. Houseboat boarding" /></Field>
             <Field label="Type">
               <select className="select" value={c.type} onChange={e => setC(x => ({ ...x, type: e.target.value as FixedCommitment['type'] }))}>

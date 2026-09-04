@@ -475,6 +475,13 @@ a.btn { text-decoration: none; }
 }
 @media (max-width: 720px) { .select { padding: 11px 34px 11px 14px; } }
 .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+/* Commitments: deliberate 5-track layout on wide screens, but it collapses
+   instead of squeezing selects into ~60px columns on phones. */
+.commitment-row { grid-template-columns: 2fr 1fr .8fr .8fr auto; align-items: end; gap: 10px; }
+@media (max-width: 720px) {
+  .commitment-row { grid-template-columns: 1fr 1fr; }
+  .commitment-row .field:first-child { grid-column: 1 / -1; }
+}
 .err-text { color: var(--danger); font-size: 12.5px; font-weight: 550; }
 .hint-text { color: var(--text-3); font-size: 12.5px; }
 .form-error-banner {
@@ -1075,7 +1082,9 @@ a.btn { text-decoration: none; }
 /* ---------- Impact preview ---------- */
 .impact-sheet {
   position: fixed; bottom: 0; left: 0; right: 0;
-  z-index: 90;
+  /* Above the toast zone (200): a transient toast must never cover the
+     Keep / Remove decision controls on the sheet while it is open. */
+  z-index: 210;
   background: rgba(0,0,0,0.35);
   padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
   display: flex; justify-content: center;
@@ -1119,7 +1128,13 @@ a.btn { text-decoration: none; }
 }
 .tab-btn:hover { color: var(--text); }
 .tab-btn.active { color: var(--teal-deep); border-bottom-color: var(--teal); }
-.tab-count { background: var(--danger-soft); color: var(--danger); font-size: 11px; font-weight: 750; border-radius: 999px; padding: 1px 7px; }
+.tab-count { background: var(--teal-soft); color: var(--teal-deep); font-size: 11px; font-weight: 750; border-radius: 999px; padding: 1px 7px; }
+/* Editable day title — a real button (keyboard-reachable rename), styled as
+   the heading it replaces. */
+.day-title-btn { border: none; background: none; padding: 0; cursor: pointer;
+  font: inherit; font-weight: 700; color: var(--text); border-radius: 6px; text-align: left; }
+.day-title-btn:hover { color: var(--teal-deep); text-decoration: underline; text-underline-offset: 3px; }
+[data-theme='dark'] .day-title-btn:hover { color: var(--teal); }
 
 /* ---------- Modal / drawer / toast ---------- */
 .modal-overlay {
@@ -1150,7 +1165,7 @@ a.btn { text-decoration: none; }
 }
 .toast.ok { background: var(--teal-deep); color: #fff; }
 .toast.err { background: var(--danger); color: #fff; }
-[data-theme='dark'] .toast { background: #ECF1F8; color: #0C1420; }
+[data-theme='dark'] .toast { background: var(--gray-900); color: var(--gray-50); }
 /* Undo button inside a toast */
 .toast { display: inline-flex; align-items: center; gap: 12px; }
 .toast-action {
@@ -1545,6 +1560,7 @@ a.btn { text-decoration: none; }
 /* ---------- Misc ---------- */
 .empty-state { text-align: center; padding: 44px 20px; color: var(--text-3); }
 .empty-state .big { font-size: 38px; margin-bottom: 10px; }
+.empty-state h2 { font-size: 18px; margin: 0; color: var(--text); }
 .section-gap { margin-top: 26px; }
 .row-between { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
 .muted { color: var(--text-3); }
@@ -2376,7 +2392,7 @@ body, .topnav, .glass, .board, .board-col, .modal, .toast {
 .pub-actions > b { font-size: 14px; color: var(--text); }
 .pub-actions-btns { display: flex; gap: 10px; }
 .save-btn {
-  background: #fff4e3; color: #a25f25; border: 1px solid #ead9bd; font-weight: 800;
+  background: var(--yf-saffron-100); color: #a25f25; border: 1px solid #ead9bd; font-weight: 800;
   border-radius: 999px; padding: 9px 16px;
 }
 [data-theme='dark'] .save-btn { background: rgba(240, 165, 63, .12); color: #ffcf96; border-color: rgba(240, 165, 63, .25); }
@@ -2388,7 +2404,7 @@ body, .topnav, .glass, .board, .board-col, .modal, .toast {
 
 /* editorial narrative + route glance */
 .pub-editorial { align-items: start; margin-bottom: 8px; }
-.editorial-kicker { font-size: 12px; font-weight: 800; letter-spacing: .12em; color: #0b8a80; }
+.editorial-kicker { font-size: 12px; font-weight: 800; letter-spacing: .12em; color: var(--yf-teal-600); }
 [data-theme='dark'] .editorial-kicker { color: #57c4b8; }
 .editorial-title { font-family: var(--font-display); font-size: clamp(24px, 3vw, 32px); font-weight: 800; color: var(--text); margin: 6px 0 12px; }
 .editorial-body { font-size: 15px; line-height: 1.75; color: var(--text-2); max-width: 560px; }

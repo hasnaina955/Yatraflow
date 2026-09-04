@@ -14,9 +14,9 @@ export function Avatar({ user, size = 'sm' }: { user?: { profile: { name: string
   return <span className={cls}>{initials}</span>
 }
 
-export function Chip({ children, tone, onClick, active }: { children: React.ReactNode; tone?: 'teal' | 'saffron' | 'danger' | 'ok' | 'info'; onClick?: () => void; active?: boolean }) {
+export function Chip({ children, tone, onClick, active, 'aria-pressed': ariaPressed }: { children: React.ReactNode; tone?: 'teal' | 'saffron' | 'danger' | 'ok' | 'info'; onClick?: () => void; active?: boolean; 'aria-pressed'?: boolean }) {
   if (onClick) {
-    return <button type="button" className={`clickable-chip ${tone === 'teal' ? 'on-teal' : tone === 'saffron' ? 'on-saffron' : ''} ${active ? 'on-teal' : ''}`} onClick={onClick}>{children}</button>
+    return <button type="button" aria-pressed={ariaPressed} className={`clickable-chip ${tone === 'teal' ? 'on-teal' : tone === 'saffron' ? 'on-saffron' : ''} ${active ? 'on-teal' : ''}`} onClick={onClick}>{children}</button>
   }
   const cls = tone ? `chip chip-${tone}` : 'chip'
   return <span className={cls}>{children}</span>
@@ -120,24 +120,32 @@ export function Field(props: {
   children: React.ReactNode
 }) {
   const controlId = useId()
+  const hintId = `${controlId}-hint`
+  const errId = `${controlId}-err`
   let associated = false
   const wired = React.Children.toArray(props.children).map(child => {
     if (associated || !React.isValidElement(child)) return child
-    const el = child as React.ReactElement<{ id?: string }>
+    const el = child as React.ReactElement<{ id?: string; 'aria-describedby'?: string; 'aria-invalid'?: boolean }>
     const tag = typeof el.type === 'string' ? el.type : null
     const isHostControl = tag === 'input' || tag === 'select' || tag === 'textarea'
     const isCustomControl = typeof el.type === 'function'
     if (!isHostControl && !isCustomControl) return child
     if (el.props.id != null) { associated = true; return child }
     associated = true
-    return React.cloneElement(el, { id: controlId })
+    // The hint/error live outside the control — describe them so SR users
+    // tabbing back to the field hear them, and flag the failing field.
+    return React.cloneElement(el, {
+      id: controlId,
+      'aria-describedby': props.error ? errId : props.hint ? hintId : undefined,
+      'aria-invalid': props.error ? true : undefined,
+    })
   })
   return (
     <div className="field">
       <label className="label" htmlFor={associated ? controlId : undefined}>{props.label}</label>
       {wired}
-      {props.hint && !props.error && <span className="hint-text">{props.hint}</span>}
-      {props.error && <span className="err-text" role="alert">{props.error}</span>}
+      {props.hint && !props.error && <span className="hint-text" id={hintId}>{props.hint}</span>}
+      {props.error && <span className="err-text" role="alert" id={errId}>{props.error}</span>}
     </div>
   )
 }
@@ -166,7 +174,7 @@ export function ToastZone() {
   return (
     <div className="toast-zone" role="status" aria-live="polite">
       {toasts.map(t => (
-        <div key={t.id} className={`toast ${t.kind}`}>
+        <div key={t.id} className={`toast ${t.kind}`} role={t.kind === 'err' ? 'alert' : undefined}>
           <span>{t.msg}</span>
           {t.action && (
             <button
@@ -188,7 +196,7 @@ export function EmptyState({ icon = <MapIcon size={38} aria-hidden />, title, bo
   return (
     <div className="empty-state">
       <div className="big">{icon}</div>
-      <h3>{title}</h3>
+      <h2>{title}</h2>
       {body && <p style={{ marginTop: 6 }}>{body}</p>}
       {action && <div style={{ marginTop: 16 }}>{action}</div>}
     </div>

@@ -209,9 +209,6 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
                   {creator.profile.socialLinks.instagram && <a className="chip chip-info" href={creator.profile.socialLinks.instagram} target="_blank" rel="noreferrer"><Camera size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />Instagram</a>}
                 </div>
               )}
-              {creator?.profile.socialLinks?.instagram == null && creator?.profile.socialLinks?.youtube == null && (
-                <button className="btn btn-outline btn-sm" style={{ marginTop: 10 }}>Book a planning consultation</button>
-              )}
             </div>
 
             {/* ---- Day-by-day (free vs premium) ---- */}

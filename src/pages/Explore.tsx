@@ -120,9 +120,11 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
         {/* ---- Travel-style chips (§6.10) — replaces the style dropdown ---- */}
         <div className="explore-chips" role="group" aria-label="Travel style">
           <button className={`chip clickable-chip ${style === 'all' ? 'chip-teal' : ''}`}
+            aria-pressed={style === 'all'}
             onClick={() => { setStyle('all'); syncUrl({ style: 'all' }) }}>All styles</button>
           {stylesWithCounts.map(s => (
             <button key={s} className={`chip clickable-chip ${style === s ? 'chip-teal' : ''}`}
+              aria-pressed={style === s}
               onClick={() => { setStyle(style === s ? 'all' : s); syncUrl({ style: style === s ? 'all' : s }) }}>
               {cap(s)} <span className="chip-count">{styleCounts.get(s)}</span>
             </button>

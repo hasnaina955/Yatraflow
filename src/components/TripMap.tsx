@@ -393,9 +393,9 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
       {showToolbar && (
       <div className="map-toolbar">
         <div className="map-day-filter">
-          <button className={`map-day-chip ${dayFilter === 'all' ? 'on' : ''}`} onClick={() => setDayFilter('all')}>All days</button>
+          <button className={`map-day-chip ${dayFilter === 'all' ? 'on' : ''}`} aria-pressed={dayFilter === 'all'} onClick={() => setDayFilter('all')}>All days</button>
           {trip.days.map(d => (
-            <button key={d.index} className={`map-day-chip ${dayFilter === d.index ? 'on' : ''}`} onClick={() => setDayFilter(d.index)}>
+            <button key={d.index} className={`map-day-chip ${dayFilter === d.index ? 'on' : ''}`} aria-pressed={dayFilter === d.index} onClick={() => setDayFilter(d.index)}>
               Day {d.index + 1}
             </button>
           ))}
@@ -403,6 +403,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
           {returnLeg && (
             <button
               className={`map-day-chip ${showReturn ? 'on' : ''}`}
+              aria-pressed={showReturn}
               onClick={() => setShowReturn(s => !s)}
               title="Show or hide the drive back home"
             >
@@ -417,6 +418,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                 <button
                   key={cat}
                   className={`map-day-chip map-idea-chip ${hiddenIdeaCats.has(cat) ? '' : 'on'}`}
+                  aria-pressed={!hiddenIdeaCats.has(cat)}
                   onClick={() => toggleIdeaCat(cat)}
                   title={hiddenIdeaCats.has(cat) ? `Show ${count} ${labelCat(cat).toLowerCase()} idea${count === 1 ? '' : 's'}` : `Hide ${labelCat(cat).toLowerCase()} ideas`}
                 >

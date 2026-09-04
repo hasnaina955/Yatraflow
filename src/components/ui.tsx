@@ -1,5 +1,6 @@
 // ============ Reusable UI components ============
 import React, { useEffect, useId, useRef, useState } from 'react'
+import { Check, Copy, Map as MapIcon, TriangleAlert, Users, X } from 'lucide-react'
 import { formatInr } from '../lib/engine'
 import { registerTouchDnd, touchPressAbort, touchPressStart, encodeDropKey, isInteractiveTarget } from '../lib/touchDnd'
 
@@ -70,7 +71,7 @@ export function Modal({ open, onClose, title, children, initialFocus }: { open: 
       <div ref={dialogRef} className="modal" role="dialog" aria-modal="true" aria-labelledby={titleId}>
         <div className="modal-head">
           <h2 id={titleId}>{title}</h2>
-          <button className="icon-btn" onClick={onClose} aria-label="Close">✕</button>
+          <button className="icon-btn" onClick={onClose} aria-label="Close"><X size={16} aria-hidden /></button>
         </div>
         <div ref={bodyRef}>
           {children}
@@ -183,7 +184,7 @@ export function Loading({ label = 'Loading…' }: { label?: string }) {
   return <div className="loading-block"><div className="spinner" style={{ marginBottom: 12 }} /><div>{label}</div></div>
 }
 
-export function EmptyState({ icon = '🗺️', title, body, action }: { icon?: string; title: string; body?: string; action?: React.ReactNode }) {
+export function EmptyState({ icon = <MapIcon size={38} aria-hidden />, title, body, action }: { icon?: React.ReactNode; title: string; body?: string; action?: React.ReactNode }) {
   return (
     <div className="empty-state">
       <div className="big">{icon}</div>
@@ -373,8 +374,8 @@ function ScenarioStats({ scen }: { scen: (typeof ROUTE_SCENARIOS)[number] }) {
         <div className="rs-stat rs-stat-d2"><b style={{ color: '#F3AA3D' }}>{health}</b><span>trip health</span></div>
       </div>
       <div className="ha-row">
-        <div className="ha-warn">⚠️ {scen.warn[0]}<span>{scen.warn[1]}</span></div>
-        <div className="ha-sync">👥 {scen.sync[0]}<span>{scen.sync[1]}</span></div>
+        <div className="ha-warn"><TriangleAlert size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />{scen.warn[0]}<span>{scen.warn[1]}</span></div>
+        <div className="ha-sync"><Users size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />{scen.sync[0]}<span>{scen.sync[1]}</span></div>
       </div>
     </>
   )
@@ -601,7 +602,7 @@ export function CopyButton({ text, label = 'Copy link', onCopied }: { text: stri
         setTimeout(() => setDone(false), 1800)
         onCopied?.()
       }}
-    >{done ? '✓ Copied' : label}</button>
+    >{done ? <><Check size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Copied</> : label}</button>
   )
 }
 

@@ -10,6 +10,10 @@
 // receipt tilt, and mobile haptics (lib/haptics). Every animated path is
 // gated behind prefers-reduced-motion; the reduced path is instant swaps.
 import { useEffect, useMemo, useRef, useState } from 'react'
+import {
+  BedDouble, Bike, Bus, Car, Check, Copy, Dices, ReceiptText, RotateCcw,
+  TrainFront, UtensilsCrossed, User, Users,
+} from 'lucide-react'
 import { formatInr, MODE_SPEED, MODE_COST_PER_KM } from '../lib/engine'
 import {
   BENCH_MODES, BENCH_DEFAULTS, BENCH_PRESETS, STAY_STYLES,
@@ -317,7 +321,7 @@ export function PlanBench() {
     <section className={`container plan-bench${live ? ' bench-live' : ''}${inView ? ' bench-inview' : ''}`} id="plan-bench" aria-label="Trip cost calculator" ref={sectionRef}>
       <div className="bench-blob bench-blob-a" aria-hidden="true" />
       <div className="bench-blob bench-blob-b" aria-hidden="true" />
-      <div className="bench-badge"><span className="bench-badge-dot" aria-hidden="true" />🧾 The Plan Bench</div>
+      <div className="bench-badge"><span className="bench-badge-dot" aria-hidden="true" /><ReceiptText size={14} aria-hidden style={{ verticalAlign: '-2px' }} /> The Plan Bench</div>
       <h2 className="section-title bench-title" style={{ marginBottom: 4 }}>
         What will your road trip{' '}
         <em className="bench-underline">
@@ -341,11 +345,11 @@ export function PlanBench() {
           )
         })}
         <button type="button" className={`chip chip-saffron bench-surprise${rolling ? ' rolling' : ''}`} onClick={surpriseMe} disabled={surpriseCooldown} aria-label="Surprise me with a random trip">
-          <span className="bench-dice" aria-hidden="true">🎲</span> Surprise me
+          <span className="bench-dice" aria-hidden="true"><Dices size={14} /></span> Surprise me
         </button>
         {dirty(input) && (
           <button type="button" className="chip chip-outline" onClick={resetAll} aria-label="Reset the calculator to defaults">
-            ↺ Reset
+            <RotateCcw size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Reset
           </button>
         )}
       </div>
@@ -371,7 +375,11 @@ export function PlanBench() {
                 <button key={m} type="button" className={`bench-pill ${input.mode === m ? 'on' : ''}`}
                   aria-pressed={input.mode === m}
                   onClick={() => { haptic(HAPTIC.select); patch({ mode: m }) }}>
-                  {m === 'motorcycle' ? '🏍️' : m === 'car' ? '🚗' : m === 'bus' ? '🚌' : '🚆'} {m}
+                  {m === 'motorcycle' ? <Bike size={15} aria-hidden style={{ verticalAlign: '-3px', marginRight: 6 }} />
+                    : m === 'car' ? <Car size={15} aria-hidden style={{ verticalAlign: '-3px', marginRight: 6 }} />
+                    : m === 'bus' ? <Bus size={15} aria-hidden style={{ verticalAlign: '-3px', marginRight: 6 }} />
+                    : <TrainFront size={15} aria-hidden style={{ verticalAlign: '-3px', marginRight: 6 }} />}
+                  {m}
                 </button>
               ))}
             </div>
@@ -396,7 +404,7 @@ export function PlanBench() {
                 <button key={n} type="button" className={`bench-crew-btn ${input.crew === n ? 'on' : ''}`}
                   aria-pressed={input.crew === n}
                   onClick={() => { haptic(HAPTIC.select); patch({ crew: n }) }}>
-                  <span className="bench-crew-emoji" aria-hidden="true">{n <= 2 ? '👤' : n <= 4 ? '👥' : '👨‍👩‍👧'}</span>
+                  <span className="bench-crew-emoji" aria-hidden="true">{n === 1 ? <User size={13} /> : <Users size={13} />}</span>
                   {n}
                 </button>
               ))}
@@ -448,15 +456,15 @@ export function PlanBench() {
           </div>
           <div className="bench-receipt-lines" key={lineKey}>
             <div className="bench-line">
-              <div className="bench-line-head"><span>🚗 Transport</span><b><Odometer value={formatInr(shown.transportCost)} animate={animate} /></b></div>
+              <div className="bench-line-head"><span><Car size={14} aria-hidden style={{ verticalAlign: '-2px', marginRight: 5 }} />Transport</span><b><Odometer value={formatInr(shown.transportCost)} animate={animate} /></b></div>
               <span className="bench-line-formula">{shown.transportFormula}</span>
             </div>
             <div className="bench-line">
-              <div className="bench-line-head"><span>🏨 Stay ({shown.rooms} room{shown.rooms === 1 ? '' : 's'})</span><b><Odometer value={formatInr(shown.stayCost)} animate={animate} /></b></div>
+              <div className="bench-line-head"><span><BedDouble size={14} aria-hidden style={{ verticalAlign: '-2px', marginRight: 5 }} />Stay ({shown.rooms} room{shown.rooms === 1 ? '' : 's'})</span><b><Odometer value={formatInr(shown.stayCost)} animate={animate} /></b></div>
               <span className="bench-line-formula">{shown.stayFormula}</span>
             </div>
             <div className="bench-line">
-              <div className="bench-line-head"><span>🍛 Food</span><b><Odometer value={formatInr(shown.mealCost)} animate={animate} /></b></div>
+              <div className="bench-line-head"><span><UtensilsCrossed size={14} aria-hidden style={{ verticalAlign: '-2px', marginRight: 5 }} />Food</span><b><Odometer value={formatInr(shown.mealCost)} animate={animate} /></b></div>
               <span className="bench-line-formula">{shown.mealFormula}</span>
             </div>
           </div>
@@ -479,7 +487,9 @@ export function PlanBench() {
           </div>
           <div className="bench-receipt-actions">
             <button type="button" className={`chip chip-outline${copied ? ' chip-copied' : ''}`} onClick={copyBill}>
-              {copied ? '✓ Copied to clipboard' : '⧉ Copy bill as text'}
+              {copied
+                ? <><Check size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Copied to clipboard</>
+                : <><Copy size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Copy bill as text</>}
             </button>
             {copied && !reduced && (
               <span className="bench-confetti" aria-hidden="true">

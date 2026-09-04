@@ -2,6 +2,10 @@
 // Hash-based routing so the built app works from any static host or file://.
 import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import { createPortal } from 'react-dom'
+import {
+  Bell, Compass, Import, Inbox, Luggage, Link2, Mail, Menu, Moon, Plus,
+  Settings, Sparkles, Sun, Tent, X,
+} from 'lucide-react'
 import type { Trip } from './data/types'
 import { useDb, currentUser, logout, notificationsFor, markAllNotificationsRead, tripById, joinViaInvite, duplicateTrip, init } from './store/store'
 import { Avatar, BrandMark, ToastZone, useClickOutside, toast } from './components/ui'
@@ -214,16 +218,16 @@ export default function App() {
               aria-expanded={mobileNav}
               aria-controls="mobile-menu"
             >
-              {mobileNav ? '✕' : '☰'}
+              {mobileNav ? <X size={18} aria-hidden /> : <Menu size={18} aria-hidden />}
             </button>
 
             <button className="theme-toggle" onClick={toggleTheme} aria-label="Toggle dark mode" title="Toggle dark mode">
-              {dark ? '☀️' : '🌙'}
+              {dark ? <Sun size={16} aria-hidden /> : <Moon size={16} aria-hidden />}
             </button>
             {me && (
               <div style={{ position: 'relative' }} ref={notifRef}>
                   <button className="icon-btn" onClick={() => { syncNotifPos(); setNotifOpen(o => !o) }} aria-label={`Notifications (${unread} unread)`} aria-expanded={notifOpen} aria-controls="notif-pop">
-                    🔔{unread > 0 && <span className="notif-badge">{unread}</span>}
+                    <Bell size={16} aria-hidden />{unread > 0 && <span className="notif-badge">{unread}</span>}
                   </button>
               {notifOpen && createPortal(
                 <div className="notif-pop" id="notif-pop" ref={notifPopRef} tabIndex={-1} style={{ top: notifPos.top, right: notifPos.right }}>
@@ -232,7 +236,11 @@ export default function App() {
                     {unread > 0 && <button className="btn btn-ghost btn-sm" onClick={() => markAllNotificationsRead(me.id)}>Mark all read</button>}
                   </div>
                   <div style={{ maxHeight: 320, overflowY: 'auto', overscrollBehavior: 'contain' }}>
-                    {notifs.length === 0 && <p className="muted small" style={{ padding: 16 }}>You’re all caught up ✨</p>}
+                    {notifs.length === 0 && (
+                      <p className="muted small" style={{ padding: 16, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <Inbox size={14} aria-hidden />You’re all caught up
+                      </p>
+                    )}
                     {notifs.slice(0, 12).map(n => (
                       <div key={n.id} className={`notif-item ${n.read ? '' : 'unread'}`}>
                         <span>{n.text}</span>
@@ -255,7 +263,7 @@ export default function App() {
                   <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--line)' }}>
                     <b>{me.profile.name}</b>
                     <div className="small muted">{me.email}</div>
-                    {me.profile.isCreator && <span className="chip chip-saffron" style={{ marginTop: 6, display: 'inline-block' }}>✨ Creator</span>}
+                    {me.profile.isCreator && <span className="chip chip-saffron" style={{ marginTop: 6, display: 'inline-block' }}><Sparkles size={12} aria-hidden style={{ verticalAlign: '-2px' }} /> Creator</span>}
                   </div>
                   <button className="user-menu-item" onClick={() => { setMenuOpen(false); navigate('/profile') }}>Profile & settings</button>
                   <button className="user-menu-item" onClick={() => { setMenuOpen(false); navigate('/explore') }}>Explore itineraries</button>
@@ -279,11 +287,12 @@ export default function App() {
       {mobileNav && (
         <div className="mobile-menu" id="mobile-menu" onClick={() => setMobileNav(false)}>
           {me && <>
-            <a className={`nav-link ${route === '/trips' ? 'active' : ''}`} href="#/trips">🏕️ My trips</a>
-            <a className={`nav-link ${route === '/new' ? 'active' : ''}`} href="#/new">➕ Plan a trip</a>
-          </>}
-          <a className={`nav-link ${route === '/explore' ? 'active' : ''}`} href="#/explore">🧭 Explore</a>
-          {me && <a className={`nav-link ${route === '/profile' ? 'active' : ''}`} href="#/profile">⚙️ Profile & settings</a>}
+            <a className={`nav-link ${route === '/trips' ? 'active' : ''}`} href="#/trips"><Tent size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 6 }} />My trips</a>
+            <a className={`nav-link ${route === '/new' ? 'active' : ''}`} href="#/new"><Plus size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 6 }} />Plan a trip</a>
+          </>
+          }
+          <a className={`nav-link ${route === '/explore' ? 'active' : ''}`} href="#/explore"><Compass size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 6 }} />Explore</a>
+          {me && <a className={`nav-link ${route === '/profile' ? 'active' : ''}`} href="#/profile"><Settings size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 6 }} />Profile & settings</a>}
         </div>
       )}
 
@@ -295,7 +304,7 @@ export default function App() {
 
       <footer className="footer">
         <div className="container footer-inner">
-          <span><b>YatraFlow</b> — plan together, travel better. Built for Indian travellers 🇮🇳</span>
+          <span><b>YatraFlow</b> — plan together, travel better. Built for Indian travellers</span>
           <span className="small muted">All costs are transparent estimates · No bookings, no payments — planning only</span>
         </div>
       </footer>
@@ -336,7 +345,7 @@ function SharedTripPage({ payload, onNavigate }: { payload: string; onNavigate: 
   if (state.s === 'error') {
     return (
       <div className="container empty-state">
-        <div className="big">🔗</div>
+        <div className="big"><Link2 size={38} aria-hidden /></div>
         <h2>This snapshot link is broken</h2>
         <p className="muted">The link may have been truncated — ask for a fresh one from the trip’s Share tab.</p>
         <button className="btn btn-primary" style={{ marginTop: 14 }} onClick={() => onNavigate('/')}>Go home</button>
@@ -346,7 +355,7 @@ function SharedTripPage({ payload, onNavigate }: { payload: string; onNavigate: 
 
   return (
     <div className="container empty-state">
-      <div className="big">🧳</div>
+      <div className="big"><Luggage size={38} aria-hidden /></div>
       <h2>Shared itinerary{state.s === 'ready' ? `: “${state.name}”` : ''}</h2>
       {state.s === 'ready' && (
         <p className="muted">{state.days}-day trip · {state.destinations}</p>
@@ -356,7 +365,7 @@ function SharedTripPage({ payload, onNavigate }: { payload: string; onNavigate: 
         Import it to get your own editable copy{me ? '' : ' (you will be asked to log in first)'}.
       </p>
       <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 14 }}>
-        <button className="btn btn-primary" onClick={importIt}>{me ? '📥 Import into my trips' : 'Log in & import'}</button>
+        <button className="btn btn-primary" onClick={importIt}><Import size={16} aria-hidden style={{ verticalAlign: '-3px', marginRight: 6 }} />{me ? 'Import into my trips' : 'Log in & import'}</button>
         <button className="btn btn-outline" onClick={() => onNavigate('/')}>Not now</button>
       </div>
     </div>
@@ -386,7 +395,7 @@ function InviteGate({ tripId, onNavigate }: { tripId: string; onNavigate: (r: st
   if (!trip) {
     return (
       <div className="container empty-state">
-        <div className="big">🔗</div>
+        <div className="big"><Link2 size={38} aria-hidden /></div>
         <h2>This invite link is broken</h2>
         <p className="muted">Ask the trip organiser for a fresh link from the trip’s Share tab.</p>
         <button className="btn btn-primary" style={{ marginTop: 14 }} onClick={() => onNavigate('/')}>Go home</button>
@@ -397,7 +406,7 @@ function InviteGate({ tripId, onNavigate }: { tripId: string; onNavigate: (r: st
   if (!me) {
     return (
       <div className="container empty-state">
-        <div className="big">✉️</div>
+        <div className="big"><Mail size={38} aria-hidden /></div>
         <h2>You’ve been invited to “{trip.name}”</h2>
         <p className="muted">Log in or create a free account to join the planning crew.</p>
         <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 14 }}>

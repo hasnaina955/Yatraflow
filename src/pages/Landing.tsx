@@ -1,5 +1,6 @@
 // ============ Landing page ============
-import { useEffect } from 'react'
+import { useEffect, type ReactNode } from 'react'
+import { ArrowDown, MapPin, Plane, Rocket, Route, Users, Zap } from 'lucide-react'
 import { RouteSquiggle } from '../components/ui'
 import { PlanBench } from '../components/PlanBench'
 
@@ -19,7 +20,7 @@ export function LandingPage({ onNavigate }: { onNavigate: (r: string) => void })
         <span className="hero-blob hero-blob-b" aria-hidden="true" />
         <div className="container hero-split">
           <div className="hero-copy">
-            <span className="chip chip-saffron hero-rise">🇮🇳 Built for Indian travellers</span>
+            <span className="chip chip-saffron hero-rise">Built for Indian travellers</span>
             <h1 className="hero-rise rise-d1" style={{ fontSize: 'clamp(2.4rem, 5vw, 3.7rem)', margin: '18px 0 14px', lineHeight: 1.12 }}>
               Plan trips that actually <span style={{ color: 'var(--yf-teal-600)' }}>flow together</span>
             </h1>
@@ -36,7 +37,7 @@ export function LandingPage({ onNavigate }: { onNavigate: (r: string) => void })
             <button type="button" className="hero-bench-cta hero-rise rise-d4"
               onClick={() => document.getElementById('plan-bench')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>
               <span className="hbc-stub" aria-hidden="true">
-                <span className="hbc-plane">✈️</span>
+                <span className="hbc-plane"><Plane size={18} aria-hidden /></span>
               </span>
               <span className="hbc-text">
                 <span className="hbc-label">Price a trip in 10 seconds</span>
@@ -46,7 +47,7 @@ export function LandingPage({ onNavigate }: { onNavigate: (r: string) => void })
               <span className="hbc-code" aria-hidden="true">
                 <b>YF-10S</b>
                 <span>SEAT 1A</span>
-                <span className="hbc-arrow">⬇</span>
+                <span className="hbc-arrow"><ArrowDown size={14} aria-hidden /></span>
               </span>
             </button>
             <p className="small muted hero-rise rise-d5" style={{ marginTop: 16 }}>No card needed · Free forever · Your planning data is yours</p>
@@ -76,9 +77,9 @@ export function LandingPage({ onNavigate }: { onNavigate: (r: string) => void })
         <p className="small reveal" style={{ textAlign: 'center', fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--yf-teal-600)', marginBottom: 8 }}>One place for the reality of a trip</p>
         <h2 className="section-title reveal reveal-d1" style={{ maxWidth: 640, margin: '0 auto 26px' }}><span className="reveal-underline">From “let’s go” to a plan everyone can actually follow.</span></h2>
         <div className="feature-strip">
-          <FeatureCard cls="reveal" icon="⚡" title="See the impact before you change" body="Every move shows time, distance and budget consequences — no surprises later." />
-          <FeatureCard cls="reveal reveal-d1" icon="🛣️" title="Plan around real road time" body="Route days, break suggestions and arrival times designed for how journeys really work." />
-          <FeatureCard cls="reveal reveal-d2" icon="👥" title="Keep the whole group aligned" body="Share the itinerary, decide together, and know what still needs an answer." />
+          <FeatureCard cls="reveal" icon={<Zap size={20} aria-hidden />} title="See the impact before you change" body="Every move shows time, distance and budget consequences — no surprises later." />
+          <FeatureCard cls="reveal reveal-d1" icon={<Route size={20} aria-hidden />} title="Plan around real road time" body="Route days, break suggestions and arrival times designed for how journeys really work." />
+          <FeatureCard cls="reveal reveal-d2" icon={<Users size={20} aria-hidden />} title="Keep the whole group aligned" body="Share the itinerary, decide together, and know what still needs an answer." />
         </div>
       </section>
 
@@ -164,7 +165,7 @@ function DestTicker() {
     <div className="ticker-set" aria-hidden={dup || undefined}>
       {DESTINATIONS.map(({ label, tag, off }, i) => (
         <span key={`${dup ? 'b' : 'a'}-${i}`} className="ticker-item">
-          <span className="t-ico">{off ? '🔭' : '🔖'}</span>
+          <span className="t-ico"><MapPin size={13} aria-hidden /></span>
           <span>{label}</span>
           <span className={`t-tag${off ? ' t-off' : ''}`}>{tag}</span>
         </span>
@@ -261,7 +262,8 @@ function DemoButtons({ onNavigate }: { onNavigate: (r: string) => void }) {
   return (
     <div className="cta-buttons">
       <a className="btn btn-navy btn-lg" href="#/auth?mode=signup">
-        🚀 Create a free account
+        <Rocket size={16} aria-hidden style={{ verticalAlign: '-3px', marginRight: 6 }} />
+        Create a free account
       </a>
       <BrandHint />
     </div>
@@ -282,10 +284,10 @@ function Step({ cls, n, title, body }: { cls?: string; n: number; title: string;
   )
 }
 
-function FeatureCard({ cls, icon, title, body }: { cls?: string; icon: string; title: string; body: string }) {
+function FeatureCard({ cls, icon, title, body }: { cls?: string; icon: ReactNode; title: string; body: string }) {
   return (
     <div className={`card feature-card ${cls ?? ''}`.trim()}>
-      <div className="feature-ico">{icon}</div>
+      <div className="feature-ico" aria-hidden="true">{icon}</div>
       <h3>{title}</h3>
       <p className="small muted">{body}</p>
     </div>

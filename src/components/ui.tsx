@@ -282,6 +282,10 @@ export function RouteSquiggle() {
   // crossfade). Undefined until the first tick; only a single outgoing exists at
   // a time because each tick overwrites it with the previously-active trip.
   const [outgoing, setOutgoing] = React.useState<number | null>(null)
+  // The travelling dot is SMIL motion — CSS kill-switches can't reach it, so
+  // it renders only when the user hasn't asked for reduced motion.
+  const [reduced] = React.useState(() =>
+    typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches)
   const activeRef = React.useRef(0)
   React.useEffect(() => { activeRef.current = idx }, [idx])
   React.useEffect(() => {
@@ -323,7 +327,7 @@ export function RouteSquiggle() {
           className="rs-layer rs-layer-active"
           road={scen.road}
           stops={scen.stops}
-          dots
+          dots={!reduced}
         />
       </svg>
       <div className="rs-caption" key={`cap-${idx}`} aria-hidden="true">

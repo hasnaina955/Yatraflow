@@ -3,6 +3,7 @@ import { useEffect, type ReactNode } from 'react'
 import { ArrowDown, MapPin, Plane, Rocket, Route, Users, Zap } from 'lucide-react'
 import { RouteSquiggle } from '../components/ui'
 import { PlanBench } from '../components/PlanBench'
+import { scrollBehavior } from '../lib/motion'
 
 export function LandingPage({ onNavigate }: { onNavigate: (r: string) => void }) {
   useReveal()
@@ -35,7 +36,7 @@ export function LandingPage({ onNavigate }: { onNavigate: (r: string) => void })
             {/* Boarding-pass entry: travel-themed ticket that "issues" a pass to
                 the Plan Bench — bigger than a pill, unmistakably the next step */}
             <button type="button" className="hero-bench-cta hero-rise rise-d4"
-              onClick={() => document.getElementById('plan-bench')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>
+              onClick={() => document.getElementById('plan-bench')?.scrollIntoView({ behavior: scrollBehavior(), block: 'start' })}>
               <span className="hbc-stub" aria-hidden="true">
                 <span className="hbc-plane"><Plane size={18} aria-hidden /></span>
               </span>

@@ -10,6 +10,7 @@ import type { Trip } from './data/types'
 import { useDb, currentUser, logout, notificationsFor, markAllNotificationsRead, tripById, joinViaInvite, duplicateTrip, init } from './store/store'
 import { Avatar, BrandMark, ToastZone, useClickOutside, toast } from './components/ui'
 import { decodeTripSnapshot } from './lib/snapshot'
+import { scrollBehavior } from './lib/motion'
 import { LandingPage } from './pages/Landing'
 import { AuthPage } from './pages/Auth'
 import { TripsListPage } from './pages/TripsList'
@@ -49,7 +50,7 @@ export default function App() {
   }
 
   useEffect(() => {
-    const onHash = () => { setRoute(currentRoute()); setMobileNav(false); window.scrollTo({ top: 0, behavior: 'smooth' }) }
+    const onHash = () => { setRoute(currentRoute()); setMobileNav(false); window.scrollTo({ top: 0, behavior: scrollBehavior() }) }
     window.addEventListener('hashchange', onHash)
     return () => window.removeEventListener('hashchange', onHash)
   }, [])

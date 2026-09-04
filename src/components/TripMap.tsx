@@ -14,6 +14,7 @@ import {
   Flag, Home, Info, Lightbulb, LocateFixed, Map as MapIcon, PlaneTakeoff,
   RotateCcw, TriangleAlert, X,
 } from 'lucide-react'
+import { prefersReducedMotion } from '../lib/motion'
 import {
   Map as MapLibreMap,
   MapMarker,
@@ -292,7 +293,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
       m.resize()
       m.fitBounds(
         [[minLng, minLat], [maxLng, maxLat]],
-        { padding: 70, maxZoom: 12, duration: 400 },
+        { padding: 70, maxZoom: 12, duration: prefersReducedMotion() ? 0 : 400 },
       )
     }
     requestAnimationFrame(run)
@@ -311,7 +312,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     if (maxLng - minLng < 1e-4) { minLng -= 0.08; maxLng += 0.08 }
     if (maxLat - minLat < 1e-4) { minLat -= 0.08; maxLat += 0.08 }
     m.resize()
-    m.fitBounds([[minLng, minLat], [maxLng, maxLat]], { padding: 70, maxZoom: 12, duration: 400 })
+    m.fitBounds([[minLng, minLat], [maxLng, maxLat]], { padding: 70, maxZoom: 12, duration: prefersReducedMotion() ? 0 : 400 })
   }
 
   function colorForDay(i: number): string {

@@ -4,6 +4,8 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ## [Unreleased]
 
+## [0.26.0] — 2026-09-04
+
 ### Fixed
 - **Homepage seam / horizontal scroll / theme-toggle pass — clean bench edges, no page scrollbar, live homepage across theme flips.** **(1) Plan Bench seam + right-edge crop bar (one root cause):** `.plan-bench` previously set `overflow-x: clip` to stop page-sideways blowout — but the CSS overflow **pair rule** turns `overflow-x: clip; overflow-y: visible` into `clip` on *both* axes, so the bench blobs that deliberately bleed past the section's top/bottom (`top:-90px` / `bottom:-70px` blur) got hard-sliced into two visible lines at the container edges, and `bench-blob-b` (`right:-150px`) was cropped into the "weird bar" on the far right. Removed the section-level overflow entirely so the blur flows freely onto the shared fixed canvas (no seam), and moved the horizontal clamp to the root — `html { overflow-x: clip }` — which cuts any page-wide blowout (hero blobs, full-bleed ticker) **without** becoming a scroll container, so no horizontal scrollbar appears and the sticky topnav keeps its sticky behaviour. **(2) Theme toggle no longer pauses the homepage:** the landing route runs continuous CSS animation (blobs, route draw, ticker, odometer), and a full-page View-Transition snapshots the DOM — so toggling night/day froze the whole scenery for ~700 ms while the snapshot played. `toggleTheme` now swaps **instantly on the landing route** (and for reduced-motion, as before), keeping the homepage alive; the radiates-from-the-icon transition still plays on the calmer in-app pages. This also removes the mobile "eruption from the logo" glitch, which was only ever visible on the landing route.
 

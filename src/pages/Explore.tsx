@@ -1,5 +1,8 @@
 // ============ Explore public itineraries — discover, trust and fork (CTI §6.10) ============
 import { useMemo, useState } from 'react'
+import {
+  Calendar, Eye, GitFork, Heart, MapPin, Search, Sparkles, Star, Wallet, X,
+} from 'lucide-react'
 import { useDb, currentUser, tripById, duplicateTrip, registerPubCopy } from '../store/store'
 import { computeHealth, formatInr } from '../lib/engine'
 import { useSavedPubs } from '../lib/savedPubs'
@@ -124,7 +127,7 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
             </button>
           ))}
           <button className={`chip clickable-chip ${savedOnly ? 'chip-saffron' : ''}`} aria-pressed={savedOnly}
-            onClick={() => setSavedOnly(v => !v)}>♥ Saved {saved.length > 0 && <span className="chip-count">{saved.length}</span>}</button>
+            onClick={() => setSavedOnly(v => !v)}><Heart size={12} aria-hidden fill={savedOnly ? 'currentColor' : 'none'} style={{ verticalAlign: '-2px', marginRight: 4 }} />Saved {saved.length > 0 && <span className="chip-count">{saved.length}</span>}</button>
         </div>
 
         {/* ---- Compact filter bar: budget / duration / sort ---- */}
@@ -150,7 +153,7 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
               <option value="duration">Longest first</option>
             </select>
             {(q || style !== 'all' || maxBudget !== '' || duration !== 'all' || savedOnly) && (
-              <button className="btn btn-ghost btn-sm" onClick={() => { setQ(''); setStyle('all'); setMaxBudget(''); setDuration('all'); setSavedOnly(false); syncUrl({ q: '', style: 'all', max: '', dur: 'all' }) }}>✕ Clear filters</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => { setQ(''); setStyle('all'); setMaxBudget(''); setDuration('all'); setSavedOnly(false); syncUrl({ q: '', style: 'all', max: '', dur: 'all' }) }}><X size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Clear filters</button>
             )}
           </div>
         </div>
@@ -163,22 +166,23 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
         {featured && (
           <div className="featured-card" key={featured.id}>
             <div className="featured-body">
-              <span className="editorial-kicker featured-kicker">⭐ FEATURED ITINERARY</span>
+              <span className="editorial-kicker featured-kicker"><Star size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />FEATURED ITINERARY</span>
               <h2><a className="featured-title-link" href={`#/pub/${featured.id}`}>{featured.title}</a></h2>
               <p className="featured-tagline">{featured.tagline}</p>
               <p className="featured-credibility">
-                Why featured: 🍴 {featured.copies} fork{featured.copies === 1 ? '' : 's'} · 👁 {featured.views} views
-                {featuredHealth !== undefined && <> · trip health {featuredHealth}/100</>} — by {userOf(db.users, featured.creatorId)?.profile.name ?? 'a YatraFlow traveller'}{userOf(db.users, featured.creatorId)?.profile.isCreator ? ' ✨' : ''}.
+                Why featured: <GitFork size={12} aria-hidden style={{ verticalAlign: '-2px', margin: '0 2px' }} /> {featured.copies} fork{featured.copies === 1 ? '' : 's'} · <Eye size={12} aria-hidden style={{ verticalAlign: '-2px', margin: '0 2px' }} /> {featured.views} views
+                {featuredHealth !== undefined && <> · trip health {featuredHealth}/100</>} — by {userOf(db.users, featured.creatorId)?.profile.name ?? 'a YatraFlow traveller'}{userOf(db.users, featured.creatorId)?.profile.isCreator && <Sparkles size={11} aria-hidden style={{ verticalAlign: '-1px', marginLeft: 2 }} />}.
               </p>
               <div className="featured-meta">
-                <span>🗓 {featured.durationDays} days</span>
-                <span>💰 ~{formatInr(featured.estimatedBudgetPerPersonInr)}/person</span>
-                <span>📍 {featured.routeSummary.length} places · {featured.routeSummary[0]} → {featured.routeSummary[featured.routeSummary.length - 1]}</span>
+                <span><Calendar size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />{featured.durationDays} days</span>
+                <span><Wallet size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />~{formatInr(featured.estimatedBudgetPerPersonInr)}/person</span>
+                <span><MapPin size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />{featured.routeSummary.length} places · {featured.routeSummary[0]} → {featured.routeSummary[featured.routeSummary.length - 1]}</span>
               </div>
               <div className="featured-actions">
                 <button className="btn fork-btn" onClick={() => forkTrip(featured.id)}>Fork this trip →</button>
                 <button className="btn save-btn" onClick={() => toggleHeart(featured.id)} aria-pressed={isSaved(featured.id)}>
-                  {isSaved(featured.id) ? '♥ Saved' : '♡ Save'}
+                  <Heart size={13} aria-hidden fill={isSaved(featured.id) ? 'currentColor' : 'none'} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+                  {isSaved(featured.id) ? 'Saved' : 'Save'}
                 </button>
               </div>
             </div>
@@ -186,7 +190,7 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
         )}
 
         {pubs.length === 0 ? (
-          <EmptyState icon="🔍" title="Nothing matches those filters"
+          <EmptyState icon={<Search size={38} aria-hidden />} title="Nothing matches those filters"
             body="Try widening the budget or clearing a filter." />
         ) : (
           <div className="explore-grid">
@@ -195,7 +199,7 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
               return (
                 <div key={p.id} className="card itin-card">
                   <button className="save-heart" aria-pressed={isSaved(p.id)} aria-label={isSaved(p.id) ? 'Remove from saved' : 'Save itinerary'}
-                    onClick={() => toggleHeart(p.id)}>{isSaved(p.id) ? '♥' : '♡'}</button>
+                    onClick={() => toggleHeart(p.id)}><Heart size={13} aria-hidden fill={isSaved(p.id) ? 'currentColor' : 'none'} /></button>
                   <a className="trip-card-hit" href={`#/pub/${p.id}`}>
                     <CoverThumb
                       trip={{ name: p.title, destinations: p.routeSummary }}
@@ -206,19 +210,19 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
                     <div className="itin-body">
                       <div className="row-between" style={{ marginTop: 0 }}>
                         <Chip tone="teal">{cap(p.travelStyle)}</Chip>
-                        <span className="small muted">🍴 {p.copies}</span>
+                        <span className="small muted"><GitFork size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />{p.copies}</span>
                       </div>
                       <h3>{p.title}</h3>
                       <p className="small muted" style={{ margin: 0 }}>{p.tagline}</p>
                       <div className="stop-meta" style={{ marginTop: 2 }}>
-                        <span>🗓 {p.durationDays} days</span>
-                        <span>💰 ~{formatInr(p.estimatedBudgetPerPersonInr)}/person</span>
-                        <span>📍 {p.routeSummary.length} places</span>
+                        <span><Calendar size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />{p.durationDays} days</span>
+                        <span><Wallet size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />~{formatInr(p.estimatedBudgetPerPersonInr)}/person</span>
+                        <span><MapPin size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />{p.routeSummary.length} places</span>
                       </div>
                     </div>
                   </a>
                   <div className="row-between itin-meta">
-                    <span className="creator-line"><Avatar user={creator} />{creator?.profile.name ?? 'Creator'}{creator?.profile.isCreator && <span title="Verified creator">✨</span>}</span>
+                    <span className="creator-line"><Avatar user={creator} />{creator?.profile.name ?? 'Creator'}{creator?.profile.isCreator && <span title="Verified creator" style={{ display: 'inline-flex', verticalAlign: '-2px', marginLeft: 2 }}><Sparkles size={12} aria-hidden /></span>}</span>
                     <button className="btn btn-primary btn-sm" onClick={() => forkTrip(p.id)}>Fork this trip</button>
                   </div>
                 </div>

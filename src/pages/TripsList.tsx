@@ -1,5 +1,6 @@
 // ============ My trips ============
 import { useState } from 'react'
+import { Clock, Compass, Rocket, Trash2, Wallet } from 'lucide-react'
 import { useDb, currentUser, tripsForUser, userById, deleteTrip, restoreTrip, addDemoTrips } from '../store/store'
 import { computeTotals } from '../lib/engine'
 import { Avatar, Chip, EmptyState, toast, undoToast, ConfirmDialog } from '../components/ui'
@@ -31,20 +32,20 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
           <p className="muted small">Everything you’re planning or collaborating on.</p>
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
-          <button className="btn btn-outline" onClick={addDemoTrips} title="Adds a 4-day Kerala sample trip to your account">🚀 Load demo trips</button>
+          <button className="btn btn-outline" onClick={addDemoTrips} title="Adds a 4-day Kerala sample trip to your account"><Rocket size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 5 }} />Load demo trips</button>
           <button className="btn btn-primary" onClick={() => onNavigate('/new')}>+ Plan a new trip</button>
         </div>
       </div>
 
       {trips.length === 0 ? (
         <EmptyState
-          icon="🧭"
+          icon={<Compass size={38} aria-hidden />}
           title="No trips yet"
           body="Start from scratch with dates and budget, or copy a public itinerary from Explore."
           action={
             <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
               <button className="btn btn-primary" onClick={() => onNavigate('/new')}>Plan your first trip</button>
-              <button className="btn btn-outline" onClick={addDemoTrips}>🚀 Load demo trips</button>
+              <button className="btn btn-outline" onClick={addDemoTrips}><Rocket size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 5 }} />Load demo trips</button>
               <button className="btn btn-outline" onClick={() => onNavigate('/explore')}>Browse Explore</button>
             </div>
           }
@@ -69,8 +70,8 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
                       {t.startLocation} → {t.destinations[t.destinations.length - 1]} · {t.days.length} days
                     </div>
                     <div className="stop-meta">
-                      <span>💰 ~{formatShort(totals.costPerPersonInr)}/person</span>
-                      <span>🕒 {Math.round(totals.totalTravelMinutes / 60)}h travel</span>
+                      <span><Wallet size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />~{formatShort(totals.costPerPersonInr)}/person</span>
+                      <span><Clock size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />{Math.round(totals.totalTravelMinutes / 60)}h travel</span>
                     </div>
                     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
                       <Chip tone="teal">{cap(t.travelStyle)}</Chip>
@@ -83,7 +84,7 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
                     {others.slice(0, 3).map(m => <Avatar key={m.userId} user={userById(m.userId)} />)}
                     {!others.length && <span className="small muted">Just you so far</span>}
                   </div>
-                  <button className="icon-btn" aria-label={`Delete ${t.name}`} onClick={() => setPendingDelete(t)}>🗑️</button>
+                  <button className="icon-btn" aria-label={`Delete ${t.name}`} onClick={() => setPendingDelete(t)}><Trash2 size={14} aria-hidden /></button>
                 </div>
               </div>
             )

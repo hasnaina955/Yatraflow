@@ -2693,7 +2693,10 @@ html.vt-active :where(*) {
 .bench-sub { text-align: center; max-width: 560px; margin: 0 auto 18px; }
 
 /* drifting atmosphere blobs behind the section */
-.plan-bench { position: relative; overflow: hidden; }
+/* No overflow: hidden — the blobs blur freely across the section bounds onto the
+   shared fixed canvas, so there is no hard clipped edge (the "bench seam").
+   Horizontal bleed is clipped to avoid page scrollbars. */
+.plan-bench { position: relative; overflow-x: clip; }
 .bench-blob { position: absolute; z-index: 0; width: 340px; height: 340px; border-radius: 50%; filter: blur(80px); opacity: .5; pointer-events: none; }
 .bench-blob-a { top: -90px; left: -130px; background: var(--yf-atmos-peach); }
 .bench-blob-b { bottom: -70px; right: -150px; background: var(--yf-atmos-mint); }
@@ -2820,28 +2823,64 @@ html.vt-active :where(*) {
   80%, 100% { transform: translateX(330%) skewX(-18deg); }
 }
 
-/* hero CTA — animated gradient border + bouncing arrow */
+/* hero CTA — boarding-pass ticket: stub + tear line + flight code */
 .hero-bench-cta {
-  position: relative; display: inline-flex; padding: 2px; border: none; border-radius: 999px; cursor: pointer;
+  position: relative; display: flex; align-items: stretch; width: min(100%, 460px);
+  margin-top: 14px; padding: 0; border: none; border-radius: 18px; cursor: pointer;
+  background: var(--card); color: var(--text); text-align: left;
+  box-shadow: 0 16px 38px -14px rgba(11, 37, 69, .35);
+  transition: transform .2s var(--ease-out), box-shadow .2s var(--ease-out);
+}
+.hero-bench-cta:hover { transform: translateY(-2px); box-shadow: 0 22px 48px -14px rgba(11, 37, 69, .42); }
+/* animated brand strip along the top edge (ticket stripe) */
+.hero-bench-cta::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px;
+  border-radius: 18px 18px 0 0;
   background: linear-gradient(90deg, var(--yf-teal-600), var(--yf-saffron), var(--yf-teal-600));
-  background-size: 220% 100%; background-position: 0 0;
+  background-size: 220% 100%;
 }
 @media (prefers-reduced-motion: no-preference) {
-  .hero-bench-cta {
-    animation: hbc-slide 3.5s linear infinite;
-    box-shadow: 0 6px 22px rgba(13, 141, 130, .28);
-  }
+  .hero-bench-cta::before { animation: hbc-slide 3.5s linear infinite; }
   .hero-bench-cta .hbc-arrow { animation: hbc-nudge 1.6s ease-in-out infinite; }
 }
 @keyframes hbc-slide { to { background-position: 220% 0; } }
 @keyframes hbc-nudge { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(4px); } }
-.hero-bench-cta .hbc-label {
-  display: inline-flex; align-items: center; gap: 8px;
-  background: var(--bg); border-radius: 999px; padding: 13px 22px;
-  font-size: 15px; font-weight: 800; color: var(--text);
+/* left stub: plane roundel, teal wash */
+.hbc-stub {
+  flex-shrink: 0; display: grid; place-items: center; align-self: center;
+  width: 58px; height: 58px; margin: 12px; border-radius: 14px;
+  background: linear-gradient(135deg, var(--yf-teal-100), #fff);
+  border: 1px solid color-mix(in srgb, var(--yf-teal-600) 25%, transparent);
+  font-size: 24px;
 }
-.hero-bench-cta .hbc-arrow { color: var(--yf-teal-600); display: inline-block; }
-.hero-bench-cta:hover .hbc-label { background: var(--yf-teal-100); }
+@media (prefers-reduced-motion: no-preference) {
+  .hbc-plane { display: inline-block; animation: hbc-plane 5.5s ease-in-out infinite; }
+}
+@keyframes hbc-plane {
+  0%, 100% { transform: translate(0, 0) rotate(-8deg); }
+  40%      { transform: translate(6px, -5px) rotate(-2deg); }
+  70%      { transform: translate(-3px, 2px) rotate(-12deg); }
+}
+.hbc-text { display: flex; flex-direction: column; justify-content: center; gap: 2px; padding: 14px 0; min-width: 0; }
+.hbc-label { font-size: 16.5px; font-weight: 800; letter-spacing: -.01em; }
+.hbc-sub { font-size: 11.5px; font-weight: 600; color: var(--text-3); letter-spacing: .04em; text-transform: uppercase; }
+/* perforated tear line before the stub code */
+.hbc-tear {
+  align-self: stretch; width: 0; margin: 10px 2px;
+  border-left: 2px dashed color-mix(in srgb, var(--text-3) 45%, transparent);
+}
+/* right stub: "flight" code */
+.hbc-code {
+  flex-shrink: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 1px; padding: 0 14px;
+}
+.hbc-code b { font-size: 14px; font-variant-numeric: tabular-nums; letter-spacing: .06em; color: var(--yf-teal-700); }
+.hbc-code span { font-size: 9px; font-weight: 800; letter-spacing: .14em; color: var(--text-3); text-transform: uppercase; }
+.hbc-arrow { font-size: 15px; color: var(--yf-teal-600); margin-top: 3px; display: inline-block; }
+@media (max-width: 720px) {
+  .hero-bench-cta { width: 100%; }
+  .hbc-label { font-size: 15px; }
+}
 
 /* ============================================================
    Homepage motion & one-screen Plan Bench (homepage-build)
@@ -2879,9 +2918,16 @@ html.vt-active :where(*) {
   animation: rs-draw 1.25s var(--ease-out) .3s forwards;
 }
 @keyframes rs-draw { to { stroke-dashoffset: 0; } }
-/* centreline flow: offset shifts by 7+9=16 per dash cycle; -160 = 10 cycles */
-.rs-dash { animation: rs-flow 2.8s linear infinite; }
+/* centreline flow: offset shifts by 7+9=16 per dash cycle; -160 = 10 cycles.
+   Delayed to begin as the road finishes drawing — flow never outruns the draw. */
+.rs-dash { animation: rs-flow 2.8s linear infinite 1.35s; }
 @keyframes rs-flow { to { stroke-dashoffset: -160; } }
+/* per-scenario live figures: staggered rise-in on every trip switch */
+@media (prefers-reduced-motion: no-preference) {
+  .rs-stat { animation: rs-pop .45s var(--ease-soft) backwards; }
+  .rs-stat-d1 { animation-delay: .1s; }
+  .rs-stat-d2 { animation-delay: .2s; }
+}
 .rs-stop {
   transform-box: fill-box; transform-origin: center; opacity: 0;
   animation: rs-pop .5s var(--ease-soft) forwards;
@@ -2956,6 +3002,8 @@ html.vt-active :where(*) {
   .glass-cta::after { box-shadow: none; animation: none; }
   .hero .btn, .hero .btn::after { animation: none; box-shadow: none; }
   .motif-compass, .motif-bob, .motif-float { animation: none; }
+  .hbc-plane { animation: none; }
+  .hero-bench-cta::before { animation: none; }
   .reveal-underline::after { transform: scaleX(1); }
 }
 /* ============================================================
@@ -3017,20 +3065,24 @@ html.vt-active :where(*) {
   .rs-caption-meta { animation: rs-cap 4.5s linear infinite .06s; }
 }
 @keyframes rs-cap { 0%, 82% { opacity: 1; } 100% { opacity: .15; } }
-/* ---------- Glass, glowing CTAs (hero) ---------- */
+/* ---------- Rich, solid CTAs (hero) — colour must not be washed by glass ---------- */
 .hero .btn-lg {
-  position: relative; border: 1px solid rgba(255,255,255,.6);
-  backdrop-filter: blur(12px) saturate(1.3); -webkit-backdrop-filter: blur(12px) saturate(1.3);
-  overflow: hidden;
+  position: relative; overflow: hidden; letter-spacing: .01em;
 }
+/* solid brand gradients (the old translucent glass face washed the colour out);
+   depth comes from the glow shadow instead of transparency */
 .hero .btn-primary {
-  background: linear-gradient(120deg, rgba(13,141,130,.72), rgba(13,141,130,.55));
-  color: #fff; border-color: rgba(255,255,255,.45);
+  background: linear-gradient(120deg, #0F9E90, #0B7A70);
+  color: #fff; border-color: rgba(255,255,255,.28);
+  box-shadow: 0 10px 26px rgba(13,141,130,.42), inset 0 1px 0 rgba(255,255,255,.28);
 }
 .hero .btn-saffron {
-  background: linear-gradient(120deg, rgba(243,170,61,.8), rgba(243,170,61,.62));
-  color: #fff; border-color: rgba(255,255,255,.5);
+  background: linear-gradient(120deg, #F8B14E, #EE8F33);
+  color: #fff; border-color: rgba(255,255,255,.3);
+  box-shadow: 0 10px 26px rgba(243,170,61,.44), inset 0 1px 0 rgba(255,255,255,.3);
 }
+[data-theme='dark'] .hero .btn-primary,
+[data-theme='dark'] .hero .btn-saffron { border-color: rgba(255,255,255,.2); }
 @media (prefers-reduced-motion: no-preference) {
   /* soft breathing outer glow — box-shadow only, transform-free */
   .hero .btn-primary { animation: glow-breathe-teal 3.2s ease-in-out infinite; }
@@ -3040,30 +3092,20 @@ html.vt-active :where(*) {
   /* glass sheen sweep across the button face */
   .hero .btn::after {
     content: ''; position: absolute; top: 0; bottom: 0; left: -45%; width: 40%;
-    background: linear-gradient(105deg, transparent, rgba(255,255,255,.5), transparent);
+    background: linear-gradient(105deg, transparent, rgba(255,255,255,.35), transparent);
     transform: skewX(-20deg); pointer-events: none;
     animation: glass-sheen 4.6s ease-in-out infinite;
   }
 }
 @keyframes glow-breathe-teal {
-  0%, 100% { box-shadow: 0 8px 22px rgba(13,141,130,.34); }
-  50%      { box-shadow: 0 10px 38px rgba(13,141,130,.6); }
+  0%, 100% { box-shadow: 0 10px 26px rgba(13,141,130,.42), inset 0 1px 0 rgba(255,255,255,.28); }
+  50%      { box-shadow: 0 14px 40px rgba(13,141,130,.62), inset 0 1px 0 rgba(255,255,255,.28); }
 }
 @keyframes glow-breathe-saffron {
-  0%, 100% { box-shadow: 0 8px 22px rgba(243,170,61,.36); }
-  50%      { box-shadow: 0 10px 38px rgba(243,170,61,.62); }
+  0%, 100% { box-shadow: 0 10px 26px rgba(243,170,61,.44), inset 0 1px 0 rgba(255,255,255,.3); }
+  50%      { box-shadow: 0 14px 40px rgba(243,170,61,.64), inset 0 1px 0 rgba(255,255,255,.3); }
 }
 @keyframes glass-sheen { 0%, 55% { transform: skewX(-20deg) translateX(-130%); } 85%, 100% { transform: skewX(-20deg) translateX(380%); } }
-/* the animated-gradient "Price a trip" pill: glass the inner label */
-.hero-bench-cta .hbc-label {
-  background: color-mix(in srgb, var(--yf-glass) 60%, #fff);
-  backdrop-filter: blur(12px) saturate(1.3); -webkit-backdrop-filter: blur(12px) saturate(1.3);
-}
-[data-theme='dark'] .hero .btn-primary,
-[data-theme='dark'] .hero .btn-saffron {
-  border-color: rgba(255,255,255,.16);
-  background: linear-gradient(120deg, rgba(13,141,130,.5), rgba(13,141,130,.34));
-}
 
 /* ---------- Scroll-reveal choreography ---------- */
 .reveal-d1 { transition-delay: .06s; } .reveal-d2 { transition-delay: .12s; }
@@ -3072,8 +3114,8 @@ html.vt-active :where(*) {
    content stays visible if JS is off or JS hasn't run yet. */
 @media (prefers-reduced-motion: no-preference) {
   body.reveal-armed .reveal {
-    opacity: 0; transform: translateY(22px);
-    transition: opacity .6s var(--ease-out), transform .6s var(--ease-out);
+    opacity: 0; transform: translateY(36px) scale(.97);
+    transition: opacity .75s var(--ease-out), transform .75s var(--ease-out);
   }
   body.reveal-armed .reveal.io-inview { opacity: 1; transform: none; }
 }
@@ -3088,7 +3130,7 @@ html.vt-active :where(*) {
 body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 
 /* ---------- Travel motif accents (feature + steps sections) ---------- */
-.motif { position: absolute; pointer-events: none; opacity: .5; z-index: 0; color: var(--yf-teal-600); }
+.motif { position: absolute; pointer-events: none; opacity: .85; z-index: 0; color: var(--yf-teal-600); filter: drop-shadow(0 6px 14px rgba(13,141,130,.35)); }
 .motif-compass { animation: spin 22s linear infinite; transform-origin: 50% 50%; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .motif-bob { animation: bob 3.4s ease-in-out infinite; }

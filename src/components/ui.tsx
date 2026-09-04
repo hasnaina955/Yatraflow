@@ -227,30 +227,48 @@ const ROUTE_SCENARIOS: Array<{
   meta: string
   road: string
   stops: Array<[number, number, number]>
+  /** live figures that change with the scenario — count up on each switch */
+  perPerson: number
+  driveMinutes: number
+  health: number
+  warn: [string, string]
+  sync: [string, string]
 }> = [
   {
     name: '🏔️ Leh–Ladakh road escape',
     meta: '12–21 Sep · 10 days · 4 travellers · Motorcycle',
     road: 'M21 104 C 83 40, 139 107, 197 55 S 320 5, 382 67 S 484 128, 531 36',
     stops: [[21, 91, 1], [176, 55, 3], [361, 67, 6], [510, 36, 10]],
+    perPerson: 5408, driveMinutes: 3615, health: 53,
+    warn: ['Day 3 is overloaded', 'add a rest halt to protect your arrival time.'],
+    sync: ['4 friends synced', 'live collaboration on'],
   },
   {
     name: '🛶 Kerala backwaters drift',
     meta: 'Oct 4–8 · 5 days · 2 travellers · Houseboat',
     road: 'M20 92 C 62 62, 101 118, 160 96 S 278 30, 336 74 S 442 120, 516 48',
     stops: [[20, 92, 1], [160, 87, 2], [336, 70, 3], [516, 51, 5]],
+    perPerson: 4980, driveMinutes: 1290, health: 84,
+    warn: ['Day 2 starts before 6 AM', 'shift the boat check-in an hour later.'],
+    sync: ['2 friends synced', 'vote closes tonight'],
   },
   {
     name: '⛰️ Spiti high-pass loop',
     meta: 'Jun 18–27 · 10 days · 3 travellers · SUV',
     road: 'M24 44 C 88 100, 150 22, 214 64 S 340 120, 402 60 S 468 108, 526 74',
     stops: [[24, 44, 1], [214, 62, 4], [402, 66, 7], [526, 74, 10]],
+    perPerson: 7150, driveMinutes: 2320, health: 71,
+    warn: ['Fuel window is tight', 'top up at Kaza — next pump is 180 km away.'],
+    sync: ['3 friends synced', 'permit question resolved'],
   },
   {
     name: '🌿 Meghalaya double-decker trail',
     meta: 'Nov 11–16 · 6 days · 3 travellers · Trek',
     road: 'M22 84 C 78 30, 128 110, 190 72 S 320 20, 388 58 S 462 116, 528 40',
     stops: [[22, 84, 1], [190, 78, 2], [388, 60, 4], [528, 40, 6]],
+    perPerson: 4260, driveMinutes: 1055, health: 91,
+    warn: ['All clear', 'breaks, budget and arrival times all look healthy.'],
+    sync: ['3 friends synced', 'packing list agreed'],
   },
 ]
 
@@ -275,6 +293,7 @@ export function RouteSquiggle() {
     return () => window.clearInterval(t)
   }, [])
   const out = outgoing !== null ? ROUTE_SCENARIOS[outgoing] : null
+  const scen = ROUTE_SCENARIOS[idx]
   return (
     <div className="rs-shell">
       <svg viewBox="0 0 532 132" className="rs-svg" aria-hidden="true" role="presentation">
@@ -301,16 +320,63 @@ export function RouteSquiggle() {
           rid={`rp-${gid}-in`}
           key={`active-${idx}`}
           className="rs-layer rs-layer-active"
-          road={ROUTE_SCENARIOS[idx].road}
-          stops={ROUTE_SCENARIOS[idx].stops}
+          road={scen.road}
+          stops={scen.stops}
           dots
         />
       </svg>
       <div className="rs-caption" aria-hidden="true">
-        <span className="rs-caption-name">{ROUTE_SCENARIOS[idx].name}</span>
-        <span className="rs-caption-meta">{ROUTE_SCENARIOS[idx].meta}</span>
+        <span className="rs-caption-name">{scen.name}</span>
+        <span className="rs-caption-meta">{scen.meta}</span>
       </div>
+      <ScenarioStats key={`stats-${idx}`} scen={scen} />
     </div>
+  )
+}
+
+/** rAF count-up for one number — runs once per mount (the parent remounts it
+ *  on every scenario switch, so each figure rolls from a low start to its
+ *  target). Falls back to the final value under reduced motion. */
+function useCountUp(target: number, ms: number) {
+  const [v, setV] = React.useState(() =>
+    typeof window !== 'undefined' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches ? target : 0)
+  React.useEffect(() => {
+    if (v === target) return
+    let raf = 0
+    const t0 = performance.now()
+    const tick = (now: number) => {
+      const p = Math.min(1, (now - t0) / ms)
+      const eased = 1 - Math.pow(1 - p, 3) // cubic ease-out
+      setV(Math.round(target * eased))
+      if (p < 1) raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [target])
+  return v
+}
+
+/** The live figures + warn/sync rows, keyed to the active scenario so they
+ *  remount and count up in sync with each new road drawing. */
+function ScenarioStats({ scen }: { scen: (typeof ROUTE_SCENARIOS)[number] }) {
+  const rupees = useCountUp(scen.perPerson, 900)
+  const drive = useCountUp(scen.driveMinutes, 900)
+  const health = useCountUp(scen.health, 1100)
+  const h = Math.floor(drive / 60), m = drive % 60
+  return (
+    <>
+      <div className="ha-stats">
+        <div className="rs-stat"><b>₹{rupees.toLocaleString('en-IN')}</b><span>est. per person</span></div>
+        <div className="rs-stat rs-stat-d1"><b>{h}h {String(m).padStart(2, '0')}m</b><span>driving time</span></div>
+        <div className="rs-stat rs-stat-d2"><b style={{ color: '#F3AA3D' }}>{health}</b><span>trip health</span></div>
+      </div>
+      <div className="ha-row">
+        <div className="ha-warn">⚠️ {scen.warn[0]}<span>{scen.warn[1]}</span></div>
+        <div className="ha-sync">👥 {scen.sync[0]}<span>{scen.sync[1]}</span></div>
+      </div>
+    </>
   )
 }
 
@@ -332,7 +398,7 @@ function RouteLayer({
       <path className="rs-dash" d={road}
         fill="none" stroke="#FFF8D7" strokeWidth="2" strokeDasharray="7 9" strokeLinecap="round" />
       {stops.map(([x, y, n], i) => (
-        <g key={`${className}-${n}`} className="rs-stop" style={{ animationDelay: `${0.85 + i * 0.15}s` }}>
+        <g key={`${className}-${n}`} className="rs-stop" style={{ animationDelay: `${1.15 + i * 0.22}s` }}>
           <circle cx={x} cy={y} r="13" fill="#FFFFFF" />
           <text x={x} y={y + 4} textAnchor="middle" fontSize="11" fontWeight="700" fill="#155B60">{n}</text>
         </g>
@@ -340,7 +406,10 @@ function RouteLayer({
       {dots && (
         <g className="rs-vehicle">
           <circle r="5.5" fill="#2BB8AC" stroke="#FFFFFF" strokeWidth="2" />
-          <animateMotion dur="11s" repeatCount="indefinite" rotate="auto">
+          {/* one full pass per scenario, timed to start as the road finishes
+              drawing (1.55s) — the layer remounts on every switch, so the dot
+              never jumps mid-loop or runs ahead of an undrawn road */}
+          <animateMotion dur="2.9s" begin="1.55s" fill="freeze" rotate="auto">
             <mpath href={`#${rid}`} />
           </animateMotion>
         </g>

@@ -30,11 +30,25 @@ export function LandingPage({ onNavigate }: { onNavigate: (r: string) => void })
             <div className="hero-ctas hero-rise rise-d3">
               <a className="btn btn-primary btn-lg" href="#/auth?mode=signup">Start planning free →</a>
               <a className="btn btn-saffron btn-lg" href="#/explore">Explore itineraries</a>
-              <button type="button" className="hero-bench-cta hero-rise rise-d4"
-                onClick={() => document.getElementById('plan-bench')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>
-                <span className="hbc-label">Price a trip in 10 seconds <span className="hbc-arrow" aria-hidden="true">⬇</span></span>
-              </button>
             </div>
+            {/* Boarding-pass entry: travel-themed ticket that "issues" a pass to
+                the Plan Bench — bigger than a pill, unmistakably the next step */}
+            <button type="button" className="hero-bench-cta hero-rise rise-d4"
+              onClick={() => document.getElementById('plan-bench')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>
+              <span className="hbc-stub" aria-hidden="true">
+                <span className="hbc-plane">✈️</span>
+              </span>
+              <span className="hbc-text">
+                <span className="hbc-label">Price a trip in 10 seconds</span>
+                <span className="hbc-sub">Boarding pass · no signup · dials below</span>
+              </span>
+              <span className="hbc-tear" aria-hidden="true" />
+              <span className="hbc-code" aria-hidden="true">
+                <b>YF-10S</b>
+                <span>SEAT 1A</span>
+                <span className="hbc-arrow">⬇</span>
+              </span>
+            </button>
             <p className="small muted hero-rise rise-d5" style={{ marginTop: 16 }}>No card needed · Free forever · Your planning data is yours</p>
           </div>
 
@@ -42,17 +56,9 @@ export function LandingPage({ onNavigate }: { onNavigate: (r: string) => void })
           <div className="hero-adventure hero-rise rise-d2" aria-hidden="true">
             <div className="ha-kicker">Your next adventure</div>
             {/* RouteSquiggle is a scenario carousel — it draws a different India trip
-                on autopilot (Leh, Kerala, Spiti, Meghalaya) with a live caption. */}
+                on autopilot (Leh, Kerala, Spiti, Meghalaya) with a live caption AND
+                count-up stats + warn/sync rows that change with each trip. */}
             <RouteSquiggle />
-            <div className="ha-stats">
-              <div><b>₹5,408</b><span>est. per person</span></div>
-              <div><b>60h 15m</b><span>driving time</span></div>
-              <div><b style={{ color: '#F3AA3D' }}>53</b><span>trip health</span></div>
-            </div>
-            <div className="ha-row">
-              <div className="ha-warn">⚠️ Day 3 is overloaded<span>add a rest halt to protect your arrival time.</span></div>
-              <div className="ha-sync">3 friends synced<span>live collaboration on</span></div>
-            </div>
           </div>
         </div>
       </section>

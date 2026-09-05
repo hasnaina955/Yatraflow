@@ -89,7 +89,8 @@ export default function App() {
   // stays for the calmer in-app pages. (Also fixes the mobile eruption point,
   // which was only ever observed on the landing route.)
   function toggleTheme(e: MouseEvent<HTMLButtonElement>) {
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    // Landing page: skip View Transition entirely to avoid freezing continuous CSS animations
+    if (route === '/' || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       setDark(d => !d); return
     }
     const rect = e.currentTarget.getBoundingClientRect()
@@ -209,7 +210,7 @@ export default function App() {
       <nav className="topnav">
         <div className="container topnav-inner">
           <a className="brand" href="#/" aria-label="YatraFlow home">
-            <BrandMark />
+            <BrandMark size={32} />
             <span>Yatra<b style={{ color: 'var(--teal)' }}>Flow</b></span>
           </a>
           <div className="nav-links">
@@ -231,16 +232,16 @@ export default function App() {
               aria-expanded={mobileNav}
               aria-controls="mobile-menu"
             >
-              {mobileNav ? <X size={18} aria-hidden /> : <Menu size={18} aria-hidden />}
+              {mobileNav ? <X size={20} aria-hidden /> : <Menu size={20} aria-hidden />}
             </button>
 
             <button className="theme-toggle" onClick={toggleTheme} aria-label="Toggle dark mode" title="Toggle dark mode">
-              {dark ? <Sun size={16} aria-hidden /> : <Moon size={16} aria-hidden />}
+              {dark ? <Sun size={18} aria-hidden /> : <Moon size={18} aria-hidden />}
             </button>
             {me && (
               <div style={{ position: 'relative' }} ref={notifRef}>
                   <button className="icon-btn" onClick={() => { syncNotifPos(); setNotifOpen(o => !o) }} aria-label={`Notifications (${unread} unread)`} aria-expanded={notifOpen} aria-controls="notif-pop">
-                    <Bell size={16} aria-hidden />{unread > 0 && <span className="notif-badge">{unread}</span>}
+                    <Bell size={18} aria-hidden />{unread > 0 && <span className="notif-badge">{unread}</span>}
                   </button>
               {notifOpen && createPortal(
                 <div className="notif-pop" id="notif-pop" ref={notifPopRef} tabIndex={-1} style={{ top: notifPos.top, right: notifPos.right }}>
@@ -276,7 +277,7 @@ export default function App() {
                   <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--line)' }}>
                     <b>{me.profile.name}</b>
                     <div className="small muted">{me.email}</div>
-                    {me.profile.isCreator && <span className="chip chip-saffron" style={{ marginTop: 6, display: 'inline-block' }}><Sparkles size={12} aria-hidden style={{ verticalAlign: '-2px' }} /> Creator</span>}
+                    {me.profile.isCreator && <span className="chip chip-saffron" style={{ marginTop: 6, display: 'inline-block' }}><Sparkles size={14} aria-hidden /> Creator</span>}
                   </div>
                   <button className="user-menu-item" onClick={() => { setMenuOpen(false); navigate('/profile') }}>Profile & settings</button>
                   <button className="user-menu-item" onClick={() => { setMenuOpen(false); navigate('/explore') }}>Explore itineraries</button>

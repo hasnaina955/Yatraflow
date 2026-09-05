@@ -1,32 +1,44 @@
 // ============ YatraFlow app shell ============
 // Hash-based routing so the built app works from any static host or file://.
-import { useEffect, useRef, useState, type MouseEvent } from 'react'
+import { Suspense, lazy, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import { createPortal } from 'react-dom'
 import {
   Bell, Compass, Import, Inbox, Luggage, Link2, Mail, Menu, Moon, Plus,
   Settings, Sparkles, Sun, Tent, X,
 } from 'lucide-react'
 import type { Trip } from './data/types'
-import { useDb, currentUser, logout, notificationsFor, markAllNotificationsRead, tripById, joinViaInvite, duplicateTrip, init } from './store/store'
+import { useDb, currentUser, useUsers, useNotifications, useSessionUserId, logout, markAllNotificationsRead, tripById, joinViaInvite, duplicateTrip, init, useStoreReady } from './store/store'
 import { Avatar, BrandMark, ToastZone, useClickOutside, toast } from './components/ui'
 import { decodeTripSnapshot } from './lib/snapshot'
 import { scrollBehavior } from './lib/motion'
 import { LandingPage } from './pages/Landing'
-import { AuthPage } from './pages/Auth'
 import { TripsListPage } from './pages/TripsList'
-import { CreateTripPage } from './pages/CreateTrip'
 import { TripWorkspace } from './pages/TripWorkspace'
 import { ExplorePage } from './pages/Explore'
-import { PublicItineraryPage } from './pages/PublicItinerary'
-import { ProfilePage } from './pages/Profile'
+// Route-level code splitting (M3.5): the landing page and the workspace stay in
+// the main chunk (they are the app's front door and its core); these four
+// secondary routes load on first visit instead.
+const AuthPage = lazy(() => import('./pages/Auth').then(m => ({ default: m.AuthPage })))
+const CreateTripPage = lazy(() => import('./pages/CreateTrip').then(m => ({ default: m.CreateTripPage })))
+const PublicItineraryPage = lazy(() => import('./pages/PublicItinerary').then(m => ({ default: m.PublicItineraryPage })))
+const ProfilePage = lazy(() => import('./pages/Profile').then(m => ({ default: m.ProfilePage })))
+
+/** Suspense fallback for the lazy routes — the same loading block the ready-gate shows. */
+const lazyRouteFallback = <div className="container loading-block"><div className="spinner" />Loading…</div>
 
 function currentRoute(): string {
   return location.hash.replace(/^#/, '') || '/'
 }
 
 export default function App() {
-  const db = useDb()
-  const me = currentUser(db)
+  // Slice subscriptions: the shell re-renders only when profiles, the session
+  // or notifications change — a trip edit no longer re-renders the entire
+  // page tree through App.
+  const users = useUsers()
+  const sessionUserId = useSessionUserId()
+  const notifications = useNotifications()
+  // Same semantics as currentUser(): the profile whose id matches sessionUserId.
+  const me = useMemo(() => users.find(u => u.id === sessionUserId) ?? null, [users, sessionUserId])
   const [route, setRoute] = useState(currentRoute)
   const [dark, setDark] = useState(() => localStorage.getItem('yatraflow_theme') === 'dark')
   const [notifOpen, setNotifOpen] = useState(false)
@@ -160,15 +172,22 @@ export default function App() {
   const parts = route.split('/').filter(Boolean).map(s => s.split('?')[0])
   let page: React.ReactNode
 
-  if (parts[0] === 'share' && parts[1]) {
+  // Before the first hydrate settles, every "empty" is a lie: a deep link to
+  // #/trip/... used to flash Landing, "No trips yet" rendered before data, and
+  // invite links showed "broken" mid-load. One gate at the router fixes all
+  // three — auth and share links don't read the cache, so they stay live.
+  const ready = useStoreReady()
+  if (!ready && parts[0] !== 'auth' && parts[0] !== 'share') {
+    page = <div className="container loading-block"><div className="spinner" />Loading…</div>
+  } else if (parts[0] === 'share' && parts[1]) {
     page = <SharedTripPage payload={parts[1]} onNavigate={navigate} />
   } else if (parts[0] === 'invite' && parts[1]) {
     page = <InviteGate tripId={parts[1]} onNavigate={navigate} />
   } else if (!me) {
     // public pages stay accessible logged-out; everything else funnels to auth/landing
-    if (parts[0] === 'pub' && parts[1]) page = <PublicItineraryPage slug={parts[1]} onNavigate={navigate} />
+    if (parts[0] === 'pub' && parts[1]) page = <Suspense fallback={lazyRouteFallback}><PublicItineraryPage slug={parts[1]} onNavigate={navigate} /></Suspense>
     else if (parts[0] === 'explore') page = <ExplorePage onNavigate={navigate} />
-    else if (parts[0] === 'auth') page = <AuthPage onNavigate={navigate} />
+    else if (parts[0] === 'auth') page = <Suspense fallback={lazyRouteFallback}><AuthPage onNavigate={navigate} /></Suspense>
     else page = <LandingPage onNavigate={navigate} />
   } else {
     switch (parts[0]) {
@@ -180,7 +199,7 @@ export default function App() {
         page = <TripsListPage onNavigate={navigate} />
         break
       case 'new':
-        page = <CreateTripPage onNavigate={navigate} />
+        page = <Suspense fallback={lazyRouteFallback}><CreateTripPage onNavigate={navigate} /></Suspense>
         break
       case 'trip':
         page = <TripWorkspace tripId={parts[1] ?? ''} initialTab={parts[2]} onNavigate={navigate} />
@@ -189,17 +208,24 @@ export default function App() {
         page = <ExplorePage onNavigate={navigate} />
         break
       case 'pub':
-        page = <PublicItineraryPage slug={parts[1] ?? ''} onNavigate={navigate} />
+        page = <Suspense fallback={lazyRouteFallback}><PublicItineraryPage slug={parts[1] ?? ''} onNavigate={navigate} /></Suspense>
         break
       case 'profile':
-        page = <ProfilePage onNavigate={navigate} />
+        page = <Suspense fallback={lazyRouteFallback}><ProfilePage onNavigate={navigate} /></Suspense>
         break
       default:
         page = <LandingPage onNavigate={navigate} />
     }
   }
 
-  const notifs = me ? notificationsFor(me.id) : []
+  // Same filter+sort as notificationsFor(), but derived from the subscribed
+  // notifications slice so the bell stays live without a full-cache subscription.
+  const notifs = useMemo(
+    () => sessionUserId
+      ? notifications.filter(n => n.userId === sessionUserId).sort((a, b) => b.at - a.at)
+      : [],
+    [notifications, sessionUserId],
+  )
   const unread = notifs.filter(n => !n.read).length
 
   return (
@@ -360,7 +386,7 @@ function SharedTripPage({ payload, onNavigate }: { payload: string; onNavigate: 
     return (
       <div className="container empty-state">
         <div className="big"><Link2 size={38} aria-hidden /></div>
-        <h2>This snapshot link is broken</h2>
+        <h1 style={{ fontSize: 26 }}>This snapshot link is broken</h1>
         <p className="muted">The link may have been truncated — ask for a fresh one from the trip’s Share tab.</p>
         <button className="btn btn-primary" style={{ marginTop: 14 }} onClick={() => onNavigate('/')}>Go home</button>
       </div>
@@ -370,7 +396,7 @@ function SharedTripPage({ payload, onNavigate }: { payload: string; onNavigate: 
   return (
     <div className="container empty-state">
       <div className="big"><Luggage size={38} aria-hidden /></div>
-      <h2>Shared itinerary{state.s === 'ready' ? `: “${state.name}”` : ''}</h2>
+      <h1 style={{ fontSize: 26 }}>Shared itinerary{state.s === 'ready' ? `: “${state.name}”` : ''}</h1>
       {state.s === 'ready' && (
         <p className="muted">{state.days}-day trip · {state.destinations}</p>
       )}
@@ -410,7 +436,7 @@ function InviteGate({ tripId, onNavigate }: { tripId: string; onNavigate: (r: st
     return (
       <div className="container empty-state">
         <div className="big"><Link2 size={38} aria-hidden /></div>
-        <h2>This invite link is broken</h2>
+        <h1 style={{ fontSize: 26 }}>This invite link is broken</h1>
         <p className="muted">Ask the trip organiser for a fresh link from the trip’s Share tab.</p>
         <button className="btn btn-primary" style={{ marginTop: 14 }} onClick={() => onNavigate('/')}>Go home</button>
       </div>
@@ -421,7 +447,7 @@ function InviteGate({ tripId, onNavigate }: { tripId: string; onNavigate: (r: st
     return (
       <div className="container empty-state">
         <div className="big"><Mail size={38} aria-hidden /></div>
-        <h2>You’ve been invited to “{trip.name}”</h2>
+        <h1 style={{ fontSize: 26 }}>You’ve been invited to “{trip.name}”</h1>
         <p className="muted">Log in or create a free account to join the planning crew.</p>
         <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 14 }}>
           <button className="btn btn-outline" onClick={() => onNavigate('/auth')}>Log in</button>

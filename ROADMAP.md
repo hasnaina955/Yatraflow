@@ -15,10 +15,11 @@ green, both themes QA'd, user confirmation before any push. When **all
 milestones** are done, the branch progresses to `test` **via pull request**
 (never a direct push). `main` merges stay explicitly user-gated (AGENTS rule 1).
 
-**Snapshot (2026-09-03):** v0.25.0 on `main`; `[Unreleased]` carries the
-demo-seed revert; comprehensive review complete → stabilization track (M0–M4)
-inserted ahead of the strategic track. Current version: **0.25.0** → next
-release: **v0.26.0 (M0)**.
+**Snapshot (2026-09-05):** v0.31.0 on `main`. The M0–M5 version labels below
+decoupled from reality when v0.26–v0.31 shipped different content (Plan Bench
+redesign, v0.27 interface pass, the #43–#52 store sweep) — the ledger tracks
+**content**, not those labels. Current version: **0.31.0** → in flight:
+**v0.32.0 (stabilization completion)** on local `redesign/stabilization-v032`.
 
 ---
 
@@ -49,14 +50,12 @@ and date), per the AGENTS §6 same-edit rule. Detail lives in
 - [x] **[Unreleased]** — demo-seed revert + one-off DB prune, master-roadmap consolidation, Sep 2026 comprehensive review
 
 ### Remaining — in release order (details in the tracks below)
-- [ ] **v0.26.0 (M0)** — Trust & navigation: P0 bug batch
-- [ ] **v0.27.0 (M1)** — Theme integrity & mobile: dark contrast, touch targets, focus rings
-- [ ] **v0.28.0 (M2)** — State honesty & UX: loading/error/empty separation, a11y flow traps
-- [ ] **v0.29.0 (M3)** — Performance architecture: store immutability → selectors → memo → workspace split
-- [ ] **v0.30.0 (M4)** — Design-system hygiene: dead CSS purge, mobile-block consolidation, glass/z-index tokens
-- [ ] **v0.31.0 (M5)** — AI companion: user-configurable LLM endpoint (#22 → #20)
-- [ ] **v0.32.0 (M6)** — Together: integration test suite, live co-editing depth, split expenses
-- [ ] **v0.33.0 (M7)** — Premium: payment gateway, entitlements, unlock flow
+- [ ] **v0.32.0** — Stabilization completion (in flight on `redesign/stabilization-v032`): M0 leftovers (broken `pub:` route, router ready-gate for deep links / invite flash / loading-vs-empty) + M2 remainders (Profile save validation, demo-copy honesty, heading outline) + M1 leftovers (focus-ring gaps, touch targets, stagger freeze) + cuts the shipped `[54]`/`[53]`/nav-icon fixes out of `[Unreleased]`
+- [x] **M3** — Performance architecture: store immutability → slice selectors → DaySection memo → workspace split into pages/trip/* + weather dedup + lazy routes (in [Unreleased], local branch redesign/perf-architecture)
+- [x] **M4** — Design-system hygiene: dead CSS purge, mobile-block consolidation, glass/z-index tokens (in [Unreleased], local branch redesign/perf-architecture; raw-rgba glass stragglers intentionally NOT migrated — see commit `f646b45`)
+- [ ] **M5** — AI companion: user-configurable LLM endpoint (#22 → #20) — the only open issues
+- [ ] **M6** — Together: integration test suite, live co-editing depth, split expenses
+- [ ] **M7** — Premium: payment gateway, entitlements, unlock flow
 - [ ] **1.0 (M8)** — offline-first/PWA, i18n (EN+HI), the 1.0 cut → then PR to `test`
 
 ---
@@ -123,17 +122,24 @@ Error / loading / empty must never impersonate each other (folds in the old
    `ClampedText` doubles the DOM per stop; route-level `React.lazy` for
    Auth/Profile/CreateTrip/PublicItinerary.
 
-### M4 — v0.30.0 "Design-system hygiene" (~1 day, CSS-only batch)
-- Purge ~100+ lines dead CSS (hero-preview block, `.route-flow`, `.filter-bar`,
+### M4 — v0.30.0 "Design-system hygiene" (~1 day, CSS-only batch) — DONE (in [Unreleased], local branch redesign/perf-architecture)
+- [x] Purge ~100+ lines dead CSS (hero-preview block, `.route-flow`, `.filter-bar`,
   duplicates, contradictory `.locked-overlay` pair) — template-literal-safe
-  recheck first.
-- Consolidate the 9 scattered mobile blocks (real conflicts: `.map-day-chip`,
+  recheck first. (Net −80 lines; 30+ zero-usage rules + dead selector
+  fragments in compound rules, per-selector usage grep in commit body.)
+- [x] Consolidate the 9 scattered mobile blocks (real conflicts: `.map-day-chip`,
   `.vote-btn` sized differently in two blocks) back toward the single-block
-  convention.
-- Glass tokens: add `--yf-blur-*`; migrate 3 raw-rgba stragglers; normalize
-  saturate; z-index ties (`ai-drawer` 90, `ai-fab` 70, `user-menu` 60).
-- Tokenize hardcoded hero-gradient hexes + the 25× shadow navy; fold one-off
-  radii into the ladder; adopt-or-delete unused custom properties.
+  convention. (All max-width blocks grouped at EOF, one 720px block; cascade
+  preserved via per-selector audit + declaration-multiset diff.)
+- [x] Glass tokens: add `--yf-blur-*` (sm/md/lg = 4/6/8px, value-identical);
+  raw-rgba glass stragglers: none migratable — every literal matching a
+  `--yf-glass*` value is deliberately theme-invariant (dark flips to .08),
+  documented in `f646b45`; saturate normalized to 1.2. z-index: full 15-rung
+  `--z-*` ladder, ties documented, ordering preserved (`eea4ebd`).
+- [x] Tokenize hardcoded hero-gradient hexes (→ `--gray-900`) + the 26× shadow
+  navy (→ `--shadow-navy-rgb`); adopt-or-delete: 18 never-referenced custom
+  properties deleted (light+dark mirrors together), DESIGN_TOKENS.md updated.
+  (One-off radii left as-is — no value-identical rung exists for them.)
 
 ---
 

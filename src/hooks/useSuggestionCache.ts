@@ -3,7 +3,7 @@
 // Hydration never refetches — only explicit user actions (↻ Refresh, the
 // detour-scope slider, 📍 Suggest) re-run the expensive corridor searches.
 
-import { useCallback, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import type { SegmentHit, HaltPlanItem } from '../lib/ridePlan'
 
 export interface SuggestionCache {
@@ -75,5 +75,9 @@ export function useSuggestionCache(tripId: string) {
     })
   }, [tripId])
 
-  return { cache, setMapCache, setHaltCache, clearMap }
+  // Memoized so consumers (TimelineTab → memoized DaySection, MapTab) can take
+  // this object as a prop without re-rendering on every parent render — the
+  // reference only changes when the cache contents (or tripId) actually do.
+  return useMemo(() => ({ cache, setMapCache, setHaltCache, clearMap }),
+    [cache, setMapCache, setHaltCache, clearMap])
 }

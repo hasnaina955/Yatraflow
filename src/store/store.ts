@@ -151,13 +151,27 @@ export async function logout(): Promise<void> {
  *  redundant hydrate for the same user now just awaits the in-flight one. */
 let activeHydrate: { userId: string | null; promise: Promise<void> } | null = null
 
+/** Monotonic id of the newest auth intent. Every auth event (sign-in, account
+ *  switch, sign-out) bumps it, and a hydrate commits its `patch()` only while its
+ *  own generation is still current. Without this, `hydrate(null)` on logout
+ *  cleared the cache and nulled `activeHydrate` while a hydrate was still in
+ *  flight, and that hydrate then re-patched the PREVIOUS user's trips — and their
+ *  `sessionUserId` — into the emptied cache, so the next person on that browser
+ *  could see, and be treated as, the account that had just signed out. Issue #45. */
+let hydrateGen = 0
+
 /** Call once on app mount. Subscribes to auth and hydrates the cache. */
 export function init(): void {
   if (initialized) return
   initialized = true
 
   const hydrate = async (userId: string | null) => {
+    const gen = ++hydrateGen
+
     if (!userId) {
+      // Bumping hydrateGen is the fix: any hydrate still in flight now resolves
+      // onto a stale generation and discards its own patch, instead of
+      // resurrecting the account that just signed out.
       disconnectRealtime()
       patch({ users: [], trips: [], suggestions: [], decisions: [], activity: [], notifications: [], published: [], sessionUserId: null })
       commit()
@@ -171,12 +185,14 @@ export function init(): void {
       await activeHydrate.promise
       return
     }
-    const promise = hydrateFromSupabase(userId)
+    const promise = hydrateFromSupabase(userId, gen)
     activeHydrate = { userId, promise }
     try { await promise } finally {
       if (activeHydrate?.userId === userId) activeHydrate = null
     }
-    connectRealtime(userId)
+    // Only go live for the account the cache still belongs to: a sign-out or an
+    // account switch during the hydration above bumped hydrateGen.
+    if (gen === hydrateGen && cache.sessionUserId === userId) connectRealtime(userId)
   }
 
   supabase.auth.getSession().then(({ data }) => { void hydrate(data.session?.user?.id ?? null) })
@@ -185,7 +201,7 @@ export function init(): void {
   })
 }
 
-async function hydrateFromSupabase(userId: string): Promise<void> {
+async function hydrateFromSupabase(userId: string, gen: number): Promise<void> {
   try {
     // Stage 1 - global catalogs + the user's memberships. Explore reads the curated
     // published_itineraries table and profiles are small rows for user avatars,so
@@ -248,6 +264,11 @@ async function hydrateFromSupabase(userId: string): Promise<void> {
     const pubRows = mapOrSkip((pubRes.data ?? []), rowToPublished)
     pubRes.error && console.error('[yatraflow] hydrate published failed', pubRes.error)
 
+    // Stale run — a sign-out or account switch bumped hydrateGen while these
+    // queries were in flight. Writing now would leak the previous account's rows
+    // (and its sessionUserId) into the new session, so drop the whole patch.
+    if (gen !== hydrateGen) return
+
     patch({
       users,
       trips: tripList,
@@ -263,7 +284,7 @@ async function hydrateFromSupabase(userId: string): Promise<void> {
     commit()
 
     // First-time users get the demo trips seeded into their account.
-    if (tripList.length === 0) await seedDemoFor(userId)
+    if (tripList.length === 0) await seedDemoFor(userId, gen)
   } catch (e) {
     console.error('[yatraflow] hydration failed', e)
     toast('Could not load your data - check your connection.')
@@ -283,7 +304,7 @@ function mapOrSkip<T>(rows: unknown[], to: (row: any) => T): T[] {
 
 // ---------------- Seeding demo trips ----------------
 
-async function seedDemoFor(userId: string): Promise<void> {
+async function seedDemoFor(userId: string, gen: number = hydrateGen): Promise<void> {
   const seedTrips = structuredClone(seedData.trips)
   for (const t of seedTrips) {
     const owner: TripMember = { userId, role: 'owner', joinedAt: Date.now() }
@@ -297,7 +318,7 @@ async function seedDemoFor(userId: string): Promise<void> {
     markLocalWrite('trips', trip.id)
   }
   // re-hydrate so the freshly seeded trips show up
-  await hydrateFromSupabase(userId)
+  await hydrateFromSupabase(userId, gen)
 }
 
 // ---------------- Seeding demo trips ----------------

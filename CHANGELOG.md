@@ -2,6 +2,11 @@
 
 All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](https://keepachangelog.com/); versions are pre-1.0 MVP milestones.
 
+## [Unreleased]
+
+### Fixed
+- **Signing out can no longer leave your trips on the device.** Hydration now carries a generation stamp taken from the newest auth intent and commits only while that stamp is still current. Previously signing out cleared the cache and dropped its hydration guard without waiting for the fetch already in flight, so a slow response landing afterwards wrote the previous account's trips — and its `sessionUserId` — back into the emptied cache, and whoever opened the app next on that browser could see that account and be treated as it. The same guard covers signing in as a second account while the first is still loading, and realtime is now subscribed only for the account the cache actually belongs to. `[45]`
+
 ## [0.27.0] — 2026-09-04
 
 **Interface-quality release — one icon pack, accessible controls, and the six highest-severity UI defects fixed.** Full per-commit detail lives in the commit bodies on `redesign/homepage-build`.

@@ -310,12 +310,13 @@ async function hydrateFromSupabase(userId: string, gen: number, seedIfEmpty = tr
  *  thrown mapper crash the whole hydration / realtime apply (which looked
  *  like trips "disappeared" (a white-screen) when a public catalog row had an
  *  unexpected shape). */
-function mapOrSkip<T>(rows: unknown[], to: (row: any) => T): T[] {
+function mapOrSkip<T>(rows: unknown[], to: (row: unknown) => T): T[] {
   const out: T[] = []
   for (const r of rows ?? []) {
     try { out.push(to(r)) } catch (e) { console.error('[yatraflow] skipped malformed row', e) }
   }
-  return out}
+  return out
+}
 
 // ---------------- Seeding demo trips ----------------
 
@@ -353,36 +354,41 @@ export function addDemoTrips(): void {
 
 // ---------------- Row mappers for collaboration tables ----------------
 
-function rowToSuggestion(row: any): StopSuggestion {
+function rowToSuggestion(row: unknown): StopSuggestion {
+  const r = row as any
   return {
-    id: row.id, tripId: row.trip_id, dayIndex: row.day_index, proposedBy: row.proposed_by,
-    title: row.title, category: row.category, locationName: row.location_name, lat: row.lat, lng: row.lng,
-    description: row.description, visitMinutes: row.visit_minutes,
-    estimatedEntryFeeInr: row.estimated_entry_fee_inr, estimatedTransportInr: row.estimated_transport_inr,
-    votes: row.votes ?? [], comments: row.comments ?? [], status: row.status, createdAt: row.created_at,
+    id: r.id, tripId: r.trip_id, dayIndex: r.day_index, proposedBy: r.proposed_by,
+    title: r.title, category: r.category, locationName: r.location_name, lat: r.lat, lng: r.lng,
+    description: r.description, visitMinutes: r.visit_minutes,
+    estimatedEntryFeeInr: r.estimated_entry_fee_inr, estimatedTransportInr: r.estimated_transport_inr,
+    votes: r.votes ?? [], comments: r.comments ?? [], status: r.status, createdAt: r.created_at,
   }
 }
-function rowToDecision(row: any): TripDecision {
+function rowToDecision(row: unknown): TripDecision {
+  const r = row as any
   return {
-    id: row.id, tripId: row.trip_id, question: row.question, context: row.context,
-    options: row.options ?? [], votesByUserId: row.votes_by_user_id ?? {}, status: row.status,
-    resolvedOptionId: row.resolved_option_id, raisedBy: row.raised_by, createdAt: row.created_at, resolvedAt: row.resolved_at,
+    id: r.id, tripId: r.trip_id, question: r.question, context: r.context,
+    options: r.options ?? [], votesByUserId: r.votes_by_user_id ?? {}, status: r.status,
+    resolvedOptionId: r.resolved_option_id, raisedBy: r.raised_by, createdAt: r.created_at, resolvedAt: r.resolved_at,
   }
 }
-function rowToActivity(row: any): ActivityEntry {
-  return { id: row.id, tripId: row.trip_id, actorId: row.actor_id, verb: row.verb, target: row.target, at: row.at }
+function rowToActivity(row: unknown): ActivityEntry {
+  const r = row as any
+  return { id: r.id, tripId: r.trip_id, actorId: r.actor_id, verb: r.verb, target: r.target, at: r.at }
 }
-function rowToNotification(row: any): Notification {
-  return { id: row.id, userId: row.user_id, tripId: row.trip_id, text: row.text, read: row.read, at: row.at }
+function rowToNotification(row: unknown): Notification {
+  const r = row as any
+  return { id: r.id, userId: r.user_id, tripId: r.trip_id, text: r.text, read: r.read, at: r.at }
 }
-function rowToPublished(row: any): PublishedItinerary {
+function rowToPublished(row: unknown): PublishedItinerary {
+  const r = row as any
   return {
-    id: row.id, tripId: row.trip_id, creatorId: row.creator_id, title: row.title, tagline: row.tagline,
-    coverImageUrl: row.cover_image_url, routeSummary: row.route_summary ?? [], durationDays: row.duration_days,
-    estimatedBudgetPerPersonInr: row.estimated_budget_per_person_inr, travelStyle: row.travel_style,
-    bestSeason: row.best_season, travelTips: row.travel_tips ?? [], warningsAndAssumptions: row.warnings_and_assumptions ?? [],
-    freeDayIndexes: row.free_day_indexes ?? [], premiumPriceInr: row.premium_price_inr, subscriberCta: row.subscriber_cta,
-    publishedAt: row.published_at, views: row.views ?? 0, copies: row.copies ?? 0,
+    id: r.id, tripId: r.trip_id, creatorId: r.creator_id, title: r.title, tagline: r.tagline,
+    coverImageUrl: r.cover_image_url, routeSummary: r.route_summary ?? [], durationDays: r.duration_days,
+    estimatedBudgetPerPersonInr: r.estimated_budget_per_person_inr, travelStyle: r.travel_style,
+    bestSeason: r.best_season, travelTips: r.travel_tips ?? [], warningsAndAssumptions: r.warnings_and_assumptions ?? [],
+    freeDayIndexes: r.free_day_indexes ?? [], premiumPriceInr: r.premium_price_inr, subscriberCta: r.subscriber_cta,
+    publishedAt: r.published_at, views: r.views ?? 0, copies: r.copies ?? 0,
   }
 }
 

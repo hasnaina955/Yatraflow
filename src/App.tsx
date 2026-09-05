@@ -1,6 +1,6 @@
 // ============ YatraFlow app shell ============
 // Hash-based routing so the built app works from any static host or file://.
-import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
+import { Suspense, lazy, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import { createPortal } from 'react-dom'
 import {
   Bell, Compass, Import, Inbox, Luggage, Link2, Mail, Menu, Moon, Plus,
@@ -12,13 +12,19 @@ import { Avatar, BrandMark, ToastZone, useClickOutside, toast } from './componen
 import { decodeTripSnapshot } from './lib/snapshot'
 import { scrollBehavior } from './lib/motion'
 import { LandingPage } from './pages/Landing'
-import { AuthPage } from './pages/Auth'
 import { TripsListPage } from './pages/TripsList'
-import { CreateTripPage } from './pages/CreateTrip'
 import { TripWorkspace } from './pages/TripWorkspace'
 import { ExplorePage } from './pages/Explore'
-import { PublicItineraryPage } from './pages/PublicItinerary'
-import { ProfilePage } from './pages/Profile'
+// Route-level code splitting (M3.5): the landing page and the workspace stay in
+// the main chunk (they are the app's front door and its core); these four
+// secondary routes load on first visit instead.
+const AuthPage = lazy(() => import('./pages/Auth').then(m => ({ default: m.AuthPage })))
+const CreateTripPage = lazy(() => import('./pages/CreateTrip').then(m => ({ default: m.CreateTripPage })))
+const PublicItineraryPage = lazy(() => import('./pages/PublicItinerary').then(m => ({ default: m.PublicItineraryPage })))
+const ProfilePage = lazy(() => import('./pages/Profile').then(m => ({ default: m.ProfilePage })))
+
+/** Suspense fallback for the lazy routes — the same loading block the ready-gate shows. */
+const lazyRouteFallback = <div className="container loading-block"><div className="spinner" />Loading…</div>
 
 function currentRoute(): string {
   return location.hash.replace(/^#/, '') || '/'
@@ -179,9 +185,9 @@ export default function App() {
     page = <InviteGate tripId={parts[1]} onNavigate={navigate} />
   } else if (!me) {
     // public pages stay accessible logged-out; everything else funnels to auth/landing
-    if (parts[0] === 'pub' && parts[1]) page = <PublicItineraryPage slug={parts[1]} onNavigate={navigate} />
+    if (parts[0] === 'pub' && parts[1]) page = <Suspense fallback={lazyRouteFallback}><PublicItineraryPage slug={parts[1]} onNavigate={navigate} /></Suspense>
     else if (parts[0] === 'explore') page = <ExplorePage onNavigate={navigate} />
-    else if (parts[0] === 'auth') page = <AuthPage onNavigate={navigate} />
+    else if (parts[0] === 'auth') page = <Suspense fallback={lazyRouteFallback}><AuthPage onNavigate={navigate} /></Suspense>
     else page = <LandingPage onNavigate={navigate} />
   } else {
     switch (parts[0]) {
@@ -193,7 +199,7 @@ export default function App() {
         page = <TripsListPage onNavigate={navigate} />
         break
       case 'new':
-        page = <CreateTripPage onNavigate={navigate} />
+        page = <Suspense fallback={lazyRouteFallback}><CreateTripPage onNavigate={navigate} /></Suspense>
         break
       case 'trip':
         page = <TripWorkspace tripId={parts[1] ?? ''} initialTab={parts[2]} onNavigate={navigate} />
@@ -202,10 +208,10 @@ export default function App() {
         page = <ExplorePage onNavigate={navigate} />
         break
       case 'pub':
-        page = <PublicItineraryPage slug={parts[1] ?? ''} onNavigate={navigate} />
+        page = <Suspense fallback={lazyRouteFallback}><PublicItineraryPage slug={parts[1] ?? ''} onNavigate={navigate} /></Suspense>
         break
       case 'profile':
-        page = <ProfilePage onNavigate={navigate} />
+        page = <Suspense fallback={lazyRouteFallback}><ProfilePage onNavigate={navigate} /></Suspense>
         break
       default:
         page = <LandingPage onNavigate={navigate} />

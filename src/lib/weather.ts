@@ -44,8 +44,33 @@ export function wmoInfo(code: number): { icon: string; label: string } {
 /**
  * Fetch daily forecasts for a set of dates near one coordinate.
  * Returns a map of ISO date → forecast for the dates Open-Meteo could cover.
+ *
+ * Identical concurrent requests are coalesced onto one in-flight fetch
+ * (module-level Map keyed on the request — same pattern as fetchTripIntoCache
+ * in store.ts). Without this, N DayWeatherChips mounted for the same trip day
+ * (plus the Overview weather card) each fired their own identical Open-Meteo
+ * round-trip. The entry is cleared on settle — success or failure — so a
+ * failed request is retried on the next mount rather than cached.
  */
-export async function fetchDailyWeather(
+const inflightWeather = new Map<string, Promise<Record<string, DayWeather>>>()
+
+export function fetchDailyWeather(
+  lat: number,
+  lng: number,
+  startDate: string,
+  numDays: number,
+): Promise<Record<string, DayWeather>> {
+  const key = `${lat},${lng},${startDate},${numDays}`
+  const hit = inflightWeather.get(key)
+  if (hit) return hit
+  const p = fetchDailyWeatherOnce(lat, lng, startDate, numDays)
+  inflightWeather.set(key, p)
+  const settle = () => { inflightWeather.delete(key) }
+  p.then(settle, settle)
+  return p
+}
+
+async function fetchDailyWeatherOnce(
   lat: number,
   lng: number,
   startDate: string,

@@ -5,7 +5,9 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 ## [Unreleased]
 
 ### Fixed
-- **Published itinerary view/copy counters now reach the database for all visitors.** Added a new Postgres RPC function `bump_published_stats()` with `SECURITY DEFINER` to bypass RLS, allowing anyone to increment counters on published itineraries. Previously only the creator could update these fields. `[48]`
+- **#48 published itinerary view/copy counters reach database**. Added `bump_published_stats()` RPC function with `SECURITY DEFINER` to bypass RLS, allowing anyone to increment counters. Previously only the creator could update these fields. `[48]`
+- **#38 type safety: mapOrSkip helper now uses unknown instead of any**. The mapper parameter changed from `(row: any)` to `(row: unknown)` so callers get proper type checking. All `rowTo*` functions (User, Suggestion, Decision, Activity, Notification, Published) now accept `unknown` and use type assertions internally.
+- **#49 store housekeeping: recentLocalWrites cap**. Added `MAX_RECENT_WRITES=500` limit with automatic sweep of oldest entries when the Map grows too large. Prevents ~30 bytes per mutation from growing unbounded.
 
 ## [0.28.0] - 2026-09-05
 

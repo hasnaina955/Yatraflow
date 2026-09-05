@@ -270,7 +270,6 @@ async function hydrateFromSupabase(userId: string, gen: number, seedIfEmpty = tr
     const tripList = mapOrSkip(trips, row =>
       rowToTrip(row, members.filter(m => m.trip_id === row.id).map(m => ({ userId: m.user_id, role: m.role, joinedAt: m.joined_at })))
     )
-    console.info('[yatraflow] hydrate:', tripList.length, 'trips,', members.length,' members - ids:', tripList.map(t => t.id).join(','))
 
     const pubRows = mapOrSkip((pubRes.data ?? []), rowToPublished)
     if (pubRes.error) { console.error('[yatraflow] hydrate published failed', pubRes.error); partial.push('suggested itineraries') }

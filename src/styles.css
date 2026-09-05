@@ -1900,8 +1900,9 @@ main:focus { outline: none; }
 .clamp-toggle:focus-visible, .board-fit:focus-visible, .save-heart:focus-visible,
 .dest-chip button:focus-visible, .role-select:focus-visible, .day-title-btn:focus-visible,
 .trip-hero-back:focus-visible, .health-rec:focus-visible, .link-btn:focus-visible,
-.yf-range:focus-visible, .bench-pill:focus-visible, .bench-crew-btn:focus-visible,
-.bench-seg button:focus-visible, .bench-preset-row .chip:focus-visible,
+.yf-range:focus-visible, .bench-mode-btn:focus-visible, .bench-stay-row:focus-visible,
+.bench-toggle:focus-visible, .bench-preset-chip:focus-visible,
+.bench-crew-btn:focus-visible,
 .bench-receipt-actions .chip:focus-visible, .bench-surprise:focus-visible {
   outline: none;
   box-shadow: var(--ring);
@@ -2363,9 +2364,29 @@ html.vt-active :where(*) {
   display: grid; grid-template-columns: minmax(320px, 1.05fr) minmax(300px, 0.95fr);
   gap: 18px; align-items: start; margin-top: 8px;
 }
-.bench-controls { display: flex; flex-direction: column; gap: 18px; }
-.bench-control-block { display: flex; flex-direction: column; gap: 8px; }
-.bench-control-label { font-size: 12.5px; font-weight: 700; color: var(--text-2); letter-spacing: .02em; }
+/* Left controls: one cream card holding every dial, split into labelled blocks. */
+.bench-controls {
+  display: flex; flex-direction: column; gap: 16px;
+  background: var(--card-soft); border: 1px solid var(--line);
+  border-radius: var(--radius-lg); padding: 18px;
+  box-shadow: var(--shadow-soft);
+}
+.bench-block { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.bench-eyebrow { font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--text-3); }
+.bench-block-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.bench-block-big { font-size: 22px; font-weight: 800; color: var(--text); font-family: var(--bench-mono, monospace); font-variant-numeric: tabular-nums; }
+
+/* header row: identity badge left, return-leg toggle + surprise + reset right */
+.bench-head-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.bench-head-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.bench-toggle {
+  border: 1.5px solid var(--line); background: var(--card); cursor: pointer;
+  padding: 8px 13px; border-radius: 999px;
+  font-size: 12.5px; font-weight: 700; color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+  transition: border-color .12s var(--ease-out), background .12s var(--ease-out), color .12s var(--ease-out);
+}
+.bench-toggle.on { border-color: var(--yf-teal-600); background: var(--yf-teal-100); color: var(--yf-teal-700); }
 
 /* range sliders — filled track + brand thumb (webkit first per lightningcss) */
 .yf-range {
@@ -2395,39 +2416,70 @@ html.vt-active :where(*) {
   transition: transform .15s ease;
 }
 .yf-range:hover::-moz-range-thumb { transform: scale(1.12); }
-.bench-range-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
-.bench-range-value { font-variant-numeric: tabular-nums; font-size: 13px; font-weight: 700; color: var(--text); font-family: var(--bench-mono); }
 
-/* one-way / round-trip segmented control */
-.bench-seg-row { display: flex; align-items: center; gap: 10px; margin-top: 2px; flex-wrap: wrap; }
-.bench-seg {
-  display: inline-flex; gap: 3px; padding: 3px; border-radius: 999px;
-  border: 1.5px solid var(--line); background: var(--bg-soft);
+/* quick-route preset chips — wrapping chip group, selected = dark filled */
+.bench-chip-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.bench-preset-chip {
+  display: inline-flex; align-items: center; gap: 5px; cursor: pointer;
+  border: 1.5px solid var(--line); background: var(--card); border-radius: 999px;
+  padding: 7px 13px; font-size: 12px; font-weight: 650; color: var(--text-2);
+  transition: border-color .12s var(--ease-out), background .12s var(--ease-out), color .12s var(--ease-out);
 }
-.bench-seg button {
-  border: none; border-radius: 999px; padding: 8px 14px; cursor: pointer;
-  font-size: 13px; font-weight: 700; color: var(--text-2); background: transparent;
-  transition: background .15s ease, color .15s ease;
-}
-.bench-seg button.on { border-color: var(--yf-teal-600); background: var(--yf-teal-100); color: var(--yf-teal-700); }
-.bench-seg-badge {
-  font-size: 12.5px; font-weight: 700; color: var(--text-3);
-  font-variant-numeric: tabular-nums; font-family: var(--bench-mono);
-}
+.bench-preset-chip:hover { border-color: var(--yf-teal-600); }
+.bench-preset-chip.on { border-color: var(--yf-navy); background: var(--yf-navy); color: #fff; }
 
-/* preset chips + mode/stay pills */
-.bench-preset-row { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 18px; }
-.bench-preset-row .chip, .bench-receipt-actions .chip { cursor: pointer; font-size: 12px; font-weight: 650; }
-.bench-pills { display: flex; flex-wrap: wrap; gap: 8px; }
-.bench-pill {
-  border: 1.5px solid var(--line); background: var(--card); cursor: pointer;
-  padding: 9px 14px; border-radius: 999px;
-  font-size: 13px; font-weight: 700; color: var(--text-2); text-transform: capitalize;
-  transition: transform .12s var(--ease-out), border-color .12s var(--ease-out), background .12s var(--ease-out);
+/* route distance card: huge number top-right, scale under the slider */
+.bench-distance-card {
+  border: 1px solid var(--line); border-radius: 16px; padding: 13px 14px 11px;
+  background: var(--bg-soft);
 }
-.bench-pill:hover { transform: translateY(-1px); border-color: var(--yf-teal-600); }
-.bench-pill.on { border-color: var(--yf-teal-600); background: var(--yf-teal-100); color: var(--yf-teal-700); }
+.bench-distance-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.bench-distance-big {
+  font-size: 32px; font-weight: 800; line-height: 1; color: var(--text);
+  font-family: var(--bench-mono); font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.bench-scale { display: flex; justify-content: space-between; font-size: 10px; font-weight: 650; color: var(--text-3); font-family: var(--bench-mono); font-variant-numeric: tabular-nums; }
+.bench-derived { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; font-size: 12px; color: var(--text-2); }
+.bench-derived-cost { font-weight: 750; color: var(--yf-teal-700); font-variant-numeric: tabular-nums; font-family: var(--bench-mono); }
+
+/* getting there: 2×2 mode grid, speed badge, selected = filled */
+.bench-mode-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.bench-mode-btn {
+  display: flex; align-items: center; gap: 7px; min-width: 0; cursor: pointer;
+  border: 1.5px solid var(--line); background: var(--card); border-radius: 13px;
+  padding: 9px 11px; font-size: 13px; font-weight: 700; color: var(--text-2); text-transform: capitalize;
+  transition: border-color .12s var(--ease-out), background .12s var(--ease-out), color .12s var(--ease-out), transform .12s var(--ease-out);
+}
+.bench-mode-btn:hover { transform: translateY(-1px); border-color: var(--yf-teal-600); }
+.bench-mode-btn.on { border-color: var(--yf-teal-600); background: var(--yf-teal-600); color: #fff; }
+.bench-mode-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bench-mode-speed {
+  margin-left: auto; flex-shrink: 0; font-size: 10.5px; font-weight: 800;
+  font-family: var(--bench-mono); font-variant-numeric: tabular-nums;
+  padding: 2px 7px; border-radius: 999px;
+  background: var(--bg-soft); color: var(--text-3);
+}
+.bench-mode-btn.on .bench-mode-speed { background: rgba(255, 255, 255, .22); color: #fff; }
 .bench-hint { font-size: 12px; color: var(--text-3); margin: 0; }
+
+/* stay style: vertical rate rows, selected = teal outline + tint */
+.bench-stay-list { display: flex; flex-direction: column; gap: 6px; }
+.bench-stay-row {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 10px; cursor: pointer;
+  border: 1.5px solid var(--line); background: var(--card); border-radius: 12px;
+  padding: 9px 14px; font-size: 13px; font-weight: 700; color: var(--text-2); text-transform: capitalize;
+  transition: border-color .12s var(--ease-out), background .12s var(--ease-out), color .12s var(--ease-out);
+}
+.bench-stay-row:hover { border-color: var(--yf-teal-600); }
+.bench-stay-row.on { border-color: var(--yf-teal-600); background: var(--yf-teal-100); color: var(--yf-teal-700); }
+.bench-stay-rate { font-size: 12px; font-weight: 750; font-variant-numeric: tabular-nums; font-family: var(--bench-mono); }
+.bench-stay-row.on .bench-stay-rate { color: var(--yf-teal-700); }
+
+/* crew size + trip length share the big-number header pattern */
+.bench-fuel-pair { flex-direction: row; gap: 14px; }
+.bench-fuel-col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+.bench-fuel-value { font-size: 17px; font-weight: 800; color: var(--text); font-family: var(--bench-mono); font-variant-numeric: tabular-nums; }
+.bench-scale-ends { display: flex; justify-content: space-between; font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); }
 
 /* crew avatar buttons */
 .bench-crew { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -2439,7 +2491,7 @@ html.vt-active :where(*) {
   transition: transform .12s var(--ease-out), border-color .12s var(--ease-out), background .12s var(--ease-out);
 }
 .bench-crew-btn:hover { transform: translateY(-1px); }
-.bench-crew-btn.on { border-color: var(--yf-teal-600); background: var(--yf-teal-100); color: var(--yf-teal-700); }
+.bench-crew-btn.on { border-color: var(--yf-teal-600); background: var(--yf-teal-600); color: #fff; }
 .bench-crew-emoji { font-size: 15px; line-height: 1; }
 
 /* receipt v2 — paper bill: torn bottom edge, stamp, mono numerals */
@@ -2526,6 +2578,7 @@ html.vt-active :where(*) {
 .bench-alt-link { font-size: 13px; font-weight: 650; color: var(--yf-teal-600); text-decoration: none; }
 .bench-alt-link:hover { text-decoration: underline; }
 .bench-receipt-actions { display: flex; justify-content: center; }
+.bench-receipt-actions .chip { cursor: pointer; font-size: 12px; font-weight: 650; }
 .bench-fineprint { font-size: 11px; color: var(--text-3); text-align: center; margin: 0; line-height: 1.5; }
 
 /* ---------- Plan Bench 3.0 — motion system (transform/opacity only) ---------- */
@@ -2533,7 +2586,7 @@ html.vt-active :where(*) {
 /* identity badge — the tool finally wears its name */
 .bench-badge {
   display: flex; align-items: center; gap: 8px; width: fit-content;
-  margin: 0 auto 12px; padding: 7px 16px; border-radius: 999px;
+  margin: 0; padding: 7px 16px; border-radius: 999px;
   font-size: 12.5px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase;
   color: var(--yf-teal-700);
   background: linear-gradient(var(--card), var(--card)) padding-box,
@@ -2586,17 +2639,18 @@ html.vt-active :where(*) {
 
 /* scroll-in choreography */
 @media (prefers-reduced-motion: no-preference) {
-  .bench-live .bench-badge, .bench-live .bench-title, .bench-live .bench-sub, .bench-live .bench-preset-row { animation: bench-rise .55s cubic-bezier(.22, 1, .36, 1) backwards; }
+  .bench-live .bench-badge, .bench-live .bench-title, .bench-live .bench-sub { animation: bench-rise .55s cubic-bezier(.22, 1, .36, 1) backwards; }
   .bench-live .bench-title { animation-delay: .07s; }
   .bench-live .bench-sub { animation-delay: .14s; }
-  .bench-live .bench-preset-row { animation-delay: .2s; }
-  .bench-live .bench-control-block { animation: bench-rise .5s cubic-bezier(.22, 1, .36, 1) backwards; }
-  .bench-live .bench-control-block:nth-child(1) { animation-delay: .22s; }
-  .bench-live .bench-control-block:nth-child(2) { animation-delay: .28s; }
-  .bench-live .bench-control-block:nth-child(3) { animation-delay: .34s; }
-  .bench-live .bench-control-block:nth-child(4) { animation-delay: .4s; }
-  .bench-live .bench-control-block:nth-child(5) { animation-delay: .46s; }
-  .bench-live .bench-control-block:nth-child(6) { animation-delay: .52s; }
+  .bench-live .bench-controls > .bench-block, .bench-live .bench-controls > .bench-head-row { animation: bench-rise .5s cubic-bezier(.22, 1, .36, 1) backwards; }
+  .bench-live .bench-controls > :nth-child(1) { animation-delay: .22s; }
+  .bench-live .bench-controls > :nth-child(2) { animation-delay: .27s; }
+  .bench-live .bench-controls > :nth-child(3) { animation-delay: .32s; }
+  .bench-live .bench-controls > :nth-child(4) { animation-delay: .37s; }
+  .bench-live .bench-controls > :nth-child(5) { animation-delay: .42s; }
+  .bench-live .bench-controls > :nth-child(6) { animation-delay: .47s; }
+  .bench-live .bench-controls > :nth-child(7) { animation-delay: .52s; }
+  .bench-live .bench-controls > :nth-child(8) { animation-delay: .57s; }
   .bench-live .bench-receipt { animation: bench-receipt-in .65s cubic-bezier(.22, 1, .36, 1) .24s backwards; }
 }
 @keyframes bench-rise { from { opacity: 0; transform: translateY(16px); } }
@@ -2832,9 +2886,8 @@ html.vt-active :where(*) {
   }
   .plan-bench .bench-title { font-size: clamp(1.35rem, 2.4vw, 1.9rem); }
   .plan-bench .bench-sub { margin: 6px auto 14px; }
-  .plan-bench .bench-preset-row { margin-bottom: 14px; }
-  .plan-bench .bench-controls { gap: 13px; }
-  .plan-bench .bench-control-block { gap: 6px; }
+  .plan-bench .bench-controls { gap: 13px; padding: 15px 16px; }
+  .plan-bench .bench-block { gap: 6px; }
   /* If the viewport is still too short, the receipt pins while controls scroll. */
   .plan-bench .bench-receipt { position: sticky; top: calc(var(--nav-h, 64px) + 12px); }
 }
@@ -3203,9 +3256,9 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
   .bench-grid { grid-template-columns: 1fr; }
   .bench-receipt { order: -1; }
   .bench-crew-btn { min-width:  40px; height:  40px; }
-  .bench-pill { min-height: 40px; }
-  .bench-seg button { min-height: 40px; }
-  .bench-preset-row .chip, .bench-receipt-actions .chip { min-height: 40px; }
+  .bench-mode-btn, .bench-stay-row { min-height: 40px; }
+  .bench-toggle { min-height: 40px; }
+  .bench-preset-chip, .bench-receipt-actions .chip { min-height: 40px; }
   .bench-receipt-head { padding-right: 78px; }
   .bench-receipt-rules::before { left: -8px; }
   .bench-badge { font-size: 11.5px; padding: 6px 13px; }

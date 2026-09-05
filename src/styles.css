@@ -35,12 +35,10 @@
 
   /* ---- 1b. PRIMITIVES: Calm Travel Intelligence palette (design refresh;
         docs/redesign/YATRAFLOW_DESIGN_DIRECTION.md §4.1) ---- */
-  --yf-ink: #102E4B;           /* headings, high-trust text */
   --yf-navy: #123F49;          /* header bands, dark cards, AI anchor surfaces */
   --yf-teal-600: #0D8D82;      /* CTI primary */
   --yf-teal-700: #0C716D;      /* CTI primary hover/pressed */
   --yf-teal-100: #E5F4EE;      /* selected backgrounds */
-  --yf-mint: #DFF5ED;          /* confirmed / synced states */
   --yf-saffron: #F3AA3D;       /* invite / share / publish / explore */
   --yf-saffron-100: #FFF4E4;
   --yf-amber: #E4AE43;         /* attention / trade-offs / pending */
@@ -55,7 +53,6 @@
   --yf-atmos-mint: rgba(124, 225, 207, 0.20);
   --yf-atmos-peach: rgba(255, 179, 107, 0.16);
   --yf-surface: #FFFFFF;
-  --yf-surface-muted: #F0F4F1;
   --yf-border: #DCE7E1;
   --yf-text-muted: #637B7D;
   --yf-glass: rgba(255, 255, 255, 0.58);        /* level-2 overlay (map/board panels) */
@@ -100,15 +97,6 @@
   --shadow-glow-teal: 0 2px 10px rgba(13, 141, 130, .35);
 
   /* ---- 2. SEMANTICS (light) ---- */
-  --color-background: var(--yf-cream);   /* CTI canvas (was --gray-50) */
-  --color-foreground: var(--gray-900);
-  --color-card: #FFFFFF;
-  --color-card-foreground: var(--gray-900);
-  --color-popover: #FFFFFF;
-  --color-popover-foreground: var(--gray-900);
-  --color-muted: var(--gray-100);
-  --color-muted-foreground: var(--gray-500);
-  --color-border: var(--gray-200);
   --color-primary: var(--teal-500);
   --color-primary-hover: var(--teal-600);
   --color-primary-active: var(--teal-700);
@@ -117,13 +105,7 @@
   --color-accent-hover: var(--saffron-600);
   --color-accent-foreground: #3A2506;
   --color-destructive: var(--danger-500);
-  --color-destructive-hover: var(--danger-600);
-  --color-destructive-foreground: #FFFFFF;
   --color-destructive-soft: #F9E7E7;
-  --color-success: var(--ok-500);
-  --color-success-foreground: #FFFFFF;
-  --color-warning: var(--warn-600);
-  --color-info-soft: #E8EEF6;
   --ring: 0 0 0 3px color-mix(in srgb, var(--teal-500) 35%, transparent);
 
   /* ---- 3. LEGACY flat aliases (do not remove; new code uses --color-*) ---- */
@@ -147,8 +129,9 @@
   --warn: var(--warn-600);
   --warn-soft: #FBF1DD;
   --info-soft: #E8EEF6;
-  --shadow: 0 1px 2px rgba(11,37,69,.05), 0 8px 28px rgba(11,37,69,.08);
-  --shadow-sm: 0 1px 2px rgba(11,37,69,.07);
+  --shadow-navy-rgb: 11, 37, 69;  /* shared shadow/shade navy — keep alphas on the consumers */
+  --shadow: 0 1px 2px rgba(var(--shadow-navy-rgb),.05), 0 8px 28px rgba(var(--shadow-navy-rgb),.08);
+  --shadow-sm: 0 1px 2px rgba(var(--shadow-navy-rgb),.07);
   --shadow-soft: 0 2px 6px rgba(16,46,75,.04), 0 16px 40px rgba(16,46,75,.10);  /* CTI diffuse depth */
   --radius: 18px;
   --radius-sm: 12px;
@@ -180,12 +163,10 @@
   --gray-900: #ECF1F8;
 
   /* ---- 1b. PRIMITIVES: CTI palette (dark mirror) ---- */
-  --yf-ink: #ECF1F8;
   --yf-navy: #0F2A33;
   --yf-teal-600: #2BB8AC;
   --yf-teal-700: #1E9D92;
   --yf-teal-100: #12332F;
-  --yf-mint: #16301F;
   --yf-saffron: #F5A94A;
   --yf-saffron-100: #3A2C15;
   --yf-amber: #D99A2B;
@@ -200,7 +181,6 @@
   --yf-atmos-mint: rgba(43, 184, 172, 0.10);
   --yf-atmos-peach: rgba(245, 169, 74, 0.08);
   --yf-surface: #16233A;
-  --yf-surface-muted: #101B2B;
   --yf-border: #27395A;
   --yf-text-muted: #8FA0B5;
   --yf-glass: rgba(16, 27, 43, 0.58);
@@ -209,15 +189,6 @@
   --yf-glass-sheen: rgba(255, 255, 255, 0.08);
 
   /* ---- 2. SEMANTICS (dark) ---- */
-  --color-background: var(--gray-50);
-  --color-foreground: var(--gray-900);
-  --color-card: #16233A;
-  --color-card-foreground: var(--gray-900);
-  --color-popover: #16233A;
-  --color-popover-foreground: var(--gray-900);
-  --color-muted: var(--gray-100);
-  --color-muted-foreground: var(--gray-500);
-  --color-border: var(--gray-200);
   --color-primary: var(--teal-500);
   --color-primary-hover: var(--teal-600);
   --color-primary-active: var(--teal-700);
@@ -226,13 +197,7 @@
   --color-accent-hover: var(--saffron-600);
   --color-accent-foreground: #3A2506;
   --color-destructive: var(--danger-500);
-  --color-destructive-hover: var(--danger-600);
-  --color-destructive-foreground: #2A0F0F;
   --color-destructive-soft: #3A2020;
-  --color-success: var(--ok-500);
-  --color-success-foreground: #06251F;
-  --color-warning: var(--warn-600);
-  --color-info-soft: #1B2B45;
   --ring: 0 0 0 3px color-mix(in srgb, var(--teal-500) 40%, transparent);
 
   /* ---- 3. LEGACY flat aliases (dark) ---- */
@@ -322,9 +287,9 @@ html { overflow-x: clip; }
    gradient — light theme rendered a cream card under light-on-light SVG labels. */
 .card.route-snap {
   position: relative; overflow: hidden;
-  background: linear-gradient(150deg, var(--yf-navy), #0B2545 88%);
+  background: linear-gradient(150deg, var(--yf-navy), var(--gray-900) 88%);
   color: #fff;
-  box-shadow: 0 30px 60px rgba(11,37,69,.28);
+  box-shadow: 0 30px 60px rgba(var(--shadow-navy-rgb),.28);
 }
 .route-snap::before {
   content: ''; position: absolute; inset: 0; pointer-events: none;
@@ -1143,7 +1108,7 @@ a.btn { text-decoration: none; }
 /* ---------- Modal / drawer / toast ---------- */
 .modal-overlay {
   position: fixed; inset: 0; z-index: var(--z-modal);
-  background: rgba(11,37,69,.42);
+  background: rgba(var(--shadow-navy-rgb),.42);
   display: flex; align-items: flex-end; justify-content: center;
   -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
   animation: fadeIn var(--t-fast) var(--ease-out);
@@ -1198,9 +1163,9 @@ a.btn { text-decoration: none; }
 .hero-copy .hero-sub { margin-left: 0; }
 .hero-copy .hero-ctas { justify-content: flex-start; }
 .hero-adventure {
-  background: linear-gradient(150deg, var(--yf-navy), #0B2545 88%);
+  background: linear-gradient(150deg, var(--yf-navy), var(--gray-900) 88%);
   color: #fff; border-radius: var(--radius-lg); padding: 22px;
-  box-shadow: 0 30px 60px rgba(11,37,69,.28);
+  box-shadow: 0 30px 60px rgba(var(--shadow-navy-rgb),.28);
   position: relative; overflow: hidden;
 }
 .hero-adventure::before {
@@ -1234,7 +1199,7 @@ a.btn { text-decoration: none; }
 .section-title { font-size: clamp(1.45rem, 3vw, 1.9rem); text-align: center; margin: 46px auto 6px; max-width: 620px; }
 .feature-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 14px; margin: 0 0 44px; }
 .feature-card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 21px; box-shadow: var(--shadow-sm); transition: transform .15s ease, box-shadow .15s ease; }
-.feature-card:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(11,37,69,.06), 0 16px 40px rgba(11,37,69,.12); }
+.feature-card:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(var(--shadow-navy-rgb),.06), 0 16px 40px rgba(var(--shadow-navy-rgb),.12); }
 .feature-card h3 { font-size: 15.5px; }
 .feature-ico { width: 42px; height: 42px; border-radius: 12px; background: var(--teal-soft); display: flex; align-items: center; justify-content: center; font-size: 20px; margin-bottom: 12px; }
 .feature-card p { font-size: 13.5px; color: var(--text-2); margin-top: 6px; line-height: 1.55; }
@@ -1256,7 +1221,7 @@ a.btn { text-decoration: none; }
   text-align: center; padding: 42px 26px; border-radius: 22px;
   background:
     radial-gradient(ellipse 90% 130% at 50% -30%, color-mix(in srgb, var(--saffron) 20%, transparent), transparent),
-    linear-gradient(150deg, var(--teal-deep), #0B2545);
+    linear-gradient(150deg, var(--teal-deep), var(--gray-900));
   color: #fff;
 }
 .cta-band h2 { color: #fff; }
@@ -1268,13 +1233,13 @@ a.btn { text-decoration: none; }
 /* ---------- Explore cards ---------- */
 .explore-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 16px; }
 .itin-card { overflow: hidden; padding: 0; display: flex; flex-direction: column; transition: transform .15s ease, box-shadow .15s ease; }
-.itin-card:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(11,37,69,.06), 0 16px 40px rgba(11,37,69,.12); }
+.itin-card:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(var(--shadow-navy-rgb),.06), 0 16px 40px rgba(var(--shadow-navy-rgb),.12); }
 .itin-cover { position: relative; aspect-ratio: 16/9; background: linear-gradient(135deg, var(--teal-deep), var(--text)); overflow: hidden; }
 .itin-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .itin-cover-route {
   position: absolute; left: 12px; bottom: 10px; right: 12px; z-index: var(--z-content);
   color: rgba(255,255,255,.95); font-size: 12.5px; font-weight: 700;
-  text-shadow: 0 1px 4px rgba(11,37,69,.5); white-space: nowrap;
+  text-shadow: 0 1px 4px rgba(var(--shadow-navy-rgb),.5); white-space: nowrap;
   overflow: hidden; text-overflow: ellipsis;
 }
 .itin-cover-fallback { opacity: .9; }
@@ -1368,7 +1333,7 @@ a.btn { text-decoration: none; }
 .map-idea-chip { display: inline-flex; align-items: center; gap: 5px; }
 .map-idea-chip .yf-idea-chip-ico { opacity: .85; flex: 0 0 auto; }
 .map-idea-chip .yf-idea-chip-count {
-  background: rgba(11,37,69,.12); border-radius: 99px;
+  background: rgba(var(--shadow-navy-rgb),.12); border-radius: 99px;
   font-size: 10.5px; font-weight: 800; padding: 1px 6px;
   font-variant-numeric: tabular-nums;
 }
@@ -1430,7 +1395,7 @@ a.btn { text-decoration: none; }
 .ai-drawer {
   position: fixed; z-index: var(--z-drawer); right: 0; top: 0; bottom: 0;
   width: min(420px, 100vw); background: var(--card);
-  border-left: 1px solid var(--line); box-shadow: -12px 0 40px rgba(11,37,69,.14);
+  border-left: 1px solid var(--line); box-shadow: -12px 0 40px rgba(var(--shadow-navy-rgb),.14);
   display: flex; flex-direction: column; animation: drawerIn var(--t-med) var(--ease-out);
   /* Edge-to-edge: keep content clear of the landscape home-indicator edge. */
   padding-right: env(safe-area-inset-right);
@@ -1547,7 +1512,7 @@ a.btn { text-decoration: none; }
   border-radius: var(--radius-lg); padding: 26px 28px; color: #fff;
   background:
     radial-gradient(circle at 86% 12%, rgba(245,158,45,.15), transparent 42%),
-    linear-gradient(115deg, var(--yf-navy) 0%, #0B2545 78%);
+    linear-gradient(115deg, var(--yf-navy) 0%, var(--gray-900) 78%);
   position: relative; overflow: hidden;
   box-shadow: var(--shadow-soft);
 }
@@ -1690,8 +1655,8 @@ a.btn { text-decoration: none; }
   /* layered shadow: contact shadow + ambient lift + inner top highlight so the
      flat day-colour circle reads as a glossy physical pin */
   box-shadow:
-    0 2px 4px rgba(11,37,69,.28),
-    0 6px 14px rgba(11,37,69,.30),
+    0 2px 4px rgba(var(--shadow-navy-rgb),.28),
+    0 6px 14px rgba(var(--shadow-navy-rgb),.30),
     inset 0 2px 3px rgba(255,255,255,.35);
   transition: transform .16s cubic-bezier(.34,1.56,.64,1), box-shadow .16s ease;
   text-shadow: 0 1px 2px rgba(0,0,0,.25);
@@ -1699,8 +1664,8 @@ a.btn { text-decoration: none; }
 .yf-map-pin:hover {
   transform: scale(1.22) translateY(-2px);
   box-shadow:
-    0 3px 6px rgba(11,37,69,.30),
-    0 10px 22px rgba(11,37,69,.36),
+    0 3px 6px rgba(var(--shadow-navy-rgb),.30),
+    0 10px 22px rgba(var(--shadow-navy-rgb),.36),
     inset 0 2px 3px rgba(255,255,255,.35);
 }
 [data-theme='dark'] .yf-map-pin { border-color: rgba(255,255,255,.9); }
@@ -1716,8 +1681,8 @@ a.btn { text-decoration: none; }
   border-radius: 50% 50% 50% 4px;
   transform: rotate(-45deg);
   box-shadow:
-    0 3px 5px rgba(11,37,69,.30),
-    0 8px 16px rgba(11,37,69,.28),
+    0 3px 5px rgba(var(--shadow-navy-rgb),.30),
+    0 8px 16px rgba(var(--shadow-navy-rgb),.28),
     inset 0 2px 3px rgba(255,255,255,.30);
 }
 .yf-map-tear:hover {
@@ -1730,7 +1695,7 @@ a.btn { text-decoration: none; }
   width: 14px; height: 5px;
   transform: translateX(-50%) rotate(45deg);
   border-radius: 50%;
-  background: rgba(11,37,69,.30);
+  background: rgba(var(--shadow-navy-rgb),.30);
   filter: blur(1px);
 }
 .yf-pin-face {
@@ -1750,7 +1715,7 @@ a.btn { text-decoration: none; }
   border-radius: 999px; background: #fff;
   color: var(--text); font-size: 9px; font-weight: 800; font-style: normal;
   font-family: inherit; line-height: 13px; text-align: center;
-  box-shadow: 0 1px 2px rgba(11,37,69,.35);
+  box-shadow: 0 1px 2px rgba(var(--shadow-navy-rgb),.35);
 }
 /* Unconfirmed ("maybe") stops: dashed outline + translucent so planners can
    tell locked-in stops from ideas at a glance. */
@@ -1765,8 +1730,8 @@ a.btn { text-decoration: none; }
   background: linear-gradient(135deg, #0e7c66, #149A90);
   border: 3px solid #fff;
   box-shadow:
-    0 2px 4px rgba(11,37,69,.28),
-    0 6px 14px rgba(11,37,69,.30),
+    0 2px 4px rgba(var(--shadow-navy-rgb),.28),
+    0 6px 14px rgba(var(--shadow-navy-rgb),.30),
     inset 0 2px 3px rgba(255,255,255,.30);
 }
 [data-theme='dark'] .yf-map-flag { border-color: rgba(255,255,255,.9); }
@@ -1968,8 +1933,8 @@ main:focus { outline: none; }
 }
 /* soft gold attention pulse so ideas read as "not part of the plan yet" */
 @keyframes yf-idea-pulse {
-  0%, 100% { box-shadow: 0 2px 4px rgba(11,37,69,.28), 0 0 0 0 rgba(245,158,45,.45); }
-  50% { box-shadow: 0 2px 4px rgba(11,37,69,.28), 0 0 0 9px rgba(245,158,45,0); }
+  0%, 100% { box-shadow: 0 2px 4px rgba(var(--shadow-navy-rgb),.28), 0 0 0 0 rgba(245,158,45,.45); }
+  50% { box-shadow: 0 2px 4px rgba(var(--shadow-navy-rgb),.28), 0 0 0 9px rgba(245,158,45,0); }
 }
 /* Honour the OS reduce-motion setting globally (UI audit F-17): collapse all
    animations and transitions to a single frame instead of guarding each one —
@@ -2740,10 +2705,10 @@ html.vt-active :where(*) {
   position: relative; display: flex; align-items: stretch; width: min(100%, 460px);
   margin-top: 14px; padding: 0; border: none; border-radius: var(--radius); cursor: pointer;
   background: var(--card); color: var(--text); text-align: left;
-  box-shadow: 0 16px 38px -14px rgba(11, 37, 69, .35);
+  box-shadow: 0 16px 38px -14px rgba(var(--shadow-navy-rgb), .35);
   transition: transform .2s var(--ease-out), box-shadow .2s var(--ease-out);
 }
-.hero-bench-cta:hover { transform: translateY(-2px); box-shadow: 0 22px 48px -14px rgba(11, 37, 69, .42); }
+.hero-bench-cta:hover { transform: translateY(-2px); box-shadow: 0 22px 48px -14px rgba(var(--shadow-navy-rgb), .42); }
 /* animated brand strip along the top edge (ticket stripe) */
 .hero-bench-cta::before {
   content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px;
@@ -2892,7 +2857,7 @@ html.vt-active :where(*) {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   background: var(--surface, #fff); border: 1px solid var(--line, #dce7e1);
   border-radius: 16px; padding: 10px 14px;
-  box-shadow: 0 14px 34px -14px rgba(11, 37, 69, .4);
+  box-shadow: 0 14px 34px -14px rgba(var(--shadow-navy-rgb), .4);
   opacity: 0; transform: translateY(130%); visibility: hidden;
   transition: opacity .3s var(--ease-out), transform .3s var(--ease-out), visibility 0s .3s;
 }

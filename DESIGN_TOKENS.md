@@ -11,6 +11,11 @@ Token architecture adopted from the `ui-ux-pro-max-skill` design-system referenc
 > Legacy flat names (`--teal`, `--saffron`, `--bg`, `--text`, …) are **kept as
 > aliases** of the primitives so the ~200 existing references keep working.
 > **New code should use `--color-*` semantic tokens.**
+> (v0.30.0 — the `--color-*` members nothing consumed — background/foreground/
+> card/popover/muted/border/success/warning/info-soft and the destructive
+> hover/foreground pair — were **deleted** per the M4 adopt-or-delete rule;
+> re-add them with an adopter, not speculatively. The adopted action-color set
+> below stays.)
 
 ## Calm Travel Intelligence layer (design refresh, `redesign/calm-travel-intelligence`)
 
@@ -22,22 +27,23 @@ where the direction doc says so. Every token is mirrored in
 
 | Token | Light | Dark | Use |
 |------|-------|------|-----|
-| `--yf-ink` | `#102E4B` | `#ECF1F8` | headings, high-trust text |
 | `--yf-navy` | `#123F49` | `#0F2A33` | header bands, dark cards, AI surfaces |
 | `--yf-teal-600` / `--yf-teal-700` | `#0D8D82` / `#0C716D` | `#2BB8AC` / `#1E9D92` | CTI primary / pressed |
 | `--yf-teal-100` | `#E5F4EE` | `#12332F` | selected backgrounds |
-| `--yf-mint` | `#DFF5ED` | `#16301F` | confirmed / synced |
 | `--yf-saffron` / `--yf-saffron-100` | `#F3AA3D` / `#FFF4E4` | `#F5A94A` / `#3A2C15` | invite / share / publish |
 | `--yf-amber` / `--yf-amber-100` | `#E4AE43` / `#FFF7E9` | `#D99A2B` / `#36290F` | attention / trade-offs |
 | `--yf-coral` / `--yf-coral-100` | `#D6534D` / `#FFF0EC` | `#E06C6C` / `#3A2020` | critical / destructive |
 | `--yf-purple` / `--yf-purple-100` | `#897ABB` / `#F0EAFA` | `#A99BD6` / `#2A2440` | scenic discovery |
-| `--yf-cream` | `#F8F7EF` | `#0C1420` | main canvas (now `--color-background`/`--bg` in light) |
+| `--yf-cream` | `#F8F7EF` | `#0C1420` | main canvas (aliased as `--bg` in light) |
 | `--yf-mist` / `--yf-peach` | `#ECF8F4` / `#FFF2E8` | `#0F1B2B` / `#1A2030` | atmosphere gradient edges |
 | `--yf-atmos-mint` / `--yf-atmos-peach` | `rgba(124,225,207,.20)` / `rgba(255,179,107,.16)` | `rgba(43,184,172,.10)` / `rgba(245,169,74,.08)` | gradient blobs |
-| `--yf-surface` / `--yf-surface-muted` | `#FFFFFF` / `#F0F4F1` | `#16233A` / `#101B2B` | readable cards / inputs |
+| `--yf-surface` | `#FFFFFF` | `#16233A` | readable cards |
 | `--yf-border` | `#DCE7E1` | `#27395A` | soft boundaries |
 | `--yf-text-muted` | `#637B7D` | `#8FA0B5` | secondary text |
 | `--yf-glass` / `--yf-glass-border` | `rgba(255,255,255,.72)` / `rgba(255,255,255,.65)` | `rgba(16,27,43,.72)` / `rgba(255,255,255,.14)` | level-2 overlays |
+
+(`--yf-ink`, `--yf-mint` and `--yf-surface-muted` were removed in v0.30.0 —
+defined but never referenced by any component.)
 
 **Utilities (doc §3.3 transparency levels):**
 - `.atmos` — level-1 atmospheric canvas (doc §4.2): two soft radial blobs over
@@ -45,7 +51,7 @@ where the direction doc says so. Every token is mirrored in
   workspace outer shell; keep it quiet behind dense content.
 - `.glass` — level-2 expressive overlay (nav, map panels, hero support cards):
   translucent `--yf-glass` background + blur + light border. Readable/editable
-  content stays on near-opaque `--color-card` (level 3).
+  content stays on near-opaque `--card` (level 3).
 
 **Also added:** `--radius-lg: 24px` (large bento cards) and `--shadow-soft`
 (diffuse CTI depth) in both themes.
@@ -74,21 +80,19 @@ where the direction doc says so. Every token is mirrored in
 
 | Token | Maps to (light) | Notes |
 |------|-----------------|-------|
-| `--color-background` | `--gray-50` | page bg |
-| `--color-foreground` | `--gray-900` | body text |
-| `--color-card` / `--color-card-foreground` | white / `--gray-900` | surfaces |
-| `--color-popover` / `--color-popover-foreground` | white / `--gray-900` | dropdowns |
-| `--color-muted` / `--color-muted-foreground` | `--gray-100` / `--gray-500` | disabled/secondary text |
-| `--color-border` | `--gray-200` | hairlines |
 | `--color-primary` | `--teal-500` | primary action |
 | `--color-primary-hover` | `--teal-600` | primary :hover |
 | `--color-primary-active` | `--teal-700` | primary :active |
 | `--color-primary-foreground` | `#FFFFFF` (dark `#06251F`) | text on primary |
 | `--color-accent` / `--color-accent-hover` / `--color-accent-foreground` | `--saffron-500` / `--saffron-600` / `#3A2506` | saffron CTA |
-| `--color-destructive` / `--color-destructive-hover` / `--color-destructive-foreground` / `--color-destructive-soft` | `--danger-500` / `--danger-600` / `#FFFFFF` / `#F9E7E7` | danger actions |
-| `--color-success` / `--color-success-foreground` | `--ok-500` / `#FFFFFF` | success |
-| `--color-warning` | `--warn-600` | warning |
+| `--color-destructive` / `--color-destructive-soft` | `--danger-500` / `#F9E7E7` | danger actions |
 | `--ring` | `0 0 0 3px color-mix(teal 35%)` | focus ring (all `:focus-visible`) |
+
+(Removed in v0.30.0 as never-referenced: `--color-background`,
+`--color-foreground`, `--color-card(-foreground)`, `--color-popover(-foreground)`,
+`--color-muted(-foreground)`, `--color-border`, `--color-destructive-hover`,
+`--color-destructive-foreground`, `--color-success(-foreground)`,
+`--color-warning`, `--color-info-soft`.)
 
 ## Component state matrix
 

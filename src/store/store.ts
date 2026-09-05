@@ -412,11 +412,11 @@ export function updateProfile(patchFields: Partial<User['profile']>): void {
   const idx = cache.users.findIndex(x => x.id === u.id)
   if (idx >= 0) { cache.users[idx] = { ...cache.users[idx], profile: { ...cache.users[idx].profile, ...patchFields } }; commit() }
   // Fire-and-forget persistence; surface failures without blocking the UI.
-  void supabase.from('profiles').update({
+  fire('profiles', supabase.from('profiles').update({
     name: patchFields.name, home_city: patchFields.homeCity, languages: patchFields.languages,
     travel_styles: patchFields.travelStyles, is_creator: patchFields.isCreator,
     creator_bio: patchFields.creatorBio, social_links: patchFields.socialLinks,
-  }).eq('id', u.id).then(({ error }) => { if (error) toast('Could not save profile changes.') })
+  }).eq('id', u.id))
 }
 
 // ---------------- Trips ----------------
@@ -1091,8 +1091,7 @@ export function unpublishItinerary(tripId: ID): void {
   const pub = cache.published[idx]
   cache.published = cache.published.filter((_, i) => i !== idx)
   commit()
-  void supabase.from('published_itineraries').delete().eq('id', pub.id)
-    .then(({ error }) => { if (error) { cache.published.push(pub); commit(); toast('Could not unpublish.') } })
+  fire('published_itineraries', supabase.from('published_itineraries').delete().eq('id', pub.id))
 }
 
 export function unpublishedTripIds(userId: ID): ID[] {

@@ -329,6 +329,14 @@ Hard rules (each learned the hard way — do not relearn them):
   backslashes inside heredocs/`node -e` — write the script to a file (Write
   tool), run it, delete it.
 
+- **Heavy DOM-snapshot/image libraries stay out of the main chunk.** `html-to-image`
+  is lazy-imported inside `billCapture.ts`'s share handler: static import measured the
+  landing main chunk at 695.7 kB vs 682.4 kB lazy (+13 kB). Any new canvas/rendering
+  dependency goes through `await import()` at the click site, and the choice is
+  measured with `npm run build` before committing. Related: to snapshot themed UI
+  (the bench receipt), pin the component's scoped custom properties to the wanted
+  theme via an override class for the capture frame (`.bench-receipt.capture-dark`)
+  instead of flipping `data-theme` on `<html>` — no theme flash, no restore race.
 - **Buttons without an explicit colour inherit UA `buttontext` (black)** — fine on light
   surfaces, invisible on dark ones (Profile travel-style chips rendered black-on-navy in dark
   mode). The global `button { color: inherit }` reset in `styles.css` makes every button take

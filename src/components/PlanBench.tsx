@@ -11,7 +11,7 @@
 // gated behind prefers-reduced-motion; the reduced path is instant swaps.
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
-  BedDouble, Bike, Bus, Car, Check, Copy, Dices, ReceiptText, RotateCcw,
+  BedDouble, Bike, Bus, Car, Check, Copy, Dices, ImageDown, ReceiptText, RotateCcw,
   TrainFront, UtensilsCrossed, User, Users,
 } from 'lucide-react'
 import { formatInr, MODE_SPEED, MODE_COST_PER_KM } from '../lib/engine'
@@ -22,6 +22,8 @@ import {
   loadBenchInputs, saveBenchInputs, benchInputsEqual, formatBenchShareText,
   type BenchMode, type BenchStayStyle, type BenchInputs,
 } from '../lib/planBench'
+import { shareBillImage } from '../lib/billCapture'
+import { toast } from './ui'
 import { haptic, HAPTIC } from '../lib/haptics'
 
 const ODO_DIGITS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
@@ -95,36 +97,39 @@ function shortInr(v: number): string {
   return `≈₹${s}`
 }
 
-/** Reusable dial: labelled range with a drag bubble and a haptic step tick. */
-function BenchSlider(props: {
-  label: string; value: number; min: number; max: number; step: number
+/** Reusable dial: bare range with a drag bubble and a haptic step tick — the
+ *  v2 layout puts labels/values in each section's own header, not the slider. */
+function BenchRange(props: {
+  value: number; min: number; max: number; step: number
   fmt: (v: number) => string; ariaLabel: string; onChange: (v: number) => void
 }) {
   const [dragging, setDragging] = useState(false)
   const fill = ((props.value - props.min) / (props.max - props.min)) * 100
   const bubbleLeft = Math.min(90, Math.max(10, fill))
   return (
-    <div className="bench-control-block">
-      <div className="bench-range-head">
-        <span className="bench-control-label">{props.label}</span>
-        <span className="bench-range-value">{props.fmt(props.value)}</span>
-      </div>
-      <div className="bench-slider">
-        {dragging && <span className="bench-bubble" style={{ left: `${bubbleLeft}%` }}>{props.fmt(props.value)}</span>}
-        <input type="range" className="yf-range" min={props.min} max={props.max} step={props.step} value={props.value}
-          style={{ '--fill': `${fill}%` } as React.CSSProperties}
-          aria-label={props.ariaLabel}
-          onPointerDown={() => setDragging(true)}
-          onPointerUp={() => setDragging(false)}
-          onPointerCancel={() => setDragging(false)}
-          onBlur={() => setDragging(false)}
-          onChange={e => {
-            const v = Number(e.target.value)
-            if (v !== props.value) { haptic(HAPTIC.tick); props.onChange(v) }
-          }} />
-      </div>
+    <div className="bench-slider">
+      {dragging && <span className="bench-bubble" style={{ left: `${bubbleLeft}%` }}>{props.fmt(props.value)}</span>}
+      <input type="range" className="yf-range" min={props.min} max={props.max} step={props.step} value={props.value}
+        style={{ '--fill': `${fill}%` } as React.CSSProperties}
+        aria-label={props.ariaLabel}
+        onPointerDown={() => setDragging(true)}
+        onPointerUp={() => setDragging(false)}
+        onPointerCancel={() => setDragging(false)}
+        onBlur={() => setDragging(false)}
+        onChange={e => {
+          const v = Number(e.target.value)
+          if (v !== props.value) { haptic(HAPTIC.tick); props.onChange(v) }
+        }} />
     </div>
   )
+}
+
+/** Icon per bench mode (receipt fares line reuses it for bus/train). */
+function modeIcon(m: BenchMode, size = 15): React.ReactNode {
+  if (m === 'motorcycle') return <Bike size={size} aria-hidden />
+  if (m === 'car') return <Car size={size} aria-hidden />
+  if (m === 'bus') return <Bus size={size} aria-hidden />
+  return <TrainFront size={size} aria-hidden />
 }
 
 const CONFETTI_COLORS = ['#2f9e8f', '#F3AA3D', '#e05656', '#7c5cff', '#2f9e8f']
@@ -160,6 +165,7 @@ export function PlanBench() {
   const [lineKey, setLineKey] = useState(0)
   const [stampKey, setStampKey] = useState(0)
   const [tearing, setTearing] = useState(false)
+  const [imgState, setImgState] = useState<'idle' | 'busy' | 'done'>('idle')
 
   const reduced = useMedia('(prefers-reduced-motion: reduce)')
   const pointerFine = useMedia('(pointer: fine)')
@@ -292,6 +298,26 @@ export function PlanBench() {
     // clipboard fully unavailable: the receipt is on screen — stay quiet
   }
 
+  /** Snapshot the live receipt to a PNG and share it: native share sheet →
+   *  clipboard image → download. Each outcome toasts; the share sheet's own
+   *  cancel is not an error. */
+  async function shareImage() {
+    if (imgState === 'busy') return
+    setImgState('busy')
+    try {
+      const result = await shareBillImage(receiptRef.current)
+      haptic(HAPTIC.success)
+      if (result === 'copied') toast('Bill image copied')
+      if (result === 'downloaded') toast('Bill image downloaded')
+      setImgState('done')
+      later(() => setImgState('idle'), 1600)
+    } catch (err) {
+      const aborted = err instanceof DOMException && err.name === 'AbortError'
+      if (!aborted) toast('Could not create the bill image — try "Copy bill as text"', 'err')
+      setImgState('idle')
+    }
+  }
+
   function handleCta() {
     haptic(HAPTIC.select)
     stashBenchPrefill(bill, input)
@@ -321,7 +347,6 @@ export function PlanBench() {
     <section className={`container plan-bench${live ? ' bench-live' : ''}${inView ? ' bench-inview' : ''}`} id="plan-bench" aria-label="Trip cost calculator" ref={sectionRef}>
       <div className="bench-blob bench-blob-a" aria-hidden="true" />
       <div className="bench-blob bench-blob-b" aria-hidden="true" />
-      <div className="bench-badge"><span className="bench-badge-dot" aria-hidden="true" /><ReceiptText size={14} aria-hidden style={{ verticalAlign: '-2px' }} /> The Plan Bench</div>
       <h2 className="section-title bench-title" style={{ marginBottom: 4 }}>
         What will your road trip{' '}
         <em className="bench-underline">
@@ -335,136 +360,175 @@ export function PlanBench() {
       <p className="small muted bench-sub">
         Distance, mode, crew, stay — dial it in and watch every rupee explain itself. Then take the whole bill straight into a real plan.
       </p>
-      <div className="bench-preset-row">
-        {BENCH_PRESETS.map(p => {
-          const active = input.km === p.km && input.mode === p.mode && input.nights === p.nights && input.crew === p.crew && input.roundTrip === p.roundTrip
-          return (
-            <button key={p.label} type="button" className={`chip ${active ? 'chip-teal' : 'chip-outline'}`} onClick={() => applyPreset(p)}>
-              {p.label} · {p.km} km · <Odometer value={shortInr(presetPerHead.get(p.label) ?? 0)} animate={false} />/head
-            </button>
-          )
-        })}
-        <button type="button" className={`chip chip-outline bench-surprise${rolling ? ' rolling' : ''}`} onClick={surpriseMe} disabled={surpriseCooldown} aria-label="Surprise me with a random trip">
-          <span className="bench-dice" aria-hidden="true"><Dices size={14} /></span> Surprise me
-        </button>
-        {dirty(input) && (
-          <button type="button" className="chip chip-outline" onClick={resetAll} aria-label="Reset the calculator to defaults">
-            <RotateCcw size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Reset
-          </button>
-        )}
-      </div>
       <div className="bench-grid">
         <div className="bench-controls">
-          <div className="bench-control-block">
-            <BenchSlider label="One-way distance" value={input.km} min={100} max={900} step={10}
+          <div className="bench-head-row">
+            <div className="bench-badge"><span className="bench-badge-dot" aria-hidden="true" /><ReceiptText size={14} aria-hidden style={{ verticalAlign: '-2px' }} /> The Plan Bench</div>
+            <div className="bench-head-actions">
+              <button type="button" className={`bench-toggle${input.roundTrip ? ' on' : ''}`}
+                aria-pressed={input.roundTrip}
+                aria-label={`Return leg${input.roundTrip ? ' — billed twice (round trip)' : ' — off (one way)'}`}
+                onClick={() => { haptic(HAPTIC.toggle); patch({ roundTrip: !input.roundTrip }) }}>
+                Return leg{input.roundTrip ? ' ×2' : ''}
+              </button>
+              <button type="button" className={`chip chip-outline bench-surprise${rolling ? ' rolling' : ''}`} onClick={surpriseMe} disabled={surpriseCooldown} aria-label="Surprise me with a random trip">
+                <span className="bench-dice" aria-hidden="true"><Dices size={14} /></span> Surprise me
+              </button>
+              {dirty(input) && (
+                <button type="button" className="chip chip-outline" onClick={resetAll} aria-label="Reset the calculator to defaults">
+                  <RotateCcw size={13} aria-hidden style={{ verticalAlign: '-2px' }} />Reset
+                </button>
+              )}
+            </div>
+          </div>
+          <div className="bench-block">
+            <span className="bench-eyebrow">Quick routes</span>
+            <div className="bench-chip-row" role="group" aria-label="Quick route presets">
+              {BENCH_PRESETS.map(p => {
+                const active = input.km === p.km && input.mode === p.mode && input.nights === p.nights && input.crew === p.crew && input.roundTrip === p.roundTrip
+                return (
+                  <button key={p.label} type="button" className={`bench-preset-chip${active ? ' on' : ''}`} aria-pressed={active} onClick={() => applyPreset(p)}>
+                    {active && <Check size={12} aria-hidden />} {p.label} · {p.km} km · {shortInr(presetPerHead.get(p.label) ?? 0)}/head
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+          <div className="bench-block bench-distance-card">
+            <div className="bench-distance-head">
+              <span className="bench-eyebrow">Route distance</span>
+              <span className="bench-distance-big" aria-hidden="true">{input.km} km</span>
+            </div>
+            <BenchRange value={input.km} min={100} max={900} step={10}
               fmt={v => `${v} km`} ariaLabel="One-way distance in kilometres" onChange={v => patch({ km: v })} />
-            <div className="bench-seg-row">
-              <div className="bench-seg" role="group" aria-label="Trip direction">
-                <button type="button" className={!input.roundTrip ? 'on' : ''} aria-pressed={!input.roundTrip}
-                  onClick={() => { haptic(HAPTIC.toggle); patch({ roundTrip: false }) }}>One way</button>
-                <button type="button" className={input.roundTrip ? 'on' : ''} aria-pressed={input.roundTrip}
-                  onClick={() => { haptic(HAPTIC.toggle); patch({ roundTrip: true }) }}>Round trip</button>
+            <div className="bench-scale" aria-hidden="true">
+              <span>100</span><span>300</span><span>500</span><span>700</span><span>900</span>
+            </div>
+            <div className="bench-derived">
+              <span>{shown.roadKm} km on the road ({input.roundTrip ? 'round trip' : 'one way'})</span>
+              <span className="bench-derived-cost">{formatInr(shown.transportCost)} in {fuelMode ? 'fuel' : 'fares'}</span>
+            </div>
+          </div>
+          <div className="bench-pair">
+            <div className="bench-block">
+              <span className="bench-eyebrow">Getting there</span>
+              <div className="bench-mode-grid" role="group" aria-label="How you travel">
+                {BENCH_MODES.map(m => (
+                  <button key={m} type="button" className={`bench-mode-btn${input.mode === m ? ' on' : ''}`}
+                    aria-pressed={input.mode === m}
+                    onClick={() => { haptic(HAPTIC.select); patch({ mode: m }) }}>
+                    {modeIcon(m)}
+                    <span className="bench-mode-name">{m === 'motorcycle' ? 'Bike' : m}</span>
+                    <span className="bench-mode-speed" aria-hidden="true">{MODE_SPEED[m] ?? 40}</span>
+                  </button>
+                ))}
               </div>
-              <span className="bench-seg-badge">{shown.roadKm} km on the road</span>
+              <p className="bench-hint">{modeHint(input.mode)}</p>
+            </div>
+            <div className="bench-block">
+              <span className="bench-eyebrow">Stay style</span>
+              <div className="bench-stay-list" role="group" aria-label="Stay style">
+                {STAY_STYLES.map(s => (
+                  <button key={s} type="button" className={`bench-stay-row${input.stay === s ? ' on' : ''}`}
+                    aria-pressed={input.stay === s}
+                    onClick={() => { haptic(HAPTIC.select); patch({ stay: s }) }}>
+                    <span className="bench-stay-name">{s}</span>
+                    <span className="bench-stay-rate">₹{STAY_RATE_PER_NIGHT[s]}/room</span>
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
-          <div className="bench-control-block">
-            <span className="bench-control-label">How you travel</span>
-            <div className="bench-pills">
-              {BENCH_MODES.map(m => (
-                <button key={m} type="button" className={`bench-pill ${input.mode === m ? 'on' : ''}`}
-                  aria-pressed={input.mode === m}
-                  onClick={() => { haptic(HAPTIC.select); patch({ mode: m }) }}>
-                  {m === 'motorcycle' ? <Bike size={15} aria-hidden style={{ verticalAlign: '-3px', marginRight: 6 }} />
-                    : m === 'car' ? <Car size={15} aria-hidden style={{ verticalAlign: '-3px', marginRight: 6 }} />
-                    : m === 'bus' ? <Bus size={15} aria-hidden style={{ verticalAlign: '-3px', marginRight: 6 }} />
-                    : <TrainFront size={15} aria-hidden style={{ verticalAlign: '-3px', marginRight: 6 }} />}
-                  {m}
-                </button>
-              ))}
+          <div className="bench-pair">
+            <div className="bench-block">
+              <div className="bench-block-head">
+                <span className="bench-eyebrow">Crew size</span>
+                <span className="bench-block-value">{shownInput.crew}</span>
+              </div>
+              <div className="bench-crew" role="group" aria-label="Crew size">
+                {Array.from({ length: 8 }, (_, i) => i + 1).map(n => (
+                  <button key={n} type="button" className={`bench-crew-btn ${shownInput.crew === n ? 'on' : ''}`}
+                    aria-pressed={shownInput.crew === n}
+                    onClick={() => { haptic(HAPTIC.select); patch({ crew: n }) }}>
+                    <span className="bench-crew-emoji" aria-hidden="true">{n === 1 ? <User size={13} /> : <Users size={13} />}</span>
+                    {n}
+                  </button>
+                ))}
+              </div>
+              <p className="bench-hint">{shown.rooms} room{shown.rooms === 1 ? '' : 's'} for {shownInput.crew} — costs split {shownInput.crew} way{shownInput.crew === 1 ? '' : 's'}</p>
             </div>
-            <p className="bench-hint">{modeHint(input.mode)}</p>
-          </div>
-          <div className="bench-control-block">
-            <span className="bench-control-label">Stay style</span>
-            <div className="bench-pills">
-              {STAY_STYLES.map(s => (
-                <button key={s} type="button" className={`bench-pill ${input.stay === s ? 'on' : ''}`}
-                  aria-pressed={input.stay === s}
-                  onClick={() => { haptic(HAPTIC.select); patch({ stay: s }) }}>
-                  {s}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="bench-control-block">
-            <span className="bench-control-label">Travellers ({input.crew})</span>
-            <div className="bench-crew">
-              {Array.from({ length: 8 }, (_, i) => i + 1).map(n => (
-                <button key={n} type="button" className={`bench-crew-btn ${input.crew === n ? 'on' : ''}`}
-                  aria-pressed={input.crew === n}
-                  onClick={() => { haptic(HAPTIC.select); patch({ crew: n }) }}>
-                  <span className="bench-crew-emoji" aria-hidden="true">{n === 1 ? <User size={13} /> : <Users size={13} />}</span>
-                  {n}
-                </button>
-              ))}
+            <div className="bench-block">
+              <div className="bench-block-head">
+                <span className="bench-eyebrow">Trip length</span>
+                <span className="bench-block-value">{input.nights} night{input.nights === 1 ? '' : 's'} · {input.nights + 1} day{input.nights + 1 === 1 ? '' : 's'}</span>
+              </div>
+              <BenchRange value={input.nights} min={1} max={7} step={1}
+                fmt={v => `${v} night${v === 1 ? '' : 's'}`} ariaLabel="Number of nights" onChange={v => patch({ nights: v })} />
+              <div className="bench-scale-ends" aria-hidden="true"><span>weekend</span><span>week+</span></div>
             </div>
           </div>
-          <BenchSlider label="Nights" value={input.nights} min={1} max={7} step={1}
-            fmt={v => `${v} (${v + 1} days)`} ariaLabel="Number of nights" onChange={v => patch({ nights: v })} />
-          {fuelMode && (<>
-            <BenchSlider label="Fuel economy" value={input.kmPerL} min={2} max={80} step={1}
-              fmt={v => `${v} km/L`} ariaLabel="Fuel economy in kilometres per litre" onChange={v => patch({ kmPerL: v })} />
-            <BenchSlider label="Fuel price" value={input.inrPerL} min={50} max={250} step={1}
-              fmt={v => `₹${v}/L`} ariaLabel="Fuel price in rupees per litre" onChange={v => patch({ inrPerL: v })} />
-          </>)}
+          {fuelMode && (
+            <div className="bench-block bench-fuel-pair">
+              <div className="bench-fuel-col">
+                <span className="bench-eyebrow">Your mileage</span>
+                <span className="bench-fuel-value">{shownInput.kmPerL} km/L</span>
+                <BenchRange value={input.kmPerL} min={2} max={80} step={1}
+                  fmt={v => `${v} km/L`} ariaLabel="Fuel economy in kilometres per litre" onChange={v => patch({ kmPerL: v })} />
+              </div>
+              <div className="bench-fuel-col">
+                <span className="bench-eyebrow">Fuel price</span>
+                <span className="bench-fuel-value">₹{shownInput.inrPerL}/L</span>
+                <BenchRange value={input.inrPerL} min={50} max={250} step={1}
+                  fmt={v => `₹${v}/L`} ariaLabel="Fuel price in rupees per litre" onChange={v => patch({ inrPerL: v })} />
+              </div>
+            </div>
+          )}
         </div>
 
         <div className={`bench-receipt card${tearing ? ' tearing' : ''}`} ref={receiptRef}
           onMouseMove={onTiltMove} onMouseLeave={onTiltEnd}>
+          <span className="bench-barcode" aria-hidden="true" />
           <span className="bench-stamp" key={stampKey} aria-hidden="true">ESTIMATE</span>
           <div className="bench-receipt-head">
-            <span className="bench-receipt-kicker">YATRAFLOW · TRIP ESTIMATE</span>
+            <span className="bench-receipt-kicker">The Honest Bill</span>
             <span className="bench-receipt-date">{issued}</span>
           </div>
+          <div className="bench-meta-row">
+            {modeIcon(shownInput.mode, 14)}
+            <span>{shownInput.mode === 'motorcycle' ? 'Bike' : shownInput.mode} · {shownInput.crew} traveller{shownInput.crew === 1 ? '' : 's'}</span>
+          </div>
           <div className="bench-total" aria-live="polite">
-            <div className="bench-total-label">Estimated total</div>
-            <div className="bench-total-main">
-              <Odometer value={formatInr(shown.total)} animate={animate} />
-              <small>
-                <Odometer value={formatInr(shown.perHead)} animate={animate} /> / person
-              </small>
+            <div className="bench-total-label">Per head</div>
+            <div className="bench-total-main bench-total-perhead">
+              <Odometer value={formatInr(shown.perHead)} animate={animate} />
+              <span className="bench-perhead-unit">/ head</span>
             </div>
             <span className="bench-total-sub sr-only">{formatInr(shown.total)} total, {formatInr(shown.perHead)} per person</span>
-            <span className="bench-total-sub" aria-hidden="true">{shown.roadKm} km · {shown.days} days · {shownInput.crew} travellers · {shownInput.mode}</span>
+            <span className="bench-total-sub" aria-hidden="true">
+              {formatInr(shown.total)} total · split {shownInput.crew} way{shownInput.crew === 1 ? '' : 's'} · {shown.roadKm} km · {shown.days} days · {shownInput.mode}
+            </span>
           </div>
-          <div className="bench-split" role="img" aria-label={`Cost split: ${pct(shown.transportCost)}% transport, ${pct(shown.stayCost)}% stay, ${pct(shown.mealCost)}% food`}>
-            <div className="bench-split-bar bench-split-transport" style={{ width: `${pct(shown.transportCost)}%` }}>
-              {pct(shown.transportCost) > 15 && <span>{pct(shown.transportCost)}%</span>}
-            </div>
-            <div className="bench-split-bar bench-split-stay" style={{ width: `${pct(shown.stayCost)}%` }}>
-              {pct(shown.stayCost) > 15 && <span>{pct(shown.stayCost)}%</span>}
-            </div>
-            <div className="bench-split-bar bench-split-meal" style={{ width: `${pct(shown.mealCost)}%` }}>
-              {pct(shown.mealCost) > 15 && <span>{pct(shown.mealCost)}%</span>}
-            </div>
+          <div className="bench-split" role="img" aria-label={`Cost split: ${pct(shown.transportCost)}% ${fuelMode ? 'fuel' : 'fares'}, ${pct(shown.stayCost)}% stays, ${pct(shown.mealCost)}% food`}>
+            <div className="bench-split-bar bench-split-transport" style={{ width: `${pct(shown.transportCost)}%` }} />
+            <div className="bench-split-bar bench-split-stay" style={{ width: `${pct(shown.stayCost)}%` }} />
+            <div className="bench-split-bar bench-split-meal" style={{ width: `${pct(shown.mealCost)}%` }} />
           </div>
           <div className="bench-split-legend">
-            <span><span className="dot dot-transport" /> Transport</span>
-            <span><span className="dot dot-stay" /> Stay</span>
-            <span><span className="dot dot-meal" /> Food</span>
+            <span><span className="dot dot-transport" />{fuelMode ? 'fuel' : 'fares'} {pct(shown.transportCost)}%</span>
+            <span><span className="dot dot-stay" />stays {pct(shown.stayCost)}%</span>
+            <span><span className="dot dot-meal" />food {pct(shown.mealCost)}%</span>
           </div>
           <div className="bench-receipt-lines" key={lineKey}>
             <div className="bench-line">
-              <div className="bench-line-head"><span><Car size={14} aria-hidden style={{ verticalAlign: '-2px', marginRight: 5 }} />Transport</span><b><Odometer value={formatInr(shown.transportCost)} animate={animate} /></b></div>
+              <div className="bench-line-head"><span>{modeIcon(shownInput.mode, 14)} {fuelMode ? 'Fuel' : 'Fares'}</span><b><Odometer value={formatInr(shown.transportCost)} animate={animate} /></b></div>
               <span className="bench-line-formula">{shown.transportFormula}</span>
             </div>
             <div className="bench-line">
-              <div className="bench-line-head"><span><BedDouble size={14} aria-hidden style={{ verticalAlign: '-2px', marginRight: 5 }} />Stay ({shown.rooms} room{shown.rooms === 1 ? '' : 's'})</span><b><Odometer value={formatInr(shown.stayCost)} animate={animate} /></b></div>
+              <div className="bench-line-head"><span><BedDouble size={14} aria-hidden style={{ verticalAlign: '-2px', marginRight: 5 }} />Stays ({shown.rooms} room{shown.rooms === 1 ? '' : 's'})</span><b><Odometer value={formatInr(shown.stayCost)} animate={animate} /></b></div>
               <span className="bench-line-formula">{shown.stayFormula}</span>
             </div>
             <div className="bench-line">
-              <div className="bench-line-head"><span><UtensilsCrossed size={14} aria-hidden style={{ verticalAlign: '-2px', marginRight: 5 }} />Food</span><b><Odometer value={formatInr(shown.mealCost)} animate={animate} /></b></div>
+              <div className="bench-line-head"><span><UtensilsCrossed size={14} aria-hidden style={{ verticalAlign: '-2px', marginRight: 5 }} />Meals</span><b><Odometer value={formatInr(shown.mealCost)} animate={animate} /></b></div>
               <span className="bench-line-formula">{shown.mealFormula}</span>
             </div>
           </div>
@@ -481,7 +545,7 @@ export function PlanBench() {
           </div>
           <div className="bench-cta-row">
             <button type="button" className="btn btn-primary btn-lg bench-cta" onClick={handleCta}>
-              Plan this trip for real →
+              Turn these numbers into a real trip →
             </button>
             <a className="bench-alt-link" href="#/explore">or browse ready itineraries →</a>
           </div>
@@ -491,7 +555,13 @@ export function PlanBench() {
                 ? <><Check size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Copied to clipboard</>
                 : <><Copy size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Copy bill as text</>}
             </button>
-            {copied && !reduced && (
+            <button type="button" className={`chip chip-outline${imgState === 'done' ? ' chip-copied' : ''}`}
+              onClick={shareImage} disabled={imgState === 'busy'}>
+              {imgState === 'done'
+                ? <><Check size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Sent</>
+                : <><ImageDown size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />{imgState === 'busy' ? 'Rendering…' : 'Share as image'}</>}
+            </button>
+            {(copied || imgState === 'done') && !reduced && (
               <span className="bench-confetti" aria-hidden="true">
                 {Array.from({ length: 10 }, (_, i) => (
                   <i key={i} className="cf-bit" style={{
@@ -505,7 +575,7 @@ export function PlanBench() {
             )}
           </div>
           <p className="bench-fineprint">
-            We pre-fill your new trip with these numbers · excludes tolls, parking & entry fees · stay ₹{STAY_RATE_PER_NIGHT[input.stay]}/room-night, 2 per room · food ₹{MEALS_PER_HEAD_DAY}/head/day
+            We pre-fill your new trip with these numbers · excludes tolls, parking & entry fees · no live traffic, no hidden margins · stay ₹{STAY_RATE_PER_NIGHT[input.stay]}/room-night, 2 per room · food ₹{MEALS_PER_HEAD_DAY}/head/day
           </p>
         </div>
       </div>
@@ -532,6 +602,6 @@ function dirty(input: BenchInputs): boolean {
 function modeHint(m: BenchMode): string {
   const speed = MODE_SPEED[m] ?? 40
   return isBenchFuelMode(m)
-    ? `≈ ${speed} km/h average · you pay for fuel`
-    : `≈ ${speed} km/h average · × ₹${MODE_COST_PER_KM[m]}/km fare`
+    ? `Avg ${speed} km/h · you pay for fuel`
+    : `Avg ${speed} km/h · × ₹${MODE_COST_PER_KM[m]}/km fare`
 }

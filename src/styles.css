@@ -1900,8 +1900,9 @@ main:focus { outline: none; }
 .clamp-toggle:focus-visible, .board-fit:focus-visible, .save-heart:focus-visible,
 .dest-chip button:focus-visible, .role-select:focus-visible, .day-title-btn:focus-visible,
 .trip-hero-back:focus-visible, .health-rec:focus-visible, .link-btn:focus-visible,
-.yf-range:focus-visible, .bench-pill:focus-visible, .bench-crew-btn:focus-visible,
-.bench-seg button:focus-visible, .bench-preset-row .chip:focus-visible,
+.yf-range:focus-visible, .bench-mode-btn:focus-visible, .bench-stay-row:focus-visible,
+.bench-toggle:focus-visible, .bench-preset-chip:focus-visible,
+.bench-crew-btn:focus-visible,
 .bench-receipt-actions .chip:focus-visible, .bench-surprise:focus-visible {
   outline: none;
   box-shadow: var(--ring);
@@ -2363,9 +2364,37 @@ html.vt-active :where(*) {
   display: grid; grid-template-columns: minmax(320px, 1.05fr) minmax(300px, 0.95fr);
   gap: 18px; align-items: start; margin-top: 8px;
 }
-.bench-controls { display: flex; flex-direction: column; gap: 18px; }
-.bench-control-block { display: flex; flex-direction: column; gap: 8px; }
-.bench-control-label { font-size: 12.5px; font-weight: 700; color: var(--text-2); letter-spacing: .02em; }
+/* Left controls: one cream card holding every dial, split into labelled blocks. */
+.bench-controls {
+  display: flex; flex-direction: column; gap: 12px;
+  background: var(--card-soft); border: 1px solid var(--line);
+  border-radius: var(--radius-lg); padding: 16px;
+  box-shadow: var(--shadow-soft);
+}
+.bench-block { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+/* two related blocks share a row (modes+stay, crew+trip length) */
+.bench-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: start; }
+.bench-eyebrow { font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--text-3); }
+.bench-block-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+/* crew size / trip length heads — value rides the eyebrow row at label scale
+   so the two blocks in the pair align with Getting There / Stay Style above */
+.bench-block-value {
+  font-size: 13px; font-weight: 750; color: var(--text);
+  font-family: var(--bench-mono, monospace); font-variant-numeric: tabular-nums;
+  white-space: nowrap; text-align: right;
+}
+
+/* header row: identity badge left, return-leg toggle + surprise + reset right */
+.bench-head-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.bench-head-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.bench-toggle {
+  border: 1.5px solid var(--line); background: var(--card); cursor: pointer;
+  padding: 8px 13px; border-radius: 999px;
+  font-size: 12.5px; font-weight: 700; color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+  transition: border-color .12s var(--ease-out), background .12s var(--ease-out), color .12s var(--ease-out);
+}
+.bench-toggle.on { border-color: var(--yf-teal-600); background: var(--yf-teal-100); color: var(--yf-teal-700); }
 
 /* range sliders — filled track + brand thumb (webkit first per lightningcss) */
 .yf-range {
@@ -2395,57 +2424,100 @@ html.vt-active :where(*) {
   transition: transform .15s ease;
 }
 .yf-range:hover::-moz-range-thumb { transform: scale(1.12); }
-.bench-range-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
-.bench-range-value { font-variant-numeric: tabular-nums; font-size: 13px; font-weight: 700; color: var(--text); font-family: var(--bench-mono); }
 
-/* one-way / round-trip segmented control */
-.bench-seg-row { display: flex; align-items: center; gap: 10px; margin-top: 2px; flex-wrap: wrap; }
-.bench-seg {
-  display: inline-flex; gap: 3px; padding: 3px; border-radius: 999px;
-  border: 1.5px solid var(--line); background: var(--bg-soft);
+/* quick-route preset chips — wrapping chip group, selected = dark filled */
+.bench-chip-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.bench-preset-chip {
+  display: inline-flex; align-items: center; gap: 5px; cursor: pointer;
+  border: 1.5px solid var(--line); background: var(--card); border-radius: 999px;
+  padding: 7px 13px; font-size: 12px; font-weight: 650; color: var(--text-2);
+  transition: border-color .12s var(--ease-out), background .12s var(--ease-out), color .12s var(--ease-out);
 }
-.bench-seg button {
-  border: none; border-radius: 999px; padding: 8px 14px; cursor: pointer;
-  font-size: 13px; font-weight: 700; color: var(--text-2); background: transparent;
-  transition: background .15s ease, color .15s ease;
-}
-.bench-seg button.on { border-color: var(--yf-teal-600); background: var(--yf-teal-100); color: var(--yf-teal-700); }
-.bench-seg-badge {
-  font-size: 12.5px; font-weight: 700; color: var(--text-3);
-  font-variant-numeric: tabular-nums; font-family: var(--bench-mono);
-}
+.bench-preset-chip:hover { border-color: var(--yf-teal-600); }
+.bench-preset-chip.on { border-color: var(--yf-navy); background: var(--yf-navy); color: #fff; }
 
-/* preset chips + mode/stay pills */
-.bench-preset-row { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 18px; }
-.bench-preset-row .chip, .bench-receipt-actions .chip { cursor: pointer; font-size: 12px; font-weight: 650; }
-.bench-pills { display: flex; flex-wrap: wrap; gap: 8px; }
-.bench-pill {
-  border: 1.5px solid var(--line); background: var(--card); cursor: pointer;
-  padding: 9px 14px; border-radius: 999px;
-  font-size: 13px; font-weight: 700; color: var(--text-2); text-transform: capitalize;
-  transition: transform .12s var(--ease-out), border-color .12s var(--ease-out), background .12s var(--ease-out);
+/* route distance card: huge number top-right, scale under the slider */
+.bench-distance-card {
+  border: 1px solid var(--line); border-radius: 16px; padding: 11px 12px 9px;
+  background: var(--bg-soft);
 }
-.bench-pill:hover { transform: translateY(-1px); border-color: var(--yf-teal-600); }
-.bench-pill.on { border-color: var(--yf-teal-600); background: var(--yf-teal-100); color: var(--yf-teal-700); }
+.bench-distance-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.bench-distance-big {
+  font-size: 28px; font-weight: 800; line-height: 1; color: var(--text);
+  font-family: var(--bench-mono); font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.bench-scale { display: flex; justify-content: space-between; font-size: 10px; font-weight: 650; color: var(--text-3); font-family: var(--bench-mono); font-variant-numeric: tabular-nums; }
+.bench-derived { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; font-size: 12px; color: var(--text-2); }
+.bench-derived-cost { font-weight: 750; color: var(--yf-teal-700); font-variant-numeric: tabular-nums; font-family: var(--bench-mono); }
+
+/* getting there: 2×2 mode grid, speed badge, selected = filled */
+.bench-mode-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.bench-mode-btn {
+  display: flex; align-items: center; gap: 7px; min-width: 0; cursor: pointer;
+  border: 1.5px solid var(--line); background: var(--card); border-radius: 12px;
+  padding: 8px 10px; font-size: 12.5px; font-weight: 700; color: var(--text-2); text-transform: capitalize;
+  transition: border-color .12s var(--ease-out), background .12s var(--ease-out), color .12s var(--ease-out), transform .12s var(--ease-out);
+}
+.bench-mode-btn:hover { transform: translateY(-1px); border-color: var(--yf-teal-600); }
+.bench-mode-btn.on { border-color: var(--yf-teal-600); background: var(--yf-teal-600); color: #fff; }
+.bench-mode-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bench-mode-speed {
+  margin-left: auto; flex-shrink: 0; font-size: 10.5px; font-weight: 800;
+  font-family: var(--bench-mono); font-variant-numeric: tabular-nums;
+  padding: 2px 7px; border-radius: 999px;
+  background: var(--bg-soft); color: var(--text-2);
+}
+.bench-mode-btn.on .bench-mode-speed { background: rgba(255, 255, 255, .22); color: #fff; }
 .bench-hint { font-size: 12px; color: var(--text-3); margin: 0; }
 
+/* stay style: vertical rate rows, selected = teal outline + tint */
+.bench-stay-list { display: flex; flex-direction: column; gap: 5px; }
+.bench-stay-row {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 10px; cursor: pointer;
+  border: 1.5px solid var(--line); background: var(--card); border-radius: 12px;
+  padding: 8px 12px; font-size: 12.5px; font-weight: 700; color: var(--text-2); text-transform: capitalize;
+  transition: border-color .12s var(--ease-out), background .12s var(--ease-out), color .12s var(--ease-out);
+}
+.bench-stay-row:hover { border-color: var(--yf-teal-600); }
+.bench-stay-row.on { border-color: var(--yf-teal-600); background: var(--yf-teal-100); color: var(--yf-teal-700); }
+.bench-stay-rate { font-size: 12px; font-weight: 750; font-variant-numeric: tabular-nums; font-family: var(--bench-mono); }
+.bench-stay-row.on .bench-stay-rate { color: var(--yf-teal-700); }
+
+/* crew size + trip length share the big-number header pattern */
+.bench-fuel-pair { flex-direction: row; gap: 12px; }
+.bench-fuel-col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+.bench-fuel-value { font-size: 17px; font-weight: 800; color: var(--text); font-family: var(--bench-mono); font-variant-numeric: tabular-nums; }
+.bench-scale-ends { display: flex; justify-content: space-between; font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); }
+
 /* crew avatar buttons */
-.bench-crew { display: flex; flex-wrap: wrap; gap: 8px; }
+.bench-crew { display: flex; flex-wrap: wrap; gap: 6px; }
 .bench-crew-btn {
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
-  min-width: 44px; height: 46px; padding: 4px 8px; border-radius: 14px;
+  min-width: 40px; height: 42px; padding: 3px 6px; border-radius: 12px;
   border: 1.5px solid var(--line); background: var(--card); cursor: pointer;
   font-size: 12px; font-weight: 700; color: var(--text-2);
   transition: transform .12s var(--ease-out), border-color .12s var(--ease-out), background .12s var(--ease-out);
 }
 .bench-crew-btn:hover { transform: translateY(-1px); }
-.bench-crew-btn.on { border-color: var(--yf-teal-600); background: var(--yf-teal-100); color: var(--yf-teal-700); }
+.bench-crew-btn.on { border-color: var(--yf-teal-600); background: var(--yf-teal-600); color: #fff; }
 .bench-crew-emoji { font-size: 15px; line-height: 1; }
 
-/* receipt v2 — paper bill: torn bottom edge, stamp, mono numerals */
+/* receipt v3 — theme-aware bill: torn bottom edge, stamp, barcode, mono numerals.
+   Light theme = cream paper with ink text; dark theme = navy till-roll. Every
+   receipt surface/text pair reads from these scoped props so the two themes
+   cannot drift out of contrast. */
 .bench-receipt {
+  --receipt-ink: var(--text);
+  --receipt-ink-soft: var(--text-2);
+  --receipt-ink-faint: var(--text-3);
+  --receipt-accent: var(--yf-teal-600);
+  --receipt-line: var(--line);
+  --receipt-barcode: rgba(13, 43, 38, .5);
+  --receipt-fatigue-bg: var(--card-soft);
+  --receipt-hero: color-mix(in srgb, var(--saffron-600) 90%, black);  /* saffron dark enough for AA-large on paper */
   position: relative;
   display: flex; flex-direction: column; gap: 14px;
+  color: var(--receipt-ink);
   background:
     radial-gradient(120% 90% at 100% 0%, var(--yf-atmos-peach), transparent 55%),
     radial-gradient(120% 90% at 0% 100%, var(--yf-atmos-mint), transparent 55%),
@@ -2462,40 +2534,90 @@ html.vt-active :where(*) {
     9.375% 100%, 6.25% calc(100% - 9px), 3.125% 100%, 0 calc(100% - 9px)
   );
 }
+[data-theme='dark'] .bench-receipt {
+  --receipt-ink: #EAF4F1;
+  --receipt-ink-soft: rgba(234, 244, 241, .8);
+  --receipt-ink-faint: rgba(234, 244, 241, .68);
+  --receipt-accent: #8ADBCA;
+  --receipt-line: rgba(255, 255, 255, .18);
+  --receipt-barcode: rgba(234, 244, 241, .55);
+  --receipt-fatigue-bg: rgba(255, 255, 255, .06);
+  --receipt-hero: var(--yf-saffron);
+  background:
+    radial-gradient(120% 70% at 100% 0%, rgba(243, 170, 61, .14), transparent 55%),
+    radial-gradient(120% 70% at 0% 100%, rgba(15, 158, 144, .2), transparent 55%),
+    linear-gradient(165deg, var(--yf-navy), #0A222B 82%);
+}
+/* capture override — the shared PNG always ships the dark till-roll look.
+   Mirrors the dark-theme block above but scoped to the receipt node itself,
+   so lib/billCapture.ts can force it for one frame without touching the
+   user's theme (also pins --bg/--line for the perforation dots). */
+.bench-receipt.capture-dark {
+  --receipt-ink: #EAF4F1;
+  --receipt-ink-soft: rgba(234, 244, 241, .8);
+  --receipt-ink-faint: rgba(234, 244, 241, .68);
+  --receipt-accent: #8ADBCA;
+  --receipt-line: rgba(255, 255, 255, .18);
+  --receipt-barcode: rgba(234, 244, 241, .55);
+  --receipt-fatigue-bg: rgba(255, 255, 255, .06);
+  --receipt-hero: var(--yf-saffron);
+  --bg: #0A222B;
+  --line: rgba(255, 255, 255, .18);
+  background:
+    radial-gradient(120% 70% at 100% 0%, rgba(243, 170, 61, .14), transparent 55%),
+    radial-gradient(120% 70% at 0% 100%, rgba(15, 158, 144, .2), transparent 55%),
+    linear-gradient(165deg, var(--yf-navy), #0A222B 82%);
+}
 .bench-stamp {
-  position: absolute; top: 12px; right: 12px; z-index: var(--z-content);
+  position: absolute; top: 46px; right: 14px; z-index: var(--z-content);
   transform: rotate(7deg);
-  border: 2px solid var(--yf-teal-600); color: var(--yf-teal-600);
+  border: 2px solid var(--receipt-accent); color: var(--receipt-accent);
   border-radius: 6px; padding: 2px 9px;
   font-size: 11px; font-weight: 800; letter-spacing: .18em;
-  opacity: .55; pointer-events: none; user-select: none;
+  opacity: .68; pointer-events: none; user-select: none;
+}
+/* barcode strip — pure CSS, decorative */
+.bench-barcode {
+  position: absolute; top: 14px; right: 14px; width: 68px; height: 22px;
+  color: var(--receipt-barcode); pointer-events: none;
+  background: repeating-linear-gradient(90deg,
+    currentColor 0 2px, transparent 2px 4px,
+    currentColor 4px 5px, transparent 5px 9px,
+    currentColor 9px 12px, transparent 12px 14px);
 }
 .bench-receipt-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 2px 10px; padding-right: 92px; }
-.bench-receipt-kicker { font-size: 11px; font-weight: 800; letter-spacing: .14em; color: var(--yf-teal-600); white-space: nowrap; }
-.bench-receipt-date { font-size: 11px; color: var(--text-3); white-space: nowrap; }
+.bench-receipt-kicker { font-size: 11px; font-weight: 800; letter-spacing: .14em; color: var(--receipt-accent); white-space: nowrap; text-transform: uppercase; }
+.bench-receipt-date { font-size: 11px; color: var(--receipt-ink-faint); white-space: nowrap; }
+/* crew + transport meta row — right under the kicker: who and how, at a
+   glance. More prominent than a footnote, quieter than the per-head hero. */
+.bench-meta-row {
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  width: fit-content; margin: -6px auto 0; padding: 5px 12px;
+  border: 1px dashed var(--receipt-line); border-radius: 999px;
+  font-size: 12.5px; font-weight: 700; color: var(--receipt-ink-soft);
+}
+.bench-meta-row svg { color: var(--receipt-accent); flex: none; }
 .bench-total { text-align: center; padding: 4px 0 2px; }
-.bench-total-label { display: block; font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--text-3); }
+.bench-total-label { display: block; font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--receipt-ink-faint); }
 .bench-total-main {
-  display: block; font-size: clamp(30px, 4.5vw, 42px); font-weight: 800; color: var(--text);
+  display: block; font-size: clamp(30px, 4.5vw, 42px); font-weight: 800; color: var(--receipt-ink);
   font-variant-numeric: tabular-nums; font-family: var(--bench-mono);
 }
-.bench-total-main small { display: block; font-size: 15px; font-weight: 650; color: var(--text-2); margin-top: 3px; }
-.bench-total-sub { display: block; font-size: 13px; color: var(--text-3); margin-top: 4px; font-variant-numeric: tabular-nums; }
+/* per-head is the hero figure on the v2 receipt — saffron, unit rides baseline */
+.bench-total-perhead { color: var(--receipt-hero); display: flex; justify-content: center; align-items: baseline; gap: 7px; flex-wrap: wrap; }
+.bench-perhead-unit { font-size: 15px; font-weight: 700; color: var(--receipt-ink-soft); letter-spacing: .02em; }
+.bench-total-sub { display: block; font-size: 13px; color: var(--receipt-ink-soft); margin-top: 4px; font-variant-numeric: tabular-nums; }
 
 /* split bar */
-.bench-split { display: flex; height: 10px; border-radius: 999px; overflow: hidden; border: 1px solid var(--line); }
+.bench-split { display: flex; height: 10px; border-radius: 999px; overflow: hidden; border: 1px solid var(--receipt-line); }
 .bench-split-bar {
   height: 100%; transition: width .35s var(--ease-out);
-  display: flex; align-items: center; justify-content: center; min-width: 0; overflow: hidden;
-}
-.bench-split-bar span {
-  font-size: 8.5px; line-height: 10px; font-weight: 800; letter-spacing: .04em; white-space: nowrap;
-  color: #06251f; opacity: .8; font-variant-numeric: tabular-nums;
+  min-width: 0; overflow: hidden;
 }
 .bench-split-transport { background: var(--yf-teal-600); }
 .bench-split-stay { background: var(--yf-saffron); }
 .bench-split-meal { background: var(--yf-purple); }
-.bench-split-legend { display: flex; flex-wrap: wrap; gap:  12px; font-size: 12px; color: var(--text-2); }
+.bench-split-legend { display: flex; flex-wrap: wrap; gap:  12px; font-size: 12px; font-weight: 650; color: var(--receipt-ink-soft); }
 .bench-split-legend .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; vertical-align: baseline; }
 .dot-transport { background: var(--yf-teal-600); }
 .dot-stay { background: var(--yf-saffron); }
@@ -2503,12 +2625,12 @@ html.vt-active :where(*) {
 
 /* receipt lines + perforated divider */
 .bench-receipt-lines { display: flex; flex-direction: column; gap:  8px; }
-.bench-line { display: flex; flex-direction: column; gap:  1px; padding: 8px 0; border-top: 1px dashed var(--line); }
+.bench-line { display: flex; flex-direction: column; gap:  1px; padding: 8px 0; border-top: 1px dashed var(--receipt-line); }
 .bench-line-head { display: flex; justify-content: space-between; align-items: baseline; gap:  10px; font-size: 13.5px; }
 .bench-line-head b { font-variant-numeric: tabular-nums; font-family: var(--bench-mono); }
-.bench-line-formula { font-size:  11.5px; }
+.bench-line-formula { font-size:  11.5px; color: var(--receipt-ink-faint); }
 .bench-receipt-rules {
-  border-top: 2px dashed var(--yf-border); position: relative; height: 0; margin: 2px 0;
+  border-top: 2px dashed var(--receipt-line); position: relative; height: 0; margin: 2px 0;
 }
 .bench-receipt-rules::before, .bench-receipt-rules::after {
   content: ''; position: absolute; top: -5px; width: 11px; height: 11px; border-radius: 50%;
@@ -2518,22 +2640,24 @@ html.vt-active :where(*) {
 .bench-receipt-rules::after { right: -10px; }
 
 /* fatigue gauge */
-.bench-fatigue { display: flex; align-items: center; gap:  12px; padding: 10px 12px; border-radius: 14px; border:  1px solid var(--line); background: var(--card-soft); }
-.bench-fatigue-title { display: block; font-size:  13px; font-weight: 700; color: var(--text); }
+.bench-fatigue { display: flex; align-items: center; gap:  12px; padding: 10px 12px; border-radius: 14px; border:  1px solid var(--receipt-line); background: var(--receipt-fatigue-bg); }
+.bench-fatigue-title { display: block; font-size:  13px; font-weight: 700; color: var(--receipt-ink); }
 
 .bench-cta-row { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-top: 2px; }
 .bench-cta { width: 100%; }
-.bench-alt-link { font-size: 13px; font-weight: 650; color: var(--yf-teal-600); text-decoration: none; }
+.bench-alt-link { font-size: 13px; font-weight: 650; color: var(--receipt-accent); text-decoration: none; }
 .bench-alt-link:hover { text-decoration: underline; }
-.bench-receipt-actions { display: flex; justify-content: center; }
-.bench-fineprint { font-size: 11px; color: var(--text-3); text-align: center; margin: 0; line-height: 1.5; }
+.bench-receipt-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.bench-receipt-actions .chip { cursor: pointer; font-size: 12px; font-weight: 650; }
+.bench-receipt-actions .chip:disabled { opacity: .65; cursor: default; }
+.bench-fineprint { font-size: 11px; color: var(--receipt-ink-faint); text-align: center; margin: 0; line-height: 1.5; }
 
 /* ---------- Plan Bench 3.0 — motion system (transform/opacity only) ---------- */
 
 /* identity badge — the tool finally wears its name */
 .bench-badge {
   display: flex; align-items: center; gap: 8px; width: fit-content;
-  margin: 0 auto 12px; padding: 7px 16px; border-radius: 999px;
+  margin: 0; padding: 7px 16px; border-radius: 999px;
   font-size: 12.5px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase;
   color: var(--yf-teal-700);
   background: linear-gradient(var(--card), var(--card)) padding-box,
@@ -2586,17 +2710,18 @@ html.vt-active :where(*) {
 
 /* scroll-in choreography */
 @media (prefers-reduced-motion: no-preference) {
-  .bench-live .bench-badge, .bench-live .bench-title, .bench-live .bench-sub, .bench-live .bench-preset-row { animation: bench-rise .55s cubic-bezier(.22, 1, .36, 1) backwards; }
+  .bench-live .bench-badge, .bench-live .bench-title, .bench-live .bench-sub { animation: bench-rise .55s cubic-bezier(.22, 1, .36, 1) backwards; }
   .bench-live .bench-title { animation-delay: .07s; }
   .bench-live .bench-sub { animation-delay: .14s; }
-  .bench-live .bench-preset-row { animation-delay: .2s; }
-  .bench-live .bench-control-block { animation: bench-rise .5s cubic-bezier(.22, 1, .36, 1) backwards; }
-  .bench-live .bench-control-block:nth-child(1) { animation-delay: .22s; }
-  .bench-live .bench-control-block:nth-child(2) { animation-delay: .28s; }
-  .bench-live .bench-control-block:nth-child(3) { animation-delay: .34s; }
-  .bench-live .bench-control-block:nth-child(4) { animation-delay: .4s; }
-  .bench-live .bench-control-block:nth-child(5) { animation-delay: .46s; }
-  .bench-live .bench-control-block:nth-child(6) { animation-delay: .52s; }
+  .bench-live .bench-controls > * { animation: bench-rise .5s cubic-bezier(.22, 1, .36, 1) backwards; }
+  .bench-live .bench-controls > :nth-child(1) { animation-delay: .22s; }
+  .bench-live .bench-controls > :nth-child(2) { animation-delay: .27s; }
+  .bench-live .bench-controls > :nth-child(3) { animation-delay: .32s; }
+  .bench-live .bench-controls > :nth-child(4) { animation-delay: .37s; }
+  .bench-live .bench-controls > :nth-child(5) { animation-delay: .42s; }
+  .bench-live .bench-controls > :nth-child(6) { animation-delay: .47s; }
+  .bench-live .bench-controls > :nth-child(7) { animation-delay: .52s; }
+  .bench-live .bench-controls > :nth-child(8) { animation-delay: .57s; }
   .bench-live .bench-receipt { animation: bench-receipt-in .65s cubic-bezier(.22, 1, .36, 1) .24s backwards; }
 }
 @keyframes bench-rise { from { opacity: 0; transform: translateY(16px); } }
@@ -2629,7 +2754,7 @@ html.vt-active :where(*) {
 @keyframes bench-pop { from { opacity: 0; } }
 
 /* fatigue needle gauge */
-.bench-gauge { width: 74px; height: 40px; flex-shrink: 0; color: var(--yf-teal-600); }
+.bench-gauge { width: 74px; height: 40px; flex-shrink: 0; color: var(--receipt-accent); }
 .bench-gauge.tone-warn { color: var(--yf-saffron); }
 .bench-gauge.tone-hot { color: #e05656; }
 .bench-gauge-needle { transform-origin: 60px 58px; }
@@ -2642,10 +2767,10 @@ html.vt-active :where(*) {
 .bench-live .bench-stamp { animation: bench-stamp-in .5s cubic-bezier(.2, 2, .4, 1) .6s both; }
 @keyframes bench-stamp-in {
   0% { opacity: 0; transform: rotate(16deg) scale(2.1); }
-  60% { opacity: .8; }
-  100% { opacity: .55; transform: rotate(7deg) scale(1); }
+  60% { opacity: .85; }
+  100% { opacity: .68; transform: rotate(7deg) scale(1); }
 }
-@media (prefers-reduced-motion: reduce) { .bench-stamp { opacity: .55; } }
+@media (prefers-reduced-motion: reduce) { .bench-stamp { opacity: .68; } }
 
 /* receipt tilt (pointer-follow, desktop only) + tear-off + reprint flicker */
 .bench-receipt {
@@ -2832,9 +2957,8 @@ html.vt-active :where(*) {
   }
   .plan-bench .bench-title { font-size: clamp(1.35rem, 2.4vw, 1.9rem); }
   .plan-bench .bench-sub { margin: 6px auto 14px; }
-  .plan-bench .bench-preset-row { margin-bottom: 14px; }
-  .plan-bench .bench-controls { gap: 13px; }
-  .plan-bench .bench-control-block { gap: 6px; }
+  .plan-bench .bench-controls { gap: 10px; padding: 14px 16px; }
+  .plan-bench .bench-block { gap: 6px; }
   /* If the viewport is still too short, the receipt pins while controls scroll. */
   .plan-bench .bench-receipt { position: sticky; top: calc(var(--nav-h, 64px) + 12px); }
 }
@@ -3089,6 +3213,7 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 /* Narrow phones: brand + tray + Log in + Sign up free overflow ~390px
    viewports and clipped the signup CTA off the edge — tighten instead. */
 @media (max-width: 480px) {
+  .bench-pair { grid-template-columns: 1fr; }
   .topnav .container.topnav-inner { padding: 0 8px 0 14px; gap: 8px; }
   .brand { font-size: 16px; gap: 7px; }
   .nav-right { gap: 6px; }
@@ -3200,18 +3325,24 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
   .hbc-label { font-size: 15px; }
 
   /* Plan Bench + public itinerary + explore (single-screen layouts) */
+  /* v2 stack: controls card first, receipt bill below it (reading order). */
   .bench-grid { grid-template-columns: 1fr; }
-  .bench-receipt { order: -1; }
+  .bench-controls { padding: 14px; gap: 12px; }
+  .bench-pair { gap: 10px; }
+  .bench-block-big { font-size: 18px; }
+  .bench-distance-big { font-size: 26px; }
+  .bench-fuel-pair { flex-direction: column; gap: 10px; }
   .bench-crew-btn { min-width:  40px; height:  40px; }
-  .bench-pill { min-height: 40px; }
-  .bench-seg button { min-height: 40px; }
-  .bench-preset-row .chip, .bench-receipt-actions .chip { min-height: 40px; }
-  .bench-receipt-head { padding-right: 78px; }
+  .bench-mode-btn, .bench-stay-row { min-height: 40px; }
+  .bench-toggle { min-height: 40px; }
+  .bench-preset-chip, .bench-receipt-actions .chip { min-height: 40px; }
+  .bench-receipt-head { padding-right: 88px; }
   .bench-receipt-rules::before { left: -8px; }
   .bench-badge { font-size: 11.5px; padding: 6px 13px; }
   .bench-gauge { width: 60px; height: 33px; }
   .bench-receipt-rules::after { right: -10px; }
   .bench-total-main { font-size:  30px; }
+  .bench-barcode { top: 12px; right: 12px; width: 60px; }
   .pub-hero { padding: 64px 0 120px; }
   .pub-hero-stats { position: static; width: auto; margin: 0 16px; }
   .pub-body { padding-top: 16px; }

@@ -461,49 +461,44 @@ export function PlanBench() {
 
         <div className={`bench-receipt card${tearing ? ' tearing' : ''}`} ref={receiptRef}
           onMouseMove={onTiltMove} onMouseLeave={onTiltEnd}>
+          <span className="bench-barcode" aria-hidden="true" />
           <span className="bench-stamp" key={stampKey} aria-hidden="true">ESTIMATE</span>
           <div className="bench-receipt-head">
-            <span className="bench-receipt-kicker">YATRAFLOW · TRIP ESTIMATE</span>
+            <span className="bench-receipt-kicker">The Honest Bill</span>
             <span className="bench-receipt-date">{issued}</span>
           </div>
           <div className="bench-total" aria-live="polite">
-            <div className="bench-total-label">Estimated total</div>
-            <div className="bench-total-main">
-              <Odometer value={formatInr(shown.total)} animate={animate} />
-              <small>
-                <Odometer value={formatInr(shown.perHead)} animate={animate} /> / person
-              </small>
+            <div className="bench-total-label">Per head</div>
+            <div className="bench-total-main bench-total-perhead">
+              <Odometer value={formatInr(shown.perHead)} animate={animate} />
+              <span className="bench-perhead-unit">/ head</span>
             </div>
             <span className="bench-total-sub sr-only">{formatInr(shown.total)} total, {formatInr(shown.perHead)} per person</span>
-            <span className="bench-total-sub" aria-hidden="true">{shown.roadKm} km · {shown.days} days · {shownInput.crew} travellers · {shownInput.mode}</span>
+            <span className="bench-total-sub" aria-hidden="true">
+              {formatInr(shown.total)} total · split {shownInput.crew} way{shownInput.crew === 1 ? '' : 's'} · {shown.roadKm} km · {shown.days} days · {shownInput.mode}
+            </span>
           </div>
-          <div className="bench-split" role="img" aria-label={`Cost split: ${pct(shown.transportCost)}% transport, ${pct(shown.stayCost)}% stay, ${pct(shown.mealCost)}% food`}>
-            <div className="bench-split-bar bench-split-transport" style={{ width: `${pct(shown.transportCost)}%` }}>
-              {pct(shown.transportCost) > 15 && <span>{pct(shown.transportCost)}%</span>}
-            </div>
-            <div className="bench-split-bar bench-split-stay" style={{ width: `${pct(shown.stayCost)}%` }}>
-              {pct(shown.stayCost) > 15 && <span>{pct(shown.stayCost)}%</span>}
-            </div>
-            <div className="bench-split-bar bench-split-meal" style={{ width: `${pct(shown.mealCost)}%` }}>
-              {pct(shown.mealCost) > 15 && <span>{pct(shown.mealCost)}%</span>}
-            </div>
+          <div className="bench-split" role="img" aria-label={`Cost split: ${pct(shown.transportCost)}% ${fuelMode ? 'fuel' : 'fares'}, ${pct(shown.stayCost)}% stays, ${pct(shown.mealCost)}% food`}>
+            <div className="bench-split-bar bench-split-transport" style={{ width: `${pct(shown.transportCost)}%` }} />
+            <div className="bench-split-bar bench-split-stay" style={{ width: `${pct(shown.stayCost)}%` }} />
+            <div className="bench-split-bar bench-split-meal" style={{ width: `${pct(shown.mealCost)}%` }} />
           </div>
           <div className="bench-split-legend">
-            <span><span className="dot dot-transport" /> Transport</span>
-            <span><span className="dot dot-stay" /> Stay</span>
-            <span><span className="dot dot-meal" /> Food</span>
+            <span><span className="dot dot-transport" />{fuelMode ? 'fuel' : 'fares'} {pct(shown.transportCost)}%</span>
+            <span><span className="dot dot-stay" />stays {pct(shown.stayCost)}%</span>
+            <span><span className="dot dot-meal" />food {pct(shown.mealCost)}%</span>
           </div>
           <div className="bench-receipt-lines" key={lineKey}>
             <div className="bench-line">
-              <div className="bench-line-head"><span><Car size={14} aria-hidden style={{ verticalAlign: '-2px', marginRight: 5 }} />Transport</span><b><Odometer value={formatInr(shown.transportCost)} animate={animate} /></b></div>
+              <div className="bench-line-head"><span>{modeIcon(shownInput.mode, 14)} {fuelMode ? 'Fuel' : 'Fares'}</span><b><Odometer value={formatInr(shown.transportCost)} animate={animate} /></b></div>
               <span className="bench-line-formula">{shown.transportFormula}</span>
             </div>
             <div className="bench-line">
-              <div className="bench-line-head"><span><BedDouble size={14} aria-hidden style={{ verticalAlign: '-2px', marginRight: 5 }} />Stay ({shown.rooms} room{shown.rooms === 1 ? '' : 's'})</span><b><Odometer value={formatInr(shown.stayCost)} animate={animate} /></b></div>
+              <div className="bench-line-head"><span><BedDouble size={14} aria-hidden style={{ verticalAlign: '-2px', marginRight: 5 }} />Stays ({shown.rooms} room{shown.rooms === 1 ? '' : 's'})</span><b><Odometer value={formatInr(shown.stayCost)} animate={animate} /></b></div>
               <span className="bench-line-formula">{shown.stayFormula}</span>
             </div>
             <div className="bench-line">
-              <div className="bench-line-head"><span><UtensilsCrossed size={14} aria-hidden style={{ verticalAlign: '-2px', marginRight: 5 }} />Food</span><b><Odometer value={formatInr(shown.mealCost)} animate={animate} /></b></div>
+              <div className="bench-line-head"><span><UtensilsCrossed size={14} aria-hidden style={{ verticalAlign: '-2px', marginRight: 5 }} />Meals</span><b><Odometer value={formatInr(shown.mealCost)} animate={animate} /></b></div>
               <span className="bench-line-formula">{shown.mealFormula}</span>
             </div>
           </div>
@@ -520,7 +515,7 @@ export function PlanBench() {
           </div>
           <div className="bench-cta-row">
             <button type="button" className="btn btn-primary btn-lg bench-cta" onClick={handleCta}>
-              Plan this trip for real →
+              Turn these numbers into a real trip →
             </button>
             <a className="bench-alt-link" href="#/explore">or browse ready itineraries →</a>
           </div>
@@ -544,7 +539,7 @@ export function PlanBench() {
             )}
           </div>
           <p className="bench-fineprint">
-            We pre-fill your new trip with these numbers · excludes tolls, parking & entry fees · stay ₹{STAY_RATE_PER_NIGHT[input.stay]}/room-night, 2 per room · food ₹{MEALS_PER_HEAD_DAY}/head/day
+            We pre-fill your new trip with these numbers · excludes tolls, parking & entry fees · no live traffic, no hidden margins · stay ₹{STAY_RATE_PER_NIGHT[input.stay]}/room-night, 2 per room · food ₹{MEALS_PER_HEAD_DAY}/head/day
           </p>
         </div>
       </div>

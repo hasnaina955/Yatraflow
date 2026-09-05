@@ -89,7 +89,7 @@ export default function App() {
   // stays for the calmer in-app pages. (Also fixes the mobile eruption point,
   // which was only ever observed on the landing route.)
   function toggleTheme(e: MouseEvent<HTMLButtonElement>) {
-    if (route === '/' || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       setDark(d => !d); return
     }
     const rect = e.currentTarget.getBoundingClientRect()

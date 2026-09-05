@@ -2612,8 +2612,9 @@ html.vt-active :where(*) {
 .bench-cta { width: 100%; }
 .bench-alt-link { font-size: 13px; font-weight: 650; color: var(--receipt-accent); text-decoration: none; }
 .bench-alt-link:hover { text-decoration: underline; }
-.bench-receipt-actions { display: flex; justify-content: center; }
+.bench-receipt-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
 .bench-receipt-actions .chip { cursor: pointer; font-size: 12px; font-weight: 650; }
+.bench-receipt-actions .chip:disabled { opacity: .65; cursor: default; }
 .bench-fineprint { font-size: 11px; color: var(--receipt-ink-faint); text-align: center; margin: 0; line-height: 1.5; }
 
 /* ---------- Plan Bench 3.0 — motion system (transform/opacity only) ---------- */

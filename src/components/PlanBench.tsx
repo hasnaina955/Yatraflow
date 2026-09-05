@@ -11,7 +11,7 @@
 // gated behind prefers-reduced-motion; the reduced path is instant swaps.
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
-  BedDouble, Bike, Bus, Car, Check, Copy, Dices, ReceiptText, RotateCcw,
+  BedDouble, Bike, Bus, Car, Check, Copy, Dices, ImageDown, ReceiptText, RotateCcw,
   TrainFront, UtensilsCrossed, User, Users,
 } from 'lucide-react'
 import { formatInr, MODE_SPEED, MODE_COST_PER_KM } from '../lib/engine'
@@ -22,6 +22,8 @@ import {
   loadBenchInputs, saveBenchInputs, benchInputsEqual, formatBenchShareText,
   type BenchMode, type BenchStayStyle, type BenchInputs,
 } from '../lib/planBench'
+import { shareBillImage } from '../lib/billImage'
+import { toast } from './ui'
 import { haptic, HAPTIC } from '../lib/haptics'
 
 const ODO_DIGITS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
@@ -163,6 +165,7 @@ export function PlanBench() {
   const [lineKey, setLineKey] = useState(0)
   const [stampKey, setStampKey] = useState(0)
   const [tearing, setTearing] = useState(false)
+  const [imgState, setImgState] = useState<'idle' | 'busy' | 'done'>('idle')
 
   const reduced = useMedia('(prefers-reduced-motion: reduce)')
   const pointerFine = useMedia('(pointer: fine)')
@@ -293,6 +296,26 @@ export function PlanBench() {
       later(() => setCopied(false), 1600)
     }
     // clipboard fully unavailable: the receipt is on screen — stay quiet
+  }
+
+  /** Render the bill to a PNG and share it: native share sheet → clipboard
+   *  image → download. Each outcome toasts; the share sheet's own cancel is
+   *  not an error. */
+  async function shareImage() {
+    if (imgState === 'busy') return
+    setImgState('busy')
+    try {
+      const result = await shareBillImage(bill, input)
+      haptic(HAPTIC.success)
+      if (result === 'copied') toast('Bill image copied')
+      if (result === 'downloaded') toast('Bill image downloaded')
+      setImgState('done')
+      later(() => setImgState('idle'), 1600)
+    } catch (err) {
+      const aborted = err instanceof DOMException && err.name === 'AbortError'
+      if (!aborted) toast('Could not create the bill image', 'err')
+      setImgState('idle')
+    }
   }
 
   function handleCta() {
@@ -528,7 +551,13 @@ export function PlanBench() {
                 ? <><Check size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Copied to clipboard</>
                 : <><Copy size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Copy bill as text</>}
             </button>
-            {copied && !reduced && (
+            <button type="button" className={`chip chip-outline${imgState === 'done' ? ' chip-copied' : ''}`}
+              onClick={shareImage} disabled={imgState === 'busy'}>
+              {imgState === 'done'
+                ? <><Check size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Sent</>
+                : <><ImageDown size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />{imgState === 'busy' ? 'Rendering…' : 'Share as image'}</>}
+            </button>
+            {(copied || imgState === 'done') && !reduced && (
               <span className="bench-confetti" aria-hidden="true">
                 {Array.from({ length: 10 }, (_, i) => (
                   <i key={i} className="cf-bit" style={{

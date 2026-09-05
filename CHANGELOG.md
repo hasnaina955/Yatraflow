@@ -2,6 +2,20 @@
 
 All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](https://keepachangelog.com/); versions are pre-1.0 MVP milestones.
 
+## [Unreleased]
+
+**Performance-architecture release (M3) — the app reacts faster and the codebase got structurally simpler.** Details in the per-commit bodies.
+
+### Changed
+- **Live updates no longer re-render the whole app.** High-traffic pages subscribe to exactly the data they show (store slice selectors), so a trip edit or a realtime ping no longer redraws My Trips, Explore, and the entire page tree.
+- **Timeline scrolling and editing get cheaper with trip size.** Day sections only re-render when their own data changes.
+- **The workspace file you edit is the tab you're editing.** The 2,945-line `TripWorkspace.tsx` is now ten focused files under `pages/trip/` — one per tab plus a 317-line shell.
+- **Secondary pages load on demand.** Sign-in, Create Trip, Profile and public itineraries split into lazy chunks — the initial download drops ~44 kB (main chunk 722 → 678 kB).
+- **Weather chips stop re-fetching the same forecast.** Identical concurrent requests share one round-trip.
+
+### Fixed
+- **A whole class of "the UI didn't update" bugs is now impossible.** Store mutations rebuild their data immutably instead of editing it in place, so cached references always reflect the latest state (previously correct-by-accident).
+
 ## [0.32.0] — 2026-09-05
 
 **Stabilization release — the trust bugs from the Sep review are closed, and the app stops lying while it loads.** Details in the per-commit bodies.

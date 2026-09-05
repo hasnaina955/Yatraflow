@@ -51,7 +51,7 @@ and date), per the AGENTS §6 same-edit rule. Detail lives in
 
 ### Remaining — in release order (details in the tracks below)
 - [ ] **v0.32.0** — Stabilization completion (in flight on `redesign/stabilization-v032`): M0 leftovers (broken `pub:` route, router ready-gate for deep links / invite flash / loading-vs-empty) + M2 remainders (Profile save validation, demo-copy honesty, heading outline) + M1 leftovers (focus-ring gaps, touch targets, stagger freeze) + cuts the shipped `[54]`/`[53]`/nav-icon fixes out of `[Unreleased]`
-- [ ] **M3** — Performance architecture: store immutability → selectors → memo → workspace split (TripWorkspace ~2.9k lines)
+- [x] **M3** — Performance architecture: store immutability → slice selectors → DaySection memo → workspace split into pages/trip/* + weather dedup + lazy routes (in [Unreleased], local branch redesign/perf-architecture)
 - [ ] **M4** — Design-system hygiene: dead CSS purge, mobile-block consolidation, glass/z-index tokens (radii/glow/padding partially done in the v0.27 cosmetic pass)
 - [ ] **M5** — AI companion: user-configurable LLM endpoint (#22 → #20) — the only open issues
 - [ ] **M6** — Together: integration test suite, live co-editing depth, split expenses

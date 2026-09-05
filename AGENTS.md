@@ -311,6 +311,14 @@ Hard rules (each learned the hard way — do not relearn them):
   explicitly (`tabIndex={-1}` + `focus({ preventScroll: true })`) — portaled nodes leave the
   trigger's tab neighbourhood.
 
+- **An Edit whose `old_string` ends mid-line silently drops the line's tail.**
+  Editing JSX whose expression closes as `</>}` with an `old_string` ending at
+  `</>` matched the prefix and deleted the trailing `}`, leaving a parser error
+  (TS1005) one line below the edit — and a second edit anchored on a nearby
+  comment duplicated a `const` instead of moving it. After any multi-part
+  restructuring edit in this repo, run `npx tsc -b` immediately and diff-review
+  before continuing (M3.3, Sep 2026).
+
 - **Buttons without an explicit colour inherit UA `buttontext` (black)** — fine on light
   surfaces, invisible on dark ones (Profile travel-style chips rendered black-on-navy in dark
   mode). The global `button { color: inherit }` reset in `styles.css` makes every button take

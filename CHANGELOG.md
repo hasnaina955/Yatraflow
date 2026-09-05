@@ -2,9 +2,11 @@
 
 All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](https://keepachangelog.com/); versions are pre-1.0 MVP milestones.
 
-## [Unreleased]
+## [0.33.0] — 2026-09-05
 
-**Design-system hygiene (M4) — the stylesheet loses its dead weight and its
+**v0.33.0 = the performance + hygiene double release: faster reactions, a split workspace, and a stylesheet with no dead weight or magic numbers.** Details in the per-commit bodies.
+
+### Changed (M4) — design-system hygiene; the stylesheet loses its dead weight and its
 magic numbers, with zero visual change.** Details in the per-commit bodies.
 
 ### Changed
@@ -14,7 +16,7 @@ magic numbers, with zero visual change.** Details in the per-commit bodies.
 - **18 defined-but-never-referenced custom properties deleted** (adopt-or-delete audit across both themes): `--yf-ink`, `--yf-mint`, `--yf-surface-muted` and the unconsumed half of the `--color-*` semantic set. DESIGN_TOKENS.md updated — re-add tokens with an adopter, not speculatively.
 - **Known size trade-off:** the new blur/z-index token definitions add ~870 B to the built CSS (minifiers don't inline custom properties); the purge + consolidation remove ~5.3 kB net.
 
-**Performance-architecture release (M3) — the app reacts faster and the codebase got structurally simpler.** Details in the per-commit bodies.
+**M3 — performance architecture: the app reacts faster and the codebase got structurally simpler.** Details in the per-commit bodies.
 
 ### Changed (M3)
 - **Live updates no longer re-render the whole app.** High-traffic pages subscribe to exactly the data they show (store slice selectors), so a trip edit or a realtime ping no longer redraws My Trips, Explore, and the entire page tree.

@@ -62,6 +62,13 @@
   --yf-nav-glass: rgba(255, 255, 255, 0.58);    /* nav pill — user-decided (AGENTS rule 9) */
   --yf-glass-border: rgba(255, 255, 255, 0.65);
   --yf-glass-sheen: rgba(255, 255, 255, 0.35);  /* top-edge highlight on glass panels */
+  /* backdrop blur ladder (value-identical mappings): sm = small frosts over
+     imagery (chips), md = panel frost (map legend/chips), lg = deep frost
+     (pillbars, dropdown triggers). Heavier recipes (12/14/18px) stay
+     component-local — each belongs to exactly one surface family. */
+  --yf-blur-sm: 4px;
+  --yf-blur-md: 6px;
+  --yf-blur-lg: 8px;
 
   /* ---- motion (subtle & premium): one easing family, three speeds ---- */
   --ease-out: cubic-bezier(.22, .61, .36, 1);
@@ -250,8 +257,8 @@
 .glass {
   background: var(--yf-glass);
   border: 1px solid var(--yf-glass-border);
-  -webkit-backdrop-filter: blur(18px) saturate(1.25);
-  backdrop-filter: blur(18px) saturate(1.25);
+  -webkit-backdrop-filter: blur(18px) saturate(1.2);
+  backdrop-filter: blur(18px) saturate(1.2);
   box-shadow: inset 0 1px 0 var(--yf-glass-sheen);
 }
 
@@ -463,7 +470,6 @@ a.btn { text-decoration: none; }
   background-repeat: no-repeat;
   background-position: right 14px center;
   background-size: 11px 7px;
-  background-repeat: no-repeat;
   transition: border-color .15s ease, box-shadow .15s ease, background-color .15s ease;
 }
 .select:hover { border-color: var(--teal); }
@@ -505,7 +511,7 @@ a.btn { text-decoration: none; }
 .filter-pillbar {
   display: inline-flex; gap: 2px; padding: 4px; flex-wrap: wrap;
   background: var(--yf-glass); border: 1px solid var(--yf-glass-border);
-  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(var(--yf-blur-lg)); backdrop-filter: blur(var(--yf-blur-lg));
   border-radius: 999px; box-shadow: var(--shadow-soft);
 }
 .filter-pillbar .clickable-chip { border: none; background: transparent; }
@@ -527,7 +533,7 @@ a.btn { text-decoration: none; }
 .explore-chips .clickable-chip {
   background: var(--yf-glass);
   border: 1px solid var(--yf-glass-border);
-  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(var(--yf-blur-lg)); backdrop-filter: blur(var(--yf-blur-lg));
   box-shadow: var(--shadow-sm);
   color: var(--text-2);
 }
@@ -924,8 +930,8 @@ a.btn { text-decoration: none; }
    corners — most of the map stays visible between and above them. They use the
    shared .glass treatment (deep blur + sheen) so the map visibly reads through. */
 .board-info, .board-pulse {
-  -webkit-backdrop-filter: blur(18px) saturate(1.25);
-  backdrop-filter: blur(18px) saturate(1.25);
+  -webkit-backdrop-filter: blur(18px) saturate(1.2);
+  backdrop-filter: blur(18px) saturate(1.2);
 }
 .board-info { flex: 0 1 264px; border-radius: 16px; padding: 10px 12px; max-width: 264px; box-shadow: inset 0 1px 0 var(--yf-glass-sheen), var(--shadow-soft); }
 .board-fit {
@@ -1254,7 +1260,7 @@ a.btn { text-decoration: none; }
 }
 .itin-cover-fallback { opacity: .9; }
 .itin-cover-fallback { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 44px; }
-.itin-cover .chip { position: absolute; top: 11px; left: 11px; background: rgba(255,255,255,.92); color: var(--text); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
+.itin-cover .chip { position: absolute; top: 11px; left: 11px; background: rgba(255,255,255,.92); color: var(--text); -webkit-backdrop-filter: blur(var(--yf-blur-sm)); backdrop-filter: blur(var(--yf-blur-sm)); }
 .itin-body { padding: 15px 17px 17px; display: flex; flex-direction: column; gap: 9px; flex: 1; }
 /* Trip names can be long — cap at two lines so card grids stay aligned. */
 .itin-body .card-title {
@@ -1297,7 +1303,7 @@ a.btn { text-decoration: none; }
 .map-day-filter { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; }
 .map-day-chip {
   border: 1px solid var(--yf-glass-border); background: var(--yf-glass);
-  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(var(--yf-blur-md)); backdrop-filter: blur(var(--yf-blur-md));
   color: var(--text-2); border-radius: 999px; font-size: 12px; font-weight: 700;
   padding: 5px 12px; white-space: nowrap; transition: background var(--t-fast) var(--ease-out),
     color var(--t-fast) var(--ease-out), border-color var(--t-fast) var(--ease-out), box-shadow var(--t-fast) var(--ease-out);
@@ -1311,8 +1317,8 @@ a.btn { text-decoration: none; }
 /* Map key: hidden behind a small ⓘ chip by default (it used to blanket the
    bottom-right corner); the body card reopens above the same corner. */
 .map-legend { position: absolute; right: 12px; bottom: 12px; z-index: 5; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
-.map-legend-toggle { border: 1.5px solid rgba(255,255,255,.5); background: rgba(255,255,255,.85); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); color: var(--text); border-radius: 999px; font-size: 12px; font-weight: 700; padding: 5px 12px; white-space: nowrap; }
-.map-legend-body { background: rgba(255,255,255,.92); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); border-radius: 12px; padding: 8px 12px; font-size: 11.5px; color: var(--text-2); font-weight: 600; max-width: min(440px, 78vw); }
+.map-legend-toggle { border: 1.5px solid rgba(255,255,255,.5); background: rgba(255,255,255,.85); -webkit-backdrop-filter: blur(var(--yf-blur-md)); backdrop-filter: blur(var(--yf-blur-md)); color: var(--text); border-radius: 999px; font-size: 12px; font-weight: 700; padding: 5px 12px; white-space: nowrap; }
+.map-legend-body { background: rgba(255,255,255,.92); -webkit-backdrop-filter: blur(var(--yf-blur-md)); backdrop-filter: blur(var(--yf-blur-md)); border-radius: 12px; padding: 8px 12px; font-size: 11.5px; color: var(--text-2); font-weight: 600; max-width: min(440px, 78vw); }
 [data-theme='dark'] .map-legend-toggle { background: rgba(22,35,58,.88); color: var(--text); }
 [data-theme='dark'] .map-legend-body { background: rgba(22,35,58,.92); }
 /* Expand mode — the map shell breaks out into a fixed overlay so the canvas
@@ -1542,7 +1548,7 @@ a.btn { text-decoration: none; }
   appearance: none; -webkit-appearance: none;
   padding: 5px 26px 5px 10px; border-radius: 999px;
   border: 1px solid var(--yf-glass-border); background-color: var(--yf-glass);
-  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(var(--yf-blur-lg)); backdrop-filter: blur(var(--yf-blur-lg));
   /* soft teal chevron replacing the native OS arrow */
   background-image:
     linear-gradient(45deg, transparent 49%, var(--teal-deep) 50%),
@@ -2328,7 +2334,7 @@ html.vt-active :where(*) {
 .explore-hero-search {
   max-width: 520px; width: 100%; border-radius: 999px; padding: 13px 18px;
   border: 1px solid rgba(255, 255, 255, .3); background: rgba(255, 255, 255, .12); color: #fff;
-  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(var(--yf-blur-lg)); backdrop-filter: blur(var(--yf-blur-lg));
 }
 .explore-hero-search::placeholder { color: rgba(226, 241, 239, .75); }
 .explore-hero-search:focus { background: rgba(255, 255, 255, .18); border-color: rgba(255, 255, 255, .5); outline: none; }

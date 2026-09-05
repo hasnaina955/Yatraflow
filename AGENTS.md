@@ -387,3 +387,6 @@ by orphan check** (Sep 2026): the reported "802 orphan rows" turned out to be
   CHANGELOG, ROADMAP, DESIGN_TOKENS; everything else lives in `docs/`.
 
 - **iOS Safari never vibrates — only Capacitor native does.** `navigator.vibrate` is unsupported on all iOS browsers (WebKit). Haptics that must work on iPhone require `@capacitor/haptics` inside a Capacitor iOS shell (`Capacitor.isNativePlatform()`). Keep the web vibrate fallback for Android Chrome; never assume a pure-web PWA will taptic on iOS.
+
+- **Every open issue carries exactly one `priority: P0`–`P3` label** (scheme added Sep 2026; the definitions live in the label descriptions, read them with `gh label list` rather than guessing). P0 = data loss/corruption, security, or a broken core flow — fix before shipping. P1 = real correctness or user-visible bug with a workaround — fix this milestone. P2 = low-risk, narrow surface — slot when convenient. P3 = hygiene, cosmetics, or blocked on a product decision. Assign one at creation; re-triage only by re-reading the definitions, never by gut severity. The label is a *routing* signal only — the justification belongs in the issue body. Queue via `gh issue list --state open --label 'priority: P0'`, and re-derive counts from `gh` rather than recalling them (same rule as §2.6).
+

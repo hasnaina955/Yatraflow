@@ -17,6 +17,7 @@ import type { LatLngPoint } from '../data/types'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
 import { toast } from '../components/ui'
 import { isMissingColumnError, rowToTrip, tripToRow, type OptionalColumnsProbe, type TripRow } from '../lib/tripRow'
+import { suggestionToRow, decisionToRow, activityToRow, notificationToRow, publishedToRow } from '../lib/restoreRows'
 import { reduceSlice, applyMemberChange, isRecentLocalWrite } from '../lib/realtimeCore'
 import { MISSING_BACKEND_MESSAGE, describeAuthFailure } from '../lib/authErrors'
 import type { RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/supabase-js'
@@ -151,13 +152,27 @@ export async function logout(): Promise<void> {
  *  redundant hydrate for the same user now just awaits the in-flight one. */
 let activeHydrate: { userId: string | null; promise: Promise<void> } | null = null
 
+/** Monotonic id of the newest auth intent. Every auth event (sign-in, account
+ *  switch, sign-out) bumps it, and a hydrate commits its `patch()` only while its
+ *  own generation is still current. Without this, `hydrate(null)` on logout
+ *  cleared the cache and nulled `activeHydrate` while a hydrate was still in
+ *  flight, and that hydrate then re-patched the PREVIOUS user's trips — and their
+ *  `sessionUserId` — into the emptied cache, so the next person on that browser
+ *  could see, and be treated as, the account that had just signed out. Issue #45. */
+let hydrateGen = 0
+
 /** Call once on app mount. Subscribes to auth and hydrates the cache. */
 export function init(): void {
   if (initialized) return
   initialized = true
 
   const hydrate = async (userId: string | null) => {
+    const gen = ++hydrateGen
+
     if (!userId) {
+      // Bumping hydrateGen is the fix: any hydrate still in flight now resolves
+      // onto a stale generation and discards its own patch, instead of
+      // resurrecting the account that just signed out.
       disconnectRealtime()
       patch({ users: [], trips: [], suggestions: [], decisions: [], activity: [], notifications: [], published: [], sessionUserId: null })
       commit()
@@ -171,12 +186,14 @@ export function init(): void {
       await activeHydrate.promise
       return
     }
-    const promise = hydrateFromSupabase(userId)
+    const promise = hydrateFromSupabase(userId, gen)
     activeHydrate = { userId, promise }
     try { await promise } finally {
       if (activeHydrate?.userId === userId) activeHydrate = null
     }
-    connectRealtime(userId)
+    // Only go live for the account the cache still belongs to: a sign-out or an
+    // account switch during the hydration above bumped hydrateGen.
+    if (gen === hydrateGen && cache.sessionUserId === userId) connectRealtime(userId)
   }
 
   supabase.auth.getSession().then(({ data }) => { void hydrate(data.session?.user?.id ?? null) })
@@ -185,7 +202,7 @@ export function init(): void {
   })
 }
 
-async function hydrateFromSupabase(userId: string): Promise<void> {
+async function hydrateFromSupabase(userId: string, gen: number): Promise<void> {
   try {
     // Stage 1 - global catalogs + the user's memberships. Explore reads the curated
     // published_itineraries table and profiles are small rows for user avatars,so
@@ -248,6 +265,11 @@ async function hydrateFromSupabase(userId: string): Promise<void> {
     const pubRows = mapOrSkip((pubRes.data ?? []), rowToPublished)
     pubRes.error && console.error('[yatraflow] hydrate published failed', pubRes.error)
 
+    // Stale run — a sign-out or account switch bumped hydrateGen while these
+    // queries were in flight. Writing now would leak the previous account's rows
+    // (and its sessionUserId) into the new session, so drop the whole patch.
+    if (gen !== hydrateGen) return
+
     patch({
       users,
       trips: tripList,
@@ -263,7 +285,7 @@ async function hydrateFromSupabase(userId: string): Promise<void> {
     commit()
 
     // First-time users get the demo trips seeded into their account.
-    if (tripList.length === 0) await seedDemoFor(userId)
+    if (tripList.length === 0) await seedDemoFor(userId, gen)
   } catch (e) {
     console.error('[yatraflow] hydration failed', e)
     toast('Could not load your data - check your connection.')
@@ -283,7 +305,7 @@ function mapOrSkip<T>(rows: unknown[], to: (row: any) => T): T[] {
 
 // ---------------- Seeding demo trips ----------------
 
-async function seedDemoFor(userId: string): Promise<void> {
+async function seedDemoFor(userId: string, gen: number = hydrateGen): Promise<void> {
   const seedTrips = structuredClone(seedData.trips)
   for (const t of seedTrips) {
     const owner: TripMember = { userId, role: 'owner', joinedAt: Date.now() }
@@ -297,7 +319,7 @@ async function seedDemoFor(userId: string): Promise<void> {
     markLocalWrite('trips', trip.id)
   }
   // re-hydrate so the freshly seeded trips show up
-  await hydrateFromSupabase(userId)
+  await hydrateFromSupabase(userId, gen)
 }
 
 // ---------------- Seeding demo trips ----------------
@@ -535,23 +557,125 @@ export function duplicateTrip(source: Trip, ownerId: ID, makePublic?: boolean): 
   return copy
 }
 
+// ---------------- Trip deletion + undo ----------------
+
+/** What `delete from public.trips` takes with it. Six tables cascade off a trip
+ *  (supabase/schema.sql), and the itinerary is NOT one of them — `days` and
+ *  `expenses` are JSONB columns on the trips row, so undo always brought the
+ *  plan back intact. What vanished for good was the collaboration layer: every
+ *  vote, every decision, the activity feed, everyone's notifications, and the
+ *  public Explore link along with its view/copy counts. Captured before the
+ *  delete so undo can put it back. Issue #43. */
+interface TripSnapshot {
+  trip: Trip
+  index: number
+  ownerId: ID | null
+  suggestions: StopSuggestion[]
+  decisions: TripDecision[]
+  activity: ActivityEntry[]
+  notifications: Notification[]
+  published: PublishedItinerary[]
+}
+
+/** The last undoable deletion. The undo toast is the only consumer, so one slot
+ *  is exactly as much history as the UI is able to offer. */
+let lastDeletedTrip: TripSnapshot | null = null
+
+/** A trip's owner. There is no `ownerId` on the Trip type — ownership lives only
+ *  in the members array — so this is the one place to ask. Reading `members[0]`
+ *  instead hands the trip to whoever happens to be first in that array. */
+export function tripOwner(trip: Trip): ID | null {
+  return trip.members?.find(m => m.role === 'owner')?.userId
+    ?? trip.members?.[0]?.userId
+    ?? null
+}
+
+function snapshotTrip(trip: Trip, index: number): TripSnapshot {
+  return {
+    trip,
+    index,
+    ownerId: tripOwner(trip),
+    suggestions: cache.suggestions.filter(s => s.tripId === trip.id),
+    decisions: cache.decisions.filter(d => d.tripId === trip.id),
+    activity: cache.activity.filter(a => a.tripId === trip.id),
+    notifications: cache.notifications.filter(n => n.tripId === trip.id),
+    published: cache.published.filter(p => p.tripId === trip.id),
+  }
+}
+
 export function deleteTrip(id: ID): void {
   const idx = cache.trips.findIndex(t => t.id === id)
   if (idx < 0) return
   const removed = cache.trips[idx]
+  lastDeletedTrip = snapshotTrip(removed, idx)
   cache.trips = cache.trips.filter(t => t.id !== id)
   commit()
   markLocalWrite('trips', id)
-  void supabase.from('trips').delete().eq('id', id).then(({ error }) => { if (error) { cache.trips.splice(idx, 0, removed); commit() } })
+  void supabase.from('trips').delete().eq('id', id).then(({ error }) => {
+    if (error) {
+      cache.trips.splice(idx, 0, removed)
+      commit()
+      lastDeletedTrip = null
+    }
+  })
 }
 
 /** Re-insert a trip at its old position — powers Undo on trip deletion. */
 export function restoreTrip(trip: Trip, index: number): void {
   if (cache.trips.some(t => t.id === trip.id)) return
+  const snap = lastDeletedTrip?.trip.id === trip.id ? lastDeletedTrip : null
+  lastDeletedTrip = null
   cache.trips.splice(Math.min(index, cache.trips.length), 0, trip)
   commit()
+  void restoreTripData(trip, snap)
+}
+
+async function restoreRows(table: string, rows: unknown[], upsert = false): Promise<string | null> {
+  if (!rows.length) return null
+  const { error } = await (upsert ? supabase.from(table).upsert(rows) : supabase.from(table).insert(rows))
+  return error ? (error.message ?? 'write failed') : null
+}
+
+async function restoreTripData(trip: Trip, snap: TripSnapshot | null): Promise<void> {
   markLocalWrite('trips', trip.id)
-  if (trip.members?.[0]) void persistTrip(trip, trip.members[0].userId)
+  // persistTrip writes this value straight into trips.owner_id. Passing
+  // members[0].userId here used to transfer ownership to an arbitrary
+  // collaborator every time a shared trip was deleted and undone.
+  const ownerId = snap?.ownerId ?? tripOwner(trip)
+  if (ownerId) await persistTrip(trip, ownerId)
+  if (!snap) return
+
+  // Order matters: every child policy gates on is_editor(trip_id), a membership
+  // subquery, so these writes are rejected unless the trip row and its member
+  // rows are already in place — which the await above is what guarantees.
+  // Per-table on purpose: losing the activity feed must not also cost the user
+  // their public link. Rows keep their original ids, and every child realtime
+  // handler is an idempotent upsert keyed on id, so the echo cannot double-add.
+  const results = await Promise.all([
+    restoreRows('suggestions', snap.suggestions.map(suggestionToRow)),
+    restoreRows('decisions', snap.decisions.map(decisionToRow)),
+    restoreRows('activity', snap.activity.map(activityToRow)),
+    restoreRows('notifications', snap.notifications.map(notificationToRow)),
+    restoreRows('published_itineraries', snap.published.map(publishedToRow), true),
+  ])
+
+  const failed = [
+    ['suggestions', results[0]],
+    ['decisions', results[1]],
+    ['activity', results[2]],
+    ['notifications', results[3]],
+    ['published link', results[4]],
+  ].filter(([, msg]) => msg) as [string, string][]
+
+  if (!failed.length) return
+  console.error('[yatraflow] undo could not restore:', failed.map(([t, m]) => `${t} (${m})`).join(', '))
+  // The public link is the one loss the user would notice and could not explain,
+  // so it is the one worth saying out loud. published_itineraries RLS is gated
+  // on creator_id, meaning a collaborator undoing their own delete genuinely
+  // cannot re-publish the owner's itinerary.
+  if (failed.some(([t]) => t === 'published link')) {
+    toast('Trip restored, but its public link could not be restored - republish it from the trip.')
+  }
 }
 
 /** Put a removed member back — powers Undo on member removal. */
@@ -1027,20 +1151,39 @@ function echoWindowEh(table: string, id: string): boolean {
   return isRecentLocalWrite(recentLocalWrites, table, id, Date.now())
 }
 
+/** Realtime payloads come off the wire, so they are not ours to trust. An
+ *  unexpected shape throws, and a throw from inside a `postgres_changes` callback
+ *  escapes into the realtime client's own event dispatch instead of stopping
+ *  here: the worst case is the subscription going down with nothing said out
+ *  loud, and the user carries on editing a trip that is no longer live, with no
+ *  error on screen and no hint that collaborators have moved on. One bad event
+ *  must cost one event, not the session.
+ *
+ *  Note the try/catch in connectRealtime below only covers setting the
+ *  subscription up - it cannot catch anything a callback throws minutes later.
+ *  Issue #44. */
+function dispatchRealtimeEvent(table: string, payload: RealtimePostgresChangesPayload<Record<string, unknown>>): void {
+  try {
+    applyRealtimeEvent(table, payload)
+  } catch (e) {
+    console.error(`[yatraflow] realtime ${table} event dropped`, e)
+  }
+}
+
 /** Start listening for row changes. Call after a successful hydration. */
 export function connectRealtime(_userId: string): void {
   if (!isSupabaseConfigured || realtimeChannel) return
   try {
     realtimeChannel = supabase
       .channel('yatraflow-live')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'trips' }, p => applyRealtimeEvent('trips', p))
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'trip_members' }, p => applyRealtimeEvent('trip_members', p))
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'suggestions' }, p => applyRealtimeEvent('suggestions', p))
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'decisions' }, p => applyRealtimeEvent('decisions', p))
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'activity' }, p => applyRealtimeEvent('activity', p))
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, p => applyRealtimeEvent('notifications', p))
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, p => applyRealtimeEvent('profiles', p))
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'published_itineraries' }, p => applyRealtimeEvent('published_itineraries', p))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'trips' }, p => dispatchRealtimeEvent('trips', p))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'trip_members' }, p => dispatchRealtimeEvent('trip_members', p))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'suggestions' }, p => dispatchRealtimeEvent('suggestions', p))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'decisions' }, p => dispatchRealtimeEvent('decisions', p))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'activity' }, p => dispatchRealtimeEvent('activity', p))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, p => dispatchRealtimeEvent('notifications', p))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, p => dispatchRealtimeEvent('profiles', p))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'published_itineraries' }, p => dispatchRealtimeEvent('published_itineraries', p))
       .subscribe()
   } catch (e) {
     console.error('[yatraflow] realtime subscribe failed', e)

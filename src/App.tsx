@@ -1,13 +1,13 @@
 // ============ YatraFlow app shell ============
 // Hash-based routing so the built app works from any static host or file://.
-import { useEffect, useRef, useState, type MouseEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import { createPortal } from 'react-dom'
 import {
   Bell, Compass, Import, Inbox, Luggage, Link2, Mail, Menu, Moon, Plus,
   Settings, Sparkles, Sun, Tent, X,
 } from 'lucide-react'
 import type { Trip } from './data/types'
-import { useDb, currentUser, logout, notificationsFor, markAllNotificationsRead, tripById, joinViaInvite, duplicateTrip, init, useStoreReady } from './store/store'
+import { useDb, currentUser, useUsers, useNotifications, useSessionUserId, logout, markAllNotificationsRead, tripById, joinViaInvite, duplicateTrip, init, useStoreReady } from './store/store'
 import { Avatar, BrandMark, ToastZone, useClickOutside, toast } from './components/ui'
 import { decodeTripSnapshot } from './lib/snapshot'
 import { scrollBehavior } from './lib/motion'
@@ -25,8 +25,14 @@ function currentRoute(): string {
 }
 
 export default function App() {
-  const db = useDb()
-  const me = currentUser(db)
+  // Slice subscriptions: the shell re-renders only when profiles, the session
+  // or notifications change — a trip edit no longer re-renders the entire
+  // page tree through App.
+  const users = useUsers()
+  const sessionUserId = useSessionUserId()
+  const notifications = useNotifications()
+  // Same semantics as currentUser(): the profile whose id matches sessionUserId.
+  const me = useMemo(() => users.find(u => u.id === sessionUserId) ?? null, [users, sessionUserId])
   const [route, setRoute] = useState(currentRoute)
   const [dark, setDark] = useState(() => localStorage.getItem('yatraflow_theme') === 'dark')
   const [notifOpen, setNotifOpen] = useState(false)
@@ -206,7 +212,14 @@ export default function App() {
     }
   }
 
-  const notifs = me ? notificationsFor(me.id) : []
+  // Same filter+sort as notificationsFor(), but derived from the subscribed
+  // notifications slice so the bell stays live without a full-cache subscription.
+  const notifs = useMemo(
+    () => sessionUserId
+      ? notifications.filter(n => n.userId === sessionUserId).sort((a, b) => b.at - a.at)
+      : [],
+    [notifications, sessionUserId],
+  )
   const unread = notifs.filter(n => !n.read).length
 
   return (

@@ -62,6 +62,33 @@ export function useStoreReady(): boolean {
   return useSyncExternalStore(subscribe, () => cache.ready)
 }
 
+// ---------------- Slice-level selectors ----------------
+// Since M3.1 every store mutation REPLACES its slice (cache.trips = [...]),
+// so these per-slice snapshots are reference-stable between commits that
+// touch them. A component subscribed to one slice therefore no longer
+// re-renders when an unrelated slice commits (e.g. App no longer re-renders
+// the whole page tree because a trip edit changed cache.trips).
+
+export function useTrips(): Trip[] {
+  return useSyncExternalStore(subscribe, () => cache.trips)
+}
+
+export function usePublished(): PublishedItinerary[] {
+  return useSyncExternalStore(subscribe, () => cache.published)
+}
+
+export function useUsers(): User[] {
+  return useSyncExternalStore(subscribe, () => cache.users)
+}
+
+export function useNotifications(): Notification[] {
+  return useSyncExternalStore(subscribe, () => cache.notifications)
+}
+
+export function useSessionUserId(): ID | null {
+  return useSyncExternalStore(subscribe, () => cache.sessionUserId)
+}
+
 /** Immutable trip update: the mutator edits a CLONE that replaces the cached
  *  trip (and bumps updatedAt unless opted out). In-place edits kept the trip
  *  reference stable, so every `useMemo([trip])` downstream was stale-prone and

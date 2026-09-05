@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react'
 import {
   Calendar, Compass, Eye, GitFork, Heart, MapPin, Search, Sparkles, Star, Wallet, X,
 } from 'lucide-react'
-import { useDb, currentUser, tripById, duplicateTrip, registerPubCopy } from '../store/store'
+import { usePublished, useUsers, useTrips, useSessionUserId, tripById, duplicateTrip, registerPubCopy } from '../store/store'
 import { computeHealth, formatInr } from '../lib/engine'
 import { useSavedPubs } from '../lib/savedPubs'
 import { Avatar, Chip, EmptyState, toast } from '../components/ui'
@@ -13,8 +13,12 @@ type SortKey = 'popular' | 'budget-asc' | 'budget-desc' | 'duration'
 const STYLES = ['relaxed', 'balanced', 'packed', 'adventure', 'luxury', 'budget', 'family', 'spiritual', 'food-focused', 'creator'] as const
 
 export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void }) {
-  const db = useDb()
-  const me = currentUser(db)
+  // Slice subscriptions: Explore re-renders when the published catalog,
+  // profiles, trips or the session change — not on every store commit.
+  const published = usePublished()
+  const users = useUsers()
+  const trips = useTrips()
+  const me = useSessionUserId()
   const { saved, isSaved, toggleSaved } = useSavedPubs()
   // F-22: filters + sort live in the hash query (#/explore?q=goa&sort=budget-asc)
   // so they survive a refresh and can be shared; sortKey finally gets a control.
@@ -41,13 +45,13 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
   const popularity = (p: { views: number; copies: number }) => p.views + p.copies * 5
 
   const pubs = useMemo(() => {
-    let list = [...db.published]
+    let list = [...published]
     if (q.trim()) {
       const needle = q.trim().toLowerCase()
       list = list.filter(p =>
         p.title.toLowerCase().includes(needle) ||
         p.routeSummary.join(' ').toLowerCase().includes(needle) ||
-        (userOf(db.users, p.creatorId)?.profile.name.toLowerCase().includes(needle) ?? false),
+        (userOf(users, p.creatorId)?.profile.name.toLowerCase().includes(needle) ?? false),
       )
     }
     if (style !== 'all') list = list.filter(p => p.travelStyle === style)
@@ -59,9 +63,9 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
     }
     if (savedOnly) list = list.filter(p => saved.includes(p.id))
     return sortList(list)
-  }, [db.published, db.users, q, style, maxBudget, duration, sortKey, savedOnly, saved])
+  }, [published, users, q, style, maxBudget, duration, sortKey, savedOnly, saved])
 
-  function sortList(list: typeof db.published) {
+  function sortList(list: typeof published) {
     switch (sortKey) {
       case 'budget-asc': return list.sort((a, b) => a.estimatedBudgetPerPersonInr - b.estimatedBudgetPerPersonInr)
       case 'budget-desc': return list.sort((a, b) => b.estimatedBudgetPerPersonInr - a.estimatedBudgetPerPersonInr)
@@ -72,22 +76,24 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
 
   // Featured: the community's most-forked/viewed plan, independent of filters —
   // it leads the page with its credibility explained (§6.10).
-  const featured = useMemo(() => [...db.published].sort((a, b) => popularity(b) - popularity(a))[0], [db.published])
-  const featuredTrip = featured ? tripById(featured.tripId) : undefined
+  const featured = useMemo(() => [...published].sort((a, b) => popularity(b) - popularity(a))[0], [published])
+  // Read the underlying trip from the trips slice (subscribed) so the featured
+  // health score stays live without subscribing to the whole cache.
+  const featuredTrip = featured ? trips.find(t => t.id === featured.tripId) : undefined
   const featuredHealth = featuredTrip ? computeHealth(featuredTrip).score : undefined
 
   const styleCounts = useMemo(() => {
     const counts = new Map<string, number>()
-    for (const p of db.published) counts.set(p.travelStyle, (counts.get(p.travelStyle) ?? 0) + 1)
+    for (const p of published) counts.set(p.travelStyle, (counts.get(p.travelStyle) ?? 0) + 1)
     return counts
-  }, [db.published])
+  }, [published])
 
   function forkTrip(slug: string) {
-    const pub = db.published.find(p => p.id === slug)
+    const pub = published.find(p => p.id === slug)
     const src = pub ? tripById(pub.tripId) : undefined
     if (!pub || !src) { toast('That itinerary is no longer available.', 'err'); return }
     if (!me) { toast('Log in first to fork this trip into your plans.'); onNavigate('/auth'); return }
-    duplicateTrip(src, me.id)
+    duplicateTrip(src, me)
     registerPubCopy(slug)
     toast(`“${pub.title}” forked to My trips ✈️`)
     onNavigate('/trips')
@@ -174,7 +180,7 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
               <p className="featured-tagline">{featured.tagline}</p>
               <p className="featured-credibility">
                 Why featured: <GitFork size={12} aria-hidden style={{ verticalAlign: '-2px', margin: '0 2px' }} /> {featured.copies} fork{featured.copies === 1 ? '' : 's'} · <Eye size={12} aria-hidden style={{ verticalAlign: '-2px', margin: '0 2px' }} /> {featured.views} views
-                {featuredHealth !== undefined && <> · trip health {featuredHealth}/100</>} — by {userOf(db.users, featured.creatorId)?.profile.name ?? 'a YatraFlow traveller'}{userOf(db.users, featured.creatorId)?.profile.isCreator && <Sparkles size={11} aria-hidden style={{ verticalAlign: '-1px', marginLeft: 2 }} />}.
+                {featuredHealth !== undefined && <> · trip health {featuredHealth}/100</>} — by {userOf(users, featured.creatorId)?.profile.name ?? 'a YatraFlow traveller'}{userOf(users, featured.creatorId)?.profile.isCreator && <Sparkles size={11} aria-hidden style={{ verticalAlign: '-1px', marginLeft: 2 }} />}.
               </p>
               <div className="featured-meta">
                 <span><Calendar size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />{featured.durationDays} days</span>
@@ -215,7 +221,7 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
         ) : (
           <div className="explore-grid">
             {pubs.map(p => {
-              const creator = userOf(db.users, p.creatorId)
+              const creator = userOf(users, p.creatorId)
               return (
                 <div key={p.id} className="card itin-card">
                   <button className="save-heart" aria-pressed={isSaved(p.id)} aria-label={isSaved(p.id) ? 'Remove from saved' : 'Save itinerary'}

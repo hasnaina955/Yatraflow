@@ -514,6 +514,7 @@ function autoAnchor(coords: LatLngPoint, name: string): ItineraryStop {
 // auth error must not pin the columns to false for the whole session (#17), or
 // fuel economy / pump price / one-way settings silently stop persisting.
 let optionalColumnsProbe: Promise<OptionalColumnsProbe> | null = null
+let optionalColumnsWarned = false
 
 function tripsHaveOptionalColumns(): Promise<OptionalColumnsProbe> {
   if (!isSupabaseConfigured) return Promise.resolve({ economy: false, price: false, roundTrip: false, cover: false })
@@ -529,7 +530,10 @@ async function probeOptionalColumns(): Promise<OptionalColumnsProbe> {
     probeOptionalColumn('cover_image_url'),
   ])
   if (!economy || !price || !roundTrip) {
-    console.warn('[yatraflow] trips optional columns missing — run supabase/schema.sql; fuel/round-trip inputs stay session-only until then.')
+    if (!optionalColumnsWarned) {
+      console.warn('[yatraflow] trips optional columns missing — run supabase/schema.sql; fuel/round-trip inputs stay session-only until then.')
+      optionalColumnsWarned = true
+    }
   }
   return { economy, price, roundTrip, cover }
 }

@@ -4,9 +4,19 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ## [Unreleased]
 
-**Performance-architecture release (M3) — the app reacts faster and the codebase got structurally simpler.** Details in the per-commit bodies.
+**Design-system hygiene (M4) — the stylesheet loses its dead weight and its
+magic numbers, with zero visual change.** Details in the per-commit bodies.
 
 ### Changed
+- **Dead CSS purge (~130 lines, built CSS −5.3 kB).** The unused hero product-preview mock (`.hero-preview` + 27 `.hp-*` rules), `.route-flow`, `.filter-bar`, a contradictory `.locked-overlay` rule pair, and 30+ other zero-usage rules removed after a template-literal-safe grep audit (the dynamically-constructed `kind-/sev-/status-/cat-/tone-` families kept as alive).
+- **All scattered mobile `@media` blocks are consolidated** into one grouped section at the end of `styles.css` — every 720px rule now lives in a single block (the documented convention), with conflicts resolved to the values that already won the cascade (e.g. `.map-day-chip` keeps its 8px 13px mobile sizing). Winners audited per selector+property; nothing moves visually on any viewport.
+- **Glass + z-index tokens.** New `--yf-blur-sm/md/lg` ladder (4/6/8px frosts migrated value-identically; the heavier 12–18px recipes stay component-local) and one saturate value (1.2) across all glass blurs. Every z-index maps to a documented 15-rung ladder (`--z-under` … `--z-impact`) preserving the exact current ordering — the impact sheet (210) still sits above the toast zone (200). `--shadow-navy-rgb` replaces the 26 repeated `rgba(11,37,69,…)` literals, and the hero gradients reference `--gray-900` instead of a hardcoded `#0B2545`.
+- **18 defined-but-never-referenced custom properties deleted** (adopt-or-delete audit across both themes): `--yf-ink`, `--yf-mint`, `--yf-surface-muted` and the unconsumed half of the `--color-*` semantic set. DESIGN_TOKENS.md updated — re-add tokens with an adopter, not speculatively.
+- **Known size trade-off:** the new blur/z-index token definitions add ~870 B to the built CSS (minifiers don't inline custom properties); the purge + consolidation remove ~5.3 kB net.
+
+**Performance-architecture release (M3) — the app reacts faster and the codebase got structurally simpler.** Details in the per-commit bodies.
+
+### Changed (M3)
 - **Live updates no longer re-render the whole app.** High-traffic pages subscribe to exactly the data they show (store slice selectors), so a trip edit or a realtime ping no longer redraws My Trips, Explore, and the entire page tree.
 - **Timeline scrolling and editing get cheaper with trip size.** Day sections only re-render when their own data changes.
 - **The workspace file you edit is the tab you're editing.** The 2,945-line `TripWorkspace.tsx` is now ten focused files under `pages/trip/` — one per tab plus a 317-line shell.

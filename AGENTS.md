@@ -201,11 +201,12 @@ Hard rules (each learned the hard way — do not relearn them):
   targets ≥40px; inputs 16px on mobile (iOS Safari zooms smaller ones).
 - **MapLibre/mapcn**: don't import `maplibre-gl` types directly in components —
   use the structural-cast pattern (`GeoJSONSourceLike` in TripMap.tsx).
-- **Overlay z-index ladder** — toast 200 > modal 100 > impact sheet 90 >
-  notif 80 > expanded map shell 70. Any full-page overlay (e.g. the map's
-  `⤢ Expand` mode, `.map-shell--expanded`) must sit BELOW the dialogs it can
-  spawn, so modals/impact sheets opened from it still layer on top — no
-  collapse-on-open coordination needed. Corollary: container-size changes need
+- **Overlay z-index ladder** — use the `--z-*` token rungs in `styles.css` (`:root`, M4):
+  impact sheet 210 > toast 200 > modal 100 > ai-drawer 90 > notif 80 > expanded map
+  shell 70 / ai-fab 70 (tie — DOM order decides) > nav glass 60 > mobile dock 55.
+  Any full-page overlay (e.g. the map's `⤢ Expand` mode, `.map-shell--expanded`) must sit BELOW the dialogs it can spawn, so modals/impact sheets opened from it still layer on top — no
+  collapse-on-open coordination needed. The impact sheet is DELIBERATELY above toasts
+  (210 > 200): a transient toast must never cover the Keep/Remove controls. Corollary: container-size changes need
   no manual `map.resize()` — mapcn's wrapper already runs a ResizeObserver
   that re-fits the canvas (map.tsx).
 - **Basemaps are OpenFreeMap (keyless, commercial-OK) — never reintroduce CARTO
@@ -318,6 +319,15 @@ Hard rules (each learned the hard way — do not relearn them):
   comment duplicated a `const` instead of moving it. After any multi-part
   restructuring edit in this repo, run `npx tsc -b` immediately and diff-review
   before continuing (M3.3, Sep 2026).
+
+- **`src/styles.css` is CRLF on disk — Node one-off scripts must handle `\r`.**
+  Bulk CSS edits via `node` scripts split on `\n`, so every line carries a
+  trailing `\r` and exact-string anchors silently fail (or, worse, writing
+  LF-only sections leaves the file mixed-ending). Strip `\r` before matching,
+  and re-normalize to CRLF after writing (`git show HEAD:file` is LF-normalized,
+  so byte-diffs against it need `\r` stripped too). Also: this shell mangles
+  backslashes inside heredocs/`node -e` — write the script to a file (Write
+  tool), run it, delete it.
 
 - **Buttons without an explicit colour inherit UA `buttontext` (black)** — fine on light
   surfaces, invisible on dark ones (Profile travel-style chips rendered black-on-navy in dark

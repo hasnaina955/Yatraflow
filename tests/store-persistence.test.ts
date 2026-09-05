@@ -17,18 +17,31 @@ const { calls } = vi.hoisted(() => ({
 }))
 
 vi.mock('../src/lib/supabase', () => {
+  // Faithful to postgrest-js, which is LAZY: the builder's constructor only copies
+  // config and the request is issued from then(). This mock used to record the call
+  // inside update()/insert()/delete() — i.e. it was more eager than the client it
+  // stands in for, so it happily reported writes that could never have been sent.
+  // Recording now happens at then() time, which is the only thing that can make a
+  // `void builder` show up as zero calls. Issue #52.
   const makeBuilder = (table: string) => {
-    const builder: Record<string, unknown> = {
-      update: (payload: unknown) => { calls.push({ table, method: 'update', payload }); return builder },
-      insert: (payload: unknown) => { calls.push({ table, method: 'insert', payload }); return builder },
-      delete: () => { calls.push({ table, method: 'delete' }); return builder },
-      select: () => builder,
-      eq: () => builder,
-      limit: () => builder,
-      // Chainable + thenable: awaiting the builder resolves the query response.
-      then: (res: (v: { data: unknown; error: unknown }) => unknown) =>
-        Promise.resolve({ data: null, error: null }).then(res),
-    }
+    let method: string | undefined
+    let payload: unknown
+    const builder: Record<string, unknown> = {}
+    const chain = (m: string, p?: unknown) => { method = m; payload = p; return builder }
+    builder.update = (p: unknown) => chain('update', p)
+    builder.insert = (p: unknown) => chain('insert', p)
+    builder.delete = () => chain('delete')
+    builder.select = () => builder
+    builder.eq = () => builder
+    builder.in = () => builder
+    builder.order = () => builder
+    builder.limit = () => builder
+    builder.lt = () => builder
+    builder.maybeSingle = () => builder
+    builder.single = () => builder
+    // Chainable + thenable: the write is issued here, and only here.
+    builder.then = (res: (v: { data: unknown; error: unknown }) => unknown) =>
+      new Promise(resolve => { if (method) calls.push({ table, method, payload }); resolve({ data: null, error: null }) }).then(res)
     return builder
   }
   return {

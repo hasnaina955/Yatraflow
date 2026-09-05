@@ -704,7 +704,7 @@ export function restoreMember(tripId: ID, member: TripMember): void {
   if (!t || t.members?.some(m => m.userId === member.userId)) return
   t.members = [...(t.members ?? []), member]
   commit()
-  void supabase.from('trip_members').insert({ trip_id: tripId, user_id: member.userId, role: member.role, joined_at: member.joinedAt })
+  fire('trip_members', supabase.from('trip_members').insert({ trip_id: tripId, user_id: member.userId, role: member.role, joined_at: member.joinedAt }))
 }
 
 /** Re-insert a deleted expense line — powers Undo on expense deletion. */
@@ -753,7 +753,7 @@ export function canEdit(role: TripMember['role'] | null): boolean {
 export function setMemberRole(tripId: ID, userId: ID, role: TripMember['role']): void {
   const t = tripById(tripId)
   const m = t?.members?.find(x => x.userId === userId)
-  if (t && m) { m.role = role; commit(); void supabase.from('trip_members').update({ role }).eq('trip_id', tripId).eq('user_id', userId) }
+  if (t && m) { m.role = role; commit(); fire('trip_members', supabase.from('trip_members').update({ role }).eq('trip_id', tripId).eq('user_id', userId)) }
 }
 
 export function joinViaInvite(tripId: ID, userId: ID, role: TripMember['role'] = 'editor'): boolean {
@@ -765,7 +765,7 @@ export function joinViaInvite(tripId: ID, userId: ID, role: TripMember['role'] =
     addActivity(tripId, userId, 'joined via invite link', 'Members')
     notifyOwnerOf(tripId, `${userName(userId)} joined “${t.name}” as ${role}.`)
     commit()
-    void supabase.from('trip_members').insert({ trip_id: tripId, user_id: userId, role, joined_at: Date.now() })
+    fire('trip_members', supabase.from('trip_members').insert({ trip_id: tripId, user_id: userId, role, joined_at: Date.now() }))
   }
   return true
 }
@@ -776,7 +776,7 @@ export function removeMember(tripId: ID, userId: ID): void {
   const before = t.members ?? []
   t.members = before.filter(m => m.userId !== userId)
   commit()
-  void supabase.from('trip_members').delete().eq('trip_id', tripId).eq('user_id', userId)
+  fire('trip_members', supabase.from('trip_members').delete().eq('trip_id', tripId).eq('user_id', userId))
 }
 
 export function userName(id: ID): string {
@@ -937,7 +937,7 @@ export function addSuggestion(tripId: ID, s: Omit<StopSuggestion, 'id' | 'votes'
     }
   }
   commit()
-  void supabase.from('suggestions').insert(row)
+  fire('suggestions', supabase.from('suggestions').insert(row))
 }
 
 export function voteSuggestion(tripId: ID, suggestionId: ID, userId: ID, value: 1 | -1): void {
@@ -961,7 +961,7 @@ export function voteSuggestion(tripId: ID, suggestionId: ID, userId: ID, value: 
     sg.title,
   )
   commit()
-  void supabase.from('suggestions').update({ votes: sg.votes }).eq('id', suggestionId)
+  fire('suggestions', supabase.from('suggestions').update({ votes: sg.votes }).eq('id', suggestionId))
 }
 
 export function addCommentToSuggestion(tripId: ID, suggestionId: ID, authorId: ID, text: string): void {
@@ -973,7 +973,7 @@ export function addCommentToSuggestion(tripId: ID, suggestionId: ID, authorId: I
     if (v !== authorId) pushNotification(v, tripId, `${userName(authorId)} commented on “${sg.title}”.`)
   }
   commit()
-  void supabase.from('suggestions').update({ comments: sg.comments }).eq('id', suggestionId)
+  fire('suggestions', supabase.from('suggestions').update({ comments: sg.comments }).eq('id', suggestionId))
 }
 
 /** Accept a suggestion: adds it to the timeline and closes the suggestion. */
@@ -991,12 +991,12 @@ export function acceptSuggestionIntoTimeline(tripId: ID, suggestionId: ID): void
   const actor = cache.sessionUserId
   if (actor) addActivity(tripId, actor, 'accepted suggestion into timeline', sg.title)
   commit()
-  void supabase.from('suggestions').update({ status: 'accepted' }).eq('id', suggestionId)
+  fire('suggestions', supabase.from('suggestions').update({ status: 'accepted' }).eq('id', suggestionId))
 }
 
 export function declineSuggestion(tripId: ID, suggestionId: ID): void {
   const sg = cache.suggestions.find(x => x.id === suggestionId)
-  if (sg) { sg.status = 'declined'; addActivity(tripId, cache.sessionUserId!, 'declined a suggestion', sg.title); commit(); void supabase.from('suggestions').update({ status: 'declined' }).eq('id', suggestionId) }
+  if (sg) { sg.status = 'declined'; addActivity(tripId, cache.sessionUserId!, 'declined a suggestion', sg.title); commit(); fire('suggestions', supabase.from('suggestions').update({ status: 'declined' }).eq('id', suggestionId)) }
 }
 
 // ---------------- Decisions ----------------
@@ -1013,7 +1013,7 @@ export function addDecision(tripId: ID, d: Pick<TripDecision, 'question' | 'cont
   cache.decisions.push({ ...d, id, tripId, votesByUserId: {}, status: 'open', raisedBy: cache.sessionUserId, createdAt: Date.now(), options: row.options })
   addActivity(tripId, cache.sessionUserId, `raised decision “${d.question}”`, 'Decisions')
   commit()
-  void supabase.from('decisions').insert(row)
+  fire('decisions', supabase.from('decisions').insert(row))
 }
 
 export function voteOnDecision(decisionId: ID, optionId: ID): void {
@@ -1022,7 +1022,7 @@ export function voteOnDecision(decisionId: ID, optionId: ID): void {
   d.votesByUserId[cache.sessionUserId] = optionId
   addActivity(d.tripId, cache.sessionUserId, 'voted on a decision', d.question)
   commit()
-  void supabase.from('decisions').update({ votes_by_user_id: d.votesByUserId }).eq('id', decisionId)
+  fire('decisions', supabase.from('decisions').update({ votes_by_user_id: d.votesByUserId }).eq('id', decisionId))
 }
 
 export function resolveDecision(decisionId: ID, optionId: ID): void {
@@ -1031,7 +1031,7 @@ export function resolveDecision(decisionId: ID, optionId: ID): void {
   d.status = 'resolved'; d.resolvedOptionId = optionId; d.resolvedAt = Date.now()
   addActivity(d.tripId, cache.sessionUserId!, 'resolved a decision', d.question)
   commit()
-  void supabase.from('decisions').update({ status: 'resolved', resolved_option_id: optionId, resolved_at: d.resolvedAt }).eq('id', decisionId)
+  fire('decisions', supabase.from('decisions').update({ status: 'resolved', resolved_option_id: optionId, resolved_at: d.resolvedAt }).eq('id', decisionId))
 }
 
 // ---------------- Publishing ----------------
@@ -1110,7 +1110,7 @@ export function registerPubView(id: ID): void {
     // otherwise fire a doomed write on every page load (bug #4). Only attempt
     // the increment when the current user actually owns the published row.
     if (cache.sessionUserId && p.creatorId === cache.sessionUserId) {
-      void supabase.from('published_itineraries').update({ views: p.views }).eq('id', id)
+      fire('published_itineraries', supabase.from('published_itineraries').update({ views: p.views }).eq('id', id))
     }
   }
 }
@@ -1121,7 +1121,7 @@ export function registerPubCopy(id: ID): void {
     p.copies += 1
     commit()
     if (cache.sessionUserId && p.creatorId === cache.sessionUserId) {
-      void supabase.from('published_itineraries').update({ copies: p.copies }).eq('id', id)
+      fire('published_itineraries', supabase.from('published_itineraries').update({ copies: p.copies }).eq('id', id))
     }
   }
 }
@@ -1135,7 +1135,7 @@ export function activityFor(tripId: ID): ActivityEntry[] {
 export function addActivity(tripId: ID, actorId: ID, verb: string, target?: string): void {
   const entry: ActivityEntry = { id: uuid(), tripId, actorId, verb, target, at: Date.now() }
   cache.activity.push(entry)
-  void supabase.from('activity').insert({ id: entry.id, trip_id: tripId, actor_id: actorId, verb, target, at: entry.at })
+  fire('activity', supabase.from('activity').insert({ id: entry.id, trip_id: tripId, actor_id: actorId, verb, target, at: entry.at }))
 }
 
 export function notificationsFor(userId: ID): Notification[] {
@@ -1145,7 +1145,7 @@ export function notificationsFor(userId: ID): Notification[] {
 export function pushNotification(userId: ID, tripId: ID | undefined, text: string): void {
   const n: Notification = { id: uuid(), userId, tripId, text, read: false, at: Date.now() }
   cache.notifications.unshift(n)
-  void supabase.from('notifications').insert({ id: n.id, user_id: userId, trip_id: tripId, text, read: false, at: n.at })
+  fire('notifications', supabase.from('notifications').insert({ id: n.id, user_id: userId, trip_id: tripId, text, read: false, at: n.at }))
 }
 
 function notifyOwnerOf(tripId: ID, text: string): void {
@@ -1157,7 +1157,7 @@ function notifyOwnerOf(tripId: ID, text: string): void {
 export function markAllNotificationsRead(userId: ID): void {
   cache.notifications.forEach(n => { if (n.userId === userId) n.read = true })
   commit()
-  void supabase.from('notifications').update({ read: true }).eq('user_id', userId)
+  fire('notifications', supabase.from('notifications').update({ read: true }).eq('user_id', userId))
 }
 
 // ---------------- Realtime collaboration (issue #18) ----------------
@@ -1336,6 +1336,23 @@ async function fetchTripIntoCache(tripId: string): Promise<void> {
 const tripFetches = new Map<string, Promise<void>>()
 
 // ---------------- utils ----------------
+
+/**
+ * supabase-js builders are LAZY. The constructor only copies config; the request is
+ * issued from inside `then()`. So `void supabase.from(…).update(…)` builds a request,
+ * discards it, and never sends a byte — and since nothing awaited it, there is no
+ * rejection to notice either. Anything fire-and-forget must be thened explicitly.
+ *
+ * `table` is only for the log line: a write rejected by RLS or a drifted column used
+ * to be invisible forever. The UI has already moved on optimistically, so this must
+ * never throw. Issue #52.
+ */
+function fire(table: string, query: PromiseLike<{ error: { message?: string } | null }>): void {
+  void Promise.resolve(query).then(
+    res => { if (res?.error) console.error(`[yatraflow] ${table} write failed`, res.error) },
+    err => console.error(`[yatraflow] ${table} write rejected`, err),
+  )
+}
 
 /**
  * Real UUID for top-level table ids (trips, suggestions, decisions, activity,

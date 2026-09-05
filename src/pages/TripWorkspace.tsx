@@ -1,6 +1,6 @@
 // ============ Trip workspace ============
 // Tabs: Overview / Timeline / Map / Suggestions / Budget / Decisions / Share
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ArrowRight, Ban, Car, ChevronDown, ChevronUp, CircleCheck, CircleHelp, Clock, CloudRain, CloudSun,
   Copy, Download, Droplets, Flag, Lightbulb, Link2, MapPin, MoveHorizontal,
@@ -104,8 +104,22 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
   // "no photo" Wikipedia page doesn't leave the cover blank.
   const tripCoverAuto = useDestinationCover(trip ? pickTripQueryCandidates(trip) : null)
 
+  // Suggestion cache: persists across tab switches, invalidated by anchor changes.
+  const suggestionCache = useSuggestionCache(tripId)
+
   // Pending change: a proposed plan held until the user keeps or discards it.
   const [pending, setPending] = useState<{ proposed: Trip; result: ImpactResult } | null>(null)
+
+  // Stable identity for applyChange (useCallback over the trip reference): it
+  // flows into TimelineTab → DaySection props, and an unstable identity would
+  // defeat the DaySection React.memo on every workspace render.
+  const applyChange = useCallback((mutator: (draft: Trip) => void, kind: ImpactResult['kind'], dayIndex: number) => {
+    if (!trip) return
+    const proposed = structuredClone(trip) as Trip
+    mutator(proposed)
+    const result = computeImpact(trip, proposed, kind, dayIndex)
+    setPending({ proposed, result })
+  }, [trip])
 
   // F-16: a reload or tab close while a proposed change is pending silently
   // discards the preview the user is studying — ask before leaving. (The soft
@@ -118,9 +132,6 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
     window.addEventListener('beforeunload', onBeforeUnload)
     return () => window.removeEventListener('beforeunload', onBeforeUnload)
   }, [pending])
-
-  // Suggestion cache: persists across tab switches, invalidated by anchor changes.
-  const suggestionCache = useSuggestionCache(tripId)
 
   function scrollToDay(dayIndex: number) {
     const el = document.getElementById(`day-card-${dayIndex}`)
@@ -139,13 +150,6 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
   const effective = pending?.proposed ?? trip
   const health = computeHealth(effective)
   const totals = computeTotals(effective, legCorrections)
-
-  function applyChange(mutator: (draft: Trip) => void, kind: ImpactResult['kind'], dayIndex: number) {
-    const proposed = structuredClone(trip!) as Trip
-    mutator(proposed)
-    const result = computeImpact(trip!, proposed, kind, dayIndex)
-    setPending({ proposed, result })
-  }
 
   function keepPending() {
     if (!pending || !trip) return
@@ -453,6 +457,10 @@ function OverviewTab({ trip, editable, onOpenDecisions, onOpenTimeline, onOpenMa
 
 // ================= Timeline =================
 
+/** Shared empty array so the memoized DaySections' `warnings` prop keeps a
+ *  stable reference for days without warnings (`?? []` would defeat the memo). */
+const NO_WARNINGS: ScheduleWarning[] = []
+
 /** Compact forecast chip for a single trip day (Timeline day headers). */
 function DayWeatherChip({ trip, dayIndex }: { trip: Trip; dayIndex: number }) {
   const [w, setW] = useState<DayWeather | null>(null)
@@ -492,7 +500,15 @@ function TimelineTab({ trip, editable, applyChange, legCorrections, suggestionCa
   >(null)
   const [moveModalStop, setMoveModalStop] = useState<ItineraryStop | null>(null)
 
-  const days = [...trip.days].sort((a, b) => a.index - b.index)
+  // Sorted once per trip change — a stable array of stable day references so
+  // the memoized DaySections below only re-render when their own data changes.
+  const days = useMemo(() => [...trip.days].sort((a, b) => a.index - b.index), [trip.days])
+
+  // M3.3: every DaySection prop below must keep a stable identity between
+  // commits that don't touch the trip, or the React.memo on DaySection never
+  // bites (an unrelated store commit re-renders TimelineTab via the tab counts).
+  const handleAdd = useCallback((dayIndex: number) => setEditorState({ mode: 'add', dayIndex }), [])
+  const handleEdit = useCallback((stopId: string) => setEditorState({ mode: 'edit', stopId }), [])
 
   function handleSave(v: StopFormValues) {
     if (!editorState) return
@@ -522,13 +538,13 @@ function TimelineTab({ trip, editable, applyChange, legCorrections, suggestionCa
 
   // Deletions go through the impact-preview flow, whose Keep / Remove buttons
   // already act as the confirmation + undo step for this destructive action.
-  function handleDelete(stopId: string, dayIndex: number) {
+  const handleDelete = useCallback((stopId: string, dayIndex: number) => {
     applyChange(draft => {
       for (const day of draft.days) day.stops = day.stops.filter(s => s.id !== stopId)
     }, 'remove', dayIndex)
-  }
+  }, [applyChange])
 
-  function handleMoveWithinDay(fromIdx: number, toIdx: number, dayIndex: number) {
+  const handleMoveWithinDay = useCallback((fromIdx: number, toIdx: number, dayIndex: number) => {
     applyChange(draft => {
       const day = draft.days.find(d => d.index === dayIndex)!
       const arr = [...day.stops].sort((a, b) => a.orderInDay - b.orderInDay)
@@ -537,10 +553,10 @@ function TimelineTab({ trip, editable, applyChange, legCorrections, suggestionCa
       arr.forEach((s, i) => { s.orderInDay = i + 1 })
       day.stops = arr
     }, 'reorder', dayIndex)
-  }
+  }, [applyChange])
 
   /** Cross-day drag: lift a stop out of its day and insert it at `position` of `toDayIndex`. */
-  function handleMoveStopInto(stopId: string, fromDayIndex: number, toDayIndex: number, position: number) {
+  const handleMoveStopInto = useCallback((stopId: string, fromDayIndex: number, toDayIndex: number, position: number) => {
     applyChange(draft => {
       let moved: ItineraryStop | undefined
       for (const d of draft.days) {
@@ -559,7 +575,7 @@ function TimelineTab({ trip, editable, applyChange, legCorrections, suggestionCa
         target.stops.forEach((s, j) => { s.orderInDay = j + 1 })
       }
     }, 'move-day', toDayIndex)
-  }
+  }, [applyChange])
 
   // warnings grouped by day index — powers the per-day progress-bar colour
   const dayWarnings = useMemo(() => {
@@ -584,13 +600,13 @@ function TimelineTab({ trip, editable, applyChange, legCorrections, suggestionCa
   }
 
   /** Inline day rename — a lightweight label change, applied directly (no impact preview). */
-  function handleRenameDay(dayIndex: number, title: string) {
+  const handleRenameDay = useCallback((dayIndex: number, title: string) => {
     updateTrip(trip.id, { days: trip.days.map(d => d.index === dayIndex ? { ...d, title: title.trim() || undefined } : d) })
     toast('Day renamed')
-  }
+  }, [trip])
 
   /** Duplicate this day's stops onto the next day (base-camp style planning). */
-  function handleCopyDay(dayIndex: number) {
+  const handleCopyDay = useCallback((dayIndex: number) => {
     applyChange(draft => {
       const src = draft.days.find(d => d.index === dayIndex)
       const dst = draft.days.find(d => d.index === dayIndex + 1)
@@ -604,26 +620,26 @@ function TimelineTab({ trip, editable, applyChange, legCorrections, suggestionCa
         })
       }
     }, 'add', dayIndex + 1)
-  }
+  }, [applyChange])
 
   /** One-click add from the empty-day suggestions (route continuation / nearby POI). */
-  function handleAddQuickStop(dayIndex: number, stop: Omit<ItineraryStop, 'id' | 'orderInDay'>) {
+  const handleAddQuickStop = useCallback((dayIndex: number, stop: Omit<ItineraryStop, 'id' | 'orderInDay'>) => {
     applyChange(draft => {
       const day = draft.days.find(d => d.index === dayIndex)!
       day.stops.push({ ...stop, id: 'pending_' + Math.random().toString(36).slice(2), orderInDay: day.stops.length + 1 })
     }, 'add', dayIndex)
-  }
+  }, [applyChange])
 
   /** Ride start time for a day — a lightweight plan field, applied directly (like rename). */
-  function handleSetDayStart(dayIndex: number, time: string) {
+  const handleSetDayStart = useCallback((dayIndex: number, time: string) => {
     updateTrip(trip.id, { days: trip.days.map(d => d.index === dayIndex ? { ...d, startTime: time || undefined } : d) })
     toast(time ? `Day ${dayIndex + 1} now starts ${time}` : 'Ride start reset to the default')
-  }
+  }, [trip])
 
   /** Insert a batch of long-ride break halts, each at a user-chosen km point, ordered by
       distance along the route so the arrival clock and map reflect true stop order. Impact
       preview applies the whole-day change. */
-  function handleAddPlannedHalts(dayIndex: number, halts: { km: number; stop: Omit<ItineraryStop, 'id' | 'orderInDay'> }[]) {
+  const handleAddPlannedHalts = useCallback((dayIndex: number, halts: { km: number; stop: Omit<ItineraryStop, 'id' | 'orderInDay'> }[]) => {
     if (halts.length === 0) return
     applyChange(draft => {
       const day = draft.days.find(d => d.index === dayIndex)!
@@ -635,13 +651,13 @@ function TimelineTab({ trip, editable, applyChange, legCorrections, suggestionCa
       ].sort((a, b) => a.km - b.km)
       day.stops = merged.map((m, i) => ({ ...m.s, orderInDay: i + 1 }))
     }, 'add', dayIndex)
-  }
+  }, [applyChange])
 
-  function handleStatus(stop: ItineraryStop, status: ItineraryStop['status']) {
+  const handleStatus = useCallback((stop: ItineraryStop, status: ItineraryStop['status']) => {
     // Status flips are lightweight group signals — applied directly.
     setStopStatus(trip.id, status, stop.id)
     toast(`“${stop.title}” marked ${status === 'needs-booking' ? 'needs booking' : status}`)
-  }
+  }, [trip.id])
 
   return (
     <div>
@@ -690,8 +706,8 @@ function TimelineTab({ trip, editable, applyChange, legCorrections, suggestionCa
 
       {days.map(day => (
         <DaySection key={day.id} day={day} trip={trip} editable={editable} legCorrections={legCorrections} suggestionCache={suggestionCache}
-          onAdd={() => setEditorState({ mode: 'add', dayIndex: day.index })}
-          onEdit={(sid) => setEditorState({ mode: 'edit', stopId: sid })}
+          onAdd={handleAdd}
+          onEdit={handleEdit}
           onDelete={handleDelete}
           onMoveWithinDay={handleMoveWithinDay}
           onMoveBetweenDays={setMoveModalStop}
@@ -701,7 +717,7 @@ function TimelineTab({ trip, editable, applyChange, legCorrections, suggestionCa
           onAddQuickStop={handleAddQuickStop}
           onSetDayStart={handleSetDayStart}
           onAddPlannedHalts={handleAddPlannedHalts}
-          warnings={dayWarnings[day.index] ?? []}
+          warnings={dayWarnings[day.index] ?? NO_WARNINGS}
           onStatus={handleStatus}
         />
       ))}
@@ -777,13 +793,17 @@ function ClampedText({ children, className }: { children: React.ReactNode; class
   )
 }
 
-function DaySection({ day, trip, editable, onAdd, onEdit, onDelete, onMoveWithinDay, onMoveBetweenDays, onMoveStopIn, onRenameDay, onCopyDay, onAddQuickStop, onSetDayStart, onAddPlannedHalts, warnings, onStatus, legCorrections, suggestionCache }: {
+// React.memo on the timeline hot path: TimelineTab re-renders on every store
+// commit (the shell's useDb feeds the tab counts), but with stable props each
+// DaySection now bails out unless ITS day/trip data actually changed (M3.1 made
+// trip references immutable, so `day`/`trip` are stable between commits).
+const DaySection = React.memo(function DaySection({ day, trip, editable, onAdd, onEdit, onDelete, onMoveWithinDay, onMoveBetweenDays, onMoveStopIn, onRenameDay, onCopyDay, onAddQuickStop, onSetDayStart, onAddPlannedHalts, warnings, onStatus, legCorrections, suggestionCache }: {
   day: Trip['days'][number]
   trip: Trip
   editable: boolean
   legCorrections?: Record<string, LegEstimate>
   suggestionCache: ReturnType<typeof useSuggestionCache>
-  onAdd: () => void
+  onAdd: (dayIndex: number) => void
   onEdit: (stopId: string) => void
   onDelete: (stopId: string, dayIndex: number) => void
   onMoveWithinDay: (from: number, to: number, dayIndex: number) => void
@@ -948,7 +968,7 @@ function DaySection({ day, trip, editable, onAdd, onEdit, onDelete, onMoveWithin
               onClick={() => onCopyDay(day.index)}
               title={ordered.length ? `Copy these stops to Day ${day.index + 2}` : 'Nothing to copy yet'}
             ><Copy size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Copy</button>
-            <button className="btn btn-outline btn-sm" onClick={onAdd}>+ Add here</button>
+            <button className="btn btn-outline btn-sm" onClick={() => onAdd(day.index)}>+ Add here</button>
           </div>
         )}
       </div>
@@ -981,7 +1001,7 @@ function DaySection({ day, trip, editable, onAdd, onEdit, onDelete, onMoveWithin
 
       {ordered.length === 0 && (<>
         <EmptyState icon={<CloudSun size={38} aria-hidden />} title="Nothing planned yet" body="Add your first stop for this day — or drag one here from another day."
-          action={editable ? <button className="btn btn-primary btn-sm" onClick={onAdd}>+ Add stop</button> : undefined} />
+          action={editable ? <button className="btn btn-primary btn-sm" onClick={() => onAdd(day.index)}>+ Add stop</button> : undefined} />
         {editable && ((nextAnchor && !alreadyAtNext) || nearby.length > 0) && (
           <div className="day-suggest">
             {nextAnchor && !alreadyAtNext && (
@@ -1147,7 +1167,7 @@ function DaySection({ day, trip, editable, onAdd, onEdit, onDelete, onMoveWithin
       </>}
     </div>
   )
-}
+})
 
 /** One-click "continue the route" waypoint for an empty day. */
 function nextWaypointStop(a: { name: string; point: { lat: number; lng: number } }): Omit<ItineraryStop, 'id' | 'orderInDay'> {

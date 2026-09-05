@@ -1151,20 +1151,39 @@ function echoWindowEh(table: string, id: string): boolean {
   return isRecentLocalWrite(recentLocalWrites, table, id, Date.now())
 }
 
+/** Realtime payloads come off the wire, so they are not ours to trust. An
+ *  unexpected shape throws, and a throw from inside a `postgres_changes` callback
+ *  escapes into the realtime client's own event dispatch instead of stopping
+ *  here: the worst case is the subscription going down with nothing said out
+ *  loud, and the user carries on editing a trip that is no longer live, with no
+ *  error on screen and no hint that collaborators have moved on. One bad event
+ *  must cost one event, not the session.
+ *
+ *  Note the try/catch in connectRealtime below only covers setting the
+ *  subscription up - it cannot catch anything a callback throws minutes later.
+ *  Issue #44. */
+function dispatchRealtimeEvent(table: string, payload: RealtimePostgresChangesPayload<Record<string, unknown>>): void {
+  try {
+    applyRealtimeEvent(table, payload)
+  } catch (e) {
+    console.error(`[yatraflow] realtime ${table} event dropped`, e)
+  }
+}
+
 /** Start listening for row changes. Call after a successful hydration. */
 export function connectRealtime(_userId: string): void {
   if (!isSupabaseConfigured || realtimeChannel) return
   try {
     realtimeChannel = supabase
       .channel('yatraflow-live')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'trips' }, p => applyRealtimeEvent('trips', p))
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'trip_members' }, p => applyRealtimeEvent('trip_members', p))
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'suggestions' }, p => applyRealtimeEvent('suggestions', p))
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'decisions' }, p => applyRealtimeEvent('decisions', p))
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'activity' }, p => applyRealtimeEvent('activity', p))
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, p => applyRealtimeEvent('notifications', p))
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, p => applyRealtimeEvent('profiles', p))
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'published_itineraries' }, p => applyRealtimeEvent('published_itineraries', p))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'trips' }, p => dispatchRealtimeEvent('trips', p))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'trip_members' }, p => dispatchRealtimeEvent('trip_members', p))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'suggestions' }, p => dispatchRealtimeEvent('suggestions', p))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'decisions' }, p => dispatchRealtimeEvent('decisions', p))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'activity' }, p => dispatchRealtimeEvent('activity', p))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, p => dispatchRealtimeEvent('notifications', p))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, p => dispatchRealtimeEvent('profiles', p))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'published_itineraries' }, p => dispatchRealtimeEvent('published_itineraries', p))
       .subscribe()
   } catch (e) {
     console.error('[yatraflow] realtime subscribe failed', e)

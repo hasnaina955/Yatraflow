@@ -37,6 +37,15 @@ vi.mock('../src/lib/supabase', () => {
       upsert: () => lazy(table, 'upsert'),
       delete: () => lazy(table, 'delete'),
     }),
+    rpc: (fn: string, params?: any) => {
+      // Extract table from function name pattern: bump_published_stats -> published_itineraries
+      const table = fn === 'bump_published_stats' ? 'published_itineraries' : fn
+      const method = 'rpc'
+      const qb: any = { table, method, fn }
+      qb.then = (f: any, r?: any) =>
+        new Promise(resolve => { sent.push({ table, method }); resolve({ data: null, error: null }) }).then(f, r)
+      return qb
+    },
     auth: {
       getSession: async () => ({ data: { session: null } }),
       onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }),
@@ -115,8 +124,8 @@ describe('#52 — every optimistic write must actually reach the client', () => 
     { name: 'addActivity', table: 'activity', method: 'insert', run: s => s.addActivity('trip-1', 'amelia', 'checked in') },
     { name: 'pushNotification', table: 'notifications', method: 'insert', run: s => s.pushNotification('priya', 'trip-1', 'Amelia liked Time Out Market') },
     { name: 'markAllNotificationsRead', table: 'notifications', method: 'update', run: s => s.markAllNotificationsRead('amelia') },
-    { name: 'registerPubView', table: 'published_itineraries', method: 'update', run: s => s.registerPubView('pub-1') },
-    { name: 'registerPubCopy', table: 'published_itineraries', method: 'update', run: s => s.registerPubCopy('pub-1') },
+    { name: 'registerPubView', table: 'published_itineraries', method: 'rpc', run: s => s.registerPubView('pub-1') },
+    { name: 'registerPubCopy', table: 'published_itineraries', method: 'rpc', run: s => s.registerPubCopy('pub-1') },
   ]
 
   it('covers all 17 sites the fix converted', () => {

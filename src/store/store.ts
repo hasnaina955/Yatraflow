@@ -1104,13 +1104,8 @@ export function registerPubView(id: ID): void {
   if (p) {
     p.views += 1
     commit()
-    // The published_itineraries RLS policy only allows the creator to update a
-    // row (auth.uid() = creator_id). A non-owner viewing a public trip would
-    // otherwise fire a doomed write on every page load (bug #4). Only attempt
-    // the increment when the current user actually owns the published row.
-    if (cache.sessionUserId && p.creatorId === cache.sessionUserId) {
-      fire('published_itineraries', supabase.from('published_itineraries').update({ views: p.views }).eq('id', id))
-    }
+    // Use RPC function that bypasses RLS - anyone can increment counters now.
+    fire('published_itineraries', supabase.rpc('bump_published_stats', { p_id: id, p_kind: 'views' }))
   }
 }
 
@@ -1119,9 +1114,8 @@ export function registerPubCopy(id: ID): void {
   if (p) {
     p.copies += 1
     commit()
-    if (cache.sessionUserId && p.creatorId === cache.sessionUserId) {
-      fire('published_itineraries', supabase.from('published_itineraries').update({ copies: p.copies }).eq('id', id))
-    }
+    // Use RPC function that bypasses RLS - anyone can increment counters now.
+    fire('published_itineraries', supabase.rpc('bump_published_stats', { p_id: id, p_kind: 'copies' }))
   }
 }
 

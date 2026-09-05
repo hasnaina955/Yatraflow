@@ -353,3 +353,17 @@ alter publication supabase_realtime add table public.activity;
 alter publication supabase_realtime add table public.notifications;
 alter publication supabase_realtime add table public.published_itineraries;
 alter publication supabase_realtime add table public.profiles;  -- profile cards live-update (names/avatars are public app-wide)
+
+-- ============================================================
+-- RPC for published itinerary stats (bypasses RLS)
+-- ============================================================
+create or replace function public.bump_published_stats(p_id uuid, p_kind text)
+returns void as $$
+begin
+  if p_kind = 'views' then
+    update public.published_itineraries set views = views + 1 where id = p_id;
+  elsif p_kind = 'copies' then
+    update public.published_itineraries set copies = copies + 1 where id = p_id;
+  end if;
+end;
+$$ language plpgsql security definer;

@@ -2362,19 +2362,21 @@ html.vt-active :where(*) {
 }
 .bench-grid {
   display: grid; grid-template-columns: minmax(320px, 1.05fr) minmax(300px, 0.95fr);
-  gap: 18px; align-items: stretch; margin-top: 8px;  /* stretch: both columns share the taller height */
+  gap: 18px; align-items: start; margin-top: 8px;
 }
 /* Left controls: one cream card holding every dial, split into labelled blocks. */
 .bench-controls {
-  display: flex; flex-direction: column; gap: 16px;
+  display: flex; flex-direction: column; gap: 12px;
   background: var(--card-soft); border: 1px solid var(--line);
-  border-radius: var(--radius-lg); padding: 18px;
+  border-radius: var(--radius-lg); padding: 16px;
   box-shadow: var(--shadow-soft);
 }
-.bench-block { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.bench-block { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+/* two related blocks share a row (modes+stay, crew+trip length) */
+.bench-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: start; }
 .bench-eyebrow { font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--text-3); }
 .bench-block-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
-.bench-block-big { font-size: 22px; font-weight: 800; color: var(--text); font-family: var(--bench-mono, monospace); font-variant-numeric: tabular-nums; }
+.bench-block-big { font-size: 20px; font-weight: 800; color: var(--text); font-family: var(--bench-mono, monospace); font-variant-numeric: tabular-nums; }
 
 /* header row: identity badge left, return-leg toggle + surprise + reset right */
 .bench-head-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
@@ -2430,12 +2432,12 @@ html.vt-active :where(*) {
 
 /* route distance card: huge number top-right, scale under the slider */
 .bench-distance-card {
-  border: 1px solid var(--line); border-radius: 16px; padding: 13px 14px 11px;
+  border: 1px solid var(--line); border-radius: 16px; padding: 11px 12px 9px;
   background: var(--bg-soft);
 }
 .bench-distance-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
 .bench-distance-big {
-  font-size: 32px; font-weight: 800; line-height: 1; color: var(--text);
+  font-size: 28px; font-weight: 800; line-height: 1; color: var(--text);
   font-family: var(--bench-mono); font-variant-numeric: tabular-nums; white-space: nowrap;
 }
 .bench-scale { display: flex; justify-content: space-between; font-size: 10px; font-weight: 650; color: var(--text-3); font-family: var(--bench-mono); font-variant-numeric: tabular-nums; }
@@ -2443,11 +2445,11 @@ html.vt-active :where(*) {
 .bench-derived-cost { font-weight: 750; color: var(--yf-teal-700); font-variant-numeric: tabular-nums; font-family: var(--bench-mono); }
 
 /* getting there: 2×2 mode grid, speed badge, selected = filled */
-.bench-mode-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.bench-mode-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
 .bench-mode-btn {
   display: flex; align-items: center; gap: 7px; min-width: 0; cursor: pointer;
-  border: 1.5px solid var(--line); background: var(--card); border-radius: 13px;
-  padding: 9px 11px; font-size: 13px; font-weight: 700; color: var(--text-2); text-transform: capitalize;
+  border: 1.5px solid var(--line); background: var(--card); border-radius: 12px;
+  padding: 8px 10px; font-size: 12.5px; font-weight: 700; color: var(--text-2); text-transform: capitalize;
   transition: border-color .12s var(--ease-out), background .12s var(--ease-out), color .12s var(--ease-out), transform .12s var(--ease-out);
 }
 .bench-mode-btn:hover { transform: translateY(-1px); border-color: var(--yf-teal-600); }
@@ -2463,11 +2465,11 @@ html.vt-active :where(*) {
 .bench-hint { font-size: 12px; color: var(--text-3); margin: 0; }
 
 /* stay style: vertical rate rows, selected = teal outline + tint */
-.bench-stay-list { display: flex; flex-direction: column; gap: 6px; }
+.bench-stay-list { display: flex; flex-direction: column; gap: 5px; }
 .bench-stay-row {
   display: flex; justify-content: space-between; align-items: baseline; gap: 10px; cursor: pointer;
   border: 1.5px solid var(--line); background: var(--card); border-radius: 12px;
-  padding: 9px 14px; font-size: 13px; font-weight: 700; color: var(--text-2); text-transform: capitalize;
+  padding: 8px 12px; font-size: 12.5px; font-weight: 700; color: var(--text-2); text-transform: capitalize;
   transition: border-color .12s var(--ease-out), background .12s var(--ease-out), color .12s var(--ease-out);
 }
 .bench-stay-row:hover { border-color: var(--yf-teal-600); }
@@ -2476,16 +2478,16 @@ html.vt-active :where(*) {
 .bench-stay-row.on .bench-stay-rate { color: var(--yf-teal-700); }
 
 /* crew size + trip length share the big-number header pattern */
-.bench-fuel-pair { flex-direction: row; gap: 14px; }
+.bench-fuel-pair { flex-direction: row; gap: 12px; }
 .bench-fuel-col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
 .bench-fuel-value { font-size: 17px; font-weight: 800; color: var(--text); font-family: var(--bench-mono); font-variant-numeric: tabular-nums; }
 .bench-scale-ends { display: flex; justify-content: space-between; font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); }
 
 /* crew avatar buttons */
-.bench-crew { display: flex; flex-wrap: wrap; gap: 8px; }
+.bench-crew { display: flex; flex-wrap: wrap; gap: 6px; }
 .bench-crew-btn {
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
-  min-width: 44px; height: 46px; padding: 4px 8px; border-radius: 14px;
+  min-width: 40px; height: 42px; padding: 3px 6px; border-radius: 12px;
   border: 1.5px solid var(--line); background: var(--card); cursor: pointer;
   font-size: 12px; font-weight: 700; color: var(--text-2);
   transition: transform .12s var(--ease-out), border-color .12s var(--ease-out), background .12s var(--ease-out);
@@ -2606,7 +2608,7 @@ html.vt-active :where(*) {
 .bench-fatigue { display: flex; align-items: center; gap:  12px; padding: 10px 12px; border-radius: 14px; border:  1px solid var(--receipt-line); background: var(--receipt-fatigue-bg); }
 .bench-fatigue-title { display: block; font-size:  13px; font-weight: 700; color: var(--receipt-ink); }
 
-.bench-cta-row { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-top: auto; padding-top: 12px; }
+.bench-cta-row { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-top: 2px; }
 .bench-cta { width: 100%; }
 .bench-alt-link { font-size: 13px; font-weight: 650; color: var(--receipt-accent); text-decoration: none; }
 .bench-alt-link:hover { text-decoration: underline; }
@@ -2675,7 +2677,7 @@ html.vt-active :where(*) {
   .bench-live .bench-badge, .bench-live .bench-title, .bench-live .bench-sub { animation: bench-rise .55s cubic-bezier(.22, 1, .36, 1) backwards; }
   .bench-live .bench-title { animation-delay: .07s; }
   .bench-live .bench-sub { animation-delay: .14s; }
-  .bench-live .bench-controls > .bench-block, .bench-live .bench-controls > .bench-head-row { animation: bench-rise .5s cubic-bezier(.22, 1, .36, 1) backwards; }
+  .bench-live .bench-controls > * { animation: bench-rise .5s cubic-bezier(.22, 1, .36, 1) backwards; }
   .bench-live .bench-controls > :nth-child(1) { animation-delay: .22s; }
   .bench-live .bench-controls > :nth-child(2) { animation-delay: .27s; }
   .bench-live .bench-controls > :nth-child(3) { animation-delay: .32s; }
@@ -2919,7 +2921,7 @@ html.vt-active :where(*) {
   }
   .plan-bench .bench-title { font-size: clamp(1.35rem, 2.4vw, 1.9rem); }
   .plan-bench .bench-sub { margin: 6px auto 14px; }
-  .plan-bench .bench-controls { gap: 13px; padding: 15px 16px; justify-content: space-between; }
+  .plan-bench .bench-controls { gap: 10px; padding: 14px 16px; }
   .plan-bench .bench-block { gap: 6px; }
   /* If the viewport is still too short, the receipt pins while controls scroll. */
   .plan-bench .bench-receipt { position: sticky; top: calc(var(--nav-h, 64px) + 12px); }
@@ -3175,6 +3177,7 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 /* Narrow phones: brand + tray + Log in + Sign up free overflow ~390px
    viewports and clipped the signup CTA off the edge — tighten instead. */
 @media (max-width: 480px) {
+  .bench-pair { grid-template-columns: 1fr; }
   .topnav .container.topnav-inner { padding: 0 8px 0 14px; gap: 8px; }
   .brand { font-size: 16px; gap: 7px; }
   .nav-right { gap: 6px; }
@@ -3288,7 +3291,8 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
   /* Plan Bench + public itinerary + explore (single-screen layouts) */
   /* v2 stack: controls card first, receipt bill below it (reading order). */
   .bench-grid { grid-template-columns: 1fr; }
-  .bench-controls { padding: 14px; gap: 14px; }
+  .bench-controls { padding: 14px; gap: 12px; }
+  .bench-pair { gap: 10px; }
   .bench-block-big { font-size: 18px; }
   .bench-distance-big { font-size: 26px; }
   .bench-fuel-pair { flex-direction: column; gap: 10px; }

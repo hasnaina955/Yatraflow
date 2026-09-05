@@ -386,59 +386,63 @@ export function PlanBench() {
               <span className="bench-derived-cost">{formatInr(shown.transportCost)} in {fuelMode ? 'fuel' : 'fares'}</span>
             </div>
           </div>
-          <div className="bench-block">
-            <span className="bench-eyebrow">Getting there</span>
-            <div className="bench-mode-grid" role="group" aria-label="How you travel">
-              {BENCH_MODES.map(m => (
-                <button key={m} type="button" className={`bench-mode-btn${input.mode === m ? ' on' : ''}`}
-                  aria-pressed={input.mode === m}
-                  onClick={() => { haptic(HAPTIC.select); patch({ mode: m }) }}>
-                  {modeIcon(m)}
-                  <span className="bench-mode-name">{m}</span>
-                  <span className="bench-mode-speed" aria-hidden="true">{MODE_SPEED[m] ?? 40}</span>
-                </button>
-              ))}
+          <div className="bench-pair">
+            <div className="bench-block">
+              <span className="bench-eyebrow">Getting there</span>
+              <div className="bench-mode-grid" role="group" aria-label="How you travel">
+                {BENCH_MODES.map(m => (
+                  <button key={m} type="button" className={`bench-mode-btn${input.mode === m ? ' on' : ''}`}
+                    aria-pressed={input.mode === m}
+                    onClick={() => { haptic(HAPTIC.select); patch({ mode: m }) }}>
+                    {modeIcon(m)}
+                    <span className="bench-mode-name">{m === 'motorcycle' ? 'Bike' : m}</span>
+                    <span className="bench-mode-speed" aria-hidden="true">{MODE_SPEED[m] ?? 40}</span>
+                  </button>
+                ))}
+              </div>
+              <p className="bench-hint">{modeHint(input.mode)}</p>
             </div>
-            <p className="bench-hint">{modeHint(input.mode)}</p>
+            <div className="bench-block">
+              <span className="bench-eyebrow">Stay style</span>
+              <div className="bench-stay-list" role="group" aria-label="Stay style">
+                {STAY_STYLES.map(s => (
+                  <button key={s} type="button" className={`bench-stay-row${input.stay === s ? ' on' : ''}`}
+                    aria-pressed={input.stay === s}
+                    onClick={() => { haptic(HAPTIC.select); patch({ stay: s }) }}>
+                    <span className="bench-stay-name">{s}</span>
+                    <span className="bench-stay-rate">₹{STAY_RATE_PER_NIGHT[s]}/room</span>
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
-          <div className="bench-block">
-            <span className="bench-eyebrow">Stay style</span>
-            <div className="bench-stay-list" role="group" aria-label="Stay style">
-              {STAY_STYLES.map(s => (
-                <button key={s} type="button" className={`bench-stay-row${input.stay === s ? ' on' : ''}`}
-                  aria-pressed={input.stay === s}
-                  onClick={() => { haptic(HAPTIC.select); patch({ stay: s }) }}>
-                  <span className="bench-stay-name">{s}</span>
-                  <span className="bench-stay-rate">₹{STAY_RATE_PER_NIGHT[s]}/room</span>
-                </button>
-              ))}
+          <div className="bench-pair">
+            <div className="bench-block">
+              <div className="bench-block-head">
+                <span className="bench-eyebrow">Crew size</span>
+                <span className="bench-block-big">{shownInput.crew}</span>
+              </div>
+              <div className="bench-crew" role="group" aria-label="Crew size">
+                {Array.from({ length: 8 }, (_, i) => i + 1).map(n => (
+                  <button key={n} type="button" className={`bench-crew-btn ${shownInput.crew === n ? 'on' : ''}`}
+                    aria-pressed={shownInput.crew === n}
+                    onClick={() => { haptic(HAPTIC.select); patch({ crew: n }) }}>
+                    <span className="bench-crew-emoji" aria-hidden="true">{n === 1 ? <User size={13} /> : <Users size={13} />}</span>
+                    {n}
+                  </button>
+                ))}
+              </div>
+              <p className="bench-hint">{shown.rooms} room{shown.rooms === 1 ? '' : 's'} for {shownInput.crew} — costs split {shownInput.crew} way{shownInput.crew === 1 ? '' : 's'}</p>
             </div>
-          </div>
-          <div className="bench-block">
-            <div className="bench-block-head">
-              <span className="bench-eyebrow">Crew size</span>
-              <span className="bench-block-big">{shownInput.crew}</span>
+            <div className="bench-block">
+              <div className="bench-block-head">
+                <span className="bench-eyebrow">Trip length</span>
+                <span className="bench-block-big">{input.nights} night{input.nights === 1 ? '' : 's'} · {input.nights + 1} day{input.nights + 1 === 1 ? '' : 's'}</span>
+              </div>
+              <BenchRange value={input.nights} min={1} max={7} step={1}
+                fmt={v => `${v} night${v === 1 ? '' : 's'}`} ariaLabel="Number of nights" onChange={v => patch({ nights: v })} />
+              <div className="bench-scale-ends" aria-hidden="true"><span>weekend</span><span>week+</span></div>
             </div>
-            <div className="bench-crew" role="group" aria-label="Crew size">
-              {Array.from({ length: 8 }, (_, i) => i + 1).map(n => (
-                <button key={n} type="button" className={`bench-crew-btn ${shownInput.crew === n ? 'on' : ''}`}
-                  aria-pressed={shownInput.crew === n}
-                  onClick={() => { haptic(HAPTIC.select); patch({ crew: n }) }}>
-                  <span className="bench-crew-emoji" aria-hidden="true">{n === 1 ? <User size={13} /> : <Users size={13} />}</span>
-                  {n}
-                </button>
-              ))}
-            </div>
-            <p className="bench-hint">{shown.rooms} room{shown.rooms === 1 ? '' : 's'} for {shownInput.crew} — costs split {shownInput.crew} way{shownInput.crew === 1 ? '' : 's'}</p>
-          </div>
-          <div className="bench-block">
-            <div className="bench-block-head">
-              <span className="bench-eyebrow">Trip length</span>
-              <span className="bench-block-big">{input.nights} night{input.nights === 1 ? '' : 's'} · {input.nights + 1} day{input.nights + 1 === 1 ? '' : 's'}</span>
-            </div>
-            <BenchRange value={input.nights} min={1} max={7} step={1}
-              fmt={v => `${v} night${v === 1 ? '' : 's'}`} ariaLabel="Number of nights" onChange={v => patch({ nights: v })} />
-            <div className="bench-scale-ends" aria-hidden="true"><span>weekend</span><span>week+</span></div>
           </div>
           {fuelMode && (
             <div className="bench-block bench-fuel-pair">
@@ -565,6 +569,6 @@ function dirty(input: BenchInputs): boolean {
 function modeHint(m: BenchMode): string {
   const speed = MODE_SPEED[m] ?? 40
   return isBenchFuelMode(m)
-    ? `Avg ${speed} km/h — what the engine assumes for ${m} travel · you pay for fuel`
-    : `Avg ${speed} km/h — what the engine assumes for ${m} travel · × ₹${MODE_COST_PER_KM[m]}/km fare`
+    ? `Avg ${speed} km/h · you pay for fuel`
+    : `Avg ${speed} km/h · × ₹${MODE_COST_PER_KM[m]}/km fare`
 }

@@ -2,6 +2,19 @@
 
 All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](https://keepachangelog.com/); versions are pre-1.0 MVP milestones.
 
+## [0.34.0] — 2026-09-05
+
+**The Plan Bench is redesigned — prices on every choice, a receipt that looks like a receipt in both themes, and the bill shares as a crisp image.** Details in the per-commit bodies.
+
+### Changed
+- **Every option shows its price before you pick it.** Stay styles list ₹/room, transport modes show their engine speed, the distance card answers "on the road" and "in fuel/fares" live, and Crew Size pairs with Trip Length in a compact two-column layout that matches the receipt's height.
+- **The receipt looks right in both themes.** Light mode gets a cream paper receipt, dark mode keeps the navy till-roll — with six low-contrast text pairs fixed (formula lines, date, legend, fine print now ≥6.2:1).
+- **The bill states who and how at the top.** A meta row under the kicker names the transport mode and traveller count.
+- **"Share as image" joins "Copy bill as text".** The button photographs the live receipt (html-to-image snapshot at 2.5×, dark till-roll forced) so the shared PNG is pixel-identical to the site — delivered via the native share sheet, clipboard image copy, or an automatic download.
+
+### Fixed
+- **Labels and targets behave.** Crew Size / Trip Length labels resized to the eyebrow pattern with right-aligned values, "Motorcycle" fits its button as "Bike", and the long engine-explainer hint collapsed to one line.
+
 ## [0.33.0] — 2026-09-05
 
 **v0.33.0 = the performance + hygiene double release: faster reactions, a split workspace, and a stylesheet with no dead weight or magic numbers.** Details in the per-commit bodies.

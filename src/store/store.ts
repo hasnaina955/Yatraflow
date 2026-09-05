@@ -1166,10 +1166,16 @@ export function markAllNotificationsRead(userId: ID): void {
 // local state; the rest of the tables are idempotent upserts.
 let realtimeChannel: RealtimeChannel | null = null
 const recentLocalWrites = new Map<string, number>()
+const MAX_RECENT_WRITES = 500
 
 /** Record a recent local write so its realtime echo can be suppressed. */
 function markLocalWrite(table: string, id: string): void {
   recentLocalWrites.set(`${table}:${id}`, Date.now())
+  // Sweep old entries to prevent unbounded growth. #36-2.
+  if (recentLocalWrites.size > MAX_RECENT_WRITES) {
+    const oldestKey = recentLocalWrites.keys().next().value
+    if (oldestKey) recentLocalWrites.delete(oldestKey)
+  }
 }
 
 function echoWindowEh(table: string, id: string): boolean {

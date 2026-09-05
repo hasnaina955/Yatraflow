@@ -2362,7 +2362,7 @@ html.vt-active :where(*) {
 }
 .bench-grid {
   display: grid; grid-template-columns: minmax(320px, 1.05fr) minmax(300px, 0.95fr);
-  gap: 18px; align-items: start; margin-top: 8px;
+  gap: 18px; align-items: stretch; margin-top: 8px;  /* stretch: both columns share the taller height */
 }
 /* Left controls: one cream card holding every dial, split into labelled blocks. */
 .bench-controls {
@@ -2457,7 +2457,7 @@ html.vt-active :where(*) {
   margin-left: auto; flex-shrink: 0; font-size: 10.5px; font-weight: 800;
   font-family: var(--bench-mono); font-variant-numeric: tabular-nums;
   padding: 2px 7px; border-radius: 999px;
-  background: var(--bg-soft); color: var(--text-3);
+  background: var(--bg-soft); color: var(--text-2);
 }
 .bench-mode-btn.on .bench-mode-speed { background: rgba(255, 255, 255, .22); color: #fff; }
 .bench-hint { font-size: 12px; color: var(--text-3); margin: 0; }
@@ -2494,15 +2494,26 @@ html.vt-active :where(*) {
 .bench-crew-btn.on { border-color: var(--yf-teal-600); background: var(--yf-teal-600); color: #fff; }
 .bench-crew-emoji { font-size: 15px; line-height: 1; }
 
-/* receipt v3 — dark till-roll bill: torn bottom edge, stamp, barcode, mono numerals */
+/* receipt v3 — theme-aware bill: torn bottom edge, stamp, barcode, mono numerals.
+   Light theme = cream paper with ink text; dark theme = navy till-roll. Every
+   receipt surface/text pair reads from these scoped props so the two themes
+   cannot drift out of contrast. */
 .bench-receipt {
+  --receipt-ink: var(--text);
+  --receipt-ink-soft: var(--text-2);
+  --receipt-ink-faint: var(--text-3);
+  --receipt-accent: var(--yf-teal-600);
+  --receipt-line: var(--line);
+  --receipt-barcode: rgba(13, 43, 38, .5);
+  --receipt-fatigue-bg: var(--card-soft);
+  --receipt-hero: color-mix(in srgb, var(--saffron-600) 90%, black);  /* saffron dark enough for AA-large on paper */
   position: relative;
   display: flex; flex-direction: column; gap: 14px;
-  color: #EAF4F1;
+  color: var(--receipt-ink);
   background:
-    radial-gradient(120% 70% at 100% 0%, rgba(243, 170, 61, .14), transparent 55%),
-    radial-gradient(120% 70% at 0% 100%, rgba(15, 158, 144, .2), transparent 55%),
-    linear-gradient(165deg, var(--yf-navy), #0A222B 82%);
+    radial-gradient(120% 90% at 100% 0%, var(--yf-atmos-peach), transparent 55%),
+    radial-gradient(120% 90% at 0% 100%, var(--yf-atmos-mint), transparent 55%),
+    var(--card);
   clip-path: polygon(
     0 0, 100% 0, 100% calc(100% - 9px),
     96.875% 100%, 93.75% calc(100% - 9px), 90.625% 100%, 87.5% calc(100% - 9px),
@@ -2515,39 +2526,53 @@ html.vt-active :where(*) {
     9.375% 100%, 6.25% calc(100% - 9px), 3.125% 100%, 0 calc(100% - 9px)
   );
 }
+[data-theme='dark'] .bench-receipt {
+  --receipt-ink: #EAF4F1;
+  --receipt-ink-soft: rgba(234, 244, 241, .8);
+  --receipt-ink-faint: rgba(234, 244, 241, .68);
+  --receipt-accent: #8ADBCA;
+  --receipt-line: rgba(255, 255, 255, .18);
+  --receipt-barcode: rgba(234, 244, 241, .55);
+  --receipt-fatigue-bg: rgba(255, 255, 255, .06);
+  --receipt-hero: var(--yf-saffron);
+  background:
+    radial-gradient(120% 70% at 100% 0%, rgba(243, 170, 61, .14), transparent 55%),
+    radial-gradient(120% 70% at 0% 100%, rgba(15, 158, 144, .2), transparent 55%),
+    linear-gradient(165deg, var(--yf-navy), #0A222B 82%);
+}
 .bench-stamp {
   position: absolute; top: 46px; right: 14px; z-index: var(--z-content);
   transform: rotate(7deg);
-  border: 2px solid #8ADBCA; color: #8ADBCA;
+  border: 2px solid var(--receipt-accent); color: var(--receipt-accent);
   border-radius: 6px; padding: 2px 9px;
   font-size: 11px; font-weight: 800; letter-spacing: .18em;
-  opacity: .55; pointer-events: none; user-select: none;
+  opacity: .68; pointer-events: none; user-select: none;
 }
 /* barcode strip — pure CSS, decorative */
 .bench-barcode {
   position: absolute; top: 14px; right: 14px; width: 68px; height: 22px;
-  color: rgba(234, 244, 241, .55); pointer-events: none;
+  color: var(--receipt-barcode); pointer-events: none;
   background: repeating-linear-gradient(90deg,
     currentColor 0 2px, transparent 2px 4px,
     currentColor 4px 5px, transparent 5px 9px,
     currentColor 9px 12px, transparent 12px 14px);
 }
 .bench-receipt-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 2px 10px; padding-right: 92px; }
-.bench-receipt-kicker { font-size: 11px; font-weight: 800; letter-spacing: .14em; color: #8ADBCA; white-space: nowrap; text-transform: uppercase; }
-.bench-receipt-date { font-size: 11px; color: rgba(234, 244, 241, .55); white-space: nowrap; }
+.bench-receipt-kicker { font-size: 11px; font-weight: 800; letter-spacing: .14em; color: var(--receipt-accent); white-space: nowrap; text-transform: uppercase; }
+.bench-receipt-date { font-size: 11px; color: var(--receipt-ink-faint); white-space: nowrap; }
 .bench-total { text-align: center; padding: 4px 0 2px; }
-.bench-total-label { display: block; font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: rgba(234, 244, 241, .6); }
+.bench-total-label { display: block; font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--receipt-ink-faint); }
 .bench-total-main {
-  display: block; font-size: clamp(30px, 4.5vw, 42px); font-weight: 800; color: var(--text);
+  display: block; font-size: clamp(30px, 4.5vw, 42px); font-weight: 800; color: var(--receipt-ink);
   font-variant-numeric: tabular-nums; font-family: var(--bench-mono);
 }
 /* per-head is the hero figure on the v2 receipt — saffron, unit rides baseline */
-.bench-total-perhead { color: var(--yf-saffron); display: flex; justify-content: center; align-items: baseline; gap: 7px; flex-wrap: wrap; }
-.bench-perhead-unit { font-size: 15px; font-weight: 700; color: rgba(234, 244, 241, .7); letter-spacing: .02em; }
-.bench-total-sub { display: block; font-size: 13px; color: rgba(234, 244, 241, .66); margin-top: 4px; font-variant-numeric: tabular-nums; }
+.bench-total-perhead { color: var(--receipt-hero); display: flex; justify-content: center; align-items: baseline; gap: 7px; flex-wrap: wrap; }
+.bench-perhead-unit { font-size: 15px; font-weight: 700; color: var(--receipt-ink-soft); letter-spacing: .02em; }
+.bench-total-sub { display: block; font-size: 13px; color: var(--receipt-ink-soft); margin-top: 4px; font-variant-numeric: tabular-nums; }
 
 /* split bar */
-.bench-split { display: flex; height: 10px; border-radius: 999px; overflow: hidden; border: 1px solid var(--line); }
+.bench-split { display: flex; height: 10px; border-radius: 999px; overflow: hidden; border: 1px solid var(--receipt-line); }
 .bench-split-bar {
   height: 100%; transition: width .35s var(--ease-out);
   min-width: 0; overflow: hidden;
@@ -2555,7 +2580,7 @@ html.vt-active :where(*) {
 .bench-split-transport { background: var(--yf-teal-600); }
 .bench-split-stay { background: var(--yf-saffron); }
 .bench-split-meal { background: var(--yf-purple); }
-.bench-split-legend { display: flex; flex-wrap: wrap; gap:  12px; font-size: 12px; font-weight: 650; color: rgba(234, 244, 241, .78); }
+.bench-split-legend { display: flex; flex-wrap: wrap; gap:  12px; font-size: 12px; font-weight: 650; color: var(--receipt-ink-soft); }
 .bench-split-legend .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; vertical-align: baseline; }
 .dot-transport { background: var(--yf-teal-600); }
 .dot-stay { background: var(--yf-saffron); }
@@ -2563,12 +2588,12 @@ html.vt-active :where(*) {
 
 /* receipt lines + perforated divider */
 .bench-receipt-lines { display: flex; flex-direction: column; gap:  8px; }
-.bench-line { display: flex; flex-direction: column; gap:  1px; padding: 8px 0; border-top: 1px dashed rgba(255, 255, 255, .18); }
+.bench-line { display: flex; flex-direction: column; gap:  1px; padding: 8px 0; border-top: 1px dashed var(--receipt-line); }
 .bench-line-head { display: flex; justify-content: space-between; align-items: baseline; gap:  10px; font-size: 13.5px; }
 .bench-line-head b { font-variant-numeric: tabular-nums; font-family: var(--bench-mono); }
-.bench-line-formula { font-size:  11.5px; color: rgba(234, 244, 241, .62); }
+.bench-line-formula { font-size:  11.5px; color: var(--receipt-ink-faint); }
 .bench-receipt-rules {
-  border-top: 2px dashed var(--yf-border); position: relative; height: 0; margin: 2px 0;
+  border-top: 2px dashed var(--receipt-line); position: relative; height: 0; margin: 2px 0;
 }
 .bench-receipt-rules::before, .bench-receipt-rules::after {
   content: ''; position: absolute; top: -5px; width: 11px; height: 11px; border-radius: 50%;
@@ -2578,16 +2603,16 @@ html.vt-active :where(*) {
 .bench-receipt-rules::after { right: -10px; }
 
 /* fatigue gauge */
-.bench-fatigue { display: flex; align-items: center; gap:  12px; padding: 10px 12px; border-radius: 14px; border:  1px solid rgba(255, 255, 255, .16); background: rgba(255, 255, 255, .06); }
-.bench-fatigue-title { display: block; font-size:  13px; font-weight: 700; color: var(--text); }
+.bench-fatigue { display: flex; align-items: center; gap:  12px; padding: 10px 12px; border-radius: 14px; border:  1px solid var(--receipt-line); background: var(--receipt-fatigue-bg); }
+.bench-fatigue-title { display: block; font-size:  13px; font-weight: 700; color: var(--receipt-ink); }
 
-.bench-cta-row { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-top: 2px; }
+.bench-cta-row { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-top: auto; padding-top: 12px; }
 .bench-cta { width: 100%; }
-.bench-alt-link { font-size: 13px; font-weight: 650; color: #8ADBCA; text-decoration: none; }
+.bench-alt-link { font-size: 13px; font-weight: 650; color: var(--receipt-accent); text-decoration: none; }
 .bench-alt-link:hover { text-decoration: underline; }
 .bench-receipt-actions { display: flex; justify-content: center; }
 .bench-receipt-actions .chip { cursor: pointer; font-size: 12px; font-weight: 650; }
-.bench-fineprint { font-size: 11px; color: rgba(234, 244, 241, .55); text-align: center; margin: 0; line-height: 1.5; }
+.bench-fineprint { font-size: 11px; color: var(--receipt-ink-faint); text-align: center; margin: 0; line-height: 1.5; }
 
 /* ---------- Plan Bench 3.0 — motion system (transform/opacity only) ---------- */
 
@@ -2691,7 +2716,7 @@ html.vt-active :where(*) {
 @keyframes bench-pop { from { opacity: 0; } }
 
 /* fatigue needle gauge */
-.bench-gauge { width: 74px; height: 40px; flex-shrink: 0; color: #8ADBCA; }
+.bench-gauge { width: 74px; height: 40px; flex-shrink: 0; color: var(--receipt-accent); }
 .bench-gauge.tone-warn { color: var(--yf-saffron); }
 .bench-gauge.tone-hot { color: #e05656; }
 .bench-gauge-needle { transform-origin: 60px 58px; }
@@ -2704,10 +2729,10 @@ html.vt-active :where(*) {
 .bench-live .bench-stamp { animation: bench-stamp-in .5s cubic-bezier(.2, 2, .4, 1) .6s both; }
 @keyframes bench-stamp-in {
   0% { opacity: 0; transform: rotate(16deg) scale(2.1); }
-  60% { opacity: .8; }
-  100% { opacity: .55; transform: rotate(7deg) scale(1); }
+  60% { opacity: .85; }
+  100% { opacity: .68; transform: rotate(7deg) scale(1); }
 }
-@media (prefers-reduced-motion: reduce) { .bench-stamp { opacity: .55; } }
+@media (prefers-reduced-motion: reduce) { .bench-stamp { opacity: .68; } }
 
 /* receipt tilt (pointer-follow, desktop only) + tear-off + reprint flicker */
 .bench-receipt {
@@ -2894,7 +2919,7 @@ html.vt-active :where(*) {
   }
   .plan-bench .bench-title { font-size: clamp(1.35rem, 2.4vw, 1.9rem); }
   .plan-bench .bench-sub { margin: 6px auto 14px; }
-  .plan-bench .bench-controls { gap: 13px; padding: 15px 16px; }
+  .plan-bench .bench-controls { gap: 13px; padding: 15px 16px; justify-content: space-between; }
   .plan-bench .bench-block { gap: 6px; }
   /* If the viewport is still too short, the receipt pins while controls scroll. */
   .plan-bench .bench-receipt { position: sticky; top: calc(var(--nav-h, 64px) + 12px); }

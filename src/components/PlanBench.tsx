@@ -413,7 +413,6 @@ export function PlanBench() {
                 </button>
               ))}
             </div>
-            <p className="bench-hint">{shown.rooms} room{shown.rooms === 1 ? '' : 's'} shared — two to a room</p>
           </div>
           <div className="bench-block">
             <div className="bench-block-head">

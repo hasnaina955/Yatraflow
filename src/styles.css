@@ -2376,7 +2376,13 @@ html.vt-active :where(*) {
 .bench-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: start; }
 .bench-eyebrow { font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--text-3); }
 .bench-block-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
-.bench-block-big { font-size: 20px; font-weight: 800; color: var(--text); font-family: var(--bench-mono, monospace); font-variant-numeric: tabular-nums; }
+/* crew size / trip length heads — value rides the eyebrow row at label scale
+   so the two blocks in the pair align with Getting There / Stay Style above */
+.bench-block-value {
+  font-size: 13px; font-weight: 750; color: var(--text);
+  font-family: var(--bench-mono, monospace); font-variant-numeric: tabular-nums;
+  white-space: nowrap; text-align: right;
+}
 
 /* header row: identity badge left, return-leg toggle + surprise + reset right */
 .bench-head-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
@@ -2542,6 +2548,26 @@ html.vt-active :where(*) {
     radial-gradient(120% 70% at 0% 100%, rgba(15, 158, 144, .2), transparent 55%),
     linear-gradient(165deg, var(--yf-navy), #0A222B 82%);
 }
+/* capture override — the shared PNG always ships the dark till-roll look.
+   Mirrors the dark-theme block above but scoped to the receipt node itself,
+   so lib/billCapture.ts can force it for one frame without touching the
+   user's theme (also pins --bg/--line for the perforation dots). */
+.bench-receipt.capture-dark {
+  --receipt-ink: #EAF4F1;
+  --receipt-ink-soft: rgba(234, 244, 241, .8);
+  --receipt-ink-faint: rgba(234, 244, 241, .68);
+  --receipt-accent: #8ADBCA;
+  --receipt-line: rgba(255, 255, 255, .18);
+  --receipt-barcode: rgba(234, 244, 241, .55);
+  --receipt-fatigue-bg: rgba(255, 255, 255, .06);
+  --receipt-hero: var(--yf-saffron);
+  --bg: #0A222B;
+  --line: rgba(255, 255, 255, .18);
+  background:
+    radial-gradient(120% 70% at 100% 0%, rgba(243, 170, 61, .14), transparent 55%),
+    radial-gradient(120% 70% at 0% 100%, rgba(15, 158, 144, .2), transparent 55%),
+    linear-gradient(165deg, var(--yf-navy), #0A222B 82%);
+}
 .bench-stamp {
   position: absolute; top: 46px; right: 14px; z-index: var(--z-content);
   transform: rotate(7deg);
@@ -2562,6 +2588,15 @@ html.vt-active :where(*) {
 .bench-receipt-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 2px 10px; padding-right: 92px; }
 .bench-receipt-kicker { font-size: 11px; font-weight: 800; letter-spacing: .14em; color: var(--receipt-accent); white-space: nowrap; text-transform: uppercase; }
 .bench-receipt-date { font-size: 11px; color: var(--receipt-ink-faint); white-space: nowrap; }
+/* crew + transport meta row — right under the kicker: who and how, at a
+   glance. More prominent than a footnote, quieter than the per-head hero. */
+.bench-meta-row {
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  width: fit-content; margin: -6px auto 0; padding: 5px 12px;
+  border: 1px dashed var(--receipt-line); border-radius: 999px;
+  font-size: 12.5px; font-weight: 700; color: var(--receipt-ink-soft);
+}
+.bench-meta-row svg { color: var(--receipt-accent); flex: none; }
 .bench-total { text-align: center; padding: 4px 0 2px; }
 .bench-total-label { display: block; font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--receipt-ink-faint); }
 .bench-total-main {

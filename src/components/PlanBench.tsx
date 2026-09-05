@@ -22,7 +22,7 @@ import {
   loadBenchInputs, saveBenchInputs, benchInputsEqual, formatBenchShareText,
   type BenchMode, type BenchStayStyle, type BenchInputs,
 } from '../lib/planBench'
-import { shareBillImage } from '../lib/billImage'
+import { shareBillImage } from '../lib/billCapture'
 import { toast } from './ui'
 import { haptic, HAPTIC } from '../lib/haptics'
 
@@ -298,14 +298,14 @@ export function PlanBench() {
     // clipboard fully unavailable: the receipt is on screen — stay quiet
   }
 
-  /** Render the bill to a PNG and share it: native share sheet → clipboard
-   *  image → download. Each outcome toasts; the share sheet's own cancel is
-   *  not an error. */
+  /** Snapshot the live receipt to a PNG and share it: native share sheet →
+   *  clipboard image → download. Each outcome toasts; the share sheet's own
+   *  cancel is not an error. */
   async function shareImage() {
     if (imgState === 'busy') return
     setImgState('busy')
     try {
-      const result = await shareBillImage(bill, input)
+      const result = await shareBillImage(receiptRef.current)
       haptic(HAPTIC.success)
       if (result === 'copied') toast('Bill image copied')
       if (result === 'downloaded') toast('Bill image downloaded')
@@ -313,7 +313,7 @@ export function PlanBench() {
       later(() => setImgState('idle'), 1600)
     } catch (err) {
       const aborted = err instanceof DOMException && err.name === 'AbortError'
-      if (!aborted) toast('Could not create the bill image', 'err')
+      if (!aborted) toast('Could not create the bill image — try "Copy bill as text"', 'err')
       setImgState('idle')
     }
   }
@@ -443,7 +443,7 @@ export function PlanBench() {
             <div className="bench-block">
               <div className="bench-block-head">
                 <span className="bench-eyebrow">Crew size</span>
-                <span className="bench-block-big">{shownInput.crew}</span>
+                <span className="bench-block-value">{shownInput.crew}</span>
               </div>
               <div className="bench-crew" role="group" aria-label="Crew size">
                 {Array.from({ length: 8 }, (_, i) => i + 1).map(n => (
@@ -460,7 +460,7 @@ export function PlanBench() {
             <div className="bench-block">
               <div className="bench-block-head">
                 <span className="bench-eyebrow">Trip length</span>
-                <span className="bench-block-big">{input.nights} night{input.nights === 1 ? '' : 's'} · {input.nights + 1} day{input.nights + 1 === 1 ? '' : 's'}</span>
+                <span className="bench-block-value">{input.nights} night{input.nights === 1 ? '' : 's'} · {input.nights + 1} day{input.nights + 1 === 1 ? '' : 's'}</span>
               </div>
               <BenchRange value={input.nights} min={1} max={7} step={1}
                 fmt={v => `${v} night${v === 1 ? '' : 's'}`} ariaLabel="Number of nights" onChange={v => patch({ nights: v })} />
@@ -492,6 +492,10 @@ export function PlanBench() {
           <div className="bench-receipt-head">
             <span className="bench-receipt-kicker">The Honest Bill</span>
             <span className="bench-receipt-date">{issued}</span>
+          </div>
+          <div className="bench-meta-row">
+            {modeIcon(shownInput.mode, 14)}
+            <span>{shownInput.mode === 'motorcycle' ? 'Bike' : shownInput.mode} · {shownInput.crew} traveller{shownInput.crew === 1 ? '' : 's'}</span>
           </div>
           <div className="bench-total" aria-live="polite">
             <div className="bench-total-label">Per head</div>

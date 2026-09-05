@@ -7,6 +7,7 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 ### Fixed
 - **Published itineraries now show on Explore for logged-out users.** When the app loaded without a logged-in user (anonymous browsing), the `hydrate(null)` function was clearing the entire cache including `published: []`. Modified the anonymous hydration path to fetch `published_itineraries` and `profiles` tables via Supabase using the anon key, while keeping user-specific data (trips/suggestions/decisions/notifications) empty. Explore page now displays published itineraries for both logged-in and logged-out users. `[54]`
 - **Theme toggle radiating animation now works on all pages including landing.** Removed the `route === '/'` check that was disabling View Transitions on the landing page. The radiating animation now provides consistent visual feedback everywhere in the app. `[53]`
+- **Nav icon alignment and sizing fixes.** Increased BrandMark to 32px, hamburger menu to 20px, theme and bell icons to 18px. Standardized nav-pill-group container to 40px with 17px font-size. Fixed Sparkles icon vertical alignment by removing manual `verticalAlign` offset.
 
 ## [0.31.0] - 2026-09-05
 

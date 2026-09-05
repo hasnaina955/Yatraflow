@@ -17,6 +17,7 @@ import type { LatLngPoint } from '../data/types'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
 import { toast } from '../components/ui'
 import { isMissingColumnError, rowToTrip, tripToRow, type OptionalColumnsProbe, type TripRow } from '../lib/tripRow'
+import { suggestionToRow, decisionToRow, activityToRow, notificationToRow, publishedToRow } from '../lib/restoreRows'
 import { reduceSlice, applyMemberChange, isRecentLocalWrite } from '../lib/realtimeCore'
 import { MISSING_BACKEND_MESSAGE, describeAuthFailure } from '../lib/authErrors'
 import type { RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/supabase-js'
@@ -556,23 +557,125 @@ export function duplicateTrip(source: Trip, ownerId: ID, makePublic?: boolean): 
   return copy
 }
 
+// ---------------- Trip deletion + undo ----------------
+
+/** What `delete from public.trips` takes with it. Six tables cascade off a trip
+ *  (supabase/schema.sql), and the itinerary is NOT one of them — `days` and
+ *  `expenses` are JSONB columns on the trips row, so undo always brought the
+ *  plan back intact. What vanished for good was the collaboration layer: every
+ *  vote, every decision, the activity feed, everyone's notifications, and the
+ *  public Explore link along with its view/copy counts. Captured before the
+ *  delete so undo can put it back. Issue #43. */
+interface TripSnapshot {
+  trip: Trip
+  index: number
+  ownerId: ID | null
+  suggestions: StopSuggestion[]
+  decisions: TripDecision[]
+  activity: ActivityEntry[]
+  notifications: Notification[]
+  published: PublishedItinerary[]
+}
+
+/** The last undoable deletion. The undo toast is the only consumer, so one slot
+ *  is exactly as much history as the UI is able to offer. */
+let lastDeletedTrip: TripSnapshot | null = null
+
+/** A trip's owner. There is no `ownerId` on the Trip type — ownership lives only
+ *  in the members array — so this is the one place to ask. Reading `members[0]`
+ *  instead hands the trip to whoever happens to be first in that array. */
+export function tripOwner(trip: Trip): ID | null {
+  return trip.members?.find(m => m.role === 'owner')?.userId
+    ?? trip.members?.[0]?.userId
+    ?? null
+}
+
+function snapshotTrip(trip: Trip, index: number): TripSnapshot {
+  return {
+    trip,
+    index,
+    ownerId: tripOwner(trip),
+    suggestions: cache.suggestions.filter(s => s.tripId === trip.id),
+    decisions: cache.decisions.filter(d => d.tripId === trip.id),
+    activity: cache.activity.filter(a => a.tripId === trip.id),
+    notifications: cache.notifications.filter(n => n.tripId === trip.id),
+    published: cache.published.filter(p => p.tripId === trip.id),
+  }
+}
+
 export function deleteTrip(id: ID): void {
   const idx = cache.trips.findIndex(t => t.id === id)
   if (idx < 0) return
   const removed = cache.trips[idx]
+  lastDeletedTrip = snapshotTrip(removed, idx)
   cache.trips = cache.trips.filter(t => t.id !== id)
   commit()
   markLocalWrite('trips', id)
-  void supabase.from('trips').delete().eq('id', id).then(({ error }) => { if (error) { cache.trips.splice(idx, 0, removed); commit() } })
+  void supabase.from('trips').delete().eq('id', id).then(({ error }) => {
+    if (error) {
+      cache.trips.splice(idx, 0, removed)
+      commit()
+      lastDeletedTrip = null
+    }
+  })
 }
 
 /** Re-insert a trip at its old position — powers Undo on trip deletion. */
 export function restoreTrip(trip: Trip, index: number): void {
   if (cache.trips.some(t => t.id === trip.id)) return
+  const snap = lastDeletedTrip?.trip.id === trip.id ? lastDeletedTrip : null
+  lastDeletedTrip = null
   cache.trips.splice(Math.min(index, cache.trips.length), 0, trip)
   commit()
+  void restoreTripData(trip, snap)
+}
+
+async function restoreRows(table: string, rows: unknown[], upsert = false): Promise<string | null> {
+  if (!rows.length) return null
+  const { error } = await (upsert ? supabase.from(table).upsert(rows) : supabase.from(table).insert(rows))
+  return error ? (error.message ?? 'write failed') : null
+}
+
+async function restoreTripData(trip: Trip, snap: TripSnapshot | null): Promise<void> {
   markLocalWrite('trips', trip.id)
-  if (trip.members?.[0]) void persistTrip(trip, trip.members[0].userId)
+  // persistTrip writes this value straight into trips.owner_id. Passing
+  // members[0].userId here used to transfer ownership to an arbitrary
+  // collaborator every time a shared trip was deleted and undone.
+  const ownerId = snap?.ownerId ?? tripOwner(trip)
+  if (ownerId) await persistTrip(trip, ownerId)
+  if (!snap) return
+
+  // Order matters: every child policy gates on is_editor(trip_id), a membership
+  // subquery, so these writes are rejected unless the trip row and its member
+  // rows are already in place — which the await above is what guarantees.
+  // Per-table on purpose: losing the activity feed must not also cost the user
+  // their public link. Rows keep their original ids, and every child realtime
+  // handler is an idempotent upsert keyed on id, so the echo cannot double-add.
+  const results = await Promise.all([
+    restoreRows('suggestions', snap.suggestions.map(suggestionToRow)),
+    restoreRows('decisions', snap.decisions.map(decisionToRow)),
+    restoreRows('activity', snap.activity.map(activityToRow)),
+    restoreRows('notifications', snap.notifications.map(notificationToRow)),
+    restoreRows('published_itineraries', snap.published.map(publishedToRow), true),
+  ])
+
+  const failed = [
+    ['suggestions', results[0]],
+    ['decisions', results[1]],
+    ['activity', results[2]],
+    ['notifications', results[3]],
+    ['published link', results[4]],
+  ].filter(([, msg]) => msg) as [string, string][]
+
+  if (!failed.length) return
+  console.error('[yatraflow] undo could not restore:', failed.map(([t, m]) => `${t} (${m})`).join(', '))
+  // The public link is the one loss the user would notice and could not explain,
+  // so it is the one worth saying out loud. published_itineraries RLS is gated
+  // on creator_id, meaning a collaborator undoing their own delete genuinely
+  // cannot re-publish the owner's itinerary.
+  if (failed.some(([t]) => t === 'published link')) {
+    toast('Trip restored, but its public link could not be restored - republish it from the trip.')
+  }
 }
 
 /** Put a removed member back — powers Undo on member removal. */

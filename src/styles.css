@@ -3261,18 +3261,23 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
   .hbc-label { font-size: 15px; }
 
   /* Plan Bench + public itinerary + explore (single-screen layouts) */
+  /* v2 stack: controls card first, receipt bill below it (reading order). */
   .bench-grid { grid-template-columns: 1fr; }
-  .bench-receipt { order: -1; }
+  .bench-controls { padding: 14px; gap: 14px; }
+  .bench-block-big { font-size: 18px; }
+  .bench-distance-big { font-size: 26px; }
+  .bench-fuel-pair { flex-direction: column; gap: 10px; }
   .bench-crew-btn { min-width:  40px; height:  40px; }
   .bench-mode-btn, .bench-stay-row { min-height: 40px; }
   .bench-toggle { min-height: 40px; }
   .bench-preset-chip, .bench-receipt-actions .chip { min-height: 40px; }
-  .bench-receipt-head { padding-right: 78px; }
+  .bench-receipt-head { padding-right: 88px; }
   .bench-receipt-rules::before { left: -8px; }
   .bench-badge { font-size: 11.5px; padding: 6px 13px; }
   .bench-gauge { width: 60px; height: 33px; }
   .bench-receipt-rules::after { right: -10px; }
   .bench-total-main { font-size:  30px; }
+  .bench-barcode { top: 12px; right: 12px; width: 60px; }
   .pub-hero { padding: 64px 0 120px; }
   .pub-hero-stats { position: static; width: auto; margin: 0 16px; }
   .pub-body { padding-top: 16px; }

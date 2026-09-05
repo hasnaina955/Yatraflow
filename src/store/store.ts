@@ -62,6 +62,22 @@ export function useStoreReady(): boolean {
   return useSyncExternalStore(subscribe, () => cache.ready)
 }
 
+/** Immutable trip update: the mutator edits a CLONE that replaces the cached
+ *  trip (and bumps updatedAt unless opted out). In-place edits kept the trip
+ *  reference stable, so every `useMemo([trip])` downstream was stale-prone and
+ *  worked only by accident. Returns the new trip (null when unknown). */
+function mutateTrip(tripId: ID, fn: (draft: Trip) => void, opts: { touch?: boolean; log?: string; target?: string } = {}): Trip | null {
+  const idx = cache.trips.findIndex(t => t.id === tripId)
+  if (idx < 0) return null
+  const draft = structuredClone(cache.trips[idx])
+  fn(draft)
+  if (opts.touch !== false) draft.updatedAt = Date.now()
+  if (opts.log && cache.sessionUserId) addActivity(tripId, cache.sessionUserId, opts.log, opts.target)
+  cache.trips = [...cache.trips.slice(0, idx), draft, ...cache.trips.slice(idx + 1)]
+  commit()
+  return draft
+}
+
 function commit() {
   // Reassign the top-level cache so useSyncExternalStore sees a NEW reference
   // and re-renders subscribers. In-place mutations keep the same object
@@ -523,7 +539,7 @@ export function createTrip(ownerId: ID, input: NewTripInput, seedStops?: Itinera
     visibility: 'private', createdAt: Date.now(), updatedAt: Date.now(),
     members: [{ userId: ownerId, role: 'owner' as const, joinedAt: Date.now() }],
   } as Trip
-  cache.trips.push(trip)
+  cache.trips = [...cache.trips, trip]
   commit()
   void persistTrip(trip, ownerId)
   return trip
@@ -607,7 +623,7 @@ export function duplicateTrip(source: Trip, ownerId: ID, makePublic?: boolean): 
   copy.fixedCommitments = copy.fixedCommitments.map(f => ({ ...f, id: uid('fc') }))
   copy.members = [{ userId: ownerId, role: 'owner' as const, joinedAt: Date.now() }]
   copy.coverImageUrl = source.coverImageUrl
-  cache.trips.push(copy)
+  cache.trips = [...cache.trips, copy]
   commit()
   void persistTrip(copy, ownerId)
   return copy
@@ -669,7 +685,7 @@ export function deleteTrip(id: ID): void {
   markLocalWrite('trips', id)
   void supabase.from('trips').delete().eq('id', id).then(({ error }) => {
     if (error) {
-      cache.trips.splice(idx, 0, removed)
+      cache.trips = [...cache.trips.slice(0, idx), removed, ...cache.trips.slice(idx)]
       commit()
       lastDeletedTrip = null
     }
@@ -681,7 +697,8 @@ export function restoreTrip(trip: Trip, index: number): void {
   if (cache.trips.some(t => t.id === trip.id)) return
   const snap = lastDeletedTrip?.trip.id === trip.id ? lastDeletedTrip : null
   lastDeletedTrip = null
-  cache.trips.splice(Math.min(index, cache.trips.length), 0, trip)
+  const at = Math.min(index, cache.trips.length)
+  cache.trips = [...cache.trips.slice(0, at), trip, ...cache.trips.slice(at)]
   commit()
   void restoreTripData(trip, snap)
 }
@@ -738,8 +755,7 @@ async function restoreTripData(trip: Trip, snap: TripSnapshot | null): Promise<v
 export function restoreMember(tripId: ID, member: TripMember): void {
   const t = tripById(tripId)
   if (!t || t.members?.some(m => m.userId === member.userId)) return
-  t.members = [...(t.members ?? []), member]
-  commit()
+  mutateTrip(tripId, draft => { draft.members = [...(draft.members ?? []), member] }, { touch: false })
   fire('trip_members', supabase.from('trip_members').insert({ trip_id: tripId, user_id: member.userId, role: member.role, joined_at: member.joinedAt }))
 }
 
@@ -747,17 +763,15 @@ export function restoreMember(tripId: ID, member: TripMember): void {
 export function restoreExpense(tripId: ID, expense: Expense, index: number): void {
   const t = tripById(tripId)
   if (!t || t.expenses.some(x => x.id === expense.id)) return
-  t.expenses.splice(Math.min(index, t.expenses.length), 0, expense)
-  commit()
-  void persistTripField(tripId, t)
+  mutateTrip(tripId, draft => { draft.expenses.splice(Math.min(index, draft.expenses.length), 0, expense) }, { touch: false })
+  void persistTripField(tripId, tripById(tripId)!)
 }
 
 export function updateTrip(id: ID, patchFields: Partial<Trip>): void {
   const t = tripById(id)
   if (!t) return
-  Object.assign(t, patchFields, { updatedAt: Date.now() })
-  commit()
-  void persistTripField(id, t)
+  mutateTrip(id, draft => Object.assign(draft, patchFields, { updatedAt: Date.now() }), { touch: false })
+  void persistTripField(id, tripById(id)!)
 }
 
 async function persistTripField(id: ID, t: Trip) {
@@ -789,20 +803,23 @@ export function canEdit(role: TripMember['role'] | null): boolean {
 export function setMemberRole(tripId: ID, userId: ID, role: TripMember['role']): void {
   const t = tripById(tripId)
   const m = t?.members?.find(x => x.userId === userId)
-  if (t && m) { m.role = role; commit(); fire('trip_members', supabase.from('trip_members').update({ role }).eq('trip_id', tripId).eq('user_id', userId)) }
+  if (t && m) {
+    mutateTrip(tripId, draft => {
+      const dm = draft.members?.find(x => x.userId === userId)
+      if (dm) dm.role = role
+    }, { touch: false })
+    fire('trip_members', supabase.from('trip_members').update({ role }).eq('trip_id', tripId).eq('user_id', userId))
+  }
 }
 
 export function joinViaInvite(tripId: ID, userId: ID, role: TripMember['role'] = 'editor'): boolean {
   const t = tripById(tripId)
   if (!t) return false
-  t.members = t.members ?? []
-  if (!t.members.some(m => m.userId === userId)) {
-    t.members.push({ userId, role, joinedAt: Date.now() })
-    addActivity(tripId, userId, 'joined via invite link', 'Members')
-    notifyOwnerOf(tripId, `${userName(userId)} joined “${t.name}” as ${role}.`)
-    commit()
-    fire('trip_members', supabase.from('trip_members').insert({ trip_id: tripId, user_id: userId, role, joined_at: Date.now() }))
-  }
+  if (t.members?.some(m => m.userId === userId)) return true
+  mutateTrip(tripId, draft => { draft.members = [...(draft.members ?? []), { userId, role, joinedAt: Date.now() }] }, { touch: false })
+  addActivity(tripId, userId, 'joined via invite link', 'Members')
+  notifyOwnerOf(tripId, `${userName(userId)} joined “${t.name}” as ${role}.`)
+  fire('trip_members', supabase.from('trip_members').insert({ trip_id: tripId, user_id: userId, role, joined_at: Date.now() }))
   return true
 }
 
@@ -822,37 +839,45 @@ export function userName(id: ID): string {
 // ---------------- Stops ----------------
 
 export function addStop(tripId: ID, dayIndex: number, stop: Omit<ItineraryStop, 'id' | 'orderInDay'>): ItineraryStop {
-  const trip = tripById(tripId)!
-  const day = trip.days.find(d => d.index === dayIndex)!
-  const s: ItineraryStop = { ...stop, id: uid('st'), orderInDay: day.stops.length + 1 }
-  day.stops.push(s)
-  renumber(day)
-  touchAndLog(trip, `added “${stop.title}”`, `Day ${dayIndex + 1}`)
+  const draft = mutateTrip(tripId, d => {
+    const day = d.days.find(x => x.index === dayIndex)!
+    const s: ItineraryStop = { ...stop, id: uid('st'), orderInDay: day.stops.length + 1 }
+    day.stops.push(s)
+    renumber(day)
+  }, { log: `added “${stop.title}”`, target: `Day ${dayIndex + 1}` })
+  if (!draft) throw new Error(`addStop: trip ${tripId} not found`)
   // Persist the trip so the new stop survives a reload — the manual add flow
   // goes through updateTrip() → persistTripField(), but acceptSuggestionInto-
   // Timeline calls addStop() directly and used to drop the stop on refresh.
-  void persistTripField(tripId, trip)
-  return s
+  void persistTripField(tripId, draft)
+  const day = draft.days.find(x => x.index === dayIndex)!
+  return day.stops[day.stops.length - 1]
 }
 
 export function updateStop(tripId: ID, stopId: ID, patchFields: Partial<ItineraryStop>): void {
-  for (const day of tripById(tripId)!.days) {
-    const s = day.stops.find(x => x.id === stopId)
-    if (s) { Object.assign(s, patchFields); touchAndLog(tripById(tripId)!, `updated “${patchFields.title ?? s.title}”`, `Day ${day.index + 1}`); break }
-  }
-  commit()
+  const t = tripById(tripId)
+  if (!t) return
+  const dayIdx = t.days.find(d => d.stops.some(x => x.id === stopId))?.index
+  if (dayIdx === undefined) { commit(); return }
+  const before = t.days.find(d => d.index === dayIdx)!.stops.find(x => x.id === stopId)!
+  mutateTrip(tripId, draft => {
+    const day = draft.days.find(d => d.index === dayIdx)!
+    Object.assign(day.stops.find(x => x.id === stopId)!, patchFields)
+  }, { log: `updated “${patchFields.title ?? before.title}”`, target: `Day ${dayIdx + 1}` })
   void persistTripField(tripId, tripById(tripId)!)
 }
 
 export function deleteStop(tripId: ID, stopId: ID): void {
-  const trip = tripById(tripId)!
-  for (const day of trip.days) {
-    const before = day.stops.length
+  const t = tripById(tripId)
+  if (!t) return
+  const dayIdx = t.days.find(d => d.stops.some(x => x.id === stopId))?.index
+  if (dayIdx === undefined) { commit(); return }
+  mutateTrip(tripId, draft => {
+    const day = draft.days.find(d => d.index === dayIdx)!
     day.stops = day.stops.filter(x => x.id !== stopId)
-    if (day.stops.length !== before) { renumber(day); touchAndLog(trip, `removed a stop`, `Day ${day.index + 1}`); break }
-  }
-  commit()
-  void persistTripField(tripId, trip!)
+    renumber(day)
+  }, { log: `removed a stop`, target: `Day ${dayIdx + 1}` })
+  void persistTripField(tripId, tripById(tripId)!)
 }
 
 /** Put a deleted stop back on its day at its old order — powers Undo. */
@@ -861,16 +886,18 @@ export function restoreStop(tripId: ID, stop: ItineraryStop, dayIndex: number): 
   if (!trip) return
   const day = trip.days.find(d => d.index === dayIndex)
   if (!day || day.stops.some(s => s.id === stop.id)) return
-  day.stops.push(stop)
-  renumber(day)
-  touchAndLog(trip, `restored “${stop.title}”`, `Day ${dayIndex + 1}`)
-  commit()
-  void persistTripField(tripId, trip)
+  mutateTrip(tripId, draft => {
+    const dDay = draft.days.find(d => d.index === dayIndex)!
+    dDay.stops.push(stop)
+    renumber(dDay)
+  }, { log: `restored “${stop.title}”`, target: `Day ${dayIndex + 1}` })
+  void persistTripField(tripId, tripById(tripId)!)
 }
 
 export function reorderStop(tripId: ID, dayIndex: number, fromIdx: number, toIdx: number): void {
   const trip = tripById(tripId)!
-  const day = trip.days.find(d => d.index === dayIndex)!
+  const day = trip.days.find(d => d.index === dayIndex)
+  if (!day) return
   const arr = [...day.stops].sort((a, b) => a.orderInDay - b.orderInDay)
   // Guard out-of-range indices: an OOB splice would insert `undefined` into
   // day.stops, which later crashes simulateDay()/renders (bug #5).
@@ -879,48 +906,63 @@ export function reorderStop(tripId: ID, dayIndex: number, fromIdx: number, toIdx
   const from = Math.max(0, Math.min(fromIdx, len - 1))
   const to = Math.max(0, Math.min(toIdx, len))
   if (from === to) return
-  const [moved] = arr.splice(from, 1)
-  if (!moved) return
-  arr.splice(to, 0, moved)
-  arr.forEach((s, i) => { s.orderInDay = i + 1 })
-  day.stops = arr
-  touchAndLog(trip, `reordered Day ${dayIndex + 1}`, 'Timeline')
-  void persistTripField(tripId, trip)
+  mutateTrip(tripId, draft => {
+    const dDay = draft.days.find(d => d.index === dayIndex)!
+    const dArr = [...dDay.stops].sort((a, b) => a.orderInDay - b.orderInDay)
+    const [moved] = dArr.splice(from, 1)
+    if (!moved) return
+    dArr.splice(to, 0, moved)
+    dArr.forEach((s, i) => { s.orderInDay = i + 1 })
+    dDay.stops = dArr
+  }, { log: `reordered Day ${dayIndex + 1}`, target: 'Timeline' })
+  void persistTripField(tripId, tripById(tripId)!)
 }
 
 export function moveStopBetweenDays(tripId: ID, stopId: ID, toDayIndex: number, position?: number): void {
   const trip = tripById(tripId)!
-  let moved: ItineraryStop | undefined
-  let fromDay: ItineraryDay | undefined
-  for (const day of trip.days) {
-    const idx = day.stops.findIndex(s => s.id === stopId)
-    if (idx >= 0) { [moved] = day.stops.splice(idx, 1); renumber(day); fromDay = day; break }
-  }
+  const fromDay = trip.days.find(d => d.stops.some(s => s.id === stopId))
+  if (!fromDay) { commit(); void persistTripField(tripId, trip); return }
+  const moved = fromDay.stops.find(s => s.id === stopId)!
   const target = trip.days.find(d => d.index === toDayIndex)
-  if (!moved) { commit(); void persistTripField(tripId, trip); return }
-  if (target) {
-    // Same-day or cross-day: insert at the requested position (clamped), defaulting
-    // to the end of the target day so no stop is ever dropped or silently reordered.
-    const at = Math.max(0, Math.min(position ?? target.stops.length, target.stops.length))
-    moved.orderInDay = at + 1
-    target.stops.splice(at, 0, moved)
-    renumber(target)
-    touchAndLog(trip, `moved “${moved.title}” to Day ${toDayIndex + 1}`, 'Timeline')
-  } else if (fromDay) {
-    // Unknown target day — restore the stop to where it came from rather than losing it.
-    fromDay.stops.push(moved)
-    renumber(fromDay)
-  }
-  commit()
-  void persistTripField(tripId, trip)
+  // Unknown target day — the stop goes back where it came from, untouched and
+  // unlogged (matching the old early-return semantics).
+  const opts = target
+    ? { log: `moved “${moved.title}” to Day ${toDayIndex + 1}`, target: 'Timeline' }
+    : { touch: false }
+  mutateTrip(tripId, draft => {
+    let movedDraft: ItineraryStop | undefined
+    let fromDraft: ItineraryDay | undefined
+    for (const day of draft.days) {
+      const idx = day.stops.findIndex(s => s.id === stopId)
+      if (idx >= 0) { [movedDraft] = day.stops.splice(idx, 1); renumber(day); fromDraft = day; break }
+    }
+    const dTarget = draft.days.find(d => d.index === toDayIndex)
+    if (movedDraft && dTarget) {
+      // Same-day or cross-day: insert at the requested position (clamped), defaulting
+      // to the end of the target day so no stop is ever dropped or silently reordered.
+      const at = Math.max(0, Math.min(position ?? dTarget.stops.length, dTarget.stops.length))
+      movedDraft.orderInDay = at + 1
+      dTarget.stops.splice(at, 0, movedDraft)
+      renumber(dTarget)
+    } else if (movedDraft && fromDraft) {
+      fromDraft.stops.push(movedDraft)
+      renumber(fromDraft)
+    }
+  }, opts)
+  void persistTripField(tripId, tripById(tripId)!)
 }
 
 export function setStopStatus(tripId: ID, status: ItineraryStop['status'], stopId: ID): void {
-  for (const day of tripById(tripId)!.days) {
-    const s = day.stops.find(x => x.id === stopId)
-    if (s) { s.status = status; touchAndLog(tripById(tripId)!, `marked “${s.title}” as ${status}`, `Day ${day.index + 1}`); break }
-  }
-  commit()
+  const t = tripById(tripId)
+  if (!t) return
+  const dayIdx = t.days.find(d => d.stops.some(x => x.id === stopId))?.index
+  if (dayIdx === undefined) { commit(); return }
+  const before = t.days.find(d => d.index === dayIdx)!.stops.find(x => x.id === stopId)!
+  mutateTrip(tripId, draft => {
+    const day = draft.days.find(d => d.index === dayIdx)!
+    const s = day.stops.find(x => x.id === stopId)!
+    s.status = status
+  }, { log: `marked “${before.title}” as ${status}`, target: `Day ${dayIdx + 1}` })
   void persistTripField(tripId, tripById(tripId)!)
 }
 
@@ -928,28 +970,20 @@ function renumber(day: ItineraryDay): void {
   ;[...day.stops].sort((a, b) => a.orderInDay - b.orderInDay).forEach((s, i) => { s.orderInDay = i + 1 })
 }
 
-function touchAndLog(trip: Trip, verb: string, target?: string): void {
-  trip.updatedAt = Date.now()
-  if (cache.sessionUserId) addActivity(trip.id, cache.sessionUserId, verb, target)
-  commit()
-}
-
 // ---------------- Expenses ----------------
 
 export function addExpense(tripId: ID, e: Omit<Expense, 'id'>): void {
   const t = tripById(tripId)
   if (!t) return
-  t.expenses.push({ optional: false, ...e, id: uid('ex') })
-  commit()
-  void persistTripField(tripId, t)
+  mutateTrip(tripId, draft => { draft.expenses.push({ optional: false, ...e, id: uid('ex') }) }, { touch: false })
+  void persistTripField(tripId, tripById(tripId)!)
 }
 
 export function deleteExpense(tripId: ID, expenseId: ID): void {
   const t = tripById(tripId)
   if (!t) return
-  t.expenses = t.expenses.filter(x => x.id !== expenseId)
-  commit()
-  void persistTripField(tripId, t)
+  mutateTrip(tripId, draft => { draft.expenses = draft.expenses.filter(x => x.id !== expenseId) }, { touch: false })
+  void persistTripField(tripId, tripById(tripId)!)
 }
 
 // ---------------- Suggestions / votes / comments ----------------
@@ -964,7 +998,7 @@ export function addSuggestion(tripId: ID, s: Omit<StopSuggestion, 'id' | 'votes'
     estimated_entry_fee_inr: s.estimatedEntryFeeInr, estimated_transport_inr: s.estimatedTransportInr,
     votes: [], comments: [], status: 'open',
   }
-  cache.suggestions.push({ ...s, id, tripId, votes: [], comments: [], status: 'open', createdAt: Date.now() })
+  cache.suggestions = [...cache.suggestions, { ...s, id, tripId, votes: [], comments: [], status: 'open', createdAt: Date.now() }]
   const trip = tripById(tripId)
   if (trip && cache.sessionUserId) {
     addActivity(tripId, cache.sessionUserId, `suggested “${s.title}”`, `Day ${(s.dayIndex ?? 0) + 1}`)
@@ -977,8 +1011,9 @@ export function addSuggestion(tripId: ID, s: Omit<StopSuggestion, 'id' | 'votes'
 }
 
 export function voteSuggestion(tripId: ID, suggestionId: ID, userId: ID, value: 1 | -1): void {
-  const sg = cache.suggestions.find(x => x.id === suggestionId)
-  if (!sg) return
+  const sgIdx = cache.suggestions.findIndex(x => x.id === suggestionId)
+  if (sgIdx < 0) return
+  const sg = structuredClone(cache.suggestions[sgIdx])
   const existing = sg.votes.find(v => v.userId === userId)
   // Toggling the same value again is a *removal*, and the activity feed has to say
   // so — logging the value's verb made "I take back my upvote" read as "upvoted",
@@ -990,6 +1025,7 @@ export function voteSuggestion(tripId: ID, suggestionId: ID, userId: ID, value: 
   } else {
     sg.votes.push({ userId, value, createdAt: Date.now() })
   }
+  cache.suggestions = [...cache.suggestions.slice(0, sgIdx), sg, ...cache.suggestions.slice(sgIdx + 1)]
   addActivity(
     tripId,
     userId,
@@ -1001,9 +1037,11 @@ export function voteSuggestion(tripId: ID, suggestionId: ID, userId: ID, value: 
 }
 
 export function addCommentToSuggestion(tripId: ID, suggestionId: ID, authorId: ID, text: string): void {
-  const sg = cache.suggestions.find(x => x.id === suggestionId)
-  if (!sg || !text.trim()) return
+  const sgIdx = cache.suggestions.findIndex(x => x.id === suggestionId)
+  if (sgIdx < 0 || !text.trim()) return
+  const sg = structuredClone(cache.suggestions[sgIdx])
   sg.comments.push({ id: uid('cm'), authorId, text: text.trim(), createdAt: Date.now() })
+  cache.suggestions = [...cache.suggestions.slice(0, sgIdx), sg, ...cache.suggestions.slice(sgIdx + 1)]
   addActivity(tripId, authorId, 'commented on a suggestion', sg.title)
   for (const v of new Set([...sg.votes.map(v => v.userId), sg.proposedBy])) {
     if (v !== authorId) pushNotification(v, tripId, `${userName(authorId)} commented on “${sg.title}”.`)
@@ -1023,7 +1061,7 @@ export function acceptSuggestionIntoTimeline(tripId: ID, suggestionId: ID): void
     entryFeeInrPerPerson: sg.estimatedEntryFeeInr, transportCostInrTotal: sg.estimatedTransportInr,
     priority: 'nice-to-have', status: 'confirmed',
   })
-  sg.status = 'accepted'
+  cache.suggestions = cache.suggestions.map(x => x.id === suggestionId ? { ...x, status: 'accepted' as const } : x)
   const actor = cache.sessionUserId
   if (actor) addActivity(tripId, actor, 'accepted suggestion into timeline', sg.title)
   commit()
@@ -1032,7 +1070,7 @@ export function acceptSuggestionIntoTimeline(tripId: ID, suggestionId: ID): void
 
 export function declineSuggestion(tripId: ID, suggestionId: ID): void {
   const sg = cache.suggestions.find(x => x.id === suggestionId)
-  if (sg) { sg.status = 'declined'; addActivity(tripId, cache.sessionUserId!, 'declined a suggestion', sg.title); commit(); fire('suggestions', supabase.from('suggestions').update({ status: 'declined' }).eq('id', suggestionId)) }
+  if (sg) { cache.suggestions = cache.suggestions.map(x => x.id === suggestionId ? { ...x, status: 'declined' as const } : x); addActivity(tripId, cache.sessionUserId!, 'declined a suggestion', sg.title); commit(); fire('suggestions', supabase.from('suggestions').update({ status: 'declined' }).eq('id', suggestionId)) }
 }
 
 // ---------------- Decisions ----------------
@@ -1046,25 +1084,29 @@ export function addDecision(tripId: ID, d: Pick<TripDecision, 'question' | 'cont
     options: d.options.map(o => ({ ...o, id: uid('o') })),
     votes_by_user_id: {}, status: 'open', raised_by: cache.sessionUserId,
   }
-  cache.decisions.push({ ...d, id, tripId, votesByUserId: {}, status: 'open', raisedBy: cache.sessionUserId, createdAt: Date.now(), options: row.options })
+  cache.decisions = [...cache.decisions, { ...d, id, tripId, votesByUserId: {}, status: 'open', raisedBy: cache.sessionUserId, createdAt: Date.now(), options: row.options }]
   addActivity(tripId, cache.sessionUserId, `raised decision “${d.question}”`, 'Decisions')
   commit()
   fire('decisions', supabase.from('decisions').insert(row))
 }
 
 export function voteOnDecision(decisionId: ID, optionId: ID): void {
-  const d = cache.decisions.find(x => x.id === decisionId)
-  if (!d || !cache.sessionUserId || d.status !== 'open') return
+  const dIdx = cache.decisions.findIndex(x => x.id === decisionId)
+  if (dIdx < 0 || !cache.sessionUserId || cache.decisions[dIdx].status !== 'open') return
+  const d = structuredClone(cache.decisions[dIdx])
   d.votesByUserId[cache.sessionUserId] = optionId
+  cache.decisions = [...cache.decisions.slice(0, dIdx), d, ...cache.decisions.slice(dIdx + 1)]
   addActivity(d.tripId, cache.sessionUserId, 'voted on a decision', d.question)
   commit()
   fire('decisions', supabase.from('decisions').update({ votes_by_user_id: d.votesByUserId }).eq('id', decisionId))
 }
 
 export function resolveDecision(decisionId: ID, optionId: ID): void {
-  const d = cache.decisions.find(x => x.id === decisionId)
-  if (!d) return
+  const dIdx = cache.decisions.findIndex(x => x.id === decisionId)
+  if (dIdx < 0) return
+  const d = structuredClone(cache.decisions[dIdx])
   d.status = 'resolved'; d.resolvedOptionId = optionId; d.resolvedAt = Date.now()
+  cache.decisions = [...cache.decisions.slice(0, dIdx), d, ...cache.decisions.slice(dIdx + 1)]
   addActivity(d.tripId, cache.sessionUserId!, 'resolved a decision', d.question)
   commit()
   fire('decisions', supabase.from('decisions').update({ status: 'resolved', resolved_option_id: optionId, resolved_at: d.resolvedAt }).eq('id', decisionId))
@@ -1088,8 +1130,9 @@ export async function publishItinerary(pub: Omit<PublishedItinerary, 'id' | 'pub
   }
   const existingIdx = cache.published.findIndex(x => x.tripId === p.tripId)
   const previous = existingIdx >= 0 ? cache.published[existingIdx] : undefined
-  if (existingIdx >= 0) cache.published[existingIdx] = p
-  else cache.published.push(p)
+  cache.published = existingIdx >= 0
+    ? [...cache.published.slice(0, existingIdx), p, ...cache.published.slice(existingIdx + 1)]
+    : [...cache.published, p]
   commit()
   // The Supabase row is the ONLY persistence for a publication — if this
   // upsert is rejected, the optimistic cache write makes it look published
@@ -1108,8 +1151,9 @@ export async function publishItinerary(pub: Omit<PublishedItinerary, 'id' | 'pub
     toast('Could not save the publication — it will not survive a refresh. (' + error.message + ')')
     const idx = cache.published.findIndex(x => x.id === p.id)
     if (idx >= 0) {
-      if (previous) cache.published[idx] = previous
-      else cache.published.splice(idx, 1)
+      cache.published = previous
+        ? [...cache.published.slice(0, idx), previous, ...cache.published.slice(idx + 1)]
+        : cache.published.filter((_, i) => i !== idx)
       commit()
     }
   }
@@ -1138,7 +1182,7 @@ export function unpublishedTripIds(userId: ID): ID[] {
 export function registerPubView(id: ID): void {
   const p = cache.published.find(x => x.id === id)
   if (p) {
-    p.views += 1
+    cache.published = cache.published.map(x => x.id === id ? { ...x, views: x.views + 1 } : x)
     commit()
     // Use RPC function that bypasses RLS - anyone can increment counters now.
     fire('published_itineraries', supabase.rpc('bump_published_stats', { p_id: id, p_kind: 'views' }))
@@ -1148,7 +1192,7 @@ export function registerPubView(id: ID): void {
 export function registerPubCopy(id: ID): void {
   const p = cache.published.find(x => x.id === id)
   if (p) {
-    p.copies += 1
+    cache.published = cache.published.map(x => x.id === id ? { ...x, copies: x.copies + 1 } : x)
     commit()
     // Use RPC function that bypasses RLS - anyone can increment counters now.
     fire('published_itineraries', supabase.rpc('bump_published_stats', { p_id: id, p_kind: 'copies' }))
@@ -1163,7 +1207,7 @@ export function activityFor(tripId: ID): ActivityEntry[] {
 
 export function addActivity(tripId: ID, actorId: ID, verb: string, target?: string): void {
   const entry: ActivityEntry = { id: uuid(), tripId, actorId, verb, target, at: Date.now() }
-  cache.activity.push(entry)
+  cache.activity = [...cache.activity, entry]
   fire('activity', supabase.from('activity').insert({ id: entry.id, trip_id: tripId, actor_id: actorId, verb, target, at: entry.at }))
 }
 
@@ -1173,7 +1217,7 @@ export function notificationsFor(userId: ID): Notification[] {
 
 export function pushNotification(userId: ID, tripId: ID | undefined, text: string): void {
   const n: Notification = { id: uuid(), userId, tripId, text, read: false, at: Date.now() }
-  cache.notifications.unshift(n)
+  cache.notifications = [n, ...cache.notifications]
   fire('notifications', supabase.from('notifications').insert({ id: n.id, user_id: userId, trip_id: tripId, text, read: false, at: n.at }))
 }
 
@@ -1184,7 +1228,7 @@ function notifyOwnerOf(tripId: ID, text: string): void {
 }
 
 export function markAllNotificationsRead(userId: ID): void {
-  cache.notifications.forEach(n => { if (n.userId === userId) n.read = true })
+  cache.notifications = cache.notifications.map(n => n.userId === userId ? { ...n, read: true } : n)
   commit()
   fire('notifications', supabase.from('notifications').update({ read: true }).eq('user_id', userId))
 }
@@ -1297,15 +1341,18 @@ function applyRealtimeEvent(table: string, payload: RealtimePostgresChangesPaylo
       }
       const userId: string = row?.user_id ?? oldRow?.user_id
       if (!userId) return
-      trip.members = applyMemberChange(trip.members ?? [], {
-        event,
-        userId,
-        role: (row?.role as TripMember['role']) ?? 'editor',
-        joinedAt: Number(row?.joined_at ?? oldRow?.joined_at ?? Date.now()),
-      })
       // If we were removed, the trip disappears from our view.
       if (event === 'DELETE' && userId === cache.sessionUserId) {
         cache.trips = cache.trips.filter(t => t.id !== tripId)
+      } else {
+        mutateTrip(tripId, draft => {
+          draft.members = applyMemberChange(draft.members ?? [], {
+            event,
+            userId,
+            role: (row?.role as TripMember['role']) ?? 'editor',
+            joinedAt: Number(row?.joined_at ?? oldRow?.joined_at ?? Date.now()),
+          })
+        }, { touch: false })
       }
       break
     }
@@ -1321,7 +1368,7 @@ function applyRealtimeEvent(table: string, payload: RealtimePostgresChangesPaylo
         break
       }
       const entry = rowToActivity(row)
-      if (!cache.activity.some(a => a.id === entry.id)) cache.activity.push(entry)
+      if (!cache.activity.some(a => a.id === entry.id)) cache.activity = [...cache.activity, entry]
       break
     }
     case 'notifications':
@@ -1359,7 +1406,7 @@ async function fetchTripIntoCache(tripId: string): Promise<void> {
     if (tripRes.error || !tripRes.data) return
     const members = ((memRes.data ?? []) as MemberRow[]).map(m => ({ userId: m.user_id, role: m.role as TripMember['role'], joinedAt: m.joined_at }))
     const trip = rowToTrip(tripRes.data as TripRow, members)
-    if (!cache.trips.some(t => t.id === trip.id)) cache.trips.push(trip)
+    if (!cache.trips.some(t => t.id === trip.id)) cache.trips = [...cache.trips, trip]
     commit()
   })()
   tripFetches.set(tripId, fetch)

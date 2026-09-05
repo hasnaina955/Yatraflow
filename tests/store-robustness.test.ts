@@ -5,6 +5,7 @@
 //  #9 acceptSuggestionIntoTimeline no longer dereferences a null session user
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import {
+  tripById,
   getSnapshot, createTrip, reorderStop, acceptSuggestionIntoTimeline,
   publishItinerary, registerPubView, currentUser,
 } from '../src/store/store'
@@ -40,10 +41,12 @@ describe('reorderStop guards out-of-range indices (regression #5)', () => {
       const day = trip.days[0]
       expect(day.stops.length).toBe(2)
       expect(day.stops.every(s => s && typeof s.id === 'string')).toBe(true)
-      // a normal reorder still works
+      // a normal reorder still works — the store now updates immutably, so
+      // stale references keep their snapshot and the cache must be re-read.
       reorderStop(trip.id, 0, 0, 1)
-      expect(day.stops[0].id).toBe('s2')
-      expect(day.stops[1].id).toBe('s1')
+      const reordered = tripById(trip.id)!.days[0]
+      expect(reordered.stops[0].id).toBe('s2')
+      expect(reordered.stops[1].id).toBe('s1')
     })
   })
 })

@@ -202,7 +202,7 @@ export function init(): void {
   })
 }
 
-async function hydrateFromSupabase(userId: string, gen: number): Promise<void> {
+async function hydrateFromSupabase(userId: string, gen: number, seedIfEmpty = true): Promise<void> {
   try {
     // Stage 1 - global catalogs + the user's memberships. Explore reads the curated
     // published_itineraries table and profiles are small rows for user avatars,so
@@ -216,7 +216,14 @@ async function hydrateFromSupabase(userId: string, gen: number): Promise<void> {
       supabase.from('published_itineraries').select('*'),
       supabase.from('trip_members').select('*').eq('user_id', userId),
     ])
+    // Tables whose select failed. Hydration continues with whatever did load —
+    // aborting would throw away good rows over one bad table — but the user gets
+    // told at the end. Before this, a denied table rendered as an empty app with
+    // nothing on screen saying why, which read as "my trips got deleted". #36-18.
+    const partial: string[] = []
+    if (profRes.error) { console.error('[yatraflow] hydrate profiles failed', profRes.error); partial.push('profiles') }
     const profiles = (profRes.data ?? []) as ProfileRow[]
+    if (myMembershipsRes.error) { console.error('[yatraflow] hydrate memberships failed', myMembershipsRes.error); partial.push('memberships') }
     const myRows = (myMembershipsRes.data ?? []) as MemberRow[]
     const memberTripIds = myRows.map(m => m.trip_id)
     const myTripIds = [...new Set(memberTripIds)]
@@ -246,7 +253,10 @@ async function hydrateFromSupabase(userId: string, gen: number): Promise<void> {
         ['trips', tripsRes], ['members', memRes], ['suggestions', sugRes],
         ['decisions', decRes], ['activity', actRes], ['notifications', notRes],
       ] as const) {
-        if (res.error) console.error(`[yatraflow] hydrate ${name} failed`, res.error)
+        if (res.error) {
+          console.error(`[yatraflow] hydrate ${name} failed`, res.error)
+          partial.push(name)
+        }
       }
       trips = (tripsRes.data ?? []) as TripRow[]
       members.push(...((memRes.data ?? []) as MemberRow[]))
@@ -263,7 +273,7 @@ async function hydrateFromSupabase(userId: string, gen: number): Promise<void> {
     console.info('[yatraflow] hydrate:', tripList.length, 'trips,', members.length,' members - ids:', tripList.map(t => t.id).join(','))
 
     const pubRows = mapOrSkip((pubRes.data ?? []), rowToPublished)
-    pubRes.error && console.error('[yatraflow] hydrate published failed', pubRes.error)
+    if (pubRes.error) { console.error('[yatraflow] hydrate published failed', pubRes.error); partial.push('suggested itineraries') }
 
     // Stale run — a sign-out or account switch bumped hydrateGen while these
     // queries were in flight. Writing now would leak the previous account's rows
@@ -284,8 +294,13 @@ async function hydrateFromSupabase(userId: string, gen: number): Promise<void> {
     })
     commit()
 
+    // #36-18: name what is missing instead of letting a half-loaded account render
+    // as an empty one. Deliberately after the staleness check above, so a run that
+    // has been superseded cannot toast about an account the user already left.
+    if (partial.length > 0) toast(`Some data didn't load (${partial.join(', ')}) - refresh to try again.`, 'err')
+
     // First-time users get the demo trips seeded into their account.
-    if (tripList.length === 0) await seedDemoFor(userId, gen)
+    if (tripList.length === 0 && seedIfEmpty) await seedDemoFor(userId, gen)
   } catch (e) {
     console.error('[yatraflow] hydration failed', e)
     toast('Could not load your data - check your connection.')
@@ -318,8 +333,13 @@ async function seedDemoFor(userId: string, gen: number = hydrateGen): Promise<vo
     await supabase.from('trip_members').insert({ trip_id: trip.id, user_id: userId, role: 'owner', joined_at: Date.now() })
     markLocalWrite('trips', trip.id)
   }
-  // re-hydrate so the freshly seeded trips show up
-  await hydrateFromSupabase(userId, gen)
+  // re-hydrate so the freshly seeded trips show up.
+  // `seedIfEmpty: false` is load-bearing. Without it this re-hydrate re-entered the
+  // seed branch whenever the seeded trips still did not come back — a trip_members
+  // insert blocked by RLS, or a read that lags the write — and hydrate ↔ seed
+  // recursed forever, firing 10 trip inserts per cycle without ever settling. A test
+  // with a mock that never returns the seeded rows hung the worker and proved it.
+  await hydrateFromSupabase(userId, gen, false)
 }
 
 // ---------------- Seeding demo trips ----------------
@@ -924,13 +944,22 @@ export function voteSuggestion(tripId: ID, suggestionId: ID, userId: ID, value: 
   const sg = cache.suggestions.find(x => x.id === suggestionId)
   if (!sg) return
   const existing = sg.votes.find(v => v.userId === userId)
+  // Toggling the same value again is a *removal*, and the activity feed has to say
+  // so — logging the value's verb made "I take back my upvote" read as "upvoted",
+  // which is the opposite of what happened. #36-11.
+  let removed = false
   if (existing) {
-    if (existing.value === value) sg.votes = sg.votes.filter(v => v.userId !== userId)
+    if (existing.value === value) { sg.votes = sg.votes.filter(v => v.userId !== userId); removed = true }
     else existing.value = value
   } else {
     sg.votes.push({ userId, value, createdAt: Date.now() })
   }
-  addActivity(tripId, userId, value > 0 ? 'upvoted a suggestion' : 'downvoted a suggestion', sg.title)
+  addActivity(
+    tripId,
+    userId,
+    removed ? 'removed their vote on a suggestion' : value > 0 ? 'upvoted a suggestion' : 'downvoted a suggestion',
+    sg.title,
+  )
   commit()
   void supabase.from('suggestions').update({ votes: sg.votes }).eq('id', suggestionId)
 }
@@ -1282,16 +1311,29 @@ function applyRealtimeEvent(table: string, payload: RealtimePostgresChangesPaylo
 
 /** Fetch a trip row + its members into the cache (used on join/share events). */
 async function fetchTripIntoCache(tripId: string): Promise<void> {
-  const [tripRes, memRes] = await Promise.all([
-    supabase.from('trips').select('*').eq('id', tripId).maybeSingle(),
-    supabase.from('trip_members').select('*').eq('trip_id', tripId),
-  ])
-  if (tripRes.error || !tripRes.data) return
-  const members = ((memRes.data ?? []) as MemberRow[]).map(m => ({ userId: m.user_id, role: m.role as TripMember['role'], joinedAt: m.joined_at }))
-  const trip = rowToTrip(tripRes.data as TripRow, members)
-  if (!cache.trips.some(t => t.id === trip.id)) cache.trips.push(trip)
-  commit()
+  // Two realtime events for the same trip (a burst of INSERT+UPDATE, or a
+  // reconnect replay) used to fire two identical round-trips. Coalesce onto the
+  // in-flight promise so concurrent callers share one fetch. #36-15.
+  const inflight = tripFetches.get(tripId)
+  if (inflight) return inflight
+  const fetch = (async () => {
+    const [tripRes, memRes] = await Promise.all([
+      supabase.from('trips').select('*').eq('id', tripId).maybeSingle(),
+      supabase.from('trip_members').select('*').eq('trip_id', tripId),
+    ])
+    if (tripRes.error || !tripRes.data) return
+    const members = ((memRes.data ?? []) as MemberRow[]).map(m => ({ userId: m.user_id, role: m.role as TripMember['role'], joinedAt: m.joined_at }))
+    const trip = rowToTrip(tripRes.data as TripRow, members)
+    if (!cache.trips.some(t => t.id === trip.id)) cache.trips.push(trip)
+    commit()
+  })()
+  tripFetches.set(tripId, fetch)
+  try { await fetch } finally { tripFetches.delete(tripId) }
 }
+
+/** Trips with a select currently in flight, so a burst of events for one trip
+ *  costs one round-trip. #36-15. */
+const tripFetches = new Map<string, Promise<void>>()
 
 // ---------------- utils ----------------
 

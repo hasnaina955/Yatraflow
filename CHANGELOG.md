@@ -5,7 +5,12 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 ## [Unreleased]
 
 ### Fixed
-- **#48 published itinerary view/copy counters reach database**. Added `bump_published_stats()` RPC function with `SECURITY DEFINER` to bypass RLS, allowing anyone to increment counters. Previously only the creator could update these fields. `[48]`
+- **Theme toggle radiating animation now works on all pages including landing.** Removed the `route === '/'` check that was disabling View Transitions on the landing page. The radiating animation now provides consistent visual feedback everywhere in the app. `[53]`
+
+## [0.31.0] - 2026-09-05
+
+### Fixed
+- **Theme toggle radiating animation now works on all pages.** Removed the `route === '/'` check that was disabling View Transitions on the landing page. The radiating animation now provides consistent visual feedback everywhere in the app. `[53]`
 - **#38 type safety: mapOrSkip helper now uses unknown instead of any**. The mapper parameter changed from `(row: any)` to `(row: unknown)` so callers get proper type checking. All `rowTo*` functions (User, Suggestion, Decision, Activity, Notification, Published) now accept `unknown` and use type assertions internally.
 - **#49 store housekeeping: recentLocalWrites cap**. Added `MAX_RECENT_WRITES=500` limit with automatic sweep of oldest entries when the Map grows too large. Prevents ~30 bytes per mutation from growing unbounded.
 

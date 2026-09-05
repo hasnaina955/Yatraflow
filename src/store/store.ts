@@ -79,13 +79,14 @@ interface MemberRow {
   trip_id: string; user_id: string; role: TripMember['role']; joined_at: number;
 }
 
-function rowToUser(row: ProfileRow): User {
+function rowToUser(row: unknown): User {
+  const r = row as ProfileRow
   return {
-    id: row.id, email: row.email, createdAt: row.created_at,
+    id: r.id, email: r.email, createdAt: r.created_at,
     profile: {
-      name: row.name, avatarUrl: row.avatar_url, homeCity: row.home_city,
-      languages: row.languages ?? ['en'], travelStyles: (row.travel_styles ?? ['balanced']) as User['profile']['travelStyles'],
-      isCreator: row.is_creator, creatorBio: row.creator_bio, socialLinks: row.social_links,
+      name: r.name, avatarUrl: r.avatar_url, homeCity: r.home_city,
+      languages: r.languages ?? ['en'], travelStyles: (r.travel_styles ?? ['balanced']) as User['profile']['travelStyles'],
+      isCreator: r.is_creator, creatorBio: r.creator_bio, socialLinks: r.social_links,
     },
   }
 }
@@ -268,7 +269,7 @@ async function hydrateFromSupabase(userId: string, gen: number, seedIfEmpty = tr
 
     const users = mapOrSkip(profiles, rowToUser)
     const tripList = mapOrSkip(trips, row =>
-      rowToTrip(row, members.filter(m => m.trip_id === row.id).map(m => ({ userId: m.user_id, role: m.role, joinedAt: m.joined_at })))
+      rowToTrip(row as TripRow, members.filter(m => m.trip_id === (row as TripRow).id).map(m => ({ userId: m.user_id, role: m.role, joinedAt: m.joined_at })))
     )
 
     const pubRows = mapOrSkip((pubRes.data ?? []), rowToPublished)

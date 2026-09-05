@@ -5,6 +5,7 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 ## [Unreleased]
 
 ### Fixed
+- **Published itineraries now show on Explore for logged-out users.** When the app loaded without a logged-in user (anonymous browsing), the `hydrate(null)` function was clearing the entire cache including `published: []`. Modified the anonymous hydration path to fetch `published_itineraries` and `profiles` tables via Supabase using the anon key, while keeping user-specific data (trips/suggestions/decisions/notifications) empty. Explore page now displays published itineraries for both logged-in and logged-out users. `[54]`
 - **Theme toggle radiating animation now works on all pages including landing.** Removed the `route === '/'` check that was disabling View Transitions on the landing page. The radiating animation now provides consistent visual feedback everywhere in the app. `[53]`
 
 ## [0.31.0] - 2026-09-05

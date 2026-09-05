@@ -171,12 +171,25 @@ export function init(): void {
     const gen = ++hydrateGen
 
     if (!userId) {
-      // Bumping hydrateGen is the fix: any hydrate still in flight now resolves
-      // onto a stale generation and discards its own patch, instead of
-      // resurrecting the account that just signed out.
+      // Anonymous user: fetch global catalogs (published itineraries + profiles) but skip user-specific data.
+      // Explore needs published itineraries to work for logged-out users.
       disconnectRealtime()
-      patch({ users: [], trips: [], suggestions: [], decisions: [], activity: [], notifications: [], published: [], sessionUserId: null })
-      commit()
+      try {
+        const [profRes, pubRes] = await Promise.all([
+          supabase.from('profiles').select('*'),
+          supabase.from('published_itineraries').select('*'),
+        ])
+        const users = mapOrSkip((profRes.data ?? []), rowToUser)
+        const pubRows = mapOrSkip((pubRes.data ?? []), rowToPublished)
+        if (profRes.error) { console.error('[yatraflow] hydrate profiles failed', profRes.error) }
+        if (pubRes.error) { console.error('[yatraflow] hydrate published failed', pubRes.error) }
+        patch({ users, trips: [], suggestions: [], decisions: [], activity: [], notifications: [], published: dedupePublished(pubRows, new Set()), sessionUserId: null })
+        commit()
+      } catch (e) {
+        console.error('[yatraflow] anonymous hydration failed', e)
+        patch({ users: [], trips: [], suggestions: [], decisions: [], activity: [], notifications: [], published: [], sessionUserId: null })
+        commit()
+      }
       activeHydrate = null
       return
     }

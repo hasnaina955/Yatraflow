@@ -20,6 +20,7 @@ export function ProfilePage({ onNavigate }: { onNavigate: (r: string) => void })
   const [creatorBio, setCreatorBio] = useState(me?.profile.creatorBio ?? '')
   const [youtube, setYoutube] = useState(me?.profile.socialLinks?.youtube ?? '')
   const [instagram, setInstagram] = useState(me?.profile.socialLinks?.instagram ?? '')
+  const [nameErr, setNameErr] = useState<string | null>(null)
   // Not logged in: route to auth instead of rendering a blank page.
   const loggedIn = Boolean(me)
   useEffect(() => { if (!loggedIn) onNavigate('/auth') })
@@ -44,7 +45,7 @@ export function ProfilePage({ onNavigate }: { onNavigate: (r: string) => void })
               <Avatar user={me} size="lg" />
               <span className="small muted">Avatars use your initials in this MVP.</span>
             </div>
-            <Field label="Display name"><input className="input" autoComplete="name" value={f.name} onChange={e => setF(x => ({ ...x, name: e.target.value }))} /></Field>
+            <Field label="Display name" error={nameErr ?? undefined}><input className="input" autoComplete="name" value={f.name} onChange={e => { setF(x => ({ ...x, name: e.target.value })); if (nameErr) setNameErr(null) }} /></Field>
             <Field label="Home city"><input className="input" autoComplete="address-level2" value={f.homeCity} onChange={e => setF(x => ({ ...x, homeCity: e.target.value }))} placeholder="e.g. Kochi" /></Field>
             <Field label="Languages you speak" hint="Comma separated — e.g. en, hi, ml">
               <input className="input" value={f.languages} onChange={e => setF(x => ({ ...x, languages: e.target.value }))} />
@@ -113,8 +114,12 @@ export function ProfilePage({ onNavigate }: { onNavigate: (r: string) => void })
             <h3>Save details</h3>
             <hr className="divider" />
             <button className="btn btn-primary" onClick={() => {
+              // Inline validation — the name silently reverting to the old one
+              // read as "save doesn't work". Say so, next to the field.
+              if (!f.name.trim()) { setNameErr('Pick a display name — it shows on shared trips.'); return }
+              setNameErr(null)
               updateProfile({
-                name: f.name.trim() || me.profile.name,
+                name: f.name.trim(),
                 homeCity: f.homeCity.trim() || undefined,
                 languages: f.languages.split(',').map(s => s.trim()).filter(Boolean),
               })

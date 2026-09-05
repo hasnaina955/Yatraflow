@@ -147,7 +147,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
               <p className="editorial-body">{pub.tagline}</p>
               {pub.travelTips.length > 0 && (
                 <>
-                  <h3 className="editorial-sub">Route philosophy</h3>
+                  <h2 className="editorial-sub">Route philosophy</h2>
                   <ul className="editorial-list">
                     {pub.travelTips.map((t, i) => <li key={i}>{t}</li>)}
                   </ul>
@@ -222,7 +222,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
                   <div className="day-header">
                     <div className="day-badge"><small>DAY</small><b>{day.index + 1}</b></div>
                     <div>
-                      <h3>{day.title ?? `Day ${day.index + 1}`}</h3>
+                      <h2>{day.title ?? `Day ${day.index + 1}`}</h2>
                       <div className="small muted">
                         {sim.activeStops.length <= 1 && sim.totalDistanceKm < 0.5
                           ? 'Local day — no drive planned'
@@ -320,14 +320,14 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
             {/* ---- Tips & warnings ---- */}
             <div className="two-col" style={{ marginTop: 16 }}>
               <div className="card">
-                <h3>Travel tips</h3>
+                <h2>Travel tips</h2>
                 <hr className="divider" />
                 <ul style={{ paddingLeft: 18, lineHeight: 1.9, margin: 0 }}>
                   {pub.travelTips.map((t, i) => <li key={i}>{t}</li>)}
                 </ul>
               </div>
               <div className="card">
-                <h3>Warnings & assumptions</h3>
+                <h2>Warnings & assumptions</h2>
                 <hr className="divider" />
                 <ul style={{ paddingLeft: 18, lineHeight: 1.9, margin: 0 }}>
                   {pub.warningsAndAssumptions.map((t, i) => <li key={i}><TriangleAlert size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />{t}</li>)}
@@ -339,7 +339,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
           {/* ---- Sidebar ---- */}
           <div>
             <div className="card" style={{ position: 'sticky', top: 80 }}>
-              <h3>Take this trip with you</h3>
+              <h2>Take this trip with you</h2>
               <p className="hint-text" style={{ margin: '8px 0 14px' }}>
                 Forks the full plan into your YatraFlow account — editable timeline, impact previews and collaboration included.
               </p>

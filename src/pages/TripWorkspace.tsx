@@ -1613,7 +1613,7 @@ function WeatherCard({ trip }: { trip: Trip }) {
   }, [anchor, trip.startDate, trip.days.length]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (state === 'loading') {
-    return <div className="card"><h3>🌦️ Weather</h3><hr className="divider" /><p className="muted small">Loading forecast…</p></div>
+    return <div className="card"><h3><CloudSun size={14} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Weather</h3><hr className="divider" /><p className="muted small">Loading forecast…</p></div>
   }
   if (state !== 'ready') return null
 
@@ -1622,7 +1622,7 @@ function WeatherCard({ trip }: { trip: Trip }) {
   return (
     <div className="card">
       <div className="row-between">
-        <h3>🌦️ Weather along the route</h3>
+        <h3><CloudSun size={14} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Weather along the route</h3>
         <span className="small muted">Open-Meteo · forecasts ±15 days</span>
       </div>
       <hr className="divider" />
@@ -1889,7 +1889,7 @@ function MapTab({ trip, editable, applyChange, suggestionCache }: {
       <TripMap trip={trip} nearbyPois={pois.flatMap(p => p.hit ? [p.hit] : [])} onAddNearby={editable ? (hit) => openAddModal(hit) : undefined} />
       <div className="card" style={{ marginTop: 14 }}>
         <div className="row-between">
-          <h3 style={{ margin: 0 }}>💡 Nearby ideas</h3>
+          <h2 style={{ margin: 0 }}><Lightbulb size={16} aria-hidden style={{ verticalAlign: '-3px', marginRight: 4 }} />Nearby ideas</h2>
           <div className="row-between" style={{ gap: 10 }}>
             <span className="small muted">{loadingPois ? 'searching…' : `${pois.filter(p => p.hit).length} suggested stops — spaced for fatigue & anchored on cities`}</span>
             <button
@@ -2089,7 +2089,7 @@ function SuggestionsTab({ trip, editable, me }: {
 
       <div>
         <form className="card" onSubmit={submit}>
-          <h3>Propose a stop</h3>
+          <h2>Propose a stop</h2>
           <p className="hint-text" style={{ margin: '6px 0 12px' }}>Others can vote and comment; editors can accept it into the timeline.</p>
           <Field label="Idea"><input className="input" value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="e.g. Pothamedu viewpoint" /></Field>
           <Field label="Area"><LocationInput value={form.locationName} onChange={v => setForm(f => ({ ...f, locationName: v }))} onPick={p => setSugCoords({ lat: p.latitude, lng: p.longitude })} placeholder="Search, e.g. Munnar" /></Field>
@@ -2135,7 +2135,7 @@ function BudgetTab({ trip, totals, editable }: { trip: Trip; totals: ReturnType<
     <div className="two-col">
       <div>
         <div className="card">
-          <h3>Where the money goes</h3>
+          <h2>Where the money goes</h2>
           <p className="hint-text" style={{ margin: '4px 0 14px' }}>
             {A.kmPerLiter
               ? <>All figures are estimates in INR. Transport is fuel-based: route distance{isRoundTrip(trip) ? ' (incl. return drive)' : ''} ≈{Math.round(totals.totalDistanceKm)} km ÷ {A.kmPerLiter} km/L ≈ <b>{Math.round(totals.totalDistanceKm / A.kmPerLiter)} L</b> of fuel × ₹{A.fuelPricePerL}/L ({A.fuelPriceIsUserSet ? 'your local pump price' : 'indicative petrol price — actual consumption varies'}).</>
@@ -2155,7 +2155,7 @@ function BudgetTab({ trip, totals, editable }: { trip: Trip; totals: ReturnType<
         </div>
 
         <div className="card">
-          <h3>Essential vs optional</h3>
+          <h2>Essential vs optional</h2>
           <hr className="divider" />
           <div className="budget-bars">
             <div className="budget-bar-row">
@@ -2173,7 +2173,7 @@ function BudgetTab({ trip, totals, editable }: { trip: Trip; totals: ReturnType<
         </div>
 
         <div className="card">
-          <h3>Expense lines</h3>
+          <h2>Expense lines</h2>
           <hr className="divider" />
           {trip.expenses.length === 0 ? <p className="muted small">No expense lines yet.</p> : (
             <table className="compare-table">
@@ -2265,7 +2265,7 @@ function BudgetTab({ trip, totals, editable }: { trip: Trip; totals: ReturnType<
         </div>
 
         <div className="card" style={{ marginTop: 14 }}>
-          <h3>Plan snapshot</h3>
+          <h2>Plan snapshot</h2>
           <p className="hint-text" style={{ margin: '6px 0 10px' }}>The numbers behind this estimate right now.</p>
           <table className="compare-table">
             <thead><tr><th>Metric</th><th className="num">Value</th></tr></thead>
@@ -2551,7 +2551,7 @@ function ShareTab({ trip, me, editable, onNavigate }: {
             <div>
               <div className="row-between">
                 <span className="small muted">Live on Explore · {pub.views} views · {pub.copies} forks</span>
-                <button className="btn btn-outline btn-sm" onClick={() => onNavigate(`pub:${pub.id}`)}>View public page</button>
+                <button className="btn btn-outline btn-sm" onClick={() => onNavigate(`/pub/${pub.id}`)}>View public page</button>
               </div>
               <div className="row" style={{ gap: 8, marginTop: 10 }}>
                 <button className="btn btn-outline btn-sm"

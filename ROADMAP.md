@@ -15,10 +15,11 @@ green, both themes QA'd, user confirmation before any push. When **all
 milestones** are done, the branch progresses to `test` **via pull request**
 (never a direct push). `main` merges stay explicitly user-gated (AGENTS rule 1).
 
-**Snapshot (2026-09-03):** v0.25.0 on `main`; `[Unreleased]` carries the
-demo-seed revert; comprehensive review complete → stabilization track (M0–M4)
-inserted ahead of the strategic track. Current version: **0.25.0** → next
-release: **v0.26.0 (M0)**.
+**Snapshot (2026-09-05):** v0.31.0 on `main`. The M0–M5 version labels below
+decoupled from reality when v0.26–v0.31 shipped different content (Plan Bench
+redesign, v0.27 interface pass, the #43–#52 store sweep) — the ledger tracks
+**content**, not those labels. Current version: **0.31.0** → in flight:
+**v0.32.0 (stabilization completion)** on local `redesign/stabilization-v032`.
 
 ---
 
@@ -49,14 +50,12 @@ and date), per the AGENTS §6 same-edit rule. Detail lives in
 - [x] **[Unreleased]** — demo-seed revert + one-off DB prune, master-roadmap consolidation, Sep 2026 comprehensive review
 
 ### Remaining — in release order (details in the tracks below)
-- [ ] **v0.26.0 (M0)** — Trust & navigation: P0 bug batch
-- [ ] **v0.27.0 (M1)** — Theme integrity & mobile: dark contrast, touch targets, focus rings
-- [ ] **v0.28.0 (M2)** — State honesty & UX: loading/error/empty separation, a11y flow traps
-- [ ] **v0.29.0 (M3)** — Performance architecture: store immutability → selectors → memo → workspace split
-- [ ] **v0.30.0 (M4)** — Design-system hygiene: dead CSS purge, mobile-block consolidation, glass/z-index tokens
-- [ ] **v0.31.0 (M5)** — AI companion: user-configurable LLM endpoint (#22 → #20)
-- [ ] **v0.32.0 (M6)** — Together: integration test suite, live co-editing depth, split expenses
-- [ ] **v0.33.0 (M7)** — Premium: payment gateway, entitlements, unlock flow
+- [ ] **v0.32.0** — Stabilization completion (in flight on `redesign/stabilization-v032`): M0 leftovers (broken `pub:` route, router ready-gate for deep links / invite flash / loading-vs-empty) + M2 remainders (Profile save validation, demo-copy honesty, heading outline) + M1 leftovers (focus-ring gaps, touch targets, stagger freeze) + cuts the shipped `[54]`/`[53]`/nav-icon fixes out of `[Unreleased]`
+- [ ] **M3** — Performance architecture: store immutability → selectors → memo → workspace split (TripWorkspace ~2.9k lines)
+- [ ] **M4** — Design-system hygiene: dead CSS purge, mobile-block consolidation, glass/z-index tokens (radii/glow/padding partially done in the v0.27 cosmetic pass)
+- [ ] **M5** — AI companion: user-configurable LLM endpoint (#22 → #20) — the only open issues
+- [ ] **M6** — Together: integration test suite, live co-editing depth, split expenses
+- [ ] **M7** — Premium: payment gateway, entitlements, unlock flow
 - [ ] **1.0 (M8)** — offline-first/PWA, i18n (EN+HI), the 1.0 cut → then PR to `test`
 
 ---

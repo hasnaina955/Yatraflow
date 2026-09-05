@@ -99,10 +99,10 @@ export function LandingPage({ onNavigate }: { onNavigate: (r: string) => void })
       {/* ---------- Demo CTA ---------- */}
       <section className="container" style={{ paddingBottom: 70 }}>
         <div className="cta-band reveal">
-          <h2>Try the full product in demo mode</h2>
+          <h2>See the whole product on a real trip</h2>
           <p>
             A 4-day Kerala road trip (Kochi → Munnar → Thekkady → Alleppey) with real stops, timings,
-            votes, decisions and budgets already loaded. No signup needed.
+            votes, decisions and budgets — loaded into your account the moment you sign up.
           </p>
           <DemoButtons onNavigate={onNavigate} />
         </div>
@@ -264,7 +264,7 @@ function DemoButtons({ onNavigate }: { onNavigate: (r: string) => void }) {
     <div className="cta-buttons">
       <a className="btn btn-navy btn-lg" href="#/auth?mode=signup">
         <Rocket size={16} aria-hidden style={{ verticalAlign: '-3px', marginRight: 6 }} />
-        Create a free account
+        Create a free account — demo trips included
       </a>
       <BrandHint />
     </div>

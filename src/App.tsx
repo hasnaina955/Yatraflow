@@ -7,7 +7,7 @@ import {
   Settings, Sparkles, Sun, Tent, X,
 } from 'lucide-react'
 import type { Trip } from './data/types'
-import { useDb, currentUser, logout, notificationsFor, markAllNotificationsRead, tripById, joinViaInvite, duplicateTrip, init } from './store/store'
+import { useDb, currentUser, logout, notificationsFor, markAllNotificationsRead, tripById, joinViaInvite, duplicateTrip, init, useStoreReady } from './store/store'
 import { Avatar, BrandMark, ToastZone, useClickOutside, toast } from './components/ui'
 import { decodeTripSnapshot } from './lib/snapshot'
 import { scrollBehavior } from './lib/motion'
@@ -160,7 +160,14 @@ export default function App() {
   const parts = route.split('/').filter(Boolean).map(s => s.split('?')[0])
   let page: React.ReactNode
 
-  if (parts[0] === 'share' && parts[1]) {
+  // Before the first hydrate settles, every "empty" is a lie: a deep link to
+  // #/trip/... used to flash Landing, "No trips yet" rendered before data, and
+  // invite links showed "broken" mid-load. One gate at the router fixes all
+  // three — auth and share links don't read the cache, so they stay live.
+  const ready = useStoreReady()
+  if (!ready && parts[0] !== 'auth' && parts[0] !== 'share') {
+    page = <div className="container loading-block"><div className="spinner" />Loading…</div>
+  } else if (parts[0] === 'share' && parts[1]) {
     page = <SharedTripPage payload={parts[1]} onNavigate={navigate} />
   } else if (parts[0] === 'invite' && parts[1]) {
     page = <InviteGate tripId={parts[1]} onNavigate={navigate} />
@@ -360,7 +367,7 @@ function SharedTripPage({ payload, onNavigate }: { payload: string; onNavigate: 
     return (
       <div className="container empty-state">
         <div className="big"><Link2 size={38} aria-hidden /></div>
-        <h2>This snapshot link is broken</h2>
+        <h1 style={{ fontSize: 26 }}>This snapshot link is broken</h1>
         <p className="muted">The link may have been truncated — ask for a fresh one from the trip’s Share tab.</p>
         <button className="btn btn-primary" style={{ marginTop: 14 }} onClick={() => onNavigate('/')}>Go home</button>
       </div>
@@ -370,7 +377,7 @@ function SharedTripPage({ payload, onNavigate }: { payload: string; onNavigate: 
   return (
     <div className="container empty-state">
       <div className="big"><Luggage size={38} aria-hidden /></div>
-      <h2>Shared itinerary{state.s === 'ready' ? `: “${state.name}”` : ''}</h2>
+      <h1 style={{ fontSize: 26 }}>Shared itinerary{state.s === 'ready' ? `: “${state.name}”` : ''}</h1>
       {state.s === 'ready' && (
         <p className="muted">{state.days}-day trip · {state.destinations}</p>
       )}
@@ -410,7 +417,7 @@ function InviteGate({ tripId, onNavigate }: { tripId: string; onNavigate: (r: st
     return (
       <div className="container empty-state">
         <div className="big"><Link2 size={38} aria-hidden /></div>
-        <h2>This invite link is broken</h2>
+        <h1 style={{ fontSize: 26 }}>This invite link is broken</h1>
         <p className="muted">Ask the trip organiser for a fresh link from the trip’s Share tab.</p>
         <button className="btn btn-primary" style={{ marginTop: 14 }} onClick={() => onNavigate('/')}>Go home</button>
       </div>
@@ -421,7 +428,7 @@ function InviteGate({ tripId, onNavigate }: { tripId: string; onNavigate: (r: st
     return (
       <div className="container empty-state">
         <div className="big"><Mail size={38} aria-hidden /></div>
-        <h2>You’ve been invited to “{trip.name}”</h2>
+        <h1 style={{ fontSize: 26 }}>You’ve been invited to “{trip.name}”</h1>
         <p className="muted">Log in or create a free account to join the planning crew.</p>
         <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 14 }}>
           <button className="btn btn-outline" onClick={() => onNavigate('/auth')}>Log in</button>

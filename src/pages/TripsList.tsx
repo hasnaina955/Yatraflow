@@ -65,7 +65,7 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
                     emoji={t.coverEmoji}
                   />
                   <div className="itin-body">
-                    <h3>{t.name}</h3>
+                    <h2 className="card-title">{t.name}</h2>
                     <div className="small muted">
                       {t.startLocation} → {t.destinations[t.destinations.length - 1]} · {t.days.length} days
                     </div>

@@ -1173,7 +1173,7 @@ a.btn { text-decoration: none; }
 .toast { display: inline-flex; align-items: center; gap: 12px; }
 .toast-action {
   border: none; background: rgba(255,255,255,.18); color: inherit;
-  font-weight: 750; font-size: 12.5px; padding: 5px 13px; border-radius: 999px;
+  font-weight: 750; font-size: 12.5px; padding: 8px 16px; border-radius: 999px;
   cursor: pointer; text-transform: uppercase; letter-spacing: .04em;
 }
 .toast-action:hover { background: rgba(255,255,255,.32); }
@@ -1316,9 +1316,12 @@ a.btn { text-decoration: none; }
 .itin-cover .chip { position: absolute; top: 11px; left: 11px; background: rgba(255,255,255,.92); color: var(--text); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
 .itin-body { padding: 15px 17px 17px; display: flex; flex-direction: column; gap: 9px; flex: 1; }
 /* Trip names can be long — cap at two lines so card grids stay aligned. */
-.itin-body h3 {
+.itin-body .card-title {
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
+/* Card titles are heading-level h2 for outline correctness — sized as the h3
+   they replace so the grids don't shift. */
+.card-title { font-size: 16px; font-weight: 700; }
 .itin-meta { display: flex; flex-wrap: wrap; gap: 4px 13px; font-size: 12.5px; color: var(--text-3); font-weight: 600; }
 /* Explore card footer: full-width divider to the card edges, content inset to
    align with .itin-body's 17px side padding (separate from itin-body above). */
@@ -1646,7 +1649,8 @@ a.btn { text-decoration: none; }
 [data-theme='dark'] .nav-pill-group .mobile-nav-btn:hover { background: rgba(255, 255, 255, .08); }
 .theme-toggle { background: var(--bg-soft); border: 1.5px solid var(--line); border-radius: 50%;
   width: 40px; height: 40px; cursor: pointer; font-size: 17px; flex: 0 0 auto; }
-.avatar-btn { background: none; border: none; cursor: pointer; padding: 0; border-radius: 50%; flex: 0 0 auto; }
+.avatar-btn { background: none; border: none; cursor: pointer; padding: 0; border-radius: 50%; flex: 0 0 auto;
+  min-width: 40px; min-height: 40px; display: inline-flex; align-items: center; justify-content: center; }
 .user-menu { position: fixed; background: var(--yf-nav-glass); color: var(--text);
   border: 1px solid var(--yf-glass-border); border-radius: var(--radius);
   -webkit-backdrop-filter: blur(18px) saturate(1.2); backdrop-filter: blur(18px) saturate(1.2);
@@ -1737,7 +1741,7 @@ a.btn { text-decoration: none; }
 
 /* Consistent vertical rhythm between stacked cards & sections */
 .day-section + .day-section { margin-top: 22px; }
-.card h3 + hr.divider { margin-top: 12px; }
+.card h3 + hr.divider, .card h2 + hr.divider { margin-top: 12px; }
 
 /* ============ MapLibre (mapcn) integration ============ */
 .yf-maplibre { position: absolute; inset: 0; }
@@ -2044,6 +2048,9 @@ main:focus { outline: none; }
 .map-day-chip:focus-visible, .map-idea-chip:focus-visible, .map-legend-toggle:focus-visible,
 .map-expand-chip:focus-visible, .loc-option:focus-visible, .ai-fab:focus-visible,
 .trip-card-hit:focus-visible, .skip-link:focus-visible, .yf-map-pin:focus-visible,
+.clamp-toggle:focus-visible, .board-fit:focus-visible, .save-heart:focus-visible,
+.dest-chip button:focus-visible, .role-select:focus-visible, .day-title-btn:focus-visible,
+.trip-hero-back:focus-visible, .health-rec:focus-visible, .link-btn:focus-visible,
 .yf-range:focus-visible, .bench-pill:focus-visible, .bench-crew-btn:focus-visible,
 .bench-seg button:focus-visible, .bench-preset-row .chip:focus-visible,
 .bench-receipt-actions .chip:focus-visible, .bench-surprise:focus-visible {
@@ -2089,6 +2096,8 @@ main:focus { outline: none; }
     animation-duration: .01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: .01ms !important;
+    /* Staggered entrances (rise-d1..d5) delay the START — freeze those too. */
+    transition-delay: 0s !important;
   }
   /* keep the idea-pin visible but static (it already keeps its dashed gold style) */
   .yf-map-pin-idea { animation: none; }

@@ -232,7 +232,7 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
                         <Chip tone="teal">{cap(p.travelStyle)}</Chip>
                         <span className="small muted"><GitFork size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />{p.copies}</span>
                       </div>
-                      <h3>{p.title}</h3>
+                      <h2 className="card-title">{p.title}</h2>
                       <p className="small muted" style={{ margin: 0 }}>{p.tagline}</p>
                       <div className="stop-meta" style={{ marginTop: 2 }}>
                         <span><Calendar size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />{p.durationDays} days</span>

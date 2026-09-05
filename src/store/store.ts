@@ -32,11 +32,15 @@ interface DB {
   notifications: Notification[]
   published: PublishedItinerary[]
   sessionUserId: ID | null
+  /** True once the first hydrate of this session has settled (success OR
+   *  failure). Until then, "empty" is a lie — pages must show loading. */
+  ready: boolean
 }
 
 let cache: DB = {
   users: [], trips: [], suggestions: [], decisions: [],
   activity: [], notifications: [], published: [], sessionUserId: null,
+  ready: false,
 }
 
 const listeners = new Set<() => void>()
@@ -50,6 +54,12 @@ export function getSnapshot(): DB { return cache }
 
 export function useDb(): DB {
   return useSyncExternalStore(subscribe, getSnapshot)
+}
+
+/** True once the first post-mount hydrate has settled. Gates every
+ *  "empty state" in the app: before this, empty just means "still loading". */
+export function useStoreReady(): boolean {
+  return useSyncExternalStore(subscribe, () => cache.ready)
 }
 
 function commit() {
@@ -183,11 +193,11 @@ export function init(): void {
         const pubRows = mapOrSkip((pubRes.data ?? []), rowToPublished)
         if (profRes.error) { console.error('[yatraflow] hydrate profiles failed', profRes.error) }
         if (pubRes.error) { console.error('[yatraflow] hydrate published failed', pubRes.error) }
-        patch({ users, trips: [], suggestions: [], decisions: [], activity: [], notifications: [], published: dedupePublished(pubRows, new Set()), sessionUserId: null })
+        patch({ users, trips: [], suggestions: [], decisions: [], activity: [], notifications: [], published: dedupePublished(pubRows, new Set()), sessionUserId: null, ready: true })
         commit()
       } catch (e) {
         console.error('[yatraflow] anonymous hydration failed', e)
-        patch({ users: [], trips: [], suggestions: [], decisions: [], activity: [], notifications: [], published: [], sessionUserId: null })
+        patch({ users: [], trips: [], suggestions: [], decisions: [], activity: [], notifications: [], published: [], sessionUserId: null, ready: true })
         commit()
       }
       activeHydrate = null
@@ -205,6 +215,9 @@ export function init(): void {
     try { await promise } finally {
       if (activeHydrate?.userId === userId) activeHydrate = null
     }
+    // First settle of this session flips the app-wide loading gate, whatever
+    // the outcome — pages stop showing "loading" and may show real empties.
+    if (!cache.ready) { patch({ ready: true }); commit() }
     // Only go live for the account the cache still belongs to: a sign-out or an
     // account switch during the hydration above bumped hydrateGen.
     if (gen === hydrateGen && cache.sessionUserId === userId) connectRealtime(userId)

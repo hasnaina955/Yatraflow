@@ -2,12 +2,23 @@
 
 All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](https://keepachangelog.com/); versions are pre-1.0 MVP milestones.
 
-## [Unreleased]
+## [0.32.0] — 2026-09-05
+
+**Stabilization release — the trust bugs from the Sep review are closed, and the app stops lying while it loads.** Details in the per-commit bodies.
 
 ### Fixed
-- **Published itineraries now show on Explore for logged-out users.** When the app loaded without a logged-in user (anonymous browsing), the `hydrate(null)` function was clearing the entire cache including `published: []`. Modified the anonymous hydration path to fetch `published_itineraries` and `profiles` tables via Supabase using the anon key, while keeping user-specific data (trips/suggestions/decisions/notifications) empty. Explore page now displays published itineraries for both logged-in and logged-out users. `[54]`
-- **Theme toggle radiating animation now works on all pages including landing.** Removed the `route === '/'` check that was disabling View Transitions on the landing page. The radiating animation now provides consistent visual feedback everywhere in the app. `[53]`
-- **Nav icon alignment and sizing fixes.** Increased BrandMark to 32px, hamburger menu to 20px, theme and bell icons to 18px. Standardized nav-pill-group container to 40px with 17px font-size. Fixed Sparkles icon vertical alignment by removing manual `verticalAlign` offset.
+- **"View public page" finally goes to the public page.** The Share tab navigated to `pub:<id>`, which the router could never match — publishers landed on the landing page instead of their own published itinerary.
+- **The app no longer shows fake empty states while loading.** A single ready-gate at the router: deep links to `#/trip/…` no longer flash the landing page, invite links no longer flash "broken" on a cold load, and "No trips yet" / "Nothing matches" only render once data has actually loaded. Sign-in and share links stay live throughout. `[Unreleased → shipped here]`
+- **Published itineraries show on Explore for logged-out users** — anonymous hydration fetches the public catalog with the anon key instead of clearing it. `[54]`
+- **Theme radiate animation works on every page, landing included** — the landing-only View-Transition skip is gone. `[53]`
+- **Nav icon sizes standardized** — BrandMark 32px, hamburger 20px, theme/bell 18px, 40px pill containers.
+
+### Changed
+- **Profile save validates instead of silently reverting.** An empty display name now shows an inline error next to the field rather than quietly keeping the old name.
+- **The demo pitch matches reality.** The landing section that promised "Try the full product in demo mode — no signup needed" now says the demo trips load with a free account, which is what actually happens.
+- **Headings form a clean outline.** Card titles are `h2` under their page `h1`, every TripWorkspace tab opens at the right level (Map and Budget previously jumped straight to `h3`), the share/invite screens get real `h1`s, and two emoji headings join the icon set.
+- **Keyboard and touch polish.** ~8 more controls get the visible focus ring (clamp toggles, board fit, save hearts, destination chips, the role select), the avatar button reaches a 40px touch target, toast actions are bigger, and reduced-motion now freezes stagger delays too.
+- **Lockfile version restored.** `package-lock.json` had been left at 0.27.0 since v0.28; it now tracks `package.json` again.
 
 ## [0.31.0] - 2026-09-05
 

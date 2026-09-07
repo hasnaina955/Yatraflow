@@ -866,6 +866,19 @@ a.btn { text-decoration: none; }
   max-width: 340px;
 }
 .day-warn-pill.sev-high { background: var(--yf-coral-100); color: var(--danger); }
+/* Per-day cost + dwell chips in the day header — quiet metadata pills that
+   mirror the stop-kind tag treatment (soft tint, no border) so they read as
+   engine-derived context, not actions. */
+.day-cost-chip, .day-dwell-chip {
+  align-self: flex-start;
+  border-radius: 999px; padding: 4px 11px;
+  font-size: 11.5px; font-weight: 700; line-height: 1.5;
+  white-space: nowrap;
+  color: var(--text-2); background: var(--bg-soft);
+}
+.day-cost-chip { color: var(--teal-deep); background: var(--teal-soft); }
+[data-theme='dark'] .day-cost-chip { color: var(--teal); }
+@media (max-width: 720px) { .day-dwell-chip { display: none; } }
 /* Stop-kind markers: a coloured spine on the card + a small type tag.
    Tag text stays --text-2 on soft tinted backgrounds so both themes keep
    AA contrast; the spine carries the hue. */
@@ -3446,8 +3459,8 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
    v0.36 — Budget + Group input redesigns
    ============================================================ */
 
-/* ---- Budget: metric strip ---- */
-.metric-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+/* ---- Budget: metric strip (5 tiles since the safe-to-spend pacing tile) ---- */
+.metric-strip { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 16px; }
 .metric-bad { color: var(--danger); }
 .metric-good { color: var(--ok); }
 
@@ -3546,6 +3559,7 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 .opt-row .opt-cost { text-align: right; }
 
 /* ---- v0.36 responsive ---- */
+@media (max-width: 1400px) { .metric-strip { grid-template-columns: repeat(3, 1fr); } }
 @media (max-width: 1100px) { .metric-strip { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 700px) {
   .daybar-row { grid-template-columns: 44px 1fr; }
@@ -3637,3 +3651,85 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 .mi-place { color: var(--yf-purple); }
 .mi-ticket { color: var(--ok-500); }
 [data-theme='dark'] .mi-time { color: var(--teal-600); }
+
+/* ============ Printable day cards (offline PDF export) ============ */
+/* The sheet renders in the DOM at all times (so print sees it without a
+   React round-trip) but is clipped away on screen. Under @media print the
+   whole app is hidden and ONLY the sheet shows. Colors are forced on — the
+   teal accents are what make the cards readable on paper.
+   Width is deliberately UNSET: @page owns the paper. A fixed 210mm here
+   overflowed the printable area (210 - 2×12mm margins) and cropped the
+   right edge of every card in the printed output. */
+.pr-sheet-portal {
+  position: absolute; left: -99999px; top: 0;
+  max-width: 190mm;
+}
+
+/* Same type system as the app — Sora headings, Inter body — so the printed
+   cards read as YatraFlow. system-ui fallbacks cover offline printing where
+   the Google-Fonts files aren't cached. */
+.pr-sheet { font: 10.5pt/1.5 var(--font-body); color: #1a2433; }
+.pr-sheet h1, .pr-sheet h2 { font-family: var(--font-display); letter-spacing: -0.01em; }
+.pr-sheet h1 { font-size: 17pt; margin: 0 0 2pt; }
+.pr-sheet h2 { font-size: 12.5pt; margin: 0; }
+.pr-trip { border-bottom: 2.5pt solid var(--teal-600); padding-bottom: 8pt; margin-bottom: 10pt; }
+.pr-trip-meta { margin: 1pt 0; font-size: 10pt; color: #445; }
+
+.pr-day { border: 1pt solid #b9c6d2; border-radius: 6pt; padding: 8pt 10pt; margin-bottom: 9pt; }
+.pr-day-head { border-bottom: 0.75pt solid #d6dee8; padding-bottom: 4pt; margin-bottom: 5pt; }
+.pr-day-route { font-size: 10.5pt; font-weight: 700; margin-right: 8pt; }
+.pr-day-meta { font-size: 9.5pt; color: #445; }
+
+.pr-stop { padding: 2.5pt 0; border-bottom: 0.5pt dotted #ccd6e0; }
+.pr-stop-title { font-weight: 700; }
+.pr-stop-meta { font-size: 9.5pt; color: #445; margin-left: 8pt; }
+.pr-badge { font-size: 8.5pt; font-weight: 700; margin-left: 4pt; padding: 0 3pt; border-radius: 3pt; }
+.pr-badge--ok { color: #0a7d55; border: 0.75pt solid #0a7d55; }
+.pr-badge--warn { color: #a35a00; border: 0.75pt solid #a35a00; }
+
+.pr-leg { padding: 2pt 0 2pt 10pt; font-size: 9.5pt; color: #57677a; font-style: italic; }
+.pr-leg-route { font-style: italic; }
+.pr-leg-meta { margin-left: 6pt; }
+
+.pr-warns { margin: 3pt 0 0; padding-left: 14pt; font-size: 9.5pt; color: #8a4a00; }
+.pr-warns li { margin: 0; }
+
+.pr-expenses h2 { margin-bottom: 4pt; }
+.pr-expenses table { width: 100%; border-collapse: collapse; font-size: 9.5pt; }
+.pr-expenses td { border-top: 0.5pt solid #d6dee8; padding: 2pt 4pt; }
+.pr-num { text-align: right; white-space: nowrap; }
+
+.pr-foot { display: flex; justify-content: space-between; gap: 12pt;
+  border-top: 0.75pt solid #b9c6d2; margin-top: 8pt; padding-top: 4pt;
+  font-size: 8.5pt; color: #67788c; }
+
+/* On-screen preview inside the modal: the same sheet, scaled into a scrollable page. */
+.pr-preview { max-height: 55vh; overflow: auto; border: 1px solid var(--line); border-radius: 12px;
+  background: #fff; padding: 18px 22px; }
+.pr-preview .pr-sheet { transform: scale(0.82); transform-origin: top left; width: 122%; }
+[data-theme='dark'] .pr-preview { background: #e9edf3; }
+
+/* ---- print: show only the sheet ---- */
+@media print {
+  /* hide the whole app; the portal sheet is a sibling overlay, so it survives */
+  body > #root { display: none !important; }
+  .pr-sheet-portal {
+    position: static !important; left: auto !important;
+    overflow: visible !important; max-width: none !important;
+  }
+  .pr-sheet { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .pr-day { break-inside: avoid; page-break-inside: avoid; }
+  .pr-expenses { break-inside: avoid; page-break-inside: avoid; }
+  .pr-trip { break-inside: avoid; }
+  @page { size: A4; margin: 12mm; }
+}
+
+/* ============ My Trips toolbar (search / style chips / when / sort) ============ */
+.trips-toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.trips-toolbar .trips-search { flex: 1 1 240px; min-width: 200px; }
+.trips-toolbar .select { width: auto; min-width: 130px; flex: 0 1 auto; }
+@media (max-width: 720px) {
+  .trips-toolbar { align-items: stretch; }
+  .trips-toolbar .trips-search { flex-basis: 100%; }
+  .trips-toolbar .explore-chips { order: 3; flex-basis: 100%; }
+}

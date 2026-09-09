@@ -4077,8 +4077,14 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 [data-theme='dark'] .quick-budget .chip.on { color: var(--yf-teal-600); }
 
 /* Style carousel: all styles visible on desktop (wraps, glider tracks rows);
-   ≤720px falls back to the horizontal scroll-snap strip. */
-.style-carousel { width: 100%; overflow-x: auto; scrollbar-width: none; }
+   ≤720px falls back to the horizontal scroll-snap strip. The tab bar class
+   it reuses paints a glass stadium around the rail — right for a single-row
+   tab bar, but once the pills wrap it reads as one giant blob, so the create
+   page strips the container chrome and lets the glider carry the state. */
+.style-carousel {
+  width: 100%; overflow-x: auto; scrollbar-width: none;
+  background: none; border: none; box-shadow: none; padding: 0; border-radius: 14px; margin-bottom: 2px;
+}
 .style-carousel::-webkit-scrollbar { display: none; }
 .style-carousel .tab-btn { white-space: nowrap; flex: none; }
 .style-copy { min-height: 2.4em; margin-top: 8px; }

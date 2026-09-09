@@ -674,7 +674,7 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
             <span className="group-lab">Travel style</span>
             <PillNav className="tabbar style-carousel" role="group" aria-label="Travel style" activeKey={f.travelStyle}>
               {TRAVEL_STYLES.map(s => (
-                <button key={s} type="button" className={`tab-btn${f.travelStyle === s ? ' active' : ''}`}
+                <button key={s} type="button" data-pill-key={s} className={`tab-btn${f.travelStyle === s ? ' active' : ''}`}
                   aria-pressed={f.travelStyle === s}
                   onClick={() => { haptic(HAPTIC.select); patchFields({ travelStyle: s }) }}>{cap(s)}</button>
               ))}

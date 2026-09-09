@@ -41,7 +41,7 @@ A collaborative travel-planning web app, built India-first. Real multi-day itine
 
 #### 📍 Plan
 
-- **Create trips** — start + ordered destinations (real place autocomplete), dates, crew size, transport mode, budget and travel style
+- **Create trips** — start + ordered destinations (real place autocomplete), dates, crew size, transport mode (six everyday modes incl. car rental and local trains), budget and travel style. The "Trip Ticket" starter prices your rough bill on demand and seeds the timeline with a starting outline
 - **Day-by-day timeline** — reorder / move stops between days, opening hours, priorities, route sparklines, collapsible headers
 - **One journey per day, however far you drive** — a real arrival clock, travelling strips for pure-travel legs, halts on any driving day, suggested real stop spots along the route
 - **Leg-aware insertion** — picking a place auto-fills road distance, travel time and fuel cost
@@ -76,7 +76,7 @@ A collaborative travel-planning web app, built India-first. Real multi-day itine
 
 #### 👥 Collaborate & share
 
-- **Invite by link** — friends join as owner / editor / commenter / viewer (enforced by Postgres RLS)
+- **Invite by link or short code** — friends join as owner / editor / commenter / viewer (enforced by Postgres RLS). The invite link is `#/join/<code>` where the code is short and trip-shaped (`GOABEACHWE-K7QF`), with a code box on the home screen for friends who only got the code
 - **One group-input stream** — stop ideas and group decisions share one tab; whatever needs *your* vote floats to the top with a sidebar digest, and decision cards show exactly who voted for what and where the tally leans
 - **Decisions** — structured polls with per-option cost/time impact and context, votes, resolve
 - **Publish itineraries** to the public Explore gallery; readers copy any trip in one click
@@ -155,7 +155,7 @@ You'll need a free [Supabase](https://supabase.com) project for accounts + data;
 | Backend | [Supabase](https://supabase.com) (Postgres + Auth + RLS) | Free tier covers the MVP; JSONB keeps trip internals denormalized |
 | Routing / geo | OSRM, Open-Meteo, Wikipedia, Overpass | Free + keyless, India-biasable; optional Google / Mappls keys behind a failing-open facade |
 
-Routing is hash-based (`#/trip/:id`, `#/pub/:slug`, `#/creator/:id`, `#/invite/:id`) so the static build runs on any host with no rewrites.
+Routing is hash-based (`#/trip/:id`, `#/pub/:slug`, `#/creator/:id`, `#/join/:code`) so the static build runs on any host with no rewrites.
 
 ## 📁 Project structure
 

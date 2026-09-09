@@ -4,7 +4,7 @@
 
 export type ID = string
 
-export const TRANSPORT_MODES = ['car', 'motorcycle', 'train', 'bus', 'flight', 'taxi', 'mixed'] as const
+export const TRANSPORT_MODES = ['car', 'rental', 'motorcycle', 'train', 'bus', 'flight', 'taxi', 'mixed'] as const
 export type TransportMode = (typeof TRANSPORT_MODES)[number]
 
 export const TRAVEL_STYLES = [
@@ -190,6 +190,13 @@ export interface Trip {
    * destination (see lib/tripThumb).
    */
   coverImageUrl?: string
+  /**
+   * Short human-style invite code ("GOA-K7QF") — the Share tab's invite link
+   * is #/join/<code> instead of the raw trip UUID. Minted on first share
+   * (or by the DB backfill for pre-existing trips); uppercase, unique per
+   * trip. See lib/inviteCode.ts and supabase/migrations/20260909_invite_codes.sql.
+   */
+  inviteCode?: string
   visibility: 'private' | 'public'
   createdAt: number
   updatedAt: number

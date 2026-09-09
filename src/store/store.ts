@@ -17,6 +17,7 @@ import type { LatLngPoint } from '../data/types'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
 import { toast } from '../components/ui'
 import { isMissingColumnError, rowToTrip, tripToRow, type OptionalColumnsProbe, type TripRow } from '../lib/tripRow'
+import { makeInviteCode, normalizeInviteCode } from '../lib/inviteCode'
 import { suggestionToRow, decisionToRow, activityToRow, notificationToRow, publishedToRow } from '../lib/restoreRows'
 import { reduceSlice, applyMemberChange, isRecentLocalWrite } from '../lib/realtimeCore'
 import { MISSING_BACKEND_MESSAGE, describeAuthFailure } from '../lib/authErrors'
@@ -319,6 +320,19 @@ export function init(): void {
   initialized = true
 
   const hydrate = async (userId: string | null) => {
+    // Same-user dedupe FIRST, generation bump second. The old order bumped
+    // hydrateGen for EVERY call — so the load-time double-fire (getSession +
+    // onAuthStateChange INITIAL_SESSION, both with the SAME user) marked the
+    // first hydrate's patch stale (`gen !== hydrateGen`) while the second call
+    // merely awaited the first's promise and returned. Net effect: the data
+    // was fetched (all 200s) but NOBODY patched it into the cache — the app
+    // rendered logged-out on every refresh with a perfectly valid token.
+    // hydrateGen still guards real account switches (sign-out / switch):
+    // those change userId, so they never hit the dedupe branch.
+    if (userId && activeHydrate && activeHydrate.userId === userId) {
+      await activeHydrate.promise
+      return
+    }
     const gen = ++hydrateGen
 
     if (!userId) {
@@ -354,13 +368,8 @@ export function init(): void {
       try { await anonPromise } finally { if (activeHydrate?.userId === null) activeHydrate = null }
       return
     }
-    // Serialize: a redundant hydrate for the same user (the load-time getSession
-    // + onAuthStateChange double-fire) waits for the in-flight one instead of
-    // clobbering its seed writes with a fresh `patch({ trips })`.
-    if (activeHydrate && activeHydrate.userId === userId) {
-      await activeHydrate.promise
-      return
-    }
+    // The same-user dedupe already ran at the top of hydrate(); reaching here
+    // means this user has no in-flight hydrate, so start one.
     const promise = hydrateFromSupabase(userId, gen)
     activeHydrate = { userId, promise }
     try { await promise } finally {
@@ -719,6 +728,64 @@ export async function fetchSharedTrip(tripId: ID, allowInvitePreview = false): P
   return trip
 }
 
+/**
+ * Resolve a short invite code ("GOA-K7QF") to its trip via the
+ * security-definer `get_trip_by_invite_code` RPC — the code is the
+ * capability, so this works for private trips and logged-out visitors
+ * alike (the join gate previews before login). Merges the trip into the
+ * cache so the workspace can open it without another round-trip. Returns
+ * null for an unknown code.
+ */
+export async function fetchTripByInviteCode(code: string): Promise<Trip | null> {
+  const normalized = normalizeInviteCode(code)
+  if (!normalized) return null
+  // Already cached (e.g. the user is a member and re-clicks the link)?
+  // trip.inviteCode rides on member + fetched rows, so a hit skips the RPC.
+  const cached = cache.trips.find(t => t.inviteCode === normalized)
+  if (cached) return cached
+  const rpc = await supabase.rpc('get_trip_by_invite_code', { p_code: normalized })
+  if (rpc.error) console.error('[yatraflow] invite-code lookup failed', rpc.error)
+  const rows = rpc.data as TripRow[] | null
+  if (!Array.isArray(rows) || rows.length === 0) return null
+  const trip = rowToTrip(rows[0], [])
+  if (!cache.trips.some(t => t.id === trip.id)) {
+    cache.trips = [...cache.trips, trip]
+    commit()
+  }
+  return trip
+}
+
+/**
+ * Mint (or re-mint) the invite code for one of the viewer's trips and
+ * persist it. Codes are shown on the Share tab; minting happens lazily on
+ * first share rather than at trip creation, so the DB column can be absent
+ * (probe false) without breaking trip creation. A unique clash regenerates
+ * the tail; the caller surfaces a final failure honestly.
+ */
+export async function ensureInviteCode(tripId: ID): Promise<string | null> {
+  const t = tripById(tripId)
+  if (!t) return null
+  if (t.inviteCode) return t.inviteCode
+  const cols = await tripsHaveOptionalColumns()
+  if (!cols.inviteCode) return null
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const code = makeInviteCode(t)
+    const { error } = await supabase.from('trips').update({ invite_code: code }).eq('id', tripId)
+    if (!error) {
+      // RLS update policy only lets the owner/editor write; the caller is by
+      // construction the owner sharing the trip.
+      mutateTrip(tripId, draft => { draft.inviteCode = code }, { touch: false })
+      return code
+    }
+    // Anything but a unique clash is a real failure — report it.
+    if (!/duplicate key|unique/i.test(String(error.message ?? ''))) {
+      console.error('[yatraflow] invite-code mint failed', error)
+      return null
+    }
+  }
+  return null
+}
+
 export interface NewTripInput {
   name: string; startLocation: string; destinations: string[];
   startLocationCoords?: LatLngPoint;
@@ -856,17 +923,18 @@ let optionalColumnsProbe: Promise<OptionalColumnsProbe> | null = null
 let optionalColumnsWarned = false
 
 function tripsHaveOptionalColumns(): Promise<OptionalColumnsProbe> {
-  if (!isSupabaseConfigured) return Promise.resolve({ economy: false, price: false, roundTrip: false, cover: false })
+  if (!isSupabaseConfigured) return Promise.resolve({ economy: false, price: false, roundTrip: false, cover: false, inviteCode: false })
   if (!optionalColumnsProbe) optionalColumnsProbe = probeOptionalColumns()
   return optionalColumnsProbe
 }
 
 async function probeOptionalColumns(): Promise<OptionalColumnsProbe> {
-  const [economy, price, roundTrip, cover] = await Promise.all([
+  const [economy, price, roundTrip, cover, inviteCode] = await Promise.all([
     probeOptionalColumn('fuel_economy_km_per_l'),
     probeOptionalColumn('fuel_price_per_l'),
     probeOptionalColumn('round_trip'),
     probeOptionalColumn('cover_image_url'),
+    probeOptionalColumn('invite_code'),
   ])
   if (!economy || !price || !roundTrip) {
     if (!optionalColumnsWarned) {
@@ -874,7 +942,7 @@ async function probeOptionalColumns(): Promise<OptionalColumnsProbe> {
       optionalColumnsWarned = true
     }
   }
-  return { economy, price, roundTrip, cover }
+  return { economy, price, roundTrip, cover, inviteCode }
 }
 
 /** Probe one optional column. True = present (or transient error, treated optimistically). */
@@ -1381,14 +1449,30 @@ export function setMemberRole(tripId: ID, userId: ID, role: TripMember['role']):
   }
 }
 
-export function joinViaInvite(tripId: ID, userId: ID, role: TripMember['role'] = 'editor'): boolean {
+/**
+ * Join a trip from its invite. ORDER IS LOAD-BEARING: the trip_members row
+ * goes to the database FIRST — the activity log insert and the owner
+ * notification are RLS-gated on is_editor(), which is false until the
+ * membership row exists, so writing them first meant every join logged
+ * "activity write failed / notifications write failed" to the console while
+ * the side effects silently never landed. Only the cache mutates
+ * optimistically (joiners need the trip in My Trips immediately).
+ * Returns whether the user is a member of the trip afterwards.
+ */
+export async function joinViaInvite(tripId: ID, userId: ID, role: TripMember['role'] = 'editor'): Promise<boolean> {
   const t = tripById(tripId)
   if (!t) return false
   if (t.members?.some(m => m.userId === userId)) return true
-  mutateTrip(tripId, draft => { draft.members = [...(draft.members ?? []), { userId, role, joinedAt: Date.now() }] }, { touch: false })
+  const joinedAt = Date.now()
+  const { error } = await supabase.from('trip_members').insert({ trip_id: tripId, user_id: userId, role, joined_at: joinedAt })
+  if (error) {
+    console.error('[yatraflow] join write failed', error)
+    return false
+  }
+  markLocalWrite('trip_members', tripId)
+  mutateTrip(tripId, draft => { draft.members = [...(draft.members ?? []), { userId, role, joinedAt }] }, { touch: false })
   addActivity(tripId, userId, 'joined via invite link', 'Members')
   notifyOwnerOf(tripId, `${userName(userId)} joined “${t.name}” as ${role}.`)
-  fire('trip_members', supabase.from('trip_members').insert({ trip_id: tripId, user_id: userId, role, joined_at: Date.now() }))
   return true
 }
 

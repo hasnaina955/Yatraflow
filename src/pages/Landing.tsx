@@ -4,9 +4,16 @@ import { ArrowDown, ArrowRight, MapPin, Plane, Rocket, Route, Users, Zap } from 
 import { RouteSquiggle } from '../components/ui'
 import { PlanBench } from '../components/PlanBench'
 import { scrollBehavior } from '../lib/motion'
+import { useDb, currentUser } from '../store/store'
 
 export function LandingPage({ onNavigate }: { onNavigate: (r: string) => void }) {
   useReveal()
+  const db = useDb()
+  const me = currentUser(db)
+  // Flow-aware hero CTA (Trip Ticket flow, Sep 2026): signed-in visitors go
+  // straight to the create-trip page (route /new); everyone else funnels
+  // through signup and lands back on it via the auth page's `next` param.
+  const startPlanningHref = me ? '#/new' : '#/auth?mode=signup&next=%2Fnew'
   return (
     <div>
       {/* ---------- Hero (split layout, per CTI homepage mockup) ---------- */}
@@ -30,7 +37,7 @@ export function LandingPage({ onNavigate }: { onNavigate: (r: string) => void })
               and keep your whole crew on the same page.
             </p>
             <div className="hero-ctas hero-rise rise-d3">
-              <a className="btn btn-primary btn-lg" href="#/auth?mode=signup">Start planning free <ArrowRight size={16} aria-hidden style={{ verticalAlign: '-3px', marginLeft: 4 }} /></a>
+              <a className="btn btn-primary btn-lg" href={startPlanningHref}>Start planning free <ArrowRight size={16} aria-hidden style={{ verticalAlign: '-3px', marginLeft: 4 }} /></a>
               <a className="btn btn-saffron btn-lg" href="#/explore">Explore itineraries</a>
             </div>
             {/* Boarding-pass entry: travel-themed ticket that "issues" a pass to
@@ -52,6 +59,21 @@ export function LandingPage({ onNavigate }: { onNavigate: (r: string) => void })
               </span>
             </button>
             <p className="small muted hero-rise rise-d5" style={{ marginTop: 16 }}>No card needed · Free forever · Your planning data is yours</p>
+            {/* Invite-code entry: friends who got a code (not a link) land here
+                and type it in — routes to #/join/<code>, which previews the trip
+                and asks for login only if needed. */}
+            <form className="hero-rise rise-d5 invite-entry" style={{ display: 'flex', gap: 8, marginTop: 10, maxWidth: 360 }}
+              onSubmit={e => {
+                e.preventDefault()
+                const code = new FormData(e.currentTarget).get('invite-code')
+                if (typeof code === 'string' && code.trim()) onNavigate(`/join/${encodeURIComponent(code.trim())}`)
+              }}>
+              <label className="sr-only" htmlFor="invite-code-input">Trip invite code</label>
+              <input id="invite-code-input" className="input" name="invite-code"
+                placeholder="Have a trip code? GOA-K7QF" autoComplete="off"
+                style={{ textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: 'var(--mono, monospace)' }} />
+              <button type="submit" className="btn btn-outline">Join</button>
+            </form>
           </div>
 
           {/* Adventure preview card (dark navy, animated multi-trip route, mockup) */}

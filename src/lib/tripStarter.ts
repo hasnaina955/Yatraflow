@@ -15,6 +15,10 @@ import type { ItineraryStop, LatLngPoint, TravelStyle, TransportMode } from '../
 /** Straight-line chains underestimate real roads — the bench-style detour factor. */
 export const ROAD_FACTOR = 1.25
 
+/** Suburban / unreserved ("local") train fares run a fraction of express
+ *  ₹1.6/km — all-India suburban averages land near ₹0.45/km. */
+export const LOCAL_TRAIN_COST_PER_KM = 0.45
+
 /** Travel style → bench stay rate. Ten styles, three rate tiers. */
 export function stayStyleFor(travelStyle: TravelStyle): BenchStayStyle {
   if (travelStyle === 'budget') return 'budget'
@@ -39,6 +43,8 @@ export interface StarterTripInput {
   tankL?: number
   /** Rental car rate — estimate-only in v1 (persisted trips bill the blended ₹/km). */
   rentPerDay?: number
+  /** Train mode only: bill suburban/unreserved fares instead of express ₹1.6/km. */
+  localTrain?: boolean
   travelStyle: TravelStyle
 }
 
@@ -111,9 +117,10 @@ export function estimateTripStarter(input: StarterTripInput): StarterBill {
       transportCost = Math.round(roadKm * inrPerKm)
       transportFormula = `${roadKm} km ÷ ${economy} km/L × ₹${price}/L`
     } else {
-      const rate = MODE_COST_PER_KM[input.mode] ?? MODE_COST_PER_KM.car
+      const local = input.mode === 'train' && input.localTrain === true
+      const rate = local ? LOCAL_TRAIN_COST_PER_KM : (MODE_COST_PER_KM[input.mode] ?? MODE_COST_PER_KM.car)
       transportCost = Math.round(roadKm * rate)
-      transportFormula = `${roadKm} km × ₹${rate}/km`
+      transportFormula = local ? `${roadKm} km × ₹${rate}/km (local train)` : `${roadKm} km × ₹${rate}/km`
     }
     if (input.mode === 'rental' && finitePos(input.rentPerDay)) {
       const rent = Math.round(input.rentPerDay) * days

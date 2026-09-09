@@ -92,6 +92,19 @@ describe('estimateTripStarter — transport by mode', () => {
     const b = estimateTripStarter({ ...base, mode: 'flight' })
     expect(b.transportCost).toBe(Math.round(b.roadKm! * 6.5))
   })
+  it('bills local trains at the suburban fare and says so', () => {
+    const express = estimateTripStarter({ ...base, mode: 'train' })
+    const local = estimateTripStarter({ ...base, mode: 'train', localTrain: true })
+    expect(express.transportCost).toBe(Math.round(express.roadKm! * 1.6))
+    expect(local.transportCost).toBe(Math.round(local.roadKm! * 0.45))
+    expect(local.transportFormula).toContain('local train')
+    expect(local.transportCost!).toBeLessThan(express.transportCost!)
+  })
+  it('ignores the local flag for every mode except train', () => {
+    const b = estimateTripStarter({ ...base, mode: 'bus', localTrain: true })
+    expect(b.transportCost).toBe(Math.round(b.roadKm! * 2.2))
+    expect(b.transportFormula).not.toContain('local')
+  })
 })
 
 describe('estimateTripStarter — stay, food, per head', () => {

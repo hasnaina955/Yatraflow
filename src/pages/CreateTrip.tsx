@@ -9,7 +9,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
-  Calendar, ChevronDown, ChevronUp, Pin, TriangleAlert, X, ArrowRight, Printer,
+  Calendar, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Pin, TriangleAlert, X, ArrowRight, Printer,
   Car, Bike, Bus, TrainFront, Plane, KeyRound,
 } from 'lucide-react'
 import type { FixedCommitment, LatLngPoint, TransportMode, TravelStyle } from '../data/types'
@@ -54,22 +54,134 @@ const MODE_TILES: Array<{ mode: TransportMode; icon: typeof Car; hint: string }>
 ]
 
 /** Explainer copy — grounded in what the style really tunes later:
- *  halt cadence (cadenceForCrew), daily detour budget (STYLE_DELTA) and the
- *  AI planner prompt. Never claim more than the algorithm does. */
+ *  halt cadence (cadenceForCrew), daily detour budget (STYLE_DELTA), the bill's
+ *  stay tier and the AI planner prompt. Never claim more than the algorithm does. */
 const STYLE_COPY: Record<TravelStyle, string> = {
-  relaxed: 'Halts every ~120 km with +15 min of daily detour slack — room to wander.',
-  packed: 'Longer stretches (~180 km) and 15 min less detour slack — maximum ground per day.',
-  balanced: 'The default rhythm — standard halt cadence, 45 min of daily detour slack.',
-  adventure: 'Standard halt rhythm — the style also colours the AI planner and trip summary.',
-  luxury: 'Standard halt rhythm; stay rates in the rough bill use the luxury tier.',
-  budget: 'Standard halt rhythm; stay rates in the rough bill use the budget tier.',
-  family: 'Standard halt rhythm — crews of 5+ automatically get the gentler cadence.',
-  spiritual: 'Standard halt rhythm — the style also colours the AI planner and trip summary.',
-  'food-focused': 'Standard halt rhythm — the style also colours the AI planner and trip summary.',
-  creator: 'Standard halt rhythm — the style also colours the AI planner and trip summary.',
+  relaxed: 'slow pace — halts every ~120 km, +15 min of daily detour slack. Stay tier: comfort.',
+  packed: 'maximum ground — ~180 km stretches, 15 min less detour slack. Stay tier: comfort.',
+  balanced: 'the default rhythm — standard halts, 45 min of daily detour slack. Stay tier: comfort.',
+  adventure: 'standard pace — the AI planner packs treks, trails and outdoor stops into suggestions.',
+  luxury: 'standard pace — the rough bill prices stays at the luxury tier; the planner follows suit.',
+  budget: 'standard pace — the rough bill prices stays at the budget tier; the planner follows suit.',
+  family: 'crews of 5+ automatically get the gentler cadence; the planner favours family-friendly stops.',
+  spiritual: 'standard pace — the AI planner leans temple circuits, ashrams and early-morning starts.',
+  'food-focused': 'standard pace — the AI planner routes suggestions around local food landmarks.',
+  creator: 'standard pace — the AI planner favours scenic, content-worthy stops for shoots and reels.',
 }
 
 const EMOJIS = ['🧭', '🏔️', '🏖️', '🛕', '🚗', '🚂', '🌴', '🎒']
+
+// ---- Single range calendar (replaces the two raw date inputs) ---------------
+
+const CAL_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+const CAL_WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
+
+/** yyyy-mm-dd in local time — toISOString would drift by a day on IST evenings. */
+function isoDay(d: Date): string {
+  const p = (n: number) => (n < 10 ? `0${n}` : `${n}`)
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+}
+
+function fmtDay(iso: string): string {
+  const [, m, d] = iso.split('-').map(Number)
+  return `${d} ${CAL_MONTHS[m - 1]}`
+}
+
+/** One-month grid; first click sets the start, second sets the end (a day
+ *  before the current start restarts the selection). Hover previews the range. */
+function DateRangeCalendar({ start, end, error, registerRef, onChange }: {
+  start: string
+  end: string
+  error?: string
+  registerRef: (el: HTMLButtonElement | null) => void
+  onChange: (next: { startDate: string; endDate: string }) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [hover, setHover] = useState<string | null>(null)
+  const [view, setView] = useState(() => {
+    const t = new Date()
+    return { y: t.getFullYear(), m: t.getMonth() }
+  })
+  const wrapRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const onDoc = (e: PointerEvent) => { if (!wrapRef.current?.contains(e.target as Node)) setOpen(false) }
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
+    document.addEventListener('pointerdown', onDoc)
+    document.addEventListener('keydown', onKey)
+    return () => { document.removeEventListener('pointerdown', onDoc); document.removeEventListener('keydown', onKey) }
+  }, [open])
+
+  function toggle() {
+    const anchor = start || end
+    if (anchor) {
+      const [y, m] = anchor.split('-').map(Number)
+      setView({ y, m: m - 1 })
+    }
+    setOpen(o => !o)
+  }
+
+  function pick(day: string) {
+    if (!start || end || day < start) onChange({ startDate: day, endDate: '' })
+    else onChange({ startDate: start, endDate: day })
+  }
+
+  function shiftMonth(delta: number) {
+    setView(v => {
+      const d = new Date(v.y, v.m + delta, 1)
+      return { y: d.getFullYear(), m: d.getMonth() }
+    })
+  }
+
+  const lead = new Date(view.y, view.m, 1).getDay()
+  const lastDate = new Date(view.y, view.m + 1, 0).getDate()
+  const today = isoDay(new Date())
+  // Second edge is the real end, or the hovered day while choosing one.
+  const endPreview = end || (start && hover && hover > start ? hover : '')
+  const cells: Array<number | null> = [
+    ...Array.from({ length: lead }, () => null),
+    ...Array.from({ length: lastDate }, (_, i) => i + 1),
+  ]
+  const label = start && end ? `${fmtDay(start)} – ${fmtDay(end)}` : start ? `${fmtDay(start)} – pick end day` : 'Choose your dates'
+
+  return (
+    <Field label="Trip dates" error={error}>
+      <div className="cal-wrap" ref={wrapRef}>
+        <button type="button" className="input cal-trigger" aria-expanded={open} aria-haspopup="dialog"
+          ref={registerRef} onClick={toggle}>
+          <Calendar size={14} aria-hidden />
+          <span className={start && end ? undefined : 'muted'}>{label}</span>
+          <ChevronDown size={14} className="cal-caret" aria-hidden />
+        </button>
+        {open && (
+          <div className="cal-pop" role="dialog" aria-label="Pick trip dates">
+            <div className="cal-head">
+              <button type="button" className="route-btn" aria-label="Previous month" onClick={() => shiftMonth(-1)}><ChevronLeft size={14} aria-hidden /></button>
+              <b>{CAL_MONTHS[view.m]} {view.y}</b>
+              <button type="button" className="route-btn" aria-label="Next month" onClick={() => shiftMonth(1)}><ChevronRight size={14} aria-hidden /></button>
+            </div>
+            <div className="cal-grid">
+              {CAL_WEEKDAYS.map((w, i) => <span key={`wd${i}`} className="cal-wd" aria-hidden>{w}</span>)}
+              {cells.map((d, i) => {
+                if (d == null) return <span key={`pad${i}`} />
+                const iso = `${view.y}-${String(view.m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+                const edge = iso === start || iso === endPreview
+                const cls = `${edge ? ' edge' : endPreview && iso > start && iso < endPreview ? ' in-range' : ''}${iso === today ? ' today' : ''}`
+                return (
+                  <button key={iso} type="button" className={`cal-day${cls}`} aria-label={iso}
+                    onMouseEnter={() => setHover(iso)} onMouseLeave={() => setHover(null)}
+                    onClick={() => pick(iso)}>{d}</button>
+                )
+              })}
+            </div>
+            <p className="cal-hint">{start && !end ? 'Now pick the last day of the trip.' : 'Tap a start day, then an end day.'}</p>
+          </div>
+        )}
+      </div>
+    </Field>
+  )
+}
 
 /** Ticket cover scenery (shared with the mockup) — shown until a cover photo exists. */
 function TicketScenery() {
@@ -99,6 +211,7 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
     name: '', startLocation: '',
     startDate: '', endDate: '', travellers: 2,
     transportMode: 'car' as TransportMode,
+    localTrain: false,
     fuelEconomy: '',
     fuelPrice: '',
     tankL: '',
@@ -161,8 +274,9 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
     kmPerL: f.fuelEconomy, inrPerL: f.fuelPrice,
     tankL: Number.isFinite(tankNum) && tankNum > 0 ? tankNum : undefined,
     rentPerDay: Number.isFinite(rentNum) && rentNum > 0 ? rentNum : undefined,
+    localTrain: f.localTrain,
     travelStyle: f.travelStyle,
-  }), [f.startDate, f.endDate, f.travellers, f.transportMode, f.roundTrip, f.fuelEconomy, f.fuelPrice, f.tankL, f.rentPerDay, f.travelStyle, orderedPoints, returnCount, fuelMode, tankNum, rentNum])
+  }), [f.startDate, f.endDate, f.travellers, f.transportMode, f.localTrain, f.roundTrip, f.fuelEconomy, f.fuelPrice, f.tankL, f.rentPerDay, f.travelStyle, orderedPoints, returnCount, fuelMode, tankNum, rentNum])
 
   function patchFields(next: Partial<typeof f>) {
     setF(x => ({ ...x, ...next }))
@@ -295,7 +409,7 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
   const showCustomCrew = !CREW_CHIPS.includes(f.travellers)
   const ticketTitle = f.name.trim() || 'Your next trip'
   const dateLabel = f.startDate && f.endDate
-    ? `${f.startDate} – ${f.endDate} · ${bill.days} day${bill.days !== 1 ? 's' : ''} · ${bill.nights} night${bill.nights !== 1 ? 's' : ''}`
+    ? `${fmtDay(f.startDate)} – ${fmtDay(f.endDate)} · ${bill.days} day${bill.days !== 1 ? 's' : ''} · ${bill.nights} night${bill.nights !== 1 ? 's' : ''}`
     : 'Pick your dates'
 
   // ---- Shared fragments ----------------------------------------------------
@@ -405,16 +519,12 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
             <div className="ts-block-head">
               <span className="eyebrow">Dates</span>
             </div>
-            <div className="form-row">
-              <Field label="Start date" error={errs.startDate}>
-                <input className="input" type="date" ref={el => (fieldRefs.current.startDate = el)} aria-invalid={!!errs.startDate}
-                  value={f.startDate} onChange={e => patchFields({ startDate: e.target.value })} />
-              </Field>
-              <Field label="End date" error={errs.endDate}>
-                <input className="input" type="date" ref={el => (fieldRefs.current.endDate = el)} aria-invalid={!!errs.endDate}
-                  value={f.endDate} onChange={e => patchFields({ endDate: e.target.value })} />
-              </Field>
-            </div>
+            <DateRangeCalendar
+              start={f.startDate} end={f.endDate}
+              error={errs.startDate || errs.endDate}
+              registerRef={el => { fieldRefs.current.startDate = el; fieldRefs.current.endDate = el }}
+              onChange={({ startDate, endDate }) => patchFields({ startDate, endDate })}
+            />
             {dayCount > 0 && (
               <span className="pill"><Calendar size={12} aria-hidden /> {dayCount} day{dayCount !== 1 ? 's' : ''} · {Math.max(0, dayCount - 1)} night{dayCount - 1 !== 1 ? 's' : ''}</span>
             )}
@@ -430,14 +540,36 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
               <div>
                 <span className="group-lab">Transport mode</span>
                 <div className="mode-grid" role="group" aria-label="Transport mode">
-                  {MODE_TILES.map(t => (
-                    <button key={t.mode} type="button" className={`mode-btn${f.transportMode === t.mode ? ' on' : ''}`}
-                      aria-pressed={f.transportMode === t.mode}
-                      onClick={() => { haptic(HAPTIC.select); patchFields({ transportMode: t.mode }) }}>
-                      <t.icon size={17} aria-hidden />
-                      <span><span className="nm">{t.mode === 'rental' ? 'Car rental' : cap(t.mode)}</span><span className="hint">{t.hint}</span></span>
-                    </button>
-                  ))}
+                  {MODE_TILES.map(t => {
+                    const tile = (
+                      <button type="button" className={`mode-btn${f.transportMode === t.mode ? ' on' : ''}`}
+                        aria-pressed={f.transportMode === t.mode}
+                        onClick={() => {
+                          haptic(HAPTIC.select)
+                          patchFields(t.mode !== 'train' && f.localTrain ? { transportMode: t.mode, localTrain: false } : { transportMode: t.mode })
+                        }}>
+                        <t.icon size={17} aria-hidden />
+                        <span><span className="nm">{t.mode === 'rental' ? 'Car rental' : cap(t.mode)}</span><span className="hint">{t.mode === 'train' && f.localTrain ? 'local · ₹0.45/km' : t.hint}</span></span>
+                      </button>
+                    )
+                    // The local-train toggle lives inside the train tile — a
+                    // sibling of the select button so both stay real controls.
+                    if (t.mode !== 'train') return tile
+                    return (
+                      <div key="train" className="mode-tile">
+                        {tile}
+                        {f.transportMode === 'train' && (
+                          <label className="ts-switch mode-local-switch">
+                            <input type="checkbox" role="switch" checked={f.localTrain}
+                              onChange={e => { haptic(HAPTIC.toggle); patchFields({ localTrain: e.target.checked }) }}
+                              aria-label="Local / suburban train fares (much cheaper)" />
+                            <span className="ts-switch-track" aria-hidden="true"></span>
+                            <span className="ts-switch-label">Local</span>
+                          </label>
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
               {fuelMode && (
@@ -547,7 +679,7 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
                   onClick={() => { haptic(HAPTIC.select); patchFields({ travelStyle: s }) }}>{cap(s)}</button>
               ))}
             </PillNav>
-            <p className="hint-text style-copy" role="status">{STYLE_COPY[f.travelStyle]}</p>
+            <p className="hint-text style-copy" role="status"><b>{cap(f.travelStyle)}</b> — {STYLE_COPY[f.travelStyle]}</p>
           </section>
 
           {/* ---- Trip cover (5) ---- */}
@@ -657,7 +789,7 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
               </p>
               <div className="tk-rows">
                 <div className="tk-row"><span className="ic"><Calendar size={12} aria-hidden /></span><b>{dateLabel}</b></div>
-                <div className="tk-row"><span className="ic"><Car size={12} aria-hidden /></span><span className="lab">{f.travellers} traveller{f.travellers !== 1 ? 's' : ''}</span><b>· {cap(f.transportMode)}</b></div>
+                <div className="tk-row"><span className="ic"><Car size={12} aria-hidden /></span><span className="lab">{f.travellers} traveller{f.travellers !== 1 ? 's' : ''}</span><b>· {cap(f.transportMode)}{f.transportMode === 'train' && f.localTrain ? ' · local' : ''}</b></div>
                 {fuelMode && (f.fuelEconomy || f.fuelPrice || f.tankL) && (
                   <div className="tk-row"><span className="ic">⛽</span><span className="lab">{f.fuelEconomy ? `${f.fuelEconomy} km/L` : null}{f.fuelPrice && f.fuelEconomy ? ' · ' : ''}{f.fuelPrice ? `₹${f.fuelPrice}/L` : null}{f.tankL && f.fuelEconomy ? ` · ${f.tankL} L tank` : ''}</span></div>
                 )}
@@ -701,7 +833,11 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
                   <button type="submit" form="yf-create-form" className="tk-cta">
                     Create trip <ArrowRight size={16} aria-hidden />
                   </button>
-                  <button type="button" className="tk-cancel" onClick={() => onNavigate('/trips')}>Cancel</button>
+                  <div className="tk-subrow">
+                    <button type="button" className="tk-cancel" aria-label="Discard the printed bill and edit the trip details"
+                      onClick={() => { haptic(HAPTIC.toggle); setBillPrinted(false) }}>Discard bill</button>
+                    <button type="button" className="tk-cancel" onClick={() => onNavigate('/trips')}>Cancel</button>
+                  </div>
                 </>
               )}
             </div>

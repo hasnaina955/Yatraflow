@@ -3955,8 +3955,13 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 .ts-block {
   background: var(--yf-surface); border: 1px solid var(--yf-border); border-radius: 20px;
   padding: 14px 16px 16px; box-shadow: 0 10px 26px rgba(18, 63, 73, 0.07), 0 2px 5px rgba(18, 63, 73, 0.05);
-  min-width: 0;
+  min-width: 0; position: relative;
 }
+/* The entrance animation (transform, fill: forwards) pins each block into its
+   own stacking context, so a later block paints OVER the open location
+   dropdown / calendar popover inside an earlier one. Elevate the block that
+   owns the open popover above its siblings. */
+.ts-block:has(.loc-dropdown), .ts-block:has(.cal-pop) { z-index: 2; }
 [data-theme='dark'] .ts-block { box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35), 0 2px 6px rgba(0, 0, 0, 0.25); }
 .span7 { grid-column: span 7; }
 .span5 { grid-column: span 5; }
@@ -4023,14 +4028,31 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 .group-lab { display: block; font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--yf-text-muted); margin-bottom: 7px; }
 .mode-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .mode-btn {
-  display: flex; align-items: center; gap: 9px; padding: 9px 10px; border-radius: 13px;
+  display: flex; align-items: center; gap: 9px; padding: 9px 10px; border-radius: 13px; min-height: 48px;
   border: 1px solid var(--yf-border); background: var(--yf-surface); text-align: left; min-width: 0; color: inherit;
 }
 .mode-btn:hover { border-color: color-mix(in srgb, var(--yf-teal-600) 45%, transparent); background: var(--yf-teal-100); }
 .mode-btn .nm { display: block; font-weight: 700; font-size: 12.5px; line-height: 1.2; white-space: nowrap; }
-.mode-btn .hint { display: block; font-size: 11px; color: var(--yf-text-muted); font-weight: 500; white-space: nowrap; }
+.mode-btn .hint { display: block; font-size: 10.5px; line-height: 1.3; color: var(--yf-text-muted); font-weight: 500; }
 .mode-btn.on { background: var(--yf-teal-600); border-color: var(--yf-teal-600); color: #fff; box-shadow: var(--shadow-glow-teal); }
 .mode-btn.on .hint { color: rgba(255, 255, 255, 0.8); }
+/* Train tile hosts the inline local-fare switch — the wrapper is the grid
+   cell; the switch is a sibling of the select button, not a nested control.
+   It docks bottom-right and the button reserves the row, so the tile text
+   keeps its full width (the tiles are far too narrow for a corner overlay). */
+.mode-tile { position: relative; min-width: 0; }
+.mode-tile .mode-btn { width: 100%; height: 100%; }
+.mode-tile:has(.mode-local-switch) .mode-btn { padding-bottom: 34px; }
+.mode-local-switch {
+  position: absolute; bottom: 5px; right: 6px; gap: 4px; font-size: 9.5px;
+  background: var(--yf-surface); border: 1px solid var(--yf-border); border-radius: 999px;
+  padding: 2px 6px 2px 4px; box-shadow: 0 1px 4px rgba(18, 63, 73, 0.14);
+}
+.mode-local-switch .ts-switch-track { width: 24px; height: 14px; }
+.mode-local-switch .ts-switch-track::after { width: 10px; height: 10px; }
+.mode-local-switch input:checked + .ts-switch-track::after { transform: translateX(10px); }
+.mode-local-switch input:checked ~ .ts-switch-label { color: var(--yf-teal-700); }
+[data-theme='dark'] .mode-local-switch input:checked ~ .ts-switch-label { color: var(--yf-teal-600); }
 .fuel-stack { display: grid; gap: 8px; align-content: start; }
 .mini-field { display: grid; gap: 4px; }
 .mini-lab { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--yf-text-muted); }
@@ -4054,11 +4076,42 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 .quick-budget .chip.on { background: var(--yf-teal-100); border-color: var(--yf-teal-600); color: var(--yf-teal-700); }
 [data-theme='dark'] .quick-budget .chip.on { color: var(--yf-teal-600); }
 
-/* Style carousel: scrollable PillNav + the honest explainer line */
+/* Style carousel: all styles visible on desktop (wraps, glider tracks rows);
+   ≤720px falls back to the horizontal scroll-snap strip. */
 .style-carousel { width: 100%; overflow-x: auto; scrollbar-width: none; }
 .style-carousel::-webkit-scrollbar { display: none; }
 .style-carousel .tab-btn { white-space: nowrap; flex: none; }
 .style-copy { min-height: 2.4em; margin-top: 8px; }
+@media (min-width: 721px) {
+  .style-carousel { flex-wrap: wrap; overflow: visible; row-gap: 2px; }
+}
+
+/* Single range calendar (replaces the two raw date inputs) */
+.cal-wrap { position: relative; }
+.cal-trigger { position: relative; display: flex; align-items: center; gap: 8px; text-align: left; cursor: pointer; }
+.cal-trigger > span:first-of-type { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cal-trigger .muted { color: var(--yf-text-muted); font-weight: 500; }
+.cal-trigger .cal-caret { position: absolute; right: 10px; color: var(--yf-text-muted); flex: none; }
+.cal-pop {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: var(--z-nav-glass);
+  width: min(278px, 100%); padding: 10px 12px 12px; border-radius: 14px;
+  background: var(--yf-glass); border: 1px solid var(--yf-glass-border);
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+  box-shadow: var(--shadow-soft);
+}
+.cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; font-size: 13px; font-weight: 700; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.cal-wd { text-align: center; font-size: 9.5px; font-weight: 700; letter-spacing: .06em; color: var(--yf-text-muted); padding: 3px 0 4px; }
+.cal-day {
+  height: 32px; border-radius: 9px; border: none; background: none; cursor: pointer;
+  font: inherit; font-size: 12px; font-weight: 600; color: var(--text); display: grid; place-items: center; padding: 0;
+}
+.cal-day:hover { background: var(--yf-teal-100); }
+.cal-day.in-range { background: var(--yf-teal-100); border-radius: 0; color: var(--yf-teal-700); }
+[data-theme='dark'] .cal-day.in-range { color: var(--yf-teal-600); }
+.cal-day.edge { background: var(--yf-teal-600); color: #fff; border-radius: 9px; }
+.cal-day.today { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--yf-teal-600) 55%, transparent); }
+.cal-hint { margin: 8px 0 0; font-size: 11px; color: var(--yf-text-muted); text-align: center; }
 
 /* ============ The Trip Ticket (right rail) ============ */
 .ts-rail { position: sticky; top: calc(var(--nav-h, 64px) + 16px); }
@@ -4104,6 +4157,8 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 .tk-fine { margin: 10px 0 0; font-size: 11px; line-height: 1.5; color: rgba(242, 247, 245, 0.6); }
 .tk-cancel { margin-top: 9px; width: 100%; text-align: center; font-size: 12.5px; color: rgba(242, 247, 245, 0.6); background: none; border: none; cursor: pointer; padding: 4px; }
 .tk-cancel:hover { color: #F2F7F5; }
+.tk-subrow { display: flex; justify-content: center; gap: 18px; margin-top: 9px; }
+.tk-subrow .tk-cancel { margin-top: 0; width: auto; }
 
 .bill-printer { position: relative; }
 .bill-slot {
@@ -4138,16 +4193,43 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 }
 .tk-cta:hover { filter: brightness(1.05); }
 
-/* Bill print animation: the reveal wrapper unrolls (clip-path), the paper
-   drops (translate) and then sways in a light breeze (rotate). translate and
-   rotate are independent CSS properties, so the two keyframes never fight. */
+/* Bill print animation: a 0.45s slot warm-up (the slot light blinks twice),
+   then the paper feeds out in small mechanical increments — clip-path and
+   translate share the same steps() timing so the reveal and the feed jitter
+   in lockstep like real printer rollers. Sway starts once the sheet is out.
+   translate and rotate are independent CSS properties, so keyframes never fight. */
 @media (prefers-reduced-motion: no-preference) {
-  .bill-reveal { animation: bill-reveal 1.05s var(--ease-out) both; }
-  .bill-paper-sway { animation: bill-drop 0.9s var(--ease-out) both, bill-sway 4.4s ease-in-out 1.05s infinite; }
+  .bill-reveal { animation: bill-reveal 2.5s steps(28, end) 0.45s both; }
+  .bill-paper-sway { animation: bill-drop 2.5s steps(28, end) 0.45s both, bill-sway 5.4s ease-in-out 2.95s infinite; }
+  .bill-slot span { animation: bill-slot-live 1.4s steps(2, jump-none) 2; }
   @keyframes bill-reveal { from { clip-path: inset(0 0 100% 0); } to { clip-path: inset(0 0 -9px 0); } }
-  @keyframes bill-drop { from { translate: 0 -10px; } to { translate: 0 0; } }
+  @keyframes bill-drop { from { translate: 0 -18px; } to { translate: 0 0; } }
   @keyframes bill-sway { 0%, 100% { rotate: 0deg; } 25% { rotate: 0.55deg; } 75% { rotate: -0.55deg; } }
+  @keyframes bill-slot-live { 50% { opacity: 0.2; } }
 }
+
+/* Theme-aware printer + paper: the ticket stays navy in both themes, but the
+   slot hardware and the printed sheet follow the app theme — dark mode prints
+   on warm charcoal paper instead of glaring cream. */
+[data-theme='dark'] .bill-slot {
+  background: rgba(0, 0, 0, 0.52);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.7), 0 1px 0 rgba(255, 255, 255, 0.14);
+}
+[data-theme='dark'] .bill-reveal {
+  background-color: #241F19;
+  color: #E6DCC0;
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.55);
+  background-image:
+    repeating-linear-gradient(0deg, rgba(206, 180, 124, 0.05) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(90deg, rgba(206, 180, 124, 0.035) 0 1px, transparent 1px 4px);
+}
+[data-theme='dark'] .bill-brand { color: #A68F66; }
+[data-theme='dark'] .bill-row span { color: #BCAE8C; }
+[data-theme='dark'] .bill-formula { color: #998B6D; }
+[data-theme='dark'] .bill-total { border-top-color: #4E4433; }
+[data-theme='dark'] .bill-perhead .mono { color: #93D3AC; }
+[data-theme='dark'] .bill-perhead .per { color: #BCAE8C; }
+[data-theme='dark'] .bill-note { color: #998B6D; }
 
 /* Trip Ticket entrance + bento stagger (transform/opacity only) */
 @media (prefers-reduced-motion: no-preference) {
@@ -4194,6 +4276,5 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
   .route-btn { width: 36px; height: 36px; }
   .crew-btn { min-width: 40px; height: 40px; }
   .mode-grid { grid-template-columns: 1fr 1fr; }
-  .mode-btn .hint { white-space: normal; }
   .trip-dock { left: 10px; right: 10px; }
 }

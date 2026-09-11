@@ -36,11 +36,33 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
   segments), pinned by `tests/daySummary.test.ts` plus open-day persistence tests in
   `tests/uiPrefs.test.ts` — including the negative-control that opening Day 2 collapses
   Day 1. Drag-reorder, cross-day moves and the realtime echo guard are untouched.
+- **Plan/Inspect modes + Board-parity drag + smooth day open/close (restructure Phase 3).**
+  A segmented Plan/Inspect toggle lives in the Timeline header and persists per user like the
+  theme: **Plan** is today's editing timeline; **Inspect** is the same data with every
+  editing affordance off — no drag, delete, add, rename, halt-planner actions or impact
+  sheet — rendered through the existing `editable` permission seam, so the plan is safe to
+  study on a phone during the trip itself. Drag-reorder now uses the Board's premium kanban
+  pattern (until now only the Board had it): the DOM order never changes mid-drag, a slim
+  teal marker glides to the insertion slot, drops resolve through the marker, and a FLIP
+  pass settles the arrangement once on commit — no more per-card shuffle. Day bodies now
+  animate open and closed (grid-rows `0fr→1fr`, height-agnostic, reduced-motion aware) while
+  still unmounting when closed, so collapsed days cost nothing. The mode hook lives in
+  `src/pages/trip/timeline/useTimelineMode.ts`.
 - **Timeline restructure plan and mockups (planning artefacts).** `docs/TIMELINE-PLAN.md` is
   the phased, code-audited implementation plan (collapsed accordion day rows → evict
   specialist tools → Plan/Inspect split + file split) with the three design decisions signed
   off; `docs/TIMELINE-MOCKUPS.html` is the approved visual prototype rendered in YatraFlow's
   design tokens.
+
+### Changed
+
+- **The 1,500-line `TimelineTab.tsx` monolith is split into modules** (`restructure Phase 3`,
+  same behaviour, prop-identity discipline preserved): the shell (364 lines — tab state,
+  accordion open-day, mode, StopEditor, warnings grouping) composes
+  `timeline/DaySection.tsx` (689 — day header/summary row, animated body, stop rows,
+  suggestions), `timeline/TravelPanel.tsx` (471 — travel card + halt planner),
+  `timeline/DaySpark.tsx`, `timeline/MoveStopModal.tsx` and `timeline/useTimelineMode.ts`.
+  `DaySection`'s prop signature remains the shared contract.
 
 ### Fixed
 

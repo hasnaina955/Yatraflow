@@ -170,7 +170,7 @@ export function GroupInputTab({ trip, editable, me }: {
           <div className="card">
             <PillNav className="mode-pillbar" role="group" aria-label="What do you want to add?" activeKey={composerMode}>
               {([['idea', 'Stop idea'], ['question', 'Question']] as const).map(([k, label]) => (
-                <button key={k} type="button" data-pill-key={k} className={`clickable-chip chip${composerMode === k ? ' on-teal' : ''}`}
+                <button key={k} type="button" data-pill-key={k} className={`tab-btn${composerMode === k ? ' active' : ''}`}
                   onClick={() => setComposerMode(k)} aria-pressed={composerMode === k}>{label}</button>
               ))}
             </PillNav>

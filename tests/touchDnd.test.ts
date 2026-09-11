@@ -1,9 +1,9 @@
-// ============ touchDnd — long-press drag engine (pure helpers) ============
+// ============ touchDnd — pointer drag engine (pure helpers) ============
 import { describe, it, expect } from 'vitest'
 import {
-  LONG_PRESS_MS, MOVE_CANCEL_PX, EDGE_ZONE_PX, EDGE_SCROLL_SPEED,
+  LONG_PRESS_MS, MOVE_CANCEL_PX, MOUSE_START_PX, EDGE_ZONE_PX, EDGE_SCROLL_SPEED, WARP_CALM_MS,
   encodeDropKey, parseDropKey, longPressActivated, movedPx,
-  edgeScrollDelta, isInteractiveTarget,
+  edgeScrollDelta, isInteractiveTarget, warpFor,
 } from '../src/lib/touchDnd'
 
 describe('drop keys', () => {
@@ -76,5 +76,45 @@ describe('isInteractiveTarget', () => {
     // interactive-target check itself is exercised in the browser
     expect(() => isInteractiveTarget(null)).not.toThrow()
     expect(isInteractiveTarget(null)).toBe(false)
+  })
+})
+
+describe('warpFor (the velocity → deformation mapping)', () => {
+  it('is perfectly at rest at zero velocity', () => {
+    expect(warpFor(0, 0)).toEqual({ x: 0, y: 0, tilt: 0 })
+  })
+
+  it('stretches along the moving axis; the 0.55 thinning of the other axis lives in the skin transform', () => {
+    // 1 px/ms downward = vy .385 → capped to .26; the skin scales
+    // (1 - .26*.55, 1.26) from these raw values
+    const w = warpFor(0, 1)
+    expect(w.y).toBe(0.26)
+    expect(w.x).toBe(0)
+    expect(w.tilt).toBe(0)
+  })
+
+  it('caps the stretch at 0.26 no matter how violent the throw', () => {
+    expect(warpFor(50, 0).x).toBe(0.26)
+    expect(warpFor(0, 50).y).toBe(0.26)
+  })
+
+  it('leans signed into the horizontal throw — a flick back rights it', () => {
+    expect(warpFor(1, 0).tilt).toBeCloseTo(2.6, 10)
+    expect(warpFor(-1, 0).tilt).toBeCloseTo(-2.6, 10)
+  })
+
+  it('clamps the lean at ±7 degrees', () => {
+    expect(warpFor(10, 0).tilt).toBe(7)
+    expect(warpFor(-10, 0).tilt).toBe(-7)
+  })
+})
+
+describe('mouse activation constants', () => {
+  it('a mouse drag starts after a small movement, well under the touch cancel', () => {
+    expect(MOUSE_START_PX).toBeLessThan(MOVE_CANCEL_PX)
+  })
+
+  it('the warp calm window is shorter than one hover blink', () => {
+    expect(WARP_CALM_MS).toBe(90)
   })
 })

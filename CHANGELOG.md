@@ -17,6 +17,47 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ### Added
 
+- **bencho-grade drag: the row rides the finger.** Drag-reorder on the Timeline
+  and the Board now runs entirely on pointer events (`lib/touchDnd.ts`); the
+  HTML5 drag API — whose OS-owned ghost bitmap and throttled `dragover` capped
+  how smooth a reorder could ever feel — is gone. The carried row is pinned to
+  the pointer with no easing at all (free, unfenced: only the insertion
+  *reading* is clamped, so carrying a row out of the list and back is a real
+  gesture), its inner card stretches along the moving axis, thins the other
+  and leans into the throw (velocity warp, signed tilt — a flick back rights
+  it), and a 90ms calm timer eases the deformation flat the moment the finger
+  stops. Position and deformation live on two separate transforms (row vs
+  skin) because one must never ease while the other always must. Drops settle
+  once via the FLIP pass, with the carried row springing from where it was
+  released; a no-op release springs it home. Touch keeps its long-press gate,
+  now with the same visible carry; mouse drags start on an 8px move. The
+  goo/metaball morphing stays excluded, and the drag-start wiggle is retired.
+- **Every pill toggle animates like the workspace tab bar.** The Plan/Inspect
+  toggle and the Group Input composer switch are the tabbar's exact glass
+  capsule with `.tab-btn` children, and inside *any* PillNav the sliding
+  glider is now the only thing that paints the active state — the per-chip
+  glow shadow that used to pop off/on while the background glided (the
+  "two-step switch" feel) is gone. Saffron highlights hand their paint to the
+  glider the same way (dark-amber ink for 4.8:1 on saffron).
+- **Location + calendar: the real frosted glass, plus a modernised combobox.**
+  Root cause of the dropdowns never matching the navbar's frost: the
+  CreateTrip section entrance used `animation-fill-mode: forwards`, which
+  keeps each block a compositor group after it ends — blinding
+  `backdrop-filter` on the `.popover` dropdowns inside them (they rendered as
+  plain translucent sheets). The entrance now fills `backwards` and the frost
+  is the navbar's, exactly. The combobox itself got the design-language pass:
+  option rows with a 32px tinted icon chip, hover/keyboard highlight on one
+  teal surface, and the provider caption ("Place search · Google") became a
+  quiet footer row inside the dropdown instead of a floating caption below it.
+  The calendar range reads as one capsule (start day rounds left, end day
+  rounds right), month steppers are proper round buttons, and form controls'
+  transitions moved onto the motion tokens.
+- **Quick budget amounts are a toggle, not a one-way trap.** ₹10k/15k/25k
+  chips claim the field for manual editing when clicked — and clicking the
+  highlighted amount again releases it: `budgetTouched` resets and the rough
+  bill's suggested amount flows back in, with the field hint explaining the
+  state ("Manual amount — tap the highlighted quick amount again to hand the
+  field back to our maths").
 - **The Timeline opens collapsed — one day at a time, as scannable summary rows.** Phase 1 of
   the Timeline restructure (`docs/TIMELINE-PLAN.md`, mockups in `docs/TIMELINE-MOCKUPS.html`):
   every day now starts as a summary row — the collapse control is a visible circular chevron

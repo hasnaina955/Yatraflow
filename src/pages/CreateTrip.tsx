@@ -157,17 +157,21 @@ function DateRangeCalendar({ start, end, error, registerRef, onChange }: {
         {open && (
           <div className="cal-pop popover" role="dialog" aria-label="Pick trip dates">
             <div className="cal-head">
-              <button type="button" className="route-btn" aria-label="Previous month" onClick={() => shiftMonth(-1)}><ChevronLeft size={14} aria-hidden /></button>
+              <button type="button" className="cal-nav" aria-label="Previous month" onClick={() => shiftMonth(-1)}><ChevronLeft size={14} aria-hidden /></button>
               <b>{CAL_MONTHS[view.m]} {view.y}</b>
-              <button type="button" className="route-btn" aria-label="Next month" onClick={() => shiftMonth(1)}><ChevronRight size={14} aria-hidden /></button>
+              <button type="button" className="cal-nav" aria-label="Next month" onClick={() => shiftMonth(1)}><ChevronRight size={14} aria-hidden /></button>
             </div>
             <div className="cal-grid">
               {CAL_WEEKDAYS.map((w, i) => <span key={`wd${i}`} className="cal-wd" aria-hidden>{w}</span>)}
               {cells.map((d, i) => {
                 if (d == null) return <span key={`pad${i}`} />
                 const iso = `${view.y}-${String(view.m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
-                const edge = iso === start || iso === endPreview
-                const cls = `${edge ? ' edge' : endPreview && iso > start && iso < endPreview ? ' in-range' : ''}${iso === today ? ' today' : ''}`
+                const isStart = iso === start
+                const isEnd = iso === endPreview
+                const edge = isStart || isEnd
+                // Range reads as one capsule: the start day rounds left and the
+                // end day rounds right, the band between them stays square.
+                const cls = `${edge ? ' edge' : ''}${isStart ? ' edge-start' : ''}${isEnd ? ' edge-end' : ''}${!edge && endPreview && iso > start && iso < endPreview ? ' in-range' : ''}${iso === today ? ' today' : ''}`
                 return (
                   <button key={iso} type="button" className={`cal-day${cls}`} aria-label={iso}
                     onMouseEnter={() => setHover(iso)} onMouseLeave={() => setHover(null)}
@@ -676,21 +680,40 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
             </div>
             <div className="form-row">
               <Field label="Budget per person (₹)" error={errs.budgetPerPersonInr}
-                hint={bill.perHead != null && bill.perHead > 0
-                  ? `Our rough take ≈ ₹${bill.perHead.toLocaleString('en-IN')}/head · ≈ ₹${(bill.perHead * f.travellers).toLocaleString('en-IN')} total — prefilled above, updates as you plan (excludes tolls, parking & entry fees).`
-                  : 'Pick dates (and a stop or two) and our rough take lands here automatically.'}>
+                hint={budgetTouched
+                  ? `Manual amount — tap the highlighted quick amount again to hand the field back to our maths${bill.perHead != null && bill.perHead > 0 ? ` (≈ ₹${bill.perHead.toLocaleString('en-IN')}/head · ≈ ₹${(bill.perHead * f.travellers).toLocaleString('en-IN')} total)` : ''}.`
+                  : bill.perHead != null && bill.perHead > 0
+                    ? `Our rough take ≈ ₹${bill.perHead.toLocaleString('en-IN')}/head · ≈ ₹${(bill.perHead * f.travellers).toLocaleString('en-IN')} total — prefilled above, updates as you plan (excludes tolls, parking & entry fees).`
+                    : 'Pick dates (and a stop or two) and our rough take lands here automatically.'}>
                 <input className="input mono" type="number" min={500} step={500} ref={el => (fieldRefs.current.budgetPerPersonInr = el)}
                   aria-invalid={!!errs.budgetPerPersonInr} value={f.budgetPerPersonInr}
                   onChange={e => { setBudgetTouched(true); patchFields({ budgetPerPersonInr: Number(e.target.value) }) }} />
               </Field>
+              {/* Quick amounts are a toggle, not a one-way trap: clicking an
+                  amount claims the field for manual editing, clicking the
+                  highlighted one again releases it — auto-fill from the rough
+                  bill resumes (budgetTouched reset + suggested value back in). */}
               <div className="quick-budget" role="group" aria-label="Quick budget amounts">
-                {[10000, 15000, 25000].map(v => (
-                  <button key={v} type="button" className={`chip${f.budgetPerPersonInr === v ? ' on' : ''}`}
-                    aria-pressed={f.budgetPerPersonInr === v}
-                    onClick={() => { haptic(HAPTIC.tick); setBudgetTouched(true); patchFields({ budgetPerPersonInr: v }) }}>
-                    ₹{v >= 1000 ? `${Math.round(v / 1000)}k` : v}
-                  </button>
-                ))}
+                {[10000, 15000, 25000].map(v => {
+                  const on = f.budgetPerPersonInr === v
+                  return (
+                    <button key={v} type="button" className={`chip${on ? ' on' : ''}`}
+                      aria-pressed={on}
+                      title={on ? 'Tap again to go back to our suggested budget' : `Set ₹${v.toLocaleString('en-IN')} per person`}
+                      onClick={() => {
+                        haptic(HAPTIC.tick)
+                        if (on) {
+                          setBudgetTouched(false)
+                          if (suggestedBudget != null) patchFields({ budgetPerPersonInr: suggestedBudget })
+                        } else {
+                          setBudgetTouched(true)
+                          patchFields({ budgetPerPersonInr: v })
+                        }
+                      }}>
+                      ₹{v >= 1000 ? `${Math.round(v / 1000)}k` : v}
+                    </button>
+                  )
+                })}
               </div>
             </div>
             <span className="group-lab">Travel style</span>

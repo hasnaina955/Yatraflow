@@ -269,14 +269,17 @@ export function TimelineTab({ trip, editable, applyChange, legCorrections, sugge
             {onOpenBoard && (
               <button className="btn btn-outline btn-sm" onClick={onOpenBoard} title="Arrange stops across days with the route in view">Open in Board →</button>
             )}
+            {/* Same mechanic and surface as the workspace tab rail: a glass
+                capsule whose glider paints the active side (PillNav + tab-btn),
+                so switching modes animates exactly like Board→Map→Timeline. */}
             <PillNav className="mode-pillbar" role="group" aria-label="Timeline mode" activeKey={mode}>
-              <button type="button" data-pill-key="plan" className={`clickable-chip chip${mode === 'plan' ? ' on-teal' : ''}`}
+              <button type="button" data-pill-key="plan" className={`tab-btn${mode === 'plan' ? ' active' : ''}`}
                 onClick={() => changeMode('plan')} aria-pressed={mode === 'plan'}>
-                <PenLine size={12} aria-hidden style={{ marginRight: 4 }} />Plan
+                <PenLine size={14} aria-hidden />Plan
               </button>
-              <button type="button" data-pill-key="inspect" className={`clickable-chip chip${mode === 'inspect' ? ' on-teal' : ''}`}
+              <button type="button" data-pill-key="inspect" className={`tab-btn${mode === 'inspect' ? ' active' : ''}`}
                 onClick={() => changeMode('inspect')} aria-pressed={mode === 'inspect'}>
-                <Eye size={12} aria-hidden style={{ marginRight: 4 }} />Inspect
+                <Eye size={14} aria-hidden />Inspect
               </button>
             </PillNav>
             {/* Stays rendered in both modes (disabled + dimmed in Inspect) so

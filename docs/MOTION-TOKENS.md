@@ -34,11 +34,17 @@ drag; movement is translation only (compositor-only).
 | Pattern | Recipe | Where it lives |
 | --- | --- | --- |
 | Dropdown / popover entrance | fade 0→1 + rise 4px, `--motion-med`, `--ease-out` | `.popover` (location list, calendar, menus) |
-| Toggle glider | thumb `transform` slide, `--motion-med` | `.pill-glider` (workspace tabs, Plan/Inspect, filters) |
+| Toggle glider | thumb `transform` slide, `--motion-med` | `.pill-glider` (workspace tabs, Plan/Inspect, filters, composer mode) |
 | Day collapse | grid-rows `0fr↔1fr`, `--motion-slow`, unmount after | `.day-body-clip` (SmoothCollapse) |
-| Drag follow | siblings translate by the dragged row's height, `--motion-fast`, `--ease-glide` | Timeline `.tl`, Board `.board-col-stops` |
-| Drag settle | FLIP translate→none, `--motion-slow`, `--ease-out` | same surfaces, on commit |
-| Drag marker (removed) | — replaced by live sibling glide (2026-09) | — |
+| Drag carry | pointer-pinned `translate3d(var(--carry-x/-y))` on the row, **no transition** — position never eases | `.is-carried` (Timeline `.tl-row`, Board `.board-row`) |
+| Drag warp | skin `rotate(tilt) scale(1+x−y·.55, 1+y−x·.55)` from pointer velocity, `--motion-fast`, `--ease-out`; JS calm timer (`WARP_CALM_MS` 90ms) flattens the vars when the finger stops | `.is-carried .stop-card / .travel-endpoint` |
+| Drag sibling glide | rows between slot and target translate by the carried row's height, `--motion-fast`, `--ease-glide` | Timeline `.tl`, Board `.board-row` |
+| Drag settle | FLIP translate→none, `--motion-slow`, `--ease-out`; the carried row springs from its release point (engine `consumeCarryRect`) | same surfaces, on commit |
+
+The drag is pointer-events–driven (lib/touchDnd.ts): mouse starts on an 8px
+move, touch keeps the long-press gate. The warp is a skin-only deformation
+(the row's inner card), never the position layer, and is skipped entirely
+under reduced motion. No goo/metaball morphing — explicitly excluded.
 
 ## Governance (AGENTS.md rule 10)
 

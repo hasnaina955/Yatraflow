@@ -186,22 +186,31 @@ export const DaySection = React.memo(function DaySection({ day, trip, editable, 
   const A = getAssumptions(trip)
   const ordered = useMemo(() => [...day.stops].sort((a, b) => a.orderInDay - b.orderInDay), [day.stops])
   // --- Liquid drag (bencho-style, BoardView parity): the DOM order NEVER
-  // changes mid-drag. The rows between the carried slot and the cursor target
-  // glide out of the way in real time (transform transition); the carried row
-  // stays as a dashed ghost slot. Drop resolves through the insertion index
-  // and the arrangement settles ONCE via the FLIP pass on commit. ---
+  // changes mid-drag. The carried row is pinned to the pointer by the engine
+  // (lib/touchDnd.ts) and its skin warps with the throw; rows between the
+  // carried slot and the cursor target glide out of the way in real time
+  // (transform transition). Drop resolves through the insertion index and the
+  // arrangement settles ONCE via the FLIP pass on commit. ---
   const stopsRef = useRef<HTMLDivElement>(null)
   const [insertIdx, setInsertIdx] = useState<number | null>(null)
   const insertRef = useRef(insertIdx)
   insertRef.current = insertIdx
-  const { dndHandlers, dayDropHandlers, dragging, foreignOver, moveUp, moveDown } = useReorder(
+  /** viewport rect of the row as it was carried at release — the FLIP pass
+      below springs it from there into its new slot (same-list drops AND
+      foreign drops landing here both consume it) */
+  const dropRect = useRef<{ id: string; x: number; y: number } | null>(null)
+  const { dndHandlers, dayDropHandlers, dragging, foreignOver, moveUp, moveDown, takeCarryRect } = useReorder(
     ordered,
     (fromIdx) => {
       // idx counts positions in the full list (dragged slot included), so a
       // slot past the dragged index shifts down once it is removed.
       const idx = insertRef.current ?? fromIdx
       const toIdx = idx > fromIdx ? idx - 1 : idx
-      if (toIdx !== fromIdx) onMoveWithinDay(fromIdx, toIdx, day.index)
+      if (toIdx !== fromIdx) {
+        const rect = takeCarryRect()
+        if (rect && ordered[fromIdx]) dropRect.current = { id: ordered[fromIdx].id, x: rect.x, y: rect.y }
+        onMoveWithinDay(fromIdx, toIdx, day.index)
+      }
       setInsertIdx(null)
     },
     {
@@ -210,41 +219,31 @@ export const DaySection = React.memo(function DaySection({ day, trip, editable, 
         try {
           const p = JSON.parse(payload) as { stopId?: string; fromDay?: number }
           if (p.stopId && typeof p.fromDay === 'number' && p.fromDay !== day.index) {
+            const rect = takeCarryRect()
+            if (rect) dropRect.current = { id: p.stopId, x: rect.x, y: rect.y }
             onMoveStopIn(p.stopId, p.fromDay, day.index, toIdx)
           }
         } catch { /* malformed payload — ignore */ }
       },
+      /** engine hover → insertion slot: the hovered row's midpoint decides
+          before/after; an index past the rows means "at the end". The hole
+          stays where it last read while the finger is outside the list —
+          the same clamp-the-reading, free-the-finger rule bencho uses. */
+      onOwnHover: (idx, _x, y) => {
+        const rows = stopsRef.current?.querySelectorAll<HTMLElement>('[data-stop-id]')
+        if (!rows || rows.length === 0) return
+        let next: number
+        if (idx >= rows.length) {
+          next = rows.length
+        } else {
+          const r = rows[idx].getBoundingClientRect()
+          next = y < r.top + r.height / 2 ? idx : idx + 1
+        }
+        if (insertRef.current !== next) setInsertIdx(next)
+      },
     },
   )
   useEffect(() => { if (dragging === null) setInsertIdx(null) }, [dragging])
-
-  /** Insertion index from the cursor: the row whose midpoint the cursor is
-   *  above. Sibling glide is driven off this index in render. */
-  function onListDragOver(e: React.DragEvent<HTMLDivElement>) {
-    if (dragging === null) return
-    e.preventDefault()
-    const rootEl = stopsRef.current
-    if (!rootEl) return
-    const rows = Array.from(rootEl.querySelectorAll<HTMLElement>('[data-stop-id]'))
-    let idx = rows.length
-    for (let i = 0; i < rows.length; i++) {
-      const r = rows[i].getBoundingClientRect()
-      if (e.clientY < r.top + r.height / 2) { idx = i; break }
-    }
-    if (insertRef.current !== idx) setInsertIdx(idx)
-  }
-  function onListDragLeave(e: React.DragEvent<HTMLDivElement>) {
-    if (!stopsRef.current?.contains(e.relatedTarget as Node | null)) setInsertIdx(null)
-  }
-  /** Drops landing in the gaps between rows (row handlers stopPropagation). */
-  function onListDrop(e: React.DragEvent<HTMLDivElement>) {
-    if (dragging === null) return
-    e.preventDefault()
-    const idx = insertRef.current ?? ordered.length
-    const toIdx = idx > dragging ? idx - 1 : idx
-    if (toIdx !== dragging) onMoveWithinDay(dragging, toIdx, day.index)
-    setInsertIdx(null)
-  }
 
   /** Live glide offset for row i while a drag is open: rows between the
    *  carried slot and the insertion index slide by the carried row's height
@@ -261,8 +260,10 @@ export const DaySection = React.memo(function DaySection({ day, trip, editable, 
   // FLIP slot-in (BoardView parity): when this day's arrangement changes
   // (same-day reorder, or a stop slotting in from another day), every row
   // animates from its previous position to the new one — compositor-only.
-  // Fires once per committed arrangement, never during the drag itself: the
-  // marker carries all the in-drag feedback.
+  // The row that was CARRIED springs from where the finger released it (the
+  // engine's carry rect) rather than from its old slot; every other row
+  // animates from its pre-drag position. Fires once per committed
+  // arrangement, never during the drag itself.
   const prevRects = useRef<Map<string, { x: number; y: number }> | null>(null)
   useLayoutEffect(() => {
     const rootEl = stopsRef.current
@@ -273,9 +274,11 @@ export const DaySection = React.memo(function DaySection({ day, trip, editable, 
       now.set(el.dataset.stopId!, { x: r.left, y: r.top })
     }
     const prev = prevRects.current
+    const dropped = dropRect.current
+    dropRect.current = null
     if (prev && !prefersReducedMotion()) {
       for (const [id, p] of now) {
-        const q = prev.get(id)
+        const q = dropped && dropped.id === id ? dropped : prev.get(id)
         if (!q) continue
         const dx = q.x - p.x
         const dy = q.y - p.y
@@ -512,8 +515,7 @@ export const DaySection = React.memo(function DaySection({ day, trip, editable, 
         )}
       </>)}
 
-      <div className={`tl${dragging !== null ? ' is-dragging' : ''}`} ref={stopsRef}
-        onDragOver={onListDragOver} onDragLeave={onListDragLeave} onDrop={onListDrop}>
+      <div className={`tl${dragging !== null ? ' is-dragging' : ''}`} ref={stopsRef}>
         {ordered.map((s, i) => {
           // Auto anchors (trip start/end, route-continuation waypoints) are pure
           // route endpoints, not activities. The rich travel summary (mode,
@@ -569,7 +571,7 @@ export const DaySection = React.memo(function DaySection({ day, trip, editable, 
                   <span className="tl-time tl-dep">{sim.departures[i] ? formatHM(sim.departures[i], timeFormat) : '--:--'}</span>
                 </div>
                 <div
-                  className={`stop-card kind-${kind} status-${s.status} ${dragging === i ? 'dragging' : ''} ${foreignOver === i && dragging === null ? 'foreign-over' : ''}`}
+                  className={`stop-card kind-${kind} status-${s.status} ${foreignOver === i && dragging === null ? 'foreign-over' : ''}`}
                 >
                 <div className={`stop-num cat-${s.category}`}>{i + 1}</div>
               <div className="stop-main">

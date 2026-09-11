@@ -15,6 +15,23 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ## [Unreleased]
 
+### Added
+
+- **The brand is now one constant away.** Every user-visible brand string
+  (app shell, Landing footer, feedback/support mailtos, browser-notification
+  title, AI companion name, print/capture/share/export labels, ICS calendar
+  identity, the Trip Ticket's bill header, document title/meta) now reads from
+  a single `src/lib/brand.ts` `BRAND` object, and `index.html`'s title and
+  meta are substituted from it at serve/build time. Renaming the product is a
+  one-file change plus the platform fields that cannot read code (package.json
+  name, Capacitor/Android identity, the support mailbox, Vercel/Supabase URLs,
+  docs). Internal identifiers — `--yf-*` design tokens, `yf-*` classes,
+  `yatraflow_*` storage keys, `[yatraflow]` console tags, the realtime channel,
+  demo emails — stay vestigial on purpose (invisible to users, pure regression
+  risk to rename), and the ICS UID domain is intentionally kept stable so
+  already-imported calendar events don't duplicate. This is a behavior-neutral
+  refactor: the shipped name is still YatraFlow until the rename is chosen.
+
 ### Fixed
 
 - **Board and Timeline drag-reorder no longer reverts after you accept the change.**

@@ -11,6 +11,7 @@
 
 import type { Trip } from '../data/types'
 import { simulateDay, originOf, buildJourney, minutesToHM, type LegEstimate } from './engine'
+import { BRAND } from './brand'
 
 /** Fold per RFC 5545 §3.1: content lines longer than 75 octets are split,
  *  continuation lines start with a space. Uppercase property names preserved. */
@@ -51,7 +52,7 @@ export function buildIcs(trip: Trip, legCorrections?: Record<string, LegEstimate
   const lines: string[] = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//YatraFlow//Trip Planner//EN',
+    `PRODID:${BRAND.icsProdid}`,
     'CALSCALE:GREGORIAN',
   ]
 
@@ -78,7 +79,7 @@ export function buildIcs(trip: Trip, legCorrections?: Record<string, LegEstimate
     ].filter(Boolean).join('\n')
 
     push(`BEGIN:VEVENT`)
-    push(`UID:${trip.id}-day-${day.index}@yatraflow`)
+    push(`UID:${trip.id}-day-${day.index}@${BRAND.icsUidDomain}`)
     push(`DTSTAMP:${stamp}`)
     push(`DTSTART;VALUE=DATE:${ymd}`)
     push(`DTEND;VALUE=DATE:${nextYmd(ymd)}`)
@@ -91,7 +92,7 @@ export function buildIcs(trip: Trip, legCorrections?: Record<string, LegEstimate
     const ymd = icsDate(trip.startDate, fc.dayIndex)
     if (!ymd || !/^\d{2}:\d{2}$/.test(fc.time)) return
     push(`BEGIN:VEVENT`)
-    push(`UID:${trip.id}-fc-${fc.id}@yatraflow`)
+    push(`UID:${trip.id}-fc-${fc.id}@${BRAND.icsUidDomain}`)
     push(`DTSTAMP:${stamp}`)
     push(`DTSTART:${icsDateTime(fc.time, ymd)}`)
     // commitments get a 1h default so busy slots show on calendar grids
@@ -125,7 +126,7 @@ export function downloadTripIcs(trip: Trip, legCorrections?: Record<string, LegE
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `${trip.name.replace(/[^\w-]+/g, '_') || 'trip'}_yatraflow.ics`
+  a.download = `${trip.name.replace(/[^\w-]+/g, '_') || 'trip'}_${BRAND.exportSuffix}.ics`
   a.click()
   URL.revokeObjectURL(url)
 }

@@ -5,6 +5,7 @@ import { RouteSquiggle } from '../components/ui'
 import { PlanBench } from '../components/PlanBench'
 import { scrollBehavior } from '../lib/motion'
 import { useDb, currentUser } from '../store/store'
+import { BRAND } from '../lib/brand'
 
 export function LandingPage({ onNavigate }: { onNavigate: (r: string) => void }) {
   useReveal()
@@ -131,8 +132,8 @@ export function LandingPage({ onNavigate }: { onNavigate: (r: string) => void })
       </section>
 
       <footer className="footer" style={{ justifyContent: 'center', gap: 12 }}>
-        <span>YatraFlow · Plan real trips, together.</span>
-        <a className="footer-link" href={`mailto:support@yatraflow.app?subject=${encodeURIComponent(`YatraFlow feedback (v${__APP_VERSION__})`)}&body=${encodeURIComponent(`Page: /\nApp version: ${__APP_VERSION__}\n\nWhat worked, what broke, what you wish existed:\n\n`)}`}>Send feedback</a>
+        <span>{BRAND.name} · {BRAND.tagline}.</span>
+        <a className="footer-link" href={`mailto:${BRAND.supportEmail}?subject=${encodeURIComponent(`${BRAND.feedbackPrefix} (v${__APP_VERSION__})`)}&body=${encodeURIComponent(`Page: /\nApp version: ${__APP_VERSION__}\n\nWhat worked, what broke, what you wish existed:\n\n`)}`}>Send feedback</a>
       </footer>
       </div>
     </div>

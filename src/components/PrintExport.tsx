@@ -15,6 +15,7 @@ import { buildPrintModel } from '../lib/printModel'
 import { collectWarnings, type LegEstimate } from '../lib/engine'
 import { formatHM, useTimeFormat } from '../lib/timefmt'
 import { Modal, toast } from './ui'
+import { BRAND } from '../lib/brand'
 
 /** One row: stop with clocks, or the drive leg between two places. */
 function PrintRow({ row, timeFormat }: { row: ReturnType<typeof buildPrintModel>['days'][number]['rows'][number]; timeFormat: ReturnType<typeof useTimeFormat> }) {
@@ -163,7 +164,7 @@ function PrintSheet({ model, timeFormat }: { model: ReturnType<typeof buildPrint
 
       <footer className="pr-foot">
         <span>{model.assumptionsLine}</span>
-        <span>Printed from YatraFlow · {new Date(model.printedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+        <span>Printed from {BRAND.name} · {new Date(model.printedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
       </footer>
     </div>
   )

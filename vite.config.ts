@@ -1,6 +1,7 @@
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import { readFileSync } from 'node:fs'
+import { BRAND } from './src/lib/brand.ts'
 
 /** Single source of truth for the app version (feedback mailto bodies) —
  *  read from package.json at config time, inlined via the define below. */
@@ -39,7 +40,19 @@ function assertDeployEnv(env: Record<string, string>) {
 export default defineConfig(({ mode }) => {
   assertDeployEnv(loadEnv(mode, process.cwd(), ''))
   return {
-    plugins: [react()],
+    plugins: [
+      react(),
+      {
+        // index.html can't import the brand module, so substitute the
+        // __BRAND_*__ placeholders at dev-serve and build time — the title
+        // and meta description stay fed from the single BRAND source.
+        name: 'brand-html',
+        transformIndexHtml: (html) =>
+          html
+            .replaceAll('__BRAND_NAME__', BRAND.name)
+            .replaceAll('__BRAND_TAGLINE__', BRAND.tagline),
+      },
+    ],
     base: './',
     define: {
       // Inlined at build time from package.json — consumed by the feedback

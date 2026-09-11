@@ -7,6 +7,7 @@
 
 import { FUEL_PRICE_INR_PER_L, MODE_SPEED, MODE_COST_PER_KM, isFuelEconomyMode, formatInr } from './engine'
 import type { TravelStyle } from '../data/types'
+import { BRAND } from './brand'
 
 /** Modes the bench offers ('motorcycle' is the engine's name for a bike). */
 export const BENCH_MODES = ['car', 'motorcycle', 'bus', 'train'] as const
@@ -252,7 +253,7 @@ export function benchInputsEqual(a: BenchInputs, b: BenchInputs): boolean {
 export function formatBenchShareText(bill: BenchBill, input: BenchInputs): string {
   const rideWord = input.mode === 'bus' || input.mode === 'train' ? 'on the move' : 'driving'
   return [
-    'YatraFlow — trip cost estimate',
+    `${BRAND.name} — trip cost estimate`,
     `${bill.roadKm} km road · ${bill.days} days · ${input.crew} traveller${input.crew === 1 ? '' : 's'} · ${input.mode}${input.roundTrip ? ' (return)' : ''}`,
     '',
     `Transport  ${formatInr(bill.transportCost)} — ${bill.transportFormula}`,
@@ -262,6 +263,6 @@ export function formatBenchShareText(bill: BenchBill, input: BenchInputs): strin
     `Total ${formatInr(bill.total)} · ${formatInr(bill.perHead)} per person`,
     `${bill.fatigue.verdict} (~${Math.round(bill.wheelHours)}h ${rideWord}, ~${bill.hoursPerDay.toFixed(1)}h/day)`,
     '',
-    'Excludes tolls, parking and entry fees. Price your own trip on the Plan Bench → https://yatraflow-blond.vercel.app/',
+    `Excludes tolls, parking and entry fees. Price your own trip on the Plan Bench → ${BRAND.benchUrl}`,
   ].join('\n')
 }

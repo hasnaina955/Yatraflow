@@ -8,6 +8,7 @@
 // boundary now performs automatically (once, guarded against reload loops).
 import { Component } from 'react'
 import type { ErrorInfo, ReactNode } from 'react'
+import { BRAND } from '../lib/brand'
 
 const RELOAD_FLAG = 'yf-chunk-reload'
 
@@ -55,7 +56,7 @@ export class ErrorBoundary extends Component<Props, State> {
       return (
         <div className="container empty-state" style={{ paddingTop: 80 }}>
           <div className="big">⚠️</div>
-          <h2>{staleChunk ? 'YatraFlow was just updated' : 'Something went wrong'}</h2>
+          <h2>{staleChunk ? `${BRAND.name} was just updated` : 'Something went wrong'}</h2>
           <p className="muted small" style={{ maxWidth: 480, margin: '8px auto' }}>
             {staleChunk
               ? 'A new version shipped while this page was open — one reload picks it up.'

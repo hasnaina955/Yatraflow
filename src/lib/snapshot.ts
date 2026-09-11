@@ -3,6 +3,7 @@
 // is JSON-encoded, deflated and base64url'd into the hash
 // (#/share/<payload>) so no server storage is needed.
 import type { Trip } from '../data/types'
+import { BRAND } from './brand'
 
 const PREFIX = 'yf1_' // version tag so future formats can be detected
 
@@ -68,7 +69,7 @@ export function downloadTripJson(trip: Trip): void {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `${trip.name.replace(/[^\w\-]+/g, '_') || 'trip'}_yatraflow.json`
+  a.download = `${trip.name.replace(/[^\w\-]+/g, '_') || 'trip'}_${BRAND.exportSuffix}.json`
   a.click()
   URL.revokeObjectURL(url)
 }

@@ -11,6 +11,7 @@ import {
   browserNotifPermission, requestBrowserNotifPermission,
 } from '../lib/browserNotifications'
 import { cap } from '../lib/labels'
+import { BRAND } from '../lib/brand'
 
 export function ProfilePage({ onNavigate }: { onNavigate: (r: string) => void }) {
   const db = useDb()
@@ -131,7 +132,7 @@ export function ProfilePage({ onNavigate }: { onNavigate: (r: string) => void })
             <h3>Notifications</h3>
             <p className="hint-text" style={{ margin: '6px 0 12px' }}>
               Get an OS-level ping when a collaborator writes to you — even with
-              YatraFlow in a background tab. The in-app bell always works; this
+              {BRAND.name} in a background tab. The in-app bell always works; this
               just mirrors it to the system.
             </p>
             {!notifApi ? (

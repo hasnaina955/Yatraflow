@@ -19,6 +19,7 @@ import { stopKindOf, STOP_KIND_LABELS } from '../lib/stopKind'
 import { useSavedPubs } from '../lib/savedPubs'
 import { useDestinationCover } from '../hooks/useDestinationCover'
 import { Avatar, Chip, EmptyState, toast, CopyButton, RouteSnapshot } from '../components/ui'
+import { BRAND, travellerAttribution } from '../lib/brand'
 
 export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavigate: (r: string) => void }) {
   const db = useDb()
@@ -149,7 +150,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
           <h1 className="pub-hero-title">{pub.title}</h1>
           <p className="pub-hero-story">{pub.tagline}</p>
           <p className="pub-hero-byline">
-            By {creator?.profile.name ?? 'a YatraFlow traveller'} · {pub.durationDays} days · {trip.travellers} travellers · {cap(trip.transportMode)}
+            By {creator?.profile.name ?? travellerAttribution} · {pub.durationDays} days · {trip.travellers} travellers · {cap(trip.transportMode)}
             {creator?.profile.isCreator && <> · <Sparkles size={11} aria-hidden style={{ verticalAlign: '-1px', margin: '0 2px' }} />Verified creator</>}
           </p>
         </div>
@@ -388,7 +389,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
             <div className="card" style={{ position: 'sticky', top: 80 }}>
               <h2>Take this trip with you</h2>
               <p className="hint-text" style={{ margin: '8px 0 14px' }}>
-                Forks the free preview into your YatraFlow account — locked days come over as placeholders you can fill in yourself.
+                Forks the free preview into your {BRAND.name} account — locked days come over as placeholders you can fill in yourself.
               </p>
               <button className="btn fork-btn btn-lg" style={{ width: '100%' }} onClick={copyThis}>
                 <GitFork size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 5 }} />Fork this trip
@@ -405,7 +406,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
           </div>
         </div>
 
-        <p className="pub-footer-line">Published with YatraFlow · Plan real trips, together</p>
+        <p className="pub-footer-line">Published with {BRAND.name} · {BRAND.tagline}</p>
       </div>
     </div>
   )

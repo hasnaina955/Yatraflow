@@ -6,6 +6,7 @@ import {
   getAssumptions, simulateDay, computeTotals, originOf,
   minutesToHM, hmToMinutes, collectWarnings, formatInr, legBetween, countHotelNights,
 } from './engine'
+import { BRAND } from './brand'
 
 export interface AiReply {
   text: string
@@ -148,7 +149,7 @@ function rainPlan(trip: Trip): AiReply {
   lines.push(`Option C — Push through: keep the plan but add 30–40 min buffer per outdoor stop for wet roads.`)
   if (outdoor.length) lines.push(`\nWeather-sensitive stops flagged: ${outdoor.join('; ')}.`)
   else if (indoor.length) lines.push(`\nNo stops are flagged weather-sensitive, so rain impact should be limited.`)
-  return { text: lines.join('\n'), assumptions: `YatraFlow flags beach/viewpoint/trek stops as weather-sensitive. ${DISCLAIMER}` }
+  return { text: lines.join('\n'), assumptions: `${BRAND.name} flags beach/viewpoint/trek stops as weather-sensitive. ${DISCLAIMER}` }
 }
 
 function familyVersion(trip: Trip): AiReply {

@@ -24,6 +24,7 @@ import { haptic, HAPTIC } from '../lib/haptics'
 import { useTimeFormat, formatHM } from '../lib/timefmt'
 import { cap } from '../lib/labels'
 import { readBenchPrefill } from '../lib/planBench'
+import { BRAND } from '../lib/brand'
 import { LocationInput } from '../components/LocationInput'
 
 interface CommitDraft {
@@ -772,7 +773,7 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
         <aside className="ts-rail" aria-label="Trip ticket preview">
           <div className="ticket">
             <div className="tk-head">
-              <span className="tk-brand">Yatraflow</span>
+              <span className="tk-brand">{BRAND.name}</span>
               <span className="tk-kind">Trip ticket</span>
             </div>
             <div className="tk-cover">
@@ -816,7 +817,7 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
                     <div className="bill-slot" aria-hidden="true"><span></span></div>
                     <div className="bill-reveal">
                       <div className="bill-paper bill-paper-sway">
-                        <p className="bill-brand">YATRAFLOW · ROUGH BILL</p>
+                        <p className="bill-brand">{BRAND.name.toUpperCase()} · ROUGH BILL</p>
                         <div className="bill-row"><span>Road (est.)</span><b className="mono">{bill.roadKm != null ? `≈ ${bill.roadKm} km` : '—'}</b></div>
                         <div className="bill-row"><span>Transport</span><b className="mono">{bill.transportCost != null ? `₹${bill.transportCost.toLocaleString('en-IN')}` : '—'}</b></div>
                         <p className="bill-formula">{bill.transportFormula || 'add a geocoded stop to price the drive'}</p>

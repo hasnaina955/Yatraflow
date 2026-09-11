@@ -10,6 +10,7 @@
 // unchanged from before this file existed.
 
 import { Capacitor } from '@capacitor/core'
+import { BRAND } from './brand'
 import { Clipboard } from '@capacitor/clipboard'
 import { Directory, Filesystem } from '@capacitor/filesystem'
 import { Geolocation, type Position as NativePosition } from '@capacitor/geolocation'
@@ -23,7 +24,7 @@ export const isAndroid = Capacitor.getPlatform() === 'android'
 export async function nativeCopyText(text: string): Promise<boolean> {
   if (isNative) {
     try {
-      await Clipboard.write({ string: text, label: 'YatraFlow link' })
+      await Clipboard.write({ string: text, label: BRAND.clipboardLabel })
       return true
     } catch { /* plugin failure → web fallback below */ }
   }
@@ -82,7 +83,7 @@ export async function nativeShareText(data: {
   return 'unavailable'
 }
 
-const PNG_EXPORT_NAME = 'yatraflow-trip.png'
+const PNG_EXPORT_NAME = BRAND.pngExportName
 
 /**
  * System share sheet for the trip-estimate PNG. On device the blob is written

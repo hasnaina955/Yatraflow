@@ -10,6 +10,7 @@ import { computeHealth, formatInr } from '../lib/engine'
 import { useSavedPubs } from '../lib/savedPubs'
 import { forkPublication } from '../lib/forkPub'
 import { cap } from '../lib/labels'
+import { travellerAttribution } from '../lib/brand'
 import { Avatar, Chip, EmptyState, toast } from '../components/ui'
 import { PubCard } from '../components/PubCard'
 
@@ -189,7 +190,7 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
               <p className="featured-tagline">{featured.tagline}</p>
               <p className="featured-credibility">
                 Why featured: <GitFork size={12} aria-hidden style={{ verticalAlign: '-2px', margin: '0 2px' }} /> {featured.copies} fork{featured.copies === 1 ? '' : 's'} · <Eye size={12} aria-hidden style={{ verticalAlign: '-2px', margin: '0 2px' }} /> {featured.views} views
-                {featuredHealth !== undefined && <> · trip health {featuredHealth}/100</>} — by {userOf(users, featured.creatorId)?.profile.name ?? 'a YatraFlow traveller'}{userOf(users, featured.creatorId)?.profile.isCreator && <Sparkles size={11} aria-hidden style={{ verticalAlign: '-1px', marginLeft: 2 }} />}.
+                {featuredHealth !== undefined && <> · trip health {featuredHealth}/100</>} — by {userOf(users, featured.creatorId)?.profile.name ?? travellerAttribution}{userOf(users, featured.creatorId)?.profile.isCreator && <Sparkles size={11} aria-hidden style={{ verticalAlign: '-1px', marginLeft: 2 }} />}.
               </p>
               <div className="featured-meta">
                 <span><MetaIcon icon={ Calendar } tone="time" />{featured.durationDays} days</span>

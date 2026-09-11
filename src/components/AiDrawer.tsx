@@ -5,6 +5,7 @@ import type { Trip } from '../data/types'
 import { answerQuestion, quickPrompts, type AiReply } from '../lib/ai'
 import { scrollBehavior } from '../lib/motion'
 import { Chip } from './ui'
+import { BRAND } from '../lib/brand'
 interface Msg {
   id: number
   role: 'user' | 'bot'
@@ -15,7 +16,7 @@ interface Msg {
 export function AiDrawer({ trip, open, onOpen, onClose }: { trip: Trip; open: boolean; onOpen: () => void; onClose: () => void }) {
   const [msgs, setMsgs] = useState<Msg[]>([{
     id: 1, role: 'bot',
-    text: `Hi! I’m your YatraFlow companion. I can see “${trip.name}” — ${trip.days.length} days, ${trip.destinations.join(' → ')}. Ask me to lighten a day, check timings against a fixed commitment, find savings or plan for rain.`,
+    text: `Hi! I’m your ${BRAND.name} companion. I can see “${trip.name}” — ${trip.days.length} days, ${trip.destinations.join(' → ')}. Ask me to lighten a day, check timings against a fixed commitment, find savings or plan for rain.`,
   }])
   const [input, setInput] = useState('')
   const [thinking, setThinking] = useState(false)
@@ -83,7 +84,7 @@ export function AiDrawer({ trip, open, onOpen, onClose }: { trip: Trip; open: bo
         <div className="ai-head">
           <span className="ai-head-icon"><Sparkles size={19} aria-hidden /></span>
           <div>
-            <b>YatraFlow Companion</b>
+            <b>{BRAND.name} Companion</b>
             <div className="ai-head-sub">Grounded in this trip’s data · estimates only</div>
           </div>
           <button className="icon-btn" onClick={onClose} aria-label="Close assistant"><X size={16} aria-hidden /></button>

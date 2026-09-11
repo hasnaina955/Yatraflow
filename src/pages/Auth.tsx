@@ -6,6 +6,7 @@ import { useDb, currentUser, login, signup } from '../store/store'
 import { isSupabaseConfigured } from '../lib/supabase'
 import { MISSING_BACKEND_MESSAGE } from '../lib/authErrors'
 import { Field } from '../components/ui'
+import { BRAND } from '../lib/brand'
 
 /** Post-login destination: the `next` param when the auth page was entered
  *  from a deep link (an invite), else My Trips. The param is
@@ -93,7 +94,7 @@ export function AuthPage({ onNavigate }: { onNavigate: (r: string) => void }) {
           {mode === 'login' && (
             <p className="hint-text" style={{ margin: '10px 0 0', textAlign: 'center' }}>
               Forgot your password? Password resets open the Supabase console —{' '}
-              <a href="mailto:support@yatraflow.app?subject=Reset%20my%20YatraFlow%20password">mail support and we’ll reset it</a>.
+              <a href={`mailto:${BRAND.supportEmail}?subject=${encodeURIComponent(`Reset my ${BRAND.name} password`)}`}>mail support and we’ll reset it</a>.
             </p>
           )}
         </form>

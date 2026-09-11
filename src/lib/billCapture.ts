@@ -8,6 +8,7 @@
 // context — group chats, downloads — where the navy bill reads on any
 // background. The class is added just for the frame we rasterize and
 // removed right after, whatever the outcome.
+import { BRAND } from './brand'
 //
 // html-to-image is lazy-imported on first click so the landing main chunk
 // never carries the library.
@@ -53,7 +54,7 @@ export type BillShareResult = 'shared' | 'copied' | 'downloaded'
 export async function shareBillImage(receipt: HTMLElement | null): Promise<BillShareResult> {
   if (!receipt) throw new Error('receipt not mounted')
   const blob = await receiptPngBlob(receipt)
-  const result = await nativeShareImage(blob, 'YatraFlow trip estimate')
+  const result = await nativeShareImage(blob, `${BRAND.name} trip estimate`)
   // A dismissed sheet is the caller's AbortError case, same as before.
   if (result === 'dismissed') throw new DOMException('share dismissed', 'AbortError')
   return result

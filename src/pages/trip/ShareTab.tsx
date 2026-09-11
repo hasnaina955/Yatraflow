@@ -13,6 +13,7 @@ import { Avatar, Chip, ConfirmDialog, CopyButton, Field, toast, undoToast } from
 import { PrintExport } from '../../components/PrintExport'
 import { TripSettingsForm } from './TripSettingsForm'
 import { timeAgo } from './shared'
+import { BRAND } from '../../lib/brand'
 
 // ================= Snapshot (export / import / URL share) =================
 
@@ -43,7 +44,7 @@ function SnapshotCard({ trip, me, onNavigate, legCorrections }: {
       toast(`Imported “${imported.name}” into your trips`)
       onNavigate('/trips')
     } catch {
-      toast('That file is not a valid YatraFlow trip export', 'err')
+      toast(`That file is not a valid ${BRAND.name} trip export`, 'err')
     }
     e.target.value = ''
   }

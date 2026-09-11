@@ -20,6 +20,7 @@ import { scrollBehavior } from './lib/motion'
 import { App as CapApp } from '@capacitor/app'
 import { isNative } from './lib/native'
 import { hideSplash, registerAndroidBack, setNativeTheme } from './lib/appShell'
+import { BRAND } from './lib/brand'
 import { LandingPage } from './pages/Landing'
 import { NativeHomePage } from './pages/NativeHome'
 // Route-level code splitting: only the landing page stays in the main chunk (it
@@ -50,9 +51,9 @@ function currentRoute(): string {
  *  reproducible without the reporter doing any work. Reuses the same support
  *  address the password-reset flow already uses. */
 function feedbackHref(): string {
-  const subject = encodeURIComponent(`YatraFlow feedback (v${__APP_VERSION__})`)
+  const subject = encodeURIComponent(`${BRAND.feedbackPrefix} (v${__APP_VERSION__})`)
   const body = encodeURIComponent(`Page: ${currentRoute()}\nApp version: ${__APP_VERSION__}\n\nWhat worked, what broke, what you wish existed:\n\n`)
-  return `mailto:support@yatraflow.app?subject=${subject}&body=${body}`
+  return `mailto:${BRAND.supportEmail}?subject=${subject}&body=${body}`
 }
 
 export default function App() {
@@ -346,7 +347,7 @@ export default function App() {
     for (const n of notifs) {
       if (shouldBrowserNotify(n, sessionUserId, seenNotifIds.current, document.hasFocus())) {
         seenNotifIds.current.add(n.id)
-        fireBrowserNotification('YatraFlow', n.text)
+        fireBrowserNotification(BRAND.notificationTitle, n.text)
       } else {
         // Read elsewhere / already seen: record so a later unread flip of the
         // same row can't re-ping.
@@ -362,7 +363,10 @@ export default function App() {
       <a className="skip-link" href="#main" onClick={e => { e.preventDefault(); document.getElementById('main')?.focus() }}>Skip to main content</a>
       <nav className="topnav">
         <div className="container topnav-inner">
-          <a className="brand" href="#/" aria-label="YatraFlow home">
+          <a className="brand" href="#/" aria-label={`${BRAND.name} home`}>
+            {/* Designed logotype: "Yatra" + teal "Flow" is the current mark.
+                Restyle this block when the brand name changes (see
+                src/lib/brand.ts) — it is a design artifact, not a string. */}
             <BrandMark size={32} />
             <span>Yatra<b style={{ color: 'var(--teal)' }}>Flow</b></span>
           </a>
@@ -476,7 +480,7 @@ export default function App() {
 
       <footer className="footer">
         <div className="container footer-inner">
-          <span><b>YatraFlow</b> — plan together, travel better. Built for Indian travellers</span>
+          <span><b>{BRAND.name}</b> — plan together, travel better. Built for Indian travellers</span>
           <span className="small muted">All costs are transparent estimates · No bookings, no payments — planning only</span>
         </div>
       </footer>

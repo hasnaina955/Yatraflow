@@ -41,6 +41,7 @@ import { MetaIcon } from '../../components/icons'
 import { fetchDailyWeather, forecastAvailable, isoAddDays, wmoInfo } from '../../lib/weather'
 import type { DayWeather } from '../../lib/weather'
 import { cap } from './shared'
+import { useTimelineMode, type TimelineMode } from './timeline/useTimelineMode'
 
 // ================= Timeline =================
 
@@ -275,19 +276,42 @@ export function TimelineTab({ trip, editable, applyChange, legCorrections, sugge
     toast(`“${stop.title}” marked ${status === 'needs-booking' ? 'needs booking' : status}`)
   }, [trip.id])
 
+  // --- Plan / Inspect (docs/TIMELINE-PLAN.md Phase 3): Inspect is the study
+  // view — same data, every editing affordance off (the existing `editable`
+  // seam renders it: no drag, delete, add, rename or impact sheet). The mode
+  // persists per user like the theme. ---
+  const { mode, setMode } = useTimelineMode()
+  const planEditable = editable && mode === 'plan'
+  function changeMode(m: TimelineMode) {
+    setMode(m)
+    if (m === 'inspect') { setEditorState(null); setMoveModalStop(null) }
+  }
+
   return (
     <div>
       <div className="row-between" style={{ marginBottom: 16 }}>
         <div>
           <h2>Day-by-day timeline</h2>
-          <p className="muted small">Drag stops to reorder within a day — or drop them onto another day to move them there. On touch devices: press and hold a stop, then drag it. Every change shows its impact before saving.</p>
+          <p className="muted small">{mode === 'plan'
+            ? 'Drag stops to reorder within a day — or drop them onto another day to move them there. On touch devices: press and hold a stop, then drag it. Every change shows its impact before saving.'
+            : 'Read-only study view — clocks, costs and risks without the edit handles. Switch to Plan mode to make changes.'}</p>
         </div>
         {editable && (
           <div className="row" style={{ gap: 8 }}>
             {onOpenBoard && (
               <button className="btn btn-outline btn-sm" onClick={onOpenBoard} title="Arrange stops across days with the route in view">Open in Board →</button>
             )}
-            <button className="btn btn-primary btn-sm" onClick={() => setEditorState({ mode: 'add', dayIndex: 0 })}>+ Add stop</button>
+            <div className="mode-toggle" role="group" aria-label="Timeline mode">
+              <button type="button" className={`mode-btn${mode === 'plan' ? ' active' : ''}`} aria-pressed={mode === 'plan'} onClick={() => changeMode('plan')}>
+                <PenLine size={12} aria-hidden style={{ marginRight: 4 }} />Plan
+              </button>
+              <button type="button" className={`mode-btn${mode === 'inspect' ? ' active' : ''}`} aria-pressed={mode === 'inspect'} onClick={() => changeMode('inspect')}>
+                <Eye size={12} aria-hidden style={{ marginRight: 4 }} />Inspect
+              </button>
+            </div>
+            {mode === 'plan' && (
+              <button className="btn btn-primary btn-sm" onClick={() => setEditorState({ mode: 'add', dayIndex: 0 })}>+ Add stop</button>
+            )}
           </div>
         )}
       </div>
@@ -321,7 +345,7 @@ export function TimelineTab({ trip, editable, applyChange, legCorrections, sugge
       )}
 
       {days.map(day => (
-        <DaySection key={day.id} day={day} trip={trip} editable={editable} open={openDayIndex === day.index} onToggleOpen={toggleDay} legCorrections={legCorrections} suggestionCache={suggestionCache} dayTotals={totals.byDay[Math.min(day.index, totals.byDay.length - 1)]}
+        <DaySection key={day.id} day={day} trip={trip} editable={planEditable} open={openDayIndex === day.index} onToggleOpen={toggleDay} legCorrections={legCorrections} suggestionCache={suggestionCache} dayTotals={totals.byDay[Math.min(day.index, totals.byDay.length - 1)]}
           onAdd={handleAdd}
           onEdit={handleEdit}
           onDelete={handleDelete}

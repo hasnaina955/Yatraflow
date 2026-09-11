@@ -839,6 +839,15 @@ a.btn { text-decoration: none; }
   padding: 10px 13px;
   width: 100%;
 }
+/* Plan / Inspect segmented toggle (docs/TIMELINE-PLAN.md Phase 3) */
+.mode-toggle { display: inline-flex; background: var(--bg-soft); border: 1px solid var(--line); border-radius: 999px; padding: 2px; gap: 2px; }
+.mode-btn {
+  border: none; background: none; cursor: pointer; font: inherit; font-size: 12px; font-weight: 600;
+  color: var(--text-2); padding: 4px 12px; border-radius: 999px;
+  display: inline-flex; align-items: center; white-space: nowrap;
+}
+.mode-btn.active { background: var(--card); color: var(--teal-deep); box-shadow: var(--shadow-sm); }
+
 /* Board-parity: the timeline stop list hosts the same gliding drop marker
    (see .board-drop-marker); rows carry data-stop-id for the FLIP settle. */
 .tl { position: relative; }

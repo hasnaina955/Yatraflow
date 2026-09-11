@@ -442,7 +442,7 @@ const DaySection = React.memo(function DaySection({ day, trip, editable, open, o
   onToggleOpen: (dayIndex: number) => void
   legCorrections?: Record<string, LegEstimate>
   suggestionCache: ReturnType<typeof useSuggestionCache>
-  /** this day's slice of computeTotals().byDay ΓÇö transport + expenses + entry fees */
+  /** this day's slice of computeTotals().byDay — transport + expenses + entry fees */
   dayTotals?: { dayIndex: number; expensesInr: number; transportInr: number; totalInr: number; stops: number; distanceKm: number }
   onAdd: (dayIndex: number) => void
   onEdit: (stopId: string) => void
@@ -533,6 +533,25 @@ const DaySection = React.memo(function DaySection({ day, trip, editable, open, o
   const windowMin = Math.max(1, hmToMinutes(A.dayEnd) - startMin)
   const used = Math.max(0, Math.min(1, (hmToMinutes(sim.endsAt) - startMin) / windowMin))
   const sev = warnings.some(w => w.severity === 'high') ? 'high' : warnings.some(w => w.severity === 'medium') ? 'medium' : 'ok'
+  // Header stats as segments — rendered with a dimmed pipe separator, which
+  // tracks better across a long line than a cramped mid-dot at 12px.
+  const statSegments: React.ReactNode[] = isStayDay
+    ? [
+        `Based in ${journey.startTitle}`,
+        ...(visitCount > 0 ? [`${visitCount} visit${visitCount !== 1 ? 's' : ''}`] : []),
+      ]
+    : [
+        `${journey.startTitle} → ${journey.endTitle}`,
+        `~${Math.round(journey.distanceKm)} km`,
+        `drive ~${minutesToHM(journey.driveMinutes)}`,
+        ...(journey.halts.length > 0 ? [`${journey.halts.length} halt${journey.halts.length !== 1 ? 's' : ''}`] : []),
+        ...(visitCount > 0 ? [`${visitCount} visit${visitCount !== 1 ? 's' : ''}`] : []),
+        `start ${formatHM(journey.startTime, timeFormat)} → ends ~${formatHM(sim.endsAt, timeFormat)}`,
+      ]
+  // The route chain is only worth a line when the day's PLANNED stops add
+  // something the stats route (start → end) doesn't already say — auto
+  // anchors and single-stop days would just repeat it back.
+  const chainStops = visibleStops(day).filter(s => !s.auto)
 
   return (
     <div className={`day-section${collapsed ? ' day-closed' : ''}${collapsed && isStayDay ? ' day-stay-collapsed' : ''}`} id={`day-card-${day.index}`}>
@@ -544,77 +563,63 @@ const DaySection = React.memo(function DaySection({ day, trip, editable, open, o
         </button>
         <div className="day-badge"><small>Day</small><b>{day.index + 1}</b></div>
         <div style={{ flex: 1, minWidth: 160 }}>
-          {editingTitle ? (
-            <input
-              autoFocus
-              className="input"
-              value={titleDraft}
-              style={{ maxWidth: 300, marginBottom: 4 }}
-              placeholder={`Day ${day.index + 1}`}
-              aria-label={`Rename Day ${day.index + 1}`}
-              onChange={e => setTitleDraft(e.target.value)}
-              onBlur={() => { setEditingTitle(false); if (titleDraft.trim() !== (day.title ?? '')) onRenameDay(day.index, titleDraft) }}
-              onKeyDown={e => {
-                if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
-                if (e.key === 'Escape') { setTitleDraft(day.title ?? ''); setEditingTitle(false) }
-              }}
-            />
-          ) : editable ? (
-            <button type="button" className="day-title-btn" onClick={() => { setTitleDraft(day.title ?? ''); setEditingTitle(true) }}
-              title="Click to rename this day"
-              aria-label={`Rename Day ${day.index + 1}`}
-            >
-              {day.title ?? `Day ${day.index + 1}`}
-            </button>
-          ) : (
-            <h3>{day.title ?? `Day ${day.index + 1}`}</h3>
-          )}
-          {/* Collapsed summary line (docs/TIMELINE-PLAN.md Phase 1): kind +
-              route chain — the middle stops the stats line doesn't show. The
-              whole line is one button that opens the day, like the mockup;
-              names wrap rather than truncate (the full chain also rides in
-              the title tooltip). */}
-          {collapsed && (
-            <button type="button" className="day-route" onClick={onCollapseClick} title={isStayDay ? undefined : routeChain(day)}>
-              <span className="day-kind">{isStayDay ? 'Stay day' : 'Drive day'}</span>
-              {isStayDay ? (
-                <span className="day-route-text">{stayDaySummary(visitCount)}</span>
-              ) : (
-                (() => {
-                  const stops = visibleStops(day)
-                  if (stops.length === 0) return <span className="day-route-text">No stops yet — tap to plan this day</span>
-                  const shown = stops.slice(0, 5)
-                  const rest = stops.length - shown.length
-                  return (
-                    <>
-                      {shown.map((s, i) => (
-                        <React.Fragment key={s.id}>
-                          {i > 0 && <span className="day-route-sep" aria-hidden="true">→</span>}
-                          <span className="day-route-stop">{s.title}</span>
-                        </React.Fragment>
-                      ))}
-                      {rest > 0 && <span className="day-route-more">+{rest} more</span>}
-                    </>
-                  )
-                })()
-              )}
-            </button>
-          )}
-          <div className="small muted num">
-            {isStayDay ? (
-              <>
-                Based in {journey.startTitle}
-                {visitCount > 0 && ` · ${visitCount} visit${visitCount !== 1 ? 's' : ''}`}
-              </>
+          <div className="day-title-row">
+            {editingTitle ? (
+              <input
+                autoFocus
+                className="input"
+                value={titleDraft}
+                style={{ maxWidth: 300, marginBottom: 4 }}
+                placeholder={`Day ${day.index + 1}`}
+                aria-label={`Rename Day ${day.index + 1}`}
+                onChange={e => setTitleDraft(e.target.value)}
+                onBlur={() => { setEditingTitle(false); if (titleDraft.trim() !== (day.title ?? '')) onRenameDay(day.index, titleDraft) }}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
+                  if (e.key === 'Escape') { setTitleDraft(day.title ?? ''); setEditingTitle(false) }
+                }}
+              />
+            ) : editable ? (
+              <button type="button" className="day-title-btn" onClick={() => { setTitleDraft(day.title ?? ''); setEditingTitle(true) }}
+                title="Click to rename this day"
+                aria-label={`Rename Day ${day.index + 1}`}
+              >
+                {day.title ?? `Day ${day.index + 1}`}
+              </button>
             ) : (
-              <>
-                {journey.startTitle} → {journey.endTitle}
-                {' · '}~{Math.round(journey.distanceKm)} km · drive ~{minutesToHM(journey.driveMinutes)}
-                {journey.halts.length > 0 && ` · ${journey.halts.length} halt${journey.halts.length !== 1 ? 's' : ''}`}
-                {visitCount > 0 && ` · ${visitCount} visit${visitCount !== 1 ? 's' : ''}`}
-                {' · '}start {formatHM(journey.startTime, timeFormat)} → ends ~{formatHM(sim.endsAt, timeFormat)}
-              </>
+              <h3>{day.title ?? `Day ${day.index + 1}`}</h3>
             )}
+            {collapsed && (
+              <span className={`day-kind ${isStayDay ? 'stay' : 'drive'}`}>{isStayDay ? 'Stay day' : 'Drive day'}</span>
+            )}
+          </div>
+          {/* Collapsed extra line: only when it adds something the stats line
+              doesn't already say. Stay days get their quiet "no driving" line;
+              drive days get the stop-name chain when there are ≥2 planned
+              stops. It's a button that opens the day, like the mockup; names
+              wrap rather than truncate (full chain rides in the tooltip). */}
+          {collapsed && (isStayDay ? (
+            <button type="button" className="day-route" onClick={onCollapseClick}>
+              <span className="day-route-text">{stayDaySummary(visitCount)}</span>
+            </button>
+          ) : chainStops.length >= 2 ? (
+            <button type="button" className="day-route" onClick={onCollapseClick} title={routeChain(day)}>
+              {chainStops.slice(0, 5).map((s, i) => (
+                <React.Fragment key={s.id}>
+                  {i > 0 && <span className="day-route-sep" aria-hidden="true">→</span>}
+                  <span className="day-route-stop">{s.title}</span>
+                </React.Fragment>
+              ))}
+              {chainStops.length > 5 && <span className="day-route-more">+{chainStops.length - 5} more</span>}
+            </button>
+          ) : null)}
+          <div className="small muted num">
+            {statSegments.map((seg, i) => (
+              <React.Fragment key={i}>
+                {i > 0 && <span className="stat-sep" aria-hidden="true">|</span>}
+                {seg}
+              </React.Fragment>
+            ))}
           </div>
           <div className={`day-progress ${collapsed ? 'compact' : ''}`} title={`${Math.round(used * 100)}% of the ${formatHM(dayStartHM, timeFormat)}–${formatHM(A.dayEnd, timeFormat)} window`}>
             <div className={`day-progress-fill sev-${sev}`} style={{ width: `${Math.round(used * 100)}%` }} />
@@ -628,19 +633,19 @@ const DaySection = React.memo(function DaySection({ day, trip, editable, open, o
         {!collapsed && dayTotals != null && dayTotals.totalInr > 0 && (
           <span
             className="day-cost-chip"
-            title={`Γëê ${formatInr(dayTotals.transportInr)} travel ┬╖ ${formatInr(dayTotals.expensesInr)} day costs (incl. entry fees)`}
+            title={`≈ ${formatInr(dayTotals.transportInr)} travel · ${formatInr(dayTotals.expensesInr)} day costs (incl. entry fees)`}
           >
-            Γëê {formatInr(dayTotals.totalInr)}
+            ≈ {formatInr(dayTotals.totalInr)}
           </span>
         )}
         {!collapsed && sim.dwellMinutes > 0 && (
-          <span className="day-dwell-chip" title="Time at the stops (visits + buffers) ΓÇö driving time is in the summary line">
+          <span className="day-dwell-chip" title="Time at the stops (visits + buffers) — driving time is in the summary line">
             {minutesToHM(sim.dwellMinutes)} at stops
           </span>
         )}
         {sev !== 'ok' && (
           <span className={`day-warn-pill sev-${sev}`} title={warnings.map(w => w.title).join('\n')}>
-            <TriangleAlert size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />{warnings[0].title.replace(/^Day \d+:\s*/, '')}{warnings.length > 1 ? ` +${warnings.length - 1}` : ''}
+            <TriangleAlert size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />{warnings[0].title.replace(/^Day \d+:\s*/, '')}{warnings.length > 1 ? ` · +${warnings.length - 1} more` : ''}
           </span>
         )}
         {ordered.filter(s => s.status !== 'rejected').length >= 2 && <DaySpark stops={ordered.filter(s => s.status !== 'rejected')} />}

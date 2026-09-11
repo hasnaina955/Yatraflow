@@ -631,7 +631,7 @@ export function collectWarnings(trip: Trip): ScheduleWarning[] {
       const back = legBetween(pts[i], pts[i - 1], A)
       const fwd = legBetween(pts[i], pts[i + 1], A)
       if (back.distanceKm < fwd.distanceKm * 0.55 && fwd.distanceKm > 18) {
-        warnings.push({ code: 'backtrack', severity: 'low', title: `Day ${day.index + 1}: route backtracking`, detail: `The order of “${pts[i].title}” adds zig-zag distance.`, fix: 'Reorder stops along one direction.' })
+        warnings.push({ code: 'backtrack', severity: 'low', title: `Day ${day.index + 1}: Route backtracking`, detail: `The order of “${pts[i].title}” adds zig-zag distance.`, fix: 'Reorder stops along one direction.' })
         break
       }
     }
@@ -701,7 +701,7 @@ export function daysRemaining(trip: Pick<Trip, 'days' | 'startDate' | 'endDate'>
   if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return total
   if (now.getTime() > end.getTime()) return 0
   if (now.getTime() < start.getTime()) return total
-  // days from today (inclusive) to the end date: floor + 1 ΓÇö a partial day
+  // days from today (inclusive) to the end date: floor + 1 — a partial day
   // still counts as a full remaining day (you can still spend today).
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
   const ms = end.getTime() - todayStart.getTime()
@@ -710,7 +710,7 @@ export function daysRemaining(trip: Pick<Trip, 'days' | 'startDate' | 'endDate'>
 
 /** The pacing number the Budget tab surfaces: how much the group can still
  *  spend per remaining day without blowing the target. Null when no target
- *  is set (budgetPerPersonInr 0) ΓÇö "set a budget" is the honest answer then,
+ *  is set (budgetPerPersonInr 0) — "set a budget" is the honest answer then,
  *  not a fake infinity. */
 export function safeToSpendPerDay(
   trip: Pick<Trip, 'days' | 'startDate' | 'endDate' | 'budgetPerPersonInr' | 'travellers'>,

@@ -20,7 +20,7 @@ import { MODE_SPEED } from '../../lib/engine'
 import type { LegEstimate, ScheduleWarning, Journey } from '../../lib/engine'
 import type { ImpactResult } from '../../lib/impact'
 import { loadOpenDay, saveOpenDay } from '../../lib/uiPrefs'
-import { routeChain, stayDaySummary, dwellSegments, accordionNext } from '../../lib/daySummary'
+import { routeChain, stayDaySummary, dwellSegments, accordionNext, visibleStops } from '../../lib/daySummary'
 import { openExternal } from '../../lib/native'
 import { useTimeFormat, formatHM, formatHMRange } from '../../lib/timefmt'
 import { scrollBehavior } from '../../lib/motion'
@@ -535,12 +535,12 @@ const DaySection = React.memo(function DaySection({ day, trip, editable, open, o
   const sev = warnings.some(w => w.severity === 'high') ? 'high' : warnings.some(w => w.severity === 'medium') ? 'medium' : 'ok'
 
   return (
-    <div className={`day-section${collapsed && isStayDay ? ' day-stay-collapsed' : ''}`} id={`day-card-${day.index}`}>
+    <div className={`day-section${collapsed ? ' day-closed' : ''}${collapsed && isStayDay ? ' day-stay-collapsed' : ''}`} id={`day-card-${day.index}`}>
       <div className="day-header">
         {/* Stable name + state attribute (UI audit F-09); the collapsible body
             is a fragment of siblings, so there's no single aria-controls id. */}
         <button className="day-collapse" onClick={onCollapseClick} aria-expanded={!collapsed} aria-label={`Day ${day.index + 1} stops`}>
-          {collapsed ? '▸' : '▾'}
+          <ChevronDown size={16} aria-hidden className="day-collapse-icon" />
         </button>
         <div className="day-badge"><small>Day</small><b>{day.index + 1}</b></div>
         <div style={{ flex: 1, minWidth: 160 }}>
@@ -569,20 +569,36 @@ const DaySection = React.memo(function DaySection({ day, trip, editable, open, o
           ) : (
             <h3>{day.title ?? `Day ${day.index + 1}`}</h3>
           )}
-          {/* Collapsed summary row (docs/TIMELINE-PLAN.md Phase 1): kind tag +
+          {/* Collapsed summary line (docs/TIMELINE-PLAN.md Phase 1): kind +
               route chain — the middle stops the stats line doesn't show. The
-              chain is a real button so the whole row opens like the mockup. */}
+              whole line is one button that opens the day, like the mockup;
+              names wrap rather than truncate (the full chain also rides in
+              the title tooltip). */}
           {collapsed && (
-            <div className="day-summary">
-              <span className="day-kind">{isStayDay ? 'stay day' : 'drive day'}</span>
+            <button type="button" className="day-route" onClick={onCollapseClick} title={isStayDay ? undefined : routeChain(day)}>
+              <span className="day-kind">{isStayDay ? 'Stay day' : 'Drive day'}</span>
               {isStayDay ? (
-                <span className="day-route muted">{stayDaySummary(visitCount)}</span>
+                <span className="day-route-text">{stayDaySummary(visitCount)}</span>
               ) : (
-                <button type="button" className="day-route" onClick={onCollapseClick} aria-label={`Expand Day ${day.index + 1}`}>
-                  {routeChain(day) || 'No stops yet — tap to plan this day'}
-                </button>
+                (() => {
+                  const stops = visibleStops(day)
+                  if (stops.length === 0) return <span className="day-route-text">No stops yet — tap to plan this day</span>
+                  const shown = stops.slice(0, 5)
+                  const rest = stops.length - shown.length
+                  return (
+                    <>
+                      {shown.map((s, i) => (
+                        <React.Fragment key={s.id}>
+                          {i > 0 && <span className="day-route-sep" aria-hidden="true">→</span>}
+                          <span className="day-route-stop">{s.title}</span>
+                        </React.Fragment>
+                      ))}
+                      {rest > 0 && <span className="day-route-more">+{rest} more</span>}
+                    </>
+                  )
+                })()
               )}
-            </div>
+            </button>
           )}
           <div className="small muted num">
             {isStayDay ? (

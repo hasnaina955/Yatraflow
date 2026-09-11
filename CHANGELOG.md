@@ -19,17 +19,19 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 - **The Timeline opens collapsed — one day at a time, as scannable summary rows.** Phase 1 of
   the Timeline restructure (`docs/TIMELINE-PLAN.md`, mockups in `docs/TIMELINE-MOCKUPS.html`):
-  every day now starts as a summary row — kind tag ("drive day" / "stay day"), the full route
-  chain of stop names (the middle stops the stats line never showed), the existing km/drive/
-  clock stats, the load progress bar, the top warning pill, the route spark, and a new per-stop
-  dwell chart with the busiest stop in amber; stay days render dimmed with a "No driving
-  today" line. Opening a day collapses the others (accordion), and the one open day is
-  persisted per trip (`yatraflow_open_day` in `uiPrefs.ts`) so a reload restores where you
-  were — the old per-day collapsed map is retired, since per-day booleans can't express
-  accordion state. The "Jump to day" chip rail now opens the day it scrolls to, and `+ Add
-  here` on a collapsed day expands it before opening the editor, so an add never lands in a
-  hidden day. Collapse state is lifted into `TimelineTab` (`DaySection` is now a controlled
-  component with `open` / `onToggleOpen`); pure helpers live in the new node-testable
+  every day now starts as a summary row — the collapse control is a visible circular chevron
+  button that rotates open/closed, and under the title a single "Drive day · Tea Museum →
+  Top Station → Kundala Lake" line names the middle stops the stats line never showed (stay
+  days read "Stay day · No driving today — …", dimmed). Stop names wrap instead of truncating
+  mid-word, the full chain rides in a tooltip, and a new per-stop dwell chart puts amber on
+  the stop that eats the most of the day (with a measured 3:1 boundary in light theme).
+  Opening a day collapses the others (accordion), and the one open day is persisted per trip
+  (`yatraflow_open_day` in `uiPrefs.ts`) so a reload restores where you were — the old
+  per-day collapsed map is retired, since per-day booleans can't express accordion state.
+  The "Jump to day" chip rail now opens the day it scrolls to, and `+ Add here` on a
+  collapsed day expands it before opening the editor, so an add never lands in a hidden day.
+  Collapse state is lifted into `TimelineTab` (`DaySection` is now a controlled component
+  with `open` / `onToggleOpen`); pure helpers live in the new node-testable
   `src/lib/daySummary.ts` (route chain, stay-day summary, accordion transition, dwell
   segments), pinned by `tests/daySummary.test.ts` plus open-day persistence tests in
   `tests/uiPrefs.test.ts` — including the negative-control that opening Day 2 collapses
@@ -39,6 +41,32 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
   specialist tools → Plan/Inspect split + file split) with the three design decisions signed
   off; `docs/TIMELINE-MOCKUPS.html` is the approved visual prototype rendered in YatraFlow's
   design tokens.
+
+### Fixed
+
+- **Forking a published itinerary no longer vanishes on reload.** Every trip copy inherited
+  the source's `inviteCode` — and since invite codes carry a unique index
+  (`idx_trips_invite_code`), forking any trip that had ever been invite-shared failed the
+  `trips` insert, left a cache-only copy that toasted success anyway, and silently
+  disappeared on the next reload (verified live: all three published trips on the production
+  project carry invite codes). `buildTripCopy` in `src/store/store.ts` now strips
+  `inviteCode` and `deletedAt` from every copy (a fork of a trashed source also used to
+  arrive pre-trashed); `duplicateTripPersisted` / `duplicateTripPublicPersisted` report
+  whether the rows actually landed, retract the copy on failure instead of leaving a zombie,
+  and `forkPublication` toasts the truth. Pinned by `tests/forkPersist.test.ts`.
+- **Forking from the Explore grid works now.** The grid cards fork via `tripById`, but the
+  membership-scoped hydration only ever caches your own trips — every foreign publication
+  answered "That itinerary is no longer available." `forkPublication` now falls back to
+  `fetchSharedTrip` (public by definition) before giving up.
+- **"Trip not found" is no longer the answer to a cache hiccup.** `TripWorkspace` opened
+  strictly from the hydration cache, so a partial hydrate (a failed trips read on a flaky
+  connection — including one that wiped previously-loaded trips, since the hydration patch
+  overwrote good rows with an empty result) rendered "Trip not found" for trips that exist.
+  The workspace now fetches the row directly on a cache miss (`fetchSharedTrip`; it merges
+  into the cache and shows a loading state, with "Trip not found" reserved for genuinely
+  unreadable trips), and hydration keeps the previous cache when the trips/memberships reads
+  fail instead of overwriting them. Seeded demo trips whose membership insert fails are now
+  logged instead of silently leaving invisible rows.
 
 ## [0.50.0] - 2026-09-11
 

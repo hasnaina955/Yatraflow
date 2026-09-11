@@ -942,10 +942,14 @@ a.btn { text-decoration: none; }
 
 /* ---------- Day header: collapse, rename, progress, sparkline, suggestions ---------- */
 .day-collapse {
-  border: none; background: none; cursor: pointer; flex: 0 0 auto;
-  font-size: 14px; color: var(--text-3); padding: 5px 6px; border-radius: 8px;
+  border: 1px solid var(--line); background: var(--bg-soft); cursor: pointer; flex: 0 0 auto;
+  color: var(--text-2); width: 28px; height: 28px; padding: 0; border-radius: 999px;
+  display: grid; place-items: center;
+  transition: background .15s ease, color .15s ease;
 }
-.day-collapse:hover { background: var(--bg-soft); color: var(--text); }
+.day-collapse:hover { background: var(--teal-soft); color: var(--teal-deep); }
+.day-collapse-icon { transition: transform .15s ease; }
+.day-closed .day-collapse-icon { transform: rotate(-90deg); }
 .day-header h3[style*='pointer'] { text-decoration: transparent; }
 .day-progress {
   height: 5px; border-radius: 3px; background: var(--bg-soft);
@@ -958,32 +962,37 @@ a.btn { text-decoration: none; }
 .day-progress-fill.sev-high { background: var(--danger); }
 .day-spark { flex: 0 0 auto; opacity: .92; }
 
-/* --- Collapsed day summary row (docs/TIMELINE-PLAN.md Phase 1) --- */
-/* kind tag ("drive day" / "stay day") + route chain under the title */
-.day-summary { display: flex; align-items: baseline; gap: 8px; min-width: 0; margin-top: 2px; }
-.day-kind {
-  flex: 0 0 auto; font-size: 10px; letter-spacing: .06em; text-transform: uppercase;
-  color: var(--text-3); background: var(--bg-soft); border-radius: 999px; padding: 2px 7px;
-}
-/* the route chain is a real button (opens the day) that reads as plain text */
+/* --- Collapsed day summary line (docs/TIMELINE-PLAN.md Phase 1) --- */
+/* One button that reads as "DRIVE DAY · Tea Museum → Top Station → …" and
+   opens the day. Names wrap instead of truncating; the full chain also rides
+   in the title tooltip. */
 .day-route {
+  display: flex; align-items: baseline; flex-wrap: wrap; gap: 2px 6px;
+  min-width: 0; max-width: 100%; margin-top: 3px;
   border: none; background: none; cursor: pointer; padding: 0; text-align: left;
-  font: inherit; font-size: 12px; color: var(--text-2); min-width: 0;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
+  font: inherit; font-size: 12.5px; color: var(--text-2);
 }
-.day-route:hover { color: var(--teal-deep); text-decoration: underline; text-underline-offset: 3px; }
-.day-route.muted { cursor: default; }
-.day-route.muted:hover { color: var(--text-3); text-decoration: none; }
+.day-route:hover .day-route-stop, .day-route:hover .day-route-text { color: var(--teal-deep); }
+.day-route-stop, .day-route-text { white-space: nowrap; }
+.day-route-sep, .day-route-more { color: var(--text-3); white-space: nowrap; }
+.day-kind {
+  flex: 0 0 auto; font-size: 11px; font-weight: 600; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--text-3);
+}
+.day-route:hover .day-kind { color: var(--teal-deep); }
 /* collapsed stay days read calmer than drive days (mockup P1's dimmed row) */
-.day-stay-collapsed .day-header > :not(.day-collapse) { opacity: .78; }
+.day-stay-collapsed .day-header > :not(.day-collapse) { opacity: .8; }
 .day-stay-collapsed .day-collapse { opacity: 1; }
-/* per-stop dwell bars, amber on the busiest stop */
+/* per-stop dwell bars, amber on the busiest stop. The saffron fill alone is
+   2.14:1 on the white card — below the 3:1 non-text floor — so the busiest
+   bar carries a warn-600 boundary (3.92:1) that marks it as the meaningful
+   graphic. Dark theme passes on the fill alone; the border stays harmless. */
 .dwell-bars { display: inline-flex; align-items: flex-end; gap: 2px; height: 14px; flex: 0 0 auto; min-width: 0; max-width: 120px; }
 .dwell-bar {
   display: inline-block; width: 5px; min-width: 2px; height: 8px; border-radius: 2px 2px 0 0;
   background: var(--bg-soft); border: 1px solid var(--line);
 }
-.dwell-bar.busiest { height: 14px; background: var(--saffron); border-color: var(--saffron); }
+.dwell-bar.busiest { height: 14px; background: var(--saffron); border-color: var(--warn-600); }
 
 .day-suggest { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; align-items: center; }
 .chip-btn {

@@ -1,10 +1,10 @@
-// ============ duplicateTripPublic — premium stripping on fork ============
+// ============ duplicateTripPublicPersisted — premium stripping on fork ============
 // Forking a published itinerary used to be a total bypass: duplicateTrip
-// copied premium days verbatim. duplicateTripPublic must keep free days
-// intact and reduce every other day's stops to locked stubs.
+// copied premium days verbatim. The fork must keep free days intact and
+// reduce every other day's stops to locked stubs.
 //
 // Same mocked-supabase pattern as tests/store-persistence.test.ts (node env,
-// no network — the trip insert is fire-and-forget and merely flushed).
+// no network — the insert is awaited via the Persisted variant).
 import { describe, it, expect, vi } from 'vitest'
 import { seedData } from '../src/data/seed'
 
@@ -34,7 +34,7 @@ vi.mock('../src/lib/supabase', () => {
   }
 })
 
-import { duplicateTripPublic, tripById } from '../src/store/store'
+import { duplicateTripPublicPersisted, tripById } from '../src/store/store'
 import type { Trip, ItineraryStop } from '../src/data/types'
 
 const source = seedData.trips[0] as Trip
@@ -49,9 +49,9 @@ function stopOf(trip: Trip, dayIndex: number, title: string): ItineraryStop {
 
 const LOCKED = 'Locked — the full plan is on the original itinerary.'
 
-describe('duplicateTripPublic premium stripping', () => {
-  it('keeps free days fully intact and strips premium days to stubs', () => {
-    const copy = duplicateTripPublic(source, ownerId, [0])
+describe('duplicateTripPublicPersisted premium stripping', () => {
+  it('keeps free days fully intact and strips premium days to stubs', async () => {
+    const copy = (await duplicateTripPublicPersisted(source, ownerId, [0])).trip
     const freeStop = stopOf(source, 0, 'Blossom International Park evening walk')
     const freeCopy = stopOf(copy, 0, freeStop.title)
     // Free day: every meaningful field survives.
@@ -77,8 +77,8 @@ describe('duplicateTripPublic premium stripping', () => {
     expect(premiumCopy.visitMinutes).toBe(premiumSrc.visitMinutes) // untouched pass-through
   })
 
-  it('every stop of a premium day is stripped, free day count unchanged', () => {
-    const copy = duplicateTripPublic(source, ownerId, [0])
+  it('every stop of a premium day is stripped, free day count unchanged', async () => {
+    const copy = (await duplicateTripPublicPersisted(source, ownerId, [0])).trip
     const premiumDays = copy.days.filter(d => d.index !== 0)
     expect(premiumDays.length).toBe(source.days.length - 1)
     for (const d of premiumDays) {
@@ -87,9 +87,9 @@ describe('duplicateTripPublic premium stripping', () => {
     }
   })
 
-  it('an all-free fork is a full copy of every day', () => {
+  it('an all-free fork is a full copy of every day', async () => {
     const all = source.days.map(d => d.index)
-    const copy = duplicateTripPublic(source, ownerId, all)
+    const copy = (await duplicateTripPublicPersisted(source, ownerId, all)).trip
     for (const d of source.days) {
       for (const s of d.stops) {
         const c = stopOf(copy, d.index, s.title)
@@ -99,7 +99,7 @@ describe('duplicateTripPublic premium stripping', () => {
     }
   })
 
-  it('drops expenses and fixed commitments tagged to locked days, keeps the rest', () => {
+  it('drops expenses and fixed commitments tagged to locked days, keeps the rest', async () => {
     const withDayExpenses: Trip = {
       ...source,
       expenses: [
@@ -108,7 +108,7 @@ describe('duplicateTripPublic premium stripping', () => {
         { id: 'ex_free', label: 'Park entry (day 0)', category: 'entry-fees', amountInr: 500, dayIndex: 0 },
       ],
     }
-    const copy = duplicateTripPublic(withDayExpenses, ownerId, [0])
+    const copy = (await duplicateTripPublicPersisted(withDayExpenses, ownerId, [0])).trip
     // Trip-level expenses (no dayIndex) ride along.
     expect(copy.expenses.some(e => e.label === 'Fuel estimate (~430 km)')).toBe(true)
     // Day-0 expense survives; the day-3 (locked) expense is stripped.
@@ -118,16 +118,16 @@ describe('duplicateTripPublic premium stripping', () => {
     expect(copy.fixedCommitments.map(f => f.title)).toEqual(['Hotel check-in — Kochi'])
   })
 
-  it('an all-free fork keeps every expense and fixed commitment', () => {
+  it('an all-free fork keeps every expense and fixed commitment', async () => {
     const all = source.days.map(d => d.index)
-    const copy = duplicateTripPublic(source, ownerId, all)
+    const copy = (await duplicateTripPublicPersisted(source, ownerId, all)).trip
     expect(copy.expenses.length).toBe(source.expenses.length)
     expect(copy.fixedCommitments.length).toBe(source.fixedCommitments.length)
   })
 
   it('is a fresh private trip owned by the forker, persisted with the stripped plan', async () => {
     calls.length = 0
-    const copy = duplicateTripPublic(source, ownerId, [0])
+    const copy = (await duplicateTripPublicPersisted(source, ownerId, [0])).trip
     expect(copy.id).not.toBe(source.id)
     expect(copy.visibility).toBe('private')
     expect(copy.name).toBe(`${source.name} (copy)`)

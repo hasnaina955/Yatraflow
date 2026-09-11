@@ -5,7 +5,7 @@
 // Suggestions and Decisions tabs merged into `group` (old slugs redirect).
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import type { Trip } from '../data/types'
-import { useDb, tripById, currentUser, roleOf, canEdit, updateTrip, userById } from '../store/store'
+import { useDb, tripById, currentUser, roleOf, canEdit, updateTrip, userById, fetchSharedTrip } from '../store/store'
 import { PillNav } from '../components/PillNav'
 import { computeHealth, computeTotals, getAssumptions, legKey, isRoundTrip } from '../lib/engine'
 import type { LegEstimate } from '../lib/engine'
@@ -64,6 +64,22 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
   const db = useDb()
   const me = currentUser(db)
   const trip = tripById(tripId)
+  // A cache miss is not final: hydration is membership-scoped and can come
+  // back partial (a failed trips read keeps last-known data but a first-load
+  // blip leaves the cache cold), and a direct link can land before hydration
+  // finishes. fetchSharedTrip reads the row directly (owner / member / public)
+  // and merges it into the cache — the commit re-renders this component. Only
+  // a null fetch (unreadable / trashed / bad id) is "Trip not found".
+  const [missedFetchFor, setMissedFetchFor] = useState<string | null>(null)
+  const fetchMissed = missedFetchFor === tripId
+  useEffect(() => {
+    if (trip || fetchMissed) return
+    let cancelled = false
+    void fetchSharedTrip(tripId).then(t => {
+      if (!cancelled && !t) setMissedFetchFor(tripId)
+    })
+    return () => { cancelled = true }
+  }, [trip, fetchMissed, tripId])
   const [tab, setTabState] = useState<TabKey>(() => sanitizeTab(initialTab))
   // Normalize a legacy slug in the URL once on mount so existing
   // #/trip/<id>/suggestions|decisions links keep working but self-heal to `group`.
@@ -145,8 +161,11 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
     }
   }
 
-  if (!trip || !me) {
+  if ((!trip && fetchMissed) || !me) {
     return <div className="container loading-block">Trip not found. <button className="btn btn-outline btn-sm" onClick={() => onNavigate('trips')}>Back to my trips</button></div>
+  }
+  if (!trip) {
+    return <div className="container loading-block"><div className="spinner" />Loading trip…</div>
   }
 
   const effective = pending?.proposed ?? trip

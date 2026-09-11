@@ -31,6 +31,7 @@ import { stopInitialValues, stopLegContext, stopEditorKey, stopDayIndex, type St
 import { useSuggestionCache } from '../../hooks/useSuggestionCache'
 import { kmFromStartForHit } from '../../lib/providers/hits'
 import { useTimelineMode, type TimelineMode } from './timeline/useTimelineMode'
+import { PillNav } from '../../components/PillNav'
 import { DaySection } from './timeline/DaySection'
 import { MoveStopModal } from './timeline/MoveStopModal'
 
@@ -257,7 +258,9 @@ export function TimelineTab({ trip, editable, applyChange, legCorrections, sugge
       <div className="row-between" style={{ marginBottom: 16 }}>
         <div>
           <h2>Day-by-day timeline</h2>
-          <p className="muted small">{mode === 'plan'
+          {/* key={mode} crossfades the copy; min-height in CSS reserves the
+              two-line block so switching modes never shifts the layout. */}
+          <p key={mode} className="muted small tl-mode-copy">{mode === 'plan'
             ? 'Drag stops to reorder within a day — or drop them onto another day to move them there. On touch devices: press and hold a stop, then drag it. Every change shows its impact before saving.'
             : 'Read-only study view — clocks, costs and risks without the edit handles. Switch to Plan mode to make changes.'}</p>
         </div>
@@ -266,17 +269,21 @@ export function TimelineTab({ trip, editable, applyChange, legCorrections, sugge
             {onOpenBoard && (
               <button className="btn btn-outline btn-sm" onClick={onOpenBoard} title="Arrange stops across days with the route in view">Open in Board →</button>
             )}
-            <div className="mode-toggle" role="group" aria-label="Timeline mode">
-              <button type="button" className={`mode-btn${mode === 'plan' ? ' active' : ''}`} aria-pressed={mode === 'plan'} onClick={() => changeMode('plan')}>
+            <PillNav className="mode-pillbar" role="group" aria-label="Timeline mode" activeKey={mode}>
+              <button type="button" data-pill-key="plan" className={`clickable-chip chip${mode === 'plan' ? ' on-teal' : ''}`}
+                onClick={() => changeMode('plan')} aria-pressed={mode === 'plan'}>
                 <PenLine size={12} aria-hidden style={{ marginRight: 4 }} />Plan
               </button>
-              <button type="button" className={`mode-btn${mode === 'inspect' ? ' active' : ''}`} aria-pressed={mode === 'inspect'} onClick={() => changeMode('inspect')}>
+              <button type="button" data-pill-key="inspect" className={`clickable-chip chip${mode === 'inspect' ? ' on-teal' : ''}`}
+                onClick={() => changeMode('inspect')} aria-pressed={mode === 'inspect'}>
                 <Eye size={12} aria-hidden style={{ marginRight: 4 }} />Inspect
               </button>
-            </div>
-            {mode === 'plan' && (
-              <button className="btn btn-primary btn-sm" onClick={() => setEditorState({ mode: 'add', dayIndex: 0 })}>+ Add stop</button>
-            )}
+            </PillNav>
+            {/* Stays rendered in both modes (disabled + dimmed in Inspect) so
+                toggling never reflows the header — that reflow was the jerk. */}
+            <button className="btn btn-primary btn-sm" disabled={mode !== 'plan'}
+              title={mode !== 'plan' ? 'Switch to Plan mode to edit' : undefined}
+              onClick={() => setEditorState({ mode: 'add', dayIndex: 0 })}>+ Add stop</button>
           </div>
         )}
       </div>

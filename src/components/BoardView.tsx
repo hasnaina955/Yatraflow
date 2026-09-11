@@ -254,25 +254,26 @@ function BoardColumn({ day, allDays, editable, warnings, focused, onToggleFocus,
     [day],
   )
   const stopsRef = useRef<HTMLDivElement>(null)
-  // Premium kanban drag pattern: the DOM order NEVER changes mid-drag (no
-  // churn, no jitter — native drag stays stable from the first pixel). A slim
-  // teal marker glides to the insertion slot instead, and the final
-  // arrangement settles ONCE via the FLIP pass on commit. The marker index is
-  // the source of truth for same-day drops (card-level drops delegate to it).
-  const [insert, setInsert] = useState<{ idx: number; y: number } | null>(null)
-  const insertRef = useRef(insert)
-  insertRef.current = insert
+  // Liquid drag pattern (bencho-style, Timeline parity): the DOM order NEVER
+  // changes mid-drag (no churn, no jitter — native drag stays stable from the
+  // first pixel). Cards between the carried slot and the cursor target glide
+  // out of the way in real time (transform transition, no scale/morph), and
+  // the final arrangement settles ONCE via the FLIP pass on commit. The
+  // insertion index is the source of truth for same-day drops.
+  const [insertIdx, setInsertIdx] = useState<number | null>(null)
+  const insertRef = useRef(insertIdx)
+  insertRef.current = insertIdx
 
   const { dndHandlers, dayDropHandlers, dragging, foreignOver } = useReorder(
     ordered,
-    // Same-list commits resolve through the marker, not the card the cursor
-    // happened to be over: idx counts positions in the full list (dragged slot
-    // included), so adjust for the removal shift.
+    // Same-list commits resolve through the insertion index, not the card the
+    // cursor happened to be over: idx counts positions in the full list
+    // (dragged slot included), so adjust for the removal shift.
     (fromIdx) => {
-      const idx = insertRef.current?.idx ?? fromIdx
+      const idx = insertRef.current ?? fromIdx
       const toIdx = idx > fromIdx ? idx - 1 : idx
       if (toIdx !== fromIdx) onReorder(day.index, fromIdx, toIdx)
-      setInsert(null)
+      setInsertIdx(null)
     },
     {
       dragPayload: (s) => JSON.stringify({ stopId: s.id, fromDay: day.index }),
@@ -287,7 +288,7 @@ function BoardColumn({ day, allDays, editable, warnings, focused, onToggleFocus,
     },
   )
 
-  useEffect(() => { if (dragging === null) setInsert(null) }, [dragging])
+  useEffect(() => { if (dragging === null) setInsertIdx(null) }, [dragging])
 
   function onColDragOver(e: React.DragEvent<HTMLDivElement>) {
     if (dragging === null) return
@@ -300,23 +301,31 @@ function BoardColumn({ day, allDays, editable, warnings, focused, onToggleFocus,
       const r = cards[i].getBoundingClientRect()
       if (e.clientY < r.top + r.height / 2) { idx = i; break }
     }
-    const y = cards.length === 0 ? 8
-      : idx < cards.length ? cards[idx].offsetTop - 6
-      : cards[cards.length - 1].offsetTop + cards[cards.length - 1].offsetHeight + 4
-    const cur = insertRef.current
-    if (!cur || cur.idx !== idx || Math.abs(cur.y - y) > 2) setInsert({ idx, y })
+    if (insertRef.current !== idx) setInsertIdx(idx)
   }
   function onColDragLeave(e: React.DragEvent<HTMLDivElement>) {
-    if (!stopsRef.current?.contains(e.relatedTarget as Node | null)) setInsert(null)
+    if (!stopsRef.current?.contains(e.relatedTarget as Node | null)) setInsertIdx(null)
   }
   /** Drops landing in the gaps between cards (card handlers stopPropagation). */
   function onColDrop(e: React.DragEvent<HTMLDivElement>) {
     if (dragging === null) return
     e.preventDefault()
-    const idx = insertRef.current?.idx ?? ordered.length
+    const idx = insertRef.current ?? ordered.length
     const toIdx = idx > dragging ? idx - 1 : idx
     if (toIdx !== dragging) onReorder(day.index, dragging, toIdx)
-    setInsert(null)
+    setInsertIdx(null)
+  }
+
+  /** Live glide offset for card i while a drag is open: cards between the
+   *  carried slot and the insertion index slide by the carried card's height
+   *  (plus its gap), so a clean gap opens at the target. */
+  function glideOffset(i: number): number | null {
+    if (dragging === null || insertIdx === null || insertIdx === dragging || i === dragging) return null
+    const card = stopsRef.current?.querySelectorAll<HTMLElement>('[data-stop-id]')[dragging]
+    const h = card ? card.offsetHeight + 8 : 0
+    if (insertIdx > dragging && i > dragging && i < insertIdx) return h
+    if (insertIdx < dragging && i >= insertIdx && i < dragging) return -h
+    return null
   }
 
   const draggingId = dragging !== null ? ordered[dragging]?.id : undefined
@@ -370,9 +379,6 @@ function BoardColumn({ day, allDays, editable, warnings, focused, onToggleFocus,
 
       <div className={`board-col-stops${dragging !== null ? ' is-dragging' : ''}`} ref={stopsRef}
         onDragOver={onColDragOver} onDragLeave={onColDragLeave} onDrop={onColDrop}>
-        {dragging !== null && insert && (
-          <div className="board-drop-marker" style={{ transform: `translateY(${insert.y}px)` }} />
-        )}
         {ordered.map((s, i) => {
           const kind = stopKindOf(s)
           const isDragged = s.id === draggingId
@@ -386,6 +392,7 @@ function BoardColumn({ day, allDays, editable, warnings, focused, onToggleFocus,
               data-stop-id={s.id}
               title={meta ? `${s.title} — ${meta}` : s.title}
               className={`board-stop stop-card kind-${kind} status-${s.status} ${isDragged ? 'dragging' : ''} ${foreignOver === i && dragging === null ? 'foreign-over' : ''}`}
+              style={{ transform: glideOffset(i) != null ? `translateY(${glideOffset(i)}px)` : undefined }}
               {...(editable ? dndHandlers(i) : {})}>
               <div className="stop-main">
                 <span className="board-stop-kicker">{s.departTime ? `${formatHM(s.departTime, timeFormat)} · ` : ''}{STOP_KIND_LABELS[kind]}</span>

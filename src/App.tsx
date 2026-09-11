@@ -404,7 +404,7 @@ export default function App() {
                     <Bell size={18} aria-hidden />{unread > 0 && <span className="notif-badge">{unread}</span>}
                   </button>
               {notifOpen && createPortal(
-                <div className="notif-pop" id="notif-pop" ref={notifPopRef} tabIndex={-1} style={{ top: notifPos.top, right: notifPos.right }}>
+                <div className="notif-pop popover" id="notif-pop" ref={notifPopRef} tabIndex={-1} style={{ top: notifPos.top, right: notifPos.right }}>
                   <div className="row-between" style={{ padding: '10px 14px', borderBottom: '1px solid var(--line)' }}>
                     <b>Notifications</b>
                     {unread > 0 && <button className="btn btn-ghost btn-sm" onClick={() => markAllNotificationsRead(me.id)}>Mark all read</button>}
@@ -441,7 +441,7 @@ export default function App() {
                 <Avatar user={me} />
               </button>
               {menuOpen && createPortal(
-                <div className="user-menu" id="user-menu" ref={userMenuRef} tabIndex={-1} style={{ top: menuPos.top, right: menuPos.right }}>
+                <div className="user-menu popover" id="user-menu" ref={userMenuRef} tabIndex={-1} style={{ top: menuPos.top, right: menuPos.right }}>
                   <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--line)' }}>
                     <b>{me.profile.name}</b>
                     <div className="small muted">{me.email}</div>

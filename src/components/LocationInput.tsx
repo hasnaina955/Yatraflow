@@ -110,7 +110,7 @@ export function LocationInput({ value, onChange, onPick, placeholder, error, aut
       {loading && <span className="loc-spinner" aria-label="Searching places" />}
       {resolving && <span className="loc-spinner" aria-label="Pinning the place" />}
       {open && hits.length > 0 && (
-        <ul className="loc-dropdown" role="listbox" id={listId}>
+        <ul className="loc-dropdown popover" role="listbox" id={listId}>
           {hits.map((hit, i) => (
             <li key={hit.id} role="presentation">
               <button
@@ -146,7 +146,7 @@ export function LocationInput({ value, onChange, onPick, placeholder, error, aut
         </div>
       )}
       {open && !loading && searched && hits.length === 0 && value.trim().length >= 2 && (
-        <div className="loc-empty">No places matched “{value.trim()}”. You can still use this text as-is.</div>
+        <div className="loc-empty popover">No places matched “{value.trim()}”. You can still use this text as-is.</div>
       )}
     </div>
   )

@@ -1,6 +1,6 @@
 // ============ Scheduling & impact engine ============
 // All outputs are transparent estimates. Nothing here claims live data.
-import type { Trip, ItineraryStop, ItineraryDay, FixedCommitment, ID } from '../data/types'
+import type { Trip, ItineraryStop, ItineraryDay, ID, TravelStyle } from '../data/types'
 import { haversineKm } from './geo'
 
 export interface EngineAssumptions {
@@ -981,6 +981,19 @@ export function computeCategoryBias(trip: Trip): Record<string, number> {
     const hasHotel = active.some(s => s.category === 'hotel')
     if (!hasHotel && trip.days.length >= 2) bump('hotel', 5)
   }
+
+  // Travel-style priors: the style chosen at trip creation steers what the
+  // suggestion engine favours — real ranking weights consumed by the nearby
+  // POI ranker, not copy. These are the only five styles with an effect beyond
+  // cadence/detour-budget/stay-tier; STYLE_COPY in CreateTrip states exactly
+  // this, so the chips never promise more than the algorithm does.
+  const stylePriors: Partial<Record<TravelStyle, [string, number][]>> = {
+    adventure: [['adventure', 4], ['nature', 3]],
+    spiritual: [['temple', 4]],
+    'food-focused': [['food', 4]],
+    creator: [['sightseeing', 3], ['museum', 2]],
+  }
+  for (const [cat, v] of stylePriors[trip.travelStyle] ?? []) bump(cat, v)
 
   return bias
 }

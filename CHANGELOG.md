@@ -48,6 +48,43 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
   animate open and closed (grid-rows `0fr→1fr`, height-agnostic, reduced-motion aware) while
   still unmounting when closed, so collapsed days cost nothing. The mode hook lives in
   `src/pages/trip/timeline/useTimelineMode.ts`.
+- **Motion tokens + a liquid drag feel, everywhere (the "newer sections feel
+  cheaper" fix).** `docs/MOTION-TOKENS.md` is the design-tokens doc for motion:
+  three duration steps (`--motion-fast/med/slow`: 120/180/240ms), the easing set,
+  and a pattern catalog (dropdown entrance, toggle glider, day collapse, drag
+  follow/settle) — and AGENTS.md gains rule 10: every new interactive surface
+  ships motion from the tokens, so the gap between long-refined surfaces and
+  fresh ones stays closed. The drag on both the Timeline and the Board is now
+  bencho-style liquid arrangement: siblings glide out of the way in real time
+  while you drag (transform-only, no scale/bounce morphing), the carried row
+  sits as a dashed ghost slot, and the FLIP settle snaps the final arrangement
+  home — the gliding teal marker is retired. Dropdowns and menus share one
+  `.popover` surface (the navbar's exact glass recipe with entrance motion —
+  location list, calendar, notifications, account menu), and the Plan/Inspect
+  toggle is a real animated glider whose switching no longer reflows the header
+  (the add button dims in place instead of vanishing).
+- **Plan a trip prefills the budget with the app's own maths.** The rough-bill
+  estimate (stay + food + transport, `estimateTripStarter`) was already computed
+  live but hidden behind a "Print my bill" reveal — it now shows under the
+  budget field ("Our rough take ≈ ₹X/head · ₹Y total") and **auto-fills the
+  per-person field** (rounded to ₹500) as dates, crew, mode and route make the
+  number possible, until you edit the field yourself. The round-trip control is
+  "Drive back to start" with a real hint (≈ N km back to your start), and the
+  return-stops switch is "Plot the drive back".
+- **Travel-style chips now tell the truth — and the truth got wired in.**
+  Copy states exact engine values (relaxed: halts ~120 km / meals ~260 km /
+  60 min detour slack; packed 180/300/30; balanced 150/300/45; budget/luxury:
+  the ₹1,200/₹8,000 stay tiers vs comfort ₹3,200), the fake claims are gone,
+  and the five decorative styles now really act: `computeCategoryBias` gains
+  style→category priors (adventure→adventure/nature, spiritual→temple,
+  food-focused→food, creator→sightseeing/museum) consumed by the nearby-POI
+  ranking, so "suggestions favour temple stops" is a fact, not a promise.
+- **Group Input speaks one filter language.** The duplicate count-pill row and
+  filter bar are merged into a single workspace-style pill rail with the counts
+  inside the pills (All · n open, Need you with its amber badge, Resolved), the
+  composer's Stop idea/Question switch is a visually distinct segmented mode
+  toggle, the unstyled `.gi-guide` box is styled, and the text-glyph vote
+  buttons are lucide chevrons.
 - **Timeline restructure plan and mockups (planning artefacts).** `docs/TIMELINE-PLAN.md` is
   the phased, code-audited implementation plan (collapsed accordion day rows → evict
   specialist tools → Plan/Inspect split + file split) with the three design decisions signed

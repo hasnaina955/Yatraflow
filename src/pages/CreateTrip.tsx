@@ -57,16 +57,16 @@ const MODE_TILES: Array<{ mode: TransportMode; icon: typeof Car; hint: string }>
  *  halt cadence (cadenceForCrew), daily detour budget (STYLE_DELTA), the bill's
  *  stay tier and the AI planner prompt. Never claim more than the algorithm does. */
 const STYLE_COPY: Record<TravelStyle, string> = {
-  relaxed: 'slow pace — halts every ~120 km, +15 min of daily detour slack. Stay tier: comfort.',
-  packed: 'maximum ground — ~180 km stretches, 15 min less detour slack. Stay tier: comfort.',
-  balanced: 'the default rhythm — standard halts, 45 min of daily detour slack. Stay tier: comfort.',
-  adventure: 'standard pace — the AI planner packs treks, trails and outdoor stops into suggestions.',
-  luxury: 'standard pace — the rough bill prices stays at the luxury tier; the planner follows suit.',
-  budget: 'standard pace — the rough bill prices stays at the budget tier; the planner follows suit.',
-  family: 'crews of 5+ automatically get the gentler cadence; the planner favours family-friendly stops.',
-  spiritual: 'standard pace — the AI planner leans temple circuits, ashrams and early-morning starts.',
-  'food-focused': 'standard pace — the AI planner routes suggestions around local food landmarks.',
-  creator: 'standard pace — the AI planner favours scenic, content-worthy stops for shoots and reels.',
+  relaxed: 'gentle rhythm — stretch halts every ~120 km, meals ~260 km, 60 min/day of detour slack for suggestions. Stay tier: comfort.',
+  packed: 'maximum ground — 180 km between stretch halts, meals ~300 km, 30 min/day of detour slack. Stay tier: comfort.',
+  balanced: 'the default rhythm — stretches every 150 km, meals ~300 km, 45 min/day of detour slack. Stay tier: comfort.',
+  adventure: 'suggestions favour treks, trails and outdoor stops — adventure and nature categories rank up.',
+  luxury: 'standard pace — the rough bill prices stays at ₹8,000 a room-night (comfort is ₹3,200).',
+  budget: 'standard pace — the rough bill prices stays at ₹1,200 a room-night (comfort is ₹3,200).',
+  family: 'built around crew size — 5+ travellers get the gentler 120 km cadence automatically, style aside.',
+  spiritual: 'suggestions favour temple stops and sacred circuits — the temple category ranks up.',
+  'food-focused': 'suggestions favour food — local meals rank up wherever the route goes.',
+  creator: 'suggestions favour landmark sights and museums — the content-worthy stops.',
 }
 
 const EMOJIS = ['🧭', '🏔️', '🏖️', '🛕', '🚗', '🚂', '🌴', '🎒']
@@ -155,7 +155,7 @@ function DateRangeCalendar({ start, end, error, registerRef, onChange }: {
           <ChevronDown size={14} className="cal-caret" aria-hidden />
         </button>
         {open && (
-          <div className="cal-pop" role="dialog" aria-label="Pick trip dates">
+          <div className="cal-pop popover" role="dialog" aria-label="Pick trip dates">
             <div className="cal-head">
               <button type="button" className="route-btn" aria-label="Previous month" onClick={() => shiftMonth(-1)}><ChevronLeft size={14} aria-hidden /></button>
               <b>{CAL_MONTHS[view.m]} {view.y}</b>
@@ -238,12 +238,17 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
 
   const fuelMode = isFuelEconomyMode(f.transportMode)
 
+  // Smart budget (user ask): the rough bill prefills the per-person field the
+  // moment it can compute one, and keeps it live as the plan grows — until the
+  // user edits the field themselves (or a bench hand-off set it explicitly).
+  const [budgetTouched, setBudgetTouched] = useState(false)
   // Plan Bench hand-off (issue #37): when the homepage calculator stashed its
   // inputs into sessionStorage, pre-fill the matching fields. Read-once — the
   // stash clears itself on read, so a refresh returns to the plain form.
   useEffect(() => {
     const p = readBenchPrefill()
     if (!p) return
+    setBudgetTouched(true)
     setF(prev => ({
       ...prev,
       travellers: p.travellers,
@@ -281,6 +286,16 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
   function patchFields(next: Partial<typeof f>) {
     setF(x => ({ ...x, ...next }))
   }
+
+  // Auto-fill: the rounded-up rough take lands in the budget field whenever it
+  // changes and the user hasn't claimed the field by editing it.
+  const suggestedBudget = bill.perHead != null && bill.perHead > 0
+    ? Math.max(500, Math.round(bill.perHead / 500) * 500)
+    : null
+  useEffect(() => {
+    if (budgetTouched || suggestedBudget == null) return
+    setF(x => (x.budgetPerPersonInr === suggestedBudget ? x : { ...x, budgetPerPersonInr: suggestedBudget }))
+  }, [suggestedBudget, budgetTouched])
 
   function setReturnOn(on: boolean) {
     haptic(HAPTIC.toggle)
@@ -466,7 +481,7 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
                 <input type="checkbox" role="switch" checked={returnCount > 0}
                   onChange={e => setReturnOn(e.target.checked)} aria-label="Configure custom return journey stops" />
                 <span className="ts-switch-track" aria-hidden="true"></span>
-                <span className="ts-switch-label">↔ Return stops</span>
+                <span className="ts-switch-label">Plot the drive back</span>
               </label>
             </div>
             <Field label="Trip name" error={errs.name}>
@@ -617,10 +632,14 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
                       </label>
                     )}
                     <div className="chip-row">
-                      <Chip active={f.roundTrip} aria-pressed={f.roundTrip}
-                        onClick={() => { haptic(HAPTIC.toggle); patchFields({ roundTrip: !f.roundTrip }) }}>
-                        Round trip — return to start
-                      </Chip>
+                      <span title={f.roundTrip && bill.roadKm != null
+                        ? `Bills the drive back to ${f.startLocation || 'your start'} (≈ ${Math.round(bill.roadKm / 2)} km each way) on the last day. Turn off for a one-way plan.`
+                        : 'On by default for self-drive — it bills the drive back to your start on the last day. Turn off for a one-way plan.'}>
+                        <Chip active={f.roundTrip} aria-pressed={f.roundTrip}
+                          onClick={() => { haptic(HAPTIC.toggle); patchFields({ roundTrip: !f.roundTrip }) }}>
+                          Drive back to start
+                        </Chip>
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -656,16 +675,19 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
               <span className="eyebrow">Budget &amp; style</span>
             </div>
             <div className="form-row">
-              <Field label="Budget per person (₹)" error={errs.budgetPerPersonInr}>
+              <Field label="Budget per person (₹)" error={errs.budgetPerPersonInr}
+                hint={bill.perHead != null && bill.perHead > 0
+                  ? `Our rough take ≈ ₹${bill.perHead.toLocaleString('en-IN')}/head · ≈ ₹${(bill.perHead * f.travellers).toLocaleString('en-IN')} total — prefilled above, updates as you plan (excludes tolls, parking & entry fees).`
+                  : 'Pick dates (and a stop or two) and our rough take lands here automatically.'}>
                 <input className="input mono" type="number" min={500} step={500} ref={el => (fieldRefs.current.budgetPerPersonInr = el)}
                   aria-invalid={!!errs.budgetPerPersonInr} value={f.budgetPerPersonInr}
-                  onChange={e => patchFields({ budgetPerPersonInr: Number(e.target.value) })} />
+                  onChange={e => { setBudgetTouched(true); patchFields({ budgetPerPersonInr: Number(e.target.value) }) }} />
               </Field>
               <div className="quick-budget" role="group" aria-label="Quick budget amounts">
                 {[10000, 15000, 25000].map(v => (
                   <button key={v} type="button" className={`chip${f.budgetPerPersonInr === v ? ' on' : ''}`}
                     aria-pressed={f.budgetPerPersonInr === v}
-                    onClick={() => { haptic(HAPTIC.tick); patchFields({ budgetPerPersonInr: v }) }}>
+                    onClick={() => { haptic(HAPTIC.tick); setBudgetTouched(true); patchFields({ budgetPerPersonInr: v }) }}>
                     ₹{v >= 1000 ? `${Math.round(v / 1000)}k` : v}
                   </button>
                 ))}

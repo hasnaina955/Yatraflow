@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>YatraFlow — Timeline restructuring, visual proposals</title>
+<style>
+  :root {
+    --teal-500: #0D8D82; --teal-600: #0E7A72; --teal-700: #0B6B63;
+    --yf-teal-100: #E5F4EE;
+    --yf-saffron: #F3AA3D; --yf-saffron-100: #FFF4E4;
+    --yf-amber: #E4AE43; --yf-amber-100: #FFF7E9;
+    --yf-coral: #D6534D; --yf-coral-100: #FFF0EC;
+    --yf-purple: #897ABB; --yf-purple-100: #F0EAFA;
+    --yf-navy: #123F49;
+    --yf-cream: #F8F7EF; --yf-mist: #ECF8F4; --yf-peach: #FFF2E8;
+    --yf-surface: #FFFFFF; --yf-border: #DCE7E1; --yf-text-muted: #637B7D;
+    --gray-500: #5A6A80; --gray-900: #0B2545;
+    --radius: 18px; --radius-sm: 12px; --radius-lg: 24px;
+    --shadow-soft: 0 2px 14px rgba(11,37,69,.07), 0 1px 3px rgba(11,37,69,.05);
+    --font-display: 'Sora', 'Inter', system-ui, sans-serif;
+    --font-body: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: var(--font-body); background: linear-gradient(160deg, var(--yf-cream) 0%, var(--yf-mist) 55%, var(--yf-peach) 100%);
+    min-height: 100vh; color: var(--gray-900); padding: 40px 20px 80px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1060px; margin: 0 auto; }
+  h1, h2, h3, h4 { font-family: var(--font-display); letter-spacing: -0.01em; line-height: 1.22; text-wrap: balance; }
+  h1 { font-size: 26px; margin-bottom: 6px; }
+  .lede { color: var(--yf-text-muted); font-size: 14.5px; margin-bottom: 32px; }
+
+  .props {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 44px;
+  }
+  .prop {
+    background: var(--yf-surface); border: 1px solid var(--yf-border); border-radius: var(--radius-sm);
+    padding: 14px 16px; box-shadow: var(--shadow-soft);
+  }
+  .prop b { font-family: var(--font-display); font-size: 22px; display: block; }
+  .prop span { color: var(--yf-text-muted); font-size: 12.5px; }
+
+  section.proposal { margin-bottom: 56px; }
+  .prop-head { display: flex; align-items: baseline; gap: 14px; margin-bottom: 4px; }
+  .prop-num {
+    background: var(--yf-navy); color: #fff; font-family: var(--font-display); font-weight: 700;
+    font-size: 13px; width: 30px; height: 30px; border-radius: 9px; display: inline-flex;
+    align-items: center; justify-content: center; flex: none; transform: translateY(4px);
+  }
+  .prop-head h2 { font-size: 19px; }
+  .prop-sub { color: var(--yf-text-muted); font-size: 13.5px; margin: 0 0 18px 44px; }
+
+  .frame {
+    background: var(--yf-surface); border: 1px solid var(--yf-border); border-radius: var(--radius);
+    box-shadow: var(--shadow-soft); overflow: hidden;
+  }
+  .frame-label {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 16px; background: rgba(18,63,73,.045); border-bottom: 1px solid var(--yf-border);
+    font-size: 12px; color: var(--yf-text-muted);
+  }
+  .frame-label b { color: var(--yf-navy); font-weight: 600; }
+  .frame-body { padding: 18px; }
+
+  /* ------- shared trip chrome (tab strip) ------- */
+  .tabbar { display: flex; gap: 4px; flex-wrap: wrap; padding: 10px 16px; border-bottom: 1px solid var(--yf-border); background: rgba(236,248,244,.5); }
+  .tab {
+    font-size: 12.5px; font-weight: 600; padding: 6px 14px; border-radius: 999px;
+    color: var(--yf-text-muted); border: 1px solid transparent;
+  }
+  .tab.active { background: var(--yf-teal-100); color: var(--teal-700); border-color: rgba(13,141,130,.25); }
+
+  /* ------- annotation callouts ------- */
+  .callout {
+    position: relative; background: var(--yf-saffron-100); border: 1px solid rgba(224,134,15,.3);
+    border-radius: 10px; padding: 10px 12px 10px 38px; font-size: 12.5px; color: #7A5510;
+    margin: 14px 0; line-height: 1.5;
+  }
+  .callout::before {
+    content: attr(data-n); position: absolute; left: 10px; top: 9px;
+    background: var(--yf-saffron); color: #fff; font-weight: 700; font-size: 11px;
+    width: 18px; height: 18px; border-radius: 6px; display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-display);
+  }
+  .callout.teal { background: var(--yf-teal-100); border-color: rgba(13,141,130,.3); color: var(--teal-700); }
+  .callout.teal::before { background: var(--teal-500); }
+  .callout.coral { background: var(--yf-coral-100); border-color: rgba(214,83,77,.3); color: #8C3A34; }
+  .callout.coral::before { background: var(--yf-coral); }
+  .callout.purple { background: var(--yf-purple-100); border-color: rgba(137,122,187,.35); color: #5C4E86; }
+  .callout.purple::before { background: var(--yf-purple); }
+
+  .pin {
+    display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; font-weight: 700;
+    padding: 2px 7px; border-radius: 999px; vertical-align: middle; margin-left: 6px;
+    background: var(--yf-saffron); color: #fff; letter-spacing: .02em;
+  }
+  .pin.teal { background: var(--teal-500); }
+  .pin.navy { background: var(--yf-navy); }
+  .pin.coral { background: var(--yf-coral); }
+  .pin.purple { background: var(--yf-purple); }
+
+  /* ------- CURRENT timeline mock (annotated problem view) ------- */
+  .cur-strip {
+    background: var(--yf-coral-100); border: 1px solid rgba(214,83,77,.25); border-radius: var(--radius-sm);
+    padding: 12px 16px; font-size: 13px; color: #8C3A34; margin-bottom: 40px; line-height: 1.55;
+  }
+  .tl-day {
+    border: 1px solid var(--yf-border); border-radius: var(--radius-sm); background: #fff;
+    margin-bottom: 12px; overflow: hidden;
+  }
+  .tl-day-head {
+    display: flex; align-items: center; gap: 10px; padding: 10px 14px;
+    background: rgba(236,248,244,.55); border-bottom: 1px solid var(--yf-border); flex-wrap: wrap;
+  }
+  .tl-day-head b { font-family: var(--font-display); font-size: 14px; }
+  .tl-day-head .mut { color: var(--yf-text-muted); font-size: 12px; }
+  .chiprow { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto; align-items: center; }
+  .chip {
+    font-size: 10.5px; font-weight: 600; padding: 3px 9px; border-radius: 999px;
+    background: #fff; border: 1px solid var(--yf-border); color: var(--yf-text-muted); white-space: nowrap;
+  }
+  .chip.warn { border-color: rgba(180,114,7,.4); color: #8a5c06; background: var(--yf-amber-100); }
+  .chip.ok { border-color: rgba(13,141,130,.35); color: var(--teal-700); background: var(--yf-teal-100); }
+  .tl-stop {
+    display: flex; gap: 10px; padding: 8px 14px; align-items: flex-start;
+  }
+  .tl-gut { width: 52px; flex: none; text-align: center; font-size: 10px; color: var(--yf-text-muted); }
+  .tl-gut .arr, .tl-gut .dep { display: block; font-variant-numeric: tabular-nums; }
+  .tl-gut .ln { display: block; width: 1.5px; height: 12px; background: var(--yf-border); margin: 3px auto; }
+  .tl-card {
+    flex: 1; border: 1px solid var(--yf-border); border-radius: 11px; padding: 7px 11px; background: #fff;
+    font-size: 12.5px;
+  }
+  .tl-card .t { font-weight: 600; }
+  .tl-card .m { color: var(--yf-text-muted); font-size: 11px; margin-top: 2px; }
+  .leg {
+    display: flex; gap: 8px; padding: 3px 14px 3px 66px; align-items: center;
+    color: var(--yf-text-muted); font-size: 11px; font-style: normal;
+  }
+  .tl-footrow { display: flex; gap: 6px; padding: 6px 14px 10px 66px; flex-wrap: wrap; }
+  .minibtn {
+    font-size: 10.5px; font-weight: 600; padding: 3px 10px; border-radius: 999px;
+    border: 1px solid var(--yf-border); background: #fff; color: var(--yf-text-muted);
+  }
+  .minibtn.hot { border-color: rgba(243,170,61,.55); background: var(--yf-saffron-100); color: #8a5c06; }
+
+  /* ------- PROPOSED: collapsed day rows ------- */
+  .crail { display: flex; flex-direction: column; gap: 8px; }
+  .crow {
+    display: grid; grid-template-columns: 44px 1fr auto; gap: 12px; align-items: center;
+    background: #fff; border: 1px solid var(--yf-border); border-radius: var(--radius-sm);
+    padding: 10px 14px; transition: all .18s;
+  }
+  .crow:hover { border-color: rgba(13,141,130,.4); box-shadow: 0 1px 8px rgba(13,141,130,.10); }
+  .crow .dnum {
+    font-family: var(--font-display); font-weight: 800; font-size: 15px; color: var(--teal-600);
+    text-align: center; line-height: 1.1;
+  }
+  .crow .dnum span { display: block; font-size: 8.5px; font-weight: 700; letter-spacing: .12em; color: var(--yf-text-muted); }
+  .crow .dmain { min-width: 0; }
+  .crow .dtitle { font-weight: 600; font-size: 13.5px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .crow .droute { color: var(--yf-text-muted); font-size: 12px; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .crow .droute i { font-style: normal; color: var(--teal-600); font-weight: 600; padding: 0 2px; }
+  .crow .dmeta { display: flex; flex-direction: column; gap: 5px; align-items: flex-end; }
+  .spark {
+    display: inline-flex; gap: 2.5px; align-items: flex-end; height: 18px;
+  }
+  .spark i { width: 5px; border-radius: 2px; background: var(--teal-500); opacity: .8; display: block; }
+  .spark i.a { background: var(--yf-saffron); opacity: 1; }
+  .crow .dstat { font-size: 11px; color: var(--yf-text-muted); white-space: nowrap; }
+  .crow .dstat b { color: var(--gray-900); }
+  .warnline { font-size: 10.5px; color: #8a5c06; background: var(--yf-amber-100); border-radius: 6px; padding: 2px 8px; margin-top: 3px; display: inline-block; }
+
+  /* ------- PROPOSED: one expanded day ------- */
+  .xday { border: 1.5px solid rgba(13,141,130,.45); border-radius: var(--radius-sm); overflow: hidden; background: #fff; }
+  .xday-head {
+    display: flex; align-items: center; gap: 12px; padding: 12px 16px;
+    background: linear-gradient(120deg, var(--yf-teal-100), #fff 70%);
+  }
+  .xday-head .dnum { font-family: var(--font-display); font-weight: 800; font-size: 19px; color: var(--teal-600); }
+  .xday-head .t { font-weight: 700; font-size: 14px; }
+  .xday-head .sub { color: var(--yf-text-muted); font-size: 11.5px; margin-top: 2px; }
+  .xday-head .spacer { margin-left: auto; display: flex; gap: 6px; }
+  .btn {
+    font-size: 12px; font-weight: 600; padding: 6px 13px; border-radius: 999px; border: 1px solid var(--yf-border);
+    background: #fff; color: var(--gray-900); display: inline-flex; gap: 6px; align-items: center;
+  }
+  .btn.primary { background: var(--teal-500); color: #fff; border-color: transparent; }
+  .btn.ghost { border-color: transparent; color: var(--yf-text-muted); }
+  .btn svg { width: 13px; height: 13px; }
+  .xstop { display: grid; grid-template-columns: 58px 1fr auto; gap: 12px; padding: 10px 16px; align-items: center; border-top: 1px solid var(--yf-border); }
+  .xstop:hover { background: rgba(236,248,244,.5); }
+  .xtimes { text-align: center; font-size: 11px; color: var(--yf-text-muted); font-variant-numeric: tabular-nums; line-height: 1.5; }
+  .xtimes .dep { color: var(--gray-900); font-weight: 600; }
+  .xmain .t { font-weight: 600; font-size: 13.5px; }
+  .xmain .m { color: var(--yf-text-muted); font-size: 12px; margin-top: 2px; }
+  .kind { font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--teal-700); background: var(--yf-teal-100); border-radius: 5px; padding: 1.5px 6px; margin-left: 7px; vertical-align: 1px; }
+  .kind.food { color: #8a5c06; background: var(--yf-saffron-100); }
+  .kind.stay { color: #5C4E86; background: var(--yf-purple-100); }
+  .xacts { display: flex; gap: 3px; opacity: 0; }
+  .xstop:hover .xacts, .xstop:focus-within .xacts { opacity: 1; }
+  .ib {
+    width: 26px; height: 26px; border-radius: 8px; border: 1px solid var(--yf-border); background: #fff;
+    display: inline-flex; align-items: center; justify-content: center; color: var(--yf-text-muted); font-size: 12px;
+  }
+  .ib.danger:hover { background: var(--yf-coral-100); border-color: rgba(214,83,77,.4); color: var(--yf-coral); }
+  .ib:hover { background: var(--yf-teal-100); border-color: rgba(13,141,130,.4); color: var(--teal-700); }
+  .xleg {
+    display: flex; gap: 8px; align-items: center; padding: 5px 16px 5px 86px; font-size: 11px; color: var(--yf-text-muted);
+  }
+  .xleg .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--teal-500); }
+  .xzone {
+    margin: 10px 14px; border: 1.5px dashed rgba(13,141,130,.45); border-radius: 12px;
+    text-align: center; padding: 9px; color: var(--teal-700); font-weight: 600; font-size: 12px;
+    background: rgba(236,248,244,.4);
+  }
+
+  /* ------- PROPOSED: mode toggle ------- */
+  .modebar { display: flex; gap: 4px; background: rgba(18,63,73,.06); padding: 4px; border-radius: 12px; width: fit-content; margin: 0 auto 16px; }
+  .modebar button {
+    border: none; background: transparent; font: 600 12.5px var(--font-body); color: var(--yf-text-muted);
+    padding: 7px 22px; border-radius: 9px; display: inline-flex; gap: 7px; align-items: center;
+  }
+  .modebar button.on { background: #fff; color: var(--teal-700); box-shadow: 0 1px 4px rgba(11,37,69,.10); }
+  .modebar svg { width: 14px; height: 14px; }
+
+  /* ------- PROPOSED: long-ride panel (evicted) ------- */
+  .lr-panel {
+    border: 1px solid var(--yf-border); border-left: 4px solid var(--yf-purple); border-radius: var(--radius-sm);
+    background: #fff; padding: 14px 16px; margin-top: 10px;
+  }
+  .lr-panel h4 { font-size: 13.5px; display: flex; gap: 8px; align-items: center; }
+  .lr-panel .sub { color: var(--yf-text-muted); font-size: 11.5px; margin: 3px 0 10px; }
+  .lr-row {
+    display: grid; grid-template-columns: 64px 1fr auto; gap: 10px; align-items: center;
+    padding: 7px 10px; border-radius: 10px; font-size: 12.5px;
+  }
+  .lr-row:hover { background: var(--yf-purple-100); }
+  .lr-km { font-weight: 700; color: #5C4E86; font-variant-numeric: tabular-nums; }
+  .lr-add { font-size: 11px; font-weight: 700; color: #5C4E86; background: var(--yf-purple-100); border: none; border-radius: 999px; padding: 3px 11px; }
+
+  .legend { display: flex; gap: 18px; margin-top: 26px; padding-top: 18px; border-top: 1px dashed var(--yf-border); flex-wrap: wrap; }
+  .legend span { font-size: 12px; color: var(--yf-text-muted); display: inline-flex; gap: 6px; align-items: center; }
+
+  @media (max-width: 760px) {
+    .props { grid-template-columns: 1fr; }
+    .crow { grid-template-columns: 36px 1fr; }
+    .crow .dmeta { grid-column: 2; flex-direction: row; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Timeline restructuring — three visual proposals</h1>
+  <p class="lede">Rendered in YatraFlow's own design language (Sora / Inter, CTI palette) with the demo trip's real stops, so you're judging the <em>structure</em>, not a wireframe. Nothing here is implemented yet — this is the decision document.</p>
+
+  <div class="props">
+    <div class="prop"><b>1336</b><span>lines in TimelineTab.tsx — five components in one file</span></div>
+    <div class="prop"><b>17</b><span>useState hooks live at the top of that file</span></div>
+    <div class="prop"><b>19</b><span>props on the DaySection component alone</span></div>
+  </div>
+
+  <div class="cur-strip">
+    <b>What "too complicated" looks like structurally:</b> every day renders at once — journey clocks, travel legs, fuel estimates, a spark chart, warnings, weather, nearby-POI chips, "Continue to X" chips, a long-ride halt planner, collapse/rename/copy controls, day-start times, status toggles. A 6-day trip is six walls of UI before you've scrolled to Day 3. The three proposals below attack that from different angles and can be combined.
+  </div>
+
+  <!-- ==================== PROPOSAL 1 ==================== -->
+  <section class="proposal">
+    <div class="prop-head"><span class="prop-num">1</span><h2>Collapse days by default — "the day rail"</h2></div>
+    <p class="prop-sub">Every day becomes one scannable row: where you go, what it costs, and whether anything needs attention. The collapse machinery already exists (<code>loadDayCollapsed</code>) — this proposal flips the default and redesigns what a collapsed day <em>says</em>. Click to open the one day you're actually working on.</p>
+
+    <div class="frame">
+      <div class="frame-label"><b>Timeline — collapsed by default</b><span>6 days, one screen, zero scroll for most trips</span></div>
+      <div class="tabbar">
+        <span class="tab">Overview</span><span class="tab active">Board</span><span class="tab">Map</span><span class="tab">Timeline</span><span class="tab">Group input</span><span class="tab">Budget</span><span class="tab">Share</span>
+      </div>
+      <div class="frame-body">
+        <div class="crail">
+          <div class="crow">
+            <div class="dnum">1<span>DAY</span></div>
+            <div class="dmain">
+              <div class="dtitle">Kochi → Munnar <span class="kind">drive day</span> <span class="pin teal">open</span></div>
+              <div class="droute">Cheeyappara Falls <i>→</i> Valara Falls <i>→</i> Check-in Munnar <i>→</i> Blossom Park</div>
+            </div>
+            <div class="dmeta">
+              <span class="spark"><i style="height:6px"></i><i style="height:10px"></i><i style="height:8px"></i><i class="a" style="height:14px"></i></span>
+              <span class="dstat"><b>4 stops</b> · 148 km · ₹3,120</span>
+            </div>
+          </div>
+          <div class="crow" style="border-color: rgba(13,141,130,.5); box-shadow: 0 1px 8px rgba(13,141,130,.12);">
+            <div class="dnum">2<span>DAY</span></div>
+            <div class="dmain">
+              <div class="dtitle">Munnar hill day <span class="pin navy">expanded</span></div>
+              <div class="droute">Tea Museum <i>→</i> Top Station <i>→</i> Kundala Lake</div>
+            </div>
+            <div class="dmeta">
+              <span class="spark"><i style="height:9px"></i><i class="a" style="height:15px"></i><i style="height:7px"></i></span>
+              <span class="dstat"><b>3 stops</b> · 54 km · ₹1,890</span>
+              <span class="warnline">⏰ Top Station closes 17:00 — you arrive 17:40</span>
+            </div>
+          </div>
+          <div class="crow" style="opacity:.75;">
+            <div class="dnum">3<span>DAY</span></div>
+            <div class="dmain">
+              <div class="dtitle">Base camp — Munnar <span class="kind stay">stay day</span></div>
+              <div class="droute">No driving today · free morning · spice garden walk (optional)</div>
+            </div>
+            <div class="dmeta">
+              <span class="dstat"><b>1 stop</b> · 0 km · ₹420</span>
+            </div>
+          </div>
+          <div class="crow">
+            <div class="dnum">4<span>DAY</span></div>
+            <div class="dmain">
+              <div class="dtitle">Munnar → Thekkady <span class="kind">drive day</span></div>
+              <div class="droute">Devikulam <i>→</i> Anakkara <i>→</i> Periyar check-in</div>
+            </div>
+            <div class="dmeta">
+              <span class="spark"><i style="height:7px"></i><i style="height:9px"></i><i style="height:5px"></i></span>
+              <span class="dstat"><b>3 stops</b> · 96 km · ₹2,240</span>
+            </div>
+          </div>
+          <div class="crow">
+            <div class="dnum">5<span>DAY</span></div>
+            <div class="dmain">
+              <div class="dtitle">Periyar → Alleppey <span class="kind">drive day</span></div>
+              <div class="droute">Longest drive — <b>consider moving a stop to Day 4</b></div>
+            </div>
+            <div class="dmeta">
+              <span class="spark"><i style="height:12px"></i><i class="a" style="height:16px"></i><i style="height:10px"></i><i style="height:8px"></i></span>
+              <span class="dstat"><b>4 stops</b> · 178 km · ₹3,540</span>
+              <span class="warnline">⚠ 9h 20m on the road — over-packed</span>
+            </div>
+          </div>
+          <div class="crow">
+            <div class="dnum">6<span>DAY</span></div>
+            <div class="dmain">
+              <div class="dtitle">Houseboat day, Alleppey <span class="kind stay">stay day</span></div>
+              <div class="droute">Board by 12:00 · backwaters · sunset on deck</div>
+            </div>
+            <div class="dmeta">
+              <span class="dstat"><b>2 stops</b> · 12 km · ₹8,500</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout teal" data-n="1"><b>The route line is the summary.</b> Stop names joined by arrows — you recognise your day by its shape, not by reading six cards. Muted kind-tags ("drive day", "stay day") replace the travel panels that used to sit inside every day.</div>
+        <div class="callout teal" data-n="2"><b>One number, one spark.</b> Stops · km · ₹ and a mini load-bar per day. The amber bar segment is the busiest stop — a load indicator you can read without opening anything.</div>
+        <div class="callout coral" data-n="3"><b>Warnings surface here, not buried inside.</b> "Over-packed", "arrive after closing" — the two things you actually need to act on — promote to the row itself. Today they're interleaved between stops where you discover them by accident.</div>
+      </div>
+    </div>
+    <br>
+    <div class="frame">
+      <div class="frame-label"><b>…click a day → it opens alone</b><span>everyone else stays collapsed; only one wall at a time</span></div>
+      <div class="frame-body">
+        <div class="xday">
+          <div class="xday-head">
+            <span class="dnum">2</span>
+            <div>
+              <div class="t">Munnar hill day</div>
+              <div class="sub">3 stops · 54 km · ₹1,890 · departs 09:00</div>
+            </div>
+            <div class="spacer">
+              <button class="btn ghost">✕ Close</button>
+            </div>
+          </div>
+          <div class="xstop">
+            <div class="xtimes"><span class="dep">09:00</span><span class="ln" style="display:block;width:1.5px;height:10px;background:var(--yf-border);margin:2px auto;"></span>10:15</div>
+            <div class="xmain"><div class="t">Tea Museum <span class="kind">sight</span></div><div class="m">2nd Rd, Munnar · 75 min · ₹150/person</div></div>
+            <div class="xacts"><button class="ib" title="Edit">✎</button><button class="ib danger" title="Delete">🗑</button></div>
+          </div>
+          <div class="xleg"><span class="dot"></span> 12 km · 28 min by car</div>
+          <div class="xstop" style="background: rgba(236,248,244,.45);">
+            <div class="xtimes"><span class="dep">10:43</span><span style="display:block;width:1.5px;height:10px;background:var(--yf-border);margin:2px auto;"></span>13:10</div>
+            <div class="xmain"><div class="t">Top Station viewpoint <span class="kind">sight</span></div><div class="m">⚠ arrives 13:10 · 90 min · leaves 14:40</div></div>
+            <div class="xacts"><button class="ib">✎</button><button class="ib danger">🗑</button></div>
+          </div>
+          <div class="xleg"><span class="dot" style="background: var(--yf-saffron)"></span> 21 km · 46 min · winding ghat road</div>
+          <div class="xstop">
+            <div class="xtimes"><span class="dep">14:40</span><span style="display:block;width:1.5px;height:10px;background:var(--yf-border);margin:2px auto;"></span>17:20</div>
+            <div class="xmain"><div class="t">Kundala Lake boating <span class="kind food">activity</span></div><div class="m">pedal boat · 40 min · ₹600/boat</div></div>
+            <div class="xacts"><button class="ib">✎</button><button class="ib danger">🗑</button></div>
+          </div>
+          <div class="xzone">＋ Add a stop to Day 2</div>
+        </div>
+
+        <div class="callout purple" data-n="4"><b>Per-stop actions appear on hover/focus only.</b> Edit and delete sit at the right edge of each row and fade in — visible when you're editing, invisible when you're reading. On touch they're always on. This is the same pattern the board uses.</div>
+        <div class="callout" data-n="5"><b>Legs compress to one line</b> — "12 km · 28 min" between rows. Fuel estimates, mode detail, and the leg's source move into the <em>Inspect</em> view (Proposal 2). The planning question — "how far apart are these?" — needs six words, not a panel.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== PROPOSAL 2 ==================== -->
+  <section class="proposal">
+    <div class="prop-head"><span class="prop-num">2</span><h2>Split "Plan" from "Inspect" — one view, two modes</h2></div>
+    <p class="prop-sub">Same timeline, same data, two reading intentions. <b>Plan</b> is for changing things — minimal chrome, big targets, impact preview on every change. <b>Inspect</b> is for studying the plan — clocks, fuel, arrival math, warnings, everything dense and none of it editable. The toggle sits where the collapse controls live today; the mode persists per user (localStorage, like theme).</p>
+
+    <div class="frame">
+      <div class="frame-label"><b>The mode toggle</b><span>not a new tab — a state of the existing Timeline tab</span></div>
+      <div class="frame-body">
+        <div class="modebar">
+          <button class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>Plan mode</button>
+          <button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="3"/><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/></svg>Inspect mode</button>
+        </div>
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+          <div style="border:1px solid var(--yf-border); border-radius:12px; overflow:hidden;">
+            <div style="padding:8px 14px; background:var(--yf-teal-100); font-size:11.5px; font-weight:700; color:var(--teal-700); letter-spacing:.04em;">PLAN — what you change</div>
+            <div style="padding:12px 14px; font-size:12.5px; line-height:1.9;">
+              ☑ Add / edit / delete stops<br>
+              ☑ Drag to reorder, move between days<br>
+              ☑ Day start times, day titles<br>
+              ☑ Impact preview on every change<br>
+              <span style="color:var(--yf-text-muted);">☐ fuel math, leg sources, arrival chains<br>☐ weather chips, POI suggestions<br>☐ spark charts</span>
+            </div>
+          </div>
+          <div style="border:1px solid var(--yf-border); border-radius:12px; overflow:hidden;">
+            <div style="padding:8px 14px; background:rgba(18,63,73,.07); font-size:11.5px; font-weight:700; color:var(--yf-navy); letter-spacing:.04em;">INSPECT — what you study</div>
+            <div style="padding:12px 14px; font-size:12.5px; line-height:1.9;">
+              ☑ Arrival/departure clock chains<br>
+              ☑ Fuel + per-leg cost breakdowns<br>
+              ☑ Opening-hours risk, warnings<br>
+              ☑ Day load, spark charts, weather<br>
+              <span style="color:var(--yf-text-muted);">☐ drag handles, edit buttons<br>☐ add-stop zones<br>☐ impact sheet</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout teal" data-n="1"><b>Density becomes a feature, not a bug.</b> Inspect mode keeps everything the Timeline has today — nothing is lost, it just stops interrupting the act of editing. The people who want the full picture can have exactly the view they had before.</div>
+        <div class="callout coral" data-n="2"><b>Editing tools disappear in Inspect.</b> No drag handles, no delete buttons, no add zones — you can't fat-finger a delete while reading your arrival times. This also makes the Timeline safe to share/read on a phone during the trip itself.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== PROPOSAL 3 ==================== -->
+  <section class="proposal">
+    <div class="prop-head"><span class="prop-num">3</span><h2>Evict the specialist tools — "Long ride" becomes a collapsible panel</h2></div>
+    <p class="prop-sub">The halt planner (choose break stops at chosen kilometres of a long drive) is a power feature that currently renders inline inside every day. It moves into its own collapsed panel at the top of the Timeline — one click away for the drive-day crowd, invisible for everyone else. Same for "Continue to X" and nearby-POI chips, which fold into the same panel.</p>
+
+    <div class="frame">
+      <div class="frame-label"><b>Timeline header with the specialist panel</b><span>collapsed by default · opens only when a day needs it</span></div>
+      <div class="frame-body">
+        <div style="border:1.5px solid rgba(137,122,187,.45); border-radius:14px; overflow:hidden; margin-bottom:12px;">
+          <button style="display:flex; width:100%; align-items:center; gap:10px; padding:11px 16px; background:var(--yf-purple-100); border:none; font:600 13px var(--font-body); color:#5C4E86; cursor:pointer;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+            Long-ride tools — plan breaks along Day 5's drive
+            <span style="margin-left:auto; font-size:11px; color:#8a7bb8;">178 km · 3 suggested breaks ›</span>
+          </button>
+        </div>
+
+        <div class="lr-panel" style="display:none;" id="lrOpen"></div>
+        <div class="lr-panel">
+          <h4><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#897ABB" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg> Long-ride tools — Day 5 · Munnar → Alleppey</h4>
+          <p class="sub">Breaks suggested by road distance, not by stop order. Click a row to add it as a halt; the impact preview shows the time cost.</p>
+          <div class="lr-row">
+            <span class="lr-km">km 42</span>
+            <span><b>Chinnakanal viewpoint</b> — chai + stretch · ~15 min</span>
+            <button class="lr-add">＋ Add halt</button>
+          </div>
+          <div class="lr-row" style="background:var(--yf-purple-100);">
+            <span class="lr-km">km 96</span>
+            <span><b>Kumily junction</b> — lunch stop · ~40 min · added ✓</span>
+            <button class="lr-add" style="opacity:.5;">Added</button>
+          </div>
+          <div class="lr-row">
+            <span class="lr-km">km 140</span>
+            <span><b>Haripad temple square</b> — chai · ~10 min</span>
+            <button class="lr-add">＋ Add halt</button>
+          </div>
+        </div>
+
+        <div class="callout purple" data-n="1"><b>Same data, one home.</b> The halt planner, "Continue to X", and nearby-POI chips all add stops — today they're three different UIs sprinkled through the timeline. Folding them into one labelled panel means one place to look for "help me fill this day".</div>
+        <div class="callout" data-n="2"><b>The kilometre-based view is the right mental model for a drive day.</b> You plan breaks by where they fall on the road, not by which stop comes fourth. Keeping this list ordered by km — not by insertion — is the actual feature.</div>
+        <div class="callout coral" data-n="3"><b>Days without a long drive show nothing at all.</b> The panel header only renders when the day's drive exceeds a threshold (say 100 km). A Munnar base-camp day never sees it.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== how they combine ==================== -->
+  <section class="proposal">
+    <div class="prop-head"><span class="prop-num">+</span><h2>How they combine — and what I'd do first</h2></div>
+    <p class="prop-sub">These aren't three competing designs; they stack. Here's the natural build order, cheapest-first, with the honest cost of each.</p>
+
+    <div class="frame">
+      <div class="frame-body" style="padding: 4px 18px 18px;">
+        <table style="width:100%; border-collapse:collapse; font-size:13px;">
+          <tr style="color:var(--yf-text-muted); font-size:11px; text-transform:uppercase; letter-spacing:.06em;">
+            <th style="text-align:left; padding:10px 8px; border-bottom:2px solid var(--yf-border);">Step</th>
+            <th style="text-align:left; padding:10px 8px; border-bottom:2px solid var(--yf-border);">Ship</th>
+            <th style="text-align:left; padding:10px 8px; border-bottom:2px solid var(--yf-border);">Effort</th>
+            <th style="text-align:left; padding:10px 8px; border-bottom:2px solid var(--yf-border);">Risk</th>
+          </tr>
+          <tr>
+            <td style="padding:11px 8px; border-bottom:1px solid var(--yf-border); font-weight:600;">1</td>
+            <td style="padding:11px 8px; border-bottom:1px solid var(--yf-border);"><b>Day rail</b> (Proposal 1) — flip the collapse default, build the summary row</td>
+            <td style="padding:11px 8px; border-bottom:1px solid var(--yf-border);">Small — state + one row component; collapse storage already exists</td>
+            <td style="padding:11px 8px; border-bottom:1px solid var(--yf-border); color:var(--teal-700);">Low · fully reversible</td>
+          </tr>
+          <tr>
+            <td style="padding:11px 8px; border-bottom:1px solid var(--yf-border); font-weight:600;">2</td>
+            <td style="padding:11px 8px; border-bottom:1px solid var(--yf-border);"><b>Evict specialist tools</b> (Proposal 3) — halt planner + chips into one panel</td>
+            <td style="padding:11px 8px; border-bottom:1px solid var(--yf-border);">Medium — the planner component already exists, just needs a new home + threshold</td>
+            <td style="padding:11px 8px; border-bottom:1px solid var(--yf-border); color:var(--teal-700);">Low · a move, not a rewrite</td>
+          </tr>
+          <tr>
+            <td style="padding:11px 8px; border-bottom:1px solid var(--yf-border); font-weight:600;">3</td>
+            <td style="padding:11px 8px; border-bottom:1px solid var(--yf-border);"><b>Plan / Inspect toggle</b> (Proposal 2) — needs 1+2 in place first to have clean things to toggle</td>
+            <td style="padding:11px 8px; border-bottom:1px solid var(--yf-border);">Larger — a genuine mode with prop threading; also the moment to split the 1336-line file into modules</td>
+            <td style="padding:11px 8px; border-bottom:1px solid var(--yf-border); color:#8a5c06;">Medium · worth planning properly</td>
+          </tr>
+        </table>
+
+        <div class="callout teal" data-n="1" style="margin-top:18px;"><b>Step 1 alone probably fixes 80% of the "complicated" feeling.</b> Six days as six rows, warnings surfaced, one day open at a time. If we ship nothing else, ship this.</div>
+        <div class="callout purple" data-n="2"><b>The file split can ride along with step 3</b> — when Plan/Inspect forces `TravelPanel`, `HaltPlanRow` and `DaySpark` behind a mode boundary anyway, extracting them into their own modules is nearly free. Doing it earlier would mean churning imports twice.</div>
+      </div>
+    </div>
+
+    <div class="legend">
+      <span><span class="pin teal">1–3</span> Proposal callouts — rationale for each design choice</span>
+      <span><span class="pin navy">open</span> State shown in the mock (expanded / collapsed)</span>
+      <span><span class="pin coral">warn</span> Real engine warnings surfaced from the seed trip</span>
+    </div>
+  </section>
+
+</div>
+</body>
+</html>

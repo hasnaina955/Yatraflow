@@ -957,6 +957,34 @@ a.btn { text-decoration: none; }
 .day-progress-fill.sev-medium { background: var(--saffron); }
 .day-progress-fill.sev-high { background: var(--danger); }
 .day-spark { flex: 0 0 auto; opacity: .92; }
+
+/* --- Collapsed day summary row (docs/TIMELINE-PLAN.md Phase 1) --- */
+/* kind tag ("drive day" / "stay day") + route chain under the title */
+.day-summary { display: flex; align-items: baseline; gap: 8px; min-width: 0; margin-top: 2px; }
+.day-kind {
+  flex: 0 0 auto; font-size: 10px; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--text-3); background: var(--bg-soft); border-radius: 999px; padding: 2px 7px;
+}
+/* the route chain is a real button (opens the day) that reads as plain text */
+.day-route {
+  border: none; background: none; cursor: pointer; padding: 0; text-align: left;
+  font: inherit; font-size: 12px; color: var(--text-2); min-width: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
+}
+.day-route:hover { color: var(--teal-deep); text-decoration: underline; text-underline-offset: 3px; }
+.day-route.muted { cursor: default; }
+.day-route.muted:hover { color: var(--text-3); text-decoration: none; }
+/* collapsed stay days read calmer than drive days (mockup P1's dimmed row) */
+.day-stay-collapsed .day-header > :not(.day-collapse) { opacity: .78; }
+.day-stay-collapsed .day-collapse { opacity: 1; }
+/* per-stop dwell bars, amber on the busiest stop */
+.dwell-bars { display: inline-flex; align-items: flex-end; gap: 2px; height: 14px; flex: 0 0 auto; min-width: 0; max-width: 120px; }
+.dwell-bar {
+  display: inline-block; width: 5px; min-width: 2px; height: 8px; border-radius: 2px 2px 0 0;
+  background: var(--bg-soft); border: 1px solid var(--line);
+}
+.dwell-bar.busiest { height: 14px; background: var(--saffron); border-color: var(--saffron); }
+
 .day-suggest { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; align-items: center; }
 .chip-btn {
   border: 1px dashed var(--line); background: var(--card-soft); color: var(--text-2);

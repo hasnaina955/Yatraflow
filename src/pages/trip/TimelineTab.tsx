@@ -19,7 +19,8 @@ import {
 import { MODE_SPEED } from '../../lib/engine'
 import type { LegEstimate, ScheduleWarning, Journey } from '../../lib/engine'
 import type { ImpactResult } from '../../lib/impact'
-import { loadDayCollapsed, saveDayCollapsed } from '../../lib/uiPrefs'
+import { loadOpenDay, saveOpenDay } from '../../lib/uiPrefs'
+import { routeChain, stayDaySummary, dwellSegments, accordionNext } from '../../lib/daySummary'
 import { openExternal } from '../../lib/native'
 import { useTimeFormat, formatHM, formatHMRange } from '../../lib/timefmt'
 import { scrollBehavior } from '../../lib/motion'
@@ -88,10 +89,39 @@ export function TimelineTab({ trip, editable, applyChange, legCorrections, sugge
   // the memoized DaySections below only re-render when their own data changes.
   const days = useMemo(() => [...trip.days].sort((a, b) => a.index - b.index), [trip.days])
 
+  // --- Collapsed-by-default accordion (docs/TIMELINE-PLAN.md Phase 1) ---
+  // ONE open day per trip, persisted per trip id (uiPrefs `yatraflow_open_day`);
+  // NO_OPEN_DAY = every day collapsed, which is the default. Collapse state is
+  // LIFTED here so the summary rows + jump rail can drive it; the old per-day
+  // collapsed map is retired (per-day booleans can't express accordion).
+  const [openDayIndex, setOpenDayIndex] = useState(() => loadOpenDay(trip.id))
+  // (TripWorkspace keys this component by trip id, so a trip switch remounts
+  // it and this init re-reads the right trip — no reset effect needed.)
+  // Persisted inside the updater: React may re-run updaters in dev StrictMode,
+  // but saveOpenDay is idempotent so the write stays correct.
+  const toggleDay = useCallback((dayIndex: number) => {
+    setOpenDayIndex(prev => {
+      const next = accordionNext(prev, dayIndex)
+      saveOpenDay(trip.id, next)
+      return next
+    })
+  }, [trip.id])
+  /** Open without toggling (jump rail, + Add here) — no-op when already open. */
+  const openDay = useCallback((dayIndex: number) => {
+    setOpenDayIndex(prev => {
+      if (prev === dayIndex) return prev
+      saveOpenDay(trip.id, dayIndex)
+      return dayIndex
+    })
+  }, [trip.id])
+
   // M3.3: every DaySection prop below must keep a stable identity between
   // commits that don't touch the trip, or the React.memo on DaySection never
   // bites (an unrelated store commit re-renders TimelineTab via the tab counts).
-  const handleAdd = useCallback((dayIndex: number) => setEditorState({ mode: 'add', dayIndex }), [])
+  const handleAdd = useCallback((dayIndex: number) => {
+    openDay(dayIndex) // adding into a collapsed day would hide the result — expand it
+    setEditorState({ mode: 'add', dayIndex })
+  }, [openDay])
   const handleEdit = useCallback((stopId: string) => setEditorState({ mode: 'edit', stopId }), [])
 
   function handleSave(v: StopFormValues) {
@@ -174,8 +204,10 @@ export function TimelineTab({ trip, editable, applyChange, legCorrections, sugge
   // M4: sticky trip-total strip (doc §6.3) — same engine numbers as Overview.
   const totals = useMemo(() => computeTotals(trip, legCorrections), [trip, legCorrections])
 
-  /** Day-jump rail: scroll a long timeline straight to a day card. */
+  /** Day-jump rail: open the day (accordion) and scroll a long timeline
+   *  straight to its card. */
   function jumpToDay(dayIndex: number) {
+    openDay(dayIndex)
     const el = document.getElementById(`day-card-${dayIndex}`)
     if (!el) return
     const rect = el.getBoundingClientRect()
@@ -289,7 +321,7 @@ export function TimelineTab({ trip, editable, applyChange, legCorrections, sugge
       )}
 
       {days.map(day => (
-        <DaySection key={day.id} day={day} trip={trip} editable={editable} legCorrections={legCorrections} suggestionCache={suggestionCache} dayTotals={totals.byDay[Math.min(day.index, totals.byDay.length - 1)]}
+        <DaySection key={day.id} day={day} trip={trip} editable={editable} open={openDayIndex === day.index} onToggleOpen={toggleDay} legCorrections={legCorrections} suggestionCache={suggestionCache} dayTotals={totals.byDay[Math.min(day.index, totals.byDay.length - 1)]}
           onAdd={handleAdd}
           onEdit={handleEdit}
           onDelete={handleDelete}
@@ -377,14 +409,37 @@ function ClampedText({ children, className }: { children: React.ReactNode; class
   )
 }
 
+/** Collapsed-row dwell chart (docs/TIMELINE-PLAN.md Phase 1): one bar per
+ *  visible stop, amber on the stop that eats the most of the day. Pure data
+ *  from dwellSegments; hides itself when the chart would say nothing. */
+function DwellBars({ day }: { day: Trip['days'][number] }) {
+  const segs = dwellSegments(day)
+  if (!segs) return null
+  return (
+    <span className="dwell-bars" aria-hidden="true">
+      {segs.map(s => (
+        <i
+          key={s.stop.id}
+          className={s.busiest ? 'dwell-bar busiest' : 'dwell-bar'}
+          style={{ flexGrow: s.weight }}
+          title={`${s.stop.title} · ${minutesToHM(s.minutes)} at the stop`}
+        />
+      ))}
+    </span>
+  )
+}
+
 // React.memo on the timeline hot path: TimelineTab re-renders on every store
 // commit (the shell's useDb feeds the tab counts), but with stable props each
 // DaySection now bails out unless ITS day/trip data actually changed (M3.1 made
 // trip references immutable, so `day`/`trip` are stable between commits).
-const DaySection = React.memo(function DaySection({ day, trip, editable, onAdd, onEdit, onDelete, onMoveWithinDay, onMoveBetweenDays, onMoveStopIn, onRenameDay, onCopyDay, onAddQuickStop, onSetDayStart, onAddPlannedHalts, warnings, onStatus, legCorrections, suggestionCache, dayTotals }: {
+const DaySection = React.memo(function DaySection({ day, trip, editable, open, onToggleOpen, onAdd, onEdit, onDelete, onMoveWithinDay, onMoveBetweenDays, onMoveStopIn, onRenameDay, onCopyDay, onAddQuickStop, onSetDayStart, onAddPlannedHalts, warnings, onStatus, legCorrections, suggestionCache, dayTotals }: {
   day: Trip['days'][number]
   trip: Trip
   editable: boolean
+  /** accordion state, owned by TimelineTab (one open day per trip) */
+  open: boolean
+  onToggleOpen: (dayIndex: number) => void
   legCorrections?: Record<string, LegEstimate>
   suggestionCache: ReturnType<typeof useSuggestionCache>
   /** this day's slice of computeTotals().byDay ΓÇö transport + expenses + entry fees */
@@ -435,18 +490,13 @@ const DaySection = React.memo(function DaySection({ day, trip, editable, onAdd, 
   )
   const commitmentsToday = trip.fixedCommitments.filter(fc => fc.dayIndex === day.index)
 
-  // --- Phase 3/4: collapse, rename, day progress, empty-day suggestions ---
-  // Collapse state persists across reloads per trip+day (localStorage, not trip
-  // data — it's a view preference, not part of the plan). Unknown days default
-  // to expanded.
-  const [collapsed, setCollapsed] = useState(() => loadDayCollapsed(trip.id, day.index))
+  // --- Collapsed-by-default accordion (docs/TIMELINE-PLAN.md Phase 1) ---
+  // Collapse state lives in TimelineTab (one open day per trip, persisted via
+  // uiPrefs.loadOpenDay). This component is controlled: `open` in, `onToggleOpen`
+  // out — the old local collapsed useState + per-day localStorage map is retired.
+  const collapsed = !open
   const timeFormat = useTimeFormat()
-  function toggleCollapsed() {
-    setCollapsed(c => {
-      saveDayCollapsed(trip.id, day.index, !c)
-      return !c
-    })
-  }
+  const onCollapseClick = useCallback(() => onToggleOpen(day.index), [onToggleOpen, day.index])
   const [editingTitle, setEditingTitle] = useState(false)
   const [titleDraft, setTitleDraft] = useState(day.title ?? '')
   const [nearby, setNearby] = useState<PlaceHit[]>([])
@@ -485,11 +535,11 @@ const DaySection = React.memo(function DaySection({ day, trip, editable, onAdd, 
   const sev = warnings.some(w => w.severity === 'high') ? 'high' : warnings.some(w => w.severity === 'medium') ? 'medium' : 'ok'
 
   return (
-    <div className="day-section" id={`day-card-${day.index}`}>
+    <div className={`day-section${collapsed && isStayDay ? ' day-stay-collapsed' : ''}`} id={`day-card-${day.index}`}>
       <div className="day-header">
         {/* Stable name + state attribute (UI audit F-09); the collapsible body
             is a fragment of siblings, so there's no single aria-controls id. */}
-        <button className="day-collapse" onClick={toggleCollapsed} aria-expanded={!collapsed} aria-label={`Day ${day.index + 1} stops`}>
+        <button className="day-collapse" onClick={onCollapseClick} aria-expanded={!collapsed} aria-label={`Day ${day.index + 1} stops`}>
           {collapsed ? '▸' : '▾'}
         </button>
         <div className="day-badge"><small>Day</small><b>{day.index + 1}</b></div>
@@ -518,6 +568,21 @@ const DaySection = React.memo(function DaySection({ day, trip, editable, onAdd, 
             </button>
           ) : (
             <h3>{day.title ?? `Day ${day.index + 1}`}</h3>
+          )}
+          {/* Collapsed summary row (docs/TIMELINE-PLAN.md Phase 1): kind tag +
+              route chain — the middle stops the stats line doesn't show. The
+              chain is a real button so the whole row opens like the mockup. */}
+          {collapsed && (
+            <div className="day-summary">
+              <span className="day-kind">{isStayDay ? 'stay day' : 'drive day'}</span>
+              {isStayDay ? (
+                <span className="day-route muted">{stayDaySummary(visitCount)}</span>
+              ) : (
+                <button type="button" className="day-route" onClick={onCollapseClick} aria-label={`Expand Day ${day.index + 1}`}>
+                  {routeChain(day) || 'No stops yet — tap to plan this day'}
+                </button>
+              )}
+            </div>
           )}
           <div className="small muted num">
             {isStayDay ? (
@@ -563,6 +628,9 @@ const DaySection = React.memo(function DaySection({ day, trip, editable, onAdd, 
           </span>
         )}
         {ordered.filter(s => s.status !== 'rejected').length >= 2 && <DaySpark stops={ordered.filter(s => s.status !== 'rejected')} />}
+        {/* Collapsed-only dwell chart: one bar per stop, amber on the stop
+            that eats the most of the day (mockup P1's "busiest stop"). */}
+        {collapsed && <DwellBars day={day} />}
         {editable && (
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
             <button

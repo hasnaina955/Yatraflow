@@ -13,6 +13,33 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 > record still exists in `git log`, not here. Archived release notes live in
 > [`docs/history/`](docs/history/).
 
+## [Unreleased]
+
+### Added
+
+- **The Timeline opens collapsed — one day at a time, as scannable summary rows.** Phase 1 of
+  the Timeline restructure (`docs/TIMELINE-PLAN.md`, mockups in `docs/TIMELINE-MOCKUPS.html`):
+  every day now starts as a summary row — kind tag ("drive day" / "stay day"), the full route
+  chain of stop names (the middle stops the stats line never showed), the existing km/drive/
+  clock stats, the load progress bar, the top warning pill, the route spark, and a new per-stop
+  dwell chart with the busiest stop in amber; stay days render dimmed with a "No driving
+  today" line. Opening a day collapses the others (accordion), and the one open day is
+  persisted per trip (`yatraflow_open_day` in `uiPrefs.ts`) so a reload restores where you
+  were — the old per-day collapsed map is retired, since per-day booleans can't express
+  accordion state. The "Jump to day" chip rail now opens the day it scrolls to, and `+ Add
+  here` on a collapsed day expands it before opening the editor, so an add never lands in a
+  hidden day. Collapse state is lifted into `TimelineTab` (`DaySection` is now a controlled
+  component with `open` / `onToggleOpen`); pure helpers live in the new node-testable
+  `src/lib/daySummary.ts` (route chain, stay-day summary, accordion transition, dwell
+  segments), pinned by `tests/daySummary.test.ts` plus open-day persistence tests in
+  `tests/uiPrefs.test.ts` — including the negative-control that opening Day 2 collapses
+  Day 1. Drag-reorder, cross-day moves and the realtime echo guard are untouched.
+- **Timeline restructure plan and mockups (planning artefacts).** `docs/TIMELINE-PLAN.md` is
+  the phased, code-audited implementation plan (collapsed accordion day rows → evict
+  specialist tools → Plan/Inspect split + file split) with the three design decisions signed
+  off; `docs/TIMELINE-MOCKUPS.html` is the approved visual prototype rendered in YatraFlow's
+  design tokens.
+
 ## [0.50.0] - 2026-09-11
 
 **Every trip edit finally sticks — the "Change saved but nothing changed" defect is dead.** `updateTrip()` treated *every* full-trip save from the impact-preview flow as a date change (a full `Trip` always carries truthy `startDate`/`endDate`), rebuilt the day grid from the *pre-edit* cached days, and overwrote the proposed reorder/delete/move in both the cache and the persisted row — while still toasting "Change saved". The day grid now reconciles only when the dates actually changed, and reconciles the *incoming* days, so reorders, arrow moves, drag-and-drop, deletes and cross-day moves all persist in real time and survive reload. Pinned by two regression tests that fail on the old code and pass with the fix.

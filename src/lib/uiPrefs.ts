@@ -55,6 +55,66 @@ export function saveDayCollapsed(tripId: string, dayIndex: number, collapsed: bo
   }
 }
 
+// ---- Accordion open-day (Timeline) ----
+// The collapsed-by-default Timeline keeps ONE day open per trip (accordion):
+// a day index, or NO_OPEN_DAY when every day is collapsed. Stored per trip so
+// a reload restores the day you were working on. This supersedes the per-day
+// `yatraflow_day_collapsed` map above — per-day booleans can't express
+// "opening one day closes the others", and under accordion semantics the old
+// map's history is meaningless, so it is retired from active use (its helpers
+// stay exported for compatibility).
+const OPEN_DAY_KEY = 'yatraflow_open_day'
+
+/** Sentinel for "no day is open" (the collapsed-by-default state). */
+export const NO_OPEN_DAY = -1
+
+/**
+ * Parse the stored open-day map. Accepts only a flat object of integers
+ * ≥ NO_OPEN_DAY — anything else is dropped, so a corrupted entry degrades to
+ * "all collapsed" instead of crashing the UI.
+ */
+export function parseOpenDayMap(raw: string | null | undefined): Record<string, number> {
+  if (!raw) return {}
+  try {
+    const parsed: unknown = JSON.parse(raw)
+    if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) return {}
+    const out: Record<string, number> = {}
+    for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
+      if (typeof v === 'number' && Number.isInteger(v) && v >= NO_OPEN_DAY) out[k] = v
+    }
+    return out
+  } catch {
+    return {}
+  }
+}
+
+/** Read the trip's open day; unknown/missing = NO_OPEN_DAY (all collapsed). */
+export function loadOpenDay(tripId: string): number {
+  if (typeof localStorage === 'undefined') return NO_OPEN_DAY
+  try {
+    const map = parseOpenDayMap(localStorage.getItem(OPEN_DAY_KEY))
+    return map[tripId] ?? NO_OPEN_DAY
+  } catch {
+    return NO_OPEN_DAY
+  }
+}
+
+/**
+ * Write the trip's open day (`NO_OPEN_DAY` closes all). Silent no-op when
+ * storage is unavailable.
+ */
+export function saveOpenDay(tripId: string, dayIndex: number): void {
+  if (typeof localStorage === 'undefined') return
+  try {
+    const map = parseOpenDayMap(localStorage.getItem(OPEN_DAY_KEY))
+    if (!Number.isInteger(dayIndex) || dayIndex < NO_OPEN_DAY) return
+    map[tripId] = dayIndex
+    localStorage.setItem(OPEN_DAY_KEY, JSON.stringify(map))
+  } catch {
+    // Private mode / quota exceeded — persistence is best-effort by design.
+  }
+}
+
 // Same map-of-booleans pattern, for long-ride hint dismissal (user chose
 // "not needed" for a given day's halt suggestions; restorable).
 const RIDE_HINTS_KEY = 'yatraflow_ride_hints_hidden'

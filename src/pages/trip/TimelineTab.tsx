@@ -2,7 +2,7 @@
 // Mechanical extraction from src/pages/TripWorkspace.tsx (M3.4) — no behavior changes.
 // Includes DaySection, DayWeatherChip, TravelPanel, HaltPlanRow, DaySpark,
 // MoveStopModal and ClampedText — the whole timeline hot path.
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   ArrowRight, Ban, Car, ChevronDown, ChevronUp, CircleCheck, CircleHelp, Clock, CloudRain, CloudSun,
   BedDouble, Bike, Bus, CarTaxiFront, Coffee, Copy, Droplets, ExternalLink, Eye, Flag, Fuel, MapPin,
@@ -23,7 +23,7 @@ import { loadOpenDay, saveOpenDay } from '../../lib/uiPrefs'
 import { routeChain, stayDaySummary, dwellSegments, accordionNext, visibleStops } from '../../lib/daySummary'
 import { openExternal } from '../../lib/native'
 import { useTimeFormat, formatHM, formatHMRange } from '../../lib/timefmt'
-import { scrollBehavior } from '../../lib/motion'
+import { scrollBehavior, prefersReducedMotion } from '../../lib/motion'
 import { stopKindOf, STOP_KIND_LABELS } from '../../lib/stopKind'
 import { statusLabel } from '../../lib/labels'
 import { Chip, Modal, EmptyState, toast, useReorder } from '../../components/ui'
@@ -429,6 +429,34 @@ function DwellBars({ day }: { day: Trip['days'][number] }) {
   )
 }
 
+/** Smooth open/close for a day body: the wrapper animates grid rows 0fr→1fr
+ *  (height-agnostic, no max-height guessing), mounting the body just before
+ *  the expand and unmounting it just after the collapse — so a closed day
+ *  still costs nothing (the collapsed-by-default premise) while the motion
+ *  stays smooth. A section that mounts already-open does NOT animate (no
+ *  surprise motion on page load). */
+function SmoothCollapse({ open, children }: { open: boolean; children: React.ReactNode }) {
+  const [mounted, setMounted] = useState(open)
+  const [expanded, setExpanded] = useState(open)
+  useEffect(() => {
+    if (open) {
+      setMounted(true)
+      let raf2 = 0
+      const raf1 = requestAnimationFrame(() => { raf2 = requestAnimationFrame(() => setExpanded(true)) })
+      return () => { cancelAnimationFrame(raf1); cancelAnimationFrame(raf2) }
+    }
+    setExpanded(false)
+    const t = window.setTimeout(() => setMounted(false), 280)
+    return () => window.clearTimeout(t)
+  }, [open])
+  if (!mounted) return null
+  return (
+    <div className={`day-body-clip${expanded ? ' open' : ''}`} aria-hidden={!expanded}>
+      <div className="day-body-clip-inner">{children}</div>
+    </div>
+  )
+}
+
 // React.memo on the timeline hot path: TimelineTab re-renders on every store
 // commit (the shell's useDb feeds the tab counts), but with stable props each
 // DaySection now bails out unless ITS day/trip data actually changed (M3.1 made
@@ -472,10 +500,25 @@ const DaySection = React.memo(function DaySection({ day, trip, editable, open, o
   // transfers, and any day where the user adds travel manually.
   const isStayDay = journey.points.length <= 1 && journey.distanceKm < 0.5
   const A = getAssumptions(trip)
-  const ordered = [...day.stops].sort((a, b) => a.orderInDay - b.orderInDay)
-  const { dndHandlers, dayDropHandlers, dragging, over, foreignOver, moveUp, moveDown } = useReorder(
+  const ordered = useMemo(() => [...day.stops].sort((a, b) => a.orderInDay - b.orderInDay), [day.stops])
+  // --- Premium kanban drag (parity with BoardView): the DOM order NEVER
+  // changes mid-drag — a slim teal marker glides to the insertion slot and the
+  // final arrangement settles ONCE via the FLIP pass on commit. Same-list
+  // drops resolve through the marker, not the card under the cursor. ---
+  const stopsRef = useRef<HTMLDivElement>(null)
+  const [insert, setInsert] = useState<{ idx: number; y: number } | null>(null)
+  const insertRef = useRef(insert)
+  insertRef.current = insert
+  const { dndHandlers, dayDropHandlers, dragging, foreignOver, moveUp, moveDown } = useReorder(
     ordered,
-    (f, t) => onMoveWithinDay(f, t, day.index),
+    (fromIdx) => {
+      // idx counts positions in the full list (dragged slot included), so a
+      // slot past the dragged index shifts down once it is removed.
+      const idx = insertRef.current?.idx ?? fromIdx
+      const toIdx = idx > fromIdx ? idx - 1 : idx
+      if (toIdx !== fromIdx) onMoveWithinDay(fromIdx, toIdx, day.index)
+      setInsert(null)
+    },
     {
       dragPayload: (s) => JSON.stringify({ stopId: s.id, fromDay: day.index }),
       onForeignDrop: (payload, toIdx) => {
@@ -488,6 +531,72 @@ const DaySection = React.memo(function DaySection({ day, trip, editable, open, o
       },
     },
   )
+  useEffect(() => { if (dragging === null) setInsert(null) }, [dragging])
+
+  /** Marker position from the cursor: index of the row whose midpoint the
+   *  cursor is above, and the y of the gap before that row. */
+  function onListDragOver(e: React.DragEvent<HTMLDivElement>) {
+    if (dragging === null) return
+    e.preventDefault()
+    const rootEl = stopsRef.current
+    if (!rootEl) return
+    const rows = Array.from(rootEl.querySelectorAll<HTMLElement>('[data-stop-id]'))
+    let idx = rows.length
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i].getBoundingClientRect()
+      if (e.clientY < r.top + r.height / 2) { idx = i; break }
+    }
+    const y = rows.length === 0 ? 8
+      : idx < rows.length ? rows[idx].offsetTop - 6
+      : rows[rows.length - 1].offsetTop + rows[rows.length - 1].offsetHeight + 4
+    const cur = insertRef.current
+    if (!cur || cur.idx !== idx || Math.abs(cur.y - y) > 2) setInsert({ idx, y })
+  }
+  function onListDragLeave(e: React.DragEvent<HTMLDivElement>) {
+    if (!stopsRef.current?.contains(e.relatedTarget as Node | null)) setInsert(null)
+  }
+  /** Drops landing in the gaps between rows (row handlers stopPropagation). */
+  function onListDrop(e: React.DragEvent<HTMLDivElement>) {
+    if (dragging === null) return
+    e.preventDefault()
+    const idx = insertRef.current?.idx ?? ordered.length
+    const toIdx = idx > dragging ? idx - 1 : idx
+    if (toIdx !== dragging) onMoveWithinDay(dragging, toIdx, day.index)
+    setInsert(null)
+  }
+
+  // FLIP slot-in (BoardView parity): when this day's arrangement changes
+  // (same-day reorder, or a stop slotting in from another day), every row
+  // animates from its previous position to the new one — compositor-only.
+  // Fires once per committed arrangement, never during the drag itself: the
+  // marker carries all the in-drag feedback.
+  const prevRects = useRef<Map<string, { x: number; y: number }> | null>(null)
+  useLayoutEffect(() => {
+    const rootEl = stopsRef.current
+    if (!rootEl) return
+    const now = new Map<string, { x: number; y: number }>()
+    for (const el of Array.from(rootEl.querySelectorAll<HTMLElement>('[data-stop-id]'))) {
+      const r = el.getBoundingClientRect()
+      now.set(el.dataset.stopId!, { x: r.left, y: r.top })
+    }
+    const prev = prevRects.current
+    if (prev && !prefersReducedMotion()) {
+      for (const [id, p] of now) {
+        const q = prev.get(id)
+        if (!q) continue
+        const dx = q.x - p.x
+        const dy = q.y - p.y
+        if (dx || dy) {
+          rootEl.querySelector<HTMLElement>(`[data-stop-id="${CSS.escape(id)}"]`)
+            ?.animate(
+              [{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }],
+              { duration: 240, easing: 'cubic-bezier(.22, .61, .36, 1)' },
+            )
+        }
+      }
+    }
+    prevRects.current = now
+  }, [ordered])
   const commitmentsToday = trip.fixedCommitments.filter(fc => fc.dayIndex === day.index)
 
   // --- Collapsed-by-default accordion (docs/TIMELINE-PLAN.md Phase 1) ---
@@ -665,7 +774,7 @@ const DaySection = React.memo(function DaySection({ day, trip, editable, open, o
         )}
       </div>
 
-      {!collapsed && <>
+      <SmoothCollapse open={!collapsed}>
       {commitmentsToday.map(fc => (
         <div key={fc.id} className="warn-item sev-low" style={{ marginBottom: 8 }}>
           <span className="warn-icon"><Pin size={13} aria-hidden /></span>
@@ -710,7 +819,11 @@ const DaySection = React.memo(function DaySection({ day, trip, editable, open, o
         )}
       </>)}
 
-      <div className={`tl${dragging !== null ? ' is-dragging' : ''}`}>
+      <div className={`tl${dragging !== null ? ' is-dragging' : ''}`} ref={stopsRef}
+        onDragOver={onListDragOver} onDragLeave={onListDragLeave} onDrop={onListDrop}>
+        {dragging !== null && insert && (
+          <div className="board-drop-marker" style={{ transform: `translateY(${insert.y}px)` }} />
+        )}
         {ordered.map((s, i) => {
           // Auto anchors (trip start/end, route-continuation waypoints) are pure
           // route endpoints, not activities. The rich travel summary (mode,
@@ -727,7 +840,7 @@ const DaySection = React.memo(function DaySection({ day, trip, editable, open, o
             // day, the return day, and manually planned travel days).
             if (isStayDay) {
               return (
-                <div key={s.id} className="tl-row tl-anchor" {...(editable ? dndHandlers(i) : {})}>
+                <div key={s.id} data-stop-id={s.id} className="tl-row tl-anchor" {...(editable ? dndHandlers(i) : {})}>
                   <div className="tl-gutter" aria-hidden="true" />
                   <div className="travel-endpoint">
                     <span className="travel-anchor-ico"><MapPin size={13} aria-hidden /></span>
@@ -737,7 +850,7 @@ const DaySection = React.memo(function DaySection({ day, trip, editable, open, o
               )
             }
             return (
-              <div key={s.id} className="tl-row tl-anchor" {...(editable ? dndHandlers(i) : {})}>
+              <div key={s.id} data-stop-id={s.id} className="tl-row tl-anchor" {...(editable ? dndHandlers(i) : {})}>
                 <div className="tl-gutter" aria-hidden="true">
                   <span className="tl-time">{isFinal ? (sim.arrivalTimes[i] ? formatHM(sim.arrivalTimes[i], timeFormat) : '--:--') : (sim.departures[i] ? formatHM(sim.departures[i], timeFormat) : '--:--')}</span>
                 </div>
@@ -756,6 +869,7 @@ const DaySection = React.memo(function DaySection({ day, trip, editable, open, o
             <React.Fragment key={s.id}>
               <div
                 className="tl-row"
+                data-stop-id={s.id}
                 {...(editable ? dndHandlers(i) : {})}
               >
                 <div className="tl-gutter" aria-hidden="true">
@@ -764,7 +878,7 @@ const DaySection = React.memo(function DaySection({ day, trip, editable, open, o
                   <span className="tl-time tl-dep">{sim.departures[i] ? formatHM(sim.departures[i], timeFormat) : '--:--'}</span>
                 </div>
                 <div
-                  className={`stop-card kind-${kind} status-${s.status} ${dragging === i ? 'dragging' : ''} ${over === i && dragging !== null && dragging !== i ? 'drag-over' : ''} ${foreignOver === i && dragging === null ? 'foreign-over' : ''}`}
+                  className={`stop-card kind-${kind} status-${s.status} ${dragging === i ? 'dragging' : ''} ${foreignOver === i && dragging === null ? 'foreign-over' : ''}`}
                 >
                 <div className={`stop-num cat-${s.category}`}>{i + 1}</div>
               <div className="stop-main">
@@ -856,7 +970,7 @@ const DaySection = React.memo(function DaySection({ day, trip, editable, open, o
           </div>
         )}
       </div>
-      </>}
+      </SmoothCollapse>
     </div>
   )
 })

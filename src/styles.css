@@ -839,6 +839,9 @@ a.btn { text-decoration: none; }
   padding: 10px 13px;
   width: 100%;
 }
+/* Board-parity: the timeline stop list hosts the same gliding drop marker
+   (see .board-drop-marker); rows carry data-stop-id for the FLIP settle. */
+.tl { position: relative; }
 .tl-anchor { margin-bottom: 8px; }
 .travel-anchor-title {
   display: flex; align-items: center; gap: 7px;
@@ -991,6 +994,18 @@ a.btn { text-decoration: none; }
 /* collapsed stay days read calmer than drive days (mockup P1's dimmed row) */
 .day-stay-collapsed .day-header > :not(.day-collapse) { opacity: .8; }
 .day-stay-collapsed .day-collapse { opacity: 1; }
+
+/* Smooth day open/close: the body animates grid rows 0fr→1fr (height-agnostic
+   — no max-height guessing), and SmoothCollapse unmounts it after the collapse
+   so a closed day still costs nothing. visibility lags the collapse so the
+   content stays paintable through the animation but leaves the tab order. */
+.day-body-clip { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .24s var(--ease-out); }
+.day-body-clip.open { grid-template-rows: 1fr; }
+.day-body-clip-inner { overflow: hidden; min-height: 0; visibility: hidden; transition: visibility 0s .24s; }
+.day-body-clip.open .day-body-clip-inner { visibility: visible; transition: visibility 0s; }
+@media (prefers-reduced-motion: reduce) {
+  .day-body-clip, .day-body-clip-inner { transition: none; }
+}
 /* per-stop dwell bars, amber on the busiest stop. The saffron fill alone is
    2.14:1 on the white card — below the 3:1 non-text floor — so the busiest
    bar carries a warn-600 boundary (3.92:1) that marks it as the meaningful

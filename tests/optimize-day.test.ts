@@ -53,6 +53,23 @@ describe('optimizeDayOrder', () => {
     expect(res.stops.map(s => s.id)).toEqual(ordered.map(s => s.id))
   })
 
+  it('never writes into the input stops (purity contract)', () => {
+    // The UI calls this in a render-phase memo with LIVE store stops — a
+    // renumber in place would reorder the day on screen before any approval
+    // and poison the impact preview's before-state. Regression for the exact
+    // mutation shipped in the original optimise-day commit.
+    const input = [
+      stop(10.000, 10.300), // far — will move later in the sweep
+      stop(10.000, 10.100), // near
+      stop(10.000, 10.250),
+    ] as ItineraryStop[]
+    input.forEach((s, i) => { s.orderInDay = i + 1 })
+    const before = input.map(s => ({ id: s.id, orderInDay: s.orderInDay }))
+    const res = optimizeDayOrder(origin, input)
+    expect(res.changed).toBe(true)
+    expect(input.map(s => ({ id: s.id, orderInDay: s.orderInDay }))).toEqual(before)
+  })
+
   it('pins auto anchors to the front and back, optimizes only the middle', () => {
     const anchor = stop(10.000, 10.000, { auto: true, title: 'Hotel' })
     const dest = stop(10.000, 10.500, { auto: true, title: 'Destination' })

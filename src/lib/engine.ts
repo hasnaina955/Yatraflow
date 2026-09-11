@@ -950,7 +950,7 @@ export function optimizeDayOrder(
   const withAnchors = head ? [head, ...order] : order
   if (tail) withAnchors.push(tail)
   let route = withAnchors
-  const kmOf = (r: ItineraryStop[]) => dayRouteKm(head ? origin : origin, r.filter(s => s.status !== 'rejected'))
+  const kmOf = (r: ItineraryStop[]) => dayRouteKm(origin, r.filter(s => s.status !== 'rejected'))
   let improved = true
   while (improved) {
     improved = false
@@ -972,8 +972,13 @@ export function optimizeDayOrder(
   // Re-merge: rejected stops ride along AFTER the actives — the engine and
   // the timeline skip them entirely, so only their slot needs to stay stable
   // (they surface at the day's end if un-rejected later). No stop is dropped.
+  // The renumber must not write into the caller's stop objects: the UI calls
+  // this in a render-phase memo with LIVE store stops, and mutating their
+  // orderInDay here would reorder the day on screen before anyone approved
+  // anything (and make the impact preview compare against the already-mutated
+  // state). The doc contract is "input untouched" — clone before renumbering.
   const rejected = sorted.filter(s => s.status === 'rejected')
-  const finalStops = [...route, ...rejected]
+  const finalStops = [...route, ...rejected].map(s => ({ ...s }))
   finalStops.forEach((s, i) => { s.orderInDay = i + 1 })
   return { stops: finalStops, beforeKm, afterKm, changed }
 }

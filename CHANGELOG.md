@@ -23,6 +23,16 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ### Fixed
 
+- **"Optimise day" no longer mutates the live trip while merely rendering.**
+  The review of the optimise-day feature caught `optimizeDayOrder` renumbering
+  `orderInDay` on the caller's stop objects — violating its own "input
+  untouched" contract — while the Timeline calls it in a render-phase memo
+  with the live store stops. On any day with a suggested improvement, that
+  wrote the optimized order into the store outside the impact-preview gate:
+  the day silently reordered on the next re-render without approval, and the
+  preview then compared against the already-mutated state. The helper now
+  clones the stops before renumbering (a regression test pins the contract),
+  and a no-op ternary in its 2-opt objective is cleaned up.
 - **Day routes on the map follow what the engine plans, not just the stored stops.** Selecting a day on the map drew only lines between that day's *stored* stops, so any day whose ride exists in the engine's synthesis drew nothing — the anchor-only outbound (Day 1 of a Kolkata → Mandarmani trip showed nothing at all when only the anchors existed) and the final day's ride home (Mandarmani → Kolkata, which the timeline's travel panel already described) were invisible on the map. Single-day routes now build from `buildJourney`'s points — origin → stops → synthesized destination — so every day the travel panel describes as a drive draws its route on the map, and stay days stay quiet.
 - **Manually planned halts sit on the road now, not off it.** A halt added "after N km" was placed by interpolating straight-line km along the sparse stop-to-stop chain, while the km the travel panel displays (and the route the map draws) are OSRM/Google road km — on anything but a ruler-straight highway the halt landed at the wrong spot, visibly floating off the drawn route, and could even slot next to the wrong stop in the day's order. The routing layer's per-leg road geometry is now retained instead of discarded, the day's ride is assembled into one continuous road polyline (`dayRoadPolyline`), and halt placement, halt ordering, corridor-spot km and slack-pick km all measure along it — falling back to the old chord math only while routing hasn't resolved (offline/estimate). Roadside breaks stay exactly what bikers want: on-route points at your km, with the detour-to-a-named-spot checkbox still opt-in as before.
 - **The Map tab's halt plan budgets time and picks days on road km too.** `planKm` already used the OSRM road total, but the wheel-time budget (`wholeTrip.min`) and the "which day does this km belong to" default still summed haversine estimates — on curvy routes the fatigue cadence ran ~15–40% short and halts could default to the wrong day. The routing legs already fetched for the map now also yield road-true total minutes and per-day road km (a leg is ridden on the day of its destination), with the journey sums kept as the fallback.

@@ -192,7 +192,11 @@ export function StopEditor({ open, onClose, initial, resetKey, onSave, dayLabel,
           </Field>
           <Field label="Priority">
             <Select value={v.priority} onChange={val => set('priority', val as ItineraryStop['priority'])}
-              options={[{ value: 'must-do', label: 'Must do' }, { value: 'nice-to-have', label: 'Nice to have' }, { value: 'optional', label: 'Optional' }]} />
+              options={[
+                { value: 'must-do', label: 'Must do', icon: <span className="opt-dot" style={{ background: 'var(--coral)' }} /> },
+                { value: 'nice-to-have', label: 'Nice to have', icon: <span className="opt-dot" style={{ background: 'var(--teal)' }} /> },
+                { value: 'optional', label: 'Optional', icon: <span className="opt-dot" style={{ background: 'var(--gray-400)' }} /> },
+              ]} />
           </Field>
         </div>
 
@@ -277,7 +281,17 @@ export function StopEditor({ open, onClose, initial, resetKey, onSave, dayLabel,
           </Field>
           <Field label="Status">
             <Select value={v.status} onChange={val => set('status', val as StopStatus)}
-              options={STOP_STATUSES.map(s => ({ value: s, label: statusLabel(s) }))} />
+              options={STOP_STATUSES.map(s => ({
+                value: s,
+                label: statusLabel(s),
+                icon: <span className="opt-dot" style={{
+                  background: s === 'confirmed' ? 'var(--ok)'
+                    : s === 'rejected' ? 'var(--coral)'
+                    : s === 'maybe' ? 'var(--warn)'
+                    : s === 'needs-booking' ? 'var(--saffron)'
+                    : 'var(--gray-400)',
+                }} />,
+              }))} />
           </Field>
         </div>
 

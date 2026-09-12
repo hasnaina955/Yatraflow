@@ -240,9 +240,9 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
         ) : (
           <>
             <div className="explore-grid">
-              {pubs.slice(0, visibleCount).map(p => (
+              {pubs.slice(0, visibleCount).map((p, i) => (
                 <PubCard key={p.id} pub={p} creator={userOf(users, p.creatorId)} saved={isSaved(p.id)}
-                  onFork={() => forkTrip(p.id)} onToggleSave={() => toggleHeart(p.id)} />
+                  onFork={() => forkTrip(p.id)} onToggleSave={() => toggleHeart(p.id)} enterIndex={i} />
               ))}
             </div>
             {pubs.length > visibleCount && (

@@ -87,7 +87,7 @@ export function ProfilePage({ onNavigate }: { onNavigate: (r: string) => void })
             </Field>
           </div>
 
-          <div className="card" style={{ marginTop: 16 }}>
+          <div className="card stack-gap">
             <h3>Travel styles</h3>
             <p className="hint-text" style={{ margin: '6px 0 10px' }}>Pick all that fit — helps collaborators know what kind of trip to invite you to.</p>
             <div className="chip-row">
@@ -97,7 +97,7 @@ export function ProfilePage({ onNavigate }: { onNavigate: (r: string) => void })
             </div>
           </div>
 
-          <div className="card" style={{ marginTop: 16 }}>
+          <div className="card stack-gap">
             <h3>Display preferences</h3>
             <hr className="divider" />
             <Field label="Clock format" hint={`Applies across the app. Example: ${formatHM('18:30', timeFormat)}`}>
@@ -135,7 +135,7 @@ export function ProfilePage({ onNavigate }: { onNavigate: (r: string) => void })
             )}
           </div>
 
-          <div className="card" style={{ marginTop: 16 }}>
+          <div className="card stack-gap">
             <h3>Save details</h3>
             <hr className="divider" />
             <button className="btn btn-primary" onClick={() => {
@@ -153,7 +153,7 @@ export function ProfilePage({ onNavigate }: { onNavigate: (r: string) => void })
             <button className="btn btn-ghost btn-sm" style={{ marginLeft: 10 }} onClick={() => onNavigate('/trips')}>← Back to my trips</button>
           </div>
 
-          <div className="card" style={{ marginTop: 16 }}>
+          <div className="card stack-gap">
             <h3>Notifications</h3>
             <p className="hint-text" style={{ margin: '6px 0 12px' }}>
               Get an OS-level ping when a collaborator writes to you — even with
@@ -195,7 +195,7 @@ export function ProfilePage({ onNavigate }: { onNavigate: (r: string) => void })
             )}
           </div>
 
-          <div className="card" style={{ marginTop: 16 }}>
+          <div className="card stack-gap">
             <h3>About your data</h3>
             <p className="hint-text" style={{ marginTop: 6 }}>
               This MVP stores everything locally in your browser. Costs and timings are transparent
@@ -207,7 +207,7 @@ export function ProfilePage({ onNavigate }: { onNavigate: (r: string) => void })
               controls relocate here — Profile is a bottom-nav destination. Each
               card is shell-only; the web keeps the topnav. */}
           {isNative && <>
-            <div className="card" style={{ marginTop: 16 }}>
+            <div className="card stack-gap">
               <h3>Appearance</h3>
               <p className="hint-text" style={{ margin: '6px 0 12px' }}>Light or dark — your choice sticks across trips.</p>
               <button
@@ -219,7 +219,7 @@ export function ProfilePage({ onNavigate }: { onNavigate: (r: string) => void })
               </button>
             </div>
 
-            <div className="card" style={{ marginTop: 16 }}>
+            <div className="card stack-gap">
               <div className="row-between" style={{ marginBottom: 8 }}>
                 <h3 style={{ margin: 0 }}>Notifications</h3>
                 {notifs.length > 0 && notifs.some(n => !n.read) && (
@@ -241,7 +241,7 @@ export function ProfilePage({ onNavigate }: { onNavigate: (r: string) => void })
               )}
             </div>
 
-            <div className="card" style={{ marginTop: 16 }}>
+            <div className="card stack-gap">
               <h3>Account</h3>
               {me.profile.isCreator && (
                 <button className="btn btn-outline btn-sm" style={{ marginBottom: 8 }} onClick={() => onNavigate('/creator-hub')}>

@@ -26,7 +26,7 @@ import { prefersReducedMotion } from '../../../lib/motion'
 import { stopKindOf, STOP_KIND_LABELS } from '../../../lib/stopKind'
 import { statusLabel } from '../../../lib/labels'
 import { Chip, EmptyState, Modal, toast, useReorder } from '../../../components/ui'
-import { glideOffsetPx } from '../../../lib/touchDnd'
+import { glideOffsetPx, insertionIndexFor, rowLayoutBoxes } from '../../../lib/touchDnd'
 import { useSuggestionCache } from '../../../hooks/useSuggestionCache'
 import { searchNearbyPois } from '../../../lib/geocode'
 import type { PlaceHit } from '../../../lib/geocode'
@@ -216,15 +216,17 @@ export const DaySection = React.memo(function DaySection({ day, trip, editable, 
       below springs it from there into its new slot (same-list drops AND
       foreign drops landing here both consume it) */
   const dropRect = useRef<{ id: string; x: number; y: number } | null>(null)
-  const { dndHandlers, dayDropHandlers, dragging, foreignOver, moveUp, moveDown, takeCarryRect } = useReorder(
+  const { dndHandlers, dayDropHandlers, dragging, foreignOver, moveUp, moveDown, takeCarryRect, listId } = useReorder(
     ordered,
     (fromIdx) => {
       // idx counts positions in the full list (dragged slot included), so a
       // slot past the dragged index shifts down once it is removed.
       const idx = insertRef.current ?? fromIdx
       const toIdx = idx > fromIdx ? idx - 1 : idx
+      // consume the carry rect on EVERY self-drop: a no-op slot (released at
+      // rest) must not leak the engine's rect into a later FLIP pass
+      const rect = takeCarryRect()
       if (toIdx !== fromIdx) {
-        const rect = takeCarryRect()
         if (rect && ordered[fromIdx]) dropRect.current = { id: ordered[fromIdx].id, x: rect.x, y: rect.y }
         onMoveWithinDay(fromIdx, toIdx, day.index)
       }
@@ -242,20 +244,19 @@ export const DaySection = React.memo(function DaySection({ day, trip, editable, 
           }
         } catch { /* malformed payload — ignore */ }
       },
-      /** engine hover → insertion slot: the hovered row's midpoint decides
-          before/after; an index past the rows means "at the end". The hole
-          stays where it last read while the finger is outside the list —
-          the same clamp-the-reading, free-the-finger rule bencho uses. */
-      onOwnHover: (idx, _x, y) => {
-        const rows = stopsRef.current?.querySelectorAll<HTMLElement>('[data-stop-id]')
-        if (!rows || rows.length === 0) return
-        let next: number
-        if (idx >= rows.length) {
-          next = rows.length
-        } else {
-          const r = rows[idx].getBoundingClientRect()
-          next = y < r.top + r.height / 2 ? idx : idx + 1
-        }
+      /** engine hover → insertion slot from STABLE layout geometry: the
+          carried card's centre against each row's own midpoint (pure
+          insertionIndexFor, lib/touchDnd.ts). Transform-immune — the gliding
+          rows cannot chase the zones — and defined everywhere, so the 8px
+          margins and whitespace keep the reading alive instead of freezing
+          it. The engine re-fires while the centre moves; the ref guard
+          keeps this from re-rendering until the slot actually flips. */
+      onOwnHover: (_idx, _x, centreY, dragIdx) => {
+        const root = stopsRef.current
+        if (!root || dragIdx < 0) return
+        const rows = Array.from(root.querySelectorAll<HTMLElement>('[data-stop-id]'))
+        if (rows.length === 0) return
+        const next = insertionIndexFor(rowLayoutBoxes(root, rows), centreY, dragIdx)
         if (insertRef.current !== next) setInsertIdx(next)
       },
     },
@@ -538,7 +539,7 @@ export const DaySection = React.memo(function DaySection({ day, trip, editable, 
         )}
       </>)}
 
-      <div className={`tl${dragging !== null ? ' is-dragging' : ''}`} ref={stopsRef}>
+      <div className={`tl${dragging !== null ? ' is-dragging' : ''}`} ref={stopsRef} data-yf-list={listId}>
         {ordered.map((s, i) => {
           // Auto anchors (trip start/end, route-continuation waypoints) are pure
           // route endpoints, not activities. The rich travel summary (mode,

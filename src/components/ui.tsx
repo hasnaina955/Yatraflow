@@ -595,8 +595,10 @@ export function CopyButton({ text, label = 'Copy link', onCopied }: { text: stri
  * drags: cards carry a payload built by `dragPayload`, and `onForeignDrop` is
  * called when such a drag is released on a card (insert at its index) or a
  * `dayDropHandlers` zone (insert at that index). Drop targets are found by the
- * engine via `data-yf-drop` / `data-yf-gap` attributes, so both handlers are
- * plain attribute renderers now — no native drag events anywhere.
+ * engine via `data-yf-drop` / `data-yf-gap` attributes, with the list root
+ * (render `data-yf-list={listId}`) keeping the own-list reading alive across
+ * the dead bands — both handlers are plain attribute renderers now, no native
+ * drag events anywhere.
  */
 export function useReorder<T extends { id: string }>(
   items: T[],
@@ -606,9 +608,11 @@ export function useReorder<T extends { id: string }>(
     dragPayload?: (item: T) => string
     /** called with the payload and the insertion index when a foreign drag lands */
     onForeignDrop?: (payload: string, toIdx: number) => void
-    /** own-list hover: row/gap index under the pointer + pointer position, so
-        the owner can resolve its insertion slot (midpoint reading) */
-    onOwnHover?: (idx: number, x: number, y: number) => void
+    /** own-list hover: the hovered row/gap index, the pointer x, the CARRIED
+        CARD's centre y (viewport — NOT the pointer), and the dragged row's
+        index (synchronous — React state lags the activation hover). Owners
+        read the insertion slot from stable layout (insertionIndexFor). */
+    onOwnHover?: (idx: number, x: number, centreY: number, dragIdx: number) => void
     /** touch dragging is enabled only for editable lists (default true) */
     touch?: boolean
   },
@@ -621,20 +625,22 @@ export function useReorder<T extends { id: string }>(
   // The engine is a module singleton and needs stable callbacks; route it
   // through a ref that always points at the latest closures.
   const instId = useId()
-  const latest = useRef({ items, onMove, options, touch: options?.touch ?? true })
-  latest.current = { items, onMove, options, touch: options?.touch ?? true }
+  // dragIdx rides the ref (not state) so the activation-time hover — which
+  // fires before React commits setDragIdx — still knows which row is carried.
+  const latest = useRef({ items, onMove, options, touch: options?.touch ?? true, dragIdx: -1 })
+  latest.current = { items, onMove, options, touch: options?.touch ?? true, dragIdx: latest.current.dragIdx }
   useEffect(() => {
     return registerTouchDnd(instId, {
-      onOwnDragStart: idx => setDragIdx(idx),
+      onOwnDragStart: idx => { latest.current.dragIdx = idx; setDragIdx(idx) },
       onDragOver: (idx, foreign, x, y) => {
         if (foreign) setForeignOver(idx)
         // idx null = the pointer left every drop zone; the owner keeps its
         // last reading (the free-finger rule: only the reading is clamped)
-        else if (idx !== null) latest.current.options?.onOwnHover?.(idx, x, y)
+        else if (idx !== null) latest.current.options?.onOwnHover?.(idx, x, y, latest.current.dragIdx)
       },
       onDropOnSelf: (from, to) => latest.current.onMove(from, to),
       onForeignDrop: (payload, to) => latest.current.options?.onForeignDrop?.(payload, to),
-      onDragEnd: () => { setDragIdx(null); setForeignOver(null) },
+      onDragEnd: () => { latest.current.dragIdx = -1; setDragIdx(null); setForeignOver(null) },
     })
   }, [instId])
   // unmount safety: end any press/drag owned by this list
@@ -670,6 +676,9 @@ export function useReorder<T extends { id: string }>(
   return {
     dndHandlers,
     dayDropHandlers,
+    /** render as data-yf-list on the list root: the engine's dead-band
+        fallback resolves the owning instance through it (see hitTest) */
+    listId: instId,
     dragging: dragIdx,
     foreignOver,
     moveUp: (idx: number) => { if (idx > 0) onMove(idx, idx - 1) },

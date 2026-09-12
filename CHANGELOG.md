@@ -66,6 +66,27 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
     its grid row full-width, `.chip-count` drops the `opacity:.65` that washed it to ~2.5–3.2:1, and
     `.btn.on-teal` gets the missing rule so the My Trips Trash toggle's pressed state is drawn (its
     `aria-pressed` was always correct — a sighted-only gap).
+- **UI audit #107 — fill contrasts + motion-token batch.** The border/fill half of the ink work,
+  plus the motion vocabulary:
+  - **Fills** (3:1 non-text, light only — dark passes as authored): the health "Tight" number and
+    bar move `--yf-amber` → `--warn-600` (2.01/1.89 → 3.92/3.69), the Board pulse band routes
+    through the ink tier (`mid` 1.94, `ok` 4.03) with the `bad` band taking the deep red in light
+    (3.83 → 6.43), the day-progress medium-severity fill (1.85 → 3.40) and the daily-average tick
+    (2.40 → 3.40) go to `--warn-600`, `--cat-tolls-parking` deepens to slate (2.76/2.77 → pass), the
+    white switch knob gets dark ink on the checked dark-teal track (2.05 → 6.5), and the stop-kind
+    **food/rest** pair — 3.9° apart (the same colour) and ~2:1 as the spine — separates to **18°**
+    AND clears 3:1 in light (burnt orange #C2410C / gold #A16207; dark keeps its primitives).
+    The remaining cat-hue re-space (food vs local-travel vs emergency, all within 6°) is the one
+    deliberately open palette decision.
+  - **Motion (SYS-7):** the snap controls (`route-btn`, `mode-btn`, `crew-btn`, `cal-day`,
+    `quick-budget .chip`, `move-btn`, `board-fit`, `board-pulse-link`, `vote-btn`) gain the shared
+    `--t-fast` ease; the `.clickable-chip` duplicate transition is merged into one declaration (the
+    old pair fought — colour and glow popped while the fill eased); every raw `.15s`/`.3s`/`.4s`/
+    `.5s` duration routes through `--t-fast`/`--t-med`/`--t-slow` + `--ease-out` (28 values across
+    13 rules; the one `.15s` stagger *delay* stays literal for SYS-7f); and the Board FLIP pass now
+    resolves its timing from the tokens via `motionTiming()` (`--motion-slow` + `--ease-out`) instead
+    of a byte-for-byte duplicated easing string. The pill glider was verified already token-driven
+    and frozen under reduced motion.
 
 ## [0.52.0] - 2026-09-12
 

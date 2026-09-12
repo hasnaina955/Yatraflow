@@ -32,6 +32,84 @@ export const ENDNO_KM = 60
 /** Drives shorter than this don't need planned breaks at all. */
 export const MIN_PLANNED_DRIVE_KM = 90
 
+// ---- Derived clock constants (PLAN-DAY-PLANNER §5 — every number a
+// consequence of the engine's own speeds, never an example) ----
+/**
+ * The fatigue cadence is HOURS, not km: ≈2 h at highway 65–75 km/h is where
+ * the 150 km constant came from, but the engine's blended all-India speed
+ * (MODE_SPEED.car 42) turns 150 km into 3.6 h. Stretch cadence is therefore
+ * clock-first: fires at `STRETCH_CLOCK_MIN` of wheel time, expressed in km at
+ * the journey's own blended speed, and never looser than the km cadence.
+ */
+export const STRETCH_CLOCK_MIN = 120
+/** Max wheel hours per driving day (the waking span ≈12.5 h minus ≈2.5 h of
+ *  halts). Packed 11 / relaxed 8.5 — see wheelCapHoursFor. */
+export const WHEEL_HOURS_CAP = 10
+/** The driving day hard-caps at this clock (night-driving default; a settings
+ *  exposure later — PLAN-DAY-PLANNER §16.2). */
+export const NIGHT_END_MIN = 23 * 60
+/** Halt durations in minutes (tea is the stretch cadence landing in a tea window). */
+export const HALT_MIN = { stretch: 15, meal: 45, tea: 20, fuel: 15, dinner: 60 } as const
+
+/** Style-tuned daily wheel cap. Packed pushes 11 h; relaxed rests at 8.5; balanced 10. */
+export function wheelCapHoursFor(travelStyle?: string): number {
+  if (travelStyle === 'packed') return 11
+  if (travelStyle === 'relaxed') return 8.5
+  return WHEEL_HOURS_CAP
+}
+
+/** The Day Planner's split verdict for a journey: pure, geometry-free. */
+export interface DriveDaysPlan {
+  /** driving days the route demands (≥1) */
+  driveDayCount: number
+  /** km per driving day — the load-balanced split (minimize max daily wheel) */
+  perDay: number
+  /** km positions of the night halts (every internal day boundary) */
+  nightHalts: number[]
+  /** worst daily wheel time after the split, in minutes */
+  maxDailyWheelMin: number
+}
+
+/**
+ * Derive the drive-day split a route DEMANDS from a duration fatigue cap —
+ * never from the user's planned day count, and never from a fixed km tick
+ * (the old 550 km @ blended 42 km/h demanded a 13.1 h day by the engine's
+ * own speed table). `dailyKmBudget = wheelCap × journey speed`, so ghat/
+ * city journeys self-shrink (the cap is in hours; slow roads earn fewer km).
+ * The split is load-balanced: `perDay = total / count` minimizes the maximum
+ * daily wheel time (700 km @ 42 → 2 × 350, never 585 + 115). Single-day
+ * verdicts carry no night halts. Style and rain enter as cap multipliers.
+ */
+export function planDriveDays(input: {
+  totalKm: number
+  /** wheel time (driving only) for the whole journey */
+  driveMinutes: number
+  travelStyle?: string
+  /** 0.5–1 multiplier on the wheel cap (e.g. rainFactor = 1 − dayRainPct/200) */
+  rainFactor?: number
+}): DriveDaysPlan | null {
+  const totalKm = input.totalKm
+  const driveMin = input.driveMinutes
+  if (!Number.isFinite(totalKm) || totalKm <= 0 || !Number.isFinite(driveMin) || driveMin <= 0) return null
+  const rain = Number.isFinite(input.rainFactor) ? Math.min(1, Math.max(0.5, input.rainFactor as number)) : 1
+  const capH = wheelCapHoursFor(input.travelStyle) * rain
+  const kmPerMin = totalKm / driveMin
+  const dailyKmBudget = capH * 60 * kmPerMin
+  if (totalKm <= dailyKmBudget) {
+    return { driveDayCount: 1, perDay: totalKm, nightHalts: [], maxDailyWheelMin: driveMin }
+  }
+  const count = Math.ceil(totalKm / dailyKmBudget)
+  const perDay = totalKm / count
+  const endnoDay = Math.min(ENDNO_KM, perDay * 0.15)
+  const capKm = totalKm - endnoDay
+  const nightHalts: number[] = []
+  for (let i = 1; i < count; i++) {
+    const km = perDay * i
+    if (km < capKm) nightHalts.push(km)
+  }
+  return { driveDayCount: count, perDay, nightHalts, maxDailyWheelMin: perDay / kmPerMin }
+}
+
 export interface RidePlanInput {
   totalKm: number
   /** wheel time (driving only) for the whole journey */
@@ -241,12 +319,29 @@ export function planRideSegments(input: RidePlanInput): RideSegment[] {
   const fuelEvery = Math.max(100, (input.vehicleRangeKm && input.vehicleRangeKm > 0 ? input.vehicleRangeKm : FUEL_INTERVAL_KM) * 0.85)
   const cap = total - ENDNO_KM // nothing past here
 
-  // Day boundaries for multi-day plans: an overnight every OVERNIGHT_INTERVAL_KM.
+  // Day boundaries for multi-day plans — derived from the duration fatigue
+  // cap (planDriveDays), not the user's day count and not a fixed 550 km tick
+  // (550 @ blended 42 km/h = a 13.1 h day by the engine's own speed table).
+  // Falls back to the old km tick only when the journey lacks reliable wheel
+  // time (planDriveDays verdict null).
   const dayEnds: number[] = []
   if (multiDay) {
-    for (let km = OVERNIGHT_INTERVAL_KM; km < cap; km += OVERNIGHT_INTERVAL_KM) dayEnds.push(km)
+    const days = planDriveDays({ totalKm: total, driveMinutes: drive })
+    if (days && days.nightHalts.length > 0) dayEnds.push(...days.nightHalts)
+    else for (let km = OVERNIGHT_INTERVAL_KM; km < cap; km += OVERNIGHT_INTERVAL_KM) dayEnds.push(km)
   }
   const dayStarts = [0, ...dayEnds]
+
+  // Clock stretch twin — fatigue accrues by hours behind the wheel, not km:
+  // 150 km was ≈2 h at highway 65–75 km/h, but at the engine's blended
+  // all-India speed (42 km/h) it stretched to 3.6 h. The stretch cadence
+  // therefore never waits longer than STRETCH_CLOCK_MIN of wheel time,
+  // expressed in km at the journey's own blended speed (never looser than
+  // the km cadence — highway journeys keep their 150 km rhythm).
+  const journeyKmh = drive > 0 && total > 0 ? (total / drive) * 60 : undefined
+  const clockStretchKm = journeyKmh != null && Number.isFinite(journeyKmh) && journeyKmh > 0
+    ? (STRETCH_CLOCK_MIN / 60) * journeyKmh
+    : Infinity
 
   // Phase A — in-day cadence relative to each day's start, plus the overnights
   // that close each day. Cadences RESET after an overnight, so day-2's stretch
@@ -258,7 +353,7 @@ export function planRideSegments(input: RidePlanInput): RideSegment[] {
     const push = (purpose: HaltPurpose, step: number) => {
       for (let km = dayStart + step; km < dayCap && km < cap; km += step) raws.push({ km, purpose })
     }
-    push('stretch', sanitizedStretchKm(input))
+    push('stretch', Math.min(sanitizedStretchKm(input), clockStretchKm))
     if (includeFuel) push('fuel', fuelEvery)
     push('meal', sanitizedMealKm(input))
   })
@@ -269,18 +364,28 @@ export function planRideSegments(input: RidePlanInput): RideSegment[] {
   // MIN_BREAK_GAP_KM. Overnights always open a new merged entry (they close a
   // day — what follows belongs to the next day). A higher-priority incoming
   // target (meal > fuel > stretch) shifts the merged position to its own km.
+  // Extracted as collapse() so Phase B3 can re-run it after the B2 slide.
   raws.sort((a, b) => a.km - b.km || PURPOSE_PRIORITY[b.purpose] - PURPOSE_PRIORITY[a.purpose])
-  const merged: { km: number; purposes: HaltPurpose[] }[] = []
-  for (const raw of raws) {
-    const last = merged[merged.length - 1]
-    if (last && last.purposes[0] !== 'overnight' && raw.purpose !== 'overnight' && raw.km - last.km < MIN_BREAK_GAP_KM) {
-      const higher = PURPOSE_PRIORITY[raw.purpose] > PURPOSE_PRIORITY[last.purposes[0]]
-      last.purposes = higher ? [raw.purpose, ...last.purposes] : [...last.purposes, raw.purpose]
-      if (higher) last.km = raw.km
-    } else {
-      merged.push({ km: raw.km, purposes: [raw.purpose] })
+  type Merged = { km: number; purposes: HaltPurpose[] }
+  const collapse = (list: Merged[]): Merged[] => {
+    const out: Merged[] = []
+    for (const raw of list) {
+      const last = out[out.length - 1]
+      if (last && last.purposes[0] !== 'overnight' && raw.purposes[0] !== 'overnight' && raw.km - last.km < MIN_BREAK_GAP_KM) {
+        const higher = PURPOSE_PRIORITY[raw.purposes[0]] > PURPOSE_PRIORITY[last.purposes[0]]
+        // Dedupe: two raws of the same purpose can fold into one entry
+        // (both stretches flanking a slid meal), so the label never
+        // reads "Stretch + Stretch".
+        const folded = higher ? [...raw.purposes, ...last.purposes] : [...last.purposes, ...raw.purposes]
+        last.purposes = [...new Set(folded)]
+        if (higher) last.km = raw.km
+      } else {
+        out.push({ km: raw.km, purposes: [...raw.purposes] })
+      }
     }
+    return out
   }
+  let merged: Merged[] = collapse(raws.map(r => ({ km: r.km, purposes: [r.purpose] })))
 
 /** Meal window in minutes since midnight: lunch must land 11:30–14:30. */
 const MEAL_WINDOW: [number, number] = [11 * 60 + 30, 14 * 60 + 30]
@@ -330,6 +435,18 @@ function etaAt(km: number, dayStarts: number[], dayStartTimes: string[] | undefi
     m.km = Math.min(cap, Math.max(0, m.km + (edge - eta) * kmPerMin))
   }
   merged.sort((a, b) => a.km - b.km)
+
+  // Phase B3 — the B2 slide runs after the collision pass, so a slid meal can
+  // land within MIN_BREAK_GAP_KM of a neighbour (600 → 504 sits 54 km from the
+  // stretch at 450). Re-collapse until stable: every merge strictly reduces
+  // the entry count, so the fixpoint terminates.
+  for (let pass = 0; pass < 16; pass++) {
+    const again = collapse(merged)
+    const stable = again.length === merged.length && again.every((e, i) => e.km === merged[i].km)
+    merged = again
+    merged.sort((a, b) => a.km - b.km)
+    if (stable) break
+  }
 
   // Phase C — windows = midpoints to neighbours; labels/hints; leg distances
   const segments: RideSegment[] = merged.map((m, i) => {

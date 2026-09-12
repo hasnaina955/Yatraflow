@@ -663,11 +663,14 @@ a.btn { text-decoration: none; }
    instead of the OS one. High-traffic surfaces use this; low-traffic selects
    keep the native control — the trigger look is identical. */
 .cselect { position: relative; }
-.cselect-trigger { text-align: left; background-color: var(--card-soft); color: var(--text); }
+.cselect-trigger {
+  display: flex; align-items: center; gap: 8px;
+  text-align: left; background-color: var(--card-soft); color: var(--text);
+}
 .cselect-trigger.compact { width: auto; padding: 5px 26px 5px 10px; font-size: 13px; }
 .cselect-trigger:disabled { opacity: .55; cursor: not-allowed; }
 .cselect-trigger[aria-invalid='true'] { border-color: var(--danger); }
-.cselect-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cselect-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cselect-ico { display: inline-flex; flex: none; color: var(--text-2); }
 .cselect-pop {
   position: absolute; top: calc(100% + 6px); left: 0; z-index: var(--z-frost);

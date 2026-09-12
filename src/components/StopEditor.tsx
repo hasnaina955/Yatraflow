@@ -1,5 +1,5 @@
 // ============ Stop add/edit modal ============
-import React, { useRef, useState } from 'react'
+import React, { useMemo, useRef, useState } from 'react'
 import type { ItineraryStop, StopCategory, StopStatus, Trip } from '../data/types'
 import { STOP_CATEGORIES, STOP_STATUSES } from '../data/types'
 import { Car } from 'lucide-react'
@@ -149,6 +149,30 @@ export function StopEditor({ open, onClose, initial, resetKey, onSave, dayLabel,
     hoursState === 'found' ? 'Auto-filled from OpenStreetMap — edit if needed' :
     undefined
 
+  // Time pickers on the shared listbox (the calendar's design language):
+  // 15-minute steps in the user's 12/24h format, "Not set" to clear, and a
+  // preserved exact entry for legacy values that aren't on the grid.
+  const timeOptions = useMemo(() => {
+    const opts: { value: string; label: string }[] = [{ value: '', label: 'Not set' }]
+    for (let m = 0; m < 24 * 60; m += 15) {
+      const val = `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`
+      opts.push({ value: val, label: formatHM(val, timeFormat) })
+    }
+    return opts
+  }, [timeFormat])
+  const openTimeOptions = useMemo(
+    () => (v.openTime && !timeOptions.some(o => o.value === v.openTime)
+      ? [{ value: v.openTime, label: formatHM(v.openTime, timeFormat) }, ...timeOptions]
+      : timeOptions),
+    [timeOptions, v.openTime, timeFormat],
+  )
+  const closeTimeOptions = useMemo(
+    () => (v.closeTime && !timeOptions.some(o => o.value === v.closeTime)
+      ? [{ value: v.closeTime, label: formatHM(v.closeTime, timeFormat) }, ...timeOptions]
+      : timeOptions),
+    [timeOptions, v.closeTime, timeFormat],
+  )
+
   function submit(e: React.FormEvent) {
     e.preventDefault()
     const next: Record<string, string> = {}
@@ -210,14 +234,13 @@ export function StopEditor({ open, onClose, initial, resetKey, onSave, dayLabel,
               </Field>
               {hoursRelevant && (
                 <Field label="Opens at" hint={hoursHint}>
-                  <input type="time" className="input" value={v.openTime} onChange={e => set('openTime', e.target.value)} />
-                  {v.openTime && <div className="time-preview small muted">= {formatHM(v.openTime, timeFormat)}</div>}
+                  <Select value={v.openTime} onChange={val => set('openTime', val)} options={openTimeOptions} aria-label="Opens at" />
                 </Field>
               )}
               {hoursRelevant && (
                 <Field label="Closes at" error={errs.closeTime}>
-                  <input type="time" className="input" ref={el => (fieldRefs.current.closeTime = el)} aria-invalid={!!errs.closeTime} value={v.closeTime} onChange={e => set('closeTime', e.target.value)} />
-                  {v.closeTime && <div className="time-preview small muted">= {formatHM(v.closeTime, timeFormat)}</div>}
+                  <Select value={v.closeTime} onChange={val => set('closeTime', val)} options={closeTimeOptions} aria-label="Closes at"
+                    buttonRef={el => (fieldRefs.current.closeTime = el)} />
                 </Field>
               )}
             </div>

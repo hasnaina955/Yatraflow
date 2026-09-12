@@ -33,12 +33,14 @@ interface Props {
   /** Shown on the trigger when `value` matches no option (or is empty). */
   placeholder?: string
   id?: string
+  /** Ref to the trigger button — lets parents keep their focus-on-error wiring. */
+  buttonRef?: (el: HTMLButtonElement | null) => void
   'aria-describedby'?: string
   'aria-invalid'?: boolean
   'aria-label'?: string
 }
 
-export function Select({ value, onChange, options, disabled, compact, placeholder, id, 'aria-describedby': describedby, 'aria-invalid': invalid, 'aria-label': ariaLabel }: Props) {
+export function Select({ value, onChange, options, disabled, compact, placeholder, id, buttonRef, 'aria-describedby': describedby, 'aria-invalid': invalid, 'aria-label': ariaLabel }: Props) {
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(0)
   const wrapRef = useRef<HTMLDivElement>(null)
@@ -119,6 +121,7 @@ export function Select({ value, onChange, options, disabled, compact, placeholde
       <button
         type="button"
         id={id}
+        ref={buttonRef}
         className={`select cselect-trigger${compact ? ' compact' : ''}`}
         disabled={disabled}
         role="combobox"

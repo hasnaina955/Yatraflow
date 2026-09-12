@@ -15,6 +15,7 @@ import { FUEL_PRICE_INR_PER_L, MODE_SPEED, formatInr, isFuelEconomyMode, parseFu
 import { cap } from '../../lib/labels'
 import { Field, RangeDial, StickyFormBar, toast } from '../../components/ui'
 import { Select } from '../../components/Select'
+import { DateRangeCalendar } from '../../components/DateRangeCalendar'
 import { PillNav } from '../../components/PillNav'
 import { LocationInput } from '../../components/LocationInput'
 import { CoverImagePicker } from '../../components/CoverImagePicker'
@@ -121,18 +122,13 @@ export function TripSettingsForm({ trip, editable }: { trip: Trip; editable: boo
               <span className="bench-eyebrow">Route & dates</span>
               <span className="bench-block-value">{dayCount} day{dayCount === 1 ? '' : 's'}</span>
             </div>
-            <div className="form-row">
-              <Field label="Start date">
-                <input type="date" className="input" disabled={!editable} value={f.startDate}
-                  aria-invalid={!!dateErr}
-                  onChange={e => { setF(x => ({ ...x, startDate: e.target.value })); setDateErr(null) }} />
-              </Field>
-              <Field label="End date" hint={dayDeltaLabel}>
-                <input type="date" className="input" disabled={!editable} value={f.endDate}
-                  aria-invalid={!!dateErr}
-                  onChange={e => { setF(x => ({ ...x, endDate: e.target.value })); setDateErr(null) }} />
-              </Field>
-            </div>
+            <DateRangeCalendar
+              start={f.startDate} end={f.endDate}
+              disabled={!editable}
+              error={dateErr ?? undefined}
+              hint={dayDeltaLabel}
+              onChange={({ startDate, endDate }) => { setF(x => ({ ...x, startDate, endDate })); setDateErr(null) }}
+            />
             {dateErr && <p className="err-text ts-warn-note" role="alert">{dateErr}</p>}
             <Field label="Starting location">
               <LocationInput

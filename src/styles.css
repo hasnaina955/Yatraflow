@@ -1564,6 +1564,9 @@ button.board-col-zone--add:active { transform: translateY(1px); }
 
 /* ---------- Auth ---------- */
 .auth-card { width: 100%; max-width: 430px; }
+/* contained heading — the card is a 430px panel, not a full-width page (was
+   an inline fontSize that bypassed every scale) */
+.auth-card h1 { font-size: 26px; }
 /* Dark inputs otherwise sit nearly flush with the card surface — lift them. */
 [data-theme='dark'] .auth-card .input { background: rgba(255, 255, 255, .06); }
 

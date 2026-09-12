@@ -76,7 +76,7 @@ export function CreatorHubPage({ onNavigate }: { onNavigate: (r: string) => void
               onClick={() => setConfirmDisable(true)}>Disable creator mode</button>
           </div>
 
-          <div className="card" style={{ marginTop: 16 }}>
+          <div className="card stack-gap">
             <div className="row-between">
               <h3>My publications</h3>
               {myPubs.length > 0 && (

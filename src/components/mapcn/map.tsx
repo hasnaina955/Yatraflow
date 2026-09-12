@@ -67,7 +67,11 @@ export function prefersCooperativeGestures(): boolean {
 // appears twice across the map (the bug the first #23 pass shipped).
 const defaultStyles = {
   dark: "https://tiles.openfreemap.org/styles/dark",
-  light: "https://tiles.openfreemap.org/styles/positron",
+  // Liberty (OSM-carto lineage) over positron: the product leans on the map to
+  // sell the trip, and positron's deliberate grey undersells it. OpenFreeMap
+  // ships no Liberty dark, so dark keeps the existing style (see
+  // docs/FEATURE-REQUEST-MAP-VIEWS.md §2.7).
+  light: "https://tiles.openfreemap.org/styles/liberty",
 };
 
 // A tile-less, dependency-free style with a transparent background. Use it for
@@ -334,6 +338,10 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
       container: containerRef.current,
       style: initialStyle,
       renderWorldCopies: false,
+      // MapLibre defaults to 60 and silently clamps a higher easeTo pitch —
+      // the 3D hero view (docs/FEATURE-REQUEST-MAP-VIEWS.md §2.3) needs ~70.
+      // A wider ceiling costs nothing when the camera stays flat.
+      maxPitch: 75,
       attributionControl: {
         compact: true,
       },

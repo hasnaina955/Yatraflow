@@ -49,7 +49,10 @@ describe('basemap licensing (issue #23)', () => {
       text.indexOf('};', text.indexOf('const defaultStyles')),
     )
     expect(block).toContain('https://tiles.openfreemap.org/styles/dark')
-    expect(block).toContain('https://tiles.openfreemap.org/styles/positron')
+    // Light theme moved positron → Liberty (map view modes, I-17): still
+    // OpenFreeMap, still keyless — the licensing shape is unchanged.
+    expect(block).toContain('https://tiles.openfreemap.org/styles/liberty')
+    expect(block).not.toContain('https://tiles.openfreemap.org/styles/positron')
   })
 
   it('credits OSM + OpenMapTiles via the TileJSON, without a duplicate customAttribution', () => {

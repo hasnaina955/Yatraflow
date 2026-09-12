@@ -375,6 +375,12 @@ Kept as one line each so the origin is traceable without re-listing the work as 
   brainstorm table; the README had described the first correctly all along.
 - **#36 bug-hunt triage (10/10)** — all landed; the survivors were spun out as issues, now in
   [Open issues](#open-issues).
+- **Map view modes (3/3, I-17/I-18/I-19)** — shipped together with the request that spawned them
+  ([`docs/FEATURE-REQUEST-MAP-VIEWS.md`](docs/FEATURE-REQUEST-MAP-VIEWS.md)): default basemap →
+  Liberty (I-17) · Terrain hillshade over the keyless AWS terrarium DEM (I-18) · 3D hero pitched
+  terrain with `maxPitch` 60 → 75 (I-19), behind a segmented switcher on the Map tab; the Board
+  stays hard-2D and the choice persists globally. I-19's mid-range-Android GPU check remains a
+  post-merge device step.
 
 ## Historical plans (executed — kept for the record, not live guidance)
 

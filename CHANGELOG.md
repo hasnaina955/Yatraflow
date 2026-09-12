@@ -36,6 +36,36 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
   camera fit Day 2 alone. Restores the one-day-in, one-day-out contract; the selected day still
   shows its whole engine journey (anchor-only outbound and ride-home included), and the Board
   backdrop regains its documented `focusDay` behaviour.
+- **UI audit #107 — contrast, ink-tier, a11y and layout batch (verified per theme).** Fixing the
+  root causes first, every value re-computed against the *current* tokens (many audit rows had
+  already shipped fixed in v0.51/v0.52 — e.g. `notif-badge` is 8.2:1 now — so only the live
+  failures were touched):
+  - A **deepened light text-ink tier** (`--ink-amber` #8F5B06 · `--ink-ok` #1F6B41; dark re-declares
+    them to the already-passing raw aliases) now backs `chip-ok`, `metric-good`/`balance-pos`,
+    `metric-warn`, `impact-head`, `.delta-neg`, `tl-total-warn`, the amber-sibling block and the
+    `tab-count--hot` (which also lost a dark-on-dark hardcoded `#8F5B06`).
+  - The **solid-teal-fill + white** family (`step-num`, `vote-btn.on`, `mode-btn.on`, `crew-btn.on`,
+    `cal-day.edge`, `route-dot`) moves to `--teal-deep` in light and the `#06251f` dark-foreground
+    swap in dark — the pattern `.map-legend-toggle.map-live-on` already used; the mode-tile hint gets
+    its dark ink too. `--color-primary` (light) steps one notch deeper so the primary CTA's white
+    label clears 5.19:1 at rest (which also lifts `.share-tab.is-active`, it shares the token).
+  - **Explore:** the Saved chip's selected state drops white-on-saffron (1.97:1) for the soft-fill +
+    deep-ink recipe its siblings use; the hero search placeholder goes to full `#e2f1ef`; and the
+    focus now declares a **white** ring so the dark-teal hero can't wash the shared `.input:focus`
+    indicator out to 1.18:1.
+  - **SYS-5:** `.card.route-snap` and `.trip-head-card` end their gradients in a **literal** navy
+    (not `--gray-900`, which flips near-white in dark and stranded the white text at ~1.1:1) — which
+    also makes the Public Itinerary glance text legible in both themes as a side effect.
+  - **A11y:** `PayerSelect` now forwards the `id`/`aria-*` that `Field` injects (the "Paid by" label
+    previously pointed at a non-existent id — no accessible name); the Budget metric strip gets
+    `role="group"` (so its `aria-label` isn't ignored); the expense table's empty actions `<th>` gets
+    a screen-reader label; the Group Input **consensus bar** low/mid segments move to a neutral→amber
+    →green ramp (was `--line` 1.18 / `--saffron` 1.85 — the low bar was invisible in both themes).
+  - **Layout / state-drawn:** `.form-row` wraps again (its flex override had dropped the original
+    responsive intent — the `commitment-row` grid tracks were dead code behind it), `.pulse-bar` spans
+    its grid row full-width, `.chip-count` drops the `opacity:.65` that washed it to ~2.5–3.2:1, and
+    `.btn.on-teal` gets the missing rule so the My Trips Trash toggle's pressed state is drawn (its
+    `aria-pressed` was always correct — a sighted-only gap).
 
 ## [0.52.0] - 2026-09-12
 

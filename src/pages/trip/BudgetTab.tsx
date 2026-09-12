@@ -63,13 +63,19 @@ function patchOf(form: FormState): Omit<Expense, 'id'> {
   }
 }
 
-function PayerSelect({ members, value, onChange }: {
+function PayerSelect({ members, value, onChange, id, 'aria-describedby': describedBy, 'aria-invalid': invalid }: {
   members: { userId: ID }[]
   value: string
   onChange: (v: string) => void
+  // Field clones this custom control and injects id/aria-* (ui.tsx isCustomControl
+  // branch); forwarding them is what makes the "Paid by" label's htmlFor resolve
+  // — otherwise the select has no accessible name and the label can't focus it.
+  id?: string
+  'aria-describedby'?: string
+  'aria-invalid'?: boolean
 }) {
   return (
-    <select className="select" value={value} onChange={e => onChange(e.target.value)}>
+    <select className="select" id={id} aria-describedby={describedBy} aria-invalid={invalid} value={value} onChange={e => onChange(e.target.value)}>
       <option value="">Shared kitty</option>
       {members.map(m => {
         const u = userById(m.userId)
@@ -165,7 +171,7 @@ export function BudgetTab({ trip, totals, editable }: { trip: Trip; totals: Retu
 
   return (
     <div>
-      <div className="metric-strip" aria-label="Budget at a glance">
+      <div className="metric-strip" role="group" aria-label="Budget at a glance">
         <StatTile label="Per person" value={formatInr(totals.costPerPersonInr)}
           sub={<>target {formatInr(trip.budgetPerPersonInr)}{' '}
             {perPersonDeltaPct !== 0 && <b className={perPersonDeltaPct > 0 ? 'metric-bad' : 'metric-good'}>{perPersonDeltaPct > 0 ? '+' : '−'}{Math.abs(perPersonDeltaPct)}%</b>}</>} />
@@ -260,7 +266,7 @@ export function BudgetTab({ trip, totals, editable }: { trip: Trip; totals: Retu
               ? <p className="muted small">No expense lines yet — add the big ones first (stay, fuel, food).</p>
               : (
                 <table className="compare-table expense-table">
-                  <thead><tr><th>Line</th><th>Paid by</th><th className="num">Amount</th><th /></tr></thead>
+                  <thead><tr><th>Line</th><th>Paid by</th><th className="num">Amount</th><th><span className="sr-only">Actions</span></th></tr></thead>
                   <tbody>
                     {trip.expenses.map(e => {
                       const meta = CAT_META[e.category]

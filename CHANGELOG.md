@@ -167,6 +167,24 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
   to a `.stack-gap` class, and the commitment row weights its fields by content again (the
   grid's 2fr/1fr/.8fr intent, re-expressed in flex — "What" grows, "Day" no longer takes half
   the row).
+- **UI audit #107 — the design-decision tail.** The last open rows, resolved:
+  - **The scenic hue split (SYS-8a, finished):** the "places to see" lane and the viewpoint
+    stop-kind now own **292° magenta-violet** (`--yf-poi-see` #db4cf0 light / #e488f2 dark,
+    ink `--yf-poi-see-ink` #8a2999 / #f0a7fb) — 40° clear of the Day-3 route violet they used
+    to share byte-for-byte, 38° clear of the activity purple (which sat ~2° from the old
+    POI colour), and clear of every other day colour. The viewpoint spine also stops wearing
+    the interactive teal (the selection colour) on every viewpoint card. Computed per theme:
+    spine 3.33/7.61:1, chip ink 5.78/8.00:1.
+  - **Explore gains its entrance choreography** — grid cards ride the shared `trip-enter`
+    stagger (`--stagger-step`, capped at 8 like My Trips), via a new `enterIndex` prop on
+    PubCard; the discovery page no longer arrives instantly while every other page cascades.
+  - **StopEditor's priority/status options carry tone dots** in the custom listbox (dual-coded
+    with their text labels). Category icons were skipped deliberately: no category→icon map
+    exists in the codebase to reuse, and inventing one for a nicety wasn't worth the surface.
+  - **Landing repaint mitigation:** `background-attachment` drops from `fixed` to `scroll` on
+    coarse pointers — the pinned full-page ramp forces a repaint every scroll frame on the
+    Android WebView. Desktop keeps the seamless pinned ramp; the touch change still needs a
+    low-end device check to confirm the win.
 
 ## [0.52.0] - 2026-09-12
 

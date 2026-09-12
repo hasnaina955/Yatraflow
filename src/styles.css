@@ -47,8 +47,8 @@
   --yf-coral-100: #FFF0EC;
   --yf-purple: #897ABB;        /* scenic / creative discovery */
   --yf-purple-100: #F0EAFA;
-  --yf-poi-see: #7C5CFC;       /* "places to see" lane violet — same hex as DAY_COLORS[2] for now (see TripMap.tsx); hue split is a palette decision */
-  --yf-poi-see-ink: #5540B8;   /* its text ink, light theme */
+  --yf-poi-see: #db4cf0;       /* "places to see" lane + viewpoint spine — scenic magenta-violet, 292°: 40° clear of DAY_COLORS[2]'s 252° and 38° of the activity purple */
+  --yf-poi-see-ink: #8a2999;   /* its text ink, light theme */
   /* Expense-category bar colors (Budget tab "Where the money goes") — one
      hue per spend category, reused by the per-line icon chips. */
   --cat-transport: #897ABB;
@@ -208,7 +208,8 @@
   --yf-coral-100: #3A2020;
   --yf-purple: #A99BD6;
   --yf-purple-100: #2A2440;
-  --yf-poi-see-ink: #B4A5FF;   /* POI-see text ink lifts in dark */
+  --yf-poi-see: #e488f2;       /* scenic base lifts in dark (spine 7.6:1 on the dark card) */
+  --yf-poi-see-ink: #f0a7fb;   /* POI-see text ink lifts in dark */
   --cat-transport: #A99BD6;
   --cat-accommodation: #2BB8AC;
   --cat-food: #F5A94A;
@@ -682,6 +683,9 @@ a.btn { text-decoration: none; }
 .cselect-option.active { background: var(--bg-soft); }
 .cselect-option[aria-selected='true'] { font-weight: 600; }
 .cselect-check { margin-left: auto; color: var(--teal-deep); flex: none; }
+/* tone dot for Select options (priority/status in StopEditor) — always beside
+   a text label, never the only carrier of the meaning */
+.opt-dot { width: 8px; height: 8px; border-radius: 999px; flex: none; }
 /* The chevron is baked into a background-image, so it can't follow a token —
    re-declare it for dark mode or it lands ~1.8:1 on the dark pill. */
 [data-theme='dark'] .select {
@@ -1233,7 +1237,9 @@ a.btn { text-decoration: none; }
 .stop-card.kind-fuel { --kind-c: var(--gray-400); }
 .stop-card.kind-rest { --kind-c: var(--yf-saffron); }
 .stop-card.kind-activity { --kind-c: var(--yf-purple); }
-.stop-card.kind-viewpoint { --kind-c: var(--yf-teal-600); }
+/* viewpoint joins the scenic hue (292°) — teal was the interactive/selection
+   colour, so the spine claimed "selected" on every viewpoint card */
+.stop-card.kind-viewpoint { --kind-c: var(--yf-poi-see); }
 /* food/rest were 3.9deg apart (the same colour) and ~2:1 on a light card as the 4px
    spine. Light theme separates them to 18deg AND clears 3:1 (burnt orange 5.18 /
    gold 4.92 on white); dark keeps the flipping primitives (7.8/8.0 there). */
@@ -2706,9 +2712,8 @@ main:focus { outline: none; }
 .poi-col-head b { display: block; font-size: 14px; }
 .poi-col--needs .poi-col-head b { color: var(--teal-deep); }
 .poi-col--see .poi-col-head b { color: var(--yf-poi-see-ink); }
-/* tint the purpose chips inside their lane — sightseeing reads scenic purple.
-   (Composited over the tint the ink measures ~5.7 light / ~6.9 dark — the
-   audit's 1.99/1.84 compared against the raw uncomposited hex.) */
+/* tint the purpose chips inside their lane — sightseeing reads scenic violet.
+   (Composited over the tint the ink measures ~5.8 light / ~8.0 dark.) */
 .poi-col--see .ride-purpose-sight { background: color-mix(in srgb, var(--yf-poi-see) 16%, transparent); color: var(--yf-poi-see-ink); }
 
 /* Map-tab ideas grid — need rail LEFT, map CENTER, see-&-do rail RIGHT, so both
@@ -3606,6 +3611,14 @@ html.vt-active :where(*) {
     radial-gradient(circle at 88% 28%, var(--yf-atmos-peach), transparent 32%),
     linear-gradient(135deg, var(--yf-mist) 0%, var(--yf-cream) 52%, var(--yf-peach) 100%);
   background-attachment: fixed;
+}
+/* Touch repaint cost (#107 Landing flag): fixed attachment forces a full-page
+   repaint every scroll frame on the Android WebView. On coarse pointers the
+   canvas scrolls with the page instead — it's one continuous wash, so the
+   seamlessness barely changes; desktop keeps the pinned ramp. Needs a
+   low-end device check to confirm the win. */
+@media (pointer: coarse) {
+  .landing-canvas { background-attachment: scroll; }
 }
 .hero { position: relative; }
 .hero-split { position: relative; z-index: var(--z-content); }

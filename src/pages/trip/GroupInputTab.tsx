@@ -8,7 +8,7 @@
 // The underlying data model (two tables) and store actions are unchanged.
 import { useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
-import { Car, Clock, Lightbulb, MapPin, Plus, Scale, Sparkles, Ticket, X } from 'lucide-react'
+import { Car, ChevronDown, ChevronUp, Clock, Lightbulb, MapPin, Plus, Scale, Sparkles, Ticket, X } from 'lucide-react'
 import { PillNav } from '../../components/PillNav'
 import type { StopCategory, StopSuggestion, Trip, TripDecision } from '../../data/types'
 import { STOP_CATEGORIES } from '../../data/types'
@@ -97,22 +97,27 @@ export function GroupInputTab({ trip, editable, me }: {
 
   return (
     <div>
+      {/* ONE filter bar (workspace tab-rail look) — the old count-pill row was
+          the same filters in a second visual language. Counts live inside the
+          pills; "All" carries the open count, Need you its amber hot badge. */}
       <div className="gi-strip">
-        <div className="gi-stats" role="group" aria-label="Filter by state">
-          {([['open', 'Open', openCount], ['mine', 'Need you', needsYouCount], ['resolved', 'Resolved', resolvedCount]] as const).map(([key, label, count]) => (
-            <button key={key} type="button"
-              className={`gi-stat${count > 0 && key === 'mine' ? ' hot' : ''}${filter === key ? ' on' : ''}`}
-              aria-pressed={filter === key}
-              onClick={() => setFilter(f => f === key ? 'all' : key)}>
-              <b>{count}</b> {label}
-            </button>
-          ))}
-        </div>
         <PillNav className="filter-pillbar" role="group" aria-label="Filter group input" activeKey={filter}>
-          {([['all', 'All'], ['ideas', 'Stop ideas'], ['decisions', 'Decisions'], ['mine', 'Need you'], ['resolved', 'Resolved']] as const).map(([k, label]) => (
-            <button key={k} type="button" data-pill-key={k} className={`clickable-chip chip${filter === k ? ' on-teal' : ''}`}
-              onClick={() => setFilter(k)} aria-pressed={filter === k}>{label}</button>
-          ))}
+          <button type="button" data-pill-key="all" className={`clickable-chip chip${filter === 'all' ? ' on-teal' : ''}`}
+            onClick={() => setFilter('all')} aria-pressed={filter === 'all'}>
+            All{openCount > 0 && <span className="tab-count">{openCount} open</span>}
+          </button>
+          <button type="button" data-pill-key="ideas" className={`clickable-chip chip${filter === 'ideas' ? ' on-teal' : ''}`}
+            onClick={() => setFilter('ideas')} aria-pressed={filter === 'ideas'}>Stop ideas</button>
+          <button type="button" data-pill-key="decisions" className={`clickable-chip chip${filter === 'decisions' ? ' on-teal' : ''}`}
+            onClick={() => setFilter('decisions')} aria-pressed={filter === 'decisions'}>Decisions</button>
+          <button type="button" data-pill-key="mine" className={`clickable-chip chip${filter === 'mine' ? ' on-teal' : ''}`}
+            onClick={() => setFilter('mine')} aria-pressed={filter === 'mine'}>
+            Need you{needsYouCount > 0 && <span className="tab-count tab-count--hot">{needsYouCount}</span>}
+          </button>
+          <button type="button" data-pill-key="resolved" className={`clickable-chip chip${filter === 'resolved' ? ' on-teal' : ''}`}
+            onClick={() => setFilter('resolved')} aria-pressed={filter === 'resolved'}>
+            Resolved{resolvedCount > 0 && <span className="tab-count tab-count--muted">{resolvedCount}</span>}
+          </button>
         </PillNav>
       </div>
 
@@ -163,9 +168,9 @@ export function GroupInputTab({ trip, editable, me }: {
             </div>
           )}
           <div className="card">
-            <PillNav className="filter-pillbar" role="group" aria-label="What do you want to add?" activeKey={composerMode}>
+            <PillNav className="mode-pillbar" role="group" aria-label="What do you want to add?" activeKey={composerMode}>
               {([['idea', 'Stop idea'], ['question', 'Question']] as const).map(([k, label]) => (
-                <button key={k} type="button" data-pill-key={k} className={`clickable-chip chip${composerMode === k ? ' on-teal' : ''}`}
+                <button key={k} type="button" data-pill-key={k} className={`tab-btn${composerMode === k ? ' active' : ''}`}
                   onClick={() => setComposerMode(k)} aria-pressed={composerMode === k}>{label}</button>
               ))}
             </PillNav>
@@ -212,9 +217,9 @@ function SuggestionCard({ sg, trip, me, editable, memberCount, needsMe }: {
     <div id={`gi-item-${sg.id}`} className={`card${needsMe ? ' gi-needs-you' : ''}`} style={{ marginBottom: 14 }}>
       <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 14 }}>
       <div className="vote-col">
-        <button className={`vote-btn ${myVote === 1 ? 'on' : ''}`} onClick={() => voteSuggestion(trip.id, sg.id, me.id, 1)} aria-label="Upvote" aria-pressed={myVote === 1}>▲</button>
+        <button className={`vote-btn ${myVote === 1 ? 'on' : ''}`} onClick={() => voteSuggestion(trip.id, sg.id, me.id, 1)} aria-label="Upvote" aria-pressed={myVote === 1}><ChevronUp size={13} aria-hidden /></button>
         <span className="vote-count">{ups - downs}</span>
-        <button className={`vote-btn ${myVote === -1 ? 'on' : ''}`} onClick={() => voteSuggestion(trip.id, sg.id, me.id, -1)} aria-label="Downvote" aria-pressed={myVote === -1}>▼</button>
+        <button className={`vote-btn ${myVote === -1 ? 'on' : ''}`} onClick={() => voteSuggestion(trip.id, sg.id, me.id, -1)} aria-label="Downvote" aria-pressed={myVote === -1}><ChevronDown size={13} aria-hidden /></button>
       </div>
       <div>
         <div className="row-between">
@@ -317,7 +322,7 @@ function DecisionCard({ d, me, editable, needsMe, trip }: {
           return (
             <div key={o.id} className={`decision-option-row${leading ? ' leading' : ''}`}>
               <button className={`vote-btn ${mine ? 'on' : ''}`} disabled={d.status === 'resolved'} aria-pressed={mine}
-                onClick={() => voteOnDecision(d.id, o.id)} aria-label={`Vote for ${o.label}`}>▲</button>
+                onClick={() => voteOnDecision(d.id, o.id)} aria-label={`Vote for ${o.label}`}><ChevronUp size={13} aria-hidden /></button>
               <span style={{ flex: 1 }}>
                 {o.label}
                 {o.costImpactInr ? <span className="muted small"> · {o.costImpactInr > 0 ? '+' : ''}{formatInr(o.costImpactInr)}</span> : null}
@@ -328,7 +333,7 @@ function DecisionCard({ d, me, editable, needsMe, trip }: {
                   {voters.length > 4 && <span className="who-more">+{voters.length - 4}</span>}
                 </span>
               )}
-              {tally[i] > 0 && <span className="chip chip-info">{tally[i]} vote{tally[i] !== 1 ? 's' : ''}</span>}
+              {tally[i] > 0 && <Chip tone="info">{tally[i]} vote{tally[i] !== 1 ? 's' : ''}</Chip>}
               {d.status === 'resolved' && d.resolvedOptionId === o.id && <Chip tone="ok">Chosen</Chip>}
             </div>
           )
@@ -340,7 +345,7 @@ function DecisionCard({ d, me, editable, needsMe, trip }: {
           {rec && (
             <p className="small" style={{ margin: '4px 0 0' }}>
               <Sparkles size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />
-              <b>{rec.label}</b> — {rec.reason} <span className="chip chip-sm chip-info" style={{ marginLeft: 4 }}>offline</span>
+              <b>{rec.label}</b> — {rec.reason} <Chip tone="info">offline</Chip>
             </p>
           )}
         </div>

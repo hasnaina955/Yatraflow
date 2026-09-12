@@ -120,7 +120,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
   const savedFlag = isSaved(pub.id)
 
   function copyThis() {
-    forkPublication(pub!, me?.id ?? null, onNavigate)
+    void forkPublication(pub!, me?.id ?? null, onNavigate)
   }
 
   function saveThis() {

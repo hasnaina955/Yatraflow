@@ -110,7 +110,7 @@ export function LocationInput({ value, onChange, onPick, placeholder, error, aut
       {loading && <span className="loc-spinner" aria-label="Searching places" />}
       {resolving && <span className="loc-spinner" aria-label="Pinning the place" />}
       {open && hits.length > 0 && (
-        <ul className="loc-dropdown" role="listbox" id={listId}>
+        <ul className="loc-dropdown popover" role="listbox" id={listId}>
           {hits.map((hit, i) => (
             <li key={hit.id} role="presentation">
               <button
@@ -123,9 +123,11 @@ export function LocationInput({ value, onChange, onPick, placeholder, error, aut
                 onMouseEnter={() => setHighlight(i)}
                 onClick={() => choose(hit)}
               >
-                {hit.thumb
-                  ? <img className="loc-thumb" src={hit.thumb} alt="" loading="lazy" />
-                  : <span className="loc-pin">{hit.kind === 'poi' ? '🏞️' : '📍'}</span>}
+                <span className="loc-ico" aria-hidden="true">
+                  {hit.thumb
+                    ? <img className="loc-thumb" src={hit.thumb} alt="" loading="lazy" />
+                    : <span className="loc-pin">{hit.kind === 'poi' ? '🏞️' : '📍'}</span>}
+                </span>
                 <span className="loc-texts">
                   <span className="loc-name">{hit.name}</span>
                   <span className="loc-region">{labelFor(hit)}</span>
@@ -134,19 +136,17 @@ export function LocationInput({ value, onChange, onPick, placeholder, error, aut
               </button>
             </li>
           ))}
+          <li className="loc-foot" role="presentation" aria-hidden="true">
+            {googleEnabled()
+              ? 'Place search · Google'
+              : mapplsEnabled()
+                ? 'Place search · Mappls · coords by OpenStreetMap'
+                : 'Basic place search — add a maps key for richer results'}
+          </li>
         </ul>
       )}
-      {open && hits.length > 0 && (
-        <div className={`loc-attribution ${googleEnabled() || mapplsEnabled() ? 'on' : 'off'}`}>
-          {googleEnabled()
-            ? '🟢 Place search: Google'
-            : mapplsEnabled()
-              ? '🟢 Place search: Mappls · coords by OpenStreetMap'
-              : '🟠 Place search: basic (add VITE_GOOGLE_MAPS_API_KEY or VITE_MAPPLS_KEY)'}
-        </div>
-      )}
       {open && !loading && searched && hits.length === 0 && value.trim().length >= 2 && (
-        <div className="loc-empty">No places matched “{value.trim()}”. You can still use this text as-is.</div>
+        <div className="loc-empty popover">No places matched “{value.trim()}”. You can still use this text as-is.</div>
       )}
     </div>
   )

@@ -1,9 +1,9 @@
-// ============ touchDnd — long-press drag engine (pure helpers) ============
+// ============ touchDnd — pointer drag engine (pure helpers) ============
 import { describe, it, expect } from 'vitest'
 import {
-  LONG_PRESS_MS, MOVE_CANCEL_PX, EDGE_ZONE_PX, EDGE_SCROLL_SPEED,
+  LONG_PRESS_MS, MOVE_CANCEL_PX, MOUSE_START_PX, EDGE_ZONE_PX, EDGE_SCROLL_SPEED, WARP_CALM_MS,
   encodeDropKey, parseDropKey, longPressActivated, movedPx,
-  edgeScrollDelta, isInteractiveTarget,
+  edgeScrollDelta, isInteractiveTarget, warpFor, glideOffsetPx, insertionIndexFor,
 } from '../src/lib/touchDnd'
 
 describe('drop keys', () => {
@@ -76,5 +76,122 @@ describe('isInteractiveTarget', () => {
     // interactive-target check itself is exercised in the browser
     expect(() => isInteractiveTarget(null)).not.toThrow()
     expect(isInteractiveTarget(null)).toBe(false)
+  })
+})
+
+describe('warpFor (the velocity → deformation mapping)', () => {
+  it('is perfectly at rest at zero velocity', () => {
+    expect(warpFor(0, 0)).toEqual({ x: 0, y: 0, tilt: 0 })
+  })
+
+  it('stretches along the moving axis; the 0.55 thinning of the other axis lives in the skin transform', () => {
+    // 1 px/ms downward = vy .385 → capped to .26; the skin scales
+    // (1 - .26*.55, 1.26) from these raw values
+    const w = warpFor(0, 1)
+    expect(w.y).toBe(0.26)
+    expect(w.x).toBe(0)
+    expect(w.tilt).toBe(0)
+  })
+
+  it('caps the stretch at 0.26 no matter how violent the throw', () => {
+    expect(warpFor(50, 0).x).toBe(0.26)
+    expect(warpFor(0, 50).y).toBe(0.26)
+  })
+
+  it('leans signed into the horizontal throw — a flick back rights it', () => {
+    expect(warpFor(1, 0).tilt).toBeCloseTo(2.6, 10)
+    expect(warpFor(-1, 0).tilt).toBeCloseTo(-2.6, 10)
+  })
+
+  it('clamps the lean at ±7 degrees', () => {
+    expect(warpFor(10, 0).tilt).toBe(7)
+    expect(warpFor(-10, 0).tilt).toBe(-7)
+  })
+})
+
+describe('glideOffsetPx (gap-glide sign math)', () => {
+  const P = 60 // one row pitch
+  // Four stops [A,B,C,D], dragging A (index 0) downward until insertIdx = 2 —
+  // A lands between B and C → final [B,A,C,D]. Regression for the inverted
+  // signs the original glide shipped with: B slid DOWN onto C instead of UP
+  // into A's vacated slot.
+  it('dragging down: rows between slide UP toward the vacated slot', () => {
+    expect(glideOffsetPx(0, 2, 1, P)).toBe(-P) // B → slot 0
+    expect(glideOffsetPx(0, 2, 2, P)).toBe(null) // C stays
+    expect(glideOffsetPx(0, 2, 3, P)).toBe(null) // D stays
+    expect(glideOffsetPx(0, 2, 0, P)).toBe(null) // the carried row never glides
+  })
+
+  it('dragging up: rows between slide DOWN toward the vacated slot', () => {
+    // dragging D (3) up to insertIdx 2 → final [A,B,D,C]: C fills D's slot
+    expect(glideOffsetPx(3, 2, 2, P)).toBe(P)
+    expect(glideOffsetPx(3, 2, 1, P)).toBe(null)
+    expect(glideOffsetPx(3, 2, 3, P)).toBe(null)
+  })
+
+  it('is quiet when nothing should move', () => {
+    expect(glideOffsetPx(1, 1, 0, P)).toBe(null) // insert on own slot
+    expect(glideOffsetPx(0, 1, 1, P)).toBe(null) // no rows strictly between
+    expect(glideOffsetPx(2, 4, 5, P)).toBe(null) // outside the affected span
+  })
+})
+
+describe('insertionIndexFor (the drop-zone reading)', () => {
+  // Four rows with an 8px gap, like .tl-row — heights vary (40px anchor,
+  // 120px stop card) so the per-row-midpoint scaling is actually exercised.
+  // Midpoints: A 20 · B 108 · C 206 · D 284.
+  const boxes = [
+    { top: 0, height: 40 },   // A
+    { top: 48, height: 120 }, // B
+    { top: 176, height: 60 }, // C
+    { top: 244, height: 80 }, // D
+  ]
+
+  it('the rest position reads a no-op slot (dragging + 1)', () => {
+    expect(insertionIndexFor(boxes, 108, 1)).toBe(2) // centre on B's own midpoint
+    expect(glideOffsetPx(1, 2, 0, 128)).toBe(null)
+    expect(glideOffsetPx(1, 2, 2, 128)).toBe(null)
+    expect(glideOffsetPx(1, 2, 3, 128)).toBe(null)
+  })
+
+  it('crossing a row midpoint by 1px flips the slot', () => {
+    expect(insertionIndexFor(boxes, 205, 1)).toBe(2) // not yet past C
+    expect(insertionIndexFor(boxes, 207, 1)).toBe(3) // past C's midpoint → after C
+  })
+
+  it('never flips AT the midpoint (the >=/> slip class that inverted the glide)', () => {
+    expect(insertionIndexFor(boxes, 206, 1)).toBe(2) // exactly on C's midpoint
+    expect(insertionIndexFor(boxes, 20, 2)).toBe(0) // exactly on A's midpoint, dragging C
+  })
+
+  it('each row flips at its OWN midpoint — the trigger scales with the card', () => {
+    // dragging C (2): the 40px anchor flips at y=20, the 120px card at y=108
+    expect(insertionIndexFor(boxes, 19, 2)).toBe(0)
+    expect(insertionIndexFor(boxes, 21, 2)).toBe(1)
+    expect(insertionIndexFor(boxes, 107, 2)).toBe(1)
+    expect(insertionIndexFor(boxes, 109, 2)).toBe(3) // past B → rest-equivalent slot (no glide span)
+    expect(insertionIndexFor(boxes, 285, 2)).toBe(4) // past D → D glides up
+  })
+
+  it('excludes the dragged row from the count and handles both extremes', () => {
+    expect(insertionIndexFor(boxes, -5, 3)).toBe(0) // dragging D, centre above all
+    expect(insertionIndexFor(boxes, 999, 0)).toBe(4) // dragging A, centre below all
+  })
+
+  it('hysteresis delays every flip by its fraction of the row height', () => {
+    expect(insertionIndexFor(boxes, 206, 1)).toBe(2) // baseline flips past 206
+    expect(insertionIndexFor(boxes, 206, 1, 0.1)).toBe(2) // C's boundary → 212
+    expect(insertionIndexFor(boxes, 212, 1, 0.1)).toBe(2)
+    expect(insertionIndexFor(boxes, 213, 1, 0.1)).toBe(3)
+  })
+})
+
+describe('mouse activation constants', () => {
+  it('a mouse drag starts after a small movement, well under the touch cancel', () => {
+    expect(MOUSE_START_PX).toBeLessThan(MOVE_CANCEL_PX)
+  })
+
+  it('the warp calm window is shorter than one hover blink', () => {
+    expect(WARP_CALM_MS).toBe(90)
   })
 })

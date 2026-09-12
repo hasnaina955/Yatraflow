@@ -13,15 +13,196 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 > record still exists in `git log`, not here. Archived release notes live in
 > [`docs/history/`](docs/history/).
 
-## [Unreleased]
+## [0.51.0] - 2026-09-11
+
+**The timeline learns to move.** The 1,500-line TimelineTab monolith is split into
+modules, every pill toggle animates like the workspace tab bar, dropdowns and the
+calendar/location pickers share one frosted-glass recipe, drag-reorder is rebuilt on
+pointer events (the carried card rides the finger, warps with the throw, and the drop
+zones read the card's centre against stable layout), the day planner gains an
+Optimise button (2-opt ordering + real road polylines + Google Directions), and Plan
+a trip prefills a live rough-bill budget you can hand back to the maths with one
+tap. Motion is governed by a token system (`docs/MOTION-TOKENS.md`, AGENTS rule 10)
+so the older-vs-newer smoothness gap stays closed. Android `versionCode 12 / 0.12-native`.
 
 ### Added
+
+- **bencho-grade drag: the row rides the finger.** Drag-reorder on the Timeline
+  and the Board now runs entirely on pointer events (`lib/touchDnd.ts`); the
+  HTML5 drag API — whose OS-owned ghost bitmap and throttled `dragover` capped
+  how smooth a reorder could ever feel — is gone. The carried row is pinned to
+  the pointer with no easing at all (free, unfenced: only the insertion
+  *reading* is clamped, so carrying a row out of the list and back is a real
+  gesture), its inner card stretches along the moving axis, thins the other
+  and leans into the throw (velocity warp, signed tilt — a flick back rights
+  it), and a 90ms calm timer eases the deformation flat the moment the finger
+  stops. Position and deformation live on two separate transforms (row vs
+  skin) because one must never ease while the other always must. Drops settle
+  once via the FLIP pass, with the carried row springing from where it was
+  released; a no-op release springs it home. Touch keeps its long-press gate,
+  now with the same visible carry; mouse drags start on an 8px move. The
+  goo/metaball morphing stays excluded, and the drag-start wiggle is retired.
+- **Every pill toggle animates like the workspace tab bar.** The Plan/Inspect
+  toggle and the Group Input composer switch are the tabbar's exact glass
+  capsule with `.tab-btn` children, and inside *any* PillNav the sliding
+  glider is now the only thing that paints the active state — the per-chip
+  glow shadow that used to pop off/on while the background glided (the
+  "two-step switch" feel) is gone. Saffron highlights hand their paint to the
+  glider the same way (dark-amber ink for 4.8:1 on saffron).
+- **Location + calendar: the real frosted glass, plus a modernised combobox.**
+  Root cause of the dropdowns never matching the navbar's frost: the
+  CreateTrip section entrance used `animation-fill-mode: forwards`, which
+  keeps each block a compositor group after it ends — blinding
+  `backdrop-filter` on the `.popover` dropdowns inside them (they rendered as
+  plain translucent sheets). The entrance now fills `backwards` and the frost
+  is the navbar's, exactly. The combobox itself got the design-language pass:
+  option rows with a 32px tinted icon chip, hover/keyboard highlight on one
+  teal surface, and the provider caption ("Place search · Google") became a
+  quiet footer row inside the dropdown instead of a floating caption below it.
+  The calendar range reads as one capsule (start day rounds left, end day
+  rounds right), month steppers are proper round buttons, and form controls'
+  transitions moved onto the motion tokens.
+- **Quick budget amounts are a toggle, not a one-way trap.** ₹10k/15k/25k
+  chips claim the field for manual editing when clicked — and clicking the
+  highlighted amount again releases it: `budgetTouched` resets and the rough
+  bill's suggested amount flows back in, with the field hint explaining the
+  state ("Manual amount — tap the highlighted quick amount again to hand the
+  field back to our maths").
+- **The Timeline opens collapsed — one day at a time, as scannable summary rows.** Phase 1 of
+  the Timeline restructure (`docs/TIMELINE-PLAN.md`, mockups in `docs/TIMELINE-MOCKUPS.html`):
+  every day now starts as a summary row — the collapse control is a visible circular chevron
+  button that rotates open/closed, and under the title a single "Drive day · Tea Museum →
+  Top Station → Kundala Lake" line names the middle stops the stats line never showed (stay
+  days read "Stay day · No driving today — …", dimmed). Stop names wrap instead of truncating
+  mid-word, the full chain rides in a tooltip, and a new per-stop dwell chart puts amber on
+  the stop that eats the most of the day (with a measured 3:1 boundary in light theme).
+  Opening a day collapses the others (accordion), and the one open day is persisted per trip
+  (`yatraflow_open_day` in `uiPrefs.ts`) so a reload restores where you were — the old
+  per-day collapsed map is retired, since per-day booleans can't express accordion state.
+  The "Jump to day" chip rail now opens the day it scrolls to, and `+ Add here` on a
+  collapsed day expands it before opening the editor, so an add never lands in a hidden day.
+  Collapse state is lifted into `TimelineTab` (`DaySection` is now a controlled component
+  with `open` / `onToggleOpen`); pure helpers live in the new node-testable
+  `src/lib/daySummary.ts` (route chain, stay-day summary, accordion transition, dwell
+  segments), pinned by `tests/daySummary.test.ts` plus open-day persistence tests in
+  `tests/uiPrefs.test.ts` — including the negative-control that opening Day 2 collapses
+  Day 1. Drag-reorder, cross-day moves and the realtime echo guard are untouched.
+- **Plan/Inspect modes + Board-parity drag + smooth day open/close (restructure Phase 3).**
+  A segmented Plan/Inspect toggle lives in the Timeline header and persists per user like the
+  theme: **Plan** is today's editing timeline; **Inspect** is the same data with every
+  editing affordance off — no drag, delete, add, rename, halt-planner actions or impact
+  sheet — rendered through the existing `editable` permission seam, so the plan is safe to
+  study on a phone during the trip itself. Drag-reorder now uses the Board's premium kanban
+  pattern (until now only the Board had it): the DOM order never changes mid-drag, a slim
+  teal marker glides to the insertion slot, drops resolve through the marker, and a FLIP
+  pass settles the arrangement once on commit — no more per-card shuffle. Day bodies now
+  animate open and closed (grid-rows `0fr→1fr`, height-agnostic, reduced-motion aware) while
+  still unmounting when closed, so collapsed days cost nothing. The mode hook lives in
+  `src/pages/trip/timeline/useTimelineMode.ts`.
+- **Motion tokens + a liquid drag feel, everywhere (the "newer sections feel
+  cheaper" fix).** `docs/MOTION-TOKENS.md` is the design-tokens doc for motion:
+  three duration steps (`--motion-fast/med/slow`: 120/180/240ms), the easing set,
+  and a pattern catalog (dropdown entrance, toggle glider, day collapse, drag
+  follow/settle) — and AGENTS.md gains rule 10: every new interactive surface
+  ships motion from the tokens, so the gap between long-refined surfaces and
+  fresh ones stays closed. The drag on both the Timeline and the Board is now
+  bencho-style liquid arrangement: siblings glide out of the way in real time
+  while you drag (transform-only, no scale/bounce morphing), the carried row
+  sits as a dashed ghost slot, and the FLIP settle snaps the final arrangement
+  home — the gliding teal marker is retired. Dropdowns and menus share one
+  `.popover` surface (the navbar's exact glass recipe with entrance motion —
+  location list, calendar, notifications, account menu), and the Plan/Inspect
+  toggle is a real animated glider whose switching no longer reflows the header
+  (the add button dims in place instead of vanishing).
+- **Plan a trip prefills the budget with the app's own maths.** The rough-bill
+  estimate (stay + food + transport, `estimateTripStarter`) was already computed
+  live but hidden behind a "Print my bill" reveal — it now shows under the
+  budget field ("Our rough take ≈ ₹X/head · ₹Y total") and **auto-fills the
+  per-person field** (rounded to ₹500) as dates, crew, mode and route make the
+  number possible, until you edit the field yourself. The round-trip control is
+  "Drive back to start" with a real hint (≈ N km back to your start), and the
+  return-stops switch is "Plot the drive back".
+- **Travel-style chips now tell the truth — and the truth got wired in.**
+  Copy states exact engine values (relaxed: halts ~120 km / meals ~260 km /
+  60 min detour slack; packed 180/300/30; balanced 150/300/45; budget/luxury:
+  the ₹1,200/₹8,000 stay tiers vs comfort ₹3,200), the fake claims are gone,
+  and the five decorative styles now really act: `computeCategoryBias` gains
+  style→category priors (adventure→adventure/nature, spiritual→temple,
+  food-focused→food, creator→sightseeing/museum) consumed by the nearby-POI
+  ranking, so "suggestions favour temple stops" is a fact, not a promise.
+- **Group Input speaks one filter language.** The duplicate count-pill row and
+  filter bar are merged into a single workspace-style pill rail with the counts
+  inside the pills (All · n open, Need you with its amber badge, Resolved), the
+  composer's Stop idea/Question switch is a visually distinct segmented mode
+  toggle, the unstyled `.gi-guide` box is styled, and the text-glyph vote
+  buttons are lucide chevrons.
+- **Timeline restructure plan and mockups (planning artefacts).** `docs/TIMELINE-PLAN.md` is
+  the phased, code-audited implementation plan (collapsed accordion day rows → evict
+  specialist tools → Plan/Inspect split + file split) with the three design decisions signed
+  off; `docs/TIMELINE-MOCKUPS.html` is the approved visual prototype rendered in YatraFlow's
+  design tokens.
 
 - **"Optimise day" — the anti-crisscross reorder** (Timeline, per-day header). Days with 3+ movable stops whose current order wastes travel show an `Optimise (−X km)` button: it opens a before/after preview (travel distance, estimated driving time at the trip's average speed, and the full new stop order) and commits through the same impact-preview gate as a manual drag. Under the hood, a new pure `optimizeDayOrder` engine helper runs greedy nearest-neighbour from the day's wake-up origin (where the previous day's journey ended — `originOf`, not a naive first-stop guess) followed by a full 2-opt improvement sweep, with an open-time tie-break so two near-equal candidates pick the earlier-opening door. Auto anchors (your base and the day's destination/continuation waypoints) stay pinned first/last — the engine builds the journey around them; a mid-day auto anchor (an unusual shape) refuses to optimize rather than risk dropping it, and rejected stops ride along untouched. 8 node tests pin the behaviours (crisscross collapse, unchanged days, anchor pinning + mid-anchor refusal, no-op <3 stops, rejected survival, never-worse guarantee, open-time tie-break). The per-leg travel chips between stops (km, minutes, cost — OSRM-corrected) and the mapped route this builds on already existed. Delta figures use the canonical font-weight ramp (650/750 are not loaded faces — caught by the design-system invariant after the base adopted it).
 
 - **"Open in Google Maps" — a day's ride opens with turn-by-turn directions.** The travel panel (Timeline) and the map's day toolbar gain a Directions action that hands the ride to your own Google Maps — origin, your stops in order, destination, `travelmode=driving` (the URL API has no two-wheeler mode; switch once inside the app if you ride with it on). The URL is built from the engine's day journey, so synthesized legs are included: the Day-1 outbound from an anchor-only day and the final day's ride home both open complete. Waypoints are capped at Google's 9-waypoint limit with the true destination always preserved. New pure `googleMapsDirectionsUrl` in `lib/externalMaps.ts`, 5 node tests.
 
+### Changed
+
+- **The 1,500-line `TimelineTab.tsx` monolith is split into modules** (`restructure Phase 3`,
+  same behaviour, prop-identity discipline preserved): the shell (364 lines — tab state,
+  accordion open-day, mode, StopEditor, warnings grouping) composes
+  `timeline/DaySection.tsx` (689 — day header/summary row, animated body, stop rows,
+  suggestions), `timeline/TravelPanel.tsx` (471 — travel card + halt planner),
+  `timeline/DaySpark.tsx`, `timeline/MoveStopModal.tsx` and `timeline/useTimelineMode.ts`.
+  `DaySection`'s prop signature remains the shared contract.
+
 ### Fixed
+
+- **Drag drop zones no longer make you hunt for the slot.** The insertion
+  reading was a function of the *pointer* against the *live transformed row
+  boxes*, with holes in it: where you grabbed the card shifted when the slot
+  flipped, the gliding rows moved the very hit areas being aimed at (the
+  target chased itself), and over the 8px margins or whitespace the reading
+  froze until a row was found again. It is now a pure geometric function of
+  the carried card's **centre** against each row's own midpoint measured in
+  **stable layout** (`insertionIndexFor` + `rowLayoutBoxes`, lib/touchDnd.ts —
+  `offsetTop` ignores transforms), and the whole list root is a live surface
+  (`data-yf-list`), so the gap opens the moment the card's centre crosses a
+  neighbour's centre regardless of grab point, and dropping in the gap
+  between rows commits instead of springing back. Own-list drops now always
+  consume the engine's carry rect, so a release at rest can no longer leak a
+  stale rect into a later FLIP settle.
+- **The drag gap-glide slid rows the wrong way.** The live sibling-glide
+  offsets had their signs inverted in both the Timeline and the Board: rows
+  between the carried slot and the cursor slid DOWN onto their neighbour on a
+  downward drag (and up on an upward one) instead of toward the vacated slot —
+  with the offset being exactly one row pitch, the displaced row landed
+  precisely on top of the next one. The math now lives in a pure
+  `glideOffsetPx` (lib/touchDnd.ts) with tests pinning the directions, and
+  both surfaces consume it.
+- **Forking a published itinerary no longer vanishes on reload.** Every trip copy inherited
+  the source's `inviteCode` — and since invite codes carry a unique index
+  (`idx_trips_invite_code`), forking any trip that had ever been invite-shared failed the
+  `trips` insert, left a cache-only copy that toasted success anyway, and silently
+  disappeared on the next reload (verified live: all three published trips on the production
+  project carry invite codes). `buildTripCopy` in `src/store/store.ts` now strips
+  `inviteCode` and `deletedAt` from every copy (a fork of a trashed source also used to
+  arrive pre-trashed); `duplicateTripPersisted` / `duplicateTripPublicPersisted` report
+  whether the rows actually landed, retract the copy on failure instead of leaving a zombie,
+  and `forkPublication` toasts the truth. Pinned by `tests/forkPersist.test.ts`.
+- **Forking from the Explore grid works now.** The grid cards fork via `tripById`, but the
+  membership-scoped hydration only ever caches your own trips — every foreign publication
+  answered "That itinerary is no longer available." `forkPublication` now falls back to
+  `fetchSharedTrip` (public by definition) before giving up.
+- **"Trip not found" is no longer the answer to a cache hiccup.** `TripWorkspace` opened
+  strictly from the hydration cache, so a partial hydrate (a failed trips read on a flaky
+  connection — including one that wiped previously-loaded trips, since the hydration patch
+  overwrote good rows with an empty result) rendered "Trip not found" for trips that exist.
+  The workspace now fetches the row directly on a cache miss (`fetchSharedTrip`; it merges
+  into the cache and shows a loading state, with "Trip not found" reserved for genuinely
+  unreadable trips), and hydration keeps the previous cache when the trips/memberships reads
+  fail instead of overwriting them. Seeded demo trips whose membership insert fails are now
+  logged instead of silently leaving invisible rows.
 
 - **"Optimise day" no longer mutates the live trip while merely rendering.**
   The review of the optimise-day feature caught `optimizeDayOrder` renumbering

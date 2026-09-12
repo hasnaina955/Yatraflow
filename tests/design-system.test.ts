@@ -182,7 +182,7 @@ describe('kicker casing: sentence case in source, uppercase via CSS', () => {
   })
 
   it('types the day badges in sentence case', () => {
-    for (const file of ['src/pages/trip/TimelineTab.tsx', 'src/pages/PublicItinerary.tsx']) {
+    for (const file of ['src/pages/trip/timeline/DaySection.tsx', 'src/pages/PublicItinerary.tsx']) {
       expect(source(file)).toContain('<small>Day</small>')
       expect(source(file)).not.toContain('<small>DAY</small>')
     }

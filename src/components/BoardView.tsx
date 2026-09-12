@@ -8,7 +8,7 @@ import {
   ArrowLeft, ChevronDown, ChevronUp, LocateFixed, Map as MapIcon, MoveHorizontal,
   Plus, Trash2, TriangleAlert,
 } from 'lucide-react'
-import { prefersReducedMotion } from '../lib/motion'
+import { motionTiming, prefersReducedMotion } from '../lib/motion'
 import type { Trip, ItineraryStop } from '../data/types'
 import { computeTotals, computeHealth, collectWarnings, minutesToHM, formatInr } from '../lib/engine'
 import type { ScheduleWarning } from '../lib/engine'
@@ -359,10 +359,11 @@ function BoardColumn({ day, allDays, editable, warnings, focused, onToggleFocus,
         const dx = q.x - p.x
         const dy = q.y - p.y
         if (dx || dy) {
+          const timing = motionTiming()
           rootEl.querySelector<HTMLElement>(`[data-stop-id="${CSS.escape(id)}"]`)
             ?.animate(
               [{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }],
-              { duration: 240, easing: 'cubic-bezier(.22, .61, .36, 1)' },
+              timing,
             )
         }
       }

@@ -26,6 +26,7 @@ import { prefersReducedMotion } from '../../../lib/motion'
 import { stopKindOf, STOP_KIND_LABELS } from '../../../lib/stopKind'
 import { statusLabel } from '../../../lib/labels'
 import { Chip, EmptyState, Modal, toast, useReorder } from '../../../components/ui'
+import { glideOffsetPx } from '../../../lib/touchDnd'
 import { useSuggestionCache } from '../../../hooks/useSuggestionCache'
 import { searchNearbyPois } from '../../../lib/geocode'
 import type { PlaceHit } from '../../../lib/geocode'
@@ -262,15 +263,14 @@ export const DaySection = React.memo(function DaySection({ day, trip, editable, 
   useEffect(() => { if (dragging === null) setInsertIdx(null) }, [dragging])
 
   /** Live glide offset for row i while a drag is open: rows between the
-   *  carried slot and the insertion index slide by the carried row's height
-   *  (plus its row gap), so a clean gap opens at the target. */
+   *  carried slot and the insertion index slide toward the carried row's
+   *  origin, so the gap reopens under the cursor. The sign math lives in the
+   *  pure glideOffsetPx (lib/touchDnd.ts) so tests can pin it. */
   function glideOffset(i: number): number | null {
-    if (dragging === null || insertIdx === null || insertIdx === dragging || i === dragging) return null
+    if (dragging === null || insertIdx === null) return null
     const row = stopsRef.current?.querySelectorAll<HTMLElement>('[data-stop-id]')[dragging]
     const h = row ? row.offsetHeight + 8 : 0
-    if (insertIdx > dragging && i > dragging && i < insertIdx) return h
-    if (insertIdx < dragging && i >= insertIdx && i < dragging) return -h
-    return null
+    return glideOffsetPx(dragging, insertIdx, i, h)
   }
 
   // FLIP slot-in (BoardView parity): when this day's arrangement changes

@@ -72,6 +72,20 @@ export function edgeScrollDelta(y: number, viewportH: number, zone = EDGE_ZONE_P
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v))
 
 /**
+ * Live glide offset (px) for sibling row `index` while a drag holds row
+ * `dragging` open at insertion slot `insertIdx`: the rows BETWEEN the carried
+ * slot and the target slide TOWARD the carried row's origin, closing the
+ * vacated slot so the gap reopens under the cursor. Dragging down → the rows
+ * in between slide UP (−pitch); dragging up → they slide DOWN (+pitch).
+ * `pitch` is one row pitch (row height + its gap). Pure — pinned by tests.
+ */
+export function glideOffsetPx(dragging: number, insertIdx: number, index: number, pitch: number): number | null {
+  if (insertIdx === dragging || index === dragging) return null
+  if (insertIdx > dragging) return index > dragging && index < insertIdx ? -pitch : null
+  return index >= insertIdx && index < dragging ? pitch : null
+}
+
+/**
  * The warp state for a pointer velocity (px per ms), the bencho numbers:
  * stretch toward the movement (capped at .26), thin the other axis by .55 of
  * that, and lean (deg) into the horizontal throw — signed, so a flick back

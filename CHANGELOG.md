@@ -148,6 +148,14 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ### Fixed
 
+- **The drag gap-glide slid rows the wrong way.** The live sibling-glide
+  offsets had their signs inverted in both the Timeline and the Board: rows
+  between the carried slot and the cursor slid DOWN onto their neighbour on a
+  downward drag (and up on an upward one) instead of toward the vacated slot —
+  with the offset being exactly one row pitch, the displaced row landed
+  precisely on top of the next one. The math now lives in a pure
+  `glideOffsetPx` (lib/touchDnd.ts) with tests pinning the directions, and
+  both surfaces consume it.
 - **Forking a published itinerary no longer vanishes on reload.** Every trip copy inherited
   the source's `inviteCode` — and since invite codes carry a unique index
   (`idx_trips_invite_code`), forking any trip that had ever been invite-shared failed the

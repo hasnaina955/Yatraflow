@@ -18,6 +18,7 @@ import { stopKindOf, STOP_KIND_LABELS } from '../lib/stopKind'
 import { stopInitialValues, stopLegContext, stopEditorKey, stopDayIndex, type StopEditorTarget } from '../lib/stopForm'
 import { useDb } from '../store/store'
 import { useReorder, Modal } from './ui'
+import { glideOffsetPx } from '../lib/touchDnd'
 import { TripMap } from './TripMap'
 import { StopEditor, type StopFormValues } from './StopEditor'
 
@@ -313,16 +314,15 @@ function BoardColumn({ day, allDays, editable, warnings, focused, onToggleFocus,
 
   useEffect(() => { if (dragging === null) setInsertIdx(null) }, [dragging])
 
-  /** Live glide offset for card i while a drag is open: cards between the
-   *  carried slot and the insertion index slide by the carried card's height
-   *  (plus its gap), so a clean gap opens at the target. */
+  /** Live glide offset for card i while a drag is open: rows between the
+   *  carried slot and the insertion index slide toward the carried row's
+   *  origin, so the gap reopens under the cursor. The sign math lives in the
+   *  pure glideOffsetPx (lib/touchDnd.ts) so tests can pin it. */
   function glideOffset(i: number): number | null {
-    if (dragging === null || insertIdx === null || insertIdx === dragging || i === dragging) return null
+    if (dragging === null || insertIdx === null) return null
     const card = stopsRef.current?.querySelectorAll<HTMLElement>('[data-stop-id]')[dragging]
     const h = card ? card.offsetHeight + 8 : 0
-    if (insertIdx > dragging && i > dragging && i < insertIdx) return h
-    if (insertIdx < dragging && i >= insertIdx && i < dragging) return -h
-    return null
+    return glideOffsetPx(dragging, insertIdx, i, h)
   }
 
   const sev = warnings.some(w => w.severity === 'high') ? 'high'

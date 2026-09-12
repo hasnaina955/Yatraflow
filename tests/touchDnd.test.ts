@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest'
 import {
   LONG_PRESS_MS, MOVE_CANCEL_PX, MOUSE_START_PX, EDGE_ZONE_PX, EDGE_SCROLL_SPEED, WARP_CALM_MS,
   encodeDropKey, parseDropKey, longPressActivated, movedPx,
-  edgeScrollDelta, isInteractiveTarget, warpFor,
+  edgeScrollDelta, isInteractiveTarget, warpFor, glideOffsetPx,
 } from '../src/lib/touchDnd'
 
 describe('drop keys', () => {
@@ -106,6 +106,33 @@ describe('warpFor (the velocity → deformation mapping)', () => {
   it('clamps the lean at ±7 degrees', () => {
     expect(warpFor(10, 0).tilt).toBe(7)
     expect(warpFor(-10, 0).tilt).toBe(-7)
+  })
+})
+
+describe('glideOffsetPx (gap-glide sign math)', () => {
+  const P = 60 // one row pitch
+  // Four stops [A,B,C,D], dragging A (index 0) downward until insertIdx = 2 —
+  // A lands between B and C → final [B,A,C,D]. Regression for the inverted
+  // signs the original glide shipped with: B slid DOWN onto C instead of UP
+  // into A's vacated slot.
+  it('dragging down: rows between slide UP toward the vacated slot', () => {
+    expect(glideOffsetPx(0, 2, 1, P)).toBe(-P) // B → slot 0
+    expect(glideOffsetPx(0, 2, 2, P)).toBe(null) // C stays
+    expect(glideOffsetPx(0, 2, 3, P)).toBe(null) // D stays
+    expect(glideOffsetPx(0, 2, 0, P)).toBe(null) // the carried row never glides
+  })
+
+  it('dragging up: rows between slide DOWN toward the vacated slot', () => {
+    // dragging D (3) up to insertIdx 2 → final [A,B,D,C]: C fills D's slot
+    expect(glideOffsetPx(3, 2, 2, P)).toBe(P)
+    expect(glideOffsetPx(3, 2, 1, P)).toBe(null)
+    expect(glideOffsetPx(3, 2, 3, P)).toBe(null)
+  })
+
+  it('is quiet when nothing should move', () => {
+    expect(glideOffsetPx(1, 1, 0, P)).toBe(null) // insert on own slot
+    expect(glideOffsetPx(0, 1, 1, P)).toBe(null) // no rows strictly between
+    expect(glideOffsetPx(2, 4, 5, P)).toBe(null) // outside the affected span
   })
 })
 

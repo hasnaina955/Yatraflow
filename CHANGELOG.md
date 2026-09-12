@@ -13,7 +13,16 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 > record still exists in `git log`, not here. Archived release notes live in
 > [`docs/history/`](docs/history/).
 
-## [Unreleased]
+## [0.52.0] - 2026-09-12
+
+**The map learns relief.** The light basemap moves to Liberty — cream land,
+vivid water, named roads: it reads like a travel atlas instead of a grey
+canvas — and the Map tab gains three view modes on one shared palette: flat 2D,
+Terrain relief (hillshade over the keyless AWS terrarium DEM, never burying the
+river lines), and a pitched 3D hero that rides real elevation and puts the
+terrain back exactly when the theme swaps reload the style underneath it. The
+Board stays hard-2D by design; the choice persists; the spec and live
+prototype landed with the code. Android `versionCode 13 / 0.13-native`.
 
 ### Added
 

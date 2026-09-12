@@ -18,7 +18,7 @@ import { stopKindOf, STOP_KIND_LABELS } from '../lib/stopKind'
 import { stopInitialValues, stopLegContext, stopEditorKey, stopDayIndex, type StopEditorTarget } from '../lib/stopForm'
 import { useDb } from '../store/store'
 import { useReorder, Modal } from './ui'
-import { glideOffsetPx } from '../lib/touchDnd'
+import { glideOffsetPx, insertionIndexFor, rowLayoutBoxes } from '../lib/touchDnd'
 import { TripMap } from './TripMap'
 import { StopEditor, type StopFormValues } from './StopEditor'
 
@@ -269,7 +269,7 @@ function BoardColumn({ day, allDays, editable, warnings, focused, onToggleFocus,
       below springs it from there into its new slot */
   const dropRect = useRef<{ id: string; x: number; y: number } | null>(null)
 
-  const { dndHandlers, dayDropHandlers, dragging, foreignOver, takeCarryRect } = useReorder(
+  const { dndHandlers, dayDropHandlers, dragging, foreignOver, takeCarryRect, listId } = useReorder(
     ordered,
     // Same-list commits resolve through the insertion index, not the card the
     // cursor happened to be over: idx counts positions in the full list
@@ -277,8 +277,10 @@ function BoardColumn({ day, allDays, editable, warnings, focused, onToggleFocus,
     (fromIdx) => {
       const idx = insertRef.current ?? fromIdx
       const toIdx = idx > fromIdx ? idx - 1 : idx
+      // consume the carry rect on EVERY self-drop: a no-op slot (released at
+      // rest) must not leak the engine's rect into a later FLIP pass
+      const rect = takeCarryRect()
       if (toIdx !== fromIdx) {
-        const rect = takeCarryRect()
         if (rect && ordered[fromIdx]) dropRect.current = { id: ordered[fromIdx].id, x: rect.x, y: rect.y }
         onReorder(day.index, fromIdx, toIdx)
       }
@@ -296,17 +298,19 @@ function BoardColumn({ day, allDays, editable, warnings, focused, onToggleFocus,
           }
         } catch { /* malformed payload — ignore */ }
       },
-      /** engine hover → insertion slot via the hovered card's midpoint */
-      onOwnHover: (idx, _x, y) => {
-        const cards = stopsRef.current?.querySelectorAll<HTMLElement>('[data-stop-id]')
-        if (!cards || cards.length === 0) return
-        let next: number
-        if (idx >= cards.length) {
-          next = cards.length
-        } else {
-          const r = cards[idx].getBoundingClientRect()
-          next = y < r.top + r.height / 2 ? idx : idx + 1
-        }
+      /** engine hover → insertion slot from STABLE layout geometry: the
+          carried card's centre against each card's own midpoint (pure
+          insertionIndexFor, lib/touchDnd.ts). Transform-immune — the gliding
+          cards cannot chase the zones — and defined everywhere, so the flex
+          gaps and whitespace keep the reading alive instead of freezing it.
+          The engine re-fires while the centre moves; the ref guard keeps
+          this from re-rendering until the slot actually flips. */
+      onOwnHover: (_idx, _x, centreY, dragIdx) => {
+        const root = stopsRef.current
+        if (!root || dragIdx < 0) return
+        const cards = Array.from(root.querySelectorAll<HTMLElement>('[data-stop-id]'))
+        if (cards.length === 0) return
+        const next = insertionIndexFor(rowLayoutBoxes(root, cards), centreY, dragIdx)
         if (insertRef.current !== next) setInsertIdx(next)
       },
     },
@@ -376,7 +380,7 @@ function BoardColumn({ day, allDays, editable, warnings, focused, onToggleFocus,
         {topWarn && <span className={`day-warn-pill ${sev === 'high' ? 'sev-high' : ''}`}><TriangleAlert size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />{topWarn.title.replace(/^Day \d+: /, '')}{warnings.length > 1 ? ` +${warnings.length - 1}` : ''}</span>}
       </button>
 
-      <div className={`board-col-stops${dragging !== null ? ' is-dragging' : ''}`} ref={stopsRef}>
+      <div className={`board-col-stops${dragging !== null ? ' is-dragging' : ''}`} ref={stopsRef} data-yf-list={listId}>
         {ordered.map((s, i) => {
           const kind = stopKindOf(s)
           const meta = [

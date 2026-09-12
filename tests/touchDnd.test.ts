@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest'
 import {
   LONG_PRESS_MS, MOVE_CANCEL_PX, MOUSE_START_PX, EDGE_ZONE_PX, EDGE_SCROLL_SPEED, WARP_CALM_MS,
   encodeDropKey, parseDropKey, longPressActivated, movedPx,
-  edgeScrollDelta, isInteractiveTarget, warpFor, glideOffsetPx,
+  edgeScrollDelta, isInteractiveTarget, warpFor, glideOffsetPx, insertionIndexFor,
 } from '../src/lib/touchDnd'
 
 describe('drop keys', () => {
@@ -133,6 +133,56 @@ describe('glideOffsetPx (gap-glide sign math)', () => {
     expect(glideOffsetPx(1, 1, 0, P)).toBe(null) // insert on own slot
     expect(glideOffsetPx(0, 1, 1, P)).toBe(null) // no rows strictly between
     expect(glideOffsetPx(2, 4, 5, P)).toBe(null) // outside the affected span
+  })
+})
+
+describe('insertionIndexFor (the drop-zone reading)', () => {
+  // Four rows with an 8px gap, like .tl-row — heights vary (40px anchor,
+  // 120px stop card) so the per-row-midpoint scaling is actually exercised.
+  // Midpoints: A 20 · B 108 · C 206 · D 284.
+  const boxes = [
+    { top: 0, height: 40 },   // A
+    { top: 48, height: 120 }, // B
+    { top: 176, height: 60 }, // C
+    { top: 244, height: 80 }, // D
+  ]
+
+  it('the rest position reads a no-op slot (dragging + 1)', () => {
+    expect(insertionIndexFor(boxes, 108, 1)).toBe(2) // centre on B's own midpoint
+    expect(glideOffsetPx(1, 2, 0, 128)).toBe(null)
+    expect(glideOffsetPx(1, 2, 2, 128)).toBe(null)
+    expect(glideOffsetPx(1, 2, 3, 128)).toBe(null)
+  })
+
+  it('crossing a row midpoint by 1px flips the slot', () => {
+    expect(insertionIndexFor(boxes, 205, 1)).toBe(2) // not yet past C
+    expect(insertionIndexFor(boxes, 207, 1)).toBe(3) // past C's midpoint → after C
+  })
+
+  it('never flips AT the midpoint (the >=/> slip class that inverted the glide)', () => {
+    expect(insertionIndexFor(boxes, 206, 1)).toBe(2) // exactly on C's midpoint
+    expect(insertionIndexFor(boxes, 20, 2)).toBe(0) // exactly on A's midpoint, dragging C
+  })
+
+  it('each row flips at its OWN midpoint — the trigger scales with the card', () => {
+    // dragging C (2): the 40px anchor flips at y=20, the 120px card at y=108
+    expect(insertionIndexFor(boxes, 19, 2)).toBe(0)
+    expect(insertionIndexFor(boxes, 21, 2)).toBe(1)
+    expect(insertionIndexFor(boxes, 107, 2)).toBe(1)
+    expect(insertionIndexFor(boxes, 109, 2)).toBe(3) // past B → rest-equivalent slot (no glide span)
+    expect(insertionIndexFor(boxes, 285, 2)).toBe(4) // past D → D glides up
+  })
+
+  it('excludes the dragged row from the count and handles both extremes', () => {
+    expect(insertionIndexFor(boxes, -5, 3)).toBe(0) // dragging D, centre above all
+    expect(insertionIndexFor(boxes, 999, 0)).toBe(4) // dragging A, centre below all
+  })
+
+  it('hysteresis delays every flip by its fraction of the row height', () => {
+    expect(insertionIndexFor(boxes, 206, 1)).toBe(2) // baseline flips past 206
+    expect(insertionIndexFor(boxes, 206, 1, 0.1)).toBe(2) // C's boundary → 212
+    expect(insertionIndexFor(boxes, 212, 1, 0.1)).toBe(2)
+    expect(insertionIndexFor(boxes, 213, 1, 0.1)).toBe(3)
   })
 })
 

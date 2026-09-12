@@ -8,8 +8,10 @@
 //
 // 1 · free, and not fenced. The carried row goes wherever the finger goes —
 //     position is pinned to the pointer and NEVER eases. Only the reading is
-//     clamped: hovering a row/gap reports an insertion index to the owner
-//     list, which opens its gap there (rows glide via their own transitions).
+//     clamped: the carried CARD's CENTRE is read against the rows' stable
+//     layout (never the pointer against transformed boxes — the gliding rows
+//     would chase the zones), and the owner list opens its gap at the result
+//     (rows glide via their own transitions).
 // 2 · the warp. The carried row stretches along whichever axis is moving and
 //     thins the other, then leans the way it is being thrown. Deformation
 //     lives on the row's SKIN (the card inside the row) and eases back the
@@ -86,6 +88,50 @@ export function glideOffsetPx(dragging: number, insertIdx: number, index: number
 }
 
 /**
+ * Insertion index for a carried row whose centre sits at `centreY`, given the
+ * rows' STABLE layout boxes (viewport coords, DOM order, dragged row
+ * included). Rows are variable height, so each row's OWN midpoint is the
+ * boundary — the trigger scales with the card. `hysteresis` (0..1) pushes
+ * every boundary down by that fraction of the row's height so the index
+ * cannot flip on jitter around a midpoint (ship at 0; tune only if the
+ * baseline feels twitchy).
+ *
+ * Returns a full-list index (dragged slot included), matching useReorder's
+ * `insertIdx` semantics: k counts passed rows in the reduced list; the
+ * full-list index is `k >= dragging ? k + 1 : k`. At rest (centre on the
+ * dragged row's own midpoint) this yields dragging + 1, and both
+ * glideOffsetPx(dragging, dragging + 1, …) and the owner's commit math are
+ * provable no-ops there — correct. Pure — pinned by tests.
+ */
+export function insertionIndexFor(
+  boxes: { top: number; height: number }[],
+  centreY: number,
+  dragging: number,
+  hysteresis = 0,
+): number {
+  let k = 0
+  for (let i = 0; i < boxes.length; i++) {
+    if (i === dragging) continue
+    const b = boxes[i]
+    if (centreY > b.top + b.height / 2 + b.height * hysteresis) k++
+  }
+  return k >= dragging ? k + 1 : k
+}
+
+/**
+ * STABLE layout boxes for a list's rows: viewport tops that the glide
+ * transforms do NOT move (getBoundingClientRect rides the translations, and
+ * reading it here would make the drop zones chase themselves mid-glide).
+ * The root must be the rows' offsetParent (position: relative, no border);
+ * a scrollable root contributes its scrollTop. Pure layout read, no DOM
+ * writes — safe to call every pointer frame.
+ */
+export function rowLayoutBoxes(root: HTMLElement, rows: HTMLElement[]): { top: number; height: number }[] {
+  const boxTop = root.getBoundingClientRect().top - root.scrollTop
+  return rows.map(el => ({ top: boxTop + el.offsetTop, height: el.offsetHeight }))
+}
+
+/**
  * The warp state for a pointer velocity (px per ms), the bencho numbers:
  * stretch toward the movement (capped at .26), thin the other axis by .55 of
  * that, and lean (deg) into the horizontal throw — signed, so a flick back
@@ -108,7 +154,9 @@ type Instance = {
   /** the source row visually enters "dragging" state */
   onOwnDragStart(idx: number): void
   /** a row/gap in this list is (or is no longer, null) the hover target.
-      x/y are the pointer position so owners can resolve insertion slots. */
+      x is the pointer position; y is the CARRIED CARD's centre (viewport) —
+      the owner reads its insertion slot from that against stable layout
+      (insertionIndexFor), never from the pointer against live boxes. */
   onDragOver(idx: number | null, foreign: boolean, x: number, y: number): void
   onDropOnSelf(fromIdx: number, toIdx: number): void
   onForeignDrop(payload: string, toIdx: number): void
@@ -140,6 +188,9 @@ type Active = {
   scrollY0: number
   grabDX: number
   grabDY: number
+  /** carried-centre Y at the last onDragOver send — dedupe key for the
+      continuous own-list reading (NaN = never sent, so the first hover fires) */
+  hoverY: number
 }
 
 type Pending = {
@@ -227,16 +278,36 @@ function updateWarp(x: number, y: number, t: number) {
 
 function hitTest(x: number, y: number) {
   if (!active) return
+  // The reading tracks the CARRIED CARD's centre, not the pointer: the user
+  // aims the card, and where in the card they grabbed it (grabDY) must not
+  // shift when the insertion flips. lastY − grabDY is the carried row's
+  // exact viewport top (the carry pin), so this is true under all scroll.
+  const centreY = active.lastY - active.grabDY + active.element.offsetHeight / 2
   const el = document.elementFromPoint(x, y)
   // the carried row is pointer-events:none, so elementFromPoint sees through it
   const dropEl = el?.closest('[data-yf-drop]')
   const gapEl = el?.closest('[data-yf-gap]')
   const parsed = parseDropKey(dropEl?.getAttribute('data-yf-drop') ?? gapEl?.getAttribute('data-yf-gap'))
-  const next = parsed ? { id: parsed.instanceId, index: parsed.index } : null
-  if (next && next.id === active.target?.id && next.index === active.target?.index) return
+  let next = parsed ? { id: parsed.instanceId, index: parsed.index } : null
+  if (!next) {
+    // Dead bands (the 8px row margins, whitespace inside the list): no row or
+    // gap matched, but the list root still names its instance — keep the
+    // SOURCE list's reading alive so the hole never freezes. Foreign gaps
+    // need a real row index, so they stay strict. The index here is a
+    // placeholder: own-list owners read their slot from the centre instead.
+    const listId = el?.closest('[data-yf-list]')?.getAttribute('data-yf-list')
+    if (listId === active.srcId) {
+      next = { id: active.srcId, index: active.target?.id === active.srcId ? active.target.index : active.srcIdx }
+    }
+  }
+  // The own-list reading is continuous in centreY (the owner flips slots
+  // mid-row), so re-fire whenever it moves — even with the hovered row
+  // unchanged. Only a byte-identical repeat of both is skipped.
+  if (next && next.id === active.target?.id && next.index === active.target?.index && centreY === active.hoverY) return
   if (active.target) instances.get(active.target.id)?.onDragOver(null, active.target.id !== active.srcId, x, y)
   active.target = next
-  if (next) instances.get(next.id)?.onDragOver(next.index, next.id !== active.srcId, x, y)
+  active.hoverY = centreY
+  if (next) instances.get(next.id)?.onDragOver(next.index, next.id !== active.srcId, x, centreY)
 }
 
 function frame() {
@@ -264,6 +335,7 @@ function activate() {
     raf: 0, calmTimer: 0,
     originLeft: rect.left, originTop: rect.top, scrollY0: window.scrollY,
     grabDX: startX - rect.left, grabDY: startY - rect.top,
+    hoverY: NaN,
   }
   pending = null
   // Drag-pickup buzz — the strongest feedback in the app (Android reorder

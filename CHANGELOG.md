@@ -148,6 +148,20 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ### Fixed
 
+- **Drag drop zones no longer make you hunt for the slot.** The insertion
+  reading was a function of the *pointer* against the *live transformed row
+  boxes*, with holes in it: where you grabbed the card shifted when the slot
+  flipped, the gliding rows moved the very hit areas being aimed at (the
+  target chased itself), and over the 8px margins or whitespace the reading
+  froze until a row was found again. It is now a pure geometric function of
+  the carried card's **centre** against each row's own midpoint measured in
+  **stable layout** (`insertionIndexFor` + `rowLayoutBoxes`, lib/touchDnd.ts —
+  `offsetTop` ignores transforms), and the whole list root is a live surface
+  (`data-yf-list`), so the gap opens the moment the card's centre crosses a
+  neighbour's centre regardless of grab point, and dropping in the gap
+  between rows commits instead of springing back. Own-list drops now always
+  consume the engine's carry rect, so a release at rest can no longer leak a
+  stale rect into a later FLIP settle.
 - **The drag gap-glide slid rows the wrong way.** The live sibling-glide
   offsets had their signs inverted in both the Timeline and the Board: rows
   between the carried slot and the cursor slid DOWN onto their neighbour on a

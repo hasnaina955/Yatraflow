@@ -47,6 +47,8 @@
   --yf-coral-100: #FFF0EC;
   --yf-purple: #897ABB;        /* scenic / creative discovery */
   --yf-purple-100: #F0EAFA;
+  --yf-poi-see: #7C5CFC;       /* "places to see" lane violet — same hex as DAY_COLORS[2] for now (see TripMap.tsx); hue split is a palette decision */
+  --yf-poi-see-ink: #5540B8;   /* its text ink, light theme */
   /* Expense-category bar colors (Budget tab "Where the money goes") — one
      hue per spend category, reused by the per-line icon chips. */
   --cat-transport: #897ABB;
@@ -97,6 +99,8 @@
   --t-fast: 180ms;
   --t-med: 300ms;
   --t-slow: 440ms;
+  /* the one entrance-stagger step (board columns, trip cards, create blocks) */
+  --stagger-step: 60ms;
 
   /* Brand teal glow for selected/primary pill states — one triplet, not three. */
   --shadow-glow-teal: 0 2px 10px rgba(13, 141, 130, .35);
@@ -137,6 +141,7 @@
   --teal-soft: var(--yf-teal-100);
   --saffron: var(--saffron-500);
   --saffron-soft: #FCF0DC;
+  --coral: var(--yf-coral);
   --danger: var(--danger-500);
   --danger-soft: #F9E7E7;
   --ok: var(--ok-500);
@@ -203,6 +208,7 @@
   --yf-coral-100: #3A2020;
   --yf-purple: #A99BD6;
   --yf-purple-100: #2A2440;
+  --yf-poi-see-ink: #B4A5FF;   /* POI-see text ink lifts in dark */
   --cat-transport: #A99BD6;
   --cat-accommodation: #2BB8AC;
   --cat-food: #F5A94A;
@@ -254,6 +260,7 @@
   --teal-soft: var(--yf-teal-100);
   --saffron: var(--saffron-500);
   --saffron-soft: #3A2C15;
+  --coral: var(--yf-coral);
   --danger: var(--danger-500);
   --danger-soft: #3A2020;
   --ok: var(--ok-500);
@@ -584,12 +591,14 @@ a.btn { text-decoration: none; }
    edge and the surrounding layout has real gaps). */
 @media (pointer: coarse) {
   .btn, .icon-btn, .chip, .clickable-chip, .toast-action, .tab-btn,
-  .map-legend-toggle, .nav-link, .filter-pillbar .clickable-chip {
+  .map-legend-toggle, .nav-link, .filter-pillbar .clickable-chip,
+  .link-btn, .move-btn, .board-pulse-link, .cal-day, .route-btn, .vote-btn {
     position: relative;
   }
   .btn::after, .icon-btn::after, .chip::after, .clickable-chip::after,
   .toast-action::after, .tab-btn::after, .map-legend-toggle::after,
-  .nav-link::after {
+  .nav-link::after, .link-btn::after, .move-btn::after, .board-pulse-link::after,
+  .cal-day::after, .route-btn::after, .vote-btn::after {
     content: ''; position: absolute; inset: -6px; border-radius: inherit;
   }
 }
@@ -615,7 +624,17 @@ a.btn { text-decoration: none; }
 .input:focus, .select:focus, .textarea:focus {
   border-color: var(--teal); box-shadow: 0 0 0 3px color-mix(in srgb, var(--teal) 18%, transparent);
 }
+/* A disabled form control must look disabled — three selects shipped identical
+   to enabled ones (Create-Trip Day, TripSettings vehicle rows). Same shape as
+   .btn:disabled. */
+.input:disabled, .select:disabled, .textarea:disabled {
+  opacity: .55; cursor: not-allowed;
+}
 .textarea { resize: vertical; min-height: 74px; }
+/* Inline-row variant — the .input surface at a size that fits beside a label
+   on one line (travel-panel departure / halt-planner fields), with the same
+   focus ring instead of the hand-styled borders those fields used to have. */
+.input--compact { width: auto; padding: 5px 8px; font-size: 13px; }
 /* Dropdown (select) — the exact .input surface; the only tell is the chevron.
    (Was a glass pill with its own background/weight, which read as a different
    component family next to text inputs in the same form.) */
@@ -877,7 +896,7 @@ a.btn { text-decoration: none; }
   text-decoration-color: color-mix(in srgb, var(--text-3) 60%, transparent);
   text-underline-offset: 3px;
 }
-.board-stop-title-btn:focus-visible { outline: 2px solid var(--focus, var(--teal)); outline-offset: 1px; }
+.board-stop-title-btn:focus-visible { outline: 2px solid var(--teal); outline-offset: 1px; }
 .travel-leg {
   display: flex; align-items: center; gap: 9px;
   margin: 3px 0 3px 0; padding: 2px 0 2px 0;
@@ -986,11 +1005,6 @@ a.btn { text-decoration: none; }
   border-top: 1px solid var(--line);
 }
 .tps-dep { display: inline-flex; align-items: center; gap: 6px; }
-.tps-dep input[type="time"] {
-  border: 1px solid var(--line); border-radius: 8px;
-  padding: 4px 8px; font-size: 13px; font-family: inherit;
-  background: var(--card); color: var(--text);
-}
 .tps-arrow { font-size: 18px; color: var(--text-3); }
 .tps-eta { display: flex; flex-direction: column; gap: 1px; }
 .tps-eta b { font-size: 16px; color: var(--teal-deep); font-family: var(--font-display); }
@@ -1005,13 +1019,14 @@ a.btn { text-decoration: none; }
   margin-top: 12px; padding-top: 12px;
   border-top: 1px solid var(--line);
 }
-.travel-panel-add input[type="number"] {
-  border: 1px solid var(--line); border-radius: 8px;
-  padding: 4px 6px; font-size: 13px; background: var(--card); color: var(--text);
-}
 
 /* ---------- Timeline time rail ---------- */
-.tl-row { display: grid; grid-template-columns: 74px 1fr; gap: 12px; margin-bottom: 8px; align-items: center; }
+/* one shared rail geometry — these three used to redeclare 74px/12px each,
+   so widening the rail meant finding all of them */
+.tl-row, .tl-legrow, .tl-end { display: grid; grid-template-columns: 74px 1fr; gap: 12px; }
+.tl-row { margin-bottom: 8px; align-items: center; }
+.tl-legrow { align-items: center; margin-bottom: 8px; }
+.tl-end { min-height: 12px; margin-bottom: 4px; }
 .tl-row .stop-card { margin-bottom: 0; }
 .tl-gutter {
   display: flex; flex-direction: column; align-items: center; gap: 4px;
@@ -1026,10 +1041,9 @@ a.btn { text-decoration: none; }
 }
 .tl-time.tl-dep { color: var(--teal-deep); background: var(--teal-soft); border-color: transparent; }
 .tl-line { flex: 1; width: 2px; min-height: 12px; border-radius: 2px; background: repeating-linear-gradient(var(--line) 0 4px, transparent 4px 8px); }
-.tl-legrow { display: grid; grid-template-columns: 74px 1fr; gap: 12px; align-items: center; margin-bottom: 8px; }
 .tl-gutter-leg { padding: 0; min-height: 26px; }
 .tl-line-leg { flex: none; width: 2px; height: 100%; min-height: 26px; }
-.tl-end { min-height: 12px; margin-bottom: 4px; display: grid; grid-template-columns: 74px 1fr; gap: 12px; }
+.tl-end { min-height: 12px; margin-bottom: 4px; }
 .tl-drop-line {
   grid-column: 2; color: var(--warn); background: var(--warn-soft);
   border: 1.5px dashed var(--saffron); border-radius: var(--radius-sm);
@@ -1381,7 +1395,7 @@ a.btn { text-decoration: none; }
 button.board-col-zone--add { cursor: pointer; font: inherit; width: 100%; }
 button.board-col-zone--add b { font-weight: 600; }
 button.board-col-zone--add:hover { border-color: var(--teal); background: color-mix(in srgb, var(--teal-soft, #e6f4f2) 60%, transparent); }
-button.board-col-zone--add:focus-visible { outline: 2px solid var(--focus, var(--teal)); outline-offset: 2px; }
+button.board-col-zone--add:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
 button.board-col-zone--add:active { transform: translateY(1px); }
 
 /* ---------- M6: Budget / Decisions / Share / Suggestions hierarchy (CTI §6.6–6.9) ---------- */
@@ -1610,6 +1624,8 @@ button.board-col-zone--add:active { transform: translateY(1px); }
 /* ---------- Explore cards ---------- */
 .explore-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 16px; }
 .itin-card { overflow: hidden; padding: 0; display: flex; flex-direction: column; transition: transform var(--t-fast) var(--ease-out), box-shadow var(--t-fast) var(--ease-out); }
+/* Lift convention: card/hero surfaces rise -2px (itin/feature/trip-card),
+   control-sized things -1px (clickable-chip, board-stop, bench buttons). */
 .itin-card:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(var(--shadow-navy-rgb),.06), 0 16px 40px rgba(var(--shadow-navy-rgb),.12); }
 .itin-cover { position: relative; aspect-ratio: 16/9; background: linear-gradient(135deg, var(--teal-deep), var(--text)); overflow: hidden; }
 .itin-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -1638,6 +1654,23 @@ button.board-col-zone--add:active { transform: translateY(1px); }
   border-top: 1px solid var(--line);
 }
 .creator-line { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-2); font-weight: 600; }
+/* The anchor variant (PubCard) overrode the global link colour with --text-2,
+   so it read as plain text. Keep the quiet look at rest, but answer hover and
+   give keyboard users a visible ring. */
+a.creator-line { transition: color var(--motion-fast) var(--ease-out); }
+a.creator-line:hover { color: var(--teal-deep); }
+a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; border-radius: 8px; }
+/* Icon-only anchors (PubCard socials) copied `.muted` — interactive elements
+   rendered as static text. */
+.icon-link {
+  color: var(--text-2); display: inline-flex; padding: 3px; border-radius: 7px;
+  transition: color var(--motion-fast) var(--ease-out), background var(--motion-fast) var(--ease-out);
+}
+.icon-link:hover { color: var(--teal-deep); background: var(--bg-soft); }
+.icon-link:focus-visible { outline: 2px solid var(--teal); outline-offset: 1px; }
+/* Inline text links in body copy — the teal colour alone didn't read as
+   clickable. */
+.text-link { text-decoration: underline; text-underline-offset: 2px; }
 .avatar { width: 26px; height: 26px; border-radius: 50%; object-fit: cover; background: var(--teal-soft); color: var(--teal-deep); display: inline-flex; align-items: center; justify-content: center; font-weight: 800; font-size: 11px; flex: 0 0 auto; }
 .avatar.lg { width: 44px; height: 44px; font-size: 16px; }
 
@@ -1782,7 +1815,9 @@ button.board-col-zone--add:active { transform: translateY(1px); }
   animation: barSheen 2.6s var(--ease-out) infinite;
 }
 @keyframes barSheen { from { left: -42%; } to { left: 108%; } }
-.compare-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+/* display:block + overflow-x keeps the tabular layout (anonymous table box)
+   but lets 5–6-column tables scroll on a phone instead of clipping the page. */
+.compare-table { display: block; width: 100%; border-collapse: collapse; font-size: 13.5px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .compare-table th, .compare-table td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line); }
 .compare-table th { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--text-3); }
 /* Global numeric utility: tabular digits for any changing figure. Tables keep
@@ -1905,6 +1940,8 @@ button.board-col-zone--add:active { transform: translateY(1px); }
 .ai-msgs { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 17px 16px; display: flex; flex-direction: column; gap: 11px; }
 .ai-bubble { max-width: 88%; padding: 10px 14px; border-radius: 16px; font-size: 13.5px; line-height: 1.5; white-space: pre-wrap; }
 .ai-bubble.user { align-self: flex-end; background: var(--teal-deep); color: #fff; border-bottom-right-radius: 6px; }
+/* dark lightens --teal-deep to #35C9BC — white on it is 2.11:1; ink passes 7.9 */
+[data-theme='dark'] .ai-bubble.user { color: #06251f; }
 .ai-bubble.bot { align-self: flex-start; background: var(--bg-soft); color: var(--text); border: 1px solid var(--line); border-bottom-left-radius: 6px; }
 .ai-assumption { margin-top: 9px; font-size: 11.8px; color: var(--text-3); border-top: 1px dashed var(--line); padding-top: 7px; }
 .ai-quick { padding: 10px 14px 8px; border-top: 1px solid var(--line); }
@@ -1986,6 +2023,13 @@ button.board-col-zone--add:active { transform: translateY(1px); }
 .pub-stats-sub { display: block; font-size: 12px; color: #5c7172; }
 .pub-stats-divider { border: none; border-top: 1px solid #e2e7df; margin: 10px 0 8px; }
 .pub-stats-row { display: grid; gap: 4px; font-size: 12px; color: #607778; }
+/* Dark variant: the floating stats card used to be hardcoded near-white in
+   both themes — the only surface on the page ignoring the theme. */
+[data-theme='dark'] .pub-hero-stats { background: rgba(13, 40, 47, .96); color: #e2f1ef; }
+[data-theme='dark'] .pub-stats-label { color: #8fb5ae; }
+[data-theme='dark'] .pub-stats-figure { color: #e2f1ef; }
+[data-theme='dark'] .pub-stats-sub, [data-theme='dark'] .pub-stats-row { color: #a9c3be; }
+[data-theme='dark'] .pub-stats-divider { border-top-color: rgba(255, 255, 255, .14); }
 /* Locked premium overlay (public itinerary) — single merged rule. The old pair
    declared `position: absolute; inset: 0` here and `position: relative` later in
    the file; the later `relative` won the cascade, so this keeps `relative` (the
@@ -2017,8 +2061,16 @@ button.board-col-zone--add:active { transform: translateY(1px); }
 .loading-block { padding: 60px 0; text-align: center; color: var(--text-3); font-weight: 600; }
 .page-head { margin: 26px 0 20px; }
 .page-head h2 { font-family: var(--font-display); font-size: 26px; margin: 0 0 4px; }
+/* The global h1 floors at 26px, so under ~578px the trip-name h1 and this h2
+   rendered the same size — adjacent heading levels, indistinguishable. */
+@media (max-width: 578px) {
+  .page-head h2 { font-size: 21px; }
+}
 .page-head-sub { color: var(--text-2); margin-top: 6px; font-size: 14.5px; max-width: 640px; }
 .divider { border: none; border-top: 1px solid var(--line); margin: 18px 0; }
+/* Heading→body gap without a hairline — the overview cards ran a divider
+   under every heading, which stopped carrying information. */
+.card-head { margin-bottom: 14px; }
 .two-col { display: grid; grid-template-columns: 1fr 340px; gap: 18px; align-items: start; }
 .trip-head-card {
   transition: padding var(--t-med) var(--ease-out);
@@ -2493,7 +2545,7 @@ main:focus { outline: none; }
 /* ---- Halt planner (user-chosen km points + durations) ---- */
 .halt-planner-inputs { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .hp-field { display: inline-flex; align-items: center; gap: 5px; }
-.hp-field input[type="number"] { padding: 6px 8px; font-variant-numeric: tabular-nums; }
+.hp-field input[type="number"] { font-variant-numeric: tabular-nums; }
 .halt-plan-list { display: flex; flex-direction: column; gap: 6px; }
 .halt-plan-row { align-items: flex-start; }
 .hp-pin { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
@@ -2602,11 +2654,11 @@ main:focus { outline: none; }
   border-color: color-mix(in srgb, var(--teal) 22%, var(--line));
 }
 .poi-col--see {
-  background: color-mix(in srgb, #7C5CFC 5%, var(--bg));
-  border-color: color-mix(in srgb, #7C5CFC 24%, var(--line));
+  background: color-mix(in srgb, var(--yf-poi-see) 5%, var(--bg));
+  border-color: color-mix(in srgb, var(--yf-poi-see) 24%, var(--line));
 }
 [data-theme='dark'] .poi-col--needs { background: color-mix(in srgb, var(--teal) 10%, var(--bg)); }
-[data-theme='dark'] .poi-col--see { background: color-mix(in srgb, #7C5CFC 12%, var(--bg)); }
+[data-theme='dark'] .poi-col--see { background: color-mix(in srgb, var(--yf-poi-see) 12%, var(--bg)); }
 .poi-col-head { display: flex; align-items: center; gap: 9px; margin-bottom: 10px; }
 .poi-col-head-ico {
   width: 30px; height: 30px; border-radius: 10px;
@@ -2614,14 +2666,14 @@ main:focus { outline: none; }
   font-size: 15px; flex: 0 0 auto;
 }
 .poi-col--needs .poi-col-head-ico { background: var(--teal-soft); }
-.poi-col--see .poi-col-head-ico { background: color-mix(in srgb, #7C5CFC 16%, transparent); }
+.poi-col--see .poi-col-head-ico { background: color-mix(in srgb, var(--yf-poi-see) 16%, transparent); }
 .poi-col-head b { display: block; font-size: 14px; }
 .poi-col--needs .poi-col-head b { color: var(--teal-deep); }
-.poi-col--see .poi-col-head b { color: #5540B8; }
-[data-theme='dark'] .poi-col--see .poi-col-head b { color: #B4A5FF; }
-/* tint the purpose chips inside their lane — sightseeing reads scenic purple */
-.poi-col--see .ride-purpose-sight { background: color-mix(in srgb, #7C5CFC 16%, transparent); color: #5540B8; }
-[data-theme='dark'] .poi-col--see .ride-purpose-sight { color: #B4A5FF; }
+.poi-col--see .poi-col-head b { color: var(--yf-poi-see-ink); }
+/* tint the purpose chips inside their lane — sightseeing reads scenic purple.
+   (Composited over the tint the ink measures ~5.7 light / ~6.9 dark — the
+   audit's 1.99/1.84 compared against the raw uncomposited hex.) */
+.poi-col--see .ride-purpose-sight { background: color-mix(in srgb, var(--yf-poi-see) 16%, transparent); color: var(--yf-poi-see-ink); }
 
 /* Map-tab ideas grid — need rail LEFT, map CENTER, see-&-do rail RIGHT, so both
    suggestion lanes sit beside the map with no page scroll between them. Rails
@@ -2663,13 +2715,13 @@ main:focus { outline: none; }
 
 /* Board choreography: day columns drift in with a light stagger on mount. */
 .board-col { animation: panelIn var(--t-slow) var(--ease-out) backwards; }
-.board-col:nth-child(2) { animation-delay: 40ms; }
-.board-col:nth-child(3) { animation-delay: 80ms; }
-.board-col:nth-child(4) { animation-delay: 120ms; }
-.board-col:nth-child(5) { animation-delay: 160ms; }
-.board-col:nth-child(6) { animation-delay: 200ms; }
-.board-col:nth-child(7) { animation-delay: 240ms; }
-.board-col:nth-child(8) { animation-delay: 280ms; }
+.board-col:nth-child(2) { animation-delay: calc(var(--stagger-step) * 1); }
+.board-col:nth-child(3) { animation-delay: calc(var(--stagger-step) * 2); }
+.board-col:nth-child(4) { animation-delay: calc(var(--stagger-step) * 3); }
+.board-col:nth-child(5) { animation-delay: calc(var(--stagger-step) * 4); }
+.board-col:nth-child(6) { animation-delay: calc(var(--stagger-step) * 5); }
+.board-col:nth-child(7) { animation-delay: calc(var(--stagger-step) * 6); }
+.board-col:nth-child(8) { animation-delay: calc(var(--stagger-step) * 7); }
 /* Drag/focus states glide instead of snapping. */
 .board-stop, .board-col-zone, .board-col--focused { transition: border-color var(--t-med) var(--ease-out), background var(--t-med) var(--ease-out), transform var(--t-fast) var(--ease-out); }
 .board-stop:hover { transform: translateY(-1px); }
@@ -2809,7 +2861,8 @@ body, .topnav, .glass, .board, .board-col, .modal, .toast {
    white sheet is 4.08:1 — same fix already applied to .bench-receipt-kicker.
    font-size/weight/tracking here are dead (overridden by the kicker block); the
    colour is not, so it stays on this rule. */
-.editorial-kicker { font-size: 12px; font-weight: 800; letter-spacing: .12em; color: var(--yf-teal-700); }
+/* type specs come from the kicker unification block — colour only here */
+.editorial-kicker { color: var(--yf-teal-700); }
 [data-theme='dark'] .editorial-kicker { color: #57c4b8; }
 .editorial-title { font-family: var(--font-display); font-size: clamp(24px, 3vw, 32px); font-weight: 800; color: var(--text); margin: 6px 0 12px; }
 .editorial-body { font-size: 15px; line-height: 1.75; color: var(--text-2); max-width: 560px; }
@@ -2874,7 +2927,6 @@ html.vt-active :where(*) {
   display: flex; flex-direction: column; gap: 6px;
 }
 .day-highlight-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-.day-highlight-top .editorial-kicker { font-size: 10.5px; }
 .day-highlight-title { font-size: 17px; font-family: var(--font-display); color: var(--text); }
 .day-highlight-meta { font-size: 12.5px; color: var(--text-3); }
 .pub-footer-line { text-align: center; color: var(--text-3); font-size: 13px; padding: 26px 0 12px; }
@@ -2892,7 +2944,8 @@ html.vt-active :where(*) {
     repeating-radial-gradient(150% 100% at 10% -10%, transparent 0 42px, rgba(255, 255, 255, .045) 42px 43px);
 }
 .explore-hero-inner { position: relative; z-index: var(--z-content); }
-.explore-hero h1 { font-family: var(--font-display); font-size: clamp(30px, 4.6vw, 46px); font-weight: 800; margin: 6px 0 0; }
+/* size/weight ride the global h1 ramp — this hero doesn't get a second scale */
+.explore-hero h1 { margin: 6px 0 0; }
 .explore-hero-kicker { color: #a9eadc; }
 .explore-hero-sub { color: #d9efeb; font-size: clamp(14px, 1.6vw, 16.5px); max-width: 620px; margin: 10px 0 18px; line-height: 1.6; }
 .explore-hero-search {
@@ -2905,6 +2958,19 @@ html.vt-active :where(*) {
    dark hero; this surface needs a white one, declared here so box-shadow is
    overridden (not just border-color/outline). */
 .explore-hero-search:focus { background: rgba(255, 255, 255, .18); border-color: rgba(255, 255, 255, .5); outline: none; box-shadow: 0 0 0 3px rgba(255, 255, 255, .5); }
+/* The search's clear affordance lives with its cause: q is typed HERE, but the
+   only Clear button sat in the filter card ~300px below. */
+.explore-hero-searchrow { position: relative; max-width: 520px; }
+.explore-hero-searchrow .explore-hero-search { padding-right: 44px; }
+.explore-hero-clear {
+  position: absolute; right: 7px; top: 50%; transform: translateY(-50%);
+  width: 28px; height: 28px; border-radius: 999px; border: none; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: rgba(255, 255, 255, .16); color: #fff;
+  transition: background var(--motion-fast) var(--ease-out);
+}
+.explore-hero-clear:hover { background: rgba(255, 255, 255, .3); }
+.explore-hero-clear:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(255, 255, 255, .5); }
 .explore-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
 /* No opacity: .65 composited the inherited ink to 2.5–3.2:1 (it's 11px text,
    needs 4.5). Full strength = the chip's own AA-checked colour, on every surface. */
@@ -2958,7 +3024,7 @@ html.vt-active :where(*) {
 .bench-block { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 /* two related blocks share a row (modes+stay, crew+trip length) */
 .bench-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: start; }
-.bench-eyebrow { font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--text-3); }
+.bench-eyebrow { color: var(--text-3); }
 .bench-block-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
 /* crew size / trip length heads — value rides the eyebrow row at label scale
    so the two blocks in the pair align with Getting There / Stay Style above */
@@ -3750,8 +3816,8 @@ html.vt-active :where(*) {
   content: ''; position: absolute; left: 0; right: 0; bottom: -6px; height: 3px; border-radius: 3px;
   background: linear-gradient(90deg, var(--yf-teal-600), var(--yf-saffron));
   transform: scaleX(0); transform-origin: left;
-  /* the trailing .15s is a stagger DELAY, not a duration — left literal until
-     the stagger vocabulary (SYS-7f) lands. */
+  /* the trailing .15s is a hover-cascade DELAY, not a duration — the stagger
+     vocabulary (--stagger-step) is for entrance choreography only. */
   transition: transform .8s var(--ease-out) .15s;
 }
 body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
@@ -4006,6 +4072,8 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 }
 /* the daily-average tick — amber line crossing every bar */
 .daybar-avg { position: absolute; top: -3px; bottom: -3px; width: 2px; border-radius: 1px; background: var(--warn-600); }
+/* shape marker on days over the average — "over" used to be fill-colour-only */
+.daybar-over { color: var(--warn-600); font-size: 10px; line-height: 1; }
 .daybar-meta { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.3; font-variant-numeric: tabular-nums; }
 .daybar-meta .muted { font-size: 11.5px; }
 .avg-key { display: inline-block; width: 2px; height: 10px; background: var(--saffron-600); vertical-align: -1px; margin: 0 3px; border-radius: 1px; }
@@ -4088,6 +4156,10 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
   .daybar-meta { grid-column: 2; flex-direction: row; align-items: baseline; gap: 8px; }
   .catbars .budget-bar-row { grid-template-columns: 44px 1fr auto; }
   .catbars .cat-name span.cat-chip { display: none; }
+  /* the 44px track is fixed — the category name clips instead of shoving the
+     bar and amount out of the row (chip is gone at this width, so the name
+     rides alone) */
+  .catbars .cat-name { display: block; max-width: 44px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .quick-add-row { grid-template-columns: 1fr 90px auto auto; }
 }
 
@@ -4186,6 +4258,14 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: thin;
+  /* scroll affordance: edge fades painted on the `scroll` layer show only on
+     the side that still has content; `local` covers slide over them at the
+     ends so the fade never sits under a reached edge. */
+  background:
+    linear-gradient(90deg, var(--card) 25%, transparent) left / 22px 100% no-repeat local,
+    linear-gradient(270deg, var(--card) 25%, transparent) right / 22px 100% no-repeat local,
+    linear-gradient(90deg, var(--card), transparent) left / 22px 100% no-repeat scroll,
+    linear-gradient(270deg, var(--card), transparent) right / 22px 100% no-repeat scroll;
 }
 .share-tab {
   appearance: none;
@@ -4277,6 +4357,14 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 .trips-toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 18px; }
 .trips-toolbar .trips-search { flex: 1 1 240px; min-width: 200px; }
 .trips-toolbar .select { width: auto; min-width: 130px; flex: 0 1 auto; }
+/* the chips' own margin-bottom is for the Explore filter card — inside the
+   centered toolbar row it lifts them ~7px out of line with the search field */
+.trips-toolbar .explore-chips { margin-bottom: 0; }
+
+/* trash list rows — :last-child drops the rule so it doesn't float above the
+   card's bottom padding */
+.trash-row { padding: 10px 0; border-bottom: 1px solid var(--line); }
+.trash-row:last-child { border-bottom: none; }
 
 /* ============ My Trips — phone layout (Android app + mobile web) ============
    The overview is the app's home screen after login; on a phone the desktop
@@ -4284,6 +4372,9 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
    toolbar wraps mid-row and the 290px cards ride the edges. Reworked as a
    vertical page-header stack with a full-width primary CTA — the Android
    pattern — and single-column cards with comfortable gutters. */
+.trips-page { padding-top: 26px; }
+.trips-head { margin-bottom: 18px; flex-wrap: wrap; gap: 12px; }
+.trips-head-actions { display: flex; gap: 10px; flex-wrap: wrap; }
 @media (max-width: 720px) {
   .trips-toolbar { align-items: stretch; }
   .trips-toolbar .trips-search { flex-basis: 100%; }
@@ -4292,19 +4383,14 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
   .trips-toolbar .select { flex: 1 1 45%; min-width: 0; }
 }
 
-/* the page header itself is inline-styled in TripsList.tsx, so target it
-   structurally: container > first .row-between on the trips page */
-.trips-page .row-between:first-child { flex-wrap: wrap; gap: 12px; }
 @media (max-width: 720px) {
-  .trips-page { padding-top: 8px !important; }
-  .trips-page .row-between:first-child > div:first-child { flex: 1 1 100%; }
-  .trips-page .row-between:first-child > div:last-child {
-    display: flex; width: 100%;
-  }
+  .trips-page { padding-top: 8px; }
+  .trips-head-title { flex: 1 1 100%; }
+  .trips-head-actions { width: 100%; }
   /* primary CTA owns the row; demo-trips becomes a quiet secondary */
-  .trips-page .row-between:first-child .btn { flex: 1; }
-  .trips-page .row-between:first-child .btn-outline { flex: 0 0 auto; padding: 10px 13px; }
-  .trips-page .row-between:first-child .btn-outline span { display: none; }
+  .trips-head-actions .btn { flex: 1; }
+  .trips-head-actions .btn-outline { flex: 0 0 auto; padding: 10px 13px; }
+  .trips-head-actions .btn-outline span { display: none; }
   /* cards: single column, softer radius, no hover-lift (touch has no hover) */
   .explore-grid { grid-template-columns: 1fr; gap: 12px; }
   .itin-card { border-radius: var(--radius-sm); }
@@ -4378,7 +4464,7 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 }
 .route-row--start .route-dot, .route-line > .route-row:first-child .route-dot { background: var(--yf-navy); }
 .route-name { font-weight: 600; font-size: 13.5px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.route-tag { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--yf-text-muted); flex: none; }
+.route-tag { color: var(--yf-text-muted); flex: none; }
 .route-acts { margin-left: auto; display: inline-flex; gap: 2px; flex: none; }
 .route-btn {
   width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center;
@@ -4405,7 +4491,7 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 
 /* Crew & transport: mode tiles | fuel stack | crew circles */
 .ct-grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.85fr) minmax(0, 0.85fr); gap: 18px; align-items: start; }
-.group-lab { display: block; font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--yf-text-muted); margin-bottom: 7px; }
+.group-lab { display: block; color: var(--yf-text-muted); margin-bottom: 7px; }
 .mode-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .mode-btn {
   display: flex; align-items: center; gap: 9px; padding: 9px 10px; border-radius: 13px; min-height: 48px;
@@ -4435,7 +4521,7 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 [data-theme='dark'] .mode-local-switch input:checked ~ .ts-switch-label { color: var(--yf-teal-600); }
 .fuel-stack { display: grid; gap: 8px; align-content: start; }
 .mini-field { display: grid; gap: 4px; }
-.mini-lab { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--yf-text-muted); }
+.mini-lab { color: var(--yf-text-muted); }
 .unit-input { position: relative; display: flex; align-items: center; }
 .unit-input .input { width: 100%; height: 36px; padding-right: 48px; font-size: 13px; font-weight: 600; }
 .unit-input .unit { position: absolute; right: 10px; font-size: 11px; color: var(--yf-text-muted); pointer-events: none; }
@@ -4490,7 +4576,7 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 }
 .cal-nav:hover { background: var(--bg-soft); color: var(--text); }
 .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
-.cal-wd { text-align: center; font-size: 9.5px; font-weight: 700; letter-spacing: .06em; color: var(--yf-text-muted); padding: 3px 0 4px; }
+.cal-wd { text-align: center; color: var(--yf-text-muted); padding: 3px 0 4px; }
 .cal-day {
   height: 32px; border-radius: 9px; border: none; background: none; cursor: pointer;
   font: inherit; font-size: 12px; font-weight: 600; color: var(--text); display: grid; place-items: center; padding: 0;
@@ -4636,12 +4722,12 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
    the final frame, so nothing sticks after the entrance. */
 @media (prefers-reduced-motion: no-preference) {
   .ts-block, .ticket { animation: ts-rise 0.5s var(--ease-out) backwards; }
-  .ts-blocks > .ts-block:nth-child(1) { animation-delay: 0.04s; }
-  .ts-blocks > .ts-block:nth-child(2) { animation-delay: 0.1s; }
-  .ts-blocks > .ts-block:nth-child(3) { animation-delay: 0.16s; }
-  .ts-blocks > .ts-block:nth-child(4) { animation-delay: 0.22s; }
-  .ts-blocks > .ts-block:nth-child(5) { animation-delay: 0.28s; }
-  .ts-blocks > .ts-block:nth-child(6) { animation-delay: 0.34s; }
+  .ts-blocks > .ts-block:nth-child(1) { animation-delay: calc(var(--stagger-step) * 1); }
+  .ts-blocks > .ts-block:nth-child(2) { animation-delay: calc(var(--stagger-step) * 2); }
+  .ts-blocks > .ts-block:nth-child(3) { animation-delay: calc(var(--stagger-step) * 3); }
+  .ts-blocks > .ts-block:nth-child(4) { animation-delay: calc(var(--stagger-step) * 4); }
+  .ts-blocks > .ts-block:nth-child(5) { animation-delay: calc(var(--stagger-step) * 5); }
+  .ts-blocks > .ts-block:nth-child(6) { animation-delay: calc(var(--stagger-step) * 6); }
   .ticket { animation-delay: 0.24s; }
   @keyframes ts-rise { from { opacity: 0; transform: translateY(10px); } }
 }
@@ -4657,10 +4743,14 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
   .trip-dock {
     display: flex; position: fixed; left: 12px; right: 12px; bottom: calc(12px + var(--bottom-ui-offset));
     z-index: var(--z-dock); align-items: center; gap: 12px; padding: 12px 14px; border-radius: var(--radius);
-    background: var(--yf-glass); border: 1px solid var(--yf-glass-border);
+    /* the shared 58% glass turns midtone over contrasting content mid-scroll
+       and dips the amount's teal below AA — the dock gets a near-solid
+       surface so its ink is stable whatever scrolls beneath */
+    background: rgba(255, 255, 255, .9); border: 1px solid var(--yf-glass-border);
     -webkit-backdrop-filter: blur(var(--yf-blur-nav)) saturate(1.2); backdrop-filter: blur(var(--yf-blur-nav)) saturate(1.2);
     box-shadow: inset 0 1px 0 var(--yf-glass-sheen), 0 18px 40px rgba(var(--shadow-navy-rgb), .28);
   }
+  [data-theme='dark'] .trip-dock { background: rgba(16, 27, 43, .9); }
   .dock-thumb { width: 44px; height: 44px; border-radius: 12px; flex: none; display: grid; place-items: center; font-size: 19px; background: var(--yf-teal-100); }
   .dock-meta { min-width: 0; }
   .dock-meta b { display: block; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -4707,6 +4797,8 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
   font-size: 11px; font-weight: 800; line-height: 18px; text-align: center;
   font-variant-numeric: tabular-nums;
 }
+/* dark lightens --danger-500 to #E06C6C — white on it is 3.21:1 (5.6 with ink) */
+[data-theme='dark'] .app-home-bell-count { color: #2B0D0D; }
 
 /* Quick actions: the primary CTA is unmistakable; Explore is the quiet second. */
 .app-home-actions { display: grid; grid-template-columns: 2fr 1fr; gap: 10px; margin-bottom: 26px; }
@@ -4738,6 +4830,8 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
   background: var(--teal-soft, #E7F4F1); color: var(--teal-deep, var(--teal));
 }
 .app-home-trip-thumb.is-live { background: var(--teal); color: #fff; }
+/* dark lightens --teal to #2BB8AC — white on that is 2.47:1; ink on teal passes */
+[data-theme='dark'] .app-home-trip-thumb.is-live { color: #06251f; }
 .app-home-trip-body { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .app-home-trip-name {
   font-weight: 700; font-size: 15px;
@@ -4860,6 +4954,9 @@ html.native-shell {
 @media (prefers-reduced-motion: reduce) {
   .popover { animation: none; }
 }
+/* Create-Trip's section labels had no base rule at all (rendered as 15px/400
+   body text) — type specs come from the unification block above, colour here. */
+.eyebrow { color: var(--yf-text-muted); }
 /* Kicker unification: one recipe for every micro-label role. */
 @media screen {
   .pulse-bar .pulse-label, .day-badge small, .tps-label, .tl-total-label, .day-rail-label,
@@ -4868,6 +4965,7 @@ html.native-shell {
   .bench-eyebrow, .bench-scale-ends, .bench-receipt-kicker, .bench-total-label, .bench-badge,
   .ticker-item .t-tag, .board-stop-kicker, .tk-brand, .tk-kind, .creator-badge, .pub-ledger th, .route-tag, .group-lab, .mini-lab,
   .compare-table th, .toast-action, .editorial-kicker, .pub-stats-label,
+  .eyebrow, .cal-wd,
   .route-glance .route-glance-label, .stat-label, .app-home-section {
     font-size: var(--kicker-size);
     font-weight: var(--kicker-weight);

@@ -120,13 +120,19 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
       {/* ---- Dark-teal editorial hero with route-aware search (§6.10) ---- */}
       <section className="explore-hero">
         <div className="container explore-hero-inner">
-          <span className="editorial-kicker explore-hero-kicker">DISCOVER · TRUST · FORK</span>
+          <span className="editorial-kicker explore-hero-kicker">Discover · Trust · Fork</span>
           <h1>Explore itineraries</h1>
           <p className="explore-hero-sub">
             Real multi-day plans from travellers who actually went — real road time, real pacing, honest costs.
           </p>
-          <input className="input explore-hero-search" placeholder="Search a route, place or creator — try “Alleppey”…"
-            aria-label="Search destination or creator" value={q} onChange={e => { setQ(e.target.value); syncUrl({ q: e.target.value }) }} />
+          <div className="explore-hero-searchrow">
+            <input className="input explore-hero-search" placeholder="Search a route, place or creator — try “Alleppey”…"
+              aria-label="Search destination or creator" value={q} onChange={e => { setQ(e.target.value); syncUrl({ q: e.target.value }) }} />
+            {q.trim() !== '' && (
+              <button type="button" className="explore-hero-clear" aria-label="Clear search"
+                onClick={() => { setQ(''); syncUrl({ q: '' }) }}><X size={14} aria-hidden /></button>
+            )}
+          </div>
         </div>
       </section>
 
@@ -184,7 +190,7 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
         {featured && (
           <div className="featured-card" key={featured.id}>
             <div className="featured-body">
-              <span className="editorial-kicker featured-kicker"><Star size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />Featured itinerary</span>
+              <span className="editorial-kicker featured-kicker"><Star size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />Featured itinerary{filtersActive && <> · outside your filters</>}</span>
               <h2><a className="featured-title-link" href={`#/pub/${featured.id}`}>{featured.title}</a></h2>
               <p className="featured-tagline">{featured.tagline}</p>
               <p className="featured-credibility">

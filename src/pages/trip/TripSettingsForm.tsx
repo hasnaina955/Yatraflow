@@ -14,6 +14,7 @@ import { updateTrip } from '../../store/store'
 import { FUEL_PRICE_INR_PER_L, MODE_SPEED, formatInr, isFuelEconomyMode, parseFuelEconomyKmL, isImplausibleFuelEconomy, parseFuelPricePerL } from '../../lib/engine'
 import { cap } from '../../lib/labels'
 import { Field, RangeDial, StickyFormBar, toast } from '../../components/ui'
+import { Select } from '../../components/Select'
 import { PillNav } from '../../components/PillNav'
 import { LocationInput } from '../../components/LocationInput'
 import { CoverImagePicker } from '../../components/CoverImagePicker'
@@ -262,19 +263,12 @@ export function TripSettingsForm({ trip, editable }: { trip: Trip; editable: boo
               <div className="vehicle-profile-form">
                 <div className="form-row">
                   <Field label="Vehicle type">
-                    <select className="select" disabled={!editable} value={f.vehicleType} onChange={e => setF(x => ({ ...x, vehicleType: e.target.value as never }))}>
-                      <option value="car">Car</option>
-                      <option value="motorcycle">Motorcycle</option>
-                      <option value="ev">Electric (EV)</option>
-                    </select>
+                    <Select disabled={!editable} value={f.vehicleType} onChange={v => setF(x => ({ ...x, vehicleType: v as never }))}
+                      options={[{ value: 'car', label: 'Car' }, { value: 'motorcycle', label: 'Motorcycle' }, { value: 'ev', label: 'Electric (EV)' }]} />
                   </Field>
                   <Field label="Fuel / energy">
-                    <select className="select" disabled={!editable} value={f.fuelType} onChange={e => setF(x => ({ ...x, fuelType: e.target.value as never }))}>
-                      <option value="petrol">Petrol</option>
-                      <option value="diesel">Diesel</option>
-                      <option value="electric">Electric</option>
-                      <option value="cng">CNG</option>
-                    </select>
+                    <Select disabled={!editable} value={f.fuelType} onChange={v => setF(x => ({ ...x, fuelType: v as never }))}
+                      options={[{ value: 'petrol', label: 'Petrol' }, { value: 'diesel', label: 'Diesel' }, { value: 'electric', label: 'Electric' }, { value: 'cng', label: 'CNG' }]} />
                   </Field>
                 </div>
                 <div className="form-row">

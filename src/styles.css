@@ -610,6 +610,9 @@ a.btn { text-decoration: none; }
   padding: 20px;
 }
 .card + .card { margin-top: 14px; }
+/* Explicit card spacing where the sibling selector can't express the intent
+   (Profile stacks its cards with a wider 16px beat — was inline style). */
+.stack-gap { margin-top: 16px; }
 
 /* ---------- Forms ---------- */
 .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
@@ -653,6 +656,32 @@ a.btn { text-decoration: none; }
 /* Theme the native popup rows (Chromium/Edge honour this; the system highlight
    stays but stops clashing with the palette). */
 .select option { background: var(--card); color: var(--text); }
+
+/* ============ Custom listbox Select (components/Select.tsx) ============
+   Same `.select` trigger recipe (it's on the button below), a real DOM popup
+   instead of the OS one. High-traffic surfaces use this; low-traffic selects
+   keep the native control — the trigger look is identical. */
+.cselect { position: relative; }
+.cselect-trigger { text-align: left; background-color: var(--card-soft); color: var(--text); }
+.cselect-trigger.compact { width: auto; padding: 5px 26px 5px 10px; font-size: 13px; }
+.cselect-trigger:disabled { opacity: .55; cursor: not-allowed; }
+.cselect-trigger[aria-invalid='true'] { border-color: var(--danger); }
+.cselect-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cselect-ico { display: inline-flex; flex: none; color: var(--text-2); }
+.cselect-pop {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: var(--z-frost);
+  margin: 0; padding: 5px; list-style: none;
+  width: max(100%, 200px); max-height: 280px; overflow-y: auto;
+}
+.cselect-option {
+  display: flex; align-items: center; gap: 8px; width: 100%; text-align: left;
+  padding: 8px 10px; border-radius: 8px; border: none; background: none;
+  color: var(--text); font-size: 14px; cursor: pointer;
+  transition: background var(--motion-fast) var(--ease-out);
+}
+.cselect-option.active { background: var(--bg-soft); }
+.cselect-option[aria-selected='true'] { font-weight: 600; }
+.cselect-check { margin-left: auto; color: var(--teal-deep); flex: none; }
 /* The chevron is baked into a background-image, so it can't follow a token —
    re-declare it for dark mode or it lands ~1.8:1 on the dark pill. */
 [data-theme='dark'] .select {
@@ -2171,6 +2200,9 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
 .profile-col { max-width: 720px; }
 .explore-filters { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 .explore-filters .input, .explore-filters .select { width: auto; min-width: 140px; flex: 0 1 auto; }
+/* the custom Select wraps its trigger in a div — flex sizing moves to the wrapper */
+.explore-filters .cselect, .trips-toolbar .cselect { flex: 0 1 auto; }
+.explore-filters .cselect .select, .trips-toolbar .cselect .select { min-width: 140px; }
 .trip-card-hit { all: unset; cursor: pointer; display: block; border-radius: 8px; }
 
 /* Trip card emoji cover */
@@ -4361,6 +4393,7 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 .trips-toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 18px; }
 .trips-toolbar .trips-search { flex: 1 1 240px; min-width: 200px; }
 .trips-toolbar .select { width: auto; min-width: 130px; flex: 0 1 auto; }
+.trips-toolbar .cselect .select { min-width: 130px; }
 /* the chips' own margin-bottom is for the Explore filter card — inside the
    centered toolbar row it lifts them ~7px out of line with the search field */
 .trips-toolbar .explore-chips { margin-bottom: 0; }
@@ -4385,6 +4418,8 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
   .trips-toolbar .explore-chips { order: 3; flex-basis: 100%; margin-bottom: 0; }
   /* selects split one row so their labels stay readable at ~160px each */
   .trips-toolbar .select { flex: 1 1 45%; min-width: 0; }
+  .trips-toolbar .cselect { flex: 1 1 45%; min-width: 0; }
+  .trips-toolbar .cselect .select { min-width: 0; width: 100%; }
 }
 
 @media (max-width: 720px) {
@@ -4443,6 +4478,11 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
    minmax(160px,1fr): fields grow to fill, wrap when they can't each keep 160px. */
 .form-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-start; }
 .form-row .field { flex: 1 1 160px; min-width: 0; }
+/* Weight by content (the grid's 2fr/1fr/.8fr intent, in flex terms): the
+   commitment name gets the grow; "Day" holds 1–2 digits, not half the row. */
+.commitment-row > .field:first-child { flex: 2 1 200px; }
+.commitment-row > .field:nth-child(2) { flex: 1.2 1 150px; }
+.commitment-row > .field:nth-child(3), .commitment-row > .field:nth-child(4) { flex: .6 1 96px; }
 
 /* Return-stops switch (on/off configuration → role="switch" is honest here) */
 .ts-switch { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12px; font-weight: 600; color: var(--yf-text-muted); }
@@ -4914,12 +4954,12 @@ html.native-shell {
 
 /* ============ v0.48 design-system consistency pass ============ */
 /* ---------- Ordering: this design-system layer is deliberately the LAST section in the file. It is the global override layer (one kicker recipe, one set of blur tiers, the <=720px touch-target floor), so it must win the cascade over every earlier block — including the page-scoped .app-home rules above. New sections belong above it. ---------- */
-/* Token scales (type + spacing) - additive, existing values still resolve. */
+/* Type/spacing scales (SYS-2 decision, #107): the unused steps were DELETED
+   rather than adopted — with 340+ literal sizes in the cascade, a parallel
+   scale nobody routed through was a trap, not a tool. `--text-xs` stays (the
+   bottom-nav label uses it); sizes stay literal elsewhere by design. */
 :root {
-  --text-2xs: 10.5px; --text-xs: 11px; --text-sm: 12.5px; --text-base: 14px;
-  --text-md: 15.5px; --text-lg: 17px; --text-xl: 20px; --text-2xl: 24px;
-  --tracking-kicker: .06em;
-  --s-1: 4px; --s-2: 6px; --s-3: 8px; --s-4: 12px; --s-5: 16px; --s-6: 20px; --s-8: 24px;
+  --text-xs: 11px;
   --kicker-size: 10.5px; --kicker-weight: 700; --kicker-tracking: .06em;
 }
 /* Glass blur tiers: chrome 18, panel 14, chip 8, scrim 3. */

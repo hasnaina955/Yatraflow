@@ -4,6 +4,7 @@ import type { ItineraryStop, StopCategory, StopStatus, Trip } from '../data/type
 import { STOP_CATEGORIES, STOP_STATUSES } from '../data/types'
 import { Car } from 'lucide-react'
 import { Modal, Field } from './ui'
+import { Select } from './Select'
 import { LocationInput } from './LocationInput'
 import type { PlaceHit } from './LocationInput'
 import { fetchOpeningHours } from '../lib/geocode'
@@ -175,9 +176,8 @@ export function StopEditor({ open, onClose, initial, resetKey, onSave, dayLabel,
             <input className="input" ref={el => (fieldRefs.current.title = el)} aria-invalid={!!errs.title} value={v.title} onChange={e => set('title', e.target.value)} placeholder="e.g. Cheeyappara Waterfalls" />
           </Field>
           <Field label="Category">
-            <select className="select" value={v.category} onChange={e => set('category', e.target.value as StopCategory)}>
-              {STOP_CATEGORIES.map(c => <option key={c} value={c}>{titleCase(c)}</option>)}
-            </select>
+            <Select value={v.category} onChange={val => set('category', val as StopCategory)}
+              options={STOP_CATEGORIES.map(c => ({ value: c, label: titleCase(c) }))} />
           </Field>
         </div>
 
@@ -191,11 +191,8 @@ export function StopEditor({ open, onClose, initial, resetKey, onSave, dayLabel,
             />
           </Field>
           <Field label="Priority">
-            <select className="select" value={v.priority} onChange={e => set('priority', e.target.value as ItineraryStop['priority'])}>
-              <option value="must-do">Must do</option>
-              <option value="nice-to-have">Nice to have</option>
-              <option value="optional">Optional</option>
-            </select>
+            <Select value={v.priority} onChange={val => set('priority', val as ItineraryStop['priority'])}
+              options={[{ value: 'must-do', label: 'Must do' }, { value: 'nice-to-have', label: 'Nice to have' }, { value: 'optional', label: 'Optional' }]} />
           </Field>
         </div>
 
@@ -279,9 +276,8 @@ export function StopEditor({ open, onClose, initial, resetKey, onSave, dayLabel,
             <input className="input" ref={el => (fieldRefs.current.sourceUrl = el)} aria-invalid={!!errs.sourceUrl} value={v.sourceUrl} onChange={e => set('sourceUrl', e.target.value)} placeholder="https://…" />
           </Field>
           <Field label="Status">
-            <select className="select" value={v.status} onChange={e => set('status', e.target.value as StopStatus)}>
-              {STOP_STATUSES.map(s => <option key={s} value={s}>{statusLabel(s)}</option>)}
-            </select>
+            <Select value={v.status} onChange={val => set('status', val as StopStatus)}
+              options={STOP_STATUSES.map(s => ({ value: s, label: statusLabel(s) }))} />
           </Field>
         </div>
 

@@ -19,6 +19,7 @@ import { FUEL_PRICE_INR_PER_L, isFuelEconomyMode, parseFuelEconomyKmL, parseFuel
 import { estimateTripStarter, buildOutlineSeedStops } from '../lib/tripStarter'
 import { fetchTripThumbUrl } from '../lib/tripThumb'
 import { Field, Chip, toast } from '../components/ui'
+import { Select } from '../components/Select'
 import { PillNav } from '../components/PillNav'
 import { haptic, HAPTIC } from '../lib/haptics'
 import { useTimeFormat, formatHM } from '../lib/timefmt'
@@ -796,19 +797,19 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
             <div className="form-row commitment-row">
               <Field label="What"><input className="input" value={c.title} onChange={e => setC(x => ({ ...x, title: e.target.value }))} placeholder="e.g. Houseboat boarding" /></Field>
               <Field label="Type">
-                <select className="select" value={c.type} onChange={e => setC(x => ({ ...x, type: e.target.value as FixedCommitment['type'] }))}>
-                  <option value="hotel-checkin">Hotel check-in</option>
-                  <option value="train-departure">Train departure</option>
-                  <option value="flight-departure">Flight departure</option>
-                  <option value="event">Event</option>
-                  <option value="other">Other</option>
-                </select>
+                <Select value={c.type} onChange={val => setC(x => ({ ...x, type: val as FixedCommitment['type'] }))}
+                  options={[
+                    { value: 'hotel-checkin', label: 'Hotel check-in' },
+                    { value: 'train-departure', label: 'Train departure' },
+                    { value: 'flight-departure', label: 'Flight departure' },
+                    { value: 'event', label: 'Event' },
+                    { value: 'other', label: 'Other' },
+                  ]} />
               </Field>
               <Field label="Day">
-                <select className="select" value={c.dayIndex} disabled={!dayCount}
-                  onChange={e => setC(x => ({ ...x, dayIndex: Number(e.target.value) }))}>
-                  {Array.from({ length: Math.max(1, dayCount) }, (_, i) => <option key={i} value={i}>Day {i + 1}</option>)}
-                </select>
+                <Select value={String(c.dayIndex)} disabled={!dayCount}
+                  onChange={val => setC(x => ({ ...x, dayIndex: Number(val) }))}
+                  options={Array.from({ length: Math.max(1, dayCount) }, (_, i) => ({ value: String(i), label: `Day ${i + 1}` }))} />
               </Field>
               <Field label="Time"><input className="input" type="time" value={c.time} onChange={e => setC(x => ({ ...x, time: e.target.value }))} /></Field>
               <button type="button" className="btn btn-outline" onClick={addCommitment} style={{ height: 42 }}>Add</button>

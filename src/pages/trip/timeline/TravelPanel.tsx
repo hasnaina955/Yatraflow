@@ -23,6 +23,7 @@ import { openExternal } from '../../../lib/native'
 import { googleMapsDirectionsUrl } from '../../../lib/externalMaps'
 import { useTimeFormat, formatHM } from '../../../lib/timefmt'
 import { toast } from '../../../components/ui'
+import { Select } from '../../../components/Select'
 import { useSuggestionCache } from '../../../hooks/useSuggestionCache'
 import { searchNearbyPoisMulti, searchCitiesAlong, corridorAnchors, reasonForHit, filterPlannedNearby, asymmetricDetourMinutes, googleEnabled, googleCitiesAlong } from '../../../lib/geocode'
 import type { PlaceHit, SegmentHit } from '../../../lib/geocode'
@@ -385,12 +386,8 @@ export function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAdd
               />
               <span className="tps-label">min</span>
             </label>
-            <select className="select" value={draftPurpose} onChange={e => setDraftPurpose(e.target.value as HaltPurpose)} aria-label="Halt type">
-              <option value="meal">Meal</option>
-              <option value="stretch">Stretch / rest</option>
-              <option value="fuel">Fuel</option>
-              <option value="overnight">Overnight</option>
-            </select>
+            <Select compact value={draftPurpose} onChange={v => setDraftPurpose(v as HaltPurpose)} aria-label="Halt type"
+              options={[{ value: 'meal', label: 'Meal' }, { value: 'stretch', label: 'Stretch / rest' }, { value: 'fuel', label: 'Fuel' }, { value: 'overnight', label: 'Overnight' }]} />
             <button className="btn btn-outline btn-sm" onClick={addPlanHalt}>+ Add halt</button>
           </div>
 

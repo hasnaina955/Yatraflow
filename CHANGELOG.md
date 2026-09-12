@@ -146,6 +146,27 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
   - Deliberately left: the budget category hues (user decision — keep as authored), the
     native-select popup rebuild (A-family, its own batch), the stop-kind spine+tag double encoding
     and the viewpoint hue (design decisions), and the token-scale adopt-or-delete (SYS-2a/b).
+- **UI audit #107 — native-select popups replaced on the high-traffic surfaces (A-family).**
+  The themed `.select` trigger stayed, but its popup was OS-rendered — on Capacitor Android that
+  ships as a stock system dialog (the "still looks html" complaint). A shared `Select` component
+  (`components/Select.tsx`, the WAI-ARIA select-only combobox on the `LocationInput` contract)
+  now backs the **14 editing/filtering selects**: StopEditor's category/priority/status, the
+  Create-Trip commitment type/day, Trip Settings vehicle + fuel (including the disabled state
+  that used to render enabled), My Trips when/sort, Explore duration/budget/sort, the travel
+  panel halt purpose (compact variant) and the map's add-POI day pick. Focus stays on the
+  trigger; the popup is `aria-activedescendant`-driven with wrapping arrows, Home/End,
+  typeahead and Esc/outside-click/Tab dismiss — and Esc no longer bubbles into the enclosing
+  dialog. Keyboard math is node-tested in `lib/listbox.ts` + `tests/listbox.test.ts`. The six
+  low-traffic selects keep the native control by design (trigger look is identical; only the
+  popup differed).
+- **UI audit #107 — SYS-2 decided and cleaned up.** The adopt-or-delete call on the unused
+  token scales lands on **delete**: the `--text-*` scale (1 of 8 steps used) and the `--s-*`
+  spacing scale (0 uses) are gone — with 340+ literal sizes in the cascade, a parallel scale
+  nobody routed through was a trap, not a tool (`--text-xs` stays for the bottom-nav label;
+  sizes elsewhere stay literal by design). SYS-2c: Profile's eight inline card margins move
+  to a `.stack-gap` class, and the commitment row weights its fields by content again (the
+  grid's 2fr/1fr/.8fr intent, re-expressed in flex — "What" grows, "Day" no longer takes half
+  the row).
 
 ## [0.52.0] - 2026-09-12
 

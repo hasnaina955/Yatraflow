@@ -6,6 +6,7 @@ import { useTrips, useTrashedTrips, useUsers, useSessionUserId, tripsForUser, tr
 import { computeTotals, formatInrShort } from '../lib/engine'
 import { cap } from '../lib/labels'
 import { Avatar, Chip, EmptyState, toast, undoToast, ConfirmDialog } from '../components/ui'
+import { Select } from '../components/Select'
 import { CoverThumb } from '../components/CoverThumb'
 import type { Trip, User } from '../data/types'
 import { TRAVEL_STYLES } from '../data/types'
@@ -168,19 +169,21 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
                 </button>
               ))}
             </div>
-            <select className="select" value={when} onChange={e => setWhen(e.target.value as WhenKey)} aria-label="When">
-              <option value="all">Any time</option>
-              <option value="upcoming">Upcoming & live</option>
-              <option value="past">Past trips</option>
-              <option value="draft">Drafts</option>
-            </select>
-            <select className="select" value={sortKey} onChange={e => setSortKey(e.target.value as SortKey)} aria-label="Sort by">
-              <option value="recent">Recently edited</option>
-              <option value="name">Name A–Z</option>
-              <option value="length-desc">Longest first</option>
-              <option value="budget-asc">Budget: low → high</option>
-              <option value="budget-desc">Budget: high → low</option>
-            </select>
+            <Select value={when} onChange={v => setWhen(v as WhenKey)} aria-label="When"
+              options={[
+                { value: 'all', label: 'Any time' },
+                { value: 'upcoming', label: 'Upcoming & live' },
+                { value: 'past', label: 'Past trips' },
+                { value: 'draft', label: 'Drafts' },
+              ]} />
+            <Select value={sortKey} onChange={v => setSortKey(v as SortKey)} aria-label="Sort by"
+              options={[
+                { value: 'recent', label: 'Recently edited' },
+                { value: 'name', label: 'Name A–Z' },
+                { value: 'length-desc', label: 'Longest first' },
+                { value: 'budget-asc', label: 'Budget: low → high' },
+                { value: 'budget-desc', label: 'Budget: high → low' },
+              ]} />
             {/* always mounted so the row doesn't shift when it appears mid-typing */}
             <button className="btn btn-ghost btn-sm" style={{ visibility: hasFilters ? 'visible' : 'hidden' }} onClick={() => { setQ(''); setStyle('all'); setWhen('all'); setSortKey('recent') }}>Clear</button>
           </div>

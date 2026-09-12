@@ -201,7 +201,7 @@ export function BudgetTab({ trip, totals, editable }: { trip: Trip; totals: Retu
           <div className="card">
             <h3>Cost per day</h3>
             <p className="hint-text" style={{ margin: '4px 0 14px' }}>
-              Day expenses + that day’s drive{avg > 0 && <> · <span className="avg-key" aria-hidden /> tick = daily average ({formatInr(avg)})</>}
+              Day expenses + that day’s drive{avg > 0 && <> · <span className="avg-key" aria-hidden /> tick = daily average ({formatInr(avg)})</>}{avg > 0 && <> · <span className="daybar-over" aria-hidden>▲</span> = over the average</>}
             </p>
             <div className="daybars">
               {days.map(d => {
@@ -210,11 +210,13 @@ export function BudgetTab({ trip, totals, editable }: { trip: Trip; totals: Retu
                   <div key={d.dayIndex} className="daybar-row">
                     <span className="daybar-label">Day {d.dayIndex + 1}</span>
                     <div className="daybar-track">
-                      <div className="daybar-fill" style={{ width: `${(d.totalInr / maxDay) * 100}%`, background: over ? 'var(--saffron-500)' : 'var(--teal-500)' }} />
+                      <div className="daybar-fill" style={{ width: `${(d.totalInr / maxDay) * 100}%`, background: over ? 'var(--saffron)' : 'var(--teal)' }} />
                       {avg > 0 && <span className="daybar-avg" style={{ left: `${(avg / maxDay) * 100}%` }} aria-hidden />}
                     </div>
                     <span className="daybar-meta">
                       <b>{formatInr(d.totalInr)}</b>
+                      {/* shape cue so "over average" isn't fill-colour-only */}
+                      {over && <><span className="daybar-over" aria-hidden>▲</span><span className="sr-only">above the daily average</span></>}
                       <span className="muted">{d.stops} {d.stops === 1 ? 'stop' : 'stops'} · {Math.round(d.distanceKm)} km</span>
                     </span>
                   </div>
@@ -329,7 +331,7 @@ export function BudgetTab({ trip, totals, editable }: { trip: Trip; totals: Retu
                 : <><b>{formatInr(remaining)} under</b> the {formatInr(groupTarget)} group target · {formatInr(totals.costPerPersonInr)}/person · {formatInr(totals.costPerDayInr)}/day</>}
             </div>
             <div className="budget-bar-track" style={{ marginTop: 10 }}>
-              <div className="budget-bar-fill" style={{ width: `${Math.min(100, pctUsed)}%`, background: pctUsed > 100 ? 'var(--yf-coral)' : pctUsed > 85 ? 'var(--saffron-500)' : 'var(--teal-500)' }} />
+              <div className="budget-bar-fill" style={{ width: `${Math.min(100, pctUsed)}%`, background: pctUsed > 100 ? 'var(--coral)' : pctUsed > 85 ? 'var(--saffron)' : 'var(--teal)' }} />
             </div>
             <div className="budget-hero-pct">
               {pctUsed}% of group budget{pctUsed > 100 ? ' — over budget' : pctUsed > 85 ? ' — getting close' : ''}
@@ -381,12 +383,12 @@ export function BudgetTab({ trip, totals, editable }: { trip: Trip; totals: Retu
             <div className="budget-bars">
               <div className="budget-bar-row">
                 <span>Essential</span>
-                <div className="budget-bar-track"><div className="budget-bar-fill" style={{ width: `${(totals.essentialInr / Math.max(1, totals.totalCostInr)) * 100}%`, background: 'var(--teal-500)' }} /></div>
+                <div className="budget-bar-track"><div className="budget-bar-fill" style={{ width: `${(totals.essentialInr / Math.max(1, totals.totalCostInr)) * 100}%`, background: 'var(--teal)' }} /></div>
                 <b className="num">{formatInr(totals.essentialInr)}</b>
               </div>
               <div className="budget-bar-row">
                 <span>Optional</span>
-                <div className="budget-bar-track"><div className="budget-bar-fill" style={{ width: `${(totals.optionalInr / Math.max(1, totals.totalCostInr)) * 100}%`, background: 'var(--saffron-500)' }} /></div>
+                <div className="budget-bar-track"><div className="budget-bar-fill" style={{ width: `${(totals.optionalInr / Math.max(1, totals.totalCostInr)) * 100}%`, background: 'var(--saffron)' }} /></div>
                 <b className="num">{formatInr(totals.optionalInr)}</b>
               </div>
             </div>

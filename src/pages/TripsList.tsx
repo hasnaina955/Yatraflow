@@ -99,13 +99,13 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
   }
 
   return (
-    <div className="container trips-page" style={{ paddingTop: 26 }}>
-      <div className="row-between" style={{ marginBottom: 18 }}>
-        <div>
+    <div className="container trips-page">
+      <div className="row-between trips-head">
+        <div className="trips-head-title">
           <h1>My trips</h1>
           <p className="muted small">Everything you’re planning or collaborating on.</p>
         </div>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        <div className="trips-head-actions">
           <button className={`btn btn-outline${view === 'trash' ? ' on-teal' : ''}`} aria-pressed={view === 'trash'} onClick={() => setView(v => v === 'trash' ? 'trips' : 'trash')}><Trash2 size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 5 }} />Trash</button>
           <button className="btn btn-outline" onClick={addDemoTrips} title="Adds 3 sample trips — Kerala, Goa & Rajasthan — to your account"><Rocket size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 5 }} /><span>Load demo trips</span></button>
           <button className="btn btn-primary" onClick={() => onNavigate('/new')}><Plus size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Plan a new trip</button>
@@ -124,7 +124,7 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
               body="Trips you delete will show up here so you can restore them within 30 days." />
           ) : (
             trashed.map(t => (
-              <div key={t.id} className="row-between" style={{ padding: '10px 0', borderBottom: '1px solid var(--line)' }}>
+              <div key={t.id} className="row-between trash-row">
                 <div>
                   <b>{t.name}</b>
                   <div className="small muted">{t.startLocation} → {t.destinations[t.destinations.length - 1] ?? t.startLocation} · {t.days.length} days</div>
@@ -146,7 +146,7 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
           body="Start from scratch with dates and budget, or copy a public itinerary from Explore."
           action={
             <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
-              <button className="btn btn-primary" onClick={() => onNavigate('/new')}>Plan your first trip</button>
+              <button className="btn btn-outline" onClick={() => onNavigate('/new')}>Plan your first trip</button>
               <button className="btn btn-outline" onClick={addDemoTrips}><Rocket size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 5 }} />Load demo trips</button>
               <button className="btn btn-outline" onClick={() => onNavigate('/explore')}>Explore itineraries</button>
             </div>
@@ -181,9 +181,8 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
               <option value="budget-asc">Budget: low → high</option>
               <option value="budget-desc">Budget: high → low</option>
             </select>
-            {hasFilters && (
-              <button className="btn btn-ghost btn-sm" onClick={() => { setQ(''); setStyle('all'); setWhen('all'); setSortKey('recent') }}>Clear</button>
-            )}
+            {/* always mounted so the row doesn't shift when it appears mid-typing */}
+            <button className="btn btn-ghost btn-sm" style={{ visibility: hasFilters ? 'visible' : 'hidden' }} onClick={() => { setQ(''); setStyle('all'); setWhen('all'); setSortKey('recent') }}>Clear</button>
           </div>
 
           <p className="sr-only" role="status">{trips.length} {trips.length === 1 ? 'trip matches' : 'trips match'}</p>
@@ -201,7 +200,7 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
               const totals = computeTotals(t)
               const others = (t.members ?? []).filter(m => m.userId !== meId)
               return (
-                <div key={t.id} className="card itin-card trip-enter" style={{ animationDelay: `${Math.min(i, 8) * 70}ms` }}>
+                <div key={t.id} className="card itin-card trip-enter" style={{ animationDelay: `calc(var(--stagger-step) * ${Math.min(i, 8)})` }}>
                   <a className="trip-card-hit" href={`#/trip/${t.id}`}>
                     <CoverThumb
                       variant="short"

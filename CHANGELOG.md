@@ -87,6 +87,65 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
     resolves its timing from the tokens via `motionTiming()` (`--motion-slow` + `--ease-out`) instead
     of a byte-for-byte duplicated easing string. The pill glider was verified already token-driven
     and frozen under reduced motion.
+- **UI audit #107 — the mechanical tail: type recipes, hit areas, layout and state bugs.** The
+  root-cause method applied to the remaining discrete rows:
+  - **Kicker / micro-labels (SYS-1):** Create-Trip's eight section labels had no base rule at all —
+    they rendered as 15px/400 sentence-case body text and the page hierarchy collapsed to h1→body.
+    `.eyebrow` (and the calendar's `.cal-wd`) joins the kicker-unification recipe, and the five
+    sibling specs that pre-dated it (`.bench-eyebrow`, `.group-lab`, `.mini-lab`, `.route-tag`,
+    `.editorial-kicker`) drop their dead font declarations — the recipe block is now the single
+    source of type truth (colour stays per-label).
+  - **Touch (SYS-4):** the `pointer: coarse` hit-area extensions now also cover `.link-btn`,
+    `.move-btn`, `.board-pulse-link`, `.cal-day`, `.route-btn` and `.vote-btn` (the vote — the
+    flow's primary control — was 34×30).
+  - **Form states:** disabled `.input`/`.select`/`.textarea` finally *look* disabled
+    (opacity + not-allowed, matching `.btn:disabled`) — three shipped identical to enabled ones;
+    the travel panel's hand-styled time/number fields move onto the shared `.input` surface via a
+    compact variant (same focus ring as every other field), and the halt planner's stray
+    `.input`-classed select becomes a real `.select` (the last of the two conventions).
+  - **My Trips:** the empty-state CTA demotes to outline (one filled primary per view — the header
+    already owns one); the Clear button is always mounted (visibility-toggled) so the search field
+    stops shrinking on the first keystroke; the header gets real classes, killing the
+    `:first-child` structural selector and the inline-style `!important` fight; the style chips'
+    Explore-only margin is scoped out of the toolbar; and trash rows drop their trailing border
+    via `:last-child`.
+  - **Explore:** the hero search gains an in-field clear affordance (the only Clear button sat in
+    the filter card ~300px below the input that set `q`); the featured card labels itself
+    "outside your filters" when filters are active (it deliberately ignores them); the hero kicker
+    is typed in sentence case (CSS uppercases it) and the hero h1 rejoins the global ramp instead
+    of running a second `clamp`; PubCard's social icon links and the creator-line anchor get
+    interactive affordances (hover + `focus-visible`) instead of copying `.muted`.
+  - **Overview:** the six identical heading-underlines come out (a `.card-head` gap replaces them —
+    dividers return only where two groups share a card) and the page-head h2 steps down under
+    578px, where the global h1's 26px floor made the two adjacent heading levels render the same
+    size on every phone.
+  - **Budget:** the ≤700px category-name track gets `min-width: 0` + ellipsis (a 44px track was
+    handing "Accommodation" ~14px); "over the daily average" gains a ▲ shape cue + screen-reader
+    text instead of fill-colour-only; and the inline-JS fills normalize onto the alias token
+    family (`--teal`/`--saffron`/a new `--coral` alias — zero visual change).
+  - **Board / timeline:** the phantom `--focus` token (never defined) is gone from the two
+    focus-visible outlines; the timeline's three copies of the `74px 1fr` rail geometry merge into
+    one rule.
+  - **Dark-theme inks:** NativeHome's live trip thumb (white icon on dark-lightened teal, 2.47:1)
+    and bell count (3.21) get dark ink, as does the AI drawer's user bubble (2.11); and the
+    Create-Trip dock switches to near-solid glass (90%) so the amount's teal can't be dragged
+    below AA by whatever scrolls beneath it.
+  - **Motion (SYS-7f):** one stagger step — `--stagger-step: 60ms` now drives the board columns,
+    My Trips cards (previously a 70ms step) and the Create-Trip blocks (was a 40ms lead-in) via
+    `calc`.
+  - **POI tokens (SYS-8a):** the hardcoded `#7C5CFC`/`#5540B8` purple pair moves to
+    `--yf-poi-see`/`--yf-poi-see-ink` (dark lifts to `#B4A5FF` via the token, so two override
+    rules delete). Re-measured, the sight chip passes ~5.7/6.9:1 — the audit's 1.99/1.84 had
+    compared the ink against the raw, uncomposited hex.
+  - **Admin:** the 5–6 column tables scroll on phones (block-level `overflow-x`) instead of
+    clipping the page; the tablist row was verified already correct (stale in the audit).
+  - **Public itinerary:** the floating hero stats card — the one surface that ignored the theme —
+    gains a dark variant. **Share:** the scrollable tablist gets edge fades that only show where
+    content remains, and arrowing through tabs scrolls the focused tab into view (in `useTablist`,
+    so every tablist surface inherits it). **Auth:** the support link gains an underline tell.
+  - Deliberately left: the budget category hues (user decision — keep as authored), the
+    native-select popup rebuild (A-family, its own batch), the stop-kind spine+tag double encoding
+    and the viewpoint hue (design decisions), and the token-scale adopt-or-delete (SYS-2a/b).
 
 ## [0.52.0] - 2026-09-12
 

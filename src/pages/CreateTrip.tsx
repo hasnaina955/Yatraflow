@@ -443,7 +443,7 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
           return (
             <div key={`${d.name}-${gi}`} className="route-row">
               <span className="route-dot">{returnLeg ? i + 1 : offset + i + 1}</span>
-              <span className="route-name">{d.name}</span>
+              <span className="route-name" title={d.name}>{d.name}</span>
               <span className="route-acts">
                 <button type="button" className="route-btn" aria-label={`Move ${d.name} earlier`}
                   disabled={first} style={{ opacity: first ? .25 : undefined }}
@@ -503,7 +503,7 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
             <div className="route-line">
               <div className="route-row route-row--start">
                 <span className="route-dot">★</span>
-                <span className="route-name">{f.startLocation.trim() || 'Start of the journey'}</span>
+                <span className="route-name" title={f.startLocation.trim() || 'Start of the journey'}>{f.startLocation.trim() || 'Start of the journey'}</span>
                 <span className="route-tag">start</span>
               </div>
             </div>

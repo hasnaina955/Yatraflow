@@ -331,7 +331,7 @@ export function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAdd
         {editable ? (
           <label className="tps-dep">
             <span className="tps-label">Departure</span>
-            <input type="time" value={journey.startTime} onChange={e => onSetDayStart(day.index, e.target.value)} />
+            <input type="time" className="input input--compact" value={journey.startTime} onChange={e => onSetDayStart(day.index, e.target.value)} />
             <span className="time-preview">= {formatHM(journey.startTime, timeFormat)}</span>
           </label>
         ) : (
@@ -370,7 +370,7 @@ export function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAdd
             <label className="hp-field">
               <span className="tps-label">after</span>
               <input
-                type="number" min={1} step={10} value={draftKm}
+                type="number" min={1} step={10} value={draftKm} className="input input--compact"
                 onChange={e => setDraftKm(Math.max(1, Number(e.target.value) || 0))}
                 aria-label="Halt after how many km" style={{ width: 78 }}
               />
@@ -379,13 +379,13 @@ export function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAdd
             <label className="hp-field">
               <span className="tps-label">for</span>
               <input
-                type="number" min={5} max={480} step={5} value={draftMin}
+                type="number" min={5} max={480} step={5} value={draftMin} className="input input--compact"
                 onChange={e => setDraftMin(Math.max(5, Math.min(480, Number(e.target.value) || 20)))}
                 aria-label="Halt duration in minutes" style={{ width: 64 }}
               />
               <span className="tps-label">min</span>
             </label>
-            <select className="input" value={draftPurpose} onChange={e => setDraftPurpose(e.target.value as HaltPurpose)} aria-label="Halt type">
+            <select className="select" value={draftPurpose} onChange={e => setDraftPurpose(e.target.value as HaltPurpose)} aria-label="Halt type">
               <option value="meal">Meal</option>
               <option value="stretch">Stretch / rest</option>
               <option value="fuel">Fuel</option>

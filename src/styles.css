@@ -47,6 +47,8 @@
   --yf-coral-100: #FFF0EC;
   --yf-purple: #897ABB;        /* scenic / creative discovery */
   --yf-purple-100: #F0EAFA;
+  --yf-poi-see: #db4cf0;       /* "places to see" lane + viewpoint spine — scenic magenta-violet, 292°: 40° clear of DAY_COLORS[2]'s 252° and 38° of the activity purple */
+  --yf-poi-see-ink: #8a2999;   /* its text ink, light theme */
   /* Expense-category bar colors (Budget tab "Where the money goes") — one
      hue per spend category, reused by the per-line icon chips. */
   --cat-transport: #897ABB;
@@ -54,7 +56,7 @@
   --cat-food: #F59E2D;
   --cat-activities: #2E8B57;
   --cat-entry-fees: #D6534D;
-  --cat-tolls-parking: #8291A6;
+  --cat-tolls-parking: var(--gray-500);
   --cat-local-travel: #B47207;
   --cat-emergency-buffer: #E4AE43;
   --yf-cream: #F8F7EF;         /* main app canvas */
@@ -97,14 +99,19 @@
   --t-fast: 180ms;
   --t-med: 300ms;
   --t-slow: 440ms;
+  /* the one entrance-stagger step (board columns, trip cards, create blocks) */
+  --stagger-step: 60ms;
 
   /* Brand teal glow for selected/primary pill states — one triplet, not three. */
   --shadow-glow-teal: 0 2px 10px rgba(13, 141, 130, .35);
 
   /* ---- 2. SEMANTICS (light) ---- */
-  --color-primary: var(--teal-500);
-  --color-primary-hover: var(--teal-600);
-  --color-primary-active: var(--teal-700);
+  /* SYS-3: the primary fill steps off teal-500 so its white label clears AA
+     (4.08 → 5.19 at rest); the whole ladder deepens one notch to keep hover
+     darker than rest. Dark re-declares these + uses #06251F ink, untouched. */
+  --color-primary: var(--teal-600);
+  --color-primary-hover: var(--teal-700);
+  --color-primary-active: #095750;
   --color-primary-foreground: #FFFFFF;
   --color-accent: var(--saffron-500);
   --color-accent-hover: var(--saffron-600);
@@ -112,6 +119,13 @@
   --color-destructive: var(--danger-500);
   --color-destructive-soft: #F9E7E7;
   --ring: 0 0 0 3px color-mix(in srgb, var(--yf-teal-600) 35%, transparent);
+  /* SYS-3a: deepened amber/green TEXT inks. The raw --warn/--ok pass only ~3.5–
+     4.25:1 on light tints; these clear AA on every light surface (#8F5B06:
+     5.08–5.73; #1F6B41: 5.61–6.49). Text/label roles consume these; decorative
+     fills/tints keep the raw primitives. Dark re-declares them to the raw
+     tokens (its lightened --warn/--ok already pass on dark surfaces). */
+  --ink-amber: #8F5B06;
+  --ink-ok: #1F6B41;
 
   /* ---- 3. LEGACY flat aliases (do not remove; new code uses --color-*) ---- */
   --bg: var(--yf-cream);   /* CTI canvas (was --gray-50) */
@@ -127,6 +141,7 @@
   --teal-soft: var(--yf-teal-100);
   --saffron: var(--saffron-500);
   --saffron-soft: #FCF0DC;
+  --coral: var(--yf-coral);
   --danger: var(--danger-500);
   --danger-soft: #F9E7E7;
   --ok: var(--ok-500);
@@ -193,6 +208,8 @@
   --yf-coral-100: #3A2020;
   --yf-purple: #A99BD6;
   --yf-purple-100: #2A2440;
+  --yf-poi-see: #e488f2;       /* scenic base lifts in dark (spine 7.6:1 on the dark card) */
+  --yf-poi-see-ink: #f0a7fb;   /* POI-see text ink lifts in dark */
   --cat-transport: #A99BD6;
   --cat-accommodation: #2BB8AC;
   --cat-food: #F5A94A;
@@ -225,6 +242,10 @@
   --color-destructive: var(--danger-500);
   --color-destructive-soft: #3A2020;
   --ring: 0 0 0 3px color-mix(in srgb, var(--yf-teal-600) 40%, transparent);
+  /* SYS-3a: dark re-declares the ink tokens to the raw aliases — the darkened
+     --warn/--ok (#D99A2B/#52BE80) already clear AA on dark surfaces. */
+  --ink-amber: var(--warn);
+  --ink-ok: var(--ok);
 
   /* ---- 3. LEGACY flat aliases (dark) ---- */
   --bg: var(--gray-50);
@@ -240,6 +261,7 @@
   --teal-soft: var(--yf-teal-100);
   --saffron: var(--saffron-500);
   --saffron-soft: #3A2C15;
+  --coral: var(--yf-coral);
   --danger: var(--danger-500);
   --danger-soft: #3A2020;
   --ok: var(--ok-500);
@@ -359,12 +381,12 @@ html { overflow-x: clip; }
 .health-big { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
 .health-num-big { font-size: 54px; font-weight: 800; font-family: var(--font-display); line-height: 1; font-variant-numeric: tabular-nums; }
 .health-num-big.ok { color: var(--ok); }
-.health-num-big.mid { color: var(--yf-amber); }
+.health-num-big.mid { color: var(--warn-600); }
 .health-num-big.bad { color: var(--yf-coral); }
 .health-bar { height: 8px; border-radius: 999px; background: var(--yf-amber-100); overflow: hidden; }
-.health-bar > i { display: block; height: 100%; border-radius: 999px; transition: width .5s ease; }
+.health-bar > i { display: block; height: 100%; border-radius: 999px; transition: width var(--t-slow) var(--ease-out); }
 .health-bar > i.ok { background: var(--ok); }
-.health-bar > i.mid { background: var(--yf-amber); }
+.health-bar > i.mid { background: var(--warn-600); }
 .health-bar > i.bad { background: var(--yf-coral); }
 .health-reasons { list-style: none; margin: 9px 0 0; padding: 0; display: grid; gap: 3px; font-size: 13px; color: var(--text-2); }
 .health-rec {
@@ -383,7 +405,7 @@ html { overflow-x: clip; }
    gradient — light theme rendered a cream card under light-on-light SVG labels. */
 .card.route-snap {
   position: relative; overflow: hidden;
-  background: linear-gradient(150deg, var(--yf-navy), var(--gray-900) 88%);
+  background: linear-gradient(150deg, var(--yf-navy), #0B2545 88%);
   color: #fff;
   box-shadow: 0 30px 60px rgba(var(--shadow-navy-rgb),.28);
 }
@@ -406,7 +428,7 @@ html { overflow-x: clip; }
 .link-btn:focus-visible { outline: none; box-shadow: var(--ring); border-radius: 6px; }
 
 /* Group pulse full-width strip (mockup) */
-.pulse-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 14px 18px; }
+.pulse-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 14px 18px; grid-column: 1 / -1; }
 .pulse-bar .pulse-label { font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--yf-text-muted); }
 .pulse-bar .pulse-item { font-size: 13.5px; color: var(--text-2); }
 .pulse-bar .pulse-item b { color: var(--text); }
@@ -530,7 +552,7 @@ input, select, textarea { font-family: var(--font-body); font-size: 14.5px; colo
   display: inline-flex; align-items: center; justify-content: center; gap: 7px;
   border-radius: 999px; border: 1.5px solid transparent;
   font-weight: 600; font-size: 14px; padding: 9px 17px;
-  transition: transform .06s ease, box-shadow .15s ease, background .15s ease;
+  transition: transform .06s ease, box-shadow var(--t-fast) var(--ease-out), background var(--t-fast) var(--ease-out);
   white-space: nowrap;
 }
 /* Button state matrix (sizes + variants + states): see DESIGN_TOKENS.md */
@@ -570,12 +592,14 @@ a.btn { text-decoration: none; }
    edge and the surrounding layout has real gaps). */
 @media (pointer: coarse) {
   .btn, .icon-btn, .chip, .clickable-chip, .toast-action, .tab-btn,
-  .map-legend-toggle, .nav-link, .filter-pillbar .clickable-chip {
+  .map-legend-toggle, .nav-link, .filter-pillbar .clickable-chip,
+  .link-btn, .move-btn, .board-pulse-link, .cal-day, .route-btn, .vote-btn {
     position: relative;
   }
   .btn::after, .icon-btn::after, .chip::after, .clickable-chip::after,
   .toast-action::after, .tab-btn::after, .map-legend-toggle::after,
-  .nav-link::after {
+  .nav-link::after, .link-btn::after, .move-btn::after, .board-pulse-link::after,
+  .cal-day::after, .route-btn::after, .vote-btn::after {
     content: ''; position: absolute; inset: -6px; border-radius: inherit;
   }
 }
@@ -587,6 +611,9 @@ a.btn { text-decoration: none; }
   padding: 20px;
 }
 .card + .card { margin-top: 14px; }
+/* Explicit card spacing where the sibling selector can't express the intent
+   (Profile stacks its cards with a wider 16px beat — was inline style). */
+.stack-gap { margin-top: 16px; }
 
 /* ---------- Forms ---------- */
 .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
@@ -601,7 +628,17 @@ a.btn { text-decoration: none; }
 .input:focus, .select:focus, .textarea:focus {
   border-color: var(--teal); box-shadow: 0 0 0 3px color-mix(in srgb, var(--teal) 18%, transparent);
 }
+/* A disabled form control must look disabled — three selects shipped identical
+   to enabled ones (Create-Trip Day, TripSettings vehicle rows). Same shape as
+   .btn:disabled. */
+.input:disabled, .select:disabled, .textarea:disabled {
+  opacity: .55; cursor: not-allowed;
+}
 .textarea { resize: vertical; min-height: 74px; }
+/* Inline-row variant — the .input surface at a size that fits beside a label
+   on one line (travel-panel departure / halt-planner fields), with the same
+   focus ring instead of the hand-styled borders those fields used to have. */
+.input--compact { width: auto; padding: 5px 8px; font-size: 13px; }
 /* Dropdown (select) — the exact .input surface; the only tell is the chevron.
    (Was a glass pill with its own background/weight, which read as a different
    component family next to text inputs in the same form.) */
@@ -614,12 +651,41 @@ a.btn { text-decoration: none; }
   background-repeat: no-repeat;
   background-position: right 12px center;
   background-size: 11px 7px;
-  transition: border-color .15s ease, box-shadow .15s ease, background-color .15s ease;
+  transition: border-color var(--t-fast) var(--ease-out), box-shadow var(--t-fast) var(--ease-out), background-color var(--t-fast) var(--ease-out);
 }
 .select:hover { border-color: var(--teal); }
 /* Theme the native popup rows (Chromium/Edge honour this; the system highlight
    stays but stops clashing with the palette). */
 .select option { background: var(--card); color: var(--text); }
+
+/* ============ Custom listbox Select (components/Select.tsx) ============
+   Same `.select` trigger recipe (it's on the button below), a real DOM popup
+   instead of the OS one. High-traffic surfaces use this; low-traffic selects
+   keep the native control — the trigger look is identical. */
+.cselect { position: relative; }
+.cselect-trigger { text-align: left; background-color: var(--card-soft); color: var(--text); }
+.cselect-trigger.compact { width: auto; padding: 5px 26px 5px 10px; font-size: 13px; }
+.cselect-trigger:disabled { opacity: .55; cursor: not-allowed; }
+.cselect-trigger[aria-invalid='true'] { border-color: var(--danger); }
+.cselect-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cselect-ico { display: inline-flex; flex: none; color: var(--text-2); }
+.cselect-pop {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: var(--z-frost);
+  margin: 0; padding: 5px; list-style: none;
+  width: max(100%, 200px); max-height: 280px; overflow-y: auto;
+}
+.cselect-option {
+  display: flex; align-items: center; gap: 8px; width: 100%; text-align: left;
+  padding: 8px 10px; border-radius: 8px; border: none; background: none;
+  color: var(--text); font-size: 14px; cursor: pointer;
+  transition: background var(--motion-fast) var(--ease-out);
+}
+.cselect-option.active { background: var(--bg-soft); }
+.cselect-option[aria-selected='true'] { font-weight: 600; }
+.cselect-check { margin-left: auto; color: var(--teal-deep); flex: none; }
+/* tone dot for Select options (priority/status in StopEditor) — always beside
+   a text label, never the only carrier of the meaning */
+.opt-dot { width: 8px; height: 8px; border-radius: 999px; flex: none; }
 /* The chevron is baked into a background-image, so it can't follow a token —
    re-declare it for dark mode or it lands ~1.8:1 on the dark pill. */
 [data-theme='dark'] .select {
@@ -642,23 +708,36 @@ a.btn { text-decoration: none; }
 }
 .chip-teal { background: var(--teal-soft); color: var(--teal-deep); }
 .chip-outline { background: var(--card); color: var(--text-2); border-color: var(--line); }
-.chip-saffron { background: var(--saffron-soft); color: var(--warn); }
+.chip-saffron { background: var(--saffron-soft); color: var(--ink-amber); }
 /* AA contrast: warn-600 reads 3.48:1 on the saffron tint — light theme gets a
-   deeper amber (dark theme's #D99A2B on #3A2C15 already passes). */
-:root:not([data-theme='dark']) .chip-saffron { color: #8F5B06; }
-/* #85: the same --warn-on-tint pair shipped unfixed on five sibling surfaces
-   (3.48–3.69:1 in light; all pass in dark). One block propagates the chip's
-   deep-amber ink to every one of them — contrast by lightness, not hue. */
+   deeper amber (--ink-amber); dark theme's #D99A2B on #3A2C15 already passes.
+   The same --warn-on-tint pair shipped unfixed on sibling surfaces (3.48–3.69:1
+   light; all pass dark) — now routed through --ink-amber for one source. */
 :root:not([data-theme='dark']) .day-warn-pill:not(.sev-high),
 :root:not([data-theme='dark']) .day-rail-chip.warn,
 :root:not([data-theme='dark']) .share-intent--saffron,
-:root:not([data-theme='dark']) .stop-num.cat-food { color: #8F5B06; }
+:root:not([data-theme='dark']) .stop-num.cat-food { color: var(--ink-amber); }
+/* SYS-2 dark-foreground swap: these solid-teal-fill surfaces take `#06251f`
+   ink in dark (the lightened --teal-500 can't carry white — 2.0–2.5:1). One
+   block for the whole family; base rules now use --teal-deep (5.19:1 light).
+   Same pattern as .map-legend-toggle.map-live-on / .bench-mode-btn.on above. */
+[data-theme='dark'] .step-num,
+[data-theme='dark'] .vote-btn.on,
+[data-theme='dark'] .mode-btn.on,
+[data-theme='dark'] .crew-btn.on,
+[data-theme='dark'] .cal-day.edge,
+[data-theme='dark'] .route-dot {
+  background: var(--teal); border-color: var(--teal); color: #06251f;
+}
+[data-theme='dark'] .mode-btn.on .hint { color: rgba(6, 37, 31, .78); }
 .chip-danger { background: var(--danger-soft); color: var(--danger); }
-.chip-ok { background: var(--ok-soft); color: var(--ok); }
+.chip-ok { background: var(--ok-soft); color: var(--ink-ok); }
 .chip-info { background: var(--info-soft); color: var(--text-2); }
-.clickable-chip { transition: background-color 160ms ease, color 160ms ease, box-shadow 160ms ease, border-color 160ms ease; cursor: pointer; border: 1.5px solid var(--line); background: var(--card); user-select: none;
+.clickable-chip { cursor: pointer; border: 1.5px solid var(--line); background: var(--card); user-select: none;
   border-radius: 999px; padding: 5px 13px; font-size: 12.5px; font-weight: 600;
-  transition: transform var(--t-fast) var(--ease-out), background var(--t-fast) var(--ease-out), border-color var(--t-fast) var(--ease-out); }
+  /* ONE declaration: the old pair fought — the survivor dropped colour and
+     box-shadow, so the selected chip's text/glow popped while its fill eased. */
+  transition: transform var(--t-fast) var(--ease-out), background var(--t-fast) var(--ease-out), border-color var(--t-fast) var(--ease-out), color var(--t-fast) var(--ease-out), box-shadow var(--t-fast) var(--ease-out); }
 .clickable-chip.on-teal { border-color: var(--teal); background: var(--teal-soft); color: var(--teal-deep); }
 .clickable-chip.on-saffron { border-color: var(--saffron); background: var(--saffron-soft); color: var(--warn); }
 .clickable-chip:hover { transform: translateY(-1px); }
@@ -679,7 +758,7 @@ a.btn { text-decoration: none; }
 .filter-pillbar .clickable-chip:hover,
 .mode-pillbar .clickable-chip:hover { transform: none; }
 /* Count badges inside filter pills (All · n open / Need you / Resolved) */
-.tab-count--hot { background: var(--yf-amber-100); color: #8F5B06; }
+.tab-count--hot { background: var(--yf-amber-100); color: var(--ink-amber); }
 .tab-count--muted { background: var(--bg-soft); color: var(--text-2); }
 /* Decision guide box (context line + the offline recommender's pick) */
 .gi-guide { background: var(--bg-soft); border: 1px solid var(--line); border-radius: 10px; padding: 8px 11px; }
@@ -687,6 +766,17 @@ a.btn { text-decoration: none; }
    Inside a PillNav the glider owns the paint entirely (see .pill-nav rules). */
 .clickable-chip.on-teal { background: var(--teal-deep); color: #fff; box-shadow: var(--shadow-glow-teal); }
 [data-theme='dark'] .clickable-chip.on-teal { background: var(--teal); color: #06251f; }
+/* Same selected treatment for a `.btn` carrying on-teal (My Trips Trash toggle):
+   before this, on-teal matched no .btn rule, so the pressed state was invisible
+   to sighted users (aria-pressed was correct — sighted-only defect). */
+.btn.on-teal { background: var(--teal-deep); border-color: var(--teal-deep); color: #fff; box-shadow: var(--shadow-glow-teal); }
+[data-theme='dark'] .btn.on-teal { background: var(--teal); border-color: var(--teal); color: #06251f; }
+/* SYS-7a: these change background/border/colour on hover and selection but
+   declared no transition at all — they snapped while every chip eased. */
+.route-btn, .mode-btn, .crew-btn, .cal-day, .quick-budget .chip,
+.move-btn, .board-fit, .board-pulse-link, .vote-btn {
+  transition: background var(--t-fast) var(--ease-out), border-color var(--t-fast) var(--ease-out), color var(--t-fast) var(--ease-out);
+}
 
 /* Reusable CTI glass surface (nav-level blur, diffuse depth). Drop onto any
    panel to lift it off the page with a frosted edge. */
@@ -706,8 +796,10 @@ a.btn { text-decoration: none; }
   color: var(--text-2);
 }
 /* (explore-chips selected-state overrides removed — chips use the global .on-teal) */
+/* Selected "Saved" chip — was white-on-saffron (1.97:1 both themes). Now the
+   same soft-fill + deep-ink language as every other selected chip (5.08/5.56). */
 .explore-chips .clickable-chip.chip-saffron {
-  background: var(--saffron); color: #fff; border-color: transparent;
+  background: var(--saffron-soft); color: var(--ink-amber); border-color: var(--saffron);
 }
 
 /* ---------- Stat tiles ---------- */
@@ -752,7 +844,7 @@ a.btn { text-decoration: none; }
   background: var(--card); border: 1px solid var(--line);
   border-radius: var(--radius); padding: 14px 15px;
   box-shadow: var(--shadow-sm);
-  transition: border-color .15s, box-shadow .15s;
+  transition: border-color var(--t-fast) var(--ease-out), box-shadow var(--t-fast) var(--ease-out);
 }
 .stop-card:hover { border-color: color-mix(in srgb, var(--teal) 45%, var(--line)); }
 /* (dead: the HTML5-drag ghost slot styling this served is retired — the
@@ -837,7 +929,7 @@ a.btn { text-decoration: none; }
   text-decoration-color: color-mix(in srgb, var(--text-3) 60%, transparent);
   text-underline-offset: 3px;
 }
-.board-stop-title-btn:focus-visible { outline: 2px solid var(--focus, var(--teal)); outline-offset: 1px; }
+.board-stop-title-btn:focus-visible { outline: 2px solid var(--teal); outline-offset: 1px; }
 .travel-leg {
   display: flex; align-items: center; gap: 9px;
   margin: 3px 0 3px 0; padding: 2px 0 2px 0;
@@ -946,11 +1038,6 @@ a.btn { text-decoration: none; }
   border-top: 1px solid var(--line);
 }
 .tps-dep { display: inline-flex; align-items: center; gap: 6px; }
-.tps-dep input[type="time"] {
-  border: 1px solid var(--line); border-radius: 8px;
-  padding: 4px 8px; font-size: 13px; font-family: inherit;
-  background: var(--card); color: var(--text);
-}
 .tps-arrow { font-size: 18px; color: var(--text-3); }
 .tps-eta { display: flex; flex-direction: column; gap: 1px; }
 .tps-eta b { font-size: 16px; color: var(--teal-deep); font-family: var(--font-display); }
@@ -965,13 +1052,14 @@ a.btn { text-decoration: none; }
   margin-top: 12px; padding-top: 12px;
   border-top: 1px solid var(--line);
 }
-.travel-panel-add input[type="number"] {
-  border: 1px solid var(--line); border-radius: 8px;
-  padding: 4px 6px; font-size: 13px; background: var(--card); color: var(--text);
-}
 
 /* ---------- Timeline time rail ---------- */
-.tl-row { display: grid; grid-template-columns: 74px 1fr; gap: 12px; margin-bottom: 8px; align-items: center; }
+/* one shared rail geometry — these three used to redeclare 74px/12px each,
+   so widening the rail meant finding all of them */
+.tl-row, .tl-legrow, .tl-end { display: grid; grid-template-columns: 74px 1fr; gap: 12px; }
+.tl-row { margin-bottom: 8px; align-items: center; }
+.tl-legrow { align-items: center; margin-bottom: 8px; }
+.tl-end { min-height: 12px; margin-bottom: 4px; }
 .tl-row .stop-card { margin-bottom: 0; }
 .tl-gutter {
   display: flex; flex-direction: column; align-items: center; gap: 4px;
@@ -986,10 +1074,9 @@ a.btn { text-decoration: none; }
 }
 .tl-time.tl-dep { color: var(--teal-deep); background: var(--teal-soft); border-color: transparent; }
 .tl-line { flex: 1; width: 2px; min-height: 12px; border-radius: 2px; background: repeating-linear-gradient(var(--line) 0 4px, transparent 4px 8px); }
-.tl-legrow { display: grid; grid-template-columns: 74px 1fr; gap: 12px; align-items: center; margin-bottom: 8px; }
 .tl-gutter-leg { padding: 0; min-height: 26px; }
 .tl-line-leg { flex: none; width: 2px; height: 100%; min-height: 26px; }
-.tl-end { min-height: 12px; margin-bottom: 4px; display: grid; grid-template-columns: 74px 1fr; gap: 12px; }
+.tl-end { min-height: 12px; margin-bottom: 4px; }
 .tl-drop-line {
   grid-column: 2; color: var(--warn); background: var(--warn-soft);
   border: 1.5px dashed var(--saffron); border-radius: var(--radius-sm);
@@ -1005,10 +1092,10 @@ a.btn { text-decoration: none; }
   border: 1px solid var(--line); background: var(--bg-soft); cursor: pointer; flex: 0 0 auto;
   color: var(--text-2); width: 28px; height: 28px; padding: 0; border-radius: 999px;
   display: grid; place-items: center;
-  transition: background .15s ease, color .15s ease;
+  transition: background var(--t-fast) var(--ease-out), color var(--t-fast) var(--ease-out);
 }
 .day-collapse:hover { background: var(--teal-soft); color: var(--teal-deep); }
-.day-collapse-icon { transition: transform .15s ease; }
+.day-collapse-icon { transition: transform var(--t-fast) var(--ease-out); }
 .day-closed .day-collapse-icon { transform: rotate(-90deg); }
 .day-header h3[style*='pointer'] { text-decoration: transparent; }
 .day-progress {
@@ -1016,9 +1103,9 @@ a.btn { text-decoration: none; }
   max-width: 320px; margin-top: 7px; overflow: hidden;
 }
 .day-progress.compact { margin-top: 5px; }
-.day-progress-fill { height: 100%; border-radius: 3px; transition: width .3s ease; }
+.day-progress-fill { height: 100%; border-radius: 3px; transition: width var(--t-med) var(--ease-out); }
 .day-progress-fill.sev-ok { background: var(--ok); }
-.day-progress-fill.sev-medium { background: var(--saffron); }
+.day-progress-fill.sev-medium { background: var(--warn-600); }
 .day-progress-fill.sev-high { background: var(--danger); }
 .day-spark { flex: 0 0 auto; opacity: .92; }
 
@@ -1078,7 +1165,7 @@ a.btn { text-decoration: none; }
 .chip-btn {
   border: 1px dashed var(--line); background: var(--card-soft); color: var(--text-2);
   border-radius: 999px; padding: 5px 12px; font-size: 12.5px; font-weight: 600; cursor: pointer;
-  transition: border-color .15s, color .15s, background .15s;
+  transition: border-color var(--t-fast) var(--ease-out), color var(--t-fast) var(--ease-out), background var(--t-fast) var(--ease-out);
 }
 .chip-btn:hover { border-color: var(--teal); color: var(--teal-deep); background: var(--teal-soft); }
 
@@ -1102,7 +1189,7 @@ a.btn { text-decoration: none; }
 .tl-total-dot { color: var(--text-3); }
 .tl-total-warn {
   margin-left: auto;
-  background: var(--yf-amber-100); color: var(--warn);
+  background: var(--yf-amber-100); color: var(--ink-amber);
   border-radius: 999px; padding: 3px 11px;
   font-size: 11.5px; font-weight: 700;
 }
@@ -1113,7 +1200,7 @@ a.btn { text-decoration: none; }
   border: 1px solid var(--line); background: var(--card); color: var(--text-2);
   border-radius: 12px; padding: 7px 14px; font-size: 12.5px; font-weight: 600;
   cursor: pointer; white-space: nowrap; flex: 0 0 auto;
-  transition: border-color .15s, background .15s, color .15s;
+  transition: border-color var(--t-fast) var(--ease-out), background var(--t-fast) var(--ease-out), color var(--t-fast) var(--ease-out);
 }
 .day-rail-chip:hover { border-color: var(--teal); color: var(--teal-deep); background: var(--teal-soft); }
 .day-rail-chip.warn { background: var(--yf-amber-100); border-color: transparent; color: var(--warn); font-weight: 700; }
@@ -1150,7 +1237,14 @@ a.btn { text-decoration: none; }
 .stop-card.kind-fuel { --kind-c: var(--gray-400); }
 .stop-card.kind-rest { --kind-c: var(--yf-saffron); }
 .stop-card.kind-activity { --kind-c: var(--yf-purple); }
-.stop-card.kind-viewpoint { --kind-c: var(--yf-teal-600); }
+/* viewpoint joins the scenic hue (292°) — teal was the interactive/selection
+   colour, so the spine claimed "selected" on every viewpoint card */
+.stop-card.kind-viewpoint { --kind-c: var(--yf-poi-see); }
+/* food/rest were 3.9deg apart (the same colour) and ~2:1 on a light card as the 4px
+   spine. Light theme separates them to 18deg AND clears 3:1 (burnt orange 5.18 /
+   gold 4.92 on white); dark keeps the flipping primitives (7.8/8.0 there). */
+:root:not([data-theme='dark']) .stop-card.kind-food { --kind-c: #C2410C; }
+:root:not([data-theme='dark']) .stop-card.kind-rest { --kind-c: #A16207; }
 .stop-kind-tag {
   font-size: 10.5px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase;
   border-radius: 999px; padding: 2px 9px; line-height: 1.6;
@@ -1239,9 +1333,11 @@ a.btn { text-decoration: none; }
 .board-pulse-row { display: flex; align-items: center; gap: 10px; margin-top: 3px; }
 .board-pulse-row .health-num-big { font-size: 28px; }
 .board-pulse-band { font-size: 12px; font-weight: 700; }
-.board-pulse-band.ok { color: var(--ok); }
-.board-pulse-band.mid { color: var(--yf-amber); }
+.board-pulse-band.ok { color: var(--ink-ok); }
+.board-pulse-band.mid { color: var(--ink-amber); }
 .board-pulse-band.bad { color: var(--yf-coral); }
+/* 12px text on glass: coral reads 3.83 — light gets the deep red (6.43); dark passes as authored. */
+:root:not([data-theme='dark']) .board-pulse-band.bad { color: var(--danger-600); }
 .board-pulse .health-bar { margin-top: 5px; }
 .board-pulse-lines { display: grid; gap: 3px; margin-top: 8px; font-size: 12px; color: var(--text-2); }
 .board-pulse-link {
@@ -1334,7 +1430,7 @@ a.btn { text-decoration: none; }
 button.board-col-zone--add { cursor: pointer; font: inherit; width: 100%; }
 button.board-col-zone--add b { font-weight: 600; }
 button.board-col-zone--add:hover { border-color: var(--teal); background: color-mix(in srgb, var(--teal-soft, #e6f4f2) 60%, transparent); }
-button.board-col-zone--add:focus-visible { outline: 2px solid var(--focus, var(--teal)); outline-offset: 2px; }
+button.board-col-zone--add:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
 button.board-col-zone--add:active { transform: translateY(1px); }
 
 /* ---------- M6: Budget / Decisions / Share / Suggestions hierarchy (CTI §6.6–6.9) ---------- */
@@ -1380,7 +1476,7 @@ button.board-col-zone--add:active { transform: translateY(1px); }
 .impact-head {
   display: flex; align-items: center; gap: 9px;
   padding: 11px 16px; background: var(--saffron-soft);
-  font-weight: 700; font-size: 13.5px; color: var(--warn);
+  font-weight: 700; font-size: 13.5px; color: var(--ink-amber);
   font-family: var(--font-display);
 }
 .impact-body { padding: 15px 16px; }
@@ -1388,7 +1484,7 @@ button.board-col-zone--add:active { transform: translateY(1px); }
 .impact-cell { background: var(--bg-soft); border-radius: 10px; padding: 9px 12px; }
 .impact-cell .k { font-size: 11px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: .04em; }
 .impact-cell .v { font-weight: 800; font-size: 14.5px; margin-top: 1px; font-family: var(--font-display); font-variant-numeric: tabular-nums; }
-.delta-pos { color: var(--danger); } .delta-neg { color: var(--ok); } .delta-zero { color: var(--text-2); }
+.delta-pos { color: var(--danger); } .delta-neg { color: var(--ink-ok); } .delta-zero { color: var(--text-2); }
 .assumptions { font-size: 12px; color: var(--text-3); background: var(--bg-soft); padding: 9px 12px; border-radius: 10px; line-height: 1.6; }
 .impact-actions { display: flex; gap: 8px; margin-top: 13px; flex-wrap: wrap; }
 
@@ -1519,7 +1615,7 @@ button.board-col-zone--add:active { transform: translateY(1px); }
 /* Landing section headings & grids */
 .section-title { font-size: clamp(1.45rem, 3vw, 1.9rem); text-align: center; margin: 46px auto 6px; max-width: 620px; }
 .feature-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 14px; margin: 0 0 44px; }
-.feature-card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 21px; box-shadow: var(--shadow-sm); transition: transform .15s ease, box-shadow .15s ease; }
+.feature-card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 21px; box-shadow: var(--shadow-sm); transition: transform var(--t-fast) var(--ease-out), box-shadow var(--t-fast) var(--ease-out); }
 .feature-card:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(var(--shadow-navy-rgb),.06), 0 16px 40px rgba(var(--shadow-navy-rgb),.12); }
 .feature-card h3 { font-size: 15.5px; }
 .feature-ico { width: 42px; height: 42px; border-radius: 12px; background: var(--teal-soft); display: flex; align-items: center; justify-content: center; font-size: 20px; margin-bottom: 12px; }
@@ -1538,7 +1634,7 @@ button.board-col-zone--add:active { transform: translateY(1px); }
 .step-num {
   display: inline-flex; align-items: center; justify-content: center;
   width: 30px; height: 30px; border-radius: 50%;
-  background: var(--teal); color: #fff; font-weight: 800; font-size: 14px;
+  background: var(--teal-deep); color: #fff; font-weight: 800; font-size: 14px;
   font-family: var(--font-display); margin-bottom: 11px;
 }
 .step-card h3 { font-size: 15px; }
@@ -1562,7 +1658,9 @@ button.board-col-zone--add:active { transform: translateY(1px); }
 
 /* ---------- Explore cards ---------- */
 .explore-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 16px; }
-.itin-card { overflow: hidden; padding: 0; display: flex; flex-direction: column; transition: transform .15s ease, box-shadow .15s ease; }
+.itin-card { overflow: hidden; padding: 0; display: flex; flex-direction: column; transition: transform var(--t-fast) var(--ease-out), box-shadow var(--t-fast) var(--ease-out); }
+/* Lift convention: card/hero surfaces rise -2px (itin/feature/trip-card),
+   control-sized things -1px (clickable-chip, board-stop, bench buttons). */
 .itin-card:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(var(--shadow-navy-rgb),.06), 0 16px 40px rgba(var(--shadow-navy-rgb),.12); }
 .itin-cover { position: relative; aspect-ratio: 16/9; background: linear-gradient(135deg, var(--teal-deep), var(--text)); overflow: hidden; }
 .itin-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -1591,6 +1689,23 @@ button.board-col-zone--add:active { transform: translateY(1px); }
   border-top: 1px solid var(--line);
 }
 .creator-line { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-2); font-weight: 600; }
+/* The anchor variant (PubCard) overrode the global link colour with --text-2,
+   so it read as plain text. Keep the quiet look at rest, but answer hover and
+   give keyboard users a visible ring. */
+a.creator-line { transition: color var(--motion-fast) var(--ease-out); }
+a.creator-line:hover { color: var(--teal-deep); }
+a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; border-radius: 8px; }
+/* Icon-only anchors (PubCard socials) copied `.muted` — interactive elements
+   rendered as static text. */
+.icon-link {
+  color: var(--text-2); display: inline-flex; padding: 3px; border-radius: 7px;
+  transition: color var(--motion-fast) var(--ease-out), background var(--motion-fast) var(--ease-out);
+}
+.icon-link:hover { color: var(--teal-deep); background: var(--bg-soft); }
+.icon-link:focus-visible { outline: 2px solid var(--teal); outline-offset: 1px; }
+/* Inline text links in body copy — the teal colour alone didn't read as
+   clickable. */
+.text-link { text-decoration: underline; text-underline-offset: 2px; }
 .avatar { width: 26px; height: 26px; border-radius: 50%; object-fit: cover; background: var(--teal-soft); color: var(--teal-deep); display: inline-flex; align-items: center; justify-content: center; font-weight: 800; font-size: 11px; flex: 0 0 auto; }
 .avatar.lg { width: 44px; height: 44px; font-size: 16px; }
 
@@ -1705,7 +1820,7 @@ button.board-col-zone--add:active { transform: translateY(1px); }
 .vote-col { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 46px; }
 .vote-btn { width: 34px; height: 30px; border-radius: 9px; border: 1.5px solid var(--line); background: var(--card); font-size: 14px; color: var(--text-2); }
 .vote-btn:hover { border-color: var(--teal); color: var(--teal-deep); }
-.vote-btn.on { background: var(--teal); border-color: var(--teal); color: #fff; }
+.vote-btn.on { background: var(--teal-deep); border-color: var(--teal-deep); color: #fff; }
 .vote-count { font-weight: 800; font-size: 15px; font-family: var(--font-display); font-variant-numeric: tabular-nums; }
 .consensus-bar { height: 7px; border-radius: 99px; background: var(--bg-soft); overflow: hidden; display: flex; }
 .consensus-bar > div { height: 100%; }
@@ -1724,7 +1839,7 @@ button.board-col-zone--add:active { transform: translateY(1px); }
 .budget-bar-row { display: grid; grid-template-columns: 120px 1fr auto; gap: 10px; align-items: center; font-size: 13.5px; }
 .budget-bar-track { height: 10px; background: var(--bg-soft); border-radius: 99px; overflow: hidden; }
 .budget-bar-fill {
-  height: 100%; border-radius: 99px; transition: width .4s ease;
+  height: 100%; border-radius: 99px; transition: width var(--t-slow) var(--ease-out);
   position: relative; overflow: hidden;
 }
 /* A calm, smooth sheen sweeping across each budget bar — a single compositor
@@ -1735,7 +1850,9 @@ button.board-col-zone--add:active { transform: translateY(1px); }
   animation: barSheen 2.6s var(--ease-out) infinite;
 }
 @keyframes barSheen { from { left: -42%; } to { left: 108%; } }
-.compare-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+/* display:block + overflow-x keeps the tabular layout (anonymous table box)
+   but lets 5–6-column tables scroll on a phone instead of clipping the page. */
+.compare-table { display: block; width: 100%; border-collapse: collapse; font-size: 13.5px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .compare-table th, .compare-table td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line); }
 .compare-table th { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--text-3); }
 /* Global numeric utility: tabular digits for any changing figure. Tables keep
@@ -1858,6 +1975,8 @@ button.board-col-zone--add:active { transform: translateY(1px); }
 .ai-msgs { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 17px 16px; display: flex; flex-direction: column; gap: 11px; }
 .ai-bubble { max-width: 88%; padding: 10px 14px; border-radius: 16px; font-size: 13.5px; line-height: 1.5; white-space: pre-wrap; }
 .ai-bubble.user { align-self: flex-end; background: var(--teal-deep); color: #fff; border-bottom-right-radius: 6px; }
+/* dark lightens --teal-deep to #35C9BC — white on it is 2.11:1; ink passes 7.9 */
+[data-theme='dark'] .ai-bubble.user { color: #06251f; }
 .ai-bubble.bot { align-self: flex-start; background: var(--bg-soft); color: var(--text); border: 1px solid var(--line); border-bottom-left-radius: 6px; }
 .ai-assumption { margin-top: 9px; font-size: 11.8px; color: var(--text-3); border-top: 1px dashed var(--line); padding-top: 7px; }
 .ai-quick { padding: 10px 14px 8px; border-top: 1px solid var(--line); }
@@ -1939,6 +2058,13 @@ button.board-col-zone--add:active { transform: translateY(1px); }
 .pub-stats-sub { display: block; font-size: 12px; color: #5c7172; }
 .pub-stats-divider { border: none; border-top: 1px solid #e2e7df; margin: 10px 0 8px; }
 .pub-stats-row { display: grid; gap: 4px; font-size: 12px; color: #607778; }
+/* Dark variant: the floating stats card used to be hardcoded near-white in
+   both themes — the only surface on the page ignoring the theme. */
+[data-theme='dark'] .pub-hero-stats { background: rgba(13, 40, 47, .96); color: #e2f1ef; }
+[data-theme='dark'] .pub-stats-label { color: #8fb5ae; }
+[data-theme='dark'] .pub-stats-figure { color: #e2f1ef; }
+[data-theme='dark'] .pub-stats-sub, [data-theme='dark'] .pub-stats-row { color: #a9c3be; }
+[data-theme='dark'] .pub-stats-divider { border-top-color: rgba(255, 255, 255, .14); }
 /* Locked premium overlay (public itinerary) — single merged rule. The old pair
    declared `position: absolute; inset: 0` here and `position: relative` later in
    the file; the later `relative` won the cascade, so this keeps `relative` (the
@@ -1970,15 +2096,23 @@ button.board-col-zone--add:active { transform: translateY(1px); }
 .loading-block { padding: 60px 0; text-align: center; color: var(--text-3); font-weight: 600; }
 .page-head { margin: 26px 0 20px; }
 .page-head h2 { font-family: var(--font-display); font-size: 26px; margin: 0 0 4px; }
+/* The global h1 floors at 26px, so under ~578px the trip-name h1 and this h2
+   rendered the same size — adjacent heading levels, indistinguishable. */
+@media (max-width: 578px) {
+  .page-head h2 { font-size: 21px; }
+}
 .page-head-sub { color: var(--text-2); margin-top: 6px; font-size: 14.5px; max-width: 640px; }
 .divider { border: none; border-top: 1px solid var(--line); margin: 18px 0; }
+/* Heading→body gap without a hairline — the overview cards ran a divider
+   under every heading, which stopped carrying information. */
+.card-head { margin-bottom: 14px; }
 .two-col { display: grid; grid-template-columns: 1fr 340px; gap: 18px; align-items: start; }
 .trip-head-card {
   transition: padding var(--t-med) var(--ease-out);
   border-radius: var(--radius-lg); padding: 26px 28px; color: #fff;
   background:
     radial-gradient(circle at 86% 12%, rgba(245,158,45,.15), transparent 42%),
-    linear-gradient(115deg, var(--yf-navy) 0%, var(--gray-900) 78%);
+    linear-gradient(115deg, var(--yf-navy) 0%, #0B2545 78%);
   position: relative; overflow: hidden;
   box-shadow: var(--shadow-soft);
 }
@@ -1994,6 +2128,10 @@ button.board-col-zone--add:active { transform: translateY(1px); }
 .member-stack { display: flex; }
 .member-stack .avatar { margin-left: -8px; border: 2px solid var(--card); }
 .member-stack .avatar:first-child { margin-left: 0; }
+/* The compact glass variant of `.select` (member rows on Share): same
+   appearance:none + custom-chevron technique, pill-shaped and sized for
+   inline use. The chevron is a gradient pair rather than `.select`'s SVG
+   because it scales with the 5px pill row. */
 .role-select {
   appearance: none; -webkit-appearance: none;
   padding: 5px 26px 5px 10px; border-radius: 999px;
@@ -2006,7 +2144,7 @@ button.board-col-zone--add:active { transform: translateY(1px); }
   background-position: calc(100% - 15px) 55%, calc(100% - 11px) 55%;
   background-size: 5px 5px; background-repeat: no-repeat;
   font-size: 12.5px; font-weight: 600; color: var(--text-2); cursor: pointer;
-  box-shadow: var(--shadow-sm); transition: border-color .15s ease, box-shadow .15s ease;
+  box-shadow: var(--shadow-sm); transition: border-color var(--t-fast) var(--ease-out), box-shadow var(--t-fast) var(--ease-out);
 }
 .role-select:hover { border-color: var(--teal); }
 .share-link-box { display: flex; gap: 8px; align-items: center; background: var(--bg-soft); border-radius: var(--radius-sm); padding: 9px 12px; font-size: 13px; overflow: hidden; }
@@ -2068,6 +2206,9 @@ button.board-col-zone--add:active { transform: translateY(1px); }
 .profile-col { max-width: 720px; }
 .explore-filters { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 .explore-filters .input, .explore-filters .select { width: auto; min-width: 140px; flex: 0 1 auto; }
+/* the custom Select wraps its trigger in a div — flex sizing moves to the wrapper */
+.explore-filters .cselect, .trips-toolbar .cselect { flex: 0 1 auto; }
+.explore-filters .cselect .select, .trips-toolbar .cselect .select { min-width: 140px; }
 .trip-card-hit { all: unset; cursor: pointer; display: block; border-radius: 8px; }
 
 /* Trip card emoji cover */
@@ -2330,7 +2471,7 @@ button.board-col-zone--add:active { transform: translateY(1px); }
   padding: 10px 16px;
   background: var(--color-primary); color: var(--color-primary-foreground);
   border-radius: 0 0 10px 10px;
-  transition: top .15s ease;
+  transition: top var(--t-fast) var(--ease-out);
 }
 .skip-link:focus-visible { top: 0; box-shadow: var(--ring); }
 main:focus { outline: none; }
@@ -2446,7 +2587,7 @@ main:focus { outline: none; }
 /* ---- Halt planner (user-chosen km points + durations) ---- */
 .halt-planner-inputs { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .hp-field { display: inline-flex; align-items: center; gap: 5px; }
-.hp-field input[type="number"] { padding: 6px 8px; font-variant-numeric: tabular-nums; }
+.hp-field input[type="number"] { font-variant-numeric: tabular-nums; }
 .halt-plan-list { display: flex; flex-direction: column; gap: 6px; }
 .halt-plan-row { align-items: flex-start; }
 .hp-pin { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
@@ -2555,11 +2696,11 @@ main:focus { outline: none; }
   border-color: color-mix(in srgb, var(--teal) 22%, var(--line));
 }
 .poi-col--see {
-  background: color-mix(in srgb, #7C5CFC 5%, var(--bg));
-  border-color: color-mix(in srgb, #7C5CFC 24%, var(--line));
+  background: color-mix(in srgb, var(--yf-poi-see) 5%, var(--bg));
+  border-color: color-mix(in srgb, var(--yf-poi-see) 24%, var(--line));
 }
 [data-theme='dark'] .poi-col--needs { background: color-mix(in srgb, var(--teal) 10%, var(--bg)); }
-[data-theme='dark'] .poi-col--see { background: color-mix(in srgb, #7C5CFC 12%, var(--bg)); }
+[data-theme='dark'] .poi-col--see { background: color-mix(in srgb, var(--yf-poi-see) 12%, var(--bg)); }
 .poi-col-head { display: flex; align-items: center; gap: 9px; margin-bottom: 10px; }
 .poi-col-head-ico {
   width: 30px; height: 30px; border-radius: 10px;
@@ -2567,14 +2708,13 @@ main:focus { outline: none; }
   font-size: 15px; flex: 0 0 auto;
 }
 .poi-col--needs .poi-col-head-ico { background: var(--teal-soft); }
-.poi-col--see .poi-col-head-ico { background: color-mix(in srgb, #7C5CFC 16%, transparent); }
+.poi-col--see .poi-col-head-ico { background: color-mix(in srgb, var(--yf-poi-see) 16%, transparent); }
 .poi-col-head b { display: block; font-size: 14px; }
 .poi-col--needs .poi-col-head b { color: var(--teal-deep); }
-.poi-col--see .poi-col-head b { color: #5540B8; }
-[data-theme='dark'] .poi-col--see .poi-col-head b { color: #B4A5FF; }
-/* tint the purpose chips inside their lane — sightseeing reads scenic purple */
-.poi-col--see .ride-purpose-sight { background: color-mix(in srgb, #7C5CFC 16%, transparent); color: #5540B8; }
-[data-theme='dark'] .poi-col--see .ride-purpose-sight { color: #B4A5FF; }
+.poi-col--see .poi-col-head b { color: var(--yf-poi-see-ink); }
+/* tint the purpose chips inside their lane — sightseeing reads scenic violet.
+   (Composited over the tint the ink measures ~5.8 light / ~8.0 dark.) */
+.poi-col--see .ride-purpose-sight { background: color-mix(in srgb, var(--yf-poi-see) 16%, transparent); color: var(--yf-poi-see-ink); }
 
 /* Map-tab ideas grid — need rail LEFT, map CENTER, see-&-do rail RIGHT, so both
    suggestion lanes sit beside the map with no page scroll between them. Rails
@@ -2616,13 +2756,13 @@ main:focus { outline: none; }
 
 /* Board choreography: day columns drift in with a light stagger on mount. */
 .board-col { animation: panelIn var(--t-slow) var(--ease-out) backwards; }
-.board-col:nth-child(2) { animation-delay: 40ms; }
-.board-col:nth-child(3) { animation-delay: 80ms; }
-.board-col:nth-child(4) { animation-delay: 120ms; }
-.board-col:nth-child(5) { animation-delay: 160ms; }
-.board-col:nth-child(6) { animation-delay: 200ms; }
-.board-col:nth-child(7) { animation-delay: 240ms; }
-.board-col:nth-child(8) { animation-delay: 280ms; }
+.board-col:nth-child(2) { animation-delay: calc(var(--stagger-step) * 1); }
+.board-col:nth-child(3) { animation-delay: calc(var(--stagger-step) * 2); }
+.board-col:nth-child(4) { animation-delay: calc(var(--stagger-step) * 3); }
+.board-col:nth-child(5) { animation-delay: calc(var(--stagger-step) * 4); }
+.board-col:nth-child(6) { animation-delay: calc(var(--stagger-step) * 5); }
+.board-col:nth-child(7) { animation-delay: calc(var(--stagger-step) * 6); }
+.board-col:nth-child(8) { animation-delay: calc(var(--stagger-step) * 7); }
 /* Drag/focus states glide instead of snapping. */
 .board-stop, .board-col-zone, .board-col--focused { transition: border-color var(--t-med) var(--ease-out), background var(--t-med) var(--ease-out), transform var(--t-fast) var(--ease-out); }
 .board-stop:hover { transform: translateY(-1px); }
@@ -2758,7 +2898,12 @@ body, .topnav, .glass, .board, .board-col, .modal, .toast {
 
 /* editorial narrative + route glance */
 .pub-editorial { align-items: start; margin-bottom: 8px; }
-.editorial-kicker { font-size: 12px; font-weight: 800; letter-spacing: .12em; color: var(--yf-teal-600); }
+/* --yf-teal-700 (not -600): 12px/800 normal text, and teal-600 on the paper/
+   white sheet is 4.08:1 — same fix already applied to .bench-receipt-kicker.
+   font-size/weight/tracking here are dead (overridden by the kicker block); the
+   colour is not, so it stays on this rule. */
+/* type specs come from the kicker unification block — colour only here */
+.editorial-kicker { color: var(--yf-teal-700); }
 [data-theme='dark'] .editorial-kicker { color: #57c4b8; }
 .editorial-title { font-family: var(--font-display); font-size: clamp(24px, 3vw, 32px); font-weight: 800; color: var(--text); margin: 6px 0 12px; }
 .editorial-body { font-size: 15px; line-height: 1.75; color: var(--text-2); max-width: 560px; }
@@ -2823,7 +2968,6 @@ html.vt-active :where(*) {
   display: flex; flex-direction: column; gap: 6px;
 }
 .day-highlight-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-.day-highlight-top .editorial-kicker { font-size: 10.5px; }
 .day-highlight-title { font-size: 17px; font-family: var(--font-display); color: var(--text); }
 .day-highlight-meta { font-size: 12.5px; color: var(--text-3); }
 .pub-footer-line { text-align: center; color: var(--text-3); font-size: 13px; padding: 26px 0 12px; }
@@ -2841,7 +2985,8 @@ html.vt-active :where(*) {
     repeating-radial-gradient(150% 100% at 10% -10%, transparent 0 42px, rgba(255, 255, 255, .045) 42px 43px);
 }
 .explore-hero-inner { position: relative; z-index: var(--z-content); }
-.explore-hero h1 { font-family: var(--font-display); font-size: clamp(30px, 4.6vw, 46px); font-weight: 800; margin: 6px 0 0; }
+/* size/weight ride the global h1 ramp — this hero doesn't get a second scale */
+.explore-hero h1 { margin: 6px 0 0; }
 .explore-hero-kicker { color: #a9eadc; }
 .explore-hero-sub { color: #d9efeb; font-size: clamp(14px, 1.6vw, 16.5px); max-width: 620px; margin: 10px 0 18px; line-height: 1.6; }
 .explore-hero-search {
@@ -2849,10 +2994,28 @@ html.vt-active :where(*) {
   border: 1px solid rgba(255, 255, 255, .3); background: rgba(255, 255, 255, .12); color: #fff;
   -webkit-backdrop-filter: blur(var(--yf-blur-chip)); backdrop-filter: blur(var(--yf-blur-chip));
 }
-.explore-hero-search::placeholder { color: rgba(226, 241, 239, .75); }
-.explore-hero-search:focus { background: rgba(255, 255, 255, .18); border-color: rgba(255, 255, 255, .5); outline: none; }
+.explore-hero-search::placeholder { color: #e2f1ef; }
+/* Own focus ring: the shared `.input:focus` teal ring reads 1.18:1 over the
+   dark hero; this surface needs a white one, declared here so box-shadow is
+   overridden (not just border-color/outline). */
+.explore-hero-search:focus { background: rgba(255, 255, 255, .18); border-color: rgba(255, 255, 255, .5); outline: none; box-shadow: 0 0 0 3px rgba(255, 255, 255, .5); }
+/* The search's clear affordance lives with its cause: q is typed HERE, but the
+   only Clear button sat in the filter card ~300px below. */
+.explore-hero-searchrow { position: relative; max-width: 520px; }
+.explore-hero-searchrow .explore-hero-search { padding-right: 44px; }
+.explore-hero-clear {
+  position: absolute; right: 7px; top: 50%; transform: translateY(-50%);
+  width: 28px; height: 28px; border-radius: 999px; border: none; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: rgba(255, 255, 255, .16); color: #fff;
+  transition: background var(--motion-fast) var(--ease-out);
+}
+.explore-hero-clear:hover { background: rgba(255, 255, 255, .3); }
+.explore-hero-clear:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(255, 255, 255, .5); }
 .explore-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
-.chip-count { font-variant-numeric: tabular-nums; opacity: .65; font-size: 11px; margin-left: 3px; }
+/* No opacity: .65 composited the inherited ink to 2.5–3.2:1 (it's 11px text,
+   needs 4.5). Full strength = the chip's own AA-checked colour, on every surface. */
+.chip-count { font-variant-numeric: tabular-nums; font-size: 11px; margin-left: 3px; }
 
 /* featured itinerary */
 .featured-card {
@@ -2902,7 +3065,7 @@ html.vt-active :where(*) {
 .bench-block { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 /* two related blocks share a row (modes+stay, crew+trip length) */
 .bench-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: start; }
-.bench-eyebrow { font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--text-3); }
+.bench-eyebrow { color: var(--text-3); }
 .bench-block-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
 /* crew size / trip length heads — value rides the eyebrow row at label scale
    so the two blocks in the pair align with Getting There / Stay Style above */
@@ -2937,7 +3100,7 @@ html.vt-active :where(*) {
   -webkit-appearance: none; width: 22px; height: 22px; margin-top: -7px; border-radius: 50%;
   background: var(--card); border: 3.5px solid var(--yf-teal-600);
   box-shadow: 0 3px 10px rgba(14, 33, 30, .28);
-  transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease;
+  transition: transform var(--t-fast) var(--ease-out), border-color var(--t-fast) var(--ease-out), box-shadow var(--t-fast) var(--ease-out);
 }
 .yf-range:hover::-webkit-slider-thumb { transform: scale(1.12); border-color: var(--yf-teal-700); }
 .yf-range:active::-webkit-slider-thumb {
@@ -2949,7 +3112,7 @@ html.vt-active :where(*) {
 .yf-range::-moz-range-thumb {
   width: 16px; height: 16px; border-radius: 50%;
   background: var(--card); border: 3.5px solid var(--yf-teal-600);
-  transition: transform .15s ease;
+  transition: transform var(--t-fast) var(--ease-out);
 }
 .yf-range:hover::-moz-range-thumb { transform: scale(1.12); }
 
@@ -3449,6 +3612,14 @@ html.vt-active :where(*) {
     linear-gradient(135deg, var(--yf-mist) 0%, var(--yf-cream) 52%, var(--yf-peach) 100%);
   background-attachment: fixed;
 }
+/* Touch repaint cost (#107 Landing flag): fixed attachment forces a full-page
+   repaint every scroll frame on the Android WebView. On coarse pointers the
+   canvas scrolls with the page instead — it's one continuous wash, so the
+   seamlessness barely changes; desktop keeps the pinned ramp. Needs a
+   low-end device check to confirm the win. */
+@media (pointer: coarse) {
+  .landing-canvas { background-attachment: scroll; }
+}
 .hero { position: relative; }
 .hero-split { position: relative; z-index: var(--z-content); }
 .hero-blob { position: absolute; z-index: var(--z-under); border-radius: 50%; filter: blur(70px); opacity: .5; pointer-events: none; }
@@ -3694,6 +3865,8 @@ html.vt-active :where(*) {
   content: ''; position: absolute; left: 0; right: 0; bottom: -6px; height: 3px; border-radius: 3px;
   background: linear-gradient(90deg, var(--yf-teal-600), var(--yf-saffron));
   transform: scaleX(0); transform-origin: left;
+  /* the trailing .15s is a hover-cascade DELAY, not a duration — the stagger
+     vocabulary (--stagger-step) is for entrance choreography only. */
   transition: transform .8s var(--ease-out) .15s;
 }
 body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
@@ -3928,7 +4101,7 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 /* ---- Budget: metric strip (5 tiles since the safe-to-spend pacing tile) ---- */
 .metric-strip { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 16px; }
 .metric-bad { color: var(--danger); }
-.metric-good { color: var(--ok); }
+.metric-good { color: var(--ink-ok); }
 
 /* ---- Budget: per-day cost bars ---- */
 .daybars { display: flex; flex-direction: column; gap: 10px; }
@@ -3936,7 +4109,7 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 .daybar-label { font-weight: 700; color: var(--text-2); white-space: nowrap; }
 .daybar-track { position: relative; height: 12px; background: var(--bg-soft); border-radius: 99px; }
 .daybar-fill {
-  height: 100%; border-radius: 99px; transition: width 300ms cubic-bezier(0.2, 0, 0, 1);
+  height: 100%; border-radius: 99px; transition: width var(--t-med) var(--ease-out);
   position: relative; overflow: hidden;
 }
 /* Same calm sheen the category bars wear (barSheen) — the per-day bars were the
@@ -3947,7 +4120,9 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
   animation: barSheen 2.6s var(--ease-out) infinite;
 }
 /* the daily-average tick — amber line crossing every bar */
-.daybar-avg { position: absolute; top: -3px; bottom: -3px; width: 2px; border-radius: 1px; background: var(--saffron-600); }
+.daybar-avg { position: absolute; top: -3px; bottom: -3px; width: 2px; border-radius: 1px; background: var(--warn-600); }
+/* shape marker on days over the average — "over" used to be fill-colour-only */
+.daybar-over { color: var(--warn-600); font-size: 10px; line-height: 1; }
 .daybar-meta { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.3; font-variant-numeric: tabular-nums; }
 .daybar-meta .muted { font-size: 11.5px; }
 .avg-key { display: inline-block; width: 2px; height: 10px; background: var(--saffron-600); vertical-align: -1px; margin: 0 3px; border-radius: 1px; }
@@ -3986,7 +4161,7 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 .balance-row:last-child { border-bottom: none; }
 .balance-who { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; min-width: 0; }
 .balance-who .avatar { width: 22px; height: 22px; font-size: 10px; }
-.balance-pos { color: var(--ok); font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.balance-pos { color: var(--ink-ok); font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .balance-neg { color: var(--danger); font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
 /* ---- Group input: the count-pill stat strip retired 2026-09 — counts live in the filter pillbar badges ----
@@ -4030,6 +4205,10 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
   .daybar-meta { grid-column: 2; flex-direction: row; align-items: baseline; gap: 8px; }
   .catbars .budget-bar-row { grid-template-columns: 44px 1fr auto; }
   .catbars .cat-name span.cat-chip { display: none; }
+  /* the 44px track is fixed — the category name clips instead of shoving the
+     bar and amount out of the row (chip is gone at this width, so the name
+     rides alone) */
+  .catbars .cat-name { display: block; max-width: 44px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .quick-add-row { grid-template-columns: 1fr 90px auto auto; }
 }
 
@@ -4092,7 +4271,7 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 .pub-kpis .stat-tile { padding: 9px 11px; box-shadow: none; }
 .pub-kpis .stat-tile .stat-value { font-size: 16.5px; }
 .pub-kpis .stat-tile.wide { grid-column: span 2; }
-.pub-kpis .metric-warn { color: var(--warn-600); }
+.pub-kpis .metric-warn { color: var(--ink-amber); }
 
 /* the payout ledger (and its projection twin) */
 .pub-ledger th { font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); }
@@ -4128,6 +4307,14 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: thin;
+  /* scroll affordance: edge fades painted on the `scroll` layer show only on
+     the side that still has content; `local` covers slide over them at the
+     ends so the fade never sits under a reached edge. */
+  background:
+    linear-gradient(90deg, var(--card) 25%, transparent) left / 22px 100% no-repeat local,
+    linear-gradient(270deg, var(--card) 25%, transparent) right / 22px 100% no-repeat local,
+    linear-gradient(90deg, var(--card), transparent) left / 22px 100% no-repeat scroll,
+    linear-gradient(270deg, var(--card), transparent) right / 22px 100% no-repeat scroll;
 }
 .share-tab {
   appearance: none;
@@ -4219,6 +4406,15 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 .trips-toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 18px; }
 .trips-toolbar .trips-search { flex: 1 1 240px; min-width: 200px; }
 .trips-toolbar .select { width: auto; min-width: 130px; flex: 0 1 auto; }
+.trips-toolbar .cselect .select { min-width: 130px; }
+/* the chips' own margin-bottom is for the Explore filter card — inside the
+   centered toolbar row it lifts them ~7px out of line with the search field */
+.trips-toolbar .explore-chips { margin-bottom: 0; }
+
+/* trash list rows — :last-child drops the rule so it doesn't float above the
+   card's bottom padding */
+.trash-row { padding: 10px 0; border-bottom: 1px solid var(--line); }
+.trash-row:last-child { border-bottom: none; }
 
 /* ============ My Trips — phone layout (Android app + mobile web) ============
    The overview is the app's home screen after login; on a phone the desktop
@@ -4226,27 +4422,27 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
    toolbar wraps mid-row and the 290px cards ride the edges. Reworked as a
    vertical page-header stack with a full-width primary CTA — the Android
    pattern — and single-column cards with comfortable gutters. */
+.trips-page { padding-top: 26px; }
+.trips-head { margin-bottom: 18px; flex-wrap: wrap; gap: 12px; }
+.trips-head-actions { display: flex; gap: 10px; flex-wrap: wrap; }
 @media (max-width: 720px) {
   .trips-toolbar { align-items: stretch; }
   .trips-toolbar .trips-search { flex-basis: 100%; }
   .trips-toolbar .explore-chips { order: 3; flex-basis: 100%; margin-bottom: 0; }
   /* selects split one row so their labels stay readable at ~160px each */
   .trips-toolbar .select { flex: 1 1 45%; min-width: 0; }
+  .trips-toolbar .cselect { flex: 1 1 45%; min-width: 0; }
+  .trips-toolbar .cselect .select { min-width: 0; width: 100%; }
 }
 
-/* the page header itself is inline-styled in TripsList.tsx, so target it
-   structurally: container > first .row-between on the trips page */
-.trips-page .row-between:first-child { flex-wrap: wrap; gap: 12px; }
 @media (max-width: 720px) {
-  .trips-page { padding-top: 8px !important; }
-  .trips-page .row-between:first-child > div:first-child { flex: 1 1 100%; }
-  .trips-page .row-between:first-child > div:last-child {
-    display: flex; width: 100%;
-  }
+  .trips-page { padding-top: 8px; }
+  .trips-head-title { flex: 1 1 100%; }
+  .trips-head-actions { width: 100%; }
   /* primary CTA owns the row; demo-trips becomes a quiet secondary */
-  .trips-page .row-between:first-child .btn { flex: 1; }
-  .trips-page .row-between:first-child .btn-outline { flex: 0 0 auto; padding: 10px 13px; }
-  .trips-page .row-between:first-child .btn-outline span { display: none; }
+  .trips-head-actions .btn { flex: 1; }
+  .trips-head-actions .btn-outline { flex: 0 0 auto; padding: 10px 13px; }
+  .trips-head-actions .btn-outline span { display: none; }
   /* cards: single column, softer radius, no hover-lift (touch has no hover) */
   .explore-grid { grid-template-columns: 1fr; gap: 12px; }
   .itin-card { border-radius: var(--radius-sm); }
@@ -4289,8 +4485,17 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 
 .ts-block .field { margin-bottom: 10px; }
 .ts-block .field:last-child { margin-bottom: 0; }
-.form-row { display: flex; gap: 10px; align-items: flex-start; }
-.form-row .field { flex: 1; min-width: 0; }
+/* The original .form-row intent (and .commitment-row's grid tracks) was a
+   RESPONSIVE row; the flex override that won globally dropped that, so 4-field
+   rows compressed instead of wrapping. flex-basis 160px mirrors the dead grid's
+   minmax(160px,1fr): fields grow to fill, wrap when they can't each keep 160px. */
+.form-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-start; }
+.form-row .field { flex: 1 1 160px; min-width: 0; }
+/* Weight by content (the grid's 2fr/1fr/.8fr intent, in flex terms): the
+   commitment name gets the grow; "Day" holds 1–2 digits, not half the row. */
+.commitment-row > .field:first-child { flex: 2 1 200px; }
+.commitment-row > .field:nth-child(2) { flex: 1.2 1 150px; }
+.commitment-row > .field:nth-child(3), .commitment-row > .field:nth-child(4) { flex: .6 1 96px; }
 
 /* Return-stops switch (on/off configuration → role="switch" is honest here) */
 .ts-switch { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12px; font-weight: 600; color: var(--yf-text-muted); }
@@ -4299,6 +4504,8 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 .ts-switch-track::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 999px; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25); transition: transform var(--t-fast) var(--ease-out); }
 .ts-switch input:checked + .ts-switch-track { background: var(--yf-teal-600); }
 .ts-switch input:checked + .ts-switch-track::after { transform: translateX(14px); }
+/* White knob on the lightened dark-teal track = 2.05:1 (needs 3). Dark ink knob. */
+[data-theme='dark'] .ts-switch input:checked + .ts-switch-track::after { background: #06251f; }
 .ts-switch input:focus-visible + .ts-switch-track { box-shadow: var(--ring); }
 .ts-switch input:checked ~ .ts-switch-label { color: var(--yf-teal-700); }
 [data-theme='dark'] .ts-switch input:checked ~ .ts-switch-label { color: var(--yf-teal-600); }
@@ -4310,11 +4517,11 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 .route-dot {
   width: 26px; height: 26px; border-radius: 999px; flex: none; z-index: 1;
   display: grid; place-items: center; font-size: 11px; font-weight: 800;
-  background: var(--yf-teal-600); color: #fff; box-shadow: 0 0 0 4px var(--yf-surface);
+  background: var(--teal-deep); color: #fff; box-shadow: 0 0 0 4px var(--yf-surface);
 }
 .route-row--start .route-dot, .route-line > .route-row:first-child .route-dot { background: var(--yf-navy); }
 .route-name { font-weight: 600; font-size: 13.5px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.route-tag { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--yf-text-muted); flex: none; }
+.route-tag { color: var(--yf-text-muted); flex: none; }
 .route-acts { margin-left: auto; display: inline-flex; gap: 2px; flex: none; }
 .route-btn {
   width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center;
@@ -4341,7 +4548,7 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 
 /* Crew & transport: mode tiles | fuel stack | crew circles */
 .ct-grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.85fr) minmax(0, 0.85fr); gap: 18px; align-items: start; }
-.group-lab { display: block; font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--yf-text-muted); margin-bottom: 7px; }
+.group-lab { display: block; color: var(--yf-text-muted); margin-bottom: 7px; }
 .mode-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .mode-btn {
   display: flex; align-items: center; gap: 9px; padding: 9px 10px; border-radius: 13px; min-height: 48px;
@@ -4350,7 +4557,7 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 .mode-btn:hover { border-color: color-mix(in srgb, var(--yf-teal-600) 45%, transparent); background: var(--yf-teal-100); }
 .mode-btn .nm { display: block; font-weight: 700; font-size: 12.5px; line-height: 1.2; white-space: nowrap; }
 .mode-btn .hint { display: block; font-size: 10.5px; line-height: 1.3; color: var(--yf-text-muted); font-weight: 500; }
-.mode-btn.on { background: var(--yf-teal-600); border-color: var(--yf-teal-600); color: #fff; box-shadow: var(--shadow-glow-teal); }
+.mode-btn.on { background: var(--teal-deep); border-color: var(--teal-deep); color: #fff; box-shadow: var(--shadow-glow-teal); }
 .mode-btn.on .hint { color: rgba(255, 255, 255, 0.8); }
 /* Train tile hosts the inline local-fare switch — the wrapper is the grid
    cell; the switch is a sibling of the select button, not a nested control.
@@ -4371,7 +4578,7 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 [data-theme='dark'] .mode-local-switch input:checked ~ .ts-switch-label { color: var(--yf-teal-600); }
 .fuel-stack { display: grid; gap: 8px; align-content: start; }
 .mini-field { display: grid; gap: 4px; }
-.mini-lab { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--yf-text-muted); }
+.mini-lab { color: var(--yf-text-muted); }
 .unit-input { position: relative; display: flex; align-items: center; }
 .unit-input .input { width: 100%; height: 36px; padding-right: 48px; font-size: 13px; font-weight: 600; }
 .unit-input .unit { position: absolute; right: 10px; font-size: 11px; color: var(--yf-text-muted); pointer-events: none; }
@@ -4381,7 +4588,7 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
   display: grid; place-items: center; font-weight: 700; font-size: 13px; background: var(--yf-surface); color: inherit; padding: 0 8px;
 }
 .crew-btn:hover { border-color: color-mix(in srgb, var(--yf-teal-600) 45%, transparent); background: var(--yf-teal-100); }
-.crew-btn.on { background: var(--yf-teal-600); border-color: var(--yf-teal-600); color: #fff; }
+.crew-btn.on { background: var(--teal-deep); border-color: var(--teal-deep); color: #fff; }
 .crew-btn--custom { border-radius: 999px; font-size: 12px; }
 .crew-custom { margin-top: 8px; max-width: 140px; }
 
@@ -4426,7 +4633,7 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 }
 .cal-nav:hover { background: var(--bg-soft); color: var(--text); }
 .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
-.cal-wd { text-align: center; font-size: 9.5px; font-weight: 700; letter-spacing: .06em; color: var(--yf-text-muted); padding: 3px 0 4px; }
+.cal-wd { text-align: center; color: var(--yf-text-muted); padding: 3px 0 4px; }
 .cal-day {
   height: 32px; border-radius: 9px; border: none; background: none; cursor: pointer;
   font: inherit; font-size: 12px; font-weight: 600; color: var(--text); display: grid; place-items: center; padding: 0;
@@ -4435,7 +4642,7 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 .cal-day:hover { background: var(--yf-teal-100); }
 .cal-day.in-range { background: var(--yf-teal-100); border-radius: 0; color: var(--yf-teal-700); }
 [data-theme='dark'] .cal-day.in-range { color: var(--yf-teal-600); }
-.cal-day.edge { background: var(--yf-teal-600); color: #fff; }
+.cal-day.edge { background: var(--teal-deep); color: #fff; }
 /* the range is one capsule: start day rounds left, end day rounds right, a
    single-day range is a full pill */
 .cal-day.edge-start { border-radius: 9px 0 0 9px; }
@@ -4572,12 +4779,12 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
    the final frame, so nothing sticks after the entrance. */
 @media (prefers-reduced-motion: no-preference) {
   .ts-block, .ticket { animation: ts-rise 0.5s var(--ease-out) backwards; }
-  .ts-blocks > .ts-block:nth-child(1) { animation-delay: 0.04s; }
-  .ts-blocks > .ts-block:nth-child(2) { animation-delay: 0.1s; }
-  .ts-blocks > .ts-block:nth-child(3) { animation-delay: 0.16s; }
-  .ts-blocks > .ts-block:nth-child(4) { animation-delay: 0.22s; }
-  .ts-blocks > .ts-block:nth-child(5) { animation-delay: 0.28s; }
-  .ts-blocks > .ts-block:nth-child(6) { animation-delay: 0.34s; }
+  .ts-blocks > .ts-block:nth-child(1) { animation-delay: calc(var(--stagger-step) * 1); }
+  .ts-blocks > .ts-block:nth-child(2) { animation-delay: calc(var(--stagger-step) * 2); }
+  .ts-blocks > .ts-block:nth-child(3) { animation-delay: calc(var(--stagger-step) * 3); }
+  .ts-blocks > .ts-block:nth-child(4) { animation-delay: calc(var(--stagger-step) * 4); }
+  .ts-blocks > .ts-block:nth-child(5) { animation-delay: calc(var(--stagger-step) * 5); }
+  .ts-blocks > .ts-block:nth-child(6) { animation-delay: calc(var(--stagger-step) * 6); }
   .ticket { animation-delay: 0.24s; }
   @keyframes ts-rise { from { opacity: 0; transform: translateY(10px); } }
 }
@@ -4593,10 +4800,14 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
   .trip-dock {
     display: flex; position: fixed; left: 12px; right: 12px; bottom: calc(12px + var(--bottom-ui-offset));
     z-index: var(--z-dock); align-items: center; gap: 12px; padding: 12px 14px; border-radius: var(--radius);
-    background: var(--yf-glass); border: 1px solid var(--yf-glass-border);
+    /* the shared 58% glass turns midtone over contrasting content mid-scroll
+       and dips the amount's teal below AA — the dock gets a near-solid
+       surface so its ink is stable whatever scrolls beneath */
+    background: rgba(255, 255, 255, .9); border: 1px solid var(--yf-glass-border);
     -webkit-backdrop-filter: blur(var(--yf-blur-nav)) saturate(1.2); backdrop-filter: blur(var(--yf-blur-nav)) saturate(1.2);
     box-shadow: inset 0 1px 0 var(--yf-glass-sheen), 0 18px 40px rgba(var(--shadow-navy-rgb), .28);
   }
+  [data-theme='dark'] .trip-dock { background: rgba(16, 27, 43, .9); }
   .dock-thumb { width: 44px; height: 44px; border-radius: 12px; flex: none; display: grid; place-items: center; font-size: 19px; background: var(--yf-teal-100); }
   .dock-meta { min-width: 0; }
   .dock-meta b { display: block; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -4643,6 +4854,8 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
   font-size: 11px; font-weight: 800; line-height: 18px; text-align: center;
   font-variant-numeric: tabular-nums;
 }
+/* dark lightens --danger-500 to #E06C6C — white on it is 3.21:1 (5.6 with ink) */
+[data-theme='dark'] .app-home-bell-count { color: #2B0D0D; }
 
 /* Quick actions: the primary CTA is unmistakable; Explore is the quiet second. */
 .app-home-actions { display: grid; grid-template-columns: 2fr 1fr; gap: 10px; margin-bottom: 26px; }
@@ -4674,6 +4887,8 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
   background: var(--teal-soft, #E7F4F1); color: var(--teal-deep, var(--teal));
 }
 .app-home-trip-thumb.is-live { background: var(--teal); color: #fff; }
+/* dark lightens --teal to #2BB8AC — white on that is 2.47:1; ink on teal passes */
+[data-theme='dark'] .app-home-trip-thumb.is-live { color: #06251f; }
 .app-home-trip-body { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .app-home-trip-name {
   font-weight: 700; font-size: 15px;
@@ -4752,12 +4967,12 @@ html.native-shell {
 
 /* ============ v0.48 design-system consistency pass ============ */
 /* ---------- Ordering: this design-system layer is deliberately the LAST section in the file. It is the global override layer (one kicker recipe, one set of blur tiers, the <=720px touch-target floor), so it must win the cascade over every earlier block — including the page-scoped .app-home rules above. New sections belong above it. ---------- */
-/* Token scales (type + spacing) - additive, existing values still resolve. */
+/* Type/spacing scales (SYS-2 decision, #107): the unused steps were DELETED
+   rather than adopted — with 340+ literal sizes in the cascade, a parallel
+   scale nobody routed through was a trap, not a tool. `--text-xs` stays (the
+   bottom-nav label uses it); sizes stay literal elsewhere by design. */
 :root {
-  --text-2xs: 10.5px; --text-xs: 11px; --text-sm: 12.5px; --text-base: 14px;
-  --text-md: 15.5px; --text-lg: 17px; --text-xl: 20px; --text-2xl: 24px;
-  --tracking-kicker: .06em;
-  --s-1: 4px; --s-2: 6px; --s-3: 8px; --s-4: 12px; --s-5: 16px; --s-6: 20px; --s-8: 24px;
+  --text-xs: 11px;
   --kicker-size: 10.5px; --kicker-weight: 700; --kicker-tracking: .06em;
 }
 /* Glass blur tiers: chrome 18, panel 14, chip 8, scrim 3. */
@@ -4796,6 +5011,9 @@ html.native-shell {
 @media (prefers-reduced-motion: reduce) {
   .popover { animation: none; }
 }
+/* Create-Trip's section labels had no base rule at all (rendered as 15px/400
+   body text) — type specs come from the unification block above, colour here. */
+.eyebrow { color: var(--yf-text-muted); }
 /* Kicker unification: one recipe for every micro-label role. */
 @media screen {
   .pulse-bar .pulse-label, .day-badge small, .tps-label, .tl-total-label, .day-rail-label,
@@ -4804,6 +5022,7 @@ html.native-shell {
   .bench-eyebrow, .bench-scale-ends, .bench-receipt-kicker, .bench-total-label, .bench-badge,
   .ticker-item .t-tag, .board-stop-kicker, .tk-brand, .tk-kind, .creator-badge, .pub-ledger th, .route-tag, .group-lab, .mini-lab,
   .compare-table th, .toast-action, .editorial-kicker, .pub-stats-label,
+  .eyebrow, .cal-wd,
   .route-glance .route-glance-label, .stat-label, .app-home-section {
     font-size: var(--kicker-size);
     font-weight: var(--kicker-weight);

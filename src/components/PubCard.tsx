@@ -11,15 +11,20 @@ import { openExternal } from '../lib/native'
 import { Avatar, Chip } from './ui'
 import { CoverThumb } from './CoverThumb'
 
-export function PubCard({ pub, creator, saved, onFork, onToggleSave }: {
+export function PubCard({ pub, creator, saved, onFork, onToggleSave, enterIndex }: {
   pub: PublishedItinerary
   creator?: User
   saved: boolean
   onFork: () => void
   onToggleSave: () => void
+  /** Grid position for the shared entrance stagger (Explore); omit for none. */
+  enterIndex?: number
 }) {
   return (
-    <div className="card itin-card">
+    <div
+      className={`card itin-card${enterIndex != null ? ' trip-enter' : ''}`}
+      style={enterIndex != null ? { animationDelay: `calc(var(--stagger-step) * ${Math.min(enterIndex, 8)})` } : undefined}
+    >
       <button className="save-heart" aria-pressed={saved} aria-label={saved ? 'Remove from saved' : 'Save itinerary'}
         onClick={onToggleSave}><Heart size={13} aria-hidden fill={saved ? 'currentColor' : 'none'} /></button>
       <a className="trip-card-hit" href={`#/pub/${pub.id}`}>
@@ -54,10 +59,10 @@ export function PubCard({ pub, creator, saved, onFork, onToggleSave }: {
           <span className="small muted" style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{creator.profile.creatorBio}</span>
           <span style={{ display: 'inline-flex', gap: 6, flexShrink: 0 }}>
             {creator.profile.socialLinks?.youtube && (
-              <a href={creator.profile.socialLinks.youtube} target="_blank" rel="noreferrer noopener" aria-label={`${creator.profile.name} on YouTube`} className="muted" onClick={e => { e.preventDefault(); openExternal(creator.profile.socialLinks!.youtube!) }}><TvMinimalPlay size={14} aria-hidden /></a>
+              <a href={creator.profile.socialLinks.youtube} target="_blank" rel="noreferrer noopener" aria-label={`${creator.profile.name} on YouTube`} className="icon-link" onClick={e => { e.preventDefault(); openExternal(creator.profile.socialLinks!.youtube!) }}><TvMinimalPlay size={14} aria-hidden /></a>
             )}
             {creator.profile.socialLinks?.instagram && (
-              <a href={creator.profile.socialLinks.instagram} target="_blank" rel="noreferrer noopener" aria-label={`${creator.profile.name} on Instagram`} className="muted" onClick={e => { e.preventDefault(); openExternal(creator.profile.socialLinks!.instagram!) }}><Camera size={14} aria-hidden /></a>
+              <a href={creator.profile.socialLinks.instagram} target="_blank" rel="noreferrer noopener" aria-label={`${creator.profile.name} on Instagram`} className="icon-link" onClick={e => { e.preventDefault(); openExternal(creator.profile.socialLinks!.instagram!) }}><Camera size={14} aria-hidden /></a>
             )}
           </span>
         </div>

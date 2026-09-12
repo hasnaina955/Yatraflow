@@ -464,6 +464,10 @@ async function hydrateFromSupabase(userId: string, gen: number, seedIfEmpty = tr
     // seed below then writes 10 fake trips into it. Set whenever any query
     // that determines the user's trip count failed.
     let tripCountUnknown = false
+    // Set when the trips/memberships reads failed: the patch below must then
+    // keep the previous cache instead of overwriting good rows with a partial
+    // result (a wipe that made every later open say "Trip not found").
+    let tripsReadFailed = false
     if (profRes.error) { console.error('[yatraflow] hydrate profiles failed', profRes.error); partial.push('profiles') }
     const profiles = (profRes.data ?? []) as ProfileRow[]
     if (myMembershipsRes.error) { console.error('[yatraflow] hydrate memberships failed', myMembershipsRes.error); partial.push('memberships'); tripCountUnknown = true }
@@ -509,7 +513,7 @@ async function hydrateFromSupabase(userId: string, gen: number, seedIfEmpty = tr
           partial.push(name)
         }
       }
-      if (tripsRes.error || memRes.error) tripCountUnknown = true
+      if (tripsRes.error || memRes.error) { tripCountUnknown = true; tripsReadFailed = true }
       trips = (tripsRes.data ?? []) as TripRow[]
       members.push(...((memRes.data ?? []) as MemberRow[]))
       suggestions = mapOrSkip((sugRes.data ?? []), rowToSuggestion)
@@ -538,7 +542,7 @@ async function hydrateFromSupabase(userId: string, gen: number, seedIfEmpty = tr
           partial.push(name)
         }
       }
-      if (tripsRes.error || memRes.error) tripCountUnknown = true
+      if (tripsRes.error || memRes.error) { tripCountUnknown = true; tripsReadFailed = true }
       trips = (tripsRes.data ?? []) as TripRow[]
       members.push(...((memRes.data ?? []) as MemberRow[]))
       suggestions = mapOrSkip((sugRes.data ?? []), rowToSuggestion)
@@ -582,9 +586,18 @@ async function hydrateFromSupabase(userId: string, gen: number, seedIfEmpty = tr
     // (and its sessionUserId) into the new session, so drop the whole patch.
     if (gen !== hydrateGen) return
 
+    // A failed trips/memberships read overwrote the cache with a partial (often
+    // empty) result — the account kept rendering, but every trip was gone from
+    // the cache, so opening any of them said "Trip not found" until a lucky
+    // reload. When this user already holds trips, keep the stale-but-good rows
+    // and let the partial-load toast explain what happened instead.
+    const tripsRead = tripsReadFailed && cache.trips.some(t => t.members?.some?.(m => m.userId === userId))
+      ? undefined
+      : [...tripList, ...catalogTrips]
+
     patch({
       users,
-      trips: [...tripList, ...catalogTrips],
+      ...(tripsRead !== undefined ? { trips: tripsRead } : {}),
       suggestions,
       decisions,
       activity,
@@ -639,7 +652,10 @@ async function seedDemoFor(userId: string, gen: number = hydrateGen): Promise<vo
     const cols = await tripsHaveOptionalColumns()
     const { error } = await supabase.from('trips').insert(tripToRow(trip, userId, cols))
     if (error) { console.error('seed trip failed', error); continue }
-    await supabase.from('trip_members').insert({ trip_id: trip.id, user_id: userId, role: 'owner', joined_at: Date.now() })
+    // The membership row is what makes the trip visible after a reload — a
+    // failure here silently produced trips that "persisted" as invisible rows.
+    const { error: memErr } = await supabase.from('trip_members').insert({ trip_id: trip.id, user_id: userId, role: 'owner', joined_at: Date.now() })
+    if (memErr) console.error('seed trip member insert failed', memErr)
     markLocalWrite('trips', trip.id)
   }
   // re-hydrate so the freshly seeded trips show up.
@@ -1029,34 +1045,20 @@ function publishedHaveRefreshedAt(): Promise<boolean> {
   return refreshedAtProbe
 }
 
-async function persistTrip(trip: Trip, ownerId: ID) {
+async function persistTrip(trip: Trip, ownerId: ID): Promise<boolean> {
   // Claim the echo window before the await — see persistTripFieldNow.
   markLocalWrite('trips', trip.id)
   const cols = await tripsHaveOptionalColumns()
   const { error } = await supabase.from('trips').insert(tripToRow(trip, ownerId, cols))
-  if (error) { toast('Could not save trip.'); return }
+  if (error) { toast('Could not save trip.'); return false }
   const { error: mErr } = await supabase.from('trip_members').insert(
     (trip.members ?? []).map(m => ({ trip_id: trip.id, user_id: m.userId, role: m.role, joined_at: m.joinedAt }))
   )
-  if (mErr) console.error('member insert failed', mErr)
-}
-
-/** Duplicate any trip into the user's workspace (Copy This Trip / demo seeding). */
-export function duplicateTrip(source: Trip, ownerId: ID, makePublic?: boolean): Trip {
-  const copy: Trip = structuredClone(source)
-  copy.id = uuid()
-  copy.name = source.name.includes('(copy)') ? source.name : `${source.name} (copy)`
-  copy.visibility = makePublic ? 'public' : 'private'
-  copy.createdAt = Date.now(); copy.updatedAt = Date.now()
-  copy.days = copy.days.map(d => ({ ...d, id: uid('day'), stops: d.stops.map(s => ({ ...s, id: uid('st') })) }))
-  copy.expenses = copy.expenses.map(e => ({ ...e, id: uid('ex') }))
-  copy.fixedCommitments = copy.fixedCommitments.map(f => ({ ...f, id: uid('fc') }))
-  copy.members = [{ userId: ownerId, role: 'owner' as const, joinedAt: Date.now() }]
-  copy.coverImageUrl = source.coverImageUrl
-  cache.trips = [...cache.trips, copy]
-  commit()
-  void persistTrip(copy, ownerId)
-  return copy
+  // A member row is what makes the trip visible to its owner after a reload —
+  // without it the trips row is an invisible orphan, so a failure here counts
+  // as "not persisted" even though the trips row landed.
+  if (mErr) { console.error('member insert failed', mErr); toast('Could not save trip.'); return false }
+  return true
 }
 
 /** Copy text stamped onto every stop of a premium (non-free) day when a
@@ -1064,56 +1066,103 @@ export function duplicateTrip(source: Trip, ownerId: ID, makePublic?: boolean): 
  *  shape; every other detail is stripped. */
 const LOCKED_STOP_DESCRIPTION = 'Locked — the full plan is on the original itinerary.'
 
-/** Fork a PUBLISHED itinerary while respecting its premium gate.
+/** Shared body for every trip copy (fork / copy-this-trip / share import).
+ *  Strips the fields a copy must NEVER inherit: `inviteCode` would collide with
+ *  the source's row on the unique `idx_trips_invite_code` index and fail the
+ *  whole insert — every fork of a trip that had ever been invite-shared
+ *  silently vanished on the next reload — and a `deletedAt` tombstone would
+ *  land the copy straight in the trash.
  *
- *  `duplicateTrip` copies the entire trip — premium days included — so forking
- *  from the public page was a total bypass of the free/premium split. This
- *  variant keeps days listed in `freeDayIndexes` fully intact and, for every
- *  other day, reduces each stop to a stub: title and priority are kept, the
- *  description becomes the locked notice, notes are cleared, entry/transport
- *  costs and open/close times are zeroed, and the stop is marked confirmed.
- *  Budget data for locked days does not ride along either: expenses tagged
- *  with a locked `dayIndex` and fixed commitments on locked days are dropped
- *  (trip-level expenses — no `dayIndex` — stay). Structurally identical to
- *  `duplicateTrip` otherwise (fresh ids, new owner member, private copy,
- *  persisted once — the stripped version is what gets written through, never
- *  the full plan). */
-export function duplicateTripPublic(source: Trip, ownerId: ID, freeDayIndexes: number[]): Trip {
-  const free = new Set(freeDayIndexes)
+ *  `freeDayIndexes` (the published-itinerary fork) keeps those days fully
+ *  intact and reduces every other day's stops to stubs: title and priority
+ *  are kept, the description becomes the locked notice, notes are cleared,
+ *  entry/transport costs and open/close times are zeroed, and the stop is
+ *  marked confirmed. Expenses tagged with a locked `dayIndex` and fixed
+ *  commitments on locked days are dropped (trip-level expenses stay). */
+function buildTripCopy(source: Trip, ownerId: ID, opts: { makePublic?: boolean; freeDayIndexes?: number[] }): Trip {
+  const free = opts.freeDayIndexes ? new Set(opts.freeDayIndexes) : null
   const copy: Trip = structuredClone(source)
   copy.id = uuid()
   copy.name = source.name.includes('(copy)') ? source.name : `${source.name} (copy)`
-  copy.visibility = 'private'
+  copy.visibility = opts.makePublic ? 'public' : 'private'
   copy.createdAt = Date.now(); copy.updatedAt = Date.now()
-  copy.days = copy.days.map(d => ({
-    ...d,
-    id: uid('day'),
-    stops: d.stops.map(s => free.has(d.index)
-      ? { ...s, id: uid('st') }
-      : {
-          ...s,
-          id: uid('st'),
-          description: LOCKED_STOP_DESCRIPTION,
-          notes: '',
-          entryFeeInrPerPerson: 0,
-          transportCostInrTotal: 0,
-          openTime: undefined,
-          closeTime: undefined,
-          status: 'confirmed' as const,
-        }),
-  }))
-  copy.expenses = copy.expenses
-    .filter(e => e.dayIndex === undefined || free.has(e.dayIndex))
-    .map(e => ({ ...e, id: uid('ex') }))
-  copy.fixedCommitments = copy.fixedCommitments
-    .filter(f => free.has(f.dayIndex))
-    .map(f => ({ ...f, id: uid('fc') }))
+  copy.inviteCode = undefined
+  copy.deletedAt = undefined
+  if (free) {
+    copy.days = copy.days.map(d => ({
+      ...d,
+      id: uid('day'),
+      stops: d.stops.map(s => free.has(d.index)
+        ? { ...s, id: uid('st') }
+        : {
+            ...s,
+            id: uid('st'),
+            description: LOCKED_STOP_DESCRIPTION,
+            notes: '',
+            entryFeeInrPerPerson: 0,
+            transportCostInrTotal: 0,
+            openTime: undefined,
+            closeTime: undefined,
+            status: 'confirmed' as const,
+          }),
+    }))
+    copy.expenses = copy.expenses
+      .filter(e => e.dayIndex === undefined || free.has(e.dayIndex))
+      .map(e => ({ ...e, id: uid('ex') }))
+    copy.fixedCommitments = copy.fixedCommitments
+      .filter(f => free.has(f.dayIndex))
+  } else {
+    copy.days = copy.days.map(d => ({ ...d, id: uid('day'), stops: d.stops.map(s => ({ ...s, id: uid('st') })) }))
+    copy.expenses = copy.expenses.map(e => ({ ...e, id: uid('ex') }))
+    copy.fixedCommitments = copy.fixedCommitments.map(f => ({ ...f, id: uid('fc') }))
+  }
   copy.members = [{ userId: ownerId, role: 'owner' as const, joinedAt: Date.now() }]
   copy.coverImageUrl = source.coverImageUrl
+  return copy
+}
+
+/** Add a built copy to the live cache (optimistic UI; the caller persists). */
+function admitTripCopy(copy: Trip): void {
   cache.trips = [...cache.trips, copy]
   commit()
+}
+
+/** Roll a failed-persist copy back out of the cache so the user is never left
+ *  with a zombie trip that vanishes on the next reload. */
+function retractTripCopy(copy: Trip): void {
+  cache.trips = cache.trips.filter(t => t.id !== copy.id)
+  commit()
+}
+
+/** Duplicate any trip into the user's workspace (Copy This Trip / share
+ *  import). Fire-and-forget persist: the copy stays in the cache either way,
+ *  so callers that must know the outcome use `duplicateTripPersisted`. */
+export function duplicateTrip(source: Trip, ownerId: ID, makePublic?: boolean): Trip {
+  const copy = buildTripCopy(source, ownerId, { makePublic })
+  admitTripCopy(copy)
   void persistTrip(copy, ownerId)
   return copy
+}
+
+/** Duplicate that reports whether the rows actually landed, so the caller can
+ *  toast the truth instead of a success the next reload will disprove. On
+ *  failure the cache copy is retracted. */
+export async function duplicateTripPersisted(source: Trip, ownerId: ID, makePublic?: boolean): Promise<{ trip: Trip; persisted: boolean }> {
+  const copy = buildTripCopy(source, ownerId, { makePublic })
+  admitTripCopy(copy)
+  const persisted = await persistTrip(copy, ownerId)
+  if (!persisted) retractTripCopy(copy)
+  return { trip: copy, persisted }
+}
+
+/** Fork a PUBLISHED itinerary while respecting its premium gate — the
+ *  `freeDayIndexes` variant of `duplicateTripPersisted`. */
+export async function duplicateTripPublicPersisted(source: Trip, ownerId: ID, freeDayIndexes: number[]): Promise<{ trip: Trip; persisted: boolean }> {
+  const copy = buildTripCopy(source, ownerId, { freeDayIndexes })
+  admitTripCopy(copy)
+  const persisted = await persistTrip(copy, ownerId)
+  if (!persisted) retractTripCopy(copy)
+  return { trip: copy, persisted }
 }
 
 // ============ Masteradmin console actions ============

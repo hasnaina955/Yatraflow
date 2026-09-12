@@ -148,6 +148,15 @@ Key locations:
    rationale are documented in `docs/history/README.md`.
    Corollary: **destructive edits to documentation get their own commit**, so
    the diff is reviewable in isolation and a revert is surgical.
+10. **Every interactive surface ships motion from the motion tokens** —
+   `docs/MOTION-TOKENS.md` (durations `--motion-fast/med/slow`, easings
+   `--ease-out`/`--ease-glide`, and the pattern catalog: dropdown entrance,
+   toggle glider, day collapse, drag follow/settle). Pick a pattern from the
+   catalog, don't invent a feel; a raw `ms` value in a new CSS rule is a
+   review flag; `prefers-reduced-motion` opt-outs are mandatory on animated
+   rules. This exists because the long-refined surfaces (Timeline, Board) feel
+   smooth while newer additions shipped motion-less — the gap only stays
+   closed if motion is part of "done" for every update.
 
 
 ## 3. Verification before every push

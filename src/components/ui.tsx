@@ -4,7 +4,7 @@ import { Check, Copy, Map as MapIcon, TriangleAlert, Users, X } from 'lucide-rea
 import { formatInr } from '../lib/engine'
 import { nativeCopyText } from '../lib/native'
 import { haptic } from '../lib/haptics'
-import { registerTouchDnd, touchPressAbort, touchPressStart, encodeDropKey, isInteractiveTarget } from '../lib/touchDnd'
+import { registerTouchDnd, touchPressAbort, touchPressStart, encodeDropKey, isInteractiveTarget, consumeCarryRect } from '../lib/touchDnd'
 
 export function Avatar({ user, size = 'sm' }: { user?: { profile: { name: string; avatarUrl?: string } }; size?: 'sm' | 'lg' }) {
   const cls = `avatar ${size === 'lg' ? 'lg' : ''}`
@@ -589,12 +589,14 @@ export function CopyButton({ text, label = 'Copy link', onCopied }: { text: stri
 }
 
 /**
- * Accessible move up/down controls + HTML5 drag-and-drop wrapper for stop cards.
- * Supports same-list reordering plus foreign (cross-list) drags: cards carry a
- * `application/x-yf-stop` payload via `dragPayload`, and `onForeignDrop` is
+ * Accessible move up/down controls + pointer-event drag wrapper for stop cards
+ * (mouse starts on an 8px move; touch keeps the long-press gate — see
+ * lib/touchDnd.ts). Supports same-list reordering plus foreign (cross-list)
+ * drags: cards carry a payload built by `dragPayload`, and `onForeignDrop` is
  * called when such a drag is released on a card (insert at its index) or a
- * `dayDropHandlers` zone (insert at that index). `dayDropHandlers` also serve
- * as gap drop targets for foreign drags.
+ * `dayDropHandlers` zone (insert at that index). Drop targets are found by the
+ * engine via `data-yf-drop` / `data-yf-gap` attributes, so both handlers are
+ * plain attribute renderers now — no native drag events anywhere.
  */
 export function useReorder<T extends { id: string }>(
   items: T[],
@@ -604,16 +606,18 @@ export function useReorder<T extends { id: string }>(
     dragPayload?: (item: T) => string
     /** called with the payload and the insertion index when a foreign drag lands */
     onForeignDrop?: (payload: string, toIdx: number) => void
+    /** own-list hover: row/gap index under the pointer + pointer position, so
+        the owner can resolve its insertion slot (midpoint reading) */
+    onOwnHover?: (idx: number, x: number, y: number) => void
     /** touch dragging is enabled only for editable lists (default true) */
     touch?: boolean
   },
 ) {
   const [dragIdx, setDragIdx] = useState<number | null>(null)
-  const [overIdx, setOverIdx] = useState<number | null>(null)
   /** insertion index a foreign drag is hovering (cards + gap zones) */
   const [foreignOver, setForeignOver] = useState<number | null>(null)
 
-  // ---- touch long-press integration (see lib/touchDnd.ts) ----
+  // ---- pointer drag engine (see lib/touchDnd.ts) ----
   // The engine is a module singleton and needs stable callbacks; route it
   // through a ref that always points at the latest closures.
   const instId = useId()
@@ -622,20 +626,24 @@ export function useReorder<T extends { id: string }>(
   useEffect(() => {
     return registerTouchDnd(instId, {
       onOwnDragStart: idx => setDragIdx(idx),
-      onDragOver: (idx, foreign) => { if (foreign) setForeignOver(idx); else setOverIdx(idx) },
+      onDragOver: (idx, foreign, x, y) => {
+        if (foreign) setForeignOver(idx)
+        // idx null = the pointer left every drop zone; the owner keeps its
+        // last reading (the free-finger rule: only the reading is clamped)
+        else if (idx !== null) latest.current.options?.onOwnHover?.(idx, x, y)
+      },
       onDropOnSelf: (from, to) => latest.current.onMove(from, to),
       onForeignDrop: (payload, to) => latest.current.options?.onForeignDrop?.(payload, to),
-      onDragEnd: () => { setDragIdx(null); setOverIdx(null); setForeignOver(null) },
+      onDragEnd: () => { setDragIdx(null); setForeignOver(null) },
     })
   }, [instId])
   // unmount safety: end any press/drag owned by this list
   useEffect(() => () => touchPressAbort(), [])
 
-  /** True when a touch/pen pointer is pressing an interactive control — those
-      keep their normal behaviour; long-press drag is for the row background. */
-  const touchPress = (idx: number) => (e: React.PointerEvent<HTMLElement>) => {
-    if (!latest.current.touch) return
-    if (e.pointerType === 'mouse') return
+  /** Row press handler — rows are never `draggable` (the engine owns the
+      whole gesture); buttons/inputs inside a row keep their own behaviour. */
+  const press = (idx: number) => (e: React.PointerEvent<HTMLElement>) => {
+    if (e.pointerType === 'mouse' ? e.button !== 0 : !latest.current.touch) return
     if (isInteractiveTarget(e.target as Element)) return
     const item = latest.current.items[idx]
     touchPressStart({
@@ -645,87 +653,30 @@ export function useReorder<T extends { id: string }>(
       element: e.currentTarget as HTMLElement,
       x: e.clientX,
       y: e.clientY,
+      pointerType: e.pointerType,
     })
   }
 
-  // During dragover, dataTransfer values are unreadable — only its `types` list.
-  // A drag started in this same list is tracked by dragIdx instead.
-  const isForeign = (e: React.DragEvent) =>
-    dragIdx === null && !!options?.onForeignDrop && e.dataTransfer.types.includes('application/x-yf-stop')
-
   const dndHandlers = (idx: number) => ({
-    draggable: true,
     'data-yf-drop': encodeDropKey(instId, idx),
-    onPointerDown: touchPress(idx),
-    onDragStart: (e: React.DragEvent) => {
-      setDragIdx(idx)
-      // Capture the drag ghost BEFORE the .dragging slot class paints — the
-      // floating copy must be the fully rendered card, never the empty slot.
-      try { e.dataTransfer.setDragImage(e.currentTarget as Element, 24, 18) } catch { /* optional */ }
-      const payload = options?.dragPayload?.(items[idx])
-      if (payload) {
-        e.dataTransfer.setData('application/x-yf-stop', payload)
-        e.dataTransfer.effectAllowed = 'move'
-      }
-      e.dataTransfer.setData('text/plain', items[idx].id) // Firefox needs some data to drag
-    },
-    onDragOver: (e: React.DragEvent) => {
-      e.preventDefault()
-      if (isForeign(e)) { if (foreignOver !== idx) setForeignOver(idx); return }
-      if (overIdx !== idx) setOverIdx(idx)
-    },
-    onDragLeave: () => {
-      setOverIdx(i => (i === idx ? null : i))
-      setForeignOver(i => (i === idx ? null : i))
-    },
-    onDrop: (e: React.DragEvent) => {
-      e.preventDefault()
-      e.stopPropagation() // never let the day-level zone double-handle it
-      if (isForeign(e)) {
-        const p = e.dataTransfer.getData('application/x-yf-stop')
-        if (p) options?.onForeignDrop?.(p, idx)
-      } else if (dragIdx !== null && dragIdx !== idx) {
-        // Resolve the hovered card to an insertion slot. `slot` is an index into
-        // the list BEFORE the dragged item is lifted out, so any slot past the
-        // dragged index shifts down by one once it is removed.
-        const r = e.currentTarget.getBoundingClientRect()
-        const afterHalf = e.clientY > r.top + r.height / 2
-        let slot = afterHalf ? idx + 1 : idx
-        if (slot > dragIdx) slot -= 1
-        if (slot !== dragIdx) onMove(dragIdx, slot)
-      }
-      setDragIdx(null); setOverIdx(null); setForeignOver(null)
-    },
-    onDragEnd: () => { setDragIdx(null); setOverIdx(null); setForeignOver(null) },
+    onPointerDown: press(idx),
   })
 
   /** Drop zone for gap/empty areas of the list — foreign drags only. */
   const dayDropHandlers = (idx: number) => ({
     'data-yf-gap': encodeDropKey(instId, idx),
-    onDragOver: (e: React.DragEvent) => {
-      if (!isForeign(e)) return
-      e.preventDefault()
-      if (foreignOver !== idx) setForeignOver(idx)
-    },
-    onDragLeave: () => setForeignOver(i => (i === idx ? null : i)),
-    onDrop: (e: React.DragEvent) => {
-      if (!isForeign(e)) return
-      e.preventDefault()
-      e.stopPropagation()
-      const p = e.dataTransfer.getData('application/x-yf-stop')
-      if (p) options?.onForeignDrop?.(p, idx)
-      setForeignOver(null)
-    },
   })
 
   return {
     dndHandlers,
     dayDropHandlers,
     dragging: dragIdx,
-    over: overIdx,
     foreignOver,
     moveUp: (idx: number) => { if (idx > 0) onMove(idx, idx - 1) },
     moveDown: (idx: number) => { if (idx < items.length - 1) onMove(idx, idx + 1) },
+    /** viewport rect of the carried row at release — feed it to the FLIP
+        settle so the row springs from where it was carried to its slot */
+    takeCarryRect: consumeCarryRect,
   }
 }
 

@@ -138,6 +138,8 @@
   --shadow: 0 1px 2px rgba(var(--shadow-navy-rgb),.05), 0 8px 28px rgba(var(--shadow-navy-rgb),.08);
   --shadow-sm: 0 1px 2px rgba(var(--shadow-navy-rgb),.07);
   --shadow-soft: 0 2px 6px rgba(16,46,75,.04), 0 16px 40px rgba(16,46,75,.10);  /* CTI diffuse depth */
+  --shadow-carry: 0 6px 18px rgba(16,46,75,.14), 0 24px 48px rgba(16,46,75,.18);  /* carried drag row lift */
+  --shadow-carry-dark: 0 6px 18px rgba(0,0,0,.45), 0 24px 48px rgba(0,0,0,.5);
   --radius: 18px;
   --radius-sm: 12px;
   --radius-lg: 24px;   /* CTI large bento cards */
@@ -487,16 +489,20 @@ input, select, textarea { font-family: var(--font-body); font-size: 14.5px; colo
 .pill-glider {
   position: absolute; left: 0; width: 0; z-index: 0;
   border-radius: 999px; background: var(--teal-soft);
-  transition: left 260ms cubic-bezier(0.2, 0, 0, 1), width 260ms cubic-bezier(0.2, 0, 0, 1),
-    top 260ms cubic-bezier(0.2, 0, 0, 1), height 260ms cubic-bezier(0.2, 0, 0, 1), opacity 150ms ease;
+  transition: left var(--motion-med) var(--ease-glide), width var(--motion-med) var(--ease-glide),
+    top var(--motion-med) var(--ease-glide), height var(--motion-med) var(--ease-glide), opacity var(--motion-fast) ease,
+    background var(--motion-fast) ease;
   pointer-events: none;
 }
 [data-theme='dark'] .pill-glider { background: var(--teal); }
-/* inside a pill nav the glider paints the active background — the items don't */
+/* inside a pill nav the glider paints the active background — the items don't
+   (no background AND no glow on the item itself: a shadow that pops on/off on
+   the chip while the glider glides is exactly the two-step switch feel the
+   tabbar doesn't have) */
 .pill-nav .nav-link.active, .pill-nav .tab-btn.active,
 .pill-nav .clickable-chip.on-teal,
 .pill-nav .nav-link.active:hover, .pill-nav .tab-btn.active:hover,
-.pill-nav .clickable-chip.on-teal:hover { background: transparent; }
+.pill-nav .clickable-chip.on-teal:hover { background: transparent; box-shadow: none; }
 /* Ink on the glider: light mode paints a PALE teal glider, so the active chip
    keeps deep-teal ink — it would otherwise inherit #fff from .on-teal and
    vanish against the pale background (1.2:1). Dark mode paints a saturated
@@ -504,6 +510,12 @@ input, select, textarea { font-family: var(--font-body); font-size: 14.5px; colo
 .pill-nav .clickable-chip.on-teal { color: var(--yf-teal-700); }
 [data-theme='dark'] .pill-nav .nav-link.active, [data-theme='dark'] .pill-nav .tab-btn.active,
 [data-theme='dark'] .pill-nav .clickable-chip.on-teal { color: #06251f; }
+/* Saffron active state, for any pillbar chip that wants it: same rule — the
+   glider paints the highlight, the chip only supplies ink (dark amber: 4.8:1
+   on solid saffron, where white ink was 2:1). The glider recolours while it
+   slides via the :has() below. */
+.pill-nav .clickable-chip.on-saffron { background: transparent; box-shadow: none; color: #5C3600; }
+.pill-nav:has(.clickable-chip.on-saffron) .pill-glider { background: var(--saffron); }
 .auth-tabs { margin: 18px 0; }
 .nav-link {
   border: none; background: none; padding: 8px 13px; border-radius: 999px;
@@ -583,7 +595,7 @@ a.btn { text-decoration: none; }
   width: 100%; padding: 10px 13px;
   border: 1.5px solid var(--line); border-radius: var(--radius-sm);
   background: var(--card-soft); outline: none;
-  transition: border-color .15s ease, box-shadow .15s ease;
+  transition: border-color var(--motion-fast) var(--ease-out), box-shadow var(--motion-fast) var(--ease-out);
   color: var(--text);
 }
 .input:focus, .select:focus, .textarea:focus {
@@ -640,8 +652,7 @@ a.btn { text-decoration: none; }
 :root:not([data-theme='dark']) .day-warn-pill:not(.sev-high),
 :root:not([data-theme='dark']) .day-rail-chip.warn,
 :root:not([data-theme='dark']) .share-intent--saffron,
-:root:not([data-theme='dark']) .stop-num.cat-food,
-:root:not([data-theme='dark']) .gi-stat.hot b { color: #8F5B06; }
+:root:not([data-theme='dark']) .stop-num.cat-food { color: #8F5B06; }
 .chip-danger { background: var(--danger-soft); color: var(--danger); }
 .chip-ok { background: var(--ok-soft); color: var(--ok); }
 .chip-info { background: var(--info-soft); color: var(--text-2); }
@@ -652,20 +663,30 @@ a.btn { text-decoration: none; }
 .clickable-chip.on-saffron { border-color: var(--saffron); background: var(--saffron-soft); color: var(--warn); }
 .clickable-chip:hover { transform: translateY(-1px); }
 .chip-row { display: flex; flex-wrap: wrap; gap: 7px; }
-/* Segmented pill filter bar (Decisions etc.) — glass capsule with a sliding
-   active state, per the CTI pill design language. */
-.filter-pillbar {
+/* Segmented pill bars — ONE recipe for every pill-style toggle/filter rail
+   (Group Input filters, composer mode, Timeline Plan/Inspect): the workspace
+   .tabbar's exact glass capsule, so every rail animates and reads the same.
+   The active state is painted solely by the sliding glider (PillNav). */
+.filter-pillbar,
+.mode-pillbar {
   display: inline-flex; gap: 2px; padding: 4px; flex-wrap: wrap;
-  background: var(--yf-glass); border: 1px solid var(--yf-glass-border);
+  background: var(--yf-nav-glass); border: 1px solid var(--yf-glass-border);
   -webkit-backdrop-filter: blur(var(--yf-blur-nav)) saturate(1.2); backdrop-filter: blur(var(--yf-blur-nav)) saturate(1.2);
   border-radius: 999px; box-shadow: var(--shadow-soft);
 }
-.filter-pillbar .clickable-chip { border: none; background: transparent; }
-.filter-pillbar .clickable-chip:hover { transform: none; }
-/* one selected-state pattern for every clickable chip, pillbar or not */
+.filter-pillbar .clickable-chip,
+.mode-pillbar .clickable-chip { border: none; background: transparent; }
+.filter-pillbar .clickable-chip:hover,
+.mode-pillbar .clickable-chip:hover { transform: none; }
+/* Count badges inside filter pills (All · n open / Need you / Resolved) */
+.tab-count--hot { background: var(--yf-amber-100); color: #8F5B06; }
+.tab-count--muted { background: var(--bg-soft); color: var(--text-2); }
+/* Decision guide box (context line + the offline recommender's pick) */
+.gi-guide { background: var(--bg-soft); border: 1px solid var(--line); border-radius: 10px; padding: 8px 11px; }
+/* one selected-state pattern for every clickable chip, pillbar or not.
+   Inside a PillNav the glider owns the paint entirely (see .pill-nav rules). */
 .clickable-chip.on-teal { background: var(--teal-deep); color: #fff; box-shadow: var(--shadow-glow-teal); }
 [data-theme='dark'] .clickable-chip.on-teal { background: var(--teal); color: #06251f; }
-.filter-pillbar .clickable-chip.on-saffron { background: var(--saffron); color: #fff; }
 
 /* Reusable CTI glass surface (nav-level blur, diffuse depth). Drop onto any
    panel to lift it off the page with a frosted edge. */
@@ -734,8 +755,8 @@ a.btn { text-decoration: none; }
   transition: border-color .15s, box-shadow .15s;
 }
 .stop-card:hover { border-color: color-mix(in srgb, var(--teal) 45%, var(--line)); }
-.stop-card.dragging { opacity: .45; border-style: dashed; transform: scale(.985); }
-.stop-card.drag-over { border-color: var(--teal); box-shadow: 0 0 0 3px var(--teal-soft); }
+/* (dead: the HTML5-drag ghost slot styling this served is retired — the
+   pointer engine carries the real row instead) */
 .stop-card.status-rejected { opacity: .55; }
 .stop-card.status-maybe { background: var(--card-soft); }
 .stop-num {
@@ -839,6 +860,45 @@ a.btn { text-decoration: none; }
   padding: 10px 13px;
   width: 100%;
 }
+/* Plan / Inspect segmented toggle (Phase 3): built on PillNav (.mode-pillbar
+   glider). The copy line reserves two rows so a mode switch never reflows. */
+.tl-mode-copy { min-height: 2.4em; animation: popover-in var(--motion-fast) var(--ease-out); }
+@media (prefers-reduced-motion: reduce) { .tl-mode-copy { animation: none; } }
+
+/* Liquid drag (rule 10 pattern): rows glide by the carried row's height while
+   a drag is live; rows carry data-stop-id for the FLIP settle on commit. */
+.tl { position: relative; }
+.tl-row { transition: transform var(--motion-fast) var(--ease-glide); }
+@media (prefers-reduced-motion: reduce) {
+  .tl-row { transition: none; }
+}
+/* ---- bencho carry mechanics: two transforms, never one ----
+   The carried ROW (position layer) is pinned to the pointer through
+   --carry-x/--carry-y with NO transition — the finger is the truth. The
+   card inside (the skin) carries the velocity warp through --warp-x/-y/-tilt
+   and eases back the moment the finger stops (90ms calm timer in
+   lib/touchDnd.ts sets the vars to 0; this transition does the easing). */
+.tl-row.is-carried, .board-row.is-carried {
+  position: relative; z-index: 6;
+  pointer-events: none; /* elementFromPoint must see through it to hit-test */
+  transition: none;
+  transform: translate3d(var(--carry-x, 0px), var(--carry-y, 0px), 0);
+  will-change: transform;
+}
+.is-carried .stop-card, .is-carried .travel-endpoint {
+  transform: rotate(calc(var(--warp-tilt, 0) * 1deg))
+    scale(calc(1 + var(--warp-x, 0) - var(--warp-y, 0) * 0.55), calc(1 + var(--warp-y, 0) - var(--warp-x, 0) * 0.55));
+  transition: transform var(--motion-fast) var(--ease-out);
+  box-shadow: var(--shadow-carry);
+}
+[data-theme='dark'] .is-carried .stop-card,
+[data-theme='dark'] .is-carried .travel-endpoint { box-shadow: var(--shadow-carry-dark); }
+@media (prefers-reduced-motion: reduce) {
+  .is-carried .stop-card, .is-carried .travel-endpoint { transform: none; transition: none; }
+}
+/* drag rows are gesture surfaces, not text selections (a press-drag on the
+   card body is a reorder, never a selection) */
+.tl-row, .board-row { user-select: none; -webkit-user-select: none; }
 .tl-anchor { margin-bottom: 8px; }
 .travel-anchor-title {
   display: flex; align-items: center; gap: 7px;
@@ -942,10 +1002,14 @@ a.btn { text-decoration: none; }
 
 /* ---------- Day header: collapse, rename, progress, sparkline, suggestions ---------- */
 .day-collapse {
-  border: none; background: none; cursor: pointer; flex: 0 0 auto;
-  font-size: 14px; color: var(--text-3); padding: 5px 6px; border-radius: 8px;
+  border: 1px solid var(--line); background: var(--bg-soft); cursor: pointer; flex: 0 0 auto;
+  color: var(--text-2); width: 28px; height: 28px; padding: 0; border-radius: 999px;
+  display: grid; place-items: center;
+  transition: background .15s ease, color .15s ease;
 }
-.day-collapse:hover { background: var(--bg-soft); color: var(--text); }
+.day-collapse:hover { background: var(--teal-soft); color: var(--teal-deep); }
+.day-collapse-icon { transition: transform .15s ease; }
+.day-closed .day-collapse-icon { transform: rotate(-90deg); }
 .day-header h3[style*='pointer'] { text-decoration: transparent; }
 .day-progress {
   height: 5px; border-radius: 3px; background: var(--bg-soft);
@@ -957,6 +1021,59 @@ a.btn { text-decoration: none; }
 .day-progress-fill.sev-medium { background: var(--saffron); }
 .day-progress-fill.sev-high { background: var(--danger); }
 .day-spark { flex: 0 0 auto; opacity: .92; }
+
+/* --- Collapsed day summary (docs/TIMELINE-PLAN.md Phase 1) --- */
+/* Title row carries a tinted kind chip; below it, an optional route chain
+   (only when the day's planned stops add something the stats line doesn't
+   already say). Names wrap instead of truncating; the full chain rides in
+   the title tooltip. */
+.day-title-row { display: flex; align-items: center; gap: 8px; min-width: 0; flex-wrap: wrap; }
+.day-kind {
+  flex: 0 0 auto; font-size: 10.5px; font-weight: 600; letter-spacing: .07em;
+  text-transform: uppercase; padding: 2px 9px; border-radius: 999px; white-space: nowrap;
+}
+/* teal on teal tint: 4.57:1 light / 6.64:1 dark — passes AA at 10.5px semibold */
+.day-kind.drive { background: var(--teal-soft); color: var(--teal-deep); }
+.day-kind.stay { background: var(--bg-soft); color: var(--text-2); }
+.day-route {
+  display: flex; align-items: baseline; flex-wrap: wrap; gap: 2px 6px;
+  min-width: 0; max-width: 100%; margin-top: 3px;
+  border: none; background: none; cursor: pointer; padding: 0; text-align: left;
+  font: inherit; font-size: 12.5px; color: var(--text-2);
+}
+.day-route:hover .day-route-stop, .day-route:hover .day-route-text { color: var(--teal-deep); }
+.day-route-stop, .day-route-text { white-space: nowrap; }
+.day-route-sep, .day-route-more { color: var(--text-3); white-space: nowrap; }
+/* Dimmed pipe for the day-header stats line — quieter than a mid-dot at
+   12px and easier to track across a long line. (Separator is a graphic:
+   text-3 at .65 stays above the 3:1 non-text floor on both themes.) */
+.stat-sep { color: var(--text-3); opacity: .65; padding: 0 5px; }
+/* collapsed stay days read calmer than drive days (mockup P1's dimmed row) */
+.day-stay-collapsed .day-header > :not(.day-collapse) { opacity: .8; }
+.day-stay-collapsed .day-collapse { opacity: 1; }
+
+/* Smooth day open/close: the body animates grid rows 0fr→1fr (height-agnostic
+   — no max-height guessing), and SmoothCollapse unmounts it after the collapse
+   so a closed day still costs nothing. visibility lags the collapse so the
+   content stays paintable through the animation but leaves the tab order. */
+.day-body-clip { display: grid; grid-template-rows: 0fr; transition: grid-template-rows var(--motion-slow) var(--ease-out); }
+.day-body-clip.open { grid-template-rows: 1fr; }
+.day-body-clip-inner { overflow: hidden; min-height: 0; visibility: hidden; transition: visibility 0s var(--motion-slow); }
+.day-body-clip.open .day-body-clip-inner { visibility: visible; transition: visibility 0s; }
+@media (prefers-reduced-motion: reduce) {
+  .day-body-clip, .day-body-clip-inner { transition: none; }
+}
+/* per-stop dwell bars, amber on the busiest stop. The saffron fill alone is
+   2.14:1 on the white card — below the 3:1 non-text floor — so the busiest
+   bar carries a warn-600 boundary (3.92:1) that marks it as the meaningful
+   graphic. Dark theme passes on the fill alone; the border stays harmless. */
+.dwell-bars { display: inline-flex; align-items: flex-end; gap: 2px; height: 14px; flex: 0 0 auto; min-width: 0; max-width: 120px; }
+.dwell-bar {
+  display: inline-block; width: 5px; min-width: 2px; height: 8px; border-radius: 2px 2px 0 0;
+  background: var(--bg-soft); border: 1px solid var(--line);
+}
+.dwell-bar.busiest { height: 14px; background: var(--saffron); border-color: var(--warn-600); }
+
 .day-suggest { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; align-items: center; }
 .chip-btn {
   border: 1px dashed var(--line); background: var(--card-soft); color: var(--text-2);
@@ -1757,9 +1874,7 @@ button.board-col-zone--add:active { transform: translateY(1px); }
 /* ---------- Notifications ---------- */
 .notif-pop {
   position: fixed; width: min(360px, 92vw); color: var(--text);
-  background: var(--yf-nav-glass); border: 1px solid var(--yf-glass-border); border-radius: var(--radius);
-  -webkit-backdrop-filter: blur(var(--yf-blur-nav)) saturate(1.2); backdrop-filter: blur(var(--yf-blur-nav)) saturate(1.2);
-  box-shadow: var(--shadow-soft); overflow: hidden; z-index: var(--z-notif); animation: slideUp var(--t-fast) var(--ease-out);
+  overflow: hidden; z-index: var(--z-notif); animation: slideUp var(--motion-fast) var(--ease-out);
 }
 /* The panels receive programmatic focus on open (keyboard tab order); the
    interactive children carry the visible ring, the container stays clean. */
@@ -1924,10 +2039,7 @@ button.board-col-zone--add:active { transform: translateY(1px); }
   width: 40px; height: 40px; cursor: pointer; font-size: 17px; flex: 0 0 auto; }
 .avatar-btn { background: none; border: none; cursor: pointer; padding: 0; border-radius: 50%; flex: 0 0 auto;
   min-width: 40px; min-height: 40px; display: inline-flex; align-items: center; justify-content: center; }
-.user-menu { position: fixed; background: var(--yf-nav-glass); color: var(--text);
-  border: 1px solid var(--yf-glass-border); border-radius: var(--radius);
-  -webkit-backdrop-filter: blur(var(--yf-blur-nav)) saturate(1.2); backdrop-filter: blur(var(--yf-blur-nav)) saturate(1.2);
-  box-shadow: var(--shadow-soft);
+.user-menu { position: fixed; color: var(--text);
   min-width: 220px; z-index: var(--z-nav-glass); overflow: hidden; }
 /* Glass is translucent, so mid-gray text that reads fine on solid cards goes
    muddy here — lift panel text one step (email/empty-state use .muted). */
@@ -2100,24 +2212,29 @@ button.board-col-zone--add:active { transform: translateY(1px); }
   z-index: var(--z-nav-glass);
   margin: 0; padding: 6px;
   list-style: none;
-  background: var(--yf-glass);
-  border: 1px solid var(--yf-glass-border);
-  -webkit-backdrop-filter: blur(var(--yf-blur-panel)) saturate(1.15); backdrop-filter: blur(var(--yf-blur-panel)) saturate(1.15);
-  border-radius: 12px;
-  box-shadow: var(--shadow-soft);
   max-height: 280px;
   overflow-y: auto;
   overscroll-behavior: contain;
 }
 .loc-option {
-  display: flex; align-items: baseline; gap: 8px;
+  display: flex; align-items: center; gap: 10px;
   width: 100%;
-  padding: 9px 10px;
+  padding: 8px 10px;
   border: none; background: none;
-  border-radius: 8px;
+  border-radius: 10px;
   text-align: left;
   cursor: pointer;
   font: inherit; color: inherit;
+  transition: background var(--motion-fast) var(--ease-out);
+}
+/* hover + keyboard highlight share one surface treatment */
+.loc-option:hover, .loc-option.hl { background: color-mix(in srgb, var(--accent, #0D8D82) 12%, transparent); }
+.loc-option.hl { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--accent, #0D8D82) 38%, transparent); }
+.loc-option:active { transform: scale(.985); }
+.loc-ico {
+  flex: none; width: 32px; height: 32px; border-radius: 9px;
+  display: grid; place-items: center; overflow: hidden;
+  background: var(--bg-soft); border: 1px solid var(--line);
 }
 
 /* ============ Mobile usability ============ */
@@ -2140,27 +2257,21 @@ button.board-col-zone--add:active { transform: translateY(1px); }
   padding: 13px 14px; border-radius: 10px; font-size: 15px; text-align: left;
 }
 
-/* Drag feedback is NOT touch-only — desktop HTML5 drag drives .is-dragging
-   too. These lived inside the <=720px block, so desktop drags never got the
-   wiggle or the dashed empty slot. */
-.tl.is-dragging .tl-row:not(.dragging):not(.drag-over):not(.foreign-over) {
-  animation: stopWiggle 460ms var(--ease-out) 3;
-}
-@keyframes stopWiggle {
-  0%, 100% { transform: rotate(0deg); }
-  25% { transform: rotate(.5deg) translateY(-1px); }
-  75% { transform: rotate(-.5deg); }
-}
-.tl.is-dragging .tl-row { will-change: transform; }
-/* The carried row's original becomes an empty dashed slot — the browser's
-   drag ghost stays the only floating copy (no double-ghost). */
-.tl-row.dragging { opacity: .45; border: 1.5px dashed var(--teal); box-shadow: none; }
-.tl-row.dragging > * { visibility: hidden; }
-.tl-row.dragging { min-height: 44px; }
-.loc-option.hl { background: color-mix(in srgb, var(--accent, #0D8D82) 14%, transparent); }
+/* (The old drag-start wiggle and dashed ghost slot are retired: the carried
+   row itself follows the finger now — a wiggle on every other row and a
+   hollow slot behind it only fought the carry for attention.) */
 .loc-pin { flex: none; font-size: 13px; }
-.loc-name { font-weight: 600; white-space: nowrap; }
+.loc-thumb { width: 100%; height: 100%; object-fit: cover; }
+.loc-name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .loc-region { font-size: 12px; opacity: .65; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* provider footer: one quiet row inside the dropdown (was a detached
+   floating caption below it, which read as stray UI outside the panel) */
+.loc-foot {
+  margin-top: 4px; padding: 7px 10px 3px;
+  border-top: 1px solid var(--line);
+  font-size: 10.5px; font-weight: 600; letter-spacing: .02em;
+  color: var(--text-3); text-align: right;
+}
 .loc-spinner {
   position: absolute; right: 12px; top: 50%;
   width: 15px; height: 15px;
@@ -2204,25 +2315,8 @@ button.board-col-zone--add:active { transform: translateY(1px); }
   top: calc(100% + 6px); left: 0; right: 0;
   z-index: var(--z-nav-glass);
   padding: 10px 12px;
-  background: var(--yf-glass);
-  border: 1px solid var(--yf-glass-border);
-  -webkit-backdrop-filter: blur(var(--yf-blur-panel)) saturate(1.15); backdrop-filter: blur(var(--yf-blur-panel)) saturate(1.15);
-  border-radius: 12px;
-  box-shadow: var(--shadow-soft);
   font-size: 13px;
 }
-.loc-attribution {
-  position: absolute;
-  top: calc(100% + 6px); left: 0; right: 0;
-  z-index: calc(var(--z-nav-glass) - 1);
-  margin-top: 2px;
-  padding: 4px 12px;
-  font-size: 10.5px;
-  text-align: right;
-  pointer-events: none;
-}
-.loc-attribution.on { color: var(--teal-deep); }
-.loc-attribution.off { color: var(--warn); font-weight: 600; opacity: .75; }
 
 
 /* Skip-to-content link (F-08): parked above the viewport until keyboard focus
@@ -2271,10 +2365,6 @@ main:focus { outline: none; }
 /* ---- Location dropdown: two-line rows with POI thumbnails ---- */
 .loc-option { align-items: center; }
 .loc-texts { display: grid; gap: 1px; min-width: 0; flex: 1; }
-.loc-thumb {
-  width: 34px; height: 34px; border-radius: 8px; object-fit: cover; flex: none;
-  border: 1px solid var(--line); background: var(--bg-soft);
-}
 .loc-kind {
   flex: none; font-size: 9.5px; font-weight: 800; letter-spacing: .05em;
   padding: 3px 7px; border-radius: 99px; text-transform: uppercase;
@@ -2533,6 +2623,11 @@ main:focus { outline: none; }
 /* Drag/focus states glide instead of snapping. */
 .board-stop, .board-col-zone, .board-col--focused { transition: border-color var(--t-med) var(--ease-out), background var(--t-med) var(--ease-out), transform var(--t-fast) var(--ease-out); }
 .board-stop:hover { transform: translateY(-1px); }
+/* sibling glide for the board's position layer (the .board-row wrapper) */
+.board-row { transition: transform var(--motion-fast) var(--ease-glide); min-width: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .board-row { transition: none; }
+}
 
 /* ---- Map-focus ("peek") mode: columns glide ~90% off the board's bottom
    edge — a 48px sliver of each stays visible while the map owns the board —
@@ -2557,20 +2652,17 @@ main:focus { outline: none; }
    FLIP animations frame-by-frame (jitter + broken native drag). The original
    of the carried card becomes an empty dashed slot — the browser's drag ghost
    is then the only "copy", killing the double-ghost effect. */
-.board-col-stops.is-dragging .board-stop { will-change: transform; }
+.board-col-stops.is-dragging .board-row { will-change: transform; }
 /* Insertion marker — a slim teal line that glides between cards to show where
    the carried card will land; the cards themselves never move during a drag.
    transform-only movement on a 3px element = pure compositor, zero churn. */
+/* Liquid drag (rule 10 pattern): siblings glide by the carried row's height
+   while a drag is live — translation only, no scale/morph; the FLIP settle
+   takes over on commit (WAAPI sits above these CSS transitions). */
 .board-col-stops { position: relative; }
-.board-drop-marker {
-  position: absolute; left: 10px; right: 10px; top: 0; height: 3px;
-  border-radius: 2px; background: var(--teal); pointer-events: none;
-  box-shadow: 0 0 0 2px var(--teal-soft);
-  transition: transform 160ms var(--ease-out);
-}
-.board-drop-marker::before {
-  content: ''; position: absolute; left: -8px; top: -3.5px;
-  width: 10px; height: 10px; border-radius: 50%; background: var(--teal);
+.board-stop { transition: transform var(--motion-fast) var(--ease-glide); }
+@media (prefers-reduced-motion: reduce) {
+  .board-stop { transition: none; }
 }
 .board-stop.dragging {
   opacity: .45; background: transparent; box-shadow: none;
@@ -3894,19 +3986,7 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 .balance-pos { color: var(--ok); font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .balance-neg { color: var(--danger); font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
-/* ---- Group input: one-row stat strip + filters ---- */
-.gi-stats { display: flex; gap: 8px; }
-.gi-stat {
-  display: inline-flex; align-items: baseline; gap: 6px; background: var(--card);
-  border: 1px solid var(--line); border-radius: 999px; padding: 6px 13px;
-  font: inherit; font-size: 12.5px; font-weight: 600; color: var(--text-2);
-  box-shadow: var(--shadow-sm); white-space: nowrap; cursor: pointer;
-}
-.gi-stat b { font-size: 14px; font-family: var(--font-display); color: var(--text); font-variant-numeric: tabular-nums; }
-.gi-stat.hot { border-color: color-mix(in srgb, var(--saffron-500) 55%, transparent); background: var(--yf-amber-100); }
-.gi-stat.hot b { color: var(--warn); }
-.gi-stat.on { border-color: var(--teal-600); background: var(--yf-teal-100); }
-.gi-stat.on b { color: var(--teal-700); }
+/* ---- Group input: the count-pill stat strip retired 2026-09 — counts live in the filter pillbar badges ----
 
 /* ---- Group input: needs-you emphasis + digest ---- */
 .gi-needs-you { border-left: 4px solid var(--saffron); }
@@ -4189,10 +4269,11 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
   padding: 14px 16px 16px; box-shadow: 0 10px 26px rgba(18, 63, 73, 0.07), 0 2px 5px rgba(18, 63, 73, 0.05);
   min-width: 0; position: relative;
 }
-/* The entrance animation (transform, fill: forwards) pins each block into its
-   own stacking context, so a later block paints OVER the open location
-   dropdown / calendar popover inside an earlier one. Elevate the block that
-   owns the open popover above its siblings. */
+/* The entrance animation (transform only, fill: backwards) still gives each
+   block a stacking context WHILE it runs, so a later block could paint over
+   an open location dropdown / calendar popover inside an earlier one during
+   that half-second. Elevate the block that owns the open popover above its
+   siblings for as long as the popover exists. */
 .ts-block:has(.loc-dropdown), .ts-block:has(.cal-pop) { z-index: 2; }
 [data-theme='dark'] .ts-block { box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35), 0 2px 6px rgba(0, 0, 0, 0.25); }
 .span7 { grid-column: span 7; }
@@ -4332,22 +4413,31 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 .cal-trigger .cal-caret { position: absolute; right: 10px; color: var(--yf-text-muted); flex: none; }
 .cal-pop {
   position: absolute; top: calc(100% + 6px); left: 0; z-index: var(--z-nav-glass);
-  width: min(278px, 100%); padding: 10px 12px 12px; border-radius: var(--radius-sm);
-  background: var(--yf-glass); border: 1px solid var(--yf-glass-border);
-  -webkit-backdrop-filter: blur(var(--yf-blur-panel)) saturate(1.15); backdrop-filter: blur(var(--yf-blur-panel)) saturate(1.15);
-  box-shadow: var(--shadow-soft);
+  width: min(278px, 100%); padding: 10px 12px 12px;
 }
 .cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; font-size: 13px; font-weight: 700; }
+.cal-nav {
+  width: 26px; height: 26px; border-radius: 999px; border: none; background: none;
+  display: grid; place-items: center; cursor: pointer; color: var(--text-2);
+  transition: background var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out);
+}
+.cal-nav:hover { background: var(--bg-soft); color: var(--text); }
 .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
 .cal-wd { text-align: center; font-size: 9.5px; font-weight: 700; letter-spacing: .06em; color: var(--yf-text-muted); padding: 3px 0 4px; }
 .cal-day {
   height: 32px; border-radius: 9px; border: none; background: none; cursor: pointer;
   font: inherit; font-size: 12px; font-weight: 600; color: var(--text); display: grid; place-items: center; padding: 0;
+  transition: background var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out);
 }
 .cal-day:hover { background: var(--yf-teal-100); }
 .cal-day.in-range { background: var(--yf-teal-100); border-radius: 0; color: var(--yf-teal-700); }
 [data-theme='dark'] .cal-day.in-range { color: var(--yf-teal-600); }
-.cal-day.edge { background: var(--yf-teal-600); color: #fff; border-radius: 9px; }
+.cal-day.edge { background: var(--yf-teal-600); color: #fff; }
+/* the range is one capsule: start day rounds left, end day rounds right, a
+   single-day range is a full pill */
+.cal-day.edge-start { border-radius: 9px 0 0 9px; }
+.cal-day.edge-end { border-radius: 0 9px 9px 0; }
+.cal-day.edge-start.edge-end { border-radius: 9px; }
 .cal-day.today { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--yf-teal-600) 55%, transparent); }
 .cal-hint { margin: 8px 0 0; font-size: 11px; color: var(--yf-text-muted); text-align: center; }
 
@@ -4469,9 +4559,16 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 [data-theme='dark'] .bill-perhead .per { color: #BCAE8C; }
 [data-theme='dark'] .bill-note { color: #998B6D; }
 
-/* Trip Ticket entrance + bento stagger (transform/opacity only) */
+/* Trip Ticket entrance + bento stagger (transform/opacity only).
+   Fill mode MUST be `backwards`, never `forwards`: a forwards-filled
+   opacity/transform animation keeps the block a compositor group after it
+   ends, which blinds backdrop-filter on descendants — the location dropdown
+   and calendar popover lost their frost exactly this way (they rendered as
+   plain translucent sheets while the same .popover recipe frosted fine on
+   the navbar). `backwards` fills only the pre-animation delay; base state is
+   the final frame, so nothing sticks after the entrance. */
 @media (prefers-reduced-motion: no-preference) {
-  .ts-block, .ticket { opacity: 0; transform: translateY(10px); animation: ts-rise 0.5s var(--ease-out) forwards; }
+  .ts-block, .ticket { animation: ts-rise 0.5s var(--ease-out) backwards; }
   .ts-blocks > .ts-block:nth-child(1) { animation-delay: 0.04s; }
   .ts-blocks > .ts-block:nth-child(2) { animation-delay: 0.1s; }
   .ts-blocks > .ts-block:nth-child(3) { animation-delay: 0.16s; }
@@ -4479,7 +4576,7 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
   .ts-blocks > .ts-block:nth-child(5) { animation-delay: 0.28s; }
   .ts-blocks > .ts-block:nth-child(6) { animation-delay: 0.34s; }
   .ticket { animation-delay: 0.24s; }
-  @keyframes ts-rise { to { opacity: 1; transform: none; } }
+  @keyframes ts-rise { from { opacity: 0; transform: translateY(10px); } }
 }
 
 /* ============ Mobile dock (≤900px): ticket collapses into a fixed glass bar ============ */
@@ -4663,6 +4760,38 @@ html.native-shell {
 /* Glass blur tiers: chrome 18, panel 14, chip 8, scrim 3. */
 :root {
   --yf-blur-nav: 18px; --yf-blur-panel: 14px; --yf-blur-chip: 8px; --yf-blur-scrim: 3px;
+}
+/* Motion tokens (docs/MOTION-TOKENS.md, AGENTS rule 10): three duration steps
+   + the glide easing. New interactive surfaces pick from here — a raw ms value
+   in a new rule is a review flag. --ease-out lives with the base tokens. */
+:root {
+  --motion-fast: 120ms; --motion-med: 180ms; --motion-slow: 240ms;
+  --ease-glide: cubic-bezier(.3, .86, .48, 1);
+}
+/* One dropdown/popover surface for the whole app — the navbar's exact glass
+   treatment (nav glass + blur-nav + saturate, the same tint as the rails).
+   Rule 10 pattern: entrance = fade + 4px rise. If this still reads too airy,
+   flipping --popover-bg to var(--card) takes the whole family solid in one
+   line (the blur route is kept because the user asked for the navbar recipe
+   first; the design-system test holds every blur to a tier token). */
+:root {
+  --popover-bg: var(--yf-nav-glass);
+  --popover-border: var(--yf-glass-border);
+}
+.popover {
+  background: var(--popover-bg);
+  border: 1px solid var(--popover-border);
+  -webkit-backdrop-filter: blur(var(--yf-blur-nav)) saturate(1.2);
+  backdrop-filter: blur(var(--yf-blur-nav)) saturate(1.2);
+  border-radius: 12px;
+  box-shadow: var(--shadow-soft);
+  animation: popover-in var(--motion-med) var(--ease-out);
+}
+@keyframes popover-in {
+  from { opacity: 0; transform: translateY(4px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .popover { animation: none; }
 }
 /* Kicker unification: one recipe for every micro-label role. */
 @media screen {

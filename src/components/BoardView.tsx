@@ -18,6 +18,7 @@ import { stopKindOf, STOP_KIND_LABELS } from '../lib/stopKind'
 import { stopInitialValues, stopLegContext, stopEditorKey, stopDayIndex, type StopEditorTarget } from '../lib/stopForm'
 import { useDb } from '../store/store'
 import { useReorder, Modal } from './ui'
+import { glideOffsetPx } from '../lib/touchDnd'
 import { TripMap } from './TripMap'
 import { StopEditor, type StopFormValues } from './StopEditor'
 
@@ -254,25 +255,34 @@ function BoardColumn({ day, allDays, editable, warnings, focused, onToggleFocus,
     [day],
   )
   const stopsRef = useRef<HTMLDivElement>(null)
-  // Premium kanban drag pattern: the DOM order NEVER changes mid-drag (no
-  // churn, no jitter — native drag stays stable from the first pixel). A slim
-  // teal marker glides to the insertion slot instead, and the final
-  // arrangement settles ONCE via the FLIP pass on commit. The marker index is
-  // the source of truth for same-day drops (card-level drops delegate to it).
-  const [insert, setInsert] = useState<{ idx: number; y: number } | null>(null)
-  const insertRef = useRef(insert)
-  insertRef.current = insert
+  // Liquid drag pattern (bencho-style, Timeline parity): the DOM order NEVER
+  // changes mid-drag. The carried card is pinned to the pointer by the engine
+  // (lib/touchDnd.ts) and its skin warps with the throw; cards between the
+  // carried slot and the cursor target glide out of the way in real time
+  // (transform transition), and the final arrangement settles ONCE via the
+  // FLIP pass on commit. The insertion index is the source of truth for
+  // same-day drops.
+  const [insertIdx, setInsertIdx] = useState<number | null>(null)
+  const insertRef = useRef(insertIdx)
+  insertRef.current = insertIdx
+  /** viewport rect of the card as it was carried at release — the FLIP pass
+      below springs it from there into its new slot */
+  const dropRect = useRef<{ id: string; x: number; y: number } | null>(null)
 
-  const { dndHandlers, dayDropHandlers, dragging, foreignOver } = useReorder(
+  const { dndHandlers, dayDropHandlers, dragging, foreignOver, takeCarryRect } = useReorder(
     ordered,
-    // Same-list commits resolve through the marker, not the card the cursor
-    // happened to be over: idx counts positions in the full list (dragged slot
-    // included), so adjust for the removal shift.
+    // Same-list commits resolve through the insertion index, not the card the
+    // cursor happened to be over: idx counts positions in the full list
+    // (dragged slot included), so adjust for the removal shift.
     (fromIdx) => {
-      const idx = insertRef.current?.idx ?? fromIdx
+      const idx = insertRef.current ?? fromIdx
       const toIdx = idx > fromIdx ? idx - 1 : idx
-      if (toIdx !== fromIdx) onReorder(day.index, fromIdx, toIdx)
-      setInsert(null)
+      if (toIdx !== fromIdx) {
+        const rect = takeCarryRect()
+        if (rect && ordered[fromIdx]) dropRect.current = { id: ordered[fromIdx].id, x: rect.x, y: rect.y }
+        onReorder(day.index, fromIdx, toIdx)
+      }
+      setInsertIdx(null)
     },
     {
       dragPayload: (s) => JSON.stringify({ stopId: s.id, fromDay: day.index }),
@@ -280,46 +290,41 @@ function BoardColumn({ day, allDays, editable, warnings, focused, onToggleFocus,
         try {
           const p = JSON.parse(payload) as { stopId?: string; fromDay?: number }
           if (p.stopId && typeof p.fromDay === 'number' && p.fromDay !== day.index) {
+            const rect = takeCarryRect()
+            if (rect) dropRect.current = { id: p.stopId, x: rect.x, y: rect.y }
             onMoveStopIn(p.stopId, p.fromDay, day.index, toIdx)
           }
         } catch { /* malformed payload — ignore */ }
       },
+      /** engine hover → insertion slot via the hovered card's midpoint */
+      onOwnHover: (idx, _x, y) => {
+        const cards = stopsRef.current?.querySelectorAll<HTMLElement>('[data-stop-id]')
+        if (!cards || cards.length === 0) return
+        let next: number
+        if (idx >= cards.length) {
+          next = cards.length
+        } else {
+          const r = cards[idx].getBoundingClientRect()
+          next = y < r.top + r.height / 2 ? idx : idx + 1
+        }
+        if (insertRef.current !== next) setInsertIdx(next)
+      },
     },
   )
 
-  useEffect(() => { if (dragging === null) setInsert(null) }, [dragging])
+  useEffect(() => { if (dragging === null) setInsertIdx(null) }, [dragging])
 
-  function onColDragOver(e: React.DragEvent<HTMLDivElement>) {
-    if (dragging === null) return
-    e.preventDefault()
-    const rootEl = stopsRef.current
-    if (!rootEl) return
-    const cards = Array.from(rootEl.querySelectorAll<HTMLElement>('[data-stop-id]'))
-    let idx = cards.length
-    for (let i = 0; i < cards.length; i++) {
-      const r = cards[i].getBoundingClientRect()
-      if (e.clientY < r.top + r.height / 2) { idx = i; break }
-    }
-    const y = cards.length === 0 ? 8
-      : idx < cards.length ? cards[idx].offsetTop - 6
-      : cards[cards.length - 1].offsetTop + cards[cards.length - 1].offsetHeight + 4
-    const cur = insertRef.current
-    if (!cur || cur.idx !== idx || Math.abs(cur.y - y) > 2) setInsert({ idx, y })
-  }
-  function onColDragLeave(e: React.DragEvent<HTMLDivElement>) {
-    if (!stopsRef.current?.contains(e.relatedTarget as Node | null)) setInsert(null)
-  }
-  /** Drops landing in the gaps between cards (card handlers stopPropagation). */
-  function onColDrop(e: React.DragEvent<HTMLDivElement>) {
-    if (dragging === null) return
-    e.preventDefault()
-    const idx = insertRef.current?.idx ?? ordered.length
-    const toIdx = idx > dragging ? idx - 1 : idx
-    if (toIdx !== dragging) onReorder(day.index, dragging, toIdx)
-    setInsert(null)
+  /** Live glide offset for card i while a drag is open: rows between the
+   *  carried slot and the insertion index slide toward the carried row's
+   *  origin, so the gap reopens under the cursor. The sign math lives in the
+   *  pure glideOffsetPx (lib/touchDnd.ts) so tests can pin it. */
+  function glideOffset(i: number): number | null {
+    if (dragging === null || insertIdx === null) return null
+    const card = stopsRef.current?.querySelectorAll<HTMLElement>('[data-stop-id]')[dragging]
+    const h = card ? card.offsetHeight + 8 : 0
+    return glideOffsetPx(dragging, insertIdx, i, h)
   }
 
-  const draggingId = dragging !== null ? ordered[dragging]?.id : undefined
   const sev = warnings.some(w => w.severity === 'high') ? 'high'
     : warnings.some(w => w.severity === 'medium') ? 'medium' : undefined
   const topWarn = warnings[0]
@@ -327,9 +332,10 @@ function BoardColumn({ day, allDays, editable, warnings, focused, onToggleFocus,
 
   // FLIP slot-in: when this column's card arrangement changes (same-day drag
   // reorder, or a card slotting in from another day), every card animates from
-  // its previous position to the new one — compositor-only, no ghosting.
-  // Fires once per committed arrangement (same-day drop or cross-day insert),
-  // never during the drag itself: the marker carries all the in-drag feedback.
+  // its previous position to the new one — compositor-only, no ghosting. The
+  // carried card springs from where the finger released it (the engine's
+  // carry rect) rather than from its old slot. Fires once per committed
+  // arrangement, never during the drag itself.
   const prevRects = useRef<Map<string, { x: number; y: number }> | null>(null)
   useLayoutEffect(() => {
     const rootEl = stopsRef.current
@@ -340,9 +346,11 @@ function BoardColumn({ day, allDays, editable, warnings, focused, onToggleFocus,
       now.set(el.dataset.stopId!, { x: r.left, y: r.top })
     }
     const prev = prevRects.current
+    const dropped = dropRect.current
+    dropRect.current = null
     if (prev && !prefersReducedMotion()) {
       for (const [id, p] of now) {
-        const q = prev.get(id)
+        const q = dropped && dropped.id === id ? dropped : prev.get(id)
         if (!q) continue
         const dx = q.x - p.x
         const dy = q.y - p.y
@@ -368,63 +376,63 @@ function BoardColumn({ day, allDays, editable, warnings, focused, onToggleFocus,
         {topWarn && <span className={`day-warn-pill ${sev === 'high' ? 'sev-high' : ''}`}><TriangleAlert size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />{topWarn.title.replace(/^Day \d+: /, '')}{warnings.length > 1 ? ` +${warnings.length - 1}` : ''}</span>}
       </button>
 
-      <div className={`board-col-stops${dragging !== null ? ' is-dragging' : ''}`} ref={stopsRef}
-        onDragOver={onColDragOver} onDragLeave={onColDragLeave} onDrop={onColDrop}>
-        {dragging !== null && insert && (
-          <div className="board-drop-marker" style={{ transform: `translateY(${insert.y}px)` }} />
-        )}
+      <div className={`board-col-stops${dragging !== null ? ' is-dragging' : ''}`} ref={stopsRef}>
         {ordered.map((s, i) => {
           const kind = stopKindOf(s)
-          const isDragged = s.id === draggingId
           const meta = [
             s.locationName,
             minutesToHM(s.visitMinutes),
             s.entryFeeInrPerPerson > 0 ? `₹${s.entryFeeInrPerPerson}/person` : '',
           ].filter(Boolean).join(' · ')
           return (
-            <div key={s.id}
+            // Position layer (.board-row) / skin (.board-stop): the engine
+            // pins the row to the pointer while the skin inside warps with
+            // the throw — position and deformation cannot share a transform.
+            <div key={s.id} className="board-row"
               data-stop-id={s.id}
               title={meta ? `${s.title} — ${meta}` : s.title}
-              className={`board-stop stop-card kind-${kind} status-${s.status} ${isDragged ? 'dragging' : ''} ${foreignOver === i && dragging === null ? 'foreign-over' : ''}`}
+              style={{ transform: glideOffset(i) != null ? `translateY(${glideOffset(i)}px)` : undefined }}
               {...(editable ? dndHandlers(i) : {})}>
-              <div className="stop-main">
-                <span className="board-stop-kicker">{s.departTime ? `${formatHM(s.departTime, timeFormat)} · ` : ''}{STOP_KIND_LABELS[kind]}</span>
-                {editable ? (
-                  <button type="button" className="board-stop-title-btn" onClick={() => onEdit(s.id)}
-                    title={`Edit ${s.title}`} aria-label={`Edit ${s.title}`}>
-                    <span className="stop-title">{s.title}</span>
-                  </button>
-                ) : (
-                  <span className="stop-title">{s.title}</span>
-                )}
-                {meta && <span className="board-stop-meta">{meta}</span>}
-              </div>
-              {editable && (
-                <div className="stop-actions board-stop-actions">
-                  <div className="move-btns">
-                    <button type="button" className="move-btn" disabled={i === 0}
-                      onClick={() => onReorder(day.index, i, i - 1)} aria-label={`Move ${s.title} up`}>
-                      <ChevronUp size={12} aria-hidden />
+              <div className={`board-stop stop-card kind-${kind} status-${s.status} ${foreignOver === i && dragging === null ? 'foreign-over' : ''}`}>
+                <div className="stop-main">
+                  <span className="board-stop-kicker">{s.departTime ? `${formatHM(s.departTime, timeFormat)} · ` : ''}{STOP_KIND_LABELS[kind]}</span>
+                  {editable ? (
+                    <button type="button" className="board-stop-title-btn" onClick={() => onEdit(s.id)}
+                      title={`Edit ${s.title}`} aria-label={`Edit ${s.title}`}>
+                      <span className="stop-title">{s.title}</span>
                     </button>
-                    <button type="button" className="move-btn" disabled={i === ordered.length - 1}
-                      onClick={() => onReorder(day.index, i, i + 1)} aria-label={`Move ${s.title} down`}>
-                      <ChevronDown size={12} aria-hidden />
+                  ) : (
+                    <span className="stop-title">{s.title}</span>
+                  )}
+                  {meta && <span className="board-stop-meta">{meta}</span>}
+                </div>
+                {editable && (
+                  <div className="stop-actions board-stop-actions">
+                    <div className="move-btns">
+                      <button type="button" className="move-btn" disabled={i === 0}
+                        onClick={() => onReorder(day.index, i, i - 1)} aria-label={`Move ${s.title} up`}>
+                        <ChevronUp size={12} aria-hidden />
+                      </button>
+                      <button type="button" className="move-btn" disabled={i === ordered.length - 1}
+                        onClick={() => onReorder(day.index, i, i + 1)} aria-label={`Move ${s.title} down`}>
+                        <ChevronDown size={12} aria-hidden />
+                      </button>
+                    </div>
+                    {allDays.length > 1 && (
+                      <button type="button" className="move-btn" onClick={() => setMoveStop(s)}
+                        title="Move to another day" aria-label={`Move ${s.title} to another day`}>
+                        <MoveHorizontal size={12} aria-hidden />
+                      </button>
+                    )}
+                    <button type="button" className="move-btn move-btn--danger"
+                      onClick={() => onDelete(s.id, day.index)}
+                      title={`Delete ${s.title} — you'll see the impact first`}
+                      aria-label={`Delete ${s.title}`}>
+                      <Trash2 size={12} aria-hidden />
                     </button>
                   </div>
-                  {allDays.length > 1 && (
-                    <button type="button" className="move-btn" onClick={() => setMoveStop(s)}
-                      title="Move to another day" aria-label={`Move ${s.title} to another day`}>
-                      <MoveHorizontal size={12} aria-hidden />
-                    </button>
-                  )}
-                  <button type="button" className="move-btn move-btn--danger"
-                    onClick={() => onDelete(s.id, day.index)}
-                    title={`Delete ${s.title} — you'll see the impact first`}
-                    aria-label={`Delete ${s.title}`}>
-                    <Trash2 size={12} aria-hidden />
-                  </button>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           )
         })}

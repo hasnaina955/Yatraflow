@@ -89,7 +89,7 @@ export function CreatorPage({ creatorId, onNavigate }: { creatorId: string; onNa
           <div className="explore-grid">
             {pubs.map(p => (
               <PubCard key={p.id} pub={p} creator={creator} saved={isSaved(p.id)}
-                onFork={() => forkPublication(p, me, onNavigate)}
+                onFork={() => { void forkPublication(p, me, onNavigate) }}
                 onToggleSave={() => toggleSaved(p.id)} />
             ))}
           </div>

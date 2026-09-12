@@ -68,7 +68,7 @@ export function AuthPage({ onNavigate }: { onNavigate: (r: string) => void }) {
   return (
     <div className="auth-wrap">
       <div className="card auth-card">
-        <h1 style={{ fontSize: 26 }}>{mode === 'login' ? 'Welcome back' : 'Create your account'}</h1>
+        <h1 className="auth-title">{mode === 'login' ? 'Welcome back' : 'Create your account'}</h1>
         <p className="muted small" style={{ marginTop: 4 }}>
           {mode === 'login' ? 'Log in to your trip plans.' : 'Free forever for planning. No card needed.'}
         </p>

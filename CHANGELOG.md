@@ -13,6 +13,20 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 > record still exists in `git log`, not here. Archived release notes live in
 > [`docs/history/`](docs/history/).
 
+## [Unreleased]
+
+### Added
+
+- **Map view modes feature request (planning only, nothing built).**
+  `docs/FEATURE-REQUEST-MAP-VIEWS.md` specifies three first-class map views — 2D on **Liberty**
+  (the proposed new default), **Terrain** (Liberty + hillshade relief) and a pitched **3D hero**
+  view — sharing one palette so switching modes changes the camera and the relief, not the colours.
+  It carries a code-grounded implementation sketch, the verified keyless endpoints, acceptance
+  criteria and the open decisions (Android GPU budget, the Board's hidden toolbar, dark palette,
+  persistence scope). `docs/MAP-MOCKUPS.html` is the live prototype: eight panels over the Kerala
+  demo route's real OSRM geometry, of which 4 / 6 / 7 are the three requested modes. No runtime or
+  behaviour change.
+
 ## [0.51.0] - 2026-09-11
 
 **The timeline learns to move.** The 1,500-line TimelineTab monolith is split into

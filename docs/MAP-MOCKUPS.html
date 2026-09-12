@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>YatraFlow — Map look &amp; terrain, visual proposals</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://unpkg.com/maplibre-gl@6.6.0/dist/maplibre-gl.css" rel="stylesheet">
+<style>
+  :root {
+    --teal-500: #0D8D82; --teal-600: #0E7A72; --teal-700: #0B6B63;
+    --yf-teal-100: #E5F4EE;
+    --yf-saffron: #F3AA3D; --yf-saffron-100: #FFF4E4;
+    --yf-coral: #D6534D; --yf-coral-100: #FFF0EC;
+    --yf-purple: #897ABB; --yf-purple-100: #F0EAFA;
+    --yf-navy: #123F49;
+    --yf-cream: #F8F7EF; --yf-mist: #ECF8F4; --yf-peach: #FFF2E8;
+    --yf-surface: #FFFFFF; --yf-border: #DCE7E1; --yf-text-muted: #637B7D;
+    --gray-500: #5A6A80; --gray-900: #0B2545;
+    --radius: 18px; --radius-sm: 12px; --radius-lg: 24px;
+    --shadow-soft: 0 2px 14px rgba(11,37,69,.07), 0 1px 3px rgba(11,37,69,.05);
+    --font-display: 'Sora', 'Inter', system-ui, sans-serif;
+    --font-body: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: var(--font-body); background: linear-gradient(160deg, var(--yf-cream) 0%, var(--yf-mist) 55%, var(--yf-peach) 100%);
+    min-height: 100vh; color: var(--gray-900); padding: 40px 20px 80px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1120px; margin: 0 auto; }
+  h1, h2, h3, h4 { font-family: var(--font-display); letter-spacing: -0.01em; line-height: 1.22; text-wrap: balance; }
+  h1 { font-size: 26px; margin-bottom: 6px; }
+  .lede { color: var(--yf-text-muted); font-size: 14.5px; margin-bottom: 30px; max-width: 72ch; }
+
+  .props { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 26px; }
+  .prop {
+    background: var(--yf-surface); border: 1px solid var(--yf-border); border-radius: var(--radius-sm);
+    padding: 14px 16px; box-shadow: var(--shadow-soft);
+  }
+  .prop b { font-family: var(--font-display); font-size: 21px; display: block; }
+  .prop span { color: var(--yf-text-muted); font-size: 12.5px; }
+
+  /* sticky overlay-mode control */
+  .controls {
+    position: sticky; top: 12px; z-index: 40;
+    background: rgba(255,255,255,.92); backdrop-filter: blur(8px);
+    border: 1px solid var(--yf-border); border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-soft);
+    padding: 10px 14px; margin-bottom: 40px;
+    display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px;
+  }
+  .controls .ctl-label { font-size: 11px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--yf-text-muted); }
+  .seg { display: inline-flex; border: 1px solid var(--yf-border); border-radius: 10px; overflow: hidden; }
+  .seg button {
+    font: 600 13px/1 var(--font-body); padding: 8px 14px; border: 0; background: #fff;
+    color: var(--gray-500); cursor: pointer; display: inline-flex; align-items: center; gap: 7px;
+  }
+  .seg button + button { border-left: 1px solid var(--yf-border); }
+  .seg button.on { background: var(--yf-teal-100); color: var(--teal-700); }
+  .keyrow { display: inline-flex; flex-wrap: wrap; gap: 6px 12px; font-size: 12px; color: var(--yf-text-muted); align-items: center; }
+  .key { display: inline-flex; align-items: center; gap: 5px; }
+  .key i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+  .controls .hint { font-size: 11.5px; color: var(--yf-text-muted); margin-left: auto; }
+
+  section.panel { margin-bottom: 52px; }
+  .today-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .today-grid section.panel { margin-bottom: 0; }
+
+  .panel-head { display: flex; align-items: baseline; gap: 14px; margin-bottom: 4px; }
+  .pnum {
+    background: var(--yf-navy); color: #fff; font-family: var(--font-display); font-weight: 700;
+    font-size: 13px; width: 30px; height: 30px; border-radius: 9px; display: inline-flex;
+    align-items: center; justify-content: center; flex: none; transform: translateY(4px);
+  }
+  .panel-head h2 { font-size: 18.5px; }
+  .panel-head .tag {
+    font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
+    padding: 3px 8px; border-radius: 6px; white-space: nowrap; transform: translateY(-1px);
+  }
+  .tag.now { background: var(--yf-teal-100); color: var(--teal-700); }
+  .tag.swap { background: var(--yf-saffron-100); color: #8A5A12; }
+  .tag.custom { background: var(--yf-purple-100); color: #5C4B8A; }
+  .tag.terrain { background: var(--yf-coral-100); color: #A03A35; }
+  .panel-sub { color: var(--yf-text-muted); font-size: 13.5px; margin: 0 0 6px 44px; max-width: 78ch; }
+  .panel-how {
+    margin: 0 0 14px 44px; font-size: 12px; color: var(--teal-700);
+    background: var(--yf-teal-100); border-left: 3px solid var(--teal-500);
+    padding: 7px 11px; border-radius: 0 9px 9px 0; max-width: 78ch;
+  }
+  .panel-how b { color: var(--teal-600); }
+
+  .frame {
+    background: var(--yf-surface); border: 1px solid var(--yf-border); border-radius: var(--radius);
+    box-shadow: var(--shadow-soft); overflow: hidden; position: relative;
+  }
+  .map { width: 100%; height: 440px; }
+  .map.tall { height: 520px; }
+  .frame .loading {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    background: var(--yf-mist); color: var(--yf-text-muted); font-size: 13px; font-weight: 500;
+    z-index: 5; pointer-events: none; transition: opacity .4s;
+  }
+  .frame .loading.off { opacity: 0; }
+  .frame .dead {
+    position: absolute; inset: auto 10px 10px 10px; z-index: 6; display: none;
+    background: var(--yf-coral-100); color: #A03A35; border: 1px solid rgba(214,83,77,.35);
+    border-radius: 9px; padding: 7px 10px; font-size: 12px;
+  }
+  .frame.dead .dead { display: block; }
+
+  /* stop pins — the app's teardrop, scaled to mockup size */
+  .stop-pin {
+    width: 26px; height: 26px; border-radius: 50% 50% 50% 4px; transform: rotate(-45deg);
+    background: var(--pin-color, #0D8D82); border: 2.5px solid #fff; cursor: default;
+    box-shadow: 0 3px 5px rgba(11,37,69,.30), 0 8px 16px rgba(11,37,69,.28);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .stop-pin span {
+    transform: rotate(45deg); color: #fff; font: 700 11px/1 var(--font-display);
+    display: block; padding-top: 1px;
+  }
+
+  footer.page {
+    margin-top: 56px; padding-top: 18px; border-top: 1px solid var(--yf-border);
+    font-size: 12px; color: var(--yf-text-muted); line-height: 1.75;
+  }
+  footer.page b { color: var(--gray-900); }
+  @media (max-width: 900px) {
+    .props { grid-template-columns: 1fr; }
+    .today-grid { grid-template-columns: 1fr; }
+    .panel-sub, .panel-how { margin-left: 0; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>YatraFlow — how should the map look?</h1>
+  <p class="lede">
+    Every panel below is a <b>live map</b> — same MapLibre GL v6 engine and keyless OpenFreeMap vector tiles the app
+    ships with — drawn over the <b>Kerala demo trip's real route</b>: all 15 stops across 4 days, road-true geometry
+    from OSRM (498&nbsp;km). Panels&nbsp;1–2 are today's shipped look; 3–8 are the candidates — including the dark
+    twin any brand style needs.
+    <br><br>
+    <b>The feature request picks three of them:</b> panel&nbsp;4 = <b>2D</b> (Liberty, the proposed new default),
+    panel&nbsp;6 = <b>Terrain</b> (Liberty + hillshade), panel&nbsp;7 = <b>3D hero</b> (Liberty + real terrain,
+    pitched). All three share one palette, so switching modes changes the camera and the relief — not the colours.
+    (more colour, and terrain). Toggle the route overlay to compare like-for-like.
+  </p>
+
+  <div class="props">
+    <div class="prop"><b>15 stops · 4 days</b><span>Kochi → Munnar → Thekkady → Alleppey, real seed-trip coordinates</span></div>
+    <div class="prop"><b>498 km · 693 min</b><span>Real-road chain geometry (OSRM), exactly what the app plots</span></div>
+    <div class="prop"><b>0 API keys</b><span>OpenFreeMap vector tiles + AWS Terrain DEM — both verified keyless</span></div>
+  </div>
+
+  <div class="controls" id="controls">
+    <span class="ctl-label">Route overlay</span>
+    <div class="seg">
+      <button id="mode-chain" class="on" title="One blue line through all 15 stops — the app's All-days view">
+        <svg width="14" height="10" viewBox="0 0 14 10" aria-hidden><path d="M1 5c3-4 8 8 12-2" stroke="#2A6FDB" stroke-width="2.2" fill="none" stroke-linecap="round"/></svg>
+        All-days chain
+      </button>
+      <button id="mode-days" title="Each day gets its own colour — the app's day-filter view">
+        <svg width="18" height="10" viewBox="0 0 18 10" aria-hidden><path d="M1 8c3-5 5-5 8 0" stroke="#0D8D82" stroke-width="2.2" fill="none" stroke-linecap="round"/><path d="M9 8c3-5 5-5 8 0" stroke="#F59E2D" stroke-width="2.2" fill="none" stroke-linecap="round"/></svg>
+        Day colours
+      </button>
+    </div>
+    <span class="keyrow">
+      <span class="key"><i style="background:#0D8D82"></i>Day 1</span>
+      <span class="key"><i style="background:#F59E2D"></i>Day 2</span>
+      <span class="key"><i style="background:#7C5CFC"></i>Day 3</span>
+      <span class="key"><i style="background:#E2557B"></i>Day 4</span>
+    </span>
+    <span class="hint">pins = the app's teardrops · numbers = timeline order</span>
+  </div>
+
+  <!-- ============ 1 + 2 · today ============ -->
+  <div class="today-grid">
+    <section class="panel" id="p1">
+      <div class="panel-head"><span class="pnum">1</span><h2>Positron — light</h2><span class="tag now">shipped today</span></div>
+      <p class="panel-sub">The mapcn default for light theme: OpenFreeMap's positron fork, all-grey minimalism so pins and routes carry the colour.</p>
+      <p class="panel-how"><b>How it's wired:</b> <code>mapcn/map.tsx</code> defaultStyles.light = <code>tiles.openfreemap.org/styles/positron</code> — the baseline every other panel is judged against.</p>
+      <div class="frame"><div class="map" id="map-1"></div><div class="loading" id="load-1">loading live tiles…</div><div class="dead">tiles unreachable — check connection</div></div>
+    </section>
+    <section class="panel" id="p2">
+      <div class="panel-head"><span class="pnum">2</span><h2>Dark</h2><span class="tag now">shipped today</span></div>
+      <p class="panel-sub">The dark-theme twin (defaultStyles.dark), same minimal philosophy. Included so colour candidates get judged in both themes.</p>
+      <p class="panel-how"><b>How it's wired:</b> follows <code>data-theme</code> automatically — any recolour we choose needs a dark variant too, or stays stock like this.</p>
+      <div class="frame"><div class="map" id="map-2"></div><div class="loading" id="load-2">loading live tiles…</div><div class="dead">tiles unreachable — check connection</div></div>
+    </section>
+  </div>
+
+  <!-- ============ 3 · bright ============ -->
+  <section class="panel" id="p3">
+    <div class="panel-head"><span class="pnum">3</span><h2>Stock swap · Bright</h2><span class="tag swap">1-line change</span></div>
+    <p class="panel-sub">OpenFreeMap's own "bright" style: blue water, green parks, warm road ramp. The cheapest possible colour win — flip one URL and every map in the app changes.</p>
+    <p class="panel-how"><b>How:</b> in TripMap, pass <code>styles={{ light: "https://tiles.openfreemap.org/styles/bright", dark: "…/dark" }}</code> — the mapcn wrapper already accepts style URLs (or inline specs) via prop, verified in its source.</p>
+    <div class="frame"><div class="map" id="map-3"></div><div class="loading" id="load-3">loading live tiles…</div><div class="dead">tiles unreachable — check connection</div></div>
+  </section>
+
+  <!-- ============ 4 · liberty ============ -->
+  <section class="panel" id="p4">
+    <div class="panel-head"><span class="pnum">4</span><h2>Stock swap · Liberty</h2><span class="tag swap">1-line change</span></div>
+    <p class="panel-sub">OpenFreeMap's "liberty" — the classic OSM-carto lineage: cream land, vivid water, visible place hierarchy. Busier than bright; best if we want the map itself to feel like a travel atlas.</p>
+    <p class="panel-how"><b>How:</b> same one-prop swap as panel 3. Nothing else in the app changes — markers, routes, gestures are layers on top of whatever style is loaded.</p>
+    <div class="frame"><div class="map" id="map-4"></div><div class="loading" id="load-4">loading live tiles…</div><div class="dead">tiles unreachable — check connection</div></div>
+  </section>
+
+  <!-- ============ 5 · brand recolour ============ -->
+  <section class="panel" id="p5">
+    <div class="panel-head"><span class="pnum">5</span><h2>Custom · YatraFlow brand palette</h2><span class="tag custom">runtime recolour</span></div>
+    <p class="panel-sub">Positron's geometry and labels, recoloured to the brand tokens at runtime: cream land, teal water, mist-green parks, saffron motorways. Minimalism stays — but it's unmistakably <em>ours</em>.</p>
+    <p class="panel-how"><b>How:</b> fetch positron's style JSON once, walk its layers and swap paint colours through a hex-lookup (what this page does live, in ~40 lines), pass the object as the <code>styles.light</code> inline spec. No style fork to host, no extra requests, theme-reactive for free. A dark twin = same map over the stock dark style.</p>
+    <div class="frame"><div class="map" id="map-5"></div><div class="loading" id="load-5">loading live tiles…</div><div class="dead">tiles unreachable — check connection</div></div>
+  </section>
+
+  <!-- ============ 6 · hillshade ============ -->
+  <section class="panel" id="p6">
+    <div class="panel-head"><span class="pnum">6</span><h2>Terrain mode — Liberty + hillshade</h2><span class="tag terrain">new source · keyless</span></div>
+    <p class="panel-sub">Liberty (the proposed default) plus a hillshade layer from the AWS Terrain DEM. The Western Ghats read instantly — Cheeyappara's valley, Munnar's ridges — while the map stays flat, cheap and always-visible. Liberty's own relief raster fades out by zoom&nbsp;6, so this fills the gap rather than doubling up.</p>
+    <p class="panel-how"><b>How:</b> one extra raster-dem source (<code>s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png</code>, free, no key, CORS verified) + one hillshade layer inserted before the first water/waterway layer. Works over any basemap; on Android this is the GPU-friendly terrain option.</p>
+    <div class="frame"><div class="map" id="map-6"></div><div class="loading" id="load-6">loading live tiles + terrain…</div><div class="dead">tiles unreachable — check connection</div></div>
+  </section>
+
+  <!-- ============ 7 · 3D terrain ============ -->
+  <section class="panel" id="p7">
+    <div class="panel-head"><span class="pnum">7</span><h2>3D hero — Liberty + real terrain</h2><span class="tag terrain">new source · heavier</span></div>
+    <p class="panel-sub">The hero view on the same Liberty colours as the other two modes — switching to 3D changes the camera and the relief, not the palette. Pitched ~70° off the Munnar plateau down the ghat climb, where this route rises from <b>335 m</b> at the foot to <b>2,054 m</b> at Munnar and <b>2,676 m</b> at Top Station (sampled live from the DEM). Drag to rotate.</p>
+    <p class="panel-how"><b>How:</b> the same DEM through <code>map.setTerrain({ source: 'yf-dem', exaggeration: 1.8 })</code> + a pitched camera (MapLibre's default <code>maxPitch</code> is 60 — raised to 75 here). Relief only shows when tilted, and it costs more GPU — the Android caveat — so it ships as an explicit mode, never the default. Liberty's <code>building-3d</code> extrusions are <code>minzoom: 14</code>, so there's no building clash at trip scale.</p>
+    <div class="frame"><div class="map tall" id="map-7"></div><div class="loading" id="load-7">loading live tiles + terrain…</div><div class="dead">tiles unreachable — check connection</div></div>
+  </section>
+
+  <!-- ============ 8 · brand recolour, dark ============ -->
+  <section class="panel" id="p8">
+    <div class="panel-head"><span class="pnum">8</span><h2>Custom · YatraFlow brand — dark twin</h2><span class="tag custom">runtime recolour</span></div>
+    <p class="panel-sub">The same recolour applied to the <em>dark</em> style, because the app follows <code>data-theme</code> and a brand look without a dark twin would split the product. Deep navy-teal ground, teal water, saffron motorways — and light labels, which the stock dark style cannot do on its own (it ships dark-grey text).</p>
+    <p class="panel-how"><b>How:</b> identical mechanism, different lookup — the stock dark style only uses 22 distinct colours, so the twin is another table of the same size. It also has to repaint <em>every</em> label light, and dim the saffron ramp so it doesn't glare on black.</p>
+    <div class="frame"><div class="map" id="map-8"></div><div class="loading" id="load-8">loading live tiles…</div><div class="dead">tiles unreachable — check connection</div></div>
+  </section>
+
+  <footer class="page">
+    <b>Verification notes.</b> All endpoints checked live before this page was built: OpenFreeMap styles positron/dark/bright/liberty (HTTP 200, CORS <code>*</code>),
+    AWS terrain tiles (200, CORS <code>*</code> with Origin), MapLibre GL 6.6.0 ESM assets on unpkg — the same files and version the app's
+    <code>mapcn/map.tsx</code> loads. The recolours in panels 5 and 8 run client-side in this very page: fetch the stock style → swap paint colours → feed the object to the map.
+    <br><br>
+    <b>Attribution (as MapLibre renders it):</b> © OpenFreeMap © OpenMapTiles · Data © OpenStreetMap contributors · Terrain: AWS Terrain Tiles (ETOPO1) · Routing: OSRM demo server.
+    Same terms the app already carries — no new licensing exposure.
+    <br><br>
+    Made for the “can we change how the map looks?” discussion — nothing here touches the repo; panels map 1:1 to the swap options in <code>mapcn/map.tsx</code>'s existing props.
+  </footer>
+</div>
+
+<script type="importmap">
+{ "imports": { "maplibre-gl": "https://unpkg.com/maplibre-gl@6.6.0/dist/maplibre-gl.mjs" } }
+</script>
+<script type="module">
+import * as maplibregl from 'maplibre-gl';
+
+/* ---------- seed-trip data (src/data/seed.ts, Kerala demo) ---------- */
+const DAY_COLORS = ['#0D8D82', '#F59E2D', '#7C5CFC', '#E2557B'];
+const STOPS = [
+  { d: 0, lat: 9.9917,  lng: 76.7606, t: 'Cheeyappara Waterfalls' },
+  { d: 0, lat: 10.0392, lng: 76.7853, t: 'Valara Waterfalls' },
+  { d: 0, lat: 10.0889, lng: 77.0595, t: 'Check-in — Munnar hill resort' },
+  { d: 0, lat: 10.0740, lng: 77.0298, t: 'Blossom International Park' },
+  { d: 1, lat: 10.1333, lng: 77.2167, t: 'Top Station sunrise viewpoint' },
+  { d: 1, lat: 10.0798, lng: 77.0600, t: 'KDHP Tea Museum' },
+  { d: 1, lat: 10.0870, lng: 77.0585, t: 'Lunch at Saravana Bhavan' },
+  { d: 1, lat: 10.1060, lng: 77.1300, t: 'Mattupetty Dam & lake' },
+  { d: 1, lat: 10.1105, lng: 77.1408, t: 'Echo Point' },
+  { d: 1, lat: 10.1210, lng: 77.1660, t: 'Kundala Lake' },
+  { d: 2, lat: 9.5970,  lng: 77.1620, t: 'Spice garden guided walk' },
+  { d: 2, lat: 9.4644,  lng: 77.1570, t: 'Periyar boat safari' },
+  { d: 2, lat: 9.5960,  lng: 77.1615, t: 'Kathakali & Kalaripayattu show' },
+  { d: 3, lat: 9.4981,  lng: 76.3388, t: 'Houseboat boarding & cruise' },
+  { d: 3, lat: 9.4850,  lng: 76.3400, t: 'Farewell Kerala sadya dinner' },
+];
+/* OSRM real-road geometries, overview=simplified */
+const CHAIN = [[76.7607,9.9922],[76.7104,10.0068],[76.7158,10.023],[76.71,10.0375],[76.7128,10.0489],[76.7391,10.0521],[76.761,10.0484],[76.7657,10.0509],[76.7625,10.055],[76.7871,10.0414],[76.8051,10.038],[76.8315,10.0223],[76.843,10.0226],[76.9359,9.9735],[76.944,9.9649],[76.9803,9.9515],[76.9914,9.961],[77.0007,9.9843],[77.0152,10.0012],[77.0115,10.0079],[77.0148,10.0182],[77.0348,10.0335],[77.0382,10.0308],[77.0431,10.0401],[77.0389,10.0414],[77.0495,10.0446],[77.054,10.0586],[77.0652,10.0654],[77.0596,10.0889],[77.0621,10.0738],[77.03,10.0742],[77.0234,10.073],[77.0424,10.0693],[77.0621,10.0738],[77.0607,10.087],[77.0803,10.0863],[77.1031,10.0988],[77.1137,10.0987],[77.1173,10.1054],[77.132,10.106],[77.1333,10.1134],[77.1457,10.1221],[77.1502,10.1165],[77.1768,10.1353],[77.2033,10.1425],[77.2043,10.1276],[77.215,10.1379],[77.2176,10.1339],[77.215,10.1379],[77.2043,10.1276],[77.2033,10.1425],[77.1768,10.1353],[77.1502,10.1165],[77.1457,10.1221],[77.1333,10.1134],[77.1322,10.1061],[77.1173,10.1054],[77.1137,10.0987],[77.1031,10.0988],[77.0803,10.0863],[77.0609,10.0871],[77.06,10.0798],[77.0585,10.087],[77.0803,10.0863],[77.1031,10.0988],[77.1137,10.0987],[77.1173,10.1054],[77.1301,10.1061],[77.1407,10.111],[77.1326,10.1123],[77.1457,10.1221],[77.15,10.1165],[77.1524,10.1207],[77.1538,10.1112],[77.1586,10.1099],[77.1692,10.1169],[77.1662,10.1201],[77.1692,10.1169],[77.1586,10.1099],[77.1538,10.1112],[77.1524,10.1207],[77.15,10.1165],[77.1457,10.1221],[77.1333,10.1134],[77.1321,10.106],[77.1173,10.1054],[77.1137,10.0987],[77.1031,10.0988],[77.0803,10.0863],[77.0607,10.087],[77.0608,10.0697],[77.0667,10.068],[77.054,10.0586],[77.0495,10.0446],[77.0389,10.0414],[77.0431,10.0401],[77.0376,10.0334],[77.0409,10.0243],[77.0351,10.0213],[77.0323,10.008],[77.0448,9.9956],[77.0368,9.9925],[77.0291,9.98],[77.0253,9.9603],[77.0437,9.9499],[77.0408,9.945],[77.0542,9.9376],[77.0564,9.927],[77.0779,9.9172],[77.0856,9.8844],[77.091,9.8822],[77.1031,9.817],[77.1094,9.8075],[77.1055,9.792],[77.1162,9.7511],[77.1104,9.7347],[77.1047,9.7326],[77.1053,9.681],[77.096,9.6633],[77.1061,9.653],[77.1075,9.6346],[77.1248,9.6202],[77.1548,9.6147],[77.1673,9.6064],[77.1623,9.597],[77.1624,9.6073],[77.1545,9.6146],[77.1346,9.6011],[77.1383,9.6002],[77.1282,9.5994],[77.1193,9.5835],[77.103,9.5841],[77.0971,9.578],[77.0917,9.5519],[77.0951,9.5415],[77.1156,9.5242],[77.1223,9.4962],[77.1446,9.4881],[77.1439,9.4655],[77.1568,9.4649],[77.1614,9.4658],[77.1439,9.4655],[77.1446,9.4881],[77.1223,9.4962],[77.1156,9.5242],[77.0951,9.5415],[77.0917,9.5519],[77.0971,9.578],[77.103,9.5841],[77.1193,9.5835],[77.1282,9.5994],[77.1383,9.6002],[77.1346,9.6011],[77.1545,9.6146],[77.1673,9.6064],[77.1623,9.5962],[77.1624,9.6073],[77.1535,9.6143],[77.1346,9.6011],[77.1383,9.6002],[77.1235,9.5952],[77.1194,9.5836],[77.1036,9.5844],[77.0863,9.5693],[77.078,9.5744],[77.0591,9.5696],[77.0605,9.5747],[77.0561,9.5717],[77.0435,9.5807],[77.0322,9.5782],[77.0324,9.5829],[77.0268,9.5754],[77.0154,9.5783],[77.0076,9.568],[76.9711,9.5825],[76.9821,9.5604],[76.9774,9.5627],[76.9729,9.5539],[76.9457,9.5585],[76.9384,9.5564],[76.9373,9.5486],[76.9174,9.5553],[76.9112,9.5458],[76.9143,9.5347],[76.9044,9.5407],[76.8844,9.5379],[76.8475,9.566],[76.8264,9.5731],[76.8149,9.5698],[76.8121,9.5611],[76.7927,9.5596],[76.7899,9.5533],[76.764,9.5657],[76.7335,9.5636],[76.7163,9.571],[76.6996,9.563],[76.688,9.5678],[76.6772,9.5517],[76.6765,9.5372],[76.6446,9.527],[76.6384,9.513],[76.6402,9.5018],[76.6046,9.4801],[76.5933,9.4812],[76.574,9.4732],[76.5403,9.4465],[76.5443,9.4382],[76.4877,9.4179],[76.4198,9.4358],[76.3432,9.4704],[76.3438,9.4951],[76.3363,9.4952],[76.3388,9.4981],[76.34,9.4848]];
+const ROUTES = {
+  0: [[76.76068,9.99221],[76.7398,10.00127],[76.7265,10.00135],[76.71402,10.00792],[76.71036,10.00684],[76.7112,10.01633],[76.71508,10.01883],[76.71577,10.02303],[76.70996,10.03752],[76.71279,10.04887],[76.71591,10.05108],[76.72137,10.04918],[76.73907,10.05208],[76.76097,10.04837],[76.76573,10.05087],[76.76249,10.05504],[76.77144,10.0524],[76.77245,10.04764],[76.78706,10.04139],[76.79342,10.04223],[76.80505,10.03799],[76.80836,10.03289],[76.81723,10.0307],[76.82555,10.02487],[76.82836,10.02618],[76.83151,10.02233],[76.84299,10.02257],[76.85799,10.015],[76.85797,10.01258],[76.86163,10.01292],[76.93591,9.97346],[76.94396,9.96492],[76.98032,9.9515],[76.98518,9.95261],[76.99136,9.96099],[77.00069,9.98427],[77.00597,9.98554],[77.01305,10.00235],[77.01517,10.00125],[77.01147,10.00789],[77.01482,10.01824],[77.01932,10.01832],[77.01889,10.02132],[77.02774,10.02536],[77.03484,10.0335],[77.03824,10.03079],[77.0384,10.03647],[77.04311,10.04012],[77.03892,10.04136],[77.04952,10.04462],[77.05402,10.0586],[77.06522,10.0654],[77.06609,10.06949],[77.06074,10.06986],[77.06309,10.07719],[77.05956,10.08888],[77.06207,10.07378],[77.04235,10.0693],[77.03795,10.0729],[77.02341,10.073],[77.03005,10.07419]],
+  1: [[77.21755,10.13388],[77.21629,10.13628],[77.21505,10.13688],[77.21503,10.13794],[77.21402,10.13672],[77.21329,10.13706],[77.21335,10.13634],[77.21253,10.13606],[77.21289,10.13543],[77.21164,10.13465],[77.2115,10.13221],[77.2102,10.13095],[77.20963,10.1288],[77.20749,10.12767],[77.20644,10.12801],[77.20547,10.12715],[77.20428,10.12757],[77.2049,10.12915],[77.20466,10.13243],[77.20582,10.13394],[77.20625,10.13611],[77.20461,10.13808],[77.20304,10.13758],[77.20256,10.13818],[77.20506,10.13949],[77.20592,10.14105],[77.20327,10.14248],[77.20022,10.14075],[77.19794,10.14134],[77.19746,10.13969],[77.19552,10.13981],[77.1954,10.1388],[77.18791,10.13782],[77.1853,10.13718],[77.18403,10.13613],[77.18209,10.13697],[77.18026,10.13543],[77.1768,10.13529],[77.17607,10.13378],[77.17531,10.13432],[77.17441,10.13321],[77.17249,10.13306],[77.17104,10.13134],[77.16989,10.13141],[77.17006,10.13052],[77.16894,10.12983],[77.16732,10.12907],[77.16603,10.12935],[77.16546,10.12852],[77.16375,10.12817],[77.16232,10.12547],[77.16126,10.12466],[77.16034,10.12513],[77.16014,10.12396],[77.1593,10.12369],[77.1585,10.12459],[77.158,10.12393],[77.15693,10.1243],[77.15426,10.1211],[77.15199,10.12046],[77.1502,10.11653],[77.14741,10.11904],[77.14575,10.1221],[77.14596,10.12041],[77.14541,10.11986],[77.14091,10.11867],[77.13926,10.11628],[77.13793,10.11602],[77.13709,10.11475],[77.13569,10.11473],[77.1359,10.11364],[77.13325,10.11336],[77.13267,10.11208],[77.13446,10.11117],[77.13508,10.1089],[77.13303,10.10776],[77.13099,10.10783],[77.13216,10.10605],[77.12953,10.10635],[77.1267,10.10535],[77.12314,10.10682],[77.12032,10.10553],[77.11984,10.10447],[77.11905,10.10547],[77.11733,10.10538],[77.11741,10.10393],[77.11597,10.10417],[77.11635,10.10339],[77.1152,10.10257],[77.11463,10.1033],[77.11406,10.10267],[77.11216,10.10284],[77.1141,10.10043],[77.11371,10.09866],[77.11225,10.09924],[77.11189,10.10048],[77.11013,10.09931],[77.10735,10.09985],[77.1045,10.09823],[77.1031,10.0988],[77.10226,10.0973],[77.10138,10.09702],[77.10169,10.09589],[77.09982,10.09541],[77.09988,10.09456],[77.09178,10.09338],[77.09076,10.09226],[77.08917,10.09255],[77.08756,10.09008],[77.08786,10.09135],[77.08733,10.09192],[77.08759,10.09135],[77.08651,10.0902],[77.08455,10.08876],[77.08126,10.08775],[77.0803,10.08633],[77.07801,10.08576],[77.07049,10.08635],[77.06687,10.08562],[77.06493,10.08601],[77.06281,10.08529],[77.06157,10.08621],[77.06174,10.08717],[77.06087,10.08709],[77.06051,10.08451],[77.06204,10.08207],[77.06167,10.0782],[77.05917,10.07767],[77.0584,10.07896],[77.05802,10.07791],[77.05703,10.07911],[77.05987,10.08035],[77.06004,10.07979],[77.06082,10.07932],[77.06087,10.08024],[77.06179,10.08024],[77.062,10.08225],[77.06051,10.08451],[77.06082,10.08537],[77.06002,10.08583],[77.06004,10.08732],[77.05849,10.08698],[77.06004,10.08732],[77.06002,10.08583],[77.06079,10.08546],[77.06063,10.08691],[77.0617,10.0872],[77.06157,10.08621],[77.06281,10.08529],[77.06493,10.08601],[77.06687,10.08562],[77.07049,10.08635],[77.07801,10.08576],[77.0803,10.08633],[77.08126,10.08775],[77.08455,10.08876],[77.08646,10.09015],[77.08759,10.09135],[77.08733,10.09192],[77.08786,10.09135],[77.08756,10.09008],[77.08917,10.09255],[77.09076,10.09226],[77.09178,10.09338],[77.09988,10.09456],[77.09982,10.09541],[77.10169,10.09589],[77.10138,10.09702],[77.10226,10.0973],[77.1031,10.0988],[77.1045,10.09823],[77.10735,10.09985],[77.11013,10.09931],[77.11189,10.10048],[77.11225,10.09924],[77.11371,10.09866],[77.1141,10.10043],[77.11216,10.10284],[77.11406,10.10267],[77.11463,10.1033],[77.1152,10.10257],[77.11635,10.10339],[77.11597,10.10417],[77.11741,10.10393],[77.11733,10.10538],[77.11905,10.10547],[77.11977,10.10445],[77.12032,10.10553],[77.12314,10.10682],[77.1267,10.10535],[77.13011,10.10615],[77.13219,10.10609],[77.13105,10.10788],[77.13303,10.10776],[77.13431,10.10893],[77.13505,10.10884],[77.13453,10.11086],[77.14071,10.11101],[77.1426,10.11207],[77.14212,10.11129],[77.13824,10.11067],[77.13453,10.11086],[77.13261,10.11229],[77.13378,10.11364],[77.1359,10.11364],[77.13569,10.11473],[77.13709,10.11475],[77.13793,10.11602],[77.13926,10.11628],[77.14091,10.11867],[77.14541,10.11986],[77.14596,10.12041],[77.14575,10.1221],[77.14741,10.11904],[77.14847,10.11861],[77.15005,10.11649],[77.15235,10.12072],[77.15246,10.11968],[77.15082,10.11666],[77.15258,10.1136],[77.15421,10.11252],[77.15384,10.11118],[77.15858,10.10988],[77.15818,10.11117],[77.16088,10.11157],[77.15996,10.1127],[77.16179,10.11347],[77.16421,10.11347],[77.16395,10.11416],[77.16495,10.1144],[77.16485,10.11559],[77.16417,10.11559],[77.16556,10.11579],[77.16573,10.11642],[77.16693,10.11565],[77.16825,10.11585],[77.16781,10.11681],[77.1684,10.11761],[77.16924,10.11688],[77.16981,10.11791],[77.1662,10.12009]],
+  2: [[77.16234,9.59696],[77.1617,9.59857],[77.16344,9.59856],[77.16242,9.60727],[77.1579,9.61021],[77.15668,9.61349],[77.15454,9.61457],[77.14725,9.61066],[77.14166,9.6041],[77.13457,9.60115],[77.13826,9.60024],[77.13443,9.59891],[77.1331,9.60005],[77.131,9.59901],[77.1302,9.60038],[77.12819,9.59942],[77.12892,9.59609],[77.12367,9.59529],[77.12188,9.59327],[77.12341,9.59163],[77.12148,9.58899],[77.12283,9.58777],[77.11998,9.58814],[77.12095,9.58627],[77.11932,9.58351],[77.11687,9.58232],[77.11486,9.58365],[77.10887,9.58241],[77.10681,9.5842],[77.10305,9.58412],[77.09905,9.58148],[77.0971,9.57805],[77.099,9.57662],[77.09427,9.56408],[77.09634,9.55863],[77.09172,9.55191],[77.09317,9.54971],[77.09527,9.54986],[77.09508,9.54153],[77.10666,9.53551],[77.11048,9.53062],[77.11231,9.5243],[77.11562,9.52421],[77.11878,9.51323],[77.11642,9.51196],[77.11732,9.50665],[77.12268,9.50078],[77.12174,9.5001],[77.12229,9.49617],[77.12552,9.49513],[77.13077,9.49067],[77.1345,9.49194],[77.13939,9.4901],[77.141,9.4881],[77.14185,9.49141],[77.14456,9.48814],[77.1443,9.4834],[77.14551,9.48174],[77.14452,9.48066],[77.1462,9.47758],[77.14541,9.47519],[77.14115,9.47183],[77.14394,9.46551],[77.1459,9.4651],[77.14661,9.46329],[77.15107,9.46277],[77.15677,9.46489],[77.16026,9.46656],[77.16036,9.46545],[77.16136,9.46581],[77.16036,9.46545],[77.16026,9.46656],[77.15162,9.46276],[77.14661,9.46329],[77.1459,9.4651],[77.14394,9.46551],[77.14115,9.47183],[77.14541,9.47519],[77.1462,9.47758],[77.14452,9.48066],[77.14551,9.48174],[77.1443,9.4834],[77.14456,9.48814],[77.14185,9.49141],[77.141,9.4881],[77.13939,9.4901],[77.1345,9.49194],[77.13077,9.49067],[77.12552,9.49513],[77.12229,9.49617],[77.12174,9.5001],[77.12268,9.50078],[77.11732,9.50665],[77.11642,9.51196],[77.11878,9.51323],[77.11562,9.52421],[77.11231,9.5243],[77.11048,9.53062],[77.10666,9.53551],[77.09508,9.54153],[77.09527,9.54986],[77.09317,9.54971],[77.09172,9.55191],[77.09634,9.55863],[77.09427,9.56408],[77.099,9.57662],[77.0971,9.57805],[77.09905,9.58148],[77.10305,9.58412],[77.10681,9.5842],[77.10887,9.58241],[77.11486,9.58365],[77.11687,9.58232],[77.11932,9.58351],[77.12095,9.58627],[77.11998,9.58814],[77.12283,9.58777],[77.12147,9.5889],[77.12341,9.59163],[77.12188,9.59327],[77.12367,9.59529],[77.12892,9.59609],[77.12819,9.59942],[77.1302,9.60038],[77.131,9.59901],[77.1331,9.60005],[77.13443,9.59891],[77.13826,9.60024],[77.13457,9.60115],[77.14166,9.6041],[77.14725,9.61066],[77.15454,9.61457],[77.15659,9.61361],[77.1579,9.61021],[77.16242,9.60727],[77.16344,9.59856],[77.1617,9.59857],[77.16229,9.59623]],
+  3: [[76.3388,9.49808],[76.33892,9.49808],[76.33897,9.49707],[76.33881,9.49321],[76.33851,9.48916],[76.33841,9.4884],[76.33761,9.48496],[76.33899,9.48493],[76.33961,9.48477],[76.34,9.48481]],
+};
+const BOUNDS = { fit: [[76.30, 9.46], [77.26, 10.15]] };
+
+/* ---------- map bootstrap ---------- */
+maplibregl.setWorkerUrl('https://unpkg.com/maplibre-gl@6.6.0/dist/maplibre-gl-worker.mjs');
+const OFM = 'https://tiles.openfreemap.org/styles/';
+const maps = [];
+
+function frameDead(el, err) {
+  const f = el.closest('.frame');
+  if (f && err && String(err?.error?.message || err).match(/tile|source|style|fetch/i)) f.classList.add('dead');
+}
+function stopPinEl(stop, num) {
+  const el = document.createElement('div');
+  el.className = 'stop-pin';
+  el.style.setProperty('--pin-color', DAY_COLORS[stop.d]);
+  el.title = `Day ${stop.d + 1} · Stop ${num} — ${stop.t}`;
+  const s = document.createElement('span');
+  s.textContent = num;
+  el.appendChild(s);
+  return el;
+}
+
+/* route layers, app-faithful (casing + line, dark-aware) */
+function addRouteLayers(map, dark) {
+  const casing = dark ? '#0B2545' : '#FFFFFF';
+  const line = (id, coords, color, w, visible) => {
+    map.addSource(id, { type: 'geojson', data: { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: coords } } });
+    map.addLayer({ id: id + '-casing', type: 'line', source: id, layout: { visibility: visible ? 'visible' : 'none', 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': casing, 'line-width': w + 4, 'line-opacity': dark ? 0.6 : 0.75 } });
+    map.addLayer({ id: id + '-line', type: 'line', source: id, layout: { visibility: visible ? 'visible' : 'none', 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': color, 'line-width': w, 'line-opacity': 0.95 } });
+  };
+  /* default mode = All-days chain; day layers start hidden (the toggle flips them) */
+  line('yf-chain', CHAIN, '#2A6FDB', 4.5, true);
+  Object.entries(ROUTES).forEach(([d, coords]) => line('yf-day-' + d, coords, DAY_COLORS[d], 3.5, false));
+}
+
+function boot(elId, opts) {
+  const el = document.getElementById(elId);
+  const load = document.getElementById(elId.replace('map-', 'load-'));
+  const map = new maplibregl.Map({
+    container: el,
+    style: opts.style,
+    center: opts.center || [76.5, 10.5],
+    zoom: opts.zoom || 5,
+    pitch: opts.pitch || 0,
+    bearing: opts.bearing || 0,
+    attributionControl: { compact: true },
+    dragRotate: !!opts.pitch,
+    maxPitch: opts.maxPitch || 60,
+  });
+  map.on('error', e => frameDead(el, e));
+  map.on('load', () => {
+    addRouteLayers(map, !!opts.dark);
+    if (opts.terrain) map.setTerrain({ source: 'yf-dem', exaggeration: opts.exaggeration || 1.4 });
+    if (opts.fit) map.fitBounds(BOUNDS.fit, { padding: 55, maxZoom: 8.5, duration: 0, pitch: opts.pitch || 0, bearing: opts.bearing || 0 });
+    let n = 0;
+    for (const s of STOPS) {
+      n += 1;
+      new maplibregl.Marker({ element: stopPinEl(s, n) }).setLngLat([s.lng, s.lat]).addTo(map);
+    }
+    maps.push(map);
+    if (load) load.classList.add('off');
+  });
+  return map;
+}
+/* diagnostic hook — inspect camera/terrain state from the console */
+window.__yfMaps = maps;
+
+/* ---- keyless DEM + optional hillshade, layered into a stock style spec ----
+   Used by the two terrain panels, which run on Liberty (the proposed default).
+   Insertion point: before the FIRST water-ish layer (`water` or `waterway*`) so
+   relief covers land while rivers and seas still draw cleanly on top. Note the
+   order differs per style — positron has `water` first, Liberty puts the
+   `waterway_*` lines above `water` — hence matching either id rather than `water`
+   alone, which would bury Liberty's rivers under the shading. */
+const DEM_SOURCE = {
+  type: 'raster-dem',
+  tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],
+  encoding: 'terrarium', tileSize: 256, maxzoom: 14,
+};
+async function styleWithDem(baseUrl, { hillshade = false } = {}) {
+  const style = await (await fetch(baseUrl)).json();
+  style.sources['yf-dem'] = structuredClone(DEM_SOURCE);
+  if (hillshade) {
+    const idx = style.layers.findIndex(l => l.id === 'water' || l.id.startsWith('waterway'));
+    style.layers.splice(idx < 0 ? style.layers.length : idx, 0, {
+      id: 'yf-hillshade', type: 'hillshade', source: 'yf-dem',
+      paint: {
+        'hillshade-exaggeration': 0.6,
+        'hillshade-shadow-color': '#3E5560',
+        'hillshade-highlight-color': '#FFFFFF',
+        'hillshade-accent-color': '#3D6B70',
+      },
+    });
+  }
+  return style;
+}
+
+/* ---------- panel 5 · positron recoloured to brand tokens ---------- */
+function toHex(c) {
+  c = String(c).trim().toLowerCase();
+  let m;
+  if ((m = c.match(/^#([0-9a-f]{3})$/))) return '#' + m[1].split('').map(x => x + x).join('').toUpperCase();
+  if ((m = c.match(/^#([0-9a-f]{6})$/))) return '#' + m[1].toUpperCase();
+  if ((m = c.match(/^#([0-9a-f]{8})$/))) return '#' + m[1].toUpperCase();
+  if ((m = c.match(/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+)\s*)?\)$/))) {
+    const h = n => (+n).toString(16).padStart(2, '0').toUpperCase();
+    return '#' + h(m[1]) + h(m[2]) + h(m[3]) + (m[4] !== undefined ? h(Math.round(+m[4] * 255)) : '');
+  }
+  if ((m = c.match(/^hsla?\(\s*([\d.]+)(?:deg)?\s*,\s*([\d.]+)%\s*,\s*([\d.]+)%\s*(?:,\s*([\d.]+)\s*)?\)$/))) {
+    const hh = +m[1], s = +m[2] / 100, l = +m[3] / 100;
+    const f = n => {
+      const k = (n + hh / 30) % 12;
+      const a = s * Math.min(l, 1 - l);
+      const v = l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1));
+      return Math.round(255 * v).toString(16).padStart(2, '0').toUpperCase();
+    };
+    return '#' + f(0) + f(8) + f(4);
+  }
+  return null;
+}
+const BRAND_LIGHT = {
+  '#F2F3F0': '#F8F7EF', /* background → cream */
+  '#E6E9E5': '#E1EFE8', /* park → mist green */
+  '#C2C8CA': '#BFE2DB', /* water → teal-tinted */
+  '#F5FAFA': '#F6FAF7', /* ice shelf */
+  '#EAEAE6': '#F2EEDF', /* residential → cream dust */
+  '#DCE0DC': '#D9EBE0', /* wood */
+  '#EAEAE5': '#F2EEDF', /* building */
+  '#DBDBDA': '#DFDACB', /* building outline */
+  '#D5D5D5': '#E4DFD2', /* road casing → warm sand */
+  '#EAEAEA': '#FFFFFF', /* road inner */
+  '#FAFAFA': '#FBF9F2', /* railway dashline */
+  '#DDDDDD': '#E7E2D5', /* railway */
+  '#F8F4F0': '#FBF8F0', /* label halo */
+  '#FFFFFF': '#FFFDF8', '#FFF': '#FFFDF8', /* whites → warm white */
+  '#495E91': '#33807A', /* water labels → teal text */
+  '#A9B5B8': '#9ED4C9', /* waterway line */
+  '#B3B3B3': '#C6C0B1', /* boundaries */
+  '#A8A8A8': '#8F8A7C', /* waterway labels */
+  '#9E9E9E': '#9A917F', /* path labels */
+  '#666': '#5E6C6E', '#666666': '#5E6C6E', /* minor labels */
+  '#333': '#465455', '#333333': '#465455', /* other labels */
+  '#000': '#3B484A', '#000000': '#3B484A', /* town/village labels */
+};
+/* Dark twin — the stock dark style is near-black with dark-grey labels; recolour it
+   into the same brand family (deep navy-teal ground, teal water, saffron motorways)
+   and lighten the labels, which the stock style cannot do on its own. */
+const BRAND_DARK = {
+  '#0C0C0C': '#0B1A20', /* background · ice shelf · pier · dashlines */
+  '#0A0A0A': '#0E2026', /* building */
+  '#050505': '#0D1E24', /* glacier */
+  '#0D0D0D': '#10242A', /* residential */
+  '#202020': '#12302C', /* wood + park → dark green-teal */
+  '#121212': '#2C4E56', /* major road inner */
+  '#181818': '#1B353C', /* minor roads · taxiway · motorway subtle */
+  '#2A2A2A': '#1E3B42', /* major road subtle */
+  '#1B1B1D': '#10333B', /* water · waterway · path · building outline */
+  '#232323': '#1E3A40', /* railway */
+  '#000000': '#08161B', /* aeroway + label halos */
+  '#363636': '#25424A',
+  '#3B3B3B': '#274650',
+  '#454545': '#0B1A20', /* water-name halo → ground */
+  '#5E5E5E': '#9FB8B4', /* motorway name */
+  '#656565': '#C9DCD8', /* place labels */
+  '#504E4E': '#9FB8B4', /* road names */
+  '#3C3C3C': '#3A666E', /* road casings (alpha preserved) */
+  '#D9D9D9': '#E4AE43', /* motorway subtle → saffron (alpha preserved) */
+};
+function setPaint(layers, id, key, val) {
+  const l = layers.find(x => x.id === id);
+  if (l) { l.paint = l.paint || {}; l.paint[key] = val; }
+}
+async function brandStyle(theme = 'light') {
+  const dark = theme === 'dark';
+  const style = await (await fetch(OFM + (dark ? 'dark' : 'positron'))).json();
+  const table = dark ? BRAND_DARK : BRAND_LIGHT;
+  for (const l of style.layers) {
+    const p = l.paint; if (!p) continue;
+    for (const k of Object.keys(p)) {
+      if (!k.endsWith('-color')) continue;
+      const v = p[k];
+      if (typeof v !== 'string') continue; /* zoom ramps stay */
+      const hex = toHex(v); if (!hex) continue;
+      const repl = table[hex.slice(0, 7)];
+      if (repl) p[k] = repl + (hex.length === 9 ? hex.slice(7) : '');
+    }
+    /* the stock dark style ships dark-grey labels — a dark ground needs light ones */
+    if (dark && l.type === 'symbol') {
+      if (p['text-color'] !== undefined) p['text-color'] = /water/.test(l.id) ? '#7FC9C0' : '#C9DCD8';
+      if (p['text-halo-color'] !== undefined) p['text-halo-color'] = '#0B1A20';
+    }
+  }
+  if (dark) {
+    setPaint(style.layers, 'landuse_park', 'fill-color', '#12302C');
+    setPaint(style.layers, 'landcover_wood', 'fill-color', '#12302C');
+    setPaint(style.layers, 'water', 'fill-color', '#10333B');
+    /* motorways: dimmer saffron than the light theme so it doesn't glare */
+    setPaint(style.layers, 'highway_motorway_inner', 'line-color',
+      ['interpolate', ['linear'], ['zoom'], 5, '#8A6A24', 9, '#C79A3C', 12, '#E4AE43']);
+  } else {
+    /* explicit guarantees for the layers that matter at trip zooms */
+    setPaint(style.layers, 'park', 'fill-color', '#E1EFE8');
+    setPaint(style.layers, 'water', 'fill-color', '#BFE2DB');
+    setPaint(style.layers, 'landcover_wood', 'fill-color', '#D9EBE0');
+    /* motorways read saffron — the travel-road accent */
+    const mway = ['interpolate', ['linear'], ['zoom'], 5, '#F7DFAF', 9, '#F0C36B', 12, '#E4AE43'];
+    setPaint(style.layers, 'highway_motorway_inner', 'line-color', mway);
+    setPaint(style.layers, 'highway_motorway_bridge_inner', 'line-color', mway);
+    setPaint(style.layers, 'highway_motorway_subtle', 'line-color', 'rgba(228,174,67,0.5)');
+  }
+  return style;
+}
+
+/* ---------- the 8 panels ---------- */
+(async () => {
+  boot('map-1', { style: OFM + 'positron', fit: true });
+  boot('map-2', { style: OFM + 'dark', dark: true, fit: true });
+  boot('map-3', { style: OFM + 'bright', fit: true });
+  boot('map-4', { style: OFM + 'liberty', fit: true });
+  /* one fetch, reused: panels 6 & 7 clone it before adding their DEM layers so
+     panel 5's own style object is never mutated underneath it */
+  let light = null;
+  try { light = await brandStyle('light'); } catch (e) { /* falls back below */ }
+  boot('map-5', { style: light || OFM + 'positron', fit: true });
+  /* panels 6 & 7 — the two terrain modes, both on Liberty (the proposed default) */
+  try {
+    boot('map-6', { style: await styleWithDem(OFM + 'liberty', { hillshade: true }), fit: true });
+    boot('map-7', {
+      style: await styleWithDem(OFM + 'liberty'), terrain: true, exaggeration: 1.8, maxPitch: 75,
+      /* looking SW off the Munnar plateau, down the Adimali→Munnar ghat climb:
+         335 m at the foot, 2,054 m at Munnar, 2,676 m at Top Station — the
+         escarpment this route zig-zags up */
+      center: [77.03, 10.07], zoom: 11.5, pitch: 70, bearing: 235,
+    });
+  } catch (e) {
+    boot('map-6', { style: OFM + 'liberty', fit: true });
+    boot('map-7', { style: OFM + 'liberty', fit: true });
+  }
+  /* panel 8 — the dark twin the app needs for data-theme="dark" */
+  try {
+    boot('map-8', { style: await brandStyle('dark'), dark: true, fit: true });
+  } catch (e) {
+    boot('map-8', { style: OFM + 'dark', dark: true, fit: true });
+  }
+})();
+
+/* ---------- overlay-mode toggle (applies to all live maps) ---------- */
+const btnChain = document.getElementById('mode-chain');
+const btnDays = document.getElementById('mode-days');
+function setMode(mode) {
+  btnChain.classList.toggle('on', mode === 'chain');
+  btnDays.classList.toggle('on', mode === 'days');
+  for (const m of maps) {
+    const vis = id => m.setLayoutProperty(id, 'visibility', 'visible');
+    const hide = id => m.setLayoutProperty(id, 'visibility', 'none');
+    const guarded = fn => id => { try { fn(id); } catch { /* layer missing on a failed panel */ } };
+    const show = guarded(vis), off = guarded(hide);
+    if (mode === 'chain') {
+      show('yf-chain-casing'); show('yf-chain-line');
+      for (const [d] of Object.entries(ROUTES)) { off('yf-day-' + d + '-casing'); off('yf-day-' + d + '-line'); }
+    } else {
+      off('yf-chain-casing'); off('yf-chain-line');
+      for (const [d] of Object.entries(ROUTES)) { show('yf-day-' + d + '-casing'); show('yf-day-' + d + '-line'); }
+    }
+  }
+}
+btnChain.addEventListener('click', () => setMode('chain'));
+btnDays.addEventListener('click', () => setMode('days'));
+</script>
+</body>
+</html>

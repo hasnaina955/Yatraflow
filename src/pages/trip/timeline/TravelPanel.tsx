@@ -5,25 +5,26 @@
 // Mechanical extraction from src/pages/TripWorkspace.tsx (M3.4) — no behavior changes.
 // Includes DaySection, DayWeatherChip, TravelPanel, HaltPlanRow, DaySpark,
 // MoveStopModal and ClampedText — the whole timeline hot path.
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import {
-  
-  BedDouble, Coffee, Eye, Fuel, MapPin,
-  Plus, RotateCcw, Route as RouteIcon, Search, 
+
+  BedDouble, Coffee, Eye, ExternalLink, Fuel, MapPin,
+  Plus, RotateCcw, Route as RouteIcon, Search,
   TriangleAlert, Utensils, X,
 } from 'lucide-react'
 import type { Trip, ItineraryStop } from '../../../data/types'
 import {
   getAssumptions, minutesToHM, hmToMinutes, formatInr,
-  addMinutesToClock, FUEL_PRICE_INR_PER_L,
-  
+  addMinutesToClock, FUEL_PRICE_INR_PER_L, dayRoadPolyline,
 } from '../../../lib/engine'
 import { MODE_SPEED } from '../../../lib/engine'
-import type { Journey } from '../../../lib/engine'
+import type { Journey, LegEstimate } from '../../../lib/engine'
+import { openExternal } from '../../../lib/native'
+import { googleMapsDirectionsUrl } from '../../../lib/externalMaps'
 import { useTimeFormat, formatHM } from '../../../lib/timefmt'
 import { toast } from '../../../components/ui'
 import { useSuggestionCache } from '../../../hooks/useSuggestionCache'
-import { searchNearbyPoisMulti, searchCitiesAlong, corridorAnchors, reasonForHit, filterPlannedNearby, detourMinutes, googleEnabled, googleCitiesAlong } from '../../../lib/geocode'
+import { searchNearbyPoisMulti, searchCitiesAlong, corridorAnchors, reasonForHit, filterPlannedNearby, asymmetricDetourMinutes, googleEnabled, googleCitiesAlong } from '../../../lib/geocode'
 import type { PlaceHit, SegmentHit } from '../../../lib/geocode'
 import { kmFromStartForHit, type HaltPurpose } from '../../../lib/providers/hits'
 import { segmentsFromPlan, assignSegmentHits, annotateSegmentHits, type HaltPlanItem } from '../../../lib/ridePlan'
@@ -47,11 +48,12 @@ function modeLabelMode(m: string): string {
  * route corridor. Replaces the old split where long rides got a completely
  * different "LongRidePanel" with its own ride-style options.
  */
-export function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAddPlannedHalts, suggestionCache }: {
+export function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAddPlannedHalts, suggestionCache, legCorrections }: {
   trip: Trip
   day: Trip['days'][number]
   editable: boolean
   journey: Journey
+  legCorrections?: Record<string, LegEstimate>
   onSetDayStart: (dayIndex: number, time: string) => void
   onAddPlannedHalts: (dayIndex: number, halts: { km: number; stop: Omit<ItineraryStop, 'id' | 'orderInDay'> }[]) => void
   suggestionCache: ReturnType<typeof useSuggestionCache>
@@ -59,6 +61,24 @@ export function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAdd
   const A = getAssumptions(trip)
   const timeFormat = useTimeFormat()
   const { cache: sugCache, setHaltCache } = suggestionCache
+
+  // The day's ride as one continuous ROAD polyline (assembled from the routing
+  // provider's per-leg geometry). Planned halts are placed along it, so a halt
+  // "after N km" lands N road-km in — on the road the map draws. Null while
+  // the routing layer hasn't resolved (offline estimate) — placement then
+  // falls back to the straight-line stop chain.
+  const roadPolyline = useMemo(
+    () => dayRoadPolyline(journey.points, legCorrections),
+    [journey, legCorrections],
+  )
+  // Hand the day's ride to the traveller's own Google Maps for turn-by-turn
+  // directions — the panel describes the ride, the app doesn't navigate it.
+  // journey.points carries the synthesized legs (outbound continuation, ride
+  // home), so anchor-only days get a full origin → destination URL too.
+  const directionsUrl = useMemo(
+    () => googleMapsDirectionsUrl(journey.points.map(p => ({ lat: p.lat, lng: p.lng }))),
+    [journey],
+  )
 
   // ---- Halt planner ----
   // The plan is user-authored: WHERE along the ride (km) and HOW LONG (minutes),
@@ -154,7 +174,10 @@ export function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAdd
     setResolving(true)
     try {
       const routePts = journey.points.map(p => ({ lat: p.lat, lng: p.lng }))
-      const anchors = corridorAnchors(routePts, trip.startLocationCoords, 35000, 8)
+      // Sample the search anchors along the ROAD polyline when routing has
+      // resolved — chord anchors sit off the highway on curvy rides and bias
+      // which POIs the scan finds. Home-zone exclusion still applies inside.
+      const anchors = corridorAnchors(roadPolyline ?? routePts, trip.startLocationCoords, 35000, 8)
       const purposes = [...new Set(plan.map(p => p.purpose))]
       // Provider directive (2026-09-07): Google-only in Google mode — POIs and
       // the city layer both come from Google; free stack only without a key.
@@ -163,6 +186,11 @@ export function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAdd
           purposes,
           includeFuel: trip.transportMode === 'car' || trip.transportMode === 'motorcycle',
           homeCenter: trip.startLocationCoords ?? null,
+          // Google mode: scan as one road-true Search-Along-Route request, with
+          // routingSummary detours measured against the day's road km — the
+          // same treatment the Map tab's corridor gets. Free mode ignores these.
+          routeCoords: roadPolyline ? roadPolyline.map(p => [p.lng, p.lat] as [number, number]) : null,
+          routeTotalKm: journey.distanceKm || null,
         }).catch(() => [] as PlaceHit[]),
         (googleEnabled()
           ? googleCitiesAlong(anchors, 35000, 8)
@@ -184,17 +212,19 @@ export function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAdd
         .filter(s => s.status !== 'rejected' && Number.isFinite(s.lat) && Number.isFinite(s.lng))
         .map(s => ({ lat: s.lat, lng: s.lng, name: s.title }))
       const unplanned = planned.length > 0 ? filterPlannedNearby(candidates, planned) : candidates
-      // refresh the slack pool: cheapest-detour unplanned hits (cap 12)
+      // refresh the slack pool: cheapest-detour unplanned hits (cap 12) —
+      // detours measured asymmetrically against the road polyline when
+      // available (on-the-way hits cost ~0), matching the Map tab.
       const speed = MODE_SPEED[trip.transportMode] ?? 40
       setSlackPool(
         unplanned
-          .map(h => ({ hit: h, detourMin: detourMinutes(h, anchors, speed) }))
+          .map(h => ({ hit: h, detourMin: asymmetricDetourMinutes(h, anchors, roadPolyline, speed) }))
           .filter(o => Number.isFinite(o.detourMin) && o.detourMin >= 0)
           .sort((a, b) => a.detourMin - b.detourMin)
           .slice(0, 12),
       )
       const assigned = annotateSegmentHits(
-        assignSegmentHits(unplanned, segments, anchors, { homeCenter: trip.startLocationCoords ?? null, routePolyline: routePts.length >= 2 ? routePts : null, speedKmph: MODE_SPEED[trip.transportMode] ?? 40 }),
+        assignSegmentHits(unplanned, segments, anchors, { homeCenter: trip.startLocationCoords ?? null, routePolyline: roadPolyline ?? (routePts.length >= 2 ? routePts : null), speedKmph: MODE_SPEED[trip.transportMode] ?? 40 }),
         candidates,
       )
       const hitById = new Map<string, PlaceHit | null>()
@@ -215,9 +245,12 @@ export function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAdd
       purpose === 'meal' ? 'Meal break' : purpose === 'fuel' ? 'Fuel stop' : purpose === 'overnight' ? 'Overnight stay' : 'Break — tea & stretch'
     const halts = plan.map(item => {
       const useSpot = item.pin && item.hit
+      // Unpinned halts sit ON the road at the requested road-km: interpolate
+      // along the routing provider's geometry when it has resolved, so the
+      // point rides the actual highway rather than the stop-to-stop chord.
       const pt = useSpot
         ? { lat: item.hit!.latitude, lng: item.hit!.longitude }
-        : (pointAtKm(journey.points, item.km) ?? journey.points[0])
+        : (pointAtKm(roadPolyline ?? journey.points, item.km) ?? journey.points[0])
       const cat: ItineraryStop['category'] =
         item.purpose === 'meal' ? 'food' : item.purpose === 'fuel' ? 'transport-hub' : item.purpose === 'overnight' ? 'hotel' : 'rest'
       return {
@@ -265,6 +298,16 @@ export function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAdd
           {modeLabelMode(trip.transportMode)} · {journey.distanceKm.toFixed(0)} km · {minutesToHM(journey.driveMinutes)} wheel time
           {journey.halts.length > 0 && ` · ${journey.halts.length} halt${journey.halts.length !== 1 ? 's' : ''}`}
         </div>
+        {directionsUrl && (
+          <button
+            className="btn btn-ghost btn-sm"
+            style={{ marginLeft: 'auto', flex: 'none' }}
+            onClick={() => openExternal(directionsUrl)}
+            title="Open this ride with turn-by-turn directions in Google Maps"
+          >
+            <ExternalLink size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Directions
+          </button>
+        )}
       </div>
 
       <div className="travel-panel-stats">
@@ -388,7 +431,7 @@ export function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAdd
                 className="btn btn-outline btn-sm"
                 onClick={() => {
                   const h = slackPickHit
-                  const km = kmFromStartForHit({ latitude: h.latitude, longitude: h.longitude }, journey.points) ?? 0
+                  const km = kmFromStartForHit({ latitude: h.latitude, longitude: h.longitude }, roadPolyline ?? journey.points) ?? 0
                   onAddPlannedHalts(day.index, [{
                     km,
                     stop: {

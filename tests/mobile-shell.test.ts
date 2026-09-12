@@ -59,6 +59,20 @@ describe('bottom navigation is a shell-only primary nav', () => {
     expect(app).toContain('{isNative && me && <BottomNav route={route} onNavigate={navigate} />}')
   })
 
+  it('hides the website top bar for the signed-in shell', () => {
+    // The signed-in app drops the floating topnav entirely — its controls
+    // (theme, notifications, account) relocate to the Profile page. The
+    // topnav stays for signed-out users (login entry) and the web.
+    expect(app).toContain('(!isNative || !me) &&')
+    // And the relocated controls actually landed in Profile:
+    const profile = source('src/pages/Profile.tsx')
+    expect(profile).toContain('Appearance')
+    expect(profile).toContain('setTheme(!dark)')
+    expect(profile).toContain('notificationsFor(me.id)')
+    expect(profile).toContain('feedbackHref()')
+    expect(profile).toContain('logout()')
+  })
+
   it('hides the redundant floating pill but keeps the hamburger overflow', () => {
     expect(css).toContain('html.native-shell .nav-links { display: none; }')
     expect(app).toContain('className="mobile-nav-btn"')
@@ -215,6 +229,30 @@ describe('inline map gestures', () => {
     expect(gate, 'and must precede the first handler call').toBeLessThan(
       body.indexOf('map.cooperativeGestures'),
     )
+  })
+})
+
+// 6 ---------------------------------------------------------------------------
+
+describe('the shell never renders the marketing landing', () => {
+  it('keeps the hydration ready-gate covering the bare route inside the shell', () => {
+    // The web paints its landing instantly while the store hydrates (the
+    // !bareRoute exclusion); the installed app must show the loading block
+    // instead, so a signed-in user never flashes the website's home — logo
+    // bar and all — before their app home arrives. Regression: the gate used
+    // to exclude the bare route unconditionally, so every launch flashed the
+    // marketing landing for as long as hydration took past the splash.
+    expect(app).toContain('(!bareRoute || isNative)')
+  })
+
+  it('falls an unknown deep link back to the app home in the shell, not the landing', () => {
+    // The route switch's default is the LAST "default:" in the file — every
+    // lazy import above also writes `.then(m => ({ default: … }))`.
+    const at = app.lastIndexOf('default:')
+    expect(at).toBeGreaterThan(-1)
+    const body = app.slice(at, at + 500)
+    expect(body).toContain('isNative && me')
+    expect(body).toContain('<NativeHomePage')
   })
 })
 

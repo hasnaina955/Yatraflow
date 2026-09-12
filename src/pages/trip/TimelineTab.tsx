@@ -17,8 +17,7 @@ import type { Trip, ItineraryStop } from '../../data/types'
 import { updateTrip, setStopStatus } from '../../store/store'
 import {
   computeTotals, minutesToHM, formatInr,
-  collectWarnings, buildJourney, 
-  
+  collectWarnings, buildJourney, dayRoadPolyline,
 } from '../../lib/engine'
 import type { LegEstimate, ScheduleWarning } from '../../lib/engine'
 import type { ImpactResult } from '../../lib/impact'
@@ -136,6 +135,21 @@ export function TimelineTab({ trip, editable, applyChange, legCorrections, sugge
     }, 'reorder', dayIndex)
   }, [applyChange])
 
+  /** Optimise-day commit: replace a day's stop order wholesale (ids), keeping
+   *  every stop — the reorder goes through the same impact-preview gate as a
+   *  manual drag. */
+  const handleReorderDay = useCallback((dayIndex: number, orderedIds: string[]) => {
+    applyChange(draft => {
+      const day = draft.days.find(d => d.index === dayIndex)!
+      const byId = new Map(day.stops.map(s => [s.id, s]))
+      const reordered = orderedIds.map(id => byId.get(id)!).filter(Boolean)
+      // any stop the optimizer left out (safety net) rides at the end
+      const rest = day.stops.filter(s => !orderedIds.includes(s.id))
+      day.stops = [...reordered, ...rest]
+      day.stops.forEach((s, i) => { s.orderInDay = i + 1 })
+    }, 'reorder', dayIndex)
+  }, [applyChange])
+
   /** Cross-day drag: lift a stop out of its day and insert it at `position` of `toDayIndex`. */
   const handleMoveStopInto = useCallback((stopId: string, fromDayIndex: number, toDayIndex: number, position: number) => {
     applyChange(draft => {
@@ -226,15 +240,19 @@ export function TimelineTab({ trip, editable, applyChange, legCorrections, sugge
     if (halts.length === 0) return
     applyChange(draft => {
       const day = draft.days.find(d => d.index === dayIndex)!
-      const j = buildJourney(draft, day) // existing stop → km lookup
-      const posOf = (p: { lat: number; lng: number }) => kmFromStartForHit({ latitude: p.lat, longitude: p.lng }, j.points) ?? 0
+      const j = buildJourney(draft, day, legCorrections) // existing stop → km lookup
+      // Position stops on the day's ROAD polyline when the routing layer has
+      // resolved one — the halt planner's km are road km, so ordering against
+      // the straight-line chord would slot the halt at the wrong place.
+      const road = dayRoadPolyline(j.points, legCorrections)
+      const posOf = (p: { lat: number; lng: number }) => kmFromStartForHit({ latitude: p.lat, longitude: p.lng }, road ?? j.points) ?? 0
       const merged = [
         ...day.stops.map(s => ({ km: posOf(s), s: structuredClone(s) })),
         ...halts.map(h => ({ km: h.km, s: { ...h.stop, id: 'pending_' + Math.random().toString(36).slice(2), orderInDay: 0 } })),
       ].sort((a, b) => a.km - b.km)
       day.stops = merged.map((m, i) => ({ ...m.s, orderInDay: i + 1 }))
     }, 'add', dayIndex)
-  }, [applyChange])
+  }, [applyChange, legCorrections])
 
   const handleStatus = useCallback((stop: ItineraryStop, status: ItineraryStop['status']) => {
     // Status flips are lightweight group signals — applied directly.
@@ -325,6 +343,7 @@ export function TimelineTab({ trip, editable, applyChange, legCorrections, sugge
           onEdit={handleEdit}
           onDelete={handleDelete}
           onMoveWithinDay={handleMoveWithinDay}
+          onReorderDay={handleReorderDay}
           onMoveBetweenDays={setMoveModalStop}
           onMoveStopIn={handleMoveStopInto}
           onRenameDay={handleRenameDay}

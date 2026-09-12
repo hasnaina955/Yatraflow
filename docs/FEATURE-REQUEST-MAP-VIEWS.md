@@ -1,7 +1,12 @@
 # Feature request — map view modes (2D · Terrain · 3D hero)
 
-**Status:** requested, **not started**. Nothing described here is built.
-**Requested:** 2026-09-12.
+**Status:** **shipped** — the Liberty default, the Terrain and 3D hero modes, and the switcher
+landed together with this document. Requested 2026-09-12.
+**Resolved open questions:** the Board is 2D-only (§2.4) — a pinned backdrop must not spend GPU
+on terrain, and it has no toolbar to host the switcher; persistence is **global**, not per trip
+(§2.6); dark theme keeps the stock dark style, option 1 as recommended (§2.7). 3D still does not
+auto-expand (§5) — deliberately left open. The one carried risk is the mid-range-Android GPU
+check (§5), a post-merge device step.
 **Prototype:** [`MAP-MOCKUPS.html`](MAP-MOCKUPS.html) — the three proposed modes are **panels 4, 6 and 7**
 (open it in a browser; every panel is a live map on real keyless tiles).
 **Detail under:** the ROADMAP `## Idea bank` rows **I-17 / I-18 / I-19**, which are the plan of record

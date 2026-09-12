@@ -1624,6 +1624,9 @@ button.board-col-zone--add:active { transform: translateY(1px); }
 .map-day-chip:hover { color: var(--text); border-color: var(--teal); }
 .map-day-chip.on { background: var(--teal-deep); color: #fff; border-color: var(--teal-deep); box-shadow: var(--shadow-glow-teal); }
 .map-expand-chip { margin-left: auto; }
+/* Map view modes (2D · Terrain · 3D) — the same glass chips, held apart from
+   the day filter by a hairline so the two control families read as separate. */
+.map-mode-group { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; padding-left: 9px; border-left: 1px solid var(--yf-glass-border); }
 [data-theme='dark'] .map-day-chip { background: rgba(22,35,58,.72); color: var(--text); }
 [data-theme='dark'] .map-day-chip:hover { background: rgba(22,35,58,.95); }
 [data-theme='dark'] .map-day-chip.on { background: var(--teal); color: #06251f; border-color: var(--teal); box-shadow: 0 2px 12px rgba(13,141,130,.4); }

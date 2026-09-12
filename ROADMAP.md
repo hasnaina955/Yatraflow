@@ -315,9 +315,6 @@ unbuilt). **Before picking up a row, and before quoting one in a plan, confirm i
 | I-6 | Settlement acknowledgement + reminder | budget | 2 h | Balances card gains a "mark settled" flag and a nudge. The settlement *engine* already runs (`BudgetTab.tsx:363`) and `Expense.paidBy` already drives balances — only the acknowledgement state and its reminder are missing. **Adjacent to M6.** |
 | I-7 | Decision comments | collaboration | schema | Needs a `comments` JSON column on decisions (migration) — `StopSuggestion` has one, `TripDecision` does not (`types.ts:226` vs `:244`). |
 | I-8 | Monthly statements / invoice export | creator | 2–3 h | Downloadable per-month earnings summary, client-side from the payouts table. **Post-M7.** |
-| I-17 | Default basemap → Liberty | map | 30 min | One-line change to `defaultStyles.light` in `mapcn/map.tsx:68` — every map inherits it, since `TripMap` passes no `styles`. Independent of I-18/I-19. Detail: [`docs/FEATURE-REQUEST-MAP-VIEWS.md`](docs/FEATURE-REQUEST-MAP-VIEWS.md). |
-| I-18 | Map view modes — Terrain (hillshade relief) | map | 2–3 h | Keyless AWS terrarium DEM + one `hillshade` layer, inserted before the first `water` **or** `waterway*` layer — Liberty puts `waterway_*` above `water`, so matching `water` alone buries the rivers. Liberty ships no hillshade, and its own relief raster dies at z6. Switcher UI (three `aria-pressed` buttons in a `role="group"`, not a switch) is shared with I-19. |
-| I-19 | Map view modes — 3D hero (pitched terrain) | map | 3–4 h | Same DEM via `setTerrain`; **`maxPitch` must be raised** above MapLibre's default 60, and the mode needs a mid-range-Android GPU check inside the Capacitor shell. Leaves 3D by resetting pitch/bearing and dropping the terrain. Detail: same doc. |
 
 ### Tier 2 — blocked on a named dependency
 
@@ -378,6 +375,12 @@ Kept as one line each so the origin is traceable without re-listing the work as 
   brainstorm table; the README had described the first correctly all along.
 - **#36 bug-hunt triage (10/10)** — all landed; the survivors were spun out as issues, now in
   [Open issues](#open-issues).
+- **Map view modes (3/3, I-17/I-18/I-19)** — shipped together with the request that spawned them
+  ([`docs/FEATURE-REQUEST-MAP-VIEWS.md`](docs/FEATURE-REQUEST-MAP-VIEWS.md)): default basemap →
+  Liberty (I-17) · Terrain hillshade over the keyless AWS terrarium DEM (I-18) · 3D hero pitched
+  terrain with `maxPitch` 60 → 75 (I-19), behind a segmented switcher on the Map tab; the Board
+  stays hard-2D and the choice persists globally. I-19's mid-range-Android GPU check remains a
+  post-merge device step.
 
 ## Historical plans (executed — kept for the record, not live guidance)
 

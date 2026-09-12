@@ -14,11 +14,15 @@ import { openExternal } from '../lib/native'
 import { titleCase } from '../lib/labels'
 import { haptic } from '../lib/haptics'
 import { nativeWatch } from '../lib/native'
-import { loadFlag, saveFlag } from '../lib/uiPrefs'
+import { loadFlag, loadMapViewMode, saveFlag, saveMapViewMode } from '../lib/uiPrefs'
+import {
+  applyViewModeOnMap, HERO_3D_CAMERA, MAP_VIEW_MODES, MAP_VIEW_MODE_META,
+  type MapViewMode,
+} from '../lib/mapViewModes'
 import type { MapRef } from './mapcn/map'
 import { CatIcon } from './icons'
 import {
-  Flag, Home, Info, Lightbulb, LocateFixed, Map as MapIcon, Navigation, PlaneTakeoff,
+  Box, Flag, Home, Info, Lightbulb, LocateFixed, Map as MapIcon, Mountain, Navigation, PlaneTakeoff,
   RotateCcw, TriangleAlert, X,
 } from 'lucide-react'
 import { prefersReducedMotion } from '../lib/motion'
@@ -189,6 +193,39 @@ function CooperativeGestures({ enabled }: { enabled: boolean }) {
   return null
 }
 
+/**
+ * Map view modes (2D · Terrain · 3D hero) — docs/FEATURE-REQUEST-MAP-VIEWS.md.
+ * Mounts inside <Map> (it needs the mapcn context) and reconciles the terrain
+ * stack to the mode. Keyed on `isLoaded` (= loaded AND style-loaded), so a
+ * theme flip's full style reload — which wipes sources, layers AND terrain —
+ * is repaired the moment the new style settles. Camera moves stay out of that
+ * effect: setStyle preserves the camera, and the pitch/bearing ride belongs
+ * to mode transitions only.
+ */
+function MapViewModeController({ mode }: { mode: MapViewMode }) {
+  const { map, isLoaded } = useMap()
+  useEffect(() => {
+    if (!map || !isLoaded) return
+    try {
+      applyViewModeOnMap(map, mode)
+    } catch { /* style swapped mid-flight — the next isLoaded edge re-applies */ }
+  }, [map, isLoaded, mode])
+  const prevMode = useRef<MapViewMode>('2d')
+  useEffect(() => {
+    if (!map) return
+    const duration = prefersReducedMotion() ? 0 : 700
+    if (mode === '3d' && prevMode.current !== '3d') {
+      map.easeTo({ ...HERO_3D_CAMERA, duration })
+    } else if (mode !== '3d' && prevMode.current === '3d') {
+      // Leaving 3D: flat camera again, and the terrain stack is dropped by
+      // the reconcile effect (map.getTerrain() null is the acceptance check).
+      map.easeTo({ pitch: 0, bearing: 0, duration })
+    }
+    prevMode.current = mode
+  }, [map, mode])
+  return null
+}
+
 /** Drop consecutive duplicate points (shared endpoints between legs). */
 function dedupeConsecutive(coords: [number, number][]): [number, number][] {
   const out: [number, number][] = []
@@ -227,7 +264,7 @@ function catIcon(cat: string | undefined): React.ReactNode {
   )
 }
 
-export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusDay, showToolbar = true, activeHitId = null, onActivateHit, onOpenInTimeline, onOpenInBoard }: {
+export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusDay, showToolbar = true, enableMapViewModes = false, activeHitId = null, onActivateHit, onOpenInTimeline, onOpenInBoard }: {
   trip: Trip
   onOpenStop?: (stopId: string) => void
   /** potential POIs to show as gold "idea" markers */
@@ -242,6 +279,11 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
       backdrop there, so the chips peeked out from behind the Board's info card.
       The Board provides the equivalents (column-click focus + 🎯 Fit route). */
   showToolbar?: boolean
+  /** Map view modes (2D · Terrain · 3D hero) — the toolbar gains the mode
+      switcher and the saved preference drives the map. The Board stays hard
+      2D: it's a pinned backdrop, it must never spend GPU on terrain, and one
+      surface's mode choice shouldn't hijack the other. */
+  enableMapViewModes?: boolean
   /** the suggestion currently highlighted in the side panel — its pin glows and
       the camera eases to it, so a card hover answers "where is this?" */
   activeHitId?: string | number | null
@@ -278,6 +320,14 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   // overlay so the canvas gets the viewport. Transient by design: Escape or
   // the same chip (now "⤡ Collapse") reverts it; nothing is persisted.
   const [expanded, setExpanded] = useState(false)
+  // Map view mode (2D / Terrain / 3D) — persisted globally (one map
+  // preference, like the legend flag) but only when this surface opted in.
+  // A disabled surface pins 2d and never reads or writes the pref, so the
+  // Board can't inherit the Map tab's terrain choice.
+  const [viewMode, setViewMode] = useState<MapViewMode>(() => (enableMapViewModes ? loadMapViewMode() : '2d'))
+  useEffect(() => {
+    if (enableMapViewModes) saveMapViewMode(viewMode)
+  }, [enableMapViewModes, viewMode])
   // Selected stop (stop-pin click) — powers the compact cross-link popup that
   // jumps to the Timeline/Board tabs. Null = no popup.
   const [selectedStop, setSelectedStop] = useState<{ id: string; title: string; dayIndex: number } | null>(null)
@@ -631,6 +681,29 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
               <Navigation size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Directions
             </button>
           )}
+          {/* Map view modes — three first-class states, none "off", so a
+              segmented role="group" (AGENTS' segmented-control rule), same
+              chip styling as the day filter. The long form lives in the
+              aria-label; the short one must survive a narrow phone. */}
+          {enableMapViewModes && (
+            <div className="map-mode-group" role="group" aria-label="Map view mode">
+              {MAP_VIEW_MODES.map(m => (
+                <button
+                  key={m}
+                  className={`map-day-chip${viewMode === m ? ' on' : ''}`}
+                  aria-pressed={viewMode === m}
+                  aria-label={MAP_VIEW_MODE_META[m].aria}
+                  title={MAP_VIEW_MODE_META[m].aria}
+                  onClick={() => { haptic('select'); setViewMode(m) }}
+                >
+                  {m === '2d' ? <MapIcon size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />
+                    : m === 'terrain' ? <Mountain size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />
+                      : <Box size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />}
+                  {MAP_VIEW_MODE_META[m].label}
+                </button>
+              ))}
+            </div>
+          )}
           {/* Nearby-idea category filters — hide/show the gold idea markers by
               type. Only rendered when there are ideas to filter. */}
           {ideaCats.length > 0 && (
@@ -674,6 +747,9 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
             zoom={5}
           >
             <MapControls position="top-right" showFullscreen />
+            {/* Terrain stack reconcile (2D · Terrain · 3D hero) — no-op on a
+                hard-2D surface like the Board. */}
+            {enableMapViewModes && <MapViewModeController mode={viewMode} />}
             {/* Inline on a coarse pointer: one finger scrolls the page.
                 Expanded (or a mouse): normal gestures. */}
             <CooperativeGestures enabled={!expanded} />

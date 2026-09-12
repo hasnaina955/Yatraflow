@@ -5,6 +5,8 @@
 // (no DOM/localStorage), while the load/save wrappers guard for environments
 // where localStorage is missing or throws (private mode, quota, corrupted JSON).
 
+import { parseMapViewMode, type MapViewMode } from './mapViewModes'
+
 const DAY_COLLAPSE_KEY = 'yatraflow_day_collapsed'
 
 /** Stable key for one day of one trip: "<tripId>:<dayIndex>". */
@@ -163,6 +165,32 @@ export function saveFlag(name: string, value: boolean): void {
   if (typeof localStorage === 'undefined') return
   try {
     localStorage.setItem(FLAG_KEY_PREFIX + name, value ? '1' : '0')
+  } catch {
+    // Private mode / quota exceeded — persistence is best-effort by design.
+  }
+}
+
+// ---- Map view mode (2D / Terrain / 3D) ----
+// A three-way mode is not a boolean, so it gets its own key storing the raw
+// mode string. Global, not per trip — one map preference, like the legend
+// flag. parseMapViewMode degrades any missing/corrupt value to '2d'.
+const MAP_VIEW_MODE_KEY = 'yatraflow_map_view_mode'
+
+/** Read the map view mode; missing/unavailable storage → '2d'. */
+export function loadMapViewMode(): MapViewMode {
+  if (typeof localStorage === 'undefined') return '2d'
+  try {
+    return parseMapViewMode(localStorage.getItem(MAP_VIEW_MODE_KEY))
+  } catch {
+    return '2d'
+  }
+}
+
+/** Write the map view mode. Silent no-op when storage is unavailable. */
+export function saveMapViewMode(mode: MapViewMode): void {
+  if (typeof localStorage === 'undefined') return
+  try {
+    localStorage.setItem(MAP_VIEW_MODE_KEY, mode)
   } catch {
     // Private mode / quota exceeded — persistence is best-effort by design.
   }

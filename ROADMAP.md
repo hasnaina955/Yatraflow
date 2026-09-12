@@ -340,6 +340,7 @@ the bank is a complete index of unbuilt work:
 | M6 — Together | [Strategic track](#m6--together-collaboration-depth) | RLS test suite, co-editing |
 | M7 — Premium | [Strategic track](#m7--premium-monetization) | Blocked: needs a gateway account |
 | M9 — Invites & onboarding | [`docs/PLAN-INVITES-ONBOARDING.md`](docs/PLAN-INVITES-ONBOARDING.md) | R1 → R2 → R3; exec plan written |
+| M10 — Day Planner (travel-clock engine) | [`docs/PLAN-DAY-PLANNER.md`](docs/PLAN-DAY-PLANNER.md) | P1-A → P1-G; exec plan written. Fixes the short-trip suggestion silence (user feedback) and the 700-km-in-Day-1 gap — meals as fixed clock anchors, duration fatigue cap, derived drive days / night halts / defer proposals |
 | M8 → 1.0 | [Strategic track](#m8--10-enablers--the-10-cut) | Offline-first PWA, i18n EN+HI |
 
 ### Shipped from these sources — record, not backlog

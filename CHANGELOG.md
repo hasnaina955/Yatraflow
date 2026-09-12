@@ -13,7 +13,17 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 > record still exists in `git log`, not here. Archived release notes live in
 > [`docs/history/`](docs/history/).
 
-## [Unreleased]
+## [0.51.0] - 2026-09-11
+
+**The timeline learns to move.** The 1,500-line TimelineTab monolith is split into
+modules, every pill toggle animates like the workspace tab bar, dropdowns and the
+calendar/location pickers share one frosted-glass recipe, drag-reorder is rebuilt on
+pointer events (the carried card rides the finger, warps with the throw, and the drop
+zones read the card's centre against stable layout), the day planner gains an
+Optimise button (2-opt ordering + real road polylines + Google Directions), and Plan
+a trip prefills a live rough-bill budget you can hand back to the maths with one
+tap. Motion is governed by a token system (`docs/MOTION-TOKENS.md`, AGENTS rule 10)
+so the older-vs-newer smoothness gap stays closed. Android `versionCode 12 / 0.12-native`.
 
 ### Added
 

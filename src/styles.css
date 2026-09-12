@@ -2093,6 +2093,10 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
 .member-stack { display: flex; }
 .member-stack .avatar { margin-left: -8px; border: 2px solid var(--card); }
 .member-stack .avatar:first-child { margin-left: 0; }
+/* The compact glass variant of `.select` (member rows on Share): same
+   appearance:none + custom-chevron technique, pill-shaped and sized for
+   inline use. The chevron is a gradient pair rather than `.select`'s SVG
+   because it scales with the 5px pill row. */
 .role-select {
   appearance: none; -webkit-appearance: none;
   padding: 5px 26px 5px 10px; border-radius: 999px;

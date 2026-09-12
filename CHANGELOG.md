@@ -13,7 +13,20 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 > record still exists in `git log`, not here. Archived release notes live in
 > [`docs/history/`](docs/history/).
 
-## [Unreleased]
+## [0.53.0] - 2026-09-13
+
+**The design-system audit gets fixed, not just filed.** An independent AI audit of all 19
+pages, 20 overlay surfaces and 20 native selects became issue #107 — a root-cause-grouped
+tracker — and five batches worked it to the floor: a per-theme contrast pass that fixed every
+live AA failure (deepened light inks, dark-foreground swaps on solid-teal fills, literal navy
+gradient stops where `--gray-900` broke dark), the motion vocabulary consolidated onto the
+tokens (one stagger step, JS timing read from CSS), the mechanical tail (kicker recipe for
+every micro-label, coarse-pointer hit areas, disabled states that look disabled, layout
+shifts), native-select popups replaced by a real ARIA listbox on the high-traffic surfaces,
+and the last design decisions resolved — including a scenic 292° hue that finally separates
+the "places to see" lane and the viewpoint spine from the day-route palette they'd been
+borrowing. The map's day filter draws the selected day's whole journey again. Android
+`versionCode 14 / 0.14-native`.
 
 ### Added
 

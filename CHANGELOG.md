@@ -13,6 +13,30 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 > record still exists in `git log`, not here. Archived release notes live in
 > [`docs/history/`](docs/history/).
 
+## [Unreleased]
+
+### Added
+
+- **Page-by-page UI design-system audit committed as a reference doc** —
+  `docs/UI-PAGE-AUDIT.md` is a diagnostic-only (no fixes applied) pass over all 19 pages/sections,
+  20 overlay surfaces and 20 native `<select>`s, measured against the project's own token/motion
+  system with computed WCAG values and `file:line` citations. It is the write-up behind
+  **[issue #107](https://github.com/hasnaina955/Yatraflow/issues/107)**, now the complete fix
+  tracker (contrast · tokens · motion · layout · a11y · selects), grouped by root cause so the
+  "known rule, siblings unfixed" families (light-ink deepening, dark-foreground swap, motion
+  tokens, `pointer: coarse` hit areas) each collapse to one change. Indexed in `docs/README.md` as
+  a companion to the earlier accessibility `UI_AUDIT.md`, not a replacement. A provenance banner
+  notes the line cites predate v0.51.0/v0.52.0 — re-locate by selector.
+
+### Fixed
+
+- **Single-day map view draws only the selected day's journey** (PR #106, on `test`). A regression
+  from the engine-journeys change: the single-day branch switched its source to every day that *has*
+  a route and dropped the day filter, so selecting Day 2 kept rendering all days' lines while the
+  camera fit Day 2 alone. Restores the one-day-in, one-day-out contract; the selected day still
+  shows its whole engine journey (anchor-only outbound and ride-home included), and the Board
+  backdrop regains its documented `focusDay` behaviour.
+
 ## [0.52.0] - 2026-09-12
 
 **The map learns relief.** The light basemap moves to Liberty — cream land,

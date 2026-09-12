@@ -13,6 +13,43 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 > record still exists in `git log`, not here. Archived release notes live in
 > [`docs/history/`](docs/history/).
 
+## [Unreleased]
+
+### Added
+
+- **Map view modes: 2D · Terrain · 3D hero** (spec + prototype live in
+  `docs/FEATURE-REQUEST-MAP-VIEWS.md` and `docs/MAP-MOCKUPS.html`). The Map tab's
+  toolbar gains a segmented switcher (`role="group"` of three `aria-pressed` chips
+  in the day-filter's glass language; the long form — "Flat map", "Terrain
+  relief", "3D terrain" — lives in the `aria-label`s). **Terrain** lays a single
+  hillshade layer over the still-flat map — relief with no camera or gesture
+  change — sourced from the keyless AWS terrarium DEM, whose credit appears only
+  while a terrain mode is on (the source is added on demand, and the basemap
+  credit is never duplicated). **3D hero** drives the same DEM through
+  `setTerrain` (exaggeration 1.8) with an eased camera to pitch 70 / bearing 235
+  — `maxPitch` is raised 60 → 75 because MapLibre silently clamps a higher ease —
+  instant under prefers-reduced-motion; leaving 3D resets the camera and drops
+  the terrain stack (`getTerrain()` back to null). The choice persists globally
+  and degrades to 2D on corrupt storage, and the terrain stack re-applies itself
+  after every theme style swap (a full reload wipes sources, layers AND terrain).
+  The Board stays hard 2D: a pinned backdrop must not spend GPU on terrain, and
+  one surface's mode choice must not hijack another's. The pure half — the
+  water/waterway `beforeId` resolution (Liberty's river lines sit above `water`;
+  matching `water` alone buries them), mode parsing, and the idempotent
+  reconcile step — is `lib/mapViewModes.ts` with 19 node tests.
+
+### Changed
+
+- **The light-theme basemap is Liberty now, not positron.** The product leans on
+  the map to sell the trip, and positron's deliberate grey undersells it: Liberty
+  (OpenFreeMap's OSM-carto lineage) has cream land, vivid water, a real place
+  hierarchy and named roads at trip zoom — it reads like a travel atlas and is
+  the closest stock style to the brand's warm palette, keeping the teal/saffron
+  overlays legible on top. One line in `mapcn/map.tsx`'s `defaultStyles`; every
+  map surface (Map tab, Board backdrop, expanded overlay) inherits. Dark theme
+  keeps the existing dark style — OpenFreeMap ships no Liberty dark, and a
+  recoloured twin is a follow-up, not part of this swap (spec §2.7).
+
 ## [0.51.0] - 2026-09-11
 
 **The timeline learns to move.** The 1,500-line TimelineTab monolith is split into

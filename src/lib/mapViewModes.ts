@@ -1,0 +1,124 @@
+// ============ Map view modes (2D · Terrain · 3D hero) ============
+// Pure logic + MapLibre layer/source specs for the three map view modes —
+// the imperative application lives in TripMap; everything testable in node
+// lives here. Spec: docs/FEATURE-REQUEST-MAP-VIEWS.md.
+import type { HillshadeLayerSpecification, RasterDEMSourceSpecification } from 'maplibre-gl'
+
+export type MapViewMode = '2d' | 'terrain' | '3d'
+
+export const MAP_VIEW_MODES: readonly MapViewMode[] = ['2d', 'terrain', '3d'] as const
+
+/** Short toolbar label + the long form screen readers announce. */
+export const MAP_VIEW_MODE_META: Record<MapViewMode, { label: string; aria: string }> = {
+  '2d': { label: '2D', aria: 'Flat map' },
+  terrain: { label: 'Terrain', aria: 'Terrain relief' },
+  '3d': { label: '3D', aria: '3D terrain' },
+}
+
+/** Missing or corrupt storage degrades to the flat map, never throws. */
+export function parseMapViewMode(raw: string | null | undefined): MapViewMode {
+  return raw === 'terrain' || raw === '3d' ? raw : '2d'
+}
+
+export const YF_DEM_SOURCE_ID = 'yf-dem'
+export const YF_HILLSHADE_LAYER_ID = 'yf-hillshade'
+
+// Keyless, CORS-enabled AWS elevation tiles (terrarium encoding — MapLibre
+// reads it natively, no custom decoder). The source ships its own attribution
+// so the credit only renders while a terrain mode has it on the map (§2.5).
+export const TERRARIUM_DEM_SOURCE: RasterDEMSourceSpecification = {
+  type: 'raster-dem',
+  tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],
+  encoding: 'terrarium',
+  tileSize: 256,
+  maxzoom: 14,
+  attribution: 'Terrain: AWS Terrain Tiles / ETOPO1',
+}
+
+// Prototype panel 6's paint — teal-family shadow/accent so the relief reads
+// with the brand palette on both Liberty and the dark style.
+export const HILLSHADE_LAYER: HillshadeLayerSpecification = {
+  id: YF_HILLSHADE_LAYER_ID,
+  type: 'hillshade',
+  source: YF_DEM_SOURCE_ID,
+  paint: {
+    'hillshade-exaggeration': 0.6,
+    'hillshade-shadow-color': '#3E5560',
+    'hillshade-highlight-color': '#FFFFFF',
+    'hillshade-accent-color': '#3D6B70',
+  },
+}
+
+/** The shading must stop above water — `water` and every `waterway*` variant. */
+export function isWaterishLayerId(id: string): boolean {
+  return id === 'water' || id.startsWith('waterway')
+}
+
+/**
+ * First water-ish layer of the loaded style — the hillshade's insertion point.
+ * The order differs per style and is the trap: positron has `water` early, but
+ * Liberty's `waterway_*` lines (idx 14–16) sit ABOVE `water` (idx 17), so
+ * matching `water` alone would insert under the river lines and bury them.
+ * Returns null when the style has no water at all (caller must not pass a
+ * non-existent beforeId — MapLibre throws).
+ */
+export function resolveHillshadeBeforeId(layers: readonly { id?: string }[] | undefined): string | null {
+  if (!layers) return null
+  for (const layer of layers) {
+    if (layer.id && isWaterishLayerId(layer.id)) return layer.id
+  }
+  return null
+}
+
+/** 3D hero camera (prototype panel 7, aimed down a ghat climb). */
+export const HERO_3D_CAMERA = { pitch: 70, bearing: 235 }
+export const HERO_3D_EXAGGERATION = 1.8
+
+/**
+ * The slice of the MapLibre map the mode applier touches — structural typing
+ * so node tests can drive it with a fake (and TripMap never imports
+ * maplibre-gl directly, matching its other layers).
+ */
+export interface MapLike {
+  getStyle(): { layers?: { id?: string }[] } | undefined
+  getSource(id: string): unknown
+  addSource(id: string, source: unknown): void
+  removeSource(id: string): void
+  getLayer(id: string): unknown
+  addLayer(layer: unknown, beforeId?: string): void
+  removeLayer(id: string): void
+  getTerrain(): unknown
+  setTerrain(terrain: unknown): void
+}
+
+/**
+ * Reconcile the map's terrain stack to the mode. Idempotent — the caller
+ * re-runs it after every style swap (a theme flip wipes sources, layers AND
+ * terrain), so every step guards on current state. The DEM source exists only
+ * while a terrain mode is active, which is what keeps its attribution credit
+ * out of a 2D user's attribution bar (§2.5).
+ */
+export function applyViewModeOnMap(map: MapLike, mode: MapViewMode): void {
+  if (mode === '2d') {
+    if (map.getTerrain()) map.setTerrain(null)
+    if (map.getLayer(YF_HILLSHADE_LAYER_ID)) map.removeLayer(YF_HILLSHADE_LAYER_ID)
+    if (map.getSource(YF_DEM_SOURCE_ID)) map.removeSource(YF_DEM_SOURCE_ID)
+    return
+  }
+  if (!map.getSource(YF_DEM_SOURCE_ID)) map.addSource(YF_DEM_SOURCE_ID, TERRARIUM_DEM_SOURCE)
+  if (mode === 'terrain') {
+    if (map.getTerrain()) map.setTerrain(null)
+    if (!map.getLayer(YF_HILLSHADE_LAYER_ID)) {
+      const beforeId = resolveHillshadeBeforeId(map.getStyle()?.layers)
+      // No water in the style at all: append instead of throwing on a
+      // non-existent beforeId (the shading lands on top — acceptable, and
+      // never hit on the OpenFreeMap styles, which all ship water).
+      if (beforeId) map.addLayer(HILLSHADE_LAYER, beforeId)
+      else map.addLayer(HILLSHADE_LAYER)
+    }
+    return
+  }
+  // 3D hero: real elevation through the camera, not a shading layer.
+  if (map.getLayer(YF_HILLSHADE_LAYER_ID)) map.removeLayer(YF_HILLSHADE_LAYER_ID)
+  map.setTerrain({ source: YF_DEM_SOURCE_ID, exaggeration: HERO_3D_EXAGGERATION })
+}

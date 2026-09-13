@@ -34,6 +34,9 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 - **Plan/Inspect pill jumped sides** — the long Plan copy's max-content pushed the
   header tools row into a left-aligned wrap. The copy is now the flexible item and the
   tools pin right (margin-left auto keeps them right-aligned even when wrapped).
+- **ROADMAP status section refreshed to v0.53.0** — snapshot, open-issues table and the
+  stale #84–#90 evidence bullets brought up to date, plus `tests/roadmap-status.test.ts`
+  pinning ROADMAP/package.json/CHANGELOG version parity.
 
 ### Docs
 - **Status docs refreshed for the `main` promotion** — `AGENTS.md` §1.1 recorded the #107 tracker as

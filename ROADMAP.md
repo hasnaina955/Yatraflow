@@ -15,15 +15,18 @@ user confirmation before any push. Feature work reaches `test` **via pull
 request** (never a direct push); `main` merges stay explicitly user-gated
 (AGENTS rule 1).
 
-**Snapshot (2026-09-11, verified against the repo):** `origin/main` and `test` are both at
-v0.48.0 — `test` no longer trails. Several docs commits sit ahead of `main` on `test`, pending
-PR #93. Current version: **0.48.0**.
+**Snapshot (2026-09-13, verified against the repo):** `main` is at **v0.53.0**; `test` is
+4 commits ahead of `main` and 0 behind (`main` is an ancestor of `test`). The UI-audit tracker
+#107 was worked to the floor across PRs #109–#116, and releases v0.49.0–v0.53.0 landed. In
+flight: PR #105 (Day Planner, `docs/day-planner-plan` → `test`). Current version: **0.53.0**.
 
 **Live open work is tracked in two places, and this file must agree with both:**
 
 1. **The issue queue** — see [Open issues](#open-issues) below for the current list, which is
-   derived from the GitHub API rather than recalled. Seven issues are open (#84–#90); M5 is
-   **not** the only outstanding work, as earlier revisions of this file claimed.
+   derived from the GitHub API rather than recalled. Thirty-one issues are open — the Day
+   Planner family (#121–#146), the rebrand (#96), the UI-audit tracker (#107, verdict-complete),
+   and this housekeeping batch (#117–#119). M5 is **not** the only outstanding work, as earlier
+   revisions of this file claimed.
 2. **The milestone tracks** — M5 → M9, plus the 1.0 cut. These are *planning* tracks: they are
    directions of travel, not release numbers.
 
@@ -39,48 +42,46 @@ number collides with a shipped release, the ledger wins.
 
 ## Open issues
 
-Verified 2026-09-11 against the GitHub API, then **each issue checked against current source**
-(see the "Relevance" column — a title is not evidence that a problem still exists).
+Verified 2026-09-13 against the GitHub API (`gh issue list --state open`). Priority and Area are
+read from each issue's labels (`—` = no priority label). Relevance is a disposition note from
+this snapshot, not a fresh per-issue source audit.
 
 | # | Priority | Area | Issue | Relevance |
 |---|---|---|---|---|
-| #89 | **P1** | bug, a11y | Trash "Delete forever" has no confirmation or undo | **Confirmed** — `TripsList.tsx:129` |
-| #84 | P2 | bug, a11y | Notifications list capped at 12 with no way to reach older items | **Confirmed** — `App.tsx:414` |
-| #85 | P2 | a11y | `warn` text on saffron/amber tints fails WCAG AA in light theme (5 surfaces) | **Confirmed — 3.48:1** |
-| #87 | P2 | a11y | ARIA tablist semantics inconsistent across 3 surfaces | **Confirmed** — 4 patterns |
-| #88 | P2 | a11y | Create-trip cover image URL input is unlabelled | **Confirmed** — `CreateTrip.tsx:719` |
-| #90 | P2 | a11y | Notification badge fails WCAG contrast (white on saffron ~2:1) | **Confirmed — 2.14:1** |
-| #86 | P3 | ui | Profile page has an empty 340px right column (single child in two-col grid) | **⚠️ Stale — verify and close** |
+| #96 | — | enhancement | Rebrand: pick the new name + execute (seam already built on `refactor/brand-seam`) | open — pending name decision |
+| #107 | **P1** | a11y, ui | UI design-system audit — FULL fix tracker (contrast, tokens, motion, layout, a11y, selects — 19 pages / 20 overlays / 20 selects) | tracker — 117/117 closed across PRs #109–#116; kept open as ledger |
+| #117 | — | bug | ROADMAP snapshot + Open-issues table frozen at v0.48.0 / issues #84–#90 (all closed) | fixed by this change |
+| #118 | — | bug | Custom Select listbox scrolls with default smooth behavior under prefers-reduced-motion | open |
+| #119 | — | bug | Haptics DEV log guard is inverted: logs when vibrate is absent, silent where it matters | open |
+| #121 | — | bug | P1-A still arms drive-day math on trip.days.length: 700 km in a 1-day plan gets no overnight | open — Day Planner |
+| #122 | — | enhancement | Day Planner: fixed dinner window ends every day at 20:00-21:00 regardless of party/season/road | open — Day Planner |
+| #123 | — | bug | Day Planner: split banner and travel-clock walk can disagree (2 days vs 3 for a 14:00 start) | open — Day Planner |
+| #124 | — | bug | Day Planner: night halts are arithmetic km points, anchors walk one blended speed (terrain-blind) | open — Day Planner |
+| #125 | — | bug | Day Planner lodging bill: name-string dedupe, mirrored rate table, head-count rooms | open — Day Planner |
+| #126 | — | enhancement | Day Planner: cap ignores drivers/party, modes that nobody drives get split verdicts, EV unplanned | open — Day Planner |
+| #127 | — | bug | Day Planner: defer/hop magic numbers + day-1 rain decides the whole multi-day split | open — Day Planner |
+| #128 | — | bug | Day Planner: fraction rows purpose-blind + midpoint return-leg chip + ripple without stickiness | open — Day Planner |
+| #129 | — | bug | Day Planner: walkClockDay never spends dwell — halt ETAs systematically early | open — Day Planner |
+| #130 | — | bug | Day Planner: two lunch windows (11:30 vs 12:00) — B2 slide and clock walk disagree | open — Day Planner |
+| #131 | — | bug | Day Planner B3: overnights excluded from re-collapse, slides clamp into ENDNO | open — Day Planner |
+| #132 | — | bug | Day Planner: silent rain clamp duplicated in two paths, style match case-sensitive | open — Day Planner |
+| #133 | — | bug | Day Planner Apply-split appends dateless empty day shells and re-fires its own banner | open — Day Planner |
+| #134 | — | bug | Day Planner: DaySection DRIVE threshold (km-only) contradicts the new clock floor (km AND time) | open — Day Planner |
+| #135 | — | bug | Day Planner memos key on object identity — every store commit re-fires corridor search | open — Day Planner |
+| #136 | — | bug | Day Planner: corrupt startTime silently becomes midnight via hmToMinutes fallback | open — Day Planner |
+| #137 | — | bug | Day Planner: remainder loop subtracts absolute kmCovered — multi-day walk can silently drop route | open — Day Planner |
+| #138 | — | bug | Day Planner: final-day walk skips every clock check — silent post-23:00 arrivals | open — Day Planner |
+| #139 | — | bug | Day Planner docs claim real-town night halts; code emits arithmetic km with no lodging fetch | open — Day Planner |
+| #140 | — | bug | Day Planner: dinner-halt branch ignores the ENDNO exclusion the split path enforces | open — Day Planner |
+| #141 | — | enhancement | Day Planner enhancement: per-day confidence-weighted rain instead of day-1 flip | open — Day Planner |
+| #142 | — | enhancement | Day Planner enhancement: driver count + party inputs that move the wheel cap | open — Day Planner |
+| #143 | — | enhancement | Day Planner enhancement: sticky accepted halts with delta proposals + hysteresis | open — Day Planner |
+| #144 | — | enhancement | Day Planner enhancement: fuel+meal combined halts + first-class EV charge cadence | open — Day Planner |
+| #145 | — | enhancement | Day Planner enhancement: round trip as two directed walks, not a midpoint cut | open — Day Planner |
+| #146 | — | enhancement | Day Planner enhancement: lodging identity by place-id/coords cluster + single rate source | open — Day Planner |
 
-**Relevance evidence (2026-09-11).** Each was opened against the code, not accepted on its title:
-
-- **#89** — `TripsList.tsx:129` renders `Delete forever` and `Restore` **side by side in the same
-  row**, both `btn-sm`, with no confirm on the destructive one. A reversible and an irreversible
-  action at identical size and adjacency. The only P1; the label scheme defines P1 as "with a
-  workaround", while an irreversible one-tap delete of user data matches the **P0** definition
-  ("data loss/corruption") — worth a re-triage read against the written definitions.
-- **#85** — `.chip-saffron` is `color: var(--warn)` on `var(--saffron-soft)`. Computed: light
-  `#B47207` on `#FCF0DC` = **3.48:1** (AA needs 4.5) → fails. Dark = 5.81:1 → passes, so the
-  issue's light-theme-only scoping is exactly right.
-- **#90** — white on saffron = **2.14:1** light, 1.97:1 dark. The issue's "~2:1" is accurate.
-- **#84** — `App.tsx:414` `notifs.slice(0, 12)` inside a `maxHeight:320, overflowY:auto` box with
-  **no view-all or pagination**. The scroll affordance implies completeness while silently
-  truncating — arguably worse than a visible cap.
-- **#87** — four surfaces set `role="tablist"`, but three (`AdminPage`, `Auth`, `TripWorkspace`)
-  pair it with `aria-pressed` and set no `aria-selected`; only `TripWorkspace` also sets
-  `aria-selected` + `id`. `aria-pressed` on `role="tab"` is the wrong pairing.
-- **#88** — `CreateTrip.tsx:719` has a `placeholder` but no `aria-label`, `<label>`, or
-  `htmlFor`. Sitting inside a `<Field>` wrapper does not give the control an accessible name.
-- **#86 ⚠️** — the premise no longer holds. `Profile.tsx`'s second column now contains **four**
-  cards (Creator hub, Save details, Notifications, About your data). `.two-col` is still
-  `1fr 340px` (`styles.css:1807`), but the column is not empty. Most likely fixed by `a8f53ff`
-  (notifications opt-in card, v0.47.0). **Verify and close** — left open here because closing an
-  issue needs authentication, which was unavailable.
-
-The five a11y issues (#84, #85, #87, #88, #90) are all narrow, low-risk surfaces — good
-candidates to sweep as one batch rather than one release each. **#85 and #90 are both
-saffron-contrast failures and should be fixed together**, since a change to the warn/saffron
-pairing affects both.
+**Shipped v0.49.0 (PR #95):** the seven issues #84–#90 closed together — the five a11y surfaces
+(#84, #85, #87, #88, #90) and the #86 stale-profile item. See [CHANGELOG.md](CHANGELOG.md).
 
 **Defect found while auditing this file — not yet filed:** the M0 seed guard below was never
 implemented (see the M0 entry). `store.ts:600` seeds demo trips whenever `tripList` is empty,
@@ -129,7 +130,7 @@ and date), per the AGENTS §6 same-edit rule. Detail lives in
 - [x] **M3** — Performance architecture: store immutability → slice selectors → DaySection memo → workspace split into pages/trip/* + weather dedup + lazy routes (in [Unreleased], local branch redesign/perf-architecture)
 - [x] **M4** — Design-system hygiene: dead CSS purge, mobile-block consolidation, glass/z-index tokens (in [Unreleased], local branch redesign/perf-architecture; raw-rgba glass stragglers intentionally NOT migrated — see commit `f646b45`)
 - [ ] **M0 defect** — seed guard: skip demo seeding when hydration had query errors (`store.ts:600`, detail in [Open issues](#open-issues))
-- [ ] **M5** — AI companion: user-configurable LLM endpoint (#22 → #20) — the only milestone that **has** open issues behind it (not the only open work; see [Open issues](#open-issues))
+- [ ] **M5** — AI companion: user-configurable LLM endpoint (#22 → #20) — issues #22 and #20 are closed; the live queue is tracked in [Open issues](#open-issues)
 - [ ] **M6** — Together: integration test suite, live co-editing depth, split expenses
 - [ ] **M7** — Premium: payment gateway, entitlements, unlock flow
 - [ ] **M9** — Invites & onboarding: creator invites (R1) → referral (R2) → invite-only gate (R3); three releases on `platform_invites`, exec plan in [`docs/PLAN-INVITES-ONBOARDING.md`](docs/PLAN-INVITES-ONBOARDING.md). *Added to the ledger 2026-09-11 — it previously existed only as a track section, so it was invisible to any pending list derived from these checkboxes.*
@@ -235,14 +236,13 @@ alongside its siblings rather than in a 2,932-line `TripWorkspace.tsx`:
 track was planned and have since been **consumed by other releases** — e.g. `v0.32.0` is
 recorded in the ledger as "Stabilization completion", not M6. They are retained only to show
 intended grouping, and are **not** bookings. Do not infer "next release" from them; the next
-version is whatever the ledger says is unshipped, and today that is `0.48.0` + 1.
+version is whatever the ledger says is unshipped, and the currently shipped version is **0.53.0**.
 
 ### M5 — "AI companion" (issues #22 → #20; the next feature to build)
 User-configurable OpenAI-compatible endpoint (Profile settings,
 `src/lib/aiProvider.ts`), real LLM answers with the deterministic router kept
 as offline fallback + "(LLM)/(offline)" badge. #22 (~2h) blocks #20 (~3h).
-This is the **only milestone with open issues behind it** — which is not the same as being
-"the only open work": see [Open issues](#open-issues) for the seven a11y/bug items.
+Its two issues (#22, #20) are closed; the live queue lives in [Open issues](#open-issues).
 
 ### M6 — "Together" (collaboration depth)
 Supabase integration/RLS test suite first (opt-in `VITE_RUN_INTEGRATION`,

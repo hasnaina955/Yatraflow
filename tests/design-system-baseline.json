@@ -88,5 +88,8 @@
     "styles.css:3924 .reveal-underline::after — transition: .8s",
     "styles.css:4231 .gi-flash — animation: 1.6s",
     "styles.css:551 .btn — transition: .06s"
+  ],
+  "hueCollisions": [
+    "DAY_COLORS #F59E2D vs #B7791F — 1.6°"
   ]
 }

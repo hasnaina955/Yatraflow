@@ -487,3 +487,61 @@ describe('motion vocabulary: durations come from the tokens', () => {
     ratchet('rawDurations', offenders)
   })
 })
+
+describe('categorical palettes: hues stay distinguishable', () => {
+  // Colour-coded categories must not collide: two "days" or two expense categories
+  // sharing a hue are indistinguishable in a legend, however different their
+  // lightness. 15° is the floor.
+  const MIN_HUE_SEPARATION = 15
+
+  const hueOf = (hex: string): number => {
+    const rgb = parseColor(hex)
+    if (!rgb) return 0
+    const max = Math.max(rgb.r, rgb.g, rgb.b)
+    const min = Math.min(rgb.r, rgb.g, rgb.b)
+    const d = max - min
+    if (d === 0) return 0
+    const h =
+      max === rgb.r ? ((rgb.g - rgb.b) / d) % 6 : max === rgb.g ? (rgb.b - rgb.r) / d + 2 : (rgb.r - rgb.g) / d + 4
+    return (h * 60 + 360) % 360
+  }
+
+  const separation = (a: number, b: number): number => {
+    const d = Math.abs(a - b) % 360
+    return Math.min(d, 360 - d)
+  }
+
+  const collisions = (label: string, colours: string[]): string[] => {
+    const out: string[] = []
+    for (let i = 0; i < colours.length; i++) {
+      for (let j = i + 1; j < colours.length; j++) {
+        const gap = separation(hueOf(colours[i]), hueOf(colours[j]))
+        if (gap < MIN_HUE_SEPARATION) out.push(`${label} ${colours[i]} vs ${colours[j]} — ${gap.toFixed(1)}°`)
+      }
+    }
+    return out
+  }
+
+  it('introduces no new hue collision', () => {
+    const daySource = source('src/components/TripMap.tsx').match(/const DAY_COLORS = \[([^\]]+)\]/)?.[1] ?? ''
+    const days = [...daySource.matchAll(/#[0-9A-Fa-f]{6}/g)].map((m) => m[0])
+    expect(days.length, 'DAY_COLORS must parse').toBeGreaterThanOrEqual(7)
+
+    const cats = ['--cat-transport', '--cat-accommodation', '--cat-food', '--cat-activities']
+      .map((token) => rootTokens.get(token))
+      .filter((v): v is string => v !== undefined)
+
+    // The POI lane is drawn on the same map as the day routes, so it must also
+    // stay clear of every day colour and every expense category.
+    const poiSee = rootTokens.get('--yf-poi-see')
+    const cross: string[] = []
+    if (poiSee !== undefined) {
+      for (const c of [...days, ...cats]) {
+        const gap = separation(hueOf(poiSee), hueOf(c))
+        if (gap < MIN_HUE_SEPARATION) cross.push(`--yf-poi-see vs ${c} — ${gap.toFixed(1)}°`)
+      }
+    }
+
+    ratchet('hueCollisions', [...collisions('DAY_COLORS', days), ...collisions('--cat-*', cats), ...cross])
+  })
+})

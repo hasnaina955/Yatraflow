@@ -777,7 +777,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
               </div>
             ) : (
               <span className="small dayplanner-red">
-                Keeping {trip.days.length} day{trip.days.length !== 1 ? 's' : ''}: ≈{minutesToHM(splitVerdict.maxDailyWheelMin)} of wheel time a day is past the honest cap — the fatigue verdict stays red.
+                Keeping {trip.days.length} day{trip.days.length !== 1 ? 's' : ''}: ≈{minutesToHM(wholeTrip.min)} behind the wheel in a single stretch is past the honest cap — the fatigue verdict stays red.
               </span>
             )}
           </div>

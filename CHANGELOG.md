@@ -47,6 +47,16 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 - **The split banner no longer flashes on map open** — it waits for the OSRM road
   measurement instead of rendering from the rough haversine estimate and
   vanishing when the real road resolved shorter.
+- **Round trips stopped being invisible to the map's split banner.** The verdict
+  measured only the outbound leg, so a default-round-trip Kolkata→Delhi in 3 days
+  stayed silent while CreateTrip demanded 8 days for the same loop. The map now
+  splits the whole loop (2× the outbound measurement, same model as the create
+  page) and says "there and back"; declining states the full loop's wheel time.
+- **Saving trip settings no longer toasts success on a rejected save** — a date
+  shrink blocked by a day holding stops now shows only the reason, not
+  "Trip settings updated" alongside it.
+- **CreateTrip's days-required banner says "there and back"** when the round-trip
+  toggle is billing the drive home, so the 2× day count is explained in place.
 
 ### Added — the Day Planner travel clock (PLAN-DAY-PLANNER P1, PR #105)
 - **The fatigue cadence is hours, not km.** Stretch breaks fire at `STRETCH_CLOCK_MIN`

@@ -347,7 +347,9 @@ export function TripSettingsForm({ trip, editable }: { trip: Trip; editable: boo
           const s = new Date(`${f.startDate}T00:00:00`), e = new Date(`${f.endDate}T00:00:00`)
           if (Number.isNaN(s.getTime()) || Number.isNaN(e.getTime())) { setDateErr('Pick both a start and an end date.'); return }
           if (e < s) { setDateErr('The end date must be on or after the start date.'); return }
-          updateTrip(trip.id, {
+          // updateTrip toasts the rejection itself (e.g. a shrink blocked by a
+          // day holding stops) and returns false — no success toast then.
+          const saved = updateTrip(trip.id, {
             name: f.name, startLocation: f.startLocation,
             startLocationCoords: startCoords ?? undefined,
             startDate: f.startDate, endDate: f.endDate,
@@ -367,8 +369,10 @@ export function TripSettingsForm({ trip, editable }: { trip: Trip; editable: boo
               economy: Number(f.vehicleEconomy) || 15,
             } : undefined,
           })
-          setDateErr(null)
-          toast('Trip settings updated')
+          if (saved) {
+            setDateErr(null)
+            toast('Trip settings updated')
+          }
         }}>Save settings</button>
       </StickyFormBar>
     </div>

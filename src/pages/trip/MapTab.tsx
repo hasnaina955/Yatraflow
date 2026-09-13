@@ -302,15 +302,20 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
   // route facts, never stored, so every stop mutation re-derives them (the
   // ripple re-plan) and the night-halt position stays honest.
   const rainFactor = dayRainPct?.[0] != null ? 1 - (dayRainPct[0] as number) / 200 : undefined
+  const tripIsRoundTrip = isRoundTrip(trip)
+  // A round trip bills the drive home too: the split demands days for the
+  // whole loop, matching the CreateTrip verdict (its bill.roadKm doubles the
+  // outbound when roundTrip is on). The return re-traces the same corridor,
+  // so the loop is 2× the outbound measurement.
+  const loopFactor = tripIsRoundTrip ? 2 : 1
   const splitVerdict = useMemo(
-    () => planDriveDays({ totalKm: planKm, driveMinutes: wholeTrip.min, travelStyle: trip.travelStyle, rainFactor }),
-    [planKm, wholeTrip.min, trip.travelStyle, dayRainPct],
+    () => planDriveDays({ totalKm: planKm * loopFactor, driveMinutes: wholeTrip.min * loopFactor, travelStyle: trip.travelStyle, rainFactor }),
+    [planKm, wholeTrip.min, trip.travelStyle, loopFactor, dayRainPct],
   )
   const clockVerdict = useMemo(
     () => planTravelClock({ totalKm: planKm, driveMinutes: wholeTrip.min, dayStart: trip.days[0]?.startTime, travelStyle: trip.travelStyle, rainFactor }),
     [planKm, wholeTrip.min, trip.travelStyle, trip.days, dayRainPct],
   )
-  const tripIsRoundTrip = isRoundTrip(trip)
   // The split wants more days than planned: propose applying it. Declining is
   // respected — with the honest red fatigue verdict stated, never hidden.
   const [splitDeclined, setSplitDeclined] = useState(false)
@@ -798,7 +803,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
         )}
         {(routeTotalKm != null || routeFailed) && splitVerdict && splitVerdict.driveDayCount > trip.days.length && (
           <div className="dayplanner-banner" role="status">
-            <b>This drive needs {splitVerdict.driveDayCount} travel days.</b>
+            <b>This drive needs {splitVerdict.driveDayCount} travel days{tripIsRoundTrip ? ' — there and back' : ''}.</b>
             <span className="small muted">
               {routeTotalKm == null && 'Rough estimate — the road measurement did not resolve. '}≈{Math.round(splitVerdict.perDay)} km a day keeps wheel time ≈{minutesToHM(splitVerdict.maxDailyWheelMin)} — the honest cap for {(trip.travelStyle ?? 'balanced')} pace.
             </span>
@@ -811,7 +816,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
               </div>
             ) : (
               <span className="small dayplanner-red">
-                Keeping {trip.days.length} day{trip.days.length !== 1 ? 's' : ''}: ≈{minutesToHM(wholeTrip.min)} behind the wheel in a single stretch is past the honest cap — the fatigue verdict stays red.
+                Keeping {trip.days.length} day{trip.days.length !== 1 ? 's' : ''}: ≈{minutesToHM(wholeTrip.min * loopFactor)} behind the wheel in a single stretch is past the honest cap — the fatigue verdict stays red.
               </span>
             )}
           </div>

@@ -412,7 +412,7 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
                 offer the honest fix — one tap, still fully editable. */}
             {driveDaysVerdict && driveDaysVerdict.driveDayCount > bill.days && (
               <div className="dayplanner-banner" style={{ marginBottom: 12 }} role="status">
-                <b>The drive wants {driveDaysVerdict.driveDayCount} travel days.</b>
+                <b>The drive wants {driveDaysVerdict.driveDayCount} travel days{fuelMode && f.roundTrip !== false ? ' — there and back' : ''}.</b>
                 <span className="small muted">
                   ≈{Math.round(driveDaysVerdict.perDay)} km a day keeps wheel time ≈{minutesToHM(driveDaysVerdict.maxDailyWheelMin)} — in {bill.days} day{bill.days !== 1 ? 's' : ''} it's ≈{minutesToHM((bill.roadKm ?? 0) / (MODE_SPEED[f.transportMode] ?? 42) * 60)} in one stretch.
                 </span>

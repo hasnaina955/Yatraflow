@@ -1560,9 +1560,9 @@ export function restoreExpense(tripId: ID, expense: Expense, index: number): voi
   void persistTripField(tripId, tripById(tripId)!)
 }
 
-export function updateTrip(id: ID, patchFields: Partial<Trip>): void {
+export function updateTrip(id: ID, patchFields: Partial<Trip>): boolean {
   const t = tripById(id)
-  if (!t) return
+  if (!t) return false
   // Date changes resize the day grid — reconcile BEFORE assigning so the
   // persisted row and the cache carry the same days. Shrinks that would drop
   // a day holding stops are rejected with the reason surfaced as a toast.
@@ -1581,7 +1581,7 @@ export function updateTrip(id: ID, patchFields: Partial<Trip>): void {
     const protectedIdx = new Set(t.fixedCommitments.map(c => c.dayIndex))
     const baseDays = patchFields.days ?? t.days
     const rec = reconcileDays(baseDays, newStart, newEnd, protectedIdx)
-    if (rec.error) { toast(rec.error, 'err'); return }
+    if (rec.error) { toast(rec.error, 'err'); return false }
     patchFields = { ...patchFields, days: rec.days }
   }
   // Mutate the cache FIRST, then persist the draft that already contains the
@@ -1591,6 +1591,7 @@ export function updateTrip(id: ID, patchFields: Partial<Trip>): void {
   // persist the trip.
   const draft = mutateTrip(id, d => Object.assign(d, patchFields, { updatedAt: Date.now() }), { touch: false })
   if (draft) void persistTripField(id, draft)
+  return true
 }
 
 // ---- Debounced trip writes (P4) ----

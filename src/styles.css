@@ -957,8 +957,14 @@ a.btn { text-decoration: none; }
 }
 /* Plan / Inspect segmented toggle (Phase 3): built on PillNav (.mode-pillbar
    glider). The copy line reserves two rows so a mode switch never reflows. */
-.tl-mode-copy { min-height: 2.4em; animation: popover-in var(--motion-fast) var(--ease-out); }
+.tl-mode-copy { min-height: 2.4em; max-width: 72ch; animation: popover-in var(--motion-fast) var(--ease-out); }
 @media (prefers-reduced-motion: reduce) { .tl-mode-copy { animation: none; } }
+/* The header tools must not reflow when the mode copy changes length (the Plan
+   copy's max-content used to push the whole tools row into a left-aligned
+   wrap). The copy is the flexible item; the tools pin right, and margin-left
+   auto keeps them right-aligned even on the rare wrapped line. */
+.tl-head-copy { flex: 1 1 320px; min-width: 0; }
+.tl-head-tools { margin-left: auto; }
 
 /* Liquid drag (rule 10 pattern): rows glide by the carried row's height while
    a drag is live; rows carry data-stop-id for the FLIP settle on commit. */
@@ -988,6 +994,15 @@ a.btn { text-decoration: none; }
 }
 [data-theme='dark'] .is-carried .stop-card,
 [data-theme='dark'] .is-carried .travel-endpoint { box-shadow: var(--shadow-carry-dark); }
+/* The carried row must clear its own day card: the collapse clip normally
+   crops everything to the day body, so a row dragged toward another day got
+   cut off at the card edge. drag-live unclips the body for the duration of a
+   drag (every open section gets it at once; closed ones stay invisible via
+   visibility:hidden, so the looser overflow costs nothing there). */
+.day-section.drag-live .day-body-clip-inner { overflow: visible; }
+/* Board parity: the columns clip at the same boundary, so the same unclip
+   applies there while a carry is live. */
+.board-col.drag-live { overflow: visible; }
 @media (prefers-reduced-motion: reduce) {
   .is-carried .stop-card, .is-carried .travel-endpoint { transform: none; transition: none; }
 }
@@ -1730,6 +1745,40 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
 .maplibregl-ctrl-attrib { font-size: 10px; }
 .maplibregl-ctrl-attrib.maplibregl-compact-show { background: rgba(255,255,255,.8); }
 [data-theme='dark'] .maplibregl-ctrl-attrib.maplibregl-compact-show { background: rgba(22,35,58,.8); }
+/* mapcn's MapControls and popups ship Tailwind utility classes this app doesn't
+   compile (no Tailwind here). Without hand-ported rules the zoom/fullscreen
+   group renders as static flow UNDER the absolutely-positioned canvas —
+   invisible in 2D, stray and clipped otherwise — and popups keep maplibre's
+   stock bare-white chrome, which light text goes unreadable on in dark mode. */
+.yf-maplibre .yf-map-ctrls {
+  position: absolute; top: 10px; right: 10px; z-index: var(--z-frost);
+  display: flex; flex-direction: column; gap: 6px;
+}
+.yf-maplibre .yf-map-ctrls > div {
+  display: flex; flex-direction: column; overflow: hidden;
+  border-radius: 10px; border: 1px solid var(--line);
+  background: var(--card); box-shadow: var(--shadow-soft);
+}
+.yf-maplibre .yf-map-ctrls button {
+  display: flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; padding: 0; border: none;
+  border-bottom: 1px solid var(--line); background: transparent;
+  color: var(--text); cursor: pointer;
+}
+.yf-maplibre .yf-map-ctrls button:last-child { border-bottom: none; }
+.yf-maplibre .yf-map-ctrls button:hover { background: var(--bg-soft); }
+.yf-maplibre .yf-map-ctrls button svg { width: 16px; height: 16px; }
+/* popup chrome in app tokens (extra class keeps it ahead of maplibre's own
+   anchor-specific rules regardless of stylesheet order) */
+.yf-maplibre .maplibregl-popup .maplibregl-popup-content {
+  background: var(--card); color: var(--text); border: 1px solid var(--line);
+  border-radius: 12px; padding: 10px 12px; box-shadow: var(--shadow-soft);
+  font-family: var(--font-body); font-size: 13px;
+}
+.yf-maplibre .maplibregl-popup-anchor-top .maplibregl-popup-tip { border-bottom-color: var(--card); }
+.yf-maplibre .maplibregl-popup-anchor-bottom .maplibregl-popup-tip { border-top-color: var(--card); }
+.yf-maplibre .maplibregl-popup-anchor-left .maplibregl-popup-tip { border-right-color: var(--card); }
+.yf-maplibre .maplibregl-popup-anchor-right .maplibregl-popup-tip { border-left-color: var(--card); }
 /* Filter pills live in a static toolbar ABOVE the canvas — they used to be an
    absolute overlay (top-left, z-index 5) that covered the map itself. The row
    wraps on desktop and scrolls horizontally on mobile (media query below). */
@@ -3829,6 +3878,11 @@ html.vt-active :where(*) {
 }
 [data-theme='dark'] .hero .btn-primary,
 [data-theme='dark'] .hero .btn-saffron { border-color: rgba(255,255,255,.2); }
+/* The sheen ::after is absolute and resolves against the hero (no positioned
+   ancestor closer), so the sweep crossed the whole hero face — a stray grey
+   bar sliding across empty space beside the buttons. Each button is its own
+   clipping box; the breathing glow is a box-shadow and survives the clip. */
+.hero .btn { position: relative; overflow: hidden; }
 @media (prefers-reduced-motion: no-preference) {
   /* soft breathing outer glow — box-shadow only, transform-free */
   .hero .btn-primary { animation: glow-breathe-teal 3.2s ease-in-out infinite; }

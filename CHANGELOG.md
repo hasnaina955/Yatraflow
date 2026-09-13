@@ -13,6 +13,28 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 > record still exists in `git log`, not here. Archived release notes live in
 > [`docs/history/`](docs/history/).
 
+## [Unreleased]
+
+### Fixed
+- **Landing hero sheen leak** — the glass-sheen sweep is `position: absolute` but `.btn`
+  never established a clipping box, so a skewed bar swept the whole hero face and read as
+  a stray grey blob sliding across empty space beside the CTAs (the "swipe animation
+  starts from an empty side" report). Each hero button is now its own clip box.
+- **Map zoom/fullscreen controls were unusable** — mapcn's `MapControls` ships Tailwind
+  utility classes this app doesn't compile, so the group rendered as static flow under
+  the canvas (invisible in 2D, stray and clipped otherwise). The handful of rules it
+  needs are hand-ported in app tokens under `.yf-map-ctrls`, pinned top-right, above
+  the canvas, in both themes.
+- **Dark-mode pin hover tooltips unreadable** — maplibre's stock popup chrome is bare
+  white regardless of theme, and light text on it vanished. Popups (hover tips + the
+  stop cross-link popup) are reskinned to the app card in both themes, tip included.
+- **Timeline drag got cropped at the day card** — the carried row escaped nothing: the
+  day-collapse clip (`overflow: hidden`) cut it off at the card edge. While a drag is
+  live the owning section unclips (`drag-live`), same fix applied to Board columns.
+- **Plan/Inspect pill jumped sides** — the long Plan copy's max-content pushed the
+  header tools row into a left-aligned wrap. The copy is now the flexible item and the
+  tools pin right (margin-left auto keeps them right-aligned even when wrapped).
+
 ## [0.53.0] - 2026-09-13
 
 **The design-system audit gets fixed, not just filed.** An independent AI audit of all 19

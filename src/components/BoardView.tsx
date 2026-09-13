@@ -372,7 +372,7 @@ function BoardColumn({ day, allDays, editable, warnings, focused, onToggleFocus,
   }, [ordered])
 
   return (
-    <div className={`board-col${focused ? ' board-col--focused' : ''}`} role="listitem">
+    <div className={`board-col${focused ? ' board-col--focused' : ''}${dragging !== null ? ' drag-live' : ''}`} role="listitem">
       <button type="button" className="board-col-head" onClick={() => onToggleFocus(!focused)}
         aria-pressed={focused} title={focused ? `Show the whole route again` : `Focus the map on Day ${day.index + 1}`}>
         <span className="board-col-day">Day {day.index + 1}</span>

@@ -155,6 +155,10 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
   // the same legs independently, so this is one extra free OSRM call per route.
   const [routeGeometry, setRouteGeometry] = useState<[number, number][] | null>(null)
   const [routeTotalKm, setRouteTotalKm] = useState<number | null>(null)
+  // The OSRM attempt's outcome: when the road can't be measured (rate limits,
+  // very long routes — exactly where the banner matters most), the Day Planner
+  // still speaks, from the haversine estimate, flagged as rough.
+  const [routeFailed, setRouteFailed] = useState(false)
   // Road-true whole-trip wheel time and per-day road km, sliced from the same
   // legs — the journey sums are haversine estimates and undercount curvy roads.
   const [routeTotalMin, setRouteTotalMin] = useState<number | null>(null)
@@ -233,6 +237,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     routePath(pts, getAssumptions(trip))
       .then(legs => {
         if (cancelled) return
+        setRouteFailed(false)
         setRouteGeometry(legs.flatMap(l => l.geometry))
         // Google's routingSummaries legs are origin→place and place→destination,
         // so the real detour per hit is (leg0 + leg1) − this total.
@@ -245,7 +250,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
         })
         setDayRoadKm(trip.days.map(d => perDay.get(d.index) ?? 0))
       })
-      .catch(() => { if (!cancelled) { setRouteGeometry(null); setRouteTotalKm(null); setRouteTotalMin(null); setDayRoadKm(null) } })
+      .catch(() => { if (!cancelled) { setRouteGeometry(null); setRouteTotalKm(null); setRouteTotalMin(null); setDayRoadKm(null); setRouteFailed(true) } })
     return () => { cancelled = true }
   }, [trip])
 
@@ -791,11 +796,11 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
             <span className="small muted">{clockVerdict.reason}</span>
           </div>
         )}
-        {routeTotalKm != null && splitVerdict && splitVerdict.driveDayCount > trip.days.length && (
+        {(routeTotalKm != null || routeFailed) && splitVerdict && splitVerdict.driveDayCount > trip.days.length && (
           <div className="dayplanner-banner" role="status">
             <b>This drive needs {splitVerdict.driveDayCount} travel days.</b>
             <span className="small muted">
-              ≈{Math.round(splitVerdict.perDay)} km a day keeps wheel time ≈{minutesToHM(splitVerdict.maxDailyWheelMin)} — the honest cap for {(trip.travelStyle ?? 'balanced')} pace.
+              {routeTotalKm == null && 'Rough estimate — the road measurement did not resolve. '}≈{Math.round(splitVerdict.perDay)} km a day keeps wheel time ≈{minutesToHM(splitVerdict.maxDailyWheelMin)} — the honest cap for {(trip.travelStyle ?? 'balanced')} pace.
             </span>
             {!splitDeclined ? (
               <div className="row" style={{ gap: 8 }}>

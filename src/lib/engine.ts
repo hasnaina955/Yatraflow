@@ -1006,11 +1006,37 @@ export interface TripTotals {
   costPerDayInr: number
   essentialInr: number
   optionalInr: number
+  /** Lodging honesty line (PLAN-DAY-PLANNER P1-E): priced from hotel-category
+   *  stops — bases × rooms × rate — with the formula the Budget tab renders. */
+  lodgingInr: number
+  lodgingNights: number
+  lodgingRooms: number
+  lodgingRatePerNight: number
   byCategory: Record<string, number>
   /** Per-day stack for the Budget tab's cost-per-day bars: attached expenses
    *  land on their day, journey fuel on the day that drives it, stop entry
    *  fees on the stop's day, unattached trip-level expenses spread evenly. */
   byDay: { dayIndex: number; expensesInr: number; transportInr: number; totalInr: number; stops: number; distanceKm: number }[]
+}
+
+/**
+ * Trip-level stay rates — ₹ per room per night, two guests per room. Kept
+ * identical to planBench's STAY_RATE_PER_NIGHT for the styles it names
+ * (budget/comfort/luxury); importing planBench from the engine would cycle.
+ * Styles without a bench mapping price at the comfort rate.
+ */
+const TRIP_STAY_RATE_PER_NIGHT: Record<string, number> = {
+  budget: 1200,
+  comfort: 3200,
+  balanced: 3200,
+  packed: 3200,
+  relaxed: 3200,
+  adventure: 3200,
+  family: 3200,
+  spiritual: 3200,
+  'food-focused': 3200,
+  creator: 3200,
+  luxury: 8000,
 }
 
 export function computeTotals(trip: Trip, legCorrections?: Record<string, LegEstimate>): TripTotals {
@@ -1086,11 +1112,38 @@ export function computeTotals(trip: Trip, legCorrections?: Record<string, LegEst
       entryByDay.set(d.index, (entryByDay.get(d.index) ?? 0) + fee)
     }
   }))
-  sum += entryFromStops + transportKmCost
+  // Lodging honesty (PLAN-DAY-PLANNER P1-E): the bill priced every cost except
+  // the bed. Hotel-category stops — a structural night halt accepted from the
+  // ride plan, or a stay added by hand — gain a lodging line: distinct
+  // overnight bases × rooms (2 guests per room) × the stay rate for the
+  // trip's style. The rate table mirrors the Plan Bench's STAY_RATE_PER_NIGHT
+  // (importing it would cycle); a structural night halt's minutes are still
+  // never charged against the day's detour budget.
+  const hotelBases = new Set<string>()
+  trip.days.forEach(d => d.stops.forEach(s => {
+    if (s.category === 'hotel' && s.status !== 'rejected') hotelBases.add(s.locationName)
+  }))
+  const lodgingNights = hotelBases.size
+  const lodgingRooms = Math.max(1, Math.ceil(trip.travellers / 2))
+  const lodgingRatePerNight = TRIP_STAY_RATE_PER_NIGHT[trip.travelStyle] ?? TRIP_STAY_RATE_PER_NIGHT.balanced
+  const lodgingInr = lodgingNights * lodgingRooms * lodgingRatePerNight
+  // Each base's share lands on the first day that holds it, so the per-day
+  // stacks keep summing to the trip total (the v0.36 accounting invariant).
+  const lodgingByDay = new Map<number, number>()
+  const seenBases = new Set<string>()
+  const perBaseShare = lodgingNights > 0 ? lodgingInr / lodgingNights : 0
+  trip.days.forEach(d => d.stops.forEach(s => {
+    if (s.category === 'hotel' && s.status !== 'rejected' && !seenBases.has(s.locationName)) {
+      seenBases.add(s.locationName)
+      lodgingByDay.set(d.index, (lodgingByDay.get(d.index) ?? 0) + perBaseShare)
+    }
+  }))
+  sum += entryFromStops + transportKmCost + lodgingInr
   byCategory['entry-fees'] = (byCategory['entry-fees'] ?? 0) + entryFromStops
   byCategory['transport'] = (byCategory['transport'] ?? 0) + transportKmCost
-  essential += entryFromStops + transportKmCost
-  for (const bd of byDay) bd.totalInr = bd.expensesInr + bd.transportInr + (entryByDay.get(bd.dayIndex) ?? 0)
+  byCategory['accommodation'] = (byCategory['accommodation'] ?? 0) + lodgingInr
+  essential += entryFromStops + transportKmCost + lodgingInr
+  for (const bd of byDay) bd.totalInr = bd.expensesInr + bd.transportInr + (entryByDay.get(bd.dayIndex) ?? 0) + (lodgingByDay.get(bd.dayIndex) ?? 0)
 
   return {
     totalCostInr: sum,
@@ -1101,6 +1154,10 @@ export function computeTotals(trip: Trip, legCorrections?: Record<string, LegEst
     costPerDayInr: sum / dayCount,
     essentialInr: essential,
     optionalInr: optional,
+    lodgingInr,
+    lodgingNights,
+    lodgingRooms,
+    lodgingRatePerNight,
     byCategory,
     byDay,
   }

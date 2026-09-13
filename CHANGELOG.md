@@ -15,6 +15,35 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ## [Unreleased]
 
+### Added — the Day Planner travel clock (PLAN-DAY-PLANNER P1, PR #105)
+- **The fatigue cadence is hours, not km.** Stretch breaks fire at `STRETCH_CLOCK_MIN`
+  (120 min) of wheel time — 150 km was ≈2 h at highway speed but 3.6 h at the engine's
+  own blended speed — and `planDriveDays` derives the drive-day split a route demands
+  from the style/rain-tuned wheel-hour cap, load-balanced (700 km → 2 × 350, never
+  585 + 115). The Map tab arms the split from that verdict, not the planned day count,
+  and proposes "this drive needs N travel days — apply?" (declining is respected, with
+  the red fatigue verdict stated).
+- **Fixed meal anchors on the clock** (`planTravelClock`): breakfast 08:00–09:30 fires
+  only for pre-08:00 starts, lunch 12:00–14:30, tea 16:30–17:30, dinner 20:00–21:00
+  **ends the driving day**. The night halt lands where the day's budget, dinner, or the
+  wheel cap arrives — never night driving: late starts produce a short hop to a night
+  halt, or an honest "leave tomorrow 06:00" defer proposal.
+- **Short trips stopped being silent.** The 90 km floor yields to the 2-hour clock rule
+  (80 km of ghat crawl earns its stretch), the destination exclusion zone scales with
+  journey length, and ¼/½/¾ fraction rows keep the suggestion strip useful below the
+  fatigue floor.
+- **Derived day attribution everywhere:** DRIVE/STAY/MIXED labels on timeline day
+  headers, "Day N · after your night stop" chips on suggestion rows, and return-leg
+  chips on round trips.
+- **The bill prices the bed.** Hotel stops — a structural night halt accepted from the
+  ride plan, or a stay added by hand — gain a lodging line (overnight bases × rooms ×
+  style rate) with the formula stated on the Budget tab; the night halt's minutes are
+  never charged to the day's detour budget.
+- **"Day out" / "Weekend dash" presets** on trip creation: one round-trip day (or two),
+  no stay line unless a stay is added. Full planner documentation in
+  [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) §8; fixtures-as-spec in
+  `tests/dayPlanner.test.ts`.
+
 ### Fixed
 - **Landing hero sheen leak** — the glass-sheen sweep is `position: absolute` but `.btn`
   never established a clipping box, so a skewed bar swept the whole hero face and read as

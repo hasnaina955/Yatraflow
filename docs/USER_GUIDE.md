@@ -51,6 +51,25 @@ The **Map** tab shows your whole route:
 - Use the day filter chips to focus on one day.
 - Routes are straight-line approximations — great for shape and relative distance, not turn-by-turn navigation.
 
+### The travel clock (long drives, planned for you)
+
+YatraFlow plans long drives by the **clock, not just kilometres**: it knows the human
+facts — meals happen at mealtimes wherever the road is, ~2 hours behind the wheel is
+time for a stretch, dinner ends the driving day, and nobody should drive past 23:00.
+
+- **The route asks for its own days.** A 700 km drive suggests "this needs 2 travel
+  days — apply?", balanced so no single day is brutal. Keeping your own day count is
+  fine — the plan says honestly that the fatigue verdict stays red.
+- **Night halts are real stops.** The engine suggests a town with a room where each
+  driving day should end; accept one and the bill gains the stay line automatically.
+- **Late starts get honest plans, not night driving.** Start too late and the map
+  offers a short hop to a night halt — or, if it's really late, suggests leaving at
+  06:00 tomorrow instead.
+- **Short trips are never ignored.** Even 80 km of hill crawl earns a stretch
+  suggestion, and below the planning floor the strip still shows what's along the way.
+- **The bill includes the bed.** Hotel stops are priced on the Budget tab
+  (bases × rooms × rate), with the formula shown right on the page.
+
 ## 5. Collaborate
 
 ### Invite

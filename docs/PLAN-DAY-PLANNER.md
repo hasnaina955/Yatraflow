@@ -1,9 +1,14 @@
 # Execution plan — The Day Planner (travel-clock engine)
 
-*Status: planning only — no engine code has changed. This document consolidates
-three brainstorm sessions (Sep 2026): the short-trip silence feedback, the
-multi-day "dinner ends the day" model, and the start-time dynamics. Parent
-brainstorm: [`SUGGESTION_ENGINE_BRAINSTORM.md`](SUGGESTION_ENGINE_BRAINSTORM.md)
+*Status: IMPLEMENTED through P1-G (Sep 13, 2026) — P1-A shipped pure engine
+(planDriveDays + clock stretch twin); this PR adds the travel clock
+(planTravelClock), the derived arming + proposal/defer/hop banners, fraction
+rows, day chips + day types, the lodging bill line, and the day-out presets.
+See §17 for the honest deltas from this document (fixture times re-derived,
+P1-F scoped to its chips). Consolidates three brainstorm sessions (Sep 2026):
+the short-trip silence feedback, the multi-day "dinner ends the day" model,
+and the start-time dynamics. Parent brainstorm:
+[`SUGGESTION_ENGINE_BRAINSTORM.md`](SUGGESTION_ENGINE_BRAINSTORM.md)
 — this plan operationalizes its §2 gaps for trips that are too short *or too
 long* for the current highway-tuned cadence.*
 
@@ -270,14 +275,63 @@ make short trips feel *equally helpful* rather than merely tolerated.
 
 1. **Lodging category coverage** — do the current provider queries return
    usable stay results at corridor km positions for all modes? (P1-B)
+   **ANSWERED:** yes — the purpose-specific corridor scan already runs hotel
+   text searches for overnight segments (`hotel` fits `overnight` at 3), so
+   P1-B arms the split without a new query path.
 2. **`NIGHT_END` as a setting** — constants for v1; expose when settings gain a
-   "travel clock" group. (P1-C)
+   "travel clock" group. (P1-C) **ANSWERED:** constants for v1 (`NIGHT_END_MIN`),
+   deferred to a settings group.
 3. **Defer-proposal default** — suggest always, or only when night driving is
    actually unsafe (rain)? Default: always, honest copy. (P1-C)
+   **ANSWERED:** always — the banner states the honest reason, one tap applies
+   the 06:00 start.
 4. **Day-out preset + bench template** — one chip or two (Day out vs Weekend
-   dash differ in return-leg pricing)? (P1-E)
+   dash differ in return-leg pricing)? (P1-E) **ANSWERED:** two chips, one
+   code path — `applyDayOutShape(days)` presets dates + round trip (1 or 2
+   days); the bill's no-stay honesty falls out automatically (no hotel stops →
+   no lodging line).
 
 ## 17. Session log (append here as you work)
 
 - 2026-09-12 — brainstormed and consolidated (three sessions); this plan
   written on `docs/day-planner-plan`. No engine code touched.
+- 2026-09-12 — P1-A: `planDriveDays` (pure, load-balanced, rain/style-tuned)
+  + the stretch clock twin in `planRideSegments` (day boundaries from the
+  duration cap, never the 550 km tick).
+- 2026-09-13 — P1-B..P1-G in one pass:
+  - **Engine:** `planTravelClock` — fixed meal anchors (breakfast fires only
+    for pre-08:00 starts), night halt at the first of km budget / dinner /
+    wheel cap, defer (< 2 h honest wheel) and hop (< 6 h waking span) verdicts,
+    late-start day-1 shrink with honest re-balancing of the remainder (count
+    grows when a shrunk first day would overload the rest).
+  - **Short-trip silence fix:** the 90 km floor yields to the 120-min clock
+    rule, and the destination exclusion zone scales with journey length
+    (`min(60 km, 15%)`) — 80 km of ghat crawl now earns its stretch.
+  - **P1-B/C wiring:** MapTab arms the split from `planDriveDays` (+ hop),
+    proposes "this drive needs N travel days — apply?" (decline respected with
+    the red fatigue verdict), defer/hop banners, and ¼/½/¾ fraction fallback
+    rows so the strip never reads empty below the fatigue floor.
+  - **P1-D:** "Day N · after your night stop" chips on suggestion rows;
+    DRIVE/STAY/MIXED day-type labels derived from the journey on every day
+    header (the ripple re-plan was already real — the strip recomputes from
+    trip state on every mutation).
+  - **P1-E:** the bill prices the bed — hotel stops gain a lodging line
+    (bases × rooms × style rate, per-base share on its day, formula stated on
+    the Budget tab); CreateTrip gains "Day out" / "Weekend dash" shape presets.
+  - **P1-F (scoped):** return-leg chips on round trips ("you pass here on the
+    drive back"). The full destination Day-out arc (open-after reasoning,
+    lunch-near-the-sight bundles) stays open — it needs the hours-joined
+    destination scan and is the first candidate for a follow-up PR. The
+    home-zone flip (near-home picks valid again on the return leg) rides with
+    it.
+  - **P1-G:** ARCHITECTURE §8 planner paragraph, USER_GUIDE §4 travel-clock
+    explainer, CHANGELOG [Unreleased], fixtures in `tests/dayPlanner.test.ts`
+    (16 tests — the §14 spec).
+  - **Honest deltas from §14's expected values:** the brainstorm's clock times
+    assumed full-cap days (420 km @ 42 km/h); the load-balanced split gives
+    350 km/day, so the 08:30 day honestly ends ~17:55 (dinner at the halt)
+    rather than "halt at dinner 20:30", and the 05:00 day halts ~14:50 with
+    more rest — an early start buys slack, never km. The 14:00 fixture's
+    "remainder day 2" is honestly 3 days at blended 42 (a 461 km remainder
+    would break the cap it must respect); the fixture asserts the dinner halt
+    + cap-respecting remainder instead of the literal day count.

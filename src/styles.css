@@ -1140,6 +1140,8 @@ a.btn { text-decoration: none; }
 /* teal on teal tint: 4.57:1 light / 6.64:1 dark — passes AA at 10.5px semibold */
 .day-kind.drive { background: var(--teal-soft); color: var(--teal-deep); }
 .day-kind.stay { background: var(--bg-soft); color: var(--text-2); }
+/* mixed (short hop + local time): saffron tint reads warm without crying warn */
+.day-kind.mixed { background: color-mix(in srgb, var(--yf-saffron) 14%, transparent); color: var(--yf-warn-deep, var(--yf-saffron)); }
 .day-route {
   display: flex; align-items: baseline; flex-wrap: wrap; gap: 2px 6px;
   min-width: 0; max-width: 100%; margin-top: 3px;
@@ -2673,6 +2675,23 @@ main:focus { outline: none; }
 .poi-plan-gap { border-style: dashed; opacity: .85; }
 .poi-plan-row .poi-desc { -webkit-line-clamp: unset; -webkit-box-orient: unset; overflow: visible; }
 .poi-plan-row .poi-thumb { width: 34px; height: 34px; border-radius: 8px; }
+
+/* ---- Day Planner surfaces (PLAN-DAY-PLANNER P1-B..P1-F) ----
+   The proposal banners sit above the suggestion strip: the split the route
+   demands, the defer/hop verdict for the real start time. Chips on rows read
+   the derived day + return-leg position. */
+.dayplanner-banner {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px;
+  border: 1px solid color-mix(in srgb, var(--teal) 45%, var(--line));
+  background: color-mix(in srgb, var(--teal-soft) 55%, var(--bg));
+  border-radius: var(--radius); padding: 10px 12px; margin-top: 10px;
+}
+.dayplanner-red { color: var(--danger); font-weight: 600; }
+.ride-day-chip {
+  display: inline-block; font-size: 10.5px; font-weight: 700; letter-spacing: .04em;
+  color: var(--teal-deep); background: var(--teal-soft);
+  padding: 1px 8px; border-radius: 999px; margin-right: 6px; white-space: nowrap;
+}
 
 /* ---- Cross-highlight (panel ↔ map): the suggestion hovered or selected on
    one surface lights up on the other, so a card answers "where is this?" and

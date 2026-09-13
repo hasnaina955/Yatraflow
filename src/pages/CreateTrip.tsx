@@ -20,7 +20,8 @@ import { estimateTripStarter, buildOutlineSeedStops } from '../lib/tripStarter'
 import { fetchTripThumbUrl } from '../lib/tripThumb'
 import { Field, Chip, toast } from '../components/ui'
 import { Select } from '../components/Select'
-import { DateRangeCalendar, fmtDay } from '../components/DateRangeCalendar'
+import { DateRangeCalendar, fmtDay, isoDay } from '../components/DateRangeCalendar'
+import { isoAddDays } from '../lib/weather'
 import { PillNav } from '../components/PillNav'
 import { haptic, HAPTIC } from '../lib/haptics'
 import { useTimeFormat, formatHM } from '../lib/timefmt'
@@ -175,6 +176,19 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
 
   function patchFields(next: Partial<typeof f>) {
     setF(x => ({ ...x, ...next }))
+  }
+
+  // Day Planner P1-E shape presets: one round-trip day ("Day out") or two
+  // ("Weekend dash"). They only preset the shape — dates and the return flag —
+  // the bill stays honest on its own (no hotel stops → no stay line).
+  function applyDayOutShape(days: number) {
+    haptic(HAPTIC.select)
+    const today = isoDay(new Date())
+    const start = f.startDate || today
+    patchFields({ startDate: start, endDate: isoAddDays(start, days - 1), roundTrip: true })
+    toast(days === 1
+      ? 'Day out: one round-trip day — the bill prices meals and parking, no stay'
+      : 'Weekend dash: two days there and back — no stay unless you add one')
   }
 
   // Auto-fill: the rounded-up rough take lands in the budget field whenever it
@@ -373,6 +387,14 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
                 <span className="ts-switch-track" aria-hidden="true"></span>
                 <span className="ts-switch-label">Plot the drive back</span>
               </label>
+            </div>
+            {/* Day Planner P1-E shape presets: a day out is ONE round-trip day
+                (no stay line in the bill — meals and parking ride on the day);
+                a weekend dash is two. They preset the shape; every field stays
+                editable. */}
+            <div className="chip-row" role="group" aria-label="Trip shape presets" style={{ marginBottom: 12 }}>
+              <Chip onClick={() => applyDayOutShape(1)}>Day out</Chip>
+              <Chip onClick={() => applyDayOutShape(2)}>Weekend dash</Chip>
             </div>
             <Field label="Trip name" error={errs.name}>
               <input className="input" autoComplete="off" ref={el => (fieldRefs.current.name = el)} aria-invalid={!!errs.name}

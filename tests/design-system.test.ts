@@ -465,3 +465,25 @@ describe('no duplicate top-level selectors', () => {
     ratchet('duplicateSelectors', dups.map(([sel]) => sel))
   })
 })
+
+describe('motion vocabulary: durations come from the tokens', () => {
+  // AGENTS §2.10: a raw `ms` in a new CSS rule is a review flag. Ambient loops
+  // (`infinite` keyframes — a spinner, a live ping) are a deliberate exception:
+  // their cadence is a property of the ambient effect, not of a UI transition.
+  it('introduces no new raw duration', () => {
+    const offenders: string[] = []
+    for (const rule of cssRules) {
+      const decls = declMap(rule.body)
+      for (const prop of ['transition', 'animation', 'transition-duration', 'animation-duration']) {
+        const value = decls.get(prop)
+        if (value === undefined) continue
+        if (prop.startsWith('animation') && /\binfinite\b/.test(value)) continue
+        for (const m of value.matchAll(/(?<![\d.])[0-9]*\.?[0-9]+m?s\b/g)) {
+          if (parseFloat(m[0]) === 0) continue
+          offenders.push(`styles.css:${rule.line} ${normalise(rule.selector)} — ${prop}: ${m[0]}`)
+        }
+      }
+    }
+    ratchet('rawDurations', offenders)
+  })
+})

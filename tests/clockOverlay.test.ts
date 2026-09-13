@@ -23,10 +23,15 @@ const DEG_KM = 1 / KM_PER_DEG
 const SPEED = 0.7 // km per minute — 42 km/h
 
 describe('mealRadiusKm — the circle is the window, not a guess', () => {
+  it('widths match the ridePlan anchor windows, single source (#130)', () => {
+    expect(MEAL_WINDOW_MIN.breakfast).toBe(90) // 08:00–09:30
+    expect(MEAL_WINDOW_MIN.lunch).toBe(180)    // 11:30–14:30 — the ONE lunch window
+    expect(MEAL_WINDOW_MIN.dinner).toBe(60)    // 20:00–21:00
+  })
   it('half the window minutes at the journey pace, per meal', () => {
-    expect(mealRadiusKm('lunch', SPEED)).toBeCloseTo((150 / 2) * SPEED, 6) // 52.5 km
-    expect(mealRadiusKm('breakfast', SPEED)).toBeCloseTo((90 / 2) * SPEED, 6) // 31.5 km
-    expect(mealRadiusKm('dinner', SPEED)).toBeCloseTo((60 / 2) * SPEED, 6) // 21 km
+    expect(mealRadiusKm('lunch', SPEED)).toBeCloseTo(63, 6)   // 90 min of drive
+    expect(mealRadiusKm('breakfast', SPEED)).toBeCloseTo(31.5, 6)
+    expect(mealRadiusKm('dinner', SPEED)).toBeCloseTo(21, 6)
   })
   it('the windows are ordered lunch > breakfast > dinner', () => {
     expect(MEAL_WINDOW_MIN.lunch).toBeGreaterThan(MEAL_WINDOW_MIN.breakfast)
@@ -70,12 +75,12 @@ describe('deriveClockOverlay', () => {
     expect(o).not.toBeNull()
     const lunch = o!.zones.find(z => z.kind === 'lunch')
     expect(lunch).toBeDefined()
-    expect(lunch!.etaMin).toBe(720) // 12:00
-    // 08:30→12:00 at 0.7 km/min = 147 km in
-    expect(lunch!.kmIn).toBeCloseTo(147, 0)
-    expect(lunch!.lng).toBeCloseTo(147 * DEG_KM, 1)
-    expect(lunch!.radiusKm).toBeGreaterThan(50)
-    expect(lunch!.radiusKm).toBeLessThan(55)
+    expect(lunch!.etaMin).toBe(690) // 11:30 — the #130 window
+    // 08:30→11:30 at 0.7 km/min = 126 km in
+    expect(lunch!.kmIn).toBeCloseTo(126, 0)
+    expect(lunch!.lng).toBeCloseTo(126 * DEG_KM, 1)
+    expect(lunch!.radiusKm).toBeGreaterThan(60)
+    expect(lunch!.radiusKm).toBeLessThan(66)
     expect(o!.nights).toHaveLength(0) // the journey ends at the destination
     expect(o!.bands).toHaveLength(0)
     // tea never becomes a circle

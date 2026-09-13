@@ -15,7 +15,10 @@
 //   • round trips run the clock over the whole loop; km past the turnaround
 //     maps onto the REVERSED outbound polyline (the return re-traces it).
 import { pointAtKm } from './geo'
-import { planTravelClock, type TravelClockVerdict } from './ridePlan'
+import {
+  BREAKFAST_WINDOW, DINNER_WINDOW, LUNCH_WINDOW,
+  planTravelClock, type TravelClockVerdict,
+} from './ridePlan'
 
 /** Minutes-since-midnight → "HH:MM" (clock, not a duration). */
 export function clockHM(mins: number): string {
@@ -23,8 +26,14 @@ export function clockHM(mins: number): string {
   return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`
 }
 
-/** Meal windows, in minutes (ridePlan's fixed biological anchors). */
-export const MEAL_WINDOW_MIN = { breakfast: 90, lunch: 150, dinner: 60 } as const
+/** Meal windows, in minutes — DERIVED from ridePlan's anchor windows (#130
+ *  made the lunch window a single 11:30–14:30 source; a hand-copied number
+ *  here would be the next drift). */
+export const MEAL_WINDOW_MIN = {
+  breakfast: BREAKFAST_WINDOW[1] - BREAKFAST_WINDOW[0],
+  lunch: LUNCH_WINDOW[1] - LUNCH_WINDOW[0],
+  dinner: DINNER_WINDOW[1] - DINNER_WINDOW[0],
+} as const
 /** Circle radius = half the window's reach at the journey's own pace. */
 export const mealRadiusKm = (kind: keyof typeof MEAL_WINDOW_MIN, kmPerMin: number): number =>
   (MEAL_WINDOW_MIN[kind] / 2) * kmPerMin

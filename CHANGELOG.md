@@ -15,6 +15,39 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ## [Unreleased]
 
+### Added — user-testing round 2 (PR #105 follow-up)
+- **The travel clock is visible**: suggestion rows now carry the wall clock the
+  planner derived the halt from ("arrive ≈ 13:00", "— day ends here" on the night
+  halt) instead of km cadence alone.
+- **Create-trip helps from the first two points**: as soon as a start and a
+  destination exist, the route's own verdict shows — "The drive wants N travel
+  days" with a one-tap "Make it N days" (and the honest single-stretch wheel time
+  when it doesn't fit the date range).
+- **Style and budget are separate dials.** Travel style tunes stop frequency and
+  suggestion flavors and never touches pricing; a new **Stay budget** dial
+  (Budget/Comfort/Luxury, ₹1,200/₹3,200/₹8,000 per room per night) prices the bed.
+  Existing trips derive the dial from their legacy style, so nothing re-prices
+  silently.
+- **Optional-spend watch (opt-in)**: a soft 20%-of-estimate line on the Budget tab
+  — tips only, nothing changes, off by default.
+- **Trip-aware map search**: results project onto the trip's own road and rank by
+  detour (then road position), each showing "~X km into the trip · Y km
+  off-route"; anything beyond the detour scope renders muted with an honest toast.
+- **Dynamic 3D hero camera**: `heroBearingForRoute` frames the trip's own road
+  (initial route bearing) — the prototype's fixed Kerala-view bearing is now only
+  a geometry-less fallback — and **the map always opens 2D** (a stale saved 3D
+  pref used to greet every trip with the hero camera).
+
+### Changed
+- **Suggestion rows sync to the map on click, not hover** — hovering a row no
+  longer glides the camera (accidental map movement); rows show a pointer cursor.
+- **Directions sits beside the travel card's title**, not on its own line.
+
+### Fixed
+- **The split banner no longer flashes on map open** — it waits for the OSRM road
+  measurement instead of rendering from the rough haversine estimate and
+  vanishing when the real road resolved shorter.
+
 ### Added — the Day Planner travel clock (PLAN-DAY-PLANNER P1, PR #105)
 - **The fatigue cadence is hours, not km.** Stretch breaks fire at `STRETCH_CLOCK_MIN`
   (120 min) of wheel time — 150 km was ≈2 h at highway speed but 3.6 h at the engine's

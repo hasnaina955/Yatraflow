@@ -1043,7 +1043,10 @@ a.btn { text-decoration: none; }
   box-shadow: var(--shadow-sm);
 }
 .travel-panel-head { display: flex; flex-direction: column; gap: 2px; margin-bottom: 10px; }
-.travel-panel-title { font-weight: 800; font-size: 15px; font-family: var(--font-display); color: var(--text); }
+/* title + Directions share the first line; the stats line runs full-width under
+   them (the button used to drop to its own row and left a dead gap) */
+.travel-panel-toprow { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.travel-panel-title { font-weight: 800; font-size: 15px; font-family: var(--font-display); color: var(--text); min-width: 0; }
 .travel-panel-stats { display: flex; flex-wrap: wrap; gap: 10px 26px; }
 .tps-stat { display: flex; flex-direction: column; gap: 1px; }
 .tps-label { font-size: 11px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: .03em; }
@@ -2673,6 +2676,7 @@ main:focus { outline: none; }
   display: flex; flex-direction: column; gap: 4px;
 }
 .poi-plan-gap { border-style: dashed; opacity: .85; }
+.poi-plan-row { cursor: pointer; }
 .poi-plan-row .poi-desc { -webkit-line-clamp: unset; -webkit-box-orient: unset; overflow: visible; }
 .poi-plan-row .poi-thumb { width: 34px; height: 34px; border-radius: 8px; }
 

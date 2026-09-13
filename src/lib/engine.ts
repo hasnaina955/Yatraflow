@@ -1021,22 +1021,23 @@ export interface TripTotals {
 
 /**
  * Trip-level stay rates — ₹ per room per night, two guests per room. Kept
- * identical to planBench's STAY_RATE_PER_NIGHT for the styles it names
- * (budget/comfort/luxury); importing planBench from the engine would cycle.
- * Styles without a bench mapping price at the comfort rate.
+ * identical to planBench's STAY_RATE_PER_NIGHT (importing planBench from the
+ * engine would cycle). Keyed by the trip's STAY BUDGET dial — travel style
+ * tunes stop cadence and suggestion flavors, never the bed's price.
  */
-const TRIP_STAY_RATE_PER_NIGHT: Record<string, number> = {
+const TRIP_STAY_RATE_PER_NIGHT: Record<'budget' | 'comfort' | 'luxury', number> = {
   budget: 1200,
   comfort: 3200,
-  balanced: 3200,
-  packed: 3200,
-  relaxed: 3200,
-  adventure: 3200,
-  family: 3200,
-  spiritual: 3200,
-  'food-focused': 3200,
-  creator: 3200,
   luxury: 8000,
+}
+
+/** The stay rate key for a trip: its own stayStyle dial, or the legacy
+ *  travelStyle (budget/luxury styles carried the pricing before the two
+ *  dials were separated) so existing trips never re-price silently. */
+function stayKeyFor(trip: Pick<Trip, 'stayStyle' | 'travelStyle'>): 'budget' | 'comfort' | 'luxury' {
+  if (trip.stayStyle) return trip.stayStyle
+  if (trip.travelStyle === 'budget' || trip.travelStyle === 'luxury') return trip.travelStyle
+  return 'comfort'
 }
 
 export function computeTotals(trip: Trip, legCorrections?: Record<string, LegEstimate>): TripTotals {
@@ -1125,7 +1126,7 @@ export function computeTotals(trip: Trip, legCorrections?: Record<string, LegEst
   }))
   const lodgingNights = hotelBases.size
   const lodgingRooms = Math.max(1, Math.ceil(trip.travellers / 2))
-  const lodgingRatePerNight = TRIP_STAY_RATE_PER_NIGHT[trip.travelStyle] ?? TRIP_STAY_RATE_PER_NIGHT.balanced
+  const lodgingRatePerNight = TRIP_STAY_RATE_PER_NIGHT[stayKeyFor(trip)]
   const lodgingInr = lodgingNights * lodgingRooms * lodgingRatePerNight
   // Each base's share lands on the first day that holds it, so the per-day
   // stacks keep summing to the trip total (the v0.36 accounting invariant).

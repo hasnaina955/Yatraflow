@@ -15,7 +15,8 @@ import {
 import type { FixedCommitment, LatLngPoint, TransportMode, TravelStyle } from '../data/types'
 import { TRAVEL_STYLES } from '../data/types'
 import { useDb, currentUser, createTrip } from '../store/store'
-import { FUEL_PRICE_INR_PER_L, isFuelEconomyMode, parseFuelEconomyKmL, parseFuelPricePerL, isImplausibleFuelEconomy } from '../lib/engine'
+import { FUEL_PRICE_INR_PER_L, isFuelEconomyMode, parseFuelEconomyKmL, parseFuelPricePerL, isImplausibleFuelEconomy, MODE_SPEED, minutesToHM } from '../lib/engine'
+import { planDriveDays } from '../lib/ridePlan'
 import { estimateTripStarter, buildOutlineSeedStops } from '../lib/tripStarter'
 import { fetchTripThumbUrl } from '../lib/tripThumb'
 import { Field, Chip, toast } from '../components/ui'
@@ -173,6 +174,16 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
     localTrain: f.localTrain,
     travelStyle: f.travelStyle,
   }), [f.startDate, f.endDate, f.travellers, f.transportMode, f.localTrain, f.roundTrip, f.fuelEconomy, f.fuelPrice, f.tankL, f.rentPerDay, f.travelStyle, orderedPoints, returnCount, fuelMode, tankNum, rentNum])
+
+  // Day Planner (P1, PR #105): the engine kicks in the moment a start and a
+  // destination exist — the route demands its own days from the wheel-hour
+  // cap, before any date juggling. Blended mode speed until the workspace's
+  // OSRM road time exists; the verdict re-derives on every input change.
+  const driveDaysVerdict = useMemo(() => {
+    if (bill.roadKm == null || bill.roadKm < 90) return null
+    const speed = MODE_SPEED[f.transportMode] ?? 42
+    return planDriveDays({ totalKm: bill.roadKm, driveMinutes: (bill.roadKm / speed) * 60, travelStyle: f.travelStyle })
+  }, [bill.roadKm, f.transportMode, f.travelStyle])
 
   function patchFields(next: Partial<typeof f>) {
     setF(x => ({ ...x, ...next }))
@@ -396,6 +407,21 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
               <Chip onClick={() => applyDayOutShape(1)}>Day out</Chip>
               <Chip onClick={() => applyDayOutShape(2)}>Weekend dash</Chip>
             </div>
+            {/* The engine's verdict the moment start + end exist: when the
+                route demands more days than the date range gives, say so and
+                offer the honest fix — one tap, still fully editable. */}
+            {driveDaysVerdict && driveDaysVerdict.driveDayCount > bill.days && (
+              <div className="dayplanner-banner" style={{ marginBottom: 12 }} role="status">
+                <b>The drive wants {driveDaysVerdict.driveDayCount} travel days.</b>
+                <span className="small muted">
+                  ≈{Math.round(driveDaysVerdict.perDay)} km a day keeps wheel time ≈{minutesToHM(driveDaysVerdict.maxDailyWheelMin)} — in {bill.days} day{bill.days !== 1 ? 's' : ''} it's ≈{minutesToHM((bill.roadKm ?? 0) / (MODE_SPEED[f.transportMode] ?? 42) * 60)} in one stretch.
+                </span>
+                <button className="btn btn-primary btn-sm" onClick={() => {
+                  const start = f.startDate || isoDay(new Date())
+                  patchFields({ startDate: start, endDate: isoAddDays(start, driveDaysVerdict.driveDayCount - 1) })
+                }}>Make it {driveDaysVerdict.driveDayCount} days</button>
+              </div>
+            )}
             <Field label="Trip name" error={errs.name}>
               <input className="input" autoComplete="off" ref={el => (fieldRefs.current.name = el)} aria-invalid={!!errs.name}
                 value={f.name} onChange={e => patchFields({ name: e.target.value })} placeholder="e.g. Kerala monsoon escape" />

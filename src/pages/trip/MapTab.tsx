@@ -8,7 +8,7 @@ import type { Trip, ItineraryStop } from '../../data/types'
 import type { ImpactResult } from '../../lib/impact'
 import { routePath } from '../../lib/routing'
 import { getAssumptions, buildJourney, minutesToHM, computeCategoryBias, MODE_SPEED, isRoundTrip } from '../../lib/engine'
-import { useTimeFormat, formatHMRange } from '../../lib/timefmt'
+import { useTimeFormat, formatHM, formatHMRange } from '../../lib/timefmt'
 import { Modal, Field, toast } from '../../components/ui'
 import { Select } from '../../components/Select'
 import { useSuggestionCache, isMapCacheFresh } from '../../hooks/useSuggestionCache'
@@ -134,7 +134,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
   // In-map place search (§6.5): a free-text query over the provider facade,
   // plus the results to add straight from the Map tab.
   const [searchQ, setSearchQ] = useState('')
-  const [searchResults, setSearchResults] = useState<PlaceHit[]>([])
+  const [searchResults, setSearchResults] = useState<{ h: PlaceHit; km: number | null; off: number | null }[]>([])
   const [searching, setSearching] = useState(false)
   const listRef = useRef<HTMLDivElement | null>(null)
 
@@ -436,12 +436,22 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
 
   async function onSearch(e: React.FormEvent) {
     e.preventDefault()
-    if (searchQ.trim().length < 2) return
+    const q = searchQ.trim()
+    if (q.length < 2) return
     setSearching(true)
     try {
-      const hits = await searchPlaces(searchQ)
-      setSearchResults(hits)
+      const hits = await searchPlaces(q)
+      // Trip/route/map aware (user ask): "coffee on my route", not coffee
+      // everywhere in India. Each hit is projected onto this trip's road and
+      // ranked by detour (then road position); anything beyond the current
+      // detour scope renders muted and the toast says why.
+      const ranked = hits
+        .map(h => ({ h, km: routeKmOf(h.latitude, h.longitude), off: detourKm(h, anchors) }))
+        .sort((a, b) => (a.off ?? 9999) - (b.off ?? 9999) || (a.km ?? 0) - (b.km ?? 0))
+      setSearchResults(ranked)
+      const onScope = ranked.filter(e => e.off != null && e.off <= scopeKm)
       if (hits.length === 0) toast('No places found for that search.')
+      else if (onScope.length === 0) toast(`Nothing for “${q}” within your ${scopeKm} km detour scope — widen the slider and search again.`)
     } catch {
       toast('Search failed — try again.', 'err')
     } finally {
@@ -570,8 +580,8 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
         key={hit.id}
         data-hit-id={hit.id}
         className={`poi-plan-row${activeHitId === hit.id ? ' poi-plan-row--active' : ''}`}
-        onMouseEnter={() => setActiveHitId(hit.id as string | number)}
-        onMouseLeave={() => setActiveHitId(prev => (prev === hit.id ? null : prev))}
+        onClick={() => setActiveHitId(hit.id as string | number)}
+        title="Show this stop on the map"
       >
         <div className="ride-spot-title">
           <span className={`ride-purpose ride-purpose-${sh.segment.purpose}`}>{sh.segment.label}</span>
@@ -580,6 +590,11 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
         </div>
         <div className="poi-desc small muted">
           ~{hit.cumKm ?? sh.segment.targetKm.toFixed(0)} km into the trip{sh.segment.purpose === 'sight' ? '' : ` · ≈${sh.segment.kmFromPrev.toFixed(0)} km / ${minutesToHM(sh.segment.minutesFromPrev)} since the last stop`}
+          {/* The planner is clock-first (PLAN-DAY-PLANNER §4) — show the wall
+              clock it derived the halt from, not just the km cadence. */}
+          {sh.segment.etaMinutes != null && (
+            <> · arrive ≈ <b>{formatHM(minutesToHM(sh.segment.etaMinutes), timeFormat)}</b>{sh.segment.purpose === 'overnight' ? ' — day ends here' : ''}</>
+          )}
         </div>
         {/* Day Planner chips (P1-D/P1-F): which derived day the hit lands on,
             whether it sits past a night halt, and — on round trips — whether
@@ -716,14 +731,22 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
         </form>
         {searchResults.length > 0 && (
           <div className="map-search-results" style={{ marginBottom: 10 }}>
-            {searchResults.slice(0, 5).map(h => (
-              <div key={h.id as string} className="row-between" style={{ padding: '5px 2px', borderBottom: '1px solid var(--line)' }}>
-                <span className="small" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {h.name}{h.nearestCity ? ` · ${h.nearestCity}` : ''}{h.description ? ` — ${h.description}` : ''}
-                </span>
-                {editable && <button className="btn btn-primary btn-sm" type="button" style={{ flex: '0 0 auto', marginLeft: 8 }} onClick={() => openAddModal(h)}>+ Add</button>}
-              </div>
-            ))}
+            {searchResults.slice(0, 5).map(({ h, km, off }) => {
+              const inScope = off != null && off <= scopeKm
+              return (
+                <div key={h.id as string} className="row-between" style={{ padding: '5px 2px', borderBottom: '1px solid var(--line)', opacity: inScope ? undefined : 0.6 }}>
+                  <span className="small" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {h.name}{h.nearestCity ? ` · ${h.nearestCity}` : ''}
+                    <span className="muted">{' — '}
+                      {km != null ? `~${Math.round(km)} km into the trip` : 'off the road'}
+                      {off != null ? ` · ${off < 0.5 ? 'on route' : `${Math.round(off)} km off-route`}` : ''}
+                      {!inScope && ' · beyond your detour scope'}
+                    </span>
+                  </span>
+                  {editable && <button className="btn btn-primary btn-sm" type="button" style={{ flex: '0 0 auto', marginLeft: 8 }} onClick={() => openAddModal(h)}>+ Add</button>}
+                </div>
+              )
+            })}
           </div>
         )}
         <div className="row-between" style={{ gap: 12, marginBottom: 10, flexWrap: 'wrap' }}>
@@ -762,7 +785,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
             <span className="small muted">{clockVerdict.reason}</span>
           </div>
         )}
-        {splitVerdict && splitVerdict.driveDayCount > trip.days.length && (
+        {routeTotalKm != null && splitVerdict && splitVerdict.driveDayCount > trip.days.length && (
           <div className="dayplanner-banner" role="status">
             <b>This drive needs {splitVerdict.driveDayCount} travel days.</b>
             <span className="small muted">

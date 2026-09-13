@@ -3,23 +3,24 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { CircleCheck, Clock, ExternalLink, Fuel, Lightbulb, MapPin, RotateCcw, Sparkles } from 'lucide-react'
 import { MetaIcon } from '../../components/icons'
+import { uid } from '../../data/seed'
 import type { Trip, ItineraryStop } from '../../data/types'
 import type { ImpactResult } from '../../lib/impact'
 import { routePath } from '../../lib/routing'
-import { getAssumptions, buildJourney, minutesToHM, computeCategoryBias, MODE_SPEED } from '../../lib/engine'
-import { useTimeFormat, formatHMRange } from '../../lib/timefmt'
+import { getAssumptions, buildJourney, minutesToHM, computeCategoryBias, MODE_SPEED, isRoundTrip } from '../../lib/engine'
+import { useTimeFormat, formatHM, formatHMRange } from '../../lib/timefmt'
 import { Modal, Field, toast } from '../../components/ui'
 import { Select } from '../../components/Select'
 import { useSuggestionCache, isMapCacheFresh } from '../../hooks/useSuggestionCache'
 import { openExternal } from '../../lib/native'
-import { corridorAnchors, detourKm, detourMinutes, asymmetricDetourMinutes, googleEnabled, planJourneyHalts, reasonForSegmentHit, searchPlaces, type NearbyOpts, routeHash } from '../../lib/geocode'
+import { corridorAnchors, detourKm, detourMinutes, asymmetricDetourMinutes, googleEnabled, planJourneyHalts, reasonForSegmentHit, searchPlaces, searchNearbyPoisMulti, kmFromStartForHit, planDriveDays, planTravelClock, DEFER_START, type NearbyOpts, type PlaceHit, routeHash } from '../../lib/geocode'
 import { dayDetourBudgetMin, budgetSharePct, splitByDetourBudget } from '../../lib/detourBudget'
 import { quotaUsed, SOFT_CAPS } from '../../lib/providers/quota'
 import { buildDnaVectorAcrossTrips, loadDnaLog, recordDnaEvent, dnaNoteForHit, crewSeedsFromSuggestions, crewSeedsToPlannedStops, crewSeedEvents, crewNoteForHit } from '../../lib/tripDna'
 import { clusterStoryArcs } from '../../lib/storyArcs'
 import { visitMinutesForCategory } from '../../lib/slackPrompts'
 import { prefersReducedMotion } from '../../lib/motion'
-import type { PlaceHit, SegmentHit } from '../../lib/geocode'
+import type { SegmentHit } from '../../lib/geocode'
 import { anchorHash, projectOntoPolyline } from '../../lib/providers/hits'
 import { fetchDailyWeather, forecastAvailable, isoAddDays } from '../../lib/weather'
 // MapLibre is heavy (~1MB) — load it only when the Map tab is actually opened.
@@ -133,7 +134,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
   // In-map place search (§6.5): a free-text query over the provider facade,
   // plus the results to add straight from the Map tab.
   const [searchQ, setSearchQ] = useState('')
-  const [searchResults, setSearchResults] = useState<PlaceHit[]>([])
+  const [searchResults, setSearchResults] = useState<{ h: PlaceHit; km: number | null; off: number | null }[]>([])
   const [searching, setSearching] = useState(false)
   const listRef = useRef<HTMLDivElement | null>(null)
 
@@ -284,6 +285,52 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     dayRainPct: dayRainPct ?? undefined,
   }), [trip, routeGeometry, routeTotalKm, dayRainPct, crewSeeds, dnaTick])
 
+  // Day Planner verdicts (PLAN-DAY-PLANNER P1-B/C): the drive-day split the
+  // ROUTE demands (duration cap, load-balanced) and the travel-clock verdict
+  // for the trip's real start time (defer / hop / ok). Pure — recomputed from
+  // route facts, never stored, so every stop mutation re-derives them (the
+  // ripple re-plan) and the night-halt position stays honest.
+  const rainFactor = dayRainPct?.[0] != null ? 1 - (dayRainPct[0] as number) / 200 : undefined
+  const splitVerdict = useMemo(
+    () => planDriveDays({ totalKm: planKm, driveMinutes: wholeTrip.min, travelStyle: trip.travelStyle, rainFactor }),
+    [planKm, wholeTrip.min, trip.travelStyle, dayRainPct],
+  )
+  const clockVerdict = useMemo(
+    () => planTravelClock({ totalKm: planKm, driveMinutes: wholeTrip.min, dayStart: trip.days[0]?.startTime, travelStyle: trip.travelStyle, rainFactor }),
+    [planKm, wholeTrip.min, trip.travelStyle, trip.days, dayRainPct],
+  )
+  const tripIsRoundTrip = isRoundTrip(trip)
+  // The split wants more days than planned: propose applying it. Declining is
+  // respected — with the honest red fatigue verdict stated, never hidden.
+  const [splitDeclined, setSplitDeclined] = useState(false)
+  useEffect(() => { setSplitDeclined(false) }, [splitVerdict?.driveDayCount])
+  const applySplitDays = () => {
+    if (!splitVerdict) return
+    const add = splitVerdict.driveDayCount - trip.days.length
+    if (add <= 0) return
+    applyChange(draft => {
+      let next = Math.max(...draft.days.map(d => d.index)) + 1
+      for (let i = 0; i < add; i++) {
+        draft.days.push({ id: uid('day'), index: next, stops: [] })
+        next += 1
+      }
+    }, 'add', -1)
+    toast(`Added ${add} travel day${add !== 1 ? 's' : ''} — the night halts pin themselves to the new boundaries`)
+  }
+
+  // Fraction fallback pool (P1-C): below the fatigue floor the planner is
+  // honestly silent, but the strip must never read as "nothing around" —
+  // one light corridor fetch feeds the ¼/½/¾ rows.
+  const [fractionPois, setFractionPois] = useState<PlaceHit[] | null>(null)
+  useEffect(() => {
+    if (loadingPois || pois.length > 0 || anchors.length < 2) { setFractionPois(null); return }
+    let cancelled = false
+    searchNearbyPoisMulti(anchors, scopeKm * 1000, 12, { ...nearbyOpts, purposes: ['sight' as const, 'meal' as const] })
+      .then(hits => { if (!cancelled) setFractionPois(hits) })
+      .catch(() => { if (!cancelled) setFractionPois([]) })
+    return () => { cancelled = true }
+  }, [loadingPois, pois, anchors, nearbyOpts, scopeKm, refreshTick])
+
   useEffect(() => {
     if (anchors.length === 0) return
     const cached = suggestionCache.cache.map
@@ -304,7 +351,13 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     }
     let cancelled = false
     setLoadingPois(true)
-    planJourneyHalts(anchors, planKm, wholeTrip.min, { ...nearbyOpts, multiDay: trip.days.length > 1 }, scopeKm * 1000)
+    // Day Planner arming (P1-B): the ROUTE arms the split — planDriveDays'
+    // duration cap, never the planned day count. A late start whose day
+    // becomes a short hop also needs the overnight arm.
+    const derivedMultiDay = splitVerdict
+      ? splitVerdict.driveDayCount > 1
+      : clockVerdict.verdict === 'hop'
+    planJourneyHalts(anchors, planKm, wholeTrip.min, { ...nearbyOpts, multiDay: derivedMultiDay || trip.days.length > 1 }, scopeKm * 1000)
       .then(plan => {
         if (!cancelled) {
           setPois(plan)
@@ -316,7 +369,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
       .catch(() => { /* suggestions are best-effort */ })
       .finally(() => { if (!cancelled) setLoadingPois(false) })
     return () => { cancelled = true }
-  }, [anchors, nearbyOpts, scopeKm, planKm, wholeTrip.min, trip.days.length, refreshTick]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [anchors, nearbyOpts, scopeKm, planKm, wholeTrip.min, trip.days.length, splitVerdict, clockVerdict, refreshTick]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // When the activation came from the map (pin hover/click), bring the matching
   // panel row into view so the two surfaces visibly point at the same place.
@@ -383,12 +436,22 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
 
   async function onSearch(e: React.FormEvent) {
     e.preventDefault()
-    if (searchQ.trim().length < 2) return
+    const q = searchQ.trim()
+    if (q.length < 2) return
     setSearching(true)
     try {
-      const hits = await searchPlaces(searchQ)
-      setSearchResults(hits)
+      const hits = await searchPlaces(q)
+      // Trip/route/map aware (user ask): "coffee on my route", not coffee
+      // everywhere in India. Each hit is projected onto this trip's road and
+      // ranked by detour (then road position); anything beyond the current
+      // detour scope renders muted and the toast says why.
+      const ranked = hits
+        .map(h => ({ h, km: routeKmOf(h.latitude, h.longitude), off: detourKm(h, anchors) }))
+        .sort((a, b) => (a.off ?? 9999) - (b.off ?? 9999) || (a.km ?? 0) - (b.km ?? 0))
+      setSearchResults(ranked)
+      const onScope = ranked.filter(e => e.off != null && e.off <= scopeKm)
       if (hits.length === 0) toast('No places found for that search.')
+      else if (onScope.length === 0) toast(`Nothing for “${q}” within your ${scopeKm} km detour scope — widen the slider and search again.`)
     } catch {
       toast('Search failed — try again.', 'err')
     } finally {
@@ -517,8 +580,8 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
         key={hit.id}
         data-hit-id={hit.id}
         className={`poi-plan-row${activeHitId === hit.id ? ' poi-plan-row--active' : ''}`}
-        onMouseEnter={() => setActiveHitId(hit.id as string | number)}
-        onMouseLeave={() => setActiveHitId(prev => (prev === hit.id ? null : prev))}
+        onClick={() => setActiveHitId(hit.id as string | number)}
+        title="Show this stop on the map"
       >
         <div className="ride-spot-title">
           <span className={`ride-purpose ride-purpose-${sh.segment.purpose}`}>{sh.segment.label}</span>
@@ -527,7 +590,28 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
         </div>
         <div className="poi-desc small muted">
           ~{hit.cumKm ?? sh.segment.targetKm.toFixed(0)} km into the trip{sh.segment.purpose === 'sight' ? '' : ` · ≈${sh.segment.kmFromPrev.toFixed(0)} km / ${minutesToHM(sh.segment.minutesFromPrev)} since the last stop`}
+          {/* The planner is clock-first (PLAN-DAY-PLANNER §4) — show the wall
+              clock it derived the halt from, not just the km cadence. */}
+          {sh.segment.etaMinutes != null && (
+            <> · arrive ≈ <b>{formatHM(minutesToHM(sh.segment.etaMinutes), timeFormat)}</b>{sh.segment.purpose === 'overnight' ? ' — day ends here' : ''}</>
+          )}
         </div>
+        {/* Day Planner chips (P1-D/P1-F): which derived day the hit lands on,
+            whether it sits past a night halt, and — on round trips — whether
+            you only ever pass it on the drive back. */}
+        {hit.cumKm != null && (
+          <div className="poi-desc small">
+            {splitVerdict && splitVerdict.driveDayCount > 1 && (
+              <span className="ride-day-chip">
+                Day {splitVerdict.nightHalts.filter(n => hit.cumKm! > n).length + 1}
+                {splitVerdict.nightHalts.some(n => hit.cumKm! > n) ? ' · after your night stop' : ''}
+              </span>
+            )}
+            {tripIsRoundTrip && hit.cumKm > planKm / 2 && (
+              <span className="ride-day-chip">return leg — you pass here on the drive back</span>
+            )}
+          </div>
+        )}
         <div className="poi-desc small">Why: {reasonForSegmentHit(sh, offRoute)}</div>
         {sh.segment.roadWarning && (
           <div className="poi-desc small">⚠ {sh.segment.roadWarning}</div>
@@ -647,14 +731,22 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
         </form>
         {searchResults.length > 0 && (
           <div className="map-search-results" style={{ marginBottom: 10 }}>
-            {searchResults.slice(0, 5).map(h => (
-              <div key={h.id as string} className="row-between" style={{ padding: '5px 2px', borderBottom: '1px solid var(--line)' }}>
-                <span className="small" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {h.name}{h.nearestCity ? ` · ${h.nearestCity}` : ''}{h.description ? ` — ${h.description}` : ''}
-                </span>
-                {editable && <button className="btn btn-primary btn-sm" type="button" style={{ flex: '0 0 auto', marginLeft: 8 }} onClick={() => openAddModal(h)}>+ Add</button>}
-              </div>
-            ))}
+            {searchResults.slice(0, 5).map(({ h, km, off }) => {
+              const inScope = off != null && off <= scopeKm
+              return (
+                <div key={h.id as string} className="row-between" style={{ padding: '5px 2px', borderBottom: '1px solid var(--line)', opacity: inScope ? undefined : 0.6 }}>
+                  <span className="small" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {h.name}{h.nearestCity ? ` · ${h.nearestCity}` : ''}
+                    <span className="muted">{' — '}
+                      {km != null ? `~${Math.round(km)} km into the trip` : 'off the road'}
+                      {off != null ? ` · ${off < 0.5 ? 'on route' : `${Math.round(off)} km off-route`}` : ''}
+                      {!inScope && ' · beyond your detour scope'}
+                    </span>
+                  </span>
+                  {editable && <button className="btn btn-primary btn-sm" type="button" style={{ flex: '0 0 auto', marginLeft: 8 }} onClick={() => openAddModal(h)}>+ Add</button>}
+                </div>
+              )
+            })}
           </div>
         )}
         <div className="row-between" style={{ gap: 12, marginBottom: 10, flexWrap: 'wrap' }}>
@@ -673,8 +765,78 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
             <b style={{ whiteSpace: 'nowrap', minWidth: 46, textAlign: 'right' }}>{scopeKm} km</b>
           </label>
         </div>
+        {/* Day Planner proposals (P1-B/P1-C) — the split the route demands,
+            the defer/hop verdict for the real start time. They sit above the
+            strip because they change WHAT the strip plans. */}
+        {clockVerdict.verdict === 'defer' && (
+          <div className="dayplanner-banner" role="status">
+            <b>Too late to drive honestly today.</b>
+            <span className="small muted">{clockVerdict.reason}</span>
+            {editable && (
+              <button className="btn btn-primary btn-sm" onClick={() => applyChange(draft => { const d0 = draft.days[0]; if (d0) d0.startTime = DEFER_START }, 'edit', 0)}>
+                Set a {DEFER_START} start
+              </button>
+            )}
+          </div>
+        )}
+        {clockVerdict.verdict === 'hop' && (
+          <div className="dayplanner-banner" role="status">
+            <b>Late start — a short hop, then rest.</b>
+            <span className="small muted">{clockVerdict.reason}</span>
+          </div>
+        )}
+        {routeTotalKm != null && splitVerdict && splitVerdict.driveDayCount > trip.days.length && (
+          <div className="dayplanner-banner" role="status">
+            <b>This drive needs {splitVerdict.driveDayCount} travel days.</b>
+            <span className="small muted">
+              ≈{Math.round(splitVerdict.perDay)} km a day keeps wheel time ≈{minutesToHM(splitVerdict.maxDailyWheelMin)} — the honest cap for {(trip.travelStyle ?? 'balanced')} pace.
+            </span>
+            {!splitDeclined ? (
+              <div className="row" style={{ gap: 8 }}>
+                <button className="btn btn-primary btn-sm" onClick={applySplitDays}>
+                  Apply — add {splitVerdict.driveDayCount - trip.days.length} day{splitVerdict.driveDayCount - trip.days.length !== 1 ? 's' : ''}
+                </button>
+                <button className="btn btn-ghost btn-sm" onClick={() => setSplitDeclined(true)}>Keep my {trip.days.length}-day plan</button>
+              </div>
+            ) : (
+              <span className="small dayplanner-red">
+                Keeping {trip.days.length} day{trip.days.length !== 1 ? 's' : ''}: ≈{minutesToHM(wholeTrip.min)} behind the wheel in a single stretch is past the honest cap — the fatigue verdict stays red.
+              </span>
+            )}
+          </div>
+        )}
         {!loadingPois && pois.length === 0 && (
-          <p className="muted small">Not enough driving distance yet for a fatigue plan — add a longer route (90+ km) in the Timeline and segmented stop suggestions will appear here.</p>
+          fractionPois && fractionPois.length > 0 ? (
+            <div>
+              <p className="muted small" style={{ marginBottom: 6 }}>
+                Below the fatigue-plan floor, but the corridor has places — the closest to each quarter of the drive:
+              </p>
+              {[0.25, 0.5, 0.75].map(frac => {
+                const targetKm = planKm * frac
+                const ranked = fractionPois
+                  .map(h => ({ h, km: h.cumKm ?? kmFromStartForHit(h, anchors, { routePolyline: routePolyline ?? undefined }) }))
+                  .filter(e => e.km != null)
+                  .sort((a, b) => Math.abs((a.km as number) - targetKm) - Math.abs((b.km as number) - targetKm))
+                const near = ranked[0]
+                const label = frac === 0.25 ? '¼' : frac === 0.5 ? '½' : '¾'
+                return (
+                  <div key={frac} className="poi-plan-row poi-plan-gap">
+                    <span className="ride-purpose ride-purpose-sight ride-purpose-muted">{label} of the drive</span>
+                    {near ? (
+                      <span className="small">
+                        ~{Math.round(targetKm)} km — <b>{near.h.name}</b>
+                        {editable && <button className="btn btn-ghost btn-sm" style={{ marginLeft: 8 }} onClick={() => openAddModal(near.h)}>+ Add</button>}
+                      </span>
+                    ) : (
+                      <span className="muted small">no corridor stop found — add a stop on the Timeline and suggestions will pin themselves here.</span>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            <p className="muted small">Not enough driving distance yet for a fatigue plan — add a longer route (90+ km) in the Timeline and segmented stop suggestions will appear here.</p>
+          )
         )}
       </div>
       <div className="map-ideas-grid" ref={listRef}>

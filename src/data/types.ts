@@ -178,6 +178,13 @@ export interface Trip {
   vehicleProfile?: VehicleProfile
   budgetPerPersonInr: number
   travelStyle: TravelStyle
+  /**
+   * Stay budget tier — a SEPARATE dial from travelStyle (style tunes stop
+   * frequency and suggestion flavors; this prices the bed). Unset trips
+   * derive it from the legacy travelStyle ('budget'/'luxury') so existing
+   * budgets never re-price silently.
+   */
+  stayStyle?: 'budget' | 'comfort' | 'luxury'
   fixedCommitments: FixedCommitment[]
   days: ItineraryDay[]
   expenses: Expense[]

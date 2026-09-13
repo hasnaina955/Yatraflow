@@ -14,9 +14,10 @@ import { openExternal } from '../lib/native'
 import { titleCase } from '../lib/labels'
 import { haptic } from '../lib/haptics'
 import { nativeWatch } from '../lib/native'
-import { loadFlag, loadMapViewMode, saveFlag, saveMapViewMode } from '../lib/uiPrefs'
+import { loadFlag, saveFlag } from '../lib/uiPrefs'
 import {
   applyViewModeOnMap, HERO_3D_CAMERA, MAP_VIEW_MODES, MAP_VIEW_MODE_META,
+  heroBearingForRoute,
   type MapViewMode,
 } from '../lib/mapViewModes'
 import type { MapRef } from './mapcn/map'
@@ -202,7 +203,7 @@ function CooperativeGestures({ enabled }: { enabled: boolean }) {
  * effect: setStyle preserves the camera, and the pitch/bearing ride belongs
  * to mode transitions only.
  */
-function MapViewModeController({ mode }: { mode: MapViewMode }) {
+function MapViewModeController({ mode, bearing }: { mode: MapViewMode; bearing?: number | null }) {
   const { map, isLoaded } = useMap()
   useEffect(() => {
     if (!map || !isLoaded) return
@@ -215,14 +216,16 @@ function MapViewModeController({ mode }: { mode: MapViewMode }) {
     if (!map) return
     const duration = prefersReducedMotion() ? 0 : 700
     if (mode === '3d' && prevMode.current !== '3d') {
-      map.easeTo({ ...HERO_3D_CAMERA, duration })
+      // Dynamic hero cam: look along THIS trip's road (initial route bearing);
+      // the prototype's fixed bearing stays only as a geometry-less fallback.
+      map.easeTo({ pitch: HERO_3D_CAMERA.pitch, bearing: bearing ?? HERO_3D_CAMERA.bearing, duration })
     } else if (mode !== '3d' && prevMode.current === '3d') {
       // Leaving 3D: flat camera again, and the terrain stack is dropped by
       // the reconcile effect (map.getTerrain() null is the acceptance check).
       map.easeTo({ pitch: 0, bearing: 0, duration })
     }
     prevMode.current = mode
-  }, [map, mode])
+  }, [map, mode, bearing])
   return null
 }
 
@@ -320,14 +323,11 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   // overlay so the canvas gets the viewport. Transient by design: Escape or
   // the same chip (now "⤡ Collapse") reverts it; nothing is persisted.
   const [expanded, setExpanded] = useState(false)
-  // Map view mode (2D / Terrain / 3D) — persisted globally (one map
-  // preference, like the legend flag) but only when this surface opted in.
-  // A disabled surface pins 2d and never reads or writes the pref, so the
-  // Board can't inherit the Map tab's terrain choice.
-  const [viewMode, setViewMode] = useState<MapViewMode>(() => (enableMapViewModes ? loadMapViewMode() : '2d'))
-  useEffect(() => {
-    if (enableMapViewModes) saveMapViewMode(viewMode)
-  }, [enableMapViewModes, viewMode])
+  // Map view mode (2D / Terrain / 3D). ALWAYS opens 2D — a stale saved 3D
+  // pref used to greet every trip with the hero camera (user ask, PR #105
+  // follow-up). The switcher is per-session; a disabled surface (Board) pins
+  // 2d outright.
+  const [viewMode, setViewMode] = useState<MapViewMode>('2d')
   // Selected stop (stop-pin click) — powers the compact cross-link popup that
   // jumps to the Timeline/Board tabs. Null = no popup.
   const [selectedStop, setSelectedStop] = useState<{ id: string; title: string; dayIndex: number } | null>(null)
@@ -587,6 +587,14 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     [allPoints],
   )
 
+  // The 3D hero frames THIS trip's road: initial bearing of the main route
+  // (GeoJSON [lng,lat] → lat/lng for the pure helper). Geometry-less trips
+  // keep the prototype's fixed bearing as the fallback.
+  const heroBearing = useMemo(() => {
+    const coords = geom.all?.length ? geom.all : allStraight
+    return heroBearingForRoute(coords?.map(c => ({ lat: c[1], lng: c[0] })))
+  }, [geom.all, allStraight])
+
   // Round-trip return drive: last plotted point → trip start (home). Only for
   // self-drive round trips with a geocoded home, and only when home isn't
   // already the last plotted anchor. Toggleable via the map filter chips.
@@ -751,7 +759,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
             <MapControls position="top-right" showFullscreen className="yf-map-ctrls" />
             {/* Terrain stack reconcile (2D · Terrain · 3D hero) — no-op on a
                 hard-2D surface like the Board. */}
-            {enableMapViewModes && <MapViewModeController mode={viewMode} />}
+            {enableMapViewModes && <MapViewModeController mode={viewMode} bearing={heroBearing} />}
             {/* Inline on a coarse pointer: one finger scrolls the page.
                 Expanded (or a mouse): normal gestures. */}
             <CooperativeGestures enabled={!expanded} />

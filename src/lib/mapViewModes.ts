@@ -70,9 +70,35 @@ export function resolveHillshadeBeforeId(layers: readonly { id?: string }[] | un
   return null
 }
 
-/** 3D hero camera (prototype panel 7, aimed down a ghat climb). */
+/** 3D hero camera (prototype panel 7). The BEARING is a fallback only — the
+ *  camera frames the trip's own road via heroBearingForRoute, so every trip
+ *  gets its own hero shot instead of the mockup's fixed ghat climb. */
 export const HERO_3D_CAMERA = { pitch: 70, bearing: 235 }
 export const HERO_3D_EXAGGERATION = 1.8
+
+/**
+ * Initial compass bearing (degrees, 0–360) of the trip's road — the first
+ * segment long enough to be a real direction, not coordinate jitter. The 3D
+ * hero camera looks ALONG the road the way the driver will, wherever the trip
+ * runs. Null (no usable geometry) → the caller keeps the prototype fallback.
+ */
+export function heroBearingForRoute(coords: { lat: number; lng: number }[] | undefined): number | null {
+  if (!coords || coords.length < 2) return null
+  for (let i = 1; i < coords.length; i++) {
+    const a = coords[i - 1]
+    const b = coords[i]
+    if (!Number.isFinite(a.lat) || !Number.isFinite(a.lng) || !Number.isFinite(b.lat) || !Number.isFinite(b.lng)) continue
+    const dLat = b.lat - a.lat
+    const dLng = b.lng - a.lng
+    if (Math.abs(dLat) + Math.abs(dLng) < 0.02) continue // < ~2 km of drift
+    const rad = Math.PI / 180
+    const y = Math.sin(dLng * rad) * Math.cos(b.lat * rad)
+    const x = Math.cos(a.lat * rad) * Math.sin(b.lat * rad) -
+      Math.sin(a.lat * rad) * Math.cos(b.lat * rad) * Math.cos(dLng * rad)
+    return (Math.atan2(y, x) / rad + 360) % 360
+  }
+  return null
+}
 
 /**
  * The slice of the MapLibre map the mode applier touches — structural typing

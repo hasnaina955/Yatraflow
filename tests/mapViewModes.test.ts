@@ -7,6 +7,7 @@ import {
   TERRARIUM_DEM_SOURCE,
   YF_DEM_SOURCE_ID,
   YF_HILLSHADE_LAYER_ID,
+  heroBearingForRoute,
   isWaterishLayerId,
   parseMapViewMode,
   resolveHillshadeBeforeId,
@@ -213,5 +214,42 @@ describe('persistence wrappers (no localStorage in node)', () => {
   it('saveMapViewMode is a silent no-op without storage', () => {
     expect(() => saveMapViewMode('3d')).not.toThrow()
     expect(loadMapViewMode()).toBe('2d')
+  })
+})
+
+describe('heroBearingForRoute — the dynamic 3D hero camera', () => {
+  it('frames the road the driver will see: a west→east route looks east (~90°)', () => {
+    const bearing = heroBearingForRoute([
+      { lat: 20, lng: 72 },
+      { lat: 20.01, lng: 72.3 },
+      { lat: 20.02, lng: 72.6 },
+    ])
+    expect(bearing).not.toBeNull()
+    expect(bearing!).toBeGreaterThan(75)
+    expect(bearing!).toBeLessThan(105)
+  })
+
+  it('a south→north route looks north (~0°)', () => {
+    const bearing = heroBearingForRoute([
+      { lat: 20, lng: 72 },
+      { lat: 20.4, lng: 72.001 },
+      { lat: 20.8, lng: 72.002 },
+    ])
+    expect(bearing!).toBeLessThan(15)
+  })
+
+  it('skips coordinate jitter and uses the first meaningful segment', () => {
+    const bearing = heroBearingForRoute([
+      { lat: 20, lng: 72 },
+      { lat: 20.00001, lng: 72.00001 }, // jitter — skipped
+      { lat: 20.4, lng: 72.001 },
+    ])
+    expect(bearing!).toBeLessThan(15)
+  })
+
+  it('no usable geometry → null (caller keeps the prototype fallback)', () => {
+    expect(heroBearingForRoute(undefined)).toBeNull()
+    expect(heroBearingForRoute([{ lat: 20, lng: 72 }])).toBeNull()
+    expect(heroBearingForRoute([{ lat: 20, lng: 72 }, { lat: 20.00001, lng: 72.00001 }])).toBeNull()
   })
 })

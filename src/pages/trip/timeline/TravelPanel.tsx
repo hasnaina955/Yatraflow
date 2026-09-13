@@ -294,21 +294,23 @@ export function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAdd
   return (
     <div className="travel-panel">
       <div className="travel-panel-head">
-        <div className="travel-panel-title"><RouteIcon size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />{title}</div>
+        <div className="travel-panel-toprow">
+          <div className="travel-panel-title"><RouteIcon size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />{title}</div>
+          {directionsUrl && (
+            <button
+              className="btn btn-ghost btn-sm"
+              style={{ marginLeft: 'auto', flex: 'none' }}
+              onClick={() => openExternal(directionsUrl)}
+              title="Open this ride with turn-by-turn directions in Google Maps"
+            >
+              <ExternalLink size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Directions
+            </button>
+          )}
+        </div>
         <div className="small muted">
           {modeLabelMode(trip.transportMode)} · {journey.distanceKm.toFixed(0)} km · {minutesToHM(journey.driveMinutes)} wheel time
           {journey.halts.length > 0 && ` · ${journey.halts.length} halt${journey.halts.length !== 1 ? 's' : ''}`}
         </div>
-        {directionsUrl && (
-          <button
-            className="btn btn-ghost btn-sm"
-            style={{ marginLeft: 'auto', flex: 'none' }}
-            onClick={() => openExternal(directionsUrl)}
-            title="Open this ride with turn-by-turn directions in Google Maps"
-          >
-            <ExternalLink size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Directions
-          </button>
-        )}
       </div>
 
       <div className="travel-panel-stats">

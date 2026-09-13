@@ -15,12 +15,14 @@ import {
 import type { FixedCommitment, LatLngPoint, TransportMode, TravelStyle } from '../data/types'
 import { TRAVEL_STYLES } from '../data/types'
 import { useDb, currentUser, createTrip } from '../store/store'
-import { FUEL_PRICE_INR_PER_L, isFuelEconomyMode, parseFuelEconomyKmL, parseFuelPricePerL, isImplausibleFuelEconomy } from '../lib/engine'
+import { FUEL_PRICE_INR_PER_L, isFuelEconomyMode, parseFuelEconomyKmL, parseFuelPricePerL, isImplausibleFuelEconomy, MODE_SPEED, minutesToHM } from '../lib/engine'
+import { planDriveDays } from '../lib/ridePlan'
 import { estimateTripStarter, buildOutlineSeedStops } from '../lib/tripStarter'
 import { fetchTripThumbUrl } from '../lib/tripThumb'
 import { Field, Chip, toast } from '../components/ui'
 import { Select } from '../components/Select'
-import { DateRangeCalendar, fmtDay } from '../components/DateRangeCalendar'
+import { DateRangeCalendar, fmtDay, isoDay } from '../components/DateRangeCalendar'
+import { isoAddDays } from '../lib/weather'
 import { PillNav } from '../components/PillNav'
 import { haptic, HAPTIC } from '../lib/haptics'
 import { useTimeFormat, formatHM } from '../lib/timefmt'
@@ -173,8 +175,31 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
     travelStyle: f.travelStyle,
   }), [f.startDate, f.endDate, f.travellers, f.transportMode, f.localTrain, f.roundTrip, f.fuelEconomy, f.fuelPrice, f.tankL, f.rentPerDay, f.travelStyle, orderedPoints, returnCount, fuelMode, tankNum, rentNum])
 
+  // Day Planner (P1, PR #105): the engine kicks in the moment a start and a
+  // destination exist — the route demands its own days from the wheel-hour
+  // cap, before any date juggling. Blended mode speed until the workspace's
+  // OSRM road time exists; the verdict re-derives on every input change.
+  const driveDaysVerdict = useMemo(() => {
+    if (bill.roadKm == null || bill.roadKm < 90) return null
+    const speed = MODE_SPEED[f.transportMode] ?? 42
+    return planDriveDays({ totalKm: bill.roadKm, driveMinutes: (bill.roadKm / speed) * 60, travelStyle: f.travelStyle })
+  }, [bill.roadKm, f.transportMode, f.travelStyle])
+
   function patchFields(next: Partial<typeof f>) {
     setF(x => ({ ...x, ...next }))
+  }
+
+  // Day Planner P1-E shape presets: one round-trip day ("Day out") or two
+  // ("Weekend dash"). They only preset the shape — dates and the return flag —
+  // the bill stays honest on its own (no hotel stops → no stay line).
+  function applyDayOutShape(days: number) {
+    haptic(HAPTIC.select)
+    const today = isoDay(new Date())
+    const start = f.startDate || today
+    patchFields({ startDate: start, endDate: isoAddDays(start, days - 1), roundTrip: true })
+    toast(days === 1
+      ? 'Day out: one round-trip day — the bill prices meals and parking, no stay'
+      : 'Weekend dash: two days there and back — no stay unless you add one')
   }
 
   // Auto-fill: the rounded-up rough take lands in the budget field whenever it
@@ -374,6 +399,29 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
                 <span className="ts-switch-label">Plot the drive back</span>
               </label>
             </div>
+            {/* Day Planner P1-E shape presets: a day out is ONE round-trip day
+                (no stay line in the bill — meals and parking ride on the day);
+                a weekend dash is two. They preset the shape; every field stays
+                editable. */}
+            <div className="chip-row" role="group" aria-label="Trip shape presets" style={{ marginBottom: 12 }}>
+              <Chip onClick={() => applyDayOutShape(1)}>Day out</Chip>
+              <Chip onClick={() => applyDayOutShape(2)}>Weekend dash</Chip>
+            </div>
+            {/* The engine's verdict the moment start + end exist: when the
+                route demands more days than the date range gives, say so and
+                offer the honest fix — one tap, still fully editable. */}
+            {driveDaysVerdict && driveDaysVerdict.driveDayCount > bill.days && (
+              <div className="dayplanner-banner" style={{ marginBottom: 12 }} role="status">
+                <b>The drive wants {driveDaysVerdict.driveDayCount} travel days.</b>
+                <span className="small muted">
+                  ≈{Math.round(driveDaysVerdict.perDay)} km a day keeps wheel time ≈{minutesToHM(driveDaysVerdict.maxDailyWheelMin)} — in {bill.days} day{bill.days !== 1 ? 's' : ''} it's ≈{minutesToHM((bill.roadKm ?? 0) / (MODE_SPEED[f.transportMode] ?? 42) * 60)} in one stretch.
+                </span>
+                <button className="btn btn-primary btn-sm" onClick={() => {
+                  const start = f.startDate || isoDay(new Date())
+                  patchFields({ startDate: start, endDate: isoAddDays(start, driveDaysVerdict.driveDayCount - 1) })
+                }}>Make it {driveDaysVerdict.driveDayCount} days</button>
+              </div>
+            )}
             <Field label="Trip name" error={errs.name}>
               <input className="input" autoComplete="off" ref={el => (fieldRefs.current.name = el)} aria-invalid={!!errs.name}
                 value={f.name} onChange={e => patchFields({ name: e.target.value })} placeholder="e.g. Kerala monsoon escape" />

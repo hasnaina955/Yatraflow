@@ -34,6 +34,7 @@ export function TripSettingsForm({ trip, editable }: { trip: Trip; editable: boo
     startDate: trip.startDate, endDate: trip.endDate,
     travellers: trip.travellers, budget: trip.budgetPerPersonInr,
     transportMode: trip.transportMode, travelStyle: trip.travelStyle,
+    stayStyle: (trip.stayStyle ?? (trip.travelStyle === 'budget' || trip.travelStyle === 'luxury' ? trip.travelStyle : 'comfort')) as 'budget' | 'comfort' | 'luxury',
     fuelEconomy: trip.fuelEconomyKmL?.toString() ?? '',
     fuelPrice: trip.fuelPricePerL?.toString() ?? '',
     roundTrip: trip.roundTrip ?? true,
@@ -99,7 +100,21 @@ export function TripSettingsForm({ trip, editable }: { trip: Trip; editable: boo
             </button>
           ))}
         </PillNav>
-        <p className="bench-hint">The engine tunes break cadence — relaxed stops sooner, packed pushes further.</p>
+        <p className="bench-hint">Tunes stop frequency and the kind of places suggested — relaxed stops sooner, packed pushes further. It never touches pricing.</p>
+        {/* Stay budget — the SEPARATE pricing dial (style ≠ budget): the bed is
+            priced by this, not by the travel style. Legacy trips derive it. */}
+        <span className="bench-eyebrow" style={{ display: 'block', marginTop: 14 }}>Stay budget</span>
+        <PillNav className="tabbar" role="group" aria-label="Stay budget" activeKey={f.stayStyle}>
+          {(['budget', 'comfort', 'luxury'] as const).map(s => (
+            <button key={s} type="button" data-pill-key={s} disabled={!editable}
+              aria-pressed={f.stayStyle === s}
+              className={`tab-btn${f.stayStyle === s ? ' active' : ''}`}
+              onClick={() => setF(x => ({ ...x, stayStyle: s }))}>
+              {cap(s)}
+            </button>
+          ))}
+        </PillNav>
+        <p className="bench-hint">Prices the bed: ₹1,200 / ₹3,200 / ₹8,000 per room per night (2 guests per room). Shows up honestly on the Budget tab when you have hotel stops.</p>
       </div>
       <div className="ts-layout">
         <div className="ts-controls">
@@ -341,6 +356,7 @@ export function TripSettingsForm({ trip, editable }: { trip: Trip; editable: boo
             travellers: Math.max(1, f.travellers),
             budgetPerPersonInr: Math.max(0, f.budget),
             transportMode: f.transportMode, travelStyle: f.travelStyle,
+            stayStyle: f.stayStyle,
             fuelEconomyKmL: isFuelEconomyMode(f.transportMode) ? parseFuelEconomyKmL(f.fuelEconomy) : undefined,
             fuelPricePerL: isFuelEconomyMode(f.transportMode) ? parseFuelPricePerL(f.fuelPrice) : undefined,
             roundTrip: isFuelEconomyMode(f.transportMode) ? f.roundTrip : undefined,

@@ -6,8 +6,8 @@
 import { describe, it, expect } from 'vitest'
 import {
   planRideSegments, assignSegmentHits, fitScoreForPurpose, nearestCityName, kmFromStartForHit,
-  segmentsFromPlan,
-  STRETCH_INTERVAL_KM, MEAL_INTERVAL_KM, ENDNO_KM, MIN_BREAK_GAP_KM,
+  segmentsFromPlan, planDriveDays,
+  STRETCH_INTERVAL_KM, MEAL_INTERVAL_KM, ENDNO_KM, MIN_BREAK_GAP_KM, STRETCH_CLOCK_MIN,
   type RideSegment,
 } from '../src/lib/ridePlan'
 import type { PlaceHit } from '../src/lib/providers/hits'
@@ -48,8 +48,12 @@ describe('planRideSegments', () => {
     const s = planRideSegments({ totalKm: 1400, driveMinutes: 1000, includeFuel: true, multiDay: true })
     expect(s.length).toBeGreaterThanOrEqual(5)
     const overnights = s.filter(x => x.dayEnd)
-    expect(overnights.map(o => o.targetKm)).toEqual([550, 1100])
-    // first stop is a stretch ~150 km in, and nothing past total − ENDNO
+    // P1-A — boundaries derive from the wheel cap (10 h × 84 km/h = 840 km/day
+    // → 2 load-balanced days of 700), not the fixed 550 tick (which demanded a
+    // 6.5 h day-1 and a 10.1 h day-2 — an imbalanced, near-impossible day-2).
+    expect(overnights.map(o => o.targetKm)).toEqual([700])
+    // first stop is a stretch ~150 km in (clock twin @ 84 km/h = 168 > 150,
+    // so the km cadence holds), and nothing past total − ENDNO
     expect(s[0].purpose).toBe('stretch')
     expect(s[0].targetKm).toBeCloseTo(STRETCH_INTERVAL_KM, 5)
     for (const x of s) expect(x.targetKm).toBeLessThan(1400 - ENDNO_KM)
@@ -84,6 +88,21 @@ describe('planRideSegments', () => {
     expect(s.some(x => x.purpose === 'fuel')).toBe(false)
     const single = planRideSegments({ totalKm: 1000, driveMinutes: 700, includeFuel: true, multiDay: false })
     expect(single.some(x => x.dayEnd)).toBe(false)
+  })
+
+  it('stretch fires by the clock on slow roads — 2 h of wheel time, not 3.6', () => {
+    // 300 km over 7 h of wheel = blended 42.9 km/h (the all-India city mix):
+    // the km cadence would wait 150 km (3.5 h); the clock twin tightens to
+    // ≈ 86 km (2 h). Receipt: STRETCH 150 @ 42 km/h = 3.6 h between breaks.
+    const s = planRideSegments({ totalKm: 300, driveMinutes: 420 })
+    expect(s[0].purpose).toBe('stretch')
+    expect(s[0].targetKm).toBeCloseTo((STRETCH_CLOCK_MIN / 60) * (300 / 7), 0)
+  })
+
+  it('highway journeys keep the 150 km stretch rhythm (the clock never loosens)', () => {
+    const s = planRideSegments({ totalKm: 600, driveMinutes: 420 }) // 85.7 km/h
+    expect(s[0].purpose).toBe('stretch')
+    expect(s[0].targetKm).toBeCloseTo(STRETCH_INTERVAL_KM, 5)
   })
 
   it('respects a vehicle tank range for the fuel cadence', () => {
@@ -280,5 +299,62 @@ describe('segmentsFromPlan', () => {
     const segs = segmentsFromPlan([{ km: 400, minutes: 0, purpose: 'overnight' }], 600)
     expect(segs[0].dayEnd).toBe(true)
     expect(segs.find(s => s.purpose === 'meal')?.dayEnd).toBeUndefined()
+  })
+})
+
+// ============ planDriveDays — the Day Planner's split verdict (P1-A) ============
+// Fixtures ARE the spec: PLAN-DAY-PLANNER §14. Every number is derived from
+// the journey's own blended speed × the style-tuned wheel cap.
+
+describe('planDriveDays', () => {
+  it('700 km at the blended 42 km/h demands 2 load-balanced days of 350', () => {
+    const d = planDriveDays({ totalKm: 700, driveMinutes: 1000 })!
+    expect(d.driveDayCount).toBe(2)
+    expect(d.perDay).toBeCloseTo(350, 5)
+    expect(d.nightHalts).toEqual([350])
+    expect(d.maxDailyWheelMin).toBeCloseTo(500, 5) // 8.3 h each — dinner ends the day
+  })
+
+  it('1200 km demands 3 × 400 — never a 585+115 imbalance', () => {
+    const d = planDriveDays({ totalKm: 1200, driveMinutes: 1714 })!
+    expect(d.driveDayCount).toBe(3)
+    expect(d.perDay).toBeCloseTo(400, 5)
+    expect(d.nightHalts).toEqual([400, 800])
+  })
+
+  it('a 300 km day needs no overnight', () => {
+    const d = planDriveDays({ totalKm: 300, driveMinutes: 420 })!
+    expect(d.driveDayCount).toBe(1)
+    expect(d.nightHalts).toEqual([])
+  })
+
+  it('highway speeds stretch the daily budget: 1400 km at 84 km/h is 2 × 700', () => {
+    const d = planDriveDays({ totalKm: 1400, driveMinutes: 1000 })!
+    expect(d.driveDayCount).toBe(2)
+    expect(d.perDay).toBeCloseTo(700, 5)
+    expect(d.nightHalts).toEqual([700])
+  })
+
+  it('packed pushes to 11 h, relaxed rests at 8.5', () => {
+    const packed = planDriveDays({ totalKm: 800, driveMinutes: 1143, travelStyle: 'packed' })!
+    const relaxed = planDriveDays({ totalKm: 800, driveMinutes: 1143, travelStyle: 'relaxed' })!
+    expect(packed.driveDayCount).toBe(2)
+    expect(relaxed.driveDayCount).toBe(3)
+    expect(packed.maxDailyWheelMin).toBeCloseTo(571.5, 5)
+    expect(relaxed.maxDailyWheelMin).toBeCloseTo(381, 0)
+  })
+
+  it('rain shrinks the cap and shifts the split', () => {
+    const dry = planDriveDays({ totalKm: 400, driveMinutes: 571 })!
+    const wet = planDriveDays({ totalKm: 400, driveMinutes: 571, rainFactor: 0.85 })!
+    expect(dry.driveDayCount).toBe(1)
+    expect(wet.driveDayCount).toBe(2)
+    expect(wet.nightHalts).toEqual([200])
+  })
+
+  it('guards garbage input', () => {
+    expect(planDriveDays({ totalKm: 0, driveMinutes: 60 })).toBeNull()
+    expect(planDriveDays({ totalKm: 100, driveMinutes: 0 })).toBeNull()
+    expect(planDriveDays({ totalKm: NaN, driveMinutes: 60 })).toBeNull()
   })
 })

@@ -1,9 +1,10 @@
 // ============ Stop add/edit modal ============
-import React, { useRef, useState } from 'react'
+import React, { useMemo, useRef, useState } from 'react'
 import type { ItineraryStop, StopCategory, StopStatus, Trip } from '../data/types'
 import { STOP_CATEGORIES, STOP_STATUSES } from '../data/types'
 import { Car } from 'lucide-react'
 import { Modal, Field } from './ui'
+import { Select } from './Select'
 import { LocationInput } from './LocationInput'
 import type { PlaceHit } from './LocationInput'
 import { fetchOpeningHours } from '../lib/geocode'
@@ -148,6 +149,30 @@ export function StopEditor({ open, onClose, initial, resetKey, onSave, dayLabel,
     hoursState === 'found' ? 'Auto-filled from OpenStreetMap — edit if needed' :
     undefined
 
+  // Time pickers on the shared listbox (the calendar's design language):
+  // 15-minute steps in the user's 12/24h format, "Not set" to clear, and a
+  // preserved exact entry for legacy values that aren't on the grid.
+  const timeOptions = useMemo(() => {
+    const opts: { value: string; label: string }[] = [{ value: '', label: 'Not set' }]
+    for (let m = 0; m < 24 * 60; m += 15) {
+      const val = `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`
+      opts.push({ value: val, label: formatHM(val, timeFormat) })
+    }
+    return opts
+  }, [timeFormat])
+  const openTimeOptions = useMemo(
+    () => (v.openTime && !timeOptions.some(o => o.value === v.openTime)
+      ? [{ value: v.openTime, label: formatHM(v.openTime, timeFormat) }, ...timeOptions]
+      : timeOptions),
+    [timeOptions, v.openTime, timeFormat],
+  )
+  const closeTimeOptions = useMemo(
+    () => (v.closeTime && !timeOptions.some(o => o.value === v.closeTime)
+      ? [{ value: v.closeTime, label: formatHM(v.closeTime, timeFormat) }, ...timeOptions]
+      : timeOptions),
+    [timeOptions, v.closeTime, timeFormat],
+  )
+
   function submit(e: React.FormEvent) {
     e.preventDefault()
     const next: Record<string, string> = {}
@@ -175,9 +200,8 @@ export function StopEditor({ open, onClose, initial, resetKey, onSave, dayLabel,
             <input className="input" ref={el => (fieldRefs.current.title = el)} aria-invalid={!!errs.title} value={v.title} onChange={e => set('title', e.target.value)} placeholder="e.g. Cheeyappara Waterfalls" />
           </Field>
           <Field label="Category">
-            <select className="select" value={v.category} onChange={e => set('category', e.target.value as StopCategory)}>
-              {STOP_CATEGORIES.map(c => <option key={c} value={c}>{titleCase(c)}</option>)}
-            </select>
+            <Select value={v.category} onChange={val => set('category', val as StopCategory)}
+              options={STOP_CATEGORIES.map(c => ({ value: c, label: titleCase(c) }))} />
           </Field>
         </div>
 
@@ -191,11 +215,12 @@ export function StopEditor({ open, onClose, initial, resetKey, onSave, dayLabel,
             />
           </Field>
           <Field label="Priority">
-            <select className="select" value={v.priority} onChange={e => set('priority', e.target.value as ItineraryStop['priority'])}>
-              <option value="must-do">Must do</option>
-              <option value="nice-to-have">Nice to have</option>
-              <option value="optional">Optional</option>
-            </select>
+            <Select value={v.priority} onChange={val => set('priority', val as ItineraryStop['priority'])}
+              options={[
+                { value: 'must-do', label: 'Must do', icon: <span className="opt-dot" style={{ background: 'var(--coral)' }} /> },
+                { value: 'nice-to-have', label: 'Nice to have', icon: <span className="opt-dot" style={{ background: 'var(--teal)' }} /> },
+                { value: 'optional', label: 'Optional', icon: <span className="opt-dot" style={{ background: 'var(--gray-400)' }} /> },
+              ]} />
           </Field>
         </div>
 
@@ -209,14 +234,13 @@ export function StopEditor({ open, onClose, initial, resetKey, onSave, dayLabel,
               </Field>
               {hoursRelevant && (
                 <Field label="Opens at" hint={hoursHint}>
-                  <input type="time" className="input" value={v.openTime} onChange={e => set('openTime', e.target.value)} />
-                  {v.openTime && <div className="time-preview small muted">= {formatHM(v.openTime, timeFormat)}</div>}
+                  <Select value={v.openTime} onChange={val => set('openTime', val)} options={openTimeOptions} aria-label="Opens at" />
                 </Field>
               )}
               {hoursRelevant && (
                 <Field label="Closes at" error={errs.closeTime}>
-                  <input type="time" className="input" ref={el => (fieldRefs.current.closeTime = el)} aria-invalid={!!errs.closeTime} value={v.closeTime} onChange={e => set('closeTime', e.target.value)} />
-                  {v.closeTime && <div className="time-preview small muted">= {formatHM(v.closeTime, timeFormat)}</div>}
+                  <Select value={v.closeTime} onChange={val => set('closeTime', val)} options={closeTimeOptions} aria-label="Closes at"
+                    buttonRef={el => (fieldRefs.current.closeTime = el)} />
                 </Field>
               )}
             </div>
@@ -279,9 +303,18 @@ export function StopEditor({ open, onClose, initial, resetKey, onSave, dayLabel,
             <input className="input" ref={el => (fieldRefs.current.sourceUrl = el)} aria-invalid={!!errs.sourceUrl} value={v.sourceUrl} onChange={e => set('sourceUrl', e.target.value)} placeholder="https://…" />
           </Field>
           <Field label="Status">
-            <select className="select" value={v.status} onChange={e => set('status', e.target.value as StopStatus)}>
-              {STOP_STATUSES.map(s => <option key={s} value={s}>{statusLabel(s)}</option>)}
-            </select>
+            <Select value={v.status} onChange={val => set('status', val as StopStatus)}
+              options={STOP_STATUSES.map(s => ({
+                value: s,
+                label: statusLabel(s),
+                icon: <span className="opt-dot" style={{
+                  background: s === 'confirmed' ? 'var(--ok)'
+                    : s === 'rejected' ? 'var(--coral)'
+                    : s === 'maybe' ? 'var(--warn)'
+                    : s === 'needs-booking' ? 'var(--saffron)'
+                    : 'var(--gray-400)',
+                }} />,
+              }))} />
           </Field>
         </div>
 

@@ -13,6 +13,214 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 > record still exists in `git log`, not here. Archived release notes live in
 > [`docs/history/`](docs/history/).
 
+## [Unreleased]
+
+### Fixed
+- **Landing hero sheen leak** — the glass-sheen sweep is `position: absolute` but `.btn`
+  never established a clipping box, so a skewed bar swept the whole hero face and read as
+  a stray grey blob sliding across empty space beside the CTAs (the "swipe animation
+  starts from an empty side" report). Each hero button is now its own clip box.
+- **Map zoom/fullscreen controls were unusable** — mapcn's `MapControls` ships Tailwind
+  utility classes this app doesn't compile, so the group rendered as static flow under
+  the canvas (invisible in 2D, stray and clipped otherwise). The handful of rules it
+  needs are hand-ported in app tokens under `.yf-map-ctrls`, pinned top-right, above
+  the canvas, in both themes.
+- **Dark-mode pin hover tooltips unreadable** — maplibre's stock popup chrome is bare
+  white regardless of theme, and light text on it vanished. Popups (hover tips + the
+  stop cross-link popup) are reskinned to the app card in both themes, tip included.
+- **Timeline drag got cropped at the day card** — the carried row escaped nothing: the
+  day-collapse clip (`overflow: hidden`) cut it off at the card edge. While a drag is
+  live the owning section unclips (`drag-live`), same fix applied to Board columns.
+- **Plan/Inspect pill jumped sides** — the long Plan copy's max-content pushed the
+  header tools row into a left-aligned wrap. The copy is now the flexible item and the
+  tools pin right (margin-left auto keeps them right-aligned even when wrapped).
+
+## [0.53.0] - 2026-09-13
+
+**The design-system audit gets fixed, not just filed.** An independent AI audit of all 19
+pages, 20 overlay surfaces and 20 native selects became issue #107 — a root-cause-grouped
+tracker — and five batches worked it to the floor: a per-theme contrast pass that fixed every
+live AA failure (deepened light inks, dark-foreground swaps on solid-teal fills, literal navy
+gradient stops where `--gray-900` broke dark), the motion vocabulary consolidated onto the
+tokens (one stagger step, JS timing read from CSS), the mechanical tail (kicker recipe for
+every micro-label, coarse-pointer hit areas, disabled states that look disabled, layout
+shifts), native-select popups replaced by a real ARIA listbox on the high-traffic surfaces,
+and the last design decisions resolved — including a scenic 292° hue that finally separates
+the "places to see" lane and the viewpoint spine from the day-route palette they'd been
+borrowing. The map's day filter draws the selected day's whole journey again. Android
+`versionCode 14 / 0.14-native`.
+
+### Added
+
+- **Page-by-page UI design-system audit committed as a reference doc** —
+  `docs/UI-PAGE-AUDIT.md` is a diagnostic-only (no fixes applied) pass over all 19 pages/sections,
+  20 overlay surfaces and 20 native `<select>`s, measured against the project's own token/motion
+  system with computed WCAG values and `file:line` citations. It is the write-up behind
+  **[issue #107](https://github.com/hasnaina955/Yatraflow/issues/107)**, now the complete fix
+  tracker (contrast · tokens · motion · layout · a11y · selects), grouped by root cause so the
+  "known rule, siblings unfixed" families (light-ink deepening, dark-foreground swap, motion
+  tokens, `pointer: coarse` hit areas) each collapse to one change. Indexed in `docs/README.md` as
+  a companion to the earlier accessibility `UI_AUDIT.md`, not a replacement. A provenance banner
+  notes the line cites predate v0.51.0/v0.52.0 — re-locate by selector.
+
+### Fixed
+
+- **Single-day map view draws only the selected day's journey** (PR #106, on `test`). A regression
+  from the engine-journeys change: the single-day branch switched its source to every day that *has*
+  a route and dropped the day filter, so selecting Day 2 kept rendering all days' lines while the
+  camera fit Day 2 alone. Restores the one-day-in, one-day-out contract; the selected day still
+  shows its whole engine journey (anchor-only outbound and ride-home included), and the Board
+  backdrop regains its documented `focusDay` behaviour.
+- **UI audit #107 — contrast, ink-tier, a11y and layout batch (verified per theme).** Fixing the
+  root causes first, every value re-computed against the *current* tokens (many audit rows had
+  already shipped fixed in v0.51/v0.52 — e.g. `notif-badge` is 8.2:1 now — so only the live
+  failures were touched):
+  - A **deepened light text-ink tier** (`--ink-amber` #8F5B06 · `--ink-ok` #1F6B41; dark re-declares
+    them to the already-passing raw aliases) now backs `chip-ok`, `metric-good`/`balance-pos`,
+    `metric-warn`, `impact-head`, `.delta-neg`, `tl-total-warn`, the amber-sibling block and the
+    `tab-count--hot` (which also lost a dark-on-dark hardcoded `#8F5B06`).
+  - The **solid-teal-fill + white** family (`step-num`, `vote-btn.on`, `mode-btn.on`, `crew-btn.on`,
+    `cal-day.edge`, `route-dot`) moves to `--teal-deep` in light and the `#06251f` dark-foreground
+    swap in dark — the pattern `.map-legend-toggle.map-live-on` already used; the mode-tile hint gets
+    its dark ink too. `--color-primary` (light) steps one notch deeper so the primary CTA's white
+    label clears 5.19:1 at rest (which also lifts `.share-tab.is-active`, it shares the token).
+  - **Explore:** the Saved chip's selected state drops white-on-saffron (1.97:1) for the soft-fill +
+    deep-ink recipe its siblings use; the hero search placeholder goes to full `#e2f1ef`; and the
+    focus now declares a **white** ring so the dark-teal hero can't wash the shared `.input:focus`
+    indicator out to 1.18:1.
+  - **SYS-5:** `.card.route-snap` and `.trip-head-card` end their gradients in a **literal** navy
+    (not `--gray-900`, which flips near-white in dark and stranded the white text at ~1.1:1) — which
+    also makes the Public Itinerary glance text legible in both themes as a side effect.
+  - **A11y:** `PayerSelect` now forwards the `id`/`aria-*` that `Field` injects (the "Paid by" label
+    previously pointed at a non-existent id — no accessible name); the Budget metric strip gets
+    `role="group"` (so its `aria-label` isn't ignored); the expense table's empty actions `<th>` gets
+    a screen-reader label; the Group Input **consensus bar** low/mid segments move to a neutral→amber
+    →green ramp (was `--line` 1.18 / `--saffron` 1.85 — the low bar was invisible in both themes).
+  - **Layout / state-drawn:** `.form-row` wraps again (its flex override had dropped the original
+    responsive intent — the `commitment-row` grid tracks were dead code behind it), `.pulse-bar` spans
+    its grid row full-width, `.chip-count` drops the `opacity:.65` that washed it to ~2.5–3.2:1, and
+    `.btn.on-teal` gets the missing rule so the My Trips Trash toggle's pressed state is drawn (its
+    `aria-pressed` was always correct — a sighted-only gap).
+- **UI audit #107 — fill contrasts + motion-token batch.** The border/fill half of the ink work,
+  plus the motion vocabulary:
+  - **Fills** (3:1 non-text, light only — dark passes as authored): the health "Tight" number and
+    bar move `--yf-amber` → `--warn-600` (2.01/1.89 → 3.92/3.69), the Board pulse band routes
+    through the ink tier (`mid` 1.94, `ok` 4.03) with the `bad` band taking the deep red in light
+    (3.83 → 6.43), the day-progress medium-severity fill (1.85 → 3.40) and the daily-average tick
+    (2.40 → 3.40) go to `--warn-600`, `--cat-tolls-parking` deepens to slate (2.76/2.77 → pass), the
+    white switch knob gets dark ink on the checked dark-teal track (2.05 → 6.5), and the stop-kind
+    **food/rest** pair — 3.9° apart (the same colour) and ~2:1 as the spine — separates to **18°**
+    AND clears 3:1 in light (burnt orange #C2410C / gold #A16207; dark keeps its primitives).
+    The remaining cat-hue re-space (food vs local-travel vs emergency, all within 6°) is the one
+    deliberately open palette decision.
+  - **Motion (SYS-7):** the snap controls (`route-btn`, `mode-btn`, `crew-btn`, `cal-day`,
+    `quick-budget .chip`, `move-btn`, `board-fit`, `board-pulse-link`, `vote-btn`) gain the shared
+    `--t-fast` ease; the `.clickable-chip` duplicate transition is merged into one declaration (the
+    old pair fought — colour and glow popped while the fill eased); every raw `.15s`/`.3s`/`.4s`/
+    `.5s` duration routes through `--t-fast`/`--t-med`/`--t-slow` + `--ease-out` (28 values across
+    13 rules; the one `.15s` stagger *delay* stays literal for SYS-7f); and the Board FLIP pass now
+    resolves its timing from the tokens via `motionTiming()` (`--motion-slow` + `--ease-out`) instead
+    of a byte-for-byte duplicated easing string. The pill glider was verified already token-driven
+    and frozen under reduced motion.
+- **UI audit #107 — the mechanical tail: type recipes, hit areas, layout and state bugs.** The
+  root-cause method applied to the remaining discrete rows:
+  - **Kicker / micro-labels (SYS-1):** Create-Trip's eight section labels had no base rule at all —
+    they rendered as 15px/400 sentence-case body text and the page hierarchy collapsed to h1→body.
+    `.eyebrow` (and the calendar's `.cal-wd`) joins the kicker-unification recipe, and the five
+    sibling specs that pre-dated it (`.bench-eyebrow`, `.group-lab`, `.mini-lab`, `.route-tag`,
+    `.editorial-kicker`) drop their dead font declarations — the recipe block is now the single
+    source of type truth (colour stays per-label).
+  - **Touch (SYS-4):** the `pointer: coarse` hit-area extensions now also cover `.link-btn`,
+    `.move-btn`, `.board-pulse-link`, `.cal-day`, `.route-btn` and `.vote-btn` (the vote — the
+    flow's primary control — was 34×30).
+  - **Form states:** disabled `.input`/`.select`/`.textarea` finally *look* disabled
+    (opacity + not-allowed, matching `.btn:disabled`) — three shipped identical to enabled ones;
+    the travel panel's hand-styled time/number fields move onto the shared `.input` surface via a
+    compact variant (same focus ring as every other field), and the halt planner's stray
+    `.input`-classed select becomes a real `.select` (the last of the two conventions).
+  - **My Trips:** the empty-state CTA demotes to outline (one filled primary per view — the header
+    already owns one); the Clear button is always mounted (visibility-toggled) so the search field
+    stops shrinking on the first keystroke; the header gets real classes, killing the
+    `:first-child` structural selector and the inline-style `!important` fight; the style chips'
+    Explore-only margin is scoped out of the toolbar; and trash rows drop their trailing border
+    via `:last-child`.
+  - **Explore:** the hero search gains an in-field clear affordance (the only Clear button sat in
+    the filter card ~300px below the input that set `q`); the featured card labels itself
+    "outside your filters" when filters are active (it deliberately ignores them); the hero kicker
+    is typed in sentence case (CSS uppercases it) and the hero h1 rejoins the global ramp instead
+    of running a second `clamp`; PubCard's social icon links and the creator-line anchor get
+    interactive affordances (hover + `focus-visible`) instead of copying `.muted`.
+  - **Overview:** the six identical heading-underlines come out (a `.card-head` gap replaces them —
+    dividers return only where two groups share a card) and the page-head h2 steps down under
+    578px, where the global h1's 26px floor made the two adjacent heading levels render the same
+    size on every phone.
+  - **Budget:** the ≤700px category-name track gets `min-width: 0` + ellipsis (a 44px track was
+    handing "Accommodation" ~14px); "over the daily average" gains a ▲ shape cue + screen-reader
+    text instead of fill-colour-only; and the inline-JS fills normalize onto the alias token
+    family (`--teal`/`--saffron`/a new `--coral` alias — zero visual change).
+  - **Board / timeline:** the phantom `--focus` token (never defined) is gone from the two
+    focus-visible outlines; the timeline's three copies of the `74px 1fr` rail geometry merge into
+    one rule.
+  - **Dark-theme inks:** NativeHome's live trip thumb (white icon on dark-lightened teal, 2.47:1)
+    and bell count (3.21) get dark ink, as does the AI drawer's user bubble (2.11); and the
+    Create-Trip dock switches to near-solid glass (90%) so the amount's teal can't be dragged
+    below AA by whatever scrolls beneath it.
+  - **Motion (SYS-7f):** one stagger step — `--stagger-step: 60ms` now drives the board columns,
+    My Trips cards (previously a 70ms step) and the Create-Trip blocks (was a 40ms lead-in) via
+    `calc`.
+  - **POI tokens (SYS-8a):** the hardcoded `#7C5CFC`/`#5540B8` purple pair moves to
+    `--yf-poi-see`/`--yf-poi-see-ink` (dark lifts to `#B4A5FF` via the token, so two override
+    rules delete). Re-measured, the sight chip passes ~5.7/6.9:1 — the audit's 1.99/1.84 had
+    compared the ink against the raw, uncomposited hex.
+  - **Admin:** the 5–6 column tables scroll on phones (block-level `overflow-x`) instead of
+    clipping the page; the tablist row was verified already correct (stale in the audit).
+  - **Public itinerary:** the floating hero stats card — the one surface that ignored the theme —
+    gains a dark variant. **Share:** the scrollable tablist gets edge fades that only show where
+    content remains, and arrowing through tabs scrolls the focused tab into view (in `useTablist`,
+    so every tablist surface inherits it). **Auth:** the support link gains an underline tell.
+  - Deliberately left: the budget category hues (user decision — keep as authored), the
+    native-select popup rebuild (A-family, its own batch), the stop-kind spine+tag double encoding
+    and the viewpoint hue (design decisions), and the token-scale adopt-or-delete (SYS-2a/b).
+- **UI audit #107 — native-select popups replaced on the high-traffic surfaces (A-family).**
+  The themed `.select` trigger stayed, but its popup was OS-rendered — on Capacitor Android that
+  ships as a stock system dialog (the "still looks html" complaint). A shared `Select` component
+  (`components/Select.tsx`, the WAI-ARIA select-only combobox on the `LocationInput` contract)
+  now backs the **14 editing/filtering selects**: StopEditor's category/priority/status, the
+  Create-Trip commitment type/day, Trip Settings vehicle + fuel (including the disabled state
+  that used to render enabled), My Trips when/sort, Explore duration/budget/sort, the travel
+  panel halt purpose (compact variant) and the map's add-POI day pick. Focus stays on the
+  trigger; the popup is `aria-activedescendant`-driven with wrapping arrows, Home/End,
+  typeahead and Esc/outside-click/Tab dismiss — and Esc no longer bubbles into the enclosing
+  dialog. Keyboard math is node-tested in `lib/listbox.ts` + `tests/listbox.test.ts`. The six
+  low-traffic selects keep the native control by design (trigger look is identical; only the
+  popup differed).
+- **UI audit #107 — SYS-2 decided and cleaned up.** The adopt-or-delete call on the unused
+  token scales lands on **delete**: the `--text-*` scale (1 of 8 steps used) and the `--s-*`
+  spacing scale (0 uses) are gone — with 340+ literal sizes in the cascade, a parallel scale
+  nobody routed through was a trap, not a tool (`--text-xs` stays for the bottom-nav label;
+  sizes elsewhere stay literal by design). SYS-2c: Profile's eight inline card margins move
+  to a `.stack-gap` class, and the commitment row weights its fields by content again (the
+  grid's 2fr/1fr/.8fr intent, re-expressed in flex — "What" grows, "Day" no longer takes half
+  the row).
+- **UI audit #107 — the design-decision tail.** The last open rows, resolved:
+  - **The scenic hue split (SYS-8a, finished):** the "places to see" lane and the viewpoint
+    stop-kind now own **292° magenta-violet** (`--yf-poi-see` #db4cf0 light / #e488f2 dark,
+    ink `--yf-poi-see-ink` #8a2999 / #f0a7fb) — 40° clear of the Day-3 route violet they used
+    to share byte-for-byte, 38° clear of the activity purple (which sat ~2° from the old
+    POI colour), and clear of every other day colour. The viewpoint spine also stops wearing
+    the interactive teal (the selection colour) on every viewpoint card. Computed per theme:
+    spine 3.33/7.61:1, chip ink 5.78/8.00:1.
+  - **Explore gains its entrance choreography** — grid cards ride the shared `trip-enter`
+    stagger (`--stagger-step`, capped at 8 like My Trips), via a new `enterIndex` prop on
+    PubCard; the discovery page no longer arrives instantly while every other page cascades.
+  - **StopEditor's priority/status options carry tone dots** in the custom listbox (dual-coded
+    with their text labels). Category icons were skipped deliberately: no category→icon map
+    exists in the codebase to reuse, and inventing one for a nicety wasn't worth the surface.
+  - **Landing repaint mitigation:** `background-attachment` drops from `fixed` to `scroll` on
+    coarse pointers — the pinned full-page ramp forces a repaint every scroll frame on the
+    Android WebView. Desktop keeps the seamless pinned ramp; the touch change still needs a
+    low-end device check to confirm the win.
+
 ## [0.52.0] - 2026-09-12
 
 **The map learns relief.** The light basemap moves to Liberty — cream land,

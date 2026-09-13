@@ -376,7 +376,7 @@ export const DaySection = React.memo(function DaySection({ day, trip, editable, 
   const chainStops = visibleStops(day).filter(s => !s.auto)
 
   return (
-    <div className={`day-section${collapsed ? ' day-closed' : ''}${collapsed && isStayDay ? ' day-stay-collapsed' : ''}`} id={`day-card-${day.index}`}>
+    <div className={`day-section${collapsed ? ' day-closed' : ''}${collapsed && isStayDay ? ' day-stay-collapsed' : ''}${dragging !== null ? ' drag-live' : ''}`} id={`day-card-${day.index}`}>
       <div className="day-header">
         {/* Stable name + state attribute (UI audit F-09); the collapsible body
             is a fragment of siblings, so there's no single aria-controls id. */}

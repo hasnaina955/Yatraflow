@@ -68,7 +68,7 @@ export function AuthPage({ onNavigate }: { onNavigate: (r: string) => void }) {
   return (
     <div className="auth-wrap">
       <div className="card auth-card">
-        <h1 style={{ fontSize: 26 }}>{mode === 'login' ? 'Welcome back' : 'Create your account'}</h1>
+        <h1 className="auth-title">{mode === 'login' ? 'Welcome back' : 'Create your account'}</h1>
         <p className="muted small" style={{ marginTop: 4 }}>
           {mode === 'login' ? 'Log in to your trip plans.' : 'Free forever for planning. No card needed.'}
         </p>
@@ -106,7 +106,7 @@ export function AuthPage({ onNavigate }: { onNavigate: (r: string) => void }) {
           {mode === 'login' && (
             <p className="hint-text" style={{ margin: '10px 0 0', textAlign: 'center' }}>
               Forgot your password? Password resets open the Supabase console —{' '}
-              <a href="mailto:support@yatraflow.app?subject=Reset%20my%20YatraFlow%20password">mail support and we’ll reset it</a>.
+              <a className="text-link" href="mailto:support@yatraflow.app?subject=Reset%20my%20YatraFlow%20password">mail support and we’ll reset it</a>.
             </p>
           )}
         </form>

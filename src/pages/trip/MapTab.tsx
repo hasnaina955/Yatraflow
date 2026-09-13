@@ -9,6 +9,7 @@ import { routePath } from '../../lib/routing'
 import { getAssumptions, buildJourney, minutesToHM, computeCategoryBias, MODE_SPEED } from '../../lib/engine'
 import { useTimeFormat, formatHMRange } from '../../lib/timefmt'
 import { Modal, Field, toast } from '../../components/ui'
+import { Select } from '../../components/Select'
 import { useSuggestionCache, isMapCacheFresh } from '../../hooks/useSuggestionCache'
 import { openExternal } from '../../lib/native'
 import { corridorAnchors, detourKm, detourMinutes, asymmetricDetourMinutes, googleEnabled, planJourneyHalts, reasonForSegmentHit, searchPlaces, type NearbyOpts, routeHash } from '../../lib/geocode'
@@ -814,13 +815,11 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
           <div>
             {poiDraft.hit.description && <p className="small muted" style={{ marginTop: 0 }}>{poiDraft.hit.description}</p>}
             <Field label="Add to which day?">
-              <select
-                className="select"
-                value={pickDay}
-                onChange={e => setPickDay(Number(e.target.value))}
-              >
-                {dayOptions.map(d => <option key={d.index} value={d.index}>Day {d.index + 1}</option>)}
-              </select>
+              <Select
+                value={String(pickDay)}
+                onChange={v => setPickDay(Number(v))}
+                options={dayOptions.map(d => ({ value: String(d.index), label: `Day ${d.index + 1}` }))}
+              />
             </Field>
             <p className="hint-text">You can fine-tune duration, fees and timings in the Timeline afterwards.</p>
             <div style={{ display: 'flex', gap: 9, justifyContent: 'flex-end', marginTop: 8 }}>

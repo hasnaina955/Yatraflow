@@ -59,13 +59,12 @@ export function OverviewTab({ trip, editable, onOpenDecisions, onOpenTimeline, o
         </div>
 
         <div className="card">
-          <div className="row-between">
+          <div className="row-between card-head">
             <h3>Trip health</h3>
             <Chip tone={health.band === 'Comfortable' ? 'ok' : health.band === 'Manageable' ? 'teal' : health.band === 'Tight' ? 'saffron' : 'danger'}>
               {health.band}
             </Chip>
           </div>
-          <hr className="divider" />
           <div className="health-big">
             <div className={`health-num-big ${health.band === 'Tight' ? 'mid' : health.band === 'Comfortable' || health.band === 'Manageable' ? 'ok' : 'bad'}`}>{health.score}</div>
             <div style={{ flex: 1, minWidth: 200 }}>
@@ -98,11 +97,10 @@ export function OverviewTab({ trip, editable, onOpenDecisions, onOpenTimeline, o
 
         {/* Priority actions: the most consequential issues with a direct fix link */}
         <div className="card">
-          <div className="row-between">
+          <div className="row-between card-head">
             <h3>Priority actions</h3>
             {health.warnings.length > 0 && <span className="chip chip-saffron">{health.warnings.length} to review</span>}
           </div>
-          <hr className="divider" />
           {priorityActions.length === 0 ? (
             <p className="muted small">Nothing needs fixing right now — the plan flows.</p>
           ) : (
@@ -145,11 +143,10 @@ export function OverviewTab({ trip, editable, onOpenDecisions, onOpenTimeline, o
         </div>
 
         <div className="card">
-          <div className="row-between">
+          <div className="row-between card-head">
             <h3>Fixed commitments</h3>
             <span className="chip chip-info">{trip.fixedCommitments.length}</span>
           </div>
-          <hr className="divider" />
           {nextCommitment ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div className="warn-item sev-low">
@@ -172,8 +169,7 @@ export function OverviewTab({ trip, editable, onOpenDecisions, onOpenTimeline, o
         </div>
 
         <div className="card">
-          <h3>Recent activity</h3>
-          <hr className="divider" />
+          <h3 className="card-head">Recent activity</h3>
           {activityFor(trip.id).slice(0, 6).map(a => (
             <div key={a.id} className="feed-item">
               <Avatar user={userById(a.actorId)} />
@@ -225,7 +221,7 @@ function WeatherCard({ trip }: { trip: Trip }) {
   }, [anchor, trip.startDate, trip.days.length]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (state === 'loading') {
-    return <div className="card"><h3><CloudSun size={14} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Weather</h3><hr className="divider" /><p className="muted small">Loading forecast…</p></div>
+    return <div className="card"><h3 className="card-head"><CloudSun size={14} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Weather</h3><p className="muted small">Loading forecast…</p></div>
   }
   if (state !== 'ready') return null
 
@@ -233,11 +229,10 @@ function WeatherCard({ trip }: { trip: Trip }) {
   const wetDays = entries.filter(w => w.rainChancePct >= 60).length
   return (
     <div className="card">
-      <div className="row-between">
+      <div className="row-between card-head">
         <h3><CloudSun size={14} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Weather along the route</h3>
         <span className="small muted">Open-Meteo · forecasts ±15 days</span>
       </div>
-      <hr className="divider" />
       <div className="weather-strip">
         {entries.map(w => {
           const info = wmoInfo(w.code)

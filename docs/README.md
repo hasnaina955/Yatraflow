@@ -10,6 +10,7 @@ Start here. The codebase is documented across the files below — read the ones 
 | [`DESIGN_TOKENS.md`](../DESIGN_TOKENS.md) | The 3-layer design-token system (primitive → semantic → component) and the button/input state matrix. |
 | [`USER_GUIDE.md`](USER_GUIDE.md) | End-user how-to: planning a trip, the timeline, map, budget, sharing. |
 | [`UI_AUDIT.md`](UI_AUDIT.md) | Full UI audit (2026-09-01, v0.22.0): 32 findings vs the Vercel Web Interface Guidelines — file:line references, severity, and an example fix for every finding, plus a 6-batch fix roadmap. |
+| [`UI-PAGE-AUDIT.md`](UI-PAGE-AUDIT.md) | Design-system *consistency* audit (2026-09-12, v0.50.2): page-by-page pass (19 pages · 20 overlays · 20 selects) against the token/motion system, with computed WCAG values and `file:line`. Diagnostic only — the fix list is **[issue #107](https://github.com/hasnaina955/Yatraflow/issues/107)**. Complements (does not replace) `UI_AUDIT.md`; line cites have drifted since v0.52.0 — re-locate by selector. |
 | [`CONTRIBUTING.md`](../CONTRIBUTING.md) | Setup + ground rules for contributors. |
 | [`AGENTS.md`](../AGENTS.md) | Operating manual for AI coding agents (Cline/Hermes). **Read fully before automating any change here.** Includes the documentation protocol (§6). |
 | [`ROADMAP.md`](../ROADMAP.md) | **Single plan of record**: open issues, stabilization + strategic milestone tracks, UI-audit tracker, and the **idea bank** (all unbuilt ideas, tiered by readiness). |

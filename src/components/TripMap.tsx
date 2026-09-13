@@ -746,7 +746,9 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
             center={[76.5, 10.5]}
             zoom={5}
           >
-            <MapControls position="top-right" showFullscreen />
+            {/* yf-map-ctrls: mapcn ships this group in Tailwind utilities this
+                app doesn't compile — the class hooks the hand-ported CSS. */}
+            <MapControls position="top-right" showFullscreen className="yf-map-ctrls" />
             {/* Terrain stack reconcile (2D · Terrain · 3D hero) — no-op on a
                 hard-2D surface like the Board. */}
             {enableMapViewModes && <MapViewModeController mode={viewMode} />}
@@ -778,7 +780,13 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
               )
             })() : (
               trip.days
-                .filter(d => dayRoutePoints[String(d.index)])
+                // Single-day view draws EXACTLY the selected day's journey —
+                // dayRoutePoints is keyed by every trip day (an anchor-only
+                // outbound exists only in the synthesis), but the day chips'
+                // contract is one day in, one day out. Filtering by route
+                // existence alone draws all days at once (the regression from
+                // the engine-journeys change).
+                .filter(d => d.index === dayFilter && dayRoutePoints[String(d.index)])
                 .map(d => {
                   const ride = dayRoutePoints[String(d.index)]!
                   const coords = geom[String(d.index)]?.length

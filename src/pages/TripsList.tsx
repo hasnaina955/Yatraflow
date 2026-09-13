@@ -6,6 +6,7 @@ import { useTrips, useTrashedTrips, useUsers, useSessionUserId, tripsForUser, tr
 import { computeTotals, formatInrShort } from '../lib/engine'
 import { cap } from '../lib/labels'
 import { Avatar, Chip, EmptyState, toast, undoToast, ConfirmDialog } from '../components/ui'
+import { Select } from '../components/Select'
 import { CoverThumb } from '../components/CoverThumb'
 import type { Trip, User } from '../data/types'
 import { TRAVEL_STYLES } from '../data/types'
@@ -99,13 +100,13 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
   }
 
   return (
-    <div className="container trips-page" style={{ paddingTop: 26 }}>
-      <div className="row-between" style={{ marginBottom: 18 }}>
-        <div>
+    <div className="container trips-page">
+      <div className="row-between trips-head">
+        <div className="trips-head-title">
           <h1>My trips</h1>
           <p className="muted small">Everything you’re planning or collaborating on.</p>
         </div>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        <div className="trips-head-actions">
           <button className={`btn btn-outline${view === 'trash' ? ' on-teal' : ''}`} aria-pressed={view === 'trash'} onClick={() => setView(v => v === 'trash' ? 'trips' : 'trash')}><Trash2 size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 5 }} />Trash</button>
           <button className="btn btn-outline" onClick={addDemoTrips} title="Adds 3 sample trips — Kerala, Goa & Rajasthan — to your account"><Rocket size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 5 }} /><span>Load demo trips</span></button>
           <button className="btn btn-primary" onClick={() => onNavigate('/new')}><Plus size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Plan a new trip</button>
@@ -124,7 +125,7 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
               body="Trips you delete will show up here so you can restore them within 30 days." />
           ) : (
             trashed.map(t => (
-              <div key={t.id} className="row-between" style={{ padding: '10px 0', borderBottom: '1px solid var(--line)' }}>
+              <div key={t.id} className="row-between trash-row">
                 <div>
                   <b>{t.name}</b>
                   <div className="small muted">{t.startLocation} → {t.destinations[t.destinations.length - 1] ?? t.startLocation} · {t.days.length} days</div>
@@ -146,7 +147,7 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
           body="Start from scratch with dates and budget, or copy a public itinerary from Explore."
           action={
             <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
-              <button className="btn btn-primary" onClick={() => onNavigate('/new')}>Plan your first trip</button>
+              <button className="btn btn-outline" onClick={() => onNavigate('/new')}>Plan your first trip</button>
               <button className="btn btn-outline" onClick={addDemoTrips}><Rocket size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 5 }} />Load demo trips</button>
               <button className="btn btn-outline" onClick={() => onNavigate('/explore')}>Explore itineraries</button>
             </div>
@@ -168,22 +169,23 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
                 </button>
               ))}
             </div>
-            <select className="select" value={when} onChange={e => setWhen(e.target.value as WhenKey)} aria-label="When">
-              <option value="all">Any time</option>
-              <option value="upcoming">Upcoming & live</option>
-              <option value="past">Past trips</option>
-              <option value="draft">Drafts</option>
-            </select>
-            <select className="select" value={sortKey} onChange={e => setSortKey(e.target.value as SortKey)} aria-label="Sort by">
-              <option value="recent">Recently edited</option>
-              <option value="name">Name A–Z</option>
-              <option value="length-desc">Longest first</option>
-              <option value="budget-asc">Budget: low → high</option>
-              <option value="budget-desc">Budget: high → low</option>
-            </select>
-            {hasFilters && (
-              <button className="btn btn-ghost btn-sm" onClick={() => { setQ(''); setStyle('all'); setWhen('all'); setSortKey('recent') }}>Clear</button>
-            )}
+            <Select value={when} onChange={v => setWhen(v as WhenKey)} aria-label="When"
+              options={[
+                { value: 'all', label: 'Any time' },
+                { value: 'upcoming', label: 'Upcoming & live' },
+                { value: 'past', label: 'Past trips' },
+                { value: 'draft', label: 'Drafts' },
+              ]} />
+            <Select value={sortKey} onChange={v => setSortKey(v as SortKey)} aria-label="Sort by"
+              options={[
+                { value: 'recent', label: 'Recently edited' },
+                { value: 'name', label: 'Name A–Z' },
+                { value: 'length-desc', label: 'Longest first' },
+                { value: 'budget-asc', label: 'Budget: low → high' },
+                { value: 'budget-desc', label: 'Budget: high → low' },
+              ]} />
+            {/* always mounted so the row doesn't shift when it appears mid-typing */}
+            <button className="btn btn-ghost btn-sm" style={{ visibility: hasFilters ? 'visible' : 'hidden' }} onClick={() => { setQ(''); setStyle('all'); setWhen('all'); setSortKey('recent') }}>Clear</button>
           </div>
 
           <p className="sr-only" role="status">{trips.length} {trips.length === 1 ? 'trip matches' : 'trips match'}</p>
@@ -201,7 +203,7 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
               const totals = computeTotals(t)
               const others = (t.members ?? []).filter(m => m.userId !== meId)
               return (
-                <div key={t.id} className="card itin-card trip-enter" style={{ animationDelay: `${Math.min(i, 8) * 70}ms` }}>
+                <div key={t.id} className="card itin-card trip-enter" style={{ animationDelay: `calc(var(--stagger-step) * ${Math.min(i, 8)})` }}>
                   <a className="trip-card-hit" href={`#/trip/${t.id}`}>
                     <CoverThumb
                       variant="short"

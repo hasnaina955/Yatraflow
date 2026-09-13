@@ -242,7 +242,10 @@ function SuggestionCard({ sg, trip, me, editable, memberCount, needsMe }: {
         </div>
         <div style={{ marginTop: 9, display: 'flex', alignItems: 'center', gap: 10 }}>
           <div className="consensus-bar" style={{ flex: 1 }} role="img" aria-label={`Consensus ${consensusPct}% of members upvoted`}>
-            <div style={{ width: `${consensusPct}%`, background: consensusPct >= 60 ? 'var(--ok)' : consensusPct >= 35 ? 'var(--saffron)' : 'var(--line)' }} />
+            {/* neutral → amber → green, each clearing 3:1 on the --bg-soft track
+                in both themes (was --line 1.18 / --saffron 1.85 / --ok 3.67 — the
+                low segment was invisible and mid failed the non-text floor). */}
+            <div style={{ width: `${consensusPct}%`, background: consensusPct >= 60 ? 'var(--ink-ok)' : consensusPct >= 35 ? 'var(--ink-amber)' : 'var(--text-3)' }} />
           </div>
           <span className="small muted" style={{ whiteSpace: 'nowrap' }}>{ups} of {memberCount} upvoted</span>
         </div>

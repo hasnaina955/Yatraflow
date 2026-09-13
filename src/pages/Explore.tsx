@@ -11,6 +11,7 @@ import { useSavedPubs } from '../lib/savedPubs'
 import { forkPublication } from '../lib/forkPub'
 import { cap } from '../lib/labels'
 import { Avatar, Chip, EmptyState, toast } from '../components/ui'
+import { Select } from '../components/Select'
 import { PubCard } from '../components/PubCard'
 
 type SortKey = 'popular' | 'newest' | 'budget-asc' | 'budget-desc' | 'duration'
@@ -120,13 +121,19 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
       {/* ---- Dark-teal editorial hero with route-aware search (§6.10) ---- */}
       <section className="explore-hero">
         <div className="container explore-hero-inner">
-          <span className="editorial-kicker explore-hero-kicker">DISCOVER · TRUST · FORK</span>
+          <span className="editorial-kicker explore-hero-kicker">Discover · Trust · Fork</span>
           <h1>Explore itineraries</h1>
           <p className="explore-hero-sub">
             Real multi-day plans from travellers who actually went — real road time, real pacing, honest costs.
           </p>
-          <input className="input explore-hero-search" placeholder="Search a route, place or creator — try “Alleppey”…"
-            aria-label="Search destination or creator" value={q} onChange={e => { setQ(e.target.value); syncUrl({ q: e.target.value }) }} />
+          <div className="explore-hero-searchrow">
+            <input className="input explore-hero-search" placeholder="Search a route, place or creator — try “Alleppey”…"
+              aria-label="Search destination or creator" value={q} onChange={e => { setQ(e.target.value); syncUrl({ q: e.target.value }) }} />
+            {q.trim() !== '' && (
+              <button type="button" className="explore-hero-clear" aria-label="Clear search"
+                onClick={() => { setQ(''); syncUrl({ q: '' }) }}><X size={14} aria-hidden /></button>
+            )}
+          </div>
         </div>
       </section>
 
@@ -150,26 +157,29 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
         {/* ---- Compact filter bar: budget / duration / sort ---- */}
         <div className="card glass-soft" style={{ marginBottom: 20 }}>
           <div className="explore-filters">
-            <select className="select" value={duration} onChange={e => { setDuration(e.target.value as never); syncUrl({ dur: e.target.value }) }} aria-label="Duration">
-              <option value="all">Any length</option>
-              <option value="short">≤3 days</option>
-              <option value="medium">4–6 days</option>
-              <option value="long">7+ days</option>
-            </select>
-            <select className="select" value={maxBudget} onChange={e => { setMaxBudget(e.target.value === '' ? '' : Number(e.target.value)); syncUrl({ max: e.target.value }) }} aria-label="Max budget">
-              <option value="">Any budget</option>
-              <option value={10000}>Under ₹10k</option>
-              <option value={20000}>Under ₹20k</option>
-              <option value={35000}>Under ₹35k</option>
-              <option value={60000}>Under ₹60k</option>
-            </select>
-            <select className="select" value={sortKey} onChange={e => { setSortKey(e.target.value as SortKey); syncUrl({ sort: e.target.value }) }} aria-label="Sort by">
-              <option value="popular">Most popular</option>
-              <option value="newest">Newest first</option>
-              <option value="budget-asc">Budget: low → high</option>
-              <option value="budget-desc">Budget: high → low</option>
-              <option value="duration">Longest first</option>
-            </select>
+            <Select value={duration} onChange={v => { setDuration(v as never); syncUrl({ dur: v }) }} aria-label="Duration"
+              options={[
+                { value: 'all', label: 'Any length' },
+                { value: 'short', label: '≤3 days' },
+                { value: 'medium', label: '4–6 days' },
+                { value: 'long', label: '7+ days' },
+              ]} />
+            <Select value={maxBudget === '' ? '' : String(maxBudget)} onChange={v => { setMaxBudget(v === '' ? '' : Number(v)); syncUrl({ max: v }) }} aria-label="Max budget"
+              options={[
+                { value: '', label: 'Any budget' },
+                { value: '10000', label: 'Under ₹10k' },
+                { value: '20000', label: 'Under ₹20k' },
+                { value: '35000', label: 'Under ₹35k' },
+                { value: '60000', label: 'Under ₹60k' },
+              ]} />
+            <Select value={sortKey} onChange={v => { setSortKey(v as SortKey); syncUrl({ sort: v }) }} aria-label="Sort by"
+              options={[
+                { value: 'popular', label: 'Most popular' },
+                { value: 'newest', label: 'Newest first' },
+                { value: 'budget-asc', label: 'Budget: low → high' },
+                { value: 'budget-desc', label: 'Budget: high → low' },
+                { value: 'duration', label: 'Longest first' },
+              ]} />
             {filtersActive && (
               <button className="btn btn-ghost btn-sm" onClick={() => { setQ(''); setStyle('all'); setMaxBudget(''); setDuration('all'); setSavedOnly(false); syncUrl({ q: '', style: 'all', max: '', dur: 'all' }) }}><X size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Clear filters</button>
             )}
@@ -184,7 +194,7 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
         {featured && (
           <div className="featured-card" key={featured.id}>
             <div className="featured-body">
-              <span className="editorial-kicker featured-kicker"><Star size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />Featured itinerary</span>
+              <span className="editorial-kicker featured-kicker"><Star size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />Featured itinerary{filtersActive && <> · outside your filters</>}</span>
               <h2><a className="featured-title-link" href={`#/pub/${featured.id}`}>{featured.title}</a></h2>
               <p className="featured-tagline">{featured.tagline}</p>
               <p className="featured-credibility">
@@ -230,9 +240,9 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
         ) : (
           <>
             <div className="explore-grid">
-              {pubs.slice(0, visibleCount).map(p => (
+              {pubs.slice(0, visibleCount).map((p, i) => (
                 <PubCard key={p.id} pub={p} creator={userOf(users, p.creatorId)} saved={isSaved(p.id)}
-                  onFork={() => forkTrip(p.id)} onToggleSave={() => toggleHeart(p.id)} />
+                  onFork={() => forkTrip(p.id)} onToggleSave={() => toggleHeart(p.id)} enterIndex={i} />
               ))}
             </div>
             {pubs.length > visibleCount && (

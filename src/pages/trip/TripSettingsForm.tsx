@@ -14,6 +14,8 @@ import { updateTrip } from '../../store/store'
 import { FUEL_PRICE_INR_PER_L, MODE_SPEED, formatInr, isFuelEconomyMode, parseFuelEconomyKmL, isImplausibleFuelEconomy, parseFuelPricePerL } from '../../lib/engine'
 import { cap } from '../../lib/labels'
 import { Field, RangeDial, StickyFormBar, toast } from '../../components/ui'
+import { Select } from '../../components/Select'
+import { DateRangeCalendar } from '../../components/DateRangeCalendar'
 import { PillNav } from '../../components/PillNav'
 import { LocationInput } from '../../components/LocationInput'
 import { CoverImagePicker } from '../../components/CoverImagePicker'
@@ -120,18 +122,13 @@ export function TripSettingsForm({ trip, editable }: { trip: Trip; editable: boo
               <span className="bench-eyebrow">Route & dates</span>
               <span className="bench-block-value">{dayCount} day{dayCount === 1 ? '' : 's'}</span>
             </div>
-            <div className="form-row">
-              <Field label="Start date">
-                <input type="date" className="input" disabled={!editable} value={f.startDate}
-                  aria-invalid={!!dateErr}
-                  onChange={e => { setF(x => ({ ...x, startDate: e.target.value })); setDateErr(null) }} />
-              </Field>
-              <Field label="End date" hint={dayDeltaLabel}>
-                <input type="date" className="input" disabled={!editable} value={f.endDate}
-                  aria-invalid={!!dateErr}
-                  onChange={e => { setF(x => ({ ...x, endDate: e.target.value })); setDateErr(null) }} />
-              </Field>
-            </div>
+            <DateRangeCalendar
+              start={f.startDate} end={f.endDate}
+              disabled={!editable}
+              error={dateErr ?? undefined}
+              hint={dayDeltaLabel}
+              onChange={({ startDate, endDate }) => { setF(x => ({ ...x, startDate, endDate })); setDateErr(null) }}
+            />
             {dateErr && <p className="err-text ts-warn-note" role="alert">{dateErr}</p>}
             <Field label="Starting location">
               <LocationInput
@@ -262,19 +259,12 @@ export function TripSettingsForm({ trip, editable }: { trip: Trip; editable: boo
               <div className="vehicle-profile-form">
                 <div className="form-row">
                   <Field label="Vehicle type">
-                    <select className="select" disabled={!editable} value={f.vehicleType} onChange={e => setF(x => ({ ...x, vehicleType: e.target.value as never }))}>
-                      <option value="car">Car</option>
-                      <option value="motorcycle">Motorcycle</option>
-                      <option value="ev">Electric (EV)</option>
-                    </select>
+                    <Select disabled={!editable} value={f.vehicleType} onChange={v => setF(x => ({ ...x, vehicleType: v as never }))}
+                      options={[{ value: 'car', label: 'Car' }, { value: 'motorcycle', label: 'Motorcycle' }, { value: 'ev', label: 'Electric (EV)' }]} />
                   </Field>
                   <Field label="Fuel / energy">
-                    <select className="select" disabled={!editable} value={f.fuelType} onChange={e => setF(x => ({ ...x, fuelType: e.target.value as never }))}>
-                      <option value="petrol">Petrol</option>
-                      <option value="diesel">Diesel</option>
-                      <option value="electric">Electric</option>
-                      <option value="cng">CNG</option>
-                    </select>
+                    <Select disabled={!editable} value={f.fuelType} onChange={v => setF(x => ({ ...x, fuelType: v as never }))}
+                      options={[{ value: 'petrol', label: 'Petrol' }, { value: 'diesel', label: 'Diesel' }, { value: 'electric', label: 'Electric' }, { value: 'cng', label: 'CNG' }]} />
                   </Field>
                 </div>
                 <div className="form-row">

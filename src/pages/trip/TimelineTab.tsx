@@ -274,7 +274,7 @@ export function TimelineTab({ trip, editable, applyChange, legCorrections, sugge
   return (
     <div>
       <div className="row-between" style={{ marginBottom: 16 }}>
-        <div>
+        <div className="tl-head-copy">
           <h2>Day-by-day timeline</h2>
           {/* key={mode} crossfades the copy; min-height in CSS reserves the
               two-line block so switching modes never shifts the layout. */}
@@ -283,7 +283,7 @@ export function TimelineTab({ trip, editable, applyChange, legCorrections, sugge
             : 'Read-only study view — clocks, costs and risks without the edit handles. Switch to Plan mode to make changes.'}</p>
         </div>
         {editable && (
-          <div className="row" style={{ gap: 8 }}>
+          <div className="row tl-head-tools" style={{ gap: 8 }}>
             {onOpenBoard && (
               <button className="btn btn-outline btn-sm" onClick={onOpenBoard} title="Arrange stops across days with the route in view">Open in Board →</button>
             )}

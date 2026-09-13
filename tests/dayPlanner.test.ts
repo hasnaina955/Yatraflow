@@ -135,6 +135,22 @@ describe('planTravelClock — the 700 km headline fixtures', () => {
     expect(v.nightHaltEtaMin).toBeGreaterThanOrEqual(DINNER_WINDOW[0])
     expect(v.nightHaltEtaMin).toBeLessThanOrEqual(NIGHT_END_MIN - 60)
   })
+
+  it('a long drive walks ALL its days — the per-day budget is km covered, not the halt position', () => {
+    // Regression (clock-map-zones): the re-balance loop used to subtract the
+    // ABSOLUTE halt position from `remaining`, so on a ~3,300 km route (a
+    // Kolkata→Delhi round trip) the walk truncated at ~4 days and the map
+    // overlay painted half the journey.
+    const v = planTravelClock({ totalKm: 3300, driveMinutes: driveMinFor(3300), dayStart: '08:30' })
+    expect(v.verdict).toBe('ok')
+    if (v.verdict !== 'ok') return
+    const last = v.days[v.days.length - 1]
+    expect(last.nightHaltKm).toBeNull()          // it really reached the end…
+    expect(last.kmCovered).toBeCloseTo(3300, 0)  // …and the walk covers the whole route
+    expect(v.days.length).toBeGreaterThanOrEqual(v.split?.driveDayCount ?? 1)
+    for (let i = 1; i < v.days.length; i++)      // halts chain strictly, no day skips km
+      expect(v.days[i].startKm).toBe(v.days[i - 1].kmCovered)
+  })
 })
 
 describe('planRideSegments — the short-trip silence fix', () => {

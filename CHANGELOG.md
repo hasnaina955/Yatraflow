@@ -15,6 +15,30 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ## [Unreleased]
 
+### Added — the travel clock drawn on the map (branch `feat/clock-map-zones`)
+- **Meal-window circles on the route.** 🍽 lunch, 🥐 breakfast and 🍷 dinner
+  become soft map circles whose **radius is honest**: half the road the car
+  covers while that meal's window is open at the journey's own pace
+  (`mealRadiusKm` = window/2 × kmPerMin) — lunch's circle is the biggest,
+  dinner's the tightest. Circles appear ONLY for meals (no tea/stretch zones),
+  no time text prints on the map, and everything the circle means lives in the
+  hover tooltip ("day 2, the clock puts you here at 13:20 · ~503 km in ·
+  anything within ~52 km keeps you on schedule").
+- **The night is a position, not an area** — each driving day's evening leg
+  paints as an indigo band ON the route line, ending at a small 🌙 marker at
+  the halt. Round trips run the whole loop: km past the turnaround map onto
+  the reversed outbound polyline, so return-day halts land on the road home.
+- **🕑 Clock toolbar chip** (default on) hides/shows the whole layer; with it
+  off the map is the plain route. Only the trip Map tab supplies it — the
+  Board never shows zones.
+- **Planned-stop pins gain their itinerary arrival** — a tiny `13:40` chip
+  under the pin while the clock layer is on, with "~X km into the trip" in
+  the tooltip (from the day-by-day journey simulation, clearly distinct from
+  the engine's own meal circles).
+- New pure module `src/lib/clockOverlay.ts` (`deriveClockOverlay`,
+  `mealRadiusKm`, `radiusPxAtZoom0`, `clockHM`) + 12 fixtures in
+  `tests/clockOverlay.test.ts`.
+
 ### Added — user-testing round 2 (PR #105 follow-up)
 - **The travel clock is visible**: suggestion rows now carry the wall clock the
   planner derived the halt from ("arrive ≈ 13:00", "— day ends here" on the night
@@ -57,6 +81,13 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
   "Trip settings updated" alongside it.
 - **CreateTrip's days-required banner says "there and back"** when the round-trip
   toggle is billing the drive home, so the 2× day count is explained in place.
+- **planTravelClock no longer truncates long drives.** The re-balance loop
+  subtracted each day's ABSOLUTE halt position from the relative `remaining` km,
+  so a ~3,300 km route ended its day-walk after ~4 days — invisible while the
+  clock fed only banner copy, exposed the moment the map overlay painted every
+  day (banner said 9 travel days, the walk produced 5). Bookkeeping now
+  subtracts the km covered that day; regression fixture added
+  ("a long drive walks ALL its days").
 
 ### Added — the Day Planner travel clock (PLAN-DAY-PLANNER P1, PR #105)
 - **The fatigue cadence is hours, not km.** Stretch breaks fire at `STRETCH_CLOCK_MIN`

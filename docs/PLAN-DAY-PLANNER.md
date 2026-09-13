@@ -335,3 +335,22 @@ make short trips feel *equally helpful* rather than merely tolerated.
     "remainder day 2" is honestly 3 days at blended 42 (a 461 km remainder
     would break the cap it must respect); the fixture asserts the dinner halt
     + cap-respecting remainder instead of the literal day count.
+
+### §17 addendum — the clock drawn on the map (`feat/clock-map-zones`)
+- P1's surfaces are text-first; the user round after PR #105 asked to see the
+  clock ON the map. Shipped via an interactive mockup that iterated three times
+  (capsule pins → too cluttered → soft circles → final: circles ONLY for meals,
+  night as a band + mark ON the route, size honest as window/2 × kmPerMin).
+  Module `src/lib/clockOverlay.ts` derives it purely from `planTravelClock` +
+  the resolved OSRM polyline (no overlay before real geometry — a circle pinned
+  to a chord would be a lie); TripMap draws circles/bands/glyphs + a 🕑 Clock
+  toolbar toggle; stop pins gain their journey arrival chip.
+- **Engine fix found by drawing, not by reading:** the re-balance loop of
+  `planTravelClock` subtracted each day's ABSOLUTE halt position from the
+  relative `remaining` km — invisible at 700 km/2-day fixtures, silently
+  truncating every long drive (a 3,300 km route walked 4 of its 9 days). The
+  overlay's per-day paint made the missing days obvious. Regression fixture:
+  "a long drive walks ALL its days".
+- Round trips: the loop clock maps km past the turnaround onto the REVERSED
+  outbound polyline (return re-traces the same road), matching the banner's
+  "there and back" model.

@@ -14,6 +14,7 @@ import { Select } from '../../components/Select'
 import { useSuggestionCache, isMapCacheFresh } from '../../hooks/useSuggestionCache'
 import { openExternal } from '../../lib/native'
 import { corridorAnchors, detourKm, detourMinutes, asymmetricDetourMinutes, googleEnabled, planJourneyHalts, reasonForSegmentHit, searchPlaces, searchNearbyPoisMulti, kmFromStartForHit, planDriveDays, planTravelClock, DEFER_START, type NearbyOpts, type PlaceHit, routeHash } from '../../lib/geocode'
+import { deriveClockOverlay } from '../../lib/clockOverlay'
 import { dayDetourBudgetMin, budgetSharePct, splitByDetourBudget } from '../../lib/detourBudget'
 import { quotaUsed, SOFT_CAPS } from '../../lib/providers/quota'
 import { buildDnaVectorAcrossTrips, loadDnaLog, recordDnaEvent, dnaNoteForHit, crewSeedsFromSuggestions, crewSeedsToPlannedStops, crewSeedEvents, crewNoteForHit } from '../../lib/tripDna'
@@ -315,6 +316,22 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
   const clockVerdict = useMemo(
     () => planTravelClock({ totalKm: planKm, driveMinutes: wholeTrip.min, dayStart: trip.days[0]?.startTime, travelStyle: trip.travelStyle, rainFactor }),
     [planKm, wholeTrip.min, trip.travelStyle, trip.days, dayRainPct],
+  )
+  // The travel clock drawn ON the route (clock zones): meal-window circles,
+  // the evening band into each night halt, the halt marks. Runs on the whole
+  // loop like the split verdict — and only once the road geometry resolves,
+  // because a circle pinned to a straight chord would be a lie.
+  const clockOverlay = useMemo(
+    () => deriveClockOverlay({
+      polyline: routePolyline,
+      outboundKm: planKm,
+      loopMin: wholeTrip.min * loopFactor,
+      roundTrip: tripIsRoundTrip,
+      dayStart: trip.days[0]?.startTime,
+      travelStyle: trip.travelStyle,
+      rainFactor,
+    }),
+    [routePolyline, planKm, wholeTrip.min, loopFactor, tripIsRoundTrip, trip.days, trip.travelStyle, dayRainPct],
   )
   // The split wants more days than planned: propose applying it. Declining is
   // respected — with the honest red fatigue verdict stated, never hidden.
@@ -880,6 +897,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
               onActivateHit={setActiveHitId}
               onOpenInTimeline={onOpenTimeline}
               onOpenInBoard={onOpenBoard ? () => onOpenBoard() : undefined}
+              clockOverlay={clockOverlay}
               enableMapViewModes
             />
           </div>

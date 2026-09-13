@@ -295,7 +295,11 @@ export function planTravelClock(input: {
     const budget = isFinal ? Math.min(remaining, capKmBudget) : Math.min(perRest, capKmBudget)
     const day = walkClockDay({ dayIndex: i, startKm, kmBudget: budget, startMin: hmToMinutes(CLOCK_DEFAULT_START), kmPerMin, isFinal })
     days.push(day)
-    remaining -= day.kmCovered
+    // kmCovered is ABSOLUTE (halt position on the route) — the budget is
+    // RELATIVE. Subtracting the absolute cover from `remaining` truncated
+    // the walk after ~4 days on long trips (the clock-map-zones overlay
+    // surfaced it: banner said 9 days, the walk produced 5).
+    remaining -= day.kmCovered - startKm
     startKm = day.kmCovered
     if (remaining <= 0.5) break
   }

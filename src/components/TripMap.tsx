@@ -9,6 +9,8 @@ import { resolveHitCoords } from '../lib/geocode'
 import { hasCoords, mappablePois } from '../lib/providers/hits'
 import { routePath } from '../lib/routing'
 import { buildJourney, getAssumptions, isRoundTrip } from '../lib/engine'
+import { radiusPxAtZoom0, clockHM, type ClockOverlay } from '../lib/clockOverlay'
+import { useTimeFormat, formatHM } from '../lib/timefmt'
 import { googleMapsDirectionsUrl } from '../lib/externalMaps'
 import { openExternal } from '../lib/native'
 import { titleCase } from '../lib/labels'
@@ -23,7 +25,7 @@ import {
 import type { MapRef } from './mapcn/map'
 import { CatIcon } from './icons'
 import {
-  Box, Flag, Home, Info, Lightbulb, LocateFixed, Map as MapIcon, Mountain, Navigation, PlaneTakeoff,
+  Box, Clock, Flag, Home, Info, Lightbulb, LocateFixed, Map as MapIcon, Mountain, Navigation, PlaneTakeoff,
   RotateCcw, TriangleAlert, X,
 } from 'lucide-react'
 import { prefersReducedMotion } from '../lib/motion'
@@ -164,6 +166,118 @@ function RouteArrows({ coordinates, dark }: { coordinates: [number, number][]; d
 declare module './mapcn/map' {}
 type GeoJSONSourceLike = { setData(d: unknown): void }
 
+// ============ Clock zones on the map (PR #105 follow-up) ============
+/** Per-kind colors for the meal circles (the mockup's palette). */
+const CLOCK_COLORS = {
+  breakfast: '#38BDF8',
+  lunch: '#34D399',
+  dinner: '#818CF8',
+} as const
+const CLOCK_BAND = '#6366F1'
+
+/**
+ * GeoJSON layers for the clock overlay: indigo evening bands (line) and the
+ * meal-window circles. Radii are data-driven and zoom-interpolated — a circle
+ * is honest geometry (half the window's drive at the journey pace), so it
+ * GROWS as you zoom in, exactly like the km scale it represents, floored at
+ * ~16 px so it stays visible at country zoom. Re-keyed on isStyleLoaded so a
+ * theme setStyle reload re-adds everything (same trap as the view modes).
+ */
+function ClockZonesLayer({ overlay, dark }: { overlay: ClockOverlay; dark: boolean }) {
+  const { map, isLoaded } = useMap()
+  useEffect(() => {
+    if (!isLoaded || !map) return
+    const BANDS = 'yf-clock-bands', ZONES = 'yf-clock-zones'
+    map.addSource(BANDS, {
+      type: 'geojson',
+      data: {
+        type: 'FeatureCollection',
+        features: overlay.bands.map(b => ({
+          type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: b.coords },
+        })),
+      },
+    } as never)
+    map.addLayer({
+      id: BANDS, type: 'line', source: BANDS,
+      paint: { 'line-color': CLOCK_BAND, 'line-width': 7, 'line-opacity': dark ? 0.4 : 0.32, 'line-cap': 'round' },
+    } as never)
+    const empty = { type: 'FeatureCollection', features: [] } as never
+    map.addSource(ZONES, { type: 'geojson', data: empty })
+    // one feature per zone: color + radius in px AT ZOOM 3 (the layer's first
+    // interpolation stop) — the exponential-2 ramp doubles it per zoom level,
+    // so the circle tracks true ground scale the whole way.
+    const features = overlay.zones.map(z => ({
+      type: 'Feature',
+      properties: {
+        c: CLOCK_COLORS[z.kind],
+        r0: Math.max(2, radiusPxAtZoom0(z.radiusKm, z.lat) * 8),
+      },
+      geometry: { type: 'Point', coordinates: [z.lng, z.lat] },
+    }))
+    ;(map.getSource(ZONES) as unknown as GeoJSONSourceLike).setData({ type: 'FeatureCollection', features })
+    map.addLayer({
+      id: ZONES, type: 'circle', source: ZONES,
+      paint: {
+        'circle-color': ['get', 'c'] as never,
+        'circle-opacity': 0.10,
+        'circle-stroke-color': ['get', 'c'] as never,
+        'circle-stroke-opacity': dark ? 0.6 : 0.5,
+        'circle-stroke-width': 1.3,
+        'circle-radius': [
+          'max', 6,
+          ['interpolate', ['exponential', 2], ['zoom'],
+            3, ['get', 'r0'], 14, ['*', ['get', 'r0'], 2048],
+          ],
+        ] as never,
+      },
+    } as never)
+    return () => {
+      try {
+        if (map.getLayer(ZONES)) map.removeLayer(ZONES)
+        if (map.getSource(ZONES)) map.removeSource(ZONES)
+        if (map.getLayer(BANDS)) map.removeLayer(BANDS)
+        if (map.getSource(BANDS)) map.removeSource(BANDS)
+      } catch { /* style swapped mid-flight */ }
+    }
+  }, [map, isLoaded, overlay, dark])
+  return null
+}
+
+/**
+ * The clock's glyphs and their honest tooltips: meal circles get a soft emoji
+ * marker, the night halt a small indigo moon ON the route (a position, not an
+ * area). No time text on the map — the clock lives in the tooltip, agreed in
+ * the user round. The circle layer paints underneath; these sit above it.
+ */
+function ClockGlyphs({ overlay }: { overlay: ClockOverlay }) {
+  const timeFormat = useTimeFormat()
+  const mealIco = { breakfast: '🥐', lunch: '🍽️', dinner: '🍷' } as const
+  return (
+    <>
+      {overlay.zones.map((z, i) => (
+        <MapMarker key={`cz-${i}-${z.kind}-${z.dayNo}`} longitude={z.lng} latitude={z.lat}>
+          <MarkerContent>
+            <span className="yf-clock-glyph" style={{ ['--c' as never]: CLOCK_COLORS[z.kind] }} aria-hidden>{mealIco[z.kind]}</span>
+          </MarkerContent>
+          <MarkerTooltip>
+            {`${z.kind === 'lunch' ? 'Lunch' : z.kind === 'breakfast' ? 'Breakfast' : 'Dinner'} window — day ${z.dayNo}, the clock puts you here at ${formatHM(clockHM(z.etaMin), timeFormat)} · ~${z.kmIn} km into the drive · anything within ~${Math.round(z.radiusKm)} km keeps you on schedule`}
+          </MarkerTooltip>
+        </MapMarker>
+      ))}
+      {overlay.nights.map((n, i) => (
+        <MapMarker key={`cn-${i}-${n.dayNo}`} longitude={n.lng} latitude={n.lat}>
+          <MarkerContent>
+            <span className="yf-clock-glyph yf-clock-glyph--night" aria-hidden>🌙</span>
+          </MarkerContent>
+          <MarkerTooltip>
+            {`Overnight halt — day ${n.dayNo}: dinner by ${formatHM(clockHM(n.etaMin), timeFormat)}, the driving day ends here · ~${n.kmIn} km in`}
+          </MarkerTooltip>
+        </MapMarker>
+      ))}
+    </>
+  )
+}
+
 /**
  * Gesture mode follows the layout AND the device. An inline map is embedded in
  * a scrolling page, so on a coarse pointer it keeps MapLibre's cooperative
@@ -267,7 +381,7 @@ function catIcon(cat: string | undefined): React.ReactNode {
   )
 }
 
-export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusDay, showToolbar = true, enableMapViewModes = false, activeHitId = null, onActivateHit, onOpenInTimeline, onOpenInBoard }: {
+export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusDay, showToolbar = true, enableMapViewModes = false, activeHitId = null, onActivateHit, onOpenInTimeline, onOpenInBoard, clockOverlay = null }: {
   trip: Trip
   onOpenStop?: (stopId: string) => void
   /** potential POIs to show as gold "idea" markers */
@@ -295,6 +409,11 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   /** stop-pin click offers a jump to the Timeline/Board tabs (Map tab §6.5) */
   onOpenInTimeline?: (stopId: string) => void
   onOpenInBoard?: (stopId: string) => void
+  /** the travel clock projected onto the route (meal-window circles, evening
+      bands, night-halt marks) — only the trip Map tab supplies it; with it
+      present the toolbar gains the 🕑 Clock toggle and stop pins show their
+      planned arrival. The Board never passes it: hard map, no clock. */
+  clockOverlay?: ClockOverlay | null
 }) {
   const [dayFilter, setDayFilter] = useState<number | 'all'>('all')
   // Board drives the day filter through the prop; the map's own chips keep working
@@ -303,6 +422,9 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     if (focusDay !== undefined) setDayFilter(focusDay)
   }, [focusDay])
   const [showReturn, setShowReturn] = useState(true)
+  // The clock overlay's visibility — on by default when a surface supplies it.
+  const [clockOn, setClockOn] = useState(true)
+  const timeFormat = useTimeFormat()
   // Live location ("show me on the map") — off by default so GPS stays cold
   // until the user asks for it; the toggle chip sits by the map key.
   const [liveOn, setLiveOn] = useState(false)
@@ -448,8 +570,14 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   // ride (Day 1 outbound from the start anchor, the last day's drive back to
   // home) exists only in the synthesis, and drawing stored stops alone left
   // those days with no route on the map at all. Null = no drive (stay day).
-  const dayRoutePoints = useMemo(() => {
+  // stopClock doubles as the itinerary clock for the pin chips: arrival
+  // "HH:MM" and km-into-the-trip (journey legs accumulate in day order), so a
+  // pin can say when the PLAN says you get there — the engine's clock zones
+  // say when the ROUTE demands it; the two never claim to be one source.
+  const { dayRoutePoints, stopClock } = useMemo(() => {
     const out: Record<string, { lat: number; lng: number }[] | null> = {}
+    const clock = new Map<string, { arrive: string; cumKm: number }>()
+    let cum = 0
     for (const d of trip.days) {
       const j = buildJourney(trip, d)
       if (!(j.distanceKm >= 0.5 || j.driveMinutes > 0)) { out[String(d.index)] = null; continue }
@@ -457,8 +585,14 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
         .map(p => ({ lat: p.lat, lng: p.lng }))
         .filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lng))
       out[String(d.index)] = pts.length >= 2 ? pts : null
+      let legKm = 0
+      for (const p of j.points) {
+        legKm += p.legIn?.distanceKm ?? 0
+        if (!p.synthesized) clock.set(p.stop.id, { arrive: p.arrive, cumKm: Math.round(cum + legKm) })
+      }
+      cum += j.distanceKm
     }
-    return out
+    return { dayRoutePoints: out, stopClock: clock }
   }, [trip])
   const dayRoutesKey = useMemo(
     () => Object.entries(dayRoutePoints)
@@ -670,6 +804,16 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
             </button>
           ))}
           <button className="map-day-chip map-recenter" onClick={fitToTrip} title="Recentre the map on the trip route"><LocateFixed size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Recentre</button>
+          {clockOverlay && (
+            <button
+              className={`map-day-chip ${clockOn ? 'on' : ''}`}
+              aria-pressed={clockOn}
+              onClick={() => { haptic('toggle'); setClockOn(v => !v) }}
+              title="Show or hide the travel clock — where the day's meals and the night stop land on the road"
+            >
+              <Clock size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Clock
+            </button>
+          )}
           {returnLeg && (
             <button
               className={`map-day-chip ${showReturn ? 'on' : ''}`}
@@ -848,8 +992,18 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                 </>
               )
             })()}
+            {/* The travel clock on the route: evening bands + meal-window
+                circles under the glyphs, 🌙/🍽/🥐 markers above. Whole-trip
+                only — filtering to a day drops it with the loop geometry. */}
+            {clockOverlay && clockOn && dayFilter === 'all' && (
+              <>
+                <ClockZonesLayer overlay={clockOverlay} dark={theme === 'dark'} />
+                <ClockGlyphs overlay={clockOverlay} />
+              </>
+            )}
             {(() => {
               let num = 0
+              const showClockChips = !!(clockOverlay && clockOn)
               return allPoints.map((p, idx) => {
                 // Auto anchor stops (trip start / final destination) render as
                 // distinct start/end badges instead of numbered pins.
@@ -857,16 +1011,19 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                 const isLast = idx === allPoints.length - 1
                 if (p.auto) {
                   const label = isLast ? <Flag size={13} aria-hidden /> : <PlaneTakeoff size={13} aria-hidden />
+                  const c = showClockChips ? stopClock.get(p.id) : undefined
                   return (
                     <MapMarker key={p.id} longitude={p.lng} latitude={p.lat}>
                       <MarkerContent>
                         <span className="yf-map-pin yf-map-flag" title={p.title}>{label}</span>
+                        {c && <span className="yf-pin-time">{formatHM(c.arrive, timeFormat)}</span>}
                       </MarkerContent>
-                      <MarkerTooltip>{isLast ? `Final destination — ${p.title}` : `Trip start — ${p.title}`}</MarkerTooltip>
+                      <MarkerTooltip>{isLast ? `Final destination — ${p.title}` : `Trip start — ${p.title}`}{c ? ` · arrives ${formatHM(c.arrive, timeFormat)} · ~${c.cumKm} km into the trip` : ''}</MarkerTooltip>
                     </MapMarker>
                   )
                 }
                 num += 1
+                const c = showClockChips ? stopClock.get(p.id) : undefined
                 return (
                   <MapMarker key={p.id} longitude={p.lng} latitude={p.lat}>
                     <MarkerContent>
@@ -882,8 +1039,9 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                           <i className="yf-pin-num">{num}</i>
                         </span>
                       </button>
+                      {c && <span className="yf-pin-time">{formatHM(c.arrive, timeFormat)}</span>}
                     </MarkerContent>
-                    <MarkerTooltip>{p.title}</MarkerTooltip>
+                    <MarkerTooltip>{p.title}{c ? ` · arrives ${formatHM(c.arrive, timeFormat)} · ~${c.cumKm} km into the trip` : ''}</MarkerTooltip>
                   </MapMarker>
                 )
               })

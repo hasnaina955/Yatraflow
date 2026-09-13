@@ -26,6 +26,12 @@ import { fetchDailyWeather, forecastAvailable, isoAddDays } from '../../lib/weat
 // MapLibre is heavy (~1MB) — load it only when the Map tab is actually opened.
 const TripMap = React.lazy(() => import('../../components/TripMap').then(m => ({ default: m.TripMap })))
 
+/** minutes-since-midnight → "HH:MM" for formatHM (minutesToHM is duration-styled). */
+function clockHM(mins: number): string {
+  const m = ((Math.round(mins) % 1440) + 1440) % 1440
+  return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`
+}
+
 /**
  * Purposes that are finite by construction — their halts are needs, not sights.
  * Module scope: this is a constant, so it must not be rebuilt on every render.
@@ -593,7 +599,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
           {/* The planner is clock-first (PLAN-DAY-PLANNER §4) — show the wall
               clock it derived the halt from, not just the km cadence. */}
           {sh.segment.etaMinutes != null && (
-            <> · arrive ≈ <b>{formatHM(minutesToHM(sh.segment.etaMinutes), timeFormat)}</b>{sh.segment.purpose === 'overnight' ? ' — day ends here' : ''}</>
+            <> · arrive ≈ <b>{formatHM(clockHM(sh.segment.etaMinutes), timeFormat)}</b>{sh.segment.purpose === 'overnight' ? ' — day ends here' : ''}</>
           )}
         </div>
         {/* Day Planner chips (P1-D/P1-F): which derived day the hit lands on,

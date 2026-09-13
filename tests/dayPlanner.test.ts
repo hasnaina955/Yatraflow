@@ -7,14 +7,19 @@ import {
   DINNER_WINDOW,
   HALT_MIN,
   LUNCH_WINDOW,
+  MIN_BREAK_GAP_KM,
   MIN_PLANNED_DRIVE_KM,
   NIGHT_END_MIN,
+  clampRainFactor,
+  isDriveDay,
   planDriveDays,
   planRideSegments,
   planTravelClock,
   TEA_WINDOW,
+  wheelCapHoursFor,
 } from '../src/lib/ridePlan'
 import { computeTotals } from '../src/lib/engine'
+import { STAY_RATE_PER_NIGHT } from '../src/lib/planBench'
 import { seedData } from '../src/data/seed'
 
 /** Blended all-India car speed the engine itself assumes (MODE_SPEED.car). */
@@ -127,6 +132,14 @@ describe('planTravelClock — the 700 km headline fixtures', () => {
     expect(v.verdict).toBe('defer')
   })
 
+  it('corrupt startTime never becomes midnight: "25:99" clamps to 23:59 → defer (#136)', () => {
+    // hmToMinutes clamps 25:99 → 23:59 (1439), leaving zero honest wheel time
+    // before NIGHT_END — a defer verdict, never a silent midnight start that
+    // would flip to some other branch.
+    const v = planTravelClock({ totalKm: 300, driveMinutes: driveMinFor(300), dayStart: '25:99' })
+    expect(v.verdict).toBe('defer')
+  })
+
   it('18:00 start: short hop to a night halt, dinner inside the window', () => {
     const v = planTravelClock({ totalKm: 700, driveMinutes: min, dayStart: '18:00' })
     expect(v.verdict).toBe('hop')
@@ -202,5 +215,146 @@ describe('P1-E — the structural-night bill line', () => {
     expect(after.totalCostInr).toBeGreaterThan(before.totalCostInr + after.lodgingInr - 1)
     const byDaySum = after.byDay.reduce((s, d) => s + d.totalInr, 0)
     expect(byDaySum).toBeCloseTo(after.totalCostInr, 4)
+  })
+
+  it('lodging identity is the place, not the name string (#125a)', () => {
+    const trip = structuredClone(seedData.trips[0])
+    trip.days.forEach(d => { d.stops = d.stops.filter(s => s.category !== 'hotel') })
+    const last = [...trip.days[trip.days.length - 1].stops].slice(-1)[0]
+    const mk = (id: string, name: string, lat: number, lng: number) => ({
+      id, title: name, category: 'hotel', locationName: name,
+      lat, lng, description: '', notes: '',
+      visitMinutes: 600, openTime: '', closeTime: '', entryFeeInrPerPerson: 0,
+      transportCostInrTotal: 0, priority: 'must-do', sourceUrl: '', status: 'suggested', orderInDay: 99,
+    })
+    const day = trip.days[trip.days.length - 1]
+    // Same property, name variant + a ~200 m pin difference → ONE base.
+    day.stops.push(mk('h1', 'Hotel Taj', last.lat, last.lng) as never)
+    day.stops.push(mk('h2', 'Hotel Taj, Mumbai', last.lat + 0.002, last.lng + 0.002) as never)
+    expect(computeTotals(trip).lodgingNights).toBe(1)
+    // Same chain name, different city (far coords) → TWO bases.
+    day.stops.push(mk('h3', 'Hotel Taj', last.lat + 3, last.lng + 3) as never)
+    expect(computeTotals(trip).lodgingNights).toBe(2)
+    // The per-day stacks still sum to the trip total (v0.36 invariant survives).
+    const t = computeTotals(trip)
+    expect(t.byDay.reduce((s, d) => s + d.totalInr, 0)).toBeCloseTo(t.totalCostInr, 4)
+  })
+})
+
+describe('bug-hunt batch (issues #125-#140) — engine invariants', () => {
+  it('style match is case/space-tolerant: "Packed " → 11 h cap (#132)', () => {
+    expect(wheelCapHoursFor('Packed ')).toBe(11)
+    expect(wheelCapHoursFor('RELAXED')).toBe(8.5)
+    expect(wheelCapHoursFor('balanced')).toBe(10)
+  })
+
+  it('rain clamp is shared: >1 → 1, <0.5 → 0.5, NaN/undefined → 1 (#132)', () => {
+    expect(clampRainFactor(1.4)).toBe(1)
+    expect(clampRainFactor(0.2)).toBe(0.5)
+    expect(clampRainFactor(NaN)).toBe(1)
+    expect(clampRainFactor(undefined)).toBe(1)
+    expect(clampRainFactor(0.7)).toBeCloseTo(0.7, 6)
+  })
+
+  it('isDriveDay is ONE floor for the planner and the timeline header (#134)', () => {
+    expect(isDriveDay(80, 180)).toBe(true)   // ghat crawl earns DRIVE
+    expect(isDriveDay(95, 10)).toBe(true)    // short highway hop
+    expect(isDriveDay(80, 60)).toBe(false)   // neither floor crossed
+    // and the planRideSegments silence guard obeys the same predicate
+    expect(planRideSegments({ totalKm: 80, driveMinutes: 180, multiDay: false }).length).toBeGreaterThan(0)
+    expect(planRideSegments({ totalKm: 40, driveMinutes: 45, multiDay: false })).toHaveLength(0)
+  })
+
+  it('per-day rain caps its own day only — the walk stays honest (#127)', () => {
+    const dry = planTravelClock({ totalKm: 700, driveMinutes: 1000, dayStart: '08:30' })
+    // day 2 gets the cloudburst (90% → 0.55 cap): its cap shrinks, so the
+    // remainder spills into a third day — day 1's plan is untouched.
+    const wet2 = planTravelClock({ totalKm: 700, driveMinutes: 1000, dayStart: '08:30', dayRainPct: [0, 90] })
+    expect(dry.verdict).toBe('ok')
+    expect(wet2.verdict).toBe('ok')
+    if (dry.verdict !== 'ok' || wet2.verdict !== 'ok') return
+    expect(dry.days.length).toBe(2)
+    expect(wet2.days.length).toBeGreaterThanOrEqual(3)
+    // day-1 halt identical: day-1 rain is what moved, not day 2's
+    expect(wet2.days[0].nightHaltKm).toBe(dry.days[0].nightHaltKm)
+    // and a scalar rainFactor still behaves as before (day-1 cap everywhere)
+    const scalar = planTravelClock({ totalKm: 700, driveMinutes: 1000, dayStart: '08:30', rainFactor: 0.55 })
+    if (scalar.verdict === 'ok') expect(scalar.days.length).toBeGreaterThanOrEqual(3)
+  })
+
+  it('final-day arrival is clock-checked, never silently after NIGHT_END (#138)', () => {
+    // 300 km from 16:00 at 0.7 km/min: tea + 400 min of wheel land well past
+    // 23:00. The walk says ok (it is drivable) but FLAGS the late arrival.
+    const v = planTravelClock({ totalKm: 300, driveMinutes: 430, dayStart: '16:00' })
+    expect(v.verdict).toBe('ok')
+    if (v.verdict !== 'ok') return
+    const last = v.days[v.days.length - 1]
+    expect(last.arrivalEtaMin).not.toBeNull()
+    expect(last.lateArrival).toBe(true)
+    expect(last.arrivalEtaMin!).toBeGreaterThan(NIGHT_END_MIN)
+    expect(last.dwellMin).toBeGreaterThanOrEqual(HALT_MIN.tea) // tea spent dwell
+    // an 08:30 same-distance day arrives clean and un-flagged
+    const okDay = planTravelClock({ totalKm: 300, driveMinutes: 430, dayStart: '08:30' })
+    if (okDay.verdict === 'ok') {
+      const l = okDay.days[okDay.days.length - 1]
+      expect(l.arrivalEtaMin).not.toBeNull()
+      expect(l.lateArrival).toBe(false)
+    }
+  })
+
+  it('no night halt ever lands inside the ENDNO exclusion (#140)', () => {
+    for (const start of ['08:30', '14:00', '16:30', '05:00']) {
+      const v = planTravelClock({ totalKm: 620, driveMinutes: 900, dayStart: start })
+      if (v.verdict !== 'ok') continue
+      const split = v.split
+      if (!split) continue
+      const capKm = 620 - Math.min(60, split.perDay * 0.15)
+      for (const d of v.days) {
+        if (d.nightHaltKm != null) {
+          expect(d.nightHaltKm).toBeLessThanOrEqual(capKm + 0.5)
+        }
+      }
+    }
+  })
+
+  it('the segment plan absorbs a halt-adjacent meal and keeps every dwell-spaced ETA honest (#129/#131)', () => {
+    const segs = planRideSegments({ totalKm: 900, driveMinutes: 1300, multiDay: true, dayStartTimes: ['08:30', '08:30'] })
+    expect(segs.length).toBeGreaterThan(2)
+    // #129, direct: on a single-day 700 km plan the meal (a high-priority
+    // fold target) must spend the dwell of the stretch that came before it —
+    // eta(meal) − pure-wheel eta ≥ the earlier stretch halt, never less.
+    const day = planRideSegments({ totalKm: 700, driveMinutes: 1000, multiDay: false })
+    const meal = day.find(s => s.purpose === 'meal')
+    const stretchBefore = day.find(s => s.purpose === 'stretch' && s.targetKm < (meal?.targetKm ?? Infinity))
+    expect(meal).toBeDefined()
+    expect(stretchBefore).toBeDefined()
+    const wheelOnly = 510 + meal!.targetKm * (1000 / 700) // 08:30 start + proportional wheel
+    expect(meal!.etaMinutes! - wheelOnly).toBeGreaterThanOrEqual(HALT_MIN.stretch - 2)
+    // and dwell is monotone along the day: a later halt's ETA excess can only
+    // grow, never shrink (the early-day drop this fixture guards against).
+    const after = day.filter(s => s.targetKm > meal!.targetKm && s.etaMinutes != null)
+    for (const s of after) {
+      expect(s.etaMinutes! - (510 + s.targetKm * (1000 / 700))).toBeGreaterThanOrEqual(HALT_MIN.stretch + HALT_MIN.meal - 2)
+    }
+    // #131a: no NON-overnight segment sits inside MIN_BREAK_GAP_KM of the
+    // overnight that follows it — the halt absorbed it instead.
+    for (let i = 0; i < segs.length - 1; i++) {
+      if (!segs[i].dayEnd && segs[i + 1].dayEnd) {
+        expect(segs[i + 1].targetKm - segs[i].targetKm).toBeGreaterThanOrEqual(MIN_BREAK_GAP_KM - 1)
+      }
+    }
+  })
+
+  it('the trip bill and the bench price a room from ONE table (#125b)', () => {
+    const trip = structuredClone(seedData.trips[0])
+    trip.days.forEach(d => { d.stops = d.stops.filter(s => s.category !== 'hotel') })
+    trip.days[0].stops.push({
+      id: 'hotel_rate_check', title: 'Test Stay', category: 'hotel', locationName: 'Rate Base',
+      lat: 9.93, lng: 76.26, description: '', notes: '',
+      visitMinutes: 600, openTime: '', closeTime: '', entryFeeInrPerPerson: 0,
+      transportCostInrTotal: 0, priority: 'must-do', sourceUrl: '', status: 'suggested', orderInDay: 1,
+    } as never)
+    const totals = computeTotals(trip)
+    expect(totals.lodgingRatePerNight).toBe(STAY_RATE_PER_NIGHT.comfort)
   })
 })

@@ -2,6 +2,7 @@
 // All outputs are transparent estimates. Nothing here claims live data.
 import type { Trip, ItineraryStop, ItineraryDay, ID, TravelStyle } from '../data/types'
 import { haversineKm } from './geo'
+import { STAY_RATE_PER_NIGHT } from './rates'
 
 export interface EngineAssumptions {
   mode: string
@@ -127,7 +128,13 @@ export function minutesToHM(mins: number): string {
 export function hmToMinutes(hm: string): number {
   if (!hm || !hm.includes(':')) return 0
   const [h, m] = hm.split(':').map(Number)
-  return h * 60 + (Number.isFinite(m) ? m : 0)
+  // Corrupt values ("25:99", "9:99") must never silently become a real time —
+  // clamp to the valid wall-clock range (#136). A fat-fingered 25:99 reads as
+  // 23:59 and the planner's own defer verdict tells the user something's off.
+  if (!Number.isFinite(h) || !Number.isFinite(m)) return 0
+  const hh = Math.min(23, Math.max(0, Math.floor(h)))
+  const mm = Math.min(59, Math.max(0, Math.floor(m)))
+  return hh * 60 + mm
 }
 
 export function addMinutesToClock(startMin: number, mins: number): string {
@@ -1019,17 +1026,9 @@ export interface TripTotals {
   byDay: { dayIndex: number; expensesInr: number; transportInr: number; totalInr: number; stops: number; distanceKm: number }[]
 }
 
-/**
- * Trip-level stay rates — ₹ per room per night, two guests per room. Kept
- * identical to planBench's STAY_RATE_PER_NIGHT (importing planBench from the
- * engine would cycle). Keyed by the trip's STAY BUDGET dial — travel style
- * tunes stop cadence and suggestion flavors, never the bed's price.
- */
-const TRIP_STAY_RATE_PER_NIGHT: Record<'budget' | 'comfort' | 'luxury', number> = {
-  budget: 1200,
-  comfort: 3200,
-  luxury: 8000,
-}
+// The ₹-per-room-night table lives in rates.ts, next to the Plan Bench's use
+// of it — one source, no mirror to drift (#125b). Travel style never touches
+// the bed's price; the STAY BUDGET dial does.
 
 /** The stay rate key for a trip: its own stayStyle dial, or the legacy
  *  travelStyle (budget/luxury styles carried the pricing before the two
@@ -1038,6 +1037,20 @@ function stayKeyFor(trip: Pick<Trip, 'stayStyle' | 'travelStyle'>): 'budget' | '
   if (trip.stayStyle) return trip.stayStyle
   if (trip.travelStyle === 'budget' || trip.travelStyle === 'luxury') return trip.travelStyle
   return 'comfort'
+}
+
+/**
+ * Lodging identity key (#125a): a ~500 m coordinate cluster when the stop is
+ * geocoded — same property, slightly different pins, one night — falling back
+ * to a normalized name only when coordinates are absent. Name-string equality
+ * used to double-count "Hotel Taj" vs "Hotel Taj, Mumbai" and under-count two
+ * hotels in one city. Full place-id keying is #146.
+ */
+function lodgingKey(s: Pick<ItineraryStop, 'lat' | 'lng' | 'locationName' | 'title'>): string {
+  if (Number.isFinite(s.lat) && Number.isFinite(s.lng)) {
+    return `geo:${Math.round(s.lat * 200)}:${Math.round(s.lng * 200)}`
+  }
+  return `name:${(s.locationName || s.title).trim().toLowerCase().replace(/\s+/g, ' ')}`
 }
 
 export function computeTotals(trip: Trip, legCorrections?: Record<string, LegEstimate>): TripTotals {
@@ -1117,16 +1130,21 @@ export function computeTotals(trip: Trip, legCorrections?: Record<string, LegEst
   // the bed. Hotel-category stops — a structural night halt accepted from the
   // ride plan, or a stay added by hand — gain a lodging line: distinct
   // overnight bases × rooms (2 guests per room) × the stay rate for the
-  // trip's style. The rate table mirrors the Plan Bench's STAY_RATE_PER_NIGHT
-  // (importing it would cycle); a structural night halt's minutes are still
-  // never charged against the day's detour budget.
+  // trip's style. The rate lives in rates.ts next to the Plan Bench's own
+  // table — one source, no mirror to drift (#125b). A structural night halt's
+  // minutes are still never charged against the day's detour budget.
+  //
+  // Base identity is a ~500 m coordinate cluster when the stop is geocoded,
+  // falling back to a normalized name (#125a): "Hotel Taj" vs "Hotel Taj,
+  // Mumbai" is one night, not two, and two different pins in one city are
+  // two nights, not one. (Full place-id keying waits on #146.)
   const hotelBases = new Set<string>()
   trip.days.forEach(d => d.stops.forEach(s => {
-    if (s.category === 'hotel' && s.status !== 'rejected') hotelBases.add(s.locationName)
+    if (s.category === 'hotel' && s.status !== 'rejected') hotelBases.add(lodgingKey(s))
   }))
   const lodgingNights = hotelBases.size
   const lodgingRooms = Math.max(1, Math.ceil(trip.travellers / 2))
-  const lodgingRatePerNight = TRIP_STAY_RATE_PER_NIGHT[stayKeyFor(trip)]
+  const lodgingRatePerNight = STAY_RATE_PER_NIGHT[stayKeyFor(trip)]
   const lodgingInr = lodgingNights * lodgingRooms * lodgingRatePerNight
   // Each base's share lands on the first day that holds it, so the per-day
   // stacks keep summing to the trip total (the v0.36 accounting invariant).
@@ -1134,8 +1152,8 @@ export function computeTotals(trip: Trip, legCorrections?: Record<string, LegEst
   const seenBases = new Set<string>()
   const perBaseShare = lodgingNights > 0 ? lodgingInr / lodgingNights : 0
   trip.days.forEach(d => d.stops.forEach(s => {
-    if (s.category === 'hotel' && s.status !== 'rejected' && !seenBases.has(s.locationName)) {
-      seenBases.add(s.locationName)
+    if (s.category === 'hotel' && s.status !== 'rejected' && !seenBases.has(lodgingKey(s))) {
+      seenBases.add(lodgingKey(s))
       lodgingByDay.set(d.index, (lodgingByDay.get(d.index) ?? 0) + perBaseShare)
     }
   }))

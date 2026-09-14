@@ -30,7 +30,7 @@ A collaborative travel-planning web app, built India-first. Real multi-day itine
 
 <br />
 
-<img src="docs/redesign/yatraflow-enhanced-homepage-mockup.svg" alt="YatraFlow — plan a trip together" width="100%" />
+<img src="docs/screenshots/landing-desktop.png" alt="YatraFlow — plan a trip together" width="100%" />
 
 ---
 

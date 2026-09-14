@@ -1790,7 +1790,13 @@ export function restoreStop(tripId: ID, stop: ItineraryStop, dayIndex: number): 
   if (!day || day.stops.some(s => s.id === stop.id)) return
   mutateTrip(tripId, draft => {
     const dDay = draft.days.find(d => d.index === dayIndex)!
-    dDay.stops.push(stop)
+    // Honour the documented "at its old order": insert BEFORE the first stop
+    // whose order is >= the deleted stop's — deleteStop renumbered the
+    // survivors, so the stop that inherited the deleted order must not claim
+    // the slot (push+renumber would dump it at the day's end instead).
+    const at = dDay.stops.findIndex(s => s.orderInDay >= stop.orderInDay)
+    if (at === -1) dDay.stops.push(stop)
+    else dDay.stops.splice(at, 0, stop)
     renumber(dDay)
   }, { log: `restored “${stop.title}”`, target: `Day ${dayIndex + 1}` })
   void persistTripField(tripId, tripById(tripId)!)
@@ -2031,12 +2037,37 @@ export function resolveDecision(decisionId: ID, optionId: ID): void {
   d.status = 'resolved'; d.resolvedOptionId = optionId; d.resolvedAt = Date.now()
   cache.decisions = [...cache.decisions.slice(0, dIdx), d, ...cache.decisions.slice(dIdx + 1)]
   addActivity(d.tripId, cache.sessionUserId!, 'resolved a decision', d.question)
-  const winningLabel = d.options.find(o => o.id === optionId)?.label ?? 'an option'
+  const winning = d.options.find(o => o.id === optionId)
+  const winningLabel = winning?.label ?? 'an option'
   const trip = tripById(d.tripId)
   if (trip && cache.sessionUserId) {
     for (const m of trip.members ?? []) {
       if (m.userId !== cache.sessionUserId) pushNotification(m.userId, d.tripId, `${userName(cache.sessionUserId)} resolved “${d.question}” — ${winningLabel}.`)
     }
+  }
+  // The last mile of shortlist → vote → resolved (user ask): when the winning
+  // option carries a place payload from the Map rail's vote, it LANDS on the
+  // timeline as a confirmed stop — which also makes every surface reflect it
+  // (Board + Timeline read the trip; the Map rail filters by stop name) and
+  // the suggestion rows it beats drop out via the same name check.
+  if (winning?.place && trip) {
+    const dayIndex = Math.min(Math.max(0, winning.place.dayIndex), trip.days.length - 1)
+    addStop(d.tripId, dayIndex, {
+      title: winning.place.title,
+      category: winning.place.category,
+      locationName: winning.place.locationName,
+      lat: winning.place.lat,
+      lng: winning.place.lng,
+      description: winning.place.description,
+      visitMinutes: winning.place.visitMinutes,
+      ...(winning.place.openTime ? { openTime: winning.place.openTime } : {}),
+      ...(winning.place.closeTime ? { closeTime: winning.place.closeTime } : {}),
+      entryFeeInrPerPerson: 0,
+      transportCostInrTotal: 0,
+      priority: 'nice-to-have',
+      notes: `Chosen by group vote — “${d.question}”`,
+      status: 'confirmed',
+    })
   }
   commit()
   fire('decisions', supabase.from('decisions').update({ status: 'resolved', resolved_option_id: optionId, resolved_at: d.resolvedAt }).eq('id', decisionId))

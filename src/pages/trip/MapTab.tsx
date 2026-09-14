@@ -9,7 +9,7 @@ import type { ImpactResult } from '../../lib/impact'
 import { routePath } from '../../lib/routing'
 import { getAssumptions, buildJourney, minutesToHM, computeCategoryBias, MODE_SPEED, isRoundTrip } from '../../lib/engine'
 import { useTimeFormat, formatHM, formatHMRange } from '../../lib/timefmt'
-import { Modal, Field, toast } from '../../components/ui'
+import { Modal, Field, toast, undoToast } from '../../components/ui'
 import { Select } from '../../components/Select'
 import { useSuggestionCache, isMapCacheFresh } from '../../hooks/useSuggestionCache'
 import { openExternal } from '../../lib/native'
@@ -17,7 +17,7 @@ import { corridorAnchors, detourKm, detourMinutes, asymmetricDetourMinutes, goog
 import { isSightCategory } from '../../lib/ridePlan'
 import { railReasonChips, type RailChip } from '../../lib/railReasons'
 import { rulerMarks } from '../../lib/railRuler'
-import { addDecision } from '../../store/store'
+import { addDecision, deleteStop, restoreStop } from '../../store/store'
 import { dayDetourBudgetMin, budgetSharePct, splitByDetourBudget } from '../../lib/detourBudget'
 import { quotaUsed, SOFT_CAPS } from '../../lib/providers/quota'
 import { buildDnaVectorAcrossTrips, loadDnaLog, recordDnaEvent, dnaNoteForHit, crewSeedsFromSuggestions, crewSeedsToPlannedStops, crewSeedEvents, crewNoteForHit } from '../../lib/tripDna'
@@ -521,7 +521,26 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     setShortlist([])
   }
 
-  /** Turn the shortlist into an open group decision, reusing the poll shape. */
+  /** Delete straight from the map pin's popup — with Undo (restoreStop puts
+   *  the stop back on its day at its old order). The stop object must be
+   *  captured BEFORE the delete, since the cache drops it immediately. */
+  function removeStopFromMap(stopId: string, meta: { title: string; dayIndex: number }) {
+    const stop = trip.days.find(d => d.stops.some(s => s.id === stopId))?.stops.find(s => s.id === stopId)
+    deleteStop(trip.id, stopId)
+    suggestionCache.clearMap()
+    setRefreshTick(t => t + 1)
+    if (stop) {
+      undoToast(`Removed “${meta.title}” from the trip`, () => restoreStop(trip.id, stop, meta.dayIndex))
+    } else {
+      toast(`Removed “${meta.title}” from the trip`)
+    }
+  }
+
+  /** Turn the shortlist into an open group decision, reusing the poll shape.
+   *  Each option carries the place it stands for, so RESOLVING the decision
+   *  lands the winner on the timeline as a confirmed stop (store's
+   *  resolveDecision reads the payload) — shortlist → vote → resolved →
+   *  on the board, timeline and map, with the rail's row dropping out. */
   function raiseShortlistVote() {
     if (shortlist.length === 0) return
     addDecision(trip.id, {
@@ -529,9 +548,24 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
         ? `Should we add "${shortlist[0].name}"?`
         : 'Which of these should we add?',
       context: 'Shortlisted from the Map rail',
-      options: shortlist.map((h, i) => ({ id: `tmp_${i}`, label: h.name })),
+      options: shortlist.map((h, i) => ({
+        id: `tmp_${i}`,
+        label: h.name,
+        place: {
+          title: h.name,
+          category: (h.category as ItineraryStop['category']) ?? 'sightseeing',
+          locationName: h.description ?? h.name,
+          lat: h.latitude,
+          lng: h.longitude,
+          description: h.description,
+          visitMinutes: poiVisitMinutes(h.category),
+          ...(h.openTime ? { openTime: h.openTime } : {}),
+          ...(h.closeTime ? { closeTime: h.closeTime } : {}),
+          dayIndex: dayForKm(h.cumKm) ?? 0,
+        },
+      })),
     })
-    toast('Decision posted for the group')
+    toast('Decision posted for the group — resolving it adds the winner to the plan')
     setShortlist([])
   }
 
@@ -572,9 +606,15 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
   // ruler marks reuse each card's own cumulative km so a dot never disagrees with
   // the number printed on its card.
   const needsForRail = chipFilter ? needs.filter(sh => sh.hit && chipsFor(sh, sh.hit).some(c => c.label === chipFilter)) : needs
-  const seeForRail = chipFilter ? seeAndDo.filter(sh => sh.hit && chipsFor(sh, sh.hit).some(c => c.label === chipFilter)) : seeAndDo
+  // A resolved group vote lands its winner on the timeline; those stops then
+  // drop out of the see-&-do rail entirely (count included), same as the
+  // “Added” state does for need halts. Name-match matches the rail's dedupe.
+  const voteResolvedOut = (sh: { hit?: PlaceHit | null }) =>
+    !!sh.hit && existingNames.has(sh.hit.name.toLowerCase())
+  const seeAndDoLive = seeAndDo.filter(sh => !voteResolvedOut(sh))
+  const seeForRail = chipFilter ? seeAndDoLive.filter(sh => sh.hit && chipsFor(sh, sh.hit).some(c => c.label === chipFilter)) : seeAndDoLive
   const needMarks = rulerMarks(needs.filter(sh => sh.hit).map(sh => ({ id: String(sh.hit!.id), km: sh.hit!.cumKm ?? null, purpose: sh.segment.purpose })), planKm)
-  const seeMarks = rulerMarks(seeAndDo.filter(sh => sh.hit).map(sh => ({ id: String(sh.hit!.id), km: sh.hit!.cumKm ?? null, purpose: sh.segment.purpose })), planKm)
+  const seeMarks = rulerMarks(seeAndDoLive.filter(sh => sh.hit).map(sh => ({ id: String(sh.hit!.id), km: sh.hit!.cumKm ?? null, purpose: sh.segment.purpose })), planKm)
   const filterActive = chipFilter != null
   // Detour-budget enforcement (Horizon 3.2's "finite, honest menu"): the
   // see-&-do list is the endless one — need halts are finite by construction,
@@ -587,7 +627,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
   {
     const speedK = MODE_SPEED[trip.transportMode] ?? 40
     const byDay = new Map<number, SegmentHit[]>()
-    for (const sh of seeAndDo) {
+    for (const sh of seeAndDoLive) {
       if (!sh.hit) continue
       const d = dayForKm(sh.hit.cumKm) ?? 0
       const list = byDay.get(d) ?? []
@@ -614,7 +654,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
   // rendering an empty state that reads like "nothing around".
   const quotaOut = googleEnabled() && quotaUsed('textSearchPro') >= SOFT_CAPS.textSearchPro
   // Story arcs: themed bundles from live, not-yet-added sights.
-  const arcHits = seeAndDo.flatMap(sh => {
+  const arcHits = seeAndDoLive.flatMap(sh => {
     const h = sh.hit
     if (!h || addedIds.has(h.id as string) || dismissedIds.has(h.id as string)) return []
     return [h]
@@ -733,6 +773,10 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
       )
     }
     const added = addedIds.has(hit.id as string) || existingNames.has(hit.name.toLowerCase())
+    // A resolved group vote puts the winner ON the timeline — the losing rows
+    // and the winner's own suggestion row must not keep offering it. Name-match
+    // is the same convention the rest of the rail uses for dedupe.
+    if (added && !NEED_PURPOSES.has(sh.segment.purpose)) return null
     const offRoute = detourKm(hit, anchors)
     const detourMin = asymmetricDetourMinutes(hit, anchors, routePolyline ?? null, MODE_SPEED[trip.transportMode] ?? 40)
     // per-day budget: the hit's own day sets the density, not the whole trip
@@ -1146,6 +1190,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
               onActivateHit={setActiveHitId}
               onOpenInTimeline={onOpenTimeline}
               onOpenInBoard={onOpenBoard ? () => onOpenBoard() : undefined}
+              onDeleteStop={editable ? removeStopFromMap : undefined}
               enableMapViewModes
             />
           </div>
@@ -1154,9 +1199,9 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
               <span className="poi-col-head-ico"><MapPin size={13} aria-hidden /></span>
               <div>
                 <b>See &amp; do</b>
-                <span className="small muted">{arcs.slice(0, 2).length + seeAndDo.length === 0 ? 'sightseeing · detours · scenic stops' : `${arcs.slice(0, 2).length} arcs · ${seeAndDo.length} picks on this corridor`}</span>
+                <span className="small muted">{arcs.slice(0, 2).length + seeAndDoLive.length === 0 ? 'sightseeing · detours · scenic stops' : `${arcs.slice(0, 2).length} arcs · ${seeAndDoLive.length} picks on this corridor`}</span>
               </div>
-              <span className="poi-col-count">{filterActive ? seeForRail.length : arcs.slice(0, 2).length + seeAndDo.length}</span>
+              <span className="poi-col-count">{filterActive ? seeForRail.length : arcs.slice(0, 2).length + seeAndDoLive.length}</span>
               <button
                 type="button"
                 className="poi-fold"

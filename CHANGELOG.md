@@ -66,6 +66,15 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 - **Suggestion rows sync to the map on click, not hover** — hovering a row no longer
   glides the camera (accidental map movement); rows show a pointer cursor.
 - **Directions sits beside the travel card's title**, not on its own line.
+- **Resolving a map-sourced vote adds the winner to the plan.** Shortlisted stops
+  sent to a group vote carry their place with the option; hitting "Resolve" lands
+  the winning place as a confirmed stop on the suggested day (clamped to the trip's
+  range) — so it shows up on the Timeline, Board and Map at once, and the
+  suggestion rail drops the rows it settles, winner included. Hand-raised
+  decisions without a place resolve exactly as before.
+- **Deleting a stop from the map pin.** The pin popup gains a Remove action
+  (editors only) with an Undo toast — the undo restores the stop at its original
+  position within the day instead of appending it at the end.
 - **Shared sources under the planner**: one lunch window, one stay-rate table
   (`src/lib/rates.ts`), one drive-day floor (`isDriveDay`), tolerant style/rain
   parsing (#130, #132).

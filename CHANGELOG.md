@@ -178,6 +178,11 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
   header tools row into a left-aligned wrap. The copy is now the flexible item and the
   tools pin right (margin-left auto keeps them right-aligned even when wrapped).
 
+### Docs
+- **Status docs refreshed for the `main` promotion** — `AGENTS.md` §1.1 recorded the #107 tracker as
+  "96 ticked/annotated" over "five batches (PRs #109–#114)"; it now records the true final state:
+  **117/117 boxes closed** across PRs #109–#116, plus the post-release UI fixes promoted alongside.
+
 ## [0.53.0] - 2026-09-13
 
 **The design-system audit gets fixed, not just filed.** An independent AI audit of all 19

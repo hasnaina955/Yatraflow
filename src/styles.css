@@ -4872,14 +4872,24 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
   @keyframes ts-rise { from { opacity: 0; transform: translateY(10px); } }
 }
 
-/* ============ Mobile dock (≤900px): ticket collapses into a fixed glass bar ============ */
+/* ============ Mobile (≤900px): the fixed dock carries the figure and the CTA,
+   while the ticket stays in the flow so the printed bill is reachable ============ */
 .trip-dock { display: none; }
 @media (max-width: 900px) {
+  /* .ts-rail is deliberately NOT hidden here. It used to be display:none at
+     this width, which took the whole ticket — and the printed bill inside it —
+     off the page, so the dock's "Print bill" fed a hidden container and mobile
+     had no breakdown at all, only a figure. It stays in the flow now, which is
+     also how the Plan Bench shows its receipt at this width. */
   .ts-layout { grid-template-columns: 1fr; }
-  .ts-rail { display: none; }
   .span7, .span5 { grid-column: 1 / -1; }
   .ct-grid { grid-template-columns: 1fr; }
   .trip-starter { padding-bottom: 118px; }
+  /* One primary CTA, not two: the fixed dock owns it here, so the ticket's own
+     button steps aside rather than duplicating it in the flow. */
+  .tk-cta { display: none; }
+  /* When the dock's "Print bill" scrolls the bill in, land clear of the nav. */
+  .bill-printer { scroll-margin-top: calc(var(--nav-h, 64px) + 16px); }
   .trip-dock {
     display: flex; position: fixed; left: 12px; right: 12px; bottom: calc(12px + var(--bottom-ui-offset));
     z-index: var(--z-dock); align-items: center; gap: 12px; padding: 12px 14px; border-radius: var(--radius);

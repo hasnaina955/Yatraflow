@@ -28,6 +28,7 @@ import { haptic, HAPTIC } from '../lib/haptics'
 import { useTimeFormat, formatHM } from '../lib/timefmt'
 import { cap } from '../lib/labels'
 import { readBenchPrefill } from '../lib/planBench'
+import { scrollBehavior } from '../lib/motion'
 import { LocationInput } from '../components/LocationInput'
 
 interface CommitDraft {
@@ -138,6 +139,8 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
   const [billPrinted, setBillPrinted] = useState(false)
   /** first-invalid focus targets (F-15) — plain inputs only register here */
   const fieldRefs = useRef<Record<string, HTMLElement | null>>({})
+  /** The printed bill — scrolled into view when the dock prints it (see below). */
+  const billRef = useRef<HTMLDivElement>(null)
 
   const fuelMode = isFuelEconomyMode(f.transportMode)
   // The bill's figures roll like the bench odometer unless motion is reduced,
@@ -167,6 +170,16 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
         : {}),
     }))
   }, [])
+
+  // The dock's "Print bill" is pinned to the bottom of the screen while the bill
+  // itself sits further down the page, so on a phone that tap used to look like
+  // it did nothing. Bring the bill in once it prints. `block: 'nearest'` scrolls
+  // the minimum needed, which makes this a no-op on desktop, where the sticky
+  // rail already has the bill on screen.
+  useEffect(() => {
+    if (!billPrinted) return
+    billRef.current?.scrollIntoView({ behavior: scrollBehavior(), block: 'nearest' })
+  }, [billPrinted])
 
   const dayCount = f.startDate && f.endDate ? Math.round((new Date(f.endDate).getTime() - new Date(f.startDate).getTime()) / 86400000) + 1 : 0
 
@@ -808,7 +821,7 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
                 </>
               ) : (
                 <>
-                  <div className="bill-printer" role="region" aria-label="Rough trip bill">
+                  <div className="bill-printer" role="region" aria-label="Rough trip bill" ref={billRef}>
                     <div className="bill-slot" aria-hidden="true"><span></span></div>
                     <div className="bill-reveal">
                       <div className="bill-paper bill-paper-sway">

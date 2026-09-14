@@ -15,8 +15,13 @@ import { Select } from '../../components/Select'
 import { DetourWhisk } from '../../components/DetourWhisk'
 import { useSuggestionCache, isMapCacheFresh } from '../../hooks/useSuggestionCache'
 import { openExternal } from '../../lib/native'
-import { corridorAnchors, detourKm, detourMinutes, asymmetricDetourMinutes, googleEnabled, planJourneyHalts, reasonForSegmentHit, searchPlacesText, searchNearbyPoisMulti, kmFromStartForHit, planDriveDays, planTravelClock, rainFactorFor, isSelfDrivenMode, requireHitCoords, hasCoords, QuotaExhaustedError, DEFER_START, type NearbyOpts, type PlaceHit, type TravelClockVerdict, routeHash } from '../../lib/geocode'
+import { corridorAnchors, detourKm, detourMinutes, asymmetricDetourMinutes, googleEnabled, planJourneyHalts, reasonForSegmentHit, searchPlacesText, searchNearbyPoisMulti, kmFromStartForHit, planDriveDays, planTravelClock, rainFactorFor, isSelfDrivenMode, requireHitCoords, hasCoords, DEFER_START, type NearbyOpts, type PlaceHit, type TravelClockVerdict, routeHash } from '../../lib/geocode'
 import { isSightCategory } from '../../lib/ridePlan'
+import { QuotaExhaustedError } from '../../lib/providers/google'
+import { isElectric } from '../../lib/vehicleProfile'
+import { railReasonChips, type RailChip } from '../../lib/railReasons'
+import { rulerMarks } from '../../lib/railRuler'
+import { addDecision, deleteStop, restoreStop } from '../../store/store'
 import { dayDetourBudgetMin, budgetSharePct, splitByDetourBudget } from '../../lib/detourBudget'
 import { quotaUsed, SOFT_CAPS } from '../../lib/providers/quota'
 import { buildDnaVectorAcrossTrips, loadDnaLog, recordDnaEvent, dnaNoteForHit, crewSeedsFromSuggestions, crewSeedsToPlannedStops, crewSeedEvents, crewNoteForHit } from '../../lib/tripDna'
@@ -563,9 +568,6 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
         transportCostInrTotal: 0,
         priority: 'nice-to-have',
         sourceUrl: '',
-        // provider place-id when the hit carries one (#146) — lodging identity
-        // keys on this ahead of coords/name, so the same hotel never bills twice.
-        placeId: hit.placeId ?? '',
         status: 'suggested',
         orderInDay: day.stops.length + 1,
       } as unknown as ItineraryStop
@@ -1423,6 +1425,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
                           const m = arcHits.find(h => (h.id as string) === (id as string))
                           if (!m || addedIds.has(m.id as string)) continue
                           const mDay = dayForKm(m.cumKm)
+                          if (mDay == null) continue // no road position — cannot attribute to a day
                           toAdd.push({ hit: m, dayIndex: mDay })
                         }
                         suggestionCache.clearMap()

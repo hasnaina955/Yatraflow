@@ -111,11 +111,14 @@ describe('#144 — the fuel tick just before a night halt folds into it', () => 
   it('the pre-halt straggler is GONE — nothing duplicates the halt evening', () => {
     const segs = planRideSegments(foldCase)
     const halts = segs.filter(s => s.dayEnd)
-    // nothing — fuel OR meal — sits as a separate stop just before a halt:
-    // the fuel tick is folded away (#144) and a slid meal is absorbed into
-    // the halt itself (#131a — dinner at the halt anyway).
+    // No FUEL tick sits as a separate stop just before a halt: it is folded
+    // away (#144 / #144A). A mid-afternoon stretch or a slid lunch ~2 h out
+    // is NOT a duplicate evening — it is a real stop the driver needs (the
+    // km-only "nothing within 110 km" version of this test contradicted the
+    // time-bounded #131a absorb from #189, where a 98 km = 2 h 20 m gap is
+    // lunch, not dinner-at-the-halt).
     for (const h of halts) {
-      const stragglers = segs.filter(s => !s.dayEnd && s.targetKm < h.targetKm && h.targetKm - s.targetKm < 110)
+      const stragglers = segs.filter(s => !s.dayEnd && s.purpose === 'fuel' && s.targetKm < h.targetKm && h.targetKm - s.targetKm < 110)
       expect(stragglers).toEqual([])
     }
   })

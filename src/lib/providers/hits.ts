@@ -201,7 +201,7 @@ export interface RoutePolylineOpts {
 export function projectOntoPolyline(
   p: Pick<PlaceHit, 'latitude' | 'longitude'>,
   polyline: { lat: number; lng: number }[],
-): { km: number; segIndex: number } | null {
+): { km: number; segIndex: number; lngLat: [number, number] } | null {
   if (!Number.isFinite(p.latitude) || !Number.isFinite(p.longitude)) return null
   const raw = polyline.filter(q => Number.isFinite(q.lat) && Number.isFinite(q.lng))
   if (raw.length < 2) return null
@@ -223,6 +223,7 @@ export function projectOntoPolyline(
   let bestKm = 0
   let bestD2 = Infinity
   let bestSeg = 0
+  let bestLngLat: [number, number] = [raw[0].lng, raw[0].lat]
   for (let i = 0; i < pts.length - 1; i++) {
     const ax = pts[i].lng * kx
     const ay = pts[i].lat * ky
@@ -241,9 +242,10 @@ export function projectOntoPolyline(
       bestSeg = i
       const segLen = Math.max(0, cum[i + 1] - cum[i])
       bestKm = cum[i] + t * segLen
+      bestLngLat = [cx / kx, cy / ky]
     }
   }
-  return { km: Math.max(0, bestKm), segIndex: bestSeg }
+  return { km: Math.max(0, bestKm), segIndex: bestSeg, lngLat: bestLngLat }
 }
 
 /**

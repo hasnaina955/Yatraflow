@@ -328,6 +328,7 @@ function DecisionCard({ d, me, editable, needsMe, trip }: {
                 onClick={() => voteOnDecision(d.id, o.id)} aria-label={`Vote for ${o.label}`}><ChevronUp size={13} aria-hidden /></button>
               <span style={{ flex: 1 }}>
                 {o.label}
+                {o.timeImpactMin ? <span className="muted small"> · ≈{o.timeImpactMin} min detour</span> : null}
                 {o.costImpactInr ? <span className="muted small"> · {o.costImpactInr > 0 ? '+' : ''}{formatInr(o.costImpactInr)}</span> : null}
               </span>
               {voters.length > 0 && (

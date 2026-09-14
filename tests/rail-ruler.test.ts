@@ -25,6 +25,26 @@ describe('rulerMarks', () => {
     expect(marks.map((m) => m.pct)).toEqual([0, 100])
   })
 
+  it('nudges exact-equal positions apart, centred on the shared spot (#155)', () => {
+    // A folded meal+fuel pair at one km used to render two dots at one
+    // left:% — visually one dot, silently undercounting the cards.
+    const marks = rulerMarks([
+      { id: 'a', km: 60, purpose: 'meal' },
+      { id: 'b', km: 60, purpose: 'fuel' },
+      { id: 'c', km: 60, purpose: 'sight' },
+    ], 120)
+    expect(marks.map(m => m.id)).toEqual(['a', 'b', 'c'])
+    const pcts = marks.map(m => m.pct)
+    expect(new Set(pcts).size).toBe(3)
+    expect(pcts[1] - pcts[0]).toBeCloseTo(1.2, 5)
+    expect(pcts[2] - pcts[1]).toBeCloseTo(1.2, 5)
+    // the trio stays centred on the true position (50%)
+    expect((pcts[0] + pcts[2]) / 2).toBeCloseTo(50, 1)
+    // nudged dots clamp at the drive's edges instead of going negative
+    const edge = rulerMarks([{ id: 'x', km: 0, purpose: 'fuel' }, { id: 'y', km: 0, purpose: 'meal' }], 100)
+    expect(edge.every(m => m.pct >= 0)).toBe(true)
+  })
+
   it('skips suggestions with no route position', () => {
     const marks = rulerMarks(
       [

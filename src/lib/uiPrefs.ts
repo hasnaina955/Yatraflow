@@ -5,7 +5,9 @@
 // (no DOM/localStorage), while the load/save wrappers guard for environments
 // where localStorage is missing or throws (private mode, quota, corrupted JSON).
 
-import { parseMapViewMode, type MapViewMode } from './mapViewModes'
+// (No map-view-mode prefs here: the always-2D decision made view mode
+// session-only in TripMap — the previously exported load/saveMapViewMode pair
+// is deleted (#172); import from lib/mapViewModes for parse helpers.)
 
 const DAY_COLLAPSE_KEY = 'yatraflow_day_collapsed'
 
@@ -142,6 +144,32 @@ export function saveRideHintsHidden(tripId: string, dayIndex: number, hidden: bo
   }
 }
 
+// ---- Generic named string prefs ----
+// String-valued counterpart to the flag pair: for numeric/duration-ish view
+// prefs (detour-scope km, etc.) that should survive reloads. Same guards —
+// missing storage or a private-mode throw degrades to the caller's fallback
+// instead of crashing a useState initializer (#181).
+
+/** Read a named string pref; missing key / unavailable storage → `fallback`. */
+export function loadPref(name: string, fallback: string): string {
+  if (typeof localStorage === 'undefined') return fallback
+  try {
+    return localStorage.getItem('yatraflow_' + name) ?? fallback
+  } catch {
+    return fallback
+  }
+}
+
+/** Write a named string pref. Silent no-op when storage is unavailable. */
+export function savePref(name: string, value: string): void {
+  if (typeof localStorage === 'undefined') return
+  try {
+    localStorage.setItem('yatraflow_' + name, value)
+  } catch {
+    // Private mode / quota exceeded — persistence is best-effort by design.
+  }
+}
+
 // ---- Generic named boolean flags ----
 // For one-off view prefs that don't warrant their own load/save pair. The
 // storage key is `yatraflow_<name>` and the value is stored as "1"/"0" —
@@ -170,28 +198,4 @@ export function saveFlag(name: string, value: boolean): void {
   }
 }
 
-// ---- Map view mode (2D / Terrain / 3D) ----
-// A three-way mode is not a boolean, so it gets its own key storing the raw
-// mode string. Global, not per trip — one map preference, like the legend
-// flag. parseMapViewMode degrades any missing/corrupt value to '2d'.
-const MAP_VIEW_MODE_KEY = 'yatraflow_map_view_mode'
 
-/** Read the map view mode; missing/unavailable storage → '2d'. */
-export function loadMapViewMode(): MapViewMode {
-  if (typeof localStorage === 'undefined') return '2d'
-  try {
-    return parseMapViewMode(localStorage.getItem(MAP_VIEW_MODE_KEY))
-  } catch {
-    return '2d'
-  }
-}
-
-/** Write the map view mode. Silent no-op when storage is unavailable. */
-export function saveMapViewMode(mode: MapViewMode): void {
-  if (typeof localStorage === 'undefined') return
-  try {
-    localStorage.setItem(MAP_VIEW_MODE_KEY, mode)
-  } catch {
-    // Private mode / quota exceeded — persistence is best-effort by design.
-  }
-}

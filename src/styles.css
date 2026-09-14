@@ -2812,7 +2812,11 @@ main:focus { outline: none; }
 }
 .map-ideas-map { min-width: 0; }
 @media (max-width: 1500px) {
-  .map-ideas-grid { grid-template-columns: 1fr; }
+  /* #156: the folded-rail rules (0,2,0) outrank this media block (0,1,0) —
+     name the folded states here so stacked mode always wins over the spine
+     grid, or a 390px phone gets horizontal overflow and a ~20px map. */
+  .map-ideas-grid, .map-ideas-grid.is-needs-folded, .map-ideas-grid.is-see-folded,
+  .map-ideas-grid.is-needs-folded.is-see-folded { grid-template-columns: 1fr; }
   .map-ideas-map { order: -1; }
   .map-ideas-grid .poi-col { max-height: none; }
 }
@@ -5208,6 +5212,12 @@ html.native-shell {
 .poi-more summary::-webkit-details-marker { display: none; }
 .poi-more-list { display: grid; gap: 9px; margin-top: 9px; }
 :root:not([data-theme='dark']) .poi-rchip--warn { color: var(--ink-amber); }
+/* #152: same warn-on-light story as the rchip — the fact strip is 11.5px
+   semibold (normal text, needs 4.5:1) and --warn on white is 3.92:1. The
+   whisk's heavy spur/pin draw the same warn in SVG, so they swap too. */
+:root:not([data-theme='dark']) .poi-fact--warn { color: var(--ink-amber); }
+:root:not([data-theme='dark']) .poi-whisk-spur--heavy { stroke: var(--ink-amber); }
+:root:not([data-theme='dark']) .poi-whisk-pin--heavy { fill: var(--ink-amber); }
 
 /* Rail audit pass: one rhythm (6 inner, 9 list, 12 group), keyboard focus on
    the two expanders and the candidate button, chevron motion that respects

@@ -132,8 +132,14 @@ Key locations:
    serves *this* working tree before linking (fetch
    `http://localhost:5173/src/styles.css` and grep for a token/marker that
    only exists in the current branch's changes — a stale server from another
-   branch will otherwise silently show old UI). Then give deep links per
-   screen (e.g. `http://localhost:5173/#/` for Landing,
+   branch will otherwise silently show old UI). "Up" is not "current": a
+   long-running dev server's file-watcher can die during branch churn and
+   keep serving a dead module graph with HTTP 200 (happened on the 5176
+   server, Sep 14 2026 — hot reload silently stopped mid-session). If the
+   marker greps come back empty on a *responding* port, kill the PID
+   (`netstat -ano | grep :PORT` → `Stop-Process -Id <pid> -Force`) and start
+   fresh, then re-grep the markers before handing over the URL. Then give
+   deep links per screen (e.g. `http://localhost:5173/#/` for Landing,
    `http://localhost:5173/#/trips` for My Trips) and say what to check
    (themes, mobile width, specific interactions).
 8. **Build locally first; confirm the target branch before every push.** A feature
@@ -373,6 +379,7 @@ workflow that actually fired.
 
 - **A directive that reverses behavior must sweep its own strings in the same commit.** When the Google-only directive landed, `QuotaExhaustedError` still said *"falling back to the free stack"* and the quota-guard header still described the old fallback — the code had changed, its self-description lied. When reversing any behavior, grep for the OLD behavior's phrasing in error messages, comments, README, and ARCHITECTURE (this bit us once per surface: message, quota.ts header, geocode docstring).
 
+- **A mechanical CSS gate only sees pairs declared in ONE rule.** The design-system contrast gate skips color-only overrides (`.x--warn { color: … }` on a separate background rule) — a 3.65:1 warn-on-white shipped straight past it (#152). When styling new UI, add explicit AA pins for any warn/tone pair your surface paints (#154's `map-rail warn ink` test is the pattern), and remember the baseline keys entries on **line numbers** — inserting CSS shifts them and fails the gate with phantom "new violations"; re-map the numbers (or `UPDATE_DESIGN_SYSTEM_BASELINE=1`) and diff to confirm nothing but line numbers moved.
 - **A derived input that algebraically cancels is a constant in disguise.** Road personality's "per-window speed" was `windowKm / (driveMinutes × windowKm / totalKm / 60)` — the `windowKm` cancels, leaving the day's average painted on every window, and the tests then codified the wrong semantics. When a derived value cancels to something coarser than its name implies, stop and either compute the real signal (per-leg durations from OSRM) or move the verdict to the level it actually measures (day-average → explicit day-level check, as now done for the city-crawl kind).
 
 - **A11y contrast claims get computed, not eyeballed.** Issue #64 claimed sub-AA tab contrast; the WCAG luminance math showed 7.53:1 dark / 4.86:1 light — not reproducible. Before accepting or "fixing" a contrast report, run the numbers on the actual token pair and surface (the issue's premise named the wrong variable). Close such issues WITH the measurement.

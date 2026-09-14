@@ -6,7 +6,7 @@ import { useMemo, useState, useEffect, useRef, Fragment } from 'react'
 import type { Trip } from '../data/types'
 import type { PlaceHit } from '../lib/geocode'
 import { resolveHitCoords } from '../lib/geocode'
-import { hasCoords, mappablePois } from '../lib/providers/hits'
+import { hasCoords, mappablePois, projectOntoPolyline } from '../lib/providers/hits'
 import { routePath } from '../lib/routing'
 import { buildJourney, getAssumptions, isRoundTrip } from '../lib/engine'
 import { googleMapsDirectionsUrl } from '../lib/externalMaps'
@@ -551,7 +551,9 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
         id: LAYER,
         type: 'line',
         source: SRC,
-        paint: { 'line-color': '#B47207', 'line-width': 2, 'line-dasharray': [2, 2] },
+        // #153: paint from the --warn token (resolved once — MapLibre can't
+        // read CSS vars) instead of a hardcoded hex that silently drifts.
+        paint: { 'line-color': getComputedStyle(document.documentElement).getPropertyValue('--warn').trim() || '#B47207', 'line-width': 2, 'line-dasharray': [2, 2] },
         layout: { 'line-cap': 'round' },
       })
     }
@@ -560,16 +562,13 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     const features: Array<{ type: 'Feature'; properties: Record<string, never>; geometry: { type: 'LineString'; coordinates: [number, number][] } }> = []
     if (hit && hasCoords(hit) && route.length > 1) {
       const pin: [number, number] = [hit.longitude, hit.latitude]
-      let best = route[0]
-      let bestD = Infinity
-      for (const c of route) {
-        const d = (c[0] - pin[0]) ** 2 + (c[1] - pin[1]) ** 2
-        if (d < bestD) {
-          bestD = d
-          best = c
-        }
-      }
-      features.push({ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: [best, pin] } })
+      // #158: snap with the SAME segment projection the card's detour minutes
+      // use (projectOntoPolyline), not a raw nearest-vertex walk in degree
+      // space — the spur now lands where the card's math says it should.
+      const poly = route.map(([lng, lat]) => ({ lat, lng }))
+      const snap = projectOntoPolyline({ latitude: pin[1], longitude: pin[0] }, poly)
+      const anchor: [number, number] = snap ? snap.lngLat : route[0]
+      features.push({ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: [anchor, pin] } })
     }
     const src = m.getSource(SRC) as { setData?: (d: unknown) => void } | undefined
     src?.setData?.({ type: 'FeatureCollection', features })

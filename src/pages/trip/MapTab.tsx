@@ -7,7 +7,7 @@ import { uid } from '../../data/seed'
 import type { Trip, ItineraryStop } from '../../data/types'
 import type { ImpactResult } from '../../lib/impact'
 import { routePath } from '../../lib/routing'
-import { getAssumptions, buildJourney, minutesToHM, computeCategoryBias, MODE_SPEED, isRoundTrip } from '../../lib/engine'
+import { getAssumptions, buildJourney, minutesToHM, fmtDur, computeCategoryBias, MODE_SPEED, isRoundTrip } from '../../lib/engine'
 import { useTimeFormat, formatHM, formatHMRange } from '../../lib/timefmt'
 import { Modal, Field, toast, undoToast } from '../../components/ui'
 import { Select } from '../../components/Select'
@@ -70,7 +70,11 @@ function EngineTips() {
   return (
     <div className="engine-tips">
       <span className="engine-tips-ico"><Sparkles size={12} aria-hidden /></span>
-      <span key={tip} className="engine-tips-text" role="status">{ENGINE_TIPS[tip]}</span>
+      {/* #168: role="status" on rotating text re-announces every 7s — a live
+          region that never shuts up. The rotation is decorative; SR users get
+          one static summary instead. */}
+      <span key={tip} className="engine-tips-text" aria-hidden="true">{ENGINE_TIPS[tip]}</span>
+      <span className="sr-only" role="status">Suggestions are spaced for fatigue and checked against your detour budget.</span>
       <span className="engine-tips-dots" aria-hidden="true">
         {ENGINE_TIPS.map((_, i) => (
           <button key={i} type="button" tabIndex={-1} className={`engine-tips-dot${i === tip ? ' on' : ''}`} onClick={() => setTip(i)} />
@@ -82,8 +86,11 @@ function EngineTips() {
 
 // ================= Map tab =================
 
-/** Wikipedia thumbnail URLs are hotlink-friendly but huge; ask for a small one. */
+/** Wikipedia thumbnail URLs are hotlink-friendly but huge; ask for a small one.
+ *  #177: only Wikimedia thumb URLs carry a /<w>px- size segment — rewriting a
+ *  path segment that merely LOOKS like a size on any other host mangles it. */
 function smallThumb(url: string): string {
+  if (!/upload\.wikimedia\.org/.test(url)) return url
   return url.replace(/\/(\d+)px-/, '/120px-')
 }
 
@@ -602,6 +609,25 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
   // map tab needs no scrolling to reach either kind (§6.10 CTI tone coding).
   const needs = pois.filter(sh => sh.segment && NEED_PURPOSES.has(sh.segment.purpose))
   const seeAndDo = pois.filter(sh => sh.segment && !NEED_PURPOSES.has(sh.segment.purpose))
+  // #175: "Best fit" must DISTINGUISH — the top-scoring pick per purpose group
+  // (SegmentHit.score, lower = better), not a participation badge on every
+  // need card. Ties within epsilon earn no badge at all, honestly.
+  const bestFitIds = useMemo(() => {
+    const byPurpose = new Map<string, SegmentHit[]>()
+    for (const sh of needs) {
+      if (!sh.hit) continue
+      const list = byPurpose.get(sh.segment.purpose) ?? []
+      list.push(sh)
+      byPurpose.set(sh.segment.purpose, list)
+    }
+    const ids = new Set<string>()
+    const EPSILON = 1e-9
+    for (const [, list] of byPurpose) {
+      const best = list.reduce((a, b) => (b.score < a.score ? b : a), list[0])
+      if (list.filter(sh => sh.score - best.score <= EPSILON).length === 1) ids.add(best.hit!.id as string)
+    }
+    return ids
+  }, [needs])
   // Rail derivations for the V2 pass: one chip filter narrows both rails, and the
   // ruler marks reuse each card's own cumulative km so a dot never disagrees with
   // the number printed on its card.
@@ -799,7 +825,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
       return (
         <div key={hit.id} className="poi-plan-row poi-plan-gap">
           <span className={`ride-purpose ride-purpose-${sh.segment.purpose} ride-purpose-muted`}>{sh.segment.label}</span>
-          <span className="muted small">{hit.name} — held back: its ≈{Math.round(detourMin)} min detour exceeds what&apos;s left of Day {(dayForKm(hit.cumKm) ?? 0) + 1}&apos;s detour budget. Add it from the map pin if it is worth it.</span>
+          <span className="muted small">{hit.name} — held back: its ≈{fmtDur(detourMin)} detour exceeds what&apos;s left of Day {(dayForKm(hit.cumKm) ?? 0) + 1}&apos;s detour budget. Add it from the map pin if it is worth it.</span>
         </div>
       )
     }
@@ -812,9 +838,9 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
         title="Show this stop on the map"
       >
         <div className="ride-spot-title">
-          {hit.thumb && <img className="poi-thumb" src={smallThumb(hit.thumb)} alt="" loading="lazy" />}
+          {hit.thumb && <img className="poi-thumb" src={smallThumb(hit.thumb)} alt="" loading="lazy" onError={e => { e.currentTarget.style.display = 'none' }} />}
           <b>{hit.name}</b>
-          {NEED_PURPOSES.has(sh.segment.purpose) && !added && <span className="poi-best">Best fit</span>}
+          {NEED_PURPOSES.has(sh.segment.purpose) && !added && bestFitIds.has(hit.id as string) && <span className="poi-best">Best fit</span>}
           <button
             type="button"
             className={shortlisted ? 'poi-short is-on' : 'poi-short'}
@@ -838,7 +864,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
           )}
           {detourMin > 0.5 && (
             <span className={'poi-fact' + (detourMin > dayBudget ? ' poi-fact--warn' : detourMin <= 10 ? ' poi-fact--fine' : '')}>
-              <i>·</i>{Math.round(detourMin)} min detour
+              <i>·</i>{fmtDur(detourMin)} detour
             </span>
           )}
           {sh.segment.purpose === 'overnight' && (
@@ -1141,7 +1167,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
       )}
       <div className={'map-ideas-grid' + (folded.needs ? ' is-needs-folded' : '') + (folded.see ? ' is-see-folded' : '')} ref={listRef}>
         <EngineTips />
-        <div className="poi-col poi-col--needs">
+        <div className="poi-col poi-col--needs" id="rail-needs">
             <div className="poi-col-head">
               <span className="poi-col-head-ico"><Fuel size={13} aria-hidden /></span>
               <div>
@@ -1153,7 +1179,8 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
                 type="button"
                 className="poi-fold"
                 aria-expanded={!folded.needs}
-                title={folded.needs ? 'Expand this panel' : 'Collapse this panel to give the map more room'}
+                aria-controls="rail-needs"
+                title={folded.needs ? 'Expand the needs rail' : 'Collapse the needs rail — the map gains the space'}
                 onClick={() => setFolded(f => ({ ...f, needs: !f.needs }))}
               >
                 <ChevronDown size={13} aria-hidden />
@@ -1194,7 +1221,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
               enableMapViewModes
             />
           </div>
-          <div className="poi-col poi-col--see">
+          <div className="poi-col poi-col--see" id="rail-see">
             <div className="poi-col-head">
               <span className="poi-col-head-ico"><MapPin size={13} aria-hidden /></span>
               <div>
@@ -1206,7 +1233,8 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
                 type="button"
                 className="poi-fold"
                 aria-expanded={!folded.see}
-                title={folded.see ? 'Expand this panel' : 'Collapse this panel to give the map more room'}
+                aria-controls="rail-see"
+                title={folded.see ? 'Expand the see-&-do rail' : 'Collapse the see-&-do rail — the map gains the space'}
                 onClick={() => setFolded(f => ({ ...f, see: !f.see }))}
               >
                 <ChevronDown size={13} aria-hidden />

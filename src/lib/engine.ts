@@ -125,6 +125,16 @@ export function minutesToHM(mins: number): string {
   return `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m`
 }
 
+/** One duration formatter for short rail numbers (detours, dwell): "45 min"
+ *  under an hour (minutesToHM's "0h 45m" reads wrong there), minutesToHM
+ *  above. #171 — three duration formats used to share one screen. */
+export function fmtDur(mins: number): string {
+  if (!Number.isFinite(mins)) return '—'
+  const m = Math.max(0, Math.round(mins))
+  if (m < 60) return `${m} min`
+  return minutesToHM(m)
+}
+
 export function hmToMinutes(hm: string): number {
   if (!hm || !hm.includes(':')) return 0
   const [h, m] = hm.split(':').map(Number)

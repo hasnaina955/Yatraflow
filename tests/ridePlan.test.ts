@@ -69,8 +69,9 @@ describe('planRideSegments', () => {
   it('never places two in-day breaks closer than MIN_BREAK_GAP_KM (overnights exempt)', () => {
     const s = planRideSegments({ totalKm: 1400, driveMinutes: 1000, includeFuel: true, multiDay: true })
     for (let i = 1; i < s.length; i++) {
-      const gap = s[i].targetKm - s[i - 1].targetKm
       if (s[i].dayEnd) continue // the day's final stop may sit near closing time
+      if (s[i - 1].dayEnd) continue // the first stop after a halt: a night separates them
+      const gap = s[i].targetKm - s[i - 1].targetKm
       expect(gap).toBeGreaterThanOrEqual(MIN_BREAK_GAP_KM - 1e-6)
     }
   })
@@ -79,8 +80,12 @@ describe('planRideSegments', () => {
     const s = planRideSegments({ totalKm: 1400, driveMinutes: 1000, includeFuel: true, multiDay: true })
     const firstOvernight = s.find(x => x.dayEnd)!
     const next = s[s.indexOf(firstOvernight) + 1]
-    // next stop lands ~150 km into day 2 (~700 from origin), not at a stale 600
-    expect(next.targetKm - firstOvernight.targetKm).toBeCloseTo(STRETCH_INTERVAL_KM, 0)
+    // day 2's cadence restarts at the halt: the first stop lands early in the
+    // new day (the morning refuel folds the stretch into it), never at a
+    // stale origin-relative position like 600
+    const intoDay = next.targetKm - firstOvernight.targetKm
+    expect(intoDay).toBeGreaterThan(0)
+    expect(intoDay).toBeLessThanOrEqual(STRETCH_INTERVAL_KM)
   })
 
   it('drops fuel cadence when includeFuel is off and omits overnights for single-day drives', () => {

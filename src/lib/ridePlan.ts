@@ -790,11 +790,23 @@ export function planRideSegments(input: RidePlanInput): RideSegment[] {
       for (let km = dayStart + step; km < dayCap && km < cap; km += step) raws.push({ km, purposes: [purpose] })
     }
     push('stretch', Math.min(sanitizedStretchKm(input), clockStretchKm))
-    if (includeFuel) push('fuel', fuelEvery)
-    if (includeCharge) push('fuel', chargeEvery)
     push('meal', sanitizedMealKm(input))
   })
-  dayEnds.forEach(e => raws.push({ km: e, purposes: ['overnight'] }))
+  // Fuel runs on a GLOBAL corridor cadence — the tank carries over night
+  // halts, so resetting the step at each day start made fuel structurally
+  // impossible whenever the load-balanced day budget (e.g. 350 km) is shorter
+  // than the tank stride (450 km range × 0.85 = 382.5): every push overshot
+  // the day cap and multi-day plans grew ZERO fuel stops. Measured live on a
+  // 1,400 km / 4-day plan: 0 fuel segments before this, 3 after. EV charging
+  // (chargeEvery) follows the same corridor cadence; the #144A pass below then
+  // folds a fuel tick into a nearby meal/overnight when they coincide.
+  if (includeFuel) {
+    for (let km = fuelEvery; km < cap; km += fuelEvery) raws.push({ km, purposes: ['fuel'] })
+  }
+  if (includeCharge) {
+    for (let km = chargeEvery; km < cap; km += chargeEvery) raws.push({ km, purposes: ['fuel'] })
+  }
+  dayEnds.forEach(e => raws.push({ km, purposes: ['overnight'] }))
   // #144A — refuel (or charge) where you eat or sleep: a fuel-stride tick
   // landing within 15% of that stride of a meal/overnight raw folds INTO it.
   // One combined stop ("Meal + fuel", "Overnight + charge") beats two stops a
@@ -917,12 +929,19 @@ function etaAt(km: number, dayStarts: number[], dayStartTimes: string[] | undefi
   // double-stop evening. The halt absorbs it instead — dinner at the halt
   // anyway — and a fuel fold is safe: Phase E's corridor advisory re-flags
   // any gap the absorb creates.
+  // The absorb is TIME-bounded, not just km-bounded: a slid lunch sits at the
+  // 14:30 window edge — on a load-balanced 350 km day that is ~98 km
+  // (= 2 h 20 m of wheel time) before the halt, inside the old km bound, so
+  // the halt ate lunch on EVERY driving day and no meal card ever survived a
+  // multi-day plan (live-verified 2026-09-14). Only a stop within ~1 h of the
+  // halt is "dinner at the halt anyway"; an earlier one is a real meal.
   {
     const out: Merged[] = []
     for (const m of merged) {
       const last = out[out.length - 1]
       if (m.purposes[0] === 'overnight' && last && last.purposes[0] !== 'overnight'
-        && m.km - last.km < MIN_BREAK_GAP_KM) {
+        && m.km - last.km < MIN_BREAK_GAP_KM
+        && kmPerMin > 0 && (m.km - last.km) / kmPerMin <= 60) {
         out.pop() // the halt serves both — purposes fold into it
         m.purposes = [...new Set([...m.purposes, ...last.purposes])]
       }

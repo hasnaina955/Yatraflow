@@ -336,12 +336,42 @@ describe('bug-hunt batch (issues #125-#140) — engine invariants', () => {
     for (const s of after) {
       expect(s.etaMinutes! - (510 + s.targetKm * (1000 / 700))).toBeGreaterThanOrEqual(HALT_MIN.stretch + HALT_MIN.meal - 2)
     }
-    // #131a: no NON-overnight segment sits inside MIN_BREAK_GAP_KM of the
-    // overnight that follows it — the halt absorbed it instead.
+    // #131a, time-bounded: no NON-overnight segment sits within ~1 h of wheel
+    // time of the overnight that follows it — the halt absorbed it instead.
+    // (The old km-only bound ate the slid lunch on EVERY load-balanced day:
+    // it sits at the 14:30 window edge, ~98 km = 2 h 20 m before the halt.)
+    const kmPerMin = 900 / 1300
     for (let i = 0; i < segs.length - 1; i++) {
       if (!segs[i].dayEnd && segs[i + 1].dayEnd) {
-        expect(segs[i + 1].targetKm - segs[i].targetKm).toBeGreaterThanOrEqual(MIN_BREAK_GAP_KM - 1)
+        expect((segs[i + 1].targetKm - segs[i].targetKm) / kmPerMin).toBeGreaterThanOrEqual(59)
       }
+    }
+  })
+
+  it('a load-balanced 4-day corridor keeps its meals and fuel stops (#187 follow-up)', () => {
+    // 1,402 km at the blended 42 km/h: 4 × 350 km days. Live-verified
+    // 2026-09-14: the km-bounded overnight absorb ate the slid lunch on EVERY
+    // day (98 km = 2 h 20 m before each halt), and the per-day-reset fuel
+    // cadence (382.5 km) could never land inside a 350 km day — the whole
+    // plan grew ZERO meal and ZERO fuel segments.
+    const segs = planRideSegments({
+      totalKm: 1402,
+      driveMinutes: (1402 / 42) * 60,
+      includeFuel: true,
+      multiDay: true,
+      vehicleRangeKm: 450,
+      travelStyle: 'balanced',
+      travellers: 2,
+      dayStartTimes: ['08:30', '08:30', '08:30', '08:30'],
+      dayRainPct: [null, null, null, null],
+    })
+    expect(segs.filter(s => s.purpose === 'meal').length).toBeGreaterThanOrEqual(3) // one per full driving day
+    expect(segs.filter(s => s.purpose === 'fuel').length).toBeGreaterThanOrEqual(2) // 1,402 km / 382.5 km stride
+    // every fuel stop respects the tank stride: consecutive fuels (and the
+    // trip start) never leave more than the safe stride between them
+    const fuelKms = [0, ...segs.filter(s => s.purpose === 'fuel').map(s => s.targetKm), 1402]
+    for (let i = 1; i < fuelKms.length; i++) {
+      expect(fuelKms[i] - fuelKms[i - 1]).toBeLessThanOrEqual(450)
     }
   })
 

@@ -24,7 +24,7 @@ export { googleCitiesAlong } from './providers/google'
 export { searchCitiesAlong } from './providers/free'
 export { planRideSegments, assignSegmentHits, leftoverAsSight, reasonForSegmentHit, reasonForHit, kmFromStartForHit, planDriveDays, planTravelClock, DEFER_START, type SegmentHit, type RideSegment, type DriveDaysPlan, type TravelClockVerdict } from './ridePlan'
 
-import { hasCoords, rankAndCap, filterPlannedNearby, type NearbyOpts, type PlaceHit } from './providers/hits'
+import { hasCoords, rankAndCap, filterPlannedNearby, kmFromStartForHit, type NearbyOpts, type PlaceHit } from './providers/hits'
 import { haversineKm } from './geo'
 import {
   searchPlacesFree,
@@ -161,7 +161,7 @@ export async function searchNearbyPoisMulti(
   if (googleEnabled() && route.length >= 2) {
     try {
       const hits = await googleNearbyAlongRoute({
-        routeCoords: route, routeTotalKm: opts.routeTotalKm, count,
+        routeCoords: route, count,
         includeFuel: opts.includeFuel, purposes: opts.purposes,
       })
       if (hits.length > 0) return rankAndCap(hits, capped, radiusM, count, opts)
@@ -242,13 +242,42 @@ export async function planJourneyHalts(
   //    search (Overpass+Wikipedia, source of stray "constituency" cards)
   //    runs only in keyless mode.
   const googleMode = googleEnabled()
+  // The city anchor layer must search at the NIGHT-HALT km positions, not at
+  // the raw anchor list: anchors are the trip's stops, which cluster wherever
+  // the traveller planned to be — cities searched near them cannot anchor a
+  // halt at km 700 or 1,050 of a 1,400 km corridor (live-verified 2026-09-14:
+  // every overnight then filled with a start-city suburb hundreds of km from
+  // its halt). Each overnight's road point comes from the same geometry the
+  // scan runs on. Keyless mode keeps the anchor-based Overpass/Wikipedia path.
+  const roadPts = (opts.routeCoords ?? []).filter(c => Number.isFinite(c[0]) && Number.isFinite(c[1]))
+  const cityAnchors = googleMode && roadPts.length >= 2 && totalKm > 0
+    ? [
+        ...anchors.slice(0, 1),
+        ...segments.filter(s => s.purpose === 'overnight').map(s => {
+          const idx = Math.min(roadPts.length - 1, Math.max(0, Math.round((s.targetKm / totalKm) * (roadPts.length - 1))))
+          return { lat: roadPts[idx][1], lng: roadPts[idx][0] }
+        }),
+      ]
+    : anchors
   const [hits, cities] = await Promise.all([
     searchNearbyPoisMulti(anchors, radiusM, 16, { ...opts, purposes }).catch(() => [] as PlaceHit[]),
-    (googleMode ? googleCitiesAlong(anchors, radiusM, 8) : searchCitiesAlong(anchors, radiusM, 8)).catch(() => [] as PlaceHit[]),
+    (googleMode ? googleCitiesAlong(cityAnchors, radiusM, 8) : searchCitiesAlong(anchors, radiusM, 8)).catch(() => [] as PlaceHit[]),
   ])
+  // A city that sits nowhere near any halt must not fill one: rural circles
+  // often return zero localities while the start-city circle returns many,
+  // and without this guard those start-city suburbs won the far halts by
+  // being the only candidates (live-verified 2026-09-14). An honest GAP
+  // beats a "night halt" 700 km from its halt.
+  const haltKms = segments.filter(s => s.purpose === 'overnight').map(s => s.targetKm)
+  const citiesNearHalts = googleMode && haltKms.length > 0
+    ? cities.filter(c => {
+        const pos = kmFromStartForHit(c, anchors)
+        return pos != null && haltKms.some(km => Math.abs(pos - km) <= 120)
+      })
+    : cities
   const seen = new Set<string>()
   const candidates: PlaceHit[] = []
-  for (const h of [...cities, ...hits]) {
+  for (const h of [...citiesNearHalts, ...hits]) {
     if (!h.name) continue
     const key = h.name.toLowerCase()
     if (seen.has(key)) continue

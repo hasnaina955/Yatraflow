@@ -177,7 +177,8 @@ describe('facade: searchNearbyPoisMulti (Search-Along-Route)', () => {
     const f = routeFetch([
       [/places:searchText/, {
         places: [
-          { id: 'P1', displayName: { text: 'Echo Point' }, location: { latitude: 10.15, longitude: 77.15 }, primaryType: 'tourist_attraction', types: ['tourist_attraction', 'point_of_interest'], primaryTypeDisplayName: { text: 'Tourist attraction' }, regularOpeningHours: { periods: [{ open: { hour: 9, minute: 0 }, close: { hour: 18, minute: 0 } }] } },
+          // sits exactly ON the route polyline — the spur (detour) must read ~0
+          { id: 'P1', displayName: { text: 'Echo Point' }, location: { latitude: 10.25, longitude: 77.2 }, primaryType: 'tourist_attraction', types: ['tourist_attraction', 'point_of_interest'], primaryTypeDisplayName: { text: 'Tourist attraction' }, regularOpeningHours: { periods: [{ open: { hour: 9, minute: 0 }, close: { hour: 18, minute: 0 } }] } },
           { id: 'P2', displayName: { text: 'Home Cafe' }, location: { latitude: HOME.lat, longitude: HOME.lng }, primaryType: 'cafe', types: ['cafe', 'food', 'point_of_interest'], primaryTypeDisplayName: { text: 'Cafe' }, currentOpeningHours: { periods: [{ open: { hour: 8, minute: 30 }, close: { hour: 22, minute: 0 } }] } },
         ],
         routingSummaries: [
@@ -190,7 +191,6 @@ describe('facade: searchNearbyPoisMulti (Search-Along-Route)', () => {
     vi.stubGlobal('fetch', f)
     const hits = await searchNearbyPoisMulti([{ lat: 10.0, lng: 77.0 }], 20000, 10, {
       routeCoords: [[77.0, 10.0], [77.4, 10.5]],
-      routeTotalKm: 50, // detour = (30 + 24.2) − 50 = 4.2 km
       homeCenter: HOME,
     })
     const searchCalls = f.mock.calls.filter(([u]) => String(u).includes('places:searchText'))
@@ -200,10 +200,35 @@ describe('facade: searchNearbyPoisMulti (Search-Along-Route)', () => {
     expect(body.regionCode).toBe('IN')
     const echo = hits.find(h => h.name === 'Echo Point')!
     expect(echo).toMatchObject({ category: 'sightseeing', openTime: '09:00', closeTime: '18:00' })
-    expect(echo.offRouteKm).toBeCloseTo(4.2) // real road detour from routingSummaries
-    expect(echo.alongRouteKm).toBeCloseTo(30) // leg0 → km from the route origin (ride-plan position)
+    expect(echo.alongRouteKm).toBeCloseTo(30) // road position from routingSummaries leg0
+    expect(echo.offRouteKm).toBeLessThan(0.01) // geometric spur against the SAME polyline — on the road
     // the home-zone exclusion still applies to Google hits
     expect(hits.some(h => h.name === 'Home Cafe')).toBe(false)
+  })
+
+  it('SAR detours ignore the summaries legs — a foreign route total must not inflate them (#live: +47 km on every on-road hit)', async () => {
+    // Live-verified failure (Sep 14, 2026): (leg0 + leg1) − routeTotalKm charged
+    // Google's route-variant difference against the polyline's own length — a
+    // highway petrol pump read "50 km off" on a 1,400 km corridor. The detour
+    // must come from the polyline spur only, whatever the legs claim.
+    vi.stubEnv('VITE_GOOGLE_MAPS_API_KEY', 'test-key')
+    vi.stubGlobal('fetch', routeFetch([
+      [/places:searchText/, {
+        places: [
+          { id: 'P1', displayName: { text: 'Highway Restaurant' }, location: { latitude: 10.25, longitude: 77.2 }, primaryType: 'restaurant', types: ['restaurant', 'food', 'point_of_interest'], primaryTypeDisplayName: { text: 'Restaurant' } },
+        ],
+        routingSummaries: [
+          // legs sum to ~1272 km — subtracting any route total from this would
+          // report an absurd detour; the spur says the place sits on the road.
+          { legs: [{ distanceMeters: 30000 }, { distanceMeters: 1242000 }] },
+        ],
+      }],
+    ]))
+    const hits = await searchNearbyPoisMulti([{ lat: 10.0, lng: 77.0 }], 20000, 10, {
+      routeCoords: [[77.0, 10.0], [77.4, 10.5]],
+    })
+    const hit = hits.find(h => h.name === 'Highway Restaurant')!
+    expect(hit.offRouteKm).toBeLessThan(0.01)
   })
 
   it('with a key configured, Google failures yield an EMPTY list — never free-stack junk (provider directive)', async () => {

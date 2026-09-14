@@ -5162,7 +5162,7 @@ html.native-shell {
 .poi-alts summary::before { content: "+"; font-weight: 800; }
 .poi-alts[open] summary::before { content: "-"; }
 .poi-alt-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
-.poi-alt-list .chip-sm { max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.poi-alt-list .chip-sm { max-width: 100%; white-space: normal; text-align: left; line-height: 1.35; }
 .poi-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 7px; }
 .poi-actions .btn-sm { padding: 4px 10px; font-size: 11.5px; }
 .poi-actions .btn-ghost.btn-sm { border-color: transparent; color: var(--text-3); }
@@ -5197,7 +5197,7 @@ html.native-shell {
   border: 1px solid var(--line); border-radius: var(--radius-sm);
   background: var(--bg); padding: 6px 9px;
 }
-.poi-cand b { flex: 1; min-width: 0; font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.poi-cand b { flex: 1; min-width: 0; font-size: 12px; font-weight: 600; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .poi-cand-f { flex: none; font-size: 11.5px; letter-spacing: .03em; text-transform: uppercase; color: var(--text-3); font-variant-numeric: tabular-nums; }
 .poi-cand-add {
   flex: none; width: 22px; height: 22px; border-radius: 50%;

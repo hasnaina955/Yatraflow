@@ -304,6 +304,15 @@ Vercel, while the merge itself is what burns an Android build. Verify with
 `gh pr checks <n>` rather than reasoning from the YAML; the check list names the
 workflow that actually fired.
 
+**A PR into `test` gets NO CI job at all** (`ci.yml`'s `pull_request` trigger
+lists only `main`) — found 2026-09-14 when PR #105 (a 23-file feature PR into
+`test`) showed only Codacy/Vercel checks and no "Verify" job. A green check
+list on a `test` PR means nothing ran the gate; the merge itself is what fires
+it (as a `push to test`). Until `pull_request: branches: [main, test]` is
+added, run `npm run verify` locally before asking to merge any PR into `test`.
+(Caveat if adding it: the PR run checks out the merge ref, so it duplicates the
+push run rather than replacing it.)
+
 ## 4. Code conventions & pitfalls
 
 - **Data model**: times are always stored as 24h `"HH:MM"` strings. Format at
@@ -421,6 +430,12 @@ workflow that actually fired.
   (`tsc` + tests + `vite build` all passed with a leftover `<<<<<<< HEAD` in
   the CHANGELOG during the PR #30 merge, Aug 2026). `git diff --check` exits
   non-zero on leftover markers; run it before `git commit` on every merge.
+  **Markers can arrive already committed from someone else's merge** (found
+  Sep 2026: merge `f83fee4` shipped `<<<<<<< HEAD` + an orphaned `=======`
+  into CHANGELOG.md on `test`, where everything downstream — including the
+  next release cut — inherits them). After syncing or merging remote work
+  that touched CHANGELOG, grep for `<<<<<<<`/`=======`/`>>>>>>>` before
+  writing prose near the affected section.
 - **When merging an agent PR that's based on pre-rewrite code, keep the local
   structure and re-apply the PR's *intent*** — PR #30 was based on the
   pre-`ridePlan.ts` tree, so its TripWorkspace hunks showed obsolete ranking

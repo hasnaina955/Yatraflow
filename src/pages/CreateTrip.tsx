@@ -16,7 +16,7 @@ import type { FixedCommitment, LatLngPoint, TransportMode, TravelStyle } from '.
 import { TRAVEL_STYLES } from '../data/types'
 import { useDb, currentUser, createTrip } from '../store/store'
 import { FUEL_PRICE_INR_PER_L, isFuelEconomyMode, parseFuelEconomyKmL, parseFuelPricePerL, isImplausibleFuelEconomy, MODE_SPEED, minutesToHM } from '../lib/engine'
-import { planDriveDays } from '../lib/ridePlan'
+import { planDriveDays, isSelfDrivenMode } from '../lib/ridePlan'
 import { estimateTripStarter, buildOutlineSeedStops } from '../lib/tripStarter'
 import { fetchTripThumbUrl } from '../lib/tripThumb'
 import { Field, Chip, toast } from '../components/ui'
@@ -190,6 +190,9 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
   // OSRM road time exists; the verdict re-derives on every input change.
   const driveDaysVerdict = useMemo(() => {
     if (bill.roadKm == null || bill.roadKm < 90) return null
+    // #126: conducted modes — train/bus/flight/taxi — have no driving fatigue
+    // to split; the verdict stays silent for them.
+    if (!isSelfDrivenMode(f.transportMode)) return null
     const speed = MODE_SPEED[f.transportMode] ?? 42
     // #126 mode gate + #142 party inputs: timetable modes get no verdict;
     // drivers/vulnerable party move the honest cap.

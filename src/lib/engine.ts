@@ -1050,15 +1050,17 @@ function stayKeyFor(trip: Pick<Trip, 'stayStyle' | 'travelStyle'>): 'budget' | '
 }
 
 /**
- * Lodging identity key (#125a + #146): the provider's own place-id when the
- * stop came from a search hit (authoritative — same hotel whatever the name
- * says, across both name-variant spellings and near-duplicate pins); else a
- * ~500 m coordinate cluster when the stop is geocoded; else a normalized name.
- * Name-string equality used to double-count "Hotel Taj" vs "Hotel Taj, Mumbai"
- * and under-count two hotels in one city.
+ * Lodging identity key (#125a/#146): the STRONGEST available identity wins —
+ * 1. provider place-id (same id, one base — no coordinate rounding edge);
+ * 2. a ~500 m coordinate cluster (same property, slightly different pins);
+ * 3. a normalized name, only when the stop has neither id nor coordinates.
+ * Name-string equality used to double-count "Hotel Taj" vs "Hotel Taj,
+ * Mumbai" and under-count two hotels in one city; the cluster already fixed
+ * the geocoded case, the place-id now covers provider moves that round onto
+ * different grid cells.
  */
-function lodgingKey(s: Pick<ItineraryStop, 'lat' | 'lng' | 'locationName' | 'title' | 'placeId'>): string {
-  if (s.placeId) return `pid:${s.placeId}`
+function lodgingKey(s: Pick<ItineraryStop, 'placeId' | 'lat' | 'lng' | 'locationName' | 'title'>): string {
+  if (s.placeId && s.placeId.trim()) return `pid:${s.placeId.trim()}`
   if (Number.isFinite(s.lat) && Number.isFinite(s.lng)) {
     return `geo:${Math.round(s.lat * 200)}:${Math.round(s.lng * 200)}`
   }
@@ -1146,10 +1148,10 @@ export function computeTotals(trip: Trip, legCorrections?: Record<string, LegEst
   // table — one source, no mirror to drift (#125b). A structural night halt's
   // minutes are still never charged against the day's detour budget.
   //
-  // Base identity is a ~500 m coordinate cluster when the stop is geocoded,
-  // falling back to a normalized name (#125a): "Hotel Taj" vs "Hotel Taj,
-  // Mumbai" is one night, not two, and two different pins in one city are
-  // two nights, not one. (Full place-id keying waits on #146.)
+  // Base identity keys on place-id when the stop carries one, else a ~500 m
+  // coordinate cluster, else a normalized name (#125a/#146): "Hotel Taj" vs
+  // "Hotel Taj, Mumbai" is one night, not two, and two different pins in one
+  // city are two nights, not one.
   const hotelBases = new Set<string>()
   trip.days.forEach(d => d.stops.forEach(s => {
     if (s.category === 'hotel' && s.status !== 'rejected') hotelBases.add(lodgingKey(s))

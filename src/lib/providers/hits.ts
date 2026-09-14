@@ -353,6 +353,12 @@ export interface NearbyOpts {
   dayStartTimes?: string[]
   /** rain chance percent per day index for the weather join (null = no forecast). */
   dayRainPct?: (number | null)[]
+  /** WMO weather code per day index — separates drizzle from cloudburst in
+   *  the cap multiplier (#141). Index-aligned with dayRainPct. */
+  dayWeatherCode?: (number | null)[]
+  /** trip transport mode — motorcycle caps ride lower; conducted modes refuse
+   *  the drive-day split entirely (#126). */
+  transportMode?: string
   /** trip preference vector — favoured categories win scoring ties. */
   dnaVector?: DnaVector
 }

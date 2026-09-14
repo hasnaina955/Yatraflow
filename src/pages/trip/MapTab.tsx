@@ -15,7 +15,7 @@ import { Select } from '../../components/Select'
 import { DetourWhisk } from '../../components/DetourWhisk'
 import { useSuggestionCache, isMapCacheFresh } from '../../hooks/useSuggestionCache'
 import { openExternal } from '../../lib/native'
-import { corridorAnchors, detourKm, detourMinutes, asymmetricDetourMinutes, googleEnabled, planJourneyHalts, reasonForSegmentHit, searchPlaces, searchNearbyPoisMulti, kmFromStartForHit, planDriveDays, planTravelClock, DEFER_START, type NearbyOpts, type PlaceHit, routeHash } from '../../lib/geocode'
+import { corridorAnchors, detourKm, detourMinutes, asymmetricDetourMinutes, googleEnabled, planJourneyHalts, reasonForSegmentHit, searchPlaces, searchNearbyPoisMulti, kmFromStartForHit, planDriveDays, planTravelClock, isSelfDrivenMode, DEFER_START, type NearbyOpts, type PlaceHit, type TravelClockVerdict, routeHash } from '../../lib/geocode'
 import { QuotaExhaustedError } from '../../lib/providers/google'
 import { isSightCategory, rainFactorFor } from '../../lib/ridePlan'
 import { isElectric } from '../../lib/vehicleProfile'
@@ -248,9 +248,12 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
 
   // Per-day rain chance for the weather join — best-effort, null until loaded.
   const [dayRainPct, setDayRainPct] = useState<(number | null)[] | null>(null)
+  // WMO code per day (#141) — separates a drizzle chance from a storm chance
+  // in the cap multiplier. Same loading lifecycle as the rain array.
+  const [dayWeatherCode, setDayWeatherCode] = useState<(number | null)[] | null>(null)
   useEffect(() => {
     const stops = trip.days.flatMap(d => d.stops).filter(s => s.status !== 'rejected' && Number.isFinite(s.lat) && Number.isFinite(s.lng))
-    if (stops.length === 0 || !forecastAvailable(trip.startDate)) { setDayRainPct(null); return }
+    if (stops.length === 0 || !forecastAvailable(trip.startDate)) { setDayRainPct(null); setDayWeatherCode(null); return }
     let cancelled = false
     const anchor = {
       lat: stops.reduce((a, s) => a + s.lat, 0) / stops.length,
@@ -260,8 +263,9 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
       .then(w => {
         if (cancelled) return
         setDayRainPct(trip.days.map((_, i) => w[isoAddDays(trip.startDate, i)]?.rainChancePct ?? null))
+        setDayWeatherCode(trip.days.map((_, i) => w[isoAddDays(trip.startDate, i)]?.code ?? null))
       })
-      .catch(() => { if (!cancelled) setDayRainPct(null) })
+      .catch(() => { if (!cancelled) { setDayRainPct(null); setDayWeatherCode(null) } })
     return () => { cancelled = true }
   }, [trip])
   // OSRM's road total (when resolved) is the most accurate journey budget for
@@ -363,14 +367,18 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     ],
     dayStartTimes: trip.days.map(d => d.startTime ?? '08:30'),
     dayRainPct: dayRainPct ?? undefined,
-  }), [trip, routeGeometry, dayRainPct, crewSeeds, dnaTick])
+    dayWeatherCode: dayWeatherCode ?? undefined,
+    transportMode: trip.transportMode,
+  }), [trip, routeGeometry, dayRainPct, dayWeatherCode, crewSeeds, dnaTick])
 
   // Day Planner verdicts (PLAN-DAY-PLANNER P1-B/C): the drive-day split the
   // ROUTE demands (duration cap, load-balanced) and the travel-clock verdict
   // for the trip's real start time (defer / hop / ok). Pure — recomputed from
   // route facts, never stored, so every stop mutation re-derives them (the
   // ripple re-plan) and the night-halt position stays honest.
-  const rainFactor = dayRainPct?.[0] != null ? rainFactorFor(dayRainPct[0] as number) : undefined
+  // #141: the scalar gets the same severity weighting as the per-day array —
+  // drizzle-class codes damp it, storms weight it up (rainFactorFor).
+  const rainFactor = dayRainPct?.[0] != null ? rainFactorFor(dayRainPct[0], dayWeatherCode?.[0] ?? undefined) : undefined
   const tripIsRoundTrip = isRoundTrip(trip)
   // #126 party + #142 inputs + #122 anchors, one bag both verdicts read. Timetable
   // modes (train/bus/flight/mixed) get NO fatigue cap → splitVerdict null → no
@@ -392,6 +400,10 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
   // models it honestly instead: one outbound walk + a directed return walk
   // from the destination, whose day count feeds the banner.
   const loopFactor = tripIsRoundTrip ? 2 : 1
+  // #126: conducted modes (train/bus/flight/taxi) have no driving fatigue —
+  // the split verdict stays null and every banner/chip/arming consumer below
+  // goes quiet through that single gate.
+  const selfDriven = isSelfDrivenMode(trip.transportMode)
   const splitVerdict = useMemo(
     () => planDriveDays({ totalKm: planKm * loopFactor, driveMinutes: wholeTrip.min * loopFactor, rainFactor, ...partyOpts }),
     // eslint-disable-next-line react-hooks/exhaustive-deps

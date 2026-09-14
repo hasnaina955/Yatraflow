@@ -22,7 +22,7 @@ export type { NearbyOpts, PlaceHit, PlannedStop } from './providers/hits'
 export { googleEnabled } from './providers/google'
 export { googleCitiesAlong } from './providers/google'
 export { searchCitiesAlong } from './providers/free'
-export { planRideSegments, assignSegmentHits, leftoverAsSight, reasonForSegmentHit, reasonForHit, kmFromStartForHit, planDriveDays, planTravelClock, DEFER_START, type SegmentHit, type RideSegment, type DriveDaysPlan, type TravelClockVerdict } from './ridePlan'
+export { planRideSegments, assignSegmentHits, leftoverAsSight, reasonForSegmentHit, reasonForHit, kmFromStartForHit, planDriveDays, planTravelClock, isSelfDrivenMode, rainFactorFor, DEFER_START, type SegmentHit, type RideSegment, type DriveDaysPlan, type TravelClockVerdict } from './ridePlan'
 
 import { hasCoords, rankAndCap, filterPlannedNearby, kmFromStartForHit, type NearbyOpts, type PlaceHit } from './providers/hits'
 import { haversineKm } from './geo'
@@ -224,6 +224,7 @@ export async function planJourneyHalts(
     vehicleRangeKm: vehicleRange,
     dayStartTimes: opts.dayStartTimes,
     dayRainPct: opts.dayRainPct,
+    transportMode: opts.transportMode,
     roadGeometry: (opts.routeCoords ?? [])
       .filter(c => Number.isFinite(c[0]) && Number.isFinite(c[1]))
       .map(c => ({ lat: c[1], lng: c[0] })),

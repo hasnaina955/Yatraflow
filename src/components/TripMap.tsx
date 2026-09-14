@@ -532,6 +532,47 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     })
   }, [activeHitId, mapLoaded]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Panel to map detour, drawn: the active suggestion gets a dashed spur from the
+  // nearest point on the route to its pin, so "how far off is this?" is answered
+  // on the map itself and not only by the number on the card.
+  useEffect(() => {
+    const m = mapRef.current
+    if (!m || !mapLoaded) return
+    const SRC = 'yf-spur-src'
+    const LAYER = 'yf-spur'
+    if (!m.getSource(SRC)) {
+      m.addSource(SRC, {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+      })
+      m.addLayer({
+        id: LAYER,
+        type: 'line',
+        source: SRC,
+        paint: { 'line-color': '#B47207', 'line-width': 2, 'line-dasharray': [2, 2] },
+        layout: { 'line-cap': 'round' },
+      })
+    }
+    const hit = activeHitId == null ? null : nearbyPois.find(h => h.id === activeHitId)
+    const route: [number, number][] = (geom.all?.length ? geom.all : allStraight) ?? []
+    const features: Array<{ type: 'Feature'; properties: Record<string, never>; geometry: { type: 'LineString'; coordinates: [number, number][] } }> = []
+    if (hit && hasCoords(hit) && route.length > 1) {
+      const pin: [number, number] = [hit.longitude, hit.latitude]
+      let best = route[0]
+      let bestD = Infinity
+      for (const c of route) {
+        const d = (c[0] - pin[0]) ** 2 + (c[1] - pin[1]) ** 2
+        if (d < bestD) {
+          bestD = d
+          best = c
+        }
+      }
+      features.push({ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: [best, pin] } })
+    }
+    const src = m.getSource(SRC) as { setData?: (d: unknown) => void } | undefined
+    src?.setData?.({ type: 'FeatureCollection', features })
+  }, [activeHitId, mapLoaded, nearbyPois]) // eslint-disable-line react-hooks/exhaustive-deps
+
   function fitToTrip() {
     const m = mapRef.current
     if (!m || allPoints.length === 0) return

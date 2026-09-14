@@ -5247,3 +5247,28 @@ html.native-shell {
 .poi-tray { position: sticky; bottom: 12px; z-index: var(--z-dock); display: flex; align-items: center; gap: 12px; margin-top: 12px; padding: 10px 12px; background: var(--card); border: 1px solid color-mix(in srgb, var(--teal) 32%, var(--line)); border-radius: var(--radius); box-shadow: var(--shadow-soft); }
 .poi-tray-n { font-size: 12.5px; font-weight: 700; color: var(--teal-deep); }
 .poi-tray-actions { margin-left: auto; display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* ---- V2 close-out: fold-to-spines, the gap action, the map spur ---------- */
+.poi-fold { flex: none; width: 24px; height: 24px; border-radius: 50%; border: 1px solid var(--line); background: var(--card); color: var(--text-3); display: grid; place-items: center; }
+.poi-fold:hover { border-color: var(--teal); color: var(--teal-deep); }
+.poi-fold:focus-visible { outline: none; box-shadow: var(--ring); }
+.poi-fold svg { transition: transform var(--t-fast) var(--ease-out); }
+.poi-plan-gap .poi-gap-add { align-self: flex-end; border: 1px solid var(--teal); background: transparent; color: var(--teal-deep); border-radius: 999px; font-size: 11px; font-weight: 700; padding: 3px 10px; }
+.poi-plan-gap .poi-gap-add:hover { background: var(--teal-soft); }
+.poi-plan-gap .poi-gap-add:focus-visible { outline: none; box-shadow: var(--ring); }
+.map-ideas-grid.is-needs-folded { grid-template-columns: 48px minmax(0, 1fr) 320px; }
+.map-ideas-grid.is-see-folded { grid-template-columns: 320px minmax(0, 1fr) 48px; }
+.map-ideas-grid.is-needs-folded.is-see-folded { grid-template-columns: 48px minmax(0, 1fr) 48px; }
+.map-ideas-grid.is-needs-folded .poi-col--needs,
+.map-ideas-grid.is-see-folded .poi-col--see { padding: 8px 6px; }
+.map-ideas-grid.is-needs-folded .poi-col--needs > :not(.poi-col-head),
+.map-ideas-grid.is-see-folded .poi-col--see > :not(.poi-col-head) { display: none; }
+.map-ideas-grid.is-needs-folded .poi-col--needs .poi-col-head,
+.map-ideas-grid.is-see-folded .poi-col--see .poi-col-head { flex-direction: column; gap: 6px; margin-bottom: 0; }
+.map-ideas-grid.is-needs-folded .poi-col--needs .poi-col-head > div,
+.map-ideas-grid.is-see-folded .poi-col--see .poi-col-head > div { display: none; }
+.map-ideas-grid.is-needs-folded .poi-col--needs .poi-fold svg { transform: rotate(-90deg); }
+.map-ideas-grid.is-see-folded .poi-col--see .poi-fold svg { transform: rotate(90deg); }
+@media (prefers-reduced-motion: reduce) {
+  .poi-fold svg { transition: none; }
+}

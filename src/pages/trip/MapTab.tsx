@@ -150,6 +150,9 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
   // One reason chip can narrow the rail, so "where are the lunch options?" is a
   // tap instead of a scroll.
   const [chipFilter, setChipFilter] = useState<string | null>(null)
+  // Fold-to-spines: either rail can step back to a 48px spine so the map gains
+  // the room. Session state on purpose - a layout whim should not persist.
+  const [folded, setFolded] = useState<{ needs: boolean; see: boolean }>({ needs: false, see: false })
   // In-map place search (§6.5): a free-text query over the provider facade,
   // plus the results to add straight from the Map tab.
   const [searchQ, setSearchQ] = useState('')
@@ -711,9 +714,22 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     if (!hit) {
       return (
         <div key={`gap-${sh.segment.index}`} className="poi-plan-row poi-plan-gap">
-          <span className={`ride-purpose ride-purpose-${sh.segment.purpose} ride-purpose-muted`}>{sh.segment.label}</span>
-          <span className="muted small">no good match around ~{sh.segment.targetKm.toFixed(0)} km — add a stop on the Timeline and it will pin itself here.</span>
-        </div>
+              <span className={`ride-purpose ride-purpose-${sh.segment.purpose} ride-purpose-muted`}>{sh.segment.label}</span>
+              <span className="muted small">No good match near ~{sh.segment.targetKm.toFixed(0)} km yet.</span>
+              {/* A gap has no place to add, so the action raises the corridor's
+                  detour scope - the honest lever the engine actually has. */}
+              <button
+                type="button"
+                className="poi-gap-add"
+                title="Raises the detour scope so more stops qualify. You can also add a stop on the Timeline and it will pin itself here."
+                onClick={() => {
+                  setScopeIdx(i => Math.min(i + 1, SCOPE_KM_STEPS.length - 1))
+                  toast('Widened the search - the corridor will re-plan')
+                }}
+              >
+                Widen search
+              </button>
+            </div>
       )
     }
     const added = addedIds.has(hit.id as string) || existingNames.has(hit.name.toLowerCase())
@@ -1079,7 +1095,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
           <button type="button" onClick={() => setChipFilter(null)}>Clear filter</button>
         </div>
       )}
-      <div className="map-ideas-grid" ref={listRef}>
+      <div className={'map-ideas-grid' + (folded.needs ? ' is-needs-folded' : '') + (folded.see ? ' is-see-folded' : '')} ref={listRef}>
         <EngineTips />
         <div className="poi-col poi-col--needs">
             <div className="poi-col-head">
@@ -1089,6 +1105,15 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
                 <span className="small muted">{needs.length === 0 ? 'fuel · food · rest · stretch · overnight' : `${needs.length} halts on this corridor`}</span>
               </div>
               <span className="poi-col-count">{needsForRail.length}</span>
+              <button
+                type="button"
+                className="poi-fold"
+                aria-expanded={!folded.needs}
+                title={folded.needs ? 'Expand this panel' : 'Collapse this panel to give the map more room'}
+                onClick={() => setFolded(f => ({ ...f, needs: !f.needs }))}
+              >
+                <ChevronDown size={13} aria-hidden />
+              </button>
             </div>
             <div className="poi-ruler" aria-hidden>
               <span className="poi-ruler-axis" />
@@ -1132,6 +1157,15 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
                 <span className="small muted">{arcs.slice(0, 2).length + seeAndDo.length === 0 ? 'sightseeing · detours · scenic stops' : `${arcs.slice(0, 2).length} arcs · ${seeAndDo.length} picks on this corridor`}</span>
               </div>
               <span className="poi-col-count">{filterActive ? seeForRail.length : arcs.slice(0, 2).length + seeAndDo.length}</span>
+              <button
+                type="button"
+                className="poi-fold"
+                aria-expanded={!folded.see}
+                title={folded.see ? 'Expand this panel' : 'Collapse this panel to give the map more room'}
+                onClick={() => setFolded(f => ({ ...f, see: !f.see }))}
+              >
+                <ChevronDown size={13} aria-hidden />
+              </button>
             </div>
             <div className="poi-ruler" aria-hidden>
               <span className="poi-ruler-axis" />

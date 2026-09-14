@@ -15,9 +15,9 @@ import { Select } from '../../components/Select'
 import { DetourWhisk } from '../../components/DetourWhisk'
 import { useSuggestionCache, isMapCacheFresh } from '../../hooks/useSuggestionCache'
 import { openExternal } from '../../lib/native'
-import { corridorAnchors, detourKm, detourMinutes, asymmetricDetourMinutes, googleEnabled, planJourneyHalts, reasonForSegmentHit, searchPlaces, searchNearbyPoisMulti, kmFromStartForHit, planDriveDays, planTravelClock, DEFER_START, type NearbyOpts, type PlaceHit, routeHash } from '../../lib/geocode'
+import { corridorAnchors, detourKm, detourMinutes, asymmetricDetourMinutes, googleEnabled, planJourneyHalts, reasonForSegmentHit, searchPlacesText, searchNearbyPoisMulti, kmFromStartForHit, planDriveDays, planTravelClock, rainFactorFor, isSelfDrivenMode, requireHitCoords, hasCoords, DEFER_START, type NearbyOpts, type PlaceHit, type TravelClockVerdict, routeHash } from '../../lib/geocode'
+import { isSightCategory } from '../../lib/ridePlan'
 import { QuotaExhaustedError } from '../../lib/providers/google'
-import { isSightCategory, rainFactorFor } from '../../lib/ridePlan'
 import { isElectric } from '../../lib/vehicleProfile'
 import { railReasonChips, type RailChip } from '../../lib/railReasons'
 import { rulerMarks } from '../../lib/railRuler'
@@ -248,9 +248,12 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
 
   // Per-day rain chance for the weather join — best-effort, null until loaded.
   const [dayRainPct, setDayRainPct] = useState<(number | null)[] | null>(null)
+  // WMO code per day (#141) — separates a drizzle chance from a storm chance
+  // in the cap multiplier. Same loading lifecycle as the rain array.
+  const [dayWeatherCode, setDayWeatherCode] = useState<(number | null)[] | null>(null)
   useEffect(() => {
     const stops = trip.days.flatMap(d => d.stops).filter(s => s.status !== 'rejected' && Number.isFinite(s.lat) && Number.isFinite(s.lng))
-    if (stops.length === 0 || !forecastAvailable(trip.startDate)) { setDayRainPct(null); return }
+    if (stops.length === 0 || !forecastAvailable(trip.startDate)) { setDayRainPct(null); setDayWeatherCode(null); return }
     let cancelled = false
     const anchor = {
       lat: stops.reduce((a, s) => a + s.lat, 0) / stops.length,
@@ -260,8 +263,9 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
       .then(w => {
         if (cancelled) return
         setDayRainPct(trip.days.map((_, i) => w[isoAddDays(trip.startDate, i)]?.rainChancePct ?? null))
+        setDayWeatherCode(trip.days.map((_, i) => w[isoAddDays(trip.startDate, i)]?.code ?? null))
       })
-      .catch(() => { if (!cancelled) setDayRainPct(null) })
+      .catch(() => { if (!cancelled) { setDayRainPct(null); setDayWeatherCode(null) } })
     return () => { cancelled = true }
   }, [trip])
   // OSRM's road total (when resolved) is the most accurate journey budget for
@@ -363,14 +367,18 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     ],
     dayStartTimes: trip.days.map(d => d.startTime ?? '08:30'),
     dayRainPct: dayRainPct ?? undefined,
-  }), [trip, routeGeometry, dayRainPct, crewSeeds, dnaTick])
+    dayWeatherCode: dayWeatherCode ?? undefined,
+    transportMode: trip.transportMode,
+  }), [trip, routeGeometry, dayRainPct, dayWeatherCode, crewSeeds, dnaTick])
 
   // Day Planner verdicts (PLAN-DAY-PLANNER P1-B/C): the drive-day split the
   // ROUTE demands (duration cap, load-balanced) and the travel-clock verdict
   // for the trip's real start time (defer / hop / ok). Pure — recomputed from
   // route facts, never stored, so every stop mutation re-derives them (the
   // ripple re-plan) and the night-halt position stays honest.
-  const rainFactor = dayRainPct?.[0] != null ? rainFactorFor(dayRainPct[0] as number) : undefined
+  // #141: the scalar gets the same severity weighting as the per-day array —
+  // drizzle-class codes damp it, storms weight it up (rainFactorFor).
+  const rainFactor = dayRainPct?.[0] != null ? rainFactorFor(dayRainPct[0], dayWeatherCode?.[0] ?? undefined) : undefined
   const tripIsRoundTrip = isRoundTrip(trip)
   // #126 party + #142 inputs + #122 anchors, one bag both verdicts read. Timetable
   // modes (train/bus/flight/mixed) get NO fatigue cap → splitVerdict null → no
@@ -392,6 +400,10 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
   // models it honestly instead: one outbound walk + a directed return walk
   // from the destination, whose day count feeds the banner.
   const loopFactor = tripIsRoundTrip ? 2 : 1
+  // #126: conducted modes (train/bus/flight/taxi) have no driving fatigue —
+  // the split verdict stays null and every banner/chip/arming consumer below
+  // goes quiet through that single gate.
+  const selfDriven = isSelfDrivenMode(trip.transportMode)
   const splitVerdict = useMemo(
     () => planDriveDays({ totalKm: planKm * loopFactor, driveMinutes: wholeTrip.min * loopFactor, rainFactor, ...partyOpts }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -530,7 +542,13 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     return snap?.km ?? null
   }
 
-  function addPoiToDay(hit: PlaceHit, dayIndex: number) {
+  async function addPoiToDay(hit: PlaceHit, dayIndex: number) {
+    // Both providers emit (0,0) placeholder coords on some hits ("resolved on
+    // pick") — writing them raw pinned a real user's journey to Null Island
+    // (found live 2026-09-14: route to the Gulf of Guinea, 116-day split
+    // banner, ±45k km impact). Resolve first; refuse when it can't be done.
+    const pinned = await requireHitCoords(hit)
+    if (!pinned) { toast(`Could not pin “${hit.name}” on the map — not added. Try another suggestion.`); return }
     applyChange(draft => {
       const day = draft.days.find(d => d.index === dayIndex)!
       const newStop = {
@@ -538,8 +556,9 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
         title: hit.name,
         category: (hit.category as ItineraryStop['category']) ?? 'sightseeing',
         locationName: hit.description ?? hit.name,
-        lat: hit.latitude,
-        lng: hit.longitude,
+        placeId: pinned.placeId,
+        lat: pinned.latitude,
+        lng: pinned.longitude,
         description: hit.description ?? '',
         notes: hit.haltPurpose ? 'Added from the ride plan' : 'Added from nearby suggestions',
         visitMinutes: poiVisitMinutes(hit.category),
@@ -549,15 +568,12 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
         transportCostInrTotal: 0,
         priority: 'nice-to-have',
         sourceUrl: '',
-        // provider place-id when the hit carries one (#146) — lodging identity
-        // keys on this ahead of coords/name, so the same hotel never bills twice.
-        placeId: hit.placeId ?? '',
         status: 'suggested',
         orderInDay: day.stops.length + 1,
       } as unknown as ItineraryStop
       // Route-ordered insertion: a new stop lands BETWEEN its road neighbours,
       // not at the end — adding B after A and C are confirmed yields A→B→C.
-      const newKm = routeKmOf(hit.latitude, hit.longitude)
+      const newKm = routeKmOf(pinned.latitude, pinned.longitude)
       let at = day.stops.length
       if (newKm != null) {
         at = day.stops.findIndex(s => {
@@ -669,7 +685,12 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     if (q.length < 2) return
     setSearching(true)
     try {
-      const hits = await searchPlaces(q)
+      // searchPlacesText (NOT searchPlaces): this surface ranks and annotates
+      // every row by road position BEFORE any pick, so hits must carry real
+      // coordinates — autocomplete placeholders measure Null Island
+      // (live 2026-09-14: five different places all read "~1675 km · 8448 km
+      // off-route" because they shared the placeholder).
+      const hits = await searchPlacesText(q)
       // Trip/route/map aware (user ask): "coffee on my route", not coffee
       // everywhere in India. Each hit is projected onto this trip's road and
       // ranked by detour (then road position); anything beyond the current
@@ -678,11 +699,15 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
         .map(h => ({ h, km: routeKmOf(h.latitude, h.longitude), off: detourKm(h, anchors) }))
         .sort((a, b) => (a.off ?? 9999) - (b.off ?? 9999) || (a.km ?? 0) - (b.km ?? 0))
       setSearchResults(ranked)
-      const onScope = ranked.filter(e => e.off != null && e.off <= scopeKm)
+      const onScope = ranked.filter(en => en.off != null && en.off <= scopeKm)
       if (hits.length === 0) toast('No places found for that search.')
       else if (onScope.length === 0) toast(`Nothing for “${q}” within your ${scopeKm} km detour scope — widen the slider and search again.`)
-    } catch {
-      toast('Search failed — try again.', 'err')
+    } catch (err) {
+      if (err instanceof QuotaExhaustedError) {
+        toast('Google Places monthly cap reached — text search stays paused until the counter rolls over. Remove the key to search the free stack.', 'err')
+      } else {
+        toast('Search failed — try again.', 'err')
+      }
     } finally {
       setSearching(false)
     }
@@ -1394,24 +1419,36 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
                   <div>
                     <button
                       className="btn btn-primary btn-sm"
-                      onClick={() => {
-                        let n = 0
+                      onClick={async () => {
                         const toAdd: { hit: PlaceHit; dayIndex: number }[] = []
                         for (const id of arc.hitIds) {
                           const m = arcHits.find(h => (h.id as string) === (id as string))
                           if (!m || addedIds.has(m.id as string)) continue
-                          recordDnaEvent({ tripId: trip.id, action: 'accept', category: m.category, detourMin: asymmetricDetourMinutes(m, anchors, routePolyline ?? null, MODE_SPEED[trip.transportMode] ?? 40), visitMin: visitMinutesForCategory(m.category) })
                           const mDay = dayForKm(m.cumKm)
-                          toAdd.push({ hit: m, dayIndex: mDay ?? 0 })
-                          n += 1
+                          if (mDay == null) continue // no road position — cannot attribute to a day
+                          toAdd.push({ hit: m, dayIndex: mDay })
                         }
                         suggestionCache.clearMap()
+                        // Resolve placeholder coords BEFORE writing — both
+                        // providers emit (0,0) "resolve on pick" placeholders
+                        // and a raw write pins the journey to Null Island
+                        // (found live 2026-09-14). Unpinnable hits are skipped
+                        // and stay available to retry.
+                        const resolved: { hit: PlaceHit; dayIndex: number }[] = []
+                        let unpinned = 0
+                        for (const item of toAdd) {
+                          const pinned = await requireHitCoords(item.hit)
+                          if (!pinned) { unpinned += 1; continue }
+                          recordDnaEvent({ tripId: trip.id, action: 'accept', category: pinned.category, detourMin: asymmetricDetourMinutes(pinned, anchors, routePolyline ?? null, MODE_SPEED[trip.transportMode] ?? 40), visitMin: visitMinutesForCategory(pinned.category) })
+                          resolved.push({ hit: pinned, dayIndex: item.dayIndex })
+                        }
+                        const n = resolved.length
                         // Batch apply all stops in a single change — each one
                         // inserted at its road position (same rule as single adds)
                         if (n > 0) {
                           applyChange(draft => {
                             const byDay = new Map<number, { hit: PlaceHit }[]>()
-                            for (const item of toAdd) {
+                            for (const item of resolved) {
                               const list = byDay.get(item.dayIndex) ?? []
                               list.push(item)
                               byDay.set(item.dayIndex, list)
@@ -1429,6 +1466,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
                                   title: hit.name,
                                   category: (hit.category as ItineraryStop['category']) ?? 'sightseeing',
                                   locationName: hit.description ?? hit.name,
+                                  placeId: hit.placeId,
                                   lat: hit.latitude,
                                   lng: hit.longitude,
                                   description: hit.description ?? '',
@@ -1455,14 +1493,16 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
                               }
                               day.stops.forEach((s, i) => { s.orderInDay = i + 1 })
                             }
-                          }, 'add', toAdd[0].dayIndex)
+                          }, 'add', resolved[0].dayIndex)
                         }
                         setAddedIds(prev => {
                           const next = new Set(prev)
-                          for (const id of arc.hitIds) next.add(id as string)
+                          for (const { hit } of resolved) next.add(hit.id as string)
                           return next
                         })
-                        toast(n > 0 ? `“${arc.theme}” added (${n} stops)` : 'All of those are already added')
+                        toast(n > 0
+                          ? `“${arc.label.split(':')[0]}” added (${n} stops)${unpinned > 0 ? ` — ${unpinned} could not be pinned on the map` : ''}`
+                          : (unpinned > 0 ? 'Those places could not be pinned on the map — try again or pick others' : 'All of those are already added'))
                       }}
                     >Add all ({arc.hitIds.length})</button>
                   </div>

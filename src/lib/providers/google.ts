@@ -479,6 +479,32 @@ export async function googleNearbyAtPoint(args: AtPointArgs): Promise<PlaceHit[]
   return hitsFromResponses(responses, queries, null)
 }
 
+// ============ 5. Free-form Text Search (search-to-add surfaces) ============
+// Autocomplete hits are DELIBERATELY coordinate placeholders — resolving one
+// picked suggestion via a single Place Details call is the quota economy
+// (see section 1). But a surface that RANKS or ANNOTATES by coordinates
+// BEFORE any pick cannot use them: projecting a (0,0) placeholder onto the
+// route measures Null Island (found live 2026-09-14 — every Map-tab search
+// result showed the identical "~1675 km into the trip · 8448 km off-route"
+// because all five hits shared the placeholder). Text Search returns real
+// locations in the SAME single Text Search Pro event the corridor scan
+// already pays — so the search-to-add box ranks on truth.
+export async function googleSearchText(q: string): Promise<PlaceHit[]> {
+  const needle = q.trim()
+  if (needle.length < 2) return []
+  // POINT_FIELD_MASK: no routingSummaries — they exist only for
+  // Search-Along-Route, and requesting inapplicable mask paths risks a 400.
+  const responses = [await (placesPost('/places:searchText', 'textSearchPro', {
+    textQuery: needle,
+    maxResultCount: 8,
+    languageCode: 'en',
+    regionCode: REGION_CODE,
+  }, POINT_FIELD_MASK) as Promise<{ places?: GooglePlace[] }>)]
+  // No along-route geometry → no road detours; callers annotate with their
+  // own route (routeKmOf/detourKm) exactly like the point-search surface.
+  return hitsFromResponses(responses, [{ textQuery: needle, cat: 'sightseeing' }], null)
+}
+
 // ============ 4. City/town anchor layer (Google mode) ============
 // Provider directive (2026-09-07): in Google mode EVERYTHING comes from
 // Google — POIs and the populated-place anchor layer. Text Search along the

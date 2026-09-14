@@ -304,6 +304,15 @@ Vercel, while the merge itself is what burns an Android build. Verify with
 `gh pr checks <n>` rather than reasoning from the YAML; the check list names the
 workflow that actually fired.
 
+**A PR into `test` gets NO CI job at all** (`ci.yml`'s `pull_request` trigger
+lists only `main`) — found 2026-09-14 when PR #105 (a 23-file feature PR into
+`test`) showed only Codacy/Vercel checks and no "Verify" job. A green check
+list on a `test` PR means nothing ran the gate; the merge itself is what fires
+it (as a `push to test`). Until `pull_request: branches: [main, test]` is
+added, run `npm run verify` locally before asking to merge any PR into `test`.
+(Caveat if adding it: the PR run checks out the merge ref, so it duplicates the
+push run rather than replacing it.)
+
 ## 4. Code conventions & pitfalls
 
 - **Data model**: times are always stored as 24h `"HH:MM"` strings. Format at
@@ -377,6 +386,8 @@ workflow that actually fired.
   
   Rule: call `persistTripField(tripId, mutator)` first, await its Promise, THEN `commit()`. The `persistTripField` now returns `Promise<void>` to enforce this order. If your mutation path doesn't call `persistTripField`, it will update the cache but vanish on refresh — the full verify gate (`tsc` + tests + `vite build`) stays green because nothing exercises write-through.
 
+- **"Resolved on pick" placeholder coordinates must be resolved AT the ingestion boundary — a raw write into trip data pins the journey to Null Island.** Both providers emit `latitude: 0, longitude: 0` placeholders on some hits, and the Map tab's Add-to-timeline paths copied them raw: a real user's route ran to the Gulf of Guinea, the split banner demanded 116 travel days, impact previews read ±45,616 km, and halt suggestions landed "around ~2400 km" in the Atlantic — every downstream number honest math over an ocean round-trip, and the whole verify gate stayed green (nothing exercises live pick flows). Fix: `requireHitCoords()` at every write-into-a-trip path (single add, Add-all, `LocationInput.choose`), refuse with a visible error/toast when unresolvable. Corollary: coordinate sentinels need BOTH coordinates checked — the live incident was a MIXED placeholder (lat 0, real lng) that `a !== 0 || b !== 0` happily accepted. When debugging "impossible" route geometry, screenshot-locate the offending pin first; every impossible number downstream of it is a red herring. (Found live 2026-09-14.)
+- **A surface that RANKS or ANNOTATES by coordinates before any pick cannot consume "resolve-on-pick" placeholders — it needs a real-coords search.** The Map tab's search-to-add box used `searchPlaces` (Google autocomplete), whose hits are deliberately `(0,0)` placeholders — the quota economy is one Place Details call per *picked* row. But that box projects every hit onto the route to label/rank it, so all five results measured Null Island and rendered the identical "~1675 km into the trip · 8448 km off-route" — the tell that a ranking surface ignores hit coords entirely is *equal annotations on different hits*. Fix: `searchPlacesText` (one free-form Text Search Pro event, real locations in the same single call the corridor scan already pays; coord-less stragglers resolved-or-dropped; `QuotaExhaustedError` rethrown to an honest toast). Rule of thumb: **autocomplete for pick-one inputs, Text Search for rank-everything surfaces** — don't "reuse" the cheaper SKU on a surface whose math needs coordinates it doesn't have. (Found live 2026-09-14.)
 - **A directive that reverses behavior must sweep its own strings in the same commit.** When the Google-only directive landed, `QuotaExhaustedError` still said *"falling back to the free stack"* and the quota-guard header still described the old fallback — the code had changed, its self-description lied. When reversing any behavior, grep for the OLD behavior's phrasing in error messages, comments, README, and ARCHITECTURE (this bit us once per surface: message, quota.ts header, geocode docstring).
 
 - **A mechanical CSS gate only sees pairs declared in ONE rule.** The design-system contrast gate skips color-only overrides (`.x--warn { color: … }` on a separate background rule) — a 3.65:1 warn-on-white shipped straight past it (#152). When styling new UI, add explicit AA pins for any warn/tone pair your surface paints (#154's `map-rail warn ink` test is the pattern), and remember the baseline keys entries on **line numbers** — inserting CSS shifts them and fails the gate with phantom "new violations"; re-map the numbers (or `UPDATE_DESIGN_SYSTEM_BASELINE=1`) and diff to confirm nothing but line numbers moved.
@@ -421,6 +432,12 @@ workflow that actually fired.
   (`tsc` + tests + `vite build` all passed with a leftover `<<<<<<< HEAD` in
   the CHANGELOG during the PR #30 merge, Aug 2026). `git diff --check` exits
   non-zero on leftover markers; run it before `git commit` on every merge.
+  **Markers can arrive already committed from someone else's merge** (found
+  Sep 2026: merge `f83fee4` shipped `<<<<<<< HEAD` + an orphaned `=======`
+  into CHANGELOG.md on `test`, where everything downstream — including the
+  next release cut — inherits them). After syncing or merging remote work
+  that touched CHANGELOG, grep for `<<<<<<<`/`=======`/`>>>>>>>` before
+  writing prose near the affected section.
 - **When merging an agent PR that's based on pre-rewrite code, keep the local
   structure and re-apply the PR's *intent*** — PR #30 was based on the
   pre-`ridePlan.ts` tree, so its TripWorkspace hunks showed obsolete ranking

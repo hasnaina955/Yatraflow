@@ -20,9 +20,11 @@ export { mapplsEnabled, parseOpeningHours, fetchOpeningHours, type OpeningHours 
 export { HOME_ZONE_KM, corridorAnchors, detourKm, detourMinutes, asymmetricDetourMinutes, filterPlannedNearby, anchorHash, routeHash } from './providers/hits'
 export type { NearbyOpts, PlaceHit, PlannedStop } from './providers/hits'
 export { googleEnabled } from './providers/google'
+export { googleSearchText, QuotaExhaustedError } from './providers/google'
 export { googleCitiesAlong } from './providers/google'
 export { searchCitiesAlong } from './providers/free'
-export { planRideSegments, assignSegmentHits, leftoverAsSight, reasonForSegmentHit, reasonForHit, kmFromStartForHit, planDriveDays, planTravelClock, DEFER_START, type SegmentHit, type RideSegment, type DriveDaysPlan, type TravelClockVerdict } from './ridePlan'
+export { planRideSegments, assignSegmentHits, leftoverAsSight, reasonForSegmentHit, reasonForHit, kmFromStartForHit, planDriveDays, planTravelClock, isSelfDrivenMode, rainFactorFor, DEFER_START, type SegmentHit, type RideSegment, type DriveDaysPlan, type TravelClockVerdict } from './ridePlan'
+export { hasCoords } from './providers/hits'
 
 import { hasCoords, rankAndCap, filterPlannedNearby, kmFromStartForHit, type NearbyOpts, type PlaceHit } from './providers/hits'
 import { haversineKm } from './geo'
@@ -38,6 +40,8 @@ import {
   googleNearbyAlongRoute,
   googleNearbyAtPoint,
   googleResolveHitCoords,
+  googleSearchText,
+  QuotaExhaustedError,
 } from './providers/google'
 import { googleCitiesAlong } from './providers/google'
 import {
@@ -60,6 +64,11 @@ export async function searchPlaces(q: string, opts?: { indiaOnly?: boolean }): P
     googleAutocomplete(needle, opts?.indiaOnly ?? true).catch(() => [] as PlaceHit[]),
     searchPlacesFree(q, opts).catch(() => [] as PlaceHit[]),
   ])
+  return dedupePlaceHits([...google, ...free])
+}
+
+/** Cross-provider dedupe: same name AND same ~100 m location is one place. */
+function dedupePlaceHits(hits: PlaceHit[]): PlaceHit[] {
   // Dedupe across providers, but only when the hits actually point at the
   // same location — Open-Meteo and Google can legitimately both return
   // "Munnar" with different precision/coords, and both belong in the list.
@@ -67,7 +76,7 @@ export async function searchPlaces(q: string, opts?: { indiaOnly?: boolean }): P
     `${h.name.toLowerCase()}@${h.latitude != null ? h.latitude.toFixed(2) : ''},${h.longitude != null ? h.longitude.toFixed(2) : ''}`
   const seen = new Set<string>()
   const out: PlaceHit[] = []
-  for (const hit of [...google, ...free]) {
+  for (const hit of hits) {
     if (!hit.name) continue
     const key = keyOf(hit)
     if (seen.has(key)) continue
@@ -75,6 +84,40 @@ export async function searchPlaces(q: string, opts?: { indiaOnly?: boolean }): P
     out.push(hit)
   }
   return out.slice(0, 8)
+}
+
+/**
+ * Search for the Map tab's add-to-trip box — the surface that RANKS and
+ * ANNOTATES every row by road position BEFORE any pick. It cannot use
+ * `searchPlaces`: autocomplete hits are deliberate (0,0) placeholders there
+ * (resolved on pick, see providers/google §1), and projecting a placeholder
+ * onto the route measures Null Island — live 2026-09-14, every result row
+ * showed the identical "~1675 km into the trip · 8448 km off-route".
+ *
+ * Google mode runs ONE free-form Text Search (real locations in the same
+ * single Text Search Pro event the corridor scan already pays), free stack
+ * merged underneath. Quota exhaustion THROWS (surfaced honestly by the
+ * caller — no silent fallback); other Google failures degrade to the free
+ * stack like the geocode box always has. Any remaining coord-less hit
+ * (Mappls "coords pending") is resolved, and still-placeholder rows are
+ * dropped — a route-aware list never measures Null Island.
+ */
+export async function searchPlacesText(q: string, opts?: { indiaOnly?: boolean }): Promise<PlaceHit[]> {
+  const needle = q.trim()
+  if (needle.length < 2) return []
+  let google: PlaceHit[] = []
+  if (googleEnabled()) {
+    try {
+      google = await googleSearchText(needle)
+    } catch (e) {
+      if (e instanceof QuotaExhaustedError) throw e // honest quota note, no fallback
+      // transient Google failure → degrade to the free stack (geocode-box contract)
+    }
+  }
+  const free = await searchPlacesFree(q, opts).catch(() => [] as PlaceHit[])
+  const merged = dedupePlaceHits([...google, ...free])
+  const resolved = await Promise.all(merged.map(h => (hasCoords(h) ? h : resolveHitCoords(h).catch(() => h))))
+  return resolved.filter(hasCoords)
 }
 
 /**
@@ -90,6 +133,20 @@ export async function resolveHitCoords(hit: PlaceHit): Promise<PlaceHit> {
     try { return await googleResolveHitCoords(hit) } catch { return hit }
   }
   return resolveFreeHitCoords(hit)
+}
+
+/**
+ * Resolve-or-tell: like resolveHitCoords, but reports failure instead of
+ * silently returning the (0,0) placeholder. Every write-into-a-trip path
+ * must use this one — a placeholder stop pins the journey to Null Island
+ * and every downstream honest number (legs, split verdicts, impact previews,
+ * halt targets) measures an ocean round-trip. Returns null when the hit
+ * could not be resolved; the caller keeps the stop out of the trip.
+ */
+export async function requireHitCoords(hit: PlaceHit): Promise<PlaceHit | null> {
+  const resolved = await resolveHitCoords(hit)
+  if (hasCoords(resolved)) return resolved
+  return null
 }
 
 /** Single-anchor convenience wrapper (empty-day chips). */
@@ -224,6 +281,7 @@ export async function planJourneyHalts(
     vehicleRangeKm: vehicleRange,
     dayStartTimes: opts.dayStartTimes,
     dayRainPct: opts.dayRainPct,
+    transportMode: opts.transportMode,
     roadGeometry: (opts.routeCoords ?? [])
       .filter(c => Number.isFinite(c[0]) && Number.isFinite(c[1]))
       .map(c => ({ lat: c[1], lng: c[0] })),

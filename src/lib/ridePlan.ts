@@ -80,14 +80,55 @@ export function clampRainFactor(raw: number | undefined): number {
   return Number.isFinite(raw) ? Math.min(1, Math.max(0.5, raw as number)) : 1
 }
 
-/** Style-tuned daily wheel cap. Packed pushes 11 h; relaxed rests at 8.5;
- *  balanced 10. Case/whitespace-tolerant (#132): "Packed " is packed, not a
- *  silent 10 h. */
-export function wheelCapHoursFor(travelStyle?: string): number {
+/**
+ * Confidence-weighted rain factor (#141): a 60% CHANCE of drizzle must not
+ * equal a 60% chance of a cloudburst, so the cap multiplier separates the
+ * probability (the forecast's rain chance) from the severity (the WMO code).
+ * Drizzle-class codes damp the probability before it reaches the multiplier;
+ * storm-class codes weight it up. Both tails clamp inside [0.5, 1] via
+ * clampRainFactor — the model still never "drives faster in rain".
+ * Undefined code (probability-only input) reproduces the old arithmetic.
+ */
+export function rainFactorFor(pct: number | null | undefined, code?: number): number {
+  if (pct == null || !Number.isFinite(pct)) return 1
+  const c = code
+  let severity = 1
+  if (c != null && Number.isFinite(c)) {
+    if (c >= 95) severity = 1.25        // thunderstorm family
+    else if (c >= 71 && c <= 86) severity = 1.1  // heavy snow / violent showers
+    else if (c >= 65 || c === 82) severity = 1.1 // heavy rain / violent showers
+    else if (c >= 51 && c <= 57) severity = 0.75 // drizzle family
+    else if (c >= 61 && c <= 63) severity = 0.9  // light-to-mid rain
+  }
+  return clampRainFactor(1 - (pct / 200) * severity)
+}
+
+/** Style-tuned daily wheel cap, mode-tuned (#126). Packed pushes 11 h;
+ *  relaxed rests at 8.5; balanced 10. Case/whitespace-tolerant (#132):
+ *  "Packed " is packed, not a silent 10 h.
+ *
+ *  Mode tuning (#126): a motorcycle rides a full 1.5 h BELOW the same style's
+ *  car cap — helmet fatigue and exposure compound, and nobody's life should
+ *  depend on an 11 h saddle day. Conducted modes (train/bus/flight/taxi —
+ *  someone else drives) are untuned here: the planner refuses to split their
+ *  journeys at all (isSelfDrivenMode). Defaults keep every existing caller
+ *  (style-only) byte-compatible. */
+export function wheelCapHoursFor(travelStyle?: string, transportMode?: string): number {
   const s = (travelStyle ?? '').trim().toLowerCase()
-  if (s === 'packed') return 11
-  if (s === 'relaxed') return 8.5
-  return WHEEL_HOURS_CAP
+  const base = s === 'packed' ? 11 : s === 'relaxed' ? 8.5 : WHEEL_HOURS_CAP
+  if (transportMode === 'motorcycle') return Math.max(4, base - 1.5)
+  return base
+}
+
+/** Modes where the PLANNER's crew drives: self-drive cars/rentals and
+ *  motorcycles get the full fatigue model (wheel caps, day splits, night
+ *  halts). Conducted modes — train, bus, flight, taxi — are someone else's
+ *  shift: a 3200 km "split verdict" for a flight leg was noise (#126), and
+ *  their long-distance legs carry no driving fatigue to plan around. `mixed`
+ *  stays plannable (it can include real driving). */
+export function isSelfDrivenMode(transportMode?: string): boolean {
+  const m = (transportMode ?? '').trim().toLowerCase()
+  return m === 'car' || m === 'rental' || m === 'motorcycle' || m === 'mixed'
 }
 
 /** Modes where somebody on OUR side of the windscreen drives — the fatigue
@@ -153,20 +194,6 @@ export function resolveAnchors(a?: AnchorOpts): Required<AnchorOpts> {
   const out = { ...ANCHOR_DEFAULTS, ...a }
   out.nightEndMin = Math.max(out.nightEndMin, out.dinnerEndMin + 60)
   return out
-}
-
-/**
- * Rain severity from chance alone (#141) — the forecast source carries no
- * intensity, so chance IS the severity band: <40% is forecast noise (drive
- * the plan); 40–70% is drizzle-grade (a gentle 0.9×, never a verdict flip);
- * >70% assumes disruptive and takes the full formula. When the API gains mm/h,
- * extend this signature with a severity argument — call sites don't move.
- */
-export function rainFactorFor(pct: number | null | undefined): number {
-  if (pct == null || !Number.isFinite(pct)) return 1
-  if (pct < 40) return 1
-  if (pct <= 70) return 0.9
-  return clampRainFactor(1 - pct / 200)
 }
 
 /**
@@ -418,6 +445,9 @@ export function planTravelClock(input: {
   anchors?: AnchorOpts
   /** #145 round trip: walk the drive home as a second, reversed pass. */
   roundTrip?: boolean
+  /** WMO code per walked day (#141) — separates drizzle from cloudburst
+   *  inside each day's cap multiplier. Index-aligned with dayRainPct. */
+  dayWeatherCode?: (number | null)[]
 }): TravelClockVerdict {
   const totalKm = input.totalKm
   const driveMin = input.driveMinutes
@@ -443,11 +473,11 @@ export function planTravelClock(input: {
     }
   }
   // The rain clamp is per walked day (#127), severity-banded (#141): a 55%
-  // drizzle is a gentle 0.9×, never a verdict flip; day i's forecast caps
-  // only day i.
+  // drizzle is a gentle 0.9x, never a verdict flip; day i's forecast caps
+  // only day i. WMO severity weights the multiplier when the code is known.
   const rainFor = (i: number): number =>
     input.dayRainPct?.[i] != null
-      ? rainFactorFor(input.dayRainPct[i])
+      ? rainFactorFor(input.dayRainPct[i], input.dayWeatherCode?.[i] ?? undefined)
       : clampRainFactor(input.rainFactor)
   const capKmFor = (i: number): number => capH * 60 * rainFor(i) * kmPerMin
   const capKmBudget = capKmFor(0)
@@ -550,6 +580,9 @@ export interface RidePlanInput {
   dayStartTimes?: string[]
   /** rain chance percent per day index (null = no forecast) — flags rainy segments */
   dayRainPct?: (number | null)[]
+  /** motorcycle rides 1.5 h below the style cap (#126); the day-split for
+   *  conducted modes is refused upstream (isSelfDrivenMode), never here */
+  transportMode?: string
   /** simplified route geometry {lat,lng}[] — enables road-personality tagging */
   roadGeometry?: { lat: number; lng: number }[]
 }
@@ -762,7 +795,7 @@ export function planRideSegments(input: RidePlanInput): RideSegment[] {
   // time (planDriveDays verdict null).
   const dayEnds: number[] = []
   if (multiDay) {
-    const days = planDriveDays({ totalKm: total, driveMinutes: drive })
+    const days = planDriveDays({ totalKm: total, driveMinutes: drive, transportMode: input.transportMode })
     if (days && days.nightHalts.length > 0) dayEnds.push(...days.nightHalts)
     else for (let km = OVERNIGHT_INTERVAL_KM; km < cap; km += OVERNIGHT_INTERVAL_KM) dayEnds.push(km)
   }

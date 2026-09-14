@@ -104,6 +104,9 @@ export interface ItineraryStop {
   title: string
   category: StopCategory
   locationName: string
+  /** provider place-id (Google/OSM) when the stop was picked from a geocoded
+   *  place — the strongest lodging identity (#146): same id, one base. */
+  placeId?: string
   /** lat/lng kept as plain numbers so any maps provider can consume them later */
   lat: number
   lng: number
@@ -126,9 +129,6 @@ export interface ItineraryStop {
   arrivalTime?: string       // "HH:MM" — computed as departTime + legTravelMinutes
   legDistanceKm?: number     // road distance from the previous point (OSRM or estimate)
   legTravelMinutes?: number  // travel time in minutes for that leg
-  /** provider place id (Google/OSM), when the stop came from a search hit
-   *  (#146) — authoritative lodging identity, beats name/coords matching. */
-  placeId?: string
 }
 
 export interface ItineraryDay {

@@ -2,7 +2,7 @@
 // Searches cities AND points of interest (via src/lib/geocode.ts — free, no key).
 // Keyboard navigable: ↑/↓ to move, Enter to pick, Esc to dismiss.
 import { useEffect, useId, useRef, useState } from 'react'
-import { googleEnabled, mapplsEnabled, resolveHitCoords, searchPlaces } from '../lib/geocode'
+import { googleEnabled, mapplsEnabled, requireHitCoords, searchPlaces } from '../lib/geocode'
 import type { PlaceHit } from '../lib/geocode'
 
 export type { PlaceHit } from '../lib/geocode'
@@ -29,6 +29,8 @@ export function LocationInput({ value, onChange, onPick, placeholder, error, aut
   const [highlight, setHighlight] = useState(0)
   /** true while a picked Mappls hit is getting its coordinates resolved */
   const [resolving, setResolving] = useState(false)
+  /** pick-time resolution failure — shown under the field, clears on next search */
+  const [pickErr, setPickErr] = useState('')
   const wrapRef = useRef<HTMLDivElement>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const listId = useId()
@@ -66,9 +68,16 @@ export function LocationInput({ value, onChange, onPick, placeholder, error, aut
   async function choose(hit: PlaceHit) {
     // Mappls hits carry an eLoc, Google hits a placeId — either way the pick
     // is resolved to verified coordinates before it reaches the caller.
+    // requireHitCoords() rejects instead of silently handing a (0,0)
+    // placeholder to the caller: a trip born at Null Island measures its
+    // whole journey through the ocean (found live 2026-09-14).
     if ((hit.eLoc || hit.placeId) && hit.latitude === 0 && hit.longitude === 0) {
       setResolving(true)
-      try { hit = await resolveHitCoords(hit) } finally { setResolving(false) }
+      try {
+        const resolved = await requireHitCoords(hit)
+        if (!resolved) { setPickErr('Could not pin that place on the map — try another suggestion.'); return }
+        hit = resolved
+      } finally { setResolving(false) }
     }
     onChange(hit.name + (hit.kind === 'place' && hit.admin1 ? `, ${hit.admin1}` : ''))
     onPick?.(hit)
@@ -97,6 +106,7 @@ export function LocationInput({ value, onChange, onPick, placeholder, error, aut
         placeholder={placeholder}
         onChange={e => {
           onChange(e.target.value)
+          setPickErr('')
           runSearch(e.target.value)
         }}
         onFocus={() => { if (hits.length > 0) setOpen(true) }}
@@ -109,6 +119,7 @@ export function LocationInput({ value, onChange, onPick, placeholder, error, aut
       />
       {loading && <span className="loc-spinner" aria-label="Searching places" />}
       {resolving && <span className="loc-spinner" aria-label="Pinning the place" />}
+      {pickErr && <div className="field-error small" role="alert" style={{ color: 'var(--danger)', marginTop: 4 }}>{pickErr}</div>}
       {open && hits.length > 0 && (
         <ul className="loc-dropdown popover" role="listbox" id={listId}>
           {hits.map((hit, i) => (

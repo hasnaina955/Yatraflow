@@ -41,8 +41,10 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
   chips on the far quarter of round trips.
 - **The bill prices the bed.** Hotel stops — accepted night halts or hand-added stays —
   gain a lodging line (overnights × rooms × style rate) from one stay-rate table shared
-  with the budget bench (#125b); one coordinate cell is one lodging, whatever the name
-  says (#125a). The night halt's minutes are never charged to the day's detour budget.
+  with the budget bench (#125b); lodging identity keys on the provider place-id first
+  (#146 — carried from picked hits through StopEditor and Add-to-timeline), with the
+  coordinate cluster and normalized-name fallbacks beneath it for hand-typed stops
+  (#125a). The night halt's minutes are never charged to the day's detour budget.
 - **Create-trip helps from the first two points**: the route's own verdict — "The drive
   wants N travel days" with one-tap "Make it N days" (and the honest single-stretch wheel
   time when it doesn't fit the dates); it says "there and back" when the round-trip
@@ -113,9 +115,15 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 - **Night halts never land inside the destination exclusion** (#140), and the final
   day's arrival is clock-checked — past-night arrivals are flagged, not hidden (#138).
 - **Segment ETAs carry halt dwell time** (#129); a meal folds into the overnight halt
-  instead of sitting inside its gap floor (#131).
+  instead of sitting inside its gap floor (#131), and a fuel tick lands in the halt too
+  when it falls within the fold window before the overnight — no refuel-then-sleep
+  double stop at dusk (#144).
 - **A wet day caps only that day** — the clock walk takes per-day rain instead of one
-  trip-wide factor (#127).
+  trip-wide factor (#127), and the cap weights rain *severity*, not just chance: a 90%
+  drizzle day damps ≈0.66× while a 90% thunderstorm hits the 0.5 floor (#141).
+- **Conducted modes get no split verdict** — train/bus/flight/taxi legs (someone else
+  drives) stay silent in the Map tab's banner, day chips, Apply-split and CreateTrip's
+  verdict, and a motorcycle rides 1.5 h below the same style's car cap (#126).
 - **Corrupt `startTime` can't silently become midnight** — out-of-range input clamps
   to a valid, loudly non-midnight start (#136).
 - **The corridor search no longer re-runs on unrelated edits** — verdict memos key on
@@ -141,6 +149,16 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 - **Dark-mode pin hover tooltips unreadable** — maplibre's stock popup chrome is bare
   white regardless of theme, and light text on it vanished. Popups (hover tips + the
   stop cross-link popup) are reskinned to the app card in both themes, tip included.
+- **Map search results carry real coordinates** — the search-to-add box ranked Google
+  autocomplete hits, which are deliberate (0,0) "resolve on pick" placeholders, so every
+  row measured Null Island and rendered the identical "~1675 km · 8448 km off-route".
+  It now runs one free-form Text Search (the same event the corridor scan pays) whose
+  hits carry real locations; coord-less stragglers are resolved-or-dropped; quota
+  exhaustion toasts honestly.
+- **Placeholder coordinates can't poison a trip** — Add-to-timeline and location picking
+  resolve "resolve on pick" placeholders before any write, refuse unpinnable hits with a
+  visible error, and mixed placeholders (latitude 0, real longitude) are rejected — the
+  route can no longer dive to the Gulf of Guinea on an unnoticed (0,0) stop.
 - **Timeline drag got cropped at the day card** — the carried row escaped nothing: the
   day-collapse clip (`overflow: hidden`) cut it off at the card edge. While a drag is
   live the owning section unclips (`drag-live`), same fix applied to Board columns.

@@ -328,13 +328,6 @@ export interface NearbyOpts {
    */
   routeCoords?: [number, number][] | null
   /**
-   * Total road distance of routeCoords in km (OSRM leg sum). Google's
-   * routingSummaries report origin→place and place→destination legs, so the
-   * real detour of each hit is (leg0 + leg1) − routeTotalKm; when this is
-   * absent, Google hits fall back to the straight-line-to-anchor estimate.
-   */
-  routeTotalKm?: number | null
-  /**
    * Vehicle tank range in km — sets the fuel-stop cadence (default 450).
    * 0/undefined keep the default; only meaningful when includeFuel is true.
    */

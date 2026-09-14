@@ -346,7 +346,6 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     categoryBias: computeCategoryBias(trip),
     // Google mode: bias the search along the real road polyline; free mode ignores it
     routeCoords: routeGeometry,
-    routeTotalKm,
     travellers: trip.travellers,
     travelStyle: trip.travelStyle,
     speedKmph: MODE_SPEED[trip.transportMode] ?? 40,
@@ -364,7 +363,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     ],
     dayStartTimes: trip.days.map(d => d.startTime ?? '08:30'),
     dayRainPct: dayRainPct ?? undefined,
-  }), [trip, routeGeometry, routeTotalKm, dayRainPct, crewSeeds, dnaTick])
+  }), [trip, routeGeometry, dayRainPct, crewSeeds, dnaTick])
 
   // Day Planner verdicts (PLAN-DAY-PLANNER P1-B/C): the drive-day split the
   // ROUTE demands (duration cap, load-balanced) and the travel-clock verdict

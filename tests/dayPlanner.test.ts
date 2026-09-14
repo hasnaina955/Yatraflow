@@ -367,11 +367,18 @@ describe('bug-hunt batch (issues #125-#140) — engine invariants', () => {
     })
     expect(segs.filter(s => s.purpose === 'meal').length).toBeGreaterThanOrEqual(3) // one per full driving day
     expect(segs.filter(s => s.purpose === 'fuel').length).toBeGreaterThanOrEqual(2) // 1,402 km / 382.5 km stride
-    // every fuel stop respects the tank stride: consecutive fuels (and the
-    // trip start) never leave more than the safe stride between them
-    const fuelKms = [0, ...segs.filter(s => s.purpose === 'fuel').map(s => s.targetKm), 1402]
-    for (let i = 1; i < fuelKms.length; i++) {
-      expect(fuelKms[i] - fuelKms[i - 1]).toBeLessThanOrEqual(450)
+    // refuel opportunities never leave the tank stranded: a refuel happens at
+    // a dedicated fuel segment OR at a halt town (the #144A fold moves a fuel
+    // tick that lands near a night halt INTO that halt — "Overnight + fuel" —
+    // so the halt's own km counts as a refuel point), and every consecutive
+    // pair of opportunities stays within the tank range.
+    const refuelKms = [
+      0,
+      ...segs.filter(s => s.purpose === 'fuel' || s.purpose === 'overnight').map(s => s.targetKm),
+      1402,
+    ].sort((a, b) => a - b)
+    for (let i = 1; i < refuelKms.length; i++) {
+      expect(refuelKms[i] - refuelKms[i - 1]).toBeLessThanOrEqual(450)
     }
   })
 

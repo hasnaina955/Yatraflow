@@ -39,11 +39,14 @@ describe('railReasonChips', () => {
     expect(chips.map((c) => c.label)).not.toContain('lunch window')
   })
 
-  it('notes a long stretch since the last stop, from two hours up', () => {
+  it('notes a long stretch since the last stop, from the ~1¾-hour band up (#173: band, not a 120-min cliff on an estimated number)', () => {
     expect(railReasonChips({ ...base, minutesFromPrev: 120 }).map((c) => c.label)).toEqual([
       expect.stringContaining('stretch'),
     ])
-    expect(railReasonChips({ ...base, minutesFromPrev: 119 })).toEqual([])
+    expect(railReasonChips({ ...base, minutesFromPrev: 119 }).map((c) => c.label)).toEqual([
+      expect.stringContaining('stretch'),
+    ])
+    expect(railReasonChips({ ...base, minutesFromPrev: 104 })).toEqual([])
   })
 
   it('quotes a rating only from four up, as a number with the star token', () => {
@@ -53,11 +56,14 @@ describe('railReasonChips', () => {
     expect(railReasonChips({ ...base, rating: 3.9 })).toEqual([])
   })
 
-  it('quotes the budget share only from fifteen percent', () => {
+  it('quotes the budget share only from the ~12% band (#173: 15% was a round cliff on engine estimates)', () => {
     expect(railReasonChips({ ...base, budgetSharePct: 15 }).map((c) => c.label)).toEqual([
       "15% of budget",
     ])
-    expect(railReasonChips({ ...base, budgetSharePct: 14 })).toEqual([])
+    expect(railReasonChips({ ...base, budgetSharePct: 14 }).map((c) => c.label)).toEqual([
+      "14% of budget",
+    ])
+    expect(railReasonChips({ ...base, budgetSharePct: 11 })).toEqual([])
   })
 
   it('treats a missing budget share as silent rather than zero', () => {

@@ -13,7 +13,6 @@ import {
   resolveHillshadeBeforeId,
   type MapLike,
 } from '../src/lib/mapViewModes'
-import { loadMapViewMode, saveMapViewMode } from '../src/lib/uiPrefs'
 
 describe('parseMapViewMode', () => {
   it('accepts exactly the three mode strings', () => {
@@ -203,17 +202,6 @@ describe('applyViewModeOnMap (fake-map transitions)', () => {
     const { map, log } = fakeMap()
     applyViewModeOnMap(map, '2d')
     expect(log).toEqual([])
-  })
-})
-
-describe('persistence wrappers (no localStorage in node)', () => {
-  it('loadMapViewMode falls back to 2d when storage is unavailable', () => {
-    expect(loadMapViewMode()).toBe('2d')
-  })
-
-  it('saveMapViewMode is a silent no-op without storage', () => {
-    expect(() => saveMapViewMode('3d')).not.toThrow()
-    expect(loadMapViewMode()).toBe('2d')
   })
 })
 

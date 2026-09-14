@@ -1,8 +1,8 @@
 // ============ uiPrefs — day-collapse persistence ============
 // Node env: no localStorage. That's deliberate — the pure parser is what we
 // assert on; the storage wrappers degrade to no-ops when storage is missing.
-import { describe, it, expect } from 'vitest'
-import { dayCollapseKey, parseDayCollapseMap, loadDayCollapsed, saveDayCollapsed, parseOpenDayMap, loadOpenDay, saveOpenDay, NO_OPEN_DAY, loadFlag, saveFlag } from '../src/lib/uiPrefs'
+import { describe, it, expect, afterEach } from 'vitest'
+import { dayCollapseKey, parseDayCollapseMap, loadDayCollapsed, saveDayCollapsed, parseOpenDayMap, loadOpenDay, saveOpenDay, NO_OPEN_DAY, loadFlag, saveFlag, loadPref, savePref } from '../src/lib/uiPrefs'
 
 describe('dayCollapseKey', () => {
   it('namespaces by trip id and day index', () => {
@@ -169,5 +169,38 @@ describe('named boolean flags', () => {
     } finally {
       ;(globalThis as unknown as { localStorage: Storage }).localStorage = prev
     }
+  })
+})
+
+describe('loadPref / savePref — guarded string prefs (#181)', () => {
+  const g = globalThis as unknown as { localStorage: Storage }
+  const prev = g.localStorage
+  afterEach(() => { g.localStorage = prev })
+
+  it('round-trips a value under the yatraflow_ namespace and falls back when missing', () => {
+    const store = new Map<string, string>()
+    g.localStorage = {
+      getItem: (k: string) => store.get(k) ?? null,
+      setItem: (k: string, v: string) => void store.set(k, v),
+    } as unknown as Storage
+    savePref('nearby_scope_km', '40')
+    expect(store.get('yatraflow_nearby_scope_km')).toBe('40')
+    expect(loadPref('nearby_scope_km', '20')).toBe('40')
+    expect(loadPref('never_saved', '20')).toBe('20')
+  })
+
+  it('is silent when storage throws (private mode) — no crash', () => {
+    g.localStorage = {
+      getItem: () => { throw new DOMException('denied') },
+      setItem: () => { throw new DOMException('denied') },
+    } as unknown as Storage
+    expect(loadPref('anything', 'fb')).toBe('fb')
+    expect(() => savePref('anything', 'x')).not.toThrow()
+  })
+
+  it('degrades to the fallback when storage is unavailable (node)', () => {
+    g.localStorage = undefined as unknown as Storage
+    expect(loadPref('anything', 'fb')).toBe('fb')
+    expect(() => savePref('anything', 'x')).not.toThrow()
   })
 })

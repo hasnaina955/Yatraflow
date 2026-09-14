@@ -34,10 +34,14 @@ export interface RailChip {
   icon?: 'star'
 }
 
-/** Stretch beyond this earns a chip; it mirrors the fatigue cadence. */
-const STRETCH_COMMENT_MIN = 120
-/** Below this share, the budget is noise rather than a reason. */
-const BUDGET_SHARE_COMMENT_PCT = 15
+/** Stretch beyond this earns a chip; it mirrors the fatigue cadence.
+ *  #173: set ~15 min BELOW the nominal 2 h — this input is engine-estimated
+ *  from blended speeds (±15% slop), so a threshold on a round cliff splits
+ *  identical drives. Estimated quantities get bands, not cliffs. */
+const STRETCH_COMMENT_MIN = 105
+/** Below this share, the budget is noise rather than a reason. Same band
+ *  logic (#173): 15% nominal, minus the estimate slop. */
+const BUDGET_SHARE_COMMENT_PCT = 12
 /** Ratings below this are not a reason to stop. */
 const RATING_COMMENT_MIN = 4
 /** The card stays a scan: three chips, most useful first. */

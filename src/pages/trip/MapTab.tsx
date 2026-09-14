@@ -9,11 +9,13 @@ import type { ImpactResult } from '../../lib/impact'
 import { routePath } from '../../lib/routing'
 import { getAssumptions, buildJourney, minutesToHM, fmtDur, computeCategoryBias, MODE_SPEED, isRoundTrip } from '../../lib/engine'
 import { useTimeFormat, formatHM, formatHMRange } from '../../lib/timefmt'
+import { loadPref, savePref } from '../../lib/uiPrefs'
 import { Modal, Field, toast, undoToast } from '../../components/ui'
 import { Select } from '../../components/Select'
 import { useSuggestionCache, isMapCacheFresh } from '../../hooks/useSuggestionCache'
 import { openExternal } from '../../lib/native'
 import { corridorAnchors, detourKm, detourMinutes, asymmetricDetourMinutes, googleEnabled, planJourneyHalts, reasonForSegmentHit, searchPlaces, searchNearbyPoisMulti, kmFromStartForHit, planDriveDays, planTravelClock, DEFER_START, type NearbyOpts, type PlaceHit, routeHash } from '../../lib/geocode'
+import { QuotaExhaustedError } from '../../lib/providers/google'
 import { isSightCategory } from '../../lib/ridePlan'
 import { railReasonChips, type RailChip } from '../../lib/railReasons'
 import { rulerMarks } from '../../lib/railRuler'
@@ -48,10 +50,10 @@ const SEE_VISIBLE = 4
 // ---- Engine guide: a subtle rotating roll-out of what the suggestion engine ----
 // ---- does, so its intelligence is discoverable without a docs trip.          ----
 const ENGINE_TIPS = [
-  'Breaks are spaced for fatigue — stretch every ~150 km, lunch every ~300, tuned to your crew size and travel style.',
+  'Breaks are spaced for fatigue — stretch rides your wheel time, lunch holds the 11:30–14:30 window, tuned to your crew size and travel style.',
   'Lunch slides itself into the 11:30–14:30 window based on when each driving day starts.',
   'Self-drive trips get fuel halts on your tank’s rhythm — no “next pump in 300 km” surprises.',
-  'Cross-day drives end at a real city — an overnight stop lands every ~550 km of driving.',
+  'Cross-day drives end at a real city — the overnight lands where your honest wheel cap says the day ends.',
   'Every idea is checked against your detour budget — packed days see fewer, closer options.',
   'The engine learns: accepting or declining an idea nudges what future trips suggest (Trip DNA).',
   'Rainy day ahead? Exposed sights step aside for museums, cafes and other sheltered picks.',
@@ -107,7 +109,7 @@ function googleMapsUrl(hit: PlaceHit): string {
 
 /** Detour-scope presets for nearby suggestions (km off the route). */
 const SCOPE_KM_STEPS = [10, 20, 30, 50, 80, 100]
-const SCOPE_STORAGE_KEY = 'yf_nearby_scope_km'
+const SCOPE_STORAGE_KEY = 'nearby_scope_km'
 
 /** Sensible visit durations per suggestion category (tourist pacing). */
 const poiVisitMinutes = visitMinutesForCategory
@@ -133,16 +135,18 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
   // bump to force a corridor re-search — the only refetch path besides a
   // detour-scope change or a first-ever load (empty cache)
   const [refreshTick, setRefreshTick] = useState(0)
-  // detour-scope control — how far off the route suggestions may sit
+  // detour-scope control — how far off the route suggestions may sit.
+  // #181: guarded through uiPrefs (private-mode throw crashes a useState
+  // initializer); namespace follows the app's yatraflow_* convention.
   const [scopeIdx, setScopeIdx] = useState(() => {
-    const saved = Number(localStorage.getItem(SCOPE_STORAGE_KEY))
+    const saved = Number(loadPref(SCOPE_STORAGE_KEY, ''))
     const i = SCOPE_KM_STEPS.indexOf(saved)
     return i >= 0 ? i : 1 // default 20 km
   })
   const scopeKm = SCOPE_KM_STEPS[scopeIdx]
   function changeScope(i: number) {
     setScopeIdx(i)
-    localStorage.setItem(SCOPE_STORAGE_KEY, String(SCOPE_KM_STEPS[i]))
+    savePref(SCOPE_STORAGE_KEY, String(SCOPE_KM_STEPS[i]))
   }
   // pending "add from map / nearby" — pick a day, then confirm
   const [poiDraft, setPoiDraft] = useState<{ hit: PlaceHit } | null>(null)
@@ -406,7 +410,10 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     let cancelled = false
     searchNearbyPoisMulti(anchors, scopeKm * 1000, 12, { ...nearbyOpts, purposes: ['sight' as const, 'meal' as const] })
       .then(hits => { if (!cancelled) setFractionPois(hits) })
-      .catch(() => { if (!cancelled) setFractionPois([]) })
+      // #176: a quota outage must not wear the 'short trip' costume. Google
+      // errors surface as QuotaExhaustedError; the pool goes null (unknown)
+      // so the rows speak about the outage, not the plan.
+      .catch((err: unknown) => { if (!cancelled) setFractionPois(err instanceof QuotaExhaustedError ? null : []) })
     return () => { cancelled = true }
   }, [loadingPois, pois, anchors, nearbyOpts, scopeKm, refreshTick])
 
@@ -1025,7 +1032,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
           </div>
         </div>
         <p className="hint-text" style={{ margin: '4px 0 6px' }}>
-          Live data from {googleEnabled() ? 'Google Places' : 'OpenStreetMap, Wikipedia & Mappls'}: lunch ~ every 300 km, stretch & fuel breaks in between, and for long trips an overnight stop in a key city at the end of each day’s drive. Never around your starting point.
+          Live data from {googleEnabled() ? 'Google Places' : 'OpenStreetMap, Wikipedia & Mappls'}: ideas are clock-anchored — lunch lands in the 11:30–14:30 window, stretch breaks follow wheel time, fuel rides your tank’s rhythm, and long drives end at a real city for the night. Every pick is checked against your detour budget. Never around your starting point.
         </p>
         <form className="row-between" style={{ gap: 8, marginBottom: 8 }} onSubmit={onSearch}>
           <input className="input" value={searchQ} onChange={e => setSearchQ(e.target.value)}
@@ -1154,6 +1161,9 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
                 })
               })()}
             </div>
+          ) : quotaOut ? (
+            // #176: under quota-out the empty strip must not blame the plan.
+            <p className="muted small">Google search quota reached — corridor fallback suggestions are paused until the counter rolls over (this is not about your route).</p>
           ) : (
             <p className="muted small">Not enough driving distance yet for a fatigue plan — add a longer route (90+ km) in the Timeline and segmented stop suggestions will appear here.</p>
           )
@@ -1195,7 +1205,9 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
             </div>
             <div className="poi-plan-list">
               {needsForRail.length === 0
-                ? <p className="muted small">No need-based halts surfaced yet — they appear as you add driving days.</p>
+                ? <p className="muted small">{quotaOut
+                  ? 'Google search quota reached — need-based halts are paused until the counter rolls over.'
+                  : 'No need-based halts surfaced yet — they appear as you add driving days.'}</p>
                 : groupByPurpose(needsForRail).map(([label, items]) => (
                     <div key={label}>
                       <div className="poi-grp">

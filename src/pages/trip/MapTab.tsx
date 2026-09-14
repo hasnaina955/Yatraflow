@@ -15,6 +15,7 @@ import { useSuggestionCache, isMapCacheFresh } from '../../hooks/useSuggestionCa
 import { openExternal } from '../../lib/native'
 import { corridorAnchors, detourKm, detourMinutes, asymmetricDetourMinutes, googleEnabled, planJourneyHalts, reasonForSegmentHit, searchPlaces, searchNearbyPoisMulti, kmFromStartForHit, planDriveDays, planTravelClock, DEFER_START, type NearbyOpts, type PlaceHit, routeHash } from '../../lib/geocode'
 import { isSightCategory } from '../../lib/ridePlan'
+import { railReasonChips } from '../../lib/railReasons'
 import { dayDetourBudgetMin, budgetSharePct, splitByDetourBudget } from '../../lib/detourBudget'
 import { quotaUsed, SOFT_CAPS } from '../../lib/providers/quota'
 import { buildDnaVectorAcrossTrips, loadDnaLog, recordDnaEvent, dnaNoteForHit, crewSeedsFromSuggestions, crewSeedsToPlannedStops, crewSeedEvents, crewNoteForHit } from '../../lib/tripDna'
@@ -38,6 +39,9 @@ function clockHM(mins: number): string {
  * Module scope: this is a constant, so it must not be rebuilt on every render.
  */
 const NEED_PURPOSES = new Set(['fuel', 'meal', 'food', 'rest', 'stretch', 'overnight', 'stay'])
+
+/** See-rail cards shown before the rest fold behind one expander. */
+const SEE_VISIBLE = 4
 
 // ---- Engine guide: a subtle rotating roll-out of what the suggestion engine ----
 // ---- does, so its intelligence is discoverable without a docs trip.          ----
@@ -615,6 +619,29 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     return groups.map(([key, items]) => [items[0]?.segment.label ?? key, items])
   }
 
+  /** Closest alternatives for a halt: next 2 by road position plus detour. */
+  function alternativesFor(sh: SegmentHit, hit: PlaceHit): Array<{ h: PlaceHit; dKm: number | null }> {
+    // keep same family: need halts prefer same purpose, sights accept any sight
+    const family = NEED_PURPOSES.has(sh.segment.purpose)
+      ? [...(altPool.byPurpose.get(sh.segment.purpose) ?? []), ...(altPool.byCategory.get(hit.category ?? '') ?? [])]
+      : altPool.all
+    const seen = new Set<string>()
+    return family
+      .filter(e => {
+        const id = e.h.id as string
+        if (id === hit.id || seen.has(id)) return false
+        seen.add(id)
+        return true
+      })
+      .map(e => {
+        const pos = e.h.cumKm ?? sh.segment.targetKm
+        return { h: e.h, dKm: e.dKm, dist: Math.abs(pos - sh.segment.targetKm) + (e.dKm ?? 0) * 2 }
+      })
+      .sort((a, b) => a.dist - b.dist)
+      .slice(0, 2)
+      .map(e => ({ h: e.h, dKm: e.dKm ?? null }))
+  }
+
   function renderPoi(sh: SegmentHit) {
     const hit = sh.hit
     // dismissed stays hidden for the session (logged as a DNA decline)
@@ -640,6 +667,19 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     // parses the localStorage log) — never rebuild it per row.
     const dnaNote = (nearbyOpts.dnaVector ? dnaNoteForHit(hit, nearbyOpts.dnaVector) : null)
       ?? crewNoteForHit(hit, crewSeeds)
+    const alts = alternativesFor(sh, hit)
+    // Structured reasons: every chip traces back to a number the engine already
+    // produced (clock, detour budget, hours, rating) - nothing is invented here.
+    const chips = railReasonChips({
+      purpose: sh.segment.purpose,
+      etaMinutes: sh.segment.etaMinutes ?? null,
+      minutesFromPrev: sh.segment.minutesFromPrev,
+      isFirstSegment: sh.segment.index === 0,
+      detourMinutes: detourMin,
+      budgetSharePct: detourMin > 0.5 ? budgetSharePct(detourMin, dayBudget) : null,
+      overBudget: detourMin > dayBudget,
+      rating: hit.rating,
+    })
     // Over the day's detour budget: shown as a counted line, not an offer.
     if (budgetHeldIds.has(hit.id as string)) {
       return (
@@ -660,6 +700,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
         <div className="ride-spot-title">
           {hit.thumb && <img className="poi-thumb" src={smallThumb(hit.thumb)} alt="" loading="lazy" />}
           <b>{hit.name}</b>
+          {NEED_PURPOSES.has(sh.segment.purpose) && !added && <span className="poi-best">Best fit</span>}
         </div>
         {/* The planner is clock-first (PLAN-DAY-PLANNER section 4), so the strip
             leads with the wall clock it derived the halt from, not just km. */}
@@ -688,50 +729,56 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
             )}
           </div>
         )}
-        {/* One reason line: a learned DNA or crew note outranks the generic
-            why, and keeps its own label so the personal signal stays visible. */}
-        <div className="poi-reason">
-          <span className="poi-reason-k">{dnaNote ? 'For you' : 'Why'}</span>
-          <span>{dnaNote ?? reasonForSegmentHit(sh, offRoute)}</span>
-        </div>
+        {/* Structured reasons first. The prose why only stands in when there are
+            none, and a learned DNA or crew note keeps its own labelled line. */}
+        {chips.length > 0 && (
+          <div className="poi-rchips">
+            {chips.map(c => (
+              <span key={c.label} className={c.tone === 'warn' ? 'poi-rchip poi-rchip--warn' : 'poi-rchip'}>{c.label}</span>
+            ))}
+          </div>
+        )}
+        {dnaNote && (
+          <div className="poi-reason">
+            <span className="poi-reason-k">For you</span>
+            <span>{dnaNote}</span>
+          </div>
+        )}
+        {!dnaNote && chips.length === 0 && (
+          <div className="poi-reason">
+            <span className="poi-reason-k">Why</span>
+            <span>{reasonForSegmentHit(sh, offRoute)}</span>
+          </div>
+        )}
         {sh.segment.roadWarning && (
           <div className="poi-desc small">⚠ {sh.segment.roadWarning}</div>
         )}
-        {/* Closest alternatives for this halt: next 2 by road position + detour,
-            folded behind an expander so the card stays a three-line scan. */}
-        {(() => {
-          // keep same family: need halts prefer same purpose, sights accept any sight
-          const family = NEED_PURPOSES.has(sh.segment.purpose)
-            ? [...(altPool.byPurpose.get(sh.segment.purpose) ?? []), ...(altPool.byCategory.get(hit.category ?? '') ?? [])]
-            : altPool.all
-          const seen = new Set<string>()
-          const alts = family
-            .filter(e => {
-              const id = e.h.id as string
-              if (id === hit.id || seen.has(id)) return false
-              seen.add(id)
-              return true
-            })
-            .map(e => {
-              const pos = e.h.cumKm ?? sh.segment.targetKm
-              return { h: e.h, dKm: e.dKm, dist: Math.abs(pos - sh.segment.targetKm) + (e.dKm ?? 0) * 2 }
-            })
-            .sort((a, b) => a.dist - b.dist)
-            .slice(0, 2)
-          if (alts.length === 0) return null
-          return (
-            <details className="poi-alts">
-              <summary>{alts.length} alternative{alts.length === 1 ? '' : 's'}</summary>
-              <div className="poi-alt-list">
-                {alts.map(({ h, dKm }) => (
-                  <button key={h.id as string} className="chip chip-sm" onClick={() => openAddModal(h)} title={h.name}>
-                    {h.name}{dKm != null ? ` · ${dKm.toFixed(1)} km off` : ''}
-                  </button>
-                ))}
+        {/* Closest alternatives: need halts show them as candidate rows under the
+            recommended pick; sights keep them folded behind an expander. */}
+        {alts.length > 0 && NEED_PURPOSES.has(sh.segment.purpose) && (
+          <div className="poi-cands">
+            {alts.map(({ h, dKm }) => (
+              <div key={h.id as string} className="poi-cand">
+                <b>{h.name}</b>
+                <span className="poi-cand-f">{dKm != null ? `${dKm.toFixed(1)} km off` : 'on route'}</span>
+                <button className="poi-cand-add" onClick={() => openAddModal(h)} title={`Add ${h.name}`} aria-label={`Add ${h.name}`}>+</button>
               </div>
-            </details>
-          )
-        })()}        <div className="poi-actions">
+            ))}
+          </div>
+        )}
+        {alts.length > 0 && !NEED_PURPOSES.has(sh.segment.purpose) && (
+          <details className="poi-alts">
+            <summary>{alts.length} alternative{alts.length === 1 ? '' : 's'}</summary>
+            <div className="poi-alt-list">
+              {alts.map(({ h, dKm }) => (
+                <button key={h.id as string} className="chip chip-sm" onClick={() => openAddModal(h)} title={h.name}>
+                  {h.name}{dKm != null ? ` · ${dKm.toFixed(1)} km off` : ''}
+                </button>
+              ))}
+            </div>
+          </details>
+        )}
+        <div className="poi-actions">
           {editable && (
             added
               ? <span className="chip chip-teal"><CircleCheck size={11} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />Added</span>
@@ -1071,7 +1118,13 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
                         <span className="poi-grp-n">{seeAndDo.length}</span>
                         <span className="poi-grp-ln" />
                       </div>
-                      {seeAndDo.map(renderPoi)}
+                      {seeAndDo.slice(0, SEE_VISIBLE).map(renderPoi)}
+                      {seeAndDo.length > SEE_VISIBLE && (
+                        <details className="poi-more">
+                          <summary>{seeAndDo.length - SEE_VISIBLE} more picks</summary>
+                          <div className="poi-more-list">{seeAndDo.slice(SEE_VISIBLE).map(renderPoi)}</div>
+                        </details>
+                      )}
                     </>
                   )}
               {budgetHeldCount > 0 && (

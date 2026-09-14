@@ -717,7 +717,7 @@ a.btn { text-decoration: none; }
    The same --warn-on-tint pair shipped unfixed on sibling surfaces (3.48–3.69:1
    light; all pass dark) — now routed through --ink-amber for one source. */
 :root:not([data-theme='dark']) .day-warn-pill:not(.sev-high),
-:root:not([data-theme='dark']) .day-rail-chip.warn,
+  :root:not([data-theme='dark']) .day-rail-chip.warn,
 :root:not([data-theme='dark']) .share-intent--saffron,
 :root:not([data-theme='dark']) .stop-num.cat-food { color: var(--ink-amber); }
 /* SYS-2 dark-foreground swap: these solid-teal-fill surfaces take `#06251f`
@@ -5179,3 +5179,37 @@ html.native-shell {
 .poi-col--see .poi-plan-list > div > .poi-plan-row:not(.poi-plan-gap) {
   border-left: 3px solid color-mix(in srgb, var(--yf-poi-see) 45%, var(--line));
 }
+
+/* ---- Map rail stage two: best-fit badge, reason chips, candidate rows ---- */
+.poi-best {
+  flex: none; margin-left: auto;
+  font-size: 9.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  color: #fff; background: var(--teal); border-radius: 999px; padding: 2px 8px;
+}
+.poi-rchips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+.poi-rchip {
+  font-size: 10.5px; font-weight: 600; color: var(--text-2);
+  background: var(--bg); border: 1px solid var(--line); border-radius: 999px; padding: 2px 8px;
+}
+.poi-rchip--warn { color: var(--warn); background: var(--warn-soft); border-color: transparent; }
+.poi-cands { display: grid; gap: 5px; margin-top: 7px; }
+.poi-cand {
+  display: flex; align-items: center; gap: 8px;
+  border: 1px solid var(--line); border-radius: var(--radius-sm);
+  background: var(--bg); padding: 6px 9px;
+}
+.poi-cand b { flex: 1; min-width: 0; font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.poi-cand-f { flex: none; font-family: ui-monospace, 'SF Mono', 'Cascadia Mono', 'Roboto Mono', Consolas, monospace; font-size: 10.5px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.poi-cand-add {
+  flex: none; width: 22px; height: 22px; border-radius: 50%;
+  border: 1px solid var(--line); background: var(--card); color: var(--teal-deep);
+  font-size: 13px; font-weight: 700; line-height: 1; display: grid; place-items: center;
+}
+.poi-cand-add:hover { border-color: var(--teal); background: var(--teal-soft); }
+.poi-more { margin-top: 8px; }
+.poi-more summary { cursor: pointer; list-style: none; font-size: 11.5px; font-weight: 600; color: var(--teal-deep); }
+.poi-more summary::-webkit-details-marker { display: none; }
+.poi-more summary::before { content: "+"; font-weight: 800; margin-right: 5px; }
+.poi-more[open] summary::before { content: "-"; }
+.poi-more-list { display: grid; gap: 7px; margin-top: 7px; }
+:root:not([data-theme='dark']) .poi-rchip--warn { color: var(--ink-amber); }

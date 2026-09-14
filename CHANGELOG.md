@@ -15,28 +15,6 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ## [Unreleased]
 
-### Changed
-- **Trip settings opens with two bars, not one.** Budget preference (Budget / Comfort /
-  Luxury) and Travel style used to share a single block with the style bar on top and
-  the price bar tucked underneath it, so the second read as a sub-option of the first.
-  Each is now its own bar, at the top of Trip settings and of Create Trip, in that
-  order: Budget preference answers what the bed costs, Travel style answers how the trip
-  moves and what it suggests. Neither touches the other.
-
-### Fixed
-- **Suggestions stopped charging phantom detours on long drives.** A dhaba or petrol pump sitting right on the highway could read "50 km off-route" on a 1,400 km corridor — the detour math subtracted one routing provider's route total from another's internal leg sums, and the difference (≈47 km on that corridor, a plausible-looking 1–3 km on short trips) was charged to every suggestion. That torched the per-day detour budget, held back most See & do ideas, and thinned the halt rails. Detours are now measured geometrically against the same road line the search ran along, so a place on the drawn road reads "on route" no matter which routing engine answered (#187).
-- **Multi-day drives grew their lunch and fuel stops back.** On a load-balanced plan (say 4 days × 350 km) the planner's lunch was silently absorbed into every night halt — it slides to the 14:30 window edge, ~2 h 20 m of wheel time before the halt, inside the old merge bound — and the fuel cadence restarted at each day's start, so it could never land inside a day shorter than the tank stride. A 1,400 km trip produced zero meal and zero fuel suggestions. Lunch now survives as its own stop unless it lands within an hour of the halt (that is dinner at the halt anyway), and fuel follows the tank on a corridor-wide cadence (#189).
-- **Night halts find their towns again.** The city anchor layer asked Google's Text Search for "towns and cities" — a query that matches POI names, not places, so it had quietly returned nothing and every night-halt suggestion starved. It now uses Google's Nearby Search with the locality place type, searched at each night halt's actual road position, and refuses to fill a halt with a town hundreds of kilometres away — an honest gap instead of a misleading card (#189).
-- **The budget tier reverted on every reload.** The dial shipped in `deecbcc` with no
-  column and no row mapping, so the tier a traveller picked was session-only and
-  silently fell back to the legacy-derived value. It is persisted now
-  (`20260914_trip_stay_budget.sql`), and the mapping is covered by tests — including
-  the pre-migration path, which must stay a no-op rather than write a column the
-  database does not have.
-- **Create Trip's bill priced the bed from the travel style.** `estimateTripStarter`
-  took a `travelStyle` and derived the tier from it, so the bill and the settings page
-  could disagree about the same room. The bill takes the budget dial.
-
 ### Added — Day Planner (travel clock)
 - **The fatigue cadence is hours, not km.** Stretch breaks fire at `STRETCH_CLOCK_MIN`
   (120 min) of wheel time — 150 km was ≈2 h at highway speed but 3.6 h at the engine's own
@@ -85,6 +63,12 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
   `tests/dayPlanner.test.ts` are the spec.
 
 ### Changed
+- **Trip settings opens with two bars, not one.** Budget preference (Budget / Comfort /
+  Luxury) and Travel style used to share a single block with the style bar on top and
+  the price bar tucked underneath it, so the second read as a sub-option of the first.
+  Each is now its own bar, at the top of Trip settings and of Create Trip, in that
+  order: Budget preference answers what the bed costs, Travel style answers how the trip
+  moves and what it suggests. Neither touches the other.
 - **Suggestion rows sync to the map on click, not hover** — hovering a row no longer
   glides the camera (accidental map movement); rows show a pointer cursor.
 - **Directions sits beside the travel card's title**, not on its own line.
@@ -102,6 +86,18 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
   parsing (#130, #132).
 
 ### Fixed
+- **Suggestions stopped charging phantom detours on long drives.** A dhaba or petrol pump sitting right on the highway could read "50 km off-route" on a 1,400 km corridor — the detour math subtracted one routing provider's route total from another's internal leg sums, and the difference (≈47 km on that corridor, a plausible-looking 1–3 km on short trips) was charged to every suggestion. That torched the per-day detour budget, held back most See & do ideas, and thinned the halt rails. Detours are now measured geometrically against the same road line the search ran along, so a place on the drawn road reads "on route" no matter which routing engine answered (#187).
+- **Multi-day drives grew their lunch and fuel stops back.** On a load-balanced plan (say 4 days × 350 km) the planner's lunch was silently absorbed into every night halt — it slides to the 14:30 window edge, ~2 h 20 m of wheel time before the halt, inside the old merge bound — and the fuel cadence restarted at each day's start, so it could never land inside a day shorter than the tank stride. A 1,400 km trip produced zero meal and zero fuel suggestions. Lunch now survives as its own stop unless it lands within an hour of the halt (that is dinner at the halt anyway), and fuel follows the tank on a corridor-wide cadence (#189).
+- **Night halts find their towns again.** The city anchor layer asked Google's Text Search for "towns and cities" — a query that matches POI names, not places, so it had quietly returned nothing and every night-halt suggestion starved. It now uses Google's Nearby Search with the locality place type, searched at each night halt's actual road position, and refuses to fill a halt with a town hundreds of kilometres away — an honest gap instead of a misleading card (#189).
+- **The budget tier reverted on every reload.** The dial shipped in `deecbcc` with no
+  column and no row mapping, so the tier a traveller picked was session-only and
+  silently fell back to the legacy-derived value. It is persisted now
+  (`20260914_trip_stay_budget.sql`), and the mapping is covered by tests — including
+  the pre-migration path, which must stay a no-op rather than write a column the
+  database does not have.
+- **Create Trip's bill priced the bed from the travel style.** `estimateTripStarter`
+  took a `travelStyle` and derived the tier from it, so the bill and the settings page
+  could disagree about the same room. The bill takes the budget dial.
 - **Trip deletion works again** — the production "trips read hide trashed" policy
   rejected the tombstone UPDATE (its added-row check saw a trashed row that
   nobody, including the owner, could read), so Delete silently rolled back and

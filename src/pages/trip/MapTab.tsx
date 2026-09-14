@@ -1,7 +1,7 @@
 // ============ Trip workspace — Map tab ============
 // Mechanical extraction from src/pages/TripWorkspace.tsx (M3.4) — no behavior changes.
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { CircleCheck, Clock, ExternalLink, Fuel, Lightbulb, MapPin, RotateCcw, Sparkles } from 'lucide-react'
+import { ChevronDown, CircleCheck, Clock, ExternalLink, Fuel, Lightbulb, MapPin, Plus, RotateCcw, Sparkles, Star } from 'lucide-react'
 import { MetaIcon } from '../../components/icons'
 import { uid } from '../../data/seed'
 import type { Trip, ItineraryStop } from '../../data/types'
@@ -15,6 +15,9 @@ import { useSuggestionCache, isMapCacheFresh } from '../../hooks/useSuggestionCa
 import { openExternal } from '../../lib/native'
 import { corridorAnchors, detourKm, detourMinutes, asymmetricDetourMinutes, googleEnabled, planJourneyHalts, reasonForSegmentHit, searchPlaces, searchNearbyPoisMulti, kmFromStartForHit, planDriveDays, planTravelClock, DEFER_START, type NearbyOpts, type PlaceHit, routeHash } from '../../lib/geocode'
 import { isSightCategory } from '../../lib/ridePlan'
+import { railReasonChips, type RailChip } from '../../lib/railReasons'
+import { rulerMarks } from '../../lib/railRuler'
+import { addDecision } from '../../store/store'
 import { dayDetourBudgetMin, budgetSharePct, splitByDetourBudget } from '../../lib/detourBudget'
 import { quotaUsed, SOFT_CAPS } from '../../lib/providers/quota'
 import { buildDnaVectorAcrossTrips, loadDnaLog, recordDnaEvent, dnaNoteForHit, crewSeedsFromSuggestions, crewSeedsToPlannedStops, crewSeedEvents, crewNoteForHit } from '../../lib/tripDna'
@@ -38,6 +41,9 @@ function clockHM(mins: number): string {
  * Module scope: this is a constant, so it must not be rebuilt on every render.
  */
 const NEED_PURPOSES = new Set(['fuel', 'meal', 'food', 'rest', 'stretch', 'overnight', 'stay'])
+
+/** See-rail cards shown before the rest fold behind one expander. */
+const SEE_VISIBLE = 4
 
 // ---- Engine guide: a subtle rotating roll-out of what the suggestion engine ----
 // ---- does, so its intelligence is discoverable without a docs trip.          ----
@@ -138,6 +144,15 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
   // side panels or the map. Panel hover/click sets it (map flies to the pin);
   // map hover/click sets it (panel row highlights and scrolls into view).
   const [activeHitId, setActiveHitId] = useState<string | number | null>(null)
+  // Shortlist: the rail collects picks before anything lands in the plan, so the
+  // group can vote on them. The tray under the grid owns the actions.
+  const [shortlist, setShortlist] = useState<PlaceHit[]>([])
+  // One reason chip can narrow the rail, so "where are the lunch options?" is a
+  // tap instead of a scroll.
+  const [chipFilter, setChipFilter] = useState<string | null>(null)
+  // Fold-to-spines: either rail can step back to a 48px spine so the map gains
+  // the room. Session state on purpose - a layout whim should not persist.
+  const [folded, setFolded] = useState<{ needs: boolean; see: boolean }>({ needs: false, see: false })
   // In-map place search (§6.5): a free-text query over the provider facade,
   // plus the results to add straight from the Map tab.
   const [searchQ, setSearchQ] = useState('')
@@ -494,6 +509,32 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     setPoiDraft({ hit })
   }
 
+  /** Shortlisting never edits the plan; it collects for the tray to act on. */
+  function toggleShortlist(hit: PlaceHit) {
+    setShortlist(prev =>
+      prev.some(h => h.id === hit.id) ? prev.filter(h => h.id !== hit.id) : [...prev, hit],
+    )
+  }
+
+  function addShortlisted() {
+    for (const hit of shortlist) addPoiToDay(hit, dayForKm(hit.cumKm))
+    setShortlist([])
+  }
+
+  /** Turn the shortlist into an open group decision, reusing the poll shape. */
+  function raiseShortlistVote() {
+    if (shortlist.length === 0) return
+    addDecision(trip.id, {
+      question: shortlist.length === 1
+        ? `Should we add "${shortlist[0].name}"?`
+        : 'Which of these should we add?',
+      context: 'Shortlisted from the Map rail',
+      options: shortlist.map((h, i) => ({ id: `tmp_${i}`, label: h.name })),
+    })
+    toast('Decision posted for the group')
+    setShortlist([])
+  }
+
   async function onSearch(e: React.FormEvent) {
     e.preventDefault()
     const q = searchQ.trim()
@@ -527,6 +568,14 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
   // map tab needs no scrolling to reach either kind (§6.10 CTI tone coding).
   const needs = pois.filter(sh => sh.segment && NEED_PURPOSES.has(sh.segment.purpose))
   const seeAndDo = pois.filter(sh => sh.segment && !NEED_PURPOSES.has(sh.segment.purpose))
+  // Rail derivations for the V2 pass: one chip filter narrows both rails, and the
+  // ruler marks reuse each card's own cumulative km so a dot never disagrees with
+  // the number printed on its card.
+  const needsForRail = chipFilter ? needs.filter(sh => sh.hit && chipsFor(sh, sh.hit).some(c => c.label === chipFilter)) : needs
+  const seeForRail = chipFilter ? seeAndDo.filter(sh => sh.hit && chipsFor(sh, sh.hit).some(c => c.label === chipFilter)) : seeAndDo
+  const needMarks = rulerMarks(needs.filter(sh => sh.hit).map(sh => ({ id: String(sh.hit!.id), km: sh.hit!.cumKm ?? null, purpose: sh.segment.purpose })), planKm)
+  const seeMarks = rulerMarks(seeAndDo.filter(sh => sh.hit).map(sh => ({ id: String(sh.hit!.id), km: sh.hit!.cumKm ?? null, purpose: sh.segment.purpose })), planKm)
+  const filterActive = chipFilter != null
   // Detour-budget enforcement (Horizon 3.2's "finite, honest menu"): the
   // see-&-do list is the endless one — need halts are finite by construction,
   // so the budget gates only sights. Per day: walk the journey-ordered sight
@@ -601,6 +650,63 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
   }, [pois, dismissedIds, addedIds, existingNames, anchors])
 
   /** One corridor-suggestion row (gap or hit). Shared by both split columns. */
+  // Group need halts by purpose, keeping engine order. The header label comes
+  // from the segment itself ("Fuel", "Lunch", ...) so no extra label map is
+  // needed and the copy stays in sync with the planner.
+  function groupByPurpose(list: SegmentHit[]): Array<[string, SegmentHit[]]> {
+    const groups: Array<[string, SegmentHit[]]> = []
+    for (const sh of list) {
+      const key = sh.segment.purpose
+      const found = groups.find(([k]) => k === key)
+      if (found) found[1].push(sh)
+      else groups.push([key, [sh]])
+    }
+    return groups.map(([key, items]) => [items[0]?.segment.label ?? key, items])
+  }
+
+  /** Closest alternatives for a halt: next 2 by road position plus detour. */
+  function alternativesFor(sh: SegmentHit, hit: PlaceHit): Array<{ h: PlaceHit; dKm: number | null }> {
+    // keep same family: need halts prefer same purpose, sights accept any sight
+    const family = NEED_PURPOSES.has(sh.segment.purpose)
+      ? [...(altPool.byPurpose.get(sh.segment.purpose) ?? []), ...(altPool.byCategory.get(hit.category ?? '') ?? [])]
+      : altPool.all
+    const seen = new Set<string>()
+    return family
+      .filter(e => {
+        const id = e.h.id as string
+        if (id === hit.id || seen.has(id)) return false
+        seen.add(id)
+        return true
+      })
+      .map(e => {
+        const pos = e.h.cumKm ?? sh.segment.targetKm
+        return { h: e.h, dKm: e.dKm, dist: Math.abs(pos - sh.segment.targetKm) + (e.dKm ?? 0) * 2 }
+      })
+      .sort((a, b) => a.dist - b.dist)
+      .slice(0, 2)
+      .map(e => ({ h: e.h, dKm: e.dKm ?? null }))
+  }
+
+  /** Reason chips for one suggestion, shared by the card and the rail filter. */
+  function chipsFor(sh: SegmentHit, hit: PlaceHit): RailChip[] {
+    const detourMin = asymmetricDetourMinutes(hit, anchors, routePolyline ?? null, MODE_SPEED[trip.transportMode] ?? 40)
+    const hitDay = trip.days.find(d => d.index === dayForKm(hit.cumKm))
+    const dayBudget = dayDetourBudgetMin({
+      travelStyle: trip.travelStyle,
+      plannedStops: (hitDay?.stops ?? []).filter(s => s.status !== 'rejected').length,
+    })
+    return railReasonChips({
+      purpose: sh.segment.purpose,
+      etaMinutes: sh.segment.etaMinutes ?? null,
+      minutesFromPrev: sh.segment.minutesFromPrev,
+      isFirstSegment: sh.segment.index === 0,
+      detourMinutes: detourMin,
+      budgetSharePct: detourMin > 0.5 ? budgetSharePct(detourMin, dayBudget) : null,
+      overBudget: detourMin > dayBudget,
+      rating: hit.rating,
+    })
+  }
+
   function renderPoi(sh: SegmentHit) {
     const hit = sh.hit
     // dismissed stays hidden for the session (logged as a DNA decline)
@@ -608,9 +714,22 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     if (!hit) {
       return (
         <div key={`gap-${sh.segment.index}`} className="poi-plan-row poi-plan-gap">
-          <span className={`ride-purpose ride-purpose-${sh.segment.purpose} ride-purpose-muted`}>{sh.segment.label}</span>
-          <span className="muted small">no good match around ~{sh.segment.targetKm.toFixed(0)} km — add a stop on the Timeline and it will pin itself here.</span>
-        </div>
+              <span className={`ride-purpose ride-purpose-${sh.segment.purpose} ride-purpose-muted`}>{sh.segment.label}</span>
+              <span className="muted small">No good match near ~{sh.segment.targetKm.toFixed(0)} km yet.</span>
+              {/* A gap has no place to add, so the action raises the corridor's
+                  detour scope - the honest lever the engine actually has. */}
+              <button
+                type="button"
+                className="poi-gap-add"
+                title="Raises the detour scope so more stops qualify. You can also add a stop on the Timeline and it will pin itself here."
+                onClick={() => {
+                  setScopeIdx(i => Math.min(i + 1, SCOPE_KM_STEPS.length - 1))
+                  toast('Widened the search - the corridor will re-plan')
+                }}
+              >
+                Widen search
+              </button>
+            </div>
       )
     }
     const added = addedIds.has(hit.id as string) || existingNames.has(hit.name.toLowerCase())
@@ -626,6 +745,11 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     // parses the localStorage log) — never rebuild it per row.
     const dnaNote = (nearbyOpts.dnaVector ? dnaNoteForHit(hit, nearbyOpts.dnaVector) : null)
       ?? crewNoteForHit(hit, crewSeeds)
+    const alts = alternativesFor(sh, hit)
+    // Structured reasons: every chip traces back to a number the engine already
+    // produced (clock, detour budget, hours, rating) - nothing is invented here.
+    const chips = chipsFor(sh, hit)
+    const shortlisted = shortlist.some(h => h.id === hit.id)
     // Over the day's detour budget: shown as a counted line, not an offer.
     if (budgetHeldIds.has(hit.id as string)) {
       return (
@@ -644,17 +768,54 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
         title="Show this stop on the map"
       >
         <div className="ride-spot-title">
-          <span className={`ride-purpose ride-purpose-${sh.segment.purpose}`}>{sh.segment.label}</span>
           {hit.thumb && <img className="poi-thumb" src={smallThumb(hit.thumb)} alt="" loading="lazy" />}
           <b>{hit.name}</b>
+          {NEED_PURPOSES.has(sh.segment.purpose) && !added && <span className="poi-best">Best fit</span>}
+          <button
+            type="button"
+            className={shortlisted ? 'poi-short is-on' : 'poi-short'}
+            aria-pressed={shortlisted}
+            title={shortlisted ? `Remove ${hit.name} from the shortlist` : `Shortlist ${hit.name} for the group`}
+            aria-label={shortlisted ? `Remove ${hit.name} from the shortlist` : `Shortlist ${hit.name} for the group`}
+            onClick={(e) => { e.stopPropagation(); toggleShortlist(hit) }}
+          >
+            {shortlisted ? <CircleCheck size={13} aria-hidden /> : <Plus size={13} aria-hidden />}
+          </button>
         </div>
-        <div className="poi-desc small muted">
-          ~{hit.cumKm ?? sh.segment.targetKm.toFixed(0)} km into the trip{sh.segment.purpose === 'sight' ? '' : ` · ≈${sh.segment.kmFromPrev.toFixed(0)} km / ${minutesToHM(sh.segment.minutesFromPrev)} since the last stop`}
-          {/* The planner is clock-first (PLAN-DAY-PLANNER §4) — show the wall
-              clock it derived the halt from, not just the km cadence. */}
+        {/* The planner is clock-first (PLAN-DAY-PLANNER section 4), so the strip
+            leads with the wall clock it derived the halt from, not just km. */}
+        <div className="poi-facts">
+          <span className="poi-fact">{hit.cumKm ?? sh.segment.targetKm.toFixed(0)} km in</span>
           {sh.segment.etaMinutes != null && (
-            <> · arrive ≈ <b>{formatHM(clockHM(sh.segment.etaMinutes), timeFormat)}</b>{sh.segment.purpose === 'overnight' ? ' — day ends here' : ''}</>
+            <span className="poi-fact"><i>·</i>arrive {formatHM(clockHM(sh.segment.etaMinutes), timeFormat)}</span>
           )}
+          {(hit.openTime || hit.closeTime) && (
+            <span className="poi-fact" title="Reported hours"><i>·</i>{formatHMRange(hit.openTime, hit.closeTime, timeFormat)}</span>
+          )}
+          {detourMin > 0.5 && (
+            <span className={'poi-fact' + (detourMin > dayBudget ? ' poi-fact--warn' : detourMin <= 10 ? ' poi-fact--fine' : '')}>
+              <i>·</i>{Math.round(detourMin)} min detour
+            </span>
+          )}
+          {sh.segment.purpose === 'overnight' && (
+            <span className="poi-fact"><i>·</i>day ends here</span>
+          )}
+          {/* Detour whisker: the route line with this halt's spur. The spur turns
+              amber when the detour is heavy, so cost is visible before the
+              number is read. */}
+          <svg className="poi-whisk" width={54} height={20} viewBox="0 0 54 20" aria-hidden>
+            <path className="poi-whisk-route" d="M1 14h52" />
+            <path
+              className={detourMin > dayBudget ? 'poi-whisk-spur poi-whisk-spur--heavy' : 'poi-whisk-spur'}
+              d={`M32 14 L45 ${detourMin > 20 ? 3 : 6}`}
+            />
+            <circle
+              className={detourMin > dayBudget ? 'poi-whisk-pin poi-whisk-pin--heavy' : 'poi-whisk-pin'}
+              cx={45}
+              cy={detourMin > 20 ? 3 : 6}
+              r={3}
+            />
+          </svg>
         </div>
         {/* Day Planner chips (P1-D/P1-F): which derived day the hit lands on,
             whether it sits past a night halt, and — on round trips — whether
@@ -668,62 +829,77 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
               </span>
             )}
             {tripIsRoundTrip && hit.cumKm != null && planKm > 0 && hit.cumKm > planKm * 0.75 && (
-              <span className="ride-day-chip">return leg — you pass here on the drive back</span>
+              <span className="ride-day-chip" title="You pass this point again on the drive back">return leg</span>
             )}
           </div>
         )}
-        <div className="poi-desc small">Why: {reasonForSegmentHit(sh, offRoute)}</div>
-        {sh.segment.roadWarning && (
-          <div className="poi-desc small">⚠ {sh.segment.roadWarning}</div>
-        )}
-        {detourMin > 0.5 && (
-          <div className="poi-desc small muted">
-            uses ~{budgetSharePct(detourMin, dayBudget)}% of today&apos;s detour budget
-            {detourMin > dayBudget ? ' — over budget, pick it only if it is worth it' : ''}
+        {/* Structured reasons first. The prose why only stands in when there are
+            none, and a learned DNA or crew note keeps its own labelled line. */}
+        {chips.length > 0 && (
+          <div className="poi-rchips">
+            {chips.map(c => (
+              <button
+                key={c.label}
+                type="button"
+                className={(c.tone === 'warn' ? 'poi-rchip poi-rchip--warn' : 'poi-rchip') + (chipFilter === c.label ? ' is-on' : '')}
+                aria-pressed={chipFilter === c.label}
+                title={chipFilter === c.label ? 'Stop filtering by this reason' : 'Show only suggestions with this reason'}
+                onClick={(e) => { e.stopPropagation(); setChipFilter(prev => (prev === c.label ? null : c.label)) }}
+              >
+                {c.icon === 'star' && <Star size={11} aria-hidden />}
+                {c.label}
+              </button>
+            ))}
           </div>
         )}
         {dnaNote && (
-          <div className="poi-desc small">♥ {dnaNote}</div>
+          <div className="poi-reason">
+            <span className="poi-reason-k">For you</span>
+            <span>{dnaNote}</span>
+          </div>
         )}
-        {/* Closest alternatives for this halt: next 2 by road position + detour */}
-        {(() => {
-          // keep same family: need halts prefer same purpose, sights accept any sight
-          const family = NEED_PURPOSES.has(sh.segment.purpose)
-            ? [...(altPool.byPurpose.get(sh.segment.purpose) ?? []), ...(altPool.byCategory.get(hit.category ?? '') ?? [])]
-            : altPool.all
-          const seen = new Set<string>()
-          const alts = family
-            .filter(e => {
-              const id = e.h.id as string
-              if (id === hit.id || seen.has(id)) return false
-              seen.add(id)
-              return true
-            })
-            .map(e => {
-              const pos = e.h.cumKm ?? sh.segment.targetKm
-              return { h: e.h, dKm: e.dKm, dist: Math.abs(pos - sh.segment.targetKm) + (e.dKm ?? 0) * 2 }
-            })
-            .sort((a, b) => a.dist - b.dist)
-            .slice(0, 2)
-          if (alts.length === 0) return null
-          return (
-            <div className="poi-desc small muted" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginTop: 4 }}>
-              <span>Also nearby:</span>
+        {!dnaNote && chips.length === 0 && (
+          <div className="poi-reason">
+            <span className="poi-reason-k">Why</span>
+            <span>{reasonForSegmentHit(sh, offRoute)}</span>
+          </div>
+        )}
+        {sh.segment.roadWarning && (
+          <div className="poi-desc small">⚠ {sh.segment.roadWarning}</div>
+        )}
+        {/* Closest alternatives: need halts show them as candidate rows under the
+            recommended pick; sights keep them folded behind an expander. */}
+        {alts.length > 0 && NEED_PURPOSES.has(sh.segment.purpose) && (
+          <div className="poi-cands">
+            {alts.map(({ h, dKm }) => (
+              <div key={h.id as string} className="poi-cand">
+                <b>{h.name}</b>
+                <span className="poi-cand-f">{dKm != null ? `${dKm.toFixed(1)} km off` : 'on route'}</span>
+                <button
+                  type="button"
+                  className={shortlist.some(s => s.id === h.id) ? 'poi-cand-add is-on' : 'poi-cand-add'}
+                  onClick={(e) => { e.stopPropagation(); toggleShortlist(h) }}
+                  aria-pressed={shortlist.some(s => s.id === h.id)}
+                  title={shortlist.some(s => s.id === h.id) ? `Remove ${h.name} from the shortlist` : `Shortlist ${h.name}`}
+                  aria-label={shortlist.some(s => s.id === h.id) ? `Remove ${h.name} from the shortlist` : `Shortlist ${h.name}`}
+                >{shortlist.some(s => s.id === h.id) ? <CircleCheck size={12} aria-hidden /> : <Plus size={12} aria-hidden />}</button>
+              </div>
+            ))}
+          </div>
+        )}
+        {alts.length > 0 && !NEED_PURPOSES.has(sh.segment.purpose) && (
+          <details className="poi-alts">
+            <summary onClick={(e) => e.stopPropagation()}><ChevronDown className="poi-chev" size={12} aria-hidden />{alts.length} alternative{alts.length === 1 ? '' : 's'}</summary>
+            <div className="poi-alt-list">
               {alts.map(({ h, dKm }) => (
-                <span key={h.id as string} style={{ display: 'inline-flex', gap: 4, alignItems: 'center' }}>
-                  <button className="chip chip-sm" onClick={() => openAddModal(h)} title={h.name} style={{ maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {h.name}{dKm != null ? ` · ${dKm.toFixed(1)} km off` : ''}
-                  </button>
-                </span>
+                <button key={h.id as string} className="chip chip-sm" onClick={(e) => { e.stopPropagation(); openAddModal(h) }} title={h.name}>
+                  {h.name}{dKm != null ? ` · ${dKm.toFixed(1)} km off` : ''}
+                </button>
               ))}
             </div>
-          )
-        })()}
-        {hit.description && <div className="poi-desc small muted">{hit.description}</div>}
-        {(hit.openTime || hit.closeTime) && (
-          <div className="poi-desc small muted"><MetaIcon icon={ Clock } tone="time" />{formatHMRange(hit.openTime, hit.closeTime, timeFormat)} (reported)</div>
+          </details>
         )}
-        <div>
+        <div className="poi-actions">
           {editable && (
             added
               ? <span className="chip chip-teal"><CircleCheck size={11} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />Added</span>
@@ -913,20 +1089,52 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
           )
         )}
       </div>
-      <div className="map-ideas-grid" ref={listRef}>
+      {filterActive && (
+        <div className="poi-filterbar" role="status">
+          <span>Showing only suggestions that are {chipFilter}</span>
+          <button type="button" onClick={() => setChipFilter(null)}>Clear filter</button>
+        </div>
+      )}
+      <div className={'map-ideas-grid' + (folded.needs ? ' is-needs-folded' : '') + (folded.see ? ' is-see-folded' : '')} ref={listRef}>
         <EngineTips />
         <div className="poi-col poi-col--needs">
             <div className="poi-col-head">
               <span className="poi-col-head-ico"><Fuel size={13} aria-hidden /></span>
               <div>
                 <b>Need-based halts</b>
-                <span className="small muted">fuel · food · rest · stretch · overnight</span>
+                <span className="small muted">{needs.length === 0 ? 'fuel · food · rest · stretch · overnight' : `${needs.length} halts on this corridor`}</span>
               </div>
+              <span className="poi-col-count">{needsForRail.length}</span>
+              <button
+                type="button"
+                className="poi-fold"
+                aria-expanded={!folded.needs}
+                title={folded.needs ? 'Expand this panel' : 'Collapse this panel to give the map more room'}
+                onClick={() => setFolded(f => ({ ...f, needs: !f.needs }))}
+              >
+                <ChevronDown size={13} aria-hidden />
+              </button>
+            </div>
+            <div className="poi-ruler" aria-hidden>
+              <span className="poi-ruler-axis" />
+              {needMarks.map(m => (
+                <span key={m.id} className={`poi-ruler-dot poi-ruler-dot--${m.tone}`} style={{ left: `${m.pct}%` }} />
+              ))}
+              <span className="poi-ruler-km">{Math.round(planKm)} km</span>
             </div>
             <div className="poi-plan-list">
-              {needs.length === 0
+              {needsForRail.length === 0
                 ? <p className="muted small">No need-based halts surfaced yet — they appear as you add driving days.</p>
-                : needs.map(renderPoi)}
+                : groupByPurpose(needsForRail).map(([label, items]) => (
+                    <div key={label}>
+                      <div className="poi-grp">
+                        <span className="poi-grp-k">{label}</span>
+                        <span className="poi-grp-n">{items.length}</span>
+                        <span className="poi-grp-ln" />
+                      </div>
+                      {items.map(renderPoi)}
+                    </div>
+                  ))}
             </div>
           </div>
           <div className="map-ideas-map">
@@ -946,10 +1154,34 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
               <span className="poi-col-head-ico"><MapPin size={13} aria-hidden /></span>
               <div>
                 <b>See &amp; do</b>
-                <span className="small muted">sightseeing · detours · scenic stops</span>
+                <span className="small muted">{arcs.slice(0, 2).length + seeAndDo.length === 0 ? 'sightseeing · detours · scenic stops' : `${arcs.slice(0, 2).length} arcs · ${seeAndDo.length} picks on this corridor`}</span>
               </div>
+              <span className="poi-col-count">{filterActive ? seeForRail.length : arcs.slice(0, 2).length + seeAndDo.length}</span>
+              <button
+                type="button"
+                className="poi-fold"
+                aria-expanded={!folded.see}
+                title={folded.see ? 'Expand this panel' : 'Collapse this panel to give the map more room'}
+                onClick={() => setFolded(f => ({ ...f, see: !f.see }))}
+              >
+                <ChevronDown size={13} aria-hidden />
+              </button>
+            </div>
+            <div className="poi-ruler" aria-hidden>
+              <span className="poi-ruler-axis" />
+              {seeMarks.map(m => (
+                <span key={m.id} className={`poi-ruler-dot poi-ruler-dot--${m.tone}`} style={{ left: `${m.pct}%` }} />
+              ))}
+              <span className="poi-ruler-km">{Math.round(planKm)} km</span>
             </div>
             <div className="poi-plan-list">
+              {!filterActive && arcs.slice(0, 2).length > 0 && (
+                <div className="poi-grp">
+                  <span className="poi-grp-k">Route arcs</span>
+                  <span className="poi-grp-n">{arcs.slice(0, 2).length}</span>
+                  <span className="poi-grp-ln" />
+                </div>
+              )}
               {arcs.slice(0, 2).map(arc => (
                 <div key={arc.theme} className="poi-plan-row poi-plan-arc">
                   <div className="ride-spot-title">
@@ -1036,15 +1268,42 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
               {quotaOut && (
                 <p className="hint-text" role="status">⚠ Google search quota reached for this month — corridor suggestions are paused until the counter rolls over. Removing the key from settings serves the free stack instead.</p>
               )}
-              {seeAndDo.length === 0
+              {seeForRail.length === 0
                 ? <p className="muted small">Sightseeing &amp; detour stops will appear here along the corridor.</p>
-                : seeAndDo.map(renderPoi)}
+                : (
+                    <>
+                      <div className="poi-grp">
+                        <span className="poi-grp-k">Individual picks</span>
+                        <span className="poi-grp-n">{seeForRail.length}</span>
+                        <span className="poi-grp-ln" />
+                      </div>
+                      {seeForRail.slice(0, SEE_VISIBLE).map(renderPoi)}
+                      {seeForRail.length > SEE_VISIBLE && (
+                        <details className="poi-more">
+                          <summary><ChevronDown className="poi-chev" size={12} aria-hidden />{seeForRail.length - SEE_VISIBLE} more picks</summary>
+                          <div className="poi-more-list">{seeForRail.slice(SEE_VISIBLE).map(renderPoi)}</div>
+                        </details>
+                      )}
+                    </>
+                  )}
               {budgetHeldCount > 0 && (
                 <p className="hint-text">{budgetHeldCount} idea{budgetHeldCount === 1 ? '' : 's'} held back — beyond the day&apos;s detour budget. Add fewer stops, or raise the scope, and the engine will offer them again.</p>
               )}
             </div>
           </div>
       </div>
+      {/* Shortlist tray: the rail collects, the tray decides. Sticky so it stays
+          reachable while the rails scroll. */}
+      {shortlist.length > 0 && (
+        <div className="poi-tray" role="region" aria-label="Shortlisted stops">
+          <span className="poi-tray-n">{shortlist.length} shortlisted</span>
+          <span className="poi-tray-actions">
+            <button className="btn btn-primary btn-sm" type="button" onClick={addShortlisted}>Add all</button>
+            <button className="btn btn-ghost btn-sm" type="button" onClick={raiseShortlistVote}>Send to a vote</button>
+            <button className="btn btn-ghost btn-sm" type="button" onClick={() => setShortlist([])}>Clear</button>
+          </span>
+        </div>
+      )}
       {/* pick-a-day modal for adding a suggested POI — explicit confirm */}
       <Modal open={!!poiDraft} onClose={() => setPoiDraft(null)} title={`Add “${poiDraft?.hit.name ?? ''}”`}>
         {poiDraft && (

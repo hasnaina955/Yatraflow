@@ -761,7 +761,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
             aria-pressed={shortlisted}
             title={shortlisted ? `Remove ${hit.name} from the shortlist` : `Shortlist ${hit.name} for the group`}
             aria-label={shortlisted ? `Remove ${hit.name} from the shortlist` : `Shortlist ${hit.name} for the group`}
-            onClick={() => toggleShortlist(hit)}
+            onClick={(e) => { e.stopPropagation(); toggleShortlist(hit) }}
           >
             {shortlisted ? <CircleCheck size={13} aria-hidden /> : <Plus size={13} aria-hidden />}
           </button>
@@ -828,7 +828,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
                 className={(c.tone === 'warn' ? 'poi-rchip poi-rchip--warn' : 'poi-rchip') + (chipFilter === c.label ? ' is-on' : '')}
                 aria-pressed={chipFilter === c.label}
                 title={chipFilter === c.label ? 'Stop filtering by this reason' : 'Show only suggestions with this reason'}
-                onClick={() => setChipFilter(prev => (prev === c.label ? null : c.label))}
+                onClick={(e) => { e.stopPropagation(); setChipFilter(prev => (prev === c.label ? null : c.label)) }}
               >
                 {c.icon === 'star' && <Star size={11} aria-hidden />}
                 {c.label}
@@ -862,7 +862,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
                 <button
                   type="button"
                   className={shortlist.some(s => s.id === h.id) ? 'poi-cand-add is-on' : 'poi-cand-add'}
-                  onClick={() => toggleShortlist(h)}
+                  onClick={(e) => { e.stopPropagation(); toggleShortlist(h) }}
                   aria-pressed={shortlist.some(s => s.id === h.id)}
                   title={shortlist.some(s => s.id === h.id) ? `Remove ${h.name} from the shortlist` : `Shortlist ${h.name}`}
                   aria-label={shortlist.some(s => s.id === h.id) ? `Remove ${h.name} from the shortlist` : `Shortlist ${h.name}`}
@@ -873,10 +873,10 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
         )}
         {alts.length > 0 && !NEED_PURPOSES.has(sh.segment.purpose) && (
           <details className="poi-alts">
-            <summary><ChevronDown className="poi-chev" size={12} aria-hidden />{alts.length} alternative{alts.length === 1 ? '' : 's'}</summary>
+            <summary onClick={(e) => e.stopPropagation()}><ChevronDown className="poi-chev" size={12} aria-hidden />{alts.length} alternative{alts.length === 1 ? '' : 's'}</summary>
             <div className="poi-alt-list">
               {alts.map(({ h, dKm }) => (
-                <button key={h.id as string} className="chip chip-sm" onClick={() => openAddModal(h)} title={h.name}>
+                <button key={h.id as string} className="chip chip-sm" onClick={(e) => { e.stopPropagation(); openAddModal(h) }} title={h.name}>
                   {h.name}{dKm != null ? ` · ${dKm.toFixed(1)} km off` : ''}
                 </button>
               ))}

@@ -15,6 +15,46 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ## [Unreleased]
 
+### Fixed — day-planner bug-hunt batch (issues #118–#140)
+- **One clock story for the split banner** (#123): the banner count comes from
+  the clock walk that knows the real start time, not the start-time-blind
+  estimator — a 14:00 start shows "3 travel days" once, never 2-vs-3. Applying
+  the split stamps real day shells (title + 08:30 start, endDate extended,
+  #133) and dismisses the banner so it never re-fires on its own mutation.
+- **The route arms overnights, never the planned day count** (#121): a 700 km
+  1-day plan gets its night-halt math; a 3-day 200 km trip gets none.
+- **Corridor search fires on value changes, not object identity** (#135):
+  verdict memos key on stable stop/day-start signatures, so typing a trip
+  name no longer re-runs the OSRM + suggestion pipeline behind a comment
+  that claimed "one extra free call per route".
+- **The clock walk takes per-day rain** (#127): a wet day 1 shrinks day 1's
+  budget without shrinking day 3's.
+- **Fraction rows serve travellers, not errands** (#128): ¼/½/¾ picks filter
+  to sights/food (a petrol pump no longer wins "½ of the drive"), each place
+  wins at most one quarter, and the empty copy says honestly whether the
+  scope or the corridor came up empty. Round-trip "return leg" chips only
+  claim the far quarter (past 75%) until the two-walk design lands.
+- **Timeline day headers share the planner's DRIVE floor** (#134): 90 km OR
+  2 h of wheel time — an 80 km / 3 h ghat crawl is a Drive day on both sides.
+- **Corrupt `startTime` can't silently become midnight** (#136) and the
+  `hmToMinutes` clamps out-of-range input.
+- **Night halts respect the day-end cap** (#140): non-final halts clamp
+  within the honest ENDNO budget; **the final day keeps its arrival honest**
+  (#138) — `lateArrival` flags past-23:00 arrivals in the clock walk.
+- **Segment ETAs carry dwell time** (#129) and a meal can't sit inside the
+  absorb radius of the overnight halt it feeds (#131).
+- **Select's keyboard scroll honours reduced motion** (#118) via the shared
+  `scrollBehavior()`; same fix on the map panel's row scroll.
+- **Haptics DEV logs tell the truth** (#119): logged only where a backend
+  exists, native-plugin failures surface in DEV instead of swallowing, and
+  vibrate-less browsers (iOS Safari) stay silent.
+- **Docs stop claiming lodging-anchored halts ship** (#139): USER_GUIDE /
+  ARCHITECTURE / PLAN-DAY-PLANNER mark P1-C halt placement open.
+- Shared sources landed underneath: one lunch window `11:30–14:30` (#130),
+  one stay-rate table (`src/lib/rates.ts`, #125b), one lodging de-dupe key
+  (#125a), tolerant style/rain parsing (#132), and the ride-plan's honest
+  drive-day floor `isDriveDay` (#134).
+
 ### Added — the travel clock drawn on the map (branch `feat/clock-map-zones`)
 - **Meal-window circles on the route.** 🍽 lunch, 🥐 breakfast and 🍷 dinner
   become soft map circles whose **radius is honest**: half the road the car

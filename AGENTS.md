@@ -132,8 +132,14 @@ Key locations:
    serves *this* working tree before linking (fetch
    `http://localhost:5173/src/styles.css` and grep for a token/marker that
    only exists in the current branch's changes — a stale server from another
-   branch will otherwise silently show old UI). Then give deep links per
-   screen (e.g. `http://localhost:5173/#/` for Landing,
+   branch will otherwise silently show old UI). "Up" is not "current": a
+   long-running dev server's file-watcher can die during branch churn and
+   keep serving a dead module graph with HTTP 200 (happened on the 5176
+   server, Sep 14 2026 — hot reload silently stopped mid-session). If the
+   marker greps come back empty on a *responding* port, kill the PID
+   (`netstat -ano | grep :PORT` → `Stop-Process -Id <pid> -Force`) and start
+   fresh, then re-grep the markers before handing over the URL. Then give
+   deep links per screen (e.g. `http://localhost:5173/#/` for Landing,
    `http://localhost:5173/#/trips` for My Trips) and say what to check
    (themes, mobile width, specific interactions).
 8. **Build locally first; confirm the target branch before every push.** A feature

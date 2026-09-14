@@ -15,8 +15,6 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ## [Unreleased]
 
-<<<<<<< HEAD
-=======
 ### Fixed — day-planner bug-hunt batch (issues #118–#140)
 - **One clock story for the split banner** (#123): the banner count comes from
   the clock walk that knows the real start time, not the start-time-blind

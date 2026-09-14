@@ -601,6 +601,20 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
   }, [pois, dismissedIds, addedIds, existingNames, anchors])
 
   /** One corridor-suggestion row (gap or hit). Shared by both split columns. */
+  // Group need halts by purpose, keeping engine order. The header label comes
+  // from the segment itself ("Fuel", "Lunch", ...) so no extra label map is
+  // needed and the copy stays in sync with the planner.
+  function groupByPurpose(list: SegmentHit[]): Array<[string, SegmentHit[]]> {
+    const groups: Array<[string, SegmentHit[]]> = []
+    for (const sh of list) {
+      const key = sh.segment.purpose
+      const found = groups.find(([k]) => k === key)
+      if (found) found[1].push(sh)
+      else groups.push([key, [sh]])
+    }
+    return groups.map(([key, items]) => [items[0]?.segment.label ?? key, items])
+  }
+
   function renderPoi(sh: SegmentHit) {
     const hit = sh.hit
     // dismissed stays hidden for the session (logged as a DNA decline)
@@ -644,17 +658,19 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
         title="Show this stop on the map"
       >
         <div className="ride-spot-title">
-          <span className={`ride-purpose ride-purpose-${sh.segment.purpose}`}>{sh.segment.label}</span>
           {hit.thumb && <img className="poi-thumb" src={smallThumb(hit.thumb)} alt="" loading="lazy" />}
           <b>{hit.name}</b>
         </div>
-        <div className="poi-desc small muted">
-          ~{hit.cumKm ?? sh.segment.targetKm.toFixed(0)} km into the trip{sh.segment.purpose === 'sight' ? '' : ` · ≈${sh.segment.kmFromPrev.toFixed(0)} km / ${minutesToHM(sh.segment.minutesFromPrev)} since the last stop`}
-          {/* The planner is clock-first (PLAN-DAY-PLANNER §4) — show the wall
-              clock it derived the halt from, not just the km cadence. */}
-          {sh.segment.etaMinutes != null && (
-            <> · arrive ≈ <b>{formatHM(clockHM(sh.segment.etaMinutes), timeFormat)}</b>{sh.segment.purpose === 'overnight' ? ' — day ends here' : ''}</>
+        {/* The planner is clock-first (PLAN-DAY-PLANNER section 4), so the strip
+            leads with the wall clock it derived the halt from, not just km. */}
+        <div className="poi-facts">
+          <span>{hit.cumKm ?? sh.segment.targetKm.toFixed(0)} km in</span>
+          {sh.segment.etaMinutes != null && (<><i>·</i><span>arrive {formatHM(clockHM(sh.segment.etaMinutes), timeFormat)}</span></>)}
+          {(hit.openTime || hit.closeTime) && (<><i>·</i><span title="Reported hours">{formatHMRange(hit.openTime, hit.closeTime, timeFormat)}</span></>)}
+          {detourMin > 0.5 && (
+            <><i>·</i><span className={detourMin > dayBudget ? 'poi-fact--warn' : detourMin <= 10 ? 'poi-fact--fine' : ''}>{Math.round(detourMin)} min detour</span></>
           )}
+          {sh.segment.purpose === 'overnight' && (<><i>·</i><span>day ends here</span></>)}
         </div>
         {/* Day Planner chips (P1-D/P1-F): which derived day the hit lands on,
             whether it sits past a night halt, and — on round trips — whether
@@ -672,20 +688,17 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
             )}
           </div>
         )}
-        <div className="poi-desc small">Why: {reasonForSegmentHit(sh, offRoute)}</div>
+        {/* One reason line: a learned DNA or crew note outranks the generic
+            why, and keeps its own label so the personal signal stays visible. */}
+        <div className="poi-reason">
+          <span className="poi-reason-k">{dnaNote ? 'For you' : 'Why'}</span>
+          <span>{dnaNote ?? reasonForSegmentHit(sh, offRoute)}</span>
+        </div>
         {sh.segment.roadWarning && (
           <div className="poi-desc small">⚠ {sh.segment.roadWarning}</div>
         )}
-        {detourMin > 0.5 && (
-          <div className="poi-desc small muted">
-            uses ~{budgetSharePct(detourMin, dayBudget)}% of today&apos;s detour budget
-            {detourMin > dayBudget ? ' — over budget, pick it only if it is worth it' : ''}
-          </div>
-        )}
-        {dnaNote && (
-          <div className="poi-desc small">♥ {dnaNote}</div>
-        )}
-        {/* Closest alternatives for this halt: next 2 by road position + detour */}
+        {/* Closest alternatives for this halt: next 2 by road position + detour,
+            folded behind an expander so the card stays a three-line scan. */}
         {(() => {
           // keep same family: need halts prefer same purpose, sights accept any sight
           const family = NEED_PURPOSES.has(sh.segment.purpose)
@@ -707,23 +720,18 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
             .slice(0, 2)
           if (alts.length === 0) return null
           return (
-            <div className="poi-desc small muted" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginTop: 4 }}>
-              <span>Also nearby:</span>
-              {alts.map(({ h, dKm }) => (
-                <span key={h.id as string} style={{ display: 'inline-flex', gap: 4, alignItems: 'center' }}>
-                  <button className="chip chip-sm" onClick={() => openAddModal(h)} title={h.name} style={{ maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <details className="poi-alts">
+              <summary>{alts.length} alternative{alts.length === 1 ? '' : 's'}</summary>
+              <div className="poi-alt-list">
+                {alts.map(({ h, dKm }) => (
+                  <button key={h.id as string} className="chip chip-sm" onClick={() => openAddModal(h)} title={h.name}>
                     {h.name}{dKm != null ? ` · ${dKm.toFixed(1)} km off` : ''}
                   </button>
-                </span>
-              ))}
-            </div>
+                ))}
+              </div>
+            </details>
           )
-        })()}
-        {hit.description && <div className="poi-desc small muted">{hit.description}</div>}
-        {(hit.openTime || hit.closeTime) && (
-          <div className="poi-desc small muted"><MetaIcon icon={ Clock } tone="time" />{formatHMRange(hit.openTime, hit.closeTime, timeFormat)} (reported)</div>
-        )}
-        <div>
+        })()}        <div className="poi-actions">
           {editable && (
             added
               ? <span className="chip chip-teal"><CircleCheck size={11} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />Added</span>
@@ -920,13 +928,23 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
               <span className="poi-col-head-ico"><Fuel size={13} aria-hidden /></span>
               <div>
                 <b>Need-based halts</b>
-                <span className="small muted">fuel · food · rest · stretch · overnight</span>
+                <span className="small muted">{needs.length === 0 ? 'fuel · food · rest · stretch · overnight' : `${needs.length} halts on this corridor`}</span>
               </div>
+              <span className="poi-col-count">{needs.length}</span>
             </div>
             <div className="poi-plan-list">
               {needs.length === 0
                 ? <p className="muted small">No need-based halts surfaced yet — they appear as you add driving days.</p>
-                : needs.map(renderPoi)}
+                : groupByPurpose(needs).map(([label, items]) => (
+                    <div key={label}>
+                      <div className="poi-grp">
+                        <span className="poi-grp-k">{label}</span>
+                        <span className="poi-grp-n">{items.length}</span>
+                        <span className="poi-grp-ln" />
+                      </div>
+                      {items.map(renderPoi)}
+                    </div>
+                  ))}
             </div>
           </div>
           <div className="map-ideas-map">
@@ -946,10 +964,18 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
               <span className="poi-col-head-ico"><MapPin size={13} aria-hidden /></span>
               <div>
                 <b>See &amp; do</b>
-                <span className="small muted">sightseeing · detours · scenic stops</span>
+                <span className="small muted">{arcs.slice(0, 2).length + seeAndDo.length === 0 ? 'sightseeing · detours · scenic stops' : `${arcs.slice(0, 2).length} arcs · ${seeAndDo.length} picks on this corridor`}</span>
               </div>
+              <span className="poi-col-count">{arcs.slice(0, 2).length + seeAndDo.length}</span>
             </div>
             <div className="poi-plan-list">
+              {arcs.slice(0, 2).length > 0 && (
+                <div className="poi-grp">
+                  <span className="poi-grp-k">Route arcs</span>
+                  <span className="poi-grp-n">{arcs.slice(0, 2).length}</span>
+                  <span className="poi-grp-ln" />
+                </div>
+              )}
               {arcs.slice(0, 2).map(arc => (
                 <div key={arc.theme} className="poi-plan-row poi-plan-arc">
                   <div className="ride-spot-title">
@@ -1038,7 +1064,16 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
               )}
               {seeAndDo.length === 0
                 ? <p className="muted small">Sightseeing &amp; detour stops will appear here along the corridor.</p>
-                : seeAndDo.map(renderPoi)}
+                : (
+                    <>
+                      <div className="poi-grp">
+                        <span className="poi-grp-k">Individual picks</span>
+                        <span className="poi-grp-n">{seeAndDo.length}</span>
+                        <span className="poi-grp-ln" />
+                      </div>
+                      {seeAndDo.map(renderPoi)}
+                    </>
+                  )}
               {budgetHeldCount > 0 && (
                 <p className="hint-text">{budgetHeldCount} idea{budgetHeldCount === 1 ? '' : 's'} held back — beyond the day&apos;s detour budget. Add fewer stops, or raise the scope, and the engine will offer them again.</p>
               )}

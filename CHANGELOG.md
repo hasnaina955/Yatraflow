@@ -15,6 +15,23 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ## [Unreleased]
 
+### Changed
+- **Trip settings opens with two bars, not one.** Budget preference (Budget / Comfort /
+  Luxury) and Travel style used to share a single block with the style bar on top and
+  the price bar tucked underneath it, so the second read as a sub-option of the first.
+  Each is now its own bar, at the top of Trip settings and of Create Trip, in that
+  order: Budget preference answers what the bed costs, Travel style answers how the trip
+  moves and what it suggests. Neither touches the other.
+
+### Fixed
+- **The budget tier reverted on every reload.** The dial shipped in `deecbcc` with no
+  column and no row mapping, so the tier a traveller picked was session-only and
+  silently fell back to the legacy-derived value. It is persisted now
+  (`20260914_trip_stay_budget.sql`).
+- **Create Trip's bill priced the bed from the travel style.** `estimateTripStarter`
+  took a `travelStyle` and derived the tier from it, so the bill and the settings page
+  could disagree about the same room. The bill takes the budget dial.
+
 ### Added — Day Planner (travel clock)
 - **The fatigue cadence is hours, not km.** Stretch breaks fire at `STRETCH_CLOCK_MIN`
   (120 min) of wheel time — 150 km was ≈2 h at highway speed but 3.6 h at the engine's own

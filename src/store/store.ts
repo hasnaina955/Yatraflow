@@ -865,6 +865,9 @@ export interface NewTripInput {
   /** true when the self-drive route also drives back to its start (default for car/motorcycle) */
   roundTrip?: boolean;
   travelStyle: Trip['travelStyle'];
+  /** Stay budget tier — the separate pricing dial. Set at create time from the
+   *  Budget preference bar, so a new trip never depends on the legacy style. */
+  stayStyle?: Trip['stayStyle'];
   fixedCommitments: Omit<FixedCommitment, 'id'>[];
   coverEmoji?: string;
   /** optional owner-chosen cover image URL; when set it is the trip's canonical cover */
@@ -989,19 +992,20 @@ let optionalColumnsProbe: Promise<OptionalColumnsProbe> | null = null
 let optionalColumnsWarned = false
 
 function tripsHaveOptionalColumns(): Promise<OptionalColumnsProbe> {
-  if (!isSupabaseConfigured) return Promise.resolve({ economy: false, price: false, roundTrip: false, cover: false, inviteCode: false, deleted: false })
+  if (!isSupabaseConfigured) return Promise.resolve({ economy: false, price: false, roundTrip: false, cover: false, inviteCode: false, deleted: false, stayStyle: false })
   if (!optionalColumnsProbe) optionalColumnsProbe = probeOptionalColumns()
   return optionalColumnsProbe
 }
 
 async function probeOptionalColumns(): Promise<OptionalColumnsProbe> {
-  const [economy, price, roundTrip, cover, inviteCode, deleted] = await Promise.all([
+  const [economy, price, roundTrip, cover, inviteCode, deleted, stayStyle] = await Promise.all([
     probeOptionalColumn('fuel_economy_km_per_l'),
     probeOptionalColumn('fuel_price_per_l'),
     probeOptionalColumn('round_trip'),
     probeOptionalColumn('cover_image_url'),
     probeOptionalColumn('invite_code'),
     probeOptionalColumn('deleted_at'),
+    probeOptionalColumn('stay_style'),
   ])
   if (!economy || !price || !roundTrip) {
     if (!optionalColumnsWarned) {
@@ -1009,7 +1013,7 @@ async function probeOptionalColumns(): Promise<OptionalColumnsProbe> {
       optionalColumnsWarned = true
     }
   }
-  return { economy, price, roundTrip, cover, inviteCode, deleted }
+  return { economy, price, roundTrip, cover, inviteCode, deleted, stayStyle }
 }
 
 /** Probe one optional column. True = present (or transient error, treated optimistically). */

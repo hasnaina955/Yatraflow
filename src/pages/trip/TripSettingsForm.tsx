@@ -85,9 +85,29 @@ export function TripSettingsForm({ trip, editable }: { trip: Trip; editable: boo
 
   return (
     <div className="ts-form">
-      {/* Travel style — the trip navbar's exact look, at the top of the form and
-          full width so all ten styles sit in one row like the workspace tab bar:
-          same .tabbar glass bar, same .tab-btn pills, same sliding glider. */}
+      {/* Two dials, two bars. These used to share one block with the style bar on
+          top and the price bar tucked underneath it, so the second read as a
+          sub-option of the first. Budget preference asks what the bed costs;
+          Travel style asks how the trip moves and what it suggests. Neither
+          touches the other, and the bars now say so. */}
+      <div className="bench-block">
+        <span className="bench-eyebrow">Budget preference</span>
+        <PillNav className="tabbar" role="group" aria-label="Budget preference" activeKey={f.stayStyle}>
+          {(['budget', 'comfort', 'luxury'] as const).map(s => (
+            <button key={s} type="button" data-pill-key={s} disabled={!editable}
+              aria-pressed={f.stayStyle === s}
+              className={`tab-btn${f.stayStyle === s ? ' active' : ''}`}
+              onClick={() => setF(x => ({ ...x, stayStyle: s }))}>
+              {cap(s)}
+            </button>
+          ))}
+        </PillNav>
+        <p className="bench-hint">Prices the bed: ₹1,200 / ₹3,200 / ₹8,000 per room per night (2 guests per room). Shows up honestly on the Budget tab when you have hotel stops.</p>
+      </div>
+
+      {/* Travel style — the trip navbar's exact look, full width so all ten
+          styles sit in one row like the workspace tab bar: same .tabbar glass
+          bar, same .tab-btn pills, same sliding glider. */}
       <div className="bench-block">
         <span className="bench-eyebrow">Travel style</span>
         <PillNav className="tabbar" role="group" aria-label="Travel style" activeKey={f.travelStyle}>
@@ -101,20 +121,6 @@ export function TripSettingsForm({ trip, editable }: { trip: Trip; editable: boo
           ))}
         </PillNav>
         <p className="bench-hint">Tunes stop frequency and the kind of places suggested — relaxed stops sooner, packed pushes further. It never touches pricing.</p>
-        {/* Stay budget — the SEPARATE pricing dial (style ≠ budget): the bed is
-            priced by this, not by the travel style. Legacy trips derive it. */}
-        <span className="bench-eyebrow" style={{ display: 'block', marginTop: 14 }}>Stay budget</span>
-        <PillNav className="tabbar" role="group" aria-label="Stay budget" activeKey={f.stayStyle}>
-          {(['budget', 'comfort', 'luxury'] as const).map(s => (
-            <button key={s} type="button" data-pill-key={s} disabled={!editable}
-              aria-pressed={f.stayStyle === s}
-              className={`tab-btn${f.stayStyle === s ? ' active' : ''}`}
-              onClick={() => setF(x => ({ ...x, stayStyle: s }))}>
-              {cap(s)}
-            </button>
-          ))}
-        </PillNav>
-        <p className="bench-hint">Prices the bed: ₹1,200 / ₹3,200 / ₹8,000 per room per night (2 guests per room). Shows up honestly on the Budget tab when you have hotel stops.</p>
       </div>
       <div className="ts-layout">
         <div className="ts-controls">

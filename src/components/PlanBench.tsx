@@ -298,7 +298,11 @@ export function PlanBench() {
   function handleCta() {
     haptic(HAPTIC.select)
     stashBenchPrefill(bill, input)
-    window.location.hash = '#/create'
+    // '#/new' is the Create Trip route (App.tsx `case 'new'`). This used to
+    // point at '#/create', which no route handles — the router's `default:`
+    // sent the visitor back to the landing page, so the CTA looked inert and
+    // the stashed prefill was never read.
+    window.location.hash = '#/new'
   }
 
   // Pointer-follow tilt — desktop pointers only, never reduced-motion.

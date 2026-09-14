@@ -1,7 +1,7 @@
 // ============ Trip workspace — Map tab ============
 // Mechanical extraction from src/pages/TripWorkspace.tsx (M3.4) — no behavior changes.
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { CircleCheck, Clock, ExternalLink, Fuel, Lightbulb, MapPin, RotateCcw, Sparkles, Star } from 'lucide-react'
+import { ChevronDown, CircleCheck, Clock, ExternalLink, Fuel, Lightbulb, MapPin, Plus, RotateCcw, Sparkles, Star } from 'lucide-react'
 import { MetaIcon } from '../../components/icons'
 import { uid } from '../../data/seed'
 import type { Trip, ItineraryStop } from '../../data/types'
@@ -705,13 +705,21 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
         {/* The planner is clock-first (PLAN-DAY-PLANNER section 4), so the strip
             leads with the wall clock it derived the halt from, not just km. */}
         <div className="poi-facts">
-          <span>{hit.cumKm ?? sh.segment.targetKm.toFixed(0)} km in</span>
-          {sh.segment.etaMinutes != null && (<><i>·</i><span>arrive {formatHM(clockHM(sh.segment.etaMinutes), timeFormat)}</span></>)}
-          {(hit.openTime || hit.closeTime) && (<><i>·</i><span title="Reported hours">{formatHMRange(hit.openTime, hit.closeTime, timeFormat)}</span></>)}
-          {detourMin > 0.5 && (
-            <><i>·</i><span className={detourMin > dayBudget ? 'poi-fact--warn' : detourMin <= 10 ? 'poi-fact--fine' : ''}>{Math.round(detourMin)} min detour</span></>
+          <span className="poi-fact">{hit.cumKm ?? sh.segment.targetKm.toFixed(0)} km in</span>
+          {sh.segment.etaMinutes != null && (
+            <span className="poi-fact"><i>·</i>arrive {formatHM(clockHM(sh.segment.etaMinutes), timeFormat)}</span>
           )}
-          {sh.segment.purpose === 'overnight' && (<><i>·</i><span>day ends here</span></>)}
+          {(hit.openTime || hit.closeTime) && (
+            <span className="poi-fact" title="Reported hours"><i>·</i>{formatHMRange(hit.openTime, hit.closeTime, timeFormat)}</span>
+          )}
+          {detourMin > 0.5 && (
+            <span className={'poi-fact' + (detourMin > dayBudget ? ' poi-fact--warn' : detourMin <= 10 ? ' poi-fact--fine' : '')}>
+              <i>·</i>{Math.round(detourMin)} min detour
+            </span>
+          )}
+          {sh.segment.purpose === 'overnight' && (
+            <span className="poi-fact"><i>·</i>day ends here</span>
+          )}
         </div>
         {/* Day Planner chips (P1-D/P1-F): which derived day the hit lands on,
             whether it sits past a night halt, and — on round trips — whether
@@ -764,14 +772,14 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
               <div key={h.id as string} className="poi-cand">
                 <b>{h.name}</b>
                 <span className="poi-cand-f">{dKm != null ? `${dKm.toFixed(1)} km off` : 'on route'}</span>
-                <button className="poi-cand-add" onClick={() => openAddModal(h)} title={`Add ${h.name}`} aria-label={`Add ${h.name}`}>+</button>
+                <button className="poi-cand-add" onClick={() => openAddModal(h)} title={`Add ${h.name}`} aria-label={`Add ${h.name}`}><Plus size={12} aria-hidden /></button>
               </div>
             ))}
           </div>
         )}
         {alts.length > 0 && !NEED_PURPOSES.has(sh.segment.purpose) && (
           <details className="poi-alts">
-            <summary>{alts.length} alternative{alts.length === 1 ? '' : 's'}</summary>
+            <summary><ChevronDown className="poi-chev" size={12} aria-hidden />{alts.length} alternative{alts.length === 1 ? '' : 's'}</summary>
             <div className="poi-alt-list">
               {alts.map(({ h, dKm }) => (
                 <button key={h.id as string} className="chip chip-sm" onClick={() => openAddModal(h)} title={h.name}>
@@ -1124,7 +1132,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
                       {seeAndDo.slice(0, SEE_VISIBLE).map(renderPoi)}
                       {seeAndDo.length > SEE_VISIBLE && (
                         <details className="poi-more">
-                          <summary>{seeAndDo.length - SEE_VISIBLE} more picks</summary>
+                          <summary><ChevronDown className="poi-chev" size={12} aria-hidden />{seeAndDo.length - SEE_VISIBLE} more picks</summary>
                           <div className="poi-more-list">{seeAndDo.slice(SEE_VISIBLE).map(renderPoi)}</div>
                         </details>
                       )}

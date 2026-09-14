@@ -25,43 +25,13 @@ import {
   type BenchMode, type BenchStayStyle, type BenchInputs,
 } from '../lib/planBench'
 import { shareBillImage } from '../lib/billCapture'
-import { toast } from './ui'
+import { toast, useMedia, Odometer } from './ui'
 import { haptic, HAPTIC } from '../lib/haptics'
 
-const ODO_DIGITS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-
-/** Reactive matchMedia — used for reduced-motion and pointer-fine gates. */
-function useMedia(query: string, initial = false): boolean {
-  const [matches, setMatches] = useState(initial)
-  useEffect(() => {
-    const mq = window.matchMedia(query)
-    setMatches(mq.matches)
-    const onChange = () => setMatches(mq.matches)
-    mq.addEventListener?.('change', onChange)
-    return () => mq.removeEventListener?.('change', onChange)
-  }, [query])
-  return matches
-}
-
-/** Odometer-style money figure: each digit is a vertical 0–9 strip that rolls
- *  into place (masked edges, springy overshoot). Non-digits (₹, commas) sit
- *  static. Reduced-motion users get the plain number. */
-function Odometer({ value, animate }: { value: string; animate: boolean }) {
-  if (!animate) return <span className="odo">{value}</span>
-  return (
-    <span className="odo" aria-hidden="true">
-      {value.split('').map((ch, i) => /^\d/.test(ch) ? (
-        <span key={i} className="odo-digit">
-          <span className="odo-strip" style={{ transform: `translateY(${Number(ch) * -1}em)` }}>
-            {ODO_DIGITS.map(n => <span key={n} className="odo-num">{n}</span>)}
-          </span>
-        </span>
-      ) : (
-        <span key={i} className="odo-char">{ch}</span>
-      ))}
-    </span>
-  )
-}
+// useMedia + Odometer live in ui.tsx now: the odometer is the app's money
+// figure, not the bench's private trick, so the tool surfaces can roll their
+// figures the same way. Only the gauge, the dial's drag bubble and the preset
+// price helper stay local to the bench.
 
 /** Fatigue needle gauge: semicircular arc, needle sweeps to hours/day. */
 function FatigueGauge({ hoursPerDay, tone }: { hoursPerDay: number; tone: 'calm' | 'warn' | 'hot' }) {

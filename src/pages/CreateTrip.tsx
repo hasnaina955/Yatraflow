@@ -19,7 +19,7 @@ import { FUEL_PRICE_INR_PER_L, isFuelEconomyMode, parseFuelEconomyKmL, parseFuel
 import { planDriveDays } from '../lib/ridePlan'
 import { estimateTripStarter, buildOutlineSeedStops } from '../lib/tripStarter'
 import { fetchTripThumbUrl } from '../lib/tripThumb'
-import { Field, Chip, toast } from '../components/ui'
+import { Field, Chip, toast, Odometer, useMedia } from '../components/ui'
 import { Select } from '../components/Select'
 import { DateRangeCalendar, fmtDay, isoDay } from '../components/DateRangeCalendar'
 import { isoAddDays } from '../lib/weather'
@@ -94,6 +94,17 @@ function TicketScenery() {
   )
 }
 
+/** One money figure in the rough bill, rolled like the Plan Bench odometer so
+ *  the numbers move when the plan changes instead of swapping silently.
+ *  Declared at module scope on purpose: an inline component would be a new
+ *  type every render, so React would remount the odometer and the digit roll
+ *  would never run. Falls back to an em dash when there is nothing to price. */
+function Money({ v, animate }: { v: number | null | undefined; animate: boolean }) {
+  if (v == null) return <>—</>
+  const text = `₹${v.toLocaleString('en-IN')}`
+  return <Odometer value={text} animate={animate} label={text} />
+}
+
 export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void }) {
   const db = useDb()
   const me = currentUser(db)
@@ -129,6 +140,9 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
   const fieldRefs = useRef<Record<string, HTMLElement | null>>({})
 
   const fuelMode = isFuelEconomyMode(f.transportMode)
+  // The bill's figures roll like the bench odometer unless motion is reduced,
+  // in which case they are plain text.
+  const reduced = useMedia('(prefers-reduced-motion: reduce)')
 
   // Smart budget (user ask): the rough bill prefills the per-person field the
   // moment it can compute one, and keeps it live as the plan grows — until the
@@ -800,14 +814,14 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
                       <div className="bill-paper bill-paper-sway">
                         <p className="bill-brand">YATRAFLOW · ROUGH BILL</p>
                         <div className="bill-row"><span>Road (est.)</span><b className="mono">{bill.roadKm != null ? `≈ ${bill.roadKm} km` : '—'}</b></div>
-                        <div className="bill-row"><span>Transport</span><b className="mono">{bill.transportCost != null ? `₹${bill.transportCost.toLocaleString('en-IN')}` : '—'}</b></div>
+                        <div className="bill-row"><span>Transport</span><b className="mono"><Money v={bill.transportCost} animate={!reduced} /></b></div>
                         <p className="bill-formula">{bill.transportFormula || 'add a geocoded stop to price the drive'}</p>
-                        <div className="bill-row"><span>Stay</span><b className="mono">₹{bill.stayCost.toLocaleString('en-IN')}</b></div>
+                        <div className="bill-row"><span>Stay</span><b className="mono"><Money v={bill.stayCost} animate={!reduced} /></b></div>
                         <p className="bill-formula">{bill.stayFormula}</p>
-                        <div className="bill-row"><span>Food</span><b className="mono">₹{bill.mealCost.toLocaleString('en-IN')}</b></div>
+                        <div className="bill-row"><span>Food</span><b className="mono"><Money v={bill.mealCost} animate={!reduced} /></b></div>
                         <p className="bill-formula">{bill.mealFormula}</p>
-                        <div className="bill-row bill-total"><span>Total</span><b className="mono">{bill.perHead != null ? `≈ ₹${Math.round(bill.perHead * f.travellers).toLocaleString('en-IN')}` : '—'}</b></div>
-                        <div className="bill-perhead"><span className="mono">≈ ₹{(bill.perHead ?? 0).toLocaleString('en-IN')}</span><span className="per">/ head</span></div>
+                        <div className="bill-row bill-total"><span>Total</span><b className="mono">{'≈ '}<Money v={bill.perHead != null ? Math.round(bill.perHead * f.travellers) : null} animate={!reduced} /></b></div>
+                        <div className="bill-perhead"><span className="mono">{'≈ '}<Money v={bill.perHead ?? 0} animate={!reduced} /></span><span className="per">/ head</span></div>
                         <p className="bill-note">rough take — refined once your route resolves in the workspace · excludes tolls, parking &amp; entry fees</p>
                       </div>
                     </div>
@@ -834,7 +848,7 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
           <b>{ticketTitle}</b>
           <span>
             {dayCount > 0 ? `${dayCount}d · ${Math.max(0, dayCount - 1)}n · ${f.travellers} travellers` : 'Pick your dates'}
-            {billPrinted && bill.perHead != null && <> · <span className="mono dock-amt">≈ ₹{bill.perHead.toLocaleString('en-IN')}/head</span></>}
+            {billPrinted && bill.perHead != null && <> · <span className="mono dock-amt">{'≈ '}<Money v={bill.perHead} animate={!reduced} />{'/head'}</span></>}
           </span>
         </div>
         {!billPrinted ? (

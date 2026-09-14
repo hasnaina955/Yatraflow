@@ -97,6 +97,13 @@ Key locations:
 2. **Every push ships documentation**: CHANGELOG.md entry in the same commit
    (under `[Unreleased]`, or a versioned section for releases). Feature-worthy
    releases also bump `package.json` + lockfile version and update README.
+   **The changelog records final state, not session history.** No "round 2",
+   "PR #N follow-up", "bug-hunt batch", branch names or finding-the-bug
+   stories in the entry text — say what the product does now, once, under the
+   right Added/Changed/Fixed heading. When a fix supersedes an earlier
+   `[Unreleased]` entry, **edit that entry** instead of adding a second one;
+   issue numbers may trail an entry as traceability (`(#123)`), never as its
+   framing. Release notes consolidate; the reader gets the shipped truth.
 3. Fixes and features get changelog entries with enough context to understand
    them six months later.
 4. **Another agent may commit into this same working copy** — Hermes has

@@ -15,47 +15,7 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ## [Unreleased]
 
-### Fixed — day-planner bug-hunt batch (issues #118–#140)
-- **One clock story for the split banner** (#123): the banner count comes from
-  the clock walk that knows the real start time, not the start-time-blind
-  estimator — a 14:00 start shows "3 travel days" once, never 2-vs-3. Applying
-  the split stamps real day shells (title + 08:30 start, endDate extended,
-  #133) and dismisses the banner so it never re-fires on its own mutation.
-- **The route arms overnights, never the planned day count** (#121): a 700 km
-  1-day plan gets its night-halt math; a 3-day 200 km trip gets none.
-- **Corridor search fires on value changes, not object identity** (#135):
-  verdict memos key on stable stop/day-start signatures, so typing a trip
-  name no longer re-runs the OSRM + suggestion pipeline behind a comment
-  that claimed "one extra free call per route".
-- **The clock walk takes per-day rain** (#127): a wet day 1 shrinks day 1's
-  budget without shrinking day 3's.
-- **Fraction rows serve travellers, not errands** (#128): ¼/½/¾ picks filter
-  to sights/food (a petrol pump no longer wins "½ of the drive"), each place
-  wins at most one quarter, and the empty copy says honestly whether the
-  scope or the corridor came up empty. Round-trip "return leg" chips only
-  claim the far quarter (past 75%) until the two-walk design lands.
-- **Timeline day headers share the planner's DRIVE floor** (#134): 90 km OR
-  2 h of wheel time — an 80 km / 3 h ghat crawl is a Drive day on both sides.
-- **Corrupt `startTime` can't silently become midnight** (#136) and the
-  `hmToMinutes` clamps out-of-range input.
-- **Night halts respect the day-end cap** (#140): non-final halts clamp
-  within the honest ENDNO budget; **the final day keeps its arrival honest**
-  (#138) — `lateArrival` flags past-23:00 arrivals in the clock walk.
-- **Segment ETAs carry dwell time** (#129) and a meal can't sit inside the
-  absorb radius of the overnight halt it feeds (#131).
-- **Select's keyboard scroll honours reduced motion** (#118) via the shared
-  `scrollBehavior()`; same fix on the map panel's row scroll.
-- **Haptics DEV logs tell the truth** (#119): logged only where a backend
-  exists, native-plugin failures surface in DEV instead of swallowing, and
-  vibrate-less browsers (iOS Safari) stay silent.
-- **Docs stop claiming lodging-anchored halts ship** (#139): USER_GUIDE /
-  ARCHITECTURE / PLAN-DAY-PLANNER mark P1-C halt placement open.
-- Shared sources landed underneath: one lunch window `11:30–14:30` (#130),
-  one stay-rate table (`src/lib/rates.ts`, #125b), one lodging de-dupe key
-  (#125a), tolerant style/rain parsing (#132), and the ride-plan's honest
-  drive-day floor `isDriveDay` (#134).
-
-### Added — the travel clock drawn on the map (branch `feat/clock-map-zones`)
+### Added — the travel clock drawn on the map
 - **Meal-window circles on the route.** 🍽 lunch, 🥐 breakfast and 🍷 dinner
   become soft map circles whose **radius is honest**: half the road the car
   covers while that meal's window is open at the journey's own pace
@@ -79,90 +39,87 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
   `mealRadiusKm`, `radiusPxAtZoom0`, `clockHM`) + 12 fixtures in
   `tests/clockOverlay.test.ts`.
 
-### Added — user-testing round 2 (PR #105 follow-up)
-- **The travel clock is visible**: suggestion rows now carry the wall clock the
-  planner derived the halt from ("arrive ≈ 13:00", "— day ends here" on the night
-  halt) instead of km cadence alone.
-- **Create-trip helps from the first two points**: as soon as a start and a
-  destination exist, the route's own verdict shows — "The drive wants N travel
-  days" with a one-tap "Make it N days" (and the honest single-stretch wheel time
-  when it doesn't fit the date range).
-- **Style and budget are separate dials.** Travel style tunes stop frequency and
-  suggestion flavors and never touches pricing; a new **Stay budget** dial
-  (Budget/Comfort/Luxury, ₹1,200/₹3,200/₹8,000 per room per night) prices the bed.
-  Existing trips derive the dial from their legacy style, so nothing re-prices
-  silently.
-- **Optional-spend watch (opt-in)**: a soft 20%-of-estimate line on the Budget tab
-  — tips only, nothing changes, off by default.
-- **Trip-aware map search**: results project onto the trip's own road and rank by
-  detour (then road position), each showing "~X km into the trip · Y km
-  off-route"; anything beyond the detour scope renders muted with an honest toast.
-- **Dynamic 3D hero camera**: `heroBearingForRoute` frames the trip's own road
-  (initial route bearing) — the prototype's fixed Kerala-view bearing is now only
-  a geometry-less fallback — and **the map always opens 2D** (a stale saved 3D
-  pref used to greet every trip with the hero camera).
-
-### Changed
-- **Suggestion rows sync to the map on click, not hover** — hovering a row no
-  longer glides the camera (accidental map movement); rows show a pointer cursor.
-- **Directions sits beside the travel card's title**, not on its own line.
-
-### Fixed
-- **The split banner no longer flashes on map open** — it waits for the OSRM road
-  measurement instead of rendering from the rough haversine estimate and
-  vanishing when the real road resolved shorter.
-- **Round trips stopped being invisible to the map's split banner.** The verdict
-  measured only the outbound leg, so a default-round-trip Kolkata→Delhi in 3 days
-  stayed silent while CreateTrip demanded 8 days for the same loop. The map now
-  splits the whole loop (2× the outbound measurement, same model as the create
-  page) and says "there and back"; declining states the full loop's wheel time.
-- **Saving trip settings no longer toasts success on a rejected save** — a date
-  shrink blocked by a day holding stops now shows only the reason, not
-  "Trip settings updated" alongside it.
-- **CreateTrip's days-required banner says "there and back"** when the round-trip
-  toggle is billing the drive home, so the 2× day count is explained in place.
-- **planTravelClock no longer truncates long drives.** The re-balance loop
-  subtracted each day's ABSOLUTE halt position from the relative `remaining` km,
-  so a ~3,300 km route ended its day-walk after ~4 days — invisible while the
-  clock fed only banner copy, exposed the moment the map overlay painted every
-  day (banner said 9 travel days, the walk produced 5). Bookkeeping now
-  subtracts the km covered that day; regression fixture added
-  ("a long drive walks ALL its days").
-
-### Added — the Day Planner travel clock (PLAN-DAY-PLANNER P1, PR #105)
+### Added — Day Planner (travel clock)
 - **The fatigue cadence is hours, not km.** Stretch breaks fire at `STRETCH_CLOCK_MIN`
-  (120 min) of wheel time — 150 km was ≈2 h at highway speed but 3.6 h at the engine's
-  own blended speed — and `planDriveDays` derives the drive-day split a route demands
+  (120 min) of wheel time — 150 km was ≈2 h at highway speed but 3.6 h at the engine's own
+  blended 42 km/h — and `planDriveDays` derives the drive-day split a route **demands**
   from the style/rain-tuned wheel-hour cap, load-balanced (700 km → 2 × 350, never
-  585 + 115). The Map tab arms the split from that verdict, not the planned day count,
-  and proposes "this drive needs N travel days — apply?" (declining is respected, with
-  the red fatigue verdict stated).
+  585 + 115).
 - **Fixed meal anchors on the clock** (`planTravelClock`): breakfast 08:00–09:30 fires
-  only for pre-08:00 starts, lunch 12:00–14:30, tea 16:30–17:30, dinner 20:00–21:00
-  **ends the driving day**. The night halt lands where the day's budget, dinner, or the
-  wheel cap arrives — never night driving: late starts produce a short hop to a night
-  halt, or an honest "leave tomorrow 06:00" defer proposal.
+  only for pre-08:00 starts, lunch 11:30–14:30, tea 16:30–17:30, dinner 20:00–21:00
+  **ends the driving day**. The night halt lands where the day's km budget, dinner, or
+  the wheel cap arrives first — never night driving. Late starts get honest outcomes: a
+  short hop to a night halt, or a "leave tomorrow 06:00" defer proposal.
+- **The Map tab proposes the split the route demands** — "this drive needs N travel days
+  — apply?" — counted from the travel clock, which knows the start time and bills round
+  trips there and back, so one drive tells one story (#123). Applying it stamps real day
+  shells (title, 08:30 start, extended trip dates); declining is respected with the
+  honest red fatigue verdict (#133, #135).
 - **Short trips stopped being silent.** The 90 km floor yields to the 2-hour clock rule
   (80 km of ghat crawl earns its stretch), the destination exclusion zone scales with
-  journey length, and ¼/½/¾ fraction rows keep the suggestion strip useful below the
-  fatigue floor.
-- **Derived day attribution everywhere:** DRIVE/STAY/MIXED labels on timeline day
-  headers, "Day N · after your night stop" chips on suggestion rows, and return-leg
-  chips on round trips.
-- **The bill prices the bed.** Hotel stops — a structural night halt accepted from the
-  ride plan, or a stay added by hand — gain a lodging line (overnight bases × rooms ×
-  style rate) with the formula stated on the Budget tab; the night halt's minutes are
-  never charged to the day's detour budget.
-- **"Day out" / "Weekend dash" presets** on trip creation: one round-trip day (or two),
-  no stay line unless a stay is added. Full planner documentation in
-  [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) §8; fixtures-as-spec in
-  `tests/dayPlanner.test.ts`.
+  journey length, and ¼/½/¾ fraction rows keep the strip useful below the fatigue floor —
+  serving sights and meals, not errands, and no place wins two quarters (#128).
+- **Derived day attribution everywhere:** DRIVE/STAY/MIXED labels on timeline day headers
+  share the planner's own km-or-hours floor (#134); suggestion rows carry the wall clock
+  their halt was derived from, "Day N · after your night stop" chips, and return-leg
+  chips on the far quarter of round trips.
+- **The bill prices the bed.** Hotel stops — accepted night halts or hand-added stays —
+  gain a lodging line (overnights × rooms × style rate) from one stay-rate table shared
+  with the budget bench (#125b); one coordinate cell is one lodging, whatever the name
+  says (#125a). The night halt's minutes are never charged to the day's detour budget.
+- **Create-trip helps from the first two points**: the route's own verdict — "The drive
+  wants N travel days" with one-tap "Make it N days" (and the honest single-stretch wheel
+  time when it doesn't fit the dates); it says "there and back" when the round-trip
+  toggle is billing the drive home.
+- **Style and budget are separate dials.** Travel style tunes stop frequency and
+  suggestion flavors and never touches pricing; a **Stay budget** dial
+  (Budget/Comfort/Luxury, ₹1,200/₹3,200/₹8,000 per room per night) prices the bed.
+  Existing trips derive the dial from their legacy style — nothing re-prices silently.
+- **Trip-aware map search**: results project onto the trip's own road and rank by detour
+  (then road position), each showing "~X km into the trip · Y km off-route"; anything
+  beyond the detour scope renders muted with an honest toast.
+- **Optional-spend watch (opt-in)**: a soft 20%-of-estimate line on the Budget tab —
+  tips only, nothing changes, off by default.
+- **"Day out" / "Weekend dash" presets** on trip creation. The hero map frames the
+  trip's own road (`heroBearingForRoute`) and always opens 2D.
+- The planner is documented in [docs/PLAN-DAY-PLANNER.md](docs/PLAN-DAY-PLANNER.md) and
+  [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) §8; the fixtures in
+  `tests/dayPlanner.test.ts` are the spec.
+
+### Changed
+- **Suggestion rows sync to the map on click, not hover** — hovering a row no longer
+  glides the camera (accidental map movement); rows show a pointer cursor.
+- **Directions sits beside the travel card's title**, not on its own line.
+- **Shared sources under the planner**: one lunch window, one stay-rate table
+  (`src/lib/rates.ts`), one drive-day floor (`isDriveDay`), tolerant style/rain
+  parsing (#130, #132).
 
 ### Fixed
+- **The travel clock walks every day of a long drive** — the re-balance loop subtracted
+  the absolute halt position from a relative budget, truncating a ~3,300 km walk at 4
+  days (#137).
+- **Night halts never land inside the destination exclusion** (#140), and the final
+  day's arrival is clock-checked — past-night arrivals are flagged, not hidden (#138).
+- **Segment ETAs carry halt dwell time** (#129); a meal folds into the overnight halt
+  instead of sitting inside its gap floor (#131).
+- **A wet day caps only that day** — the clock walk takes per-day rain instead of one
+  trip-wide factor (#127).
+- **Corrupt `startTime` can't silently become midnight** — out-of-range input clamps
+  to a valid, loudly non-midnight start (#136).
+- **The corridor search no longer re-runs on unrelated edits** — verdict memos key on
+  stable signatures instead of object identity (#135).
+- **The drive-day banner no longer flashes on map open** — it waits for the OSRM road
+  measurement instead of rendering from the rough haversine estimate.
+- **Saving trip settings no longer toasts success on a rejected save** — a date shrink
+  blocked by a day holding stops shows only the reason.
+- **Select's keyboard scroll honours reduced motion** (`scrollBehavior()`), as does the
+  suggestion panel's cross-highlight scroll (#118).
+- **Haptics DEV logs tell the truth** — they fire only where a backend exists,
+  native-plugin failures surface in DEV, and vibrate-less browsers stay silent (#119).
 - **Landing hero sheen leak** — the glass-sheen sweep is `position: absolute` but `.btn`
   never established a clipping box, so a skewed bar swept the whole hero face and read as
-  a stray grey blob sliding across empty space beside the CTAs (the "swipe animation
-  starts from an empty side" report). Each hero button is now its own clip box.
+  a stray grey blob sliding across empty space beside the CTAs. Each hero button is now
+  its own clip box.
 - **Map zoom/fullscreen controls were unusable** — mapcn's `MapControls` ships Tailwind
   utility classes this app doesn't compile, so the group rendered as static flow under
   the canvas (invisible in 2D, stray and clipped otherwise). The handful of rules it
@@ -179,9 +136,9 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
   tools pin right (margin-left auto keeps them right-aligned even when wrapped).
 
 ### Docs
-- **Status docs refreshed for the `main` promotion** — `AGENTS.md` §1.1 recorded the #107 tracker as
-  "96 ticked/annotated" over "five batches (PRs #109–#114)"; it now records the true final state:
-  **117/117 boxes closed** across PRs #109–#116, plus the post-release UI fixes promoted alongside.
+- **Status docs reflect the final #107 state** — `AGENTS.md` §1.1 records
+  **117/117 boxes closed**, and the Day Planner docs carry honest open-item
+  markers (lodging-anchored halt placement is P1-C, not shipped).
 
 ## [0.53.0] - 2026-09-13
 

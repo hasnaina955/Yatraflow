@@ -20,6 +20,7 @@ import {
 } from '../../../lib/engine'
 import type { LegEstimate, ScheduleWarning, OptimizeDayResult } from '../../../lib/engine'
 import { routeChain, stayDaySummary, dwellSegments, visibleStops } from '../../../lib/daySummary'
+import { isDriveDay } from '../../../lib/ridePlan'
 import { openExternal } from '../../../lib/native'
 import { useTimeFormat, formatHM, formatHMRange } from '../../../lib/timefmt'
 import { prefersReducedMotion } from '../../../lib/motion'
@@ -191,7 +192,9 @@ export const DaySection = React.memo(function DaySection({ day, trip, editable, 
   // local time is mixed, no wheel time at all is a stay.
   const dayType: 'DRIVE' | 'STAY' | 'MIXED' = isStayDay
     ? 'STAY'
-    : journey.distanceKm >= 90 ? 'DRIVE' : 'MIXED'
+    // Same floor as the planner (#134): 90 km OR 2 h wheel — the planner gives
+    // an 80 km / 3 h ghat day a real segment, so the header must call it a drive.
+    : isDriveDay(journey.distanceKm, journey.driveMinutes) ? 'DRIVE' : 'MIXED'
   const A = getAssumptions(trip)
   const ordered = useMemo(() => [...day.stops].sort((a, b) => a.orderInDay - b.orderInDay), [day.stops])
   // ---- Optimize day order (anti-crisscross) ----

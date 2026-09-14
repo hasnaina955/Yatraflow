@@ -806,7 +806,7 @@ export function planRideSegments(input: RidePlanInput): RideSegment[] {
   if (includeCharge) {
     for (let km = chargeEvery; km < cap; km += chargeEvery) raws.push({ km, purposes: ['fuel'] })
   }
-  dayEnds.forEach(e => raws.push({ km, purposes: ['overnight'] }))
+  dayEnds.forEach(e => raws.push({ km: e, purposes: ['overnight'] }))
   // #144A — refuel (or charge) where you eat or sleep: a fuel-stride tick
   // landing within 15% of that stride of a meal/overnight raw folds INTO it.
   // One combined stop ("Meal + fuel", "Overnight + charge") beats two stops a

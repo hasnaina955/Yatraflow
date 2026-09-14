@@ -445,6 +445,36 @@ describe('contrast contract: colour pairs declared in one rule', () => {
     return out
   }
 
+  // #154: the mechanical gate above only sees rules that declare fg+bg in ONE
+  // rule — a color-only override like `.poi-fact--warn { color: … }` on a
+  // separate background rule was invisible to it, which is exactly how the
+  // 3.65:1 warn-on-white shipped. These pins make the Map-rail's warn-ink
+  // pairs an explicit contract: measured against the surfaces the rail
+  // actually paints (its own card bg, and the soft warn chip fill).
+  it('map-rail warn ink meets AA on every surface it paints (#154)', () => {
+    const surfaces: Array<[string, string]> = [
+      ['--bg', 'card background'],
+      ['--warn-soft', 'warn chip fill'],
+    ]
+    for (const [theme, tokens] of [['light', rootTokens], ['dark', darkTokens]] as const) {
+      const warn = resolveVar('var(--warn)', tokens)
+      const ink = resolveVar('var(--ink-amber)', tokens)
+      const warnFg = parseColor(warn)
+      const inkFg = parseColor(ink)
+      expect(warnFg, `--warn must resolve in ${theme}`).not.toBeNull()
+      expect(inkFg, `--ink-amber must resolve in ${theme}`).not.toBeNull()
+      for (const [bgVar, surfaceName] of surfaces) {
+        const bg = parseColor(resolveVar(`var(${bgVar})`, tokens))
+        expect(bg, `${bgVar} must resolve in ${theme}`).not.toBeNull()
+        // whichever ink a rail warn surface uses in that theme must clear 4.5
+        expect(
+          contrast(theme === 'light' ? inkFg! : warnFg!, bg!),
+          `${theme}: warn ink on ${surfaceName} (${bgVar}) must meet AA`
+        ).toBeGreaterThanOrEqual(4.5)
+      }
+    }
+  })
+
   it('introduces no new AA failure in the light theme', () => {
     ratchet('contrastLight', offendersFor('light'))
   })

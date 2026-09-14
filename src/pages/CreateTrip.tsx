@@ -115,6 +115,9 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
     roundTrip: true,
     budgetPerPersonInr: 15000,
     travelStyle: 'balanced' as TravelStyle,
+    // The bed's tier, chosen on its own bar. Deliberately separate from travel
+    // style, which tunes cadence and suggestions and never touches pricing.
+    stayStyle: 'comfort' as 'budget' | 'comfort' | 'luxury',
     coverEmoji: '🧭',
     coverImageUrl: '',
   })
@@ -176,8 +179,10 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
     tankL: Number.isFinite(tankNum) && tankNum > 0 ? tankNum : undefined,
     rentPerDay: Number.isFinite(rentNum) && rentNum > 0 ? rentNum : undefined,
     localTrain: f.localTrain,
-    travelStyle: f.travelStyle,
-  }), [f.startDate, f.endDate, f.travellers, f.transportMode, f.localTrain, f.roundTrip, f.fuelEconomy, f.fuelPrice, f.tankL, f.rentPerDay, f.travelStyle, orderedPoints, returnCount, fuelMode, tankNum, rentNum])
+    // The bed is priced by the budget dial, not the travel style — otherwise
+    // this bill and the settings page could disagree about the same room.
+    stayStyle: f.stayStyle,
+  }), [f.startDate, f.endDate, f.travellers, f.transportMode, f.localTrain, f.roundTrip, f.fuelEconomy, f.fuelPrice, f.tankL, f.rentPerDay, f.stayStyle, orderedPoints, returnCount, fuelMode, tankNum, rentNum])
 
   // Day Planner (P1, PR #105): the engine kicks in the moment a start and a
   // destination exist — the route demands its own days from the wheel-hour
@@ -328,6 +333,7 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
       roundTrip: fuelMode ? f.roundTrip : undefined,
       budgetPerPersonInr: f.budgetPerPersonInr,
       travelStyle: f.travelStyle,
+      stayStyle: f.stayStyle,
       fixedCommitments: commitments.filter(x => x.title.trim()),
       coverEmoji: f.coverEmoji,
       coverImageUrl: f.coverImageUrl.trim() || undefined,
@@ -691,6 +697,16 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
                 })}
               </div>
             </div>
+            <span className="group-lab">Budget preference</span>
+            <PillNav className="tabbar" role="group" aria-label="Budget preference" activeKey={f.stayStyle}>
+              {(['budget', 'comfort', 'luxury'] as const).map(s => (
+                <button key={s} type="button" data-pill-key={s} className={`tab-btn${f.stayStyle === s ? ' active' : ''}`}
+                  aria-pressed={f.stayStyle === s}
+                  onClick={() => { haptic(HAPTIC.select); patchFields({ stayStyle: s }) }}>{cap(s)}</button>
+              ))}
+            </PillNav>
+            <p className="hint-text style-copy">Prices the bed: ₹1,200 / ₹3,200 / ₹8,000 per room-night, 2 guests per room.</p>
+
             <span className="group-lab">Travel style</span>
             <PillNav className="tabbar style-carousel" role="group" aria-label="Travel style" activeKey={f.travelStyle}>
               {TRAVEL_STYLES.map(s => (

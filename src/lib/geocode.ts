@@ -114,10 +114,11 @@ async function googlePointScan(
   anchors: { lat: number; lng: number }[],
   radiusM: number,
   count: number,
+  maxAnchors = 4,
 ): Promise<PlaceHit[]> {
   const out: PlaceHit[] = []
   const seen = new Set<string | number>()
-  for (const a of anchors.slice(0, 4)) {
+  for (const a of anchors.slice(0, maxAnchors)) {
     try {
       const hits = await googleNearbyAtPoint({ lat: a.lat, lng: a.lng, radiusM, count })
       for (const h of hits) {
@@ -175,11 +176,18 @@ export async function searchNearbyPoisMulti(
       return rankAndCap(hits, capped, radiusM, count, opts)
     } catch { return [] as PlaceHit[] }
   } else if (googleEnabled()) {
-    // single-anchor flows (empty-day chips): point search around the anchor
+    // No route geometry (road measurement failed/pending): a multi-anchor
+    // corridor must NOT collapse to one point search at the trip start —
+    // that is the "suggestions starved at the origin" failure (#185). Point-
+    // scan the first corridor anchors instead; googlePointScan is sequential
+    // with early exit, so the cost stays bounded. Single-anchor flows (empty-
+    // day chips) keep the one-anchor search.
     try {
-      const hits = await googleNearbyAtPoint({
-        lat: capped[0].lat, lng: capped[0].lng, radiusM, count, includeFuel: opts.includeFuel,
-      })
+      const hits = capped.length >= 2
+        ? await googlePointScan(capped, radiusM, count, 6)
+        : await googleNearbyAtPoint({
+            lat: capped[0].lat, lng: capped[0].lng, radiusM, count, includeFuel: opts.includeFuel,
+          })
       return rankAndCap(hits, capped, radiusM, count, opts)
     } catch { return [] as PlaceHit[] }
   }

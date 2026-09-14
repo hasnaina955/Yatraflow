@@ -19,13 +19,6 @@ export const ROAD_FACTOR = 1.25
  *  ₹1.6/km — all-India suburban averages land near ₹0.45/km. */
 export const LOCAL_TRAIN_COST_PER_KM = 0.45
 
-/** Travel style → bench stay rate. Ten styles, three rate tiers. */
-export function stayStyleFor(travelStyle: TravelStyle): BenchStayStyle {
-  if (travelStyle === 'budget') return 'budget'
-  if (travelStyle === 'luxury') return 'luxury'
-  return 'comfort'
-}
-
 export interface StarterTripInput {
   startDate: string
   endDate: string
@@ -45,7 +38,9 @@ export interface StarterTripInput {
   rentPerDay?: number
   /** Train mode only: bill suburban/unreserved fares instead of express ₹1.6/km. */
   localTrain?: boolean
-  travelStyle: TravelStyle
+  /** Budget preference — what the bed costs. The dial, not the legacy style:
+   *  the bill and the settings page must never disagree about the bed. */
+  stayStyle: BenchStayStyle
 }
 
 export interface StarterBill {
@@ -88,7 +83,7 @@ export function estimateTripStarter(input: StarterTripInput): StarterBill {
 
   const crew = finitePos(input.travellers) ? Math.round(input.travellers) : 1
   const rooms = Math.ceil(crew / 2)
-  const stayRate = STAY_RATE_PER_NIGHT[stayStyleFor(input.travelStyle)]
+  const stayRate = STAY_RATE_PER_NIGHT[input.stayStyle]
   const stayCost = nights * rooms * stayRate
   const stayFormula = `${nights} night${nights === 1 ? '' : 's'} × ${rooms} room${rooms === 1 ? '' : 's'} × ₹${stayRate}`
 

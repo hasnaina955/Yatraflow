@@ -49,8 +49,8 @@ const NEARBY_FIELD_MASK = [
   'places.primaryTypeDisplayName',
   'places.regularOpeningHours',
   'places.currentOpeningHours',
-  'routingSummaries.distanceMeters',
-  'routingSummaries.duration',
+  'routingSummaries.legs.distanceMeters',
+  'routingSummaries.legs.duration',
 ].join(',')
 
 // ---- the app's encodePolyline (copied verbatim so the wire format matches) ----
@@ -166,12 +166,12 @@ if (st) {
   let withDetour = 0
   places.forEach((p, i) => {
     if (p.regularOpeningHours || p.currentOpeningHours) withHours++
-    if (sums[i]?.distanceMeters != null) withDetour++
+    if (sums[i]?.legs?.[0]?.distanceMeters != null) withDetour++
   })
   console.log(`  opening hours present on: ${withHours}/${places.length} results`)
   console.log(`  real road detours present on: ${withDetour}/${places.length} results`)
   for (const [i, p] of places.slice(0, 5).entries()) {
-    const km = sums[i]?.distanceMeters != null ? `${(sums[i].distanceMeters / 1000).toFixed(1)} km off route` : 'no detour'
+    const km = sums[i]?.legs?.[0]?.distanceMeters != null ? `${(sums[i].legs[0].distanceMeters / 1000).toFixed(1)} km off route` : 'no detour'
     console.log(`   - ${p.displayName?.text}  (${km})`)
   }
 }

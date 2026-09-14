@@ -1,0 +1,21 @@
+-- ============ Stay budget dial ============
+-- The stay-budget dial shipped in deecbcc (2026-09-13) as part of "style and
+-- budget are separate dials" — the engine prices the bed from `Trip.stayStyle`
+-- and the settings form offers the tier. But the dial was never given a column
+-- and never added to the row mapping, so it was SESSION-ONLY: the tier a
+-- traveller picked silently reverted to the legacy-derived value on the next
+-- load. This migration gives it the column it should have had.
+--
+-- Nothing else changes. `travel_style` stays exactly as it is, and the client
+-- keeps deriving the tier from it for trips stored before this column existed
+-- (see stayKeyFor in src/lib/engine.ts), so no stored trip re-prices.
+--
+-- This file ships the DDL ONLY. Apply it live (Dashboard → SQL editor, or
+-- `supabase db push`). Until then the store's optional-column probe reports
+-- `stayStyle: false`, the column stays unwritten, and the dial remains
+-- session-only — i.e. the old bug, not a new one.
+
+-- No CHECK constraint on purpose: the vocabulary lives in src/data/types.ts,
+-- and a rejected write is worse than an unrecognised tier (the client falls
+-- back to 'comfort' for anything it does not know).
+alter table public.trips add column if not exists stay_style text;

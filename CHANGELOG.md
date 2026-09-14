@@ -15,6 +15,25 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ## [Unreleased]
 
+### Changed
+- **Trip settings opens with two bars, not one.** Budget preference (Budget / Comfort /
+  Luxury) and Travel style used to share a single block with the style bar on top and
+  the price bar tucked underneath it, so the second read as a sub-option of the first.
+  Each is now its own bar, at the top of Trip settings and of Create Trip, in that
+  order: Budget preference answers what the bed costs, Travel style answers how the trip
+  moves and what it suggests. Neither touches the other.
+
+### Fixed
+- **The budget tier reverted on every reload.** The dial shipped in `deecbcc` with no
+  column and no row mapping, so the tier a traveller picked was session-only and
+  silently fell back to the legacy-derived value. It is persisted now
+  (`20260914_trip_stay_budget.sql`), and the mapping is covered by tests — including
+  the pre-migration path, which must stay a no-op rather than write a column the
+  database does not have.
+- **Create Trip's bill priced the bed from the travel style.** `estimateTripStarter`
+  took a `travelStyle` and derived the tier from it, so the bill and the settings page
+  could disagree about the same room. The bill takes the budget dial.
+
 ### Added — Day Planner (travel clock)
 - **The fatigue cadence is hours, not km.** Stretch breaks fire at `STRETCH_CLOCK_MIN`
   (120 min) of wheel time — 150 km was ≈2 h at highway speed but 3.6 h at the engine's own
@@ -66,11 +85,29 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 - **Suggestion rows sync to the map on click, not hover** — hovering a row no longer
   glides the camera (accidental map movement); rows show a pointer cursor.
 - **Directions sits beside the travel card's title**, not on its own line.
+- **Resolving a map-sourced vote adds the winner to the plan.** Shortlisted stops
+  sent to a group vote carry their place with the option; hitting "Resolve" lands
+  the winning place as a confirmed stop on the suggested day (clamped to the trip's
+  range) — so it shows up on the Timeline, Board and Map at once, and the
+  suggestion rail drops the rows it settles, winner included. Hand-raised
+  decisions without a place resolve exactly as before.
+- **Deleting a stop from the map pin.** The pin popup gains a Remove action
+  (editors only) with an Undo toast — the undo restores the stop at its original
+  position within the day instead of appending it at the end.
 - **Shared sources under the planner**: one lunch window, one stay-rate table
   (`src/lib/rates.ts`), one drive-day floor (`isDriveDay`), tolerant style/rain
   parsing (#130, #132).
 
 ### Fixed
+- **Trip deletion works again** — the production "trips read hide trashed" policy
+  rejected the tombstone UPDATE (its added-row check saw a trashed row that
+  nobody, including the owner, could read), so Delete silently rolled back and
+  the trip reappeared after refresh. The policy now lets tombstoned rows reach
+  their owner/editors while everyone else still never sees them, hydration
+  filters tombstoned rows out of the live list itself (the Trash view reads
+  them via `get_trashed_trips`), and `supabase/fix-trashed-read-policy.sql` is
+  the idempotent Dashboard repair. Reproduced with a live QA account before and
+  after.
 - **The travel clock walks every day of a long drive** — the re-balance loop subtracted
   the absolute halt position from a relative budget, truncating a ~3,300 km walk at 4
   days (#137).
@@ -96,6 +133,7 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
   never established a clipping box, so a skewed bar swept the whole hero face and read as
   a stray grey blob sliding across empty space beside the CTAs. Each hero button is now
   its own clip box.
+- **The Map tab's suggestion rails pass a dedicated accessibility and consistency audit (#152–#181).** Warn text on light theme reads through the AA-passing ink tier (5.3:1) on facts, chips and the map spur, which now paints from `--warn` instead of a hardcoded hex; rail cards are keyboard-operable with real names and the fold buttons carry `aria-controls`; the rotating engine tip no longer spams screen readers every 7 s. Card, ruler and map now tell one story: ruler dots nudge apart instead of stacking at shared km and read the same km the card prints, the detour spur snaps to the same road projection the card's minutes use, one "fits-budget" predicate decides warn/held-back, unknown-km hits say so instead of silently attributing to Day 1, and "Best fit" appears only on the top-scoring pick. Chip filtering keys on stable ids instead of display copy, ratings endorse only with a 10+ review sample, the detour whisker's spur length now scales with share of the day's budget, quota outages get one honest story on every rail (never dressed up as a short trip), the detour-scope preference is guarded and namespaced with the rest, threshold chips got estimate-proof bands, and stale planner copy was rewritten to describe the clock-first engine.
 - **Map zoom/fullscreen controls were unusable** — mapcn's `MapControls` ships Tailwind
   utility classes this app doesn't compile, so the group rendered as static flow under
   the canvas (invisible in 2D, stray and clipped otherwise). The handful of rules it
@@ -115,6 +153,10 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 - **Status docs reflect the final #107 state** — `AGENTS.md` §1.1 records
   **117/117 boxes closed**, and the Day Planner docs carry honest open-item
   markers (lodging-anchored halt placement is P1-C, not shipped).
+- **The design-system contrast gate now covers the Map rails (#154)** — a new
+  pinned contract measures the rail's warn-ink pairs against their real
+  surfaces in both themes; color-only overrides can no longer ship a
+  sub-AA pair unnoticed (the hole #152 slipped through).
 
 ## [0.53.0] - 2026-09-13
 

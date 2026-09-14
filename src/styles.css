@@ -5186,6 +5186,7 @@ html.native-shell {
 }
 .poi-rchips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
 .poi-rchip {
+  display: inline-flex; align-items: center; gap: 4px;
   font-size: 10.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--text-2);
   background: var(--bg); border: 1px solid var(--line); border-radius: 999px; padding: 2px 8px;
 }

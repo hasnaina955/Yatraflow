@@ -46,8 +46,10 @@ describe('railReasonChips', () => {
     expect(railReasonChips({ ...base, minutesFromPrev: 119 })).toEqual([])
   })
 
-  it('quotes a rating only from four up', () => {
-    expect(railReasonChips({ ...base, rating: 4 })[0]?.label).toBe('rated 4.0')
+  it('quotes a rating only from four up, as a number with the star token', () => {
+    const chip = railReasonChips({ ...base, rating: 4 })[0]
+    expect(chip?.label).toBe('4.0')
+    expect(chip?.icon).toBe('star')
     expect(railReasonChips({ ...base, rating: 3.9 })).toEqual([])
   })
 

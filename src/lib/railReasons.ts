@@ -30,6 +30,8 @@ export interface RailReasonInput {
 export interface RailChip {
   label: string
   tone?: 'warn'
+  /** Icon token, rendered with the app's own icon set by the caller. */
+  icon?: 'star'
 }
 
 /** Stretch beyond this earns a chip; it mirrors the fatigue cadence. */
@@ -48,11 +50,11 @@ const MAX_CHIPS = 3
  */
 export function railReasonChips(input: RailReasonInput): RailChip[] {
   const chips: RailChip[] = []
-  const push = (label: string, tone?: RailChip['tone']): void => {
-    if (chips.length < MAX_CHIPS) chips.push(tone ? { label, tone } : { label })
+  const push = (label: string, opts?: { tone?: RailChip['tone']; icon?: RailChip['icon'] }): void => {
+    if (chips.length < MAX_CHIPS) chips.push({ label, ...(opts ?? {}) })
   }
 
-  if (input.overBudget) push('over budget', 'warn')
+  if (input.overBudget) push('over budget', { tone: 'warn' })
 
   if (
     input.purpose === 'meal' &&
@@ -68,7 +70,9 @@ export function railReasonChips(input: RailReasonInput): RailChip[] {
   }
 
   if (input.rating != null && input.rating >= RATING_COMMENT_MIN) {
-    push(`rated ${input.rating.toFixed(1)}`)
+    // Just the number, with the app's star glyph in front - the way a rating
+    // is read everywhere else.
+    push(input.rating.toFixed(1), { icon: 'star' })
   }
 
   if (input.budgetSharePct != null && input.budgetSharePct >= BUDGET_SHARE_COMMENT_PCT) {

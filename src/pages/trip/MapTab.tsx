@@ -1,7 +1,7 @@
 // ============ Trip workspace — Map tab ============
 // Mechanical extraction from src/pages/TripWorkspace.tsx (M3.4) — no behavior changes.
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { CircleCheck, Clock, ExternalLink, Fuel, Lightbulb, MapPin, RotateCcw, Sparkles } from 'lucide-react'
+import { CircleCheck, Clock, ExternalLink, Fuel, Lightbulb, MapPin, RotateCcw, Sparkles, Star } from 'lucide-react'
 import { MetaIcon } from '../../components/icons'
 import { uid } from '../../data/seed'
 import type { Trip, ItineraryStop } from '../../data/types'
@@ -734,7 +734,10 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
         {chips.length > 0 && (
           <div className="poi-rchips">
             {chips.map(c => (
-              <span key={c.label} className={c.tone === 'warn' ? 'poi-rchip poi-rchip--warn' : 'poi-rchip'}>{c.label}</span>
+              <span key={c.label} className={c.tone === 'warn' ? 'poi-rchip poi-rchip--warn' : 'poi-rchip'}>
+                {c.icon === 'star' && <Star size={11} aria-hidden />}
+                {c.label}
+              </span>
             ))}
           </div>
         )}

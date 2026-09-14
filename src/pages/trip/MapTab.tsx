@@ -15,7 +15,9 @@ import { useSuggestionCache, isMapCacheFresh } from '../../hooks/useSuggestionCa
 import { openExternal } from '../../lib/native'
 import { corridorAnchors, detourKm, detourMinutes, asymmetricDetourMinutes, googleEnabled, planJourneyHalts, reasonForSegmentHit, searchPlaces, searchNearbyPoisMulti, kmFromStartForHit, planDriveDays, planTravelClock, DEFER_START, type NearbyOpts, type PlaceHit, routeHash } from '../../lib/geocode'
 import { isSightCategory } from '../../lib/ridePlan'
-import { railReasonChips } from '../../lib/railReasons'
+import { railReasonChips, type RailChip } from '../../lib/railReasons'
+import { rulerMarks } from '../../lib/railRuler'
+import { addDecision } from '../../store/store'
 import { dayDetourBudgetMin, budgetSharePct, splitByDetourBudget } from '../../lib/detourBudget'
 import { quotaUsed, SOFT_CAPS } from '../../lib/providers/quota'
 import { buildDnaVectorAcrossTrips, loadDnaLog, recordDnaEvent, dnaNoteForHit, crewSeedsFromSuggestions, crewSeedsToPlannedStops, crewSeedEvents, crewNoteForHit } from '../../lib/tripDna'
@@ -142,6 +144,12 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
   // side panels or the map. Panel hover/click sets it (map flies to the pin);
   // map hover/click sets it (panel row highlights and scrolls into view).
   const [activeHitId, setActiveHitId] = useState<string | number | null>(null)
+  // Shortlist: the rail collects picks before anything lands in the plan, so the
+  // group can vote on them. The tray under the grid owns the actions.
+  const [shortlist, setShortlist] = useState<PlaceHit[]>([])
+  // One reason chip can narrow the rail, so "where are the lunch options?" is a
+  // tap instead of a scroll.
+  const [chipFilter, setChipFilter] = useState<string | null>(null)
   // In-map place search (§6.5): a free-text query over the provider facade,
   // plus the results to add straight from the Map tab.
   const [searchQ, setSearchQ] = useState('')
@@ -498,6 +506,32 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     setPoiDraft({ hit })
   }
 
+  /** Shortlisting never edits the plan; it collects for the tray to act on. */
+  function toggleShortlist(hit: PlaceHit) {
+    setShortlist(prev =>
+      prev.some(h => h.id === hit.id) ? prev.filter(h => h.id !== hit.id) : [...prev, hit],
+    )
+  }
+
+  function addShortlisted() {
+    for (const hit of shortlist) addPoiToDay(hit, dayForKm(hit.cumKm))
+    setShortlist([])
+  }
+
+  /** Turn the shortlist into an open group decision, reusing the poll shape. */
+  function raiseShortlistVote() {
+    if (shortlist.length === 0) return
+    addDecision(trip.id, {
+      question: shortlist.length === 1
+        ? `Should we add "${shortlist[0].name}"?`
+        : 'Which of these should we add?',
+      context: 'Shortlisted from the Map rail',
+      options: shortlist.map((h, i) => ({ id: `tmp_${i}`, label: h.name })),
+    })
+    toast('Decision posted for the group')
+    setShortlist([])
+  }
+
   async function onSearch(e: React.FormEvent) {
     e.preventDefault()
     const q = searchQ.trim()
@@ -531,6 +565,14 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
   // map tab needs no scrolling to reach either kind (§6.10 CTI tone coding).
   const needs = pois.filter(sh => sh.segment && NEED_PURPOSES.has(sh.segment.purpose))
   const seeAndDo = pois.filter(sh => sh.segment && !NEED_PURPOSES.has(sh.segment.purpose))
+  // Rail derivations for the V2 pass: one chip filter narrows both rails, and the
+  // ruler marks reuse each card's own cumulative km so a dot never disagrees with
+  // the number printed on its card.
+  const needsForRail = chipFilter ? needs.filter(sh => sh.hit && chipsFor(sh, sh.hit).some(c => c.label === chipFilter)) : needs
+  const seeForRail = chipFilter ? seeAndDo.filter(sh => sh.hit && chipsFor(sh, sh.hit).some(c => c.label === chipFilter)) : seeAndDo
+  const needMarks = rulerMarks(needs.filter(sh => sh.hit).map(sh => ({ id: String(sh.hit!.id), km: sh.hit!.cumKm ?? null, purpose: sh.segment.purpose })), planKm)
+  const seeMarks = rulerMarks(seeAndDo.filter(sh => sh.hit).map(sh => ({ id: String(sh.hit!.id), km: sh.hit!.cumKm ?? null, purpose: sh.segment.purpose })), planKm)
+  const filterActive = chipFilter != null
   // Detour-budget enforcement (Horizon 3.2's "finite, honest menu"): the
   // see-&-do list is the endless one — need halts are finite by construction,
   // so the budget gates only sights. Per day: walk the journey-ordered sight
@@ -642,6 +684,26 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
       .map(e => ({ h: e.h, dKm: e.dKm ?? null }))
   }
 
+  /** Reason chips for one suggestion, shared by the card and the rail filter. */
+  function chipsFor(sh: SegmentHit, hit: PlaceHit): RailChip[] {
+    const detourMin = asymmetricDetourMinutes(hit, anchors, routePolyline ?? null, MODE_SPEED[trip.transportMode] ?? 40)
+    const hitDay = trip.days.find(d => d.index === dayForKm(hit.cumKm))
+    const dayBudget = dayDetourBudgetMin({
+      travelStyle: trip.travelStyle,
+      plannedStops: (hitDay?.stops ?? []).filter(s => s.status !== 'rejected').length,
+    })
+    return railReasonChips({
+      purpose: sh.segment.purpose,
+      etaMinutes: sh.segment.etaMinutes ?? null,
+      minutesFromPrev: sh.segment.minutesFromPrev,
+      isFirstSegment: sh.segment.index === 0,
+      detourMinutes: detourMin,
+      budgetSharePct: detourMin > 0.5 ? budgetSharePct(detourMin, dayBudget) : null,
+      overBudget: detourMin > dayBudget,
+      rating: hit.rating,
+    })
+  }
+
   function renderPoi(sh: SegmentHit) {
     const hit = sh.hit
     // dismissed stays hidden for the session (logged as a DNA decline)
@@ -670,16 +732,8 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     const alts = alternativesFor(sh, hit)
     // Structured reasons: every chip traces back to a number the engine already
     // produced (clock, detour budget, hours, rating) - nothing is invented here.
-    const chips = railReasonChips({
-      purpose: sh.segment.purpose,
-      etaMinutes: sh.segment.etaMinutes ?? null,
-      minutesFromPrev: sh.segment.minutesFromPrev,
-      isFirstSegment: sh.segment.index === 0,
-      detourMinutes: detourMin,
-      budgetSharePct: detourMin > 0.5 ? budgetSharePct(detourMin, dayBudget) : null,
-      overBudget: detourMin > dayBudget,
-      rating: hit.rating,
-    })
+    const chips = chipsFor(sh, hit)
+    const shortlisted = shortlist.some(h => h.id === hit.id)
     // Over the day's detour budget: shown as a counted line, not an offer.
     if (budgetHeldIds.has(hit.id as string)) {
       return (
@@ -701,6 +755,16 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
           {hit.thumb && <img className="poi-thumb" src={smallThumb(hit.thumb)} alt="" loading="lazy" />}
           <b>{hit.name}</b>
           {NEED_PURPOSES.has(sh.segment.purpose) && !added && <span className="poi-best">Best fit</span>}
+          <button
+            type="button"
+            className={shortlisted ? 'poi-short is-on' : 'poi-short'}
+            aria-pressed={shortlisted}
+            title={shortlisted ? `Remove ${hit.name} from the shortlist` : `Shortlist ${hit.name} for the group`}
+            aria-label={shortlisted ? `Remove ${hit.name} from the shortlist` : `Shortlist ${hit.name} for the group`}
+            onClick={() => toggleShortlist(hit)}
+          >
+            {shortlisted ? <CircleCheck size={13} aria-hidden /> : <Plus size={13} aria-hidden />}
+          </button>
         </div>
         {/* The planner is clock-first (PLAN-DAY-PLANNER section 4), so the strip
             leads with the wall clock it derived the halt from, not just km. */}
@@ -720,6 +784,22 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
           {sh.segment.purpose === 'overnight' && (
             <span className="poi-fact"><i>·</i>day ends here</span>
           )}
+          {/* Detour whisker: the route line with this halt's spur. The spur turns
+              amber when the detour is heavy, so cost is visible before the
+              number is read. */}
+          <svg className="poi-whisk" width={54} height={20} viewBox="0 0 54 20" aria-hidden>
+            <path className="poi-whisk-route" d="M1 14h52" />
+            <path
+              className={detourMin > dayBudget ? 'poi-whisk-spur poi-whisk-spur--heavy' : 'poi-whisk-spur'}
+              d={`M32 14 L45 ${detourMin > 20 ? 3 : 6}`}
+            />
+            <circle
+              className={detourMin > dayBudget ? 'poi-whisk-pin poi-whisk-pin--heavy' : 'poi-whisk-pin'}
+              cx={45}
+              cy={detourMin > 20 ? 3 : 6}
+              r={3}
+            />
+          </svg>
         </div>
         {/* Day Planner chips (P1-D/P1-F): which derived day the hit lands on,
             whether it sits past a night halt, and — on round trips — whether
@@ -742,10 +822,17 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
         {chips.length > 0 && (
           <div className="poi-rchips">
             {chips.map(c => (
-              <span key={c.label} className={c.tone === 'warn' ? 'poi-rchip poi-rchip--warn' : 'poi-rchip'}>
+              <button
+                key={c.label}
+                type="button"
+                className={(c.tone === 'warn' ? 'poi-rchip poi-rchip--warn' : 'poi-rchip') + (chipFilter === c.label ? ' is-on' : '')}
+                aria-pressed={chipFilter === c.label}
+                title={chipFilter === c.label ? 'Stop filtering by this reason' : 'Show only suggestions with this reason'}
+                onClick={() => setChipFilter(prev => (prev === c.label ? null : c.label))}
+              >
                 {c.icon === 'star' && <Star size={11} aria-hidden />}
                 {c.label}
-              </span>
+              </button>
             ))}
           </div>
         )}
@@ -772,7 +859,14 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
               <div key={h.id as string} className="poi-cand">
                 <b>{h.name}</b>
                 <span className="poi-cand-f">{dKm != null ? `${dKm.toFixed(1)} km off` : 'on route'}</span>
-                <button className="poi-cand-add" onClick={() => openAddModal(h)} title={`Add ${h.name}`} aria-label={`Add ${h.name}`}><Plus size={12} aria-hidden /></button>
+                <button
+                  type="button"
+                  className={shortlist.some(s => s.id === h.id) ? 'poi-cand-add is-on' : 'poi-cand-add'}
+                  onClick={() => toggleShortlist(h)}
+                  aria-pressed={shortlist.some(s => s.id === h.id)}
+                  title={shortlist.some(s => s.id === h.id) ? `Remove ${h.name} from the shortlist` : `Shortlist ${h.name}`}
+                  aria-label={shortlist.some(s => s.id === h.id) ? `Remove ${h.name} from the shortlist` : `Shortlist ${h.name}`}
+                >{shortlist.some(s => s.id === h.id) ? <CircleCheck size={12} aria-hidden /> : <Plus size={12} aria-hidden />}</button>
               </div>
             ))}
           </div>
@@ -979,6 +1073,12 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
           )
         )}
       </div>
+      {filterActive && (
+        <div className="poi-filterbar" role="status">
+          <span>Showing only suggestions that are {chipFilter}</span>
+          <button type="button" onClick={() => setChipFilter(null)}>Clear filter</button>
+        </div>
+      )}
       <div className="map-ideas-grid" ref={listRef}>
         <EngineTips />
         <div className="poi-col poi-col--needs">
@@ -988,12 +1088,19 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
                 <b>Need-based halts</b>
                 <span className="small muted">{needs.length === 0 ? 'fuel · food · rest · stretch · overnight' : `${needs.length} halts on this corridor`}</span>
               </div>
-              <span className="poi-col-count">{needs.length}</span>
+              <span className="poi-col-count">{needsForRail.length}</span>
+            </div>
+            <div className="poi-ruler" aria-hidden>
+              <span className="poi-ruler-axis" />
+              {needMarks.map(m => (
+                <span key={m.id} className={`poi-ruler-dot poi-ruler-dot--${m.tone}`} style={{ left: `${m.pct}%` }} />
+              ))}
+              <span className="poi-ruler-km">{Math.round(planKm)} km</span>
             </div>
             <div className="poi-plan-list">
-              {needs.length === 0
+              {needsForRail.length === 0
                 ? <p className="muted small">No need-based halts surfaced yet — they appear as you add driving days.</p>
-                : groupByPurpose(needs).map(([label, items]) => (
+                : groupByPurpose(needsForRail).map(([label, items]) => (
                     <div key={label}>
                       <div className="poi-grp">
                         <span className="poi-grp-k">{label}</span>
@@ -1024,10 +1131,17 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
                 <b>See &amp; do</b>
                 <span className="small muted">{arcs.slice(0, 2).length + seeAndDo.length === 0 ? 'sightseeing · detours · scenic stops' : `${arcs.slice(0, 2).length} arcs · ${seeAndDo.length} picks on this corridor`}</span>
               </div>
-              <span className="poi-col-count">{arcs.slice(0, 2).length + seeAndDo.length}</span>
+              <span className="poi-col-count">{filterActive ? seeForRail.length : arcs.slice(0, 2).length + seeAndDo.length}</span>
+            </div>
+            <div className="poi-ruler" aria-hidden>
+              <span className="poi-ruler-axis" />
+              {seeMarks.map(m => (
+                <span key={m.id} className={`poi-ruler-dot poi-ruler-dot--${m.tone}`} style={{ left: `${m.pct}%` }} />
+              ))}
+              <span className="poi-ruler-km">{Math.round(planKm)} km</span>
             </div>
             <div className="poi-plan-list">
-              {arcs.slice(0, 2).length > 0 && (
+              {!filterActive && arcs.slice(0, 2).length > 0 && (
                 <div className="poi-grp">
                   <span className="poi-grp-k">Route arcs</span>
                   <span className="poi-grp-n">{arcs.slice(0, 2).length}</span>
@@ -1120,20 +1234,20 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
               {quotaOut && (
                 <p className="hint-text" role="status">⚠ Google search quota reached for this month — corridor suggestions are paused until the counter rolls over. Removing the key from settings serves the free stack instead.</p>
               )}
-              {seeAndDo.length === 0
+              {seeForRail.length === 0
                 ? <p className="muted small">Sightseeing &amp; detour stops will appear here along the corridor.</p>
                 : (
                     <>
                       <div className="poi-grp">
                         <span className="poi-grp-k">Individual picks</span>
-                        <span className="poi-grp-n">{seeAndDo.length}</span>
+                        <span className="poi-grp-n">{seeForRail.length}</span>
                         <span className="poi-grp-ln" />
                       </div>
-                      {seeAndDo.slice(0, SEE_VISIBLE).map(renderPoi)}
-                      {seeAndDo.length > SEE_VISIBLE && (
+                      {seeForRail.slice(0, SEE_VISIBLE).map(renderPoi)}
+                      {seeForRail.length > SEE_VISIBLE && (
                         <details className="poi-more">
-                          <summary><ChevronDown className="poi-chev" size={12} aria-hidden />{seeAndDo.length - SEE_VISIBLE} more picks</summary>
-                          <div className="poi-more-list">{seeAndDo.slice(SEE_VISIBLE).map(renderPoi)}</div>
+                          <summary><ChevronDown className="poi-chev" size={12} aria-hidden />{seeForRail.length - SEE_VISIBLE} more picks</summary>
+                          <div className="poi-more-list">{seeForRail.slice(SEE_VISIBLE).map(renderPoi)}</div>
                         </details>
                       )}
                     </>
@@ -1144,6 +1258,18 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
             </div>
           </div>
       </div>
+      {/* Shortlist tray: the rail collects, the tray decides. Sticky so it stays
+          reachable while the rails scroll. */}
+      {shortlist.length > 0 && (
+        <div className="poi-tray" role="region" aria-label="Shortlisted stops">
+          <span className="poi-tray-n">{shortlist.length} shortlisted</span>
+          <span className="poi-tray-actions">
+            <button className="btn btn-primary btn-sm" type="button" onClick={addShortlisted}>Add all</button>
+            <button className="btn btn-ghost btn-sm" type="button" onClick={raiseShortlistVote}>Send to a vote</button>
+            <button className="btn btn-ghost btn-sm" type="button" onClick={() => setShortlist([])}>Clear</button>
+          </span>
+        </div>
+      )}
       {/* pick-a-day modal for adding a suggested POI — explicit confirm */}
       <Modal open={!!poiDraft} onClose={() => setPoiDraft(null)} title={`Add “${poiDraft?.hit.name ?? ''}”`}>
         {poiDraft && (

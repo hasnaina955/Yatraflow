@@ -15,14 +15,12 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ## [Unreleased]
 
-### Added — Create Trip parity with the Plan Bench
+### Added
 - **A route-integrity guardrail** (`tests/route-integrity.test.ts`): every `#/…` link and
   `navigate('/…')` call in `src/` must resolve to a route `App.tsx` handles — the
   `switch (parts[0])` cases plus the pre-switch `parts[0] === '…'` checks. Comments are
   stripped first, so a route named in prose is not read as a live link, and both
   assertions carry a vacuity guard, so a parse that found nothing cannot pass.
-
-### Added — Day Planner (travel clock)
 - **The fatigue cadence is hours, not km.** Stretch breaks fire at `STRETCH_CLOCK_MIN`
   (120 min) of wheel time — 150 km was ≈2 h at highway speed but 3.6 h at the engine's own
   blended 42 km/h — and `planDriveDays` derives the drive-day split a route **demands**

@@ -372,7 +372,7 @@ function ContentTab() {
               const creator = db.users.find(u => u.id === p.creatorId)
               return (
                 <tr key={p.id}>
-                  <td><a href={`#/p/${p.id}`}>{p.title}</a><br /><span className="muted small">{p.routeSummary.join(' → ')}</span></td>
+                  <td><a href={`#/pub/${p.id}`}>{p.title}</a><br /><span className="muted small">{p.routeSummary.join(' → ')}</span></td>
                   <td className="small">{creator?.profile.name ?? '—'}</td>
                   <td className="num">{p.views}</td>
                   <td className="num">{p.copies}</td>

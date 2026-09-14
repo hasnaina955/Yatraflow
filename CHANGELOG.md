@@ -105,6 +105,7 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
   never established a clipping box, so a skewed bar swept the whole hero face and read as
   a stray grey blob sliding across empty space beside the CTAs. Each hero button is now
   its own clip box.
+- **The Map tab's suggestion rails pass a dedicated accessibility and consistency audit (#152–#181).** Warn text on light theme reads through the AA-passing ink tier (5.3:1) on facts, chips and the map spur, which now paints from `--warn` instead of a hardcoded hex; rail cards are keyboard-operable with real names and the fold buttons carry `aria-controls`; the rotating engine tip no longer spams screen readers every 7 s. Card, ruler and map now tell one story: ruler dots nudge apart instead of stacking at shared km and read the same km the card prints, the detour spur snaps to the same road projection the card's minutes use, one "fits-budget" predicate decides warn/held-back, unknown-km hits say so instead of silently attributing to Day 1, and "Best fit" appears only on the top-scoring pick. Chip filtering keys on stable ids instead of display copy, ratings endorse only with a 10+ review sample, the detour whisker's spur length now scales with share of the day's budget, quota outages get one honest story on every rail (never dressed up as a short trip), the detour-scope preference is guarded and namespaced with the rest, threshold chips got estimate-proof bands, and stale planner copy was rewritten to describe the clock-first engine.
 - **Map zoom/fullscreen controls were unusable** — mapcn's `MapControls` ships Tailwind
   utility classes this app doesn't compile, so the group rendered as static flow under
   the canvas (invisible in 2D, stray and clipped otherwise). The handful of rules it
@@ -124,6 +125,10 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 - **Status docs reflect the final #107 state** — `AGENTS.md` §1.1 records
   **117/117 boxes closed**, and the Day Planner docs carry honest open-item
   markers (lodging-anchored halt placement is P1-C, not shipped).
+- **The design-system contrast gate now covers the Map rails (#154)** — a new
+  pinned contract measures the rail's warn-ink pairs against their real
+  surfaces in both themes; color-only overrides can no longer ship a
+  sub-AA pair unnoticed (the hole #152 slipped through).
 
 ## [0.53.0] - 2026-09-13
 

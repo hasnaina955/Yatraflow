@@ -56,23 +56,38 @@ export function haptic(pattern: HapticPattern | HapticIntent): void {
         if (pattern === 'success' || pattern === 'warn') {
           void Haptics.notification({
             type: pattern === 'success' ? NotificationType.Success : NotificationType.Error,
-          }).catch(() => {})
+          }).catch(err => {
+            // Native-plugin rejections must not swallow silently in DEV —
+            // that is the only place a broken Capacitor bridge would show.
+            if (import.meta.env.DEV) console.error('[HAPTIC] native notification failed:', err)
+          })
         } else {
-          void Haptics.impact({ style: IMPACT[pattern] }).catch(() => {})
+          void Haptics.impact({ style: IMPACT[pattern] }).catch(err => {
+            if (import.meta.env.DEV) console.error('[HAPTIC] native impact failed:', err)
+          })
         }
+        if (import.meta.env.DEV) console.log('[HAPTIC] native', pattern)
         return
       }
-      if ('vibrate' in navigator) navigator.vibrate(HAPTIC[pattern])
+      // AGENTS lesson: gate DEV logging behind backend presence — on a
+      // vibrate-less browser (iOS Safari) the call is a no-op, so logging
+      // it is noise exactly where haptics can't work.
+      if ('vibrate' in navigator) {
+        navigator.vibrate(HAPTIC[pattern])
+        if (import.meta.env.DEV) console.log('[HAPTIC] web fired', pattern)
+      }
       return
     }
 
     // Raw pattern (legacy numeric call sites): native has no ms analog, so a
     // medium impact is the closest single gesture.
     if (isNative) {
-      void Haptics.impact({ style: ImpactStyle.Medium }).catch(() => {})
+      void Haptics.impact({ style: ImpactStyle.Medium }).catch(err => {
+        if (import.meta.env.DEV) console.error('[HAPTIC] native impact failed:', err)
+      })
       return
     }
-    if (import.meta.env.DEV) {
+    if ('vibrate' in navigator && import.meta.env.DEV) {
       console.log('[HAPTIC] Pattern:', pattern, '| vibrate in navigator:', 'vibrate' in navigator, '| navigator.vibrate type:', typeof navigator.vibrate)
     }
     if ('vibrate' in navigator) navigator.vibrate(pattern)

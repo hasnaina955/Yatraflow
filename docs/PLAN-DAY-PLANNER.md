@@ -193,11 +193,15 @@ per-leg.
 
 - `planJourneyHalts` arms the split from `planDriveDays`; passes derived
   `dayStartTimes`; overnight segments query lodging (existing hotel query
-  path).
+  path) *(planned — not in this branch; lodging-anchored halt placement is
+  still open)*.
 - MapTab: derived arming replaces `trip.days.length > 1`; one-line + proposal
   UI ("this drive needs 2 travel days — apply?").
 
 ## 9. Phase P1-C — night-halt accept + defer + fraction rows (MapTab)
+
+STATUS: open (#139) — the halt PIN is clock-derived; lodging-snapped
+placement (top 3 lodging near the per-day km) is the remaining fetch.
 
 - Night-halt suggestions (top 3 lodging near the per-day km, ± `ENDNO_day`,
   projected clock ≤ 20:00 — pulled earlier when late). Accept → stay stop →

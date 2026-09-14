@@ -60,8 +60,10 @@ time for a stretch, dinner ends the driving day, and nobody should drive past 23
 - **The route asks for its own days.** A 700 km drive suggests "this needs 2 travel
   days — apply?", balanced so no single day is brutal. Keeping your own day count is
   fine — the plan says honestly that the fatigue verdict stays red.
-- **Night halts are real stops.** The engine suggests a town with a room where each
-  driving day should end; accept one and the bill gains the stay line automatically.
+- **Night halts are honest km first, real towns next.** The engine marks where each
+  driving day should end on the clock; the map strip pins nearby stay options to
+  that point — accept one and the bill gains the stay line automatically.
+  (Lodging-anchored halt placement itself is P1-C, still open.)
 - **Late starts get honest plans, not night driving.** Start too late and the map
   offers a short hop to a night halt — or, if it's really late, suggests leaving at
   06:00 tomorrow instead.

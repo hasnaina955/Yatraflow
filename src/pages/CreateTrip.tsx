@@ -102,6 +102,10 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
   const [f, setF] = useState({
     name: '', startLocation: '',
     startDate: '', endDate: '', travellers: 2,
+    // #142 party inputs — undefined until the user touches the controls
+    driverCount: undefined as number | undefined,
+    hasVulnerable: undefined as boolean | undefined,
+    driveAfterDinnerMin: undefined as number | undefined,
     transportMode: 'car' as TransportMode,
     localTrain: false,
     fuelEconomy: '',
@@ -182,8 +186,10 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
   const driveDaysVerdict = useMemo(() => {
     if (bill.roadKm == null || bill.roadKm < 90) return null
     const speed = MODE_SPEED[f.transportMode] ?? 42
-    return planDriveDays({ totalKm: bill.roadKm, driveMinutes: (bill.roadKm / speed) * 60, travelStyle: f.travelStyle })
-  }, [bill.roadKm, f.transportMode, f.travelStyle])
+    // #126 mode gate + #142 party inputs: timetable modes get no verdict;
+    // drivers/vulnerable party move the honest cap.
+    return planDriveDays({ totalKm: bill.roadKm, driveMinutes: (bill.roadKm / speed) * 60, travelStyle: f.travelStyle, transportMode: f.transportMode, driverCount: f.driverCount, hasVulnerable: f.hasVulnerable })
+  }, [bill.roadKm, f.transportMode, f.travelStyle, f.driverCount, f.hasVulnerable])
 
   function patchFields(next: Partial<typeof f>) {
     setF(x => ({ ...x, ...next }))
@@ -312,6 +318,10 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
       destinationCoords: dests.map(d => (d.lat != null && d.lng != null ? { lat: d.lat, lng: d.lng } : null)),
       startDate: f.startDate, endDate: f.endDate,
       travellers: f.travellers,
+      // #142 party inputs ride along only when the user set them
+      driverCount: f.driverCount,
+      hasVulnerable: f.hasVulnerable,
+      driveAfterDinnerMin: f.driveAfterDinnerMin,
       transportMode: f.transportMode,
       fuelEconomyKmL: fuelMode ? parseFuelEconomyKmL(f.fuelEconomy) : undefined,
       fuelPricePerL: fuelMode ? parseFuelPricePerL(f.fuelPrice) : undefined,
@@ -600,6 +610,37 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
                       <input className="input mono" type="number" min={1} max={30} ref={el => (fieldRefs.current.travellers = el)}
                         aria-invalid={!!errs.travellers} value={f.travellers}
                         onChange={e => patchFields({ travellers: Number(e.target.value) })} />
+                    </Field>
+                  </div>
+                )}
+                {/* #142 party inputs — the two dials that move the honest wheel
+                    cap. Hidden for timetable modes: nobody drives, nobody
+                    fatigues. Driver count clamps to the crew. */}
+                {(f.transportMode === 'car' || f.transportMode === 'rental' || f.transportMode === 'motorcycle' || f.transportMode === 'taxi') && (
+                  <div className="crew-custom" style={{ marginTop: 10 }}>
+                    <Field label="Drivers sharing the wheel" hint="2 drivers rotate — honest days get longer.">
+                      <div className="crew-row" role="group" aria-label="Drivers sharing the wheel">
+                        {[1, 2, 3].map(n => (
+                          <button key={n} type="button" className={`crew-btn${(f.driverCount ?? 1) === n ? ' on' : ''}`}
+                            aria-pressed={(f.driverCount ?? 1) === n}
+                            onClick={() => { haptic(HAPTIC.select); patchFields({ driverCount: n === 1 ? undefined : n }) }}>{n}</button>
+                        ))}
+                      </div>
+                    </Field>
+                    <Field label="Pace of the party">
+                      <div className="crew-row" role="group" aria-label="Party pace">
+                        <button type="button" className={`crew-btn${!f.hasVulnerable ? ' on' : ''}`} aria-pressed={!f.hasVulnerable}
+                          onClick={() => { haptic(HAPTIC.select); patchFields({ hasVulnerable: undefined }) }}>Everyone adult</button>
+                        <button type="button" className={`crew-btn${f.hasVulnerable ? ' on' : ''}`} aria-pressed={f.hasVulnerable}
+                          title="Infants or seniors aboard — shorter days, earlier dinner"
+                          onClick={() => { haptic(HAPTIC.select); patchFields({ hasVulnerable: true }) }}>Infants / seniors</button>
+                        {/* #122 dhaba case — opt-in post-dinner driving */}
+                        <button type="button" className={`crew-btn${f.driveAfterDinnerMin ? ' on' : ''}`} aria-pressed={!!f.driveAfterDinnerMin}
+                          title="Dhaba dinner, then keep going — dinner no longer ends the day"
+                          onClick={() => { haptic(HAPTIC.select); patchFields({ driveAfterDinnerMin: f.driveAfterDinnerMin ? undefined : 120 }) }}>
+                          Drive after dinner
+                        </button>
+                      </div>
                     </Field>
                   </div>
                 )}

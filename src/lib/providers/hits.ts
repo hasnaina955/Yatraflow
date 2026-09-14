@@ -312,6 +312,9 @@ export function routeHash(geometry: [number, number][] | null): string {
 export interface NearbyOpts {
   /** include petrol pumps as pit stops (self-drive trips only, capped) */
   includeFuel?: boolean
+  /** EV drive (#144B): replace fuel cadence with charge cadence — mutually
+   *  exclusive with includeFuel; segments label the stops "Charge". */
+  includeCharge?: boolean
   /** the trip's starting point — hits inside HOME_ZONE_KM of it are dropped */
   homeCenter?: { lat: number; lng: number } | null
   /** additive per-category score bias from itinerary gaps (computeCategoryBias) */

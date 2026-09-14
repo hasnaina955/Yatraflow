@@ -857,6 +857,12 @@ export interface NewTripInput {
   startLocationCoords?: LatLngPoint;
   destinationCoords?: (LatLngPoint | null)[];
   startDate: string; endDate: string; travellers: number;
+  /** licensed drivers rotating the wheel (#142) — default 1 when unset */
+  driverCount?: number;
+  /** infants/seniors aboard (#142) — shorter honest days, earlier dinner */
+  hasVulnerable?: boolean;
+  /** minutes of driving allowed after the dinner halt (#122, default 0) */
+  driveAfterDinnerMin?: number;
   transportMode: Trip['transportMode']; budgetPerPersonInr: number;
   /** optional km/L for car/motorcycle trips — fuels an accurate transport estimate */
   fuelEconomyKmL?: number;

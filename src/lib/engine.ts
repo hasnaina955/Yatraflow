@@ -1040,13 +1040,15 @@ function stayKeyFor(trip: Pick<Trip, 'stayStyle' | 'travelStyle'>): 'budget' | '
 }
 
 /**
- * Lodging identity key (#125a): a ~500 m coordinate cluster when the stop is
- * geocoded — same property, slightly different pins, one night — falling back
- * to a normalized name only when coordinates are absent. Name-string equality
- * used to double-count "Hotel Taj" vs "Hotel Taj, Mumbai" and under-count two
- * hotels in one city. Full place-id keying is #146.
+ * Lodging identity key (#125a + #146): the provider's own place-id when the
+ * stop came from a search hit (authoritative — same hotel whatever the name
+ * says, across both name-variant spellings and near-duplicate pins); else a
+ * ~500 m coordinate cluster when the stop is geocoded; else a normalized name.
+ * Name-string equality used to double-count "Hotel Taj" vs "Hotel Taj, Mumbai"
+ * and under-count two hotels in one city.
  */
-function lodgingKey(s: Pick<ItineraryStop, 'lat' | 'lng' | 'locationName' | 'title'>): string {
+function lodgingKey(s: Pick<ItineraryStop, 'lat' | 'lng' | 'locationName' | 'title' | 'placeId'>): string {
+  if (s.placeId) return `pid:${s.placeId}`
   if (Number.isFinite(s.lat) && Number.isFinite(s.lng)) {
     return `geo:${Math.round(s.lat * 200)}:${Math.round(s.lng * 200)}`
   }

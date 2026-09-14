@@ -14,7 +14,8 @@ import { Select } from '../../components/Select'
 import { useSuggestionCache, isMapCacheFresh } from '../../hooks/useSuggestionCache'
 import { openExternal } from '../../lib/native'
 import { corridorAnchors, detourKm, detourMinutes, asymmetricDetourMinutes, googleEnabled, planJourneyHalts, reasonForSegmentHit, searchPlaces, searchNearbyPoisMulti, kmFromStartForHit, planDriveDays, planTravelClock, DEFER_START, type NearbyOpts, type PlaceHit, routeHash } from '../../lib/geocode'
-import { isSightCategory } from '../../lib/ridePlan'
+import { isSightCategory, rainFactorFor } from '../../lib/ridePlan'
+import { isElectric } from '../../lib/vehicleProfile'
 import { dayDetourBudgetMin, budgetSharePct, splitByDetourBudget } from '../../lib/detourBudget'
 import { quotaUsed, SOFT_CAPS } from '../../lib/providers/quota'
 import { buildDnaVectorAcrossTrips, loadDnaLog, recordDnaEvent, dnaNoteForHit, crewSeedsFromSuggestions, crewSeedsToPlannedStops, crewSeedEvents, crewNoteForHit } from '../../lib/tripDna'
@@ -280,7 +281,10 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
 
   const nearbyOpts: NearbyOpts = useMemo(() => ({
 
-    includeFuel: trip.transportMode === 'car' || trip.transportMode === 'motorcycle',
+    // #144B: an electric profile charges instead of fuelling — the segment
+    // cadence and the hit queries both read this flag.
+    includeFuel: !isElectric(trip.vehicleProfile) && (trip.transportMode === 'car' || trip.transportMode === 'motorcycle'),
+    includeCharge: isElectric(trip.vehicleProfile),
     homeCenter: trip.startLocationCoords ?? null,
     // fill what the itinerary lacks, demote what it already covers
     categoryBias: computeCategoryBias(trip),
@@ -311,33 +315,49 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
   // for the trip's real start time (defer / hop / ok). Pure — recomputed from
   // route facts, never stored, so every stop mutation re-derives them (the
   // ripple re-plan) and the night-halt position stays honest.
-  const rainFactor = dayRainPct?.[0] != null ? 1 - (dayRainPct[0] as number) / 200 : undefined
+  const rainFactor = dayRainPct?.[0] != null ? rainFactorFor(dayRainPct[0] as number) : undefined
   const tripIsRoundTrip = isRoundTrip(trip)
-  // A round trip bills the drive home too: the split demands days for the
-  // whole loop, matching the CreateTrip verdict (its bill.roadKm doubles the
-  // outbound when roundTrip is on). The return re-traces the same corridor,
-  // so the loop is 2× the outbound measurement.
+  // #126 party + #142 inputs + #122 anchors, one bag both verdicts read. Timetable
+  // modes (train/bus/flight/mixed) get NO fatigue cap → splitVerdict null → no
+  // banner; there is no wheel to fatigue. Vulnerable party pulls dinner an hour
+  // early; the drive-after-dinner allowance (#122) extends days past the meal.
+  const partyOpts = {
+    travelStyle: trip.travelStyle,
+    transportMode: trip.transportMode,
+    driverCount: trip.driverCount,
+    hasVulnerable: trip.hasVulnerable,
+  }
+  const tripAnchors = {
+    dinnerStartMin: trip.hasVulnerable ? 19 * 60 : undefined,
+    dinnerEndMin: trip.hasVulnerable ? 20 * 60 : undefined,
+    allowPostDinnerDriveMin: trip.driveAfterDinnerMin,
+  }
+  // A round trip's SPLIT demands days for the whole loop (2× the outbound
+  // corridor — the return re-traces the same road). The CLOCK walk (#145) now
+  // models it honestly instead: one outbound walk + a directed return walk
+  // from the destination, whose day count feeds the banner.
   const loopFactor = tripIsRoundTrip ? 2 : 1
   const splitVerdict = useMemo(
-    () => planDriveDays({ totalKm: planKm * loopFactor, driveMinutes: wholeTrip.min * loopFactor, travelStyle: trip.travelStyle, rainFactor }),
-    [planKm, wholeTrip.min, trip.travelStyle, loopFactor, dayRainPct],
+    () => planDriveDays({ totalKm: planKm * loopFactor, driveMinutes: wholeTrip.min * loopFactor, rainFactor, ...partyOpts }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [planKm, wholeTrip.min, trip.travelStyle, trip.transportMode, trip.driverCount, trip.hasVulnerable, loopFactor, dayRainPct],
   )
   const clockVerdict = useMemo(
-    // #127: the clock walk takes the per-day rain array (day 1 wet ≠ day 3 wet);
-    // the scalar rainFactor below stays for the start-time-blind split estimate.
-    // The walk bills the loop like the split does — a round trip's clock days
-    // are there AND back (same 2× model the clock overlay already draws).
-    () => planTravelClock({ totalKm: planKm * loopFactor, driveMinutes: wholeTrip.min * loopFactor, dayStart: trip.days[0]?.startTime, travelStyle: trip.travelStyle, rainFactor, dayRainPct: dayRainPct ?? undefined }),
-    // Stable keys only (#135): the walk reads startTimes + day count, never the
-    // days array identity. Day starts string + length cover it.
+    // #127 per-day rain array; #142 party cap; #122 anchors; #145 a round trip
+    // walks the OUTBOUND leg and returns a directed `returnDays` pass — the walk
+    // no longer fakes the loop as a single 2× line.
+    () => planTravelClock({ totalKm: planKm, driveMinutes: wholeTrip.min, dayStart: trip.days[0]?.startTime, rainFactor, dayRainPct: dayRainPct ?? undefined, roundTrip: tripIsRoundTrip, ...partyOpts, anchors: tripAnchors }),
+    // Stable keys only (#135): the walk reads startTimes + party/mode, never the
+    // days array identity.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [planKm, wholeTrip.min, trip.travelStyle, dayStartSig, dayRainPct, loopFactor],
+    [planKm, wholeTrip.min, trip.travelStyle, trip.transportMode, trip.driverCount, trip.hasVulnerable, trip.driveAfterDinnerMin, dayStartSig, dayRainPct, tripIsRoundTrip],
   )
   // One clock story (#123): the banner count comes from the clock walk that
   // knows the start time; planDriveDays stays the geometry-free estimator.
   // defer → 0 usable days today; hop → tonight's hop + full days from tomorrow.
+  // #145: a round trip needs BOTH walks counted — out + back.
   const travelDayNeed = clockVerdict.verdict === 'ok'
-    ? clockVerdict.days.length
+    ? clockVerdict.days.length + (clockVerdict.returnDays?.length ?? 0)
     : clockVerdict.verdict === 'hop'
       ? 1
       : splitVerdict?.driveDayCount ?? 1
@@ -465,6 +485,9 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
         transportCostInrTotal: 0,
         priority: 'nice-to-have',
         sourceUrl: '',
+        // provider place-id when the hit carries one (#146) — lodging identity
+        // keys on this ahead of coords/name, so the same hotel never bills twice.
+        placeId: hit.placeId ?? '',
         status: 'suggested',
         orderInDay: day.stops.length + 1,
       } as unknown as ItineraryStop

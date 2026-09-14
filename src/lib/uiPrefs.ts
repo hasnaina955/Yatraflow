@@ -195,3 +195,64 @@ export function saveMapViewMode(mode: MapViewMode): void {
     // Private mode / quota exceeded — persistence is best-effort by design.
   }
 }
+
+// ---- Accepted night-halt pins (#143) — local only, never trip data ----
+// An accepted night halt must not jump when an unrelated stop is added:
+// "<tripId>:<dayIndex>" → the pinned route-km. Re-plans propose a delta when
+// the derived halt drifts ≥ HALT_PIN_HYSTERESIS_KM; below that the pin wins
+// silently. Keyed per trip + day so clearing a trip's pins is O(days).
+const HALT_PIN_KEY = 'yatraflow_halt_pins'
+/** Drift below this km keeps the pin without asking (#143 hysteresis). */
+export const HALT_PIN_HYSTERESIS_KM = 15
+
+type HaltPinMap = Record<string, number>
+
+function readHaltPins(): HaltPinMap {
+  if (typeof localStorage === 'undefined') return {}
+  try {
+    const raw = localStorage.getItem(HALT_PIN_KEY)
+    const parsed = raw ? JSON.parse(raw) : null
+    return parsed && typeof parsed === 'object' ? parsed as HaltPinMap : {}
+  } catch {
+    return {} // corrupted JSON — behave as no pins, never throw
+  }
+}
+
+function writeHaltPins(map: HaltPinMap): void {
+  if (typeof localStorage === 'undefined') return
+  try { localStorage.setItem(HALT_PIN_KEY, JSON.stringify(map)) } catch { /* best-effort */ }
+}
+
+const haltPinId = (tripId: string, dayIndex: number): string => `${tripId}:${dayIndex}`
+
+/** The pinned route-km for a trip's driving day, or null when unpinned. */
+export function loadHaltPin(tripId: string, dayIndex: number): number | null {
+  const v = readHaltPins()[haltPinId(tripId, dayIndex)]
+  return typeof v === 'number' && Number.isFinite(v) ? v : null
+}
+
+/** Pin an accepted night halt at its route-km (#143). */
+export function saveHaltPin(tripId: string, dayIndex: number, km: number): void {
+  if (!Number.isFinite(km)) return
+  const map = readHaltPins()
+  map[haltPinId(tripId, dayIndex)] = km
+  writeHaltPins(map)
+}
+
+/** Unpin (halt removed, or the user accepts the re-derived position). */
+export function clearHaltPin(tripId: string, dayIndex: number): void {
+  const map = readHaltPins()
+  delete map[haltPinId(tripId, dayIndex)]
+  writeHaltPins(map)
+}
+
+/** Drop every pin for one trip (trip deleted, or the road re-shaped). */
+export function clearHaltPinsForTrip(tripId: string): void {
+  const map = readHaltPins()
+  const prefix = `${tripId}:`
+  let touched = false
+  for (const k of Object.keys(map)) {
+    if (k.startsWith(prefix)) { delete map[k]; touched = true }
+  }
+  if (touched) writeHaltPins(map)
+}

@@ -126,6 +126,9 @@ export interface ItineraryStop {
   arrivalTime?: string       // "HH:MM" — computed as departTime + legTravelMinutes
   legDistanceKm?: number     // road distance from the previous point (OSRM or estimate)
   legTravelMinutes?: number  // travel time in minutes for that leg
+  /** provider place id (Google/OSM), when the stop came from a search hit
+   *  (#146) — authoritative lodging identity, beats name/coords matching. */
+  placeId?: string
 }
 
 export interface ItineraryDay {
@@ -155,6 +158,19 @@ export interface Trip {
   startDate: string         // ISO yyyy-mm-dd
   endDate: string
   travellers: number
+  /**
+   * Licensed drivers rotating the wheel (#142). Default 1; 2 buys the day
+   * real wheel hours (rotation), clamped to crew size at the call sites.
+   */
+  driverCount?: number
+  /** Infants or seniors aboard (#142/#122) — shorter honest days, earlier dinner. */
+  hasVulnerable?: boolean
+  /**
+   * Minutes of legal driving ALLOWED after the dinner halt (#122 dhaba case).
+   * Default 0/undefined = dinner ends the driving day; ~120 = "Dinner at X,
+   * 2 h more to Y" when the night end permits.
+   */
+  driveAfterDinnerMin?: number
   transportMode: TransportMode
   /**
    * Optional user-stated fuel economy (km per litre) for self-drive modes.

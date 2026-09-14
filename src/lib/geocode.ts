@@ -211,6 +211,7 @@ export async function planJourneyHalts(
     totalKm,
     driveMinutes,
     includeFuel: opts.includeFuel,
+    includeCharge: opts.includeCharge,
     multiDay: opts.multiDay,
     vehicleRangeKm: vehicleRange,
     dayStartTimes: opts.dayStartTimes,

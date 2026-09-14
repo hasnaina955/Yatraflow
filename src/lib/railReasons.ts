@@ -60,11 +60,11 @@ export function railReasonChips(input: RailReasonInput): RailChip[] {
     input.etaMinutes >= LUNCH_WINDOW[0] &&
     input.etaMinutes <= LUNCH_WINDOW[1]
   ) {
-    push('in the lunch window')
+    push('lunch window')
   }
 
   if (input.minutesFromPrev >= STRETCH_COMMENT_MIN) {
-    push(`breaks a ${minutesToHM(input.minutesFromPrev)} stretch`)
+    push(`${minutesToHM(input.minutesFromPrev)} stretch`)
   }
 
   if (input.rating != null && input.rating >= RATING_COMMENT_MIN) {
@@ -72,10 +72,10 @@ export function railReasonChips(input: RailReasonInput): RailChip[] {
   }
 
   if (input.budgetSharePct != null && input.budgetSharePct >= BUDGET_SHARE_COMMENT_PCT) {
-    push(`${input.budgetSharePct}% of the day's detour budget`)
+    push(`${input.budgetSharePct}% of budget`)
   }
 
-  if (input.isFirstSegment) push('first stop of the day')
+  if (input.isFirstSegment) push('first stop')
 
   return chips
 }

@@ -5139,25 +5139,23 @@ html.native-shell {
    one reason line, folded extras. Same data, three-line scan. ---- */
 .poi-col-head .poi-col-count {
   margin-left: auto; flex: none;
-  font-family: ui-monospace, 'SF Mono', 'Cascadia Mono', 'Roboto Mono', Consolas, monospace;
-  font-size: 11px; font-weight: 600; color: var(--text-2);
+  font-size: 11.5px; font-weight: 600; color: var(--text-2);
   background: var(--card); border: 1px solid var(--line); border-radius: 999px;
   padding: 2px 8px; font-variant-numeric: tabular-nums;
 }
 .poi-grp { display: flex; align-items: center; gap: 8px; margin: 12px 0 6px; }
 .poi-grp-k { font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); }
-.poi-grp-n { font-family: ui-monospace, 'SF Mono', 'Cascadia Mono', 'Roboto Mono', Consolas, monospace; font-size: 10.5px; font-weight: 600; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.poi-grp-n { font-size: 10.5px; font-weight: 600; color: var(--text-3); font-variant-numeric: tabular-nums; }
 .poi-grp-ln { flex: 1; height: 1px; background: var(--line); }
 .poi-facts {
   display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 5px;
-  font-family: ui-monospace, 'SF Mono', 'Cascadia Mono', 'Roboto Mono', Consolas, monospace;
-  font-size: 11px; color: var(--text-3); font-variant-numeric: tabular-nums;
+  font-size: 12px; color: var(--text-3); font-variant-numeric: tabular-nums;
 }
 .poi-facts i { font-style: normal; color: var(--line); }
 .poi-fact--fine { color: var(--teal-deep); font-weight: 600; }
 .poi-fact--warn { color: var(--warn); font-weight: 600; }
 .poi-reason { display: flex; gap: 6px; align-items: baseline; margin-top: 5px; font-size: 11.5px; color: var(--text-2); }
-.poi-reason-k { flex: none; font-family: ui-monospace, 'SF Mono', 'Cascadia Mono', 'Roboto Mono', Consolas, monospace; font-size: 9.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); }
+.poi-reason-k { flex: none; font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); }
 .poi-alts { margin-top: 6px; }
 .poi-alts summary { cursor: pointer; list-style: none; display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 600; color: var(--teal-deep); }
 .poi-alts summary::-webkit-details-marker { display: none; }
@@ -5182,9 +5180,9 @@ html.native-shell {
 
 /* ---- Map rail stage two: best-fit badge, reason chips, candidate rows ---- */
 .poi-best {
-  flex: none; margin-left: auto;
-  font-size: 9.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
-  color: #fff; background: var(--teal); border-radius: 999px; padding: 2px 8px;
+  flex: none;
+  font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+  color: var(--teal-deep); background: var(--teal-soft); border-radius: 999px; padding: 2px 7px;
 }
 .poi-rchips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
 .poi-rchip {
@@ -5199,7 +5197,7 @@ html.native-shell {
   background: var(--bg); padding: 6px 9px;
 }
 .poi-cand b { flex: 1; min-width: 0; font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.poi-cand-f { flex: none; font-family: ui-monospace, 'SF Mono', 'Cascadia Mono', 'Roboto Mono', Consolas, monospace; font-size: 10.5px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.poi-cand-f { flex: none; font-size: 11.5px; color: var(--text-3); font-variant-numeric: tabular-nums; }
 .poi-cand-add {
   flex: none; width: 22px; height: 22px; border-radius: 50%;
   border: 1px solid var(--line); background: var(--card); color: var(--teal-deep);

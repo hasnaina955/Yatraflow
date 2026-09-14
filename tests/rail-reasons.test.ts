@@ -28,20 +28,20 @@ describe('railReasonChips', () => {
   it('notes a meal landing inside the shared lunch window, edges included', () => {
     const at = (t: number) =>
       railReasonChips({ ...base, purpose: 'meal', etaMinutes: t }).map((c) => c.label)
-    expect(at(LUNCH_WINDOW[0])).toContain('in the lunch window')
-    expect(at(LUNCH_WINDOW[1])).toContain('in the lunch window')
-    expect(at(LUNCH_WINDOW[0] - 1)).not.toContain('in the lunch window')
-    expect(at(LUNCH_WINDOW[1] + 1)).not.toContain('in the lunch window')
+    expect(at(LUNCH_WINDOW[0])).toContain('lunch window')
+    expect(at(LUNCH_WINDOW[1])).toContain('lunch window')
+    expect(at(LUNCH_WINDOW[0] - 1)).not.toContain('lunch window')
+    expect(at(LUNCH_WINDOW[1] + 1)).not.toContain('lunch window')
   })
 
   it('only claims the lunch window for meals, not other halts', () => {
     const chips = railReasonChips({ ...base, purpose: 'fuel', etaMinutes: LUNCH_WINDOW[0] })
-    expect(chips.map((c) => c.label)).not.toContain('in the lunch window')
+    expect(chips.map((c) => c.label)).not.toContain('lunch window')
   })
 
   it('notes a long stretch since the last stop, from two hours up', () => {
     expect(railReasonChips({ ...base, minutesFromPrev: 120 }).map((c) => c.label)).toEqual([
-      expect.stringContaining('breaks a'),
+      expect.stringContaining('stretch'),
     ])
     expect(railReasonChips({ ...base, minutesFromPrev: 119 })).toEqual([])
   })
@@ -53,7 +53,7 @@ describe('railReasonChips', () => {
 
   it('quotes the budget share only from fifteen percent', () => {
     expect(railReasonChips({ ...base, budgetSharePct: 15 }).map((c) => c.label)).toEqual([
-      "15% of the day's detour budget",
+      "15% of budget",
     ])
     expect(railReasonChips({ ...base, budgetSharePct: 14 })).toEqual([])
   })
@@ -64,7 +64,7 @@ describe('railReasonChips', () => {
 
   it('marks the first stop of the day', () => {
     expect(railReasonChips({ ...base, isFirstSegment: true }).map((c) => c.label)).toEqual([
-      'first stop of the day',
+      'first stop',
     ])
   })
 
@@ -81,8 +81,8 @@ describe('railReasonChips', () => {
     })
     expect(chips.map((c) => c.label)).toEqual([
       'over budget',
-      'in the lunch window',
-      'breaks a 3h 20m stretch',
+      'lunch window',
+      '3h 20m stretch',
     ])
   })
 })

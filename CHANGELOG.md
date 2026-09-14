@@ -15,6 +15,13 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ## [Unreleased]
 
+### Added — Create Trip parity with the Plan Bench
+- **A route-integrity guardrail** (`tests/route-integrity.test.ts`): every `#/…` link and
+  `navigate('/…')` call in `src/` must resolve to a route `App.tsx` handles — the
+  `switch (parts[0])` cases plus the pre-switch `parts[0] === '…'` checks. Comments are
+  stripped first, so a route named in prose is not read as a live link, and both
+  assertions carry a vacuity guard, so a parse that found nothing cannot pass.
+
 ### Added — Day Planner (travel clock)
 - **The fatigue cadence is hours, not km.** Stretch breaks fire at `STRETCH_CLOCK_MIN`
   (120 min) of wheel time — 150 km was ≈2 h at highway speed but 3.6 h at the engine's own
@@ -69,6 +76,14 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 - **Shared sources under the planner**: one lunch window, one stay-rate table
   (`src/lib/rates.ts`), one drive-day floor (`isDriveDay`), tolerant style/rain
   parsing (#130, #132).
+- **Create Trip's money figures roll like the Plan Bench** — the rough bill's transport /
+  stay / food rows, the total, the per-head figure and the mobile dock amount animate
+  into place instead of swapping, so tuning travellers or dates reads as a recalculation
+  rather than a silent replacement. `Odometer` and `useMedia` move out of `PlanBench.tsx`
+  into `src/components/ui.tsx` as shared exports — the rolling figure is the app's, not
+  the landing page's — and `Odometer` takes an optional `label` so each call site renders
+  the `sr-only` alternative it needs. Reduced motion still gets plain text, and the Plan
+  Bench imports the same two primitives with its own rendering unchanged.
 
 ### Fixed
 - **The travel clock walks every day of a long drive** — the re-balance loop subtracted
@@ -110,6 +125,28 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 - **Plan/Inspect pill jumped sides** — the long Plan copy's max-content pushed the
   header tools row into a left-aligned wrap. The copy is now the flexible item and the
   tools pin right (margin-left auto keeps them right-aligned even when wrapped).
+- **The Plan Bench's "Turn these numbers into a real trip" went nowhere** — the CTA set
+  `location.hash = '#/create'` and the router has no `create` case, so its `default:`
+  branch rendered the landing page: the button read as inert and the prefill it had just
+  stashed was never read. It targets `#/new`, the Create Trip route the nav already uses.
+- **The admin console's published-itinerary links landed on the landing page** — the
+  table linked `#/p/<id>` where every other published link (PubCard, Creator Hub,
+  Explore, the share link) uses `#/pub/<id>`.
+- **On a phone the printed bill had nowhere to appear** — `.ts-rail` was `display:none`
+  at ≤900px, so "Print bill" fed a hidden container: no split, no formulas, no pace
+  verdict, and the dock's figure only arrived after the tap. The ticket stays in the page
+  flow at that width, as the Plan Bench shows its receipt, and its own "Create trip"
+  button steps aside so the fixed dock stays the single primary CTA. Printing scrolls the
+  bill into view (`block: 'nearest'` via `scrollBehavior()`) — minimal scroll,
+  reduced-motion aware, and a no-op on desktop where the sticky rail already has it.
+- **The hand-off copy named figures that do not transfer** — the Plan Bench stashes
+  travellers, mode, travel style, budget, the return flag and the fuel figures, not the
+  distance (`km`) or trip length (`nights`) its own headline price is built on. The
+  fineprint names what actually carries over.
+- **The smart budget rewrote its field unannounced** — the rough take landing in the
+  per-person budget as the plan grows is deliberate, but a value changing under a
+  screen-reader user is a mutation they never hear. A polite live region reports the new
+  amount when the auto-fill writes, and stays quiet while the field is the user's focus.
 
 ### Docs
 - **Status docs reflect the final #107 state** — `AGENTS.md` §1.1 records

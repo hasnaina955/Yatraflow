@@ -725,7 +725,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
               </span>
             )}
             {tripIsRoundTrip && hit.cumKm != null && planKm > 0 && hit.cumKm > planKm * 0.75 && (
-              <span className="ride-day-chip">return leg — you pass here on the drive back</span>
+              <span className="ride-day-chip" title="You pass this point again on the drive back">return leg</span>
             )}
           </div>
         )}

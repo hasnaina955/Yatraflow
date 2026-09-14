@@ -293,7 +293,30 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
         })
         setDayRoadKm(trip.days.map(d => perDay.get(d.index) ?? 0))
       })
-      .catch(() => { if (!cancelled) { setRouteGeometry(null); setRouteTotalKm(null); setRouteTotalMin(null); setDayRoadKm(null); setRouteFailed(true) } })
+      .catch(() => {
+        if (cancelled) return
+        // #185: the OSRM demo server is shared/rate-limited — a transient
+        // failure used to strand the tab in the degraded state (no retry),
+        // starving the suggestion scan. One retry after 2 s before giving up.
+        setTimeout(() => {
+          if (cancelled) return
+          routePath(pts, getAssumptions(trip))
+            .then(legs2 => {
+              if (cancelled) return
+              setRouteFailed(false)
+              setRouteGeometry(legs2.flatMap(l => l.geometry))
+              setRouteTotalKm(legs2.reduce((sum, l) => sum + l.distanceKm, 0))
+              setRouteTotalMin(legs2.reduce((sum, l) => sum + l.durationMinutes, 0))
+              const perDay2 = new Map<number, number>()
+              legs2.forEach((l, i) => {
+                const day = ptDay[i + 1]
+                if (day != null) perDay2.set(day, (perDay2.get(day) ?? 0) + l.distanceKm)
+              })
+              setDayRoadKm(trip.days.map(d => perDay2.get(d.index) ?? 0))
+            })
+            .catch(() => { if (!cancelled) { setRouteGeometry(null); setRouteTotalKm(null); setRouteTotalMin(null); setDayRoadKm(null); setRouteFailed(true) } })
+        }, 2000)
+      })
     return () => { cancelled = true }
   }, [trip])
 
@@ -459,7 +482,13 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
           setPois(plan)
           // Never cache an empty plan: the first search can run before the
           // route resolves, and a persisted [] would stick until Refresh.
-          if (plan.length > 0) suggestionCache.setMapCache(plan, hash, scopeKm)
+          // #185: also never cache a DEGRADED plan — when the road hasn't
+          // resolved for a multi-anchor trip, the scan ran start-area point
+          // searches only; persisting it would serve the starved corridor for
+          // the full 4 h TTL. The scan effect re-fires when geometry arrives
+          // (nearbyOpts depends on it), and the fresh plan then caches.
+          const degradedScan = routeGeometry == null && anchors.length >= 2
+          if (plan.length > 0 && !degradedScan) suggestionCache.setMapCache(plan, hash, scopeKm)
         }
       })
       .catch(() => { /* suggestions are best-effort */ })
@@ -1297,6 +1326,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
               onOpenInBoard={onOpenBoard ? () => onOpenBoard() : undefined}
               onDeleteStop={editable ? removeStopFromMap : undefined}
               enableMapViewModes
+              mainRouteGeometry={routeGeometry}
             />
           </div>
           <div className="poi-col poi-col--see" id="rail-see">

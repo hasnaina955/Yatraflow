@@ -267,7 +267,7 @@ function catIcon(cat: string | undefined): React.ReactNode {
   )
 }
 
-export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusDay, showToolbar = true, enableMapViewModes = false, activeHitId = null, onActivateHit, onOpenInTimeline, onOpenInBoard, onDeleteStop }: {
+export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusDay, showToolbar = true, enableMapViewModes = false, activeHitId = null, onActivateHit, onOpenInTimeline, onOpenInBoard, onDeleteStop, mainRouteGeometry = null }: {
   trip: Trip
   onOpenStop?: (stopId: string) => void
   /** potential POIs to show as gold "idea" markers */
@@ -294,6 +294,10 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   onActivateHit?: (id: string | number | null) => void
   /** stop-pin click offers a jump to the Timeline/Board tabs (Map tab §6.5) */
   onOpenInTimeline?: (stopId: string) => void
+  /** #184 shared road measurement — MapTab's routePath result for the whole-trip
+      chain (home + stops). When present, the all-days line reuses it instead of
+      firing a duplicate routePath; absent callers (Board view) self-measure. */
+  mainRouteGeometry?: [number, number][] | null
   onOpenInBoard?: (stopId: string) => void
   /** Delete the stop straight from the map (popup action) — wired by MapTab. */
   onDeleteStop?: (stopId: string, stop: { title: string; dayIndex: number }) => void
@@ -661,11 +665,20 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
       if (dayFilter === 'all') {
         if (pts.length < 2) return
         const next: Record<string, [number, number][]> = {}
-        try {
-          const legs = await routePath(pts, getAssumptions(trip))
-          const coords = legs.flatMap(l => l.geometry)
-          if (!cancelled && coords.length > 1) next.all = dedupeConsecutive(coords)
-        } catch { /* straight-line fallback below */ }
+        // #184: reuse the caller's road measurement when one arrived (MapTab
+        // already measured the same chain) — one routePath per map open, and
+        // the drawn line can never contradict the detour math again. Only a
+        // caller without the prop (Board view) measures here.
+        if (mainRouteGeometry && mainRouteGeometry.length > 1) {
+          const shared = dedupeConsecutive(mainRouteGeometry)
+          if (shared.length > 1) next.all = shared
+        } else {
+          try {
+            const legs = await routePath(pts, getAssumptions(trip))
+            const coords = legs.flatMap(l => l.geometry)
+            if (!cancelled && coords.length > 1) next.all = dedupeConsecutive(coords)
+          } catch { /* straight-line fallback below */ }
+        }
         // return drive home — real roads when OSRM answers, straight line otherwise
         if (returnLeg) {
           try {
@@ -690,7 +703,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
       }
     })()
     return () => { cancelled = true }
-  }, [chainKey, dayRoutesKey, dayFilter, returnLeg]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [chainKey, dayRoutesKey, dayFilter, returnLeg, mainRouteGeometry]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Turn-by-turn directions for the selected day's ride in the traveller's own
   // Google Maps — the in-app map plots the route but doesn't navigate. Hidden

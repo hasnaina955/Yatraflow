@@ -234,10 +234,20 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
   const suggestedBudget = bill.perHead != null && bill.perHead > 0
     ? Math.max(500, Math.round(bill.perHead / 500) * 500)
     : null
+  // The write is silent by nature — a value changing under a screen-reader user
+  // with no announcement is a mutation they never hear about, and the hint only
+  // explains it once the field has focus. This notice is read by a polite live
+  // region below. It fires only on an actual write, and never while the field is
+  // the user's current focus (they are editing it; the hint already covers them).
+  const [budgetNotice, setBudgetNotice] = useState('')
   useEffect(() => {
     if (budgetTouched || suggestedBudget == null) return
-    setF(x => (x.budgetPerPersonInr === suggestedBudget ? x : { ...x, budgetPerPersonInr: suggestedBudget }))
-  }, [suggestedBudget, budgetTouched])
+    if (f.budgetPerPersonInr === suggestedBudget) return
+    setF(x => ({ ...x, budgetPerPersonInr: suggestedBudget }))
+    if (document.activeElement !== fieldRefs.current.budgetPerPersonInr) {
+      setBudgetNotice(`Budget updated to ₹${suggestedBudget.toLocaleString('en-IN')} per person, from the rough take.`)
+    }
+  }, [suggestedBudget, budgetTouched, f.budgetPerPersonInr])
 
   function setReturnOn(on: boolean) {
     haptic(HAPTIC.toggle)
@@ -650,6 +660,9 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
                   aria-invalid={!!errs.budgetPerPersonInr} value={f.budgetPerPersonInr}
                   onChange={e => { setBudgetTouched(true); patchFields({ budgetPerPersonInr: Number(e.target.value) }) }} />
               </Field>
+              {/* Politely live: the auto-fill above rewrites this field, so say so
+                  for anyone who cannot see the number change. */}
+              <span className="sr-only" role="status">{budgetNotice}</span>
               {/* Quick amounts are a toggle, not a one-way trap: clicking an
                   amount claims the field for manual editing, clicking the
                   highlighted one again releases it — auto-fill from the rough

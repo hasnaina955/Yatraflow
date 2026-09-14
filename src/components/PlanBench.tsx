@@ -560,7 +560,7 @@ export function PlanBench() {
             )}
           </div>
           <p className="bench-fineprint">
-            We pre-fill your new trip with these numbers · excludes tolls, parking & entry fees · no live traffic, no hidden margins · stay ₹{STAY_RATE_PER_NIGHT[input.stay]}/room-night, 2 per room · food ₹{MEALS_PER_HEAD_DAY}/head/day
+            We pre-fill your new trip with the crew, mode, style, budget and fuel figures — the route itself is yours to add · excludes tolls, parking & entry fees · no live traffic, no hidden margins · stay ₹{STAY_RATE_PER_NIGHT[input.stay]}/room-night, 2 per room · food ₹{MEALS_PER_HEAD_DAY}/head/day
           </p>
         </div>
       </div>

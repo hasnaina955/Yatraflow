@@ -80,6 +80,15 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
   parsing (#130, #132).
 
 ### Fixed
+- **Trip deletion works again** — the production "trips read hide trashed" policy
+  rejected the tombstone UPDATE (its added-row check saw a trashed row that
+  nobody, including the owner, could read), so Delete silently rolled back and
+  the trip reappeared after refresh. The policy now lets tombstoned rows reach
+  their owner/editors while everyone else still never sees them, hydration
+  filters tombstoned rows out of the live list itself (the Trash view reads
+  them via `get_trashed_trips`), and `supabase/fix-trashed-read-policy.sql` is
+  the idempotent Dashboard repair. Reproduced with a live QA account before and
+  after.
 - **The travel clock walks every day of a long drive** — the re-balance loop subtracted
   the absolute halt position from a relative budget, truncating a ~3,300 km walk at 4
   days (#137).

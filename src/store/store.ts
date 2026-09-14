@@ -552,6 +552,12 @@ async function hydrateFromSupabase(userId: string, gen: number, seedIfEmpty = tr
     }
 
     const users = mapOrSkip(profiles, rowToUser)
+    // With the corrected "trips read hide trashed" policy (Sep 14 2026 fix),
+    // tombstoned rows are visible to their owner/editor so the trash UPDATE's
+    // added-row check can pass — hydration must therefore keep them out of the
+    // live list itself. The Trash view reads them via get_trashed_trips.
+    // Un-migrated rows simply carry undefined → the filter no-ops there.
+    trips = trips.filter(r => !(r as TripRow).deleted_at)
     const tripList = mapOrSkip(trips, row =>
       rowToTrip(row as TripRow, members.filter(m => m.trip_id === (row as TripRow).id).map(m => ({ userId: m.user_id, role: m.role, joinedAt: m.joined_at })))
     )

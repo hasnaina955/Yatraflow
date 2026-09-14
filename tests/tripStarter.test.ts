@@ -116,12 +116,14 @@ describe('estimateTripStarter — stay, food, per head', () => {
     const b = estimateTripStarter({ ...base, stayStyle: 'luxury' })
     expect(b.stayCost).toBe(6 * 1 * 8000)
   })
-  it('ignores the travel style when pricing the bed', () => {
-    // The two dials are independent: a "budget" style with a luxury budget
-    // prices the bed at luxury. If this ever fails, the split has regressed.
-    const b = estimateTripStarter({ ...base, travelStyle: 'budget', stayStyle: 'luxury' })
-    expect(b.stayCost).toBe(6 * 1 * 8000)
-  })
+  // There is deliberately no "the travel style does not price the bed" test.
+  // The guarantee is structural — StarterTripInput has no travelStyle field —
+  // and a runtime test cannot express "this field does not exist". An earlier
+  // version of this file passed `travelStyle: 'budget'` alongside `stayStyle` to
+  // assert the ignore; that key was silently dropped (spread literals drop
+  // excess keys, and tests/ is not typechecked), so the test asserted exactly
+  // what the luxury case above already asserts. A duplicate dressed as a
+  // distinct assertion is worse than no test.
   it('splits the total per head', () => {
     const b = estimateTripStarter({ ...base, travellers: 4, kmPerL: 15, inrPerL: 105 })
     const total = b.transportCost! + b.stayCost + b.mealCost

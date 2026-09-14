@@ -27,7 +27,9 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 - **The budget tier reverted on every reload.** The dial shipped in `deecbcc` with no
   column and no row mapping, so the tier a traveller picked was session-only and
   silently fell back to the legacy-derived value. It is persisted now
-  (`20260914_trip_stay_budget.sql`).
+  (`20260914_trip_stay_budget.sql`), and the mapping is covered by tests — including
+  the pre-migration path, which must stay a no-op rather than write a column the
+  database does not have.
 - **Create Trip's bill priced the bed from the travel style.** `estimateTripStarter`
   took a `travelStyle` and derived the tier from it, so the bill and the settings page
   could disagree about the same room. The bill takes the budget dial.

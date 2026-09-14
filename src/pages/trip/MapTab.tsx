@@ -15,7 +15,7 @@ import { Select } from '../../components/Select'
 import { DetourWhisk } from '../../components/DetourWhisk'
 import { useSuggestionCache, isMapCacheFresh } from '../../hooks/useSuggestionCache'
 import { openExternal } from '../../lib/native'
-import { corridorAnchors, detourKm, detourMinutes, asymmetricDetourMinutes, googleEnabled, planJourneyHalts, reasonForSegmentHit, searchPlaces, searchNearbyPoisMulti, kmFromStartForHit, planDriveDays, planTravelClock, rainFactorFor, isSelfDrivenMode, requireHitCoords, hasCoords, DEFER_START, type NearbyOpts, type PlaceHit, type TravelClockVerdict, routeHash } from '../../lib/geocode'
+import { corridorAnchors, detourKm, detourMinutes, asymmetricDetourMinutes, googleEnabled, planJourneyHalts, reasonForSegmentHit, searchPlacesText, searchNearbyPoisMulti, kmFromStartForHit, planDriveDays, planTravelClock, rainFactorFor, isSelfDrivenMode, requireHitCoords, hasCoords, QuotaExhaustedError, DEFER_START, type NearbyOpts, type PlaceHit, type TravelClockVerdict, routeHash } from '../../lib/geocode'
 import { isSightCategory } from '../../lib/ridePlan'
 import { dayDetourBudgetMin, budgetSharePct, splitByDetourBudget } from '../../lib/detourBudget'
 import { quotaUsed, SOFT_CAPS } from '../../lib/providers/quota'
@@ -683,7 +683,12 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     if (q.length < 2) return
     setSearching(true)
     try {
-      const hits = await searchPlaces(q)
+      // searchPlacesText (NOT searchPlaces): this surface ranks and annotates
+      // every row by road position BEFORE any pick, so hits must carry real
+      // coordinates — autocomplete placeholders measure Null Island
+      // (live 2026-09-14: five different places all read "~1675 km · 8448 km
+      // off-route" because they shared the placeholder).
+      const hits = await searchPlacesText(q)
       // Trip/route/map aware (user ask): "coffee on my route", not coffee
       // everywhere in India. Each hit is projected onto this trip's road and
       // ranked by detour (then road position); anything beyond the current
@@ -692,11 +697,15 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
         .map(h => ({ h, km: routeKmOf(h.latitude, h.longitude), off: detourKm(h, anchors) }))
         .sort((a, b) => (a.off ?? 9999) - (b.off ?? 9999) || (a.km ?? 0) - (b.km ?? 0))
       setSearchResults(ranked)
-      const onScope = ranked.filter(e => e.off != null && e.off <= scopeKm)
+      const onScope = ranked.filter(en => en.off != null && en.off <= scopeKm)
       if (hits.length === 0) toast('No places found for that search.')
       else if (onScope.length === 0) toast(`Nothing for “${q}” within your ${scopeKm} km detour scope — widen the slider and search again.`)
-    } catch {
-      toast('Search failed — try again.', 'err')
+    } catch (err) {
+      if (err instanceof QuotaExhaustedError) {
+        toast('Google Places monthly cap reached — text search stays paused until the counter rolls over. Remove the key to search the free stack.', 'err')
+      } else {
+        toast('Search failed — try again.', 'err')
+      }
     } finally {
       setSearching(false)
     }

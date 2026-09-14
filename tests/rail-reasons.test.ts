@@ -22,7 +22,7 @@ describe('railReasonChips', () => {
 
   it('leads with an over-budget detour, in warning tone', () => {
     const chips = railReasonChips({ ...base, overBudget: true, budgetSharePct: 140 })
-    expect(chips[0]).toEqual({ label: 'over budget', tone: 'warn' })
+    expect(chips[0]).toEqual({ key: 'over-budget', label: 'over budget', tone: 'warn' })
   })
 
   it('notes a meal landing inside the shared lunch window, edges included', () => {
@@ -49,11 +49,16 @@ describe('railReasonChips', () => {
     expect(railReasonChips({ ...base, minutesFromPrev: 104 })).toEqual([])
   })
 
-  it('quotes a rating only from four up, as a number with the star token', () => {
-    const chip = railReasonChips({ ...base, rating: 4 })[0]
+  it('quotes a rating only from four up AND a real sample (#165: a 4.0 from 3 reviews is not an endorsement)', () => {
+    const chip = railReasonChips({ ...base, rating: 4, ratingCount: 15 })[0]
+    expect(chip?.key).toBe('rating')
     expect(chip?.label).toBe('4.0')
     expect(chip?.icon).toBe('star')
-    expect(railReasonChips({ ...base, rating: 3.9 })).toEqual([])
+    // below the review floor: the number stays silent
+    expect(railReasonChips({ ...base, rating: 4.9, ratingCount: 3 })).toEqual([])
+    // no count information at all (free stack): silent too
+    expect(railReasonChips({ ...base, rating: 4 })).toEqual([])
+    expect(railReasonChips({ ...base, rating: 3.9, ratingCount: 999 })).toEqual([])
   })
 
   it('quotes the budget share only from the ~12% band (#173: 15% was a round cliff on engine estimates)', () => {
@@ -86,6 +91,7 @@ describe('railReasonChips', () => {
       budgetSharePct: 90,
       overBudget: true,
       rating: 4.8,
+      ratingCount: 120,
     })
     expect(chips.map((c) => c.label)).toEqual([
       'over budget',

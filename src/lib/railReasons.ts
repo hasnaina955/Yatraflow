@@ -25,9 +25,15 @@ export interface RailReasonInput {
   overBudget: boolean
   /** provider rating, 1-5, when the source returned one */
   rating?: number
+  /** provider review count — ratings without a sample are noise (#165) */
+  ratingCount?: number
 }
 
 export interface RailChip {
+  /** Stable filter key — copy-independent (#162). Filtering keys on this,
+   *  never on `label`: renaming copy, reformatting a duration or localising
+   *  the UI must not silently break the chip filter. */
+  key: string
   label: string
   tone?: 'warn'
   /** Icon token, rendered with the app's own icon set by the caller. */
@@ -44,6 +50,9 @@ const STRETCH_COMMENT_MIN = 105
 const BUDGET_SHARE_COMMENT_PCT = 12
 /** Ratings below this are not a reason to stop. */
 const RATING_COMMENT_MIN = 4
+/** A rating without a sample is noise, not an endorsement (#165): the chip
+ *  needs at least this many reviews behind the number. */
+const RATING_COUNT_MIN = 10
 /** The card stays a scan: three chips, most useful first. */
 const MAX_CHIPS = 3
 
@@ -54,11 +63,11 @@ const MAX_CHIPS = 3
  */
 export function railReasonChips(input: RailReasonInput): RailChip[] {
   const chips: RailChip[] = []
-  const push = (label: string, opts?: { tone?: RailChip['tone']; icon?: RailChip['icon'] }): void => {
-    if (chips.length < MAX_CHIPS) chips.push({ label, ...(opts ?? {}) })
+  const push = (key: string, label: string, opts?: { tone?: RailChip['tone']; icon?: RailChip['icon'] }): void => {
+    if (chips.length < MAX_CHIPS) chips.push({ key, label, ...(opts ?? {}) })
   }
 
-  if (input.overBudget) push('over budget', { tone: 'warn' })
+  if (input.overBudget) push('over-budget', 'over budget', { tone: 'warn' })
 
   if (
     input.purpose === 'meal' &&
@@ -66,24 +75,30 @@ export function railReasonChips(input: RailReasonInput): RailChip[] {
     input.etaMinutes >= LUNCH_WINDOW[0] &&
     input.etaMinutes <= LUNCH_WINDOW[1]
   ) {
-    push('lunch window')
+    push('lunch-window', 'lunch window')
   }
 
   if (input.minutesFromPrev >= STRETCH_COMMENT_MIN) {
-    push(`${minutesToHM(input.minutesFromPrev)} stretch`)
+    push('stretch', `${minutesToHM(input.minutesFromPrev)} stretch`)
   }
 
-  if (input.rating != null && input.rating >= RATING_COMMENT_MIN) {
+  // #165: a 4.0 from 3 reviews reads identically to a 4.0 from 3,000 — the
+  // chip endorses only when the sample is real. No count (free stack) → silent.
+  if (
+    input.rating != null &&
+    input.rating >= RATING_COMMENT_MIN &&
+    (input.ratingCount ?? 0) >= RATING_COUNT_MIN
+  ) {
     // Just the number, with the app's star glyph in front - the way a rating
     // is read everywhere else.
-    push(input.rating.toFixed(1), { icon: 'star' })
+    push('rating', input.rating.toFixed(1), { icon: 'star' })
   }
 
   if (input.budgetSharePct != null && input.budgetSharePct >= BUDGET_SHARE_COMMENT_PCT) {
-    push(`${input.budgetSharePct}% of budget`)
+    push('budget-share', `${input.budgetSharePct}% of budget`)
   }
 
-  if (input.isFirstSegment) push('first stop')
+  if (input.isFirstSegment) push('first-stop', 'first stop')
 
   return chips
 }

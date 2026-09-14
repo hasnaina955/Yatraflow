@@ -12,6 +12,7 @@ import { useTimeFormat, formatHM, formatHMRange } from '../../lib/timefmt'
 import { loadPref, savePref } from '../../lib/uiPrefs'
 import { Modal, Field, toast, undoToast } from '../../components/ui'
 import { Select } from '../../components/Select'
+import { DetourWhisk } from '../../components/DetourWhisk'
 import { useSuggestionCache, isMapCacheFresh } from '../../hooks/useSuggestionCache'
 import { openExternal } from '../../lib/native'
 import { corridorAnchors, detourKm, detourMinutes, asymmetricDetourMinutes, googleEnabled, planJourneyHalts, reasonForSegmentHit, searchPlaces, searchNearbyPoisMulti, kmFromStartForHit, planDriveDays, planTravelClock, DEFER_START, type NearbyOpts, type PlaceHit, routeHash } from '../../lib/geocode'
@@ -534,13 +535,26 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
 
   /** Shortlisting never edits the plan; it collects for the tray to act on. */
   function toggleShortlist(hit: PlaceHit) {
-    setShortlist(prev =>
-      prev.some(h => h.id === hit.id) ? prev.filter(h => h.id !== hit.id) : [...prev, hit],
-    )
+    setShortlist(prev => {
+      if (prev.some(h => h.id === hit.id)) return prev.filter(h => h.id !== hit.id)
+      // #179: membership systems must not fight — already-added (Timeline or
+      // map) and dismissed hits can't re-enter the tray from any path.
+      if (addedIds.has(hit.id as string) || existingNames.has(hit.name.toLowerCase()) || dismissedIds.has(hit.id as string)) return prev
+      return [...prev, hit]
+    })
   }
+  // #179: the tray re-validates at render — a hit shortlisted and THEN added
+  // on the Timeline (or dismissed) must not sit in the tray as a stale
+  // double-add waiting to happen. Derived, so every action below sees the
+  // same clean list.
+  const trayShortlist = useMemo(() => shortlist.filter(h =>
+    !addedIds.has(h.id as string) &&
+    !existingNames.has(h.name.toLowerCase()) &&
+    !dismissedIds.has(h.id as string)
+  ), [shortlist, addedIds, existingNames, dismissedIds])
 
   function addShortlisted() {
-    for (const hit of shortlist) addPoiToDay(hit, dayForKm(hit.cumKm) ?? 0)
+    for (const hit of trayShortlist) addPoiToDay(hit, dayForKm(hit.cumKm) ?? 0)
     setShortlist([])
   }
 
@@ -565,15 +579,21 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
    *  resolveDecision reads the payload) — shortlist → vote → resolved →
    *  on the board, timeline and map, with the rail's row dropping out. */
   function raiseShortlistVote() {
-    if (shortlist.length === 0) return
+    if (trayShortlist.length === 0) return
     addDecision(trip.id, {
-      question: shortlist.length === 1
-        ? `Should we add "${shortlist[0].name}"?`
+      question: trayShortlist.length === 1
+        ? `Should we add "${trayShortlist[0].name}"?`
         : 'Which of these should we add?',
       context: 'Shortlisted from the Map rail',
-      options: shortlist.map((h, i) => ({
-        id: `tmp_${i}`,
+      options: trayShortlist.map(h => ({
+        // #180: the option id is the PLACE, not a position — votes survive
+        // reorder/dedupe, and a later add of the same place collapses onto
+        // the same id instead of fork-ing the poll.
+        id: String(h.id),
         label: h.name,
+        // #180: the numbers that justified shortlisting ride into the poll —
+        // voters see the detour cost next to the name, not names alone.
+        timeImpactMin: Math.round(detourMinFor(h)) || undefined,
         place: {
           title: h.name,
           category: (h.category as ItineraryStop['category']) ?? 'sightseeing',
@@ -646,15 +666,31 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
   }, [needs])
   // Rail derivations for the V2 pass: one chip filter narrows both rails, and the
   // ruler marks reuse each card's own cumulative km so a dot never disagrees with
+  // #178: per-hit engine math in ONE memo keyed by hit id. Every card's
+  // detour minutes used to re-run the anchor-list projection per card per
+  // render — a shortlist toggle or keystroke re-did hundreds of walks. Chips,
+  // the budget walk, whiskers and vote contexts all read this map now.
+  const hitEngine = useMemo(() => {
+    const speedK = MODE_SPEED[trip.transportMode] ?? 40
+    const m = new Map<string, { detourMin: number }>()
+    for (const sh of pois) {
+      if (!sh.hit) continue
+      m.set(String(sh.hit.id), { detourMin: asymmetricDetourMinutes(sh.hit, anchors, routePolyline ?? null, speedK) })
+    }
+    return m
+  }, [pois, anchors, routePolyline, trip.transportMode])
+  const detourMinFor = (hit: PlaceHit): number =>
+    hitEngine.get(String(hit.id))?.detourMin
+      ?? asymmetricDetourMinutes(hit, anchors, routePolyline ?? null, MODE_SPEED[trip.transportMode] ?? 40)
   // the number printed on its card.
-  const needsForRail = chipFilter ? needs.filter(sh => sh.hit && chipsFor(sh, sh.hit).some(c => c.label === chipFilter)) : needs
+  const needsForRail = chipFilter ? needs.filter(sh => sh.hit && chipsFor(sh, sh.hit).some(c => c.key === chipFilter)) : needs
   // A resolved group vote lands its winner on the timeline; those stops then
   // drop out of the see-&-do rail entirely (count included), same as the
   // “Added” state does for need halts. Name-match matches the rail's dedupe.
   const voteResolvedOut = (sh: { hit?: PlaceHit | null }) =>
     !!sh.hit && existingNames.has(sh.hit.name.toLowerCase())
   const seeAndDoLive = seeAndDo.filter(sh => !voteResolvedOut(sh))
-  const seeForRail = chipFilter ? seeAndDoLive.filter(sh => sh.hit && chipsFor(sh, sh.hit).some(c => c.label === chipFilter)) : seeAndDoLive
+  const seeForRail = chipFilter ? seeAndDoLive.filter(sh => sh.hit && chipsFor(sh, sh.hit).some(c => c.key === chipFilter)) : seeAndDoLive
   // #157: the ruler reads the SAME km the card prints — targetKm fallback
   // included. An off-polyline halt can never again be a card-dot disagreement.
   const needMarks = rulerMarks(needs.filter(sh => sh.hit).map(sh => ({ id: String(sh.hit!.id), km: sh.hit!.cumKm ?? sh.segment.targetKm, purpose: sh.segment.purpose })), planKm)
@@ -684,7 +720,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
         plannedStops: (trip.days.find(x => x.index === d)?.stops ?? []).filter(s => s.status !== 'rejected').length,
       })
       const { deferred } = splitByDetourBudget(
-        rows.map(sh => ({ sh, detourMin: asymmetricDetourMinutes(sh.hit!, anchors, routePolyline ?? null, speedK) })),
+        rows.map(sh => ({ sh, detourMin: detourMinFor(sh.hit!) })),
         budget,
       )
       for (const { sh } of deferred) {
@@ -697,13 +733,21 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
   // hit, every Google-mode corridor scan returns [] — say why instead of
   // rendering an empty state that reads like "nothing around".
   const quotaOut = googleEnabled() && quotaUsed('textSearchPro') >= SOFT_CAPS.textSearchPro
-  // Story arcs: themed bundles from live, not-yet-added sights.
-  const arcHits = seeAndDoLive.flatMap(sh => {
+  // Story arcs: themed bundles from live, not-yet-added sights. Memoised so
+  // the clustering pass (#166) only re-runs when membership actually changes.
+  const arcHits = useMemo(() => seeAndDoLive.flatMap(sh => {
     const h = sh.hit
     if (!h || addedIds.has(h.id as string) || dismissedIds.has(h.id as string)) return []
     return [h]
-  })
-  const arcs = clusterStoryArcs(arcHits)
+  }), [seeAndDoLive, addedIds, dismissedIds])
+  // #166: clustering walks the whole sight pool per render — memo it so a
+  // search keystroke or shortlist toggle doesn't re-cluster 200 sights. The
+  // labels are pre-split once here too (title/body were parsed twice per arc
+  // per render in JSX).
+  const arcs = useMemo(() => clusterStoryArcs(arcHits).map(a => {
+    const sep = a.label.indexOf(':')
+    return { ...a, theme: sep >= 0 ? a.label.slice(0, sep) : a.label, arcBody: sep >= 0 ? a.label.slice(sep + 1).trim() : '' }
+  }), [arcHits])
 
   /**
    * "Also nearby" candidates, pre-grouped once per render instead of per row.
@@ -773,7 +817,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
 
   /** Reason chips for one suggestion, shared by the card and the rail filter. */
   function chipsFor(sh: SegmentHit, hit: PlaceHit): RailChip[] {
-    const detourMin = asymmetricDetourMinutes(hit, anchors, routePolyline ?? null, MODE_SPEED[trip.transportMode] ?? 40)
+    const detourMin = detourMinFor(hit)
     const hitDay = trip.days.find(d => d.index === dayForKm(hit.cumKm))
     const dayBudget = dayDetourBudgetMin({
       travelStyle: trip.travelStyle,
@@ -791,6 +835,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
       // the rail — or flip between them on a display-rounding nudge.
       overBudget: Math.round(detourMin) > dayBudget,
       rating: hit.rating,
+      ratingCount: hit.ratingCount,
     })
   }
 
@@ -825,7 +870,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     // is the same convention the rest of the rail uses for dedupe.
     if (added && !NEED_PURPOSES.has(sh.segment.purpose)) return null
     const offRoute = detourKm(hit, anchors)
-    const detourMin = asymmetricDetourMinutes(hit, anchors, routePolyline ?? null, MODE_SPEED[trip.transportMode] ?? 40)
+    const detourMin = detourMinFor(hit)
     // per-day budget: the hit's own day sets the density, not the whole trip
     const hitDay = trip.days.find(d => d.index === dayForKm(hit.cumKm))
     const dayBudget = dayDetourBudgetMin({
@@ -856,7 +901,17 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
         data-hit-id={hit.id}
         className={`poi-plan-row${activeHitId === hit.id ? ' poi-plan-row--active' : ''}`}
         onClick={() => setActiveHitId(hit.id as string | number)}
-        title="Show this stop on the map"
+        onKeyDown={(e) => {
+          // #169: the row is a click div in the a11y tree — keyboard users
+          // couldn't highlight a card on the map at all.
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            setActiveHitId(hit.id as string | number)
+          }
+        }}
+        role="button"
+        tabIndex={0}
+        aria-label={`Show ${hit.name} on the map`}
       >
         <div className="ride-spot-title">
           {hit.thumb && <img className="poi-thumb" src={smallThumb(hit.thumb)} alt="" loading="lazy" onError={e => { e.currentTarget.style.display = 'none' }} />}
@@ -891,22 +946,9 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
           {sh.segment.purpose === 'overnight' && (
             <span className="poi-fact"><i>·</i>day ends here</span>
           )}
-          {/* Detour whisker: the route line with this halt's spur. The spur turns
-              amber when the detour is heavy, so cost is visible before the
-              number is read. */}
-          <svg className="poi-whisk" width={54} height={20} viewBox="0 0 54 20" aria-hidden>
-            <path className="poi-whisk-route" d="M1 14h52" />
-            <path
-              className={detourMin > dayBudget ? 'poi-whisk-spur poi-whisk-spur--heavy' : 'poi-whisk-spur'}
-              d={`M32 14 L45 ${detourMin > 20 ? 3 : 6}`}
-            />
-            <circle
-              className={detourMin > dayBudget ? 'poi-whisk-pin poi-whisk-pin--heavy' : 'poi-whisk-pin'}
-              cx={45}
-              cy={detourMin > 20 ? 3 : 6}
-              r={3}
-            />
-          </svg>
+          {/* Detour whisker (#160): one shared component; spur length scales
+              with the detour's share of the day budget. */}
+          <DetourWhisk detourMin={detourMin} budgetMin={dayBudget} />
         </div>
         {/* Day Planner chips (P1-D/P1-F): which derived day the hit lands on,
             whether it sits past a night halt, and — on round trips — whether
@@ -930,12 +972,12 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
           <div className="poi-rchips">
             {chips.map(c => (
               <button
-                key={c.label}
+                key={c.key}
                 type="button"
-                className={(c.tone === 'warn' ? 'poi-rchip poi-rchip--warn' : 'poi-rchip') + (chipFilter === c.label ? ' is-on' : '')}
-                aria-pressed={chipFilter === c.label}
-                title={chipFilter === c.label ? 'Stop filtering by this reason' : 'Show only suggestions with this reason'}
-                onClick={(e) => { e.stopPropagation(); setChipFilter(prev => (prev === c.label ? null : c.label)) }}
+                className={(c.tone === 'warn' ? 'poi-rchip poi-rchip--warn' : 'poi-rchip') + (chipFilter === c.key ? ' is-on' : '')}
+                aria-pressed={chipFilter === c.key}
+                title={chipFilter === c.key ? 'Stop filtering by this reason' : 'Show only suggestions with this reason'}
+                onClick={(e) => { e.stopPropagation(); setChipFilter(prev => (prev === c.key ? null : c.key)) }}
               >
                 {c.icon === 'star' && <Star size={11} aria-hidden />}
                 {c.label}
@@ -1049,15 +1091,24 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
           Live data from {googleEnabled() ? 'Google Places' : 'OpenStreetMap, Wikipedia & Mappls'}: ideas are clock-anchored — lunch lands in the 11:30–14:30 window, stretch breaks follow wheel time, fuel rides your tank’s rhythm, and long drives end at a real city for the night. Every pick is checked against your detour budget. Never around your starting point.
         </p>
         <form className="row-between" style={{ gap: 8, marginBottom: 8 }} onSubmit={onSearch}>
-          <input className="input" value={searchQ} onChange={e => setSearchQ(e.target.value)}
+          <input className="input" value={searchQ} onChange={e => {
+            setSearchQ(e.target.value)
+            // #164: stale results from a PREVIOUS query must not sit visible
+            // under the new one while typing — clear on edit.
+            if (searchResults.length > 0) setSearchResults([])
+          }}
             placeholder="Search anything to add — a trek, a homestay, a petrol pump…"
             aria-label="Search places to add to the trip" style={{ flex: 1 }} />
           <button className="btn btn-outline btn-sm" type="submit" disabled={searching} style={{ flex: '0 0 auto' }}>
             {searching ? 'Searching…' : 'Search'}
           </button>
         </form>
+        {/* #164: the short-query state was silent — say why nothing happens. */}
+        {searchQ.trim().length > 0 && searchQ.trim().length < 2 && (
+          <p className="muted small" role="status" style={{ margin: '0 0 8px' }}>Keep typing — search starts at 2 characters.</p>
+        )}
         {searchResults.length > 0 && (
-          <div className="map-search-results" style={{ marginBottom: 10 }}>
+          <div className="map-search-results" style={{ marginBottom: 10 }} role="list" aria-label={`Search results (${Math.min(5, searchResults.length)} of ${searchResults.length} shown)`}>
             {searchResults.slice(0, 5).map(({ h, km, off }) => {
               const inScope = off != null && off <= scopeKm
               return (
@@ -1185,7 +1236,8 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
       </div>
       {filterActive && (
         <div className="poi-filterbar" role="status">
-          <span>Showing only suggestions that are {chipFilter}</span>
+          {/* #162: the bar reads the label, the filter keys on the stable key. */}
+          <span>Showing only suggestions that are {{ 'over-budget': 'over budget', 'lunch-window': 'in the lunch window', stretch: 'a long stretch from the last stop', rating: 'rated 4.0+', 'budget-share': 'using a big share of the day budget', 'first-stop': 'the day’s first stop' }[chipFilter as string] ?? chipFilter}</span>
           <button type="button" onClick={() => setChipFilter(null)}>Clear filter</button>
         </div>
       )}
@@ -1284,8 +1336,8 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
               {arcs.slice(0, 2).map(arc => (
                 <div key={arc.theme} className="poi-plan-row poi-plan-arc">
                   <div className="ride-spot-title">
-                    <span className="ride-purpose ride-purpose-sight">{arc.label.split(':')[0]}</span>
-                    <b>{arc.label.split(':').slice(1).join(':').trim()}</b>
+                    <span className="ride-purpose ride-purpose-sight">{arc.theme}</span>
+                    <b>{arc.arcBody}</b>
                   </div>
                   <div>
                     <button
@@ -1358,7 +1410,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
                           for (const id of arc.hitIds) next.add(id as string)
                           return next
                         })
-                        toast(n > 0 ? `“${arc.label.split(':')[0]}” added (${n} stops)` : 'All of those are already added')
+                        toast(n > 0 ? `“${arc.theme}” added (${n} stops)` : 'All of those are already added')
                       }}
                     >Add all ({arc.hitIds.length})</button>
                   </div>
@@ -1393,9 +1445,9 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
       </div>
       {/* Shortlist tray: the rail collects, the tray decides. Sticky so it stays
           reachable while the rails scroll. */}
-      {shortlist.length > 0 && (
+      {trayShortlist.length > 0 && (
         <div className="poi-tray" role="region" aria-label="Shortlisted stops">
-          <span className="poi-tray-n">{shortlist.length} shortlisted</span>
+          <span className="poi-tray-n">{trayShortlist.length} shortlisted</span>
           <span className="poi-tray-actions">
             <button className="btn btn-primary btn-sm" type="button" onClick={addShortlisted}>Add all</button>
             <button className="btn btn-ghost btn-sm" type="button" onClick={raiseShortlistVote}>Send to a vote</button>

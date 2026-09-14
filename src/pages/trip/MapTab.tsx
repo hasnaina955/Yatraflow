@@ -215,17 +215,23 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
   }, [stopSig, routeTotalKm, routeTotalMin])
 
   /** Which day's cumulative drive covers a given along-route km (for pick-a-day defaults). */
-  const dayForKm = (km: number | null | undefined): number => {
-    if (km == null) return trip.days[0]?.index ?? 0
+  const dayForKm = (km: number | null | undefined): number | null => {
+    // #161: unknown km used to silently attribute to Day 1 — an off-polyline
+    // hit's budget, day lookup and pick-day default all lied. Return null and
+    // let each consumer decide honestly (day ?/clamped/default).
+    if (km == null || !Number.isFinite(km)) return null
     // Road-true per-day km from the routing legs when resolved — chord-scale
     // day sums undercount curvy roads and attribute the km to the wrong day.
     const perDay = dayRoadKm ?? trip.days.map(d => buildJourney(trip, d).distanceKm)
+    // #161: walk positionally (dayRoadKm is aligned with trip.days) but key
+    // the RESULT by the day's own index — indexes can skip (deleted day), and
+    // position ≠ index.
     let covered = 0
     for (let i = 0; i < trip.days.length; i++) {
-      covered += perDay[i]
+      covered += perDay[i] ?? 0
       if (km <= covered) return trip.days[i].index
     }
-    return trip.days[trip.days.length - 1]?.index ?? 0
+    return trip.days[trip.days.length - 1]?.index ?? null
   }
 
   // search the WHOLE route corridor (start → stops → destination); the home
@@ -519,7 +525,10 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
   }
 
   function openAddModal(hit: PlaceHit) {
-    setPickDay(dayForKm(hit.cumKm))
+    // Pick-day default: an unknown position can't preselect honestly, so fall
+    // back to the first day — the picker is user-adjustable, so nothing is
+    // attributed silently (unlike the old dayForKm Day-1 fallback).
+    setPickDay(dayForKm(hit.cumKm) ?? 0)
     setPoiDraft({ hit })
   }
 
@@ -531,7 +540,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
   }
 
   function addShortlisted() {
-    for (const hit of shortlist) addPoiToDay(hit, dayForKm(hit.cumKm))
+    for (const hit of shortlist) addPoiToDay(hit, dayForKm(hit.cumKm) ?? 0)
     setShortlist([])
   }
 
@@ -646,8 +655,10 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     !!sh.hit && existingNames.has(sh.hit.name.toLowerCase())
   const seeAndDoLive = seeAndDo.filter(sh => !voteResolvedOut(sh))
   const seeForRail = chipFilter ? seeAndDoLive.filter(sh => sh.hit && chipsFor(sh, sh.hit).some(c => c.label === chipFilter)) : seeAndDoLive
-  const needMarks = rulerMarks(needs.filter(sh => sh.hit).map(sh => ({ id: String(sh.hit!.id), km: sh.hit!.cumKm ?? null, purpose: sh.segment.purpose })), planKm)
-  const seeMarks = rulerMarks(seeAndDoLive.filter(sh => sh.hit).map(sh => ({ id: String(sh.hit!.id), km: sh.hit!.cumKm ?? null, purpose: sh.segment.purpose })), planKm)
+  // #157: the ruler reads the SAME km the card prints — targetKm fallback
+  // included. An off-polyline halt can never again be a card-dot disagreement.
+  const needMarks = rulerMarks(needs.filter(sh => sh.hit).map(sh => ({ id: String(sh.hit!.id), km: sh.hit!.cumKm ?? sh.segment.targetKm, purpose: sh.segment.purpose })), planKm)
+  const seeMarks = rulerMarks(seeAndDoLive.filter(sh => sh.hit).map(sh => ({ id: String(sh.hit!.id), km: sh.hit!.cumKm ?? sh.segment.targetKm, purpose: sh.segment.purpose })), planKm)
   const filterActive = chipFilter != null
   // Detour-budget enforcement (Horizon 3.2's "finite, honest menu"): the
   // see-&-do list is the endless one — need halts are finite by construction,
@@ -775,7 +786,10 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
       isFirstSegment: sh.segment.index === 0,
       detourMinutes: detourMin,
       budgetSharePct: detourMin > 0.5 ? budgetSharePct(detourMin, dayBudget) : null,
-      overBudget: detourMin > dayBudget,
+      // #163: same predicate as the fact strip (round-half-up display math),
+      // so a budget-exact halt can't be 'fine' on the card and 'held back' on
+      // the rail — or flip between them on a display-rounding nudge.
+      overBudget: Math.round(detourMin) > dayBudget,
       rating: hit.rating,
     })
   }
@@ -870,7 +884,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
             <span className="poi-fact" title="Reported hours"><i>·</i>{formatHMRange(hit.openTime, hit.closeTime, timeFormat)}</span>
           )}
           {detourMin > 0.5 && (
-            <span className={'poi-fact' + (detourMin > dayBudget ? ' poi-fact--warn' : detourMin <= 10 ? ' poi-fact--fine' : '')}>
+            <span className={'poi-fact' + (Math.round(detourMin) > dayBudget ? ' poi-fact--warn' : detourMin <= 10 ? ' poi-fact--fine' : '')}>
               <i>·</i>{fmtDur(detourMin)} detour
             </span>
           )}
@@ -1284,7 +1298,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
                           if (!m || addedIds.has(m.id as string)) continue
                           recordDnaEvent({ tripId: trip.id, action: 'accept', category: m.category, detourMin: asymmetricDetourMinutes(m, anchors, routePolyline ?? null, MODE_SPEED[trip.transportMode] ?? 40), visitMin: visitMinutesForCategory(m.category) })
                           const mDay = dayForKm(m.cumKm)
-                          toAdd.push({ hit: m, dayIndex: mDay })
+                          toAdd.push({ hit: m, dayIndex: mDay ?? 0 })
                           n += 1
                         }
                         suggestionCache.clearMap()

@@ -15,12 +15,13 @@ import { useSuggestionCache, isMapCacheFresh } from '../../hooks/useSuggestionCa
 import { openExternal } from '../../lib/native'
 import { corridorAnchors, detourKm, detourMinutes, asymmetricDetourMinutes, googleEnabled, planJourneyHalts, reasonForSegmentHit, searchPlaces, searchNearbyPoisMulti, kmFromStartForHit, planDriveDays, planTravelClock, DEFER_START, type NearbyOpts, type PlaceHit, routeHash } from '../../lib/geocode'
 import { deriveClockOverlay } from '../../lib/clockOverlay'
+import { isSightCategory } from '../../lib/ridePlan'
 import { dayDetourBudgetMin, budgetSharePct, splitByDetourBudget } from '../../lib/detourBudget'
 import { quotaUsed, SOFT_CAPS } from '../../lib/providers/quota'
 import { buildDnaVectorAcrossTrips, loadDnaLog, recordDnaEvent, dnaNoteForHit, crewSeedsFromSuggestions, crewSeedsToPlannedStops, crewSeedEvents, crewNoteForHit } from '../../lib/tripDna'
 import { clusterStoryArcs } from '../../lib/storyArcs'
 import { visitMinutesForCategory } from '../../lib/slackPrompts'
-import { prefersReducedMotion } from '../../lib/motion'
+import { prefersReducedMotion, scrollBehavior } from '../../lib/motion'
 import type { SegmentHit } from '../../lib/geocode'
 import { anchorHash, projectOntoPolyline } from '../../lib/providers/hits'
 import { fetchDailyWeather, forecastAvailable, isoAddDays } from '../../lib/weather'
@@ -165,6 +166,14 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
   const [routeTotalMin, setRouteTotalMin] = useState<number | null>(null)
   const [dayRoadKm, setDayRoadKm] = useState<number[] | null>(null)
 
+  // Stop signature (#135): stable string key over what buildJourney actually
+  // reads (stop ids, road order, coords) — the days ARRAY identity changes on
+  // every store commit, so memoising the whole-trip budget on `trip` re-fired
+  // this on unrelated keystrokes.
+  const stopSig = trip.days.map(d => d.stops.map(s => `${s.id}@${s.lat},${s.lng}`).join('+')).join('|')
+  // day start signature: the clock walk reads every day's startTime (rest days
+  // stamped 08:30 by #133 shells), never the days array itself.
+  const dayStartSig = trip.days.map(d => d.startTime ?? '').join(',')
   // whole-trip wheel distance & time (journey sums) — the plan budget for the
   // fatigue math. OSRM's road totals win when resolved (same legs the map
   // draws); the journey sums are the haversine estimate fallback.
@@ -177,7 +186,8 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
       min += j.driveMinutes
     }
     return { km: routeTotalKm ?? km, min: routeTotalMin ?? min }
-  }, [trip, routeTotalKm, routeTotalMin])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stopSig, routeTotalKm, routeTotalMin])
 
   /** Which day's cumulative drive covers a given along-route km (for pick-a-day defaults). */
   const dayForKm = (km: number | null | undefined): number => {
@@ -314,8 +324,15 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     [planKm, wholeTrip.min, trip.travelStyle, loopFactor, dayRainPct],
   )
   const clockVerdict = useMemo(
-    () => planTravelClock({ totalKm: planKm, driveMinutes: wholeTrip.min, dayStart: trip.days[0]?.startTime, travelStyle: trip.travelStyle, rainFactor }),
-    [planKm, wholeTrip.min, trip.travelStyle, trip.days, dayRainPct],
+    // #127: the clock walk takes the per-day rain array (day 1 wet ≠ day 3 wet);
+    // the scalar rainFactor below stays for the start-time-blind split estimate.
+    // The walk bills the loop like the split does — a round trip's clock days
+    // are there AND back (same 2× model the clock overlay already draws).
+    () => planTravelClock({ totalKm: planKm * loopFactor, driveMinutes: wholeTrip.min * loopFactor, dayStart: trip.days[0]?.startTime, travelStyle: trip.travelStyle, rainFactor, dayRainPct: dayRainPct ?? undefined }),
+    // Stable keys only (#135): the walk reads startTimes + day count, never the
+    // days array identity. Day starts string + length cover it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [planKm, wholeTrip.min, trip.travelStyle, dayStartSig, dayRainPct, loopFactor],
   )
   // The travel clock drawn ON the route (clock zones): meal-window circles,
   // the evening band into each night halt, the halt marks. Runs on the whole
@@ -331,24 +348,49 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
       travelStyle: trip.travelStyle,
       rainFactor,
     }),
-    [routePolyline, planKm, wholeTrip.min, loopFactor, tripIsRoundTrip, trip.days, trip.travelStyle, dayRainPct],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [routePolyline, planKm, wholeTrip.min, loopFactor, tripIsRoundTrip, dayStartSig, trip.travelStyle, dayRainPct],
   )
+  // One clock story (#123): the banner count comes from the clock walk that
+  // knows the start time; planDriveDays stays the geometry-free estimator.
+  // defer → 0 usable days today; hop → tonight's hop + full days from tomorrow.
+  const travelDayNeed = clockVerdict.verdict === 'ok'
+    ? clockVerdict.days.length
+    : clockVerdict.verdict === 'hop'
+      ? 1
+      : splitVerdict?.driveDayCount ?? 1
   // The split wants more days than planned: propose applying it. Declining is
   // respected — with the honest red fatigue verdict stated, never hidden.
   const [splitDeclined, setSplitDeclined] = useState(false)
-  useEffect(() => { setSplitDeclined(false) }, [splitVerdict?.driveDayCount])
+  // Reset on the single-source count (#123): apply → recompute → same count →
+  // the banner stays dismissed instead of re-firing on its own mutation.
+  useEffect(() => { setSplitDeclined(false) }, [travelDayNeed])
   const applySplitDays = () => {
-    if (!splitVerdict) return
-    const add = splitVerdict.driveDayCount - trip.days.length
+    if (clockVerdict.verdict !== 'ok') return // defer/hop: nothing honest to stamp
+    const add = travelDayNeed - trip.days.length // #123 single source
     if (add <= 0) return
     applyChange(draft => {
       let next = Math.max(...draft.days.map(d => d.index)) + 1
       for (let i = 0; i < add; i++) {
-        draft.days.push({ id: uid('day'), index: next, stops: [] })
+        // #133 — stamp real shells: title + startTime so clockVerdict and
+        // computeTotals never fall back to undefined. Dates are derived from
+        // the day index (ItineraryDay carries no date), so extending endDate
+        // is what keeps the new shells inside the trip.
+        const dayNo = trip.days.length + i + 1
+        draft.days.push({
+          id: uid('day'),
+          index: next,
+          title: `Travel day ${dayNo}`,
+          startTime: '08:30',
+          stops: [],
+        })
         next += 1
       }
+      draft.days.sort((a, b) => a.index - b.index)
+      if (trip.endDate) draft.endDate = isoAddDays(trip.endDate, add)
     }, 'add', -1)
-    toast(`Added ${add} travel day${add !== 1 ? 's' : ''} — the night halts pin themselves to the new boundaries`)
+    setSplitDeclined(true) // own mutation must not re-fire the banner
+    toast(`Added ${add} travel day${add !== 1 ? 's' : ''} (08:30 starts) — accept a night halt to pin them`)
   }
 
   // Fraction fallback pool (P1-C): below the fatigue floor the planner is
@@ -384,13 +426,16 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     }
     let cancelled = false
     setLoadingPois(true)
-    // Day Planner arming (P1-B): the ROUTE arms the split — planDriveDays'
-    // duration cap, never the planned day count. A late start whose day
-    // becomes a short hop also needs the overnight arm.
-    const derivedMultiDay = splitVerdict
-      ? splitVerdict.driveDayCount > 1
-      : clockVerdict.verdict === 'hop'
-    planJourneyHalts(anchors, planKm, wholeTrip.min, { ...nearbyOpts, multiDay: derivedMultiDay || trip.days.length > 1 }, scopeKm * 1000)
+    // Day Planner arming (P1-B/#121): the ROUTE arms the split — the clock
+    // walk when it speaks ('ok' → its day count), the drive-day split when the
+    // clock defers, tonight's hop otherwise. NEVER the planned day count: a
+    // 700 km 1-day plan still needs its night halt; a 3-day 200 km trip none.
+    const derivedMultiDay = clockVerdict.verdict === 'ok'
+      ? travelDayNeed > 1
+      : splitVerdict
+        ? splitVerdict.driveDayCount > 1
+        : clockVerdict.verdict === 'hop'
+    planJourneyHalts(anchors, planKm, wholeTrip.min, { ...nearbyOpts, multiDay: derivedMultiDay }, scopeKm * 1000)
       .then(plan => {
         if (!cancelled) {
           setPois(plan)
@@ -402,14 +447,14 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
       .catch(() => { /* suggestions are best-effort */ })
       .finally(() => { if (!cancelled) setLoadingPois(false) })
     return () => { cancelled = true }
-  }, [anchors, nearbyOpts, scopeKm, planKm, wholeTrip.min, trip.days.length, splitVerdict, clockVerdict, refreshTick]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [anchors, nearbyOpts, scopeKm, planKm, wholeTrip.min, travelDayNeed, clockVerdict.verdict, refreshTick]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // When the activation came from the map (pin hover/click), bring the matching
   // panel row into view so the two surfaces visibly point at the same place.
   useEffect(() => {
     if (activeHitId == null) return
     const row = listRef.current?.querySelector(`[data-hit-id="${activeHitId}"]`)
-    row?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+    row?.scrollIntoView({ block: 'nearest', behavior: scrollBehavior() })
   }, [activeHitId])
 
   /** Along-route km for any point on the current route (null off-polyline). */
@@ -640,7 +685,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
                 {splitVerdict.nightHalts.some(n => hit.cumKm! > n) ? ' · after your night stop' : ''}
               </span>
             )}
-            {tripIsRoundTrip && hit.cumKm > planKm / 2 && (
+            {tripIsRoundTrip && hit.cumKm != null && planKm > 0 && hit.cumKm > planKm * 0.75 && (
               <span className="ride-day-chip">return leg — you pass here on the drive back</span>
             )}
           </div>
@@ -818,16 +863,16 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
             <span className="small muted">{clockVerdict.reason}</span>
           </div>
         )}
-        {(routeTotalKm != null || routeFailed) && splitVerdict && splitVerdict.driveDayCount > trip.days.length && (
+        {(routeTotalKm != null || routeFailed) && splitVerdict && clockVerdict.verdict === 'ok' && travelDayNeed > trip.days.length && (
           <div className="dayplanner-banner" role="status">
-            <b>This drive needs {splitVerdict.driveDayCount} travel days{tripIsRoundTrip ? ' — there and back' : ''}.</b>
+            <b>This drive needs {travelDayNeed} travel days{tripIsRoundTrip ? ' — there and back' : ''}.</b>
             <span className="small muted">
               {routeTotalKm == null && 'Rough estimate — the road measurement did not resolve. '}≈{Math.round(splitVerdict.perDay)} km a day keeps wheel time ≈{minutesToHM(splitVerdict.maxDailyWheelMin)} — the honest cap for {(trip.travelStyle ?? 'balanced')} pace.
             </span>
             {!splitDeclined ? (
               <div className="row" style={{ gap: 8 }}>
                 <button className="btn btn-primary btn-sm" onClick={applySplitDays}>
-                  Apply — add {splitVerdict.driveDayCount - trip.days.length} day{splitVerdict.driveDayCount - trip.days.length !== 1 ? 's' : ''}
+                  Apply — add {travelDayNeed - trip.days.length} day{travelDayNeed - trip.days.length !== 1 ? 's' : ''}
                 </button>
                 <button className="btn btn-ghost btn-sm" onClick={() => setSplitDeclined(true)}>Keep my {trip.days.length}-day plan</button>
               </div>
@@ -844,13 +889,22 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
               <p className="muted small" style={{ marginBottom: 6 }}>
                 Below the fatigue-plan floor, but the corridor has places — the closest to each quarter of the drive:
               </p>
-              {[0.25, 0.5, 0.75].map(frac => {
+              {(() => {
+                // One Set across all three rows (#128a): a place can't win two quarters.
+                const usedFracIds = new Set<string>()
+                return [0.25, 0.5, 0.75].map(frac => {
                 const targetKm = planKm * frac
+                // Purpose-fit first (#128a): sights and food serve a quarter
+                // stop — fuel/rest are errands, not destinations. Each place
+                // wins at most ONE quarter (usedFracIds), so ½ doesn't repeat ¼.
                 const ranked = fractionPois
+                  .filter(h => !usedFracIds.has(h.id as string))
+                  .filter(h => isSightCategory(h.category) || (h.category ?? '') === 'food' || (h.category ?? '') === 'cafe')
                   .map(h => ({ h, km: h.cumKm ?? kmFromStartForHit(h, anchors, { routePolyline: routePolyline ?? undefined }) }))
                   .filter(e => e.km != null)
                   .sort((a, b) => Math.abs((a.km as number) - targetKm) - Math.abs((b.km as number) - targetKm))
                 const near = ranked[0]
+                if (near) usedFracIds.add(near.h.id as string)
                 const label = frac === 0.25 ? '¼' : frac === 0.5 ? '½' : '¾'
                 return (
                   <div key={frac} className="poi-plan-row poi-plan-gap">
@@ -861,11 +915,16 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
                         {editable && <button className="btn btn-ghost btn-sm" style={{ marginLeft: 8 }} onClick={() => openAddModal(near.h)}>+ Add</button>}
                       </span>
                     ) : (
-                      <span className="muted small">no corridor stop found — add a stop on the Timeline and suggestions will pin themselves here.</span>
+                      // #128c: a non-empty pool with no fit here is a scope/
+                      // purpose miss, not an empty corridor — say the honest thing.
+                      <span className="muted small">{fractionPois.length > 0
+                        ? 'no sight or meal near this quarter — try widening the detour scope.'
+                        : 'no corridor stop found — add a stop on the Timeline and suggestions will pin themselves here.'}</span>
                     )}
                   </div>
                 )
-              })}
+                })
+              })()}
             </div>
           ) : (
             <p className="muted small">Not enough driving distance yet for a fatigue plan — add a longer route (90+ km) in the Timeline and segmented stop suggestions will appear here.</p>

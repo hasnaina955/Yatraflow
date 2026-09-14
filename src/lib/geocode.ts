@@ -23,6 +23,7 @@ export { googleEnabled } from './providers/google'
 export { googleCitiesAlong } from './providers/google'
 export { searchCitiesAlong } from './providers/free'
 export { planRideSegments, assignSegmentHits, leftoverAsSight, reasonForSegmentHit, reasonForHit, kmFromStartForHit, planDriveDays, planTravelClock, isSelfDrivenMode, rainFactorFor, DEFER_START, type SegmentHit, type RideSegment, type DriveDaysPlan, type TravelClockVerdict } from './ridePlan'
+export { hasCoords } from './providers/hits'
 
 import { hasCoords, rankAndCap, filterPlannedNearby, kmFromStartForHit, type NearbyOpts, type PlaceHit } from './providers/hits'
 import { haversineKm } from './geo'
@@ -90,6 +91,20 @@ export async function resolveHitCoords(hit: PlaceHit): Promise<PlaceHit> {
     try { return await googleResolveHitCoords(hit) } catch { return hit }
   }
   return resolveFreeHitCoords(hit)
+}
+
+/**
+ * Resolve-or-tell: like resolveHitCoords, but reports failure instead of
+ * silently returning the (0,0) placeholder. Every write-into-a-trip path
+ * must use this one — a placeholder stop pins the journey to Null Island
+ * and every downstream honest number (legs, split verdicts, impact previews,
+ * halt targets) measures an ocean round-trip. Returns null when the hit
+ * could not be resolved; the caller keeps the stop out of the trip.
+ */
+export async function requireHitCoords(hit: PlaceHit): Promise<PlaceHit | null> {
+  const resolved = await resolveHitCoords(hit)
+  if (hasCoords(resolved)) return resolved
+  return null
 }
 
 /** Single-anchor convenience wrapper (empty-day chips). */

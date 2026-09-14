@@ -62,9 +62,16 @@ export interface PlaceHit {
 /** What kind of journey break a suggestion serves. */
 export type HaltPurpose = 'stretch' | 'meal' | 'fuel' | 'rest' | 'overnight' | 'sight'
 
-/** true when a hit already carries usable coordinates */
+/**
+ * true when a hit already carries usable coordinates. BOTH coordinates must
+ * be non-zero: the (0,0) placeholder is the obvious sentinel, but the live
+ * incident (2026-09-14) shipped a MIXED placeholder — latitude 0 with a real
+ * longitude — that the old `a !== 0 || b !== 0` logic accepted. Latitude 0
+ * (680 km south of Indira Point, mid-ocean) is never a valid pick for an
+ * India trip-planner, so treating it as unusable costs nothing real.
+ */
 export function hasCoords(h: PlaceHit): boolean {
-  return Number.isFinite(h.latitude) && Number.isFinite(h.longitude) && (h.latitude !== 0 || h.longitude !== 0)
+  return Number.isFinite(h.latitude) && Number.isFinite(h.longitude) && h.latitude !== 0 && h.longitude !== 0
 }
 
 /** Only hits the map can actually pin (Mappls pending (0,0) hits excluded). */

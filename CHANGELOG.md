@@ -42,6 +42,7 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 - **Status docs refreshed for the `main` promotion** — `AGENTS.md` §1.1 recorded the #107 tracker as
   "96 ticked/annotated" over "five batches (PRs #109–#114)"; it now records the true final state:
   **117/117 boxes closed** across PRs #109–#116, plus the post-release UI fixes promoted alongside.
+- **README screenshots refreshed** — the pre-build concept mockup on the landing hero is replaced by two real captures of the shipped page (`docs/screenshots/landing-hero.png`, `docs/screenshots/plan-bench.png`), taken from a production build of `main` with the scroll-reveal animations settled; the original concept boards stay in `docs/redesign/` as the design-history record.
 
 ## [0.53.0] - 2026-09-13
 

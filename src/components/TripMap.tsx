@@ -6,7 +6,7 @@ import { useMemo, useState, useEffect, useRef, Fragment } from 'react'
 import type { Trip } from '../data/types'
 import type { PlaceHit } from '../lib/geocode'
 import { resolveHitCoords } from '../lib/geocode'
-import { hasCoords, mappablePois } from '../lib/providers/hits'
+import { hasCoords, mappablePois, projectOntoPolyline } from '../lib/providers/hits'
 import { routePath } from '../lib/routing'
 import { buildJourney, getAssumptions, isRoundTrip } from '../lib/engine'
 import { googleMapsDirectionsUrl } from '../lib/externalMaps'
@@ -14,9 +14,10 @@ import { openExternal } from '../lib/native'
 import { titleCase } from '../lib/labels'
 import { haptic } from '../lib/haptics'
 import { nativeWatch } from '../lib/native'
-import { loadFlag, loadMapViewMode, saveFlag, saveMapViewMode } from '../lib/uiPrefs'
+import { loadFlag, saveFlag } from '../lib/uiPrefs'
 import {
   applyViewModeOnMap, HERO_3D_CAMERA, MAP_VIEW_MODES, MAP_VIEW_MODE_META,
+  heroBearingForRoute,
   type MapViewMode,
 } from '../lib/mapViewModes'
 import type { MapRef } from './mapcn/map'
@@ -202,7 +203,7 @@ function CooperativeGestures({ enabled }: { enabled: boolean }) {
  * effect: setStyle preserves the camera, and the pitch/bearing ride belongs
  * to mode transitions only.
  */
-function MapViewModeController({ mode }: { mode: MapViewMode }) {
+function MapViewModeController({ mode, bearing }: { mode: MapViewMode; bearing?: number | null }) {
   const { map, isLoaded } = useMap()
   useEffect(() => {
     if (!map || !isLoaded) return
@@ -215,14 +216,16 @@ function MapViewModeController({ mode }: { mode: MapViewMode }) {
     if (!map) return
     const duration = prefersReducedMotion() ? 0 : 700
     if (mode === '3d' && prevMode.current !== '3d') {
-      map.easeTo({ ...HERO_3D_CAMERA, duration })
+      // Dynamic hero cam: look along THIS trip's road (initial route bearing);
+      // the prototype's fixed bearing stays only as a geometry-less fallback.
+      map.easeTo({ pitch: HERO_3D_CAMERA.pitch, bearing: bearing ?? HERO_3D_CAMERA.bearing, duration })
     } else if (mode !== '3d' && prevMode.current === '3d') {
       // Leaving 3D: flat camera again, and the terrain stack is dropped by
       // the reconcile effect (map.getTerrain() null is the acceptance check).
       map.easeTo({ pitch: 0, bearing: 0, duration })
     }
     prevMode.current = mode
-  }, [map, mode])
+  }, [map, mode, bearing])
   return null
 }
 
@@ -264,7 +267,7 @@ function catIcon(cat: string | undefined): React.ReactNode {
   )
 }
 
-export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusDay, showToolbar = true, enableMapViewModes = false, activeHitId = null, onActivateHit, onOpenInTimeline, onOpenInBoard }: {
+export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusDay, showToolbar = true, enableMapViewModes = false, activeHitId = null, onActivateHit, onOpenInTimeline, onOpenInBoard, onDeleteStop, mainRouteGeometry = null }: {
   trip: Trip
   onOpenStop?: (stopId: string) => void
   /** potential POIs to show as gold "idea" markers */
@@ -291,7 +294,13 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   onActivateHit?: (id: string | number | null) => void
   /** stop-pin click offers a jump to the Timeline/Board tabs (Map tab §6.5) */
   onOpenInTimeline?: (stopId: string) => void
+  /** #184 shared road measurement — MapTab's routePath result for the whole-trip
+      chain (home + stops). When present, the all-days line reuses it instead of
+      firing a duplicate routePath; absent callers (Board view) self-measure. */
+  mainRouteGeometry?: [number, number][] | null
   onOpenInBoard?: (stopId: string) => void
+  /** Delete the stop straight from the map (popup action) — wired by MapTab. */
+  onDeleteStop?: (stopId: string, stop: { title: string; dayIndex: number }) => void
 }) {
   const [dayFilter, setDayFilter] = useState<number | 'all'>('all')
   // Board drives the day filter through the prop; the map's own chips keep working
@@ -320,14 +329,11 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   // overlay so the canvas gets the viewport. Transient by design: Escape or
   // the same chip (now "⤡ Collapse") reverts it; nothing is persisted.
   const [expanded, setExpanded] = useState(false)
-  // Map view mode (2D / Terrain / 3D) — persisted globally (one map
-  // preference, like the legend flag) but only when this surface opted in.
-  // A disabled surface pins 2d and never reads or writes the pref, so the
-  // Board can't inherit the Map tab's terrain choice.
-  const [viewMode, setViewMode] = useState<MapViewMode>(() => (enableMapViewModes ? loadMapViewMode() : '2d'))
-  useEffect(() => {
-    if (enableMapViewModes) saveMapViewMode(viewMode)
-  }, [enableMapViewModes, viewMode])
+  // Map view mode (2D / Terrain / 3D). ALWAYS opens 2D — a stale saved 3D
+  // pref used to greet every trip with the hero camera (user ask, PR #105
+  // follow-up). The switcher is per-session; a disabled surface (Board) pins
+  // 2d outright.
+  const [viewMode, setViewMode] = useState<MapViewMode>('2d')
   // Selected stop (stop-pin click) — powers the compact cross-link popup that
   // jumps to the Timeline/Board tabs. Null = no popup.
   const [selectedStop, setSelectedStop] = useState<{ id: string; title: string; dayIndex: number } | null>(null)
@@ -532,6 +538,46 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     })
   }, [activeHitId, mapLoaded]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Panel to map detour, drawn: the active suggestion gets a dashed spur from the
+  // nearest point on the route to its pin, so "how far off is this?" is answered
+  // on the map itself and not only by the number on the card.
+  useEffect(() => {
+    const m = mapRef.current
+    if (!m || !mapLoaded) return
+    const SRC = 'yf-spur-src'
+    const LAYER = 'yf-spur'
+    if (!m.getSource(SRC)) {
+      m.addSource(SRC, {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+      })
+      m.addLayer({
+        id: LAYER,
+        type: 'line',
+        source: SRC,
+        // #153: paint from the --warn token (resolved once — MapLibre can't
+        // read CSS vars) instead of a hardcoded hex that silently drifts.
+        paint: { 'line-color': getComputedStyle(document.documentElement).getPropertyValue('--warn').trim() || '#B47207', 'line-width': 2, 'line-dasharray': [2, 2] },
+        layout: { 'line-cap': 'round' },
+      })
+    }
+    const hit = activeHitId == null ? null : nearbyPois.find(h => h.id === activeHitId)
+    const route: [number, number][] = (geom.all?.length ? geom.all : allStraight) ?? []
+    const features: Array<{ type: 'Feature'; properties: Record<string, never>; geometry: { type: 'LineString'; coordinates: [number, number][] } }> = []
+    if (hit && hasCoords(hit) && route.length > 1) {
+      const pin: [number, number] = [hit.longitude, hit.latitude]
+      // #158: snap with the SAME segment projection the card's detour minutes
+      // use (projectOntoPolyline), not a raw nearest-vertex walk in degree
+      // space — the spur now lands where the card's math says it should.
+      const poly = route.map(([lng, lat]) => ({ lat, lng }))
+      const snap = projectOntoPolyline({ latitude: pin[1], longitude: pin[0] }, poly)
+      const anchor: [number, number] = snap ? snap.lngLat : route[0]
+      features.push({ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: [anchor, pin] } })
+    }
+    const src = m.getSource(SRC) as { setData?: (d: unknown) => void } | undefined
+    src?.setData?.({ type: 'FeatureCollection', features })
+  }, [activeHitId, mapLoaded, nearbyPois]) // eslint-disable-line react-hooks/exhaustive-deps
+
   function fitToTrip() {
     const m = mapRef.current
     if (!m || allPoints.length === 0) return
@@ -587,6 +633,14 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     [allPoints],
   )
 
+  // The 3D hero frames THIS trip's road: initial bearing of the main route
+  // (GeoJSON [lng,lat] → lat/lng for the pure helper). Geometry-less trips
+  // keep the prototype's fixed bearing as the fallback.
+  const heroBearing = useMemo(() => {
+    const coords = geom.all?.length ? geom.all : allStraight
+    return heroBearingForRoute(coords?.map(c => ({ lat: c[1], lng: c[0] })))
+  }, [geom.all, allStraight])
+
   // Round-trip return drive: last plotted point → trip start (home). Only for
   // self-drive round trips with a geocoded home, and only when home isn't
   // already the last plotted anchor. Toggleable via the map filter chips.
@@ -611,11 +665,20 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
       if (dayFilter === 'all') {
         if (pts.length < 2) return
         const next: Record<string, [number, number][]> = {}
-        try {
-          const legs = await routePath(pts, getAssumptions(trip))
-          const coords = legs.flatMap(l => l.geometry)
-          if (!cancelled && coords.length > 1) next.all = dedupeConsecutive(coords)
-        } catch { /* straight-line fallback below */ }
+        // #184: reuse the caller's road measurement when one arrived (MapTab
+        // already measured the same chain) — one routePath per map open, and
+        // the drawn line can never contradict the detour math again. Only a
+        // caller without the prop (Board view) measures here.
+        if (mainRouteGeometry && mainRouteGeometry.length > 1) {
+          const shared = dedupeConsecutive(mainRouteGeometry)
+          if (shared.length > 1) next.all = shared
+        } else {
+          try {
+            const legs = await routePath(pts, getAssumptions(trip))
+            const coords = legs.flatMap(l => l.geometry)
+            if (!cancelled && coords.length > 1) next.all = dedupeConsecutive(coords)
+          } catch { /* straight-line fallback below */ }
+        }
         // return drive home — real roads when OSRM answers, straight line otherwise
         if (returnLeg) {
           try {
@@ -640,7 +703,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
       }
     })()
     return () => { cancelled = true }
-  }, [chainKey, dayRoutesKey, dayFilter, returnLeg]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [chainKey, dayRoutesKey, dayFilter, returnLeg, mainRouteGeometry]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Turn-by-turn directions for the selected day's ride in the traveller's own
   // Google Maps — the in-app map plots the route but doesn't navigate. Hidden
@@ -751,7 +814,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
             <MapControls position="top-right" showFullscreen className="yf-map-ctrls" />
             {/* Terrain stack reconcile (2D · Terrain · 3D hero) — no-op on a
                 hard-2D surface like the Board. */}
-            {enableMapViewModes && <MapViewModeController mode={viewMode} />}
+            {enableMapViewModes && <MapViewModeController mode={viewMode} bearing={heroBearing} />}
             {/* Inline on a coarse pointer: one finger scrolls the page.
                 Expanded (or a mouse): normal gestures. */}
             <CooperativeGestures enabled={!expanded} />
@@ -865,7 +928,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                       <button
                         className={`yf-map-pin yf-map-tear${p.status === 'maybe' ? ' yf-map-maybe' : ''}`}
                         style={{ '--pin-color': colorForDay(p.dayIndex) } as React.CSSProperties}
-                        onClick={() => { onOpenStop?.(p.id); if (onOpenInTimeline || onOpenInBoard) setSelectedStop({ id: p.id, title: p.title, dayIndex: p.dayIndex }) }}
+                        onClick={() => { onOpenStop?.(p.id); if (onOpenInTimeline || onOpenInBoard || onDeleteStop) setSelectedStop({ id: p.id, title: p.title, dayIndex: p.dayIndex }) }}
                         aria-label={`Stop ${num}: ${p.title}`}
                         title={p.title}
                       >
@@ -928,7 +991,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
           </MapLibreMap>
         )}
 
-        {selectedStop && (onOpenInTimeline || onOpenInBoard) && (
+        {selectedStop && (onOpenInTimeline || onOpenInBoard || onDeleteStop) && (
           <div className="yf-stop-jump" role="dialog" aria-label={`Selected stop: ${selectedStop.title}`}
             style={{ position: 'absolute', left: '50%', bottom: 14, transform: 'translateX(-50%)', zIndex: 5, display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-soft)', maxWidth: 'calc(100% - 24px)' }}>
             <span className="small" style={{ fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 200 }}>{selectedStop.title}</span>
@@ -937,6 +1000,9 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
             )}
             {onOpenInBoard && (
               <button className="btn btn-sm btn-outline" onClick={() => { onOpenInBoard(selectedStop.id); setSelectedStop(null) }}>Open in Board</button>
+            )}
+            {onDeleteStop && (
+              <button className="btn btn-sm btn-danger" onClick={() => { onDeleteStop(selectedStop.id, { title: selectedStop.title, dayIndex: selectedStop.dayIndex }); setSelectedStop(null) }}>Remove</button>
             )}
             <button className="icon-btn" onClick={() => setSelectedStop(null)} aria-label="Close" style={{ flex: '0 0 auto' }}><X size={14} aria-hidden /></button>
           </div>

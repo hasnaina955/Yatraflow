@@ -15,18 +15,22 @@ user confirmation before any push. Feature work reaches `test` **via pull
 request** (never a direct push); `main` merges stay explicitly user-gated
 (AGENTS rule 1).
 
-**Snapshot (2026-09-13, verified against the repo):** `main` is at **v0.53.0**; `test` is
-4 commits ahead of `main` and 0 behind (`main` is an ancestor of `test`). The UI-audit tracker
-#107 was worked to the floor across PRs #109–#116, and releases v0.49.0–v0.53.0 landed. In
-flight: PR #105 (Day Planner, `docs/day-planner-plan` → `test`). Current version: **0.53.0**.
+**Snapshot (2026-09-15, verified against the repo):** `main` is at v0.53.0 (PR #148) while
+`test` carries the v0.54.0 release — the suggestion-pipeline fixes, the Day Planner revival,
+night-halt town anchoring and Create Trip parity. `test` is ~45 commits ahead of `main`; the
+only commits `main` holds beyond `test` are the README hero captures and this file's v0.53.0
+status refresh (PRs #147/#148), which the promotion merge brings back in. Current version:
+**0.54.0**.
 
 **Live open work is tracked in two places, and this file must agree with both:**
 
 1. **The issue queue** — see [Open issues](#open-issues) below for the current list, which is
-   derived from the GitHub API rather than recalled. Thirty-one issues are open — the Day
-   Planner family (#121–#146), the rebrand (#96), the UI-audit tracker (#107, verdict-complete),
-   and this housekeeping batch (#117–#119). M5 is **not** the only outstanding work, as earlier
-   revisions of this file claimed.
+   derived from the GitHub API rather than recalled. The queue has MOVED since the last
+   snapshot: the #84–#90 a11y/bug batch and the Day Planner defects (#187, #188, #189) are all
+   **closed**; what remains open is the Day Planner enhancement cluster (#122, #124, #142,
+   #143, #145), the rebrand (#96) and the UI-audit tail (#107) — re-derive with `gh issue list`
+   before quoting counts. M5 is **not** the only outstanding work, as earlier revisions of this
+   file claimed.
 2. **The milestone tracks** — M5 → M9, plus the 1.0 cut. These are *planning* tracks: they are
    directions of travel, not release numbers.
 
@@ -42,46 +46,23 @@ number collides with a shipped release, the ledger wins.
 
 ## Open issues
 
-Verified 2026-09-13 against the GitHub API (`gh issue list --state open`). Priority and Area are
-read from each issue's labels (`—` = no priority label). Relevance is a disposition note from
-this snapshot, not a fresh per-issue source audit.
+Re-derived from the GitHub API 2026-09-15 (`gh issue list --state open`). The previous
+#84–#90 batch is **closed** (all eight swept in v0.49.0), as are the Day Planner defects
+that drove the v0.54.0 work (#187/#188/#189). Six issues remain:
 
 | # | Priority | Area | Issue | Relevance |
 |---|---|---|---|---|
-| #96 | — | enhancement | Rebrand: pick the new name + execute (seam already built on `refactor/brand-seam`) | open — pending name decision |
-| #107 | **P1** | a11y, ui | UI design-system audit — FULL fix tracker (contrast, tokens, motion, layout, a11y, selects — 19 pages / 20 overlays / 20 selects) | tracker — 117/117 closed across PRs #109–#116; kept open as ledger |
-| #117 | — | bug | ROADMAP snapshot + Open-issues table frozen at v0.48.0 / issues #84–#90 (all closed) | fixed by this change |
-| #118 | — | bug | Custom Select listbox scrolls with default smooth behavior under prefers-reduced-motion | open |
-| #119 | — | bug | Haptics DEV log guard is inverted: logs when vibrate is absent, silent where it matters | open |
-| #121 | — | bug | P1-A still arms drive-day math on trip.days.length: 700 km in a 1-day plan gets no overnight | open — Day Planner |
-| #122 | — | enhancement | Day Planner: fixed dinner window ends every day at 20:00-21:00 regardless of party/season/road | open — Day Planner |
-| #123 | — | bug | Day Planner: split banner and travel-clock walk can disagree (2 days vs 3 for a 14:00 start) | open — Day Planner |
-| #124 | — | bug | Day Planner: night halts are arithmetic km points, anchors walk one blended speed (terrain-blind) | open — Day Planner |
-| #125 | — | bug | Day Planner lodging bill: name-string dedupe, mirrored rate table, head-count rooms | open — Day Planner |
-| #126 | — | enhancement | Day Planner: cap ignores drivers/party, modes that nobody drives get split verdicts, EV unplanned | open — Day Planner |
-| #127 | — | bug | Day Planner: defer/hop magic numbers + day-1 rain decides the whole multi-day split | open — Day Planner |
-| #128 | — | bug | Day Planner: fraction rows purpose-blind + midpoint return-leg chip + ripple without stickiness | open — Day Planner |
-| #129 | — | bug | Day Planner: walkClockDay never spends dwell — halt ETAs systematically early | open — Day Planner |
-| #130 | — | bug | Day Planner: two lunch windows (11:30 vs 12:00) — B2 slide and clock walk disagree | open — Day Planner |
-| #131 | — | bug | Day Planner B3: overnights excluded from re-collapse, slides clamp into ENDNO | open — Day Planner |
-| #132 | — | bug | Day Planner: silent rain clamp duplicated in two paths, style match case-sensitive | open — Day Planner |
-| #133 | — | bug | Day Planner Apply-split appends dateless empty day shells and re-fires its own banner | open — Day Planner |
-| #134 | — | bug | Day Planner: DaySection DRIVE threshold (km-only) contradicts the new clock floor (km AND time) | open — Day Planner |
-| #135 | — | bug | Day Planner memos key on object identity — every store commit re-fires corridor search | open — Day Planner |
-| #136 | — | bug | Day Planner: corrupt startTime silently becomes midnight via hmToMinutes fallback | open — Day Planner |
-| #137 | — | bug | Day Planner: remainder loop subtracts absolute kmCovered — multi-day walk can silently drop route | open — Day Planner |
-| #138 | — | bug | Day Planner: final-day walk skips every clock check — silent post-23:00 arrivals | open — Day Planner |
-| #139 | — | bug | Day Planner docs claim real-town night halts; code emits arithmetic km with no lodging fetch | open — Day Planner |
-| #140 | — | bug | Day Planner: dinner-halt branch ignores the ENDNO exclusion the split path enforces | open — Day Planner |
-| #141 | — | enhancement | Day Planner enhancement: per-day confidence-weighted rain instead of day-1 flip | open — Day Planner |
-| #142 | — | enhancement | Day Planner enhancement: driver count + party inputs that move the wheel cap | open — Day Planner |
-| #143 | — | enhancement | Day Planner enhancement: sticky accepted halts with delta proposals + hysteresis | open — Day Planner |
-| #144 | — | enhancement | Day Planner enhancement: fuel+meal combined halts + first-class EV charge cadence | open — Day Planner |
-| #145 | — | enhancement | Day Planner enhancement: round trip as two directed walks, not a midpoint cut | open — Day Planner |
-| #146 | — | enhancement | Day Planner enhancement: lodging identity by place-id/coords cluster + single rate source | open — Day Planner |
+| #96 | — | refactor | Rebrand: pick the new name + execute | Seam built on `refactor/brand-seam`; blocked on the name decision, not on code |
+| #124 | bug | day planner | Night halts are arithmetic km points; anchors walk one blended speed | **Confirmed** — the halt lands on a km tick and per-leg terrain never enters the anchor walk |
+| #122 | enhancement | day planner | Fixed dinner window ends every day 20:00–21:00 regardless of party/season | **Partly addressed** — #142's party inputs moved the cap and the clock gained anchors, but dinner itself is still a fixed window |
+| #142 | enhancement | day planner | Driver count + party inputs that move the wheel cap | **Inputs shipped** (#151); the remaining ask is surfacing them in trip settings |
+| #143 | enhancement | day planner | Sticky accepted halts with delta proposals + hysteresis | Open — a product-design surface (no code started) |
+| #145 | enhancement | day planner | Round trip as two directed walks, not a midpoint cut | **Partly addressed** — `planTravelClock` now walks the outbound and a directed return pass; the remaining ask is the full two-walk model |
 
-**Shipped v0.49.0 (PR #95):** the seven issues #84–#90 closed together — the five a11y surfaces
-(#84, #85, #87, #88, #90) and the #86 stale-profile item. See [CHANGELOG.md](CHANGELOG.md).
+**Relevance note (2026-09-15).** Every Day Planner item above was re-checked against `src/`
+rather than accepted on its title — several are now partially or fully satisfied by the v0.54.0
+engine work, and each row says which. The `M0` seed guard noted below remains a real defect and
+is still unfiled.
 
 **Defect found while auditing this file — not yet filed:** the M0 seed guard below was never
 implemented (see the M0 entry). `store.ts:600` seeds demo trips whenever `tripList` is empty,
@@ -340,6 +321,7 @@ the bank is a complete index of unbuilt work:
 | M6 — Together | [Strategic track](#m6--together-collaboration-depth) | RLS test suite, co-editing |
 | M7 — Premium | [Strategic track](#m7--premium-monetization) | Blocked: needs a gateway account |
 | M9 — Invites & onboarding | [`docs/PLAN-INVITES-ONBOARDING.md`](docs/PLAN-INVITES-ONBOARDING.md) | R1 → R2 → R3; exec plan written |
+| M10 — Day Planner (travel-clock engine) | [`docs/PLAN-DAY-PLANNER.md`](docs/PLAN-DAY-PLANNER.md) | P1-A → P1-G; exec plan written. Fixes the short-trip suggestion silence (user feedback) and the 700-km-in-Day-1 gap — meals as fixed clock anchors, duration fatigue cap, derived drive days / night halts / defer proposals |
 | M8 → 1.0 | [Strategic track](#m8--10-enablers--the-10-cut) | Offline-first PWA, i18n EN+HI |
 
 ### Shipped from these sources — record, not backlog

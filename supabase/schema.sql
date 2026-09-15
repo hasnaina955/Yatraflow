@@ -346,6 +346,19 @@ create policy "trips read" on public.trips
     or public.is_member(trips.id)
   );
 
+-- v0.47 trip trash: tombstoned trips vanish from normal reads, but the
+-- tombstone WRITE must stay permitted — the trash UPDATE supplies a new row
+-- whose deleted_at is set, so any SELECT policy evaluated against it (like
+-- the live "hide trashed" one) must accept it, or the UPDATE fails with
+-- 42501 and delete silently no-ops (reproduced on the live project,
+-- Sep 14 2026: the production policy lacked the added-row clause).
+create policy "trips read hide trashed" on public.trips
+  for select using (
+    deleted_at is null
+    or auth.uid() = owner_id
+    or public.is_editor(trips.id)
+  );
+
 create policy "trips insert" on public.trips
   for insert with check (auth.uid() = owner_id);
 

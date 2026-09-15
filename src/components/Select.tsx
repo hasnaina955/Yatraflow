@@ -15,6 +15,7 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { Check } from 'lucide-react'
 import { moveActive, typeaheadIndex, type ListboxMove } from '../lib/listbox'
+import { scrollBehavior } from '../lib/motion'
 
 export interface SelectOption {
   value: string
@@ -62,7 +63,7 @@ export function Select({ value, onChange, options, disabled, compact, placeholde
   // option visible as the arrows move (focus never leaves the trigger).
   useEffect(() => {
     if (!open) return
-    document.getElementById(`${listId}-opt-${active}`)?.scrollIntoView({ block: 'nearest' })
+    document.getElementById(`${listId}-opt-${active}`)?.scrollIntoView({ block: 'nearest', behavior: scrollBehavior() })
   }, [open, active, listId])
 
   function openPopup() {

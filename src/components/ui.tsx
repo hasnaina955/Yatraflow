@@ -723,6 +723,49 @@ export function BrandMark({ size = 26 }: { size?: number }) {
 // with drag bubbles, sticky action bars — implemented once here so forms stay
 // consistent. The controls reuse the bench's own global classes for fidelity.
 
+/** Reactive matchMedia. The reactive sibling of lib/motion's
+ *  prefersReducedMotion(), which reads the query once and never updates — use
+ *  this one when a component must re-render as the user flips the OS setting. */
+export function useMedia(query: string, initial = false): boolean {
+  const [matches, setMatches] = useState(initial)
+  useEffect(() => {
+    const mq = window.matchMedia(query)
+    setMatches(mq.matches)
+    const onChange = () => setMatches(mq.matches)
+    mq.addEventListener?.('change', onChange)
+    return () => mq.removeEventListener?.('change', onChange)
+  }, [query])
+  return matches
+}
+
+const ODO_DIGITS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+/** Odometer-style money figure: each digit is a vertical 0–9 strip that rolls
+ *  into place (masked edges, springy overshoot). Non-digits (₹, commas) sit
+ *  static. `animate: false` renders the plain value instead — the
+ *  reduced-motion path. Pass `label` when the figure is the only place the
+ *  amount appears: the rolling digits are aria-hidden, so without it a screen
+ *  reader loses the number entirely. */
+export function Odometer({ value, animate, label }: { value: string; animate: boolean; label?: string }) {
+  if (!animate) return <span className="odo">{value}</span>
+  return (
+    <>
+      {label != null && <span className="sr-only">{label}</span>}
+      <span className="odo" aria-hidden="true">
+        {value.split('').map((ch, i) => /^\d/.test(ch) ? (
+          <span key={i} className="odo-digit">
+            <span className="odo-strip" style={{ transform: `translateY(${Number(ch) * -1}em)` }}>
+              {ODO_DIGITS.map(n => <span key={n} className="odo-num">{n}</span>)}
+            </span>
+          </span>
+        ) : (
+          <span key={i} className="odo-char">{ch}</span>
+        ))}
+      </span>
+    </>
+  )
+}
+
 /** Slider dial with a value bubble while dragging — ports the bench's
  *  BenchRange onto the shared .yf-range track (--fill). The caller renders the
  *  big readout (bench-block-value) and end labels (bench-scale-ends). */

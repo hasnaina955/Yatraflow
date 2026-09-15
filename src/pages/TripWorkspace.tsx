@@ -7,9 +7,9 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import type { Trip } from '../data/types'
 import { useDb, tripById, currentUser, roleOf, canEdit, updateTrip, userById, fetchSharedTrip } from '../store/store'
 import { PillNav } from '../components/PillNav'
-import { computeHealth, computeTotals, getAssumptions, legKey, isRoundTrip } from '../lib/engine'
+import { computeHealth, computeTotals, getAssumptions } from '../lib/engine'
 import type { LegEstimate } from '../lib/engine'
-import { routePath } from '../lib/routing'
+import { buildRoadChain, measureRoadChain, correctionsFromLegs, type RoadStatus, type TripRoadView } from '../lib/tripRoad'
 import { computeImpact, type ImpactResult } from '../lib/impact'
 import { scrollBehavior } from '../lib/motion'
 import { Avatar, toast } from '../components/ui'
@@ -112,10 +112,9 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
   const role = me && trip ? roleOf(trip, me.id) : null
   const editable = canEdit(role)
 
-  // Real road distances/durations for the estimate totals, refreshed when the
-  // route changes. Only applied for ground modes (OSRM is driving-only); the
-  // deterministic haversine engine stays the fallback and powers warnings/impact.
-  const legCorrections = useTripCorrections(trip)
+  // ONE road measurement for the whole workspace (#188): the engine's leg
+  // corrections and the Map tab's road view come from the same chain.
+  const { corrections: legCorrections, road } = useTripRoad(trip)
 
   // Auto (Wikipedia) destination photo for the workspace header cover badge.
   // Walk all candidates (last stop → earlier stops → start city) so a single
@@ -277,7 +276,7 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
       )}
       {tab === 'map' && (
         <React.Suspense fallback={<div className="container loading-block"><div className="spinner" />Loading map…</div>}>
-          <MapTab trip={effective} editable={editable} applyChange={applyChange} suggestionCache={suggestionCache} crewSuggestions={db.suggestions.filter(s => s.tripId === trip.id)} onOpenTimeline={() => setTab('timeline')} onOpenBoard={() => setTab('board')} />
+          <MapTab trip={effective} editable={editable} applyChange={applyChange} suggestionCache={suggestionCache} crewSuggestions={db.suggestions.filter(s => s.tripId === trip.id)} road={road} onOpenTimeline={() => setTab('timeline')} onOpenBoard={() => setTab('board')} />
         </React.Suspense>
       )}
       {tab === 'group' && <GroupInputTab trip={trip} editable={editable} me={me} />}
@@ -294,74 +293,64 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
   )
 }
 
-// ================= Real-road distance refinement =================
+// ================= Real-road distance refinement (ONE measurement, #188) =================
 
 /** Road modes where OSRM's driving distances make sense as estimates. */
 const ROAD_MODES = ['car', 'motorcycle', 'taxi', 'bus', 'mixed']
 
 /**
- * Fetches real road distances/durations (OSRM) for the trip's legs and returns
- * a map keyed by `legKey(a, b)` that the engine consumes to replace its
- * haversine estimates. Falls back to the deterministic values when the service
- * is unreachable or the mode isn't ground-based.
+ * The trip's single road measurement. Owns the one `routePath` chain (with its
+ * one retry) and hands out both consumers: the engine's leg corrections (budget,
+ * fatigue, warnings — every tab) and the Map tab's road view (line, totals,
+ * per-day km, suggestion corridor).
+ *
+ * Before #188 the workspace and the Map tab each measured the same chain, which
+ * doubled the load on the shared OSRM demo server and let the map draw a road
+ * the detour math could not see. The chain measured here is a superset of the
+ * Map tab's points, so its legs are a strict prefix — see tripRoad.ts.
  */
-function useTripCorrections(trip: Trip | null | undefined): Record<string, LegEstimate> | undefined {
-  const [corrections, setCorrections] = useState<Record<string, LegEstimate> | undefined>(undefined)
-
-  const chain = useMemo(() => {
-    if (!trip) return []
-    const pts: { lat: number; lng: number }[] = []
-    if (trip.startLocationCoords) pts.push({ lat: trip.startLocationCoords.lat, lng: trip.startLocationCoords.lng })
-    ;[...trip.days]
-      .sort((a, b) => a.index - b.index)
-      .forEach(d => [...d.stops].filter(s => s.status !== 'rejected').sort((a, b) => a.orderInDay - b.orderInDay)
-        .forEach(s => pts.push({ lat: s.lat, lng: s.lng })))
-    // Round trip: also refine the turnaround → start leg with road distances.
-    if (isRoundTrip(trip) && trip.startLocationCoords) {
-      pts.push({ lat: trip.startLocationCoords.lat, lng: trip.startLocationCoords.lng })
-    }
-    const dc = trip.destinationCoords ?? []
-    const lastDest = dc.length ? dc[dc.length - 1] : undefined
-    if (lastDest && !(pts.length && pts[pts.length - 1].lat === lastDest.lat && pts[pts.length - 1].lng === lastDest.lng)) {
-      pts.push({ lat: lastDest.lat, lng: lastDest.lng })
-    }
-    return pts
-  }, [trip])
-
-  const mode = trip?.transportMode
+function useTripRoad(trip: Trip | null | undefined): {
+  corrections: Record<string, LegEstimate> | undefined
+  road: TripRoadView
+} {
+  const chain = useMemo(() => (trip ? buildRoadChain(trip) : null), [trip])
+  const [state, setState] = useState<{ status: RoadStatus; legs: TripRoadView['legs'] }>({ status: 'pending', legs: null })
+  const [attempt, setAttempt] = useState(0)
 
   useEffect(() => {
-    if (!trip) return
-    setCorrections(undefined)
-    if (!mode || !ROAD_MODES.includes(mode) || chain.length < 2) { setCorrections({}); return }
+    // Nothing to measure is not a failure: no trip, or a single point.
+    if (!trip || !chain || chain.points.length < 2) {
+      setState({ status: 'ok', legs: [] })
+      return
+    }
     let cancelled = false
-    ;(async () => {
-      try {
-        const legs = await routePath(chain, getAssumptions(trip))
-        if (cancelled) return
-        const map: Record<string, LegEstimate> = {}
-        for (let i = 0; i < legs.length; i++) {
-          // geometry rides along: the halt planner assembles the day's road
-          // polyline from these legs so "halt after N km" lands on the road
-          // the map draws, not on the straight chord between stops.
-          const est: LegEstimate = { distanceKm: legs[i].distanceKm, durationMinutes: legs[i].durationMinutes, geometry: legs[i].geometry }
-          map[legKey(chain[i], chain[i + 1])] = est
-          // Store the mirrored leg too: the return drive runs the same road in
-          // the opposite direction (e.g. Siliguri → home through a halt), and a
-          // reversed road number beats a haversine fallback.
-          const rk = legKey(chain[i + 1], chain[i])
-          if (!map[rk]) map[rk] = est
-        }
-        setCorrections(map)
-      } catch {
-        if (!cancelled) setCorrections({})
-      }
-    })()
+    setState({ status: 'pending', legs: null })
+    measureRoadChain(chain.points, getAssumptions(trip)).then(outcome => {
+      if (cancelled) return
+      setState(outcome.ok ? { status: 'ok', legs: outcome.legs } : { status: 'failed', legs: null })
+    })
     return () => { cancelled = true }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [trip, mode, chain])
+  }, [trip, chain, attempt])
 
-  return corrections
+  const retry = useCallback(() => setAttempt(a => a + 1), [])
+
+  // The engine only takes road numbers for ground modes (OSRM is driving-only);
+  // anything else — and a failed or still-pending measurement — leaves the
+  // deterministic haversine engine in charge, exactly as before.
+  const roadMode = !!trip?.transportMode && ROAD_MODES.includes(trip.transportMode)
+  const corrections = useMemo(() => {
+    if (!trip) return undefined
+    if (!chain || !roadMode || chain.points.length < 2) return {}
+    if (state.status === 'pending' || !state.legs) return undefined
+    return correctionsFromLegs(chain, state.legs)
+  }, [trip, chain, roadMode, state])
+
+  const road = useMemo<TripRoadView>(
+    () => ({ chain, legs: state.legs, status: state.status, retry }),
+    [chain, state, retry],
+  )
+
+  return { corrections, road }
 }
 
 function fmtDateRange(a: string, b: string): string {

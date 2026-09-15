@@ -18,6 +18,7 @@ import {
   currentUser, userById, useDb,
 } from '../../store/store'
 import { computeTotals, getAssumptions, formatInr, isRoundTrip, safeToSpendPerDay } from '../../lib/engine'
+import { loadFlag, saveFlag } from '../../lib/uiPrefs'
 import { titleCase } from '../../lib/labels'
 import { Avatar, Chip, Field, StatTile, toast, undoToast } from '../../components/ui'
 
@@ -122,11 +123,16 @@ function ExpenseFormFields({ trip, members, form, setForm }: {
   )
 }
 
+/** The optional-spend watch's soft line, as a share of the estimate. Tips
+ *  only — nothing in the trip changes when it's crossed. */
+const OPTIONAL_WATCH_PCT = 20
+
 export function BudgetTab({ trip, totals, editable }: { trip: Trip; totals: ReturnType<typeof computeTotals>; editable: boolean }) {
   const db = useDb()
   const me = currentUser(db)
   const members = trip.members ?? []
   const [editingId, setEditingId] = useState<ID | null>(null)
+  const [watchOptional, setWatchOptional] = useState<boolean>(() => loadFlag('optional_watch', false))
 
   const groupTarget = trip.budgetPerPersonInr * trip.travellers
   const remaining = groupTarget - totals.totalCostInr
@@ -236,6 +242,9 @@ export function BudgetTab({ trip, totals, editable }: { trip: Trip; totals: Retu
               {A.kmPerLiter
                 ? <>All figures are estimates in INR. Transport is fuel-based: route distance{isRoundTrip(trip) ? ' (incl. return drive)' : ''} ≈{Math.round(totals.totalDistanceKm)} km ÷ {A.kmPerLiter} km/L ≈ <b>{Math.round(totals.totalDistanceKm / A.kmPerLiter)} L</b> of fuel × ₹{A.fuelPricePerL}/L ({A.fuelPriceIsUserSet ? 'your local pump price' : 'indicative petrol price — actual consumption varies'}).</>
                 : <>All figures are estimates in INR. Transport is derived from route distance × ₹{A.inrPerKm}/km for {trip.transportMode}.</>}
+              {totals.lodgingNights > 0 && (
+                <> Stay is priced from your hotel stops: {totals.lodgingNights} overnight base{totals.lodgingNights !== 1 ? 's' : ''} — the drive needs a stay — × {totals.lodgingRooms} room{totals.lodgingRooms !== 1 ? 's' : ''} × ₹{totals.lodgingRatePerNight.toLocaleString('en-IN')}/night.</>
+              )}
             </p>
             <div className="budget-bars catbars">
               {cats.map(([c, v]) => {
@@ -393,6 +402,27 @@ export function BudgetTab({ trip, totals, editable }: { trip: Trip; totals: Retu
               </div>
             </div>
             <p className="hint-text" style={{ marginTop: 10 }}>Optional includes buffers & shopping that you can trim to save.</p>
+            {/* Optional-spend watch (user ask, P1-E follow-up): a TIP, not a
+                change — opt-in, session-persistent, never edits anything. */}
+            <div className="row-between" style={{ marginTop: 8, gap: 8 }}>
+              <span className="small muted">A soft line at 20% of the estimate — tips only, nothing changes.</span>
+              <button
+                className={`btn btn-sm ${watchOptional ? 'btn-primary' : 'btn-outline'}`}
+                onClick={() => { const next = !watchOptional; setWatchOptional(next); saveFlag('optional_watch', next) }}
+                aria-pressed={watchOptional}
+              >
+                {watchOptional ? 'Watching optional' : 'Watch optional spends'}
+              </button>
+            </div>
+            {watchOptional && totals.totalCostInr > 0 && (() => {
+              const pct = (totals.optionalInr / totals.totalCostInr) * 100
+              return (
+                <p className={`small ${pct > OPTIONAL_WATCH_PCT ? 'dayplanner-red' : 'muted'}`} style={{ marginTop: 6 }} role="status">
+                  Optional watch: {formatInr(totals.optionalInr)} — {Math.round(pct)}% of the estimate,{' '}
+                  {pct > OPTIONAL_WATCH_PCT ? `over the ${OPTIONAL_WATCH_PCT}% soft line. Trimming one optional line brings it back under.` : `inside the ${OPTIONAL_WATCH_PCT}% soft line.`}
+                </p>
+              )
+            })()}
           </div>
         </div>
       </div>

@@ -34,6 +34,10 @@ describe('road-projected positions', () => {
     const r = projectOntoPolyline({ latitude: 0, longitude: 5 / 111.32 }, poly)
     expect(r).not.toBeNull()
     expect(r!.km).toBeGreaterThan(25)
+    // #158: the snapped POINT rides along — the map spur anchors to the same
+    // projection the card's detour minutes use, not a nearest-vertex guess.
+    expect(r!.lngLat[0]).toBeCloseTo(5 / 111.32, 4)
+    expect(r!.lngLat[1]).toBeCloseTo(0, 6)
   })
 
   it('falls back to anchors when no polyline is given', () => {

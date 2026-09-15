@@ -4,8 +4,9 @@
 //      picked suggestions get coordinates via one Place Details Essentials
 //      call (Autocomplete itself returns predictions, never coordinates).
 //   2. Nearby POIs for the tourist engine — Text Search Pro events, in two
-//      flavours: Search-Along-Route (whole-route polyline, real road detours
-//      via routingSummaries) for multi-anchor corridor scans, and circular
+//      flavours: Search-Along-Route (whole-route polyline; road position from
+//      routingSummaries leg0, detour from the geometric spur against that
+//      polyline) for multi-anchor corridor scans, and circular
 //      locationBias (Text Search, same SKU) for single-anchor flows like the
 //      Timeline's empty-day chips.
 //   3. Opening hours on the SAME Text Search events — requested via FieldMask
@@ -22,7 +23,7 @@
 // Place Details and Text Search Along-Route all return HTTP 200. One fix was
 // applied from that run: routingSummaries paths are legs-scoped
 // (`routingSummaries.legs.distanceMeters`). See scripts/verify-google-places.mjs.
-import { normWords, hasCoords, type PlaceHit, type HaltPurpose } from './hits'
+import { normWords, hasCoords, spurKm, type PlaceHit, type HaltPurpose } from './hits'
 import { quotaAllows, quotaCount, type QuotaSku } from './quota'
 import { queriesForPurpose } from '../purposeQueries'
 
@@ -213,8 +214,13 @@ interface GooglePeriod {
 interface RoutingSummary {
   /**
    * Search-Along-Route legs: [0] = route origin → place, [1] = place → route
-   * destination (live-verified 2026-08-29). The detour is the extra travel
-   * over the direct route: legs[0] + legs[1] − routeTotalKm.
+   * destination (live-verified 2026-08-29). leg[0] is the hit's POSITION along
+   * the corridor (alongRouteKm). The legs are NOT used for detours: Google
+   * routes start→place→end independently of the polyline, so (leg0 + leg1) −
+   * <foreign route total> inflates by the two engines' route-variant
+   * difference — measured live at +47 km on a 1,400 km corridor (every
+   * on-road petrol pump read "50 km off"). Detours are measured geometrically
+   * against the same polyline instead (spurKm).
    */
   legs?: { distanceMeters?: number }[]
 }
@@ -267,12 +273,6 @@ function hoursFrom(p: GooglePlace): { openTime?: string; closeTime?: string } {
 export interface AlongRouteArgs {
   /** OSRM road geometry of the whole route, [lng, lat][] */
   routeCoords: [number, number][]
-  /**
-   * Total road distance of routeCoords in km (OSRM leg sum). Needed to
-   * derive the real detour from the routingSummaries legs; without it hits
-   * keep the straight-line-to-anchor detour estimate.
-   */
-  routeTotalKm?: number | null
   count: number
   includeFuel?: boolean
   /** When provided, searches use purpose-specific queries instead of the static tourist set. */
@@ -288,8 +288,10 @@ export interface AlongRouteArgs {
  */
 /**
  * Shared mapper: Text Search responses (one per category query) → PlaceHits,
- * deduped across queries. `routeTotalKm` is only present for Search-Along-Route
- * (routingSummaries legs → real road detour); point searches pass null.
+ * deduped across queries. `routePolyline` is only present for
+ * Search-Along-Route (hits get their road position from routingSummaries leg0
+ * and their detour from the geometric spur against the polyline); point
+ * searches pass null.
  */
 /**
  * Map Google's machine place type → the app's category taxonomy. The category
@@ -335,7 +337,7 @@ function categoryForGooglePlace(
 function hitsFromResponses(
   responses: { places?: GooglePlace[]; routingSummaries?: RoutingSummary[] }[],
   queries: { textQuery: string; cat: string; includedType?: string }[],
-  routeTotalKm: number | null | undefined,
+  routePolyline: { lat: number; lng: number }[] | null,
 ): PlaceHit[] {
   const seen = new Set<string>()
   const out: PlaceHit[] = []
@@ -356,17 +358,15 @@ function hitsFromResponses(
       if (!key || seen.has(key)) continue
       seen.add(key)
       const summary = routingSummaries[i]
-      // legs[0] = route origin → place, legs[1] = place → route destination;
-      // the detour is the extra travel over the direct route. Clamp at 0 —
-      // a place can legitimately sit on the way (zero extra), and floating
-      // noise should never show negative detours.
+      // legs[0] = route origin → place: the hit's road POSITION along the
+      // corridor (card labels + segment assignment). The legs are NOT a
+      // detour source — see the RoutingSummary note above.
       const legs = summary?.legs ?? []
       const l0 = legs[0]?.distanceMeters
-      const l1 = legs[1]?.distanceMeters
-      const detourM =
-        l0 != null && l1 != null && routeTotalKm != null
-          ? l0 + l1 - routeTotalKm * 1000
-          : null
+      // Detour = the hit's perpendicular spur against the same polyline the
+      // search ran along — engine-free, so an on-road petrol pump reads ~0
+      // regardless of which provider measured the polyline.
+      const spur = routePolyline ? spurKm({ latitude: lat, longitude: lng }, routePolyline) : null
       out.push({
         id: `google_${p.id}`,
         name: p.displayName.text,
@@ -376,7 +376,7 @@ function hitsFromResponses(
         description: p.primaryTypeDisplayName?.text ?? p.formattedAddress ?? undefined,
         placeId: p.id,
         source: 'google',
-        fromGoogleAlongRoute: routeTotalKm != null,
+        fromGoogleAlongRoute: routePolyline != null,
         // real category from the place's machine type — NEVER the purpose
         // string that built the query ('meal'/'fuel'/'overnight' are purposes,
         // not categories; they score 0 in PURPOSE_FIT)
@@ -387,9 +387,7 @@ function hitsFromResponses(
         // leg0 = road km from the route origin to this place — its position
         // along the journey (ride-plan segment assignment + card labels)
         ...(l0 != null && Number.isFinite(l0) ? { alongRouteKm: Math.max(0, l0) / 1000 } : {}),
-        ...(detourM != null && Number.isFinite(detourM)
-          ? { offRouteKm: Math.max(0, detourM) / 1000 }
-          : {}),
+        ...(spur != null ? { offRouteKm: spur } : {}),
       })
     }
   }
@@ -414,7 +412,13 @@ export async function googleNearbyAlongRoute(args: AlongRouteArgs): Promise<Plac
       regionCode: REGION_CODE,
     }, NEARBY_FIELD_MASK) as Promise<{ places?: GooglePlace[]; routingSummaries?: RoutingSummary[] }>,
   ))
-  return hitsFromResponses(responses, queries, args.routeTotalKm)
+  // {lat,lng} form of the same polyline the search ran along — the detour
+  // reference for every hit (spurKm). Engine-free: the polyline may have been
+  // measured by Google Routes OR the OSRM fallback; the spur is honest either way.
+  const polyline = args.routeCoords
+    .filter(c => Number.isFinite(c[0]) && Number.isFinite(c[1]))
+    .map(c => ({ lat: c[1], lng: c[0] }))
+  return hitsFromResponses(responses, queries, polyline.length >= 2 ? polyline : null)
 }
 
 // Places-only mask for point searches — routingSummaries exist only for
@@ -429,6 +433,17 @@ const POINT_FIELD_MASK = [
   'places.types',
   'places.regularOpeningHours',
   'places.currentOpeningHours',
+].join(',')
+
+// Essentials-only mask for the Nearby Search city layer (places:searchNearby)
+// — requesting hours/rating fields here would upgrade every event to the Pro
+// or Enterprise SKU, and localities carry none of them anyway.
+const NEARBY_SEARCH_FIELD_MASK = [
+  'places.id',
+  'places.displayName',
+  'places.location',
+  'places.primaryType',
+  'places.types',
 ].join(',')
 
 export interface AtPointArgs {
@@ -464,6 +479,32 @@ export async function googleNearbyAtPoint(args: AtPointArgs): Promise<PlaceHit[]
   return hitsFromResponses(responses, queries, null)
 }
 
+// ============ 5. Free-form Text Search (search-to-add surfaces) ============
+// Autocomplete hits are DELIBERATELY coordinate placeholders — resolving one
+// picked suggestion via a single Place Details call is the quota economy
+// (see section 1). But a surface that RANKS or ANNOTATES by coordinates
+// BEFORE any pick cannot use them: projecting a (0,0) placeholder onto the
+// route measures Null Island (found live 2026-09-14 — every Map-tab search
+// result showed the identical "~1675 km into the trip · 8448 km off-route"
+// because all five hits shared the placeholder). Text Search returns real
+// locations in the SAME single Text Search Pro event the corridor scan
+// already pays — so the search-to-add box ranks on truth.
+export async function googleSearchText(q: string): Promise<PlaceHit[]> {
+  const needle = q.trim()
+  if (needle.length < 2) return []
+  // POINT_FIELD_MASK: no routingSummaries — they exist only for
+  // Search-Along-Route, and requesting inapplicable mask paths risks a 400.
+  const responses = [await (placesPost('/places:searchText', 'textSearchPro', {
+    textQuery: needle,
+    maxResultCount: 8,
+    languageCode: 'en',
+    regionCode: REGION_CODE,
+  }, POINT_FIELD_MASK) as Promise<{ places?: GooglePlace[] }>)]
+  // No along-route geometry → no road detours; callers annotate with their
+  // own route (routeKmOf/detourKm) exactly like the point-search surface.
+  return hitsFromResponses(responses, [{ textQuery: needle, cat: 'sightseeing' }], null)
+}
+
 // ============ 4. City/town anchor layer (Google mode) ============
 // Provider directive (2026-09-07): in Google mode EVERYTHING comes from
 // Google — POIs and the populated-place anchor layer. Text Search along the
@@ -481,16 +522,30 @@ export async function googleCitiesAlong(
 ): Promise<PlaceHit[]> {
   const capped = anchors.filter(a => Number.isFinite(a.lat) && Number.isFinite(a.lng)).slice(0, 6)
   if (capped.length === 0) return []
+  // Nearby Search with the locality TYPE — Text Search matches text against
+  // POI NAMES ("Top N Town Ice Cream"), so a textQuery like 'towns and
+  // cities' returns zero real localities (live-verified 2026-09-14: the
+  // app's exact query returned 200 with zero places, and every text variant
+  // returned name-matched junk the CITY_TYPES filter then dropped — night
+  // halts starved everywhere). searchNearby + includedTypes returns actual
+  // populated places. Essentials fields only (id/name/location/type), so the
+  // event bills as Nearby Search Essentials.
   const responses = await Promise.all(capped.map(a =>
-    placesPost('/places:searchText', 'textSearchPro', {
-      textQuery: 'towns and cities',
-      locationBias: {
+    placesPost('/places:searchNearby', 'nearbySearch', {
+      // `locality` ONLY. searchNearby accepts a narrow type list, and one
+      // unsupported member 400s the WHOLE request — `administrative_area_level_3`
+      // (valid in Text Search) and `town` both fail here, and because the caller
+      // catches, that 400 presented as "no cities anywhere": every night halt
+      // silently starved while the layer looked merely empty (live-verified
+      // 2026-09-15, halts on a 1,400 km corridor returning 0 localities).
+      includedTypes: ['locality'],
+      locationRestriction: {
         circle: { center: { latitude: a.lat, longitude: a.lng }, radius: Math.min(radiusM, 50000) },
       },
       maxResultCount: 8,
       languageCode: 'en',
       regionCode: REGION_CODE,
-    }, POINT_FIELD_MASK) as Promise<{ places?: GooglePlace[] }>,
+    }, NEARBY_SEARCH_FIELD_MASK) as Promise<{ places?: GooglePlace[] }>,
   ))
   const seen = new Set<string>()
   const out: PlaceHit[] = []

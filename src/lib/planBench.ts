@@ -6,6 +6,7 @@
 // bill line renders its own formula — the transparency promise is the feature.
 
 import { FUEL_PRICE_INR_PER_L, MODE_SPEED, MODE_COST_PER_KM, isFuelEconomyMode, formatInr } from './engine'
+import { STAY_RATE_PER_NIGHT } from './rates'
 import type { TravelStyle } from '../data/types'
 
 /** Modes the bench offers ('motorcycle' is the engine's name for a bike). */
@@ -22,10 +23,10 @@ export const STAY_TO_TRAVEL_STYLE: Record<BenchStayStyle, TravelStyle> = {
   luxury: 'luxury',
 }
 
-/** Bench-local lodging assumption: ₹ per room per night, two guests per room. */
-export const STAY_RATE_PER_NIGHT: Record<BenchStayStyle, number> = {
-  budget: 1200, comfort: 3200, luxury: 8000,
-}
+/** Bench lodging assumption: ₹ per room per night, two guests per room.
+ *  Re-exported from rates.ts so the trip engine bills off the SAME table
+ *  (#125b) — the bench's number and the trip's bill can never drift again. */
+export { STAY_RATE_PER_NIGHT }
 /** Bench-local food assumption: ₹ per head per day. */
 export const MEALS_PER_HEAD_DAY = 600
 

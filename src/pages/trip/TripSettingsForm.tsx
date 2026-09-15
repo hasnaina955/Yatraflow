@@ -34,6 +34,7 @@ export function TripSettingsForm({ trip, editable }: { trip: Trip; editable: boo
     startDate: trip.startDate, endDate: trip.endDate,
     travellers: trip.travellers, budget: trip.budgetPerPersonInr,
     transportMode: trip.transportMode, travelStyle: trip.travelStyle,
+    stayStyle: (trip.stayStyle ?? (trip.travelStyle === 'budget' || trip.travelStyle === 'luxury' ? trip.travelStyle : 'comfort')) as 'budget' | 'comfort' | 'luxury',
     fuelEconomy: trip.fuelEconomyKmL?.toString() ?? '',
     fuelPrice: trip.fuelPricePerL?.toString() ?? '',
     roundTrip: trip.roundTrip ?? true,
@@ -84,9 +85,29 @@ export function TripSettingsForm({ trip, editable }: { trip: Trip; editable: boo
 
   return (
     <div className="ts-form">
-      {/* Travel style — the trip navbar's exact look, at the top of the form and
-          full width so all ten styles sit in one row like the workspace tab bar:
-          same .tabbar glass bar, same .tab-btn pills, same sliding glider. */}
+      {/* Two dials, two bars. These used to share one block with the style bar on
+          top and the price bar tucked underneath it, so the second read as a
+          sub-option of the first. Budget preference asks what the bed costs;
+          Travel style asks how the trip moves and what it suggests. Neither
+          touches the other, and the bars now say so. */}
+      <div className="bench-block">
+        <span className="bench-eyebrow">Budget preference</span>
+        <PillNav className="tabbar" role="group" aria-label="Budget preference" activeKey={f.stayStyle}>
+          {(['budget', 'comfort', 'luxury'] as const).map(s => (
+            <button key={s} type="button" data-pill-key={s} disabled={!editable}
+              aria-pressed={f.stayStyle === s}
+              className={`tab-btn${f.stayStyle === s ? ' active' : ''}`}
+              onClick={() => setF(x => ({ ...x, stayStyle: s }))}>
+              {cap(s)}
+            </button>
+          ))}
+        </PillNav>
+        <p className="bench-hint">Prices the bed: ₹1,200 / ₹3,200 / ₹8,000 per room per night (2 guests per room). Shows up honestly on the Budget tab when you have hotel stops.</p>
+      </div>
+
+      {/* Travel style — the trip navbar's exact look, full width so all ten
+          styles sit in one row like the workspace tab bar: same .tabbar glass
+          bar, same .tab-btn pills, same sliding glider. */}
       <div className="bench-block">
         <span className="bench-eyebrow">Travel style</span>
         <PillNav className="tabbar" role="group" aria-label="Travel style" activeKey={f.travelStyle}>
@@ -99,7 +120,7 @@ export function TripSettingsForm({ trip, editable }: { trip: Trip; editable: boo
             </button>
           ))}
         </PillNav>
-        <p className="bench-hint">The engine tunes break cadence — relaxed stops sooner, packed pushes further.</p>
+        <p className="bench-hint">Tunes stop frequency and the kind of places suggested — relaxed stops sooner, packed pushes further. It never touches pricing.</p>
       </div>
       <div className="ts-layout">
         <div className="ts-controls">
@@ -332,7 +353,9 @@ export function TripSettingsForm({ trip, editable }: { trip: Trip; editable: boo
           const s = new Date(`${f.startDate}T00:00:00`), e = new Date(`${f.endDate}T00:00:00`)
           if (Number.isNaN(s.getTime()) || Number.isNaN(e.getTime())) { setDateErr('Pick both a start and an end date.'); return }
           if (e < s) { setDateErr('The end date must be on or after the start date.'); return }
-          updateTrip(trip.id, {
+          // updateTrip toasts the rejection itself (e.g. a shrink blocked by a
+          // day holding stops) and returns false — no success toast then.
+          const saved = updateTrip(trip.id, {
             name: f.name, startLocation: f.startLocation,
             startLocationCoords: startCoords ?? undefined,
             startDate: f.startDate, endDate: f.endDate,
@@ -341,6 +364,7 @@ export function TripSettingsForm({ trip, editable }: { trip: Trip; editable: boo
             travellers: Math.max(1, f.travellers),
             budgetPerPersonInr: Math.max(0, f.budget),
             transportMode: f.transportMode, travelStyle: f.travelStyle,
+            stayStyle: f.stayStyle,
             fuelEconomyKmL: isFuelEconomyMode(f.transportMode) ? parseFuelEconomyKmL(f.fuelEconomy) : undefined,
             fuelPricePerL: isFuelEconomyMode(f.transportMode) ? parseFuelPricePerL(f.fuelPrice) : undefined,
             roundTrip: isFuelEconomyMode(f.transportMode) ? f.roundTrip : undefined,
@@ -351,8 +375,10 @@ export function TripSettingsForm({ trip, editable }: { trip: Trip; editable: boo
               economy: Number(f.vehicleEconomy) || 15,
             } : undefined,
           })
-          setDateErr(null)
-          toast('Trip settings updated')
+          if (saved) {
+            setDateErr(null)
+            toast('Trip settings updated')
+          }
         }}>Save settings</button>
       </StickyFormBar>
     </div>

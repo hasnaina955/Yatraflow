@@ -20,6 +20,7 @@ import {
 } from '../../../lib/engine'
 import type { LegEstimate, ScheduleWarning, OptimizeDayResult } from '../../../lib/engine'
 import { routeChain, stayDaySummary, dwellSegments, visibleStops } from '../../../lib/daySummary'
+import { isDriveDay } from '../../../lib/ridePlan'
 import { openExternal } from '../../../lib/native'
 import { useTimeFormat, formatHM, formatHMRange } from '../../../lib/timefmt'
 import { prefersReducedMotion } from '../../../lib/motion'
@@ -186,6 +187,14 @@ export const DaySection = React.memo(function DaySection({ day, trip, editable, 
   // The travelling card belongs to the departure day, the return day, real
   // transfers, and any day where the user adds travel manually.
   const isStayDay = journey.points.length <= 1 && journey.distanceKm < 0.5
+  // Day Planner day type (P1-D): derived from the journey, never labelled by
+  // hand — a full drive day clears the planned-break floor, a short hop plus
+  // local time is mixed, no wheel time at all is a stay.
+  const dayType: 'DRIVE' | 'STAY' | 'MIXED' = isStayDay
+    ? 'STAY'
+    // Same floor as the planner (#134): 90 km OR 2 h wheel — the planner gives
+    // an 80 km / 3 h ghat day a real segment, so the header must call it a drive.
+    : isDriveDay(journey.distanceKm, journey.driveMinutes) ? 'DRIVE' : 'MIXED'
   const A = getAssumptions(trip)
   const ordered = useMemo(() => [...day.stops].sort((a, b) => a.orderInDay - b.orderInDay), [day.stops])
   // ---- Optimize day order (anti-crisscross) ----
@@ -411,9 +420,12 @@ export const DaySection = React.memo(function DaySection({ day, trip, editable, 
             ) : (
               <h3>{day.title ?? `Day ${day.index + 1}`}</h3>
             )}
-            {collapsed && (
-              <span className={`day-kind ${isStayDay ? 'stay' : 'drive'}`}>{isStayDay ? 'Stay day' : 'Drive day'}</span>
-            )}
+            {/* Day Planner day type (P1-D): derived from the journey, never
+                labelled by hand — wheel time makes it a drive, none makes it a
+                stay, a short hop plus local time is mixed. */}
+            <span className={`day-kind ${dayType.toLowerCase()}`}>
+              {dayType === 'STAY' ? 'Stay day' : dayType === 'DRIVE' ? 'Drive day' : 'Drive + local'}
+            </span>
           </div>
           {/* Collapsed extra line: only when it adds something the stats line
               doesn't already say. Stay days get their quiet "no driving" line;

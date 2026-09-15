@@ -20,11 +20,13 @@ export { mapplsEnabled, parseOpeningHours, fetchOpeningHours, type OpeningHours 
 export { HOME_ZONE_KM, corridorAnchors, detourKm, detourMinutes, asymmetricDetourMinutes, filterPlannedNearby, anchorHash, routeHash } from './providers/hits'
 export type { NearbyOpts, PlaceHit, PlannedStop } from './providers/hits'
 export { googleEnabled } from './providers/google'
+export { googleSearchText, QuotaExhaustedError } from './providers/google'
 export { googleCitiesAlong } from './providers/google'
 export { searchCitiesAlong } from './providers/free'
-export { planRideSegments, assignSegmentHits, leftoverAsSight, reasonForSegmentHit, reasonForHit, type SegmentHit, type RideSegment } from './ridePlan'
+export { planRideSegments, assignSegmentHits, leftoverAsSight, reasonForSegmentHit, reasonForHit, kmFromStartForHit, planDriveDays, planTravelClock, isSelfDrivenMode, rainFactorFor, DEFER_START, type SegmentHit, type RideSegment, type DriveDaysPlan, type TravelClockVerdict } from './ridePlan'
+export { hasCoords } from './providers/hits'
 
-import { hasCoords, rankAndCap, filterPlannedNearby, type NearbyOpts, type PlaceHit } from './providers/hits'
+import { hasCoords, rankAndCap, filterPlannedNearby, kmFromStartForHit, type NearbyOpts, type PlaceHit } from './providers/hits'
 import { haversineKm } from './geo'
 import {
   searchPlacesFree,
@@ -38,10 +40,13 @@ import {
   googleNearbyAlongRoute,
   googleNearbyAtPoint,
   googleResolveHitCoords,
+  googleSearchText,
+  QuotaExhaustedError,
 } from './providers/google'
 import { googleCitiesAlong } from './providers/google'
 import {
   planRideSegments, assignSegmentHits, annotateSegmentHits, cadenceForCrew, leftoverAsSight,
+  preferTownGrade,
   type SegmentHit, type RideSegment,
 } from './ridePlan'
 import { resolveVehicleRange } from './vehicleProfile'
@@ -60,6 +65,11 @@ export async function searchPlaces(q: string, opts?: { indiaOnly?: boolean }): P
     googleAutocomplete(needle, opts?.indiaOnly ?? true).catch(() => [] as PlaceHit[]),
     searchPlacesFree(q, opts).catch(() => [] as PlaceHit[]),
   ])
+  return dedupePlaceHits([...google, ...free])
+}
+
+/** Cross-provider dedupe: same name AND same ~100 m location is one place. */
+function dedupePlaceHits(hits: PlaceHit[]): PlaceHit[] {
   // Dedupe across providers, but only when the hits actually point at the
   // same location — Open-Meteo and Google can legitimately both return
   // "Munnar" with different precision/coords, and both belong in the list.
@@ -67,7 +77,7 @@ export async function searchPlaces(q: string, opts?: { indiaOnly?: boolean }): P
     `${h.name.toLowerCase()}@${h.latitude != null ? h.latitude.toFixed(2) : ''},${h.longitude != null ? h.longitude.toFixed(2) : ''}`
   const seen = new Set<string>()
   const out: PlaceHit[] = []
-  for (const hit of [...google, ...free]) {
+  for (const hit of hits) {
     if (!hit.name) continue
     const key = keyOf(hit)
     if (seen.has(key)) continue
@@ -75,6 +85,40 @@ export async function searchPlaces(q: string, opts?: { indiaOnly?: boolean }): P
     out.push(hit)
   }
   return out.slice(0, 8)
+}
+
+/**
+ * Search for the Map tab's add-to-trip box — the surface that RANKS and
+ * ANNOTATES every row by road position BEFORE any pick. It cannot use
+ * `searchPlaces`: autocomplete hits are deliberate (0,0) placeholders there
+ * (resolved on pick, see providers/google §1), and projecting a placeholder
+ * onto the route measures Null Island — live 2026-09-14, every result row
+ * showed the identical "~1675 km into the trip · 8448 km off-route".
+ *
+ * Google mode runs ONE free-form Text Search (real locations in the same
+ * single Text Search Pro event the corridor scan already pays), free stack
+ * merged underneath. Quota exhaustion THROWS (surfaced honestly by the
+ * caller — no silent fallback); other Google failures degrade to the free
+ * stack like the geocode box always has. Any remaining coord-less hit
+ * (Mappls "coords pending") is resolved, and still-placeholder rows are
+ * dropped — a route-aware list never measures Null Island.
+ */
+export async function searchPlacesText(q: string, opts?: { indiaOnly?: boolean }): Promise<PlaceHit[]> {
+  const needle = q.trim()
+  if (needle.length < 2) return []
+  let google: PlaceHit[] = []
+  if (googleEnabled()) {
+    try {
+      google = await googleSearchText(needle)
+    } catch (e) {
+      if (e instanceof QuotaExhaustedError) throw e // honest quota note, no fallback
+      // transient Google failure → degrade to the free stack (geocode-box contract)
+    }
+  }
+  const free = await searchPlacesFree(q, opts).catch(() => [] as PlaceHit[])
+  const merged = dedupePlaceHits([...google, ...free])
+  const resolved = await Promise.all(merged.map(h => (hasCoords(h) ? h : resolveHitCoords(h).catch(() => h))))
+  return resolved.filter(hasCoords)
 }
 
 /**
@@ -90,6 +134,20 @@ export async function resolveHitCoords(hit: PlaceHit): Promise<PlaceHit> {
     try { return await googleResolveHitCoords(hit) } catch { return hit }
   }
   return resolveFreeHitCoords(hit)
+}
+
+/**
+ * Resolve-or-tell: like resolveHitCoords, but reports failure instead of
+ * silently returning the (0,0) placeholder. Every write-into-a-trip path
+ * must use this one — a placeholder stop pins the journey to Null Island
+ * and every downstream honest number (legs, split verdicts, impact previews,
+ * halt targets) measures an ocean round-trip. Returns null when the hit
+ * could not be resolved; the caller keeps the stop out of the trip.
+ */
+export async function requireHitCoords(hit: PlaceHit): Promise<PlaceHit | null> {
+  const resolved = await resolveHitCoords(hit)
+  if (hasCoords(resolved)) return resolved
+  return null
 }
 
 /** Single-anchor convenience wrapper (empty-day chips). */
@@ -114,10 +172,11 @@ async function googlePointScan(
   anchors: { lat: number; lng: number }[],
   radiusM: number,
   count: number,
+  maxAnchors = 4,
 ): Promise<PlaceHit[]> {
   const out: PlaceHit[] = []
   const seen = new Set<string | number>()
-  for (const a of anchors.slice(0, 4)) {
+  for (const a of anchors.slice(0, maxAnchors)) {
     try {
       const hits = await googleNearbyAtPoint({ lat: a.lat, lng: a.lng, radiusM, count })
       for (const h of hits) {
@@ -160,7 +219,7 @@ export async function searchNearbyPoisMulti(
   if (googleEnabled() && route.length >= 2) {
     try {
       const hits = await googleNearbyAlongRoute({
-        routeCoords: route, routeTotalKm: opts.routeTotalKm, count,
+        routeCoords: route, count,
         includeFuel: opts.includeFuel, purposes: opts.purposes,
       })
       if (hits.length > 0) return rankAndCap(hits, capped, radiusM, count, opts)
@@ -175,11 +234,18 @@ export async function searchNearbyPoisMulti(
       return rankAndCap(hits, capped, radiusM, count, opts)
     } catch { return [] as PlaceHit[] }
   } else if (googleEnabled()) {
-    // single-anchor flows (empty-day chips): point search around the anchor
+    // No route geometry (road measurement failed/pending): a multi-anchor
+    // corridor must NOT collapse to one point search at the trip start —
+    // that is the "suggestions starved at the origin" failure (#185). Point-
+    // scan the first corridor anchors instead; googlePointScan is sequential
+    // with early exit, so the cost stays bounded. Single-anchor flows (empty-
+    // day chips) keep the one-anchor search.
     try {
-      const hits = await googleNearbyAtPoint({
-        lat: capped[0].lat, lng: capped[0].lng, radiusM, count, includeFuel: opts.includeFuel,
-      })
+      const hits = capped.length >= 2
+        ? await googlePointScan(capped, radiusM, count, 6)
+        : await googleNearbyAtPoint({
+            lat: capped[0].lat, lng: capped[0].lng, radiusM, count, includeFuel: opts.includeFuel,
+          })
       return rankAndCap(hits, capped, radiusM, count, opts)
     } catch { return [] as PlaceHit[] }
   }
@@ -211,10 +277,12 @@ export async function planJourneyHalts(
     totalKm,
     driveMinutes,
     includeFuel: opts.includeFuel,
+    includeCharge: opts.includeCharge,
     multiDay: opts.multiDay,
     vehicleRangeKm: vehicleRange,
     dayStartTimes: opts.dayStartTimes,
     dayRainPct: opts.dayRainPct,
+    transportMode: opts.transportMode,
     roadGeometry: (opts.routeCoords ?? [])
       .filter(c => Number.isFinite(c[0]) && Number.isFinite(c[1]))
       .map(c => ({ lat: c[1], lng: c[0] })),
@@ -228,18 +296,63 @@ export async function planJourneyHalts(
   const purposes = [...new Set([...segments.map(s => s.purpose), 'sight' as const])]
 
   // 2. Search with purpose-specific queries (merged into one call per provider)
-  //    Provider directive (2026-09-07): with a Google key, BOTH layers are
-  //    Google-only — POIs AND the city anchor layer. The free-stack city
-  //    search (Overpass+Wikipedia, source of stray "constituency" cards)
-  //    runs only in keyless mode.
+  //    Provider directive (2026-09-07, amended 2026-09-15 for #189): with a
+  //    Google key the POI pipeline stays Google-only. The ONE exception is the
+  //    night-halt town anchor — a halt needs a town with a BED, and Google's
+  //    `locality` type bottoms out at VILLAGE level in rural India (live-
+  //    verified: hamlets like "Gauriyapur", no population to rank by), while
+  //    OSM's type-strict place=city|town returns real towns WITH populations
+  //    (Chunar 37k, Mirzapur 234k, Hazaribagh). Both merge, towns first so the
+  //    population-bearing entry wins the name dedupe. POIs, meals and fuel
+  //    never touch the free stack.
   const googleMode = googleEnabled()
+  // The city anchor layer must search at the NIGHT-HALT km positions, not at
+  // the raw anchor list: anchors are the trip's stops, which cluster wherever
+  // the traveller planned to be — cities searched near them cannot anchor a
+  // halt at km 700 or 1,050 of a 1,400 km corridor (live-verified 2026-09-14:
+  // every overnight then filled with a start-city suburb hundreds of km from
+  // its halt). Each overnight's road point comes from the same geometry the
+  // scan runs on. Keyless mode keeps the anchor-based Overpass/Wikipedia path.
+  const roadPts = (opts.routeCoords ?? []).filter(c => Number.isFinite(c[0]) && Number.isFinite(c[1]))
+  const cityAnchors = googleMode && roadPts.length >= 2 && totalKm > 0
+    ? [
+        ...anchors.slice(0, 1),
+        ...segments.filter(s => s.purpose === 'overnight').map(s => {
+          const idx = Math.min(roadPts.length - 1, Math.max(0, Math.round((s.targetKm / totalKm) * (roadPts.length - 1))))
+          return { lat: roadPts[idx][1], lng: roadPts[idx][0] }
+        }),
+      ]
+    : anchors
+  const citySearch: Promise<PlaceHit[]> = !googleMode
+    ? searchCitiesAlong(anchors, radiusM, 8).catch(() => [] as PlaceHit[])
+    : Promise.all([
+        searchCitiesAlong(cityAnchors, radiusM, 8).catch(() => [] as PlaceHit[]),
+        googleCitiesAlong(cityAnchors, radiusM, 8).catch(() => [] as PlaceHit[]),
+      ]).then(([towns, localities]) => [...towns, ...localities])
   const [hits, cities] = await Promise.all([
     searchNearbyPoisMulti(anchors, radiusM, 16, { ...opts, purposes }).catch(() => [] as PlaceHit[]),
-    (googleMode ? googleCitiesAlong(anchors, radiusM, 8) : searchCitiesAlong(anchors, radiusM, 8)).catch(() => [] as PlaceHit[]),
+    citySearch,
   ])
+  // A city that sits nowhere near any halt must not fill one: rural circles
+  // often return zero localities while the start-city circle returns many,
+  // and without this guard those start-city suburbs won the far halts by
+  // being the only candidates (live-verified 2026-09-14). An honest GAP
+  // beats a "night halt" 700 km from its halt.
+  const haltKms = segments.filter(s => s.purpose === 'overnight').map(s => s.targetKm)
+  const citiesNearHalts = googleMode && haltKms.length > 0
+    ? cities.filter(c => {
+        const pos = kmFromStartForHit(c, anchors)
+        return pos != null && haltKms.some(km => Math.abs(pos - km) <= 120)
+      })
+    : cities
+  // A night halt needs a town with a bed: when OSM returned real towns, its
+  // population-ranked entries are the anchor pool (Google's rural `locality`
+  // results are hamlets — see preferTownGrade). Urban corridors, where OSM has
+  // no town and Google's locality data is strongest, keep the full list.
+  const anchorPool = googleMode ? preferTownGrade(citiesNearHalts) : citiesNearHalts
   const seen = new Set<string>()
   const candidates: PlaceHit[] = []
-  for (const h of [...cities, ...hits]) {
+  for (const h of [...anchorPool, ...hits]) {
     if (!h.name) continue
     const key = h.name.toLowerCase()
     if (seen.has(key)) continue

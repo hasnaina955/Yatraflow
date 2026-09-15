@@ -1,0 +1,442 @@
+{
+  "trip": {
+    "name": "Kashmir Valley in Six",
+    "startLocation": "Srinagar, Jammu and Kashmir",
+    "startLocationCoords": { "lat": 34.0747, "lng": 74.8204 },
+    "destinations": ["Gulmarg", "Pahalgam", "Srinagar"],
+    "destinationCoords": [
+      { "lat": 34.049, "lng": 74.3921 },
+      { "lat": 34.0322, "lng": 75.3226 },
+      { "lat": 34.0747, "lng": 74.8204 }
+    ],
+    "startDate": "2026-09-26",
+    "endDate": "2026-10-01",
+    "travellers": 2,
+    "transportMode": "taxi",
+    "roundTrip": true,
+    "stayStyle": "comfort",
+    "budgetPerPersonInr": 16200,
+    "travelStyle": "relaxed",
+    "coverEmoji": "\uD83C\uDFD4",
+    "visibility": "public",
+    "days": [
+      {
+        "id": "d1",
+        "index": 0,
+        "title": "Srinagar arrival — Mughal gardens, then a shikara at dusk",
+        "startTime": "11:00",
+        "stops": [
+          {
+            "id": "d1-lunch",
+            "title": "Wazwan lunch in Srinagar",
+            "category": "food",
+            "locationName": "Srinagar, Jammu and Kashmir",
+            "lat": 34.0747, "lng": 74.8204,
+            "visitMinutes": 60,
+            "entryFeeInrPerPerson": 0,
+            "transportCostInrTotal": 0,
+            "priority": "must-do",
+            "status": "confirmed",
+            "orderInDay": 0,
+            "notes": "Ask for a half-wazwan: rista, rogan josh and gushtaba with rice — one order feeds two"
+          },
+          {
+            "id": "d1-nishat",
+            "title": "Nishat Bagh",
+            "category": "nature",
+            "locationName": "Nishat, Srinagar",
+            "lat": 34.1253, "lng": 74.8815,
+            "visitMinutes": 75,
+            "entryFeeInrPerPerson": 24,
+            "transportCostInrTotal": 0,
+            "priority": "must-do",
+            "status": "confirmed",
+            "orderInDay": 1,
+            "weatherSensitive": true,
+            "sourceUrl": "https://www.tripadvisor.com/Attraction_Review-g297623-d1228761-Reviews-or10-Nishat_Garden-Srinagar_Srinagar_District_Kashmir_Jammu_and_Kashmir.html",
+            "notes": "The Garden of Bliss — twelve terraces looking down the lake to the Zabarwan hills. The J&K gardens ticket is about ₹24 for an adult; carry cash"
+          },
+          {
+            "id": "d1-dal-shikara",
+            "title": "Shikara ride on Dal Lake",
+            "category": "sightseeing",
+            "locationName": "Dal Lake, Srinagar",
+            "lat": 34.1137, "lng": 74.87,
+            "visitMinutes": 90,
+            "entryFeeInrPerPerson": 0,
+            "transportCostInrTotal": 0,
+            "priority": "must-do",
+            "status": "confirmed",
+            "orderInDay": 2,
+            "weatherSensitive": true,
+            "notes": "An hour among the floating gardens and the vegetable market on water. Fares are negotiated per boat (₹400–800 an hour depending on the hour of day) — see the expense line"
+          },
+          {
+            "id": "d1-houseboat",
+            "title": "Night on a Dal Lake houseboat",
+            "category": "hotel",
+            "locationName": "Dal Lake, Srinagar",
+            "lat": 34.1137, "lng": 74.87,
+            "visitMinutes": 30,
+            "entryFeeInrPerPerson": 0,
+            "transportCostInrTotal": 0,
+            "priority": "must-do",
+            "status": "confirmed",
+            "orderInDay": 3,
+            "notes": "Booked direct with the owner, a houseboat is well below what the aggregators charge — and the kahn (boatman) will take you to the floating market at dawn"
+          }
+        ]
+      },
+      {
+        "id": "d2",
+        "index": 1,
+        "title": "Over the meadow to Gulmarg — the gondola and the high pasture",
+        "startTime": "08:30",
+        "stops": [
+          {
+            "id": "d2-lunch-gulmarg",
+            "title": "Lunch in Gulmarg market",
+            "category": "food",
+            "locationName": "Gulmarg, Baramulla",
+            "lat": 34.049, "lng": 74.3921,
+            "visitMinutes": 60,
+            "entryFeeInrPerPerson": 0,
+            "transportCostInrTotal": 0,
+            "priority": "must-do",
+            "status": "confirmed",
+            "orderInDay": 0,
+            "notes": "Harissa and kulcha at the top of the meadow road, before the queue at the gondola"
+          },
+          {
+            "id": "d2-gondola",
+            "title": "Gulmarg Gondola, Phase 1",
+            "category": "adventure",
+            "locationName": "Gulmarg, Baramulla",
+            "lat": 34.049, "lng": 74.3921,
+            "visitMinutes": 150,
+            "entryFeeInrPerPerson": 0,
+            "transportCostInrTotal": 0,
+            "priority": "must-do",
+            "status": "confirmed",
+            "orderInDay": 1,
+            "weatherSensitive": true,
+            "notes": "One of the highest cable cars in the world — Phase 1 climbs to Kongdoori. Phase 2 to Apharwat is a separate ticket and shuts in cloud. Fares are quoted between ₹740 and ₹1,010 return across sources; ₹800/person is budgeted below"
+          },
+          {
+            "id": "d2-meadow",
+            "title": "Gulmarg meadow walk at dusk",
+            "category": "nature",
+            "locationName": "Gulmarg, Baramulla",
+            "lat": 34.049, "lng": 74.3921,
+            "visitMinutes": 60,
+            "entryFeeInrPerPerson": 0,
+            "transportCostInrTotal": 0,
+            "priority": "nice-to-have",
+            "status": "confirmed",
+            "orderInDay": 2,
+            "weatherSensitive": true,
+            "notes": "The meadow is the point of Gulmarg — ponies in summer, snow in winter, and the pine line all around it"
+          },
+          {
+            "id": "d2-gulmarg-stay",
+            "title": "Night in Gulmarg",
+            "category": "hotel",
+            "locationName": "Gulmarg, Baramulla",
+            "lat": 34.049, "lng": 74.3921,
+            "visitMinutes": 30,
+            "entryFeeInrPerPerson": 0,
+            "transportCostInrTotal": 0,
+            "priority": "must-do",
+            "status": "confirmed",
+            "orderInDay": 3,
+            "notes": "Staying up here rather than returning to Srinagar is what lets you catch the gondola before the day-trip buses arrive"
+          }
+        ]
+      },
+      {
+        "id": "d3",
+        "index": 2,
+        "title": "Gulmarg to Pahalgam — the long road south",
+        "startTime": "08:00",
+        "stops": [
+          {
+            "id": "d3-awantipora",
+            "title": "Awantipora ruins",
+            "category": "sightseeing",
+            "locationName": "Awantipora, Pulwama",
+            "lat": 33.9189, "lng": 75.0147,
+            "visitMinutes": 60,
+            "entryFeeInrPerPerson": 0,
+            "transportCostInrTotal": 0,
+            "priority": "nice-to-have",
+            "status": "confirmed",
+            "orderInDay": 0,
+            "notes": "Ninth-century stone temples built by Avantivarman, sitting in a lawn beside the highway. A small ASI ticket is collected at the gate (see the ticket allowance)"
+          },
+          {
+            "id": "d3-lunch-pahalgam",
+            "title": "Arrival lunch in Pahalgam",
+            "category": "food",
+            "locationName": "Pahalgam, Anantnag",
+            "lat": 34.0322, "lng": 75.3226,
+            "visitMinutes": 60,
+            "entryFeeInrPerPerson": 0,
+            "transportCostInrTotal": 0,
+            "priority": "must-do",
+            "status": "confirmed",
+            "orderInDay": 1
+          },
+          {
+            "id": "d3-lidder-walk",
+            "title": "Evening on the Lidder river",
+            "category": "nature",
+            "locationName": "Pahalgam, Anantnag",
+            "lat": 34.0322, "lng": 75.3226,
+            "visitMinutes": 75,
+            "entryFeeInrPerPerson": 0,
+            "transportCostInrTotal": 0,
+            "priority": "must-do",
+            "status": "confirmed",
+            "orderInDay": 2,
+            "weatherSensitive": true,
+            "notes": "The river runs through the middle of town; the walk upstream past the last guesthouse is free and better than any paid viewpoint"
+          },
+          {
+            "id": "d3-pahalgam-stay",
+            "title": "Two nights in Pahalgam",
+            "category": "hotel",
+            "locationName": "Pahalgam, Anantnag",
+            "lat": 34.0322, "lng": 75.3226,
+            "visitMinutes": 30,
+            "entryFeeInrPerPerson": 0,
+            "transportCostInrTotal": 0,
+            "priority": "must-do",
+            "status": "confirmed",
+            "orderInDay": 3,
+            "notes": "Two nights here means the valley day tomorrow starts where you slept, not after a drive"
+          }
+        ]
+      },
+      {
+        "id": "d4",
+        "index": 3,
+        "title": "Pahalgam's valleys — Chandanwari first, then Aru for sunset",
+        "startTime": "08:30",
+        "stops": [
+          {
+            "id": "d4-chandanwari",
+            "title": "Chandanwari",
+            "category": "nature",
+            "locationName": "Chandanwari, Anantnag",
+            "lat": 34.0804, "lng": 75.4176,
+            "visitMinutes": 75,
+            "entryFeeInrPerPerson": 0,
+            "transportCostInrTotal": 0,
+            "priority": "must-do",
+            "status": "confirmed",
+            "orderInDay": 0,
+            "weatherSensitive": true,
+            "notes": "The last motorable point towards the Amarnath cave shrine — glacier-fed water, pine all the way up, and ponywallahs at the car park. Local taxis or ponies only (₹600–1,200 a vehicle, see the expense line)"
+          },
+          {
+            "id": "d4-lunch-pahalgam",
+            "title": "Lunch back in Pahalgam",
+            "category": "food",
+            "locationName": "Pahalgam, Anantnag",
+            "lat": 34.0322, "lng": 75.3226,
+            "visitMinutes": 60,
+            "entryFeeInrPerPerson": 0,
+            "transportCostInrTotal": 0,
+            "priority": "must-do",
+            "status": "confirmed",
+            "orderInDay": 1,
+            "notes": "Local trout, if the kitchen has it — Pahalgam's hatcheries supply the town"
+          },
+          {
+            "id": "d4-aru",
+            "title": "Aru Valley for the afternoon",
+            "category": "nature",
+            "locationName": "Aru, Anantnag",
+            "lat": 34.0903, "lng": 75.2624,
+            "visitMinutes": 90,
+            "entryFeeInrPerPerson": 0,
+            "transportCostInrTotal": 0,
+            "priority": "must-do",
+            "status": "confirmed",
+            "orderInDay": 2,
+            "weatherSensitive": true,
+            "notes": "A shepherd's meadow at the head of the valley and the start of the Kolahoi trek route. Walking is free; the pony ride to the far meadow is not"
+          },
+          {
+            "id": "d4-pahalgam-stay",
+            "title": "Second night in Pahalgam",
+            "category": "hotel",
+            "locationName": "Pahalgam, Anantnag",
+            "lat": 34.0322, "lng": 75.3226,
+            "visitMinutes": 30,
+            "entryFeeInrPerPerson": 0,
+            "transportCostInrTotal": 0,
+            "priority": "must-do",
+            "status": "confirmed",
+            "orderInDay": 3
+          }
+        ]
+      },
+      {
+        "id": "d5",
+        "index": 4,
+        "title": "Back to Srinagar — the hill temple and the old city",
+        "startTime": "08:00",
+        "stops": [
+          {
+            "id": "d5-shankaracharya",
+            "title": "Shankaracharya Temple",
+            "category": "temple",
+            "locationName": "Srinagar, Jammu and Kashmir",
+            "lat": 34.0789, "lng": 74.8436,
+            "visitMinutes": 75,
+            "entryFeeInrPerPerson": 0,
+            "transportCostInrTotal": 0,
+            "priority": "must-do",
+            "status": "confirmed",
+            "orderInDay": 0,
+            "notes": "A Shiva temple on the ridge above the lake, reached by a steep road and then steps. Free entry — phones stay in the car, and the view over Dal is the best in Srinagar"
+          },
+          {
+            "id": "d5-lunch-srinagar",
+            "title": "Lunch on the boulevard",
+            "category": "food",
+            "locationName": "Srinagar, Jammu and Kashmir",
+            "lat": 34.0747, "lng": 74.8204,
+            "visitMinutes": 60,
+            "entryFeeInrPerPerson": 0,
+            "transportCostInrTotal": 0,
+            "priority": "must-do",
+            "status": "confirmed",
+            "orderInDay": 1
+          },
+          {
+            "id": "d5-jamia-masjid",
+            "title": "Jamia Masjid, old city",
+            "category": "temple",
+            "locationName": "Srinagar, Jammu and Kashmir",
+            "lat": 34.0985, "lng": 74.8091,
+            "visitMinutes": 60,
+            "entryFeeInrPerPerson": 0,
+            "transportCostInrTotal": 0,
+            "priority": "must-do",
+            "status": "confirmed",
+            "orderInDay": 2,
+            "notes": "378 deodar columns around a courtyard that holds thousands — free to enter, quietest between prayers, covered arms and legs"
+          },
+          {
+            "id": "d5-stay-srinagar",
+            "title": "Last two nights in Srinagar",
+            "category": "hotel",
+            "locationName": "Srinagar, Jammu and Kashmir",
+            "lat": 34.0747, "lng": 74.8204,
+            "visitMinutes": 30,
+            "entryFeeInrPerPerson": 0,
+            "transportCostInrTotal": 0,
+            "priority": "must-do",
+            "status": "confirmed",
+            "orderInDay": 3,
+            "notes": "A city hotel this time — the old city is a walk, and the airport is 25 minutes away"
+          }
+        ]
+      },
+      {
+        "id": "d6",
+        "index": 5,
+        "title": "Hazratbal, the craft emporia — and the flight home",
+        "startTime": "08:30",
+        "stops": [
+          {
+            "id": "d6-hazratbal",
+            "title": "Hazratbal Shrine",
+            "category": "temple",
+            "locationName": "Srinagar, Jammu and Kashmir",
+            "lat": 34.1272, "lng": 74.8357,
+            "visitMinutes": 60,
+            "entryFeeInrPerPerson": 0,
+            "transportCostInrTotal": 0,
+            "priority": "must-do",
+            "status": "confirmed",
+            "orderInDay": 0,
+            "notes": "The white marble lakeside shrine on the far shore — the boulevard drive around the lake to reach it is half the stop"
+          },
+          {
+            "id": "d6-lunch",
+            "title": "Last lunch in Srinagar",
+            "category": "food",
+            "locationName": "Srinagar, Jammu and Kashmir",
+            "lat": 34.0747, "lng": 74.8204,
+            "visitMinutes": 60,
+            "entryFeeInrPerPerson": 0,
+            "transportCostInrTotal": 0,
+            "priority": "must-do",
+            "status": "confirmed",
+            "orderInDay": 1
+          },
+          {
+            "id": "d6-craft",
+            "title": "Kashmir handicrafts — paper machie, pashmina, walnut wood",
+            "category": "shopping",
+            "locationName": "Srinagar, Jammu and Kashmir",
+            "lat": 34.0747, "lng": 74.8204,
+            "visitMinutes": 75,
+            "entryFeeInrPerPerson": 0,
+            "transportCostInrTotal": 0,
+            "priority": "nice-to-have",
+            "status": "confirmed",
+            "orderInDay": 2,
+            "notes": "State emporia carry fixed prices and certificates — the government Kashmir Handicrafts emporium is the safe buy for pashmina and silk carpets"
+          }
+        ]
+      }
+    ],
+    "expenses": [
+      { "id": "exp-meals-d1", "label": "Day 1 meals (wazwan lunch + lakeside dinner)", "category": "food", "amountInr": 700, "perPerson": true, "optional": false, "dayIndex": 0 },
+      { "id": "exp-meals-d2", "label": "Day 2 meals", "category": "food", "amountInr": 650, "perPerson": true, "optional": false, "dayIndex": 1 },
+      { "id": "exp-meals-d3", "label": "Day 3 meals", "category": "food", "amountInr": 650, "perPerson": true, "optional": false, "dayIndex": 2 },
+      { "id": "exp-meals-d4", "label": "Day 4 meals", "category": "food", "amountInr": 600, "perPerson": true, "optional": false, "dayIndex": 3 },
+      { "id": "exp-meals-d5", "label": "Day 5 meals", "category": "food", "amountInr": 600, "perPerson": true, "optional": false, "dayIndex": 4 },
+      { "id": "exp-meals-d6", "label": "Day 6 meals", "category": "food", "amountInr": 600, "perPerson": true, "optional": false, "dayIndex": 5 },
+      { "id": "exp-gondola", "label": "Gulmarg Gondola Phase 1 return (sources quote ₹740–₹1,010; Phase 2 is a separate ticket at the counter)", "category": "activities", "amountInr": 800, "perPerson": true, "optional": false, "dayIndex": 1 },
+      { "id": "exp-shikara", "label": "Shikara ride on Dal Lake, one hour, per person share of the boat", "category": "activities", "amountInr": 500, "perPerson": true, "optional": true, "dayIndex": 0 },
+      { "id": "exp-pahalgam-taxis", "label": "Chandanwari and Aru union taxis or ponies (per vehicle, shared)", "category": "local-travel", "amountInr": 600, "perPerson": true, "optional": true, "dayIndex": 3 },
+      { "id": "exp-houseboat-premium", "label": "Dal Lake houseboat night — the real tariff sits above the standard-room estimate the engine prices", "category": "accommodation", "amountInr": 1500, "perPerson": true, "optional": false, "dayIndex": 0 },
+      { "id": "exp-ticket-allowance", "label": "Small garden and ASI tickets not itemised (Awantipora, camera charges)", "category": "entry-fees", "amountInr": 100, "perPerson": true, "optional": false }
+    ],
+    "fixedCommitments": []
+  },
+  "publication": {
+    "id": "kashmir-valley-in-six",
+    "title": "Kashmir Valley in Six — Srinagar, Gulmarg, Pahalgam",
+    "tagline": "A houseboat on Dal, the world's highest gondola and two valley mornings in Pahalgam — the valley at walking pace, not convoy pace.",
+    "coverImageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a9/Ancient_Temple%2C_Gulmarg.jpg/1280px-Ancient_Temple%2C_Gulmarg.jpg",
+    "routeSummary": ["Srinagar", "Gulmarg", "Pahalgam", "Srinagar"],
+    "durationDays": 6,
+    "estimatedBudgetPerPersonInr": 16200,
+    "travelStyle": "relaxed",
+    "bestSeason": "Apr–Jun for the tulip garden and alpine meadows; Sep–Oct for the chinars turning red. Dec–Feb is snow-bound and Gulmarg turns into a ski town",
+    "travelTips": [
+      "Book the Gulmarg gondola online the day before — the counter queue eats half a morning in season.",
+      "Stay a night in Gulmarg rather than day-tripping from Srinagar; the meadow at dusk and dawn is the trip's best hour.",
+      "Two nights in Pahalgam is deliberate. Chandanwari and Aru are both short drives from town and both deserve a full morning.",
+      "Hire a local car with a driver for the whole six days — the Gulmarg and Pahalgam roads are fine, but the valley's local traffic rules are not written down.",
+      "Keep the last day light. Hazratbal and the emporia are close to the airport road, so a late-afternoon flight costs you nothing."
+    ],
+    "warningsAndAssumptions": [
+      "Gulmarg Gondola fares are quoted between ₹740 and ₹1,010 for a Phase 1 return across 2025–26 sources; ₹800 per person is budgeted here and Phase 2 (Apharwat) is a separate ticket. Verify and book at the counter or online.",
+      "Nishat Bagh's J&K gardens ticket is about ₹24 for an adult per the listings; the valley's garden rates are revised locally and change with the season.",
+      "Awantipora's ASI ticket, camera charges and garden extras are covered by a ₹100 ticket allowance rather than itemised line items.",
+      "Shikara fares on Dal Lake are negotiated per boat and are not regulated: budget ₹400–800 an hour for a shared boat, more for the full floating-market circuit.",
+      "The Dal Lake houseboat is priced as a ₹1,500/person premium over a standard comfort room, because the engine's lodging model has no houseboat tier. Off-season direct bookings run cheaper than any aggregator.",
+      "Chandanwari and Aru are served by local union taxis and ponies; the ₹600/person line is a shared-vehicle estimate, not a fixed fare.",
+      "All costs are engine estimates over real coordinates and cited fees, not quotes. Treat ±15% as the honest band."
+    ],
+    "freeDayIndexes": [0, 3, 5],
+    "premiumPriceInr": 199
+  }
+}

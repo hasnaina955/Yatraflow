@@ -96,16 +96,36 @@ that keep quality high:
 
 1. **Rhythm first**: 3–6 stops/day; one "anchor" sight + food + a stretch per day beats
    six ticketed boxes. The engine's clock walk (breakfast/lunch/tea/dinner windows) will
-   judge you — write days a driver could actually live.
+   judge you — write days a driver could actually live. **Every day needs a food or rest
+   stop**: a span over 6 h with none is a −7, and it is the easiest medium to avoid.
+2. **Draft against the engine's arithmetic, not the map's.** `legBetween` measures
+   straight-line × 1.25 at the mode's speed (car/rental 42 km/h) **plus a 10-minute pad per
+   leg**, so a day's engine distance is what decides the verdict: **> ~120 km is a medium
+   (>210 min), > ~182 km is a HIGH that fails outright (>300 min)**. Two consequences bit
+   this batch: a real 175 km drive read as 283 min and had to move off its day, and the
+   winding hill roads everyone fears (Pahalgam, Munnar) read *shorter* than the road sign
+   because the model is straight-line. Plot the legs before naming the days.
+3. **Never put two consecutive stops on identical coordinates ahead of the day's long
+   leg.** A zero-length inbound leg followed by a long outbound one trips the backtracking
+   warning (its "reorder stops" fix is impossible when the day must return home), and the
+   same pattern fires when a zero-hop stop sits mid-day. Give each stop its own real
+   coordinate — lunch has a market, the fort has a gate — and the warning disappears.
 2. **Nights where nights fall**: a `hotel` stop in each overnight town; `stayStyle`
    matching the budget tier you're publishing.
-3. **Fees and visit minutes from the sheet only** — never from memory, never rounded
+4. **Fees and visit minutes from the sheet only** — never from memory, never rounded
    to "look better".
-4. **`status: "confirmed"` everywhere**, honest `priority` tags, `weatherSensitive` on
-   every viewpoint/beach/trek.
-5. **Publication copy last**: title/tagline/tips/warnings written *from* the sheet, not
+5. **`status: "confirmed"` everywhere**, honest `priority` tags, `weatherSensitive` on
+   every viewpoint/beach/trek — but **no more than two flagged stops per day**: three
+   weather-sensitive stops in one day is a low-severity flag, and a "weather-sensitive"
+   tag on a *walk through town* earns it dishonestly.
+6. **Lodging prices per base, not per night.** `computeTotals` counts **distinct overnight
+   towns**, so two nights in Shillong is one base — and `stayStyle` moves the total further
+   than any other field (budget ₹1,200 vs comfort ₹3,200 per room-night in the current
+   model). Set the style deliberately, and let the engine's printed estimate set the
+   declared budget afterwards.
+7. **Publication copy last**: title/tagline/tips/warnings written *from* the sheet, not
    from marketing instinct. The tagline must be cashable by the itinerary.
-6. IDs as readable slugs (`"d2-magnetic-mez"`) — the import tool regenerates them.
+8. IDs as readable slugs (`"d2-magnetic-mez"`) — the import tool regenerates them.
 
 **Output:** `docs/examples/itineraries/<slug>.draft.json`.
 
@@ -160,11 +180,22 @@ draft in three.
    free-day split (spec §5 requires ≥ ~40 % of days free).
 3. Add it to the gallery ledger below, so the shelf and the plan agree.
 
-**Gallery ledger** (append one row per import; keep in this file):
+**Gallery ledger** (append one row per file; keep in this file). A row means the file passes
+**both gates** and is shelf-ready — the live import into the app happens at publish (Stage 5),
+under the author account.
 
-| Slug | Route | Days | Season | Budget/person | Imported |
-|---|---|---|---|---|---|
-| `coorg-loop-from-bangalore` | Bangalore–Mysore–Madikeri–Kushalnagar–Bangalore | 5 | Oct–Feb | ₹12,100 (engine ₹12,102) | 2026-09-16 |
+| Slug | Route | Days | Season | Budget/person (engine) | Health | Gates passed |
+|---|---|---|---|---|---|---|
+| `coorg-loop-from-bangalore` | Bangalore–Mysore–Madikeri–Kushalnagar–Bangalore | 5 | Oct–Feb | ₹12,100 (₹12,102) | 86 | 2026-09-16 |
+| `goa-north-to-south` | Panaji–Old Goa–Candolim–Anjuna–Colva–Palolem–Panaji | 5 | Nov–Feb | ₹14,350 (₹14,350) | 97 | 2026-09-16 |
+| `kerala-hills-and-backwaters` | Kochi–Munnar–Thekkady–Alappuzha–Kumarakom–Kochi | 6 | Sep–Mar | ₹17,500 (₹17,388) | 100 | 2026-09-16 |
+| `mewar-forts-and-the-blue-city` | Udaipur–Nathdwara–Kumbhalgarh–Ranakpur–Jodhpur | 5 | Oct–Mar | ₹14,300 (₹14,284) | 93 | 2026-09-16 |
+| `kashmir-valley-in-six` | Srinagar–Gulmarg–Pahalgam–Srinagar | 6 | Apr–Oct | ₹16,200 (₹16,188) | 100 | 2026-09-16 |
+| `meghalaya-rain-and-root-bridges` | Guwahati–Shillong–Sohra–Mawlynnong–Dawki–Shillong | 5 | Sep–Apr | ₹8,150 (₹8,113) | 100 | 2026-09-16 |
+
+The ranked worklist behind these — twenty trips with their demand evidence, and what batch
+two needs (Ladakh's permits, Spiti's one-way pass crossing) — lives in
+[`GALLERY-BACKLOG.md`](GALLERY-BACKLOG.md).
 
 ---
 

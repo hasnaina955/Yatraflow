@@ -760,9 +760,9 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
   // hits, spend each one's detour minutes against that day's budget, and mark
   // whatever no longer fits as HELD BACK — counted and shown as a line, never
   // offered as an addable card.
-  const budgetHeldIds = new Set<string>()
-  let budgetHeldCount = 0
-  {
+  const { budgetHeldIds, budgetHeldCount } = useMemo(() => {
+    const heldIds = new Set<string>()
+    let heldCount = 0
     const speedK = MODE_SPEED[trip.transportMode] ?? 40
     const byDay = new Map<number, SegmentHit[]>()
     for (const sh of seeAndDoLive) {
@@ -782,11 +782,13 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
         budget,
       )
       for (const { sh } of deferred) {
-        budgetHeldIds.add(sh.hit!.id as string)
-        budgetHeldCount += 1
+        heldIds.add(sh.hit!.id as string)
+        heldCount += 1
       }
     }
-  }
+    return { budgetHeldIds: heldIds, budgetHeldCount: heldCount }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seeAndDoLive, trip, routePolyline, anchors])
   // Quota honesty (Google-only directive): when the textSearchPro soft cap is
   // hit, every Google-mode corridor scan returns [] — say why instead of
   // rendering an empty state that reads like "nothing around".
@@ -1134,7 +1136,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
         <div className="row-between">
           <h3 style={{ margin: 0 }}><Lightbulb size={16} aria-hidden style={{ verticalAlign: '-3px', marginRight: 4 }} />Nearby ideas</h3>
           <div className="row-between" style={{ gap: 10 }}>
-            <span className="small muted">{loadingPois ? 'searching…' : `${pois.filter(p => p.hit).length} suggested stops — spaced for fatigue & anchored on cities`}</span>
+            <span className="small muted" aria-live="polite">{loadingPois ? 'searching…' : `${pois.filter(p => p.hit).length} suggested stops — spaced for fatigue & anchored on cities`}</span>
             <button
               className="btn btn-outline btn-sm suggestion-refresh-btn"
               title="Refresh suggestions"

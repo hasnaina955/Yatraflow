@@ -263,7 +263,7 @@ function ClockGlyphs({ overlay }: { overlay: ClockOverlay }) {
         return (
         <MapMarker key={`cz-${i}-${z.kind}-${z.dayNo}`} longitude={z.lng} latitude={z.lat}>
           <MarkerContent>
-            <span className="yf-clock-glyph" style={{ ['--c' as never]: CLOCK_COLORS[z.kind] }} aria-hidden>{mealIco[z.kind]}</span>
+            <span className="yf-clock-glyph" style={{ ['--c' as never]: CLOCK_COLORS[z.kind] }} role="img" aria-label={`${z.kind === 'lunch' ? 'Lunch' : z.kind === 'breakfast' ? 'Breakfast' : 'Dinner'} window — day ${z.dayNo}, around ${formatHM(clockHM(z.etaMin), timeFormat)}, ~${z.kmIn} km into the drive`}>{mealIco[z.kind]}</span>
           </MarkerContent>
           <MarkerTooltip>
             {`${z.kind === 'lunch' ? 'Lunch' : z.kind === 'breakfast' ? 'Breakfast' : 'Dinner'} window — day ${z.dayNo}, the clock puts you here at ${formatHM(clockHM(z.etaMin), timeFormat)} · ~${z.kmIn} km into the drive · anything within ~${Math.round(z.radiusKm)} km keeps you on schedule`}
@@ -274,7 +274,7 @@ function ClockGlyphs({ overlay }: { overlay: ClockOverlay }) {
       {overlay.nights.map((n, i) => (
         <MapMarker key={`cn-${i}-${n.dayNo}`} longitude={n.lng} latitude={n.lat}>
           <MarkerContent>
-            <span className="yf-clock-glyph yf-clock-glyph--night" aria-hidden>🌙</span>
+            <span className="yf-clock-glyph yf-clock-glyph--night" role="img" aria-label={`Overnight halt — day ${n.dayNo}: dinner by ${formatHM(clockHM(n.etaMin), timeFormat)}, about ${n.kmIn} km into the drive`}>🌙</span>
           </MarkerContent>
           <MarkerTooltip>
             {`Overnight halt — day ${n.dayNo}: dinner by ${formatHM(clockHM(n.etaMin), timeFormat)}, the driving day ends here · ~${n.kmIn} km in`}

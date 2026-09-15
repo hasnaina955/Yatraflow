@@ -169,6 +169,18 @@ export interface MapRoadView {
 const EMPTY_MAP_VIEW: MapRoadView = { geometry: null, totalKm: null, totalMin: null, dayRoadKm: null }
 
 /**
+ * The OUTBOUND legs of a measured chain (start → stops, excluding the round
+ * trip's ride home and any trailing destination) — the slice the Map tab's
+ * view and the terrain profile (#124) are both built from, so they cannot
+ * disagree about which road they describe.
+ */
+export function outboundLegs(chain: RoadChain | null, legs: RoadLeg[] | null): RoadLeg[] {
+  if (!chain || !legs || legs.length === 0) return []
+  const count = Math.min(legs.length, Math.max(0, chain.outboundCount - 1))
+  return count > 0 ? legs.slice(0, count) : []
+}
+
+/**
  * The Map tab's view of a measured chain: ONLY the outbound legs
  * (start → stops). A round trip's chain carries the drive home too, and the
  * fatigue math already multiplies by its own loop factor — counting the return

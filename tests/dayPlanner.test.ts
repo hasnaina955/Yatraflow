@@ -17,6 +17,9 @@ import {
   planTravelClock,
   TEA_WINDOW,
   wheelCapHoursFor,
+  wheelCapHoursForParty,
+  resolveAnchors,
+  rainFactorFor,
 } from '../src/lib/ridePlan'
 import { computeTotals } from '../src/lib/engine'
 import { STAY_RATE_PER_NIGHT } from '../src/lib/planBench'
@@ -393,5 +396,157 @@ describe('bug-hunt batch (issues #125-#140) — engine invariants', () => {
     } as never)
     const totals = computeTotals(trip)
     expect(totals.lodgingRatePerNight).toBe(STAY_RATE_PER_NIGHT.comfort)
+  })
+})
+
+describe('enhancement batch (issues #122–#146) — party, pins, charge, both walks', () => {
+  it('conducted modes get no split verdict; self-drive modes keep theirs (#126)', () => {
+    // released semantics (day-planner-realism): taxi is someone else's shift;
+    // `mixed` stays plannable because it can include real driving.
+    for (const m of ['train', 'bus', 'flight', 'taxi'])
+      expect(planDriveDays({ totalKm: 1400, driveMinutes: 1600, transportMode: m })).toBeNull()
+    expect(planDriveDays({ totalKm: 1400, driveMinutes: 2000, transportMode: 'car' })!.driveDayCount).toBeGreaterThan(1)
+    expect(planDriveDays({ totalKm: 1400, driveMinutes: 2000, transportMode: 'mixed' })!.driveDayCount).toBeGreaterThan(1)
+    // the clock walk agrees: nobody drives, no drive to plan (empty ok)
+    const v = planTravelClock({ totalKm: 1400, driveMinutes: 1600, transportMode: 'bus' })
+    expect(v.verdict).toBe('ok')
+    if (v.verdict === 'ok') { expect(v.days).toEqual([]); expect(v.returnDays).toBeNull() }
+  })
+
+  it('the party and the saddle move the cap inside honest rails (#142)', () => {
+    expect(wheelCapHoursForParty({ transportMode: 'car' })).toBe(10)
+    expect(wheelCapHoursForParty({ transportMode: 'motorcycle' })).toBeCloseTo(8.5)
+    expect(wheelCapHoursForParty({ transportMode: 'car', driverCount: 2 })).toBeCloseTo(12)
+    expect(wheelCapHoursForParty({ transportMode: 'car', driverCount: 4 })).toBe(12) // rail
+    expect(wheelCapHoursForParty({ transportMode: 'car', hasVulnerable: true })).toBe(9)
+    expect(wheelCapHoursForParty({ transportMode: 'car', hasVulnerable: true, driverCount: 2 })).toBe(11)
+    // the headline promise: 2 rotating drivers buy the route a day back
+    expect(planDriveDays({ totalKm: 850, driveMinutes: driveMinFor(850) })!.driveDayCount).toBe(3)
+    expect(planDriveDays({ totalKm: 850, driveMinutes: driveMinFor(850), driverCount: 2 })!.driveDayCount).toBe(2)
+  })
+
+  it('dinner is a party input, not a biological absolute (#122)', () => {
+    // invariant: the night end never collapses inside dinner + an hour
+    const fixed = resolveAnchors({ dinnerStartMin: 19 * 60, dinnerEndMin: 20 * 60, nightEndMin: 19 * 60 + 30 })
+    expect(fixed.nightEndMin).toBe(20 * 60 + 60)
+    // kids/seniors: a dinner-pinned day ends an hour earlier
+    const base = { totalKm: 1000, driveMinutes: driveMinFor(1000), dayStart: '08:30', driverCount: 4 }
+    const normal = planTravelClock(base)
+    const early = planTravelClock({ ...base, anchors: { dinnerStartMin: 19 * 60, dinnerEndMin: 20 * 60 } })
+    expect(normal.verdict).toBe('ok')
+    expect(early.verdict).toBe('ok')
+    if (normal.verdict === 'ok' && early.verdict === 'ok') {
+      expect(normal.days[0].nightHaltEtaMin).toBe(20 * 60)
+      expect(early.days[0].nightHaltEtaMin).toBe(19 * 60)
+      expect(early.days[0].kmCovered).toBeLessThan(normal.days[0].kmCovered)
+    }
+  })
+
+  it('the dhaba case drives on after dinner when the trip says so (#122)', () => {
+    const base = { totalKm: 1000, driveMinutes: driveMinFor(1000), dayStart: '08:30', driverCount: 4 }
+    const plain = planTravelClock(base)
+    const dhaba = planTravelClock({ ...base, anchors: { allowPostDinnerDriveMin: 120 } })
+    if (plain.verdict === 'ok' && dhaba.verdict === 'ok') {
+      // the meal still happens, the day covers further to the boundary
+      expect(dhaba.days[0].kmCovered).toBeGreaterThan(plain.days[0].kmCovered)
+      expect(dhaba.days[0].nightHaltEtaMin!).toBeGreaterThan(plain.days[0].nightHaltEtaMin!)
+      expect(dhaba.days[0].dwellMin).toBeGreaterThanOrEqual(HALT_MIN.dinner)
+    }
+  })
+
+  it('same chance, different sky: drizzle damps the cap, storms floor it (#141)', () => {
+    // probability x WMO severity (the released model — the plain 1-pct/200
+    // line is the undefined-code fallback, pinned exhaustively in
+    // tests/day-planner-realism.test.ts). This block owns the CLOCK-WALK half:
+    // per-day codes cap only their own day's budget.
+    const dry = planTravelClock({ totalKm: 1400, driveMinutes: driveMinFor(1400), dayStart: '08:30' })
+    const drizzle = planTravelClock({ totalKm: 1400, driveMinutes: driveMinFor(1400), dayStart: '08:30', dayRainPct: [90, null], dayWeatherCode: [53, null] })
+    const storm = planTravelClock({ totalKm: 1400, driveMinutes: driveMinFor(1400), dayStart: '08:30', dayRainPct: [90, null], dayWeatherCode: [95, null] })
+    if (dry.verdict !== 'ok' || drizzle.verdict !== 'ok' || storm.verdict !== 'ok') throw new Error('expected ok')
+    // day 1 covers less when it rains, and less still in a thunderstorm
+    expect(drizzle.days[0].kmCovered).toBeLessThan(dry.days[0].kmCovered)
+    expect(storm.days[0].kmCovered).toBeLessThan(drizzle.days[0].kmCovered)
+    // day 2 (dry forecast) is untouched by which kind of rain fell on day 1
+    expect(storm.days[1].kmCovered).toBeGreaterThan(storm.days[0].kmCovered)
+  })
+
+  it('accepted night-halt pins hold position, propose drift, stay quiet below it (#143)', () => {
+    const base = { totalKm: 900, driveMinutes: 1300, multiDay: true }
+    const derived = planRideSegments(base)
+    const halt1 = derived.find(s => s.purpose === 'overnight')!
+    expect(halt1.haltPinned).toBeUndefined()
+    // beyond hysteresis: the pin holds, the derived position rides along as a proposal
+    const pinned = planRideSegments({ ...base, haltPins: { 0: halt1.targetKm + 40 } })
+    const moved = pinned.find(s => s.purpose === 'overnight')!
+    expect(moved.targetKm).toBe(halt1.targetKm + 40)
+    expect(moved.haltPinned).toBe(true)
+    expect(moved.haltDriftToKm).toBe(Math.round(halt1.targetKm))
+    // below hysteresis: silent, no proposal
+    const quiet = planRideSegments({ ...base, haltPins: { 0: halt1.targetKm + 10 } })
+    const kept = quiet.find(s => s.purpose === 'overnight')!
+    expect(kept.haltPinned).toBe(true)
+    expect(kept.haltDriftToKm).toBeUndefined()
+  })
+
+  it('fuel folds into a nearby meal, and an EV charges instead of fuelling (#144)', () => {
+    // fuel tick 357 sits 37 km from the 320 meal tick (within 15% of the 357
+    // stride): the fuel raw folds into the meal, which the lunch slide then
+    // carries to the window edge — one combined stop, no standalone fuel.
+    const segs = planRideSegments({ totalKm: 800, driveMinutes: 1143, includeFuel: true, vehicleRangeKm: 420, mealKm: 320 })
+    expect(segs.some(s => s.purpose === 'meal' && s.label === 'Meal + fuel')).toBe(true)
+    expect(segs.find(s => s.purpose === 'fuel')).toBeUndefined()
+    // EV: tighter stride than fuel, "Charge" wording, 60-min dwell in the ETAs.
+    // A charge tick within a collapse gap of a meal becomes "Meal + charge" —
+    // 144A on EV terms — so charge stops are read by label, not bare purpose.
+    const ev = planRideSegments({ totalKm: 700, driveMinutes: 1000, includeCharge: true, vehicleRangeKm: 300 })
+    const charges = ev.filter(s => /charge/i.test(s.label))
+    expect(charges.length).toBeGreaterThanOrEqual(2)
+    for (const c of charges) expect(c.label).not.toMatch(/fuel/i)
+    const stride = charges.map(c => c.targetKm)
+    for (let i = 1; i < stride.length; i++) expect(stride[i] - stride[i - 1]).toBeLessThanOrEqual(240 + 1)
+    // dwell-corrected ETAs: the later charge carries the 60-min plug-in in its clock
+    const gap = charges[1].etaMinutes! - charges[0].etaMinutes!
+    const wheelGap = (charges[1].targetKm - charges[0].targetKm) * (1000 / 700)
+    expect(gap - wheelGap).toBeGreaterThanOrEqual(60 - 2)
+    // includeFuel loses to includeCharge — never both wordings at once
+    const both = planRideSegments({ totalKm: 700, driveMinutes: 1000, includeFuel: true, includeCharge: true, vehicleRangeKm: 300 })
+    for (const s of both.filter(x => /charge/i.test(x.label))) expect(s.label).not.toMatch(/fuel/i)
+  })
+
+  it('a round trip walks the drive home as a second directed pass (#145)', () => {
+    const out = planTravelClock({ totalKm: 700, driveMinutes: 1000, dayStart: '08:30' })
+    expect(out.verdict).toBe('ok')
+    if (out.verdict === 'ok') expect(out.returnDays).toBeNull()
+    const rt = planTravelClock({ totalKm: 700, driveMinutes: 1000, dayStart: '08:30', roundTrip: true })
+    expect(rt.verdict).toBe('ok')
+    if (rt.verdict === 'ok') {
+      expect(rt.returnDays!.length).toBeGreaterThan(0)
+      const last = rt.returnDays![rt.returnDays!.length - 1]
+      expect(last.kmCovered).toBeCloseTo(700, 0)      // the walk really reaches home
+      expect(last.nightHaltKm).toBeNull()
+      // return day indexes continue the outbound count
+      expect(rt.returnDays![0].dayIndex).toBe(rt.days.length)
+    }
+  })
+
+  it('lodging identity keys on the place id before names or pins (#146)', () => {
+    const trip = structuredClone(seedData.trips[0])
+    trip.days.forEach(d => { d.stops = d.stops.filter(s => s.category !== 'hotel') })
+    const mk = (id: string, title: string, lat: number, lng: number, placeId?: string) => ({
+      id, title, category: 'hotel', locationName: title, lat, lng, description: '', notes: '',
+      visitMinutes: 600, openTime: '', closeTime: '', entryFeeInrPerPerson: 0,
+      transportCostInrTotal: 0, priority: 'must-do', sourceUrl: '', status: 'suggested', orderInDay: 1,
+      placeId,
+    })
+    // same place id, two spellings, three degrees apart — one booking
+    trip.days[0].stops.push(mk('h1', 'Hotel Taj', 18.9, 72.8, 'gx1') as never)
+    trip.days[1].stops.push(mk('h2', 'Hotel Taj, Mumbai', 21.9, 78.8, 'gx1') as never)
+    expect(computeTotals(trip).lodgingNights).toBe(1)
+    // two distinct place ids — two nights
+    trip.days[2].stops.push(mk('h3', 'Tranquil Inn', 12.9, 77.5, 'gy7') as never)
+    expect(computeTotals(trip).lodgingNights).toBe(2)
+    // hand-typed stays without an id fall back to geo/name keying (#125a)
+    trip.days[3].stops.push(mk('h4', 'Tranquil Inn near ring road', 12.902, 77.502) as never)
+    expect(computeTotals(trip).lodgingNights).toBe(3)
   })
 })

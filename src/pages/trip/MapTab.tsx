@@ -6,17 +6,17 @@ import { MetaIcon } from '../../components/icons'
 import { uid } from '../../data/seed'
 import type { Trip, ItineraryStop } from '../../data/types'
 import type { ImpactResult } from '../../lib/impact'
-import { mapRoadViewFromLegs, type TripRoadView } from '../../lib/tripRoad'
+import { mapRoadViewFromLegs, outboundLegs, type TripRoadView } from '../../lib/tripRoad'
 import { buildJourney, minutesToHM, fmtDur, computeCategoryBias, MODE_SPEED, isRoundTrip } from '../../lib/engine'
 import { useTimeFormat, formatHM, formatHMRange } from '../../lib/timefmt'
-import { loadPref, savePref } from '../../lib/uiPrefs'
+import { loadPref, savePref, loadHaltPin, loadHaltPinsForTrip, saveHaltPin, clearHaltPin, clearHaltPinsForTrip } from '../../lib/uiPrefs'
 import { Modal, Field, toast, undoToast } from '../../components/ui'
 import { Select } from '../../components/Select'
 import { DetourWhisk } from '../../components/DetourWhisk'
 import { useSuggestionCache, isMapCacheFresh } from '../../hooks/useSuggestionCache'
 import { openExternal } from '../../lib/native'
 import { corridorAnchors, detourKm, detourMinutes, asymmetricDetourMinutes, googleEnabled, planJourneyHalts, reasonForSegmentHit, searchPlacesText, searchNearbyPoisMulti, kmFromStartForHit, planDriveDays, planTravelClock, rainFactorFor, isSelfDrivenMode, requireHitCoords, hasCoords, DEFER_START, type NearbyOpts, type PlaceHit, type TravelClockVerdict, routeHash } from '../../lib/geocode'
-import { isSightCategory } from '../../lib/ridePlan'
+import { isSightCategory, roadProfileFromLegs, loopProfile } from '../../lib/ridePlan'
 import { QuotaExhaustedError } from '../../lib/providers/google'
 import { isElectric } from '../../lib/vehicleProfile'
 import { railReasonChips, type RailChip } from '../../lib/railReasons'
@@ -139,6 +139,9 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
   // bump to force a corridor re-search — the only refetch path besides a
   // detour-scope change or a first-ever load (empty cache)
   const [refreshTick, setRefreshTick] = useState(0)
+  // #143: overnight segment ids the user told to "stay at the pin" — the
+  // drift proposal hides for the session (the pin holds; it re-asks next open)
+  const [driftDismissed, setDriftDismissed] = useState<Set<number>>(new Set())
   // detour-scope control — how far off the route suggestions may sit.
   // #181: guarded through uiPrefs (private-mode throw crashes a useState
   // initializer); namespace follows the app's yatraflow_* convention.
@@ -200,6 +203,15 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
   // matters most), the Day Planner still speaks, from the haversine estimate,
   // flagged as rough.
   const routeFailed = road?.status === 'failed'
+  // The terrain profile (#124): the clock and the split convert time↔km
+  // through the REAL mix of the road just measured, instead of one blended
+  // rate that placed lunch and the night halt too far along a ghat day and
+  // too short a highway day. Null until the road resolves — then everything
+  // falls back to the blended rate exactly as before.
+  const roadProfile = useMemo(
+    () => roadProfileFromLegs(outboundLegs(road?.chain ?? null, road?.legs ?? null)),
+    [road],
+  )
 
   // Stop signature (#135): stable string key over what buildJourney actually
   // reads (stop ids, road order, coords) — the days ARRAY identity changes on
@@ -295,11 +307,13 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
   const crewSeeds = useMemo(() => crewSeedsFromSuggestions(crewSuggestions ?? []), [crewSuggestions])
 
   const nearbyOpts: NearbyOpts = useMemo(() => ({
-
     // #144B: an electric profile charges instead of fuelling — the segment
     // cadence and the hit queries both read this flag.
     includeFuel: !isElectric(trip.vehicleProfile) && (trip.transportMode === 'car' || trip.transportMode === 'motorcycle'),
     includeCharge: isElectric(trip.vehicleProfile),
+    // #143: accepted night-halt pins (night ordinal → route-km) — the planner
+    // snaps those halts and surfaces drift as a proposal instead of moving.
+    haltPins: loadHaltPinsForTrip(trip.id),
     homeCenter: trip.startLocationCoords ?? null,
     // fill what the itinerary lacks, demote what it already covers
     categoryBias: computeCategoryBias(trip),
@@ -325,6 +339,37 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     dayWeatherCode: dayWeatherCode ?? undefined,
     transportMode: trip.transportMode,
   }), [trip, routeGeometry, dayRainPct, dayWeatherCode, crewSeeds, dnaTick])
+
+  // #143 — overnight ordinal by position: the planner keys accepted-halt pins
+  // on WHICH night (in route order), not the segment's slot, so the map here
+  // must save/clear the same key the engine reads.
+  const overnightOrdinals = useMemo(() => {
+    const map = new Map<number, number>()
+    pois
+      .filter(x => x.segment.purpose === 'overnight')
+      .sort((a, b) => a.segment.targetKm - b.segment.targetKm)
+      .forEach((x, i) => map.set(x.segment.index, i))
+    return map
+  }, [pois])
+  // Pins are promises about a ROAD: their km-space lives between the trip's
+  // endpoints — move A or B and every accepted halt is voided (with a toast,
+  // never silently). A stop added along the way does NOT void pins: the
+  // re-derived halt drifts, and hysteresis + the drift proposal handle that
+  // honestly (#143's whole point — "it won't move unless the road does").
+  const endpointHash = `${trip.startLocation}|${trip.startLocationCoords?.lat ?? ''},${trip.startLocationCoords?.lng ?? ''}|${trip.destinations.join('|')}`
+  useEffect(() => {
+    const key = `halt_shape_${trip.id}`
+    const prev = loadPref(key, '')
+    if (prev && prev !== endpointHash) {
+      clearHaltPinsForTrip(trip.id)
+      toast('Route re-shaped — accepted halt pins cleared')
+      suggestionCache.clearMap()
+      setRefreshTick(t => t + 1)
+      setDnaTick(t => t + 1) // nearbyOpts re-reads: the pins bag is now empty
+    }
+    savePref(key, endpointHash)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [endpointHash, trip.id])
 
   // Day Planner verdicts (PLAN-DAY-PLANNER P1-B/C): the drive-day split the
   // ROUTE demands (duration cap, load-balanced) and the travel-clock verdict
@@ -360,19 +405,19 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
   // goes quiet through that single gate.
   const selfDriven = isSelfDrivenMode(trip.transportMode)
   const splitVerdict = useMemo(
-    () => planDriveDays({ totalKm: planKm * loopFactor, driveMinutes: wholeTrip.min * loopFactor, rainFactor, ...partyOpts }),
+    () => planDriveDays({ totalKm: planKm * loopFactor, driveMinutes: wholeTrip.min * loopFactor, rainFactor, profile: tripIsRoundTrip ? loopProfile(roadProfile) : roadProfile, ...partyOpts }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [planKm, wholeTrip.min, trip.travelStyle, trip.transportMode, trip.driverCount, trip.hasVulnerable, loopFactor, dayRainPct],
+    [planKm, wholeTrip.min, trip.travelStyle, trip.transportMode, trip.driverCount, trip.hasVulnerable, loopFactor, dayRainPct, roadProfile],
   )
   const clockVerdict = useMemo(
     // #127 per-day rain array; #142 party cap; #122 anchors; #145 a round trip
     // walks the OUTBOUND leg and returns a directed `returnDays` pass — the walk
     // no longer fakes the loop as a single 2× line.
-    () => planTravelClock({ totalKm: planKm, driveMinutes: wholeTrip.min, dayStart: trip.days[0]?.startTime, rainFactor, dayRainPct: dayRainPct ?? undefined, roundTrip: tripIsRoundTrip, ...partyOpts, anchors: tripAnchors }),
+    () => planTravelClock({ totalKm: planKm, driveMinutes: wholeTrip.min, dayStart: trip.days[0]?.startTime, rainFactor, dayRainPct: dayRainPct ?? undefined, roundTrip: tripIsRoundTrip, profile: roadProfile, ...partyOpts, anchors: tripAnchors }),
     // Stable keys only (#135): the walk reads startTimes + party/mode, never the
     // days array identity.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [planKm, wholeTrip.min, trip.travelStyle, trip.transportMode, trip.driverCount, trip.hasVulnerable, trip.driveAfterDinnerMin, dayStartSig, dayRainPct, tripIsRoundTrip],
+    [planKm, wholeTrip.min, trip.travelStyle, trip.transportMode, trip.driverCount, trip.hasVulnerable, trip.driveAfterDinnerMin, dayStartSig, dayRainPct, tripIsRoundTrip, roadProfile],
   )
   // One clock story (#123): the banner count comes from the clock walk that
   // knows the start time; planDriveDays stays the geometry-free estimator.
@@ -383,6 +428,13 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     : clockVerdict.verdict === 'hop'
       ? 1
       : splitVerdict?.driveDayCount ?? 1
+  // #141: drizzle-grade rain (a 40%+ chance whose WMO code says drizzle or
+  // light rain) damps the cap gently — the note keeps it a "slow day", never
+  // a verdict flip; storms damp fully and the split banner flips honestly.
+  const drizzleDay = dayRainPct?.findIndex((p, i) => {
+    const c = dayWeatherCode?.[i]
+    return p != null && p >= 40 && c != null && c >= 51 && c <= 63
+  }) ?? -1
   // The split wants more days than planned: propose applying it. Declining is
   // respected — with the honest red fatigue verdict stated, never hidden.
   const [splitDeclined, setSplitDeclined] = useState(false)
@@ -544,6 +596,22 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
       }
     }, 'add', dayIndex)
     setAddedIds(prev => new Set(prev).add(hit.id as string))
+    // #143: accepting a night halt pins it — the stop now belongs to the user,
+    // not the cadence. Later re-plans keep it in place (hysteresis) or ask.
+    if (hit.haltPurpose === 'overnight') {
+      const seg = pois.find(p => p.hit?.id === hit.id)?.segment
+      if (seg) {
+        const ordinals = pois
+          .filter(x => x.segment.purpose === 'overnight')
+          .sort((a, b) => a.segment.targetKm - b.segment.targetKm)
+          .findIndex(x => x.segment.index === seg.index)
+        if (ordinals >= 0) {
+          saveHaltPin(trip.id, ordinals, seg.targetKm)
+          toast(`“${hit.name}” added to Day ${dayIndex + 1} — night halt pinned, it won't move unless the road does`)
+          return
+        }
+      }
+    }
     toast(`“${hit.name}” added to Day ${dayIndex + 1}`)
   }
 
@@ -977,6 +1045,30 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
           {sh.segment.purpose === 'overnight' && (
             <span className="poi-fact"><i>·</i>day ends here</span>
           )}
+          {/* #143: accepted halts are PINNED. Below the hysteresis floor they
+              hold silently; past it the row proposes the derived move and the
+              user decides — never a silent jump. */}
+          {sh.segment.haltPinned && sh.segment.haltDriftToKm == null && (
+            <span className="poi-fact" title="You accepted this halt — it stays put unless you move it"><i>·</i>📌 you pinned it</span>
+          )}
+          {sh.segment.haltPinned && sh.segment.haltDriftToKm != null && !driftDismissed.has(sh.segment.index) && (
+            <div className="poi-desc small" onClick={e => e.stopPropagation()}>
+              📌 The road now says ~{Math.round(sh.segment.haltDriftToKm)} km
+              {' '}
+              <button className="chip chip-sm" type="button"
+                onClick={() => {
+                  const ord = overnightOrdinals.get(sh.segment.index) ?? -1
+                  if (ord >= 0) saveHaltPin(trip.id, ord, sh.segment.haltDriftToKm!)
+                  suggestionCache.clearMap()
+                  setRefreshTick(t => t + 1)
+                  setDnaTick(t => t + 1)
+                  toast('Halt moved with the road — re-pinned')
+                }}>Move here</button>
+              {' '}
+              <button className="chip chip-sm" type="button"
+                onClick={() => setDriftDismissed(prev => new Set(prev).add(sh.segment.index))}>Stay at {sh.segment.targetKm.toFixed(0)}</button>
+            </div>
+          )}
           {/* Detour whisker (#160): one shared component; spur length scales
               with the detour's share of the day budget. */}
           <DetourWhisk detourMin={detourMin} budgetMin={dayBudget} />
@@ -992,7 +1084,13 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
                 {splitVerdict.nightHalts.some(n => hit.cumKm! > n) ? ' · after your night stop' : ''}
               </span>
             )}
-            {tripIsRoundTrip && hit.cumKm != null && planKm > 0 && hit.cumKm > planKm * 0.75 && (
+            {/* #145: a round trip walks the drive home too — a point is on the
+                return leg iff the return walk reaches it, which the corridor
+                covers twice. The old midpoint cut (planKm/2) mislabelled
+                circuits and asymmetric loops; the return walk's own km are
+                return-relative, so the honest test is that the point sits
+                within the return leg's covered range. */}
+            {tripIsRoundTrip && clockVerdict.verdict === 'ok' && clockVerdict.returnDays && clockVerdict.returnDays.length > 0 && hit.cumKm != null && hit.cumKm > planKm * 0.75 && (
               <span className="ride-day-chip" title="You pass this point again on the drive back">return leg</span>
             )}
           </div>
@@ -1212,7 +1310,15 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
                 Keeping {trip.days.length} day{trip.days.length !== 1 ? 's' : ''}: ≈{minutesToHM(wholeTrip.min * loopFactor)} behind the wheel in a single stretch is past the honest cap — the fatigue verdict stays red.
               </span>
             )}
+            {drizzleDay >= 0 && dayRainPct && (
+              <span className="small muted">☁ {Math.round(dayRainPct[drizzleDay]!)}% rain chance on day {drizzleDay + 1} — {travelDayNeed !== 1 ? travelDayNeed : 'one'} day{travelDayNeed !== 1 ? 's' : ''} planned stays, but pack a buffer for one more.</span>
+            )}
           </div>
+        )}
+        {/* #141 standalone: drizzle-grade rain never flips the verdict, so it
+            says itself when no split banner is up. */}
+        {drizzleDay >= 0 && dayRainPct && !(splitVerdict && clockVerdict.verdict === 'ok' && travelDayNeed > trip.days.length) && clockVerdict.verdict === 'ok' && (
+          <p className="hint-text" role="status">☁ {Math.round(dayRainPct[drizzleDay]!)}% rain chance on day {drizzleDay + 1} — a slow day, not a new plan. The split holds; carry the umbrella.</p>
         )}
         {!loadingPois && pois.length === 0 && (
           fractionPois && fractionPois.length > 0 ? (

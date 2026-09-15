@@ -187,11 +187,10 @@ export function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAdd
           purposes,
           includeFuel: trip.transportMode === 'car' || trip.transportMode === 'motorcycle',
           homeCenter: trip.startLocationCoords ?? null,
-          // Google mode: scan as one road-true Search-Along-Route request, with
-          // routingSummary detours measured against the day's road km — the
-          // same treatment the Map tab's corridor gets. Free mode ignores these.
+          // Google mode: scan as one road-true Search-Along-Route request;
+          // detours are measured geometrically against this polyline. Free
+          // mode ignores it.
           routeCoords: roadPolyline ? roadPolyline.map(p => [p.lng, p.lat] as [number, number]) : null,
-          routeTotalKm: journey.distanceKm || null,
         }).catch(() => [] as PlaceHit[]),
         (googleEnabled()
           ? googleCitiesAlong(anchors, 35000, 8)
@@ -294,21 +293,23 @@ export function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAdd
   return (
     <div className="travel-panel">
       <div className="travel-panel-head">
-        <div className="travel-panel-title"><RouteIcon size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />{title}</div>
+        <div className="travel-panel-toprow">
+          <div className="travel-panel-title"><RouteIcon size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />{title}</div>
+          {directionsUrl && (
+            <button
+              className="btn btn-ghost btn-sm"
+              style={{ marginLeft: 'auto', flex: 'none' }}
+              onClick={() => openExternal(directionsUrl)}
+              title="Open this ride with turn-by-turn directions in Google Maps"
+            >
+              <ExternalLink size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Directions
+            </button>
+          )}
+        </div>
         <div className="small muted">
           {modeLabelMode(trip.transportMode)} · {journey.distanceKm.toFixed(0)} km · {minutesToHM(journey.driveMinutes)} wheel time
           {journey.halts.length > 0 && ` · ${journey.halts.length} halt${journey.halts.length !== 1 ? 's' : ''}`}
         </div>
-        {directionsUrl && (
-          <button
-            className="btn btn-ghost btn-sm"
-            style={{ marginLeft: 'auto', flex: 'none' }}
-            onClick={() => openExternal(directionsUrl)}
-            title="Open this ride with turn-by-turn directions in Google Maps"
-          >
-            <ExternalLink size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Directions
-          </button>
-        )}
       </div>
 
       <div className="travel-panel-stats">

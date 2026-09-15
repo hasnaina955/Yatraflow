@@ -14,6 +14,8 @@ export interface TripRow {
   /** absent/null = default (round trip on for self-drive) */
   round_trip?: boolean | null;
   budget_per_person_inr: number; travel_style: string; fixed_commitments: FixedCommitment[];
+  /** present only after the stay-budget migration (20260914_trip_stay_budget.sql) */
+  stay_style?: string | null;
   days: ItineraryDay[]; expenses: Expense[]; cover_emoji: string;
   /** present only after the cover-image migration (see supabase/schema.sql) */
   cover_image_url?: string | null;
@@ -35,6 +37,9 @@ export function rowToTrip(row: TripRow, members: TripMember[]): Trip {
     fuelPricePerL: row.fuel_price_per_l ?? undefined,
     roundTrip: row.round_trip ?? undefined,
     travelStyle: row.travel_style as Trip['travelStyle'], fixedCommitments: row.fixed_commitments ?? [],
+    // Absent column (pre-migration) stays undefined so stayKeyFor() falls back to
+    // the legacy travelStyle and no stored trip re-prices silently.
+    stayStyle: (row.stay_style ?? undefined) as Trip['stayStyle'],
     days: row.days ?? [], expenses: row.expenses ?? [], coverEmoji: row.cover_emoji,
     coverImageUrl: row.cover_image_url ?? undefined, inviteCode: row.invite_code ?? undefined,
     visibility: row.visibility, deletedAt: row.deleted_at != null ? new Date(row.deleted_at).getTime() : undefined,
@@ -44,6 +49,8 @@ export function rowToTrip(row: TripRow, members: TripMember[]): Trip {
 
 export interface OptionalColumnsProbe {
   economy: boolean; price: boolean; roundTrip: boolean; cover: boolean; inviteCode: boolean; deleted: boolean
+  /** the stay-budget dial (20260914_trip_stay_budget.sql) */
+  stayStyle: boolean
 }
 
 /**
@@ -68,6 +75,7 @@ export function tripToRow(trip: Trip, ownerId: string, cols?: OptionalColumnsPro
   if (cols?.cover) row.cover_image_url = trip.coverImageUrl ?? null
   if (cols?.inviteCode) row.invite_code = trip.inviteCode ?? null
   if (cols?.deleted) row.deleted_at = trip.deletedAt != null ? new Date(trip.deletedAt).toISOString() : null
+  if (cols?.stayStyle) row.stay_style = trip.stayStyle ?? null
   return row
 }
 

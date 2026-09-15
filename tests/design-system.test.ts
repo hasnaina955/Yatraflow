@@ -2,7 +2,7 @@
 // Static source checks: they read the shipped files as text, so a regression
 // in any of these rules fails CI without needing a browser.
 import { describe, it, expect } from 'vitest'
-import { readFileSync, readdirSync } from 'node:fs'
+import { readFileSync, readdirSync, writeFileSync } from 'node:fs'
 
 const css = readFileSync(new URL('../src/styles.css', import.meta.url), 'utf8')
 const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8')
@@ -237,5 +237,341 @@ describe('mobile row-action touch targets', () => {
   it('leaves no smaller definition for them behind', () => {
     expect(css).not.toMatch(/\.move-btn \{ width: (2\d|3\d)px/)
     expect(css).not.toMatch(/\.stop-actions \.icon-btn \{ width: (2\d|3\d)px/)
+  })
+})
+
+// 6 ---------------------------------------------------------------------------
+// The #107 classes, as regression gates.
+// The v0.53.0 audit found its defects by measuring the shipped CSS by hand; these
+// checks make the two highest-volume measurements permanent, so the same class of
+// defect fails `npm run verify` instead of waiting for the next audit.
+
+/** Blank out comments but keep every newline, so reported line numbers stay true. */
+const stripCssComments = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' '))
+
+/** Body of the first top-level block whose selector line matches `re`. */
+function topLevelBlock(text: string, re: RegExp): string {
+  const m = re.exec(text)
+  if (!m) return ''
+  const open = text.indexOf('{', m.index)
+  let depth = 0
+  for (let i = open; i < text.length; i++) {
+    if (text[i] === '{') depth++
+    else if (text[i] === '}' && --depth === 0) return text.slice(open + 1, i)
+  }
+  return ''
+}
+
+/** First declaration of each property in a block. */
+function declMap(block: string): Map<string, string> {
+  const out = new Map<string, string>()
+  for (const m of block.matchAll(/([\w-]+)\s*:\s*([^;{}]+)/g)) {
+    const key = m[1].trim()
+    if (!out.has(key)) out.set(key, m[2].trim())
+  }
+  return out
+}
+
+const rootTokens = declMap(topLevelBlock(css, /^:root\s*\{/m))
+const darkOverrides = declMap(topLevelBlock(css, /^\[data-theme='dark'\]\s*\{/m))
+const darkTokens = new Map<string, string>([...rootTokens, ...darkOverrides])
+
+/** Follow a `var(--token)` chain inside one theme's table. */
+function resolveVar(value: string, tokens: Map<string, string>, depth = 0): string {
+  const v = value.trim()
+  if (depth > 8) return v
+  const m = v.match(/^var\(\s*(--[\w-]+)\s*(?:,\s*([\s\S]+))?\)$/)
+  if (!m) return v
+  const next = tokens.get(m[1]) ?? (m[2] === undefined ? undefined : m[2].trim())
+  return next === undefined ? v : resolveVar(next, tokens, depth + 1)
+}
+
+interface Rgb {
+  r: number
+  g: number
+  b: number
+  a: number
+}
+
+function parseColor(value: string): Rgb | null {
+  const s = value.trim().toLowerCase()
+  if (['transparent', 'none', 'currentcolor', 'inherit', 'unset', 'initial'].includes(s)) return null
+  let m = s.match(/^#([0-9a-f]{3})$/)
+  if (m) {
+    const [r, g, b] = [...m[1]].map((c) => parseInt(c + c, 16))
+    return { r, g, b, a: 1 }
+  }
+  m = s.match(/^#([0-9a-f]{6})$/)
+  if (m) return { r: parseInt(m[1].slice(0, 2), 16), g: parseInt(m[1].slice(2, 4), 16), b: parseInt(m[1].slice(4, 6), 16), a: 1 }
+  m = s.match(/^rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)(?:[\s,/]+([\d.]+%?))?\s*\)$/)
+  if (m) {
+    const a = m[4] === undefined ? 1 : m[4].endsWith('%') ? parseFloat(m[4]) / 100 : parseFloat(m[4])
+    return { r: Number(m[1]), g: Number(m[2]), b: Number(m[3]), a }
+  }
+  return null
+}
+
+const channel = (c: number) => {
+  const x = c / 255
+  return x <= 0.04045 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4
+}
+const luminance = ({ r, g, b }: Rgb) => 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b)
+
+/** WCAG contrast, compositing a translucent foreground over the background. */
+function contrast(fg: Rgb, bg: Rgb): number {
+  const flat: Rgb =
+    fg.a < 1
+      ? { r: fg.r * fg.a + bg.r * (1 - fg.a), g: fg.g * fg.a + bg.g * (1 - fg.a), b: fg.b * fg.a + bg.b * (1 - fg.a), a: 1 }
+      : fg
+  const values = [luminance(flat), luminance(bg)].sort((x, y) => y - x)
+  return (values[0] + 0.05) / (values[1] + 0.05)
+}
+
+interface CssRule {
+  selector: string
+  body: string
+  line: number
+}
+
+/** Top-level rules only (rules inside @media are out of scope — see the note). */
+function topLevelRules(text: string): CssRule[] {
+  const src = stripCssComments(text)
+  const out: CssRule[] = []
+  let selector = ''
+  let body = ''
+  let depth = 0
+  let line = 1
+  let selectorLine = 1
+  for (let i = 0; i < src.length; i++) {
+    const c = src[i]
+    if (c === '\n') line++
+    if (c === '{') {
+      if (depth === 0) {
+        selectorLine = line
+        body = ''
+      }
+      depth++
+    } else if (c === '}') {
+      depth--
+      if (depth === 0) {
+        const s = selector.trim()
+        if (s && !s.startsWith('@') && body.includes(':')) out.push({ selector: s, body, line: selectorLine })
+        selector = ''
+      }
+    } else if (depth === 0) selector += c
+    else if (depth === 1) body += c
+  }
+  return out
+}
+
+const cssRules = topLevelRules(css)
+
+/** Base selectors that a `[data-theme='dark'] …` rule re-styles. */
+const darkOverridden = new Set<string>()
+for (const rule of cssRules) {
+  for (const part of rule.selector.split(',')) {
+    const m = part.trim().match(/^\[data-theme='dark'\]\s+([\s\S]+)$/)
+    if (m) darkOverridden.add(m[1].trim().replace(/\s+/g, ' '))
+  }
+}
+
+/** Base selectors a `:root:not([data-theme='dark']) …` rule re-styles (the light-only deepen). */
+const lightOverridden = new Set<string>()
+for (const rule of cssRules) {
+  for (const part of rule.selector.split(',')) {
+    const m = part.trim().match(/^:root:not\(\[data-theme='dark'\]\)\s+([\s\S]+)$/)
+    if (m) lightOverridden.add(m[1].trim().replace(/\s+/g, ' '))
+  }
+}
+
+const normalise = (s: string) => s.replace(/\s+/g, ' ').trim()
+
+// --- ratchet ------------------------------------------------------------------
+// The audit's classes are measured here, but a handful of the results are
+// deliberate owner decisions or surfaces whose real backdrop lives outside this
+// file. So the known set is frozen in a committed baseline that may only shrink:
+// a NEW offender fails the build, and an entry that no longer reproduces must be
+// deleted (re-baseline deliberately with UPDATE_DESIGN_SYSTEM_BASELINE=1).
+
+const baselineUrl = new URL('./design-system-baseline.json', import.meta.url)
+const updatingBaseline = process.env.UPDATE_DESIGN_SYSTEM_BASELINE === '1'
+
+function ratchet(key: string, offenders: string[]): void {
+  const baseline = JSON.parse(readFileSync(baselineUrl, 'utf8')) as Record<string, string[]>
+  const current = [...new Set(offenders)].sort()
+  if (updatingBaseline) {
+    baseline[key] = current
+    writeFileSync(baselineUrl, JSON.stringify(baseline, null, 2) + '\n')
+    return
+  }
+  const known = new Set(baseline[key] ?? [])
+  const added = current.filter((o) => !known.has(o))
+  const cleared = (baseline[key] ?? []).filter((o) => !current.includes(o))
+  expect(added, `new ${key} violation(s) — fix them, or re-baseline deliberately:\n${added.join('\n')}`).toEqual([])
+  expect(cleared, `${key}: these no longer reproduce — delete them from design-system-baseline.json:\n${cleared.join('\n')}`).toEqual([])
+}
+
+describe('contrast contract: colour pairs declared in one rule', () => {
+  it('parses both theme token blocks and the rule set', () => {
+    expect(rootTokens.size).toBeGreaterThan(100)
+    expect(darkOverrides.size).toBeGreaterThan(30)
+    expect(cssRules.length).toBeGreaterThan(400)
+  })
+
+  const offendersFor = (theme: 'light' | 'dark'): string[] => {
+    const tokens = theme === 'light' ? rootTokens : darkTokens
+    const out: string[] = []
+    for (const rule of cssRules) {
+      const sel = normalise(rule.selector)
+      const isDarkRule = sel.startsWith("[data-theme='dark']")
+      const isLightOnly = sel.includes(":not([data-theme='dark'])")
+      if (theme === 'light' && isDarkRule) continue
+      if (theme === 'dark' && isLightOnly) continue
+      if (theme === 'dark' && !isDarkRule && darkOverridden.has(sel)) continue
+      if (theme === 'light' && !isLightOnly && lightOverridden.has(sel)) continue
+      const decls = declMap(rule.body)
+      const fgRaw = decls.get('color')
+      const bgRaw = decls.get('background-color') ?? decls.get('background')
+      if (fgRaw === undefined || bgRaw === undefined) continue
+      const fg = parseColor(resolveVar(fgRaw, tokens))
+      const bg = parseColor(resolveVar(bgRaw, tokens))
+      if (!fg || !bg) continue
+      // A translucent backdrop sits on a surface this file cannot see (a hero band,
+      // the page atmosphere), so its real contrast is unknowable from source alone.
+      if (bg.a !== 1) continue
+      const ratio = contrast(fg, bg)
+      if (ratio < 4.5) out.push(`styles.css:${rule.line} ${sel} — ${ratio.toFixed(2)}:1`)
+    }
+    return out
+  }
+
+  // #154: the mechanical gate above only sees rules that declare fg+bg in ONE
+  // rule — a color-only override like `.poi-fact--warn { color: … }` on a
+  // separate background rule was invisible to it, which is exactly how the
+  // 3.65:1 warn-on-white shipped. These pins make the Map-rail's warn-ink
+  // pairs an explicit contract: measured against the surfaces the rail
+  // actually paints (its own card bg, and the soft warn chip fill).
+  it('map-rail warn ink meets AA on every surface it paints (#154)', () => {
+    const surfaces: Array<[string, string]> = [
+      ['--bg', 'card background'],
+      ['--warn-soft', 'warn chip fill'],
+    ]
+    for (const [theme, tokens] of [['light', rootTokens], ['dark', darkTokens]] as const) {
+      const warn = resolveVar('var(--warn)', tokens)
+      const ink = resolveVar('var(--ink-amber)', tokens)
+      const warnFg = parseColor(warn)
+      const inkFg = parseColor(ink)
+      expect(warnFg, `--warn must resolve in ${theme}`).not.toBeNull()
+      expect(inkFg, `--ink-amber must resolve in ${theme}`).not.toBeNull()
+      for (const [bgVar, surfaceName] of surfaces) {
+        const bg = parseColor(resolveVar(`var(${bgVar})`, tokens))
+        expect(bg, `${bgVar} must resolve in ${theme}`).not.toBeNull()
+        // whichever ink a rail warn surface uses in that theme must clear 4.5
+        expect(
+          contrast(theme === 'light' ? inkFg! : warnFg!, bg!),
+          `${theme}: warn ink on ${surfaceName} (${bgVar}) must meet AA`
+        ).toBeGreaterThanOrEqual(4.5)
+      }
+    }
+  })
+
+  it('introduces no new AA failure in the light theme', () => {
+    ratchet('contrastLight', offendersFor('light'))
+  })
+
+  it('introduces no new AA failure in the dark theme', () => {
+    ratchet('contrastDark', offendersFor('dark'))
+  })
+})
+
+describe('no duplicate top-level selectors', () => {
+  it('declares each top-level selector exactly once', () => {
+    const seen = new Map<string, number[]>()
+    for (const rule of cssRules) {
+      const key = normalise(rule.selector)
+      seen.set(key, [...(seen.get(key) ?? []), rule.line])
+    }
+    const dups = [...seen.entries()].filter(([, lines]) => lines.length > 1)
+    ratchet('duplicateSelectors', dups.map(([sel]) => sel))
+  })
+})
+
+describe('motion vocabulary: durations come from the tokens', () => {
+  // AGENTS §2.10: a raw `ms` in a new CSS rule is a review flag. Ambient loops
+  // (`infinite` keyframes — a spinner, a live ping) are a deliberate exception:
+  // their cadence is a property of the ambient effect, not of a UI transition.
+  it('introduces no new raw duration', () => {
+    const offenders: string[] = []
+    for (const rule of cssRules) {
+      const decls = declMap(rule.body)
+      for (const prop of ['transition', 'animation', 'transition-duration', 'animation-duration']) {
+        const value = decls.get(prop)
+        if (value === undefined) continue
+        if (prop.startsWith('animation') && /\binfinite\b/.test(value)) continue
+        for (const m of value.matchAll(/(?<![\d.])[0-9]*\.?[0-9]+m?s\b/g)) {
+          if (parseFloat(m[0]) === 0) continue
+          offenders.push(`styles.css:${rule.line} ${normalise(rule.selector)} — ${prop}: ${m[0]}`)
+        }
+      }
+    }
+    ratchet('rawDurations', offenders)
+  })
+})
+
+describe('categorical palettes: hues stay distinguishable', () => {
+  // Colour-coded categories must not collide: two "days" or two expense categories
+  // sharing a hue are indistinguishable in a legend, however different their
+  // lightness. 15° is the floor.
+  const MIN_HUE_SEPARATION = 15
+
+  const hueOf = (hex: string): number => {
+    const rgb = parseColor(hex)
+    if (!rgb) return 0
+    const max = Math.max(rgb.r, rgb.g, rgb.b)
+    const min = Math.min(rgb.r, rgb.g, rgb.b)
+    const d = max - min
+    if (d === 0) return 0
+    const h =
+      max === rgb.r ? ((rgb.g - rgb.b) / d) % 6 : max === rgb.g ? (rgb.b - rgb.r) / d + 2 : (rgb.r - rgb.g) / d + 4
+    return (h * 60 + 360) % 360
+  }
+
+  const separation = (a: number, b: number): number => {
+    const d = Math.abs(a - b) % 360
+    return Math.min(d, 360 - d)
+  }
+
+  const collisions = (label: string, colours: string[]): string[] => {
+    const out: string[] = []
+    for (let i = 0; i < colours.length; i++) {
+      for (let j = i + 1; j < colours.length; j++) {
+        const gap = separation(hueOf(colours[i]), hueOf(colours[j]))
+        if (gap < MIN_HUE_SEPARATION) out.push(`${label} ${colours[i]} vs ${colours[j]} — ${gap.toFixed(1)}°`)
+      }
+    }
+    return out
+  }
+
+  it('introduces no new hue collision', () => {
+    const daySource = source('src/components/TripMap.tsx').match(/const DAY_COLORS = \[([^\]]+)\]/)?.[1] ?? ''
+    const days = [...daySource.matchAll(/#[0-9A-Fa-f]{6}/g)].map((m) => m[0])
+    expect(days.length, 'DAY_COLORS must parse').toBeGreaterThanOrEqual(7)
+
+    const cats = ['--cat-transport', '--cat-accommodation', '--cat-food', '--cat-activities']
+      .map((token) => rootTokens.get(token))
+      .filter((v): v is string => v !== undefined)
+
+    // The POI lane is drawn on the same map as the day routes, so it must also
+    // stay clear of every day colour and every expense category.
+    const poiSee = rootTokens.get('--yf-poi-see')
+    const cross: string[] = []
+    if (poiSee !== undefined) {
+      for (const c of [...days, ...cats]) {
+        const gap = separation(hueOf(poiSee), hueOf(c))
+        if (gap < MIN_HUE_SEPARATION) cross.push(`--yf-poi-see vs ${c} — ${gap.toFixed(1)}°`)
+      }
+    }
+
+    ratchet('hueCollisions', [...collisions('DAY_COLORS', days), ...collisions('--cat-*', cats), ...cross])
   })
 })

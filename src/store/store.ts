@@ -552,6 +552,12 @@ async function hydrateFromSupabase(userId: string, gen: number, seedIfEmpty = tr
     }
 
     const users = mapOrSkip(profiles, rowToUser)
+    // With the corrected "trips read hide trashed" policy (Sep 14 2026 fix),
+    // tombstoned rows are visible to their owner/editor so the trash UPDATE's
+    // added-row check can pass — hydration must therefore keep them out of the
+    // live list itself. The Trash view reads them via get_trashed_trips.
+    // Un-migrated rows simply carry undefined → the filter no-ops there.
+    trips = trips.filter(r => !(r as TripRow).deleted_at)
     const tripList = mapOrSkip(trips, row =>
       rowToTrip(row as TripRow, members.filter(m => m.trip_id === (row as TripRow).id).map(m => ({ userId: m.user_id, role: m.role, joinedAt: m.joined_at })))
     )
@@ -857,6 +863,12 @@ export interface NewTripInput {
   startLocationCoords?: LatLngPoint;
   destinationCoords?: (LatLngPoint | null)[];
   startDate: string; endDate: string; travellers: number;
+  /** licensed drivers rotating the wheel (#142) — default 1 when unset */
+  driverCount?: number;
+  /** infants/seniors aboard (#142) — shorter honest days, earlier dinner */
+  hasVulnerable?: boolean;
+  /** minutes of driving allowed after the dinner halt (#122, default 0) */
+  driveAfterDinnerMin?: number;
   transportMode: Trip['transportMode']; budgetPerPersonInr: number;
   /** optional km/L for car/motorcycle trips — fuels an accurate transport estimate */
   fuelEconomyKmL?: number;
@@ -865,6 +877,9 @@ export interface NewTripInput {
   /** true when the self-drive route also drives back to its start (default for car/motorcycle) */
   roundTrip?: boolean;
   travelStyle: Trip['travelStyle'];
+  /** Stay budget tier — the separate pricing dial. Set at create time from the
+   *  Budget preference bar, so a new trip never depends on the legacy style. */
+  stayStyle?: Trip['stayStyle'];
   fixedCommitments: Omit<FixedCommitment, 'id'>[];
   coverEmoji?: string;
   /** optional owner-chosen cover image URL; when set it is the trip's canonical cover */
@@ -989,19 +1004,20 @@ let optionalColumnsProbe: Promise<OptionalColumnsProbe> | null = null
 let optionalColumnsWarned = false
 
 function tripsHaveOptionalColumns(): Promise<OptionalColumnsProbe> {
-  if (!isSupabaseConfigured) return Promise.resolve({ economy: false, price: false, roundTrip: false, cover: false, inviteCode: false, deleted: false })
+  if (!isSupabaseConfigured) return Promise.resolve({ economy: false, price: false, roundTrip: false, cover: false, inviteCode: false, deleted: false, stayStyle: false })
   if (!optionalColumnsProbe) optionalColumnsProbe = probeOptionalColumns()
   return optionalColumnsProbe
 }
 
 async function probeOptionalColumns(): Promise<OptionalColumnsProbe> {
-  const [economy, price, roundTrip, cover, inviteCode, deleted] = await Promise.all([
+  const [economy, price, roundTrip, cover, inviteCode, deleted, stayStyle] = await Promise.all([
     probeOptionalColumn('fuel_economy_km_per_l'),
     probeOptionalColumn('fuel_price_per_l'),
     probeOptionalColumn('round_trip'),
     probeOptionalColumn('cover_image_url'),
     probeOptionalColumn('invite_code'),
     probeOptionalColumn('deleted_at'),
+    probeOptionalColumn('stay_style'),
   ])
   if (!economy || !price || !roundTrip) {
     if (!optionalColumnsWarned) {
@@ -1009,7 +1025,7 @@ async function probeOptionalColumns(): Promise<OptionalColumnsProbe> {
       optionalColumnsWarned = true
     }
   }
-  return { economy, price, roundTrip, cover, inviteCode, deleted }
+  return { economy, price, roundTrip, cover, inviteCode, deleted, stayStyle }
 }
 
 /** Probe one optional column. True = present (or transient error, treated optimistically). */
@@ -1560,9 +1576,9 @@ export function restoreExpense(tripId: ID, expense: Expense, index: number): voi
   void persistTripField(tripId, tripById(tripId)!)
 }
 
-export function updateTrip(id: ID, patchFields: Partial<Trip>): void {
+export function updateTrip(id: ID, patchFields: Partial<Trip>): boolean {
   const t = tripById(id)
-  if (!t) return
+  if (!t) return false
   // Date changes resize the day grid — reconcile BEFORE assigning so the
   // persisted row and the cache carry the same days. Shrinks that would drop
   // a day holding stops are rejected with the reason surfaced as a toast.
@@ -1581,7 +1597,7 @@ export function updateTrip(id: ID, patchFields: Partial<Trip>): void {
     const protectedIdx = new Set(t.fixedCommitments.map(c => c.dayIndex))
     const baseDays = patchFields.days ?? t.days
     const rec = reconcileDays(baseDays, newStart, newEnd, protectedIdx)
-    if (rec.error) { toast(rec.error, 'err'); return }
+    if (rec.error) { toast(rec.error, 'err'); return false }
     patchFields = { ...patchFields, days: rec.days }
   }
   // Mutate the cache FIRST, then persist the draft that already contains the
@@ -1591,6 +1607,7 @@ export function updateTrip(id: ID, patchFields: Partial<Trip>): void {
   // persist the trip.
   const draft = mutateTrip(id, d => Object.assign(d, patchFields, { updatedAt: Date.now() }), { touch: false })
   if (draft) void persistTripField(id, draft)
+  return true
 }
 
 // ---- Debounced trip writes (P4) ----
@@ -1789,7 +1806,13 @@ export function restoreStop(tripId: ID, stop: ItineraryStop, dayIndex: number): 
   if (!day || day.stops.some(s => s.id === stop.id)) return
   mutateTrip(tripId, draft => {
     const dDay = draft.days.find(d => d.index === dayIndex)!
-    dDay.stops.push(stop)
+    // Honour the documented "at its old order": insert BEFORE the first stop
+    // whose order is >= the deleted stop's — deleteStop renumbered the
+    // survivors, so the stop that inherited the deleted order must not claim
+    // the slot (push+renumber would dump it at the day's end instead).
+    const at = dDay.stops.findIndex(s => s.orderInDay >= stop.orderInDay)
+    if (at === -1) dDay.stops.push(stop)
+    else dDay.stops.splice(at, 0, stop)
     renumber(dDay)
   }, { log: `restored “${stop.title}”`, target: `Day ${dayIndex + 1}` })
   void persistTripField(tripId, tripById(tripId)!)
@@ -2030,12 +2053,37 @@ export function resolveDecision(decisionId: ID, optionId: ID): void {
   d.status = 'resolved'; d.resolvedOptionId = optionId; d.resolvedAt = Date.now()
   cache.decisions = [...cache.decisions.slice(0, dIdx), d, ...cache.decisions.slice(dIdx + 1)]
   addActivity(d.tripId, cache.sessionUserId!, 'resolved a decision', d.question)
-  const winningLabel = d.options.find(o => o.id === optionId)?.label ?? 'an option'
+  const winning = d.options.find(o => o.id === optionId)
+  const winningLabel = winning?.label ?? 'an option'
   const trip = tripById(d.tripId)
   if (trip && cache.sessionUserId) {
     for (const m of trip.members ?? []) {
       if (m.userId !== cache.sessionUserId) pushNotification(m.userId, d.tripId, `${userName(cache.sessionUserId)} resolved “${d.question}” — ${winningLabel}.`)
     }
+  }
+  // The last mile of shortlist → vote → resolved (user ask): when the winning
+  // option carries a place payload from the Map rail's vote, it LANDS on the
+  // timeline as a confirmed stop — which also makes every surface reflect it
+  // (Board + Timeline read the trip; the Map rail filters by stop name) and
+  // the suggestion rows it beats drop out via the same name check.
+  if (winning?.place && trip) {
+    const dayIndex = Math.min(Math.max(0, winning.place.dayIndex), trip.days.length - 1)
+    addStop(d.tripId, dayIndex, {
+      title: winning.place.title,
+      category: winning.place.category,
+      locationName: winning.place.locationName,
+      lat: winning.place.lat,
+      lng: winning.place.lng,
+      description: winning.place.description,
+      visitMinutes: winning.place.visitMinutes,
+      ...(winning.place.openTime ? { openTime: winning.place.openTime } : {}),
+      ...(winning.place.closeTime ? { closeTime: winning.place.closeTime } : {}),
+      entryFeeInrPerPerson: 0,
+      transportCostInrTotal: 0,
+      priority: 'nice-to-have',
+      notes: `Chosen by group vote — “${d.question}”`,
+      status: 'confirmed',
+    })
   }
   commit()
   fire('decisions', supabase.from('decisions').update({ status: 'resolved', resolved_option_id: optionId, resolved_at: d.resolvedAt }).eq('id', decisionId))

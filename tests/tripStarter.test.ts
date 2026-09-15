@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
-  estimateTripStarter, buildOutlineSeedStops, stayStyleFor, ROAD_FACTOR,
+  estimateTripStarter, buildOutlineSeedStops, ROAD_FACTOR,
 } from '../src/lib/tripStarter'
 import { haversineKm } from '../src/lib/geo'
 import type { LatLngPoint } from '../src/data/types'
@@ -15,18 +15,8 @@ const base = {
   travellers: 2, mode: 'car' as const,
   orderedPoints: [KOCHI, MUNNAR] as (LatLngPoint | null)[],
   returnCount: 0, roundTrip: false,
-  travelStyle: 'balanced' as const,
+  stayStyle: 'comfort' as const,
 }
-
-describe('stayStyleFor', () => {
-  it('maps the two dedicated rate tiers and defaults the rest to comfort', () => {
-    expect(stayStyleFor('budget')).toBe('budget')
-    expect(stayStyleFor('luxury')).toBe('luxury')
-    expect(stayStyleFor('balanced')).toBe('comfort')
-    expect(stayStyleFor('family')).toBe('comfort')
-    expect(stayStyleFor('spiritual')).toBe('comfort')
-  })
-})
 
 describe('estimateTripStarter — dates', () => {
   it('counts days inclusively and derives nights', () => {
@@ -108,16 +98,32 @@ describe('estimateTripStarter — transport by mode', () => {
 })
 
 describe('estimateTripStarter — stay, food, per head', () => {
-  it('bills stay via rooms and the style tier, meals per head per day', () => {
-    const b = estimateTripStarter({ ...base, travellers: 4, travelStyle: 'balanced' })
+  it('bills stay via rooms and the budget tier, meals per head per day', () => {
+    const b = estimateTripStarter({ ...base, travellers: 4, stayStyle: 'comfort' })
     expect(b.stayCost).toBe(6 * 2 * 3200) // comfort ₹3200, 4 crew → 2 rooms
     expect(b.mealCost).toBe(7 * 4 * 600)
     expect(b.stayFormula).toContain('₹3200')
   })
-  it('uses the budget tier for budget style', () => {
-    const b = estimateTripStarter({ ...base, travelStyle: 'budget' })
+  // The bed is priced by the budget dial, not by the travel style. This used to
+  // pass `travelStyle: 'budget'` and assert the ₹1200 tier — which silently
+  // stopped testing anything the moment the bill moved to the dial, because a
+  // spread literal's excess keys are dropped without a type error.
+  it('bills the budget tier when the budget dial says so', () => {
+    const b = estimateTripStarter({ ...base, stayStyle: 'budget' })
     expect(b.stayCost).toBe(6 * 1 * 1200)
   })
+  it('bills the luxury tier when the budget dial says so', () => {
+    const b = estimateTripStarter({ ...base, stayStyle: 'luxury' })
+    expect(b.stayCost).toBe(6 * 1 * 8000)
+  })
+  // There is deliberately no "the travel style does not price the bed" test.
+  // The guarantee is structural — StarterTripInput has no travelStyle field —
+  // and a runtime test cannot express "this field does not exist". An earlier
+  // version of this file passed `travelStyle: 'budget'` alongside `stayStyle` to
+  // assert the ignore; that key was silently dropped (spread literals drop
+  // excess keys, and tests/ is not typechecked), so the test asserted exactly
+  // what the luxury case above already asserts. A duplicate dressed as a
+  // distinct assertion is worse than no test.
   it('splits the total per head', () => {
     const b = estimateTripStarter({ ...base, travellers: 4, kmPerL: 15, inrPerL: 105 })
     const total = b.transportCost! + b.stayCost + b.mealCost

@@ -17,6 +17,8 @@ export interface StopFormValues {
   title: string
   category: StopCategory
   locationName: string
+  /** provider place-id of the picked place ('' when hand-typed) — lodging identity (#146) */
+  placeId: string
   lat: number
   lng: number
   description: string
@@ -97,6 +99,8 @@ export function StopEditor({ open, onClose, initial, resetKey, onSave, dayLabel,
     set('locationName', p.name + (p.admin1 ? `, ${p.admin1}` : ''))
     set('lat', p.latitude); set('lng', p.longitude); set('geocoded', true)
     set('pickedKind', p.kind)
+    // #146: carry the provider place-id so lodging identity keys on it
+    set('placeId', p.placeId ?? '')
     // cities/towns/regions don't have opening hours — drop any stale values
     if (p.kind === 'place') { set('openTime', ''); set('closeTime', ''); setHoursState('idle') }
     // leg-aware flow: once we know where this stop is, auto-fill the travel leg
@@ -209,7 +213,7 @@ export function StopEditor({ open, onClose, initial, resetKey, onSave, dayLabel,
           <Field label="Location / area" hint={v.geocoded ? 'Pinned to a real place on the map' : 'Start typing and pick a suggestion to pin it on the map'} error={errs.locationName}>
             <LocationInput
               value={v.locationName}
-              onChange={val => { set('locationName', val); if (v.geocoded) set('geocoded', false) }}
+              onChange={val => { set('locationName', val); if (v.geocoded) { set('geocoded', false); set('placeId', '') } }}
               onPick={onPlacePicked}
               placeholder="Search, e.g. Idukki district, Kerala"
             />
@@ -335,6 +339,7 @@ function normalize(v?: Partial<StopFormValues>): StopFormValues {
     entryFeeInrPerPerson: 0, transportCostInrTotal: 0,
     priority: 'nice-to-have', notes: '', sourceUrl: '', status: 'suggested', geocoded: false,
     pickedKind: '',
+    placeId: '',
     departTime: '', arrivalTime: '', legDistanceKm: 0, legTravelMinutes: 0,
     ...v,
   }

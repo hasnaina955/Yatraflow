@@ -8,6 +8,10 @@ export interface DayWeather {
   tempMaxC: number
   tempMinC: number
   rainChancePct: number   // max precipitation probability that day
+  /** Local sunset, minutes since midnight — the Day Planner's season input
+   *  (#122). Absent when the provider omitted it, in which case the planner
+   *  keeps its fixed dinner window. */
+  sunsetMin?: number
 }
 
 const WMO: Record<number, { icon: string; label: string }> = {
@@ -78,7 +82,7 @@ async function fetchDailyWeatherOnce(
 ): Promise<Record<string, DayWeather>> {
   const url =
     `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}` +
-    `&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max` +
+    `&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset` +
     `&timezone=auto&start_date=${startDate}&end_date=${isoAddDays(startDate, Math.max(0, numDays - 1))}`
   const res = await fetch(url)
   if (!res.ok) throw new Error(`weather ${res.status}`)
@@ -86,16 +90,29 @@ async function fetchDailyWeatherOnce(
   const d = data.daily ?? {}
   const out: Record<string, DayWeather> = {}
   const times: string[] = d.time ?? []
+  const sunset = d.sunset ?? []
   for (let i = 0; i < times.length; i++) {
+    const ss = hhmmToMinutes(sunset[i])
     out[times[i]] = {
       date: times[i],
       code: d.weather_code?.[i] ?? -1,
       tempMaxC: d.temperature_2m_max?.[i] ?? 0,
       tempMinC: d.temperature_2m_min?.[i] ?? 0,
       rainChancePct: d.precipitation_probability_max?.[i] ?? 0,
+      ...(ss != null ? { sunsetMin: ss } : {}),
     }
   }
   return out
+}
+
+/** Open-Meteo's local ISO timestamps ("2026-09-15T18:22") → minutes since midnight. */
+function hhmmToMinutes(iso: unknown): number | null {
+  if (typeof iso !== 'string') return null
+  const t = iso.split('T')[1]
+  if (!t) return null
+  const [h, m] = t.split(':').map(Number)
+  if (!Number.isFinite(h) || !Number.isFinite(m)) return null
+  return h * 60 + m
 }
 
 /** True when the trip start is within Open-Meteo's reliable forecast window. */

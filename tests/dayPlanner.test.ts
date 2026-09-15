@@ -3,6 +3,7 @@
 // derived from the engine's own honest math (blended 42 km/h for car), not
 // from the brainstorm's rounded clock times.
 import { describe, expect, it } from 'vitest'
+import { anchorsFromSunset, DINNER_FLOOR_END_MIN } from '../src/lib/ridePlan'
 import {
   DINNER_WINDOW,
   HALT_MIN,
@@ -548,5 +549,64 @@ describe('enhancement batch (issues #122–#146) — party, pins, charge, both w
     // hand-typed stays without an id fall back to geo/name keying (#125a)
     trip.days[3].stops.push(mk('h4', 'Tranquil Inn near ring road', 12.902, 77.502) as never)
     expect(computeTotals(trip).lodgingNights).toBe(3)
+  })
+})
+
+// ============ #122 — dinner and the day's end follow the sun ============
+// The window was a constant 20:00-21:00 in every season and at every latitude.
+// These fixtures pin the season input itself (pure), the invariant it must not
+// break, and the observable effect: a winter day's halt lands materially
+// earlier than a summer day's on the SAME route, because dinner now arrives
+// with the light.
+describe('#122 — the dinner window follows the season', () => {
+  it('moves dinner earlier as the sunset does, inside a floor and the trip window', () => {
+    // Northern December: sun down 17:15 — dinner by the floor, not by 16:45.
+    expect(anchorsFromSunset(17 * 60 + 15)!.dinnerEndMin).toBe(DINNER_FLOOR_END_MIN)
+    // A long June evening: 19:30 — dinner two hours before the old constant.
+    expect(anchorsFromSunset(19 * 60 + 30)!.dinnerEndMin).toBe(19 * 60)
+    // However late the sun sets, the trip's own window is the ceiling.
+    expect(anchorsFromSunset(22 * 60)!.dinnerEndMin).toBe(DINNER_WINDOW[1])
+    // An unusable sunset leaves the fixed window alone.
+    expect(anchorsFromSunset(null)).toBeNull()
+    expect(anchorsFromSunset(NaN)).toBeNull()
+  })
+
+  it('keeps the night end a full hour past dinner close', () => {
+    for (const ss of [16 * 60, 17 * 60 + 15, 18 * 60 + 40, 21 * 60, 23 * 60 + 30]) {
+      const a = resolveAnchors(anchorsFromSunset(ss) ?? undefined)
+      expect(a.nightEndMin).toBeGreaterThanOrEqual(a.dinnerEndMin + 60)
+    }
+  })
+
+  it('ends a winter day earlier than a summer one on the same route', () => {
+    // 900 km of slow road (30 km/h blended, 30 h of wheel): the cap allows 600
+    // min a day, so day 1's budget would run past dinner — which is exactly the
+    // case the season input should decide.
+    const base = { totalKm: 900, driveMinutes: 1800, dayStart: '08:30', travelStyle: 'balanced' } as const
+    const summer = planTravelClock({ ...base, anchors: anchorsFromSunset(19 * 60 + 30)! })
+    const winter = planTravelClock({ ...base, anchors: anchorsFromSunset(17 * 60 + 15)! })
+    expect(summer.verdict).toBe('ok')
+    expect(winter.verdict).toBe('ok')
+    if (summer.verdict !== 'ok' || winter.verdict !== 'ok') return
+    const day1 = (v: typeof summer) => v.days[0]
+    const summerHalt = day1(summer).nightHaltKm ?? day1(summer).kmCovered
+    const winterHalt = day1(winter).nightHaltKm ?? day1(winter).kmCovered
+    // An hour of road at 30 km/h is 30 km, so the winter day must be shorter.
+    expect(summerHalt - winterHalt).toBeGreaterThan(25)
+    // and the summer day runs at least as long as the winter one in km too
+    expect(summer.days.length).toBeLessThanOrEqual(winter.days.length)
+  })
+
+  it('the same route with no sun data keeps the old fixed window', () => {
+    const base = { totalKm: 900, driveMinutes: 1800, dayStart: '08:30', travelStyle: 'balanced' } as const
+    const noSun = planTravelClock(base)
+    const withSun = planTravelClock({ ...base, anchors: anchorsFromSunset(19 * 60 + 30)! })
+    expect(noSun.verdict).toBe('ok')
+    expect(withSun.verdict).toBe('ok')
+    if (noSun.verdict !== 'ok' || withSun.verdict !== 'ok') return
+    // the sunset-aware day is never LONGER than the default one
+    const a = noSun.days[0].nightHaltKm ?? noSun.days[0].kmCovered
+    const b = withSun.days[0].nightHaltKm ?? withSun.days[0].kmCovered
+    expect(b).toBeLessThanOrEqual(a + 0.5)
   })
 })

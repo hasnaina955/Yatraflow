@@ -199,6 +199,44 @@ export function resolveAnchors(a?: AnchorOpts): Required<AnchorOpts> {
   return out
 }
 
+/** Dinner must be eaten within this long of sunset (#122). */
+export const SUNSET_DINNER_LEAD_MIN = 30
+/** Even a midwinter sunset cannot push dinner before this — a 16:00 dinner is
+ *  not a meal, it is a scheduling artefact. At 18:00 a northern-December trip
+ *  eats 17:00–18:00 and still gains an hour of daylight response over a June one
+ *  (which eats 18:00–19:00); a higher floor would collapse the seasons into
+ *  half an hour and leave the original complaint half-addressed. */
+export const DINNER_FLOOR_END_MIN = 18 * 60
+
+/**
+ * Dinner and the day's end follow the sun (#122). The window was a constant
+ * 20:00–21:00 in every season and at every latitude, so a northern December day
+ * planned as if the light lasted until nine; the code even carried a note that
+ * sunset-aware ends "land with #124" while telling travellers to override it by
+ * hand.
+ *
+ * The rule: eat within `SUNSET_DINNER_LEAD_MIN` of sunset, not before
+ * `DINNER_FLOOR_END_MIN`, and never later than the trip's own window. The night
+ * end is then an hour past dinner close, which `resolveAnchors` re-derives —
+ * so this can only ever TIGHTEN a day, never extend one: a summer sunset lands
+ * close to the old constant, a winter one ends the day a couple of hours
+ * earlier, which is the whole point of reading the sun.
+ *
+ * Returns null for an unusable sunset so callers keep the fixed window.
+ */
+export function anchorsFromSunset(sunsetMin: number | null | undefined): AnchorOpts | null {
+  if (sunsetMin == null || !Number.isFinite(sunsetMin)) return null
+  const dinnerEnd = Math.min(
+    Math.max(sunsetMin - SUNSET_DINNER_LEAD_MIN, DINNER_FLOOR_END_MIN),
+    DINNER_WINDOW[1],
+  )
+  return {
+    dinnerStartMin: dinnerEnd - 60,
+    dinnerEndMin: dinnerEnd,
+    nightEndMin: Math.max(NIGHT_END_MIN, dinnerEnd + 60),
+  }
+}
+
 /**
  * The ONE definition of "does this day count as driving" (#134): the planner
  * earns its stretch segments when EITHER floor is crossed — 90 km of road or
@@ -408,13 +446,29 @@ function kmAt(profile: RoadProfilePoint[], min: number): number | null {
  * per-coordinate durations, or a stated terrain speed model) is a separate
  * decision.
  */
-export function roadProfileFromLegs(legs: { distanceKm: number; durationMinutes: number }[]): RoadProfilePoint[] | null {
+export function roadProfileFromLegs(
+  legs: { distanceKm: number; durationMinutes: number; segments?: RoadProfilePoint[] }[],
+): RoadProfilePoint[] | null {
   const pts: RoadProfilePoint[] = [{ km: 0, min: 0 }]
   let km = 0
   let min = 0
   for (const leg of legs) {
     if (!Number.isFinite(leg.distanceKm) || !Number.isFinite(leg.durationMinutes)) continue
     if (leg.distanceKm <= 0 || leg.durationMinutes <= 0) continue
+    const segs = leg.segments
+    if (segs && segs.length >= 2 && segs[segs.length - 1].km > 0) {
+      // Intra-leg resolution (#204): OSRM's own per-coordinate distance/duration
+      // hops, offset onto the corridor. This is what lets a ghat INSIDE one
+      // stop-to-stop leg move the anchors — the gap this issue was filed for.
+      for (let i = 1; i < segs.length; i++) {
+        const p = segs[i]
+        if (!Number.isFinite(p.km) || !Number.isFinite(p.min) || p.km <= segs[i - 1].km) continue
+        pts.push({ km: km + p.km, min: min + p.min })
+      }
+      km += segs[segs.length - 1].km
+      min += segs[segs.length - 1].min
+      continue
+    }
     km += leg.distanceKm
     min += leg.durationMinutes
     pts.push({ km, min })

@@ -138,8 +138,13 @@ describe('one green (#0D8D82)', () => {
 
   it('drives the focus ring and form accents through the CTI token', () => {
     expect(css).toContain('accent-color: var(--yf-teal-600);')
-    expect(css).toContain('color-mix(in srgb, var(--yf-teal-600) 35%, transparent)')
-    expect(css).toContain('color-mix(in srgb, var(--yf-teal-600) 40%, transparent)')
+    // The ring mix is pinned at 90% (light) / 60% (dark) so the indicator clears
+    // the 3:1 it needs. At the previous 35% / 40% it measured ~1.54:1 on the cream
+    // canvas and ~2.20:1 on the dark card — technically drawn, practically
+    // invisible. The token still routes through --yf-teal-600; only the alpha
+    // moved, and it moved for an accessibility reason.
+    expect(css).toContain('color-mix(in srgb, var(--yf-teal-600) 90%, transparent)')
+    expect(css).toContain('color-mix(in srgb, var(--yf-teal-600) 60%, transparent)')
   })
 
   it('paints the primary button through the semantic chain', () => {
@@ -272,8 +277,15 @@ function declMap(block: string): Map<string, string> {
   return out
 }
 
-const rootTokens = declMap(topLevelBlock(css, /^:root\s*\{/m))
-const darkOverrides = declMap(topLevelBlock(css, /^\[data-theme='dark'\]\s*\{/m))
+// Comments are blanked before parsing. declMap matches `word: value` pairs, and
+// prose contains colons — a comment like "SYS-3a: …" made the value run on until
+// the next `;`, silently swallowing the declaration right after the comment. That
+// is how the dark block's --ink-amber went missing (dark fell back to the light
+// value, inventing five phantom failures) and how a new sentence in the light
+// block could do the same. stripCssComments keeps every newline, so nothing else
+// about the parse moves.
+const rootTokens = declMap(stripCssComments(topLevelBlock(css, /^:root\s*\{/m)))
+const darkOverrides = declMap(stripCssComments(topLevelBlock(css, /^\[data-theme='dark'\]\s*\{/m)))
 const darkTokens = new Map<string, string>([...rootTokens, ...darkOverrides])
 
 /** Follow a `var(--token)` chain inside one theme's table. */
@@ -473,6 +485,33 @@ describe('contrast contract: colour pairs declared in one rule', () => {
         ).toBeGreaterThanOrEqual(4.5)
       }
     }
+  })
+
+  // The danger TEXT ink had the #154 bug one theme over: `.delta-pos` and the
+  // landing's inline warn figures declare a colour with no background, so the
+  // single-rule gate above cannot see them — and --danger-600 is a LIGHT value.
+  // In dark it is darker than --danger, so used directly as text it read 3.91:1
+  // on the --bg-soft tint (the stylesheet claimed the opposite). --ink-danger
+  // re-declares per theme; these pins make the pair an explicit contract.
+  it('danger text ink meets AA on the surfaces it paints', () => {
+    const surfaces: Array<[string, string]> = [
+      ['--bg-soft', 'impact / delta tint'],
+      ['--card', 'card surface'],
+    ]
+    for (const [theme, tokens] of [['light', rootTokens], ['dark', darkTokens]] as const) {
+      const ink = parseColor(resolveVar('var(--ink-danger)', tokens))
+      expect(ink, `--ink-danger must resolve in ${theme}`).not.toBeNull()
+      for (const [bgVar, surfaceName] of surfaces) {
+        const bg = parseColor(resolveVar(`var(${bgVar})`, tokens))
+        expect(bg, `${bgVar} must resolve in ${theme}`).not.toBeNull()
+        expect(
+          contrast(ink!, bg!),
+          `${theme}: danger ink on ${surfaceName} (${bgVar}) must meet AA`
+        ).toBeGreaterThanOrEqual(4.5)
+      }
+    }
+    // The landing paints these inks inline, where no CSS gate can reach them.
+    expect(source('src/pages/Landing.tsx')).not.toContain('var(--danger-600)')
   })
 
   it('introduces no new AA failure in the light theme', () => {

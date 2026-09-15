@@ -276,6 +276,11 @@ export function RouteSquiggle() {
   // crossfade). Undefined until the first tick; only a single outgoing exists at
   // a time because each tick overwrites it with the previously-active trip.
   const [outgoing, setOutgoing] = React.useState<number | null>(null)
+  // The scenario announcement is a live region, but auto-advance every 8s would
+  // fire an unsolicited announcement while a screen-reader user is reading the
+  // page. It stays 'off' for auto ticks and only turns 'polite' on a manual
+  // change — which is exactly when an announcement is wanted.
+  const [live, setLive] = React.useState<'off' | 'polite'>('off')
   // The travelling dot is SMIL motion — CSS kill-switches can't reach it, so
   // it renders only when the user hasn't asked for reduced motion.
   const [reduced] = React.useState(() =>
@@ -288,6 +293,7 @@ export function RouteSquiggle() {
         window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
     const t = window.setInterval(() => {
       if (pausedRef.current || document.hidden) return
+      setLive('off')
       setOutgoing(activeRef.current)
       setIdx(i => (i + 1) % ROUTE_SCENARIOS.length)
     }, SCENARIO_MS)
@@ -316,7 +322,7 @@ export function RouteSquiggle() {
   const out = outgoing !== null ? ROUTE_SCENARIOS[outgoing] : null
   const scen = ROUTE_SCENARIOS[idx]
   function goTo(n: number, manual: boolean) {
-    if (manual) manualRef.current = true
+    if (manual) { manualRef.current = true; setLive('polite') }
     setOutgoing(activeRef.current)
     setIdx(((n % ROUTE_SCENARIOS.length) + ROUTE_SCENARIOS.length) % ROUTE_SCENARIOS.length)
   }
@@ -382,7 +388,7 @@ export function RouteSquiggle() {
           ))}
         </span>
       </div>
-      <p className="sr-only" aria-live="polite">Showing trip story {idx + 1} of {ROUTE_SCENARIOS.length}: {scen.name}.</p>
+      <p className="sr-only" aria-live={live}>Showing trip story {idx + 1} of {ROUTE_SCENARIOS.length}: {scen.name}.</p>
     </div>
   )
 }

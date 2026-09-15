@@ -16,6 +16,14 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 ## [Unreleased]
 
 ### Added
+- **A danger text ink** (`--ink-danger`, pinned in `tests/design-system.test.ts`). The
+  `--ink-amber` / `--ink-ok` family had no red member, so text that needed danger ink
+  reached for `--danger-600` directly — a *light*-theme step. Dark re-declares it darker
+  than `--danger`, so the landing's impact deltas and every `.delta-pos` in the app read
+  3.91:1 on the `--bg-soft` tint there. It re-declares per theme now (`--danger-600`
+  light, `--danger` dark — 5.87:1 / 5.38:1), and the contract test measures it against
+  both surfaces it paints, plus an assertion that the landing paints no danger ink
+  outside it. The CSS gates cannot see either: the landing sets those inks inline.
 - **A route-integrity guardrail** (`tests/route-integrity.test.ts`): every `#/…` link and
   `navigate('/…')` call in `src/` must resolve to a route `App.tsx` handles — the
   `switch (parts[0])` cases plus the pre-switch `parts[0] === '…'` checks. Comments are
@@ -70,6 +78,23 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
   `tests/dayPlanner.test.ts` are the spec.
 
 ### Changed
+- **The landing page runs on its own body face.** `--font-body` re-points to Archivo
+  inside `.landing-canvas` (loaded alongside Sora and Inter in `index.html`), giving the
+  Brand register a face with print and signage heritage behind the trip-ticket metaphor
+  while the Product register keeps Inter across the app UI. The same pass flattens the
+  step cards' artifacts from a bordered panel inside a bordered card to a hairline
+  divider and type, restores the impact strip's warning cell to a label/value pair
+  instead of a sentence in a figure slot, and gives the four start CTAs one verb —
+  "Start a trip", with the bench carrying the qualifier "with these numbers".
+- **The Plan Bench total is announced when it settles.** A range input can announce its
+  own value but never a derived one, so the figure the bench exists to produce gets its
+  own `polite` region, debounced to the settled total: a screen-reader user hears the
+  cost a beat after the dial stops moving instead of an announcement queued on every
+  slider step (and six in a row from "Surprise me"). The route carousel's live region
+  likewise speaks only on a manual change rather than on its own 8-second auto-advance.
+  The carousel's three labelled buttons reach the 44px coarse-pointer target the bench
+  jump-link and trip-code disclosure already met, and the travel motifs behind the
+  features grid are `aria-hidden` like every other decoration on the page.
 - **Trip settings opens with two bars, not one.** Budget preference (Budget / Comfort /
   Luxury) and Travel style used to share a single block with the style bar on top and
   the price bar tucked underneath it, so the second read as a sub-option of the first.
@@ -101,6 +126,25 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
   Bench imports the same two primitives with its own rendering unchanged.
 
 ### Fixed
+- **The landing's primary CTA cleared AA in both themes.** `.hero .btn-primary` painted a
+  hard-coded `linear-gradient(120deg, #0D8D82, #0C716D)` behind white text — 4.08:1 at the
+  light stop, under the 4.5:1 floor, and invisible to the contrast gate, which only sees a
+  colour pair declared in one rule. It derives from `--color-primary`,
+  `--color-primary-active` and `--color-primary-foreground` now and measures 5.19:1 light
+  and 4.87:1 dark in the browser. The same defect class went with it:
+  `.app-home-trip-thumb.is-live` put white on raw `--teal` (4.08:1 light, 2.45:1 dark) and
+  now uses the semantic pair, which let its dark-only ink override go; the dead
+  `.btn-teal` rule — no call site since ShareTab's was retired — is deleted rather than
+  re-toned; and the selected-mode speed badge, white on a 22% white tint over teal-700
+  that composited to `#41908D` (3.75:1 at 10.5px/800), is a recessed tint in both themes
+  at 7.37:1 / 4.59:1.
+- **The contrast gate was mis-parsing its own token blocks.** `declMap` matched
+  `word: value` through comment prose and ran the value to the next `;`, so a sentence
+  sitting immediately before a declaration in the first `:root` or `[data-theme='dark']`
+  block could swallow it. Dark's `--ink-amber` had gone missing, dark fell back to the
+  *light* amber, and five phantom dark failures — a chip label, two selected-chip
+  variants, a tab count and a total-warn line — had been baselined as real. Comments are
+  blanked before parsing, and those five entries are gone from the baseline.
 - **Night halts stopped starving on the corrected city lookup.** The city anchor layer's switch to Google's Nearby Search asked for `administrative_area_level_3` alongside `locality` — a type Nearby Search rejects, so the whole request returned 400 and the layer reported **zero cities everywhere**. Because the caller catches, that read as "no towns near any halt" rather than as a broken request: every overnight suggestion quietly starved on every trip. The lookup asks for `locality` alone now (live-verified: 6 places per rural halt point), and night halts anchor again (#189).
 - **The trip's road is measured once, by one owner.** The workspace and the Map tab each ran their own routing chain over the same points — doubling the load on the shared OSRM demo server (the rate-limiting behind the transient failures) and letting the map draw a road the detour math could not see. One measurement now feeds both the engine's leg corrections and the map's line, totals and suggestion corridor, with the single retry living in that one place. A chain where every leg fell back to the straight-line estimate counts as *unresolved* rather than passing as a measured road, so a rate-limited day degrades honestly instead of drawing chords as if they were roads (#188).
 - **Suggestions stopped charging phantom detours on long drives.** A dhaba or petrol pump sitting right on the highway could read "50 km off-route" on a 1,400 km corridor — the detour math subtracted one routing provider's route total from another's internal leg sums, and the difference (≈47 km on that corridor, a plausible-looking 1–3 km on short trips) was charged to every suggestion. That torched the per-day detour budget, held back most See & do ideas, and thinned the halt rails. Detours are now measured geometrically against the same road line the search ran along, so a place on the drawn road reads "on route" no matter which routing engine answered (#187).

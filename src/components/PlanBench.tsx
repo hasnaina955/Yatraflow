@@ -190,6 +190,25 @@ export function PlanBench({ startHref }: { startHref: string }) {
   const shown = scrambleBill ?? bill
   const shownInput = scramble ?? input
 
+  // The total is the figure this surface exists to produce, and a range input
+  // can only announce its OWN value — never a derived one. So the settled total
+  // gets a polite region of its own: a screen-reader user hears the cost when
+  // they stop tuning. It is debounced because the total rewrites on every
+  // slider step (and six times in a row from "Surprise me"), which is exactly
+  // what made the old per-step live region unusable.
+  const [announcedTotal, setAnnouncedTotal] = useState(
+    () => `${formatInr(shown.total)} total, ${formatInr(shown.perHead)} per person`
+  )
+  const settled = useRef(false)
+  useEffect(() => {
+    if (!settled.current) { settled.current = true; return }
+    const t = window.setTimeout(
+      () => setAnnouncedTotal(`${formatInr(shown.total)} total, ${formatInr(shown.perHead)} per person`),
+      450
+    )
+    return () => window.clearTimeout(t)
+  }, [shown.total, shown.perHead])
+
   const issued = useMemo(
     () => new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
     []
@@ -308,15 +327,28 @@ export function PlanBench({ startHref }: { startHref: string }) {
   }
 
   // Pointer-follow tilt — desktop pointers only, never reduced-motion.
+  // The rect is cached and the write happens inside a rAF: reading
+  // getBoundingClientRect per mousemove forced a style/layout flush on a sticky,
+  // transformed element, and each write restarted its transform transition.
+  const tiltRect = useRef<DOMRect | null>(null)
+  const tiltRaf = useRef(0)
   function onTiltMove(e: React.MouseEvent) {
     if (reduced || !pointerFine || !receiptRef.current) return
-    const r = receiptRef.current.getBoundingClientRect()
+    const r = tiltRect.current ?? (tiltRect.current = receiptRef.current.getBoundingClientRect())
     const x = (e.clientX - r.left) / r.width - 0.5
     const y = (e.clientY - r.top) / r.height - 0.5
-    receiptRef.current.style.setProperty('--rx', `${(-y * 4).toFixed(2)}deg`)
-    receiptRef.current.style.setProperty('--ry', `${(x * 4).toFixed(2)}deg`)
+    if (tiltRaf.current) return
+    tiltRaf.current = requestAnimationFrame(() => {
+      tiltRaf.current = 0
+      const el = receiptRef.current
+      if (!el) return
+      el.style.setProperty('--rx', `${(-y * 4).toFixed(2)}deg`)
+      el.style.setProperty('--ry', `${(x * 4).toFixed(2)}deg`)
+    })
   }
   function onTiltEnd() {
+    if (tiltRaf.current) { cancelAnimationFrame(tiltRaf.current); tiltRaf.current = 0 }
+    tiltRect.current = null
     receiptRef.current?.style.setProperty('--rx', '0deg')
     receiptRef.current?.style.setProperty('--ry', '0deg')
   }
@@ -472,7 +504,11 @@ export function PlanBench({ startHref }: { startHref: string }) {
           )}
         </div>
 
+        {/* aria-busy belongs on the receipt, not the button: the actions row goes
+            visibility:hidden for the whole capture, which drops it — and any
+            label or aria state on it — out of the accessibility tree entirely. */}
         <div className={`bench-receipt card${tearing ? ' tearing' : ''}${capturing ? ' bench-capturing' : ''}`} ref={receiptRef}
+          aria-busy={imgState === 'busy' || undefined}
           onMouseMove={onTiltMove} onMouseLeave={onTiltEnd}>
           <span className="bench-barcode" aria-hidden="true" />
           <span className="bench-stamp" key={stampKey} aria-hidden="true">Estimate</span>
@@ -484,13 +520,18 @@ export function PlanBench({ startHref }: { startHref: string }) {
             {modeIcon(shownInput.mode, 14)}
             <span>{shownInput.mode === 'motorcycle' ? 'Bike' : shownInput.mode} · {shownInput.crew} traveller{shownInput.crew === 1 ? '' : 's'}</span>
           </div>
-          <div className="bench-total" aria-live="polite">
+          {/* The visible total is aria-hidden (its odometer is decorative digit
+              fragments) and the sr-only line below carries it instead. That line
+              is a live region on the SETTLED value — see announcedTotal — so a
+              screen reader gets the cost a beat after the dial stops moving,
+              rather than an announcement queued on every slider step. */}
+          <div className="bench-total">
             <div className="bench-total-label">Per head</div>
             <div className="bench-total-main bench-total-perhead">
               <Odometer value={formatInr(shown.perHead)} animate={odometerAnimate} />
               <span className="bench-perhead-unit">/ head</span>
             </div>
-            <span className="bench-total-sub sr-only">{formatInr(shown.total)} total, {formatInr(shown.perHead)} per person</span>
+            <span className="bench-total-sub sr-only" aria-live="polite">{announcedTotal}</span>
             <span className="bench-total-sub" aria-hidden="true">
               {formatInr(shown.total)} total · split {shownInput.crew} way{shownInput.crew === 1 ? '' : 's'} · {shown.roadKm} km · {shown.days} days · {shownInput.mode}
             </span>
@@ -507,15 +548,15 @@ export function PlanBench({ startHref }: { startHref: string }) {
           </div>
           <div className="bench-receipt-lines" key={lineKey}>
             <div className="bench-line">
-              <div className="bench-line-head"><span>{modeIcon(shownInput.mode, 14)} {fuelMode ? 'Fuel' : 'Fares'}</span><b><Odometer value={formatInr(shown.transportCost)} animate={odometerAnimate} /></b></div>
+              <div className="bench-line-head"><span>{modeIcon(shownInput.mode, 14)} {fuelMode ? 'Fuel' : 'Fares'}</span><b><Odometer value={formatInr(shown.transportCost)} animate={odometerAnimate} label={`${fuelMode ? 'Fuel' : 'Fares'} ${formatInr(shown.transportCost)}`} /></b></div>
               <span className="bench-line-formula">{shown.transportFormula}</span>
             </div>
             <div className="bench-line">
-              <div className="bench-line-head"><span><BedDouble size={14} aria-hidden style={{ verticalAlign: '-2px', marginRight: 5 }} />Stays ({shown.rooms} room{shown.rooms === 1 ? '' : 's'})</span><b><Odometer value={formatInr(shown.stayCost)} animate={odometerAnimate} /></b></div>
+              <div className="bench-line-head"><span><BedDouble size={14} aria-hidden style={{ verticalAlign: '-2px', marginRight: 5 }} />Stays ({shown.rooms} room{shown.rooms === 1 ? '' : 's'})</span><b><Odometer value={formatInr(shown.stayCost)} animate={odometerAnimate} label={`Stays ${formatInr(shown.stayCost)}`} /></b></div>
               <span className="bench-line-formula">{shown.stayFormula}</span>
             </div>
             <div className="bench-line">
-              <div className="bench-line-head"><span><UtensilsCrossed size={14} aria-hidden style={{ verticalAlign: '-2px', marginRight: 5 }} />Meals</span><b><Odometer value={formatInr(shown.mealCost)} animate={odometerAnimate} /></b></div>
+              <div className="bench-line-head"><span><UtensilsCrossed size={14} aria-hidden style={{ verticalAlign: '-2px', marginRight: 5 }} />Meals</span><b><Odometer value={formatInr(shown.mealCost)} animate={odometerAnimate} label={`Meals ${formatInr(shown.mealCost)}`} /></b></div>
               <span className="bench-line-formula">{shown.mealFormula}</span>
             </div>
           </div>
@@ -532,7 +573,7 @@ export function PlanBench({ startHref }: { startHref: string }) {
           </div>
           <div className="bench-cta-row">
             <button type="button" className="btn btn-primary btn-lg bench-cta" onClick={handleCta}>
-              Turn these numbers into a real trip →
+              Start a trip with these numbers →
             </button>
             <a className="bench-alt-link" href="#/explore">or browse ready itineraries →</a>
           </div>
@@ -542,11 +583,15 @@ export function PlanBench({ startHref }: { startHref: string }) {
                 ? <><Check size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Copied to clipboard</>
                 : <><Copy size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Copy bill as text</>}
             </button>
+            {/* The label stays put while it works. A "Rendering…" swap was never
+                visible (the actions row is hidden for the capture) and it only
+                renamed the control in the accessibility tree with nothing saying
+                it was busy. aria-busy on the receipt carries the state instead. */}
             <button type="button" className={`chip chip-outline${imgState === 'done' ? ' chip-copied' : ''}`}
               onClick={shareImage} disabled={imgState === 'busy'}>
               {imgState === 'done'
                 ? <><Check size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Sent</>
-                : <><ImageDown size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />{imgState === 'busy' ? 'Rendering…' : 'Share as image'}</>}
+                : <><ImageDown size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Share as image</>}
             </button>
             {(copied || imgState === 'done') && !reduced && !capturing && (
               <span className="bench-confetti" aria-hidden="true">

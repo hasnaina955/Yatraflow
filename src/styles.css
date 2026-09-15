@@ -118,14 +118,22 @@
   --color-accent-foreground: #3A2506;
   --color-destructive: var(--danger-500);
   --color-destructive-soft: #F9E7E7;
-  --ring: 0 0 0 3px color-mix(in srgb, var(--yf-teal-600) 35%, transparent);
-  /* SYS-3a: deepened amber/green TEXT inks. The raw --warn/--ok pass only ~3.5–
-     4.25:1 on light tints; these clear AA on every light surface (#8F5B06:
-     5.08–5.73; #1F6B41: 5.61–6.49). Text/label roles consume these; decorative
-     fills/tints keep the raw primitives. Dark re-declares them to the raw
-     tokens (its lightened --warn/--ok already pass on dark surfaces). */
+  /* Focus ring — the tinted color-mix form is a tested design-system contract,
+     but 35% measured ~1.54:1 against the cream canvas (and ~1.66:1 on a card),
+     far under the 3:1 a focus indicator needs. 90% keeps the tint and measures
+     ~3.30:1 on cream. The dark block raises its own value for the same reason. */
+  --ring: 0 0 0 3px color-mix(in srgb, var(--yf-teal-600) 90%, transparent);
+  /* SYS-3a: deepened amber/green/danger TEXT inks. The raw --warn/--ok pass only
+     ~3.5–4.25:1 on light tints; these clear AA on every light surface (#8F5B06:
+     5.08–5.73; #1F6B41: 5.61–6.49; #A82E2E: 5.87 on --bg-soft, 6.78 on --card).
+     Text/label roles consume these; decorative fills/tints keep the raw
+     primitives. Dark re-declares them to the raw tokens (its lightened
+     --warn/--ok/--danger already pass on dark surfaces). --danger-600 is the one
+     step the ladder INVERTS: it is darker in dark mode than --danger, so used
+     directly as text it read 3.91:1 on the dark --bg-soft tint. */
   --ink-amber: #8F5B06;
   --ink-ok: #1F6B41;
+  --ink-danger: var(--danger-600);
 
   /* ---- 3. LEGACY flat aliases (do not remove; new code uses --color-*) ---- */
   --bg: var(--yf-cream);   /* CTI canvas (was --gray-50) */
@@ -241,11 +249,15 @@
   --color-accent-foreground: #3A2506;
   --color-destructive: var(--danger-500);
   --color-destructive-soft: #3A2020;
-  --ring: 0 0 0 3px color-mix(in srgb, var(--yf-teal-600) 40%, transparent);
-  /* SYS-3a: dark re-declares the ink tokens to the raw aliases — the darkened
-     --warn/--ok (#D99A2B/#52BE80) already clear AA on dark surfaces. */
+  /* Dark surfaces need a lower mix for the same 3:1: 60% measures ~3.45:1
+     against the dark card, where 40% was ~2.20:1. */
+  --ring: 0 0 0 3px color-mix(in srgb, var(--yf-teal-600) 60%, transparent);
+  /* SYS-3a: dark re-declares the ink tokens to the raw aliases — the lightened
+     --warn/--ok/--danger (#D99A2B/#52BE80/#E06C6C) already clear AA on dark
+     surfaces, where their -600 steps are darker still and would not. */
   --ink-amber: var(--warn);
   --ink-ok: var(--ok);
+  --ink-danger: var(--danger);
 
   /* ---- 3. LEGACY flat aliases (dark) ---- */
   --bg: var(--gray-50);
@@ -333,6 +345,14 @@ html.native-shell .atmos {
   .bench-blob-a, .bench-blob-b { animation: none; }
   /* The continuous ticker is a second infinite compositor loop. */
   .ticker-track { animation: none; }
+  /* The rest of the infinite loops on this page. The dash-animated road is the
+     cost this block's own comment names, and it was previously only killed by
+     prefers-reduced-motion — never by a coarse pointer. The hero CTA glow is
+     animated box-shadow (paint-bound); its resting shadow is kept. */
+  .rs-road, .rs-dash, .rs-stop { animation: none; }
+  .hero .btn, .hero .btn::after { animation: none; }
+  .bench-badge-dot::after, .bench-cta::after { animation: none; }
+  .motif-compass, .motif-float, .motif-rise, .motif-birds { animation: none; }
 }
 /* The native shell is a phone WebView even when a mouse is attached via
    desktop mode — apply the same budget there, unconditionally.
@@ -346,6 +366,15 @@ html.native-shell .bottom-nav {
 html.native-shell .hero-blob-a, html.native-shell .hero-blob-b,
 html.native-shell .bench-blob-a, html.native-shell .bench-blob-b { animation: none; }
 html.native-shell .ticker-track { animation: none; }
+/* Same completion as the coarse-pointer block above: a native-shell device with
+   a fine pointer (DeX / desktop mode) keeps the coarse media query from firing,
+   so the loops are switched off here too. */
+html.native-shell .rs-road, html.native-shell .rs-dash, html.native-shell .rs-stop { animation: none; }
+html.native-shell .hero .btn, html.native-shell .hero .btn::after { animation: none; }
+html.native-shell .bench-badge-dot::after, html.native-shell .bench-cta::after { animation: none; }
+html.native-shell .motif-compass, html.native-shell .motif-float,
+html.native-shell .motif-rise, html.native-shell .motif-birds { animation: none; }
+html.native-shell .landing-canvas { background-attachment: scroll; }
 /* App-bar solidity: a near-opaque pill reads as an Android top bar; any
    background tint that survives the reduced blur can't bleed through. */
 html.native-shell .topnav {
@@ -455,6 +484,9 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--font-body);
+  /* Once at the root, never per component. */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   font-size: 15px;
   line-height: 1.55;
   /* Drops the double-tap-zoom delay on rapid taps (pan + pinch still allowed).
@@ -464,6 +496,10 @@ body {
   touch-action: manipulation;
 }
 h1,h2,h3,h4 { font-family: var(--font-display); line-height: 1.22; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+/* Descriptions get pretty wrapping alongside the headings' balance, so the last
+   line of a paragraph never strands a single word. Scoped to the landing; the
+   in-app product surfaces keep the browser default. */
+.landing-canvas p, .landing-canvas li { text-wrap: pretty; }
 h1 { font-size: clamp(26px, 4.5vw, 40px); font-weight: 800; }
 h2 { font-size: 21px; font-weight: 700; }
 h3 { font-size: 16px; font-weight: 700; }
@@ -593,15 +629,36 @@ a.btn { text-decoration: none; }
 @media (pointer: coarse) {
   .btn, .icon-btn, .chip, .clickable-chip, .toast-action, .tab-btn,
   .map-legend-toggle, .nav-link, .filter-pillbar .clickable-chip,
-  .link-btn, .move-btn, .board-pulse-link, .cal-day, .route-btn, .vote-btn {
+  .link-btn, .move-btn, .board-pulse-link, .cal-day, .route-btn, .vote-btn,
+  /* landing controls that were missing from this sweep */
+  .hero-bench-link, .invite-disclosure summary, .rs-ctrl-btn, .rs-dot,
+  .dest-ticker, .bench-toggle, .bench-preset-chip, .bench-mode-btn,
+  .bench-stay-row, .bench-crew-btn, .bench-receipt-actions .chip {
     position: relative;
   }
   .btn::after, .icon-btn::after, .chip::after, .clickable-chip::after,
   .toast-action::after, .tab-btn::after, .map-legend-toggle::after,
   .nav-link::after, .link-btn::after, .move-btn::after, .board-pulse-link::after,
-  .cal-day::after, .route-btn::after, .vote-btn::after {
+  .cal-day::after, .route-btn::after, .vote-btn::after,
+  .hero-bench-link::after, .invite-disclosure summary::after, .rs-ctrl-btn::after,
+  .rs-dot::after, .bench-toggle::after, .bench-preset-chip::after,
+  .bench-mode-btn::after, .bench-stay-row::after, .bench-crew-btn::after,
+  .bench-receipt-actions .chip::after {
     content: ''; position: absolute; inset: -6px; border-radius: inherit;
   }
+  /* Landing controls that still fell under the 44px target even with the 6px
+     expansion: the bench jump-link (~22px), the trip-code disclosure summary
+     (~21px) and the carousel's three labelled buttons (~26px + 12px ≈ 38px).
+     All are sized to the 44px touch target here. */
+  .hero-bench-link, .invite-disclosure summary { min-height: 44px; display: inline-flex; align-items: center; }
+  .rs-ctrl-btn { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
+  /* iOS Safari zooms the viewport when a form control's text is under 16px, and
+     it does that regardless of viewport WIDTH — an iPad at 768px or an iPhone in
+     landscape still zooms. The other 16px rule is inside `max-width: 720px`, so
+     those devices fell straight through it and the page widened under the user.
+     Gate the fix on the input mode instead of the width: any coarse-pointer
+     device gets 16px, any pointer device keeps the denser 14.5px. */
+  input, select, textarea { font-size: 16px; }
 }
 
 /* ---------- Cards ---------- */
@@ -699,6 +756,13 @@ a.btn { text-decoration: none; }
    instead of squeezing selects into ~60px columns on phones. */
 .commitment-row { grid-template-columns: 2fr 1fr .8fr .8fr auto; align-items: end; gap: 10px; }
 .err-text { color: var(--danger); font-size: 12.5px; font-weight: 500; }
+/* An error appears the instant it is raised; a short fade+rise makes the change
+   land without moving layout. Brief by design — error motion should be useful,
+   not theatre — and opt-in, so the static form is the default. */
+@media (prefers-reduced-motion: no-preference) {
+  .err-text { animation: err-in var(--motion-med) var(--ease-out) both; }
+  @keyframes err-in { from { opacity: 0; transform: translateY(-2px); } }
+}
 .hint-text { color: var(--text-3); font-size: 12.5px; }
 
 /* ---------- Chips & badges ---------- */
@@ -1507,7 +1571,12 @@ button.board-col-zone--add:active { transform: translateY(1px); }
 .impact-cell { background: var(--bg-soft); border-radius: 10px; padding: 9px 12px; }
 .impact-cell .k { font-size: 11px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: .04em; }
 .impact-cell .v { font-weight: 800; font-size: 14.5px; margin-top: 1px; font-family: var(--font-display); font-variant-numeric: tabular-nums; }
-.delta-pos { color: var(--danger); } .delta-neg { color: var(--ink-ok); } .delta-zero { color: var(--text-2); }
+/* Deepened danger ink for text on the --bg-soft tint: --danger (#C93B3B) reads
+   4.36:1 there, under the 4.5:1 floor, so this goes through --ink-danger, which
+   re-declares per theme. Using --danger-600 directly was the same trap the hero
+   CTA fell into: it is a LIGHT value, and dark's is darker still — #C95050 read
+   3.91:1 on the dark tint. Same fix pattern as --ink-amber / --ink-ok. */
+.delta-pos { color: var(--ink-danger); } .delta-neg { color: var(--ink-ok); } .delta-zero { color: var(--text-2); }
 .assumptions { font-size: 12px; color: var(--text-3); background: var(--bg-soft); padding: 9px 12px; border-radius: 10px; line-height: 1.6; }
 .impact-actions { display: flex; gap: 8px; margin-top: 13px; flex-wrap: wrap; }
 
@@ -1619,11 +1688,11 @@ button.board-col-zone--add:active { transform: translateY(1px); }
   background-size: 26px 26px;
 }
 .hero-adventure > * { position: relative; }
-.ha-kicker { font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; opacity: .75; font-weight: 800; }
+.ha-kicker { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; opacity: .82; font-weight: 800; }
 .ha-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 14px 0 8px; }
 .ha-stats > div { background: rgba(255,255,255,.09); border: 1px solid rgba(255,255,255,.14); border-radius: 10px; padding: 8px 10px; }
 .ha-stats b { display: block; font-family: var(--font-display); font-size: 15px; font-variant-numeric: tabular-nums; }
-.ha-stats span { font-size: 9.5px; letter-spacing: .06em; text-transform: uppercase; opacity: .72; font-weight: 700; }
+.ha-stats span { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; opacity: .8; font-weight: 700; }
 .ha-row { display: grid; grid-template-columns: 1.4fr 1fr; gap: 8px; margin-top: 8px; }
 .ha-warn { background: #FFF4E4; color: #3A2506; border-radius: 10px; padding: 8px 11px; font-size: 12px; font-weight: 700; }
 .ha-warn span { display: block; font-weight: 500; font-size: 11px; opacity: .8; }
@@ -1640,9 +1709,34 @@ button.board-col-zone--add:active { transform: translateY(1px); }
 .hero-bench-link { background: none; border: none; color: var(--teal-deep); font-size: 14.5px; font-weight: 600; cursor: pointer; padding: 14px 0 0; display: inline-flex; gap: 6px; align-items: center; text-align: left; font-family: var(--font-body); }
 .hero-bench-link:hover { text-decoration: underline; }
 .hero-bench-link:focus-visible { outline: none; box-shadow: var(--ring); border-radius: 6px; }
-.invite-disclosure { margin-top: 12px; font-size: 14px; }
+/* The trip-code disclosure is the page's one expandable region and it snapped
+   open. ::details-content with allow-keywords animates the real height; browsers
+   without support keep the instant native toggle, so nothing breaks.
+   interpolate-size is scoped to the element, not :root, so it affects nothing
+   else on the page. */
+.invite-disclosure { margin-top: 12px; font-size: 14px; interpolate-size: allow-keywords; }
+.invite-disclosure::details-content {
+  block-size: 0; overflow: hidden; opacity: 0;
+  transition: block-size var(--motion-slow) var(--ease-out),
+              opacity var(--motion-med) var(--ease-out),
+              content-visibility var(--motion-slow) allow-discrete;
+}
+.invite-disclosure[open]::details-content { block-size: auto; opacity: 1; }
+/* The global reduce block sweeps `*, *::before, *::after`, which does not match
+   ::details-content — so this one needs its own escape or it animates anyway. */
+@media (prefers-reduced-motion: reduce) {
+  .invite-disclosure::details-content { transition: none; }
+}
 .invite-disclosure summary { cursor: pointer; color: var(--text-2); font-weight: 600; }
 .invite-disclosure summary:focus-visible { outline: none; box-shadow: var(--ring); border-radius: 6px; }
+/* The footer link shipped with no rule of its own: it inherited `a { color:
+   teal-deep; text-decoration: none }`, so it read as plain text beside the
+   footer's muted copy — a distinction carried by colour alone — and had no
+   hover and no focus state at all. Underline at rest, a heavier rule on hover,
+   and the shared focus ring for the keyboard path. */
+.footer-link { color: var(--teal-deep); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: color-mix(in srgb, var(--teal-deep) 45%, transparent); border-radius: 6px; }
+.footer-link:hover { text-decoration-color: currentColor; text-decoration-thickness: 2px; }
+.footer-link:focus-visible { outline: none; box-shadow: var(--ring); }
 
 /* Landing section headings & grids */
 .section-title { font-size: clamp(1.45rem, 3vw, 1.9rem); text-align: center; margin: 46px auto 6px; max-width: 620px; }
@@ -1681,6 +1775,15 @@ button.board-col-zone--add:active { transform: translateY(1px); }
 }
 .step-card h3 { font-size: 15px; }
 .step-card p { margin-top: 5px; line-height: 1.55; }
+/* Artifact slot inside a step card. It was a bordered, filled panel — a card
+   inside a card, which is never right on a flat-ledger page. Same content, same
+   weight in the row, but expressed as a separated block: a hairline divider and
+   type, no second surface. */
+.step-artifact {
+  margin-top: 12px; padding-top: 12px;
+  border-top: 1px solid var(--line);
+  font-size: 12px; line-height: 1.5; color: var(--text-2);
+}
 
 /* Demo CTA band — a forced-dark surface in BOTH themes: its gradient stops
    must be literals, not theme-flipping tokens (--gray-900 turns near-white in
@@ -2642,9 +2745,6 @@ main:focus { outline: none; }
   border: 1px solid var(--line); border-radius: 999px;
   font-size: 12px; font-weight: 600; background: var(--card);
 }
-.btn-teal { background: var(--teal); color: #fff; }
-.btn-teal:hover { background: var(--teal-deep, #0e7a72); }
-
 /* ---------- Halt spot rows (unified travel panel) ---------- */
 /* Formatted 12h/24h preview under native <input type="time"> fields — the
    browser controls the input's own display format, so we echo the app pref. */
@@ -3255,7 +3355,14 @@ html.vt-active :where(*) {
   padding: 2px 7px; border-radius: 999px;
   background: var(--bg-soft); color: var(--text-2);
 }
-.bench-mode-btn.on .bench-mode-speed { background: rgba(255, 255, 255, .22); color: #fff; }
+/* The badge is a slight recess in the fill in BOTH themes, not a frosted
+   highlight. A near-white tint cannot carry white text: .22 white over teal-700
+   composited to #41908D and measured 3.75:1 at 10.5px/800 (axe, light — the CSS
+   gates skip it, the background is translucent). Measured in the browser after
+   the swap: 7.37:1 light / 4.59:1 dark. Dark is the one to watch — it is inside
+   AA with almost no margin, and raising it means a LIGHTER tint (letting more of
+   the fill through), because the ink there is dark rather than white. */
+.bench-mode-btn.on .bench-mode-speed { background: rgba(6, 37, 31, .22); color: #fff; }
 .bench-hint { font-size: 12px; color: var(--text-3); margin: 0; }
 
 /* stay style: vertical rate rows, selected = teal outline + tint */
@@ -3411,8 +3518,11 @@ html.vt-active :where(*) {
 
 /* split bar */
 .bench-split { display: flex; height: 10px; border-radius: 999px; overflow: hidden; border: 1px solid var(--receipt-line); }
+/* No width transition: the segments carry an inline width that changes on every
+   slider step, so animating it reflows the bar per frame inside a sticky,
+   transformed receipt. The bar still reads correctly without the settle. */
 .bench-split-bar {
-  height: 100%; transition: width .35s var(--ease-out);
+  height: 100%;
   min-width: 0; overflow: hidden;
 }
 .bench-split-transport { background: var(--yf-teal-600); }
@@ -3448,6 +3558,9 @@ html.vt-active :where(*) {
 .bench-cta { width: 100%; }
 .bench-alt-link { font-size: 13px; font-weight: 600; color: var(--receipt-accent); text-decoration: none; }
 .bench-alt-link:hover { text-decoration: underline; }
+/* Hover had no focus twin: a keyboard user tabbing to "browse ready itineraries"
+   got no indication it was focusable. */
+.bench-alt-link:focus-visible { outline: none; box-shadow: var(--ring); border-radius: 6px; }
 .bench-receipt-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
 .bench-receipt-actions .chip { cursor: pointer; font-size: 12px; font-weight: 600; }
 .bench-receipt-actions .chip:disabled { opacity: .65; cursor: default; }
@@ -3513,10 +3626,12 @@ html.vt-active :where(*) {
   .bench-blob-a { animation: blob-drift 15s ease-in-out infinite alternate; }
   .bench-blob-b { animation: blob-drift 22s ease-in-out infinite alternate-reverse; }
 }
+/* translate-only: scaling a blurred element forces the blurred layer to be
+   re-rasterised every frame; the drift reads the same without it. */
 @keyframes blob-drift {
-  from { transform: translate(0, 0) scale(1); }
-  50%  { transform: translate(-26px, 18px) scale(1.08); }
-  to   { transform: translate(34px, -24px) scale(1.16); }
+  from { transform: translate(0, 0); }
+  50%  { transform: translate(-26px, 18px); }
+  to   { transform: translate(34px, -24px); }
 }
 
 /* scroll-in choreography */
@@ -3603,9 +3718,11 @@ html.vt-active :where(*) {
 @keyframes dice-roll { 0% { transform: rotate(0) scale(1); } 60% { transform: rotate(300deg) scale(1.25); } 100% { transform: rotate(360deg) scale(1); } }
 .bench-surprise:disabled { opacity: .65; cursor: default; }
 /* Surprise sits beside the preset chips as a tertiary action — outline with an
-   amber accent instead of a filled pill that out-shouts its neighbours. */
-.bench-surprise { border-color: var(--yf-amber); color: var(--warn); }
-.bench-surprise .bench-dice { color: var(--yf-amber); }
+   amber accent instead of a filled pill that out-shouts its neighbours.
+   Ink is --ink-amber (5.73:1 on the card) — raw --warn was 3.92:1, the same
+   warn-on-white pair already routed through --ink-amber elsewhere. */
+.bench-surprise { border-color: var(--ink-amber); color: var(--ink-amber); }
+.bench-surprise .bench-dice { color: var(--ink-amber); }
 
 /* copy celebration — confetti + copied tint */
 .bench-receipt-actions { position: relative; }
@@ -3653,6 +3770,16 @@ html.vt-active :where(*) {
     radial-gradient(circle at 88% 28%, var(--yf-atmos-peach), transparent 32%),
     linear-gradient(135deg, var(--yf-mist) 0%, var(--yf-cream) 52%, var(--yf-peach) 100%);
   background-attachment: fixed;
+  /* Brand register gets its own body face. The physical object is a printed road
+     atlas with the trip ticket stapled to it: Archivo's signage/print heritage and
+     tighter apertures belong to that object and contrast with Sora's geometric
+     roundness, where Inter is the reflex pick for any brand surface and textures
+     almost identically to Sora. Re-pointing the token here — plus the inherited
+     font-family on the canvas — scopes the change to the landing; the Product
+     register keeps Inter for its whole app UI. The same five weights are loaded,
+     so nothing is synthesised and Inter stays behind it in the fallback chain. */
+  --font-body: 'Archivo', 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-body);
 }
 /* Touch repaint cost (#107 Landing flag): fixed attachment forces a full-page
    repaint every scroll frame on the Android WebView. On coarse pointers the
@@ -3671,7 +3798,7 @@ html.vt-active :where(*) {
 /* ---------- Hero load choreography: one orchestrated stagger ---------- */
 @keyframes hero-rise { from { opacity: 0; transform: translateY(16px); } }
 .rise-d1 { animation-delay: .07s; } .rise-d2 { animation-delay: .14s; }
-.rise-d3 { animation-delay: .21s; } .rise-d4 { animation-delay: .28s; }
+.rise-d3 { animation-delay: .21s; }
 .rise-d5 { animation-delay: .35s; }
 
 /* ---------- RouteSquiggle: draw → flow → pop → traveller (calm timeline) ---------- */
@@ -3743,7 +3870,7 @@ html.vt-active :where(*) {
   bottom: calc(12px + var(--bottom-ui-offset));
   z-index: var(--z-nav-glass); /* below --z-notif / --z-drawer / --z-modal / --z-toast / --z-impact */
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  background: var(--surface, #fff); border: 1px solid var(--line, #dce7e1);
+  background: var(--card); border: 1px solid var(--line);
   border-radius: 16px; padding: 10px 14px;
   box-shadow: 0 14px 34px -14px rgba(var(--shadow-navy-rgb), .4);
   opacity: 0; transform: translateY(130%); visibility: hidden;
@@ -3752,7 +3879,7 @@ html.vt-active :where(*) {
 .bench-inview .bench-dock { opacity: 1; transform: none; visibility: visible; transition-delay: 0s; }
 .bench-dock-figures { display: flex; flex-direction: column; line-height: 1.2; min-width: 0; }
 .bench-dock-figures b { font-size: 17px; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.bench-dock-figures span { font-size: 11.5px; color: var(--text-3, #637b7d); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bench-dock-figures span { font-size: 11.5px; color: var(--text-3); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .bench-dock .btn { min-height: 40px; padding: 0 16px; flex-shrink: 0; }
 @media (min-width: 721px) { .bench-dock { display: none; } }
 
@@ -3772,7 +3899,7 @@ html.vt-active :where(*) {
   .ticker-track { animation: none; }
   .ticker-track > * { animation: none; }
   .hero .btn, .hero .btn::after { animation: none; box-shadow: none; }
-  .motif-compass, .motif-bob, .motif-float, .motif-sway, .motif-rise, .motif-birds { animation: none; }
+  .motif-compass, .motif-float, .motif-rise, .motif-birds { animation: none; }
   .reveal-underline::after { transform: scaleX(1); }
 }
 /* ============================================================
@@ -3790,8 +3917,16 @@ html.vt-active :where(*) {
   -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
   mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
 }
+/* The ticker region is focusable (tabIndex=0) so keyboard users get a way to
+   pause the marquee; the items themselves are non-focusable spans, so a
+   descendant-based :focus-within on the track could never fire. Pause is keyed
+   off the region's own focus, and the ring is inset so the band's
+   overflow:hidden can't clip it. (Coarse pointers and <=720px already render
+   the ticker static, so this only matters on desktop.) */
+.dest-ticker:focus-visible { outline: 2px solid var(--teal); outline-offset: -3px; }
 .ticker-track { display: flex; width: max-content; animation: ticker-scroll 38s linear infinite; }
-.ticker-track:hover, .ticker-track:focus-within { animation-play-state: paused; }
+.ticker-track:hover,
+.dest-ticker:focus-within .ticker-track { animation-play-state: paused; }
 @media (max-width: 720px) {
   .ticker-track { animation: none; flex-wrap: wrap; justify-content: center; gap: 8px; width: auto; }
   .ticker-item { font-size: 12px; }
@@ -3804,7 +3939,7 @@ html.vt-active :where(*) {
   box-shadow: 0 1px 0 rgba(255,255,255,.5) inset;
 }
 .ticker-item .t-ico { font-size: 14px; line-height: 1; }
-.ticker-item .t-tag { font-size: 10px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase;
+.ticker-item .t-tag { font-size: 12px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase;
   color: var(--yf-teal-700); background: color-mix(in srgb, var(--yf-teal-600) 12%, transparent);
   padding: 1px 7px; border-radius: 999px; }
 .ticker-sep { color: var(--yf-saffron); font-size: 12px; margin: 0 4px; opacity: .7; }
@@ -3837,7 +3972,7 @@ html.vt-active :where(*) {
 }
 .rs-caption { display: flex; flex-direction: column; gap: 2px; margin-top: 8px; line-height: 1.25; }
 .rs-caption-name { font-weight: 800; font-size: 13.5px; color: #fff; }
-.rs-caption-meta { font-size: 11px; opacity: .66; color: #fff; letter-spacing: .01em; }
+.rs-caption-meta { font-size: 12px; opacity: .78; color: #fff; letter-spacing: .01em; }
 /* caption is remounted with the scenario (key=cap-idx), so it fades in exactly
    when the new road starts drawing — no independent loop to drift out of sync */
 @media (prefers-reduced-motion: no-preference) {
@@ -3852,9 +3987,12 @@ html.vt-active :where(*) {
 .rs-ctrl-btn { background: none; border: 1px solid rgba(255,255,255,.28); color: #fff; border-radius: 999px; padding: 5px 12px; font-size: 12px; font-weight: 600; cursor: pointer; transition: background var(--motion-fast) var(--ease-out), border-color var(--motion-fast) var(--ease-out); }
 .rs-ctrl-btn:hover { background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.45); }
 .rs-ctrl-btn:focus-visible { outline: none; box-shadow: var(--ring); }
-.rs-dots { display: inline-flex; gap: 6px; margin-left: 2px; }
-.rs-dot { position: relative; width: 9px; height: 9px; padding: 0; border-radius: 999px; border: 1.5px solid rgba(255,255,255,.35); background: none; cursor: pointer; transition: background var(--motion-fast) var(--ease-out), border-color var(--motion-fast) var(--ease-out); }
-.rs-dot::after { content: ''; position: absolute; inset: -16px; border-radius: inherit; }
+/* 12px dots on 26px centres. Previously 9px on 15px centres with an
+   unconditional `::after { inset: -16px }` — a 41px hit box on 15px spacing,
+   so each dot's target covered its neighbour and a tap activated the wrong one.
+   The expansion now lives in the coarse-pointer block (24px target). */
+.rs-dots { display: inline-flex; gap: 14px; margin-left: 2px; }
+.rs-dot { position: relative; width: 12px; height: 12px; padding: 0; border-radius: 999px; border: 1.5px solid rgba(255,255,255,.35); background: none; cursor: pointer; transition: background var(--motion-fast) var(--ease-out), border-color var(--motion-fast) var(--ease-out); }
 .rs-dot:hover { border-color: rgba(255,255,255,.6); }
 .rs-dot:focus-visible { outline: none; box-shadow: var(--ring); }
 .rs-dot[aria-current='true'] { background: var(--yf-teal-600); border-color: var(--yf-teal-600); }
@@ -3866,10 +4004,15 @@ html.vt-active :where(*) {
   position: relative; overflow: hidden; letter-spacing: .01em;
 }
 /* solid brand gradients (the old translucent glass face washed the colour out);
-   depth comes from the glow shadow instead of transparency */
+   depth comes from the glow shadow instead of transparency.
+   Derived from the semantic ladder, not literals: white on the old hard-coded
+   light stop #0D8D82 computed 4.08:1 at 15.5px/600 — the exact failure the
+   SYS-3 note above documents and `--color-primary` exists to prevent. The token
+   pair is AA-checked in both themes (5.19:1 light, dark ink on the lightened
+   teal in dark), and it is the one place the contrast gate cannot see. */
 .hero .btn-primary {
-  background: linear-gradient(120deg, #0D8D82, #0C716D);
-  color: #fff; border-color: rgba(255,255,255,.28);
+  background: linear-gradient(120deg, var(--color-primary), var(--color-primary-active));
+  color: var(--color-primary-foreground); border-color: rgba(255,255,255,.28);
   box-shadow: 0 10px 26px rgba(13,141,130,.42), inset 0 1px 0 rgba(255,255,255,.28);
 }
 .hero .btn-saffron {
@@ -3921,26 +4064,14 @@ html.vt-active :where(*) {
   }
   body.reveal-armed .reveal.io-inview { opacity: 1; transform: none; }
 }
-/* heading underline draws itself past the fold */
-.reveal-underline { position: relative; display: inline-block; }
-.reveal-underline::after {
-  content: ''; position: absolute; left: 0; right: 0; bottom: -6px; height: 3px; border-radius: 3px;
-  background: linear-gradient(90deg, var(--yf-teal-600), var(--yf-saffron));
-  transform: scaleX(0); transform-origin: left;
-  /* the trailing .15s is a hover-cascade DELAY, not a duration — the stagger
-     vocabulary (--stagger-step) is for entrance choreography only. */
-  transition: transform .8s var(--ease-out) .15s;
-}
-body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
+/* (drawn heading underline retired — see note above) */
 
-/* ---------- Travel motif accents (feature + steps sections) ---------- */
+/* ---------- Travel motif accents (features band) ---------- */
 .motif { position: absolute; pointer-events: none; opacity: .9; z-index: var(--z-under); color: var(--yf-teal-600); filter: drop-shadow(0 6px 14px rgba(13,141,130,.35)); }
 /* Read as illustration, not specks: the inline SVGs render small. */
 .motif svg { transform: scale(1.3); transform-origin: center; }
 .motif-compass { animation: spin 22s linear infinite; transform-origin: 50% 50%; }
 @keyframes spin { to { transform: rotate(360deg); } }
-.motif-bob { animation: bob 3.4s ease-in-out infinite; }
-@keyframes bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
 .motif-float { animation: floatPath 8s ease-in-out infinite; }
 @keyframes floatPath {
   0%   { transform: translate(0, 0); }
@@ -3949,9 +4080,6 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
   75%  { transform: translate(38px, 12px); }
   100% { transform: translate(0, 0); }
 }
-/* boat: gentle rocking on the spot */
-.motif-sway { animation: sway 5.5s ease-in-out infinite; transform-origin: 50% 80%; }
-@keyframes sway { 0%,100% { transform: rotate(-6deg) translateY(0); } 50% { transform: rotate(6deg) translateY(-4px); } }
 /* hot-air balloon: slow vertical drift with a hint of horizontal wander */
 .motif-rise { animation: balloonRise 11s ease-in-out infinite; }
 @keyframes balloonRise {
@@ -4011,6 +4139,10 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
   .nav-right { gap: 6px; }
   .nav-right .btn { padding: 9px 11px; font-size: 13px; }
   .nav-pill-group { padding: 3px; gap: 1px; }
+  /* The hero-adventure warn/sync pair is a 1.4:1 split, which at a 320px canvas
+     leaves the sync box ~100px and its label wrapping mid-phrase. Stack the pair
+     on the narrowest canvas instead of squeezing both. */
+  .ha-row { grid-template-columns: 1fr; }
 }
 
 /* ---- <=720px: THE mobile block (single consolidated block, rules in
@@ -4095,6 +4227,9 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 
   /* comfortable tap sizes on primary controls */
   .btn { min-height: 44px; }
+  /* .bench-dock .btn (0,2,0) outranks the bare .btn floor above, so the sticky
+     mobile CTA sat at 40px; bring it up to the same floor. */
+  .bench-dock .btn { min-height: 44px; }
   .input, .select, .textarea { min-height: 44px; font-size: 16px; } /* 16px prevents iOS zoom-on-focus */
   .icon-btn { min-width: 40px; min-height: 40px; }
   .loc-dropdown { max-height: 240px; }
@@ -4962,9 +5097,11 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
   display: grid; place-items: center; font-size: 22px;
   background: var(--teal-soft, #E7F4F1); color: var(--teal-deep, var(--teal));
 }
-.app-home-trip-thumb.is-live { background: var(--teal); color: #fff; }
-/* dark lightens --teal to #2BB8AC — white on that is 2.47:1; ink on teal passes */
-[data-theme='dark'] .app-home-trip-thumb.is-live { color: #06251f; }
+/* Through the semantic ladder, not raw --teal: white on the light --teal measures
+   4.08:1 at any size, and dark lightens --teal to #2BB8AC (2.45:1). The primary
+   pair is AA-checked in both themes, so the old dark-only ink override is gone —
+   --color-primary-foreground already carries #06251f there. */
+.app-home-trip-thumb.is-live { background: var(--color-primary); color: var(--color-primary-foreground); }
 .app-home-trip-body { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .app-home-trip-name {
   font-weight: 700; font-size: 15px;

@@ -29,3 +29,14 @@ vitest_out.txt
 # local APK downloads from CI artifacts
 *.apk
 android/app/yatraflow-debug.p12
+
+# local dev-server / push logs (vite writes these when its output is redirected;
+# same class of local noise as dev.log / dev_server_run.log above)
+dev-server*.log
+push.log
+
+# local agent/tool state — design reports, critiques, sandbox state. Never part
+# of the app, and never to be swept into a commit by `git add -A`.
+.commandcode/
+.impeccable/
+.freebuff/

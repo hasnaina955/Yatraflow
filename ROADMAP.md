@@ -16,20 +16,21 @@ request** (never a direct push); `main` merges stay explicitly user-gated
 (AGENTS rule 1).
 
 **Snapshot (2026-09-15, verified against the repo):** `main` and `test` both carry **v0.54.0** —
-the promotion landed as PR #199. `test` is **4 commits ahead** (the roadmap-truth pairs #200/#201,
-the Day Planner terrain fix #203, and the halt-pin batch #205); `main` is **8 ahead** (the v0.54.0
-promotion merge, the README hero captures from PRs #147/#148, the v0.53.0 status refresh from
-#117, and their merge commits). Current version: **0.54.0**.
+the promotion landed as PR #199. `test` is **6 commits ahead** (the roadmap-truth pairs #200/#201,
+the terrain fix #203, the halt-pin batch #205, the ledger refresh #206 and the Day Planner
+finishing batch #207); `main` is **8 ahead** (the v0.54.0 promotion merge, the README hero captures
+from PRs #147/#148, the v0.53.0 status refresh from #117, and their merge commits). Current
+version: **0.54.0**.
 
 **Live open work is tracked in two places, and this file must agree with both:**
 
 1. **The issue queue** — see [Open issues](#open-issues) below for the current list, which is
    derived from the GitHub API rather than recalled. The queue has MOVED since the last
    snapshot: the #84–#90 a11y/bug batch, the Day Planner defects (#187/#188/#189), #107's audit
-   tail, #124's terrain-blind walk and #143's pins are all **closed**; five issues remain — the
-   rebrand (#96), the Day Planner's remaining halves (#122 season, #142 settings surface), and
-   two audit findings (#202 this file, #204 profile granularity). Re-derive with `gh issue list`
-   before quoting counts.
+   tail, #124's terrain-blind walk, #143's pins and the whole Day Planner finishing set — #122's
+   season half, #142's settings surface, #202 on this file and #204's profile granularity — are
+   all **closed**. **One issue remains**: the rebrand (#96), blocked on a name rather than on work.
+   Re-derive with `gh issue list` before quoting counts.
 2. **The milestone tracks** — M5 → M9, plus the 1.0 cut. These are *planning* tracks: they are
    directions of travel, not release numbers.
 
@@ -47,15 +48,12 @@ number collides with a shipped release, the ledger wins.
 
 Re-derived from the GitHub API 2026-09-15 (`gh issue list --state open`). The previous
 #84–#90 batch is **closed** (all eight swept in v0.49.0), as are the Day Planner defects
-that drove the v0.54.0 work (#187/#188/#189), and #124/#143 shipped since. Five issues remain:
+that drove the v0.54.0 work (#187/#188/#189), and #124/#143 shipped since, as did the
+Day Planner finishing set. One issue remains:
 
 | # | Priority | Area | Issue | Relevance |
 |---|---|---|---|---|
-| #96 | — | enhancement | Rebrand: pick the new name + execute | **Blocked on the name**, not on code — the seam exists on `refactor/brand-seam` |
-| #122 | enhancement | day planner | Fixed dinner window ends every day 20:00–21:00 regardless of party/season | **Party half shipped** (#205): dinner is an input, kids/seniors pull it to 19:00, post-dinner driving is allowed. **Season half open** — nothing derives `nightEndMin` from sunset yet, though the hook now exists |
-| #142 | enhancement | day planner | Driver count + party inputs that move the wheel cap | **Inputs shipped** (#151, `CreateTrip.tsx`). Verified remaining ask: `driverCount` appears 0× in `TripSettingsForm.tsx`, so an existing trip cannot change who drives |
-| #202 | bug | docs | ROADMAP carries stale claims | **Fixed by this change** — snapshot, live queue, M5, the next-version line and the ledger rows below were each re-checked against the repo |
-| #204 | bug, **P2** | day planner | A leg-derived terrain profile cannot see terrain that changes inside one leg | **Confirmed** — the app routes leg-by-leg, so a ghat inside one stop-to-stop leg degenerates to the blended rate; the three source options and their costs are on the issue |
+| #96 | P2 | enhancement | Rebrand: pick the new name + execute | **Blocked on the name**, not on code — the seam exists on `refactor/brand-seam`. It is now the only open issue |
 
 **Relevance note (2026-09-15).** Every Day Planner item above was re-checked against `src/`
 rather than accepted on its title — several are now partially or fully satisfied by the v0.54.0

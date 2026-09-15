@@ -16,6 +16,16 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Fixed
+
+### Docs
+
+## [0.55.0] - 2026-09-16
+
+### Added
 - **A gallery import pipeline with a contract, a validator and an engine gate.** `docs/ITINERARY-IMPORT-SPEC.md` is the canonical JSON contract for an itinerary import that breaks nothing: every numeric is required (a missing `visitMinutes` renders `NaNh NaNm` and poisons the day's dwell), **both** coordinates are checked (a `(0,0)` or mixed-placeholder pin drags the whole route to the Gulf of Guinea), unknown keys are rejected outright (a typo'd field is otherwise silently dropped), and `days.length` must equal the inclusive date span. `scripts/validate-itinerary.mjs` is that contract's executable half — zero dependencies, run against any file or an `examples/` directory — and `scripts/gallery-geocode.mjs` supplies the coordinates the way the spec demands (Nominatim lookups with punctuation fallbacks, so an apostrophe or a comma cannot lose a stop). `tests/golden-itineraries.test.ts` is the second gate: it spawns the validator, then runs each `docs/examples/itineraries/*.golden.json` through the real engine and requires **health ≥ 85 with no HIGH-severity warning** and a declared budget within **±15 %** of the engine's own estimate. It also pins the validator's enum tables to `src/data/types.ts`, so a schema change cannot silently desync the two.
 - **`docs/PLAYBOOK-GALLERY-RESEARCH.md` — how the gallery gets filled.** The five-stage workflow (select → research → draft → validate → publish) with the source ladder (official tourism/ASI/IRCTC pages for every fee, the app's own router for every distance, recent trip reports for rhythm), a research sheet, the publish step, a gallery ledger, and the first-impression checklist. It records the two rules the first shelf entry taught: **coordinates are geocoded, never recalled** (hand-typed coordinates for the Bylakuppe/Dubare cluster were ~15 km off), and **fee conflicts are reconciled in the open** (Mysore Palace shows ₹50 in the palace's own announcement and ₹70 in guidebooks — publish the official figure, cite it, and say so in `warningsAndAssumptions`).
 - **The first shelf entry — `coorg-loop-from-bangalore`, 5 days, ₹12,100/person against the engine's ₹12,102.** Its first shape was the popular 3-day Bangalore→Coorg weekend, and Gate 2 rejected it: day 1 measured **423 min / 268 km** — a HIGH "heavy travel time" warning, because that drive is honestly 6–7 hours. The published loop breaks the drive at Mysore in both directions (max day 262 min), cites every ticketed fee to a Tier-1 source, and geocodes every stop against OSM — the same provider stack the app uses.

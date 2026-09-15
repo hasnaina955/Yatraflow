@@ -25,6 +25,11 @@ export const MEAL_INTERVAL_KM = 300
 export const FUEL_INTERVAL_KM = 450
 /** ≈7 h — the cross-day overnight cadence; max daily drive cap is 8 h. */
 export const OVERNIGHT_INTERVAL_KM = 550
+/** Drift below this km keeps an accepted halt's pin without asking (#143).
+ *  Engine-pure (tests + callers import it); the localStorage pin store lives
+ *  in uiPrefs. */
+export const HALT_PIN_HYSTERESIS_KM = 15
+
 /** Never place two breaks closer than this. */
 export const MIN_BREAK_GAP_KM = 110
 /** Never propose a stop inside this distance of the journey's end. */
@@ -131,11 +136,6 @@ export function isSelfDrivenMode(transportMode?: string): boolean {
   return m === 'car' || m === 'rental' || m === 'motorcycle' || m === 'mixed'
 }
 
-/** Modes where somebody on OUR side of the windscreen drives — the fatigue
- *  caps mean nothing to a sleeper on the 6 a.m. train (#126). Taxi is driven
- *  but professional: standard cap, conservative until party inputs say more. */
-export const DRIVEN_MODES: ReadonlySet<string> = new Set(['car', 'rental', 'motorcycle', 'taxi'])
-
 /** Party + mode inputs that move the wheel cap (#142). */
 export interface PartyOpts {
   travelStyle?: string
@@ -147,16 +147,19 @@ export interface PartyOpts {
 }
 
 /**
- * Honest wheel hours for WHO is driving WHAT (#126 + #142). null = timetable
- * mode: nobody at the wheel, no fatigue model applies. Motorcycle bleeds
- * saddle time (−1.5 h); two rotating drivers buy the day real hours (+2 h,
+ * Honest wheel hours for WHO is driving WHAT (#126 + #142). null = conducted
+ * mode (isSelfDrivenMode owns that call: train/bus/flight/taxi are someone
+ * else's shift). Motorcycle saddle fatigue is already priced into the mode-
+ * tuned style cap (#126). Two rotating drivers buy the day real hours (+2 h,
  * +3 h max at 3+); vulnerable passengers shorten it (−1 h). Rails: never
  * below 6 h, never above 12 — even four packed drivers get a sleep.
  */
 export function wheelCapHoursForParty(o: PartyOpts): number | null {
-  if (o.transportMode != null && !DRIVEN_MODES.has(o.transportMode)) return null
-  let cap = wheelCapHoursFor(o.travelStyle)
-  if (o.transportMode === 'motorcycle') cap -= 1.5
+  // Gate only an EXPLICIT mode: legacy callers (and every geometry-free test)
+  // omit transportMode and keep planning; an omitted mode means "no mode
+  // verdict asked for", not "conducted".
+  if (o.transportMode != null && !isSelfDrivenMode(o.transportMode)) return null
+  let cap = wheelCapHoursFor(o.travelStyle, o.transportMode)
   const drivers = Math.min(Math.max(1, Math.floor(o.driverCount ?? 1)), 4)
   if (drivers >= 2) cap += 2 + Math.min(1, drivers - 2)
   if (o.hasVulnerable) cap -= 1
@@ -604,9 +607,9 @@ export function planTravelClock(input: {
       reason: `Under ${MIN_HONEST_WHEEL_MIN / 60} h of honest wheel time before ${Math.floor(anchors.nightEndMin / 60)}:00 — leave tomorrow by ${DEFER_START} instead`,
     }
   }
-  // The rain clamp is per walked day (#127), severity-banded (#141): a 55%
-  // drizzle is a gentle 0.9x, never a verdict flip; day i's forecast caps
-  // only day i. WMO severity weights the multiplier when the code is known.
+  // The rain clamp is per walked day (#127): day i's forecast caps only day
+  // i, and the WMO severity code weights the multiplier (#141) — a drizzle
+  // damps, a thunderstorm floors out.
   const rainFor = (i: number): number =>
     input.dayRainPct?.[i] != null
       ? rainFactorFor(input.dayRainPct[i], input.dayWeatherCode?.[i] ?? undefined)
@@ -717,6 +720,10 @@ export interface RidePlanInput {
   transportMode?: string
   /** simplified route geometry {lat,lng}[] — enables road-personality tagging */
   roadGeometry?: { lat: number; lng: number }[]
+  /** accepted night-halt pins (#143): route-km keyed by day index. A pinned
+   *  day's overnight segment snaps to the pin; drift beyond
+   *  HALT_PIN_HYSTERESIS_KM surfaces as `haltDriftToKm`, never a silent move. */
+  haltPins?: Record<number, number>
 }
 
 /**
@@ -758,6 +765,11 @@ export interface RideSegment {
   rainPct?: number | null
   /** true when this segment closes a day boundary (overnight stay) */
   dayEnd?: boolean
+  /** accepted-halt pin (#143): this overnight holds a user-accepted position */
+  haltPinned?: boolean
+  /** accepted-halt pin (#143): the re-derived position this pinned halt now
+   *  sits driftTo km away from — a proposal the UI asks about, never a move. */
+  haltDriftToKm?: number
   /** road personality of this segment's window (present when geometry given) */
   roadPersonality?: RoadKind
   /** human road warning for ghat/city windows, e.g. "rest before the climb" */
@@ -998,7 +1010,7 @@ export function planRideSegments(input: RidePlanInput): RideSegment[] {
   // target (meal > fuel > stretch) shifts the merged position to its own km.
   // Extracted as collapse() so Phase B3 can re-run it after the B2 slide.
   raws.sort((a, b) => a.km - b.km || PURPOSE_PRIORITY[b.purposes[0]] - PURPOSE_PRIORITY[a.purposes[0]])
-  type Merged = { km: number; purposes: HaltPurpose[] }
+  type Merged = { km: number; purposes: HaltPurpose[]; pinned?: boolean; driftTo?: number }
   const collapse = (list: Merged[]): Merged[] => {
     const out: Merged[] = []
     for (const raw of list) {
@@ -1115,6 +1127,30 @@ function etaAt(km: number, dayStarts: number[], dayStartTimes: string[] | undefi
     merged = out
   }
 
+  // Phase B4 — accepted night-halt pins (#143): a halt the user accepted does
+  // not move when an unrelated stop reshapes the plan. Within
+  // HALT_PIN_HYSTERESIS_KM the PIN wins silently (sub-threshold drift is
+  // noise); beyond it the pin still holds, and the segment carries the
+  // derived position as a proposal (`haltDriftToKm`) the UI asks about —
+  // never a silent move. Pins key on the NIGHT ordinal (1st accepted halt,
+  // 2nd…), stable even when a re-split shifts derived day indices; the
+  // caller voids them when the route shape (anchorHash) changes.
+  // Runs after every collapse/absorb pass so no merge can shift a pin.
+  if (input.haltPins) {
+    let night = -1
+    for (const m of merged) {
+      if (m.purposes[0] !== 'overnight') continue
+      const pin = input.haltPins[night += 1]
+      if (pin == null || !Number.isFinite(pin)) continue
+      if (Math.abs(m.km - pin) > HALT_PIN_HYSTERESIS_KM) {
+        m.driftTo = m.km // derived new position — a proposal, not a move
+      }
+      m.km = pin
+      m.pinned = true
+    }
+    merged.sort((a, b) => a.km - b.km)
+  }
+
   // Dwell-corrected arrival ETAs (#129): etaAt() is proportional WHEEL time,
   // but the wall clock also spends every halt's dwell EARLIER in the same
   // day — without this the last halt of a 350 km day reads ~1 h 20 m early
@@ -1178,6 +1214,8 @@ function etaAt(km: number, dayStarts: number[], dayStartTimes: string[] | undefi
       etaMinutes: Math.round(etaAt(m.km, dayStarts, input.dayStartTimes, total, drive) + (dwellAhead[i] ?? 0)),
       ...rainFor(m.km, dayStarts, input.dayRainPct),
       dayEnd: purpose === 'overnight' ? true : undefined,
+      haltPinned: m.pinned ? true : undefined,
+      haltDriftToKm: m.driftTo != null ? Math.round(m.driftTo) : undefined,
       hint: includeCharge && purpose === 'fuel'
         ? 'Plug in — ≈60 min at the charger; stretch while it fills'
         : PURPOSE_HINT[purpose](minutesFromPrev),

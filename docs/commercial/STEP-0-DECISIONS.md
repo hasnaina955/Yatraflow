@@ -1,6 +1,6 @@
 # YatraFlow — Step 0: Ratified Commercial Decisions
 
-**Date:** 2026-09-16 · **Status:** DECISION, awaiting founder sign-off on open items ·
+**Date:** 2026-09-16 · **Status:** D1 RATIFIED by founder 2026-09-16; D2/D3 open ·
 **Supersedes:** the fee/subscription [DECISION]s left open in the source docs
 
 This file records the Step 0 outcomes so every threshold and gate downstream is denominated
@@ -12,7 +12,7 @@ evidence-gating collapses.
 
 ---
 
-## D1 · Platform fee: 15% flat → 10% above a lifetime-GMV threshold — RECOMMENDED, open
+## D1 · Platform fee: 15% flat → 10% above a lifetime-GMV threshold — RATIFIED 2026-09-16
 
 Per-₹199-sale arithmetic, Branch 1 (intermediary), Razorpay 2% + 18% GST on fee [DERIVED]:
 

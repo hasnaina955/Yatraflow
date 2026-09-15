@@ -16,6 +16,8 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 ## [Unreleased]
 
 ### Added
+- **Commercial docs now live under `docs/commercial/`.** The strategy report, monetisation plan and launch plan (from `d370aef` on `main`) move out of `docs/` root into `docs/commercial/`, joined by the execution plan and a new `STEP-0-DECISIONS.md` recording the ratified Step-0 numbers (15% fee → 10% tiered, ₹99/mo + ₹49/trip test, Branch-1 intermediary pending CA, reconciled funnel, F1 thresholds). `docs/README.md` indexes the folder.
+
 - **An accepted night halt now holds its position.** Accepting a night halt remembers it by **night ordinal** (0 = the first overnight), so a re-split that shifts day indices can't misattribute it, and every later plan snaps that overnight back to the accepted spot. When the route genuinely moves the halt — a new stop, a different start time — the plan **asks**: drift beyond 15 km surfaces as a "Move here" proposal rather than silently relocating the night, drift below it holds quietly, and changing the trip's endpoints clears its pins outright (#143).
 - **An existing trip can change who is driving (#142).** The party inputs — drivers sharing the wheel, infants or seniors aboard, drive after dinner — shipped in the Create-trip flow, so a trip was frozen at whatever crew it was created with: `driverCount` appeared seven times in `CreateTrip.tsx` and **zero** times in `TripSettingsForm.tsx`. Trip settings now carries the same three controls, and because the engine already honours them, changing them moves the split verdict, the daily wheel cap and the clock walk on the next re-plan (#142).
 

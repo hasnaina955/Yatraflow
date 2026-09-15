@@ -61,15 +61,17 @@ that drove the v0.54.0 work (#187/#188/#189). Six issues remain:
 
 **Relevance note (2026-09-15).** Every Day Planner item above was re-checked against `src/`
 rather than accepted on its title — several are now partially or fully satisfied by the v0.54.0
-engine work, and each row says which. The `M0` seed guard noted below remains a real defect and
-is still unfiled.
+engine work, and each row says which.
 
-**Defect found while auditing this file — not yet filed:** the M0 seed guard below was never
-implemented (see the M0 entry). `store.ts:600` seeds demo trips whenever `tripList` is empty,
-with no check on whether the trips query *failed*; `partial` is built up but consulted only for
-a toast at line 595. A flaky-connection sign-in therefore injects demo trips into a real
-account — the accumulation trap M0 warned about. This is a code fix on an auth path and is
-**deliberately not bundled into a docs pass**; it belongs in its own issue and commit.
+**Correction (2026-09-15) — the M0 seed guard was fixed, and this file said otherwise.** Five
+places below claimed the demo-seed guard was "never implemented". It is implemented: `store.ts`
+tracks `tripCountUnknown` (set whenever the memberships or trips read errors) and the seed line
+reads `if (tripList.length === 0 && seedIfEmpty && !admin && !tripCountUnknown) await seedDemoFor(…)`
+— the `#94` comment above it spells out exactly the accumulation trap M0 warned about. Closed by
+#94 (the v0.49.0 issue sweep), so the ledger box below is ticked and the warnings removed. The
+lesson is the one §6 already states in reverse: **a roadmap row is a claim about code, not a
+fact** — this one stayed wrong for weeks because nobody re-read it against `src/`, and it was
+found only while auditing the file for a release.
 
 ---
 
@@ -103,14 +105,14 @@ and date), per the AGENTS §6 same-edit rule. Detail lives in
 ### Remaining — in release order (details in the tracks below)
 - [x] **v0.45.0** — Create-flow + invites + settings release (PR #81 + merged test work): Trip Ticket bento starter (bill print, outline seeding), car rental mode + local-train fares, range calendar, invite short codes + join-flow fixes, auth-refresh fix, Plan Bench trip settings + editable dates, My Trips search/filter/sort restore (branch `feat/create-trip-ticket`)
 - [x] **v0.46.0** — Masteradmin console (PR #82): JWT-`app_metadata`-gated `#/admin` god-view (users/trips/invites/content/analytics/audit), audited SECURITY DEFINER RPCs, append-only `admin_audit` log, RESTRICTIVE deny policies for disabled accounts (branch `redesign/masteradmin-v045`, migration applied live)
-- [x] **v0.32.0** — Stabilization completion: M0 leftovers (broken `pub:` route, router ready-gate for deep links / invite flash / loading-vs-empty) + M2 remainders (Profile save validation, demo-copy honesty, heading outline) + M1 leftovers (focus-ring gaps, touch targets, stagger freeze). **Note:** this is the row that consumed the `v0.32.0` number also claimed by M6's heading; the M0 **seed guard** was *not* part of it (see M0).
+- [x] **v0.32.0** — Stabilization completion: M0 leftovers (broken `pub:` route, router ready-gate for deep links / invite flash / loading-vs-empty) + M2 remainders (Profile save validation, demo-copy honesty, heading outline) + M1 leftovers (focus-ring gaps, touch targets, stagger freeze). **Note:** this is the row that consumed the `v0.32.0` number also claimed by M6's heading; the M0 **seed guard** was *not* part of it — it landed later, in v0.49.0 (#94).
 - [x] **v0.36.0** — Budget + Group-input deep redesign: metric strip, per-day cost bars, payer balances + settlement, quick-add + in-place expense editing, who-voted tallies + needs-you digest, real composer pickers; `bump_published_stats` uuid→text fix, view dedupe, unpublish owner gate (branch `redesign/budget-group`)
 - [x] **v0.37.0** — Creator release: public creator page `#/creator/:id`, publications manager with stats/edit/unpublish + stale-page nudge (`refreshed_at` migration), Explore newest sort, shared PubCard/forkPublication paths (local branch `redesign/creator-page` until pushed)
 - [x] **v0.38.0** — Creator hub: My publications splits into Overview (lifetime KPIs + manager rows) | Earnings (Gumroad-shaped payouts ledger, honestly empty + labeled projection view via `projectEarnings`); M7 earnings contract documented in ARCHITECTURE (local branch `redesign/creator-hub`)
 - [x] **v0.39.0** — Hard-surface pass (full skills-based review, ~70 findings): 5 HIGH fixes (Landing dark-mode bands, AA hero CTA, StopEditor phantom token, CreateTrip `--accent`, ₹₹ double-symbol), one lucide icon language workspace-wide, global tabular-nums utility, tabpanel/aria-pressed/focus-ring/hit-target a11y, one card-header + chip + fork-CTA grammar, dead code purge (local branch `redesign/hard-surface`)
 - [x] **M3** — Performance architecture: store immutability → slice selectors → DaySection memo → workspace split into pages/trip/* + weather dedup + lazy routes (in [Unreleased], local branch redesign/perf-architecture)
 - [x] **M4** — Design-system hygiene: dead CSS purge, mobile-block consolidation, glass/z-index tokens (in [Unreleased], local branch redesign/perf-architecture; raw-rgba glass stragglers intentionally NOT migrated — see commit `f646b45`)
-- [ ] **M0 defect** — seed guard: skip demo seeding when hydration had query errors (`store.ts:600`, detail in [Open issues](#open-issues))
+- [x] **M0 defect** — seed guard: skip demo seeding when hydration had query errors (#94, v0.49.0 — `store.ts` gates the seed on `!tripCountUnknown`)
 - [ ] **M5** — AI companion: user-configurable LLM endpoint (#22 → #20) — the only milestone that **has** open issues behind it (not the only open work; see [Open issues](#open-issues))
 - [ ] **M6** — Together: integration test suite, live co-editing depth, split expenses
 - [ ] **M7** — Premium: payment gateway, entitlements, unlock flow
@@ -121,25 +123,26 @@ and date), per the AGENTS §6 same-edit rule. Detail lives in
 
 ## Stabilization track — COMPLETE (M0–M4 landed; see the ledger)
 
-**Status note (2026-09-11 audit).** This track shipped across v0.26.0–v0.39.0 and the
-`redesign/*` branches; the ledger above carries the release rows. The bullets below are kept as
-the **record of what was fixed** — they were written as a live to-do list and are now the
-historical description, so read them in past tense. **One item was never implemented** and is
-called out inline.
+**Status note (2026-09-11 audit; corrected 2026-09-15).** This track shipped across v0.26.0–v0.39.0
+and the `redesign/*` branches; the ledger above carries the release rows. The bullets below are kept
+as the **record of what was fixed** — they were written as a live to-do list and are now the
+historical description, so read them in past tense. All six M0 items are closed: the seed guard,
+previously called out here as never implemented, was fixed by #94 (see the correction at the top of
+this file and `store.ts`'s `tripCountUnknown` gate).
 
 ### M0 — "Trust & navigation" (P0 bugs)
-Small diffs, outsized trust impact. Five of six items landed in the v0.26.0/v0.32.0
-stabilization releases; **the seed guard did not** (see the ⚠️ below):
+Small diffs, outsized trust impact. All six items landed — five in the v0.26.0/v0.32.0 stabilization
+releases, the seed guard in v0.49.0 (#94):
 - ✅ **"View public page" was a broken route** — `TripWorkspace.tsx` emitted `pub:<id>`, the
   router splits on `/` → landed on Landing, so publishers could never reach their own published
   page. Fixed.
-- ⚠️ **Failed hydration fakes an empty state and re-seeds demo data — NOT DONE.** `store.ts`
-  logs query errors, then seeds on `tripList.length === 0`, so a network failure injects
-  duplicate demo trips (the accumulation trap from the Sep DB prune — AGENTS §5). The **retry
-  banner** half shipped (`partial` → toast at `store.ts:595`), but the **"skip seeding when any
-  query errored"** half never did: `store.ts:600` still seeds without consulting `partial`.
-  This is the audit's headline defect — tracked as a live item, not a closed one. See
-  "Defect found while auditing this file" above.
+- ✅ **Failed hydration fakes an empty state and re-seeds demo data** — `store.ts` logs query
+  errors; the **retry banner** half shipped early (`partial` → toast), and the **"skip seeding
+  when any query errored"** half landed with #94: `tripCountUnknown` is set whenever the
+  memberships or trips read fails, and the seed runs only when the trip count is trustworthy
+  (`tripList.length === 0 && seedIfEmpty && !admin && !tripCountUnknown`). A flaky-connection
+  sign-in can no longer inject demo trips beside the user's own — the accumulation trap M0
+  warned about (AGENTS §5).
 - ✅ **Invite links flashed "broken" on cold load** — `InviteGate` showed the error whenever
   `trip` was undefined, which it is until hydration finishes. Fixed via the router ready-gate.
 - ✅ **Deep-link reload landed on Landing first** — mid-hydration `me === null` funnelled

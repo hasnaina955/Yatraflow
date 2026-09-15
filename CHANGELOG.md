@@ -15,6 +15,10 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ## [Unreleased]
 
+### Docs
+- **The roadmap stopped claiming a fixed defect was pending.** Five places in `ROADMAP.md` said the M0 demo-seed guard was "never implemented" — the code has gated it since #94 (`store.ts` seeds only when `!tripCountUnknown`, i.e. only when the trip count could actually be read), so the plan of record was carrying an unchecked box and a "headline defect" note for a problem that no longer existed. Verified against source and corrected.
+- **The doc index covers the docs again.** `docs/README.md` gained the missing rows — `MOTION-TOKENS.md`, `DESIGN-SYSTEM-GUARDRAILS.md` (the two halves of the design system the v0.53.0 audit documented), `PERFORMANCE_AUDIT_2026-09-05.md` and `SUGGESTION_ENGINE_BRAINSTORM.md` — each tagged with its Diátaxis flavor, per the §6 protocol.
+
 ## [0.54.0] - 2026-09-15
 
 **The suggestion pipeline tells the truth.** Three faults had been quietly draining the Map tab's suggestions and the Day Planner's halts: detours were computed by subtracting one routing engine's route total from another's internal legs, so every on-road dhaba read "50 km off-route" on a long corridor and the per-day budget withheld almost everything behind it; the workspace and the Map tab each measured the same road, doubling the load that caused the transient failures they then could not recover from; and the night-halt town layer was asking for a place type that Google rejects outright, so it had been returning nothing at all. All three are fixed — detours are measured against the road the search actually ran on, one measurement feeds every surface, and night halts anchor on real towns with beds. The Day Planner's meal and fuel cadences came back with them (a load-balanced 350 km day was absorbing its own lunch and could never fit a fuel stop), Create Trip learned the Plan Bench's money motion and its route integrity, and a rate-limited day now degrades visibly instead of drawing straight lines as if they were roads.

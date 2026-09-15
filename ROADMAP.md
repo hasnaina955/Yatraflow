@@ -15,11 +15,13 @@ user confirmation before any push. Feature work reaches `test` **via pull
 request** (never a direct push); `main` merges stay explicitly user-gated
 (AGENTS rule 1).
 
-**Snapshot (2026-09-15, verified against the repo):** `main` and `test` both carry **v0.54.0** —
-the promotion landed as PR #199. `test` is **9 commits ahead** (the roadmap-truth pairs #200/#201,
-the terrain fix #203, the halt-pin batch #205, the ledger refresh #206, the Day Planner finishing
-batch #207 and the sunset-dinner revert #210); `main` is **8 ahead** (the v0.54.0 promotion merge, the README hero captures
-from PRs #147/#148, the v0.53.0 status refresh from #117, and their merge commits).
+**Snapshot (2026-09-15, verified against the repo):** `main` and `test` both carry **v0.54.0** and the
+gap is closed — the post-v0.54.0 batch (the roadmap-truth pairs #200–#210, the terrain fix #203, the
+halt-pin batch #205, the ledger refresh #206, the Day Planner finishing batch #207 and the
+sunset-dinner revert #210) reached `main` as promotion PR #212 (the `test`→`main` merge `9ac2a38`),
+so `test` is an ancestor of `main` with nothing of its own outstanding. `main` leads only by the docs
+it already owns — the README hero captures and the v0.53.0 status refresh (PRs #117/#147/#148), the
+docs-freshness gate those added, and this promotion's own status refresh.
 Current version: **0.54.0**.
 
 **Live open work is tracked in two places, and this file must agree with both:**

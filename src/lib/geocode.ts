@@ -46,6 +46,7 @@ import {
 import { googleCitiesAlong } from './providers/google'
 import {
   planRideSegments, assignSegmentHits, annotateSegmentHits, cadenceForCrew, leftoverAsSight,
+  preferTownGrade,
   type SegmentHit, type RideSegment,
 } from './ridePlan'
 import { resolveVehicleRange } from './vehicleProfile'
@@ -295,10 +296,15 @@ export async function planJourneyHalts(
   const purposes = [...new Set([...segments.map(s => s.purpose), 'sight' as const])]
 
   // 2. Search with purpose-specific queries (merged into one call per provider)
-  //    Provider directive (2026-09-07): with a Google key, BOTH layers are
-  //    Google-only — POIs AND the city anchor layer. The free-stack city
-  //    search (Overpass+Wikipedia, source of stray "constituency" cards)
-  //    runs only in keyless mode.
+  //    Provider directive (2026-09-07, amended 2026-09-15 for #189): with a
+  //    Google key the POI pipeline stays Google-only. The ONE exception is the
+  //    night-halt town anchor — a halt needs a town with a BED, and Google's
+  //    `locality` type bottoms out at VILLAGE level in rural India (live-
+  //    verified: hamlets like "Gauriyapur", no population to rank by), while
+  //    OSM's type-strict place=city|town returns real towns WITH populations
+  //    (Chunar 37k, Mirzapur 234k, Hazaribagh). Both merge, towns first so the
+  //    population-bearing entry wins the name dedupe. POIs, meals and fuel
+  //    never touch the free stack.
   const googleMode = googleEnabled()
   // The city anchor layer must search at the NIGHT-HALT km positions, not at
   // the raw anchor list: anchors are the trip's stops, which cluster wherever
@@ -317,9 +323,15 @@ export async function planJourneyHalts(
         }),
       ]
     : anchors
+  const citySearch: Promise<PlaceHit[]> = !googleMode
+    ? searchCitiesAlong(anchors, radiusM, 8).catch(() => [] as PlaceHit[])
+    : Promise.all([
+        searchCitiesAlong(cityAnchors, radiusM, 8).catch(() => [] as PlaceHit[]),
+        googleCitiesAlong(cityAnchors, radiusM, 8).catch(() => [] as PlaceHit[]),
+      ]).then(([towns, localities]) => [...towns, ...localities])
   const [hits, cities] = await Promise.all([
     searchNearbyPoisMulti(anchors, radiusM, 16, { ...opts, purposes }).catch(() => [] as PlaceHit[]),
-    (googleMode ? googleCitiesAlong(cityAnchors, radiusM, 8) : searchCitiesAlong(anchors, radiusM, 8)).catch(() => [] as PlaceHit[]),
+    citySearch,
   ])
   // A city that sits nowhere near any halt must not fill one: rural circles
   // often return zero localities while the start-city circle returns many,
@@ -333,9 +345,14 @@ export async function planJourneyHalts(
         return pos != null && haltKms.some(km => Math.abs(pos - km) <= 120)
       })
     : cities
+  // A night halt needs a town with a bed: when OSM returned real towns, its
+  // population-ranked entries are the anchor pool (Google's rural `locality`
+  // results are hamlets — see preferTownGrade). Urban corridors, where OSM has
+  // no town and Google's locality data is strongest, keep the full list.
+  const anchorPool = googleMode ? preferTownGrade(citiesNearHalts) : citiesNearHalts
   const seen = new Set<string>()
   const candidates: PlaceHit[] = []
-  for (const h of [...citiesNearHalts, ...hits]) {
+  for (const h of [...anchorPool, ...hits]) {
     if (!h.name) continue
     const key = h.name.toLowerCase()
     if (seen.has(key)) continue

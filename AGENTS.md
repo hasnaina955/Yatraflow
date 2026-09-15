@@ -612,15 +612,23 @@ Supabase (auth/data) · Vercel (auto-deploy from `main`) · Google Places
 Open-Meteo · Mappls · **OpenFreeMap** (basemap tiles — keyless, no request
 limits, commercial-OK; its TileJSON carries the required attribution, see §4). Live probe for
 Google: `scripts/verify-google-places.mjs`.
-**Provider directive (Sep 2026, PR #73): with a Google key configured, the
-suggestion pipeline is Google-ONLY** — POIs and city anchors both come from
-Google; Google failure, quota exhaustion or empty scans render an honest "no
-match"/quota note, they do NOT silently fall back. The free stack
-(Overpass/Wikipedia/Mappls) serves ONLY keyless mode. Round-trip routes
-(origin ≈ destination) get a Google point-search supplement instead of the
-along-route scan. Geocoding (search box) still degrades Google → free; don't
-reintroduce a silent fallback into the suggestion path, and update surfaces
-that claim it still exists (this section, README, ARCHITECTURE).
+**Provider directive (Sep 2026, PR #73; amended 2026-09-15 for #189): with a
+Google key configured, the POI pipeline is Google-ONLY** — food, fuel,
+lodging, sights and the along-route scan all come from Google; Google failure,
+quota exhaustion or empty scans render an honest "no match"/quota note, they do
+NOT silently fall back. The free stack (Overpass/Wikipedia/Mappls) serves
+keyless mode, with ONE narrow exception: the **night-halt town anchor** also
+asks OSM `place=city|town` even in Google mode, because Google's `locality`
+type bottoms out at village level in rural India while OSM carries real towns
+with populations — a halt needs a bed, and `preferTownGrade` drops the
+hamlet-grade entries when towns are available (live-verified: hamlets like
+"Gauriyapur" vs Chunar 37k / Mirzapur 234k / Hazaribagh). That exception is
+scoped to the town anchor alone; never extend it to POIs or the corridor scan.
+Round-trip routes (origin ≈ destination) get a Google point-search supplement
+instead of the along-route scan. Geocoding (search box) still degrades
+Google → free; don't reintroduce a silent fallback into the suggestion path,
+and update surfaces that claim it never degrades (this section, README,
+ARCHITECTURE).
 
 Applying `supabase/schema.sql` DDL: the Dashboard SQL editor can run inside a
 **read-only transaction** — DDL like `ALTER PUBLICATION` then fails with

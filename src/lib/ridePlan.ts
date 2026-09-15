@@ -1228,6 +1228,21 @@ export function scoreHitForSegment(
 }
 
 /**
+ * Town-grade anchor preference (#189). A night halt needs a town with a BED:
+ * OSM's `place=city|town` carries a population, while Google's rural `locality`
+ * is a hamlet with none and only reaches fit 2 against a town's 3 — a gap that
+ * a handful of kilometres of distance easily erases. So when real towns are on
+ * the table, the hamlet-grade entries are dropped from the anchor pool rather
+ * than left to win on proximity. Where OSM has no town (dense urban corridors,
+ * which is where Google's locality data is strongest) the full list is kept, so
+ * the layer never empties for this reason.
+ */
+export function preferTownGrade(cities: PlaceHit[]): PlaceHit[] {
+  const towns = cities.filter(c => (c.population ?? 0) > 0)
+  return towns.length > 0 ? towns : cities
+}
+
+/**
  * Assign the single best hit to each segment (journey order). Scoring:
  * distance-to-target (heavier outside the segment's window), detour (×2),
  * purpose-fit mismatch (3 − fit) × 4. Greedy dedupe: a hit used for an earlier

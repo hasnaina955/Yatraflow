@@ -237,6 +237,22 @@ Hard rules (each learned the hard way — do not relearn them):
   `YOUR-PROJECT` template; CI and local builds only warn, since they
   legitimately have no credentials. Editing a var never fixes an existing
   deployment — **Redeploy** it.
+- **A Vercel check failing on an already-verified tree is usually infra, not
+  code — but prove it from the deployment payload, not the check name.** During
+  the v0.55.0 promotion, every Vercel check on `test` failed (PR #218 blocked)
+  while local verify ×3 and CI were green and identical content had deployed
+  fine minutes earlier. The check-run/commit-status descriptions only say "run
+  `npx vercel inspect <dpl> --logs`", which returns nothing useful; the real
+  error lives in the deployment object —
+  `MSYS_NO_PATHCONV=1 npx vercel api '/v13/deployments/<dpl>'` (the leading `/`
+  gets MSYS-path-mangled without the env var) → `errorMessage:
+  "Resource provisioning timed out", errorCode: BUILD_FAILED`. The unblock:
+  `MSYS_NO_PATHCONV=1 npx vercel redeploy <dpl>` (Ready in 36s) — the commit
+  status flipped to success on its own and the merge proceeded. Scope it first
+  by committing-statusing a few recent SHAs (`gh api .../commits/<sha>/statuses`):
+  all-recent-failures on green-local trees = infra; one-sharp-onset = diff.
+  Also: `npx vercel` works while `vercel` alone does not on this machine —
+  don't relearn which invocation is authenticated.
 - **Trust `vercel env ls`, not the dashboard's checkboxes.** Its
   `environments (git branch)` column is the only place a branch pin shows up;
   the UI reads as "all enabled" (this misread cost a full wrong-diagnosis

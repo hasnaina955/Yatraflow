@@ -324,6 +324,10 @@ export interface NearbyOpts {
   /** EV drive (#144B): replace fuel cadence with charge cadence — mutually
    *  exclusive with includeFuel; segments label the stops "Charge". */
   includeCharge?: boolean
+  /** Accepted night-halt pins (#143): route-km keyed by day index. The
+   *  planner snaps the matching overnight segment to its pin and surfaces
+   *  drift as a proposal, never a silent move. */
+  haltPins?: Record<number, number> | null
   /** the trip's starting point — hits inside HOME_ZONE_KM of it are dropped */
   homeCenter?: { lat: number; lng: number } | null
   /** additive per-category score bias from itinerary gaps (computeCategoryBias) */

@@ -201,12 +201,13 @@ export function saveFlag(name: string, value: boolean): void {
 
 // ---- Accepted night-halt pins (#143) — local only, never trip data ----
 // An accepted night halt must not jump when an unrelated stop is added:
-// "<tripId>:<dayIndex>" → the pinned route-km. Re-plans propose a delta when
-// the derived halt drifts ≥ HALT_PIN_HYSTERESIS_KM; below that the pin wins
-// silently. Keyed per trip + day so clearing a trip's pins is O(days).
+// "<tripId>:<nightOrdinal>" → the pinned route-km. The ordinal counts
+// overnights in route order (0 = the first night halt), stable even when a
+// re-split shifts derived day indices. Re-plans propose a delta when the
+// derived halt drifts beyond HALT_PIN_HYSTERESIS_KM (exported by the pure
+// engine, ridePlan); below that the pin wins silently. Keyed per trip +
+// night so clearing a trip's pins is O(nights).
 const HALT_PIN_KEY = 'yatraflow_halt_pins'
-/** Drift below this km keeps the pin without asking (#143 hysteresis). */
-export const HALT_PIN_HYSTERESIS_KM = 15
 
 type HaltPinMap = Record<string, number>
 
@@ -228,13 +229,28 @@ function writeHaltPins(map: HaltPinMap): void {
 
 const haltPinId = (tripId: string, dayIndex: number): string => `${tripId}:${dayIndex}`
 
-/** The pinned route-km for a trip's driving day, or null when unpinned. */
+/** The pinned route-km for one accepted night (by ordinal), null when unpinned. */
 export function loadHaltPin(tripId: string, dayIndex: number): number | null {
   const v = readHaltPins()[haltPinId(tripId, dayIndex)]
   return typeof v === 'number' && Number.isFinite(v) ? v : null
 }
 
-/** Pin an accepted night halt at its route-km (#143). */
+/** All pins for one trip, keyed by night ordinal — the bag the planner takes
+ *  (#143). Returns null when the trip has none, so callers can pass it
+ *  straight to planJourneyHalts as "no pins". */
+export function loadHaltPinsForTrip(tripId: string): Record<number, number> | null {
+  const prefix = `${tripId}:`
+  const out: Record<number, number> = {}
+  let any = false
+  for (const [k, v] of Object.entries(readHaltPins())) {
+    if (!k.startsWith(prefix) || !Number.isFinite(v)) continue
+    const day = Number(k.slice(prefix.length))
+    if (Number.isInteger(day) && day >= 0) { out[day] = v; any = true }
+  }
+  return any ? out : null
+}
+
+/** Pin an accepted night halt at its route-km (#143). dayIndex = night ordinal. */
 export function saveHaltPin(tripId: string, dayIndex: number, km: number): void {
   if (!Number.isFinite(km)) return
   const map = readHaltPins()

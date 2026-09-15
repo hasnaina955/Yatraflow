@@ -39,16 +39,37 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
   blended 42 km/h — and `planDriveDays` derives the drive-day split a route **demands**
   from the style/rain-tuned wheel-hour cap, load-balanced (700 km → 2 × 350, never
   585 + 115).
-- **Fixed meal anchors on the clock** (`planTravelClock`): breakfast 08:00–09:30 fires
-  only for pre-08:00 starts, lunch 11:30–14:30, tea 16:30–17:30, dinner 20:00–21:00
-  **ends the driving day**. The night halt lands where the day's km budget, dinner, or
-  the wheel cap arrives first — never night driving. Late starts get honest outcomes: a
-  short hop to a night halt, or a "leave tomorrow 06:00" defer proposal.
+- **The cap knows who drives what.** Timetable modes (train, bus, flight, mixed) get
+  no fatigue verdict at all — nobody is behind the wheel (#126). Two drivers rotating
+  the wheel buy the day real hours (+2 h, +3 h at 3+), a motorcycle loses 1.5 h to
+  saddle fatigue, infants or seniors aboard shorten the day by an hour — always inside
+  honest rails of 6–12 h (#142). Create-trip gains the matching controls: "Drivers
+  sharing the wheel" and "Everyone adult / Infants-seniors".
+- **Meal anchors on the clock, tuned by the party** (`planTravelClock`): breakfast
+  08:00–09:30 fires only for pre-08:00 starts, lunch 11:30–14:30, tea 16:30–17:30,
+  dinner 20:00–21:00 **ends the driving day** — but dinner is now an input, not an
+  absolute: kids/seniors pull it to 19:00, and a "Drive after dinner" trip (the dhaba
+  case) halts for the meal and keeps going within its allowance and the night end
+  (#122). The night halt lands where the day's km budget, dinner, or the wheel cap
+  arrives first — never night driving. Late starts get honest outcomes: a short hop to
+  a night halt, or a "leave tomorrow 06:00" defer proposal.
+- **Rain is severity-banded.** A 40–70% chance is drizzle-grade — a gentle 0.9× on the
+  cap and an honest "slow day, not a new plan" note, never a verdict flip; only >70%
+  assumes disruption (#141). Each walked day takes its own forecast (#127).
 - **The Map tab proposes the split the route demands** — "this drive needs N travel days
-  — apply?" — counted from the travel clock, which knows the start time and bills round
-  trips there and back, so one drive tells one story (#123). Applying it stamps real day
-  shells (title, 08:30 start, extended trip dates); declining is respected with the
-  honest red fatigue verdict (#133, #135).
+  — apply?" — counted from the travel clock, which knows the start time and walks round
+  trips there AND back as a second directed pass, so one drive tells one story (#123,
+  #145). Applying it stamps real day shells (title, 08:30 start, extended trip dates);
+  declining is respected with the honest red fatigue verdict (#133, #135).
+- **Accepted night halts stick.** Accepting a halt pins it (local, per trip): an
+  unrelated stop elsewhere no longer slides the bed down the road. Drift under 15 km
+  keeps the pin silently; past it the row proposes "the road now says ~X km — move
+  here / stay" and never moves on its own. Re-shaping the route's endpoints voids the
+  pins with a toast (#143).
+- **Electric trips charge, not refuel.** An EV profile replaces the fuel cadence with a
+  charge cadence (0.8 × usable range, 60-min dwell carried into every ETA), labelled
+  "Charge" / "Meal + charge" / "Overnight + charge". Fuel ticks that land near a meal
+  fold into it — one combined stop beats two a few minutes apart (#144).
 - **Short trips stopped being silent.** The 90 km floor yields to the 2-hour clock rule
   (80 km of ghat crawl earns its stretch), the destination exclusion zone scales with
   journey length, and ¼/½/¾ fraction rows keep the strip useful below the fatigue floor —
@@ -56,7 +77,8 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 - **Derived day attribution everywhere:** DRIVE/STAY/MIXED labels on timeline day headers
   share the planner's own km-or-hours floor (#134); suggestion rows carry the wall clock
   their halt was derived from, "Day N · after your night stop" chips, and return-leg
-  chips on the far quarter of round trips.
+  chips that only appear on trips whose clock really walks a drive home — circuits
+  never claim a return they don't drive (#145).
 - **The bill prices the bed.** Hotel stops — accepted night halts or hand-added stays —
   gain a lodging line (overnights × rooms × style rate) from one stay-rate table shared
   with the budget bench (#125b); lodging identity keys on the provider place-id first

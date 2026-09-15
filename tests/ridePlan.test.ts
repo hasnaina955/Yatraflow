@@ -201,6 +201,22 @@ describe('fitScoreForPurpose', () => {
     const overnight = seg('overnight', 0)
     expect(scoreHitForSegment(town, overnight, anchors)!).toBeLessThan(scoreHitForSegment(hamlet, overnight, anchors)!)
   })
+
+  it('a night-halt anchor far from its halt is REJECTED, not grabbed (#189)', () => {
+    // Live-verified: a 350 km halt anchored on Jhumri Tilaiya, 800 km further
+    // down the corridor — an early segment starved of nearby options took the
+    // least-bad candidate instead of reporting an honest gap.
+    const anchors = lineAnchors(100, 1400)
+    const near = hit('Chunar', kmAt(7, 100) / 111.32, 0, { category: 'rest', isPopulatedPlace: true, population: 37_185 })
+    const far = hit('Jhumri Tilaiya', kmAt(12, 100) / 111.32, 0, { category: 'rest', isPopulatedPlace: true, population: 1000 })
+    const seg350 = seg('overnight', 350)
+    expect(scoreHitForSegment(near, seg350, anchors)).toBeNull()
+    expect(scoreHitForSegment(far, seg350, anchors)).toBeNull()
+    // the halt it DOES sit near still accepts it
+    expect(scoreHitForSegment(near, seg('overnight', 700), anchors)).not.toBeNull()
+    // and the bound is anchor-only — a town can still serve another purpose
+    expect(scoreHitForSegment(far, seg('stretch', 350), anchors)).not.toBeNull()
+  })
 })
 
 // ============ assignSegmentHits ============

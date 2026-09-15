@@ -1213,6 +1213,13 @@ export function scoreHitForSegment(
   if ((seg.purpose === 'fuel' || seg.purpose === 'meal' || seg.purpose === 'overnight') && fit < 1) {
     return null
   }
+  // A night-halt ANCHOR belongs to the halt it sits near (#189). The upstream
+  // city guard filters candidates against ANY halt km, so a town valid for a
+  // late halt could still be grabbed by an early segment starved of nearby
+  // options — live-verified: a 350 km halt "anchored" on Jhumri Tilaiya,
+  // 800 km further down the corridor. Past this bound the segment is honestly
+  // empty; a halt 800 km from its halt is not a suggestion.
+  if (seg.purpose === 'overnight' && h.isPopulatedPlace && dist > 120) return null
   // Detour scores in minutes at the trip's speed, not flat km: the same
   // off-route distance costs a slow mode more. ×2 keeps the old weight at
   // the 60 km/h reference (10 km = 10 min = 20 points, as before).

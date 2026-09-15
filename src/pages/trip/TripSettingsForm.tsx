@@ -42,6 +42,12 @@ export function TripSettingsForm({ trip, editable }: { trip: Trip; editable: boo
     fuelType: trip.vehicleProfile?.fuelType ?? 'petrol',
     capacity: trip.vehicleProfile?.capacity?.toString() ?? '',
     vehicleEconomy: trip.vehicleProfile?.economy?.toString() ?? '',
+    // Who is behind the wheel (#142) — the same three inputs Create-trip asks
+    // for, so an existing trip can change its party without being recreated.
+    // The engine already honours all three (wheelCapHoursForParty + anchors).
+    driverCount: trip.driverCount,
+    hasVulnerable: trip.hasVulnerable,
+    driveAfterDinner: (trip.driveAfterDinnerMin ?? 0) > 0,
   })
   const [dateErr, setDateErr] = useState<string | null>(null)
   // The day grid follows the date range — show what the picker will do to it.
@@ -230,6 +236,47 @@ export function TripSettingsForm({ trip, editable }: { trip: Trip; editable: boo
             </div>
           </div>
 
+          {/* Who's driving — party + dinner pace (#142). Same three inputs the
+              Create-trip flow asks for; until now an existing trip could not
+              change them, so the split verdict and the clock walk were frozen
+              at whatever the trip was created with. */}
+          <div className="bench-block">
+            <div className="bench-block-head">
+              <span className="bench-eyebrow">Who&apos;s driving</span>
+              <span className="bench-block-value">
+                {(f.driverCount ?? 1) === 1 ? 'One driver' : `${f.driverCount} drivers`}
+              </span>
+            </div>
+            <div className="bench-line" role="group" aria-label="Drivers sharing the wheel">
+              {[1, 2, 3].map(n => (
+                <button key={n} type="button" className={`bench-crew-btn${(f.driverCount ?? 1) === n ? ' on' : ''}`}
+                  aria-pressed={(f.driverCount ?? 1) === n} disabled={!editable}
+                  title={n === 1 ? 'One driver — the honest solo cap' : `${n} drivers rotate — the day earns real hours`}
+                  onClick={() => setF(x => ({ ...x, driverCount: n === 1 ? undefined : n }))}>
+                  {n}
+                </button>
+              ))}
+              <span className="bench-hint">Rotating drivers buy hours; one driver keeps the solo cap.</span>
+            </div>
+            <div className="bench-line" role="group" aria-label="Who is aboard">
+              <button type="button" className={`bench-crew-btn${!f.hasVulnerable ? ' on' : ''}`}
+                aria-pressed={!f.hasVulnerable} disabled={!editable}
+                title="Everyone adult — full-length driving days"
+                onClick={() => setF(x => ({ ...x, hasVulnerable: undefined }))}>Everyone adult</button>
+              <button type="button" className={`bench-crew-btn${f.hasVulnerable ? ' on' : ''}`}
+                aria-pressed={!!f.hasVulnerable} disabled={!editable}
+                title="Infants or seniors aboard — shorter days, earlier dinner"
+                onClick={() => setF(x => ({ ...x, hasVulnerable: true }))}>Infants / seniors</button>
+            </div>
+            <div className="bench-line" role="group" aria-label="Dinner and driving">
+              <button type="button" className={`bench-crew-btn${f.driveAfterDinner ? ' on' : ''}`}
+                aria-pressed={f.driveAfterDinner} disabled={!editable}
+                title="Halt for dinner, then keep going within the allowance and the night end"
+                onClick={() => setF(x => ({ ...x, driveAfterDinner: !f.driveAfterDinner }))}>Drive after dinner</button>
+            </div>
+            <p className="bench-hint">The split verdict and the travel clock re-derive from these — meals, halts and the honest daily cap all move.</p>
+          </div>
+
           {/* Transport mode — bench mode grid */}
           <div className="bench-block">
             <span className="bench-eyebrow">How you travel</span>
@@ -362,6 +409,9 @@ export function TripSettingsForm({ trip, editable }: { trip: Trip; editable: boo
             destinations: f.destinations.map(s => s.trim()).filter(Boolean),
             destinationCoords: destCoords,
             travellers: Math.max(1, f.travellers),
+            driverCount: f.driverCount,
+            hasVulnerable: f.hasVulnerable,
+            driveAfterDinnerMin: f.driveAfterDinner ? 120 : undefined,
             budgetPerPersonInr: Math.max(0, f.budget),
             transportMode: f.transportMode, travelStyle: f.travelStyle,
             stayStyle: f.stayStyle,

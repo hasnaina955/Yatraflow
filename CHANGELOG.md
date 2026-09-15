@@ -39,12 +39,11 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
   blended 42 km/h — and `planDriveDays` derives the drive-day split a route **demands**
   from the style/rain-tuned wheel-hour cap, load-balanced (700 km → 2 × 350, never
   585 + 115).
-- **The cap knows who drives what.** Timetable modes (train, bus, flight, mixed) get
-  no fatigue verdict at all — nobody is behind the wheel (#126). Two drivers rotating
-  the wheel buy the day real hours (+2 h, +3 h at 3+), a motorcycle loses 1.5 h to
-  saddle fatigue, infants or seniors aboard shorten the day by an hour — always inside
-  honest rails of 6–12 h (#142). Create-trip gains the matching controls: "Drivers
-  sharing the wheel" and "Everyone adult / Infants-seniors".
+- **The cap knows who is driving.** Two rotating drivers buy the day real
+  hours (+2 h, +3 h at 3+), infants or seniors aboard shorten it by an hour —
+  always inside honest rails of 6–12 h (#142, on top of the mode tuning of
+  #126). Create-trip gains the matching controls: "Drivers sharing the
+  wheel", "Everyone adult / Infants-seniors", and "Drive after dinner".
 - **Meal anchors on the clock, tuned by the party** (`planTravelClock`): breakfast
   08:00–09:30 fires only for pre-08:00 starts, lunch 11:30–14:30, tea 16:30–17:30,
   dinner 20:00–21:00 **ends the driving day** — but dinner is now an input, not an
@@ -53,9 +52,10 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
   (#122). The night halt lands where the day's km budget, dinner, or the wheel cap
   arrives first — never night driving. Late starts get honest outcomes: a short hop to
   a night halt, or a "leave tomorrow 06:00" defer proposal.
-- **Rain is severity-banded.** A 40–70% chance is drizzle-grade — a gentle 0.9× on the
-  cap and an honest "slow day, not a new plan" note, never a verdict flip; only >70%
-  assumes disruption (#141). Each walked day takes its own forecast (#127).
+- **Drizzle is a slow day, not a new plan.** A ≥40% chance with a light-rain
+  or drizzle WMO code adds an honest note under the split banner — "the split
+  holds; carry the umbrella" — while the cap already damps by severity
+  (#141 with #127).
 - **The Map tab proposes the split the route demands** — "this drive needs N travel days
   — apply?" — counted from the travel clock, which knows the start time and walks round
   trips there AND back as a second directed pass, so one drive tells one story (#123,

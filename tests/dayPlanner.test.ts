@@ -400,10 +400,13 @@ describe('bug-hunt batch (issues #125-#140) — engine invariants', () => {
 })
 
 describe('enhancement batch (issues #122–#146) — party, pins, charge, both walks', () => {
-  it('timetable modes get no split verdict; driven modes keep theirs (#126)', () => {
-    for (const m of ['train', 'bus', 'flight', 'mixed'])
+  it('conducted modes get no split verdict; self-drive modes keep theirs (#126)', () => {
+    // released semantics (day-planner-realism): taxi is someone else's shift;
+    // `mixed` stays plannable because it can include real driving.
+    for (const m of ['train', 'bus', 'flight', 'taxi'])
       expect(planDriveDays({ totalKm: 1400, driveMinutes: 1600, transportMode: m })).toBeNull()
     expect(planDriveDays({ totalKm: 1400, driveMinutes: 2000, transportMode: 'car' })!.driveDayCount).toBeGreaterThan(1)
+    expect(planDriveDays({ totalKm: 1400, driveMinutes: 2000, transportMode: 'mixed' })!.driveDayCount).toBeGreaterThan(1)
     // the clock walk agrees: nobody drives, no drive to plan (empty ok)
     const v = planTravelClock({ totalKm: 1400, driveMinutes: 1600, transportMode: 'bus' })
     expect(v.verdict).toBe('ok')
@@ -451,16 +454,20 @@ describe('enhancement batch (issues #122–#146) — party, pins, charge, both w
     }
   })
 
-  it('drizzle never flips the split; a cloudburst does (#141)', () => {
-    expect(rainFactorFor(30)).toBe(1)          // noise, ignored
-    expect(rainFactorFor(55)).toBe(0.9)        // drizzle-grade, gentle
-    expect(rainFactorFor(null)).toBe(1)
-    expect(rainFactorFor(90)).toBeCloseTo(0.55)
-    const dry = planDriveDays({ totalKm: 700, driveMinutes: 1000 })!.driveDayCount
-    const drizzle = planDriveDays({ totalKm: 700, driveMinutes: 1000, rainFactor: rainFactorFor(55) })!.driveDayCount
-    const storm = planDriveDays({ totalKm: 700, driveMinutes: 1000, rainFactor: rainFactorFor(90) })!.driveDayCount
-    expect(drizzle).toBe(dry)
-    expect(storm).toBeGreaterThan(dry)
+  it('same chance, different sky: drizzle damps the cap, storms floor it (#141)', () => {
+    // probability x WMO severity (the released model — the plain 1-pct/200
+    // line is the undefined-code fallback, pinned exhaustively in
+    // tests/day-planner-realism.test.ts). This block owns the CLOCK-WALK half:
+    // per-day codes cap only their own day's budget.
+    const dry = planTravelClock({ totalKm: 1400, driveMinutes: driveMinFor(1400), dayStart: '08:30' })
+    const drizzle = planTravelClock({ totalKm: 1400, driveMinutes: driveMinFor(1400), dayStart: '08:30', dayRainPct: [90, null], dayWeatherCode: [53, null] })
+    const storm = planTravelClock({ totalKm: 1400, driveMinutes: driveMinFor(1400), dayStart: '08:30', dayRainPct: [90, null], dayWeatherCode: [95, null] })
+    if (dry.verdict !== 'ok' || drizzle.verdict !== 'ok' || storm.verdict !== 'ok') throw new Error('expected ok')
+    // day 1 covers less when it rains, and less still in a thunderstorm
+    expect(drizzle.days[0].kmCovered).toBeLessThan(dry.days[0].kmCovered)
+    expect(storm.days[0].kmCovered).toBeLessThan(drizzle.days[0].kmCovered)
+    // day 2 (dry forecast) is untouched by which kind of rain fell on day 1
+    expect(storm.days[1].kmCovered).toBeGreaterThan(storm.days[0].kmCovered)
   })
 
   it('accepted night-halt pins hold position, propose drift, stay quiet below it (#143)', () => {

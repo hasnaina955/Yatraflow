@@ -428,10 +428,13 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     : clockVerdict.verdict === 'hop'
       ? 1
       : splitVerdict?.driveDayCount ?? 1
-  // #141: drizzle-grade rain (40–70%) is uncertainty, not a verdict flip —
-  // the cap takes a gentle 0.9× (rainFactorFor), and the banner adds "plan
-  // for N, pack for N+1" instead of pretending the forecast is fact.
-  const drizzleDay = dayRainPct?.findIndex(p => p != null && p >= 40 && p <= 70) ?? -1
+  // #141: drizzle-grade rain (a 40%+ chance whose WMO code says drizzle or
+  // light rain) damps the cap gently — the note keeps it a "slow day", never
+  // a verdict flip; storms damp fully and the split banner flips honestly.
+  const drizzleDay = dayRainPct?.findIndex((p, i) => {
+    const c = dayWeatherCode?.[i]
+    return p != null && p >= 40 && c != null && c >= 51 && c <= 63
+  }) ?? -1
   // The split wants more days than planned: propose applying it. Declining is
   // respected — with the honest red fatigue verdict stated, never hidden.
   const [splitDeclined, setSplitDeclined] = useState(false)

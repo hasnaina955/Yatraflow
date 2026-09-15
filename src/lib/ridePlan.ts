@@ -136,11 +136,6 @@ export function isSelfDrivenMode(transportMode?: string): boolean {
   return m === 'car' || m === 'rental' || m === 'motorcycle' || m === 'mixed'
 }
 
-/** Modes where somebody on OUR side of the windscreen drives — the fatigue
- *  caps mean nothing to a sleeper on the 6 a.m. train (#126). Taxi is driven
- *  but professional: standard cap, conservative until party inputs say more. */
-export const DRIVEN_MODES: ReadonlySet<string> = new Set(['car', 'rental', 'motorcycle', 'taxi'])
-
 /** Party + mode inputs that move the wheel cap (#142). */
 export interface PartyOpts {
   travelStyle?: string
@@ -152,16 +147,19 @@ export interface PartyOpts {
 }
 
 /**
- * Honest wheel hours for WHO is driving WHAT (#126 + #142). null = timetable
- * mode: nobody at the wheel, no fatigue model applies. Motorcycle bleeds
- * saddle time (−1.5 h); two rotating drivers buy the day real hours (+2 h,
+ * Honest wheel hours for WHO is driving WHAT (#126 + #142). null = conducted
+ * mode (isSelfDrivenMode owns that call: train/bus/flight/taxi are someone
+ * else's shift). Motorcycle saddle fatigue is already priced into the mode-
+ * tuned style cap (#126). Two rotating drivers buy the day real hours (+2 h,
  * +3 h max at 3+); vulnerable passengers shorten it (−1 h). Rails: never
  * below 6 h, never above 12 — even four packed drivers get a sleep.
  */
 export function wheelCapHoursForParty(o: PartyOpts): number | null {
-  if (o.transportMode != null && !DRIVEN_MODES.has(o.transportMode)) return null
-  let cap = wheelCapHoursFor(o.travelStyle)
-  if (o.transportMode === 'motorcycle') cap -= 1.5
+  // Gate only an EXPLICIT mode: legacy callers (and every geometry-free test)
+  // omit transportMode and keep planning; an omitted mode means "no mode
+  // verdict asked for", not "conducted".
+  if (o.transportMode != null && !isSelfDrivenMode(o.transportMode)) return null
+  let cap = wheelCapHoursFor(o.travelStyle, o.transportMode)
   const drivers = Math.min(Math.max(1, Math.floor(o.driverCount ?? 1)), 4)
   if (drivers >= 2) cap += 2 + Math.min(1, drivers - 2)
   if (o.hasVulnerable) cap -= 1
@@ -609,9 +607,9 @@ export function planTravelClock(input: {
       reason: `Under ${MIN_HONEST_WHEEL_MIN / 60} h of honest wheel time before ${Math.floor(anchors.nightEndMin / 60)}:00 — leave tomorrow by ${DEFER_START} instead`,
     }
   }
-  // The rain clamp is per walked day (#127), severity-banded (#141): a 55%
-  // drizzle is a gentle 0.9x, never a verdict flip; day i's forecast caps
-  // only day i. WMO severity weights the multiplier when the code is known.
+  // The rain clamp is per walked day (#127): day i's forecast caps only day
+  // i, and the WMO severity code weights the multiplier (#141) — a drizzle
+  // damps, a thunderstorm floors out.
   const rainFor = (i: number): number =>
     input.dayRainPct?.[i] != null
       ? rainFactorFor(input.dayRainPct[i], input.dayWeatherCode?.[i] ?? undefined)

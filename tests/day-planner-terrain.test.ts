@@ -19,7 +19,7 @@
 // vs 75, tea 376 vs 295, split 450 km vs 380, maxDailyWheelMin 520 vs 590), and
 // the default-preservation test pins the contract the fix must not break.
 import { describe, expect, it } from 'vitest'
-import { loopProfile, planDriveDays, planTravelClock } from '../src/lib/ridePlan'
+import { loopProfile, planDriveDays, planTravelClock, roadProfileFromLegs } from '../src/lib/ridePlan'
 
 /** Terrain spec: cumulative wheel minutes at each distance — the shape the fix consumes. */
 type TerrainProfile = { km: number; min: number }[]
@@ -144,3 +144,63 @@ describe('#124 — mixed terrain (ghat first 100 km, then highway)', () => {
 // satisfiable from leg data when a stop splits the terrains; otherwise the
 // profile must come from finer data (provider per-step / per-coordinate
 // durations) or a stated terrain speed model. See the #124 evaluation.
+
+// ============ #204 — terrain INSIDE one leg ============
+// The app routes leg-by-leg between stops, so a profile built from leg totals
+// only sees terrain that changes AT a stop. These fixtures pin the finer path:
+// when the provider returns per-coordinate times (OSRM's annotations, which the
+// measurement now asks for on the same request), the ghat inside a stop-to-stop
+// leg reaches the anchors.
+describe('#204 — a leg carries its own terrain', () => {
+  /** One 400 km leg: 100 km of ghat in 4 h, then 300 km of highway in 5 h. */
+  const intraLeg = { km: 100, min: 240 }
+  const withAnnotations = {
+    distanceKm: 400,
+    durationMinutes: 540,
+    segments: [{ km: 0, min: 0 }, intraLeg, { km: 400, min: 540 }],
+  }
+
+  it('builds a profile at the provider’s resolution, not the leg’s endpoints', () => {
+    expect(roadProfileFromLegs([withAnnotations])).toEqual([
+      { km: 0, min: 0 },
+      { km: 100, min: 240 },
+      { km: 400, min: 540 },
+    ])
+  })
+
+  it('without annotations the same leg collapses to a straight line — the gap this issue filed', () => {
+    expect(roadProfileFromLegs([{ distanceKm: 400, durationMinutes: 540 }])).toEqual([
+      { km: 0, min: 0 },
+      { km: 400, min: 540 },
+    ])
+  })
+
+  it('offsets a later leg’s segments onto the corridor', () => {
+    const second = {
+      distanceKm: 200,
+      durationMinutes: 200,
+      segments: [{ km: 0, min: 0 }, { km: 50, min: 50 }, { km: 200, min: 200 }],
+    }
+    const p = roadProfileFromLegs([withAnnotations, second])!
+    expect(p[p.length - 1]).toEqual({ km: 600, min: 740 })
+    // the second leg's first hop lands at 450 km / 590 min, not at its own 50/50
+    expect(p).toContainEqual({ km: 450, min: 590 })
+  })
+
+  it('and the anchors follow it: lunch lands in the ghat, not past it', () => {
+    const fine = roadProfileFromLegs([withAnnotations])!
+    const v = planTravelClock({ totalKm: 400, driveMinutes: 540, dayStart: '08:30', profile: fine })
+    expect(v.verdict).toBe('ok')
+    if (v.verdict !== 'ok') return
+    const lunch = v.days[0].anchors.find(a => a.name === 'lunch')!
+    // 11:30 is 180 wheel minutes in, which the ghat puts at ~75 km — the
+    // leg-endpoint profile would have said 133 km.
+    expect(lunch.km).toBeGreaterThan(70)
+    expect(lunch.km).toBeLessThan(80)
+  })
+
+  it('falls back to leg totals for a malformed or empty annotation set', () => {
+    const bad = { distanceKm: 400, durationMinutes: 540, segments: [{ km: 0, min: 0 }] }
+    expect(roadProfileFromLegs([bad])).toEqual([{ km: 0, min: 0 }, { km: 400, min: 540 }])
+  })
+})

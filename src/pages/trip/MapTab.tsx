@@ -16,7 +16,7 @@ import { DetourWhisk } from '../../components/DetourWhisk'
 import { useSuggestionCache, isMapCacheFresh } from '../../hooks/useSuggestionCache'
 import { openExternal } from '../../lib/native'
 import { corridorAnchors, detourKm, detourMinutes, asymmetricDetourMinutes, googleEnabled, planJourneyHalts, reasonForSegmentHit, searchPlacesText, searchNearbyPoisMulti, kmFromStartForHit, planDriveDays, planTravelClock, rainFactorFor, isSelfDrivenMode, requireHitCoords, hasCoords, DEFER_START, type NearbyOpts, type PlaceHit, type TravelClockVerdict, routeHash } from '../../lib/geocode'
-import { isSightCategory, roadProfileFromLegs, loopProfile } from '../../lib/ridePlan'
+import { isSightCategory, roadProfileFromLegs, loopProfile, anchorsFromSunset } from '../../lib/ridePlan'
 import { QuotaExhaustedError } from '../../lib/providers/google'
 import { isElectric } from '../../lib/vehicleProfile'
 import { railReasonChips, type RailChip } from '../../lib/railReasons'
@@ -268,12 +268,17 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
 
   // Per-day rain chance for the weather join — best-effort, null until loaded.
   const [dayRainPct, setDayRainPct] = useState<(number | null)[] | null>(null)
+  // The trip's first-day sunset (#122): the season input the dinner window and
+  // the day's end follow. Comes from the same Open-Meteo call as the rain — no
+  // extra request — and stays null beyond the forecast window, so the planner
+  // keeps its fixed window rather than inventing a sun time.
+  const [daySunsetMin, setDaySunsetMin] = useState<number | null>(null)
   // WMO code per day (#141) — separates a drizzle chance from a storm chance
   // in the cap multiplier. Same loading lifecycle as the rain array.
   const [dayWeatherCode, setDayWeatherCode] = useState<(number | null)[] | null>(null)
   useEffect(() => {
     const stops = trip.days.flatMap(d => d.stops).filter(s => s.status !== 'rejected' && Number.isFinite(s.lat) && Number.isFinite(s.lng))
-    if (stops.length === 0 || !forecastAvailable(trip.startDate)) { setDayRainPct(null); setDayWeatherCode(null); return }
+    if (stops.length === 0 || !forecastAvailable(trip.startDate)) { setDayRainPct(null); setDayWeatherCode(null); setDaySunsetMin(null); return }
     let cancelled = false
     const anchor = {
       lat: stops.reduce((a, s) => a + s.lat, 0) / stops.length,
@@ -283,9 +288,10 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
       .then(w => {
         if (cancelled) return
         setDayRainPct(trip.days.map((_, i) => w[isoAddDays(trip.startDate, i)]?.rainChancePct ?? null))
+        setDaySunsetMin(w[isoAddDays(trip.startDate, 0)]?.sunsetMin ?? null)
         setDayWeatherCode(trip.days.map((_, i) => w[isoAddDays(trip.startDate, i)]?.code ?? null))
       })
-      .catch(() => { if (!cancelled) { setDayRainPct(null); setDayWeatherCode(null) } })
+      .catch(() => { if (!cancelled) { setDayRainPct(null); setDayWeatherCode(null); setDaySunsetMin(null) } })
     return () => { cancelled = true }
   }, [trip])
   // OSRM's road total (when resolved) is the most accurate journey budget for
@@ -390,9 +396,17 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     driverCount: trip.driverCount,
     hasVulnerable: trip.hasVulnerable,
   }
+  // Season (#122) and party both move dinner EARLIER, so the earlier of the two
+  // wins — a winter sunset cannot be pushed back by an adult-only crew, and a
+  // crew with infants cannot be pushed back by a long summer evening.
+  const sunAnchors = anchorsFromSunset(daySunsetMin)
+  const earliest = (...mins: (number | undefined)[]) => {
+    const set = mins.filter((m): m is number => m != null)
+    return set.length > 0 ? Math.min(...set) : undefined
+  }
   const tripAnchors = {
-    dinnerStartMin: trip.hasVulnerable ? 19 * 60 : undefined,
-    dinnerEndMin: trip.hasVulnerable ? 20 * 60 : undefined,
+    dinnerStartMin: earliest(sunAnchors?.dinnerStartMin, trip.hasVulnerable ? 19 * 60 : undefined),
+    dinnerEndMin: earliest(sunAnchors?.dinnerEndMin, trip.hasVulnerable ? 20 * 60 : undefined),
     allowPostDinnerDriveMin: trip.driveAfterDinnerMin,
   }
   // A round trip's SPLIT demands days for the whole loop (2× the outbound
@@ -417,7 +431,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     // Stable keys only (#135): the walk reads startTimes + party/mode, never the
     // days array identity.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [planKm, wholeTrip.min, trip.travelStyle, trip.transportMode, trip.driverCount, trip.hasVulnerable, trip.driveAfterDinnerMin, dayStartSig, dayRainPct, tripIsRoundTrip, roadProfile],
+    [planKm, wholeTrip.min, trip.travelStyle, trip.transportMode, trip.driverCount, trip.hasVulnerable, trip.driveAfterDinnerMin, dayStartSig, dayRainPct, tripIsRoundTrip, roadProfile, daySunsetMin],
   )
   // One clock story (#123): the banner count comes from the clock walk that
   // knows the start time; planDriveDays stays the geometry-free estimator.

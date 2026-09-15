@@ -532,10 +532,13 @@ export async function googleCitiesAlong(
   // event bills as Nearby Search Essentials.
   const responses = await Promise.all(capped.map(a =>
     placesPost('/places:searchNearby', 'nearbySearch', {
-      // locality alone comes back empty on rural corridor stretches (metro
-      // circles fill with sub-localities); tehsil HQs are typed as admin
-      // areas and cover the countryside
-      includedTypes: ['locality', 'administrative_area_level_3'],
+      // `locality` ONLY. searchNearby accepts a narrow type list, and one
+      // unsupported member 400s the WHOLE request — `administrative_area_level_3`
+      // (valid in Text Search) and `town` both fail here, and because the caller
+      // catches, that 400 presented as "no cities anywhere": every night halt
+      // silently starved while the layer looked merely empty (live-verified
+      // 2026-09-15, halts on a 1,400 km corridor returning 0 localities).
+      includedTypes: ['locality'],
       locationRestriction: {
         circle: { center: { latitude: a.lat, longitude: a.lng }, radius: Math.min(radiusM, 50000) },
       },

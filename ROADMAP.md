@@ -53,7 +53,7 @@ that drove the v0.54.0 work (#187/#188/#189). Six issues remain:
 | # | Priority | Area | Issue | Relevance |
 |---|---|---|---|---|
 | #96 | — | refactor | Rebrand: pick the new name + execute | Seam built on `refactor/brand-seam`; blocked on the name decision, not on code |
-| #124 | bug | day planner | Night halts are arithmetic km points; anchors walk one blended speed | **Confirmed** — the halt lands on a km tick and per-leg terrain never enters the anchor walk |
+| #124 | bug | day planner | Night halts are arithmetic km points; anchors walk one blended speed | **Half-shipped** — v0.54.0 anchors the halt's *place* on a real town inside its window (#196/#197); the *positions* are still walked on one blended rate, so a mixed-terrain day offers the window an hour of road from where the car will be |
 | #122 | enhancement | day planner | Fixed dinner window ends every day 20:00–21:00 regardless of party/season | **Partly addressed** — #142's party inputs moved the cap and the clock gained anchors, but dinner itself is still a fixed window |
 | #142 | enhancement | day planner | Driver count + party inputs that move the wheel cap | **Inputs shipped** (#151); the remaining ask is surfacing them in trip settings |
 | #143 | enhancement | day planner | Sticky accepted halts with delta proposals + hysteresis | Open — a product-design surface (no code started) |

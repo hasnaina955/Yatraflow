@@ -6,6 +6,7 @@ import {
   Bell, Compass, Import, Inbox, Luggage, Link2, Mail, Menu, Moon, Plus,
   Settings, Sparkles, Sun, Tent, X,
 } from 'lucide-react'
+import { Analytics } from '@vercel/analytics/react'
 import {
   browserNotifEnabled, browserNotifPermission, fireBrowserNotification,
   shouldBrowserNotify,
@@ -517,6 +518,10 @@ export default function App() {
       {isNative && me && <BottomNav route={route} onNavigate={navigate} />}
 
       <ToastZone />
+      {/* Web Analytics is a web concern: the Capacitor shell has no Vercel
+          insights endpoint to reach, so the script would load and fail
+          silently on Android. Mount it for the web app only. */}
+      {!isNative && <Analytics />}
     </div>
   )
 }

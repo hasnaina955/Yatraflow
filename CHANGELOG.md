@@ -33,6 +33,7 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 - **#124's roadmap row and the issue now read fixed.** The terrain-blind walk is done (above); the row records the residual as data GRANULARITY — a leg-derived profile cannot see a terrain change inside a single leg — pointing at its own issue rather than at the walk.
 - **The roadmap stopped claiming a fixed defect was pending.** Five places in `ROADMAP.md` said the M0 demo-seed guard was "never implemented" — the code has gated it since #94 (`store.ts` seeds only when `!tripCountUnknown`, i.e. only when the trip count could actually be read), so the plan of record was carrying an unchecked box and a "headline defect" note for a problem that no longer existed. Verified against source and corrected.
 - **The doc index covers the docs again.** `docs/README.md` gained the missing rows — `MOTION-TOKENS.md`, `DESIGN-SYSTEM-GUARDRAILS.md` (the two halves of the design system the v0.53.0 audit documented), `PERFORMANCE_AUDIT_2026-09-05.md` and `SUGGESTION_ENGINE_BRAINSTORM.md` — each tagged with its Diátaxis flavor, per the §6 protocol.
+- **The roadmap's queue is one issue, and the Day Planner finishing set is recorded.** #122 (the dinner window now follows the sun), #142 (trip settings carries the party controls), #202 and #204 (the intra-leg terrain profile) all shipped, so the open-issues table and the live-queue sentence now name the rebrand (#96) alone — and the snapshot's gap counts were re-derived against the repo (test 6 ahead, main 8).
 
 ## [0.54.0] - 2026-09-15
 

@@ -660,9 +660,9 @@ function InviteGate({ codeOrTripId, onNavigate }: { codeOrTripId: string; onNavi
     return status === 'broken' ? (
       <div className="container empty-state">
         <div className="big"><Link2 size={38} aria-hidden /></div>
-        <h1 style={{ fontSize: 26 }}>This invite link is broken</h1>
-        <p className="muted">Ask the trip organiser for a fresh link from the trip’s Share tab.</p>
-        <button className="btn btn-primary" style={{ marginTop: 14 }} onClick={() => onNavigate('/')}>Go home</button>
+        <h1 style={{ fontSize: 26 }}>We couldn’t find that invite</h1>
+        <p className="muted">Check the code and try again, or ask the trip organiser for a fresh link from the trip’s Share tab.</p>
+        <button className="btn btn-primary" style={{ marginTop: 14 }} onClick={() => onNavigate('/')}>Try a different code</button>
       </div>
     ) : (
       <div className="container loading-block"><div className="spinner" />Opening invite…</div>

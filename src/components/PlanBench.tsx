@@ -125,7 +125,7 @@ async function copyText(text: string): Promise<boolean> {
   } catch { return false }
 }
 
-export function PlanBench() {
+export function PlanBench({ startHref }: { startHref: string }) {
   const [input, setInput] = useState<BenchInputs>(() => loadBenchInputs() ?? BENCH_DEFAULTS)
   const [copied, setCopied] = useState(false)
   const [surpriseCooldown, setSurpriseCooldown] = useState(false)
@@ -298,11 +298,13 @@ export function PlanBench() {
   function handleCta() {
     haptic(HAPTIC.select)
     stashBenchPrefill(bill, input)
-    // '#/new' is the Create Trip route (App.tsx `case 'new'`). This used to
-    // point at '#/create', which no route handles — the router's `default:`
-    // sent the visitor back to the landing page, so the CTA looked inert and
-    // the stashed prefill was never read.
-    window.location.hash = '#/new'
+    // Funnel-aware: '#/new' for a signed-in visitor, signup-then-/new otherwise
+    // (LandingPage computes it and passes startHref). Hardcoding '#/new' sent
+    // signed-out visitors back to the landing: the router's !me branch handles
+    // only pub/creator/explore/auth, so '#/new' fell through to LandingPage and
+    // the CTA looked inert — the same class of bug the old '#/create' note
+    // recorded, one layer up.
+    window.location.hash = startHref
   }
 
   // Pointer-follow tilt — desktop pointers only, never reduced-motion.

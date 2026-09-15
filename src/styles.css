@@ -1637,6 +1637,12 @@ button.board-col-zone--add:active { transform: translateY(1px); }
 [data-theme='dark'] .ha-sync span { opacity: .8; }
 .hero-sub { font-size: 17px; color: var(--text-2); max-width: 640px; margin: 14px auto 26px; }
 .hero-ctas { display: flex; gap: 11px; justify-content: center; flex-wrap: wrap; }
+.hero-bench-link { background: none; border: none; color: var(--teal-deep); font-size: 14.5px; font-weight: 600; cursor: pointer; padding: 14px 0 0; display: inline-flex; gap: 6px; align-items: center; text-align: left; font-family: var(--font-body); }
+.hero-bench-link:hover { text-decoration: underline; }
+.hero-bench-link:focus-visible { outline: none; box-shadow: var(--ring); border-radius: 6px; }
+.invite-disclosure { margin-top: 12px; font-size: 14px; }
+.invite-disclosure summary { cursor: pointer; color: var(--text-2); font-weight: 600; }
+.invite-disclosure summary:focus-visible { outline: none; box-shadow: var(--ring); border-radius: 6px; }
 
 /* Landing section headings & grids */
 .section-title { font-size: clamp(1.45rem, 3vw, 1.9rem); text-align: center; margin: 46px auto 6px; max-width: 620px; }
@@ -1645,6 +1651,12 @@ button.board-col-zone--add:active { transform: translateY(1px); }
 .feature-card:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(var(--shadow-navy-rgb),.06), 0 16px 40px rgba(var(--shadow-navy-rgb),.12); }
 .feature-card h3 { font-size: 15.5px; }
 .feature-ico { width: 42px; height: 42px; border-radius: 12px; background: var(--teal-soft); display: flex; align-items: center; justify-content: center; font-size: 20px; margin-bottom: 12px; }
+.feature-card:nth-child(1) .feature-ico { background: var(--teal-soft); }
+.feature-card:nth-child(2) .feature-ico { background: var(--saffron-soft); }
+.feature-card:nth-child(3) .feature-ico { background: var(--yf-purple-100); }
+[data-theme='dark'] .feature-card:nth-child(1) .feature-ico { background: #12332F; }
+[data-theme='dark'] .feature-card:nth-child(2) .feature-ico { background: #3A2C15; }
+[data-theme='dark'] .feature-card:nth-child(3) .feature-ico { background: #2A2440; }
 .feature-card p { font-size: 13.5px; color: var(--text-2); margin-top: 6px; line-height: 1.55; }
 
 /* Steps */
@@ -1653,6 +1665,10 @@ button.board-col-zone--add:active { transform: translateY(1px); }
    scroll approaches (content-visibility). The size estimate keeps the
    scrollbar honest — measured ~600px per section. Big win on first paint
    in the phone WebView, invisible on desktop. */
+.landing-peak { background: var(--bg-soft); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); margin-left: calc(50% - 50vw); margin-right: calc(50% - 50vw); padding: 18px 0 8px; }
+.landing-peak .feature-card { background: var(--card); box-shadow: var(--shadow-sm); transition: box-shadow var(--t-fast) var(--ease-out); }
+.landing-peak .feature-card:hover { transform: none; box-shadow: var(--shadow-sm); }
+.landing-peak .motif { opacity: .18; filter: none; }
 .cta-band { content-visibility: auto; contain-intrinsic-size: auto 620px; }
 .feature-strip { content-visibility: auto; contain-intrinsic-size: auto 300px; }
 .steps-grid { content-visibility: auto; contain-intrinsic-size: auto 340px; }
@@ -2557,7 +2573,6 @@ main:focus { outline: none; }
 .dest-chip button:focus-visible, .role-select:focus-visible, .day-title-btn:focus-visible,
 .trip-hero-back:focus-visible, .health-rec:focus-visible, .link-btn:focus-visible,
 .yf-range:focus-visible, .bench-mode-btn:focus-visible, .bench-stay-row:focus-visible,
-.hero-bench-cta:focus-visible,
 .bench-toggle:focus-visible, .bench-preset-chip:focus-visible,
 .bench-crew-btn:focus-visible,
 .bench-receipt-actions .chip:focus-visible, .bench-surprise:focus-visible {
@@ -3621,61 +3636,6 @@ html.vt-active :where(*) {
   80%, 100% { transform: translateX(330%) skewX(-18deg); }
 }
 
-/* hero CTA — boarding-pass ticket: stub + tear line + flight code */
-.hero-bench-cta {
-  position: relative; display: flex; align-items: stretch; width: min(100%, 460px);
-  margin-top: 14px; padding: 0; border: none; border-radius: var(--radius); cursor: pointer;
-  background: var(--card); color: var(--text); text-align: left;
-  box-shadow: 0 16px 38px -14px rgba(var(--shadow-navy-rgb), .35);
-  transition: transform .2s var(--ease-out), box-shadow .2s var(--ease-out);
-}
-.hero-bench-cta:hover { transform: translateY(-2px); box-shadow: 0 22px 48px -14px rgba(var(--shadow-navy-rgb), .42); }
-/* animated brand strip along the top edge (ticket stripe) */
-.hero-bench-cta::before {
-  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px;
-  border-radius: var(--radius) var(--radius) 0 0;
-  background: linear-gradient(90deg, var(--yf-teal-600), var(--yf-saffron), var(--yf-teal-600));
-  background-size: 220% 100%;
-}
-@media (prefers-reduced-motion: no-preference) {
-  .hero-bench-cta::before { animation: hbc-slide 3.5s linear infinite; }
-  .hero-bench-cta .hbc-arrow { animation: hbc-nudge 1.6s ease-in-out infinite; }
-}
-@keyframes hbc-slide { to { background-position: 220% 0; } }
-@keyframes hbc-nudge { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(4px); } }
-/* left stub: plane roundel, teal wash */
-.hbc-stub {
-  flex-shrink: 0; display: grid; place-items: center; align-self: center;
-  width: 58px; height: 58px; margin: 12px; border-radius: 14px;
-  background: linear-gradient(135deg, var(--yf-teal-100), #fff);
-  border: 1px solid color-mix(in srgb, var(--yf-teal-600) 25%, transparent);
-  font-size: 24px;
-}
-@media (prefers-reduced-motion: no-preference) {
-  .hbc-plane { display: inline-block; animation: hbc-plane 5.5s ease-in-out infinite; }
-}
-@keyframes hbc-plane {
-  0%, 100% { transform: translate(0, 0) rotate(-8deg); }
-  40%      { transform: translate(6px, -5px) rotate(-2deg); }
-  70%      { transform: translate(-3px, 2px) rotate(-12deg); }
-}
-.hbc-text { display: flex; flex-direction: column; justify-content: center; gap: 2px; padding: 14px 0; min-width: 0; }
-.hbc-label { font-size: 16.5px; font-weight: 800; letter-spacing: -.01em; }
-.hbc-sub { font-size: 11.5px; font-weight: 600; color: var(--text-3); letter-spacing: .04em; text-transform: uppercase; }
-/* perforated tear line before the stub code */
-.hbc-tear {
-  align-self: stretch; width: 0; margin: 10px 2px;
-  border-left: 2px dashed color-mix(in srgb, var(--text-3) 45%, transparent);
-}
-/* right stub: "flight" code */
-.hbc-code {
-  flex-shrink: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 1px; padding: 0 14px;
-}
-.hbc-code b { font-size: 14px; font-variant-numeric: tabular-nums; letter-spacing: .06em; color: var(--yf-teal-700); }
-.hbc-code span { font-size: 9px; font-weight: 800; letter-spacing: .14em; color: var(--text-3); text-transform: uppercase; }
-.hbc-arrow { font-size: 15px; color: var(--yf-teal-600); margin-top: 3px; display: inline-block; }
-
 /* ============================================================
    Homepage motion & one-screen Plan Bench (homepage-build)
    ============================================================ */
@@ -3813,8 +3773,6 @@ html.vt-active :where(*) {
   .ticker-track > * { animation: none; }
   .hero .btn, .hero .btn::after { animation: none; box-shadow: none; }
   .motif-compass, .motif-bob, .motif-float, .motif-sway, .motif-rise, .motif-birds { animation: none; }
-  .hbc-plane { animation: none; }
-  .hero-bench-cta::before { animation: none; }
   .reveal-underline::after { transform: scaleX(1); }
 }
 /* ============================================================
@@ -3833,7 +3791,11 @@ html.vt-active :where(*) {
   mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
 }
 .ticker-track { display: flex; width: max-content; animation: ticker-scroll 38s linear infinite; }
-.ticker-track:hover { animation-play-state: paused; }
+.ticker-track:hover, .ticker-track:focus-within { animation-play-state: paused; }
+@media (max-width: 720px) {
+  .ticker-track { animation: none; flex-wrap: wrap; justify-content: center; gap: 8px; width: auto; }
+  .ticker-item { font-size: 12px; }
+}
 .ticker-set { display: flex; align-items: center; flex-shrink: 0; }
 .ticker-item {
   display: inline-flex; align-items: center; gap: 8px; white-space: nowrap;
@@ -3886,6 +3848,19 @@ html.vt-active :where(*) {
   0% { opacity: 0; transform: translateY(6px); }
   100% { opacity: 1; transform: translateY(0); }
 }
+.rs-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.rs-ctrl-btn { background: none; border: 1px solid rgba(255,255,255,.28); color: #fff; border-radius: 999px; padding: 5px 12px; font-size: 12px; font-weight: 600; cursor: pointer; transition: background var(--motion-fast) var(--ease-out), border-color var(--motion-fast) var(--ease-out); }
+.rs-ctrl-btn:hover { background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.45); }
+.rs-ctrl-btn:focus-visible { outline: none; box-shadow: var(--ring); }
+.rs-dots { display: inline-flex; gap: 6px; margin-left: 2px; }
+.rs-dot { position: relative; width: 9px; height: 9px; padding: 0; border-radius: 999px; border: 1.5px solid rgba(255,255,255,.35); background: none; cursor: pointer; transition: background var(--motion-fast) var(--ease-out), border-color var(--motion-fast) var(--ease-out); }
+.rs-dot::after { content: ''; position: absolute; inset: -16px; border-radius: inherit; }
+.rs-dot:hover { border-color: rgba(255,255,255,.6); }
+.rs-dot:focus-visible { outline: none; box-shadow: var(--ring); }
+.rs-dot[aria-current='true'] { background: var(--yf-teal-600); border-color: var(--yf-teal-600); }
+[data-theme='dark'] .rs-dot[aria-current='true'] { background: #2BB8AC; border-color: #2BB8AC; }
+#plan-bench:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; border-radius: 12px; }
+.landing-aux .invite-disclosure { flex: 1 1 360px; max-width: 420px; }
 /* ---------- Rich, solid CTAs (hero) — colour must not be washed by glass ---------- */
 .hero .btn-lg {
   position: relative; overflow: hidden; letter-spacing: .01em;
@@ -4049,6 +4024,12 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
   /* timeline extras */
   .day-spark { display: none; }
 
+  /* Landing impact grid: the 4th cell is a sentence, not a figure — give it the
+     full row on phones so it reads as a warning strip instead of a cramped
+     2-up cell. Scoped to .landing-peak because .impact-grid/.impact-cell are
+     shared with the in-app Impact Preview sheet. */
+  .landing-peak .impact-cell--warn { grid-column: 1 / -1; }
+
   /* map chips, legend & expanded shell */
   .map-day-filter {
     flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none;
@@ -4143,9 +4124,7 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
   .budget-hero-num { font-size: 32px; }
   .board-col-zone { min-height: 48px; justify-content: center; }
 
-  /* hero bench CTA */
-  .hero-bench-cta { width: 100%; }
-  .hbc-label { font-size: 15px; }
+  /* hero bench CTA — removed (replaced by .hero-bench-link) */
 
   /* Plan Bench + public itinerary + explore (single-screen layouts) */
   /* v2 stack: controls card first, receipt bill below it (reading order). */
@@ -5115,7 +5094,7 @@ html.native-shell {
 @media screen {
   .pulse-bar .pulse-label, .day-badge small, .tps-label, .tl-total-label, .day-rail-label,
   .stop-kind-tag, .board-pulse .pulse-label, .budget-hero-label, .share-intent, .impact-cell .k,
-  .ha-kicker, .ha-stats span, .hbc-code span, .hbc-sub, .loc-kind, .weather-day, .ride-purpose,
+  .ha-kicker, .ha-stats span, .loc-kind, .weather-day, .ride-purpose,
   .bench-eyebrow, .bench-scale-ends, .bench-receipt-kicker, .bench-total-label, .bench-badge,
   .ticker-item .t-tag, .board-stop-kicker, .tk-brand, .tk-kind, .creator-badge, .pub-ledger th, .route-tag, .group-lab, .mini-lab,
   .compare-table th, .toast-action, .editorial-kicker, .pub-stats-label,

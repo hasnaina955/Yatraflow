@@ -268,6 +268,10 @@ const SCENARIO_MS = 8000
 export function RouteSquiggle() {
   const gid = React.useId().replace(/[:]/g, '')
   const [idx, setIdx] = React.useState(0)
+  const [paused, setPaused] = React.useState(false)
+  const pausedRef = React.useRef(false)
+  const manualRef = React.useRef(false)
+  const shellRef = React.useRef<HTMLDivElement>(null)
   // The scenario currently animating out (kept mounted one extra cycle for the
   // crossfade). Undefined until the first tick; only a single outgoing exists at
   // a time because each tick overwrites it with the previously-active trip.
@@ -278,19 +282,59 @@ export function RouteSquiggle() {
     typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches)
   const activeRef = React.useRef(0)
   React.useEffect(() => { activeRef.current = idx }, [idx])
+  React.useEffect(() => { pausedRef.current = paused }, [paused])
   React.useEffect(() => {
     if (typeof window !== 'undefined' &&
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
     const t = window.setInterval(() => {
+      if (pausedRef.current || document.hidden) return
       setOutgoing(activeRef.current)
       setIdx(i => (i + 1) % ROUTE_SCENARIOS.length)
     }, SCENARIO_MS)
-    return () => window.clearInterval(t)
+    const io = new IntersectionObserver(entries => {
+      for (const e of entries) {
+        if (!e.isIntersecting) {
+          // Leaving the viewport releases any manual hold set by a dot or a
+          // prev/next click, so returning re-arms autoplay. Without this, one
+          // manual nav froze the carousel for the rest of the session.
+          manualRef.current = false
+          setPaused(true)
+        } else if (!manualRef.current) {
+          setPaused(false)
+        }
+      }
+    }, { threshold: 0.1 })
+    if (shellRef.current) io.observe(shellRef.current)
+    const onVis = () => { if (document.hidden) setPaused(true) }
+    document.addEventListener('visibilitychange', onVis)
+    return () => {
+      window.clearInterval(t)
+      io.disconnect()
+      document.removeEventListener('visibilitychange', onVis)
+    }
   }, [])
   const out = outgoing !== null ? ROUTE_SCENARIOS[outgoing] : null
   const scen = ROUTE_SCENARIOS[idx]
+  function goTo(n: number, manual: boolean) {
+    if (manual) manualRef.current = true
+    setOutgoing(activeRef.current)
+    setIdx(((n % ROUTE_SCENARIOS.length) + ROUTE_SCENARIOS.length) % ROUTE_SCENARIOS.length)
+  }
+  function togglePause() {
+    if (pausedRef.current) {
+      manualRef.current = false
+      setPaused(false)
+    } else {
+      manualRef.current = true
+      setPaused(true)
+    }
+  }
   return (
-    <div className="rs-shell">
+    <div className="rs-shell" ref={shellRef}
+      onMouseEnter={() => { if (!manualRef.current) setPaused(true) }}
+      onMouseLeave={() => { if (!manualRef.current && !document.hidden) setPaused(false) }}
+      onFocusCapture={() => { if (!manualRef.current) setPaused(true) }}
+      onBlurCapture={() => { if (!manualRef.current && !document.hidden) setPaused(false) }}>
       <svg viewBox="0 0 532 132" className="rs-svg" aria-hidden="true" role="presentation">
         <defs>
           <linearGradient id={`rg-${gid}`} x1="0" x2="1">
@@ -320,11 +364,25 @@ export function RouteSquiggle() {
           dots={!reduced}
         />
       </svg>
-      <div className="rs-caption" key={`cap-${idx}`} aria-hidden="true">
+      <div className="rs-caption" key={`cap-${idx}`}>
         <span className="rs-caption-name">{scen.name}</span>
         <span className="rs-caption-meta">{scen.meta}</span>
       </div>
       <ScenarioStats key={`stats-${idx}`} scen={scen} />
+      <div className="rs-controls" role="group" aria-label="Trip story controls">
+        <button type="button" className="rs-ctrl-btn" onClick={() => togglePause()} aria-pressed={paused}>
+          {paused ? 'Play the trip stories' : 'Pause the trip stories'}
+        </button>
+        <button type="button" className="rs-ctrl-btn" onClick={() => goTo(idx - 1, true)}>← Previous trip</button>
+        <button type="button" className="rs-ctrl-btn" onClick={() => goTo(idx + 1, true)}>Next trip →</button>
+        <span className="rs-dots" role="group" aria-label="Choose a trip story">
+          {ROUTE_SCENARIOS.map((s, i) => (
+            <button key={i} type="button" className="rs-dot" aria-label={`Show trip ${i + 1}: ${s.name}`}
+              aria-current={i === idx ? 'true' : undefined} onClick={() => goTo(i, true)} />
+          ))}
+        </span>
+      </div>
+      <p className="sr-only" aria-live="polite">Showing trip story {idx + 1} of {ROUTE_SCENARIOS.length}: {scen.name}.</p>
     </div>
   )
 }

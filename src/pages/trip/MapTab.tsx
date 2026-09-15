@@ -6,7 +6,7 @@ import { MetaIcon } from '../../components/icons'
 import { uid } from '../../data/seed'
 import type { Trip, ItineraryStop } from '../../data/types'
 import type { ImpactResult } from '../../lib/impact'
-import { mapRoadViewFromLegs, type TripRoadView } from '../../lib/tripRoad'
+import { mapRoadViewFromLegs, outboundLegs, type TripRoadView } from '../../lib/tripRoad'
 import { buildJourney, minutesToHM, fmtDur, computeCategoryBias, MODE_SPEED, isRoundTrip } from '../../lib/engine'
 import { useTimeFormat, formatHM, formatHMRange } from '../../lib/timefmt'
 import { loadPref, savePref } from '../../lib/uiPrefs'
@@ -16,7 +16,7 @@ import { DetourWhisk } from '../../components/DetourWhisk'
 import { useSuggestionCache, isMapCacheFresh } from '../../hooks/useSuggestionCache'
 import { openExternal } from '../../lib/native'
 import { corridorAnchors, detourKm, detourMinutes, asymmetricDetourMinutes, googleEnabled, planJourneyHalts, reasonForSegmentHit, searchPlacesText, searchNearbyPoisMulti, kmFromStartForHit, planDriveDays, planTravelClock, rainFactorFor, isSelfDrivenMode, requireHitCoords, hasCoords, DEFER_START, type NearbyOpts, type PlaceHit, type TravelClockVerdict, routeHash } from '../../lib/geocode'
-import { isSightCategory } from '../../lib/ridePlan'
+import { isSightCategory, roadProfileFromLegs, loopProfile } from '../../lib/ridePlan'
 import { QuotaExhaustedError } from '../../lib/providers/google'
 import { isElectric } from '../../lib/vehicleProfile'
 import { railReasonChips, type RailChip } from '../../lib/railReasons'
@@ -200,6 +200,15 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
   // matters most), the Day Planner still speaks, from the haversine estimate,
   // flagged as rough.
   const routeFailed = road?.status === 'failed'
+  // The terrain profile (#124): the clock and the split convert time↔km
+  // through the REAL mix of the road just measured, instead of one blended
+  // rate that placed lunch and the night halt too far along a ghat day and
+  // too short a highway day. Null until the road resolves — then everything
+  // falls back to the blended rate exactly as before.
+  const roadProfile = useMemo(
+    () => roadProfileFromLegs(outboundLegs(road?.chain ?? null, road?.legs ?? null)),
+    [road],
+  )
 
   // Stop signature (#135): stable string key over what buildJourney actually
   // reads (stop ids, road order, coords) — the days ARRAY identity changes on
@@ -360,19 +369,19 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
   // goes quiet through that single gate.
   const selfDriven = isSelfDrivenMode(trip.transportMode)
   const splitVerdict = useMemo(
-    () => planDriveDays({ totalKm: planKm * loopFactor, driveMinutes: wholeTrip.min * loopFactor, rainFactor, ...partyOpts }),
+    () => planDriveDays({ totalKm: planKm * loopFactor, driveMinutes: wholeTrip.min * loopFactor, rainFactor, profile: tripIsRoundTrip ? loopProfile(roadProfile) : roadProfile, ...partyOpts }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [planKm, wholeTrip.min, trip.travelStyle, trip.transportMode, trip.driverCount, trip.hasVulnerable, loopFactor, dayRainPct],
+    [planKm, wholeTrip.min, trip.travelStyle, trip.transportMode, trip.driverCount, trip.hasVulnerable, loopFactor, dayRainPct, roadProfile],
   )
   const clockVerdict = useMemo(
     // #127 per-day rain array; #142 party cap; #122 anchors; #145 a round trip
     // walks the OUTBOUND leg and returns a directed `returnDays` pass — the walk
     // no longer fakes the loop as a single 2× line.
-    () => planTravelClock({ totalKm: planKm, driveMinutes: wholeTrip.min, dayStart: trip.days[0]?.startTime, rainFactor, dayRainPct: dayRainPct ?? undefined, roundTrip: tripIsRoundTrip, ...partyOpts, anchors: tripAnchors }),
+    () => planTravelClock({ totalKm: planKm, driveMinutes: wholeTrip.min, dayStart: trip.days[0]?.startTime, rainFactor, dayRainPct: dayRainPct ?? undefined, roundTrip: tripIsRoundTrip, profile: roadProfile, ...partyOpts, anchors: tripAnchors }),
     // Stable keys only (#135): the walk reads startTimes + party/mode, never the
     // days array identity.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [planKm, wholeTrip.min, trip.travelStyle, trip.transportMode, trip.driverCount, trip.hasVulnerable, trip.driveAfterDinnerMin, dayStartSig, dayRainPct, tripIsRoundTrip],
+    [planKm, wholeTrip.min, trip.travelStyle, trip.transportMode, trip.driverCount, trip.hasVulnerable, trip.driveAfterDinnerMin, dayStartSig, dayRainPct, tripIsRoundTrip, roadProfile],
   )
   // One clock story (#123): the banner count comes from the clock walk that
   // knows the start time; planDriveDays stays the geometry-free estimator.

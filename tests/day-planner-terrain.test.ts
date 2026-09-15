@@ -9,16 +9,17 @@
 // (240 min ≈ 25 km/h) and the remaining 800 km is highway (800 min = 60 km/h).
 // The planner is handed the totals 900 km / 1040 min → blended 51.9 km/h.
 //
-// The oracle below converts WHEEL minutes → km through the terrain spec. The
+// The clock walk converts WHEEL minutes → km through the terrain spec. The
 // walk's dwell accounting (a lunch stop spends 45 min not moving) is the
 // planner's existing, separately-tested behaviour; these fixtures pin only the
-// conversion it currently gets wrong.
+// conversion it got wrong before the fix.
 //
-// EXPECTED ON TODAY'S CODE: the four `MUST` tests fail (positions and times come
-// out blended), while the default-preservation test passes — that is the
-// contract the fix must not break.
+// STATE: GREEN — the fix (profile-aware walk, time-balanced split, MapTab wiring)
+// is in. The four `MUST` tests were red against the blended rate (lunch 156 km
+// vs 75, tea 376 vs 295, split 450 km vs 380, maxDailyWheelMin 520 vs 590), and
+// the default-preservation test pins the contract the fix must not break.
 import { describe, expect, it } from 'vitest'
-import { planDriveDays, planTravelClock } from '../src/lib/ridePlan'
+import { loopProfile, planDriveDays, planTravelClock } from '../src/lib/ridePlan'
 
 /** Terrain spec: cumulative wheel minutes at each distance — the shape the fix consumes. */
 type TerrainProfile = { km: number; min: number }[]
@@ -44,7 +45,7 @@ function kmAfterWheelMinutes(wheelMinutes: number, profile: TerrainProfile = GHA
   return profile[profile.length - 1].km
 }
 
-/** The inverse: wheel minutes needed to cover `km`. */
+/** The inverse: wheel minutes needed to cover `km` from the origin. */
 function wheelMinutesForKm(km: number, profile: TerrainProfile = GHAT_THEN_HIGHWAY): number {
   for (let i = 1; i < profile.length; i++) {
     const a = profile[i - 1]
@@ -57,10 +58,16 @@ function wheelMinutesForKm(km: number, profile: TerrainProfile = GHAT_THEN_HIGHW
   return profile[profile.length - 1].min
 }
 
-// 08:30 start. Lunch at 11:30 = 180 wheel minutes in; +45 min dwell; tea at
-// 16:30 = 255 wheel minutes after lunch resumes. Dwell is time, not distance.
+/** Wheel minutes between two road positions — the honest per-day span. */
+function wheelBetween(fromKm: number, toKm: number, profile: TerrainProfile = GHAT_THEN_HIGHWAY): number {
+  return wheelMinutesForKm(toKm, profile) - wheelMinutesForKm(fromKm, profile)
+}
+
+// 08:30 start. Lunch at 11:30 = 180 WHEEL minutes in; the 45-min lunch dwell is
+// elapsed time, not distance; tea at 16:30 = 255 more wheel minutes (435 total
+// driven), which is why the true tea position is the 435-minute point.
 const LUNCH_KM = kmAfterWheelMinutes(180)              // 75 km
-const TEA_KM = kmAfterWheelMinutes(180 + 45 + 255)     // 295 km
+const TEA_KM = kmAfterWheelMinutes(180 + 255)          // 295 km
 const LUNCH_KM_BLENDED = Math.round(180 * (TOTAL_KM / DRIVE_MIN)) // 156 km — today's answer
 
 describe('#124 — mixed terrain (ghat first 100 km, then highway)', () => {
@@ -100,7 +107,7 @@ describe('#124 — mixed terrain (ghat first 100 km, then highway)', () => {
     // the banner and the fatigue verdict are built on.
     const split = planDriveDays({ totalKm: TOTAL_KM, driveMinutes: DRIVE_MIN, profile: GHAT_THEN_HIGHWAY })
     const boundary = split!.nightHalts[0] ?? TOTAL_KM
-    const trueMax = Math.max(wheelMinutesForKm(boundary), wheelMinutesForKm(TOTAL_KM - boundary))
+    const trueMax = Math.max(wheelBetween(0, boundary), wheelBetween(boundary, TOTAL_KM))
     expect(split!.maxDailyWheelMin).toBeGreaterThanOrEqual(trueMax - 5)
   })
 
@@ -109,6 +116,23 @@ describe('#124 — mixed terrain (ghat first 100 km, then highway)', () => {
     if (v.verdict !== 'ok') return
     const lunch = v.days[0].anchors.find(a => a.name === 'lunch')
     expect(lunch!.km).toBeCloseTo(LUNCH_KM_BLENDED, -1) // ~156 km, exactly as today
+  })
+
+  it('the loop profile doubles the road the way a round trip does', () => {
+    // A round trip retraces the outbound road, so the split — which bills the
+    // whole loop — needs the outbound profile followed by itself, shifted.
+    const looped = loopProfile(GHAT_THEN_HIGHWAY)!
+    expect(looped).toEqual([
+      { km: 0, min: 0 },
+      { km: 100, min: 240 },
+      { km: 900, min: 1040 },
+      { km: 1000, min: 1280 },   // the ghat again, on the way home
+      { km: 1800, min: 2080 },
+    ])
+    // the total km doubles, so it matches the split's `planKm * loopFactor`
+    expect(looped[looped.length - 1].km).toBe(TOTAL_KM * 2)
+    // and a one-way trip is handed back untouched
+    expect(loopProfile(null)).toBeNull()
   })
 })
 

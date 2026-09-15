@@ -62,9 +62,16 @@ export interface PlaceHit {
 /** What kind of journey break a suggestion serves. */
 export type HaltPurpose = 'stretch' | 'meal' | 'fuel' | 'rest' | 'overnight' | 'sight'
 
-/** true when a hit already carries usable coordinates */
+/**
+ * true when a hit already carries usable coordinates. BOTH coordinates must
+ * be non-zero: the (0,0) placeholder is the obvious sentinel, but the live
+ * incident (2026-09-14) shipped a MIXED placeholder — latitude 0 with a real
+ * longitude — that the old `a !== 0 || b !== 0` logic accepted. Latitude 0
+ * (680 km south of Indira Point, mid-ocean) is never a valid pick for an
+ * India trip-planner, so treating it as unusable costs nothing real.
+ */
 export function hasCoords(h: PlaceHit): boolean {
-  return Number.isFinite(h.latitude) && Number.isFinite(h.longitude) && (h.latitude !== 0 || h.longitude !== 0)
+  return Number.isFinite(h.latitude) && Number.isFinite(h.longitude) && h.latitude !== 0 && h.longitude !== 0
 }
 
 /** Only hits the map can actually pin (Mappls pending (0,0) hits excluded). */
@@ -201,7 +208,7 @@ export interface RoutePolylineOpts {
 export function projectOntoPolyline(
   p: Pick<PlaceHit, 'latitude' | 'longitude'>,
   polyline: { lat: number; lng: number }[],
-): { km: number; segIndex: number } | null {
+): { km: number; segIndex: number; lngLat: [number, number] } | null {
   if (!Number.isFinite(p.latitude) || !Number.isFinite(p.longitude)) return null
   const raw = polyline.filter(q => Number.isFinite(q.lat) && Number.isFinite(q.lng))
   if (raw.length < 2) return null
@@ -223,6 +230,7 @@ export function projectOntoPolyline(
   let bestKm = 0
   let bestD2 = Infinity
   let bestSeg = 0
+  let bestLngLat: [number, number] = [raw[0].lng, raw[0].lat]
   for (let i = 0; i < pts.length - 1; i++) {
     const ax = pts[i].lng * kx
     const ay = pts[i].lat * ky
@@ -241,9 +249,10 @@ export function projectOntoPolyline(
       bestSeg = i
       const segLen = Math.max(0, cum[i + 1] - cum[i])
       bestKm = cum[i] + t * segLen
+      bestLngLat = [cx / kx, cy / ky]
     }
   }
-  return { km: Math.max(0, bestKm), segIndex: bestSeg }
+  return { km: Math.max(0, bestKm), segIndex: bestSeg, lngLat: bestLngLat }
 }
 
 /**
@@ -312,6 +321,9 @@ export function routeHash(geometry: [number, number][] | null): string {
 export interface NearbyOpts {
   /** include petrol pumps as pit stops (self-drive trips only, capped) */
   includeFuel?: boolean
+  /** EV drive (#144B): replace fuel cadence with charge cadence — mutually
+   *  exclusive with includeFuel; segments label the stops "Charge". */
+  includeCharge?: boolean
   /** the trip's starting point — hits inside HOME_ZONE_KM of it are dropped */
   homeCenter?: { lat: number; lng: number } | null
   /** additive per-category score bias from itinerary gaps (computeCategoryBias) */
@@ -322,13 +334,6 @@ export interface NearbyOpts {
    * Search-Along-Route request per category instead of per-anchor free calls.
    */
   routeCoords?: [number, number][] | null
-  /**
-   * Total road distance of routeCoords in km (OSRM leg sum). Google's
-   * routingSummaries report origin→place and place→destination legs, so the
-   * real detour of each hit is (leg0 + leg1) − routeTotalKm; when this is
-   * absent, Google hits fall back to the straight-line-to-anchor estimate.
-   */
-  routeTotalKm?: number | null
   /**
    * Vehicle tank range in km — sets the fuel-stop cadence (default 450).
    * 0/undefined keep the default; only meaningful when includeFuel is true.
@@ -355,6 +360,12 @@ export interface NearbyOpts {
   dayStartTimes?: string[]
   /** rain chance percent per day index for the weather join (null = no forecast). */
   dayRainPct?: (number | null)[]
+  /** WMO weather code per day index — separates drizzle from cloudburst in
+   *  the cap multiplier (#141). Index-aligned with dayRainPct. */
+  dayWeatherCode?: (number | null)[]
+  /** trip transport mode — motorcycle caps ride lower; conducted modes refuse
+   *  the drive-day split entirely (#126). */
+  transportMode?: string
   /** trip preference vector — favoured categories win scoring ties. */
   dnaVector?: DnaVector
 }

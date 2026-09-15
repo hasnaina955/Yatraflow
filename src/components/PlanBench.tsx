@@ -25,43 +25,13 @@ import {
   type BenchMode, type BenchStayStyle, type BenchInputs,
 } from '../lib/planBench'
 import { shareBillImage } from '../lib/billCapture'
-import { toast } from './ui'
+import { toast, useMedia, Odometer } from './ui'
 import { haptic, HAPTIC } from '../lib/haptics'
 
-const ODO_DIGITS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-
-/** Reactive matchMedia — used for reduced-motion and pointer-fine gates. */
-function useMedia(query: string, initial = false): boolean {
-  const [matches, setMatches] = useState(initial)
-  useEffect(() => {
-    const mq = window.matchMedia(query)
-    setMatches(mq.matches)
-    const onChange = () => setMatches(mq.matches)
-    mq.addEventListener?.('change', onChange)
-    return () => mq.removeEventListener?.('change', onChange)
-  }, [query])
-  return matches
-}
-
-/** Odometer-style money figure: each digit is a vertical 0–9 strip that rolls
- *  into place (masked edges, springy overshoot). Non-digits (₹, commas) sit
- *  static. Reduced-motion users get the plain number. */
-function Odometer({ value, animate }: { value: string; animate: boolean }) {
-  if (!animate) return <span className="odo">{value}</span>
-  return (
-    <span className="odo" aria-hidden="true">
-      {value.split('').map((ch, i) => /^\d/.test(ch) ? (
-        <span key={i} className="odo-digit">
-          <span className="odo-strip" style={{ transform: `translateY(${Number(ch) * -1}em)` }}>
-            {ODO_DIGITS.map(n => <span key={n} className="odo-num">{n}</span>)}
-          </span>
-        </span>
-      ) : (
-        <span key={i} className="odo-char">{ch}</span>
-      ))}
-    </span>
-  )
-}
+// useMedia + Odometer live in ui.tsx now: the odometer is the app's money
+// figure, not the bench's private trick, so the tool surfaces can roll their
+// figures the same way. Only the gauge, the dial's drag bubble and the preset
+// price helper stay local to the bench.
 
 /** Fatigue needle gauge: semicircular arc, needle sweeps to hours/day. */
 function FatigueGauge({ hoursPerDay, tone }: { hoursPerDay: number; tone: 'calm' | 'warn' | 'hot' }) {
@@ -328,7 +298,11 @@ export function PlanBench() {
   function handleCta() {
     haptic(HAPTIC.select)
     stashBenchPrefill(bill, input)
-    window.location.hash = '#/create'
+    // '#/new' is the Create Trip route (App.tsx `case 'new'`). This used to
+    // point at '#/create', which no route handles — the router's `default:`
+    // sent the visitor back to the landing page, so the CTA looked inert and
+    // the stashed prefill was never read.
+    window.location.hash = '#/new'
   }
 
   // Pointer-follow tilt — desktop pointers only, never reduced-motion.
@@ -586,7 +560,7 @@ export function PlanBench() {
             )}
           </div>
           <p className="bench-fineprint">
-            We pre-fill your new trip with these numbers · excludes tolls, parking & entry fees · no live traffic, no hidden margins · stay ₹{STAY_RATE_PER_NIGHT[input.stay]}/room-night, 2 per room · food ₹{MEALS_PER_HEAD_DAY}/head/day
+            We pre-fill your new trip with the crew, mode, style, budget and fuel figures — the route itself is yours to add · excludes tolls, parking & entry fees · no live traffic, no hidden margins · stay ₹{STAY_RATE_PER_NIGHT[input.stay]}/room-night, 2 per room · food ₹{MEALS_PER_HEAD_DAY}/head/day
           </p>
         </div>
       </div>

@@ -187,11 +187,10 @@ export function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAdd
           purposes,
           includeFuel: trip.transportMode === 'car' || trip.transportMode === 'motorcycle',
           homeCenter: trip.startLocationCoords ?? null,
-          // Google mode: scan as one road-true Search-Along-Route request, with
-          // routingSummary detours measured against the day's road km — the
-          // same treatment the Map tab's corridor gets. Free mode ignores these.
+          // Google mode: scan as one road-true Search-Along-Route request;
+          // detours are measured geometrically against this polyline. Free
+          // mode ignores it.
           routeCoords: roadPolyline ? roadPolyline.map(p => [p.lng, p.lat] as [number, number]) : null,
-          routeTotalKm: journey.distanceKm || null,
         }).catch(() => [] as PlaceHit[]),
         (googleEnabled()
           ? googleCitiesAlong(anchors, 35000, 8)

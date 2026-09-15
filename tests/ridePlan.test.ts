@@ -6,7 +6,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   planRideSegments, assignSegmentHits, fitScoreForPurpose, nearestCityName, kmFromStartForHit,
-  segmentsFromPlan, planDriveDays,
+  scoreHitForSegment, preferTownGrade, segmentsFromPlan, planDriveDays,
   STRETCH_INTERVAL_KM, MEAL_INTERVAL_KM, ENDNO_KM, MIN_BREAK_GAP_KM, STRETCH_CLOCK_MIN,
   type RideSegment,
 } from '../src/lib/ridePlan'
@@ -69,8 +69,9 @@ describe('planRideSegments', () => {
   it('never places two in-day breaks closer than MIN_BREAK_GAP_KM (overnights exempt)', () => {
     const s = planRideSegments({ totalKm: 1400, driveMinutes: 1000, includeFuel: true, multiDay: true })
     for (let i = 1; i < s.length; i++) {
-      const gap = s[i].targetKm - s[i - 1].targetKm
       if (s[i].dayEnd) continue // the day's final stop may sit near closing time
+      if (s[i - 1].dayEnd) continue // the first stop after a halt: a night separates them
+      const gap = s[i].targetKm - s[i - 1].targetKm
       expect(gap).toBeGreaterThanOrEqual(MIN_BREAK_GAP_KM - 1e-6)
     }
   })
@@ -79,8 +80,12 @@ describe('planRideSegments', () => {
     const s = planRideSegments({ totalKm: 1400, driveMinutes: 1000, includeFuel: true, multiDay: true })
     const firstOvernight = s.find(x => x.dayEnd)!
     const next = s[s.indexOf(firstOvernight) + 1]
-    // next stop lands ~150 km into day 2 (~700 from origin), not at a stale 600
-    expect(next.targetKm - firstOvernight.targetKm).toBeCloseTo(STRETCH_INTERVAL_KM, 0)
+    // day 2's cadence restarts at the halt: the first stop lands early in the
+    // new day (the morning refuel folds the stretch into it), never at a
+    // stale origin-relative position like 600
+    const intoDay = next.targetKm - firstOvernight.targetKm
+    expect(intoDay).toBeGreaterThan(0)
+    expect(intoDay).toBeLessThanOrEqual(STRETCH_INTERVAL_KM)
   })
 
   it('drops fuel cadence when includeFuel is off and omits overnights for single-day drives', () => {
@@ -176,6 +181,41 @@ describe('fitScoreForPurpose', () => {
     expect(fitScoreForPurpose(city, 'meal')).toBeGreaterThanOrEqual(2)
     // an unremarkable place gets no such boost
     expect(fitScoreForPurpose(hit('X', 1, 0, { category: 'rest' }), 'overnight')).toBe(0)
+  })
+
+  it('a night halt anchors on a real TOWN — hamlet-grade anchors are dropped (#189)', () => {
+    // Both are populated places, but a halt needs a bed: Google's rural
+    // `locality` results are hamlets with no population, and their fit gap
+    // against a town (2 vs 3) is erased by a few km of proximity. So when real
+    // towns are available they ARE the anchor pool.
+    const hamlet = hit('Gauriyapur', 1, 0, { category: 'rest', kind: 'place', isPopulatedPlace: true })
+    const town = hit('Chunar', 1, 0, { category: 'rest', kind: 'place', isPopulatedPlace: true, population: 37_185 })
+    const pool = preferTownGrade([hamlet, town])
+    expect(pool).toEqual([town])
+    // urban corridors where OSM has no town keep Google's localities — the
+    // layer never empties for this reason
+    expect(preferTownGrade([hamlet])).toEqual([hamlet])
+    expect(preferTownGrade([])).toEqual([])
+    // a town still scores better than a hamlet head-to-head
+    const anchors = [{ lat: 1, lng: 0 }]
+    const overnight = seg('overnight', 0)
+    expect(scoreHitForSegment(town, overnight, anchors)!).toBeLessThan(scoreHitForSegment(hamlet, overnight, anchors)!)
+  })
+
+  it('a night-halt anchor far from its halt is REJECTED, not grabbed (#189)', () => {
+    // Live-verified: a 350 km halt anchored on Jhumri Tilaiya, 800 km further
+    // down the corridor — an early segment starved of nearby options took the
+    // least-bad candidate instead of reporting an honest gap.
+    const anchors = lineAnchors(100, 1400)
+    const near = hit('Chunar', kmAt(7, 100) / 111.32, 0, { category: 'rest', isPopulatedPlace: true, population: 37_185 })
+    const far = hit('Jhumri Tilaiya', kmAt(12, 100) / 111.32, 0, { category: 'rest', isPopulatedPlace: true, population: 1000 })
+    const seg350 = seg('overnight', 350)
+    expect(scoreHitForSegment(near, seg350, anchors)).toBeNull()
+    expect(scoreHitForSegment(far, seg350, anchors)).toBeNull()
+    // the halt it DOES sit near still accepts it
+    expect(scoreHitForSegment(near, seg('overnight', 700), anchors)).not.toBeNull()
+    // and the bound is anchor-only — a town can still serve another purpose
+    expect(scoreHitForSegment(far, seg('stretch', 350), anchors)).not.toBeNull()
   })
 })
 

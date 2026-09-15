@@ -16,10 +16,10 @@ import type { FixedCommitment, LatLngPoint, TransportMode, TravelStyle } from '.
 import { TRAVEL_STYLES } from '../data/types'
 import { useDb, currentUser, createTrip } from '../store/store'
 import { FUEL_PRICE_INR_PER_L, isFuelEconomyMode, parseFuelEconomyKmL, parseFuelPricePerL, isImplausibleFuelEconomy, MODE_SPEED, minutesToHM } from '../lib/engine'
-import { planDriveDays } from '../lib/ridePlan'
+import { planDriveDays, isSelfDrivenMode } from '../lib/ridePlan'
 import { estimateTripStarter, buildOutlineSeedStops } from '../lib/tripStarter'
 import { fetchTripThumbUrl } from '../lib/tripThumb'
-import { Field, Chip, toast } from '../components/ui'
+import { Field, Chip, toast, Odometer, useMedia } from '../components/ui'
 import { Select } from '../components/Select'
 import { DateRangeCalendar, fmtDay, isoDay } from '../components/DateRangeCalendar'
 import { isoAddDays } from '../lib/weather'
@@ -28,6 +28,7 @@ import { haptic, HAPTIC } from '../lib/haptics'
 import { useTimeFormat, formatHM } from '../lib/timefmt'
 import { cap } from '../lib/labels'
 import { readBenchPrefill } from '../lib/planBench'
+import { scrollBehavior } from '../lib/motion'
 import { LocationInput } from '../components/LocationInput'
 
 interface CommitDraft {
@@ -94,6 +95,17 @@ function TicketScenery() {
   )
 }
 
+/** One money figure in the rough bill, rolled like the Plan Bench odometer so
+ *  the numbers move when the plan changes instead of swapping silently.
+ *  Declared at module scope on purpose: an inline component would be a new
+ *  type every render, so React would remount the odometer and the digit roll
+ *  would never run. Falls back to an em dash when there is nothing to price. */
+function Money({ v, animate }: { v: number | null | undefined; animate: boolean }) {
+  if (v == null) return <>—</>
+  const text = `₹${v.toLocaleString('en-IN')}`
+  return <Odometer value={text} animate={animate} label={text} />
+}
+
 export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void }) {
   const db = useDb()
   const me = currentUser(db)
@@ -102,6 +114,10 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
   const [f, setF] = useState({
     name: '', startLocation: '',
     startDate: '', endDate: '', travellers: 2,
+    // #142 party inputs — undefined until the user touches the controls
+    driverCount: undefined as number | undefined,
+    hasVulnerable: undefined as boolean | undefined,
+    driveAfterDinnerMin: undefined as number | undefined,
     transportMode: 'car' as TransportMode,
     localTrain: false,
     fuelEconomy: '',
@@ -111,6 +127,9 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
     roundTrip: true,
     budgetPerPersonInr: 15000,
     travelStyle: 'balanced' as TravelStyle,
+    // The bed's tier, chosen on its own bar. Deliberately separate from travel
+    // style, which tunes cadence and suggestions and never touches pricing.
+    stayStyle: 'comfort' as 'budget' | 'comfort' | 'luxury',
     coverEmoji: '🧭',
     coverImageUrl: '',
   })
@@ -127,8 +146,13 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
   const [billPrinted, setBillPrinted] = useState(false)
   /** first-invalid focus targets (F-15) — plain inputs only register here */
   const fieldRefs = useRef<Record<string, HTMLElement | null>>({})
+  /** The printed bill — scrolled into view when the dock prints it (see below). */
+  const billRef = useRef<HTMLDivElement>(null)
 
   const fuelMode = isFuelEconomyMode(f.transportMode)
+  // The bill's figures roll like the bench odometer unless motion is reduced,
+  // in which case they are plain text.
+  const reduced = useMedia('(prefers-reduced-motion: reduce)')
 
   // Smart budget (user ask): the rough bill prefills the per-person field the
   // moment it can compute one, and keeps it live as the plan grows — until the
@@ -154,6 +178,16 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
     }))
   }, [])
 
+  // The dock's "Print bill" is pinned to the bottom of the screen while the bill
+  // itself sits further down the page, so on a phone that tap used to look like
+  // it did nothing. Bring the bill in once it prints. `block: 'nearest'` scrolls
+  // the minimum needed, which makes this a no-op on desktop, where the sticky
+  // rail already has the bill on screen.
+  useEffect(() => {
+    if (!billPrinted) return
+    billRef.current?.scrollIntoView({ behavior: scrollBehavior(), block: 'nearest' })
+  }, [billPrinted])
+
   const dayCount = f.startDate && f.endDate ? Math.round((new Date(f.endDate).getTime() - new Date(f.startDate).getTime()) / 86400000) + 1 : 0
 
   const orderedPoints = useMemo(
@@ -172,8 +206,10 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
     tankL: Number.isFinite(tankNum) && tankNum > 0 ? tankNum : undefined,
     rentPerDay: Number.isFinite(rentNum) && rentNum > 0 ? rentNum : undefined,
     localTrain: f.localTrain,
-    travelStyle: f.travelStyle,
-  }), [f.startDate, f.endDate, f.travellers, f.transportMode, f.localTrain, f.roundTrip, f.fuelEconomy, f.fuelPrice, f.tankL, f.rentPerDay, f.travelStyle, orderedPoints, returnCount, fuelMode, tankNum, rentNum])
+    // The bed is priced by the budget dial, not the travel style — otherwise
+    // this bill and the settings page could disagree about the same room.
+    stayStyle: f.stayStyle,
+  }), [f.startDate, f.endDate, f.travellers, f.transportMode, f.localTrain, f.roundTrip, f.fuelEconomy, f.fuelPrice, f.tankL, f.rentPerDay, f.stayStyle, orderedPoints, returnCount, fuelMode, tankNum, rentNum])
 
   // Day Planner (P1, PR #105): the engine kicks in the moment a start and a
   // destination exist — the route demands its own days from the wheel-hour
@@ -181,9 +217,14 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
   // OSRM road time exists; the verdict re-derives on every input change.
   const driveDaysVerdict = useMemo(() => {
     if (bill.roadKm == null || bill.roadKm < 90) return null
+    // #126: conducted modes — train/bus/flight/taxi — have no driving fatigue
+    // to split; the verdict stays silent for them.
+    if (!isSelfDrivenMode(f.transportMode)) return null
     const speed = MODE_SPEED[f.transportMode] ?? 42
-    return planDriveDays({ totalKm: bill.roadKm, driveMinutes: (bill.roadKm / speed) * 60, travelStyle: f.travelStyle })
-  }, [bill.roadKm, f.transportMode, f.travelStyle])
+    // #126 mode gate + #142 party inputs: timetable modes get no verdict;
+    // drivers/vulnerable party move the honest cap.
+    return planDriveDays({ totalKm: bill.roadKm, driveMinutes: (bill.roadKm / speed) * 60, travelStyle: f.travelStyle, transportMode: f.transportMode, driverCount: f.driverCount, hasVulnerable: f.hasVulnerable })
+  }, [bill.roadKm, f.transportMode, f.travelStyle, f.driverCount, f.hasVulnerable])
 
   function patchFields(next: Partial<typeof f>) {
     setF(x => ({ ...x, ...next }))
@@ -207,10 +248,20 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
   const suggestedBudget = bill.perHead != null && bill.perHead > 0
     ? Math.max(500, Math.round(bill.perHead / 500) * 500)
     : null
+  // The write is silent by nature — a value changing under a screen-reader user
+  // with no announcement is a mutation they never hear about, and the hint only
+  // explains it once the field has focus. This notice is read by a polite live
+  // region below. It fires only on an actual write, and never while the field is
+  // the user's current focus (they are editing it; the hint already covers them).
+  const [budgetNotice, setBudgetNotice] = useState('')
   useEffect(() => {
     if (budgetTouched || suggestedBudget == null) return
-    setF(x => (x.budgetPerPersonInr === suggestedBudget ? x : { ...x, budgetPerPersonInr: suggestedBudget }))
-  }, [suggestedBudget, budgetTouched])
+    if (f.budgetPerPersonInr === suggestedBudget) return
+    setF(x => ({ ...x, budgetPerPersonInr: suggestedBudget }))
+    if (document.activeElement !== fieldRefs.current.budgetPerPersonInr) {
+      setBudgetNotice(`Budget updated to ₹${suggestedBudget.toLocaleString('en-IN')} per person, from the rough take.`)
+    }
+  }, [suggestedBudget, budgetTouched, f.budgetPerPersonInr])
 
   function setReturnOn(on: boolean) {
     haptic(HAPTIC.toggle)
@@ -312,12 +363,17 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
       destinationCoords: dests.map(d => (d.lat != null && d.lng != null ? { lat: d.lat, lng: d.lng } : null)),
       startDate: f.startDate, endDate: f.endDate,
       travellers: f.travellers,
+      // #142 party inputs ride along only when the user set them
+      driverCount: f.driverCount,
+      hasVulnerable: f.hasVulnerable,
+      driveAfterDinnerMin: f.driveAfterDinnerMin,
       transportMode: f.transportMode,
       fuelEconomyKmL: fuelMode ? parseFuelEconomyKmL(f.fuelEconomy) : undefined,
       fuelPricePerL: fuelMode ? parseFuelPricePerL(f.fuelPrice) : undefined,
       roundTrip: fuelMode ? f.roundTrip : undefined,
       budgetPerPersonInr: f.budgetPerPersonInr,
       travelStyle: f.travelStyle,
+      stayStyle: f.stayStyle,
       fixedCommitments: commitments.filter(x => x.title.trim()),
       coverEmoji: f.coverEmoji,
       coverImageUrl: f.coverImageUrl.trim() || undefined,
@@ -603,6 +659,37 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
                     </Field>
                   </div>
                 )}
+                {/* #142 party inputs — the two dials that move the honest wheel
+                    cap. Hidden for timetable modes: nobody drives, nobody
+                    fatigues. Driver count clamps to the crew. */}
+                {(f.transportMode === 'car' || f.transportMode === 'rental' || f.transportMode === 'motorcycle' || f.transportMode === 'taxi') && (
+                  <div className="crew-custom" style={{ marginTop: 10 }}>
+                    <Field label="Drivers sharing the wheel" hint="2 drivers rotate — honest days get longer.">
+                      <div className="crew-row" role="group" aria-label="Drivers sharing the wheel">
+                        {[1, 2, 3].map(n => (
+                          <button key={n} type="button" className={`crew-btn${(f.driverCount ?? 1) === n ? ' on' : ''}`}
+                            aria-pressed={(f.driverCount ?? 1) === n}
+                            onClick={() => { haptic(HAPTIC.select); patchFields({ driverCount: n === 1 ? undefined : n }) }}>{n}</button>
+                        ))}
+                      </div>
+                    </Field>
+                    <Field label="Pace of the party">
+                      <div className="crew-row" role="group" aria-label="Party pace">
+                        <button type="button" className={`crew-btn${!f.hasVulnerable ? ' on' : ''}`} aria-pressed={!f.hasVulnerable}
+                          onClick={() => { haptic(HAPTIC.select); patchFields({ hasVulnerable: undefined }) }}>Everyone adult</button>
+                        <button type="button" className={`crew-btn${f.hasVulnerable ? ' on' : ''}`} aria-pressed={f.hasVulnerable}
+                          title="Infants or seniors aboard — shorter days, earlier dinner"
+                          onClick={() => { haptic(HAPTIC.select); patchFields({ hasVulnerable: true }) }}>Infants / seniors</button>
+                        {/* #122 dhaba case — opt-in post-dinner driving */}
+                        <button type="button" className={`crew-btn${f.driveAfterDinnerMin ? ' on' : ''}`} aria-pressed={!!f.driveAfterDinnerMin}
+                          title="Dhaba dinner, then keep going — dinner no longer ends the day"
+                          onClick={() => { haptic(HAPTIC.select); patchFields({ driveAfterDinnerMin: f.driveAfterDinnerMin ? undefined : 120 }) }}>
+                          Drive after dinner
+                        </button>
+                      </div>
+                    </Field>
+                  </div>
+                )}
               </div>
             </div>
           </section>
@@ -623,6 +710,9 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
                   aria-invalid={!!errs.budgetPerPersonInr} value={f.budgetPerPersonInr}
                   onChange={e => { setBudgetTouched(true); patchFields({ budgetPerPersonInr: Number(e.target.value) }) }} />
               </Field>
+              {/* Politely live: the auto-fill above rewrites this field, so say so
+                  for anyone who cannot see the number change. */}
+              <span className="sr-only" role="status">{budgetNotice}</span>
               {/* Quick amounts are a toggle, not a one-way trap: clicking an
                   amount claims the field for manual editing, clicking the
                   highlighted one again releases it — auto-fill from the rough
@@ -650,6 +740,16 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
                 })}
               </div>
             </div>
+            <span className="group-lab">Budget preference</span>
+            <PillNav className="tabbar" role="group" aria-label="Budget preference" activeKey={f.stayStyle}>
+              {(['budget', 'comfort', 'luxury'] as const).map(s => (
+                <button key={s} type="button" data-pill-key={s} className={`tab-btn${f.stayStyle === s ? ' active' : ''}`}
+                  aria-pressed={f.stayStyle === s}
+                  onClick={() => { haptic(HAPTIC.select); patchFields({ stayStyle: s }) }}>{cap(s)}</button>
+              ))}
+            </PillNav>
+            <p className="hint-text style-copy">Prices the bed: ₹1,200 / ₹3,200 / ₹8,000 per room-night, 2 guests per room.</p>
+
             <span className="group-lab">Travel style</span>
             <PillNav className="tabbar style-carousel" role="group" aria-label="Travel style" activeKey={f.travelStyle}>
               {TRAVEL_STYLES.map(s => (
@@ -794,20 +894,20 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
                 </>
               ) : (
                 <>
-                  <div className="bill-printer" role="region" aria-label="Rough trip bill">
+                  <div className="bill-printer" role="region" aria-label="Rough trip bill" ref={billRef}>
                     <div className="bill-slot" aria-hidden="true"><span></span></div>
                     <div className="bill-reveal">
                       <div className="bill-paper bill-paper-sway">
                         <p className="bill-brand">YATRAFLOW · ROUGH BILL</p>
                         <div className="bill-row"><span>Road (est.)</span><b className="mono">{bill.roadKm != null ? `≈ ${bill.roadKm} km` : '—'}</b></div>
-                        <div className="bill-row"><span>Transport</span><b className="mono">{bill.transportCost != null ? `₹${bill.transportCost.toLocaleString('en-IN')}` : '—'}</b></div>
+                        <div className="bill-row"><span>Transport</span><b className="mono"><Money v={bill.transportCost} animate={!reduced} /></b></div>
                         <p className="bill-formula">{bill.transportFormula || 'add a geocoded stop to price the drive'}</p>
-                        <div className="bill-row"><span>Stay</span><b className="mono">₹{bill.stayCost.toLocaleString('en-IN')}</b></div>
+                        <div className="bill-row"><span>Stay</span><b className="mono"><Money v={bill.stayCost} animate={!reduced} /></b></div>
                         <p className="bill-formula">{bill.stayFormula}</p>
-                        <div className="bill-row"><span>Food</span><b className="mono">₹{bill.mealCost.toLocaleString('en-IN')}</b></div>
+                        <div className="bill-row"><span>Food</span><b className="mono"><Money v={bill.mealCost} animate={!reduced} /></b></div>
                         <p className="bill-formula">{bill.mealFormula}</p>
-                        <div className="bill-row bill-total"><span>Total</span><b className="mono">{bill.perHead != null ? `≈ ₹${Math.round(bill.perHead * f.travellers).toLocaleString('en-IN')}` : '—'}</b></div>
-                        <div className="bill-perhead"><span className="mono">≈ ₹{(bill.perHead ?? 0).toLocaleString('en-IN')}</span><span className="per">/ head</span></div>
+                        <div className="bill-row bill-total"><span>Total</span><b className="mono">{'≈ '}<Money v={bill.perHead != null ? Math.round(bill.perHead * f.travellers) : null} animate={!reduced} /></b></div>
+                        <div className="bill-perhead"><span className="mono">{'≈ '}<Money v={bill.perHead ?? 0} animate={!reduced} /></span><span className="per">/ head</span></div>
                         <p className="bill-note">rough take — refined once your route resolves in the workspace · excludes tolls, parking &amp; entry fees</p>
                       </div>
                     </div>
@@ -834,7 +934,7 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
           <b>{ticketTitle}</b>
           <span>
             {dayCount > 0 ? `${dayCount}d · ${Math.max(0, dayCount - 1)}n · ${f.travellers} travellers` : 'Pick your dates'}
-            {billPrinted && bill.perHead != null && <> · <span className="mono dock-amt">≈ ₹{bill.perHead.toLocaleString('en-IN')}/head</span></>}
+            {billPrinted && bill.perHead != null && <> · <span className="mono dock-amt">{'≈ '}<Money v={bill.perHead} animate={!reduced} />{'/head'}</span></>}
           </span>
         </div>
         {!billPrinted ? (

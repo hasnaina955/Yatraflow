@@ -15,15 +15,22 @@ user confirmation before any push. Feature work reaches `test` **via pull
 request** (never a direct push); `main` merges stay explicitly user-gated
 (AGENTS rule 1).
 
-**Snapshot (2026-09-11, verified against the repo):** `origin/main` and `test` are both at
-v0.48.0 — `test` no longer trails. Several docs commits sit ahead of `main` on `test`, pending
-PR #93. Current version: **0.48.0**.
+**Snapshot (2026-09-15, verified against the repo):** `main` is at v0.53.0 (PR #148) while
+`test` carries the v0.54.0 release — the suggestion-pipeline fixes, the Day Planner revival,
+night-halt town anchoring and Create Trip parity. `test` is ~45 commits ahead of `main`; the
+only commits `main` holds beyond `test` are the README hero captures and this file's v0.53.0
+status refresh (PRs #147/#148), which the promotion merge brings back in. Current version:
+**0.54.0**.
 
 **Live open work is tracked in two places, and this file must agree with both:**
 
 1. **The issue queue** — see [Open issues](#open-issues) below for the current list, which is
-   derived from the GitHub API rather than recalled. Seven issues are open (#84–#90); M5 is
-   **not** the only outstanding work, as earlier revisions of this file claimed.
+   derived from the GitHub API rather than recalled. The queue has MOVED since the last
+   snapshot: the #84–#90 a11y/bug batch and the Day Planner defects (#187, #188, #189) are all
+   **closed**; what remains open is the Day Planner enhancement cluster (#122, #124, #142,
+   #143, #145), the rebrand (#96) and the UI-audit tail (#107) — re-derive with `gh issue list`
+   before quoting counts. M5 is **not** the only outstanding work, as earlier revisions of this
+   file claimed.
 2. **The milestone tracks** — M5 → M9, plus the 1.0 cut. These are *planning* tracks: they are
    directions of travel, not release numbers.
 
@@ -39,55 +46,32 @@ number collides with a shipped release, the ledger wins.
 
 ## Open issues
 
-Verified 2026-09-11 against the GitHub API, then **each issue checked against current source**
-(see the "Relevance" column — a title is not evidence that a problem still exists).
+Re-derived from the GitHub API 2026-09-15 (`gh issue list --state open`). The previous
+#84–#90 batch is **closed** (all eight swept in v0.49.0), as are the Day Planner defects
+that drove the v0.54.0 work (#187/#188/#189). Six issues remain:
 
 | # | Priority | Area | Issue | Relevance |
 |---|---|---|---|---|
-| #89 | **P1** | bug, a11y | Trash "Delete forever" has no confirmation or undo | **Confirmed** — `TripsList.tsx:129` |
-| #84 | P2 | bug, a11y | Notifications list capped at 12 with no way to reach older items | **Confirmed** — `App.tsx:414` |
-| #85 | P2 | a11y | `warn` text on saffron/amber tints fails WCAG AA in light theme (5 surfaces) | **Confirmed — 3.48:1** |
-| #87 | P2 | a11y | ARIA tablist semantics inconsistent across 3 surfaces | **Confirmed** — 4 patterns |
-| #88 | P2 | a11y | Create-trip cover image URL input is unlabelled | **Confirmed** — `CreateTrip.tsx:719` |
-| #90 | P2 | a11y | Notification badge fails WCAG contrast (white on saffron ~2:1) | **Confirmed — 2.14:1** |
-| #86 | P3 | ui | Profile page has an empty 340px right column (single child in two-col grid) | **⚠️ Stale — verify and close** |
+| #96 | — | refactor | Rebrand: pick the new name + execute | Seam built on `refactor/brand-seam`; blocked on the name decision, not on code |
+| #124 | bug | day planner | Night halts are arithmetic km points; anchors walk one blended speed | **Fixed** — the halt's *place* anchors on a real town inside its window (#196/#197) and the *positions* now walk the measured road's terrain profile, with the split placed on cumulative wheel time. The residual is data GRANULARITY (a leg-derived profile cannot see a mix inside one leg), tracked on its own issue |
+| #122 | enhancement | day planner | Fixed dinner window ends every day 20:00–21:00 regardless of party/season | **Partly addressed** — #142's party inputs moved the cap and the clock gained anchors, but dinner itself is still a fixed window |
+| #142 | enhancement | day planner | Driver count + party inputs that move the wheel cap | **Inputs shipped** (#151); the remaining ask is surfacing them in trip settings |
+| #143 | enhancement | day planner | Sticky accepted halts with delta proposals + hysteresis | Open — a product-design surface (no code started) |
+| #145 | enhancement | day planner | Round trip as two directed walks, not a midpoint cut | **Partly addressed** — `planTravelClock` now walks the outbound and a directed return pass; the remaining ask is the full two-walk model |
 
-**Relevance evidence (2026-09-11).** Each was opened against the code, not accepted on its title:
+**Relevance note (2026-09-15).** Every Day Planner item above was re-checked against `src/`
+rather than accepted on its title — several are now partially or fully satisfied by the v0.54.0
+engine work, and each row says which.
 
-- **#89** — `TripsList.tsx:129` renders `Delete forever` and `Restore` **side by side in the same
-  row**, both `btn-sm`, with no confirm on the destructive one. A reversible and an irreversible
-  action at identical size and adjacency. The only P1; the label scheme defines P1 as "with a
-  workaround", while an irreversible one-tap delete of user data matches the **P0** definition
-  ("data loss/corruption") — worth a re-triage read against the written definitions.
-- **#85** — `.chip-saffron` is `color: var(--warn)` on `var(--saffron-soft)`. Computed: light
-  `#B47207` on `#FCF0DC` = **3.48:1** (AA needs 4.5) → fails. Dark = 5.81:1 → passes, so the
-  issue's light-theme-only scoping is exactly right.
-- **#90** — white on saffron = **2.14:1** light, 1.97:1 dark. The issue's "~2:1" is accurate.
-- **#84** — `App.tsx:414` `notifs.slice(0, 12)` inside a `maxHeight:320, overflowY:auto` box with
-  **no view-all or pagination**. The scroll affordance implies completeness while silently
-  truncating — arguably worse than a visible cap.
-- **#87** — four surfaces set `role="tablist"`, but three (`AdminPage`, `Auth`, `TripWorkspace`)
-  pair it with `aria-pressed` and set no `aria-selected`; only `TripWorkspace` also sets
-  `aria-selected` + `id`. `aria-pressed` on `role="tab"` is the wrong pairing.
-- **#88** — `CreateTrip.tsx:719` has a `placeholder` but no `aria-label`, `<label>`, or
-  `htmlFor`. Sitting inside a `<Field>` wrapper does not give the control an accessible name.
-- **#86 ⚠️** — the premise no longer holds. `Profile.tsx`'s second column now contains **four**
-  cards (Creator hub, Save details, Notifications, About your data). `.two-col` is still
-  `1fr 340px` (`styles.css:1807`), but the column is not empty. Most likely fixed by `a8f53ff`
-  (notifications opt-in card, v0.47.0). **Verify and close** — left open here because closing an
-  issue needs authentication, which was unavailable.
-
-The five a11y issues (#84, #85, #87, #88, #90) are all narrow, low-risk surfaces — good
-candidates to sweep as one batch rather than one release each. **#85 and #90 are both
-saffron-contrast failures and should be fixed together**, since a change to the warn/saffron
-pairing affects both.
-
-**Defect found while auditing this file — not yet filed:** the M0 seed guard below was never
-implemented (see the M0 entry). `store.ts:600` seeds demo trips whenever `tripList` is empty,
-with no check on whether the trips query *failed*; `partial` is built up but consulted only for
-a toast at line 595. A flaky-connection sign-in therefore injects demo trips into a real
-account — the accumulation trap M0 warned about. This is a code fix on an auth path and is
-**deliberately not bundled into a docs pass**; it belongs in its own issue and commit.
+**Correction (2026-09-15) — the M0 seed guard was fixed, and this file said otherwise.** Five
+places below claimed the demo-seed guard was "never implemented". It is implemented: `store.ts`
+tracks `tripCountUnknown` (set whenever the memberships or trips read errors) and the seed line
+reads `if (tripList.length === 0 && seedIfEmpty && !admin && !tripCountUnknown) await seedDemoFor(…)`
+— the `#94` comment above it spells out exactly the accumulation trap M0 warned about. Closed by
+#94 (the v0.49.0 issue sweep), so the ledger box below is ticked and the warnings removed. The
+lesson is the one §6 already states in reverse: **a roadmap row is a claim about code, not a
+fact** — this one stayed wrong for weeks because nobody re-read it against `src/`, and it was
+found only while auditing the file for a release.
 
 ---
 
@@ -121,14 +105,14 @@ and date), per the AGENTS §6 same-edit rule. Detail lives in
 ### Remaining — in release order (details in the tracks below)
 - [x] **v0.45.0** — Create-flow + invites + settings release (PR #81 + merged test work): Trip Ticket bento starter (bill print, outline seeding), car rental mode + local-train fares, range calendar, invite short codes + join-flow fixes, auth-refresh fix, Plan Bench trip settings + editable dates, My Trips search/filter/sort restore (branch `feat/create-trip-ticket`)
 - [x] **v0.46.0** — Masteradmin console (PR #82): JWT-`app_metadata`-gated `#/admin` god-view (users/trips/invites/content/analytics/audit), audited SECURITY DEFINER RPCs, append-only `admin_audit` log, RESTRICTIVE deny policies for disabled accounts (branch `redesign/masteradmin-v045`, migration applied live)
-- [x] **v0.32.0** — Stabilization completion: M0 leftovers (broken `pub:` route, router ready-gate for deep links / invite flash / loading-vs-empty) + M2 remainders (Profile save validation, demo-copy honesty, heading outline) + M1 leftovers (focus-ring gaps, touch targets, stagger freeze). **Note:** this is the row that consumed the `v0.32.0` number also claimed by M6's heading; the M0 **seed guard** was *not* part of it (see M0).
+- [x] **v0.32.0** — Stabilization completion: M0 leftovers (broken `pub:` route, router ready-gate for deep links / invite flash / loading-vs-empty) + M2 remainders (Profile save validation, demo-copy honesty, heading outline) + M1 leftovers (focus-ring gaps, touch targets, stagger freeze). **Note:** this is the row that consumed the `v0.32.0` number also claimed by M6's heading; the M0 **seed guard** was *not* part of it — it landed later, in v0.49.0 (#94).
 - [x] **v0.36.0** — Budget + Group-input deep redesign: metric strip, per-day cost bars, payer balances + settlement, quick-add + in-place expense editing, who-voted tallies + needs-you digest, real composer pickers; `bump_published_stats` uuid→text fix, view dedupe, unpublish owner gate (branch `redesign/budget-group`)
 - [x] **v0.37.0** — Creator release: public creator page `#/creator/:id`, publications manager with stats/edit/unpublish + stale-page nudge (`refreshed_at` migration), Explore newest sort, shared PubCard/forkPublication paths (local branch `redesign/creator-page` until pushed)
 - [x] **v0.38.0** — Creator hub: My publications splits into Overview (lifetime KPIs + manager rows) | Earnings (Gumroad-shaped payouts ledger, honestly empty + labeled projection view via `projectEarnings`); M7 earnings contract documented in ARCHITECTURE (local branch `redesign/creator-hub`)
 - [x] **v0.39.0** — Hard-surface pass (full skills-based review, ~70 findings): 5 HIGH fixes (Landing dark-mode bands, AA hero CTA, StopEditor phantom token, CreateTrip `--accent`, ₹₹ double-symbol), one lucide icon language workspace-wide, global tabular-nums utility, tabpanel/aria-pressed/focus-ring/hit-target a11y, one card-header + chip + fork-CTA grammar, dead code purge (local branch `redesign/hard-surface`)
 - [x] **M3** — Performance architecture: store immutability → slice selectors → DaySection memo → workspace split into pages/trip/* + weather dedup + lazy routes (in [Unreleased], local branch redesign/perf-architecture)
 - [x] **M4** — Design-system hygiene: dead CSS purge, mobile-block consolidation, glass/z-index tokens (in [Unreleased], local branch redesign/perf-architecture; raw-rgba glass stragglers intentionally NOT migrated — see commit `f646b45`)
-- [ ] **M0 defect** — seed guard: skip demo seeding when hydration had query errors (`store.ts:600`, detail in [Open issues](#open-issues))
+- [x] **M0 defect** — seed guard: skip demo seeding when hydration had query errors (#94, v0.49.0 — `store.ts` gates the seed on `!tripCountUnknown`)
 - [ ] **M5** — AI companion: user-configurable LLM endpoint (#22 → #20) — the only milestone that **has** open issues behind it (not the only open work; see [Open issues](#open-issues))
 - [ ] **M6** — Together: integration test suite, live co-editing depth, split expenses
 - [ ] **M7** — Premium: payment gateway, entitlements, unlock flow
@@ -139,25 +123,26 @@ and date), per the AGENTS §6 same-edit rule. Detail lives in
 
 ## Stabilization track — COMPLETE (M0–M4 landed; see the ledger)
 
-**Status note (2026-09-11 audit).** This track shipped across v0.26.0–v0.39.0 and the
-`redesign/*` branches; the ledger above carries the release rows. The bullets below are kept as
-the **record of what was fixed** — they were written as a live to-do list and are now the
-historical description, so read them in past tense. **One item was never implemented** and is
-called out inline.
+**Status note (2026-09-11 audit; corrected 2026-09-15).** This track shipped across v0.26.0–v0.39.0
+and the `redesign/*` branches; the ledger above carries the release rows. The bullets below are kept
+as the **record of what was fixed** — they were written as a live to-do list and are now the
+historical description, so read them in past tense. All six M0 items are closed: the seed guard,
+previously called out here as never implemented, was fixed by #94 (see the correction at the top of
+this file and `store.ts`'s `tripCountUnknown` gate).
 
 ### M0 — "Trust & navigation" (P0 bugs)
-Small diffs, outsized trust impact. Five of six items landed in the v0.26.0/v0.32.0
-stabilization releases; **the seed guard did not** (see the ⚠️ below):
+Small diffs, outsized trust impact. All six items landed — five in the v0.26.0/v0.32.0 stabilization
+releases, the seed guard in v0.49.0 (#94):
 - ✅ **"View public page" was a broken route** — `TripWorkspace.tsx` emitted `pub:<id>`, the
   router splits on `/` → landed on Landing, so publishers could never reach their own published
   page. Fixed.
-- ⚠️ **Failed hydration fakes an empty state and re-seeds demo data — NOT DONE.** `store.ts`
-  logs query errors, then seeds on `tripList.length === 0`, so a network failure injects
-  duplicate demo trips (the accumulation trap from the Sep DB prune — AGENTS §5). The **retry
-  banner** half shipped (`partial` → toast at `store.ts:595`), but the **"skip seeding when any
-  query errored"** half never did: `store.ts:600` still seeds without consulting `partial`.
-  This is the audit's headline defect — tracked as a live item, not a closed one. See
-  "Defect found while auditing this file" above.
+- ✅ **Failed hydration fakes an empty state and re-seeds demo data** — `store.ts` logs query
+  errors; the **retry banner** half shipped early (`partial` → toast), and the **"skip seeding
+  when any query errored"** half landed with #94: `tripCountUnknown` is set whenever the
+  memberships or trips read fails, and the seed runs only when the trip count is trustworthy
+  (`tripList.length === 0 && seedIfEmpty && !admin && !tripCountUnknown`). A flaky-connection
+  sign-in can no longer inject demo trips beside the user's own — the accumulation trap M0
+  warned about (AGENTS §5).
 - ✅ **Invite links flashed "broken" on cold load** — `InviteGate` showed the error whenever
   `trip` was undefined, which it is until hydration finishes. Fixed via the router ready-gate.
 - ✅ **Deep-link reload landed on Landing first** — mid-hydration `me === null` funnelled

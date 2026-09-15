@@ -15,8 +15,8 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ## [Unreleased]
 
-### Added — the travel clock drawn on the map
-- **Meal-window circles on the route.** 🍽 lunch, 🥐 breakfast and 🍷 dinner
+### Added
+- **The travel clock is drawn on the map.** 🍽 lunch, 🥐 breakfast and 🍷 dinner
   become soft map circles whose **radius is honest**: half the road the car
   covers while that meal's window is open at the journey's own pace
   (`mealRadiusKm` = window/2 × kmPerMin) — lunch's circle is the biggest,
@@ -39,7 +39,25 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
   `mealRadiusKm`, `radiusPxAtZoom0`, `clockHM`) + 12 fixtures in
   `tests/clockOverlay.test.ts`.
 
-### Added — Day Planner (travel clock)
+### Fixed
+- **The Day Planner stopped walking the day on one blended speed.** Every anchor — lunch, tea, the night halt — and every arrival ETA was positioned with a single `totalKm / driveMinutes` rate, so on any day whose terrain differed from the trip's average the times were wrong in the direction of the mismatch: a ghat-first day put lunch **81 km** past where the car actually is at 11:30 (156 km against a true 75) and the halt 47 km late, while a plains-first day undershot by 24 km — the same average cannot serve both. The walk now converts time↔km through the measured road's own terrain profile (the legs it already fetches), and the split's night-halt boundary is placed where **cumulative wheel time** is even rather than where km is even — so its reported `maxDailyWheelMin` is a real number again (it was reporting 520 min for a day that takes 590, understating exactly the fatigue the cap exists to enforce). One-way trips are untouched: with no profile the blended rate is used byte-for-byte, which every existing fixture pins (#124).
+- **The trip's road is measured once, by one owner.** The workspace and the Map tab each ran their own routing chain over the same points — doubling the load on the shared OSRM demo server (the rate-limiting behind the transient failures) and letting the map draw a road the detour math could not see. One measurement now feeds both the engine's leg corrections and the map's line, totals and suggestion corridor, with the single retry living in that one place. A chain where every leg fell back to the straight-line estimate counts as *unresolved* rather than passing as a measured road, so a rate-limited day degrades honestly instead of drawing chords as if they were roads (#188).
+
+### Docs
+- **#124's roadmap row and the issue now read fixed.** The terrain-blind walk is done (above); the row records the residual as data GRANULARITY — a leg-derived profile cannot see a terrain change inside a single leg — pointing at its own issue rather than at the walk.
+- **The roadmap stopped claiming a fixed defect was pending.** Five places in `ROADMAP.md` said the M0 demo-seed guard was "never implemented" — the code has gated it since #94 (`store.ts` seeds only when `!tripCountUnknown`, i.e. only when the trip count could actually be read), so the plan of record was carrying an unchecked box and a "headline defect" note for a problem that no longer existed. Verified against source and corrected.
+- **The doc index covers the docs again.** `docs/README.md` gained the missing rows — `MOTION-TOKENS.md`, `DESIGN-SYSTEM-GUARDRAILS.md` (the two halves of the design system the v0.53.0 audit documented), `PERFORMANCE_AUDIT_2026-09-05.md` and `SUGGESTION_ENGINE_BRAINSTORM.md` — each tagged with its Diátaxis flavor, per the §6 protocol.
+
+## [0.54.0] - 2026-09-15
+
+**The suggestion pipeline tells the truth.** Three faults had been quietly draining the Map tab's suggestions and the Day Planner's halts: detours were computed by subtracting one routing engine's route total from another's internal legs, so every on-road dhaba read "50 km off-route" on a long corridor and the per-day budget withheld almost everything behind it; the workspace and the Map tab each measured the same road, doubling the load that caused the transient failures they then could not recover from; and the night-halt town layer was asking for a place type that Google rejects outright, so it had been returning nothing at all. All three are fixed — detours are measured against the road the search actually ran on, one measurement feeds every surface, and night halts anchor on real towns with beds. The Day Planner's meal and fuel cadences came back with them (a load-balanced 350 km day was absorbing its own lunch and could never fit a fuel stop), Create Trip learned the Plan Bench's money motion and its route integrity, and a rate-limited day now degrades visibly instead of drawing straight lines as if they were roads.
+
+### Added
+- **A route-integrity guardrail** (`tests/route-integrity.test.ts`): every `#/…` link and
+  `navigate('/…')` call in `src/` must resolve to a route `App.tsx` handles — the
+  `switch (parts[0])` cases plus the pre-switch `parts[0] === '…'` checks. Comments are
+  stripped first, so a route named in prose is not read as a live link, and both
+  assertions carry a vacuity guard, so a parse that found nothing cannot pass.
 - **The fatigue cadence is hours, not km.** Stretch breaks fire at `STRETCH_CLOCK_MIN`
   (120 min) of wheel time — 150 km was ≈2 h at highway speed but 3.6 h at the engine's own
   blended 42 km/h — and `planDriveDays` derives the drive-day split a route **demands**
@@ -65,8 +83,10 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
   chips on the far quarter of round trips.
 - **The bill prices the bed.** Hotel stops — accepted night halts or hand-added stays —
   gain a lodging line (overnights × rooms × style rate) from one stay-rate table shared
-  with the budget bench (#125b); one coordinate cell is one lodging, whatever the name
-  says (#125a). The night halt's minutes are never charged to the day's detour budget.
+  with the budget bench (#125b); lodging identity keys on the provider place-id first
+  (#146 — carried from picked hits through StopEditor and Add-to-timeline), with the
+  coordinate cluster and normalized-name fallbacks beneath it for hand-typed stops
+  (#125a). The night halt's minutes are never charged to the day's detour budget.
 - **Create-trip helps from the first two points**: the route's own verdict — "The drive
   wants N travel days" with one-tap "Make it N days" (and the honest single-stretch wheel
   time when it doesn't fit the dates); it says "there and back" when the round-trip
@@ -87,23 +107,77 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
   `tests/dayPlanner.test.ts` are the spec.
 
 ### Changed
+- **Night halts anchor on real towns.** Google's locality data bottoms out at village level on rural corridors (hamlets like "Gauriyapur", nothing to rank by), so the night-halt town anchor now also consults OpenStreetMap's `place=city\|town` — population-ranked, free and keyless, and the only source carrying town-grade data out there (Chunar 37k, Mirzapur 234k, Hazaribagh on the same corridor). When real towns are available the hamlet-grade entries are dropped, so a halt lands somewhere with a bed; where OSM has no town (dense urban corridors, where Google's locality coverage is strongest) the previous list is kept. This is a deliberate, narrow amendment to the Google-only provider directive — scoped to the town anchor; POIs, meals and fuel stay Google-only (#189).
+- **Trip settings opens with two bars, not one.** Budget preference (Budget / Comfort /
+  Luxury) and Travel style used to share a single block with the style bar on top and
+  the price bar tucked underneath it, so the second read as a sub-option of the first.
+  Each is now its own bar, at the top of Trip settings and of Create Trip, in that
+  order: Budget preference answers what the bed costs, Travel style answers how the trip
+  moves and what it suggests. Neither touches the other.
 - **Suggestion rows sync to the map on click, not hover** — hovering a row no longer
   glides the camera (accidental map movement); rows show a pointer cursor.
 - **Directions sits beside the travel card's title**, not on its own line.
+- **Resolving a map-sourced vote adds the winner to the plan.** Shortlisted stops
+  sent to a group vote carry their place with the option; hitting "Resolve" lands
+  the winning place as a confirmed stop on the suggested day (clamped to the trip's
+  range) — so it shows up on the Timeline, Board and Map at once, and the
+  suggestion rail drops the rows it settles, winner included. Hand-raised
+  decisions without a place resolve exactly as before.
+- **Deleting a stop from the map pin.** The pin popup gains a Remove action
+  (editors only) with an Undo toast — the undo restores the stop at its original
+  position within the day instead of appending it at the end.
 - **Shared sources under the planner**: one lunch window, one stay-rate table
   (`src/lib/rates.ts`), one drive-day floor (`isDriveDay`), tolerant style/rain
   parsing (#130, #132).
+- **Create Trip's money figures roll like the Plan Bench** — the rough bill's transport /
+  stay / food rows, the total, the per-head figure and the mobile dock amount animate
+  into place instead of swapping, so tuning travellers or dates reads as a recalculation
+  rather than a silent replacement. `Odometer` and `useMedia` move out of `PlanBench.tsx`
+  into `src/components/ui.tsx` as shared exports — the rolling figure is the app's, not
+  the landing page's — and `Odometer` takes an optional `label` so each call site renders
+  the `sr-only` alternative it needs. Reduced motion still gets plain text, and the Plan
+  Bench imports the same two primitives with its own rendering unchanged.
 
 ### Fixed
+- **A night halt can no longer be anchored to a town hundreds of kilometres away.** The town candidates are filtered against *any* halt position, so a segment with nothing nearby could take the least-bad candidate from further down the corridor — live-verified: a 350 km halt "anchored" on Jhumri Tilaiya, 800 km later. A populated-place anchor more than 120 km from its own halt is now rejected, and the segment reports an honest gap instead (#189).
+- **Night halts stopped starving on the corrected city lookup.** The city anchor layer's switch to Google's Nearby Search asked for `administrative_area_level_3` alongside `locality` — a type Nearby Search rejects, so the whole request returned 400 and the layer reported **zero cities everywhere**. Because the caller catches, that read as "no towns near any halt" rather than as a broken request: every overnight suggestion quietly starved on every trip. The lookup asks for `locality` alone now (live-verified: 6 places per rural halt point), and night halts anchor again (#189).
+- **The trip's road is measured once, by one owner.** The workspace and the Map tab each ran their own routing chain over the same points — doubling the load on the shared OSRM demo server (the rate-limiting behind the transient failures) and letting the map draw a road the detour math could not see. One measurement now feeds both the engine's leg corrections and the map's line, totals and suggestion corridor, with the single retry living in that one place. A chain where every leg fell back to the straight-line estimate counts as *unresolved* rather than passing as a measured road, so a rate-limited day degrades honestly instead of drawing chords as if they were roads (#188).
+- **Suggestions stopped charging phantom detours on long drives.** A dhaba or petrol pump sitting right on the highway could read "50 km off-route" on a 1,400 km corridor — the detour math subtracted one routing provider's route total from another's internal leg sums, and the difference (≈47 km on that corridor, a plausible-looking 1–3 km on short trips) was charged to every suggestion. That torched the per-day detour budget, held back most See & do ideas, and thinned the halt rails. Detours are now measured geometrically against the same road line the search ran along, so a place on the drawn road reads "on route" no matter which routing engine answered (#187).
+- **Multi-day drives grew their lunch and fuel stops back.** On a load-balanced plan (say 4 days × 350 km) the planner's lunch was silently absorbed into every night halt — it slides to the 14:30 window edge, ~2 h 20 m of wheel time before the halt, inside the old merge bound — and the fuel cadence restarted at each day's start, so it could never land inside a day shorter than the tank stride. A 1,400 km trip produced zero meal and zero fuel suggestions. Lunch now survives as its own stop unless it lands within an hour of the halt (that is dinner at the halt anyway), and fuel follows the tank on a corridor-wide cadence (#189).
+- **Night halts find their towns again.** The city anchor layer asked Google's Text Search for "towns and cities" — a query that matches POI names, not places, so it had quietly returned nothing and every night-halt suggestion starved. It now uses Google's Nearby Search with the locality place type, searched at each night halt's actual road position, and refuses to fill a halt with a town hundreds of kilometres away — an honest gap instead of a misleading card (#189).
+- **The budget tier reverted on every reload.** The dial shipped in `deecbcc` with no
+  column and no row mapping, so the tier a traveller picked was session-only and
+  silently fell back to the legacy-derived value. It is persisted now
+  (`20260914_trip_stay_budget.sql`), and the mapping is covered by tests — including
+  the pre-migration path, which must stay a no-op rather than write a column the
+  database does not have.
+- **Create Trip's bill priced the bed from the travel style.** `estimateTripStarter`
+  took a `travelStyle` and derived the tier from it, so the bill and the settings page
+  could disagree about the same room. The bill takes the budget dial.
+- **Trip deletion works again** — the production "trips read hide trashed" policy
+  rejected the tombstone UPDATE (its added-row check saw a trashed row that
+  nobody, including the owner, could read), so Delete silently rolled back and
+  the trip reappeared after refresh. The policy now lets tombstoned rows reach
+  their owner/editors while everyone else still never sees them, hydration
+  filters tombstoned rows out of the live list itself (the Trash view reads
+  them via `get_trashed_trips`), and `supabase/fix-trashed-read-policy.sql` is
+  the idempotent Dashboard repair. Reproduced with a live QA account before and
+  after.
 - **The travel clock walks every day of a long drive** — the re-balance loop subtracted
   the absolute halt position from a relative budget, truncating a ~3,300 km walk at 4
   days (#137).
 - **Night halts never land inside the destination exclusion** (#140), and the final
   day's arrival is clock-checked — past-night arrivals are flagged, not hidden (#138).
 - **Segment ETAs carry halt dwell time** (#129); a meal folds into the overnight halt
-  instead of sitting inside its gap floor (#131).
+  instead of sitting inside its gap floor (#131), and a fuel tick lands in the halt too
+  when it falls within the fold window before the overnight — no refuel-then-sleep
+  double stop at dusk (#144).
 - **A wet day caps only that day** — the clock walk takes per-day rain instead of one
-  trip-wide factor (#127).
+  trip-wide factor (#127), and the cap weights rain *severity*, not just chance: a 90%
+  drizzle day damps ≈0.66× while a 90% thunderstorm hits the 0.5 floor (#141).
+- **Conducted modes get no split verdict** — train/bus/flight/taxi legs (someone else
+  drives) stay silent in the Map tab's banner, day chips, Apply-split and CreateTrip's
+  verdict, and a motorcycle rides 1.5 h below the same style's car cap (#126).
 - **Corrupt `startTime` can't silently become midnight** — out-of-range input clamps
   to a valid, loudly non-midnight start (#136).
 - **The corridor search no longer re-runs on unrelated edits** — verdict memos key on
@@ -120,6 +194,7 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
   never established a clipping box, so a skewed bar swept the whole hero face and read as
   a stray grey blob sliding across empty space beside the CTAs. Each hero button is now
   its own clip box.
+- **The Map tab's suggestion rails pass a dedicated accessibility and consistency audit (#152–#181).** Warn text on light theme reads through the AA-passing ink tier (5.3:1) on facts, chips and the map spur, which now paints from `--warn` instead of a hardcoded hex; rail cards are keyboard-operable with real names and the fold buttons carry `aria-controls`; the rotating engine tip no longer spams screen readers every 7 s. Card, ruler and map now tell one story: ruler dots nudge apart instead of stacking at shared km and read the same km the card prints, the detour spur snaps to the same road projection the card's minutes use, one "fits-budget" predicate decides warn/held-back, unknown-km hits say so instead of silently attributing to Day 1, and "Best fit" appears only on the top-scoring pick. Chip filtering keys on stable ids instead of display copy, ratings endorse only with a 10+ review sample, the detour whisker's spur length now scales with share of the day's budget, quota outages get one honest story on every rail (never dressed up as a short trip), the detour-scope preference is guarded and namespaced with the rest, threshold chips got estimate-proof bands, and stale planner copy was rewritten to describe the clock-first engine.
 - **Map zoom/fullscreen controls were unusable** — mapcn's `MapControls` ships Tailwind
   utility classes this app doesn't compile, so the group rendered as static flow under
   the canvas (invisible in 2D, stray and clipped otherwise). The handful of rules it
@@ -128,17 +203,53 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 - **Dark-mode pin hover tooltips unreadable** — maplibre's stock popup chrome is bare
   white regardless of theme, and light text on it vanished. Popups (hover tips + the
   stop cross-link popup) are reskinned to the app card in both themes, tip included.
+- **Map search results carry real coordinates** — the search-to-add box ranked Google
+  autocomplete hits, which are deliberate (0,0) "resolve on pick" placeholders, so every
+  row measured Null Island and rendered the identical "~1675 km · 8448 km off-route".
+  It now runs one free-form Text Search (the same event the corridor scan pays) whose
+  hits carry real locations; coord-less stragglers are resolved-or-dropped; quota
+  exhaustion toasts honestly.
+- **Placeholder coordinates can't poison a trip** — Add-to-timeline and location picking
+  resolve "resolve on pick" placeholders before any write, refuse unpinnable hits with a
+  visible error, and mixed placeholders (latitude 0, real longitude) are rejected — the
+  route can no longer dive to the Gulf of Guinea on an unnoticed (0,0) stop.
 - **Timeline drag got cropped at the day card** — the carried row escaped nothing: the
   day-collapse clip (`overflow: hidden`) cut it off at the card edge. While a drag is
   live the owning section unclips (`drag-live`), same fix applied to Board columns.
 - **Plan/Inspect pill jumped sides** — the long Plan copy's max-content pushed the
   header tools row into a left-aligned wrap. The copy is now the flexible item and the
   tools pin right (margin-left auto keeps them right-aligned even when wrapped).
+- **The Plan Bench's "Turn these numbers into a real trip" went nowhere** — the CTA set
+  `location.hash = '#/create'` and the router has no `create` case, so its `default:`
+  branch rendered the landing page: the button read as inert and the prefill it had just
+  stashed was never read. It targets `#/new`, the Create Trip route the nav already uses.
+- **The admin console's published-itinerary links landed on the landing page** — the
+  table linked `#/p/<id>` where every other published link (PubCard, Creator Hub,
+  Explore, the share link) uses `#/pub/<id>`.
+- **On a phone the printed bill had nowhere to appear** — `.ts-rail` was `display:none`
+  at ≤900px, so "Print bill" fed a hidden container: no split, no formulas, no pace
+  verdict, and the dock's figure only arrived after the tap. The ticket stays in the page
+  flow at that width, as the Plan Bench shows its receipt, and its own "Create trip"
+  button steps aside so the fixed dock stays the single primary CTA. Printing scrolls the
+  bill into view (`block: 'nearest'` via `scrollBehavior()`) — minimal scroll,
+  reduced-motion aware, and a no-op on desktop where the sticky rail already has it.
+- **The hand-off copy named figures that do not transfer** — the Plan Bench stashes
+  travellers, mode, travel style, budget, the return flag and the fuel figures, not the
+  distance (`km`) or trip length (`nights`) its own headline price is built on. The
+  fineprint names what actually carries over.
+- **The smart budget rewrote its field unannounced** — the rough take landing in the
+  per-person budget as the plan grows is deliberate, but a value changing under a
+  screen-reader user is a mutation they never hear. A polite live region reports the new
+  amount when the auto-fill writes, and stays quiet while the field is the user's focus.
 
 ### Docs
 - **Status docs reflect the final #107 state** — `AGENTS.md` §1.1 records
   **117/117 boxes closed**, and the Day Planner docs carry honest open-item
   markers (lodging-anchored halt placement is P1-C, not shipped).
+- **The design-system contrast gate now covers the Map rails (#154)** — a new
+  pinned contract measures the rail's warn-ink pairs against their real
+  surfaces in both themes; color-only overrides can no longer ship a
+  sub-AA pair unnoticed (the hole #152 slipped through).
 
 ## [0.53.0] - 2026-09-13
 
@@ -927,7 +1038,9 @@ leading bytes out of code spans twice (see `adf5f66` and the `[0.43.0]` repair n
 <!-- Link references. Only tags that exist on the remote are linked; untagged releases
      fall back to a friendly commit-range compare so no heading 404s. -->
 
-[Unreleased]: https://github.com/hasnaina955/Yatraflow/compare/v0.48.0...HEAD
+[Unreleased]: https://github.com/hasnaina955/Yatraflow/compare/v0.54.0...HEAD
+[0.54.0]: https://github.com/hasnaina955/Yatraflow/compare/v0.53.0...v0.54.0
+[0.53.0]: https://github.com/hasnaina955/Yatraflow/compare/v0.52.0...v0.53.0
 [0.7.0-native]: https://github.com/hasnaina955/Yatraflow/releases/tag/v0.7.0-native
 [0.48.0]: https://github.com/hasnaina955/Yatraflow/compare/v0.47.0...v0.48.0
 [0.47.0]: https://github.com/hasnaina955/Yatraflow/compare/v0.46.0...v0.47.0

@@ -104,6 +104,9 @@ export interface ItineraryStop {
   title: string
   category: StopCategory
   locationName: string
+  /** provider place-id (Google/OSM) when the stop was picked from a geocoded
+   *  place — the strongest lodging identity (#146): same id, one base. */
+  placeId?: string
   /** lat/lng kept as plain numbers so any maps provider can consume them later */
   lat: number
   lng: number
@@ -155,6 +158,19 @@ export interface Trip {
   startDate: string         // ISO yyyy-mm-dd
   endDate: string
   travellers: number
+  /**
+   * Licensed drivers rotating the wheel (#142). Default 1; 2 buys the day
+   * real wheel hours (rotation), clamped to crew size at the call sites.
+   */
+  driverCount?: number
+  /** Infants or seniors aboard (#142/#122) — shorter honest days, earlier dinner. */
+  hasVulnerable?: boolean
+  /**
+   * Minutes of legal driving ALLOWED after the dinner halt (#122 dhaba case).
+   * Default 0/undefined = dinner ends the driving day; ~120 = "Dinner at X,
+   * 2 h more to Y" when the night end permits.
+   */
+  driveAfterDinnerMin?: number
   transportMode: TransportMode
   /**
    * Optional user-stated fuel economy (km per litre) for self-drive modes.
@@ -248,12 +264,38 @@ export interface Comment {
   createdAt: number
 }
 
+/** A place attached to a decision option by the Map rail's "send to a vote".
+ *  Resolving the decision lands this place on the timeline (confirmed) — the
+ *  last mile of shortlist → vote → resolved. Rides the JSONB options column,
+ *  so no schema change; absent for hand-raised decisions. */
+export interface DecisionPlacePayload {
+  title: string
+  category: ItineraryStop['category']
+  locationName: string
+  lat: number
+  lng: number
+  description?: string
+  visitMinutes: number
+  openTime?: string
+  closeTime?: string
+  /** day the planner suggested it for, clamped at resolution time */
+  dayIndex: number
+}
+
+export interface DecisionOption {
+  id: ID
+  label: string
+  costImpactInr?: number
+  timeImpactMin?: number
+  place?: DecisionPlacePayload
+}
+
 export interface TripDecision {
   id: ID
   tripId: ID
   question: string
   context?: string
-  options: { id: ID; label: string; costImpactInr?: number; timeImpactMin?: number }[]
+  options: DecisionOption[]
   votesByUserId: Record<ID, ID>   // userId -> optionId
   status: 'open' | 'resolved'
   resolvedOptionId?: ID

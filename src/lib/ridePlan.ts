@@ -80,14 +80,120 @@ export function clampRainFactor(raw: number | undefined): number {
   return Number.isFinite(raw) ? Math.min(1, Math.max(0.5, raw as number)) : 1
 }
 
-/** Style-tuned daily wheel cap. Packed pushes 11 h; relaxed rests at 8.5;
- *  balanced 10. Case/whitespace-tolerant (#132): "Packed " is packed, not a
- *  silent 10 h. */
-export function wheelCapHoursFor(travelStyle?: string): number {
+/**
+ * Confidence-weighted rain factor (#141): a 60% CHANCE of drizzle must not
+ * equal a 60% chance of a cloudburst, so the cap multiplier separates the
+ * probability (the forecast's rain chance) from the severity (the WMO code).
+ * Drizzle-class codes damp the probability before it reaches the multiplier;
+ * storm-class codes weight it up. Both tails clamp inside [0.5, 1] via
+ * clampRainFactor — the model still never "drives faster in rain".
+ * Undefined code (probability-only input) reproduces the old arithmetic.
+ */
+export function rainFactorFor(pct: number | null | undefined, code?: number): number {
+  if (pct == null || !Number.isFinite(pct)) return 1
+  const c = code
+  let severity = 1
+  if (c != null && Number.isFinite(c)) {
+    if (c >= 95) severity = 1.25        // thunderstorm family
+    else if (c >= 71 && c <= 86) severity = 1.1  // heavy snow / violent showers
+    else if (c >= 65 || c === 82) severity = 1.1 // heavy rain / violent showers
+    else if (c >= 51 && c <= 57) severity = 0.75 // drizzle family
+    else if (c >= 61 && c <= 63) severity = 0.9  // light-to-mid rain
+  }
+  return clampRainFactor(1 - (pct / 200) * severity)
+}
+
+/** Style-tuned daily wheel cap, mode-tuned (#126). Packed pushes 11 h;
+ *  relaxed rests at 8.5; balanced 10. Case/whitespace-tolerant (#132):
+ *  "Packed " is packed, not a silent 10 h.
+ *
+ *  Mode tuning (#126): a motorcycle rides a full 1.5 h BELOW the same style's
+ *  car cap — helmet fatigue and exposure compound, and nobody's life should
+ *  depend on an 11 h saddle day. Conducted modes (train/bus/flight/taxi —
+ *  someone else drives) are untuned here: the planner refuses to split their
+ *  journeys at all (isSelfDrivenMode). Defaults keep every existing caller
+ *  (style-only) byte-compatible. */
+export function wheelCapHoursFor(travelStyle?: string, transportMode?: string): number {
   const s = (travelStyle ?? '').trim().toLowerCase()
-  if (s === 'packed') return 11
-  if (s === 'relaxed') return 8.5
-  return WHEEL_HOURS_CAP
+  const base = s === 'packed' ? 11 : s === 'relaxed' ? 8.5 : WHEEL_HOURS_CAP
+  if (transportMode === 'motorcycle') return Math.max(4, base - 1.5)
+  return base
+}
+
+/** Modes where the PLANNER's crew drives: self-drive cars/rentals and
+ *  motorcycles get the full fatigue model (wheel caps, day splits, night
+ *  halts). Conducted modes — train, bus, flight, taxi — are someone else's
+ *  shift: a 3200 km "split verdict" for a flight leg was noise (#126), and
+ *  their long-distance legs carry no driving fatigue to plan around. `mixed`
+ *  stays plannable (it can include real driving). */
+export function isSelfDrivenMode(transportMode?: string): boolean {
+  const m = (transportMode ?? '').trim().toLowerCase()
+  return m === 'car' || m === 'rental' || m === 'motorcycle' || m === 'mixed'
+}
+
+/** Modes where somebody on OUR side of the windscreen drives — the fatigue
+ *  caps mean nothing to a sleeper on the 6 a.m. train (#126). Taxi is driven
+ *  but professional: standard cap, conservative until party inputs say more. */
+export const DRIVEN_MODES: ReadonlySet<string> = new Set(['car', 'rental', 'motorcycle', 'taxi'])
+
+/** Party + mode inputs that move the wheel cap (#142). */
+export interface PartyOpts {
+  travelStyle?: string
+  transportMode?: string
+  /** licensed drivers rotating the wheel (default 1; credits cap at 4) */
+  driverCount?: number
+  /** infants or seniors aboard — shorter days, earlier dinner */
+  hasVulnerable?: boolean
+}
+
+/**
+ * Honest wheel hours for WHO is driving WHAT (#126 + #142). null = timetable
+ * mode: nobody at the wheel, no fatigue model applies. Motorcycle bleeds
+ * saddle time (−1.5 h); two rotating drivers buy the day real hours (+2 h,
+ * +3 h max at 3+); vulnerable passengers shorten it (−1 h). Rails: never
+ * below 6 h, never above 12 — even four packed drivers get a sleep.
+ */
+export function wheelCapHoursForParty(o: PartyOpts): number | null {
+  if (o.transportMode != null && !DRIVEN_MODES.has(o.transportMode)) return null
+  let cap = wheelCapHoursFor(o.travelStyle)
+  if (o.transportMode === 'motorcycle') cap -= 1.5
+  const drivers = Math.min(Math.max(1, Math.floor(o.driverCount ?? 1)), 4)
+  if (drivers >= 2) cap += 2 + Math.min(1, drivers - 2)
+  if (o.hasVulnerable) cap -= 1
+  return Math.min(12, Math.max(6, cap))
+}
+
+/** Meal/night anchors as INPUTS with party-aware defaults (#122). The windows
+ *  stop being biological absolutes the moment the party or the light changes;
+ *  every default reproduces today's constants exactly. */
+export interface AnchorOpts {
+  /** default 20:00 — kids/seniors pull it to 19:00 via the caller */
+  dinnerStartMin?: number
+  /** default 21:00 */
+  dinnerEndMin?: number
+  /** default 23:00. NIGHT_END assumes dinner-service close + buffer, NOT
+   *  daylight safety — latitude/sunset-aware ends land with #124; until then
+   *  northern-winter trips should override this explicitly. */
+  nightEndMin?: number
+  /** default 0 = dinner ends the day. Dhaba-style long drives set ~120:
+   *  halt for dinner (60 min dwell), then keep going within this allowance
+   *  and the night end. */
+  allowPostDinnerDriveMin?: number
+}
+const ANCHOR_DEFAULTS: Required<AnchorOpts> = {
+  dinnerStartMin: DINNER_WINDOW[0],
+  dinnerEndMin: DINNER_WINDOW[1],
+  nightEndMin: NIGHT_END_MIN,
+  allowPostDinnerDriveMin: 0,
+}
+
+/** Merge anchor overrides, holding the invariant that the night end stays a
+ *  full hour past dinner close — an early dinner must not force an earlier
+ *  stop than the meal itself (#122). */
+export function resolveAnchors(a?: AnchorOpts): Required<AnchorOpts> {
+  const out = { ...ANCHOR_DEFAULTS, ...a }
+  out.nightEndMin = Math.max(out.nightEndMin, out.dinnerEndMin + 60)
+  return out
 }
 
 /**
@@ -128,14 +234,28 @@ export function planDriveDays(input: {
   travelStyle?: string
   /** 0.5–1 multiplier on the wheel cap (e.g. rainFactor = 1 − dayRainPct/200) */
   rainFactor?: number
+  /** transport mode; non-driven modes (train/bus/flight/mixed) → null verdict (#126) */
+  transportMode?: string
+  /** licensed drivers rotating the wheel (#142) */
+  driverCount?: number
+  /** infants/seniors aboard — shorter honest days (#142) */
+  hasVulnerable?: boolean
+  /** terrain-aware wheel-time profile (#124) — absent = the blended rate */
+  profile?: RoadProfilePoint[] | null
 }): DriveDaysPlan | null {
   const totalKm = input.totalKm
   const driveMin = input.driveMinutes
+  const profile = input.profile ?? null
   if (!Number.isFinite(totalKm) || totalKm <= 0 || !Number.isFinite(driveMin) || driveMin <= 0) return null
+  const capH = wheelCapHoursForParty({
+    travelStyle: input.travelStyle, transportMode: input.transportMode,
+    driverCount: input.driverCount, hasVulnerable: input.hasVulnerable,
+  })
+  if (capH == null) return null // #126: a timetable trip has no wheel to fatigue
   const rain = clampRainFactor(input.rainFactor)
-  const capH = wheelCapHoursFor(input.travelStyle) * rain
+  const cap = capH * rain
   const kmPerMin = totalKm / driveMin
-  const dailyKmBudget = capH * 60 * kmPerMin
+  const dailyKmBudget = cap * 60 * kmPerMin
   if (totalKm <= dailyKmBudget) {
     return { driveDayCount: 1, perDay: totalKm, nightHalts: [], maxDailyWheelMin: driveMin }
   }
@@ -144,11 +264,28 @@ export function planDriveDays(input: {
   const endnoDay = Math.min(ENDNO_KM, perDay * 0.15)
   const capKm = totalKm - endnoDay
   const nightHalts: number[] = []
+  // Equal km is equal wheel time only when the terrain is uniform (#124): with a
+  // profile the boundaries sit where CUMULATIVE TIME is even, so the split keeps
+  // minimizing the maximum daily WHEEL TIME as its contract claims.
+  const perDayMinutes = driveMin / count
   for (let i = 1; i < count; i++) {
-    const km = perDay * i
+    const km = profile ? (kmAt(profile, perDayMinutes * i) ?? perDay * i) : perDay * i
     if (km < capKm) nightHalts.push(km)
   }
-  return { driveDayCount: count, perDay, nightHalts, maxDailyWheelMin: perDay / kmPerMin }
+  // The reported worst day must survive the terrain: with a profile it is the
+  // real maximum over the (now uneven) spans, not the blended average.
+  const spans = [0, ...nightHalts, totalKm]
+  let maxDailyWheelMin = perDay / kmPerMin
+  if (profile) {
+    let worst = perDay / kmPerMin
+    for (let i = 1; i < spans.length; i++) {
+      const a = minutesAt(profile, spans[i - 1])
+      const b = minutesAt(profile, spans[i])
+      if (a != null && b != null && b - a > worst) worst = b - a
+    }
+    maxDailyWheelMin = worst
+  }
+  return { driveDayCount: count, perDay, nightHalts, maxDailyWheelMin }
 }
 
 // ---- The travel clock (PLAN-DAY-PLANNER §4–§5) ----
@@ -192,7 +329,15 @@ export interface TravelClockAnchor {
 export type TravelClockVerdict =
   | { verdict: 'defer'; wheelAvailMin: number; reason: string }
   | { verdict: 'hop'; hopKm: number; nightHaltEtaMin: number; reason: string }
-  | { verdict: 'ok'; days: TravelClockDay[]; split: DriveDaysPlan | null }
+  | {
+      verdict: 'ok'
+      days: TravelClockDay[]
+      /** the drive home, walked separately (#145) — km are RETURN-LEG relative
+       *  (0 = destination, totalKm = back home), dayIndex continues the
+       *  outbound count; null for one-way trips and circuits. */
+      returnDays: TravelClockDay[] | null
+      split: DriveDaysPlan | null
+    }
 
 /** Module-level default drive start (the planRideSegments-local one is not in
  *  this scope). Derived days 2+ always start here. */
@@ -202,6 +347,91 @@ const CLOCK_DEFAULT_START = '08:30'
 function clockStartMin(raw: string | undefined): number {
   if (raw && /^\d{1,2}:\d{2}$/.test(raw)) return hmToMinutes(raw)
   return hmToMinutes(CLOCK_DEFAULT_START)
+}
+
+/**
+ * A cumulative wheel-time profile (#124): the wheel minutes elapsed at each
+ * distance along the route, ascending in km. Built from measured road legs it
+ * lets the walk position anchors on the REAL terrain mix — a ghat morning
+ * covers far fewer km per hour than the highway afternoon, and one blended
+ * `totalKm / driveMinutes` rate placed lunch and the night halt too far along
+ * every mixed-terrain day.
+ */
+export interface RoadProfilePoint { km: number; min: number }
+
+/** Wheel minutes at a distance, linearly interpolated; null when unusable. */
+function minutesAt(profile: RoadProfilePoint[], km: number): number | null {
+  if (profile.length < 2 || !Number.isFinite(km)) return null
+  const first = profile[0]
+  const last = profile[profile.length - 1]
+  if (km <= first.km) return first.min
+  for (let i = 1; i < profile.length; i++) {
+    const a = profile[i - 1]
+    const b = profile[i]
+    if (km <= b.km) {
+      const span = b.km - a.km
+      const t = span > 0 ? (km - a.km) / span : 0
+      return a.min + t * (b.min - a.min)
+    }
+  }
+  return last.min
+}
+
+/** Distance covered after a duration — the inverse of `minutesAt`; null when unusable. */
+function kmAt(profile: RoadProfilePoint[], min: number): number | null {
+  if (profile.length < 2 || !Number.isFinite(min)) return null
+  const first = profile[0]
+  const last = profile[profile.length - 1]
+  if (min <= first.min) return first.km
+  for (let i = 1; i < profile.length; i++) {
+    const a = profile[i - 1]
+    const b = profile[i]
+    if (min <= b.min) {
+      const span = b.min - a.min
+      const t = span > 0 ? (min - a.min) / span : 0
+      return a.km + t * (b.km - a.km)
+    }
+  }
+  return last.km
+}
+
+/**
+ * Build a wheel-time profile from measured legs (any provider). Null when the
+ * legs carry no usable time/distance, so callers keep the blended rate.
+ *
+ * GRANULARITY (#124): the app routes leg-by-leg between stops, so this only
+ * resolves terrain that changes AT a stop — a ghat inside a single leg
+ * degenerates to the blended rate. Finer data (provider per-step or
+ * per-coordinate durations, or a stated terrain speed model) is a separate
+ * decision.
+ */
+export function roadProfileFromLegs(legs: { distanceKm: number; durationMinutes: number }[]): RoadProfilePoint[] | null {
+  const pts: RoadProfilePoint[] = [{ km: 0, min: 0 }]
+  let km = 0
+  let min = 0
+  for (const leg of legs) {
+    if (!Number.isFinite(leg.distanceKm) || !Number.isFinite(leg.durationMinutes)) continue
+    if (leg.distanceKm <= 0 || leg.durationMinutes <= 0) continue
+    km += leg.distanceKm
+    min += leg.durationMinutes
+    pts.push({ km, min })
+  }
+  return pts.length >= 2 ? pts : null
+}
+
+/**
+ * The profile of a ROUND TRIP: the outbound profile followed by itself shifted
+ * by the outbound totals — the drive home retraces the same road (#124). Used
+ * only where a caller bills the whole loop (the split verdict); the clock walks
+ * the outbound and reuses one profile for both directed legs.
+ */
+export function loopProfile(profile: RoadProfilePoint[] | null): RoadProfilePoint[] | null {
+  if (!profile || profile.length < 2) return profile
+  const last = profile[profile.length - 1]
+  return [
+    ...profile,
+    ...profile.slice(1).map(p => ({ km: p.km + last.km, min: p.min + last.min })),
+  ]
 }
 
 /**
@@ -228,18 +458,46 @@ function walkClockDay(input: {
   isFinal: boolean
   /** destination exclusion cap — halts never land past this (#140) */
   capKm?: number
+  /** meal/night anchor overrides with party-aware defaults (#122) */
+  anchors?: AnchorOpts
+  /** terrain-aware wheel-time profile (#124) — absent = the blended rate */
+  profile?: RoadProfilePoint[] | null
 }): TravelClockDay {
-  const { dayIndex, startKm, kmBudget, startMin, kmPerMin, isFinal, capKm = Infinity } = input
+  const { dayIndex, startKm, kmBudget, startMin, kmPerMin, isFinal, capKm = Infinity, profile = null } = input
+  const { dinnerStartMin, dinnerEndMin, nightEndMin, allowPostDinnerDriveMin } = resolveAnchors(input.anchors)
   const maxKm = startKm + kmBudget
   let t = startMin
   let km = startKm
   let dwellMin = 0
   const anchors: TravelClockAnchor[] = []
+  // The two conversions every placement needs — terrain-aware when a profile
+  // arrived, the blended rate otherwise (so absent data behaves exactly as
+  // before #124).
+  const kmAfter = (fromKm: number, minutes: number): number => {
+    if (minutes <= 0) return fromKm
+    if (profile) {
+      const here = minutesAt(profile, fromKm)
+      if (here != null) {
+        const target = kmAt(profile, here + minutes)
+        if (target != null) return Math.max(fromKm, target)
+      }
+    }
+    return fromKm + minutes * kmPerMin
+  }
+  const minutesFor = (fromKm: number, dKm: number): number => {
+    if (dKm <= 0) return 0
+    if (profile) {
+      const a = minutesAt(profile, fromKm)
+      const b = minutesAt(profile, fromKm + dKm)
+      if (a != null && b != null) return Math.max(0, b - a)
+    }
+    return dKm / kmPerMin
+  }
   const tryAnchor = (name: TravelClockAnchor['name'], window: [number, number], minutes: number) => {
     if (km >= maxKm - 0.5) return // the budget runs out before this meal matters
     const eta = Math.max(t, window[0])
     if (eta > window[1]) return // window missed — the day started too late for it
-    const kmAtEta = km + (eta - t) * kmPerMin
+    const kmAtEta = kmAfter(km, eta - t)
     if (kmAtEta >= maxKm - 0.5) return // the halt comes first
     km = kmAtEta
     t = eta + minutes
@@ -252,29 +510,40 @@ function walkClockDay(input: {
   tryAnchor('tea', TEA_WINDOW, HALT_MIN.tea)
   if (isFinal) {
     // The destination day gets the full clock check too (#138) — no silent
-    // post-23:00 arrivals. Arrival = current t + the wheel left to the end.
-    const arrivalEtaMin = Math.round(t + (maxKm - km) / kmPerMin)
-    return { dayIndex, startKm, kmCovered: maxKm, nightHaltKm: null, nightHaltEtaMin: null, dinnerAtHalt: false, wheelMin: Math.round((maxKm - startKm) / kmPerMin), dwellMin, arrivalEtaMin, lateArrival: arrivalEtaMin > NIGHT_END_MIN, anchors }
+    // post-night-end arrivals. Arrival = current t + the wheel left to the end.
+    const arrivalEtaMin = Math.round(t + minutesFor(km, maxKm - km))
+    return { dayIndex, startKm, kmCovered: maxKm, nightHaltKm: null, nightHaltEtaMin: null, dinnerAtHalt: false, wheelMin: Math.round(minutesFor(startKm, maxKm - startKm)), dwellMin, arrivalEtaMin, lateArrival: arrivalEtaMin > nightEndMin, anchors }
   }
   // Non-final days may not push a halt into the exclusion zone (#140): the
   // boundary the day aims for is its budget clamped to the cap.
   const boundary = Math.min(maxKm, capKm)
   // Night halt: drive toward the day's boundary; when the clock reaches dinner
   // first, the halt IS dinner and the boundary moves in (a late start buys a
-  // shorter day, never night driving — NIGHT_END is the backstop below).
-  const wheelToBoundary = (boundary - km) / kmPerMin
+  // shorter day, never night driving — the night end is the backstop below).
+  const wheelToBoundary = minutesFor(km, boundary - km)
   const etaAtBoundary = t + wheelToBoundary
-  if (etaAtBoundary <= DINNER_WINDOW[0]) {
-    return { dayIndex, startKm, kmCovered: boundary, nightHaltKm: boundary, nightHaltEtaMin: Math.round(etaAtBoundary), dinnerAtHalt: true, wheelMin: Math.round((boundary - startKm) / kmPerMin), dwellMin, arrivalEtaMin: null, lateArrival: false, anchors }
+  if (etaAtBoundary <= dinnerStartMin) {
+    return { dayIndex, startKm, kmCovered: boundary, nightHaltKm: boundary, nightHaltEtaMin: Math.round(etaAtBoundary), dinnerAtHalt: true, wheelMin: Math.round(minutesFor(startKm, boundary - startKm)), dwellMin, arrivalEtaMin: null, lateArrival: false, anchors }
   }
   // Dinner branch: aim the halt at dinner-open; the ENDNO cap may pull it in
   // earlier, in which case dinner was NOT eaten at the halt (dinnerAtHalt
   // false — the halt row on the map omits the dinner flag).
-  const haltEtaIdeal = Math.max(t, DINNER_WINDOW[0])
-  const idealKm = km + (haltEtaIdeal - t) * kmPerMin
+  const haltEtaIdeal = Math.max(t, dinnerStartMin)
+  const idealKm = kmAfter(km, haltEtaIdeal - t)
   const haltKm = Math.min(idealKm, boundary)
-  const haltEta = Math.round(t + (haltKm - km) / kmPerMin)
-  return { dayIndex, startKm, kmCovered: haltKm, nightHaltKm: haltKm, nightHaltEtaMin: haltEta, dinnerAtHalt: idealKm <= boundary + 0.5, wheelMin: Math.round((haltKm - startKm) / kmPerMin), dwellMin, arrivalEtaMin: null, lateArrival: false, anchors }
+  const haltEta = Math.round(t + minutesFor(km, haltKm - km))
+  // Dhaba case (#122): when the trip allows post-dinner driving, the day
+  // doesn't END at dinner — it halts for the meal (60 min dwell), then keeps
+  // going within the allowance and the night end. The day then covers dinner
+  // AND the extra leg; the caller reads the single entry's extended cover.
+  if (allowPostDinnerDriveMin > 0) {
+    const dinnerT = haltEta + HALT_MIN.dinner
+    const postWheel = Math.min(allowPostDinnerDriveMin, Math.max(0, nightEndMin - dinnerT))
+    const postKm = Math.min(boundary, kmAfter(haltKm, postWheel))
+    const covered = postKm > haltKm + 0.5 ? postKm : haltKm
+    return { dayIndex, startKm, kmCovered: covered, nightHaltKm: covered, nightHaltEtaMin: Math.round(dinnerT + minutesFor(haltKm, covered - haltKm)), dinnerAtHalt: idealKm <= boundary + 0.5, wheelMin: Math.round(minutesFor(startKm, covered - startKm)), dwellMin: dwellMin + HALT_MIN.dinner, arrivalEtaMin: null, lateArrival: false, anchors }
+  }
+  return { dayIndex, startKm, kmCovered: haltKm, nightHaltKm: haltKm, nightHaltEtaMin: haltEta, dinnerAtHalt: idealKm <= boundary + 0.5, wheelMin: Math.round(minutesFor(startKm, haltKm - startKm)), dwellMin, arrivalEtaMin: null, lateArrival: false, anchors }
 }
 
 /**
@@ -298,28 +567,51 @@ export function planTravelClock(input: {
   /** per-day rain % (index = the walked day); beats the scalar when present
    *  (#127) — day 3's cloudburst caps day 3, not the whole trip. */
   dayRainPct?: (number | null)[]
+  /** #126 mode gate + #142 party inputs feed the same wheel cap. */
+  transportMode?: string
+  driverCount?: number
+  hasVulnerable?: boolean
+  /** #122 party/season anchor overrides. */
+  anchors?: AnchorOpts
+  /** #145 round trip: walk the drive home as a second, reversed pass. */
+  roundTrip?: boolean
+  /** WMO code per walked day (#141) — separates drizzle from cloudburst
+   *  inside each day's cap multiplier. Index-aligned with dayRainPct. */
+  dayWeatherCode?: (number | null)[]
+  /** terrain-aware wheel-time profile (#124) — absent = the blended rate */
+  profile?: RoadProfilePoint[] | null
 }): TravelClockVerdict {
   const totalKm = input.totalKm
   const driveMin = input.driveMinutes
+  const anchors = resolveAnchors(input.anchors)
+  // #126 mode gate + #142 party cap, one call. null = timetable mode: there is
+  // no wheel to fatigue, so there is no drive to plan (empty ok, not a defer).
+  const capH = wheelCapHoursForParty({
+    travelStyle: input.travelStyle, transportMode: input.transportMode,
+    driverCount: input.driverCount, hasVulnerable: input.hasVulnerable,
+  })
+  if (capH == null) return { verdict: 'ok', days: [], returnDays: null, split: null }
   if (!Number.isFinite(totalKm) || totalKm <= 0 || !Number.isFinite(driveMin) || driveMin <= 0) {
-    return { verdict: 'ok', days: [], split: null }
+    return { verdict: 'ok', days: [], returnDays: null, split: null }
   }
   const kmPerMin = totalKm / driveMin
   const startMin = clockStartMin(input.dayStart)
-  const wheelAvailMin = NIGHT_END_MIN - startMin
+  const wheelAvailMin = anchors.nightEndMin - startMin
   if (wheelAvailMin < MIN_HONEST_WHEEL_MIN) {
     return {
       verdict: 'defer',
       wheelAvailMin,
-      reason: `Under ${MIN_HONEST_WHEEL_MIN / 60} h of honest wheel time before ${Math.floor(NIGHT_END_MIN / 60)}:00 — leave tomorrow by ${DEFER_START} instead`,
+      reason: `Under ${MIN_HONEST_WHEEL_MIN / 60} h of honest wheel time before ${Math.floor(anchors.nightEndMin / 60)}:00 — leave tomorrow by ${DEFER_START} instead`,
     }
   }
-  // The rain clamp is per walked day (#127): day i's forecast caps day i.
+  // The rain clamp is per walked day (#127), severity-banded (#141): a 55%
+  // drizzle is a gentle 0.9x, never a verdict flip; day i's forecast caps
+  // only day i. WMO severity weights the multiplier when the code is known.
   const rainFor = (i: number): number =>
     input.dayRainPct?.[i] != null
-      ? clampRainFactor(1 - (input.dayRainPct[i] as number) / 200)
+      ? rainFactorFor(input.dayRainPct[i], input.dayWeatherCode?.[i] ?? undefined)
       : clampRainFactor(input.rainFactor)
-  const capKmFor = (i: number): number => wheelCapHoursFor(input.travelStyle) * 60 * rainFor(i) * kmPerMin
+  const capKmFor = (i: number): number => capH * 60 * rainFor(i) * kmPerMin
   const capKmBudget = capKmFor(0)
   if (wheelAvailMin < HOP_WHEEL_MAX_MIN) {
     // Short hop: drive up to 2 h toward a night halt and have dinner there —
@@ -329,59 +621,74 @@ export function planTravelClock(input: {
     return {
       verdict: 'hop',
       hopKm,
-      nightHaltEtaMin: Math.min(NIGHT_END_MIN - 60, startMin + hopMin),
+      nightHaltEtaMin: Math.min(anchors.nightEndMin - 60, startMin + hopMin),
       reason: `Late start — drive ~${hopKm} km to a night halt, eat dinner there, and let the real drive start tomorrow`,
     }
   }
-  const split = planDriveDays({ totalKm, driveMinutes: driveMin, travelStyle: input.travelStyle, rainFactor: input.rainFactor })
-  const days: TravelClockDay[] = []
-  if (!split || split.driveDayCount <= 1) {
-    days.push(walkClockDay({ dayIndex: 0, startKm: 0, kmBudget: totalKm, startMin, kmPerMin, isFinal: true }))
-    return { verdict: 'ok', days, split }
+  const split = planDriveDays({
+    totalKm, driveMinutes: driveMin, travelStyle: input.travelStyle, rainFactor: input.rainFactor,
+    transportMode: input.transportMode, driverCount: input.driverCount, hasVulnerable: input.hasVulnerable,
+  })
+  if (!split) return { verdict: 'ok', days: [], returnDays: null, split: null }
+  // One walked leg (outward or return): split-count days, first day on the
+  // real clock, remainder re-balanced, tail guard — extracted so the return
+  // walk (#145) runs the identical engine from the destination forward.
+  const walkLeg = (firstStartMin: number, dayOffset: number): TravelClockDay[] => {
+    const days: TravelClockDay[] = []
+    if (split.driveDayCount <= 1) {
+      days.push(walkClockDay({ dayIndex: dayOffset, startKm: 0, kmBudget: totalKm, startMin: firstStartMin, kmPerMin, isFinal: true, anchors: input.anchors, profile: input.profile ?? null }))
+      return days
+    }
+    // The same destination exclusion the split path enforces (#140): halts clamp
+    // to it; the final day ignores it. Mirrors planDriveDays' endnoDay exactly.
+    const endnoDay = Math.min(ENDNO_KM, split.perDay * 0.15)
+    const endnoCap = totalKm - endnoDay
+    // Day 1 walks the real clock (it may shrink when the start is late); the
+    // remainder re-balances over the following days. The count grows honestly
+    // when a shrunk first day leaves more than a full cap for the rest.
+    const first = walkClockDay({ dayIndex: dayOffset, startKm: 0, kmBudget: Math.min(split.perDay, capKmBudget, totalKm), startMin: firstStartMin, kmPerMin, isFinal: false, capKm: endnoCap, anchors: input.anchors, profile: input.profile ?? null })
+    days.push(first)
+    let remaining = totalKm - first.kmCovered
+    let restDays = split.driveDayCount - 1
+    while (restDays > 0 && remaining / restDays > capKmBudget) restDays += 1
+    let startKm = first.kmCovered
+    for (let i = 1; i <= restDays; i++) {
+      // "Final" only when the day's own cap can actually absorb the remainder
+      // (#127) — a wet day 2 spills into the tail guard below, not into an
+      // over-cap last day.
+      const isFinal = i === restDays && remaining <= capKmFor(i) + 0.5
+      const budget = isFinal ? remaining : Math.min(remaining / (restDays - i + 1), capKmFor(i))
+      const day = walkClockDay({ dayIndex: dayOffset + i, startKm, kmBudget: budget, startMin: hmToMinutes(CLOCK_DEFAULT_START), kmPerMin, isFinal, capKm: isFinal ? Infinity : endnoCap, anchors: input.anchors, profile: input.profile ?? null })
+      days.push(day)
+      // kmCovered is ABSOLUTE within this leg — the budget is RELATIVE
+      // (#137, caught when the walk produced 5 of 9 promised days).
+      remaining -= day.kmCovered - startKm
+      startKm = day.kmCovered
+      if (remaining <= 0.5) break
+    }
+    // Tail guard (#137): a dinner-halt day can under-cover its budget and the
+    // loop above breaks before the destination. Never silently drop route —
+    // keep walking capped days until the walk reaches totalKm.
+    for (let guard = 0; remaining > 0.5 && guard < 30; guard++) {
+      const isFinal = remaining <= capKmFor(days.length) + 0.5
+      const day = walkClockDay({
+        dayIndex: dayOffset + days.length, startKm, kmBudget: isFinal ? remaining : Math.min(remaining, capKmFor(days.length)),
+        startMin: hmToMinutes(CLOCK_DEFAULT_START), kmPerMin, isFinal, capKm: isFinal ? Infinity : endnoCap, anchors: input.anchors, profile: input.profile ?? null,
+      })
+      days.push(day)
+      remaining -= day.kmCovered - startKm
+      startKm = day.kmCovered
+    }
+    return days
   }
-  // The same destination exclusion the split path enforces (#140): halts clamp
-  // to it; the final day ignores it. Mirrors planDriveDays' endnoDay exactly.
-  const endnoDay = Math.min(ENDNO_KM, split.perDay * 0.15)
-  const endnoCap = totalKm - endnoDay
-  // Day 1 walks the real clock (it may shrink when the start is late); the
-  // remainder re-balances over the following days. The count grows honestly
-  // when a shrunk first day leaves more than a full cap for the rest.
-  const first = walkClockDay({ dayIndex: 0, startKm: 0, kmBudget: Math.min(split.perDay, capKmBudget, totalKm), startMin, kmPerMin, isFinal: false, capKm: endnoCap })
-  days.push(first)
-  let remaining = totalKm - first.kmCovered
-  let restDays = split.driveDayCount - 1
-  while (restDays > 0 && remaining / restDays > capKmBudget) restDays += 1
-  let startKm = first.kmCovered
-  for (let i = 1; i <= restDays; i++) {
-    // "Final" only when the day's own cap can actually absorb the remainder
-    // (#127) — a wet day 2 spills into the tail guard below, not into an
-    // over-cap last day.
-    const isFinal = i === restDays && remaining <= capKmFor(i) + 0.5
-    const budget = isFinal ? remaining : Math.min(remaining / (restDays - i + 1), capKmFor(i))
-    const day = walkClockDay({ dayIndex: i, startKm, kmBudget: budget, startMin: hmToMinutes(CLOCK_DEFAULT_START), kmPerMin, isFinal, capKm: isFinal ? Infinity : endnoCap })
-    days.push(day)
-    // kmCovered is ABSOLUTE (halt position on the route) — the budget is
-    // RELATIVE. Subtracting the absolute cover from `remaining` truncated
-    // the walk after ~4 days on long trips (the clock-map-zones overlay
-    // surfaced it: banner said 9 days, the walk produced 5).
-    remaining -= day.kmCovered - startKm
-    startKm = day.kmCovered
-    if (remaining <= 0.5) break
-  }
-  // Tail guard (#137): a dinner-halt day can under-cover its budget and the
-  // loop above breaks before the destination. Never silently drop route —
-  // keep walking capped days until the map the overlay paints reaches totalKm.
-  for (let guard = 0; remaining > 0.5 && guard < 30; guard++) {
-    const isFinal = remaining <= capKmFor(days.length) + 0.5
-    const day = walkClockDay({
-      dayIndex: days.length, startKm, kmBudget: isFinal ? remaining : Math.min(remaining, capKmFor(days.length)),
-      startMin: hmToMinutes(CLOCK_DEFAULT_START), kmPerMin, isFinal, capKm: isFinal ? Infinity : endnoCap,
-    })
-    days.push(day)
-    remaining -= day.kmCovered - startKm
-    startKm = day.kmCovered
-  }
-  return { verdict: 'ok', days, split }
+  const days = walkLeg(startMin, 0)
+  // #145: the drive home is its OWN walk on the reversed corridor — same
+  // engine, starting fresh at the destination (next morning's default
+  // start; the overnight is implicit in the reset clock). Circuits are not
+  // round trips by construction (isRoundTrip keys on the toggle + same
+  // start/end), so this never double-walks a loop.
+  const returnDays = input.roundTrip && driveMin > 0 ? walkLeg(hmToMinutes(CLOCK_DEFAULT_START), days.length) : null
+  return { verdict: 'ok', days, returnDays, split }
 }
 
 export interface RidePlanInput {
@@ -390,6 +697,10 @@ export interface RidePlanInput {
   driveMinutes: number
   /** whether fuel halts should be included (self-drive trips) */
   includeFuel?: boolean
+  /** EV drive (#144B): replaces the fuel cadence with charge cadence —
+   *  closer together (0.8 × range) and a 60-min dwell, labelled "Charge".
+   *  Mutually exclusive with includeFuel; callers must not set both. */
+  includeCharge?: boolean
   /** true = plan the WHOLE trip (cross-day overnight segments allowed) */
   multiDay?: boolean
   /** vehicle tank range in km — sets the fuel cadence (default FUEL_INTERVAL_KM) */
@@ -401,6 +712,9 @@ export interface RidePlanInput {
   dayStartTimes?: string[]
   /** rain chance percent per day index (null = no forecast) — flags rainy segments */
   dayRainPct?: (number | null)[]
+  /** motorcycle rides 1.5 h below the style cap (#126); the day-split for
+   *  conducted modes is refused upstream (isSelfDrivenMode), never here */
+  transportMode?: string
   /** simplified route geometry {lat,lng}[] — enables road-personality tagging */
   roadGeometry?: { lat: number; lng: number }[]
 }
@@ -592,9 +906,15 @@ export function planRideSegments(input: RidePlanInput): RideSegment[] {
   // wheel and earns its stretch by the clock (PLAN-DAY-PLANNER §14 fixture —
   // this was the short-trip silence that opened the brainstorm).
   if (total < MIN_PLANNED_DRIVE_KM && drive < STRETCH_CLOCK_MIN) return []
-  const includeFuel = !!input.includeFuel
+  const includeFuel = !!input.includeFuel && !input.includeCharge
+  // #144B: an EV charges on a tighter, 60-min-stop cadence — 0.8 × usable
+  // range (buffer for hills/AC), never looser than the fuel stride. Purpose
+  // stays 'fuel' (fit tables, priorities, hit matching all keep working);
+  // only the label and dwell speak EV.
+  const includeCharge = !!input.includeCharge
   const multiDay = !!input.multiDay
   const fuelEvery = Math.max(100, (input.vehicleRangeKm && input.vehicleRangeKm > 0 ? input.vehicleRangeKm : FUEL_INTERVAL_KM) * 0.85)
+  const chargeEvery = Math.max(80, Math.min(fuelEvery, (input.vehicleRangeKm && input.vehicleRangeKm > 0 ? input.vehicleRangeKm : FUEL_INTERVAL_KM) * 0.8))
   // The destination exclusion zone scales down for short journeys — a fixed
   // 60 km off a 80 km drive would leave no bookable road at all.
   const endno = Math.min(ENDNO_KM, total * 0.15)
@@ -607,7 +927,7 @@ export function planRideSegments(input: RidePlanInput): RideSegment[] {
   // time (planDriveDays verdict null).
   const dayEnds: number[] = []
   if (multiDay) {
-    const days = planDriveDays({ totalKm: total, driveMinutes: drive })
+    const days = planDriveDays({ totalKm: total, driveMinutes: drive, transportMode: input.transportMode })
     if (days && days.nightHalts.length > 0) dayEnds.push(...days.nightHalts)
     else for (let km = OVERNIGHT_INTERVAL_KM; km < cap; km += OVERNIGHT_INTERVAL_KM) dayEnds.push(km)
   }
@@ -627,18 +947,49 @@ export function planRideSegments(input: RidePlanInput): RideSegment[] {
   // Phase A — in-day cadence relative to each day's start, plus the overnights
   // that close each day. Cadences RESET after an overnight, so day-2's stretch
   // lands ~150 km into day 2, not 600 km from the origin.
-  type Raw = { km: number; purpose: HaltPurpose }
+  type Raw = { km: number; purposes: HaltPurpose[] }
   const raws: Raw[] = []
   dayStarts.forEach((dayStart, di) => {
     const dayCap = dayEnds[di] ?? Infinity
     const push = (purpose: HaltPurpose, step: number) => {
-      for (let km = dayStart + step; km < dayCap && km < cap; km += step) raws.push({ km, purpose })
+      for (let km = dayStart + step; km < dayCap && km < cap; km += step) raws.push({ km, purposes: [purpose] })
     }
     push('stretch', Math.min(sanitizedStretchKm(input), clockStretchKm))
-    if (includeFuel) push('fuel', fuelEvery)
     push('meal', sanitizedMealKm(input))
   })
-  dayEnds.forEach(e => raws.push({ km: e, purpose: 'overnight' }))
+  // Fuel runs on a GLOBAL corridor cadence — the tank carries over night
+  // halts, so resetting the step at each day start made fuel structurally
+  // impossible whenever the load-balanced day budget (e.g. 350 km) is shorter
+  // than the tank stride (450 km range × 0.85 = 382.5): every push overshot
+  // the day cap and multi-day plans grew ZERO fuel stops. Measured live on a
+  // 1,400 km / 4-day plan: 0 fuel segments before this, 3 after. EV charging
+  // (chargeEvery) follows the same corridor cadence; the #144A pass below then
+  // folds a fuel tick into a nearby meal/overnight when they coincide.
+  if (includeFuel) {
+    for (let km = fuelEvery; km < cap; km += fuelEvery) raws.push({ km, purposes: ['fuel'] })
+  }
+  if (includeCharge) {
+    for (let km = chargeEvery; km < cap; km += chargeEvery) raws.push({ km, purposes: ['fuel'] })
+  }
+  dayEnds.forEach(e => raws.push({ km: e, purposes: ['overnight'] }))
+  // #144A — refuel (or charge) where you eat or sleep: a fuel-stride tick
+  // landing within 15% of that stride of a meal/overnight raw folds INTO it.
+  // One combined stop ("Meal + fuel", "Overnight + charge") beats two stops a
+  // few minutes apart at the same place.
+  if (includeFuel || includeCharge) {
+    const foldGap = Math.max(20, (includeCharge ? chargeEvery : fuelEvery) * 0.15)
+    for (let i = raws.length - 1; i >= 0; i--) {
+      const f = raws[i]
+      if (!f.purposes.includes('fuel')) continue
+      const near = raws.find(r => r !== f
+        && (r.purposes.includes('meal') || r.purposes.includes('overnight'))
+        && Math.abs(r.km - f.km) <= foldGap)
+      if (near) {
+        near.purposes.push('fuel')
+        raws.splice(i, 1)
+      }
+    }
+  }
   if (raws.length === 0) return []
 
   // Phase B — sort, then collapse within-day collisions closer than
@@ -646,7 +997,7 @@ export function planRideSegments(input: RidePlanInput): RideSegment[] {
   // day — what follows belongs to the next day). A higher-priority incoming
   // target (meal > fuel > stretch) shifts the merged position to its own km.
   // Extracted as collapse() so Phase B3 can re-run it after the B2 slide.
-  raws.sort((a, b) => a.km - b.km || PURPOSE_PRIORITY[b.purpose] - PURPOSE_PRIORITY[a.purpose])
+  raws.sort((a, b) => a.km - b.km || PURPOSE_PRIORITY[b.purposes[0]] - PURPOSE_PRIORITY[a.purposes[0]])
   type Merged = { km: number; purposes: HaltPurpose[] }
   const collapse = (list: Merged[]): Merged[] => {
     const out: Merged[] = []
@@ -666,7 +1017,7 @@ export function planRideSegments(input: RidePlanInput): RideSegment[] {
     }
     return out
   }
-  let merged: Merged[] = collapse(raws.map(r => ({ km: r.km, purposes: [r.purpose] })))
+  let merged: Merged[] = collapse(raws.map(r => ({ km: r.km, purposes: [...r.purposes] })))
 
 /** Meal window in minutes since midnight: lunch must land 11:30–14:30.
  *  Aliased to the exported LUNCH_WINDOW (#130) — the segment slide and the
@@ -743,12 +1094,19 @@ function etaAt(km: number, dayStarts: number[], dayStartTimes: string[] | undefi
   // double-stop evening. The halt absorbs it instead — dinner at the halt
   // anyway — and a fuel fold is safe: Phase E's corridor advisory re-flags
   // any gap the absorb creates.
+  // The absorb is TIME-bounded, not just km-bounded: a slid lunch sits at the
+  // 14:30 window edge — on a load-balanced 350 km day that is ~98 km
+  // (= 2 h 20 m of wheel time) before the halt, inside the old km bound, so
+  // the halt ate lunch on EVERY driving day and no meal card ever survived a
+  // multi-day plan (live-verified 2026-09-14). Only a stop within ~1 h of the
+  // halt is "dinner at the halt anyway"; an earlier one is a real meal.
   {
     const out: Merged[] = []
     for (const m of merged) {
       const last = out[out.length - 1]
       if (m.purposes[0] === 'overnight' && last && last.purposes[0] !== 'overnight'
-        && m.km - last.km < MIN_BREAK_GAP_KM) {
+        && m.km - last.km < MIN_BREAK_GAP_KM
+        && kmPerMin > 0 && (m.km - last.km) / kmPerMin <= 60) {
         out.pop() // the halt serves both — purposes fold into it
         m.purposes = [...new Set([...m.purposes, ...last.purposes])]
       }
@@ -764,8 +1122,10 @@ function etaAt(km: number, dayStarts: number[], dayStartTimes: string[] | undefi
   // (each day's clock starts at its own start). Tea-time breaks are 'stretch'
   // purposes; the 20 min tea dwell belongs to that key.
   const HALT_DWELL: Record<HaltPurpose, number> = {
+    // #144B: on an EV the fuel-purpose stop IS a charge stop — 60 min plugged
+    // in, not a 15-min pump-and-go. The wall clock must carry that.
     stretch: HALT_MIN.tea, meal: HALT_MIN.meal,
-    fuel: HALT_MIN.fuel, rest: HALT_MIN.tea, overnight: HALT_MIN.dinner, sight: 0,
+    fuel: includeCharge ? 60 : HALT_MIN.fuel, rest: HALT_MIN.tea, overnight: HALT_MIN.dinner, sight: 0,
   }
   const dwellAhead = new Array<number>(merged.length).fill(0)
   {
@@ -791,11 +1151,21 @@ function etaAt(km: number, dayStarts: number[], dayStartTimes: string[] | undefi
     const hasMeal = m.purposes.includes('meal')
     const hasFuel = m.purposes.includes('fuel')
     const extraPurposes = m.purposes.filter(p => p !== purpose)
+    // #144: combined labels. EV swaps the fuel word for "charge" everywhere
+    // it appears — the purpose stays 'fuel' under the hood (fit tables,
+    // priorities, hit matching all keep working).
+    const fuelWord = includeCharge ? 'Charge' : 'Fuel'
     const label = hasMeal && hasFuel
-      ? 'Meal + fuel'
-      : m.purposes.length > 1 && purpose !== 'overnight'
-        ? `${PURPOSE_LABEL[purpose]} + ${extraPurposes.map(p => PURPOSE_SHORT[p]).join(' + ')}`
-        : PURPOSE_LABEL[purpose]
+      ? includeCharge ? 'Meal + charge' : 'Meal + fuel'
+      : purpose === 'overnight' && hasFuel
+        ? `Overnight + ${fuelWord.toLowerCase()}`
+        : purpose === 'fuel'
+          ? includeCharge
+            ? extraPurposes.length > 0 ? `Charge + ${extraPurposes.map(p => PURPOSE_SHORT[p]).join(' + ')}` : 'Charge'
+            : PURPOSE_LABEL.fuel
+          : m.purposes.length > 1 && purpose !== 'overnight'
+            ? `${PURPOSE_LABEL[purpose]} + ${extraPurposes.map(p => p === 'fuel' ? fuelWord : PURPOSE_SHORT[p]).join(' + ')}`
+            : PURPOSE_LABEL[purpose]
     return {
       index: i,
       purpose,
@@ -808,7 +1178,9 @@ function etaAt(km: number, dayStarts: number[], dayStartTimes: string[] | undefi
       etaMinutes: Math.round(etaAt(m.km, dayStarts, input.dayStartTimes, total, drive) + (dwellAhead[i] ?? 0)),
       ...rainFor(m.km, dayStarts, input.dayRainPct),
       dayEnd: purpose === 'overnight' ? true : undefined,
-      hint: PURPOSE_HINT[purpose](minutesFromPrev),
+      hint: includeCharge && purpose === 'fuel'
+        ? 'Plug in — ≈60 min at the charger; stretch while it fills'
+        : PURPOSE_HINT[purpose](minutesFromPrev),
     }
   })
   // Phase D — road personality: slice the route geometry into per-segment
@@ -973,6 +1345,13 @@ export function scoreHitForSegment(
   if ((seg.purpose === 'fuel' || seg.purpose === 'meal' || seg.purpose === 'overnight') && fit < 1) {
     return null
   }
+  // A night-halt ANCHOR belongs to the halt it sits near (#189). The upstream
+  // city guard filters candidates against ANY halt km, so a town valid for a
+  // late halt could still be grabbed by an early segment starved of nearby
+  // options — live-verified: a 350 km halt "anchored" on Jhumri Tilaiya,
+  // 800 km further down the corridor. Past this bound the segment is honestly
+  // empty; a halt 800 km from its halt is not a suggestion.
+  if (seg.purpose === 'overnight' && h.isPopulatedPlace && dist > 120) return null
   // Detour scores in minutes at the trip's speed, not flat km: the same
   // off-route distance costs a slow mode more. ×2 keeps the old weight at
   // the 60 km/h reference (10 km = 10 min = 20 points, as before).
@@ -985,6 +1364,21 @@ export function scoreHitForSegment(
   // Trip DNA bends ties only: favoured categories shave up to 3 points.
   const dna = opts.dnaVector ? dnaBoostForHit(h, opts.dnaVector) : 0
   return distPenalty + detour + hours + (3 - fit) * 4 - dna
+}
+
+/**
+ * Town-grade anchor preference (#189). A night halt needs a town with a BED:
+ * OSM's `place=city|town` carries a population, while Google's rural `locality`
+ * is a hamlet with none and only reaches fit 2 against a town's 3 — a gap that
+ * a handful of kilometres of distance easily erases. So when real towns are on
+ * the table, the hamlet-grade entries are dropped from the anchor pool rather
+ * than left to win on proximity. Where OSM has no town (dense urban corridors,
+ * which is where Google's locality data is strongest) the full list is kept, so
+ * the layer never empties for this reason.
+ */
+export function preferTownGrade(cities: PlaceHit[]): PlaceHit[] {
+  const towns = cities.filter(c => (c.population ?? 0) > 0)
+  return towns.length > 0 ? towns : cities
 }
 
 /**

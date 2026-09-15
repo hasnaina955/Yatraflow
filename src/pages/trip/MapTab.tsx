@@ -6,8 +6,8 @@ import { MetaIcon } from '../../components/icons'
 import { uid } from '../../data/seed'
 import type { Trip, ItineraryStop } from '../../data/types'
 import type { ImpactResult } from '../../lib/impact'
-import { routePath } from '../../lib/routing'
-import { getAssumptions, buildJourney, minutesToHM, fmtDur, computeCategoryBias, MODE_SPEED, isRoundTrip } from '../../lib/engine'
+import { mapRoadViewFromLegs, type TripRoadView } from '../../lib/tripRoad'
+import { buildJourney, minutesToHM, fmtDur, computeCategoryBias, MODE_SPEED, isRoundTrip } from '../../lib/engine'
 import { useTimeFormat, formatHM, formatHMRange } from '../../lib/timefmt'
 import { loadPref, savePref } from '../../lib/uiPrefs'
 import { Modal, Field, toast, undoToast } from '../../components/ui'
@@ -116,12 +116,14 @@ const SCOPE_STORAGE_KEY = 'nearby_scope_km'
 /** Sensible visit durations per suggestion category (tourist pacing). */
 const poiVisitMinutes = visitMinutesForCategory
 
-export function MapTab({ trip, editable, applyChange, suggestionCache, crewSuggestions, onOpenTimeline, onOpenBoard }: {
+export function MapTab({ trip, editable, applyChange, suggestionCache, crewSuggestions, road, onOpenTimeline, onOpenBoard }: {
   trip: Trip
   editable: boolean
   applyChange: (mutator: (d: Trip) => void, kind: ImpactResult['kind'], dayIndex: number) => void
   suggestionCache: ReturnType<typeof useSuggestionCache>
   crewSuggestions?: { status: string; title: string; category?: string; lat: number; lng: number }[]
+  /** #188: the workspace's ONE road measurement — the Map tab no longer measures. */
+  road: TripRoadView
   onOpenTimeline?: (stopId: string) => void
   onOpenBoard?: () => void
 }) {
@@ -180,18 +182,24 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
   }, [trip])
 
   // OSRM road geometry of the whole route — feeds Google Search-Along-Route
-  // (the report's killer feature); the free stack ignores it. TripMap draws
-  // the same legs independently, so this is one extra free OSRM call per route.
-  const [routeGeometry, setRouteGeometry] = useState<[number, number][] | null>(null)
-  const [routeTotalKm, setRouteTotalKm] = useState<number | null>(null)
-  // The OSRM attempt's outcome: when the road can't be measured (rate limits,
-  // very long routes — exactly where the banner matters most), the Day Planner
-  // still speaks, from the haversine estimate, flagged as rough.
-  const [routeFailed, setRouteFailed] = useState(false)
-  // Road-true whole-trip wheel time and per-day road km, sliced from the same
-  // legs — the journey sums are haversine estimates and undercount curvy roads.
-  const [routeTotalMin, setRouteTotalMin] = useState<number | null>(null)
-  const [dayRoadKm, setDayRoadKm] = useState<number[] | null>(null)
+  // (the report's killer feature); the free stack ignores it. #188: the
+  // WORKSPACE owns this measurement now (one routePath chain per trip, one
+  // retry) and hands the result down — the Map tab used to measure the same
+  // chain a second time, doubling the load on the shared OSRM demo server and
+  // letting the drawn line disagree with the detour math.
+  const roadView = useMemo(
+    () => mapRoadViewFromLegs(road?.chain ?? null, road?.legs ?? null, trip.days.map(d => d.index)),
+    [road, trip.days],
+  )
+  const routeGeometry = roadView.geometry
+  const routeTotalKm = roadView.totalKm
+  const routeTotalMin = roadView.totalMin
+  const dayRoadKm = roadView.dayRoadKm
+  // The measurement's outcome, handed down from the workspace: when the road
+  // can't be measured (rate limits, very long routes — exactly where the banner
+  // matters most), the Day Planner still speaks, from the haversine estimate,
+  // flagged as rough.
+  const routeFailed = road?.status === 'failed'
 
   // Stop signature (#135): stable string key over what buildJourney actually
   // reads (stop ids, road order, coords) — the days ARRAY identity changes on
@@ -271,59 +279,6 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
   // OSRM's road total (when resolved) is the most accurate journey budget for
   // the fatigue math; until then use the journey-summed estimate.
   const planKm = routeTotalKm && routeTotalKm >= 90 ? routeTotalKm : wholeTrip.km
-  useEffect(() => {
-    let cancelled = false
-    const pts: { lat: number; lng: number }[] = []
-    // Parallel to pts: the day each point's leg ARRIVAL belongs to (null for
-    // the start). A chain leg is ridden on the day of its destination — the
-    // drive to day d+1's first stop happens on day d+1's morning.
-    const ptDay: (number | null)[] = []
-    if (trip.startLocationCoords) { pts.push(trip.startLocationCoords); ptDay.push(null) }
-    trip.days.forEach(d => d.stops.filter(s => s.status !== 'rejected')
-      .forEach(s => { pts.push({ lat: s.lat, lng: s.lng }); ptDay.push(d.index) }))
-    if (pts.length < 2) { setRouteGeometry(null); setRouteTotalKm(null); setRouteTotalMin(null); setDayRoadKm(null); return }
-    routePath(pts, getAssumptions(trip))
-      .then(legs => {
-        if (cancelled) return
-        setRouteFailed(false)
-        setRouteGeometry(legs.flatMap(l => l.geometry))
-        // Google's routingSummaries legs are origin→place and place→destination,
-        // so the real detour per hit is (leg0 + leg1) − this total.
-        setRouteTotalKm(legs.reduce((sum, l) => sum + l.distanceKm, 0))
-        setRouteTotalMin(legs.reduce((sum, l) => sum + l.durationMinutes, 0))
-        const perDay = new Map<number, number>()
-        legs.forEach((l, i) => {
-          const day = ptDay[i + 1]
-          if (day != null) perDay.set(day, (perDay.get(day) ?? 0) + l.distanceKm)
-        })
-        setDayRoadKm(trip.days.map(d => perDay.get(d.index) ?? 0))
-      })
-      .catch(() => {
-        if (cancelled) return
-        // #185: the OSRM demo server is shared/rate-limited — a transient
-        // failure used to strand the tab in the degraded state (no retry),
-        // starving the suggestion scan. One retry after 2 s before giving up.
-        setTimeout(() => {
-          if (cancelled) return
-          routePath(pts, getAssumptions(trip))
-            .then(legs2 => {
-              if (cancelled) return
-              setRouteFailed(false)
-              setRouteGeometry(legs2.flatMap(l => l.geometry))
-              setRouteTotalKm(legs2.reduce((sum, l) => sum + l.distanceKm, 0))
-              setRouteTotalMin(legs2.reduce((sum, l) => sum + l.durationMinutes, 0))
-              const perDay2 = new Map<number, number>()
-              legs2.forEach((l, i) => {
-                const day = ptDay[i + 1]
-                if (day != null) perDay2.set(day, (perDay2.get(day) ?? 0) + l.distanceKm)
-              })
-              setDayRoadKm(trip.days.map(d => perDay2.get(d.index) ?? 0))
-            })
-            .catch(() => { if (!cancelled) { setRouteGeometry(null); setRouteTotalKm(null); setRouteTotalMin(null); setDayRoadKm(null); setRouteFailed(true) } })
-        }, 2000)
-      })
-    return () => { cancelled = true }
-  }, [trip])
 
   // Route polyline in {lat,lng} form (from the OSRM route geometry) — feeds the
   // asymmetric detour measure so on-the-way hits cost ~0 and spurs pay round trip.

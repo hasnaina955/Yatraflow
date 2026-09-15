@@ -15,14 +15,8 @@ user confirmation before any push. Feature work reaches `test` **via pull
 request** (never a direct push); `main` merges stay explicitly user-gated
 (AGENTS rule 1).
 
-**Snapshot (2026-09-15, verified against the repo):** `main` and `test` both carry **v0.54.0** and the
-gap is closed — the post-v0.54.0 batch (the roadmap-truth pairs #200–#210, the terrain fix #203, the
-halt-pin batch #205, the ledger refresh #206, the Day Planner finishing batch #207 and the
-sunset-dinner revert #210) reached `main` as promotion PR #212 (the `test`→`main` merge `9ac2a38`),
-so `test` is an ancestor of `main` with nothing of its own outstanding. `main` leads only by the docs
-it already owns — the README hero captures and the v0.53.0 status refresh (PRs #117/#147/#148), the
-docs-freshness gate those added, and this promotion's own status refresh.
-Current version: **0.54.0**.
+**Snapshot (2026-09-16, verified against the repo):** `test` carries **v0.55.0** — the gallery-pipeline release, cut with the Explore shelf's contract, two validation gates and its first six demand-ranked itineraries — and leads `main` by that release plus the merged Vercel Web Analytics wiring (#216). Promotion to `main` is this release's own PR; `main` holds only the docs it already owns until it lands.
+Current version: **0.55.0**.
 
 **Live open work is tracked in two places, and this file must agree with both:**
 
@@ -124,6 +118,7 @@ and date), per the AGENTS §6 same-edit rule. Detail lives in
 - [x] **v0.52.0** — The map learns relief — Liberty becomes the light basemap, with 2D/Terrain/3D view modes
 - [x] **v0.53.0** — The design-system audit gets fixed, not just filed: issue #107 worked to 117/117 across five batches (contrast/ink tier, motion tokens, kicker + hit areas, the ARIA listbox Select, the scenic hue split), with the guardrail gates kept
 - [x] **v0.54.0** — The suggestion pipeline tells the truth — honest detours, one road measurement, night halts anchored on real towns, the Day Planner's meal and fuel cadences revived, and Create Trip parity with its route-integrity guardrail
+- [x] **v0.55.0** — The gallery gets its pipeline — the import contract and validator, the engine-truth gate in CI, the demand-ranked 20-trip backlog, and six researched, engine-priced shelf itineraries (Goa, Kerala, Mewar, Kashmir, Meghalaya + the Coorg reference); Vercel Web Analytics rides along
 
 ### Remaining — in release order (details in the tracks below)
 - [x] **v0.45.0** — Create-flow + invites + settings release (PR #81 + merged test work): Trip Ticket bento starter (bill print, outline seeding), car rental mode + local-train fares, range calendar, invite short codes + join-flow fixes, auth-refresh fix, Plan Bench trip settings + editable dates, My Trips search/filter/sort restore (branch `feat/create-trip-ticket`)

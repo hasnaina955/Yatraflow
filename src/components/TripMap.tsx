@@ -252,9 +252,15 @@ function ClockZonesLayer({ overlay, dark }: { overlay: ClockOverlay; dark: boole
 function ClockGlyphs({ overlay }: { overlay: ClockOverlay }) {
   const timeFormat = useTimeFormat()
   const mealIco = { breakfast: '🥐', lunch: '🍽️', dinner: '🍷' } as const
+  // The halt's dinner and the night moon share one coordinate — render ONE
+  // glyph there (the moon; its tooltip already names dinner and the halt km),
+  // so the busiest point of the day doesn't stack two emojis.
+  const nightPts = new Set(overlay.nights.map(n => `${n.lat.toFixed(5)},${n.lng.toFixed(5)}`))
   return (
     <>
-      {overlay.zones.map((z, i) => (
+      {overlay.zones.map((z, i) => {
+        if (nightPts.has(`${z.lat.toFixed(5)},${z.lng.toFixed(5)}`)) return null
+        return (
         <MapMarker key={`cz-${i}-${z.kind}-${z.dayNo}`} longitude={z.lng} latitude={z.lat}>
           <MarkerContent>
             <span className="yf-clock-glyph" style={{ ['--c' as never]: CLOCK_COLORS[z.kind] }} aria-hidden>{mealIco[z.kind]}</span>
@@ -263,7 +269,8 @@ function ClockGlyphs({ overlay }: { overlay: ClockOverlay }) {
             {`${z.kind === 'lunch' ? 'Lunch' : z.kind === 'breakfast' ? 'Breakfast' : 'Dinner'} window — day ${z.dayNo}, the clock puts you here at ${formatHM(clockHM(z.etaMin), timeFormat)} · ~${z.kmIn} km into the drive · anything within ~${Math.round(z.radiusKm)} km keeps you on schedule`}
           </MarkerTooltip>
         </MapMarker>
-      ))}
+        )
+      })}
       {overlay.nights.map((n, i) => (
         <MapMarker key={`cn-${i}-${n.dayNo}`} longitude={n.lng} latitude={n.lat}>
           <MarkerContent>

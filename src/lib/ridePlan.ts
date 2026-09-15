@@ -199,43 +199,6 @@ export function resolveAnchors(a?: AnchorOpts): Required<AnchorOpts> {
   return out
 }
 
-/** Dinner must be eaten within this long of sunset (#122). */
-export const SUNSET_DINNER_LEAD_MIN = 30
-/** Even a midwinter sunset cannot push dinner before this — a 16:00 dinner is
- *  not a meal, it is a scheduling artefact. At 18:00 a northern-December trip
- *  eats 17:00–18:00 and still gains an hour of daylight response over a June one
- *  (which eats 18:00–19:00); a higher floor would collapse the seasons into
- *  half an hour and leave the original complaint half-addressed. */
-export const DINNER_FLOOR_END_MIN = 18 * 60
-
-/**
- * Dinner and the day's end follow the sun (#122). The window was a constant
- * 20:00–21:00 in every season and at every latitude, so a northern December day
- * planned as if the light lasted until nine; the code even carried a note that
- * sunset-aware ends "land with #124" while telling travellers to override it by
- * hand.
- *
- * The rule: eat within `SUNSET_DINNER_LEAD_MIN` of sunset, not before
- * `DINNER_FLOOR_END_MIN`, and never later than the trip's own window. The night
- * end is then an hour past dinner close, which `resolveAnchors` re-derives —
- * so this can only ever TIGHTEN a day, never extend one: a summer sunset lands
- * close to the old constant, a winter one ends the day a couple of hours
- * earlier, which is the whole point of reading the sun.
- *
- * Returns null for an unusable sunset so callers keep the fixed window.
- */
-export function anchorsFromSunset(sunsetMin: number | null | undefined): AnchorOpts | null {
-  if (sunsetMin == null || !Number.isFinite(sunsetMin)) return null
-  const dinnerEnd = Math.min(
-    Math.max(sunsetMin - SUNSET_DINNER_LEAD_MIN, DINNER_FLOOR_END_MIN),
-    DINNER_WINDOW[1],
-  )
-  return {
-    dinnerStartMin: dinnerEnd - 60,
-    dinnerEndMin: dinnerEnd,
-    nightEndMin: Math.max(NIGHT_END_MIN, dinnerEnd + 60),
-  }
-}
 
 /**
  * The ONE definition of "does this day count as driving" (#134): the planner

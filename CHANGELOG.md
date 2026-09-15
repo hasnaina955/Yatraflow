@@ -70,6 +70,7 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
   `tests/dayPlanner.test.ts` are the spec.
 
 ### Changed
+- **Night halts anchor on real towns.** Google's locality data bottoms out at village level on rural corridors (hamlets like "Gauriyapur", nothing to rank by), so the night-halt town anchor now also consults OpenStreetMap's `place=city\|town` — population-ranked, free and keyless, and the only source carrying town-grade data out there (Chunar 37k, Mirzapur 234k, Hazaribagh on the same corridor). When real towns are available the hamlet-grade entries are dropped, so a halt lands somewhere with a bed; where OSM has no town (dense urban corridors, where Google's locality coverage is strongest) the previous list is kept. This is a deliberate, narrow amendment to the Google-only provider directive — scoped to the town anchor; POIs, meals and fuel stay Google-only (#189).
 - **Trip settings opens with two bars, not one.** Budget preference (Budget / Comfort /
   Luxury) and Travel style used to share a single block with the style bar on top and
   the price bar tucked underneath it, so the second read as a sub-option of the first.

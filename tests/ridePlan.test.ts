@@ -6,7 +6,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   planRideSegments, assignSegmentHits, fitScoreForPurpose, nearestCityName, kmFromStartForHit,
-  segmentsFromPlan, planDriveDays,
+  scoreHitForSegment, preferTownGrade, segmentsFromPlan, planDriveDays,
   STRETCH_INTERVAL_KM, MEAL_INTERVAL_KM, ENDNO_KM, MIN_BREAK_GAP_KM, STRETCH_CLOCK_MIN,
   type RideSegment,
 } from '../src/lib/ridePlan'
@@ -181,6 +181,25 @@ describe('fitScoreForPurpose', () => {
     expect(fitScoreForPurpose(city, 'meal')).toBeGreaterThanOrEqual(2)
     // an unremarkable place gets no such boost
     expect(fitScoreForPurpose(hit('X', 1, 0, { category: 'rest' }), 'overnight')).toBe(0)
+  })
+
+  it('a night halt anchors on a real TOWN — hamlet-grade anchors are dropped (#189)', () => {
+    // Both are populated places, but a halt needs a bed: Google's rural
+    // `locality` results are hamlets with no population, and their fit gap
+    // against a town (2 vs 3) is erased by a few km of proximity. So when real
+    // towns are available they ARE the anchor pool.
+    const hamlet = hit('Gauriyapur', 1, 0, { category: 'rest', kind: 'place', isPopulatedPlace: true })
+    const town = hit('Chunar', 1, 0, { category: 'rest', kind: 'place', isPopulatedPlace: true, population: 37_185 })
+    const pool = preferTownGrade([hamlet, town])
+    expect(pool).toEqual([town])
+    // urban corridors where OSM has no town keep Google's localities — the
+    // layer never empties for this reason
+    expect(preferTownGrade([hamlet])).toEqual([hamlet])
+    expect(preferTownGrade([])).toEqual([])
+    // a town still scores better than a hamlet head-to-head
+    const anchors = [{ lat: 1, lng: 0 }]
+    const overnight = seg('overnight', 0)
+    expect(scoreHitForSegment(town, overnight, anchors)!).toBeLessThan(scoreHitForSegment(hamlet, overnight, anchors)!)
   })
 })
 

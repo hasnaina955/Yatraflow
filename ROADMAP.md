@@ -27,10 +27,11 @@ version: **0.54.0**.
 1. **The issue queue** — see [Open issues](#open-issues) below for the current list, which is
    derived from the GitHub API rather than recalled. The queue has MOVED since the last
    snapshot: the #84–#90 a11y/bug batch, the Day Planner defects (#187/#188/#189), #107's audit
-   tail, #124's terrain-blind walk, #143's pins and the whole Day Planner finishing set — #122's
-   season half, #142's settings surface, #202 on this file and #204's profile granularity — are
-   all **closed**. **One issue remains**: the rebrand (#96), blocked on a name rather than on work.
-   Re-derive with `gh issue list` before quoting counts.
+   tail, #124's terrain-blind walk, #143's pins, #142's settings surface, #202 on this file and
+   #204's profile granularity are all **closed**. **Two issues remain**: #122's season half, open
+   again after its first attempt (dinner at 17:00–18:00) was reverted as wrong for this market — it
+   needs an advisory or an opt-in, not a silent shift — and the rebrand (#96), blocked on a name
+   rather than on work. Re-derive with `gh issue list` before quoting counts.
 2. **The milestone tracks** — M5 → M9, plus the 1.0 cut. These are *planning* tracks: they are
    directions of travel, not release numbers.
 
@@ -49,11 +50,12 @@ number collides with a shipped release, the ledger wins.
 Re-derived from the GitHub API 2026-09-15 (`gh issue list --state open`). The previous
 #84–#90 batch is **closed** (all eight swept in v0.49.0), as are the Day Planner defects
 that drove the v0.54.0 work (#187/#188/#189), and #124/#143 shipped since, as did the
-Day Planner finishing set. One issue remains:
+Day Planner finishing set. Two issues remain:
 
 | # | Priority | Area | Issue | Relevance |
 |---|---|---|---|---|
-| #96 | P2 | enhancement | Rebrand: pick the new name + execute | **Blocked on the name**, not on code — the seam exists on `refactor/brand-seam`. It is now the only open issue |
+| #122 | P2 | enhancement | day planner | Fixed dinner window ends every day 20:00–21:00 regardless of party/season | **Season half re-opened** — the party half shipped, and the season attempt (dinner derived from sunset) was reverted the same day: 17:00–18:00 is wrong for this market. Needs an advisory ("this day finishes after dark") or an opt-in early dinner |
+| #96 | P2 | enhancement | Rebrand: pick the new name + execute | **Blocked on the name**, not on code — the seam exists on `refactor/brand-seam` |
 
 **Relevance note (2026-09-15).** Every Day Planner item above was re-checked against `src/`
 rather than accepted on its title — several are now partially or fully satisfied by the v0.54.0

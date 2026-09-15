@@ -90,6 +90,14 @@ A collaborative travel-planning web app, built India-first. Real multi-day itine
 
 ---
 
+## ✨ The v0.51–v0.54 run, in plain words
+
+- **The suggestions stopped lying about distance.** On a 1,400 km drive every roadside dhaba and petrol pump used to read "50 km off-route" — the detour sum subtracted one routing engine's route total from another's internal legs, and the difference landed on every card. That phantom burned the day's detour budget on the first suggestion and quietly held back most of the rest. Detours are now measured against the same road the search ran along, so a place on the drawn road reads "on route".
+- **The Day Planner came back to life.** On a load-balanced drive (say four days of 350 km) the planner was absorbing its own lunch into every night halt and could never fit a fuel stop — a 1,400 km trip produced **zero** meal and **zero** fuel suggestions, and the night-halt cards had nothing to anchor them at all. Lunch now survives unless it lands within an hour of the halt, fuel follows the tank across the whole corridor, and night halts search for a town at that day's actual road position.
+- **Night halts anchor on real towns.** Google's locality data stops at village level on rural corridors (hamlets with no population to rank by), so the town anchor also consults OpenStreetMap's population-ranked `place=city|town` — the only source out there carrying a town with a bed — and a halt can no longer be anchored to a town hundreds of kilometres away; it reports an honest gap instead.
+- **One road measurement, and honest failure when it fails.** The workspace and the Map tab each measured the same road on every open, doubling the load on the shared routing server that caused the very failures they could not recover from. One measurement now feeds the map, the budget and the suggestions, with a single retry — and since the routing facade quietly falls back to straight-line estimates, a chain that produced *only* estimates now counts as unresolved: the tab says so instead of drawing chords as if they were roads.
+- **Create Trip behaves like its Plan Bench.** The bill's money rolls into place instead of swapping, the printed bill exists on a phone (it used to print into a hidden container), and two dead links are gone — the bench's "turn these numbers into a real trip" CTA landed on the marketing page instead of the Create Trip form, taking its prefill with it. A new test walks every in-app link against the router so that class cannot come back.
+
 ## ✨ The v0.38–v0.44 run, in plain words
 
 The last stretch of releases gave the Map tab a brain, taught the plan to learn from you, and turned sharing into a superpower:

@@ -15,6 +15,10 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ## [Unreleased]
 
+## [0.54.0] - 2026-09-15
+
+**The suggestion pipeline tells the truth.** Three faults had been quietly draining the Map tab's suggestions and the Day Planner's halts: detours were computed by subtracting one routing engine's route total from another's internal legs, so every on-road dhaba read "50 km off-route" on a long corridor and the per-day budget withheld almost everything behind it; the workspace and the Map tab each measured the same road, doubling the load that caused the transient failures they then could not recover from; and the night-halt town layer was asking for a place type that Google rejects outright, so it had been returning nothing at all. All three are fixed — detours are measured against the road the search actually ran on, one measurement feeds every surface, and night halts anchor on real towns with beds. The Day Planner's meal and fuel cadences came back with them (a load-balanced 350 km day was absorbing its own lunch and could never fit a fuel stop), Create Trip learned the Plan Bench's money motion and its route integrity, and a rate-limited day now degrades visibly instead of drawing straight lines as if they were roads.
+
 ### Added
 - **A route-integrity guardrail** (`tests/route-integrity.test.ts`): every `#/…` link and
   `navigate('/…')` call in `src/` must resolve to a route `App.tsx` handles — the
@@ -1001,7 +1005,9 @@ leading bytes out of code spans twice (see `adf5f66` and the `[0.43.0]` repair n
 <!-- Link references. Only tags that exist on the remote are linked; untagged releases
      fall back to a friendly commit-range compare so no heading 404s. -->
 
-[Unreleased]: https://github.com/hasnaina955/Yatraflow/compare/v0.48.0...HEAD
+[Unreleased]: https://github.com/hasnaina955/Yatraflow/compare/v0.54.0...HEAD
+[0.54.0]: https://github.com/hasnaina955/Yatraflow/compare/v0.53.0...v0.54.0
+[0.53.0]: https://github.com/hasnaina955/Yatraflow/compare/v0.52.0...v0.53.0
 [0.7.0-native]: https://github.com/hasnaina955/Yatraflow/releases/tag/v0.7.0-native
 [0.48.0]: https://github.com/hasnaina955/Yatraflow/compare/v0.47.0...v0.48.0
 [0.47.0]: https://github.com/hasnaina955/Yatraflow/compare/v0.46.0...v0.47.0

@@ -37,6 +37,12 @@ export const MODE_COST_PER_KM: Record<string, number> = {
  */
 export const FUEL_PRICE_INR_PER_L = 105
 
+/** Indicative car fuel economy (km/L) used wherever a headline "what if" number
+ *  is needed before the traveller states their own — the Plan Bench's slider
+ *  default, Create Trip's placeholder, and Trip settings' dial when mileage is
+ *  unset. It used to be 15 in two places and 18 in a third (#213 Phase 5). */
+export const DEFAULT_FUEL_ECONOMY_KML = 15
+
 /** Modes where the vehicle's own fuel economy meaningfully sets the ₹/km rate. */
 const FUEL_ECONOMY_MODES = new Set<string>(['car', 'rental', 'motorcycle'])
 
@@ -1191,7 +1197,10 @@ export function computeTotals(trip: Trip, legCorrections?: Record<string, LegEst
 
   return {
     totalCostInr: sum,
-    costPerPersonInr: sum / trip.travellers,
+    // #213 Phase 6: guarded like costPerDayInr below — travellers is floored at 1
+    // by both forms, but this is the one unguarded division that reaches a
+    // rendered figure, and `₹∞` / `₹NaN` on the bill is a bad failure mode.
+    costPerPersonInr: sum / Math.max(1, trip.travellers),
     totalTravelMinutes: travelMinutes,
     totalDistanceKm: distanceKm,
     stopCount,

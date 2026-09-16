@@ -8,9 +8,9 @@
 
 import { haversineKm } from './geo'
 import { MODE_COST_PER_KM, isFuelEconomyMode, parseFuelEconomyKmL, parseFuelPricePerL } from './engine'
-import { STAY_RATE_PER_NIGHT, MEALS_PER_HEAD_DAY, type BenchStayStyle } from './planBench'
+import { STAY_RATE_PER_NIGHT, MEALS_PER_HEAD_DAY } from './planBench'
 import { uid } from '../data/seed'
-import type { ItineraryStop, LatLngPoint, TravelStyle, TransportMode } from '../data/types'
+import type { ItineraryStop, LatLngPoint, TravelStyle, TransportMode, StayStyle } from '../data/types'
 
 /** Straight-line chains underestimate real roads — the bench-style detour factor. */
 export const ROAD_FACTOR = 1.25
@@ -40,7 +40,7 @@ export interface StarterTripInput {
   localTrain?: boolean
   /** Budget preference — what the bed costs. The dial, not the legacy style:
    *  the bill and the settings page must never disagree about the bed. */
-  stayStyle: BenchStayStyle
+  stayStyle: StayStyle
 }
 
 export interface StarterBill {

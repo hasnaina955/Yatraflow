@@ -5,6 +5,7 @@ import {
   formatCapacity,
   isElectric,
   fuelStopLabel,
+  normalizeVehicleProfile,
 } from '../src/lib/vehicleProfile'
 
 describe('vehicleProfile', () => {
@@ -76,5 +77,80 @@ describe('vehicleProfile', () => {
     expect(fuelStopLabel(defaultVehicleProfile('ev'))).toBe('Charge')
     expect(fuelStopLabel({ ...defaultVehicleProfile('car'), fuelType: 'cng' })).toBe('CNG')
     expect(fuelStopLabel()).toBe('Fuel')
+  })
+})
+
+// normalizeVehicleProfile is the JSONB validator that tripRow.ts applies on
+// read (#20260915_trip_party_prefs.sql): a hand-edited or legacy row can
+// carry any shape, and a junk value reaching the planner would corrupt the
+// fuel-stop cadence. Any failure drops the whole profile — the engine's
+// mode-default kicks in instead, so fuel stops always have *something* sane.
+describe('normalizeVehicleProfile (JSONB validation)', () => {
+  const valid = (overrides: Partial<ReturnType<typeof defaultVehicleProfile>> = {}) => ({
+    vehicleType: 'car' as const,
+    fuelType: 'petrol' as const,
+    capacity: 45,
+    economy: 15,
+    ...overrides,
+  })
+
+  it('passes through a valid profile', () => {
+    expect(normalizeVehicleProfile(valid())).toEqual(valid())
+    expect(normalizeVehicleProfile(valid({ vehicleType: 'motorcycle', capacity: 12, economy: 40 })))
+      .toEqual({ vehicleType: 'motorcycle', fuelType: 'petrol', capacity: 12, economy: 40 })
+    expect(normalizeVehicleProfile(valid({ vehicleType: 'ev', fuelType: 'electric', capacity: 50, economy: 6 })))
+      .toEqual({ vehicleType: 'ev', fuelType: 'electric', capacity: 50, economy: 6 })
+  })
+
+  it('rejects non-objects (null, primitive, array)', () => {
+    expect(normalizeVehicleProfile(null)).toBeUndefined()
+    expect(normalizeVehicleProfile(undefined)).toBeUndefined()
+    expect(normalizeVehicleProfile('car')).toBeUndefined()
+    expect(normalizeVehicleProfile(45)).toBeUndefined()
+    expect(normalizeVehicleProfile([45, 15])).toBeUndefined()
+  })
+
+  it('rejects an unknown vehicleType', () => {
+    expect(normalizeVehicleProfile(valid({ vehicleType: 'scooter' as never }))).toBeUndefined()
+    expect(normalizeVehicleProfile(valid({ vehicleType: '' as never }))).toBeUndefined()
+    expect(normalizeVehicleProfile(valid({ vehicleType: 'Car' as never }))).toBeUndefined() // case-sensitive
+  })
+
+  it('rejects an unknown fuelType', () => {
+    expect(normalizeVehicleProfile(valid({ fuelType: 'hydrogen' as never }))).toBeUndefined()
+    expect(normalizeVehicleProfile(valid({ fuelType: '' as never }))).toBeUndefined()
+  })
+
+  it('rejects non-numeric capacity / economy', () => {
+    expect(normalizeVehicleProfile(valid({ capacity: '45' as never }))).toBeUndefined()
+    expect(normalizeVehicleProfile(valid({ economy: '15' as never }))).toBeUndefined()
+  })
+
+  it('rejects non-finite capacity / economy', () => {
+    expect(normalizeVehicleProfile(valid({ capacity: Number.POSITIVE_INFINITY }))).toBeUndefined()
+    expect(normalizeVehicleProfile(valid({ capacity: Number.NaN }))).toBeUndefined()
+    expect(normalizeVehicleProfile(valid({ economy: Number.NaN }))).toBeUndefined()
+  })
+
+  it('rejects out-of-range capacity / economy', () => {
+    expect(normalizeVehicleProfile(valid({ capacity: 0 }))).toBeUndefined()
+    expect(normalizeVehicleProfile(valid({ capacity: -1 }))).toBeUndefined()
+    expect(normalizeVehicleProfile(valid({ capacity: 0.1 }))).toBeUndefined() // < 0.5
+    expect(normalizeVehicleProfile(valid({ capacity: 600 }))).toBeUndefined() // > 500
+    expect(normalizeVehicleProfile(valid({ economy: 0 }))).toBeUndefined()
+    expect(normalizeVehicleProfile(valid({ economy: -5 }))).toBeUndefined()
+    expect(normalizeVehicleProfile(valid({ economy: 101 }))).toBeUndefined() // > 100
+  })
+
+  it('accepts boundary values', () => {
+    expect(normalizeVehicleProfile(valid({ capacity: 0.5, economy: 1 }))).toBeDefined()
+    expect(normalizeVehicleProfile(valid({ capacity: 500, economy: 100 }))).toBeDefined()
+  })
+
+  it('drops the whole profile if a single field is missing', () => {
+    const { capacity, ...partial } = valid()
+    expect(normalizeVehicleProfile(partial)).toBeUndefined()
+    const { fuelType, ...partial2 } = valid()
+    expect(normalizeVehicleProfile(partial2)).toBeUndefined()
   })
 })

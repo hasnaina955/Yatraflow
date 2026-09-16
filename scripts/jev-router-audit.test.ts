@@ -1,10 +1,11 @@
 // ============ Jev router audit — development-time, not shipped ============
-// Asks Jev (TypeSafe System One) which capability a real traveller phrasing needs,
+// Asks Jev (TypeSafe System One) which capability a given phrasing needs,
 // then diffs that against what answerQuestion() actually routes to.
 //
 // Why this exists: tests/ai-routing.test.ts asserts reply.text *contains a string*,
-// which proves the right handler ran but not that it was the right handler. Nothing
-// in the suite can say "that was a mis-route". This does.
+// which proves the right handler ran but not that it was the right handler. This
+// records where a second opinion disagrees with the deterministic route; it is not
+// proof that either route is wrong.
 //
 // Deliberately does NOT re-implement the if-chain to predict the route — that is
 // the "two truths drift apart" failure mode scripts/validate-itinerary.mjs warns
@@ -28,7 +29,7 @@ import { answerQuestion } from '../src/lib/ai'
 import { seedData } from '../src/data/seed'
 import type { Trip } from '../src/data/types'
 import { CORPUS } from './jev-router-corpus'
-import { HARVESTED } from './jev-router-corpus-harvested'
+import { HARVESTED, HARVESTED_PROVENANCE } from './jev-router-corpus-harvested'
 
 const ENABLED = process.env.JEV_AUDIT === '1'
 const API_KEY = process.env.TYPESAFE_API_KEY
@@ -157,8 +158,9 @@ describe.skipIf(!ENABLED)('Jev router audit', () => {
       if (!API_KEY) throw new Error('TYPESAFE_API_KEY is not set')
       const trip = seedData.trips[0] as unknown as Trip
 
-      // Authored phrasings measure intent coverage. Harvested ones are out of sample
-      // and lean on abstention. Reported separately — never averaged into one number.
+      // Authored phrasings measure intent coverage. Harvested ones lean on abstention
+      // and come from this repo's own files. Reported separately — never averaged
+      // into one number.
       const ALL = [
         ...CORPUS.map((p) => ({ ...p, source: 'authored' as const, origin: '' })),
         ...HARVESTED.map((h) => ({ ...h, source: 'harvested' as const })),
@@ -177,9 +179,9 @@ describe.skipIf(!ENABLED)('Jev router audit', () => {
         return { ...c, code, jev, confidence: results[i].answer?.confidence ?? 0 }
       })
 
-      const agreeAll = rows.filter((r) => r.code === r.jev)
       console.log(`\n===== JEV ROUTER AUDIT =====`)
-      console.log(`phrasings=${rows.length}  code==jev: ${agreeAll.length}  code!=jev: ${rows.length - agreeAll.length}`)
+      console.log(HARVESTED_PROVENANCE)
+      console.log(`phrasings=${rows.length}; agreement is not accuracy; Jev judgments can vary between runs`)
       console.log(`tokens: ${inTok} in / ${outTok} out  ·  wall ${wall}ms  ·  concurrency ${CONCURRENCY}`)
 
       console.log(`\nSPLIT BY CORPUS SOURCE (do not average these)`)
@@ -189,10 +191,12 @@ describe.skipIf(!ENABLED)('Jev router audit', () => {
         const pct = set.length ? Math.round((ok.length / set.length) * 100) : 0
         const abstained = set.filter((r) => r.want === 'none')
         const abstainedOk = abstained.filter((r) => r.code === 'none')
+        const jevAbstained = abstained.filter((r) => r.jev === 'none')
+        console.log(`  ${src} expected-label matches: code=${set.filter(r => r.code === r.want).length}/${set.length}, jev=${set.filter(r => r.jev === r.want).length}/${set.length}`)
         console.log(
           `  ${src.padEnd(10)} n=${String(set.length).padStart(3)}  code==jev ${ok.length}/${set.length} (${pct}%)` +
             (abstained.length
-              ? `  ·  correctly abstained ${abstainedOk.length}/${abstained.length}`
+              ? `  ·  expected-none matches: code=${abstainedOk.length}/${abstained.length}, jev=${jevAbstained.length}/${abstained.length}`
               : ''),
         )
       }
@@ -232,6 +236,14 @@ describe.skipIf(!ENABLED)('Jev router audit', () => {
         for (const r of broken) console.log(`[${r.id}] ${r.code} · "${r.text}"`)
       }
 
+      const offTaxonomy = rows.filter((r) => !(r.jev in CRITERIA))
+      if (offTaxonomy.length) {
+        console.log(`\n----- JEV CHOICES OUTSIDE THE CRITERIA SET -----`)
+        for (const r of offTaxonomy) console.log(`[${r.id}] jev=${r.jev} · "${r.text}"`)
+      }
+
+      expect(broken.map((r) => `${r.id}:${r.code}`)).toEqual([])
+      expect(offTaxonomy.map((r) => `${r.id}:${r.jev}`)).toEqual([])
       expect(rows.length).toBe(ALL.length)
     },
     900000,

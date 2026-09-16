@@ -343,6 +343,8 @@ push run rather than replacing it.)
 
 ## 4. Code conventions & pitfalls
 
+- **Jev audits are development-only review aids, not correctness oracles.** Keep `JEV_AUDIT` opt-in and credentials outside `VITE_*`. Repository seed/copy strings are not user transcripts or an independent holdout after tuning. Report code/model/expected-label results separately, disclose label corrections, and pin confirmed keyword collisions in offline regression tests before changing the router.
+
 - **Data model**: times are always stored as 24h `"HH:MM"` strings. Format at
   render with `formatHM`/`formatHMRange` + `useTimeFormat()` from
   `lib/timefmt.ts`. 12h is the default; 24h is a user setting (Profile page).

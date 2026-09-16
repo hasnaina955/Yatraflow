@@ -21,6 +21,7 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 ### Changed
 
 ### Fixed
+- **Offline companion routing distinguishes overloaded days from pace comparisons.** Savings requests no longer match saved-edit messages, cost-accuracy questions avoid spending breakdowns, and positive mentions of children no longer trigger stop-removal advice. Regression tests preserve valid comparison, savings, spending and child-suitability requests; development-only Jev audits remain opt-in and do not ship in the app.
 
 ### Docs
 - **The status docs catch up with the promotion and the queue.** `AGENTS.md` §1.1 and the ROADMAP snapshot still described the promotion to `main` as pending and the issue queue as empty; both are re-derived from the repo — `main` carries v0.56.0 (**PR #223**), `test` adds the unreleased, migration-gated user-deletion work (**PR #225**), and the queue holds **14 open issues** (the #226–#234 launch-readiness criteria and the #236–#240 milestone tracks, which now exist as issues and not only as roadmap prose). Three further stale claims went with them: **PR #224** was recorded as landed on `test` though it is still open (its six commits are absent from `origin/test`), the `shabtab` fork remote was recorded as removed though it is present and fetching, and the verify gate was quoted at 961 tests / 96 files when it now stands at **970 / 97**. The release ledger gains its missing v0.56.0 row.

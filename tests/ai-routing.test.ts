@@ -35,12 +35,58 @@ describe('answerQuestion rain routing', () => {
   })
 })
 
-// Regression, found by scripts/jev-router-audit.test.ts: the tiring rule matches
-// bare "relax", which is a substring of "relaxed", so it swallowed every compare
-// prompt and compareRelaxedPacked was unreachable. The dead handler was the
-// quickPrompts()[6] button, and planSummary/generalAnswer both tell the user to
-// "compare relaxed vs packed" — so we advertised a capability that could not run.
-// Uses a real seed trip because the compare handler needs days to compare.
+describe('answerQuestion harvested routing regressions', () => {
+  const realTrip = seedData.trips[0]
+
+  it.each([
+    'Day 2 is packed — which stop do we drop?',
+    'Is day 3 too packed?',
+  ])('routes an overloaded day to lightening advice: %s', question => {
+    expect(answerQuestion(realTrip, question).text).toContain('is your heaviest:')
+  })
+
+  it.each([
+    'Change saved but nothing changed',
+    'Save this itinerary',
+    'Are the times and costs real?',
+    'Are these cost estimates accurate?',
+    'Can I trust these prices?',
+    'Ethical elephant bathing session, 45 min. Kids would love it.',
+    'The children enjoyed the museum',
+  ])('does not claim an unrelated capability: %s', question => {
+    expect(answerQuestion(realTrip, question).text).toContain("Here's what I can see in")
+  })
+
+  it.each([
+    'How can we save money on this trip?',
+    'Any savings on this trip?',
+    'Can we save on fuel?',
+  ])('preserves savings requests: %s', question => {
+    expect(answerQuestion(realTrip, question).text).toContain('Biggest levers:')
+  })
+
+  it.each([
+    'What are the costs per person?',
+    'Give me the cost breakdown',
+  ])('preserves cost breakdown requests: %s', question => {
+    expect(answerQuestion(realTrip, question).text).toContain('Where it goes:')
+  })
+
+  it.each([
+    'What should we cut with kids along?',
+    'Which stops are not good for kids?',
+    'Anything unsuitable for a 4 year old?',
+    'Stops to skip with a small child',
+    'My toddler will get bored, what is too long?',
+  ])('preserves child suitability requests: %s', question => {
+    expect(answerQuestion(realTrip, question).text).toContain('With children along, first consider removing:')
+  })
+
+  it('preserves the packed-schedule tradeoff question', () => {
+    expect(answerQuestion(realTrip, 'Do we see more with a packed schedule?').text).toContain('Packed version')
+  })
+})
+
 describe('answerQuestion compare routing', () => {
   const realTrip = seedData.trips[0]
 

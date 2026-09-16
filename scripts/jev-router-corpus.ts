@@ -2,12 +2,6 @@
 // Realistic phrasings for a YatraFlow group trip planner, grouped by the intent
 // the app has a handler for.
 //
-// `want` is what a human would expect the router to pick. It is NOT ground truth
-// and it is NOT used to score anything — agreement is measured between the code's
-// actual route and Jev's independent judgment. `want` is reported alongside so a
-// disagreement can be triaged at a glance: when code, Jev and `want` all differ,
-// the likely culprit is this file's expectation (or the taxonomy), not the router.
-//
 // Prefixes: qp = quickPrompts verbatim · t/a/c/k/r/f/d/p/s/y/u/m = intent probes
 //           n = out of the assistant's scope (should abstain)
 //           x = traps: false-positive keywords and genuinely ambiguous asks
@@ -243,7 +237,7 @@ export const CORPUS: Phrasing[] = [
 
   // ---- x: traps — false-positive keywords and genuinely ambiguous asks ----
   { id: 'x01', text: 'How do we relax on this trip?', want: 'tiring' },
-  { id: 'x02', text: 'Is day 3 too packed?', want: 'compare' },
+  { id: 'x02', text: 'Is day 3 too packed?', want: 'tiring' },
   { id: 'x03', text: 'Can we afford the extra day?', want: 'cost' },
   { id: 'x04', text: 'Make it family friendly', want: 'family' },
   { id: 'x05', text: 'We only have till Sunday noon', want: 'none' },

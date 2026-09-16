@@ -1,26 +1,3 @@
-// ============ Jev router audit — HARVESTED phrasings (out of sample) ============
-// Strings taken verbatim from the repository rather than written by me. Every entry
-// carries its `origin` so a disagreement can be traced to the exact source line.
-//
-// READ THIS BEFORE TRUSTING THE NUMBERS.
-//
-// This is not a representative sample of what people type into the AI companion,
-// because the app keeps no companion transcripts and there is no input telemetry in
-// the repo. What real user text exists here falls into four kinds:
-//
-//   1. decision questions and comments written for the seed data (question-shaped, 2)
-//   2. example questions in docs/USER_GUIDE.md (question-shaped, ~3 + FAQ)
-//   3. search phrases real people type into Google, listed in docs/GALLERY-BACKLOG.md
-//      and the launch plan (search-shaped, not question-shaped, ~13)
-//   4. bug-report fragments quoted in CHANGELOG.md / ROADMAP.md (neither, ~4)
-//
-// So this set leans heavily on ABSTENTION — most of these are things the companion
-// should decline — with a handful of genuine question-shaped asks. That makes it a
-// test of "does the router stay quiet when it should", which is the opposite of what
-// my authored corpus tests. Treat the two numbers as measuring different things.
-//
-// `want` is my expectation, not ground truth. Where I am unsure I say so in `note`.
-
 import type { Phrasing } from './jev-router-corpus'
 
 export interface Harvested extends Phrasing {
@@ -30,6 +7,12 @@ export interface Harvested extends Phrasing {
   note?: string
 }
 
+export const HARVESTED_PROVENANCE =
+  'The 34 harvested entries are demo, copy, SEO and maintainer-written snippets taken from this ' +
+  'repository — seed data written for the app, docs examples, backlog search phrases, and ' +
+  'maintainer-described complaints. They are not traveller transcripts, and they are not an ' +
+  'independent holdout: the router was tuned against these files.'
+
 export const HARVESTED: Harvested[] = [
   // ---- 1. seed data: the only question-shaped user text written for the app ----
   {
@@ -37,7 +20,7 @@ export const HARVESTED: Harvested[] = [
     text: 'Day 2 is packed — which stop do we drop?',
     want: 'tiring',
     origin: 'src/data/seed.ts:361 (TripDecision.question, dc_1)',
-    note: 'A real crew decision. The ask is "which stop do we drop" = lighten the day, but it contains "packed", which the router reads as a pace comparison. Watch this one.',
+    note: 'A demo crew decision. The ask is "which stop do we drop" = lighten the day, but it contains "packed", which the original baseline router read as a pace comparison.',
   },
   {
     id: 'h02',
@@ -51,7 +34,7 @@ export const HARVESTED: Harvested[] = [
     text: 'Vegetarian-only houseboat menu or mixed?',
     want: 'none',
     origin: 'src/data/seed.ts:373 (TripDecision.question, dc_2)',
-    note: 'A real crew decision, but about food preference — no handler for it.',
+    note: 'A demo crew decision, but about food preference — no handler for it.',
   },
   {
     id: 'h04',
@@ -72,7 +55,7 @@ export const HARVESTED: Harvested[] = [
     text: 'Ethical elephant bathing session, 45 min. Kids would love it.',
     want: 'none',
     origin: 'src/data/seed.ts:350 (StopSuggestion.description, sg_2)',
-    note: 'Statement. Contains "kids" — the router will claim it for removeForKids, which would be the wrong direction entirely.',
+    note: 'Statement. Contains "kids" — the original baseline router claimed it for removeForKids, the wrong direction entirely.',
   },
   {
     id: 'h07',
@@ -84,7 +67,7 @@ export const HARVESTED: Harvested[] = [
     id: 'h08',
     text: 'Popular echo viewpoint; skip if short on time.',
     want: 'none',
-    origin: 'src/data/seed.ts:108 (ItineraryStop.description)',
+    origin: 'src/data/seed.ts:152 (ItineraryStop.description)',
     note: 'A stop note. "time" should not trip anything.',
   },
 
@@ -94,7 +77,6 @@ export const HARVESTED: Harvested[] = [
     text: 'Can we still make the airport if we add this?',
     want: 'airport',
     origin: 'docs/USER_GUIDE.md:101',
-    note: 'A near-paraphrase of quickPrompts[1] with the word "reach" removed — a good out-of-sample check on the airport rule.',
   },
   {
     id: 'h10',
@@ -108,7 +90,7 @@ export const HARVESTED: Harvested[] = [
     text: 'Beach day or backwater day?',
     want: 'none',
     origin: 'docs/USER_GUIDE.md:84',
-    note: 'A genuine crew decision. It is a choice between two days, but not the relaxed-vs-packed comparison the compare handler produces.',
+    note: 'An example crew decision. It is a choice between two days, but not the relaxed-vs-packed comparison the compare handler produces.',
   },
   {
     id: 'h12',
@@ -122,7 +104,7 @@ export const HARVESTED: Harvested[] = [
     text: 'Are the times and costs real?',
     want: 'none',
     origin: 'docs/USER_GUIDE.md:118-130 (FAQ)',
-    note: 'A question about data honesty, not a cost breakdown request. "costs" will pull it to costSummary.',
+    note: 'A question about data honesty, not a cost breakdown request. "costs" sent it to costSummary in the original baseline.',
   },
   {
     id: 'h14',
@@ -144,7 +126,7 @@ export const HARVESTED: Harvested[] = [
     origin: 'docs/USER_GUIDE.md:118-130 (FAQ)',
   },
 
-  // ---- 3. search phrases real people type (docs/GALLERY-BACKLOG.md) ----
+  // ---- 3. search phrases (docs/GALLERY-BACKLOG.md) ----
   // Search-intent, not question-intent. None of these are companion asks, so every
   // one is an abstain test — and they are the highest-risk abstain tests, because a
   // keyword like "itinerary" or "cost" appears in most of them.
@@ -169,25 +151,25 @@ export const HARVESTED: Harvested[] = [
     note: 'Search-shaped, but contains "cost" — the clearest abstain test in this group.',
   },
 
-  // ---- 4. quoted complaints (CHANGELOG / ROADMAP) ----
+  // ---- 4. maintainer-described complaints (CHANGELOG / ROADMAP) ----
   {
     id: 'h31',
     text: 'Change saved but nothing changed',
     want: 'none',
-    origin: 'CHANGELOG.md:755 (quoted user complaint)',
+    origin: 'CHANGELOG.md:755 (maintainer-described complaint)',
     note: 'A bug report, not a companion ask. "saved" should not make this a savings question.',
   },
   {
     id: 'h32',
     text: 'nothing I do changes anything',
     want: 'none',
-    origin: 'CHANGELOG.md:867 (quoted user complaint)',
+    origin: 'CHANGELOG.md:867 (maintainer-described complaint)',
   },
   {
     id: 'h33',
     text: 'the delete didn\'t work',
     want: 'none',
-    origin: 'ROADMAP.md:195 (quoted user complaint)',
+    origin: 'ROADMAP.md:195 (maintainer-described complaint)',
   },
   {
     id: 'h34',

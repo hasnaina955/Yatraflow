@@ -4,7 +4,7 @@
 import type { Trip, ItineraryStop } from '../data/types'
 import {
   getAssumptions, simulateDay, computeTotals, originOf,
-  minutesToHM, hmToMinutes, collectWarnings, formatInr, legBetween, countHotelNights,
+  minutesToHM, hmToMinutes, collectWarnings, formatInr, countHotelNights,
 } from './engine'
 
 export interface AiReply {
@@ -81,16 +81,13 @@ export function answerQuestion(trip: Trip, question: string): AiReply {
   //
   // Distinctive intents (rain, a flight, promotional copy) are tested before fuzzy
   // ones (a day being too much, what could go wrong). scripts/jev-router-corpus.ts
-  // + scripts/jev-router-audit.test.ts measure this against 212 real phrasings; the
+  // + scripts/jev-router-audit.test.ts measure this against 212 authored phrasings; the
   // residual collisions are listed in that run's output, not hidden.
 
-  // Compare first: it either needs both halves ("relax" + "pack") or explicit
-  // comparison language, so it cannot steal a single-intent ask. "packed" alone is
-  // a pace question here — nothing else in the app keys off it, and it is what
-  // "is day 3 too packed?" and "do we see more with a packed schedule?" turn on.
   if (
     (has('relax') && has('pack')) ||
-    has('compare', 'packed', 'slower', 'faster and', 'lighter', 'heavier', 'trade off', 'more or less', 'difference between') ||
+    has('compare', 'slower', 'faster and', 'lighter', 'heavier', 'trade off', 'more or less', 'difference between') ||
+    (has('packed') && has('see more')) ||
     (has('fewer stops') && has('or more'))
   ) return compareRelaxedPacked(trip)
 
@@ -111,22 +108,29 @@ export function answerQuestion(trip: Trip, question: string): AiReply {
   // gated on a money noun so "reduce the driving on day 4" stays a tiring question.
   // "cheap" covers cheaper/cheapest; /\blean/ keeps "clean" out of it.
   if (
-    has('cheap', 'save', 'saving', 'cut corners', 'cut the bill', 'spend less', 'pay less', 'over budget', 'money is tight', 'budget is tight', 'our pocket', 'beyond our pocket') ||
+    has('cheap', 'cut corners', 'cut the bill', 'spend less', 'pay less', 'over budget', 'money is tight', 'budget is tight', 'our pocket', 'beyond our pocket') ||
+    /\bsavings\b/.test(q) ||
+    (/\b(save|saving)\b/.test(q) && has('money', 'cost', 'bill', 'spend', 'price', 'fee', 'fuel', 'budget')) ||
     /\blean(er)?\b/.test(q) ||
     (has('reduce', 'lower', 'cut') && has('cost', 'bill', 'spend', 'price', 'fee', 'fuel', 'budget')) ||
     (has('bring') && has('down'))
   ) return cheaperAlternative(trip)
 
-  // Family before kids: "kid friendly" and "family friendly" are recast requests,
-  // while children/kids questions ask what to drop. Note "toddler" belongs to kids.
   if (has('family', 'in-law', 'grandparent', 'baby', 'generation', 'young one', 'older folk', 'softer', 'kid friendly', 'kid-friendly')) return familyVersion(trip)
-  if (has('children', 'kids', 'child', 'toddler', 'year old')) return removeForKids(trip)
+  if (
+    /\b(children|kids?|child|toddlers?|year old)\b/.test(q) &&
+    /\b(remove|drop|cut|skip|unsuitable|not good|not child friendly|too much|too long|bore|bored)\b/.test(q)
+  ) return removeForKids(trip)
 
-  if (has('cost', 'budget', 'expense', 'spend', 'total', 'per person', 'per head', 'how much', 'breakdown', 'afford', 'add up', 'money split', '₹')) return costSummary(trip, totals)
+  const asksEstimateAccuracy = /\b(costs?|prices?|times?|estimates?)\b/.test(q) && /\b(real|accurate|reliable|trust)\b/.test(q)
+  if (!asksEstimateAccuracy && has('cost', 'budget', 'expense', 'spend', 'total', 'per person', 'per head', 'how much', 'breakdown', 'afford', 'add up', 'money split', '₹')) return costSummary(trip, totals)
 
   // Tiring last of the "distinctive" group: its vocabulary overlaps money and
   // family phrasing, so it is tested after both have had their chance.
-  if (has('tiring', 'relax', 'ease off', 'take it easy', 'exhaust', 'rushed', 'overstuffed', 'brutal', 'too many stops', 'fewer stops', 'too much walking', 'too much', 'lighten', 'lighter', 'gentler', 'simplify', 'slow', 'reduce the driving', 'cut down', 'trim day', 'dead by', 'back and forth', 'tone it down')) return makeLessTiring(trip)
+  if (
+    has('tiring', 'relax', 'ease off', 'take it easy', 'exhaust', 'rushed', 'overstuffed', 'brutal', 'too many stops', 'fewer stops', 'too much walking', 'too much', 'lighten', 'lighter', 'gentler', 'simplify', 'slow', 'reduce the driving', 'cut down', 'trim day', 'dead by', 'back and forth', 'tone it down', 'too packed') ||
+    (/\bpacked\b/.test(q) && /\b(drop|remove|cut|skip)\b/.test(q))
+  ) return makeLessTiring(trip)
 
   // "get stuck" is a risk question unless it is about traffic, which is a delay
   // question; the two share the word, so the traffic half is carved out here.
@@ -241,7 +245,6 @@ function compareRelaxedPacked(trip: Trip): AiReply {
   }
   const relaxedCount = Math.max(1, Math.round(Math.min(...curStopsPerDay) * 0.8))
   const packedCount = Math.max(...curStopsPerDay) + 2
-  const t = totals_of(trip)
   const lines = [
     `Current plan: ${curStopsPerDay.join(' → ')} stops/day.`,
     ``,

@@ -15,7 +15,7 @@ user confirmation before any push. Feature work reaches `test` **via pull
 request** (never a direct push); `main` merges stay explicitly user-gated
 (AGENTS rule 1).
 
-**Snapshot (2026-09-16, verified against the repo):** `test` carries **v0.55.0** — the gallery-pipeline release, cut with the Explore shelf's contract, two validation gates and its first six demand-ranked itineraries — and leads `main` by that release plus the merged Vercel Web Analytics wiring (#216). Promotion to `main` is this release's own PR; `main` holds only the docs it already owns until it lands.
+**Snapshot (2026-09-16, verified against the repo):** `test` carries **v0.55.0** — the gallery-pipeline release, cut with the Explore shelf's contract, two validation gates and its first six demand-ranked itineraries — plus the **settings-wiring audit** (issue #213, PRs #219/#220): the Settings tab split out of Share, party/vehicle settings made to persist, the propagation fixes, style-vs-budget separation, Create↔Settings parity, and the numeric defaults. `test` leads `main` by both. Promotion to `main` is a release's own PR; `main` holds only the docs and merges it already owns until one lands.
 Current version: **0.55.0**.
 
 **Live open work is tracked in two places, and this file must agree with both:**
@@ -24,9 +24,10 @@ Current version: **0.55.0**.
    derived from the GitHub API rather than recalled. The queue has MOVED since the last
    snapshot: the #84–#90 a11y/bug batch, the Day Planner defects (#187/#188/#189), #107's audit
    tail, #124's terrain-blind walk, #143's pins, #142's settings surface, #202 on this file and
-   #204's profile granularity are all **closed**. **No issues are open** (2026-09-15): the rebrand
-   (#96) is archived — no need or plan to rename — and #122's season half is closed as not planned,
-   the late dinner window being deliberate. Re-derive with `gh issue list` before quoting counts.
+   #204's profile granularity are all **closed**. **No issues are open** (2026-09-16): #213 was
+   filed and closed inside the day (its six phases shipped in #219/#220), the rebrand (#96) is
+   archived — no need or plan to rename — and #122's season half is closed as not planned, the
+   late dinner window being deliberate. Re-derive with `gh issue list` before quoting counts.
 2. **The milestone tracks** — M5 → M9, plus the 1.0 cut. These are *planning* tracks: they are
    directions of travel, not release numbers.
 
@@ -42,14 +43,24 @@ number collides with a shipped release, the ledger wins.
 
 ## Open issues
 
-Re-derived from the GitHub API 2026-09-15 (`gh issue list --state open`). The previous
+Re-derived from the GitHub API 2026-09-16 (`gh issue list --state open`). The previous
 #84–#90 batch is **closed** (all eight swept in v0.49.0), as are the Day Planner defects
 that drove the v0.54.0 work (#187/#188/#189), and #124/#143 shipped since, as did the
-Day Planner finishing set, and the queue is now empty — nothing is open as of 2026-09-15:
+Day Planner finishing set, and the queue is again empty — nothing is open as of 2026-09-16:
 
 | # | Priority | Area | Issue | Relevance |
 |---|---|---|---|---|
-| — | — | — | *(none)* | Nothing is open. Two closures worth remembering, both owner decisions on 2026-09-15 |
+| — | — | — | *(none)* | Nothing is open. Three closures worth remembering, all owner decisions |
+
+**#213 — the settings-wiring audit: filed and closed in a day.** A read-only audit of how
+the trip workspace is wired (what reads what, and which surfaces can disagree) found the
+whole class of defect behind this file's own "the queue is one issue" note: settings that
+were read by the engine but never persisted, memos whose dependency arrays omitted what
+they read, and duplicated vocabularies across Create Trip and Trip settings. Six phases
+shipped as PRs #219/#220 — the Settings tab split out of Share, party/vehicle persistence
+(new columns, applied live), the propagation fixes, style-vs-budget separation, the
+parity pass, and the numeric defaults. It is recorded here because the queue's emptiness
+is a claim this file makes, and for one day it was not true.
 
 **#96 — rebrand: ARCHIVED, not planned.** There is currently no need or plan to rename the product.
 `refactor/brand-seam` builds the seam (one source of truth for the name across 21 files, `vite.config.ts`
@@ -247,7 +258,7 @@ User-configurable OpenAI-compatible endpoint (Profile settings,
 as offline fallback + "(LLM)/(offline)" badge. #22 (~2h) blocks #20 (~3h).
 Both of its issues (#22 → #20) are **closed**, so M5 has no open issues behind it and no
 schedule: it is a candidate, not a queue. For what *is* live, see
-[Open issues](#open-issues) — five items, none of them a11y (the audit tail closed in v0.53.0).
+[Open issues](#open-issues) — nothing is open (the audit tail closed in v0.53.0).
 
 ### M6 — "Together" (collaboration depth)
 Supabase integration/RLS test suite first (opt-in `VITE_RUN_INTEGRATION`,

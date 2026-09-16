@@ -18,6 +18,7 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 ### Added
 
 ### Changed
+- **Trip settings is now its own workspace tab.** The crew, dates, places, budget, mileage, fuel price and vehicle profile controls leave the Share tab — Share now carries Plan together, Share publicly and Keep a record alone — and surface as the eighth workspace tab (`#/trip/<id>/settings`), where they are deep-linkable, swipable into on mobile and no longer compete with invite / publish / record for the same sub-tablist.
 
 ### Fixed
 

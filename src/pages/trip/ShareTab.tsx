@@ -12,7 +12,6 @@ import { useTablist } from '../../hooks/useTablist'
 import type { LegEstimate } from '../../lib/engine'
 import { Avatar, Chip, ConfirmDialog, CopyButton, Field, toast, undoToast } from '../../components/ui'
 import { PrintExport } from '../../components/PrintExport'
-import { TripSettingsForm } from './TripSettingsForm'
 import { timeAgo } from './shared'
 
 // ================= Snapshot (export / import / URL share) =================
@@ -197,16 +196,16 @@ function PublicationForm({ trip, pub, isOwner, creatorId, onDone }: {
 
 // ================= Share tab (tabbed) =================
 // Reworked from the original .two-col grid into an ARIA tablist so each share
-// concern (plan together / publish / keep a record / settings) gets its own
+// concern (plan together / publish / keep a record) gets its own
 // focused surface instead of competing for space in a 340px sidebar. The
 // Danger zone is re-homed under "Plan together" (matches the approved variant).
 // Heading order is corrected (page h1 → panel h2 → card h3) via sr-only h2s.
+// Trip settings moved to its own workspace tab (#213).
 
 const SHARE_TABS = [
   { id: 'plan', label: '1 · Plan together' },
   { id: 'publish', label: '2 · Share publicly' },
   { id: 'record', label: '3 · Keep a record' },
-  { id: 'settings', label: 'Trip settings' },
 ] as const
 type ShareTabId = (typeof SHARE_TABS)[number]['id']
 const SHARE_TAB_IDS = SHARE_TABS.map(t => t.id)
@@ -363,15 +362,6 @@ export function ShareTab({ trip, me, editable, onNavigate, legCorrections }: {
         className="share-panel" hidden={tab !== 'record'}>
         <h2 className="sr-only">Keep a record</h2>
         <SnapshotCard trip={trip} me={me} onNavigate={onNavigate} legCorrections={legCorrections} />
-      </section>
-
-      {/* ---- Trip settings ---- */}
-      <section role="tabpanel" id="share-panel-settings" aria-labelledby="share-tab-settings"
-        className="share-panel" hidden={tab !== 'settings'}>
-        <h2 className="sr-only">Trip settings</h2>
-        <div className="card">
-          <TripSettingsForm trip={trip} editable={editable} />
-        </div>
       </section>
 
       <ConfirmDialog

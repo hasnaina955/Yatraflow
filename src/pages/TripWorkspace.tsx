@@ -30,9 +30,10 @@ import { MapTab } from './trip/MapTab'
 import { GroupInputTab } from './trip/GroupInputTab'
 import { BudgetTab } from './trip/BudgetTab'
 import { ShareTab } from './trip/ShareTab'
+import { TripSettingsForm } from './trip/TripSettingsForm'
 import { cap } from './trip/shared'
 
-type TabKey = 'overview' | 'timeline' | 'board' | 'map' | 'group' | 'budget' | 'share'
+type TabKey = 'overview' | 'timeline' | 'board' | 'map' | 'group' | 'budget' | 'share' | 'settings'
 
 const TABS: [TabKey, string][] = [
   ['overview', 'Overview'],
@@ -42,6 +43,7 @@ const TABS: [TabKey, string][] = [
   ['group', 'Group input'],
   ['budget', 'Budget'],
   ['share', 'Share'],
+  ['settings', 'Settings'],
 ]
 const TAB_IDS = TABS.map(([k]) => k)
 
@@ -282,6 +284,11 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
       {tab === 'group' && <GroupInputTab trip={trip} editable={editable} me={me} />}
       {tab === 'budget' && <BudgetTab trip={trip} totals={totals} editable={editable} />}
       {tab === 'share' && <ShareTab trip={trip} me={me} editable={editable} onNavigate={onNavigate} legCorrections={legCorrections} />}
+      {/* key=trip.id: TripSettingsForm holds local draft state in useState
+           seeded from the trip at mount and never re-syncs, so without the key
+           a quick trip-switch keeps the previous trip's draft visible until a
+           reload (#213). */}
+      {tab === 'settings' && <TripSettingsForm key={trip.id} trip={trip} editable={editable} />}
       </div>
 
       {/* AI companion: locked for the premium milestone (M8) — the feature is

@@ -4,6 +4,24 @@
 // (no key). The app never blocks on routing — any Google failure (no key,
 // quota, network) transparently drops to OSRM, and OSRM failure drops to the
 // engine's haversine estimate. Provider-parity with geocode.ts facade.
+//
+// #polylines (Sep 2026): the facade used to fire N−1 SEQUENTIAL per-leg
+// fetches per chain — a 20-stop trip cost 19 serial round-trips against the
+// shared rate-limited OSRM demo, so the map drew straight chords for seconds
+// (or permanently, once the rate limiter answered). Now:
+//   1. one OSRM request carries the WHOLE chain (waypoints joined with `;`)
+//      and the per-leg geometry/duration/annotations are split back out —
+//      chunked at 25 waypoints so huge corridors degrade gracefully;
+//   2. the per-leg fallback (Google-first) runs legs in PARALLEL — the old
+//      "sequential by design" comment was only ever about being polite to one
+//      demo server, and the chain request IS the polite path now;
+//   3. every fetch takes the caller's AbortSignal, so a cancelled effect
+//      stops burning the rate-limit budget instead of discarding results;
+//   4. a small session cache remembers measured legs (rounded pair + mode),
+//      so the workspace chain, the map's day lines, the Board and the stop
+//      editor share one measurement instead of re-fetching the same roads.
+// Estimate legs are deliberately NOT cached: a rate-limited leg must stay
+// free to succeed on the next open, never pinned as a chord for the session.
 import { legBetween } from './engine'
 import type { EngineAssumptions, LegEstimate } from './engine'
 import { googleRoute, routesEnabled, type RouteResult } from './providers/routes'
@@ -11,6 +29,9 @@ import { haversineKm } from './geo'
 import type { RoadProfilePoint } from './ridePlan'
 
 const OSRM = 'https://router.project-osrm.org/route/v1/driving'
+
+/** Waypoints per OSRM chain request before we chunk (demo-server headroom). */
+const OSRM_CHAIN_WAYPOINTS = 25
 
 interface OsrmRoute {
   distance: number      // metres
@@ -22,14 +43,38 @@ interface OsrmRoute {
   legs?: { annotation?: { distance?: number[]; duration?: number[] } }[]
 }
 
+/** The chain-request shape: route.legs[i] carries ITS OWN geometry. */
+interface OsrmChainRoute {
+  code?: string
+  routes?: {
+    legs?: {
+      distance?: number
+      duration?: number
+      geometry?: { coordinates: [number, number][] }
+      annotation?: { distance?: number[]; duration?: number[] }
+    }[]
+  }[]
+}
+
+/** Combine a caller's signal with the per-request timeout where supported. */
+function requestSignal(signal: AbortSignal | undefined): AbortSignal {
+  // an already-aborted caller must hand the fetch an ABORTED signal — a fresh
+  // timeout here would send post-abort fallback fetches out un-aborted
+  if (signal?.aborted) return AbortSignal.abort()
+  const timeout = AbortSignal.timeout(8000)
+  if (!signal) return timeout
+  const Any = AbortSignal as unknown as { any?: (sigs: AbortSignal[]) => AbortSignal }
+  return Any.any ? Any.any([signal, timeout]) : timeout
+}
+
 /** Fetch a road route between two points. Returns null on any failure. */
-async function osrmRoute(a: LatLng, b: LatLng): Promise<{ km: number; min: number; coords: [number, number][]; segments?: RoadProfilePoint[] } | null> {
+async function osrmRoute(a: LatLng, b: LatLng, signal?: AbortSignal): Promise<{ km: number; min: number; coords: [number, number][]; segments?: RoadProfilePoint[] } | null> {
   try {
     // `overview=full` + `annotations` so the leg carries per-coordinate times:
     // the Day Planner's terrain profile needs to see a ghat INSIDE a leg, which
     // a per-stop measurement cannot (#204). Same request count — wider payload.
     const url = `${OSRM}/${a.lng},${a.lat};${b.lng},${b.lat}?overview=full&geometries=geojson&annotations=distance,duration`
-    const res = await fetch(url, { signal: AbortSignal.timeout(8000) })
+    const res = await fetch(url, { signal: requestSignal(signal) })
     if (!res.ok) return null
     const data = await res.json()
     const r: OsrmRoute | undefined = data.routes?.[0]
@@ -40,6 +85,58 @@ async function osrmRoute(a: LatLng, b: LatLng): Promise<{ km: number; min: numbe
       coords: r.geometry?.coordinates ?? [],
       segments: annotationsToProfile(r.legs?.[0]?.annotation),
     }
+  } catch {
+    return null
+  }
+}
+
+/**
+ * One OSRM request for a WHOLE chain of waypoints. Returns the per-leg road
+ * data split back out (leg i = points[i] → points[i+1]), or null when the
+ * server refuses — the caller then falls back to per-leg measurement.
+ * Chunked at OSRM_CHAIN_WAYPOINTS so a 60-stop corridor still resolves as a
+ * few parallel requests instead of one oversized (rejected) one.
+ */
+async function osrmRouteChain(points: LatLng[], signal?: AbortSignal): Promise<RoadLeg[] | null> {
+  if (points.length < 2) return []
+  const chunks: LatLng[][] = []
+  for (let i = 0; i < points.length - 1; i += OSRM_CHAIN_WAYPOINTS - 1) {
+    chunks.push(points.slice(i, i + OSRM_CHAIN_WAYPOINTS))
+  }
+  try {
+    const results = await Promise.all(chunks.map(chunk => osrmChainOnce(chunk, signal)))
+    if (results.some(r => r === null)) return null
+    return results.flatMap(r => r as RoadLeg[])
+  } catch {
+    return null
+  }
+}
+
+async function osrmChainOnce(points: LatLng[], signal?: AbortSignal): Promise<RoadLeg[] | null> {
+  const coords = points.map(p => `${p.lng},${p.lat}`).join(';')
+  const url = `${OSRM}/${coords}?overview=full&geometries=geojson&annotations=distance,duration`
+  try {
+    const res = await fetch(url, { signal: requestSignal(signal) })
+    if (!res.ok) return null
+    const data = (await res.json()) as OsrmChainRoute
+    const r = data.routes?.[0]
+    if (data.code !== 'Ok' || !r || !r.legs || r.legs.length !== points.length - 1) return null
+    const out: RoadLeg[] = []
+    for (let i = 0; i < r.legs.length; i++) {
+      const l = r.legs[i]
+      const a = points[i]
+      const b = points[i + 1]
+      if (typeof l.distance !== 'number' || typeof l.duration !== 'number') return null
+      const segs = annotationsToProfile(l.annotation)
+      out.push({
+        distanceKm: l.distance / 1000,
+        durationMinutes: Math.round(l.duration / 60),
+        source: 'osrm',
+        geometry: l.geometry?.coordinates?.length ? l.geometry.coordinates : [[a.lng, a.lat], [b.lng, b.lat]],
+        ...(segs ? { segments: segs } : {}),
+      })
+    }
+    return out
   } catch {
     return null
   }
@@ -82,11 +179,50 @@ export interface RoadLeg extends LegEstimate {
   segments?: RoadProfilePoint[]
 }
 
+// ---- session leg cache -----------------------------------------------------
+// Measured legs are remembered for the tab's lifetime, keyed by the rounded
+// pair + mode. This is what makes the map's day chips instant on revisit and
+// stops the workspace chain / Board / stop editor from re-fetching the same
+// roads. LRU-capped; estimate legs never enter it (see header note).
+const legCache = new Map<string, RoadLeg>()
+const LEG_CACHE_MAX = 240
+
+function legCacheKey(a: LatLng, b: LatLng, mode: string): string {
+  return `${mode}:${a.lat.toFixed(5)},${a.lng.toFixed(5)}>${b.lat.toFixed(5)},${b.lng.toFixed(5)}`
+}
+
+function cacheGet(key: string): RoadLeg | undefined {
+  const hit = legCache.get(key)
+  if (!hit) return undefined
+  legCache.delete(key) // refresh LRU position
+  legCache.set(key, hit)
+  return hit
+}
+
+function cacheSet(key: string, leg: RoadLeg): void {
+  if (leg.source === 'estimate') return
+  legCache.set(key, leg)
+  if (legCache.size > LEG_CACHE_MAX) {
+    const oldest = legCache.keys().next().value
+    if (oldest !== undefined) legCache.delete(oldest)
+  }
+}
+
+/** Test seam: drop every cached leg (routing-routes tests re-stub fetch). */
+export function clearRouteCacheForTests(): void {
+  legCache.clear()
+}
+
+/** Test seam: how many legs are currently cached. */
+export function routeCacheSizeForTests(): number {
+  return legCache.size
+}
+
 /**
  * Try Google Routes first when a key is configured, then OSRM, then the local
  * haversine estimate. `assumptions` only matters in the final fallback mode.
  */
-async function bestRoute(a: LatLng, b: LatLng, mode: string): Promise<RoadLeg> {
+async function bestRoute(a: LatLng, b: LatLng, mode: string, signal?: AbortSignal): Promise<RoadLeg> {
   if (routesEnabled()) {
     try {
       const r: RouteResult = await googleRoute(a, b, mode)
@@ -100,7 +236,7 @@ async function bestRoute(a: LatLng, b: LatLng, mode: string): Promise<RoadLeg> {
       /* Google failed (quota/network/key) — fall through to OSRM */
     }
   }
-  const r = await osrmRoute(a, b)
+  const r = await osrmRoute(a, b, signal)
   if (r) {
     return {
       distanceKm: r.km,
@@ -143,28 +279,83 @@ export async function roadLegBetween(
   a: LatLng,
   b: LatLng,
   assumptions: EngineAssumptions,
+  signal?: AbortSignal,
 ): Promise<RoadLeg> {
-  const leg = await bestRoute(a, b, assumptions.mode)
+  const cached = cacheGet(legCacheKey(a, b, assumptions.mode))
+  if (cached) return cached
+  const leg = await bestRoute(a, b, assumptions.mode, signal)
   if (leg.source === 'estimate') {
     // re-run against the real assumptions for an accurate haversine number
     const est = legBetween(a, b, assumptions)
     return { ...est, source: 'estimate', geometry: leg.geometry }
   }
+  cacheSet(legCacheKey(a, b, assumptions.mode), leg)
   return leg
 }
 
 /**
- * Route every consecutive pair of points. Sequential by design — provider
- * rate-limits bursts and results are cached per session anyway.
+ * Route every consecutive pair of points — the corridor as ONE OSRM chain
+ * request when keyless (a 20-stop trip is one fetch, not nineteen serial
+ * ones), with legs the cache already knows skipped from the measured span.
+ * Google-keyed callers and chain-failure fallbacks measure legs in parallel:
+ * the sequential loop this used to be was the reason a day's road line took
+ * half a minute to finish drawing (#polylines). Unmeasured legs degrade to
+ * the engine's haversine estimate, as always — planning never blocks.
  */
 export async function routePath(
   points: LatLng[],
   assumptions: EngineAssumptions,
+  signal?: AbortSignal,
 ): Promise<RoadLeg[]> {
-  const legs: RoadLeg[] = []
+  if (points.length < 2) return []
+  const legs: RoadLeg[] = new Array(points.length - 1)
+  const missing: number[] = []
   for (let i = 0; i < points.length - 1; i++) {
-    legs.push(await roadLegBetween(points[i], points[i + 1], assumptions))
+    const hit = cacheGet(legCacheKey(points[i], points[i + 1], assumptions.mode))
+    if (hit) legs[i] = hit
+    else missing.push(i)
   }
+  if (missing.length === 0) return legs
+
+  // Measure the missing span. One chain request covers first→last missing leg
+  // (chunks inside); per-leg fallback runs in parallel when the chain refuses.
+  const first = missing[0]
+  const last = missing[missing.length - 1]
+  const span = points.slice(first, last + 2)
+  let chainLegs: RoadLeg[] | null = null
+  if (!routesEnabled()) {
+    chainLegs = await osrmRouteChain(span, signal)
+  }
+  if (chainLegs && chainLegs.length === span.length - 1) {
+    missing.forEach((legIndex, k) => {
+      const leg = chainLegs![k]
+      legs[legIndex] = leg
+      cacheSet(legCacheKey(points[legIndex], points[legIndex + 1], assumptions.mode), leg)
+    })
+    return legs
+  }
+
+  // Per-leg fallback (Google-first when keyed, OSRM per leg otherwise), all in
+  // parallel. Any leg that still fails degrades to the haversine estimate.
+  // An already-aborted caller skips straight to estimates — firing fetches it
+  // would immediately discard only spends rate-limit budget.
+  const settled = signal?.aborted
+    ? missing.map(() => null)
+    : await Promise.all(missing.map(async legIndex => {
+      try {
+        return await roadLegBetween(points[legIndex], points[legIndex + 1], assumptions, signal)
+      } catch {
+        return null
+      }
+    }))
+  missing.forEach((legIndex, k) => {
+    const leg = settled[k] ?? (() => {
+      const est = legBetween(points[legIndex], points[legIndex + 1], assumptions)
+      return { ...est, source: 'estimate' as const, geometry: [[points[legIndex].lng, points[legIndex].lat], [points[legIndex + 1].lng, points[legIndex + 1].lat]] as [number, number][] }
+    })()
+    legs[legIndex] = leg
+    cacheSet(legCacheKey(points[legIndex], points[legIndex + 1], assumptions.mode), leg)
+  })
   return legs
 }
 

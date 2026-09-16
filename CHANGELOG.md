@@ -18,8 +18,11 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 ### Added
 
 ### Changed
+- **The map's road lines draw as one road-measurement per corridor, not one request per leg.** `routePath` used to fire N−1 sequential OSRM round-trips per chain — a 20-stop trip paid 19 serial fetches against the shared rate-limited demo server, so the map showed straight chords for tens of seconds (or permanently, once the rate limiter answered) before the real road arrived. A whole corridor is now ONE chain request (chunked past 25 waypoints), measured legs are cached for the tab session, and cancelled measurements actually stop fetching instead of burning rate-limit budget in the background.
+- **The map's day filter measures only the day on screen.** Switching day chips used to re-measure EVERY day's ride serially before painting anything — a 7-day trip cost ~35 fetches to draw one day's line. One day is now measured (one chain request, retried once on a rate-limit, cached by its route shape so revisiting a chip is instant), and the day cache shares legs with the whole-trip measurement through the session cache.
 
 ### Fixed
+- **The all-days map line no longer stops short of the destination.** The Map tab's road view sliced the drawn geometry to the outbound legs only, so a one-way trip whose destination anchor sits after its last plotted stop drew one leg short of where the plan actually ends; the destination tail is now drawn (without entering the plan totals, which stay outbound-only). A stored `(0, 0)`/mixed placeholder coordinate can no longer stretch the map's polyline across the globe — the plotting boundary drops it the same way the suggestion rail always has.
 
 ### Docs
 

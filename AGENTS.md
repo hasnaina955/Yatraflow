@@ -345,8 +345,11 @@ in its annotations. Fetch them every time:
 `output.annotations_url` → `gh api <annotations_url>`. An `annotations_count`
 of 0 is the true quirk signature; a non-zero count is a finding to triage.
 
-**SAST taint on URLs is cut with a strict validator at ONE boundary — and the
-boundary is wherever the value is FIRST stringified, not just the fetch.**
+**SAST taint on URLs is contained with a strict validator at ONE boundary —
+and the boundary is wherever the value is FIRST stringified, not just the
+fetch. (Validation is the right ENGINEERING, but see the next entry: it does
+not silence the Codacy rule — only a dashboard code-pattern ignore resolves
+the finding.)**
 Codacy flagged `routing.ts` for user-controlled coordinates flowing into the
 OSRM URL. Two half-lessons from fixing it: (1) `Number()` coercion is NOT
 validation — it accepts `'12.9'` and turns `null` into `0`, the Null-Island
@@ -355,6 +358,34 @@ sentinel; use `typeof x === 'number'` + `Number.isFinite` + range checks.
 only the URL builder still crashes on a poisoned row — one `coordValid()`
 helper must feed both consumers. Fail safe: refuse the measurement and degrade
 to the engine estimate, exactly like a network failure.
+
+**The "user-controlled URLs to HTTP client" rule is UNRESOLVABLE in code — do
+not chase it past one hardening pass.** PR #224 burned four rounds on
+`routing.ts` (strict `coordValid` boundary → `encodeURIComponent` → full-URL
+regex allowlist → WHATWG `URL` parse + origin assertion, the OWASP SSRF
+pattern) and the SAME rule re-fired on the same `fetch` every time: the engine
+flags `fetch()` with ANY data-derived URL string regardless of sanitizer.
+(Hardening still worth keeping: the crash-on-poisoned-row fix, the regex
+allowlist, the origin gate.) The practical loop: read the annotation, triage
+real-vs-baseline on its merits, fix the substance once, then mark the finding
+as managed in the Codacy dashboard (code-pattern ignore on that file with the
+four-layer justification) — and say so in the PR so the review trail shows the
+decision was made, not missed.
+
+**The verify gate must GATE the push — no `;`-chained command strings.** On
+PR #224 a `npm run verify …; git commit … && git push …` one-liner pushed a
+RED tree (5 failing test files) because `;` runs every statement regardless of
+the previous exit code — and the failing log was then deleted, destroying the
+evidence. Sequence: run verify alone, read its exit code, and only on success
+chain the commit/push (or run them as separate tool calls). Keep every failing
+log until the failure is diagnosed in writing.
+
+**A red verify that passes on rerun is usually cross-file test interference,
+not flakiness to shrug at** — vitest workers share module state across files
+(stubbed env, global fetch, the routing leg cache), so file-set/ordering
+changes flip suites that pass in isolation. The routing tests pin their env
+and clear caches per file for exactly this reason; when a rerun goes green,
+name the mechanism or keep reproducing — never just re-run until green.
 
 ## 4. Code conventions & pitfalls
 

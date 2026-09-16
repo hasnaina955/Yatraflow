@@ -15,8 +15,8 @@ user confirmation before any push. Feature work reaches `test` **via pull
 request** (never a direct push); `main` merges stay explicitly user-gated
 (AGENTS rule 1).
 
-**Snapshot (2026-09-16, verified against the repo):** `test` carries **v0.55.0** — the gallery-pipeline release, cut with the Explore shelf's contract, two validation gates and its first six demand-ranked itineraries — plus the **settings-wiring audit** (issue #213, PRs #219/#220): the Settings tab split out of Share, party/vehicle settings made to persist, the propagation fixes, style-vs-budget separation, Create↔Settings parity, and the numeric defaults. `test` leads `main` by both. Promotion to `main` is a release's own PR; `main` holds only the docs and merges it already owns until one lands.
-Current version: **0.55.0**.
+**Snapshot (2026-09-17, verified against the repo):** `test` carries **v0.56.0** — the settings-integrity release, which lands the full six-phase settings-wiring audit (issue #213, PRs #219/#220/#221): Trip settings as its own eighth workspace tab, party/vehicle preferences persisted to the trips table, the propagation fixes that make a settings change re-derive every downstream surface, style-vs-budget separation, Create↔Settings parity, and the numeric defaults that stop car numbers being written onto bikes and EVs. Sits on v0.55.0's gallery-pipeline release. Promotion to `main` is a release's own PR; `main` holds only the docs and merges it already owns until one lands.
+Current version: **0.56.0**.
 
 **Live open work is tracked in two places, and this file must agree with both:**
 

@@ -28,7 +28,8 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
   there with a "Km N" label, so the map shows both the planned schedule (the
   clock's anchors) and the placed stops' distance markers on the same road.
 - **🕐 Milestones toolbar chip** (default on) hides/shows the whole layer; with
-  it off the map is the plain route. Only the trip Map tab supplies it — the
+  it off the map is the plain route, and the choice is remembered per browser
+  like the map key. Only the trip Map tab supplies it — the
   Board never shows milestones.
 - **Planned-stop pins keep their itinerary arrival** — a tiny `13:40` chip
   under the pin while the milestone layer is on, with "~X km into the trip" in

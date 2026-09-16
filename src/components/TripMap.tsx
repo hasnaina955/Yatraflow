@@ -395,8 +395,16 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     if (focusDay !== undefined) setDayFilter(focusDay)
   }, [focusDay])
   const [showReturn, setShowReturn] = useState(true)
-  // The clock overlay's visibility — on by default when a surface supplies it.
-  const [clockOn, setClockOn] = useState(true)
+  // The clock overlay's visibility — on by default when a surface supplies
+  // it; the choice persists per browser via uiPrefs, like the map key.
+  const [clockOn, setClockOn] = useState(() => loadFlag('map_clock_on', true))
+  function toggleClock() {
+    haptic('toggle')
+    setClockOn(on => {
+      saveFlag('map_clock_on', !on)
+      return !on
+    })
+  }
   const timeFormat = useTimeFormat()
   // Live location ("show me on the map") — off by default so GPS stays cold
   // until the user asks for it; the toggle chip sits by the map key.
@@ -830,7 +838,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
             <button
               className={`map-day-chip ${clockOn ? 'on' : ''}`}
               aria-pressed={clockOn}
-              onClick={() => { haptic('toggle'); setClockOn(v => !v) }}
+              onClick={toggleClock}
               title="Show or hide the road milestones — each planned stop's time and distance on the road"
             >
               <Clock size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Milestones

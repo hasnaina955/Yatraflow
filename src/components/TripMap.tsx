@@ -177,7 +177,9 @@ type GeoJSONSourceLike = { setData(d: unknown): void }
  * moon glyphs: nothing here is an area or an icon, every mark is a planned stop.
  */
 function ClockMilestoneLayer({ overlay }: { overlay: ClockMilestone[] }) {
+  const { isLoaded } = useMap()
   const timeFormat = useTimeFormat()
+  if (!isLoaded || overlay.length === 0) return null
   return (
     <>
       {overlay.map((m, i) => (
@@ -208,6 +210,7 @@ function ClockMilestoneLayer({ overlay }: { overlay: ClockMilestone[] }) {
  * pair — the clock's anchors carry the time half, so a traveller reads both.
  */
 function SuggestionDistanceLayer({ places, road }: { places: PlaceHit[]; road: [number, number][] | null }) {
+  const { isLoaded } = useMap()
   const pins = useMemo(() => {
     if (!road || road.length < 2) return [] as Array<{ id: string; name: string; km: number; lat: number; lng: number }>
     const poly = road.map(c => ({ lat: c[1], lng: c[0] }))
@@ -221,7 +224,7 @@ function SuggestionDistanceLayer({ places, road }: { places: PlaceHit[]; road: [
     }
     return out
   }, [places, road])
-  if (pins.length === 0) return null
+  if (!isLoaded || pins.length === 0) return null
   return (
     <>
       {pins.map(pin => (

@@ -632,7 +632,7 @@ function MapMarker({
     marker.addTo(map);
 
     return () => {
-      marker.remove();
+      try { marker.remove(); } catch { /* map already removed */ }
     };
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -834,9 +834,11 @@ function MarkerTooltip({
     marker.getElement()?.addEventListener("mouseleave", handleMouseLeave);
 
     return () => {
-      marker.getElement()?.removeEventListener("mouseenter", handleMouseEnter);
-      marker.getElement()?.removeEventListener("mouseleave", handleMouseLeave);
-      tooltip.remove();
+      try {
+        marker.getElement()?.removeEventListener("mouseenter", handleMouseEnter);
+        marker.getElement()?.removeEventListener("mouseleave", handleMouseLeave);
+        tooltip.remove();
+      } catch { /* map already removed */ }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map]);

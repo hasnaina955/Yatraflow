@@ -6,11 +6,21 @@
 -- 1 driver / adults / dinner-ends-day / no profile on every reload — the
 -- user re-set them every session and they were never persisted.
 --
--- This migration gives those fields the columns they should have had. Until it
--- is applied live (Dashboard → SQL editor, or `supabase db push`), the store's
--- optional-column probe reports `partyPrefs: false` / `vehicleProfile: false`,
--- the columns stay unwritten, and the fields remain session-only — i.e. the
--- old behaviour, not a new break.
+-- This migration gives those fields the columns they should have had.
+--
+-- **Applied 2026-09-16 to the live Supabase project.** The four ALTER
+-- TABLE statements below are idempotent (`add column if not exists`),
+-- so this file is safe to re-run against an install that's already
+-- up to date.
+--
+-- Pre-application behaviour: until the columns exist, the store's
+-- optional-column probe reports `driverCount: false` /
+-- `hasVulnerable: false` / `driveAfterDinner: false` /
+-- `vehicleProfile: false` (see `probeOptionalColumns` in
+-- `src/store/store.ts`), the columns stay unwritten, and the fields
+-- remain session-only — i.e. the old behaviour, not a new break.
+-- Once applied, the next session flip probes true and writes
+-- persist.
 --
 -- Nothing else changes:
 -- - `driver_count`: NULL means "1 driver" (the legacy default); 2/3 are

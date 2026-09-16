@@ -9,10 +9,12 @@ import {
   KeyRound, Plane, Shuffle, TrainFront, TriangleAlert, X,
 } from 'lucide-react'
 import type { Trip, LatLngPoint, TransportMode } from '../../data/types'
-import { TRANSPORT_MODES, TRAVEL_STYLES } from '../../data/types'
+import { TRANSPORT_MODES, TRAVEL_STYLES, STAY_STYLES } from '../../data/types'
 import { updateTrip } from '../../store/store'
-import { FUEL_PRICE_INR_PER_L, MODE_SPEED, formatInr, isFuelEconomyMode, parseFuelEconomyKmL, isImplausibleFuelEconomy, parseFuelPricePerL } from '../../lib/engine'
+import { FUEL_PRICE_INR_PER_L, DEFAULT_FUEL_ECONOMY_KML, MODE_SPEED, formatInr, isFuelEconomyMode, parseFuelEconomyKmL, isImplausibleFuelEconomy, parseFuelPricePerL } from '../../lib/engine'
 import { cap } from '../../lib/labels'
+import { isSelfDrivenMode } from '../../lib/ridePlan'
+import { CREW_CHIPS, CREW_MAX, CREW_MIN, clampCrew } from '../../lib/crew'
 import { defaultVehicleProfile } from '../../lib/vehicleProfile'
 import { Field, RangeDial, StickyFormBar, toast } from '../../components/ui'
 import { Select } from '../../components/Select'
@@ -20,6 +22,10 @@ import { DateRangeCalendar } from '../../components/DateRangeCalendar'
 import { PillNav } from '../../components/PillNav'
 import { LocationInput } from '../../components/LocationInput'
 import { CoverImagePicker } from '../../components/CoverImagePicker'
+
+/** The allowance the "drive after dinner" toggle turns on when a trip has none
+ *  (#122's dhaba case: dinner at X, two more hours to Y). */
+const DEFAULT_DRIVE_AFTER_DINNER_MIN = 120
 
 /** Icon per transport mode — mirrors the bench's mode tiles. */
 const MODE_ICON: Record<TransportMode, ReactNode> = {
@@ -80,7 +86,9 @@ export function TripSettingsForm({ trip, editable }: { trip: Trip; editable: boo
   }
 
   // Derived values the bench-style blocks and the live receipt read from.
-  const travellers = Math.min(12, Math.max(1, f.travellers))
+  // #213 Phase 5: clampCrew, not Math.min(12,…) — the old clamp misrepresented a
+  // larger party as 12 and any chip tap then dropped it.
+  const travellers = clampCrew(f.travellers)
   const clampedBudget = Math.min(300000, Math.max(0, f.budget))
   const dayCount = dayDelta === null ? trip.days.length : trip.days.length + dayDelta
   const dayDeltaLabel = dayDelta === null
@@ -89,12 +97,24 @@ export function TripSettingsForm({ trip, editable }: { trip: Trip; editable: boo
     : dayDelta > 0 ? `Adds ${dayDelta} empty day${dayDelta !== 1 ? 's' : ''} at the end`
     : `Drops ${-dayDelta} empty trailing day${dayDelta !== -1 ? 's' : ''} (days with stops are kept)`
   const fuelMode = isFuelEconomyMode(f.transportMode)
+  // Party controls are gated on the ENGINE's own predicate, so Settings and
+  // Create Trip agree (Create used to hard-code a slightly different set that
+  // included `taxi` and omitted `mixed` — dead controls in one place, hidden
+  // controls in the other).
+  const selfDriven = isSelfDrivenMode(f.transportMode)
   const ecoNum = parseFuelEconomyKmL(f.fuelEconomy)
   const priceNum = parseFuelPricePerL(f.fuelPrice)
   const ecoSet = typeof ecoNum === 'number' && Number.isFinite(ecoNum)
   const priceSet = typeof priceNum === 'number' && Number.isFinite(priceNum)
-  const ecoVal = ecoSet ? ecoNum : 18
+  // ONE default across the app (#213 Phase 5): the bench and Create Trip both
+  // use 15 km/L, and this dial used to show 18 — three "defaults" for the same
+  // car. The constant lives next to the fuel price in lib/engine.
+  const ecoVal = ecoSet ? ecoNum : DEFAULT_FUEL_ECONOMY_KML
   const priceVal = priceSet ? priceNum : FUEL_PRICE_INR_PER_L
+  // The engine prices a self-drive trip from fuel only when BOTH are stated
+  // (engine.ts `economy && price`); with the price set and no mileage the ₹/L
+  // is silently unused. Say so instead of letting the bill read the blended rate.
+  const priceIgnored = priceSet && !ecoSet
 
   return (
     <div className="ts-form">
@@ -106,7 +126,7 @@ export function TripSettingsForm({ trip, editable }: { trip: Trip; editable: boo
       <div className="bench-block">
         <span className="bench-eyebrow">Budget preference</span>
         <PillNav className="tabbar" role="group" aria-label="Budget preference" activeKey={f.stayStyle}>
-          {(['budget', 'comfort', 'luxury'] as const).map(s => (
+          {STAY_STYLES.map(s => (
             <button key={s} type="button" data-pill-key={s} disabled={!editable}
               aria-pressed={f.stayStyle === s}
               className={`tab-btn${f.stayStyle === s ? ' active' : ''}`}
@@ -220,13 +240,23 @@ export function TripSettingsForm({ trip, editable }: { trip: Trip; editable: boo
                 <span className="bench-block-value">{travellers}</span>
               </div>
               <div className="bench-crew" role="group" aria-label="Number of travellers">
-                {Array.from({ length: 12 }, (_, i) => i + 1).map(n => (
+                {CREW_CHIPS.map(n => (
                   <button key={n} type="button" className={`bench-crew-btn${travellers === n ? ' on' : ''}`}
                     aria-pressed={travellers === n} disabled={!editable}
                     onClick={() => setF(x => ({ ...x, travellers: n }))}>
                     {n}
                   </button>
                 ))}
+              </div>
+              {/* A party bigger than the chips needs a way in — Create Trip has
+                  the same field, so the two surfaces accept the same range. */}
+              <div className="bench-line" style={{ marginTop: 8 }}>
+                <label className="bench-hint" htmlFor="ts-crew-custom">More than 10? </label>
+                <input id="ts-crew-custom" className="input mono" type="number" inputMode="numeric"
+                  min={CREW_MIN} max={CREW_MAX} disabled={!editable} value={f.travellers}
+                  style={{ maxWidth: 96 }}
+                  onChange={e => setF(x => ({ ...x, travellers: clampCrew(Number(e.target.value)) }))} />
+                <span className="bench-hint">up to {CREW_MAX}</span>
               </div>
               <p className="bench-hint">Rooms and per-head splits follow this count.</p>
             </div>
@@ -246,43 +276,48 @@ export function TripSettingsForm({ trip, editable }: { trip: Trip; editable: boo
           {/* Who's driving — party + dinner pace (#142). Same three inputs the
               Create-trip flow asks for; until now an existing trip could not
               change them, so the split verdict and the clock walk were frozen
-              at whatever the trip was created with. */}
-          <div className="bench-block">
-            <div className="bench-block-head">
-              <span className="bench-eyebrow">Who&apos;s driving</span>
-              <span className="bench-block-value">
-                {(f.driverCount ?? 1) === 1 ? 'One driver' : `${f.driverCount} drivers`}
-              </span>
+              at whatever the trip was created with. #213 Phase 5: gated on the
+              ENGINE's own `isSelfDrivenMode` (car/rental/motorcycle/mixed) so the
+              two surfaces agree and no dial is shown for a mode that ignores it
+              (train/bus/flight/taxi have nobody at the wheel to fatigue). */}
+          {selfDriven && (
+            <div className="bench-block">
+              <div className="bench-block-head">
+                <span className="bench-eyebrow">Who&apos;s driving</span>
+                <span className="bench-block-value">
+                  {(f.driverCount ?? 1) === 1 ? 'One driver' : `${f.driverCount} drivers`}
+                </span>
+              </div>
+              <div className="bench-line" role="group" aria-label="Drivers sharing the wheel">
+                {[1, 2, 3].map(n => (
+                  <button key={n} type="button" className={`bench-crew-btn${(f.driverCount ?? 1) === n ? ' on' : ''}`}
+                    aria-pressed={(f.driverCount ?? 1) === n} disabled={!editable}
+                    title={n === 1 ? 'One driver — the honest solo cap' : `${n} drivers rotate — the day earns real hours`}
+                    onClick={() => setF(x => ({ ...x, driverCount: n === 1 ? undefined : n }))}>
+                    {n}
+                  </button>
+                ))}
+                <span className="bench-hint">Rotating drivers buy hours; one driver keeps the solo cap.</span>
+              </div>
+              <div className="bench-line" role="group" aria-label="Who is aboard">
+                <button type="button" className={`bench-crew-btn${!f.hasVulnerable ? ' on' : ''}`}
+                  aria-pressed={!f.hasVulnerable} disabled={!editable}
+                  title="Everyone adult — full-length driving days"
+                  onClick={() => setF(x => ({ ...x, hasVulnerable: undefined }))}>Everyone adult</button>
+                <button type="button" className={`bench-crew-btn${f.hasVulnerable ? ' on' : ''}`}
+                  aria-pressed={!!f.hasVulnerable} disabled={!editable}
+                  title="Infants or seniors aboard — shorter days, earlier dinner"
+                  onClick={() => setF(x => ({ ...x, hasVulnerable: true }))}>Infants / seniors</button>
+              </div>
+              <div className="bench-line" role="group" aria-label="Dinner and driving">
+                <button type="button" className={`bench-crew-btn${f.driveAfterDinner ? ' on' : ''}`}
+                  aria-pressed={f.driveAfterDinner} disabled={!editable}
+                  title="Halt for dinner, then keep going within the allowance and the night end"
+                  onClick={() => setF(x => ({ ...x, driveAfterDinner: !f.driveAfterDinner }))}>Drive after dinner</button>
+              </div>
+              <p className="bench-hint">The split verdict and the travel clock re-derive from these — meals, halts and the honest daily cap all move.</p>
             </div>
-            <div className="bench-line" role="group" aria-label="Drivers sharing the wheel">
-              {[1, 2, 3].map(n => (
-                <button key={n} type="button" className={`bench-crew-btn${(f.driverCount ?? 1) === n ? ' on' : ''}`}
-                  aria-pressed={(f.driverCount ?? 1) === n} disabled={!editable}
-                  title={n === 1 ? 'One driver — the honest solo cap' : `${n} drivers rotate — the day earns real hours`}
-                  onClick={() => setF(x => ({ ...x, driverCount: n === 1 ? undefined : n }))}>
-                  {n}
-                </button>
-              ))}
-              <span className="bench-hint">Rotating drivers buy hours; one driver keeps the solo cap.</span>
-            </div>
-            <div className="bench-line" role="group" aria-label="Who is aboard">
-              <button type="button" className={`bench-crew-btn${!f.hasVulnerable ? ' on' : ''}`}
-                aria-pressed={!f.hasVulnerable} disabled={!editable}
-                title="Everyone adult — full-length driving days"
-                onClick={() => setF(x => ({ ...x, hasVulnerable: undefined }))}>Everyone adult</button>
-              <button type="button" className={`bench-crew-btn${f.hasVulnerable ? ' on' : ''}`}
-                aria-pressed={!!f.hasVulnerable} disabled={!editable}
-                title="Infants or seniors aboard — shorter days, earlier dinner"
-                onClick={() => setF(x => ({ ...x, hasVulnerable: true }))}>Infants / seniors</button>
-            </div>
-            <div className="bench-line" role="group" aria-label="Dinner and driving">
-              <button type="button" className={`bench-crew-btn${f.driveAfterDinner ? ' on' : ''}`}
-                aria-pressed={f.driveAfterDinner} disabled={!editable}
-                title="Halt for dinner, then keep going within the allowance and the night end"
-                onClick={() => setF(x => ({ ...x, driveAfterDinner: !f.driveAfterDinner }))}>Drive after dinner</button>
-            </div>
-            <p className="bench-hint">The split verdict and the travel clock re-derive from these — meals, halts and the honest daily cap all move.</p>
-          </div>
+          )}
 
           {/* Transport mode — bench mode grid */}
           <div className="bench-block">
@@ -323,6 +358,11 @@ export function TripSettingsForm({ trip, editable }: { trip: Trip; editable: boo
               {isImplausibleFuelEconomy(f.transportMode, ecoSet ? ecoNum : undefined) && (
                 <p className="hint-text ts-warn-note">
                   <TriangleAlert size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />Unusual for a {f.transportMode} — most do far better. Double-check the mileage.
+                </p>
+              )}
+              {priceIgnored && (
+                <p className="hint-text ts-warn-note">
+                  <TriangleAlert size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />Your fuel price is unused until you set a mileage — the bill is pricing the blended {cap(f.transportMode)} rate instead.
                 </p>
               )}
               <button type="button" className={`bench-toggle${f.roundTrip ? ' on' : ''}`}
@@ -415,21 +455,35 @@ export function TripSettingsForm({ trip, editable }: { trip: Trip; editable: boo
             startDate: f.startDate, endDate: f.endDate,
             destinations: f.destinations.map(s => s.trim()).filter(Boolean),
             destinationCoords: destCoords,
-            travellers: Math.max(1, f.travellers),
-            driverCount: f.driverCount,
-            hasVulnerable: f.hasVulnerable,
-            driveAfterDinnerMin: f.driveAfterDinner ? 120 : undefined,
+            travellers: clampCrew(f.travellers),
+            // The party dials only exist for self-drive modes (the block above is
+            // gated on the same predicate), so a conducted trip never carries
+            // them — and switching to one clears what a previous mode set.
+            driverCount: selfDriven ? f.driverCount : undefined,
+            hasVulnerable: selfDriven ? f.hasVulnerable : undefined,
+            // #213 Phase 5: only write the 120-minute default when the toggle is
+            // being turned ON. A trip stored with a custom allowance (say 60)
+            // used to be silently rewritten to 120 by any unrelated save.
+            driveAfterDinnerMin: !selfDriven
+              ? undefined
+              : f.driveAfterDinner
+                ? (trip.driveAfterDinnerMin ?? DEFAULT_DRIVE_AFTER_DINNER_MIN)
+                : undefined,
             budgetPerPersonInr: Math.max(0, f.budget),
             transportMode: f.transportMode, travelStyle: f.travelStyle,
             stayStyle: f.stayStyle,
             fuelEconomyKmL: isFuelEconomyMode(f.transportMode) ? parseFuelEconomyKmL(f.fuelEconomy) : undefined,
             fuelPricePerL: isFuelEconomyMode(f.transportMode) ? parseFuelPricePerL(f.fuelPrice) : undefined,
             roundTrip: isFuelEconomyMode(f.transportMode) ? f.roundTrip : undefined,
+            // #213 Phase 6: the fallbacks come from the CHOSEN vehicle's own
+            // profile, not hardcoded car numbers. `Number('45') || 45` used to
+            // write a 45 L / 15 km-L car onto a motorcycle (12 / 40) or an EV
+            // (50 kWh / 6) whenever the fields were left blank.
             vehicleProfile: isFuelEconomyMode(f.transportMode) ? {
               vehicleType: f.vehicleType as 'car' | 'motorcycle' | 'ev',
               fuelType: f.fuelType as 'petrol' | 'diesel' | 'electric' | 'cng',
-              capacity: Number(f.capacity) || 45,
-              economy: Number(f.vehicleEconomy) || 15,
+              capacity: Number(f.capacity) || defaultVehicleProfile(f.vehicleType).capacity,
+              economy: Number(f.vehicleEconomy) || defaultVehicleProfile(f.vehicleType).economy,
             } : undefined,
           })
           if (saved) {

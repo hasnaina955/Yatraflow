@@ -22,8 +22,9 @@ import {
   STAY_RATE_PER_NIGHT, MEALS_PER_HEAD_DAY,
   computeBenchBill, isBenchFuelMode, stashBenchPrefill,
   loadBenchInputs, saveBenchInputs, benchInputsEqual, formatBenchShareText,
-  type BenchMode, type BenchStayStyle, type BenchInputs,
+  type BenchMode, type BenchInputs,
 } from '../lib/planBench'
+import type { StayStyle } from '../data/types'
 import { shareBillImage } from '../lib/billCapture'
 import { toast, useMedia, Odometer } from './ui'
 import { haptic, HAPTIC } from '../lib/haptics'
@@ -217,12 +218,12 @@ export function PlanBench() {
 
   function randomBenchInputs(from: BenchInputs): BenchInputs {
     const preset = BENCH_PRESETS[Math.floor(Math.random() * BENCH_PRESETS.length)]
-    const stays: BenchStayStyle[] = ['budget', 'comfort', 'luxury']
+    const stays: StayStyle[] = [...STAY_STYLES]
     return {
       ...from,
       km: preset.km, mode: preset.mode, nights: preset.nights, crew: preset.crew,
       roundTrip: Math.random() > 0.4,
-      stay: stays[Math.floor(Math.random() * 3)],
+      stay: stays[Math.floor(Math.random() * stays.length)],
       kmPerL: preset.mode === 'motorcycle' ? 25 + Math.floor(Math.random() * 20) : 10 + Math.floor(Math.random() * 15),
       inrPerL: 95 + Math.floor(Math.random() * 20),
     }

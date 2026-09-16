@@ -60,27 +60,86 @@ export function quickPrompts(): string[] {
 export function answerQuestion(trip: Trip, question: string): AiReply {
   const q = question.toLowerCase()
   const totals = computeTotals(trip)
+  const has = (...words: string[]) => words.some((w) => q.includes(w))
 
-  // Route to the most relevant handler
-  if (q.includes('less tiring') || q.includes('tiring') || q.includes('relax')) return makeLessTiring(trip)
-  if (q.includes('airport') || (q.includes('reach') && q.includes('pm'))) return airportFeasibility(trip)
-  // Explicit grouping (issue #15): without parens JS binds && tighter than ||,
-  // making the rule fragile to read and easy to regress. Semantics are unchanged:
-  // "cheaper" alone, or both "alternative" AND "cheap", route to cheaperAlternative.
-  if (q.includes('cheaper') || (q.includes('alternative') && q.includes('cheap'))) return cheaperAlternative(trip)
-  // Word-boundary match so the substring "rain" inside "train" does not
-  // mis-route train questions to the rain plan. Extended to also match
-  // common conjugations (rains, raining, rainy) while still rejecting
-  // false positives like "rainbow" or "rainforest".
-  if (/\brain([s]|ing|y)?\b/.test(q)) return rainPlan(trip)
-  if (q.includes('family-friendly') || q.includes('family friendly')) return familyVersion(trip)
-  if (q.includes('children') || q.includes('kids')) return removeForKids(trip)
-  if (q.includes('relaxed') && q.includes('packed')) return compareRelaxedPacked(trip)
-  if (q.includes('risk')) return biggestRisks(trip)
-  if (q.includes('delay') || q.includes('backup')) return delayBackup(trip)
-  if (q.includes('youtube') || q.includes('description')) return youtubeDescription(trip)
-  if (q.includes('cost') || q.includes('budget') || q.includes('₹')) return costSummary(trip, totals)
-  if (q.includes('summary') || q.includes('overview') || q.includes('plan')) return planSummary(trip, totals)
+  // Route to the most relevant handler.
+  //
+  // ORDER IS LOAD-BEARING. This is a first-match chain, so an earlier rule always
+  // wins and a keyword that appears in ordinary speech will steal unrelated
+  // questions. Two rules caused most of the theft and both were repaired here:
+  //
+  //   * planSummary matched the bare word "plan" — the most common noun in a trip
+  //     planner. "wet weather plan", "problems with this plan", "plan B?" and
+  //     "longer than planned" all came back as a plan recap instead of rain,
+  //     risks, rain and delay. The word is gone; summary now matches only
+  //     genuinely summarizing language.
+  //   * cheaperAlternative sat below costSummary, so "over budget, what can we
+  //     trim?" and "bring the cost down" reported current spend rather than
+  //     proposing savings. Cheaper now precedes cost, and its reduction verbs are
+  //     scoped to money nouns so "reduce the driving on day 4" stays a tiring
+  //     question.
+  //
+  // Distinctive intents (rain, a flight, promotional copy) are tested before fuzzy
+  // ones (a day being too much, what could go wrong). scripts/jev-router-corpus.ts
+  // + scripts/jev-router-audit.test.ts measure this against 212 real phrasings; the
+  // residual collisions are listed in that run's output, not hidden.
+
+  // Compare first: it either needs both halves ("relax" + "pack") or explicit
+  // comparison language, so it cannot steal a single-intent ask. "packed" alone is
+  // a pace question here — nothing else in the app keys off it, and it is what
+  // "is day 3 too packed?" and "do we see more with a packed schedule?" turn on.
+  if (
+    (has('relax') && has('pack')) ||
+    has('compare', 'packed', 'slower', 'faster and', 'lighter', 'heavier', 'trade off', 'more or less', 'difference between') ||
+    (has('fewer stops') && has('or more'))
+  ) return compareRelaxedPacked(trip)
+
+  // Word-boundary match so the substring "rain" inside "train" does not mis-route
+  // train questions to the rain plan. Extended to conjugations and to "rain" + ed
+  // while still rejecting false positives like "rainbow" or "rainforest"; test t12
+  // and tests/ai-routing.test.ts pin both directions.
+  if (/\brain(s|ing|y|ed)?\b/.test(q) || has('monsoon', 'wet weather', 'poor weather', 'weather turns', 'washed out', 'forecast', 'drizzle', 'pours', 'wet day', 'indoor alternative')) return rainPlan(trip)
+
+  // The handler checks saved flight/train departures, so match those words — not
+  // just the word "airport" (issue: "catch a 6am flight" used to fall through).
+  if (has('airport', 'flight', 'departure', 'station') || (has('catch', 'make') && has('train')) || (q.includes('reach') && has('pm', 'on time'))) return airportFeasibility(trip)
+
+  if (has('youtube', 'description', 'instagram', 'caption', 'reel', 'blog', 'vlog', 'social media', 'promo', 'seo', 'publish')) return youtubeDescription(trip)
+
+  // Money to SPEND LESS, before money AS IT STANDS and before family — "cheaper
+  // family options" is a budget ask, not a family recast. The reduction verbs are
+  // gated on a money noun so "reduce the driving on day 4" stays a tiring question.
+  // "cheap" covers cheaper/cheapest; /\blean/ keeps "clean" out of it.
+  if (
+    has('cheap', 'save', 'saving', 'cut corners', 'cut the bill', 'spend less', 'pay less', 'over budget', 'money is tight', 'budget is tight', 'our pocket', 'beyond our pocket') ||
+    /\blean(er)?\b/.test(q) ||
+    (has('reduce', 'lower', 'cut') && has('cost', 'bill', 'spend', 'price', 'fee', 'fuel', 'budget')) ||
+    (has('bring') && has('down'))
+  ) return cheaperAlternative(trip)
+
+  // Family before kids: "kid friendly" and "family friendly" are recast requests,
+  // while children/kids questions ask what to drop. Note "toddler" belongs to kids.
+  if (has('family', 'in-law', 'grandparent', 'baby', 'generation', 'young one', 'older folk', 'softer', 'kid friendly', 'kid-friendly')) return familyVersion(trip)
+  if (has('children', 'kids', 'child', 'toddler', 'year old')) return removeForKids(trip)
+
+  if (has('cost', 'budget', 'expense', 'spend', 'total', 'per person', 'per head', 'how much', 'breakdown', 'afford', 'add up', 'money split', '₹')) return costSummary(trip, totals)
+
+  // Tiring last of the "distinctive" group: its vocabulary overlaps money and
+  // family phrasing, so it is tested after both have had their chance.
+  if (has('tiring', 'relax', 'ease off', 'take it easy', 'exhaust', 'rushed', 'overstuffed', 'brutal', 'too many stops', 'fewer stops', 'too much walking', 'too much', 'lighten', 'lighter', 'gentler', 'simplify', 'slow', 'reduce the driving', 'cut down', 'trim day', 'dead by', 'back and forth', 'tone it down')) return makeLessTiring(trip)
+
+  // "get stuck" is a risk question unless it is about traffic, which is a delay
+  // question; the two share the word, so the traffic half is carved out here.
+  if (has('risk', 'worry', 'go wrong', 'goes wrong', 'weak point', 'danger', 'red flag', 'cautious', 'trouble', 'derail', 'overambitious', 'safe', 'problem') || (has('stuck') && !has('traffic'))) return biggestRisks(trip)
+
+  // "backup" stays here but is safe: rain is tested far above, so "monsoon backup
+  // plan" and "backup for a washed out day" reach the rain plan, not this one.
+  // /\blate\b/ rather than a substring so "Translate this into Malayalam" is not a
+  // delay question.
+  if (has('delay', 'backup', 'traffic', 'stuck', 'breakdown', 'contingency', 'fallback', 'lose two hours', 'longer than plan') || /\blate\b/.test(q)) return delayBackup(trip)
+
+  // Summary last, and deliberately narrow: no bare "plan".
+  if (has('summary', 'summarise', 'summarize', 'overview', 'recap', 'high level', 'overall', 'brief me', 'run me through', 'walk me through', 'tell me about', 'shape of this trip')) return planSummary(trip, totals)
 
   return generalAnswer(trip, totals, question)
 }

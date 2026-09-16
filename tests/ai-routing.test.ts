@@ -1,6 +1,7 @@
 // ============ AI answer-routing regression tests ============
 import { describe, it, expect } from 'vitest'
 import { answerQuestion } from '../src/lib/ai'
+import { seedData } from '../src/data/seed'
 import type { Trip } from '../src/data/types'
 
 const trip = {
@@ -31,5 +32,26 @@ describe('answerQuestion rain routing', () => {
   it('does not mis-route "train" questions to the rain plan', () => {
     const reply = answerQuestion(trip, 'Should we take the train from Munnar to Thekkady?')
     expect(reply.text).not.toContain('Three rain options')
+  })
+})
+
+// Regression, found by scripts/jev-router-audit.test.ts: the tiring rule matches
+// bare "relax", which is a substring of "relaxed", so it swallowed every compare
+// prompt and compareRelaxedPacked was unreachable. The dead handler was the
+// quickPrompts()[6] button, and planSummary/generalAnswer both tell the user to
+// "compare relaxed vs packed" — so we advertised a capability that could not run.
+// Uses a real seed trip because the compare handler needs days to compare.
+describe('answerQuestion compare routing', () => {
+  const realTrip = seedData.trips[0]
+
+  it('routes the compare quick prompt to the comparison, not the tiring plan', () => {
+    const reply = answerQuestion(realTrip, 'Compare a relaxed itinerary with a packed itinerary')
+    expect(reply.text).toContain('Packed version')
+    expect(reply.text).not.toContain('is your heaviest:')
+  })
+
+  it('still routes a single-intent relax question to the tiring plan', () => {
+    const reply = answerQuestion(realTrip, 'How do we relax on this trip?')
+    expect(reply.text).toContain('is your heaviest:')
   })
 })

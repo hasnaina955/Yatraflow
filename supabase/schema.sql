@@ -47,6 +47,13 @@ create table if not exists public.trips (
   round_trip                boolean,
   budget_per_person_inr     integer not null default 0,
   travel_style              text not null default 'balanced',
+  -- 20260914_trip_stay_budget.sql
+  stay_style                text,
+  -- 20260915_trip_party_prefs.sql — see the migration for the column-by-column semantics
+  driver_count              int,
+  has_vulnerable            boolean,
+  drive_after_dinner_min    int,
+  vehicle_profile           jsonb,
   fixed_commitments         jsonb not null default '[]'::jsonb,
   days                      jsonb not null default '[]'::jsonb,
   expenses                  jsonb not null default '[]'::jsonb,
@@ -66,6 +73,11 @@ alter table public.trips add column if not exists fuel_price_per_l numeric;
 alter table public.trips add column if not exists round_trip boolean;
 alter table public.trips add column if not exists cover_image_url text;
 alter table public.trips add column if not exists invite_code text;
+alter table public.trips add column if not exists stay_style text;
+alter table public.trips add column if not exists driver_count int;
+alter table public.trips add column if not exists has_vulnerable boolean;
+alter table public.trips add column if not exists drive_after_dinner_min int;
+alter table public.trips add column if not exists vehicle_profile jsonb;
 
 -- Invite codes are unique when present (app mints one per trip).
 create unique index if not exists idx_trips_invite_code

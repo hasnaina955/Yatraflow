@@ -13,6 +13,14 @@ export const TRAVEL_STYLES = [
 ] as const
 export type TravelStyle = (typeof TRAVEL_STYLES)[number]
 
+/** The stay-budget vocabulary — the ONE list every surface shares (Create Trip's
+ *  Budget preference, Trip settings' dial, the Plan Bench's stay tier, and the
+ *  `STAY_RATE_PER_NIGHT` key in lib/rates.ts). It used to be defined three
+ *  times inline, which is how the bench's tier silently stopped reaching a
+ *  created trip (#213 Phase 5). */
+export const STAY_STYLES = ['budget', 'comfort', 'luxury'] as const
+export type StayStyle = (typeof STAY_STYLES)[number]
+
 export const STOP_CATEGORIES = [
   'sightseeing', 'food', 'nature', 'beach', 'temple', 'adventure',
   'shopping', 'museum', 'travel', 'hotel', 'rest', 'event', 'transport-hub',

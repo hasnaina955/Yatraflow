@@ -34,9 +34,9 @@ Key locations:
 
 ## 1.1 Current project status (as of Sep 15, 2026)
 
-**Version:** v0.55.0 — the gallery-pipeline release (2026-09-16). The Explore shelf got its supply chain: `docs/ITINERARY-IMPORT-SPEC.md` is the import contract (every numeric required, **both** coordinates checked, unknown keys rejected outright), `scripts/validate-itinerary.mjs` is Gate 1, `tests/golden-itineraries.test.ts` is Gate 2 (every `*.golden.json` through the real engine: health ≥ 85, no HIGH warning, budget within ±15 %), `docs/GALLERY-BACKLOG.md` ranks the twenty trips by demand evidence, and `docs/PLAYBOOK-GALLERY-RESEARCH.md` + `scripts/gallery-geocode.mjs` are the research workflow. Six shelf files ship (the Coorg reference + Goa, Kerala, Mewar, Kashmir, Meghalaya), each fee-cited, geocoded and priced by the engine (worst drift 0.6 %). The gate reshaped three drafts — a 319-min HIGH day at Mewar, a Meghalaya budget 97 % above the engine's, two same-coordinate backtrack traps — which is the gate working. **The shelf is still not live**: nothing imports the files into `published_itineraries` yet (the Stage-5 importer does not exist), and premium cards must wait for M7 item-zero (the anon-readable `days` column). Vercel Web Analytics (keyless) rides along, mounted web-only (#216); hash routing means the dashboard counts sessions and totals, not per-route visits. Sits on v0.54.0's suggestion-pipeline-honesty release (its story: the releases list below + CHANGELOG). `npm run verify` gate: tsc clean + **911 tests** (94 files) + production build.
+**Version:** v0.56.0 — the settings-integrity release (2026-09-17). The six-phase settings-wiring audit (issue #213) is fully landed (PRs #219/#220/#221): Trip settings is the eighth workspace tab (`#/trip/<id>/settings`), the four party/vehicle fields that previously reverted on reload (`driverCount`, `hasVulnerable`, `driveAfterDinnerMin`, `vehicleProfile`) persist through migration `20260915_trip_party_prefs.sql` (applied live, gated by the store's optional-column probe), the suggestion-cache hash covers every search input (`CACHE_VERSION` 3→4 so stale entries drop), `MapTab`'s verdicts re-derive on `trip` and `dayWeatherCode`, the road chain memoises on a geometry-only signature (`roadChainSig`), and blank tank/economy fields no longer fall back to car defaults on non-car vehicles. Sits on v0.55.0's gallery-pipeline release (its story: the releases list below + CHANGELOG). `npm run verify` gate: tsc clean + **961 tests** (96 files) + production build.
 
-**State:** Stabilization complete; the v0.40-era 32-finding UI audit AND the deeper #107 tracker are fixed to the floor (**117/117 boxes closed** — every finding carries a verdict; the owner-decision rows are the budget palette kept as authored, the board touch-tooltips product call, and two documented conventions). Device-check flags open on hardware only: 3D map-mode frame rate on a mid-range Android, Liberty label density at phone width, Landing scroll after the attachment change. The Corridor Concierge suggestion-engine brainstorm is FULLY shipped (Horizons 1–3, 16/16) — see ROADMAP's 🧭 table. v0.47.0's soft-delete backend is applied live (probe-verified: `trips.deleted_at` exists on the production project; the `get_trashed_trips` RPC is present with authenticated-only EXECUTE — the anon call returns `42501 permission denied`, not PGRST202). Branch model stays two-branch: `main` (production, Vercel) and `test` (integration). `npm run verify` gate: tsc clean + **911 tests** (94 files) + production build.
+**State:** Stabilization complete; the v0.40-era 32-finding UI audit AND the deeper #107 tracker are fixed to the floor (**117/117 boxes closed** — every finding carries a verdict; the owner-decision rows are the budget palette kept as authored, the board touch-tooltips product call, and two documented conventions). Device-check flags open on hardware only: 3D map-mode frame rate on a mid-range Android, Liberty label density at phone width, Landing scroll after the attachment change. The Corridor Concierge suggestion-engine brainstorm is FULLY shipped (Horizons 1–3, 16/16) — see ROADMAP's 🧭 table. v0.47.0's soft-delete backend is applied live (probe-verified: `trips.deleted_at` exists on the production project; the `get_trashed_trips` RPC is present with authenticated-only EXECUTE — the anon call returns `42501 permission denied`, not PGRST202). Branch model stays two-branch: `main` (production, Vercel) and `test` (integration). `npm run verify` gate: tsc clean + **961 tests** (96 files) + production build.
 
 > **A partial patch vs a full-Trip patch through `updateTrip` needs different handling (learned 2026-09-11).** The settings form passes a partial patch while the impact-preview flow passes a whole `Trip` (whose dates are always truthy). Any gate shaped like `if (patch.startDate || …)` fires on every Keep; reconciliation must compare resolved dates against the cache and reconcile the *incoming* days. The two `reconcile-days.test.ts` full-Trip regression tests pin this — they fail on the old code.
 
@@ -48,6 +48,7 @@ Key locations:
 
 
 **Recent major releases:**
+- **v0.56.0** — Settings integrity: the six-phase #213 audit landed — Trip settings as its own workspace tab, party/vehicle preference persistence (new `trips` columns + optional-column probe), propagation fixes so a settings change re-derives suggestions/budget/plans, style-vs-budget separation, Create↔Settings parity, and honest numeric defaults for non-car vehicles (#219/#220/#221)
 - **v0.55.0** — Gallery pipeline: the import spec + validator (Gate 1), the engine-truth golden test (Gate 2), the demand-ranked 20-trip backlog, the research playbook + geocoder, and six shelf itineraries (Coorg reference + Goa/Kerala/Mewar/Kashmir/Meghalaya); Vercel Web Analytics wired web-only (#216)
 - **v0.54.0** — Suggestion-pipeline honesty: engine-agnostic spur detours (#187), one road measurement per trip with honest unresolved-failure (#188), night halts anchored on OSM towns with the Google-only directive amended in §5 (#189), the Day Planner's meal/fuel cadences revived, Create Trip parity + route-integrity guardrail (#150), and the dayPlanner realism batch (#151 — severity rain, mode-aware caps, Null Island guard, real-coords search)
 - **v0.53.0** — Design-system audit release: #107 worked to the floor in five batches (per-theme contrast/ink tier, motion-token unification, kicker recipe + hit areas + layout tail, custom ARIA listbox Select on 14 surfaces + SYS-2 scale deletion, scenic 292° hue split + Explore stagger); plus the #106 single-day map-filter fix; `docs/UI-PAGE-AUDIT.md` committed
@@ -69,7 +70,7 @@ Key locations:
 - **v0.35.0** — Publish editor (preview/price/CTA), fork premium gate, creator mode, sourcemaps
 - **v0.31.0** — M0–M7 Calm Travel Intelligence redesign shipped (user-driven halt planner, 3-layer tokens, OpenFreeMap basemap, touch drag-and-drop)
 
-**Current branch:** `test` is the integration branch and carries **v0.55.0**; the promotion to `main` is this release's own PR (branch `promote/v0.55.0`, cut from `test` at `7e6049d`). Landed on `test` this cycle: **PR #215** (the gallery pipeline — its merge needed the CHANGELOG conflict resolved toward BOTH sides' bullets) and **PR #216** (a Vercel Agent PR, born against `main` and retargeted to `test` before merge; Vercel Agent PRs are drafts — `gh pr ready` before `gh pr merge`). Re-check drift before each push (see the branch note in the State paragraph above).
+**Current branch:** `test` is the integration branch and carries **v0.56.0**; the promotion to `main` is this release's own PR (branch `promote/v0.56.0`, cut from `test` at `fda3743`). Landed on `test` this cycle: **PR #219** (the Settings tab split + propagation fixes, #213 Phases 1–4), **PR #220** (Create↔Settings parity + numeric defaults, Phases 5+6), and **PR #221** (the audit docs + ROADMAP queue refresh). `main` holds only the docs and merges it already owns until a promote lands. Re-check drift before each push (see the branch note in the State paragraph above).
 
 **In-flight:**
 - **Rebrand (issue #96) — ARCHIVED 2026-09-15: no need or plan to rename.** The seam exists on `refactor/brand-seam` (one source of truth for the product name across 21 files incl. `vite.config.ts`) and is kept as archaeology, not as pending work. If it is ever revived: the Android shell has brand-adjacent fields (`appId` `app.yatraflow.mobile`, `versionName`, APK artifact naming) and an `appId` change **breaks updates over existing installs**, so that cut must be planned deliberately. The landing-page experiment on `explore/landing-hero-local` is unrelated to this decision
@@ -237,6 +238,22 @@ Hard rules (each learned the hard way — do not relearn them):
   `YOUR-PROJECT` template; CI and local builds only warn, since they
   legitimately have no credentials. Editing a var never fixes an existing
   deployment — **Redeploy** it.
+- **A Vercel check failing on an already-verified tree is usually infra, not
+  code — but prove it from the deployment payload, not the check name.** During
+  the v0.55.0 promotion, every Vercel check on `test` failed (PR #218 blocked)
+  while local verify ×3 and CI were green and identical content had deployed
+  fine minutes earlier. The check-run/commit-status descriptions only say "run
+  `npx vercel inspect <dpl> --logs`", which returns nothing useful; the real
+  error lives in the deployment object —
+  `MSYS_NO_PATHCONV=1 npx vercel api '/v13/deployments/<dpl>'` (the leading `/`
+  gets MSYS-path-mangled without the env var) → `errorMessage:
+  "Resource provisioning timed out", errorCode: BUILD_FAILED`. The unblock:
+  `MSYS_NO_PATHCONV=1 npx vercel redeploy <dpl>` (Ready in 36s) — the commit
+  status flipped to success on its own and the merge proceeded. Scope it first
+  by committing-statusing a few recent SHAs (`gh api .../commits/<sha>/statuses`):
+  all-recent-failures on green-local trees = infra; one-sharp-onset = diff.
+  Also: `npx vercel` works while `vercel` alone does not on this machine —
+  don't relearn which invocation is authenticated.
 - **Trust `vercel env ls`, not the dashboard's checkboxes.** Its
   `environments (git branch)` column is the only place a branch pin shows up;
   the UI reads as "all enabled" (this misread cost a full wrong-diagnosis

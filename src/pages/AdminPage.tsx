@@ -6,14 +6,14 @@
 // store. Destructive actions confirm first; trip delete confirms by typing
 // the trip name (no undo — cascades take the collab layer).
 import { useEffect, useMemo, useState } from 'react'
-import { Eye, EyeOff, GitFork, ShieldAlert, Trash2, Users } from 'lucide-react'
+import { Eye, EyeOff, GitFork, ShieldAlert, Trash2, UserX, Users } from 'lucide-react'
 import { PillNav } from '../components/PillNav'
 import { useTablist } from '../hooks/useTablist'
 import { Avatar, Chip, ConfirmDialog, EmptyState, Modal, toast } from '../components/ui'
 import {
   useDb, useIsAdmin, useAdminAudit, useSessionUserId, currentUser,
   adminSetDisabled, adminSetCreator, adminSetTripVisibility,
-  adminRemoveMember, adminUnpublish, adminDeleteTrip,
+  adminRemoveMember, adminUnpublish, adminDeleteTrip, adminDeleteUser,
 } from '../store/store'
 import {
   computeAdminOverview, computeGrowthSeries, computeFunnel, recentJoins, weekBucket,
@@ -108,6 +108,13 @@ function UsersTab() {
   const meId = useSessionUserId()
   const [q, setQ] = useState('')
   const [confirmDisable, setConfirmDisable] = useState<User | null>(null)
+  // Type-to-confirm delete (same pattern as the Trips tab's trip deletion —
+  // ConfirmDialog has no child slot, so this is a Modal). `force` is the
+  // second explicit opt-in the RPC demands before destroying published
+  // Explore listings; it only becomes checkable inside the modal.
+  const [deleteTarget, setDeleteTarget] = useState<User | null>(null)
+  const [deleteName, setDeleteName] = useState('')
+  const [deleteForce, setDeleteForce] = useState(false)
   const [busy, setBusy] = useState(false)
   const users = useMemo(() => {
     const needle = q.trim().toLowerCase()
@@ -164,6 +171,13 @@ function UsersTab() {
                         </button>
                       )
                     )}
+                    {u.id !== meId && (
+                      <button className="btn btn-outline btn-sm" disabled={busy}
+                        aria-label={`Delete ${u.profile.name} permanently`}
+                        onClick={() => { setDeleteTarget(u); setDeleteName(''); setDeleteForce(false) }}>
+                        <UserX size={13} aria-hidden />
+                      </button>
+                    )}
                   </span>
                 </td>
               </tr>
@@ -186,6 +200,58 @@ function UsersTab() {
         }}
         onClose={() => setConfirmDisable(null)}
       />
+      {/* Type-to-confirm PERMANENT delete — no undo: the FK cascades take the
+          account, every owned trip (plan + collab layer), authored rows in
+          other crews' trips, and (force only) public Explore listings. The
+          audit log keeps a snapshot row. */}
+      <Modal open={!!deleteTarget} onClose={() => setDeleteTarget(null)}
+        title={`Delete ${deleteTarget?.profile.name ?? ''} permanently?`}>
+        <p className="muted" style={{ marginTop: 0 }}>
+          This cannot be undone. Deleting <strong>{deleteTarget?.email ?? ''}</strong> removes
+          every trip they own (plans, expenses, votes, decisions, activity), their rows in other
+          crews' trips, and their notifications. The audit log keeps a snapshot.
+        </p>
+        {(() => {
+          const pubs = deleteTarget ? db.published.filter(p => p.creatorId === deleteTarget.id).length : 0
+          const owned = deleteTarget ? db.trips.filter(t => (t.members ?? []).some(m => m.userId === deleteTarget.id && m.role === 'owner')).length : 0
+          return (
+            <p className="muted small">
+              {owned} owned trip{owned === 1 ? '' : 's'}
+              {pubs > 0 && <> · <strong>{pubs} published listing{pubs === 1 ? '' : 's'}</strong></>}
+            </p>
+          )
+        })()}
+        {(() => {
+          const pubs = deleteTarget ? db.published.filter(p => p.creatorId === deleteTarget.id).length : 0
+          return pubs > 0 ? (
+            <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', margin: '10px 0' }}>
+              <input type="checkbox" checked={deleteForce} onChange={e => setDeleteForce(e.target.checked)}
+                style={{ marginTop: 3 }} />
+              <span className="small">
+                Also delete the published itinerary(ies) — they are public on Explore and will
+                disappear for everyone. The RPC refuses the deletion without this.
+              </span>
+            </label>
+          ) : null
+        })()}
+        <input className="input" value={deleteName} onChange={e => setDeleteName(e.target.value)}
+          placeholder={deleteTarget?.email ?? 'Email'} aria-label="Type the user's email to confirm"
+          style={{ marginTop: 10 }} />
+        <div className="confirm-actions">
+          <button
+            className="btn btn-sm btn-danger"
+            disabled={busy || deleteName.trim().toLowerCase() !== (deleteTarget?.email ?? '').trim().toLowerCase() || (deleteTarget?.email.trim() ?? '') === ''}
+            onClick={() => {
+              if (!deleteTarget) return
+              const target = deleteTarget
+              setDeleteTarget(null)
+              setBusy(true)
+              void adminDeleteUser(target.id, deleteForce).finally(() => setBusy(false))
+            }}
+          >Delete user forever</button>
+          <button className="btn btn-outline btn-sm" onClick={() => setDeleteTarget(null)}>Cancel</button>
+        </div>
+      </Modal>
     </div>
   )
 }

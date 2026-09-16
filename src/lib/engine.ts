@@ -1040,11 +1040,22 @@ export interface TripTotals {
 // of it — one source, no mirror to drift (#125b). Travel style never touches
 // the bed's price; the STAY BUDGET dial does.
 
+/** The stay-rate vocabulary — the same three keys the settings pills and the
+ *  rates table share. */
+const STAY_KEYS = ['budget', 'comfort', 'luxury'] as const
+type StayKey = (typeof STAY_KEYS)[number]
+
 /** The stay rate key for a trip: its own stayStyle dial, or the legacy
  *  travelStyle (budget/luxury styles carried the pricing before the two
- *  dials were separated) so existing trips never re-price silently. */
-function stayKeyFor(trip: Pick<Trip, 'stayStyle' | 'travelStyle'>): 'budget' | 'comfort' | 'luxury' {
-  if (trip.stayStyle) return trip.stayStyle
+ *  dials were separated) so existing trips never re-price silently.
+ *
+ *  The stored value is VALIDATED: `stay_style` has no CHECK constraint, so a
+ *  stray string ('Luxury', 'premium', a renamed tier) would index
+ *  STAY_RATE_PER_NIGHT to undefined and multiply the whole lodging line into
+ *  NaN. Anything unrecognised falls through to the legacy rule instead. */
+function stayKeyFor(trip: Pick<Trip, 'stayStyle' | 'travelStyle'>): StayKey {
+  const stay = trip.stayStyle
+  if (stay && (STAY_KEYS as readonly string[]).includes(stay)) return stay as StayKey
   if (trip.travelStyle === 'budget' || trip.travelStyle === 'luxury') return trip.travelStyle
   return 'comfort'
 }

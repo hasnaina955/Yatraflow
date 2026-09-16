@@ -58,16 +58,19 @@ const MODE_TILES: Array<{ mode: TransportMode; icon: typeof Car; hint: string }>
   { mode: 'flight', icon: Plane, hint: '₹6.5/km + fees' },
 ]
 
-/** Explainer copy — grounded in what the style really tunes later:
- *  halt cadence (cadenceForCrew), daily detour budget (STYLE_DELTA), the bill's
- *  stay tier and the AI planner prompt. Never claim more than the algorithm does. */
+/** Explainer copy — grounded in what the style really tunes later: halt cadence
+ *  (cadenceForCrew), daily detour budget (STYLE_DELTA, relaxed +15 / packed −15
+ *  around the 45-min base) and the suggestion category priors in
+ *  computeCategoryBias. It does NOT price anything: the bed is the Budget
+ *  preference dial's job, and the two dials are deliberately independent
+ *  (see `stayKeyFor` in lib/engine.ts). Never claim more than the algorithm does. */
 const STYLE_COPY: Record<TravelStyle, string> = {
-  relaxed: 'gentle rhythm — stretch halts every ~120 km, meals ~260 km, 60 min/day of detour slack for suggestions. Stay tier: comfort.',
-  packed: 'maximum ground — 180 km between stretch halts, meals ~300 km, 30 min/day of detour slack. Stay tier: comfort.',
-  balanced: 'the default rhythm — stretches every 150 km, meals ~300 km, 45 min/day of detour slack. Stay tier: comfort.',
+  relaxed: 'gentle rhythm — stretch halts every ~120 km, meals ~260 km, 60 min/day of detour slack for suggestions.',
+  packed: 'maximum ground — 180 km between stretch halts, meals ~300 km, 30 min/day of detour slack.',
+  balanced: 'the default rhythm — stretches every 150 km, meals ~300 km, 45 min/day of detour slack.',
   adventure: 'suggestions favour treks, trails and outdoor stops — adventure and nature categories rank up.',
-  luxury: 'standard pace — the rough bill prices stays at ₹8,000 a room-night (comfort is ₹3,200).',
-  budget: 'standard pace — the rough bill prices stays at ₹1,200 a room-night (comfort is ₹3,200).',
+  luxury: 'the default driving rhythm. The bed\'s price is the Budget preference above — this dial never touches pricing.',
+  budget: 'the default driving rhythm. The bed\'s price is the Budget preference above — this dial never touches pricing.',
   family: 'built around crew size — 5+ travellers get the gentler 120 km cadence automatically, style aside.',
   spiritual: 'suggestions favour temple stops and sacred circuits — the temple category ranks up.',
   'food-focused': 'suggestions favour food — local meals rank up wherever the route goes.',
@@ -171,6 +174,10 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
       transportMode: p.transportMode,
       budgetPerPersonInr: p.budgetPerPersonInr,
       travelStyle: p.travelStyle,
+      // The bench's bed tier rides through as the trip's own dial — the style
+      // above no longer prices anything, so without this a Luxury bench run
+      // created a trip that billed comfort rooms (₹3,200 instead of ₹8,000).
+      ...(p.stayStyle ? { stayStyle: p.stayStyle } : {}),
       roundTrip: p.roundTrip,
       ...(isFuelEconomyMode(p.transportMode) && p.kmPerL != null && p.inrPerL != null
         ? { fuelEconomy: String(p.kmPerL), fuelPrice: String(p.inrPerL) }

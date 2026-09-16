@@ -132,11 +132,31 @@ describe('prefill hand-off', () => {
       transportMode: inp.mode,
       budgetPerPersonInr: bill.perHead,
       travelStyle: STAY_TO_TRAVEL_STYLE.budget,
+      stayStyle: 'budget' as const,
       roundTrip: inp.roundTrip,
       ...(isBenchFuelMode(inp.mode) ? { kmPerL: inp.kmPerL, inrPerL: inp.inrPerL } : {}),
     }
     expect(parseBenchPrefill(JSON.stringify(prefill))).toEqual(prefill)
     expect(prefill.kmPerL).toBe(inp.kmPerL) // fuel sliders ride along for fuel modes
+  })
+
+  // #213 Phase 4: `travelStyle` no longer prices the bed, so the prefill must
+  // carry the bench's stay tier itself — otherwise a Luxury bench run
+  // (₹8,000/room) created a trip that billed comfort (₹3,200).
+  it('carries the stay tier as an explicit dial, alongside the style', () => {
+    const p = parseBenchPrefill(JSON.stringify({
+      travellers: 2, transportMode: 'car', budgetPerPersonInr: 15000,
+      travelStyle: STAY_TO_TRAVEL_STYLE.luxury, stayStyle: 'luxury', roundTrip: true,
+    }))
+    expect(p?.stayStyle).toBe('luxury')
+    expect(p?.travelStyle).toBe('luxury')
+  })
+
+  it('accepts a stash with no stayStyle (older sessions) but rejects an unknown tier', () => {
+    const base = { travellers: 2, transportMode: 'car', budgetPerPersonInr: 15000, travelStyle: 'balanced', roundTrip: true }
+    expect(parseBenchPrefill(JSON.stringify(base))?.stayStyle).toBeUndefined()
+    expect(parseBenchPrefill(JSON.stringify({ ...base, stayStyle: 'premium' }))).toBeNull()
+    expect(parseBenchPrefill(JSON.stringify({ ...base, stayStyle: 'Luxury' }))).toBeNull()
   })
 
   it('omits fuel fields for fare modes', () => {

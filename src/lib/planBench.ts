@@ -159,6 +159,10 @@ export interface BenchPrefill {
   transportMode: BenchMode
   budgetPerPersonInr: number
   travelStyle: TravelStyle
+  /** The bench's stay tier, carried into the trip's own dial. Without this the
+   *  hand-off set `travelStyle` and left `stayStyle` at its 'comfort' default,
+   *  so a Luxury bench run (₹8,000/room) created a trip that billed ₹3,200. */
+  stayStyle?: BenchStayStyle
   roundTrip: boolean
   kmPerL?: number
   inrPerL?: number
@@ -176,6 +180,10 @@ export function parseBenchPrefill(raw: string | null | undefined): BenchPrefill 
       !Number.isFinite(p.travellers) || !p.transportMode || !BENCH_MODES.includes(p.transportMode as BenchMode) ||
       !Number.isFinite(p.budgetPerPersonInr) || !p.travelStyle
     ) return null
+    // stayStyle is optional in the stash (older sessions predate it) but must
+    // be a known tier when present — a stray value would index
+    // STAY_RATE_PER_NIGHT to undefined downstream.
+    if (p.stayStyle != null && !(STAY_STYLES as readonly string[]).includes(p.stayStyle)) return null
     return p as BenchPrefill
   } catch { return null }
 }
@@ -186,6 +194,9 @@ export function stashBenchPrefill(bill: BenchBill, input: BenchInputs): void {
     transportMode: input.mode,
     budgetPerPersonInr: bill.perHead,
     travelStyle: STAY_TO_TRAVEL_STYLE[input.stay],
+    // The tier itself, so the created trip prices the bed at the rate the
+    // bench just showed (travelStyle alone no longer prices anything).
+    stayStyle: input.stay,
     roundTrip: input.roundTrip,
     ...(isBenchFuelMode(input.mode) ? { kmPerL: input.kmPerL, inrPerL: input.inrPerL } : {}),
   }

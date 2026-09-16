@@ -311,6 +311,12 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     // cadence and the hit queries both read this flag.
     includeFuel: !isElectric(trip.vehicleProfile) && (trip.transportMode === 'car' || trip.transportMode === 'motorcycle'),
     includeCharge: isElectric(trip.vehicleProfile),
+    // #189 + 20260915_trip_party_prefs.sql: the persisted vehicle profile is
+    // the one owner of fuel-stop cadence. Without it here, geocode.ts falls
+    // through to FUEL_INTERVAL_KM (450) and a 60 L / 20 km-L bike is planned
+    // at car cadence. The profile is JSONB-validated on read, so a junk
+    // value never reaches this planner.
+    vehicleProfile: trip.vehicleProfile,
     // #143: accepted night-halt pins (night ordinal → route-km) — the planner
     // snaps those halts and surfaces drift as a proposal instead of moving.
     haltPins: loadHaltPinsForTrip(trip.id),

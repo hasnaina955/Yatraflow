@@ -13,6 +13,7 @@ import { TRANSPORT_MODES, TRAVEL_STYLES } from '../../data/types'
 import { updateTrip } from '../../store/store'
 import { FUEL_PRICE_INR_PER_L, MODE_SPEED, formatInr, isFuelEconomyMode, parseFuelEconomyKmL, isImplausibleFuelEconomy, parseFuelPricePerL } from '../../lib/engine'
 import { cap } from '../../lib/labels'
+import { defaultVehicleProfile } from '../../lib/vehicleProfile'
 import { Field, RangeDial, StickyFormBar, toast } from '../../components/ui'
 import { Select } from '../../components/Select'
 import { DateRangeCalendar } from '../../components/DateRangeCalendar'
@@ -38,8 +39,14 @@ export function TripSettingsForm({ trip, editable }: { trip: Trip; editable: boo
     fuelEconomy: trip.fuelEconomyKmL?.toString() ?? '',
     fuelPrice: trip.fuelPricePerL?.toString() ?? '',
     roundTrip: trip.roundTrip ?? true,
-    vehicleType: trip.vehicleProfile?.vehicleType ?? 'car',
-    fuelType: trip.vehicleProfile?.fuelType ?? 'petrol',
+    // #189 / 20260915_trip_party_prefs.sql: the persisted profile wins; a
+    // motorcycle or rental trip no longer opens the form looking like a car.
+    // Unknown / conducted modes fall back to the car default via the shared
+    // owner in lib/vehicleProfile (the engine and Create trip agree on it).
+    vehicleType: trip.vehicleProfile?.vehicleType
+      ?? defaultVehicleProfile(trip.transportMode).vehicleType,
+    fuelType: trip.vehicleProfile?.fuelType
+      ?? defaultVehicleProfile(trip.transportMode).fuelType,
     capacity: trip.vehicleProfile?.capacity?.toString() ?? '',
     vehicleEconomy: trip.vehicleProfile?.economy?.toString() ?? '',
     // Who is behind the wheel (#142) — the same three inputs Create-trip asks

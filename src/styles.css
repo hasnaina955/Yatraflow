@@ -2414,22 +2414,50 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
 }
 [data-theme='dark'] .yf-map-flag { border-color: rgba(255,255,255,.9); }
 
-/* ---- Clock zones on the route (the travel clock drawn on the map) ---- */
-/* The glyph rides at the circle's centre: a soft emoji above a coloured halo,
-   deliberately quieter than a stop pin — the clock is context, stops are the
-   subject. The time lives in the tooltip; nothing prints "13:20" on the map. */
-.yf-clock-glyph {
-  display: grid; place-items: center;
-  width: 24px; height: 24px; border-radius: 999px;
-  font-size: 13px; line-height: 1;
-  background: color-mix(in srgb, var(--c, #818CF8) 24%, transparent);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--c, #818CF8) 42%, transparent);
-  filter: drop-shadow(0 1px 2px rgba(0,0,0,.35));
-  cursor: default;
+/* ---- Road milestones on the route (the travel clock drawn on the map) ---- */
+/* One pin per planned anchor with its wall-clock time on the side and the road
+   km beneath — time and distance together at the point they belong to. Quiet by
+   design: the clock is context, the numbered stops are the subject. */
+.yf-milestone {
+  display: inline-flex; align-items: center; gap: 5px;
+  pointer-events: none;
 }
-.yf-clock-glyph--night {
-  --c: #818CF8;
-  width: 20px; height: 20px; font-size: 12px;
+.yf-milestone-dot {
+  width: 9px; height: 9px; border-radius: 999px; flex: 0 0 auto;
+  background: var(--yf-poi-see);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--yf-poi-see) 38%, transparent);
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,.35));
+}
+.yf-milestone--overnight .yf-milestone-dot {
+  background: #6366F1;
+  box-shadow: 0 0 0 2px color-mix(in srgb, #6366F1 40%, transparent);
+}
+.yf-milestone--destination .yf-milestone-dot {
+  background: var(--teal);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--teal) 40%, transparent);
+}
+.yf-milestone--place .yf-milestone-dot {
+  background: var(--text-2);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--text-2) 32%, transparent);
+}
+.yf-milestone-side {
+  display: inline-flex; flex-direction: column; align-items: flex-start; gap: 1px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--card) 92%, transparent);
+  border: 1px solid var(--line);
+  box-shadow: 0 1px 3px rgba(var(--shadow-navy-rgb),.25);
+  white-space: nowrap;
+}
+.yf-milestone-time {
+  font-size: 10.5px; font-weight: 700; line-height: 1.2;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.yf-milestone-km {
+  font-size: 9.5px; font-weight: 700; line-height: 1.2; font-style: normal;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
 }
 /* Planned arrival chip under a stop pin — only present while the clock
    overlay is on (Map tab); Board pins never render it. MarkerContent stacks

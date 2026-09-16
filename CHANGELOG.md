@@ -16,28 +16,25 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 ## [Unreleased]
 
 ### Added
-- **The travel clock is drawn on the map.** 🍽 lunch, 🥐 breakfast and 🍷 dinner
-  become soft map circles whose **radius is honest**: half the road the car
-  covers while that meal's window is open at the journey's own pace
-  (`mealRadiusKm` = window/2 × kmPerMin) — lunch's circle is the biggest,
-  dinner's the tightest. Circles appear ONLY for meals (no tea/stretch zones),
-  no time text prints on the map, and everything the circle means lives in the
-  hover tooltip ("day 2, the clock puts you here at 13:20 · ~503 km in ·
-  anything within ~52 km keeps you on schedule").
-- **The night is a position, not an area** — each driving day's evening leg
-  paints as an indigo band ON the route line, ending at a small 🌙 marker at
-  the halt. Round trips run the whole loop: km past the turnaround map onto
-  the reversed outbound polyline, so return-day halts land on the road home.
-- **🕑 Clock toolbar chip** (default on) hides/shows the whole layer; with it
-  off the map is the plain route. Only the trip Map tab supplies it — the
-  Board never shows zones.
-- **Planned-stop pins gain their itinerary arrival** — a tiny `13:40` chip
-  under the pin while the clock layer is on, with "~X km into the trip" in
-  the tooltip (from the day-by-day journey simulation, clearly distinct from
-  the engine's own meal circles).
-- New pure module `src/lib/clockOverlay.ts` (`deriveClockOverlay`,
-  `mealRadiusKm`, `radiusPxAtZoom0`, `clockHM`) + 12 fixtures in
-  `tests/clockOverlay.test.ts`.
+- **The travel clock is drawn on the map as road milestones.** Each planned
+  clock anchor becomes a milestone pin ON the route carrying both readings:
+  its wall-clock time on the side ("08:00 PM") and the road km beneath it
+  ("Km 500"), so a traveller reads time and distance together at the exact
+  point they belong to. Meal breaks, overnight halts and the destination each
+  pin at their own road position — no circles, no evening band, no moon
+  glyphs: every mark is a planned stop, not a fuzzy area.
+- **The suggestion engine's placed stops become distance milestones.** Each
+  placed place is projected onto the road at its cumulative km and pinned
+  there with a "Km N" label, so the map shows both the planned schedule (the
+  clock's anchors) and the placed stops' distance markers on the same road.
+- **🕐 Milestones toolbar chip** (default on) hides/shows the whole layer; with
+  it off the map is the plain route. Only the trip Map tab supplies it — the
+  Board never shows milestones.
+- **Planned-stop pins keep their itinerary arrival** — a tiny `13:40` chip
+  under the pin while the milestone layer is on, with "~X km into the trip" in
+  the tooltip (from the day-by-day journey simulation).
+- Pure module `src/lib/clockOverlay.ts` (`deriveClockMilestones`,
+  `ClockMilestone`, `clockHM`) + 8 fixtures in `tests/clockOverlay.test.ts`.
 
 ### Fixed
 - **Audit batch on the map rails.** `map-day-chip` reaches the 40px touch floor on coarse pointers (desktop silhouette unchanged; toolbar gaps 5→8px); the scan status span announces via `aria-live`; clock glyphs carry `role="img"` labels instead of being `aria-hidden`-only; the detour-budget split is memoised instead of recomputed per render; `.board-col-day` drops the dangling `var(--text-1)` (deleted in the v0.53.0 scale sweep).

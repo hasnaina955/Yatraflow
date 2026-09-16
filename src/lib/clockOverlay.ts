@@ -1,90 +1,74 @@
-// ============ Clock zones on the map (PLAN-DAY-PLANNER follow-up) ============
-// Projects the travel clock onto the route line: the biological windows
-// (breakfast / lunch / dinner) become soft circles whose RADIUS is the honest
-// number — half the road the car covers while that meal's window is open —
-// and the night halt becomes a marker ON the route with the evening band
-// painted behind it. Pure + node-testable: geometry in, geometry out, no
-// React, no MapLibre, no formatting (the view composes the copy).
+// ============ Clock milestone markers on the trip road (requested redesign) ============
+// Replaces soft circles / evening band / moon glyphs with plain road pins that
+// show time on the side ("08:00 PM") plus distance ("Km 500"), so travellers see
+// time and distance together, not a fuzzy area. Pure + node-testable: geometry
+// in, pins out, no React, no MapLibre, no formatting (the view composes copy).
 //
-// The mockup that sold this design lives in the session log
-// (docs/PLAN-DAY-PLANNER.md §17). Rules agreed there:
-//   • circles for meals ONLY — tea/stretch breaks stay panel-only;
-//   • a circle means "anywhere on this road I could eat this meal and keep
-//     the schedule", so radius = windowMinutes / 2 × kmPerMin;
-//   • the night is a position, not an area — a marker on the line;
-//   • round trips run the clock over the whole loop; km past the turnaround
-//     maps onto the REVERSED outbound polyline (the return re-traces it).
+// The clock walk's planned anchors become milestone pins on the road:
+//   · breakfast / lunch  → mealtime milestone
+//   · dinner / overnight → overnight milestone
+//   · final destination   → destination milestone
+// The toggle keeps working: when off, no markers. The suggestion engine's placed
+// places also become distance-only milestones on the same road, so the map shows
+// the planned schedule (clock anchors) and the placed stops (distance markers)
+// together.
+//
+// Geometry rule: a milestone lands at the road position for its road-km (on the
+// outbound; on a round trip the return re-traces the same polyline). The time is
+// the clock's planned wall-time for that anchor; the km is the road-km from the
+// trip origin to that point.
 import { pointAtKm } from './geo'
-import {
-  BREAKFAST_WINDOW, DINNER_WINDOW, LUNCH_WINDOW,
-  planTravelClock, type TravelClockVerdict,
-} from './ridePlan'
+import { planTravelClock } from './ridePlan'
 
-/** Minutes-since-midnight → "HH:MM" (clock, not a duration). */
+/** Minutes-since-midnight → "HH:MM" (wall clock, not a duration). */
 export function clockHM(mins: number): string {
   const m = ((Math.round(mins) % 1440) + 1440) % 1440
   return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`
 }
 
-/** Meal windows, in minutes — DERIVED from ridePlan's anchor windows (#130
- *  made the lunch window a single 11:30–14:30 source; a hand-copied number
- *  here would be the next drift). */
-export const MEAL_WINDOW_MIN = {
-  breakfast: BREAKFAST_WINDOW[1] - BREAKFAST_WINDOW[0],
-  lunch: LUNCH_WINDOW[1] - LUNCH_WINDOW[0],
-  dinner: DINNER_WINDOW[1] - DINNER_WINDOW[0],
-} as const
-/** Circle radius = half the window's reach at the journey's own pace. */
-export const mealRadiusKm = (kind: keyof typeof MEAL_WINDOW_MIN, kmPerMin: number): number =>
-  (MEAL_WINDOW_MIN[kind] / 2) * kmPerMin
+/** A planned-clock milestone pin on the road. */
+export interface ClockMilestone {
+  /** road km from trip origin (loop-km for round trips) */
+  kmIn: number
+  /** {lat,lng} on the road at that kmIn */
+  lat: number
+  lng: number
+  /** 1-based driving day */
+  dayNo: number
+  /** wall clock the milestone fires (minutes since midnight) */
+  etaMin: number
+  /** map-side label: "HH:MM" */
+  timeLabel: string
+  /** map-side label: "Km N" */
+  kmLabel: string
+  /** semantic kind (for pin styling / tooltip detail) */
+  kind: 'mealtime' | 'overnight' | 'destination'
+}
 
-export interface ClockMealZone {
-  kind: 'breakfast' | 'lunch' | 'dinner'
-  lat: number
-  lng: number
-  /** honest radius in km (window/2 × journey speed) */
-  radiusKm: number
-  /** wall clock the anchor fires (minutes since midnight; dinner = the halt) */
-  etaMin: number
-  /** 1-based driving day this zone belongs to */
-  dayNo: number
-  /** km into the loop where the meal lands */
-  kmIn: number
-}
-export interface ClockNightMark {
-  lat: number
-  lng: number
-  etaMin: number
-  dayNo: number
-  kmIn: number
-}
-export interface ClockEveningBand {
-  /** [lng, lat] samples along the route from the day's last stop to its halt */
-  coords: [number, number][]
-}
-export interface ClockOverlay {
-  zones: ClockMealZone[]
-  nights: ClockNightMark[]
-  bands: ClockEveningBand[]
+
+/**
+ * A milestone's position on the road: km → {lat,lng}. Outbound maps forward;
+ * on a round trip the return re-traces the same polyline backwards.
+ */
+function pointAtKmOnRoad(
+  geo: { lat: number; lng: number }[],
+  km: number,
+  outboundKm: number,
+  roundTrip: boolean,
+): { lat: number; lng: number } | null {
+  if (geo.length < 2 || !(outboundKm > 0)) return null
+  if (!roundTrip || km <= outboundKm) return pointAtKm(geo, km)
+  return pointAtKm([...geo].reverse(), Math.min(km - outboundKm, outboundKm))
 }
 
 /**
- * The circle radius in pixels AT ZOOM 0 for a km radius at this latitude —
- * MapLibre's meters-per-pixel is 156543.03392·cos(lat)/2^z, so px = r0·2^z.
- * Exported for the renderer and for the test that pins the math down.
+ * The clock walk turned into road milestones. Feed it the resolved outbound
+ * road geometry and the loop facts (km + wheel minutes for the whole there-and-
+ * back, so a round trip's later days pin on the return re-trace). Empty means
+ * nothing to pin: no geometry, no drive, or an honest defer verdict.
  */
-export function radiusPxAtZoom0(km: number, lat: number): number {
-  return (km * 1000) / (156543.03392 * Math.cos((lat * Math.PI) / 180))
-}
-
-/**
- * The map overlay of the travel clock. Feed it the resolved outbound road
- * geometry and the LOOP facts (km + wheel minutes for the whole there-and-
- * back, so a round trip's later days paint on the return re-trace). null =
- * nothing to draw: no geometry, no drive, or an honest defer verdict.
- */
-export function deriveClockOverlay(input: {
-  /** outbound route geometry in {lat,lng}; null while OSRM hasn't resolved */
+export function deriveClockMilestones(input: {
+  /** outbound road geometry in {lat,lng}; null while OSRM hasn't resolved */
   polyline: { lat: number; lng: number }[] | null
   /** one-way road km the geometry measures */
   outboundKm: number
@@ -94,80 +78,79 @@ export function deriveClockOverlay(input: {
   dayStart?: string
   travelStyle?: string
   rainFactor?: number
-}): ClockOverlay | null {
+}): ClockMilestone[] {
   const { polyline, outboundKm, roundTrip } = input
-  if (!polyline || polyline.length < 2 || !(outboundKm > 0) || !(input.loopMin > 0)) return null
+  if (!polyline || polyline.length < 2 || !(outboundKm > 0) || !(input.loopMin > 0)) return []
   const loopKm = roundTrip ? outboundKm * 2 : outboundKm
-  const verdict: TravelClockVerdict = planTravelClock({
+  const verdict = planTravelClock({
     totalKm: loopKm,
     driveMinutes: input.loopMin,
     dayStart: input.dayStart,
     travelStyle: input.travelStyle,
     rainFactor: input.rainFactor,
   })
-  if (verdict.verdict === 'defer') return null
+  if (verdict.verdict === 'defer') return []
 
-  const fwd = polyline
-  const rev = [...polyline].reverse()
-  /** loop-km → {lat,lng}: outbound maps forward, the return maps back. */
-  const pointAt = (km: number): { lat: number; lng: number } | null =>
-    !roundTrip || km <= outboundKm
-      ? pointAtKm(fwd, km)
-      : pointAtKm(rev, Math.min(km - outboundKm, outboundKm))
-  /** km → screen-agnostic [lng,lat] samples along the loop. */
-  const slice = (fromKm: number, toKm: number, stepKm = 12): [number, number][] => {
-    const out: [number, number][] = []
-    for (let k = fromKm; k <= toKm; k += stepKm) {
-      const p = pointAt(k)
-      if (p) out.push([p.lng, p.lat])
-    }
-    const e = pointAt(toKm)
-    if (e) out.push([e.lng, e.lat])
-    return out
-  }
-
-  const zones: ClockMealZone[] = []
-  const nights: ClockNightMark[] = []
-  const bands: ClockEveningBand[] = []
+  const pointAt = (km: number) => pointAtKmOnRoad(polyline, km, outboundKm, roundTrip)
+  const milestones: ClockMilestone[] = []
 
   if (verdict.verdict === 'hop') {
     // A late start: one short hop to a night halt, nothing else is honest.
     const p = pointAt(verdict.hopKm)
-    if (p) nights.push({ ...p, etaMin: verdict.nightHaltEtaMin, dayNo: 1, kmIn: verdict.hopKm })
-    return { zones, nights, bands: [] }
+    if (p) milestones.push({
+      kmIn: Math.round(verdict.hopKm),
+      lat: p.lat, lng: p.lng,
+      etaMin: verdict.nightHaltEtaMin,
+      dayNo: 1,
+      timeLabel: clockHM(verdict.nightHaltEtaMin),
+      kmLabel: `Km ${Math.round(verdict.hopKm)}`,
+      kind: 'overnight',
+    })
+    return milestones
   }
 
   for (const d of verdict.days) {
-    const kmDriven = d.kmCovered - d.startKm
-    if (d.wheelMin <= 0 || kmDriven <= 0) continue
-    const kmPerMin = kmDriven / d.wheelMin
     const dayNo = d.dayIndex + 1
     for (const a of d.anchors) {
-      if (a.name === 'tea') continue // agreed with the user: no tea circles
+      if (a.name === 'tea') continue // no tea markers, per the agreed design
       const p = pointAt(a.km)
       if (!p) continue
-      zones.push({
-        kind: a.name, lat: p.lat, lng: p.lng,
-        radiusKm: mealRadiusKm(a.name, kmPerMin),
-        etaMin: a.etaMin, dayNo, kmIn: Math.round(a.km),
+      milestones.push({
+        kmIn: Math.round(a.km),
+        lat: p.lat, lng: p.lng,
+        etaMin: a.etaMin,
+        dayNo,
+        timeLabel: clockHM(a.etaMin),
+        kmLabel: `Km ${Math.round(a.km)}`,
+        kind: 'mealtime',
       })
     }
     if (d.nightHaltKm != null && d.nightHaltEtaMin != null) {
       const p = pointAt(d.nightHaltKm)
-      if (p) {
-        nights.push({ ...p, etaMin: d.nightHaltEtaMin, dayNo, kmIn: Math.round(d.nightHaltKm) })
-        // dinner is the halt's meal — a zone centred on the stop
-        zones.push({
-          kind: 'dinner', lat: p.lat, lng: p.lng,
-          radiusKm: mealRadiusKm('dinner', kmPerMin),
-          etaMin: d.nightHaltEtaMin, dayNo, kmIn: Math.round(d.nightHaltKm),
-        })
-        // the evening band: the last ~100 km of road into the halt (mockup-approved)
-        const from = Math.max(d.startKm, d.nightHaltKm - 100)
-        const coords = slice(from, d.nightHaltKm)
-        if (coords.length >= 2) bands.push({ coords })
-      }
+      if (p) milestones.push({
+        kmIn: Math.round(d.nightHaltKm),
+        lat: p.lat, lng: p.lng,
+        etaMin: d.nightHaltEtaMin,
+        dayNo,
+        timeLabel: clockHM(d.nightHaltEtaMin),
+        kmLabel: `Km ${Math.round(d.nightHaltKm)}`,
+        kind: 'overnight',
+      })
+    }
+    // arrivalEtaMin is set only on the final day (see TravelClockDay), so a
+    // non-null value IS the destination pin.
+    if (d.arrivalEtaMin != null) {
+      const p = pointAt(d.kmCovered)
+      if (p) milestones.push({
+        kmIn: Math.round(d.kmCovered),
+        lat: p.lat, lng: p.lng,
+        etaMin: d.arrivalEtaMin,
+        dayNo,
+        timeLabel: clockHM(d.arrivalEtaMin),
+        kmLabel: `Km ${Math.round(d.kmCovered)}`,
+        kind: 'destination',
+      })
     }
   }
-  return { zones, nights, bands }
+  return milestones
 }

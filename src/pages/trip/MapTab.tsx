@@ -16,7 +16,7 @@ import { DetourWhisk } from '../../components/DetourWhisk'
 import { useSuggestionCache, isMapCacheFresh } from '../../hooks/useSuggestionCache'
 import { openExternal } from '../../lib/native'
 import { corridorAnchors, detourKm, detourMinutes, asymmetricDetourMinutes, googleEnabled, planJourneyHalts, reasonForSegmentHit, searchPlacesText, searchNearbyPoisMulti, kmFromStartForHit, planDriveDays, planTravelClock, rainFactorFor, isSelfDrivenMode, requireHitCoords, hasCoords, DEFER_START, type NearbyOpts, type PlaceHit, type TravelClockVerdict, routeHash } from '../../lib/geocode'
-import { deriveClockOverlay } from '../../lib/clockOverlay'
+import { deriveClockMilestones } from '../../lib/clockOverlay'
 import { isSightCategory, roadProfileFromLegs, loopProfile } from '../../lib/ridePlan'
 import { QuotaExhaustedError } from '../../lib/providers/google'
 import { isElectric } from '../../lib/vehicleProfile'
@@ -384,12 +384,13 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [planKm, wholeTrip.min, trip.travelStyle, trip.transportMode, trip.driverCount, trip.hasVulnerable, trip.driveAfterDinnerMin, dayStartSig, dayRainPct, tripIsRoundTrip, roadProfile],
   )
-  // The travel clock drawn ON the route (clock zones): meal-window circles,
-  // the evening band into each night halt, the halt marks. Runs on the whole
-  // loop like the split verdict — and only once the road geometry resolves,
-  // because a circle pinned to a straight chord would be a lie.
-  const clockOverlay = useMemo(
-    () => deriveClockOverlay({
+  // The travel clock drawn ON the route as road MILESTONES: one pin per planned
+  // clock anchor (meal / overnight / destination) carrying its wall-clock time
+  // on the side plus its road km. Runs on the whole loop like the split verdict
+  // — and only once the road geometry resolves, because a pin planted on a
+  // straight chord would lie about where the stop lands.
+  const clockMilestones = useMemo(
+    () => deriveClockMilestones({
       polyline: routePolyline,
       outboundKm: planKm,
       loopMin: wholeTrip.min * loopFactor,
@@ -1355,7 +1356,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
               onActivateHit={setActiveHitId}
               onOpenInTimeline={onOpenTimeline}
               onOpenInBoard={onOpenBoard ? () => onOpenBoard() : undefined}
-              clockOverlay={clockOverlay}
+              clockMilestones={clockMilestones}
               onDeleteStop={editable ? removeStopFromMap : undefined}
               enableMapViewModes
               mainRouteGeometry={routeGeometry}

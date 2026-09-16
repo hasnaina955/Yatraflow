@@ -8,6 +8,7 @@ import { legBetween } from './engine'
 import type { EngineAssumptions, LegEstimate } from './engine'
 import { googleRoute, routesEnabled, type RouteResult } from './providers/routes'
 import { haversineKm } from './geo'
+import type { RoadProfilePoint } from './ridePlan'
 
 const OSRM = 'https://router.project-osrm.org/route/v1/driving'
 
@@ -15,21 +16,56 @@ interface OsrmRoute {
   distance: number      // metres
   duration: number      // seconds
   geometry?: { coordinates: [number, number][] } // [lng, lat]
+  /** Per-coordinate segment annotations (asked for with annotations=…): entry i
+   *  describes the hop from coordinate i to i+1. This is the only intra-leg
+   *  terrain signal any provider here gives us (#204). */
+  legs?: { annotation?: { distance?: number[]; duration?: number[] } }[]
 }
 
 /** Fetch a road route between two points. Returns null on any failure. */
-async function osrmRoute(a: LatLng, b: LatLng): Promise<{ km: number; min: number; coords: [number, number][] } | null> {
+async function osrmRoute(a: LatLng, b: LatLng): Promise<{ km: number; min: number; coords: [number, number][]; segments?: RoadProfilePoint[] } | null> {
   try {
-    const url = `${OSRM}/${a.lng},${a.lat};${b.lng},${b.lat}?overview=simplified&geometries=geojson`
+    // `overview=full` + `annotations` so the leg carries per-coordinate times:
+    // the Day Planner's terrain profile needs to see a ghat INSIDE a leg, which
+    // a per-stop measurement cannot (#204). Same request count — wider payload.
+    const url = `${OSRM}/${a.lng},${a.lat};${b.lng},${b.lat}?overview=full&geometries=geojson&annotations=distance,duration`
     const res = await fetch(url, { signal: AbortSignal.timeout(8000) })
     if (!res.ok) return null
     const data = await res.json()
     const r: OsrmRoute | undefined = data.routes?.[0]
     if (data.code !== 'Ok' || !r) return null
-    return { km: r.distance / 1000, min: r.duration / 60, coords: r.geometry?.coordinates ?? [] }
+    return {
+      km: r.distance / 1000,
+      min: r.duration / 60,
+      coords: r.geometry?.coordinates ?? [],
+      segments: annotationsToProfile(r.legs?.[0]?.annotation),
+    }
   } catch {
     return null
   }
+}
+
+/**
+ * OSRM's per-coordinate distance/duration arrays → a cumulative (km, min)
+ * profile for one leg. Null when the arrays are missing, mismatched or carry
+ * no usable hop, so callers fall back to the leg's own endpoints.
+ */
+function annotationsToProfile(ann?: { distance?: number[]; duration?: number[] }): RoadProfilePoint[] | undefined {
+  const dist = ann?.distance
+  const dur = ann?.duration
+  if (!dist || !dur || dist.length === 0 || dist.length !== dur.length) return undefined
+  const pts: RoadProfilePoint[] = [{ km: 0, min: 0 }]
+  let km = 0
+  let min = 0
+  for (let i = 0; i < dist.length; i++) {
+    const d = dist[i]
+    const t = dur[i]
+    if (!Number.isFinite(d) || !Number.isFinite(t) || d < 0 || t < 0) continue
+    km += d / 1000
+    min += t / 60
+    pts.push({ km, min })
+  }
+  return pts.length >= 2 ? pts : undefined
 }
 
 export interface LatLng { lat: number; lng: number }
@@ -37,8 +73,13 @@ export interface LatLng { lat: number; lng: number }
 export interface RoadLeg extends LegEstimate {
   /** which provider produced this leg */
   source: 'google' | 'osrm' | 'estimate'
-  /** simplified road geometry [lng, lat][] for map drawing (empty if estimate fallback) */
+  /** road geometry [lng, lat][] for map drawing (empty if estimate fallback) */
   geometry: [number, number][]
+  /** Per-coordinate (km, min) profile of THIS leg (#204), when the provider
+   *  returned annotations — the terrain inside the leg, not just its endpoints.
+   *  Absent from the Google and estimate paths, where the profile builder falls
+   *  back to the leg's totals. */
+  segments?: RoadProfilePoint[]
 }
 
 /**
@@ -66,6 +107,7 @@ async function bestRoute(a: LatLng, b: LatLng, mode: string): Promise<RoadLeg> {
       durationMinutes: Math.round(r.min),
       source: 'osrm',
       geometry: r.coords.length ? r.coords : [[a.lng, a.lat], [b.lng, b.lat]],
+      ...(r.segments ? { segments: r.segments } : {}),
     }
   }
   const est = legBetween(a, b, assumptionsFromMode(mode))

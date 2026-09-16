@@ -15,22 +15,18 @@ user confirmation before any push. Feature work reaches `test` **via pull
 request** (never a direct push); `main` merges stay explicitly user-gated
 (AGENTS rule 1).
 
-**Snapshot (2026-09-15, verified against the repo):** `main` is at v0.53.0 (PR #148) while
-`test` carries the v0.54.0 release — the suggestion-pipeline fixes, the Day Planner revival,
-night-halt town anchoring and Create Trip parity. `test` is ~45 commits ahead of `main`; the
-only commits `main` holds beyond `test` are the README hero captures and this file's v0.53.0
-status refresh (PRs #147/#148), which the promotion merge brings back in. Current version:
-**0.54.0**.
+**Snapshot (2026-09-16, verified against the repo):** `test` carries **v0.55.0** — the gallery-pipeline release, cut with the Explore shelf's contract, two validation gates and its first six demand-ranked itineraries — and leads `main` by that release plus the merged Vercel Web Analytics wiring (#216). Promotion to `main` is this release's own PR; `main` holds only the docs it already owns until it lands.
+Current version: **0.55.0**.
 
 **Live open work is tracked in two places, and this file must agree with both:**
 
 1. **The issue queue** — see [Open issues](#open-issues) below for the current list, which is
    derived from the GitHub API rather than recalled. The queue has MOVED since the last
-   snapshot: the #84–#90 a11y/bug batch and the Day Planner defects (#187, #188, #189) are all
-   **closed**; what remains open is the Day Planner enhancement cluster (#122, #124, #142,
-   #143, #145), the rebrand (#96) and the UI-audit tail (#107) — re-derive with `gh issue list`
-   before quoting counts. M5 is **not** the only outstanding work, as earlier revisions of this
-   file claimed.
+   snapshot: the #84–#90 a11y/bug batch, the Day Planner defects (#187/#188/#189), #107's audit
+   tail, #124's terrain-blind walk, #143's pins, #142's settings surface, #202 on this file and
+   #204's profile granularity are all **closed**. **No issues are open** (2026-09-15): the rebrand
+   (#96) is archived — no need or plan to rename — and #122's season half is closed as not planned,
+   the late dinner window being deliberate. Re-derive with `gh issue list` before quoting counts.
 2. **The milestone tracks** — M5 → M9, plus the 1.0 cut. These are *planning* tracks: they are
    directions of travel, not release numbers.
 
@@ -48,20 +44,24 @@ number collides with a shipped release, the ledger wins.
 
 Re-derived from the GitHub API 2026-09-15 (`gh issue list --state open`). The previous
 #84–#90 batch is **closed** (all eight swept in v0.49.0), as are the Day Planner defects
-that drove the v0.54.0 work (#187/#188/#189). Six issues remain:
+that drove the v0.54.0 work (#187/#188/#189), and #124/#143 shipped since, as did the
+Day Planner finishing set, and the queue is now empty — nothing is open as of 2026-09-15:
 
 | # | Priority | Area | Issue | Relevance |
 |---|---|---|---|---|
-| #96 | — | refactor | Rebrand: pick the new name + execute | Seam built on `refactor/brand-seam`; blocked on the name decision, not on code |
-| #124 | bug | day planner | Night halts are arithmetic km points; anchors walk one blended speed | **Fixed** — the halt's *place* anchors on a real town inside its window (#196/#197) and the *positions* now walk the measured road's terrain profile, with the split placed on cumulative wheel time. The residual is data GRANULARITY (a leg-derived profile cannot see a mix inside one leg), tracked on its own issue |
-| #122 | enhancement | day planner | Fixed dinner window ends every day 20:00–21:00 regardless of party/season | **Partly addressed** — #142's party inputs moved the cap and the clock gained anchors, but dinner itself is still a fixed window |
-| #142 | enhancement | day planner | Driver count + party inputs that move the wheel cap | **Inputs shipped** (#151); the remaining ask is surfacing them in trip settings |
-| #143 | enhancement | day planner | Sticky accepted halts with delta proposals + hysteresis | Open — a product-design surface (no code started) |
-| #145 | enhancement | day planner | Round trip as two directed walks, not a midpoint cut | **Partly addressed** — `planTravelClock` now walks the outbound and a directed return pass; the remaining ask is the full two-walk model |
+| — | — | — | *(none)* | Nothing is open. Two closures worth remembering, both owner decisions on 2026-09-15 |
 
-**Relevance note (2026-09-15).** Every Day Planner item above was re-checked against `src/`
-rather than accepted on its title — several are now partially or fully satisfied by the v0.54.0
-engine work, and each row says which.
+**#96 — rebrand: ARCHIVED, not planned.** There is currently no need or plan to rename the product.
+`refactor/brand-seam` builds the seam (one source of truth for the name across 21 files, `vite.config.ts`
+included) and is kept as archaeology — nothing depends on it and it is far behind `test`, so reviving it
+is a rebase, not a resume. The caveat to read before ever reviving it: the Android shell's `appId`
+(`app.yatraflow.mobile`) breaks updates over existing installs if it changes.
+
+**#122 — the dinner window's season half: closed as not planned.** The late window (dinner 20:00–21:00,
+night end 23:00) is correct for this market; deriving it from sunset was attempted and reverted in #210
+because it landed dinner at 17:00–18:00. If the underlying problem is ever worth solving, the recording
+shapes are an **advisory** ("this day finishes after dark") or an **opt-in** early dinner — never a silent
+shift of the meal.
 
 **Correction (2026-09-15) — the M0 seed guard was fixed, and this file said otherwise.** Five
 places below claimed the demo-seed guard was "never implemented". It is implemented: `store.ts`
@@ -102,6 +102,24 @@ and date), per the AGENTS §6 same-edit rule. Detail lives in
 - [x] **[Unreleased]** — demo-seed revert + one-off DB prune, master-roadmap consolidation, Sep 2026 comprehensive review
 - [x] **v0.41.0** — Corridor Concierge (H1–H3 complete): road personality, enforced detour budget, trip DNA + crew seeds, story arcs, slack prompts, asymmetric detours, hours scoring, fuel advisories; Google-only provider directive; store + AI-drawer sweep (issues 15/15)
 
+
+### Shipped — the v0.42 → v0.54 line (2026-09-06 → 09-15)
+- [x] **v0.42.0** — Hy4 audit P0 fixes: the suggestion engine's persistent state and UI behaviour become reliable ("Add all" write-through, cache invalidation on route change, the degenerate-route guard, the detour budget enforced from the actual itinerary)
+- [x] **v0.43.0** — The suggestion engine comes alive — See & do finally fills, the map and the suggestion panels cross-highlight, every add lands in road order, and a bad merge's encoding corruption is repaired
+- [x] **v0.44.0** — The mid-trip questions, answered where the planning happens: safe-to-spend pacing, per-day cost/dwell chips, and calendar export
+- [x] **v0.45.0** — Create-flow + invites + settings: the Trip Ticket create board, car-rental and local-train fares, range calendar, invite short codes, Plan Bench trip settings and the My Trips search/filter/sort restore
+- [x] **v0.46.0** — The masteradmin console — a typed, never-linked `#/admin` god view with audited RPCs and an append-only audit log
+- [x] **v0.47.0** — Cleanup and polish: deletes become reversible, the app writes faster, and the small-wins backlog lands together
+- [x] **v0.48.0** — Consistency and shell: one green, one kicker recipe, four blur tiers, and a real Android shell
+- [x] **v0.49.0** — Board-first editing, trustworthy drag-reorder, and the open-issue backlog closed in one pass
+- [x] **v0.50.0** — Every trip edit finally sticks — the "Change saved but nothing changed" defect is dead
+- [x] **v0.50.1–v0.50.2** — The installed app stops flashing the marketing site on launch and drops the website's top bar entirely
+- [x] **v0.51.0** — The timeline learns to move: the 1,500-line view splits into `components/timeline/*`, the motion vocabulary lands, and drag gets its own geometry
+- [x] **v0.52.0** — The map learns relief — Liberty becomes the light basemap, with 2D/Terrain/3D view modes
+- [x] **v0.53.0** — The design-system audit gets fixed, not just filed: issue #107 worked to 117/117 across five batches (contrast/ink tier, motion tokens, kicker + hit areas, the ARIA listbox Select, the scenic hue split), with the guardrail gates kept
+- [x] **v0.54.0** — The suggestion pipeline tells the truth — honest detours, one road measurement, night halts anchored on real towns, the Day Planner's meal and fuel cadences revived, and Create Trip parity with its route-integrity guardrail
+- [x] **v0.55.0** — The gallery gets its pipeline — the import contract and validator, the engine-truth gate in CI, the demand-ranked 20-trip backlog, and six researched, engine-priced shelf itineraries (Goa, Kerala, Mewar, Kashmir, Meghalaya + the Coorg reference); Vercel Web Analytics rides along
+
 ### Remaining — in release order (details in the tracks below)
 - [x] **v0.45.0** — Create-flow + invites + settings release (PR #81 + merged test work): Trip Ticket bento starter (bill print, outline seeding), car rental mode + local-train fares, range calendar, invite short codes + join-flow fixes, auth-refresh fix, Plan Bench trip settings + editable dates, My Trips search/filter/sort restore (branch `feat/create-trip-ticket`)
 - [x] **v0.46.0** — Masteradmin console (PR #82): JWT-`app_metadata`-gated `#/admin` god-view (users/trips/invites/content/analytics/audit), audited SECURITY DEFINER RPCs, append-only `admin_audit` log, RESTRICTIVE deny policies for disabled accounts (branch `redesign/masteradmin-v045`, migration applied live)
@@ -113,7 +131,7 @@ and date), per the AGENTS §6 same-edit rule. Detail lives in
 - [x] **M3** — Performance architecture: store immutability → slice selectors → DaySection memo → workspace split into pages/trip/* + weather dedup + lazy routes (in [Unreleased], local branch redesign/perf-architecture)
 - [x] **M4** — Design-system hygiene: dead CSS purge, mobile-block consolidation, glass/z-index tokens (in [Unreleased], local branch redesign/perf-architecture; raw-rgba glass stragglers intentionally NOT migrated — see commit `f646b45`)
 - [x] **M0 defect** — seed guard: skip demo seeding when hydration had query errors (#94, v0.49.0 — `store.ts` gates the seed on `!tripCountUnknown`)
-- [ ] **M5** — AI companion: user-configurable LLM endpoint (#22 → #20) — the only milestone that **has** open issues behind it (not the only open work; see [Open issues](#open-issues))
+- [ ] **M5** — AI companion: user-configurable LLM endpoint (#22 → #20 — **both issues closed; not yet scheduled**)
 - [ ] **M6** — Together: integration test suite, live co-editing depth, split expenses
 - [ ] **M7** — Premium: payment gateway, entitlements, unlock flow
 - [ ] **M9** — Invites & onboarding: creator invites (R1) → referral (R2) → invite-only gate (R3); three releases on `platform_invites`, exec plan in [`docs/PLAN-INVITES-ONBOARDING.md`](docs/PLAN-INVITES-ONBOARDING.md). *Added to the ledger 2026-09-11 — it previously existed only as a track section, so it was invisible to any pending list derived from these checkboxes.*
@@ -220,14 +238,16 @@ alongside its siblings rather than in a 2,932-line `TripWorkspace.tsx`:
 track was planned and have since been **consumed by other releases** — e.g. `v0.32.0` is
 recorded in the ledger as "Stabilization completion", not M6. They are retained only to show
 intended grouping, and are **not** bookings. Do not infer "next release" from them; the next
-version is whatever the ledger says is unshipped, and today that is `0.48.0` + 1.
+version is whatever the ledger says is unshipped — read the **Snapshot** line at the top of this
+file for the current number rather than trusting a sentence that can rot.
 
 ### M5 — "AI companion" (issues #22 → #20; the next feature to build)
 User-configurable OpenAI-compatible endpoint (Profile settings,
 `src/lib/aiProvider.ts`), real LLM answers with the deterministic router kept
 as offline fallback + "(LLM)/(offline)" badge. #22 (~2h) blocks #20 (~3h).
-This is the **only milestone with open issues behind it** — which is not the same as being
-"the only open work": see [Open issues](#open-issues) for the seven a11y/bug items.
+Both of its issues (#22 → #20) are **closed**, so M5 has no open issues behind it and no
+schedule: it is a candidate, not a queue. For what *is* live, see
+[Open issues](#open-issues) — five items, none of them a11y (the audit tail closed in v0.53.0).
 
 ### M6 — "Together" (collaboration depth)
 Supabase integration/RLS test suite first (opt-in `VITE_RUN_INTEGRATION`,

@@ -278,6 +278,7 @@ export async function planJourneyHalts(
     driveMinutes,
     includeFuel: opts.includeFuel,
     includeCharge: opts.includeCharge,
+    haltPins: opts.haltPins ?? undefined,
     multiDay: opts.multiDay,
     vehicleRangeKm: vehicleRange,
     dayStartTimes: opts.dayStartTimes,

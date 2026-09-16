@@ -30,7 +30,9 @@ A collaborative travel-planning web app, built India-first. Real multi-day itine
 
 <br />
 
-<img src="docs/redesign/yatraflow-enhanced-homepage-mockup.svg" alt="YatraFlow — plan a trip together" width="100%" />
+<img src="docs/screenshots/landing-hero.png" alt="YatraFlow landing page - plan trips that actually flow together" width="100%" />
+
+<img src="docs/screenshots/plan-bench.png" alt="The Plan Bench - price a road trip and see every rupee explained" width="100%" />
 
 ---
 
@@ -89,6 +91,10 @@ A collaborative travel-planning web app, built India-first. Real multi-day itine
 </table>
 
 ---
+
+## ✨ The v0.55 release, in one line
+
+- **The Explore gallery got its supply chain.** A written import contract with a validator that rejects typos, placeholders and broken references; a CI gate that runs every shelf itinerary through the real engine (health ≥ 85, no high-severity warning, budget within ±15 % of the engine's own math); a demand-ranked backlog of the twenty trips India actually searches for; and the first six on the shelf — Coorg, Goa, Kerala, Mewar, Kashmir, Meghalaya — every fee cited to a source, every coordinate geocoded, every budget set by the engine rather than by wishful thinking. Vercel Web Analytics rides along, web-only.
 
 ## ✨ The v0.51–v0.54 run, in plain words
 

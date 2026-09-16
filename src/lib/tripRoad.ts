@@ -85,7 +85,7 @@ export function buildRoadChain(trip: Pick<Trip, 'startLocationCoords' | 'days' |
  *  `tripRoad.test.ts` "matches what buildRoadChain actually consumes" case
  *  pins the equality. */
 export function roadChainSig(
-  trip: Pick<Trip, 'startLocationCoords' | 'days' | 'destinationCoords' | 'roundTrip'>,
+  trip: Pick<Trip, 'startLocationCoords' | 'days' | 'destinationCoords' | 'roundTrip' | 'transportMode'>,
 ): string {
   const parts: string[] = []
   if (trip.startLocationCoords) {

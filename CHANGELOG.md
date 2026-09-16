@@ -24,6 +24,14 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 ### Fixed
 
 ### Docs
+- **The roadmap's queue is no longer empty, and the file says so.** Nine planned items were
+  filed as issues (#226–#234) under two milestones — `Launch the loop` (#226–#228) and
+  `Stage 0 · Instrument` (#229–#234) — the commercial execution queue from the audit, not a
+  defect backlog. `ROADMAP.md` claimed "**No issues are open**" in four places; all four now
+  distinguish planned work from unplanned, and the Open-issues table carries the nine rows with
+  their priorities, areas, and what each one gates. Filed in the same pass as the issues,
+  because a status file that disagrees with the API is the exact drift this repo has had to
+  correct before (#202, and the M0 seed-guard claim that five places carried).
 
 ## [0.56.0] - 2026-09-17
 

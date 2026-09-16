@@ -24,10 +24,13 @@ Current version: **0.56.0**.
    derived from the GitHub API rather than recalled. The queue has MOVED since the last
    snapshot: the #84–#90 a11y/bug batch, the Day Planner defects (#187/#188/#189), #107's audit
    tail, #124's terrain-blind walk, #143's pins, #142's settings surface, #202 on this file and
-   #204's profile granularity are all **closed**. **No issues are open** (2026-09-16): #213 was
-   filed and closed inside the day (its six phases shipped in #219/#220), the rebrand (#96) is
-   archived — no need or plan to rename — and #122's season half is closed as not planned, the
-   late dinner window being deliberate. Re-derive with `gh issue list` before quoting counts.
+   #204's profile granularity are all **closed**, and **no *unplanned* issue is open**
+   (2026-09-16): #213 was filed and closed inside the day (its six phases shipped in
+   #219/#220), the rebrand (#96) is archived — no need or plan to rename — and #122's season
+   half is closed as not planned, the late dinner window being deliberate. The queue now also
+   carries **nine planned items across two milestones** — `Launch the loop` (#226–#228) and
+   `Stage 0 · Instrument` (#229–#234) — which is the commercial execution queue, not a defect
+   backlog. Re-derive with `gh issue list` before quoting counts.
 2. **The milestone tracks** — M5 → M9, plus the 1.0 cut. These are *planning* tracks: they are
    directions of travel, not release numbers.
 
@@ -46,11 +49,20 @@ number collides with a shipped release, the ledger wins.
 Re-derived from the GitHub API 2026-09-16 (`gh issue list --state open`). The previous
 #84–#90 batch is **closed** (all eight swept in v0.49.0), as are the Day Planner defects
 that drove the v0.54.0 work (#187/#188/#189), and #124/#143 shipped since, as did the
-Day Planner finishing set, and the queue is again empty — nothing is open as of 2026-09-16:
+Day Planner finishing set. **No unplanned work is open.** The nine open issues are the
+commercial execution queue, filed 2026-09-16 under two milestones:
 
 | # | Priority | Area | Issue | Relevance |
 |---|---|---|---|---|
-| — | — | — | *(none)* | Nothing is open. Three closures worth remembering, all owner decisions |
+| [#226](https://github.com/hasnaina955/Yatraflow/issues/226) | P1 | Share | E1 · Make links preview | Built and pushed; the PR and two Vercel env vars outstanding. Gates F3 |
+| [#227](https://github.com/hasnaina955/Yatraflow/issues/227) | P1 | Growth | F3 · Send one published link to a WhatsApp group | The milestone. One message, and it routes every failure below it |
+| [#228](https://github.com/hasnaina955/Yatraflow/issues/228) | P2 | Growth | F7 · First distribution loop | After E1 and ~10 published itineraries |
+| [#229](https://github.com/hasnaina955/Yatraflow/issues/229) | P1 | Process | F1 · Write the thresholds down, before measuring | Free, and it must precede E3 or the gate becomes a story |
+| [#230](https://github.com/hasnaina955/Yatraflow/issues/230) | P1 | Metrics | E3 · Attribute shares, and settle how readings are kept | The funnel panel exists; attribution does not — shares→views is unmeasurable |
+| [#231](https://github.com/hasnaina955/Yatraflow/issues/231) | P2 | Process | F4 · Four consecutive weekly readings | Stage 0's exit needs four; it has never been done once |
+| [#232](https://github.com/hasnaina955/Yatraflow/issues/232) | P1 | Content | E2 · The gallery is curated | A stale title, not a duplicate row. Needs the owner |
+| [#233](https://github.com/hasnaina955/Yatraflow/issues/233) | P1 | Supply | F2 · Three real trips, four real people each | Creator supply is the binding constraint |
+| [#234](https://github.com/hasnaina955/Yatraflow/issues/234) | P1 | Legal | F6 · CA confirms the merchant-of-record branch | ~₹27 a sale rides on it; needs a professional |
 
 **#213 — the settings-wiring audit: filed and closed in a day.** A read-only audit of how
 the trip workspace is wired (what reads what, and which surfaces can disagree) found the
@@ -258,7 +270,8 @@ User-configurable OpenAI-compatible endpoint (Profile settings,
 as offline fallback + "(LLM)/(offline)" badge. #22 (~2h) blocks #20 (~3h).
 Both of its issues (#22 → #20) are **closed**, so M5 has no open issues behind it and no
 schedule: it is a candidate, not a queue. For what *is* live, see
-[Open issues](#open-issues) — nothing is open (the audit tail closed in v0.53.0).
+[Open issues](#open-issues) — the only open items are the nine commercial-execution issues
+filed 2026-09-16; no defect or feature request is outstanding.
 
 ### M6 — "Together" (collaboration depth)
 Supabase integration/RLS test suite first (opt-in `VITE_RUN_INTEGRATION`,

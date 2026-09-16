@@ -268,7 +268,7 @@ function catIcon(cat: string | undefined): React.ReactNode {
   )
 }
 
-export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusDay, showToolbar = true, enableMapViewModes = false, activeHitId = null, onActivateHit, onOpenInTimeline, onOpenInBoard, onDeleteStop, mainRouteGeometry = null }: {
+export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusDay, showToolbar = true, enableMapViewModes = false, activeHitId = null, onActivateHit, onOpenInTimeline, onOpenInBoard, onDeleteStop, mainRouteGeometry = null, onShowReturnChange }: {
   trip: Trip
   onOpenStop?: (stopId: string) => void
   /** potential POIs to show as gold "idea" markers */
@@ -302,6 +302,10 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   onOpenInBoard?: (stopId: string) => void
   /** Delete the stop straight from the map (popup action) — wired by MapTab. */
   onDeleteStop?: (stopId: string, stop: { title: string; dayIndex: number }) => void
+  /** The Return-home toggle's direction state, reported up so the suggestion
+   *  rails read the same road the map shows (#polylines): on = the loop (out +
+   *  back, the plan's road), off = the outbound road alone. */
+  onShowReturnChange?: (show: boolean) => void
 }) {
   const [dayFilter, setDayFilter] = useState<number | 'all'>('all')
   // Board drives the day filter through the prop; the map's own chips keep working
@@ -310,6 +314,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     if (focusDay !== undefined) setDayFilter(focusDay)
   }, [focusDay])
   const [showReturn, setShowReturn] = useState(true)
+  useEffect(() => { onShowReturnChange?.(showReturn) }, [showReturn, onShowReturnChange])
   // Live location ("show me on the map") — off by default so GPS stays cold
   // until the user asks for it; the toggle chip sits by the map key.
   const [liveOn, setLiveOn] = useState(false)
@@ -767,7 +772,9 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
               className={`map-day-chip ${showReturn ? 'on' : ''}`}
               aria-pressed={showReturn}
               onClick={() => setShowReturn(s => !s)}
-              title="Show or hide the drive back home"
+              title={showReturn
+                ? 'Return leg shown. The loop km (out + back) feed the plan; hide to read the outbound road alone.'
+                : 'Return leg hidden — the corridor and km labels read the OUTBOUND road only.'}
             >
               <RotateCcw size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Return home
             </button>

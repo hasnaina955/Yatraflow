@@ -24,7 +24,7 @@
 // free to succeed on the next open, never pinned as a chord for the session.
 import { legBetween } from './engine'
 import type { EngineAssumptions, LegEstimate } from './engine'
-import { googleRoute, routesEnabled, type RouteResult } from './providers/routes'
+import { googleRoute, routesEnabled, type RouteResult, type CorridorResult, type RoadLegResult } from './providers/routes'
 import { haversineKm } from './geo'
 import type { RoadProfilePoint } from './ridePlan'
 
@@ -225,12 +225,21 @@ export function routeCacheSizeForTests(): number {
 async function bestRoute(a: LatLng, b: LatLng, mode: string, signal?: AbortSignal): Promise<RoadLeg> {
   if (routesEnabled()) {
     try {
-      const r: RouteResult = await googleRoute(a, b, mode)
+      const r = await googleRoute(a, b, mode) as RouteResult | CorridorResult
+      if (!('legs' in r)) {
+        return {
+          distanceKm: r.km,
+          durationMinutes: Math.round(r.min),
+          source: 'google',
+          geometry: r.coords.length ? r.coords : [[a.lng, a.lat], [b.lng, b.lat]],
+        }
+      }
+      // a corridor-shaped response cannot come back without `via` — treat as refusal
       return {
-        distanceKm: r.km,
-        durationMinutes: Math.round(r.min),
+        distanceKm: r.legs.reduce((s, l) => s + l.km, 0),
+        durationMinutes: Math.round(r.legs.reduce((s, l) => s + l.min, 0)),
         source: 'google',
-        geometry: r.coords.length ? r.coords : [[a.lng, a.lat], [b.lng, b.lat]],
+        geometry: r.legs.flatMap(l => l.coords),
       }
     } catch {
       /* Google failed (quota/network/key) — fall through to OSRM */
@@ -294,8 +303,43 @@ export async function roadLegBetween(
 }
 
 /**
- * Route every consecutive pair of points — the corridor as ONE OSRM chain
- * request when keyless (a 20-stop trip is one fetch, not nineteen serial
+ * One request for a whole waypoint span via whichever keyed provider answers:
+ * Google Routes `intermediates` when a key is configured, else the OSRM chain.
+ * Null = the provider refused; the caller falls back to parallel per-leg.
+ */
+async function measureSpanChain(span: LatLng[], mode: string, signal?: AbortSignal): Promise<RoadLeg[] | null> {
+  if (routesEnabled()) {
+    try {
+      const chunked: RoadLeg[][] = []
+      for (let i = 0; i < span.length - 1; i += GOOGLE_CHAIN_WAYPOINTS - 1) {
+        const chunk = span.slice(i, i + GOOGLE_CHAIN_WAYPOINTS)
+        const a = chunk[0]
+        const b = chunk[chunk.length - 1]
+        const via = chunk.slice(1, -1)
+        const r: Awaited<ReturnType<typeof googleRoute>> = await googleRoute(a, b, mode, via)
+        if (!('legs' in r)) return null
+        if (r.legs.length !== chunk.length - 1) return null
+        chunked.push(r.legs.map((l: RoadLegResult) => ({
+          distanceKm: l.km,
+          durationMinutes: Math.round(l.min),
+          source: 'google' as const,
+          geometry: l.coords.length ? l.coords : [[a.lng, a.lat], [b.lng, b.lat]],
+        })))
+      }
+      return chunked.flat()
+    } catch {
+      return null // Google chain refused — per-leg fallback below
+    }
+  }
+  return osrmRouteChain(span, signal)
+}
+
+/** Waypoints per Google Routes chain request (Google caps intermediates at 25). */
+const GOOGLE_CHAIN_WAYPOINTS = 25
+
+/**
+ * Route every consecutive pair of points — the corridor as ONE chain request
+ * when keyless (a 20-stop trip is one fetch, not nineteen serial
  * ones), with legs the cache already knows skipped from the measured span.
  * Google-keyed callers and chain-failure fallbacks measure legs in parallel:
  * the sequential loop this used to be was the reason a day's road line took
@@ -317,15 +361,15 @@ export async function routePath(
   }
   if (missing.length === 0) return legs
 
-  // Measure the missing span. One chain request covers first→last missing leg
-  // (chunks inside); per-leg fallback runs in parallel when the chain refuses.
+  // Measure the missing span. ONE request covers first→last missing leg: the
+  // OSRM chain when keyless, Google Routes intermediates when keyed — both
+  // cost a single quota/elasticity event for the whole corridor (#polylines;
+  // the old keyed path spent one Google event PER LEG, 19× the quota for the
+  // same corridor). Per-leg fallback runs in parallel when the chain refuses.
   const first = missing[0]
   const last = missing[missing.length - 1]
   const span = points.slice(first, last + 2)
-  let chainLegs: RoadLeg[] | null = null
-  if (!routesEnabled()) {
-    chainLegs = await osrmRouteChain(span, signal)
-  }
+  const chainLegs: RoadLeg[] | null = await measureSpanChain(span, assumptions.mode, signal)
   if (chainLegs && chainLegs.length === span.length - 1) {
     missing.forEach((legIndex, k) => {
       const leg = chainLegs![k]

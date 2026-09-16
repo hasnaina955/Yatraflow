@@ -18,6 +18,7 @@ import { BottomNav } from './components/BottomNav'
 import { PillNav } from './components/PillNav'
 import { decodeTripSnapshot } from './lib/snapshot'
 import { scrollBehavior } from './lib/motion'
+import { pageTitle } from './lib/pageTitle'
 import { App as CapApp } from '@capacitor/app'
 import { isNative } from './lib/native'
 import { feedbackHref } from './lib/feedback'
@@ -93,6 +94,19 @@ export default function App() {
     window.addEventListener('hashchange', onHash)
     return () => window.removeEventListener('hashchange', onHash)
   }, [])
+
+  // One title per route. `index.html` carries a single static title, so every
+  // route used to share it — four open tabs all read "YatraFlow — Plan real
+  // trips, together", and a bookmark of one itinerary was indistinguishable
+  // from a bookmark of the site.
+  //
+  // Routes whose name lives in the store (`/trip/…`, `/pub/…`, `/creator/…`)
+  // get a generic title here and are refined by the page that already holds the
+  // record — App deliberately slices its subscriptions, and reading the trips
+  // table just to label a tab would undo that.
+  useEffect(() => {
+    document.title = pageTitle(route.split('/').filter(Boolean).map(s => s.split('?')[0]))
+  }, [route])
 
   // Boot the store once: subscribes to Supabase auth changes and hydrates the
   // session's data into the cache. Without this, `me` stays null forever and

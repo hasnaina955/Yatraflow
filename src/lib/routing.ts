@@ -67,13 +67,38 @@ function requestSignal(signal: AbortSignal | undefined): AbortSignal {
   return Any.any ? Any.any([signal, timeout]) : timeout
 }
 
+/**
+ * A stop's coordinates, validated at the untyped-JSON boundary. Stop data
+ * hydrates from Supabase without runtime types, so values are strictly
+ * checked HERE — before they may reach a cache key or a request URL (a
+ * malformed or out-of-range coordinate refuses the measurement and the
+ * caller falls back to the estimate path, exactly like a network failure).
+ */
+function coordValid(p: LatLng): { lat: number; lng: number } | null {
+  // typeof-first: Number() coercion would accept '12.9' (a malformed row) and
+  // — far worse — turn null into 0, the Null-Island sentinel (#151's guard).
+  if (typeof p.lat !== 'number' || typeof p.lng !== 'number') return null
+  if (!Number.isFinite(p.lat) || !Number.isFinite(p.lng)) return null
+  if (p.lat < -90 || p.lat > 90 || p.lng < -180 || p.lng > 180) return null
+  return { lat: p.lat, lng: p.lng }
+}
+
+/** One validated stop as an OSRM path segment (`lng,lat`). */
+function coordParam(p: LatLng): string | null {
+  const v = coordValid(p)
+  return v ? `${v.lng},${v.lat}` : null
+}
+
 /** Fetch a road route between two points. Returns null on any failure. */
 async function osrmRoute(a: LatLng, b: LatLng, signal?: AbortSignal): Promise<{ km: number; min: number; coords: [number, number][]; segments?: RoadProfilePoint[] } | null> {
   try {
     // `overview=full` + `annotations` so the leg carries per-coordinate times:
     // the Day Planner's terrain profile needs to see a ghat INSIDE a leg, which
     // a per-stop measurement cannot (#204). Same request count — wider payload.
-    const url = `${OSRM}/${a.lng},${a.lat};${b.lng},${b.lat}?overview=full&geometries=geojson&annotations=distance,duration`
+    const ca = coordParam(a)
+    const cb = coordParam(b)
+    if (!ca || !cb) return null
+    const url = `${OSRM}/${ca};${cb}?overview=full&geometries=geojson&annotations=distance,duration`
     const res = await fetch(url, { signal: requestSignal(signal) })
     if (!res.ok) return null
     const data = await res.json()
@@ -113,8 +138,9 @@ async function osrmRouteChain(points: LatLng[], signal?: AbortSignal): Promise<R
 }
 
 async function osrmChainOnce(points: LatLng[], signal?: AbortSignal): Promise<RoadLeg[] | null> {
-  const coords = points.map(p => `${p.lng},${p.lat}`).join(';')
-  const url = `${OSRM}/${coords}?overview=full&geometries=geojson&annotations=distance,duration`
+  const coords = points.map(coordParam)
+  if (coords.some(c => c === null)) return null
+  const url = `${OSRM}/${coords.join(';')}?overview=full&geometries=geojson&annotations=distance,duration`
   try {
     const res = await fetch(url, { signal: requestSignal(signal) })
     if (!res.ok) return null
@@ -188,7 +214,12 @@ const legCache = new Map<string, RoadLeg>()
 const LEG_CACHE_MAX = 240
 
 function legCacheKey(a: LatLng, b: LatLng, mode: string): string {
-  return `${mode}:${a.lat.toFixed(5)},${a.lng.toFixed(5)}>${b.lat.toFixed(5)},${b.lng.toFixed(5)}`
+  const va = coordValid(a)
+  const vb = coordValid(b)
+  // Unvalidated coordinates never form a cache key either — the leg simply
+  // won't cache (and the measurement itself refuses at the URL boundary).
+  if (!va || !vb) return `invalid:${Math.random()}`
+  return `${mode}:${va.lat.toFixed(5)},${va.lng.toFixed(5)}>${vb.lat.toFixed(5)},${vb.lng.toFixed(5)}`
 }
 
 function cacheGet(key: string): RoadLeg | undefined {

@@ -186,3 +186,43 @@ describe('abort propagation', () => {
     expect(sawSignal!.aborted).toBe(true)
   })
 })
+
+describe('coordinate boundary guard (Codacy SAST: user-controlled URL taint)', () => {
+  // Stop coordinates hydrate from Supabase as untyped JSON — a poisoned row
+  // must never reach a request URL. The guard refuses the fetch and the span
+  // degrades to estimates, exactly like a network failure.
+  it('a non-numeric coordinate never reaches a fetch URL', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      fetchCalls.push(String(input))
+      return new Response(JSON.stringify(chainResponse([A, B, C])), { status: 200 })
+    }))
+    // Simulate a poisoned hydration row: numbers typed as LatLng, runtime strings.
+    const bad = { lat: '12.9', lng: '77.6' } as unknown as { lat: number; lng: number }
+    const legs = await routePath([A, bad, C], asm)
+    expect(legs.every(l => l.source === 'estimate')).toBe(true)
+    expect(fetchCalls.length).toBe(0)
+  })
+
+  it('an out-of-range coordinate (raw Supabase lat < -90) never reaches a fetch URL', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      fetchCalls.push(String(input))
+      return new Response(JSON.stringify(chainResponse([A, B, C])), { status: 200 })
+    }))
+    const bad = { lat: -999.5, lng: 77.0 }
+    const legs = await routePath([A, bad, C], asm)
+    expect(legs.every(l => l.source === 'estimate')).toBe(true)
+    expect(fetchCalls.length).toBe(0)
+  })
+
+  it('boundary values stay legal (-90/90/±180 pass through and are fetched)', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      fetchCalls.push(String(input))
+      return new Response(JSON.stringify(chainResponse([A, B, C])), { status: 200 })
+    }))
+    const edge = { lat: -90, lng: 180 }
+    const legs = await routePath([A, edge, C], asm)
+    expect(legs.filter(l => l.source === 'osrm').length).toBe(2)
+    expect(fetchCalls.length).toBe(1)
+    expect(fetchCalls[0]).toContain('180,-90')
+  })
+})

@@ -336,6 +336,26 @@ added, run `npm run verify` locally before asking to merge any PR into `test`.
 (Caveat if adding it: the PR run checks out the merge ref, so it duplicates the
 push run rather than replacing it.)
 
+**Codacy's `action_required` state hides REAL findings too — read the
+annotations, not just the conclusion.** The "auth-gated bot quirk" framing was
+right for merges (nothing blocks), but on PR #224 the same `action_required`
+conclusion carried the summary line "1 new issue (0 max.)" and a real finding
+in its annotations. Fetch them every time:
+`gh api repos/<org>/<repo>/commits/<head-sha>/check-runs` → the Codacy run's
+`output.annotations_url` → `gh api <annotations_url>`. An `annotations_count`
+of 0 is the true quirk signature; a non-zero count is a finding to triage.
+
+**SAST taint on URLs is cut with a strict validator at ONE boundary — and the
+boundary is wherever the value is FIRST stringified, not just the fetch.**
+Codacy flagged `routing.ts` for user-controlled coordinates flowing into the
+OSRM URL. Two half-lessons from fixing it: (1) `Number()` coercion is NOT
+validation — it accepts `'12.9'` and turns `null` into `0`, the Null-Island
+sentinel; use `typeof x === 'number'` + `Number.isFinite` + range checks.
+(2) The first `.toFixed()`/template use can sit in the *cache key*, so guarding
+only the URL builder still crashes on a poisoned row — one `coordValid()`
+helper must feed both consumers. Fail safe: refuse the measurement and degrade
+to the engine estimate, exactly like a network failure.
+
 ## 4. Code conventions & pitfalls
 
 - **Data model**: times are always stored as 24h `"HH:MM"` strings. Format at

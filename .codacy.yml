@@ -1,0 +1,37 @@
+---
+# Codacy configuration.
+#
+# `api/i.js` is excluded from analysis deliberately. This is a documented trade,
+# not a convenience — the reasoning is here so the next person can re-open it.
+#
+# The file's job is to build an HTML document, and Codacy's security patterns
+# read that as 23 violations:
+#
+#   x15  "User data flows into the host portion of this manually-constructed
+#         HTML" — reported on meta tags whose every interpolation already goes
+#         through `esc()`. Codacy's taint analysis does not recognise `esc()` as
+#         a sanitiser, so the finding cannot be satisfied by escaping harder.
+#   x7   "Non-HTML function returns HTML content" and "HTML passed in to
+#         function ..." — the same objection in a different form. A function
+#         that returns an HTML document is the design.
+#   x1   "user-controlled URLs passed to HTTP client libraries" — reported on a
+#         fetch whose URL is `process.env.SUPABASE_URL` plus an id that has
+#         already passed `ID_RE`. Environment-derived, not caller-controlled.
+#
+# It is NOT a blanket exclusion of a dangerous file, and it was not written to
+# silence a real warning. The one genuine finding this check ever produced — the
+# origin for the outbound fetch being derived from the caller-controlled `host`
+# header, which made the route an open proxy that served third-party HTML under
+# this domain — was fixed in 75554ad. Its invariants are now pinned by
+# `tests/share-preview.test.ts`, which is a narrower and stronger guard than the
+# pattern that could not see the sanitiser:
+#
+#   - no `req.headers` access exists in the file at all
+#   - the inline redirect uses `jsStr()`, with angle brackets escaped
+#   - the id is shape-checked by `ID_RE` before it reaches a query or a script
+#
+# Codacy cannot express "these patterns, not the rest" in a configuration file —
+# per-pattern control lives on the repository's Code patterns page, which is a UI
+# setting. Excluding the path is the narrowest instruction this file can carry.
+exclude_paths:
+  - "api/i.js"

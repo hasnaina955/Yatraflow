@@ -46,8 +46,19 @@ const OSRM_CHAIN_WAYPOINTS = 25
 const OSRM_URL_OK = /^https:\/\/router\.project-osrm\.org\/route\/v1\/driving\/[-0-9.,;]+\?[a-z=,&]+$/
 
 function osrmUrl(coordsPath: string): string | null {
-  const url = `${OSRM}/${coordsPath}?overview=full&geometries=geojson&annotations=distance,duration`
-  return OSRM_URL_OK.test(url) ? url : null
+  const candidate = `${OSRM}/${coordsPath}?overview=full&geometries=geojson&annotations=distance,duration`
+  if (!OSRM_URL_OK.test(candidate)) return null
+  // WHATWG URL validation (the OWASP SSRF-prevention pattern): the parser
+  // THROWS on malformed input, and the origin assertion pins the fetch target
+  // to the fixed OSRM host no matter what the interpolation produced. fetch
+  // only ever sees a URL that survived both gates.
+  try {
+    const parsed = new URL(candidate)
+    if (parsed.origin !== 'https://router.project-osrm.org') return null
+    return parsed.toString()
+  } catch {
+    return null
+  }
 }
 
 interface OsrmRoute {

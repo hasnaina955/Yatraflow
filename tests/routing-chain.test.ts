@@ -215,6 +215,12 @@ describe('coordinate boundary guard (Codacy SAST: user-controlled URL taint)', (
   })
 
   it('boundary values stay legal (-90/90/±180 pass through and are fetched)', async () => {
+    // this suite's stubKeyless already pins the env, but re-assert it HERE:
+    // this is the only guard test that asserts a REAL fetch happened, so a
+    // developer .env Google key would silently take the keyed branch and
+    // zero-fetch the OSRM path this test exists to prove.
+    const { routesEnabled } = await import('../src/lib/providers/routes')
+    expect(routesEnabled()).toBe(false)
     vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
       fetchCalls.push(String(input))
       return new Response(JSON.stringify(chainResponse([A, B, C])), { status: 200 })

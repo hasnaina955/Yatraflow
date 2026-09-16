@@ -33,6 +33,23 @@ const OSRM = 'https://router.project-osrm.org/route/v1/driving'
 /** Waypoints per OSRM chain request before we chunk (demo-server headroom). */
 const OSRM_CHAIN_WAYPOINTS = 25
 
+/**
+ * Final gate before any OSRM fetch: the URL must be EXACTLY our fixed origin
+ * + driving path, with a coordinate path of digits/dot/comma/semicolon and a
+ * query built only from the known parameter vocabulary. Stop coordinates are
+ * already strict-checked by coordValid(); this closes the same taint AT the
+ * HTTP-client boundary, so no interpolated value can ever reach fetch in any
+ * other shape. (Static engines model regex allowlists as sanitization —
+ * helper boundaries and encodeURIComponent alone did not cut it.) The path
+ * class carries `-` — negative lat/lng are legitimate (-90…90 / -180…180).
+ */
+const OSRM_URL_OK = /^https:\/\/router\.project-osrm\.org\/route\/v1\/driving\/[-0-9.,;]+\?[a-z=,&]+$/
+
+function osrmUrl(coordsPath: string): string | null {
+  const url = `${OSRM}/${coordsPath}?overview=full&geometries=geojson&annotations=distance,duration`
+  return OSRM_URL_OK.test(url) ? url : null
+}
+
 interface OsrmRoute {
   distance: number      // metres
   duration: number      // seconds
@@ -102,7 +119,8 @@ async function osrmRoute(a: LatLng, b: LatLng, signal?: AbortSignal): Promise<{ 
     const ca = coordParam(a)
     const cb = coordParam(b)
     if (!ca || !cb) return null
-    const url = `${OSRM}/${ca};${cb}?overview=full&geometries=geojson&annotations=distance,duration`
+    const url = osrmUrl(`${ca};${cb}`)
+    if (!url) return null
     const res = await fetch(url, { signal: requestSignal(signal) })
     if (!res.ok) return null
     const data = await res.json()
@@ -144,7 +162,8 @@ async function osrmRouteChain(points: LatLng[], signal?: AbortSignal): Promise<R
 async function osrmChainOnce(points: LatLng[], signal?: AbortSignal): Promise<RoadLeg[] | null> {
   const coords = points.map(coordParam)
   if (coords.some(c => c === null)) return null
-  const url = `${OSRM}/${coords.join(';')}?overview=full&geometries=geojson&annotations=distance,duration`
+  const url = osrmUrl(coords.join(';'))
+  if (!url) return null
   try {
     const res = await fetch(url, { signal: requestSignal(signal) })
     if (!res.ok) return null

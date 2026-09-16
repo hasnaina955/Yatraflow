@@ -15,7 +15,7 @@ user confirmation before any push. Feature work reaches `test` **via pull
 request** (never a direct push); `main` merges stay explicitly user-gated
 (AGENTS rule 1).
 
-**Snapshot (2026-09-17, verified against the repo):** `test` carries **v0.56.0** — the settings-integrity release, which lands the full six-phase settings-wiring audit (issue #213, PRs #219/#220/#221): Trip settings as its own eighth workspace tab, party/vehicle preferences persisted to the trips table, the propagation fixes that make a settings change re-derive every downstream surface, style-vs-budget separation, Create↔Settings parity, and the numeric defaults that stop car numbers being written onto bikes and EVs. Sits on v0.55.0's gallery-pipeline release. Promotion to `main` is a release's own PR; `main` holds only the docs and merges it already owns until one lands.
+**Snapshot (2026-09-17, verified against the repo):** **both lines carry v0.56.0** — the settings-integrity release, which lands the full six-phase settings-wiring audit (issue #213, PRs #219/#220/#221): Trip settings as its own eighth workspace tab, party/vehicle preferences persisted to the trips table, the propagation fixes that make a settings change re-derive every downstream surface, style-vs-budget separation, Create↔Settings parity, and the numeric defaults that stop car numbers being written onto bikes and EVs. It sits on v0.55.0's gallery-pipeline release and was promoted to `main` on 2026-09-16 (**PR #223**, `main` at `f314b25`). Since the promotion the two lines differ by two commits each: `main` holds the promotion's merge commits, `test` holds **PR #225** (true user deletion in the masteradmin console) — unreleased, and its `admin_delete_user` RPC is migration-gated on `20260916_admin_delete_user.sql`. The verify gate stands at tsc + **970 tests** (97 files) + build.
 Current version: **0.56.0**.
 
 **Live open work is tracked in two places, and this file must agree with both:**
@@ -24,13 +24,14 @@ Current version: **0.56.0**.
    derived from the GitHub API rather than recalled. The queue has MOVED since the last
    snapshot: the #84–#90 a11y/bug batch, the Day Planner defects (#187/#188/#189), #107's audit
    tail, #124's terrain-blind walk, #143's pins, #142's settings surface, #202 on this file and
-   #204's profile granularity are all **closed**, and **no *unplanned* issue is open**
+   #204's profile granularity are all **closed**, so **no *unplanned* issue is open**
    (2026-09-16): #213 was filed and closed inside the day (its six phases shipped in
    #219/#220), the rebrand (#96) is archived — no need or plan to rename — and #122's season
-   half is closed as not planned, the late dinner window being deliberate. The queue now also
-   carries **nine planned items across two milestones** — `Launch the loop` (#226–#228) and
-   `Stage 0 · Instrument` (#229–#234) — which is the commercial execution queue, not a defect
-   backlog. Re-derive with `gh issue list` before quoting counts.
+   half is closed as not planned, the late dinner window being deliberate. What the queue does
+   hold is **fourteen planned issues**: the commercial execution set filed 2026-09-16 across
+   two milestones — `Launch the loop` (#226–#228) and `Stage 0 · Instrument` (#229–#234) — plus
+   the milestone tracks themselves (#236–#240, M5 → M9), now issues rather than only prose in
+   this file. Re-derive with `gh issue list` before quoting counts.
 2. **The milestone tracks** — M5 → M9, plus the 1.0 cut. These are *planning* tracks: they are
    directions of travel, not release numbers.
 
@@ -49,8 +50,13 @@ number collides with a shipped release, the ledger wins.
 Re-derived from the GitHub API 2026-09-16 (`gh issue list --state open`). The previous
 #84–#90 batch is **closed** (all eight swept in v0.49.0), as are the Day Planner defects
 that drove the v0.54.0 work (#187/#188/#189), and #124/#143 shipped since, as did the
-Day Planner finishing set. **No unplanned work is open.** The nine open issues are the
-commercial execution queue, filed 2026-09-16 under two milestones:
+Day Planner finishing set. **No unplanned work is open**, and nothing in the queue is a
+defect backlog — the fourteen open issues are planned work in two groups: the commercial
+execution queue filed 2026-09-16 from
+[`docs/PLAN-LAUNCH-AND-DISTRIBUTION.md`](docs/PLAN-LAUNCH-AND-DISTRIBUTION.md) across two
+milestones (`Launch the loop` #226–#228 and `Stage 0 · Instrument` #229–#234), and the
+milestone tracks themselves (#236–#240, M5 → M9), now tracked as issues so the queue and this
+file cannot drift apart again.
 
 | # | Priority | Area | Issue | Relevance |
 |---|---|---|---|---|
@@ -63,16 +69,20 @@ commercial execution queue, filed 2026-09-16 under two milestones:
 | [#232](https://github.com/hasnaina955/Yatraflow/issues/232) | P1 | Content | E2 · The gallery is curated | A stale title, not a duplicate row. Needs the owner |
 | [#233](https://github.com/hasnaina955/Yatraflow/issues/233) | P1 | Supply | F2 · Three real trips, four real people each | Creator supply is the binding constraint |
 | [#234](https://github.com/hasnaina955/Yatraflow/issues/234) | P1 | Legal | F6 · CA confirms the merchant-of-record branch | ~₹27 a sale rides on it; needs a professional |
+| [#236](https://github.com/hasnaina955/Yatraflow/issues/236) | P2 | Track M5 | M5 · AI companion — user-configurable LLM endpoint | The track below; the unbuilt fix behind closed #22 → #20 |
+| [#237](https://github.com/hasnaina955/Yatraflow/issues/237) | P2 | Track M6 | M6 · Together — collaboration depth | The track below |
+| [#238](https://github.com/hasnaina955/Yatraflow/issues/238) | P2 | Track M7 | M7 · Premium — the payment rail | The track below; needs F6 settled first |
+| [#239](https://github.com/hasnaina955/Yatraflow/issues/239) | P2 | Track M8 | M8 · 1.0 enablers → the 1.0 cut | The track below |
+| [#240](https://github.com/hasnaina955/Yatraflow/issues/240) | P2 | Track M9 | M9 · Invites & onboarding | The track below; exec plan already written |
 
-**#213 — the settings-wiring audit: filed and closed in a day.** A read-only audit of how
-the trip workspace is wired (what reads what, and which surfaces can disagree) found the
-whole class of defect behind this file's own "the queue is one issue" note: settings that
-were read by the engine but never persisted, memos whose dependency arrays omitted what
-they read, and duplicated vocabularies across Create Trip and Trip settings. Six phases
-shipped as PRs #219/#220 — the Settings tab split out of Share, party/vehicle persistence
-(new columns, applied live), the propagation fixes, style-vs-budget separation, the
-parity pass, and the numeric defaults. It is recorded here because the queue's emptiness
-is a claim this file makes, and for one day it was not true.
+The queue was empty for exactly one day, and this section said so — the launch set above is what
+replaced it. **#213** was filed and closed inside that day: a read-only audit of how the trip
+workspace is wired (what reads what, and which surfaces can disagree) found the whole class of
+defect behind this file's own "the queue is one issue" note — settings read by the engine but
+never persisted, memos whose dependency arrays omitted what they read, and duplicated
+vocabularies across Create Trip and Trip settings. Six phases shipped as PRs #219/#220: the
+Settings tab split out of Share, party/vehicle persistence (new columns, applied live), the
+propagation fixes, style-vs-budget separation, the parity pass, and the numeric defaults.
 
 **#96 — rebrand: ARCHIVED, not planned.** There is currently no need or plan to rename the product.
 `refactor/brand-seam` builds the seam (one source of truth for the name across 21 files, `vite.config.ts`
@@ -142,6 +152,7 @@ and date), per the AGENTS §6 same-edit rule. Detail lives in
 - [x] **v0.53.0** — The design-system audit gets fixed, not just filed: issue #107 worked to 117/117 across five batches (contrast/ink tier, motion tokens, kicker + hit areas, the ARIA listbox Select, the scenic hue split), with the guardrail gates kept
 - [x] **v0.54.0** — The suggestion pipeline tells the truth — honest detours, one road measurement, night halts anchored on real towns, the Day Planner's meal and fuel cadences revived, and Create Trip parity with its route-integrity guardrail
 - [x] **v0.55.0** — The gallery gets its pipeline — the import contract and validator, the engine-truth gate in CI, the demand-ranked 20-trip backlog, and six researched, engine-priced shelf itineraries (Goa, Kerala, Mewar, Kashmir, Meghalaya + the Coorg reference); Vercel Web Analytics rides along
+- [x] **v0.56.0** — Settings integrity: the six-phase #213 audit lands as one release — Trip settings becomes its own workspace tab, party/vehicle preferences persist to the trips table, a settings change re-derives every downstream surface, style and budget separate into independent dials, Create Trip and Trip settings share one vocabulary, and blank tank/economy fields stop writing car numbers onto bikes and EVs; promoted to `main` on 2026-09-16 (PR #223)
 
 ### Remaining — in release order (details in the tracks below)
 - [x] **v0.45.0** — Create-flow + invites + settings release (PR #81 + merged test work): Trip Ticket bento starter (bill print, outline seeding), car rental mode + local-train fares, range calendar, invite short codes + join-flow fixes, auth-refresh fix, Plan Bench trip settings + editable dates, My Trips search/filter/sort restore (branch `feat/create-trip-ticket`)
@@ -264,31 +275,31 @@ intended grouping, and are **not** bookings. Do not infer "next release" from th
 version is whatever the ledger says is unshipped — read the **Snapshot** line at the top of this
 file for the current number rather than trusting a sentence that can rot.
 
-### M5 — "AI companion" (issues #22 → #20; the next feature to build)
+### M5 — "AI companion" — **issue #236**
 User-configurable OpenAI-compatible endpoint (Profile settings,
 `src/lib/aiProvider.ts`), real LLM answers with the deterministic router kept
-as offline fallback + "(LLM)/(offline)" badge. #22 (~2h) blocks #20 (~3h).
-Both of its issues (#22 → #20) are **closed**, so M5 has no open issues behind it and no
-schedule: it is a candidate, not a queue. For what *is* live, see
-[Open issues](#open-issues) — the only open items are the nine commercial-execution issues
-filed 2026-09-16; no defect or feature request is outstanding.
+as offline fallback + "(LLM)/(offline)" badge. The original pair (#22 → #20) are both
+**closed** as audit findings, so the unbuilt fix is carried by issue #236. For what *is* live,
+see [Open issues](#open-issues) — fourteen issues are open (2026-09-16), all of them planned
+work: the commercial execution set and these M5 → M9 tracks, with no defect or feature request
+outstanding.
 
-### M6 — "Together" (collaboration depth)
+### M6 — "Together" (collaboration depth) — **issue #237**
 Supabase integration/RLS test suite first (opt-in `VITE_RUN_INTEGRATION`,
 ~3h — old item #10), then live multi-user editing sync. Split-expense
 settlement groundwork (payer tagging + balances card) shipped in v0.36.0;
 M6 adds the multi-currency-free refinement and co-editing depth on top.
 
-### M7 — "Premium" (monetization)
+### M7 — "Premium" (monetization) — **issue #238**
 Gateway integration (Razorpay fits INR), order/entitlement tables + webhook,
 purchase state, unlock flow replacing placeholder toasts. Needs an external
 gateway account. Deliberately after M6's test-suite groundwork.
 
-### M8 — 1.0 enablers → the 1.0 cut
+### M8 — 1.0 enablers → the 1.0 cut — **issue #239**
 Offline-first (IndexedDB + service worker/PWA, ~4–6h), i18n (EN + HI, ~6–8h),
 then the 1.0 release.
 
-### M9 — Invites & onboarding (exec plan: docs/PLAN-INVITES-ONBOARDING.md)
+### M9 — Invites & onboarding — **issue #240** (exec plan: docs/PLAN-INVITES-ONBOARDING.md)
 Creator invites (admins mint YF-… member/creator codes with audit + gate) →
 referral (R2) → invite-only gate (R3, flagged). R1 ships creator invites and a
 clean-slate creator onboarding (no demo seed + badge granted). Three releases on
@@ -403,8 +414,8 @@ Kept as one line each so the origin is traceable without re-listing the work as 
   fake number when no target is set) · **greedy fewest-transfers settlement**
   (`BudgetTab.tsx:395`, surfaced at `:363`). Both were still listed as unbuilt in the Sep-6
   brainstorm table; the README had described the first correctly all along.
-- **#36 bug-hunt triage (10/10)** — all landed; the survivors were spun out as issues, now in
-  [Open issues](#open-issues).
+- **#36 bug-hunt triage (10/10)** — all landed; the survivors were spun out as issues and have
+  since closed (see [Open issues](#open-issues) for what is actually live).
 - **Map view modes (3/3, I-17/I-18/I-19)** — shipped together with the request that spawned them
   ([`docs/FEATURE-REQUEST-MAP-VIEWS.md`](docs/FEATURE-REQUEST-MAP-VIEWS.md)): default basemap →
   Liberty (I-17) · Terrain hillshade over the keyless AWS terrarium DEM (I-18) · 3D hero pitched

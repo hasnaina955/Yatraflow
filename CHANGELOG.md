@@ -34,10 +34,12 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
   filed as issues (#226–#234) under two milestones — `Launch the loop` (#226–#228) and
   `Stage 0 · Instrument` (#229–#234) — the commercial execution queue from the audit, not a
   defect backlog. `ROADMAP.md` claimed "**No issues are open**" in four places; all four now
-  distinguish planned work from unplanned, and the Open-issues table carries the nine rows with
-  their priorities, areas, and what each one gates. Filed in the same pass as the issues,
-  because a status file that disagrees with the API is the exact drift this repo has had to
-  correct before (#202, and the M0 seed-guard claim that five places carried).
+  distinguish planned work from unplanned, and the Open-issues table carries those nine rows —
+  plus the five milestone tracks filed alongside them (#236–#240) — with their priorities,
+  areas, and what each one gates. Filed in the same pass as the issues, because a status file
+  that disagrees with the API is the exact drift this repo has had to correct before (#202, and
+  the M0 seed-guard claim that five places carried).
+- **The status docs catch up with the promotion and the queue.** `AGENTS.md` §1.1 and the ROADMAP snapshot still described the promotion to `main` as pending and the issue queue as empty; both are re-derived from the repo — `main` carries v0.56.0 (**PR #223**), `test` adds the unreleased, migration-gated user-deletion work (**PR #225**), and the queue holds **14 open issues** (the #226–#234 launch-readiness criteria and the #236–#240 milestone tracks, which now exist as issues and not only as roadmap prose). Three further stale claims went with them: **PR #224** was recorded as landed on `test` though it is still open (its six commits are absent from `origin/test`), the `shabtab` fork remote was recorded as removed though it is present and fetching, and the verify gate was quoted at 961 tests / 96 files when it now stands at **970 / 97**. The release ledger gains its missing v0.56.0 row.
 
 ## [0.56.0] - 2026-09-17
 

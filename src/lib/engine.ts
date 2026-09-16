@@ -37,6 +37,12 @@ export const MODE_COST_PER_KM: Record<string, number> = {
  */
 export const FUEL_PRICE_INR_PER_L = 105
 
+/** Indicative car fuel economy (km/L) used wherever a headline "what if" number
+ *  is needed before the traveller states their own — the Plan Bench's slider
+ *  default, Create Trip's placeholder, and Trip settings' dial when mileage is
+ *  unset. It used to be 15 in two places and 18 in a third (#213 Phase 5). */
+export const DEFAULT_FUEL_ECONOMY_KML = 15
+
 /** Modes where the vehicle's own fuel economy meaningfully sets the ₹/km rate. */
 const FUEL_ECONOMY_MODES = new Set<string>(['car', 'rental', 'motorcycle'])
 
@@ -1040,11 +1046,22 @@ export interface TripTotals {
 // of it — one source, no mirror to drift (#125b). Travel style never touches
 // the bed's price; the STAY BUDGET dial does.
 
+/** The stay-rate vocabulary — the same three keys the settings pills and the
+ *  rates table share. */
+const STAY_KEYS = ['budget', 'comfort', 'luxury'] as const
+type StayKey = (typeof STAY_KEYS)[number]
+
 /** The stay rate key for a trip: its own stayStyle dial, or the legacy
  *  travelStyle (budget/luxury styles carried the pricing before the two
- *  dials were separated) so existing trips never re-price silently. */
-function stayKeyFor(trip: Pick<Trip, 'stayStyle' | 'travelStyle'>): 'budget' | 'comfort' | 'luxury' {
-  if (trip.stayStyle) return trip.stayStyle
+ *  dials were separated) so existing trips never re-price silently.
+ *
+ *  The stored value is VALIDATED: `stay_style` has no CHECK constraint, so a
+ *  stray string ('Luxury', 'premium', a renamed tier) would index
+ *  STAY_RATE_PER_NIGHT to undefined and multiply the whole lodging line into
+ *  NaN. Anything unrecognised falls through to the legacy rule instead. */
+function stayKeyFor(trip: Pick<Trip, 'stayStyle' | 'travelStyle'>): StayKey {
+  const stay = trip.stayStyle
+  if (stay && (STAY_KEYS as readonly string[]).includes(stay)) return stay as StayKey
   if (trip.travelStyle === 'budget' || trip.travelStyle === 'luxury') return trip.travelStyle
   return 'comfort'
 }
@@ -1180,7 +1197,10 @@ export function computeTotals(trip: Trip, legCorrections?: Record<string, LegEst
 
   return {
     totalCostInr: sum,
-    costPerPersonInr: sum / trip.travellers,
+    // #213 Phase 6: guarded like costPerDayInr below — travellers is floored at 1
+    // by both forms, but this is the one unguarded division that reaches a
+    // rendered figure, and `₹∞` / `₹NaN` on the bill is a bad failure mode.
+    costPerPersonInr: sum / Math.max(1, trip.travellers),
     totalTravelMinutes: travelMinutes,
     totalDistanceKm: distanceKm,
     stopCount,

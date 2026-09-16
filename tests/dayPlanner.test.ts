@@ -397,6 +397,65 @@ describe('bug-hunt batch (issues #125-#140) — engine invariants', () => {
     const totals = computeTotals(trip)
     expect(totals.lodgingRatePerNight).toBe(STAY_RATE_PER_NIGHT.comfort)
   })
+
+  // #213 Phase 4 — `stay_style` has no CHECK constraint (deliberately: the
+  // vocabulary lives in src/data/types.ts). A stray value used to index
+  // STAY_RATE_PER_NIGHT to undefined, so the whole lodging line went NaN and
+  // the trip's total with it. The key is now validated.
+  it('an unrecognised stay_style falls back to comfort instead of NaNing the bill', () => {
+    const withStay = (stay: unknown) => {
+      const trip = structuredClone(seedData.trips[0])
+      trip.days.forEach(d => { d.stops = d.stops.filter(s => s.category !== 'hotel') })
+      trip.days[0].stops.push({
+        id: 'hotel_junk', title: 'Test Stay', category: 'hotel', locationName: 'Junk Base',
+        lat: 9.93, lng: 76.26, description: '', notes: '',
+        visitMinutes: 600, openTime: '', closeTime: '', entryFeeInrPerPerson: 0,
+        transportCostInrTotal: 0, priority: 'must-do', sourceUrl: '', status: 'suggested', orderInDay: 1,
+      } as never)
+      trip.stayStyle = stay as never
+      return computeTotals(trip)
+    }
+    // sanity: the valid tiers price from the table
+    expect(withStay('luxury').lodgingRatePerNight).toBe(STAY_RATE_PER_NIGHT.luxury)
+    expect(withStay('budget').lodgingRatePerNight).toBe(STAY_RATE_PER_NIGHT.budget)
+    // junk values (wrong case, a retired name, a number) → comfort, never NaN
+    for (const junk of ['Luxury', 'premium', '', 42, null, undefined]) {
+      const t = withStay(junk)
+      expect(t.lodgingRatePerNight).toBe(STAY_RATE_PER_NIGHT.comfort)
+      expect(Number.isFinite(t.lodgingInr)).toBe(true)
+      expect(Number.isFinite(t.totalCostInr)).toBe(true)
+    }
+  })
+
+  it('the legacy travelStyle still prices the bed for a trip with no stay dial', () => {
+    // Stored trips predate the dial; the fallback must keep working (and must
+    // NOT be reached once the trip carries a valid stayStyle).
+    const mk = () => {
+      const trip = structuredClone(seedData.trips[0])
+      trip.days.forEach(d => { d.stops = d.stops.filter(s => s.category !== 'hotel') })
+      trip.days[0].stops.push({
+        id: 'hotel_legacy', title: 'Test Stay', category: 'hotel', locationName: 'Legacy Base',
+        lat: 9.93, lng: 76.26, description: '', notes: '',
+        visitMinutes: 600, openTime: '', closeTime: '', entryFeeInrPerPerson: 0,
+        transportCostInrTotal: 0, priority: 'must-do', sourceUrl: '', status: 'suggested', orderInDay: 1,
+      } as never)
+      return trip
+    }
+    const legacy = mk()
+    legacy.stayStyle = undefined
+    legacy.travelStyle = 'luxury'
+    expect(computeTotals(legacy).lodgingRatePerNight).toBe(STAY_RATE_PER_NIGHT.luxury)
+    // An explicit dial wins over the legacy style — the two are independent.
+    const explicit = mk()
+    explicit.stayStyle = 'budget'
+    explicit.travelStyle = 'luxury'
+    expect(computeTotals(explicit).lodgingRatePerNight).toBe(STAY_RATE_PER_NIGHT.budget)
+    // And travelStyle alone never moves the bed once a dial exists.
+    const comfort = mk()
+    comfort.stayStyle = 'comfort'
+    comfort.travelStyle = 'luxury'
+    expect(computeTotals(comfort).lodgingRatePerNight).toBe(STAY_RATE_PER_NIGHT.comfort)
+  })
 })
 
 describe('enhancement batch (issues #122–#146) — party, pins, charge, both walks', () => {

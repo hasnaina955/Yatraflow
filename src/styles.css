@@ -4615,7 +4615,6 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 .ts-head h1 { margin: 0; font-size: 28px; letter-spacing: -0.02em; }
 .ts-head .small { margin: 6px 0 0; font-size: 13.5px; }
 
-.ts-layout { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 22px; align-items: start; }
 .ts-blocks { display: grid; grid-template-columns: repeat(12, 1fr); gap: 12px; min-width: 0; }
 .ts-block {
   background: var(--yf-surface); border: 1px solid var(--yf-border); border-radius: 20px;

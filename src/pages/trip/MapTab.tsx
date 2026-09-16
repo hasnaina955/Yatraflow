@@ -20,6 +20,7 @@ import { deriveClockMilestones } from '../../lib/clockOverlay'
 import { isSightCategory, roadProfileFromLegs, loopProfile } from '../../lib/ridePlan'
 import { QuotaExhaustedError } from '../../lib/providers/google'
 import { isElectric } from '../../lib/vehicleProfile'
+import { planInputsHash } from '../../hooks/useSuggestionCache'
 import { railReasonChips, type RailChip } from '../../lib/railReasons'
 import { rulerMarks } from '../../lib/railRuler'
 import { addDecision, deleteStop, restoreStop } from '../../store/store'
@@ -225,6 +226,10 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
   // whole-trip wheel distance & time (journey sums) — the plan budget for the
   // fatigue math. OSRM's road totals win when resolved (same legs the map
   // draws); the journey sums are the haversine estimate fallback.
+  // #213 Phase 3: `trip` IS in deps — `mutateTrip` clones it on every save so
+  // any settings change re-runs. Without this, transportMode / roundTrip /
+  // driverCount / vulnerable tweaks kept the old plan totals and the
+  // split/clock verdicts read stale numbers.
   const wholeTrip = useMemo(() => {
     let km = 0
     let min = 0
@@ -234,8 +239,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
       min += j.driveMinutes
     }
     return { km: routeTotalKm ?? km, min: routeTotalMin ?? min }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stopSig, routeTotalKm, routeTotalMin])
+  }, [trip, stopSig, routeTotalKm, routeTotalMin])
 
   /** Which day's cumulative drive covers a given along-route km (for pick-a-day defaults). */
   const dayForKm = (km: number | null | undefined): number | null => {
@@ -312,6 +316,12 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     // cadence and the hit queries both read this flag.
     includeFuel: !isElectric(trip.vehicleProfile) && (trip.transportMode === 'car' || trip.transportMode === 'motorcycle'),
     includeCharge: isElectric(trip.vehicleProfile),
+    // #189 + 20260915_trip_party_prefs.sql: the persisted vehicle profile is
+    // the one owner of fuel-stop cadence. Without it here, geocode.ts falls
+    // through to FUEL_INTERVAL_KM (450) and a 60 L / 20 km-L bike is planned
+    // at car cadence. The profile is JSONB-validated on read, so a junk
+    // value never reaches this planner.
+    vehicleProfile: trip.vehicleProfile,
     // #143: accepted night-halt pins (night ordinal → route-km) — the planner
     // snaps those halts and surfaces drift as a proposal instead of moving.
     haltPins: loadHaltPinsForTrip(trip.id),
@@ -407,8 +417,10 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
   const selfDriven = isSelfDrivenMode(trip.transportMode)
   const splitVerdict = useMemo(
     () => planDriveDays({ totalKm: planKm * loopFactor, driveMinutes: wholeTrip.min * loopFactor, rainFactor, profile: tripIsRoundTrip ? loopProfile(roadProfile) : roadProfile, ...partyOpts }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [planKm, wholeTrip.min, trip.travelStyle, trip.transportMode, trip.driverCount, trip.hasVulnerable, loopFactor, dayRainPct, roadProfile],
+    // #213 Phase 3: dayWeatherCode IS a dep (rainFactor reads it for severity
+    // weighting, #141) — same omission the clockVerdict had. The two verdicts
+    // now invalidate together on a forecast fetch.
+    [planKm, wholeTrip.min, trip.travelStyle, trip.transportMode, trip.driverCount, trip.hasVulnerable, loopFactor, dayRainPct, dayWeatherCode, roadProfile],
   )
   const clockVerdict = useMemo(
     // #127 per-day rain array; #142 party cap; #122 anchors; #145 a round trip
@@ -416,9 +428,9 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     // no longer fakes the loop as a single 2× line.
     () => planTravelClock({ totalKm: planKm, driveMinutes: wholeTrip.min, dayStart: trip.days[0]?.startTime, rainFactor, dayRainPct: dayRainPct ?? undefined, roundTrip: tripIsRoundTrip, profile: roadProfile, ...partyOpts, anchors: tripAnchors }),
     // Stable keys only (#135): the walk reads startTimes + party/mode, never the
-    // days array identity.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [planKm, wholeTrip.min, trip.travelStyle, trip.transportMode, trip.driverCount, trip.hasVulnerable, trip.driveAfterDinnerMin, dayStartSig, dayRainPct, tripIsRoundTrip, roadProfile],
+    // days array identity. #213 Phase 3: dayWeatherCode was missing — a storm
+    // code change with unchanged rainChancePct left the banner stale.
+    [planKm, wholeTrip.min, trip.travelStyle, trip.transportMode, trip.driverCount, trip.hasVulnerable, trip.driveAfterDinnerMin, dayStartSig, dayRainPct, dayWeatherCode, tripIsRoundTrip, roadProfile],
   )
   // The travel clock drawn ON the route as road MILESTONES: one pin per planned
   // clock anchor (meal / overnight / destination) carrying its wall-clock time
@@ -507,18 +519,34 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
   useEffect(() => {
     if (anchors.length === 0) return
     const cached = suggestionCache.cache.map
-    // The hash covers everything that changes WHAT the search should return:
-    // anchors (route shape), OSRM geometry (Google along-route), detour scope,
-    // and the crew cadence inputs — travel style (relaxed/packed segment
-    // spacing) and transport mode (fuel on/off). Style/mode changes are
-    // explicit user controls, so they bust the cache and re-search in
-    // real time instead of serving results tuned for the old settings.
-    const hash = anchorHash(anchors) + '|' + routeHash(routeGeometry) + '|' + trip.travelStyle + '|' + trip.transportMode
+    // The hash covers everything that changes WHAT the search should return
+    // (#213 Phase 3): anchors (route shape), OSRM geometry (Google along-route),
+    // detour scope, the crew/fuel/budget inputs that change the cadence and
+    // filter priorities, the transport mode (fuel on/off) and travel style.
+    // Crew/fuel/style/mode changes are explicit user controls, so they bust
+    // the cache and re-search in real time instead of serving results tuned
+    // for the old settings.
+    const inputsHash = planInputsHash({
+      anchorsHash: anchorHash(anchors),
+      routeHash: routeHash(routeGeometry),
+      travelStyle: trip.travelStyle,
+      transportMode: trip.transportMode,
+      scopeKm,
+      travellers: trip.travellers,
+      driverCount: trip.driverCount,
+      hasVulnerable: trip.hasVulnerable,
+      driveAfterDinnerMin: trip.driveAfterDinnerMin,
+      budgetPerPersonInr: trip.budgetPerPersonInr,
+      fuelEconomyKmL: trip.fuelEconomyKmL,
+      fuelPricePerL: trip.fuelPricePerL,
+      roundTrip: trip.roundTrip,
+      vehicleProfile: trip.vehicleProfile,
+    })
     // Persisted results always win: returning to this tab, editing the trip, or
     // OSRM resolving after mount must NOT silently re-run the expensive corridor
     // search. Only ↻ Refresh, a detour-scope change, new anchors, or an empty
     // cache does.
-    if (cached && isMapCacheFresh(cached, scopeKm, hash)) {
+    if (cached && isMapCacheFresh(cached, scopeKm, inputsHash)) {
       setPois(cached.segments)
       return
     }
@@ -545,13 +573,13 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
           // the full 4 h TTL. The scan effect re-fires when geometry arrives
           // (nearbyOpts depends on it), and the fresh plan then caches.
           const degradedScan = routeGeometry == null && anchors.length >= 2
-          if (plan.length > 0 && !degradedScan) suggestionCache.setMapCache(plan, hash, scopeKm)
+          if (plan.length > 0 && !degradedScan) suggestionCache.setMapCache(plan, inputsHash, scopeKm)
         }
       })
       .catch(() => { /* suggestions are best-effort */ })
       .finally(() => { if (!cancelled) setLoadingPois(false) })
     return () => { cancelled = true }
-  }, [anchors, nearbyOpts, scopeKm, planKm, wholeTrip.min, travelDayNeed, clockVerdict.verdict, refreshTick]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [anchors, nearbyOpts, scopeKm, planKm, wholeTrip.min, travelDayNeed, clockVerdict.verdict, refreshTick, splitVerdict?.driveDayCount]) // eslint-disable-line react-hooks/exhaustive-deps -- splitVerdict is read for derivedMultiDay; wholeTrip covers the geometry changes
 
   // When the activation came from the map (pin hover/click), bring the matching
   // panel row into view so the two surfaces visibly point at the same place.

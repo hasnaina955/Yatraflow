@@ -1004,13 +1004,13 @@ let optionalColumnsProbe: Promise<OptionalColumnsProbe> | null = null
 let optionalColumnsWarned = false
 
 function tripsHaveOptionalColumns(): Promise<OptionalColumnsProbe> {
-  if (!isSupabaseConfigured) return Promise.resolve({ economy: false, price: false, roundTrip: false, cover: false, inviteCode: false, deleted: false, stayStyle: false })
+  if (!isSupabaseConfigured) return Promise.resolve({ economy: false, price: false, roundTrip: false, cover: false, inviteCode: false, deleted: false, stayStyle: false, driverCount: false, hasVulnerable: false, driveAfterDinner: false, vehicleProfile: false })
   if (!optionalColumnsProbe) optionalColumnsProbe = probeOptionalColumns()
   return optionalColumnsProbe
 }
 
 async function probeOptionalColumns(): Promise<OptionalColumnsProbe> {
-  const [economy, price, roundTrip, cover, inviteCode, deleted, stayStyle] = await Promise.all([
+  const [economy, price, roundTrip, cover, inviteCode, deleted, stayStyle, driverCount, hasVulnerable, driveAfterDinner, vehicleProfile] = await Promise.all([
     probeOptionalColumn('fuel_economy_km_per_l'),
     probeOptionalColumn('fuel_price_per_l'),
     probeOptionalColumn('round_trip'),
@@ -1018,6 +1018,11 @@ async function probeOptionalColumns(): Promise<OptionalColumnsProbe> {
     probeOptionalColumn('invite_code'),
     probeOptionalColumn('deleted_at'),
     probeOptionalColumn('stay_style'),
+    // 20260915_trip_party_prefs.sql — party + vehicle preferences
+    probeOptionalColumn('driver_count'),
+    probeOptionalColumn('has_vulnerable'),
+    probeOptionalColumn('drive_after_dinner_min'),
+    probeOptionalColumn('vehicle_profile'),
   ])
   if (!economy || !price || !roundTrip) {
     if (!optionalColumnsWarned) {
@@ -1025,7 +1030,7 @@ async function probeOptionalColumns(): Promise<OptionalColumnsProbe> {
       optionalColumnsWarned = true
     }
   }
-  return { economy, price, roundTrip, cover, inviteCode, deleted, stayStyle }
+  return { economy, price, roundTrip, cover, inviteCode, deleted, stayStyle, driverCount, hasVulnerable, driveAfterDinner, vehicleProfile }
 }
 
 /** Probe one optional column. True = present (or transient error, treated optimistically). */
@@ -1354,6 +1359,59 @@ export async function adminDeleteTrip(tripId: ID): Promise<boolean> {
     return false
   }
   toast('Trip deleted.')
+  void refreshAdminAudit()
+  return true
+}
+
+/** Delete a user outright (audited `admin_delete_user` RPC, Sep 2026).
+ *
+ *  What the database takes with it (FK cascades off auth.users → profiles):
+ *  every trip the user OWNS — plan, expenses, and the whole collab layer —
+ *  their memberships in other people's trips (those trips survive for the
+ *  remaining crew), their suggestions/decisions/activity rows, their
+ *  notifications, and — only when `force` is true, the RPC refuses otherwise —
+ *  their published Explore listings. The RPC is guarded (admin-only, refuses
+ *  self-deletion and last-admin deletion) and audit-logged BEFORE the delete.
+ *
+ *  The optimistic patch mirrors exactly that blast radius: the user row, the
+ *  owned trips with their children, the collab rows they authored ANYWHERE,
+ *  their notifications, and the publications (force only). Restored wholesale
+ *  on RPC error, same as adminDeleteTrip. */
+export async function adminDeleteUser(userId: ID, force = false): Promise<boolean> {
+  if (!requireAdmin()) return false
+  const prevUsers = cache.users
+  const prevTrips = cache.trips
+  const prevPubs = cache.published
+  const prevSug = cache.suggestions
+  const prevDec = cache.decisions
+  const prevAct = cache.activity
+  const prevNotif = cache.notifications
+  const ownedTripIds = new Set(prevTrips
+    .filter(t => (t.members ?? []).some(m => m.userId === userId && m.role === 'owner'))
+    .map(t => t.id))
+  const isOwnedTrip = (tripId: ID) => ownedTripIds.has(tripId)
+  patch({
+    users: prevUsers.filter(u => u.id !== userId),
+    trips: prevTrips.filter(t => !isOwnedTrip(t.id) && !(t.members ?? []).some(m => m.userId === userId)),
+    published: prevPubs.filter(p => p.creatorId !== userId && !isOwnedTrip(p.tripId)),
+    suggestions: prevSug.filter(s => s.proposedBy !== userId && !isOwnedTrip(s.tripId)),
+    decisions: prevDec.filter(d => d.raisedBy !== userId && !isOwnedTrip(d.tripId)),
+    activity: prevAct.filter(a => a.actorId !== userId && !isOwnedTrip(a.tripId)),
+    notifications: prevNotif.filter(n => n.userId !== userId && !(n.tripId && isOwnedTrip(n.tripId))),
+  })
+  commit()
+  const { error } = await supabase.rpc('admin_delete_user', { p_user_id: userId, p_force: force })
+  if (error) {
+    console.error('[yatraflow] admin_delete_user failed', error)
+    patch({
+      users: prevUsers, trips: prevTrips, published: prevPubs,
+      suggestions: prevSug, decisions: prevDec, activity: prevAct, notifications: prevNotif,
+    })
+    commit()
+    toast(rpcErrorMessage(error), 'err')
+    return false
+  }
+  toast('User deleted — their data is gone (see the audit log).')
   void refreshAdminAudit()
   return true
 }

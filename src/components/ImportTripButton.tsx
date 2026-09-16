@@ -54,7 +54,7 @@ export function ImportTripButton({ ownerId, onNavigate, className = 'btn btn-out
         type="file"
         accept="application/json,.json"
         hidden
-        onChange={onFile}
+        onChange={e => void onFile(e)}
       />
     </>
   )

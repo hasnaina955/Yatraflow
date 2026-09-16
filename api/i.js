@@ -23,9 +23,30 @@
 // Env (Vercel, server-side — NOT the `VITE_`-prefixed pair, which is inlined at
 // build time and never reaches a function):
 //   SUPABASE_URL, SUPABASE_ANON_KEY
+//   PUBLIC_ORIGIN — optional; the canonical origin for `og:url`. Unset, the
+//   function uses Vercel's own production URL, then its deployment URL, then
+//   DEFAULT_ORIGIN. A request header is never consulted.
 
 const DEFAULT_ORIGIN = 'https://yatraflow-blond.vercel.app'
 const SHELL_TTL_MS = 5 * 60 * 1000
+
+/** The origin this deployment serves on — used both to fetch our own shell and
+ *  to build the canonical `og:url`. Taken from the platform's own environment,
+ *  NEVER from `host` or `x-forwarded-host`: those are caller-controlled, and a
+ *  fetch target built from one turns this route into an open proxy. It would
+ *  fetch an arbitrary URL from the deployment's network and then serve the
+ *  result as HTML under this domain — an XSS that no escaping in this file can
+ *  prevent, because the payload is the document we chose to fetch.
+ *
+ *  Order matters: the stable production domain first, so `og:url` is the link
+ *  worth sharing; a preview deployment falls through to its own URL. */
+const SELF_ORIGIN =
+  (process.env.PUBLIC_ORIGIN && String(process.env.PUBLIC_ORIGIN).replace(/\/+$/, '')) ||
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL &&
+    `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`) ||
+  (process.env.VERCEL_URL && `https://${process.env.VERCEL_URL}`) ||
+  DEFAULT_ORIGIN
+
 const DEFAULT_TITLE = 'YatraFlow — Plan real trips, together'
 const DEFAULT_DESC =
   'Plan realistic India trips together. See the time, distance and cost impact of every stop.'
@@ -172,9 +193,6 @@ export default async function handler(req, res) {
   const raw = req.query && req.query.id ? String(req.query.id) : ''
   const id = ID_RE.test(raw) ? raw : ''
 
-  const host = req.headers['x-forwarded-host'] || req.headers.host || ''
-  const origin = host ? `https://${host}` : DEFAULT_ORIGIN
-
   res.setHeader('content-type', 'text/html; charset=utf-8')
   // Preview fetchers cache aggressively and re-fetch rarely, so a short edge
   // TTL with a long stale window keeps a title edit from going stale for days.
@@ -191,10 +209,10 @@ export default async function handler(req, res) {
   } catch {
     pub = null
   }
-  const tags = tagsFor(pub, id, origin)
+  const tags = tagsFor(pub, id, SELF_ORIGIN)
 
   try {
-    res.status(200).send(render(await loadShell(origin), tags, id))
+    res.status(200).send(render(await loadShell(SELF_ORIGIN), tags, id))
   } catch {
     res.status(200).send(minimal(tags, id))
   }

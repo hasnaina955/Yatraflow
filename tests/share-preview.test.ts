@@ -105,6 +105,22 @@ describe('the preview function emits per-itinerary tags', () => {
     expect(fn).toContain('$1="/assets/')
   })
 
+  it('never builds its fetch target from a request header', () => {
+    // `host` / `x-forwarded-host` are caller-controlled. Feeding one into
+    // `fetch()` makes this route an open proxy: it fetches an arbitrary URL
+    // from the deployment's network, and the body is then returned as HTML
+    // under this domain. No escaping in the file can prevent that, because the
+    // payload would be the document we chose to fetch. The origin comes from
+    // the platform environment instead.
+    //
+    // Assert on the *access*, not the words: the file is allowed to name the
+    // headers in a comment explaining why they are not read.
+    expect(fn).not.toMatch(/req\.headers/)
+    expect(fn).toContain('SELF_ORIGIN')
+    expect(fn).toContain('process.env.VERCEL_URL')
+    expect(fn).toContain('loadShell(SELF_ORIGIN)')
+  })
+
   it('degrades instead of failing when the env or the shell is missing', () => {
     expect(fn).toContain('catch')
     expect(fn).toContain('minimal(')

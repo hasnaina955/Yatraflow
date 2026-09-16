@@ -21,6 +21,13 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ### Changed
 - **Trip settings is now its own workspace tab.** The crew, dates, places, budget, mileage, fuel price and vehicle profile controls leave the Share tab — Share now carries Plan together, Share publicly and Keep a record alone — and surface as the eighth workspace tab (`#/trip/<id>/settings`), where they are deep-linkable, swipable into on mobile and no longer compete with invite / publish / record for the same sub-tablist.
+- **Trip settings changes propagate everywhere, every time.** Five concrete fixes close the realtime gap that hid the trip settings tab from the rest of the workspace (#213 Phase 3):
+  - `MapTab`'s `wholeTrip` memo now depends on `trip`, so a transport-mode / round-trip / driver-count / vulnerable tweak re-derives the plan totals — previously it was stable on `[stopSig, routeTotalKm, routeTotalMin]` with the eslint-disable masking the omission.
+  - The suggestion cache hash (`planInputsHash`, a one-owner pure function in `useSuggestionCache.ts`) now covers every input the search reads — travellers, driverCount, hasVulnerable, driveAfterDinnerMin, budgetPerPersonInr, fuelEconomyKmL, fuelPricePerL, roundTrip, vehicleProfile — not just anchors, route, scope, travel style and transport mode. A crew / fuel / budget tweak now busts the cache and re-searches at the new fatigue cadence instead of serving 4-hour-old suggestions tuned for the old party. `CACHE_VERSION` bumped 3→4 so old entries are dropped on next load.
+  - `MapTab`'s split / clock verdicts now include `dayWeatherCode` in their deps, so a storm-code change with an unchanged rain percent re-weights the rain factor honestly (previously the banner stayed stale).
+  - `TripWorkspace`'s road chain now memoises on a geometry-only signature (`roadChainSig(trip)` in `lib/tripRoad.ts`), not on the cloned trip object — a fuel-price / crew / dates / budget save keeps the existing chain and legs, so totals don't blink to haversine, the corridor search isn't re-planned, and the split/clock verdicts keep their numbers.
+  - `Group` and `Budget` tabs now read `effective = pending?.proposed ?? trip` instead of `trip`, so while an impact preview is open, the suggested day's expense / fuel / lodging line on the Budget tab and the Group Input filters follow the proposed values, not the persisted ones. Share still reads `trip` (it doesn't render day plans, so the split is immaterial).
+  - `DaySection`'s nearby-ideas effect now includes `trip.transportMode`, `trip.startLocationCoords`, and `trip.travelStyle` in its deps, so a transport-mode / start move / style change re-derives the mode-tuned chips instead of keeping the old ones until a stop change.
 
 ### Fixed
 

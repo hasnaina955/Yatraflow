@@ -73,6 +73,48 @@ export function buildRoadChain(trip: Pick<Trip, 'startLocationCoords' | 'days' |
   return { points, ptDay, outboundCount }
 }
 
+/** Geometry-only signature: the trip's road chain rebuilds only when a stop moves,
+ *  is added/dropped, or an endpoint changes — NEVER when fuel/crew/budget/dates
+ *  change. Without this, `mutateTrip`'s identity-clone on every save re-measures
+ *  the whole OSRM chain on a fuel-price keystroke (#188/#202/#213).
+ *
+ *  Mirrors `buildRoadChain` exactly — same sort order, same rejected-filter,
+ *  same round-trip-return-to-start leg, same last-destination tail. If this
+ *  function ever drifts from buildRoadChain, re-measure fires on cosmetic
+ *  changes (cache miss) or fails to fire on real ones (stale chain). The
+ *  `tripRoad.test.ts` "matches what buildRoadChain actually consumes" case
+ *  pins the equality. */
+export function roadChainSig(
+  trip: Pick<Trip, 'startLocationCoords' | 'days' | 'destinationCoords' | 'roundTrip'>,
+): string {
+  const parts: string[] = []
+  if (trip.startLocationCoords) {
+    parts.push(roundCoord(trip.startLocationCoords.lat, trip.startLocationCoords.lng))
+  } else {
+    parts.push('-')
+  }
+  ;[...trip.days]
+    .sort((a, b) => a.index - b.index)
+    .forEach(d => [...d.stops]
+      .filter(s => s.status !== 'rejected')
+      .sort((a, b) => a.orderInDay - b.orderInDay)
+      .forEach(s => parts.push(roundCoord(s.lat, s.lng))))
+  if (isRoundTrip(trip) && trip.startLocationCoords) {
+    parts.push(roundCoord(trip.startLocationCoords.lat, trip.startLocationCoords.lng))
+  }
+  const dc = trip.destinationCoords ?? []
+  const lastDest = dc.length ? dc[dc.length - 1] : undefined
+  if (lastDest) parts.push(roundCoord(lastDest.lat, lastDest.lng))
+  parts.push(isRoundTrip(trip) ? 'rt' : 'ow')
+  return parts.join('|')
+}
+
+/** 5 decimals ≈ 1.1 m at the equator — stable for "same place" comparisons
+ *  across providers that round-trip coordinates through different precisions. */
+function roundCoord(lat: number, lng: number): string {
+  return `${lat.toFixed(5)},${lng.toFixed(5)}`
+}
+
 export type RoadOutcome =
   | { ok: true; legs: RoadLeg[] }
   | { ok: false }

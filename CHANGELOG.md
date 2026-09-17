@@ -13,6 +13,11 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 > record still exists in `git log`, not here. Archived release notes live in
 > [`docs/history/`](docs/history/).
 
+## [Unreleased]
+
+### Fixed
+- **A map route no longer stops short of where it is going.** The routing layer measures a corridor as a single span request, but assigned that span's legs by their position among the *uncached* legs instead of their position within the span. Whenever a cached leg sat between two uncached ones — the normal case, because the leg cache is deliberately shared between the whole-trip chain and each day's ride — the last leg received its neighbour's geometry and was cached under its neighbour's key, so the drawn line ended early and every later measurement of that leg was served the wrong road. Each leg now takes its own span result and is cached under its own key (`lib/routing.ts`).
+
 ## [0.59.0] - 2026-09-17
 
 **The map measures a corridor in one go instead of making you wait for every leg.** Copied public itinerary addresses also keep their trip-specific previews, with navigation that works in any tab.

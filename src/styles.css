@@ -2088,8 +2088,16 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
 }
 .pub-hero-bg {
   position: absolute; inset: 0; pointer-events: none;
-  /* topographic contour lines + mountain silhouettes, drawn with gradients only */
+  /* topographic contour lines + mountain silhouettes, drawn with gradients only.
+     The FIRST layer is a flat scrim over the text zone: `.pub-hero-photo` is a
+     creator's upload, so without it the kicker/title/story/byline contrast is
+     whatever the photo happens to be (measured 2.6-3.1:1 over the Chandratal
+     cover). Worst case is a white photo — rgba(8,22,32,.72) over white clears
+     AA for all three text colours (min 5.43:1); tests/hero-contrast.test.ts
+     pins that from these values. The two radials below stay as the bottom
+     painting: they only reach the stats card, never the text. */
   background:
+    linear-gradient(180deg, rgba(8, 22, 32, .74) 0%, rgba(8, 22, 32, .72) 62%, rgba(8, 22, 32, 0) 92%),
     radial-gradient(120% 56% at 50% 118%, rgba(16, 47, 67, .73) 0%, transparent 62%),
     radial-gradient(96% 48% at 30% 122%, rgba(20, 60, 74, .44) 0%, transparent 58%),
     repeating-radial-gradient(140% 90% at 78% 8%, transparent 0 38px, rgba(255, 255, 255, .05) 38px 39px);

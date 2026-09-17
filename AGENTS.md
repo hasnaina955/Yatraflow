@@ -465,18 +465,21 @@ push run rather than replacing it.)
 - **A directive that reverses behavior must sweep its own strings in the same commit.** When the Google-only directive landed, `QuotaExhaustedError` still said *"falling back to the free stack"* and the quota-guard header still described the old fallback — the code had changed, its self-description lied. When reversing any behavior, grep for the OLD behavior's phrasing in error messages, comments, README, and ARCHITECTURE (this bit us once per surface: message, quota.ts header, geocode docstring).
 
 - **A mechanical CSS gate only sees pairs declared in ONE rule.** The design-system contrast gate skips color-only overrides (`.x--warn { color: … }` on a separate background rule) — a 3.65:1 warn-on-white shipped straight past it (#152). When styling new UI, add explicit AA pins for any warn/tone pair your surface paints (#154's `map-rail warn ink` test is the pattern), and remember the baseline keys entries on **line numbers** — inserting CSS shifts them and fails the gate with phantom "new violations"; re-map  the numbers (or `UPDATE_DESIGN_SYSTEM_BASELINE=1`) and diff to confirm nothing but line numbers moved.
-- **Text over a creator's photo is the contrast case the token gate cannot see — the in-page overlay is.**
-  The skill's detection overlay (`impeccable live-server --background`, then inject
-  `http://localhost:PORT/detect.js` — mutation preflight first) measured `PublicItinerary`'s hero at
-  **2.6–3.1:1** against the *sampled cover pixels*, while the same text over the intended gradient is
-  ~9.3:1 and `tests/design-system.test.ts` stays green: `.pub-hero-bg`'s two scrims are anchored at the
-  **bottom** (50% 118%), so nothing darkens the kicker/title/byline. Any text whose backdrop is an upload
-  needs a flat scrim plus its own pin. Triage the output before believing it, though — that page's 61
-  findings held 21 `nested-cards` for **4** real ones (measured, depth 1), 4 `line-length` that prose
-  measurements did not reproduce, an `all-caps-body` attributable only to the overlay's own legend, and
-  ~18 that are this repo's deliberate system (`kicker-above-heading`, the clipped hero, the cream canvas,
-  brand teal read as "neon cyan"). `live-server stop` prints a harmless `config_missing` warning when you
-  injected `detect.js` by hand — `index.html` stays byte-clean (verify with `git diff`).
+- **The overlay measures an element's DECLARED background, not the composite — flatten before believing a
+  contrast finding on a layered surface.** Its report of `PublicItinerary`'s hero at 2.6–3.1:1 was against
+  `.pub-hero`'s own gradient end stop (`#b97a3f` at 118%), not the pixels behind the kicker/title/byline:
+  the numbers were **bit-identical** after adding a scrim to the child `.pub-hero-bg` layer, and vanished
+  only when `.pub-hero`'s own background was replaced. Discriminate with that test (flatten the element,
+  re-inject, compare) before acting — a child/sibling layer is invisible to the rule. The *risk* it pointed
+  at was real and now bounded: `.pub-hero-photo` is a creator upload at `opacity: .42` with nothing
+  guaranteeing a floor, so a bright cover could pull the hero text toward ~3:1; the flat scrim added over
+  the text zone plus `tests/hero-contrast.test.ts` (which composites the scrim over a **white** photo — the
+  conservative worst case) close it. Triage the output generally: that page's 61 findings held 21
+  `nested-cards` for **4** real ones (measured, depth 1), 4 `line-length` that prose measurements did not
+  reproduce, `all-caps-body` on `.pub-hero-byline` (a deliberate uppercase byline), and ~18 that are this
+  repo's deliberate system — now listed in `.impeccable/critique/ignore.md`. Setup: mutation preflight,
+  `impeccable live-server --background`, inject `http://localhost:PORT/detect.js`, `live-server stop`
+  (its `config_missing` warning is expected when you injected by hand) — `index.html` stays byte-clean.
 - **A derived input that algebraically cancels is a constant in disguise.** Road personality's "per-window speed" was `windowKm / (driveMinutes × windowKm / totalKm / 60)` — the `windowKm` cancels, leaving the day's average painted on every window, and the tests then codified the wrong semantics. When a derived value cancels to something coarser than its name implies, stop and either compute the real signal (per-leg durations from OSRM) or move the verdict to the level it actually measures (day-average → explicit day-level check, as now done for the city-crawl kind).
 
 - **Never subtract one engine's route total from another engine's internal legs.** Google's Search-Along-Route `routingSummaries` route start→place→end independently of the polyline, so `(leg0 + leg1) − <route total measured by anything else>` inflates by the two engines' route-variant difference: **+47 km on a 1,400 km corridor** (a highway petrol pump read "50 km off", torching the detour budget and holding back See & do) but only ~1–3 km — plausible-looking — on the short corridors used in earlier testing, which is how it hid for weeks. `routesEnabled()` only checks that a key string exists, so an un-enabled Routes API (HTTP 404) silently fell back to OSRM totals while the summaries stayed Google-baselined. SAR detours are now the geometric spur against the same polyline the search ran on (`spurKm`, google.ts); leg0 remains the road position. The invariant to pin in any future detour source: **a place on the drawn road must read ≈0**, and it must hold on a 1,000+ km corridor, not a 50 km fixture. (#187)

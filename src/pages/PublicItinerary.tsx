@@ -12,6 +12,7 @@ import { openExternal } from '../lib/native'
 import type { Trip, PublishedItinerary } from '../data/types'
 import { useDb, currentUser, tripById, userById, registerPubView, fetchSharedTrip } from '../store/store'
 import { forkPublication } from '../lib/forkPub'
+import { describePreviewSplit } from '../lib/previewSplit'
 import { simulateDay, originOf, minutesToHM, formatInr, getAssumptions, computeTotals, isRoundTrip } from '../lib/engine'
 import { cap, titleCase } from '../lib/labels'
 import { useTimeFormat, formatHM, formatHMRange } from '../lib/timefmt'
@@ -133,6 +134,11 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
   // Undefined when the creator published the itinerary as entirely free —
   // the Unlock buttons below are hidden rather than inventing a ₹199 fallback.
   const price = pub.premiumPriceInr
+  // Which days this publication withholds comes from its own freeDayIndexes —
+  // never from an assumed tail. A live Spiti row (₹500) locks days 5–8 and
+  // leaves 9–10 free, so "the later days stay preview-only" was false there.
+  // Undefined when nothing is withheld: the price shows without a claim.
+  const previewSplit = describePreviewSplit(pub.freeDayIndexes, trip.days.length)
   const savedFlag = isSaved(pub.id)
 
   function copyThis() {
@@ -403,7 +409,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
               {price !== undefined && (
                 <p className="hint-text" style={{ textAlign: 'center', marginTop: 10 }}>
                   <Lock size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />
-                  Full plan · {formatInr(price)} — paid unlock is not live yet, so the later days stay preview-only.
+                  Full plan · {formatInr(price)} — paid unlock is not live yet{previewSplit ? `, so ${previewSplit.claim}` : ''}.
                 </p>
               )}
               {pub.subscriberCta && <p className="hint-text" style={{ textAlign: 'center', marginTop: 8 }}>{pub.subscriberCta}</p>}

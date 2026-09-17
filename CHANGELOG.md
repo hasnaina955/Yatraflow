@@ -13,9 +13,9 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 > record still exists in `git log`, not here. Archived release notes live in
 > [`docs/history/`](docs/history/).
 
-## [Unreleased]
+## [0.59.0] - 2026-09-17
 
-### Added
+**The map measures a corridor in one go instead of making you wait for every leg.** Copied public itinerary addresses also keep their trip-specific previews, with navigation that works in any tab.
 
 ### Changed
 - **The map's road lines draw as one road-measurement per corridor, not one request per leg.** `routePath` used to fire N−1 sequential OSRM round-trips per chain — a 20-stop trip paid 19 serial fetches against the shared rate-limited demo server, so the map showed straight chords for tens of seconds (or permanently, once the rate limiter answered) before the real road arrived. A whole corridor is now ONE chain request (chunked past 25 waypoints), measured legs are cached for the tab session, and cancelled measurements actually stop fetching instead of burning rate-limit budget in the background.

@@ -1,11 +1,13 @@
 // ============ Trip workspace — Share tab ============
 // Mechanical extraction from src/pages/TripWorkspace.tsx (M3.4) — no behavior changes.
 // Includes SnapshotCard — ShareTab is its only consumer.
-import React, { useEffect, useRef, useState } from 'react'
-import { CalendarDays, Download, Link2, Lock, Upload } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { CalendarDays, Download, Link2, Lock } from 'lucide-react'
 import type { Trip, PublishedItinerary } from '../../data/types'
-import { useDb, userById, setMemberRole, removeMember, restoreMember, publishItinerary, unpublishItinerary, duplicateTrip, ensureInviteCode } from '../../store/store'
+import { useDb, userById, setMemberRole, removeMember, restoreMember, publishItinerary, unpublishItinerary, ensureInviteCode } from '../../store/store'
 import { encodeTripSnapshot, snapshotUrl, downloadTripJson } from '../../lib/snapshot'
+import { ImportTripButton } from '../../components/ImportTripButton'
+import { currentPublicShareUrl } from '../../lib/shareUrl'
 import { downloadTripIcs } from '../../lib/ics'
 import { nativeCopyText } from '../../lib/native'
 import { useTablist } from '../../hooks/useTablist'
@@ -23,7 +25,6 @@ function SnapshotCard({ trip, me, onNavigate, legCorrections }: {
   legCorrections?: Record<string, LegEstimate>
 }) {
   const [link, setLink] = useState('')
-  const fileRef = useRef<HTMLInputElement>(null)
 
   async function makeLink() {
     const payload = await encodeTripSnapshot(trip)
@@ -31,21 +32,6 @@ function SnapshotCard({ trip, me, onNavigate, legCorrections }: {
     setLink(url)
     void nativeCopyText(url)
     toast('Snapshot link copied — anyone can open it, no account needed')
-  }
-
-  async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file) return
-    try {
-      const imported = JSON.parse(await file.text()) as Trip
-      if (!imported || !Array.isArray(imported.days)) throw new Error('bad shape')
-      duplicateTrip(imported, me!.id)
-      toast(`Imported “${imported.name}” into your trips`)
-      onNavigate('/trips')
-    } catch {
-      toast('That file is not a valid YatraFlow trip export', 'err')
-    }
-    e.target.value = ''
   }
 
   return (
@@ -56,12 +42,11 @@ function SnapshotCard({ trip, me, onNavigate, legCorrections }: {
         Take the whole plan anywhere — no server stores it. Snapshot links embed the trip in the URL itself.
       </p>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  <button className="btn btn-outline btn-sm" onClick={() => fileRef.current?.click()}><Upload size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Import JSON</button>
+                  <ImportTripButton ownerId={me.id} onNavigate={onNavigate} className="btn btn-outline btn-sm" />
                   <button className="btn btn-outline btn-sm" onClick={() => downloadTripJson(trip)}><Download size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Download JSON</button>
                   <PrintExport trip={trip} legCorrections={legCorrections} />
                   <button className="btn btn-outline btn-sm" onClick={() => downloadTripIcs(trip, legCorrections)} title="One calendar event per day plus timed events for fixed commitments — imports into Google/Apple/Outlook calendars"><CalendarDays size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Add to calendar</button>
                   <button className="btn btn-saffron btn-sm" onClick={makeLink}><Link2 size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Create snapshot link</button>
-        <input ref={fileRef} type="file" accept="application/json,.json" hidden onChange={onFile} />
       </div>
       {link && (
         <div className="share-link-box" style={{ marginTop: 10 }}>
@@ -231,10 +216,10 @@ export function ShareTab({ trip, me, editable, onNavigate, legCorrections }: {
     return () => { alive = false }
   }, [trip.id, inviteCode])
   const inviteLink = inviteCode
-    ? `${location.origin}${location.pathname}#/join/${inviteCode}`
-    : `${location.origin}${location.pathname}#/invite/${trip.id}`
+    ? `${location.origin}/#/join/${inviteCode}`
+    : `${location.origin}/#/invite/${trip.id}`
   const pub = db.published.find(p => p.tripId === trip.id)
-  const pubLink = pub ? `${location.origin}${location.pathname}#/pub/${pub.id}` : ''
+  const pubLink = pub ? currentPublicShareUrl(pub.id) : ''
   const isOwner = (trip.members ?? []).some(m => m.userId === me.id && m.role === 'owner')
   const [tab, setTab] = useState<ShareTabId>('plan')
   const [pendingRemove, setPendingRemove] = useState<NonNullable<Trip['members']>[number] | null>(null)

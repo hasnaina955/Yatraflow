@@ -1,7 +1,8 @@
 # YatraFlow — Launch plan: from built to shared
 
 **Date:** 2026-09-15 · **Product:** `v0.54.0` · **Method:** live deployment loaded in a real
-browser (Chrome via playwright), plus `src/` read directly. Screenshots:/n`screenshots/landing-live-2026-09-15.png` and `screenshots/explore-live-2026-09-15.png`.
+browser (Chrome via playwright), plus `src/` read directly. Screenshots:
+`landing-live-2026-09-15.png` and `explore-live-2026-09-15.png` (same folder).
 
 ---
 
@@ -191,7 +192,7 @@ distribution fixes it, and the honest move is to stop distributing.
 - **Don't launch on Product Hunt into an empty gallery.**
 - **Don't fix the "seed guard".** It is already implemented — `tripCountUnknown` at
   `store.ts:630`, issue `#94`. My earlier report called it an open blocker; that came from the
-  roadmap's prose, and the code disproves it. Corrected in `YatraFlow-Report-v3.md` §2.5.
+  roadmap's prose, and the code disproves it. Corrected in `REPORT-2026-09-15-strategy-and-position.md` (same folder) §2.5.
 - **Don't chase the marketplace.** It is Stage 4 and it needs field operations.
 
 ---

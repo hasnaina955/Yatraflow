@@ -8,6 +8,7 @@ import { cap } from '../lib/labels'
 import { Avatar, Chip, EmptyState, toast, undoToast, ConfirmDialog } from '../components/ui'
 import { Select } from '../components/Select'
 import { CoverThumb } from '../components/CoverThumb'
+import { ImportTripButton } from '../components/ImportTripButton'
 import type { Trip, User } from '../data/types'
 import { TRAVEL_STYLES } from '../data/types'
 
@@ -108,6 +109,7 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
         </div>
         <div className="trips-head-actions">
           <button className={`btn btn-outline${view === 'trash' ? ' on-teal' : ''}`} aria-pressed={view === 'trash'} onClick={() => setView(v => v === 'trash' ? 'trips' : 'trash')}><Trash2 size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 5 }} />Trash</button>
+          <ImportTripButton ownerId={meId} onNavigate={onNavigate} />
           <button className="btn btn-outline" onClick={addDemoTrips} title="Adds 3 sample trips — Kerala, Goa & Rajasthan — to your account"><Rocket size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 5 }} /><span>Load demo trips</span></button>
           <button className="btn btn-primary" onClick={() => onNavigate('/new')}><Plus size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Plan a new trip</button>
         </div>

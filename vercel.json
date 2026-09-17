@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/i/:id",
+      "destination": "/api/i?id=:id"
+    },
+    {
       "source": "/mappls/:path*",
       "destination": "https://search.mappls.com/:path*"
     }

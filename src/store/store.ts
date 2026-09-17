@@ -1100,11 +1100,16 @@ const LOCKED_STOP_DESCRIPTION = 'Locked — the full plan is on the original iti
  *  entry/transport costs and open/close times are zeroed, and the stop is
  *  marked confirmed. Expenses tagged with a locked `dayIndex` and fixed
  *  commitments on locked days are dropped (trip-level expenses stay). */
-function buildTripCopy(source: Trip, ownerId: ID, opts: { makePublic?: boolean; freeDayIndexes?: number[] }): Trip {
+function buildTripCopy(source: Trip, ownerId: ID, opts: { makePublic?: boolean; freeDayIndexes?: number[]; keepName?: boolean }): Trip {
   const free = opts.freeDayIndexes ? new Set(opts.freeDayIndexes) : null
   const copy: Trip = structuredClone(source)
   copy.id = uuid()
-  copy.name = source.name.includes('(copy)') ? source.name : `${source.name} (copy)`
+  // A copy is labelled as one. An *import* is not — the plan is the user's own
+  // arrival, not a duplicate of something they already have, and a name that
+  // reads "X (copy)" is how the public gallery grew a `(copy)` row.
+  copy.name = opts.keepName || source.name.includes('(copy)')
+    ? source.name
+    : `${source.name} (copy)`
   copy.visibility = opts.makePublic ? 'public' : 'private'
   copy.createdAt = Date.now(); copy.updatedAt = Date.now()
   copy.inviteCode = undefined
@@ -1160,6 +1165,17 @@ function retractTripCopy(copy: Trip): void {
  *  so callers that must know the outcome use `duplicateTripPersisted`. */
 export function duplicateTrip(source: Trip, ownerId: ID, makePublic?: boolean): Trip {
   const copy = buildTripCopy(source, ownerId, { makePublic })
+  admitTripCopy(copy)
+  void persistTrip(copy, ownerId)
+  return copy
+}
+
+/** Import a trip the user brought with them — a file export or a gallery
+ *  itinerary (`lib/tripImport.ts`). Identical to `duplicateTrip` except that it
+ *  keeps the plan's own name: nothing is being copied, so " (copy)" would be a
+ *  lie, and a published import would carry that lie into the gallery title. */
+export function importTrip(source: Trip, ownerId: ID): Trip {
+  const copy = buildTripCopy(source, ownerId, { keepName: true })
   admitTripCopy(copy)
   void persistTrip(copy, ownerId)
   return copy
@@ -1359,6 +1375,59 @@ export async function adminDeleteTrip(tripId: ID): Promise<boolean> {
     return false
   }
   toast('Trip deleted.')
+  void refreshAdminAudit()
+  return true
+}
+
+/** Delete a user outright (audited `admin_delete_user` RPC, Sep 2026).
+ *
+ *  What the database takes with it (FK cascades off auth.users → profiles):
+ *  every trip the user OWNS — plan, expenses, and the whole collab layer —
+ *  their memberships in other people's trips (those trips survive for the
+ *  remaining crew), their suggestions/decisions/activity rows, their
+ *  notifications, and — only when `force` is true, the RPC refuses otherwise —
+ *  their published Explore listings. The RPC is guarded (admin-only, refuses
+ *  self-deletion and last-admin deletion) and audit-logged BEFORE the delete.
+ *
+ *  The optimistic patch mirrors exactly that blast radius: the user row, the
+ *  owned trips with their children, the collab rows they authored ANYWHERE,
+ *  their notifications, and the publications (force only). Restored wholesale
+ *  on RPC error, same as adminDeleteTrip. */
+export async function adminDeleteUser(userId: ID, force = false): Promise<boolean> {
+  if (!requireAdmin()) return false
+  const prevUsers = cache.users
+  const prevTrips = cache.trips
+  const prevPubs = cache.published
+  const prevSug = cache.suggestions
+  const prevDec = cache.decisions
+  const prevAct = cache.activity
+  const prevNotif = cache.notifications
+  const ownedTripIds = new Set(prevTrips
+    .filter(t => (t.members ?? []).some(m => m.userId === userId && m.role === 'owner'))
+    .map(t => t.id))
+  const isOwnedTrip = (tripId: ID) => ownedTripIds.has(tripId)
+  patch({
+    users: prevUsers.filter(u => u.id !== userId),
+    trips: prevTrips.filter(t => !isOwnedTrip(t.id) && !(t.members ?? []).some(m => m.userId === userId)),
+    published: prevPubs.filter(p => p.creatorId !== userId && !isOwnedTrip(p.tripId)),
+    suggestions: prevSug.filter(s => s.proposedBy !== userId && !isOwnedTrip(s.tripId)),
+    decisions: prevDec.filter(d => d.raisedBy !== userId && !isOwnedTrip(d.tripId)),
+    activity: prevAct.filter(a => a.actorId !== userId && !isOwnedTrip(a.tripId)),
+    notifications: prevNotif.filter(n => n.userId !== userId && !(n.tripId && isOwnedTrip(n.tripId))),
+  })
+  commit()
+  const { error } = await supabase.rpc('admin_delete_user', { p_user_id: userId, p_force: force })
+  if (error) {
+    console.error('[yatraflow] admin_delete_user failed', error)
+    patch({
+      users: prevUsers, trips: prevTrips, published: prevPubs,
+      suggestions: prevSug, decisions: prevDec, activity: prevAct, notifications: prevNotif,
+    })
+    commit()
+    toast(rpcErrorMessage(error), 'err')
+    return false
+  }
+  toast('User deleted — their data is gone (see the audit log).')
   void refreshAdminAudit()
   return true
 }

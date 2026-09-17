@@ -17,6 +17,8 @@ import { cap, titleCase } from '../lib/labels'
 import { useTimeFormat, formatHM, formatHMRange } from '../lib/timefmt'
 import { stopKindOf, STOP_KIND_LABELS } from '../lib/stopKind'
 import { useSavedPubs } from '../lib/savedPubs'
+import { currentPublicShareUrl } from '../lib/shareUrl'
+import { pageTitle } from '../lib/pageTitle'
 import { useDestinationCover } from '../hooks/useDestinationCover'
 import { Avatar, Chip, EmptyState, toast, CopyButton, RouteSnapshot } from '../components/ui'
 
@@ -38,6 +40,12 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
   useEffect(() => {
     if (pub) registerPubView(pub.id)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  // This page owns the publication record, so it is the only place that can put
+  // the itinerary's own name in the tab. App titles every other route; for
+  // `/pub/…` it can only say "Itinerary" without subscribing to this table.
+  useEffect(() => {
+    document.title = pageTitle(['pub'], pub?.title)
+  }, [pub?.title])
   useEffect(() => {
     if (!pub || cachedTrip || fetched || miss) return
     let alive = true
@@ -113,7 +121,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
   const highlightsN = highlights
 
   const creator = userById(pub.creatorId)
-  const shareLink = `${location.origin}${location.pathname}#/pub/${pub.id}`
+  const shareLink = currentPublicShareUrl(pub.id)
   // Undefined when the creator published the itinerary as entirely free —
   // the Unlock buttons below are hidden rather than inventing a ₹199 fallback.
   const price = pub.premiumPriceInr

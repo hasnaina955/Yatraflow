@@ -235,7 +235,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
                 {highlightsN.map(h => (
                   <div key={h.day.id} className="day-highlight-card">
                     <div className="day-highlight-top">
-                      <span className="editorial-kicker">Day {String(h.day.index + 1).padStart(2, '0')} · {STOP_KIND_LABELS[h.kind].toUpperCase()}</span>
+                      <span className="editorial-kicker">Day {String(h.day.index + 1).padStart(2, '0')} · {STOP_KIND_LABELS[h.kind]}</span>
                       <span className={`stop-kind-tag kind-${h.kind}`}>{STOP_KIND_LABELS[h.kind]}</span>
                     </div>
                     <b className="day-highlight-title">{h.day.title ?? `Day ${h.day.index + 1}`}</b>
@@ -378,7 +378,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
             })}
 
             {/* ---- Tips & warnings ---- */}
-            <div className="two-col" style={{ marginTop: 16 }}>
+            <div className="two-col two-col--even" style={{ marginTop: 16 }}>
               <div className="card">
                 <h2>Travel tips</h2>
                 <hr className="divider" />

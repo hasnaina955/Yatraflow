@@ -115,3 +115,80 @@ describe('the public page names no cause it cannot know', () => {
     expect(page).toMatch(/we can’t tell which from here/)
   })
 })
+
+// ============ Card-grid geometry and one-recipe type (2026-09-17) ============
+// Three layout defects on the two public surfaces, each invisible to tsc, the
+// tests and the build because nothing renders them in CI:
+//   • `.card + .card { margin-top: 14px }` also matched GRID items, so every card
+//     after the first rendered 14px lower and 14px shorter than its row-mate
+//     (measured live: tops 839/853, heights 477/463, and a 26px gap where the
+//     grid declared 12);
+//   • the public itinerary's Travel-tips / Warnings row was a `.two-col` nested
+//     inside the 782px content column, so its two peer cards came out 424/340
+//     instead of equal halves;
+//   • `.trip-enter`'s `cardIn` ran with `fill-mode: both`, which pinned
+//     `transform: none` over `.itin-card:hover`'s lift forever — the shelf's
+//     hover answered with a shadow change and no movement.
+describe('grid cards are laid out by the grid, not by the stacked-card beat', () => {
+  const css = read('../src/styles.css')
+
+  it('zeroes the stacked-card margin inside the grid containers', () => {
+    const override = css.match(/\.explore-grid > \.card \+ \.card,[\s\S]*?margin-top: 0;/)?.[0] ?? ''
+    expect(override).toMatch(/\.explore-grid > \.card \+ \.card/)
+    expect(override).toMatch(/\.two-col > \.card \+ \.card/)
+  })
+
+  it('gives two peer cards equal halves instead of a phantom sidebar', () => {
+    expect(css).toMatch(/\.two-col--even \{ grid-template-columns: 1fr 1fr; \}/)
+    expect(read('../src/pages/PublicItinerary.tsx')).toMatch(/className="two-col two-col--even"/)
+    // …and the pair still collapses with every other two-col on a narrow screen.
+    expect(css).toMatch(/@media \(max-width: 980px\) \{ \.two-col, \.two-col--even \{/)
+  })
+
+  it('lets the entrance animation release the transform so hover can lift', () => {
+    const enter = css.match(/\.trip-enter \{ animation: cardIn[^}]*\}/)?.[0] ?? ''
+    expect(enter).toMatch(/backwards/)
+    expect(enter).not.toMatch(/\bboth\b/)
+  })
+})
+
+describe('the published hero keeps its evidence card inside itself', () => {
+  const css = read('../src/styles.css')
+
+  it('never hangs the floating card into an overflow:hidden clip', () => {
+    const hero = css.match(/\.pub-hero \{[\s\S]*?\}/)?.[0] ?? ''
+    const stats = css.match(/\.pub-hero-stats \{[\s\S]*?\}/)?.[0] ?? ''
+    // The hero clips its children, so a negative `bottom` is silently deleted —
+    // which is how "28h 09m on the road" and "10 days" stopped being painted.
+    expect(hero).toMatch(/overflow: hidden/)
+    const bottom = Number(stats.match(/bottom: (-?\d+)px/)?.[1])
+    expect(Number.isFinite(bottom)).toBe(true)
+    expect(bottom).toBeGreaterThanOrEqual(0)
+  })
+
+  it('keeps the hero text off the card column at mid widths', () => {
+    // Each cap must NARROW its element's own measure, never replace it: a bare
+    // `min(100%, …)` handed the title 816px at a 1200px viewport.
+    expect(css).toMatch(/@media \(max-width: 1279px\) \{[\s\S]*?\.pub-hero-title \{ max-width: min\(720px, calc\(100% - 324px\)\); \}/)
+    expect(css).toMatch(/@media \(max-width: 1279px\) \{[\s\S]*?\.pub-hero-story \{ max-width: min\(640px, calc\(100% - 324px\)\); \}/)
+    expect(css).toMatch(/@media \(max-width: 1279px\) \{[\s\S]*?\.pub-hero-byline \{ max-width: calc\(100% - 324px\); \}/)
+  })
+})
+
+describe('one kicker recipe, and no capitals typed in components', () => {
+  const css = read('../src/styles.css')
+
+  it('routes both hero micro-labels through the single recipe', () => {
+    const recipe = css.match(/Kicker unification: one recipe[\s\S]*?text-transform: uppercase;/)?.[0] ?? ''
+    expect(recipe).toMatch(/\.pub-hero-badge/)
+    expect(recipe).toMatch(/\.pub-hero-byline/)
+  })
+
+  it('does not shout in JSX what CSS already uppercases', () => {
+    // DESIGN_TOKENS: "Never type capitals in components." The day-highlight
+    // kicker uppercases its kind while the tag chip beside it prints the same
+    // label — the transform is the kicker block's job, not the call site's.
+    const page = read('../src/pages/PublicItinerary.tsx')
+    expect(page).not.toMatch(/toUpperCase\(\)/)
+  })
+})

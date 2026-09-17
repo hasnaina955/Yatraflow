@@ -696,6 +696,44 @@ push run rather than replacing it.)
 - **Vendored ripgrep can be missing in the desktop environment — `code_search` fails with ENOENT (`rg.exe` not found).** Don't retry it; fall back to `grep -n` / `awk` in the shell, which answer the same question.
 - **Release tags are not automatic — they were skipped after v0.44.0.** `git tag` stopped at v0.44.0 while `package.json` climbed to 0.47.0 and nothing in the gate reads tags, so nobody noticed. Verify tag state with `git tag --sort=-creatordate | head` when a release claims to be tagged; backfilling needs an explicit tag push to the remote.
 
+- **`.card + .card { margin-top: 14px }` also matches GRID items — every new grid of `.card`s shoes it the same way.**
+  A grid already spaces its items with `gap`, so the stacked-card beat double-applied: in a row of peers every card
+  after the first rendered 14px lower *and* 14px shorter (live measure: tops 839/853, heights 477/463, and 26px of
+  space where the grid declared 12). It is invisible to tsc, to every test and to the build because nothing renders
+  these pages in CI, and it reads as "the cards look oddly placed" rather than as a spacing bug. `.explore-grid > .card
+  + .card` and `.two-col > .card + .card` zero it; **when you add a grid whose children are `.card`s, add it to that
+  selector list** (Explore, CreatorPage, TripsList and the public page's Travel-tips/Warnings row are covered).
+  Related: a two-column grid nested inside a content column keeps the `1fr 340px` sidebar width it doesn't have —
+  peer content in a row wants `.two-col--even` (1fr/1fr), not the sidebar shape. This pair is pinned by
+  `tests/public-surface-guardrails.test.ts`.
+
+- **`animation-fill-mode: both` outranks a `:hover` declaration, so an entrance animation silently kills hover motion.**
+  `.trip-enter` animated `transform: none` as its last keyframe with `both`, which retained that value forever and beat
+  `.itin-card:hover { translateY(-2px) }` — a shelf card answered the pointer with a shadow change and no movement while
+  the *same component* on a creator page (no `enterIndex`, so never animated) lifted. Use `backwards` when the
+  animation's end state equals the element's own resting state; it applies the `from` state during the stagger delay
+  exactly as `both` did, then releases the property. Debugging tell: compare the same component on a surface that
+  animates it against one that doesn't.
+
+- **A grid or flex item's automatic minimum size is its MIN-CONTENT, so one unbreakable run sets the width of the
+  whole document.** The published page's sticky sidebar held a nowrap share URL in a flex row: that gave the column a
+  **451px floor inside a 362px column**, scrolling the document 75px sideways at a 390px viewport — and the
+  `overflow: hidden` + `text-overflow: ellipsis` the rule already declared could never fire, because the item refused
+  to shrink below its min-content. `min-width: 0` on the grid children (`.two-col > *`) and on the flex item fixes it.
+  Two corollaries: the fix belongs at the *container* level (setting it on the inner `<code>` alone changed nothing —
+  the column's floor is what overflows), and **diagnose it with `document.documentElement.scrollWidth - clientWidth`
+  plus a `getBoundingClientRect().right > viewport` sweep**, not by eye — the widest offender here was an 8px-wide
+  visible element sitting inside an invisible 451px floor.
+
+- **A container's `overflow: hidden` deletes absolutely-positioned children that "hang" past its edge — and the
+  geometry reads as fine until you hit-test.** `.pub-hero-stats` was positioned at `bottom: -66px` over a hero with
+  `overflow: hidden`: its box measured 507→720 against a clip at 654, so the bottom two of its four evidence rows
+  were never painted and `elementFromPoint` at their centres returned the Save/Fork buttons *underneath*. Two tells:
+  a `getBoundingClientRect()` box that exceeds its nearest clipping ancestor, and rows whose hit-test result is a
+  sibling surface. Check for a negative offset over a clipping ancestor whenever a floating card sits on a fold —
+  and if the design intends the straddle, the reserve/clearance must move with it (here the card was brought inside
+  instead: `bottom: 16px` with the hero's bottom padding grown to match, so nothing moves on screen except the clip).
+
 - **Wikimedia serves only the thumbnail widths it has generated — a composed width answers 400.** Auto covers read the REST summary's `originalimage`/`thumbnail`, which is either the *unscaled* upload or a 3840px thumb (1.3–3.3 MB measured across real destinations), so the obvious fix — build `…/thumb/<h>/<hh>/<File>/1200px-<File>` — 400s on **both** `upload.` and `thumb.wikimedia.org`, and so does substituting the width into a URL the API itself returned. The supported route is `Special:Redirect/file/<File>?width=N`, which 301s to the nearest size that exists (1200 → 1280) and measured 144 KB where the original was 1304 KB. Two corollaries when matching these paths: strip the `?utm_*` query the API appends (it is captured as part of the file name otherwise and produces a nonsense URL), and take the file name **exactly as it arrives** — it is already percent-encoded, so decoding then re-encoding double-escapes `Telkupi%2C_Purulia.jpg`. `lib/tripThumb.ts` `COVER_WIDTH` is the single lever if a future cover exceeds the 600 KB preview ceiling.
 
 ## 5. External services

@@ -161,11 +161,11 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
         </div>
       </section>
 
-      <div className="container" style={{ paddingTop: 20 }}>
+      <div className="container" style={{ paddingTop: 22 }}>
         {/* "Fork" is the product's own word for copying a plan into your trips and
             the cards never explain it, so it is said once, here, before anyone
             meets the button that carries the name. */}
-        <p className="small muted" style={{ margin: '0 0 10px' }}>
+        <p className="small muted" style={{ margin: '0 0 12px' }}>
           Fork any itinerary to copy it into your own trips — then change whatever you like.
           {/* Signed out, that button navigates to /auth — say so before the click,
               not in a toast that the redirect swallows. */}
@@ -189,7 +189,7 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
         </div>
 
         {/* ---- Compact filter bar: budget / duration / sort ---- */}
-        <div className="card glass-soft" style={{ marginBottom: 20 }}>
+        <div className="card glass-soft" style={{ marginBottom: 22 }}>
           <div className="explore-filters">
             <Select value={duration} onChange={v => { setDuration(v as never); syncUrl({ dur: v }) }} aria-label="Duration"
               options={[
@@ -288,7 +288,7 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
               </div>
             )}
             {gridPubs.length > visibleCount && (
-              <div style={{ display: 'flex', justifyContent: 'center', padding: '16px 0 34px' }}>
+              <div style={{ display: 'flex', justifyContent: 'center', padding: '16px 0 22px' }}>
                 <button className="btn btn-outline" onClick={() => setVisibleCount(c => c + PAGE_SIZE)}
                   aria-label={`Load more itineraries — ${gridPubs.length - visibleCount} remaining`}>
                   Load more · {gridPubs.length - visibleCount} more

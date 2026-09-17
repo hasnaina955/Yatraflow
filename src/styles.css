@@ -611,6 +611,14 @@ a.btn { text-decoration: none; }
   padding: 20px;
 }
 .card + .card { margin-top: 14px; }
+/* …except inside a grid, which already spaces its own items with `gap`. The
+   stacked-card beat double-applied there: the 14px margin pushed every card
+   after the first DOWN 14px and shrank it by the same amount, so a row of peers
+   rendered with ragged tops, unequal heights and a 26px gap where the grid said
+   12 (Explore shelf, creator page, My Trips, and the public itinerary's
+   Travel-tips / Warnings row). */
+.explore-grid > .card + .card,
+.two-col > .card + .card { margin-top: 0; }
 /* Explicit card spacing where the sibling selector can't express the intent
    (Profile stacks its cards with a wider 16px beat — was inline style). */
 .stack-gap { margin-top: 16px; }
@@ -1691,14 +1699,14 @@ button.board-col-zone--add:active { transform: translateY(1px); }
 .itin-cover { position: relative; aspect-ratio: 16/9; background: linear-gradient(135deg, var(--teal-deep), var(--text)); overflow: hidden; }
 .itin-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .itin-cover-route {
-  position: absolute; left: 12px; bottom: 10px; right: 12px; z-index: var(--z-content);
+  position: absolute; left: 12px; bottom: 12px; right: 12px; z-index: var(--z-content);
   color: rgba(255,255,255,.95); font-size: 12.5px; font-weight: 700;
   text-shadow: 0 1px 4px rgba(var(--shadow-navy-rgb),.5); white-space: nowrap;
   overflow: hidden; text-overflow: ellipsis;
 }
 .itin-cover-fallback { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 44px; opacity: .9; }
-.itin-cover .chip { position: absolute; top: 11px; left: 11px; background: var(--yf-surface); color: var(--text); -webkit-backdrop-filter: blur(var(--yf-blur-chip)); backdrop-filter: blur(var(--yf-blur-chip)); }
-.itin-body { padding: 15px 17px 17px; display: flex; flex-direction: column; gap: 9px; flex: 1; }
+.itin-cover .chip { position: absolute; top: 12px; left: 12px; background: var(--yf-surface); color: var(--text); -webkit-backdrop-filter: blur(var(--yf-blur-chip)); backdrop-filter: blur(var(--yf-blur-chip)); }
+.itin-body { padding: 16px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
 /* Trip names can be long — cap at two lines so card grids stay aligned. */
 .itin-body .card-title {
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
@@ -1708,8 +1716,8 @@ button.board-col-zone--add:active { transform: translateY(1px); }
 .card-title { font-size: 16px; font-weight: 700; }
 .itin-meta { display: flex; flex-wrap: wrap; gap: 4px 13px; font-size: 12.5px; color: var(--text-3); font-weight: 600; }
 /* Explore card footer: full-width divider to the card edges, content inset to
-   align with .itin-body's 17px side padding (separate from itin-body above). */
-.itin-card > .itin-meta { position: relative; padding: 10px 17px 15px; margin-top: 4px; }
+   align with .itin-body's 16px side padding (separate from itin-body above). */
+.itin-card > .itin-meta { position: relative; padding: 12px 16px 16px; margin-top: 4px; }
 .itin-card > .itin-meta::before {
   content: ''; position: absolute; top: 0; left: 0; right: 0;
   border-top: 1px solid var(--line);
@@ -2083,7 +2091,11 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
 /* ---------- M7: public itinerary editorial hero (§6.11, editorial mockup) ---------- */
 .pub-hero {
   position: relative; color: #fff; overflow: hidden;
-  padding: 96px 0 132px; /* room for the floating practical-bit card */
+  /* Room for the practical-bit card, which sits fully INSIDE the hero
+     (`bottom: 16px`) rather than hanging past its edge: the hero's own
+     `overflow: hidden` was clipping a 66px hang away, so two of the four
+     evidence rows ("28h 09m on the road", "10 days") were never painted. */
+  padding: 96px 0 148px;
   background: linear-gradient(168deg, var(--yf-navy) 0%, #0d4b56 46%, #176e70 74%, #b97a3f 118%);
 }
 .pub-hero-bg {
@@ -2103,10 +2115,10 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
     repeating-radial-gradient(140% 90% at 78% 8%, transparent 0 38px, rgba(255, 255, 255, .05) 38px 39px);
 }
 .pub-hero-inner { position: relative; z-index: var(--z-content); }
-.pub-hero-back { color: #dff0ec; border-color: rgba(255,255,255,.25); margin-bottom: 14px; }
-.pub-hero-badge { text-transform: uppercase;
-  display: inline-block; font-size: 11px; font-weight: 800; letter-spacing: .1em;
-  background: #fff7e6; color: #8e5b21; border-radius: 999px; padding: 5px 12px; margin-bottom: 14px;
+.pub-hero-back { color: #dff0ec; border-color: rgba(255,255,255,.25); margin-bottom: 12px; }
+.pub-hero-badge {
+  display: inline-block;
+  background: #fff7e6; color: #8e5b21; border-radius: 999px; padding: 5px 12px; margin-bottom: 12px;
 }
 .pub-hero-kicker { font-size: 13px; font-weight: 700; letter-spacing: .04em; color: #a9eadc; margin: 0 0 8px; }
 .pub-hero-title {
@@ -2114,10 +2126,23 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
   line-height: 1.12; max-width: 720px; margin: 0;
 }
 .pub-hero-story { font-size: clamp(15px, 1.6vw, 18px); color: #e2f1ef; max-width: 640px; margin: 12px 0 0; line-height: 1.6; }
-.pub-hero-byline { font-size: 12.5px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: #cfe8e4; margin: 14px 0 0; }
+/* type specs come from the kicker unification block — colour/margin only here */
+.pub-hero-byline { color: #cfe8e4; margin: 12px 0 0; }
+/* Mid widths only: above 1280px the container is wide enough that the text
+   column and the evidence card's 300px + 24px gutter cannot meet, but between
+   721 and 1279 the title's 720px max-width ran into the card (the byline is
+   capped with it so a long creator name cannot either). */
+@media (max-width: 1279px) {
+  /* Each keeps its own measure and is only ever NARROWED — a plain
+     `min(100%, …)` here would hand the title 816px at a 1200px viewport, wider
+     than the 720px its own rule asks for. */
+  .pub-hero-title { max-width: min(720px, calc(100% - 324px)); }
+  .pub-hero-story { max-width: min(640px, calc(100% - 324px)); }
+  .pub-hero-byline { max-width: calc(100% - 324px); }
+}
 /* "The practical bit" — evidence card floating over the hero's right edge */
 .pub-hero-stats {
-  position: absolute; z-index: var(--z-raised); right: max(20px, calc((100% - 1180px) / 2 + 20px)); bottom: -66px;
+  position: absolute; z-index: var(--z-raised); right: max(20px, calc((100% - 1180px) / 2 + 20px)); bottom: 16px;
   width: 300px; border-radius: var(--radius-lg); padding: 15px 18px;
   background: rgba(255, 253, 245, .96); color: var(--text); box-shadow: var(--shadow-soft);
 }
@@ -2175,6 +2200,17 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
    under every heading, which stopped carrying information. */
 .card-head { margin-bottom: 14px; }
 .two-col { display: grid; grid-template-columns: 1fr 340px; gap: 18px; align-items: start; }
+/* A grid item's automatic minimum size is its MIN-CONTENT, so one unbreakable run
+   inside a column becomes that column's floor no matter how narrow the viewport
+   is: the published page's share URL (a nowrap flex item) gave its sidebar 451px
+   of min-content inside a 362px column, and the whole document scrolled sideways
+   by 75px on a phone. `min-width: 0` lets the column shrink to the viewport and
+   the ellipsis inside it finally do its job. */
+.two-col > * { min-width: 0; }
+/* Two PEER cards in a row are equal halves — the 340px sidebar column belongs
+   only to a two-col that actually has a sidebar. Nested inside a content
+   column, the sidebar width made the row 424/340 instead of 382/382. */
+.two-col--even { grid-template-columns: 1fr 1fr; }
 .trip-head-card {
   transition: padding var(--t-med) var(--ease-out);
   border-radius: var(--radius-lg); padding: 26px 28px; color: #fff;
@@ -2216,7 +2252,7 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
 }
 .role-select:hover { border-color: var(--teal); }
 .share-link-box { display: flex; gap: 8px; align-items: center; background: var(--bg-soft); border-radius: var(--radius-sm); padding: 9px 12px; font-size: 13px; overflow: hidden; }
-.share-link-box code { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; font-size: 12px; }
+.share-link-box code { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; font-size: 12px; }
 /* Invite code chip: the short "GOA-K7QF" code, styled like a boarding-pass
    stub — big, letter-spaced, with a copy button right next to it. */
 .invite-code-chip { display: inline-flex; gap: 10px; align-items: center; background: var(--bg-soft); border: 1px dashed var(--teal); border-radius: var(--radius-sm); padding: 8px 12px; }
@@ -2957,7 +2993,7 @@ body, .topnav, .glass, .board, .board-col, .modal, .toast {
 /* ---------- M7: editorial paper sheet + actions (public itinerary) ---------- */
 .pub-body { padding-top: 0; position: relative; }
 .paper-sheet {
-  border-radius: 30px; margin-top: 0; padding: 18px 24px 26px; position: relative;
+  border-radius: var(--radius-lg); margin-top: 0; padding: 20px 24px 24px; position: relative;
   background: linear-gradient(180deg, var(--yf-surface), color-mix(in srgb, var(--yf-cream) 70%, var(--yf-surface)));
   border: 1px solid var(--yf-glass-border); box-shadow: var(--shadow-soft);
 }
@@ -2999,7 +3035,7 @@ body, .topnav, .glass, .board, .board-col, .modal, .toast {
 .editorial-body { font-size: 15px; line-height: 1.75; color: var(--text-2); max-width: 560px; }
 .editorial-sub { font-size: 14px; font-weight: 800; color: var(--text); margin: 16px 0 8px; }
 .editorial-list { padding-left: 18px; margin: 0; color: var(--text-2); line-height: 1.85; font-size: 14px; }
-.route-glance { padding: 16px 18px; }
+.route-glance { padding: 16px; }
 .route-glance .route-glance-label { font-size: 11px; font-weight: 800; letter-spacing: .12em; color: #bbe0d9; }
 .route-glance-list { color: #d5e7e4; font-size: 12.5px; margin-top: 8px; line-height: 1.6; }
 .route-glance-meta { color: #9fc4bf; font-size: 12px; display: block; margin-top: 6px; }
@@ -3044,7 +3080,12 @@ html.vt-active :where(*) {
 }
 
 /* ---- My Trips staggered card entrance ---- */
-.trip-enter { animation: cardIn var(--t-slow) var(--ease-out) both; }
+/* `backwards`, not `both`: the entrance ends on the card's own resting state, so
+   retaining the keyframe's `to` was pinning `transform: none` over
+   `.itin-card:hover`'s -2px lift — a shelf card answered hover with a shadow
+   twitch and no movement, while the same component on a creator page (no
+   `enterIndex`, no entrance) lifted properly. */
+.trip-enter { animation: cardIn var(--t-slow) var(--ease-out) backwards; }
 @keyframes cardIn {
   from { opacity: 0; transform: translateY(14px) scale(.98); }
   to { opacity: 1; transform: none; }
@@ -3054,13 +3095,13 @@ html.vt-active :where(*) {
 }
 .day-highlight-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-top: 12px; }
 .day-highlight-card {
-  background: var(--card); border: 1px solid var(--yf-border); border-radius: var(--radius); padding: 14px 16px;
+  background: var(--card); border: 1px solid var(--yf-border); border-radius: var(--radius); padding: 16px;
   display: flex; flex-direction: column; gap: 6px;
 }
 .day-highlight-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .day-highlight-title { font-size: 17px; font-family: var(--font-display); color: var(--text); }
 .day-highlight-meta { font-size: 12.5px; color: var(--text-3); }
-.pub-footer-line { text-align: center; color: var(--text-3); font-size: 13px; padding: 26px 0 12px; }
+.pub-footer-line { text-align: center; color: var(--text-3); font-size: 13px; padding: 24px 0 12px; }
 
 /* ---------- M7: Explore editorial treatment (§6.10) ---------- */
 .explore-hero {
@@ -3102,7 +3143,7 @@ html.vt-active :where(*) {
 }
 .explore-hero-clear:hover { background: rgba(255, 255, 255, .3); }
 .explore-hero-clear:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(255, 255, 255, .5); }
-.explore-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+.explore-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
 /* No opacity: .65 composited the inherited ink to 2.5–3.2:1 (it's 11px text,
    needs 4.5). Full strength = the chip's own AA-checked colour, on every surface. */
 .chip-count { font-variant-numeric: tabular-nums; font-size: 11px; margin-left: 3px; }
@@ -3119,7 +3160,9 @@ html.vt-active :where(*) {
 }
 .featured-body { position: relative; z-index: var(--z-content); }
 .featured-kicker { color: #ffd79a; }
-.featured-body h2 { font-family: var(--font-display); font-size: clamp(22px, 2.6vw, 30px); margin: 6px 0 8px; }
+/* One section-title ramp with .editorial-title (the public page's equivalent) —
+   they were 2px apart at every width for no stated reason. */
+.featured-body h2 { font-family: var(--font-display); font-size: clamp(24px, 3vw, 32px); margin: 6px 0 8px; }
 .featured-title-link { color: #fff; text-decoration: none; }
 .featured-title-link:hover { text-decoration: underline; }
 .featured-tagline { color: #d5e7e4; margin: 0 0 8px; max-width: 640px; line-height: 1.6; }
@@ -3129,7 +3172,7 @@ html.vt-active :where(*) {
 
 /* save heart on grid cards */
 .save-heart {
-  position: absolute; top: 10px; right: 10px; z-index: var(--z-raised); cursor: pointer;
+  position: absolute; top: 12px; right: 12px; z-index: var(--z-raised); cursor: pointer;
   background: rgba(255, 255, 255, .9); color: #c25b4a; border: 1px solid rgba(194, 91, 74, .25);
   border-radius: 999px; width: 34px; height: 34px; font-size: 16px; line-height: 1;
 }
@@ -4020,7 +4063,7 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 
 /* ---- <=980px: tablet collapses ---- */
 @media (max-width: 980px) { .hero-split { grid-template-columns: 1fr; gap: 30px; } }
-@media (max-width: 980px) { .two-col { grid-template-columns: 1fr; } }
+@media (max-width: 980px) { .two-col, .two-col--even { grid-template-columns: 1fr; } }
 
 /* ---- <=900px ---- */
 @media (max-width: 900px) { .poi-split { grid-template-columns: 1fr; } }
@@ -4184,6 +4227,8 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
   .day-highlight-row { grid-template-columns: 1fr; }
   .explore-hero { padding: 36px 0 32px; }
   .featured-actions .btn { flex: 1; }
+  /* 34px sat under the 40px coarse-pointer floor; the cover has room for 40. */
+  .save-heart { width: 40px; height: 40px; }
   /* Mobile bill dock: leave breathing room so it never covers the fineprint */
   .plan-bench { padding-bottom: 92px; }
   .bench-dock { left: 10px; right: 10px; padding: 9px 12px; }
@@ -5126,6 +5171,7 @@ html.native-shell {
   .bench-eyebrow, .bench-scale-ends, .bench-receipt-kicker, .bench-total-label, .bench-badge,
   .ticker-item .t-tag, .board-stop-kicker, .tk-brand, .tk-kind, .creator-badge, .pub-ledger th, .route-tag, .group-lab, .mini-lab,
   .compare-table th, .toast-action, .editorial-kicker, .pub-stats-label,
+  .pub-hero-badge, .pub-hero-byline,
   .eyebrow, .cal-wd,
   .route-glance .route-glance-label, .stat-label, .app-home-section {
     font-size: var(--kicker-size);

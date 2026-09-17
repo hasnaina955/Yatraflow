@@ -149,6 +149,13 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
       </section>
 
       <div className="container" style={{ paddingTop: 20 }}>
+        {/* "Fork" is the product's own word for copying a plan into your trips and
+            the cards never explain it, so it is said once, here, before anyone
+            meets the button that carries the name. */}
+        <p className="small muted" style={{ margin: '0 0 10px' }}>
+          Fork any itinerary to copy it into your own trips — then change whatever you like.
+        </p>
+
         {/* ---- Travel-style chips (§6.10) — replaces the style dropdown ---- */}
         <div className="explore-chips" role="group" aria-label="Travel style">
           <button className={`chip clickable-chip ${style === 'all' ? 'on-teal' : ''}`}

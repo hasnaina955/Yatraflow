@@ -219,7 +219,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
           </div>
 
           {highlightsN.length > 0 && (
-            <div className="pub-highlightsN">
+            <div className="pub-highlights">
               <span className="editorial-kicker">Trip highlights</span>
               <h2 className="editorial-title">The rhythm of {pub.durationDays} days</h2>
               <div className="day-highlight-row">
@@ -358,8 +358,8 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
                         </div>
                         <div className="locked-cta">
                           <b><Lock size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />{stops.length} more stops on this day</b>
-                          <p className="small">Unlock the full day-by-day plan with stay contacts, timings and budget breakdown.</p>
-                          {price !== undefined && <button className="btn btn-saffron" onClick={() => toast('Premium unlock is a placeholder — no payments in this MVP.')}>Unlock Premium · {formatInr(price)}</button>}
+                          <p className="small">Stay contacts, timings and the budget breakdown are in the full plan — preview-only until paid unlock goes live.</p>
+                          {price !== undefined && <Chip tone="saffron">Full plan · {formatInr(price)}</Chip>}
                         </div>
                       </div>
                     </>
@@ -397,10 +397,12 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
               <button className="btn fork-btn btn-lg" style={{ width: '100%' }} onClick={copyThis}>
                 <GitFork size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 5 }} />Fork this trip
               </button>
-              {price !== undefined && <button className="btn btn-saffron btn-lg" style={{ width: '100%', marginTop: 10 }}
-                onClick={() => toast('Premium unlock is a placeholder — no payments in this MVP.')}>
-                <Lock size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 5 }} />Unlock Premium · {formatInr(price)}
-              </button>}
+              {price !== undefined && (
+                <p className="hint-text" style={{ textAlign: 'center', marginTop: 10 }}>
+                  <Lock size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />
+                  Full plan · {formatInr(price)} — paid unlock is not live yet, so the later days stay preview-only.
+                </p>
+              )}
               {pub.subscriberCta && <p className="hint-text" style={{ textAlign: 'center', marginTop: 8 }}>{pub.subscriberCta}</p>}
               <hr className="divider" />
               <div className="share-link-box"><code>{shareLink}</code><CopyButton text={shareLink} label="Copy page link" /></div>

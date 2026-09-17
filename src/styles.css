@@ -827,6 +827,17 @@ a.btn { text-decoration: none; }
 [data-theme='dark'] .explore-chips .clickable-chip.on-teal {
   background: var(--teal); border-color: var(--teal); color: #06251f;
 }
+/* Selected states paint through box-shadow — a glow here, and `box-shadow: none`
+   in the pill nav so the glider owns the fill. Both outrank the shared
+   `:focus-visible` ring on specificity, so a focused *selected* chip lost its
+   focus indicator entirely. Restate the ring wherever selection wins. */
+.pill-nav .clickable-chip.on-teal:focus-visible,
+.pill-nav .tab-btn.active:focus-visible,
+.pill-nav .nav-link.active:focus-visible,
+.explore-chips .clickable-chip.on-teal:focus-visible,
+[data-theme='dark'] .explore-chips .clickable-chip.on-teal:focus-visible {
+  outline: none; box-shadow: var(--ring);
+}
 /* Selected "Saved" chip — was white-on-saffron (1.97:1 both themes). Now the
    same soft-fill + deep-ink language as every other selected chip (5.08/5.56). */
 .explore-chips .clickable-chip.chip-saffron {
@@ -3361,7 +3372,10 @@ html.vt-active :where(*) {
 .yf-range:disabled { opacity: .55; cursor: not-allowed; }
 .bench-crew-btn:disabled:hover, .bench-mode-btn:disabled:hover { transform: none; }
 .bench-mode-btn:disabled:not(.on):hover { border-color: var(--line); }
-.yf-range:disabled:hover::-webkit-slider-thumb,
+/* Split by vendor deliberately: a selector list containing a pseudo-element the
+   engine does not recognise invalidates the WHOLE rule, so pairing the WebKit and
+   Firefox thumbs in one list made Chrome discard this fix outright. */
+.yf-range:disabled:hover::-webkit-slider-thumb { transform: none; }
 .yf-range:disabled:hover::-moz-range-thumb { transform: none; }
 /* Dark theme: teal-700 is the BRIGHT shade here (#1E9D92), so white ink on a
    saturated fill drops to 3.3:1. Use the near-black ink the pill-nav glider
@@ -4587,10 +4601,12 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 .ts-note { margin: 0; }
 
 /* sticky save bar — bottom-ui-offset aware (nav + gesture bar; viewport-fit=cover is on) */
-/* z: the form blocks that can spawn a floating surface (location dropdown,
-   calendar) sit on the nav-glass rung, so a raw 5 let an open popup paint over
-   the primary Save action. This bar is the form's last child, so sharing the
-   rung and winning on document order is the documented tie-break. */
+/* z: the calendar and location popups sit on the nav-glass rung, so a raw 5 let
+   an open popup paint over the primary Save action. This bar is the form's last
+   child, so sharing the rung and winning on document order is the tie-break the
+   ladder already documents. (It does not outrank the native bottom nav, which
+   also sits on 60 and comes later in the DOM — by design: this bar's own padding
+   reserves that space rather than competing with it.) */
 .ts-savebar {
   position: sticky; bottom: 0; z-index: var(--z-nav-glass);
   display: flex; justify-content: flex-end; align-items: center; gap: 10px;

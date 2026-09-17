@@ -177,10 +177,16 @@ export function ToastZone() {
   const [toasts, setToasts] = useState<ToastItem[]>([])
   // One timer per toast, not one per batch: a hold has to bank the elapsed time
   // and resume where it stopped. The undo toast is the ONLY way back from a
-  // destructive action, so it must not expire out from under the user
-  // (WCAG 2.2.1 Timing Adjustable).
+  // destructive action, so it must not expire out from under the user while they
+  // are reaching for it. (WCAG 2.2.1 Timing Adjustable asks for the limit to be
+  // adjustable or extendable; this covers holding it open, which is the common
+  // case — the remaining gap is recorded in the audit log rather than claimed.)
   const timers = useRef(new Map<number, { id: number; remaining: number; startedAt: number; handle: number }>())
   const held = useRef(false)
+  // Hover and focus are INDEPENDENT reasons to hold. Sharing one flag meant a
+  // pointer-out resumed a toast the keyboard was still reading, and a blur
+  // resumed one the pointer was still resting on.
+  const holding = useRef({ pointer: false, focus: false })
 
   useEffect(() => {
     const drop = (id: number) => {
@@ -208,19 +214,20 @@ export function ToastZone() {
     }
   }, [])
 
-  /** Bank the elapsed time and stop every clock. */
-  const holdTimers = () => {
-    if (held.current) return
-    held.current = true
-    for (const rec of timers.current.values()) {
-      clearTimeout(rec.handle)
-      rec.remaining -= Date.now() - rec.startedAt
+  /** Reconcile the hold against both reasons: bank the elapsed time on the way
+      in, re-arm each toast with what it had left (never under a beat) on the way
+      out. Only acts on an actual change, so a stray repeat event is a no-op. */
+  const syncHold = () => {
+    const should = holding.current.pointer || holding.current.focus
+    if (should === held.current) return
+    held.current = should
+    if (should) {
+      for (const rec of timers.current.values()) {
+        clearTimeout(rec.handle)
+        rec.remaining -= Date.now() - rec.startedAt
+      }
+      return
     }
-  }
-  /** Re-arm with what each toast had left, never less than a beat to read it. */
-  const releaseTimers = () => {
-    if (!held.current) return
-    held.current = false
     for (const rec of timers.current.values()) {
       rec.startedAt = Date.now()
       rec.handle = window.setTimeout(() => {
@@ -234,10 +241,17 @@ export function ToastZone() {
       className="toast-zone"
       role="status"
       aria-live="polite"
-      onMouseEnter={holdTimers}
-      onMouseLeave={releaseTimers}
-      onFocus={holdTimers}
-      onBlur={releaseTimers}
+      onMouseEnter={() => { holding.current.pointer = true; syncHold() }}
+      onMouseLeave={() => { holding.current.pointer = false; syncHold() }}
+      onFocus={() => { holding.current.focus = true; syncHold() }}
+      onBlur={e => {
+        // React's onBlur is focusout and bubbles, so moving focus between two
+        // toasts would otherwise release and re-take the hold for a frame.
+        const next = e.relatedTarget as Node | null
+        if (next && e.currentTarget.contains(next)) return
+        holding.current.focus = false
+        syncHold()
+      }}
     >
       {toasts.map(t => (
         <div key={t.id} className={`toast ${t.kind}`} role={t.kind === 'err' ? 'alert' : undefined}>

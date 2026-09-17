@@ -18,6 +18,7 @@ import { BottomNav } from './components/BottomNav'
 import { PillNav } from './components/PillNav'
 import { decodeTripSnapshot } from './lib/snapshot'
 import { scrollBehavior } from './lib/motion'
+import { pageTitle, routeParts } from './lib/pageTitle'
 import { App as CapApp } from '@capacitor/app'
 import { isNative } from './lib/native'
 import { feedbackHref } from './lib/feedback'
@@ -224,7 +225,19 @@ export default function App() {
   // route shapes: /, /auth, /trips, /new, /trip/:id, /explore, /pub/:slug, /creator/:id, /creator-hub, /join/:code, /invite/:tripId (legacy), /admin, /share/<payload>, /profile
   // Query strings (e.g. /auth?mode=signup) ride on parts[0]; strip them so the
   // segment still matches the switch. Pages read their own params from location.hash.
-  const parts = route.split('/').filter(Boolean).map(s => s.split('?')[0])
+  const parts = routeParts(route)
+
+  // One title per route. `index.html` carries a single static title, so every
+  // route shared it: four open tabs all read the same thing, and a bookmark of
+  // one itinerary was indistinguishable from a bookmark of the site. Routes
+  // whose name lives in the store (`/trip/…`, `/pub/…`, `/creator/…`) get a
+  // generic title here and are refined by the page that already holds the
+  // record — App deliberately slices its subscriptions, and reading the trips
+  // table just to label a tab would undo that.
+  useEffect(() => {
+    document.title = pageTitle(routeParts(route))
+  }, [route])
+
   let page: React.ReactNode
 
   // Before the first hydrate settles, every "empty" is a lie: a deep link to

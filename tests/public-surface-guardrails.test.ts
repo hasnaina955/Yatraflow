@@ -38,4 +38,26 @@ describe('the gallery explains its own vocabulary', () => {
     expect(gloss).toBeGreaterThan(-1)
     expect(gloss).toBeLessThan(explore.indexOf('<PubCard'))
   })
+
+  it('does not show the featured plan a second time as a grid card', () => {
+    const explore = read('../src/pages/Explore.tsx')
+    // The featured pick is derived from the unfiltered set, so without this the
+    // most-forked plan rendered twice on a three-item shelf.
+    expect(explore).toMatch(/pubs\.filter\(p => p\.id !== featured\.id\)/)
+    // The grid, its paging and its "Load more" count all read the deduped list…
+    expect(explore).not.toMatch(/pubs\.slice\(0, visibleCount\)/)
+    expect(explore).toMatch(/gridPubs\.slice\(0, visibleCount\)/)
+    expect(explore).toMatch(/gridPubs\.length > visibleCount/)
+    // …while the empty state stays keyed on the full match list: a lone match
+    // that IS the featured card must not read as "nothing matches".
+    expect(explore).toMatch(/\{pubs\.length === 0 \? \(/)
+  })
+
+  it('claims "outside your filters" only when the featured pick really is', () => {
+    const explore = read('../src/pages/Explore.tsx')
+    // It used to key off `filtersActive` alone, so a filtered page labelled the
+    // matching card itself as being outside the filters.
+    expect(explore).toMatch(/const featuredOutsideFilters = !!featured && !pubs\.some\(p => p\.id === featured\.id\)/)
+    expect(explore).toMatch(/Featured itinerary\{featuredOutsideFilters &&/)
+  })
 })

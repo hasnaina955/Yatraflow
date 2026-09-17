@@ -107,6 +107,19 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
   const featuredTrip = featured ? trips.find(t => t.id === featured.tripId) : undefined
   const featuredHealth = featuredTrip ? computeHealth(featuredTrip).score : undefined
 
+  // The grid must not re-offer the plan the featured card already leads with —
+  // on a three-item shelf the duplicate was a third of the page. Only ever a
+  // no-op when the featured pick is a card from OUTSIDE the active filters,
+  // which is the normal case once any filter is on.
+  const gridPubs = useMemo(
+    () => (featured ? pubs.filter(p => p.id !== featured.id) : pubs),
+    [pubs, featured],
+  )
+  // "outside your filters" is a claim, so only make it when it is true: with a
+  // filter on, the featured pick is often the matching card itself (it was
+  // labelled "outside your filters" while being the only adventure result).
+  const featuredOutsideFilters = !!featured && !pubs.some(p => p.id === featured.id)
+
   const styleCounts = useMemo(() => {
     const counts = new Map<string, number>()
     for (const p of published) counts.set(p.travelStyle, (counts.get(p.travelStyle) ?? 0) + 1)
@@ -212,7 +225,7 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
         {featured && (
           <div className="featured-card" key={featured.id}>
             <div className="featured-body">
-              <span className="editorial-kicker featured-kicker"><Star size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />Featured itinerary{filtersActive && <> · outside your filters</>}</span>
+              <span className="editorial-kicker featured-kicker"><Star size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />Featured itinerary{featuredOutsideFilters && <> · outside your filters</>}</span>
               <h2><a className="featured-title-link" href={`#/pub/${featured.id}`}>{featured.title}</a></h2>
               <p className="featured-tagline">{featured.tagline}</p>
               <p className="featured-credibility">
@@ -259,17 +272,22 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
           )
         ) : (
           <>
-            <div className="explore-grid">
-              {pubs.slice(0, visibleCount).map((p, i) => (
-                <PubCard key={p.id} pub={p} creator={userOf(users, p.creatorId)} saved={isSaved(p.id)}
-                  onFork={() => forkTrip(p.id)} onToggleSave={() => toggleHeart(p.id)} enterIndex={i} />
-              ))}
-            </div>
-            {pubs.length > visibleCount && (
+            {/* Only when something is left after the featured pick — otherwise
+                the featured card was the whole result and an empty grid would
+                just add a gap under it. */}
+            {gridPubs.length > 0 && (
+              <div className="explore-grid">
+                {gridPubs.slice(0, visibleCount).map((p, i) => (
+                  <PubCard key={p.id} pub={p} creator={userOf(users, p.creatorId)} saved={isSaved(p.id)}
+                    onFork={() => forkTrip(p.id)} onToggleSave={() => toggleHeart(p.id)} enterIndex={i} />
+                ))}
+              </div>
+            )}
+            {gridPubs.length > visibleCount && (
               <div style={{ display: 'flex', justifyContent: 'center', padding: '16px 0 34px' }}>
                 <button className="btn btn-outline" onClick={() => setVisibleCount(c => c + PAGE_SIZE)}
-                  aria-label={`Load more itineraries — ${pubs.length - visibleCount} remaining`}>
-                  Load more · {pubs.length - visibleCount} more
+                  aria-label={`Load more itineraries — ${gridPubs.length - visibleCount} remaining`}>
+                  Load more · {gridPubs.length - visibleCount} more
                 </button>
               </div>
             )}

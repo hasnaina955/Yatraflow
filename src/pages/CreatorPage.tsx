@@ -38,7 +38,7 @@ export function CreatorPage({ creatorId, onNavigate }: { creatorId: string; onNa
   const links: { key: 'youtube' | 'instagram'; href: string; label: string; Icon: typeof Camera }[] = []
   if (creator.profile.socialLinks?.youtube) links.push({ key: 'youtube', href: creator.profile.socialLinks.youtube, label: `${creator.profile.name} on YouTube`, Icon: TvMinimalPlay })
   if (creator.profile.socialLinks?.instagram) links.push({ key: 'instagram', href: creator.profile.socialLinks.instagram, label: `${creator.profile.name} on Instagram`, Icon: Camera })
-  const shareLink = `${location.origin}${location.pathname}#/creator/${creatorId}`
+  const shareLink = `${location.origin}/#/creator/${creatorId}`
 
   return (
     <div>

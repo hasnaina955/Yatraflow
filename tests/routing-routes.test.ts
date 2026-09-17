@@ -7,7 +7,7 @@ import {
   decodePolyline, travelModeFor, googleRoute, routesEnabled, QuotaExhaustedError,
 } from '../src/lib/providers/routes'
 import { quotaAllows, quotaResetForTests, quotaUsed, type QuotaSku } from '../src/lib/providers/quota'
-import { roadLegBetween } from '../src/lib/routing'
+import { roadLegBetween, clearRouteCacheForTests } from '../src/lib/routing'
 import { getAssumptions } from '../src/lib/engine'
 
 const A = { lat: 10.0, lng: 77.0 }
@@ -82,8 +82,8 @@ describe('googleRoute', () => {
 })
 
 describe('routing facade fallback chain', () => {
-  beforeEach(() => quotaResetForTests())
-  afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); quotaResetForTests() })
+  beforeEach(() => { quotaResetForTests(); clearRouteCacheForTests() })
+  afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); quotaResetForTests(); clearRouteCacheForTests() })
 
   it('uses Google when a key is present and the API answers', async () => {
     vi.stubEnv('VITE_GOOGLE_MAPS_API_KEY', 'test-key')

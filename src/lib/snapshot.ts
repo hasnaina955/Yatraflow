@@ -45,7 +45,7 @@ export async function decodeTripSnapshot(payload: string): Promise<Trip> {
 
 export function snapshotUrl(trip: Trip, payload: string): string {
   void trip
-  return `${location.origin}${location.pathname}#/share/${payload}`
+  return `${location.origin}/#/share/${payload}`
 }
 
 // ---- decompression helper ----

@@ -8,6 +8,7 @@ import {
   buildRoadChain, measureRoadChain, correctionsFromLegs, mapRoadViewFromLegs,
   type RoadChain,
 } from '../src/lib/tripRoad'
+import { clearRouteCacheForTests } from '../src/lib/routing'
 import type { RoadLeg } from '../src/lib/routing'
 import { getAssumptions } from '../src/lib/engine'
 
@@ -44,6 +45,19 @@ function osrmResponse(km = 10) {
     code: 'Ok',
     routes: [{ distance: km * 1000, duration: km * 60, geometry: { coordinates: [[77, 10], [77.1, 10.1]] } }],
   }), { status: 200 })
+}
+
+/** An OSRM CHAIN response for n waypoints (leg i carries its own geometry). */
+function osrmChainResponse(waypointCount: number) {
+  const legs = []
+  for (let i = 0; i < waypointCount - 1; i++) {
+    legs.push({
+      distance: 10_000,
+      duration: 600,
+      geometry: { coordinates: [[77 + i * 0.1, 10 + i * 0.1], [77 + (i + 1) * 0.1, 10 + (i + 1) * 0.1]] },
+    })
+  }
+  return new Response(JSON.stringify({ code: 'Ok', routes: [{ legs }] }), { status: 200 })
 }
 
 function leg(km: number, min: number): RoadLeg {
@@ -109,31 +123,36 @@ describe('buildRoadChain', () => {
     }))
     expect(withDest.points.length).toBe(3)
     expect(withDest.points[2]).toEqual(P(25.0, 78.0))
+    expect(withDest.hasDestTail).toBe(true)
     const alreadyLast = buildRoadChain(tripOf({
       start: P(26.9, 75.8),
       days: [{ index: 0, stops: [{ lat: 26.5, lng: 76.0 }] }],
       destinationCoords: [P(26.5, 76.0)],
     }))
     expect(alreadyLast.points.length).toBe(2)
+    expect(alreadyLast.hasDestTail).toBe(false)
   })
 })
 
 describe('measureRoadChain — the one chain, one retry (#188 acceptance)', () => {
   // No Google key → the facade measures via OSRM alone, so the fetch count IS
   // the leg count (with a key, every leg tries Google Routes first).
-  beforeEach(() => vi.stubEnv('VITE_GOOGLE_MAPS_API_KEY', ''))
+  // #polylines: the facade now measures the whole chain as ONE OSRM request,
+  // so "3 leg fetches" became "1 chain fetch" — the no-duplicate intent held.
+  beforeEach(() => { vi.stubEnv('VITE_GOOGLE_MAPS_API_KEY', ''); clearRouteCacheForTests() })
 
-  it('measures a 4-point chain as exactly 3 leg fetches (ONE chain, no duplicate)', async () => {
-    const f = vi.fn(async () => osrmResponse())
+  it('measures a 4-point chain as exactly ONE chain fetch (no duplicate legs)', async () => {
+    const f = vi.fn(async () => osrmChainResponse(4))
     vi.stubGlobal('fetch', f)
     const out = await measureRoadChain([P(10, 77), P(10.1, 77.1), P(10.2, 77.2), P(10.3, 77.3)], ASSUMPTIONS)
     expect(out.ok).toBe(true)
-    // 4 points = 3 legs = 3 routing fetches — not 6
-    expect(f).toHaveBeenCalledTimes(3)
+    // 4 points = 3 legs = ONE OSRM chain request — not 3 fetches, not 6
+    expect(f).toHaveBeenCalledTimes(1)
+    expect(out.ok && out.legs.length === 3).toBe(true)
   })
 
   it('does NOT retry when the first measurement resolves real roads', async () => {
-    const f = vi.fn(async () => osrmResponse())
+    const f = vi.fn(async () => osrmChainResponse(2))
     vi.stubGlobal('fetch', f)
     const sleep = vi.fn(async () => {})
     await measureRoadChain([P(10, 77), P(10.1, 77.1)], ASSUMPTIONS, { sleep })
@@ -220,16 +239,16 @@ describe('the wiring: one measurement site, no second caller (#188)', () => {
   it('tripRoad.ts is the single owner of the whole-trip chain', () => {
     const tripRoad = read('../src/lib/tripRoad.ts')
     const calls = tripRoad.match(/routePath\(/g) ?? []
-    expect(calls.length).toBe(1)
+    expect(calls.length).toBe(2) // measureRoadChain + measureDayRide (the map's day line)
   })
 })
 
-describe('derivations from the one measurement', () => {
-  const chain: RoadChain = {
-    points: [P(10, 77), P(10.1, 77.1), P(10.2, 77.2), P(10, 77)],
-    ptDay: [null, 0, 1, null],
-    outboundCount: 3, // start + 2 stops; the 4th point is the ride home
-  }
+describe('derivations from the one measurement', () => {    const chain: RoadChain = {
+      points: [P(10, 77), P(10.1, 77.1), P(10.2, 77.2), P(10, 77)],
+      ptDay: [null, 0, 1, null],
+      outboundCount: 3, // start + 2 stops; the 4th point is the ride home
+      hasDestTail: false,
+    }
 
   it('correctionsFromLegs keys both directions (the drive home retraces the road)', () => {
     const legs = [leg(100, 120), leg(150, 180), leg(250, 300)]
@@ -246,11 +265,26 @@ describe('derivations from the one measurement', () => {
     expect(view.totalKm).toBe(250) // 100 + 150, NOT + 250
     expect(view.totalMin).toBe(300)
     expect(view.dayRoadKm).toEqual([100, 150]) // attributed by arrival day
-    expect(view.geometry?.length).toBe(4) // two legs × two points
+    expect(view.geometry?.length).toBe(4) // two legs × two points — the ride home is NOT drawn
+  })
+
+  it('a one-way DESTINATION tail is drawn (the line reaches the destination) without entering the totals', () => {
+    // chain: start → stop0 → stop1 → destination tail (hasDestTail, not the ride home)
+    const withTail: RoadChain = {
+      points: [P(10, 77), P(10.1, 77.1), P(10.2, 77.2), P(9.5, 76.5)],
+      ptDay: [null, 0, 1, null],
+      outboundCount: 3,
+      hasDestTail: true,
+    }
+    const legs = [leg(100, 120), leg(150, 180), leg(60, 70)] // third leg = destination tail
+    const view = mapRoadViewFromLegs(withTail, legs, [0, 1])
+    expect(view.totalKm).toBe(250) // tail km stay OUT of the plan totals
+    expect(view.dayRoadKm).toEqual([100, 150])
+    expect(view.geometry?.length).toBe(6) // all THREE legs drawn — the line reaches the destination
   })
 
   it('one-way trips keep every leg in the map view', () => {
-    const oneWay: RoadChain = { points: [P(10, 77), P(10.1, 77.1), P(10.2, 77.2)], ptDay: [null, 0, 1], outboundCount: 3 }
+    const oneWay: RoadChain = { points: [P(10, 77), P(10.1, 77.1), P(10.2, 77.2)], ptDay: [null, 0, 1], outboundCount: 3, hasDestTail: false }
     const view = mapRoadViewFromLegs(oneWay, [leg(100, 120), leg(150, 180)], [0, 1])
     expect(view.totalKm).toBe(250)
   })

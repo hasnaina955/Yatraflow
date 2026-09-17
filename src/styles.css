@@ -2063,9 +2063,13 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
 @keyframes blink { 0%,80%,100% { opacity: .25; } 40% { opacity: 1; } }
 
 /* ---------- Notifications ---------- */
+/* Entrance is owned by .popover (the shared family rule at the end of the
+   file). This element carries both classes, they have equal specificity, and
+   .popover comes later — so a local `animation` here loses silently. Declaring
+   none keeps the panel on the house entrance (fade + 4px rise, 180ms). */
 .notif-pop {
   position: fixed; width: min(360px, 92vw); color: var(--text);
-  overflow: hidden; z-index: var(--z-notif); animation: slideUp var(--motion-fast) var(--ease-out);
+  overflow: hidden; z-index: var(--z-notif);
 }
 /* The panels receive programmatic focus on open (keyboard tab order); the
    interactive children carry the visible ring, the container stays clean. */
@@ -2232,8 +2236,9 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
 .footer { border-top: 1px solid var(--line); padding: 26px 0 34px; margin-top: 50px; color: var(--text-3); font-size: 13px; }
 
 /* ---------- App shell / nav extras ---------- */
-.topnav-inner { display: flex; align-items: center; gap: 14px; height: var(--nav-h); }
-.topnav .container.topnav-inner { display: flex; }
+/* .topnav-inner and .topnav .container.topnav-inner are declared once, in the
+   topnav block at the top of the file. Restating them here duplicated both
+   selectors (a ratchet entry) without changing a single computed value. */
 .nav-right { margin-left: auto; display: flex; align-items: center; gap: 9px; position: relative; z-index: var(--z-raised); }
 /* CTI control tray: theme / bell / avatar (and the mobile hamburger) cluster
    inside one soft pill, echoing the nav pill itself. */
@@ -2477,6 +2482,16 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
   box-shadow: var(--shadow); padding: 8px 14px 14px;
   display: flex; flex-direction: column; gap: 2px;
   animation: slideUp var(--t-fast) var(--ease-out);
+  /* The tray is fixed and grows with its item count, so on a short viewport
+     (landscape phone, small window) the last row — Profile & settings — fell
+     below the fold with no way to reach it. Cap it to the space actually
+     left under the pill and let it scroll. vh first, dynamic unit second:
+     the same pairing the map shell uses (100vh does not shrink for mobile
+     browser chrome). */
+  max-height: calc(100vh - var(--nav-h) - 32px - var(--safe-area-inset-top, env(safe-area-inset-top, 0px)) - var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
+  max-height: calc(100dvh - var(--nav-h) - 32px - var(--safe-area-inset-top, env(safe-area-inset-top, 0px)) - var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 .mobile-menu .nav-link {
   padding: 13px 14px; border-radius: 10px; font-size: 15px; text-align: left;

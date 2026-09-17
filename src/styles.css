@@ -441,6 +441,10 @@ html {
   /* Anchor/scrollIntoView targets land clear of the floating pill topnav
      (12px top gap + nav height + breathing room). */
   scroll-padding-top: calc(12px + var(--nav-h) + 16px);
+  /* The bottom half of the same rule. --bottom-ui-offset already resolves to
+     just the gesture inset outside the shell, so this is correct on both
+     platforms and no longer needs to be re-declared inside html.native-shell. */
+  scroll-padding-bottom: calc(var(--bottom-ui-offset) + 12px);
 }
 /* Native app feel: pages scroll with a finger, so the WebView's chunky
    desktop scrollbar (a thick bar hugging the right edge) is pure chrome —
@@ -1871,6 +1875,11 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
 .map-shell--expanded {
   position: fixed; inset: 10px; z-index: var(--z-map-expanded);
   background: var(--bg); padding: 2px;
+  /* This shell paints above the nav, so it owns the real bottom edge — meaning
+     it must also clear the gesture strip itself, or anything pinned to the
+     map's bottom edge (the legend, for one) sits under the system bar. Raw
+     inset by design: the shell must NOT be lifted by the nav's offset. */
+  padding-bottom: calc(2px + var(--safe-bottom));
   display: flex; flex-direction: column;
   animation: mapExpand 320ms var(--ease-out);
 }
@@ -4545,8 +4554,12 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 .ts-note { margin: 0; }
 
 /* sticky save bar — bottom-ui-offset aware (nav + gesture bar; viewport-fit=cover is on) */
+/* z: the form blocks that can spawn a floating surface (location dropdown,
+   calendar) sit on the nav-glass rung, so a raw 5 let an open popup paint over
+   the primary Save action. This bar is the form's last child, so sharing the
+   rung and winning on document order is the documented tie-break. */
 .ts-savebar {
-  position: sticky; bottom: 0; z-index: 5;
+  position: sticky; bottom: 0; z-index: var(--z-nav-glass);
   display: flex; justify-content: flex-end; align-items: center; gap: 10px;
   margin-top: 16px; padding: 8px 0 calc(8px + var(--bottom-ui-offset));
   background: var(--bg); border-top: 1px solid var(--line);
@@ -5102,11 +5115,11 @@ html.native-shell .nav-links { display: none; }
 
 /* --shell-nav-h is the bar's own row height, so --bottom-ui-offset (row +
    gesture bar) is exactly its total height and every page-level bottom
-   consumer clears it. scroll-padding-bottom keeps focus and scroll-into-view
-   landings clear of the bar too. Web: 0px, so both are inert. */
+   consumer clears it. Web: 0px, so both are inert. The matching
+   scroll-padding-bottom lives on the global `html` rule — the token already
+   resolves correctly there, so it needs no shell-only copy. */
 html.native-shell {
   --shell-nav-h: 58px;
-  scroll-padding-bottom: calc(var(--bottom-ui-offset) + 12px);
 }
 
 .bottom-nav {
@@ -5337,7 +5350,10 @@ html.native-shell {
 .poi-rchip.is-on { background: var(--teal-soft); border-color: transparent; color: var(--teal-deep); font-weight: 700; }
 .poi-filterbar { display: flex; align-items: center; gap: 9px; margin-top: 10px; padding: 7px 11px; border: 1px solid color-mix(in srgb, var(--teal) 30%, var(--line)); background: var(--teal-soft); border-radius: var(--radius-sm); font-size: 11.5px; font-weight: 600; color: var(--teal-deep); }
 .poi-filterbar button { margin-left: auto; border: 1px solid var(--teal-deep); background: transparent; color: var(--teal-deep); border-radius: 999px; font-size: 11px; font-weight: 700; padding: 3px 9px; }
-.poi-tray { position: sticky; bottom: 12px; z-index: var(--z-dock); display: flex; align-items: center; gap: 12px; margin-top: 12px; padding: 10px 12px; background: var(--card); border: 1px solid color-mix(in srgb, var(--teal) 32%, var(--line)); border-radius: var(--radius); box-shadow: var(--shadow-soft); }
+/* bottom: the tray is a page-level sticky element, so it clears the shell's
+   bottom chrome by the same token .trip-dock uses — a hardcoded 12px put its
+   actions under the fixed bar (and inside the gesture strip on the web). */
+.poi-tray { position: sticky; bottom: calc(12px + var(--bottom-ui-offset)); z-index: var(--z-dock); display: flex; align-items: center; gap: 12px; margin-top: 12px; padding: 10px 12px; background: var(--card); border: 1px solid color-mix(in srgb, var(--teal) 32%, var(--line)); border-radius: var(--radius); box-shadow: var(--shadow-soft); }
 .poi-tray-n { font-size: 12.5px; font-weight: 700; color: var(--teal-deep); }
 .poi-tray-actions { margin-left: auto; display: flex; gap: 6px; flex-wrap: wrap; }
 

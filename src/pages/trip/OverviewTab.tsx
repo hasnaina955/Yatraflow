@@ -53,9 +53,9 @@ export function OverviewTab({ trip, editable, onOpenDecisions, onOpenTimeline, o
   return (
     <div className="two-col bento">
       <div>
-        <div className="page-head" style={{ marginTop: 0 }}>
+        <div className="overview-head">
           <h2>Trip briefing</h2>
-          <p className="page-head-sub">What needs attention before this road trip starts.</p>
+          <p className="muted small">What needs attention before this road trip starts.</p>
         </div>
 
         <div className="card">
@@ -88,7 +88,7 @@ export function OverviewTab({ trip, editable, onOpenDecisions, onOpenTimeline, o
         </div>
 
         {/* Bento stat cluster: cost / per-person / effort / stops at a glance */}
-        <div className="stat-grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)', marginTop: 14 }}>
+        <div className="stat-grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)', marginTop: 14, marginBottom: 14 }}>
           <StatTile label="Total cost" value={formatInr(totals.totalCostInr)} sub={`${formatInr(totals.costPerDayInr)}/day · estimates`} />
           <StatTile label="Per person" value={formatInr(totals.costPerPersonInr)} sub={`vs ${formatInr(trip.budgetPerPersonInr)} target`} />
           <StatTile label="Travel effort" value={minutesToHM(totals.totalTravelMinutes)} sub={`≈${Math.round(totals.totalDistanceKm)} km route`} />

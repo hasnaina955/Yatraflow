@@ -161,7 +161,7 @@ function PublicationForm({ trip, pub, isOwner, creatorId, onDone }: {
               <span className="small">Day {d.index + 1}{d.title ? ` — ${d.title}` : ''}</span>
               <button type="button" className={`btn btn-sm ${isFree ? 'btn-outline' : 'btn-saffron'}`}
                 disabled={entirelyFree} aria-pressed={!isFree}
-                aria-label={`Day ${d.index + 1}${d.title ? ` — ${d.title}` : ''} lock`}
+                aria-label={`Day ${d.index + 1}${d.title ? ` — ${d.title}` : ''}: ${isFree ? 'Free' : 'Premium'}`}
                 onClick={() => toggleDay(d.index)}>
                 {isFree ? <>Free</> : <><Lock size={11} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />Premium</>}
               </button>

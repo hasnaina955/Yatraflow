@@ -2,7 +2,8 @@
 // Real slippy-map rendering via mapcn (MapLibre GL): OpenFreeMap basemaps that follow
 // light/dark theme, numbered stop markers in timeline order, and a polyline
 // connecting each day's stops. Distances/durations still come from the engine.
-import { useMemo, useState, useEffect, useRef, Fragment } from 'react'
+import { useMemo, useState, useEffect, useRef, Fragment, type ComponentProps } from 'react'
+import { useInView, usePageVisible } from './ui'
 import type { Trip } from '../data/types'
 import type { PlaceHit } from '../lib/geocode'
 import { resolveHitCoords } from '../lib/geocode'
@@ -39,6 +40,15 @@ import {
   prefersCooperativeGestures,
   useMap,
 } from './mapcn/map'
+
+// Observe the marker itself: panning a pin outside the map also pauses its
+// decoration. GPS ownership remains in LiveLocationLayer, independent of this.
+function VisiblePulse({ children, ...props }: ComponentProps<'span'>) {
+  const ref = useRef<HTMLSpanElement>(null)
+  const inView = useInView(ref)
+  const visible = usePageVisible()
+  return <span {...props} ref={ref} data-motion-paused={!inView || !visible}>{children}</span>
+}
 
 const DAY_COLORS = ['#0D8D82', '#F59E2D', '#7C5CFC', '#E2557B', '#2D9CDB', '#6BBF59', '#B7791F']
 
@@ -97,10 +107,10 @@ function LiveLocationLayer({ active }: { active: boolean }) {
   return (
     <MapMarker longitude={fix.coords.longitude} latitude={fix.coords.latitude}>
       <MarkerContent>
-        <span className={`yf-live-dot${denied ? ' yf-live-dot--denied' : ''}`} aria-label="Your live location" role="img">
-          <span className="yf-live-pulse" />
-          <span className="yf-live-core" />
-        </span>
+        <VisiblePulse className={`yf-live-dot${denied ? ' yf-live-dot--denied' : ''}`} aria-label="Your live location" role="img">
+          <span className="yf-live-pulse" aria-hidden />
+          <span className="yf-live-core" aria-hidden />
+        </VisiblePulse>
       </MarkerContent>
     </MapMarker>
   )
@@ -1037,7 +1047,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
               return (
                 <MapMarker key={`nearby_${hit.id}`} longitude={hit.longitude} latitude={hit.latitude}>
                   <MarkerContent>
-                    <span className="yf-map-idea" title={`${hit.name} — click to locate in the suggestions panel`}>
+                    <VisiblePulse className="yf-map-idea" title={`${hit.name} — click to locate in the suggestions panel`}>
                       <span
                         className={`yf-map-pin yf-map-pin-idea${active ? ' yf-map-pin-idea--active' : ''}`}
                         style={{ background: ideaPinColor(hit.category) } as React.CSSProperties}
@@ -1057,7 +1067,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                           title={`Add ${hit.name} to the trip`}
                         >+</button>
                       )}
-                    </span>
+                    </VisiblePulse>
                   </MarkerContent>
                   <MarkerTooltip>
                     <Lightbulb size={11} aria-hidden style={{ verticalAlign: '-1px', marginRight: 3 }} />{hit.name}{hit.haltPurpose ? ` · ${hit.haltPurpose === 'overnight' ? 'overnight option' : hit.haltPurpose}` : ''}{hit.cumKm != null ? ` · ~${hit.cumKm} km in` : ''}{hit.nearestCity ? ` · near ${hit.nearestCity}` : ''}

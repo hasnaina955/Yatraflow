@@ -23,11 +23,11 @@ import { routeChain, stayDaySummary, dwellSegments, visibleStops } from '../../.
 import { isDriveDay } from '../../../lib/ridePlan'
 import { openExternal } from '../../../lib/native'
 import { useTimeFormat, formatHM, formatHMRange } from '../../../lib/timefmt'
-import { motionTiming, prefersReducedMotion } from '../../../lib/motion'
+import { prefersReducedMotion } from '../../../lib/motion'
 import { stopKindOf, STOP_KIND_LABELS } from '../../../lib/stopKind'
 import { statusLabel } from '../../../lib/labels'
 import { Chip, EmptyState, Modal, toast, useReorder } from '../../../components/ui'
-import { glideOffsetPx, insertionIndexFor, rowLayoutBoxes } from '../../../lib/touchDnd'
+import { glideOffsetPx, insertionIndexFor, rowLayoutBoxes, cancelRowSettle, cancelListSettles, settleRow } from '../../../lib/touchDnd'
 import { useSuggestionCache } from '../../../hooks/useSuggestionCache'
 import { searchNearbyPois } from '../../../lib/geocode'
 import type { PlaceHit } from '../../../lib/geocode'
@@ -302,8 +302,11 @@ export const DaySection = React.memo(function DaySection({ day, trip, editable, 
   useLayoutEffect(() => {
     const rootEl = stopsRef.current
     if (!rootEl) return
+    const interrupted = new Map<string, DOMRect>()
     const now = new Map<string, { x: number; y: number }>()
     for (const el of Array.from(rootEl.querySelectorAll<HTMLElement>('[data-stop-id]'))) {
+      const visual = cancelRowSettle(el)
+      if (visual) interrupted.set(el.dataset.stopId!, visual)
       const r = el.getBoundingClientRect()
       now.set(el.dataset.stopId!, { x: r.left, y: r.top })
     }
@@ -314,19 +317,18 @@ export const DaySection = React.memo(function DaySection({ day, trip, editable, 
       for (const [id, p] of now) {
         const q = dropped && dropped.id === id ? dropped : prev.get(id)
         if (!q) continue
-        const dx = q.x - p.x
-        const dy = q.y - p.y
+        const visual = interrupted.get(id)
+        const dx = q.x - p.x + (visual && q !== dropped ? visual.left - p.x : 0)
+        const dy = q.y - p.y + (visual && q !== dropped ? visual.top - p.y : 0)
         if (dx || dy) {
-          rootEl.querySelector<HTMLElement>(`[data-stop-id="${CSS.escape(id)}"]`)
-            ?.animate(
-              [{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }],
-              motionTiming(),
-            )
+          const el = rootEl.querySelector<HTMLElement>(`[data-stop-id="${CSS.escape(id)}"]`)
+          if (el && !el.classList.contains('is-carried')) settleRow(el, dx, dy, listId)
         }
       }
     }
     prevRects.current = now
-  }, [ordered])
+  }, [ordered, listId])
+  useLayoutEffect(() => () => cancelListSettles(listId), [listId])
   const commitmentsToday = trip.fixedCommitments.filter(fc => fc.dayIndex === day.index)
 
   // --- Collapsed-by-default accordion (docs/TIMELINE-PLAN.md Phase 1) ---
@@ -399,7 +401,7 @@ export const DaySection = React.memo(function DaySection({ day, trip, editable, 
 
   return (
     <div className={`day-section${collapsed ? ' day-closed' : ''}${collapsed && isStayDay ? ' day-stay-collapsed' : ''}${dragging !== null ? ' drag-live' : ''}`} id={`day-card-${day.index}`}>
-      <div className="day-header">
+      <div className={`day-header${foreignOver === ordered.length && dragging === null ? ' foreign-over' : ''}`} {...(editable ? dayDropHandlers(ordered.length) : {})}>
         {/* Stable name + state attribute (UI audit F-09); the collapsible body
             is a fragment of siblings, so there's no single aria-controls id. */}
         <button className="day-collapse" onClick={onCollapseClick} aria-expanded={!collapsed} aria-label={`Day ${day.index + 1} stops`}>
@@ -592,8 +594,8 @@ export const DaySection = React.memo(function DaySection({ day, trip, editable, 
             }
             return (
               <div key={s.id} data-stop-id={s.id} className="tl-row tl-anchor" style={{ transform: glideOffset(i) != null ? `translateY(${glideOffset(i)}px)` : undefined }} {...(editable ? dndHandlers(i) : {})}>
-                <div className="tl-gutter" aria-hidden="true">
-                  <span className="tl-time">{isFinal ? (sim.arrivalTimes[i] ? formatHM(sim.arrivalTimes[i], timeFormat) : '--:--') : (sim.departures[i] ? formatHM(sim.departures[i], timeFormat) : '--:--')}</span>
+                <div className="tl-gutter">
+                  <span className="tl-time"><span className="sr-only">{isFinal ? 'Arrival: ' : 'Departure: '}</span>{isFinal ? (sim.arrivalTimes[i] ? formatHM(sim.arrivalTimes[i], timeFormat) : '--:--') : (sim.departures[i] ? formatHM(sim.departures[i], timeFormat) : '--:--')}</span>
                 </div>
                 <div className="travel-endpoint">
                   <span className="travel-anchor-ico">{i === 0 || isFinal ? <Flag size={13} aria-hidden /> : <MapPin size={13} aria-hidden />}</span>
@@ -614,10 +616,10 @@ export const DaySection = React.memo(function DaySection({ day, trip, editable, 
                 style={{ transform: glideOffset(i) != null ? `translateY(${glideOffset(i)}px)` : undefined }}
                 {...(editable ? dndHandlers(i) : {})}
               >
-                <div className="tl-gutter" aria-hidden="true">
-                  <span className="tl-time tl-arr">{sim.arrivalTimes[i] ? formatHM(sim.arrivalTimes[i], timeFormat) : '--:--'}</span>
-                  <span className="tl-line" />
-                  <span className="tl-time tl-dep">{sim.departures[i] ? formatHM(sim.departures[i], timeFormat) : '--:--'}</span>
+                <div className="tl-gutter">
+                  <span className="tl-time tl-arr"><span className="sr-only">Arrival: </span>{sim.arrivalTimes[i] ? formatHM(sim.arrivalTimes[i], timeFormat) : '--:--'}</span>
+                  <span className="tl-line" aria-hidden="true" />
+                  <span className="tl-time tl-dep"><span className="sr-only">Departure: </span>{sim.departures[i] ? formatHM(sim.departures[i], timeFormat) : '--:--'}</span>
                 </div>
                 <div
                   className={`stop-card kind-${kind} status-${s.status} ${foreignOver === i && dragging === null ? 'foreign-over' : ''}`}
@@ -694,8 +696,8 @@ export const DaySection = React.memo(function DaySection({ day, trip, editable, 
                 </div>
               )}
               <div className="tl-row tl-anchor">
-                <div className="tl-gutter" aria-hidden="true">
-                  <span className="tl-time tl-arr">{last.arrive ? formatHM(last.arrive, timeFormat) : '--:--'}</span>
+                <div className="tl-gutter">
+                  <span className="tl-time tl-arr"><span className="sr-only">Arrival: </span>{last.arrive ? formatHM(last.arrive, timeFormat) : '--:--'}</span>
                 </div>
                 <div className="travel-endpoint">
                   <span className="travel-anchor-ico"><Flag size={13} aria-hidden /></span>
@@ -707,7 +709,7 @@ export const DaySection = React.memo(function DaySection({ day, trip, editable, 
           )
         })()}
         {ordered.length > 0 && (
-          <div className="tl-end" {...(editable ? dayDropHandlers(ordered.length) : {})}>
+          <div className="tl-end">
             {foreignOver === ordered.length && dragging === null && <div className="tl-drop-line">Drop to add here</div>}
           </div>
         )}

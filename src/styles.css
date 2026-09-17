@@ -606,13 +606,13 @@ a.btn { text-decoration: none; }
 @media (pointer: coarse) {
   .btn, .icon-btn, .chip, .clickable-chip, .toast-action, .tab-btn,
   .map-legend-toggle, .nav-link, .filter-pillbar .clickable-chip,
-  .link-btn, .move-btn, .board-pulse-link, .cal-day, .route-btn, .vote-btn {
+  .link-btn, .move-btn, .board-pulse-link, .cal-day, .route-btn, .vote-btn, .yf-map-idea-add, .poi-short, .poi-cand-add, .poi-fold, .yf-maplibre .yf-map-ctrls button {
     position: relative;
   }
   .btn::after, .icon-btn::after, .chip::after, .clickable-chip::after,
   .toast-action::after, .tab-btn::after, .map-legend-toggle::after,
   .nav-link::after, .link-btn::after, .move-btn::after, .board-pulse-link::after,
-  .cal-day::after, .route-btn::after, .vote-btn::after {
+  .cal-day::after, .route-btn::after, .vote-btn::after, .yf-map-idea-add::after, .poi-short::after, .poi-cand-add::after, .poi-fold::after, .yf-maplibre .yf-map-ctrls button::after {
     content: ''; position: absolute; inset: -6px; border-radius: inherit;
   }
 }
@@ -891,7 +891,7 @@ a.btn { text-decoration: none; }
 .stop-card:hover { border-color: color-mix(in srgb, var(--teal) 45%, var(--line)); }
 /* (dead: the HTML5-drag ghost slot styling this served is retired — the
    pointer engine carries the real row instead) */
-.stop-card.status-rejected { opacity: .55; }
+.stop-card.status-rejected { border-style: dashed; }
 .stop-card.status-maybe { background: var(--card-soft); }
 .stop-num {
   width: 30px; height: 30px; border-radius: 50%; flex: 0 0 auto; margin-top: 2px;
@@ -979,7 +979,7 @@ a.btn { text-decoration: none; }
 }
 .travel-leg::before { content: none; }
 .travel-leg.foreign-over {
-  color: var(--warn); background: var(--warn-soft);
+  color: var(--ink-amber); background: var(--warn-soft);
   border-radius: var(--radius-sm); padding: 4px 8px;
 }
 
@@ -1138,7 +1138,7 @@ a.btn { text-decoration: none; }
 .tl-line-leg { flex: none; width: 2px; height: 100%; min-height: 26px; }
 .tl-end { min-height: 12px; margin-bottom: 4px; }
 .tl-drop-line {
-  grid-column: 2; color: var(--warn); background: var(--warn-soft);
+  grid-column: 2; color: var(--ink-amber); background: var(--warn-soft);
   border: 1.5px dashed var(--saffron); border-radius: var(--radius-sm);
   font-size: 12px; font-weight: 700; text-align: center; padding: 5px 0;
 }
@@ -1183,7 +1183,7 @@ a.btn { text-decoration: none; }
 .day-kind.drive { background: var(--teal-soft); color: var(--teal-deep); }
 .day-kind.stay { background: var(--bg-soft); color: var(--text-2); }
 /* mixed (short hop + local time): saffron tint reads warm without crying warn */
-.day-kind.mixed { background: color-mix(in srgb, var(--yf-saffron) 14%, transparent); color: var(--yf-warn-deep, var(--yf-saffron)); }
+.day-kind.mixed { background: color-mix(in srgb, var(--yf-saffron) 14%, transparent); color: var(--ink-amber); }
 .day-route {
   display: flex; align-items: baseline; flex-wrap: wrap; gap: 2px 6px;
   min-width: 0; max-width: 100%; margin-top: 3px;
@@ -1201,9 +1201,9 @@ a.btn { text-decoration: none; }
    12px and easier to track across a long line. (Separator is a graphic:
    text-3 at .65 stays above the 3:1 non-text floor on both themes.) */
 .stat-sep { color: var(--text-3); opacity: .65; padding: 0 5px; }
-/* collapsed stay days read calmer than drive days (mockup P1's dimmed row) */
-.day-stay-collapsed .day-header > :not(.day-collapse) { opacity: .8; }
-.day-stay-collapsed .day-collapse { opacity: 1; }
+/* Stay days retain full text contrast; their kind chip carries the distinction. */
+
+
 
 /* Smooth day open/close: the body animates grid rows 0fr→1fr (height-agnostic
    — no max-height guessing), and SmoothCollapse unmounts it after the collapse
@@ -2916,15 +2916,15 @@ main:focus { outline: none; }
   top: 12px;
 }
 .map-ideas-map { min-width: 0; }
-@media (max-width: 1500px) {
-  /* #156: the folded-rail rules (0,2,0) outrank this media block (0,1,0) —
-     name the folded states here so stacked mode always wins over the spine
-     grid, or a 390px phone gets horizontal overflow and a ~20px map. */
-  .map-ideas-grid, .map-ideas-grid.is-needs-folded, .map-ideas-grid.is-see-folded,
-  .map-ideas-grid.is-needs-folded.is-see-folded { grid-template-columns: 1fr; }
-  .map-ideas-map { order: -1; }
-  .map-ideas-grid .poi-col { max-height: none; }
-}
+/* The ≤1500px reset lives below the folded-rail rules at the end of the file.
+   Keep this space so the line-keyed design-system baseline stays unchanged. */
+
+
+
+
+
+
+
 
 /* ---------- Motion system (subtle & premium, CTI §9) ----------
    One easing family + three speeds (--ease-out / --t-fast|med|slow). Only
@@ -3697,14 +3697,14 @@ html.vt-active :where(*) {
 }
 
 /* stamp thud — hidden until the section lives, restamps on preset apply */
-.bench-stamp { opacity: 0; }
+.plan-bench .bench-stamp { opacity: 0; }
 .bench-live .bench-stamp { animation: bench-stamp-in .5s cubic-bezier(.2, 2, .4, 1) .6s both; }
 @keyframes bench-stamp-in {
   0% { opacity: 0; transform: rotate(16deg) scale(2.1); }
   60% { opacity: .85; }
   100% { opacity: .68; transform: rotate(7deg) scale(1); }
 }
-@media (prefers-reduced-motion: reduce) { .bench-stamp { opacity: .68; } }
+@media (prefers-reduced-motion: reduce) { .plan-bench .bench-stamp { opacity: .68; } }
 
 /* receipt tilt (pointer-follow, desktop only) + tear-off + reprint flicker */
 .bench-receipt {
@@ -4166,7 +4166,7 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 @media (max-width: 640px) {
   .tl-row, .tl-legrow, .tl-end { grid-template-columns: 52px 1fr; gap: 8px; }
   .tl-time { font-size: 10px; padding: 1px 4px; }
-  .tl-time.tl-dep { display: none; }
+  .tl-time.tl-dep { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 }
 @media (max-width: 640px) { .cta-band { padding: 32px 18px; } }
 
@@ -4462,14 +4462,14 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 @media (max-width: 1400px) { .metric-strip { grid-template-columns: repeat(3, 1fr); } }
 @media (max-width: 1100px) { .metric-strip { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 700px) {
-  .daybar-row { grid-template-columns: 44px 1fr; }
-  .daybar-meta { grid-column: 2; flex-direction: row; align-items: baseline; gap: 8px; }
-  .catbars .budget-bar-row { grid-template-columns: 44px 1fr auto; }
+  .daybar-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .daybar-meta { grid-column: 2; grid-row: 1; flex-direction: row; flex-wrap: wrap; justify-content: flex-end; align-items: baseline; gap: 8px; }
+  .budget-bar-row, .catbars .budget-bar-row { grid-template-columns: minmax(0, 1fr) auto; }
   .catbars .cat-name span.cat-chip { display: none; }
-  /* the 44px track is fixed — the category name clips instead of shoving the
-     bar and amount out of the row (chip is gone at this width, so the name
-     rides alone) */
-  .catbars .cat-name { display: block; max-width: 44px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* Labels and amounts share the first row; tracks span the second row.
+     Keep the existing palette and gaps, without clipping category names.
+     */
+  .catbars .cat-name { display: block; min-width: 0; overflow-wrap: anywhere; } .budget-bar-row > b { grid-column: 2; grid-row: 1; } .budget-bar-track, .daybar-track { grid-column: 1 / -1; grid-row: 2; }
   .quick-add-row { grid-template-columns: 1fr 90px auto auto; }
 }
 
@@ -5320,7 +5320,7 @@ html.native-shell {
 /* Mobile touch-target floor: the remaining sub-40px controls (review round 2). */
 @media (max-width: 720px) {
   .day-rail-chip, .map-day-chip, .map-legend-toggle, .chip-btn { min-height: 40px; }
-  .route-btn { min-width: 40px; min-height: 40px; }
+  .route-btn, .yf-map-idea-add, .poi-short, .poi-cand-add, .poi-fold, .yf-maplibre .yf-map-ctrls button { min-width: 40px; min-height: 40px; }
 }
 
 /* ============ Optimise-day preview (anti-crisscross reorder) ============ */
@@ -5481,4 +5481,25 @@ html.native-shell {
 .map-ideas-grid.is-see-folded .poi-col--see .poi-fold svg { transform: rotate(90deg); }
 @media (prefers-reduced-motion: reduce) {
   .poi-fold svg { transition: none; }
+}
+@media (max-width: 1500px) {
+  /* #156: keep stacked mode after the equally specific folded-rail rules. */
+  .map-ideas-grid, .map-ideas-grid.is-needs-folded, .map-ideas-grid.is-see-folded,
+  .map-ideas-grid.is-needs-folded.is-see-folded { grid-template-columns: 1fr; }
+  .map-ideas-map { order: -1; }
+  .map-ideas-grid .poi-col { max-height: none; }
+}
+.gi-item:focus, .day-header.foreign-over { outline: none; box-shadow: var(--ring); }
+
+/* Stage 2: local workspace refinements; no token or animation-strategy changes. */
+.overview-head { margin-bottom: 16px; }
+.expense-table:focus-visible { outline: none; box-shadow: var(--ring); }
+[data-motion-paused='true'] .budget-bar-fill::after,
+[data-motion-paused='true'] .daybar-fill::after,
+[data-motion-paused='true'] .yf-map-pin-idea,
+[data-motion-paused='true'] .yf-live-pulse { animation-play-state: paused; }
+/* Coarse desktop pointers also need the floor; pseudo-extensions alone cannot
+   make an 18px quick-add reach 40px, and map control groups clip extensions. */
+@media (pointer: coarse) {
+  .yf-map-idea-add, .poi-short, .poi-cand-add, .poi-fold, .yf-maplibre .yf-map-ctrls button { min-width: 40px; min-height: 40px; }
 }

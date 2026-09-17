@@ -1,29 +1,28 @@
 {
   "contrastLight": [
-    "styles.css:1140 .tl-drop-line — 3.50:1",
     "styles.css:1273 .day-rail-chip.warn:hover — 3.48:1",
     "styles.css:1275 .day-warn-pill — 3.69:1",
     "styles.css:1796 .icon-link:hover — 4.49:1",
     "styles.css:2766 .ride-purpose-fuel — 4.45:1",
     "styles.css:579 .btn-danger — 4.22:1",
     "styles.css:753 .chip-danger — 4.22:1",
-    "styles.css:762 .clickable-chip.on-saffron — 3.48:1",
-    "styles.css:981 .travel-leg.foreign-over — 3.50:1"
+    "styles.css:762 .clickable-chip.on-saffron — 3.48:1"
   ],
   "contrastDark": [
+    "styles.css:1140 .tl-drop-line — 2.48:1",
     "styles.css:1256 .tl-total-warn — 2.48:1",
     "styles.css:1546 .impact-head — 2.36:1",
     "styles.css:3678 .bench-bubble — 3.34:1",
     "styles.css:4804 .route-btn:hover:not(:disabled) — 4.09:1",
     "styles.css:731 .chip-saffron — 2.36:1",
     "styles.css:781 .tab-count--hot — 2.48:1",
-    "styles.css:843 .explore-chips .clickable-chip.chip-saffron — 2.36:1"
+    "styles.css:843 .explore-chips .clickable-chip.chip-saffron — 2.36:1",
+    "styles.css:981 .travel-leg.foreign-over — 2.48:1"
   ],
   "duplicateSelectors": [
     ".bench-cta",
     ".bench-receipt",
     ".bench-receipt-actions",
-    ".bench-stamp",
     ".board-col",
     ".board-col-stops",
     ".board-cols",

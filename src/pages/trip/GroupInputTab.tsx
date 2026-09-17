@@ -6,10 +6,10 @@
 // gains real Day/Category pickers, a visible transport-cost field and
 // decision context, and per-filter empty states each get an exit.
 // The underlying data model (two tables) and store actions are unchanged.
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { scrollBehavior } from '../../lib/motion'
 import type { FormEvent } from 'react'
-import { Car, ChevronDown, ChevronUp, Clock, Lightbulb, MapPin, Plus, Scale, Sparkles, Ticket, X } from 'lucide-react'
+import { Car, ChevronDown, ChevronUp, ClipboardList, Clock, Lightbulb, MapPin, Plus, Scale, Sparkles, Ticket, X } from 'lucide-react'
 import { PillNav } from '../../components/PillNav'
 import type { StopCategory, StopSuggestion, Trip, TripDecision } from '../../data/types'
 import { STOP_CATEGORIES } from '../../data/types'
@@ -87,32 +87,25 @@ export function GroupInputTab({ trip, editable, me }: {
 
   const needsYou = items.filter(itemNeedsMe)
 
-  const flashes = useRef(new Map<HTMLElement, number>())
-  useEffect(() => () => {
-    flashes.current.forEach((timer, el) => {
-      window.clearTimeout(timer)
-      el.classList.remove('gi-flash')
-    })
-    flashes.current.clear()
-  }, [])
-
-  /** Digest row → scroll the card into view and restart its edge feedback. */
-  function focusItem(id: string) {
-    const el = document.getElementById(`gi-item-${id}`)
+  const [pendingTarget, setPendingTarget] = useState<string | null>(null)
+  useEffect(() => {
+    if (!pendingTarget) return
+    const el = document.getElementById(`gi-item-${pendingTarget}`)
     if (!el) return
     el.scrollIntoView({ behavior: scrollBehavior(), block: 'center' })
-    window.clearTimeout(flashes.current.get(el))
-    el.classList.remove('gi-flash')
-    void el.offsetWidth // Flush the removed class so a repeat click restarts CSS animation.
-    el.classList.add('gi-flash')
-    flashes.current.set(el, window.setTimeout(() => {
-      el.classList.remove('gi-flash')
-      flashes.current.delete(el)
-    }, 1600))
+    el.focus({ preventScroll: true })
+    setPendingTarget(null)
+  }, [pendingTarget, shown])
+
+  /** Park the digest request until its card is rendered, even behind a filter. */
+  function focusItem(id: string) {
+    setPendingTarget(id)
+    if (!shown.some(item => itemId(item) === id)) setFilter('all')
   }
 
   return (
     <div>
+      <h2 className="sr-only">Group input</h2>
       {/* ONE filter bar (workspace tab-rail look) — the old count-pill row was
           the same filters in a second visual language. Counts live inside the
           pills; "All" carries the open count, Need you its amber hot badge. */}
@@ -178,7 +171,7 @@ export function GroupInputTab({ trip, editable, me }: {
                   onClick={() => focusItem(itemId(i))}>
                   {i.kind === 'idea' ? <Lightbulb size={14} aria-hidden /> : <Scale size={14} aria-hidden />}
                   <span className="digest-title">{itemTitle(i)}</span>
-                  <span className="digest-sub">{digestSub(i)}</span>
+                  <span className="digest-sub num">{digestSub(i)}</span>
                 </button>
               ))}
             </div>
@@ -230,7 +223,7 @@ function SuggestionCard({ sg, trip, me, editable, memberCount, needsMe }: {
   const consensusPct = memberCount ? Math.round((ups / memberCount) * 100) : 0
   const author = userById(sg.proposedBy)
   return (
-    <div id={`gi-item-${sg.id}`} className={`card${needsMe ? ' gi-needs-you' : ''}`} style={{ marginBottom: 14 }}>
+    <div id={`gi-item-${sg.id}`} tabIndex={-1} className={`card gi-item${needsMe ? ' gi-needs-you' : ''}`} style={{ marginBottom: 14 }}>
       <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 14 }}>
       <div className="vote-col">
         <button className={`vote-btn ${myVote === 1 ? 'on' : ''}`} onClick={() => voteSuggestion(trip.id, sg.id, me.id, 1)} aria-label="Upvote" aria-pressed={myVote === 1}><ChevronUp size={13} aria-hidden /></button>
@@ -263,7 +256,7 @@ function SuggestionCard({ sg, trip, me, editable, memberCount, needsMe }: {
                 low segment was invisible and mid failed the non-text floor). */}
             <div style={{ width: `${consensusPct}%`, background: consensusPct >= 60 ? 'var(--ink-ok)' : consensusPct >= 35 ? 'var(--ink-amber)' : 'var(--text-3)' }} />
           </div>
-          <span className="small muted" style={{ whiteSpace: 'nowrap' }}>{ups} of {memberCount} upvoted</span>
+          <span className="small muted num" style={{ whiteSpace: 'nowrap' }}>{ups} of {memberCount} upvoted</span>
         </div>
 
         {editable && sg.status === 'open' && (
@@ -324,7 +317,7 @@ function DecisionCard({ d, me, editable, needsMe, trip }: {
   const rec = useMemo(() => recommendForDecision(trip, d, ctx), [trip, d, ctx])
 
   return (
-    <div id={`gi-item-${d.id}`} className={`card${needsMe ? ' gi-needs-you' : ''}`} style={{ marginBottom: 14 }}>
+    <div id={`gi-item-${d.id}`} tabIndex={-1} className={`card gi-item${needsMe ? ' gi-needs-you' : ''}`} style={{ marginBottom: 14 }}>
       <div className="row-between">
         <h3>{d.question}</h3>
         <span style={{ display: 'inline-flex', gap: 6 }}>
@@ -344,8 +337,8 @@ function DecisionCard({ d, me, editable, needsMe, trip }: {
                 onClick={() => voteOnDecision(d.id, o.id)} aria-label={`Vote for ${o.label}`}><ChevronUp size={13} aria-hidden /></button>
               <span style={{ flex: 1 }}>
                 {o.label}
-                {o.timeImpactMin ? <span className="muted small"> · ≈{o.timeImpactMin} min detour</span> : null}
-                {o.costImpactInr ? <span className="muted small"> · {o.costImpactInr > 0 ? '+' : ''}{formatInr(o.costImpactInr)}</span> : null}
+                {o.timeImpactMin ? <span className="muted small num"> · ≈{o.timeImpactMin} min detour</span> : null}
+                {o.costImpactInr ? <span className="muted small num"> · {o.costImpactInr > 0 ? '+' : ''}{formatInr(o.costImpactInr)}</span> : null}
               </span>
               {voters.length > 0 && (
                 <span className="who-voted" role="img" aria-label={`Voted for this: ${voters.map(v => userById(v)?.profile.name ?? 'Traveller').join(', ')}`}>
@@ -361,7 +354,10 @@ function DecisionCard({ d, me, editable, needsMe, trip }: {
       </div>
       {d.status === 'open' && (
         <div className="gi-guide" style={{ marginTop: 10 }}>
-          <p className="small muted" style={{ margin: 0 }}>📋 {contextLine(ctx)}</p>
+          <p className="small muted" style={{ margin: 0 }}>
+            <ClipboardList size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />
+            {contextLine(ctx)}
+          </p>
           {rec && (
             <p className="small" style={{ margin: '4px 0 0' }}>
               <Sparkles size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />

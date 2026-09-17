@@ -1100,11 +1100,16 @@ const LOCKED_STOP_DESCRIPTION = 'Locked — the full plan is on the original iti
  *  entry/transport costs and open/close times are zeroed, and the stop is
  *  marked confirmed. Expenses tagged with a locked `dayIndex` and fixed
  *  commitments on locked days are dropped (trip-level expenses stay). */
-function buildTripCopy(source: Trip, ownerId: ID, opts: { makePublic?: boolean; freeDayIndexes?: number[] }): Trip {
+function buildTripCopy(source: Trip, ownerId: ID, opts: { makePublic?: boolean; freeDayIndexes?: number[]; keepName?: boolean }): Trip {
   const free = opts.freeDayIndexes ? new Set(opts.freeDayIndexes) : null
   const copy: Trip = structuredClone(source)
   copy.id = uuid()
-  copy.name = source.name.includes('(copy)') ? source.name : `${source.name} (copy)`
+  // A copy is labelled as one. An *import* is not — the plan is the user's own
+  // arrival, not a duplicate of something they already have, and a name that
+  // reads "X (copy)" is how the public gallery grew a `(copy)` row.
+  copy.name = opts.keepName || source.name.includes('(copy)')
+    ? source.name
+    : `${source.name} (copy)`
   copy.visibility = opts.makePublic ? 'public' : 'private'
   copy.createdAt = Date.now(); copy.updatedAt = Date.now()
   copy.inviteCode = undefined
@@ -1160,6 +1165,17 @@ function retractTripCopy(copy: Trip): void {
  *  so callers that must know the outcome use `duplicateTripPersisted`. */
 export function duplicateTrip(source: Trip, ownerId: ID, makePublic?: boolean): Trip {
   const copy = buildTripCopy(source, ownerId, { makePublic })
+  admitTripCopy(copy)
+  void persistTrip(copy, ownerId)
+  return copy
+}
+
+/** Import a trip the user brought with them — a file export or a gallery
+ *  itinerary (`lib/tripImport.ts`). Identical to `duplicateTrip` except that it
+ *  keeps the plan's own name: nothing is being copied, so " (copy)" would be a
+ *  lie, and a published import would carry that lie into the gallery title. */
+export function importTrip(source: Trip, ownerId: ID): Trip {
+  const copy = buildTripCopy(source, ownerId, { keepName: true })
   admitTripCopy(copy)
   void persistTrip(copy, ownerId)
   return copy

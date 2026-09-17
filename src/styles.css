@@ -575,7 +575,16 @@ a.btn { text-decoration: none; }
 .btn-danger { background: var(--color-destructive-soft); color: var(--color-destructive); }
 .btn-danger:hover:not(:disabled) { background: color-mix(in srgb, var(--color-destructive) 14%, transparent); }
 .btn-sm { padding: 6px 12px; font-size: 13px; }
-.btn-lg { padding: 12px 24px; font-size: 15.5px; }
+/* The LARGE size is the one that carries a sentence, so it is the one that may
+   wrap. `.btn`'s global `white-space: nowrap` keeps pill labels single-line,
+   but it also makes a sentence-length label's MIN-CONTENT equal to the whole
+   label — and that floor then propagates through every flex/grid ancestor whose
+   item has `min-width: auto`. Two real defects came from exactly that: the
+   landing CTA measured 400px inside a 316px band at 390px, and the receipt's
+   CTA floored the Plan Bench grid at 366px inside a 360px viewport (so the
+   whole calculator overflowed on a common Android width). Word-pair labels at
+   `lg` are unaffected — they never reach the wrap point. */
+.btn-lg { padding: 12px 24px; font-size: 15.5px; white-space: normal; }
 .icon-btn {
   display:inline-flex; align-items:center; justify-content:center;
   width: 40px; height: 40px; border-radius: 50%;

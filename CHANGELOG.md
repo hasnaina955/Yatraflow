@@ -13,17 +13,15 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 > record still exists in `git log`, not here. Archived release notes live in
 > [`docs/history/`](docs/history/).
 
-## [Unreleased]
+## [0.58.0] - 2026-09-17
+
+**Shared links finally have a picture.** A shared itinerary with no cover of its own now previews as a branded 1200×630 card instead of no image at all, and the covers the app picks for itself stop arriving tens of times larger than a link preview can use.
 
 ### Added
 - **A shared itinerary without a cover still previews as a card.** Two of the three live publications carry no `cover_image_url`, so their links previewed with no picture at all, and `og:image` was missing from the shell too. The app now ships a 1200×630 card (`public/og-default.png`) that the preview handler falls back to whenever a publication has no HTTPS cover, with its dimensions declared and `twitter:card` promoted to `summary_large_image` so the picture is shown large. The card is drawn from the product's own vocabulary — the brand mark, a route with its stop sequence and the saffron destination node the logo's sun already uses, over contour rings gathering around it like a summit — and its source is `scripts/og-default-card.html`, so a brand change regenerates it rather than leaving an unreproducible binary in the tree. One test pins the asset's real pixel size to the dimensions the tags declare, and another that the URL names a file that is actually shipped.
 
-### Changed
-
 ### Fixed
 - **A shared itinerary no longer previews with a multi-megabyte cover.** Auto covers came from Wikipedia's REST summary, which hands back either the *unscaled* upload or a 3840px thumbnail, so every card and hero shipped a 1.3–3.3 MB image — and WhatsApp is documented to want the `og:image` under 600 KB. Both extraction paths now route a Wikimedia file through `Special:Redirect/file/<name>?width=1200` (`lib/tripThumb.ts`), the supported way to ask for a size: 144 KB where the original was 1304 KB, 406 KB where it was 2894 KB, and nine of ten real destinations measured between 144 and 406 KB. A width cannot be composed into the URL — Wikimedia answers 400 for any size it has not itself generated, including one substituted into a URL the API returned — and a cover that is not a Wikimedia URL is left untouched. The thumb cache is keyed `_v2` so entries holding the old oversized URLs are dropped rather than served forever.
-
-### Docs
 
 ## [0.57.0] - 2026-09-17
 

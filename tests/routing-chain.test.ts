@@ -22,6 +22,9 @@ async function stubKeyless() {
 const A = { lat: 10.0, lng: 77.0 }
 const B = { lat: 10.1, lng: 77.1 }
 const C = { lat: 10.2, lng: 77.2 }
+const D = { lat: 10.3, lng: 77.3 }
+const E = { lat: 10.4, lng: 77.4 }
+const F = { lat: 10.5, lng: 77.5 }
 
 const asm = getAssumptions({ transportMode: 'car' })
 
@@ -42,6 +45,17 @@ function chainResponse(points: { lat: number; lng: number }[]) {
 }
 
 let fetchCalls: string[] = []
+
+/** URL-faithful OSRM stub: answers every request with a chain response whose
+ *  legs match the REQUESTED waypoints (each leg gets its own endpoint-distinct
+ *  geometry, so a mis-assigned leg is visible in the assertions). */
+function echoOsrmFetch(input: RequestInfo | URL): Promise<Response> {
+  fetchCalls.push(String(input))
+  const coords = String(input).split('/route/v1/driving/')[1]!.split('?')[0]!
+    .split(';').map(s => s.split(',').map(Number))
+  const pts = coords.map(([lng, lat]) => ({ lat, lng }))
+  return Promise.resolve(new Response(JSON.stringify(chainResponse(pts)), { status: 200 }))
+}
 
 beforeEach(async () => {
   clearRouteCacheForTests()
@@ -137,6 +151,37 @@ describe('the session leg cache', () => {
     await routePath([C, D], asm)
     expect(fetchCalls.length).toBe(2)
     expect(String(fetchCalls[1])).toContain(`${C.lng},${C.lat};${D.lng},${D.lat}`)
+  })
+
+  it.each([
+    { name: 'cached B→C between missing AB and CD', points: [A, B, C, D], cached: [1], span: [A, B, C, D] },
+    { name: 'a hole at the start with only B→C cached', points: [A, B, C], cached: [1], span: [A, B] },
+    { name: 'multiple cached holes (BC and DE)', points: [A, B, C, D, E, F], cached: [1, 3], span: [A, B, C, D, E, F] },
+    { name: 'a nonzero span start with a cached hole', points: [A, B, C, D, E], cached: [0, 2], span: [B, C, D, E] },
+    { name: 'a fully cold cache', points: [A, B, C, D], cached: [], span: [A, B, C, D] },
+  ])('assigns and caches each span leg correctly: $name', async ({ points, cached, span }) => {
+    vi.stubGlobal('fetch', vi.fn(echoOsrmFetch))
+    for (const i of cached) await routePath(points.slice(i, i + 2), asm)
+    expect(routeCacheSizeForTests()).toBe(cached.length)
+    fetchCalls.length = 0
+
+    const legs = await routePath(points, asm)
+    expect(legs.length).toBe(points.length - 1)
+    expect(legs.every(l => l.source === 'osrm')).toBe(true)
+    expect(fetchCalls.length).toBe(1)
+    expect(fetchCalls[0]).toContain(span.map(p => `${p.lng},${p.lat}`).join(';'))
+    for (let i = 0; i < points.length - 1; i++) {
+      const a = points[i]
+      const b = points[i + 1]
+      const geometry = [[a.lng, a.lat], [(a.lng + b.lng) / 2, (a.lat + b.lat) / 2], [b.lng, b.lat]]
+      // Soft assertions expose BOTH wrong returned legs and poisoned cache keys.
+      expect.soft(legs[i].geometry).toEqual(geometry)
+      const hit = await routePath([a, b], asm)
+      expect.soft(hit[0].geometry).toEqual(geometry)
+    }
+    // Each pair above must be served from its own cache key, without fetching.
+    expect(fetchCalls.length).toBe(1)
+    expect(routeCacheSizeForTests()).toBe(points.length - 1)
   })
 
   it('estimate legs are never cached — a rate-limited leg can recover', async () => {

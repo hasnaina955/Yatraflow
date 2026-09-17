@@ -439,8 +439,9 @@ export async function routePath(
   const span = points.slice(first, last + 2)
   const chainLegs: RoadLeg[] | null = await measureSpanChain(span, assumptions.mode, signal)
   if (chainLegs && chainLegs.length === span.length - 1) {
-    missing.forEach((legIndex, k) => {
-      const leg = chainLegs![k]
+    missing.forEach(legIndex => {
+      // Cached legs inside the span shift missing's index; use the span offset.
+      const leg = chainLegs![legIndex - first]
       legs[legIndex] = leg
       cacheSet(legCacheKey(points[legIndex], points[legIndex + 1], assumptions.mode), leg)
     })

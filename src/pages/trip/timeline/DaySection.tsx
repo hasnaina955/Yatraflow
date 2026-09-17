@@ -23,7 +23,7 @@ import { routeChain, stayDaySummary, dwellSegments, visibleStops } from '../../.
 import { isDriveDay } from '../../../lib/ridePlan'
 import { openExternal } from '../../../lib/native'
 import { useTimeFormat, formatHM, formatHMRange } from '../../../lib/timefmt'
-import { prefersReducedMotion } from '../../../lib/motion'
+import { motionTiming, prefersReducedMotion } from '../../../lib/motion'
 import { stopKindOf, STOP_KIND_LABELS } from '../../../lib/stopKind'
 import { statusLabel } from '../../../lib/labels'
 import { Chip, EmptyState, Modal, toast, useReorder } from '../../../components/ui'
@@ -320,7 +320,7 @@ export const DaySection = React.memo(function DaySection({ day, trip, editable, 
           rootEl.querySelector<HTMLElement>(`[data-stop-id="${CSS.escape(id)}"]`)
             ?.animate(
               [{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }],
-              { duration: 240, easing: 'cubic-bezier(.22, .61, .36, 1)' },
+              motionTiming(),
             )
         }
       }

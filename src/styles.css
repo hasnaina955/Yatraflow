@@ -516,8 +516,8 @@ input, select, textarea { font-family: var(--font-body); font-size: 14.5px; colo
   position: absolute; left: 0; width: 0; z-index: 0;
   border-radius: 999px; background: var(--teal-soft);
   transition: left var(--motion-med) var(--ease-glide), width var(--motion-med) var(--ease-glide),
-    top var(--motion-med) var(--ease-glide), height var(--motion-med) var(--ease-glide), opacity var(--motion-fast) ease,
-    background var(--motion-fast) ease;
+    top var(--motion-med) var(--ease-glide), height var(--motion-med) var(--ease-glide), opacity var(--motion-fast) var(--ease-glide),
+    background var(--motion-fast) var(--ease-glide);
   pointer-events: none;
 }
 [data-theme='dark'] .pill-glider { background: var(--teal); }
@@ -664,7 +664,7 @@ a.btn { text-decoration: none; }
   background-repeat: no-repeat;
   background-position: right 12px center;
   background-size: 11px 7px;
-  transition: border-color var(--t-fast) var(--ease-out), box-shadow var(--t-fast) var(--ease-out), background-color var(--t-fast) var(--ease-out);
+  transition: border-color var(--motion-fast) var(--ease-out), box-shadow var(--motion-fast) var(--ease-out), background-color var(--motion-fast) var(--ease-out);
 }
 .select:hover:not(:disabled) { border-color: var(--teal); }
 /* Theme the native popup rows (Chromium/Edge honour this; the system highlight
@@ -996,7 +996,7 @@ a.btn { text-decoration: none; }
 }
 /* Plan / Inspect segmented toggle (Phase 3): built on PillNav (.mode-pillbar
    glider). The copy line reserves two rows so a mode switch never reflows. */
-.tl-mode-copy { min-height: 2.4em; max-width: 72ch; animation: popover-in var(--motion-fast) var(--ease-out); }
+.tl-mode-copy { min-height: 2.4em; max-width: 72ch; animation: popover-in var(--motion-fast) var(--ease-glide); }
 @media (prefers-reduced-motion: reduce) { .tl-mode-copy { animation: none; } }
 /* The header tools must not reflow when the mode copy changes length (the Plan
    copy's max-content used to push the whole tools row into a left-aligned
@@ -1028,7 +1028,7 @@ a.btn { text-decoration: none; }
 .is-carried .stop-card, .is-carried .travel-endpoint {
   transform: rotate(calc(var(--warp-tilt, 0) * 1deg))
     scale(calc(1 + var(--warp-x, 0) - var(--warp-y, 0) * 0.55), calc(1 + var(--warp-y, 0) - var(--warp-x, 0) * 0.55));
-  transition: transform var(--motion-fast) var(--ease-out);
+  transition: transform var(--motion-fast) var(--ease-glide);
   box-shadow: var(--shadow-carry);
 }
 [data-theme='dark'] .is-carried .stop-card,
@@ -1205,7 +1205,7 @@ a.btn { text-decoration: none; }
    — no max-height guessing), and SmoothCollapse unmounts it after the collapse
    so a closed day still costs nothing. visibility lags the collapse so the
    content stays paintable through the animation but leaves the tab order. */
-.day-body-clip { display: grid; grid-template-rows: 0fr; transition: grid-template-rows var(--motion-slow) var(--ease-out); }
+.day-body-clip { display: grid; grid-template-rows: 0fr; transition: grid-template-rows var(--motion-slow) var(--ease-glide); }
 .day-body-clip.open { grid-template-rows: 1fr; }
 .day-body-clip-inner { overflow: hidden; min-height: 0; visibility: hidden; transition: visibility 0s var(--motion-slow); }
 .day-body-clip.open .day-body-clip-inner { visibility: visible; transition: visibility 0s; }
@@ -1965,8 +1965,8 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
   height: 100%; border-radius: 99px; transition: width var(--t-slow) var(--ease-out);
   position: relative; overflow: hidden;
 }
-/* A calm, smooth sheen sweeping across each budget bar — a single compositor
-   transform slide, never a repaint. Reduced-motion users get a static bar. */
+/* A sheen sweeping across each budget bar via left-position keyframes.
+   Rendering cost is unmeasured. Reduced-motion users get a static bar. */
 .budget-bar-fill::after {
   content: ''; position: absolute; top: 0; bottom: 0; width: 42%;
   background: linear-gradient(105deg, transparent, rgba(255,255,255,.45), transparent);
@@ -2689,7 +2689,8 @@ main:focus { outline: none; }
     animation-duration: .01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: .01ms !important;
-    /* Staggered entrances (rise-d1..d5) delay the START — freeze those too. */
+    /* Remove both entrance staggers and transition waits under reduced motion. */
+    animation-delay: 0s !important;
     transition-delay: 0s !important;
   }
   /* keep the idea-pin visible but static (it already keeps its dashed gold style) */
@@ -2975,7 +2976,7 @@ main:focus { outline: none; }
    while a drag is live — translation only, no scale/morph; the FLIP settle
    takes over on commit (WAAPI sits above these CSS transitions). */
 .board-col-stops { position: relative; }
-.board-stop { transition: transform var(--motion-fast) var(--ease-glide); }
+.board-stop { transition: border-color var(--t-med) var(--ease-out), background var(--t-med) var(--ease-out), transform var(--motion-fast) var(--ease-glide); }
 @media (prefers-reduced-motion: reduce) {
   .board-stop { transition: none; }
 }
@@ -3377,6 +3378,11 @@ html.vt-active :where(*) {
    Firefox thumbs in one list made Chrome discard this fix outright. */
 .yf-range:disabled:hover::-webkit-slider-thumb { transform: none; }
 .yf-range:disabled:hover::-moz-range-thumb { transform: none; }
+@media (prefers-reduced-motion: reduce) {
+  /* Keep border/shadow feedback, but no thumb enlargement; split by vendor. */
+  .yf-range::-webkit-slider-thumb { transform: none !important; transition-duration: .01ms !important; }
+  .yf-range::-moz-range-thumb { transform: none !important; transition-duration: .01ms !important; }
+}
 /* Dark theme: teal-700 is the BRIGHT shade here (#1E9D92), so white ink on a
    saturated fill drops to 3.3:1. Use the near-black ink the pill-nav glider
    already uses (#06251f) — 6.6:1 on #2BB8AC. The pale-tinted `.on` states flip
@@ -3725,6 +3731,11 @@ html.vt-active :where(*) {
   80%, 100% { transform: translateX(330%) skewX(-18deg); }
 }
 
+/* Pause decorative loops until the bench is live and currently visible. */
+.plan-bench:not(.bench-live) .bench-blob, .plan-bench:not(.bench-inview) .bench-blob,
+.plan-bench:not(.bench-live) .bench-badge-dot::after, .plan-bench:not(.bench-inview) .bench-badge-dot::after,
+.plan-bench:not(.bench-live) .bench-cta::after, .plan-bench:not(.bench-inview) .bench-cta::after { animation-play-state: paused; }
+
 /* hero CTA — boarding-pass ticket: stub + tear line + flight code */
 .hero-bench-cta {
   position: relative; display: flex; align-items: stretch; width: min(100%, 460px);
@@ -3834,6 +3845,7 @@ html.vt-active :where(*) {
 /* centreline flow: offset shifts by 7+9=16 per dash cycle; -160 = 10 cycles.
    Delayed to begin as the road finishes drawing — flow never outruns the draw. */
 .rs-dash { animation: rs-flow 4.5s linear infinite 1.9s; }
+.rs-paused .rs-dash { animation-play-state: paused; }
 @keyframes rs-flow { to { stroke-dashoffset: -160; } }
 /* per-scenario live figures: staggered rise-in on every trip switch */
 @media (prefers-reduced-motion: no-preference) {
@@ -4325,11 +4337,14 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
   position: relative; overflow: hidden;
 }
 /* Same calm sheen the category bars wear (barSheen) — the per-day bars were the
-   only budget bars without it. The global reduced-motion block freezes it. */
+   only budget bars without it. Reduced motion removes the decorative layer. */
 .daybar-fill::after {
   content: ''; position: absolute; top: 0; bottom: 0; width: 42%;
   background: linear-gradient(105deg, transparent, rgba(255,255,255,.45), transparent);
   animation: barSheen 2.6s var(--ease-out) infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .budget-bar-fill::after, .daybar-fill::after { content: none; animation: none; }
 }
 /* the daily-average tick — amber line crossing every bar */
 .daybar-avg { position: absolute; top: -3px; bottom: -3px; width: 2px; border-radius: 1px; background: var(--warn-600); }
@@ -4381,6 +4396,9 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 /* ---- Group input: needs-you emphasis + digest ---- */
 .gi-needs-you { border-left: 4px solid var(--saffron); }
 .gi-flash { animation: gi-flash 1.6s cubic-bezier(0.2, 0, 0, 1); }
+@media (prefers-reduced-motion: reduce) {
+  .gi-flash { animation: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--saffron-500) 50%, transparent); }
+}
 @keyframes gi-flash {
   0%, 55% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--saffron-500) 50%, transparent); }
   100% { box-shadow: 0 0 0 3px transparent; }
@@ -5235,7 +5253,7 @@ html.native-shell {
   backdrop-filter: blur(var(--yf-blur-nav)) saturate(1.2);
   border-radius: 12px;
   box-shadow: var(--shadow-soft);
-  animation: popover-in var(--motion-med) var(--ease-out);
+  animation: popover-in var(--motion-med) var(--ease-glide);
 }
 @keyframes popover-in {
   from { opacity: 0; transform: translateY(4px); }

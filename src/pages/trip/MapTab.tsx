@@ -10,7 +10,7 @@ import { mapRoadViewFromLegs, outboundLegs, type TripRoadView } from '../../lib/
 import { buildJourney, minutesToHM, fmtDur, computeCategoryBias, MODE_SPEED, isRoundTrip } from '../../lib/engine'
 import { useTimeFormat, formatHM, formatHMRange } from '../../lib/timefmt'
 import { loadPref, savePref, loadHaltPin, loadHaltPinsForTrip, saveHaltPin, clearHaltPin, clearHaltPinsForTrip } from '../../lib/uiPrefs'
-import { Modal, Field, toast, undoToast } from '../../components/ui'
+import { Modal, Field, toast, undoToast, useInView, useMedia, usePageVisible } from '../../components/ui'
 import { Select } from '../../components/Select'
 import { DetourWhisk } from '../../components/DetourWhisk'
 import { useSuggestionCache, isMapCacheFresh } from '../../hooks/useSuggestionCache'
@@ -28,7 +28,7 @@ import { quotaUsed, SOFT_CAPS } from '../../lib/providers/quota'
 import { buildDnaVectorAcrossTrips, loadDnaLog, recordDnaEvent, dnaNoteForHit, crewSeedsFromSuggestions, crewSeedsToPlannedStops, crewSeedEvents, crewNoteForHit } from '../../lib/tripDna'
 import { clusterStoryArcs } from '../../lib/storyArcs'
 import { visitMinutesForCategory } from '../../lib/slackPrompts'
-import { prefersReducedMotion, scrollBehavior } from '../../lib/motion'
+import { scrollBehavior } from '../../lib/motion'
 import type { SegmentHit } from '../../lib/geocode'
 import { anchorHash, projectOntoPolyline } from '../../lib/providers/hits'
 import { fetchDailyWeather, forecastAvailable, isoAddDays } from '../../lib/weather'
@@ -67,13 +67,18 @@ const ENGINE_TIPS = [
 
 function EngineTips() {
   const [tip, setTip] = useState(0)
+  const tipsRef = useRef<HTMLDivElement>(null)
+  const reduced = useMedia('(prefers-reduced-motion: reduce)')
+  const inView = useInView(tipsRef)
+  const visible = usePageVisible()
+  const running = inView && visible && !reduced
   useEffect(() => {
-    if (prefersReducedMotion()) return
+    if (!running) return
     const t = setInterval(() => setTip(i => (i + 1) % ENGINE_TIPS.length), 7000)
     return () => clearInterval(t)
-  }, [])
+  }, [running])
   return (
-    <div className="engine-tips">
+    <div className="engine-tips" ref={tipsRef}>
       <span className="engine-tips-ico"><Sparkles size={12} aria-hidden /></span>
       {/* #168: role="status" on rotating text re-announces every 7s — a live
           region that never shuts up. The rotation is decorative; SR users get

@@ -6,7 +6,8 @@
 // gains real Day/Category pickers, a visible transport-cost field and
 // decision context, and per-filter empty states each get an exit.
 // The underlying data model (two tables) and store actions are unchanged.
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { scrollBehavior } from '../../lib/motion'
 import type { FormEvent } from 'react'
 import { Car, ChevronDown, ChevronUp, Clock, Lightbulb, MapPin, Plus, Scale, Sparkles, Ticket, X } from 'lucide-react'
 import { PillNav } from '../../components/PillNav'
@@ -86,13 +87,28 @@ export function GroupInputTab({ trip, editable, me }: {
 
   const needsYou = items.filter(itemNeedsMe)
 
-  /** Digest row → scroll the card into view and flash its edge. */
+  const flashes = useRef(new Map<HTMLElement, number>())
+  useEffect(() => () => {
+    flashes.current.forEach((timer, el) => {
+      window.clearTimeout(timer)
+      el.classList.remove('gi-flash')
+    })
+    flashes.current.clear()
+  }, [])
+
+  /** Digest row → scroll the card into view and restart its edge feedback. */
   function focusItem(id: string) {
     const el = document.getElementById(`gi-item-${id}`)
     if (!el) return
-    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    el.scrollIntoView({ behavior: scrollBehavior(), block: 'center' })
+    window.clearTimeout(flashes.current.get(el))
+    el.classList.remove('gi-flash')
+    void el.offsetWidth // Flush the removed class so a repeat click restarts CSS animation.
     el.classList.add('gi-flash')
-    window.setTimeout(() => el.classList.remove('gi-flash'), 1600)
+    flashes.current.set(el, window.setTimeout(() => {
+      el.classList.remove('gi-flash')
+      flashes.current.delete(el)
+    }, 1600))
   }
 
   return (

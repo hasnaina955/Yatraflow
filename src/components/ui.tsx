@@ -350,23 +350,25 @@ export function RouteSquiggle() {
   const [outgoing, setOutgoing] = React.useState<number | null>(null)
   // The travelling dot is SMIL motion — CSS kill-switches can't reach it, so
   // it renders only when the user hasn't asked for reduced motion.
-  const [reduced] = React.useState(() =>
-    typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches)
+  const reduced = useMedia('(prefers-reduced-motion: reduce)')
+  const shellRef = React.useRef<HTMLDivElement>(null)
+  const inView = useInView(shellRef)
+  const visible = usePageVisible()
+  const running = inView && visible && !reduced
   const activeRef = React.useRef(0)
   React.useEffect(() => { activeRef.current = idx }, [idx])
   React.useEffect(() => {
-    if (typeof window !== 'undefined' &&
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    if (!running) return
     const t = window.setInterval(() => {
       setOutgoing(activeRef.current)
       setIdx(i => (i + 1) % ROUTE_SCENARIOS.length)
     }, SCENARIO_MS)
     return () => window.clearInterval(t)
-  }, [])
+  }, [running])
   const out = outgoing !== null ? ROUTE_SCENARIOS[outgoing] : null
   const scen = ROUTE_SCENARIOS[idx]
   return (
-    <div className="rs-shell">
+    <div className={`rs-shell${running ? '' : ' rs-paused'}`} ref={shellRef}>
       <svg viewBox="0 0 532 132" className="rs-svg" aria-hidden="true" role="presentation">
         <defs>
           <linearGradient id={`rg-${gid}`} x1="0" x2="1">
@@ -393,7 +395,7 @@ export function RouteSquiggle() {
           className="rs-layer rs-layer-active"
           road={scen.road}
           stops={scen.stops}
-          dots={!reduced}
+          dots={running}
         />
       </svg>
       <div className="rs-caption" key={`cap-${idx}`} aria-hidden="true">
@@ -826,6 +828,31 @@ export function useMedia(query: string, initial = false): boolean {
     return () => mq.removeEventListener?.('change', onChange)
   }, [query])
   return matches
+}
+
+/** Stop decorative work while the document is hidden. */
+export function usePageVisible(): boolean {
+  const [visible, setVisible] = useState(() => typeof document !== 'undefined' && !document.hidden)
+  useEffect(() => {
+    const onChange = () => setVisible(!document.hidden)
+    document.addEventListener('visibilitychange', onChange)
+    onChange()
+    return () => document.removeEventListener('visibilitychange', onChange)
+  }, [])
+  return visible
+}
+
+/** Continuous intersection tracking, like the bench's bill dock. */
+export function useInView(ref: React.RefObject<HTMLElement>): boolean {
+  const [inView, setInView] = useState(false)
+  useEffect(() => {
+    const el = ref.current
+    if (!el || typeof IntersectionObserver === 'undefined') { setInView(true); return }
+    const io = new IntersectionObserver(es => setInView(es.some(e => e.isIntersecting)))
+    io.observe(el)
+    return () => io.disconnect()
+  }, [ref])
+  return inView
 }
 
 const ODO_DIGITS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]

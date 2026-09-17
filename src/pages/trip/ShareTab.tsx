@@ -216,8 +216,8 @@ export function ShareTab({ trip, me, editable, onNavigate, legCorrections }: {
     return () => { alive = false }
   }, [trip.id, inviteCode])
   const inviteLink = inviteCode
-    ? `${location.origin}${location.pathname}#/join/${inviteCode}`
-    : `${location.origin}${location.pathname}#/invite/${trip.id}`
+    ? `${location.origin}/#/join/${inviteCode}`
+    : `${location.origin}/#/invite/${trip.id}`
   const pub = db.published.find(p => p.tripId === trip.id)
   const pubLink = pub ? currentPublicShareUrl(pub.id) : ''
   const isOwner = (trip.members ?? []).some(m => m.userId === me.id && m.role === 'owner')

@@ -244,7 +244,129 @@ describe('public share URLs', () => {
   })
 })
 
+describe('public address bar', () => {
+  async function sync(url: string) {
+    const address = new URL(url)
+    const state = { restored: true }
+    const replaceState = vi.fn()
+    vi.stubGlobal('location', address)
+    vi.stubGlobal('history', { state, replaceState })
+    const { syncPublicAddress } = await import(shareUrlPath)
+    syncPublicAddress()
+    return { address, state, replaceState, syncPublicAddress }
+  }
+
+  it('makes a legacy hash link crawler-readable without changing the route or history state', async () => {
+    const { state, replaceState } = await sync('https://app.example.test/?campaign=share#/pub/kerala-trip_1')
+    expect(replaceState).toHaveBeenCalledExactlyOnceWith(state, '', '/i/kerala-trip_1?campaign=share#/pub/kerala-trip_1')
+  })
+
+  it('does not rewrite an already canonical browser address', async () => {
+    const { replaceState } = await sync('https://app.example.test/i/kerala-trip_1#/pub/kerala-trip_1')
+    expect(replaceState).not.toHaveBeenCalled()
+  })
+
+  it.each(['/explore', '/creator/alice', '/join/code', '/invite/trip', '/share/yf1_payload', '/auth?next=%2Ftrips', '/'])('clears the publication path when moving to %s', async route => {
+    const { state, replaceState } = await sync(`https://app.example.test/i/kerala-trip_1#${route}`)
+    expect(replaceState).toHaveBeenCalledExactlyOnceWith(state, '', `/#${route}`)
+  })
+
+  it('aligns the pathname when switching publications', async () => {
+    const { state, replaceState } = await sync('https://app.example.test/i/old-trip#/pub/new-trip')
+    expect(replaceState).toHaveBeenCalledExactlyOnceWith(state, '', '/i/new-trip#/pub/new-trip')
+  })
+
+  it('normalizes restored hash routes on repeated Back/Forward calls', async () => {
+    const { address, state, replaceState, syncPublicAddress } = await sync('https://app.example.test/i/kerala-trip_1#/pub/kerala-trip_1')
+    address.hash = '#/explore'
+    syncPublicAddress()
+    expect(replaceState).toHaveBeenLastCalledWith(state, '', '/#/explore')
+    address.pathname = '/'
+    address.hash = '#/pub/kerala-trip_1'
+    syncPublicAddress()
+    expect(replaceState).toHaveBeenLastCalledWith(state, '', '/i/kerala-trip_1#/pub/kerala-trip_1')
+  })
+
+  it.each(['#/pub/', '#/pub/two%20words', `#/pub/${'x'.repeat(65)}`, '#/explore'])('does not promote unsupported route %s', async hash => {
+    const { replaceState } = await sync(`https://app.example.test/${hash}`)
+    expect(replaceState).not.toHaveBeenCalled()
+  })
+
+  const publicationRoutes = [
+    '#/pub/kerala-trip_1/',
+    '#/pub/kerala-trip_1?utm_source=x',
+    '#//pub///kerala-trip_1//',
+    '#/pub?source=nav/kerala-trip_1?utm_source=x/',
+    '#/pub/kerala-trip_1/extra',
+  ]
+
+  it.each(publicationRoutes)('promotes the router-rendered publication for %s', async hash => {
+    const { state, replaceState } = await sync(`https://app.example.test/?campaign=share${hash}`)
+    expect(replaceState).toHaveBeenCalledExactlyOnceWith(state, '', `/i/kerala-trip_1?campaign=share${hash}`)
+  })
+
+  it.each(publicationRoutes)('never erases an already correct publication path for %s', async hash => {
+    const { replaceState } = await sync(`https://app.example.test/i/kerala-trip_1${hash}`)
+    expect(replaceState).not.toHaveBeenCalled()
+  })
+
+  it('promotes trailing segments ignored by the router', async () => {
+    const { state, replaceState } = await sync('https://app.example.test/#/pub/one/extra')
+    expect(replaceState).toHaveBeenCalledExactlyOnceWith(state, '', '/i/one#/pub/one/extra')
+  })
+
+  it.each(['a', 'A0_-', 'x'.repeat(64)])('accepts handler-allowed id %s in the pure path decision', async id => {
+    const { publicAddressPath } = await import(shareUrlPath)
+    expect(publicAddressPath(`#/pub/${id}?utm_source=x/`, '/')).toBe(`/i/${id}`)
+  })
+
+  it.each(['', 'two%20words', 'one.two', 'x'.repeat(65)])('does not promote handler-rejected id %s', async id => {
+    const { publicAddressPath } = await import(shareUrlPath)
+    expect(publicAddressPath(`#/pub/${id}`, '/')).toBe('/')
+    expect(publicAddressPath(`#/pub/${id}`, '/i/old')).toBe('/')
+  })
+
+  it.each(['#/explore', '#/pub/?source=x/one', '#/?source=x/pub/one', '#/public/one'])('uses router semantics rather than finding pub anywhere in %s', async hash => {
+    const { publicAddressPath } = await import(shareUrlPath)
+    expect(publicAddressPath(hash, '/i/old')).toBe('/')
+    expect(publicAddressPath(hash, '/other')).toBe('/other')
+  })
+
+  it.each(['file:///app/index.html#/pub/kerala-trip_1', 'capacitor://localhost/#/pub/kerala-trip_1'])('leaves non-web addresses unchanged: %s', async url => {
+    const { replaceState } = await sync(url)
+    expect(replaceState).not.toHaveBeenCalled()
+  })
+
+  it('leaves native https WebViews unchanged', async () => {
+    const { Capacitor } = await import('@capacitor/core')
+    const native = vi.spyOn(Capacitor, 'isNativePlatform').mockReturnValue(true)
+    try {
+      const { replaceState } = await sync('https://localhost/#/pub/kerala-trip_1')
+      expect(replaceState).not.toHaveBeenCalled()
+    } finally {
+      native.mockRestore()
+    }
+  })
+
+  it('keeps snapshot links rooted even while a publication path is present', async () => {
+    vi.stubGlobal('location', new URL('https://app.example.test/i/kerala-trip_1#/pub/kerala-trip_1'))
+    const { snapshotUrl } = await import('../src/lib/snapshot')
+    expect(snapshotUrl({} as Parameters<typeof snapshotUrl>[0], 'yf1_payload')).toBe('https://app.example.test/#/share/yf1_payload')
+  })
+})
+
 describe('public share source wiring', () => {
+  it('synchronizes the address on mount and before rendering a hash navigation', () => {
+    const source = read('../src/App.tsx')
+    expect(source).toMatch(/useEffect\(\(\) => \{\s*syncPublicAddress\(\)/)
+    expect(source).toMatch(/const onHash = \(\) => \{ syncPublicAddress\(\); setRoute\(currentRoute\(\)\)/)
+    expect(source).toContain("window.addEventListener('hashchange', onHash)")
+  })
+
+  it.each(['../src/pages/CreatorPage.tsx', '../src/pages/trip/ShareTab.tsx', '../src/lib/snapshot.ts'])('%s does not inherit a publication pathname for hash links', path => {
+    expect(read(path)).not.toContain('${location.pathname}')
+  })
+
   it('rewrites /i/:id to the handler and forwards the id', () => {
     const config = JSON.parse(read('../vercel.json'))
     expect(config.rewrites).toContainEqual({ source: '/i/:id', destination: '/api/i?id=:id' })

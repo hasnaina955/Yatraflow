@@ -368,6 +368,7 @@ the bank is a complete index of unbuilt work:
 
 | Track | Where | State |
 |---|---|---|
+| Public route at `/i/<id>` with no hash hop (option B) | [#226](#open-issues) | **Deferred.** The address-bar patch already keeps `/i/<id>#/pub/<id>` crawler-readable, so previews no longer need it. It would still drop the function round-trip on every refresh — and the interim "Opening this itinerary…" page that goes with it — by serving the app at the path the crawler already reads. Needs coordinated app routing, Vercel shell delivery, legacy hash-link handling and refresh/Back/Forward coverage; must not redirect `/i/<id>` to itself or fetch a different deployment's shell |
 | M5 — AI companion | [Strategic track](#m5--ai-companion-issues-22--20-the-next-feature-to-build) | Next up; issues #22 → #20 |
 | M6 — Together | [Strategic track](#m6--together-collaboration-depth) | RLS test suite, co-editing |
 | M7 — Premium | [Strategic track](#m7--premium-monetization) | Blocked: needs a gateway account |

@@ -13,6 +13,11 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 > record still exists in `git log`, not here. Archived release notes live in
 > [`docs/history/`](docs/history/).
 
+## [Unreleased]
+
+### Fixed
+- **Copying a public itinerary's browser address now preserves its trip-specific preview, and navigation links open the intended page in any tab.** Public pages retain the hash router while displaying `/i/<id>#/pub/<id>`, including routes with trailing slashes or tracking queries, so link crawlers can read the publication metadata. Shell navigation and the public page's creator link point at the app root for new tabs; ordinary clicks stay in-app without reloading. Navigating elsewhere removes the publication path; creator, invite and snapshot links remain rooted at the app rather than inheriting it. Native and file routing are unchanged.
+
 ## [0.58.0] - 2026-09-17
 
 **Shared links finally have a picture.** A shared itinerary with no cover of its own now previews as a branded 1200×630 card instead of no image at all, and the covers the app picks for itself stop arriving tens of times larger than a link preview can use.

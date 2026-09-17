@@ -19,6 +19,7 @@ import { PillNav } from './components/PillNav'
 import { decodeTripSnapshot } from './lib/snapshot'
 import { scrollBehavior } from './lib/motion'
 import { pageTitle, routeParts } from './lib/pageTitle'
+import { syncPublicAddress } from './lib/shareUrl'
 import { App as CapApp } from '@capacitor/app'
 import { isNative } from './lib/native'
 import { feedbackHref } from './lib/feedback'
@@ -90,7 +91,8 @@ export default function App() {
   }
 
   useEffect(() => {
-    const onHash = () => { setRoute(currentRoute()); setMobileNav(false); window.scrollTo({ top: 0, behavior: scrollBehavior() }) }
+    syncPublicAddress()
+    const onHash = () => { syncPublicAddress(); setRoute(currentRoute()); setMobileNav(false); window.scrollTo({ top: 0, behavior: scrollBehavior() }) }
     window.addEventListener('hashchange', onHash)
     return () => window.removeEventListener('hashchange', onHash)
   }, [])

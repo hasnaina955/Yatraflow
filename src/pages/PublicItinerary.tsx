@@ -19,6 +19,7 @@ import { stopKindOf, STOP_KIND_LABELS } from '../lib/stopKind'
 import { useSavedPubs } from '../lib/savedPubs'
 import { currentPublicShareUrl } from '../lib/shareUrl'
 import { pageTitle } from '../lib/pageTitle'
+import { sizedCoverUrl } from '../lib/tripThumb'
 import { useDestinationCover } from '../hooks/useDestinationCover'
 import { Avatar, Chip, EmptyState, toast, CopyButton, RouteSnapshot } from '../components/ui'
 
@@ -121,6 +122,10 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
   const highlightsN = highlights
 
   const creator = userById(pub.creatorId)
+  // The stored cover is not necessarily sized: a row written before the sizing
+  // fix holds the raw Wikimedia upload (a live publication shipped 1,305 KB as
+  // its hero). Sized at render, so existing rows are fixed without a backfill.
+  const heroSrc = pub.coverImageUrl ? sizedCoverUrl(pub.coverImageUrl) : heroAuto
   const shareLink = currentPublicShareUrl(pub.id)
   // Undefined when the creator published the itinerary as entirely free —
   // the Unlock buttons below are hidden rather than inventing a ₹199 fallback.
@@ -143,8 +148,8 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
     <div>
       {/* ---- Editorial hero: destination-led, creator-attributed (§6.11) ---- */}
       <section className="pub-hero">
-        {pub.coverImageUrl || heroAuto
-          ? <img className="pub-hero-photo" src={pub.coverImageUrl || heroAuto!} alt="" aria-hidden="true" />
+        {heroSrc
+          ? <img className="pub-hero-photo" src={heroSrc} alt="" aria-hidden="true" />
           : null}
         <div className="pub-hero-bg" aria-hidden="true" />
         <div className="container pub-hero-inner">
@@ -194,15 +199,6 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
             <div>
               <span className="editorial-kicker">The journey</span>
               <h2 className="editorial-title">Why this route works</h2>
-              <p className="editorial-body">{pub.tagline}</p>
-              {pub.travelTips.length > 0 && (
-                <>
-                  <h2 className="editorial-sub">Route philosophy</h2>
-                  <ul className="editorial-list">
-                    {pub.travelTips.map((t, i) => <li key={i}>{t}</li>)}
-                  </ul>
-                </>
-              )}
               <p className="editorial-body">
                 Built around {minutesToHM(totalsN.totalTravelMinutes)} of real road time across {pub.durationDays} days —
                 pacing, breaks and costs are all in the plan below.
@@ -218,7 +214,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
                 points={routePointsN}
               />
               <div className="route-glance-list">{pub.routeSummary.join(' · ')}</div>
-              <span className="route-glance-meta">{pub.durationDays} days · {totalsN.totalDistanceKm.toFixed(0)} km · {totalsN.stopCount} stops</span>
+              <span className="route-glance-meta">{totalsN.stopCount} stops in the plan</span>
             </aside>
           </div>
 

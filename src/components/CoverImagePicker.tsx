@@ -1,14 +1,15 @@
 import { useState } from 'react'
 import type { Trip } from '../data/types'
 import { updateTrip } from '../store/store'
-import { fetchFirstAvailableThumb, pickTripQueryCandidates } from '../lib/tripThumb'
+import { fetchFirstAvailableThumb, pickTripQueryCandidates, sizedCoverUrl } from '../lib/tripThumb'
 import { useDestinationCover } from '../hooks/useDestinationCover'
 
 /**
  * Owner-facing control to set / change / clear a trip's cover image.
  *   • "Use destination photo" fetches a popular Wikipedia image of the trip's
  *     headline destination and stores it as coverImageUrl (the default the
- *     product prefers — see types.ts).
+ *     product prefers — see types.ts), sized through `Special:Redirect` so no
+ *     row ever holds a multi-megabyte original.
  *   • A custom URL lets the owner override with any image.
  *   • "Use emoji only" clears the image so the card falls back to the emoji.
  * The choice is carried over on fork / publish via store.ts.
@@ -21,10 +22,12 @@ export function CoverImagePicker({ trip, editable }: { trip: Trip; editable: boo
   // empty when a perfectly good image exists for the next stop.
   const candidates = pickTripQueryCandidates(trip)
   const auto = useDestinationCover(candidates)
-  const current = trip.coverImageUrl ?? auto ?? null
+  const current = trip.coverImageUrl ? sizedCoverUrl(trip.coverImageUrl) : (auto ?? null)
 
   function setCover(url: string | undefined) {
-    updateTrip(trip.id, { coverImageUrl: url })
+    // Size on the way IN: a row written before sizing existed is fixed at
+    // render time, but nothing should write a new oversized URL either.
+    updateTrip(trip.id, { coverImageUrl: url ? sizedCoverUrl(url) : undefined })
   }
   async function onAuto() {
     setBusy(true)

@@ -13,6 +13,17 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 > record still exists in `git log`, not here. Archived release notes live in
 > [`docs/history/`](docs/history/).
 
+## [Unreleased]
+
+**A shared itinerary stops shipping an oversized cover, stops printing its own content twice, and the gallery stops featuring an itinerary it cannot vouch for.**
+
+### Fixed
+- **A cover the owner set is sized like one the app picks for itself.** The v0.58.0 cover-sizing change reached only the images the app chooses on its own, so a publication whose cover came from its owner rendered the raw upload: one live itinerary served a 1,305 KB (2496×1664) hero while the same page load requested its auto-picked covers at the supported width. Every surface that renders or writes a cover — the public hero, the shared trip card, and the owner's cover control — now routes a Wikimedia URL through `Special:Redirect/file?width=1200` (the same image measured 147 KB, a 9× reduction) and leaves a URL the owner pasted untouched. Rows written before this are corrected as they render, so no backfill is needed.
+- **The public itinerary page no longer says the same thing twice.** The tagline appeared in the hero and again under "Why this route works"; the author's travel tips appeared both as a "Route philosophy" list and as the "Travel tips" card; and the day count, distance and road time were stated three times. The tagline and the tips now have one home each, and the route-at-a-glance line carries only the fact the hero does not already state.
+
+### Changed
+- **The gallery features an itinerary only when it can say why.** The featured block printed its evidence even when the evidence was zero ("0 forks · 13 views"), and two publications that scored equally could swap places on load order. Leading the page now takes a fork or 25 views, the credibility line leads with forks when there are any and views otherwise, and the order is decided by copies, then views, then publication date. On a shelf with nothing yet worth boasting about, the block does not appear. The hero line that claimed plans "from travellers who actually went" was cut back to what the catalogue can support.
+
 ## [0.58.0] - 2026-09-17
 
 **Shared links finally have a picture.** A shared itinerary with no cover of its own now previews as a branded 1200×630 card instead of no image at all, and the covers the app picks for itself stop arriving tens of times larger than a link preview can use.

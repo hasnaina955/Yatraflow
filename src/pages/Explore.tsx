@@ -18,6 +18,11 @@ type SortKey = 'popular' | 'newest' | 'budget-asc' | 'budget-desc' | 'duration'
 const STYLES = ['relaxed', 'balanced', 'packed', 'adventure', 'luxury', 'budget', 'family', 'spiritual', 'food-focused', 'creator'] as const
 /** P4: the grid renders one page at a time; "Load more" grows the window. */
 const PAGE_SIZE = 12
+/** A publication is only worth featuring when it carries real evidence. With a
+ *  young catalog the honest answer is often "nothing yet" — leading with
+ *  "Why featured: 0 forks · 13 views" advertises emptiness rather than
+ *  credibility (§6.10). */
+const FEATURED_MIN_VIEWS = 25
 
 export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void }) {
   // Slice subscriptions: Explore re-renders when the published catalog,
@@ -88,9 +93,15 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
     }
   }
 
-  // Featured: the community's most-forked/viewed plan, independent of filters —
-  // it leads the page with its credibility explained (§6.10).
-  const featured = useMemo(() => [...published].sort((a, b) => popularity(b) - popularity(a))[0], [published])
+  // Featured: the most-forked/viewed plan, independent of filters — it leads the
+  // page with its credibility explained (§6.10), and only when that credibility
+  // can be stated without printing a zero.
+  const featured = useMemo(() => {
+    const pool = published.filter(p => p.copies >= 1 || p.views >= FEATURED_MIN_VIEWS)
+    // Deterministic order: a tie on the evidence score must not depend on the
+    // order rows arrived in (two live publications scored exactly 13).
+    return [...pool].sort((a, b) => b.copies - a.copies || b.views - a.views || b.publishedAt - a.publishedAt)[0]
+  }, [published])
   // Read the underlying trip from the trips slice (subscribed) so the featured
   // health score stays live without subscribing to the whole cache.
   const featuredTrip = featured ? trips.find(t => t.id === featured.tripId) : undefined
@@ -124,7 +135,7 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
           <span className="editorial-kicker explore-hero-kicker">Discover · Trust · Fork</span>
           <h1>Explore itineraries</h1>
           <p className="explore-hero-sub">
-            Real multi-day plans from travellers who actually went — real road time, real pacing, honest costs.
+            Real multi-day plans — real road time, real pacing, honest costs. Copy one and make it yours.
           </p>
           <div className="explore-hero-searchrow">
             <input className="input explore-hero-search" placeholder="Search a route, place or creator — try “Alleppey”…"
@@ -198,7 +209,9 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
               <h2><a className="featured-title-link" href={`#/pub/${featured.id}`}>{featured.title}</a></h2>
               <p className="featured-tagline">{featured.tagline}</p>
               <p className="featured-credibility">
-                Why featured: <GitFork size={12} aria-hidden style={{ verticalAlign: '-2px', margin: '0 2px' }} /> {featured.copies} fork{featured.copies === 1 ? '' : 's'} · <Eye size={12} aria-hidden style={{ verticalAlign: '-2px', margin: '0 2px' }} /> {featured.views} views
+                Why featured: {featured.copies >= 1
+                  ? <><GitFork size={12} aria-hidden style={{ verticalAlign: '-2px', margin: '0 2px' }} /> {featured.copies} fork{featured.copies === 1 ? '' : 's'} — the most-forked plan here</>
+                  : <><Eye size={12} aria-hidden style={{ verticalAlign: '-2px', margin: '0 2px' }} /> {featured.views} views</>}
                 {featuredHealth !== undefined && <> · trip health {featuredHealth}/100</>} — by {userOf(users, featured.creatorId)?.profile.name ?? 'a YatraFlow traveller'}{userOf(users, featured.creatorId)?.profile.isCreator && <Sparkles size={11} aria-hidden style={{ verticalAlign: '-1px', marginLeft: 2 }} />}.
               </p>
               <div className="featured-meta">

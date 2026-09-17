@@ -83,6 +83,29 @@ describe('the catalog is honest about the login wall behind Fork', () => {
   })
 })
 
+describe('the invite and snapshot gates name no cause they cannot know', () => {
+  it('does not declare the link broken when the fetch merely failed', () => {
+    const app = read('../src/App.tsx')
+    // Both resolvers log the error and return null, so a failed lookup and a
+    // dead code are indistinguishable to the caller.
+    expect(app).not.toMatch(/This invite link is broken/)
+    expect(app).not.toMatch(/This snapshot link is broken/)
+    expect(app).toMatch(/This invite didn’t load/)
+    expect(app).toMatch(/This snapshot didn’t load/)
+    // joinViaInvite reports false for an RLS refusal or a dropped connection
+    // just as readily as for a stale code.
+    expect(app).not.toMatch(/the link may be old/)
+  })
+
+  it('offers a retry, because a dropped connection is one of the real causes', () => {
+    const app = read('../src/App.tsx')
+    // The resolve effect has to actually re-run when the button bumps the tick…
+    expect(app).toMatch(/\}, \[codeOrTripId, retryTick\]\)/)
+    // …and the button must drop back to the spinner rather than sit on the failure.
+    expect(app).toMatch(/setStatus\('loading'\); setRetryTick\(t => t \+ 1\)/)
+  })
+})
+
 describe('the public page names no cause it cannot know', () => {
   it('describes a failed load without picking one explanation', () => {
     const page = read('../src/pages/PublicItinerary.tsx')

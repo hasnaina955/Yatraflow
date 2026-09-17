@@ -15,7 +15,7 @@ import { Select } from '../../components/Select'
 import { DetourWhisk } from '../../components/DetourWhisk'
 import { useSuggestionCache, isMapCacheFresh } from '../../hooks/useSuggestionCache'
 import { openExternal } from '../../lib/native'
-import { corridorAnchors, detourKm, detourMinutes, asymmetricDetourMinutes, googleEnabled, planJourneyHalts, reasonForSegmentHit, searchPlacesText, searchNearbyPoisMulti, kmFromStartForHit, planDriveDays, planTravelClock, rainFactorFor, isSelfDrivenMode, requireHitCoords, hasCoords, DEFER_START, type NearbyOpts, type PlaceHit, type TravelClockVerdict, routeHash } from '../../lib/geocode'
+import { corridorAnchors, detourKm, detourMinutes, asymmetricDetourMinutes, googleEnabled, planJourneyHalts, reasonForSegmentHit, searchPlacesText, searchNearbyPoisMulti, kmFromStartForHit, planDriveDays, planTravelClock, rainFactorFor, isSelfDrivenMode, requireHitCoords, hasCoords, directionalKm, alongRouteKmOf, DEFER_START, type NearbyOpts, type PlaceHit, type TravelClockVerdict, routeHash } from '../../lib/geocode'
 import { isSightCategory, roadProfileFromLegs, loopProfile } from '../../lib/ridePlan'
 import { QuotaExhaustedError } from '../../lib/providers/google'
 import { isElectric } from '../../lib/vehicleProfile'
@@ -306,6 +306,13 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     return pts.length >= 2 ? pts : null
   }, [routeGeometry])
 
+  // #polylines: the Return-home toggle is a DIRECTION filter, not a drawing
+  // switch. On (default): the corridor reads the loop — km labels wrap past the
+  // far end onto the ride home, exactly like the plan's loop math. Off: the
+  // outbound road only — a place 30 km before the far end reads ~30 km from
+  // home on the way back instead of a meaningless 95% of the loop.
+  const [showReturn, setShowReturn] = useState(true)
+
   // Crew seeds: open group-input ideas suppress near-duplicates and bias the
   // corridor toward crew-proposed kinds.
   const crewSeeds = useMemo(() => crewSeedsFromSuggestions(crewSuggestions ?? []), [crewSuggestions])
@@ -575,6 +582,16 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     if (!routePolyline) return null
     const snap = projectOntoPolyline({ latitude: lat, longitude: lng }, routePolyline)
     return snap?.km ?? null
+  }
+  /** Directional km label: honours the Return-home toggle (#polylines). With
+   *  the return hidden, a place on the way back reads its distance from home
+   *  instead of a misleading 90%+ of the loop. Null off-polyline. */
+  function kmLabelFor(km: number | null | undefined): number | null {
+    if (km == null || !Number.isFinite(km)) return null
+    if (!routePolyline) return km
+    const span = alongRouteKmOf(routePolyline[0].lat, routePolyline[0].lng, routePolyline) // total = span of the drawn road
+    const total = span?.totalKm ?? km
+    return directionalKm(km, total, showReturn)
   }
 
   async function addPoiToDay(hit: PlaceHit, dayIndex: number) {
@@ -1058,7 +1075,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
         {/* The planner is clock-first (PLAN-DAY-PLANNER section 4), so the strip
             leads with the wall clock it derived the halt from, not just km. */}
         <div className="poi-facts">
-          <span className="poi-fact">{hit.cumKm ?? sh.segment.targetKm.toFixed(0)} km in</span>
+          <span className="poi-fact">{kmLabelFor(hit.cumKm) != null ? `${Math.round(kmLabelFor(hit.cumKm)!)} km in` : `${sh.segment.targetKm.toFixed(0)} km in`}</span>
           {sh.segment.etaMinutes != null && (
             <span className="poi-fact"><i>·</i>arrive {formatHM(clockHM(sh.segment.etaMinutes), timeFormat)}</span>
           )}
@@ -1273,7 +1290,10 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
                   <span className="small" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {h.name}{h.nearestCity ? ` · ${h.nearestCity}` : ''}
                     <span className="muted">{' — '}
-                      {km != null ? `~${Math.round(km)} km into the trip` : 'off the road'}
+                      {(() => {
+                        const labelled = kmLabelFor(km)
+                        return km != null ? `~${Math.round(labelled ?? km)} km into the trip${showReturn ? '' : ' (outbound)'}` : 'off the road'
+                      })()}
                       {off != null ? ` · ${off < 0.5 ? 'on route' : `${Math.round(off)} km off-route`}` : ''}
                       {!inScope && ' · beyond your detour scope'}
                     </span>
@@ -1463,6 +1483,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
               onDeleteStop={editable ? removeStopFromMap : undefined}
               enableMapViewModes
               mainRouteGeometry={routeGeometry}
+              onShowReturnChange={setShowReturn}
             />
           </div>
           <div className="poi-col poi-col--see" id="rail-see">

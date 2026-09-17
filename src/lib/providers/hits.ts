@@ -70,6 +70,36 @@ export type HaltPurpose = 'stretch' | 'meal' | 'fuel' | 'rest' | 'overnight' | '
  * (680 km south of Indira Point, mid-ocean) is never a valid pick for an
  * India trip-planner, so treating it as unusable costs nothing real.
  */
+/** Along-route km for any point on the current route (null off-polyline). */
+export function alongRouteKmOf(
+  lat: number,
+  lng: number,
+  routePolyline: { lat: number; lng: number }[] | null,
+): { km: number; totalKm: number } | null {
+  if (!routePolyline || routePolyline.length < 2) return null
+  const snap = projectOntoPolyline({ latitude: lat, longitude: lng }, routePolyline)
+  if (!snap) return null
+  // total loop km = the polyline's own span (end-to-end of what was drawn)
+  let total = 0
+  for (let i = 1; i < routePolyline.length; i++) {
+    total += haversineKm(routePolyline[i - 1].lat, routePolyline[i - 1].lng, routePolyline[i].lat, routePolyline[i].lng)
+  }
+  return { km: snap.km, totalKm: total }
+}
+
+/**
+ * Directional along-route km: when the return leg is HIDDEN, a place on the
+ * way back reads its distance from HOME (totalKm − km) instead of its distance
+ * from the start going out — a place 30 km before the far end reads ~30 km
+ * from home on the way back, not a meaningless 95% of the loop (#polylines).
+ * When the return leg is shown (default), km passes through unchanged: the
+ * labels read the loop exactly like the plan's loop math.
+ */
+export function directionalKm(km: number, totalKm: number, showReturn: boolean): number {
+  if (showReturn) return km
+  return Math.min(km, totalKm - km)
+}
+
 export function hasCoords(h: PlaceHit): boolean {
   return Number.isFinite(h.latitude) && Number.isFinite(h.longitude) && h.latitude !== 0 && h.longitude !== 0
 }

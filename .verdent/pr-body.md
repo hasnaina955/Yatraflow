@@ -1,6 +1,6 @@
 ## Summary
 
-An `impeccable polish` pass over the two public surfaces — the **Explore gallery** and the **published-itinerary page** — driven by measurement on the running app rather than by reading CSS, plus the app-shell defect the sweep turned up on the way. 16 work commits, 20 files, `+1106 / −141`.
+An `impeccable polish` pass over the two public surfaces — the **Explore gallery** and the **published-itinerary page** — driven by measurement on the running app rather than by reading CSS, plus the app-shell defect the sweep turned up on the way. 19 work commits over 21 files, `+1205 / −155`.
 
 The cards were genuinely broken: four independent layout defects, each confirmed on rendered pixels before being touched.
 
@@ -43,6 +43,8 @@ New guards, each teeth-tested by breaking it on purpose and restoring byte-exact
 - `tests/design-system.test.ts` — the spacing ratchet, keyed `property: value` rather than by line, so a CSS edit that only moves lines cannot force a re-baseline the way the contrast and duration gates can. **76 pairs, shrink-only.**
 - `tests/public-surface-guardrails.test.ts` — pins the one micro-label recipe, the grid card margins, and the hero-card bounds.
 - `tests/preview-split.test.ts` — eight shapes of the withheld-day claim (non-tail, tail, single day, merged ranges, nothing withheld, all withheld, out-of-range, zero-day).
+
+**On the PR itself**, Codacy's security engine first reported **3 new critical issues**, and all three were this branch's own tests: both guards found their rule by interpolating a class name into `new RegExp(`, i.e. a non-literal pattern. They now scan the stylesheet as a string — which is the right shape regardless, since a class name is not a pattern and an escaping slip reads as "no such rule" rather than as a bad pattern. Semantics unchanged, re-teeth-tested (renaming the hero rule still fails with `must exist in styles.css`; making a rail label re-declare the recipe still fails naming the property). **Codacy is green at 0 issues** and the Vercel preview built.
 
 The line-number-keyed design-system baseline needed re-baselining after the CSS insertions, as AGENTS documents. Done, then **proven** by diffing with line numbers stripped that every edited entry differed by its line number alone: the violation counts are unchanged at the shipped baseline — `contrastLight 9, contrastDark 11, duplicateSelectors 32, rawDurations 30, hueCollisions 1`, plus the new `offLadderSpacing 76`. **No new violation was accepted.**
 

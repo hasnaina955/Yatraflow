@@ -132,10 +132,15 @@ describe('the public page names no cause it cannot know', () => {
 describe('grid cards are laid out by the grid, not by the stacked-card beat', () => {
   const css = read('../src/styles.css')
 
-  it('zeroes the stacked-card margin inside the grid containers', () => {
+  it('zeroes the stacked-card margin inside every grid container that holds cards', () => {
+    // The list is an inventory, not a sample: a DOM sweep of every reachable
+    // route found exactly these three grids holding `.card` children (Explore,
+    // CreatorPage and TripsList share the first), and the landing feature strip
+    // was the one the first pass missed.
     const override = css.match(/\.explore-grid > \.card \+ \.card,[\s\S]*?margin-top: 0;/)?.[0] ?? ''
     expect(override).toMatch(/\.explore-grid > \.card \+ \.card/)
     expect(override).toMatch(/\.two-col > \.card \+ \.card/)
+    expect(override).toMatch(/\.feature-strip > \.card \+ \.card/)
   })
 
   it('gives two peer cards equal halves instead of a phantom sidebar', () => {
@@ -190,5 +195,27 @@ describe('one kicker recipe, and no capitals typed in components', () => {
     // label — the transform is the kicker block's job, not the call site's.
     const page = read('../src/pages/PublicItinerary.tsx')
     expect(page).not.toMatch(/toUpperCase\(\)/)
+  })
+
+  it('leaves the map rail\'s label classes on the kicker recipe, not on their own', () => {
+    // DESIGN_TOKENS documents ONE micro-label recipe (10.5 / 700 / .06em /
+    // uppercase). The rail's two label classes carried their own declarations
+    // and one of them had lost the weight — so they now only set colour, and
+    // join the shared list. Pills (`.poi-best`, `.poi-rchip`) and the facts
+    // line (`.poi-facts`) are a different role and stay as they are.
+    // Matched through to the recipe's own declarations — the first `{` after
+    // the comment belongs to the enclosing `@media screen`, not the rule.
+    const recipe = css.match(/Kicker unification:[\s\S]*?text-transform: uppercase;/)?.[0] ?? ''
+    expect(recipe).toMatch(/\.poi-grp-k, \.poi-reason-k/)
+    for (const sel of ['.poi-grp-k', '.poi-reason-k']) {
+      // Anchored to the start of a line: inside the shared list the class name
+      // is also followed by ` {`, so an unanchored pattern would read the
+      // recipe's own declarations back as this class's.
+      const rule = css.match(new RegExp(`^\\${sel} \\{[^}]*\\}`, 'm'))?.[0] ?? ''
+      expect(rule, `${sel} must exist`).not.toBe('')
+      for (const prop of ['font-size', 'font-weight', 'letter-spacing', 'text-transform']) {
+        expect(rule, `${sel} must take ${prop} from the recipe`).not.toMatch(new RegExp(`(^|[;{\\s])${prop}:`))
+      }
+    }
   })
 })

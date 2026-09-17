@@ -617,8 +617,12 @@ a.btn { text-decoration: none; }
    rendered with ragged tops, unequal heights and a 26px gap where the grid said
    12 (Explore shelf, creator page, My Trips, and the public itinerary's
    Travel-tips / Warnings row). */
+/* The inventory below is the answer to "which grids hold `.card`s?" — a sweep
+   found three (Explore/CreatorPage/TripsList share one, the public page's
+   content grid, and the landing feature strip). Add the next one here. */
 .explore-grid > .card + .card,
-.two-col > .card + .card { margin-top: 0; }
+.two-col > .card + .card,
+.feature-strip > .card + .card { margin-top: 0; }
 /* Explicit card spacing where the sibling selector can't express the intent
    (Profile stacks its cards with a wider 16px beat — was inline style). */
 .stack-gap { margin-top: 16px; }
@@ -4086,7 +4090,31 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
   .brand { font-size: 16px; gap: 7px; }
   .nav-right { gap: 6px; }
   .nav-right .btn { padding: 9px 11px; font-size: 13px; }
+  /* The pill is a single flex row, every icon control holds the 40px touch
+     floor, and the auth pair is the only path to an account — so the wordmark
+     is the one part that can give. Tightening gaps (above) was not enough: at
+     390px the row ran 38px past the pill and 28px past the viewport, and
+     `html { overflow-x: clip }` cut "Sign up free" off mid-label instead of
+     scrolling. The brand anchor carries `aria-label="YatraFlow home"`, so the
+     mark alone still names the link and nothing loses its label. */
+  .brand span { display: none; }
   .nav-pill-group { padding: 3px; gap: 1px; }
+}
+
+/* ---- <=360px: the last few pixels ---- */
+/* Placed AFTER the <=480 block on purpose — the cascade here is order-sensitive
+   and an earlier rung loses to it (the first attempt at this rule sat above and
+   only its one declaration the later blocks don't touch took effect). Every
+   control already holds the 40px touch floor and the wordmark is hidden above,
+   so what is left to give is chrome: the pill's gutters, the tray's padding, the
+   gaps, and the logo mark. Without it the sign-up CTA still ran 18px past the
+   pill at 320px. The pill's own width is deliberately NOT touched here — the
+   <=720 block sets it later in the file and would win. */
+@media (max-width: 360px) {
+  .topnav .container.topnav-inner { padding: 0 6px 0 10px; gap: 6px; }
+  .brand svg { width: 26px; height: 26px; }
+  .nav-right { gap: 4px; }
+  .nav-pill-group { padding: 2px; }
 }
 
 /* ---- <=720px: THE mobile block (single consolidated block, rules in
@@ -5173,7 +5201,8 @@ html.native-shell {
   .compare-table th, .toast-action, .editorial-kicker, .pub-stats-label,
   .pub-hero-badge, .pub-hero-byline,
   .eyebrow, .cal-wd,
-  .route-glance .route-glance-label, .stat-label, .app-home-section {
+  .route-glance .route-glance-label, .stat-label, .app-home-section,
+  .poi-grp-k, .poi-reason-k {
     font-size: var(--kicker-size);
     font-weight: var(--kicker-weight);
     letter-spacing: var(--kicker-tracking);
@@ -5211,7 +5240,9 @@ html.native-shell {
   padding: 2px 8px; font-variant-numeric: tabular-nums;
 }
 .poi-grp { display: flex; align-items: center; gap: 8px; margin: 12px 0 6px; }
-.poi-grp-k { font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); }
+/* Size/weight/tracking come from the kicker recipe above; only colour is local.
+   Declared here (not inline) so the rail cannot drift from the one recipe. */
+.poi-grp-k { color: var(--text-3); }
 .poi-grp-n { font-size: 10.5px; font-weight: 600; color: var(--text-3); font-variant-numeric: tabular-nums; }
 .poi-grp-ln { flex: 1; height: 1px; background: var(--line); }
 .poi-facts {
@@ -5222,7 +5253,7 @@ html.native-shell {
 .poi-fact--fine { color: var(--teal-deep); font-weight: 600; }
 .poi-fact--warn { color: var(--warn); font-weight: 600; }
 .poi-reason { display: flex; gap: 6px; align-items: baseline; margin-top: 6px; font-size: 11.5px; color: var(--text-2); }
-.poi-reason-k { flex: none; font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); }
+.poi-reason-k { flex: none; color: var(--text-3); }
 .poi-alts { margin-top: 6px; }
 .poi-alts summary { cursor: pointer; list-style: none; display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 600; color: var(--teal-deep); }
 .poi-alts summary::-webkit-details-marker { display: none; }

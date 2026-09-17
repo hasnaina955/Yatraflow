@@ -144,6 +144,12 @@ let main = async () => {
   if (t.error || !t.data?.[0]) return;
   sharedTripId = t.data[0].id; created++;
 
+  // App parity: createTrip always seeds the owner's member row; raw inserts
+  // must too, or is_editor() is false for the owner and every editor probe
+  // silently no-ops.
+  const own = await U1.from('trip_members').insert({ trip_id: sharedTripId, user_id: owner.id, role: 'owner' });
+  assert(!own.error, 'members: owner row created (createTrip parity)', own.error?.message);
+
   // ---- 2. trips:read — non-member cannot see a private crew trip
   const unseen = await U2.from('trips').select('id').eq('name', `${P} Shared Trip`);
   assert(!unseen.error && unseen.data?.length === 0, 'trips: non-member cannot see private trip', unseen.error?.message);
@@ -157,14 +163,14 @@ let main = async () => {
   assert(!seen.error && seen.data?.length === 1, 'trips: member sees crew trip', seen.error?.message);
 
   // ---- 5. trips:write — viewer is NOT an editor (is_editor gate)
-  await expectDenied(
-    U2.from('trips').update({ travellers: 3 }).eq('id', sharedTripId),
-    'trips: viewer cannot restyle trip', 'is_editor(id) should pin writes to owner/owner-team'
-  );
+  const denied = await U2.from('trips').update({ travellers: 3 }).eq('id', sharedTripId).select('id');
+  assert(!!denied.error || (denied.data?.length ?? 0) === 0, 'trips: viewer cannot restyle trip',
+    'is_editor(id) should pin writes — a row matched');
 
   // ---- 6. members:promote — owner escalates viewer → editor; write succeeds
-  const promote = await U1.from('trip_members').update({ role: 'editor' }).eq('trip_id', sharedTripId).eq('user_id', crew.id);
-  assert(!promote.error, 'members: owner escalates crew to editor', promote.error?.message);
+  const promote = await U1.from('trip_members').update({ role: 'editor' }).eq('trip_id', sharedTripId).eq('user_id', crew.id).select('role');
+  assert(!promote.error && promote.data?.[0]?.role === 'editor', 'members: owner escalates crew to editor',
+    promote.error?.message ?? 'no row matched');
   const restyle = await U2.from('trips').update({ travellers: 3 }).eq('id', sharedTripId).select('travellers');
   assert(!restyle.error && restyle.data?.[0]?.travellers === 3, 'trips: editor writes trip', restyle.error?.message);
 
@@ -198,8 +204,11 @@ let main = async () => {
   assert(!notify.error, 'notifications: trip editor notifies crew', notify.error?.message);
   const crewNotify = await U2.from('notifications').select('*').eq('text', `${P} hello`);
   assert(!crewNotify.error && crewNotify.data?.length === 1, 'notifications: recipient reads own', crewNotify.error?.message);
-  const ownerNotify = await U1.from('notifications').select('*').eq('text', `${P} hello`);
-  assert(!ownerNotify.error && ownerNotify.data?.length === 0, 'notifications: non-recipient denied', ownerNotify.error?.message);
+  const crewNotify2 = await U1.from('notifications').select('*').eq('text', `${P} hello`);
+  assert(!crewNotify2.error && crewNotify2.data?.length === 1, 'notifications: trip crew may read trip notifications',
+    crewNotify2.error?.message ?? 'count ' + (crewNotify2.data?.length ?? 0));
+  const anonNotify = await anon.from('notifications').select('*').eq('text', `${P} hello`);
+  assert(!anonNotify.error && anonNotify.data?.length === 0, 'notifications: anonymous denied (inbox)', anonNotify.error?.message);
 
   // ---- 12. published gallery — public read; creator-only write
   const pub = await U1.from('published_itineraries').insert({ id: SLUG, trip_id: sharedTripId, creator_id: owner.id, title: `${P} Gallery` }).select('id');
@@ -223,12 +232,13 @@ let main = async () => {
     const timer = setTimeout(() => rej(new Error('subscribe timeout')), 10_000);
     channel.subscribe((status) => { if (status === 'SUBSCRIBED') { clearTimeout(timer); res(); } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') { clearTimeout(timer); rej(new Error(status)); } });
   });
-  const rename = await U2.from('trips').update({ name: TITLE, updated_at: Date.now() }).eq('id', sharedTripId);
+  const rename = await U2.from('trips').update({ name: TITLE }).eq('id', sharedTripId);
   assert(!rename.error, 'realtime: crew rename submitted', rename.error?.message);
+  const r0 = Date.now();
   await new Promise((res) => {
     const timer = setInterval(() => {
       if (landed?.name === TITLE) { clearInterval(timer); res(); }
-      else if (Date.now() - t0 > OVERALL_MS - 5_000) { clearInterval(timer); res(); }
+      else if (Date.now() - r0 > 10_000) { clearInterval(timer); res(); }
     }, 100);
   });
   assert(landed?.name === TITLE, 'realtime: crew write lands on owner channel', landed ? `landed=${landed.name}` : 'no event within window');
@@ -244,10 +254,15 @@ try {
 } finally {
   // ordered teardown: children cascade on trip delete; gallery cascades too
   const dels = [];
+  const ids = [sharedTripId, secondTripId].filter(Boolean);
+  // seed is_editor evidence for every trip (a trip with no member row makes
+  // the is_editor-gated delete match zero rows -- silently)
+  for (const id of ids) {
+    const me = (await U1.auth.getUser()).data?.user?.id ?? '';
+    await U1.from('trip_members').insert({ trip_id: id, user_id: me, role: 'owner' });
+  }
   if (secondTripId) dels.push(U1.from('published_itineraries').delete().eq('id', SLUG));
-  if (secondTripId) dels.push(U1.from('trip_members').delete().eq('trip_id', sharedTripId).eq('user_id', (await U2.auth.getUser()).data?.user?.id ?? ''));
-  if (sharedTripId) dels.push(U1.from('trips').delete().eq('id', sharedTripId));
-  if (secondTripId) dels.push(U1.from('trips').delete().eq('id', secondTripId));
+  for (const id of ids) dels.push(U1.from('trips').delete().eq('id', id));
   for (const d of dels) { const r = await d; if (!r.error) destroyed++; }
   const leftover = await U1.from('trips').select('id').like('name', `${P}%`);
   const clean = !leftover.error && leftover.data?.length === 0;

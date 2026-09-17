@@ -14,7 +14,10 @@
 //      start location) so a single miss doesn't blank the card.
 import type { Trip } from '../data/types'
 
-const CACHE_KEY = 'yatraflow_trip_thumbs'
+// Bumped to v2 when auto covers started being requested at COVER_WIDTH: the v1
+// cache holds multi-megabyte original URLs and has no TTL for hits, so without
+// this an existing user would keep serving them indefinitely.
+const CACHE_KEY = 'yatraflow_trip_thumbs_v2'
 // A "no photo" verdict stays cached for a week, then we retry (a place may
 // later get a lead image, or the API may recover).
 const NEG_TTL_MS = 7 * 24 * 60 * 60 * 1000
@@ -112,13 +115,52 @@ export function parseThumbCache(raw: string | null): CacheMap {
   return out
 }
 
+// ---------- sizing ----------
+/**
+ * The width every auto cover is requested at. Wikipedia's REST summary hands
+ * back either the *unscaled* upload or a 3840px thumbnail, so covers arrived at
+ * 1.3–3.3 MB: over the 600 KB ceiling a link preview needs (Meta's, for
+ * WhatsApp) and needlessly heavy for a card in the app.
+ *
+ * A width cannot simply be composed into the URL. Wikimedia serves only the
+ * sizes it has generated, so a hand-built `/thumb/…/1200px-…` path — and even
+ * swapping the width on a URL the API itself returned — answers 400.
+ * `Special:Redirect/file` is the supported way to ask, and it redirects to the
+ * nearest size that exists (1200 lands on 1280): measured 144 KB for Chandratal
+ * where the original was 1304 KB, and 406 KB for Munnar where it was 2894 KB.
+ */
+export const COVER_WIDTH = 1200
+
+/** Split a Wikimedia image URL into its project and file name, tolerating both
+ *  the unscaled-upload and the already-a-thumbnail shapes. Returns null for
+ *  anything that is not a Wikimedia file, so a cover the owner pasted is never
+ *  rewritten. The file name is taken exactly as it arrives — it is already
+ *  percent-encoded, and decoding then re-encoding would double-escape it. */
+function wikimediaFile(url: string): { project: string; file: string } | null {
+  const path = url.split('?')[0]
+  const m = /^https:\/\/[^/]*wikimedia\.org\/wikipedia\/([^/]+)\/(.+)$/.exec(path)
+  if (!m) return null
+  const rest = m[2].startsWith('thumb/') ? m[2].slice('thumb/'.length) : m[2]
+  // "<h>/<hh>/<File>", with an optional "/<N>px-<File>" tail once thumbed.
+  const seg = /^[0-9a-f]\/[0-9a-f]{2}\/([^/]+)/.exec(rest)
+  return seg ? { project: m[1], file: seg[1] } : null
+}
+
+/** The same file at a sane width. Non-Wikimedia URLs come back untouched. */
+export function sizedCoverUrl(url: string, width = COVER_WIDTH): string {
+  const found = wikimediaFile(url)
+  if (!found) return url
+  const host = found.project === 'commons' ? 'commons.wikimedia.org' : `${found.project}.wikipedia.org`
+  return `https://${host}/wiki/Special:Redirect/file/${found.file}?width=${width}`
+}
+
 // ---------- Wikipedia response extraction ----------
-/** Pull the best lead-image URL out of a Wikipedia REST `summary` response. */
+/** Pull the best lead-image URL out of a Wikipedia REST `summary` response,
+ *  sized — the raw `originalimage` is the unscaled upload. */
 export function extractRestThumbUrl(data: unknown): string | null {
   const d = data as { thumbnail?: { source?: string }; originalimage?: { source?: string } }
-  if (d?.originalimage?.source) return d.originalimage.source
-  if (d?.thumbnail?.source) return d.thumbnail.source
-  return null
+  const raw = d?.originalimage?.source ?? d?.thumbnail?.source
+  return raw ? sizedCoverUrl(raw) : null
 }
 
 /** Pull the best lead-image URL out of a Wikipedia `query.pages` response.
@@ -133,9 +175,9 @@ export function extractThumbUrl(data: unknown, query: string): string | null {
   if (!list.length) return null
   const q = query.trim().toLowerCase()
   const exact = list.find(p => !!p?.title && p.title.trim().toLowerCase() === q && !!p.thumbnail?.source)
-  if (exact?.thumbnail?.source) return exact.thumbnail.source
+  if (exact?.thumbnail?.source) return sizedCoverUrl(exact.thumbnail.source)
   const any = list.find(p => !!p?.thumbnail?.source)
-  return any?.thumbnail?.source ?? null
+  return any?.thumbnail?.source ? sizedCoverUrl(any.thumbnail.source) : null
 }
 
 // ---------- cache read/write ----------
@@ -180,7 +222,7 @@ async function tryRestSummary(query: string): Promise<string | null> {
 async function tryPageImages(query: string): Promise<string | null> {
   const url =
     `https://en.wikipedia.org/w/api.php?action=query&prop=pageimages` +
-    `&piprop=original|thumbnail&pithumbsize=800&titles=${encodeURIComponent(query)}` +
+    `&piprop=thumbnail&pithumbsize=${COVER_WIDTH}&titles=${encodeURIComponent(query)}` +
     `&format=json&origin=*`
   const res = await fetch(url)
   if (!res.ok) return null

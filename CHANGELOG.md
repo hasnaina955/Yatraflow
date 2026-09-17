@@ -20,6 +20,7 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 ### Changed
 
 ### Fixed
+- **A shared itinerary no longer previews with a multi-megabyte cover.** Auto covers came from Wikipedia's REST summary, which hands back either the *unscaled* upload or a 3840px thumbnail, so every card and hero shipped a 1.3–3.3 MB image — and WhatsApp is documented to want the `og:image` under 600 KB. Both extraction paths now route a Wikimedia file through `Special:Redirect/file/<name>?width=1200` (`lib/tripThumb.ts`), the supported way to ask for a size: 144 KB where the original was 1304 KB, 406 KB where it was 2894 KB, and nine of ten real destinations measured between 144 and 406 KB. A width cannot be composed into the URL — Wikimedia answers 400 for any size it has not itself generated, including one substituted into a URL the API returned — and a cover that is not a Wikimedia URL is left untouched. The thumb cache is keyed `_v2` so entries holding the old oversized URLs are dropped rather than served forever.
 
 ### Docs
 

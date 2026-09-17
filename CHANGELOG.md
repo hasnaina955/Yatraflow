@@ -13,6 +13,11 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 > record still exists in `git log`, not here. Archived release notes live in
 > [`docs/history/`](docs/history/).
 
+## [Unreleased]
+
+### Fixed
+- **A single day's route no longer appears to stop in the middle of nowhere.** The line drawn for a selected day follows the engine's planned ride, which can open at the previous night's place and end at a synthesized destination — the ride home, or the next planned stop — while the pins come only from that day's stored stops. An end of the line could therefore sit on a spot with no marker at all and read as a truncated route. Those synthesized ends now carry their own plane/flag pin, labelled with the place they stand for, and are suppressed when a real stop already covers the same spot (the engine's own 1 km "same place" rule).
+
 ## [0.59.1] - 2026-09-17
 
 **A route no longer stops short of where it is going.** The corridor measurement handed one leg its neighbour's result, so the drawn line ended early — and cached the wrong road under that leg's key.

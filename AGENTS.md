@@ -138,7 +138,10 @@ Key locations:
 7. **When asking the user to review/test locally, always hand them the exact
    URL — never make them find or start the server.** Check if the dev server
    is up (probe `http://localhost:5173`); if not, start `npm run dev`
-   detached (`Start-Process npm.cmd -ArgumentList 'run','dev'`). Confirm it
+   detached (`Start-Process npm.cmd -ArgumentList 'run','dev'` in PowerShell,
+   or from Git Bash `nohup npm run dev -- --port 5173 --strictPort > /tmp/dev.log
+   2>&1 &` — the durable form, since a harness `BACKGROUND` mode may not exist
+   and a plain `&` alone can leave the tool waiting on the pipe). Confirm it
    serves *this* working tree before linking (fetch
    `http://localhost:5173/src/styles.css` and grep for a token/marker that
    only exists in the current branch's changes — a stale server from another

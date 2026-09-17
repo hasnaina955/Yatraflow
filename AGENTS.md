@@ -329,17 +329,22 @@ Hard rules (each learned the hard way — do not relearn them):
   assigned in one entry is empty in the next, so multi-step probes silently
   return nothing and look like failures. Put a dependent pipeline in a single
   command string, with `try/finally` whenever it touches real files.
-- **A screenshot pass means one browser command per tool call — batching them
-  loses the whole result.** An `agent-browser` call that chains `open` +
+- **A screenshot pass runs one browser command per tool call, and never
+  wrapped in a shell `timeout`.** An `agent-browser` call that chains `open` +
   `wait` + `screenshot` + `eval` exhausted the call budget and the harness
   returned **no output at all** (not partial stdout), which reads exactly like
-  a hung CLI; the same commands, run one per call and each wrapped in
-  `timeout`, all returned in seconds. Three companions: relative screenshot
-  paths are ignored — they land in `~/.agent-browser/tmp/screenshots/`
-  whatever you pass, so hand it an absolute path; a cold Vite transform is what
-  makes `open` look slow, so warm the route *and its modules* with `curl`
-  first; and `transferSize` reads 0 on cross-origin images (Wikimedia exposes
-  no resource timing), so prove a cover's weight from the origin
+  a hung CLI; the same commands, one per call, all returned in seconds. A
+  `timeout` wrapper makes it worse, not safer: killing the CLI leaves its
+  browser child holding the pipe, so the call hangs to the tool's own limit
+  anyway. And a *brand-new* session's first command really is slow — a cold
+  browser launch outlived a 280 s call — so start that one detached
+  (`nohup agent-browser open <url> > /tmp/ab.log 2>&1 &`), poll the log, then
+  reuse the warm session. Three companions: relative screenshot paths are
+  ignored — they land in `~/.agent-browser/tmp/screenshots/` whatever you pass,
+  so hand it an absolute path; a cold Vite transform is what makes the *page*
+  slow, so warm the route *and its modules* with `curl` first; and
+  `transferSize` reads 0 on cross-origin images (Wikimedia exposes no resource
+  timing), so prove a cover's weight from the origin
   (`curl -w '%{size_download}'` on the `src` the DOM actually rendered) rather
   than from `performance.getEntriesByType('resource')`.
 - **`str_replace` can report a real, existing file as missing** (`package-lock.json`,

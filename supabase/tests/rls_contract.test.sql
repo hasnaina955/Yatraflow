@@ -56,23 +56,21 @@ begin
     raise exception 'trips DELETE must be editor-scoped (is_editor(id))';
   end if;
 
-  -- 1c. Trashed-read: SOME trips SELECT policy must expose tombstones to the
-  --     owner team while the default read hides them.
-  if not (
-    exists (
-      select 1 from pg_policies
-      where schemaname = 'public' and tablename = 'trips'
-        and cmd = 'SELECT' and lower(coalesce(qual, '')) like '%deleted_at%'
-    )
-    and exists (
-      select 1 from pg_policies
-      where schemaname = 'public' and tablename = 'trips'
-        and cmd = 'SELECT'
-        and lower(coalesce(qual, '')) like '%auth.uid()%'
-        and lower(coalesce(qual, '')) like '%owner_id%'
-    )
+  -- 1c. Trashed-read (v0.59 shape): the hide-trashed policy must pin
+  --     tombstone visibility to the owner team (owner + editors). The bare
+  --     'deleted_at is null' OR-clause from the Sep-14 repair leaked every
+  --     live trip to every authenticated user (permissive policies
+  --     OR-combine) -- found live by the integration harness.
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public' and tablename = 'trips'
+      and policyname = 'trips read hide trashed'
+      and cmd = 'SELECT'
+      and lower(coalesce(qual, '')) like '%is_editor%'
+      and lower(coalesce(qual, '')) like '%auth.uid()%'
+      and lower(coalesce(qual, '')) like '%owner_id%'
   ) then
-    raise exception 'trips trashed-read drifted: SELECT must hide tombstones by default (deleted_at) and expose the owner team (owner_id / auth.uid())';
+    raise exception 'trips trashed-read drifted: tombstones must be owner-team-only (owner_id / auth.uid() / is_editor), no unpinned live branch';
   end if;
 
   -- 1d. Base read is crew-or-public (visibility / is_member awareness).

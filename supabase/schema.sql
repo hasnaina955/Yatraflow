@@ -364,10 +364,15 @@ create policy "trips read" on public.trips
 -- the live "hide trashed" one) must accept it, or the UPDATE fails with
 -- 42501 and delete silently no-ops (reproduced on the live project,
 -- Sep 14 2026: the production policy lacked the added-row clause).
+--
+-- v0.59 (Sep 17 2026): the Sep-14 shape leaked — the bare `deleted_at is
+-- null` OR-clause made EVERY live trip readable by every authenticated user
+-- (permissive policies OR-combine, so the base trips read restriction was
+-- bypassed). Pinned: tombstoned rows are visible only to the owner team
+-- (owner + editors), which also satisfies the tombstone-WRITE check.
 create policy "trips read hide trashed" on public.trips
   for select using (
-    deleted_at is null
-    or auth.uid() = owner_id
+    auth.uid() = owner_id
     or public.is_editor(trips.id)
   );
 

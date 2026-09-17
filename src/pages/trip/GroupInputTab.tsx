@@ -22,7 +22,7 @@ import { formatInr, minutesToHM } from '../../lib/engine'
 import { decisionContext, contextLine, recommendForDecision } from '../../lib/decisionGuide'
 import { Avatar, Chip, EmptyState, Field, toast } from '../../components/ui'
 import { LocationInput } from '../../components/LocationInput'
-import { timeAgo } from './shared'
+import { cap, timeAgo } from './shared'
 
 // ================= Group input tab =================
 
@@ -243,7 +243,7 @@ function SuggestionCard({ sg, trip, me, editable, memberCount, needsMe }: {
           <span style={{ display: 'inline-flex', gap: 6 }}>
             {needsMe && <Chip tone="saffron">Needs your vote</Chip>}
             {sg.status === 'open' && consensusPct >= 60 && <Chip tone="teal">Best fit</Chip>}
-            <Chip tone={sg.status === 'accepted' ? 'ok' : sg.status === 'declined' ? 'danger' : 'teal'}>{sg.status[0].toUpperCase() + sg.status.slice(1)}</Chip>
+            <Chip tone={sg.status === 'accepted' ? 'ok' : sg.status === 'declined' ? 'danger' : 'teal'}>{cap(sg.status)}</Chip>
           </span>
         </div>
         <div className="creator-line" style={{ margin: '5px 0' }}>
@@ -329,7 +329,7 @@ function DecisionCard({ d, me, editable, needsMe, trip }: {
         <h3>{d.question}</h3>
         <span style={{ display: 'inline-flex', gap: 6 }}>
           {needsMe && <Chip tone="saffron">Needs your vote</Chip>}
-          <Chip tone={d.status === 'open' ? 'saffron' : 'ok'}>{d.status[0].toUpperCase() + d.status.slice(1)}</Chip>
+          <Chip tone={d.status === 'open' ? 'saffron' : 'ok'}>{cap(d.status)}</Chip>
         </span>
       </div>
       {d.context && <p className="small muted" style={{ margin: '5px 0 10px' }}>{d.context}</p>}
@@ -448,7 +448,7 @@ function SuggestionComposerForm({ trip, me }: {
         </Field>
         <Field label="Category">
           <select className="select" value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value as StopCategory }))}>
-            {STOP_CATEGORIES.map(c => <option key={c} value={c}>{c[0].toUpperCase() + c.slice(1)}</option>)}
+            {STOP_CATEGORIES.map(c => <option key={c} value={c}>{cap(c)}</option>)}
           </select>
         </Field>
       </div>

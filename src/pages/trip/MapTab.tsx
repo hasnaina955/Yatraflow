@@ -1053,6 +1053,10 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
         onKeyDown={(e) => {
           // #169: the row is a click div in the a11y tree — keyboard users
           // couldn't highlight a card on the map at all.
+          // Descendant controls (shortlist, reason filter, Add) bubble their own
+          // Enter/Space through here. Without this guard the row claimed the key
+          // and preventDefault() cancelled the child's activation instead.
+          if (e.target !== e.currentTarget) return
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault()
             setActiveHitId(hit.id as string | number)

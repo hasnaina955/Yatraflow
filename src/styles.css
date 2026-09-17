@@ -1191,7 +1191,11 @@ a.btn { text-decoration: none; }
   font: inherit; font-size: 12.5px; color: var(--text-2);
 }
 .day-route:hover .day-route-stop, .day-route:hover .day-route-text { color: var(--teal-deep); }
-.day-route-stop, .day-route-text { white-space: nowrap; }
+/* The chain wraps BETWEEN names, but every name was nowrap — so one long stop
+   name could not break and pushed the row instead. Separators and the "+ more"
+   counter stay nowrap; a name may wrap. */
+.day-route-stop { white-space: normal; overflow-wrap: anywhere; }
+.day-route-text { white-space: nowrap; }
 .day-route-sep, .day-route-more { color: var(--text-3); white-space: nowrap; }
 /* Dimmed pipe for the day-header stats line — quieter than a mid-dot at
    12px and easier to track across a long line. (Separator is a graphic:
@@ -1466,6 +1470,7 @@ a.btn { text-decoration: none; }
 .board-stop-kicker {
   display: block; font-size: 9.5px; font-weight: 800; letter-spacing: .08em;
   text-transform: uppercase; color: var(--text-3);
+  font-variant-numeric: tabular-nums;
 }
 .board-stop .stop-title {
   display: block; font-size: 13px; margin-top: 2px;
@@ -1473,6 +1478,9 @@ a.btn { text-decoration: none; }
 }
 .board-stop-meta {
   display: block; margin-top: 2px; font-size: 11px; color: var(--text-3); font-weight: 500;
+  /* Duration and cost share this line — the same data role already uses tabular
+     figures in .stop-meta, so the board's columns should line up too. */
+  font-variant-numeric: tabular-nums;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .board-col-zone {
@@ -2461,10 +2469,13 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
   translate: 0 -1px; /* optically centre above the tail */
 }
 .yf-pin-svg { width: 15px; height: 15px; display: block; filter: drop-shadow(0 1px 1px rgba(0,0,0,.25)); }
+/* Background follows the card surface, not a literal white: this badge's ink is
+   --text, which INVERTS to near-white in dark mode, so on a hard white pill the
+   numeral measured 1.13:1. Light is unchanged (--card is white there). */
 .yf-pin-num {
   position: absolute; top: -1px; right: -1px;
   min-width: 13px; height: 13px; padding: 0 3px;
-  border-radius: 999px; background: #fff;
+  border-radius: 999px; background: var(--card);
   color: var(--text); font-size: 9px; font-weight: 800; font-style: normal;
   font-family: inherit; line-height: 13px; text-align: center;
   box-shadow: 0 1px 2px rgba(var(--shadow-navy-rgb),.35);
@@ -2810,7 +2821,10 @@ main:focus { outline: none; }
 .yf-map-pin-idea { cursor: pointer; }
 .yf-map-idea-add {
   width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid #fff;
-  background: var(--teal-deep); color: #fff;
+  /* Ink through the semantic pair, not a literal white: --teal-deep lightens to
+     #35C9BC in dark mode, where white measured 2.05:1. The primary-foreground
+     token already resolves to the dark ink that surface needs. */
+  background: var(--teal-deep); color: var(--color-primary-foreground);
   font-size: 13px; font-weight: 700; line-height: 1;
   display: inline-flex; align-items: center; justify-content: center;
   cursor: pointer; box-shadow: 0 2px 6px rgba(var(--shadow-navy-rgb), .35);
@@ -2945,13 +2959,24 @@ main:focus { outline: none; }
   .board-row { transition: none; }
 }
 
-/* ---- Map-focus ("peek") mode: columns glide ~90% off the board's bottom
-   edge — a 48px sliver of each stays visible while the map owns the board —
-   and slide back with a staggered settle. transform-only: compositor run. */
-.board-col { transition: transform 500ms var(--ease-out); }
+/* ---- Map-focus ("peek") mode: columns glide ~88% off the board's bottom
+   edge so the map owns the board, and slide back with a staggered settle. The
+   surviving sliver is 12% of a column's own height, so it varies with column
+   height — it is not a fixed 48px. */
+/* All four properties are declared here, including the theme cross-fade's three:
+   `transition` is a shorthand, so the later theme rule used to replace this one
+   outright and the peek movement snapped instead of gliding. */
+.board-col {
+  transition:
+    background-color var(--t-slow) var(--ease-out),
+    color var(--t-slow) var(--ease-out),
+    border-color var(--t-slow) var(--ease-out),
+    transform var(--t-slow) var(--ease-glide);
+}
 .board--mapfocus .board-col { transform: translateY(88%); } /* 12% sliver keeps a readable card edge */
-/* staggered choreography: slide-off cascades left→right, return settles in
-   reverse — both directions read as one satisfying wave */
+/* staggered choreography: the slide-off cascades left→right. The delays are not
+   reset per direction, so the return settles in the SAME ascending order — there
+   is no reverse wave. */
 .board-col:nth-child(2), .board--mapfocus .board-col:nth-child(2) { transition-delay: 40ms; }
 .board-col:nth-child(3), .board--mapfocus .board-col:nth-child(3) { transition-delay: 80ms; }
 .board-col:nth-child(4), .board--mapfocus .board-col:nth-child(4) { transition-delay: 120ms; }
@@ -3004,8 +3029,11 @@ main:focus { outline: none; }
 }
 .btn:active, .tab-btn:active { transform: scale(.97); }
 
-/* Theme cross-fade: light↔dark glides instead of snapping. */
-body, .topnav, .glass, .board, .board-col, .modal, .toast {
+/* Theme cross-fade: light↔dark glides instead of snapping.
+   `.board-col` is deliberately NOT in this list — it declares its own
+   four-property transition near the peek rules, and naming it here would replace
+   that shorthand and silently kill the peek movement. */
+body, .topnav, .glass, .board, .modal, .toast {
   transition: background-color var(--t-slow) var(--ease-out), color var(--t-slow) var(--ease-out), border-color var(--t-slow) var(--ease-out);
 }
 /* the trip band also compacts on the Board tab — include padding in its glide */
@@ -4235,11 +4263,14 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
   .day-rail-chip { padding: 9px 14px; }
   .day-section { padding: 14px 14px 10px; }
   .modal {
-    padding: 18px 16px 22px; max-height: 92vh; border-radius: 16px 16px 0 0;
+    padding: 18px 16px 22px; max-height: 92vh; max-height: 92dvh; border-radius: 16px 16px 0 0;
     /* Edge-to-edge: bottom sheets must stop short of the gesture bar, and
-       their internal scroll ends above it. */
+       their internal scroll ends above it. The dvh pair has to be repeated here
+       because this later block re-declares the base rule's max-height and would
+       otherwise put the sheet back on a viewport the mobile toolbar occupies. */
     padding-bottom: calc(22px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
     max-height: calc(92vh - var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
+    max-height: calc(92dvh - var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
   }
   /* Long-press drag & drop: the row must not text-select or pop the OS
      callout while the hold timer runs; a pressing row reads as "grabbed". */
@@ -4609,7 +4640,10 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 }
 
 /* warning note (implausible fuel economy) — replaces an inline style */
-.ts-warn-note { margin: 5px 0 0; color: var(--warn-600); }
+/* --warn-600 is a mid amber: fine as a fill, too light as text (3.93:1 on the
+   light canvas). --ink-amber is the deepened ink this app already uses for
+   warning TEXT. Scoped here rather than darkened globally so no fill moves. */
+.ts-warn-note:not(.err-text) { margin: 5px 0 0; color: var(--ink-amber); }
 
 /* share/publish editor compaction: subhead + 2-col free-preview day grid */
 .ts-subhead { display: flex; align-items: baseline; gap: 8px; margin: 2px 0; font-size: 12.5px; font-weight: 800; color: var(--text); }

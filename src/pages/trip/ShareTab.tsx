@@ -14,7 +14,7 @@ import { useTablist } from '../../hooks/useTablist'
 import type { LegEstimate } from '../../lib/engine'
 import { Avatar, Chip, ConfirmDialog, CopyButton, Field, toast, undoToast } from '../../components/ui'
 import { PrintExport } from '../../components/PrintExport'
-import { timeAgo } from './shared'
+import { cap, timeAgo } from './shared'
 
 // ================= Snapshot (export / import / URL share) =================
 
@@ -241,6 +241,9 @@ export function ShareTab({ trip, me, editable, onNavigate, legCorrections }: {
   }
 
   function confirmUnpublish() {
+    // The store refuses a non-creator write anyway; without this guard the
+    // refusal was swallowed and the success toast fired over it.
+    if (!isOwner) { setPendingUnpublish(false); return }
     unpublishItinerary(trip.id)
     setPendingUnpublish(false)
     toast('Unpublished — removed from Explore')
@@ -291,11 +294,14 @@ export function ShareTab({ trip, me, editable, onNavigate, legCorrections }: {
                   </div>
                   {isOwner && m.role !== 'owner' ? (
                     <select className="role-select" value={m.role} onChange={e => setMemberRole(trip.id, m.userId, e.target.value as never)}
-                      aria-label={`Role for ${u?.profile.name}`}>
-                      {['editor', 'commenter', 'viewer'].map(r => <option key={r}>{r}</option>)}
+                      aria-label={`Role for ${u?.profile.name ?? 'Traveller'}`}>
+                      {/* value stays the raw enum (the store writes it straight
+                          through); only the visible label is capitalised, via the
+                          shared helper the rest of the app uses for enum labels. */}
+                      {['editor', 'commenter', 'viewer'].map(r => <option key={r} value={r}>{cap(r)}</option>)}
                     </select>
                   ) : (
-                    <Chip tone={m.role === 'owner' ? 'teal' : 'info'}>{m.role}</Chip>
+                    <Chip tone={m.role === 'owner' ? 'teal' : 'info'}>{cap(m.role)}</Chip>
                   )}
                 </div>
               )
@@ -335,7 +341,7 @@ export function ShareTab({ trip, me, editable, onNavigate, legCorrections }: {
           )}
           <PublicationForm trip={trip} pub={pub} isOwner={isOwner} creatorId={me.id}
             onDone={wasPublished => toast(wasPublished ? 'Publication updated' : 'Published to Explore')} />
-          {pub && (
+          {pub && isOwner && (
             <button className="btn btn-ghost btn-sm" style={{ marginTop: 10 }} onClick={() => setPendingUnpublish(true)}>Unpublish</button>
           )}
           {pubLink && <div className="share-link-box" style={{ marginTop: 10 }}><code title={pubLink}>{pubLink}</code><CopyButton text={pubLink} label="Copy" /></div>}

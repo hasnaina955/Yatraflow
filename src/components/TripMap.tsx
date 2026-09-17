@@ -10,6 +10,7 @@ import { hasCoords, mappablePois, projectOntoPolyline } from '../lib/providers/h
 import { routePath } from '../lib/routing'
 import { measureDayRide } from '../lib/tripRoad'
 import { buildJourney, getAssumptions, isRoundTrip } from '../lib/engine'
+import { extraJourneyMarkers } from '../lib/journeyMarkers'
 import { googleMapsDirectionsUrl } from '../lib/externalMaps'
 import { openExternal } from '../lib/native'
 import { titleCase } from '../lib/labels'
@@ -484,6 +485,21 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
       .join('|'),
     [dayRoutePoints],
   )
+
+  // A synthesized day-endpoint that the drawn line touches but no plotted
+  // stop pins (the previous night's place ahead, or the ride home / next
+  // destination beyond) renders as its own unnumbered endpoint marker, so
+  // the line never starts or ends at a bare spot. All-days view draws the
+  // shared stop chain and doesn't need them. Dedupe: the engine's own
+  // same-place rule (`coLocates`, < 1 km) against the plotted stops.
+  const dayEndpointMarkers = useMemo(() => {
+    if (dayFilter === 'all') return []
+    const day = trip.days.find(d => d.index === dayFilter)
+    if (!day) return []
+    const j = buildJourney(trip, day)
+    const plotted = daysToPlot.find(d => d.index === dayFilter)?.stops ?? []
+    return extraJourneyMarkers(j.points, plotted, j.direction)
+  }, [trip, dayFilter, daysToPlot])
 
   // The map mounts lazily inside a Suspense boundary, so mapRef may be null on
   // the first render(s). Poll until the instance exists, then attach to its real
@@ -987,6 +1003,23 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                 )
               })
             })()}
+            {/* synthesized day-journey endpoints the line touches but no stop
+                pins — the previous night's place ahead, or the ride home / next
+                destination beyond (single-day view only). Not numbered, not
+                clickable-to-edit: nothing is stored behind them. */}
+            {dayEndpointMarkers.map(m => (
+              <MapMarker key={`yf-endpoint-${m.kind}-${m.position.lat}-${m.position.lng}`} longitude={m.position.lng} latitude={m.position.lat}>
+                <MarkerContent>
+                  <span
+                    className="yf-map-pin yf-map-flag"
+                    title={m.label}
+                  >
+                    {m.kind === 'start' ? <PlaneTakeoff size={13} aria-hidden /> : <Flag size={13} aria-hidden />}
+                  </span>
+                </MarkerContent>
+                <MarkerTooltip>{m.label}</MarkerTooltip>
+              </MapMarker>
+            ))}
             {/* home anchor for round trips — the return drive ends here */}
             {dayFilter === 'all' && returnLeg && (
               <MapMarker longitude={returnLeg.home.lng} latitude={returnLeg.home.lat}>
@@ -1076,7 +1109,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
               {dayFilter === 'all'
                 ? <>blue line = whole route{returnLeg ? ' · dashed = drive back home' : ''} · </>
                 : <>colours = day · </>}
-              pin icon = stop type · number = timeline order · dashed pin = "maybe" · plane/flag pins = start & final destination · gold bulb markers = nearby ideas{onAddNearby ? ' (+ to add)' : ''}{ideaCats.length > 0 ? ' · chips filter ideas by type' : ''} · click a pin for details
+              pin icon = stop type · number = timeline order · dashed pin = "maybe" · plane/flag pins = start & final destination · plane/flag pins on a single day = that day's start and end where no stop is pinned · gold bulb markers = nearby ideas{onAddNearby ? ' (+ to add)' : ''}{ideaCats.length > 0 ? ' · chips filter ideas by type' : ''} · click a pin for details
             </div>
           )}
         </div>

@@ -28,6 +28,12 @@ export interface RoadChain {
   ptDay: (number | null)[]
   /** Points in the outbound section (start → stops) — the Map tab's own view */
   outboundCount: number
+  /** true when the chain ends with a one-way DESTINATION leg (after any
+   *  round-trip return) — the map's drawn geometry includes it (#polylines),
+   *  while totalKm/totalMin/dayRoadKm stay outbound-only. Distinguishing this
+   *  tail from the round-trip ride home is what lets the map draw the
+   *  destination without double-counting the journey. */
+  hasDestTail: boolean
 }
 
 /**
@@ -66,11 +72,12 @@ export function buildRoadChain(trip: Pick<Trip, 'startLocationCoords' | 'days' |
   const dc = trip.destinationCoords ?? []
   const lastDest = dc.length ? dc[dc.length - 1] : undefined
   const tail = points[points.length - 1]
-  if (lastDest && !(tail && tail.lat === lastDest.lat && tail.lng === lastDest.lng)) {
+  const hasDestTail = !!(lastDest && !(tail && tail.lat === lastDest.lat && tail.lng === lastDest.lng))
+  if (hasDestTail) {
     points.push({ lat: lastDest.lat, lng: lastDest.lng })
     ptDay.push(null)
   }
-  return { points, ptDay, outboundCount }
+  return { points, ptDay, outboundCount, hasDestTail }
 }
 
 /** Geometry-only signature: the trip's road chain rebuilds only when a stop moves,
@@ -142,6 +149,37 @@ export interface MeasureOpts {
 
 /** Default backoff before the single retry (matches the pre-#188 map behaviour). */
 export const ROAD_RETRY_DELAY_MS = 2000
+
+/**
+ * Measure ONE day's synthesized ride (the Map tab's day-filter line) with the
+ * same contract as the whole-trip chain: one attempt, one retry after a
+ * transient failure, and an all-estimate result counts as unresolved — a
+ * rate-limited OSRM must never be drawn as if it were a road (#188's rule,
+ * applied per day). Accepts an AbortSignal so flipping day chips kills the
+ * previous day's in-flight measurement instead of racing it (#polylines).
+ */
+export async function measureDayRide(
+  points: RoadChainPoint[],
+  assumptions: EngineAssumptions,
+  opts: MeasureOpts & { signal?: AbortSignal } = {},
+): Promise<RoadOutcome> {
+  const signal = opts.signal
+  if (signal?.aborted) return { ok: false }
+  const measure = opts.measure ?? ((pts, asm) => routePath(pts, asm, signal))
+  const sleep = opts.sleep ?? ((ms: number) => new Promise<void>(r => setTimeout(r, ms)))
+  const retryDelayMs = opts.retryDelayMs ?? ROAD_RETRY_DELAY_MS
+  const attempt = async (): Promise<RoadLeg[] | null> => {
+    const legs = await measure(points, assumptions)
+    return legs.some(l => l.source !== 'estimate') ? legs : null
+  }
+  const first = await attempt().catch(() => null)
+  if (first) return { ok: true, legs: first }
+  if (signal?.aborted) return { ok: false }
+  await sleep(retryDelayMs)
+  if (signal?.aborted) return { ok: false }
+  const second = await attempt().catch(() => null)
+  return second ? { ok: true, legs: second } : { ok: false }
+}
 
 /**
  * Measure the chain once, retrying ONCE after a transient failure. Returns an
@@ -227,6 +265,12 @@ export function outboundLegs(chain: RoadChain | null, legs: RoadLeg[] | null): R
  * (start → stops). A round trip's chain carries the drive home too, and the
  * fatigue math already multiplies by its own loop factor — counting the return
  * here would double the journey.
+ *
+ * #polylines: the DRAWN GEOMETRY is the full chain the user plans (outbound
+ * legs + any trailing one-way destination leg), while totalKm/totalMin and
+ * dayRoadKm stay outbound-only — the line must match the pins on screen, and
+ * a one-way trip whose destination anchor sits after its last stop used to
+ * draw one leg short (the line visibly ended before the destination).
  */
 export function mapRoadViewFromLegs(
   chain: RoadChain | null,
@@ -243,7 +287,9 @@ export function mapRoadViewFromLegs(
     if (day != null) perDay.set(day, (perDay.get(day) ?? 0) + l.distanceKm)
   })
   return {
-    geometry: legsView.flatMap(l => l.geometry),
+    geometry: legs
+      .slice(0, Math.min(legs.length, (chain.hasDestTail ? chain.points.length : Math.max(1, chain.outboundCount)) - 1))
+      .flatMap(l => l.geometry),
     totalKm: legsView.reduce((sum, l) => sum + l.distanceKm, 0),
     totalMin: legsView.reduce((sum, l) => sum + l.durationMinutes, 0),
     dayRoadKm: dayIndexes.map(idx => perDay.get(idx) ?? 0),

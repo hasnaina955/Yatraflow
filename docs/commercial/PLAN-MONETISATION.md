@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-15 · **Product:** `v0.54.0` · **Revenue to date:** ₹0
 
-A dedicated commercial design document. `YatraFlow-Report-v3.md` covers the business and the
+A dedicated commercial design document. `REPORT-2026-09-15-strategy-and-position.md` (same folder) covers the business and the
 staged roadmap; this one goes deep on the money — pricing, fee mechanics, tax incidence, the
 data model, conversion mechanics, and failure modes.
 

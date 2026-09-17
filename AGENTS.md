@@ -34,9 +34,9 @@ Key locations:
 
 ## 1.1 Current project status (as of Sep 17, 2026)
 
-**Version:** v0.58.0 — the share-card release (2026-09-17), promoted to `main` on 2026-09-17 (**PR #245**, `main` at `cf1c289`); v0.57.0 was the sharing-and-honesty release. Its scope: a publication without a cover now previews with a branded 1200×630 card (`public/og-default.png`, emitted by `api/i.js` as a fallback and advertised by the shell too), and auto-picked Wikipedia covers are sized through Wikimedia's own resize endpoint instead of shipping the unscaled upload — measured at 144–406 KB where the originals were 1300–3300 KB, which is what the 600 KB WhatsApp documents for `og:image` requires. The v0.57.0 content stands: a published itinerary link previews as a card (`/i/<id>` answered by `api/i.js` with that itinerary's own Open Graph tags, then the hash route), trip JSON imports in one step from My Trips in both formats the repo ships, permanent user deletion in the masteradmin console, the offline companion's routing collisions fixed, and per-route browser-tab titles. The v0.56.0 content stands: the six-phase settings-wiring audit (issue #213) is fully landed (PRs #219/#220/#221) — Trip settings as the eighth workspace tab, the four party/vehicle fields persisted through `20260915_trip_party_prefs.sql`, `CACHE_VERSION` 3→4, `MapTab`'s verdicts re-deriving on `trip`/`dayWeatherCode`, `roadChainSig`, and honest numeric defaults for non-car vehicles. `npm run verify` gate: tsc clean + **1134 tests** (104 files) + production build.
+**Version:** v0.59.1 — the span-indexing fix (2026-09-17), promoted to `main` on 2026-09-17 (**PR #248**, `main` at `1d1b85f`); v0.59.0 was the corridor-measurement release (promoted 2026-09-17, **PR #247**, `main` at `b4f0a18`). Its scope: the corridor span measurement no longer hands a leg its neighbour's result, so a cached leg inside the span cannot truncate the drawn route or poison a later measurement's cache entry. The v0.59.0 content stands: corridor-wide road measurement replaces per-leg requests, the day filter measures only the day on screen, and copied public itinerary addresses keep their trip-specific previews with navigation that works in any tab. The v0.58.0 content stands: a publication without a cover now previews with a branded 1200×630 card (`public/og-default.png`, emitted by `api/i.js` as a fallback and advertised by the shell too), and auto-picked Wikipedia covers are sized through Wikimedia's own resize endpoint instead of shipping the unscaled upload — measured at 144–406 KB where the originals were 1300–3300 KB, which is what the 600 KB WhatsApp documents for `og:image` requires. The v0.57.0 content stands: a published itinerary link previews as a card (`/i/<id>` answered by `api/i.js` with that itinerary's own Open Graph tags, then the hash route), trip JSON imports in one step from My Trips in both formats the repo ships, permanent user deletion in the masteradmin console, the offline companion's routing collisions fixed, and per-route browser-tab titles. The v0.56.0 content stands: the six-phase settings-wiring audit (issue #213) is fully landed (PRs #219/#220/#221) — Trip settings as the eighth workspace tab, the four party/vehicle fields persisted through `20260915_trip_party_prefs.sql`, `CACHE_VERSION` 3→4, `MapTab`'s verdicts re-deriving on `trip`/`dayWeatherCode`, `roadChainSig`, and honest numeric defaults for non-car vehicles. `npm run verify` gate: tsc clean + **1242 tests** (109 files) + production build.
 
-**State:** Stabilization complete; the v0.40-era 32-finding UI audit AND the deeper #107 tracker are fixed to the floor (**117/117 boxes closed** — every finding carries a verdict; the owner-decision rows are the budget palette kept as authored, the board touch-tooltips product call, and two documented conventions). Device-check flags open on hardware only: 3D map-mode frame rate on a mid-range Android, Liberty label density at phone width, Landing scroll after the attachment change. The Corridor Concierge suggestion-engine brainstorm is FULLY shipped (Horizons 1–3, 16/16) — see ROADMAP's 🧭 table. v0.47.0's soft-delete backend is applied live (probe-verified: `trips.deleted_at` exists on the production project; the `get_trashed_trips` RPC is present with authenticated-only EXECUTE — the anon call returns `42501 permission denied`, not PGRST202). Branch model stays two-branch: `main` (production, Vercel) and `test` (integration). `npm run verify` gate: tsc clean + **1134 tests** (104 files) + production build.
+**State:** Stabilization complete; the v0.40-era 32-finding UI audit AND the deeper #107 tracker are fixed to the floor (**117/117 boxes closed** — every finding carries a verdict; the owner-decision rows are the budget palette kept as authored, the board touch-tooltips product call, and two documented conventions). Device-check flags open on hardware only: 3D map-mode frame rate on a mid-range Android, Liberty label density at phone width, Landing scroll after the attachment change. The Corridor Concierge suggestion-engine brainstorm is FULLY shipped (Horizons 1–3, 16/16) — see ROADMAP's 🧭 table. v0.47.0's soft-delete backend is applied live (probe-verified: `trips.deleted_at` exists on the production project; the `get_trashed_trips` RPC is present with authenticated-only EXECUTE — the anon call returns `42501 permission denied`, not PGRST202). Branch model stays two-branch: `main` (production, Vercel) and `test` (integration). `npm run verify` gate: tsc clean + **1242 tests** (109 files) + production build.
 
 > **A partial patch vs a full-Trip patch through `updateTrip` needs different handling (learned 2026-09-11).** The settings form passes a partial patch while the impact-preview flow passes a whole `Trip` (whose dates are always truthy). Any gate shaped like `if (patch.startDate || …)` fires on every Keep; reconciliation must compare resolved dates against the cache and reconcile the *incoming* days. The two `reconcile-days.test.ts` full-Trip regression tests pin this — they fail on the old code.
 
@@ -48,6 +48,8 @@ Key locations:
 
 
 **Recent major releases:**
+- **v0.59.1** — Span measurement gives every leg its own result: a cached leg inside the corridor span can no longer hand its geometry to the leg after it or poison that leg's cache entry
+- **v0.59.0** — One measurement per corridor: road measurement batches the waypoint chain, the day filter measures only the day on screen, and copied public itinerary addresses keep their trip-specific previews with navigation that works in any tab
 - **v0.58.0** — Share card: a publication with no cover previews with a branded 1200×630 card that the shell advertises too, and auto-picked Wikipedia covers are resized through Wikimedia's own endpoint, so a shared link stops carrying a multi-megabyte image
 - **v0.57.0** — Sharing and honesty: a published itinerary link previews as a card (`/i/<id>` answered by a Vercel function carrying that itinerary's own Open Graph tags), trip JSON imports in one step from My Trips and reads both formats the repo ships, permanent user deletion lands in the masteradmin console, the offline companion stops routing overloaded days / cost questions / mentions of children to the wrong handler, and every route gets its own browser-tab title
 - **v0.56.0** — Settings integrity: the six-phase #213 audit landed — Trip settings as its own workspace tab, party/vehicle preference persistence (new `trips` columns + optional-column probe), propagation fixes so a settings change re-derives suggestions/budget/plans, style-vs-budget separation, Create↔Settings parity, and honest numeric defaults for non-car vehicles (#219/#220/#221)
@@ -72,9 +74,9 @@ Key locations:
 - **v0.35.0** — Publish editor (preview/price/CTA), fork premium gate, creator mode, sourcemaps
 - **v0.31.0** — M0–M7 Calm Travel Intelligence redesign shipped (user-driven halt planner, 3-layer tokens, OpenFreeMap basemap, touch drag-and-drop)
 
-**Current branch:** `test` is the integration branch and carries **v0.58.0**, promoted to `main` on 2026-09-17 (**PR #245**, `main` at `cf1c289`). **v0.57.0** was promoted on 2026-09-17 (**PR #244**, `main` at `43c839f`); **v0.56.0** was the settings-integrity release (promoted 2026-09-16, **PR #223**, `main` at `f314b25`). The v0.58.0 work is the share card (`public/og-default.png` plus the `api/i.js` fallback and the shell's own `og:image`) and the Wikimedia cover sizing in `lib/tripThumb.ts`. The v0.57.0 work is the itinerary preview endpoint (`api/i.js` plus the `/i/:id` rewrite that makes a shared link preview as a card), the one-step trip-JSON import, per-route browser-tab titles, the offline companion's routing fixes, and permanent user deletion (**PR #225** — its `admin_delete_user` RPC stays migration-gated on `20260916_admin_delete_user.sql`). The v0.56.0 cycle's own PRs: **#219** (the Settings tab split + propagation fixes, #213 Phases 1–4), **#220** (Create↔Settings parity + numeric defaults, Phases 5+6) and **#221** (the audit docs + ROADMAP queue refresh).
+**Current branch:** `test` is the integration branch and carries **v0.59.1**, promoted to `main` on 2026-09-17 (**PR #248**, `main` at `1d1b85f`). **v0.59.0** was the corridor-measurement release, promoted 2026-09-17 (**PR #247**, `main` at `b4f0a18`); **v0.58.0** was the share-card release, promoted 2026-09-17 (**PR #245**, `main` at `cf1c289`). The v0.59.0 work is corridor-wide road measurement, day-scoped measurement, and public addresses that preserve trip-specific previews with navigation that works in any tab. **v0.57.0** was promoted on 2026-09-17 (**PR #244**, `main` at `43c839f`); **v0.56.0** was the settings-integrity release (promoted 2026-09-16, **PR #223**, `main` at `f314b25`). The v0.58.0 work is the share card (`public/og-default.png` plus the `api/i.js` fallback and the shell's own `og:image`) and the Wikimedia cover sizing in `lib/tripThumb.ts`. The v0.57.0 work is the itinerary preview endpoint (`api/i.js` plus the `/i/:id` rewrite that makes a shared link preview as a card), the one-step trip-JSON import, per-route browser-tab titles, the offline companion's routing fixes, and permanent user deletion (**PR #225** — its `admin_delete_user` RPC stays migration-gated on `20260916_admin_delete_user.sql`). The v0.56.0 cycle's own PRs: **#219** (the Settings tab split + propagation fixes, #213 Phases 1–4), **#220** (Create↔Settings parity + numeric defaults, Phases 5+6) and **#221** (the audit docs + ROADMAP queue refresh).
 
-> **Correction (2026-09-16): PR #224 never landed on `test`.** An earlier revision of this paragraph listed the polyline/routing batch as landed. It is **open** on `fix/map-polyline-perf` (head `35cba1f`), so `5a8cfd5`, `1125227`, `f4ed706`, `4b2286b`, `146de3d` and `e72810f` are absent from `origin/test` — confirmed with `git merge-base --is-ancestor <sha> origin/test`. **PR #235** is now **CLOSED as superseded** (2026-09-17): both of its halves — the link-preview endpoint and the trip-JSON import — landed on `test` in a simpler form (`d5a3842`, `f625387`, `7079688`), and its own `api/i.js`/`shareUrl.ts` must not be merged over them; the branch is kept as archaeology. **#214** (the commercial-launch docs) is still open. Re-check drift before each push (see the branch note in the State paragraph above).
+> **Resolved (2026-09-17): the polyline/routing batch and the commercial docs have both landed.** The 2026-09-16 correction this note replaces is obsolete — **PR #224** merged into `test` on 2026-09-17 (`dbd557a`), so `5a8cfd5`, `1125227`, `f4ed706`, `4b2286b`, `146de3d` and `e72810f` are now ancestors of `origin/test` (re-verify with `git merge-base --is-ancestor <sha> origin/test`), and **#214** landed the same day (`d897d53`), putting the commercial docs under `docs/commercial/`. **PR #235** remains **CLOSED as superseded** (2026-09-17): both of its halves — the link-preview endpoint and the trip-JSON import — landed on `test` in a simpler form (`d5a3842`, `f625387`, `7079688`), and its own `api/i.js`/`shareUrl.ts` must not be merged over them; the branch is kept as archaeology. Re-check drift before each push (see the branch note in the State paragraph above).
 
 > **`admin_delete_user` (Sep 2026) is migration-gated.** The RPC ships in `supabase/migrations/20260916_admin_delete_user.sql` and must be applied in the Supabase SQL editor before the console's Delete button works — the store call fails with `PGRST202` (function not found) until then, toasting the error. Its guards (published-force, self, last-admin) and audit-before-delete order are pinned in `tests/admin-delete-user.test.ts` so future edits can't silently drop them.
 
@@ -381,7 +383,64 @@ added, run `npm run verify` locally before asking to merge any PR into `test`.
 (Caveat if adding it: the PR run checks out the merge ref, so it duplicates the
 push run rather than replacing it.)
 
+**Codacy's `action_required` state hides REAL findings too — read the
+annotations, not just the conclusion.** The "auth-gated bot quirk" framing was
+right for merges (nothing blocks), but on PR #224 the same `action_required`
+conclusion carried the summary line "1 new issue (0 max.)" and a real finding
+in its annotations. Fetch them every time:
+`gh api repos/<org>/<repo>/commits/<head-sha>/check-runs` → the Codacy run's
+`output.annotations_url` → `gh api <annotations_url>`. An `annotations_count`
+of 0 is the true quirk signature; a non-zero count is a finding to triage.
+
+**SAST taint on URLs is contained with a strict validator at ONE boundary —
+and the boundary is wherever the value is FIRST stringified, not just the
+fetch. (Validation is the right ENGINEERING, but see the next entry: it does
+not silence the Codacy rule — only a dashboard code-pattern ignore resolves
+the finding.)**
+Codacy flagged `routing.ts` for user-controlled coordinates flowing into the
+OSRM URL. Two half-lessons from fixing it: (1) `Number()` coercion is NOT
+validation — it accepts `'12.9'` and turns `null` into `0`, the Null-Island
+sentinel; use `typeof x === 'number'` + `Number.isFinite` + range checks.
+(2) The first `.toFixed()`/template use can sit in the *cache key*, so guarding
+only the URL builder still crashes on a poisoned row — one `coordValid()`
+helper must feed both consumers. Fail safe: refuse the measurement and degrade
+to the engine estimate, exactly like a network failure.
+
+**The "user-controlled URLs to HTTP client" rule is UNRESOLVABLE in code — do
+not chase it past one hardening pass.** PR #224 burned four rounds on
+`routing.ts` (strict `coordValid` boundary → `encodeURIComponent` → full-URL
+regex allowlist → WHATWG `URL` parse + origin assertion, the OWASP SSRF
+pattern) and the SAME rule re-fired on the same `fetch` every time: the engine
+flags `fetch()` with ANY data-derived URL string regardless of sanitizer.
+(Hardening still worth keeping: the crash-on-poisoned-row fix, the regex
+allowlist, the origin gate.) The practical loop: read the annotation, triage
+real-vs-baseline on its merits, fix the substance once, then mark the finding
+as managed in the Codacy dashboard (code-pattern ignore on that file with the
+four-layer justification) — and say so in the PR so the review trail shows the
+decision was made, not missed.
+
+**The verify gate must GATE the push — no `;`-chained command strings.** On
+PR #224 a `npm run verify …; git commit … && git push …` one-liner pushed a
+RED tree (5 failing test files) because `;` runs every statement regardless of
+the previous exit code — and the failing log was then deleted, destroying the
+evidence. Sequence: run verify alone, read its exit code, and only on success
+chain the commit/push (or run them as separate tool calls). Keep every failing
+log until the failure is diagnosed in writing.
+
+**A red verify that passes on rerun is usually cross-file test interference,
+not flakiness to shrug at** — vitest workers share module state across files
+(stubbed env, global fetch, the routing leg cache), so file-set/ordering
+changes flip suites that pass in isolation. The routing tests pin their env
+and clear caches per file for exactly this reason; when a rerun goes green,
+name the mechanism or keep reproducing — never just re-run until green.
+
 ## 4. Code conventions & pitfalls
+
+- **A span request's results are indexed by span offset, not by missing-leg position.** `routePath` measures ONE span covering the `first..last` *uncached* leg — which necessarily includes any cached legs inside it — so `missing[k]` and `chainLegs[k]` are different legs the moment there is a hole. Indexing by `k` handed the tail leg its neighbour's geometry **and** cached it under the neighbour's key, so the corruption outlived the draw (the symptom was a route that visibly stopped early, #polylines). Cached holes are this design's normal state, not an edge case — the leg cache is deliberately shared between the whole-trip chain and each day's ride — so every span-assignment change needs a test with a hole *between* two misses, not a cold cache or a single missing leg.
+
+- **Route anchors reachable from a public pathname need `appLink` on the real `<a>`.** Root-absolute web hrefs let new tabs escape `/i/<id>`; unmodified left clicks must still set only the hash to avoid reloading. Leave modified/already-handled clicks to the browser, and keep native/file hrefs fragment-only. The metadata handler cannot recover a fragment. Address promotion must use `routeParts`, then the handler's id allowlist — trailing slashes, per-segment queries and extra segments can still render the publication.
+
+- **A browser-copied public URL must carry the publication id before the hash.** Fragments never reach preview crawlers. `syncPublicAddress` aligns the web pathname with `#/pub/<id>` on mount and hash changes, using `replaceState` without adding history entries. Clear `/i/<id>` when leaving the public route, keep native/file routing untouched, and never build creator/invite/snapshot links from the current publication pathname. Test Back/Forward, switching publications and the handler's root-shell redirect separately; correct metadata in an HTTP probe does not prove WhatsApp rendered it.
 
 - **Share-preview tests must execute the handler, not merely find tag strings.** A preview fetching the production shell can combine production bundle hashes with preview-host assets. The `/i/<id>` endpoint instead returns metadata and an explicit redirect to the hash route, with a bounded public-metadata fetch and no app-shell request. Native share URLs must use the public website, never the WebView origin. Keep deployment/crawler acceptance separate from local test success.
 

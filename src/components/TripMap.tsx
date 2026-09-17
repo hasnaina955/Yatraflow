@@ -8,6 +8,7 @@ import type { PlaceHit } from '../lib/geocode'
 import { resolveHitCoords } from '../lib/geocode'
 import { hasCoords, mappablePois, projectOntoPolyline } from '../lib/providers/hits'
 import { routePath } from '../lib/routing'
+import { measureDayRide } from '../lib/tripRoad'
 import { buildJourney, getAssumptions, isRoundTrip } from '../lib/engine'
 import { googleMapsDirectionsUrl } from '../lib/externalMaps'
 import { openExternal } from '../lib/native'
@@ -267,7 +268,7 @@ function catIcon(cat: string | undefined): React.ReactNode {
   )
 }
 
-export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusDay, showToolbar = true, enableMapViewModes = false, activeHitId = null, onActivateHit, onOpenInTimeline, onOpenInBoard, onDeleteStop, mainRouteGeometry = null }: {
+export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusDay, showToolbar = true, enableMapViewModes = false, activeHitId = null, onActivateHit, onOpenInTimeline, onOpenInBoard, onDeleteStop, mainRouteGeometry = null, onShowReturnChange }: {
   trip: Trip
   onOpenStop?: (stopId: string) => void
   /** potential POIs to show as gold "idea" markers */
@@ -301,6 +302,10 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   onOpenInBoard?: (stopId: string) => void
   /** Delete the stop straight from the map (popup action) — wired by MapTab. */
   onDeleteStop?: (stopId: string, stop: { title: string; dayIndex: number }) => void
+  /** The Return-home toggle's direction state, reported up so the suggestion
+   *  rails read the same road the map shows (#polylines): on = the loop (out +
+   *  back, the plan's road), off = the outbound road alone. */
+  onShowReturnChange?: (show: boolean) => void
 }) {
   const [dayFilter, setDayFilter] = useState<number | 'all'>('all')
   // Board drives the day filter through the prop; the map's own chips keep working
@@ -309,6 +314,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     if (focusDay !== undefined) setDayFilter(focusDay)
   }, [focusDay])
   const [showReturn, setShowReturn] = useState(true)
+  useEffect(() => { onShowReturnChange?.(showReturn) }, [showReturn, onShowReturnChange])
   // Live location ("show me on the map") — off by default so GPS stays cold
   // until the user asks for it; the toggle chip sits by the map key.
   const [liveOn, setLiveOn] = useState(false)
@@ -435,6 +441,12 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
         stops: [...d.stops]
           .filter(s => s.status !== 'rejected')
           .filter(s => Number.isFinite(s.lat) && Number.isFinite(s.lng))
+          // #polylines plot-boundary guard: a stored (0,0)/mixed placeholder or
+          // other absurd coordinate stretches the LineString across the globe,
+          // which reads on screen as "the line only connects the first few
+          // stops". Same rule as the suggestion rail's hasCoords: lat 0 is
+          // never a real pick for an India trip-planner.
+          .filter(s => !(s.lat === 0 && s.lng === 0) && s.lat !== 0 && Math.abs(s.lng) <= 180 && Math.abs(s.lat) <= 90)
           .sort((a, b) => a.orderInDay - b.orderInDay),
       }))
       .filter(d => d.stops.length > 0)
@@ -623,6 +635,10 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   // the stops in timeline order — is drawn as one main line. In single-day mode
   // each day gets its own coloured line. Falls back to straight lines.
   const [geom, setGeom] = useState<Record<string, [number, number][]>>({})
+  // Measured day geometry, keyed by day index and the ride's points-hash —
+  // revisiting a day chip redraws from cache instead of re-measuring (#polylines).
+  // A ref, not state: cache validity never drives rendering on its own.
+  const dayGeomCache = useRef<Record<string, { key: string; coords: [number, number][] }>>({})
   const chainKey = useMemo(
     () => allPoints.map(p => `${p.lat.toFixed(5)},${p.lng.toFixed(5)}`).join('>'),
     [allPoints],
@@ -659,22 +675,31 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
 
   useEffect(() => {
     if (allPoints.length === 0) { setGeom({}); return }
+    // AbortSignal, not just a flag: a cancelled effect must STOP the in-flight
+    // fetches (they eat the shared OSRM rate-limit budget and their results
+    // were being thrown away anyway) — #polylines.
+    const ac = new AbortController()
+    const { signal } = ac
     let cancelled = false
     ;(async () => {
-      const pts: { lat: number; lng: number }[] = allPoints.map(p => ({ lat: p.lat, lng: p.lng }))
+      const asm = getAssumptions(trip)
       if (dayFilter === 'all') {
+        const pts: { lat: number; lng: number }[] = allPoints.map(p => ({ lat: p.lat, lng: p.lng }))
         if (pts.length < 2) return
         const next: Record<string, [number, number][]> = {}
         // #184: reuse the caller's road measurement when one arrived (MapTab
         // already measured the same chain) — one routePath per map open, and
         // the drawn line can never contradict the detour math again. Only a
-        // caller without the prop (Board view) measures here.
+        // caller without the prop (Board view) measures here, and until the
+        // shared geometry arrives TripMap no longer races it with its own
+        // full chain: the routing layer's leg cache turns that double-
+        // measurement into cache hits once the workspace result lands.
         if (mainRouteGeometry && mainRouteGeometry.length > 1) {
           const shared = dedupeConsecutive(mainRouteGeometry)
           if (shared.length > 1) next.all = shared
         } else {
           try {
-            const legs = await routePath(pts, getAssumptions(trip))
+            const legs = await routePath(pts, asm, signal)
             const coords = legs.flatMap(l => l.geometry)
             if (!cancelled && coords.length > 1) next.all = dedupeConsecutive(coords)
           } catch { /* straight-line fallback below */ }
@@ -682,27 +707,44 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
         // return drive home — real roads when OSRM answers, straight line otherwise
         if (returnLeg) {
           try {
-            const legs = await routePath([returnLeg.from, returnLeg.home], getAssumptions(trip))
+            const legs = await routePath([returnLeg.from, returnLeg.home], asm, signal)
             const coords = legs.flatMap(l => l.geometry)
             if (!cancelled && coords.length > 1) next.return = dedupeConsecutive(coords)
           } catch { /* keep straight line */ }
         }
         if (!cancelled) setGeom(next)
       } else {
-        const next: Record<string, [number, number][]> = {}
-        for (const d of trip.days) {
-          const ride = dayRoutePoints[String(d.index)]
-          if (!ride || ride.length < 2) continue
-          try {
-            const legs = await routePath(ride, getAssumptions(trip))
-            const coords = legs.flatMap(l => l.geometry)
-            if (!cancelled && coords.length > 1) next[String(d.index)] = dedupeConsecutive(coords)
-          } catch { /* straight-line fallback below */ }
+        // Day-filter contract: measure ONLY the selected day's ride. The old
+        // loop re-measured every day on every chip click (35+ serial fetches
+        // to see one line on a 7-day trip) and painted only after all of
+        // them finished. Now: one measurement for the day on screen, cached
+        // by the ride's points-hash so revisiting a chip is instant, and the
+        // shared leg cache means legs already measured for the whole-trip
+        // chain resolve without any fetch at all.
+        const ride = dayRoutePoints[String(dayFilter)]
+        if (!ride || ride.length < 2) { setGeom({}); return }
+        const rideKey = ride.map(p => `${p.lat.toFixed(5)},${p.lng.toFixed(5)}`).join('>')
+        const cached = dayGeomCache.current[String(dayFilter)]
+        if (cached && cached.key === rideKey && cached.coords.length > 1) {
+          setGeom({ [String(dayFilter)]: cached.coords })
+          return
         }
-        if (!cancelled) setGeom(next)
+        const outcome = await measureDayRide(ride, asm, { signal })
+        if (cancelled || signal.aborted) return
+        if (outcome.ok) {
+          const coords = dedupeConsecutive(outcome.legs.flatMap(l => l.geometry))
+          if (coords.length > 1) {
+            dayGeomCache.current[String(dayFilter)] = { key: rideKey, coords }
+            setGeom({ [String(dayFilter)]: coords })
+            return
+          }
+        }
+        // unresolved (rate-limited both attempts): keep the straight-line
+        // fallback visible rather than wiping the day's line entirely
+        setGeom({})
       }
     })()
-    return () => { cancelled = true }
+    return () => { cancelled = true; ac.abort() }
   }, [chainKey, dayRoutesKey, dayFilter, returnLeg, mainRouteGeometry]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Turn-by-turn directions for the selected day's ride in the traveller's own
@@ -730,7 +772,9 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
               className={`map-day-chip ${showReturn ? 'on' : ''}`}
               aria-pressed={showReturn}
               onClick={() => setShowReturn(s => !s)}
-              title="Show or hide the drive back home"
+              title={showReturn
+                ? 'Return leg shown. The loop km (out + back) feed the plan; hide to read the outbound road alone.'
+                : 'Return leg hidden — the corridor and km labels read the OUTBOUND road only.'}
             >
               <RotateCcw size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Return home
             </button>

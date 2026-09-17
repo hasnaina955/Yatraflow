@@ -19,6 +19,7 @@ import { useTimeFormat, formatHM, formatHMRange } from '../lib/timefmt'
 import { stopKindOf, STOP_KIND_LABELS } from '../lib/stopKind'
 import { useSavedPubs } from '../lib/savedPubs'
 import { currentPublicShareUrl } from '../lib/shareUrl'
+import { appLink } from '../lib/appLink'
 import { pageTitle } from '../lib/pageTitle'
 import { sizedCoverUrl } from '../lib/tripThumb'
 import { useDestinationCover } from '../hooks/useDestinationCover'
@@ -265,7 +266,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
                 </div>
               )}
               {creator && (
-                <a className="btn btn-outline btn-sm" style={{ marginTop: 12 }} href={`#/creator/${creator.id}`}>
+                <a className="btn btn-outline btn-sm" style={{ marginTop: 12 }} {...appLink(`#/creator/${creator.id}`)}>
                   More from {creator.profile.name} →
                 </a>
               )}

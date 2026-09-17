@@ -287,9 +287,49 @@ describe('public address bar', () => {
     expect(replaceState).toHaveBeenLastCalledWith(state, '', '/i/kerala-trip_1#/pub/kerala-trip_1')
   })
 
-  it.each(['#/pub/', '#/pub/two%20words', '#/pub/one/extra', `#/pub/${'x'.repeat(65)}`, '#/explore'])('does not promote unsupported route %s', async hash => {
+  it.each(['#/pub/', '#/pub/two%20words', `#/pub/${'x'.repeat(65)}`, '#/explore'])('does not promote unsupported route %s', async hash => {
     const { replaceState } = await sync(`https://app.example.test/${hash}`)
     expect(replaceState).not.toHaveBeenCalled()
+  })
+
+  const publicationRoutes = [
+    '#/pub/kerala-trip_1/',
+    '#/pub/kerala-trip_1?utm_source=x',
+    '#//pub///kerala-trip_1//',
+    '#/pub?source=nav/kerala-trip_1?utm_source=x/',
+    '#/pub/kerala-trip_1/extra',
+  ]
+
+  it.each(publicationRoutes)('promotes the router-rendered publication for %s', async hash => {
+    const { state, replaceState } = await sync(`https://app.example.test/?campaign=share${hash}`)
+    expect(replaceState).toHaveBeenCalledExactlyOnceWith(state, '', `/i/kerala-trip_1?campaign=share${hash}`)
+  })
+
+  it.each(publicationRoutes)('never erases an already correct publication path for %s', async hash => {
+    const { replaceState } = await sync(`https://app.example.test/i/kerala-trip_1${hash}`)
+    expect(replaceState).not.toHaveBeenCalled()
+  })
+
+  it('promotes trailing segments ignored by the router', async () => {
+    const { state, replaceState } = await sync('https://app.example.test/#/pub/one/extra')
+    expect(replaceState).toHaveBeenCalledExactlyOnceWith(state, '', '/i/one#/pub/one/extra')
+  })
+
+  it.each(['a', 'A0_-', 'x'.repeat(64)])('accepts handler-allowed id %s in the pure path decision', async id => {
+    const { publicAddressPath } = await import(shareUrlPath)
+    expect(publicAddressPath(`#/pub/${id}?utm_source=x/`, '/')).toBe(`/i/${id}`)
+  })
+
+  it.each(['', 'two%20words', 'one.two', 'x'.repeat(65)])('does not promote handler-rejected id %s', async id => {
+    const { publicAddressPath } = await import(shareUrlPath)
+    expect(publicAddressPath(`#/pub/${id}`, '/')).toBe('/')
+    expect(publicAddressPath(`#/pub/${id}`, '/i/old')).toBe('/')
+  })
+
+  it.each(['#/explore', '#/pub/?source=x/one', '#/?source=x/pub/one', '#/public/one'])('uses router semantics rather than finding pub anywhere in %s', async hash => {
+    const { publicAddressPath } = await import(shareUrlPath)
+    expect(publicAddressPath(hash, '/i/old')).toBe('/')
+    expect(publicAddressPath(hash, '/other')).toBe('/other')
   })
 
   it.each(['file:///app/index.html#/pub/kerala-trip_1', 'capacitor://localhost/#/pub/kerala-trip_1'])('leaves non-web addresses unchanged: %s', async url => {

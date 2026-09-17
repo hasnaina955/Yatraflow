@@ -20,6 +20,7 @@ import { decodeTripSnapshot } from './lib/snapshot'
 import { scrollBehavior } from './lib/motion'
 import { pageTitle, routeParts } from './lib/pageTitle'
 import { syncPublicAddress } from './lib/shareUrl'
+import { appLink } from './lib/appLink'
 import { App as CapApp } from '@capacitor/app'
 import { isNative } from './lib/native'
 import { feedbackHref } from './lib/feedback'
@@ -396,18 +397,18 @@ export default function App() {
       {(!isNative || !me) && (
       <nav className="topnav">
         <div className="container topnav-inner">
-          <a className="brand" href="#/" aria-label="YatraFlow home">
+          <a className="brand" {...appLink('#/')} aria-label="YatraFlow home">
             <BrandMark size={32} />
             <span>Yatra<b style={{ color: 'var(--teal)' }}>Flow</b></span>
           </a>
           <PillNav activeKey={route} className="nav-links" role="navigation" aria-label="Primary">
             {me && <>
-              <a className={`nav-link ${route === '/trips' ? 'active' : ''}`} data-pill-key="/trips" href="#/trips">My trips</a>
-              <a className={`nav-link ${route === '/new' ? 'active' : ''}`} data-pill-key="/new" href="#/new">Plan a trip</a>
+              <a className={`nav-link ${route === '/trips' ? 'active' : ''}`} data-pill-key="/trips" {...appLink('#/trips')}>My trips</a>
+              <a className={`nav-link ${route === '/new' ? 'active' : ''}`} data-pill-key="/new" {...appLink('#/new')}>Plan a trip</a>
             </>}
-            <a className={`nav-link ${route === '/explore' ? 'active' : ''}`} data-pill-key="/explore" href="#/explore">Explore</a>
+            <a className={`nav-link ${route === '/explore' ? 'active' : ''}`} data-pill-key="/explore" {...appLink('#/explore')}>Explore</a>
             {me?.profile.isCreator && (
-              <a className={`nav-link ${route === '/creator-hub' ? 'active' : ''}`} data-pill-key="/creator-hub" href="#/creator-hub">Creator hub</a>
+              <a className={`nav-link ${route === '/creator-hub' ? 'active' : ''}`} data-pill-key="/creator-hub" {...appLink('#/creator-hub')}>Creator hub</a>
             )}
           </PillNav>
         <div className="nav-right">
@@ -489,8 +490,8 @@ export default function App() {
           </div>{/* /nav-pill-group */}
           {!me && (
             <>
-              <a className="btn btn-outline btn-sm" href="#/auth">Log in</a>
-              <a className="btn btn-primary btn-sm" href="#/auth?mode=signup">Sign up free</a>
+              <a className="btn btn-outline btn-sm" {...appLink('#/auth')}>Log in</a>
+              <a className="btn btn-primary btn-sm" {...appLink('#/auth?mode=signup')}>Sign up free</a>
             </>
           )}
         </div>
@@ -501,13 +502,13 @@ export default function App() {
       {mobileNav && !isNative && (
         <div className="mobile-menu" id="mobile-menu" onClick={() => setMobileNav(false)}>
           {me && <>
-            <a className={`nav-link ${route === '/trips' ? 'active' : ''}`} href="#/trips"><Tent size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 6 }} />My trips</a>
-            <a className={`nav-link ${route === '/new' ? 'active' : ''}`} href="#/new"><Plus size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 6 }} />Plan a trip</a>
+            <a className={`nav-link ${route === '/trips' ? 'active' : ''}`} {...appLink('#/trips')}><Tent size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 6 }} />My trips</a>
+            <a className={`nav-link ${route === '/new' ? 'active' : ''}`} {...appLink('#/new')}><Plus size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 6 }} />Plan a trip</a>
           </>
           }
-          <a className={`nav-link ${route === '/explore' ? 'active' : ''}`} href="#/explore"><Compass size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 6 }} />Explore</a>
-          {me?.profile.isCreator && <a className={`nav-link ${route === '/creator-hub' ? 'active' : ''}`} href="#/creator-hub"><Sparkles size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 6 }} />Creator hub</a>}
-          {me && <a className={`nav-link ${route === '/profile' ? 'active' : ''}`} href="#/profile"><Settings size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 6 }} />Profile & settings</a>}
+          <a className={`nav-link ${route === '/explore' ? 'active' : ''}`} {...appLink('#/explore')}><Compass size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 6 }} />Explore</a>
+          {me?.profile.isCreator && <a className={`nav-link ${route === '/creator-hub' ? 'active' : ''}`} {...appLink('#/creator-hub')}><Sparkles size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 6 }} />Creator hub</a>}
+          {me && <a className={`nav-link ${route === '/profile' ? 'active' : ''}`} {...appLink('#/profile')}><Settings size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 6 }} />Profile & settings</a>}
         </div>
       )}
 

@@ -1,9 +1,17 @@
 import { Capacitor } from '@capacitor/core'
+import { routeParts } from './pageTitle'
 
 const PUBLIC_ORIGIN = 'https://yatraflow-blond.vercel.app'
 
 export function publicShareUrl(pubId: string, origin: string, native = false): string {
   return `${native ? PUBLIC_ORIGIN : origin.replace(/\/+$/, '')}/i/${encodeURIComponent(pubId)}`
+}
+
+/** Use the router's segments (including ignored trailing segments), then the API's id allowlist. */
+export function publicAddressPath(hash: string, pathname: string): string {
+  const [head, id] = routeParts(hash.replace(/^#/, ''))
+  if (head === 'pub' && id && /^[A-Za-z0-9_-]{1,64}$/.test(id)) return `/i/${id}`
+  return /^\/i\/[^/]+$/.test(pathname) ? '/' : pathname
 }
 
 /**
@@ -19,8 +27,7 @@ export function publicShareUrl(pubId: string, origin: string, native = false): s
  */
 export function syncPublicAddress(): void {
   if (Capacitor.isNativePlatform() || !/^https?:$/.test(location.protocol)) return
-  const id = /^#\/pub\/([A-Za-z0-9_-]{1,64})$/.exec(location.hash)?.[1]
-  const pathname = id ? `/i/${id}` : /^\/i\/[^/]+$/.test(location.pathname) ? '/' : location.pathname
+  const pathname = publicAddressPath(location.hash, location.pathname)
   if (pathname !== location.pathname) {
     history.replaceState(history.state, '', `${pathname}${location.search}${location.hash}`)
   }

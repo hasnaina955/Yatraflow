@@ -345,6 +345,8 @@ push run rather than replacing it.)
 
 ## 4. Code conventions & pitfalls
 
+- **Route anchors reachable from a public pathname need `appLink` on the real `<a>`.** Root-absolute web hrefs let new tabs escape `/i/<id>`; unmodified left clicks must still set only the hash to avoid reloading. Leave modified/already-handled clicks to the browser, and keep native/file hrefs fragment-only. The metadata handler cannot recover a fragment. Address promotion must use `routeParts`, then the handler's id allowlist — trailing slashes, per-segment queries and extra segments can still render the publication.
+
 - **A browser-copied public URL must carry the publication id before the hash.** Fragments never reach preview crawlers. `syncPublicAddress` aligns the web pathname with `#/pub/<id>` on mount and hash changes, using `replaceState` without adding history entries. Clear `/i/<id>` when leaving the public route, keep native/file routing untouched, and never build creator/invite/snapshot links from the current publication pathname. Test Back/Forward, switching publications and the handler's root-shell redirect separately; correct metadata in an HTTP probe does not prove WhatsApp rendered it.
 
 - **Share-preview tests must execute the handler, not merely find tag strings.** A preview fetching the production shell can combine production bundle hashes with preview-host assets. The `/i/<id>` endpoint instead returns metadata and an explicit redirect to the hash route, with a bounded public-metadata fetch and no app-shell request. Native share URLs must use the public website, never the WebView origin. Keep deployment/crawler acceptance separate from local test success.

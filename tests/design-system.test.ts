@@ -531,8 +531,9 @@ describe('spacing rhythm: new values land on the documented ladder', () => {
   // column) and 22 (two sections). `border-radius` and friends are not spacing
   // and are not read.
   //
-  // Keyed by `property: value`, NOT by line (unlike the other gates): a frozen
-  // set of ~40 pairs is immune to the line-number churn that makes every CSS
+  // Keyed by `property: value`, NOT by line (unlike the other gates): the frozen
+  // set (76 pairs at the time of writing) is immune to the line-number churn
+  // that makes every CSS
   // insertion force a re-baseline, and the set may only shrink — retiring one of
   // these values means deleting its entry, after which it can never come back.
   const LADDER = new Set([2, 4, 6, 8, 12, 14, 16, 20, 22, 24])

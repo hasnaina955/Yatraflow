@@ -28,6 +28,12 @@ vi.mock('../src/lib/supabase', () => {
     // Optional-column probe reads: all columns present (truthy probe).
     qb.then = (res: (v: { data: unknown; error: null }) => unknown) =>
       Promise.resolve({ data: [], error: null }).then(res)
+    // A single-row read that matches nothing resolves to null in the real
+    // client (not []), which is what fetchSharedTrip branches on.
+    qb.maybeSingle = () => ({
+      then: (res: (v: { data: unknown; error: null }) => unknown) =>
+        Promise.resolve({ data: null, error: null }).then(res),
+    })
     return qb
   }
   function write(table: string, method: string, payload: any) {
@@ -65,8 +71,11 @@ vi.mock('../src/lib/supabase', () => {
 })
 
 import { duplicateTripPersisted, duplicateTripPublicPersisted, tripById } from '../src/store/store'
+import { forkPublication } from '../src/lib/forkPub'
+import type { PublishedItinerary } from '../src/data/types'
 
 const base = seedData.trips[0] as Trip
+const pubRow = { id: 'pub_test', tripId: 'trip-that-does-not-exist', title: 'A test itinerary' } as PublishedItinerary
 
 beforeEach(() => {
   state.inserts.length = 0
@@ -126,5 +135,30 @@ describe('fork persist — honest result + zombie rollback', () => {
     expect(persisted).toBe(true)
     expect(tripById(copy.id)).toBeDefined()
     expect(state.inserts.some(i => i.table === 'trip_members')).toBe(true)
+  })
+})
+
+describe('fork — the gate and its failure message are honest', () => {
+  it('a signed-out viewer is sent to auth, told why, and writes nothing', async () => {
+    const nav = vi.fn()
+    const ok = await forkPublication(pubRow, null, nav)
+    expect(ok).toBe(false)
+    expect(nav).toHaveBeenCalledWith('/auth')
+    expect(toast).toHaveBeenCalledWith('Log in to fork this trip into your plans.')
+    // The redirect is the whole interaction — no half-fork, no orphan rows.
+    expect(state.inserts).toEqual([])
+  })
+
+  it('a trip that will not load is not reported as deleted', async () => {
+    // fetchSharedTrip returns null for a missing row AND for a failed select, so
+    // the message may not claim the itinerary is gone.
+    const nav = vi.fn()
+    const ok = await forkPublication(pubRow, 'forker-6', nav)
+    expect(ok).toBe(false)
+    expect(nav).not.toHaveBeenCalledWith('/trips')
+    const msg = String(toast.mock.calls.at(-1)?.[0] ?? '')
+    expect(msg).toContain('Couldn’t load that itinerary')
+    expect(msg).not.toMatch(/no longer available|deleted|gone/i)
+    expect(state.inserts).toEqual([])
   })
 })

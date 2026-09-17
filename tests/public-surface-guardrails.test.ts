@@ -61,3 +61,34 @@ describe('the gallery explains its own vocabulary', () => {
     expect(explore).toMatch(/Featured itinerary\{featuredOutsideFilters &&/)
   })
 })
+
+describe('the catalog is honest about the login wall behind Fork', () => {
+  it('labels the shared card button for what it does when nobody is signed in', () => {
+    const card = read('../src/components/PubCard.tsx')
+    expect(card).toMatch(/needsLogin \? 'Log in to fork' : 'Fork this trip'/)
+    // Every surface that renders the card has to opt in, or a signed-out click
+    // goes back to being a silent redirect.
+    expect(read('../src/pages/Explore.tsx')).toMatch(/needsLogin=\{!me\}/)
+    expect(read('../src/pages/CreatorPage.tsx')).toMatch(/needsLogin=\{!me\}/)
+  })
+
+  it('says the account requirement before the click, on every fork button', () => {
+    // Explore explains it once, above the cards.
+    expect(read('../src/pages/Explore.tsx')).toMatch(/You’ll need a free account to fork trips/)
+    const page = read('../src/pages/PublicItinerary.tsx')
+    const forkButtons = [...page.matchAll(/className="btn fork-btn/g)].length
+    const labelled = [...page.matchAll(/\{me \? 'Fork this trip' : 'Log in to fork'\}/g)].length
+    expect(forkButtons).toBe(2)
+    expect(labelled).toBe(forkButtons)
+  })
+})
+
+describe('the public page names no cause it cannot know', () => {
+  it('describes a failed load without picking one explanation', () => {
+    const page = read('../src/pages/PublicItinerary.tsx')
+    // fetchSharedTrip resolves null for a deleted row AND for a failed select,
+    // so "unpublished" was a guess dressed as a diagnosis.
+    expect(page).not.toMatch(/may have been unpublished/)
+    expect(page).toMatch(/we can’t tell which from here/)
+  })
+})

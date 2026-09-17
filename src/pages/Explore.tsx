@@ -167,6 +167,9 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
             meets the button that carries the name. */}
         <p className="small muted" style={{ margin: '0 0 10px' }}>
           Fork any itinerary to copy it into your own trips — then change whatever you like.
+          {/* Signed out, that button navigates to /auth — say so before the click,
+              not in a toast that the redirect swallows. */}
+          {!me && <> You’ll need a free account to fork trips.</>}
         </p>
 
         {/* ---- Travel-style chips (§6.10) — replaces the style dropdown ---- */}
@@ -240,7 +243,7 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
                 <span><MetaIcon icon={ MapPin } tone="place" />{featured.routeSummary.length} places · {featured.routeSummary[0]} → {featured.routeSummary[featured.routeSummary.length - 1]}</span>
               </div>
               <div className="featured-actions">
-                <button className="btn fork-btn" onClick={() => forkTrip(featured.id)}><GitFork size={14} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Fork this trip</button>
+                <button className="btn fork-btn" onClick={() => forkTrip(featured.id)}><GitFork size={14} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />{me ? 'Fork this trip' : 'Log in to fork'}</button>
                 <button className="btn save-btn" onClick={() => toggleHeart(featured.id)} aria-pressed={isSaved(featured.id)}>
                   <Heart size={13} aria-hidden fill={isSaved(featured.id) ? 'currentColor' : 'none'} style={{ verticalAlign: '-2px', marginRight: 4 }} />
                   {isSaved(featured.id) ? 'Saved' : 'Save'}
@@ -279,7 +282,8 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
               <div className="explore-grid">
                 {gridPubs.slice(0, visibleCount).map((p, i) => (
                   <PubCard key={p.id} pub={p} creator={userOf(users, p.creatorId)} saved={isSaved(p.id)}
-                    onFork={() => forkTrip(p.id)} onToggleSave={() => toggleHeart(p.id)} enterIndex={i} />
+                    onFork={() => forkTrip(p.id)} onToggleSave={() => toggleHeart(p.id)} enterIndex={i}
+                    needsLogin={!me} />
                 ))}
               </div>
             )}

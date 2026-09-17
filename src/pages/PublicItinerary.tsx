@@ -108,8 +108,11 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
       <div className="container">
         {pub && !miss
           ? <div className="container loading-block"><div className="spinner" />Loading itinerary…</div>
-          : <EmptyState icon={<Link2 size={38} aria-hidden />} title="Itinerary not found"
-              body="This public page may have been unpublished."
+          : /* The fetch returns null for a missing row AND for a failed select, so
+               this copy must not pick one cause: it names the real possibilities
+               and says plainly that the page cannot tell them apart. */
+            <EmptyState icon={<Link2 size={38} aria-hidden />} title="This itinerary didn’t load"
+              body="Unpublished, mistyped, or a dropped connection — we can’t tell which from here. Ask whoever shared it for a fresh link, or browse what’s published now."
               action={<button className="btn btn-primary" onClick={() => onNavigate('/explore')}>Back to Explore</button>} />}
       </div>
     )
@@ -191,7 +194,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
                 <Heart size={13} aria-hidden fill={savedFlag ? 'currentColor' : 'none'} style={{ verticalAlign: '-2px', marginRight: 4 }} />
                 {savedFlag ? 'Saved' : 'Save itinerary'}
               </button>
-              <button className="btn fork-btn" onClick={copyThis}><GitFork size={14} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Fork this trip</button>
+              <button className="btn fork-btn" onClick={copyThis}><GitFork size={14} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />{me ? 'Fork this trip' : 'Log in to fork'}</button>
             </div>
           </div>
 
@@ -395,7 +398,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
                 Forks the free preview into your YatraFlow account — locked days come over as placeholders you can fill in yourself.
               </p>
               <button className="btn fork-btn btn-lg" style={{ width: '100%' }} onClick={copyThis}>
-                <GitFork size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 5 }} />Fork this trip
+                <GitFork size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 5 }} />{me ? 'Fork this trip' : 'Log in to fork'}
               </button>
               {price !== undefined && (
                 <p className="hint-text" style={{ textAlign: 'center', marginTop: 10 }}>

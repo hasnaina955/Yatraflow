@@ -16,7 +16,9 @@ export async function forkPublication(pub: PublishedItinerary, meId: string | nu
   // the Explore grid a foreign publication is never in the cache — fetch it
   // (it's public by definition; that's why it's listed).
   const src = tripById(pub.tripId) ?? await fetchSharedTrip(pub.tripId)
-  if (!src) { toast('That itinerary is no longer available.', 'err'); return false }
+  // `fetchSharedTrip` returns null for a deleted row AND for a failed select, so
+  // this cannot claim the trip is gone — only that it did not load.
+  if (!src) { toast('Couldn’t load that itinerary — it may be unpublished now, or the connection dropped.', 'err'); return false }
   const hasLockedDays = src.days.some(d => !pub.freeDayIndexes.includes(d.index))
   const { persisted } = hasLockedDays
     ? await duplicateTripPublicPersisted(src, meId, pub.freeDayIndexes)

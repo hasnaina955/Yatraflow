@@ -135,12 +135,15 @@ export function Field(props: {
     if (el.props.id != null) { associated = true; return child }
     associated = true
     // The hint/error live outside the control — describe them so SR users
-    // tabbing back to the field hear them, and flag the failing field.
-    return React.cloneElement(el, {
-      id: controlId,
-      'aria-describedby': props.error ? errId : props.hint ? hintId : undefined,
-      'aria-invalid': props.error ? true : undefined,
-    })
+    // tabbing back to the field hear them, and flag the failing field. Only
+    // claim these two when this Field actually has something to say: assigning
+    // `undefined` would still overwrite the key, because cloneElement copies it
+    // either way, which silently dropped the invalid flag from controls that
+    // validate themselves (the stop editor's source link, for one).
+    const extra: Partial<{ id: string; 'aria-describedby': string; 'aria-invalid': boolean }> = { id: controlId }
+    if (props.error) { extra['aria-describedby'] = errId; extra['aria-invalid'] = true }
+    else if (props.hint) extra['aria-describedby'] = hintId
+    return React.cloneElement(el, extra)
   })
   return (
     <div className="field">

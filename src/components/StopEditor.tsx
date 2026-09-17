@@ -303,8 +303,8 @@ export function StopEditor({ open, onClose, initial, resetKey, onSave, dayLabel,
         </Field>
 
         <div className="form-row">
-          <Field label="Source link (optional)">
-            <input className="input" ref={el => (fieldRefs.current.sourceUrl = el)} aria-invalid={!!errs.sourceUrl} value={v.sourceUrl} onChange={e => set('sourceUrl', e.target.value)} placeholder="https://…" />
+          <Field label="Source link (optional)" error={errs.sourceUrl}>
+            <input className="input" ref={el => (fieldRefs.current.sourceUrl = el)} value={v.sourceUrl} onChange={e => set('sourceUrl', e.target.value)} placeholder="https://…" />
           </Field>
           <Field label="Status">
             <Select value={v.status} onChange={val => set('status', val as StopStatus)}

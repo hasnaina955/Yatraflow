@@ -666,10 +666,14 @@ a.btn { text-decoration: none; }
   background-size: 11px 7px;
   transition: border-color var(--t-fast) var(--ease-out), box-shadow var(--t-fast) var(--ease-out), background-color var(--t-fast) var(--ease-out);
 }
-.select:hover { border-color: var(--teal); }
+.select:hover:not(:disabled) { border-color: var(--teal); }
 /* Theme the native popup rows (Chromium/Edge honour this; the system highlight
    stays but stops clashing with the palette). */
 .select option { background: var(--card); color: var(--text); }
+/* The custom Select already turns red on aria-invalid (see .cselect-trigger);
+   native controls declared no invalid style at all, so one invalid state had two
+   looks depending on which control carried it. */
+.input[aria-invalid='true'], .select[aria-invalid='true'], .textarea[aria-invalid='true'] { border-color: var(--danger); }
 
 /* ============ Custom listbox Select (components/Select.tsx) ============
    Same `.select` trigger recipe (it's on the button below), a real DOM popup
@@ -811,7 +815,18 @@ a.btn { text-decoration: none; }
   box-shadow: var(--shadow-sm);
   color: var(--text-2);
 }
-/* (explore-chips selected-state overrides removed — chips use the global .on-teal) */
+/* The glass base above has the SAME specificity as the global .on-teal and comes
+   later, so it won every property — a selected travel-style chip rendered
+   identically to an unselected one, on Explore and again in the My Trips
+   toolbar. The selected pair needs its own rule here, exactly as the saffron
+   variant below already has one. */
+.explore-chips .clickable-chip.on-teal {
+  background: var(--teal-deep); border-color: var(--teal-deep); color: #fff;
+  box-shadow: var(--shadow-glow-teal);
+}
+[data-theme='dark'] .explore-chips .clickable-chip.on-teal {
+  background: var(--teal); border-color: var(--teal); color: #06251f;
+}
 /* Selected "Saved" chip — was white-on-saffron (1.97:1 both themes). Now the
    same soft-fill + deep-ink language as every other selected chip (5.08/5.56). */
 .explore-chips .clickable-chip.chip-saffron {
@@ -1549,6 +1564,11 @@ button.board-col-zone--add:active { transform: translateY(1px); }
 .tab-btn.active { color: var(--teal-deep); }
 
 .tab-count { background: var(--teal-soft); color: var(--teal-deep); font-size: 11px; font-weight: 700; border-radius: 999px; padding: 1px 7px; }
+/* In light mode the pill nav's glider paints --teal-soft too, so a count badge
+   inside the active pill was the same fill on the same fill (1:1) — the shape
+   vanished and the active tab read as a bare label. --card reads on either
+   glider, in both themes. */
+.pill-nav .clickable-chip.on-teal .tab-count { background: var(--card); }
 /* Editable day title — a real button (keyboard-reachable rename), styled as
    the heading it replaces. */
 .day-title-btn { border: none; background: none; padding: 0; cursor: pointer;
@@ -3332,6 +3352,17 @@ html.vt-active :where(*) {
 }
 .bench-crew-btn:hover { transform: translateY(-1px); }
 .bench-crew-btn.on { border-color: var(--yf-teal-700); background: var(--yf-teal-700); color: #fff; }
+/* Disabled affordances must not look live. All four of these are disabled for a
+   viewer (TripSettingsForm passes `disabled={!editable}`), yet they kept full
+   opacity, the pointer cursor and their hover lift — so a viewer saw an editable
+   form that silently ignored every press. The `:not(.on)` guard leaves a
+   locked-but-selected option showing the state it is locked to. */
+.bench-toggle:disabled, .bench-crew-btn:disabled, .bench-mode-btn:disabled,
+.yf-range:disabled { opacity: .55; cursor: not-allowed; }
+.bench-crew-btn:disabled:hover, .bench-mode-btn:disabled:hover { transform: none; }
+.bench-mode-btn:disabled:not(.on):hover { border-color: var(--line); }
+.yf-range:disabled:hover::-webkit-slider-thumb,
+.yf-range:disabled:hover::-moz-range-thumb { transform: none; }
 /* Dark theme: teal-700 is the BRIGHT shade here (#1E9D92), so white ink on a
    saturated fill drops to 3.3:1. Use the near-black ink the pill-nav glider
    already uses (#06251f) — 6.6:1 on #2BB8AC. The pale-tinted `.on` states flip
@@ -4145,8 +4176,10 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
   /* workspace: mobile nav button, form controls, map & stop cards */
   .mobile-nav-btn { display: inline-flex; }
   /* iOS Safari zooms the viewport when an input with font-size < 16px gains
-     focus — bump form controls to 16px to stop the page jumping. */
-  input, select, textarea { font-size: 16px; }
+     focus — bump form controls to 16px to stop the page jumping. `.role-select`
+     is named explicitly because its own class rule outranks the bare `select`
+     element selector, so it would otherwise keep its 12.5px. */
+  input, select, textarea, .role-select { font-size: 16px; }
   /* Map: viewport-relative height so it doesn't eat the whole screen, but
      never collapses below a usable canvas. */
   .map-frame { height: 52vh; min-height: 300px; }

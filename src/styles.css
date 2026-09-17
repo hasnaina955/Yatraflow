@@ -1588,7 +1588,16 @@ button.board-col-zone--add:active { transform: translateY(1px); }
 }
 .toast.ok { background: var(--teal-deep); color: #fff; }
 .toast.err { background: var(--danger); color: #fff; }
+/* The blanket dark rule below has the same specificity as .toast.ok/.toast.err
+   and comes later, so on its own it wiped the success/error fill: in dark mode
+   every toast rendered as the same neutral pill and the two outcomes became
+   visually identical. The semantic pairs keep their own fills and take the dark
+   ink this codebase already uses wherever a lightened teal carries text
+   (see .ai-bubble.user, .notif-badge) — 7.9:1 on the teal and 5.1:1 on the soft
+   red, against 2.05:1 and 3.22:1 for white. */
 [data-theme='dark'] .toast { background: var(--gray-900); color: var(--gray-50); }
+[data-theme='dark'] .toast.ok { background: var(--teal-deep); color: #06251f; }
+[data-theme='dark'] .toast.err { background: var(--danger); color: #06251f; }
 .toast-action {
   border: none; background: rgba(255,255,255,.18); color: inherit;
   font-weight: 700; font-size: 12.5px; padding: 8px 16px; border-radius: 999px;

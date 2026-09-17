@@ -164,19 +164,78 @@ export function undoToast(msg: string, undo: () => void) {
   pushToastFn?.(msg, 'ok', { label: 'Undo', run: undo })
 }
 let dismissToastFn: ((id: number) => void) | null = null
+type ToastItem = { id: number; msg: string; kind: string; action?: { label: string; run: () => void } }
+/** How long a toast stays up. An undo toast gets a longer window, and either can
+    be held open indefinitely by pointing at it or tabbing into it. */
+const TOAST_DWELL = 3400
+const TOAST_DWELL_UNDO = 7000
+
 export function ToastZone() {
-  const [toasts, setToasts] = useState<{ id: number; msg: string; kind: string; action?: { label: string; run: () => void } }[]>([])
+  const [toasts, setToasts] = useState<ToastItem[]>([])
+  // One timer per toast, not one per batch: a hold has to bank the elapsed time
+  // and resume where it stopped. The undo toast is the ONLY way back from a
+  // destructive action, so it must not expire out from under the user
+  // (WCAG 2.2.1 Timing Adjustable).
+  const timers = useRef(new Map<number, { id: number; remaining: number; startedAt: number; handle: number }>())
+  const held = useRef(false)
+
   useEffect(() => {
+    const drop = (id: number) => {
+      const rec = timers.current.get(id)
+      if (rec) { clearTimeout(rec.handle); timers.current.delete(id) }
+      setToasts(t => t.filter(x => x.id !== id))
+    }
     pushToastFn = (msg, kind = 'ok', action) => {
       const id = Date.now() + Math.random()
       setToasts(t => [...t, { id, msg, kind, action }])
-      setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), action ? 7000 : 3400)
+      const ms = action ? TOAST_DWELL_UNDO : TOAST_DWELL
+      const rec = { id, remaining: ms, startedAt: Date.now(), handle: 0 }
+      // A toast that arrives while the pointer already rests on the zone (a
+      // second save, say) must not start a clock the user cannot see running.
+      if (!held.current) rec.handle = window.setTimeout(() => drop(id), ms)
+      timers.current.set(id, rec)
     }
-    dismissToastFn = (id) => setToasts(t => t.filter(x => x.id !== id))
-    return () => { pushToastFn = null; dismissToastFn = null }
+    dismissToastFn = drop
+    const pending = timers.current
+    return () => {
+      pushToastFn = null
+      dismissToastFn = null
+      for (const rec of pending.values()) clearTimeout(rec.handle)
+      pending.clear()
+    }
   }, [])
+
+  /** Bank the elapsed time and stop every clock. */
+  const holdTimers = () => {
+    if (held.current) return
+    held.current = true
+    for (const rec of timers.current.values()) {
+      clearTimeout(rec.handle)
+      rec.remaining -= Date.now() - rec.startedAt
+    }
+  }
+  /** Re-arm with what each toast had left, never less than a beat to read it. */
+  const releaseTimers = () => {
+    if (!held.current) return
+    held.current = false
+    for (const rec of timers.current.values()) {
+      rec.startedAt = Date.now()
+      rec.handle = window.setTimeout(() => {
+        timers.current.delete(rec.id)
+        setToasts(t => t.filter(x => x.id !== rec.id))
+      }, Math.max(rec.remaining, 1000))
+    }
+  }
   return (
-    <div className="toast-zone" role="status" aria-live="polite">
+    <div
+      className="toast-zone"
+      role="status"
+      aria-live="polite"
+      onMouseEnter={holdTimers}
+      onMouseLeave={releaseTimers}
+      onFocus={holdTimers}
+      onBlur={releaseTimers}
+    >
       {toasts.map(t => (
         <div key={t.id} className={`toast ${t.kind}`} role={t.kind === 'err' ? 'alert' : undefined}>
           <span>{t.msg}</span>

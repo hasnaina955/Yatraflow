@@ -22,8 +22,19 @@ function renderPublication(publication, id) {
   if (Array.isArray(route)) facts.push(route.join(' → '))
   else if (typeof route === 'string' && route) facts.push(route)
   const description = publication?.tagline || facts.join(' · ') || DEFAULT_DESCRIPTION
-  const image = typeof publication?.cover_image_url === 'string' && /^https:\/\/\S+$/.test(publication.cover_image_url)
+  const cover = typeof publication?.cover_image_url === 'string' && /^https:\/\/\S+$/.test(publication.cover_image_url)
     ? publication.cover_image_url : ''
+  // A publication with no cover still needs a picture: without one the link
+  // previews as a bare URL rather than a card. The fallback is the app's own
+  // asset, and only in that case are its dimensions known and worth declaring.
+  const image = cover || `${origin}/og-default.png`
+  const imageTags = [
+    `<meta property="og:image" content="${escapeHtml(image)}" />`,
+    ...(cover ? [] : [
+      '<meta property="og:image:width" content="1200" />',
+      '<meta property="og:image:height" content="630" />',
+    ]),
+  ].join('\n')
   const target = `/#/pub/${id}`
   const canonical = `${origin}/i/${id}`
   return `<!doctype html>
@@ -38,11 +49,11 @@ function renderPublication(publication, id) {
 <meta property="og:title" content="${escapeHtml(title)}" />
 <meta property="og:description" content="${escapeHtml(description)}" />
 <meta property="og:url" content="${escapeHtml(canonical)}" />
-${image ? `<meta property="og:image" content="${escapeHtml(image)}" />` : ''}
-<meta name="twitter:card" content="${image ? 'summary_large_image' : 'summary'}" />
+${imageTags}
+<meta name="twitter:card" content="summary_large_image" />
 <meta name="twitter:title" content="${escapeHtml(title)}" />
 <meta name="twitter:description" content="${escapeHtml(description)}" />
-${image ? `<meta name="twitter:image" content="${escapeHtml(image)}" />` : ''}
+<meta name="twitter:image" content="${escapeHtml(image)}" />
 <link rel="canonical" href="${escapeHtml(canonical)}" />
 <script>location.replace(${JSON.stringify(target)})</script>
 </head>

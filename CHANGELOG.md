@@ -16,6 +16,7 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 ## [Unreleased]
 
 ### Added
+- **A shared itinerary without a cover still previews as a card.** Two of the three live publications carry no `cover_image_url`, so their links previewed with no picture at all, and `og:image` was missing from the shell too. The app now ships a 1200×630 card (`public/og-default.png`) that the preview handler falls back to whenever a publication has no HTTPS cover, with its dimensions declared and `twitter:card` promoted to `summary_large_image` so the picture is shown large. The card is drawn from the product's own vocabulary — the brand mark, a route with its stop sequence and the saffron destination node the logo's sun already uses, over contour rings gathering around it like a summit — and its source is `scripts/og-default-card.html`, so a brand change regenerates it rather than leaving an unreproducible binary in the tree. One test pins the asset's real pixel size to the dimensions the tags declare, and another that the URL names a file that is actually shipped.
 
 ### Changed
 

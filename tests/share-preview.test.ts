@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8')
@@ -74,9 +74,13 @@ describe('share preview handler in node', () => {
     expect(res.body).toContain(`<link rel="canonical" href="${canonical}"`)
     expect(res.body).toContain(`location.replace("/#/pub/${publication.id}")`)
     expect(res.body).toContain(`href="/#/pub/${publication.id}"`)
-    expect(res.body).not.toContain('og:image')
-    expect(res.body).not.toContain('twitter:image')
-    expect(res.body).toContain('twitter:card" content="summary"')
+    // No cover on this row, so the app's own asset has to carry the card.
+    const fallback = 'https://yatraflow-blond.vercel.app/og-default.png'
+    expect(res.body).toContain(`og:image" content="${fallback}"`)
+    expect(res.body).toContain(`twitter:image" content="${fallback}"`)
+    expect(res.body).toContain('og:image:width" content="1200"')
+    expect(res.body).toContain('og:image:height" content="630"')
+    expect(res.body).toContain('twitter:card" content="summary_large_image"')
   })
 
   it('uses duration, Indian-formatted budget and array route facts without a tagline', async () => {
@@ -98,14 +102,35 @@ describe('share preview handler in node', () => {
       expect(res.body).toContain(`${property}" content="https://images.example.test/cover.jpg?width=800&amp;height=400"`)
     }
     expect(res.body).toContain('twitter:card" content="summary_large_image"')
+    // A cover's own dimensions are unknown, so none are declared for it.
+    expect(res.body).not.toContain('og:image:width')
+    expect(res.body).not.toContain('og:image:height')
   })
 
-  it.each([undefined, null, '', 'http://images.example.test/cover.jpg'])('omits a missing or non-https cover (%s)', async cover => {
-    respond([{ ...publication, cover_image_url: cover }])
+  it.each([undefined, null, '', 'http://images.example.test/cover.jpg'])(
+    'falls back to the default card for a missing or non-https cover (%s)',
+    async cover => {
+      respond([{ ...publication, cover_image_url: cover }])
+      const res = await runHandler()
+      expect(res.body).not.toContain('http://images.example.test/cover.jpg')
+      expect(res.body).toContain('og:image" content="https://yatraflow-blond.vercel.app/og-default.png"')
+      expect(res.body).toContain('twitter:card" content="summary_large_image"')
+    },
+  )
+
+  it('points at a default card that is actually shipped, at the declared size', async () => {
+    respond([publication])
     const res = await runHandler()
-    expect(res.body).not.toContain('og:image')
-    expect(res.body).not.toContain('twitter:image')
-    expect(res.body).toContain('twitter:card" content="summary"')
+    const url = /og:image" content="([^"]+)"/.exec(res.body)?.[1] ?? ''
+    expect(url).toBeTruthy()
+    const file = new URL(url).pathname.replace(/^\//, '')
+    expect(existsSync(new URL(`../public/${file}`, import.meta.url)), `${file} is referenced but not in public/`).toBe(true)
+    // A declared size that disagrees with the asset renders letterboxed or
+    // cropped on the client, and nothing else in the gate would notice.
+    const png = readFileSync(new URL(`../public/${file}`, import.meta.url))
+    expect(png.subarray(1, 4).toString('ascii')).toBe('PNG')
+    expect(png.readUInt32BE(16)).toBe(1200)
+    expect(png.readUInt32BE(20)).toBe(630)
   })
 
   it('honors the configured public origin without a trailing slash', async () => {
@@ -258,9 +283,13 @@ describe('the production origin agrees everywhere it is written', () => {
     expect(inClient).toBe(inHandler)
   })
 
-  it('is what the shell advertises as its own url and canonical', () => {
+  it('is what the shell advertises as its own url, canonical and card image', () => {
     expect(shell).toContain(`<meta property="og:url" content="${inHandler}/" />`)
     expect(shell).toContain(`<link rel="canonical" href="${inHandler}/" />`)
+    // The handler builds its fallback image from this same constant, so a domain
+    // move must not leave one of the two pointing at the old host.
+    expect(shell).toContain(`<meta property="og:image" content="${inHandler}/og-default.png" />`)
+    expect(shell).toContain(`<meta name="twitter:image" content="${inHandler}/og-default.png" />`)
   })
 
   it('is the origin a native share is sent to, never the WebView origin', () => {

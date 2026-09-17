@@ -232,3 +232,40 @@ describe('public share source wiring', () => {
     expect(source).not.toContain('${location.pathname}#/pub/')
   })
 })
+
+// The one constant this feature cannot define in a single place. The handler is
+// plain JS outside the typechecked `src` (and must not import client code, which
+// pulls in Capacitor), and the shell is static HTML, so the production origin is
+// written three times. Silence between them is how a domain move breaks native
+// share links and og:url while every other test still passes — so the copies are
+// pinned to each other here instead of trusted.
+describe('the production origin agrees everywhere it is written', () => {
+  function constFrom(source: string, name: string): string {
+    const match = new RegExp(`const ${name}\\s*=\\s*'([^']+)'`).exec(source)
+    expect(match, `${name} is not declared in the source`).not.toBeNull()
+    return match![1]!.replace(/\/+$/, '')
+  }
+
+  const inHandler = constFrom(read('../api/i.js'), 'DEFAULT_ORIGIN')
+  const inClient = constFrom(read('../src/lib/shareUrl.ts'), 'PUBLIC_ORIGIN')
+  const shell = read('../index.html')
+
+  it('is https, so a share link is never a downgrade', () => {
+    expect(inHandler).toMatch(/^https:\/\//)
+  })
+
+  it('is the same origin in the preview handler and the client share helper', () => {
+    expect(inClient).toBe(inHandler)
+  })
+
+  it('is what the shell advertises as its own url and canonical', () => {
+    expect(shell).toContain(`<meta property="og:url" content="${inHandler}/" />`)
+    expect(shell).toContain(`<link rel="canonical" href="${inHandler}/" />`)
+  })
+
+  it('is the origin a native share is sent to, never the WebView origin', () => {
+    const source = read('../src/lib/shareUrl.ts')
+    expect(source).toContain('native ? PUBLIC_ORIGIN :')
+    expect(source).toMatch(/Capacitor\.isNativePlatform\(\)/)
+  })
+})

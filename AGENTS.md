@@ -151,7 +151,18 @@ Key locations:
    fresh, then re-grep the markers before handing over the URL. Then give
    deep links per screen (e.g. `http://localhost:5173/#/` for Landing,
    `http://localhost:5173/#/trips` for My Trips) and say what to check
-   (themes, mobile width, specific interactions).
+   (themes, mobile width, specific interactions). **"Serving this tree" is not
+   "serving it with a backend":** a dev server started before `.env.local`
+   existed (or from another clone of the repo) serves the current source and
+   still renders blind — the console reports *"No Supabase project compiled
+   into this build"* and every data surface sits on `Loading…` with
+   `hydrate … failed`, which reads exactly like a broken product. Before
+   handing over a URL, prove the backend is compiled in by grepping the served
+   client for the project ref
+   (`curl -s http://localhost:PORT/src/lib/supabase.ts | grep -o <ref>`) and
+   start a fresh server if it comes back empty; the `localhost:54321` fallback
+   string is in every bundle, so it discriminates nothing. (Found 2026-09-17:
+   the long-running 5173 server had no Supabase project compiled in at all.)
 8. **Build locally first; confirm the target branch before every push.** A feature
    or fix is always implemented and verified (`npm run verify`) on the current
    local branch before any push is even discussed. When the work is ready, tell
@@ -183,6 +194,12 @@ Key locations:
    rules. This exists because the long-refined surfaces (Timeline, Board) feel
    smooth while newer additions shipped motion-less — the gap only stays
    closed if motion is part of "done" for every update.
+
+11. **Work stays locally committed until it is complete and the localhost check
+   is satisfactory.** Commit as work lands on the working branch; a push is the
+   last step of a finished batch, never the end of each fix or review pass. The
+   author decides when a batch is finished and testable, and says so before any
+   push (user-mandated 2026-09-17).
 
 
 ## 3. Verification before every push

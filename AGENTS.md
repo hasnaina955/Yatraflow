@@ -329,6 +329,19 @@ Hard rules (each learned the hard way — do not relearn them):
   assigned in one entry is empty in the next, so multi-step probes silently
   return nothing and look like failures. Put a dependent pipeline in a single
   command string, with `try/finally` whenever it touches real files.
+- **A screenshot pass means one browser command per tool call — batching them
+  loses the whole result.** An `agent-browser` call that chains `open` +
+  `wait` + `screenshot` + `eval` exhausted the call budget and the harness
+  returned **no output at all** (not partial stdout), which reads exactly like
+  a hung CLI; the same commands, run one per call and each wrapped in
+  `timeout`, all returned in seconds. Three companions: relative screenshot
+  paths are ignored — they land in `~/.agent-browser/tmp/screenshots/`
+  whatever you pass, so hand it an absolute path; a cold Vite transform is what
+  makes `open` look slow, so warm the route *and its modules* with `curl`
+  first; and `transferSize` reads 0 on cross-origin images (Wikimedia exposes
+  no resource timing), so prove a cover's weight from the origin
+  (`curl -w '%{size_download}'` on the `src` the DOM actually rendered) rather
+  than from `performance.getEntriesByType('resource')`.
 - **`str_replace` can report a real, existing file as missing** (`package-lock.json`,
   ~160 KB, during the v0.55.0 cut) — fall back to a targeted `sed -i` and verify
   with grep before moving on. Related: Vercel Agent opens its PRs as **drafts**;

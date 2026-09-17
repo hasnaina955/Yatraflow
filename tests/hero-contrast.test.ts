@@ -60,11 +60,28 @@ function heroScrimStops(): Array<{ alpha: number; offset: number; color: number[
   expect(stops.length, 'the scrim must declare at least three stops').toBeGreaterThanOrEqual(3)
   return stops
 }
+/**
+ * The declaration block of a rule, scanned rather than built into a `RegExp(`
+ * from the selector: a class name is not a pattern, and an escaping slip reads
+ * as "no such rule" instead of as a bad pattern. The first occurrence whose
+ * next non-space character is `{` wins, which is what skips a selector-list
+ * member (`.a, .b {`) in favour of the rule that declares the style.
+ */
+function ruleFor(selector: string): string {
+  for (let at = css.indexOf(selector); at !== -1; at = css.indexOf(selector, at + 1)) {
+    let i = at + selector.length
+    while (i < css.length && ' \t\r\n'.includes(css[i])) i++
+    if (css[i] !== '{') continue
+    const end = css.indexOf('}', i)
+    if (end !== -1) return css.slice(at, end + 1)
+  }
+  return ''
+}
 /** A declared `color:` in a hero rule, e.g. `.pub-hero-kicker { … color: #a9eadc; }`. */
 function heroTextColor(selector: string): number[] {
-  const rule = css.match(new RegExp(`\\${selector}\\s*\\{[^}]*\\}`))
-  expect(rule, `${selector} must exist in styles.css`).not.toBeNull()
-  const color = rule![0].match(/color:\s*(#[0-9a-fA-F]{3,6})/)
+  const rule = ruleFor(selector)
+  expect(rule, `${selector} must exist in styles.css`).not.toBe('')
+  const color = rule.match(/color:\s*(#[0-9a-fA-F]{3,6})/)
   expect(color, `${selector} must declare a hex color`).not.toBeNull()
   return parseHex(color![1])
 }

@@ -183,6 +183,22 @@ describe('the published hero keeps its evidence card inside itself', () => {
 describe('one kicker recipe, and no capitals typed in components', () => {
   const css = read('../src/styles.css')
 
+  /**
+   * The declaration block of a rule whose selector starts its own line. The
+   * anchor is load-bearing: the recipe's selector list ends `.poi-grp-k,
+   * .poi-reason-k {`, so an unanchored scan reads the recipe's own declarations
+   * back as this class's. Scanned rather than built into a `RegExp(` from the
+   * class name — a class name is not a pattern, and escaping one fails as "no
+   * such rule" rather than as a bad pattern.
+   */
+  function ruleOnOwnLine(selector: string): string {
+    const at = css.indexOf(`\n${selector} {`)
+    if (at === -1) return ''
+    const start = at + 1
+    const end = css.indexOf('}', start)
+    return end === -1 ? '' : css.slice(start, end + 1)
+  }
+
   it('routes both hero micro-labels through the single recipe', () => {
     const recipe = css.match(/Kicker unification: one recipe[\s\S]*?text-transform: uppercase;/)?.[0] ?? ''
     expect(recipe).toMatch(/\.pub-hero-badge/)
@@ -208,13 +224,14 @@ describe('one kicker recipe, and no capitals typed in components', () => {
     const recipe = css.match(/Kicker unification:[\s\S]*?text-transform: uppercase;/)?.[0] ?? ''
     expect(recipe).toMatch(/\.poi-grp-k, \.poi-reason-k/)
     for (const sel of ['.poi-grp-k', '.poi-reason-k']) {
-      // Anchored to the start of a line: inside the shared list the class name
-      // is also followed by ` {`, so an unanchored pattern would read the
-      // recipe's own declarations back as this class's.
-      const rule = css.match(new RegExp(`^\\${sel} \\{[^}]*\\}`, 'm'))?.[0] ?? ''
+      const rule = ruleOnOwnLine(sel)
       expect(rule, `${sel} must exist`).not.toBe('')
+      const declared = rule
+        .slice(rule.indexOf('{') + 1, rule.lastIndexOf('}'))
+        .split(';')
+        .map(d => d.split(':')[0].trim())
       for (const prop of ['font-size', 'font-weight', 'letter-spacing', 'text-transform']) {
-        expect(rule, `${sel} must take ${prop} from the recipe`).not.toMatch(new RegExp(`(^|[;{\\s])${prop}:`))
+        expect(declared, `${sel} must take ${prop} from the recipe`).not.toContain(prop)
       }
     }
   })

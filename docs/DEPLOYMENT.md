@@ -76,7 +76,7 @@ Before closing #226:
 3. Open the link in a browser and confirm arrival on the correct itinerary; old `/#/pub/<id>` links must still work.
 4. Confirm the card in WhatsApp or the Meta Sharing Debugger. An SSO-protected preview cannot satisfy anonymous crawler acceptance.
 
-The existing PR #235 also carries independent trip-import changes. This #226 integration does not apply those changes or its static-analysis exclusion.
+The preview endpoint and the trip-JSON import that PR #235 also carried are both landed on `test`. What PR #235 still holds and this work does not is its route-to-title mapping (`src/lib/pageTitle.ts`, applied in `App.tsx`, so open tabs stop sharing one title) and its `.codacy.yml` exclusion, which was written for the older shell-injecting handler. PR #235's own `api/i.js` and `shareUrl.ts` are **superseded** by this implementation and must not be merged over it.
 
 ## Any other static host
 

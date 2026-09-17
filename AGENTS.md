@@ -436,6 +436,27 @@ name the mechanism or keep reproducing — never just re-run until green.
   (210 > 200): a transient toast must never cover the Keep/Remove controls. Corollary: container-size changes need
   no manual `map.resize()` — mapcn's wrapper already runs a ResizeObserver
   that re-fits the canvas (map.tsx).
+- **A popup's stacking rung is decided by its HOST, not by the popup.** A `position: relative`
+  block that carries a `z-index` becomes a stacking context, so every descendant — including an
+  absolutely-positioned calendar or dropdown sitting at a high rung of its own — paints at the
+  BLOCK's rung. The Create-Trip calendar declared `z-index: 60` inside a host pinned at `2`, so
+  the whole popup painted under the fixed bottom dock (55) and its lower rows were unclickable
+  on a phone. Raise the host, not the popup. Verify by **hit-testing**, never by reading
+  z-indexes: `document.elementFromPoint()` at the overlap must return the popup's own child.
+- **`scrollWidth` is not evidence of a horizontal-scroll defect.** `html { overflow-x: clip }`
+  (this file's chosen answer for decorative bleed) lets the document report a scrollWidth far
+  wider than the viewport while `scrollLeft` stays `0` — the landing page measures ~600px at a
+  390px viewport purely from the destination marquee's offscreen track. Test what the user
+  actually experiences: `canScrollRight` (set `scrollLeft = 9999`, read it back) plus, per
+  element, whether its right edge passes the viewport **without a clipping ancestor**. The same
+  clip cuts both ways: overflowing content is unreachable rather than scrollable, so a
+  clipped-but-wide layout HIDES controls instead of exposing them. (Both faces of this were
+  live: the marquee was a false positive, the `.two-col` blowout a real one.)
+- **An absolutely-positioned child needs a positioned ancestor in EVERY class variant.** One
+  shared child (`CoverThumb`'s `.itin-cover-fallback`) is `position: absolute; inset: 0`, but
+  only the wide `.itin-cover` variant declared `position: relative` — so the short `.itin-emoji`
+  variant let the fallback escape its box and paint over the card's title. When a child is
+  positioned, grep every parent variant for the containing block.
 - **Basemaps are OpenFreeMap (keyless, commercial-OK) — never reintroduce CARTO
   or Esri tiles.** `mapcn/map.tsx` `defaultStyles` =
   `https://tiles.openfreemap.org/styles/{positron,dark}`. Their `style.json`

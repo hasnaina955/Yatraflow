@@ -589,6 +589,16 @@ export function CopyButton({ text, label = 'Copy link', onCopied }: { text: stri
 }
 
 /**
+ * What asked for a reorder. A `drag` drop carries a hit-tested index that
+ * callers deliberately IGNORE in favour of the live insertion slot; a `command`
+ * (the up/down buttons, and any keyboard equivalent) carries the destination
+ * the user actually asked for. Conflating the two is why the Timeline arrows
+ * silently did nothing: the callback read `insertRef.current` (null outside a
+ * drag) and resolved every command to a no-op move.
+ */
+export type ReorderSource = 'drag' | 'command'
+
+/**
  * Accessible move up/down controls + pointer-event drag wrapper for stop cards
  * (mouse starts on an 8px move; touch keeps the long-press gate — see
  * lib/touchDnd.ts). Supports same-list reordering plus foreign (cross-list)
@@ -602,7 +612,7 @@ export function CopyButton({ text, label = 'Copy link', onCopied }: { text: stri
  */
 export function useReorder<T extends { id: string }>(
   items: T[],
-  onMove: (fromIdx: number, toIdx: number) => void,
+  onMove: (fromIdx: number, toIdx: number, source: ReorderSource) => void,
   options?: {
     /** serialised payload attached to every drag (identifies the item across lists) */
     dragPayload?: (item: T) => string
@@ -638,7 +648,7 @@ export function useReorder<T extends { id: string }>(
         // last reading (the free-finger rule: only the reading is clamped)
         else if (idx !== null) latest.current.options?.onOwnHover?.(idx, x, y, latest.current.dragIdx)
       },
-      onDropOnSelf: (from, to) => latest.current.onMove(from, to),
+      onDropOnSelf: (from, to) => latest.current.onMove(from, to, 'drag'),
       onForeignDrop: (payload, to) => latest.current.options?.onForeignDrop?.(payload, to),
       onDragEnd: () => { latest.current.dragIdx = -1; setDragIdx(null); setForeignOver(null) },
     })
@@ -681,8 +691,12 @@ export function useReorder<T extends { id: string }>(
     listId: instId,
     dragging: dragIdx,
     foreignOver,
-    moveUp: (idx: number) => { if (idx > 0) onMove(idx, idx - 1) },
-    moveDown: (idx: number) => { if (idx < items.length - 1) onMove(idx, idx + 1) },
+    /** Explicit one-step move from a keyboard/button affordance. Unlike a drop,
+        this carries its OWN destination — callers that resolve the target from
+        the live drag insertion slot must branch on `source` instead of reading
+        `toIdx` blindly (see DaySection). */
+    moveUp: (idx: number) => { if (idx > 0) latest.current.onMove(idx, idx - 1, 'command') },
+    moveDown: (idx: number) => { if (idx < latest.current.items.length - 1) latest.current.onMove(idx, idx + 1, 'command') },
     /** viewport rect of the carried row at release — feed it to the FLIP
         settle so the row springs from where it was carried to its slot */
     takeCarryRect: consumeCarryRect,

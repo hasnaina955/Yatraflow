@@ -227,16 +227,24 @@ export const DaySection = React.memo(function DaySection({ day, trip, editable, 
   const dropRect = useRef<{ id: string; x: number; y: number } | null>(null)
   const { dndHandlers, dayDropHandlers, dragging, foreignOver, moveUp, moveDown, takeCarryRect, listId } = useReorder(
     ordered,
-    (fromIdx) => {
-      // idx counts positions in the full list (dragged slot included), so a
-      // slot past the dragged index shifts down once it is removed.
-      const idx = insertRef.current ?? fromIdx
-      const toIdx = idx > fromIdx ? idx - 1 : idx
+    (fromIdx, commandToIdx, source) => {
+      // Two contracts share this callback. A DRAG drop reports the hit-tested
+      // index but is resolved from the live insertion slot: idx counts
+      // positions in the full list (dragged slot included), so a slot past the
+      // dragged index shifts down once it is removed. A COMMAND (the up/down
+      // buttons) has no slot to read — it carries the destination the user
+      // asked for, so it must be used as-is; reading `insertRef` here resolved
+      // every arrow press to a no-op and the buttons silently did nothing.
+      const toIdx = source === 'command'
+        ? commandToIdx
+        : (() => { const idx = insertRef.current ?? fromIdx; return idx > fromIdx ? idx - 1 : idx })()
       // consume the carry rect on EVERY self-drop: a no-op slot (released at
       // rest) must not leak the engine's rect into a later FLIP pass
       const rect = takeCarryRect()
       if (toIdx !== fromIdx) {
-        if (rect && ordered[fromIdx]) dropRect.current = { id: ordered[fromIdx].id, x: rect.x, y: rect.y }
+        // only a drag has a carry rect to spring from; a command moves nothing
+        // on screen that needs FLIP continuity
+        if (source === 'drag' && rect && ordered[fromIdx]) dropRect.current = { id: ordered[fromIdx].id, x: rect.x, y: rect.y }
         onMoveWithinDay(fromIdx, toIdx, day.index)
       }
       setInsertIdx(null)

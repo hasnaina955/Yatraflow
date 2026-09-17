@@ -2166,7 +2166,14 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
 /* Heading→body gap without a hairline — the overview cards ran a divider
    under every heading, which stopped carrying information. */
 .card-head { margin-bottom: 14px; }
-.two-col { display: grid; grid-template-columns: 1fr 340px; gap: 18px; align-items: start; }
+/* minmax(0, 1fr), not 1fr: a bare `1fr` track carries `min-width: auto`, so a
+   child with any intrinsic width (a nowrap label, a fixed-width table, an
+   inline-flex chip row) pushes the track past its container and the PAGE
+   scrolls sideways — measured at 390px on Group input, Budget and the public
+   itinerary before this. `min-width: 0` on the items repeats the guarantee for
+   nested grids. */
+.two-col { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 18px; align-items: start; }
+.two-col > * { min-width: 0; }
 .trip-head-card {
   transition: padding var(--t-med) var(--ease-out);
   border-radius: var(--radius-lg); padding: 26px 28px; color: #fff;
@@ -2272,7 +2279,12 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
 .trip-card-hit { all: unset; cursor: pointer; display: block; border-radius: 8px; }
 
 /* Trip card emoji cover */
+/* `position: relative` + `overflow: hidden` mirror .itin-cover: the shared
+   .itin-cover-fallback is absolutely positioned, so without a positioned
+   ancestor here the short-variant card's emoji escaped its cover box and
+   painted over the trip title below it. */
 .itin-emoji {
+  position: relative; overflow: hidden;
   aspect-ratio: 16 / 7; display: flex; align-items: center; justify-content: center;
   font-size: 52px; background: linear-gradient(135deg, var(--teal-soft), var(--bg-soft));
   border-bottom: 1px solid var(--line);
@@ -4012,7 +4024,7 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 
 /* ---- <=980px: tablet collapses ---- */
 @media (max-width: 980px) { .hero-split { grid-template-columns: 1fr; gap: 30px; } }
-@media (max-width: 980px) { .two-col { grid-template-columns: 1fr; } }
+@media (max-width: 980px) { .two-col { grid-template-columns: minmax(0, 1fr); } }
 
 /* ---- <=900px ---- */
 @media (max-width: 900px) { .poi-split { grid-template-columns: 1fr; } }
@@ -4036,6 +4048,25 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
   .nav-right { gap: 6px; }
   .nav-right .btn { padding: 9px 11px; font-size: 13px; }
   .nav-pill-group { padding: 3px; gap: 1px; }
+}
+/* The signed-OUT header still outgrew the smallest phones even after the
+   tightening above: at 390px the brand (121.9px) + gap (8) + control tray +
+   Log in + Sign up free (262.9) needs 392.8px against a 346px content box, so
+   the signup CTA rendered past the right edge (measured, 2026-09-17). The
+   wordmark is what gives way — the 32px mark keeps the identity, and the
+   anchor's own aria-label ("YatraFlow home") keeps the name for assistive
+   tech — while both auth actions stay visible at their full 44px targets.
+   :has() scopes this to the logged-out header: with an avatar in place of the
+   auth pair the same widths fit (296px at 360px), so a signed-in header keeps
+   its wordmark. */
+@media (max-width: 440px) {
+  .topnav-inner:has(.nav-right > .btn) .brand span { display: none; }
+  .nav-right:has(> .btn) { gap: 5px; }
+}
+/* The WCAG 1.4.10 reflow floor (320px). Reclaim the last pixels from
+   horizontal padding, never from the target height. */
+@media (max-width: 350px) {
+  .nav-right:has(> .btn) .btn { padding: 9px 8px; font-size: 12.5px; }
 }
 
 /* ---- <=720px: THE mobile block (single consolidated block, rules in
@@ -4554,12 +4585,17 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
   padding: 14px 16px 16px; box-shadow: 0 10px 26px rgba(18, 63, 73, 0.07), 0 2px 5px rgba(18, 63, 73, 0.05);
   min-width: 0; position: relative;
 }
-/* The entrance animation (transform only, fill: backwards) still gives each
-   block a stacking context WHILE it runs, so a later block could paint over
-   an open location dropdown / calendar popover inside an earlier one during
-   that half-second. Elevate the block that owns the open popover above its
-   siblings for as long as the popover exists. */
-.ts-block:has(.loc-dropdown), .ts-block:has(.cal-pop) { z-index: 2; }
+/* Elevate the block that owns an OPEN popover, for as long as it exists.
+   Two reasons, one rung:
+   · the entrance animation (transform only, fill: backwards) gives every block
+     a stacking context WHILE it runs, so a later block could paint over an open
+     location dropdown / calendar inside an earlier one during that half-second;
+   · this rule sets a z-index on a `position: relative` block, which makes it a
+     stacking context permanently — so the block's own rung, not the popup's,
+     decides where its descendants paint. At `2` the whole calendar painted
+     UNDER the fixed bottom dock (--z-dock 55) and its lower rows were
+     unreachable on a phone. The floating-chrome rung clears the dock. */
+.ts-block:has(.loc-dropdown), .ts-block:has(.cal-pop) { z-index: var(--z-nav-glass); }
 [data-theme='dark'] .ts-block { box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35), 0 2px 6px rgba(0, 0, 0, 0.25); }
 .span7 { grid-column: span 7; }
 .span5 { grid-column: span 5; }

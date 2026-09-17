@@ -92,6 +92,14 @@ A collaborative travel-planning web app, built India-first. Real multi-day itine
 
 ---
 
+## ✨ The v0.56 release, in one line
+
+- **Trip settings became a first-class citizen.** The crew, dates, budget and vehicle controls moved out of Share into their own eighth workspace tab; every choice you set there — drivers, vulnerable passengers, after-dinner driving, the exact tank and economy of your bike or EV — now persists across reloads instead of silently reverting, re-derives every surface that depends on it (map suggestions, budget pacing, day plans) instead of serving stale ones, and matches Create Trip option-for-option. Blank tank or economy fields no longer write car numbers onto a motorcycle or an EV.
+
+## ✨ The v0.55 release, in one line
+
+- **The Explore gallery got its supply chain.** A written import contract with a validator that rejects typos, placeholders and broken references; a CI gate that runs every shelf itinerary through the real engine (health ≥ 85, no high-severity warning, budget within ±15 % of the engine's own math); a demand-ranked backlog of the twenty trips India actually searches for; and the first six on the shelf — Coorg, Goa, Kerala, Mewar, Kashmir, Meghalaya — every fee cited to a source, every coordinate geocoded, every budget set by the engine rather than by wishful thinking. Vercel Web Analytics rides along, web-only.
+
 ## ✨ The v0.51–v0.54 run, in plain words
 
 - **The suggestions stopped lying about distance.** On a 1,400 km drive every roadside dhaba and petrol pump used to read "50 km off-route" — the detour sum subtracted one routing engine's route total from another's internal legs, and the difference landed on every card. That phantom burned the day's detour budget on the first suggestion and quietly held back most of the rest. Detours are now measured against the same road the search ran along, so a place on the drawn road reads "on route".

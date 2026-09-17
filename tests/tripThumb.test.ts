@@ -5,11 +5,14 @@
 // becoming permanent while still preventing refetch storms on every visit.
 import { describe, it, expect } from 'vitest'
 import {
+  COVER_WIDTH,
   pickTripQuery,
   parseThumbCache,
+  extractRestThumbUrl,
   extractThumbUrl,
   getCachedThumb,
   setCachedThumb,
+  sizedCoverUrl,
 } from '../src/lib/tripThumb'
 
 const mkTrip = (over: Partial<Parameters<typeof pickTripQuery>[0]> = {}) => ({
@@ -64,6 +67,89 @@ describe('extractThumbUrl', () => {
   })
 })
 
+// The URLs below are what the two APIs really returned on 2026-09-17, and why
+// this exists: the REST summary hands back either the *unscaled* upload or a
+// 3840px thumbnail, so an auto cover could arrive at 1.3–3.3 MB — over the
+// 600 KB ceiling a link preview needs. Wikimedia serves only the widths it has
+// generated, so a composed `/thumb/…/1200px-…` URL answers 400; the supported
+// route is `Special:Redirect/file`, which lands on the nearest size that exists.
+describe('sizedCoverUrl', () => {
+  it('sizes an unscaled REST original (Chandratal, 1304 KB live)', () => {
+    const live =
+      'https://upload.wikimedia.org/wikipedia/commons/3/3a/Chandratal_1.JPG' +
+      '?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail_unscaled'
+    expect(sizedCoverUrl(live)).toBe(
+      'https://commons.wikimedia.org/wiki/Special:Redirect/file/Chandratal_1.JPG?width=1200',
+    )
+  })
+
+  it('sizes an already-3840px REST thumbnail (Munnar, 2894 KB live)', () => {
+    const live =
+      'https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b9/Munnar_Overview.jpg/3840px-Munnar_Overview.jpg' +
+      '?utm_content=thumbnail'
+    expect(sizedCoverUrl(live)).toBe(
+      'https://commons.wikimedia.org/wiki/Special:Redirect/file/Munnar_Overview.jpg?width=1200',
+    )
+  })
+
+  it('does not double-escape a file name that arrives percent-encoded', () => {
+    const live =
+      'https://thumb.wikimedia.org/wikipedia/commons/thumb/c/ca/Telkupi%2C_Purulia.jpg/330px-Telkupi%2C_Purulia.jpg'
+    expect(sizedCoverUrl(live)).toBe(
+      'https://commons.wikimedia.org/wiki/Special:Redirect/file/Telkupi%2C_Purulia.jpg?width=1200',
+    )
+  })
+
+  it('routes a non-commons project to its own wiki', () => {
+    expect(sizedCoverUrl('https://upload.wikimedia.org/wikipedia/en/1/1a/Local.jpg')).toBe(
+      'https://en.wikipedia.org/wiki/Special:Redirect/file/Local.jpg?width=1200',
+    )
+  })
+
+  it('honours a caller-supplied width', () => {
+    const url = 'https://upload.wikimedia.org/wikipedia/commons/e/e4/Alappuzha_Boat_Beauty_W.jpg'
+    expect(sizedCoverUrl(url, 800)).toContain('?width=800')
+  })
+
+  it('leaves a non-Wikimedia cover untouched, so an owner URL is never rewritten', () => {
+    for (const url of ['', 'https://upload.wikimedia.org/leh.jpg', 'https://images.example.test/cover.jpg']) {
+      expect(sizedCoverUrl(url)).toBe(url)
+    }
+  })
+
+  it('asks for the width a 1200x630 preview wants', () => {
+    expect(COVER_WIDTH).toBe(1200)
+  })
+})
+
+describe('the extractors size what they return', () => {
+  it('sizes the REST summary original instead of handing back the upload', () => {
+    const data = {
+      originalimage: { source: 'https://upload.wikimedia.org/wikipedia/commons/3/3a/Chandratal_1.JPG', width: 2496, height: 1664 },
+      thumbnail: { source: 'https://thumb.wikimedia.org/wikipedia/commons/3/3a/Chandratal_1.JPG/330px-Chandratal_1.JPG', width: 330, height: 220 },
+    }
+    expect(extractRestThumbUrl(data)).toBe(
+      'https://commons.wikimedia.org/wiki/Special:Redirect/file/Chandratal_1.JPG?width=1200',
+    )
+  })
+
+  it('sizes the pageimages thumbnail too', () => {
+    const data = {
+      query: {
+        pages: {
+          1: {
+            title: 'Munnar',
+            thumbnail: { source: 'https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b9/Munnar_Overview.jpg/3840px-Munnar_Overview.jpg' },
+          },
+        },
+      },
+    }
+    expect(extractThumbUrl(data, 'Munnar')).toBe(
+      'https://commons.wikimedia.org/wiki/Special:Redirect/file/Munnar_Overview.jpg?width=1200',
+    )
+  })
+})
+
 describe('parseThumbCache', () => {
   it('keeps well-formed positive and negative entries, drops the rest', () => {
     const raw = JSON.stringify({ t1: { u: 'https://upload.wikimedia.org/x.jpg' }, t2: { ts: 123 }, bad: 1, worse: { u: 9 }, arr: [] })
@@ -113,9 +199,9 @@ describe('thumb cache contract', () => {
       expect(getCachedThumb('t1')).toEqual({ url: null, stale: false })
 
       // age the negative entry past the TTL by rewriting its ts directly
-      const map = JSON.parse(store.get('yatraflow_trip_thumbs')!)
+      const map = JSON.parse(store.get('yatraflow_trip_thumbs_v2')!)
       map.t1.ts = Date.now() - 8 * 24 * 60 * 60 * 1000
-      store.set('yatraflow_trip_thumbs', JSON.stringify(map))
+      store.set('yatraflow_trip_thumbs_v2', JSON.stringify(map))
       expect(getCachedThumb('t1')).toEqual({ url: null, stale: true })
 
       // a different trip in the same map is untouched

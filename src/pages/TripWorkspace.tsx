@@ -30,9 +30,11 @@ import { MapTab } from './trip/MapTab'
 import { GroupInputTab } from './trip/GroupInputTab'
 import { BudgetTab } from './trip/BudgetTab'
 import { ShareTab } from './trip/ShareTab'
+import { TripSettingsForm } from './trip/TripSettingsForm'
 import { cap } from './trip/shared'
+import { roadChainSig } from '../lib/tripRoad'
 
-type TabKey = 'overview' | 'timeline' | 'board' | 'map' | 'group' | 'budget' | 'share'
+type TabKey = 'overview' | 'timeline' | 'board' | 'map' | 'group' | 'budget' | 'share' | 'settings'
 
 const TABS: [TabKey, string][] = [
   ['overview', 'Overview'],
@@ -42,6 +44,7 @@ const TABS: [TabKey, string][] = [
   ['group', 'Group input'],
   ['budget', 'Budget'],
   ['share', 'Share'],
+  ['settings', 'Settings'],
 ]
 const TAB_IDS = TABS.map(([k]) => k)
 
@@ -279,9 +282,14 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
           <MapTab trip={effective} editable={editable} applyChange={applyChange} suggestionCache={suggestionCache} crewSuggestions={db.suggestions.filter(s => s.tripId === trip.id)} road={road} onOpenTimeline={() => setTab('timeline')} onOpenBoard={() => setTab('board')} />
         </React.Suspense>
       )}
-      {tab === 'group' && <GroupInputTab trip={trip} editable={editable} me={me} />}
-      {tab === 'budget' && <BudgetTab trip={trip} totals={totals} editable={editable} />}
+      {tab === 'group' && <GroupInputTab trip={effective} editable={editable} me={me} />}
+      {tab === 'budget' && <BudgetTab trip={effective} totals={totals} editable={editable} />}
       {tab === 'share' && <ShareTab trip={trip} me={me} editable={editable} onNavigate={onNavigate} legCorrections={legCorrections} />}
+      {/* key=trip.id: TripSettingsForm holds local draft state in useState
+           seeded from the trip at mount and never re-syncs, so without the key
+           a quick trip-switch keeps the previous trip's draft visible until a
+           reload (#213). */}
+      {tab === 'settings' && <TripSettingsForm key={trip.id} trip={trip} editable={editable} />}
       </div>
 
       {/* AI companion: locked for the premium milestone (M8) — the feature is
@@ -313,7 +321,15 @@ function useTripRoad(trip: Trip | null | undefined): {
   corrections: Record<string, LegEstimate> | undefined
   road: TripRoadView
 } {
-  const chain = useMemo(() => (trip ? buildRoadChain(trip) : null), [trip])
+  // #213 Phase 3: chain memo depends on roadChainSig(trip), NOT on trip itself.
+  // `mutateTrip` clones the trip on every save, so the old `[trip]` dep re-built
+  // the chain (and re-measured the OSRM chain, via the effect below) on every
+  // fuel/crew/budget/dates tweak. roadChainSig hashes ONLY the geometry fields,
+  // so a non-geometry save keeps the chain (and the existing legs) stable —
+  // totals don't blink to haversine, the corridor search isn't re-planned, and
+  // the split/clock verdicts keep their numbers.
+  const chainSig = trip ? roadChainSig(trip) : ''
+  const chain = useMemo(() => (trip ? buildRoadChain(trip) : null), [chainSig])
   const [state, setState] = useState<{ status: RoadStatus; legs: TripRoadView['legs'] }>({ status: 'pending', legs: null })
   const [attempt, setAttempt] = useState(0)
 
@@ -330,7 +346,9 @@ function useTripRoad(trip: Trip | null | undefined): {
       setState(outcome.ok ? { status: 'ok', legs: outcome.legs } : { status: 'failed', legs: null })
     })
     return () => { cancelled = true }
-  }, [trip, chain, attempt])
+    // chain reflects chainSig; trip is read for assumptions only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chainSig, chain, attempt])
 
   const retry = useCallback(() => setAttempt(a => a + 1), [])
 
@@ -343,7 +361,7 @@ function useTripRoad(trip: Trip | null | undefined): {
     if (!chain || !roadMode || chain.points.length < 2) return {}
     if (state.status === 'pending' || !state.legs) return undefined
     return correctionsFromLegs(chain, state.legs)
-  }, [trip, chain, roadMode, state])
+  }, [chain, roadMode, state])
 
   const road = useMemo<TripRoadView>(
     () => ({ chain, legs: state.legs, status: state.status, retry }),

@@ -10,13 +10,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Calendar, ChevronDown, ChevronUp, Pin, TriangleAlert, X, ArrowRight, Printer,
-  Car, Bike, Bus, TrainFront, Plane, KeyRound,
+  Car, Bike, Bus, TrainFront, Plane, KeyRound, CarTaxiFront, Shuffle,
 } from 'lucide-react'
 import type { FixedCommitment, LatLngPoint, TransportMode, TravelStyle } from '../data/types'
-import { TRAVEL_STYLES } from '../data/types'
+import { TRAVEL_STYLES, TRANSPORT_MODES } from '../data/types'
 import { useDb, currentUser, createTrip } from '../store/store'
-import { FUEL_PRICE_INR_PER_L, isFuelEconomyMode, parseFuelEconomyKmL, parseFuelPricePerL, isImplausibleFuelEconomy, MODE_SPEED, minutesToHM } from '../lib/engine'
+import { FUEL_PRICE_INR_PER_L, DEFAULT_FUEL_ECONOMY_KML, isFuelEconomyMode, parseFuelEconomyKmL, parseFuelPricePerL, isImplausibleFuelEconomy, MODE_SPEED, minutesToHM } from '../lib/engine'
 import { planDriveDays, isSelfDrivenMode } from '../lib/ridePlan'
+import { CREW_CHIPS, CREW_MAX, CREW_MIN, clampCrew } from '../lib/crew'
 import { estimateTripStarter, buildOutlineSeedStops } from '../lib/tripStarter'
 import { fetchTripThumbUrl } from '../lib/tripThumb'
 import { Field, Chip, toast, Odometer, useMedia } from '../components/ui'
@@ -45,29 +46,38 @@ interface DestDraft {
   lng?: number
 }
 
-const CREW_CHIPS = [1, 2, 3, 4, 5, 6, 8, 10]
+/** Per-mode tile copy. The Record is EXHAUSTIVE over TransportMode, so adding a
+ *  mode to TRANSPORT_MODES in src/data/types.ts is a compile error here until it
+ *  gets a tile — the grid can't silently fall behind the vocabulary again. */
+const MODE_TILE_META: Record<TransportMode, { icon: typeof Car; hint: string }> = {
+  car: { icon: Car, hint: 'your fuel · ≈42 km/h' },
+  rental: { icon: KeyRound, hint: 'self-drive · ₹/day' },
+  motorcycle: { icon: Bike, hint: 'your fuel · ≈44 km/h' },
+  train: { icon: TrainFront, hint: '₹1.6/km fare' },
+  bus: { icon: Bus, hint: '₹2.2/km fare' },
+  flight: { icon: Plane, hint: '₹6.5/km + fees' },
+  taxi: { icon: CarTaxiFront, hint: '₹16/km fare' },
+  mixed: { icon: Shuffle, hint: 'a bit of everything' },
+}
 
-/** Mode tiles for the transport grid — taxi/mixed stay available later in
- *  Trip settings; trip start needs only the six honest everyday choices. */
-const MODE_TILES: Array<{ mode: TransportMode; icon: typeof Car; hint: string }> = [
-  { mode: 'car', icon: Car, hint: 'your fuel · ≈42 km/h' },
-  { mode: 'rental', icon: KeyRound, hint: 'self-drive · ₹/day' },
-  { mode: 'motorcycle', icon: Bike, hint: 'your fuel · ≈44 km/h' },
-  { mode: 'train', icon: TrainFront, hint: '₹1.6/km fare' },
-  { mode: 'bus', icon: Bus, hint: '₹2.2/km fare' },
-  { mode: 'flight', icon: Plane, hint: '₹6.5/km + fees' },
-]
+/** Mode tiles for the transport grid — every mode a trip can BE (#213 Phase 5).
+ *  This used to be a hand-rolled six, missing `taxi` and `mixed`, so a trip
+ *  could be switched to a mode it was impossible to create. */
+const MODE_TILES = TRANSPORT_MODES.map(mode => ({ mode, ...MODE_TILE_META[mode] }))
 
-/** Explainer copy — grounded in what the style really tunes later:
- *  halt cadence (cadenceForCrew), daily detour budget (STYLE_DELTA), the bill's
- *  stay tier and the AI planner prompt. Never claim more than the algorithm does. */
+/** Explainer copy — grounded in what the style really tunes later: halt cadence
+ *  (cadenceForCrew), daily detour budget (STYLE_DELTA, relaxed +15 / packed −15
+ *  around the 45-min base) and the suggestion category priors in
+ *  computeCategoryBias. It does NOT price anything: the bed is the Budget
+ *  preference dial's job, and the two dials are deliberately independent
+ *  (see `stayKeyFor` in lib/engine.ts). Never claim more than the algorithm does. */
 const STYLE_COPY: Record<TravelStyle, string> = {
-  relaxed: 'gentle rhythm — stretch halts every ~120 km, meals ~260 km, 60 min/day of detour slack for suggestions. Stay tier: comfort.',
-  packed: 'maximum ground — 180 km between stretch halts, meals ~300 km, 30 min/day of detour slack. Stay tier: comfort.',
-  balanced: 'the default rhythm — stretches every 150 km, meals ~300 km, 45 min/day of detour slack. Stay tier: comfort.',
+  relaxed: 'gentle rhythm — stretch halts every ~120 km, meals ~260 km, 60 min/day of detour slack for suggestions.',
+  packed: 'maximum ground — 180 km between stretch halts, meals ~300 km, 30 min/day of detour slack.',
+  balanced: 'the default rhythm — stretches every 150 km, meals ~300 km, 45 min/day of detour slack.',
   adventure: 'suggestions favour treks, trails and outdoor stops — adventure and nature categories rank up.',
-  luxury: 'standard pace — the rough bill prices stays at ₹8,000 a room-night (comfort is ₹3,200).',
-  budget: 'standard pace — the rough bill prices stays at ₹1,200 a room-night (comfort is ₹3,200).',
+  luxury: 'the default driving rhythm. The bed\'s price is the Budget preference above — this dial never touches pricing.',
+  budget: 'the default driving rhythm. The bed\'s price is the Budget preference above — this dial never touches pricing.',
   family: 'built around crew size — 5+ travellers get the gentler 120 km cadence automatically, style aside.',
   spiritual: 'suggestions favour temple stops and sacred circuits — the temple category ranks up.',
   'food-focused': 'suggestions favour food — local meals rank up wherever the route goes.',
@@ -171,6 +181,10 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
       transportMode: p.transportMode,
       budgetPerPersonInr: p.budgetPerPersonInr,
       travelStyle: p.travelStyle,
+      // The bench's bed tier rides through as the trip's own dial — the style
+      // above no longer prices anything, so without this a Luxury bench run
+      // created a trip that billed comfort rooms (₹3,200 instead of ₹8,000).
+      ...(p.stayStyle ? { stayStyle: p.stayStyle } : {}),
       roundTrip: p.roundTrip,
       ...(isFuelEconomyMode(p.transportMode) && p.kmPerL != null && p.inrPerL != null
         ? { fuelEconomy: String(p.kmPerL), fuelPrice: String(p.inrPerL) }
@@ -335,10 +349,12 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
     if (!f.startDate) next.startDate = 'Pick a start date.'
     if (!f.endDate) next.endDate = 'Pick an end date.'
     else if (f.startDate && new Date(f.endDate) < new Date(f.startDate)) next.endDate = 'End date must be after the start date.'
-    if (f.travellers < 1) next.travellers = 'At least one traveller!'
-    else if (f.travellers > 30) next.travellers = 'Split groups over 30 into multiple trips.'
-    if (f.budgetPerPersonInr <= 0) next.budgetPerPersonInr = 'Give a per-person budget in ₹.'
-    else if (f.budgetPerPersonInr < 500) next.budgetPerPersonInr = 'The minimum budget is ₹500 per person.'
+    if (f.travellers < CREW_MIN) next.travellers = 'At least one traveller!'
+    else if (f.travellers > CREW_MAX) next.travellers = `Split groups over ${CREW_MAX} into multiple trips.`
+    // #213 Phase 5: the floor is the crew helper's, not a magic 500 — Trip
+    // settings allows ₹0 (= "no per-person target", which the pacing tile
+    // already renders honestly), so the two surfaces agree.
+    if (f.budgetPerPersonInr < 0) next.budgetPerPersonInr = 'A budget cannot be negative.'
     setErrs(next)
     if (Object.keys(next).length) {
       // F-15: move focus to the first invalid field so keyboard / screen-reader
@@ -589,7 +605,7 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
                       <span className="mini-lab">Mileage</span>
                       <span className="unit-input">
                         <input className="input mono" type="number" inputMode="decimal" min={2} max={80} step={0.1}
-                          value={f.fuelEconomy} onChange={e => patchFields({ fuelEconomy: e.target.value })} placeholder="e.g. 15" aria-label="Mileage in kilometres per litre" />
+                          value={f.fuelEconomy} onChange={e => patchFields({ fuelEconomy: e.target.value })} placeholder={`e.g. ${DEFAULT_FUEL_ECONOMY_KML}`} aria-label="Mileage in kilometres per litre" />
                         <span className="unit">km/L</span>
                       </span>
                     </label>
@@ -653,16 +669,18 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
                 {showCustomCrew && (
                   <div className="crew-custom">
                     <Field label="Travellers" error={errs.travellers}>
-                      <input className="input mono" type="number" min={1} max={30} ref={el => (fieldRefs.current.travellers = el)}
+                      <input className="input mono" type="number" min={CREW_MIN} max={CREW_MAX} ref={el => (fieldRefs.current.travellers = el)}
                         aria-invalid={!!errs.travellers} value={f.travellers}
-                        onChange={e => patchFields({ travellers: Number(e.target.value) })} />
+                        onChange={e => patchFields({ travellers: clampCrew(Number(e.target.value)) })} />
                     </Field>
                   </div>
                 )}
                 {/* #142 party inputs — the two dials that move the honest wheel
-                    cap. Hidden for timetable modes: nobody drives, nobody
-                    fatigues. Driver count clamps to the crew. */}
-                {(f.transportMode === 'car' || f.transportMode === 'rental' || f.transportMode === 'motorcycle' || f.transportMode === 'taxi') && (
+                    cap. Hidden for conducted modes: nobody drives, nobody
+                    fatigues. #213 Phase 5: gated on the ENGINE's own predicate
+                    so this and Trip settings agree — it used to list `taxi`
+                    (which the engine ignores) and omit `mixed` (which it honours). */}
+                {isSelfDrivenMode(f.transportMode) && (
                   <div className="crew-custom" style={{ marginTop: 10 }}>
                     <Field label="Drivers sharing the wheel" hint="2 drivers rotate — honest days get longer.">
                       <div className="crew-row" role="group" aria-label="Drivers sharing the wheel">

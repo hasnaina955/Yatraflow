@@ -24,6 +24,7 @@ const MEMBERS: TripMember[] = [{ userId: 'owner-1', role: 'owner', joinedAt: 1 }
 const ALL_COLUMNS = {
   economy: true, price: true, roundTrip: true, cover: true,
   inviteCode: true, deleted: true, stayStyle: true,
+  driverCount: true, hasVulnerable: true, driveAfterDinner: true, vehicleProfile: true,
 }
 
 /** The bare fixture — no optional fields set. */
@@ -94,6 +95,123 @@ describe('the stay budget dial is persisted (20260914_trip_stay_budget.sql)', ()
     // omitted from the update payload and leave the old value in place.
     const t = baseTrip()
     expect(tripToRow(t, 'owner-1', ALL_COLUMNS).stay_style).toBeNull()
+  })
+})
+
+// #142 (party controls) and the vehicle profile shipped without columns or a
+// row mapping, so a trip set to "2 drivers / infants / drive after dinner /
+// motorcycle" silently reverted to 1 driver / adults / dinner-ends-day / no
+// profile on every reload (#20260915_trip_party_prefs.sql). These pin the
+// mapping that fixes it — including the pre-migration path, which stays a
+// no-op rather than write a column the database doesn't have.
+describe('party + vehicle preferences are persisted (20260915_trip_party_prefs.sql)', () => {
+  const rehydrate = (row: ReturnType<typeof tripToRow>, t: Trip) =>
+    rowToTrip({ ...row, created_at: t.createdAt, updated_at: t.updatedAt }, MEMBERS)
+
+  it('driver_count: writes 2/3, stores 1 as NULL (legacy default), omits when probe is false', () => {
+    const t1 = { ...baseTrip(), driverCount: 2 as Trip['driverCount'] }
+    expect(tripToRow(t1, 'owner-1', ALL_COLUMNS).driver_count).toBe(2)
+    const t3 = { ...baseTrip(), driverCount: 3 as Trip['driverCount'] }
+    expect(tripToRow(t3, 'owner-1', ALL_COLUMNS).driver_count).toBe(3)
+    const tDefault = { ...baseTrip() } // no driverCount set
+    expect(tripToRow(tDefault, 'owner-1', ALL_COLUMNS).driver_count).toBeNull()
+    const t1Explicit = { ...baseTrip(), driverCount: 1 }
+    expect(tripToRow(t1Explicit, 'owner-1', ALL_COLUMNS).driver_count).toBeNull()
+    // pre-migration: column is missing — write path is a no-op.
+    expect(tripToRow(t1, 'owner-1', { ...ALL_COLUMNS, driverCount: false }).driver_count).toBeUndefined()
+  })
+
+  it('has_vulnerable: writes true, stores undefined as false, omits when probe is false', () => {
+    const tOn = { ...baseTrip(), hasVulnerable: true }
+    expect(tripToRow(tOn, 'owner-1', ALL_COLUMNS).has_vulnerable).toBe(true)
+    const tOff = { ...baseTrip() }
+    expect(tripToRow(tOff, 'owner-1', ALL_COLUMNS).has_vulnerable).toBe(false)
+    expect(tripToRow(tOn, 'owner-1', { ...ALL_COLUMNS, hasVulnerable: false }).has_vulnerable).toBeUndefined()
+  })
+
+  it('drive_after_dinner_min: writes minutes, omits when undefined, omits when probe is false', () => {
+    const tOn = { ...baseTrip(), driveAfterDinnerMin: 120 }
+    expect(tripToRow(tOn, 'owner-1', ALL_COLUMNS).drive_after_dinner_min).toBe(120)
+    const tOff = { ...baseTrip() }
+    expect(tripToRow(tOff, 'owner-1', ALL_COLUMNS).drive_after_dinner_min).toBeNull()
+    expect(tripToRow(tOn, 'owner-1', { ...ALL_COLUMNS, driveAfterDinner: false }).drive_after_dinner_min).toBeUndefined()
+  })
+
+  it('vehicle_profile: writes the profile object, omits when undefined, omits when probe is false', () => {
+    const profile = { vehicleType: 'motorcycle' as const, fuelType: 'petrol' as const, capacity: 12, economy: 40 }
+    const tOn = { ...baseTrip(), vehicleProfile: profile }
+    expect(tripToRow(tOn, 'owner-1', ALL_COLUMNS).vehicle_profile).toEqual(profile)
+    const tOff = { ...baseTrip() }
+    expect(tripToRow(tOff, 'owner-1', ALL_COLUMNS).vehicle_profile).toBeNull()
+    expect(tripToRow(tOn, 'owner-1', { ...ALL_COLUMNS, vehicleProfile: false }).vehicle_profile).toBeUndefined()
+  })
+
+  it('all four fields survive the round trip', () => {
+    const profile = { vehicleType: 'motorcycle' as const, fuelType: 'petrol' as const, capacity: 12, economy: 40 }
+    const t = { ...baseTrip(), driverCount: 2 as Trip['driverCount'], hasVulnerable: true, driveAfterDinnerMin: 120, vehicleProfile: profile }
+    const back = rehydrate(tripToRow(t, 'owner-1', ALL_COLUMNS), t)
+    expect(back.driverCount).toBe(2)
+    expect(back.hasVulnerable).toBe(true)
+    expect(back.driveAfterDinnerMin).toBe(120)
+    expect(back.vehicleProfile).toEqual(profile)
+  })
+
+  it('reads back undefined on a pre-migration row, so the engine keeps its defaults', () => {
+    const t = baseTrip()
+    const row = tripToRow(t, 'owner-1', { ...ALL_COLUMNS, driverCount: false, hasVulnerable: false, driveAfterDinner: false, vehicleProfile: false })
+    const back = rehydrate(row, t)
+    expect(back.driverCount).toBeUndefined()
+    expect(back.hasVulnerable).toBeUndefined()
+    expect(back.driveAfterDinnerMin).toBeUndefined()
+    expect(back.vehicleProfile).toBeUndefined()
+  })
+
+  it('driver_count validation: junk numbers degrade to undefined', () => {
+    const t = baseTrip()
+    const row = tripToRow(t, 'owner-1', ALL_COLUMNS)
+    const back = rowToTrip({ ...row, driver_count: 1, created_at: t.createdAt, updated_at: t.updatedAt }, MEMBERS)
+    expect(back.driverCount).toBeUndefined() // 1 is the legacy default — null in DB, undefined in TS
+    const back4 = rowToTrip({ ...row, driver_count: 4, created_at: t.createdAt, updated_at: t.updatedAt }, MEMBERS)
+    expect(back4.driverCount).toBeUndefined() // out of {2, 3} → dropped
+    const back0 = rowToTrip({ ...row, driver_count: 0, created_at: t.createdAt, updated_at: t.updatedAt }, MEMBERS)
+    expect(back0.driverCount).toBeUndefined() // null already → undefined
+  })
+
+  it('has_vulnerable validation: non-true values degrade to undefined', () => {
+    const t = baseTrip()
+    const row = tripToRow(t, 'owner-1', ALL_COLUMNS)
+    const backFalse = rowToTrip({ ...row, has_vulnerable: false, created_at: t.createdAt, updated_at: t.updatedAt }, MEMBERS)
+    expect(backFalse.hasVulnerable).toBeUndefined()
+    const backNull = rowToTrip({ ...row, has_vulnerable: null, created_at: t.createdAt, updated_at: t.updatedAt }, MEMBERS)
+    expect(backNull.hasVulnerable).toBeUndefined()
+  })
+
+  it('drive_after_dinner_min validation: out-of-range and non-finite degrade to undefined', () => {
+    const t = baseTrip()
+    const row = tripToRow(t, 'owner-1', ALL_COLUMNS)
+    const valid = rowToTrip({ ...row, drive_after_dinner_min: 120, created_at: t.createdAt, updated_at: t.updatedAt }, MEMBERS)
+    expect(valid.driveAfterDinnerMin).toBe(120)
+    const zero = rowToTrip({ ...row, drive_after_dinner_min: 0, created_at: t.createdAt, updated_at: t.updatedAt }, MEMBERS)
+    expect(zero.driveAfterDinnerMin).toBeUndefined() // 0 means "no driving" — not the post-dinner 120 min
+    const huge = rowToTrip({ ...row, drive_after_dinner_min: 1000, created_at: t.createdAt, updated_at: t.updatedAt }, MEMBERS)
+    expect(huge.driveAfterDinnerMin).toBeUndefined() // 1000 min > 8 h cap
+    const nan = rowToTrip({ ...row, drive_after_dinner_min: '120' as never, created_at: t.createdAt, updated_at: t.updatedAt }, MEMBERS)
+    expect(nan.driveAfterDinnerMin).toBeUndefined()
+  })
+
+  it('vehicle_profile validation: junk JSONB degrades to undefined (normalizeVehicleProfile)', () => {
+    const t = baseTrip()
+    const row = tripToRow(t, 'owner-1', ALL_COLUMNS)
+    const valid = rowToTrip({ ...row, vehicle_profile: { vehicleType: 'car', fuelType: 'petrol', capacity: 45, economy: 15 }, created_at: t.createdAt, updated_at: t.updatedAt }, MEMBERS)
+    expect(valid.vehicleProfile).toEqual({ vehicleType: 'car', fuelType: 'petrol', capacity: 45, economy: 15 })
+    const junkVehicle = rowToTrip({ ...row, vehicle_profile: { vehicleType: 'scooter', fuelType: 'petrol', capacity: 45, economy: 15 }, created_at: t.createdAt, updated_at: t.updatedAt }, MEMBERS)
+    expect(junkVehicle.vehicleProfile).toBeUndefined()
+    const junkCapacity = rowToTrip({ ...row, vehicle_profile: { vehicleType: 'car', fuelType: 'petrol', capacity: 99999, economy: 15 }, created_at: t.createdAt, updated_at: t.updatedAt }, MEMBERS)
+    expect(junkCapacity.vehicleProfile).toBeUndefined()
+    const notAnObject = rowToTrip({ ...row, vehicle_profile: 'car', created_at: t.createdAt, updated_at: t.updatedAt }, MEMBERS)
+    expect(notAnObject.vehicleProfile).toBeUndefined()
+    const nullProfile = rowToTrip({ ...row, vehicle_profile: null, created_at: t.createdAt, updated_at: t.updatedAt }, MEMBERS)
+    expect(nullProfile.vehicleProfile).toBeUndefined()
   })
 })
 

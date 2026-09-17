@@ -61,6 +61,23 @@ $js = [regex]::Match($h, '/assets/[A-Za-z0-9_.-]+\.js').Value
 
 For a preview, a green Vercel check *is* the proof — the guard aborts unless both variables were present at build time. To compare against production, extract the inlined ref with `https://([a-z0-9]+)\.supabase\.co` and check it matches your project. The strongest check of all: the alias's bundle hash (`index-<hash>.js`) should equal the one your local `npm run build` produced — that means the artifact you verified is literally the artifact that shipped.
 
+## Published itinerary previews (#226)
+
+`/i/<publication-id>` is rewritten to `api/i.js` on Vercel. It returns a small Open Graph/Twitter metadata document; browsers explicitly redirect to `/#/pub/<id>`, and JavaScript-disabled visitors get a link. It does not fetch an app shell or load cross-deployment assets. Existing hash links remain valid but cannot carry per-itinerary crawler metadata.
+
+Set `SUPABASE_URL` and `SUPABASE_ANON_KEY` for the function's Preview and Production environments. They refer to the same project as the client variables, but are read at runtime without the `VITE_` prefix. Use the anon key, never the service-role key. `PUBLIC_ORIGIN` optionally supplies the canonical HTTPS website origin; otherwise the Vercel production domain or the documented production URL is used. Native share links target the production website.
+
+The function reads only public publication metadata, with a four-second deadline. Missing publications return 404; missing configuration or upstream failures return 503. Responses use `no-store`, including successful metadata, so the application does not retain unpublished metadata at the edge. External messaging services maintain their own caches, which this cannot revoke. Covers are included only when the publication supplies an HTTPS URL; no default image is promised.
+
+Before closing #226:
+
+1. Deploy the verified code with explicit owner approval; environment variable presence alone does not prove a deployed function can read the publication.
+2. Fetch `https://yatraflow-blond.vercel.app/i/pub_1cp2i9jq872` anonymously and verify the current publication's title/description, not merely HTTP 200. Verify a missing id returns 404.
+3. Open the link in a browser and confirm arrival on the correct itinerary; old `/#/pub/<id>` links must still work.
+4. Confirm the card in WhatsApp or the Meta Sharing Debugger. An SSO-protected preview cannot satisfy anonymous crawler acceptance.
+
+The existing PR #235 also carries independent trip-import changes. This #226 integration does not apply those changes or its static-analysis exclusion.
+
 ## Any other static host
 
 ```bash

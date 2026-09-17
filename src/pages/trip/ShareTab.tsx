@@ -6,6 +6,7 @@ import { CalendarDays, Download, Link2, Lock, Upload } from 'lucide-react'
 import type { Trip, PublishedItinerary } from '../../data/types'
 import { useDb, userById, setMemberRole, removeMember, restoreMember, publishItinerary, unpublishItinerary, duplicateTrip, ensureInviteCode } from '../../store/store'
 import { encodeTripSnapshot, snapshotUrl, downloadTripJson } from '../../lib/snapshot'
+import { currentPublicShareUrl } from '../../lib/shareUrl'
 import { downloadTripIcs } from '../../lib/ics'
 import { nativeCopyText } from '../../lib/native'
 import { useTablist } from '../../hooks/useTablist'
@@ -234,7 +235,7 @@ export function ShareTab({ trip, me, editable, onNavigate, legCorrections }: {
     ? `${location.origin}${location.pathname}#/join/${inviteCode}`
     : `${location.origin}${location.pathname}#/invite/${trip.id}`
   const pub = db.published.find(p => p.tripId === trip.id)
-  const pubLink = pub ? `${location.origin}${location.pathname}#/pub/${pub.id}` : ''
+  const pubLink = pub ? currentPublicShareUrl(pub.id) : ''
   const isOwner = (trip.members ?? []).some(m => m.userId === me.id && m.role === 'owner')
   const [tab, setTab] = useState<ShareTabId>('plan')
   const [pendingRemove, setPendingRemove] = useState<NonNullable<Trip['members']>[number] | null>(null)

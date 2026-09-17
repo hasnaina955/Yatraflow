@@ -52,7 +52,7 @@ below, now tracked as issues so the queue and this file cannot drift apart again
 
 | # | Priority | Issue | State |
 |---|---|---|---|
-| #226 | P1 | E1 · Make links preview | **Built**, on `feat/share-preview-og` (**PR #235**): links become `/i/<id>`, a real path `vercel.json` rewrites to a new `api/i.js` that serves that itinerary's own Open Graph tags. Awaiting the merge, plus `SUPABASE_URL`/`SUPABASE_ANON_KEY` as Vercel function vars (the `VITE_` pair is inlined at build time and never reaches a function) |
+| #226 | P1 | E1 · Make links preview | Preview-only integration prepared locally: `/i/<id>` serves public metadata and explicitly redirects browsers to the hash route; no cross-deployment shell fetch. Server-side Supabase variables are listed for Preview and Production (2026-09-17). Still requires approved commit/deployment and anonymous browser/messaging-card acceptance; PR #235's separate trip-import work is not included. See `docs/DEPLOYMENT.md`. |
 | #232 | P1 | E2 · The gallery is curated | `#/explore` holds one itinerary; the shelf has to read as chosen, not as everything that passed the gate |
 | #230 | P1 | E3 · Attribute shares, and settle how the readings are kept | Decides what a share is attributed to, and where the readings live, before any of it is measured |
 | #229 | P1 | F1 · Write the thresholds down, before measuring | The four launch signals (shares→views, views→forks, forks→signups, signups→2nd session) and the Stage 1→2 marks, committed in-repo **before** E3's first reading. D5 of `STEP-0-DECISIONS.md` holds the numbers, currently on PR #214's branch; thresholds are immutable once set, so doing this after E3 starts is the failure mode the rule exists to prevent |

@@ -25,7 +25,7 @@
 //     [--travellers 2] [--driver-count 2] [--one-way] [--out <path>] [--force]
 
 import { writeFileSync, existsSync, mkdirSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { dirname, join, resolve, relative, isAbsolute } from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { geocodeMany } from './geocode-places.mjs'
 
@@ -37,7 +37,9 @@ const SHELF = 'docs/examples/itineraries'
 
 // ---- args ----
 function parseArgs(argv) {
-  const out = { night: [] }
+  // Null-prototype: the keys come from the command line, so a `--__proto__`
+  // argument must land as an own property rather than on Object.prototype.
+  const out = { __proto__: null, night: [] }
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]
     if (!a.startsWith('--')) throw new Error(`unexpected argument "${a}"`)
@@ -88,7 +90,28 @@ if (!MODES.includes(args.mode)) { console.error(`--mode must be one of ${MODES.j
 if (!STYLES.includes(args.style)) { console.error(`--style must be one of ${STYLES.join(', ')}`); process.exit(2) }
 if (!TIERS.includes(args.tier)) { console.error(`--tier must be one of ${TIERS.join(', ')}`); process.exit(2) }
 
-const outPath = args.out ?? join(SHELF, `${args.slug}.draft.json`)
+/**
+ * The write target is a path from the command line, so confine it: the scaffolder
+ * creates directories and writes a file, and a fumbled `--out ../../notes` must fail
+ * loudly instead of writing outside the shelf.
+ */
+function shelfTarget(raw) {
+  const target = resolve(raw)
+  const rel = relative(resolve(SHELF), target)
+  if (rel.startsWith('..') || isAbsolute(rel)) {
+    throw new Error(`--out must be a path inside ${SHELF}/ (got "${raw}")`)
+  }
+  if (!target.toLowerCase().endsWith('.json')) throw new Error(`--out must name a .json file (got "${raw}")`)
+  return target
+}
+
+let outPath
+try {
+  outPath = shelfTarget(args.out ?? join(SHELF, `${args.slug}.draft.json`))
+} catch (e) {
+  console.error(`\n${e.message}\n\n${USAGE}`)
+  process.exit(2)
+}
 if (existsSync(outPath) && !args.force) {
   console.error(`${outPath} exists — pass --force to overwrite.`)
   process.exit(2)

@@ -10,13 +10,16 @@ import {
 import { MetaIcon } from '../components/icons'
 import { openExternal } from '../lib/native'
 import type { Trip, PublishedItinerary } from '../data/types'
-import { useDb, currentUser, tripById, userById, registerPubView, fetchSharedTrip } from '../store/store'
+import type { Entitlement } from '../lib/payments'
+import { useDb, currentUser, tripById, userById, registerPubView, fetchPublicTrip } from '../store/store'
 import { forkPublication } from '../lib/forkPub'
 import { simulateDay, originOf, minutesToHM, formatInr, getAssumptions, computeTotals, isRoundTrip } from '../lib/engine'
 import { cap, titleCase } from '../lib/labels'
 import { useTimeFormat, formatHM, formatHMRange } from '../lib/timefmt'
 import { stopKindOf, STOP_KIND_LABELS } from '../lib/stopKind'
 import { useSavedPubs } from '../lib/savedPubs'
+import { fetchMyEntitlements, purchaseUnlock } from '../lib/unlock'
+import { hasUnlock } from '../lib/payments'
 import { currentPublicShareUrl } from '../lib/shareUrl'
 import { appLink } from '../lib/appLink'
 import { pageTitle } from '../lib/pageTitle'
@@ -29,12 +32,18 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
   const me = currentUser(db)
   const pub: PublishedItinerary | undefined = db.published.find(p => p.id === slug)
   // The membership-scoped hydration keeps other people's trips out of the
-  // cache, so a public page's backing trip is usually NOT in `trips` — fetch
-  // it on demand (RLS lets anyone read published trips) instead of declaring
-  // "not found" for every anonymous visitor.
+  // cache, so a public page's backing trip is usually NOT in `trips` — and
+  // deliberately so: the CACHE carries unstubbed days only for the owner's
+  // own session. A public viewer must read through fetchPublicTrip (the
+  // get_public_trip RPC stubs locked days at the wire), never through a
+  // cached row they didn't fetch themselves.
   const cachedTrip = pub ? tripById(pub.tripId) : undefined
   const [fetched, setFetched] = useState<Trip | null>(null)
   const [miss, setMiss] = useState(false)
+  // Paid-unlock state (M7): entitlements are read on demand (RLS: own rows),
+  // not carried in the hydrate cache. Re-read after a purchase resolves.
+  const [entitlements, setEntitlements] = useState<Entitlement[]>([])
+  const [buying, setBuying] = useState(false)
   const trip: Trip | undefined = cachedTrip ?? fetched ?? undefined
   const { isSaved, toggleSaved } = useSavedPubs()
   const heroAuto = useDestinationCover(pub ? (pub.routeSummary.length ? pub.routeSummary : [pub.title]) : null)
@@ -47,19 +56,31 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
   useEffect(() => {
     document.title = pageTitle(['pub'], pub?.title)
   }, [pub?.title])
+  // Entitlements ride the session: read them when the viewer (or the
+  // publication) becomes known, and never for the creator — hasUnlock
+  // short-circuits creators anyway.
+  const meId = me?.id ?? null
   useEffect(() => {
-    if (!pub || cachedTrip || fetched || miss) return
+    if (!pub) return
     let alive = true
-    // The RPC fallback makes the page render even before the one-off visibility
-    // backfill runs: the pub row exists, so this trip IS published — the same
-    // capability trust as the public URL itself.
-    void fetchSharedTrip(pub.tripId, true).then(t => {
+    void fetchMyEntitlements(meId).then(rows => { if (alive) setEntitlements(rows) })
+    return () => { alive = false }
+  }, [pub?.id, meId])
+  useEffect(() => {
+    if (!pub || fetched || miss) return
+    let alive = true
+    // Reads through get_public_trip: the SERVER decides what this viewer sees
+    // (real days for the creator/an entitled buyer, stubbed locked days for
+    // everyone else) — the paywall is at the wire, not in React. An unlock
+    // re-runs this fetch: the same RPC now serves real days because the
+    // entitlement row exists.
+    void fetchPublicTrip(pub.id).then(t => {
       if (!alive) return
       if (t) setFetched(t)
       else setMiss(true)
     })
     return () => { alive = false }
-  }, [pub, cachedTrip, fetched, miss])
+  }, [pub, fetched, miss])
 
   // ---- practical evidence, computed from the real trip (no schema fields).
   // Every hook lives ABOVE the early return: the on-demand fetch means the
@@ -127,9 +148,30 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
   // the Unlock buttons below are hidden rather than inventing a ₹199 fallback.
   const price = pub.premiumPriceInr
   const savedFlag = isSaved(pub.id)
+  // True when this viewer may read the locked days: the creator, or a buyer
+  // with a paid entitlement. Gating here is presentation; the fork path and
+  // RLS re-derive the same rule server-side.
+  const unlocked = hasUnlock(entitlements, meId, pub.id, pub.creatorId)
 
   function copyThis() {
-    void forkPublication(pub!, me?.id ?? null, onNavigate)
+    // The fork honors what the SERVER served this viewer: a buyer/creator's
+    // session fetched real days through the RPC, a visitor's session got
+    // stubs — forkPublication re-stubs from whatever arrived, so the fork can
+    // never contain more than the server showed. The `unlocked` flag here is
+    // presentation-only now; the wire already decided.
+    void forkPublication(pub!, me?.id ?? null, onNavigate, unlocked)
+  }
+
+  function unlockThis() {
+    if (buying) return // async purchase — no double modal (the #36-6 rule)
+    setBuying(true)
+    void purchaseUnlock({
+      pubId: pub!.id,
+      title: pub!.title,
+      onUnlocked: () => {
+        void fetchMyEntitlements(meId).then(rows => setEntitlements(rows))
+      },
+    }).finally(() => setBuying(false))
   }
 
   function saveThis() {
@@ -288,71 +330,8 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
                     {!isFree && <Chip tone="saffron"><Lock size={11} aria-hidden style={{ verticalAlign: '-1px', marginRight: 3 }} />Premium</Chip>}
                   </div>
 
-                  {isFree ? (
-                    stops.map((s, i) => {
-                      // Auto anchors are pure travel, not activities — show the
-                      // drive (times, duration, distance, cost) as a travelling
-                      // strip instead of an empty stop-card.
-                      if (s.auto === true) {
-                        const cleanName = (s.locationName || s.title).replace(/ \((start|end)\)$/, '')
-                        // Stay day: the journey never leaves this place — a
-                        // plain base marker, not a travelling strip.
-                        if (sim.activeStops.length <= 1 && sim.totalDistanceKm < 0.5) {
-                          return (
-                            <div key={s.id} className="travel-anchor">
-                              <div className="travel-anchor-title">
-                                <span className="travel-anchor-ico"><MapPin size={13} aria-hidden /></span>
-                                <span>Based in {cleanName}</span>
-                              </div>
-                            </div>
-                          )
-                        }
-                        const inbound = i > 0 ? sim.legs[i - 1] : null
-                        const dep = inbound ? (sim.departures[i - 1] ?? '--:--') : (sim.departures[i] ?? '--:--')
-                        const arr = sim.arrivalTimes[i] ?? dep
-                        const cost = inbound ? Math.round(inbound.distanceKm * (A.inrPerKm ?? 8)) : 0
-                        const depHM = dep !== '--:--' ? formatHM(dep, timeFormat) : dep
-                        const arrHM = arr !== '--:--' ? formatHM(arr, timeFormat) : arr
-                        return (
-                          <div key={s.id} className="travel-anchor">
-                            <div className="travel-anchor-title">
-                              <span className="travel-anchor-ico">{i === 0 ? <Flag size={13} aria-hidden /> : <Car size={13} aria-hidden />}</span>
-                              <span>{i === 0 ? `Start · ${cleanName}` : `Travelling to ${cleanName}`}</span>
-                            </div>
-                            <div className="travel-anchor-meta">
-                              {inbound ? (
-                                <>
-                                  <span><MetaIcon icon={ Clock } tone="time" />Depart {depHM} → arrive {arrHM}</span>
-                                  <span><MetaIcon icon={ Clock } tone="time" />{minutesToHM(inbound.durationMinutes)}</span>
-                                  <span><MetaIcon icon={ MapPin } tone="place" />{inbound.distanceKm.toFixed(0)} km</span>
-                                  <span><MetaIcon icon={ Car } tone="money" />est {formatInr(cost)} ({A.mode})</span>
-                                </>
-                              ) : (
-                                <span>Departure {depHM}</span>
-                              )}
-                            </div>
-                          </div>
-                        )
-                      }
-                      return (
-                        <div key={s.id} className="stop-card">
-                          <div className={`stop-num cat-${s.category}`}>{i + 1}</div>
-                          <div className="stop-main">
-                            <div className="stop-toprow">
-                              <span className="stop-title">{s.title}</span>
-                              <Chip tone="info">{titleCase(s.category)}</Chip>
-                              {s.openTime && <span className="small muted"><MetaIcon icon={ Clock } tone="time" />{formatHMRange(s.openTime, s.closeTime, timeFormat)}</span>}
-                            </div>
-                            <div className="stop-meta">
-                              <span><MetaIcon icon={ MapPin } tone="place" />{s.locationName}</span>
-                              <span><MetaIcon icon={ Clock } tone="time" />{minutesToHM(s.visitMinutes)}</span>
-                              {s.entryFeeInrPerPerson > 0 && <span><MetaIcon icon={ Ticket } tone="ticket" />₹{s.entryFeeInrPerPerson}/person</span>}
-                            </div>
-                            {s.description && <div className="stop-desc">{s.description}</div>}
-                          </div>
-                        </div>
-                      )
-                    })
+                  {(isFree || unlocked) ? (
+                    <DayStops stops={stops} sim={sim} assumptions={A} timeFormat={timeFormat} stayDay={sim.activeStops.length <= 1 && sim.totalDistanceKm < 0.5} />
                   ) : (
                     <>
                       <div className="locked-overlay">
@@ -363,8 +342,8 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
                         </div>
                         <div className="locked-cta">
                           <b><Lock size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />{stops.length} more stops on this day</b>
-                          <p className="small">Unlock the full day-by-day plan with stay contacts, timings and budget breakdown.</p>
-                          {price !== undefined && <button className="btn btn-saffron" onClick={() => toast('Premium unlock is a placeholder — no payments in this MVP.')}>Unlock Premium · {formatInr(price)}</button>}
+                          <p className="small">Stay contacts, timings and the budget breakdown are in the full plan.</p>
+                          {price !== undefined && <button className="btn btn-saffron" disabled={buying} onClick={unlockThis}>{buying ? 'Opening payments…' : <>Unlock full plan · {formatInr(price)}</>}</button>}
                         </div>
                       </div>
                     </>
@@ -402,10 +381,13 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
               <button className="btn fork-btn btn-lg" style={{ width: '100%' }} onClick={copyThis}>
                 <GitFork size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 5 }} />Fork this trip
               </button>
-              {price !== undefined && <button className="btn btn-saffron btn-lg" style={{ width: '100%', marginTop: 10 }}
-                onClick={() => toast('Premium unlock is a placeholder — no payments in this MVP.')}>
-                <Lock size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 5 }} />Unlock Premium · {formatInr(price)}
+              {price !== undefined && !unlocked && <button className="btn btn-saffron btn-lg" style={{ width: '100%', marginTop: 10 }}
+                disabled={buying} onClick={unlockThis}>
+                <Lock size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 5 }} />{buying ? 'Opening payments…' : <>Unlock full plan · {formatInr(price)}</>}
               </button>}
+              {price !== undefined && unlocked && <p className="hint-text" style={{ textAlign: 'center', marginTop: 10 }}>
+                ✓ Full plan unlocked — forking carries every day as a real, editable plan.
+              </p>}
               {pub.subscriberCta && <p className="hint-text" style={{ textAlign: 'center', marginTop: 8 }}>{pub.subscriberCta}</p>}
               <hr className="divider" />
               <div className="share-link-box"><code>{shareLink}</code><CopyButton text={shareLink} label="Copy page link" /></div>
@@ -417,5 +399,97 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
         <p className="pub-footer-line">Published with YatraFlow · Plan real trips, together</p>
       </div>
     </div>
+  )
+}
+
+/** The day's stop list, shared by free days and unlocked (paid/creator)
+ *  views — one renderer so an unlocked day shows EXACTLY what a free day
+ *  shows, including the travelling strips (departure/arrival, distance,
+ *  cost) the first cut of the unlock flow silently dropped. */
+function DayStops({ stops, sim, assumptions, timeFormat, stayDay }: {
+  stops: ReturnType<typeof simulateDay>['activeStops'] extends never ? never : Array<{
+    id: string
+    auto?: boolean
+    title: string
+    locationName: string
+    category: string
+    openTime?: string
+    closeTime?: string
+    visitMinutes: number
+    entryFeeInrPerPerson: number
+    description?: string
+  }>
+  sim: ReturnType<typeof simulateDay>
+  assumptions: ReturnType<typeof getAssumptions>
+  timeFormat: '12h' | '24h'
+  stayDay: boolean
+}) {
+  return (
+    <>
+      {stops.map((s, i) => {
+        // Auto anchors are pure travel, not activities — show the
+        // drive (times, duration, distance, cost) as a travelling
+        // strip instead of an empty stop-card.
+        if (s.auto === true) {
+          const cleanName = (s.locationName || s.title).replace(/ \((start|end)\)$/, '')
+          // Stay day: the journey never leaves this place — a
+          // plain base marker, not a travelling strip.
+          if (stayDay) {
+            return (
+              <div key={s.id} className="travel-anchor">
+                <div className="travel-anchor-title">
+                  <span className="travel-anchor-ico"><MapPin size={13} aria-hidden /></span>
+                  <span>Based in {cleanName}</span>
+                </div>
+              </div>
+            )
+          }
+          const inbound = i > 0 ? sim.legs[i - 1] : null
+          const dep = inbound ? (sim.departures[i - 1] ?? '--:--') : (sim.departures[i] ?? '--:--')
+          const arr = sim.arrivalTimes[i] ?? dep
+          const cost = inbound ? Math.round(inbound.distanceKm * (assumptions.inrPerKm ?? 8)) : 0
+          const depHM = dep !== '--:--' ? formatHM(dep, timeFormat) : dep
+          const arrHM = arr !== '--:--' ? formatHM(arr, timeFormat) : arr
+          return (
+            <div key={s.id} className="travel-anchor">
+              <div className="travel-anchor-title">
+                <span className="travel-anchor-ico">{i === 0 ? <Flag size={13} aria-hidden /> : <Car size={13} aria-hidden />}</span>
+                <span>{i === 0 ? `Start · ${cleanName}` : `Travelling to ${cleanName}`}</span>
+              </div>
+              <div className="travel-anchor-meta">
+                {inbound ? (
+                  <>
+                    <span><MetaIcon icon={ Clock } tone="time" />Depart {depHM} → arrive {arrHM}</span>
+                    <span><MetaIcon icon={ Clock } tone="time" />{minutesToHM(inbound.durationMinutes)}</span>
+                    <span><MetaIcon icon={ MapPin } tone="place" />{inbound.distanceKm.toFixed(0)} km</span>
+                    <span><MetaIcon icon={ Car } tone="money" />est {formatInr(cost)} ({assumptions.mode})</span>
+                  </>
+                ) : (
+                  <span>Departure {depHM}</span>
+                )}
+              </div>
+            </div>
+          )
+        }
+        return (
+          <div key={s.id} className="stop-card">
+            <div className={`stop-num cat-${s.category}`}>{i + 1}</div>
+            <div className="stop-main">
+              <div className="stop-toprow">
+                <span className="stop-title">{s.title}</span>
+                <Chip tone="info">{titleCase(s.category)}</Chip>
+                {s.openTime && <span className="small muted"><MetaIcon icon={ Clock } tone="time" />{formatHMRange(s.openTime, s.closeTime, timeFormat)}</span>}
+              </div>
+              <div className="stop-meta">
+                <span><MetaIcon icon={ MapPin } tone="place" />{s.locationName}</span>
+                <span><MetaIcon icon={ Clock } tone="time" />{minutesToHM(s.visitMinutes)}</span>
+                {s.entryFeeInrPerPerson > 0 && <span><MetaIcon icon={ Ticket } tone="ticket" />₹{s.entryFeeInrPerPerson}/person</span>}
+              </div>
+              {s.description && <div className="stop-desc">{s.description}</div>}
+            </div>
+          </div>
+        )
+      })}
+    </>
   )
 }

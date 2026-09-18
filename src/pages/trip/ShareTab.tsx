@@ -195,7 +195,7 @@ const SHARE_TABS = [
 type ShareTabId = (typeof SHARE_TABS)[number]['id']
 const SHARE_TAB_IDS = SHARE_TABS.map(t => t.id)
 
-export function ShareTab({ trip, me, editable, onNavigate, legCorrections }: {
+export function ShareTab({ trip, me, onNavigate, legCorrections }: {
   trip: Trip
   me: { id: string; email: string }
   editable: boolean

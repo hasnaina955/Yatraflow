@@ -14,7 +14,7 @@ import { wmoIcon } from '../../components/icons'
 
 // ================= Overview =================
 
-export function OverviewTab({ trip, editable, onOpenDecisions, onOpenTimeline, onOpenMap, onInvite, health, totals }: {
+export function OverviewTab({ trip, onOpenTimeline, onOpenMap, onInvite, health, totals }: {
   trip: Trip
   editable: boolean
   onOpenDecisions: () => void

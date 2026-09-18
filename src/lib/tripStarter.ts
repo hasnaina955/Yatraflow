@@ -10,7 +10,7 @@ import { haversineKm } from './geo'
 import { MODE_COST_PER_KM, isFuelEconomyMode, parseFuelEconomyKmL, parseFuelPricePerL } from './engine'
 import { STAY_RATE_PER_NIGHT, MEALS_PER_HEAD_DAY } from './planBench'
 import { uid } from '../data/seed'
-import type { ItineraryStop, LatLngPoint, TravelStyle, TransportMode, StayStyle } from '../data/types'
+import type { ItineraryStop, LatLngPoint, TransportMode, StayStyle } from '../data/types'
 
 /** Straight-line chains underestimate real roads — the bench-style detour factor. */
 export const ROAD_FACTOR = 1.25

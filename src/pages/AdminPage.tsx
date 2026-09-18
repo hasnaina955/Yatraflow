@@ -6,19 +6,18 @@
 // store. Destructive actions confirm first; trip delete confirms by typing
 // the trip name (no undo — cascades take the collab layer).
 import { useEffect, useMemo, useState } from 'react'
-import { Eye, EyeOff, GitFork, ShieldAlert, Trash2, UserX, Users } from 'lucide-react'
+import { Eye, EyeOff, ShieldAlert, Trash2, UserX, Users } from 'lucide-react'
 import { PillNav } from '../components/PillNav'
 import { useTablist } from '../hooks/useTablist'
-import { Avatar, Chip, ConfirmDialog, EmptyState, Modal, toast } from '../components/ui'
+import { Avatar, Chip, ConfirmDialog, EmptyState, Modal } from '../components/ui'
 import {
-  useDb, useIsAdmin, useAdminAudit, useSessionUserId, currentUser,
+  useDb, useIsAdmin, useAdminAudit, useSessionUserId,
   adminSetDisabled, adminSetCreator, adminSetTripVisibility,
   adminRemoveMember, adminUnpublish, adminDeleteTrip, adminDeleteUser,
 } from '../store/store'
 import {
-  computeAdminOverview, computeGrowthSeries, computeFunnel, recentJoins, weekBucket,
+  computeAdminOverview, computeGrowthSeries, computeFunnel, recentJoins,
 } from '../lib/adminStats'
-import { formatInr } from '../lib/engine'
 import type { Trip, User } from '../data/types'
 
 type AdminTab = 'overview' | 'users' | 'trips' | 'invites' | 'content' | 'analytics' | 'audit'
@@ -65,7 +64,7 @@ export function AdminPage({ onNavigate }: { onNavigate: (r: string) => void }) {
       <div style={{ marginTop: 18 }} id="admin-panel" role="tabpanel" aria-labelledby={`admin-tab-${tab}`}>
         {tab === 'overview' && <OverviewTab />}
         {tab === 'users' && <UsersTab />}
-        {tab === 'trips' && <TripsTab onNavigate={onNavigate} />}
+        {tab === 'trips' && <TripsTab />}
         {tab === 'invites' && <InvitesTab />}
         {tab === 'content' && <ContentTab />}
         {tab === 'analytics' && <AnalyticsTab />}
@@ -256,7 +255,7 @@ function UsersTab() {
   )
 }
 
-function TripsTab({ onNavigate }: { onNavigate: (r: string) => void }) {
+function TripsTab() {
   const db = useDb()
   const [q, setQ] = useState('')
   const [vis, setVis] = useState<'all' | 'private' | 'public'>('all')

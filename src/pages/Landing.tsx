@@ -126,7 +126,7 @@ export function LandingPage({ onNavigate }: { onNavigate: (r: string) => void })
             A 4-day Kerala road trip (Kochi → Munnar → Thekkady → Alleppey) with real stops, timings,
             votes, decisions and budgets — loaded into your account the moment you sign up.
           </p>
-          <DemoButtons onNavigate={onNavigate} />
+          <DemoButtons />
         </div>
       </section>
 
@@ -294,7 +294,7 @@ function BirdsSvg() {
   )
 }
 
-function DemoButtons({ onNavigate }: { onNavigate: (r: string) => void }) {
+function DemoButtons() {
   return (
     <div className="cta-buttons">
       <a className="btn btn-navy btn-lg" href="#/auth?mode=signup">

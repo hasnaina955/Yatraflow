@@ -317,6 +317,7 @@ get a row here again.
 | 4 | A11y attributes & nav semantics (F-02, F-04–F-10) | ✅ |
 | 5 | Form hygiene (F-13–F-16) | ✅ |
 | 6 | URL state (tabs, Explore filters) + copy (F-21, F-22, F-31, F-32) | ✅ |
+| 7 | Impeccable whole-app refinement pass (2026-09-18) — mobile topnav, timeline reorder, `.two-col` overflow, create-trip calendar occlusion, light-theme contrast, board peek transition, reduced-motion delays, keyboard focus for the ledgers, viewer affordances, role/casing leaks, profile save feedback. Snapshot `.impeccable/critique/2026-09-17T17-42-23Z__src-app-tsx.md` closed; narrative in the CHANGELOG | ✅ |
 
 ---
 ## Idea bank

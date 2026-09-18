@@ -1,21 +1,20 @@
 // ============ Trip workspace — Map tab ============
 // Mechanical extraction from src/pages/TripWorkspace.tsx (M3.4) — no behavior changes.
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronDown, CircleCheck, Clock, ExternalLink, Fuel, Lightbulb, MapPin, Plus, RotateCcw, Sparkles, Star } from 'lucide-react'
-import { MetaIcon } from '../../components/icons'
+import { ChevronDown, CircleCheck, ExternalLink, Fuel, Lightbulb, MapPin, Plus, RotateCcw, Sparkles, Star } from 'lucide-react'
 import { uid } from '../../data/seed'
 import type { Trip, ItineraryStop } from '../../data/types'
 import type { ImpactResult } from '../../lib/impact'
 import { mapRoadViewFromLegs, outboundLegs, type TripRoadView } from '../../lib/tripRoad'
 import { buildJourney, minutesToHM, fmtDur, computeCategoryBias, MODE_SPEED, isRoundTrip } from '../../lib/engine'
 import { useTimeFormat, formatHM, formatHMRange } from '../../lib/timefmt'
-import { loadPref, savePref, loadHaltPin, loadHaltPinsForTrip, saveHaltPin, clearHaltPin, clearHaltPinsForTrip } from '../../lib/uiPrefs'
+import { loadPref, savePref, loadHaltPinsForTrip, saveHaltPin, clearHaltPinsForTrip } from '../../lib/uiPrefs'
 import { Modal, Field, toast, undoToast, useInView, useMedia, usePageVisible } from '../../components/ui'
 import { Select } from '../../components/Select'
 import { DetourWhisk } from '../../components/DetourWhisk'
 import { useSuggestionCache, isMapCacheFresh } from '../../hooks/useSuggestionCache'
 import { openExternal } from '../../lib/native'
-import { corridorAnchors, detourKm, detourMinutes, asymmetricDetourMinutes, googleEnabled, planJourneyHalts, reasonForSegmentHit, searchPlacesText, searchNearbyPoisMulti, kmFromStartForHit, planDriveDays, planTravelClock, rainFactorFor, isSelfDrivenMode, requireHitCoords, hasCoords, directionalKm, alongRouteKmOf, DEFER_START, type NearbyOpts, type PlaceHit, type TravelClockVerdict, routeHash } from '../../lib/geocode'
+import { corridorAnchors, detourKm, asymmetricDetourMinutes, googleEnabled, planJourneyHalts, reasonForSegmentHit, searchPlacesText, searchNearbyPoisMulti, kmFromStartForHit, planDriveDays, planTravelClock, rainFactorFor, requireHitCoords, directionalKm, alongRouteKmOf, DEFER_START, type NearbyOpts, type PlaceHit, routeHash } from '../../lib/geocode'
 import { isSightCategory, roadProfileFromLegs, loopProfile } from '../../lib/ridePlan'
 import { QuotaExhaustedError } from '../../lib/providers/google'
 import { isElectric } from '../../lib/vehicleProfile'
@@ -425,7 +424,6 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
   // #126: conducted modes (train/bus/flight/taxi) have no driving fatigue —
   // the split verdict stays null and every banner/chip/arming consumer below
   // goes quiet through that single gate.
-  const selfDriven = isSelfDrivenMode(trip.transportMode)
   const splitVerdict = useMemo(
     () => planDriveDays({ totalKm: planKm * loopFactor, driveMinutes: wholeTrip.min * loopFactor, rainFactor, profile: tripIsRoundTrip ? loopProfile(roadProfile) : roadProfile, ...partyOpts }),
     // #213 Phase 3: dayWeatherCode IS a dep (rainFactor reads it for severity
@@ -854,7 +852,6 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
   const budgetHeldIds = new Set<string>()
   let budgetHeldCount = 0
   {
-    const speedK = MODE_SPEED[trip.transportMode] ?? 40
     const byDay = new Map<number, SegmentHit[]>()
     for (const sh of seeAndDoLive) {
       if (!sh.hit) continue

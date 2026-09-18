@@ -4,7 +4,7 @@
 // published. Works logged-out (profiles and publications are public app-wide).
 import { useMemo } from 'react'
 import { Camera, Compass, Eye, GitFork, Link2, MapPin, Sparkles, TvMinimalPlay } from 'lucide-react'
-import { useDb, useSessionUserId, usePublished, userById } from '../store/store'
+import { useSessionUserId, usePublished, userById } from '../store/store'
 import { forkPublication } from '../lib/forkPub'
 import { openExternal } from '../lib/native'
 import { useSavedPubs } from '../lib/savedPubs'
@@ -12,7 +12,6 @@ import { Avatar, CopyButton, EmptyState } from '../components/ui'
 import { PubCard } from '../components/PubCard'
 
 export function CreatorPage({ creatorId, onNavigate }: { creatorId: string; onNavigate: (r: string) => void }) {
-  const db = useDb()
   const me = useSessionUserId()
   const published = usePublished()
   const { isSaved, toggleSaved } = useSavedPubs()

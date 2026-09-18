@@ -117,7 +117,6 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
   // Past the gate every memo is fully computed — narrowed aliases keep the
   // rest of the body honest without re-checking `trip` everywhere.
   const totalsN = totals!
-  const orderedDaysN = orderedDays
   const routePointsN = routePoints
   const highlightsN = highlights
 
@@ -137,8 +136,8 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
     toast(nowSaved ? 'Saved to this browser.' : 'Removed from saved itineraries.')
   }
 
-  // (totals/orderedDaysN/routePointsN/highlightsN are computed by the guarded
-  //  hooks above the gate — totalsN/orderedDaysN/routePointsN/highlightsN.)
+  // (totals/routePoints/highlights are computed by the guarded hooks above the
+  //  gate — totalsN/routePointsN/highlightsN.)
 
   return (
     <div>

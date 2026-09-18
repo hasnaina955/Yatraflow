@@ -1,7 +1,6 @@
 // ============ Reusable UI components ============
 import React, { useEffect, useId, useRef, useState } from 'react'
-import { Check, Copy, Map as MapIcon, TriangleAlert, Users, X } from 'lucide-react'
-import { formatInr } from '../lib/engine'
+import { Check, Map as MapIcon, TriangleAlert, Users, X } from 'lucide-react'
 import { nativeCopyText } from '../lib/native'
 import { haptic } from '../lib/haptics'
 import { registerTouchDnd, touchPressAbort, touchPressStart, encodeDropKey, isInteractiveTarget, consumeCarryRect } from '../lib/touchDnd'

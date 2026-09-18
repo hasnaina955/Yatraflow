@@ -1,6 +1,6 @@
 # Research — Why anyone buys an itinerary, why anyone becomes a creator, and what makes a bought plan feel worth it
 
-**Date:** 2026-09-18 · **Status:** reference research (explanation) · **Feeds:** ROADMAP Idea bank I-13…I-20, PLAN-MONETISATION §3.2/Stage 2, PLAN-LAUNCH-AND-DISTRIBUTION Phase 4, PLAN-COMMERCIAL-EXECUTION E7/E8
+**Date:** 2026-09-18 · **Status:** reference research (explanation) · **Feeds:** ROADMAP Idea bank I-20…I-27, PLAN-MONETISATION §3.2/Stage 2, PLAN-LAUNCH-AND-DISTRIBUTION Phase 4, PLAN-COMMERCIAL-EXECUTION E7/E8
 
 **The question this doc answers.** The payments rail (M7) is built and test-verified. What it does not yet answer is the market question: *why would a traveler pay a creator for an itinerary, why would a creator strive inside YatraFlow's ecosystem, what should actually separate free from paid, and how should the bought plan be presented so it feels worth more than it cost?* This document grounds the answers in cited sources, tags every claim by evidence strength, and ends with the actionable surfaces (the Idea-bank rows and execution items listed above carry the build order).
 

@@ -99,6 +99,29 @@ per month) feeding the same admin panel as E3.
 - `docs/README.md` gains this file's index row (add at push time, off the current `test`
   tip, not this branch's stale copy).
 
+### E7 · Post-unlock value presentation · ~1–2 days · unblocked — #251 merged, M7 is live
+
+The unlock ceremony (full-screen "you now own X" with real computed stats), the owned
+library (persistent "My purchases" shelf with cover/creator/version), and the purchase
+share card. Research and rationale:
+`commercial/RESEARCH-2026-09-18-creator-market-and-paywall-value.md` §4; buildable items
+I-20 + I-21.
+
+**Accept:** a fresh buyer sees the ceremony on unlock, finds the purchase on a permanent
+shelf from My Trips, and can share an og-image card of the purchase.
+**Serves:** Stage 2's conversion and the distribution loop's second share unit.
+
+### E8 · Publication funnel UI · ~2–3 days · blocked on E3
+
+Per-publication views→forks→sales funnel with preview→sale conversion on the creator hub
+(I-22; presentation shape in the research doc §5). **Do not start before E3's events exist**
+— there is nothing to read. Pair with I-23 (publish-quality checklist), which converts the
+funnel's first insight into a creator action.
+
+**Accept:** a creator sees each publication's funnel and at least one actionable
+counter ("add a cover photo") on the hub.
+**Serves:** Stage 2→3 creator retention — funnels make growth feel steerable.
+
 ---
 
 ## 2. Founder queue (F) — not code, and the actual critical path

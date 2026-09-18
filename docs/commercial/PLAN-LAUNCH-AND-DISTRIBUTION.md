@@ -145,6 +145,13 @@ launch. Ignore DAU, MAU and session duration until this funnel is non-zero.
 trip. So the loop is: a good itinerary → a previewed link → an anonymous visitor who sees real
 costs → fork → invite the crew.
 
+> **Once unlocks are live (M7):** the loop gains a second share unit — the
+> **purchase share card** ("I bought the Spiti plan", I-21): buyers posting their own purchase
+> are the highest-trust artifact this loop can circulate. The buyer-side pitch that makes the
+> purchase postable in the first place (time saved, mistakes avoided, the "structure you can
+> edit" positioning) is researched with citations in
+> `RESEARCH-2026-09-18-creator-market-and-paywall-value.md` §1/§4.
+
 Channels, in order of effort — and stop when one works:
 
 1. **Your own trips, with real people.** Build a trip with four or five friends in the app. It

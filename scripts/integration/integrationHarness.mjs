@@ -32,7 +32,10 @@ import { resolve } from 'node:path';
 const GREEN = '\x1b[32m', RED = '\x1b[31m', YELLOW = '\x1b[33m', DIM = '\x1b[2m', OFF = '\x1b[0m';
 
 // ---------------------------------------------------------------- env loading
-function loadDotEnvLocal() {
+function loadEnv() {
+  // One Map, no dynamic property access anywhere: .env.local is parsed in
+  // first, then defined process.env entries override it (the `env[name]`
+  // read/write form is also what Codacy's object-injection rule flags).
   const env = new Map();
   try {
     for (const line of readFileSync(resolve('.env.local'), 'utf8').split(/\r?\n/)) {
@@ -43,11 +46,14 @@ function loadDotEnvLocal() {
       env.set(m[1], v);
     }
   } catch { /* no .env.local — process.env only */ }
+  for (const [k, v] of Object.entries(process.env)) {
+    if (v !== undefined) env.set(k, v);
+  }
   return env;
 }
 
-const fileEnv = loadDotEnvLocal();
-const env = (k) => process.env[k] ?? fileEnv.get(k) ?? '';
+const dotenv = loadEnv();
+const env = (k) => dotenv.get(k) ?? '';
 
 const SUPABASE_URL = env('VITE_SUPABASE_URL');
 const SUPABASE_ANON_KEY = env('VITE_SUPABASE_ANON_KEY');

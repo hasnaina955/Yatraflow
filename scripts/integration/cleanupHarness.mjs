@@ -12,7 +12,11 @@ try {
     if (m) env.set(m[1], m[2].trim().replace(/^["']|["']$/g, ''));
   }
 } catch { /* process.env only */ }
-const envv = (k) => process.env[k] ?? env.get(k) ?? '';
+// process.env entries override the file, folded in without dynamic access.
+for (const [k, v] of Object.entries(process.env)) {
+  if (v !== undefined) env.set(k, v);
+}
+const envv = (k) => env.get(k) ?? '';
 
 const U1 = createClient(envv('VITE_SUPABASE_URL'), envv('VITE_SUPABASE_ANON_KEY'));
 const auth = await U1.auth.signInWithPassword({ email: envv('TEST_USER1_EMAIL'), password: envv('TEST_USER1_PASS') });

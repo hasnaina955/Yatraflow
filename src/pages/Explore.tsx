@@ -18,6 +18,11 @@ type SortKey = 'popular' | 'newest' | 'budget-asc' | 'budget-desc' | 'duration'
 const STYLES = ['relaxed', 'balanced', 'packed', 'adventure', 'luxury', 'budget', 'family', 'spiritual', 'food-focused', 'creator'] as const
 /** P4: the grid renders one page at a time; "Load more" grows the window. */
 const PAGE_SIZE = 12
+/** A publication is only worth featuring when it carries real evidence. With a
+ *  young catalog the honest answer is often "nothing yet" — leading with
+ *  "Why featured: 0 forks · 13 views" advertises emptiness rather than
+ *  credibility (§6.10). */
+const FEATURED_MIN_VIEWS = 25
 
 export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void }) {
   // Slice subscriptions: Explore re-renders when the published catalog,
@@ -88,13 +93,32 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
     }
   }
 
-  // Featured: the community's most-forked/viewed plan, independent of filters —
-  // it leads the page with its credibility explained (§6.10).
-  const featured = useMemo(() => [...published].sort((a, b) => popularity(b) - popularity(a))[0], [published])
+  // Featured: the most-forked/viewed plan, independent of filters — it leads the
+  // page with its credibility explained (§6.10), and only when that credibility
+  // can be stated without printing a zero.
+  const featured = useMemo(() => {
+    const pool = published.filter(p => p.copies >= 1 || p.views >= FEATURED_MIN_VIEWS)
+    // Deterministic order: a tie on the evidence score must not depend on the
+    // order rows arrived in (two live publications scored exactly 13).
+    return [...pool].sort((a, b) => b.copies - a.copies || b.views - a.views || b.publishedAt - a.publishedAt)[0]
+  }, [published])
   // Read the underlying trip from the trips slice (subscribed) so the featured
   // health score stays live without subscribing to the whole cache.
   const featuredTrip = featured ? trips.find(t => t.id === featured.tripId) : undefined
   const featuredHealth = featuredTrip ? computeHealth(featuredTrip).score : undefined
+
+  // The grid must not re-offer the plan the featured card already leads with —
+  // on a three-item shelf the duplicate was a third of the page. Only ever a
+  // no-op when the featured pick is a card from OUTSIDE the active filters,
+  // which is the normal case once any filter is on.
+  const gridPubs = useMemo(
+    () => (featured ? pubs.filter(p => p.id !== featured.id) : pubs),
+    [pubs, featured],
+  )
+  // "outside your filters" is a claim, so only make it when it is true: with a
+  // filter on, the featured pick is often the matching card itself (it was
+  // labelled "outside your filters" while being the only adventure result).
+  const featuredOutsideFilters = !!featured && !pubs.some(p => p.id === featured.id)
 
   const styleCounts = useMemo(() => {
     const counts = new Map<string, number>()
@@ -124,7 +148,7 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
           <span className="editorial-kicker explore-hero-kicker">Discover · Trust · Fork</span>
           <h1>Explore itineraries</h1>
           <p className="explore-hero-sub">
-            Real multi-day plans from travellers who actually went — real road time, real pacing, honest costs.
+            Real multi-day plans — real road time, real pacing, honest costs. Copy one and make it yours.
           </p>
           <div className="explore-hero-searchrow">
             <input className="input explore-hero-search" placeholder="Search a route, place or creator — try “Alleppey”…"
@@ -137,7 +161,17 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
         </div>
       </section>
 
-      <div className="container" style={{ paddingTop: 20 }}>
+      <div className="container" style={{ paddingTop: 22 }}>
+        {/* "Fork" is the product's own word for copying a plan into your trips and
+            the cards never explain it, so it is said once, here, before anyone
+            meets the button that carries the name. */}
+        <p className="small muted" style={{ margin: '0 0 12px' }}>
+          Fork any itinerary to copy it into your own trips — then change whatever you like.
+          {/* Signed out, that button navigates to /auth — say so before the click,
+              not in a toast that the redirect swallows. */}
+          {!me && <> You’ll need a free account to fork trips.</>}
+        </p>
+
         {/* ---- Travel-style chips (§6.10) — replaces the style dropdown ---- */}
         <div className="explore-chips" role="group" aria-label="Travel style">
           <button className={`chip clickable-chip ${style === 'all' ? 'on-teal' : ''}`}
@@ -155,7 +189,7 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
         </div>
 
         {/* ---- Compact filter bar: budget / duration / sort ---- */}
-        <div className="card glass-soft" style={{ marginBottom: 20 }}>
+        <div className="card glass-soft" style={{ marginBottom: 22 }}>
           <div className="explore-filters">
             <Select value={duration} onChange={v => { setDuration(v as never); syncUrl({ dur: v }) }} aria-label="Duration"
               options={[
@@ -194,11 +228,13 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
         {featured && (
           <div className="featured-card" key={featured.id}>
             <div className="featured-body">
-              <span className="editorial-kicker featured-kicker"><Star size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />Featured itinerary{filtersActive && <> · outside your filters</>}</span>
+              <span className="editorial-kicker featured-kicker"><Star size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />Featured itinerary{featuredOutsideFilters && <> · outside your filters</>}</span>
               <h2><a className="featured-title-link" href={`#/pub/${featured.id}`}>{featured.title}</a></h2>
               <p className="featured-tagline">{featured.tagline}</p>
               <p className="featured-credibility">
-                Why featured: <GitFork size={12} aria-hidden style={{ verticalAlign: '-2px', margin: '0 2px' }} /> {featured.copies} fork{featured.copies === 1 ? '' : 's'} · <Eye size={12} aria-hidden style={{ verticalAlign: '-2px', margin: '0 2px' }} /> {featured.views} views
+                Why featured: {featured.copies >= 1
+                  ? <><GitFork size={12} aria-hidden style={{ verticalAlign: '-2px', margin: '0 2px' }} /> {featured.copies} fork{featured.copies === 1 ? '' : 's'} — the most-forked plan here</>
+                  : <><Eye size={12} aria-hidden style={{ verticalAlign: '-2px', margin: '0 2px' }} /> {featured.views} views</>}
                 {featuredHealth !== undefined && <> · trip health {featuredHealth}/100</>} — by {userOf(users, featured.creatorId)?.profile.name ?? 'a YatraFlow traveller'}{userOf(users, featured.creatorId)?.profile.isCreator && <Sparkles size={11} aria-hidden style={{ verticalAlign: '-1px', marginLeft: 2 }} />}.
               </p>
               <div className="featured-meta">
@@ -207,7 +243,7 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
                 <span><MetaIcon icon={ MapPin } tone="place" />{featured.routeSummary.length} places · {featured.routeSummary[0]} → {featured.routeSummary[featured.routeSummary.length - 1]}</span>
               </div>
               <div className="featured-actions">
-                <button className="btn fork-btn" onClick={() => forkTrip(featured.id)}><GitFork size={14} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Fork this trip</button>
+                <button className="btn fork-btn" onClick={() => forkTrip(featured.id)}><GitFork size={14} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />{me ? 'Fork this trip' : 'Log in to fork'}</button>
                 <button className="btn save-btn" onClick={() => toggleHeart(featured.id)} aria-pressed={isSaved(featured.id)}>
                   <Heart size={13} aria-hidden fill={isSaved(featured.id) ? 'currentColor' : 'none'} style={{ verticalAlign: '-2px', marginRight: 4 }} />
                   {isSaved(featured.id) ? 'Saved' : 'Save'}
@@ -239,17 +275,23 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
           )
         ) : (
           <>
-            <div className="explore-grid">
-              {pubs.slice(0, visibleCount).map((p, i) => (
-                <PubCard key={p.id} pub={p} creator={userOf(users, p.creatorId)} saved={isSaved(p.id)}
-                  onFork={() => forkTrip(p.id)} onToggleSave={() => toggleHeart(p.id)} enterIndex={i} />
-              ))}
-            </div>
-            {pubs.length > visibleCount && (
-              <div style={{ display: 'flex', justifyContent: 'center', padding: '16px 0 34px' }}>
+            {/* Only when something is left after the featured pick — otherwise
+                the featured card was the whole result and an empty grid would
+                just add a gap under it. */}
+            {gridPubs.length > 0 && (
+              <div className="explore-grid">
+                {gridPubs.slice(0, visibleCount).map((p, i) => (
+                  <PubCard key={p.id} pub={p} creator={userOf(users, p.creatorId)} saved={isSaved(p.id)}
+                    onFork={() => forkTrip(p.id)} onToggleSave={() => toggleHeart(p.id)} enterIndex={i}
+                    needsLogin={!me} />
+                ))}
+              </div>
+            )}
+            {gridPubs.length > visibleCount && (
+              <div style={{ display: 'flex', justifyContent: 'center', padding: '16px 0 22px' }}>
                 <button className="btn btn-outline" onClick={() => setVisibleCount(c => c + PAGE_SIZE)}
-                  aria-label={`Load more itineraries — ${pubs.length - visibleCount} remaining`}>
-                  Load more · {pubs.length - visibleCount} more
+                  aria-label={`Load more itineraries — ${gridPubs.length - visibleCount} remaining`}>
+                  Load more · {gridPubs.length - visibleCount} more
                 </button>
               </div>
             )}

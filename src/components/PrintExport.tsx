@@ -57,6 +57,11 @@ export function PrintExport({ trip, legCorrections }: { trip: Trip; legCorrectio
   if (hostRef.current === null) {
     hostRef.current = document.createElement('div')
     hostRef.current.className = 'pr-sheet-portal'
+    // The portal copy is only visually clipped (shoved off-canvas), so it stays
+    // in the accessibility tree: with the Share tab open a screen reader got a
+    // second, full itinerary. It is print-only — hide it from AT. Safe here —
+    // the sheet holds no focusable controls.
+    hostRef.current.setAttribute('aria-hidden', 'true')
   }
   useEffect(() => {
     const host = hostRef.current!
@@ -67,7 +72,7 @@ export function PrintExport({ trip, legCorrections }: { trip: Trip; legCorrectio
   const model = useMemo(() => {
     const warningsByDay: Record<number, string[]> = {}
     for (const w of collectWarnings(trip)) {
-      const m = /^Day (\d+):/.exec(w.title)
+      const m = /^Day (\d+)\b/.exec(w.title)
       // the model strips the "Day n:" prefix itself; pass titles raw
       if (m) { const di = Number(m[1]) - 1; (warningsByDay[di] ??= []).push(w.title) }
     }
@@ -98,7 +103,7 @@ export function PrintExport({ trip, legCorrections }: { trip: Trip; legCorrectio
         </div>
 
         {/* Live preview of the print sheet, scaled to fit the modal. */}
-        <div className="pr-preview" aria-label="Preview of the printed day cards">
+        <div className="pr-preview" aria-label="Preview of the printed day cards" tabIndex={0}>
           <PrintSheet model={model} timeFormat={timeFormat} />
         </div>
       </Modal>
@@ -148,6 +153,13 @@ function PrintSheet({ model, timeFormat }: { model: ReturnType<typeof buildPrint
         <section className="pr-expenses">
           <h2>Trip expenses</h2>
           <table>
+            <thead>
+              <tr>
+                <th scope="col">Item</th>
+                <th scope="col">Category</th>
+                <th scope="col" className="pr-num">Amount</th>
+              </tr>
+            </thead>
             <tbody>
               {model.expenses.map((e, i) => (
                 <tr key={i}>

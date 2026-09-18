@@ -1,4 +1,5 @@
 {
+  "formatVersion": 2,
   "trip": {
     "name": "Meghalaya — Rain & Root Bridges",
     "startLocation": "Guwahati, Assam",
@@ -38,7 +39,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 0,
+            "orderInDay": 1,
             "notes": "One of the 51 Shakti Peethas, on Nilachal hill above the Brahmaputra. No entry fee; phones stay outside, and the climb back up is steep in the rain"
           },
           {
@@ -52,7 +53,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 1,
+            "orderInDay": 2,
             "notes": "Jadoh and doh-nei-iong, the Khasi pork-and-rice dish — the lakeside shacks do it better than the town restaurants"
           },
           {
@@ -66,7 +67,7 @@
             "transportCostInrTotal": 0,
             "priority": "nice-to-have",
             "status": "confirmed",
-            "orderInDay": 2,
+            "orderInDay": 3,
             "weatherSensitive": true,
             "notes": "A reservoir ringed by pine on the Shillong road — the viewpoint is free, the boats and water sports are not"
           },
@@ -75,13 +76,13 @@
             "title": "Police Bazaar, Shillong",
             "category": "shopping",
             "locationName": "Shillong, Meghalaya",
-            "lat": 25.576, "lng": 91.8828,
+            "lat": 25.5767, "lng": 91.8815,
             "visitMinutes": 75,
             "entryFeeInrPerPerson": 0,
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 3,
+            "orderInDay": 4,
             "notes": "The town's walking heart — the evening is a slow circuit of the square, the cafes and the music shops"
           },
           {
@@ -95,7 +96,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 4,
+            "orderInDay": 5,
             "notes": "Guesthouses around Laitumkhrah are quieter and cheaper than the Police Bazaar hotels"
           }
         ]
@@ -117,7 +118,7 @@
             "transportCostInrTotal": 0,
             "priority": "nice-to-have",
             "status": "confirmed",
-            "orderInDay": 0,
+            "orderInDay": 1,
             "weatherSensitive": true,
             "notes": "Three tiers of falls ten minutes out of town, with steps down to the pool. A small state entry is collected at the gate (see the ticket allowance)"
           },
@@ -132,7 +133,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 1,
+            "orderInDay": 2,
             "weatherSensitive": true,
             "notes": "India's tallest plunge waterfall, off a cliff-edge viewpoint — the green pool at the bottom is the photograph. The Khasi legend behind the name is worth asking a local guide about"
           },
@@ -141,13 +142,13 @@
             "title": "Sohra town lunch",
             "category": "food",
             "locationName": "Sohra, East Khasi Hills",
-            "lat": 25.2777, "lng": 91.7292,
+            "lat": 25.2845, "lng": 91.7215,
             "visitMinutes": 60,
             "entryFeeInrPerPerson": 0,
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 2
+            "orderInDay": 3
           },
           {
             "id": "d2-mawsmai",
@@ -160,7 +161,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 3,
+            "orderInDay": 4,
             "notes": "A lit limestone cave you walk right through, about 150 m of it — the one Sohra stop that rain cannot cancel. Small entry fee at the gate (allowance)"
           },
           {
@@ -174,7 +175,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 4,
+            "orderInDay": 5,
             "notes": "Stay on the Sohra side of the plateau, not back in Shillong — tomorrow's road east starts here"
           }
         ]
@@ -196,7 +197,7 @@
             "transportCostInrTotal": 0,
             "priority": "nice-to-have",
             "status": "confirmed",
-            "orderInDay": 0,
+            "orderInDay": 1,
             "weatherSensitive": true,
             "notes": "Seven separate falls on the same cliff line — five minutes from Mawsmai, so pair them. Best in the post-monsoon months when there is water"
           },
@@ -211,7 +212,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 1,
+            "orderInDay": 2,
             "weatherSensitive": true,
             "notes": "A footbridge grown — not built — from the aerial roots of a rubber fig, and still alive. This one is a short walk from the road, unlike the famous double-decker at Nongriat, which is 3,000 steps down"
           },
@@ -226,7 +227,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 2,
+            "orderInDay": 3,
             "notes": "Widely called Asia's cleanest village, run as a cooperative — bamboo dustbins on every lane, a bamboo sky walk above the treetops, and a village entry fee at the gate (allowance)"
           },
           {
@@ -240,7 +241,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 3
+            "orderInDay": 4
           },
           {
             "id": "d3-stay-dawki",
@@ -253,7 +254,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 4,
+            "orderInDay": 5,
             "notes": "Sleeping at Shnongpdeng or Dawki puts you on the Umngot at sunrise — the only hour the river is mirror-flat and empty"
           }
         ]
@@ -275,7 +276,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 0,
+            "orderInDay": 1,
             "weatherSensitive": true,
             "notes": "The clearest river in India — you see the riverbed metres down, and a boat can look like it is floating on glass. Boats are chartered, not ticketed: ₹300–1,200 depending on length and season (see the expense line). Go before 10 AM"
           },
@@ -290,7 +291,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 1,
+            "orderInDay": 2,
             "weatherSensitive": true,
             "notes": "A canyon rim with no railings, no ticket counter and no crowd on a weekday — the road up is steep and the pay-off is the whole Khasi hill range"
           },
@@ -299,13 +300,13 @@
             "title": "Dinner in Shillong",
             "category": "food",
             "locationName": "Shillong, Meghalaya",
-            "lat": 25.576, "lng": 91.8828,
+            "lat": 25.5702, "lng": 91.8983,
             "visitMinutes": 60,
             "entryFeeInrPerPerson": 0,
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 2
+            "orderInDay": 3
           },
           {
             "id": "d4-stay-shillong",
@@ -318,7 +319,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 3,
+            "orderInDay": 4,
             "notes": "Back in the same town on purpose — the drive north tomorrow starts three hours from the airport"
           }
         ]
@@ -340,7 +341,7 @@
             "transportCostInrTotal": 0,
             "priority": "nice-to-have",
             "status": "confirmed",
-            "orderInDay": 0,
+            "orderInDay": 1,
             "weatherSensitive": true,
             "notes": "The state's highest motorable point above the town — clear mornings open up the Bangladesh plains. Go early before the cloud sits in"
           },
@@ -349,13 +350,13 @@
             "title": "Lunch on arrival in Guwahati",
             "category": "food",
             "locationName": "Guwahati, Assam",
-            "lat": 26.1806, "lng": 91.7539,
+            "lat": 26.1792, "lng": 91.7513,
             "visitMinutes": 60,
             "entryFeeInrPerPerson": 0,
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 1,
+            "orderInDay": 2,
             "notes": "The highway drops you into the city in about three hours; eat here rather than detouring — the airport road runs through the other side of town"
           },
           {
@@ -369,7 +370,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 2,
+            "orderInDay": 3,
             "notes": "About three hours from Shillong when the highway behaves; leave by early afternoon for an evening flight out"
           }
         ]

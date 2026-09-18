@@ -96,6 +96,14 @@ A collaborative travel-planning web app, built India-first. Real multi-day itine
 
 - **Trip settings became a first-class citizen.** The crew, dates, budget and vehicle controls moved out of Share into their own eighth workspace tab; every choice you set there — drivers, vulnerable passengers, after-dinner driving, the exact tank and economy of your bike or EV — now persists across reloads instead of silently reverting, re-derives every surface that depends on it (map suggestions, budget pacing, day plans) instead of serving stale ones, and matches Create Trip option-for-option. Blank tank or economy fields no longer write car numbers onto a motorcycle or an EV.
 
+## ✨ The v0.60–v0.61 run, in plain words
+
+- **You can buy a plan now.** A creator can price a published itinerary and a reader can pay for it. The price is read server-side, so a tampered request cannot change what is charged; the unlock is granted only through a buyer-scoped path or the payment webhook, which is idempotent and also recovers a purchase that was confirmed but never saved — so a click can never charge twice for the same plan. The creator's Earnings tab shows the sales that actually happened, with the amount paid at the time of purchase rather than the current price.
+- **The paywall moved to the wire.** Locked days used to travel to every visitor in full, with the lock being a CSS blur on the public page. A server-side read now stubs the paid days exactly as the free preview shows them, and it decides from your own session whether you are the creator, a buyer, or a visitor.
+- **A plan file says what it is, and an older one is repaired rather than refused.** Exports carry a format version, and the importer walks an older file forward — renumbering stops, re-issuing duplicate ids, reconciling the date range — then tells you what it changed in one readable line. A file written by a newer build is refused, with the reason.
+- **Every screen got a refinement pass.** The phone layouts that pushed controls off-screen, a Timeline reorder that silently did nothing, a calendar that hid under the bottom bar, text that went invisible in dark mode, decorative motion that kept running while scrolled out of view, and controls below the 40px touch floor. None of the colours or spacing tokens were redesigned.
+- **The public pages stopped over-promising.** Fork says it needs an account; a page that fails to load no longer blames the creator; cards in a row finally sit on one line at one height; and the shared hero stays readable over any cover a creator uploads.
+
 ## ✨ The v0.55 release, in one line
 
 - **The Explore gallery got its supply chain.** A written import contract with a validator that rejects typos, placeholders and broken references; a CI gate that runs every shelf itinerary through the real engine (health ≥ 85, no high-severity warning, budget within ±15 % of the engine's own math); a demand-ranked backlog of the twenty trips India actually searches for; and the first six on the shelf — Coorg, Goa, Kerala, Mewar, Kashmir, Meghalaya — every fee cited to a source, every coordinate geocoded, every budget set by the engine rather than by wishful thinking. Vercel Web Analytics rides along, web-only.
@@ -264,6 +272,26 @@ Static hosting is enough. The repo auto-deploys to **Vercel** on every push to `
 - ❌ INR is the default and only currency
 
 These are extension points, not oversights — see ARCHITECTURE.md's "Swapping things out".
+
+## Testing the crew shape (opt-in integration gate)
+
+The node suite runs offline. To assert crew behavior against the real database,
+create two throwaway accounts and run the integration harness -- opt-in only, so
+it never gates offline verify:
+
+```powershell
+# in .env.local (or environment):
+#   TEST_USER1_EMAIL=crew-a@example.com   TEST_USER1_PASS=<password>
+#   TEST_USER2_EMAIL=crew-b@example.com   TEST_USER2_PASS=<password>
+VITE_RUN_INTEGRATION=1 npm run test:integration
+```
+
+The harness asserts the cross-user row-level behavior two crews actually rely on
+(private-trip privacy, self-serve join, the editor gate, recipient-only
+notifications, public gallery reads, realtime round-trips) with a unique run-id
+prefix per run and a printed teardown ledger -- only rows the run created are
+ever touched. The catalog-level shape is additionally locked by
+`supabase/tests/rls_contract.test.sql` (run in the dashboard SQL editor).
 
 ## 🤝 Contributing
 

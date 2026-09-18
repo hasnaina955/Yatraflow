@@ -574,8 +574,11 @@ function SharedTripPage({ payload, onNavigate }: { payload: string; onNavigate: 
     return (
       <div className="container empty-state">
         <div className="big"><Link2 size={38} aria-hidden /></div>
-        <h1 style={{ fontSize: 26 }}>This snapshot link is broken</h1>
-        <p className="muted">The link may have been truncated — ask for a fresh one from the trip’s Share tab.</p>
+        {/* Decoding can fail for reasons that are NOT the link: `inflate` throws
+            where DecompressionStream is missing, and a newer snapshot can fail
+            the shape check. Name the likely cause, keep the alternative. */}
+        <h1 style={{ fontSize: 26 }}>This snapshot didn’t load</h1>
+        <p className="muted">A snapshot travels inside the link itself, so this is usually a link that arrived truncated — ask for a fresh one from the trip’s Share tab. Opening it in an up-to-date browser, which can unpack it, is worth a try too.</p>
         <button className="btn btn-primary" style={{ marginTop: 14 }} onClick={() => onNavigate('/')}>Go home</button>
       </div>
     )
@@ -619,6 +622,9 @@ function InviteGate({ codeOrTripId, onNavigate }: { codeOrTripId: string; onNavi
   // is the capability to preview it.
   const [trip, setTrip] = useState<Trip | null>(null)
   const [status, setStatus] = useState<'loading' | 'broken' | 'joining'>('loading')
+  // A dropped connection resolves to the same null as a dead code, so the
+  // failure screen has to offer the one remedy that costs nothing: try again.
+  const [retryTick, setRetryTick] = useState(0)
   // Keep the latest navigate callback in a ref so we don't re-fire effects
   // on every parent re-render.
   const navigateRef = useRef(onNavigate)
@@ -643,7 +649,7 @@ function InviteGate({ codeOrTripId, onNavigate }: { codeOrTripId: string; onNavi
       else setStatus('broken')
     })
     return () => { alive = false }
-  }, [codeOrTripId])
+  }, [codeOrTripId, retryTick])
 
   // Logged in + trip resolved → join once, then open the trip. The join is
   // awaited: joinViaInvite writes the membership row before its side effects,
@@ -669,7 +675,9 @@ function InviteGate({ codeOrTripId, onNavigate }: { codeOrTripId: string; onNavi
       await fetchSharedTrip(trip.id, true)
       const ok = await joinViaInvite(trip.id, me.id)
       if (ok) toast(`You’re on “${trip.name}” — happy planning!`)
-      else toast('Could not join — the link may be old. Ask for a fresh one.', 'err')
+      // joinViaInvite reports false for an RLS refusal or a dropped connection
+      // just as readily as for a stale code, so this cannot blame the link.
+      else toast('Couldn’t join just now — open the link again, or ask for a fresh one.', 'err')
       navigateRef.current(`/trip/${trip.id}`)
     })()
     // Depend on me/trip objects, not a mount-only []: the store hydrates them
@@ -681,9 +689,12 @@ function InviteGate({ codeOrTripId, onNavigate }: { codeOrTripId: string; onNavi
     return status === 'broken' ? (
       <div className="container empty-state">
         <div className="big"><Link2 size={38} aria-hidden /></div>
-        <h1 style={{ fontSize: 26 }}>This invite link is broken</h1>
-        <p className="muted">Ask the trip organiser for a fresh link from the trip’s Share tab.</p>
-        <button className="btn btn-primary" style={{ marginTop: 14 }} onClick={() => onNavigate('/')}>Go home</button>
+        <h1 style={{ fontSize: 26 }}>This invite didn’t load</h1>
+        <p className="muted">The code may be mistyped or no longer active, or the connection may have dropped — we can’t tell which from here. Ask the organiser for a fresh link, or try again.</p>
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 14 }}>
+          <button className="btn btn-primary" onClick={() => { setStatus('loading'); setRetryTick(t => t + 1) }}>Try again</button>
+          <button className="btn btn-outline" onClick={() => onNavigate('/')}>Go home</button>
+        </div>
       </div>
     ) : (
       <div className="container loading-block"><div className="spinner" />Opening invite…</div>

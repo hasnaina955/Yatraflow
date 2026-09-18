@@ -29,3 +29,17 @@ vitest_out.txt
 # local APK downloads from CI artifacts
 *.apk
 android/app/yatraflow-debug.p12
+
+# local agent skills (project-local installs). `.claude/` itself stays
+# un-ignored so committed editor config remains possible.
+.agents/
+.claude/skills/
+skills-lock.json
+
+# Agent-tool working directories and generated briefs — same class as
+# `.freebuff/`: regenerateable output, never repo content. `.impeccable/browser/`
+# alone is a full browser profile (12 MB), and `PRODUCT.md` carries the skill's
+# own schema marker rather than being a hand-written product doc.
+.impeccable/
+.commandcode/
+PRODUCT.md

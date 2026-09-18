@@ -1,184 +1,83 @@
 // ============ Trip import ============
-// One parser for every JSON a user can hand the app. Two formats exist:
+// One parser for every JSON a user can hand the app. The RULES live in
+// `lib/itinerarySpec.ts` (shared with the exporter, the validator CLI and the
+// authoring tool); this module is the file-shaped facade over them.
 //
-//   v1  a bare `Trip`            — what "Download JSON" writes
-//   v2  `{ trip, publication }`  — the gallery import format
-//                                  (docs/ITINERARY-IMPORT-SPEC.md)
+// Formats, and what happens to each:
 //
-// The v2 wrapper is why a shelf itinerary used to fail on import: the shape
-// check looked for `days` on the OUTER object and found `trip` / `publication`
-// instead, so a file the repo's own gates had certified was rejected as "not a
-// valid YatraFlow trip export". The inner `trip` is a valid import — it simply
-// omits the tool-managed fields (id / createdAt / updatedAt) and `members`,
-// which the importer assigns.
+//   v1  a bare `Trip`            — what older "Download JSON" wrote
+//   v1  `{ trip, publication }`  — the pre-versioning gallery import format
+//   v2  `{ formatVersion, trip }`— what this build writes (see snapshot.ts)
 //
 // Parsing is pure and side-effect free so it can be tested without a browser.
 // Applying it is the store's job (`importTrip`).
+//
+// Two properties this module owes its caller:
+//   1. It NEVER returns a trip the rest of the app cannot render — every stop
+//      it keeps has usable coordinates, every number is a number, every day is
+//      numbered from 1 and contiguous, and the date range matches the day count.
+//   2. It SAYS what it changed. `report.repairs` is the compatibility story for
+//      an older file; `report.warnings` and `report.droppedStops` are the parts
+//      a person has to look at. Nothing is fixed or lost silently.
 import type { Trip } from '../data/types'
+import {
+  emptyReport, migrateTrip, normalizeTrip, readExport, TripImportError,
+  type NormalizeReport, type PublicationDraft,
+} from './itinerarySpec'
 
-/** The `publication` half of a v2 gallery file. Carried through so the caller
- *  can tell the user what the file also contained — never applied silently. */
-export interface PublicationDraft {
-  id?: string
-  title?: string
-  tagline?: string
-  coverImageUrl?: string
-  routeSummary?: string[]
-  durationDays?: number
-  estimatedBudgetPerPersonInr?: number
-  travelStyle?: string
-  bestSeason?: string
-  travelTips?: string[]
-  warningsAndAssumptions?: string[]
-  freeDayIndexes?: number[]
-  premiumPriceInr?: number
-  subscriberCta?: string
-}
+export { TripImportError } from './itinerarySpec'
+export type { PublicationDraft, NormalizeReport } from './itinerarySpec'
 
 export interface ParsedTripImport {
-  /** A complete `Trip`. `id` / `createdAt` / `updatedAt` are placeholders —
-   *  the store assigns real ones and re-ids every day, stop and expense, so
-   *  importing a foreign file can never collide with a local row. */
+  /** A complete `Trip`. `id` / `createdAt` / `updatedAt` are placeholders — the
+   *  store assigns real ones and re-ids every day, stop and expense. */
   trip: Trip
-  /** Present when the file was a v2 gallery import. */
+  /** Present when the file carried a `publication` block. */
   publication?: PublicationDraft
   format: 'trip' | 'gallery'
-  /** One short phrase for the toast, e.g. "6-day gallery itinerary". */
+  /** One short phrase for the toast, e.g. "6-day gallery itinerary, 23 stops". */
   summary: string
+  /** The wire version the file declared (1 when it predates versioning). */
+  version: number
+  /** What was repaired, what could not be, and which keys nothing reads. */
+  report: NormalizeReport
 }
 
-/** Thrown with a message written for the person holding the file. */
-export class TripImportError extends Error {
-  constructor(message: string) {
-    super(message)
-    this.name = 'TripImportError'
-  }
-}
-
-const SNAPSHOT_PREFIX = 'yf1_'
-
-function str(v: unknown, fallback = ''): string {
-  return typeof v === 'string' && v.trim() ? v : fallback
-}
-
-function num(v: unknown, fallback: number): number {
-  return typeof v === 'number' && Number.isFinite(v) ? v : fallback
-}
-
-function list<T>(v: unknown): T[] {
-  return Array.isArray(v) ? (v as T[]) : []
-}
-
-function isObject(v: unknown): v is Record<string, unknown> {
-  return !!v && typeof v === 'object' && !Array.isArray(v)
-}
-
-/** True when the object looks like a `published_itineraries` row rather than a
- *  trip — the two are easy to confuse and the error should say which it is. */
-function looksLikePublicationRow(o: Record<string, unknown>): boolean {
-  return !Array.isArray(o.days) && (
-    Array.isArray(o.route_summary) || Array.isArray(o.routeSummary)
-    || typeof o.tagline === 'string' || o.premium_price_inr !== undefined
-    || o.premiumPriceInr !== undefined || typeof o.creator_id === 'string'
-  )
-}
-
-/** Parse a trip export, in either format, into something importable.
- *  Throws `TripImportError` with a specific reason on anything it cannot read. */
+/** Parse a trip export, in any supported version, into something importable.
+ *  Throws `TripImportError` with a specific reason on anything it cannot read
+ *  or rebuild. */
 export function parseTripImport(text: string): ParsedTripImport {
-  const raw = text.trim()
-  if (!raw) throw new TripImportError('That file is empty.')
-  if (raw.startsWith(SNAPSHOT_PREFIX)) {
+  const found = readExport(text)
+  const report = emptyReport()
+
+  const trip = normalizeTrip(migrateTrip(found.trip, found.version), report)
+  if (!trip) {
+    // Nothing survived the coordinate wall. Say why, with the first example —
+    // this is the one case where the file cannot be made importable.
+    const first = report.droppedStops[0]
     throw new TripImportError(
-      'That is a snapshot-link payload, not a file export — open it as a link instead.',
+      first
+        ? `None of that file's stops could be placed on the map — starting with “${first.title}” (${first.reason}). Re-add the places from the map instead.`
+        : 'That export has no itinerary days — it is not a trip.',
     )
   }
 
-  let data: unknown
-  try {
-    data = JSON.parse(raw)
-  } catch {
-    throw new TripImportError('That file is not JSON.')
-  }
-  if (!isObject(data)) {
-    throw new TripImportError('That file is not a YatraFlow trip export.')
+  if (report.unknownKeys.length > 0) {
+    const shown = report.unknownKeys.slice(0, 3).join(', ')
+    const more = report.unknownKeys.length > 3 ? ` and ${report.unknownKeys.length - 3} more` : ''
+    report.warnings.push(`Fields nothing reads were ignored: ${shown}${more}.`)
   }
 
-  let source: Record<string, unknown>
-  let publication: PublicationDraft | undefined
-  let format: 'trip' | 'gallery'
-
-  if (isObject(data.trip)) {
-    // v2 — the gallery import format
-    source = data.trip
-    publication = isObject(data.publication) ? (data.publication as PublicationDraft) : undefined
-    format = 'gallery'
-  } else if (Array.isArray(data.days)) {
-    // v1 — a bare trip export
-    source = data
-    format = 'trip'
-  } else if (looksLikePublicationRow(data)) {
-    throw new TripImportError(
-      'That is a published-itinerary row, not a trip export — it carries no itinerary days.',
-    )
-  } else if (isObject(data.publication)) {
-    throw new TripImportError(
-      'That file has publish details but no `trip` block — it looks incomplete.',
-    )
-  } else {
-    throw new TripImportError('That export has no itinerary days — it is not a trip.')
-  }
-
-  const days = source.days
-  if (!Array.isArray(days) || days.length === 0) {
-    throw new TripImportError('That export has no itinerary days — it is not a trip.')
-  }
-  const badDay = days.findIndex(d => !isObject(d) || !Array.isArray(d.stops))
-  if (badDay >= 0) {
-    throw new TripImportError(
-      `Day ${badDay + 1} of that export has no stops list — the file looks truncated.`,
-    )
-  }
-
-  const destinations = list<string>(source.destinations).filter(d => typeof d === 'string')
-  const stopCount = days.reduce((n, d) => n + ((d as { stops: unknown[] }).stops.length), 0)
-
-  const trip = {
-    ...source,
-    // Placeholders: the store replaces all three and re-ids every nested row.
-    id: 'import-pending',
-    createdAt: 0,
-    updatedAt: 0,
-    name: str(source.name, 'Imported trip'),
-    startLocation: str(source.startLocation, destinations[0] ?? ''),
-    destinations,
-    startDate: str(source.startDate),
-    endDate: str(source.endDate),
-    travellers: num(source.travellers, 2),
-    transportMode: str(source.transportMode, 'car'),
-    budgetPerPersonInr: num(source.budgetPerPersonInr, 0),
-    travelStyle: str(source.travelStyle, 'balanced'),
-    // `buildTripCopy` maps both of these, so a missing key is a crash, not a
-    // nicety. A hand-written export often omits them.
-    fixedCommitments: list(source.fixedCommitments),
-    expenses: list(source.expenses),
-    days,
-    coverEmoji: str(source.coverEmoji, '🧭'),
-    // An import is the user's own private plan until they publish it. A v2
-    // file carries `visibility: 'public'` from the gallery; that must not
-    // decide anything here.
-    visibility: 'private',
-    // Assigned by the store, never taken from the file.
-    members: undefined,
-    inviteCode: undefined,
-    deletedAt: undefined,
-  } as unknown as Trip
-
-  const kind = format === 'gallery' ? 'gallery itinerary' : 'trip'
+  // "Gallery" is decided by the publication block, not by the envelope: a v2
+  // export of a private trip is an envelope with nothing to publish.
+  const isGallery = !!found.publication
+  const stopCount = trip.days.reduce((n, d) => n + d.stops.length, 0)
   return {
     trip,
-    publication,
-    format,
-    summary: `${days.length}-day ${kind}, ${stopCount} stops`,
+    publication: found.publication,
+    format: isGallery ? 'gallery' : 'trip',
+    summary: `${trip.days.length}-day ${isGallery ? 'gallery itinerary' : 'trip'}, ${stopCount} stops`,
+    version: found.version,
+    report,
   }
 }

@@ -1,4 +1,5 @@
 {
+  "formatVersion": 2,
   "trip": {
     "name": "Mewar Forts & the Blue City",
     "startLocation": "Udaipur, Rajasthan",
@@ -37,7 +38,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 0,
+            "orderInDay": 1,
             "notes": "Dal baati churma, gatte ki sabzi and a rooftop view of the palace wall"
           },
           {
@@ -51,7 +52,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 1,
+            "orderInDay": 2,
             "sourceUrl": "https://travelcoffee.in/blog/udaipur-itinerary-for-1-day",
             "notes": "₹400 for the palace museum ticket. The Crystal Gallery and the light-and-sound show are separate tickets, sold at the counter"
           },
@@ -66,7 +67,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 2,
+            "orderInDay": 3,
             "weatherSensitive": true,
             "sourceUrl": "https://udaipurtourism.co.in/lake-pichola-udaipur",
             "notes": "Day boats run about ₹400; the sunset slot costs more (₹600–800) and sells out first. The boat boards beside the palace"
@@ -82,7 +83,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 3,
+            "orderInDay": 4,
             "sourceUrl": "https://mytriptraveller.com/city-palace-udaipur-timings-2026/",
             "notes": "Puppets, ghoomar and the famous pot-balancing act, in the haveli courtyard every evening. Buy at the gate in the afternoon"
           },
@@ -91,13 +92,13 @@
             "title": "Night on the lake, Udaipur",
             "category": "hotel",
             "locationName": "Udaipur, Rajasthan",
-            "lat": 24.5761, "lng": 73.6836,
+            "lat": 24.5696, "lng": 73.6722,
             "visitMinutes": 30,
             "entryFeeInrPerPerson": 0,
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 4,
+            "orderInDay": 5,
             "notes": "Lal Ghat or Hanuman Ghat side — the palace is lit across the water from the roof"
           }
         ]
@@ -119,7 +120,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 0,
+            "orderInDay": 1,
             "notes": "No entry fee. Queues move fastest before 9 AM; phones and cameras stay outside, and the pichwai painting workshops behind the temple are the local craft"
           },
           {
@@ -127,13 +128,13 @@
             "title": "Lunch in Kumbhalgarh village",
             "category": "food",
             "locationName": "Kumbhalgarh, Rajsamand",
-            "lat": 25.1527, "lng": 73.5863,
+            "lat": 25.1481, "lng": 73.5827,
             "visitMinutes": 60,
             "entryFeeInrPerPerson": 0,
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 1,
+            "orderInDay": 2,
             "notes": "Eat before the climb — the only kitchens at the fort are at the gate village"
           },
           {
@@ -147,7 +148,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 2,
+            "orderInDay": 3,
             "weatherSensitive": true,
             "sourceUrl": "https://www.tourism.rajasthan.gov.in/kumbhalgarh-fort.html",
             "notes": "₹40 for Indian adults at the ASI gate. The wall runs 36 km along the ridge — Badal Mahal at the top is a 20-minute climb, and the last stretch is steep"
@@ -157,13 +158,13 @@
             "title": "Night below the fort",
             "category": "hotel",
             "locationName": "Kumbhalgarh, Rajsamand",
-            "lat": 25.1527, "lng": 73.5863,
+            "lat": 25.1481, "lng": 73.5827,
             "visitMinutes": 30,
             "entryFeeInrPerPerson": 0,
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 3,
+            "orderInDay": 4,
             "notes": "Resorts here sit in the forest belt around the fort — quiet, and the one place on this trip where you can see stars"
           }
         ]
@@ -185,7 +186,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 0,
+            "orderInDay": 1,
             "notes": "1,444 carved marble pillars, no two alike, and no entry fee — a camera or phone charge is collected at the counter. Shoulders and knees covered; no leather inside"
           },
           {
@@ -193,13 +194,13 @@
             "title": "Lunch at the temple complex",
             "category": "food",
             "locationName": "Ranakpur, Pali",
-            "lat": 25.116, "lng": 73.4719,
+            "lat": 25.1384, "lng": 73.4687,
             "visitMinutes": 60,
             "entryFeeInrPerPerson": 0,
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 1,
+            "orderInDay": 2,
             "notes": "The temple's own dining hall serves a simple vegetarian thali — it is the only reliable kitchen for miles"
           },
           {
@@ -207,13 +208,13 @@
             "title": "Slow afternoon and night at Ranakpur",
             "category": "hotel",
             "locationName": "Ranakpur, Pali",
-            "lat": 25.116, "lng": 73.4719,
+            "lat": 25.1384, "lng": 73.4687,
             "visitMinutes": 30,
             "entryFeeInrPerPerson": 0,
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 2,
+            "orderInDay": 3,
             "notes": "This is the trip's rest day on purpose: three fort days behind you, a long drive ahead, and a valley with nothing to tick off"
           }
         ]
@@ -235,7 +236,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 0,
+            "orderInDay": 1,
             "notes": "Makhaniya lassi and mirchi vada at the clock tower end — the market's own food, not the rooftop restaurants"
           },
           {
@@ -249,7 +250,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 1,
+            "orderInDay": 2,
             "notes": "Free to walk down into — a 1740s royal stepwell that the city cleaned up and handed back. A five-minute walk from the market, so it costs nothing after the drive"
           },
           {
@@ -263,7 +264,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 2,
+            "orderInDay": 3,
             "notes": "Stay inside the old wall near Nai Sarak — the blue lanes and the stepwell are a walk from the door"
           }
         ]
@@ -286,7 +287,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 0,
+            "orderInDay": 1,
             "sourceUrl": "https://www.mehrangarh.org/visit/mehrangarh-museum/",
             "notes": "₹200 for a domestic adult — the museum trust's own published rate, and ticket sales close at 17:00. The elevator is ₹50 one way; the ramp up is steep but the courtyards are worth the walk"
           },
@@ -301,7 +302,7 @@
             "transportCostInrTotal": 0,
             "priority": "nice-to-have",
             "status": "confirmed",
-            "orderInDay": 1,
+            "orderInDay": 2,
             "notes": "White marble beside the fort road, on the way back down — a small ticket is collected at the gate (see the ticket allowance)"
           },
           {
@@ -309,13 +310,13 @@
             "title": "Blue-city lanes on foot",
             "category": "sightseeing",
             "locationName": "Jodhpur, Rajasthan",
-            "lat": 26.298, "lng": 73.0184,
+            "lat": 26.2972, "lng": 73.023,
             "visitMinutes": 75,
             "entryFeeInrPerPerson": 0,
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 2,
+            "orderInDay": 3,
             "weatherSensitive": true,
             "notes": "The indigo houses cluster below the fort — Navchokiya is the photographers' lane, and locals will point you up the right one"
           },
@@ -324,13 +325,13 @@
             "title": "Last lunch in the old city",
             "category": "food",
             "locationName": "Jodhpur, Rajasthan",
-            "lat": 26.2948, "lng": 73.0239,
+            "lat": 26.2968, "lng": 73.0351,
             "visitMinutes": 60,
             "entryFeeInrPerPerson": 0,
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 3,
+            "orderInDay": 4,
             "notes": "Kachori and mirchi vada on the old-city side of the market — the last proper meal before the airport road"
           },
           {
@@ -344,7 +345,7 @@
             "transportCostInrTotal": 0,
             "priority": "nice-to-have",
             "status": "confirmed",
-            "orderInDay": 4,
+            "orderInDay": 5,
             "notes": "Spices, mojari slippers and bandhani — the last stop before the airport, twenty minutes away"
           }
         ]

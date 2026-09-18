@@ -1,8 +1,9 @@
-// ============ Earnings projection helper (pre-payments) ============
-// The Earnings tab's projection view runs on this arithmetic — pin it.
+// ============ Earnings helpers — actual sales (M7) + projection ============
+// The Earnings tab's two views run on this arithmetic — pin both.
 import { describe, it, expect } from 'vitest'
-import { projectEarnings, PROJECTED_PLATFORM_FEE_INR } from '../src/lib/earnings'
+import { projectEarnings, deriveActualSales, PROJECTED_PLATFORM_FEE_INR } from '../src/lib/earnings'
 import type { PublishedItinerary } from '../src/data/types'
+import type { Entitlement } from '../src/lib/payments'
 
 const pub = (over: Partial<PublishedItinerary>): PublishedItinerary => ({
   id: 'pub-x', tripId: 't1', creatorId: 'c1', title: 'Kerala', tagline: '',
@@ -42,5 +43,48 @@ describe('projectEarnings', () => {
     ])
     expect(r.rows.map(x => x.pubId)).toEqual(['high', 'low', 'none'])
     expect(r.rows.find(x => x.pubId === 'none')?.grossInr).toBe(0)
+  })
+})
+
+describe('deriveActualSales (I-11)', () => {
+  const ent = (over: Partial<Entitlement>): Entitlement => ({
+    id: 'e1', userId: 'buyer-1', pubId: 'a', orderId: 'o1', amountPaidInr: 199, grantedAt: 1000, ...over,
+  })
+
+  it('attributes each sale to its publication with the PAID amount, not the current price', () => {
+    const r = deriveActualSales(
+      [ent({ amountPaidInr: 199, grantedAt: 2000 }), ent({ id: 'e2', pubId: 'b', amountPaidInr: 149, grantedAt: 3000 })],
+      [pub({ id: 'a', title: 'Kerala', premiumPriceInr: 499 }), pub({ id: 'b', title: 'Goa', premiumPriceInr: 499 })],
+    )
+    // Newest first, and the snapshot (199/149) — the publication's current
+    // price (499) must not leak into the books.
+    expect(r.rows.map(x => x.pubId)).toEqual(['b', 'a'])
+    expect(r.rows.map(x => x.amountPaidInr)).toEqual([149, 199])
+    expect(r.grossInr).toBe(348)
+    expect(r.netInr).toBe(348 - 2 * PROJECTED_PLATFORM_FEE_INR)
+    // Sold pubs follow row order (newest sale's publication first).
+    expect(r.soldPubIds).toEqual(['b', 'a'])
+  })
+
+  it('titles sales from the creator\u2019s own publications, keeping orphans on the books', () => {
+    const r = deriveActualSales(
+      [ent({ pubId: 'gone' }), ent({ id: 'e2', pubId: 'a' })],
+      [pub({ id: 'a', title: 'Kerala' })],
+    )
+    expect(r.rows.find(x => x.pubId === 'a')?.title).toBe('Kerala')
+    // A publication unpublished/deleted after its sale must NOT vanish from
+
+
+
+
+    // the ledger — the id stands in for the title.
+    expect(r.rows.find(x => x.pubId === 'gone')?.title).toBe('gone')
+  })
+
+  it('an empty entitlement list is an honest zero ledger', () => {
+    const r = deriveActualSales([], [pub({ id: 'a' })])
+    expect(r.rows).toEqual([])
+    expect(r.grossInr).toBe(0)
+    expect(r.soldPubIds).toEqual([])
   })
 })

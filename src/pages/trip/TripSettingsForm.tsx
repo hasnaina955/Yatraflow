@@ -190,6 +190,7 @@ export function TripSettingsForm({ trip, editable }: { trip: Trip; editable: boo
                 onChange={v => setF(x => ({ ...x, startLocation: v }))}
                 onPick={p => setStartCoords({ lat: p.latitude, lng: p.longitude })}
                 placeholder="Search a city…"
+                disabled={!editable}
               />
             </Field>
             <Field label={`Destinations (${f.destinations.length})`} hint="Search to add — arrows reorder the route">
@@ -198,6 +199,7 @@ export function TripSettingsForm({ trip, editable }: { trip: Trip; editable: boo
                 onChange={setDestInput}
                 onPick={p => addDest(p.name + (p.admin1 ? `, ${p.admin1}` : ''), { lat: p.latitude, lng: p.longitude })}
                 placeholder={f.destinations.length ? 'Add another destination…' : 'Add your first destination…'}
+                disabled={!editable}
               />
               {f.destinations.length > 0 && (
                 <div className="dest-chips">

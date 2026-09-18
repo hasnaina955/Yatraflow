@@ -32,11 +32,13 @@ Key locations:
 - `tests/` — vitest in **node env (no DOM)** — test pure logic, not DOM
 - CHANGELOG.md — Keep-a-Changelog-style; versions are pre-1.0 milestones
 
-## 1.1 Current project status (as of Sep 17, 2026)
+## 1.1 Current project status (as of Sep 18, 2026)
 
-**Version:** v0.59.1 — the span-indexing fix (2026-09-17), cut on `test` and awaiting promotion; `main` carries v0.59.0, the corridor-measurement release (promoted 2026-09-17, **PR #247**, `main` at `b4f0a18`). Its scope: the corridor span measurement no longer hands a leg its neighbour's result, so a cached leg inside the span cannot truncate the drawn route or poison a later measurement's cache entry. The v0.59.0 content stands: corridor-wide road measurement replaces per-leg requests, the day filter measures only the day on screen, and copied public itinerary addresses keep their trip-specific previews with navigation that works in any tab. The v0.58.0 content stands: a publication without a cover now previews with a branded 1200×630 card (`public/og-default.png`, emitted by `api/i.js` as a fallback and advertised by the shell too), and auto-picked Wikipedia covers are sized through Wikimedia's own resize endpoint instead of shipping the unscaled upload — measured at 144–406 KB where the originals were 1300–3300 KB, which is what the 600 KB WhatsApp documents for `og:image` requires. The v0.57.0 content stands: a published itinerary link previews as a card (`/i/<id>` answered by `api/i.js` with that itinerary's own Open Graph tags, then the hash route), trip JSON imports in one step from My Trips in both formats the repo ships, permanent user deletion in the masteradmin console, the offline companion's routing collisions fixed, and per-route browser-tab titles. The v0.56.0 content stands: the six-phase settings-wiring audit (issue #213) is fully landed (PRs #219/#220/#221) — Trip settings as the eighth workspace tab, the four party/vehicle fields persisted through `20260915_trip_party_prefs.sql`, `CACHE_VERSION` 3→4, `MapTab`'s verdicts re-deriving on `trip`/`dayWeatherCode`, `roadChainSig`, and honest numeric defaults for non-car vehicles. `npm run verify` gate: tsc clean + **1205 tests** (104 files) + production build.
+**Version:** **v0.61.0** — the money release (2026-09-18): a priced publication can actually be bought, with the paywall enforced at the wire rather than in the browser (the price read from the publication row server-side, the unlock granted only through a buyer-scoped RPC or the idempotent webhook, and a confirmed-but-unsaved purchase recovered rather than charged twice); a versioned itinerary format whose importer migrates and repairs an older export instead of refusing it; the crew-facing access rules pinned by an opt-in suite that runs against the live database (M6, #237); and the two public surfaces' own pass. Cut on `test` on 2026-09-18 for promotion to `main`. It follows **v0.60.0**, the whole-app refinement pass (every route reviewed against its own design language and fixed in place; merged to `test` in PR #257), which took the design-system ratchet to `7 / 0 / 28 / 29 / 1` — no known dark-theme contrast violation left.
 
-**State:** Stabilization complete; the v0.40-era 32-finding UI audit AND the deeper #107 tracker are fixed to the floor (**117/117 boxes closed** — every finding carries a verdict; the owner-decision rows are the budget palette kept as authored, the board touch-tooltips product call, and two documented conventions). Device-check flags open on hardware only: 3D map-mode frame rate on a mid-range Android, Liberty label density at phone width, Landing scroll after the attachment change. The Corridor Concierge suggestion-engine brainstorm is FULLY shipped (Horizons 1–3, 16/16) — see ROADMAP's 🧭 table. v0.47.0's soft-delete backend is applied live (probe-verified: `trips.deleted_at` exists on the production project; the `get_trashed_trips` RPC is present with authenticated-only EXECUTE — the anon call returns `42501 permission denied`, not PGRST202). Branch model stays two-branch: `main` (production, Vercel) and `test` (integration). `npm run verify` gate: tsc clean + **1205 tests** (104 files) + production build.
+**Previous version:** v0.59.1 — the span-indexing fix (2026-09-17), promoted to `main` on 2026-09-17 (**PR #248**, `main` at `1d1b85f`); v0.59.0 was the corridor-measurement release (promoted 2026-09-17, **PR #247**, `main` at `b4f0a18`). Its scope: the corridor span measurement no longer hands a leg its neighbour's result, so a cached leg inside the span cannot truncate the drawn route or poison a later measurement's cache entry. The v0.59.0 content stands: corridor-wide road measurement replaces per-leg requests, the day filter measures only the day on screen, and copied public itinerary addresses keep their trip-specific previews with navigation that works in any tab. The v0.58.0 content stands: a publication without a cover now previews with a branded 1200×630 card (`public/og-default.png`, emitted by `api/i.js` as a fallback and advertised by the shell too), and auto-picked Wikipedia covers are sized through Wikimedia's own resize endpoint instead of shipping the unscaled upload — measured at 144–406 KB where the originals were 1300–3300 KB, which is what the 600 KB WhatsApp documents for `og:image` requires. The v0.57.0 content stands: a published itinerary link previews as a card (`/i/<id>` answered by `api/i.js` with that itinerary's own Open Graph tags, then the hash route), trip JSON imports in one step from My Trips in both formats the repo ships, permanent user deletion in the masteradmin console, the offline companion's routing collisions fixed, and per-route browser-tab titles. The v0.56.0 content stands: the six-phase settings-wiring audit (issue #213) is fully landed (PRs #219/#220/#221) — Trip settings as the eighth workspace tab, the four party/vehicle fields persisted through `20260915_trip_party_prefs.sql`, `CACHE_VERSION` 3→4, `MapTab`'s verdicts re-deriving on `trip`/`dayWeatherCode`, `roadChainSig`, and honest numeric defaults for non-car vehicles. `npm run verify` gate: tsc clean + **1390 tests** (115 files) + production build.
+
+**State:** Stabilization complete; the v0.40-era 32-finding UI audit AND the deeper #107 tracker are fixed to the floor (**117/117 boxes closed** — every finding carries a verdict; the owner-decision rows are the budget palette kept as authored, the board touch-tooltips product call, and two documented conventions). Device-check flags open on hardware only: 3D map-mode frame rate on a mid-range Android, Liberty label density at phone width, Landing scroll after the attachment change. The Corridor Concierge suggestion-engine brainstorm is FULLY shipped (Horizons 1–3, 16/16) — see ROADMAP's 🧭 table. v0.47.0's soft-delete backend is applied live (probe-verified: `trips.deleted_at` exists on the production project; the `get_trashed_trips` RPC is present with authenticated-only EXECUTE — the anon call returns `42501 permission denied`, not PGRST202). Branch model stays two-branch: `main` (production, Vercel) and `test` (integration). `npm run verify` gate: tsc clean + **1390 tests** (115 files) + production build.
 
 > **A partial patch vs a full-Trip patch through `updateTrip` needs different handling (learned 2026-09-11).** The settings form passes a partial patch while the impact-preview flow passes a whole `Trip` (whose dates are always truthy). Any gate shaped like `if (patch.startDate || …)` fires on every Keep; reconciliation must compare resolved dates against the cache and reconcile the *incoming* days. The two `reconcile-days.test.ts` full-Trip regression tests pin this — they fail on the old code.
 
@@ -48,6 +50,7 @@ Key locations:
 
 
 **Recent major releases:**
+- **v0.60.0** — Whole-app refinement: a route-by-route review of every surface, fixed in place — mobile layouts that scrolled sideways, the Timeline's up/down arrows that never moved a stop, the Create-Trip calendar painted under the dock, forced-dark cards whose gradient flipped near-white and stranded white text, decorative loops that never stopped offscreen, controls below the 40px touch floor, scroll regions no keyboard could enter, the AI drawer's focus and modality, and three product claims (free-forever pricing, local-only storage, "Verified creator") corrected to match the product
 - **v0.59.1** — Span measurement gives every leg its own result: a cached leg inside the corridor span can no longer hand its geometry to the leg after it or poison that leg's cache entry
 - **v0.59.0** — One measurement per corridor: road measurement batches the waypoint chain, the day filter measures only the day on screen, and copied public itinerary addresses keep their trip-specific previews with navigation that works in any tab
 - **v0.58.0** — Share card: a publication with no cover previews with a branded 1200×630 card that the shell advertises too, and auto-picked Wikipedia covers are resized through Wikimedia's own endpoint, so a shared link stops carrying a multi-megabyte image
@@ -74,7 +77,7 @@ Key locations:
 - **v0.35.0** — Publish editor (preview/price/CTA), fork premium gate, creator mode, sourcemaps
 - **v0.31.0** — M0–M7 Calm Travel Intelligence redesign shipped (user-driven halt planner, 3-layer tokens, OpenFreeMap basemap, touch drag-and-drop)
 
-**Current branch:** `test` is the integration branch and carries **v0.59.1** — cut 2026-09-17, promotion pending. **`main` carries v0.59.0**, promoted on 2026-09-17 (**PR #247**, `main` at `b4f0a18`); **v0.58.0** was the share-card release, promoted 2026-09-17 (**PR #245**, `main` at `cf1c289`). The v0.59.0 work is corridor-wide road measurement, day-scoped measurement, and public addresses that preserve trip-specific previews with navigation that works in any tab. **v0.57.0** was promoted on 2026-09-17 (**PR #244**, `main` at `43c839f`); **v0.56.0** was the settings-integrity release (promoted 2026-09-16, **PR #223**, `main` at `f314b25`). The v0.58.0 work is the share card (`public/og-default.png` plus the `api/i.js` fallback and the shell's own `og:image`) and the Wikimedia cover sizing in `lib/tripThumb.ts`. The v0.57.0 work is the itinerary preview endpoint (`api/i.js` plus the `/i/:id` rewrite that makes a shared link preview as a card), the one-step trip-JSON import, per-route browser-tab titles, the offline companion's routing fixes, and permanent user deletion (**PR #225** — its `admin_delete_user` RPC stays migration-gated on `20260916_admin_delete_user.sql`). The v0.56.0 cycle's own PRs: **#219** (the Settings tab split + propagation fixes, #213 Phases 1–4), **#220** (Create↔Settings parity + numeric defaults, Phases 5+6) and **#221** (the audit docs + ROADMAP queue refresh).
+**Current branch:** the v0.60.0 refinement pass is complete on `audit/ui-complete-2026-09`, PR pending into `test` (nothing pushed). `test` is the integration branch and carries **v0.59.1**, promoted to `main` on 2026-09-17 (**PR #248**, `main` at `1d1b85f`). **v0.59.0** was the corridor-measurement release, promoted 2026-09-17 (**PR #247**, `main` at `b4f0a18`); **v0.58.0** was the share-card release, promoted 2026-09-17 (**PR #245**, `main` at `cf1c289`). The v0.59.0 work is corridor-wide road measurement, day-scoped measurement, and public addresses that preserve trip-specific previews with navigation that works in any tab. **v0.57.0** was promoted on 2026-09-17 (**PR #244**, `main` at `43c839f`); **v0.56.0** was the settings-integrity release (promoted 2026-09-16, **PR #223**, `main` at `f314b25`). The v0.58.0 work is the share card (`public/og-default.png` plus the `api/i.js` fallback and the shell's own `og:image`) and the Wikimedia cover sizing in `lib/tripThumb.ts`. The v0.57.0 work is the itinerary preview endpoint (`api/i.js` plus the `/i/:id` rewrite that makes a shared link preview as a card), the one-step trip-JSON import, per-route browser-tab titles, the offline companion's routing fixes, and permanent user deletion (**PR #225** — its `admin_delete_user` RPC stays migration-gated on `20260916_admin_delete_user.sql`). The v0.56.0 cycle's own PRs: **#219** (the Settings tab split + propagation fixes, #213 Phases 1–4), **#220** (Create↔Settings parity + numeric defaults, Phases 5+6) and **#221** (the audit docs + ROADMAP queue refresh).
 
 > **Resolved (2026-09-17): the polyline/routing batch and the commercial docs have both landed.** The 2026-09-16 correction this note replaces is obsolete — **PR #224** merged into `test` on 2026-09-17 (`dbd557a`), so `5a8cfd5`, `1125227`, `f4ed706`, `4b2286b`, `146de3d` and `e72810f` are now ancestors of `origin/test` (re-verify with `git merge-base --is-ancestor <sha> origin/test`), and **#214** landed the same day (`d897d53`), putting the commercial docs under `docs/commercial/`. **PR #235** remains **CLOSED as superseded** (2026-09-17): both of its halves — the link-preview endpoint and the trip-JSON import — landed on `test` in a simpler form (`d5a3842`, `f625387`, `7079688`), and its own `api/i.js`/`shareUrl.ts` must not be merged over them; the branch is kept as archaeology. Re-check drift before each push (see the branch note in the State paragraph above).
 
@@ -82,6 +85,7 @@ Key locations:
 
 **In-flight:**
 - **Rebrand (issue #96) — ARCHIVED 2026-09-15: no need or plan to rename.** The seam exists on `refactor/brand-seam` (one source of truth for the product name across 21 files incl. `vite.config.ts`) and is kept as archaeology, not as pending work. If it is ever revived: the Android shell has brand-adjacent fields (`appId` `app.yatraflow.mobile`, `versionName`, APK artifact naming) and an `appId` change **breaks updates over existing installs**, so that cut must be planned deliberately. The landing-page experiment on `explore/landing-hero-local` is unrelated to this decision
+- **v0.60.0 refinement pass is complete and awaiting review** — branch `audit/ui-complete-2026-09`, PR pending into `test`, nothing pushed. Two scoped items were deliberately *not* executed, both recorded in ROADMAP's Idea bank: `overdrive` on its four authored surfaces (**I-18** — its contract requires 2–3 directions to be presented and one picked before any code) and theming `::selection`/`caret-color` (**I-17** — a feel change rather than a defect, and the baseline's line-keyed entries must be re-mapped with it)
 - Untracked working-tree noise: `.freebuff/` (tool-generated, not repo) — harmless, do not commit
 - Release tags stop at **`v0.54.0`** (checked 2026-09-16, `git tag --sort=-creatordate`): `v0.55.0` and `v0.56.0` both shipped untagged, joining v0.42.0 and v0.45–v0.48. `v0.49.0` is the one carrying its APK on the GitHub release. Backfill optional
 - The `shabtab` fork remote is **present again** (checked 2026-09-16: `git remote -v` lists it beside `origin`, and a plain `git fetch --all` reaches it) — re-adding it is no longer needed. It carries its own day-route line, latest `ae581f3` (2026-09-12)
@@ -137,10 +141,14 @@ Key locations:
    hypothesis until the commit hash exists. Never re-report status from
    memory; re-derive it from the repo.
  6a. **Async operations need input guards.** The AI drawer's `ask()` function had no protection against rapid re-submission during its 650ms processing delay — users could trigger duplicate questions. Fix: `disabled={thinking}` on input and button. When adding async paths (API calls, simulated latency, data processing), always disable user inputs to prevent race conditions, duplicate requests, or state inconsistency. The guard should match the visual feedback state (spinner, disabled button, etc.).
+ 6b. **A release cut is not done until every change in it has a CHANGELOG entry — check coverage, not just the heading.** The v0.60.0 refinement pass ran 20 commits and only 10 of them touched `CHANGELOG.md`, so the release was about to go out describing the first half of its own work — while the plan document recording that work also stopped mid-way and read as finished. Both artifacts agreed with each other and neither agreed with `git log`. Before cutting a release, diff the two lists — `git log --oneline <base>..HEAD -- CHANGELOG.md` against `git log --oneline <base>..HEAD` — and account for every commit: it has a bullet, or it is genuinely invisible to a user (a doc reconciliation, a de-duplication, a test-only change). The entries are also where a superseded claim gets *edited* rather than appended, so that diff is the audit.
 7. **When asking the user to review/test locally, always hand them the exact
    URL — never make them find or start the server.** Check if the dev server
    is up (probe `http://localhost:5173`); if not, start `npm run dev`
-   detached (`Start-Process npm.cmd -ArgumentList 'run','dev'`). Confirm it
+   detached (`Start-Process npm.cmd -ArgumentList 'run','dev'` in PowerShell,
+   or from Git Bash `nohup npm run dev -- --port 5173 --strictPort > /tmp/dev.log
+   2>&1 &` — the durable form, since a harness `BACKGROUND` mode may not exist
+   and a plain `&` alone can leave the tool waiting on the pipe). Confirm it
    serves *this* working tree before linking (fetch
    `http://localhost:5173/src/styles.css` and grep for a token/marker that
    only exists in the current branch's changes — a stale server from another
@@ -153,7 +161,18 @@ Key locations:
    fresh, then re-grep the markers before handing over the URL. Then give
    deep links per screen (e.g. `http://localhost:5173/#/` for Landing,
    `http://localhost:5173/#/trips` for My Trips) and say what to check
-   (themes, mobile width, specific interactions).
+   (themes, mobile width, specific interactions). **"Serving this tree" is not
+   "serving it with a backend":** a dev server started before `.env.local`
+   existed (or from another clone of the repo) serves the current source and
+   still renders blind — the console reports *"No Supabase project compiled
+   into this build"* and every data surface sits on `Loading…` with
+   `hydrate … failed`, which reads exactly like a broken product. Before
+   handing over a URL, prove the backend is compiled in by grepping the served
+   client for the project ref
+   (`curl -s http://localhost:PORT/src/lib/supabase.ts | grep -o <ref>`) and
+   start a fresh server if it comes back empty; the `localhost:54321` fallback
+   string is in every bundle, so it discriminates nothing. (Found 2026-09-17:
+   the long-running 5173 server had no Supabase project compiled in at all.)
 8. **Build locally first; confirm the target branch before every push.** A feature
    or fix is always implemented and verified (`npm run verify`) on the current
    local branch before any push is even discussed. When the work is ready, tell
@@ -185,6 +204,12 @@ Key locations:
    rules. This exists because the long-refined surfaces (Timeline, Board) feel
    smooth while newer additions shipped motion-less — the gap only stays
    closed if motion is part of "done" for every update.
+
+11. **Work stays locally committed until it is complete and the localhost check
+   is satisfactory.** Commit as work lands on the working branch; a push is the
+   last step of a finished batch, never the end of each fix or review pass. The
+   author decides when a batch is finished and testable, and says so before any
+   push (user-mandated 2026-09-17).
 
 
 ## 3. Verification before every push
@@ -311,6 +336,24 @@ Hard rules (each learned the hard way — do not relearn them):
   assigned in one entry is empty in the next, so multi-step probes silently
   return nothing and look like failures. Put a dependent pipeline in a single
   command string, with `try/finally` whenever it touches real files.
+- **A screenshot pass runs one browser command per tool call, and never
+  wrapped in a shell `timeout`.** An `agent-browser` call that chains `open` +
+  `wait` + `screenshot` + `eval` exhausted the call budget and the harness
+  returned **no output at all** (not partial stdout), which reads exactly like
+  a hung CLI; the same commands, one per call, all returned in seconds. A
+  `timeout` wrapper makes it worse, not safer: killing the CLI leaves its
+  browser child holding the pipe, so the call hangs to the tool's own limit
+  anyway. And a *brand-new* session's first command really is slow — a cold
+  browser launch outlived a 280 s call — so start that one detached
+  (`nohup agent-browser open <url> > /tmp/ab.log 2>&1 &`), poll the log, then
+  reuse the warm session. Three companions: relative screenshot paths are
+  ignored — they land in `~/.agent-browser/tmp/screenshots/` whatever you pass,
+  so hand it an absolute path; a cold Vite transform is what makes the *page*
+  slow, so warm the route *and its modules* with `curl` first; and
+  `transferSize` reads 0 on cross-origin images (Wikimedia exposes no resource
+  timing), so prove a cover's weight from the origin
+  (`curl -w '%{size_download}'` on the `src` the DOM actually rendered) rather
+  than from `performance.getEntriesByType('resource')`.
 - **`str_replace` can report a real, existing file as missing** (`package-lock.json`,
   ~160 KB, during the v0.55.0 cut) — fall back to a targeted `sed -i` and verify
   with grep before moving on. Related: Vercel Agent opens its PRs as **drafts**;
@@ -396,7 +439,18 @@ changes flip suites that pass in isolation. The routing tests pin their env
 and clear caches per file for exactly this reason; when a rerun goes green,
 name the mechanism or keep reproducing — never just re-run until green.
 
+**A verify that fails with `Errors 1` while every test passes is the worker-teardown race, not a failure — read the summary line before the conclusion.** On `test`
+(2026-09-18, the v0.60.0 merge) the gate printed **1353 passed, 1 error** and exited 1:
+one unhandled rejection, `EnvironmentTeardownError: [vitest-worker]: Closing rpc while
+"onUserConsoleLog" was pending`, attributed to `tests/store-robustness.test.ts` and
+preceded by that file's own console logging. Nothing asserted false — the worker's RPC
+channel closed with a log message still in flight, and the re-run of the same commit was
+green. `N passed` + `Errors 1` is this race (a real failure shows `N failed`); re-run the
+job, and name this mechanism rather than reaching for "flaky".
+
 ## 4. Code conventions & pitfalls
+
+- **A drawn layer and a marker layer must share their source, or the line will touch points nothing marks.** The Map tab draws a selected day's engine journey (`buildJourney` — which can open at the previous night's stop and close at a synthesized destination or the ride home) while its pins come only from that day's *stored* stops. A route end could therefore sit on a bare spot and read as "the route stops" — a real report on 2026-09-17, where the line proved complete (3,481 road points ending exactly at the engine's endpoints) and only the marker was missing. Synthesized journey endpoints now get their own pin, deduplicated through `coLocates` (< 1 km); `lib/journeyMarkers.ts` is that seam. When two layers derive from different data, walk the drawn geometry's endpoints and assert every one is marked.
 
 - **A span request's results are indexed by span offset, not by missing-leg position.** `routePath` measures ONE span covering the `first..last` *uncached* leg — which necessarily includes any cached legs inside it — so `missing[k]` and `chainLegs[k]` are different legs the moment there is a hole. Indexing by `k` handed the tail leg its neighbour's geometry **and** cached it under the neighbour's key, so the corruption outlived the draw (the symptom was a route that visibly stopped early, #polylines). Cached holes are this design's normal state, not an edge case — the leg cache is deliberately shared between the whole-trip chain and each day's ride — so every span-assignment change needs a test with a hole *between* two misses, not a cold cache or a single missing leg.
 
@@ -434,6 +488,27 @@ name the mechanism or keep reproducing — never just re-run until green.
   (210 > 200): a transient toast must never cover the Keep/Remove controls. Corollary: container-size changes need
   no manual `map.resize()` — mapcn's wrapper already runs a ResizeObserver
   that re-fits the canvas (map.tsx).
+- **A popup's stacking rung is decided by its HOST, not by the popup.** A `position: relative`
+  block that carries a `z-index` becomes a stacking context, so every descendant — including an
+  absolutely-positioned calendar or dropdown sitting at a high rung of its own — paints at the
+  BLOCK's rung. The Create-Trip calendar declared `z-index: 60` inside a host pinned at `2`, so
+  the whole popup painted under the fixed bottom dock (55) and its lower rows were unclickable
+  on a phone. Raise the host, not the popup. Verify by **hit-testing**, never by reading
+  z-indexes: `document.elementFromPoint()` at the overlap must return the popup's own child.
+- **`scrollWidth` is not evidence of a horizontal-scroll defect.** `html { overflow-x: clip }`
+  (this file's chosen answer for decorative bleed) lets the document report a scrollWidth far
+  wider than the viewport while `scrollLeft` stays `0` — the landing page measures ~600px at a
+  390px viewport purely from the destination marquee's offscreen track. Test what the user
+  actually experiences: `canScrollRight` (set `scrollLeft = 9999`, read it back) plus, per
+  element, whether its right edge passes the viewport **without a clipping ancestor**. The same
+  clip cuts both ways: overflowing content is unreachable rather than scrollable, so a
+  clipped-but-wide layout HIDES controls instead of exposing them. (Both faces of this were
+  live: the marquee was a false positive, the `.two-col` blowout a real one.)
+- **An absolutely-positioned child needs a positioned ancestor in EVERY class variant.** One
+  shared child (`CoverThumb`'s `.itin-cover-fallback`) is `position: absolute; inset: 0`, but
+  only the wide `.itin-cover` variant declared `position: relative` — so the short `.itin-emoji`
+  variant let the fallback escape its box and paint over the card's title. When a child is
+  positioned, grep every parent variant for the containing block.
 - **Basemaps are OpenFreeMap (keyless, commercial-OK) — never reintroduce CARTO
   or Esri tiles.** `mapcn/map.tsx` `defaultStyles` =
   `https://tiles.openfreemap.org/styles/{positron,dark}`. Their `style.json`
@@ -485,7 +560,22 @@ name the mechanism or keep reproducing — never just re-run until green.
 - **A surface that RANKS or ANNOTATES by coordinates before any pick cannot consume "resolve-on-pick" placeholders — it needs a real-coords search.** The Map tab's search-to-add box used `searchPlaces` (Google autocomplete), whose hits are deliberately `(0,0)` placeholders — the quota economy is one Place Details call per *picked* row. But that box projects every hit onto the route to label/rank it, so all five results measured Null Island and rendered the identical "~1675 km into the trip · 8448 km off-route" — the tell that a ranking surface ignores hit coords entirely is *equal annotations on different hits*. Fix: `searchPlacesText` (one free-form Text Search Pro event, real locations in the same single call the corridor scan already pays; coord-less stragglers resolved-or-dropped; `QuotaExhaustedError` rethrown to an honest toast). Rule of thumb: **autocomplete for pick-one inputs, Text Search for rank-everything surfaces** — don't "reuse" the cheaper SKU on a surface whose math needs coordinates it doesn't have. (Found live 2026-09-14.)
 - **A directive that reverses behavior must sweep its own strings in the same commit.** When the Google-only directive landed, `QuotaExhaustedError` still said *"falling back to the free stack"* and the quota-guard header still described the old fallback — the code had changed, its self-description lied. When reversing any behavior, grep for the OLD behavior's phrasing in error messages, comments, README, and ARCHITECTURE (this bit us once per surface: message, quota.ts header, geocode docstring).
 
-- **A mechanical CSS gate only sees pairs declared in ONE rule.** The design-system contrast gate skips color-only overrides (`.x--warn { color: … }` on a separate background rule) — a 3.65:1 warn-on-white shipped straight past it (#152). When styling new UI, add explicit AA pins for any warn/tone pair your surface paints (#154's `map-rail warn ink` test is the pattern), and remember the baseline keys entries on **line numbers** — inserting CSS shifts them and fails the gate with phantom "new violations"; re-map the numbers (or `UPDATE_DESIGN_SYSTEM_BASELINE=1`) and diff to confirm nothing but line numbers moved.
+- **A mechanical CSS gate only sees pairs declared in ONE rule.** The design-system contrast gate skips color-only overrides (`.x--warn { color: … }` on a separate background rule) — a 3.65:1 warn-on-white shipped straight past it (#152). When styling new UI, add explicit AA pins for any warn/tone pair your surface paints (#154's `map-rail warn ink` test is the pattern), and remember the baseline keys entries on **line numbers** — inserting CSS shifts them and fails the gate with phantom "new violations"; re-map  the numbers (or `UPDATE_DESIGN_SYSTEM_BASELINE=1`) and diff to confirm nothing but line numbers moved.
+- **The overlay measures an element's DECLARED background, not the composite — flatten before believing a
+  contrast finding on a layered surface.** Its report of `PublicItinerary`'s hero at 2.6–3.1:1 was against
+  `.pub-hero`'s own gradient end stop (`#b97a3f` at 118%), not the pixels behind the kicker/title/byline:
+  the numbers were **bit-identical** after adding a scrim to the child `.pub-hero-bg` layer, and vanished
+  only when `.pub-hero`'s own background was replaced. Discriminate with that test (flatten the element,
+  re-inject, compare) before acting — a child/sibling layer is invisible to the rule. The *risk* it pointed
+  at was real and now bounded: `.pub-hero-photo` is a creator upload at `opacity: .42` with nothing
+  guaranteeing a floor, so a bright cover could pull the hero text toward ~3:1; the flat scrim added over
+  the text zone plus `tests/hero-contrast.test.ts` (which composites the scrim over a **white** photo — the
+  conservative worst case) close it. Triage the output generally: that page's 61 findings held 21
+  `nested-cards` for **4** real ones (measured, depth 1), 4 `line-length` that prose measurements did not
+  reproduce, `all-caps-body` on `.pub-hero-byline` (a deliberate uppercase byline), and ~18 that are this
+  repo's deliberate system — now listed in `.impeccable/critique/ignore.md`. Setup: mutation preflight,
+  `impeccable live-server --background`, inject `http://localhost:PORT/detect.js`, `live-server stop`
+  (its `config_missing` warning is expected when you injected by hand) — `index.html` stays byte-clean.
 - **A derived input that algebraically cancels is a constant in disguise.** Road personality's "per-window speed" was `windowKm / (driveMinutes × windowKm / totalKm / 60)` — the `windowKm` cancels, leaving the day's average painted on every window, and the tests then codified the wrong semantics. When a derived value cancels to something coarser than its name implies, stop and either compute the real signal (per-leg durations from OSRM) or move the verdict to the level it actually measures (day-average → explicit day-level check, as now done for the city-crawl kind).
 
 - **Never subtract one engine's route total from another engine's internal legs.** Google's Search-Along-Route `routingSummaries` route start→place→end independently of the polyline, so `(leg0 + leg1) − <route total measured by anything else>` inflates by the two engines' route-variant difference: **+47 km on a 1,400 km corridor** (a highway petrol pump read "50 km off", torching the detour budget and holding back See & do) but only ~1–3 km — plausible-looking — on the short corridors used in earlier testing, which is how it hid for weeks. `routesEnabled()` only checks that a key string exists, so an un-enabled Routes API (HTTP 404) silently fell back to OSRM totals while the summaries stayed Google-baselined. SAR detours are now the geometric spur against the same polyline the search ran on (`spurKm`, google.ts); leg0 remains the road position. The invariant to pin in any future detour source: **a place on the drawn road must read ≈0**, and it must hold on a 1,000+ km corridor, not a 50 km fixture. (#187)
@@ -501,6 +591,16 @@ name the mechanism or keep reproducing — never just re-run until green.
 - **A provider that degrades internally must be checked for QUALITY, not just for throwing.** `routePath` never rejects: on an OSRM failure it returns haversine `estimate` legs (by design — "planning never blocks"), so the `.catch()` handlers around it could not see a rate-limited day at all. The code drew straight chords and treated them as a measured road, and the symptoms ("no retry", starved suggestions) read as provider flakiness rather than a swallowed failure. The road measurement now grades the RESULT (`legs.some(l => l.source !== 'estimate')`) and retries once on an all-estimate chain. When wrapping a facade that swallows its own failures, assert on the degraded output (a `source` field, a flag, a sentinel) — a rejection you never receive is not a failure signal. (#188)
 
 - **A duplicated measurement needs a WIRING test, not just a unit test.** #184 unified MapTab → TripMap and its acceptance asked for a fetch counter "per map open"; the workspace kept its own `routePath` chain anyway, because nothing asserted WHERE the measurement happens — tsc, tests and build all stayed green with two callers, and the duplicate doubled the load that caused the failures it was fixing. The pin is a source invariant (`tests/trip-road.test.ts`): the map surface must not call `routePath`, the workspace must measure through `tripRoad`, and that module owns exactly one call. Same shape as route-integrity / mobile-shell — cheap, and it fails the moment a second caller appears.
+
+- **A gate that validates VALUES cannot see a defect in the RELATIONSHIP between them — and a wrong map is how it shows up.** Six shelf itineraries passed the validator and the golden engine test while 27 coordinates were shared between different places (a four-stop Gulmarg day sat on one point), because every individual coordinate was valid India-range data. The map then drew one marker where the timeline listed four and the route appeared to end at an unmarked spot, which reads as "the importer lost a stop" rather than "two rows share a number". When two layers are derived from different data, check the *relationships* too — uniqueness, distinctness, cross-references — and give the rule a mechanical form so it can be checked: a coordinate may carry at most two stops and one of them must be `food`/`hotel`/`rest` (a meal at the place you sleep is one place; anything else is a geocode shortcut). The gate must print the offending cluster with its titles — that list IS the fix list. (Found live 2026-09-18, on the first import of a shelf file into the app.)
+
+- **A prose contract and the code can disagree for months without a single failure — grep the convention, don't trust the doc.** `ITINERARY-IMPORT-SPEC.md` stated `orderInDay` was 0-based while `createTrip`, `addStop`, the Board and the Timeline all write `i + 1`. Sorting hides it completely (both orders sort identically), so nothing broke and nobody noticed. Before writing a rule into a spec — or believing one already there — confirm it against the implementation that would have to satisfy it; a falsy `0` in an ordering field is also a latent presence-check trap. The importer now renumbers from any base and the validator requires the app's own.
+
+- **A format that evolves needs a declared version, a pure migration chain and a repair report — and the runtime reader and the offline gate are deliberately different policies.** Import must never reject what it can fix: it reads `formatVersion`, walks `MIGRATIONS` to the current shape, then normalizes (1-based renumbering, day `index` to position, honest numeric defaults, duplicate ids re-issued, dates reconciled to the day count) and reports every intervention as a one-line digest rather than a stack trace. A file claiming a *newer* version is refused with the reason, never half-read. The offline validator stays strict — a file *you* author should fail before it ships, a file a *user* hands the app should import as cleanly as possible. Corollary: the wire version is file metadata, so strip it before the trip's unknown-key allowlist sees it (`formatVersion` on a bare trip warned about "a field nothing reads" until 2026-09-18), and pin the convergence property — exporting what was just imported must produce the same shape, ignoring the session-local `imp_*` ids.
+
+- **Never rewrite JSON with a text regex you cannot count.** A pass that added 1 to every `orderInDay` via a pattern requiring a trailing comma silently skipped the last key of each object, and a bulk rewrite of a data file has no type to catch it — the file still parses, it is just partly un-migrated. Prefer repairing through the parser (`JSON.parse`/`stringify`) or, when the raw text must be preserved for a minimal diff, assert the replacement count against the parsed count and re-validate afterwards. Same family as rule 9's changelog rewrites.
+
+- **A day's END is not a free variable — a reorder that moves a night's base rewrites the next morning.** `dayEndPosition` returns a day's last *stored* stop and `originOf(next day)` walks forward through it, so anything that moves the tail moves where tomorrow starts. Optimise-day pinned only `auto` stops (engine-synthesized waypoints) and never a stored hotel, so on the six shelf itineraries **21 of 32 optimisable days had their tail replaced, 18 of them the night's base, and 14 day-pairs shifted the next wake-up point — worst 16.3 km** (sleep in Candolim, plan the morning from the Basilica). A `hotel`/`rest` stop at the tail is now an implicit anchor. Two rules for any future reorder surface: **(1) before treating a stored value as movable, ask which other days are DERIVED from it** — endpoints, origins, roll-ups; **(2) a warning count is not a safety net** — optimising every shelf day moved Coorg 2→4 warnings but Goa **1→0**, silently dropping the only flag while the endpoint had moved 16 km. Test the property, not the symptom: assert `originOf(next day)` is unchanged after the reorder, which is what caught it. (Found 2026-09-18.)
 
 - **A11y contrast claims get computed, not eyeballed.** Issue #64 claimed sub-AA tab contrast; the WCAG luminance math showed 7.53:1 dark / 4.86:1 light — not reproducible. Before accepting or "fixing" a contrast report, run the numbers on the actual token pair and surface (the issue's premise named the wrong variable). Close such issues WITH the measurement.
 
@@ -702,6 +802,58 @@ name the mechanism or keep reproducing — never just re-run until green.
 - **Vendored ripgrep can be missing in the desktop environment — `code_search` fails with ENOENT (`rg.exe` not found).** Don't retry it; fall back to `grep -n` / `awk` in the shell, which answer the same question.
 - **Release tags are not automatic — they were skipped after v0.44.0.** `git tag` stopped at v0.44.0 while `package.json` climbed to 0.47.0 and nothing in the gate reads tags, so nobody noticed. Verify tag state with `git tag --sort=-creatordate | head` when a release claims to be tagged; backfilling needs an explicit tag push to the remote.
 
+- **`.card + .card { margin-top: 14px }` also matches GRID items — every new grid of `.card`s shoes it the same way.**
+  A grid already spaces its items with `gap`, so the stacked-card beat double-applied: in a row of peers every card
+  after the first rendered 14px lower *and* 14px shorter (live measure: tops 839/853, heights 477/463, and 26px of
+  space where the grid declared 12). It is invisible to tsc, to every test and to the build because nothing renders
+  these pages in CI, and it reads as "the cards look oddly placed" rather than as a spacing bug. `.explore-grid > .card
+  + .card` and `.two-col > .card + .card` zero it; **when you add a grid whose children are `.card`s, add it to that
+  selector list** (Explore, CreatorPage, TripsList and the public page's Travel-tips/Warnings row are covered).
+  Related: a two-column grid nested inside a content column keeps the `1fr 340px` sidebar width it doesn't have —
+  peer content in a row wants `.two-col--even` (1fr/1fr), not the sidebar shape. This pair is pinned by
+  `tests/public-surface-guardrails.test.ts`.
+
+- **`animation-fill-mode: both` outranks a `:hover` declaration, so an entrance animation silently kills hover motion.**
+  `.trip-enter` animated `transform: none` as its last keyframe with `both`, which retained that value forever and beat
+  `.itin-card:hover { translateY(-2px) }` — a shelf card answered the pointer with a shadow change and no movement while
+  the *same component* on a creator page (no `enterIndex`, so never animated) lifted. Use `backwards` when the
+  animation's end state equals the element's own resting state; it applies the `from` state during the stagger delay
+  exactly as `both` did, then releases the property. Debugging tell: compare the same component on a surface that
+  animates it against one that doesn't.
+
+- **A grid or flex item's automatic minimum size is its MIN-CONTENT, so one unbreakable run sets the width of the
+  whole document.** The published page's sticky sidebar held a nowrap share URL in a flex row: that gave the column a
+  **451px floor inside a 362px column**, scrolling the document 75px sideways at a 390px viewport — and the
+  `overflow: hidden` + `text-overflow: ellipsis` the rule already declared could never fire, because the item refused
+  to shrink below its min-content. `min-width: 0` on the grid children (`.two-col > *`) and on the flex item fixes it.
+  Two corollaries: the fix belongs at the *container* level (setting it on the inner `<code>` alone changed nothing —
+  the column's floor is what overflows), and **diagnose it with `document.documentElement.scrollWidth - clientWidth`
+  plus a `getBoundingClientRect().right > viewport` sweep**, not by eye — the widest offender here was an 8px-wide
+  visible element sitting inside an invisible 451px floor.
+
+- **A container's `overflow: hidden` deletes absolutely-positioned children that "hang" past its edge — and the
+  geometry reads as fine until you hit-test.** `.pub-hero-stats` was positioned at `bottom: -66px` over a hero with
+  `overflow: hidden`: its box measured 507→720 against a clip at 654, so the bottom two of its four evidence rows
+  were never painted and `elementFromPoint` at their centres returned the Save/Fork buttons *underneath*. Two tells:
+  a `getBoundingClientRect()` box that exceeds its nearest clipping ancestor, and rows whose hit-test result is a
+  sibling surface. Check for a negative offset over a clipping ancestor whenever a floating card sits on a fold —
+  and if the design intends the straddle, the reserve/clearance must move with it (here the card was brought inside
+  instead: `bottom: 16px` with the hero's bottom padding grown to match, so nothing moves on screen except the clip).
+
+- **A responsive rung placed BEFORE a wider one loses to it — media-query order is the cascade, not specificity.**
+  A `@media (max-width: 360px)` block written above the `<=480` and `<=720` blocks applied only the one declaration
+  those blocks don't themselves set; everything they touch won. Rungs go in **descending-width order** (or the narrow
+  one last), and a comment saying "placed after X on purpose" is cheaper than rediscovering it. The related trap: a
+  shared selector *list* (`A, B, C { … }`) and a later per-class rule have equal specificity, so the later one wins and
+  silently overrides the recipe — when routing an existing class through a shared recipe, **delete its own
+  declarations in the same edit**, don't just add it to the list.
+
+- **A guardrail regex anchored on `\.class \{` also matches the TAIL of a shared selector list.** `.poi-grp-k, .poi-reason-k {` contains `.poi-reason-k {`, so a rule-extraction pattern written for "this class's own rule" read the shared recipe's declarations back as the class's own and reported a phantom violation — and the inverse: a teeth-test can pass for the wrong reason. Anchor to the start of a line (`^` with the `m` flag) in a one-rule-per-line stylesheet, and confirm each class has exactly one rule before trusting the pattern.
+
+- **A gate's baseline key decides whether it churns — key by VALUE when the offender set is stable, by LINE when it is a set.** The contrast/duration keys are line-numbered, so *every* CSS insertion anywhere above them fails the gate with phantom "new violations" and forces a re-baseline (documented, twice-hit). For the spacing ratchet that would have meant 409 line-keyed entries churning on every edit, so it keys `property: value` instead (76 stable pairs): immune to line shifts, and still shrink-only. The trade-off is explicit — it forbids *new off-ladder values*, not a new use of an already-tolerated one. Zero is exempt (`margin: 0px` is not rhythm).
+
+- **To verify a cascade on a surface you cannot sign into, inject a probe element and read `getComputedStyle`.** The map rail's labels need a signed-in trip, so the computed style was read by appending a detached `<span class="poi-grp-k">` to the live page and reading back `fontSize`/`fontWeight`/`letterSpacing`/`textTransform` — which is how the routing was proven to *take effect* (10.5px / 700 / 0.63px) rather than merely to be declared, and how the one-class list-override trap above would have shown up. `agent-browser eval` takes the JS as its argument (there is no `--file`), and the DOM injection leaves the repo untouched (`index.html` stays byte-clean).
+
 - **Wikimedia serves only the thumbnail widths it has generated — a composed width answers 400.** Auto covers read the REST summary's `originalimage`/`thumbnail`, which is either the *unscaled* upload or a 3840px thumb (1.3–3.3 MB measured across real destinations), so the obvious fix — build `…/thumb/<h>/<hh>/<File>/1200px-<File>` — 400s on **both** `upload.` and `thumb.wikimedia.org`, and so does substituting the width into a URL the API itself returned. The supported route is `Special:Redirect/file/<File>?width=N`, which 301s to the nearest size that exists (1200 → 1280) and measured 144 KB where the original was 1304 KB. Two corollaries when matching these paths: strip the `?utm_*` query the API appends (it is captured as part of the file name otherwise and produces a nonsense URL), and take the file name **exactly as it arrives** — it is already percent-encoded, so decoding then re-encoding double-escapes `Telkupi%2C_Purulia.jpg`. `lib/tripThumb.ts` `COVER_WIDTH` is the single lever if a future cover exceeds the 600 KB preview ceiling.
 
 ## 5. External services
@@ -812,4 +964,10 @@ by orphan check** (Sep 2026): the reported "802 orphan rows" turned out to be
 - **iOS Safari never vibrates — only Capacitor native does.** `navigator.vibrate` is unsupported on all iOS browsers (WebKit). Haptics that must work on iPhone require `@capacitor/haptics` inside a Capacitor iOS shell (`Capacitor.isNativePlatform()`). Keep the web vibrate fallback for Android Chrome; never assume a pure-web PWA will taptic on iOS.
 
 - **Every open issue carries exactly one `priority: P0`–`P3` label** (scheme added Sep 2026; the definitions live in the label descriptions, read them with `gh label list` rather than guessing). P0 = data loss/corruption, security, or a broken core flow — fix before shipping. P1 = real correctness or user-visible bug with a workaround — fix this milestone. P2 = low-risk, narrow surface — slot when convenient. P3 = hygiene, cosmetics, or blocked on a product decision. Assign one at creation; re-triage only by re-reading the definitions, never by gut severity. The label is a *routing* signal only — the justification belongs in the issue body. Queue via `gh issue list --state open --label 'priority: P0'`, and re-derive counts from `gh` rather than recalling them (same rule as §2.6).
+- **A recovery path that reports success must verify the thing it recovered — and a surface that can fail must not render failure as emptiness.** Two payment-rail bugs from one live incident (Sep 2026): (1) checkout's self-heal toasted "already unlocked" without checking its `claim_paid_order` result — a failed grant would strand the buyer AND let the next click mint a fresh order for money already taken (double charge). Recovery branches must treat "I ran the write" as nothing; only the write's observable result counts, and a failed recovery is a 503 that says what will NOT happen ("no second payment will be taken"). Corollary: the orphan-order guard must read the buyer's NEWEST order of ANY status, not `status=eq.pending` — a row stranded 'paid' by a failed grant otherwise vanishes from the guard's view. (2) `fetchCreatorSales` degraded a failed read to `[]`, so the Earnings tab rendered "No sales yet" over a broken read — an empty-state UI and a broken-state UI must be different renderings (error + retry), or every future read failure hides behind friendly copy. The empty-vs-error distinction cost a whole debugging session to discover.
+- **Diagnose a payment/money mismatch from the DATABASE first, not the code.** The ₹500-vs-empty-ledger incident resolved in one probe once the tables were read: the "missing" sale belonged to a DIFFERENT creator than the account being checked, and the stranded order was visible as `status=pending` + no entitlement row. `select * from purchase_orders; select * from entitlements;` answers "did the money land, did the grant land, whose ledger should show it" before any code reading. Multiple test accounts amplify this: buyer ≠ creator ≠ the account you're logged in as.
 
+- **A migrate-time constraint change must match how the constraint was CREATED.** The rail migration's `unique (user_id, pub_id)` is a CONSTRAINT; `drop index if exists entitlements_user_pub_unique` on it fails live ("other objects depend on it") — dropping a constraint-backed index via `drop index` errors, it does not fall through to `if exists`. Check the creating migration's exact DDL form (constraint vs index, named vs auto-named) before writing the swap. Also: a partial unique index breaks `on conflict (user_id, pub_id)` inference (conflict_target must carry the predicate) — and the swap is usually unnecessary anyway, because NULLs are distinct in a full unique constraint, which is exactly what the nullable-column migration wanted.
+- **Vitest 4's default include sweeps EVERY untracked tool worktree** — its glob is `**/*.{test,spec}.*` minus node_modules/.git, so a stale full repo copy inside `.cache/`, `.agents/` etc. (git-ignored, invisible to git status) ran months-old tests and failed the verify gate while the repo tree was green (2549 tests instead of ~1290 was the tell). Pin `test.include` to the repo's real test trees (`tests/**`, `scripts/**`) in vite.config.ts — structurally immune to ANY future debris dir, not just the one that bit.
+- **A SQL RPC iterating JSONB must fail closed on every shape it doesn't expect.** The paywall RPC stubs locked days with `jsonb_array_length` loops; a corrupt row (days not an array, day.index missing, stops not an array) would either 500 the whole public page or — worse — skip stubbing and leak the content. Each iteration guards its type; unknown shape ⇒ treated as LOCKED (empty array), never skipped. Paywall code is adversarial-input code: fail closed, never fail open.
+- **A policy's RESTRICTIVE flag is load-bearing — drop it and a "hide" becomes a widen.** PostgreSQL permissive policies OR-combine, so the trip-trash policy's bare `deleted_at is null` OR-clause on a *permissive* `trips read hide trashed` let EVERY authenticated user read EVERY live trip (Sep 14–18 2026, live) — the Sep-14 repair that caused it had dropped the policy's `as restrictive` flag. Catalog-level checks stayed green the whole time: the escape-hatch tokens (`owner_id`/`auth.uid()`/`is_editor`) all lived in the same qual, and token presence is not semantics. A restrictive policy is also evaluated against an UPDATE's added row, so it must carry an accepter for the new row (owner/editor/admin) — without one the tombstone UPDATE fails 42501 and "Delete" silently no-ops, which is why those clauses exist. The shape is pinned mechanically in `supabase/tests/rls_contract.test.sql` (a `deleted_at is null` branch may only sit on a RESTRICTIVE trips SELECT; hide-trashed must be RESTRICTIVE with a live-row branch *and* an added-row accepter). When touching RLS, assert the policy KIND (`pg_policies.permissive`) and run the opt-in harness — never read token presence as behavior.

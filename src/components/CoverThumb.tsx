@@ -1,9 +1,9 @@
 import { useDestinationCover } from '../hooks/useDestinationCover'
-import { pickTripQueryCandidates } from '../lib/tripThumb'
+import { pickTripQueryCandidates, sizedCoverUrl } from '../lib/tripThumb'
 
 /**
  * Cover thumbnail for trip / itinerary cards. Resolution order:
- *   1. explicit owner URL (coverImageUrl)   — always wins
+ *   1. explicit owner URL (coverImageUrl)   — always wins, sized for the web
  *   2. auto Wikipedia photo of the destination (query / candidates)
  *   3. emoji fallback                        — when nothing else resolves
  *
@@ -30,7 +30,11 @@ export function CoverThumb({
 }) {
   const candidates = trip ? pickTripQueryCandidates(trip) : (query ? [query] : [])
   const auto = useDestinationCover(candidates)
-  const url = explicitUrl || auto || null
+  // An explicit cover can be a Wikimedia upload stored before sizing existed
+  // (a live publication shipped its 1,305 KB original as a card background).
+  // sizing is idempotent and leaves a non-Wikimedia URL untouched, so a cover
+  // the owner pasted is still displayed exactly as given.
+  const url = sizedCoverUrl(explicitUrl ?? '') || auto || null
   const cls = variant === 'short' ? 'itin-emoji' : 'itin-cover'
   return (
     <div

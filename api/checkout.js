@@ -66,20 +66,23 @@ async function fetchEntitlements(supabaseUrl, serviceKey, userId, pubId, signal)
   return Array.isArray(rows) && rows.length > 0
 }
 
-/** An order this buyer already opened for this publication, still unpaid.
- *  Re-served instead of minting a twin Razorpay order per retry — the
- *  abandoned-modal path (dismiss, re-click) would otherwise pile up orphan
- *  pending rows and gateway orders. Razorpay orders expire on their own;
- *  the newest pending one is the one a checkout modal can still pay. */
-async function fetchPendingOrder(supabaseUrl, serviceKey, userId, pubId, signal) {
+/** The newest order this buyer opened for this publication, whatever its
+ *  state — the state decides the branch (paid ⇒ finish the grant; pending and
+ *  gateway-live ⇒ re-serve; failed/attempted ⇒ mint fresh). Re-served instead
+ *  of minting a twin Razorpay order per retry — the abandoned-modal path
+ *  (dismiss, re-click) would otherwise pile up orphan rows and gateway
+ *  orders. Filtering to pending-only was the live bug: a row stranded 'paid'
+ *  by a failed grant vanished from this read, and the next click minted a
+ *  FRESH order for money already taken — a double charge. */
+async function fetchLatestOrder(supabaseUrl, serviceKey, userId, pubId, signal) {
   const url = `${supabaseUrl.replace(/\/+$/, '')}/rest/v1/purchase_orders` +
     `?user_id=eq.${encodeURIComponent(userId)}&pub_id=eq.${encodeURIComponent(pubId)}` +
-    `&status=eq.pending&select=razorpay_order_id,amount_inr&order=created_at.desc&limit=1`
+    `&select=razorpay_order_id,amount_inr,status&order=created_at.desc&limit=1`
   const response = await fetch(url, {
     headers: supabaseServiceHeaders(serviceKey),
     signal,
   })
-  if (!response.ok) throw new Error(`pending order read failed: ${response.status}`)
+  if (!response.ok) throw new Error(`latest order read failed: ${response.status}`)
   const rows = await response.json()
   return Array.isArray(rows) ? rows[0] ?? null : null
 }
@@ -210,35 +213,48 @@ export default async function handler(req, res) {
     return json(res, 403, { error: 'this is your own publication' })
   }
 
+  let recovering = false
   try {
     if (await fetchEntitlements(supabaseUrl, serviceKey, userId, pubId, signal)) {
       return json(res, 409, { error: 'already unlocked' })
     }
-    // Re-serve an open order for the same buyer+publication before minting
-    // another one (the guard against orphan pendings). A price change after
-    // the order was opened invalidates it — the stored snapshot must equal
-    // the row price or a new order is created at the current price.
+    // The newest order for this buyer+publication decides the branch. A
+    // price change after the order was opened invalidates it — the stored
+    // snapshot must equal the row price or a new order is created at the
+    // current price.
     //
     // The gateway is the truth on whether the order is still payable: a
     // local row can stay 'pending' when verify failed after a CAPTURED
     // payment, and Razorpay's modal refuses an already-paid order_id with
-    // an opaque "Uh! oh!" screen. So check the gateway, and if the money
-    // already moved, FINISH THE GRANT here — the second click self-heals
-    // the stuck purchase instead of dead-ending on the gateway error.
-    const pending = await fetchPendingOrder(supabaseUrl, serviceKey, userId, pubId, signal)
-    if (pending && pending.amount_inr === price) {
-      const gatewayStatus = await fetchGatewayOrderStatus(keyId, keySecret, pending.razorpay_order_id, signal)
+    // an opaque "Uh! oh!" screen. If the money already moved, FINISH THE
+    // GRANT here — and MEAN it: reporting success without the entitlement
+    // landing leaves the buyer stranded AND lets the next click mint a
+    // fresh order (charging twice for one payment). A failed grant is a
+    // 503 that says exactly what happened and what will NOT happen.
+    const latest = await fetchLatestOrder(supabaseUrl, serviceKey, userId, pubId, signal)
+    if (latest && latest.amount_inr === price && latest.status !== 'failed') {
+      const gatewayStatus = latest.status === 'paid'
+        ? 'paid' // the row already knows — no gateway probe needed
+        : await fetchGatewayOrderStatus(keyId, keySecret, latest.razorpay_order_id, signal)
       if (gatewayStatus === 'paid') {
-        // A captured payment this flow never confirmed: mark + grant now.
-        await markOrderPaid(supabaseUrl, serviceKey, pending.razorpay_order_id, 'recovered-by-checkout', signal)
-        await claimEntitlement(supabaseUrl, anonKey, token, pending.razorpay_order_id, signal)
+        recovering = true // from here, any throw means money moved and we failed to finish
+        if (latest.status === 'pending') {
+          // A captured payment this flow never confirmed: mark it first.
+          await markOrderPaid(supabaseUrl, serviceKey, latest.razorpay_order_id, 'recovered-by-checkout', signal)
+        }
+        const granted = await claimEntitlement(supabaseUrl, anonKey, token, latest.razorpay_order_id, signal)
+        if (!granted) {
+          return json(res, 503, {
+            error: `your earlier payment is confirmed, but the unlock could not be saved just now — no second payment will be taken; try again in a moment or contact support with order ${latest.razorpay_order_id}`,
+          })
+        }
         return json(res, 409, { error: 'already unlocked — your earlier payment was confirmed just now; reload to see the full plan' })
       }
       if (gatewayStatus === 'created') {
-        return json(res, 200, { orderId: pending.razorpay_order_id, keyId, amountPaise: price * 100, currency: 'INR' })
+        return json(res, 200, { orderId: latest.razorpay_order_id, keyId, amountPaise: price * 100, currency: 'INR' })
       }
       // 'attempted'/unknown → fall through and mint a fresh order; the old
-      // row stays pending but the buyer is never blocked.
+      // row stays behind but the buyer is never blocked.
     }
     const receipt = `r${stable(pubId, 8)}${stable(userId, 4)}`
     const razorpayOrderId = await createRazorpayOrder(keyId, keySecret, price * 100, receipt, signal)
@@ -253,7 +269,11 @@ export default async function handler(req, res) {
     }, signal)
     return json(res, 200, { orderId: razorpayOrderId, keyId, amountPaise: price * 100, currency: 'INR' })
   } catch {
-    return json(res, 503, { error: 'could not start the payment' })
+    // A throw inside the recovery branch means money moved and we failed to
+    // finish — say that, not "could not start the payment".
+    return json(res, 503, recovering
+      ? { error: 'your payment is confirmed but recovery failed just now — no second payment will be taken; try again in a moment' }
+      : { error: 'could not start the payment' })
   }
 }
 

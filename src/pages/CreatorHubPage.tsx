@@ -26,14 +26,20 @@ export function CreatorHubPage({ onNavigate }: { onNavigate: (r: string) => void
   const [hubTab, setHubTab] = useState<'overview' | 'earnings'>('overview')
   const [earningsView, setEarningsView] = useState<'actual' | 'projection'>('actual')
   // Real sales (I-11): entitlements for MY publications, read through the
-  // creator RLS policy. Empty ledger until the migration is live — the same
-  // honest degradation as every other pre-migration surface.
+  // creator RLS policy. A failed read is an ERROR state with retry, not a
+  // silent empty ledger — "No sales yet" and "read failed" are different
+  // truths (the conflation hid a live grant bug for a whole session).
   const [sales, setSales] = useState<ActualSales | null>(null)
+  const [salesError, setSalesError] = useState(false)
+  const [salesRetry, setSalesRetry] = useState(0)
   useEffect(() => {
     let alive = true
-    void fetchCreatorSales().then(rows => { if (alive) setSales(deriveActualSales(rows, myPubs)) })
+    setSalesError(false)
+    fetchCreatorSales()
+      .then(rows => { if (alive) setSales(deriveActualSales(rows, myPubs)) })
+      .catch(() => { if (alive) { setSalesError(true); setSales(null) } })
     return () => { alive = false }
-  }, [me?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [me?.id, salesRetry]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const loggedIn = Boolean(me)
   useEffect(() => { if (!loggedIn) onNavigate('/auth') })
@@ -111,7 +117,8 @@ export function CreatorHubPage({ onNavigate }: { onNavigate: (r: string) => void
                 <PubOverview myPubs={myPubs} onUnpublish={setUnpubTarget} onNavigate={onNavigate} />
               )
             ) : (
-              <EarningsTab myPubs={myPubs} sales={sales} view={earningsView} onView={setEarningsView} />
+              <EarningsTab myPubs={myPubs} sales={sales} salesError={salesError}
+                onRetry={() => setSalesRetry(n => n + 1)} view={earningsView} onView={setEarningsView} />
             )}
           </div>
         </>
@@ -201,9 +208,11 @@ function PubOverview({ myPubs, onUnpublish, onNavigate }: {
 /** Earnings tab: the Gumroad-shaped payout ledger. The "Actual" view shows
  *  REAL sales once the payments rail is live (empty honestly until then);
  *  the Projection view stays clearly-labeled not-money. */
-function EarningsTab({ myPubs, sales, view, onView }: {
+function EarningsTab({ myPubs, sales, salesError, onRetry, view, onView }: {
   myPubs: PublishedItinerary[]
   sales: ActualSales | null   // null while the fetch is in flight
+  salesError: boolean         // the read itself failed — distinct from an empty ledger
+  onRetry: () => void
   view: 'actual' | 'projection'
   onView: (v: 'actual' | 'projection') => void
 }) {
@@ -226,6 +235,14 @@ function EarningsTab({ myPubs, sales, view, onView }: {
       {view === 'actual' ? (
         actual === null ? (
           <div className="container loading-block"><div className="spinner" />Loading sales…</div>
+        ) : salesError ? (
+          <>
+            <div className="hub-note" role="alert">
+              <b>Couldn't load your sales.</b> The ledger read failed just now — your recorded sales are safe
+              and will appear once the connection works. Check your connection and try again.
+            </div>
+            <button className="btn btn-outline btn-sm" style={{ marginTop: 8 }} onClick={onRetry}>Retry</button>
+          </>
         ) : actual.rows.length === 0 ? (
           <>
             <table className="compare-table pub-ledger">

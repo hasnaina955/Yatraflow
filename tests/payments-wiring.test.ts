@@ -60,6 +60,21 @@ describe('the public page wires the real unlock flow', () => {
     const creatorFn = unlock.slice(unlock.indexOf('fetchCreatorSales'))
     expect(creatorFn.slice(0, 400)).not.toContain(".eq('user_id'")
   })
+
+  it('a failed creator-sales read is an ERROR STATE, never a silent empty ledger', () => {
+    // The conflation that hid the stranded-grant bug: fetchCreatorSales
+    // degraded a failed read to [] and the tab rendered "No sales yet" over
+    // it — indistinguishable from genuinely zero sales. Pin both halves of
+    // the fix: the fetch throws, and the tab renders a distinct retry state.
+    const unlock = read('../src/lib/unlock.ts')
+    const creatorFn = unlock.slice(unlock.indexOf('export async function fetchCreatorSales'))
+    expect(creatorFn).toContain('throw error')
+    expect(creatorFn).not.toMatch(/catch[^}]*return \[\]/)
+    const hub = read('../src/pages/CreatorHubPage.tsx')
+    expect(hub).toContain("Couldn't load your sales")
+    expect(hub).toContain('salesError')
+    expect(hub).toContain('onRetry')
+  })
 })
 
 describe('the api functions stay client-import-free', () => {

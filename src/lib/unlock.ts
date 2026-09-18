@@ -85,27 +85,30 @@ export async function fetchMyEntitlements(userId: string | null): Promise<Entitl
 /** The SALES of the logged-in creator's publications (I-11). Reads the same
  *  entitlements table through the "entitlements creator read own pubs" RLS
  *  policy — no `user_id` filter, the policy itself scopes the rows to
- *  publications whose creator_id is the caller. Degrades to [] exactly like
- *  the buyer read: a missing table or a failed read is an empty ledger,
- *  never a broken tab. */
+ *  publications whose creator_id is the caller.
+ *
+ *  REJECTS on a failed read (after logging it) instead of degrading to []:
+ *  an empty ledger and a broken read are different truths, and rendering
+ *  "No sales yet" over a failed fetch hid a live grant bug for a whole
+ *  debugging session. The caller owns the error state. A missing table
+ *  (migration unapplied) is a PostgREST 404 error — the Earnings tab shows
+ *  it as a read failure with retry, not as "no sales". */
 export async function fetchCreatorSales(): Promise<Entitlement[]> {
-  try {
-    const { data, error } = await supabase
-      .from('entitlements')
-      .select(ENTITLEMENT_COLUMNS)
-    if (error) throw error
-    return (Array.isArray(data) ? data : []).map((row: Record<string, unknown>) => ({
-      id: row.id as string,
-      userId: row.user_id as string,
-      pubId: row.pub_id as string,
-      orderId: row.order_id as string,
-      amountPaidInr: row.amount_paid_inr as number,
-      grantedAt: new Date(row.granted_at as string).getTime(),
-    }))
-  } catch (e) {
-    console.error('[yatraflow] creator sales read failed', e)
-    return []
+  const { data, error } = await supabase
+    .from('entitlements')
+    .select(ENTITLEMENT_COLUMNS)
+  if (error) {
+    console.error('[yatraflow] creator sales read failed', error)
+    throw error
   }
+  return (Array.isArray(data) ? data : []).map((row: Record<string, unknown>) => ({
+    id: row.id as string,
+    userId: row.user_id as string,
+    pubId: row.pub_id as string,
+    orderId: row.order_id as string,
+    amountPaidInr: row.amount_paid_inr as number,
+    grantedAt: new Date(row.granted_at as string).getTime(),
+  }))
 }
 
 async function sessionToken(): Promise<string | null> {
@@ -145,7 +148,15 @@ export async function purchaseUnlock(input: {
   let session: { orderId: string; keyId: string; amountPaise: number }
   try {
     const { status, json } = await postJson('/api/checkout', token, { pubId: input.pubId })
-    if (status === 409) { toast('This plan is already unlocked.'); return 'already' }
+    if (status === 409) {
+      // Both the plain already-unlocked case and the self-heal land here;
+      // refresh either way — the self-heal may have JUST granted it, and the
+      // page should show the unlocked days without demanding a reload.
+      input.onUnlocked()
+      const message = typeof json.error === 'string' && json.error ? json.error : 'This plan is already unlocked.'
+      toast(message)
+      return 'already'
+    }
     if (status !== 200 || typeof json.orderId !== 'string' || typeof json.keyId !== 'string' || typeof json.amountPaise !== 'number') {
       const message = typeof json.error === 'string' ? json.error : 'Could not start the payment.'
       toast(message, 'err')

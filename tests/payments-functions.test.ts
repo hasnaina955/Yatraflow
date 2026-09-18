@@ -194,8 +194,9 @@ describe('POST /api/checkout', () => {
       if (url.includes('/auth/v1/user')) return jsonResponse({ id: 'buyer-1' })
       if (url.includes('/rest/v1/published_itineraries')) return jsonResponse([pubRow])
       if (url.includes('/rest/v1/entitlements')) return jsonResponse([])
-      if (url.includes('/rest/v1/purchase_orders') && url.includes('status=eq.pending')) {
-        return jsonResponse([{ razorpay_order_id: 'order_EXISTING', amount_inr: 500 }])
+      // fetchLatestOrder: the newest row for buyer+pub, any status.
+      if (url.includes('/rest/v1/purchase_orders') && url.includes('select=razorpay_order_id')) {
+        return jsonResponse([{ razorpay_order_id: 'order_EXISTING', amount_inr: 500, status: 'pending' }])
       }
       // The gateway-status check for the pending order (still payable).
       if (url === 'https://api.razorpay.com/v1/orders/order_EXISTING') return jsonResponse({ id: 'order_EXISTING', status: 'created' })
@@ -219,8 +220,8 @@ describe('POST /api/checkout', () => {
       if (url.includes('/auth/v1/user')) return jsonResponse({ id: 'buyer-1' })
       if (url.includes('/rest/v1/published_itineraries')) return jsonResponse([pubRow])
       if (url.includes('/rest/v1/entitlements')) return jsonResponse([])
-      if (url.includes('/rest/v1/purchase_orders') && url.includes('status=eq.pending')) {
-        return jsonResponse([{ razorpay_order_id: 'order_PAID', amount_inr: 500 }])
+      if (url.includes('/rest/v1/purchase_orders') && url.includes('select=razorpay_order_id')) {
+        return jsonResponse([{ razorpay_order_id: 'order_PAID', amount_inr: 500, status: 'pending' }])
       }
       if (url === 'https://api.razorpay.com/v1/orders/order_PAID') return jsonResponse({ id: 'order_PAID', status: 'paid' })
       if (url.includes('/rest/v1/purchase_orders') && (init.method) === 'PATCH') return jsonResponse(null)
@@ -237,6 +238,56 @@ describe('POST /api/checkout', () => {
     expect(JSON.parse(String((patch![1] as RequestInit).body)).status).toBe('paid')
     expect(grantCalls).toHaveLength(1)
     expect((grantCalls[0]!.body as Record<string, string>).p_razorpay_order_id).toBe('order_PAID')
+  })
+
+  it('SELF-HEAL claim failure is a 503 that promises no second charge — never a fresh order', async () => {
+    // The double-charge hole: grant fails after the money moved → the next
+    // click must NOT mint a new Razorpay order for an already-paid payment.
+    fetchMock.mockImplementation(async (input: RequestInfo | URL, init: RequestInit = {}) => {
+      const url = String(input)
+      if (url.includes('/auth/v1/user')) return jsonResponse({ id: 'buyer-1' })
+      if (url.includes('/rest/v1/published_itineraries')) return jsonResponse([pubRow])
+      if (url.includes('/rest/v1/entitlements')) return jsonResponse([])
+      if (url.includes('/rest/v1/purchase_orders') && url.includes('select=razorpay_order_id')) {
+        return jsonResponse([{ razorpay_order_id: 'order_PAID', amount_inr: 500, status: 'pending' }])
+      }
+      if (url === 'https://api.razorpay.com/v1/orders/order_PAID') return jsonResponse({ id: 'order_PAID', status: 'paid' })
+      if (url.includes('/rest/v1/purchase_orders') && (init.method) === 'PATCH') return jsonResponse(null)
+      if (url.includes('/rpc/claim_paid_order')) return new Response('RPC refused', { status: 403 })
+      throw new Error(`unexpected fetch ${url}`)
+    })
+    const res = await run({ pubId: 'kerala-trip_1' })
+    expect(res.statusCode).toBe(503)
+    const body = JSON.parse(res.body)
+    expect(body.error).toContain('no second payment will be taken')
+    expect(body.error).toContain('order_PAID')
+    // NO new gateway order was minted — the double charge cannot happen.
+    expect(fetchMock.mock.calls.filter(c => String(c[0]) === 'https://api.razorpay.com/v1/orders')).toHaveLength(0)
+  })
+
+  it('an already-paid local row re-grants directly (no gateway probe) and stays un-minted on failure', async () => {
+    // The stranded-row state: markOrderPaid succeeded but the grant failed,
+    // so the row is 'paid' with no entitlement. The next click must recover
+    // WITHOUT probing the gateway again and WITHOUT minting a fresh order —
+    // this is the exact shape of the live stranded order_TdRPJoZWZ1IMcP.
+    fetchMock.mockImplementation(async (input: RequestInfo | URL, init: RequestInit = {}) => {
+      const url = String(input)
+      if (url.includes('/auth/v1/user')) return jsonResponse({ id: 'buyer-1' })
+      if (url.includes('/rest/v1/published_itineraries')) return jsonResponse([pubRow])
+      if (url.includes('/rest/v1/entitlements')) return jsonResponse([])
+      // fetchLatestOrder: NO status=eq.pending filter — any status.
+      if (url.includes('/rest/v1/purchase_orders') && url.includes('select=razorpay_order_id')) {
+        return jsonResponse([{ razorpay_order_id: 'order_STRANDED', amount_inr: 500, status: 'paid' }])
+      }
+      if (url.includes('/rpc/claim_paid_order')) return new Response('RPC refused', { status: 403 })
+      throw new Error(`unexpected fetch ${url}`)
+    })
+    const res = await run({ pubId: 'kerala-trip_1' })
+    expect(res.statusCode).toBe(503)
+    // No gateway probe for a row that already says paid, no PATCH, no mint.
+    expect(fetchMock.mock.calls.filter(c => String(c[0]).startsWith('https://api.razorpay.com/v1/orders/order_'))).toHaveLength(0)
+    expect(fetchMock.mock.calls.filter(c => String(c[0]).includes('/rest/v1/purchase_orders') && (c[1] as RequestInit | undefined)?.method === 'PATCH')).toHaveLength(0)
+    expect(fetchMock.mock.calls.filter(c => String(c[0]) === 'https://api.razorpay.com/v1/orders')).toHaveLength(0)
   })
 
   it('mints a fresh order when the pending one is not payable at the gateway (attempted)', async () => {

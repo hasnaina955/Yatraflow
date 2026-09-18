@@ -82,21 +82,20 @@ export async function fetchMyEntitlements(userId: string | null): Promise<Entitl
   }
 }
 
-/** The SALES of the logged-in creator's publications (I-11). Reads the same
- *  entitlements table through the "entitlements creator read own pubs" RLS
- *  policy — no `user_id` filter, the policy itself scopes the rows to
- *  publications whose creator_id is the caller.
+/** The SALES of the logged-in creator's publications (I-11). Reads through
+ *  the security-definer `get_creator_sales` RPC, scoped by the caller's own
+ *  auth.uid() — the RLS-policy path could answer 200-with-zero-rows when the
+ *  creator policy was missing live (a partially-applied migration), which
+ *  rendered "No sales yet" over real sales, indistinguishable from an
+ *  honestly empty ledger. Through the RPC the same accident surfaces as an
+ *  error (function not found) instead of silent emptiness.
  *
  *  REJECTS on a failed read (after logging it) instead of degrading to []:
- *  an empty ledger and a broken read are different truths, and rendering
- *  "No sales yet" over a failed fetch hid a live grant bug for a whole
- *  debugging session. The caller owns the error state. A missing table
- *  (migration unapplied) is a PostgREST 404 error — the Earnings tab shows
- *  it as a read failure with retry, not as "no sales". */
+ *  an empty ledger and a broken read are different truths. The caller owns
+ *  the error state. */
 export async function fetchCreatorSales(): Promise<Entitlement[]> {
   const { data, error } = await supabase
-    .from('entitlements')
-    .select(ENTITLEMENT_COLUMNS)
+    .rpc('get_creator_sales')
   if (error) {
     console.error('[yatraflow] creator sales read failed', error)
     throw error

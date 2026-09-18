@@ -287,3 +287,38 @@ alter table public.entitlements
 create unique index if not exists entitlements_anon_pub_unique
   on public.entitlements (pub_id)
   where user_id is null;
+
+-- 5. The creator's sales ledger reads through definer, not client RLS --------
+-- fetchCreatorSales read entitlements through the client-facing RLS creator
+-- policy. A policy that failed to apply live (a partially-applied migration)
+-- answers 200 with ZERO rows — "No sales yet" rendered over real sales,
+-- indistinguishable from a genuinely empty ledger. The read goes through a
+-- security-definer RPC scoped by the caller's auth.uid() instead: same
+-- visibility, but the failure modes differ — a missing policy or a blocked
+-- table now surfaces as a PostgREST/RPC error the client can render as an
+-- error-with-retry, never as a silent empty list.
+create or replace function public.get_creator_sales()
+returns table (
+  id uuid,
+  user_id uuid,
+  pub_id text,
+  order_id uuid,
+  amount_paid_inr integer,
+  granted_at timestamptz
+)
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select e.id, e.user_id, e.pub_id, e.order_id, e.amount_paid_inr, e.granted_at
+  from public.entitlements e
+  where exists (
+    select 1 from public.published_itineraries p
+    where p.id = e.pub_id and p.creator_id = auth.uid()
+  )
+  order by e.granted_at desc;
+$$;
+
+revoke all on function public.get_creator_sales() from public;
+grant execute on function public.get_creator_sales() to authenticated;

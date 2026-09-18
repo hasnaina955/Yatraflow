@@ -63,11 +63,27 @@ describe('the public page wires the real unlock flow', () => {
     expect(hub).toMatch(/import\s*\{[^}]*deriveActualSales[^}]*\}\s*from\s*'\.\.\/lib\/earnings'/)
     expect(hub).toMatch(/import\s*\{[^}]*fetchCreatorSales[^}]*\}\s*from\s*'\.\.\/lib\/unlock'/)
     expect(hub).toContain('deriveActualSales(rows, myPubs)')
-    // And lib/unlock's creator read must NOT filter by user_id — the RLS
-    // policy ("entitlements creator read own pubs") does the scoping.
+    // And lib/unlock's creator read must NOT filter by user_id — the RPC's
+    // auth.uid() scoping does it.
     const unlock = read('../src/lib/unlock.ts')
     const creatorFn = unlock.slice(unlock.indexOf('fetchCreatorSales'))
     expect(creatorFn.slice(0, 400)).not.toContain(".eq('user_id'")
+  })
+
+  it('the sales ledger reads through the definer RPC, not client-facing RLS', () => {
+    // A client-facing RLS policy that failed to apply live answers 200 with
+    // zero rows — "No sales yet" rendered over real sales, indistinguishable
+    // from honest emptiness. Through the security-definer RPC the same
+    // accident surfaces as an error (function not found) the tab can render.
+    const unlock = read('../src/lib/unlock.ts')
+    const creatorFn = unlock.slice(unlock.indexOf('export async function fetchCreatorSales'))
+    expect(creatorFn.slice(0, 500)).toContain(".rpc('get_creator_sales')")
+    expect(creatorFn.slice(0, 500)).not.toContain("from('entitlements')")
+    // And the migration must ship the RPC scoped by the caller's auth.uid().
+    const sql = read('../supabase/migrations/20260918_payments_security.sql')
+    expect(sql).toContain('create or replace function public.get_creator_sales()')
+    expect(sql).toMatch(/get_creator_sales\(\)[\s\S]*?p\.creator_id = auth\.uid\(\)/)
+    expect(sql).toMatch(/grant execute on function public\.get_creator_sales\(\) to authenticated/)
   })
 
   it('a failed creator-sales read is an ERROR STATE, never a silent empty ledger', () => {

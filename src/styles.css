@@ -2088,9 +2088,9 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
 }
 @keyframes drawerIn { from { transform: translateX(40px); opacity: 0; } to { transform: none; opacity: 1; } }
 /* Header: the trip-hero navy→teal band, so the companion reads as part of the
-   product rather than a bolted-on chat widget. */
+   product rather than a bolted-on chat widget. Padding-top is the status-bar inset. */
 .ai-head {
-  display: flex; align-items: center; gap: 11px; padding: 14px 16px;
+  display: flex; align-items: center; gap: 11px; padding: 14px 16px; padding-top: calc(14px + var(--safe-area-inset-top, env(safe-area-inset-top, 0px)));
   background: linear-gradient(135deg, var(--yf-navy) 0%, var(--yf-teal-700) 100%);
   color: #fff;
 }
@@ -2103,7 +2103,7 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
 .ai-head-sub { font-size: 11.5px; color: rgba(255, 255, 255, .78); }
 .ai-head .icon-btn { margin-left: auto; color: #fff; }
 .ai-head .icon-btn:hover { background: rgba(255, 255, 255, .14); }
-.ai-msgs { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 17px 16px; display: flex; flex-direction: column; gap: 11px; }
+.ai-msgs { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 17px 16px; display: flex; flex-direction: column; gap: 11px; scrollbar-width: thin; scrollbar-color: var(--text-3) transparent; }
 .ai-bubble { max-width: 88%; padding: 10px 14px; border-radius: 16px; font-size: 13.5px; line-height: 1.5; white-space: pre-wrap; }
 .ai-bubble.user { align-self: flex-end; background: var(--teal-deep); color: #fff; border-bottom-right-radius: 6px; }
 /* dark lightens --teal-deep to #35C9BC — white on it is 2.11:1; ink passes 7.9 */
@@ -2111,7 +2111,7 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
 .ai-bubble.bot { align-self: flex-start; background: var(--bg-soft); color: var(--text); border: 1px solid var(--line); border-bottom-left-radius: 6px; }
 .ai-assumption { margin-top: 9px; font-size: 11.8px; color: var(--text-3); border-top: 1px dashed var(--line); padding-top: 7px; }
 .ai-quick { padding: 10px 14px 8px; border-top: 1px solid var(--line); }
-.ai-quick-scroll { display: flex; gap: 7px; overflow-x: auto; padding-bottom: 5px; scrollbar-width: thin; scrollbar-color: var(--text-3) transparent; -webkit-overflow-scrolling: touch; }
+.ai-quick-scroll { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 5px; scrollbar-width: thin; scrollbar-color: var(--text-3) transparent; -webkit-overflow-scrolling: touch; }
 /* Quick prompts: single-line pills on a scroll rail — never the wrapped
    ovals a long label used to become inside the pill radius. */
 .ai-quick-scroll .clickable-chip {

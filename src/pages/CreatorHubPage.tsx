@@ -8,7 +8,8 @@ import { ExternalLink, Pencil } from 'lucide-react'
 import { PillNav } from '../components/PillNav'
 import type { PublishedItinerary } from '../data/types'
 import { useDb, currentUser, updateProfile, unpublishItinerary, tripById } from '../store/store'
-import { projectEarnings } from '../lib/earnings'
+import { projectEarnings, deriveActualSales, type ActualSales } from '../lib/earnings'
+import { fetchCreatorSales } from '../lib/unlock'
 import { formatInr } from '../lib/engine'
 import { Chip, ConfirmDialog, Field, toast } from '../components/ui'
 
@@ -24,6 +25,15 @@ export function CreatorHubPage({ onNavigate }: { onNavigate: (r: string) => void
   const [unpubTarget, setUnpubTarget] = useState<PublishedItinerary | null>(null)
   const [hubTab, setHubTab] = useState<'overview' | 'earnings'>('overview')
   const [earningsView, setEarningsView] = useState<'actual' | 'projection'>('actual')
+  // Real sales (I-11): entitlements for MY publications, read through the
+  // creator RLS policy. Empty ledger until the migration is live — the same
+  // honest degradation as every other pre-migration surface.
+  const [sales, setSales] = useState<ActualSales | null>(null)
+  useEffect(() => {
+    let alive = true
+    void fetchCreatorSales().then(rows => { if (alive) setSales(deriveActualSales(rows, myPubs)) })
+    return () => { alive = false }
+  }, [me?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const loggedIn = Boolean(me)
   useEffect(() => { if (!loggedIn) onNavigate('/auth') })
@@ -101,7 +111,7 @@ export function CreatorHubPage({ onNavigate }: { onNavigate: (r: string) => void
                 <PubOverview myPubs={myPubs} onUnpublish={setUnpubTarget} onNavigate={onNavigate} />
               )
             ) : (
-              <EarningsTab myPubs={myPubs} view={earningsView} onView={setEarningsView} />
+              <EarningsTab myPubs={myPubs} sales={sales} view={earningsView} onView={setEarningsView} />
             )}
           </div>
         </>
@@ -188,19 +198,22 @@ function PubOverview({ myPubs, onUnpublish, onNavigate }: {
   )
 }
 
-/** Earnings tab: the Gumroad-shaped payout ledger (empty, honestly) plus a
- *  clearly-labeled projection view powered by real counters. */
-function EarningsTab({ myPubs, view, onView }: {
+/** Earnings tab: the Gumroad-shaped payout ledger. The "Actual" view shows
+ *  REAL sales once the payments rail is live (empty honestly until then);
+ *  the Projection view stays clearly-labeled not-money. */
+function EarningsTab({ myPubs, sales, view, onView }: {
   myPubs: PublishedItinerary[]
+  sales: ActualSales | null   // null while the fetch is in flight
   view: 'actual' | 'projection'
   onView: (v: 'actual' | 'projection') => void
 }) {
   const projection = projectEarnings(myPubs)
+  const actual = sales
   return (
     <>
       <div className="pub-kpis">
-        <div className="stat-tile wide"><div className="stat-label">Available balance</div><div className="stat-value">{formatInr(0)}</div></div>
-        <div className="stat-tile"><div className="stat-label">Lifetime</div><div className="stat-value">{formatInr(0)}</div></div>
+        <div className="stat-tile wide"><div className="stat-label">Lifetime gross</div><div className="stat-value">{formatInr(actual?.grossInr ?? 0)}</div></div>
+        <div className="stat-tile"><div className="stat-label">Sales</div><div className="stat-value">{actual?.rows.length ?? 0}</div></div>
         <div className="stat-tile"><div className="stat-label">Next payout</div><div className="stat-value">—</div></div>
       </div>
       <PillNav className="filter-pillbar" role="group" aria-label="Earnings view" activeKey={view}>
@@ -211,18 +224,48 @@ function EarningsTab({ myPubs, view, onView }: {
       </PillNav>
 
       {view === 'actual' ? (
-        <>
-          <table className="compare-table pub-ledger">
-            <thead><tr><th>Payout period</th><th className="num">Sales</th><th className="num">Platform fee</th><th className="num">Net payout</th></tr></thead>
-            <tbody>
-              <tr><td colSpan={4} className="empty-ledger">No payouts yet</td></tr>
-            </tbody>
-          </table>
-          <div className="hub-note">
-            <b>Payments arrive with the premium launch.</b> Until then this ledger tracks nothing — but its shape is
-            final: when Razorpay lands, each payout lands here as a row with its sale period, sales, fees and net.
-          </div>
-        </>
+        actual === null ? (
+          <div className="container loading-block"><div className="spinner" />Loading sales…</div>
+        ) : actual.rows.length === 0 ? (
+          <>
+            <table className="compare-table pub-ledger">
+              <thead><tr><th>Date</th><th>Itinerary</th><th className="num">Amount paid</th><th className="num">Net*</th></tr></thead>
+              <tbody>
+                <tr><td colSpan={4} className="empty-ledger">No sales yet</td></tr>
+              </tbody>
+            </table>
+            <div className="hub-note">
+              <b>No unlocks sold yet.</b> When someone buys the full plan on one of your priced itineraries, the
+              sale lands here with the amount they actually paid. The Projection tab shows what the same traffic
+              would be worth if every fork had bought.
+            </div>
+          </>
+        ) : (
+          <>
+            <table className="compare-table pub-ledger">
+              <thead><tr><th>Date</th><th>Itinerary</th><th className="num">Amount paid</th><th className="num">Net*</th></tr></thead>
+              <tbody>
+                {actual.rows.map(r => (
+                  <tr key={`${r.pubId}-${r.grantedAt}`}>
+                    <td>{new Date(r.grantedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
+                    <td>{r.title}</td>
+                    <td className="num">{formatInr(r.amountPaidInr)}</td>
+                    <td className="num">{formatInr(r.amountPaidInr)}</td>
+                  </tr>
+                ))}
+                <tr>
+                  <td colSpan={2}><b>Total</b></td>
+                  <td className="num"><b>{formatInr(actual.grossInr)}</b></td>
+                  <td className="num"><b>{formatInr(actual.netInr)}</b></td>
+                </tr>
+              </tbody>
+            </table>
+            <p className="hint-text" style={{ marginTop: 8 }}>
+              * Net mirrors gross for now — the platform-fee model is still TBD (M7 keeps the constant honestly
+              named). Amounts are what buyers actually paid at purchase time, not your publication's current price.
+            </p>
+          </>
+        )
       ) : projection.rows.length === 0 ? (
         <div className="hub-note">
           <b>Nothing to project yet.</b> Projections need a priced publication — set a premium price on one from its

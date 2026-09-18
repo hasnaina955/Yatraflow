@@ -82,6 +82,32 @@ export async function fetchMyEntitlements(userId: string | null): Promise<Entitl
   }
 }
 
+/** The SALES of the logged-in creator's publications (I-11). Reads the same
+ *  entitlements table through the "entitlements creator read own pubs" RLS
+ *  policy — no `user_id` filter, the policy itself scopes the rows to
+ *  publications whose creator_id is the caller. Degrades to [] exactly like
+ *  the buyer read: a missing table or a failed read is an empty ledger,
+ *  never a broken tab. */
+export async function fetchCreatorSales(): Promise<Entitlement[]> {
+  try {
+    const { data, error } = await supabase
+      .from('entitlements')
+      .select(ENTITLEMENT_COLUMNS)
+    if (error) throw error
+    return (Array.isArray(data) ? data : []).map((row: Record<string, unknown>) => ({
+      id: row.id as string,
+      userId: row.user_id as string,
+      pubId: row.pub_id as string,
+      orderId: row.order_id as string,
+      amountPaidInr: row.amount_paid_inr as number,
+      grantedAt: new Date(row.granted_at as string).getTime(),
+    }))
+  } catch (e) {
+    console.error('[yatraflow] creator sales read failed', e)
+    return []
+  }
+}
+
 async function sessionToken(): Promise<string | null> {
   const { data } = await supabase.auth.getSession()
   return data.session?.access_token ?? null

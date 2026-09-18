@@ -46,6 +46,20 @@ describe('the public page wires the real unlock flow', () => {
     // The two full renderer copies are gone: only the shared one remains.
     expect((page.match(/travel-anchor-title/g) ?? []).length).toBe(2) // the component's two variants
   })
+
+  it('the creator hub reads real sales through the creator RLS path (I-11)', () => {
+    const hub = read('../src/pages/CreatorHubPage.tsx')
+    // The Earnings tab's Actual view must derive from entitlements, not from
+    // the projection arithmetic — that's the whole point of I-11.
+    expect(hub).toMatch(/import\s*\{[^}]*deriveActualSales[^}]*\}\s*from\s*'\.\.\/lib\/earnings'/)
+    expect(hub).toMatch(/import\s*\{[^}]*fetchCreatorSales[^}]*\}\s*from\s*'\.\.\/lib\/unlock'/)
+    expect(hub).toContain('deriveActualSales(rows, myPubs)')
+    // And lib/unlock's creator read must NOT filter by user_id — the RLS
+    // policy ("entitlements creator read own pubs") does the scoping.
+    const unlock = read('../src/lib/unlock.ts')
+    const creatorFn = unlock.slice(unlock.indexOf('fetchCreatorSales'))
+    expect(creatorFn.slice(0, 400)).not.toContain(".eq('user_id'")
+  })
 })
 
 describe('the api functions stay client-import-free', () => {

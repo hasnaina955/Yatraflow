@@ -1,4 +1,5 @@
 {
+  "formatVersion": 2,
   "trip": {
     "name": "Goa, North to the Quiet South",
     "startLocation": "Panaji, Goa",
@@ -35,13 +36,13 @@
             "title": "Goan fish thali in Panaji",
             "category": "food",
             "locationName": "Panaji, Goa",
-            "lat": 15.499, "lng": 73.8282,
+            "lat": 15.4995, "lng": 73.8224,
             "visitMinutes": 60,
             "entryFeeInrPerPerson": 0,
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 0,
+            "orderInDay": 1,
             "notes": "Eat where the office crowd eats — rice, fish curry, kokum — before the sightseeing starts"
           },
           {
@@ -55,7 +56,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 1,
+            "orderInDay": 2,
             "notes": "Mustard-and-blue Portuguese lanes; the walk is free and the 4 PM light is the one to photograph. An urban lane walk — rain changes its mood, not the plan"
           },
           {
@@ -69,7 +70,7 @@
             "transportCostInrTotal": 0,
             "priority": "nice-to-have",
             "status": "confirmed",
-            "orderInDay": 2,
+            "orderInDay": 3,
             "weatherSensitive": true,
             "notes": "The city's own beach — busy, local, and the sunset side"
           },
@@ -84,7 +85,7 @@
             "transportCostInrTotal": 0,
             "priority": "nice-to-have",
             "status": "confirmed",
-            "orderInDay": 3,
+            "orderInDay": 4,
             "weatherSensitive": true,
             "notes": "Where the Mandovi meets the Arabian Sea; skip the jetty crowds and walk the far end"
           },
@@ -99,7 +100,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 4,
+            "orderInDay": 5,
             "notes": "Staying in town the first night means the Latin quarter is a walk, not a drive"
           }
         ]
@@ -121,7 +122,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 0,
+            "orderInDay": 1,
             "notes": "Free entry, shoulders and knees covered. The Se Cathedral and St Francis of Assisi are a five-minute walk — see them in the same stop"
           },
           {
@@ -135,7 +136,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 1
+            "orderInDay": 2
           },
           {
             "id": "d2-aguada",
@@ -148,7 +149,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 2,
+            "orderInDay": 3,
             "weatherSensitive": true,
             "notes": "The 17th-century Portuguese bastion above the river mouth. A small ASI ticket is collected at the gate — carry cash, see the ticket allowance in the budget"
           },
@@ -163,7 +164,7 @@
             "transportCostInrTotal": 0,
             "priority": "nice-to-have",
             "status": "confirmed",
-            "orderInDay": 3,
+            "orderInDay": 4,
             "weatherSensitive": true,
             "notes": "Below the fort — the first proper swim of the trip"
           },
@@ -178,7 +179,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 4,
+            "orderInDay": 5,
             "notes": "Two nights in the same place is the whole point — north Goa is walked, not re-packed"
           }
         ]
@@ -194,13 +195,13 @@
             "title": "Shack breakfast on Candolim beach",
             "category": "food",
             "locationName": "Candolim, Goa",
-            "lat": 15.5202, "lng": 73.7659,
+            "lat": 15.5181, "lng": 73.7629,
             "visitMinutes": 60,
             "entryFeeInrPerPerson": 0,
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 0,
+            "orderInDay": 1,
             "notes": "Poi toast and a filter coffee with your feet in the sand — this is the pace for today"
           },
           {
@@ -214,7 +215,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 1,
+            "orderInDay": 2,
             "weatherSensitive": true,
             "notes": "Rocky south end, cafes on the north. Baga and Calangute are the next two coves up if you want more sand — and the Wednesday flea market is only on Wednesdays"
           },
@@ -229,7 +230,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 2,
+            "orderInDay": 3,
             "weatherSensitive": true,
             "notes": "Free to enter, ten minutes uphill from the road; the river and both beaches open up from the ramparts"
           },
@@ -244,7 +245,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 3
+            "orderInDay": 4
           }
         ]
       },
@@ -265,7 +266,7 @@
             "transportCostInrTotal": 0,
             "priority": "nice-to-have",
             "status": "confirmed",
-            "orderInDay": 0,
+            "orderInDay": 1,
             "notes": "Last stop for Goan dodol, cashew and spice before the ferry-side drive south"
           },
           {
@@ -273,13 +274,13 @@
             "title": "Lunch in Colva",
             "category": "food",
             "locationName": "Colva, Goa",
-            "lat": 15.2858, "lng": 73.9105,
+            "lat": 15.2773, "lng": 73.9202,
             "visitMinutes": 60,
             "entryFeeInrPerPerson": 0,
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 1
+            "orderInDay": 2
           },
           {
             "id": "d4-colva",
@@ -292,7 +293,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 2,
+            "orderInDay": 3,
             "weatherSensitive": true,
             "notes": "The south's answer to Calangute — wide, flat, and far emptier midweek"
           },
@@ -301,13 +302,13 @@
             "title": "Night in Colva",
             "category": "hotel",
             "locationName": "Colva, Goa",
-            "lat": 15.2858, "lng": 73.9105,
+            "lat": 15.2773, "lng": 73.9202,
             "visitMinutes": 30,
             "entryFeeInrPerPerson": 0,
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 3,
+            "orderInDay": 4,
             "notes": "Sleeping south tonight is what makes the last morning's beaches reachable without a dawn drive"
           }
         ]
@@ -329,7 +330,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 0,
+            "orderInDay": 1,
             "weatherSensitive": true,
             "notes": "Free to walk in — the western wall looks straight down the coastline, the best view in south Goa"
           },
@@ -338,13 +339,13 @@
             "title": "Lunch under the palms, Palolem",
             "category": "food",
             "locationName": "Palolem, Canacona",
-            "lat": 15.0093, "lng": 74.0242,
+            "lat": 15.0128, "lng": 74.0219,
             "visitMinutes": 60,
             "entryFeeInrPerPerson": 0,
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 1
+            "orderInDay": 2
           },
           {
             "id": "d5-palolem",
@@ -357,7 +358,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 2,
+            "orderInDay": 3,
             "weatherSensitive": true,
             "notes": "The postcard crescent. Kayaks on the south end, and the hill path to Colomb for the view back"
           },
@@ -372,7 +373,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 3,
+            "orderInDay": 4,
             "notes": "Two hours on NH66 from Palolem; leave by mid-afternoon if your flight is the same evening"
           }
         ]

@@ -1,4 +1,5 @@
 {
+  "formatVersion": 2,
   "trip": {
     "name": "Kerala Hills & Backwaters",
     "startLocation": "Kochi, Kerala",
@@ -38,7 +39,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 0,
+            "orderInDay": 1,
             "notes": "Banana-leaf lunch — rice, sambar, avial, and a fish fry on the side"
           },
           {
@@ -52,7 +53,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 1,
+            "orderInDay": 2,
             "sourceUrl": "https://www.kiomoi.com/attractions/mattancherry-palace-in-kochi/entry-fee-1292",
             "notes": "₹5 for Indian visitors, one of the cheapest tickets in India for a palace full of Kochi's murals. Jew Town and the Paradesi synagogue lane are the same stop"
           },
@@ -61,13 +62,13 @@
             "title": "Chinese fishing nets, Fort Kochi beach",
             "category": "sightseeing",
             "locationName": "Fort Kochi, Kochi",
-            "lat": 9.9676, "lng": 76.2422,
+            "lat": 9.9682, "lng": 76.2422,
             "visitMinutes": 60,
             "entryFeeInrPerPerson": 0,
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 2,
+            "orderInDay": 3,
             "weatherSensitive": true,
             "notes": "The cantilevered nets are worked at high tide; the walk from the Dutch cemetery end is the good half"
           },
@@ -76,13 +77,13 @@
             "title": "Kathakali performance, Fort Kochi",
             "category": "event",
             "locationName": "Fort Kochi, Kochi",
-            "lat": 9.9676, "lng": 76.2422,
+            "lat": 9.9639, "lng": 76.2428,
             "visitMinutes": 90,
             "entryFeeInrPerPerson": 0,
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 3,
+            "orderInDay": 4,
             "notes": "Most centres let you in 45 minutes early to watch the make-up going on — that half-hour is the real show. Tickets (about ₹300–500) are in the ticket allowance"
           },
           {
@@ -96,7 +97,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 4,
+            "orderInDay": 5,
             "notes": "A heritage homestay in Fort Kochi beats a city hotel — everything today is within walking distance"
           }
         ]
@@ -118,7 +119,7 @@
             "transportCostInrTotal": 0,
             "priority": "nice-to-have",
             "status": "confirmed",
-            "orderInDay": 0,
+            "orderInDay": 1,
             "weatherSensitive": true,
             "notes": "Right on the Kochi–Madurai highway, free to stop at; best right after rain, which is most of the year"
           },
@@ -127,26 +128,26 @@
             "title": "Munnar town lunch",
             "category": "food",
             "locationName": "Munnar, Kerala",
-            "lat": 10.087, "lng": 77.0601,
+            "lat": 10.0863, "lng": 77.0612,
             "visitMinutes": 60,
             "entryFeeInrPerPerson": 0,
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 1
+            "orderInDay": 2
           },
           {
             "id": "d2-tea-museum",
             "title": "KDHP Tea Museum",
             "category": "museum",
             "locationName": "Munnar, Kerala",
-            "lat": 10.087, "lng": 77.0601,
+            "lat": 10.0942, "lng": 77.0507,
             "visitMinutes": 90,
             "entryFeeInrPerPerson": 75,
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 2,
+            "orderInDay": 3,
             "sourceUrl": "https://irisholidays.com/munnar/tea-museum-munnar",
             "notes": "The working tea factory tour that explains what you have been driving through. Ticket prices here are revised often — verify at the counter"
           },
@@ -161,7 +162,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 3,
+            "orderInDay": 4,
             "notes": "Take the second night here: the hill station rewards a slow morning more than it rewards another drive"
           }
         ]
@@ -184,7 +185,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 0,
+            "orderInDay": 1,
             "weatherSensitive": true,
             "sourceUrl": "https://eravikulamnationalpark.in/",
             "notes": "Home of the Nilgiri tahr — the park's own booking site lists ₹200 for Indian adults plus a ₹50 reservation fee, and closes the gate at 14:00. Online slots sell out on weekends"
@@ -200,7 +201,7 @@
             "transportCostInrTotal": 0,
             "priority": "nice-to-have",
             "status": "confirmed",
-            "orderInDay": 1,
+            "orderInDay": 2,
             "weatherSensitive": true,
             "notes": "The dam road is the prettiest drive in Munnar; the small parking and boat charges are collected in cash at the gate (see the ticket allowance)"
           },
@@ -209,13 +210,13 @@
             "title": "Late lunch back in Munnar",
             "category": "food",
             "locationName": "Munnar, Kerala",
-            "lat": 10.087, "lng": 77.0601,
+            "lat": 10.0863, "lng": 77.0612,
             "visitMinutes": 60,
             "entryFeeInrPerPerson": 0,
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 2
+            "orderInDay": 3
           },
           {
             "id": "d3-munnar-stay",
@@ -228,7 +229,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 3
+            "orderInDay": 4
           }
         ]
       },
@@ -243,13 +244,13 @@
             "title": "Kumily-side lunch and spice shops",
             "category": "food",
             "locationName": "Thekkady, Kerala",
-            "lat": 9.5805, "lng": 77.1811,
+            "lat": 9.6068, "lng": 77.1671,
             "visitMinutes": 60,
             "entryFeeInrPerPerson": 0,
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 0,
+            "orderInDay": 1,
             "notes": "Cardamom, pepper and vanilla straight from the plantation shops on the Kumily road"
           },
           {
@@ -263,7 +264,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 1,
+            "orderInDay": 2,
             "weatherSensitive": true,
             "sourceUrl": "https://www.periyartigerreserve.org/",
             "notes": "Park entry is ₹25/person; the lake boat is a separate booking (₹255 — see the expense line) that sells out a day ahead. Early boats see more wildlife"
@@ -279,7 +280,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 2
+            "orderInDay": 3
           }
         ]
       },
@@ -294,13 +295,13 @@
             "title": "Alappuzha beach and its old pier",
             "category": "beach",
             "locationName": "Alappuzha, Kerala",
-            "lat": 9.5003, "lng": 76.4123,
+            "lat": 9.4844, "lng": 76.3195,
             "visitMinutes": 45,
             "entryFeeInrPerPerson": 0,
             "transportCostInrTotal": 0,
             "priority": "nice-to-have",
             "status": "confirmed",
-            "orderInDay": 0,
+            "orderInDay": 1,
             "weatherSensitive": true,
             "notes": "Five minutes from the boat jetty — the 150-year-old pier is the photograph before you board"
           },
@@ -315,7 +316,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 1
+            "orderInDay": 2
           },
           {
             "id": "d5-houseboat",
@@ -328,7 +329,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 2,
+            "orderInDay": 3,
             "notes": "Board by early afternoon, cruise the Punnamada and Vembanad channels, moor for the night. The crew cooks — the cost is a premium over a standard room, itemised in the budget"
           }
         ]
@@ -350,7 +351,7 @@
             "transportCostInrTotal": 0,
             "priority": "nice-to-have",
             "status": "confirmed",
-            "orderInDay": 0,
+            "orderInDay": 1,
             "weatherSensitive": true,
             "notes": "Go early — the sanctuary is at its best between 6 and 9 AM. Small gate and parking charges are cash, in the ticket allowance"
           },
@@ -365,7 +366,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 1,
+            "orderInDay": 2,
             "notes": "If the flight is late, Marari's fishing-village beach is 30 minutes west of here — the quietest sand in the Alappuzha district"
           },
           {
@@ -379,7 +380,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 2,
+            "orderInDay": 3,
             "notes": "45 minutes from the city; leave three hours before an international departure"
           }
         ]

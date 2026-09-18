@@ -33,21 +33,21 @@ const GREEN = '\x1b[32m', RED = '\x1b[31m', YELLOW = '\x1b[33m', DIM = '\x1b[2m'
 
 // ---------------------------------------------------------------- env loading
 function loadDotEnvLocal() {
-  const env = {};
+  const env = new Map();
   try {
     for (const line of readFileSync(resolve('.env.local'), 'utf8').split(/\r?\n/)) {
       const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/);
       if (!m) continue;
       let v = m[2].trim();
       if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) v = v.slice(1, -1);
-      env[m[1]] = v;
+      env.set(m[1], v);
     }
   } catch { /* no .env.local — process.env only */ }
   return env;
 }
 
 const fileEnv = loadDotEnvLocal();
-const env = (k) => process.env[k] ?? fileEnv[k] ?? '';
+const env = (k) => process.env[k] ?? fileEnv.get(k) ?? '';
 
 const SUPABASE_URL = env('VITE_SUPABASE_URL');
 const SUPABASE_ANON_KEY = env('VITE_SUPABASE_ANON_KEY');

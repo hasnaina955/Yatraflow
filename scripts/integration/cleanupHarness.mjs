@@ -5,14 +5,14 @@ import { createClient } from '@supabase/supabase-js';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-const env = {};
+const env = new Map();
 try {
   for (const line of readFileSync(resolve('.env.local'), 'utf8').split(/\r?\n/)) {
     const m = line.match(/^\s*([A-Za-z0-9_]+)\s*=\s*(.*)\s*$/);
-    if (m) env[m[1]] = m[2].trim().replace(/^["']|["']$/g, '');
+    if (m) env.set(m[1], m[2].trim().replace(/^["']|["']$/g, ''));
   }
 } catch { /* process.env only */ }
-const envv = (k) => process.env[k] ?? env[k] ?? '';
+const envv = (k) => process.env[k] ?? env.get(k) ?? '';
 
 const U1 = createClient(envv('VITE_SUPABASE_URL'), envv('VITE_SUPABASE_ANON_KEY'));
 const auth = await U1.auth.signInWithPassword({ email: envv('TEST_USER1_EMAIL'), password: envv('TEST_USER1_PASS') });

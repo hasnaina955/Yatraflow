@@ -142,7 +142,7 @@ function SmoothCollapse({ open, children }: { open: boolean; children: React.Rea
       return () => { cancelAnimationFrame(raf1); cancelAnimationFrame(raf2) }
     }
     setExpanded(false)
-    const t = window.setTimeout(() => setMounted(false), motionTiming('--motion-slower').duration + COLLAPSE_UNMOUNT_SLACK_MS)
+    const t = window.setTimeout(() => { setMounted(false) }, motionTiming('--motion-slower').duration + COLLAPSE_UNMOUNT_SLACK_MS)
     return () => window.clearTimeout(t)
   }, [open])
   if (!mounted) return null

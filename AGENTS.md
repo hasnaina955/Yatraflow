@@ -439,6 +439,15 @@ changes flip suites that pass in isolation. The routing tests pin their env
 and clear caches per file for exactly this reason; when a rerun goes green,
 name the mechanism or keep reproducing — never just re-run until green.
 
+**A verify that fails with `Errors 1` while every test passes is the worker-teardown race, not a failure — read the summary line before the conclusion.** On `test`
+(2026-09-18, the v0.60.0 merge) the gate printed **1353 passed, 1 error** and exited 1:
+one unhandled rejection, `EnvironmentTeardownError: [vitest-worker]: Closing rpc while
+"onUserConsoleLog" was pending`, attributed to `tests/store-robustness.test.ts` and
+preceded by that file's own console logging. Nothing asserted false — the worker's RPC
+channel closed with a log message still in flight, and the re-run of the same commit was
+green. `N passed` + `Errors 1` is this race (a real failure shows `N failed`); re-run the
+job, and name this mechanism rather than reaching for "flaky".
+
 ## 4. Code conventions & pitfalls
 
 - **A drawn layer and a marker layer must share their source, or the line will touch points nothing marks.** The Map tab draws a selected day's engine journey (`buildJourney` — which can open at the previous night's stop and close at a synthesized destination or the ride home) while its pins come only from that day's *stored* stops. A route end could therefore sit on a bare spot and read as "the route stops" — a real report on 2026-09-17, where the line proved complete (3,481 road points ending exactly at the engine's endpoints) and only the marker was missing. Synthesized journey endpoints now get their own pin, deduplicated through `coLocates` (< 1 km); `lib/journeyMarkers.ts` is that seam. When two layers derive from different data, walk the drawn geometry's endpoints and assert every one is marked.

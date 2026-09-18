@@ -265,6 +265,26 @@ Static hosting is enough. The repo auto-deploys to **Vercel** on every push to `
 
 These are extension points, not oversights — see ARCHITECTURE.md's "Swapping things out".
 
+## Testing the crew shape (opt-in integration gate)
+
+The node suite runs offline. To assert crew behavior against the real database,
+create two throwaway accounts and run the integration harness -- opt-in only, so
+it never gates offline verify:
+
+```powershell
+# in .env.local (or environment):
+#   TEST_USER1_EMAIL=crew-a@example.com   TEST_USER1_PASS=<password>
+#   TEST_USER2_EMAIL=crew-b@example.com   TEST_USER2_PASS=<password>
+VITE_RUN_INTEGRATION=1 npm run test:integration
+```
+
+The harness asserts the cross-user row-level behavior two crews actually rely on
+(private-trip privacy, self-serve join, the editor gate, recipient-only
+notifications, public gallery reads, realtime round-trips) with a unique run-id
+prefix per run and a printed teardown ledger -- only rows the run created are
+ever touched. The catalog-level shape is additionally locked by
+`supabase/tests/rls_contract.test.sql` (run in the dashboard SQL editor).
+
 ## 🤝 Contributing
 
 PRs welcome! Keep TypeScript strict clean, match the existing style (plain CSS in `styles.css`, no new UI/router/state libs without discussion), preserve the transparency promise, and respect the MVP constraints. See [CONTRIBUTING.md](CONTRIBUTING.md).

@@ -171,7 +171,7 @@ describe('kicker casing: sentence case in source, uppercase via CSS', () => {
     ['src/pages/PublicItinerary.tsx', 'Trip highlights', 'TRIP HIGHLIGHTS'],
     ['src/pages/PublicItinerary.tsx', 'The practical bit', 'THE PRACTICAL BIT'],
     ['src/pages/PublicItinerary.tsx', 'The route at a glance', 'THE ROUTE AT A GLANCE'],
-    ['src/pages/PublicItinerary.tsx', 'Verified creator', 'VERIFIED CREATOR'],
+    ['src/pages/PublicItinerary.tsx', 'Why this route works', 'WHY THIS ROUTE WORKS'],
     ['src/pages/Explore.tsx', 'Featured itinerary', 'FEATURED ITINERARY'],
   ]
 
@@ -272,8 +272,8 @@ function declMap(block: string): Map<string, string> {
   return out
 }
 
-const rootTokens = declMap(topLevelBlock(css, /^:root\s*\{/m))
-const darkOverrides = declMap(topLevelBlock(css, /^\[data-theme='dark'\]\s*\{/m))
+const rootTokens = declMap(stripCssComments(topLevelBlock(css, /^:root\s*\{/m)))
+const darkOverrides = declMap(stripCssComments(topLevelBlock(css, /^\[data-theme='dark'\]\s*\{/m)))
 const darkTokens = new Map<string, string>([...rootTokens, ...darkOverrides])
 
 /** Follow a `var(--token)` chain inside one theme's table. */

@@ -8,9 +8,23 @@ import { ExternalLink, Pencil } from 'lucide-react'
 import { PillNav } from '../components/PillNav'
 import type { PublishedItinerary } from '../data/types'
 import { useDb, currentUser, updateProfile, unpublishItinerary, tripById } from '../store/store'
-import { projectEarnings } from '../lib/earnings'
+import { projectEarnings, deriveActualSales, type ActualSales } from '../lib/earnings'
+import { fetchCreatorSales } from '../lib/unlock'
 import { formatInr } from '../lib/engine'
 import { Chip, ConfirmDialog, Field, toast } from '../components/ui'
+
+/** Social links are stored raw and later emitted as an `href`, so a non-URL
+ *  value becomes a live broken link. The inputs are `type="url"` but sit
+ *  outside a form, so the browser never validates them — do it here. Accept an
+ *  empty value (clearing is fine) or anything that parses as http/https. */
+function isValidSocialUrl(v: string): boolean {
+  try {
+    const u = new URL(v)
+    return u.protocol === 'http:' || u.protocol === 'https:'
+  } catch {
+    return false
+  }
+}
 
 export function CreatorHubPage({ onNavigate }: { onNavigate: (r: string) => void }) {
   const db = useDb()
@@ -20,10 +34,26 @@ export function CreatorHubPage({ onNavigate }: { onNavigate: (r: string) => void
   const [creatorBio, setCreatorBio] = useState(me?.profile.creatorBio ?? '')
   const [youtube, setYoutube] = useState(me?.profile.socialLinks?.youtube ?? '')
   const [instagram, setInstagram] = useState(me?.profile.socialLinks?.instagram ?? '')
+  const [socialErrors, setSocialErrors] = useState<{ youtube?: string; instagram?: string }>({})
   const [confirmDisable, setConfirmDisable] = useState(false)
   const [unpubTarget, setUnpubTarget] = useState<PublishedItinerary | null>(null)
   const [hubTab, setHubTab] = useState<'overview' | 'earnings'>('overview')
   const [earningsView, setEarningsView] = useState<'actual' | 'projection'>('actual')
+  // Real sales (I-11): entitlements for MY publications, read through the
+  // creator RLS policy. A failed read is an ERROR state with retry, not a
+  // silent empty ledger — "No sales yet" and "read failed" are different
+  // truths (the conflation hid a live grant bug for a whole session).
+  const [sales, setSales] = useState<ActualSales | null>(null)
+  const [salesError, setSalesError] = useState(false)
+  const [salesRetry, setSalesRetry] = useState(0)
+  useEffect(() => {
+    let alive = true
+    setSalesError(false)
+    fetchCreatorSales()
+      .then(rows => { if (alive) setSales(deriveActualSales(rows, myPubs)) })
+      .catch(() => { if (alive) { setSalesError(true); setSales(null) } })
+    return () => { alive = false }
+  }, [me?.id, salesRetry]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const loggedIn = Boolean(me)
   useEffect(() => { if (!loggedIn) onNavigate('/auth') })
@@ -36,9 +66,9 @@ export function CreatorHubPage({ onNavigate }: { onNavigate: (r: string) => void
 
       {!me.profile.isCreator ? (
         <div className="card">
-          <h3>Creator mode</h3>
+          <h2 className="card-title">Creator mode</h2>
           <p className="hint-text" style={{ margin: '6px 0 12px' }}>
-            Creator mode is a trust and branding badge: your bio and social links appear on the itineraries you publish, and you get a public creator page others can follow.
+            Creator mode is a branding badge: your bio and social links appear on the itineraries you publish, and you get a public creator page others can follow.
           </p>
           <button className="btn btn-saffron" onClick={() => { updateProfile({ isCreator: true }); toast('Creator mode enabled — your bio and links now show on published itineraries.') }}>
             Enable creator mode
@@ -48,24 +78,32 @@ export function CreatorHubPage({ onNavigate }: { onNavigate: (r: string) => void
         <>
           <div className="card">
             <div className="row-between">
-              <h3>Creator mode</h3>
+              <h2 className="card-title">Creator mode</h2>
               <Chip tone="ok">Enabled</Chip>
             </div>
             <p className="hint-text" style={{ margin: '6px 0 12px' }}>
               Publishing to Explore is open to everyone — do it from any trip&apos;s Share tab.
-              Creator mode is a trust and branding badge: your bio and social links appear
+              Creator mode is a branding badge: your bio and social links appear
               on the itineraries you publish.
             </p>
             <Field label="Creator bio"><textarea className="textarea" value={creatorBio} onChange={e => setCreatorBio(e.target.value)} placeholder="Tell readers who you are and why they should trust your routes." /></Field>
             <div className="form-row">
-              <Field label="YouTube link"><input className="input" type="url" inputMode="url" value={youtube} onChange={e => setYoutube(e.target.value)} placeholder="https://youtube.com/@…" /></Field>
-              <Field label="Instagram link"><input className="input" type="url" inputMode="url" value={instagram} onChange={e => setInstagram(e.target.value)} placeholder="https://instagram.com/…" /></Field>
+              <Field label="YouTube link" error={socialErrors.youtube}><input className="input" type="url" inputMode="url" value={youtube} onChange={e => { setYoutube(e.target.value); if (socialErrors.youtube) setSocialErrors(s => ({ ...s, youtube: undefined })) }} placeholder="https://youtube.com/@…" /></Field>
+              <Field label="Instagram link" error={socialErrors.instagram}><input className="input" type="url" inputMode="url" value={instagram} onChange={e => { setInstagram(e.target.value); if (socialErrors.instagram) setSocialErrors(s => ({ ...s, instagram: undefined })) }} placeholder="https://instagram.com/…" /></Field>
             </div>
             <button className="btn btn-primary btn-sm" onClick={() => {
+              const yt = youtube.trim()
+              const ig = instagram.trim()
+              const nextErrors = {
+                youtube: yt && !isValidSocialUrl(yt) ? 'Enter a full link starting with http:// or https://' : undefined,
+                instagram: ig && !isValidSocialUrl(ig) ? 'Enter a full link starting with http:// or https://' : undefined,
+              }
+              setSocialErrors(nextErrors)
+              if (nextErrors.youtube || nextErrors.instagram) return
               updateProfile({
                 creatorBio: creatorBio.trim() || undefined,
-                socialLinks: (youtube.trim() || instagram.trim())
-                  ? { youtube: youtube.trim() || undefined, instagram: instagram.trim() || undefined }
+                socialLinks: (yt || ig)
+                  ? { youtube: yt || undefined, instagram: ig || undefined }
                   : undefined,
               })
               toast('Creator profile saved')
@@ -78,7 +116,7 @@ export function CreatorHubPage({ onNavigate }: { onNavigate: (r: string) => void
 
           <div className="card stack-gap">
             <div className="row-between">
-              <h3>My publications</h3>
+              <h2 className="card-title">My publications</h2>
               {myPubs.length > 0 && (
                 <a className="small" href={`#/creator/${me.id}`} style={{ fontWeight: 600 }}>
                   <ExternalLink size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />View public page
@@ -101,7 +139,8 @@ export function CreatorHubPage({ onNavigate }: { onNavigate: (r: string) => void
                 <PubOverview myPubs={myPubs} onUnpublish={setUnpubTarget} onNavigate={onNavigate} />
               )
             ) : (
-              <EarningsTab myPubs={myPubs} view={earningsView} onView={setEarningsView} />
+              <EarningsTab myPubs={myPubs} sales={sales} salesError={salesError}
+                onRetry={() => setSalesRetry(n => n + 1)} view={earningsView} onView={setEarningsView} />
             )}
           </div>
         </>
@@ -188,19 +227,24 @@ function PubOverview({ myPubs, onUnpublish, onNavigate }: {
   )
 }
 
-/** Earnings tab: the Gumroad-shaped payout ledger (empty, honestly) plus a
- *  clearly-labeled projection view powered by real counters. */
-function EarningsTab({ myPubs, view, onView }: {
+/** Earnings tab: the Gumroad-shaped payout ledger. The "Actual" view shows
+ *  REAL sales once the payments rail is live (empty honestly until then);
+ *  the Projection view stays clearly-labeled not-money. */
+function EarningsTab({ myPubs, sales, salesError, onRetry, view, onView }: {
   myPubs: PublishedItinerary[]
+  sales: ActualSales | null   // null while the fetch is in flight
+  salesError: boolean         // the read itself failed — distinct from an empty ledger
+  onRetry: () => void
   view: 'actual' | 'projection'
   onView: (v: 'actual' | 'projection') => void
 }) {
   const projection = projectEarnings(myPubs)
+  const actual = sales
   return (
     <>
       <div className="pub-kpis">
-        <div className="stat-tile wide"><div className="stat-label">Available balance</div><div className="stat-value">{formatInr(0)}</div></div>
-        <div className="stat-tile"><div className="stat-label">Lifetime</div><div className="stat-value">{formatInr(0)}</div></div>
+        <div className="stat-tile wide"><div className="stat-label">Lifetime gross</div><div className="stat-value">{formatInr(actual?.grossInr ?? 0)}</div></div>
+        <div className="stat-tile"><div className="stat-label">Sales</div><div className="stat-value">{actual?.rows.length ?? 0}</div></div>
         <div className="stat-tile"><div className="stat-label">Next payout</div><div className="stat-value">—</div></div>
       </div>
       <PillNav className="filter-pillbar" role="group" aria-label="Earnings view" activeKey={view}>
@@ -211,18 +255,56 @@ function EarningsTab({ myPubs, view, onView }: {
       </PillNav>
 
       {view === 'actual' ? (
-        <>
-          <table className="compare-table pub-ledger">
-            <thead><tr><th>Payout period</th><th className="num">Sales</th><th className="num">Platform fee</th><th className="num">Net payout</th></tr></thead>
-            <tbody>
-              <tr><td colSpan={4} className="empty-ledger">No payouts yet</td></tr>
-            </tbody>
-          </table>
-          <div className="hub-note">
-            <b>Payments arrive with the premium launch.</b> Until then this ledger tracks nothing — but its shape is
-            final: when Razorpay lands, each payout lands here as a row with its sale period, sales, fees and net.
-          </div>
-        </>
+        actual === null ? (
+          <div className="container loading-block"><div className="spinner" />Loading sales…</div>
+        ) : salesError ? (
+          <>
+            <div className="hub-note" role="alert">
+              <b>Couldn't load your sales.</b> The ledger read failed just now — your recorded sales are safe
+              and will appear once the connection works. Check your connection and try again.
+            </div>
+            <button className="btn btn-outline btn-sm" style={{ marginTop: 8 }} onClick={onRetry}>Retry</button>
+          </>
+        ) : actual.rows.length === 0 ? (
+          <>
+            <table className="compare-table pub-ledger" tabIndex={0} aria-label="Sales ledger">
+              <thead><tr><th>Date</th><th>Itinerary</th><th className="num">Amount paid</th><th className="num">Net*</th></tr></thead>
+              <tbody>
+                <tr><td colSpan={4} className="empty-ledger">No sales yet</td></tr>
+              </tbody>
+            </table>
+            <div className="hub-note">
+              <b>No unlocks sold yet.</b> When someone buys the full plan on one of your priced itineraries, the
+              sale lands here with the amount they actually paid. The Projection tab shows what the same traffic
+              would be worth if every fork had bought.
+            </div>
+          </>
+        ) : (
+          <>
+            <table className="compare-table pub-ledger" tabIndex={0} aria-label="Sales ledger">
+              <thead><tr><th>Date</th><th>Itinerary</th><th className="num">Amount paid</th><th className="num">Net*</th></tr></thead>
+              <tbody>
+                {actual.rows.map(r => (
+                  <tr key={`${r.pubId}-${r.grantedAt}`}>
+                    <td>{new Date(r.grantedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
+                    <td>{r.title}</td>
+                    <td className="num">{formatInr(r.amountPaidInr)}</td>
+                    <td className="num">{formatInr(r.amountPaidInr)}</td>
+                  </tr>
+                ))}
+                <tr>
+                  <td colSpan={2}><b>Total</b></td>
+                  <td className="num"><b>{formatInr(actual.grossInr)}</b></td>
+                  <td className="num"><b>{formatInr(actual.netInr)}</b></td>
+                </tr>
+              </tbody>
+            </table>
+            <p className="hint-text" style={{ marginTop: 8 }}>
+              * Net mirrors gross for now — the platform-fee model is still TBD (M7 keeps the constant honestly
+              named). Amounts are what buyers actually paid at purchase time, not your publication's current price.
+            </p>
+          </>
+        )
       ) : projection.rows.length === 0 ? (
         <div className="hub-note">
           <b>Nothing to project yet.</b> Projections need a priced publication — set a premium price on one from its
@@ -230,7 +312,7 @@ function EarningsTab({ myPubs, view, onView }: {
         </div>
       ) : (
         <>
-          <table className="compare-table pub-ledger">
+          <table className="compare-table pub-ledger" tabIndex={0} aria-label="Projection ledger">
             <thead><tr><th>Itinerary</th><th className="num">Price</th><th className="num">Forks</th><th className="num">If all unlocked</th><th className="num">Net*</th></tr></thead>
             <tbody>
               {projection.rows.map(r => (

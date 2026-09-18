@@ -801,6 +801,38 @@ export async function fetchSharedTrip(tripId: ID, allowInvitePreview = false): P
 }
 
 /**
+ * The PUBLIC-READER path for a published itinerary's trip (public page and
+ * fork). Reads through the security-definer `get_public_trip` RPC, which
+ * decides SERVER-SIDE who sees real days: the publication's creator and
+ * buyers with a paid entitlement row (matched on auth.uid()) get the real
+ * trip; everyone else gets locked days stubbed at the wire — the paywall
+ * lives in the database now, not in React. The client never picks its own
+ * path; there is no parameter to forge. After an unlock, re-calling this
+ * same RPC serves real days because the server's entitlement check flips.
+ * The direct `select('*')` read requires owner/member/admin (the tightened
+ * "trips read" policy), so an anonymous curl can no longer pull premium day
+ * content off the table.
+ *
+ * Merged into the cache like fetchSharedTrip; returns null for an unknown
+ * publication or a deleted/unpublished trip.
+ */
+export async function fetchPublicTrip(pubId: string): Promise<Trip | null> {
+  const rpc = await supabase.rpc('get_public_trip', { p_pub_id: pubId })
+  if (rpc.error) {
+    console.error('[yatraflow] public trip fetch failed', rpc.error)
+    return null
+  }
+  const rows = rpc.data as TripRow[] | null
+  if (!Array.isArray(rows) || rows.length === 0) return null
+  const trip = rowToTrip(rows[0], [])
+  if (!cache.trips.some(t => t.id === trip.id)) {
+    cache.trips = [...cache.trips, trip]
+    commit()
+  }
+  return trip
+}
+
+/**
  * Resolve a short invite code ("GOA-K7QF") to its trip via the
  * security-definer `get_trip_by_invite_code` RPC — the code is the
  * capability, so this works for private trips and logged-out visitors

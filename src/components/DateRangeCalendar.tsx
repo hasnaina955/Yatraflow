@@ -86,7 +86,7 @@ export function DateRangeCalendar({ start, end, error, hint, label = 'Trip dates
   return (
     <Field label={label} hint={hint} error={error}>
       <div className="cal-wrap" ref={wrapRef}>
-        <button type="button" className="input cal-trigger" aria-expanded={open} aria-haspopup="dialog"
+        <button type="button" className="input cal-trigger" aria-expanded={open} aria-haspopup="dialog" aria-label={label}
           disabled={disabled}
           ref={registerRef} onClick={toggle}>
           <Calendar size={14} aria-hidden />

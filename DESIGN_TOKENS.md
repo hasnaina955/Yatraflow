@@ -1,5 +1,10 @@
 # YatraFlow Design Tokens
 
+`src/styles.css` is authoritative; correct this reference when the two disagree,
+never change CSS to honour an obsolete table. Reconciliation evidence below uses
+one measured CSS snapshot (SHA-256 in the appendix); line numbers may move during
+concurrent CSS work. Counts describe source declarations, not computed rendering.
+
 Token architecture adopted from the `ui-ux-pro-max-skill` design-system reference
 (audit issue #24). Three layers:
 
@@ -57,7 +62,7 @@ never the hex.
 | `--cat-food` | `#F59E2D` | `#F5A94A` | food |
 | `--cat-activities` | `#2E8B57` | `#52BE80` | activities |
 | `--cat-entry-fees` | `#D6534D` | `#E06C6C` | entry fees |
-| `--cat-tolls-parking` | `#8291A6` | `#93A6BC` | tolls & parking |
+| `--cat-tolls-parking` | `--gray-500` → `#5A6A80` | `#93A6BC` | tolls & parking |
 | `--cat-local-travel` | `#B47207` | `#D99A2B` | local travel |
 | `--cat-emergency-buffer` | `#E4AE43` | `#E4B45E` | emergency buffer |
 
@@ -81,9 +86,9 @@ popup stops clashing.
 
 | Token | Light | Dark |
 |------|-------|------|
-| `--teal-500` (primary) | `#0D8D82` | `#2BB8AC` |
-| `--teal-600` (primary hover) | `#0E7A72` | `#35C9BC` |
-| `--teal-700` (primary active) | `#0B6B63` | `#1E9D92` |
+| `--teal-500` (dark primary; light CTI teal) | `#0D8D82` | `#2BB8AC` |
+| `--teal-600` (light primary / dark hover) | `#0E7A72` | `#35C9BC` |
+| `--teal-700` (light hover / dark active) | `#0B6B63` | `#1E9D92` |
 | `--saffron-500` (accent) | `#F59E2D` | `#F5A94A` |
 | `--saffron-600` (accent hover) | `#E0860F` | `#E0860F` |
 | `--danger-500` (destructive) | `#C93B3B` | `#E06C6C` |
@@ -93,7 +98,7 @@ popup stops clashing.
 | `--gray-50` (bg) | `#FAF7F2` | `#0C1420` |
 | `--gray-100` (bg-soft/muted) | `#F3EEE5` | `#101B2B` |
 | `--gray-200` (line/border) | `#E4DCCC` | `#27395A` |
-| `--gray-500` (text-3/muted-fg) | `#647489` | `#8FA0B5` |
+| `--gray-500` (text-3/muted-fg) | `#5A6A80` | `#8FA0B5` |
 | `--gray-700` (text-2) | `#45566E` | `#ADBCCF` |
 | `--gray-900` (text/fg) | `#0B2545` | `#ECF1F8` |
 
@@ -101,13 +106,25 @@ popup stops clashing.
 
 | Token | Maps to (light) | Notes |
 |------|-----------------|-------|
-| `--color-primary` | `--teal-500` | primary action |
-| `--color-primary-hover` | `--teal-600` | primary :hover |
-| `--color-primary-active` | `--teal-700` | primary :active |
+| `--color-primary` | `--teal-600` → `#0E7A72` | dark: `--teal-500` → `#2BB8AC` |
+| `--color-primary-hover` | `--teal-700` → `#0B6B63` | dark: `--teal-600` → `#35C9BC` |
+| `--color-primary-active` | literal `#095750` | dark: `--teal-700` → `#1E9D92` |
 | `--color-primary-foreground` | `#FFFFFF` (dark `#06251F`) | text on primary |
 | `--color-accent` / `--color-accent-hover` / `--color-accent-foreground` | `--saffron-500` / `--saffron-600` / `#3A2506` | saffron CTA |
 | `--color-destructive` / `--color-destructive-soft` | `--danger-500` / `#F9E7E7` | danger actions |
-| `--ring` | `0 0 0 3px color-mix(teal 35%)` | focus ring (all `:focus-visible`) |
+| `--ring` | `0 0 0 3px color-mix(in srgb, var(--yf-teal-600) 35%, transparent)` | dark: 40% mix; shared focus token |
+
+Evidence: `src/styles.css:18–20,181–183,112–121,235–244` — two declarations
+per primary-state token and two rings. The light fill was deepened for white-label
+contrast (CSS comment at `109–111`); do not reverse that fix to honour an older doc.
+The grey rows above follow `src/styles.css:32,59,137,194,218,257`: two
+`--gray-500` declarations, two `--text-3` aliases and two category declarations.
+`#647489` has zero CSS matches.
+
+**Gate limitation:** `tests/design-system.test.ts:145–148` checks the whole CSS
+string for `--color-primary: var(--teal-500);`. Its one matching declaration is
+in dark (`src/styles.css:235`), so that assertion does not gate the light mapping.
+No test change is part of this correction pass.
 
 (Removed in v0.30.0 as never-referenced: `--color-background`,
 `--color-foreground`, `--color-card(-foreground)`, `--color-popover(-foreground)`,
@@ -126,10 +143,16 @@ popup stops clashing.
 - `.btn-ghost` → none / `--text-2`
 - `.btn-danger` → `--color-destructive-soft` / `--color-destructive`
 
-**Sizes** (height / padding-x / font):
-- `.btn-sm` → 32px / 12px / 13px
-- default → 38px / 17px / 14px
-- `.btn-lg` → 48px / 24px / 15.5px
+**Sizes** (padding-y / padding-x / font):
+- `.btn-sm` → 6px / 12px / 13px
+- default → 9px / 17px / 14px
+- `.btn-lg` → 12px / 24px / 15.5px
+
+These three base size rules have zero `height`/`min-height` declarations
+(`src/styles.css:555–561,581,591`): height emerges from padding, line box and
+border, not a fixed 32/38/48px ladder. Context can override this: the ≤720px
+`.btn` rule sets `min-height: 44px` (`src/styles.css:4166,4241`), and
+`.bench-dock .btn` sets 40px (`src/styles.css:3900`).
 
 **States:**
 | State | Rule |
@@ -146,9 +169,10 @@ popup stops clashing.
 - mobile (≤720px): min-height 44px, font-size 16px (prevents iOS zoom-on-focus)
 
 ## Accessibility notes
-- `--text-3` was darkened from `#8291A6` → `#647489` (light) to improve small-text
-  contrast against `--bg-soft` (toward WCAG AA). Re-check any remaining
-  `--text-3` usage on colored surfaces.
+- `--text-3` resolves through `--gray-500` to `#5A6A80` (light) and `#8FA0B5`
+  (dark), not the formerly documented `#647489` (`src/styles.css:32,137,194,257`).
+  Re-check `--text-3` usage on colored surfaces; a palette value alone is not a
+  contrast guarantee.
 - All interactive elements share one `--ring` focus token — keyboard users get a
   consistent, visible focus indication in both themes.
 - Touch targets on mobile are ≥40px per the `@media (max-width:720px)` block.
@@ -181,20 +205,61 @@ already resolved to `#2BB8AC` in both families, so nothing there changes.
 - **Weights:** only 500/600/700/800. The font link loads Inter 400-800
   (800 added) and Sora 600-800. Never declare a weight the link does not load -
   the browser fakes it with synthetic bold.
-- **Micro-labels ("kickers"):** one recipe - 10.5px / 700 / `.06em` / uppercase,
-  applied with CSS `text-transform`. Never type capitals in components.
-- **Type scale:** `--text-2xs` 10.5 · `--text-xs` 11 · `--text-sm` 12.5 ·
-  `--text-base` 14 · `--text-md` 15.5 · `--text-lg` 17 · `--text-xl` 20 ·
-  `--text-2xl` 24 (px). Kicker tokens: `--kicker-size`, `--kicker-weight`,
-  `--kicker-tracking`.
-- **Spacing scale:** `--s-1` 4 · `--s-2` 6 · `--s-3` 8 · `--s-4` 12 ·
-  `--s-5` 16 · `--s-6` 20 · `--s-8` 24 (px).
+- **Micro-labels ("kickers"):** the incumbent recipe is 10.5px / 700 / `.06em` /
+  uppercase via CSS `text-transform`; keep source text sentence case. Each of
+  `--kicker-size`, `--kicker-weight`, `--kicker-tracking` has one declaration
+  (`src/styles.css:5208`) and one recipe consumer (`5259–5262`).
+  **Legacy exception, settled for this reconciliation:** grandfather the incumbent
+  `.eyebrow`/kicker recipe; add no new above-heading kickers. Leave the labels,
+  tokens and gate alone. `craft-floor.md:27` (Impeccable reference) bans an eyebrow
+  above a heading; this exception preserves the existing recipe, not permission
+  to extend it. The unified block includes `.eyebrow` (`src/styles.css:5250–5263`)
+  and its gate remains at `tests/design-system.test.ts:197–202`.
+- **Type scale:** only `--text-xs: 11px` exists — one declaration and one
+  `var()` usage, the bottom-nav label (`src/styles.css:5198,5207`).
+  `--text-2xs`, `--text-sm`, `--text-base`, `--text-md`, `--text-lg`, `--text-xl`
+  and `--text-2xl` are absent: each has zero declarations and zero usages in
+  `src/styles.css`. The CSS records deletion rather than adoption of the unused
+  steps (`5202–5205`); the previously documented eight-step scale does not exist.
+- **Spacing scale:** `--s-1`, `--s-2`, `--s-3`, `--s-4`, `--s-5`, `--s-6`,
+  `--s-8` are all absent: each has zero declarations and zero usages in
+  `src/styles.css`. There is no implemented `--s-*` scale; see the same deletion
+  comment (`5202–5205`) and the literal-padding inventory below.
 
 ### Radii
 
 Card and popover radii touched by the consistency pass use `--radius-sm` (12), `--radius` (18) or
 `--radius-lg` (24); pills use 999px. A handful of one-off card radii (9-14px) remain, staged for the spacing sweep. The mobile trip dock, sticky totals strip
 and board corner cards moved from 16/20 to `--radius`.
+
+### Z-index ladder
+
+All 15 tokens below are declared once in `src/styles.css:78–94`; all have at
+least one `var()` consumer (counts are declaration consumers, not rendered
+instances). Roles and the tie rationale follow the CSS comments there.
+
+| Token | Value | Role | Consumers |
+|------|------:|------|-----------:|
+| `--z-under` | 0 | decorative layers | 5 |
+| `--z-content` | 1 | content above decor | 8 |
+| `--z-raised` | 2 | second local layer | 5 |
+| `--z-topbar` | 3 | board topbar | 1 |
+| `--z-frost` | 5 | frosted local overlays | 4 |
+| `--z-strip` | 40 | sticky trip totals | 1 |
+| `--z-dock` | 55 | mobile chrome below nav | 3 |
+| `--z-nav-glass` | 60 | floating glass chrome | 9 |
+| `--z-map-expanded` | 70 | expanded map below dialogs | 1 |
+| `--z-ai-fab` | 70 | AI floating action button | 1 |
+| `--z-notif` | 80 | notification popover | 1 |
+| `--z-drawer` | 90 | AI drawer | 1 |
+| `--z-modal` | 100 | modal overlay | 1 |
+| `--z-toast` | 200 | toast zone | 1 |
+| `--z-impact` | 210 | impact sheet above toasts | 2 |
+
+**Intentional tie:** `--z-map-expanded` and `--z-ai-fab` both equal 70; DOM order
+resolves the tie, explicitly preserved by the CSS (`src/styles.css:88–89`).
+The 60 rung also preserves DOM ordering (`85–87`). These are documented
+intentions, not a new stacking decision.
 
 ### Bottom chrome (native shell)
 
@@ -222,3 +287,78 @@ The bar itself is `height: calc(var(--shell-nav-h) + var(--safe-bottom))` with
 `padding-bottom: var(--safe-bottom)`. `box-sizing` is border-box, so
 padding-only would eat into the 58px row and drop the items under Material's
 48dp tap floor.
+
+## Measured appendix — reconciliation snapshot
+
+**Verified method:** grep located the declarations; a PostCSS declaration walk
+counted every authored occurrence, including overridden rules and media blocks,
+excluding comments, custom-property definitions and other shorthands. `padding`
+counts only its first value (not padding longhands). Distinct values below are
+whole authored value strings unless explicitly normalised; `var()` values are
+not expanded. These are inventories, not defects or a proposed replacement scale.
+
+Snapshot: `src/styles.css:1–5433`, SHA-256
+`fa96fea0353d8fca62db4698d4d2339a4a44c11ec6706cdd3e118f304cb27e06`.
+All `.pr-*` rules, including the on-screen preview, and `@media print` are counted
+separately (`src/styles.css:1986–2055`). Print's `pt` units are correct, not defects.
+
+| Screen property | Measured inventory | Source range (print excluded) |
+|------|------|------|
+| `font-size` | 36 distinct literal px sizes across 355 declarations. Top five: 13px **45×**, 12px **44×**, 12.5px **37×**, 11px **36×**, 11.5px **25×**. Total 368 declarations / 49 whole values: also 11 `clamp()` values and 2 token references. | `src/styles.css:382–5414` |
+| `letter-spacing` | 64 declarations / 24 authored values; 20 after normalising leading zeros (19 numeric values + 1 token reference). `.04em` **10×**, `.06em` **9×**, `.08em` **8×**. | `src/styles.css:432–5388` |
+| `line-height` | 50 declarations / 18 values: 15 unitless values (47 declarations), plus 13px / 17px / 18px (one each). This mixes units across the stylesheet, not inside one declaration. | `src/styles.css:382–5352`; px at `2332,2469,5086` |
+| `padding` first value | 266 declarations / 34 values. Top five: 0 **35×**, 10px **27×**, 8px **25×**, 9px **24×**, 2px **17×**. 20 values are off a 4px base, covering **162/266 (60.9%)** declarations. | `src/styles.css:391–5421` |
+| `border-radius` | 261 declarations / 32 whole values: **53 token-routed (20.3%)**, **206 literal (78.9%)**, **2 inherit (0.8%)**. Mixed token/literal corner lists count as token-routed. | `src/styles.css:378–5414` |
+| `font-weight` | 214 declarations: 500 **9×**, 600 **60×**, 700 **76×**, 800 **68×**, `var(--kicker-weight)` **1×** (700). Zero explicit 400 declarations; this does not mean inherited normal text is absent. | `src/styles.css:382–5414`; token at `5208` |
+
+Off-4px padding first-values, in px (value × declarations):
+1×6, 2×17, 2.5×1, 3×11, 5×15, 6×8, 7×9, 9×24, 10×27, 11×6,
+13×3, 14×14, 15×4, 17×1, 18×6, 21×2, 22×2, 26×4, 42×1, 54×1.
+Evidence: the `padding` inventory at `src/styles.css:391–5421`, excluding the
+print/preview block; zero and multiples of 4px are not counted as off-base.
+
+**Print/preview inventory** (`src/styles.css:2002–2040`):
+- `font-size`: 11 declarations / 6 values — 9.5pt **5×**, 8.5pt **2×**,
+  10pt / 10.5pt / 12.5pt / 17pt **1×** each.
+- `letter-spacing`: `-0.01em` **1×**. No explicit `line-height` declaration;
+  `.pr-sheet` separately uses the shorthand `font: 10.5pt/1.5 var(--font-body)`
+  (`2002`), excluded from the longhand counts above.
+- `padding` first-values: 6 declarations / 5 values — 2pt **2×**;
+  0, 2.5pt, 8pt and preview 18px **1×** each.
+- `border-radius`: 3 literal declarations / 3 values — 6pt, 3pt and preview
+  12px **1×** each; zero token-routed declarations.
+- `font-weight`: 700 **3×**; one distinct explicitly declared value.
+
+## Proposals not applied
+
+- **Two greens — open, not an intentional-unification claim.** The historical
+  “One green” paragraph above is retained pending the requested user decision;
+  it is not true of light primary buttons today. Verified: light primary uses
+  `--teal-600` / `#0E7A72` (one light declaration, `src/styles.css:19,112,568`);
+  the root accent and light ring use `--yf-teal-600` / `#0D8D82`
+  (`15,39,121`). The shared input focus border uses `--teal` → `--teal-500`,
+  also `#0D8D82` (`18,139,641–642`), not directly `--yf-teal-600`.
+  Dark primary and CTI teal both resolve to `#2BB8AC` (`181,200,235`).
+  **Is the remaining light split deliberate, or should light unify on one green,
+  and which?** Preserve the deeper button's contrast fix (`109–111`); do not
+  treat a lighter fill as an acceptable default resolution.
+- **Gate coverage:** should the primary-chain assertion become theme-scoped so
+  light and dark mappings are checked independently? The current single global
+  string assertion only finds dark (`tests/design-system.test.ts:145–148`,
+  `src/styles.css:235`); no test edits were made here.
+- **Literal rhythm — inference, not a verified defect:** should the 20 off-4px
+  padding values and three px line-heights be reviewed by role, or retained as
+  local optical/density choices? The measured appendix establishes variation,
+  not intent; no scale adoption or CSS normalisation was performed.
+
+## Reconciliation check result
+
+`npx vitest run tests/design-system.test.ts`: **29 passed, 3 failed** during
+concurrent CSS work. The primary-chain and kicker tests passed. The failures
+were the light contrast, dark contrast and raw-duration ratchets
+(`tests/design-system.test.ts:479,483,517`, reporting through `410`). Reported
+entries: light `.ride-purpose-fuel` (4.45:1); dark `.yf-map-idea-add` (2.05:1),
+`.bench-bubble` (3.34:1), `.route-btn:hover:not(:disabled)` (4.09:1); 25
+raw-duration entries. These are test-output observations, not browser-verified
+contrast results or proof of a new regression. CSS line numbers changed during
+the pass; no source, tests or baselines were edited for this reconciliation.

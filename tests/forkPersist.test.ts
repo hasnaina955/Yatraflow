@@ -66,6 +66,9 @@ vi.mock('../src/lib/supabase', () => {
       },
       channel: () => ({ on() { return this }, subscribe() { return this } }),
       removeChannel: () => {},
+      // The public read is an RPC after the paywall moved to the wire, so an
+      // empty payload is what "this trip did not load" looks like here.
+      rpc: async () => ({ data: null, error: null }),
     },
   }
 })
@@ -150,7 +153,7 @@ describe('fork — the gate and its failure message are honest', () => {
   })
 
   it('a trip that will not load is not reported as deleted', async () => {
-    // fetchSharedTrip returns null for a missing row AND for a failed select, so
+    // The public read returns null for a missing row AND for a failed read, so
     // the message may not claim the itinerary is gone.
     const nav = vi.fn()
     const ok = await forkPublication(pubRow, 'forker-6', nav)

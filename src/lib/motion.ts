@@ -20,11 +20,11 @@ export function scrollBehavior(): 'auto' | 'smooth' {
  * hasn't loaded (SSR/tests).
  */
 export function motionTiming(): { duration: number; easing: string } {
-  const fallback = { duration: 240, easing: 'cubic-bezier(.22, .61, .36, 1)' }
+  const fallback = { duration: 240, easing: 'cubic-bezier(.3, .86, .48, 1)' }
   if (typeof window === 'undefined') return fallback
   const s = getComputedStyle(document.documentElement)
   const duration = parseFloat(s.getPropertyValue('--motion-slow'))
-  const easing = s.getPropertyValue('--ease-out').trim()
+  const easing = s.getPropertyValue('--ease-glide').trim()
   return {
     duration: Number.isFinite(duration) && duration > 0 ? duration : fallback.duration,
     easing: easing || fallback.easing,

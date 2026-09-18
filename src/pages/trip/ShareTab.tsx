@@ -14,15 +14,18 @@ import { useTablist } from '../../hooks/useTablist'
 import type { LegEstimate } from '../../lib/engine'
 import { Avatar, Chip, ConfirmDialog, CopyButton, Field, toast, undoToast } from '../../components/ui'
 import { PrintExport } from '../../components/PrintExport'
-import { timeAgo } from './shared'
+import { cap, timeAgo } from './shared'
 
 // ================= Snapshot (export / import / URL share) =================
 
-function SnapshotCard({ trip, me, onNavigate, legCorrections }: {
+function SnapshotCard({ trip, me, onNavigate, legCorrections, publication }: {
   trip: Trip
   me: { id: string }
   onNavigate: (r: string) => void
   legCorrections?: Record<string, LegEstimate>
+  /** The trip's publication row, when it has one — carried in the exported
+   *  file's `publication` block so a shared file keeps its shelf metadata. */
+  publication?: Record<string, unknown>
 }) {
   const [link, setLink] = useState('')
 
@@ -43,7 +46,7 @@ function SnapshotCard({ trip, me, onNavigate, legCorrections }: {
       </p>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   <ImportTripButton ownerId={me.id} onNavigate={onNavigate} className="btn btn-outline btn-sm" />
-                  <button className="btn btn-outline btn-sm" onClick={() => downloadTripJson(trip)}><Download size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Download JSON</button>
+                  <button className="btn btn-outline btn-sm" onClick={() => downloadTripJson(trip, publication)}><Download size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Download JSON</button>
                   <PrintExport trip={trip} legCorrections={legCorrections} />
                   <button className="btn btn-outline btn-sm" onClick={() => downloadTripIcs(trip, legCorrections)} title="One calendar event per day plus timed events for fixed commitments — imports into Google/Apple/Outlook calendars"><CalendarDays size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Add to calendar</button>
                   <button className="btn btn-saffron btn-sm" onClick={makeLink}><Link2 size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Create snapshot link</button>
@@ -104,6 +107,11 @@ function PublicationForm({ trip, pub, isOwner, creatorId, onDone }: {
 
   function submit() {
     if (!Number.isFinite(priceNum) || priceNum < 0) { setErr('Price must be a number of rupees, 0 or more.'); return }
+    // The purchase_orders table caps amount_inr at 100000 (the gateway's
+    // sensible test-mode ceiling) — a publication priced above it would 503
+    // at checkout with no visible cause. Fail here, at the source.
+    if (!entirelyFree && priceNum > 100000) { setErr('The maximum premium price is ₹1,00,000.'); return }
+    if (!Number.isInteger(priceNum)) { setErr('Price must be a whole number of rupees.'); return }
     // Price > 0 with every day free would publish a premium price over fully
     // viewable content — a "Unlock Premium" CTA that unlocks nothing. Block it.
     if (!entirelyFree && free.size >= trip.days.length) { setErr('Every day is free — clear the price or lock a day.'); return }
@@ -161,7 +169,7 @@ function PublicationForm({ trip, pub, isOwner, creatorId, onDone }: {
               <span className="small">Day {d.index + 1}{d.title ? ` — ${d.title}` : ''}</span>
               <button type="button" className={`btn btn-sm ${isFree ? 'btn-outline' : 'btn-saffron'}`}
                 disabled={entirelyFree} aria-pressed={!isFree}
-                aria-label={`Day ${d.index + 1}${d.title ? ` — ${d.title}` : ''} lock`}
+                aria-label={`Day ${d.index + 1}${d.title ? ` — ${d.title}` : ''}: ${isFree ? 'Free' : 'Premium'}`}
                 onClick={() => toggleDay(d.index)}>
                 {isFree ? <>Free</> : <><Lock size={11} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />Premium</>}
               </button>
@@ -195,7 +203,7 @@ const SHARE_TABS = [
 type ShareTabId = (typeof SHARE_TABS)[number]['id']
 const SHARE_TAB_IDS = SHARE_TABS.map(t => t.id)
 
-export function ShareTab({ trip, me, editable, onNavigate, legCorrections }: {
+export function ShareTab({ trip, me, onNavigate, legCorrections }: {
   trip: Trip
   me: { id: string; email: string }
   editable: boolean
@@ -241,6 +249,9 @@ export function ShareTab({ trip, me, editable, onNavigate, legCorrections }: {
   }
 
   function confirmUnpublish() {
+    // The store refuses a non-creator write anyway; without this guard the
+    // refusal was swallowed and the success toast fired over it.
+    if (!isOwner) { setPendingUnpublish(false); return }
     unpublishItinerary(trip.id)
     setPendingUnpublish(false)
     toast('Unpublished — removed from Explore')
@@ -291,11 +302,14 @@ export function ShareTab({ trip, me, editable, onNavigate, legCorrections }: {
                   </div>
                   {isOwner && m.role !== 'owner' ? (
                     <select className="role-select" value={m.role} onChange={e => setMemberRole(trip.id, m.userId, e.target.value as never)}
-                      aria-label={`Role for ${u?.profile.name}`}>
-                      {['editor', 'commenter', 'viewer'].map(r => <option key={r}>{r}</option>)}
+                      aria-label={`Role for ${u?.profile.name ?? 'Traveller'}`}>
+                      {/* value stays the raw enum (the store writes it straight
+                          through); only the visible label is capitalised, via the
+                          shared helper the rest of the app uses for enum labels. */}
+                      {['editor', 'commenter', 'viewer'].map(r => <option key={r} value={r}>{cap(r)}</option>)}
                     </select>
                   ) : (
-                    <Chip tone={m.role === 'owner' ? 'teal' : 'info'}>{m.role}</Chip>
+                    <Chip tone={m.role === 'owner' ? 'teal' : 'info'}>{cap(m.role)}</Chip>
                   )}
                 </div>
               )
@@ -335,7 +349,7 @@ export function ShareTab({ trip, me, editable, onNavigate, legCorrections }: {
           )}
           <PublicationForm trip={trip} pub={pub} isOwner={isOwner} creatorId={me.id}
             onDone={wasPublished => toast(wasPublished ? 'Publication updated' : 'Published to Explore')} />
-          {pub && (
+          {pub && isOwner && (
             <button className="btn btn-ghost btn-sm" style={{ marginTop: 10 }} onClick={() => setPendingUnpublish(true)}>Unpublish</button>
           )}
           {pubLink && <div className="share-link-box" style={{ marginTop: 10 }}><code title={pubLink}>{pubLink}</code><CopyButton text={pubLink} label="Copy" /></div>}
@@ -346,7 +360,13 @@ export function ShareTab({ trip, me, editable, onNavigate, legCorrections }: {
       <section role="tabpanel" id="share-panel-record" aria-labelledby="share-tab-record"
         className="share-panel" hidden={tab !== 'record'}>
         <h2 className="sr-only">Keep a record</h2>
-        <SnapshotCard trip={trip} me={me} onNavigate={onNavigate} legCorrections={legCorrections} />
+        <SnapshotCard
+          trip={trip}
+          me={me}
+          onNavigate={onNavigate}
+          legCorrections={legCorrections}
+          publication={pub ? { ...pub } as unknown as Record<string, unknown> : undefined}
+        />
       </section>
 
       <ConfirmDialog

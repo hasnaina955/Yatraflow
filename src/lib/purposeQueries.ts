@@ -88,7 +88,6 @@ function fuelQueries(fuelType?: FuelType): PurposeQuerySet {
 export function queriesForPurpose(
   purpose: HaltPurpose,
   fuelType?: FuelType,
-  _includeHighway?: boolean, // reserved for future highway-only filtering
 ): PurposeQuerySet {
   switch (purpose) {
     case 'meal': return MEAL_QUERIES

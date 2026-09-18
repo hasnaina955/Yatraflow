@@ -13,13 +13,16 @@ import { readFileSync } from 'node:fs'
 
 const read = (p: string) => readFileSync(new URL(p, import.meta.url), 'utf8')
 
-describe('the public itinerary page sells nothing it cannot deliver', () => {
-  it('renders no purchase CTA while the payment rail does not exist', () => {
+describe('the public itinerary page sells what it can deliver', () => {
+  it('offers the real unlock now that the payment rail exists', () => {
     const page = read('../src/pages/PublicItinerary.tsx')
+    // The rail landed (M7): the price is an action wired to the checkout, not a
+    // label beside a notice that payments are switched off.
     expect(page).not.toMatch(/Unlock Premium/)
     expect(page).not.toMatch(/no payments in this MVP/)
-    // The price is real data and stays visible — as a label, not an action.
-    expect(page).toMatch(/Full plan · \{formatInr\(price\)\}/)
+    expect(page).not.toMatch(/paid unlock is not live/)
+    expect(page).toMatch(/Unlock full plan · \{formatInr\(price\)\}/)
+    expect(page).toMatch(/onClick=\{unlockThis\}/)
   })
 
   it('keeps every section class it styles itself with in the stylesheet', () => {

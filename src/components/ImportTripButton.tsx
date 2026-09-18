@@ -10,6 +10,7 @@ import { Upload } from 'lucide-react'
 import type { ID } from '../data/types'
 import { importTrip } from '../store/store'
 import { parseTripImport, TripImportError } from '../lib/tripImport'
+import { digestImportReport } from '../lib/itinerarySpec'
 import { toast } from './ui'
 
 export function ImportTripButton({ ownerId, onNavigate, className = 'btn btn-outline', label = 'Import JSON' }: {
@@ -34,6 +35,10 @@ export function ImportTripButton({ ownerId, onNavigate, className = 'btn btn-out
         ? ' Its publish details (title, price, cover) were not applied.'
         : ''
       toast(`Imported “${parsed.trip.name}” — ${parsed.summary}.${note}`)
+      // An older (or hand-written) file is fixed, not rejected — and the person
+      // holding it is told exactly what was fixed and what still needs a look.
+      const digest = digestImportReport(parsed.report)
+      if (digest) toast(digest.message, digest.kind)
       onNavigate('/trips')
     } catch (err) {
       toast(

@@ -4,7 +4,7 @@
 // published. Works logged-out (profiles and publications are public app-wide).
 import { useMemo } from 'react'
 import { Camera, Compass, Eye, GitFork, Link2, MapPin, Sparkles, TvMinimalPlay } from 'lucide-react'
-import { useDb, useSessionUserId, usePublished, userById } from '../store/store'
+import { useSessionUserId, usePublished, userById } from '../store/store'
 import { forkPublication } from '../lib/forkPub'
 import { openExternal } from '../lib/native'
 import { useSavedPubs } from '../lib/savedPubs'
@@ -12,7 +12,6 @@ import { Avatar, CopyButton, EmptyState } from '../components/ui'
 import { PubCard } from '../components/PubCard'
 
 export function CreatorPage({ creatorId, onNavigate }: { creatorId: string; onNavigate: (r: string) => void }) {
-  const db = useDb()
   const me = useSessionUserId()
   const published = usePublished()
   const { isSaved, toggleSaved } = useSavedPubs()
@@ -49,7 +48,7 @@ export function CreatorPage({ creatorId, onNavigate }: { creatorId: string; onNa
           <div className="creator-hero-id">
             <h1>
               {creator.profile.name}
-              {creator.profile.isCreator && <span className="creator-badge" title="Verified creator"><Sparkles size={13} aria-hidden /> Creator</span>}
+              {creator.profile.isCreator && <span className="creator-badge" title="Creator"><Sparkles size={13} aria-hidden /> Creator</span>}
             </h1>
             <p className="creator-hero-meta">
               {[creator.profile.homeCity, ...creator.profile.languages.map(l => l.toUpperCase())].filter(Boolean).join(' · ') || 'Traveller'}
@@ -75,6 +74,8 @@ export function CreatorPage({ creatorId, onNavigate }: { creatorId: string; onNa
             <div className="stat-tile"><div className="stat-label">Total forks</div><div className="stat-value"><GitFork size={15} aria-hidden style={{ verticalAlign: '-1px', marginRight: 5 }} />{totalForks}</div></div>
           </div>
         )}
+
+        <h2 style={{ marginBottom: 12 }}>Publications</h2>
 
         {pubs.length === 0 ? (
           !creator.profile.isCreator ? (

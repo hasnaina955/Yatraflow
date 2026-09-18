@@ -1,6 +1,6 @@
 {
   "name": "yatraflow",
-  "version": "0.59.1",
+  "version": "0.60.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -9,6 +9,7 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "test": "vitest run",
+    "test:integration": "node scripts/integration/integrationHarness.mjs",
     "lint": "eslint src",
     "verify": "tsc -b --clean && npm test && npm run build"
   },

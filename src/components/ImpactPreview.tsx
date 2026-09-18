@@ -1,11 +1,10 @@
 // ============ Impact Preview panel ============
-import type { Trip } from '../data/types'
+import { AlarmClock, ArrowUpRight, ClipboardList, Clock, Repeat, Zap } from 'lucide-react'
 import type { ImpactResult } from '../lib/impact'
 import { minutesToHM, formatInr } from '../lib/engine'
 
-export function ImpactPreviewPanel({ result, trip, onKeep, onMoveDay, onRemove, onScrollToDay }: {
+export function ImpactPreviewPanel({ result, onKeep, onMoveDay, onRemove, onScrollToDay }: {
   result: ImpactResult
-  trip?: Trip
   onKeep: () => void
   onMoveDay: () => void
   onRemove: () => void
@@ -24,7 +23,7 @@ export function ImpactPreviewPanel({ result, trip, onKeep, onMoveDay, onRemove, 
     <div className="impact-sheet" role="status">
       <div className="impact-panel">
         <div className="impact-head">
-          <span>⚡</span>
+          <span><Zap size={14} aria-hidden /></span>
           <span>Impact preview — estimates only</span>
           <span style={{ marginLeft: 'auto' }} className={`chip ${result.newWarnings.length ? 'chip-danger' : 'chip-ok'}`}>
             {result.newWarnings.length ? `+${result.newWarnings.length} warning${result.newWarnings.length > 1 ? 's' : ''}` : 'no new warnings'}
@@ -33,7 +32,7 @@ export function ImpactPreviewPanel({ result, trip, onKeep, onMoveDay, onRemove, 
         <div className="impact-body">
           <div className="impact-grid">
             <div className="impact-cell">
-              <div className="k">Time on the road<span className="muted small" style={{ display: 'block', fontWeight: 400 }}>driving + stops</span></div>
+              <div className="k">Time on the road<span className="muted" style={{ display: 'block', fontWeight: 400 }}>driving + stops</span></div>
               <div className={`v ${cls(result.timeDeltaMin)}`}>{signMin(result.timeDeltaMin)}</div>
             </div>
             <div className="impact-cell">
@@ -42,11 +41,13 @@ export function ImpactPreviewPanel({ result, trip, onKeep, onMoveDay, onRemove, 
             </div>
             <div className="impact-cell">
               <div className="k">Est. cost</div>
-              <div className={`v ${cls(result.costDeltaInr)}`}>{result.costDeltaInr > 0 ? '+' : ''}{formatInr(result.costDeltaInr)}</div>
+              <div className={`v ${cls(result.costDeltaInr)}`}>
+                {result.costDeltaInr > 0 ? '+' : result.costDeltaInr < 0 ? '−' : ''}{formatInr(Math.abs(result.costDeltaInr))}
+              </div>
             </div>
             <div className="impact-cell">
               <div className="k">Too busy?</div>
-              <div className={`v ${result.tooBusy ? '' : ''}`} style={{ color: result.tooBusy ? 'var(--danger)' : 'var(--ok)' }}>
+              <div className={`v ${result.tooBusy ? 'impact-busy' : 'impact-ok'}`}>
                 {result.tooBusy ? 'Yes — over-packed day' : 'No'}
               </div>
             </div>
@@ -73,14 +74,14 @@ export function ImpactPreviewPanel({ result, trip, onKeep, onMoveDay, onRemove, 
             <div className="warn-list section-gap" style={{ marginTop: 12 }}>
               {result.commitmentConflicts.map(c => (
                 <div key={c} className="warn-item sev-high">
-                  <span className="warn-icon">⏰</span>
+                  <span className="warn-icon"><AlarmClock size={13} aria-hidden /></span>
                   <div><div className="warn-title">Fixed commitment at risk: {c}</div>
                     <div className="warn-fix">Cut an earlier stop or start sooner.</div></div>
                 </div>
               ))}
               {result.openingHoursIssues.map(h => (
                 <div key={h} className="warn-item">
-                  <span className="warn-icon">🕒</span>
+                  <span className="warn-icon"><Clock size={13} aria-hidden /></span>
                   <div><div className="warn-title">Opening hours conflict</div>
                     <div className="warn-fix">{h}</div></div>
                 </div>
@@ -90,20 +91,20 @@ export function ImpactPreviewPanel({ result, trip, onKeep, onMoveDay, onRemove, 
 
           {result.backtracking && (
             <div className="warn-item sev-low" style={{ marginTop: 12 }}>
-              <span className="warn-icon">🔁</span>
+              <span className="warn-icon"><Repeat size={13} aria-hidden /></span>
               <div><div className="warn-title">Route backtracking detected</div>
                 <div className="warn-fix">Reorder stops to run one direction.</div></div>
             </div>
           )}
           {result.crossDayNote && (
-            <p className="small muted" style={{ marginTop: 10 }}>↗ {result.crossDayNote}</p>
+            <p className="small muted" style={{ marginTop: 10 }}><ArrowUpRight size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />{result.crossDayNote}</p>
           )}
 
           {(result.clearedWarnings.length > 0 && !result.newWarnings.length) && (
             <p className="small chip chip-ok" style={{ marginTop: 10 }}>This change actually clears an earlier warning. Nice.</p>
           )}
 
-          <div className="assumptions" style={{ marginTop: 12 }}>📋 {result.assumptions}</div>
+          <div className="assumptions" style={{ marginTop: 12 }}><ClipboardList size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />{result.assumptions}</div>
 
           <div className="impact-actions">
             <button className="btn btn-primary btn-sm" onClick={handleKeep}>Keep change</button>

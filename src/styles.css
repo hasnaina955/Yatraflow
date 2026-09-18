@@ -441,6 +441,10 @@ html {
   /* Anchor/scrollIntoView targets land clear of the floating pill topnav
      (12px top gap + nav height + breathing room). */
   scroll-padding-top: calc(12px + var(--nav-h) + 16px);
+  /* The bottom half of the same rule. --bottom-ui-offset already resolves to
+     just the gesture inset outside the shell, so this is correct on both
+     platforms and no longer needs to be re-declared inside html.native-shell. */
+  scroll-padding-bottom: calc(var(--bottom-ui-offset) + 12px);
 }
 /* Native app feel: pages scroll with a finger, so the WebView's chunky
    desktop scrollbar (a thick bar hugging the right edge) is pure chrome —
@@ -512,8 +516,8 @@ input, select, textarea { font-family: var(--font-body); font-size: 14.5px; colo
   position: absolute; left: 0; width: 0; z-index: 0;
   border-radius: 999px; background: var(--teal-soft);
   transition: left var(--motion-med) var(--ease-glide), width var(--motion-med) var(--ease-glide),
-    top var(--motion-med) var(--ease-glide), height var(--motion-med) var(--ease-glide), opacity var(--motion-fast) ease,
-    background var(--motion-fast) ease;
+    top var(--motion-med) var(--ease-glide), height var(--motion-med) var(--ease-glide), opacity var(--motion-fast) var(--ease-glide),
+    background var(--motion-fast) var(--ease-glide);
   pointer-events: none;
 }
 [data-theme='dark'] .pill-glider { background: var(--teal); }
@@ -575,7 +579,16 @@ a.btn { text-decoration: none; }
 .btn-danger { background: var(--color-destructive-soft); color: var(--color-destructive); }
 .btn-danger:hover:not(:disabled) { background: color-mix(in srgb, var(--color-destructive) 14%, transparent); }
 .btn-sm { padding: 6px 12px; font-size: 13px; }
-.btn-lg { padding: 12px 24px; font-size: 15.5px; }
+/* The LARGE size is the one that carries a sentence, so it is the one that may
+   wrap. `.btn`'s global `white-space: nowrap` keeps pill labels single-line,
+   but it also makes a sentence-length label's MIN-CONTENT equal to the whole
+   label — and that floor then propagates through every flex/grid ancestor whose
+   item has `min-width: auto`. Two real defects came from exactly that: the
+   landing CTA measured 400px inside a 316px band at 390px, and the receipt's
+   CTA floored the Plan Bench grid at 366px inside a 360px viewport (so the
+   whole calculator overflowed on a common Android width). Word-pair labels at
+   `lg` are unaffected — they never reach the wrap point. */
+.btn-lg { padding: 12px 24px; font-size: 15.5px; white-space: normal; }
 .icon-btn {
   display:inline-flex; align-items:center; justify-content:center;
   width: 40px; height: 40px; border-radius: 50%;
@@ -593,13 +606,13 @@ a.btn { text-decoration: none; }
 @media (pointer: coarse) {
   .btn, .icon-btn, .chip, .clickable-chip, .toast-action, .tab-btn,
   .map-legend-toggle, .nav-link, .filter-pillbar .clickable-chip,
-  .link-btn, .move-btn, .board-pulse-link, .cal-day, .route-btn, .vote-btn {
+  .link-btn, .move-btn, .board-pulse-link, .cal-day, .cal-nav, .route-btn, .vote-btn, .yf-map-idea-add, .poi-short, .poi-cand-add, .poi-fold, .save-heart, .yf-maplibre .yf-map-ctrls button {
     position: relative;
   }
   .btn::after, .icon-btn::after, .chip::after, .clickable-chip::after,
   .toast-action::after, .tab-btn::after, .map-legend-toggle::after,
   .nav-link::after, .link-btn::after, .move-btn::after, .board-pulse-link::after,
-  .cal-day::after, .route-btn::after, .vote-btn::after {
+  .cal-day::after, .cal-nav::after, .route-btn::after, .vote-btn::after, .yf-map-idea-add::after, .poi-short::after, .poi-cand-add::after, .poi-fold::after, .save-heart::after, .yf-maplibre .yf-map-ctrls button::after {
     content: ''; position: absolute; inset: -6px; border-radius: inherit;
   }
 }
@@ -663,12 +676,16 @@ a.btn { text-decoration: none; }
   background-repeat: no-repeat;
   background-position: right 12px center;
   background-size: 11px 7px;
-  transition: border-color var(--t-fast) var(--ease-out), box-shadow var(--t-fast) var(--ease-out), background-color var(--t-fast) var(--ease-out);
+  transition: border-color var(--motion-fast) var(--ease-out), box-shadow var(--motion-fast) var(--ease-out), background-color var(--motion-fast) var(--ease-out);
 }
-.select:hover { border-color: var(--teal); }
+.select:hover:not(:disabled) { border-color: var(--teal); }
 /* Theme the native popup rows (Chromium/Edge honour this; the system highlight
    stays but stops clashing with the palette). */
 .select option { background: var(--card); color: var(--text); }
+/* The custom Select already turns red on aria-invalid (see .cselect-trigger);
+   native controls declared no invalid style at all, so one invalid state had two
+   looks depending on which control carried it. */
+.input[aria-invalid='true'], .select[aria-invalid='true'], .textarea[aria-invalid='true'] { border-color: var(--danger); }
 
 /* ============ Custom listbox Select (components/Select.tsx) ============
    Same `.select` trigger recipe (it's on the button below), a real DOM popup
@@ -810,7 +827,29 @@ a.btn { text-decoration: none; }
   box-shadow: var(--shadow-sm);
   color: var(--text-2);
 }
-/* (explore-chips selected-state overrides removed — chips use the global .on-teal) */
+/* The glass base above has the SAME specificity as the global .on-teal and comes
+   later, so it won every property — a selected travel-style chip rendered
+   identically to an unselected one, on Explore and again in the My Trips
+   toolbar. The selected pair needs its own rule here, exactly as the saffron
+   variant below already has one. */
+.explore-chips .clickable-chip.on-teal {
+  background: var(--teal-deep); border-color: var(--teal-deep); color: #fff;
+  box-shadow: var(--shadow-glow-teal);
+}
+[data-theme='dark'] .explore-chips .clickable-chip.on-teal {
+  background: var(--teal); border-color: var(--teal); color: #06251f;
+}
+/* Selected states paint through box-shadow — a glow here, and `box-shadow: none`
+   in the pill nav so the glider owns the fill. Both outrank the shared
+   `:focus-visible` ring on specificity, so a focused *selected* chip lost its
+   focus indicator entirely. Restate the ring wherever selection wins. */
+.pill-nav .clickable-chip.on-teal:focus-visible,
+.pill-nav .tab-btn.active:focus-visible,
+.pill-nav .nav-link.active:focus-visible,
+.explore-chips .clickable-chip.on-teal:focus-visible,
+[data-theme='dark'] .explore-chips .clickable-chip.on-teal:focus-visible {
+  outline: none; box-shadow: var(--ring);
+}
 /* Selected "Saved" chip — was white-on-saffron (1.97:1 both themes). Now the
    same soft-fill + deep-ink language as every other selected chip (5.08/5.56). */
 .explore-chips .clickable-chip.chip-saffron {
@@ -864,7 +903,7 @@ a.btn { text-decoration: none; }
 .stop-card:hover { border-color: color-mix(in srgb, var(--teal) 45%, var(--line)); }
 /* (dead: the HTML5-drag ghost slot styling this served is retired — the
    pointer engine carries the real row instead) */
-.stop-card.status-rejected { opacity: .55; }
+.stop-card.status-rejected { border-style: dashed; }
 .stop-card.status-maybe { background: var(--card-soft); }
 .stop-num {
   width: 30px; height: 30px; border-radius: 50%; flex: 0 0 auto; margin-top: 2px;
@@ -952,7 +991,7 @@ a.btn { text-decoration: none; }
 }
 .travel-leg::before { content: none; }
 .travel-leg.foreign-over {
-  color: var(--warn); background: var(--warn-soft);
+  color: var(--ink-amber); background: var(--warn-soft);
   border-radius: var(--radius-sm); padding: 4px 8px;
 }
 
@@ -969,7 +1008,7 @@ a.btn { text-decoration: none; }
 }
 /* Plan / Inspect segmented toggle (Phase 3): built on PillNav (.mode-pillbar
    glider). The copy line reserves two rows so a mode switch never reflows. */
-.tl-mode-copy { min-height: 2.4em; max-width: 72ch; animation: popover-in var(--motion-fast) var(--ease-out); }
+.tl-mode-copy { min-height: 2.4em; max-width: 72ch; animation: popover-in var(--motion-fast) var(--ease-glide); }
 @media (prefers-reduced-motion: reduce) { .tl-mode-copy { animation: none; } }
 /* The header tools must not reflow when the mode copy changes length (the Plan
    copy's max-content used to push the whole tools row into a left-aligned
@@ -1001,7 +1040,7 @@ a.btn { text-decoration: none; }
 .is-carried .stop-card, .is-carried .travel-endpoint {
   transform: rotate(calc(var(--warp-tilt, 0) * 1deg))
     scale(calc(1 + var(--warp-x, 0) - var(--warp-y, 0) * 0.55), calc(1 + var(--warp-y, 0) - var(--warp-x, 0) * 0.55));
-  transition: transform var(--motion-fast) var(--ease-out);
+  transition: transform var(--motion-fast) var(--ease-glide);
   box-shadow: var(--shadow-carry);
 }
 [data-theme='dark'] .is-carried .stop-card,
@@ -1111,7 +1150,7 @@ a.btn { text-decoration: none; }
 .tl-line-leg { flex: none; width: 2px; height: 100%; min-height: 26px; }
 .tl-end { min-height: 12px; margin-bottom: 4px; }
 .tl-drop-line {
-  grid-column: 2; color: var(--warn); background: var(--warn-soft);
+  grid-column: 2; color: var(--ink-amber); background: var(--warn-soft);
   border: 1.5px dashed var(--saffron); border-radius: var(--radius-sm);
   font-size: 12px; font-weight: 700; text-align: center; padding: 5px 0;
 }
@@ -1156,7 +1195,7 @@ a.btn { text-decoration: none; }
 .day-kind.drive { background: var(--teal-soft); color: var(--teal-deep); }
 .day-kind.stay { background: var(--bg-soft); color: var(--text-2); }
 /* mixed (short hop + local time): saffron tint reads warm without crying warn */
-.day-kind.mixed { background: color-mix(in srgb, var(--yf-saffron) 14%, transparent); color: var(--yf-warn-deep, var(--yf-saffron)); }
+.day-kind.mixed { background: color-mix(in srgb, var(--yf-saffron) 14%, transparent); color: var(--ink-amber); }
 .day-route {
   display: flex; align-items: baseline; flex-wrap: wrap; gap: 2px 6px;
   min-width: 0; max-width: 100%; margin-top: 3px;
@@ -1164,21 +1203,25 @@ a.btn { text-decoration: none; }
   font: inherit; font-size: 12.5px; color: var(--text-2);
 }
 .day-route:hover .day-route-stop, .day-route:hover .day-route-text { color: var(--teal-deep); }
-.day-route-stop, .day-route-text { white-space: nowrap; }
+/* The chain wraps BETWEEN names, but every name was nowrap — so one long stop
+   name could not break and pushed the row instead. Separators and the "+ more"
+   counter stay nowrap; a name may wrap. */
+.day-route-stop { white-space: normal; overflow-wrap: anywhere; }
+.day-route-text { white-space: nowrap; }
 .day-route-sep, .day-route-more { color: var(--text-3); white-space: nowrap; }
 /* Dimmed pipe for the day-header stats line — quieter than a mid-dot at
    12px and easier to track across a long line. (Separator is a graphic:
    text-3 at .65 stays above the 3:1 non-text floor on both themes.) */
 .stat-sep { color: var(--text-3); opacity: .65; padding: 0 5px; }
-/* collapsed stay days read calmer than drive days (mockup P1's dimmed row) */
-.day-stay-collapsed .day-header > :not(.day-collapse) { opacity: .8; }
-.day-stay-collapsed .day-collapse { opacity: 1; }
+/* Stay days retain full text contrast; their kind chip carries the distinction. */
+
+
 
 /* Smooth day open/close: the body animates grid rows 0fr→1fr (height-agnostic
    — no max-height guessing), and SmoothCollapse unmounts it after the collapse
    so a closed day still costs nothing. visibility lags the collapse so the
    content stays paintable through the animation but leaves the tab order. */
-.day-body-clip { display: grid; grid-template-rows: 0fr; transition: grid-template-rows var(--motion-slow) var(--ease-out); }
+.day-body-clip { display: grid; grid-template-rows: 0fr; transition: grid-template-rows var(--motion-slow) var(--ease-glide); }
 .day-body-clip.open { grid-template-rows: 1fr; }
 .day-body-clip-inner { overflow: hidden; min-height: 0; visibility: hidden; transition: visibility 0s var(--motion-slow); }
 .day-body-clip.open .day-body-clip-inner { visibility: visible; transition: visibility 0s; }
@@ -1439,6 +1482,7 @@ a.btn { text-decoration: none; }
 .board-stop-kicker {
   display: block; font-size: 9.5px; font-weight: 800; letter-spacing: .08em;
   text-transform: uppercase; color: var(--text-3);
+  font-variant-numeric: tabular-nums;
 }
 .board-stop .stop-title {
   display: block; font-size: 13px; margin-top: 2px;
@@ -1446,6 +1490,9 @@ a.btn { text-decoration: none; }
 }
 .board-stop-meta {
   display: block; margin-top: 2px; font-size: 11px; color: var(--text-3); font-weight: 500;
+  /* Duration and cost share this line — the same data role already uses tabular
+     figures in .stop-meta, so the board's columns should line up too. */
+  font-variant-numeric: tabular-nums;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .board-col-zone {
@@ -1498,7 +1545,13 @@ button.board-col-zone--add:active { transform: translateY(1px); }
   z-index: var(--z-impact);
   background: rgba(0,0,0,0.35);
   padding: 10px 12px calc(10px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
-  display: flex; justify-content: center;
+  display: flex; justify-content: center; align-items: flex-start;
+  /* A 390x664 phone needs ~750px of sheet content: with no height cap the top
+     of the panel sat above the viewport and the panel's own `overflow: hidden`
+     left no scroll path to the warning list. The bounds .modal already uses,
+     plus the start alignment that keeps the panel at its natural height so the
+     SHEET scrolls rather than the panel clipping. */
+  max-height: 100dvh; overflow-y: auto; overscroll-behavior: contain;
 }
 .impact-panel {
   border: 1.5px solid var(--saffron); border-radius: var(--radius);
@@ -1520,6 +1573,17 @@ button.board-col-zone--add:active { transform: translateY(1px); }
 .impact-cell .k { font-size: 11px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: .04em; }
 .impact-cell .v { font-weight: 800; font-size: 14.5px; margin-top: 1px; font-family: var(--font-display); font-variant-numeric: tabular-nums; }
 .delta-pos { color: var(--danger); } .delta-neg { color: var(--ink-ok); } .delta-zero { color: var(--text-2); }
+/* The delta inks sit on the --bg-soft cell fill, so light theme needs the same
+   deepen as the map rail: raw --danger is 4.36:1 there (dark's #E06C6C is
+   5.38:1 and passes, which is why only light is overridden). */
+:root:not([data-theme='dark']) .delta-pos { color: var(--danger-600); }
+/* "Too busy?" verdict. Same --bg-soft surface: light --ok is 3.67:1 and --danger
+   4.36:1, so light takes the deepened inks (--ink-ok 5.61:1, --danger-600
+   5.87:1). Dark keeps --danger as authored — --danger-600 would be 3.91:1
+   there — and --ink-ok already resolves to --ok in dark. */
+.impact-busy { color: var(--danger); }
+:root:not([data-theme='dark']) .impact-busy { color: var(--danger-600); }
+.impact-ok { color: var(--ink-ok); }
 .assumptions { font-size: 12px; color: var(--text-3); background: var(--bg-soft); padding: 9px 12px; border-radius: 10px; line-height: 1.6; }
 .impact-actions { display: flex; gap: 8px; margin-top: 13px; flex-wrap: wrap; }
 
@@ -1548,6 +1612,11 @@ button.board-col-zone--add:active { transform: translateY(1px); }
 .tab-btn.active { color: var(--teal-deep); }
 
 .tab-count { background: var(--teal-soft); color: var(--teal-deep); font-size: 11px; font-weight: 700; border-radius: 999px; padding: 1px 7px; }
+/* In light mode the pill nav's glider paints --teal-soft too, so a count badge
+   inside the active pill was the same fill on the same fill (1:1) — the shape
+   vanished and the active tab read as a bare label. --card reads on either
+   glider, in both themes. */
+.pill-nav .clickable-chip.on-teal .tab-count { background: var(--card); }
 /* Editable day title — a real button (keyboard-reachable rename), styled as
    the heading it replaces. */
 .day-title-btn { border: none; background: none; padding: 0; cursor: pointer;
@@ -1566,8 +1635,13 @@ button.board-col-zone--add:active { transform: translateY(1px); }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 .modal {
   background: var(--card); border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-  width: 100%; max-width: 620px; max-height: 92vh; overflow-y: auto;
-  padding: 22px; animation: slideUp var(--t-med) var(--ease-out);
+  width: 100%; max-width: 620px; max-height: 92vh; max-height: 92dvh; overflow-y: auto;
+  /* Below 640px this is a bottom sheet, so two device facts matter: its last
+     control has to clear the home indicator, and 92vh measures a viewport the
+     mobile toolbar is still occupying (92dvh is the same pairing the map shell
+     and the header tray use). Desktop is unaffected — the insets resolve to 0. */
+  padding: 22px; padding-bottom: calc(22px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
+  animation: slideUp var(--t-med) var(--ease-out);
   /* Stop the sheet's scroll from chaining to the page behind it. */
   overscroll-behavior: contain;
 }
@@ -1581,12 +1655,21 @@ button.board-col-zone--add:active { transform: translateY(1px); }
   pointer-events: auto; background: var(--text); color: var(--bg);
   padding: 11px 20px; border-radius: 999px; font-size: 13.5px; font-weight: 600;
   box-shadow: var(--shadow); animation: slideUp var(--t-med) var(--ease-out); max-width: 100%;
+  /* Undo button inside a toast */
+  display: inline-flex; align-items: center; gap: 12px;
 }
 .toast.ok { background: var(--teal-deep); color: #fff; }
 .toast.err { background: var(--danger); color: #fff; }
+/* The blanket dark rule below has the same specificity as .toast.ok/.toast.err
+   and comes later, so on its own it wiped the success/error fill: in dark mode
+   every toast rendered as the same neutral pill and the two outcomes became
+   visually identical. The semantic pairs keep their own fills and take the dark
+   ink this codebase already uses wherever a lightened teal carries text
+   (see .ai-bubble.user, .notif-badge) — 7.9:1 on the teal and 5.1:1 on the soft
+   red, against 2.05:1 and 3.22:1 for white. */
 [data-theme='dark'] .toast { background: var(--gray-900); color: var(--gray-50); }
-/* Undo button inside a toast */
-.toast { display: inline-flex; align-items: center; gap: 12px; }
+[data-theme='dark'] .toast.ok { background: var(--teal-deep); color: #06251f; }
+[data-theme='dark'] .toast.err { background: var(--danger); color: #06251f; }
 .toast-action {
   border: none; background: rgba(255,255,255,.18); color: inherit;
   font-weight: 700; font-size: 12.5px; padding: 8px 16px; border-radius: 999px;
@@ -1718,7 +1801,7 @@ button.board-col-zone--add:active { transform: translateY(1px); }
 /* Card titles are heading-level h2 for outline correctness — sized as the h3
    they replace so the grids don't shift. */
 .card-title { font-size: 16px; font-weight: 700; }
-.itin-meta { display: flex; flex-wrap: wrap; gap: 4px 13px; font-size: 12.5px; color: var(--text-3); font-weight: 600; }
+.itin-meta { display: flex; flex-wrap: wrap; gap: 4px 13px; font-size: var(--text-xs); color: var(--text-3); font-weight: 600; }
 /* Explore card footer: full-width divider to the card edges, content inset to
    align with .itin-body's 16px side padding (separate from itin-body above). */
 .itin-card > .itin-meta { position: relative; padding: 12px 16px 16px; margin-top: 4px; }
@@ -1860,6 +1943,11 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
 .map-shell--expanded {
   position: fixed; inset: 10px; z-index: var(--z-map-expanded);
   background: var(--bg); padding: 2px;
+  /* This shell paints above the nav, so it owns the real bottom edge — meaning
+     it must also clear the gesture strip itself, or anything pinned to the
+     map's bottom edge (the legend, for one) sits under the system bar. Raw
+     inset by design: the shell must NOT be lifted by the nav's offset. */
+  padding-bottom: calc(2px + var(--safe-bottom));
   display: flex; flex-direction: column;
   animation: mapExpand 320ms var(--ease-out);
 }
@@ -1914,8 +2002,8 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
   height: 100%; border-radius: 99px; transition: width var(--t-slow) var(--ease-out);
   position: relative; overflow: hidden;
 }
-/* A calm, smooth sheen sweeping across each budget bar — a single compositor
-   transform slide, never a repaint. Reduced-motion users get a static bar. */
+/* A sheen sweeping across each budget bar via left-position keyframes.
+   Rendering cost is unmeasured. Reduced-motion users get a static bar. */
 .budget-bar-fill::after {
   content: ''; position: absolute; top: 0; bottom: 0; width: 42%;
   background: linear-gradient(105deg, transparent, rgba(255,255,255,.45), transparent);
@@ -1976,7 +2064,10 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
 
 .pr-expenses h2 { margin-bottom: 4pt; }
 .pr-expenses table { width: 100%; border-collapse: collapse; font-size: 9.5pt; }
-.pr-expenses td { border-top: 0.5pt solid #d6dee8; padding: 2pt 4pt; }
+.pr-expenses td, .pr-expenses th { border-top: 0.5pt solid #d6dee8; padding: 2pt 4pt; }
+/* th centres by UA default; only the label headers need aligning with their
+   cells — the amount one keeps .pr-num's right alignment. */
+.pr-expenses th:not(.pr-num) { text-align: left; }
 .pr-num { text-align: right; white-space: nowrap; }
 
 .pr-foot { display: flex; justify-content: space-between; gap: 12pt;
@@ -2029,9 +2120,9 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
 }
 @keyframes drawerIn { from { transform: translateX(40px); opacity: 0; } to { transform: none; opacity: 1; } }
 /* Header: the trip-hero navy→teal band, so the companion reads as part of the
-   product rather than a bolted-on chat widget. */
+   product rather than a bolted-on chat widget. Padding-top is the status-bar inset. */
 .ai-head {
-  display: flex; align-items: center; gap: 11px; padding: 14px 16px;
+  display: flex; align-items: center; gap: 11px; padding: 14px 16px; padding-top: calc(14px + var(--safe-area-inset-top, env(safe-area-inset-top, 0px)));
   background: linear-gradient(135deg, var(--yf-navy) 0%, var(--yf-teal-700) 100%);
   color: #fff;
 }
@@ -2044,7 +2135,7 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
 .ai-head-sub { font-size: 11.5px; color: rgba(255, 255, 255, .78); }
 .ai-head .icon-btn { margin-left: auto; color: #fff; }
 .ai-head .icon-btn:hover { background: rgba(255, 255, 255, .14); }
-.ai-msgs { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 17px 16px; display: flex; flex-direction: column; gap: 11px; }
+.ai-msgs { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 17px 16px; display: flex; flex-direction: column; gap: 11px; scrollbar-width: thin; scrollbar-color: var(--text-3) transparent; }
 .ai-bubble { max-width: 88%; padding: 10px 14px; border-radius: 16px; font-size: 13.5px; line-height: 1.5; white-space: pre-wrap; }
 .ai-bubble.user { align-self: flex-end; background: var(--teal-deep); color: #fff; border-bottom-right-radius: 6px; }
 /* dark lightens --teal-deep to #35C9BC — white on it is 2.11:1; ink passes 7.9 */
@@ -2052,7 +2143,7 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
 .ai-bubble.bot { align-self: flex-start; background: var(--bg-soft); color: var(--text); border: 1px solid var(--line); border-bottom-left-radius: 6px; }
 .ai-assumption { margin-top: 9px; font-size: 11.8px; color: var(--text-3); border-top: 1px dashed var(--line); padding-top: 7px; }
 .ai-quick { padding: 10px 14px 8px; border-top: 1px solid var(--line); }
-.ai-quick-scroll { display: flex; gap: 7px; overflow-x: auto; padding-bottom: 5px; scrollbar-width: thin; scrollbar-color: var(--text-3) transparent; -webkit-overflow-scrolling: touch; }
+.ai-quick-scroll { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 5px; scrollbar-width: thin; scrollbar-color: var(--text-3) transparent; -webkit-overflow-scrolling: touch; }
 /* Quick prompts: single-line pills on a scroll rail — never the wrapped
    ovals a long label used to become inside the pill radius. */
 .ai-quick-scroll .clickable-chip {
@@ -2066,9 +2157,13 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
 @keyframes blink { 0%,80%,100% { opacity: .25; } 40% { opacity: 1; } }
 
 /* ---------- Notifications ---------- */
+/* Entrance is owned by .popover (the shared family rule at the end of the
+   file). This element carries both classes, they have equal specificity, and
+   .popover comes later — so a local `animation` here loses silently. Declaring
+   none keeps the panel on the house entrance (fade + 4px rise, 180ms). */
 .notif-pop {
   position: fixed; width: min(360px, 92vw); color: var(--text);
-  overflow: hidden; z-index: var(--z-notif); animation: slideUp var(--motion-fast) var(--ease-out);
+  overflow: hidden; z-index: var(--z-notif);
 }
 /* The panels receive programmatic focus on open (keyboard tab order); the
    interactive children carry the visible ring, the container stays clean. */
@@ -2203,13 +2298,12 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
 /* Heading→body gap without a hairline — the overview cards ran a divider
    under every heading, which stopped carrying information. */
 .card-head { margin-bottom: 14px; }
-.two-col { display: grid; grid-template-columns: 1fr 340px; gap: 18px; align-items: start; }
-/* A grid item's automatic minimum size is its MIN-CONTENT, so one unbreakable run
-   inside a column becomes that column's floor no matter how narrow the viewport
-   is: the published page's share URL (a nowrap flex item) gave its sidebar 451px
-   of min-content inside a 362px column, and the whole document scrolled sideways
-   by 75px on a phone. `min-width: 0` lets the column shrink to the viewport and
-   the ellipsis inside it finally do its job. */
+/* `minmax(0, 1fr)`, not a bare `1fr`: a `1fr` track carries `min-width: auto`, so a
+   child with any intrinsic width (a nowrap label, a fixed-width table, an
+   inline-flex chip row) pushes the track past its container and the PAGE scrolls
+   sideways — measured at 390px on Group input, Budget and the public itinerary.
+   `min-width: 0` on the items repeats the guarantee for nested grids. */
+.two-col { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 18px; align-items: start; }
 .two-col > * { min-width: 0; }
 /* Two PEER cards in a row are equal halves — the 340px sidebar column belongs
    only to a two-col that actually has a sidebar. Nested inside a content
@@ -2264,8 +2358,9 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
 .footer { border-top: 1px solid var(--line); padding: 26px 0 34px; margin-top: 50px; color: var(--text-3); font-size: 13px; }
 
 /* ---------- App shell / nav extras ---------- */
-.topnav-inner { display: flex; align-items: center; gap: 14px; height: var(--nav-h); }
-.topnav .container.topnav-inner { display: flex; }
+/* .topnav-inner and .topnav .container.topnav-inner are declared once, in the
+   topnav block at the top of the file. Restating them here duplicated both
+   selectors (a ratchet entry) without changing a single computed value. */
 .nav-right { margin-left: auto; display: flex; align-items: center; gap: 9px; position: relative; z-index: var(--z-raised); }
 /* CTI control tray: theme / bell / avatar (and the mobile hamburger) cluster
    inside one soft pill, echoing the nav pill itself. */
@@ -2317,10 +2412,15 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
 /* the custom Select wraps its trigger in a div — flex sizing moves to the wrapper */
 .explore-filters .cselect, .trips-toolbar .cselect { flex: 0 1 auto; }
 .explore-filters .cselect .select, .trips-toolbar .cselect .select { min-width: 140px; }
-.trip-card-hit { all: unset; cursor: pointer; display: block; border-radius: 8px; }
+.trip-card-hit { all: unset; cursor: pointer; display: block; border-radius: inherit; }
 
 /* Trip card emoji cover */
+/* `position: relative` + `overflow: hidden` mirror .itin-cover: the shared
+   .itin-cover-fallback is absolutely positioned, so without a positioned
+   ancestor here the short-variant card's emoji escaped its cover box and
+   painted over the trip title below it. */
 .itin-emoji {
+  position: relative; overflow: hidden;
   aspect-ratio: 16 / 7; display: flex; align-items: center; justify-content: center;
   font-size: 52px; background: linear-gradient(135deg, var(--teal-soft), var(--bg-soft));
   border-bottom: 1px solid var(--line);
@@ -2390,6 +2490,13 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
 }
 [data-theme='dark'] .yf-map-pin { border-color: rgba(255,255,255,.9); }
 
+/* Coincident pins: stops sharing one place (a meal at your night's base, two
+   stops added in one town) are nudged apart by an inline translate on this
+   wrapper, so the stop underneath stays visible and clickable. The offset lives
+   here rather than on the pin because the pin's own transform is its -45deg
+   teardrop rotation and its hover scale. No motion — a static offset. */
+.yf-pin-cluster { display: inline-flex; }
+
 /* Teardrop place-pins: day colour fills the drop, the category emoji is the
    main glyph and the timeline number rides as a small corner badge. The drop
    is a rounded square rotated -45°; everything inside is counter-rotated. */
@@ -2429,10 +2536,13 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
   translate: 0 -1px; /* optically centre above the tail */
 }
 .yf-pin-svg { width: 15px; height: 15px; display: block; filter: drop-shadow(0 1px 1px rgba(0,0,0,.25)); }
+/* Background follows the card surface, not a literal white: this badge's ink is
+   --text, which INVERTS to near-white in dark mode, so on a hard white pill the
+   numeral measured 1.13:1. Light is unchanged (--card is white there). */
 .yf-pin-num {
   position: absolute; top: -1px; right: -1px;
   min-width: 13px; height: 13px; padding: 0 3px;
-  border-radius: 999px; background: #fff;
+  border-radius: 999px; background: var(--card);
   color: var(--text); font-size: 9px; font-weight: 800; font-style: normal;
   font-family: inherit; line-height: 13px; text-align: center;
   box-shadow: 0 1px 2px rgba(var(--shadow-navy-rgb),.35);
@@ -2504,6 +2614,16 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
   box-shadow: var(--shadow); padding: 8px 14px 14px;
   display: flex; flex-direction: column; gap: 2px;
   animation: slideUp var(--t-fast) var(--ease-out);
+  /* The tray is fixed and grows with its item count, so on a short viewport
+     (landscape phone, small window) the last row — Profile & settings — fell
+     below the fold with no way to reach it. Cap it to the space actually
+     left under the pill and let it scroll. vh first, dynamic unit second:
+     the same pairing the map shell uses (100vh does not shrink for mobile
+     browser chrome). */
+  max-height: calc(100vh - var(--nav-h) - 32px - var(--safe-area-inset-top, env(safe-area-inset-top, 0px)) - var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
+  max-height: calc(100dvh - var(--nav-h) - 32px - var(--safe-area-inset-top, env(safe-area-inset-top, 0px)) - var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 .mobile-menu .nav-link {
   padding: 13px 14px; border-radius: 10px; font-size: 15px; text-align: left;
@@ -2647,7 +2767,8 @@ main:focus { outline: none; }
     animation-duration: .01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: .01ms !important;
-    /* Staggered entrances (rise-d1..d5) delay the START — freeze those too. */
+    /* Remove both entrance staggers and transition waits under reduced motion. */
+    animation-delay: 0s !important;
     transition-delay: 0s !important;
   }
   /* keep the idea-pin visible but static (it already keeps its dashed gold style) */
@@ -2675,9 +2796,6 @@ main:focus { outline: none; }
   border: 1px solid var(--line); border-radius: 999px;
   font-size: 12px; font-weight: 600; background: var(--card);
 }
-.btn-teal { background: var(--teal); color: #fff; }
-.btn-teal:hover { background: var(--teal-deep, #0e7a72); }
-
 /* ---------- Halt spot rows (unified travel panel) ---------- */
 /* Formatted 12h/24h preview under native <input type="time"> fields — the
    browser controls the input's own display format, so we echo the app pref. */
@@ -2767,7 +2885,10 @@ main:focus { outline: none; }
 .yf-map-pin-idea { cursor: pointer; }
 .yf-map-idea-add {
   width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid #fff;
-  background: var(--teal-deep); color: #fff;
+  /* Ink through the semantic pair, not a literal white: --teal-deep lightens to
+     #35C9BC in dark mode, where white measured 2.05:1. The primary-foreground
+     token already resolves to the dark ink that surface needs. */
+  background: var(--teal-deep); color: var(--color-primary-foreground);
   font-size: 13px; font-weight: 700; line-height: 1;
   display: inline-flex; align-items: center; justify-content: center;
   cursor: pointer; box-shadow: 0 2px 6px rgba(var(--shadow-navy-rgb), .35);
@@ -2859,15 +2980,15 @@ main:focus { outline: none; }
   top: 12px;
 }
 .map-ideas-map { min-width: 0; }
-@media (max-width: 1500px) {
-  /* #156: the folded-rail rules (0,2,0) outrank this media block (0,1,0) —
-     name the folded states here so stacked mode always wins over the spine
-     grid, or a 390px phone gets horizontal overflow and a ~20px map. */
-  .map-ideas-grid, .map-ideas-grid.is-needs-folded, .map-ideas-grid.is-see-folded,
-  .map-ideas-grid.is-needs-folded.is-see-folded { grid-template-columns: 1fr; }
-  .map-ideas-map { order: -1; }
-  .map-ideas-grid .poi-col { max-height: none; }
-}
+/* The ≤1500px reset lives below the folded-rail rules at the end of the file.
+   Keep this space so the line-keyed design-system baseline stays unchanged. */
+
+
+
+
+
+
+
 
 /* ---------- Motion system (subtle & premium, CTI §9) ----------
    One easing family + three speeds (--ease-out / --t-fast|med|slow). Only
@@ -2902,13 +3023,24 @@ main:focus { outline: none; }
   .board-row { transition: none; }
 }
 
-/* ---- Map-focus ("peek") mode: columns glide ~90% off the board's bottom
-   edge — a 48px sliver of each stays visible while the map owns the board —
-   and slide back with a staggered settle. transform-only: compositor run. */
-.board-col { transition: transform 500ms var(--ease-out); }
+/* ---- Map-focus ("peek") mode: columns glide ~88% off the board's bottom
+   edge so the map owns the board, and slide back with a staggered settle. The
+   surviving sliver is 12% of a column's own height, so it varies with column
+   height — it is not a fixed 48px. */
+/* All four properties are declared here, including the theme cross-fade's three:
+   `transition` is a shorthand, so the later theme rule used to replace this one
+   outright and the peek movement snapped instead of gliding. */
+.board-col {
+  transition:
+    background-color var(--t-slow) var(--ease-out),
+    color var(--t-slow) var(--ease-out),
+    border-color var(--t-slow) var(--ease-out),
+    transform var(--t-slow) var(--ease-glide);
+}
 .board--mapfocus .board-col { transform: translateY(88%); } /* 12% sliver keeps a readable card edge */
-/* staggered choreography: slide-off cascades left→right, return settles in
-   reverse — both directions read as one satisfying wave */
+/* staggered choreography: the slide-off cascades left→right. The delays are not
+   reset per direction, so the return settles in the SAME ascending order — there
+   is no reverse wave. */
 .board-col:nth-child(2), .board--mapfocus .board-col:nth-child(2) { transition-delay: 40ms; }
 .board-col:nth-child(3), .board--mapfocus .board-col:nth-child(3) { transition-delay: 80ms; }
 .board-col:nth-child(4), .board--mapfocus .board-col:nth-child(4) { transition-delay: 120ms; }
@@ -2933,7 +3065,7 @@ main:focus { outline: none; }
    while a drag is live — translation only, no scale/morph; the FLIP settle
    takes over on commit (WAAPI sits above these CSS transitions). */
 .board-col-stops { position: relative; }
-.board-stop { transition: transform var(--motion-fast) var(--ease-glide); }
+.board-stop { transition: border-color var(--t-med) var(--ease-out), background var(--t-med) var(--ease-out), transform var(--motion-fast) var(--ease-glide); }
 @media (prefers-reduced-motion: reduce) {
   .board-stop { transition: none; }
 }
@@ -2961,8 +3093,11 @@ main:focus { outline: none; }
 }
 .btn:active, .tab-btn:active { transform: scale(.97); }
 
-/* Theme cross-fade: light↔dark glides instead of snapping. */
-body, .topnav, .glass, .board, .board-col, .modal, .toast {
+/* Theme cross-fade: light↔dark glides instead of snapping.
+   `.board-col` is deliberately NOT in this list — it declares its own
+   four-property transition near the peek rules, and naming it here would replace
+   that shorthand and silently kill the peek movement. */
+body, .topnav, .glass, .board, .modal, .toast {
   transition: background-color var(--t-slow) var(--ease-out), color var(--t-slow) var(--ease-out), border-color var(--t-slow) var(--ease-out);
 }
 /* the trip band also compacts on the Board tab — include padding in its glide */
@@ -3165,8 +3300,10 @@ html.vt-active :where(*) {
 .featured-body { position: relative; z-index: var(--z-content); }
 .featured-kicker { color: #ffd79a; }
 /* One section-title ramp with .editorial-title (the public page's equivalent) —
-   they were 2px apart at every width for no stated reason. */
-.featured-body h2 { font-family: var(--font-display); font-size: clamp(24px, 3vw, 32px); margin: 6px 0 8px; }
+   they were 2px apart at every width for no stated reason. The title also takes
+   the same two-line clamp the grid cards use, so a long name stops crowding the
+   tagline beneath it. */
+.featured-body h2 { font-family: var(--font-display); font-size: clamp(24px, 3vw, 32px); margin: 6px 0 8px; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
 .featured-title-link { color: #fff; text-decoration: none; }
 .featured-title-link:hover { text-decoration: underline; }
 .featured-tagline { color: #d5e7e4; margin: 0 0 8px; max-width: 640px; line-height: 1.6; }
@@ -3295,7 +3432,7 @@ html.vt-active :where(*) {
   padding: 2px 7px; border-radius: 999px;
   background: var(--bg-soft); color: var(--text-2);
 }
-.bench-mode-btn.on .bench-mode-speed { background: rgba(255, 255, 255, .22); color: #fff; }
+.bench-mode-btn.on .bench-mode-speed { background: transparent; color: #fff; }
 .bench-hint { font-size: 12px; color: var(--text-3); margin: 0; }
 
 /* stay style: vertical rate rows, selected = teal outline + tint */
@@ -3328,6 +3465,25 @@ html.vt-active :where(*) {
 }
 .bench-crew-btn:hover { transform: translateY(-1px); }
 .bench-crew-btn.on { border-color: var(--yf-teal-700); background: var(--yf-teal-700); color: #fff; }
+/* Disabled affordances must not look live. All four of these are disabled for a
+   viewer (TripSettingsForm passes `disabled={!editable}`), yet they kept full
+   opacity, the pointer cursor and their hover lift — so a viewer saw an editable
+   form that silently ignored every press. The `:not(.on)` guard leaves a
+   locked-but-selected option showing the state it is locked to. */
+.bench-toggle:disabled, .bench-crew-btn:disabled, .bench-mode-btn:disabled,
+.yf-range:disabled { opacity: .55; cursor: not-allowed; }
+.bench-crew-btn:disabled:hover, .bench-mode-btn:disabled:hover { transform: none; }
+.bench-mode-btn:disabled:not(.on):hover { border-color: var(--line); }
+/* Split by vendor deliberately: a selector list containing a pseudo-element the
+   engine does not recognise invalidates the WHOLE rule, so pairing the WebKit and
+   Firefox thumbs in one list made Chrome discard this fix outright. */
+.yf-range:disabled:hover::-webkit-slider-thumb { transform: none; }
+.yf-range:disabled:hover::-moz-range-thumb { transform: none; }
+@media (prefers-reduced-motion: reduce) {
+  /* Keep border/shadow feedback, but no thumb enlargement; split by vendor. */
+  .yf-range::-webkit-slider-thumb { transform: none !important; transition-duration: .01ms !important; }
+  .yf-range::-moz-range-thumb { transform: none !important; transition-duration: .01ms !important; }
+}
 /* Dark theme: teal-700 is the BRIGHT shade here (#1E9D92), so white ink on a
    saturated fill drops to 3.3:1. Use the near-black ink the pill-nav glider
    already uses (#06251f) — 6.6:1 on #2BB8AC. The pale-tinted `.on` states flip
@@ -3602,6 +3758,10 @@ html.vt-active :where(*) {
   content: ''; position: absolute; left: 50%; bottom: -4px; transform: translateX(-50%);
   border: 4px solid transparent; border-top-color: var(--yf-teal-700); border-bottom: none;
 }
+/* Dark: --yf-teal-700 is the bright end of the scale (#1E9D92), so the bubble's
+   white 12px/800 label is only 3.34:1. Same near-black ink the rest of the
+   solid-teal-fill family takes (see .ai-bubble.user / .btn.on-teal above). */
+[data-theme='dark'] .bench-bubble { color: #06251f; }
 @keyframes bench-pop { from { opacity: 0; } }
 
 /* fatigue needle gauge */
@@ -3614,14 +3774,14 @@ html.vt-active :where(*) {
 }
 
 /* stamp thud — hidden until the section lives, restamps on preset apply */
-.bench-stamp { opacity: 0; }
+.plan-bench .bench-stamp { opacity: 0; }
 .bench-live .bench-stamp { animation: bench-stamp-in .5s cubic-bezier(.2, 2, .4, 1) .6s both; }
 @keyframes bench-stamp-in {
   0% { opacity: 0; transform: rotate(16deg) scale(2.1); }
   60% { opacity: .85; }
   100% { opacity: .68; transform: rotate(7deg) scale(1); }
 }
-@media (prefers-reduced-motion: reduce) { .bench-stamp { opacity: .68; } }
+@media (prefers-reduced-motion: reduce) { .plan-bench .bench-stamp { opacity: .68; } }
 
 /* receipt tilt (pointer-follow, desktop only) + tear-off + reprint flicker */
 .bench-receipt {
@@ -3644,7 +3804,7 @@ html.vt-active :where(*) {
 .bench-surprise:disabled { opacity: .65; cursor: default; }
 /* Surprise sits beside the preset chips as a tertiary action — outline with an
    amber accent instead of a filled pill that out-shouts its neighbours. */
-.bench-surprise { border-color: var(--yf-amber); color: var(--warn); }
+.bench-surprise { border-color: var(--yf-amber); color: var(--ink-amber); }
 .bench-surprise .bench-dice { color: var(--yf-amber); }
 
 /* copy celebration — confetti + copied tint */
@@ -3675,6 +3835,11 @@ html.vt-active :where(*) {
   0%, 55% { transform: translateX(-140%) skewX(-18deg); }
   80%, 100% { transform: translateX(330%) skewX(-18deg); }
 }
+
+/* Pause decorative loops until the bench is live and currently visible. */
+.plan-bench:not(.bench-live) .bench-blob, .plan-bench:not(.bench-inview) .bench-blob,
+.plan-bench:not(.bench-live) .bench-badge-dot::after, .plan-bench:not(.bench-inview) .bench-badge-dot::after,
+.plan-bench:not(.bench-live) .bench-cta::after, .plan-bench:not(.bench-inview) .bench-cta::after { animation-play-state: paused; }
 
 /* hero CTA — boarding-pass ticket: stub + tear line + flight code */
 .hero-bench-cta {
@@ -3785,6 +3950,7 @@ html.vt-active :where(*) {
 /* centreline flow: offset shifts by 7+9=16 per dash cycle; -160 = 10 cycles.
    Delayed to begin as the road finishes drawing — flow never outruns the draw. */
 .rs-dash { animation: rs-flow 4.5s linear infinite 1.9s; }
+.rs-paused .rs-dash { animation-play-state: paused; }
 @keyframes rs-flow { to { stroke-dashoffset: -160; } }
 /* per-scenario live figures: staggered rise-in on every trip switch */
 @media (prefers-reduced-motion: no-preference) {
@@ -4067,7 +4233,7 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 
 /* ---- <=980px: tablet collapses ---- */
 @media (max-width: 980px) { .hero-split { grid-template-columns: 1fr; gap: 30px; } }
-@media (max-width: 980px) { .two-col, .two-col--even { grid-template-columns: 1fr; } }
+@media (max-width: 980px) { .two-col, .two-col--even { grid-template-columns: minmax(0, 1fr); } }
 
 /* ---- <=900px ---- */
 @media (max-width: 900px) { .poi-split { grid-template-columns: 1fr; } }
@@ -4077,7 +4243,7 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 @media (max-width: 640px) {
   .tl-row, .tl-legrow, .tl-end { grid-template-columns: 52px 1fr; gap: 8px; }
   .tl-time { font-size: 10px; padding: 1px 4px; }
-  .tl-time.tl-dep { display: none; }
+  .tl-time.tl-dep { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 }
 @media (max-width: 640px) { .cta-band { padding: 32px 18px; } }
 
@@ -4099,6 +4265,25 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
      mark alone still names the link and nothing loses its label. */
   .brand span { display: none; }
   .nav-pill-group { padding: 3px; gap: 1px; }
+}
+/* The signed-OUT header still outgrew the smallest phones even after the
+   tightening above: at 390px the brand (121.9px) + gap (8) + control tray +
+   Log in + Sign up free (262.9) needs 392.8px against a 346px content box, so
+   the signup CTA rendered past the right edge (measured, 2026-09-17). The
+   wordmark is what gives way — the 32px mark keeps the identity, and the
+   anchor's own aria-label ("YatraFlow home") keeps the name for assistive
+   tech — while both auth actions stay visible at their full 44px targets.
+   :has() scopes this to the logged-out header: with an avatar in place of the
+   auth pair the same widths fit (296px at 360px), so a signed-in header keeps
+   its wordmark. */
+@media (max-width: 440px) {
+  .topnav-inner:has(.nav-right > .btn) .brand span { display: none; }
+  .nav-right:has(> .btn) { gap: 5px; }
+}
+/* The WCAG 1.4.10 reflow floor (320px). Reclaim the last pixels from
+   horizontal padding, never from the target height. */
+@media (max-width: 350px) {
+  .nav-right:has(> .btn) .btn { padding: 9px 8px; font-size: 12.5px; }
 }
 
 /* ---- <=360px: the last few pixels ---- */
@@ -4122,8 +4307,6 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 @media (max-width: 720px) {
   /* forms */
   .select { padding: 10px 32px 10px 13px; }
-  .commitment-row { grid-template-columns: 1fr 1fr; }
-  .commitment-row .field:first-child { grid-column: 1 / -1; }
 
   /* timeline extras */
   .day-spark { display: none; }
@@ -4146,8 +4329,10 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
   /* workspace: mobile nav button, form controls, map & stop cards */
   .mobile-nav-btn { display: inline-flex; }
   /* iOS Safari zooms the viewport when an input with font-size < 16px gains
-     focus — bump form controls to 16px to stop the page jumping. */
-  input, select, textarea { font-size: 16px; }
+     focus — bump form controls to 16px to stop the page jumping. `.role-select`
+     is named explicitly because its own class rule outranks the bare `select`
+     element selector, so it would otherwise keep its 12.5px. */
+  input, select, textarea, .role-select { font-size: 16px; }
   /* Map: viewport-relative height so it doesn't eat the whole screen, but
      never collapses below a usable canvas. */
   .map-frame { height: 52vh; min-height: 300px; }
@@ -4177,11 +4362,14 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
   .day-rail-chip { padding: 9px 14px; }
   .day-section { padding: 14px 14px 10px; }
   .modal {
-    padding: 18px 16px 22px; max-height: 92vh; border-radius: 16px 16px 0 0;
+    padding: 18px 16px 22px; max-height: 92vh; max-height: 92dvh; border-radius: 16px 16px 0 0;
     /* Edge-to-edge: bottom sheets must stop short of the gesture bar, and
-       their internal scroll ends above it. */
+       their internal scroll ends above it. The dvh pair has to be repeated here
+       because this later block re-declares the base rule's max-height and would
+       otherwise put the sheet back on a viewport the mobile toolbar occupies. */
     padding-bottom: calc(22px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
     max-height: calc(92vh - var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
+    max-height: calc(92dvh - var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
   }
   /* Long-press drag & drop: the row must not text-select or pop the OS
      callout while the hold timer runs; a pressing row reads as "grabbed". */
@@ -4281,11 +4469,14 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
   position: relative; overflow: hidden;
 }
 /* Same calm sheen the category bars wear (barSheen) — the per-day bars were the
-   only budget bars without it. The global reduced-motion block freezes it. */
+   only budget bars without it. Reduced motion removes the decorative layer. */
 .daybar-fill::after {
   content: ''; position: absolute; top: 0; bottom: 0; width: 42%;
   background: linear-gradient(105deg, transparent, rgba(255,255,255,.45), transparent);
   animation: barSheen 2.6s var(--ease-out) infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .budget-bar-fill::after, .daybar-fill::after { content: none; animation: none; }
 }
 /* the daily-average tick — amber line crossing every bar */
 .daybar-avg { position: absolute; top: -3px; bottom: -3px; width: 2px; border-radius: 1px; background: var(--warn-600); }
@@ -4337,6 +4528,9 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 /* ---- Group input: needs-you emphasis + digest ---- */
 .gi-needs-you { border-left: 4px solid var(--saffron); }
 .gi-flash { animation: gi-flash 1.6s cubic-bezier(0.2, 0, 0, 1); }
+@media (prefers-reduced-motion: reduce) {
+  .gi-flash { animation: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--saffron-500) 50%, transparent); }
+}
 @keyframes gi-flash {
   0%, 55% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--saffron-500) 50%, transparent); }
   100% { box-shadow: 0 0 0 3px transparent; }
@@ -4369,14 +4563,14 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 @media (max-width: 1400px) { .metric-strip { grid-template-columns: repeat(3, 1fr); } }
 @media (max-width: 1100px) { .metric-strip { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 700px) {
-  .daybar-row { grid-template-columns: 44px 1fr; }
-  .daybar-meta { grid-column: 2; flex-direction: row; align-items: baseline; gap: 8px; }
-  .catbars .budget-bar-row { grid-template-columns: 44px 1fr auto; }
+  .daybar-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .daybar-meta { grid-column: 2; grid-row: 1; flex-direction: row; flex-wrap: wrap; justify-content: flex-end; align-items: baseline; gap: 8px; }
+  .budget-bar-row, .catbars .budget-bar-row { grid-template-columns: minmax(0, 1fr) auto; }
   .catbars .cat-name span.cat-chip { display: none; }
-  /* the 44px track is fixed — the category name clips instead of shoving the
-     bar and amount out of the row (chip is gone at this width, so the name
-     rides alone) */
-  .catbars .cat-name { display: block; max-width: 44px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* Labels and amounts share the first row; tracks span the second row.
+     Keep the existing palette and gaps, without clipping category names.
+     */
+  .catbars .cat-name { display: block; min-width: 0; overflow-wrap: anywhere; } .budget-bar-row > b { grid-column: 2; grid-row: 1; } .budget-bar-track, .daybar-track { grid-column: 1 / -1; grid-row: 2; }
   .quick-add-row { grid-template-columns: 1fr 90px auto auto; }
 }
 
@@ -4547,7 +4741,10 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 }
 
 /* warning note (implausible fuel economy) — replaces an inline style */
-.ts-warn-note { margin: 5px 0 0; color: var(--warn-600); }
+/* --warn-600 is a mid amber: fine as a fill, too light as text (3.93:1 on the
+   light canvas). --ink-amber is the deepened ink this app already uses for
+   warning TEXT. Scoped here rather than darkened globally so no fill moves. */
+.ts-warn-note:not(.err-text) { margin: 5px 0 0; color: var(--ink-amber); }
 
 /* share/publish editor compaction: subhead + 2-col free-preview day grid */
 .ts-subhead { display: flex; align-items: baseline; gap: 8px; margin: 2px 0; font-size: 12.5px; font-weight: 800; color: var(--text); }
@@ -4557,8 +4754,14 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 .ts-note { margin: 0; }
 
 /* sticky save bar — bottom-ui-offset aware (nav + gesture bar; viewport-fit=cover is on) */
+/* z: the calendar and location popups sit on the nav-glass rung, so a raw 5 let
+   an open popup paint over the primary Save action. This bar is the form's last
+   child, so sharing the rung and winning on document order is the tie-break the
+   ladder already documents. (It does not outrank the native bottom nav, which
+   also sits on 60 and comes later in the DOM — by design: this bar's own padding
+   reserves that space rather than competing with it.) */
 .ts-savebar {
-  position: sticky; bottom: 0; z-index: 5;
+  position: sticky; bottom: 0; z-index: var(--z-nav-glass);
   display: flex; justify-content: flex-end; align-items: center; gap: 10px;
   margin-top: 16px; padding: 8px 0 calc(8px + var(--bottom-ui-offset));
   background: var(--bg); border-top: 1px solid var(--line);
@@ -4601,6 +4804,10 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
   .trips-toolbar .select { flex: 1 1 45%; min-width: 0; }
   .trips-toolbar .cselect { flex: 1 1 45%; min-width: 0; }
   .trips-toolbar .cselect .select { min-width: 0; width: 100%; }
+  /* Explore's filter row mirrors the toolbar pairing, so its three selects
+     don't drop to one full-width stack on a phone. */
+  .explore-filters .select, .explore-filters .cselect { flex: 1 1 45%; min-width: 0; }
+  .explore-filters .cselect .select { min-width: 0; width: 100%; }
 }
 
 @media (max-width: 720px) {
@@ -4635,12 +4842,17 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
   padding: 14px 16px 16px; box-shadow: 0 10px 26px rgba(18, 63, 73, 0.07), 0 2px 5px rgba(18, 63, 73, 0.05);
   min-width: 0; position: relative;
 }
-/* The entrance animation (transform only, fill: backwards) still gives each
-   block a stacking context WHILE it runs, so a later block could paint over
-   an open location dropdown / calendar popover inside an earlier one during
-   that half-second. Elevate the block that owns the open popover above its
-   siblings for as long as the popover exists. */
-.ts-block:has(.loc-dropdown), .ts-block:has(.cal-pop) { z-index: 2; }
+/* Elevate the block that owns an OPEN popover, for as long as it exists.
+   Two reasons, one rung:
+   · the entrance animation (transform only, fill: backwards) gives every block
+     a stacking context WHILE it runs, so a later block could paint over an open
+     location dropdown / calendar inside an earlier one during that half-second;
+   · this rule sets a z-index on a `position: relative` block, which makes it a
+     stacking context permanently — so the block's own rung, not the popup's,
+     decides where its descendants paint. At `2` the whole calendar painted
+     UNDER the fixed bottom dock (--z-dock 55) and its lower rows were
+     unreachable on a phone. The floating-chrome rung clears the dock. */
+.ts-block:has(.loc-dropdown), .ts-block:has(.cal-pop) { z-index: var(--z-nav-glass); }
 [data-theme='dark'] .ts-block { box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35), 0 2px 6px rgba(0, 0, 0, 0.25); }
 .span7 { grid-column: span 7; }
 .span5 { grid-column: span 5; }
@@ -4695,6 +4907,10 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
   color: var(--yf-text-muted); border: 1px solid transparent; background: none; padding: 0;
 }
 .route-btn:hover:not(:disabled) { background: var(--yf-teal-100); color: var(--yf-teal-700); border-color: color-mix(in srgb, var(--yf-teal-600) 35%, transparent); }
+/* Dark: teal-700 ink on the dark pale-tinted hover fill is 4.09:1. Same flip as
+   the bench pills documented above — teal-600 on --yf-teal-100 (5.6:1). Light
+   passes as authored (teal-700 on teal-100 = 5.1:1). */
+[data-theme='dark'] .route-btn:hover:not(:disabled) { color: var(--yf-teal-600); }
 .route-btn:disabled { cursor: default; }
 .return-section { margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--yf-border); }
 .return-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; }
@@ -5063,9 +5279,9 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
   display: grid; place-items: center; font-size: 22px;
   background: var(--teal-soft, #E7F4F1); color: var(--teal-deep, var(--teal));
 }
-.app-home-trip-thumb.is-live { background: var(--teal); color: #fff; }
-/* dark lightens --teal to #2BB8AC — white on that is 2.47:1; ink on teal passes */
-[data-theme='dark'] .app-home-trip-thumb.is-live { color: #06251f; }
+/* Semantic pair flips per theme: teal-600 + #FFF (5.19:1) in light,
+   teal-500 + #06251F (6.62:1) in dark. */
+.app-home-trip-thumb.is-live { background: var(--color-primary); color: var(--color-primary-foreground); }
 .app-home-trip-body { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .app-home-trip-name {
   font-weight: 700; font-size: 15px;
@@ -5109,11 +5325,11 @@ html.native-shell .nav-links { display: none; }
 
 /* --shell-nav-h is the bar's own row height, so --bottom-ui-offset (row +
    gesture bar) is exactly its total height and every page-level bottom
-   consumer clears it. scroll-padding-bottom keeps focus and scroll-into-view
-   landings clear of the bar too. Web: 0px, so both are inert. */
+   consumer clears it. Web: 0px, so both are inert. The matching
+   scroll-padding-bottom lives on the global `html` rule — the token already
+   resolves correctly there, so it needs no shell-only copy. */
 html.native-shell {
   --shell-nav-h: 58px;
-  scroll-padding-bottom: calc(var(--bottom-ui-offset) + 12px);
 }
 
 .bottom-nav {
@@ -5180,7 +5396,7 @@ html.native-shell {
   backdrop-filter: blur(var(--yf-blur-nav)) saturate(1.2);
   border-radius: 12px;
   box-shadow: var(--shadow-soft);
-  animation: popover-in var(--motion-med) var(--ease-out);
+  animation: popover-in var(--motion-med) var(--ease-glide);
 }
 @keyframes popover-in {
   from { opacity: 0; transform: translateY(4px); }
@@ -5215,7 +5431,7 @@ html.native-shell {
 /* Mobile touch-target floor: the remaining sub-40px controls (review round 2). */
 @media (max-width: 720px) {
   .day-rail-chip, .map-day-chip, .map-legend-toggle, .chip-btn { min-height: 40px; }
-  .route-btn { min-width: 40px; min-height: 40px; }
+  .route-btn, .yf-map-idea-add, .poi-short, .poi-cand-add, .poi-fold, .yf-maplibre .yf-map-ctrls button { min-width: 40px; min-height: 40px; }
 }
 
 /* ============ Optimise-day preview (anti-crisscross reorder) ============ */
@@ -5348,7 +5564,10 @@ html.native-shell {
 .poi-rchip.is-on { background: var(--teal-soft); border-color: transparent; color: var(--teal-deep); font-weight: 700; }
 .poi-filterbar { display: flex; align-items: center; gap: 9px; margin-top: 10px; padding: 7px 11px; border: 1px solid color-mix(in srgb, var(--teal) 30%, var(--line)); background: var(--teal-soft); border-radius: var(--radius-sm); font-size: 11.5px; font-weight: 600; color: var(--teal-deep); }
 .poi-filterbar button { margin-left: auto; border: 1px solid var(--teal-deep); background: transparent; color: var(--teal-deep); border-radius: 999px; font-size: 11px; font-weight: 700; padding: 3px 9px; }
-.poi-tray { position: sticky; bottom: 12px; z-index: var(--z-dock); display: flex; align-items: center; gap: 12px; margin-top: 12px; padding: 10px 12px; background: var(--card); border: 1px solid color-mix(in srgb, var(--teal) 32%, var(--line)); border-radius: var(--radius); box-shadow: var(--shadow-soft); }
+/* bottom: the tray is a page-level sticky element, so it clears the shell's
+   bottom chrome by the same token .trip-dock uses — a hardcoded 12px put its
+   actions under the fixed bar (and inside the gesture strip on the web). */
+.poi-tray { position: sticky; bottom: calc(12px + var(--bottom-ui-offset)); z-index: var(--z-dock); display: flex; align-items: center; gap: 12px; margin-top: 12px; padding: 10px 12px; background: var(--card); border: 1px solid color-mix(in srgb, var(--teal) 32%, var(--line)); border-radius: var(--radius); box-shadow: var(--shadow-soft); }
 .poi-tray-n { font-size: 12.5px; font-weight: 700; color: var(--teal-deep); }
 .poi-tray-actions { margin-left: auto; display: flex; gap: 6px; flex-wrap: wrap; }
 
@@ -5375,4 +5594,27 @@ html.native-shell {
 .map-ideas-grid.is-see-folded .poi-col--see .poi-fold svg { transform: rotate(90deg); }
 @media (prefers-reduced-motion: reduce) {
   .poi-fold svg { transition: none; }
+}
+@media (max-width: 1500px) {
+  /* #156: keep stacked mode after the equally specific folded-rail rules. */
+  .map-ideas-grid, .map-ideas-grid.is-needs-folded, .map-ideas-grid.is-see-folded,
+  .map-ideas-grid.is-needs-folded.is-see-folded { grid-template-columns: 1fr; }
+  .map-ideas-map { order: -1; }
+  .map-ideas-grid .poi-col { max-height: none; }
+}
+.gi-item:focus, .day-header.foreign-over { outline: none; box-shadow: var(--ring); }
+
+/* Stage 2: local workspace refinements; no token or animation-strategy changes. */
+.overview-head { margin-bottom: 16px; }
+.expense-table:focus-visible { outline: none; box-shadow: var(--ring); }
+.compare-table:focus-visible { outline: none; box-shadow: var(--ring); }
+[data-motion-paused='true'] .budget-bar-fill::after,
+[data-motion-paused='true'] .daybar-fill::after,
+[data-motion-paused='true'] .yf-map-pin-idea,
+[data-motion-paused='true'] .yf-live-pulse,
+[data-motion-paused='true'] .ticker-track { animation-play-state: paused; }
+/* Coarse desktop pointers also need the floor; pseudo-extensions alone cannot
+   make an 18px quick-add reach 40px, and map control groups clip extensions. */
+@media (pointer: coarse) {
+  .yf-map-idea-add, .poi-short, .poi-cand-add, .poi-fold, .yf-maplibre .yf-map-ctrls button { min-width: 40px; min-height: 40px; }
 }

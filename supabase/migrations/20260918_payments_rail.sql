@@ -68,10 +68,15 @@ create index if not exists entitlements_pub_idx on public.entitlements (pub_id);
 alter table public.purchase_orders enable row level security;
 alter table public.entitlements enable row level security;
 
+-- Postgres has no CREATE POLICY IF NOT EXISTS, so re-runs (a partial first
+-- application, a re-paste) would die with 42710 here. Drop-then-create keeps
+-- the whole file safely re-runnable.
+drop policy if exists "purchase orders read own" on public.purchase_orders;
 create policy "purchase orders read own"
   on public.purchase_orders for select to authenticated
   using (user_id = auth.uid());
 
+drop policy if exists "entitlements read own" on public.entitlements;
 create policy "entitlements read own"
   on public.entitlements for select to authenticated
   using (user_id = auth.uid());
@@ -129,6 +134,7 @@ grant execute on function public.claim_paid_order(text) to authenticated;
 -- copies count; real sales attribution (I-11) will join entitlements by
 -- pub_id. The creator needs to read entitlement rows for THEIR publications:
 
+drop policy if exists "entitlements creator read own pubs" on public.entitlements;
 create policy "entitlements creator read own pubs"
   on public.entitlements for select to authenticated
   using (

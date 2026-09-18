@@ -159,7 +159,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
           <p className="pub-hero-story">{pub.tagline}</p>
           <p className="pub-hero-byline">
             By {creator?.profile.name ?? 'a YatraFlow traveller'} · {pub.durationDays} days · {trip.travellers} travellers · {cap(trip.transportMode)}
-            {creator?.profile.isCreator && <> · <Sparkles size={11} aria-hidden style={{ verticalAlign: '-1px', margin: '0 2px' }} />Verified creator</>}
+            {creator?.profile.isCreator && <> · <Sparkles size={11} aria-hidden style={{ verticalAlign: '-1px', margin: '0 2px' }} />Creator</>}
           </p>
         </div>
         {/* "The practical bit" — the evidence cluster, floating over the hero */}

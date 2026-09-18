@@ -52,7 +52,7 @@ export function CreatorHubPage({ onNavigate }: { onNavigate: (r: string) => void
         <div className="card">
           <h2 className="card-title">Creator mode</h2>
           <p className="hint-text" style={{ margin: '6px 0 12px' }}>
-            Creator mode is a trust and branding badge: your bio and social links appear on the itineraries you publish, and you get a public creator page others can follow.
+            Creator mode is a branding badge: your bio and social links appear on the itineraries you publish, and you get a public creator page others can follow.
           </p>
           <button className="btn btn-saffron" onClick={() => { updateProfile({ isCreator: true }); toast('Creator mode enabled — your bio and links now show on published itineraries.') }}>
             Enable creator mode
@@ -67,7 +67,7 @@ export function CreatorHubPage({ onNavigate }: { onNavigate: (r: string) => void
             </div>
             <p className="hint-text" style={{ margin: '6px 0 12px' }}>
               Publishing to Explore is open to everyone — do it from any trip&apos;s Share tab.
-              Creator mode is a trust and branding badge: your bio and social links appear
+              Creator mode is a branding badge: your bio and social links appear
               on the itineraries you publish.
             </p>
             <Field label="Creator bio"><textarea className="textarea" value={creatorBio} onChange={e => setCreatorBio(e.target.value)} placeholder="Tell readers who you are and why they should trust your routes." /></Field>

@@ -121,7 +121,7 @@ export function ProfilePage({ onNavigate }: { onNavigate: (r: string) => void })
             <p className="hint-text" style={{ margin: '6px 0 12px' }}>
               {me.profile.isCreator
                 ? 'Manage your creator profile, social links and published itineraries.'
-                : 'A trust and branding badge: your bio and social links appear on the itineraries you publish.'}
+                : 'A branding badge: your bio and social links appear on the itineraries you publish.'}
             </p>
             {me.profile.isCreator ? (
               <>
@@ -198,7 +198,8 @@ export function ProfilePage({ onNavigate }: { onNavigate: (r: string) => void })
           <div className="card stack-gap">
             <h3>About your data</h3>
             <p className="hint-text" style={{ marginTop: 6 }}>
-              This MVP stores everything locally in your browser. Costs and timings are transparent
+              Your trips, votes and decisions are saved to your account, so they follow you between
+              devices. Display preferences stay on this device. Costs and timings are transparent
               estimates — always verify prices before travelling.
             </p>
           </div>

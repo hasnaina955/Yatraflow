@@ -49,7 +49,7 @@ export function CreatorPage({ creatorId, onNavigate }: { creatorId: string; onNa
           <div className="creator-hero-id">
             <h1>
               {creator.profile.name}
-              {creator.profile.isCreator && <span className="creator-badge" title="Verified creator"><Sparkles size={13} aria-hidden /> Creator</span>}
+              {creator.profile.isCreator && <span className="creator-badge" title="Creator"><Sparkles size={13} aria-hidden /> Creator</span>}
             </h1>
             <p className="creator-hero-meta">
               {[creator.profile.homeCity, ...creator.profile.languages.map(l => l.toUpperCase())].filter(Boolean).join(' · ') || 'Traveller'}

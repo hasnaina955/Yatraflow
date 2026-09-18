@@ -70,7 +70,7 @@ export function AuthPage({ onNavigate }: { onNavigate: (r: string) => void }) {
       <div className="card auth-card">
         <h1 className="auth-title">{mode === 'login' ? 'Welcome back' : 'Create your account'}</h1>
         <p className="muted small" style={{ marginTop: 4 }}>
-          {mode === 'login' ? 'Log in to your trip plans.' : 'Free forever for planning. No card needed.'}
+          {mode === 'login' ? 'Log in to your trip plans.' : 'Free to plan. No card needed.'}
         </p>
 
         <PillNav className="tabbar auth-tabs" role="tablist" aria-label="Login or sign up" activeKey={mode}>

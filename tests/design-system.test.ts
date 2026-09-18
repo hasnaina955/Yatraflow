@@ -171,7 +171,7 @@ describe('kicker casing: sentence case in source, uppercase via CSS', () => {
     ['src/pages/PublicItinerary.tsx', 'Trip highlights', 'TRIP HIGHLIGHTS'],
     ['src/pages/PublicItinerary.tsx', 'The practical bit', 'THE PRACTICAL BIT'],
     ['src/pages/PublicItinerary.tsx', 'The route at a glance', 'THE ROUTE AT A GLANCE'],
-    ['src/pages/PublicItinerary.tsx', 'Verified creator', 'VERIFIED CREATOR'],
+    ['src/pages/PublicItinerary.tsx', 'Why this route works', 'WHY THIS ROUTE WORKS'],
     ['src/pages/Explore.tsx', 'Featured itinerary', 'FEATURED ITINERARY'],
   ]
 

@@ -58,7 +58,7 @@ export function LandingPage({ onNavigate }: { onNavigate: (r: string) => void })
                 <span className="hbc-arrow"><ArrowDown size={14} aria-hidden /></span>
               </span>
             </button>
-            <p className="small muted hero-rise rise-d5" style={{ marginTop: 16 }}>No card needed · Free forever · Your planning data is yours</p>
+            <p className="small muted hero-rise rise-d5" style={{ marginTop: 16 }}>No card needed · Free to plan · Your planning data is yours</p>
             {/* Invite-code entry: friends who got a code (not a link) land here
                 and type it in — routes to #/join/<code>, which previews the trip
                 and asks for login only if needed. */}

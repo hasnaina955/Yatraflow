@@ -197,14 +197,65 @@ describe('POST /api/checkout', () => {
       if (url.includes('/rest/v1/purchase_orders') && url.includes('status=eq.pending')) {
         return jsonResponse([{ razorpay_order_id: 'order_EXISTING', amount_inr: 500 }])
       }
+      // The gateway-status check for the pending order (still payable).
+      if (url === 'https://api.razorpay.com/v1/orders/order_EXISTING') return jsonResponse({ id: 'order_EXISTING', status: 'created' })
       throw new Error(`unexpected fetch ${url}`)
     })
     const res = await run({ pubId: 'kerala-trip_1' })
     expect(res.statusCode).toBe(200)
     expect(JSON.parse(res.body).orderId).toBe('order_EXISTING')
-    // No gateway call, no new row — the orphan-pending guard held.
-    expect(fetchMock.mock.calls.filter(c => String(c[0]) === 'https://api.razorpay.com/v1/orders')).toHaveLength(0)
+    // No NEW gateway order, no new row — the orphan-pending guard held.
+    expect(fetchMock.mock.calls.filter(c => String(c[0]) === 'https://api.razorpay.com/v1/orders' || String(c[0]).startsWith('https://api.razorpay.com/v1/orders?'))).toHaveLength(0)
     expect(fetchMock.mock.calls.filter(c => String(c[0]).includes('/rest/v1/purchase_orders') && (c[1] as RequestInit | undefined)?.method === 'POST')).toHaveLength(0)
+  })
+
+  it('SELF-HEALS a captured-but-ungranted order: marks paid, grants, and tells the buyer to reload', async () => {
+    // The live incident: verify failed after a capture, the local row stayed
+    // pending, and re-opening checkout hit Razorpay's opaque "Uh! oh!" —
+    // because the modal refuses an already-paid order.
+    const grantCalls: Array<{ url: string; body: unknown }> = []
+    fetchMock.mockImplementation(async (input: RequestInfo | URL, init: RequestInit = {}) => {
+      const url = String(input)
+      if (url.includes('/auth/v1/user')) return jsonResponse({ id: 'buyer-1' })
+      if (url.includes('/rest/v1/published_itineraries')) return jsonResponse([pubRow])
+      if (url.includes('/rest/v1/entitlements')) return jsonResponse([])
+      if (url.includes('/rest/v1/purchase_orders') && url.includes('status=eq.pending')) {
+        return jsonResponse([{ razorpay_order_id: 'order_PAID', amount_inr: 500 }])
+      }
+      if (url === 'https://api.razorpay.com/v1/orders/order_PAID') return jsonResponse({ id: 'order_PAID', status: 'paid' })
+      if (url.includes('/rest/v1/purchase_orders') && (init.method) === 'PATCH') return jsonResponse(null)
+      if (url.includes('/rpc/claim_paid_order')) { grantCalls.push({ url, body: JSON.parse(String(init.body)) }); return jsonResponse('ent-uuid') }
+      throw new Error(`unexpected fetch ${url}`)
+    })
+    const res = await run({ pubId: 'kerala-trip_1' })
+    expect(res.statusCode).toBe(409)
+    const body = JSON.parse(res.body)
+    expect(body.error).toContain('already unlocked')
+    expect(body.error).toContain('reload')
+    // The order was marked paid and the claim rode the BUYER's JWT.
+    const patch = fetchMock.mock.calls.find(c => String(c[0]).includes('/rest/v1/purchase_orders') && (c[1] as RequestInit | undefined)?.method === 'PATCH')
+    expect(JSON.parse(String((patch![1] as RequestInit).body)).status).toBe('paid')
+    expect(grantCalls).toHaveLength(1)
+    expect((grantCalls[0]!.body as Record<string, string>).p_razorpay_order_id).toBe('order_PAID')
+  })
+
+  it('mints a fresh order when the pending one is not payable at the gateway (attempted)', async () => {
+    fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.includes('/auth/v1/user')) return jsonResponse({ id: 'buyer-1' })
+      if (url.includes('/rest/v1/published_itineraries')) return jsonResponse([pubRow])
+      if (url.includes('/rest/v1/entitlements')) return jsonResponse([])
+      if (url.includes('/rest/v1/purchase_orders') && url.includes('status=eq.pending')) {
+        return jsonResponse([{ razorpay_order_id: 'order_ATTEMPTED', amount_inr: 500 }])
+      }
+      if (url === 'https://api.razorpay.com/v1/orders/order_ATTEMPTED') return jsonResponse({ id: 'order_ATTEMPTED', status: 'attempted' })
+      if (url === 'https://api.razorpay.com/v1/orders') return jsonResponse({ id: 'order_FRESH' })
+      if (url.includes('/rest/v1/purchase_orders')) return jsonResponse(null, 201)
+      throw new Error(`unexpected fetch ${url}`)
+    })
+    const res = await run({ pubId: 'kerala-trip_1' })
+    expect(res.statusCode).toBe(200)
+    expect(JSON.parse(res.body).orderId).toBe('order_FRESH')
   })
 
   it('mints a fresh order when the pending one snapshots a different price', async () => {

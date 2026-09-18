@@ -101,6 +101,47 @@ async function createRazorpayOrder(keyId, keySecret, amountPaise, receipt, signa
   return body.id
 }
 
+/** The gateway's own view of the order — the truth our local row can only
+ *  mirror. 'created' = still payable; 'paid'/'captured' = money moved;
+ *  'attempted' = a payment started but did not complete. */
+async function fetchGatewayOrderStatus(keyId, keySecret, razorpayOrderId, signal) {
+  const response = await fetch(`https://api.razorpay.com/v1/orders/${encodeURIComponent(razorpayOrderId)}`, {
+    headers: { authorization: `Basic ${Buffer.from(`${keyId}:${keySecret}`).toString('base64')}` },
+    signal,
+  })
+  if (!response.ok) return 'unknown'
+  const order = await response.json()
+  return typeof order?.status === 'string' ? order.status : 'unknown'
+}
+
+/** Mark the local row paid and grant via the buyer-scoped RPC — the same
+ *  tail the verify function runs. A failed claim (session gone, RPC refused)
+ *  leaves the order marked paid; the webhook remains the second recovery. */
+async function markOrderPaid(supabaseUrl, serviceKey, razorpayOrderId, paymentId, signal) {
+  const url = `${supabaseUrl.replace(/\/+$/, '')}/rest/v1/purchase_orders` +
+    `?razorpay_order_id=eq.${encodeURIComponent(razorpayOrderId)}&status=eq.pending`
+  const response = await fetch(url, {
+    method: 'PATCH',
+    headers: supabaseServiceHeaders(serviceKey, {
+      'content-type': 'application/json',
+      prefer: 'return=minimal',
+    }),
+    body: JSON.stringify({ status: 'paid', razorpay_payment_id: paymentId, paid_at: new Date().toISOString() }),
+    signal,
+  })
+  if (!response.ok) throw new Error(`order mark-paid failed: ${response.status}`)
+}
+
+async function claimEntitlement(supabaseUrl, anonKey, token, razorpayOrderId, signal) {
+  const response = await fetch(`${supabaseUrl.replace(/\/+$/, '')}/rest/v1/rpc/claim_paid_order`, {
+    method: 'POST',
+    headers: { apikey: anonKey, authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+    body: JSON.stringify({ p_razorpay_order_id: razorpayOrderId }),
+    signal,
+  })
+  return response.ok
+}
+
 async function insertOrderRow(supabaseUrl, serviceKey, row, signal) {
   const response = await fetch(`${supabaseUrl.replace(/\/+$/, '')}/rest/v1/purchase_orders`, {
     method: 'POST',
@@ -177,9 +218,27 @@ export default async function handler(req, res) {
     // another one (the guard against orphan pendings). A price change after
     // the order was opened invalidates it — the stored snapshot must equal
     // the row price or a new order is created at the current price.
+    //
+    // The gateway is the truth on whether the order is still payable: a
+    // local row can stay 'pending' when verify failed after a CAPTURED
+    // payment, and Razorpay's modal refuses an already-paid order_id with
+    // an opaque "Uh! oh!" screen. So check the gateway, and if the money
+    // already moved, FINISH THE GRANT here — the second click self-heals
+    // the stuck purchase instead of dead-ending on the gateway error.
     const pending = await fetchPendingOrder(supabaseUrl, serviceKey, userId, pubId, signal)
     if (pending && pending.amount_inr === price) {
-      return json(res, 200, { orderId: pending.razorpay_order_id, keyId, amountPaise: price * 100, currency: 'INR' })
+      const gatewayStatus = await fetchGatewayOrderStatus(keyId, keySecret, pending.razorpay_order_id, signal)
+      if (gatewayStatus === 'paid') {
+        // A captured payment this flow never confirmed: mark + grant now.
+        await markOrderPaid(supabaseUrl, serviceKey, pending.razorpay_order_id, 'recovered-by-checkout', signal)
+        await claimEntitlement(supabaseUrl, anonKey, token, pending.razorpay_order_id, signal)
+        return json(res, 409, { error: 'already unlocked — your earlier payment was confirmed just now; reload to see the full plan' })
+      }
+      if (gatewayStatus === 'created') {
+        return json(res, 200, { orderId: pending.razorpay_order_id, keyId, amountPaise: price * 100, currency: 'INR' })
+      }
+      // 'attempted'/unknown → fall through and mint a fresh order; the old
+      // row stays pending but the buyer is never blocked.
     }
     const receipt = `r${stable(pubId, 8)}${stable(userId, 4)}`
     const razorpayOrderId = await createRazorpayOrder(keyId, keySecret, price * 100, receipt, signal)

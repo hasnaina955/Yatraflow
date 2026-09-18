@@ -440,13 +440,33 @@ function freshId(prefix: string): string {
 }
 
 /**
+ * sourceUrl renders as an <a href> in the timeline, so an import file must
+ * meet the SAME boundary rule StopEditor enforces on manual entry: http(s)
+ * only. Anything else (javascript:, data:, intent:, custom app schemes) is
+ * dropped and named — the Android WebView turns arbitrary off-origin schemes
+ * into ACTION_VIEW intents, so "the browser will block it" is not a defense.
+ */
+function safeSourceUrl(v: unknown, where: string, report: NormalizeReport): string | undefined {
+  if (v === undefined || v === null) return undefined
+  const url = typeof v === 'string' ? v.trim() : ''
+  if (!url) return undefined
+  if (!/^https?:\/\//i.test(url) || url.length > 500) {
+    report.repairs.push(`${where}: sourceUrl was not an http(s) link — dropped it.`)
+    return undefined
+  }
+  return url
+}
+
+/**
  * Turn a file's trip object into a real `Trip`, repairing what can be repaired
  * and reporting everything it changed or could not change.
  *
- * Repairs are mechanical and non-destructive except for one case: a stop whose
+ * Repairs are mechanical and non-destructive except for two cases: a stop whose
  * coordinates cannot be placed is DROPPED and named (a guessed pin is the one
  * error that poisons every number downstream, and the app's own rule is to
- * refuse rather than fabricate). Unknown keys are dropped and named.
+ * refuse rather than fabricate), and a sourceUrl that is not http(s) is
+ * dropped and named (it renders as a clickable link — the app's own boundary
+ * rule, applied to imported files too). Unknown keys are dropped and named.
  *
  * Returns null when nothing importable remains — the caller turns that into a
  * `TripImportError` that says why.
@@ -549,7 +569,7 @@ export function normalizeTrip(source: Record<string, unknown>, report: Normalize
         transportCostInrTotal: Math.max(0, num(s.transportCostInrTotal, 0)),
         priority: priority ?? 'must-do',
         notes: str(s.notes) || undefined,
-        sourceUrl: str(s.sourceUrl) || undefined,
+        sourceUrl: safeSourceUrl(s.sourceUrl, stopWhere, report),
         status: status ?? 'confirmed',
         // 1-based and contiguous — the app's own convention (createTrip, addStop
         // and every renumber path write n+1). The array order is the truth.

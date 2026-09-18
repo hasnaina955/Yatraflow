@@ -241,6 +241,26 @@ describe('parseTripImport — the repair pass', () => {
     expect('transportCostInrPerPersonTotal' in r.trip).toBe(false)
   })
 
+  // ---- the href boundary: imported sourceUrl meets StopEditor's own rule ----
+  it('drops a non-http(s) sourceUrl and names it — an import cannot smuggle a javascript: link', () => {
+    const trip = bareExport()
+    Object.assign(trip.days[0].stops[0], { sourceUrl: 'javascript:alert(document.cookie)' })
+    const r = parseTripImport(JSON.stringify(trip))
+    expect(r.trip.days[0].stops[0].sourceUrl).toBeUndefined()
+    expect(r.report.repairs.join(' ')).toMatch(/sourceUrl was not an http\(s\) link/)
+  })
+
+  it('keeps a genuine http(s) sourceUrl and drops data:/intent: schemes alike', () => {
+    const trip = bareExport()
+    Object.assign(trip.days[0].stops[0], { sourceUrl: 'https://en.wikipedia.org/wiki/Golkonda' })
+    expect(parseTripImport(JSON.stringify(trip)).trip.days[0].stops[0].sourceUrl).toMatch(/^https:/)
+    const sneaky = bareExport()
+    Object.assign(sneaky.days[0].stops[0], { sourceUrl: 'data:text/html,<script>alert(1)</script>' })
+    const r = parseTripImport(JSON.stringify(sneaky))
+    expect(r.trip.days[0].stops[0].sourceUrl).toBeUndefined()
+    expect(r.report.repairs.join(' ')).toMatch(/sourceUrl/)
+  })
+
   // ---- the coordinate wall: refuse rather than fabricate ----
   it('drops a stop that cannot be placed, and names it', () => {
     const trip = bareExport()

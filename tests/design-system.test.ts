@@ -572,8 +572,11 @@ describe('the day collapse moves as one gesture', () => {
   it('takes the unmount delay from the token, not a literal', () => {
     // Retiming the CSS must not leave a half-collapsed body mounted.
     const src = source('src/pages/trip/timeline/DaySection.tsx')
-    expect(src).toMatch(/motionTiming\('--motion-slower'\)\.duration \+ COLLAPSE_UNMOUNT_SLACK_MS/)
-    expect(src).not.toMatch(/setMounted\(false\),\s*\d+/)
+    expect(src).toMatch(/window\.setTimeout\(\(\) => \{ setMounted\(false\) \}, motionTiming\('--motion-slower'\)\.duration \+ COLLAPSE_UNMOUNT_SLACK_MS\)/)
+    // Covers both shapes of the callback (`setMounted(false), 280` and the
+    // braced `{ setMounted(false) }, 280`) — the second arrived when a lint rule
+    // asked for braces on a void shorthand, and the pin has to survive that.
+    expect(src).not.toMatch(/setMounted\(false\)\s*\}?\s*,\s*\d+/)
     // and the token itself is what the stylesheet declares (no drift between
     // the JS timer and the CSS transition it is waiting on)
     expect(source('src/lib/motion.ts')).toMatch(/'--motion-slower':\s*560/)

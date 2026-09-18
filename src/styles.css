@@ -1822,6 +1822,11 @@ button.board-col-zone--add:active { transform: translateY(1px); }
   content: ''; position: absolute; top: 0; left: 0; right: 0;
   border-top: 1px solid var(--line);
 }
+/* The creator line + its channel icons are the card's LAST row whenever the
+   creator has a bio or a social link, and that row owns the card's bottom
+   padding: unpadded it sat 1px from the bottom edge, inside the 12px corner
+   radius, so the icons read as if the card had cut them off. */
+.itin-foot { padding: 0 16px 14px; margin-top: 6px; }
 .creator-line { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-2); font-weight: 600; }
 /* The anchor variant (PubCard) overrode the global link colour with --text-2,
    so it read as plain text. Keep the quiet look at rest, but answer hover and
@@ -2452,6 +2457,13 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
 /* the custom Select wraps its trigger in a div — flex sizing moves to the wrapper */
 .explore-filters .cselect, .trips-toolbar .cselect { flex: 0 1 auto; }
 .explore-filters .cselect .select, .trips-toolbar .cselect .select { min-width: 140px; }
+/* The filter bar's own backdrop-filter (.glass-soft) makes it a stacking
+   context, so the .cselect menu opened inside it was trapped at the bar's rung
+   — and every card below is positioned, so they painted over the open menu:
+   the last two budget options hit-tested into .featured-body, invisible and
+   unclickable, while the menu's first three rows stayed reachable. The HOST
+   claims a rung; raising the popup cannot escape its ancestor's context. */
+.explore-filterbar { position: relative; z-index: var(--z-frost); }
 .trip-card-hit { all: unset; cursor: pointer; display: block; border-radius: inherit; }
 
 /* Trip card emoji cover */

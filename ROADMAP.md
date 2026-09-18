@@ -287,6 +287,8 @@ settlement groundwork (payer tagging + balances card) shipped in v0.36.0;
 M6 adds the multi-currency-free refinement and co-editing depth on top.
 
 ### M7 — "Premium" (monetization) — **issue #238**
+
+> Post-unlock value presentation (why the buy feels worth it) and the creator-growth-loop shape are researched with citations in `docs/commercial/RESEARCH-2026-09-18-creator-market-and-paywall-value.md`; the buildable items are I-20…I-27 below.
 Gateway integration (Razorpay fits INR), order/entitlement tables + webhook,
 purchase state, unlock flow replacing placeholder toasts. Needs an external
 gateway account. Deliberately after M6's test-suite groundwork.
@@ -362,6 +364,14 @@ unbuilt). **Before picking up a row, and before quoting one in a plan, confirm i
 | I-10 | Gross vs net split | M7 | Ledger rows already carry the columns; M7 adds the fee model + a gross/net toggle. |
 | I-11 | Per-publication revenue attribution | M7 | Sale rows join on `pub_id`; Overview rows gain an "earned" figure. |
 | I-12 | Price history | M7 (schema) | `premiumPriceInr` is overwritten on publish; correct books need a per-sale price snapshot or price-history rows. |
+| I-20 | Unlock moment + owned library | creator | 1–2 days | Full-screen "you now own X" reveal with real computed stats (days/stops/km), then a persistent "My purchases" shelf (cover, creator, version badge, update marker) reachable from My Trips. Research: `docs/commercial/RESEARCH-2026-09-18…` §4. **Unblocked: #251 has merged, so the M7 rail and its unlock flow are live.** |
+| I-21 | Purchase share card | growth | 3–4 h | WhatsApp-sized "I bought the Spiti plan" og-image the buyer can post — buyers are the distribution channel (research §4.5). Depends on the share-card pipeline (`public/og-default.png`, `api/i.js`). |
+| I-22 | Publication funnel UI | creator | 2–3 d | Per-pub views→forks→sales funnel with preview→sale conversion, against a benchmark once measured. **Blocked on E3 instrumentation** — the events do not exist to read yet (research §5). |
+| I-23 | Publish-quality score | creator | 1 d | Checklist with nudges (cover photo, budget filled, notes density, preview-day choice) on the hub + Share tab. Ship, measure via I-22, then claim any lift (research §5). |
+| I-24 | Pricing assistant | creator | 1 d | Per-day anchor ("6 days · ₹83/day"), the ₹99–499 band, price-change history. **Needs I-12's price-history rows.** Research §3. |
+| I-25 | Buyer reviews | creator | 2 d | Post-purchase ratings on itineraries: schema (reviews table + RLS), policy question (purchase-gated?) first. Feeds conversion, creator feedback, and I-26. |
+| I-26 | Creator levels | creator | 1–2 d | Progress strip (portfolio, sales, ratings) with tier perks (Explore placement). Needs I-25's reviews to level on. Research §5. |
+| I-27 | Hub presentation pass | creator | 1 d | KPI sparklines, activity feed ("Admin unlocked Spiti · 2h ago"), motion per `docs/MOTION-TOKENS.md`. The studio-dashboard pass over the existing Overview + Earnings. Research §5. |
 | I-13 | Tiered platform fee | M7 (decision) | Fee % drops above a lifetime-earnings threshold — a pricing decision, surfaced in the fee column. Pattern: X's 90%-tier model. |
 | I-14 | Payout method + KYC management | M7 (schema) | Bank/UPI + legal name + PAN on profiles — M7's biggest schema lift. |
 | I-15 | Unlock conversion funnel | M7, then events | Views → premium unlocks per publication; needs entitlement events from M7 first. |

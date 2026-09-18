@@ -15,6 +15,9 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ## [Unreleased]
 
+### Docs
+- **Creator-market research with citations** (`docs/commercial/RESEARCH-2026-09-18-creator-market-and-paywall-value.md`): why travelers buy itineraries (time math, curation, error insurance), why creators strive (honest earnings base rates plus five non-income pitches), what should separate free from paid (a capability stack, not a page count), how the bought plan should be presented (unlock ceremony, owned library, endowment, share card), and the hub as a growth loop — every claim tagged by source strength with the sources listed, feeding Idea bank I-20…I-27 and the commercial plans' post-unlock items (E7/E8).
+
 ### Fixed
 - **A public itinerary page renders for every publication shape.** The server-side read (`get_public_trip`) returns the whole trip for an unpriced publication, returns every day locked — instead of no page at all — when a priced publication lists no free days, and stubs locked days for everyone else. The stub's replacement text is typed for the database (`::text` into polymorphic `to_jsonb`) — without that cast the locked-day path failed for every visitor who had not unlocked the trip, while buyers and the creator kept working, their branch returning before the stub. The creator-sales RPC is signed-in only — an anonymous caller inherited Supabase's default EXECUTE and always received an empty list (`20260918_payments_security.sql`).
 

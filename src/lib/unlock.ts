@@ -19,7 +19,7 @@
 // degrades to "no entitlements", which is exactly the pre-M7 behavior.
 
 import { supabase } from './supabase'
-import type { Entitlement } from './payments'
+import { ENTITLEMENT_COLUMNS, type Entitlement } from './payments'
 import { toast } from '../components/ui'
 
 declare global {
@@ -61,10 +61,18 @@ export async function fetchMyEntitlements(userId: string | null): Promise<Entitl
   try {
     const { data, error } = await supabase
       .from('entitlements')
-      .select('id,user_id,pub_id,order_id,amount_paid_inr,granted_at,via_webhook')
+      .select(ENTITLEMENT_COLUMNS)
       .eq('user_id', userId)
     if (error) throw error
-    return (Array.isArray(data) ? data : []) as unknown as Entitlement[]
+    // The epoch-ms fields arrive as ISO strings; shape them for the type.
+    return (Array.isArray(data) ? data : []).map((row: Record<string, unknown>) => ({
+      id: row.id as string,
+      userId: row.user_id as string,
+      pubId: row.pub_id as string,
+      orderId: row.order_id as string,
+      amountPaidInr: row.amount_paid_inr as number,
+      grantedAt: new Date(row.granted_at as string).getTime(),
+    }))
   } catch (e) {
     console.error('[yatraflow] entitlements read failed', e)
     return []

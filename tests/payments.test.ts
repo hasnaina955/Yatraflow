@@ -1,7 +1,8 @@
+import { readFileSync } from 'node:fs'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   draftOrder, receiptFor, verifyCallbackSignature, verifyWebhookSignature,
-  timingSafeEqualHex, orderGrantsEntitlement, hasUnlock,
+  timingSafeEqualHex, orderGrantsEntitlement, hasUnlock, ENTITLEMENT_COLUMNS,
   type PaymentCallback, type Entitlement,
 } from '../src/lib/payments'
 
@@ -94,6 +95,49 @@ describe('timingSafeEqualHex', () => {
     expect(timingSafeEqualHex('', 'abcd')).toBe(false)
     expect(timingSafeEqualHex('abcd', '')).toBe(false)
     expect(timingSafeEqualHex('', '')).toBe(true)
+  })
+})
+
+describe('the entitlement read contract', () => {
+  // The trap this pins: the migration, the client select and the TS type can
+  // drift apart silently — a select naming a column the table lacks comes
+  // back as a PostgREST 400, which fetchMyEntitlements degrades to [], and
+  // a paying buyer's page renders locked again. Every previous test mocked
+  // the table with the SAME wrong columns, so 53 green tests missed it.
+  // Deriving both sides from their source (not from shared fixture data)
+  // is what makes this catch it.
+  const migration = readFileSync(
+    new URL('../supabase/migrations/20260918_payments_rail.sql', import.meta.url), 'utf8')
+  const unlockSource = readFileSync(new URL('../src/lib/unlock.ts', import.meta.url), 'utf8')
+
+  function columnsFromCreateTable(table: string): string[] {
+    const block = new RegExp(`create table if not exists public\\.${table} \\(\\r?\\n([\\s\\S]*?)\\);`).exec(migration)?.[1]
+    expect(block, `the ${table} create-table block is missing from the migration`).toBeTruthy()
+    return block!
+      .split(/\r?\n/)
+      .map(line => line.trim())
+      .filter(line => line && !line.startsWith('--'))
+      .map(line => /^(?!constraint\b)([a-z_]+)\s/.exec(line)?.[1])
+      .filter((c): c is string => !!c)
+  }
+
+  it('the client select names exactly the columns the entitlements table defines', () => {
+    const tableColumns = columnsFromCreateTable('entitlements').sort()
+    const selected = ENTITLEMENT_COLUMNS.split(',').sort()
+    expect(selected).toEqual(tableColumns)
+    // And the read actually uses the shared constant, not a hand-rolled list.
+    expect(unlockSource).toMatch(/\.select\(ENTITLEMENT_COLUMNS\)/)
+    expect(unlockSource).not.toMatch(/\.select\('id,user_id/)
+  })
+
+  it('the TS type mirrors the same columns', () => {
+    const typeSource = readFileSync(new URL('../src/lib/payments.ts', import.meta.url), 'utf8')
+    const camelOf = (col: string) => col.replace(/_([a-z])/g, (_, c) => c.toUpperCase())
+    for (const col of columnsFromCreateTable('entitlements')) {
+      expect(typeSource).toMatch(new RegExp(`\\b${camelOf(col)}\\b`), `Entitlement is missing ${col}`)
+    }
+    // viaWebhook was a fictional column a real read 400s on — keep it dead.
+    expect(typeSource).not.toContain('viaWebhook')
   })
 })
 

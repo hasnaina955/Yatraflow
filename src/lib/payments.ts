@@ -155,10 +155,16 @@ export interface Entitlement {
   orderId: string
   /** Rupees actually paid (price snapshot — the publication's price can change later). */
   amountPaidInr: number
+  /** Epoch ms of the grant (the verify call or a webhook delivery). */
   grantedAt: number
-  /** True when the webhook (not the browser verify) wrote the row. */
-  viaWebhook?: boolean
 }
+
+/** The exact column list the migration defines for `entitlements` — the
+ *  single string every read of the table must select. A column that exists
+ *  only on one side of this list turns the read into a PostgREST 400 (and
+ *  the silent-[] degradation), so the contract test pins the two together.
+ *  Keep in sync with 20260918_payments_rail.sql. */
+export const ENTITLEMENT_COLUMNS = 'id,user_id,pub_id,order_id,amount_paid_inr,granted_at' as const
 
 export type OrderStatus = 'pending' | 'paid' | 'failed'
 

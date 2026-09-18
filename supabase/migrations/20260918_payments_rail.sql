@@ -44,7 +44,10 @@ create index if not exists purchase_orders_pub_idx on public.purchase_orders (pu
 
 create table if not exists public.entitlements (
   id uuid primary key default gen_random_uuid(),
-  created_at timestamptz not null default now(),
+  -- When the unlock was GRANTED (the verify call or a webhook delivery) —
+  -- distinct from purchase_orders.paid_at, which is when the gateway
+  -- captured the money.
+  granted_at timestamptz not null default now(),
   user_id uuid not null references public.users (id) on delete cascade,
   pub_id text not null references public.published_itineraries (id) on delete cascade,
   order_id uuid not null references public.purchase_orders (id) on delete cascade,

@@ -2450,6 +2450,13 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
 }
 [data-theme='dark'] .yf-map-pin { border-color: rgba(255,255,255,.9); }
 
+/* Coincident pins: stops sharing one place (a meal at your night's base, two
+   stops added in one town) are nudged apart by an inline translate on this
+   wrapper, so the stop underneath stays visible and clickable. The offset lives
+   here rather than on the pin because the pin's own transform is its -45deg
+   teardrop rotation and its hover scale. No motion — a static offset. */
+.yf-pin-cluster { display: inline-flex; }
+
 /* Teardrop place-pins: day colour fills the drop, the category emoji is the
    main glyph and the timeline number rides as a small corner badge. The drop
    is a rounded square rotated -45°; everything inside is counter-rotated. */

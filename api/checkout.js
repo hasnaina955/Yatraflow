@@ -1,4 +1,5 @@
 // ============ POST /api/checkout — create a Razorpay order (M7) ============
+import { supabaseServiceHeaders, supabaseAnonHeaders } from './_supabase-headers.js'
 // The browser sends ONLY the publication id; the price is read server-side
 // from the published_itineraries row. A tampered request body cannot change
 // what is charged. The buyer is the caller's own Supabase JWT `sub` — never
@@ -45,7 +46,7 @@ async function fetchPublication(supabaseUrl, anonKey, pubId, signal) {
   const url = `${supabaseUrl.replace(/\/+$/, '')}/rest/v1/published_itineraries` +
     `?id=eq.${encodeURIComponent(pubId)}&select=id,trip_id,creator_id,premium_price_inr&limit=1`
   const response = await fetch(url, {
-    headers: { apikey: anonKey, authorization: `Bearer ${anonKey}` },
+    headers: supabaseAnonHeaders(anonKey),
     signal,
   })
   if (!response.ok) throw new Error(`publications read failed: ${response.status}`)
@@ -57,7 +58,7 @@ async function fetchEntitlements(supabaseUrl, serviceKey, userId, pubId, signal)
   const url = `${supabaseUrl.replace(/\/+$/, '')}/rest/v1/entitlements` +
     `?user_id=eq.${encodeURIComponent(userId)}&pub_id=eq.${encodeURIComponent(pubId)}&select=id&limit=1`
   const response = await fetch(url, {
-    headers: { apikey: serviceKey, authorization: `Bearer ${serviceKey}` },
+    headers: supabaseServiceHeaders(serviceKey),
     signal,
   })
   if (!response.ok) throw new Error(`entitlements read failed: ${response.status}`)
@@ -75,7 +76,7 @@ async function fetchPendingOrder(supabaseUrl, serviceKey, userId, pubId, signal)
     `?user_id=eq.${encodeURIComponent(userId)}&pub_id=eq.${encodeURIComponent(pubId)}` +
     `&status=eq.pending&select=razorpay_order_id,amount_inr&order=created_at.desc&limit=1`
   const response = await fetch(url, {
-    headers: { apikey: serviceKey, authorization: `Bearer ${serviceKey}` },
+    headers: supabaseServiceHeaders(serviceKey),
     signal,
   })
   if (!response.ok) throw new Error(`pending order read failed: ${response.status}`)
@@ -103,12 +104,10 @@ async function createRazorpayOrder(keyId, keySecret, amountPaise, receipt, signa
 async function insertOrderRow(supabaseUrl, serviceKey, row, signal) {
   const response = await fetch(`${supabaseUrl.replace(/\/+$/, '')}/rest/v1/purchase_orders`, {
     method: 'POST',
-    headers: {
-      apikey: serviceKey,
-      authorization: `Bearer ${serviceKey}`,
+    headers: supabaseServiceHeaders(serviceKey, {
       'content-type': 'application/json',
       prefer: 'return=minimal',
-    },
+    }),
     body: JSON.stringify(row),
     signal,
   })

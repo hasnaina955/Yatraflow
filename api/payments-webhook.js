@@ -1,4 +1,5 @@
 // ============ POST /api/payments-webhook — Razorpay crash recovery (M7) ======
+import { supabaseServiceHeaders, supabaseAnonHeaders } from './_supabase-headers.js'
 // Razorpay POSTs `payment.captured` here. This is the path that catches a
 // user who closes the tab between the gateway capturing the payment and the
 // browser's /api/payments-verify call landing: the webhook marks the order
@@ -52,12 +53,10 @@ async function markOrderPaid(supabaseUrl, serviceKey, razorpayOrderId, paymentId
     `?razorpay_order_id=eq.${encodeURIComponent(razorpayOrderId)}&status=eq.pending`
   const response = await fetch(url, {
     method: 'PATCH',
-    headers: {
-      apikey: serviceKey,
-      authorization: `Bearer ${serviceKey}`,
+    headers: supabaseServiceHeaders(serviceKey, {
       'content-type': 'application/json',
       prefer: 'return=minimal',
-    },
+    }),
     body: JSON.stringify({ status: 'paid', razorpay_payment_id: paymentId, paid_at: new Date().toISOString() }),
     signal,
   })
@@ -68,7 +67,7 @@ async function fetchOrderRow(supabaseUrl, serviceKey, razorpayOrderId, signal) {
   const url = `${supabaseUrl.replace(/\/+$/, '')}/rest/v1/purchase_orders` +
     `?razorpay_order_id=eq.${encodeURIComponent(razorpayOrderId)}&select=id,user_id,pub_id,price_snapshot_inr,status&limit=1`
   const response = await fetch(url, {
-    headers: { apikey: serviceKey, authorization: `Bearer ${serviceKey}` },
+    headers: supabaseServiceHeaders(serviceKey),
     signal,
   })
   if (!response.ok) throw new Error(`order read failed: ${response.status}`)
@@ -83,15 +82,13 @@ async function grantEntitlement(supabaseUrl, serviceKey, order, signal) {
   // signature on the request IS the authorization.
   const response = await fetch(`${supabaseUrl.replace(/\/+$/, '')}/rest/v1/entitlements?on_conflict=user_id,pub_id`, {
     method: 'POST',
-    headers: {
-      apikey: serviceKey,
-      authorization: `Bearer ${serviceKey}`,
+    headers: supabaseServiceHeaders(serviceKey, {
       'content-type': 'application/json',
       // PostgREST upsert: a repeat delivery (the same webhook retried, or a
       // race with the browser verify) becomes a no-op UPDATE instead of a
       // unique violation — idempotency lives here, not in a 409 handler.
       prefer: 'return=minimal,resolution=ignore-duplicates',
-    },
+    }),
     body: JSON.stringify({
       user_id: order.user_id,
       pub_id: order.pub_id,

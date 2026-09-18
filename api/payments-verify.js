@@ -1,4 +1,5 @@
 // ============ POST /api/payments-verify — confirm a checkout callback (M7) ===
+import { supabaseServiceHeaders, supabaseAnonHeaders } from './_supabase-headers.js'
 // Razorpay's checkout.js returns { razorpay_order_id, razorpay_payment_id,
 // razorpay_signature } to the browser; the browser forwards them here. The
 // HMAC signature is checked against RAZORPAY_KEY_SECRET, the order row is
@@ -58,12 +59,10 @@ async function markOrderPaid(supabaseUrl, serviceKey, razorpayOrderId, paymentId
     `?razorpay_order_id=eq.${encodeURIComponent(razorpayOrderId)}&status=eq.pending`
   const response = await fetch(url, {
     method: 'PATCH',
-    headers: {
-      apikey: serviceKey,
-      authorization: `Bearer ${serviceKey}`,
+    headers: supabaseServiceHeaders(serviceKey, {
       'content-type': 'application/json',
       prefer: 'return=minimal',
-    },
+    }),
     body: JSON.stringify({ status: 'paid', razorpay_payment_id: paymentId, paid_at: new Date().toISOString() }),
     signal,
   })

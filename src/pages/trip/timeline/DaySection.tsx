@@ -23,7 +23,7 @@ import { routeChain, stayDaySummary, dwellSegments, visibleStops } from '../../.
 import { isDriveDay } from '../../../lib/ridePlan'
 import { openExternal } from '../../../lib/native'
 import { useTimeFormat, formatHM, formatHMRange } from '../../../lib/timefmt'
-import { prefersReducedMotion } from '../../../lib/motion'
+import { motionTiming, prefersReducedMotion } from '../../../lib/motion'
 import { stopKindOf, STOP_KIND_LABELS } from '../../../lib/stopKind'
 import { statusLabel } from '../../../lib/labels'
 import { Chip, EmptyState, Modal, toast, useReorder } from '../../../components/ui'
@@ -115,12 +115,22 @@ function DwellBars({ day }: { day: Trip['days'][number] }) {
   )
 }
 
+/** Extra frames after the CSS transition ends before the body is unmounted. */
+const COLLAPSE_UNMOUNT_SLACK_MS = 40
+
 /** Smooth open/close for a day body: the wrapper animates grid rows 0fr→1fr
  *  (height-agnostic, no max-height guessing), mounting the body just before
  *  the expand and unmounting it just after the collapse — so a closed day
  *  still costs nothing (the collapsed-by-default premise) while the motion
  *  stays smooth. A section that mounts already-open does NOT animate (no
- *  surprise motion on page load). */
+ *  surprise motion on page load).
+ *
+ *  The two rAFs before the class flip are load-bearing, not defensive: React
+ *  flushes a discrete-event effect before the browser paints, so mounting and
+ *  opening in the SAME commit leaves the 0fr row unrendered — the transition
+ *  then has no "from" value and the day snaps open. The unmount delay reads its
+ *  duration from --motion-slow, so retiming the animation in CSS can never
+ *  leave a half-collapsed body mounted. */
 function SmoothCollapse({ open, children }: { open: boolean; children: React.ReactNode }) {
   const [mounted, setMounted] = useState(open)
   const [expanded, setExpanded] = useState(open)
@@ -132,7 +142,7 @@ function SmoothCollapse({ open, children }: { open: boolean; children: React.Rea
       return () => { cancelAnimationFrame(raf1); cancelAnimationFrame(raf2) }
     }
     setExpanded(false)
-    const t = window.setTimeout(() => setMounted(false), 280)
+    const t = window.setTimeout(() => setMounted(false), motionTiming('--motion-slower').duration + COLLAPSE_UNMOUNT_SLACK_MS)
     return () => window.clearTimeout(t)
   }, [open])
   if (!mounted) return null
@@ -446,22 +456,28 @@ export const DaySection = React.memo(function DaySection({ day, trip, editable, 
               doesn't already say. Stay days get their quiet "no driving" line;
               drive days get the stop-name chain when there are ≥2 planned
               stops. It's a button that opens the day, like the mockup; names
-              wrap rather than truncate (full chain rides in the tooltip). */}
-          {collapsed && (isStayDay ? (
-            <button type="button" className="day-route" onClick={onCollapseClick}>
-              <span className="day-route-text">{stayDaySummary(visitCount)}</span>
-            </button>
-          ) : chainStops.length >= 2 ? (
-            <button type="button" className="day-route" onClick={onCollapseClick} title={routeChain(day)}>
-              {chainStops.slice(0, 5).map((s, i) => (
-                <React.Fragment key={s.id}>
-                  {i > 0 && <span className="day-route-sep" aria-hidden="true">→</span>}
-                  <span className="day-route-stop">{s.title}</span>
-                </React.Fragment>
-              ))}
-              {chainStops.length > 5 && <span className="day-route-more">+{chainStops.length - 5} more</span>}
-            </button>
-          ) : null)}
+              wrap rather than truncate (full chain rides in the tooltip).
+              This line is what changes the header's height, so it rides the
+              same collapse as the body, in reverse: growing in as the body
+              folds away, folding away as the body grows. Popping it instead
+              moved every row below the header in a single frame. */}
+          <SmoothCollapse open={collapsed}>
+            {isStayDay ? (
+              <button type="button" className="day-route" onClick={onCollapseClick}>
+                <span className="day-route-text">{stayDaySummary(visitCount)}</span>
+              </button>
+            ) : chainStops.length >= 2 ? (
+              <button type="button" className="day-route" onClick={onCollapseClick} title={routeChain(day)}>
+                {chainStops.slice(0, 5).map((s, i) => (
+                  <React.Fragment key={s.id}>
+                    {i > 0 && <span className="day-route-sep" aria-hidden="true">→</span>}
+                    <span className="day-route-stop">{s.title}</span>
+                  </React.Fragment>
+                ))}
+                {chainStops.length > 5 && <span className="day-route-more">+{chainStops.length - 5} more</span>}
+              </button>
+            ) : null}
+          </SmoothCollapse>
           <div className="small muted num">
             {statSegments.map((seg, i) => (
               <React.Fragment key={i}>

@@ -110,8 +110,13 @@ export default async function handler(req, res) {
   const supabaseUrl = process.env.SUPABASE_URL
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
   const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET
-  if (!supabaseUrl || !serviceKey || !webhookSecret) {
-    return json(res, 503, { error: 'payments are not configured yet' })
+  const missing = [
+    ['SUPABASE_URL', supabaseUrl],
+    ['SUPABASE_SERVICE_ROLE_KEY', serviceKey],
+    ['RAZORPAY_WEBHOOK_SECRET', webhookSecret],
+  ].filter(([, v]) => !v).map(([name]) => name)
+  if (missing.length > 0) {
+    return json(res, 503, { error: `payments are not configured yet — missing env var(s): ${missing.join(', ')}` })
   }
 
   let raw

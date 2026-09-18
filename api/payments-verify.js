@@ -97,8 +97,14 @@ export default async function handler(req, res) {
   const anonKey = process.env.SUPABASE_ANON_KEY
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
   const keySecret = process.env.RAZORPAY_KEY_SECRET
-  if (!supabaseUrl || !anonKey || !serviceKey || !keySecret) {
-    return json(res, 503, { error: 'payments are not configured yet' })
+  const missing = [
+    ['SUPABASE_URL', supabaseUrl],
+    ['SUPABASE_ANON_KEY', anonKey],
+    ['RAZORPAY_KEY_SECRET', keySecret],
+    ['SUPABASE_SERVICE_ROLE_KEY', serviceKey],
+  ].filter(([, v]) => !v).map(([name]) => name)
+  if (missing.length > 0) {
+    return json(res, 503, { error: `payments are not configured yet — missing env var(s): ${missing.join(', ')}` })
   }
 
   const body = typeof req.body === 'string' ? safeParse(req.body) : req.body

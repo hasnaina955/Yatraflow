@@ -1533,7 +1533,13 @@ button.board-col-zone--add:active { transform: translateY(1px); }
   z-index: var(--z-impact);
   background: rgba(0,0,0,0.35);
   padding: 10px 12px calc(10px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
-  display: flex; justify-content: center;
+  display: flex; justify-content: center; align-items: flex-start;
+  /* A 390x664 phone needs ~750px of sheet content: with no height cap the top
+     of the panel sat above the viewport and the panel's own `overflow: hidden`
+     left no scroll path to the warning list. The bounds .modal already uses,
+     plus the start alignment that keeps the panel at its natural height so the
+     SHEET scrolls rather than the panel clipping. */
+  max-height: 100dvh; overflow-y: auto; overscroll-behavior: contain;
 }
 .impact-panel {
   border: 1.5px solid var(--saffron); border-radius: var(--radius);
@@ -1555,6 +1561,17 @@ button.board-col-zone--add:active { transform: translateY(1px); }
 .impact-cell .k { font-size: 11px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: .04em; }
 .impact-cell .v { font-weight: 800; font-size: 14.5px; margin-top: 1px; font-family: var(--font-display); font-variant-numeric: tabular-nums; }
 .delta-pos { color: var(--danger); } .delta-neg { color: var(--ink-ok); } .delta-zero { color: var(--text-2); }
+/* The delta inks sit on the --bg-soft cell fill, so light theme needs the same
+   deepen as the map rail: raw --danger is 4.36:1 there (dark's #E06C6C is
+   5.38:1 and passes, which is why only light is overridden). */
+:root:not([data-theme='dark']) .delta-pos { color: var(--danger-600); }
+/* "Too busy?" verdict. Same --bg-soft surface: light --ok is 3.67:1 and --danger
+   4.36:1, so light takes the deepened inks (--ink-ok 5.61:1, --danger-600
+   5.87:1). Dark keeps --danger as authored — --danger-600 would be 3.91:1
+   there — and --ink-ok already resolves to --ok in dark. */
+.impact-busy { color: var(--danger); }
+:root:not([data-theme='dark']) .impact-busy { color: var(--danger-600); }
+.impact-ok { color: var(--ink-ok); }
 .assumptions { font-size: 12px; color: var(--text-3); background: var(--bg-soft); padding: 9px 12px; border-radius: 10px; line-height: 1.6; }
 .impact-actions { display: flex; gap: 8px; margin-top: 13px; flex-wrap: wrap; }
 
@@ -2035,7 +2052,10 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
 
 .pr-expenses h2 { margin-bottom: 4pt; }
 .pr-expenses table { width: 100%; border-collapse: collapse; font-size: 9.5pt; }
-.pr-expenses td { border-top: 0.5pt solid #d6dee8; padding: 2pt 4pt; }
+.pr-expenses td, .pr-expenses th { border-top: 0.5pt solid #d6dee8; padding: 2pt 4pt; }
+/* th centres by UA default; only the label headers need aligning with their
+   cells — the amount one keeps .pr-num's right alignment. */
+.pr-expenses th:not(.pr-num) { text-align: left; }
 .pr-num { text-align: right; white-space: nowrap; }
 
 .pr-foot { display: flex; justify-content: space-between; gap: 12pt;
@@ -3682,6 +3702,10 @@ html.vt-active :where(*) {
   content: ''; position: absolute; left: 50%; bottom: -4px; transform: translateX(-50%);
   border: 4px solid transparent; border-top-color: var(--yf-teal-700); border-bottom: none;
 }
+/* Dark: --yf-teal-700 is the bright end of the scale (#1E9D92), so the bubble's
+   white 12px/800 label is only 3.34:1. Same near-black ink the rest of the
+   solid-teal-fill family takes (see .ai-bubble.user / .btn.on-teal above). */
+[data-theme='dark'] .bench-bubble { color: #06251f; }
 @keyframes bench-pop { from { opacity: 0; } }
 
 /* fatigue needle gauge */
@@ -4801,6 +4825,10 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
   color: var(--yf-text-muted); border: 1px solid transparent; background: none; padding: 0;
 }
 .route-btn:hover:not(:disabled) { background: var(--yf-teal-100); color: var(--yf-teal-700); border-color: color-mix(in srgb, var(--yf-teal-600) 35%, transparent); }
+/* Dark: teal-700 ink on the dark pale-tinted hover fill is 4.09:1. Same flip as
+   the bench pills documented above — teal-600 on --yf-teal-100 (5.6:1). Light
+   passes as authored (teal-700 on teal-100 = 5.1:1). */
+[data-theme='dark'] .route-btn:hover:not(:disabled) { color: var(--yf-teal-600); }
 .route-btn:disabled { cursor: default; }
 .return-section { margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--yf-border); }
 .return-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; }

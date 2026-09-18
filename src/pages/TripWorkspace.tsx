@@ -256,16 +256,6 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
         })}
       </PillNav>
 
-      {pending && (
-        <ImpactPreviewPanel
-          result={pending.result}
-          onKeep={keepPending}
-          onMoveDay={moveToAnotherDay}
-          onRemove={removePending}
-          onScrollToDay={scrollToDay}
-        />
-      )}
-
       <div className="tab-panel" key={tab} role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
       {tab === 'overview' && <OverviewTab trip={effective} editable={editable} onOpenDecisions={() => setTab('group')} onOpenTimeline={() => setTab('timeline')} onOpenMap={() => setTab('map')} onInvite={() => setTab('share')} health={health} totals={totals} />}
       {/* key: the timeline holds per-trip view state (open-day accordion) —
@@ -291,6 +281,19 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
            reload (#213). */}
       {tab === 'settings' && <TripSettingsForm key={trip.id} trip={trip} editable={editable} />}
       </div>
+
+      {/* The impact sheet is position:fixed, so it paints in the same place either
+          way — but it renders AFTER the tab panel so that Tab from the row just
+          edited reaches Keep / Remove without first walking the whole workspace. */}
+      {pending && (
+        <ImpactPreviewPanel
+          result={pending.result}
+          onKeep={keepPending}
+          onMoveDay={moveToAnotherDay}
+          onRemove={removePending}
+          onScrollToDay={scrollToDay}
+        />
+      )}
 
       {/* AI companion: locked for the premium milestone (M8) — the feature is
           complete but unmounted unless VITE_AI_COMPANION=on. See featureFlags. */}

@@ -518,6 +518,93 @@ describe('motion vocabulary: durations come from the tokens', () => {
   })
 })
 
+describe('the day collapse moves as one gesture', () => {
+  // Measured 2026-09-19. The collapse ran on --ease-glide, and a day body runs
+  // up to ~1000px: a decelerate curve throws 24% of that distance away in the
+  // first 6ms (0 → 930px of 967 inside 45% of the duration), so the collapse
+  // read as a pop followed by a 150ms dribble. Both --ease-glide and --ease-out
+  // are that curve (they agree within .015 at every sampled point), so the fix
+  // is the both-ends --ease-resize — ~3px of movement in the first 60Hz frame.
+  //
+  // Measured again the same day, frame by frame: with the right easing the row
+  // below a folding day still moved 115px between two sampled frames (942px of
+  // travel on --motion-slow) — the "cards colliding" report. Peak speed is
+  // distance ÷ duration (x the curve's peak slope), so the collapse moved to
+  // --motion-slower/560ms, and its curve was made symmetric: on this much
+  // travel the Material standard curve peaks at 2.73x its average (96px inside
+  // a 60Hz frame) against 1.72x for the symmetric one (60px), for the same
+  // total time. Both halves are pinned here.
+  const rule = (selector: string) => cssRules.find((r) => normalise(r.selector) === selector)
+
+  it('opens and closes on the both-ends easing, not the decelerate family', () => {
+    const clip = rule('.day-body-clip')
+    expect(clip, '.day-body-clip is missing from styles.css').toBeTruthy()
+    expect(clip!.body).toMatch(/transition:\s*grid-template-rows var\(--motion-slower\) var\(--ease-resize\)/)
+    expect(clip!.body).not.toMatch(/--ease-(glide|out)\b/)
+  })
+
+  it('runs on the large-surface duration, and holds visibility for all of it', () => {
+    // The inner's visibility must lag the whole collapse. Pinning both keeps a
+    // retime from leaving content unpaintable mid-animation or a timer from
+    // unmounting a body that is still moving.
+    const inner = rule('.day-body-clip-inner')
+    expect(inner, '.day-body-clip-inner is missing from styles.css').toBeTruthy()
+    expect(inner!.body).toMatch(/visibility 0s var\(--motion-slower\)/)
+    const declared = [...css.matchAll(/--motion-slower:\s*([^;]+);/g)].map((m) => m[1].trim())
+    expect(declared).toEqual(['560ms'])
+  })
+
+  it('declares that easing once, in the motion token block', () => {
+    // Symmetric, not the asymmetric Material standard curve: the peak slope is
+    // what a large resize is felt through (see the comment above).
+    const declared = [...css.matchAll(/--ease-resize:\s*([^;]+);/g)].map((m) => m[1].trim())
+    expect(declared).toEqual(['cubic-bezier(.42, 0, .58, 1)'])
+  })
+
+  it('turns the chevron on the same clock as the body', () => {
+    // At --t-fast/180ms the arrow settled ~90ms before the body did, so one
+    // click read as two separate movements.
+    const icon = rule('.day-collapse-icon')
+    expect(icon, '.day-collapse-icon is missing from styles.css').toBeTruthy()
+    expect(icon!.body).toMatch(/transform var\(--motion-slower\) var\(--ease-resize\)/)
+  })
+
+  it('takes the unmount delay from the token, not a literal', () => {
+    // Retiming the CSS must not leave a half-collapsed body mounted.
+    const src = source('src/pages/trip/timeline/DaySection.tsx')
+    expect(src).toMatch(/motionTiming\('--motion-slower'\)\.duration \+ COLLAPSE_UNMOUNT_SLACK_MS/)
+    expect(src).not.toMatch(/setMounted\(false\),\s*\d+/)
+    // and the token itself is what the stylesheet declares (no drift between
+    // the JS timer and the CSS transition it is waiting on)
+    expect(source('src/lib/motion.ts')).toMatch(/'--motion-slower':\s*560/)
+  })
+
+  it('pins the header items to the top, so no sibling can re-centre them', () => {
+    // Measured: the chevron and the day badge moved ~32px in the frame the click
+    // landed — the middle block's height changes with the collapse and a centred
+    // sibling is repositioned by every one of those changes. Top-aligned, every
+    // item's position is its own; after the fix the displacement of each header
+    // item across a toggle is 0px (the chips' 4px is their entrance rise).
+    const header = rule('.day-header')
+    expect(header, '.day-header is missing from styles.css').toBeTruthy()
+    expect(header!.body).toMatch(/align-items:\s*flex-start/)
+    expect(header!.body).not.toMatch(/align-items:\s*center/)
+  })
+
+  it('collapses the route chain with the body instead of popping it', () => {
+    // That line is what changes the header's height; appearing at full height in
+    // one frame moved every wrapped row below it at once.
+    const src = source('src/pages/trip/timeline/DaySection.tsx')
+    expect(src).toContain('<SmoothCollapse open={collapsed}>')
+  })
+
+  it('fades the header extras that exist in one state only', () => {
+    const chips = rule('.day-cost-chip, .day-dwell-chip, .weather-chip, .dwell-bars')
+    expect(chips, 'the header extras are missing from styles.css').toBeTruthy()
+    expect(chips!.body).toMatch(/animation:\s*popover-in var\(--motion-med\) var\(--ease-out\)/)
+  })
+})
+
 describe('spacing rhythm: new values land on the documented ladder', () => {
   // DESIGN_TOKENS.md's `--s-1…--s-8` set was deleted in SYS-2 because nothing
   // routed through it, which left the app with no enforceable rhythm at all —
@@ -640,5 +727,54 @@ describe("a popup's host claims the rung, never the popup", () => {
     expect(foot, '.itin-foot is missing from styles.css').toBeTruthy()
     expect(foot!.body).toMatch(/padding:\s*0 16px 14px/)
     expect(source('src/components/PubCard.tsx')).toContain('row-between itin-foot')
+  })
+})
+
+describe('a flex row under pressure gives up the right part', () => {
+  // The bench's mode buttons pack an icon, a name and a speed pill into one
+  // row. In the 721-1000px band each button is a QUARTER of the controls card
+  // (78.7px at 768), and because the name was the row's only flexible part it
+  // ellipsized to a single letter ("T…") while the icon squashed 15px -> 3px.
+  // The block now asks its OWN width, not the viewport, how many columns it can
+  // hold: the grid's space is a fraction of the window here, and the Trip
+  // Settings tab hosts the same grid under a different parent. A viewport band
+  // was measured and rejected: dropping the pill instead of stacking leaves the
+  // longest name clipped from 721px to ~755px, because the icon grows back to
+  // its true 15px and takes 12 of the ~33px the pill was holding.
+  const rule = (selector: string) => cssRules.find((r) => normalise(r.selector) === selector)
+  const containerBlocks = mediaBlocks(css, '@container').join('\n')
+
+  it('keeps two columns as the base layout, so the stack stays proportional', () => {
+    const grid = rule('.bench-mode-grid')
+    expect(grid, '.bench-mode-grid is missing from styles.css').toBeTruthy()
+    expect(grid!.body).toMatch(/grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/)
+  })
+
+  it('stacks the modes when the block cannot hold a full row', () => {
+    const block = rule('.bench-mode-block')
+    expect(block, '.bench-mode-block is missing from styles.css').toBeTruthy()
+    expect(block!.body).toMatch(/container-type:\s*inline-size/)
+    // 230px = 2 x (15 icon + 7 gap + 31 longest name + 7 gap + 26 pill + 23
+    // padding/border) + 6 gap, i.e. the width at which two columns fit a row
+    // whole. Held textually: no offline gate can measure a string's width.
+    expect(containerBlocks).toMatch(/@container \(max-width: 230px\)/)
+    expect(containerBlocks).toMatch(/\.bench-mode-grid\s*\{[^}]*grid-template-columns:\s*1fr/)
+  })
+
+  it('drops nothing when the modes stack', () => {
+    // Stacking is the answer, not hiding the speed pill: the pill is where the
+    // mode's km/h lives, and hiding it was measured to leave "Train" clipped
+    // for the first ~35px of the band.
+    expect(css).not.toMatch(/\.bench-mode-speed[^{,]*\{[^}]*display:\s*none/)
+  })
+
+  it('stops the icon being the first thing that squashes', () => {
+    expect(rule('.bench-mode-btn > svg')?.body).toMatch(/flex:\s*none/)
+  })
+
+  it('wires the container class onto both mode-grid hosts', () => {
+    // The rule changes nothing unless the block that holds the grid carries it.
+    expect(source('src/components/PlanBench.tsx')).toContain('bench-block bench-mode-block')
+    expect(source('src/pages/trip/TripSettingsForm.tsx')).toContain('bench-block bench-mode-block')
   })
 })

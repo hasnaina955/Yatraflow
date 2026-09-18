@@ -13,11 +13,19 @@ inventing a feel.
 | --- | --- | --- |
 | `--motion-fast` | `120ms` | hovers, chip/press feedback, colour-only transitions |
 | `--motion-med` | `180ms` | dropdowns & popovers, toggle gliders, drag sibling glide, small position changes |
-| `--motion-slow` | `240ms` | large surfaces: day collapse, FLIP settle, drawers, panels |
+| `--motion-slow` | `240ms` | large surfaces: FLIP settle, drawers, panels |
+| `--motion-slower` | `560ms` | very large travel — hundreds of px that relayout the page (a day body is ~950px) |
 
-Both ends land under ~250ms — the app's motion is "quick and settled", never
-showy. Anything that must not animate at all (scaffolding, measurement passes)
-uses no transition.
+The first three land under ~250ms — the app's motion is "quick and settled",
+never showy. The fourth exists because peak frame speed is **distance ÷
+duration**: the day collapse at `--motion-slow` moved the rows below it 115px
+inside a single 60Hz frame (measured, 942px of travel), which is what "the
+cards collide" looks like; at 560ms it is ~47px. This step is deliberately above
+Material's guidance for a large expansion (375–500ms), which is only defensible
+because the thing moving is ~950px rather than a panel — reach for it when the
+distance is measured in hundreds of px, not when a surface merely feels large.
+Anything that must not animate at all (scaffolding, measurement passes) uses no
+transition.
 
 ## Easing
 
@@ -25,6 +33,22 @@ uses no transition.
 | --- | --- | --- |
 | `--ease-out` | `cubic-bezier(.22, .61, .36, 1)` | the default for everything entering, exiting or settling |
 | `--ease-glide` | `cubic-bezier(.3, .86, .48, 1)` | continuous follow while a drag is live (targets the cursor, no lag bounce) |
+| `--ease-resize` | `cubic-bezier(.42, 0, .58, 1)` | a surface that resizes **in place** and moves a long way (day collapse): starts and ends at rest, symmetric |
+
+`--ease-out` and `--ease-glide` are one shape to the eye: they agree within
+`.015` at every sampled point, and both put 86% of a surface's distance
+inside the first 44% of the time. That is exactly right for a 60px dropdown — and
+it is a pop on a 1000px one. Measured on the Timeline's day collapse (a 967px
+body): the decelerate curve spent 24% of the whole height in the first 6ms and
+then dribbled for 150ms, which is what "the collapse is not smooth" looks like.
+Resizes at that scale take `--ease-resize`, whose gentle start leaves ~3px of
+movement in the first 60Hz frame and settles its own tail. It is **symmetric**
+(`.42,0,.58,1`) rather than Material's asymmetric standard curve: peak slope is
+what a long move is felt through, and on the day collapse's ~920px of travel the
+asymmetric curve peaks at 2.73× its average (96px inside a 60Hz frame) against
+1.72× (60px) for the symmetric one, for the same total time and the same first
+frame. Take the asymmetric curve only for a short move, where the peak is
+reached before the eye has caught up.
 
 Springs/bounce are not in the system. No scale or border-radius morphing on
 drag; movement is translation only (compositor-only).
@@ -35,7 +59,7 @@ drag; movement is translation only (compositor-only).
 | --- | --- | --- |
 | Dropdown / popover entrance | fade 0→1 + rise 4px, `--motion-med`, `--ease-out` | `.popover` (location list, calendar, menus) |
 | Toggle glider | thumb `transform` slide, `--motion-med` | `.pill-glider` (workspace tabs, Plan/Inspect, filters, composer mode) |
-| Day collapse | grid-rows `0fr↔1fr`, `--motion-slow`, unmount after | `.day-body-clip` (SmoothCollapse) |
+| Day collapse | grid-rows `0fr↔1fr`, `--motion-slower`, `--ease-resize` (both ends at rest, symmetric — the body can be 1000px, and the peak lands mid-animation), unmount after that token's duration. Anything that changes the header's height rides the same collapse in reverse (the route chain), and the state-only extras take the entrance pattern below | `.day-body-clip` (SmoothCollapse) |
 | Drag carry | pointer-pinned `translate3d(var(--carry-x/-y))` on the row, **no transition** — position never eases | `.is-carried` (Timeline `.tl-row`, Board `.board-row`) |
 | Drag warp | skin `rotate(tilt) scale(1+x−y·.55, 1+y−x·.55)` from pointer velocity, `--motion-fast`, `--ease-out`; JS calm timer (`WARP_CALM_MS` 90ms) flattens the vars when the finger stops | `.is-carried .stop-card / .travel-endpoint` |
 | Drag sibling glide | rows between slot and target translate by the carried row's height, `--motion-fast`, `--ease-glide` | Timeline `.tl`, Board `.board-row` |
@@ -62,3 +86,18 @@ Any PR that adds or changes an interactive surface must:
 `grep -n "ms" src/styles.css` should show new durations as `var(--motion-*)`;
 legacy literals are grandfathered on already-refined surfaces and migrate when
 those surfaces are next touched.
+
+A timing change is proved by sampling, not by feel: record each item's rect
+every animation frame across a toggle, then read three numbers per item —
+first-frame delta (a non-zero value means the move starts with a snap, which no
+duration can smooth), peak per-frame delta (how hard one frame hits), and
+whether the peak sits mid-animation rather than on frame one. Peak per-frame
+speed ≈ `distance × curve peak slope ÷ duration`, so when a move reads as a
+collision, check the distance first: if the element travels hundreds of px,
+duration is the only honest lever. Quote it as **px/ms**, not px per frame — a
+145fps renderer hands you 7ms frames and makes the same motion look half as
+fast as it will on a 60Hz screen. Two more noise traps: a single long frame
+inflates one delta (read the p90 as well as the max, and report the frame
+intervals beside them), and an element that unmounts mid-sample reports a
+zero-rect, which reads as a jump to the top of the page — skip anything that is
+no longer connected.

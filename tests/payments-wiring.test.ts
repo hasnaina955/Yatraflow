@@ -33,6 +33,19 @@ describe('the public page wires the real unlock flow', () => {
     expect(page).toMatch(/onUnlocked:\s*\(\)\s*=>\s*\{/)
     expect(page).toContain('fetchMyEntitlements(meId)')
   })
+
+  it('passes the unlock state into the fork, so a buyer forks real days', () => {
+    expect(page).toMatch(/forkPublication\(pub!, me\?\.id \?\? null, onNavigate, unlocked\)/)
+  })
+
+  it('renders free and unlocked days through ONE shared stop renderer', () => {
+    // The first cut duplicated the renderer and the unlocked copy silently
+    // dropped the travelling strips — pin the single shared component.
+    expect(page).toContain('function DayStops(')
+    expect(page).toContain('<DayStops stops={stops}')
+    // The two full renderer copies are gone: only the shared one remains.
+    expect((page.match(/travel-anchor-title/g) ?? []).length).toBe(2) // the component's two variants
+  })
 })
 
 describe('the api functions stay client-import-free', () => {

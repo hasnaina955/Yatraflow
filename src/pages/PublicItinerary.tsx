@@ -150,7 +150,9 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
   const unlocked = hasUnlock(entitlements, meId, pub.id, pub.creatorId)
 
   function copyThis() {
-    void forkPublication(pub!, me?.id ?? null, onNavigate)
+    // The fork honors what the page just showed: an unlocked viewer (buyer
+    // or creator) gets every day as a real plan, not stubs.
+    void forkPublication(pub!, me?.id ?? null, onNavigate, unlocked)
   }
 
   function unlockThis() {
@@ -321,105 +323,8 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
                     {!isFree && <Chip tone="saffron"><Lock size={11} aria-hidden style={{ verticalAlign: '-1px', marginRight: 3 }} />Premium</Chip>}
                   </div>
 
-                  {isFree ? (
-                    stops.map((s, i) => {
-                      // Auto anchors are pure travel, not activities — show the
-                      // drive (times, duration, distance, cost) as a travelling
-                      // strip instead of an empty stop-card.
-                      if (s.auto === true) {
-                        const cleanName = (s.locationName || s.title).replace(/ \((start|end)\)$/, '')
-                        // Stay day: the journey never leaves this place — a
-                        // plain base marker, not a travelling strip.
-                        if (sim.activeStops.length <= 1 && sim.totalDistanceKm < 0.5) {
-                          return (
-                            <div key={s.id} className="travel-anchor">
-                              <div className="travel-anchor-title">
-                                <span className="travel-anchor-ico"><MapPin size={13} aria-hidden /></span>
-                                <span>Based in {cleanName}</span>
-                              </div>
-                            </div>
-                          )
-                        }
-                        const inbound = i > 0 ? sim.legs[i - 1] : null
-                        const dep = inbound ? (sim.departures[i - 1] ?? '--:--') : (sim.departures[i] ?? '--:--')
-                        const arr = sim.arrivalTimes[i] ?? dep
-                        const cost = inbound ? Math.round(inbound.distanceKm * (A.inrPerKm ?? 8)) : 0
-                        const depHM = dep !== '--:--' ? formatHM(dep, timeFormat) : dep
-                        const arrHM = arr !== '--:--' ? formatHM(arr, timeFormat) : arr
-                        return (
-                          <div key={s.id} className="travel-anchor">
-                            <div className="travel-anchor-title">
-                              <span className="travel-anchor-ico">{i === 0 ? <Flag size={13} aria-hidden /> : <Car size={13} aria-hidden />}</span>
-                              <span>{i === 0 ? `Start · ${cleanName}` : `Travelling to ${cleanName}`}</span>
-                            </div>
-                            <div className="travel-anchor-meta">
-                              {inbound ? (
-                                <>
-                                  <span><MetaIcon icon={ Clock } tone="time" />Depart {depHM} → arrive {arrHM}</span>
-                                  <span><MetaIcon icon={ Clock } tone="time" />{minutesToHM(inbound.durationMinutes)}</span>
-                                  <span><MetaIcon icon={ MapPin } tone="place" />{inbound.distanceKm.toFixed(0)} km</span>
-                                  <span><MetaIcon icon={ Car } tone="money" />est {formatInr(cost)} ({A.mode})</span>
-                                </>
-                              ) : (
-                                <span>Departure {depHM}</span>
-                              )}
-                            </div>
-                          </div>
-                        )
-                      }
-                      return (
-                        <div key={s.id} className="stop-card">
-                          <div className={`stop-num cat-${s.category}`}>{i + 1}</div>
-                          <div className="stop-main">
-                            <div className="stop-toprow">
-                              <span className="stop-title">{s.title}</span>
-                              <Chip tone="info">{titleCase(s.category)}</Chip>
-                              {s.openTime && <span className="small muted"><MetaIcon icon={ Clock } tone="time" />{formatHMRange(s.openTime, s.closeTime, timeFormat)}</span>}
-                            </div>
-                            <div className="stop-meta">
-                              <span><MetaIcon icon={ MapPin } tone="place" />{s.locationName}</span>
-                              <span><MetaIcon icon={ Clock } tone="time" />{minutesToHM(s.visitMinutes)}</span>
-                              {s.entryFeeInrPerPerson > 0 && <span><MetaIcon icon={ Ticket } tone="ticket" />₹{s.entryFeeInrPerPerson}/person</span>}
-                            </div>
-                            {s.description && <div className="stop-desc">{s.description}</div>}
-                          </div>
-                        </div>
-                      )
-                    })
-                  ) : unlocked ? (
-                    /* Bought (or the creator viewing): render like a free day. */
-                    stops.map((s, i) => {
-                      // Same auto-anchor rendering as the free days above.
-                      if (s.auto === true) {
-                        const cleanName = (s.locationName || s.title).replace(/ \((start|end)\)$/, '')
-                        return (
-                          <div key={s.id} className="travel-anchor">
-                            <div className="travel-anchor-title">
-                              <span className="travel-anchor-ico"><MapPin size={13} aria-hidden /></span>
-                              <span>Based in {cleanName}</span>
-                            </div>
-                          </div>
-                        )
-                      }
-                      return (
-                        <div key={s.id} className="stop-card">
-                          <div className={`stop-num cat-${s.category}`}>{i + 1}</div>
-                          <div className="stop-main">
-                            <div className="stop-toprow">
-                              <span className="stop-title">{s.title}</span>
-                              <Chip tone="info">{titleCase(s.category)}</Chip>
-                              {s.openTime && <span className="small muted"><MetaIcon icon={ Clock } tone="time" />{formatHMRange(s.openTime, s.closeTime, timeFormat)}</span>}
-                            </div>
-                            <div className="stop-meta">
-                              <span><MetaIcon icon={ MapPin } tone="place" />{s.locationName}</span>
-                              <span><MetaIcon icon={ Clock } tone="time" />{minutesToHM(s.visitMinutes)}</span>
-                              {s.entryFeeInrPerPerson > 0 && <span><MetaIcon icon={ Ticket } tone="ticket" />₹{s.entryFeeInrPerPerson}/person</span>}
-                            </div>
-                            {s.description && <div className="stop-desc">{s.description}</div>}
-                          </div>
-                        </div>
-                      )
-                    })
+                  {(isFree || unlocked) ? (
+                    <DayStops stops={stops} sim={sim} assumptions={A} timeFormat={timeFormat} stayDay={sim.activeStops.length <= 1 && sim.totalDistanceKm < 0.5} />
                   ) : (
                     <>
                       <div className="locked-overlay">
@@ -487,5 +392,97 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
         <p className="pub-footer-line">Published with YatraFlow · Plan real trips, together</p>
       </div>
     </div>
+  )
+}
+
+/** The day's stop list, shared by free days and unlocked (paid/creator)
+ *  views — one renderer so an unlocked day shows EXACTLY what a free day
+ *  shows, including the travelling strips (departure/arrival, distance,
+ *  cost) the first cut of the unlock flow silently dropped. */
+function DayStops({ stops, sim, assumptions, timeFormat, stayDay }: {
+  stops: ReturnType<typeof simulateDay>['activeStops'] extends never ? never : Array<{
+    id: string
+    auto?: boolean
+    title: string
+    locationName: string
+    category: string
+    openTime?: string
+    closeTime?: string
+    visitMinutes: number
+    entryFeeInrPerPerson: number
+    description?: string
+  }>
+  sim: ReturnType<typeof simulateDay>
+  assumptions: ReturnType<typeof getAssumptions>
+  timeFormat: '12h' | '24h'
+  stayDay: boolean
+}) {
+  return (
+    <>
+      {stops.map((s, i) => {
+        // Auto anchors are pure travel, not activities — show the
+        // drive (times, duration, distance, cost) as a travelling
+        // strip instead of an empty stop-card.
+        if (s.auto === true) {
+          const cleanName = (s.locationName || s.title).replace(/ \((start|end)\)$/, '')
+          // Stay day: the journey never leaves this place — a
+          // plain base marker, not a travelling strip.
+          if (stayDay) {
+            return (
+              <div key={s.id} className="travel-anchor">
+                <div className="travel-anchor-title">
+                  <span className="travel-anchor-ico"><MapPin size={13} aria-hidden /></span>
+                  <span>Based in {cleanName}</span>
+                </div>
+              </div>
+            )
+          }
+          const inbound = i > 0 ? sim.legs[i - 1] : null
+          const dep = inbound ? (sim.departures[i - 1] ?? '--:--') : (sim.departures[i] ?? '--:--')
+          const arr = sim.arrivalTimes[i] ?? dep
+          const cost = inbound ? Math.round(inbound.distanceKm * (assumptions.inrPerKm ?? 8)) : 0
+          const depHM = dep !== '--:--' ? formatHM(dep, timeFormat) : dep
+          const arrHM = arr !== '--:--' ? formatHM(arr, timeFormat) : arr
+          return (
+            <div key={s.id} className="travel-anchor">
+              <div className="travel-anchor-title">
+                <span className="travel-anchor-ico">{i === 0 ? <Flag size={13} aria-hidden /> : <Car size={13} aria-hidden />}</span>
+                <span>{i === 0 ? `Start · ${cleanName}` : `Travelling to ${cleanName}`}</span>
+              </div>
+              <div className="travel-anchor-meta">
+                {inbound ? (
+                  <>
+                    <span><MetaIcon icon={ Clock } tone="time" />Depart {depHM} → arrive {arrHM}</span>
+                    <span><MetaIcon icon={ Clock } tone="time" />{minutesToHM(inbound.durationMinutes)}</span>
+                    <span><MetaIcon icon={ MapPin } tone="place" />{inbound.distanceKm.toFixed(0)} km</span>
+                    <span><MetaIcon icon={ Car } tone="money" />est {formatInr(cost)} ({assumptions.mode})</span>
+                  </>
+                ) : (
+                  <span>Departure {depHM}</span>
+                )}
+              </div>
+            </div>
+          )
+        }
+        return (
+          <div key={s.id} className="stop-card">
+            <div className={`stop-num cat-${s.category}`}>{i + 1}</div>
+            <div className="stop-main">
+              <div className="stop-toprow">
+                <span className="stop-title">{s.title}</span>
+                <Chip tone="info">{titleCase(s.category)}</Chip>
+                {s.openTime && <span className="small muted"><MetaIcon icon={ Clock } tone="time" />{formatHMRange(s.openTime, s.closeTime, timeFormat)}</span>}
+              </div>
+              <div className="stop-meta">
+                <span><MetaIcon icon={ MapPin } tone="place" />{s.locationName}</span>
+                <span><MetaIcon icon={ Clock } tone="time" />{minutesToHM(s.visitMinutes)}</span>
+                {s.entryFeeInrPerPerson > 0 && <span><MetaIcon icon={ Ticket } tone="ticket" />₹{s.entryFeeInrPerPerson}/person</span>}
+              </div>
+              {s.description && <div className="stop-desc">{s.description}</div>}
+            </div>
+          </div>
+        )
+      })}
+    </>
   )
 }

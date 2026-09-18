@@ -81,15 +81,16 @@ async function grantEntitlement(supabaseUrl, serviceKey, order, signal) {
   // repeat delivery a no-op. The webhook grant is deliberately unconditional
   // beyond the paid-status check — no caller JWT exists here, and the
   // signature on the request IS the authorization.
-  const response = await fetch(`${supabaseUrl.replace(/\/+$/, '')}/rest/v1/entitlements`, {
+  const response = await fetch(`${supabaseUrl.replace(/\/+$/, '')}/rest/v1/entitlements?on_conflict=user_id,pub_id`, {
     method: 'POST',
     headers: {
       apikey: serviceKey,
       authorization: `Bearer ${serviceKey}`,
       'content-type': 'application/json',
-      prefer: 'return=minimal',
-      // PostgREST: turn the unique-violation on a repeat delivery into success.
-      'on-conflict': 'user_id,pub_id',
+      // PostgREST upsert: a repeat delivery (the same webhook retried, or a
+      // race with the browser verify) becomes a no-op UPDATE instead of a
+      // unique violation — idempotency lives here, not in a 409 handler.
+      prefer: 'return=minimal,resolution=ignore-duplicates',
     },
     body: JSON.stringify({
       user_id: order.user_id,

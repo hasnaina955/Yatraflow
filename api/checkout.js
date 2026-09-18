@@ -65,6 +65,24 @@ async function fetchEntitlements(supabaseUrl, serviceKey, userId, pubId, signal)
   return Array.isArray(rows) && rows.length > 0
 }
 
+/** An order this buyer already opened for this publication, still unpaid.
+ *  Re-served instead of minting a twin Razorpay order per retry — the
+ *  abandoned-modal path (dismiss, re-click) would otherwise pile up orphan
+ *  pending rows and gateway orders. Razorpay orders expire on their own;
+ *  the newest pending one is the one a checkout modal can still pay. */
+async function fetchPendingOrder(supabaseUrl, serviceKey, userId, pubId, signal) {
+  const url = `${supabaseUrl.replace(/\/+$/, '')}/rest/v1/purchase_orders` +
+    `?user_id=eq.${encodeURIComponent(userId)}&pub_id=eq.${encodeURIComponent(pubId)}` +
+    `&status=eq.pending&select=razorpay_order_id,amount_inr&order=created_at.desc&limit=1`
+  const response = await fetch(url, {
+    headers: { apikey: serviceKey, authorization: `Bearer ${serviceKey}` },
+    signal,
+  })
+  if (!response.ok) throw new Error(`pending order read failed: ${response.status}`)
+  const rows = await response.json()
+  return Array.isArray(rows) ? rows[0] ?? null : null
+}
+
 async function createRazorpayOrder(keyId, keySecret, amountPaise, receipt, signal) {
   const response = await fetch('https://api.razorpay.com/v1/orders', {
     method: 'POST',
@@ -146,6 +164,14 @@ export default async function handler(req, res) {
   try {
     if (await fetchEntitlements(supabaseUrl, serviceKey, userId, pubId, signal)) {
       return json(res, 409, { error: 'already unlocked' })
+    }
+    // Re-serve an open order for the same buyer+publication before minting
+    // another one (the guard against orphan pendings). A price change after
+    // the order was opened invalidates it — the stored snapshot must equal
+    // the row price or a new order is created at the current price.
+    const pending = await fetchPendingOrder(supabaseUrl, serviceKey, userId, pubId, signal)
+    if (pending && pending.amount_inr === price) {
+      return json(res, 200, { orderId: pending.razorpay_order_id, keyId, amountPaise: price * 100, currency: 'INR' })
     }
     const receipt = `r${stable(pubId, 8)}${stable(userId, 4)}`
     const razorpayOrderId = await createRazorpayOrder(keyId, keySecret, price * 100, receipt, signal)

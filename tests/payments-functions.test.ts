@@ -187,6 +187,43 @@ describe('POST /api/checkout', () => {
     const res = await run({ pubId: 'kerala-trip_1' })
     expect(res.statusCode).toBe(503)
   })
+
+  it('re-serves an existing pending order instead of minting another', async () => {
+    fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.includes('/auth/v1/user')) return jsonResponse({ id: 'buyer-1' })
+      if (url.includes('/rest/v1/published_itineraries')) return jsonResponse([pubRow])
+      if (url.includes('/rest/v1/entitlements')) return jsonResponse([])
+      if (url.includes('/rest/v1/purchase_orders') && url.includes('status=eq.pending')) {
+        return jsonResponse([{ razorpay_order_id: 'order_EXISTING', amount_inr: 500 }])
+      }
+      throw new Error(`unexpected fetch ${url}`)
+    })
+    const res = await run({ pubId: 'kerala-trip_1' })
+    expect(res.statusCode).toBe(200)
+    expect(JSON.parse(res.body).orderId).toBe('order_EXISTING')
+    // No gateway call, no new row — the orphan-pending guard held.
+    expect(fetchMock.mock.calls.filter(c => String(c[0]) === 'https://api.razorpay.com/v1/orders')).toHaveLength(0)
+    expect(fetchMock.mock.calls.filter(c => String(c[0]).includes('/rest/v1/purchase_orders') && (c[1] as RequestInit | undefined)?.method === 'POST')).toHaveLength(0)
+  })
+
+  it('mints a fresh order when the pending one snapshots a different price', async () => {
+    fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.includes('/auth/v1/user')) return jsonResponse({ id: 'buyer-1' })
+      if (url.includes('/rest/v1/published_itineraries')) return jsonResponse([pubRow])
+      if (url.includes('/rest/v1/entitlements')) return jsonResponse([])
+      if (url.includes('/rest/v1/purchase_orders') && url.includes('status=eq.pending')) {
+        return jsonResponse([{ razorpay_order_id: 'order_OLDPRICE', amount_inr: 300 }])
+      }
+      if (url === 'https://api.razorpay.com/v1/orders') return jsonResponse({ id: 'order_NEW' })
+      if (url.includes('/rest/v1/purchase_orders')) return jsonResponse(null, 201)
+      throw new Error(`unexpected fetch ${url}`)
+    })
+    const res = await run({ pubId: 'kerala-trip_1' })
+    expect(res.statusCode).toBe(200)
+    expect(JSON.parse(res.body).orderId).toBe('order_NEW')
+  })
 })
 
 describe('POST /api/payments-verify', () => {
@@ -302,6 +339,10 @@ describe('POST /api/payments-webhook', () => {
     const grant = fetchMock.mock.calls.find(c => String(c[0]).includes('/rest/v1/entitlements'))
     const grantHeaders = (grant![1] as RequestInit).headers as Record<string, string>
     expect(grantHeaders.authorization).toBe('Bearer service-key') // service_role, no caller JWT
+    // PostgREST upsert: the real idempotency mechanism is the Prefer
+    // resolution + on_conflict param, not a 409 handler.
+    expect(grantHeaders.prefer).toContain('resolution=ignore-duplicates')
+    expect(String(grant![0])).toContain('on_conflict=user_id,pub_id')
     expect(JSON.parse(String((grant![1] as RequestInit).body))).toMatchObject({ user_id: 'buyer-1', pub_id: 'kerala-trip_1', amount_paid_inr: 500 })
   })
 

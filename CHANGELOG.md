@@ -13,6 +13,11 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 > record still exists in `git log`, not here. Archived release notes live in
 > [`docs/history/`](docs/history/).
 
+## [Unreleased]
+
+### Fixed
+- **A public itinerary page renders for every publication shape.** The server-side read (`get_public_trip`) returns the whole trip for an unpriced publication, returns every day locked — instead of no page at all — when a priced publication lists no free days, and stubs locked days for everyone else. The stub's replacement text is typed for the database (`::text` into polymorphic `to_jsonb`) — without that cast the locked-day path failed for every visitor who had not unlocked the trip, while buyers and the creator kept working, their branch returning before the stub. The creator-sales RPC is signed-in only — an anonymous caller inherited Supabase's default EXECUTE and always received an empty list (`20260918_payments_security.sql`).
+
 ## [0.61.0] - 2026-09-18
 
 **Scope.** Two tracks land together: the app's first real money — a priced publication can be

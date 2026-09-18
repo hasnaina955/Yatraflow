@@ -612,3 +612,33 @@ describe('categorical palettes: hues stay distinguishable', () => {
     ratchet('hueCollisions', [...collisions('DAY_COLORS', days), ...collisions('--cat-*', cats), ...cross])
   })
 })
+
+describe("a popup's host claims the rung, never the popup", () => {
+  // A popup's own z-index is bounded by its HOST's stacking context: a host
+  // that paints one (backdrop-filter, opacity < 1, transform) traps the menu
+  // inside it, and a positioned card painted later covers the open menu
+  // however high the popup's rung is. Both rules below shipped broken from that
+  // oversight and were found by hit-testing — a menu option resolving to the
+  // card's own node — not by reading z-indexes.
+  const rule = (selector: string) => cssRules.find((r) => normalise(r.selector) === selector)
+
+  it('gives the Explore filter bar a rung above the cards its menu opens over', () => {
+    const bar = rule('.explore-filterbar')
+    expect(bar, '.explore-filterbar is missing from styles.css').toBeTruthy()
+    expect(bar!.body).toMatch(/position:\s*relative/)
+    expect(bar!.body).toMatch(/z-index:\s*var\(--z-frost\)/)
+    // The rule changes nothing unless the page carries the class on the bar
+    // that actually holds the selects.
+    expect(source('src/pages/Explore.tsx')).toContain('card glass-soft explore-filterbar')
+  })
+
+  it('keeps the card footer row clear of the corner it sits in', () => {
+    // The creator line + channel icons are a card's last row whenever the
+    // creator has a bio or a link; unpadded they sat 1px inside the 12px
+    // bottom-right radius and read as clipped by the card's own edge.
+    const foot = rule('.itin-foot')
+    expect(foot, '.itin-foot is missing from styles.css').toBeTruthy()
+    expect(foot!.body).toMatch(/padding:\s*0 16px 14px/)
+    expect(source('src/components/PubCard.tsx')).toContain('row-between itin-foot')
+  })
+})

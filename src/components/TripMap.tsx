@@ -11,6 +11,7 @@ import { routePath } from '../lib/routing'
 import { measureDayRide } from '../lib/tripRoad'
 import { buildJourney, getAssumptions, isRoundTrip } from '../lib/engine'
 import { extraJourneyMarkers } from '../lib/journeyMarkers'
+import { coincidentPinOffsets } from '../lib/pinOffsets'
 import { googleMapsDirectionsUrl } from '../lib/externalMaps'
 import { openExternal } from '../lib/native'
 import { titleCase } from '../lib/labels'
@@ -460,6 +461,12 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
       ),
     [daysToPlot],
   )
+
+  // Stops sharing one place (a meal at your night's base, or two stops the user
+  // added in the same town) would otherwise draw as a single pin — the second
+  // stop invisible and unclickable. Nudge each one apart for drawing only; the
+  // markers keep their real coordinates. See lib/pinOffsets.ts.
+  const pinOffsets = useMemo(() => coincidentPinOffsets(allPoints), [allPoints])
 
   // A day's ride as the ENGINE plans it: origin → stops → synthesized
   // destination (an outbound continuation, or the final day's ride home).
@@ -970,12 +977,16 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                 // distinct start/end badges instead of numbered pins.
                 const isFirst = idx === 0
                 const isLast = idx === allPoints.length - 1
+                const off = pinOffsets.get(p.id)
+                const offsetStyle = off ? { transform: `translate(${off.dx}px, ${off.dy}px)` } : undefined
                 if (p.auto) {
                   const label = isLast ? <Flag size={13} aria-hidden /> : <PlaneTakeoff size={13} aria-hidden />
                   return (
                     <MapMarker key={p.id} longitude={p.lng} latitude={p.lat}>
                       <MarkerContent>
-                        <span className="yf-map-pin yf-map-flag" title={p.title}>{label}</span>
+                        <span className="yf-pin-cluster" style={offsetStyle}>
+                          <span className="yf-map-pin yf-map-flag" title={p.title}>{label}</span>
+                        </span>
                       </MarkerContent>
                       <MarkerTooltip>{isLast ? `Final destination — ${p.title}` : `Trip start — ${p.title}`}</MarkerTooltip>
                     </MapMarker>
@@ -985,6 +996,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                 return (
                   <MapMarker key={p.id} longitude={p.lng} latitude={p.lat}>
                     <MarkerContent>
+                      <span className="yf-pin-cluster" style={offsetStyle}>
                       <button
                         className={`yf-map-pin yf-map-tear${p.status === 'maybe' ? ' yf-map-maybe' : ''}`}
                         style={{ '--pin-color': colorForDay(p.dayIndex) } as React.CSSProperties}
@@ -997,6 +1009,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                           <i className="yf-pin-num">{num}</i>
                         </span>
                       </button>
+                      </span>
                     </MarkerContent>
                     <MarkerTooltip>{p.title}</MarkerTooltip>
                   </MapMarker>

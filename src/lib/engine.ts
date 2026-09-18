@@ -919,7 +919,12 @@ export interface OptimizeDayResult {
  *  improvement sweep. Auto anchors (start/destination/continuation
  *  waypoints, `auto: true`) are pinned to the front and back of the day —
  *  the engine builds the journey around them, so moving them would rewrite
- *  the route's endpoints rather than tidy the middle. Rejected stops ride
+ *  the route's endpoints rather than tidy the middle. A day that ends at a
+ *  stored `hotel`/`rest` stop is pinned at the tail the same way even with no
+ *  `auto` flag: `dayEndPosition` returns the day's last stored stop and
+ *  `originOf(next day)` walks forward through it, so re-ordering where you
+ *  sleep rewrites where tomorrow starts (measured on the shelf itineraries
+ *  before this rule: 14 day-pairs, up to 16 km). Rejected stops ride
  *  along untouched. Open-hours constraints are honoured as a tie-break only:
  *  a stop's openTime is compared when two candidates are near-equal, so the
  *  optimizer never produces an ordering that needlessly waits for a closed
@@ -939,10 +944,23 @@ export function optimizeDayOrder(
   const anchorIdx = anchors.map(a => active.findIndex(s => s.id === a.id))
   const midAnchor = anchors.some((a, i) => anchorIdx[i] !== 0 && anchorIdx[i] !== active.length - 1)
   const head = anchors.length > 0 && anchorIdx[0] === 0 ? anchors[0] : undefined
-  const tail = anchors.length > (head ? 1 : 0) && anchorIdx[anchorIdx.length - 1] === active.length - 1
+  const anchorTail = anchors.length > (head ? 1 : 0) && anchorIdx[anchorIdx.length - 1] === active.length - 1
     ? anchors[anchors.length - 1] : undefined
+  // Where the day ENDS is not a free variable. `dayEndPosition` reads the last
+  // stored stop and `originOf(next day)` walks forward through it, so a night
+  // base that slides out of the tail silently moves the next morning's start
+  // (on the shelf itineraries that was 14 day-pairs, worst 16.3 km — the day
+  // then plans its drive from the evening's last sight instead of the bed). An
+  // engine anchor says "keep me last" with `auto`; a stored hotel or rest stop
+  // at the tail says it with its category. Only the tail is pinned — a base
+  // mid-day is a legitimate overnight and is left where the author put it.
+  const lastActive = active[active.length - 1]
+  const nightBase = !anchorTail && lastActive && (lastActive.category === 'hotel' || lastActive.category === 'rest')
+    ? lastActive
+    : undefined
+  const tail = anchorTail ?? nightBase
   // movable = non-auto, non-rejected; rejected ride along after the actives
-  const movable = active.filter(s => s.auto !== true)
+  const movable = active.filter(s => s.auto !== true && s.id !== nightBase?.id)
   const beforeKm = dayRouteKm(origin, active)
 
   if (movable.length < 3 || midAnchor) {

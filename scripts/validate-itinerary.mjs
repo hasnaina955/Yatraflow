@@ -1,9 +1,16 @@
 #!/usr/bin/env node
 // ============ YatraFlow itinerary validator — Gate 1 of the gallery pipeline ============
-// The executable half of docs/ITINERARY-IMPORT-SPEC.md (v1.0). Zero dependencies,
+// The executable half of docs/ITINERARY-IMPORT-SPEC.md (v2.0). Zero dependencies,
 // node >= 18. Checks every structural contract the spec names; the ENGINE outcomes
 // (health score, budget truth) are Gate 2's job — tests/golden-itineraries.test.ts —
 // because re-implementing engine math here is how two truths drift apart.
+//
+// The RULES application-side live in src/lib/itinerarySpec.ts (the importer, the
+// exporter and the repair pass share them). This CLI mirrors them deliberately —
+// it must stay dependency-free so it runs on any checkout — and two tests keep the
+// mirror honest: tests/trip-import.test.ts pins RULE_IDS + the key tables + the
+// enums against the spec, and the golden test requires every shelf file to import
+// with ZERO repairs. A rule that exists on one side only fails there.
 //
 // Usage:
 //   node scripts/validate-itinerary.mjs <file.json> [more.json ...]
@@ -15,7 +22,20 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, basename } from 'node:path'
 
-const SPEC_VERSION = '1.0'
+const SPEC_VERSION = '2.0'
+
+// ---- the rule set, shared with src/lib/itinerarySpec.ts (pinned by tests)
+const FORMAT_VERSION = 2
+const RULE_IDS = [
+  'TRIP_SHAPE', 'FORMAT_VERSION', 'DAYS_SPAN', 'DAY_INDEX', 'ORDER_IN_DAY',
+  'STOP_IDS_UNIQUE', 'NUMERIC_REQUIRED', 'COORDS_VALID', 'COORDS_NOT_PLACEHOLDER',
+  'COORDS_DISTINCT', 'LEG_FIELDS_OMITTED', 'UNKNOWN_KEYS', 'ENUM_VOCAB',
+  'PUBLICATION_MIRRORS_TRIP', 'REFERENCES_INTACT',
+]
+
+// ---- key allowlists, mirrored from src/lib/itinerarySpec.ts
+const TRIP_KEYS = new Set(['id', 'name', 'startLocation', 'startLocationCoords', 'destinations', 'destinationCoords', 'startDate', 'endDate', 'travellers', 'driverCount', 'hasVulnerable', 'driveAfterDinnerMin', 'transportMode', 'fuelEconomyKmL', 'fuelPricePerL', 'roundTrip', 'vehicleProfile', 'budgetPerPersonInr', 'travelStyle', 'stayStyle', 'fixedCommitments', 'days', 'expenses', 'coverEmoji', 'coverImageUrl', 'visibility', 'createdAt', 'updatedAt'])
+const STOP_KEYS = new Set(['id', 'title', 'category', 'locationName', 'placeId', 'lat', 'lng', 'description', 'visitMinutes', 'openTime', 'closeTime', 'entryFeeInrPerPerson', 'transportCostInrTotal', 'priority', 'notes', 'sourceUrl', 'status', 'orderInDay', 'weatherSensitive', 'auto'])
 
 // ---- enums mirrored from src/data/types.ts (keep in sync — pinned by tests/golden-itineraries.test.ts)
 const TRANSPORT_MODES = ['car', 'rental', 'motorcycle', 'train', 'bus', 'flight', 'taxi', 'mixed']
@@ -37,12 +57,12 @@ const warn = (m) => report.get(file).warnings.push(m)
 
 // ---- strict-key tables: a typo'd key must never be silently dropped (the
 // "breaks absolutely nothing" rule — an ignored field is a lie in the data).
-const TRIP_KEYS = new Set(['name', 'startLocation', 'startLocationCoords', 'destinations', 'destinationCoords', 'startDate', 'endDate', 'travellers', 'transportMode', 'roundTrip', 'fuelEconomyKmL', 'fuelPricePerL', 'driverCount', 'hasVulnerable', 'driveAfterDinnerMin', 'vehicleProfile', 'budgetPerPersonInr', 'travelStyle', 'stayStyle', 'fixedCommitments', 'days', 'expenses', 'coverEmoji', 'coverImageUrl', 'visibility'])
 const DAY_KEYS = new Set(['id', 'index', 'title', 'startTime', 'stops'])
-const STOP_KEYS = new Set(['id', 'title', 'category', 'locationName', 'placeId', 'lat', 'lng', 'description', 'visitMinutes', 'openTime', 'closeTime', 'entryFeeInrPerPerson', 'transportCostInrTotal', 'priority', 'notes', 'sourceUrl', 'status', 'orderInDay', 'weatherSensitive'])
-const EXPENSE_KEYS = new Set(['id', 'label', 'category', 'amountInr', 'perPerson', 'optional', 'stopId', 'dayIndex'])
+const EXPENSE_KEYS = new Set(['id', 'label', 'category', 'amountInr', 'perPerson', 'optional', 'stopId', 'dayIndex', 'paidBy'])
 const COMMITMENT_KEYS = new Set(['id', 'title', 'type', 'dayIndex', 'time', 'notes'])
 const PUB_KEYS = new Set(['id', 'tripId', 'creatorId', 'title', 'tagline', 'coverImageUrl', 'routeSummary', 'durationDays', 'estimatedBudgetPerPersonInr', 'travelStyle', 'bestSeason', 'travelTips', 'warningsAndAssumptions', 'freeDayIndexes', 'premiumPriceInr', 'subscriberCta'])
+/** the export envelope (src/lib/itinerarySpec.ts buildTripExport) */
+const ROOT_KEYS = new Set(['formatVersion', 'exportedAt', 'app', 'trip', 'publication'])
 function checkKeys(obj, allowed, label) {
   for (const k of Object.keys(obj)) if (!allowed.has(k)) err(`${label}: unknown key "${k}" — typo? (unknown keys are rejected so a silently-dropped field can't poison the import)`)
 }
@@ -67,6 +87,22 @@ function checkCoords(label, lat, lng, { soft = false } = {}) {
 // ---- per-file validation
 function validate(parsed) {
   if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) { err('root: must be an object `{ trip, publication? }`'); return }
+
+  // ===== the wire format declares itself =====
+  for (const k of Object.keys(parsed)) {
+    if (!ROOT_KEYS.has(k)) err(`root: unknown key "${k}" — typo? (allowed: ${[...ROOT_KEYS].join(', ')})`)
+  }
+  const declaredVersion = typeof parsed.formatVersion === 'number' ? parsed.formatVersion : undefined
+  if (declaredVersion === undefined) {
+    err(`root.formatVersion: missing — a gallery file declares the wire format it was authored for (currently ${FORMAT_VERSION}). Add "formatVersion": ${FORMAT_VERSION}.`)
+  } else if (!Number.isInteger(declaredVersion) || declaredVersion < 1) {
+    err(`root.formatVersion: ${JSON.stringify(parsed.formatVersion)} is not a version`)
+  } else if (declaredVersion > FORMAT_VERSION) {
+    err(`root.formatVersion: ${declaredVersion} is newer than this build reads (${FORMAT_VERSION}) — the shelf cannot ship a file readers cannot open`)
+  } else if (declaredVersion < FORMAT_VERSION) {
+    warn(`root.formatVersion: ${declaredVersion} is older than ${FORMAT_VERSION} — the importer migrates it, but the shelf ships current files`)
+  }
+
   const { trip, publication } = parsed
   if (!trip || typeof trip !== 'object') { err('trip: required object missing'); return }
   checkKeys(trip, TRIP_KEYS, 'trip')
@@ -180,12 +216,41 @@ function validate(parsed) {
         warn(`${t}.weatherSensitive: true on a "${s.category}" stop — reserve it for beach/nature/adventure/viewpoints`)
       }
     })
-    // orderInDay contiguity
+    // orderInDay contiguity — 1-based, because that is what the app itself
+    // writes (createTrip / addStop / every renumber path use i+1). A 0-based
+    // file does not throw, it silently repaints every stop's order, and any
+    // `if (orderInDay)` style guard treats the first stop as unnumbered.
+    // One message per day, not per stop: a wholly 0-based day is ONE mistake,
+    // and printing it four times buries the other findings.
     const orders = day.stops.map(s => s.orderInDay).sort((a, b) => a - b)
-    orders.forEach((o, i) => {
-      if (!Number.isInteger(o)) err(`${tag}.stops: orderInDay must be an integer, got ${JSON.stringify(o)}`)
-      else if (o !== i) err(`${tag}.stops: orderInDay must be 0-based contiguous per day — sorted got [${orders.join(', ')}]`)
-    })
+    const nonInteger = orders.find(o => !Number.isInteger(o))
+    if (nonInteger !== undefined) {
+      err(`${tag}.stops: orderInDay must be an integer, got ${JSON.stringify(nonInteger)}`)
+    } else if (orders.some((o, i) => o !== i + 1)) {
+      err(`${tag}.stops: orderInDay must be 1-based and contiguous per day (the app numbers stops from 1) — sorted got [${orders.join(', ')}]`)
+    }
+
+    // One pin per place. Two stops on one coordinate are two pins drawn on top
+    // of each other, a zero-length leg, and — when the day then drives — the
+    // engine's own backtracking warning. This is the check whose absence let an
+    // imported trip draw four stacked pins in Gulmarg (2026-09-18).
+    //
+    // ONE exception, because it is a fact rather than a shortcut: a meal at the
+    // place you sleep or break IS one place. So at most two stops may share a
+    // coordinate, and one of them must be a `food`, `hotel` or `rest` stop.
+    const byCoord = new Map()
+    for (const s of day.stops) {
+      if (!s || typeof s !== 'object' || !isFiniteNum(s.lat) || !isFiniteNum(s.lng)) continue
+      const k = `${s.lat.toFixed(4)},${s.lng.toFixed(4)}`
+      byCoord.set(k, [...(byCoord.get(k) ?? []), s])
+    }
+    for (const [k, shared] of byCoord) {
+      if (shared.length === 1) continue
+      const isBaseOverlap = shared.length === 2 && shared.some(s => s.category === 'food' || s.category === 'hotel' || s.category === 'rest')
+      if (isBaseOverlap) continue
+      const names = shared.map(s => `"${s.title ?? '(untitled)'}" [${s.category ?? '?'}]`).join(', ')
+      err(`${tag}.stops: ${shared.length} stops share the coordinate ${k} (${names}) — the map stacks their pins and the leg between them measures 0 km. Geocode each place separately: node scripts/gallery-geocode.mjs "<place, district, state>" (only a meal sharing its night's base may stay on one pin)`)
+    }
   })
 
   // hotel coverage: every non-last day of a multi-day trip should sleep somewhere

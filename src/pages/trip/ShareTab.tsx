@@ -18,11 +18,14 @@ import { timeAgo } from './shared'
 
 // ================= Snapshot (export / import / URL share) =================
 
-function SnapshotCard({ trip, me, onNavigate, legCorrections }: {
+function SnapshotCard({ trip, me, onNavigate, legCorrections, publication }: {
   trip: Trip
   me: { id: string }
   onNavigate: (r: string) => void
   legCorrections?: Record<string, LegEstimate>
+  /** The trip's publication row, when it has one — carried in the exported
+   *  file's `publication` block so a shared file keeps its shelf metadata. */
+  publication?: Record<string, unknown>
 }) {
   const [link, setLink] = useState('')
 
@@ -43,7 +46,7 @@ function SnapshotCard({ trip, me, onNavigate, legCorrections }: {
       </p>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   <ImportTripButton ownerId={me.id} onNavigate={onNavigate} className="btn btn-outline btn-sm" />
-                  <button className="btn btn-outline btn-sm" onClick={() => downloadTripJson(trip)}><Download size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Download JSON</button>
+                  <button className="btn btn-outline btn-sm" onClick={() => downloadTripJson(trip, publication)}><Download size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Download JSON</button>
                   <PrintExport trip={trip} legCorrections={legCorrections} />
                   <button className="btn btn-outline btn-sm" onClick={() => downloadTripIcs(trip, legCorrections)} title="One calendar event per day plus timed events for fixed commitments — imports into Google/Apple/Outlook calendars"><CalendarDays size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Add to calendar</button>
                   <button className="btn btn-saffron btn-sm" onClick={makeLink}><Link2 size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Create snapshot link</button>
@@ -351,7 +354,13 @@ export function ShareTab({ trip, me, editable, onNavigate, legCorrections }: {
       <section role="tabpanel" id="share-panel-record" aria-labelledby="share-tab-record"
         className="share-panel" hidden={tab !== 'record'}>
         <h2 className="sr-only">Keep a record</h2>
-        <SnapshotCard trip={trip} me={me} onNavigate={onNavigate} legCorrections={legCorrections} />
+        <SnapshotCard
+          trip={trip}
+          me={me}
+          onNavigate={onNavigate}
+          legCorrections={legCorrections}
+          publication={pub ? { ...pub } as unknown as Record<string, unknown> : undefined}
+        />
       </section>
 
       <ConfirmDialog

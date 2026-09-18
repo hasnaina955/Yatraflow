@@ -1,4 +1,5 @@
 {
+  "formatVersion": 2,
   "trip": {
     "name": "Kashmir Valley in Six",
     "startLocation": "Srinagar, Jammu and Kashmir",
@@ -37,7 +38,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 0,
+            "orderInDay": 1,
             "notes": "Ask for a half-wazwan: rista, rogan josh and gushtaba with rice — one order feeds two"
           },
           {
@@ -51,7 +52,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 1,
+            "orderInDay": 2,
             "weatherSensitive": true,
             "sourceUrl": "https://www.tripadvisor.com/Attraction_Review-g297623-d1228761-Reviews-or10-Nishat_Garden-Srinagar_Srinagar_District_Kashmir_Jammu_and_Kashmir.html",
             "notes": "The Garden of Bliss — twelve terraces looking down the lake to the Zabarwan hills. The J&K gardens ticket is about ₹24 for an adult; carry cash"
@@ -61,13 +62,13 @@
             "title": "Shikara ride on Dal Lake",
             "category": "sightseeing",
             "locationName": "Dal Lake, Srinagar",
-            "lat": 34.1137, "lng": 74.87,
+            "lat": 34.0881, "lng": 74.8475,
             "visitMinutes": 90,
             "entryFeeInrPerPerson": 0,
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 2,
+            "orderInDay": 3,
             "weatherSensitive": true,
             "notes": "An hour among the floating gardens and the vegetable market on water. Fares are negotiated per boat (₹400–800 an hour depending on the hour of day) — see the expense line"
           },
@@ -82,7 +83,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 3,
+            "orderInDay": 4,
             "notes": "Booked direct with the owner, a houseboat is well below what the aggregators charge — and the kahn (boatman) will take you to the floating market at dawn"
           }
         ]
@@ -104,7 +105,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 0,
+            "orderInDay": 1,
             "notes": "Harissa and kulcha at the top of the meadow road, before the queue at the gondola"
           },
           {
@@ -112,13 +113,13 @@
             "title": "Gulmarg Gondola, Phase 1",
             "category": "adventure",
             "locationName": "Gulmarg, Baramulla",
-            "lat": 34.049, "lng": 74.3921,
+            "lat": 34.0392, "lng": 74.3758,
             "visitMinutes": 150,
             "entryFeeInrPerPerson": 0,
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 1,
+            "orderInDay": 2,
             "weatherSensitive": true,
             "notes": "One of the highest cable cars in the world — Phase 1 climbs to Kongdoori. Phase 2 to Apharwat is a separate ticket and shuts in cloud. Fares are quoted between ₹740 and ₹1,010 return across sources; ₹800/person is budgeted below"
           },
@@ -127,13 +128,13 @@
             "title": "Gulmarg meadow walk at dusk",
             "category": "nature",
             "locationName": "Gulmarg, Baramulla",
-            "lat": 34.049, "lng": 74.3921,
+            "lat": 34.0539, "lng": 74.3913,
             "visitMinutes": 60,
             "entryFeeInrPerPerson": 0,
             "transportCostInrTotal": 0,
             "priority": "nice-to-have",
             "status": "confirmed",
-            "orderInDay": 2,
+            "orderInDay": 3,
             "weatherSensitive": true,
             "notes": "The meadow is the point of Gulmarg — ponies in summer, snow in winter, and the pine line all around it"
           },
@@ -148,7 +149,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 3,
+            "orderInDay": 4,
             "notes": "Staying up here rather than returning to Srinagar is what lets you catch the gondola before the day-trip buses arrive"
           }
         ]
@@ -170,7 +171,7 @@
             "transportCostInrTotal": 0,
             "priority": "nice-to-have",
             "status": "confirmed",
-            "orderInDay": 0,
+            "orderInDay": 1,
             "notes": "Ninth-century stone temples built by Avantivarman, sitting in a lawn beside the highway. A small ASI ticket is collected at the gate (see the ticket allowance)"
           },
           {
@@ -178,13 +179,13 @@
             "title": "Arrival lunch in Pahalgam",
             "category": "food",
             "locationName": "Pahalgam, Anantnag",
-            "lat": 34.0322, "lng": 75.3226,
+            "lat": 34.0228, "lng": 75.3193,
             "visitMinutes": 60,
             "entryFeeInrPerPerson": 0,
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 1
+            "orderInDay": 2
           },
           {
             "id": "d3-lidder-walk",
@@ -197,7 +198,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 2,
+            "orderInDay": 3,
             "weatherSensitive": true,
             "notes": "The river runs through the middle of town; the walk upstream past the last guesthouse is free and better than any paid viewpoint"
           },
@@ -212,7 +213,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 3,
+            "orderInDay": 4,
             "notes": "Two nights here means the valley day tomorrow starts where you slept, not after a drive"
           }
         ]
@@ -234,7 +235,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 0,
+            "orderInDay": 1,
             "weatherSensitive": true,
             "notes": "The last motorable point towards the Amarnath cave shrine — glacier-fed water, pine all the way up, and ponywallahs at the car park. Local taxis or ponies only (₹600–1,200 a vehicle, see the expense line)"
           },
@@ -249,7 +250,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 1,
+            "orderInDay": 2,
             "notes": "Local trout, if the kitchen has it — Pahalgam's hatcheries supply the town"
           },
           {
@@ -263,7 +264,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 2,
+            "orderInDay": 3,
             "weatherSensitive": true,
             "notes": "A shepherd's meadow at the head of the valley and the start of the Kolahoi trek route. Walking is free; the pony ride to the far meadow is not"
           },
@@ -278,7 +279,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 3
+            "orderInDay": 4
           }
         ]
       },
@@ -299,7 +300,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 0,
+            "orderInDay": 1,
             "notes": "A Shiva temple on the ridge above the lake, reached by a steep road and then steps. Free entry — phones stay in the car, and the view over Dal is the best in Srinagar"
           },
           {
@@ -307,13 +308,13 @@
             "title": "Lunch on the boulevard",
             "category": "food",
             "locationName": "Srinagar, Jammu and Kashmir",
-            "lat": 34.0747, "lng": 74.8204,
+            "lat": 34.0895, "lng": 74.867,
             "visitMinutes": 60,
             "entryFeeInrPerPerson": 0,
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 1
+            "orderInDay": 2
           },
           {
             "id": "d5-jamia-masjid",
@@ -326,7 +327,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 2,
+            "orderInDay": 3,
             "notes": "378 deodar columns around a courtyard that holds thousands — free to enter, quietest between prayers, covered arms and legs"
           },
           {
@@ -340,7 +341,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 3,
+            "orderInDay": 4,
             "notes": "A city hotel this time — the old city is a walk, and the airport is 25 minutes away"
           }
         ]
@@ -362,7 +363,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 0,
+            "orderInDay": 1,
             "notes": "The white marble lakeside shrine on the far shore — the boulevard drive around the lake to reach it is half the stop"
           },
           {
@@ -376,20 +377,20 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 1
+            "orderInDay": 2
           },
           {
             "id": "d6-craft",
             "title": "Kashmir handicrafts — paper machie, pashmina, walnut wood",
             "category": "shopping",
             "locationName": "Srinagar, Jammu and Kashmir",
-            "lat": 34.0747, "lng": 74.8204,
+            "lat": 34.0713, "lng": 74.8105,
             "visitMinutes": 75,
             "entryFeeInrPerPerson": 0,
             "transportCostInrTotal": 0,
             "priority": "nice-to-have",
             "status": "confirmed",
-            "orderInDay": 2,
+            "orderInDay": 3,
             "notes": "State emporia carry fixed prices and certificates — the government Kashmir Handicrafts emporium is the safe buy for pashmina and silk carpets"
           }
         ]

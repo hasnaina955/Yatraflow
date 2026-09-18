@@ -25,6 +25,7 @@
 // ============================================================================
 
 import { createClient } from '@supabase/supabase-js';
+import { randomBytes } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
@@ -69,7 +70,7 @@ required (in .env.local or environment):
 }
 
 // ------------------------------------------------------------------- utilities
-const runid = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+const runid = `${Date.now().toString(36)}${randomBytes(3).toString('hex')}`;
 const P = `rls_${runid}_`;                       // row prefix for every test row
 const SLUG = `rls-${runid}-gallery`;
 
@@ -243,6 +244,25 @@ let main = async () => {
   });
   assert(landed?.name === TITLE, 'realtime: crew write lands on owner channel', landed ? `landed=${landed.name}` : 'no event within window');
   U1.removeChannel(channel);
+
+  // ---- 14. trash — tombstones stay with the owner team, live rows return
+  // The store's "Delete" is a soft-delete (stamp deleted_at). "trips read
+  // hide trashed" must be RESTRICTIVE: live rows pass as usual, the tombstone
+  // stays readable for its owner/editors (the added-row check would 42501
+  // otherwise) and disappears for a plain crew member. Read back with
+  // .select() — a denied update is silent (0 rows, no error).
+  const trash = await U1.from('trips').update({ deleted_at: new Date().toISOString() }).eq('id', sharedTripId).select('id');
+  assert(!trash.error && trash.data?.length === 1, 'trash: owner tombstones own trip (added-row accepted)', trash.error?.message);
+  const editorSeesTrash = await U2.from('trips').select('id').eq('id', sharedTripId);
+  assert(!editorSeesTrash.error && editorSeesTrash.data?.length === 1, 'trash: editor keeps tombstone visibility (owner team)', editorSeesTrash.error?.message);
+  const demote = await U1.from('trip_members').update({ role: 'viewer' }).eq('trip_id', sharedTripId).eq('user_id', crew.id).select('role');
+  assert(!demote.error && demote.data?.[0]?.role === 'viewer', 'members: owner demotes crew back to viewer', demote.error?.message ?? 'no row matched');
+  const memberSeesTrash = await U2.from('trips').select('id').eq('id', sharedTripId);
+  assert(!memberSeesTrash.error && memberSeesTrash.data?.length === 0, 'trash: plain member cannot read a tombstone', memberSeesTrash.error?.message);
+  const untrash = await U1.from('trips').update({ deleted_at: null }).eq('id', sharedTripId).select('id');
+  assert(!untrash.error && untrash.data?.length === 1, 'trash: owner restores the trip (tombstone cleared)', untrash.error?.message);
+  const memberSeesLive = await U2.from('trips').select('id').eq('id', sharedTripId);
+  assert(!memberSeesLive.error && memberSeesLive.data?.length === 1, 'trash: restored trip is live for the crew again', memberSeesLive.error?.message);
 
   note('policies ratchet: enforced by supabase/tests/rls_contract.test.sql (management plane)');
 };

@@ -351,29 +351,38 @@ create policy "profiles update self" on public.profiles
   for update using (auth.uid() = id) with check (auth.uid() = id);
 
 -- ---------- trips ----------
+-- v0.59 (Sep 18 2026): direct reads are crew-or-admin, authenticated only.
+-- The public page reads through the security-definer get_public_trip RPC
+-- (paywall + premium day stubbing), so no anon/public branch remains.
+-- Migration of record: 20260918_payments_security.sql.
 create policy "trips read" on public.trips
-  for select using (
+  for select to authenticated using (
     auth.uid() = owner_id
-    or visibility = 'public'
     or public.is_member(trips.id)
+    or public.is_admin()
   );
 
 -- v0.47 trip trash: tombstoned trips vanish from normal reads, but the
 -- tombstone WRITE must stay permitted — the trash UPDATE supplies a new row
--- whose deleted_at is set, so any SELECT policy evaluated against it (like
--- the live "hide trashed" one) must accept it, or the UPDATE fails with
--- 42501 and delete silently no-ops (reproduced on the live project,
--- Sep 14 2026: the production policy lacked the added-row clause).
+-- whose deleted_at is set, so any SELECT policy evaluated against it must
+-- accept it, or the UPDATE fails with 42501 and delete silently no-ops
+-- (reproduced on the live project, Sep 14 2026: the production policy
+-- lacked the added-row clause).
 --
--- v0.59 (Sep 17 2026): the Sep-14 shape leaked — the bare `deleted_at is
--- null` OR-clause made EVERY live trip readable by every authenticated user
--- (permissive policies OR-combine, so the base trips read restriction was
--- bypassed). Pinned: tombstoned rows are visible only to the owner team
--- (owner + editors), which also satisfies the tombstone-WRITE check.
+-- v0.59 (Sep 18 2026): RESTRICTIVE is load-bearing. The Sep-14 repair had
+-- dropped the flag and left `deleted_at is null` as a bare OR-clause —
+-- permissive policies OR-combine, so every authenticated user could read
+-- every live trip (found live by the integration harness). Restored:
+-- restrictive (ANDs with "trips read") with the added-row clauses the
+-- tombstone UPDATE needs, so live rows pass as before while tombstones
+-- reach only the owner team plus the admin console.
+-- Migration of record: 20260917_pin_trashed_read.sql.
 create policy "trips read hide trashed" on public.trips
-  for select using (
-    auth.uid() = owner_id
+  as restrictive for select to authenticated using (
+    deleted_at is null
+    or auth.uid() = owner_id
     or public.is_editor(trips.id)
+    or public.is_admin()
   );
 
 create policy "trips insert" on public.trips

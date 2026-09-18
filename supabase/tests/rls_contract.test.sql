@@ -56,32 +56,62 @@ begin
     raise exception 'trips DELETE must be editor-scoped (is_editor(id))';
   end if;
 
-  -- 1c. Trashed-read (v0.59 shape): the hide-trashed policy must pin
-  --     tombstone visibility to the owner team (owner + editors). The bare
-  --     'deleted_at is null' OR-clause from the Sep-14 repair leaked every
-  --     live trip to every authenticated user (permissive policies
-  --     OR-combine) -- found live by the integration harness.
+  -- 1c. Trashed-read (v0.59 shape): the hide-trashed policy must be
+  --     RESTRICTIVE -- it ANDs with the base read -- and carry both halves:
+  --     a live-row branch (`deleted_at is null`) so live rows pass exactly
+  --     where "trips read" admits them, plus an accepter for the updated row
+  --     (owner/editor/admin) without which the tombstone UPDATE fails 42501
+  --     and "Delete" silently no-ops (reproduced live, Sep 14 2026).
   if not exists (
     select 1 from pg_policies
     where schemaname = 'public' and tablename = 'trips'
       and policyname = 'trips read hide trashed'
       and cmd = 'SELECT'
-      and lower(coalesce(qual, '')) like '%is_editor%'
+      and permissive = 'RESTRICTIVE'
+      and lower(coalesce(qual, '')) like '%deleted_at is null%'
       and lower(coalesce(qual, '')) like '%auth.uid()%'
       and lower(coalesce(qual, '')) like '%owner_id%'
+      and lower(coalesce(qual, '')) like '%is_editor%'
+      and lower(coalesce(qual, '')) like '%is_admin%'
   ) then
-    raise exception 'trips trashed-read drifted: tombstones must be owner-team-only (owner_id / auth.uid() / is_editor), no unpinned live branch';
+    raise exception 'trips trashed-read drifted: must be RESTRICTIVE with a live-row branch and an owner/editor/admin accepter';
   end if;
 
-  -- 1d. Base read is crew-or-public (visibility / is_member awareness).
+  -- 1c-bis. The invariant behind the Sep-14 leak: a live-row
+  --     ('deleted_at is null') branch on a PERMISSIVE SELECT policy
+  --     OR-combines and widens reads for every role that policy touches.
+  --     It may only live on the restrictive policy above.
+  if exists (
+    select 1 from pg_policies
+    where schemaname = 'public' and tablename = 'trips'
+      and cmd = 'SELECT'
+      and permissive = 'PERMISSIVE'
+      and lower(coalesce(qual, '')) like '%deleted_at is null%'
+  ) then
+    raise exception 'a PERMISSIVE trips SELECT carries a deleted_at is null branch -- permissive policies OR-combine, so it widens reads';
+  end if;
+
+  -- 1d. Base read (post-20260918_payments_security.sql): crew-or-admin for
+  --     authenticated callers only -- no visibility/anon/public branch. The
+  --     public page reads through the security-definer get_public_trip RPC.
   if not exists (
     select 1 from pg_policies
     where schemaname = 'public' and tablename = 'trips'
       and cmd = 'SELECT'
-      and lower(coalesce(qual, '')) like '%visibility%'
       and lower(coalesce(qual, '')) like '%is_member%'
+      and lower(coalesce(qual, '')) like '%auth.uid()%'
+      and lower(coalesce(qual, '')) like '%is_admin%'
+      and roles::text like '%authenticated%'
   ) then
-    raise exception 'trips base read drifted: must be crew-or-public (visibility / is_member)';
+    raise exception 'trips base read drifted: must be crew-or-admin, scoped to authenticated callers';
+  end if;
+  if exists (
+    select 1 from pg_policies
+    where schemaname = 'public' and tablename = 'trips'
+      and cmd = 'SELECT'
+      and (roles::text like '%anon%' or roles::text like '%public%')
+  ) then
+    raise exception 'trips has an anon/public SELECT policy -- direct public reads must go through get_public_trip';
   end if;
 
   -- 1e. Update WITH CHECK stays editor-pinned (no transfer to non-editable rows).

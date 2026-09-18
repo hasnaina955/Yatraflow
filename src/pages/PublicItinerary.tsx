@@ -10,6 +10,7 @@ import {
 import { MetaIcon } from '../components/icons'
 import { openExternal } from '../lib/native'
 import type { Trip, PublishedItinerary } from '../data/types'
+import type { Entitlement } from '../lib/payments'
 import { useDb, currentUser, tripById, userById, registerPubView, fetchSharedTrip } from '../store/store'
 import { forkPublication } from '../lib/forkPub'
 import { simulateDay, originOf, minutesToHM, formatInr, getAssumptions, computeTotals, isRoundTrip } from '../lib/engine'
@@ -17,6 +18,8 @@ import { cap, titleCase } from '../lib/labels'
 import { useTimeFormat, formatHM, formatHMRange } from '../lib/timefmt'
 import { stopKindOf, STOP_KIND_LABELS } from '../lib/stopKind'
 import { useSavedPubs } from '../lib/savedPubs'
+import { fetchMyEntitlements, purchaseUnlock } from '../lib/unlock'
+import { hasUnlock } from '../lib/payments'
 import { currentPublicShareUrl } from '../lib/shareUrl'
 import { appLink } from '../lib/appLink'
 import { pageTitle } from '../lib/pageTitle'
@@ -35,6 +38,10 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
   const cachedTrip = pub ? tripById(pub.tripId) : undefined
   const [fetched, setFetched] = useState<Trip | null>(null)
   const [miss, setMiss] = useState(false)
+  // Paid-unlock state (M7): entitlements are read on demand (RLS: own rows),
+  // not carried in the hydrate cache. Re-read after a purchase resolves.
+  const [entitlements, setEntitlements] = useState<Entitlement[]>([])
+  const [buying, setBuying] = useState(false)
   const trip: Trip | undefined = cachedTrip ?? fetched ?? undefined
   const { isSaved, toggleSaved } = useSavedPubs()
   const heroAuto = useDestinationCover(pub ? (pub.routeSummary.length ? pub.routeSummary : [pub.title]) : null)
@@ -47,6 +54,16 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
   useEffect(() => {
     document.title = pageTitle(['pub'], pub?.title)
   }, [pub?.title])
+  // Entitlements ride the session: read them when the viewer (or the
+  // publication) becomes known, and never for the creator — hasUnlock
+  // short-circuits creators anyway.
+  const meId = me?.id ?? null
+  useEffect(() => {
+    if (!pub) return
+    let alive = true
+    void fetchMyEntitlements(meId).then(rows => { if (alive) setEntitlements(rows) })
+    return () => { alive = false }
+  }, [pub?.id, meId])
   useEffect(() => {
     if (!pub || cachedTrip || fetched || miss) return
     let alive = true
@@ -127,9 +144,25 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
   // the Unlock buttons below are hidden rather than inventing a ₹199 fallback.
   const price = pub.premiumPriceInr
   const savedFlag = isSaved(pub.id)
+  // True when this viewer may read the locked days: the creator, or a buyer
+  // with a paid entitlement. Gating here is presentation; the fork path and
+  // RLS re-derive the same rule server-side.
+  const unlocked = hasUnlock(entitlements, meId, pub.id, pub.creatorId)
 
   function copyThis() {
     void forkPublication(pub!, me?.id ?? null, onNavigate)
+  }
+
+  function unlockThis() {
+    if (buying) return // async purchase — no double modal (the #36-6 rule)
+    setBuying(true)
+    void purchaseUnlock({
+      pubId: pub!.id,
+      title: pub!.title,
+      onUnlocked: () => {
+        void fetchMyEntitlements(meId).then(rows => setEntitlements(rows))
+      },
+    }).finally(() => setBuying(false))
   }
 
   function saveThis() {
@@ -353,6 +386,40 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
                         </div>
                       )
                     })
+                  ) : unlocked ? (
+                    /* Bought (or the creator viewing): render like a free day. */
+                    stops.map((s, i) => {
+                      // Same auto-anchor rendering as the free days above.
+                      if (s.auto === true) {
+                        const cleanName = (s.locationName || s.title).replace(/ \((start|end)\)$/, '')
+                        return (
+                          <div key={s.id} className="travel-anchor">
+                            <div className="travel-anchor-title">
+                              <span className="travel-anchor-ico"><MapPin size={13} aria-hidden /></span>
+                              <span>Based in {cleanName}</span>
+                            </div>
+                          </div>
+                        )
+                      }
+                      return (
+                        <div key={s.id} className="stop-card">
+                          <div className={`stop-num cat-${s.category}`}>{i + 1}</div>
+                          <div className="stop-main">
+                            <div className="stop-toprow">
+                              <span className="stop-title">{s.title}</span>
+                              <Chip tone="info">{titleCase(s.category)}</Chip>
+                              {s.openTime && <span className="small muted"><MetaIcon icon={ Clock } tone="time" />{formatHMRange(s.openTime, s.closeTime, timeFormat)}</span>}
+                            </div>
+                            <div className="stop-meta">
+                              <span><MetaIcon icon={ MapPin } tone="place" />{s.locationName}</span>
+                              <span><MetaIcon icon={ Clock } tone="time" />{minutesToHM(s.visitMinutes)}</span>
+                              {s.entryFeeInrPerPerson > 0 && <span><MetaIcon icon={ Ticket } tone="ticket" />₹{s.entryFeeInrPerPerson}/person</span>}
+                            </div>
+                            {s.description && <div className="stop-desc">{s.description}</div>}
+                          </div>
+                        </div>
+                      )
+                    })
                   ) : (
                     <>
                       <div className="locked-overlay">
@@ -363,8 +430,8 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
                         </div>
                         <div className="locked-cta">
                           <b><Lock size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />{stops.length} more stops on this day</b>
-                          <p className="small">Unlock the full day-by-day plan with stay contacts, timings and budget breakdown.</p>
-                          {price !== undefined && <button className="btn btn-saffron" onClick={() => toast('Premium unlock is a placeholder — no payments in this MVP.')}>Unlock Premium · {formatInr(price)}</button>}
+                          <p className="small">Stay contacts, timings and the budget breakdown are in the full plan.</p>
+                          {price !== undefined && <button className="btn btn-saffron" disabled={buying} onClick={unlockThis}>{buying ? 'Opening payments…' : <>Unlock full plan · {formatInr(price)}</>}</button>}
                         </div>
                       </div>
                     </>
@@ -402,10 +469,13 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
               <button className="btn fork-btn btn-lg" style={{ width: '100%' }} onClick={copyThis}>
                 <GitFork size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 5 }} />Fork this trip
               </button>
-              {price !== undefined && <button className="btn btn-saffron btn-lg" style={{ width: '100%', marginTop: 10 }}
-                onClick={() => toast('Premium unlock is a placeholder — no payments in this MVP.')}>
-                <Lock size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 5 }} />Unlock Premium · {formatInr(price)}
+              {price !== undefined && !unlocked && <button className="btn btn-saffron btn-lg" style={{ width: '100%', marginTop: 10 }}
+                disabled={buying} onClick={unlockThis}>
+                <Lock size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 5 }} />{buying ? 'Opening payments…' : <>Unlock full plan · {formatInr(price)}</>}
               </button>}
+              {price !== undefined && unlocked && <p className="hint-text" style={{ textAlign: 'center', marginTop: 10 }}>
+                ✓ Full plan unlocked — forking carries every day as a real, editable plan.
+              </p>}
               {pub.subscriberCta && <p className="hint-text" style={{ textAlign: 'center', marginTop: 8 }}>{pub.subscriberCta}</p>}
               <hr className="divider" />
               <div className="share-link-box"><code>{shareLink}</code><CopyButton text={shareLink} label="Copy page link" /></div>

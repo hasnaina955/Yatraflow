@@ -2729,9 +2729,6 @@ main:focus { outline: none; }
   border: 1px solid var(--line); border-radius: 999px;
   font-size: 12px; font-weight: 600; background: var(--card);
 }
-.btn-teal { background: var(--teal); color: #fff; }
-.btn-teal:hover { background: var(--teal-deep, #0e7a72); }
-
 /* ---------- Halt spot rows (unified travel panel) ---------- */
 /* Formatted 12h/24h preview under native <input type="time"> fields — the
    browser controls the input's own display format, so we echo the app pref. */
@@ -5172,9 +5169,9 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
   display: grid; place-items: center; font-size: 22px;
   background: var(--teal-soft, #E7F4F1); color: var(--teal-deep, var(--teal));
 }
-.app-home-trip-thumb.is-live { background: var(--teal); color: #fff; }
-/* dark lightens --teal to #2BB8AC — white on that is 2.47:1; ink on teal passes */
-[data-theme='dark'] .app-home-trip-thumb.is-live { color: #06251f; }
+/* Semantic pair flips per theme: teal-600 + #FFF (5.19:1) in light,
+   teal-500 + #06251F (6.62:1) in dark. */
+.app-home-trip-thumb.is-live { background: var(--color-primary); color: var(--color-primary-foreground); }
 .app-home-trip-body { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .app-home-trip-name {
   font-weight: 700; font-size: 15px;

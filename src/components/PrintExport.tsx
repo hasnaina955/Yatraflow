@@ -67,7 +67,7 @@ export function PrintExport({ trip, legCorrections }: { trip: Trip; legCorrectio
   const model = useMemo(() => {
     const warningsByDay: Record<number, string[]> = {}
     for (const w of collectWarnings(trip)) {
-      const m = /^Day (\d+):/.exec(w.title)
+      const m = /^Day (\d+)\b/.exec(w.title)
       // the model strips the "Day n:" prefix itself; pass titles raw
       if (m) { const di = Number(m[1]) - 1; (warningsByDay[di] ??= []).push(w.title) }
     }

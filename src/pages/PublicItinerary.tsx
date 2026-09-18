@@ -11,7 +11,7 @@ import { MetaIcon } from '../components/icons'
 import { openExternal } from '../lib/native'
 import type { Trip, PublishedItinerary } from '../data/types'
 import type { Entitlement } from '../lib/payments'
-import { useDb, currentUser, tripById, userById, registerPubView, fetchSharedTrip } from '../store/store'
+import { useDb, currentUser, tripById, userById, registerPubView, fetchPublicTrip } from '../store/store'
 import { forkPublication } from '../lib/forkPub'
 import { simulateDay, originOf, minutesToHM, formatInr, getAssumptions, computeTotals, isRoundTrip } from '../lib/engine'
 import { cap, titleCase } from '../lib/labels'
@@ -32,9 +32,11 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
   const me = currentUser(db)
   const pub: PublishedItinerary | undefined = db.published.find(p => p.id === slug)
   // The membership-scoped hydration keeps other people's trips out of the
-  // cache, so a public page's backing trip is usually NOT in `trips` — fetch
-  // it on demand (RLS lets anyone read published trips) instead of declaring
-  // "not found" for every anonymous visitor.
+  // cache, so a public page's backing trip is usually NOT in `trips` — and
+  // deliberately so: the CACHE carries unstubbed days only for the owner's
+  // own session. A public viewer must read through fetchPublicTrip (the
+  // get_public_trip RPC stubs locked days at the wire), never through a
+  // cached row they didn't fetch themselves.
   const cachedTrip = pub ? tripById(pub.tripId) : undefined
   const [fetched, setFetched] = useState<Trip | null>(null)
   const [miss, setMiss] = useState(false)
@@ -65,18 +67,20 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
     return () => { alive = false }
   }, [pub?.id, meId])
   useEffect(() => {
-    if (!pub || cachedTrip || fetched || miss) return
+    if (!pub || fetched || miss) return
     let alive = true
-    // The RPC fallback makes the page render even before the one-off visibility
-    // backfill runs: the pub row exists, so this trip IS published — the same
-    // capability trust as the public URL itself.
-    void fetchSharedTrip(pub.tripId, true).then(t => {
+    // Reads through get_public_trip: the SERVER decides what this viewer sees
+    // (real days for the creator/an entitled buyer, stubbed locked days for
+    // everyone else) — the paywall is at the wire, not in React. An unlock
+    // re-runs this fetch: the same RPC now serves real days because the
+    // entitlement row exists.
+    void fetchPublicTrip(pub.id).then(t => {
       if (!alive) return
       if (t) setFetched(t)
       else setMiss(true)
     })
     return () => { alive = false }
-  }, [pub, cachedTrip, fetched, miss])
+  }, [pub, fetched, miss])
 
   // ---- practical evidence, computed from the real trip (no schema fields).
   // Every hook lives ABOVE the early return: the on-demand fetch means the
@@ -150,8 +154,11 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
   const unlocked = hasUnlock(entitlements, meId, pub.id, pub.creatorId)
 
   function copyThis() {
-    // The fork honors what the page just showed: an unlocked viewer (buyer
-    // or creator) gets every day as a real plan, not stubs.
+    // The fork honors what the SERVER served this viewer: a buyer/creator's
+    // session fetched real days through the RPC, a visitor's session got
+    // stubs — forkPublication re-stubs from whatever arrived, so the fork can
+    // never contain more than the server showed. The `unlocked` flag here is
+    // presentation-only now; the wire already decided.
     void forkPublication(pub!, me?.id ?? null, onNavigate, unlocked)
   }
 

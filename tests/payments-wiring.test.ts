@@ -38,6 +38,15 @@ describe('the public page wires the real unlock flow', () => {
     expect(page).toMatch(/forkPublication\(pub!, me\?\.id \?\? null, onNavigate, unlocked\)/)
   })
 
+  it('fetches the trip through the PAYWALL RPC, never the raw table (the P0)', () => {
+    // The public page must read via get_public_trip (wire-stubbed locked
+    // days, entitlement decided server-side) — a direct select('*') or the
+    // old fetchSharedTrip path re-opens the anonymous full-row read.
+    expect(page).toMatch(/import\s*\{[^}]*fetchPublicTrip[^}]*\}\s*from\s*'\.\.\/store\/store'/)
+    expect(page).not.toMatch(/import\s*\{[^}]*fetchSharedTrip[^}]*\}\s*from\s*'\.\.\/store\/store'/)
+    expect(page).toContain('fetchPublicTrip(pub.id)')
+  })
+
   it('renders free and unlocked days through ONE shared stop renderer', () => {
     // The first cut duplicated the renderer and the unlocked copy silently
     // dropped the travelling strips — pin the single shared component.
@@ -74,6 +83,36 @@ describe('the public page wires the real unlock flow', () => {
     expect(hub).toContain("Couldn't load your sales")
     expect(hub).toContain('salesError')
     expect(hub).toContain('onRetry')
+  })
+
+  it('the fork re-stubs locked days before persisting (defense-in-depth on the P0)', () => {
+    const fork = read('../src/lib/forkPub.ts')
+    // The fork reads through the paywall RPC (or the owner's own cache) and
+    // re-applies the stub, so a stale cache can never fork paid content.
+    expect(fork).toMatch(/import\s*\{[^}]*fetchPublicTrip[^}]*\}\s*from\s*'\.\.\/store\/store'/)
+    expect(fork).not.toMatch(/import\s*\{[^}]*fetchSharedTrip[^}]*\}\s*from\s*'\.\.\/store\/store'/)
+    expect(fork).toContain('restubLockedDays(src, pub.freeDayIndexes)')
+    // The stub shape mirrors the migration's wire stub.
+    expect(fork).toContain("description: LOCKED_STOP_DESCRIPTION")
+    expect(fork).toContain('entryFeeInrPerPerson: 0')
+  })
+
+  it('the security migration ships the four audit fixes', () => {
+    const sql = read('../supabase/migrations/20260918_payments_security.sql')
+    // P0: the stubbing RPC exists, decides per auth.uid(), and grants anon execute.
+    expect(sql).toContain('create or replace function public.get_public_trip(p_pub_id text)')
+    expect(sql).toContain('v_pub.creator_id = auth.uid()')
+    expect(sql).toMatch(/grant execute on function public\.get_public_trip\(text\) to anon, authenticated/)
+    // P0: the anonymous public clause is gone from direct reads.
+    expect(sql).toContain('create policy "trips read"')
+    expect(sql).toMatch(/create policy "trips read"[\s\S]*?to authenticated/)
+    // M2: refund revoke RPC, service-role only.
+    expect(sql).toContain('create or replace function public.revoke_refunded_entitlement(p_razorpay_order_id text)')
+    expect(sql).toMatch(/grant execute on function public\.revoke_refunded_entitlement\(text\) to service_role/)
+    // L2: entitlements survive buyer deletion.
+    expect(sql).toContain('on delete set null')
+    // Invite RPC refuses premium-backed trips for strangers.
+    expect(sql).toMatch(/get_invite_trip[\s\S]*?premium_price_inr/)
   })
 })
 

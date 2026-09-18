@@ -102,6 +102,18 @@ async function grantEntitlement(supabaseUrl, serviceKey, order, signal) {
   }
 }
 
+async function revokeEntitlement(supabaseUrl, serviceKey, razorpayOrderId, signal) {
+  const response = await fetch(`${supabaseUrl.replace(/\/+$/, '')}/rest/v1/rpc/revoke_refunded_entitlement`, {
+    method: 'POST',
+    headers: supabaseServiceHeaders(serviceKey, {
+      'content-type': 'application/json',
+    }),
+    body: JSON.stringify({ p_razorpay_order_id: razorpayOrderId }),
+    signal,
+  })
+  if (!response.ok) throw new Error(`entitlement revoke failed: ${response.status}`)
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     res.setHeader('allow', 'POST')
@@ -140,9 +152,12 @@ export default async function handler(req, res) {
   } catch {
     return json(res, 400, { error: 'invalid JSON' })
   }
-  // Only captured payments grant anything; every other event is 200-acknowledged
-  // so Razorpay stops retrying it.
-  if (event?.event !== 'payment.captured') return json(res, 200, { ok: true, ignored: event?.event ?? null })
+  // Captured payments grant; refunds revoke (M2 — the entitlement must not
+  // outlive the money). Every other event is 200-acknowledged so Razorpay
+  // stops retrying it.
+  if (event?.event !== 'payment.captured' && event?.event !== 'payment.refunded') {
+    return json(res, 200, { ok: true, ignored: event?.event ?? null })
+  }
 
   const payment = event.payload?.payment?.entity
   const orderId = payment?.order_id
@@ -152,6 +167,17 @@ export default async function handler(req, res) {
   }
 
   const signal = AbortSignal.timeout(8000)
+  if (event.event === 'payment.refunded') {
+    try {
+      await revokeEntitlement(supabaseUrl, serviceKey, orderId, signal)
+      // The RPC is a no-op (false) for unknown orders — a foreign/refund of a
+      // full order id we never recorded still acks, stopping the retry storm.
+      return json(res, 200, { ok: true, revoked: true })
+    } catch {
+      return json(res, 500, { error: 'could not revoke the entitlement' })
+    }
+  }
+
   try {
     await markOrderPaid(supabaseUrl, serviceKey, orderId, paymentId, signal)
     const order = await fetchOrderRow(supabaseUrl, serviceKey, orderId, signal)

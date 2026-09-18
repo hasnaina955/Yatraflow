@@ -149,7 +149,9 @@ export async function verifyWebhookSignature(rawBody: string, signature: string,
 
 export interface Entitlement {
   id: string
-  userId: string
+  /** Null when the buyer's account was hard-deleted (L2: the books keep the
+   *  sale; the ledger renders "a deleted account"). */
+  userId: string | null
   pubId: string
   /** Order that granted it — the audit trail back to the money. */
   orderId: string
@@ -178,7 +180,9 @@ export function orderGrantsEntitlement(status: OrderStatus, buyerId: string, pub
 /** Client-side gate: does this viewer see a publication's locked days?
  *  The creator always sees their own publication; otherwise a paid
  *  entitlement is required. This is UI convenience only — the real gate is
- *  the entitlement RLS + the fork path, which re-derive it server-side. */
+ *  get_public_trip (the wire stubs unlocked/locked per auth.uid()) plus the
+ *  fork's re-stub, which re-derive it server-side. A null e.userId (deleted
+ *  buyer) can never match a live session. */
 export function hasUnlock(entitlements: Entitlement[], userId: string | null, pubId: string, creatorId: string): boolean {
   if (userId && userId === creatorId) return true
   if (!userId) return false

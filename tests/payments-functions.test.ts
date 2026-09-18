@@ -296,8 +296,8 @@ describe('POST /api/checkout', () => {
       if (url.includes('/auth/v1/user')) return jsonResponse({ id: 'buyer-1' })
       if (url.includes('/rest/v1/published_itineraries')) return jsonResponse([pubRow])
       if (url.includes('/rest/v1/entitlements')) return jsonResponse([])
-      if (url.includes('/rest/v1/purchase_orders') && url.includes('status=eq.pending')) {
-        return jsonResponse([{ razorpay_order_id: 'order_ATTEMPTED', amount_inr: 500 }])
+      if (url.includes('/rest/v1/purchase_orders') && url.includes('select=razorpay_order_id')) {
+        return jsonResponse([{ razorpay_order_id: 'order_ATTEMPTED', amount_inr: 500, status: 'pending' }])
       }
       if (url === 'https://api.razorpay.com/v1/orders/order_ATTEMPTED') return jsonResponse({ id: 'order_ATTEMPTED', status: 'attempted' })
       if (url === 'https://api.razorpay.com/v1/orders') return jsonResponse({ id: 'order_FRESH' })
@@ -307,6 +307,29 @@ describe('POST /api/checkout', () => {
     const res = await run({ pubId: 'kerala-trip_1' })
     expect(res.statusCode).toBe(200)
     expect(JSON.parse(res.body).orderId).toBe('order_FRESH')
+  })
+
+  it('an UNVERIFIABLE earlier attempt is a 503 that never mints — the double-charge window stays shut (M1)', async () => {
+    // The gateway probe failed (5xx/auth/network): we cannot know whether the
+    // pending order was paid. Minting here would double-charge a buyer whose
+    // earlier payment captured. The response must refuse and say so.
+    fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.includes('/auth/v1/user')) return jsonResponse({ id: 'buyer-1' })
+      if (url.includes('/rest/v1/published_itineraries')) return jsonResponse([pubRow])
+      if (url.includes('/rest/v1/entitlements')) return jsonResponse([])
+      if (url.includes('/rest/v1/purchase_orders') && url.includes('select=razorpay_order_id')) {
+        return jsonResponse([{ razorpay_order_id: 'order_MAYBEPAID', amount_inr: 500, status: 'pending' }])
+      }
+      if (url === 'https://api.razorpay.com/v1/orders/order_MAYBEPAID') return new Response('gateway down', { status: 500 })
+      throw new Error(`unexpected fetch ${url}`)
+    })
+    const res = await run({ pubId: 'kerala-trip_1' })
+    expect(res.statusCode).toBe(503)
+    expect(JSON.parse(res.body).error).toContain('never charged twice')
+    // No fresh gateway order, no new row.
+    expect(fetchMock.mock.calls.filter(c => String(c[0]) === 'https://api.razorpay.com/v1/orders')).toHaveLength(0)
+    expect(fetchMock.mock.calls.filter(c => String(c[0]).includes('/rest/v1/purchase_orders') && (c[1] as RequestInit | undefined)?.method === 'POST')).toHaveLength(0)
   })
 
   it('mints a fresh order when the pending one snapshots a different price', async () => {
@@ -487,5 +510,41 @@ describe('POST /api/payments-webhook', () => {
     fetchMock.mockImplementation(async () => new Response('down', { status: 500 }))
     const res = await run(JSON.stringify(event), sig)
     expect(res.statusCode).toBe(500)
+  })
+
+  it('revokes the entitlement on payment.refunded (M2) via the service-only RPC', async () => {
+    const refund = {
+      event: 'payment.refunded',
+      payload: { payment: { entity: { order_id: 'order_ABC123', id: 'pay_XYZ789' } } },
+    }
+    const sig = await hmacHex(JSON.stringify(refund), ENV.RAZORPAY_WEBHOOK_SECRET)
+    const revokeCalls: Array<{ url: string; body: unknown }> = []
+    fetchMock.mockImplementation(async (input: RequestInfo | URL, init: RequestInit = {}) => {
+      const url = String(input)
+      if (url.includes('/rpc/revoke_refunded_entitlement')) {
+        revokeCalls.push({ url, body: JSON.parse(String(init.body)) })
+        return jsonResponse(true)
+      }
+      throw new Error(`unexpected fetch ${url}`)
+    })
+    const res = await run(JSON.stringify(refund), sig)
+    expect(res.statusCode).toBe(200)
+    expect(JSON.parse(res.body).revoked).toBe(true)
+    expect(revokeCalls).toHaveLength(1)
+    expect(revokeCalls[0]!.body).toEqual({ p_razorpay_order_id: 'order_ABC123' })
+    // Nothing was granted and no order row was touched.
+    expect(fetchMock.mock.calls.filter(c => String(c[0]).includes('/rest/v1/entitlements?on_conflict'))).toHaveLength(0)
+  })
+
+  it('acks an unknown non-captured non-refunded event without granting or revoking', async () => {
+    const other = {
+      event: 'refund.processed',
+      payload: { refund: { entity: { id: 'rfnd_1', payment_id: 'pay_XYZ789' } } },
+    }
+    const sig = await hmacHex(JSON.stringify(other), ENV.RAZORPAY_WEBHOOK_SECRET)
+    const res = await run(JSON.stringify(other), sig)
+    expect(res.statusCode).toBe(200)
+    expect(JSON.parse(res.body).ignored).toBe('refund.processed')
+    expect(fetchMock.mock.calls.filter(c => String(c[0]).includes('/rpc/'))).toHaveLength(0)
   })
 })

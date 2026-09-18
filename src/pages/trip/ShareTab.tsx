@@ -104,6 +104,11 @@ function PublicationForm({ trip, pub, isOwner, creatorId, onDone }: {
 
   function submit() {
     if (!Number.isFinite(priceNum) || priceNum < 0) { setErr('Price must be a number of rupees, 0 or more.'); return }
+    // The purchase_orders table caps amount_inr at 100000 (the gateway's
+    // sensible test-mode ceiling) — a publication priced above it would 503
+    // at checkout with no visible cause. Fail here, at the source.
+    if (!entirelyFree && priceNum > 100000) { setErr('The maximum premium price is ₹1,00,000.'); return }
+    if (!Number.isInteger(priceNum)) { setErr('Price must be a whole number of rupees.'); return }
     // Price > 0 with every day free would publish a premium price over fully
     // viewable content — a "Unlock Premium" CTA that unlocks nothing. Block it.
     if (!entirelyFree && free.size >= trip.days.length) { setErr('Every day is free — clear the price or lock a day.'); return }

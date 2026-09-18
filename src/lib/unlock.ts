@@ -70,7 +70,7 @@ export async function fetchMyEntitlements(userId: string | null): Promise<Entitl
     // The epoch-ms fields arrive as ISO strings; shape them for the type.
     return (Array.isArray(data) ? data : []).map((row: Record<string, unknown>) => ({
       id: row.id as string,
-      userId: row.user_id as string,
+      userId: (row.user_id as string | null) ?? null,
       pubId: row.pub_id as string,
       orderId: row.order_id as string,
       amountPaidInr: row.amount_paid_inr as number,

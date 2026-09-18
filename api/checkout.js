@@ -253,8 +253,20 @@ export default async function handler(req, res) {
       if (gatewayStatus === 'created') {
         return json(res, 200, { orderId: latest.razorpay_order_id, keyId, amountPaise: price * 100, currency: 'INR' })
       }
-      // 'attempted'/unknown → fall through and mint a fresh order; the old
-      // row stays behind but the buyer is never blocked.
+      if (gatewayStatus === 'unknown') {
+        // The probe itself failed (gateway 5xx/auth/network) — we do NOT know
+        // whether this pending order was paid. Minting a fresh order here is
+        // the double-charge window: if money had moved on the old one, the
+        // buyer would pay twice. Refuse instead; Razorpay being down also
+        // means order CREATION would fail right after, so nothing is lost.
+        recovering = true
+        return json(res, 503, {
+          error: 'could not verify your earlier attempt — to make sure you are never charged twice, we stopped here; try again in a moment',
+        })
+      }
+      // 'attempted' (the gateway SPOKE: a payment started and did not
+      // complete) → fall through and mint a fresh order; the old row stays
+      // behind but the buyer is never blocked.
     }
     const receipt = `r${stable(pubId, 8)}${stable(userId, 4)}`
     const razorpayOrderId = await createRazorpayOrder(keyId, keySecret, price * 100, receipt, signal)

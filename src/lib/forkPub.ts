@@ -53,7 +53,9 @@ export async function forkPublication(pub: PublishedItinerary, meId: string | nu
   // (tripById's cache hit is still honored first: the owner's own workspace
   // row is their own data, and re-fetching would be pure waste.)
   const src = tripById(pub.tripId) ?? await fetchPublicTrip(pub.id)
-  if (!src) { toast('That itinerary is no longer available.', 'err'); return false }
+  // `fetchPublicTrip` returns null for a deleted row AND for a failed read, so
+  // this cannot claim the trip is gone — only that it did not load.
+  if (!src) { toast('Couldn’t load that itinerary — it may be unpublished now, or the connection dropped.', 'err'); return false }
   const safe = restubLockedDays(src, pub.freeDayIndexes)
   const hasLockedDays = src.days.some(d => !pub.freeDayIndexes.includes(d.index))
   const { persisted } = hasLockedDays

@@ -13,6 +13,7 @@ import type { Trip, PublishedItinerary } from '../data/types'
 import type { Entitlement } from '../lib/payments'
 import { useDb, currentUser, tripById, userById, registerPubView, fetchPublicTrip } from '../store/store'
 import { forkPublication } from '../lib/forkPub'
+import { describePreviewSplit } from '../lib/previewSplit'
 import { simulateDay, originOf, minutesToHM, formatInr, getAssumptions, computeTotals, isRoundTrip } from '../lib/engine'
 import { cap, titleCase } from '../lib/labels'
 import { useTimeFormat, formatHM, formatHMRange } from '../lib/timefmt'
@@ -23,6 +24,7 @@ import { hasUnlock } from '../lib/payments'
 import { currentPublicShareUrl } from '../lib/shareUrl'
 import { appLink } from '../lib/appLink'
 import { pageTitle } from '../lib/pageTitle'
+import { sizedCoverUrl } from '../lib/tripThumb'
 import { useDestinationCover } from '../hooks/useDestinationCover'
 import { Avatar, Chip, EmptyState, toast, CopyButton, RouteSnapshot } from '../components/ui'
 
@@ -129,8 +131,11 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
       <div className="container">
         {pub && !miss
           ? <div className="container loading-block"><div className="spinner" />Loading itinerary…</div>
-          : <EmptyState icon={<Link2 size={38} aria-hidden />} title="Itinerary not found"
-              body="This public page may have been unpublished."
+          : /* The fetch returns null for a missing row AND for a failed select, so
+               this copy must not pick one cause: it names the real possibilities
+               and says plainly that the page cannot tell them apart. */
+            <EmptyState icon={<Link2 size={38} aria-hidden />} title="This itinerary didn’t load"
+              body="Unpublished, mistyped, or a dropped connection — we can’t tell which from here. Ask whoever shared it for a fresh link, or browse what’s published now."
               action={<button className="btn btn-primary" onClick={() => onNavigate('/explore')}>Back to Explore</button>} />}
       </div>
     )
@@ -142,10 +147,19 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
   const highlightsN = highlights
 
   const creator = userById(pub.creatorId)
+  // The stored cover is not necessarily sized: a row written before the sizing
+  // fix holds the raw Wikimedia upload (a live publication shipped 1,305 KB as
+  // its hero). Sized at render, so existing rows are fixed without a backfill.
+  const heroSrc = pub.coverImageUrl ? sizedCoverUrl(pub.coverImageUrl) : heroAuto
   const shareLink = currentPublicShareUrl(pub.id)
   // Undefined when the creator published the itinerary as entirely free —
   // the Unlock buttons below are hidden rather than inventing a ₹199 fallback.
   const price = pub.premiumPriceInr
+  // Which days this publication withholds comes from its own freeDayIndexes —
+  // never from an assumed tail. A live Spiti row (₹500) locks days 5–8 and
+  // leaves 9–10 free, so "the later days stay preview-only" was false there.
+  // Undefined when nothing is withheld: the price shows without a claim.
+  const previewSplit = describePreviewSplit(pub.freeDayIndexes, trip.days.length)
   const savedFlag = isSaved(pub.id)
   // True when this viewer may read the locked days: the creator, or a buyer
   // with a paid entitlement. Gating here is presentation; the fork path and
@@ -185,8 +199,8 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
     <div>
       {/* ---- Editorial hero: destination-led, creator-attributed (§6.11) ---- */}
       <section className="pub-hero">
-        {pub.coverImageUrl || heroAuto
-          ? <img className="pub-hero-photo" src={pub.coverImageUrl || heroAuto!} alt="" aria-hidden="true" width={1600} height={900} loading="eager" decoding="async" />
+        {heroSrc
+          ? <img className="pub-hero-photo" src={heroSrc} alt="" aria-hidden="true" width={1600} height={900} loading="eager" decoding="async" />
           : null}
         <div className="pub-hero-bg" aria-hidden="true" />
         <div className="container pub-hero-inner">
@@ -228,7 +242,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
                 <Heart size={13} aria-hidden fill={savedFlag ? 'currentColor' : 'none'} style={{ verticalAlign: '-2px', marginRight: 4 }} />
                 {savedFlag ? 'Saved' : 'Save itinerary'}
               </button>
-              <button className="btn fork-btn" onClick={copyThis}><GitFork size={14} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Fork this trip</button>
+              <button className="btn fork-btn" onClick={copyThis}><GitFork size={14} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />{me ? 'Fork this trip' : 'Log in to fork'}</button>
             </div>
           </div>
 
@@ -236,15 +250,6 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
             <div>
               <span className="editorial-kicker">The journey</span>
               <h2 className="editorial-title">Why this route works</h2>
-              <p className="editorial-body">{pub.tagline}</p>
-              {pub.travelTips.length > 0 && (
-                <>
-                  <h2 className="editorial-sub">Route philosophy</h2>
-                  <ul className="editorial-list">
-                    {pub.travelTips.map((t, i) => <li key={i}>{t}</li>)}
-                  </ul>
-                </>
-              )}
               <p className="editorial-body">
                 Built around {minutesToHM(totalsN.totalTravelMinutes)} of real road time across {pub.durationDays} days —
                 pacing, breaks and costs are all in the plan below.
@@ -260,19 +265,19 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
                 points={routePointsN}
               />
               <div className="route-glance-list">{pub.routeSummary.join(' · ')}</div>
-              <span className="route-glance-meta">{pub.durationDays} days · {totalsN.totalDistanceKm.toFixed(0)} km · {totalsN.stopCount} stops</span>
+              <span className="route-glance-meta">{totalsN.stopCount} stops in the plan</span>
             </aside>
           </div>
 
           {highlightsN.length > 0 && (
-            <div className="pub-highlightsN">
+            <div className="pub-highlights">
               <span className="editorial-kicker">Trip highlights</span>
               <h2 className="editorial-title">The rhythm of {pub.durationDays} days</h2>
               <div className="day-highlight-row">
                 {highlightsN.map(h => (
                   <div key={h.day.id} className="day-highlight-card">
                     <div className="day-highlight-top">
-                      <span className="editorial-kicker">Day {String(h.day.index + 1).padStart(2, '0')} · {STOP_KIND_LABELS[h.kind].toUpperCase()}</span>
+                      <span className="editorial-kicker">Day {String(h.day.index + 1).padStart(2, '0')} · {STOP_KIND_LABELS[h.kind]}</span>
                       <span className={`stop-kind-tag kind-${h.kind}`}>{STOP_KIND_LABELS[h.kind]}</span>
                     </div>
                     <b className="day-highlight-title">{h.day.title ?? `Day ${h.day.index + 1}`}</b>
@@ -352,7 +357,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
             })}
 
             {/* ---- Tips & warnings ---- */}
-            <div className="two-col" style={{ marginTop: 16 }}>
+            <div className="two-col two-col--even" style={{ marginTop: 16 }}>
               <div className="card">
                 <h2>Travel tips</h2>
                 <hr className="divider" />
@@ -378,7 +383,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
                 Forks the free preview into your YatraFlow account — locked days come over as placeholders you can fill in yourself.
               </p>
               <button className="btn fork-btn btn-lg" style={{ width: '100%' }} onClick={copyThis}>
-                <GitFork size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 5 }} />Fork this trip
+                <GitFork size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 5 }} />{me ? 'Fork this trip' : 'Log in to fork'}
               </button>
               {price !== undefined && !unlocked && <button className="btn btn-saffron btn-lg" style={{ width: '100%', marginTop: 10 }}
                 disabled={buying} onClick={unlockThis}>
@@ -386,6 +391,13 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
               </button>}
               {price !== undefined && unlocked && <p className="hint-text" style={{ textAlign: 'center', marginTop: 10 }}>
                 ✓ Full plan unlocked — forking carries every day as a real, editable plan.
+              </p>}
+              {/* Which days stay back is read from the publication's own freeDayIndexes
+                  rather than assumed to be the tail — a live ₹500 publication kept days
+                  9–10 free, so the older sentence contradicted the page. The clause is
+                  appended as the module writes it; capitalising belongs to CSS, not here. */}
+              {previewSplit && !unlocked && <p className="hint-text" style={{ textAlign: 'center', marginTop: 8 }}>
+                Preview: {previewSplit.claim}.
               </p>}
               {pub.subscriberCta && <p className="hint-text" style={{ textAlign: 'center', marginTop: 8 }}>{pub.subscriberCta}</p>}
               <hr className="divider" />

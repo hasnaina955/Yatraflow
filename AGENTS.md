@@ -34,7 +34,7 @@ Key locations:
 
 ## 1.1 Current project status (as of Sep 18, 2026)
 
-**Version:** **v0.60.0** — the whole-app refinement pass (2026-09-18): every route reviewed against its own design language and fixed in place — the phone layouts that pushed their controls off-screen, the Timeline's inert reorder arrows, the calendar painted under the bottom dock, the forced-dark surfaces that stranded white text, the motion that never stopped offscreen, the controls under the 40px touch floor, the keyboard-unreachable scroll regions, and three product claims that had outrun the feature set. Presentation, semantics, motion and measured contrast only: no token value changed and no surface was redesigned. The design-system ratchet falls to `7 / 0 / 28 / 29 / 1`, so the dark theme has no known contrast violation left. **Complete on `audit/ui-complete-2026-09`; its PR into `test` is pending and nothing has been pushed** — both `main` and `test` still carry v0.59.1.
+**Version:** **v0.60.0** — the whole-app refinement pass (2026-09-18): every route reviewed against its own design language and fixed in place — the phone layouts that pushed their controls off-screen, the Timeline's inert reorder arrows, the calendar painted under the bottom dock, the forced-dark surfaces that stranded white text, the motion that never stopped offscreen, the controls under the 40px touch floor, the keyboard-unreachable scroll regions, and three product claims that had outrun the feature set. Presentation, semantics, motion and measured contrast only: no token value changed and no surface was redesigned. The design-system ratchet falls to `7 / 0 / 28 / 29 / 1`, so the dark theme has no known contrast violation left. **Merged to `test` on 2026-09-18 (PR #257)**; `main` still carries v0.59.1.
 
 **Previous version:** v0.59.1 — the span-indexing fix (2026-09-17), promoted to `main` on 2026-09-17 (**PR #248**, `main` at `1d1b85f`); v0.59.0 was the corridor-measurement release (promoted 2026-09-17, **PR #247**, `main` at `b4f0a18`). Its scope: the corridor span measurement no longer hands a leg its neighbour's result, so a cached leg inside the span cannot truncate the drawn route or poison a later measurement's cache entry. The v0.59.0 content stands: corridor-wide road measurement replaces per-leg requests, the day filter measures only the day on screen, and copied public itinerary addresses keep their trip-specific previews with navigation that works in any tab. The v0.58.0 content stands: a publication without a cover now previews with a branded 1200×630 card (`public/og-default.png`, emitted by `api/i.js` as a fallback and advertised by the shell too), and auto-picked Wikipedia covers are sized through Wikimedia's own resize endpoint instead of shipping the unscaled upload — measured at 144–406 KB where the originals were 1300–3300 KB, which is what the 600 KB WhatsApp documents for `og:image` requires. The v0.57.0 content stands: a published itinerary link previews as a card (`/i/<id>` answered by `api/i.js` with that itinerary's own Open Graph tags, then the hash route), trip JSON imports in one step from My Trips in both formats the repo ships, permanent user deletion in the masteradmin console, the offline companion's routing collisions fixed, and per-route browser-tab titles. The v0.56.0 content stands: the six-phase settings-wiring audit (issue #213) is fully landed (PRs #219/#220/#221) — Trip settings as the eighth workspace tab, the four party/vehicle fields persisted through `20260915_trip_party_prefs.sql`, `CACHE_VERSION` 3→4, `MapTab`'s verdicts re-deriving on `trip`/`dayWeatherCode`, `roadChainSig`, and honest numeric defaults for non-car vehicles. `npm run verify` gate: tsc clean + **1353 tests** (111 files) + production build.
 
@@ -145,7 +145,10 @@ Key locations:
 7. **When asking the user to review/test locally, always hand them the exact
    URL — never make them find or start the server.** Check if the dev server
    is up (probe `http://localhost:5173`); if not, start `npm run dev`
-   detached (`Start-Process npm.cmd -ArgumentList 'run','dev'`). Confirm it
+   detached (`Start-Process npm.cmd -ArgumentList 'run','dev'` in PowerShell,
+   or from Git Bash `nohup npm run dev -- --port 5173 --strictPort > /tmp/dev.log
+   2>&1 &` — the durable form, since a harness `BACKGROUND` mode may not exist
+   and a plain `&` alone can leave the tool waiting on the pipe). Confirm it
    serves *this* working tree before linking (fetch
    `http://localhost:5173/src/styles.css` and grep for a token/marker that
    only exists in the current branch's changes — a stale server from another
@@ -158,7 +161,18 @@ Key locations:
    fresh, then re-grep the markers before handing over the URL. Then give
    deep links per screen (e.g. `http://localhost:5173/#/` for Landing,
    `http://localhost:5173/#/trips` for My Trips) and say what to check
-   (themes, mobile width, specific interactions).
+   (themes, mobile width, specific interactions). **"Serving this tree" is not
+   "serving it with a backend":** a dev server started before `.env.local`
+   existed (or from another clone of the repo) serves the current source and
+   still renders blind — the console reports *"No Supabase project compiled
+   into this build"* and every data surface sits on `Loading…` with
+   `hydrate … failed`, which reads exactly like a broken product. Before
+   handing over a URL, prove the backend is compiled in by grepping the served
+   client for the project ref
+   (`curl -s http://localhost:PORT/src/lib/supabase.ts | grep -o <ref>`) and
+   start a fresh server if it comes back empty; the `localhost:54321` fallback
+   string is in every bundle, so it discriminates nothing. (Found 2026-09-17:
+   the long-running 5173 server had no Supabase project compiled in at all.)
 8. **Build locally first; confirm the target branch before every push.** A feature
    or fix is always implemented and verified (`npm run verify`) on the current
    local branch before any push is even discussed. When the work is ready, tell
@@ -190,6 +204,12 @@ Key locations:
    rules. This exists because the long-refined surfaces (Timeline, Board) feel
    smooth while newer additions shipped motion-less — the gap only stays
    closed if motion is part of "done" for every update.
+
+11. **Work stays locally committed until it is complete and the localhost check
+   is satisfactory.** Commit as work lands on the working branch; a push is the
+   last step of a finished batch, never the end of each fix or review pass. The
+   author decides when a batch is finished and testable, and says so before any
+   push (user-mandated 2026-09-17).
 
 
 ## 3. Verification before every push
@@ -316,6 +336,24 @@ Hard rules (each learned the hard way — do not relearn them):
   assigned in one entry is empty in the next, so multi-step probes silently
   return nothing and look like failures. Put a dependent pipeline in a single
   command string, with `try/finally` whenever it touches real files.
+- **A screenshot pass runs one browser command per tool call, and never
+  wrapped in a shell `timeout`.** An `agent-browser` call that chains `open` +
+  `wait` + `screenshot` + `eval` exhausted the call budget and the harness
+  returned **no output at all** (not partial stdout), which reads exactly like
+  a hung CLI; the same commands, one per call, all returned in seconds. A
+  `timeout` wrapper makes it worse, not safer: killing the CLI leaves its
+  browser child holding the pipe, so the call hangs to the tool's own limit
+  anyway. And a *brand-new* session's first command really is slow — a cold
+  browser launch outlived a 280 s call — so start that one detached
+  (`nohup agent-browser open <url> > /tmp/ab.log 2>&1 &`), poll the log, then
+  reuse the warm session. Three companions: relative screenshot paths are
+  ignored — they land in `~/.agent-browser/tmp/screenshots/` whatever you pass,
+  so hand it an absolute path; a cold Vite transform is what makes the *page*
+  slow, so warm the route *and its modules* with `curl` first; and
+  `transferSize` reads 0 on cross-origin images (Wikimedia exposes no resource
+  timing), so prove a cover's weight from the origin
+  (`curl -w '%{size_download}'` on the `src` the DOM actually rendered) rather
+  than from `performance.getEntriesByType('resource')`.
 - **`str_replace` can report a real, existing file as missing** (`package-lock.json`,
   ~160 KB, during the v0.55.0 cut) — fall back to a targeted `sed -i` and verify
   with grep before moving on. Related: Vercel Agent opens its PRs as **drafts**;
@@ -400,6 +438,15 @@ not flakiness to shrug at** — vitest workers share module state across files
 changes flip suites that pass in isolation. The routing tests pin their env
 and clear caches per file for exactly this reason; when a rerun goes green,
 name the mechanism or keep reproducing — never just re-run until green.
+
+**A verify that fails with `Errors 1` while every test passes is the worker-teardown race, not a failure — read the summary line before the conclusion.** On `test`
+(2026-09-18, the v0.60.0 merge) the gate printed **1353 passed, 1 error** and exited 1:
+one unhandled rejection, `EnvironmentTeardownError: [vitest-worker]: Closing rpc while
+"onUserConsoleLog" was pending`, attributed to `tests/store-robustness.test.ts` and
+preceded by that file's own console logging. Nothing asserted false — the worker's RPC
+channel closed with a log message still in flight, and the re-run of the same commit was
+green. `N passed` + `Errors 1` is this race (a real failure shows `N failed`); re-run the
+job, and name this mechanism rather than reaching for "flaky".
 
 ## 4. Code conventions & pitfalls
 
@@ -513,7 +560,22 @@ name the mechanism or keep reproducing — never just re-run until green.
 - **A surface that RANKS or ANNOTATES by coordinates before any pick cannot consume "resolve-on-pick" placeholders — it needs a real-coords search.** The Map tab's search-to-add box used `searchPlaces` (Google autocomplete), whose hits are deliberately `(0,0)` placeholders — the quota economy is one Place Details call per *picked* row. But that box projects every hit onto the route to label/rank it, so all five results measured Null Island and rendered the identical "~1675 km into the trip · 8448 km off-route" — the tell that a ranking surface ignores hit coords entirely is *equal annotations on different hits*. Fix: `searchPlacesText` (one free-form Text Search Pro event, real locations in the same single call the corridor scan already pays; coord-less stragglers resolved-or-dropped; `QuotaExhaustedError` rethrown to an honest toast). Rule of thumb: **autocomplete for pick-one inputs, Text Search for rank-everything surfaces** — don't "reuse" the cheaper SKU on a surface whose math needs coordinates it doesn't have. (Found live 2026-09-14.)
 - **A directive that reverses behavior must sweep its own strings in the same commit.** When the Google-only directive landed, `QuotaExhaustedError` still said *"falling back to the free stack"* and the quota-guard header still described the old fallback — the code had changed, its self-description lied. When reversing any behavior, grep for the OLD behavior's phrasing in error messages, comments, README, and ARCHITECTURE (this bit us once per surface: message, quota.ts header, geocode docstring).
 
-- **A mechanical CSS gate only sees pairs declared in ONE rule.** The design-system contrast gate skips color-only overrides (`.x--warn { color: … }` on a separate background rule) — a 3.65:1 warn-on-white shipped straight past it (#152). When styling new UI, add explicit AA pins for any warn/tone pair your surface paints (#154's `map-rail warn ink` test is the pattern), and remember the baseline keys entries on **line numbers** — inserting CSS shifts them and fails the gate with phantom "new violations"; re-map the numbers (or `UPDATE_DESIGN_SYSTEM_BASELINE=1`) and diff to confirm nothing but line numbers moved.
+- **A mechanical CSS gate only sees pairs declared in ONE rule.** The design-system contrast gate skips color-only overrides (`.x--warn { color: … }` on a separate background rule) — a 3.65:1 warn-on-white shipped straight past it (#152). When styling new UI, add explicit AA pins for any warn/tone pair your surface paints (#154's `map-rail warn ink` test is the pattern), and remember the baseline keys entries on **line numbers** — inserting CSS shifts them and fails the gate with phantom "new violations"; re-map  the numbers (or `UPDATE_DESIGN_SYSTEM_BASELINE=1`) and diff to confirm nothing but line numbers moved.
+- **The overlay measures an element's DECLARED background, not the composite — flatten before believing a
+  contrast finding on a layered surface.** Its report of `PublicItinerary`'s hero at 2.6–3.1:1 was against
+  `.pub-hero`'s own gradient end stop (`#b97a3f` at 118%), not the pixels behind the kicker/title/byline:
+  the numbers were **bit-identical** after adding a scrim to the child `.pub-hero-bg` layer, and vanished
+  only when `.pub-hero`'s own background was replaced. Discriminate with that test (flatten the element,
+  re-inject, compare) before acting — a child/sibling layer is invisible to the rule. The *risk* it pointed
+  at was real and now bounded: `.pub-hero-photo` is a creator upload at `opacity: .42` with nothing
+  guaranteeing a floor, so a bright cover could pull the hero text toward ~3:1; the flat scrim added over
+  the text zone plus `tests/hero-contrast.test.ts` (which composites the scrim over a **white** photo — the
+  conservative worst case) close it. Triage the output generally: that page's 61 findings held 21
+  `nested-cards` for **4** real ones (measured, depth 1), 4 `line-length` that prose measurements did not
+  reproduce, `all-caps-body` on `.pub-hero-byline` (a deliberate uppercase byline), and ~18 that are this
+  repo's deliberate system — now listed in `.impeccable/critique/ignore.md`. Setup: mutation preflight,
+  `impeccable live-server --background`, inject `http://localhost:PORT/detect.js`, `live-server stop`
+  (its `config_missing` warning is expected when you injected by hand) — `index.html` stays byte-clean.
 - **A derived input that algebraically cancels is a constant in disguise.** Road personality's "per-window speed" was `windowKm / (driveMinutes × windowKm / totalKm / 60)` — the `windowKm` cancels, leaving the day's average painted on every window, and the tests then codified the wrong semantics. When a derived value cancels to something coarser than its name implies, stop and either compute the real signal (per-leg durations from OSRM) or move the verdict to the level it actually measures (day-average → explicit day-level check, as now done for the city-crawl kind).
 
 - **Never subtract one engine's route total from another engine's internal legs.** Google's Search-Along-Route `routingSummaries` route start→place→end independently of the polyline, so `(leg0 + leg1) − <route total measured by anything else>` inflates by the two engines' route-variant difference: **+47 km on a 1,400 km corridor** (a highway petrol pump read "50 km off", torching the detour budget and holding back See & do) but only ~1–3 km — plausible-looking — on the short corridors used in earlier testing, which is how it hid for weeks. `routesEnabled()` only checks that a key string exists, so an un-enabled Routes API (HTTP 404) silently fell back to OSRM totals while the summaries stayed Google-baselined. SAR detours are now the geometric spur against the same polyline the search ran on (`spurKm`, google.ts); leg0 remains the road position. The invariant to pin in any future detour source: **a place on the drawn road must read ≈0**, and it must hold on a 1,000+ km corridor, not a 50 km fixture. (#187)
@@ -739,6 +801,58 @@ name the mechanism or keep reproducing — never just re-run until green.
 
 - **Vendored ripgrep can be missing in the desktop environment — `code_search` fails with ENOENT (`rg.exe` not found).** Don't retry it; fall back to `grep -n` / `awk` in the shell, which answer the same question.
 - **Release tags are not automatic — they were skipped after v0.44.0.** `git tag` stopped at v0.44.0 while `package.json` climbed to 0.47.0 and nothing in the gate reads tags, so nobody noticed. Verify tag state with `git tag --sort=-creatordate | head` when a release claims to be tagged; backfilling needs an explicit tag push to the remote.
+
+- **`.card + .card { margin-top: 14px }` also matches GRID items — every new grid of `.card`s shoes it the same way.**
+  A grid already spaces its items with `gap`, so the stacked-card beat double-applied: in a row of peers every card
+  after the first rendered 14px lower *and* 14px shorter (live measure: tops 839/853, heights 477/463, and 26px of
+  space where the grid declared 12). It is invisible to tsc, to every test and to the build because nothing renders
+  these pages in CI, and it reads as "the cards look oddly placed" rather than as a spacing bug. `.explore-grid > .card
+  + .card` and `.two-col > .card + .card` zero it; **when you add a grid whose children are `.card`s, add it to that
+  selector list** (Explore, CreatorPage, TripsList and the public page's Travel-tips/Warnings row are covered).
+  Related: a two-column grid nested inside a content column keeps the `1fr 340px` sidebar width it doesn't have —
+  peer content in a row wants `.two-col--even` (1fr/1fr), not the sidebar shape. This pair is pinned by
+  `tests/public-surface-guardrails.test.ts`.
+
+- **`animation-fill-mode: both` outranks a `:hover` declaration, so an entrance animation silently kills hover motion.**
+  `.trip-enter` animated `transform: none` as its last keyframe with `both`, which retained that value forever and beat
+  `.itin-card:hover { translateY(-2px) }` — a shelf card answered the pointer with a shadow change and no movement while
+  the *same component* on a creator page (no `enterIndex`, so never animated) lifted. Use `backwards` when the
+  animation's end state equals the element's own resting state; it applies the `from` state during the stagger delay
+  exactly as `both` did, then releases the property. Debugging tell: compare the same component on a surface that
+  animates it against one that doesn't.
+
+- **A grid or flex item's automatic minimum size is its MIN-CONTENT, so one unbreakable run sets the width of the
+  whole document.** The published page's sticky sidebar held a nowrap share URL in a flex row: that gave the column a
+  **451px floor inside a 362px column**, scrolling the document 75px sideways at a 390px viewport — and the
+  `overflow: hidden` + `text-overflow: ellipsis` the rule already declared could never fire, because the item refused
+  to shrink below its min-content. `min-width: 0` on the grid children (`.two-col > *`) and on the flex item fixes it.
+  Two corollaries: the fix belongs at the *container* level (setting it on the inner `<code>` alone changed nothing —
+  the column's floor is what overflows), and **diagnose it with `document.documentElement.scrollWidth - clientWidth`
+  plus a `getBoundingClientRect().right > viewport` sweep**, not by eye — the widest offender here was an 8px-wide
+  visible element sitting inside an invisible 451px floor.
+
+- **A container's `overflow: hidden` deletes absolutely-positioned children that "hang" past its edge — and the
+  geometry reads as fine until you hit-test.** `.pub-hero-stats` was positioned at `bottom: -66px` over a hero with
+  `overflow: hidden`: its box measured 507→720 against a clip at 654, so the bottom two of its four evidence rows
+  were never painted and `elementFromPoint` at their centres returned the Save/Fork buttons *underneath*. Two tells:
+  a `getBoundingClientRect()` box that exceeds its nearest clipping ancestor, and rows whose hit-test result is a
+  sibling surface. Check for a negative offset over a clipping ancestor whenever a floating card sits on a fold —
+  and if the design intends the straddle, the reserve/clearance must move with it (here the card was brought inside
+  instead: `bottom: 16px` with the hero's bottom padding grown to match, so nothing moves on screen except the clip).
+
+- **A responsive rung placed BEFORE a wider one loses to it — media-query order is the cascade, not specificity.**
+  A `@media (max-width: 360px)` block written above the `<=480` and `<=720` blocks applied only the one declaration
+  those blocks don't themselves set; everything they touch won. Rungs go in **descending-width order** (or the narrow
+  one last), and a comment saying "placed after X on purpose" is cheaper than rediscovering it. The related trap: a
+  shared selector *list* (`A, B, C { … }`) and a later per-class rule have equal specificity, so the later one wins and
+  silently overrides the recipe — when routing an existing class through a shared recipe, **delete its own
+  declarations in the same edit**, don't just add it to the list.
+
+- **A guardrail regex anchored on `\.class \{` also matches the TAIL of a shared selector list.** `.poi-grp-k, .poi-reason-k {` contains `.poi-reason-k {`, so a rule-extraction pattern written for "this class's own rule" read the shared recipe's declarations back as the class's own and reported a phantom violation — and the inverse: a teeth-test can pass for the wrong reason. Anchor to the start of a line (`^` with the `m` flag) in a one-rule-per-line stylesheet, and confirm each class has exactly one rule before trusting the pattern.
+
+- **A gate's baseline key decides whether it churns — key by VALUE when the offender set is stable, by LINE when it is a set.** The contrast/duration keys are line-numbered, so *every* CSS insertion anywhere above them fails the gate with phantom "new violations" and forces a re-baseline (documented, twice-hit). For the spacing ratchet that would have meant 409 line-keyed entries churning on every edit, so it keys `property: value` instead (76 stable pairs): immune to line shifts, and still shrink-only. The trade-off is explicit — it forbids *new off-ladder values*, not a new use of an already-tolerated one. Zero is exempt (`margin: 0px` is not rhythm).
+
+- **To verify a cascade on a surface you cannot sign into, inject a probe element and read `getComputedStyle`.** The map rail's labels need a signed-in trip, so the computed style was read by appending a detached `<span class="poi-grp-k">` to the live page and reading back `fontSize`/`fontWeight`/`letterSpacing`/`textTransform` — which is how the routing was proven to *take effect* (10.5px / 700 / 0.63px) rather than merely to be declared, and how the one-class list-override trap above would have shown up. `agent-browser eval` takes the JS as its argument (there is no `--file`), and the DOM injection leaves the repo untouched (`index.html` stays byte-clean).
 
 - **Wikimedia serves only the thumbnail widths it has generated — a composed width answers 400.** Auto covers read the REST summary's `originalimage`/`thumbnail`, which is either the *unscaled* upload or a 3840px thumb (1.3–3.3 MB measured across real destinations), so the obvious fix — build `…/thumb/<h>/<hh>/<File>/1200px-<File>` — 400s on **both** `upload.` and `thumb.wikimedia.org`, and so does substituting the width into a URL the API itself returned. The supported route is `Special:Redirect/file/<File>?width=N`, which 301s to the nearest size that exists (1200 → 1280) and measured 144 KB where the original was 1304 KB. Two corollaries when matching these paths: strip the `?utm_*` query the API appends (it is captured as part of the file name otherwise and produces a nonsense URL), and take the file name **exactly as it arrives** — it is already percent-encoded, so decoding then re-encoding double-escapes `Telkupi%2C_Purulia.jpg`. `lib/tripThumb.ts` `COVER_WIDTH` is the single lever if a future cover exceeds the 600 KB preview ceiling.
 

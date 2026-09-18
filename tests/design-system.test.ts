@@ -518,6 +518,43 @@ describe('motion vocabulary: durations come from the tokens', () => {
   })
 })
 
+describe('spacing rhythm: new values land on the documented ladder', () => {
+  // DESIGN_TOKENS.md's `--s-1…--s-8` set was deleted in SYS-2 because nothing
+  // routed through it, which left the app with no enforceable rhythm at all —
+  // hundreds of declarations carry a value the ladder does not contain, and
+  // 10px and 9px between them are the app's *de facto* beat rather than an
+  // oversight. Rewriting every literal in one sweep is unverifiable (the
+  // workspace tabs need a signed-in trip), so the drift is FROZEN instead: a
+  // new off-ladder value fails the build, and re-baselining is the same env var
+  // the contrast and duration gates use. The ladder is the documented one plus
+  // the two beats the editorial family already shares — 14 (two cards in a
+  // column) and 22 (two sections). `border-radius` and friends are not spacing
+  // and are not read.
+  //
+  // Keyed by `property: value`, NOT by line (unlike the other gates): the frozen
+  // set (76 pairs at the time of writing) is immune to the line-number churn
+  // that makes every CSS
+  // insertion force a re-baseline, and the set may only shrink — retiring one of
+  // these values means deleting its entry, after which it can never come back.
+  const LADDER = new Set([2, 4, 6, 8, 12, 14, 16, 20, 22, 24])
+  const SPACING = /^(gap|row-gap|column-gap|margin|padding)(-top|-bottom|-left|-right)?$/
+
+  it('introduces no new off-ladder spacing', () => {
+    const offenders = new Set<string>()
+    for (const rule of cssRules) {
+      for (const [prop, value] of declMap(rule.body)) {
+        if (!SPACING.test(prop)) continue
+        for (const m of value.matchAll(/(?<![\d.])(\d+(?:\.\d+)?)px/g)) {
+          const n = parseFloat(m[1])
+          if (n === 0 || LADDER.has(n)) continue
+          offenders.add(`${prop}: ${m[0]}`)
+        }
+      }
+    }
+    ratchet('offLadderSpacing', [...offenders])
+  })
+})
+
 describe('categorical palettes: hues stay distinguishable', () => {
   // Colour-coded categories must not collide: two "days" or two expense categories
   // sharing a hue are indistinguishable in a legend, however different their

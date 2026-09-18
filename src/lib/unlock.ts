@@ -24,7 +24,10 @@ import { toast } from '../components/ui'
 
 declare global {
   interface Window {
-    Razorpay?: new (options: Record<string, unknown>) => { open: () => void }
+    Razorpay?: new (options: Record<string, unknown>) => {
+      open: () => void
+      on?: (event: string, handler: (response: unknown) => void) => void
+    }
   }
 }
 
@@ -145,6 +148,14 @@ export async function purchaseUnlock(input: {
       theme: { color: '#e07a3f' },
       handler: (response: Record<string, string>) => resolve(response),
       modal: { ondismiss: () => resolve(null) },
+    })
+    // payment.failed: a declined card or a gateway rejection closes the modal
+    // WITHOUT calling handler or ondismiss — without this the promise never
+    // resolves and the Unlock button stays stuck on "Opening payments…".
+    checkout.on?.('payment.failed', (response: unknown) => {
+      const description = (response as { error?: { description?: string } } | null)?.error?.description
+      toast(description || 'The payment failed — no money was taken. Try again.', 'err')
+      resolve(null)
     })
     checkout.open()
   })

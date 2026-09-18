@@ -18,11 +18,14 @@
 -- Apply order: standalone; depends on no other migration.
 
 -- 1. Orders ----------------------------------------------------------------
+-- Buyer identity: profiles.id mirrors auth.users.id (the DB trigger that
+-- creates the profile row uses the auth id as its PK), so a purchase order
+-- references public.profiles directly.
 
 create table if not exists public.purchase_orders (
   id uuid primary key default gen_random_uuid(),
   created_at timestamptz not null default now(),
-  user_id uuid not null references public.users (id) on delete cascade,
+  user_id uuid not null references public.profiles (id) on delete cascade,
   pub_id text not null references public.published_itineraries (id) on delete cascade,
   -- Gateway truth:
   razorpay_order_id text not null unique,
@@ -48,7 +51,7 @@ create table if not exists public.entitlements (
   -- distinct from purchase_orders.paid_at, which is when the gateway
   -- captured the money.
   granted_at timestamptz not null default now(),
-  user_id uuid not null references public.users (id) on delete cascade,
+  user_id uuid not null references public.profiles (id) on delete cascade,
   pub_id text not null references public.published_itineraries (id) on delete cascade,
   order_id uuid not null references public.purchase_orders (id) on delete cascade,
   amount_paid_inr integer not null check (amount_paid_inr >= 1),

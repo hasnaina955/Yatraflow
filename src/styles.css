@@ -3359,7 +3359,7 @@ html.vt-active :where(*) {
   padding: 2px 7px; border-radius: 999px;
   background: var(--bg-soft); color: var(--text-2);
 }
-.bench-mode-btn.on .bench-mode-speed { background: rgba(255, 255, 255, .22); color: #fff; }
+.bench-mode-btn.on .bench-mode-speed { background: transparent; color: #fff; }
 .bench-hint { font-size: 12px; color: var(--text-3); margin: 0; }
 
 /* stay style: vertical rate rows, selected = teal outline + tint */
@@ -3727,7 +3727,7 @@ html.vt-active :where(*) {
 .bench-surprise:disabled { opacity: .65; cursor: default; }
 /* Surprise sits beside the preset chips as a tertiary action — outline with an
    amber accent instead of a filled pill that out-shouts its neighbours. */
-.bench-surprise { border-color: var(--yf-amber); color: var(--warn); }
+.bench-surprise { border-color: var(--yf-amber); color: var(--ink-amber); }
 .bench-surprise .bench-dice { color: var(--yf-amber); }
 
 /* copy celebration — confetti + copied tint */
@@ -5500,7 +5500,8 @@ html.native-shell {
 [data-motion-paused='true'] .budget-bar-fill::after,
 [data-motion-paused='true'] .daybar-fill::after,
 [data-motion-paused='true'] .yf-map-pin-idea,
-[data-motion-paused='true'] .yf-live-pulse { animation-play-state: paused; }
+[data-motion-paused='true'] .yf-live-pulse,
+[data-motion-paused='true'] .ticker-track { animation-play-state: paused; }
 /* Coarse desktop pointers also need the floor; pseudo-extensions alone cannot
    make an 18px quick-add reach 40px, and map control groups clip extensions. */
 @media (pointer: coarse) {

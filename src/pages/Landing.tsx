@@ -1,7 +1,7 @@
 // ============ Landing page ============
-import { useEffect, type ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 import { ArrowDown, ArrowRight, MapPin, Plane, Rocket, Route, Users, Zap } from 'lucide-react'
-import { RouteSquiggle } from '../components/ui'
+import { RouteSquiggle, useInView, usePageVisible } from '../components/ui'
 import { PlanBench } from '../components/PlanBench'
 import { scrollBehavior } from '../lib/motion'
 import { useDb, currentUser } from '../store/store'
@@ -166,7 +166,9 @@ function useReveal() {
 }
 
 /** Destination marquee: two identical tracks translate -50% for a seamless,
- *  fully-CSS infinite loop. Hover pauses. Mixes common + offbeat Indian spots. */
+ *  fully-CSS infinite loop. Hover pauses, and so does the page being offscreen
+ *  or hidden — a nonessential loop must not keep the compositor busy. Mixes
+ *  common + offbeat Indian spots. */
 const DESTINATIONS: Array<{ label: string; tag: string; off?: boolean }> = [
   { label: 'Goa', tag: 'Beach' },
   { label: 'Leh · Ladakh', tag: 'High route' },
@@ -185,6 +187,9 @@ const DESTINATIONS: Array<{ label: string; tag: string; off?: boolean }> = [
 ]
 
 function DestTicker() {
+  const ref = useRef<HTMLDivElement>(null)
+  const inView = useInView(ref)
+  const visible = usePageVisible()
   const set = (dup: boolean) => (
     <div className="ticker-set" aria-hidden={dup || undefined}>
       {DESTINATIONS.map(({ label, tag, off }, i) => (
@@ -204,7 +209,8 @@ function DestTicker() {
     </div>
   )
   return (
-    <div className="dest-ticker" role="region" aria-label="Popular and offbeat Indian travel destinations">
+    <div className="dest-ticker" role="region" aria-label="Popular and offbeat Indian travel destinations"
+      ref={ref} data-motion-paused={!inView || !visible}>
       <div className="ticker-track">
         {set(false)}
         {set(true)}

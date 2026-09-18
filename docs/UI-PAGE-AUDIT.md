@@ -7,6 +7,19 @@
 > (Liberty basemap + map view modes) both reshaped the file and `TripMap.tsx`. Re-locate a rule by
 > its **selector**, not its line number, and re-measure any value before acting on it — several
 > rows (the map basemap, drag-motion, `--t-*` tokens) are already superseded by shipped work.
+>
+> **Token-reference correction (current CSS, not a rewrite of the v0.50.2 audit):**
+> the type/spacing-scale findings below are historical, not current declarations.
+> Only `--text-xs: 11px` remains (one declaration, one `var()` consumer);
+> the other seven documented type steps and all seven spacing steps each have
+> zero declarations and zero usages. The CSS records their deletion
+> (`src/styles.css:5198,5202–5208`, reconciliation snapshot). Likewise the old
+> light-primary `#0D8D82` findings are superseded: primary now maps to
+> `--teal-600` / `#0E7A72`, hover to `--teal-700`, active to literal `#095750`
+> (`src/styles.css:18–20,109–115`; one light declaration each). The incumbent
+> kicker recipe includes `.eyebrow` (`src/styles.css:5250–5263`, same snapshot).
+> Do not restore the deleted scales or reverse the contrast fix from these rows;
+> use `DESIGN_TOKENS.md` for the current inventory and legacy-kicker exception.
 
 **Started:** 2026-09-12 · `main` = `test` = `f754b7e` (release v0.50.2)
 **Method:** rule-by-rule pass against the project's own design language — `src/styles.css` token system,

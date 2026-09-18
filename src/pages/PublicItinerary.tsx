@@ -138,7 +138,6 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
   // Past the gate every memo is fully computed — narrowed aliases keep the
   // rest of the body honest without re-checking `trip` everywhere.
   const totalsN = totals!
-  const orderedDaysN = orderedDays
   const routePointsN = routePoints
   const highlightsN = highlights
 
@@ -179,15 +178,15 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
     toast(nowSaved ? 'Saved to this browser.' : 'Removed from saved itineraries.')
   }
 
-  // (totals/orderedDaysN/routePointsN/highlightsN are computed by the guarded
-  //  hooks above the gate — totalsN/orderedDaysN/routePointsN/highlightsN.)
+  // (totals/routePoints/highlights are computed by the guarded hooks above the
+  //  gate — totalsN/routePointsN/highlightsN.)
 
   return (
     <div>
       {/* ---- Editorial hero: destination-led, creator-attributed (§6.11) ---- */}
       <section className="pub-hero">
         {pub.coverImageUrl || heroAuto
-          ? <img className="pub-hero-photo" src={pub.coverImageUrl || heroAuto!} alt="" aria-hidden="true" />
+          ? <img className="pub-hero-photo" src={pub.coverImageUrl || heroAuto!} alt="" aria-hidden="true" width={1600} height={900} loading="eager" decoding="async" />
           : null}
         <div className="pub-hero-bg" aria-hidden="true" />
         <div className="container pub-hero-inner">
@@ -201,7 +200,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
           <p className="pub-hero-story">{pub.tagline}</p>
           <p className="pub-hero-byline">
             By {creator?.profile.name ?? 'a YatraFlow traveller'} · {pub.durationDays} days · {trip.travellers} travellers · {cap(trip.transportMode)}
-            {creator?.profile.isCreator && <> · <Sparkles size={11} aria-hidden style={{ verticalAlign: '-1px', margin: '0 2px' }} />Verified creator</>}
+            {creator?.profile.isCreator && <> · <Sparkles size={11} aria-hidden style={{ verticalAlign: '-1px', margin: '0 2px' }} />Creator</>}
           </p>
         </div>
         {/* "The practical bit" — the evidence cluster, floating over the hero */}

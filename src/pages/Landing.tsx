@@ -1,7 +1,7 @@
 // ============ Landing page ============
-import { useEffect, type ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 import { ArrowDown, ArrowRight, MapPin, Plane, Rocket, Route, Users, Zap } from 'lucide-react'
-import { RouteSquiggle } from '../components/ui'
+import { RouteSquiggle, useInView, usePageVisible } from '../components/ui'
 import { PlanBench } from '../components/PlanBench'
 import { scrollBehavior } from '../lib/motion'
 import { useDb, currentUser } from '../store/store'
@@ -58,7 +58,7 @@ export function LandingPage({ onNavigate }: { onNavigate: (r: string) => void })
                 <span className="hbc-arrow"><ArrowDown size={14} aria-hidden /></span>
               </span>
             </button>
-            <p className="small muted hero-rise rise-d5" style={{ marginTop: 16 }}>No card needed · Free forever · Your planning data is yours</p>
+            <p className="small muted hero-rise rise-d5" style={{ marginTop: 16 }}>No card needed · Free to plan · Your planning data is yours</p>
             {/* Invite-code entry: friends who got a code (not a link) land here
                 and type it in — routes to #/join/<code>, which previews the trip
                 and asks for login only if needed. */}
@@ -126,7 +126,7 @@ export function LandingPage({ onNavigate }: { onNavigate: (r: string) => void })
             A 4-day Kerala road trip (Kochi → Munnar → Thekkady → Alleppey) with real stops, timings,
             votes, decisions and budgets — loaded into your account the moment you sign up.
           </p>
-          <DemoButtons onNavigate={onNavigate} />
+          <DemoButtons />
         </div>
       </section>
 
@@ -166,7 +166,9 @@ function useReveal() {
 }
 
 /** Destination marquee: two identical tracks translate -50% for a seamless,
- *  fully-CSS infinite loop. Hover pauses. Mixes common + offbeat Indian spots. */
+ *  fully-CSS infinite loop. Hover pauses, and so does the page being offscreen
+ *  or hidden — a nonessential loop must not keep the compositor busy. Mixes
+ *  common + offbeat Indian spots. */
 const DESTINATIONS: Array<{ label: string; tag: string; off?: boolean }> = [
   { label: 'Goa', tag: 'Beach' },
   { label: 'Leh · Ladakh', tag: 'High route' },
@@ -185,6 +187,9 @@ const DESTINATIONS: Array<{ label: string; tag: string; off?: boolean }> = [
 ]
 
 function DestTicker() {
+  const ref = useRef<HTMLDivElement>(null)
+  const inView = useInView(ref)
+  const visible = usePageVisible()
   const set = (dup: boolean) => (
     <div className="ticker-set" aria-hidden={dup || undefined}>
       {DESTINATIONS.map(({ label, tag, off }, i) => (
@@ -204,7 +209,8 @@ function DestTicker() {
     </div>
   )
   return (
-    <div className="dest-ticker" role="region" aria-label="Popular and offbeat Indian travel destinations">
+    <div className="dest-ticker" role="region" aria-label="Popular and offbeat Indian travel destinations"
+      ref={ref} data-motion-paused={!inView || !visible}>
       <div className="ticker-track">
         {set(false)}
         {set(true)}
@@ -288,7 +294,7 @@ function BirdsSvg() {
   )
 }
 
-function DemoButtons({ onNavigate }: { onNavigate: (r: string) => void }) {
+function DemoButtons() {
   return (
     <div className="cta-buttons">
       <a className="btn btn-navy btn-lg" href="#/auth?mode=signup">

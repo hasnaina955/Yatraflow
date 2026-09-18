@@ -50,7 +50,7 @@ export function PubCard({ pub, creator, saved, onFork, onToggleSave, enterIndex 
       </a>
       <div className="row-between itin-meta">
         <a className="creator-line" href={`#/creator/${pub.creatorId}`} aria-label={`View ${creator?.profile.name ?? 'creator'}'s page`}>
-          <Avatar user={creator} />{creator?.profile.name ?? 'Creator'}{creator?.profile.isCreator && <span title="Verified creator" style={{ display: 'inline-flex', verticalAlign: '-2px', marginLeft: 2 }}><Sparkles size={12} aria-hidden /></span>}
+          <Avatar user={creator} />{creator?.profile.name ?? 'Creator'}{creator?.profile.isCreator && <span title="Creator" style={{ display: 'inline-flex', verticalAlign: '-2px', marginLeft: 2 }}><Sparkles size={12} aria-hidden /></span>}
         </a>
         <button className="btn btn-primary btn-sm" onClick={onFork}>Fork this trip</button>
       </div>

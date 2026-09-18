@@ -4,7 +4,7 @@
 // expenses + drive against the daily average; expense lines gain an inline
 // quick-add, in-place editing (updateExpense) and a paid-by tag that powers a
 // who-paid/who-owes balances card with the simplest settlement.
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import {
   BedDouble, Car, Fuel, LifeBuoy, Mountain, MoreHorizontal, Pencil,
@@ -20,7 +20,7 @@ import {
 import { computeTotals, getAssumptions, formatInr, isRoundTrip, safeToSpendPerDay } from '../../lib/engine'
 import { loadFlag, saveFlag } from '../../lib/uiPrefs'
 import { titleCase } from '../../lib/labels'
-import { Avatar, Chip, Field, StatTile, toast, undoToast } from '../../components/ui'
+import { Avatar, Chip, Field, StatTile, toast, undoToast, useInView, usePageVisible } from '../../components/ui'
 
 // ================= Budget tab =================
 
@@ -128,6 +128,15 @@ function ExpenseFormFields({ trip, members, form, setForm }: {
 const OPTIONAL_WATCH_PCT = 20
 
 export function BudgetTab({ trip, totals, editable }: { trip: Trip; totals: ReturnType<typeof computeTotals>; editable: boolean }) {
+  const visible = usePageVisible()
+  const dayBarsRef = useRef<HTMLDivElement>(null)
+  const categoryBarsRef = useRef<HTMLDivElement>(null)
+  const heroRef = useRef<HTMLDivElement>(null)
+  const optionalBarsRef = useRef<HTMLDivElement>(null)
+  const daysInView = useInView(dayBarsRef)
+  const categoriesInView = useInView(categoryBarsRef)
+  const heroInView = useInView(heroRef)
+  const optionalInView = useInView(optionalBarsRef)
   const db = useDb()
   const me = currentUser(db)
   const members = trip.members ?? []
@@ -209,7 +218,7 @@ export function BudgetTab({ trip, totals, editable }: { trip: Trip; totals: Retu
             <p className="hint-text" style={{ margin: '4px 0 14px' }}>
               Day expenses + that day’s drive{avg > 0 && <> · <span className="avg-key" aria-hidden /> tick = daily average ({formatInr(avg)})</>}{avg > 0 && <> · <span className="daybar-over" aria-hidden>▲</span> = over the average</>}
             </p>
-            <div className="daybars">
+            <div className="daybars" ref={dayBarsRef} data-motion-paused={!visible || !daysInView}>
               {days.map(d => {
                 const over = avg > 0 && d.totalInr > avg * 1.15
                 return (
@@ -246,7 +255,7 @@ export function BudgetTab({ trip, totals, editable }: { trip: Trip; totals: Retu
                 <> Stay is priced from your hotel stops: {totals.lodgingNights} overnight base{totals.lodgingNights !== 1 ? 's' : ''} — the drive needs a stay — × {totals.lodgingRooms} room{totals.lodgingRooms !== 1 ? 's' : ''} × ₹{totals.lodgingRatePerNight.toLocaleString('en-IN')}/night.</>
               )}
             </p>
-            <div className="budget-bars catbars">
+            <div className="budget-bars catbars" ref={categoryBarsRef} data-motion-paused={!visible || !categoriesInView}>
               {cats.map(([c, v]) => {
                 const meta = CAT_META[c]
                 const Icon = meta.icon
@@ -276,7 +285,7 @@ export function BudgetTab({ trip, totals, editable }: { trip: Trip; totals: Retu
             {trip.expenses.length === 0
               ? <p className="muted small">No expense lines yet — add the big ones first (stay, fuel, food).</p>
               : (
-                <table className="compare-table expense-table">
+                <table className="compare-table expense-table" tabIndex={0} aria-label="Expense lines">
                   <thead><tr><th>Line</th><th>Paid by</th><th className="num">Amount</th><th><span className="sr-only">Actions</span></th></tr></thead>
                   <tbody>
                     {trip.expenses.map(e => {
@@ -331,7 +340,7 @@ export function BudgetTab({ trip, totals, editable }: { trip: Trip; totals: Retu
         </div>
 
         <div>
-          <div className="budget-hero">
+          <div className="budget-hero" ref={heroRef} data-motion-paused={!visible || !heroInView}>
             <span className="budget-hero-label">Group budget</span>
             <div className="budget-hero-num">{formatInr(totals.totalCostInr)}</div>
             <div className="budget-hero-sub">
@@ -389,7 +398,7 @@ export function BudgetTab({ trip, totals, editable }: { trip: Trip; totals: Retu
           <div className="card" style={{ marginTop: trip.travellers >= 2 ? 14 : 0 }}>
             <h3>Essential vs optional</h3>
             <hr className="divider" />
-            <div className="budget-bars">
+            <div className="budget-bars" ref={optionalBarsRef} data-motion-paused={!visible || !optionalInView}>
               <div className="budget-bar-row">
                 <span>Essential</span>
                 <div className="budget-bar-track"><div className="budget-bar-fill" style={{ width: `${(totals.essentialInr / Math.max(1, totals.totalCostInr)) * 100}%`, background: 'var(--teal)' }} /></div>

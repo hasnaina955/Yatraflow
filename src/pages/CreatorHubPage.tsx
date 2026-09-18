@@ -13,6 +13,19 @@ import { fetchCreatorSales } from '../lib/unlock'
 import { formatInr } from '../lib/engine'
 import { Chip, ConfirmDialog, Field, toast } from '../components/ui'
 
+/** Social links are stored raw and later emitted as an `href`, so a non-URL
+ *  value becomes a live broken link. The inputs are `type="url"` but sit
+ *  outside a form, so the browser never validates them — do it here. Accept an
+ *  empty value (clearing is fine) or anything that parses as http/https. */
+function isValidSocialUrl(v: string): boolean {
+  try {
+    const u = new URL(v)
+    return u.protocol === 'http:' || u.protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
 export function CreatorHubPage({ onNavigate }: { onNavigate: (r: string) => void }) {
   const db = useDb()
   const me = currentUser(db)
@@ -21,6 +34,7 @@ export function CreatorHubPage({ onNavigate }: { onNavigate: (r: string) => void
   const [creatorBio, setCreatorBio] = useState(me?.profile.creatorBio ?? '')
   const [youtube, setYoutube] = useState(me?.profile.socialLinks?.youtube ?? '')
   const [instagram, setInstagram] = useState(me?.profile.socialLinks?.instagram ?? '')
+  const [socialErrors, setSocialErrors] = useState<{ youtube?: string; instagram?: string }>({})
   const [confirmDisable, setConfirmDisable] = useState(false)
   const [unpubTarget, setUnpubTarget] = useState<PublishedItinerary | null>(null)
   const [hubTab, setHubTab] = useState<'overview' | 'earnings'>('overview')
@@ -52,9 +66,9 @@ export function CreatorHubPage({ onNavigate }: { onNavigate: (r: string) => void
 
       {!me.profile.isCreator ? (
         <div className="card">
-          <h3>Creator mode</h3>
+          <h2 className="card-title">Creator mode</h2>
           <p className="hint-text" style={{ margin: '6px 0 12px' }}>
-            Creator mode is a trust and branding badge: your bio and social links appear on the itineraries you publish, and you get a public creator page others can follow.
+            Creator mode is a branding badge: your bio and social links appear on the itineraries you publish, and you get a public creator page others can follow.
           </p>
           <button className="btn btn-saffron" onClick={() => { updateProfile({ isCreator: true }); toast('Creator mode enabled — your bio and links now show on published itineraries.') }}>
             Enable creator mode
@@ -64,24 +78,32 @@ export function CreatorHubPage({ onNavigate }: { onNavigate: (r: string) => void
         <>
           <div className="card">
             <div className="row-between">
-              <h3>Creator mode</h3>
+              <h2 className="card-title">Creator mode</h2>
               <Chip tone="ok">Enabled</Chip>
             </div>
             <p className="hint-text" style={{ margin: '6px 0 12px' }}>
               Publishing to Explore is open to everyone — do it from any trip&apos;s Share tab.
-              Creator mode is a trust and branding badge: your bio and social links appear
+              Creator mode is a branding badge: your bio and social links appear
               on the itineraries you publish.
             </p>
             <Field label="Creator bio"><textarea className="textarea" value={creatorBio} onChange={e => setCreatorBio(e.target.value)} placeholder="Tell readers who you are and why they should trust your routes." /></Field>
             <div className="form-row">
-              <Field label="YouTube link"><input className="input" type="url" inputMode="url" value={youtube} onChange={e => setYoutube(e.target.value)} placeholder="https://youtube.com/@…" /></Field>
-              <Field label="Instagram link"><input className="input" type="url" inputMode="url" value={instagram} onChange={e => setInstagram(e.target.value)} placeholder="https://instagram.com/…" /></Field>
+              <Field label="YouTube link" error={socialErrors.youtube}><input className="input" type="url" inputMode="url" value={youtube} onChange={e => { setYoutube(e.target.value); if (socialErrors.youtube) setSocialErrors(s => ({ ...s, youtube: undefined })) }} placeholder="https://youtube.com/@…" /></Field>
+              <Field label="Instagram link" error={socialErrors.instagram}><input className="input" type="url" inputMode="url" value={instagram} onChange={e => { setInstagram(e.target.value); if (socialErrors.instagram) setSocialErrors(s => ({ ...s, instagram: undefined })) }} placeholder="https://instagram.com/…" /></Field>
             </div>
             <button className="btn btn-primary btn-sm" onClick={() => {
+              const yt = youtube.trim()
+              const ig = instagram.trim()
+              const nextErrors = {
+                youtube: yt && !isValidSocialUrl(yt) ? 'Enter a full link starting with http:// or https://' : undefined,
+                instagram: ig && !isValidSocialUrl(ig) ? 'Enter a full link starting with http:// or https://' : undefined,
+              }
+              setSocialErrors(nextErrors)
+              if (nextErrors.youtube || nextErrors.instagram) return
               updateProfile({
                 creatorBio: creatorBio.trim() || undefined,
-                socialLinks: (youtube.trim() || instagram.trim())
-                  ? { youtube: youtube.trim() || undefined, instagram: instagram.trim() || undefined }
+                socialLinks: (yt || ig)
+                  ? { youtube: yt || undefined, instagram: ig || undefined }
                   : undefined,
               })
               toast('Creator profile saved')
@@ -94,7 +116,7 @@ export function CreatorHubPage({ onNavigate }: { onNavigate: (r: string) => void
 
           <div className="card stack-gap">
             <div className="row-between">
-              <h3>My publications</h3>
+              <h2 className="card-title">My publications</h2>
               {myPubs.length > 0 && (
                 <a className="small" href={`#/creator/${me.id}`} style={{ fontWeight: 600 }}>
                   <ExternalLink size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />View public page
@@ -245,7 +267,7 @@ function EarningsTab({ myPubs, sales, salesError, onRetry, view, onView }: {
           </>
         ) : actual.rows.length === 0 ? (
           <>
-            <table className="compare-table pub-ledger">
+            <table className="compare-table pub-ledger" tabIndex={0} aria-label="Sales ledger">
               <thead><tr><th>Date</th><th>Itinerary</th><th className="num">Amount paid</th><th className="num">Net*</th></tr></thead>
               <tbody>
                 <tr><td colSpan={4} className="empty-ledger">No sales yet</td></tr>
@@ -259,7 +281,7 @@ function EarningsTab({ myPubs, sales, salesError, onRetry, view, onView }: {
           </>
         ) : (
           <>
-            <table className="compare-table pub-ledger">
+            <table className="compare-table pub-ledger" tabIndex={0} aria-label="Sales ledger">
               <thead><tr><th>Date</th><th>Itinerary</th><th className="num">Amount paid</th><th className="num">Net*</th></tr></thead>
               <tbody>
                 {actual.rows.map(r => (
@@ -290,7 +312,7 @@ function EarningsTab({ myPubs, sales, salesError, onRetry, view, onView }: {
         </div>
       ) : (
         <>
-          <table className="compare-table pub-ledger">
+          <table className="compare-table pub-ledger" tabIndex={0} aria-label="Projection ledger">
             <thead><tr><th>Itinerary</th><th className="num">Price</th><th className="num">Forks</th><th className="num">If all unlocked</th><th className="num">Net*</th></tr></thead>
             <tbody>
               {projection.rows.map(r => (

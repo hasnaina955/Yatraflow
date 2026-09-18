@@ -26,7 +26,7 @@ import {
 } from '../lib/planBench'
 import type { StayStyle } from '../data/types'
 import { shareBillImage } from '../lib/billCapture'
-import { toast, useMedia, Odometer } from './ui'
+import { toast, useMedia, usePageVisible, Odometer } from './ui'
 import { haptic, HAPTIC } from '../lib/haptics'
 
 // useMedia + Odometer live in ui.tsx now: the odometer is the app's money
@@ -143,6 +143,7 @@ export function PlanBench() {
   const [capturing, setCapturing] = useState(false)
 
   const reduced = useMedia('(prefers-reduced-motion: reduce)')
+  const visible = usePageVisible()
   const pointerFine = useMedia('(pointer: fine)')
   const animate = !reduced
 
@@ -330,7 +331,7 @@ export function PlanBench() {
   const stampTone = shown.fatigue.tone
 
   return (
-    <section className={`container plan-bench${live ? ' bench-live' : ''}${inView ? ' bench-inview' : ''}`} id="plan-bench" aria-label="Trip cost calculator" ref={sectionRef}>
+    <section className={`container plan-bench${live ? ' bench-live' : ''}${inView && visible ? ' bench-inview' : ''}`} id="plan-bench" aria-label="Trip cost calculator" ref={sectionRef}>
       <div className="bench-blob bench-blob-a" aria-hidden="true" />
       <div className="bench-blob bench-blob-b" aria-hidden="true" />
       <h2 className="section-title bench-title" style={{ marginBottom: 4 }}>

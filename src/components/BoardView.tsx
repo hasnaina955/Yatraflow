@@ -8,7 +8,7 @@ import {
   ArrowLeft, ChevronDown, ChevronUp, LocateFixed, Map as MapIcon, MoveHorizontal,
   Plus, Trash2, TriangleAlert,
 } from 'lucide-react'
-import { motionTiming, prefersReducedMotion } from '../lib/motion'
+import { prefersReducedMotion } from '../lib/motion'
 import type { Trip, ItineraryStop } from '../data/types'
 import { computeTotals, computeHealth, collectWarnings, minutesToHM, formatInr } from '../lib/engine'
 import type { ScheduleWarning } from '../lib/engine'
@@ -18,7 +18,7 @@ import { stopKindOf, STOP_KIND_LABELS } from '../lib/stopKind'
 import { stopInitialValues, stopLegContext, stopEditorKey, stopDayIndex, type StopEditorTarget } from '../lib/stopForm'
 import { useDb } from '../store/store'
 import { useReorder, Modal } from './ui'
-import { glideOffsetPx, insertionIndexFor, rowLayoutBoxes } from '../lib/touchDnd'
+import { glideOffsetPx, insertionIndexFor, rowLayoutBoxes, cancelRowSettle, cancelListSettles, settleRow } from '../lib/touchDnd'
 import { TripMap } from './TripMap'
 import { StopEditor, type StopFormValues } from './StopEditor'
 
@@ -344,8 +344,11 @@ function BoardColumn({ day, allDays, editable, warnings, focused, onToggleFocus,
   useLayoutEffect(() => {
     const rootEl = stopsRef.current
     if (!rootEl) return
+    const interrupted = new Map<string, DOMRect>()
     const now = new Map<string, { x: number; y: number }>()
     for (const el of Array.from(rootEl.querySelectorAll<HTMLElement>('[data-stop-id]'))) {
+      const visual = cancelRowSettle(el)
+      if (visual) interrupted.set(el.dataset.stopId!, visual)
       const r = el.getBoundingClientRect()
       now.set(el.dataset.stopId!, { x: r.left, y: r.top })
     }
@@ -356,20 +359,18 @@ function BoardColumn({ day, allDays, editable, warnings, focused, onToggleFocus,
       for (const [id, p] of now) {
         const q = dropped && dropped.id === id ? dropped : prev.get(id)
         if (!q) continue
-        const dx = q.x - p.x
-        const dy = q.y - p.y
+        const visual = interrupted.get(id)
+        const dx = q.x - p.x + (visual && q !== dropped ? visual.left - p.x : 0)
+        const dy = q.y - p.y + (visual && q !== dropped ? visual.top - p.y : 0)
         if (dx || dy) {
-          const timing = motionTiming()
-          rootEl.querySelector<HTMLElement>(`[data-stop-id="${CSS.escape(id)}"]`)
-            ?.animate(
-              [{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }],
-              timing,
-            )
+          const el = rootEl.querySelector<HTMLElement>(`[data-stop-id="${CSS.escape(id)}"]`)
+          if (el && !el.classList.contains('is-carried')) settleRow(el, dx, dy, listId)
         }
       }
     }
     prevRects.current = now
-  }, [ordered])
+  }, [ordered, listId])
+  useLayoutEffect(() => () => cancelListSettles(listId), [listId])
 
   return (
     <div className={`board-col${focused ? ' board-col--focused' : ''}${dragging !== null ? ' drag-live' : ''}`} role="listitem">

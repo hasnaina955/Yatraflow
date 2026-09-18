@@ -7,6 +7,7 @@
 import { haversineKm } from '../geo'
 import { hasCoords, distToNearest, normWords, rankAndCap, type NearbyOpts, type PlaceHit, type HaltPurpose } from './hits'
 import { queriesForPurpose } from '../purposeQueries'
+import { cap } from '../labels'
 
 // Mappls autosuggest (when VITE_MAPPLS_KEY is set) → India's best place/POI
 // coverage. Results carry an eLoc but no coordinates; they are resolved on
@@ -204,7 +205,6 @@ function classifyOsmTags(tags: Record<string, string>): { cat: string; label: st
   const t = tags.tourism
   const nat = tags.natural
   const l = tags.leisure
-  const cap = (s: string) => s.split('_').map(w => w[0]?.toUpperCase() + w.slice(1)).join(' ')
   if (a === 'fuel') return { cat: 'transport-hub', label: 'Petrol pump' }
   if (a === 'place_of_worship') {
     const label = tags.religion === 'muslim' ? 'Mosque' : tags.religion === 'christian' ? 'Church' : 'Temple'
@@ -212,7 +212,10 @@ function classifyOsmTags(tags: Record<string, string>): { cat: string; label: st
   }
   if (nat === 'beach') return { cat: 'beach', label: 'Beach' }
   if (nat === 'waterfall') return { cat: 'nature', label: 'Waterfall' }
-  if (nat) return { cat: 'nature', label: cap(nat) }
+  // Underscore-delimited OSM values read as words ("hot_spring" → "Hot Spring").
+  // Each SEGMENT goes through the shared display formatter, so this file no
+  // longer carries a private capitaliser that can drift from src/lib/labels.ts.
+  if (nat) return { cat: 'nature', label: nat.split('_').map(w => cap(w)).join(' ') }
   if (l === 'park') return { cat: 'nature', label: 'Park' }
   if (l === 'garden') return { cat: 'nature', label: 'Garden' }
   if (l === 'nature_reserve') return { cat: 'nature', label: 'Nature reserve' }

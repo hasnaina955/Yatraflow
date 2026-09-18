@@ -47,7 +47,7 @@ import { googleCitiesAlong } from './providers/google'
 import {
   planRideSegments, assignSegmentHits, annotateSegmentHits, cadenceForCrew, leftoverAsSight,
   preferTownGrade,
-  type SegmentHit, type RideSegment,
+  type SegmentHit,
 } from './ridePlan'
 import { resolveVehicleRange } from './vehicleProfile'
 

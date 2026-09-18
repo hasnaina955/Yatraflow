@@ -1,5 +1,5 @@
 // ============ Stop add/edit modal ============
-import React, { useMemo, useRef, useState } from 'react'
+import React, { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { ItineraryStop, StopCategory, StopStatus, Trip } from '../data/types'
 import { STOP_CATEGORIES, STOP_STATUSES } from '../data/types'
 import { Car } from 'lucide-react'
@@ -77,6 +77,20 @@ export function StopEditor({ open, onClose, initial, resetKey, onSave, dayLabel,
   const [hoursState, setHoursState] = useState<'idle' | 'loading' | 'found' | 'none'>('idle')
   /** "idle" | "loading" — road-leg lookup after picking a place */
   const [legState, setLegState] = useState<'idle' | 'loading'>('idle')
+  const placeRequest = useRef(0)
+  useLayoutEffect(() => {
+    ++placeRequest.current
+    setHoursState('idle')
+    setLegState('idle')
+    return () => { ++placeRequest.current }
+  }, [open, resetKey])
+
+  function invalidatePlaceRequest() {
+    ++placeRequest.current
+    setHoursState('idle')
+    setLegState('idle')
+  }
+
   // re-init when opening for a different stop
   const [lastKey, setLastKey] = useState(resetKey)
   if (open && lastKey !== resetKey) { setLastKey(resetKey); setV(normalize(initial)); setErrs({}); setHoursState('idle'); setLegState('idle') }
@@ -96,6 +110,10 @@ export function StopEditor({ open, onClose, initial, resetKey, onSave, dayLabel,
   })()
 
   async function onPlacePicked(p: PlaceHit) {
+    if (!open) return
+    invalidatePlaceRequest()
+    const request = placeRequest.current
+    const ownsRequest = () => request === placeRequest.current
     set('locationName', p.name + (p.admin1 ? `, ${p.admin1}` : ''))
     set('lat', p.latitude); set('lng', p.longitude); set('geocoded', true)
     set('pickedKind', p.kind)
@@ -108,8 +126,10 @@ export function StopEditor({ open, onClose, initial, resetKey, onSave, dayLabel,
       setLegState('loading')
       try {
         const leg = await roadLegBetween(legContext.fromPoint, { lat: p.latitude, lng: p.longitude }, getAssumptions({ transportMode: legContext.transportMode, fuelEconomyKmL: legContext.fuelEconomyKmL }))
+        if (!ownsRequest()) return
         const perKm = getAssumptions({ transportMode: legContext.transportMode }).inrPerKm ?? 8
         setV(prev => {
+          if (!ownsRequest()) return prev
           const depart = prev.departTime || legContext.dayStart
           return {
             ...prev,
@@ -124,22 +144,24 @@ export function StopEditor({ open, onClose, initial, resetKey, onSave, dayLabel,
       } catch {
         /* leg fill is best-effort — the manual fields still work */
       } finally {
-        setLegState('idle')
+        if (ownsRequest()) setLegState('idle')
       }
     }
+    if (!ownsRequest()) return
     // auto-feed open/close times from OpenStreetMap when the place has them
     if (p.kind === 'poi' && !v.openTime) {
       setHoursState('loading')
       try {
         const hours = await fetchOpeningHours(p.name, p.latitude, p.longitude)
-        if (hours && open) {
+        if (!ownsRequest()) return
+        if (hours) {
           set('openTime', hours.openTime); set('closeTime', hours.closeTime)
           setHoursState('found')
         } else {
           setHoursState('none')
         }
       } catch {
-        setHoursState('none')
+        if (ownsRequest()) setHoursState('none')
       }
     }
   }
@@ -213,7 +235,7 @@ export function StopEditor({ open, onClose, initial, resetKey, onSave, dayLabel,
           <Field label="Location / area" hint={v.geocoded ? 'Pinned to a real place on the map' : 'Start typing and pick a suggestion to pin it on the map'} error={errs.locationName}>
             <LocationInput
               value={v.locationName}
-              onChange={val => { set('locationName', val); if (v.geocoded) { set('geocoded', false); set('placeId', '') } }}
+              onChange={val => { invalidatePlaceRequest(); set('locationName', val); if (v.geocoded) { set('geocoded', false); set('placeId', '') } }}
               onPick={onPlacePicked}
               placeholder="Search, e.g. Idukki district, Kerala"
             />
@@ -270,7 +292,7 @@ export function StopEditor({ open, onClose, initial, resetKey, onSave, dayLabel,
               {legContext.nextName ? <> → {legContext.nextName}</> : null}
               {v.legFromSource && v.legFromSource !== 'estimate' ? ' · real road data' : ''}
             </div>
-            <div className="form-row" style={{ gridTemplateColumns: '1fr 1fr 1fr 1fr' }}>
+            <div className="form-row" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))' }}>
               <Field label="Distance (km)">
                 <input type="number" min={0} step={0.1} className="input" value={v.legDistanceKm} onChange={e => set('legDistanceKm', Number(e.target.value))} />
               </Field>
@@ -303,8 +325,8 @@ export function StopEditor({ open, onClose, initial, resetKey, onSave, dayLabel,
         </Field>
 
         <div className="form-row">
-          <Field label="Source link (optional)">
-            <input className="input" ref={el => (fieldRefs.current.sourceUrl = el)} aria-invalid={!!errs.sourceUrl} value={v.sourceUrl} onChange={e => set('sourceUrl', e.target.value)} placeholder="https://…" />
+          <Field label="Source link (optional)" error={errs.sourceUrl}>
+            <input className="input" ref={el => (fieldRefs.current.sourceUrl = el)} value={v.sourceUrl} onChange={e => set('sourceUrl', e.target.value)} placeholder="https://…" />
           </Field>
           <Field label="Status">
             <Select value={v.status} onChange={val => set('status', val as StopStatus)}

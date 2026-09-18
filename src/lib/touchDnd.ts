@@ -28,7 +28,7 @@
 // registered by useReorder.
 
 import { haptic } from './haptics'
-import { prefersReducedMotion } from './motion'
+import { motionTiming, prefersReducedMotion } from './motion'
 
 export const LONG_PRESS_MS = 350
 export const MOVE_CANCEL_PX = 12
@@ -163,10 +163,48 @@ type Instance = {
   onDragEnd(): void
 }
 
+// One position animation per row, shared by FLIP and no-op spring-back.
+const settles = new Map<HTMLElement, { animation: Animation; owner: string }>()
+export function cancelRowSettle(element: HTMLElement): DOMRect | null {
+  const settle = settles.get(element)
+  if (!settle) return null
+  const visual = element.getBoundingClientRect()
+  settles.delete(element)
+  settle.animation.cancel()
+  return visual
+}
+
+export function settleRow(element: HTMLElement, dx: number, dy: number, owner: string): void {
+  cancelRowSettle(element)
+  if (prefersReducedMotion() || (!dx && !dy)) return
+  const animation = element.animate(
+    [{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }],
+    motionTiming(),
+  )
+  settles.set(element, { animation, owner })
+  const release = () => {
+    if (settles.get(element)?.animation === animation) settles.delete(element)
+  }
+  animation.onfinish = release
+  animation.oncancel = release
+}
+
+export function cancelListSettles(owner: string): void {
+  for (const [element, settle] of settles) {
+    if (settle.owner === owner) cancelRowSettle(element)
+  }
+}
+
 const instances = new Map<string, Instance>()
 export function registerTouchDnd(id: string, inst: Instance): () => void {
   instances.set(id, inst)
-  return () => { if (instances.get(id) === inst) instances.delete(id) }
+  return () => {
+    if (instances.get(id) !== inst) return
+    instances.delete(id)
+    if (pending?.srcId === id) { clearPress(); cleanupBinding() }
+    if (active?.srcId === id) finish(false)
+    cancelListSettles(id)
+  }
 }
 
 type Active = {
@@ -326,14 +364,18 @@ function activate() {
   if (!pending) return
   const { srcId, srcIdx, payload, element, startX, startY } = pending
   element.classList.remove('yf-pressing')
-  const rect = element.getBoundingClientRect()
+  const rect = cancelRowSettle(element) ?? element.getBoundingClientRect()
+  // Disable glide before reading the untransformed slot; the grab offset keeps
+  // the interrupted visual position, while carry offsets use the layout origin.
+  element.classList.add('is-carried')
+  const origin = element.getBoundingClientRect()
   active = {
     srcId, srcIdx, payload,
     target: null,
     element,
     lastX: startX, lastY: startY, lastT: performance.now(),
     raf: 0, calmTimer: 0,
-    originLeft: rect.left, originTop: rect.top, scrollY0: window.scrollY,
+    originLeft: origin.left, originTop: origin.top, scrollY0: window.scrollY,
     grabDX: startX - rect.left, grabDY: startY - rect.top,
     hoverY: NaN,
   }
@@ -355,10 +397,7 @@ function springBack(cur: Active, carriedRect: { left: number; top: number }) {
   const dx = carriedRect.left - cur.originLeft
   const dy = carriedRect.top - (cur.originTop - (window.scrollY - cur.scrollY0))
   if (!prefersReducedMotion() && (Math.abs(dx) > 1 || Math.abs(dy) > 1)) {
-    cur.element.animate(
-      [{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }],
-      { duration: 240, easing: 'cubic-bezier(.22, .61, .36, 1)' },
-    )
+    settleRow(cur.element, dx, dy, cur.srcId)
   }
 }
 

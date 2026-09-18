@@ -145,9 +145,9 @@ export function buildPrintModel(
       totalTravelMinutes: fin(sim.totalTravelMinutes),
       dwellMinutes: fin(sim.dwellMinutes),
       costInr: fin(dayTot?.totalInr),
-      // strip the "Day n:" prefix collectWarnings adds — the card heading
-      // already says which day it is.
-      warnings: (opts.warningsByDay?.[day.index] ?? []).map(w => w.replace(/^Day \d+:\s*/, '')),
+      // strip the "Day n:"/"Day n " prefix collectWarnings adds — the card
+      // heading already says which day it is.
+      warnings: (opts.warningsByDay?.[day.index] ?? []).map(w => w.replace(/^Day \d+[:\s]\s*/, '')),
     }
   })
 

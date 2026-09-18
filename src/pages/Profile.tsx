@@ -1,5 +1,5 @@
 // ============ Profile & settings ============
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Bell, LogOut, Mail, Moon, Sparkles, Sun } from 'lucide-react'
 import { TravelStyle } from '../data/types'
 import { TRAVEL_STYLES } from '../data/types'
@@ -16,6 +16,7 @@ import {
   browserNotifPermission, requestBrowserNotifPermission,
 } from '../lib/browserNotifications'
 import { cap } from '../lib/labels'
+import { scrollBehavior } from '../lib/motion'
 
 /** Compact relative timestamp for the notifications list ("3m ago"). */
 function formatTimeAgo(ms: number): string {
@@ -42,6 +43,12 @@ export function ProfilePage({ onNavigate }: { onNavigate: (r: string) => void })
     languages: (me?.profile.languages ?? ['en']).join(', '),
   }))
   const [nameErr, setNameErr] = useState<string | null>(null)
+  // The Save details card sits well below "Your details" — the field this
+  // button validates (Display name) is off-screen from it, so a failed save
+  // rendered its error out of sight and the click read as "save did nothing".
+  // F-15: hold the input so a failed save can take the user to the problem
+  // (same as StopEditor).
+  const nameRef = useRef<HTMLInputElement>(null)
   // Browser push opt-in (local Notification API — no server, no background
   // delivery; pings only while the app is open in a background tab).
   const [notifApi] = useState(() => browserNotifSupported())
@@ -80,7 +87,7 @@ export function ProfilePage({ onNavigate }: { onNavigate: (r: string) => void })
               <Avatar user={me} size="lg" />
               <span className="small muted">Avatars use your initials in this MVP.</span>
             </div>
-            <Field label="Display name" error={nameErr ?? undefined}><input className="input" autoComplete="name" value={f.name} onChange={e => { setF(x => ({ ...x, name: e.target.value })); if (nameErr) setNameErr(null) }} /></Field>
+            <Field label="Display name" error={nameErr ?? undefined}><input className="input" ref={nameRef} autoComplete="name" value={f.name} onChange={e => { setF(x => ({ ...x, name: e.target.value })); if (nameErr) setNameErr(null) }} /></Field>
             <Field label="Home city"><input className="input" autoComplete="address-level2" value={f.homeCity} onChange={e => setF(x => ({ ...x, homeCity: e.target.value }))} placeholder="e.g. Kochi" /></Field>
             <Field label="Languages you speak" hint="Comma separated — e.g. en, hi, ml">
               <input className="input" value={f.languages} onChange={e => setF(x => ({ ...x, languages: e.target.value }))} />
@@ -121,7 +128,7 @@ export function ProfilePage({ onNavigate }: { onNavigate: (r: string) => void })
             <p className="hint-text" style={{ margin: '6px 0 12px' }}>
               {me.profile.isCreator
                 ? 'Manage your creator profile, social links and published itineraries.'
-                : 'A trust and branding badge: your bio and social links appear on the itineraries you publish.'}
+                : 'A branding badge: your bio and social links appear on the itineraries you publish.'}
             </p>
             {me.profile.isCreator ? (
               <>
@@ -141,7 +148,15 @@ export function ProfilePage({ onNavigate }: { onNavigate: (r: string) => void })
             <button className="btn btn-primary" onClick={() => {
               // Inline validation — the name silently reverting to the old one
               // read as "save doesn't work". Say so, next to the field.
-              if (!f.name.trim()) { setNameErr('Pick a display name — it shows on shared trips.'); return }
+              if (!f.name.trim()) {
+                setNameErr('Pick a display name — it shows on shared trips.')
+                // F-15: the message renders next to Display name, which this
+                // button is scrolled away from — take the user to it (scroll,
+                // then focus with preventScroll so the scroll is ours).
+                const el = nameRef.current
+                if (el) { el.scrollIntoView({ behavior: scrollBehavior(), block: 'center' }); el.focus({ preventScroll: true }) }
+                return
+              }
               setNameErr(null)
               updateProfile({
                 name: f.name.trim(),
@@ -198,7 +213,8 @@ export function ProfilePage({ onNavigate }: { onNavigate: (r: string) => void })
           <div className="card stack-gap">
             <h3>About your data</h3>
             <p className="hint-text" style={{ marginTop: 6 }}>
-              This MVP stores everything locally in your browser. Costs and timings are transparent
+              Your trips, votes and decisions are saved to your account, so they follow you between
+              devices. Display preferences stay on this device. Costs and timings are transparent
               estimates — always verify prices before travelling.
             </p>
           </div>

@@ -3,7 +3,7 @@
 import type { Trip } from '../data/types'
 import {
   getAssumptions, simulateDay, computeTotals, originOf,
-  minutesToHM, hmToMinutes, legBetween, collectWarnings,
+  hmToMinutes, legBetween, collectWarnings,
   type ScheduleWarning,
 } from './engine'
 
@@ -25,7 +25,6 @@ export interface ImpactResult {
 }
 
 function tripTravel(trip: Trip) {
-  const A = getAssumptions(trip)
   let mins = 0, km = 0
   trip.days.forEach(day => {
     const sim = simulateDay(day, trip, originOf(trip, day.index), day.index)

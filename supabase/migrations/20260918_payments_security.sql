@@ -91,9 +91,13 @@ begin
     return;
   end if;
 
-  if v_free = '{}' or v_pub.premium_price_inr is null then
-    return;  -- entirely free or unpriced: nothing to stub
+  if v_pub.premium_price_inr is null then
+    return next v_trip;  -- unpriced: the whole trip is the preview
+    return;
   end if;
+  -- A priced publication with an EMPTY free-day list stubs every day in the
+  -- loop below — a fully locked preview is valid (the page still renders the
+  -- publication's own metadata), not an empty response.
 
   -- Stub locked days in place. Field names here are the Trip JSONB's keys
   -- (camelCase — the client stores days as parsed TypeScript objects).
@@ -123,7 +127,8 @@ begin
       j := 0;
       while j < jsonb_array_length(v_stops) loop
         v_stop := v_stops -> j;
-        v_stop := jsonb_set(v_stop, '{description}', to_jsonb('Locked — the full plan is on the original itinerary.'));
+        v_stop := jsonb_set(v_stop, '{description}',
+          to_jsonb('Locked — the full plan is on the original itinerary.'::text));
         v_stop := jsonb_set(v_stop, '{notes}', '""'::jsonb);
         v_stop := v_stop #- '{openTime}' #- '{closeTime}' #- '{departTime}' #- '{arrivalTime}' #- '{sourceUrl}' #- '{placeId}';
         v_stop := jsonb_set(v_stop, '{entryFeeInrPerPerson}', '0'::jsonb);
@@ -320,5 +325,5 @@ as $$
   order by e.granted_at desc;
 $$;
 
-revoke all on function public.get_creator_sales() from public;
+revoke all on function public.get_creator_sales() from public, anon;
 grant execute on function public.get_creator_sales() to authenticated;

@@ -10,7 +10,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Calendar, ChevronDown, ChevronUp, Pin, TriangleAlert, X, ArrowRight, Printer,
-  Car, Bike, Bus, TrainFront, Plane, KeyRound, CarTaxiFront, Shuffle,
+  Car, Bike, Bus, TrainFront, Plane, KeyRound, CarTaxiFront, Shuffle, Fuel, Wallet,
 } from 'lucide-react'
 import type { FixedCommitment, LatLngPoint, TransportMode, TravelStyle } from '../data/types'
 import { TRAVEL_STYLES, TRANSPORT_MODES } from '../data/types'
@@ -410,6 +410,7 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
   const returnStops = dests.slice(dests.length - returnCount)
   const showCustomCrew = !CREW_CHIPS.includes(f.travellers)
   const ticketTitle = f.name.trim() || 'Your next trip'
+  const ticketRoute = `${f.startLocation.trim() || 'Start'} → ${outbound.length ? outbound.map(d => d.name.split(',')[0]).join(' → ') : '…'}`
   const dateLabel = f.startDate && f.endDate
     ? `${fmtDay(f.startDate)} – ${fmtDay(f.endDate)} · ${bill.days} day${bill.days !== 1 ? 's' : ''} · ${bill.nights} night${bill.nights !== 1 ? 's' : ''}`
     : 'Pick your dates'
@@ -883,17 +884,17 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
             </div>
             <div className="tk-body">
               <div className="tk-title">{ticketTitle}</div>
-              <p className="tk-route">
-                {f.startLocation.trim() || 'Start'} → {outbound.length ? outbound.map(d => d.name.split(',')[0]).join(' → ') : '…'}
+              <p className="tk-route" title={ticketRoute}>
+                {ticketRoute}
                 {returnCount > 0 && <span className="tk-return-chip">↔ custom return</span>}
               </p>
               <div className="tk-rows">
                 <div className="tk-row"><span className="ic"><Calendar size={12} aria-hidden /></span><b>{dateLabel}</b></div>
                 <div className="tk-row"><span className="ic"><Car size={12} aria-hidden /></span><span className="lab">{f.travellers} traveller{f.travellers !== 1 ? 's' : ''}</span><b>· {cap(f.transportMode)}{f.transportMode === 'train' && f.localTrain ? ' · local' : ''}</b></div>
                 {fuelMode && (f.fuelEconomy || f.fuelPrice || f.tankL) && (
-                  <div className="tk-row"><span className="ic">⛽</span><span className="lab">{f.fuelEconomy ? `${f.fuelEconomy} km/L` : null}{f.fuelPrice && f.fuelEconomy ? ' · ' : ''}{f.fuelPrice ? `₹${f.fuelPrice}/L` : null}{f.tankL && f.fuelEconomy ? ` · ${f.tankL} L tank` : ''}</span></div>
+                  <div className="tk-row"><span className="ic"><Fuel size={12} aria-hidden /></span><span className="lab">{f.fuelEconomy ? `${f.fuelEconomy} km/L` : null}{f.fuelPrice && f.fuelEconomy ? ' · ' : ''}{f.fuelPrice ? `₹${f.fuelPrice}/L` : null}{f.tankL && f.fuelEconomy ? ` · ${f.tankL} L tank` : ''}</span></div>
                 )}
-                <div className="tk-row"><span className="ic">👛</span><span className="lab">Budget</span><b className="mono">₹{f.budgetPerPersonInr.toLocaleString('en-IN')} / person</b></div>
+                <div className="tk-row"><span className="ic"><Wallet size={12} aria-hidden /></span><span className="lab">Budget</span><b className="mono">₹{f.budgetPerPersonInr.toLocaleString('en-IN')} / person</b></div>
               </div>
             </div>
             <div className="tear" aria-hidden="true"></div>

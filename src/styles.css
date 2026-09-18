@@ -606,13 +606,13 @@ a.btn { text-decoration: none; }
 @media (pointer: coarse) {
   .btn, .icon-btn, .chip, .clickable-chip, .toast-action, .tab-btn,
   .map-legend-toggle, .nav-link, .filter-pillbar .clickable-chip,
-  .link-btn, .move-btn, .board-pulse-link, .cal-day, .route-btn, .vote-btn, .yf-map-idea-add, .poi-short, .poi-cand-add, .poi-fold, .yf-maplibre .yf-map-ctrls button {
+  .link-btn, .move-btn, .board-pulse-link, .cal-day, .cal-nav, .route-btn, .vote-btn, .yf-map-idea-add, .poi-short, .poi-cand-add, .poi-fold, .yf-maplibre .yf-map-ctrls button {
     position: relative;
   }
   .btn::after, .icon-btn::after, .chip::after, .clickable-chip::after,
   .toast-action::after, .tab-btn::after, .map-legend-toggle::after,
   .nav-link::after, .link-btn::after, .move-btn::after, .board-pulse-link::after,
-  .cal-day::after, .route-btn::after, .vote-btn::after, .yf-map-idea-add::after, .poi-short::after, .poi-cand-add::after, .poi-fold::after, .yf-maplibre .yf-map-ctrls button::after {
+  .cal-day::after, .cal-nav::after, .route-btn::after, .vote-btn::after, .yf-map-idea-add::after, .poi-short::after, .poi-cand-add::after, .poi-fold::after, .yf-maplibre .yf-map-ctrls button::after {
     content: ''; position: absolute; inset: -6px; border-radius: inherit;
   }
 }
@@ -2352,7 +2352,7 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
 /* the custom Select wraps its trigger in a div — flex sizing moves to the wrapper */
 .explore-filters .cselect, .trips-toolbar .cselect { flex: 0 1 auto; }
 .explore-filters .cselect .select, .trips-toolbar .cselect .select { min-width: 140px; }
-.trip-card-hit { all: unset; cursor: pointer; display: block; border-radius: 8px; }
+.trip-card-hit { all: unset; cursor: pointer; display: block; border-radius: inherit; }
 
 /* Trip card emoji cover */
 /* `position: relative` + `overflow: hidden` mirror .itin-cover: the shared
@@ -4206,8 +4206,6 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 @media (max-width: 720px) {
   /* forms */
   .select { padding: 10px 32px 10px 13px; }
-  .commitment-row { grid-template-columns: 1fr 1fr; }
-  .commitment-row .field:first-child { grid-column: 1 / -1; }
 
   /* timeline extras */
   .day-spark { display: none; }

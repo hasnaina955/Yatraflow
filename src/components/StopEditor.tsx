@@ -292,7 +292,7 @@ export function StopEditor({ open, onClose, initial, resetKey, onSave, dayLabel,
               {legContext.nextName ? <> → {legContext.nextName}</> : null}
               {v.legFromSource && v.legFromSource !== 'estimate' ? ' · real road data' : ''}
             </div>
-            <div className="form-row" style={{ gridTemplateColumns: '1fr 1fr 1fr 1fr' }}>
+            <div className="form-row" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))' }}>
               <Field label="Distance (km)">
                 <input type="number" min={0} step={0.1} className="input" value={v.legDistanceKm} onChange={e => set('legDistanceKm', Number(e.target.value))} />
               </Field>

@@ -606,13 +606,13 @@ a.btn { text-decoration: none; }
 @media (pointer: coarse) {
   .btn, .icon-btn, .chip, .clickable-chip, .toast-action, .tab-btn,
   .map-legend-toggle, .nav-link, .filter-pillbar .clickable-chip,
-  .link-btn, .move-btn, .board-pulse-link, .cal-day, .cal-nav, .route-btn, .vote-btn, .yf-map-idea-add, .poi-short, .poi-cand-add, .poi-fold, .yf-maplibre .yf-map-ctrls button {
+  .link-btn, .move-btn, .board-pulse-link, .cal-day, .cal-nav, .route-btn, .vote-btn, .yf-map-idea-add, .poi-short, .poi-cand-add, .poi-fold, .save-heart, .yf-maplibre .yf-map-ctrls button {
     position: relative;
   }
   .btn::after, .icon-btn::after, .chip::after, .clickable-chip::after,
   .toast-action::after, .tab-btn::after, .map-legend-toggle::after,
   .nav-link::after, .link-btn::after, .move-btn::after, .board-pulse-link::after,
-  .cal-day::after, .cal-nav::after, .route-btn::after, .vote-btn::after, .yf-map-idea-add::after, .poi-short::after, .poi-cand-add::after, .poi-fold::after, .yf-maplibre .yf-map-ctrls button::after {
+  .cal-day::after, .cal-nav::after, .route-btn::after, .vote-btn::after, .yf-map-idea-add::after, .poi-short::after, .poi-cand-add::after, .poi-fold::after, .save-heart::after, .yf-maplibre .yf-map-ctrls button::after {
     content: ''; position: absolute; inset: -6px; border-radius: inherit;
   }
 }
@@ -1772,7 +1772,7 @@ button.board-col-zone--add:active { transform: translateY(1px); }
 /* Card titles are heading-level h2 for outline correctness — sized as the h3
    they replace so the grids don't shift. */
 .card-title { font-size: 16px; font-weight: 700; }
-.itin-meta { display: flex; flex-wrap: wrap; gap: 4px 13px; font-size: 12.5px; color: var(--text-3); font-weight: 600; }
+.itin-meta { display: flex; flex-wrap: wrap; gap: 4px 13px; font-size: var(--text-xs); color: var(--text-3); font-weight: 600; }
 /* Explore card footer: full-width divider to the card edges, content inset to
    align with .itin-body's 17px side padding (separate from itin-body above). */
 .itin-card > .itin-meta { position: relative; padding: 10px 17px 15px; margin-top: 4px; }
@@ -3230,7 +3230,7 @@ html.vt-active :where(*) {
 }
 .featured-body { position: relative; z-index: var(--z-content); }
 .featured-kicker { color: #ffd79a; }
-.featured-body h2 { font-family: var(--font-display); font-size: clamp(22px, 2.6vw, 30px); margin: 6px 0 8px; }
+.featured-body h2 { font-family: var(--font-display); font-size: clamp(22px, 2.6vw, 30px); margin: 6px 0 8px; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
 .featured-title-link { color: #fff; text-decoration: none; }
 .featured-title-link:hover { text-decoration: underline; }
 .featured-tagline { color: #d5e7e4; margin: 0 0 8px; max-width: 640px; line-height: 1.6; }
@@ -4701,6 +4701,10 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
   .trips-toolbar .select { flex: 1 1 45%; min-width: 0; }
   .trips-toolbar .cselect { flex: 1 1 45%; min-width: 0; }
   .trips-toolbar .cselect .select { min-width: 0; width: 100%; }
+  /* Explore's filter row mirrors the toolbar pairing, so its three selects
+     don't drop to one full-width stack on a phone. */
+  .explore-filters .select, .explore-filters .cselect { flex: 1 1 45%; min-width: 0; }
+  .explore-filters .cselect .select { min-width: 0; width: 100%; }
 }
 
 @media (max-width: 720px) {
@@ -5492,6 +5496,7 @@ html.native-shell {
 /* Stage 2: local workspace refinements; no token or animation-strategy changes. */
 .overview-head { margin-bottom: 16px; }
 .expense-table:focus-visible { outline: none; box-shadow: var(--ring); }
+.compare-table:focus-visible { outline: none; box-shadow: var(--ring); }
 [data-motion-paused='true'] .budget-bar-fill::after,
 [data-motion-paused='true'] .daybar-fill::after,
 [data-motion-paused='true'] .yf-map-pin-idea,

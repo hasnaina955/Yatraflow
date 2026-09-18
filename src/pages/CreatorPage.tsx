@@ -76,6 +76,8 @@ export function CreatorPage({ creatorId, onNavigate }: { creatorId: string; onNa
           </div>
         )}
 
+        <h2 style={{ marginBottom: 12 }}>Publications</h2>
+
         {pubs.length === 0 ? (
           !creator.profile.isCreator ? (
             <EmptyState icon={<Compass size={38} aria-hidden />} title="No creator page here yet"

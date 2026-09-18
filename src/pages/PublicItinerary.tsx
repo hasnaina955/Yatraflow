@@ -145,7 +145,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
       {/* ---- Editorial hero: destination-led, creator-attributed (§6.11) ---- */}
       <section className="pub-hero">
         {pub.coverImageUrl || heroAuto
-          ? <img className="pub-hero-photo" src={pub.coverImageUrl || heroAuto!} alt="" aria-hidden="true" />
+          ? <img className="pub-hero-photo" src={pub.coverImageUrl || heroAuto!} alt="" aria-hidden="true" width={1600} height={900} loading="eager" decoding="async" />
           : null}
         <div className="pub-hero-bg" aria-hidden="true" />
         <div className="container pub-hero-inner">

@@ -16,26 +16,33 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 ## [Unreleased]
 
 ### Added
-- **The travel clock is drawn on the map as road milestones.** Each planned
-  clock anchor becomes a milestone pin ON the route carrying both readings:
-  its wall-clock time on the side ("08:00 PM") and the road km beneath it
-  ("Km 500"), so a traveller reads time and distance together at the exact
-  point they belong to. Meal breaks, overnight halts and the destination each
-  pin at their own road position — no circles, no evening band, no moon
-  glyphs: every mark is a planned stop, not a fuzzy area.
-- **The suggestion engine's placed stops become distance milestones.** Each
-  placed place is projected onto the road at its cumulative km and pinned
-  there with a "Km N" label, so the map shows both the planned schedule (the
-  clock's anchors) and the placed stops' distance markers on the same road.
-- **🕐 Milestones toolbar chip** (default on) hides/shows the whole layer; with
-  it off the map is the plain route, and the choice is remembered per browser
-  like the map key. Only the trip Map tab supplies it — the
-  Board never shows milestones.
+- **The travel clock is drawn on the map as clean road labels.** No pins, no
+  dots, no circles: each planned clock anchor (meal / overnight / destination)
+  is a zero-size point ON the route flanked by two quiet text chips — its
+  wall-clock time with the calendar date on the LEFT of the road ("4:03 PM ·
+  18 Sep") and its road km on the RIGHT ("Km 500"), so a traveller reads when
+  and how far at the exact point they belong to. Kind shows only as a whisper
+  of colour on the time chip's leading edge, never a glyph.
+- **Return-journey labels only appear with the Return home toggle.** Each label
+  is tagged with its leg; the outbound half renders by default and the drive
+  home's labels, its dashed line and its home anchor show only while the Return
+  home chip is on — the going-home readings never clutter a map the traveller
+  hasn't asked to see. The return leg is the honest #145 directed walk from the
+  destination (matching the banner's day count), positioned back along the
+  reversed road.
+- **The suggestion engine's placed stops become distance labels.** Each placed
+  place is projected onto the road at its cumulative km and labelled there with
+  a "Km N" chip on the right, so the map shows the planned schedule (the
+  clock's anchors) and the placed stops' distances on the same road.
+- **🕐 Milestones toolbar chip** (default on) hides/shows the whole label layer;
+  with it off the map is the plain route, and the choice is remembered per
+  browser like the map key. Only the trip Map tab supplies it — the Board never
+  shows milestones.
 - **Planned-stop pins keep their itinerary arrival** — a tiny `13:40` chip
   under the pin while the milestone layer is on, with "~X km into the trip" in
   the tooltip (from the day-by-day journey simulation).
 - Pure module `src/lib/clockOverlay.ts` (`deriveClockMilestones`,
-  `ClockMilestone`, `clockHM`) + 8 fixtures in `tests/clockOverlay.test.ts`.
+  `ClockMilestone`, `clockHM`) + 10 fixtures in `tests/clockOverlay.test.ts`.
 - **True user deletion in the masteradmin console.** The Users tab gains a permanent Delete alongside Disable (the existing reversible soft-ban): an audited `admin_delete_user` RPC deletes the auth account, which cascades every trip the user owns (plan, expenses, votes, decisions, activity, publications), their memberships and authored rows in other crews' trips, and their notifications — while other people's trips survive for the remaining crew. Protected by an explicit force confirmation before destroying published Explore listings, self-deletion and last-admin deletion are refused outright, and the audit log records the blast radius (email, owned-trip count, published count, force flag) before the delete. The console confirms by typing the user's email.
 
 ### Changed

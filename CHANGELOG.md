@@ -41,13 +41,44 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 - **Planned-stop pins keep their itinerary arrival** — a tiny `13:40` chip
   under the pin while the milestone layer is on, with "~X km into the trip" in
   the tooltip (from the day-by-day journey simulation).
+- **The map knows what day it is (the living plan).** Each label carries a
+  `dayState` from the trip's own dates against the device calendar: the days
+  already behind you dim to the same quiet whisper as the return leg, the day
+  you're on now pulses gently on its time chip (frozen under
+  `prefers-reduced-motion`), and the rest stays full plan. A trip fully in the
+  past renders all-dimmed, a future trip all-full, and an undated trip claims
+  neither — no `Date` objects cross the comparison, so a +5:30 calendar can't
+  flip a day boundary at midnight.
+- **Overnight halts name the town they land at.** Each halt label leads with
+  the place the corridor search already found within 120 km of its km — the
+  same honesty bound the halt planner itself uses — so the map answers "where
+  do we sleep", not just "how far". Nothing close enough means no name: a bare
+  time and km, never a guess.
+- **Tapping a halt opens that day's plan.** The overnight label is the one
+  tappable mark on the route (generous hit area, focus ring, same visual as its
+  decorative siblings): a tap switches to the Timeline, opens that day's
+  accordion and brings its card into view. Meals and the destination stay
+  strictly non-interactive — only where you sleep is a decision.
 - Pure module `src/lib/clockOverlay.ts` (`deriveClockMilestones`,
-  `ClockMilestone`, `clockHM`) + 10 fixtures in `tests/clockOverlay.test.ts`.
+  `ClockMilestone`, `clockHM`) + 19 fixtures in `tests/clockOverlay.test.ts`.
 - **True user deletion in the masteradmin console.** The Users tab gains a permanent Delete alongside Disable (the existing reversible soft-ban): an audited `admin_delete_user` RPC deletes the auth account, which cascades every trip the user owns (plan, expenses, votes, decisions, activity, publications), their memberships and authored rows in other crews' trips, and their notifications — while other people's trips survive for the remaining crew. Protected by an explicit force confirmation before destroying published Explore listings, self-deletion and last-admin deletion are refused outright, and the audit log records the blast radius (email, owned-trip count, published count, force flag) before the delete. The console confirms by typing the user's email.
 
 ### Changed
 
 ### Fixed
+- **The map's clock labels and the Day Planner banner now come from ONE walk.**
+  The label layer used to re-run the travel-clock engine from reconstructed
+  inputs while the Map tab already held the identical verdict for its banner —
+  two walks kept in step by discipline, where one forgotten input (a terrain
+  profile, a party cap, a dinner anchor) would have let the map and the banner
+  quietly disagree. The projection now consumes the banner's own verdict: a
+  walk twice with identical inputs returning different labels is impossible by
+  construction, not merely unlikely.
+- **The drive home's distance chips no longer read the same as the outbound's.**
+  A round trip showed "Km 500" twice — once 500 km from home, once 500 km from
+  the destination — and only the hover tooltip said which. Return-leg chips now
+  carry their own arrow (`Km 500 ↩`) against the outbound's plain `Km 500`:
+  per-leg km kept (no renumbering), the ambiguity gone at a glance.
 - **Audit batch on the map rails.** `map-day-chip` reaches the 40px touch floor on coarse pointers (desktop silhouette unchanged; toolbar gaps 5→8px); the scan status span announces via `aria-live`; clock glyphs carry `role="img"` labels instead of being `aria-hidden`-only; the detour-budget split is memoised instead of recomputed per render; `.board-col-day` drops the dangling `var(--text-1)` (deleted in the v0.53.0 scale sweep).
 
 ### Docs

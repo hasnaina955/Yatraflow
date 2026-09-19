@@ -356,7 +356,12 @@ export const DaySection = React.memo(function DaySection({ day, trip, editable, 
       .then(hits => { if (!cancelled) setNearby(hits.slice(0, 3)) })
       .catch(() => { /* suggestions are best-effort */ })
     return () => { cancelled = true }
-  }, [editable, ordered.length]) // eslint-disable-line react-hooks/exhaustive-deps
+    // #213 Phase 3: deps include trip fields the effect actually reads
+    // (transportMode gates fuel, startLocationCoords is the anchor fallback,
+    // and computeCategoryBias reads travelStyle). Without these, a transport-
+    // mode or style change kept the old mode-tuned chips visible until a stop
+    // mutation re-derives the array.
+  }, [editable, ordered.length, trip.transportMode, trip.startLocationCoords?.lat, trip.startLocationCoords?.lng, trip.travelStyle])
 
   // day progress: how much of the realistic window (start–20:00) the plan consumes
   const dayStartHM = day.startTime ?? A.dayStart

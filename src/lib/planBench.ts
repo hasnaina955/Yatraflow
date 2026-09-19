@@ -5,19 +5,20 @@
 // as a real trip. Stay and meal rates are bench-local assumptions and every
 // bill line renders its own formula — the transparency promise is the feature.
 
-import { FUEL_PRICE_INR_PER_L, MODE_SPEED, MODE_COST_PER_KM, isFuelEconomyMode, formatInr } from './engine'
+import { FUEL_PRICE_INR_PER_L, DEFAULT_FUEL_ECONOMY_KML, MODE_SPEED, MODE_COST_PER_KM, isFuelEconomyMode, formatInr } from './engine'
 import { STAY_RATE_PER_NIGHT } from './rates'
-import type { TravelStyle } from '../data/types'
+import { STAY_STYLES, type StayStyle, type TravelStyle } from '../data/types'
 
 /** Modes the bench offers ('motorcycle' is the engine's name for a bike). */
 export const BENCH_MODES = ['car', 'motorcycle', 'bus', 'train'] as const
 export type BenchMode = (typeof BENCH_MODES)[number]
 
-export const STAY_STYLES = ['budget', 'comfort', 'luxury'] as const
-export type BenchStayStyle = (typeof STAY_STYLES)[number]
+/** The stay tier is the app-wide vocabulary (src/data/types.ts) — re-exported
+ *  here because the bench's public API is where its consumers meet it. */
+export { STAY_STYLES }
 
 /** Stay style → trip travel style, applied when the bench hands off to trip creation. */
-export const STAY_TO_TRAVEL_STYLE: Record<BenchStayStyle, TravelStyle> = {
+export const STAY_TO_TRAVEL_STYLE: Record<StayStyle, TravelStyle> = {
   budget: 'budget',
   comfort: 'balanced',
   luxury: 'luxury',
@@ -53,7 +54,7 @@ export interface BenchInputs {
   roundTrip: boolean
   kmPerL: number
   inrPerL: number
-  stay: BenchStayStyle
+  stay: StayStyle
 }
 
 export interface BenchBill {
@@ -146,7 +147,7 @@ export const BENCH_PRESETS: Array<{ label: string; km: number; mode: BenchMode; 
 
 export const BENCH_DEFAULTS: BenchInputs = {
   km: 612, mode: 'car', nights: 4, crew: 4, roundTrip: true,
-  kmPerL: 15, inrPerL: FUEL_PRICE_INR_PER_L, stay: 'comfort',
+  kmPerL: DEFAULT_FUEL_ECONOMY_KML, inrPerL: FUEL_PRICE_INR_PER_L, stay: 'comfort',
 }
 
 // ---------------- Hand-off to trip creation ----------------
@@ -159,6 +160,10 @@ export interface BenchPrefill {
   transportMode: BenchMode
   budgetPerPersonInr: number
   travelStyle: TravelStyle
+  /** The bench's stay tier, carried into the trip's own dial. Without this the
+   *  hand-off set `travelStyle` and left `stayStyle` at its 'comfort' default,
+   *  so a Luxury bench run (₹8,000/room) created a trip that billed ₹3,200. */
+  stayStyle?: StayStyle
   roundTrip: boolean
   kmPerL?: number
   inrPerL?: number
@@ -176,6 +181,10 @@ export function parseBenchPrefill(raw: string | null | undefined): BenchPrefill 
       !Number.isFinite(p.travellers) || !p.transportMode || !BENCH_MODES.includes(p.transportMode as BenchMode) ||
       !Number.isFinite(p.budgetPerPersonInr) || !p.travelStyle
     ) return null
+    // stayStyle is optional in the stash (older sessions predate it) but must
+    // be a known tier when present — a stray value would index
+    // STAY_RATE_PER_NIGHT to undefined downstream.
+    if (p.stayStyle != null && !(STAY_STYLES as readonly string[]).includes(p.stayStyle)) return null
     return p as BenchPrefill
   } catch { return null }
 }
@@ -186,6 +195,9 @@ export function stashBenchPrefill(bill: BenchBill, input: BenchInputs): void {
     transportMode: input.mode,
     budgetPerPersonInr: bill.perHead,
     travelStyle: STAY_TO_TRAVEL_STYLE[input.stay],
+    // The tier itself, so the created trip prices the bed at the rate the
+    // bench just showed (travelStyle alone no longer prices anything).
+    stayStyle: input.stay,
     roundTrip: input.roundTrip,
     ...(isBenchFuelMode(input.mode) ? { kmPerL: input.kmPerL, inrPerL: input.inrPerL } : {}),
   }
@@ -221,11 +233,11 @@ export function parseBenchInputs(raw: string | null | undefined): BenchInputs | 
       !isFiniteNum(p.kmPerL) || !isFiniteNum(p.inrPerL) ||
       typeof p.roundTrip !== 'boolean' ||
       !p.mode || !BENCH_MODES.includes(p.mode as BenchMode) ||
-      !p.stay || !STAY_STYLES.includes(p.stay as BenchStayStyle)
+      !p.stay || !STAY_STYLES.includes(p.stay as StayStyle)
     ) return null
     return {
       km: p.km, nights: p.nights, crew: p.crew, kmPerL: p.kmPerL, inrPerL: p.inrPerL,
-      mode: p.mode as BenchMode, stay: p.stay as BenchStayStyle, roundTrip: p.roundTrip,
+      mode: p.mode as BenchMode, stay: p.stay as StayStyle, roundTrip: p.roundTrip,
     }
   } catch { return null }
 }

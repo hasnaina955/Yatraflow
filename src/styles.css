@@ -2414,50 +2414,105 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
 }
 [data-theme='dark'] .yf-map-flag { border-color: rgba(255,255,255,.9); }
 
-/* ---- Road milestones on the route (the travel clock drawn on the map) ---- */
-/* One pin per planned anchor with its wall-clock time on the side and the road
-   km beneath — time and distance together at the point they belong to. Quiet by
-   design: the clock is context, the numbered stops are the subject. */
+/* ---- Road milestone labels on the route (the travel clock drawn on the map) ---- */
+/* Clean text, no pins, no dots: a zero-size anchor sits ON the road at the
+   planned stop's km, and two quiet chips flank it — the wall-clock time with
+   the calendar date on the LEFT, the road km on the RIGHT — so a traveller
+   reads when and how far at the exact point they belong to. Quiet by design:
+   the clock is context, the numbered stops are the subject. */
+/* The marker element must have zero footprint — a sized box would shove the
+   labels off the route point they flank. */
+.yf-milestone-anchor {
+  width: 0; height: 0; overflow: visible;
+}
+/* Phase 3: the overnight chip is the one tappable label — it opens that day's
+   plan. The hit area is generous (padding + the chip's own box) while the
+   label itself stays visually identical to its decorative siblings. */
+.yf-milestone-hit {
+  display: block;
+  padding: 6px;
+  margin: -6px;
+  border: none; background: none;
+  font: inherit; color: inherit; text-align: inherit;
+  cursor: pointer;
+  pointer-events: auto;
+  border-radius: 10px;
+  transition: background var(--motion-fast) var(--ease-out);
+}
+.yf-milestone-hit:hover { background: color-mix(in srgb, var(--card) 70%, transparent); }
+.yf-milestone-hit:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
 .yf-milestone {
-  display: inline-flex; align-items: center; gap: 5px;
+  display: flex; align-items: center;
+  width: 0; height: 0;
   pointer-events: none;
+  white-space: nowrap;
 }
-.yf-milestone-dot {
-  width: 9px; height: 9px; border-radius: 999px; flex: 0 0 auto;
-  background: var(--yf-poi-see);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--yf-poi-see) 38%, transparent);
-  filter: drop-shadow(0 1px 2px rgba(0,0,0,.35));
-}
-.yf-milestone--overnight .yf-milestone-dot {
-  background: #6366F1;
-  box-shadow: 0 0 0 2px color-mix(in srgb, #6366F1 40%, transparent);
-}
-.yf-milestone--destination .yf-milestone-dot {
-  background: var(--teal);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--teal) 40%, transparent);
-}
-.yf-milestone--place .yf-milestone-dot {
-  background: var(--text-2);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--text-2) 32%, transparent);
-}
-.yf-milestone-side {
-  display: inline-flex; flex-direction: column; align-items: flex-start; gap: 1px;
-  padding: 1px 6px;
-  border-radius: 6px;
+/* Time + date chip, parked to the LEFT of the route point. */
+.yf-milestone-when {
+  position: absolute; right: 5px; top: 0;
+  transform: translateY(-50%);
+  display: inline-flex; flex-direction: column; align-items: flex-end; gap: 0;
+  padding: 2px 7px;
+  border-radius: 7px;
   background: color-mix(in srgb, var(--card) 92%, transparent);
   border: 1px solid var(--line);
   box-shadow: 0 1px 3px rgba(var(--shadow-navy-rgb),.25);
-  white-space: nowrap;
 }
+.yf-milestone-halt {
+  font-size: 10.5px; font-weight: 800; line-height: 1.25;
+  color: #6366F1;
+  font-family: var(--font-display);
+}
+[data-theme='dark'] .yf-milestone-halt { color: #A5B4FC; }
 .yf-milestone-time {
-  font-size: 10.5px; font-weight: 700; line-height: 1.2;
+  font-size: 10.5px; font-weight: 700; line-height: 1.25;
   color: var(--text);
   font-variant-numeric: tabular-nums;
 }
-.yf-milestone-km {
-  font-size: 9.5px; font-weight: 700; line-height: 1.2; font-style: normal;
+.yf-milestone-date {
+  font-size: 9px; font-weight: 700; line-height: 1.3; font-style: normal;
+  letter-spacing: .02em;
   color: var(--text-2);
   font-variant-numeric: tabular-nums;
+}
+/* Distance chip, parked to the RIGHT of the route point. */
+.yf-milestone-km {
+  position: absolute; left: 5px; top: 0;
+  transform: translateY(-50%);
+  padding: 2px 7px;
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--card) 92%, transparent);
+  border: 1px solid var(--line);
+  box-shadow: 0 1px 3px rgba(var(--shadow-navy-rgb),.25);
+  font-size: 9.5px; font-weight: 700; line-height: 1.3; font-style: normal;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+/* Kind accents on the time chip's leading edge — a whisper, not a dot. */
+.yf-milestone--overnight .yf-milestone-when { border-left: 2px solid #6366F1; }
+.yf-milestone--destination .yf-milestone-when { border-left: 2px solid var(--teal); }
+.yf-milestone--mealtime .yf-milestone-when { border-left: 2px solid var(--yf-poi-see); }
+/* The drive home reads softer — same labels, dialed back, toggled with the
+   Return home line. */
+.yf-milestone--return { opacity: .8; }
+.yf-milestone--return .yf-milestone-when,
+.yf-milestone--return .yf-milestone-km { border-style: dashed; }
+/* ---- The living plan (Phase 1): driven history dims, the active day pulses.
+   Driven days are context, not plan — the same quiet treatment as the return
+   whisper, one visual language, not two. Undated overlays never emit --past. */
+.yf-milestone--past { opacity: .55; }
+.yf-milestone--past .yf-milestone-when,
+.yf-milestone--past .yf-milestone-km { border-style: dashed; }
+/* The active day's time chip breathes — an ambient loop (deliberately outside
+   the raw-duration ratchet: its cadence is a property of the effect, not a UI
+   transition). Static under prefers-reduced-motion, always. */
+@keyframes yf-today-pulse {
+  0%, 100% { box-shadow: 0 1px 3px rgba(var(--shadow-navy-rgb),.25); }
+  50% { box-shadow: 0 1px 3px rgba(var(--shadow-navy-rgb),.25), 0 0 0 3px color-mix(in srgb, var(--teal) 35%, transparent); }
+}
+.yf-milestone--today .yf-milestone-when { animation: yf-today-pulse 2.4s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .yf-milestone--today .yf-milestone-when { animation: none; }
 }
 /* Planned arrival chip under a stop pin — only present while the clock
    overlay is on (Map tab); Board pins never render it. MarkerContent stacks
@@ -4615,7 +4670,6 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 .ts-head h1 { margin: 0; font-size: 28px; letter-spacing: -0.02em; }
 .ts-head .small { margin: 6px 0 0; font-size: 13.5px; }
 
-.ts-layout { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 22px; align-items: start; }
 .ts-blocks { display: grid; grid-template-columns: repeat(12, 1fr); gap: 12px; min-width: 0; }
 .ts-block {
   background: var(--yf-surface); border: 1px solid var(--yf-border); border-radius: 20px;

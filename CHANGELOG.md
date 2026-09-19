@@ -16,33 +16,97 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 ## [Unreleased]
 
 ### Added
-- **The travel clock is drawn on the map as road milestones.** Each planned
-  clock anchor becomes a milestone pin ON the route carrying both readings:
-  its wall-clock time on the side ("08:00 PM") and the road km beneath it
-  ("Km 500"), so a traveller reads time and distance together at the exact
-  point they belong to. Meal breaks, overnight halts and the destination each
-  pin at their own road position — no circles, no evening band, no moon
-  glyphs: every mark is a planned stop, not a fuzzy area.
-- **The suggestion engine's placed stops become distance milestones.** Each
-  placed place is projected onto the road at its cumulative km and pinned
-  there with a "Km N" label, so the map shows both the planned schedule (the
-  clock's anchors) and the placed stops' distance markers on the same road.
-- **🕐 Milestones toolbar chip** (default on) hides/shows the whole layer; with
-  it off the map is the plain route, and the choice is remembered per browser
-  like the map key. Only the trip Map tab supplies it — the
-  Board never shows milestones.
+- **The travel clock is drawn on the map as clean road labels.** No pins, no
+  dots, no circles: each planned clock anchor (meal / overnight / destination)
+  is a zero-size point ON the route flanked by two quiet text chips — its
+  wall-clock time with the calendar date on the LEFT of the road ("4:03 PM ·
+  18 Sep") and its road km on the RIGHT ("Km 500"), so a traveller reads when
+  and how far at the exact point they belong to. Kind shows only as a whisper
+  of colour on the time chip's leading edge, never a glyph.
+- **Return-journey labels only appear with the Return home toggle.** Each label
+  is tagged with its leg; the outbound half renders by default and the drive
+  home's labels, its dashed line and its home anchor show only while the Return
+  home chip is on — the going-home readings never clutter a map the traveller
+  hasn't asked to see. The return leg is the honest #145 directed walk from the
+  destination (matching the banner's day count), positioned back along the
+  reversed road.
+- **The suggestion engine's placed stops become distance labels.** Each placed
+  place is projected onto the road at its cumulative km and labelled there with
+  a "Km N" chip on the right, so the map shows the planned schedule (the
+  clock's anchors) and the placed stops' distances on the same road.
+- **🕐 Milestones toolbar chip** (default on) hides/shows the whole label layer;
+  with it off the map is the plain route, and the choice is remembered per
+  browser like the map key. Only the trip Map tab supplies it — the Board never
+  shows milestones.
 - **Planned-stop pins keep their itinerary arrival** — a tiny `13:40` chip
   under the pin while the milestone layer is on, with "~X km into the trip" in
   the tooltip (from the day-by-day journey simulation).
+- **The map knows what day it is (the living plan).** Each label carries a
+  `dayState` from the trip's own dates against the device calendar: the days
+  already behind you dim to the same quiet whisper as the return leg, the day
+  you're on now pulses gently on its time chip (frozen under
+  `prefers-reduced-motion`), and the rest stays full plan. A trip fully in the
+  past renders all-dimmed, a future trip all-full, and an undated trip claims
+  neither — no `Date` objects cross the comparison, so a +5:30 calendar can't
+  flip a day boundary at midnight.
+- **Overnight halts name the town they land at.** Each halt label leads with
+  the place the corridor search already found within 120 km of its km — the
+  same honesty bound the halt planner itself uses — so the map answers "where
+  do we sleep", not just "how far". Nothing close enough means no name: a bare
+  time and km, never a guess.
+- **Tapping a halt opens that day's plan.** The overnight label is the one
+  tappable mark on the route (generous hit area, focus ring, same visual as its
+  decorative siblings): a tap switches to the Timeline, opens that day's
+  accordion and brings its card into view. Meals and the destination stay
+  strictly non-interactive — only where you sleep is a decision.
 - Pure module `src/lib/clockOverlay.ts` (`deriveClockMilestones`,
-  `ClockMilestone`, `clockHM`) + 8 fixtures in `tests/clockOverlay.test.ts`.
+  `ClockMilestone`, `clockHM`) + 19 fixtures in `tests/clockOverlay.test.ts`.
+- **True user deletion in the masteradmin console.** The Users tab gains a permanent Delete alongside Disable (the existing reversible soft-ban): an audited `admin_delete_user` RPC deletes the auth account, which cascades every trip the user owns (plan, expenses, votes, decisions, activity, publications), their memberships and authored rows in other crews' trips, and their notifications — while other people's trips survive for the remaining crew. Protected by an explicit force confirmation before destroying published Explore listings, self-deletion and last-admin deletion are refused outright, and the audit log records the blast radius (email, owned-trip count, published count, force flag) before the delete. The console confirms by typing the user's email.
 
 ### Changed
 
 ### Fixed
+- **The map's clock labels and the Day Planner banner now come from ONE walk.**
+  The label layer used to re-run the travel-clock engine from reconstructed
+  inputs while the Map tab already held the identical verdict for its banner —
+  two walks kept in step by discipline, where one forgotten input (a terrain
+  profile, a party cap, a dinner anchor) would have let the map and the banner
+  quietly disagree. The projection now consumes the banner's own verdict: a
+  walk twice with identical inputs returning different labels is impossible by
+  construction, not merely unlikely.
+- **The drive home's distance chips no longer read the same as the outbound's.**
+  A round trip showed "Km 500" twice — once 500 km from home, once 500 km from
+  the destination — and only the hover tooltip said which. Return-leg chips now
+  carry their own arrow (`Km 500 ↩`) against the outbound's plain `Km 500`:
+  per-leg km kept (no renumbering), the ambiguity gone at a glance.
 - **Audit batch on the map rails.** `map-day-chip` reaches the 40px touch floor on coarse pointers (desktop silhouette unchanged; toolbar gaps 5→8px); the scan status span announces via `aria-live`; clock glyphs carry `role="img"` labels instead of being `aria-hidden`-only; the detour-budget split is memoised instead of recomputed per render; `.board-col-day` drops the dangling `var(--text-1)` (deleted in the v0.53.0 scale sweep).
 
 ### Docs
+- **The status docs catch up with the promotion and the queue.** `AGENTS.md` §1.1 and the ROADMAP snapshot still described the promotion to `main` as pending and the issue queue as empty; both are re-derived from the repo — `main` carries v0.56.0 (**PR #223**), `test` adds the unreleased, migration-gated user-deletion work (**PR #225**), and the queue holds **14 open issues** (the #226–#234 launch-readiness criteria and the #236–#240 milestone tracks, which now exist as issues and not only as roadmap prose). Three further stale claims went with them: **PR #224** was recorded as landed on `test` though it is still open (its six commits are absent from `origin/test`), the `shabtab` fork remote was recorded as removed though it is present and fetching, and the verify gate was quoted at 961 tests / 96 files when it now stands at **970 / 97**. The release ledger gains its missing v0.56.0 row.
+
+## [0.56.0] - 2026-09-17
+
+### Added
+- **Party + vehicle preferences persist across reloads.** `driverCount` (2 / 3), `hasVulnerable`, `driveAfterDinnerMin` and `vehicleProfile` are now persisted to the trips table — the four fields that the Day Planner finishing batch (#205 / #207) shipped as UI-only and that silently reverted to "1 driver / adults / dinner ends the day / no profile" on every reload. A trip set to "2 drivers, infants, drive after dinner, motorcycle" is now a trip set to that on the next reload too. Migration `20260915_trip_party_prefs.sql` adds the four columns (applied to the live Supabase project); the store's optional-column probe gates writes until then, exactly like the stay-budget pattern.
+- **The persisted vehicle profile drives fuel-stop spacing.** `MapTab`'s corridor-search options now pass `vehicleProfile` through to `planJourneyHalts`, so a 60 L / 20 km-L motorcycle is planned at motorcycle cadence and a 50 kWh EV is planned at charge cadence — previously every self-drive fell through to the 450 km car fallback because no app caller ever set `opts.vehicleProfile`. Junk profiles from a hand-edited row are dropped on read (`normalizeVehicleProfile` rejects unknown `vehicleType`/`fuelType`, non-finite or out-of-range `capacity`/`economy`), so the engine never sees garbage math.
+
+### Changed
+- **Trip settings is now its own workspace tab.** The crew, dates, places, budget, mileage, fuel price and vehicle profile controls leave the Share tab — Share now carries Plan together, Share publicly and Keep a record alone — and surface as the eighth workspace tab (`#/trip/<id>/settings`), where they are deep-linkable, swipable into on mobile and no longer compete with invite / publish / record for the same sub-tablist.
+- **Trip settings changes propagate everywhere, every time.** Five concrete fixes close the realtime gap that hid the trip settings tab from the rest of the workspace (#213 Phase 3):
+  - `MapTab`'s `wholeTrip` memo now depends on `trip`, so a transport-mode / round-trip / driver-count / vulnerable tweak re-derives the plan totals — previously it was stable on `[stopSig, routeTotalKm, routeTotalMin]` with the eslint-disable masking the omission.
+  - The suggestion cache hash (`planInputsHash`, a one-owner pure function in `useSuggestionCache.ts`) now covers every input the search reads — travellers, driverCount, hasVulnerable, driveAfterDinnerMin, budgetPerPersonInr, fuelEconomyKmL, fuelPricePerL, roundTrip, vehicleProfile — not just anchors, route, scope, travel style and transport mode. A crew / fuel / budget tweak now busts the cache and re-searches at the new fatigue cadence instead of serving 4-hour-old suggestions tuned for the old party. `CACHE_VERSION` bumped 3→4 so old entries are dropped on next load.
+  - `MapTab`'s split / clock verdicts now include `dayWeatherCode` in their deps, so a storm-code change with an unchanged rain percent re-weights the rain factor honestly (previously the banner stayed stale).
+  - `TripWorkspace`'s road chain now memoises on a geometry-only signature (`roadChainSig(trip)` in `lib/tripRoad.ts`), not on the cloned trip object — a fuel-price / crew / dates / budget save keeps the existing chain and legs, so totals don't blink to haversine, the corridor search isn't re-planned, and the split/clock verdicts keep their numbers.
+  - `Group` and `Budget` tabs now read `effective = pending?.proposed ?? trip` instead of `trip`, so while an impact preview is open, the suggested day's expense / fuel / lodging line on the Budget tab and the Group Input filters follow the proposed values, not the persisted ones. Share still reads `trip` (it doesn't render day plans, so the split is immaterial).
+  - `DaySection`'s nearby-ideas effect now includes `trip.transportMode`, `trip.startLocationCoords`, and `trip.travelStyle` in its deps, so a transport-mode / start move / style change re-derives the mode-tuned chips instead of keeping the old ones until a stop change.
+- **The bed's price can no longer go silently wrong.** Three faults in the stay-budget dial (#213 Phase 4): an unrecognised `stay_style` (the column deliberately has no CHECK constraint) indexed the rate table to `undefined` and multiplied the whole lodging line — and the trip total with it — into `NaN`; the Plan Bench hand-off mapped its stay tier onto the *travel* style and never set the dial, so a Luxury bench run (₹8,000 a room-night) created a trip that billed comfort (₹3,200); and Create Trip's travel-style copy claimed that dial prices the bed, which it does not. The stored key is now validated (anything outside `budget`/`comfort`/`luxury` falls through to the legacy rule, so no stored trip is re-priced), the bench passes its tier through as an explicit dial, and the copy says what the algorithm actually does.
+- **Create Trip and Trip settings offer the same choices.** Six vocabulary mismatches closed (#213 Phase 5): **every transport mode is now creatable** (the create grid was a hand-rolled six, missing `taxi` and `mixed`, so a trip could be switched to a mode it was impossible to create — the tiles are now derived from `TRANSPORT_MODES` through an exhaustive Record, so a new mode is a compile error rather than a silent gap); **one crew vocabulary** (`CREW_CHIPS` / `CREW_MIN` / `CREW_MAX` / `clampCrew` in `lib/crew.ts`, with the custom-size field on both surfaces — Trip settings used to render a fixed 1–12 and clamp the display at 12, so a 15-person trip showed "12" and any tap silently dropped the party); **the stay tiers are one list** (`STAY_STYLES` in `data/types.ts`, replacing four hand-written copies — including one inside the bench's random-preset helper); **one fuel-economy default** (`DEFAULT_FUEL_ECONOMY_KML = 15`, which Trip settings used to show as 18); **the party controls are gated by the engine's own `isSelfDrivenMode`** on both surfaces (Create listed `taxi`, which the engine ignores, and omitted `mixed`, which it honours — dead dials in one place, hidden ones in the other); and **Create Trip accepts a ₹0 per-person budget**, matching the settings page and the pacing tile's honest "no target yet" state instead of an arbitrary ₹500 floor. A trip switched to a conducted mode now clears the party dials it can no longer use.
+
+### Fixed
+- **A blank tank or economy no longer writes car numbers onto a bike or an EV.** Trip settings fell back to `Number(capacity) || 45` / `|| 15` regardless of the chosen vehicle, so leaving either field empty on a motorcycle (12 L / 40 km-L) or an EV (50 kWh / 6 km-kWh) persisted a car's profile — and the same form re-saved it on every later edit (#213 Phase 6). The defaults now come from `defaultVehicleProfile(vehicleType)`. Also: the per-person figure is divided by `Math.max(1, travellers)` so the bill can never render `₹∞`/`₹NaN` (`engine.ts`), a stored custom "drive after dinner" allowance (say 60 min) is no longer silently rewritten to 120 by any unrelated save, and a fuel price entered without a mileage now says so plainly instead of being quietly ignored in favour of the blended rate.
+
+### Docs
+- **The status docs record the settings audit and the queue's real state.** `AGENTS.md` §1.1 now lists the audit among this cycle's landed work and carries the gate's measured size (**961 tests across 96 files**, read from the green CI run on `test`), and the roadmap's snapshot, queue paragraph and Open-issues section say what actually happened: issue #213 was filed and closed the same day, its six phases shipped as PRs #219/#220. Three stale claims are corrected with it — the "nothing is open" line dated to the previous day, the M5 paragraph still pointing at "five items", and the snapshot's "leads `main` by that release" written before the audit landed.
 
 ## [0.55.0] - 2026-09-16
 

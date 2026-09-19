@@ -2,6 +2,7 @@
 // Pure helpers with NO react/supabase/toast imports, so the row mapping and the
 // missing-column detection are unit-testable in the node test environment.
 import type { Trip, ItineraryDay, TripMember, Expense, FixedCommitment, LatLngPoint } from '../data/types'
+import { normalizeVehicleProfile } from './vehicleProfile'
 
 export interface TripRow {
   id: string; owner_id: string; name: string; start_location: string;
@@ -16,6 +17,12 @@ export interface TripRow {
   budget_per_person_inr: number; travel_style: string; fixed_commitments: FixedCommitment[];
   /** present only after the stay-budget migration (20260914_trip_stay_budget.sql) */
   stay_style?: string | null;
+  /** present only after the party+vehicle migration (20260915_trip_party_prefs.sql) */
+  driver_count?: number | null;
+  has_vulnerable?: boolean | null;
+  drive_after_dinner_min?: number | null;
+  /** JSONB: vocabulary-validated by normalizeVehicleProfile on read. */
+  vehicle_profile?: unknown | null;
   days: ItineraryDay[]; expenses: Expense[]; cover_emoji: string;
   /** present only after the cover-image migration (see supabase/schema.sql) */
   cover_image_url?: string | null;
@@ -26,7 +33,33 @@ export interface TripRow {
   created_at: number; updated_at: number;
 }
 
+/** Sanity bounds for party fields — a row with garbage numbers would silently
+ *  degrade the split verdict and the wheel-cap calc. Narrow range; anything
+ *  outside is dropped and the engine falls back to its 1-driver / no-vulnerable
+ *  / dinner-ends-day defaults. */
+const DRIVER_COUNT_VALUES = new Set([2, 3])
+const DRIVE_AFTER_DINNER_MAX_MIN = 480 // 8 h post-dinner is the trip's cap
+
 export function rowToTrip(row: TripRow, members: TripMember[]): Trip {
+  // driverCount: NULL means "1 driver" (the legacy default). Anything outside
+  // {2, 3} is junk — pre-migration trips stay at undefined, post-migration
+  // typos degrade to undefined (engine falls back to 1).
+  const driverCount = row.driver_count != null && DRIVER_COUNT_VALUES.has(row.driver_count)
+    ? row.driver_count
+    : undefined
+  // hasVulnerable: NULL is the legacy default = false. Booleans pass through.
+  const hasVulnerable = row.has_vulnerable === true ? true : undefined
+  // driveAfterDinnerMin: NULL = dinner ends the day. 1..MAX are the only
+  // meaningful values; the settings form emits 120, anything else is noise.
+  const driveAfterDinnerMin = typeof row.drive_after_dinner_min === 'number'
+    && Number.isFinite(row.drive_after_dinner_min)
+    && row.drive_after_dinner_min >= 1
+    && row.drive_after_dinner_min <= DRIVE_AFTER_DINNER_MAX_MIN
+    ? row.drive_after_dinner_min
+    : undefined
+  // vehicleProfile: vocabulary/range check via normalizeVehicleProfile. Any
+  // junk field drops the whole profile; the engine's mode default kicks in.
+  const vehicleProfile = normalizeVehicleProfile(row.vehicle_profile)
   return {
     id: row.id, name: row.name, startLocation: row.start_location, startLocationCoords: row.start_location_coords ?? undefined,
     destinations: row.destinations ?? [],
@@ -40,6 +73,10 @@ export function rowToTrip(row: TripRow, members: TripMember[]): Trip {
     // Absent column (pre-migration) stays undefined so stayKeyFor() falls back to
     // the legacy travelStyle and no stored trip re-prices silently.
     stayStyle: (row.stay_style ?? undefined) as Trip['stayStyle'],
+    driverCount,
+    hasVulnerable,
+    driveAfterDinnerMin,
+    vehicleProfile,
     days: row.days ?? [], expenses: row.expenses ?? [], coverEmoji: row.cover_emoji,
     coverImageUrl: row.cover_image_url ?? undefined, inviteCode: row.invite_code ?? undefined,
     visibility: row.visibility, deletedAt: row.deleted_at != null ? new Date(row.deleted_at).getTime() : undefined,
@@ -51,6 +88,11 @@ export interface OptionalColumnsProbe {
   economy: boolean; price: boolean; roundTrip: boolean; cover: boolean; inviteCode: boolean; deleted: boolean
   /** the stay-budget dial (20260914_trip_stay_budget.sql) */
   stayStyle: boolean
+  /** the party + vehicle preference batch (20260915_trip_party_prefs.sql) */
+  driverCount: boolean
+  hasVulnerable: boolean
+  driveAfterDinner: boolean
+  vehicleProfile: boolean
 }
 
 /**
@@ -76,6 +118,13 @@ export function tripToRow(trip: Trip, ownerId: string, cols?: OptionalColumnsPro
   if (cols?.inviteCode) row.invite_code = trip.inviteCode ?? null
   if (cols?.deleted) row.deleted_at = trip.deletedAt != null ? new Date(trip.deletedAt).toISOString() : null
   if (cols?.stayStyle) row.stay_style = trip.stayStyle ?? null
+  // 1 is the legacy default — store 1 and undefined both as NULL, so the row
+  // round-trips to `undefined` (engine falls back to 1 driver). 2/3 are the
+  // only meaningful values written; anything else is junk and also NULL.
+  if (cols?.driverCount) row.driver_count = (trip.driverCount === 2 || trip.driverCount === 3) ? trip.driverCount : null
+  if (cols?.hasVulnerable) row.has_vulnerable = trip.hasVulnerable === true
+  if (cols?.driveAfterDinner) row.drive_after_dinner_min = trip.driveAfterDinnerMin ?? null
+  if (cols?.vehicleProfile) row.vehicle_profile = trip.vehicleProfile ?? null
   return row
 }
 

@@ -1,0 +1,18 @@
+# YatraFlow — https://yatraflow-blond.vercel.app
+#
+# The app routes on the URL hash, so every in-app screen (`/#/explore`,
+# `/#/trips`, `/#/pub/<id>`, …) is served by `/` and is not a separately
+# addressable URL to a crawler. The only distinct server-rendered URLs are the
+# published itineraries at `/i/<id>` — those are what the sitemap lists.
+
+User-agent: *
+Allow: /
+
+# The endpoint `/i/<id>` rewrites to. Crawling it directly would put every
+# itinerary at a second URL.
+Disallow: /api/
+
+# Keyless map/search proxy — an upstream API, not content.
+Disallow: /mappls/
+
+Sitemap: https://yatraflow-blond.vercel.app/sitemap.xml

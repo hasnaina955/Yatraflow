@@ -7,6 +7,7 @@ import type { Trip, PublishedItinerary } from '../../data/types'
 import { useDb, userById, setMemberRole, removeMember, restoreMember, publishItinerary, unpublishItinerary, ensureInviteCode } from '../../store/store'
 import { encodeTripSnapshot, snapshotUrl, downloadTripJson } from '../../lib/snapshot'
 import { ImportTripButton } from '../../components/ImportTripButton'
+import { CoverImagePicker } from '../../components/CoverImagePicker'
 import { currentPublicShareUrl } from '../../lib/shareUrl'
 import { downloadTripIcs } from '../../lib/ics'
 import { nativeCopyText } from '../../lib/native'
@@ -106,6 +107,14 @@ function PublicationForm({ trip, pub, isOwner, creatorId, onDone }: {
   }
 
   function submit() {
+    // The publication's cover IS the link preview: api/i.js serves it as
+    // og:image/twitter:image, and it is copied from the trip here. Publishing
+    // without one — or with a URL the handler's `^https://\S+$` test rejects —
+    // ships a link that silently previews as the brand card instead of this
+    // trip, which is the one thing a creator cannot see from inside the app.
+    const cover = trip.coverImageUrl?.trim()
+    if (!cover) { setErr('Add a cover photo — it is the picture your share link previews with.'); return }
+    if (!/^https:\/\/\S+$/.test(cover)) { setErr('The cover must be an https image URL — link previews ignore anything else.'); return }
     if (!Number.isFinite(priceNum) || priceNum < 0) { setErr('Price must be a number of rupees, 0 or more.'); return }
     // The purchase_orders table caps amount_inr at 100000 (the gateway's
     // sensible test-mode ceiling) — a publication priced above it would 503
@@ -138,6 +147,17 @@ function PublicationForm({ trip, pub, isOwner, creatorId, onDone }: {
 
   return (
     <div className="ts-form">
+      <div className="ts-subhead">
+        <b>Cover photo</b>
+        <span className="small muted">Required — this is the picture every shared link previews with.</span>
+      </div>
+      <CoverImagePicker trip={trip} editable={isOwner} />
+      {!trip.coverImageUrl && (
+        <p className="hint-text ts-note">
+          That preview is a suggestion the app found — nothing is saved yet, and a link cannot show it.
+          Use it or paste your own; publishing needs a saved cover.
+        </p>
+      )}
       <Field label="Tagline" hint="One line that sells the route on Explore and the public page.">
         <input className="input" value={tagline} onChange={e => setTagline(e.target.value)} maxLength={140} />
       </Field>

@@ -1,12 +1,14 @@
 -- ============================================================================
 -- M6 · B2 — keep trips.updated_at on the database clock
 -- ============================================================================
--- The stale-update guard (src/lib/realtimeCore.ts isStaleUpdate) compares an
--- incoming realtime row's updated_at against the cached row's. For those
--- timestamps to be comparable they must come from ONE clock — the database's.
--- The column existed with a default, but nothing refreshed it on UPDATE, so
--- every row kept its creation timestamp and the guard (and any future
--- last-write-wins logic) had no real signal.
+-- The realtime stale-update guard (src/store/store.ts, via isStaleServerRow in
+-- src/lib/realtimeCore.ts) orders incoming remote rows against the last
+-- SERVER-applied updated_at per trip. For those timestamps to mean anything
+-- they must come from ONE clock — the database's. The column existed with a
+-- default, but nothing refreshed it on UPDATE, so every row kept its creation
+-- timestamp; until this trigger is applied, equal timestamps are the NORMAL
+-- case for every remote update, which is exactly why the guard treats
+-- EQUAL as APPLY (only strictly-older rows are dropped as replays).
 --
 -- Idempotent: safe to re-run. CREATE OR REPLACE FUNCTION + drop/re-create
 -- trigger.

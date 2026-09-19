@@ -19,7 +19,7 @@ import { toast } from '../components/ui'
 import { isMissingColumnError, rowToTrip, tripToRow, type OptionalColumnsProbe, type TripRow } from '../lib/tripRow'
 import { makeInviteCode, normalizeInviteCode } from '../lib/inviteCode'
 import { suggestionToRow, decisionToRow, activityToRow, notificationToRow, publishedToRow } from '../lib/restoreRows'
-import { reduceSlice, applyMemberChange, isRecentLocalWrite } from '../lib/realtimeCore'
+import { reduceSlice, applyMemberChange, isRecentLocalWrite, isStaleServerRow } from '../lib/realtimeCore'
 import { MISSING_BACKEND_MESSAGE, describeAuthFailure } from '../lib/authErrors'
 import { adminFromSession, clearAdminCache, isAdminCached } from '../lib/adminSession'
 import type { RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/supabase-js'
@@ -601,6 +601,12 @@ async function hydrateFromSupabase(userId: string, gen: number, seedIfEmpty = tr
       ? undefined
       : [...tripList, ...catalogTrips]
 
+    // B2: seed the server-clock ledger with every server-applied trip row —
+    // hydration is the definition of "server-applied" (see
+    // serverTripTimestamps above for why the guard must read this and not
+    // Trip.updatedAt).
+    for (const t of [...tripList, ...catalogTrips]) recordServerTripTimestamp(t.id, t.updatedAt)
+
     patch({
       users,
       ...(tripsRead !== undefined ? { trips: tripsRead } : {}),
@@ -793,6 +799,7 @@ export async function fetchSharedTrip(tripId: ID, allowInvitePreview = false): P
   }
   if (!row) return null
   const trip = rowToTrip(row, [])
+  recordServerTripTimestamp(trip.id, trip.updatedAt)
   if (!cache.trips.some(t => t.id === trip.id)) {
     cache.trips = [...cache.trips, trip]
     commit()
@@ -825,6 +832,7 @@ export async function fetchPublicTrip(pubId: string): Promise<Trip | null> {
   const rows = rpc.data as TripRow[] | null
   if (!Array.isArray(rows) || rows.length === 0) return null
   const trip = rowToTrip(rows[0], [])
+  recordServerTripTimestamp(trip.id, trip.updatedAt)
   if (!cache.trips.some(t => t.id === trip.id)) {
     cache.trips = [...cache.trips, trip]
     commit()
@@ -852,6 +860,7 @@ export async function fetchTripByInviteCode(code: string): Promise<Trip | null> 
   const rows = rpc.data as TripRow[] | null
   if (!Array.isArray(rows) || rows.length === 0) return null
   const trip = rowToTrip(rows[0], [])
+  recordServerTripTimestamp(trip.id, trip.updatedAt)
   if (!cache.trips.some(t => t.id === trip.id)) {
     cache.trips = [...cache.trips, trip]
     commit()
@@ -1643,6 +1652,9 @@ export async function fetchTrashedTrips(): Promise<void> {
   const { data, error } = await supabase.rpc('get_trashed_trips')
   if (error) { console.error('[yatraflow] trashed trips fetch failed', error); return }
   cache.trashedTrips = mapOrSkip((data ?? []) as unknown[], r => rowToTrip(r as TripRow, []))
+  // Trashed rows are server-applied too — a restored trip's guard must not
+  // compare a fresh remote UPDATE against a nonexistent ledger entry.
+  for (const t of cache.trashedTrips) recordServerTripTimestamp(t.id, t.updatedAt)
   commit()
 }
 
@@ -2409,6 +2421,34 @@ export function _clearRecentLocalWrites(): void {
   recentLocalWrites.clear()
 }
 
+/** B2 server-clock ledger: the last SERVER-APPLIED `trips.updated_at` per trip
+ *  id. Written ONLY from hydration, the shared/public/invite/trash fetchers and
+ *  applyRealtimeEvent — NEVER from optimistic mutations. This is the only
+ *  honest clock for the stale-update guard: `Trip.updatedAt` on the cache is
+ *  the optimistic client clock (`mutateTrip` bumps it to `Date.now()` on every
+ *  local edit), so after any local edit it outranks the server's `updated_at`
+ *  forever and a guard comparing against it would suppress every real remote
+ *  edit. DB clock vs DB clock, mirrored on recentLocalWrites above (bounded
+ *  map; per-id entries are re-seeded by every hydrate, so an account switch
+ *  self-corrects for any trip the new session can see). */
+const serverTripTimestamps = new Map<string, number>()
+const MAX_SERVER_TRIP_TS = 500
+
+function recordServerTripTimestamp(id: string, raw: unknown): void {
+  const n = Number(raw)
+  if (!Number.isFinite(n)) return
+  serverTripTimestamps.set(id, n)
+  if (serverTripTimestamps.size > MAX_SERVER_TRIP_TS) {
+    const oldestKey = serverTripTimestamps.keys().next().value
+    if (oldestKey) serverTripTimestamps.delete(oldestKey)
+  }
+}
+
+/** Test hook — clear the server-timestamp ledger (see _clearRecentLocalWrites). */
+export function _clearServerTripTimestamps(): void {
+  serverTripTimestamps.clear()
+}
+
 /** Realtime payloads come off the wire, so they are not ours to trust. An
  *  unexpected shape throws, and a throw from inside a `postgres_changes` callback
  *  escapes into the realtime client's own event dispatch instead of stopping
@@ -2426,6 +2466,13 @@ function dispatchRealtimeEvent(table: string, payload: RealtimePostgresChangesPa
   } catch (e) {
     console.error(`[yatraflow] realtime ${table} event dropped`, e)
   }
+}
+
+/** Test hook — feed a postgres_changes payload into the dispatch without a
+ *  live channel (dispatchRealtimeEvent is module-private). Containment try/
+ *  catch included, matching the real path exactly. */
+export function _applyRealtimeEventForTest(table: string, payload: RealtimePostgresChangesPayload<Record<string, unknown>>): void {
+  dispatchRealtimeEvent(table, payload)
 }
 
 /** Start listening for row changes. Call after a successful hydration. */
@@ -2466,7 +2513,15 @@ function applyRealtimeEvent(table: string, payload: RealtimePostgresChangesPaylo
 
   switch (table) {
     case 'trips': {
-      if (echoWindowEh('trips', id)) return
+      if (echoWindowEh('trips', id)) {
+        // Our own write's echo: suppress the row swap, but record the server's
+        // updated_at in the B2 ledger so the NEXT remote row for this trip is
+        // compared against the clock the DB actually wrote (M6 B2). The
+        // cache's Trip.updatedAt stays the optimistic client clock — nothing
+        // derives the guard from it.
+        if (event === 'UPDATE') recordServerTripTimestamp(id, row?.updated_at)
+        break
+      }
       if (event === 'DELETE') {
         cache.trips = cache.trips.filter(t => t.id !== id)
         cache.suggestions = cache.suggestions.filter(s => s.tripId !== id)
@@ -2475,7 +2530,21 @@ function applyRealtimeEvent(table: string, payload: RealtimePostgresChangesPaylo
         cache.notifications = cache.notifications.filter(n => n.tripId !== id)
       } else {
         const existing = tripById(id)
-        cache.trips = reduceSlice(cache.trips, event, rowToTrip(row as TripRow, existing?.members ?? []), oldRow?.id)
+        const incoming = rowToTrip(row as TripRow, existing?.members ?? [])
+        if (event === 'UPDATE') {
+          // B2 stale-update guard — TRIPS ONLY (the generic reduceSlice stays
+          // plain: no other table carries a comparable timestamp pair;
+          // profiles has no updated_at at all), and against the SERVER ledger
+          // above, never Trip.updatedAt. STRICTLY older rows are replays and
+          // are dropped; EQUAL timestamps APPLY — before
+          // 20260919_trip_touch_updated_at.sql is applied, updated_at never
+          // advances, so equal is every remote update's normal case (see
+          // isStaleServerRow). The echo window above already handled our own
+          // writes, so this only ever drops genuinely remote stale rows.
+          if (isStaleServerRow(serverTripTimestamps.get(id), row?.updated_at)) break
+          recordServerTripTimestamp(id, row?.updated_at)
+        }
+        cache.trips = reduceSlice(cache.trips, event, incoming, oldRow?.id)
       }
       break
     }
@@ -2556,6 +2625,7 @@ async function fetchTripIntoCache(tripId: string): Promise<void> {
     if (tripRes.error || !tripRes.data) return
     const members = ((memRes.data ?? []) as MemberRow[]).map(m => ({ userId: m.user_id, role: m.role as TripMember['role'], joinedAt: m.joined_at }))
     const trip = rowToTrip(tripRes.data as TripRow, members)
+    recordServerTripTimestamp(trip.id, trip.updatedAt)
     if (!cache.trips.some(t => t.id === trip.id)) cache.trips = [...cache.trips, trip]
     commit()
   })()

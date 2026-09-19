@@ -2,7 +2,10 @@
 // Tests the pure helpers in src/lib/realtimeCore.ts that the store's
 // postgres_changes handlers run for every remote event.
 import { describe, it, expect } from 'vitest'
-import { reduceSlice, applyMemberChange, isRecentLocalWrite } from '../src/lib/realtimeCore'
+import {
+  reduceSlice, applyMemberChange, isRecentLocalWrite, isStaleServerRow,
+  canonicalKey, stopWasRemotelyEdited,
+} from '../src/lib/realtimeCore'
 import type { TripMember } from '../src/data/types'
 
 type Item = { id: string; n: number }
@@ -57,6 +60,79 @@ describe('applyMemberChange', () => {
 
   it('removes a member on DELETE', () => {
     expect(applyMemberChange(members, { event: 'DELETE', userId: 'u2', role: 'editor', joinedAt: 2 }).map(m => m.userId)).toEqual(['u1'])
+  })
+})
+
+describe('isStaleServerRow (B2 stale-update guard, server ledger vs incoming)', () => {
+  // The guard is STRICTLY-OLDER-ONLY: a row is dropped only when its updated_at
+  // is LESS than the last server-applied timestamp. EQUAL timestamps APPLY —
+  // before 20260919_trip_touch_updated_at.sql lands, updated_at never advances,
+  // so equal timestamps are the NORMAL case for every remote update; the old
+  // `cached >= incoming` rule dropped all of them and killed realtime sync.
+
+  it('applies an incoming row NEWER than the ledger', () => {
+    expect(isStaleServerRow(100, 200)).toBe(false)
+  })
+
+  it('ignores an incoming row OLDER than the ledger (reconnect replay)', () => {
+    expect(isStaleServerRow(300, 200)).toBe(true)
+  })
+
+  it('APPLIES an incoming row with an EQUAL timestamp (pre-trigger normal case)', () => {
+    expect(isStaleServerRow(300, 300)).toBe(false)
+  })
+
+  it('applies when the ledger has no entry for the trip (unknown id)', () => {
+    expect(isStaleServerRow(undefined, 200)).toBe(false)
+  })
+
+  it('applies when the ledger timestamp is not a usable number', () => {
+    expect(isStaleServerRow(Number.NaN, 200)).toBe(false)
+  })
+
+  it('applies when the incoming row carries NO timestamp (pre-trigger rows)', () => {
+    expect(isStaleServerRow(300, undefined)).toBe(false)
+    expect(isStaleServerRow(300, Number.NaN)).toBe(false)
+    expect(isStaleServerRow(300, 'not-a-number')).toBe(false)
+  })
+
+  it('applies when NEITHER side carries a timestamp (guard is a no-op)', () => {
+    expect(isStaleServerRow(undefined, undefined)).toBe(false)
+  })
+
+  it('coerces the snake_case wire spelling / numeric strings honestly', () => {
+    expect(isStaleServerRow(300, '200')).toBe(true)
+    expect(isStaleServerRow(300, '400')).toBe(false)
+    expect(isStaleServerRow(300, 400)).toBe(false)
+  })
+})
+
+describe('canonicalKey / stopWasRemotelyEdited (B3 detection)', () => {
+  it('is invariant to object key order at every depth (jsonb normalization)', () => {
+    const a = { title: 'X', meta: { b: 2, a: 1 }, tags: ['p', 'q'] }
+    const b = { tags: ['p', 'q'], meta: { a: 1, b: 2 }, title: 'X' }
+    expect(canonicalKey(a)).toBe(canonicalKey(b))
+    expect(stopWasRemotelyEdited(a, b)).toBe(false)
+  })
+
+  it('detects a genuine field change', () => {
+    const mine = { id: 's1', title: 'Beach', visitMinutes: 60 }
+    const theirs = { id: 's1', title: 'Beach', visitMinutes: 90 }
+    expect(stopWasRemotelyEdited(mine, theirs)).toBe(true)
+  })
+
+  it('respects array order (a reorder IS a change)', () => {
+    expect(stopWasRemotelyEdited({ t: [1, 2, 3] }, { t: [3, 2, 1] })).toBe(true)
+  })
+
+  it('returns false for missing inputs (never flags on undefined)', () => {
+    expect(stopWasRemotelyEdited(undefined, { a: 1 })).toBe(false)
+    expect(stopWasRemotelyEdited({ a: 1 }, undefined)).toBe(false)
+  })
+
+  it('treats added/removed keys as a change', () => {
+    expect(stopWasRemotelyEdited({ a: 1 }, { a: 1, notes: 'new' })).toBe(true)
+    expect(stopWasRemotelyEdited({ a: 1, notes: 'x' }, { a: 1 })).toBe(true)
   })
 })
 

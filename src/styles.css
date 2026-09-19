@@ -606,13 +606,19 @@ a.btn { text-decoration: none; }
 @media (pointer: coarse) {
   .btn, .icon-btn, .chip, .clickable-chip, .toast-action, .tab-btn,
   .map-legend-toggle, .nav-link, .filter-pillbar .clickable-chip,
-  .link-btn, .move-btn, .board-pulse-link, .cal-day, .cal-nav, .route-btn, .vote-btn, .yf-map-idea-add, .poi-short, .poi-cand-add, .poi-fold, .save-heart, .yf-maplibre .yf-map-ctrls button {
+  .link-btn, .move-btn, .board-pulse-link, .cal-day, .cal-nav, .route-btn, .vote-btn, .yf-map-idea-add, .poi-short, .poi-cand-add, .poi-fold, .save-heart, .yf-maplibre .yf-map-ctrls button,
+  .day-collapse {
     position: relative;
   }
   .btn::after, .icon-btn::after, .chip::after, .clickable-chip::after,
   .toast-action::after, .tab-btn::after, .map-legend-toggle::after,
   .nav-link::after, .link-btn::after, .move-btn::after, .board-pulse-link::after,
-  .cal-day::after, .cal-nav::after, .route-btn::after, .vote-btn::after, .yf-map-idea-add::after, .poi-short::after, .poi-cand-add::after, .poi-fold::after, .save-heart::after, .yf-maplibre .yf-map-ctrls button::after {
+  .cal-day::after, .cal-nav::after, .route-btn::after, .vote-btn::after, .yf-map-idea-add::after, .poi-short::after, .poi-cand-add::after, .poi-fold::after, .save-heart::after, .yf-maplibre .yf-map-ctrls button::after,
+  /* the day accordion's 28px chevron was the one compact control left out of
+     this budget: its only neighbour inside 14px is the day badge, 12px away,
+     so a 6px expansion stays clear of it. The collapsed route line needs no
+     expander — it wraps to 2+ lines (41-62px) at phone widths. */
+  .day-collapse::after {
     content: ''; position: absolute; inset: -6px; border-radius: inherit;
   }
 }
@@ -2920,7 +2926,7 @@ main:focus { outline: none; }
 .theme-toggle:focus-visible, .avatar-btn:focus-visible, .user-menu-item:focus-visible,
 .nav-link:focus-visible, .tab-btn:focus-visible, .brand:focus-visible,
 .mobile-nav-btn:focus-visible, .bottom-nav-item:focus-visible,
-.day-collapse:focus-visible, .move-btn:focus-visible, .vote-btn:focus-visible,
+.day-collapse:focus-visible, .day-route:focus-visible, .move-btn:focus-visible, .vote-btn:focus-visible,
 .chip-btn:focus-visible, .clickable-chip:focus-visible, .toast-action:focus-visible,
 .day-rail-chip:focus-visible,
 .map-day-chip:focus-visible, .map-idea-chip:focus-visible, .map-legend-toggle:focus-visible,
@@ -2938,6 +2944,9 @@ main:focus { outline: none; }
   box-shadow: var(--ring);
 }
 .yf-map-pin:focus-visible { outline-offset: 2px; }
+/* The route line wraps to several lines; a bare box-shadow ring would trace
+   every one of them, so it takes the same small radius as .link-btn. */
+.day-route:focus-visible { border-radius: 6px; }
 
 /* ---- Location dropdown: two-line rows with POI thumbnails ---- */
 .loc-option { align-items: center; }

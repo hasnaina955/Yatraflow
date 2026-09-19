@@ -1,0 +1,38 @@
+-- ============ Owner-chosen trip cover image ============
+-- `Trip.coverImageUrl` — the picker's explicit cover, whether it is the
+-- destination photo, a pasted URL, or a photo the creator uploads to our own
+-- `covers` bucket — was never given a column. The store probes for
+-- `cover_image_url` before writing it (src/store/store.ts →
+-- `tripsHaveOptionalColumns`), that probe has always come back false against
+-- this project, and `tripToRow` therefore omits the field:
+--
+--     if (cols?.cover) row.cover_image_url = trip.coverImageUrl ?? null
+--
+-- So the choice was SESSION-ONLY: it looked applied in the picker, survived
+-- until the next reload, and then silently reverted to the runtime Wikipedia
+-- suggestion. Every stored trip reads `coverImageUrl: undefined`.
+--
+-- The visible symptom was one layer away and looked like a different bug
+-- entirely: publishing copies `trip.coverImageUrl` onto the publication
+-- (`publishItinerary`), so `published_itineraries.cover_image_url` was stamped
+-- NULL even when the creator had explicitly picked a cover — and api/i.js, which
+-- reads that column and nothing else, correctly fell back to the branded card.
+-- A shared itinerary therefore previewed as the brand image on every link while
+-- the app showed a photo, which reads like a preview-handler fault. It was not:
+-- the data had never been saved.
+--
+-- Nothing else changes. The client already handles both states — the picker
+-- treats a missing cover as "show the suggestion", and the pre-migration rows
+-- simply stay NULL — so no stored trip changes appearance on its own. Adding
+-- the column flips the probe to true and the existing write path starts
+-- persisting, with no client release needed.
+--
+-- This file ships the DDL ONLY. Apply it live (Dashboard → SQL editor, or
+-- `supabase db push`). Until then the probe keeps reporting `cover: false` and
+-- every cover stays session-only — i.e. the old bug, not a new one.
+--
+-- `text`, no length cap and no CHECK: a cover is an arbitrary https URL
+-- (Wikimedia, our own bucket, or something a creator hosts), and the shape that
+-- actually matters is validated at the boundaries that consume it — the publish
+-- form and api/i.js both require `^https://\S+$`.
+alter table public.trips add column if not exists cover_image_url text;

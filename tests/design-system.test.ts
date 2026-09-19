@@ -611,7 +611,57 @@ describe('the day collapse moves as one gesture', () => {
     // That line is what changes the header's height; appearing at full height in
     // one frame moved every wrapped row below it at once.
     const src = source('src/pages/trip/timeline/DaySection.tsx')
-    expect(src).toContain('<SmoothCollapse open={collapsed}>')
+    expect(src).toContain('<SmoothCollapse open={collapsed} fallbackFocus={collapseRef}>')
+    // It discloses the same body as the chevron, so it carries the same state.
+    expect(src).toMatch(/className="day-route"[^>]*aria-expanded=\{!collapsed\}/)
+  })
+
+  it('gives the day chevron the coarse-pointer hit budget too', () => {
+    // 28px is under both the repo's 40px floor and the 48dp Android budget, and
+    // this was the one compact control the block's inventory missed. The
+    // expander brings it to 40px; measured, its only neighbour within 14px is
+    // the day badge, 12px away, so the extra 6px stays clear of it. The
+    // collapsed route line deliberately needs no expander — it wraps to 2+ lines
+    // (41–62px) at phone widths, which the budget already covers.
+    const coarse = css.slice(css.indexOf('@media (pointer: coarse)'))
+    expect(coarse, 'no coarse-pointer block').not.toBe('')
+    expect(coarse).toMatch(/\.day-collapse \{\s*position: relative;/)
+    expect(coarse).toMatch(/\.day-collapse::after \{[^}]*inset: -6px;/)
+  })
+
+  it('wears the app ring on the route line, not the browser default', () => {
+    // Focused, this control painted Chromium's own `1px auto rgb(16,16,16)` —
+    // invisible on the dark card — while every other control in the header
+    // carried var(--ring).
+    // The list's last selector is .bench-surprise, so the declaration block ends
+    // at the first `}` after it (searching for .yf-map-pin would stop early — it
+    // appears inside the list itself).
+    const listStart = css.indexOf('.day-collapse:focus-visible')
+    const shared = css.slice(listStart, css.indexOf('}', css.indexOf('.bench-surprise:focus-visible', listStart)))
+    expect(shared, 'the shared ring list').toContain('.day-route:focus-visible')
+    expect(shared).toMatch(/outline: none;\s*box-shadow: var\(--ring\)/)
+    // the radius a wrapped multi-line line box needs (same call as .link-btn)
+    expect(css).toMatch(/\.day-route:focus-visible \{ border-radius: 6px; \}/)
+  })
+
+  it('hands focus back before a clip unmounts under the keyboard user', () => {
+    // Measured: opening a day from its route line (Enter on the chain) unmounted
+    // that control one animation later and dropped focus to <body> — the next Tab
+    // restarted at the top of the document. Both clips can unmount the focused
+    // element (the chain on open, the body on collapse), so both must hand it back.
+    const src = source('src/pages/trip/timeline/DaySection.tsx')
+    expect(src).toMatch(/clipRef\.current\?\.contains\(document\.activeElement\)\) fallbackFocus\?\.current\?\.focus\(\)/)
+    // And it must run BEFORE the unmount timer's line: the clip's inner wrapper
+    // flips to visibility:hidden one animation earlier, and the browser blurs a
+    // hidden element on the spot — a handoff after that point finds <body>.
+    const handoff = src.indexOf('fallbackFocus?.current?.focus()')
+    const unmount = src.indexOf('window.setTimeout(() => { setMounted(false) }')
+    expect(handoff, 'no focus handoff found').toBeGreaterThan(-1)
+    expect(unmount, 'no token-derived unmount timer found').toBeGreaterThan(-1)
+    expect(handoff).toBeLessThan(unmount)
+    const callSites = [...src.matchAll(/<SmoothCollapse open=\{[^}]+\}([^>]*)>/g)].map((m) => m[1])
+    expect(callSites.length, 'expected exactly two anchored clips').toBe(2)
+    expect(callSites.every((s) => s.includes('fallbackFocus={collapseRef}'))).toBe(true)
   })
 
   it('fades the header extras that exist in one state only', () => {

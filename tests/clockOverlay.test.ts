@@ -95,23 +95,54 @@ describe('deriveClockMilestones - pins, not areas', () => {
     expect(pins[0].kmLabel).toBe(`Km ${pins[0].kmIn}`)
   })
 
-  it('round trip: return-day pins land on the REVERSED road', () => {
+  it('round trip: return-day labels land on the REVERSED road and are tagged', () => {
     const outbound = 600
     const pins = deriveClockMilestones({
       polyline: straightPolyline(outbound), outboundKm: outbound,
       loopMin: (outbound * 2) / SPEED, roundTrip: true, dayStart: '08:30',
     })
-    const halts = pins.filter(p => p.kind === 'overnight')
-    // day 1's halt is still on the outbound leg
-    expect(halts.some(h => h.kmIn <= outbound)).toBe(true)
-    // the loop needs more than one day, so a halt lands past the turnaround
-    const back = halts.find(h => h.kmIn > outbound)
-    expect(back).toBeDefined()
-    // reversed mapping: the pin sits west of the turnaround, back along the road
-    const turnaroundLng = outbound * DEG_KM
-    expect(back!.lng).toBeLessThan(turnaroundLng)
-    expect(back!.lng).toBeGreaterThan(0)
-    expect(back!.lng).toBeCloseTo(turnaroundLng - (back!.kmIn - outbound) * DEG_KM, 2)
+    // the honest #145 walk splits each leg into its own day(s) — both legs are walked
+    const outLeg = pins.filter(p => p.leg === 'outbound')
+    const backLeg = pins.filter(p => p.leg === 'return')
+    expect(outLeg.length).toBeGreaterThan(0)
+    expect(backLeg.length).toBeGreaterThan(0)
+    // km is per-leg: the outbound runs 0 → turnaround, the return runs 0 → home
+    for (const p of outLeg) expect(p.kmIn).toBeLessThanOrEqual(outbound)
+    for (const p of backLeg) expect(p.kmIn).toBeLessThanOrEqual(outbound)
+    // the return's final destination label is the homecoming, back at the origin
+    const home = backLeg.find(p => p.kind === 'destination')
+    expect(home).toBeDefined()
+    expect(home!.kmIn).toBe(outbound)
+    expect(home!.lng).toBeCloseTo(0, 3)
+    // a return label partway back sits west of the turnaround on the same road
+    const mid = backLeg.find(p => p.kmIn > 0 && p.kmIn < outbound)
+    if (mid) {
+      const turnaroundLng = outbound * DEG_KM
+      expect(mid.lng).toBeLessThan(turnaroundLng)
+      expect(mid.lng).toBeCloseTo(turnaroundLng - mid.kmIn * DEG_KM, 2)
+    }
+  })
+
+  it('a dated trip carries the calendar date on every label', () => {
+    const pins = deriveClockMilestones({
+      polyline: straightPolyline(800), outboundKm: 800, loopMin: 800 / SPEED,
+      roundTrip: false, dayStart: '08:30', tripStartDate: '2026-10-02',
+    })
+    expect(pins.length).toBeGreaterThan(0)
+    for (const p of pins) expect(p.dateLabel).toMatch(/^\d{1,2} \w{3}$/)
+    // day 2's halt (the ~400 km mark) lands the day after the start
+    const day2 = pins.find(p => p.dayNo === 2)
+    expect(day2).toBeDefined()
+    expect(day2!.dateLabel).toBe('3 Oct')
+  })
+
+  it('an undated call keeps the date empty rather than guessing', () => {
+    const pins = deriveClockMilestones({
+      polyline: straightPolyline(200), outboundKm: 200, loopMin: 200 / SPEED,
+      roundTrip: false, dayStart: '08:30',
+    })
+    expect(pins.length).toBeGreaterThan(0)
+    for (const p of pins) expect(p.dateLabel).toBe('')
   })
 
   it('pins follow the polyline when it bends', () => {

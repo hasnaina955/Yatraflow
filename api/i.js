@@ -2,6 +2,30 @@ const DEFAULT_ORIGIN = 'https://yatraflow-blond.vercel.app'
 const DEFAULT_TITLE = 'YatraFlow — Plan real trips, together'
 const DEFAULT_DESCRIPTION = 'Plan realistic India trips together. See the time, distance and cost impact of every stop.'
 const ID_RE = /^[A-Za-z0-9_-]{1,64}$/
+const COVER_WIDTH = 1200
+const WIKIMEDIA_PATH_RE = /^https:\/\/[^/]*wikimedia\.org\/wikipedia\/([^/]+)\/(.+)$/
+
+/** The same Wikimedia file at a sane width.
+ *
+ *  A stored cover is frequently the RAW upload — the one live publication that
+ *  has one carries `.../Chandratal_1.JPG?…thumbnail_unscaled`, 1.3 MB — because
+ *  it was written before the picker started sizing, or by the destination-photo
+ *  fallback. The client sizes these on the display path through the same
+ *  redirect (src/lib/tripThumb.ts `sizedCoverUrl`); this function cannot import
+ *  that (it sits behind the bundler, and this file stays dependency-free), so
+ *  the rule is repeated here. Measured on that cover: 1,335,523 bytes → 147,351.
+ *  Non-Wikimedia URLs come back untouched, and an already-sized redirect does
+ *  not match the path shape, so this is idempotent. */
+function sizedCover(url) {
+  const [path] = url.split('?')
+  const match = WIKIMEDIA_PATH_RE.exec(path)
+  if (!match) return url
+  const rest = match[2].startsWith('thumb/') ? match[2].slice('thumb/'.length) : match[2]
+  const file = /^[0-9a-f]\/[0-9a-f]{2}\/([^/]+)/.exec(rest)?.[1]
+  if (!file) return url
+  const host = match[1] === 'commons' ? 'commons.wikimedia.org' : `${match[1]}.wikipedia.org`
+  return `https://${host}/wiki/Special:Redirect/file/${file}?width=${COVER_WIDTH}`
+}
 
 function escapeHtml(value) {
   return String(value).replace(/[&<>"']/g, character => ({
@@ -23,7 +47,7 @@ function renderPublication(publication, id) {
   else if (typeof route === 'string' && route) facts.push(route)
   const description = publication?.tagline || facts.join(' · ') || DEFAULT_DESCRIPTION
   const cover = typeof publication?.cover_image_url === 'string' && /^https:\/\/\S+$/.test(publication.cover_image_url)
-    ? publication.cover_image_url : ''
+    ? sizedCover(publication.cover_image_url) : ''
   // A publication with no cover still needs a picture: without one the link
   // previews as a bare URL rather than a card. The fallback is the app's own
   // asset, and only in that case are its dimensions known and worth declaring.

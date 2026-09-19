@@ -129,11 +129,13 @@ const COLLAPSE_UNMOUNT_SLACK_MS = 40
  *  flushes a discrete-event effect before the browser paints, so mounting and
  *  opening in the SAME commit leaves the 0fr row unrendered — the transition
  *  then has no "from" value and the day snaps open. The unmount delay reads its
- *  duration from --motion-slow, so retiming the animation in CSS can never
- *  leave a half-collapsed body mounted. */
-function SmoothCollapse({ open, children }: { open: boolean; children: React.ReactNode }) {
+ *  duration from --motion-slower, so retiming the animation in CSS can never
+ *  leave a half-collapsed body mounted — and an unmount that would strand the
+ *  keyboard user's focus hands it back through `fallbackFocus` instead. */
+function SmoothCollapse({ open, children, fallbackFocus }: { open: boolean; children: React.ReactNode; fallbackFocus?: React.RefObject<HTMLButtonElement | null> }) {
   const [mounted, setMounted] = useState(open)
   const [expanded, setExpanded] = useState(open)
+  const clipRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (open) {
       setMounted(true)
@@ -142,12 +144,20 @@ function SmoothCollapse({ open, children }: { open: boolean; children: React.Rea
       return () => { cancelAnimationFrame(raf1); cancelAnimationFrame(raf2) }
     }
     setExpanded(false)
+    // This clip is on its way out, so hand focus back to the day's disclosure
+    // control the moment the close starts — NOT when the clip unmounts. Its
+    // inner wrapper flips to `visibility: hidden` one animation earlier, and a
+    // browser blurs a hidden element immediately: focus is already back on
+    // <body> by then, and a keyboard user's next Tab restarts at the top of the
+    // document. Reachable on both clips: opening a day from its route line
+    // removes that line, and collapsing removes the body under the cursor.
+    if (clipRef.current?.contains(document.activeElement)) fallbackFocus?.current?.focus()
     const t = window.setTimeout(() => { setMounted(false) }, motionTiming('--motion-slower').duration + COLLAPSE_UNMOUNT_SLACK_MS)
     return () => window.clearTimeout(t)
-  }, [open])
+  }, [open, fallbackFocus])
   if (!mounted) return null
   return (
-    <div className={`day-body-clip${expanded ? ' open' : ''}`} aria-hidden={!expanded}>
+    <div ref={clipRef} className={`day-body-clip${expanded ? ' open' : ''}`} aria-hidden={!expanded}>
       <div className="day-body-clip-inner">{children}</div>
     </div>
   )
@@ -347,6 +357,9 @@ export const DaySection = React.memo(function DaySection({ day, trip, editable, 
   // out — the old local collapsed useState + per-day localStorage map is retired.
   const collapsed = !open
   const timeFormat = useTimeFormat()
+  // Both clips hand focus back here when they unmount under the keyboard user's
+  // feet (see SmoothCollapse's fallbackFocus).
+  const collapseRef = useRef<HTMLButtonElement>(null)
   const onCollapseClick = useCallback(() => onToggleOpen(day.index), [onToggleOpen, day.index])
   const [editingTitle, setEditingTitle] = useState(false)
   const [titleDraft, setTitleDraft] = useState(day.title ?? '')
@@ -414,7 +427,7 @@ export const DaySection = React.memo(function DaySection({ day, trip, editable, 
       <div className={`day-header${foreignOver === ordered.length && dragging === null ? ' foreign-over' : ''}`} {...(editable ? dayDropHandlers(ordered.length) : {})}>
         {/* Stable name + state attribute (UI audit F-09); the collapsible body
             is a fragment of siblings, so there's no single aria-controls id. */}
-        <button className="day-collapse" onClick={onCollapseClick} aria-expanded={!collapsed} aria-label={`Day ${day.index + 1} stops`}>
+        <button ref={collapseRef} className="day-collapse" onClick={onCollapseClick} aria-expanded={!collapsed} aria-label={`Day ${day.index + 1} stops`}>
           <ChevronDown size={16} aria-hidden className="day-collapse-icon" />
         </button>
         <div className="day-badge"><small>Day</small><b>{day.index + 1}</b></div>
@@ -461,13 +474,13 @@ export const DaySection = React.memo(function DaySection({ day, trip, editable, 
               same collapse as the body, in reverse: growing in as the body
               folds away, folding away as the body grows. Popping it instead
               moved every row below the header in a single frame. */}
-          <SmoothCollapse open={collapsed}>
+          <SmoothCollapse open={collapsed} fallbackFocus={collapseRef}>
             {isStayDay ? (
-              <button type="button" className="day-route" onClick={onCollapseClick}>
+              <button type="button" className="day-route" onClick={onCollapseClick} aria-expanded={!collapsed}>
                 <span className="day-route-text">{stayDaySummary(visitCount)}</span>
               </button>
             ) : chainStops.length >= 2 ? (
-              <button type="button" className="day-route" onClick={onCollapseClick} title={routeChain(day)}>
+              <button type="button" className="day-route" onClick={onCollapseClick} aria-expanded={!collapsed} title={routeChain(day)}>
                 {chainStops.slice(0, 5).map((s, i) => (
                   <React.Fragment key={s.id}>
                     {i > 0 && <span className="day-route-sep" aria-hidden="true">→</span>}
@@ -537,7 +550,7 @@ export const DaySection = React.memo(function DaySection({ day, trip, editable, 
         )}
       </div>
 
-      <SmoothCollapse open={!collapsed}>
+      <SmoothCollapse open={!collapsed} fallbackFocus={collapseRef}>
       {commitmentsToday.map(fc => (
         <div key={fc.id} className="warn-item sev-low" style={{ marginBottom: 8 }}>
           <span className="warn-icon"><Pin size={13} aria-hidden /></span>

@@ -130,3 +130,30 @@ What landed, per item:
 - [x] Remote edit while editing surfaces keep/take (B3)
 - [x] Mark settled on balances (B4)
 - [ ] Both PRs merged into `test`; ROADMAP M6 row updated; CHANGELOG entries landed (PR-B: CHANGELOG landed under [Unreleased]; merge + ROADMAP row pending)
+
+## Manual-pass follow-ups (2026-09-19) — INVESTIGATE
+
+Two unconfirmed observations from the owner's first two-browser pass, recorded the same
+day (PR #265). **Both have the same leading confound: the two sessions must be on two
+different accounts** — the same account in two tabs explains both misses by design
+(presence excludes self; a same-user cross-tab write lands inside the store's echo
+window and is suppressed as our own echo, so no realtime event reaches the banner).
+
+1. **"No green dot / where do I look?"** Avatars render in the workspace header beside
+   the member list (`TripWorkspace.tsx` `.presence-stack`), and ONLY when
+   `presence.peers.length > 0` — a solo viewer gets no presence UI at all, so the first
+   look with no second viewer shows nothing by design. Retest protocol: two distinct
+   accounts (the harness throwaways in `.env.local` work), both open the same trip;
+   expect the other's avatar + green dot in each header, gone a few seconds after the
+   peer's tab closes. If still absent on distinct accounts, inspect the
+   `useTripPresence` join state (`SUBSCRIBED`?) before touching code. Product follow-up
+   to consider (Idea-bank sized): a quiet "just you" affordance so an empty room is
+   visible rather than absent.
+
+2. **"Simultaneous same-stop edit showed no amber banner."** The banner fires only when
+   the remote SAVE lands while the editor is already open: open the stop editor in
+   session A FIRST, then edit + save the same stop in session B, then watch A. If B's
+   save happens before A opens the editor, A's form simply shows the new data — no
+   conflict, correct behavior. Retest with two distinct accounts in that exact order;
+   if it still fails, check whether A received B's trip UPDATE at all (the B2 guard
+   logs nothing by default) before suspecting the TimelineTab wiring.

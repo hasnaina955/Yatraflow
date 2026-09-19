@@ -19,15 +19,12 @@ its own commit + PR-checkbox.
 - [x] **Label rendering.** Dotless flanking chips (time + date left, `Km N`
       right), return labels + home anchor behind the Return home toggle.
       Commit `69df8ae`.
-- [ ] **FIX-1 · Single-source walk.** `deriveClockMilestones` currently
-      RE-RUNS `planTravelClock` from reconstructed inputs while MapTab already
-      holds the identical `clockVerdict`. Refactor: the lib accepts the walk
-      result (`TravelClockDay[]` + `returnDays`) instead of re-invoking the
-      engine; MapTab passes its `clockVerdict` through. Kill condition: delete
-      the local `planTravelClock` call; a walk twice with identical inputs
-      returning different labels must be impossible, not unlikely. Verify:
-      `clockOverlay.test.ts` keeps passing (fixtures pass a synthetic walk),
-      full gate green.
+- [x] **FIX-1 · Single-source walk.** `deriveClockMilestones` now accepts the
+      walk result (`TravelClockVerdict`) instead of re-invoking the engine —
+      MapTab projects its own `clockVerdict` onto the resolved road; a walk
+      twice with identical inputs returning different labels is impossible,
+      not unlikely. Kill-condition fixture: two projections of one verdict
+      agree field-for-field.
 - [ ] **FIX-2 · Disambiguate km.** Return-leg chips currently read `Km N` with
       only the tooltip saying "drive home". Decide + commit one:
       loop-cumulative km on return chips (`Km 2,100`), or a leg marker

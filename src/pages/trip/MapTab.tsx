@@ -435,28 +435,15 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
   // The travel clock drawn ON the route as clean road LABELS: one text pair per
   // planned clock anchor (meal / overnight / destination) — its wall-clock time
   // + calendar date on the LEFT of the road, its road km on the RIGHT. No pins,
-  // no dots. Runs on the whole loop like the split verdict, with the SAME clock
-  // inputs as the banner walk (round-trip returnDays, terrain profile, party
-  // cap, dinner anchors — #145/#213), and only once the road geometry resolves,
-  // because a label planted on a straight chord would lie about where the stop
-  // lands. Return-leg labels carry leg:'return'; the map shows them only while
-  // its Return home toggle is on.
+  // no dots. FIX-1: not a second walk — this projects MapTab's own `clockVerdict`
+  // (the banner's walk) onto the road that just resolved, so the map and the
+  // banner can never disagree. Only renders once the geometry is in, because a
+  // label planted on a straight chord would lie about where the stop lands.
+  // Return-leg labels carry leg:'return'; the map shows them only while its
+  // Return home toggle is on.
   const clockMilestones = useMemo(
-    () => deriveClockMilestones({
-      polyline: routePolyline,
-      outboundKm: planKm,
-      loopMin: wholeTrip.min * loopFactor,
-      roundTrip: tripIsRoundTrip,
-      tripStartDate: trip.startDate,
-      dayStart: trip.days[0]?.startTime,
-      travelStyle: trip.travelStyle,
-      rainFactor,
-      profile: tripIsRoundTrip ? loopProfile(roadProfile) : roadProfile,
-      party: partyOpts,
-      anchors: tripAnchors,
-    }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [routePolyline, planKm, wholeTrip.min, loopFactor, tripIsRoundTrip, trip.startDate, dayStartSig, trip.travelStyle, dayRainPct, roadProfile, trip.driverCount, trip.hasVulnerable, trip.driveAfterDinnerMin],
+    () => deriveClockMilestones({ verdict: clockVerdict, polyline: routePolyline, tripStartDate: trip.startDate }),
+    [clockVerdict, routePolyline, trip.startDate],
   )
   // One clock story (#123): the banner count comes from the clock walk that
   // knows the start time; planDriveDays stays the geometry-free estimator.

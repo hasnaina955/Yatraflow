@@ -1,10 +1,14 @@
-// The clock walk turned into ROAD MILESTONES: one pin per planned anchor with
-// its wall-clock time and its road km. No circles, no evening band, no moon
-// glyph - a milestone carries both readings, so time and distance are read
-// together at the point they belong to.
+// The clock walk turned into ROAD LABELS: one text pair per planned anchor
+// with its wall-clock time + calendar date and its road km. No circles, no
+// evening band, no moon glyph — a label carries both readings, so time and
+// distance are read together at the point they belong to.
+// FIX-1: `deriveClockMilestones` takes the walk result (as MapTab passes its
+// `clockVerdict`), never the walk inputs — so fixtures invoke `planTravelClock`
+// directly and these tests pin the projection, not the engine.
 import { describe, expect, it } from 'vitest'
 import { haversineKm } from '../src/lib/geo'
 import { clockHM, deriveClockMilestones } from '../src/lib/clockOverlay'
+import { planTravelClock } from '../src/lib/ridePlan'
 
 /** A straight east-west polyline at the equator; ~111.195 km per degree. */
 function straightPolyline(km: number, steps = 60): { lat: number; lng: number }[] {
@@ -17,6 +21,12 @@ const DEG_KM = 1 / KM_PER_DEG
 
 const SPEED = 0.7 // km per minute - 42 km/h
 
+/** The FIX-1 contract: callers walk the engine (exactly as MapTab does for the
+ *  banner), then PROJECT the verdict onto the road — never re-walk inside. */
+function walk(totalKm: number, driveMin: number, extra: { dayStart?: string; roundTrip?: boolean } = {}) {
+  return planTravelClock({ totalKm, driveMinutes: driveMin, dayStart: extra.dayStart ?? '08:30', roundTrip: extra.roundTrip })
+}
+
 describe('clockHM', () => {
   it('formats minutes-since-midnight as a wall clock, wrapping past midnight', () => {
     expect(clockHM(0)).toBe('00:00')
@@ -26,24 +36,24 @@ describe('clockHM', () => {
   })
 })
 
-describe('deriveClockMilestones - pins, not areas', () => {
-  it('nothing to pin without geometry, a drive, or a loop', () => {
-    expect(deriveClockMilestones({ polyline: null, outboundKm: 500, loopMin: 700, roundTrip: false })).toEqual([])
-    expect(deriveClockMilestones({ polyline: [{ lat: 0, lng: 0 }], outboundKm: 500, loopMin: 700, roundTrip: false })).toEqual([])
-    expect(deriveClockMilestones({ polyline: straightPolyline(500), outboundKm: 500, loopMin: 0, roundTrip: false })).toEqual([])
+describe('deriveClockMilestones - labels, not areas', () => {
+  it('nothing to pin without geometry; a drive-less verdict pins nothing', () => {
+    const empty = walk(1, 1)
+    expect(empty.verdict).toBe('ok')
+    expect(deriveClockMilestones({ verdict: empty, polyline: null })).toEqual([])
+    expect(deriveClockMilestones({ verdict: empty, polyline: [{ lat: 0, lng: 0 }] })).toEqual([])
   })
 
   it('an honest defer pins nothing (the banner already carries the reason)', () => {
-    expect(deriveClockMilestones({
-      polyline: straightPolyline(400), outboundKm: 400, loopMin: 400 / SPEED,
-      roundTrip: false, dayStart: '22:00',
-    })).toEqual([])
+    const verdict = walk(400, 400 / SPEED, { dayStart: '22:00' })
+    expect(verdict.verdict).toBe('defer')
+    expect(deriveClockMilestones({ verdict, polyline: straightPolyline(400) })).toEqual([])
   })
 
   it('a single-day drive earns its meal anchor at the right km and clock', () => {
     const pins = deriveClockMilestones({
-      polyline: straightPolyline(200), outboundKm: 200, loopMin: 200 / SPEED,
-      roundTrip: false, dayStart: '08:30',
+      verdict: walk(200, 200 / SPEED),
+      polyline: straightPolyline(200),
     })
     // an 08:30 start is already past the breakfast window, so lunch is the anchor
     const lunch = pins.find(p => p.kind === 'mealtime' && p.timeLabel === '11:30')
@@ -51,7 +61,7 @@ describe('deriveClockMilestones - pins, not areas', () => {
     // 08:30 -> 11:30 is three hours at 42 km/h, so ~126 km into the road
     expect(lunch!.kmIn).toBeGreaterThanOrEqual(120)
     expect(lunch!.kmIn).toBeLessThanOrEqual(132)
-    // every pin carries BOTH readings and sits on the road
+    // every label carries BOTH readings and sits on the road
     for (const p of pins) {
       expect(p.timeLabel).toMatch(/^\d{2}:\d{2}$/)
       expect(p.kmLabel).toBe(`Km ${p.kmIn}`)
@@ -63,31 +73,31 @@ describe('deriveClockMilestones - pins, not areas', () => {
     expect(pins.some(p => p.kind === 'overnight')).toBe(false)
   })
 
-  it('a multi-day drive pins the halt and the destination', () => {
+  it('a multi-day drive labels the halt and the destination', () => {
     const pins = deriveClockMilestones({
-      polyline: straightPolyline(800), outboundKm: 800, loopMin: 800 / SPEED,
-      roundTrip: false, dayStart: '08:30',
+      verdict: walk(800, 800 / SPEED),
+      polyline: straightPolyline(800),
     })
     const halt = pins.find(p => p.kind === 'overnight' && p.dayNo === 1)
     expect(halt).toBeDefined()
     // the load-balanced split halts day 1 near 400 km
     expect(halt!.kmIn).toBeGreaterThanOrEqual(380)
     expect(halt!.kmIn).toBeLessThanOrEqual(420)
-    // the halt is the end of the driving day - never a late-night pin
+    // the halt is the end of the driving day — never a late-night label
     expect(halt!.etaMin).toBeLessThanOrEqual(21 * 60)
     const dest = pins.find(p => p.kind === 'destination')
     expect(dest).toBeDefined()
     expect(dest!.kmIn).toBe(800)
-    // meals still pin on day 2, on their own km
+    // meals still label on day 2, on their own km
     const day2 = pins.find(p => p.kind === 'mealtime' && p.dayNo === 2)
     expect(day2).toBeDefined()
     expect(day2!.kmIn).toBeGreaterThan(400)
   })
 
-  it('a late start that becomes a hop pins only the night halt', () => {
+  it('a late start that becomes a hop labels only the night halt', () => {
     const pins = deriveClockMilestones({
-      polyline: straightPolyline(600), outboundKm: 600, loopMin: 600 / SPEED,
-      roundTrip: false, dayStart: '19:00',
+      verdict: walk(600, 600 / SPEED, { dayStart: '19:00' }),
+      polyline: straightPolyline(600),
     })
     expect(pins).toHaveLength(1)
     expect(pins[0].kind).toBe('overnight')
@@ -98,8 +108,8 @@ describe('deriveClockMilestones - pins, not areas', () => {
   it('round trip: return-day labels land on the REVERSED road and are tagged', () => {
     const outbound = 600
     const pins = deriveClockMilestones({
-      polyline: straightPolyline(outbound), outboundKm: outbound,
-      loopMin: (outbound * 2) / SPEED, roundTrip: true, dayStart: '08:30',
+      verdict: walk(outbound, outbound / SPEED, { roundTrip: true }),
+      polyline: straightPolyline(outbound),
     })
     // the honest #145 walk splits each leg into its own day(s) — both legs are walked
     const outLeg = pins.filter(p => p.leg === 'outbound')
@@ -125,8 +135,9 @@ describe('deriveClockMilestones - pins, not areas', () => {
 
   it('a dated trip carries the calendar date on every label', () => {
     const pins = deriveClockMilestones({
-      polyline: straightPolyline(800), outboundKm: 800, loopMin: 800 / SPEED,
-      roundTrip: false, dayStart: '08:30', tripStartDate: '2026-10-02',
+      verdict: walk(800, 800 / SPEED),
+      polyline: straightPolyline(800),
+      tripStartDate: '2026-10-02',
     })
     expect(pins.length).toBeGreaterThan(0)
     for (const p of pins) expect(p.dateLabel).toMatch(/^\d{1,2} \w{3}$/)
@@ -138,25 +149,43 @@ describe('deriveClockMilestones - pins, not areas', () => {
 
   it('an undated call keeps the date empty rather than guessing', () => {
     const pins = deriveClockMilestones({
-      polyline: straightPolyline(200), outboundKm: 200, loopMin: 200 / SPEED,
-      roundTrip: false, dayStart: '08:30',
+      verdict: walk(200, 200 / SPEED),
+      polyline: straightPolyline(200),
     })
     expect(pins.length).toBeGreaterThan(0)
     for (const p of pins) expect(p.dateLabel).toBe('')
   })
 
-  it('pins follow the polyline when it bends', () => {
-    // an L route: east, then north. A pin past the corner must be off the
-    // straight chord - plain lng interpolation would keep it at lat 0.
+  it('labels follow the polyline when it bends', () => {
+    // an L route: east, then north. A label past the corner must be off the
+    // straight chord — plain lng interpolation would keep it at lat 0.
     const poly = [
       { lat: 0, lng: 0 }, { lat: 0, lng: 3.6 },
       { lat: 3.6, lng: 3.6 }, { lat: 5, lng: 3.6 },
     ]
     const pins = deriveClockMilestones({
-      polyline: poly, outboundKm: 950, loopMin: 950 / SPEED,
-      roundTrip: false, dayStart: '08:30',
+      verdict: walk(950, 950 / SPEED),
+      polyline: poly,
     })
     expect(pins.length).toBeGreaterThan(0)
     expect(pins.some(p => p.lat > 1.5)).toBe(true)
+  })
+
+  it('the projection never re-walks: same verdict, same labels', () => {
+    // FIX-1's kill condition — the projection is a pure function of the walk
+    // result, plus the calendar date. Two projections of one verdict agree
+    // field-for-field (including the empty date when no start date is given),
+    // so the map and the banner cannot drift by construction.
+    const verdict = walk(800, 800 / SPEED)
+    const poly = straightPolyline(800)
+    const once = deriveClockMilestones({ verdict, polyline: poly })
+    const twice = deriveClockMilestones({ verdict, polyline: poly })
+    expect(once).toEqual(twice)
+    expect(once.length).toBeGreaterThan(0)
+    // the date is the only input besides the verdict, and it is explicit
+    const dated = deriveClockMilestones({ verdict, polyline: poly, tripStartDate: '2026-10-02' })
+    expect(dated.map(p => p.dateLabel)).toEqual(once.map(p =>
+      p.dayNo === 1 ? '2 Oct' : p.dayNo === 2 ? '3 Oct' : p.dateLabel,
+    ))
   })
 })

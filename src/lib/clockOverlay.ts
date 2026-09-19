@@ -21,7 +21,7 @@
 // toggle is on (the same gate as the dashed return line), so the map never
 // shows going-home readings the traveller hasn't asked for.
 import { pointAtKm } from './geo'
-import { planTravelClock, type AnchorOpts, type PartyOpts, type RoadProfilePoint, type TravelClockDay } from './ridePlan'
+import { type AnchorOpts, type RoadProfilePoint, type TravelClockDay, type TravelClockVerdict } from './ridePlan'
 import { isoAddDays } from './weather'
 
 /** Minutes-since-midnight → "HH:MM" (wall clock, not a duration). */
@@ -56,46 +56,25 @@ export interface ClockMilestone {
 
 
 /**
- * The clock walk turned into road labels. Feed it the OUTBOUND road geometry,
- * the one-way road km it measures, and the whole-loop wheel minutes (halved
- * back to one leg for a round trip). A round trip is walked as the outbound
- * plus a directed `returnDays` pass from the destination (#145); each label is
- * tagged `leg` and positioned on its own leg's road. Empty means nothing to
- * pin: no geometry, no drive, or an honest defer verdict.
+ * The clock walk turned into road labels. Feed it the walk MapTab already ran
+ * (the banner's verdict: its days, its directed `returnDays` pass from the
+ * destination on a round trip #145) plus the OUTBOUND road geometry — each
+ * label is tagged `leg` and positioned on its own leg's road. Empty means
+ * nothing to pin: no geometry, or an honest defer verdict.
  */
 export function deriveClockMilestones(input: {
+  /** the travel-clock walk MapTab already ran for the banner — the single
+   *  source of truth, never re-walked here (FIX-1: a walk twice with identical
+   *  inputs returning different labels must be impossible, not unlikely) */
+  verdict: TravelClockVerdict
   /** outbound road geometry in {lat,lng}; null while OSRM hasn't resolved */
   polyline: { lat: number; lng: number }[] | null
-  /** one-way road km the geometry measures */
-  outboundKm: number
-  /** whole-loop wheel minutes (outbound [+ return] at the journey's pace) */
-  loopMin: number
-  roundTrip: boolean
   /** trip start (ISO date) — drives each label's calendar date; omit for
    *  undated fixtures / callers without a start date (date label stays empty) */
   tripStartDate?: string
-  dayStart?: string
-  travelStyle?: string
-  rainFactor?: number
-  /** the remaining planTravelClock inputs a caller that plans honestly already
-   *  has — without them a round trip is walked as one fake 2× line (#145) */
-  profile?: RoadProfilePoint[] | null
-  party?: PartyOpts
-  anchors?: AnchorOpts
 }): ClockMilestone[] {
-  const { polyline, outboundKm, roundTrip } = input
-  if (!polyline || polyline.length < 2 || !(outboundKm > 0) || !(input.loopMin > 0)) return []
-  const verdict = planTravelClock({
-    totalKm: outboundKm,
-    driveMinutes: roundTrip ? input.loopMin / 2 : input.loopMin,
-    dayStart: input.dayStart,
-    travelStyle: input.travelStyle,
-    rainFactor: input.rainFactor,
-    roundTrip,
-    profile: input.profile,
-    ...(input.party ?? {}),
-    anchors: input.anchors,
-  })
+  const { polyline, verdict } = input
+  if (!polyline || polyline.length < 2) return []
   if (verdict.verdict === 'defer') return []
 
   const milestones: ClockMilestone[] = []

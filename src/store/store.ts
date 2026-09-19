@@ -2051,6 +2051,39 @@ export function updateExpense(tripId: ID, expenseId: ID, patch: Partial<Omit<Exp
   void persistTripField(tripId, tripById(tripId)!)
 }
 
+/** M6 B4 — mark an expense line settled ("this one's sorted, stop counting
+ *  it"). Records who + when for the activity entry and the balances card.
+ *  Crew members with an editor role; viewer/commenter roles get a silent
+ *  no-op here, mirroring the rest of the mutation surface's gating. */
+export function markExpenseSettled(tripId: ID, expenseId: ID, by: ID): void {
+  const t = tripById(tripId)
+  if (!t || !t.expenses.some(x => x.id === expenseId)) return
+  const expense = t.expenses.find(x => x.id === expenseId)
+  if (!expense || expense.settled) return
+  const label = expense.label
+  mutateTrip(tripId, draft => {
+    draft.expenses = draft.expenses.map(x => x.id === expenseId ? { ...x, settled: { by, at: Date.now() } } : x)
+  }, { log: `marked “${label}” settled`, target: 'Budget' })
+  void persistTripField(tripId, tripById(tripId)!)
+}
+
+/** M6 B4 — the undo: reopen a settled line. */
+export function markExpenseUnsettled(tripId: ID, expenseId: ID): void {
+  const t = tripById(tripId)
+  if (!t) return
+  const expense = t.expenses.find(x => x.id === expenseId)
+  if (!expense?.settled) return
+  const label = expense.label
+  mutateTrip(tripId, draft => {
+    draft.expenses = draft.expenses.map(x => {
+      if (x.id !== expenseId) return x
+      const { settled: _drop, ...rest } = x
+      return rest
+    })
+  }, { log: `reopened “${label}”`, target: 'Budget' })
+  void persistTripField(tripId, tripById(tripId)!)
+}
+
 // ---------------- Suggestions / votes / comments ----------------
 
 export function addSuggestion(tripId: ID, s: Omit<StopSuggestion, 'id' | 'votes' | 'comments' | 'status' | 'createdAt' | 'tripId'>): void {

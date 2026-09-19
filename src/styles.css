@@ -4557,6 +4557,19 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 .balance-pos { color: var(--ink-ok); font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .balance-neg { color: var(--danger); font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
+/* ---- M6 B4: settle-up strip (mark settled / reopen) ---- */
+.settled-strip { border-top: 1px dashed var(--line); padding-top: 8px; }
+.settled-list { display: flex; flex-direction: column; }
+.settled-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 0; border-bottom: 1px dashed var(--line); font-size: 13.5px; }
+.settled-row:last-child { border-bottom: none; }
+.settled-row.is-done .settled-label { color: var(--text-3); text-decoration: line-through; text-decoration-thickness: 1px; }
+.settled-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.settled-btn { flex: none; }
+.settled-history { margin-top: 10px; font-size: 13px; }
+.settled-history summary { cursor: pointer; color: var(--text-3); font-weight: 600; padding: 4px 0; }
+.settled-history summary:hover { color: var(--text-2); }
+@media (prefers-reduced-motion: reduce) { .settled-history { transition: none; } }
+
 /* ---- Group input: the count-pill stat strip retired 2026-09 — counts live in the filter pillbar badges ----
 
 /* ---- Group input: needs-you emphasis + digest ---- */

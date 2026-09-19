@@ -1,8 +1,10 @@
 // ============ M6 · Together — PR-B behavioral tests ============
-// The write-through contract (AGENTS: every trip mutation persists, the whole
+// B4 (mark settled) exercises the real mutation surface with a mocked client:
+// the write-through contract (AGENTS: every trip mutation persists, the whole
 // gate stays green when one doesn't — nothing exercises write-through), the
-// B2 stale-update guard, and B1's client gating (presence degrades to no-op
-// without a backend), exercised against the store with a mocked client.
+// activity entry, and the settled flag surviving a tripToRow round-trip (the
+// column is a JSONB blob, so a key the mapper drops would vanish silently).
+// B1's client gating pins that presence degrades to no-op without a backend.
 import { describe, it, expect, vi } from 'vitest'
 import { seedData } from '../src/data/seed'
 
@@ -38,9 +40,10 @@ vi.mock('../src/lib/supabase', () => {
 })
 
 import {
-  duplicateTrip, tripById, _setTripWriteDebounceMs, _flushTripWrites,
+  duplicateTrip, addExpense, markExpenseSettled, markExpenseUnsettled,
+  tripById, _setTripWriteDebounceMs, _flushTripWrites, presenceClient, getSnapshot,
   updateStop, moveStopBetweenDays, _applyRealtimeEventForTest,
-  _clearRecentLocalWrites, _clearServerTripTimestamps, presenceClient,
+  _clearRecentLocalWrites, _clearServerTripTimestamps,
 } from '../src/store/store'
 import { tripToRow } from '../src/lib/tripRow'
 
@@ -76,6 +79,81 @@ function freshRealtimeLedgers(): void {
   _clearRecentLocalWrites()
   _clearServerTripTimestamps()
 }
+
+describe('B4 · markExpenseSettled', () => {
+  it('writes the settled flag through to the trips row', async () => {
+    const trip = singleTrip()
+    await flush()
+    calls.length = 0
+    addExpense(trip.id, { label: 'Fuel bluff', category: 'transport', amountInr: 2000 })
+    markExpenseSettled(trip.id, tripById(trip.id)!.expenses.at(-1)!.id, 'u-settler')
+    await flush()
+    expect(tripsUpdates().length).toBeGreaterThan(0)
+    const last = tripsUpdates().at(-1)!.payload as { expenses: Array<{ settled?: { by: string; at: number } }> }
+    expect(last.expenses.some(e => e.settled?.by === 'u-settler')).toBe(true)
+  })
+
+  it('records the settle in the activity feed', async () => {
+    const trip = singleTrip()
+    // The activity entry (and its write) is gated on a signed-in session.
+    getSnapshot().sessionUserId = 'u-settler'
+    addExpense(trip.id, { label: 'Tolls', category: 'tolls-parking', amountInr: 350 })
+    const id = tripById(trip.id)!.expenses.at(-1)!.id
+    calls.length = 0
+    markExpenseSettled(trip.id, id, 'u-settler')
+    await flush()
+    const activityRows = calls.filter(c => c.table === 'activity' && c.method === 'insert')
+    expect(activityRows.length).toBeGreaterThan(0)
+  })
+
+  it('is idempotent — a settled line is not re-marked', async () => {
+    const trip = singleTrip()
+    await flush()
+    addExpense(trip.id, { label: 'Snacks', category: 'food', amountInr: 120 })
+    const id = tripById(trip.id)!.expenses.at(-1)!.id
+    markExpenseSettled(trip.id, id, 'u-settler')
+    await flush()
+    calls.length = 0
+    markExpenseSettled(trip.id, id, 'u-settler')
+    await flush()
+    expect(tripsUpdates()).toHaveLength(0)
+  })
+
+  it('markExpenseUnsettled reopens the line and writes through', async () => {
+    const trip = singleTrip()
+    await flush()
+    addExpense(trip.id, { label: 'Parking', category: 'tolls-parking', amountInr: 80 })
+    const id = tripById(trip.id)!.expenses.at(-1)!.id
+    markExpenseSettled(trip.id, id, 'u-settler')
+    await flush()
+    calls.length = 0
+    markExpenseUnsettled(trip.id, id)
+    await flush()
+    expect(tripsUpdates().length).toBeGreaterThan(0)
+    const last = tripsUpdates().at(-1)!.payload as { expenses: Array<{ settled?: unknown }> }
+    expect(last.expenses.find(e => e.settled)?.id ?? null).toBeNull()
+  })
+
+  it('no-ops silently for an unknown trip or expense', async () => {
+    singleTrip()
+    await flush()
+    calls.length = 0
+    markExpenseSettled('nope', 'nope', 'u1')
+    markExpenseUnsettled('nope', 'nope')
+    await flush()
+    expect(tripsUpdates()).toHaveLength(0)
+  })
+})
+
+describe('B4 · settled survives the row round-trip', () => {
+  it('tripToRow keeps the settled key inside the expenses JSONB', () => {
+    const trip = singleTrip()
+    trip.expenses.push({ id: 'ex1', label: 'Hotel', category: 'accommodation', amountInr: 3000, settled: { by: 'u9', at: 1234 } })
+    const row = tripToRow(trip, ownerId)
+    const raw = JSON.parse(JSON.stringify(row.expenses)) as Array<{ id: string; settled?: { by: string } }>
+    expect(raw.find(e => e.id === 'ex1')?.settled?.by).toBe('u9')
+  })
+})
 
 describe('B1 · presence gating', () => {
   it('presenceClient returns null when no backend is compiled in', () => {

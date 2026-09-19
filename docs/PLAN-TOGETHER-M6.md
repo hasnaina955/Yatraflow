@@ -1,8 +1,8 @@
 # M6 · Together — continuation guide (for any agent picking this up)
 
 > Milestone: [#237](https://github.com/hasnaina955/Yatraflow/issues/237) · M6 — collaboration depth.
-> Branch: `feat/together-rls-suite` (PR-A, security half) · Base: `test`.
-> Companion doc: this file. Status: PR-A code complete; PR-B (live co-editing) not started.
+> Branch: `feat/together-rls-suite` (PR-A, security half — MERGED) · `freebuff/m6-together` (PR-B, co-editing half — code complete, unpushed).
+> Companion doc: this file. Status: PR-A merged into `test` (the leak fix + both suites). PR-B code complete 2026-09-19 (B0–B4 incl. the review rework: server-ledger guard, snapshot-preserving flush, settlement extraction), pending verify + push + PR.
 
 ## What PR-A shipped (this branch)
 
@@ -48,7 +48,14 @@ clean teardown ledger. Credentials come from `.env.local`:
 
 ## PR-B — live co-editing depth (the remaining half of M6)
 
-Untouched. Four work items, in dependency order.
+**Code complete 2026-09-19 on `freebuff/m6-together` (unpushed), in four commits:**
+
+1. `fix(store)` — B0: the debounced trip-write coalescer persists the snapshot captured at call time (a remote update landing inside the 600 ms window no longer overwrites the pending local edit); `moveStopBetweenDays`' found path persists; AGENTS.md's write-through paragraph corrected (`persistTripField` is synchronous/void; there is no await-before-commit rule).
+2. `fix(realtime)` — B2: the stale-update guard compares against the SERVER ledger (`serverTripTimestamps`), strictly-older-only (equal applies — see below); the touch trigger `20260919_trip_touch_updated_at.sql` (+ schema mirror + contract section 9).
+3. `feat(collab)` — B1 presence + B3 remote-edit banner.
+4. `feat(budget)` + release docs — B4 settle-up + settlement extraction + CHANGELOG/ROADMAP/version.
+
+What landed, per item:
 
 ### B1 — Trip presence (who's viewing right now)
 
@@ -69,15 +76,23 @@ Untouched. Four work items, in dependency order.
 
 - **Problem today:** realtime UPDATE landing on a cache slice newer than the
   incoming row is applied → two tabs editing the same trip bounce each other.
-- **Mechanism:** trips carry `updated_at`; extend the `reduceSlice` contract in
-  `src/lib/realtimeCore.ts` (pure, node-tested): ignore an incoming row whose
-  `updated_at` ≤ the cached row's — unless the incoming carries the caller's
-  own echo (existing `isRecentLocalWrite` guard already handles echo; keep both).
+- **Mechanism (as shipped — revised 2026-09-19):** the guard is TRIPS-ONLY and
+  compares the incoming row's `updated_at` against a SERVER-DERIVED ledger
+  (`serverTripTimestamps` in `store.ts`, written only from hydration and
+  `applyRealtimeEvent`), never against `Trip.updatedAt` — that is the
+  optimistic client clock, bumped by `mutateTrip`, and comparing against it
+  would suppress every real remote edit after any local one. A row is dropped
+  only when STRICTLY OLDER than the ledger; EQUAL timestamps APPLY, because
+  before `20260919_trip_touch_updated_at.sql` is applied `updated_at` never
+  advances and equal is every remote update's normal case. Pure helper:
+  `isStaleServerRow` in `realtimeCore.ts`.
 - **Careful:** `updated_at` must be a real DB column with a default trigger, or
   the guard is a no-op. Verify in `supabase/schema.sql`; add the trigger to the
   migration if missing.
-- **Tests:** pure cases — newer applies, older ignored, equal ignored,
-  echo-with-newer still applies, null updated_at falls back to apply.
+- **Tests:** `tests/realtime.test.ts` B2 block — newer applies, older dropped,
+  EQUAL APPLIES, missing/non-finite timestamps apply; `tests/m6-together.test.ts`
+  store-level block — equal applies, replay dropped, optimistic clock does not
+  raise the guard.
 
 ### B3 — Remote-edit conflict surfacing
 
@@ -110,8 +125,8 @@ Untouched. Four work items, in dependency order.
 ## Done criteria for M6 (issue #237)
 
 - [x] RLS suite exists and passes (PR-A; 28/28 after migration apply)
-- [ ] Presence visible across two sessions on one trip (B1)
-- [ ] Two-tab ping-pong dead — stale updates ignored (B2)
-- [ ] Remote edit while editing surfaces keep/take (B3)
-- [ ] Mark settled on balances (B4)
-- [ ] Both PRs merged into `test`; ROADMAP M6 row updated; CHANGELOG entries landed
+- [x] Presence visible across two sessions on one trip (B1)
+- [x] Two-tab ping-pong dead — stale updates ignored (B2)
+- [x] Remote edit while editing surfaces keep/take (B3)
+- [x] Mark settled on balances (B4)
+- [ ] Both PRs merged into `test`; ROADMAP M6 row updated; CHANGELOG entries landed (PR-B: CHANGELOG landed under [Unreleased]; merge + ROADMAP row pending)

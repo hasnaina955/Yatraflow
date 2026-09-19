@@ -355,6 +355,11 @@ unbuilt). **Before picking up a row, and before quoting one in a plan, confirm i
 | I-7 | Decision comments | collaboration | schema | Needs a `comments` JSON column on decisions (migration) — `StopSuggestion` has one, `TripDecision` does not (`types.ts:226` vs `:244`). |
 | I-8 | Monthly statements / invoice export | creator | 2–3 h | Downloadable per-month earnings summary, client-side from the payouts table. **Post-M7.** |
 | I-17 | Theme the text selection and the caret | design system | 1 h | `::selection` and `caret-color` are declared **nowhere** in `src/styles.css` — the UA's highlight blue and caret are the last unthemed browser surfaces in the app (found while scoping v0.60.0's craft-floor pass). Cheap to close with the app's own soft-tint pairing (`--teal-soft` + `--text`) and `caret-color: var(--teal-deep)`, but it is a feel change rather than a defect, so it wants a look first — and the baseline's line-keyed entries must be re-mapped in the same commit (AGENTS §4). |
+| I-20 | Unlock moment + owned library | creator | 1–2 days | Full-screen "you now own X" reveal with real computed stats (days/stops/km), then a persistent "My purchases" shelf (cover, creator, version badge, update marker) reachable from My Trips. Research: `docs/commercial/RESEARCH-2026-09-18…` §4. **Unblocked: #251 has merged, so the M7 rail and its unlock flow are live.** |
+| I-21 | Purchase share card | growth | 3–4 h | WhatsApp-sized "I bought the Spiti plan" og-image the buyer can post — buyers are the distribution channel (research §4.5). Depends on the share-card pipeline (`public/og-default.png`, `api/i.js`). |
+| I-23 | Publish-quality score | creator | 1 d | Checklist with nudges (cover photo, budget filled, notes density, preview-day choice) on the hub + Share tab. Ship, measure via I-22, then claim any lift (research §5). |
+| I-25 | Buyer reviews | creator | 2 d | Post-purchase ratings on itineraries: schema (reviews table + RLS), policy question (purchase-gated?) first. Feeds conversion, creator feedback, and I-26. |
+| I-27 | Hub presentation pass | creator | 1 d | KPI sparklines, activity feed ("Admin unlocked Spiti · 2h ago"), motion per `docs/MOTION-TOKENS.md`. The studio-dashboard pass over the existing Overview + Earnings. Research §5. |
 
 ### Tier 2 — blocked on a named dependency
 
@@ -364,19 +369,14 @@ unbuilt). **Before picking up a row, and before quoting one in a plan, confirm i
 | I-10 | Gross vs net split | M7 | Ledger rows already carry the columns; M7 adds the fee model + a gross/net toggle. |
 | I-11 | Per-publication revenue attribution | M7 | Sale rows join on `pub_id`; Overview rows gain an "earned" figure. |
 | I-12 | Price history | M7 (schema) | `premiumPriceInr` is overwritten on publish; correct books need a per-sale price snapshot or price-history rows. |
-| I-20 | Unlock moment + owned library | creator | 1–2 days | Full-screen "you now own X" reveal with real computed stats (days/stops/km), then a persistent "My purchases" shelf (cover, creator, version badge, update marker) reachable from My Trips. Research: `docs/commercial/RESEARCH-2026-09-18…` §4. **Unblocked: #251 has merged, so the M7 rail and its unlock flow are live.** |
-| I-21 | Purchase share card | growth | 3–4 h | WhatsApp-sized "I bought the Spiti plan" og-image the buyer can post — buyers are the distribution channel (research §4.5). Depends on the share-card pipeline (`public/og-default.png`, `api/i.js`). |
-| I-22 | Publication funnel UI | creator | 2–3 d | Per-pub views→forks→sales funnel with preview→sale conversion, against a benchmark once measured. **Blocked on E3 instrumentation** — the events do not exist to read yet (research §5). |
-| I-23 | Publish-quality score | creator | 1 d | Checklist with nudges (cover photo, budget filled, notes density, preview-day choice) on the hub + Share tab. Ship, measure via I-22, then claim any lift (research §5). |
-| I-24 | Pricing assistant | creator | 1 d | Per-day anchor ("6 days · ₹83/day"), the ₹99–499 band, price-change history. **Needs I-12's price-history rows.** Research §3. |
-| I-25 | Buyer reviews | creator | 2 d | Post-purchase ratings on itineraries: schema (reviews table + RLS), policy question (purchase-gated?) first. Feeds conversion, creator feedback, and I-26. |
-| I-26 | Creator levels | creator | 1–2 d | Progress strip (portfolio, sales, ratings) with tier perks (Explore placement). Needs I-25's reviews to level on. Research §5. |
-| I-27 | Hub presentation pass | creator | 1 d | KPI sparklines, activity feed ("Admin unlocked Spiti · 2h ago"), motion per `docs/MOTION-TOKENS.md`. The studio-dashboard pass over the existing Overview + Earnings. Research §5. |
 | I-13 | Tiered platform fee | M7 (decision) | Fee % drops above a lifetime-earnings threshold — a pricing decision, surfaced in the fee column. Pattern: X's 90%-tier model. |
 | I-14 | Payout method + KYC management | M7 (schema) | Bank/UPI + legal name + PAN on profiles — M7's biggest schema lift. |
 | I-15 | Unlock conversion funnel | M7, then events | Views → premium unlocks per publication; needs entitlement events from M7 first. |
 | I-16 | Cross-device Trip DNA persistence | M6/M7 infra | The engine is **done** (category mix, detour tolerance, stop-length dims, cross-trip device learning). What remains is persistence: a `user_dna` table + RLS so the profile survives a device change. Deliberately parked on infrastructure, not an engine gap. |
 | I-18 | `overdrive` on the four authored surfaces | the owner's direction pick | The v0.60.0 pass scoped `overdrive` for Landing/PlanBench, the Trip Ticket (Create Trip), the Overview hero and the public-itinerary editorial, and deliberately ran without it: the command's contract forbids writing code before 2–3 directions are presented and one is picked, and requires browser iteration plus a banner. Nothing overdrive-shaped has been built anywhere. |
+| I-22 | Publication funnel UI | E3 instrumentation | Per-pub views→forks→sales funnel with preview→sale conversion, against a benchmark once measured. The events do not exist to read yet (research §5). |
+| I-24 | Pricing assistant | I-12 price history | Per-day anchor ("6 days · ₹83/day"), the ₹99–499 band, and a price-change trail. |
+| I-26 | Creator levels | I-25 reviews | Progress strip (portfolio, sales, ratings) with tier perks (Explore placement). |
 
 ### Tier 3 — milestone-shaped, tracked as tracks (not ideas)
 

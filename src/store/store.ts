@@ -2017,7 +2017,12 @@ export function setStopStatus(tripId: ID, status: ItineraryStop['status'], stopI
     const s = day.stops.find(x => x.id === stopId)!
     s.status = status
   }, { log: `marked “${before.title}” as ${status}`, target: `Day ${dayIdx + 1}` })
-  void persistTripField(tripId, t)
+  // Persist the POST-mutation cache reference. The old pre-mutation snapshot
+  // was only ever safe while the flush re-read the cache at fire time; since
+  // B0 the coalescer persists the call-time snapshot verbatim, so a stale
+  // reference here wrote the trip WITHOUT the new status (the flip reverted
+  // on the next hydration or collaborator sync).
+  void persistTripField(tripId, tripById(tripId)!)
 }
 
 function renumber(day: ItineraryDay): void {

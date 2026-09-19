@@ -9,10 +9,6 @@ import { AlertTriangle, Check, Undo2 } from 'lucide-react'
 export interface RemoteEditBannerProps {
   /** Display name of the crew member who edited remotely ('' = unknown). */
   byName: string
-  /** Live (remote) version of the stop, for the take-theirs write. */
-  theirs: Record<string, unknown>
-  /** Editor's snapshot (pre-remote), for keep-mine. */
-  mine: Record<string, unknown>
   onKeepMine: () => void
   onTakeTheirs: () => void
 }
@@ -23,7 +19,7 @@ export interface RemoteEditBannerProps {
  * interrupt; the user reads it and picks. Motion rides the tokens (slide-up
  * entrance, reduced-motion honored).
  */
-export function RemoteEditBanner({ byName, onKeepMine, onTakeTheirs }: Omit<RemoteEditBannerProps, 'theirs' | 'mine'>): React.JSX.Element {
+export function RemoteEditBanner({ byName, onKeepMine, onTakeTheirs }: RemoteEditBannerProps): React.JSX.Element {
   const who = byName || 'A crew member'
   return (
     <div className="remote-edit-banner" role="status" aria-live="polite">

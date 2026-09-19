@@ -43,7 +43,7 @@ import {
   duplicateTrip, addExpense, markExpenseSettled, markExpenseUnsettled,
   tripById, _setTripWriteDebounceMs, _flushTripWrites, presenceClient, getSnapshot,
   updateStop, moveStopBetweenDays, _applyRealtimeEventForTest,
-  _clearRecentLocalWrites, _clearServerTripTimestamps,
+  _clearRecentLocalWrites, _clearServerTripTimestamps, setStopStatus,
 } from '../src/store/store'
 import { tripToRow } from '../src/lib/tripRow'
 
@@ -204,6 +204,34 @@ describe('B0 · debounced flush persists the CAPTURED snapshot', () => {
     updateStop(trip.id, tripById(trip.id)!.days[0].stops[0].id, { title: 'Renamed' })
     await flush()
     expect(tripsUpdates()).toHaveLength(1)
+  })
+
+  // setStopStatus captured the trip BEFORE mutateTrip and persisted that
+  // pre-mutation reference — safe only while the flush re-read the cache at
+  // fire time; with the B0 coalescer persisting the call-time snapshot
+  // verbatim, the write carried the trip WITHOUT the new status and the flip
+  // reverted on the next hydration or collaborator sync. The whole suite
+  // missed this branch — a green gate shipped a data-loss bug.
+  it('setStopStatus persists the trip WITH the new status', async () => {
+    const trip = singleTrip()
+    await flush()
+    calls.length = 0
+    const stopId = tripById(trip.id)!.days[0].stops[0].id
+    setStopStatus(trip.id, 'done', stopId)
+    await flush()
+    const updates = tripsUpdates()
+    expect(updates).toHaveLength(1)
+    const row = updates[0].payload as { days: Array<{ stops: Array<{ id: string; status?: string }> }> }
+    const persisted = row.days.flatMap(d => d.stops).find(s => s.id === stopId)
+    expect(persisted?.status).toBe('done')
+  })
+
+  it('setStopStatus still flips the cached stop (the visible half of the bug)', async () => {
+    const trip = singleTrip()
+    await flush()
+    const stopId = tripById(trip.id)!.days[0].stops[0].id
+    setStopStatus(trip.id, 'skipped', stopId)
+    expect(tripById(trip.id)!.days[0].stops[0].status).toBe('skipped')
   })
 })
 

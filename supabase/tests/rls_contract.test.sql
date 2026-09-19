@@ -324,7 +324,11 @@ end $$;
 -- The stale-update guard compares an incoming realtime row's updated_at
 -- against the last SERVER-applied timestamp. For those timestamps to be
 -- comparable they must be maintained by the database itself. The touch
--- trigger must exist and have the expected shape (BEFORE+UPDATE, non-internal).
+-- trigger must exist with the expected shape (BEFORE+UPDATE, non-internal)
+-- AND call the canonical function — the trigger name alone is not enough:
+-- the migration and schema.sql briefly defined different functions under the
+-- same trigger name, and whichever ran last won, silently. tgfoid::regproc
+-- pins WHICH function the trigger fires.
 do $$
 begin
   if not exists (
@@ -336,8 +340,9 @@ begin
       and (t.tgtype & 2) <> 0   -- TG_BEFORE
       and (t.tgtype & 8) <> 0   -- TG_ROW
       and (t.tgtype & 16) <> 0  -- TG_UPDATE
+      and t.tgfoid::regproc::text = 'touch_trip_updated_at'
   ) then
-    raise exception 'trips_touch_updated_at trigger missing — apply 20260919_trip_touch_updated_at.sql (B2 stale-update guard needs a database-clock updated_at)';
+    raise exception 'trips_touch_updated_at trigger missing or firing the wrong function — (re-)apply 20260919_trip_touch_updated_at.sql (it must call touch_trip_updated_at, per schema.sql; the migration is idempotent and drops the diverged trips_touch_updated_at)';
   end if;
 end $$;
 

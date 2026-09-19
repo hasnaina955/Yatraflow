@@ -25,10 +25,10 @@ its own commit + PR-checkbox.
       twice with identical inputs returning different labels is impossible,
       not unlikely. Kill-condition fixture: two projections of one verdict
       agree field-for-field.
-- [ ] **FIX-2 · Disambiguate km.** Return-leg chips currently read `Km N` with
-      only the tooltip saying "drive home". Decide + commit one:
-      loop-cumulative km on return chips (`Km 2,100`), or a leg marker
-      (`Km 500 ↩ home`). Update `ClockMilestone.kmLabel` contract + fixtures.
+- [x] **FIX-2 · Disambiguate km.** Chose the leg marker: return-leg chips read
+      `Km 500 ↩` against the outbound's plain `Km 500` — per-leg km kept (no
+      renumbering, no silent collision), the arrow says which leg. Fixture:
+      both legs asserted chip-for-chip.
 
 ## Phase 1 — time-awareness (zero-config "today")
 

@@ -133,6 +133,22 @@ describe('deriveClockMilestones - labels, not areas', () => {
     }
   })
 
+  it('return-leg chips carry their own arrow — no silent "Km 500" twice', () => {
+    const outbound = 600
+    const pins = deriveClockMilestones({
+      verdict: walk(outbound, outbound / SPEED, { roundTrip: true }),
+      polyline: straightPolyline(outbound),
+    })
+    const outLeg = pins.filter(p => p.leg === 'outbound')
+    const backLeg = pins.filter(p => p.leg === 'return')
+    expect(outLeg.length).toBeGreaterThan(0)
+    expect(backLeg.length).toBeGreaterThan(0)
+    // the outbound keeps the plain chip…
+    for (const p of outLeg) expect(p.kmLabel).toBe(`Km ${p.kmIn}`)
+    // …the drive home carries its own ↩, so the same number never means two places
+    for (const p of backLeg) expect(p.kmLabel).toBe(`Km ${p.kmIn} ↩`)
+  })
+
   it('a dated trip carries the calendar date on every label', () => {
     const pins = deriveClockMilestones({
       verdict: walk(800, 800 / SPEED),

@@ -45,7 +45,8 @@ export interface ClockMilestone {
   timeLabel: string
   /** map-side date: "17 Sep" — empty when the caller has no trip start date */
   dateLabel: string
-  /** map-side label: "Km N" */
+  /** map-side label: "Km N" outbound, "Km N ↩" on the drive home (per-leg km —
+   *  the number is driven-since-the-leg-start, the ↩ says which leg) */
   kmLabel: string
   /** semantic kind (for label styling / tooltip detail) */
   kind: 'mealtime' | 'overnight' | 'destination'
@@ -98,7 +99,10 @@ export function deriveClockMilestones(input: {
       dayNo: dayIndex + 1,
       timeLabel: clockHM(etaMin),
       dateLabel: dateFor(dayIndex),
-      kmLabel: `Km ${Math.round(km)}`,
+      // FIX-2: per-leg km is ambiguous across the turnaround ("Km 500" twice),
+      // so the drive-home chips carry their own ↩ — no renumbering, no silent
+      // collision with the outbound half.
+      kmLabel: leg === 'return' ? `Km ${Math.round(km)} ↩` : `Km ${Math.round(km)}`,
       kind,
       leg,
     })

@@ -2414,51 +2414,67 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
 }
 [data-theme='dark'] .yf-map-flag { border-color: rgba(255,255,255,.9); }
 
-/* ---- Road milestones on the route (the travel clock drawn on the map) ---- */
-/* One pin per planned anchor with its wall-clock time on the side and the road
-   km beneath — time and distance together at the point they belong to. Quiet by
-   design: the clock is context, the numbered stops are the subject. */
+/* ---- Road milestone labels on the route (the travel clock drawn on the map) ---- */
+/* Clean text, no pins, no dots: a zero-size anchor sits ON the road at the
+   planned stop's km, and two quiet chips flank it — the wall-clock time with
+   the calendar date on the LEFT, the road km on the RIGHT — so a traveller
+   reads when and how far at the exact point they belong to. Quiet by design:
+   the clock is context, the numbered stops are the subject. */
+/* The marker element must have zero footprint — a sized box would shove the
+   labels off the route point they flank. */
+.yf-milestone-anchor {
+  width: 0; height: 0; overflow: visible;
+}
 .yf-milestone {
-  display: inline-flex; align-items: center; gap: 5px;
+  display: flex; align-items: center;
+  width: 0; height: 0;
   pointer-events: none;
+  white-space: nowrap;
 }
-.yf-milestone-dot {
-  width: 9px; height: 9px; border-radius: 999px; flex: 0 0 auto;
-  background: var(--yf-poi-see);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--yf-poi-see) 38%, transparent);
-  filter: drop-shadow(0 1px 2px rgba(0,0,0,.35));
-}
-.yf-milestone--overnight .yf-milestone-dot {
-  background: #6366F1;
-  box-shadow: 0 0 0 2px color-mix(in srgb, #6366F1 40%, transparent);
-}
-.yf-milestone--destination .yf-milestone-dot {
-  background: var(--teal);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--teal) 40%, transparent);
-}
-.yf-milestone--place .yf-milestone-dot {
-  background: var(--text-2);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--text-2) 32%, transparent);
-}
-.yf-milestone-side {
-  display: inline-flex; flex-direction: column; align-items: flex-start; gap: 1px;
-  padding: 1px 6px;
-  border-radius: 6px;
+/* Time + date chip, parked to the LEFT of the route point. */
+.yf-milestone-when {
+  position: absolute; right: 5px; top: 0;
+  transform: translateY(-50%);
+  display: inline-flex; flex-direction: column; align-items: flex-end; gap: 0;
+  padding: 2px 7px;
+  border-radius: 7px;
   background: color-mix(in srgb, var(--card) 92%, transparent);
   border: 1px solid var(--line);
   box-shadow: 0 1px 3px rgba(var(--shadow-navy-rgb),.25);
-  white-space: nowrap;
 }
 .yf-milestone-time {
-  font-size: 10.5px; font-weight: 700; line-height: 1.2;
+  font-size: 10.5px; font-weight: 700; line-height: 1.25;
   color: var(--text);
   font-variant-numeric: tabular-nums;
 }
-.yf-milestone-km {
-  font-size: 9.5px; font-weight: 700; line-height: 1.2; font-style: normal;
+.yf-milestone-date {
+  font-size: 9px; font-weight: 700; line-height: 1.3; font-style: normal;
+  letter-spacing: .02em;
   color: var(--text-2);
   font-variant-numeric: tabular-nums;
 }
+/* Distance chip, parked to the RIGHT of the route point. */
+.yf-milestone-km {
+  position: absolute; left: 5px; top: 0;
+  transform: translateY(-50%);
+  padding: 2px 7px;
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--card) 92%, transparent);
+  border: 1px solid var(--line);
+  box-shadow: 0 1px 3px rgba(var(--shadow-navy-rgb),.25);
+  font-size: 9.5px; font-weight: 700; line-height: 1.3; font-style: normal;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+/* Kind accents on the time chip's leading edge — a whisper, not a dot. */
+.yf-milestone--overnight .yf-milestone-when { border-left: 2px solid #6366F1; }
+.yf-milestone--destination .yf-milestone-when { border-left: 2px solid var(--teal); }
+.yf-milestone--mealtime .yf-milestone-when { border-left: 2px solid var(--yf-poi-see); }
+/* The drive home reads softer — same labels, dialed back, toggled with the
+   Return home line. */
+.yf-milestone--return { opacity: .8; }
+.yf-milestone--return .yf-milestone-when,
+.yf-milestone--return .yf-milestone-km { border-style: dashed; }
 /* Planned arrival chip under a stop pin — only present while the clock
    overlay is on (Map tab); Board pins never render it. MarkerContent stacks
    in normal flow, so a block chip lands under the pin face. */

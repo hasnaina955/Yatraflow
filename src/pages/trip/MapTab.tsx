@@ -432,23 +432,31 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     // code change with unchanged rainChancePct left the banner stale.
     [planKm, wholeTrip.min, trip.travelStyle, trip.transportMode, trip.driverCount, trip.hasVulnerable, trip.driveAfterDinnerMin, dayStartSig, dayRainPct, dayWeatherCode, tripIsRoundTrip, roadProfile],
   )
-  // The travel clock drawn ON the route as road MILESTONES: one pin per planned
-  // clock anchor (meal / overnight / destination) carrying its wall-clock time
-  // on the side plus its road km. Runs on the whole loop like the split verdict
-  // — and only once the road geometry resolves, because a pin planted on a
-  // straight chord would lie about where the stop lands.
+  // The travel clock drawn ON the route as clean road LABELS: one text pair per
+  // planned clock anchor (meal / overnight / destination) — its wall-clock time
+  // + calendar date on the LEFT of the road, its road km on the RIGHT. No pins,
+  // no dots. Runs on the whole loop like the split verdict, with the SAME clock
+  // inputs as the banner walk (round-trip returnDays, terrain profile, party
+  // cap, dinner anchors — #145/#213), and only once the road geometry resolves,
+  // because a label planted on a straight chord would lie about where the stop
+  // lands. Return-leg labels carry leg:'return'; the map shows them only while
+  // its Return home toggle is on.
   const clockMilestones = useMemo(
     () => deriveClockMilestones({
       polyline: routePolyline,
       outboundKm: planKm,
       loopMin: wholeTrip.min * loopFactor,
       roundTrip: tripIsRoundTrip,
+      tripStartDate: trip.startDate,
       dayStart: trip.days[0]?.startTime,
       travelStyle: trip.travelStyle,
       rainFactor,
+      profile: tripIsRoundTrip ? loopProfile(roadProfile) : roadProfile,
+      party: partyOpts,
+      anchors: tripAnchors,
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [routePolyline, planKm, wholeTrip.min, loopFactor, tripIsRoundTrip, dayStartSig, trip.travelStyle, dayRainPct],
+    [routePolyline, planKm, wholeTrip.min, loopFactor, tripIsRoundTrip, trip.startDate, dayStartSig, trip.travelStyle, dayRainPct, roadProfile, trip.driverCount, trip.hasVulnerable, trip.driveAfterDinnerMin],
   )
   // One clock story (#123): the banner count comes from the clock walk that
   // knows the start time; planDriveDays stays the geometry-free estimator.

@@ -245,7 +245,7 @@ let main = async () => {
   await new Promise((res) => {
     const timer = setInterval(() => {
       if (landed?.name === TITLE) { clearInterval(timer); res(); }
-      else if (Date.now() - r0 > 10_000) { clearInterval(timer); res(); }
+      else if (Date.now() - r0 > 15_000) { clearInterval(timer); res(); } // free-tier realtime can lag on first connect
     }, 100);
   });  assert(landed?.name === TITLE, 'realtime: crew write lands on owner channel', landed ? `landed=${landed.name}` : 'no event within window');
   U1.removeChannel(channel);
@@ -261,10 +261,13 @@ let main = async () => {
   };
   const roomA = mkRoom(U1, 'owner-session');
   const roomB = mkRoom(U2, 'crew-session');
-  const seenByA = {};
-  roomA.on('presence', { event: 'sync' }, () => { Object.assign(seenByA, roomA.presenceState()); });
+  // The sync handler must REPLACE this snapshot, never merge into it: an
+  // accumulating map cannot observe an untrack (once a key enters, no later
+  // sync removes it), and the probe would report a ghost session forever.
+  let seenByA = {};
+  roomA.on('presence', { event: 'sync' }, () => { seenByA = roomA.presenceState(); });
   await new Promise((res, rej) => {
-    const timer = setTimeout(() => rej(new Error('presence subscribe timeout')), 10_000);
+    const timer = setTimeout(() => rej(new Error('presence subscribe timeout')), 15_000);
     let joined = 0;
     const onSub = (status) => { if (status === 'SUBSCRIBED') { joined++; if (joined === 2) { clearTimeout(timer); res(); } } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') { clearTimeout(timer); rej(new Error(status)); } };
     roomA.subscribe(onSub); roomB.subscribe(onSub);
@@ -276,7 +279,7 @@ let main = async () => {
     const t = setInterval(() => {
       const keys = Object.keys(seenByA);
       if (keys.includes('crew-session')) { clearInterval(t); res(); }
-      else if (Date.now() - p0 > 10_000) { clearInterval(t); res(); }
+      else if (Date.now() - p0 > 15_000) { clearInterval(t); res(); }
     }, 100);
   });
   const peerKeys = Object.keys(seenByA);
@@ -288,7 +291,7 @@ let main = async () => {
   await new Promise((res) => {
     const t = setInterval(() => {
       if (!Object.keys(seenByA).includes('crew-session')) { clearInterval(t); res(); }
-      else if (Date.now() - q0 > 10_000) { clearInterval(t); res(); }
+      else if (Date.now() - q0 > 15_000) { clearInterval(t); res(); }
     }, 100);
   });
   assert(!Object.keys(seenByA).includes('crew-session'), 'presence: untrack removes the session from the room', `still=${Object.keys(seenByA).join(',')}`);

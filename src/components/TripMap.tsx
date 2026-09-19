@@ -190,7 +190,7 @@ function ClockMilestoneLayer({ overlay, showReturn }: { overlay: ClockMilestone[
       {overlay.filter(m => m.leg === 'outbound' || showReturn).map((m, i) => (
         <MapMarker key={`cm-${m.kind}-${m.dayNo}-${m.kmIn}-${i}`} longitude={m.lng} latitude={m.lat} anchor="center">
           <MarkerContent className="yf-milestone-anchor">
-            <span className={`yf-milestone yf-milestone--${m.kind}${m.leg === 'return' ? ' yf-milestone--return' : ''}`}>
+            <span className={`yf-milestone yf-milestone--${m.kind}${m.leg === 'return' ? ' yf-milestone--return' : ''} yf-milestone--${m.dayState}`}>
               <span className="yf-milestone-when">
                 <b className="yf-milestone-time">{formatHM(clockHM(m.etaMin), timeFormat)}</b>
                 {m.dateLabel && <em className="yf-milestone-date">{m.dateLabel}</em>}

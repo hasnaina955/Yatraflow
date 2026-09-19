@@ -98,6 +98,14 @@ async function fetchDailyWeatherOnce(
   return out
 }
 
+/** The device's calendar day as an ISO date — the living plan's "now" (Phase 1).
+ *  Local getters, never toISOString (see isoAddDays' note): on +5:30 the UTC
+ *  date lags the wall calendar by a day after 18:30. */
+export function todayISO(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 /** True when the trip start is within Open-Meteo's reliable forecast window. */
 export function forecastAvailable(startDate: string): boolean {
   // Parse both dates at UTC midnight so the diff is a true whole-day count

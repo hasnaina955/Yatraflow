@@ -35,17 +35,20 @@ its own commit + PR-checkbox.
 "Today" = device date compared against each label's day-date
 (`trip.startDate + dayIndex`). No picker, no extra control.
 
-- [ ] **Day status on the label.** Derive `dayState: 'past' | 'today' |
-      'future'` per label (lib-pure: `tripTodayISO` in, status out — stays
-      node-testable). Undated trips (`startDate` missing): all `future`.
-- [ ] **Today pulse.** `today` labels get a pulse treatment on the time chip
-      (motion-tokens easing, `prefers-reduced-motion` respected — AGENTS rule
-      10). Design-system baseline will shift: re-baseline deliberately,
-      confirm the diff is line-number-only.
-- [ ] **Past dimming.** Past-leg labels fade to a quiet treatment (opacity +
-      solid borders, matching the return-leg whisper, not a new visual
-      language). A trip fully in the past renders all-dimmed; a future trip
-      renders full.
+- [x] **Day status on the label.** `dayState: past | today | future` derived
+      lib-pure from `tripStartDate + dayIndex` vs injected `todayISO` (device
+      date in production, fixture date in tests — ISO-string comparison, no
+      Date objects, no tz flips). Undated overlays are all `future`; a malformed
+      "now" degrades to timeless.
+- [x] **Today pulse.** Ambient `yf-today-pulse` keyframe loop on the active
+      day's time chip (deliberately outside the raw-duration ratchet — cadence
+      is a property of the effect — with a comment saying so),
+      `prefers-reduced-motion: reduce` freezes it. `todayISO()` helper in
+      `weather.ts` uses local getters, never toISOString (the +5:30 trap
+      `isoAddDays` already documents).
+- [x] **Past dimming.** `past` labels take the return-leg whisper treatment
+      (dim + dashed, one visual language) — a trip fully behind today renders
+      all-dimmed, a future trip all-full.
 
 ## Phase 2 — town names on halt labels
 

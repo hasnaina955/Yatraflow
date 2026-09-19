@@ -203,5 +203,54 @@ describe('deriveClockMilestones - labels, not areas', () => {
     expect(dated.map(p => p.dateLabel)).toEqual(once.map(p =>
       p.dayNo === 1 ? '2 Oct' : p.dayNo === 2 ? '3 Oct' : p.dateLabel,
     ))
+    // and with neither date input the overlay is timeless — all future
+    for (const p of once) expect(p.dayState).toBe('future')
+  })
+
+  it('dayState splits history, the active day, and plan on a dated trip', () => {
+    // Phase 1's core: trip starts 2026-10-02, "today" is 2026-10-03 — day 1's
+    // labels are driven history, day 2's are the active day, anything later
+    // is still plan. String comparison only: no Date objects, no tz flips.
+    const pins = deriveClockMilestones({
+      verdict: walk(800, 800 / SPEED),
+      polyline: straightPolyline(800),
+      tripStartDate: '2026-10-02',
+      todayISO: '2026-10-03',
+    })
+    const day1 = pins.filter(p => p.dayNo === 1)
+    const day2 = pins.filter(p => p.dayNo === 2)
+    expect(day1.length).toBeGreaterThan(0)
+    expect(day2.length).toBeGreaterThan(0)
+    for (const p of day1) expect(p.dayState).toBe('past')
+    for (const p of day2) expect(p.dayState).toBe('today')
+  })
+
+  it('a trip entirely in the past renders all-dimmed; a future trip all-full', () => {
+    const back = deriveClockMilestones({
+      verdict: walk(200, 200 / SPEED),
+      polyline: straightPolyline(200),
+      tripStartDate: '2026-10-02',
+      todayISO: '2026-10-10',
+    })
+    expect(back.length).toBeGreaterThan(0)
+    for (const p of back) expect(p.dayState).toBe('past')
+    const ahead = deriveClockMilestones({
+      verdict: walk(200, 200 / SPEED),
+      polyline: straightPolyline(200),
+      tripStartDate: '2026-10-02',
+      todayISO: '2026-09-01',
+    })
+    expect(ahead.length).toBeGreaterThan(0)
+    for (const p of ahead) expect(p.dayState).toBe('future')
+  })
+
+  it('a malformed "now" degrades to timeless instead of lying', () => {
+    const pins = deriveClockMilestones({
+      verdict: walk(200, 200 / SPEED),
+      polyline: straightPolyline(200),
+      tripStartDate: '2026-10-02',
+      todayISO: 'next Friday',
+    })
+    for (const p of pins) expect(p.dayState).toBe('future')
   })
 })

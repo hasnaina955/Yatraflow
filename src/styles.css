@@ -2475,6 +2475,23 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
 .yf-milestone--return { opacity: .8; }
 .yf-milestone--return .yf-milestone-when,
 .yf-milestone--return .yf-milestone-km { border-style: dashed; }
+/* ---- The living plan (Phase 1): driven history dims, the active day pulses.
+   Driven days are context, not plan — the same quiet treatment as the return
+   whisper, one visual language, not two. Undated overlays never emit --past. */
+.yf-milestone--past { opacity: .55; }
+.yf-milestone--past .yf-milestone-when,
+.yf-milestone--past .yf-milestone-km { border-style: dashed; }
+/* The active day's time chip breathes — an ambient loop (deliberately outside
+   the raw-duration ratchet: its cadence is a property of the effect, not a UI
+   transition). Static under prefers-reduced-motion, always. */
+@keyframes yf-today-pulse {
+  0%, 100% { box-shadow: 0 1px 3px rgba(var(--shadow-navy-rgb),.25); }
+  50% { box-shadow: 0 1px 3px rgba(var(--shadow-navy-rgb),.25), 0 0 0 3px color-mix(in srgb, var(--teal) 35%, transparent); }
+}
+.yf-milestone--today .yf-milestone-when { animation: yf-today-pulse 2.4s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .yf-milestone--today .yf-milestone-when { animation: none; }
+}
 /* Planned arrival chip under a stop pin — only present while the clock
    overlay is on (Map tab); Board pins never render it. MarkerContent stacks
    in normal flow, so a block chip lands under the pin face. */

@@ -53,6 +53,10 @@ export interface ClockMilestone {
   /** which half of the journey the label sits on — the return half only
    *  renders when the Return home toggle is on (Map tab gate) */
   leg: 'outbound' | 'return'
+  /** where the label's day falls against "now" (Phase 1, the living plan):
+   *  the day BEHIND the device date is driven history, the day ON it is the
+   *  active one, everything later is plan. Undated overlays are all `future`. */
+  dayState: 'past' | 'today' | 'future'
 }
 
 
@@ -73,6 +77,10 @@ export function deriveClockMilestones(input: {
   /** trip start (ISO date) — drives each label's calendar date; omit for
    *  undated fixtures / callers without a start date (date label stays empty) */
   tripStartDate?: string
+  /** ISO calendar day that counts as "now" for the living-plan treatment
+   *  (Phase 1) — the device date in production, an injected fixture date in
+   *  tests. Omit for a timeless overlay (all `future`). */
+  todayISO?: string
 }): ClockMilestone[] {
   const { polyline, verdict } = input
   if (!polyline || polyline.length < 2) return []
@@ -83,6 +91,19 @@ export function deriveClockMilestones(input: {
     if (!input.tripStartDate || !/^\d{4}-\d{2}-\d{2}$/.test(input.tripStartDate)) return ''
     const d = new Date(`${isoAddDays(input.tripStartDate, dayIndex)}T00:00:00`)
     return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+  }
+  const isoFor = (dayIndex: number) => {
+    if (!input.tripStartDate || !/^\d{4}-\d{2}-\d{2}$/.test(input.tripStartDate)) return null
+    return isoAddDays(input.tripStartDate, dayIndex)
+  }
+  // Phase 1: "today" is the device date in production, an injected fixture date
+  // in tests — compared as ISO calendar strings, never Date objects, so
+  // timezone offsets can't flip a day boundary at midnight.
+  const today = /^\d{4}-\d{2}-\d{2}$/.test(input.todayISO ?? '') ? input.todayISO! : null
+  const dayStateFor = (dayIndex: number): ClockMilestone['dayState'] => {
+    const iso = isoFor(dayIndex)
+    if (!iso || !today) return 'future'
+    return iso < today ? 'past' : iso > today ? 'future' : 'today'
   }
   // Each walk's km is per-leg (0 → outboundKm). The outbound maps forward along
   // the road; a return label maps forward along the REVERSED road from the
@@ -105,6 +126,7 @@ export function deriveClockMilestones(input: {
       kmLabel: leg === 'return' ? `Km ${Math.round(km)} ↩` : `Km ${Math.round(km)}`,
       kind,
       leg,
+      dayState: dayStateFor(dayIndex),
     })
   }
   const walkDay = (d: TravelClockDay, leg: ClockMilestone['leg']) => {

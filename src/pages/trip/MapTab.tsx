@@ -32,7 +32,7 @@ import { visitMinutesForCategory } from '../../lib/slackPrompts'
 import { prefersReducedMotion, scrollBehavior } from '../../lib/motion'
 import type { SegmentHit } from '../../lib/geocode'
 import { anchorHash, projectOntoPolyline } from '../../lib/providers/hits'
-import { fetchDailyWeather, forecastAvailable, isoAddDays } from '../../lib/weather'
+import { fetchDailyWeather, forecastAvailable, isoAddDays, todayISO } from '../../lib/weather'
 // MapLibre is heavy (~1MB) — load it only when the Map tab is actually opened.
 const TripMap = React.lazy(() => import('../../components/TripMap').then(m => ({ default: m.TripMap })))
 
@@ -437,12 +437,14 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
   // + calendar date on the LEFT of the road, its road km on the RIGHT. No pins,
   // no dots. FIX-1: not a second walk — this projects MapTab's own `clockVerdict`
   // (the banner's walk) onto the road that just resolved, so the map and the
-  // banner can never disagree. Only renders once the geometry is in, because a
-  // label planted on a straight chord would lie about where the stop lands.
-  // Return-leg labels carry leg:'return'; the map shows them only while its
-  // Return home toggle is on.
+  // banner can never disagree. Phase 1: `todayISO` is the device calendar day,
+  // so each label knows whether its day is driven history, the active day, or
+  // still plan. Only renders once the geometry is in, because a label planted
+  // on a straight chord would lie about where the stop lands. Return-leg labels
+  // carry leg:'return'; the map shows them only while its Return home toggle
+  // is on.
   const clockMilestones = useMemo(
-    () => deriveClockMilestones({ verdict: clockVerdict, polyline: routePolyline, tripStartDate: trip.startDate }),
+    () => deriveClockMilestones({ verdict: clockVerdict, polyline: routePolyline, tripStartDate: trip.startDate, todayISO: todayISO() }),
     [clockVerdict, routePolyline, trip.startDate],
   )
   // One clock story (#123): the banner count comes from the clock walk that

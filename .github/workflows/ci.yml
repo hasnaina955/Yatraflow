@@ -4,10 +4,19 @@ name: CI
 # (`tsc -b --clean` -> tests -> production build, see AGENTS.md "Verification
 # before every push") only ever ran locally/manually, which is how a
 # deploy-breaking CSS error (#14) reached main unnoticed. This workflow enforces
-# the SAME gate on every PR to main and on every push to main.
+# the SAME gate on every PR into a shared branch and on every push to one.
+#
+# `test` belongs in the PR trigger for the same reason `main` does: it is where
+# feature work integrates, so while only `main` was listed it was the one
+# destination where a green check list proved nothing. A PR into `test` showed
+# Codacy and Vercel and no "Verify" job at all, because the gate was waiting for
+# the merge to fire it as a `push to test` — after the point where a red tree can
+# still be refused. The PR run checks out the merge ref, so it duplicates the
+# push run rather than replacing it; the duplication is deliberate, and it is
+# what puts the verdict before the merge instead of after it.
 on:
   pull_request:
-    branches: [main]
+    branches: [main, test]
   push:
     branches: [main, test, 'redesign/**']
 

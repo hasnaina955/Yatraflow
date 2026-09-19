@@ -371,6 +371,7 @@ the same job:
 | push to `main` | yes | **yes** |
 | push to `redesign/**` | yes | **no** |
 | PR into `main` | yes | **no** |
+| PR into `test` | yes | **no** |
 | `v*` tag | — | yes (publishes the artifact) |
 
 The APK workflow triggers on `push` to `main`, `feat/capacitor-android` and `v*`
@@ -379,14 +380,19 @@ Vercel, while the merge itself is what burns an Android build. Verify with
 `gh pr checks <n>` rather than reasoning from the YAML; the check list names the
 workflow that actually fired.
 
-**A PR into `test` gets NO CI job at all** (`ci.yml`'s `pull_request` trigger
-lists only `main`) — found 2026-09-14 when PR #105 (a 23-file feature PR into
-`test`) showed only Codacy/Vercel checks and no "Verify" job. A green check
-list on a `test` PR means nothing ran the gate; the merge itself is what fires
-it (as a `push to test`). Until `pull_request: branches: [main, test]` is
-added, run `npm run verify` locally before asking to merge any PR into `test`.
-(Caveat if adding it: the PR run checks out the merge ref, so it duplicates the
-push run rather than replacing it.)
+**A PR into `test` now runs the same job as one into `main`** — `ci.yml`'s
+`pull_request` trigger lists `[main, test]` as of 2026-09-20. The gap it closes
+was found 2026-09-14, when PR #105 (a 23-file feature PR into `test`) showed only
+Codacy/Vercel checks and no "Verify" job. `test` is where feature work
+integrates, so it was the one destination where a green check list proved
+nothing: the gate waited for the merge and fired as a `push to test`, after the
+point where a red tree can still be refused. This section described the fix for
+six days and nothing enforced it — which is why `tests/ci-workflow.test.ts` now
+pins the trigger, so the gap fails a build instead of outliving another entry
+about it. The PR run checks out the merge ref, so it duplicates the push run
+rather than replacing it; that duplication is deliberate. Verify with
+`gh pr checks <n>` rather than reasoning from the YAML; the check list names the
+workflow that actually fired.
 
 **Codacy's `action_required` state hides REAL findings too — read the
 annotations, not just the conclusion.** The "auth-gated bot quirk" framing was

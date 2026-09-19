@@ -342,6 +342,8 @@ unbuilt). **Before picking up a row, and before quoting one in a plan, confirm i
 
 ### Tier 1 — ready to pick up (small, unblocked)
 
+> **Heads-up (2026-09-19, M6 B4):** "mark settled" shipped as a RECORD on an expense line — the line stays in the running balances, because the card's fair share is the engine estimate split per head and dropping a settled line's credit while it still sits inside the estimate breaks the zero-sum who-owes-whom maths. I-19 is the follow-up that would make settled lines genuinely leave.
+
 | # | Idea | Area | Effort | Note |
 |---|---|---|---|---|
 | I-1 | CSV export of expense lines | budget | 1 h | Client-side blob download from `trip.expenses`. |
@@ -367,6 +369,7 @@ unbuilt). **Before picking up a row, and before quoting one in a plan, confirm i
 | I-15 | Unlock conversion funnel | M7, then events | Views → premium unlocks per publication; needs entitlement events from M7 first. |
 | I-16 | Cross-device Trip DNA persistence | M6/M7 infra | The engine is **done** (category mix, detour tolerance, stop-length dims, cross-trip device learning). What remains is persistence: a `user_dna` table + RLS so the profile survives a device change. Deliberately parked on infrastructure, not an engine gap. |
 | I-18 | `overdrive` on the four authored surfaces | the owner's direction pick | The v0.60.0 pass scoped `overdrive` for Landing/PlanBench, the Trip Ticket (Create Trip), the Overview hero and the public-itinerary editorial, and deliberately ran without it: the command's contract forbids writing code before 2–3 directions are presented and one is picked, and requires browser iteration plus a banner. Nothing overdrive-shaped has been built anywhere. |
+| I-19 | Settled lines genuinely leave the balances | budget | 3–4 h + product call | M6 B4 shipped "mark settled" as a record (settler + timestamp, history, activity) and the line STILL counts toward the running balances — deliberately: the card's fair share is `fairSharePerHead(travellers, totals.totalCostInr)` (the engine estimate split per head), so dropping a settled line's credit while it remains inside the estimate breaks the zero-sum property and the who-owes-whom transfers stop balancing. Doing it properly means re-basing what the card measures from "the trip estimate" to "the open lines" (fair share from open-line sums), with the settled history as a ledger view — a product decision about what the card should mean, not arithmetic. BudgetTab's `computeBalances` call passes the whole `trip.expenses`; the open/settled split currently styles the two lists only. |
 
 ### Tier 3 — milestone-shaped, tracked as tracks (not ideas)
 

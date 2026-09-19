@@ -181,7 +181,12 @@ export function BudgetTab({ trip, totals, editable }: { trip: Trip; totals: Retu
   const tagged = trip.expenses.some(e => e.paidBy)
   const transfers = settleBalances(balances)
   const nameOf = (u: User | undefined) => u?.profile.name ?? 'Traveller'
-  // M6 B4 — settle-up lists: open lines (still counting) and settled ones.
+  // M6 B4 — settle-up lists: the open/settled split is for the two lists
+  // only, NOT for the maths — `balances` above is computed from the WHOLE
+  // trip.expenses, so a settled line still counts toward the running
+  // balances. Settling is a record (who squared up the line, when), not a
+  // removal; making settled lines genuinely leave the balances needs the
+  // fair share re-based onto open lines (ROADMAP idea bank, Tier 1).
   // Newest-settled first in the history so the last action is on top.
   const openExpenses = trip.expenses.filter(e => !e.settled)
   const settledExpenses = trip.expenses.filter(e => e.settled).sort((a, b) => (b.settled?.at ?? 0) - (a.settled?.at ?? 0))
@@ -394,7 +399,7 @@ export function BudgetTab({ trip, totals, editable }: { trip: Trip; totals: Retu
                         {editable && openExpenses.length > 0 && (
                           <div className="settled-strip" style={{ marginTop: 12 }}>
                             <span className="hint-text" style={{ margin: 0 }}>
-                              <b>Settle up:</b> settled lines drop off the balances math.
+                              <b>Settle up:</b> mark a line squared up — it moves to the settled history below; balances still count it.
                             </span>
                             <div className="settled-list">
                               {openExpenses.map(e => (

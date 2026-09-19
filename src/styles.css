@@ -4568,7 +4568,6 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 .settled-history { margin-top: 10px; font-size: 13px; }
 .settled-history summary { cursor: pointer; color: var(--text-3); font-weight: 600; padding: 4px 0; }
 .settled-history summary:hover { color: var(--text-2); }
-@media (prefers-reduced-motion: reduce) { .settled-history { transition: none; } }
 
 /* ---- Group input: the count-pill stat strip retired 2026-09 — counts live in the filter pillbar badges ----
 

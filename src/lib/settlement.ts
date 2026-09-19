@@ -73,6 +73,12 @@ export function computeBalances(
  * sub-50-paise residues (float dust from the per-head split) are treated as
  * settled rather than minting a 1-paise transfer. Rows are copied before
  * mutating; the input is never touched.
+ *
+ * Note on the returned transfers: `from`/`to` are references into the copied
+ * working rows, so by the time the loop finishes their `bal` carries the
+ * POST-settlement residual (≈ 0), not the balance the row started with. No
+ * caller reads `bal` off a transfer today — the card renders `user` and
+ * `amount` — but treat `from.bal`/`to.bal` as scratch, not data.
  */
 export function settleBalances(balances: BalanceRow[]): Transfer[] {
   const creditors = balances.filter(b => b.bal > 0.5).map(b => ({ ...b })).sort((a, b) => b.bal - a.bal)

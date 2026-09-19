@@ -27,7 +27,12 @@ const packageJson = JSON.parse(
  *  branch list as its own. */
 function triggerBlock(name: string): string {
   const lines = workflow.split(/\r?\n/)
-  const start = lines.findIndex((line) => new RegExp(`^\\s*${name}:`).test(line))
+  // Matched by trimmed equality rather than by a RegExp assembled from the
+  // name. The name is one of this file's own literals either way, but a pattern
+  // built from a variable is a static-analysis finding for no benefit here — and
+  // the exact match is stricter than the pattern was, since it cannot drift into
+  // a longer key that merely starts with the trigger's name.
+  const start = lines.findIndex((line) => line.trim() === name + ':')
   if (start === -1) return ''
   const rest = lines.slice(start + 1)
   const end = rest.findIndex((line) => /^(?: {0,2}\S)/.test(line) && !/^\s*#/.test(line))

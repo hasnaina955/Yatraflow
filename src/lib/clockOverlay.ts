@@ -23,6 +23,7 @@
 import { pointAtKm } from './geo'
 import { type AnchorOpts, type RoadProfilePoint, type TravelClockDay, type TravelClockVerdict } from './ridePlan'
 import { isoAddDays } from './weather'
+import type { PlaceHit } from './providers/hits'
 
 /** Minutes-since-midnight → "HH:MM" (wall clock, not a duration). */
 export function clockHM(mins: number): string {
@@ -57,6 +58,10 @@ export interface ClockMilestone {
    *  the day BEHIND the device date is driven history, the day ON it is the
    *  active one, everything later is plan. Undated overlays are all `future`. */
   dayState: 'past' | 'today' | 'future'
+  /** Phase 2: the named town at an overnight halt, joined from the corridor's
+   *  night-halt suggestions — null when nothing honest was found (the chip
+   *  stays a bare time+km label, never a guess). */
+  haltName: string | null
 }
 
 
@@ -81,6 +86,9 @@ export function deriveClockMilestones(input: {
    *  (Phase 1) — the device date in production, an injected fixture date in
    *  tests. Omit for a timeless overlay (all `future`). */
   todayISO?: string
+  /** Phase 2: corridor night-halt suggestions (`planJourneyHalts` hits with
+   *  haltPurpose/cumKm set) to name overnight labels — omit for bare halts. */
+  haltCandidates?: PlaceHit[]
 }): ClockMilestone[] {
   const { polyline, verdict } = input
   if (!polyline || polyline.length < 2) return []
@@ -105,6 +113,21 @@ export function deriveClockMilestones(input: {
     if (!iso || !today) return 'future'
     return iso < today ? 'past' : iso > today ? 'future' : 'today'
   }
+  // Phase 2: overnight labels get the town at their km when the corridor scan
+  // already found one — a named halt is actionable ("where do we sleep"), a
+  // bare km is not. Same 120 km honesty bound as the plan's own halt guard
+  // (a name further away than that would lie about where the stop is).
+  const haltNameFor = (km: number): string | null => {
+    const candidates = input.haltCandidates ?? []
+    let name: string | null = null
+    let best = 121
+    for (const c of candidates) {
+      if (c.haltPurpose !== 'overnight' || c.cumKm == null || !c.name) continue
+      const d = Math.abs(c.cumKm - km)
+      if (d < best) { best = d; name = c.name }
+    }
+    return name
+  }
   // Each walk's km is per-leg (0 → outboundKm). The outbound maps forward along
   // the road; a return label maps forward along the REVERSED road from the
   // destination (km 0 = the turnaround), because that's the road it drives.
@@ -127,6 +150,7 @@ export function deriveClockMilestones(input: {
       kind,
       leg,
       dayState: dayStateFor(dayIndex),
+      haltName: kind === 'overnight' ? haltNameFor(km) : null,
     })
   }
   const walkDay = (d: TravelClockDay, leg: ClockMilestone['leg']) => {

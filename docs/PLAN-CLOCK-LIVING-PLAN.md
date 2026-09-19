@@ -52,14 +52,16 @@ its own commit + PR-checkbox.
 
 ## Phase 2 — town names on halt labels
 
-- [ ] **Join the halt to a place.** `nightHaltKm` → nearest named halt/town
-      from the corridor data the workspace already holds
-      (`haltPins`/`nightHalt` suggestions: `loadHaltPinsForTrip`,
-      `planJourneyHalts`). Contract: `{ name, km }` or null — null renders
-      today's chip unchanged (never a lie, never a blank).
-- [ ] **Halt chip copy.** Overnight chips gain the town: `🌙 Jabalpur · Day 3
-      · 8:41 PM · Km 912` (keep the left/right split: name+time+date left, km
-      right). Tooltip + fixtures updated.
+- [x] **Join the halt to a place.** `nightHaltKm` joins the corridor's own
+      overnight candidates (`planJourneyHalts` → `annotateSegmentHits` stamps
+      `haltPurpose`/`cumKm`) at the same 120 km honesty bound the plan's halt
+      guard uses. Contract: `haltName: string | null` on `ClockMilestone` —
+      null renders today's chip unchanged (never a lie, never a blank).
+- [x] **Halt chip copy.** Overnight chips lead with the town
+      (`<b class="yf-milestone-halt">` above the time), tooltip gains
+      `Overnight halt — <town> — day N`. Fixtures pin: named-at-km,
+      past-the-bound stays bare, no candidates stays bare, non-overnight
+      candidates never name.
 
 ## Phase 3 — halt bottom sheet
 

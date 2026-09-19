@@ -2442,6 +2442,12 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
   border: 1px solid var(--line);
   box-shadow: 0 1px 3px rgba(var(--shadow-navy-rgb),.25);
 }
+.yf-milestone-halt {
+  font-size: 10.5px; font-weight: 800; line-height: 1.25;
+  color: #6366F1;
+  font-family: var(--font-display);
+}
+[data-theme='dark'] .yf-milestone-halt { color: #A5B4FC; }
 .yf-milestone-time {
   font-size: 10.5px; font-weight: 700; line-height: 1.25;
   color: var(--text);

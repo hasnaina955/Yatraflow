@@ -192,6 +192,7 @@ function ClockMilestoneLayer({ overlay, showReturn }: { overlay: ClockMilestone[
           <MarkerContent className="yf-milestone-anchor">
             <span className={`yf-milestone yf-milestone--${m.kind}${m.leg === 'return' ? ' yf-milestone--return' : ''} yf-milestone--${m.dayState}`}>
               <span className="yf-milestone-when">
+                {m.haltName && <b className="yf-milestone-halt">{m.haltName}</b>}
                 <b className="yf-milestone-time">{formatHM(clockHM(m.etaMin), timeFormat)}</b>
                 {m.dateLabel && <em className="yf-milestone-date">{m.dateLabel}</em>}
               </span>
@@ -199,7 +200,7 @@ function ClockMilestoneLayer({ overlay, showReturn }: { overlay: ClockMilestone[
             </span>
           </MarkerContent>
           <MarkerTooltip>
-            {`${m.kind === 'mealtime' ? 'Meal break' : m.kind === 'overnight' ? 'Overnight halt' : 'Destination'} — day ${m.dayNo}${m.dateLabel ? ` (${m.dateLabel})` : ''}: ${formatHM(clockHM(m.etaMin), timeFormat)} at ${m.kmLabel} on the road${m.leg === 'return' ? ' · drive home' : ''}`}
+            {`${m.kind === 'mealtime' ? 'Meal break' : m.kind === 'overnight' ? 'Overnight halt' : 'Destination'}${m.haltName ? ` — ${m.haltName}` : ''} — day ${m.dayNo}${m.dateLabel ? ` (${m.dateLabel})` : ''}: ${formatHM(clockHM(m.etaMin), timeFormat)} at ${m.kmLabel} on the road${m.leg === 'return' ? ' · drive home' : ''}`}
           </MarkerTooltip>
         </MapMarker>
       ))}

@@ -9,6 +9,7 @@ import { describe, expect, it } from 'vitest'
 import { haversineKm } from '../src/lib/geo'
 import { clockHM, deriveClockMilestones } from '../src/lib/clockOverlay'
 import { planTravelClock } from '../src/lib/ridePlan'
+import type { PlaceHit } from '../src/lib/providers/hits'
 
 /** A straight east-west polyline at the equator; ~111.195 km per degree. */
 function straightPolyline(km: number, steps = 60): { lat: number; lng: number }[] {
@@ -252,5 +253,55 @@ describe('deriveClockMilestones - labels, not areas', () => {
       todayISO: 'next Friday',
     })
     for (const p of pins) expect(p.dayState).toBe('future')
+  })
+
+  it('Phase 2: a corridor night-halt names the overnight label at its km', () => {
+    const pins = deriveClockMilestones({
+      verdict: walk(800, 800 / SPEED),
+      polyline: straightPolyline(800),
+      haltCandidates: [
+        { id: 'h1', name: 'Haldwani', latitude: 0, longitude: 3.6, haltPurpose: 'overnight', cumKm: 400 },
+        { id: 'h2', name: 'Faraway', latitude: 0, longitude: 7, haltPurpose: 'overnight', cumKm: 700 },
+      ] as PlaceHit[],
+    })
+    const halt = pins.find(p => p.kind === 'overnight' && p.dayNo === 1)
+    expect(halt).toBeDefined()
+    // day 1 halts near 400 km — Haldwani is the candidate at its km
+    expect(halt!.haltName).toBe('Haldwani')
+    // non-overnight labels never carry a halt name
+    for (const p of pins.filter(p => p.kind !== 'overnight')) expect(p.haltName).toBeNull()
+  })
+
+  it('Phase 2: a halt beyond the 120 km honesty bound stays unnamed', () => {
+    const pins = deriveClockMilestones({
+      verdict: walk(800, 800 / SPEED),
+      polyline: straightPolyline(800),
+      haltCandidates: [
+        { id: 'h1', name: 'TooFar', latitude: 0, longitude: 0, haltPurpose: 'overnight', cumKm: 550 },
+      ] as PlaceHit[],
+    })
+    const halt = pins.find(p => p.kind === 'overnight' && p.dayNo === 1)
+    expect(halt).toBeDefined()
+    // ~400 km halt, candidate at 550 km — 150 km apart, past the bound: no name
+    expect(halt!.haltName).toBeNull()
+  })
+
+  it('Phase 2: without candidates the halts are bare time+km labels, not guesses', () => {
+    const pins = deriveClockMilestones({
+      verdict: walk(800, 800 / SPEED),
+      polyline: straightPolyline(800),
+    })
+    for (const p of pins.filter(p => p.kind === 'overnight')) expect(p.haltName).toBeNull()
+  })
+
+  it('Phase 2: non-overnight corridor hits never name a halt', () => {
+    const pins = deriveClockMilestones({
+      verdict: walk(800, 800 / SPEED),
+      polyline: straightPolyline(800),
+      haltCandidates: [
+        { id: 'm1', name: 'Dhaba 12', latitude: 0, longitude: 3.6, haltPurpose: 'meal', cumKm: 400 },
+      ] as PlaceHit[],
+    })
+    for (const p of pins) expect(p.haltName).toBeNull()
   })
 })

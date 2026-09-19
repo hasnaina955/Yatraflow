@@ -444,8 +444,18 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
   // carry leg:'return'; the map shows them only while its Return home toggle
   // is on.
   const clockMilestones = useMemo(
-    () => deriveClockMilestones({ verdict: clockVerdict, polyline: routePolyline, tripStartDate: trip.startDate, todayISO: todayISO() }),
-    [clockVerdict, routePolyline, trip.startDate],
+    () => deriveClockMilestones({
+      verdict: clockVerdict,
+      polyline: routePolyline,
+      tripStartDate: trip.startDate,
+      todayISO: todayISO(),
+      // Phase 2: the corridor's overnight hits name the halt labels. `pois` is
+      // SegmentHit[] — the annotated hits carry haltPurpose + cumKm from
+      // annotateSegmentHits, which is exactly the join key the label layer
+      // asks for.
+      haltCandidates: pois.map(s => s.hit).filter((h): h is PlaceHit => h != null),
+    }),
+    [clockVerdict, routePolyline, trip.startDate, pois],
   )
   // One clock story (#123): the banner count comes from the clock walk that
   // knows the start time; planDriveDays stays the geometry-free estimator.

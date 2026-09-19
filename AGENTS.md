@@ -204,6 +204,22 @@ Hard rules (each learned the hard way — do not relearn them):
   running (cost debugging time fetching `gh issue view` bodies, Aug 2026).
 - **`tsc -b --clean` first** in any session before trusting a typecheck —
   incremental build caches pass code that clean builds reject.
+- **`npm run verify` outlives a 30 s shell window — run it DETACHED and poll
+  the log.** `Start-Process cmd.exe -ArgumentList '/d','/c','npm run verify >
+  %TEMP%\v.log 2>&1' -WorkingDirectory <repo> -WindowStyle Hidden`, then
+  `Select-String` the log in a follow-up call. Two traps this replaces
+  (Sep 2026, clock-overlay phases): a foreground verify in a captured shell
+  times out mid-gate and the result is unknowable; and PowerShell turns npm's
+  stderr progress lines into a fake `NativeCommandError` exit 1 even when the
+  gate is green — judge the run by the LOG's own summary lines
+  (`Test Files`, `built in`), never by $LASTEXITCODE or the tool's error flag.
+- **ANY `src/styles.css` edit moves line numbers, and the design-system
+  ratchet reads line numbers — expect `contrastLight/contrastDark/rawDurations`
+  to "fail" after every CSS change.** Before re-baselining, prove the failure
+  is ONLY a shift: re-run with `UPDATE_DESIGN_SYSTEM_BASELINE=1`, then diff the
+  baseline and confirm the finding names are identical before/after (e.g. 29
+  in → 29 out). A name that appears on only one side is a REAL new violation —
+  fix it, don't ratchet it in (Sep 2026, three label phases in a row).
 - If Vercel's deploy fails, reproduce locally with `npm run build` (the exact
   Vercel command: `tsc -b && vite build`), not `tsc` alone.
 - `npm warn allow-scripts` about esbuild is a **warning, not a failure**; it's

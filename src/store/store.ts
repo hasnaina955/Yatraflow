@@ -1720,13 +1720,13 @@ export function updateTrip(id: ID, patchFields: Partial<Trip>): boolean {
 // Bursty mutations — a drag-reorder firing reorderStop per move, settings
 // keystrokes, undo/redo chains — each used to issue its own row UPDATE. A
 // trailing-edge coalescer per trip id turns a burst into ONE write whose
-// snapshot is always the freshest cache state (read at fire time, not call
-// time). Deletes and member changes stay immediate (only persistTripField
-// debounces); the pagehide/visibilitychange hooks in init() flush pending
-// writes when the tab hides or closes so the trailing timer can't eat the
-// last edit.
+// snapshot is captured AT CALL TIME and never re-read. Snapshot-at-call matters:
+// if the timer re-read the cache at fire time, a REMOTE update landing inside
+// the debounce window would make the flush persist the REMOTE row and silently
+// discard the local edit that scheduled it (the exact failure B0 exists to
+// prevent).
 let TRIP_WRITE_DEBOUNCE_MS = 600
-const pendingTripWrites = new Map<ID, { timer: ReturnType<typeof setTimeout> }>()
+const pendingTripWrites = new Map<ID, { timer: ReturnType<typeof setTimeout>; trip: Trip }>()
 
 /** Test hook — 0 disables the debounce: writes issue immediately, as before. */
 export function _setTripWriteDebounceMs(ms: number): void {
@@ -1742,7 +1742,11 @@ export function _flushTripWrites(): void {
     if (!pending) continue
     clearTimeout(pending.timer)
     pendingTripWrites.delete(id)
-    void persistTripFieldNow(id, tripById(id))
+    // Persist the CAPTURED snapshot, not tripById(id) — see the coalescer note
+    // above: a remote update that landed while the write was pending must not
+    // be re-persisted over the local edit, and the local edit must not be
+    // lost by persisting the remote row.
+    void persistTripFieldNow(id, pending.trip)
   }
 }
 
@@ -1768,19 +1772,25 @@ function persistTripField(id: ID, t: Trip): void {
   // debounce but before the server round trip finishes is still suppressed.
   // (Re-arm happens again inside persistTripFieldNow at fire time.)
   markLocalWrite('trips', id)
+  // Capture the snapshot as a CLONE, not a reference: callers hand the live
+  // cached object, and the cache may swap or mutate it (remote row swap, a
+  // later edit) before the debounce fires. A shared reference let the pending
+  // write drift with the cache — the exact loss B0 exists to prevent.
+  const snapshot = structuredClone(t)
   if (TRIP_WRITE_DEBOUNCE_MS <= 0) {
-    void persistTripFieldNow(id, t)
+    void persistTripFieldNow(id, snapshot)
     return
   }
   const prev = pendingTripWrites.get(id)
   if (prev) clearTimeout(prev.timer)
   const timer = setTimeout(() => {
     pendingTripWrites.delete(id)
-    // Read the trip again at fire time: the pending snapshot may be several
-    // edits stale by now, and the cache always holds the newest state.
-    void persistTripFieldNow(id, tripById(id) ?? t)
+    // Persist the CAPTURED snapshot, never a re-read of tripById(id): the
+    // timer's re-read let a REMOTE update landing inside the debounce window
+    // be persisted over the local edit that scheduled this write (B0).
+    void persistTripFieldNow(id, snapshot)
   }, TRIP_WRITE_DEBOUNCE_MS)
-  pendingTripWrites.set(id, { timer })
+  pendingTripWrites.set(id, { timer, trip: snapshot })
 }
 
 // ---------------- Members & collaboration ----------------
@@ -1979,6 +1989,9 @@ export function moveStopBetweenDays(tripId: ID, stopId: ID, toDayIndex: number, 
       renumber(fromDraft)
     }
   }, opts)
+  // Write through like every sibling mutator (reorderStop, setStopStatus) —
+  // the mutateTrip cache edit alone vanished on the next reload (B0).
+  void persistTripField(tripId, tripById(tripId)!)
 }
 
 export function setStopStatus(tripId: ID, status: ItineraryStop['status'], stopId: ID): void {

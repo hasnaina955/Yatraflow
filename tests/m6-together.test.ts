@@ -1,7 +1,8 @@
 // ============ M6 · Together — PR-B behavioral tests ============
 // The write-through contract (AGENTS: every trip mutation persists, the whole
-// gate stays green when one doesn't — nothing exercises write-through) and the
-// B2 stale-update guard, exercised against the store with a mocked client.
+// gate stays green when one doesn't — nothing exercises write-through), the
+// B2 stale-update guard, and B1's client gating (presence degrades to no-op
+// without a backend), exercised against the store with a mocked client.
 import { describe, it, expect, vi } from 'vitest'
 import { seedData } from '../src/data/seed'
 
@@ -39,7 +40,7 @@ vi.mock('../src/lib/supabase', () => {
 import {
   duplicateTrip, tripById, _setTripWriteDebounceMs, _flushTripWrites,
   updateStop, moveStopBetweenDays, _applyRealtimeEventForTest,
-  _clearRecentLocalWrites, _clearServerTripTimestamps,
+  _clearRecentLocalWrites, _clearServerTripTimestamps, presenceClient,
 } from '../src/store/store'
 import { tripToRow } from '../src/lib/tripRow'
 
@@ -75,6 +76,13 @@ function freshRealtimeLedgers(): void {
   _clearRecentLocalWrites()
   _clearServerTripTimestamps()
 }
+
+describe('B1 · presence gating', () => {
+  it('presenceClient returns null when no backend is compiled in', () => {
+    // The mocked module above sets isSupabaseConfigured: false.
+    expect(presenceClient()).toBeNull()
+  })
+})
 
 describe('B0 · debounced flush persists the CAPTURED snapshot', () => {
   // The coalescer's failure mode: the timer (or _flushTripWrites) re-reading

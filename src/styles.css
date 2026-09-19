@@ -1650,6 +1650,19 @@ button.board-col-zone--add:active { transform: translateY(1px); }
   .modal { border-radius: var(--radius-lg); }
 }
 .modal-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; gap: 10px; }
+
+/* ---- M6 B3: remote-edit conflict banner (inside the stop editor modal) ---- */
+.remote-edit-banner {
+  display: flex; align-items: flex-start; gap: 10px;
+  background: var(--saffron-soft); border: 1px solid color-mix(in srgb, var(--warn) 35%, transparent);
+  border-radius: 10px; padding: 10px 12px; margin-bottom: 14px;
+  animation: slideUp var(--t-fast) var(--ease-out);
+}
+.remote-edit-icon { color: var(--ink-amber); flex: none; margin-top: 1px; }
+.remote-edit-copy { display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: 13px; }
+.remote-edit-sub { color: var(--text-3); font-size: 12px; }
+.remote-edit-actions { display: flex; gap: 8px; flex: none; flex-wrap: wrap; }
+@media (prefers-reduced-motion: reduce) { .remote-edit-banner { animation: none; } }
 .toast-zone { position: fixed; bottom: calc(18px + var(--bottom-ui-offset)); left: 0; right: 0; display: flex; flex-direction: column; align-items: center; gap: 8px; z-index: var(--z-toast); pointer-events: none; padding: 0 14px; }
 .toast {
   pointer-events: auto; background: var(--text); color: var(--bg);
@@ -2327,9 +2340,30 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
 }
 .trip-hero-back:hover { color: #fff; }
 .trip-hero-back:focus-visible { outline: none; box-shadow: var(--ring); border-radius: 6px; }
-.member-stack { display: flex; }
+.member-stack { display: flex; align-items: center; }
 .member-stack .avatar { margin-left: -8px; border: 2px solid var(--card); }
 .member-stack .avatar:first-child { margin-left: 0; }
+
+/* ---- M6 B1: presence (who's viewing now) ----
+   Sits inside .member-stack after the count line. Tooltip shows on hover AND
+   keyboard focus (tabIndex=0 on the peer chip), so the name is reachable
+   without a pointer. Entrance rides the motion tokens (dropdown pattern). */
+.presence-stack { display: inline-flex; align-items: center; margin-left: 14px; }
+.presence-peer { position: relative; display: inline-flex; align-items: center; margin-left: -8px; }
+.presence-peer:first-child { margin-left: 0; }
+.presence-peer .avatar { border: 2px solid var(--card); }
+.presence-peer:focus-visible { outline: none; border-radius: 999px; box-shadow: var(--ring); }
+.presence-dot { position: absolute; right: -1px; bottom: -1px; width: 9px; height: 9px; border-radius: 999px; background: var(--ok); border: 2px solid var(--card); }
+.presence-tip {
+  position: absolute; left: 50%; bottom: calc(100% + 7px); transform: translateX(-50%) translateY(2px);
+  background: var(--card); color: var(--text); border: 1px solid var(--line);
+  border-radius: 8px; padding: 4px 9px; font-size: 12px; font-weight: 600; white-space: nowrap;
+  box-shadow: 0 6px 20px rgba(0,0,0,.18);
+  opacity: 0; pointer-events: none; z-index: 80;
+  transition: opacity var(--motion-fast) var(--ease-out), transform var(--motion-fast) var(--ease-out);
+}
+.presence-peer:hover .presence-tip, .presence-peer:focus-visible .presence-tip { opacity: 1; transform: translateX(-50%) translateY(0); }
+@media (prefers-reduced-motion: reduce) { .presence-tip { transition: none; } }
 /* The compact glass variant of `.select` (member rows on Share): same
    appearance:none + custom-chevron technique, pill-shaped and sized for
    inline use. The chevron is a gradient pair rather than `.select`'s SVG

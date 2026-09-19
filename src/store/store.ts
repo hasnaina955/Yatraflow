@@ -22,7 +22,7 @@ import { suggestionToRow, decisionToRow, activityToRow, notificationToRow, publi
 import { reduceSlice, applyMemberChange, isRecentLocalWrite, isStaleServerRow } from '../lib/realtimeCore'
 import { MISSING_BACKEND_MESSAGE, describeAuthFailure } from '../lib/authErrors'
 import { adminFromSession, clearAdminCache, isAdminCached } from '../lib/adminSession'
-import type { RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/supabase-js'
+import type { RealtimeChannel, RealtimePostgresChangesPayload, SupabaseClient } from '@supabase/supabase-js'
 
 // In-memory cache — the synchronous snapshot the UI reads. No localStorage.
 interface DB {
@@ -2636,6 +2636,16 @@ async function fetchTripIntoCache(tripId: string): Promise<void> {
 /** Trips with a select currently in flight, so a burst of events for one trip
  *  costs one round-trip. #36-15. */
 const tripFetches = new Map<string, Promise<void>>()
+
+// ---------------- Presence (M6 · B1) ----------------
+
+/** The realtime client presence sessions run on — null when no backend is
+ *  compiled in, so the UI hook degrades to a no-op instead of throwing on the
+ *  placeholder project. Components never import the client directly; this is
+ *  the one door (matches every other surface's store-only rule). */
+export function presenceClient(): SupabaseClient | null {
+  return isSupabaseConfigured ? supabase : null
+}
 
 // ---------------- utils ----------------
 

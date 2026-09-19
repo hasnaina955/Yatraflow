@@ -13,6 +13,7 @@ import { buildRoadChain, measureRoadChain, correctionsFromLegs, type RoadStatus,
 import { computeImpact, type ImpactResult } from '../lib/impact'
 import { scrollBehavior } from '../lib/motion'
 import { Avatar, toast } from '../components/ui'
+import { useTripPresence } from '../hooks/useTripPresence'
 import { ImpactPreviewPanel } from '../components/ImpactPreview'
 import { useSuggestionCache } from '../hooks/useSuggestionCache'
 import { useTablist } from '../hooks/useTablist'
@@ -114,6 +115,11 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
 
   const role = me && trip ? roleOf(trip, me.id) : null
   const editable = canEdit(role)
+
+  // M6 B1 — who else is viewing this trip right now. Joins the presence
+  // room only when a signed-in user has the trip open; anon/public views
+  // stay out. Session-local state, never trip data.
+  const presence = useTripPresence(trip?.id ?? null, me, me?.profile.name ?? '')
 
   // ONE road measurement for the whole workspace (#188): the engine's leg
   // corrections and the Map tab's road view come from the same chain.
@@ -231,6 +237,18 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
               <span className="small" style={{ marginLeft: 8, opacity: .85 }}>
                 {(trip.members ?? []).length} member{(trip.members ?? []).length !== 1 ? 's' : ''}{role ? ` · you are ${role}` : ''}
               </span>
+              {presence.peers.length > 0 && (
+                <span className="presence-stack" aria-label={`${presence.peers.length} viewing now`}>
+                  {presence.peers.map(p => (
+                    <span key={p.sessionKey} className="presence-peer" tabIndex={0}
+                      aria-label={`${p.name} is viewing this trip now`}>
+                      <Avatar user={{ profile: { name: p.name } }} />
+                      <span className="presence-dot" aria-hidden="true" />
+                      <span className="presence-tip" role="tooltip">{p.name} · viewing now</span>
+                    </span>
+                  ))}
+                </span>
+              )}
             </div>
           </div>
           {editable && (

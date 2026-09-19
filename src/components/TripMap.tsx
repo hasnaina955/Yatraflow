@@ -181,29 +181,46 @@ type GeoJSONSourceLike = { setData(d: unknown): void }
  * outbound half renders, so the going-home readings never clutter the map the
  * traveller hasn't asked to see.
  */
-function ClockMilestoneLayer({ overlay, showReturn }: { overlay: ClockMilestone[]; showReturn: boolean }) {
+function ClockMilestoneLayer({ overlay, showReturn, onOpenDay }: { overlay: ClockMilestone[]; showReturn: boolean; onOpenDay?: (dayIndex: number) => void }) {
   const { isLoaded } = useMap()
   const timeFormat = useTimeFormat()
   if (!isLoaded || overlay.length === 0) return null
   return (
     <>
-      {overlay.filter(m => m.leg === 'outbound' || showReturn).map((m, i) => (
-        <MapMarker key={`cm-${m.kind}-${m.dayNo}-${m.kmIn}-${i}`} longitude={m.lng} latitude={m.lat} anchor="center">
-          <MarkerContent className="yf-milestone-anchor">
-            <span className={`yf-milestone yf-milestone--${m.kind}${m.leg === 'return' ? ' yf-milestone--return' : ''} yf-milestone--${m.dayState}`}>
-              <span className="yf-milestone-when">
-                {m.haltName && <b className="yf-milestone-halt">{m.haltName}</b>}
-                <b className="yf-milestone-time">{formatHM(clockHM(m.etaMin), timeFormat)}</b>
-                {m.dateLabel && <em className="yf-milestone-date">{m.dateLabel}</em>}
-              </span>
-              <em className="yf-milestone-km">{m.kmLabel}</em>
+      {overlay.filter(m => m.leg === 'outbound' || showReturn).map((m, i) => {
+        // Phase 3: an overnight halt is a decision ("where do we sleep"), so it
+        // is the one label that earns a tap — it opens that day's plan. Every
+        // other label stays decorative context.
+        const halts = m.kind === 'overnight' && typeof onOpenDay === 'function'
+        const chip = (
+          <span className={`yf-milestone yf-milestone--${m.kind}${m.leg === 'return' ? ' yf-milestone--return' : ''} yf-milestone--${m.dayState}`}>
+            <span className="yf-milestone-when">
+              {m.haltName && <b className="yf-milestone-halt">{m.haltName}</b>}
+              <b className="yf-milestone-time">{formatHM(clockHM(m.etaMin), timeFormat)}</b>
+              {m.dateLabel && <em className="yf-milestone-date">{m.dateLabel}</em>}
             </span>
-          </MarkerContent>
-          <MarkerTooltip>
-            {`${m.kind === 'mealtime' ? 'Meal break' : m.kind === 'overnight' ? 'Overnight halt' : 'Destination'}${m.haltName ? ` — ${m.haltName}` : ''} — day ${m.dayNo}${m.dateLabel ? ` (${m.dateLabel})` : ''}: ${formatHM(clockHM(m.etaMin), timeFormat)} at ${m.kmLabel} on the road${m.leg === 'return' ? ' · drive home' : ''}`}
-          </MarkerTooltip>
-        </MapMarker>
-      ))}
+            <em className="yf-milestone-km">{m.kmLabel}</em>
+          </span>
+        )
+        return (
+          <MapMarker key={`cm-${m.kind}-${m.dayNo}-${m.kmIn}-${i}`} longitude={m.lng} latitude={m.lat} anchor="center">
+            <MarkerContent className="yf-milestone-anchor">
+              {halts ? (
+                <button
+                  type="button"
+                  className="yf-milestone-hit"
+                  onClick={() => onOpenDay(m.dayNo - 1)}
+                  title={`Open day ${m.dayNo} in the timeline${m.haltName ? ` — ${m.haltName}` : ''}`}
+                  aria-label={`Open day ${m.dayNo} in the timeline${m.haltName ? ` — overnight at ${m.haltName}` : ''}`}
+                >{chip}</button>
+              ) : chip}
+            </MarkerContent>
+            <MarkerTooltip>
+              {`${m.kind === 'mealtime' ? 'Meal break' : m.kind === 'overnight' ? 'Overnight halt' : 'Destination'}${m.haltName ? ` — ${m.haltName}` : ''} — day ${m.dayNo}${m.dateLabel ? ` (${m.dateLabel})` : ''}: ${formatHM(clockHM(m.etaMin), timeFormat)} at ${m.kmLabel} on the road${m.leg === 'return' ? ' · drive home' : ''}${halts ? ' · tap for the day' : ''}`}
+            </MarkerTooltip>
+          </MapMarker>
+        )
+      })}
     </>
   )
 }
@@ -351,7 +368,7 @@ function catIcon(cat: string | undefined): React.ReactNode {
   )
 }
 
-export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusDay, showToolbar = true, enableMapViewModes = false, activeHitId = null, onActivateHit, onOpenInTimeline, onOpenInBoard, onDeleteStop, mainRouteGeometry = null, clockMilestones = null }: {
+export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusDay, showToolbar = true, enableMapViewModes = false, activeHitId = null, onActivateHit, onOpenInTimeline, onOpenInBoard, onDeleteStop, mainRouteGeometry = null, clockMilestones = null, onOpenHaltDay }: {
   trip: Trip
   onOpenStop?: (stopId: string) => void
   /** potential POIs to show as gold "idea" markers */
@@ -389,6 +406,10 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
       tab supplies it; with it present the toolbar gains the Clock toggle and
       stop pins show their planned arrival. The Board never passes it. */
   clockMilestones?: ClockMilestone[] | null
+  /** Phase 3: tapping an overnight halt label opens that day's plan — the
+   *  handler the workspace wires to the Timeline's day accordion. Undefined
+   *  leaves every label decorative (Board view, tests). */
+  onOpenHaltDay?: (dayIndex: number) => void
   /** Delete the stop straight from the map (popup action) — wired by MapTab. */
   onDeleteStop?: (stopId: string, stop: { title: string; dayIndex: number }) => void
 }) {
@@ -1034,7 +1055,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                 geometry. */}
             {clockMilestones && clockOn && dayFilter === 'all' && (
               <>
-                <ClockMilestoneLayer overlay={clockMilestones} showReturn={!returnLeg || showReturn} />
+                <ClockMilestoneLayer overlay={clockMilestones} showReturn={!returnLeg || showReturn} onOpenDay={onOpenHaltDay} />
                 <SuggestionDistanceLayer places={nearbyPois} road={geom.all ?? null} />
               </>
             )}

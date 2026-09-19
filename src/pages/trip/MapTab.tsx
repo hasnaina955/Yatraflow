@@ -118,7 +118,7 @@ const SCOPE_STORAGE_KEY = 'nearby_scope_km'
 /** Sensible visit durations per suggestion category (tourist pacing). */
 const poiVisitMinutes = visitMinutesForCategory
 
-export function MapTab({ trip, editable, applyChange, suggestionCache, crewSuggestions, road, onOpenTimeline, onOpenBoard }: {
+export function MapTab({ trip, editable, applyChange, suggestionCache, crewSuggestions, road, onOpenTimeline, onOpenBoard, onOpenDay }: {
   trip: Trip
   editable: boolean
   applyChange: (mutator: (d: Trip) => void, kind: ImpactResult['kind'], dayIndex: number) => void
@@ -128,6 +128,9 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
   road: TripRoadView
   onOpenTimeline?: (stopId: string) => void
   onOpenBoard?: () => void
+  /** Phase 3: tapping a halt label asks the workspace to open that day's plan
+   *  in the Timeline. Undefined = halt labels stay decorative labels. */
+  onOpenDay?: (dayIndex: number) => void
 }) {
   const [pois, setPois] = useState<SegmentHit[]>([])
   const timeFormat = useTimeFormat()
@@ -1488,6 +1491,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
               onActivateHit={setActiveHitId}
               onOpenInTimeline={onOpenTimeline}
               onOpenInBoard={onOpenBoard ? () => onOpenBoard() : undefined}
+              onOpenHaltDay={onOpenDay}
               clockMilestones={clockMilestones}
               onDeleteStop={editable ? removeStopFromMap : undefined}
               enableMapViewModes

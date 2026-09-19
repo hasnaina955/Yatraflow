@@ -2425,6 +2425,22 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
 .yf-milestone-anchor {
   width: 0; height: 0; overflow: visible;
 }
+/* Phase 3: the overnight chip is the one tappable label — it opens that day's
+   plan. The hit area is generous (padding + the chip's own box) while the
+   label itself stays visually identical to its decorative siblings. */
+.yf-milestone-hit {
+  display: block;
+  padding: 6px;
+  margin: -6px;
+  border: none; background: none;
+  font: inherit; color: inherit; text-align: inherit;
+  cursor: pointer;
+  pointer-events: auto;
+  border-radius: 10px;
+  transition: background var(--motion-fast) var(--ease-out);
+}
+.yf-milestone-hit:hover { background: color-mix(in srgb, var(--card) 70%, transparent); }
+.yf-milestone-hit:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
 .yf-milestone {
   display: flex; align-items: center;
   width: 0; height: 0;

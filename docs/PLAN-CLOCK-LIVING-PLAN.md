@@ -65,11 +65,14 @@ its own commit + PR-checkbox.
 
 ## Phase 3 — halt bottom sheet
 
-- [ ] **Tap a halt → day sheet.** Tapping an overnight label opens the trip's
-      day view for that `dayIndex` (Timeline deep-link already exists —
-      `onOpenInTimeline(stopId)`; halt labels need the day, not a stop:
-      extend the cross-link contract or route to `#/trip/<id>` with the day
-      expanded). Today-labelled halt pre-opens nothing — it only pulses.
+- [x] **Tap a halt → day sheet.** Overnight labels are now buttons
+      (`.yf-milestone-hit`, same visual, generous hit area, focus-visible ring);
+      tapping hands `dayNo - 1` up through `TripMap.onOpenHaltDay` →
+      `MapTab.onOpenDay` → `TripWorkspace`, which sets a one-shot
+      `timelineFocusDay` and switches to the Timeline; `TimelineTab.focusDay`
+      consumes it via the existing `jumpToDay` (opens the day accordion +
+      scrolls the card into view). Decorative for every other kind — a meal
+      break is not a decision. No handler (Board, tests) leaves labels inert.
 
 ## Verify + land per phase
 

@@ -705,7 +705,11 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     const dayIdx = activeDayIndex
     const pinned = await requireHitCoords(hit)
     if (!pinned) { toast(`Could not pin "${hit.name}" on the map - not added. Try another suggestion.`); return }
-    const stopId = 'pending_' + Math.random().toString(36).slice(2)
+    // Platform CSPRNG (the #267 presence-key lesson): a locally minted id
+    // must not come from a weak generator, even as a temporary handle.
+    const rnd = new Uint32Array(2)
+    crypto.getRandomValues(rnd)
+    const stopId = `pending_${rnd[0].toString(36)}${rnd[1].toString(36)}`
     applyChange(draft => {
       const day = draft.days.find(d => d.index === dayIdx)
       if (!day) return

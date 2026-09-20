@@ -58,7 +58,7 @@ const warn = (m) => report.get(file).warnings.push(m)
 // ---- strict-key tables: a typo'd key must never be silently dropped (the
 // "breaks absolutely nothing" rule — an ignored field is a lie in the data).
 const DAY_KEYS = new Set(['id', 'index', 'title', 'startTime', 'stops'])
-const EXPENSE_KEYS = new Set(['id', 'label', 'category', 'amountInr', 'perPerson', 'optional', 'stopId', 'dayIndex', 'paidBy'])
+const EXPENSE_KEYS = new Set(['id', 'label', 'category', 'amountInr', 'perPerson', 'optional', 'stopId', 'dayIndex', 'paidBy', 'settled'])
 const COMMITMENT_KEYS = new Set(['id', 'title', 'type', 'dayIndex', 'time', 'notes'])
 const PUB_KEYS = new Set(['id', 'tripId', 'creatorId', 'title', 'tagline', 'coverImageUrl', 'routeSummary', 'durationDays', 'estimatedBudgetPerPersonInr', 'travelStyle', 'bestSeason', 'travelTips', 'warningsAndAssumptions', 'freeDayIndexes', 'premiumPriceInr', 'subscriberCta'])
 /** the export envelope (src/lib/itinerarySpec.ts buildTripExport) */

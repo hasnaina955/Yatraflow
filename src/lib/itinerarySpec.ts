@@ -86,6 +86,7 @@ export const STOP_KEYS = new Set([
 ])
 export const EXPENSE_KEYS = new Set([
   'id', 'label', 'category', 'amountInr', 'perPerson', 'optional', 'stopId', 'dayIndex', 'paidBy',
+  'settled',
 ])
 export const COMMITMENT_KEYS = new Set(['id', 'title', 'type', 'dayIndex', 'time', 'notes'])
 export const PUBLICATION_KEYS = new Set([
@@ -687,6 +688,16 @@ export function normalizeTrip(source: Record<string, unknown>, report: Normalize
       report.repairs.push(`expenses[${i}]: stopId "${stopId}" pointed at no stop — kept the expense, dropped the link.`)
       stopId = undefined
     }
+    // M6 B4: the settled record round-trips when well-formed; anything else
+    // is dropped (an import must never carry a malformed flag into the app).
+    let settled: Expense['settled']
+    if (raw.settled !== undefined) {
+      const s = isObject(raw.settled) ? raw.settled : undefined
+      const by = s ? str(s.by) : ''
+      const at = s ? num(s.at, NaN) : NaN
+      if (by && Number.isFinite(at)) settled = { by, at }
+      else report.repairs.push(`expenses[${i}]: "settled" was malformed — imported the line as open.`)
+    }
     expenses.push({
       id: freshId('ex'),
       label,
@@ -696,6 +707,7 @@ export function normalizeTrip(source: Record<string, unknown>, report: Normalize
       optional: raw.optional === true || undefined,
       stopId,
       dayIndex,
+      settled,
     })
   })
 

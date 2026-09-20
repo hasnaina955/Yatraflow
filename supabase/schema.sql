@@ -196,6 +196,31 @@ create index if not exists idx_suggestions_trip on public.suggestions (trip_id);
 create index if not exists idx_decisions_trip on public.decisions (trip_id);
 create index if not exists idx_activity_trip on public.activity (trip_id);
 create index if not exists idx_notifications_user on public.notifications (user_id);
+
+-- ---------------------------------------------------------------- B2: touch trigger
+-- Keep trips.updated_at on the DATABASE clock. The realtime stale-update guard
+-- orders remote rows by this column; a client-set timestamp can be stale,
+-- skewed, or simply absent, so the row itself maintains it. Fire BEFORE UPDATE
+-- (BEFORE INSERT keeps creation time, not a fake "modified"), unconditionally,
+-- for every writer. Mirrored for existing installs by
+-- supabase/migrations/20260919_trip_touch_updated_at.sql.
+create or replace function public.touch_trip_updated_at()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  new.updated_at := (extract(epoch from now()) * 1000)::bigint;
+  return new;
+end;
+$$;
+
+drop trigger if exists trips_touch_updated_at on public.trips;
+create trigger trips_touch_updated_at
+  before update on public.trips
+  for each row
+  execute function public.touch_trip_updated_at();
 create index if not exists idx_published_creator on public.published_itineraries (creator_id);
 
 -- ============================================================

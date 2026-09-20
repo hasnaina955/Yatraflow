@@ -2602,6 +2602,7 @@ export function _applyRealtimeEventForTest(table: string, payload: RealtimePostg
 export function connectRealtime(_userId: string): void {
   if (!isSupabaseConfigured || realtimeChannel) return
   try {
+    let everSubscribed = false
     realtimeChannel = supabase
       .channel('yatraflow-live')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'trips' }, p => dispatchRealtimeEvent('trips', p))
@@ -2612,10 +2613,54 @@ export function connectRealtime(_userId: string): void {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, p => dispatchRealtimeEvent('notifications', p))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, p => dispatchRealtimeEvent('profiles', p))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'published_itineraries' }, p => dispatchRealtimeEvent('published_itineraries', p))
-      .subscribe()
+      .subscribe(status => {
+        // Reconnect resync: postgres_changes is NOT replayed across a socket
+        // gap — after a laptop sleep / network switch the channel rejoins and
+        // every row changed while we were away is silently missing, so an open
+        // stop editor shows stale data with no remote-edit banner and the
+        // cache drifts until a reload. On every SUBSCRIBED that is a RE-join,
+        // refetch each cached trip row through the SAME dispatch path a live
+        // UPDATE takes (applyRealtimeEvent), so the echo window, the B2
+        // server-clock stale guard and the ledger all see it exactly as they
+        // would a real event — no bypass, no second code path. The FIRST
+        // SUBSCRIBED is skipped: hydration just fetched these rows.
+        if (status !== 'SUBSCRIBED') return
+        if (!everSubscribed) { everSubscribed = true; return }
+        void resyncTripsAfterReconnect()
+      })
   } catch (e) {
     console.error('[yatraflow] realtime subscribe failed', e)
     realtimeChannel = null
+  }
+}
+
+/** Replay every cached trip as a synthetic UPDATE dispatch (same handler as a
+ *  live event) so anything that changed while the socket was down re-lands.
+ *  Each trip refetches ITS OWN row — a select of the cached ids keeps the
+ *  payload bounded and lets RLS/the tombstone filter apply per row normally.
+ *  Failures are logged, not thrown: a failed resync leaves the cache as-is
+ *  (stale but consistent), and the next successful event or reload repairs it. */
+async function resyncTripsAfterReconnect(): Promise<void> {
+  const ids = cache.trips.map(t => t.id)
+  if (!ids.length) return
+  try {
+    const { data, error } = await supabase
+      .from('trips')
+      .select('*')
+      .in('id', ids)
+    if (error) { console.error('[yatraflow] reconnect resync failed', error); return }
+    for (const row of (data ?? []) as Record<string, unknown>[]) {
+      applyRealtimeEvent('trips', {
+        eventType: 'UPDATE',
+        schema: 'public',
+        table: 'trips',
+        commit_timestamp: new Date().toISOString(),
+        old: {},
+        new: row,
+      } as unknown as Parameters<typeof applyRealtimeEvent>[1])
+    }
+  } catch (e) {
+    console.error('[yatraflow] reconnect resync failed', e)
   }
 }
 

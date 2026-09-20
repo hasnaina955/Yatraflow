@@ -308,6 +308,8 @@ export interface TripDecision {
   context?: string
   options: DecisionOption[]
   votesByUserId: Record<ID, ID>   // userId -> optionId
+  comments: Comment[]             // parity with StopSuggestion; column added by
+                                  // supabase/migrations/20260920_decision_comments.sql
   status: 'open' | 'resolved'
   resolvedOptionId?: ID
   raisedBy: ID

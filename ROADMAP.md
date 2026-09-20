@@ -371,8 +371,6 @@ unbuilt). **Before picking up a row, and before quoting one in a plan, confirm i
 | I-3 | Recurring expense templates | budget | 2 h | One-click re-add of past lines ("Fuel top-up ₹3,000") from an expense-history chip row. |
 | I-4 | Overspending alerts | budget | 2 h | Threshold notification when a day/category crosses its cap — plumbing already exists in `realtimeCore`. |
 | I-5 | Category envelopes | budget | 3–4 h | Per-category cap (₹) with progress state on the "Where the money goes" bars + a cap editor on the category row. Pattern: YNAB. |
-| I-6 | Settlement acknowledgement + reminder | budget | 2 h | Balances card gains a "mark settled" flag and a nudge. The settlement *engine* already runs (`BudgetTab.tsx:363`) and `Expense.paidBy` already drives balances — only the acknowledgement state and its reminder are missing. **Adjacent to M6.** |
-| I-7 | Decision comments | collaboration | schema | Needs a `comments` JSON column on decisions (migration) — `StopSuggestion` has one, `TripDecision` does not (`types.ts:226` vs `:244`). |
 | I-8 | Monthly statements / invoice export | creator | 2–3 h | Downloadable per-month earnings summary, client-side from the payouts table. **Post-M7.** |
 | I-17 | Theme the text selection and the caret | design system | 1 h | `::selection` and `caret-color` are declared **nowhere** in `src/styles.css` — the UA's highlight blue and caret are the last unthemed browser surfaces in the app (found while scoping v0.60.0's craft-floor pass). Cheap to close with the app's own soft-tint pairing (`--teal-soft` + `--text`) and `caret-color: var(--teal-deep)`, but it is a feel change rather than a defect, so it wants a look first — and the baseline's line-keyed entries must be re-mapped in the same commit (AGENTS §4). |
 | I-19 | Settled lines genuinely leave the balances | budget | 3–4 h + product call | M6 B4 shipped "mark settled" as a record (settler + timestamp, history, activity) and the line STILL counts toward the running balances — deliberately: the card's fair share is `fairSharePerHead(travellers, totals.totalCostInr)` (the engine estimate split per head), so dropping a settled line's credit while it remains inside the estimate breaks the zero-sum property and the who-owes-whom transfers stop balancing. Doing it properly means re-basing what the card measures from "the trip estimate" to "the open lines" (fair share from open-line sums), with the settled history as a ledger view — a product decision about what the card should mean, not arithmetic. BudgetTab's `computeBalances` call passes the whole `trip.expenses`; the open/settled split currently styles the two lists only. |
@@ -453,6 +451,11 @@ Kept as one line each so the origin is traceable without re-listing the work as 
   terrain with `maxPitch` 60 → 75 (I-19), behind a segmented switcher on the Map tab; the Board
   stays hard-2D and the choice persists globally. I-19's mid-range-Android GPU check remains a
   post-merge device step.
+- **Idea bank I-6 + I-7** — [Unreleased]. **Settlement acknowledgement + reminder** (I-6): the
+  per-line "mark settled" flag and settled history landed with M6 PR-B (v0.62.0), and the
+  outstanding-total nudge over the open tagged lines completes the row · **Decision comments**
+  (I-7): `decisions.comments` (`supabase/migrations/20260920_decision_comments.sql`, capability-probe
+  gated like the party-prefs columns) with the same card language as suggestion comments.
 
 ## Historical plans (executed — kept for the record, not live guidance)
 

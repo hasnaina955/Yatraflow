@@ -691,6 +691,7 @@ function rowToDecision(row: unknown): TripDecision {
   return {
     id: r.id, tripId: r.trip_id, question: r.question, context: r.context,
     options: r.options ?? [], votesByUserId: r.votes_by_user_id ?? {}, status: r.status,
+    comments: r.comments ?? [],
     resolvedOptionId: r.resolved_option_id, raisedBy: r.raised_by, createdAt: r.created_at, resolvedAt: r.resolved_at,
   }
 }
@@ -1100,6 +1101,33 @@ function publishedHaveRefreshedAt(): Promise<boolean> {
     })()
   }
   return refreshedAtProbe
+}
+
+// Same capability-probe idea for decisions.comments (20260920_decision_comments.sql):
+// databases created before that migration reject writes that mention the column,
+// so a comment would vanish on the next hydration until it is applied.
+let decisionCommentsProbe: Promise<boolean> | null = null
+let decisionCommentsWarned = false
+function decisionsHaveComments(): Promise<boolean> {
+  if (!isSupabaseConfigured) return Promise.resolve(false)
+  if (!decisionCommentsProbe) {
+    decisionCommentsProbe = (async () => {
+      try {
+        const { error } = await supabase.from('decisions').select('comments').limit(1)
+        if (!error) return true
+        if (isMissingColumnError(error)) {
+          if (!decisionCommentsWarned) {
+            console.warn('[yatraflow] decisions.comments missing — run supabase/migrations/20260920_decision_comments.sql; decision comments stay session-only until then.')
+            decisionCommentsWarned = true
+          }
+          return false
+        }
+      } catch { /* thrown transport error — treat like any transient failure */ }
+      decisionCommentsProbe = null // transient — re-check on the next call
+      return true
+    })()
+  }
+  return decisionCommentsProbe
 }
 
 async function persistTrip(trip: Trip, ownerId: ID): Promise<boolean> {
@@ -1565,9 +1593,12 @@ async function restoreTripData(trip: Trip, snap: TripSnapshot | null): Promise<v
   // Per-table on purpose: losing the activity feed must not also cost the user
   // their public link. Rows keep their original ids, and every child realtime
   // handler is an idempotent upsert keyed on id, so the echo cannot double-add.
+  // decisions.comments may not exist yet on a pre-migration database — the probe
+  // gate keeps the column out of the INSERT rather than failing the whole row.
+  const withDecisionComments = await decisionsHaveComments()
   const results = await Promise.all([
     restoreRows('suggestions', snap.suggestions.map(suggestionToRow)),
-    restoreRows('decisions', snap.decisions.map(decisionToRow)),
+    restoreRows('decisions', snap.decisions.map(d => decisionToRow(d, withDecisionComments))),
     restoreRows('activity', snap.activity.map(activityToRow)),
     restoreRows('notifications', snap.notifications.map(notificationToRow)),
     restoreRows('published_itineraries', snap.published.map(publishedToRow), true),
@@ -2148,6 +2179,27 @@ export function addCommentToSuggestion(tripId: ID, suggestionId: ID, authorId: I
   fire('suggestions', supabase.from('suggestions').update({ comments: sg.comments }).eq('id', suggestionId))
 }
 
+export function addCommentToDecision(tripId: ID, decisionId: ID, authorId: ID, text: string): void {
+  const dIdx = cache.decisions.findIndex(x => x.id === decisionId)
+  if (dIdx < 0 || !text.trim()) return
+  const d = structuredClone(cache.decisions[dIdx])
+  d.comments.push({ id: uid('cm'), authorId, text: text.trim(), createdAt: Date.now() })
+  cache.decisions = [...cache.decisions.slice(0, dIdx), d, ...cache.decisions.slice(dIdx + 1)]
+  addActivity(tripId, authorId, 'commented on a decision', d.question)
+  // Voters hear about it the same way suggestion voters do; the raiser is
+  // included so a comment on their own question still pings the other side.
+  for (const v of new Set([...Object.keys(d.votesByUserId), d.raisedBy])) {
+    if (v !== authorId) pushNotification(v, tripId, `${userName(authorId)} commented on “${d.question}”.`)
+  }
+  commit()
+  // The column ships in 20260920_decision_comments.sql: probe before writing so
+  // a pre-migration database keeps the comment session-only instead of firing a
+  // doomed UPDATE (the party-prefs degradation, same shape).
+  void decisionsHaveComments().then(ok => {
+    if (ok) fire('decisions', supabase.from('decisions').update({ comments: d.comments }).eq('id', decisionId))
+  })
+}
+
 /** Accept a suggestion: adds it to the timeline and closes the suggestion. */
 export function acceptSuggestionIntoTimeline(tripId: ID, suggestionId: ID): void {
   const sg = cache.suggestions.find(x => x.id === suggestionId)
@@ -2182,7 +2234,7 @@ export function addDecision(tripId: ID, d: Pick<TripDecision, 'question' | 'cont
     options: d.options.map(o => ({ ...o, id: uid('o') })),
     votes_by_user_id: {}, status: 'open', raised_by: cache.sessionUserId,
   }
-  cache.decisions = [...cache.decisions, { ...d, id, tripId, votesByUserId: {}, status: 'open', raisedBy: cache.sessionUserId, createdAt: Date.now(), options: row.options }]
+  cache.decisions = [...cache.decisions, { ...d, id, tripId, votesByUserId: {}, comments: [], status: 'open', raisedBy: cache.sessionUserId, createdAt: Date.now(), options: row.options }]
   addActivity(tripId, cache.sessionUserId, `raised decision “${d.question}”`, 'Decisions')
   // Notification parity with addSuggestion: the other members hear about new
   // group input too, not just suggestions.

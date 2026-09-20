@@ -1,8 +1,9 @@
 # Merged branches pruned on 2026-09-20
 
-Point-in-time record. The refs below were deleted from `origin` on **2026-09-20**; this file
-is what keeps that reversible in writing. `main` was `55efd21` and `test` `e5bba2a` at the
-moment of the prune.
+Point-in-time record. Two prunes happened on **2026-09-20**: the batched sweep of 17 refs
+below, and then — under the convention that sweep introduced — a single branch pruned at the
+moment its PR merged. This file is what keeps both reversible in writing. `main` was `55efd21`
+throughout; `test` was `e5bba2a` during the sweep and `9bac779` at the second prune.
 
 ## Why these, and why it was safe
 
@@ -41,6 +42,26 @@ stale by age, the oldest being nine days old.
 | `refactor/design-baseline-selector-keys` | `e05c97f425a7165e75f9f9f173a750e3e7ff2601` | #264 |
 | `refactor/map-rail-calm` | `bcf139822458c41545e0b3baaea4604b2edfa340` | #260 |
 
+## Pruned at merge: `feat/settle-nudge-decision-comments` (#268)
+
+The sweep above was a one-off cleanup; this is the first application of the convention it left
+behind — **a merged branch is pruned at merge**, because the branch name was only ever a
+pointer and the PR is the archaeology. PR #268 merged into `test` as `9bac779`, and its head
+was deleted within minutes of the merge.
+
+| Branch | Head SHA | Owning PR |
+|---|---|---|
+| `feat/settle-nudge-decision-comments` | `607d52fd4bdaf879a685b094d4bbdf314a06f18d` | #268 |
+
+The same pre-flight gate ran, and aborts wholesale on any of its checks: the ref still pointed
+at the exact SHA that merged (`607d52f`, not advanced since), no PR was open against the
+branch, and `refs/pull/268/head` resolved before deletion.
+
+**One honest difference from the 17 above: this branch is not reachable from `main`.** It
+merged into `test` (`9bac779`, 25 commits ahead of `main` at `55efd21`), so it is an ancestor
+of `test` only — the "from `main`" recovery path does not apply to it until the next
+promotion. The PR path does, and was verified.
+
 ## How to recover one
 
 Two independent paths, either of which works after the prune:
@@ -48,8 +69,9 @@ Two independent paths, either of which works after the prune:
 - **From the PR** — GitHub keeps `refs/pull/<n>/head` for merged *and* closed PRs, so the
   exact head comes back with `git fetch origin pull/<n>/head`. Verified on the remote for
   #235, #254, #261 and #265, including #235, which was closed without merging.
-- **From `main`** — every SHA above is an ancestor of `main`, so
-  `git branch <name> <sha>` restores the ref from what production already holds.
+- **From `main`** — every SHA in the 17-ref sweep above is an ancestor of `main`, so
+  `git branch <name> <sha>` restores the ref from what production already holds. (The #268
+  entry is not in `main` yet — use the PR path for that one.)
 
 The PR is the durable artifact; the branch name was only ever a temporary pointer to it.
 
@@ -60,7 +82,6 @@ The PR is the durable artifact; the branch name was only ever a temporary pointe
 | `main`, `test` | the two long-lived refs |
 | `docs/creator-market-research` | #254 merged into `test`, not yet in `main` |
 | `fix/explore-clipping` | #261 merged into `test`, not yet in `main` |
-| `feat/settle-nudge-decision-comments` | PR #268 open |
 | `fix/onboarding-design-audit` | PR #269 open |
 | `refactor/brand-seam` | archived by decision; no PR ever, so the branch was the only remote copy of its commit |
 | `explore/landing-hero-local` | landing-page experiment; no PR ever, same single-copy situation |

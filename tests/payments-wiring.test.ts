@@ -130,6 +130,26 @@ describe('the public page wires the real unlock flow', () => {
     // Invite RPC refuses premium-backed trips for strangers.
     expect(sql).toMatch(/get_invite_trip[\s\S]*?premium_price_inr/)
   })
+
+  it('the paywall RPC answers every publication shape, with its stub text typed', () => {
+    // The RPC's first live call 400'd on every PRICED publication: a bare
+    // string literal went into polymorphic to_jsonb ("could not determine
+    // polymorphic type"). Buyers and the creator returned earlier, so only
+    // visitors broke — and no offline gate executes SQL, so pin the shapes
+    // textually: the migration is unapplied code until someone runs it.
+    const sql = read('../supabase/migrations/20260918_payments_security.sql')
+    const rpc = sql.slice(
+      sql.indexOf('create or replace function public.get_public_trip'),
+      sql.indexOf('-- 2. Tighten the trips RLS public clause'),
+    )
+    // Every literal fed to polymorphic to_jsonb carries its cast.
+    expect([...rpc.matchAll(/to_jsonb\('([^']*)'\)/g)].map((m) => m[1])).toEqual([])
+    // Unpriced: the whole trip is the preview — a bare `return;` answered an
+    // empty set, so the page rendered nothing at all.
+    expect(rpc).toMatch(/premium_price_inr is null then[\s\S]{0,90}?return next v_trip;/)
+    // An empty free-day list means every day locks, not "entirely free".
+    expect(rpc).not.toContain("v_free = '{}'")
+  })
 })
 
 describe('the api functions stay client-import-free', () => {

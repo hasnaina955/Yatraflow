@@ -5522,7 +5522,7 @@ html.native-shell {
 .poi-alt-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 .poi-alt-list .chip-sm { max-width: 100%; white-space: normal; text-align: left; line-height: 1.35; }
 .poi-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 6px; }
-.poi-actions .btn-sm { padding: 5px 11px; font-size: 12.5px; }
+.poi-actions .btn-sm { padding: 4px 10px; font-size: 12px; }
 .poi-actions .btn-ghost.btn-sm { border-color: transparent; color: var(--text-3); }
 .poi-actions .btn-ghost.btn-sm:hover { border-color: var(--line); color: var(--text-2); }
 /* Kind spine: the rail's own colour on the card edge, so a card and its rail
@@ -5596,10 +5596,10 @@ html.native-shell {
 .poi-ruler-dot { position: absolute; bottom: 3px; width: 8px; height: 8px; border-radius: 50%; background: var(--card); border: 2px solid var(--teal); }
 .poi-ruler-dot--meal { border-color: var(--yf-amber); }
 .poi-ruler-dot--see { border-color: var(--yf-poi-see); }
-.poi-ruler-km { position: absolute; right: 0; top: 0; font-size: 10px; letter-spacing: .04em; text-transform: uppercase; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.poi-ruler-km { position: absolute; right: 0; top: 0; font-size: 9.5px; letter-spacing: .04em; text-transform: uppercase; color: var(--text-3); font-variant-numeric: tabular-nums; }
 .poi-whisk { margin-left: auto; flex: none; }
-.poi-whisk-route { stroke: var(--teal); stroke-width: 2; stroke-linecap: round; fill: none; opacity: .55; }
-.poi-whisk-spur { stroke: var(--text-3); stroke-width: 1.4; stroke-dasharray: 2.5 2.5; fill: none; }
+.poi-whisk-route { stroke: var(--teal); stroke-width: 1.5; stroke-linecap: round; fill: none; opacity: .35; }
+.poi-whisk-spur { stroke: var(--text-3); stroke-width: 1.1; stroke-dasharray: 2.5 2.5; fill: none; }
 .poi-whisk-spur--heavy { stroke: var(--warn); }
 .poi-whisk-pin { fill: var(--teal); }
 .poi-whisk-pin--heavy { fill: var(--warn); }
@@ -5613,7 +5613,7 @@ html.native-shell {
 /* bottom: the tray is a page-level sticky element, so it clears the shell's
    bottom chrome by the same token .trip-dock uses — a hardcoded 12px put its
    actions under the fixed bar (and inside the gesture strip on the web). */
-.poi-tray { position: sticky; bottom: calc(12px + var(--bottom-ui-offset)); z-index: var(--z-dock); display: flex; align-items: center; gap: 12px; margin-top: 12px; padding: 10px 12px; background: var(--card); border: 1px solid color-mix(in srgb, var(--teal) 32%, var(--line)); border-radius: var(--radius); box-shadow: var(--shadow-soft); }
+.poi-tray { position: sticky; bottom: calc(12px + var(--bottom-ui-offset)); z-index: var(--z-dock); display: flex; align-items: center; gap: 12px; margin-top: 12px; padding: 9px 12px; background: var(--card); border: 1px solid color-mix(in srgb, var(--teal) 26%, var(--line)); border-radius: var(--radius-sm); box-shadow: none; }
 .poi-tray-n { font-size: 12.5px; font-weight: 700; color: var(--teal-deep); }
 .poi-tray-actions { margin-left: auto; display: flex; gap: 6px; flex-wrap: wrap; }
 
@@ -5622,7 +5622,7 @@ html.native-shell {
 .poi-fold:hover { border-color: var(--teal); color: var(--teal-deep); }
 .poi-fold:focus-visible { outline: none; box-shadow: var(--ring); }
 .poi-fold svg { transition: transform var(--t-fast) var(--ease-out); }
-.poi-plan-gap .poi-gap-add { align-self: flex-end; border: 1px solid var(--teal); background: transparent; color: var(--teal-deep); border-radius: 999px; font-size: 11px; font-weight: 700; padding: 3px 10px; }
+.poi-plan-gap .poi-gap-add { align-self: flex-end; border: 1px solid transparent; background: transparent; color: var(--teal-deep); border-radius: 999px; font-size: 11px; font-weight: 700; padding: 2px 0; text-decoration: underline; text-underline-offset: 3px; }
 .poi-plan-gap .poi-gap-add:hover { background: var(--teal-soft); }
 .poi-plan-gap .poi-gap-add:focus-visible { outline: none; box-shadow: var(--ring); }
 .map-ideas-grid.is-needs-folded { grid-template-columns: 48px minmax(0, 1fr) 320px; }
@@ -5664,3 +5664,12 @@ html.native-shell {
 @media (pointer: coarse) {
   .yf-map-idea-add, .poi-short, .poi-cand-add, .poi-fold, .yf-maplibre .yf-map-ctrls button { min-width: 40px; min-height: 40px; }
 }
+
+/* ---- Rail calm pass: one primary line per card, everything else demoted --- */
+.poi-facts-meta {
+  display: flex; align-items: center; gap: 5px; flex-wrap: wrap; margin-top: 3px;
+  font-size: 11px; color: var(--text-3); font-variant-numeric: tabular-nums;
+}
+.poi-facts-meta i { font-style: normal; color: var(--line); }
+/* The drift prompt and the rest of the in-card chips stop drawing boxes. */
+.poi-plan-row .poi-desc .chip-sm { border-color: transparent; background: transparent; text-decoration: underline; text-underline-offset: 3px; }

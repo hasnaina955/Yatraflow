@@ -488,7 +488,11 @@ export default function App() {
             </div>
           )}
           </div>{/* /nav-pill-group */}
-          {!me && (
+          {/* On the auth route the card below already offers both, as tabs plus
+              a submit. Repeating them in the chrome gave the accent two owners
+              on one screen — and two controls a screen apart that both said
+              "Log in". */}
+          {!me && parts[0] !== 'auth' && (
             <>
               <a className="btn btn-outline btn-sm" {...appLink('#/auth')}>Log in</a>
               <a className="btn btn-primary btn-sm" {...appLink('#/auth?mode=signup')}>Sign up free</a>

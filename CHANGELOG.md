@@ -13,6 +13,11 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 > record still exists in `git log`, not here. Archived release notes live in
 > [`docs/history/`](docs/history/).
 
+## [Unreleased]
+
+### Docs
+- **Creator-market research with citations** (`docs/commercial/RESEARCH-2026-09-18-creator-market-and-paywall-value.md`): why travelers buy itineraries (time math, curation, error insurance), why creators strive (honest earnings base rates plus five non-income pitches), what should separate free from paid (a capability stack, not a page count), how the bought plan should be presented (unlock ceremony, owned library, endowment, share card), and the hub as a growth loop — every claim tagged by source strength with the sources listed, feeding Idea bank I-20…I-27 and the commercial plans' post-unlock items (E7/E8).
+
 ## [0.63.0] - 2026-09-20
 
 ### Added
@@ -80,9 +85,6 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 - **Presence session identities come from the platform's CSPRNG, not `Math.random()`.** The key is broadcast into the room, so it was never a secret — but it is the identity every peer keys a tab by, and two tabs minting the same value read as one avatar. `getRandomValues` is the source because, unlike `randomUUID`, it also resolves in an insecure context, so a plain-http LAN session keeps its own identity; a no-Web-Crypto last resort (a per-document counter plus a high-resolution clock) exists so the feature cannot throw where crypto is missing. `tests/presence.test.ts` pins 500 distinct keys, both branches, and the absence of the weak generator.
 - **A pull request into `test` is verified before it merges, not after.** `ci.yml`'s `pull_request` trigger listed only `main`, which made `test` — the branch every feature integrates through — the one destination where a green check list proved nothing: a PR there ran Codacy and Vercel and no "Verify" job, while the gate waited for the merge to fire it as a `push to test`, after the point where a red tree can still be refused. `test` now sits in that trigger beside `main`, so the full gate (`tsc -b --clean` → tests → production build) runs on the pull request itself. The PR run checks out the merge ref and so duplicates the push run instead of replacing it; the duplication is deliberate, since it is what puts the verdict before the merge. `tests/ci-workflow.test.ts` pins the trigger: AGENTS.md §3.1 had described this gap for six days, and nothing failed while it was open.
 - **The map's place rail loses its heaviest furniture without changing what it shows.** The whisker that sketches a candidate's detour drops to a 1.5px stroke at 35% opacity (from 2px at 55%) with its spur at 1.1px, so the notation reads as a note rather than a second route; the km label settles at 9.5px; and the card's own action buttons tighten to 12px on slimmer padding. The sticky tray at the foot of the rail stops floating — no shadow, the tighter radius, a softer border and a slightly smaller padding — and the in-card description chips and the add-a-stop gap action stop drawing boxes, becoming underlined links instead.
-
-### Docs
-- **Creator-market research with citations** (`docs/commercial/RESEARCH-2026-09-18-creator-market-and-paywall-value.md`): why travelers buy itineraries (time math, curation, error insurance), why creators strive (honest earnings base rates plus five non-income pitches), what should separate free from paid (a capability stack, not a page count), how the bought plan should be presented (unlock ceremony, owned library, endowment, share card), and the hub as a growth loop — every claim tagged by source strength with the sources listed, feeding Idea bank I-20…I-27 and the commercial plans' post-unlock items (E7/E8).
 
 ### Fixed
 - **The map's clock labels and the Day Planner banner now come from ONE walk.**

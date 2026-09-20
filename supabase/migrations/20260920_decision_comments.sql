@@ -9,12 +9,12 @@
 -- src/data/types.ts, NOT in a CHECK constraint, matching every other migration
 -- in this directory — a rejected write is worse than an unrecognised value).
 --
--- **Apply to the live project from the Dashboard SQL editor.** (The editor can
--- run inside a read-only transaction on the free tier — if
--- `cannot execute ... in a read-only transaction` appears, retry the statement;
--- it is a single ALTER, safe to re-run.)
+-- **Applied 2026-09-20 to the live Supabase project** (verified with a
+-- PostgREST column probe: `select=comments&limit=1` on decisions answers 200).
+-- The statement is a single idempotent ALTER, safe to re-run.
 --
--- Pre-application behaviour: the store's capability probe
+-- Pre-application behaviour (the design the probe gate still implements for
+-- any database that has not run it): the store's capability probe
 -- (`decisionsHaveComments` in src/store/store.ts) reads the column as missing
 -- (PGRST204/42703), `decisionToRow` omits the key entirely, and a comment
 -- stays session-only — the old behaviour, not a new break. Once applied, the

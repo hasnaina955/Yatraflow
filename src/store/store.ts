@@ -581,7 +581,7 @@ async function hydrateFromSupabase(userId: string, gen: number, seedIfEmpty = tr
     // hydration is the definition of "server-applied" (see
     // serverTripTimestamps above for why the guard must read this and not
     // Trip.updatedAt).
-    for (const t of [...tripList, ...catalogTrips]) recordServerTripTimestamp(t.id, t.updatedAt)
+    for (const t of tripList) recordServerTripTimestamp(t.id, t.updatedAt)
 
     patch({
       users,

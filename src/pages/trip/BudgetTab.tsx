@@ -190,6 +190,11 @@ export function BudgetTab({ trip, totals, editable }: { trip: Trip; totals: Retu
   // Newest-settled first in the history so the last action is on top.
   const openExpenses = trip.expenses.filter(e => !e.settled)
   const settledExpenses = trip.expenses.filter(e => e.settled).sort((a, b) => (b.settled?.at ?? 0) - (a.settled?.at ?? 0))
+  // I-6 nudge: only tagged lines move money between people, so the "still to
+  // square up" count is over those alone — an untagged shared-kitty line owes
+  // nobody anything.
+  const openPayable = openExpenses.filter(e => e.paidBy)
+  const openPayableTotal = openPayable.reduce((s, e) => s + e.amountInr * (e.perPerson ? trip.travellers : 1), 0)
 
   return (
     <div>
@@ -394,6 +399,11 @@ export function BudgetTab({ trip, totals, editable }: { trip: Trip; totals: Retu
                         {transfers.length > 0 && (
                           <p className="hint-text" style={{ marginTop: 10 }}>
                             <b>Simplest settlement:</b> {transfers.map(t => `${nameOf(t.from.user)} → ${nameOf(t.to.user)} ${formatInr(t.amount)}`).join(' · ')}
+                          </p>
+                        )}
+                        {openPayable.length > 0 && (
+                          <p className="hint-text" style={{ marginTop: 10 }}>
+                            <b>{formatInr(openPayableTotal)}</b> across {openPayable.length} tagged line{openPayable.length !== 1 ? 's' : ''} still to square up — mark each settled as the money moves.
                           </p>
                         )}
                         {editable && openExpenses.length > 0 && (

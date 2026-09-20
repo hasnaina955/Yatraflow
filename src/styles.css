@@ -66,7 +66,7 @@
   --yf-atmos-peach: rgba(255, 179, 107, 0.16);
   --yf-surface: #FFFFFF;
   --yf-border: #DCE7E1;
-  --yf-text-muted: #637B7D;
+  --yf-text-muted: #566A6C;
   --yf-glass: rgba(255, 255, 255, 0.58);        /* level-2 overlay (map/board panels) */
   --yf-nav-glass: rgba(255, 255, 255, 0.58);    /* nav pill — user-decided (AGENTS rule 9) */
   --yf-glass-border: rgba(255, 255, 255, 0.65);
@@ -169,6 +169,10 @@
      sheet, the AI drawer, the expanded map) keep the raw inset. */
   --safe-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
   --shell-nav-h: 0px;
+  /* The mobile dock's footprint. Stays 0 unless a surface actually shows the
+     dock — see the :has() rule beside .toast-zone. Deliberately NOT folded into
+     --bottom-ui-offset, because the dock consumes that offset itself. */
+  --dock-h: 0px;
   --bottom-ui-offset: calc(var(--shell-nav-h) + var(--safe-bottom));
   --font-display: 'Sora', 'Inter', system-ui, sans-serif;
   --font-body: 'Inter', system-ui, -apple-system, sans-serif;
@@ -471,7 +475,15 @@ h1,h2,h3,h4 { font-family: var(--font-display); line-height: 1.22; margin: 0; le
 h1 { font-size: clamp(26px, 4.5vw, 40px); font-weight: 800; }
 h2 { font-size: 21px; font-weight: 700; }
 h3 { font-size: 16px; font-weight: 700; }
+/* h4 is named in the display-family rule above but had no weight of its own,
+   so it resolved to Sora 400 — a weight the font link does not load
+   (Sora is 600/700/800 only), which the browser then synthesised. */
+h4 { font-weight: 700; }
 p { margin: 0; }
+/* Wrap tuning: headings balance (in the h1–h4 rule above), prose pretty. The
+   pair is the type reference's recipe; pretty trims a last-line orphan and is
+   a no-op on copy that fits one line. */
+p, .hint-text { text-wrap: pretty; }
 a { color: var(--teal-deep); text-decoration: none; }
 button { font-family: var(--font-body); cursor: pointer; color: inherit; }
 input, select, textarea { font-family: var(--font-body); font-size: 14.5px; color: var(--text); }
@@ -606,13 +618,19 @@ a.btn { text-decoration: none; }
 @media (pointer: coarse) {
   .btn, .icon-btn, .chip, .clickable-chip, .toast-action, .tab-btn,
   .map-legend-toggle, .nav-link, .filter-pillbar .clickable-chip,
-  .link-btn, .move-btn, .board-pulse-link, .cal-day, .cal-nav, .route-btn, .vote-btn, .yf-map-idea-add, .poi-short, .poi-cand-add, .poi-fold, .save-heart, .yf-maplibre .yf-map-ctrls button {
+  .link-btn, .move-btn, .board-pulse-link, .cal-day, .cal-nav, .route-btn, .vote-btn, .yf-map-idea-add, .poi-short, .poi-cand-add, .poi-fold, .save-heart, .yf-maplibre .yf-map-ctrls button,
+  .day-collapse {
     position: relative;
   }
   .btn::after, .icon-btn::after, .chip::after, .clickable-chip::after,
   .toast-action::after, .tab-btn::after, .map-legend-toggle::after,
   .nav-link::after, .link-btn::after, .move-btn::after, .board-pulse-link::after,
-  .cal-day::after, .cal-nav::after, .route-btn::after, .vote-btn::after, .yf-map-idea-add::after, .poi-short::after, .poi-cand-add::after, .poi-fold::after, .save-heart::after, .yf-maplibre .yf-map-ctrls button::after {
+  .cal-day::after, .cal-nav::after, .route-btn::after, .vote-btn::after, .yf-map-idea-add::after, .poi-short::after, .poi-cand-add::after, .poi-fold::after, .save-heart::after, .yf-maplibre .yf-map-ctrls button::after,
+  /* the day accordion's 28px chevron was the one compact control left out of
+     this budget: its only neighbour inside 14px is the day badge, 12px away,
+     so a 6px expansion stays clear of it. The collapsed route line needs no
+     expander — it wraps to 2+ lines (41-62px) at phone widths. */
+  .day-collapse::after {
     content: ''; position: absolute; inset: -6px; border-radius: inherit;
   }
 }
@@ -727,7 +745,11 @@ a.btn { text-decoration: none; }
 /* Commitments: deliberate 5-track layout on wide screens, but it collapses
    instead of squeezing selects into ~60px columns on phones. */
 .commitment-row { grid-template-columns: 2fr 1fr .8fr .8fr auto; align-items: end; gap: 10px; }
-.err-text { color: var(--danger); font-size: 12.5px; font-weight: 500; }
+/* An error is new information and it also shifts everything below it, so it
+   arrives rather than pops — briefly, and from the field it belongs to. The
+   global reduced-motion switch collapses the duration to .01ms. */
+.err-text { color: var(--danger); font-size: 12.5px; font-weight: 500; animation: errIn var(--motion-med) var(--ease-out); }
+@keyframes errIn { from { opacity: 0; transform: translateY(-4px); } }
 .hint-text { color: var(--text-3); font-size: 12.5px; }
 
 /* ---------- Chips & badges ---------- */
@@ -761,7 +783,7 @@ a.btn { text-decoration: none; }
 [data-theme='dark'] .route-dot {
   background: var(--teal); border-color: var(--teal); color: #06251f;
 }
-[data-theme='dark'] .mode-btn.on .hint { color: rgba(6, 37, 31, .78); }
+[data-theme='dark'] .mode-btn.on .hint { color: rgba(6, 37, 31, .85); }
 .chip-danger { background: var(--danger-soft); color: var(--danger); }
 .chip-ok { background: var(--ok-soft); color: var(--ink-ok); }
 .chip-info { background: var(--info-soft); color: var(--text-2); }
@@ -884,7 +906,13 @@ a.btn { text-decoration: none; }
   padding: 18px 20px 14px;
   box-shadow: var(--shadow-soft);
 }
-.day-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+/* Items align to the TOP of the row, never to its centre. The middle block's
+   height changes with the collapse — the route chain is collapsed-only and the
+   stats line re-wraps as the chips come and go — and a centred sibling is
+   re-positioned by every one of those changes: the chevron and the day badge
+   jumped up to 32px on the click, before the body had moved a pixel. Each item's
+   position must be independent of its siblings'. */
+.day-header { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
 .day-badge {
   width: 46px; height: 46px; border-radius: 16px; flex: 0 0 auto;
   background: var(--yf-navy); color: #fff;
@@ -1167,7 +1195,9 @@ a.btn { text-decoration: none; }
   transition: background var(--t-fast) var(--ease-out), color var(--t-fast) var(--ease-out);
 }
 .day-collapse:hover { background: var(--teal-soft); color: var(--teal-deep); }
-.day-collapse-icon { transition: transform var(--t-fast) var(--ease-out); }
+/* The chevron and the body are one gesture: at --t-fast/180ms the arrow settled
+   ~90ms before the body did, so the row read as two separate movements. */
+.day-collapse-icon { transition: transform var(--motion-slower) var(--ease-resize); }
 .day-closed .day-collapse-icon { transform: rotate(-90deg); }
 .day-header h3[style*='pointer'] { text-decoration: transparent; }
 .day-progress {
@@ -1220,10 +1250,27 @@ a.btn { text-decoration: none; }
 /* Smooth day open/close: the body animates grid rows 0fr→1fr (height-agnostic
    — no max-height guessing), and SmoothCollapse unmounts it after the collapse
    so a closed day still costs nothing. visibility lags the collapse so the
-   content stays paintable through the animation but leaves the tab order. */
-.day-body-clip { display: grid; grid-template-rows: 0fr; transition: grid-template-rows var(--motion-slow) var(--ease-glide); }
+   content stays paintable through the animation but leaves the tab order.
+   The easing is the both-ends --ease-resize, NOT the decelerate family: a day
+   body runs up to ~1000px, and a decelerate curve throws 24% of that distance
+   away in the first 6ms (measured: 0 → 930px of 967 inside 45% of the
+   duration) — a pop followed by a 150ms dribble, which is exactly what "the
+   collapse is not smooth" looked like. Both ends at rest, and symmetric rather
+   than the asymmetric Material standard curve: on this ~920px of travel the
+   symmetric peak slope is 1.72x its average against 2.73x — 60px inside a 60Hz
+   frame instead of 96px — for the same total time and the same ~3px first
+   frame. The eye reads a large surface in its middle, so that is where the
+   speed has to come out.
+   Duration is the large-surface step. Peak speed is distance ÷ duration (times
+   the curve's peak slope): the same gesture at --motion-slow/240ms peaked at
+   ~10.5px/ms, i.e. 176px inside a 60Hz frame, which is the "the cards look
+   like they collide" report; at 560ms it peaks at ~2.8px/ms (47px per 60Hz
+   frame). The board's own hide-cards glide is quick because it moves 88px — a
+   day body is 10x that, so the accordion cannot borrow its feel, only its
+   softness. */
+.day-body-clip { display: grid; grid-template-rows: 0fr; transition: grid-template-rows var(--motion-slower) var(--ease-resize); }
 .day-body-clip.open { grid-template-rows: 1fr; }
-.day-body-clip-inner { overflow: hidden; min-height: 0; visibility: hidden; transition: visibility 0s var(--motion-slow); }
+.day-body-clip-inner { overflow: hidden; min-height: 0; visibility: hidden; transition: visibility 0s var(--motion-slower); }
 .day-body-clip.open .day-body-clip-inner { visibility: visible; transition: visibility 0s; }
 @media (prefers-reduced-motion: reduce) {
   .day-body-clip, .day-body-clip-inner { transition: none; }
@@ -1295,6 +1342,18 @@ a.btn { text-decoration: none; }
 /* Per-day cost + dwell chips in the day header — quiet metadata pills that
    mirror the stop-kind tag treatment (soft tint, no border) so they read as
    engine-derived context, not actions. */
+/* The other toggle-only extras (cost, dwell, weather, the collapsed dwell chart)
+   mount in a single state, so they used to arrive in one frame while the row
+   around them was somewhere else. They take the catalog's entrance pattern —
+   fade + 4px rise — instead of popping. The route chain is deliberately NOT
+   here: it is the one that changes the row's height, so it collapses (see
+   SmoothCollapse) rather than appearing at full height. */
+.day-cost-chip, .day-dwell-chip, .weather-chip, .dwell-bars {
+  animation: popover-in var(--motion-med) var(--ease-out);
+}
+@media (prefers-reduced-motion: reduce) {
+  .day-cost-chip, .day-dwell-chip, .weather-chip, .dwell-bars { animation: none; }
+}
 .day-cost-chip, .day-dwell-chip {
   align-self: flex-start;
   border-radius: 999px; padding: 4px 11px;
@@ -1663,7 +1722,19 @@ button.board-col-zone--add:active { transform: translateY(1px); }
 .remote-edit-sub { color: var(--text-3); font-size: 12px; }
 .remote-edit-actions { display: flex; gap: 8px; flex: none; flex-wrap: wrap; }
 @media (prefers-reduced-motion: reduce) { .remote-edit-banner { animation: none; } }
-.toast-zone { position: fixed; bottom: calc(18px + var(--bottom-ui-offset)); left: 0; right: 0; display: flex; flex-direction: column; align-items: center; gap: 8px; z-index: var(--z-toast); pointer-events: none; padding: 0 14px; }
+.toast-zone { position: fixed; bottom: calc(18px + var(--bottom-ui-offset) + var(--dock-h)); left: 0; right: 0; display: flex; flex-direction: column; align-items: center; gap: 8px; z-index: var(--z-toast); pointer-events: none; padding: 0 14px; }
+/* The trip dock is fixed to the same bottom edge and wins on z-index (200 vs
+   55), so a toast landed on top of its CTA and swallowed the tap — measured on
+   #/new at 320px: toast 818–882 × 14–291 over the CTA 818–864 × 171–280, with
+   elementFromPoint at the button's centre returning the toast's own span. The
+   dock is the only way to commit on that surface, so this blocked the primary
+   action for the toast's lifetime. Gated to the width where the dock actually
+   shows, because :has() matches DOM presence and the dock element is always
+   rendered (just display:none above 900px). 118px is the same footprint the
+   trip page already reserves for it — see .trip-starter's padding-bottom. */
+@media (max-width: 900px) {
+  .app-shell:has(.trip-dock) { --dock-h: 118px; }
+}
 .toast {
   pointer-events: auto; background: var(--text); color: var(--bg);
   padding: 11px 20px; border-radius: 999px; font-size: 13.5px; font-weight: 600;
@@ -1822,6 +1893,11 @@ button.board-col-zone--add:active { transform: translateY(1px); }
   content: ''; position: absolute; top: 0; left: 0; right: 0;
   border-top: 1px solid var(--line);
 }
+/* The creator line + its channel icons are the card's LAST row whenever the
+   creator has a bio or a social link, and that row owns the card's bottom
+   padding: unpadded it sat 1px from the bottom edge, inside the 12px corner
+   radius, so the icons read as if the card had cut them off. */
+.itin-foot { padding: 0 16px 14px; margin-top: 6px; }
 .creator-line { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-2); font-weight: 600; }
 /* The anchor variant (PubCard) overrode the global link colour with --text-2,
    so it read as plain text. Keep the quiet look at rest, but answer hover and
@@ -2294,6 +2370,19 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
 .empty-state { text-align: center; padding: 44px 20px; color: var(--text-3); }
 .empty-state .big { font-size: 38px; margin-bottom: 10px; }
 .empty-state h2 { font-size: 18px; margin: 0; color: var(--text); }
+/* Empty states get a staged entrance: the one arrival a reader works through
+   rather than around, infrequent enough to earn choreography, and it carries
+   the route out. The markup already carries the chunks (icon, title, body,
+   action), so they cascade on the shared stagger vocabulary. `backwards` fill,
+   per the ticket block's note — a forwards-filled transform leaves a
+   compositor group behind, which blinds backdrop-filter on descendants. */
+@media (prefers-reduced-motion: no-preference) {
+  .empty-state > * { animation: emptyRise var(--motion-slow) var(--ease-out) backwards; }
+  .empty-state > *:nth-child(2) { animation-delay: calc(var(--stagger-step) * 1); }
+  .empty-state > *:nth-child(3) { animation-delay: calc(var(--stagger-step) * 2); }
+  .empty-state > *:nth-child(4) { animation-delay: calc(var(--stagger-step) * 3); }
+  @keyframes emptyRise { from { opacity: 0; transform: translateY(8px); } }
+}
 .section-gap { margin-top: 26px; }
 .row-between { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
 .muted { color: var(--text-3); }
@@ -2443,7 +2532,15 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
 .footer-inner { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
 
 /* ---------- Pages ---------- */
-.auth-wrap { display: flex; justify-content: center; padding: 54px 18px; }
+/* Auth composes its own canvas rather than parking a card at the top of one.
+   #main already stretches (inline flex:1 on <main>), but it is a plain block
+   and the page sits one level deeper inside .route-panel — so the height has
+   to be handed down the chain, and a percentage on the wrap resolves against
+   nothing. Scoped with :has() to the one route that owns an .auth-wrap, so no
+   other page's flow is touched. */
+main:has(.auth-wrap) { display: flex; flex-direction: column; }
+main:has(.auth-wrap) .route-panel { flex: 1; display: flex; flex-direction: column; }
+.auth-wrap { display: flex; justify-content: center; align-items: center; flex: 1; padding: 54px 18px; }
 .form-page { max-width: 1080px; padding-top: 26px; padding-bottom: 30px; }
 /* #86: Profile's single-column content — readable measure, no empty grid gutter. */
 .profile-col { max-width: 720px; }
@@ -2452,6 +2549,13 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
 /* the custom Select wraps its trigger in a div — flex sizing moves to the wrapper */
 .explore-filters .cselect, .trips-toolbar .cselect { flex: 0 1 auto; }
 .explore-filters .cselect .select, .trips-toolbar .cselect .select { min-width: 140px; }
+/* The filter bar's own backdrop-filter (.glass-soft) makes it a stacking
+   context, so the .cselect menu opened inside it was trapped at the bar's rung
+   — and every card below is positioned, so they painted over the open menu:
+   the last two budget options hit-tested into .featured-body, invisible and
+   unclickable, while the menu's first three rows stayed reachable. The HOST
+   claims a rung; raising the popup cannot escape its ancestor's context. */
+.explore-filterbar { position: relative; z-index: var(--z-frost); }
 .trip-card-hit { all: unset; cursor: pointer; display: block; border-radius: inherit; }
 
 /* Trip card emoji cover */
@@ -2871,7 +2975,7 @@ main:focus { outline: none; }
 .theme-toggle:focus-visible, .avatar-btn:focus-visible, .user-menu-item:focus-visible,
 .nav-link:focus-visible, .tab-btn:focus-visible, .brand:focus-visible,
 .mobile-nav-btn:focus-visible, .bottom-nav-item:focus-visible,
-.day-collapse:focus-visible, .move-btn:focus-visible, .vote-btn:focus-visible,
+.day-collapse:focus-visible, .day-route:focus-visible, .move-btn:focus-visible, .vote-btn:focus-visible,
 .chip-btn:focus-visible, .clickable-chip:focus-visible, .toast-action:focus-visible,
 .day-rail-chip:focus-visible,
 .map-day-chip:focus-visible, .map-idea-chip:focus-visible, .map-legend-toggle:focus-visible,
@@ -2889,6 +2993,9 @@ main:focus { outline: none; }
   box-shadow: var(--ring);
 }
 .yf-map-pin:focus-visible { outline-offset: 2px; }
+/* The route line wraps to several lines; a bare box-shadow ring would trace
+   every one of them, so it takes the same small radius as .link-btn. */
+.day-route:focus-visible { border-radius: 6px; }
 
 /* ---- Location dropdown: two-line rows with POI thumbnails ---- */
 .loc-option { align-items: center; }
@@ -3316,6 +3423,10 @@ body, .topnav, .glass, .board, .modal, .toast {
 .icon-btn:active, .move-btn:active, .vote-btn:active, .clickable-chip:active,
 .chip-btn:active, .map-day-chip:active, .map-legend-toggle:active, .tab-btn:active { transform: scale(.97); }
 .save-heart:hover { transform: scale(1.08); }
+/* The heart belongs to the press-scale group above too — it was the one
+   clickable control left out, so a press gave no feedback at all. Declared
+   after :hover so the press scale wins while the pointer is down. */
+.save-heart:active { transform: scale(.97); }
 
 /* editorial narrative + route glance */
 .pub-editorial { align-items: start; margin-bottom: 8px; }
@@ -3463,7 +3574,11 @@ html.vt-active :where(*) {
 .featured-title-link { color: #fff; text-decoration: none; }
 .featured-title-link:hover { text-decoration: underline; }
 .featured-tagline { color: #d5e7e4; margin: 0 0 8px; max-width: 640px; line-height: 1.6; }
-.featured-credibility { color: #a9d8cf; font-size: 13px; margin: 0 0 12px; }
+/* Prose measure: the neighbouring tagline caps at 640px, but this block and
+   Explore's fork note run at 13px and 12.5px, where a 640px cap still buys
+   78-81 characters a line. `ch` self-adjusts to the font size, so one value
+   holds every block inside the 60-75ch band. */
+.featured-credibility { color: #a9d8cf; font-size: 13px; margin: 0 0 12px; max-width: 72ch; }
 .featured-meta { display: flex; gap: 18px; flex-wrap: wrap; color: #e2f1ef; font-size: 13px; margin-bottom: 16px; }
 .featured-actions { display: flex; gap: 10px; flex-wrap: wrap; }
 
@@ -3472,6 +3587,10 @@ html.vt-active :where(*) {
   position: absolute; top: 12px; right: 12px; z-index: var(--z-raised); cursor: pointer;
   background: rgba(255, 255, 255, .9); color: #c25b4a; border: 1px solid rgba(194, 91, 74, .25);
   border-radius: 999px; width: 34px; height: 34px; font-size: 16px; line-height: 1;
+  /* The save heart lifts on hover and presses like every other control, but it
+     was the one clickable that declared no transition, so both snapped while
+     .btn and .clickable-chip eased. Same token and curve they use. */
+  transition: transform var(--t-fast) var(--ease-out);
 }
 [data-theme='dark'] .save-heart { background: rgba(20, 32, 46, .85); color: #e58875; }
 .itin-card { position: relative; }
@@ -3589,6 +3708,27 @@ html.vt-active :where(*) {
   background: var(--bg-soft); color: var(--text-2);
 }
 .bench-mode-btn.on .bench-mode-speed { background: transparent; color: #fff; }
+/* A full mode row (icon + name + speed pill) needs ~110px of button. Inside the
+   bench's half-card that is only a problem in the 721-1000px band, where each
+   button is a QUARTER of the card (78.7px at 768) and the name — the row's only
+   flexible part — ellipsized to a single letter ("T…") while the icon squashed
+   from 15px to 3px. The query measures the BLOCK's own width, not the viewport:
+   the grid's space is a fraction of the window here, and the Trip Settings tab
+   hosts the same grid under a different parent, so a viewport band would have to
+   restate this geometry and rot the first time the bench ratio moved. 230px is
+   2 x (15 icon + 7 gap + 31 for the longest name + 7 gap + 26 pill + 23 padding)
+   + 6 gap = 224.6, rounded up. Below it the modes stack full-width: nothing is
+   dropped (the pill and the label both survive) at a cost of 80px in a band that
+   already overflowed the one-screen budget. Dropping the pill instead — the
+   other cheap answer — was measured and still leaves "Train" clipped from 721px
+   to ~755px, where a quarter-card is under the 76px an icon + name row needs. */
+.bench-mode-block { container-type: inline-size; }
+@container (max-width: 230px) {
+  .bench-mode-grid { grid-template-columns: 1fr; }
+}
+/* An inline SVG is a flex item like any other, so without this the icon is what
+   gives first — a 15px glyph squashed to 3px reads as a rendering glitch. */
+.bench-mode-btn > svg { flex: none; }
 .bench-hint { font-size: 12px; color: var(--text-3); margin: 0; }
 
 /* stay style: vertical rate rows, selected = teal outline + tint */
@@ -4968,14 +5108,18 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
   .trips-toolbar { align-items: stretch; }
   .trips-toolbar .trips-search { flex-basis: 100%; }
   .trips-toolbar .explore-chips { order: 3; flex-basis: 100%; margin-bottom: 0; }
-  /* selects split one row so their labels stay readable at ~160px each */
-  .trips-toolbar .select { flex: 1 1 45%; min-width: 0; }
-  .trips-toolbar .cselect { flex: 1 1 45%; min-width: 0; }
-  .trips-toolbar .cselect .select { min-width: 0; width: 100%; }
+  /* Selects pair up while the row can hold them. The 45% basis on its own let
+     two share a row all the way down to 320px, where each got ~120px and the
+     label clipped to "Any bu…" — so the desktop min-widths (140px here, 130px
+     on the trips toolbar) stay in place as the floor instead of being zeroed.
+     Two selects need ~290px; below that the row wraps rather than crushing. */
+  .trips-toolbar .select { flex: 1 1 45%; }
+  .trips-toolbar .cselect { flex: 1 1 45%; }
+  .trips-toolbar .cselect .select { width: 100%; }
   /* Explore's filter row mirrors the toolbar pairing, so its three selects
      don't drop to one full-width stack on a phone. */
-  .explore-filters .select, .explore-filters .cselect { flex: 1 1 45%; min-width: 0; }
-  .explore-filters .cselect .select { min-width: 0; width: 100%; }
+  .explore-filters .select, .explore-filters .cselect { flex: 1 1 45%; }
+  .explore-filters .cselect .select { width: 100%; }
 }
 
 @media (max-width: 720px) {
@@ -5109,7 +5253,7 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 .mode-btn .nm { display: block; font-weight: 700; font-size: 12.5px; line-height: 1.2; white-space: nowrap; }
 .mode-btn .hint { display: block; font-size: 10.5px; line-height: 1.3; color: var(--yf-text-muted); font-weight: 500; }
 .mode-btn.on { background: var(--teal-deep); border-color: var(--teal-deep); color: #fff; box-shadow: var(--shadow-glow-teal); }
-.mode-btn.on .hint { color: rgba(255, 255, 255, 0.8); }
+.mode-btn.on .hint { color: rgba(255, 255, 255, 0.92); }
 /* Train tile hosts the inline local-fare switch — the wrapper is the grid
    cell; the switch is a sibling of the select button, not a nested control.
    It docks bottom-right and the button reserves the row, so the tile text
@@ -5132,6 +5276,11 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 .mini-lab { color: var(--yf-text-muted); }
 .unit-input { position: relative; display: flex; align-items: center; }
 .unit-input .input { width: 100%; height: 36px; padding-right: 48px; font-size: 13px; font-weight: 600; }
+/* The compact 13px above outranks the ≤720px `.input { font-size: 16px }` on
+   both specificity (0-2-0 vs 0-1-0) and source order, so these fuel fields
+   kept re-triggering iOS Safari's zoom-on-focus. Restated here, after the rule
+   it overrides — the media block earlier in the file cannot win on order. */
+@media (max-width: 720px) { .unit-input .input { font-size: 16px; } }
 .unit-input .unit { position: absolute; right: 10px; font-size: 11px; color: var(--yf-text-muted); pointer-events: none; }
 .crew-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .crew-btn {
@@ -5540,12 +5689,31 @@ html.native-shell {
 :root {
   --yf-blur-nav: 18px; --yf-blur-panel: 14px; --yf-blur-chip: 8px; --yf-blur-scrim: 3px;
 }
-/* Motion tokens (docs/MOTION-TOKENS.md, AGENTS rule 10): three duration steps
-   + the glide easing. New interactive surfaces pick from here — a raw ms value
-   in a new rule is a review flag. --ease-out lives with the base tokens. */
+/* Motion tokens (docs/MOTION-TOKENS.md, AGENTS rule 10): four duration steps
+   + three easings. New interactive surfaces pick from here — a raw ms value in
+   a new rule is a review flag. --ease-out lives with the base tokens.
+   Both --ease-glide and --ease-out are DECELERATE curves — within .015 of each
+   other at every sampled point, 86% of the distance inside the first 44% of the
+   time. That is right for a 60px dropdown and a pop on a 1000px surface, where
+   it moves a quarter of the height in the first 6ms; --ease-resize is the
+   both-ends curve those in-place resizes use instead.
+   --ease-resize is symmetric on purpose. On a ~920px resize the asymmetric
+   Material standard curve carries a peak slope of 2.73x its average (it spends
+   its middle covering ground), which on a 60Hz screen is 96px of movement in
+   one frame; the symmetric curve peaks at 1.72x — 60px, a 37% softer middle —
+   for the same end-to-end time and the same 3px first frame. A large surface is
+   felt in its middle, so that is where the speed has to come out.
+   --motion-slower is the fourth step, for travel measured in hundreds of px
+   (a day body is ~950px). Peak frame speed is distance ÷ duration, so the same
+   gesture at --motion-slow moved the rows below a folding day ~176px inside one
+   60Hz frame; at 560ms it is ~47px and the eye tracks the edge instead of being
+   hit by it. Nothing above this step: longer reads sluggish — and this one is
+   already above Material's guidance for a large expansion (375–500ms), which is
+   only defensible because the thing moving is ~950px, not a panel. */
 :root {
-  --motion-fast: 120ms; --motion-med: 180ms; --motion-slow: 240ms;
+  --motion-fast: 120ms; --motion-med: 180ms; --motion-slow: 240ms; --motion-slower: 560ms;
   --ease-glide: cubic-bezier(.3, .86, .48, 1);
+  --ease-resize: cubic-bezier(.42, 0, .58, 1);
 }
 /* One dropdown/popover surface for the whole app — the navbar's exact glass
    treatment (nav glass + blur-nav + saturate, the same tint as the rails).

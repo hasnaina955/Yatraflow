@@ -366,6 +366,7 @@ const decisions: TripDecision[] = [
       { id: 'o_3', label: 'Keep everything, start at 5 AM', costImpactInr: 0, timeImpactMin: 0 },
     ],
     votesByUserId: { u_meera: 'o_1', u_arjun: 'o_3' },
+    comments: [{ id: 'cm_d1', authorId: 'u_arjun', text: 'Kundala is on the way back anyway.', createdAt: T(2) }],
     status: 'open', raisedBy: 'u_demo', createdAt: T(2),
   },
   {
@@ -376,6 +377,7 @@ const decisions: TripDecision[] = [
       { id: 'o_5', label: 'Mixed — include karimeen' , costImpactInr: 900 },
     ],
     votesByUserId: {},
+    comments: [],
     status: 'open', raisedBy: 'u_meera', createdAt: T(1),
   },
 ]

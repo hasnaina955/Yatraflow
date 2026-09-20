@@ -24,6 +24,23 @@ const PAGE_SIZE = 12
  *  credibility (§6.10). */
 const FEATURED_MIN_VIEWS = 25
 
+/** Filter + sort state encoded in the hash query (F-22). Read at mount and on
+ *  every real navigation. Filter edits write the query with `replaceState`,
+ *  which fires no `hashchange`, so this never fights the user's typing — it
+ *  only runs when something actually navigates. */
+function filtersFromHash() {
+  const p = new URLSearchParams(location.hash.split('?')[1] ?? '')
+  const d = p.get('dur')
+  const s = p.get('sort')
+  return {
+    q: p.get('q') ?? '',
+    style: p.get('style') ?? 'all',
+    maxBudget: (p.get('max') ? Number(p.get('max')) : '') as number | '',
+    duration: (d === 'short' || d === 'medium' || d === 'long' ? d : 'all') as 'all' | 'short' | 'medium' | 'long',
+    sortKey: (s === 'budget-asc' || s === 'budget-desc' || s === 'duration' || s === 'newest' ? s : 'popular') as SortKey,
+  }
+}
+
 export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void }) {
   // Slice subscriptions: Explore re-renders when the published catalog,
   // profiles, trips or the session change — not on every store commit.
@@ -34,14 +51,26 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
   const { saved, isSaved, toggleSaved } = useSavedPubs()
   // F-22: filters + sort live in the hash query (#/explore?q=goa&sort=budget-asc)
   // so they survive a refresh and can be shared; sortKey finally gets a control.
-  const params = new URLSearchParams(location.hash.split('?')[1] ?? '')
-  const s0 = params.get('sort')
-  const [sortKey, setSortKey] = useState<SortKey>(s0 === 'budget-asc' || s0 === 'budget-desc' || s0 === 'duration' || s0 === 'newest' ? s0 : 'popular')
-  const [q, setQ] = useState(params.get('q') ?? '')
-  const [style, setStyle] = useState(params.get('style') ?? 'all')
-  const [maxBudget, setMaxBudget] = useState<number | ''>(params.get('max') ? Number(params.get('max')) : '')
-  const d0 = params.get('dur')
-  const [duration, setDuration] = useState<'all' | 'short' | 'medium' | 'long'>(d0 === 'short' || d0 === 'medium' || d0 === 'long' ? d0 : 'all')
+  const f0 = filtersFromHash()
+  const [sortKey, setSortKey] = useState<SortKey>(f0.sortKey)
+  const [q, setQ] = useState(f0.q)
+  const [style, setStyle] = useState(f0.style)
+  const [maxBudget, setMaxBudget] = useState<number | ''>(f0.maxBudget)
+  const [duration, setDuration] = useState<'all' | 'short' | 'medium' | 'long'>(f0.duration)
+  // A navigation that drops the query — clicking "Explore" while filtered, or
+  // Back — lands on a clean URL, but `navigate` only sets `location.hash` and
+  // this page is already mounted, so the filters would survive and the view
+  // would disagree with the address bar and with whatever that URL is shared
+  // to. Re-seed on a real hash change; `syncUrl`'s replaceState fires none, so
+  // typing is untouched.
+  useEffect(() => {
+    const onHash = () => {
+      const f = filtersFromHash()
+      setQ(f.q); setStyle(f.style); setMaxBudget(f.maxBudget); setDuration(f.duration); setSortKey(f.sortKey)
+    }
+    window.addEventListener('hashchange', onHash)
+    return () => window.removeEventListener('hashchange', onHash)
+  }, [])
   // ♡ Saved — device-local favourites (localStorage), not part of the schema
   const [savedOnly, setSavedOnly] = useState(false)
   // P4 pagination: show the first page; "Load more" widens the window. Reset
@@ -165,7 +194,7 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
         {/* "Fork" is the product's own word for copying a plan into your trips and
             the cards never explain it, so it is said once, here, before anyone
             meets the button that carries the name. */}
-        <p className="small muted" style={{ margin: '0 0 12px' }}>
+        <p className="small muted" style={{ margin: '0 0 12px', maxWidth: '72ch' }}>
           Fork any itinerary to copy it into your own trips — then change whatever you like.
           {/* Signed out, that button navigates to /auth — say so before the click,
               not in a toast that the redirect swallows. */}
@@ -189,7 +218,7 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
         </div>
 
         {/* ---- Compact filter bar: budget / duration / sort ---- */}
-        <div className="card glass-soft" style={{ marginBottom: 22 }}>
+        <div className="card glass-soft explore-filterbar" style={{ marginBottom: 22 }}>
           <div className="explore-filters">
             <Select value={duration} onChange={v => { setDuration(v as never); syncUrl({ dur: v }) }} aria-label="Duration"
               options={[

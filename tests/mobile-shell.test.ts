@@ -116,7 +116,7 @@ describe('bottom chrome offset', () => {
 
   const lifted: Array<[string, string]> = [
     ['.app-shell', 'padding-bottom: var(--bottom-ui-offset)'],
-    ['.toast-zone', 'bottom: calc(18px + var(--bottom-ui-offset))'],
+    ['.toast-zone', 'bottom: calc(18px + var(--bottom-ui-offset) + var(--dock-h))'],
     ['.ai-fab', 'bottom: calc(18px + var(--bottom-ui-offset))'],
     ['.bench-dock', 'bottom: calc(12px + var(--bottom-ui-offset))'],
     ['.ts-savebar', 'padding: 8px 0 calc(8px + var(--bottom-ui-offset))'],

@@ -146,6 +146,22 @@ function wikimediaFile(url: string): { project: string; file: string } | null {
   return seg ? { project: m[1], file: seg[1] } : null
 }
 
+/** The file name in either shape this app stores: a direct upload URL
+ *  (`/wikipedia/<project>/<h>/<hh>/<File>`, what the Wikipedia API hands back)
+ *  or the `Special:Redirect/file/<File>` form `sizedCoverUrl` writes. Null for
+ *  anything else.
+ *
+ *  The name is returned exactly as it arrived — percent-encoded where the URL
+ *  had it encoded. Callers that hand it to an API must decode it once
+ *  themselves; decoding twice mangles shapes like `Telkupi%252C_Purulia.jpg`. */
+export function wikimediaFileName(url: string): string | null {
+  const direct = wikimediaFile(url)
+  if (direct) return direct.file
+  const path = url.split('?')[0]
+  const m = /^https:\/\/(?:[a-z-]+\.)?(?:wikimedia|wikipedia)\.org\/wiki\/Special:(?:Redirect|FilePath)\/file\/(.+)$/i.exec(path)
+  return m ? m[1] : null
+}
+
 /** The same file at a sane width. Non-Wikimedia URLs come back untouched. */
 export function sizedCoverUrl(url: string, width = COVER_WIDTH): string {
   const found = wikimediaFile(url)

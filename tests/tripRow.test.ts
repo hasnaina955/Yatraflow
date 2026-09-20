@@ -4,6 +4,7 @@ import { describe, it, expect } from 'vitest'
 import { rowToTrip, tripToRow, isMissingColumnError } from '../src/lib/tripRow'
 import { seedData } from '../src/data/seed'
 import type { Trip, TripMember } from '../src/data/types'
+import { readFileSync, readdirSync } from 'node:fs'
 
 function tripWithExpenses(): Trip {
   const base = structuredClone(seedData.trips[0])
@@ -212,6 +213,58 @@ describe('party + vehicle preferences are persisted (20260915_trip_party_prefs.s
     expect(notAnObject.vehicleProfile).toBeUndefined()
     const nullProfile = rowToTrip({ ...row, vehicle_profile: null, created_at: t.createdAt, updated_at: t.updatedAt }, MEMBERS)
     expect(nullProfile.vehicleProfile).toBeUndefined()
+  })
+})
+
+// ============ every probed optional column has a migration ============
+// The store probes for an optional column before writing it, and a probe that
+// comes back false makes the write silently vanish: `tripToRow` omits the field
+// entirely, the toast never fires, and the UI keeps showing the value from
+// memory until the next reload. `cover_image_url` was probed from the day the
+// cover picker shipped, but no migration ever created it — so every chosen
+// cover was session-only, and publishing (which copies `trip.coverImageUrl`
+// onto the publication) stamped NULL onto `published_itineraries`, whose cover
+// is what the share preview serves. A shared link previewed as the brand card
+// while the app showed a photo, and it read exactly like a preview-handler bug;
+// the data had never been saved. Pinning the probe list to the migrations is
+// what makes the next optional field unable to ship without its DDL.
+const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), 'utf8')
+
+/** Column names the store probes for, read from its literal call sites. The
+ *  definition `probeOptionalColumn(column: string)` takes a variable, so it
+ *  never matches. */
+function probedColumns(): string[] {
+  const store = read('src/store/store.ts')
+  return [...store.matchAll(/probeOptionalColumn\('([a-z0-9_]+)'\)/g)].map(m => m[1])
+}
+
+/** Columns some migration creates. Both shapes count: an `add column if not
+ *  exists` on an existing table, and a column declared in a `create table`. */
+function migrationColumns(): Set<string> {
+  const dir = new URL('../supabase/migrations/', import.meta.url)
+  const sql = readdirSync(dir)
+    .filter(f => f.endsWith('.sql'))
+    .map(f => readFileSync(new URL(f, dir), 'utf8'))
+    .join('\n')
+  return new Set([
+    ...[...sql.matchAll(/add column if not exists\s+([a-z0-9_]+)/gi)].map(m => m[1].toLowerCase()),
+  ])
+}
+
+describe('the optional-column probe and the migrations agree', () => {
+  it('reads the probe list it thinks it reads', () => {
+    // Guards the regex itself: if the call shape changes, this fails loudly here
+    // rather than silently passing an empty list through the check below.
+    const cols = probedColumns()
+    expect(cols.length).toBeGreaterThanOrEqual(11)
+    expect(cols).toContain('cover_image_url')
+    expect(cols).toContain('deleted_at')
+  })
+
+  it('has a migration creating every column it probes', () => {
+    const declared = migrationColumns()
+    const missing = probedColumns().filter(c => !declared.has(c))
+    expect(missing, `probed but never created by a migration: ${missing.join(', ')}`).toEqual([])
   })
 })
 

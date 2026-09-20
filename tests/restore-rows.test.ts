@@ -26,6 +26,7 @@ const decision: TripDecision = {
   id: 'dc-1', tripId: 'trip-1', question: 'Houseboat or resort?', context: 'Night 3',
   options: [{ id: 'op-1', label: 'Houseboat', costImpactInr: 4000 }],
   votesByUserId: { 'user-a': 'op-1', 'user-b': 'op-1' },
+  comments: [{ id: 'cm-2', authorId: 'user-b', text: 'houseboat, obviously', createdAt: 22 }],
   status: 'resolved', resolvedOptionId: 'op-1', raisedBy: 'user-a',
   createdAt: 20, resolvedAt: 21,
 }
@@ -80,6 +81,16 @@ describe('restore row mappers (#43)', () => {
       resolved_at: 21, raised_by: 'user-a', created_at: 20,
     })
     expect(row.votes_by_user_id).toEqual({ 'user-a': 'op-1', 'user-b': 'op-1' })
+  })
+
+  it('gates decision comments on the capability flag (20260920_decision_comments.sql)', () => {
+    // A write naming a column the database does not have is rejected whole, so
+    // the key must be ABSENT — not null — until the probe says the column
+    // exists; the same shape as tripToRow's cols gate.
+    expect(decisionToRow(decision)).not.toHaveProperty('comments')
+    expect(decisionToRow(decision, true).comments).toEqual([
+      { id: 'cm-2', authorId: 'user-b', text: 'houseboat, obviously', createdAt: 22 },
+    ])
   })
 
   it('restores the public URL by its slug, with the view/copy counts intact', () => {

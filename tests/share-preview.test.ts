@@ -107,6 +107,51 @@ describe('share preview handler in node', () => {
     expect(res.body).not.toContain('og:image:height')
   })
 
+  it('sizes a Wikimedia cover through the redirect instead of shipping the raw upload', async () => {
+    // The one live publication with a cover carried the unscaled upload
+    // (`...?utm_content=thumbnail_unscaled`, 1.3 MB) because the picker only
+    // started sizing later. The client sizes the same URL on the display path
+    // and the handler cannot import it, so the rule is duplicated — this pins
+    // the duplication, including the `thumb/` and subdomain handling.
+    respond([{
+      ...publication,
+      cover_image_url: 'https://upload.wikimedia.org/wikipedia/commons/3/3a/Chandratal_1.JPG?utm_source=en.wikipedia.org&utm_content=thumbnail_unscaled',
+    }])
+    const res = await runHandler()
+    expect(res.body).toContain('og:image" content="https://commons.wikimedia.org/wiki/Special:Redirect/file/Chandratal_1.JPG?width=1200"')
+    expect(res.body).not.toContain('upload.wikimedia.org')
+    // twitter:image carries the same sized URL, not the raw one.
+    expect(res.body).toContain('twitter:image" content="https://commons.wikimedia.org/wiki/Special:Redirect/file/Chandratal_1.JPG?width=1200"')
+  })
+
+  it('serves an uploaded cover exactly as stored, adding nothing to it', async () => {
+    // The join between the cover uploader and this handler. A photo taken from a
+    // phone is already re-encoded to a 1200px JPEG by the client before it lands
+    // in our own bucket, so this handler must pass that URL through untouched —
+    // the same rule as any other non-Wikimedia host, but this is the one URL
+    // shape our own upload path produces, and rewriting or re-sizing it would
+    // break the newest covers while every older one kept working. The URL below
+    // is the measured shape of a live upload (served at 200 / image/jpeg /
+    // 77,818 bytes from a 1,335,523-byte original).
+    const uploaded = 'https://hqlqbfpzjmailxydjojw.supabase.co/storage/v1/object/public/covers/d507b604-1f89-46bd-b793-3d0bd67bbd2f/d2g9huw8g9dp.jpg'
+    respond([{ ...publication, cover_image_url: uploaded }])
+    const res = await runHandler()
+    expect(res.body).toContain(`og:image" content="${uploaded}"`)
+    expect(res.body).toContain(`twitter:image" content="${uploaded}"`)
+    // No Wikimedia hop is invented for it, and our bucket host is not rewritten.
+    expect(res.body).not.toContain('Special:Redirect')
+    expect(res.body).not.toContain('upload.wikimedia.org')
+  })
+
+  it('leaves an already-sized Wikimedia redirect and other hosts alone', async () => {
+    respond([{ ...publication, cover_image_url: 'https://commons.wikimedia.org/wiki/Special:Redirect/file/Chandratal_1.JPG?width=1200' }])
+    expect((await runHandler()).body).toContain('og:image" content="https://commons.wikimedia.org/wiki/Special:Redirect/file/Chandratal_1.JPG?width=1200"')
+    // An already-thumbed path keeps the file but re-asks at our width, and a
+    // non-commons project redirects through its own host.
+    respond([{ ...publication, cover_image_url: 'https://upload.wikimedia.org/wikipedia/en/thumb/1/23/Foo.png/800px-Foo.png?x=1' }])
+    expect((await runHandler()).body).toContain('https://en.wikipedia.org/wiki/Special:Redirect/file/Foo.png?width=1200')
+  })
+
   it.each([undefined, null, '', 'http://images.example.test/cover.jpg'])(
     'falls back to the default card for a missing or non-https cover (%s)',
     async cover => {
@@ -377,6 +422,38 @@ describe('public share source wiring', () => {
     expect(source).toMatch(/import\s*\{[^}]*\bcurrentPublicShareUrl\b[^}]*\}\s*from\s*['"][^'"]*\/lib\/shareUrl['"]/)
     expect(source).toMatch(/currentPublicShareUrl\(\s*pub\.id\s*\)/)
     expect(source).not.toContain('${location.pathname}#/pub/')
+  })
+})
+
+// The cover is the one field whose absence is invisible from inside the app: a
+// publication with none previews as the brand card, and the creator never sees
+// the link they sent. So the publish form requires one — and its acceptance
+// rule has to be the handler's own, or a creator could satisfy the form with an
+// http:// URL the preview silently refuses.
+describe('publishing requires a cover the handler will actually use', () => {
+  const form = read('../src/pages/trip/ShareTab.tsx')
+
+  it('offers the trip cover picker inside the publish form', () => {
+    expect(form).toMatch(/import \{ CoverImagePicker \} from '\.\.\/\.\.\/components\/CoverImagePicker'/)
+    expect(form).toMatch(/<CoverImagePicker trip=\{trip\} editable=\{isOwner\} \/>/)
+  })
+
+  it('refuses to publish without a cover', () => {
+    expect(form).toMatch(/const cover = trip\.coverImageUrl\?\.trim\(\)/)
+    expect(form).toMatch(/if \(!cover\) \{ setErr\('Add a cover photo/)
+  })
+
+  it('validates the cover with the same rule the handler applies', () => {
+    const rule = String.raw`/^https:\/\/\S+$/`
+    expect(read('../api/i.js')).toContain(rule)
+    expect(form).toContain(rule)
+  })
+
+  it('publishes the trip cover as the publication cover, still sized by the picker', () => {
+    expect(form).toMatch(/coverImageUrl: trip\.coverImageUrl/)
+    // The picker sizes on the way in, which is what keeps a stored cover from
+    // being a multi-megabyte original in the first place.
+    expect(read('../src/components/CoverImagePicker.tsx')).toMatch(/coverImageUrl: url \? sizedCoverUrl\(url\)/)
   })
 })
 

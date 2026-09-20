@@ -59,7 +59,7 @@ export function PubCard({ pub, creator, saved, onFork, onToggleSave, enterIndex,
         <button className="btn btn-primary btn-sm" onClick={onFork}>{needsLogin ? 'Log in to fork' : 'Fork this trip'}</button>
       </div>
       {creator?.profile.isCreator && (creator.profile.creatorBio || creator.profile.socialLinks?.youtube || creator.profile.socialLinks?.instagram) && (
-        <div className="row-between" style={{ gap: 8, marginTop: 6 }}>
+        <div className="row-between itin-foot" style={{ gap: 8 }}>
           <span className="small muted" style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{creator.profile.creatorBio}</span>
           <span style={{ display: 'inline-flex', gap: 6, flexShrink: 0 }}>
             {creator.profile.socialLinks?.youtube && (

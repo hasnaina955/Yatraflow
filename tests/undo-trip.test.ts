@@ -73,7 +73,7 @@ const suggestion: StopSuggestion = {
 }
 const decision: TripDecision = {
   id: 'dc-1', tripId: 'trip-1', question: 'Houseboat or resort?',
-  options: [{ id: 'op-1', label: 'Houseboat' }], votesByUserId: { amelia: 'op-1' },
+  options: [{ id: 'op-1', label: 'Houseboat' }], votesByUserId: { amelia: 'op-1' }, comments: [],
   status: 'open', raisedBy: 'amelia', createdAt: 20,
 }
 const activity: ActivityEntry = { id: 'ac-1', tripId: 'trip-1', actorId: 'priya', verb: 'upvoted a suggestion', at: 30 }

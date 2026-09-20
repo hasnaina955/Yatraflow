@@ -1,0 +1,31 @@
+-- ============================================================================
+-- I-7 — decision comments: the discussion a vote happens in
+-- ============================================================================
+-- StopSuggestion has carried comments since the group-input surfaces shipped
+-- (suggestions.comments, written by addCommentToSuggestion); TripDecision never
+-- got the column, so the debate behind a decision lived in whatever chat the
+-- group used outside the app. This adds decisions.comments with the same shape
+-- (Comment[] — id, authorId, text, createdAt; the vocabulary lives in
+-- src/data/types.ts, NOT in a CHECK constraint, matching every other migration
+-- in this directory — a rejected write is worse than an unrecognised value).
+--
+-- **Apply to the live project from the Dashboard SQL editor.** (The editor can
+-- run inside a read-only transaction on the free tier — if
+-- `cannot execute ... in a read-only transaction` appears, retry the statement;
+-- it is a single ALTER, safe to re-run.)
+--
+-- Pre-application behaviour: the store's capability probe
+-- (`decisionsHaveComments` in src/store/store.ts) reads the column as missing
+-- (PGRST204/42703), `decisionToRow` omits the key entirely, and a comment
+-- stays session-only — the old behaviour, not a new break. Once applied, the
+-- next session probes true and comments persist. They then sync through the
+-- EXISTING decisions realtime channel (the table is already in the publication;
+-- comments ride on the row UPDATE, so no publication change is needed and
+-- reduceSlice's idempotent upsert handles the echo).
+--
+-- Nothing else changes: `comments` is a plain JSONB array defaulting to '[]',
+-- exactly like suggestions.comments, and rowToDecision reads `?? []` so a
+-- hand-edited or legacy row hydrates cleanly.
+-- ============================================================================
+
+alter table public.decisions add column if not exists comments jsonb not null default '[]'::jsonb;

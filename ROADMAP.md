@@ -397,12 +397,12 @@ the bank is a complete index of unbuilt work:
 | Track | Where | State |
 |---|---|---|
 | Public route at `/i/<id>` with no hash hop (option B) | [#226](#open-issues) | **Deferred.** The address-bar patch already keeps `/i/<id>#/pub/<id>` crawler-readable, so previews no longer need it. It would still drop the function round-trip on every refresh — and the interim "Opening this itinerary…" page that goes with it — by serving the app at the path the crawler already reads. Needs coordinated app routing, Vercel shell delivery, legacy hash-link handling and refresh/Back/Forward coverage; must not redirect `/i/<id>` to itself or fetch a different deployment's shell |
-| M5 — AI companion | [Strategic track](#m5--ai-companion-issues-22--20-the-next-feature-to-build) | Next up; issues #22 → #20 |
-| M6 — Together | [Strategic track](#m6--together-collaboration-depth) | RLS suite shipped (v0.61.0); co-editing depth on `test` (v0.62.0) |
-| M7 — Premium | [Strategic track](#m7--premium-monetization) | Blocked: needs a gateway account |
+| M5 — AI companion | [Strategic track](#m5--ai-companion--issue-236) | Next up; issues #22 → #20 |
+| M6 — Together | [Strategic track](#m6--together-collaboration-depth--issue-237) | RLS suite shipped (v0.61.0); co-editing depth on `test` (v0.62.0) |
+| M7 — Premium | [Strategic track](#m7--premium-monetization--issue-238) | Blocked: needs a gateway account |
 | M9 — Invites & onboarding | [`docs/PLAN-INVITES-ONBOARDING.md`](docs/PLAN-INVITES-ONBOARDING.md) | R1 → R2 → R3; exec plan written |
 | M10 — Day Planner (travel-clock engine) | [`docs/PLAN-DAY-PLANNER.md`](docs/PLAN-DAY-PLANNER.md) | Engine implemented through P1-G (Sep 13, 2026, per the plan doc’s §17 deltas); the map half — the travel clock drawn as living road labels (`lib/clockOverlay.ts`, 27 fixtures) — landed on `test` 2026-09-20 (**PR #262**, in `[Unreleased]`). Origin: fixes the short-trip suggestion silence (user feedback) and the 700-km-in-Day-1 gap — meals as fixed clock anchors, duration fatigue cap, derived drive days / night halts / defer proposals |
-| M8 → 1.0 | [Strategic track](#m8--10-enablers--the-10-cut) | Offline-first PWA, i18n EN+HI |
+| M8 → 1.0 | [Strategic track](#m8--10-enablers--the-10-cut--issue-239) | Offline-first PWA, i18n EN+HI |
 
 ### Shipped from these sources — record, not backlog
 

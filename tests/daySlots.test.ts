@@ -545,3 +545,42 @@ describe('defensive edges', () => {
     expect(slots[0].drift).toBeNull()
   })
 })
+
+describe('P2 fill-loop support (added with the rail)', () => {
+  it('a transport-hub stop claims the fuel slot', () => {
+    const slots = daySlots(0, base({
+      haltSegments: [sh(seg('fuel', { etaMinutes: 560 }), null)],
+      dayStops: [stop('s1', 'IndianOil pump', { category: 'transport-hub' })],
+    }))
+    expect(slots[0].key).toBe('fuel')
+    expect(slots[0].state).toBe('filled')
+    expect(slots[0].filledStop?.title).toBe('IndianOil pump')
+  })
+
+  it('the segment recommended place matching a stop title fills its slot', () => {
+    const slots = daySlots(0, base({
+      haltSegments: [sh(seg('meal', { etaMinutes: 735 }), hit('h1', 'Grand Hotel, Ernakulam'))],
+      dayStops: [stop('s1', 'Grand Hotel, Ernakulam')],
+    }))
+    expect(slots[0].state).toBe('filled')
+    expect(slots[0].filledStop?.id).toBe('s1')
+    expect(slots[0].candidates).toEqual([])
+  })
+
+  it('a food stop still fills the lunch slot the recommended-place way', () => {
+    const slots = daySlots(0, base({
+      haltSegments: [sh(seg('meal', { etaMinutes: 735 }), hit('h1', 'Grand Hotel'))],
+      dayStops: [stop('s1', 'grand hotel')],
+    }))
+    expect(slots[0].state).toBe('filled')
+  })
+
+  it('stay fill keeps working beside the new claims', () => {
+    const slots = daySlots(0, base({
+      haltSegments: [sh(seg('meal', { etaMinutes: 735 }), hit('h1', 'Grand Hotel')), sh(seg('overnight', { dayEnd: true }), null)],
+      dayStops: [stop('s1', 'grand hotel'), stop('s2', 'Backwater homestay', { category: 'hotel' })],
+    }))
+    expect(slots.find(s => s.key === 'lunch')?.state).toBe('filled')
+    expect(slots.find(s => s.key === 'stay')?.state).toBe('filled')
+  })
+})

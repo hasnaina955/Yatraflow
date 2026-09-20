@@ -5963,3 +5963,107 @@ html.native-shell {
 .poi-facts-meta i { font-style: normal; color: var(--line); }
 /* The drift prompt and the rest of the in-card chips stop drawing boxes. */
 .poi-plan-row .poi-desc .chip-sm { border-color: transparent; background: transparent; text-decoration: underline; text-underline-offset: 3px; }
+
+/* ================= P2: the day's plan (slots rail) + ledger extras ================= */
+/* Appended per the append-only guardrail: new selectors only, motion tokens
+   only, no baselined line touched. Composes with the existing rail shell. */
+.slots-daystrip {
+  display: flex; gap: 4px; flex-wrap: wrap; margin: 2px 2px 8px;
+}
+.slots-daychip {
+  border: 1px solid var(--line); background: var(--card); color: var(--text-2);
+  border-radius: 999px; font-size: 11.5px; font-weight: 600;
+  padding: 4px 11px; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 5px;
+  transition: background var(--t-fast) var(--ease-out), color var(--t-fast) var(--ease-out), border-color var(--t-fast) var(--ease-out);
+}
+.slots-daychip:hover { background: var(--teal-soft); color: var(--teal-deep); }
+.slots-daychip.is-on { background: var(--teal-soft); border-color: var(--teal-deep); color: var(--teal-deep); }
+.slots-daychip-rd { font-size: 9.5px; font-weight: 700; opacity: .78; font-variant-numeric: tabular-nums; }
+.slots-daychip:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--focus-ring, rgba(228, 174, 67, .55)); }
+
+.slots-meter { display: flex; gap: 4px; align-items: center; margin: 0 2px 9px; }
+.slots-meter i { width: 22px; height: 5px; border-radius: 3px; background: var(--line); transition: background var(--t-fast) var(--ease-out); }
+.slots-meter i.is-filled { background: var(--teal); }
+.slots-meter i.is-auto { background: color-mix(in srgb, var(--teal) 35%, var(--line)); }
+.slots-meter i.is-empty { background: var(--line); }
+.slots-meter-lbl { margin-left: 6px; font-size: 10px; letter-spacing: .04em; text-transform: uppercase; font-weight: 700; color: var(--text-3); font-variant-numeric: tabular-nums; }
+
+.slots-list { display: flex; flex-direction: column; gap: 6px; padding: 2px 2px 6px; }
+
+.day-slot {
+  border-radius: 12px; border: 1px solid var(--line); background: var(--card);
+  transition: border-color var(--t-fast) var(--ease-out);
+}
+.day-slot.is-empty { border-color: color-mix(in srgb, var(--warn) 38%, var(--line)); }
+.day-slot.is-open { border-color: var(--teal); box-shadow: 0 6px 18px rgba(16, 46, 75, .08); }
+.day-slot.is-auto { background: transparent; border-style: dashed; }
+.day-slot:focus-within { box-shadow: 0 0 0 3px var(--focus-ring, rgba(228, 174, 67, .55)); }
+
+.day-slot-top {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  padding: 8px 10px; text-align: left;
+}
+button.day-slot-top { background: none; border: 0; cursor: pointer; font: inherit; color: inherit; border-radius: 12px; }
+.day-slot-st {
+  flex: none; width: 18px; height: 18px; border-radius: 50%;
+  display: grid; place-items: center; font-size: 10px; font-weight: 800;
+  border: 1.5px solid var(--line); color: transparent; background: var(--card);
+}
+.day-slot.is-filled .day-slot-st { background: var(--teal-soft); border-color: var(--teal); color: var(--teal-deep); }
+.day-slot.is-auto .day-slot-st { border-style: dashed; border-color: var(--text-3); }
+.day-slot.is-empty .day-slot-st { border-color: var(--warn); }
+.day-slot-lab { font-size: 12px; font-weight: 700; }
+.day-slot.is-auto .day-slot-lab { color: var(--text-3); font-weight: 600; }
+.day-slot.is-filled .day-slot-lab { color: var(--text-2); }
+.day-slot-win { font-size: 10px; color: var(--text-3); letter-spacing: .03em; text-transform: uppercase; font-weight: 600; font-variant-numeric: tabular-nums; }
+.day-slot-urgent { flex: none; font-size: 10px; font-weight: 700; color: var(--warn); }
+.day-slot-val { margin-left: auto; font-size: 11px; color: var(--text-2); text-align: right; max-width: 55%; font-variant-numeric: tabular-nums; }
+.day-slot-val b { font-weight: 600; color: var(--text); }
+.day-slot-val small { display: block; color: var(--text-3); font-size: 10px; }
+
+.day-slot-cands {
+  margin: 0 10px 8px; border-top: 1px solid var(--line-2); padding-top: 6px;
+  animation: day-slot-drop var(--t-fast) var(--ease-out);
+}
+@keyframes day-slot-drop { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
+.day-slot-cand {
+  display: flex; align-items: center; gap: 8px; padding: 7px 0;
+  border-bottom: 1px solid var(--line-2);
+}
+.day-slot-cand:last-of-type { border-bottom: 0; }
+.day-slot-cand-nm { flex: 1; min-width: 0; }
+.day-slot-cand-nm b { display: block; font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.day-slot-cand-nm > span { font-size: 10.5px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.day-slot-fill {
+  flex: none; font-size: 11px; font-weight: 700; color: var(--teal-deep);
+  background: var(--teal-soft); border: 1px solid transparent; border-radius: 999px;
+  padding: 4px 11px; cursor: pointer;
+  transition: background var(--t-fast) var(--ease-out), color var(--t-fast) var(--ease-out);
+}
+.day-slot-fill:hover { border-color: var(--teal-deep); }
+.day-slot-fill:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--focus-ring, rgba(228, 174, 67, .55)); }
+
+/* The see-&-do rail's ledger spine: one object, rows hang off it. */
+.poi-plan-list.is-ledger { position: relative; }
+.ledger-spine {
+  position: absolute; left: 7px; top: 30px; bottom: 10px; width: 2px;
+  border-radius: 1px; background: color-mix(in srgb, var(--yf-poi-see) 30%, var(--line));
+}
+.ledger-lede { display: flex; flex-direction: column; padding: 0 2px 10px 20px; font-size: 12px; font-weight: 700; color: var(--yf-poi-see-ink); }
+.ledger-lede small { font-weight: 500; font-size: 10.5px; color: var(--text-3); }
+.poi-plan-list.is-ledger .poi-plan-row { position: relative; }
+.poi-plan-list.is-ledger .poi-plan-row::before {
+  content: ''; position: absolute; left: -13px; top: 50%; margin-top: -3px;
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--card); border: 2px solid var(--yf-poi-see);
+}
+.poi-plan-list.is-ledger .poi-grp { padding-left: 20px; }
+
+/* The no-slot empty-day fallback list (needs cards still renderable there). */
+.poi-plan-list.is-emptyday { border-top: 1px solid var(--line-2); padding-top: 8px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .day-slot-cands { animation: none; }
+  .slots-daychip, .slots-meter i, .day-slot, .day-slot-fill { transition: none; }
+}

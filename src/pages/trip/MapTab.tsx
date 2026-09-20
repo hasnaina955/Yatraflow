@@ -1,7 +1,7 @@
 // ============ Trip workspace — Map tab ============
 // Mechanical extraction from src/pages/TripWorkspace.tsx (M3.4) — no behavior changes.
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronDown, CircleCheck, ExternalLink, Fuel, Lightbulb, MapPin, Plus, RotateCcw, Sparkles, Star } from 'lucide-react'
+import { BedDouble, ChevronDown, CircleCheck, Coffee, ExternalLink, Fuel, Lightbulb, MapPin, Pause, Plus, RotateCcw, Sparkles, Star, Utensils } from 'lucide-react'
 import { uid } from '../../data/seed'
 import type { Trip, ItineraryStop } from '../../data/types'
 import type { ImpactResult } from '../../lib/impact'
@@ -22,6 +22,7 @@ import { isElectric } from '../../lib/vehicleProfile'
 import { planInputsHash } from '../../hooks/useSuggestionCache'
 import { railReasonChips, type RailChip } from '../../lib/railReasons'
 import { rulerMarks } from '../../lib/railRuler'
+import { daySlots, dayReadiness, SLOT_URGENCY_MIN, type DaySlot, type DaySlotsDeps } from '../../lib/daySlots'
 import { addDecision, deleteStop, restoreStop } from '../../store/store'
 import { dayDetourBudgetMin, budgetSharePct, splitByDetourBudget } from '../../lib/detourBudget'
 import { quotaUsed, SOFT_CAPS } from '../../lib/providers/quota'
@@ -180,6 +181,8 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
   // Fold-to-spines: either rail can step back to a 48px spine so the map gains
   // the room. Session state on purpose - a layout whim should not persist.
   const [folded, setFolded] = useState<{ needs: boolean; see: boolean }>({ needs: false, see: false })
+  // P2: the day the plan rail reads. Day 1 by default; the strip's chips switch it.
+  const [activeDayIndex, setActiveDayIndex] = useState(0)
   // In-map place search (§6.5): a free-text query over the provider facade,
   // plus the results to add straight from the Map tab.
   const [searchQ, setSearchQ] = useState('')
@@ -695,6 +698,54 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     toast(`“${hit.name}” added to Day ${dayIndex + 1}`)
   }
 
+  /** P2: fill one empty part of the day with a candidate. The stop id is
+   *  minted here so Undo can delete exactly what was added (addPoiToDay's
+   *  own undo hooks into toasts we do not own). Coord resolution stays. */
+  async function fillSlot(slot: DaySlot, hit: PlaceHit) {
+    const dayIdx = activeDayIndex
+    const pinned = await requireHitCoords(hit)
+    if (!pinned) { toast(`Could not pin "${hit.name}" on the map - not added. Try another suggestion.`); return }
+    const stopId = 'pending_' + Math.random().toString(36).slice(2)
+    applyChange(draft => {
+      const day = draft.days.find(d => d.index === dayIdx)
+      if (!day) return
+      const stop = {
+        id: stopId,
+        title: hit.name,
+        category: (hit.category as ItineraryStop['category']) ?? 'sightseeing',
+        locationName: hit.description ?? hit.name,
+        placeId: pinned.placeId,
+        lat: pinned.latitude,
+        lng: pinned.longitude,
+        description: hit.description ?? '',
+        notes: 'Filled from the day plan',
+        visitMinutes: poiVisitMinutes(hit.category),
+        openTime: hit.openTime ?? '', closeTime: hit.closeTime ?? '',
+        entryFeeInrPerPerson: 0,
+        transportCostInrTotal: 0,
+        priority: 'nice-to-have',
+        sourceUrl: '',
+        status: 'suggested',
+        orderInDay: day.stops.length,
+      } as ItineraryStop
+      day.stops.push(stop)
+    }, 'add', dayIdx)
+    setAddedIds(prev => new Set(prev).add(hit.id as string))
+    // #143: an overnight fill pins the halt, same as addPoiToDay's rule.
+    if (hit.haltPurpose === 'overnight') {
+      const ordinals = pois
+        .filter(x => x.segment.purpose === 'overnight')
+        .sort((a, b) => a.segment.targetKm - b.segment.targetKm)
+        .findIndex(x => x.segment.index === slot.segment?.index)
+      if (ordinals >= 0) saveHaltPin(trip.id, ordinals, slot.segment?.targetKm ?? 0)
+    }
+    undoToast(`${hit.name} fills ${slot.label} on Day ${dayIdx + 1}`, () => {
+      deleteStop(trip.id, stopId)
+      suggestionCache.clearMap()
+      setRefreshTick(t => t + 1)
+    })
+    setOpenSlotKey(null)
+  }
   function openAddModal(hit: PlaceHit) {
     // Pick-day default: an unknown position can't preselect honestly, so fall
     // back to the first day — the picker is user-adjustable, so nothing is
@@ -954,6 +1005,32 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     }
     return { all, byPurpose, byCategory }
   }, [pois, dismissedIds, addedIds, existingNames, anchors])
+
+  // ---- P2: the day's plan (slots rail) ----
+  // One derivation feeds the rail, the meter and the fill flow: slots derive
+  // from engine output alone (src/lib/daySlots.ts), so the view can never
+  // drift from the engine. stopSig/refreshTick keep the memo honest against
+  // store writes; the deps memo carries the expensive shared inputs.
+  const daySlotSig = `${stopSig}|${refreshTick}|${dismissedIds.size}|${shortlist.length}`
+  const daySlotDeps = useMemo<Omit<DaySlotsDeps, 'dayStops'>>(() => ({
+    haltSegments: pois,
+    anchors,
+    routePolyline: routePolyline ?? null,
+    transportMode: trip.transportMode,
+    travelStyle: trip.travelStyle,
+    existingNames,
+    altPool: altPool.all.map(e => e.h),
+  }), [pois, anchors, routePolyline, trip.transportMode, trip.travelStyle, existingNames, altPool])
+  const activeDaySlots = useMemo<DaySlot[]>(
+    () => daySlots(activeDayIndex, { ...daySlotDeps, dayStops: trip.days.find(d => d.index === activeDayIndex)?.stops ?? [] }),
+    [activeDayIndex, daySlotDeps, trip, daySlotSig],
+  )
+  const activeDayReadiness = useMemo(
+    () => dayReadiness(activeDayIndex, { ...daySlotDeps, dayStops: trip.days.find(d => d.index === activeDayIndex)?.stops ?? [] }),
+    [activeDayIndex, daySlotDeps, trip, daySlotSig],
+  )
+  const [openSlotKey, setOpenSlotKey] = useState<string | null>(null)
+
 
   /** One corridor-suggestion row (gap or hit). Shared by both split columns. */
   // Group need halts by purpose, keeping engine order. The header label comes
@@ -1470,10 +1547,10 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
             <div className="poi-col-head">
               <span className="poi-col-head-ico"><Fuel size={13} aria-hidden /></span>
               <div>
-                <b>Need-based halts</b>
+                <b>The day's plan</b>
                 <span className="small muted">{needs.length === 0 ? 'fuel · food · rest · stretch · overnight' : `${needs.length} halts on this corridor`}</span>
               </div>
-              <span className="poi-col-count">{needsForRail.length}</span>
+              <span className="poi-col-count">{activeDaySlots.length > 0 ? `${activeDayReadiness.filled}/${activeDayReadiness.total}` : needsForRail.length}</span>
               <button
                 type="button"
                 className="poi-fold"
@@ -1485,29 +1562,120 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
                 <ChevronDown size={13} aria-hidden />
               </button>
             </div>
-            <div className="poi-ruler" aria-hidden>
-              <span className="poi-ruler-axis" />
-              {needMarks.map(m => (
-                <span key={m.id} className={`poi-ruler-dot poi-ruler-dot--${m.tone}`} style={{ left: `${m.pct}%` }} />
-              ))}
-              <span className="poi-ruler-km">{Math.round(planKm)} km</span>
+            <div className="slots-daystrip" role="tablist" aria-label="Which day to plan">
+              {trip.days.map(d => {
+                const r = dayReadiness(d.index, { ...daySlotDeps, dayStops: d.stops })
+                return (
+                  <button
+                    key={d.index}
+                    type="button"
+                    role="tab"
+                    aria-selected={d.index === activeDayIndex}
+                    className={'slots-daychip' + (d.index === activeDayIndex ? ' is-on' : '')}
+                    onClick={() => { setActiveDayIndex(d.index); setOpenSlotKey(null) }}
+                  >
+                    Day {d.index + 1} <span className="slots-daychip-rd">{r.filled}/{r.total}</span>
+                  </button>
+                )
+              })}
             </div>
-            <div className="poi-plan-list">
-              {needsForRail.length === 0
-                ? <p className="muted small">{quotaOut
-                  ? 'Google search quota reached — need-based halts are paused until the counter rolls over.'
-                  : 'No need-based halts surfaced yet — they appear as you add driving days.'}</p>
-                : groupByPurpose(needsForRail).map(([label, items]) => (
-                    <div key={label}>
-                      <div className="poi-grp">
-                        <span className="poi-grp-k">{label}</span>
-                        <span className="poi-grp-n">{items.length}</span>
-                        <span className="poi-grp-ln" />
-                      </div>
-                      {items.map(renderPoi)}
+            {activeDaySlots.length > 0 && (
+              <div className="slots-meter" role="status" aria-label={`Day ${activeDayIndex + 1}: ${activeDayReadiness.filled} of ${activeDayReadiness.total} parts of the day planned`}>
+                {activeDaySlots.map(s => (
+                  <i key={s.key} className={s.state === 'filled' ? 'is-filled' : s.state === 'auto' ? 'is-auto' : 'is-empty'} />
+                ))}
+                <span className="slots-meter-lbl">{activeDayReadiness.filled} of {activeDayReadiness.total} planned{activeDayReadiness.auto > 0 ? ` · ${activeDayReadiness.auto} auto` : ''}</span>
+              </div>
+            )}
+            {activeDaySlots.length === 0 ? (
+              <div className="poi-plan-list is-emptyday">
+                <p className="muted small">{quotaOut
+                  ? 'Google search quota reached - the day plan is paused until the counter rolls over.'
+                  : needs.length === 0
+                    ? 'No driving plan yet - the day takes shape as you add driving days.'
+                    : `Nothing to plan on Day ${activeDayIndex + 1} - pick another day above.`}</p>
+                {needsForRail.length > 0 && groupByPurpose(needsForRail).map(([label, items]) => (
+                  <div key={label}>
+                    <div className="poi-grp">
+                      <span className="poi-grp-k">{label}</span>
+                      <span className="poi-grp-n">{items.length}</span>
+                      <span className="poi-grp-ln" />
                     </div>
-                  ))}
-            </div>
+                    {items.map(renderPoi)}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="slots-list">
+                {activeDaySlots.map(slot => {
+                  const isOpen = openSlotKey === slot.key
+                  const urgent = slot.state === 'empty' && slot.urgencyMin != null && slot.urgencyMin <= SLOT_URGENCY_MIN
+                  return (
+                    <div
+                      key={slot.key}
+                      className={'day-slot' + (slot.state === 'filled' ? ' is-filled' : slot.state === 'auto' ? ' is-auto' : ' is-empty') + (isOpen ? ' is-open' : '') + (urgent ? ' is-urgent' : '')}
+                    >
+                      {slot.state === 'empty' ? (
+                        <button
+                          type="button"
+                          className="day-slot-top"
+                          aria-expanded={isOpen}
+                          onClick={() => setOpenSlotKey(prev => (prev === slot.key ? null : slot.key))}
+                        >
+                          <span className="day-slot-st" aria-hidden />
+                          <span className="day-slot-lab">{slot.label}</span>
+                          {slot.windowLabel && <span className="day-slot-win">{slot.windowLabel}</span>}
+                          {urgent && <span className="day-slot-urgent">closes {slot.windowLabel ? slot.windowLabel.slice(-5) : ''}</span>}
+                          <span className="day-slot-val">
+                            {slot.candidates.length > 0
+                              ? <>{slot.candidates.length} option{slot.candidates.length === 1 ? '' : 's'} · tap to compare</>
+                              : 'nothing planned · search the map to fill'}
+                          </span>
+                        </button>
+                      ) : (
+                        <div className="day-slot-top">
+                          <span className="day-slot-st" aria-hidden>{slot.state === 'filled' ? '\u2713' : ''}</span>
+                          <span className="day-slot-lab">{slot.label}</span>
+                          <span className="day-slot-win">{slot.windowLabel ?? ''}</span>
+                          <span className="day-slot-val">
+                            {slot.state === 'filled'
+                              ? <b>{slot.filledStop?.title ?? slot.segment?.label ?? 'Planned'}</b>
+                              : <small>{slot.reason ?? 'Engine-managed'}</small>}
+                          </span>
+                        </div>
+                      )}
+                      {slot.state === 'empty' && isOpen && (
+                        <div className="day-slot-cands">
+                          {slot.candidates.map(c => (
+                            <div key={String(c.hit.id)} className="day-slot-cand">
+                              <span className="day-slot-cand-nm">
+                                <b>{c.hit.name}</b>
+                                <span>
+                                  +{Math.round(c.detourMin)} min
+                                  {c.arriveLabel ? ` · arrive ${c.arriveLabel}` : ''}
+                                  {c.budgetSharePct > 0 ? ` · ${c.budgetSharePct}% of day detours` : ' · on route'}
+                                  {c.reason ? ` · ${c.reason}` : ''}
+                                </span>
+                              </span>
+                              <button
+                                type="button"
+                                className="day-slot-fill"
+                                onClick={() => { void fillSlot(slot, c.hit) }}
+                              >Fill</button>
+                            </div>
+                          ))}
+                          {slot.candidates.length === 0 && (
+                            <p className="muted small" style={{ margin: '4px 0 0' }}>
+                              No candidates in reach{slot.windowLabel ? ` inside ${slot.windowLabel}` : ''} - add one on the Timeline, or search the map.
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
           </div>
           <div className="map-ideas-map">
             <TripMap
@@ -1552,7 +1720,9 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
               ))}
               <span className="poi-ruler-km">{Math.round(planKm)} km</span>
             </div>
-            <div className="poi-plan-list">
+            <div className="poi-plan-list is-ledger">
+              <span className="ledger-spine" aria-hidden />
+              <p className="ledger-lede">The spine is the drive<small>Pick positions on the rail match the pins on the map</small></p>
               {!filterActive && arcs.slice(0, 2).length > 0 && (
                 <div className="poi-grp">
                   <span className="poi-grp-k">Route arcs</span>
@@ -1666,7 +1836,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
                 : (
                     <>
                       <div className="poi-grp">
-                        <span className="poi-grp-k">Individual picks</span>
+                        <span className="poi-grp-k">The corridor's picks</span>
                         <span className="poi-grp-n">{seeForRail.length}</span>
                         <span className="poi-grp-ln" />
                       </div>

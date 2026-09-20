@@ -257,6 +257,17 @@ function fillStopFor(
     }
   }
 
+  // Pass 1b - fuel: a transport-hub stop claims it. Fuel has no clock
+  // window, so category is the only honest claim.
+  const fuelDraft = drafts.find(d => d.kind === 'fuel')
+  if (fuelDraft) {
+    const pick = takeLatest(active.filter(s => !claimed.has(String(s.id)) && s.category === 'transport-hub'))
+    if (pick) {
+      claims.set(fuelDraft.key, pick)
+      claimed.add(String(pick.id))
+    }
+  }
+
   // Pass 2 - stay: the hotel-category stop claims it.
   const stayDraft = drafts.find(d => d.kind === 'overnight')
   if (stayDraft) {

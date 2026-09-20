@@ -3,7 +3,7 @@
 // day columns float above it for kanban-style cross-day rearrangement. Every
 // change routes through the same applyChange → impact-preview flow as the
 // Timeline, so nothing persists without its consequence visible first.
-import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   ArrowLeft, ChevronDown, ChevronUp, LocateFixed, Map as MapIcon, MoveHorizontal,
   Plus, Trash2, TriangleAlert,
@@ -21,6 +21,8 @@ import { useReorder, Modal } from './ui'
 import { glideOffsetPx, insertionIndexFor, rowLayoutBoxes, cancelRowSettle, cancelListSettles, settleRow } from '../lib/touchDnd'
 import { TripMap } from './TripMap'
 import { StopEditor, type StopFormValues } from './StopEditor'
+import { useStopConflict } from './useStopConflict'
+import { RemoteEditBanner } from './RemoteEditBanner'
 
 export function BoardView({ trip, editable, applyChange, health, totals, onOpenOverview }: {
   trip: Trip
@@ -111,6 +113,14 @@ export function BoardView({ trip, editable, applyChange, health, totals, onOpenO
   /** Add/edit stop editor, opened from the header button or a day column's
       add-zone. Same form, same save path as the Timeline's. */
   const [editorTarget, setEditorTarget] = useState<StopEditorTarget>(null)
+  // ---- M6 B3 · remote-edit conflict surfacing — the Board opens the SAME
+  // StopEditor modal as the Timeline, so a crew member editing from here gets
+  // the same amber keep-mine/take-theirs banner when a remote save lands
+  // mid-edit (previously this surface edited stale data with no banner at all).
+  const conflictState = useStopConflict(trip, editorTarget)
+  const openEditorTarget = useCallback((next: StopEditorTarget) => {
+    conflictState.openEditor(next, setEditorTarget)
+  }, [conflictState.openEditor])
   function handleSave(v: StopFormValues) {
     if (!editorTarget) return
     const { legFromSource: _drop, ...legFields } = v
@@ -155,7 +165,7 @@ export function BoardView({ trip, editable, applyChange, health, totals, onOpenO
                 ? <><ArrowLeft size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Back to cards</>
                 : <><MapIcon size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />View map</>}
             </button>
-            <button className="btn btn-primary btn-sm" onClick={() => setEditorTarget({ mode: 'add', dayIndex: focusedDay === 'all' ? 0 : focusedDay })}>
+            <button className="btn btn-primary btn-sm" onClick={() => openEditorTarget({ mode: 'add', dayIndex: focusedDay === 'all' ? 0 : focusedDay })}>
               <Plus size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Add a stop
             </button>
           </div>
@@ -212,8 +222,8 @@ export function BoardView({ trip, editable, applyChange, health, totals, onOpenO
               onMoveStopIn={handleMoveStopInto}
               onReorder={reorderWithinDay}
               onDelete={handleDelete}
-              onAdd={() => setEditorTarget({ mode: 'add', dayIndex: day.index })}
-              onEdit={(stopId) => setEditorTarget({ mode: 'edit', stopId })} />
+              onAdd={() => openEditorTarget({ mode: 'add', dayIndex: day.index })}
+              onEdit={(stopId) => openEditorTarget({ mode: 'edit', stopId })} />
           ))}
         </div>
       </div>
@@ -223,12 +233,19 @@ export function BoardView({ trip, editable, applyChange, health, totals, onOpenO
           it the same prefill and leg context. */}
       <StopEditor
         open={!!editorTarget}
-        onClose={() => setEditorTarget(null)}
+        onClose={() => { setEditorTarget(null); conflictState.clearConflict() }}
         initial={stopInitialValues(editorTarget, trip)}
-        resetKey={stopEditorKey(editorTarget)}
+        resetKey={stopEditorKey(editorTarget) + (conflictState.takeTheirsTick ? `:theirs-${conflictState.takeTheirsTick}` : '')}
         onSave={handleSave}
         dayLabel={editorTarget?.mode === 'add' ? `Day ${editorTarget.dayIndex + 1}` : undefined}
         legContext={stopLegContext(editorTarget, trip)}
+        banner={conflictState.conflict && editorTarget?.mode === 'edit' ? (
+          <RemoteEditBanner
+            byName={conflictState.conflictByName?.profile.name ?? ''}
+            onKeepMine={conflictState.keepMine}
+            onTakeTheirs={conflictState.takeTheirs}
+          />
+        ) : undefined}
       />
     </div>
   )

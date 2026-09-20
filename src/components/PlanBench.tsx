@@ -397,7 +397,7 @@ export function PlanBench() {
             </div>
           </div>
           <div className="bench-pair">
-            <div className="bench-block">
+            <div className="bench-block bench-mode-block">
               <span className="bench-eyebrow">Getting there</span>
               <div className="bench-mode-grid" role="group" aria-label="How you travel">
                 {BENCH_MODES.map(m => (

@@ -218,7 +218,7 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
         </div>
 
         {/* ---- Compact filter bar: budget / duration / sort ---- */}
-        <div className="card glass-soft" style={{ marginBottom: 22 }}>
+        <div className="card glass-soft explore-filterbar" style={{ marginBottom: 22 }}>
           <div className="explore-filters">
             <Select value={duration} onChange={v => { setDuration(v as never); syncUrl({ dur: v }) }} aria-label="Duration"
               options={[

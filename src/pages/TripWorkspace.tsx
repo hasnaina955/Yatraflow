@@ -13,6 +13,7 @@ import { buildRoadChain, measureRoadChain, correctionsFromLegs, type RoadStatus,
 import { computeImpact, type ImpactResult } from '../lib/impact'
 import { scrollBehavior } from '../lib/motion'
 import { Avatar, toast } from '../components/ui'
+import { useTripPresence } from '../hooks/useTripPresence'
 import { ImpactPreviewPanel } from '../components/ImpactPreview'
 import { useSuggestionCache } from '../hooks/useSuggestionCache'
 import { useTablist } from '../hooks/useTablist'
@@ -115,6 +116,11 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
   const role = me && trip ? roleOf(trip, me.id) : null
   const editable = canEdit(role)
 
+  // M6 B1 — who else is viewing this trip right now. Joins the presence
+  // room only when a signed-in user has the trip open; anon/public views
+  // stay out. Session-local state, never trip data.
+  const presence = useTripPresence(trip?.id ?? null, me, me?.profile.name ?? '')
+
   // ONE road measurement for the whole workspace (#188): the engine's leg
   // corrections and the Map tab's road view come from the same chain.
   const { corrections: legCorrections, road } = useTripRoad(trip)
@@ -129,6 +135,15 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
 
   // Pending change: a proposed plan held until the user keeps or discards it.
   const [pending, setPending] = useState<{ proposed: Trip; result: ImpactResult } | null>(null)
+
+  // Phase 3 (the living plan): a halt label on the map asks the timeline to open
+  // that day. One-shot signal — TimelineTab consumes it on mount, then the
+  // accordion is the user's again. The consumer clears it through the callback
+  // below: an unconsumed value would re-fire on every later mount of the tab
+  // (tab navigation) and leak into the NEXT trip's timeline, since this
+  // workspace component is not keyed by trip id.
+  const [timelineFocusDay, setTimelineFocusDay] = useState<number | null>(null)
+  const clearTimelineFocusDay = useCallback(() => setTimelineFocusDay(null), [])
 
   // Stable identity for applyChange (useCallback over the trip reference): it
   // flows into TimelineTab → DaySection props, and an unstable identity would
@@ -231,6 +246,18 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
               <span className="small" style={{ marginLeft: 8, opacity: .85 }}>
                 {(trip.members ?? []).length} member{(trip.members ?? []).length !== 1 ? 's' : ''}{role ? ` · you are ${role}` : ''}
               </span>
+              {presence.peers.length > 0 && (
+                <span className="presence-stack" aria-label={`${presence.peers.length} viewing now`}>
+                  {presence.peers.map(p => (
+                    <span key={p.sessionKey} className="presence-peer" tabIndex={0}
+                      aria-label={`${p.name} is viewing this trip now`}>
+                      <Avatar user={{ profile: { name: p.name } }} />
+                      <span className="presence-dot" aria-hidden="true" />
+                      <span className="presence-tip" role="tooltip">{p.name} · viewing now</span>
+                    </span>
+                  ))}
+                </span>
+              )}
             </div>
           </div>
           {editable && (
@@ -260,7 +287,7 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
       {tab === 'overview' && <OverviewTab trip={effective} editable={editable} onOpenDecisions={() => setTab('group')} onOpenTimeline={() => setTab('timeline')} onOpenMap={() => setTab('map')} onInvite={() => setTab('share')} health={health} totals={totals} />}
       {/* key: the timeline holds per-trip view state (open-day accordion) —
           remount it when the workspace switches trips (e.g. browser back/forward). */}
-      {tab === 'timeline' && <TimelineTab key={effective.id} trip={effective} editable={editable} applyChange={applyChange} legCorrections={legCorrections} suggestionCache={suggestionCache} onOpenBoard={() => setTab('board')} />}
+      {tab === 'timeline' && <TimelineTab key={effective.id} trip={effective} editable={editable} applyChange={applyChange} legCorrections={legCorrections} suggestionCache={suggestionCache} onOpenBoard={() => setTab('board')} focusDay={timelineFocusDay} onFocusConsumed={clearTimelineFocusDay} />}
       {tab === 'board' && (
         <React.Suspense fallback={<div className="container loading-block"><div className="spinner" />Loading board…</div>}>
           <BoardView trip={effective} editable={editable} applyChange={applyChange} health={health} totals={totals}
@@ -269,7 +296,7 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
       )}
       {tab === 'map' && (
         <React.Suspense fallback={<div className="container loading-block"><div className="spinner" />Loading map…</div>}>
-          <MapTab trip={effective} editable={editable} applyChange={applyChange} suggestionCache={suggestionCache} crewSuggestions={db.suggestions.filter(s => s.tripId === trip.id)} road={road} onOpenTimeline={() => setTab('timeline')} onOpenBoard={() => setTab('board')} />
+          <MapTab trip={effective} editable={editable} applyChange={applyChange} suggestionCache={suggestionCache} crewSuggestions={db.suggestions.filter(s => s.tripId === trip.id)} road={road} onOpenTimeline={() => setTab('timeline')} onOpenBoard={() => setTab('board')} onOpenDay={(dayIndex) => { setTimelineFocusDay(dayIndex); setTab('timeline') }} />
         </React.Suspense>
       )}
       {tab === 'group' && <GroupInputTab trip={effective} editable={editable} me={me} />}

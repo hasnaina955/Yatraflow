@@ -12,7 +12,7 @@ import {
   shouldBrowserNotify,
 } from './lib/browserNotifications'
 import type { Trip } from './data/types'
-import { useDb, currentUser, useUsers, useNotifications, useSessionUserId, logout, markAllNotificationsRead, tripById, joinViaInvite, duplicateTrip, init, resumeSync, useStoreReady, fetchSharedTrip, fetchTripByInviteCode } from './store/store'
+import { useDb, currentUser, useUsers, useNotifications, useSessionUserId, logout, markAllNotificationsRead, tripById, joinViaInvite, duplicateTrip, init, resumeSync, useStoreReady, fetchSharedTrip, fetchTripByInviteCode, collectUnclaimedCovers } from './store/store'
 import { Avatar, BrandMark, ToastZone, useClickOutside, toast } from './components/ui'
 import { BottomNav } from './components/BottomNav'
 import { PillNav } from './components/PillNav'
@@ -259,6 +259,15 @@ export default function App() {
     if (!ready) { const t = setTimeout(() => void hideSplash(), 2500); return () => clearTimeout(t) }
     void hideSplash()
   }, [ready])
+  // Collect any share-link cover still pointing at someone else's host. Taking
+  // ownership at publish time is a write-path fix, so rows published before it
+  // shipped — and any publish whose copy failed, which keeps the third-party URL
+  // by design — would otherwise keep pointing at Wikimedia forever. Idempotent:
+  // with nothing to collect it reads the cache and returns.
+  useEffect(() => {
+    if (!ready || !sessionUserId) return
+    void collectUnclaimedCovers().catch(() => {})
+  }, [ready, sessionUserId])
   const bareRoute = parts[0] === undefined || parts[0] === ''
   // The web paints its landing instantly while the store hydrates (no spinner
   // in front of the marketing home). The shell never shows that page — not

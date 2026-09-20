@@ -126,6 +126,12 @@ Rationale: it sits below the guidebook and well below an agent consult, it is th
 modal price, and it is an impulse-scale amount that does not require deliberation. Do **not**
 raise it before measuring copy→pay — a price rise on an unmeasured funnel is unfalsifiable.
 
+> **Cited context (2026-09-18).** The comparable bands above now have external references:
+> $9/destination guides, $19–39 premium guides, $16.99–24.99 colour guidebooks — with source
+> strengths tagged — in `RESEARCH-2026-09-18-creator-market-and-paywall-value.md` §3, which
+> also adds two presentation anchors (per-day: "6 days · ₹83/day"; trip-cost: "~0.4% of what
+> the trip costs") that shift willingness-to-pay without changing the price.
+
 ### 3.3 Pricing the AI companion
 
 **The problem with the current version.** It is deterministic and grounded. Its answers cite
@@ -341,6 +347,10 @@ surface already exists.
 4. **Set the fee model** — replace `PROJECTED_PLATFORM_FEE_INR = 0`.
 5. **Switch on the existing unlock buttons** (two per page, already placed).
 6. **GST/TDS registration and invoicing** — see §4.2.
+7. **Post-unlock value presentation** — the unlock ceremony, owned library and
+   purchase share card (research §4; buildable as I-20/I-21). A buy that evaporates into
+   a regular trip list reads as money lost; one that lands as a visible owned product is
+   the cheapest conversion and word-of-mouth lever this stage has.
 
 **Revenue mechanics.** Revenue = `views × view→copy × copy→pay × ₹199 × 15%`, netting ₹25.30 per
 unlock **[DERIVED]**.

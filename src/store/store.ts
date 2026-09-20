@@ -17,12 +17,13 @@ import type { LatLngPoint } from '../data/types'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
 import { toast } from '../components/ui'
 import { isMissingColumnError, rowToTrip, tripToRow, type OptionalColumnsProbe, type TripRow } from '../lib/tripRow'
+import { ownSuggestedCover, unclaimedCovers } from '../lib/coverUpload'
 import { makeInviteCode, normalizeInviteCode } from '../lib/inviteCode'
 import { suggestionToRow, decisionToRow, activityToRow, notificationToRow, publishedToRow } from '../lib/restoreRows'
-import { reduceSlice, applyMemberChange, isRecentLocalWrite } from '../lib/realtimeCore'
+import { reduceSlice, applyMemberChange, isRecentLocalWrite, isStaleServerRow } from '../lib/realtimeCore'
 import { MISSING_BACKEND_MESSAGE, describeAuthFailure } from '../lib/authErrors'
 import { adminFromSession, clearAdminCache, isAdminCached } from '../lib/adminSession'
-import type { RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/supabase-js'
+import type { RealtimeChannel, RealtimePostgresChangesPayload, SupabaseClient } from '@supabase/supabase-js'
 
 // In-memory cache — the synchronous snapshot the UI reads. No localStorage.
 interface DB {
@@ -371,10 +372,7 @@ export function init(): void {
         const pubRows = mapOrSkip((pubRes.data ?? []), rowToPublished)
         if (profRes.error) { console.error('[yatraflow] hydrate profiles failed', profRes.error) }
         if (pubRes.error) { console.error('[yatraflow] hydrate published failed', pubRes.error) }
-        // The catalog has no backing trips in this cache — an empty valid-set
-        // made dedupePublished discard EVERY row as an "orphan". The rows' own
-        // tripIds are the valid set for the public gallery.
-        patch({ users, trips: [], suggestions: [], decisions: [], activity: [], notifications: [], published: dedupePublished(pubRows, new Set(pubRows.map(r => r.tripId))), adminAudit: [], sessionUserId: null, ready: true })
+        patch({ users, trips: [], suggestions: [], decisions: [], activity: [], notifications: [], published: dedupePublished(pubRows), adminAudit: [], sessionUserId: null, ready: true })
         commit()
       } catch (e) {
         console.error('[yatraflow] anonymous hydration failed', e)
@@ -565,28 +563,6 @@ async function hydrateFromSupabase(userId: string, gen: number, seedIfEmpty = tr
     const pubRows = mapOrSkip((pubRes.data ?? []), rowToPublished)
     if (pubRes.error) { console.error('[yatraflow] hydrate published failed', pubRes.error); partial.push('suggested itineraries') }
 
-    // Explore shows OTHER creators' itineraries too, and forking needs the
-    // underlying trip. The old dedupe call passed only the user's own trip ids,
-    // so every foreign publication was discarded as an "orphan". Fetch the
-    // catalog trips (members via the same trip_members table).
-    const pubTripIds = [...new Set(pubRows.map(r => r.tripId))]
-    const missingPubIds = pubTripIds.filter(id => !tripList.some(t => t.id === id))
-    let catalogTrips: Trip[] = []
-    if (missingPubIds.length > 0) {
-      const [catTripsRes, catMemRes] = await Promise.all([
-        supabase.from('trips').select('*').in('id', missingPubIds),
-        supabase.from('trip_members').select('*').in('trip_id', missingPubIds),
-      ])
-      if (catTripsRes.error) { console.error('[yatraflow] hydrate catalog trips failed', catTripsRes.error); partial.push('catalog trips') }
-      else {
-        const catMemRows = (catMemRes.data ?? []) as MemberRow[]
-        catalogTrips = mapOrSkip((catTripsRes.data ?? []) as TripRow[], rawRow => {
-          const row = rawRow as TripRow
-          return rowToTrip(row, catMemRows.filter(m => m.trip_id === row.id).map(m => ({ userId: m.user_id, role: m.role, joinedAt: m.joined_at })))
-        })
-      }
-    }
-
     // Stale run — a sign-out or account switch bumped hydrateGen while these
     // queries were in flight. Writing now would leak the previous account's rows
     // (and its sessionUserId) into the new session, so drop the whole patch.
@@ -599,7 +575,13 @@ async function hydrateFromSupabase(userId: string, gen: number, seedIfEmpty = tr
     // and let the partial-load toast explain what happened instead.
     const tripsRead = tripsReadFailed && cache.trips.some(t => t.members?.some?.(m => m.userId === userId))
       ? undefined
-      : [...tripList, ...catalogTrips]
+      : tripList
+
+    // B2: seed the server-clock ledger with every server-applied trip row —
+    // hydration is the definition of "server-applied" (see
+    // serverTripTimestamps above for why the guard must read this and not
+    // Trip.updatedAt).
+    for (const t of tripList) recordServerTripTimestamp(t.id, t.updatedAt)
 
     patch({
       users,
@@ -609,9 +591,18 @@ async function hydrateFromSupabase(userId: string, gen: number, seedIfEmpty = tr
       activity,
       notifications,
       adminAudit,
-      // De-dupe / drop orphan published rows left by earlier buggy seeds (the
-      // publishItinerary path mints a fresh id each call - many rows per tripId).
-      published: dedupePublished(pubRows, new Set([...tripList, ...catalogTrips].map(t => t.id))),
+      // De-dupe published rows left by earlier buggy seeds (the publishItinerary
+      // path used to mint a fresh trip id on every call — many rows per
+      // itinerary).
+      //
+      // Deliberately NOT gated on trip visibility. Explore is a catalog of OTHER
+      // creators' itineraries, and the paywall hardening makes their trip rows
+      // unreadable to a non-member on purpose — gating on that emptied the
+      // gallery for every signed-in visitor while the same person logged out saw
+      // all of it. The trip behind a publication is read through
+      // `get_public_trip` (the public page and the fork path both do), and the
+      // row cascades away with its trip, so a publication stands on its own.
+      published: dedupePublished(pubRows),
       sessionUserId: userId,
     })
     commit()
@@ -700,6 +691,7 @@ function rowToDecision(row: unknown): TripDecision {
   return {
     id: r.id, tripId: r.trip_id, question: r.question, context: r.context,
     options: r.options ?? [], votesByUserId: r.votes_by_user_id ?? {}, status: r.status,
+    comments: r.comments ?? [],
     resolvedOptionId: r.resolved_option_id, raisedBy: r.raised_by, createdAt: r.created_at, resolvedAt: r.resolved_at,
   }
 }
@@ -726,14 +718,24 @@ function rowToPublished(row: unknown): PublishedItinerary {
 /** De-duplicate published itineraries read from Supabase. Earlier buggy seeds
  *  minted a fresh trip UUID on EVERY run, so each run's published rows carried
  *  a DIFFERENT tripId — a tripId-only dedup couldn't merge them, which flooded
- *  Explore with duplicates. Key by the stable itinerary identity (title +
- *  start location) instead, and drop orphans whose underlying trip no longer
- *  exists, so exactly one card per itinerary survives. */
-function dedupePublished(rows: PublishedItinerary[], validTripIds: Set<string>): PublishedItinerary[] {
+ *  Explore with duplicates. Key by the stable itinerary identity (creator,
+ *  title and start location) instead, so exactly one card per itinerary
+ *  survives — the creator being part of the key is what keeps two people's
+ *  same-named route from collapsing into one card.
+ *
+ *  There is deliberately no "is the underlying trip visible to me?" test. A
+ *  publication is not a view of a trip row — it is the public artifact the
+ *  preview handler, the public page and Explore all serve — and the database
+ *  already ties it to its trip for life (`published_itineraries.trip_id ... on
+ *  delete cascade`), so a deleted trip cannot leave a stray card behind.
+ *  Filtering on the viewer's readable trip ids instead hid the whole shelf from
+ *  every signed-in non-member, because the paywall hardening
+ *  (20260918_payments_security.sql) makes those trips unreadable on purpose,
+ *  while the same person logged out saw every card. */
+function dedupePublished(rows: PublishedItinerary[]): PublishedItinerary[] {
   const byKey = new Map<string, PublishedItinerary>()
   for (const r of rows) {
-    if (!validTripIds.has(r.tripId)) continue // orphan — underlying trip was deleted
-    const key = `${r.title}::${Array.isArray(r.routeSummary) ? (r.routeSummary[0] ?? '') : ''}`
+    const key = `${r.creatorId}::${r.title}::${Array.isArray(r.routeSummary) ? (r.routeSummary[0] ?? '') : ''}`
     const prev = byKey.get(key)
     if (!prev || (r.publishedAt ?? 0) >= (prev.publishedAt ?? 0)) byKey.set(key, r)
   }
@@ -793,6 +795,7 @@ export async function fetchSharedTrip(tripId: ID, allowInvitePreview = false): P
   }
   if (!row) return null
   const trip = rowToTrip(row, [])
+  recordServerTripTimestamp(trip.id, trip.updatedAt)
   if (!cache.trips.some(t => t.id === trip.id)) {
     cache.trips = [...cache.trips, trip]
     commit()
@@ -825,6 +828,7 @@ export async function fetchPublicTrip(pubId: string): Promise<Trip | null> {
   const rows = rpc.data as TripRow[] | null
   if (!Array.isArray(rows) || rows.length === 0) return null
   const trip = rowToTrip(rows[0], [])
+  recordServerTripTimestamp(trip.id, trip.updatedAt)
   if (!cache.trips.some(t => t.id === trip.id)) {
     cache.trips = [...cache.trips, trip]
     commit()
@@ -852,6 +856,7 @@ export async function fetchTripByInviteCode(code: string): Promise<Trip | null> 
   const rows = rpc.data as TripRow[] | null
   if (!Array.isArray(rows) || rows.length === 0) return null
   const trip = rowToTrip(rows[0], [])
+  recordServerTripTimestamp(trip.id, trip.updatedAt)
   if (!cache.trips.some(t => t.id === trip.id)) {
     cache.trips = [...cache.trips, trip]
     commit()
@@ -1096,6 +1101,33 @@ function publishedHaveRefreshedAt(): Promise<boolean> {
     })()
   }
   return refreshedAtProbe
+}
+
+// Same capability-probe idea for decisions.comments (20260920_decision_comments.sql):
+// databases created before that migration reject writes that mention the column,
+// so a comment would vanish on the next hydration until it is applied.
+let decisionCommentsProbe: Promise<boolean> | null = null
+let decisionCommentsWarned = false
+function decisionsHaveComments(): Promise<boolean> {
+  if (!isSupabaseConfigured) return Promise.resolve(false)
+  if (!decisionCommentsProbe) {
+    decisionCommentsProbe = (async () => {
+      try {
+        const { error } = await supabase.from('decisions').select('comments').limit(1)
+        if (!error) return true
+        if (isMissingColumnError(error)) {
+          if (!decisionCommentsWarned) {
+            console.warn('[yatraflow] decisions.comments missing — run supabase/migrations/20260920_decision_comments.sql; decision comments stay session-only until then.')
+            decisionCommentsWarned = true
+          }
+          return false
+        }
+      } catch { /* thrown transport error — treat like any transient failure */ }
+      decisionCommentsProbe = null // transient — re-check on the next call
+      return true
+    })()
+  }
+  return decisionCommentsProbe
 }
 
 async function persistTrip(trip: Trip, ownerId: ID): Promise<boolean> {
@@ -1561,9 +1593,12 @@ async function restoreTripData(trip: Trip, snap: TripSnapshot | null): Promise<v
   // Per-table on purpose: losing the activity feed must not also cost the user
   // their public link. Rows keep their original ids, and every child realtime
   // handler is an idempotent upsert keyed on id, so the echo cannot double-add.
+  // decisions.comments may not exist yet on a pre-migration database — the probe
+  // gate keeps the column out of the INSERT rather than failing the whole row.
+  const withDecisionComments = await decisionsHaveComments()
   const results = await Promise.all([
     restoreRows('suggestions', snap.suggestions.map(suggestionToRow)),
-    restoreRows('decisions', snap.decisions.map(decisionToRow)),
+    restoreRows('decisions', snap.decisions.map(d => decisionToRow(d, withDecisionComments))),
     restoreRows('activity', snap.activity.map(activityToRow)),
     restoreRows('notifications', snap.notifications.map(notificationToRow)),
     restoreRows('published_itineraries', snap.published.map(publishedToRow), true),
@@ -1643,6 +1678,9 @@ export async function fetchTrashedTrips(): Promise<void> {
   const { data, error } = await supabase.rpc('get_trashed_trips')
   if (error) { console.error('[yatraflow] trashed trips fetch failed', error); return }
   cache.trashedTrips = mapOrSkip((data ?? []) as unknown[], r => rowToTrip(r as TripRow, []))
+  // Trashed rows are server-applied too — a restored trip's guard must not
+  // compare a fresh remote UPDATE against a nonexistent ledger entry.
+  for (const t of cache.trashedTrips) recordServerTripTimestamp(t.id, t.updatedAt)
   commit()
 }
 
@@ -1720,13 +1758,13 @@ export function updateTrip(id: ID, patchFields: Partial<Trip>): boolean {
 // Bursty mutations — a drag-reorder firing reorderStop per move, settings
 // keystrokes, undo/redo chains — each used to issue its own row UPDATE. A
 // trailing-edge coalescer per trip id turns a burst into ONE write whose
-// snapshot is always the freshest cache state (read at fire time, not call
-// time). Deletes and member changes stay immediate (only persistTripField
-// debounces); the pagehide/visibilitychange hooks in init() flush pending
-// writes when the tab hides or closes so the trailing timer can't eat the
-// last edit.
+// snapshot is captured AT CALL TIME and never re-read. Snapshot-at-call matters:
+// if the timer re-read the cache at fire time, a REMOTE update landing inside
+// the debounce window would make the flush persist the REMOTE row and silently
+// discard the local edit that scheduled it (the exact failure B0 exists to
+// prevent).
 let TRIP_WRITE_DEBOUNCE_MS = 600
-const pendingTripWrites = new Map<ID, { timer: ReturnType<typeof setTimeout> }>()
+const pendingTripWrites = new Map<ID, { timer: ReturnType<typeof setTimeout>; trip: Trip }>()
 
 /** Test hook — 0 disables the debounce: writes issue immediately, as before. */
 export function _setTripWriteDebounceMs(ms: number): void {
@@ -1742,7 +1780,11 @@ export function _flushTripWrites(): void {
     if (!pending) continue
     clearTimeout(pending.timer)
     pendingTripWrites.delete(id)
-    void persistTripFieldNow(id, tripById(id))
+    // Persist the CAPTURED snapshot, not tripById(id) — see the coalescer note
+    // above: a remote update that landed while the write was pending must not
+    // be re-persisted over the local edit, and the local edit must not be
+    // lost by persisting the remote row.
+    void persistTripFieldNow(id, pending.trip)
   }
 }
 
@@ -1768,19 +1810,25 @@ function persistTripField(id: ID, t: Trip): void {
   // debounce but before the server round trip finishes is still suppressed.
   // (Re-arm happens again inside persistTripFieldNow at fire time.)
   markLocalWrite('trips', id)
+  // Capture the snapshot as a CLONE, not a reference: callers hand the live
+  // cached object, and the cache may swap or mutate it (remote row swap, a
+  // later edit) before the debounce fires. A shared reference let the pending
+  // write drift with the cache — the exact loss B0 exists to prevent.
+  const snapshot = structuredClone(t)
   if (TRIP_WRITE_DEBOUNCE_MS <= 0) {
-    void persistTripFieldNow(id, t)
+    void persistTripFieldNow(id, snapshot)
     return
   }
   const prev = pendingTripWrites.get(id)
   if (prev) clearTimeout(prev.timer)
   const timer = setTimeout(() => {
     pendingTripWrites.delete(id)
-    // Read the trip again at fire time: the pending snapshot may be several
-    // edits stale by now, and the cache always holds the newest state.
-    void persistTripFieldNow(id, tripById(id) ?? t)
+    // Persist the CAPTURED snapshot, never a re-read of tripById(id): the
+    // timer's re-read let a REMOTE update landing inside the debounce window
+    // be persisted over the local edit that scheduled this write (B0).
+    void persistTripFieldNow(id, snapshot)
   }, TRIP_WRITE_DEBOUNCE_MS)
-  pendingTripWrites.set(id, { timer })
+  pendingTripWrites.set(id, { timer, trip: snapshot })
 }
 
 // ---------------- Members & collaboration ----------------
@@ -1979,6 +2027,9 @@ export function moveStopBetweenDays(tripId: ID, stopId: ID, toDayIndex: number, 
       renumber(fromDraft)
     }
   }, opts)
+  // Write through like every sibling mutator (reorderStop, setStopStatus) —
+  // the mutateTrip cache edit alone vanished on the next reload (B0).
+  void persistTripField(tripId, tripById(tripId)!)
 }
 
 export function setStopStatus(tripId: ID, status: ItineraryStop['status'], stopId: ID): void {
@@ -1992,7 +2043,12 @@ export function setStopStatus(tripId: ID, status: ItineraryStop['status'], stopI
     const s = day.stops.find(x => x.id === stopId)!
     s.status = status
   }, { log: `marked “${before.title}” as ${status}`, target: `Day ${dayIdx + 1}` })
-  void persistTripField(tripId, t)
+  // Persist the POST-mutation cache reference. The old pre-mutation snapshot
+  // was only ever safe while the flush re-read the cache at fire time; since
+  // B0 the coalescer persists the call-time snapshot verbatim, so a stale
+  // reference here wrote the trip WITHOUT the new status (the flip reverted
+  // on the next hydration or collaborator sync).
+  void persistTripField(tripId, tripById(tripId)!)
 }
 
 function renumber(day: ItineraryDay): void {
@@ -2023,6 +2079,39 @@ export function updateExpense(tripId: ID, expenseId: ID, patch: Partial<Omit<Exp
   mutateTrip(tripId, draft => {
     draft.expenses = draft.expenses.map(x => x.id === expenseId ? { ...x, ...patch } : x)
   }, { touch: false })
+  void persistTripField(tripId, tripById(tripId)!)
+}
+
+/** M6 B4 — mark an expense line settled ("this one's sorted, stop counting
+ *  it"). Records who + when for the activity entry and the balances card.
+ *  Crew members with an editor role; viewer/commenter roles get a silent
+ *  no-op here, mirroring the rest of the mutation surface's gating. */
+export function markExpenseSettled(tripId: ID, expenseId: ID, by: ID): void {
+  const t = tripById(tripId)
+  if (!t || !t.expenses.some(x => x.id === expenseId)) return
+  const expense = t.expenses.find(x => x.id === expenseId)
+  if (!expense || expense.settled) return
+  const label = expense.label
+  mutateTrip(tripId, draft => {
+    draft.expenses = draft.expenses.map(x => x.id === expenseId ? { ...x, settled: { by, at: Date.now() } } : x)
+  }, { log: `marked “${label}” settled`, target: 'Budget' })
+  void persistTripField(tripId, tripById(tripId)!)
+}
+
+/** M6 B4 — the undo: reopen a settled line. */
+export function markExpenseUnsettled(tripId: ID, expenseId: ID): void {
+  const t = tripById(tripId)
+  if (!t) return
+  const expense = t.expenses.find(x => x.id === expenseId)
+  if (!expense?.settled) return
+  const label = expense.label
+  mutateTrip(tripId, draft => {
+    draft.expenses = draft.expenses.map(x => {
+      if (x.id !== expenseId) return x
+      const { settled: _drop, ...rest } = x
+      return rest
+    })
+  }, { log: `reopened “${label}”`, target: 'Budget' })
   void persistTripField(tripId, tripById(tripId)!)
 }
 
@@ -2090,6 +2179,27 @@ export function addCommentToSuggestion(tripId: ID, suggestionId: ID, authorId: I
   fire('suggestions', supabase.from('suggestions').update({ comments: sg.comments }).eq('id', suggestionId))
 }
 
+export function addCommentToDecision(tripId: ID, decisionId: ID, authorId: ID, text: string): void {
+  const dIdx = cache.decisions.findIndex(x => x.id === decisionId)
+  if (dIdx < 0 || !text.trim()) return
+  const d = structuredClone(cache.decisions[dIdx])
+  d.comments.push({ id: uid('cm'), authorId, text: text.trim(), createdAt: Date.now() })
+  cache.decisions = [...cache.decisions.slice(0, dIdx), d, ...cache.decisions.slice(dIdx + 1)]
+  addActivity(tripId, authorId, 'commented on a decision', d.question)
+  // Voters hear about it the same way suggestion voters do; the raiser is
+  // included so a comment on their own question still pings the other side.
+  for (const v of new Set([...Object.keys(d.votesByUserId), d.raisedBy])) {
+    if (v !== authorId) pushNotification(v, tripId, `${userName(authorId)} commented on “${d.question}”.`)
+  }
+  commit()
+  // The column ships in 20260920_decision_comments.sql: probe before writing so
+  // a pre-migration database keeps the comment session-only instead of firing a
+  // doomed UPDATE (the party-prefs degradation, same shape).
+  void decisionsHaveComments().then(ok => {
+    if (ok) fire('decisions', supabase.from('decisions').update({ comments: d.comments }).eq('id', decisionId))
+  })
+}
+
 /** Accept a suggestion: adds it to the timeline and closes the suggestion. */
 export function acceptSuggestionIntoTimeline(tripId: ID, suggestionId: ID): void {
   const sg = cache.suggestions.find(x => x.id === suggestionId)
@@ -2124,7 +2234,7 @@ export function addDecision(tripId: ID, d: Pick<TripDecision, 'question' | 'cont
     options: d.options.map(o => ({ ...o, id: uid('o') })),
     votes_by_user_id: {}, status: 'open', raised_by: cache.sessionUserId,
   }
-  cache.decisions = [...cache.decisions, { ...d, id, tripId, votesByUserId: {}, status: 'open', raisedBy: cache.sessionUserId, createdAt: Date.now(), options: row.options }]
+  cache.decisions = [...cache.decisions, { ...d, id, tripId, votesByUserId: {}, comments: [], status: 'open', raisedBy: cache.sessionUserId, createdAt: Date.now(), options: row.options }]
   addActivity(tripId, cache.sessionUserId, `raised decision “${d.question}”`, 'Decisions')
   // Notification parity with addSuggestion: the other members hear about new
   // group input too, not just suggestions.
@@ -2220,6 +2330,27 @@ export async function publishItinerary(pub: Omit<PublishedItinerary, 'id' | 'pub
     ? [...cache.published.slice(0, existingIdx), p, ...cache.published.slice(existingIdx + 1)]
     : [...cache.published, p]
   commit()
+  // Take ownership of an auto-suggested cover BEFORE the row is written, so the
+  // stored og:image never points at someone else's host. Wikimedia serves only
+  // the thumbnail buckets it has generated, and one live publication carried a
+  // 587 KB image at the width we ask for — 98% of the 600 KB ceiling WhatsApp
+  // documents. Our own re-encode of the same photo measured 78 KB, so this
+  // fixes the third-party dependency and the size together.
+  //
+  // Deliberately after the optimistic commit: the UI shows the publication at
+  // once and the copy happens behind it. A failure keeps the third-party URL,
+  // which is what publishing did before, so this can never block a publish.
+  const owned = await ownSuggestedCover(p.creatorId, p.coverImageUrl)
+  if (owned.owned && owned.url) {
+    p.coverImageUrl = owned.url
+    cache.published = cache.published.map(x => (x.id === p.id ? { ...x, coverImageUrl: owned.url } : x))
+    commit()
+    // Put the owned URL on the TRIP too. Publishing copies the trip's cover, so
+    // without this every re-publish would re-copy the same suggestion and mint
+    // another object — and the trip's own card would keep loading from
+    // Wikimedia, leaving the dependency in place on the app side.
+    updateTrip(p.tripId, { coverImageUrl: owned.url })
+  }
   // The Supabase row is the ONLY persistence for a publication — if this
   // upsert is rejected, the optimistic cache write makes it look published
   // until the next refresh silently wipes it. Surface the failure and roll
@@ -2254,6 +2385,75 @@ export async function publishItinerary(pub: Omit<PublishedItinerary, 'id' | 'pub
     fire('trips', supabase.from('trips').update({ visibility: 'public' }).eq('id', p.tripId))
   }
   return p
+}
+
+/** In-flight cover collection, so two callers (the app shell's post-hydrate
+ *  sweep and anything added later) share one pass instead of racing to copy and
+ *  upload the same image twice. */
+let coverSweep: Promise<number> | null = null
+
+/** Take ownership of any of MY publications that still preview with a
+ *  third-party image.
+ *
+ *  Publishing already copies an auto-suggested cover into our bucket, but that
+ *  is a write-path fix, not a migration: rows published before it shipped still
+ *  point at Wikimedia, and any publish whose copy failed — offline, a file the
+ *  wiki could not resolve, the 8-second timeout — deliberately kept the
+ *  third-party URL rather than fail the publish. Neither is visible in the app
+ *  (the page renders the photo either way), and both leave a share card at the
+ *  mercy of another host's uptime, terms and size.
+ *
+ *  This is the re-run for both. Idempotent by construction: the work list comes
+ *  from the data (`unclaimedCovers`), so a second pass over collected rows finds
+ *  nothing to do and costs nothing. Called after hydration for a signed-in user;
+ *  safe to call at any time, from anywhere.
+ *
+ *  Only the creator can collect a publication's cover — the bucket confines
+ *  writes to `<auth.uid()>/`, so another creator cannot take it and neither can
+ *  an admin, whose console holds no service key.
+ *
+ *  Deliberately silent and never throwing: this is housekeeping behind the
+ *  scenes, and nothing about it should interrupt browsing. Returns how many
+ *  covers were collected. */
+export async function collectUnclaimedCovers(): Promise<number> {
+  if (!isSupabaseConfigured) return 0
+  const userId = cache.sessionUserId
+  if (!userId) return 0
+  if (coverSweep) return coverSweep
+  coverSweep = (async () => {
+    let collected = 0
+    // Sequential on purpose: one image at a time keeps a backfill from
+    // competing with the page the user is actually looking at.
+    for (const pub of unclaimedCovers(cache.published, userId)) {
+      const suggestion = pub.coverImageUrl
+      const owned = await ownSuggestedCover(userId, suggestion)
+      if (!owned.owned || !owned.url) continue
+      // The ROW is persisted first. A cover that only ever reached the cache
+      // would be back on Wikimedia after a reload — which is exactly the bug the
+      // cover column itself shipped with, and the reason a collected cover is
+      // not a local optimization.
+      const { error } = await supabase.from('published_itineraries')
+        .update({ cover_image_url: owned.url }).eq('id', pub.id)
+      if (error) {
+        console.error('[yatraflow] cover collection failed', error)
+        continue
+      }
+      markLocalWrite('published_itineraries', pub.id)
+      cache.published = cache.published.map(x => (x.id === pub.id ? { ...x, coverImageUrl: owned.url } : x))
+      commit()
+      // Follow the publication onto its trip, but only while that trip still
+      // carries this same suggestion: publishing copies the trip's cover, so
+      // rewriting it here is what stops a later re-publish from re-copying the
+      // suggestion — while a trip whose creator has since chosen a different
+      // cover keeps that newer choice.
+      if (tripById(pub.tripId)?.coverImageUrl === suggestion) {
+        updateTrip(pub.tripId, { coverImageUrl: owned.url })
+      }
+      collected++
+    }
+    return collected
+  })()
+  try { return await coverSweep } finally { coverSweep = null }
 }
 
 /** Remove a trip's public itinerary from Explore. The cache row is removed
@@ -2396,6 +2596,34 @@ export function _clearRecentLocalWrites(): void {
   recentLocalWrites.clear()
 }
 
+/** B2 server-clock ledger: the last SERVER-APPLIED `trips.updated_at` per trip
+ *  id. Written ONLY from hydration, the shared/public/invite/trash fetchers and
+ *  applyRealtimeEvent — NEVER from optimistic mutations. This is the only
+ *  honest clock for the stale-update guard: `Trip.updatedAt` on the cache is
+ *  the optimistic client clock (`mutateTrip` bumps it to `Date.now()` on every
+ *  local edit), so after any local edit it outranks the server's `updated_at`
+ *  forever and a guard comparing against it would suppress every real remote
+ *  edit. DB clock vs DB clock, mirrored on recentLocalWrites above (bounded
+ *  map; per-id entries are re-seeded by every hydrate, so an account switch
+ *  self-corrects for any trip the new session can see). */
+const serverTripTimestamps = new Map<string, number>()
+const MAX_SERVER_TRIP_TS = 500
+
+function recordServerTripTimestamp(id: string, raw: unknown): void {
+  const n = Number(raw)
+  if (!Number.isFinite(n)) return
+  serverTripTimestamps.set(id, n)
+  if (serverTripTimestamps.size > MAX_SERVER_TRIP_TS) {
+    const oldestKey = serverTripTimestamps.keys().next().value
+    if (oldestKey) serverTripTimestamps.delete(oldestKey)
+  }
+}
+
+/** Test hook — clear the server-timestamp ledger (see _clearRecentLocalWrites). */
+export function _clearServerTripTimestamps(): void {
+  serverTripTimestamps.clear()
+}
+
 /** Realtime payloads come off the wire, so they are not ours to trust. An
  *  unexpected shape throws, and a throw from inside a `postgres_changes` callback
  *  escapes into the realtime client's own event dispatch instead of stopping
@@ -2415,10 +2643,18 @@ function dispatchRealtimeEvent(table: string, payload: RealtimePostgresChangesPa
   }
 }
 
+/** Test hook — feed a postgres_changes payload into the dispatch without a
+ *  live channel (dispatchRealtimeEvent is module-private). Containment try/
+ *  catch included, matching the real path exactly. */
+export function _applyRealtimeEventForTest(table: string, payload: RealtimePostgresChangesPayload<Record<string, unknown>>): void {
+  dispatchRealtimeEvent(table, payload)
+}
+
 /** Start listening for row changes. Call after a successful hydration. */
 export function connectRealtime(_userId: string): void {
   if (!isSupabaseConfigured || realtimeChannel) return
   try {
+    let everSubscribed = false
     realtimeChannel = supabase
       .channel('yatraflow-live')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'trips' }, p => dispatchRealtimeEvent('trips', p))
@@ -2429,10 +2665,54 @@ export function connectRealtime(_userId: string): void {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, p => dispatchRealtimeEvent('notifications', p))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, p => dispatchRealtimeEvent('profiles', p))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'published_itineraries' }, p => dispatchRealtimeEvent('published_itineraries', p))
-      .subscribe()
+      .subscribe(status => {
+        // Reconnect resync: postgres_changes is NOT replayed across a socket
+        // gap — after a laptop sleep / network switch the channel rejoins and
+        // every row changed while we were away is silently missing, so an open
+        // stop editor shows stale data with no remote-edit banner and the
+        // cache drifts until a reload. On every SUBSCRIBED that is a RE-join,
+        // refetch each cached trip row through the SAME dispatch path a live
+        // UPDATE takes (applyRealtimeEvent), so the echo window, the B2
+        // server-clock stale guard and the ledger all see it exactly as they
+        // would a real event — no bypass, no second code path. The FIRST
+        // SUBSCRIBED is skipped: hydration just fetched these rows.
+        if (status !== 'SUBSCRIBED') return
+        if (!everSubscribed) { everSubscribed = true; return }
+        void resyncTripsAfterReconnect()
+      })
   } catch (e) {
     console.error('[yatraflow] realtime subscribe failed', e)
     realtimeChannel = null
+  }
+}
+
+/** Replay every cached trip as a synthetic UPDATE dispatch (same handler as a
+ *  live event) so anything that changed while the socket was down re-lands.
+ *  Each trip refetches ITS OWN row — a select of the cached ids keeps the
+ *  payload bounded and lets RLS/the tombstone filter apply per row normally.
+ *  Failures are logged, not thrown: a failed resync leaves the cache as-is
+ *  (stale but consistent), and the next successful event or reload repairs it. */
+async function resyncTripsAfterReconnect(): Promise<void> {
+  const ids = cache.trips.map(t => t.id)
+  if (!ids.length) return
+  try {
+    const { data, error } = await supabase
+      .from('trips')
+      .select('*')
+      .in('id', ids)
+    if (error) { console.error('[yatraflow] reconnect resync failed', error); return }
+    for (const row of (data ?? []) as Record<string, unknown>[]) {
+      applyRealtimeEvent('trips', {
+        eventType: 'UPDATE',
+        schema: 'public',
+        table: 'trips',
+        commit_timestamp: new Date().toISOString(),
+        old: {},
+        new: row,
+      } as unknown as Parameters<typeof applyRealtimeEvent>[1])
+    }
+  } catch (e) {
+    console.error('[yatraflow] reconnect resync failed', e)
   }
 }
 
@@ -2453,7 +2733,15 @@ function applyRealtimeEvent(table: string, payload: RealtimePostgresChangesPaylo
 
   switch (table) {
     case 'trips': {
-      if (echoWindowEh('trips', id)) return
+      if (echoWindowEh('trips', id)) {
+        // Our own write's echo: suppress the row swap, but record the server's
+        // updated_at in the B2 ledger so the NEXT remote row for this trip is
+        // compared against the clock the DB actually wrote (M6 B2). The
+        // cache's Trip.updatedAt stays the optimistic client clock — nothing
+        // derives the guard from it.
+        if (event === 'UPDATE') recordServerTripTimestamp(id, row?.updated_at)
+        break
+      }
       if (event === 'DELETE') {
         cache.trips = cache.trips.filter(t => t.id !== id)
         cache.suggestions = cache.suggestions.filter(s => s.tripId !== id)
@@ -2462,7 +2750,21 @@ function applyRealtimeEvent(table: string, payload: RealtimePostgresChangesPaylo
         cache.notifications = cache.notifications.filter(n => n.tripId !== id)
       } else {
         const existing = tripById(id)
-        cache.trips = reduceSlice(cache.trips, event, rowToTrip(row as TripRow, existing?.members ?? []), oldRow?.id)
+        const incoming = rowToTrip(row as TripRow, existing?.members ?? [])
+        if (event === 'UPDATE') {
+          // B2 stale-update guard — TRIPS ONLY (the generic reduceSlice stays
+          // plain: no other table carries a comparable timestamp pair;
+          // profiles has no updated_at at all), and against the SERVER ledger
+          // above, never Trip.updatedAt. STRICTLY older rows are replays and
+          // are dropped; EQUAL timestamps APPLY — before
+          // 20260919_trip_touch_updated_at.sql is applied, updated_at never
+          // advances, so equal is every remote update's normal case (see
+          // isStaleServerRow). The echo window above already handled our own
+          // writes, so this only ever drops genuinely remote stale rows.
+          if (isStaleServerRow(serverTripTimestamps.get(id), row?.updated_at)) break
+          recordServerTripTimestamp(id, row?.updated_at)
+        }
+        cache.trips = reduceSlice(cache.trips, event, incoming, oldRow?.id)
       }
       break
     }
@@ -2543,6 +2845,7 @@ async function fetchTripIntoCache(tripId: string): Promise<void> {
     if (tripRes.error || !tripRes.data) return
     const members = ((memRes.data ?? []) as MemberRow[]).map(m => ({ userId: m.user_id, role: m.role as TripMember['role'], joinedAt: m.joined_at }))
     const trip = rowToTrip(tripRes.data as TripRow, members)
+    recordServerTripTimestamp(trip.id, trip.updatedAt)
     if (!cache.trips.some(t => t.id === trip.id)) cache.trips = [...cache.trips, trip]
     commit()
   })()
@@ -2553,6 +2856,16 @@ async function fetchTripIntoCache(tripId: string): Promise<void> {
 /** Trips with a select currently in flight, so a burst of events for one trip
  *  costs one round-trip. #36-15. */
 const tripFetches = new Map<string, Promise<void>>()
+
+// ---------------- Presence (M6 · B1) ----------------
+
+/** The realtime client presence sessions run on — null when no backend is
+ *  compiled in, so the UI hook degrades to a no-op instead of throwing on the
+ *  placeholder project. Components never import the client directly; this is
+ *  the one door (matches every other surface's store-only rule). */
+export function presenceClient(): SupabaseClient | null {
+  return isSupabaseConfigured ? supabase : null
+}
 
 // ---------------- utils ----------------
 

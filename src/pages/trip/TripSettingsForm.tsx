@@ -322,7 +322,7 @@ export function TripSettingsForm({ trip, editable }: { trip: Trip; editable: boo
           )}
 
           {/* Transport mode — bench mode grid */}
-          <div className="bench-block">
+          <div className="bench-block bench-mode-block">
             <span className="bench-eyebrow">How you travel</span>
             <div className="bench-mode-grid" role="group" aria-label="Transport mode">
               {TRANSPORT_MODES.map(m => (

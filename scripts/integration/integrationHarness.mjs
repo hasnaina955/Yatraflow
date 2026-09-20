@@ -245,11 +245,57 @@ let main = async () => {
   await new Promise((res) => {
     const timer = setInterval(() => {
       if (landed?.name === TITLE) { clearInterval(timer); res(); }
-      else if (Date.now() - r0 > 10_000) { clearInterval(timer); res(); }
+      else if (Date.now() - r0 > 15_000) { clearInterval(timer); res(); } // free-tier realtime can lag on first connect
+    }, 100);
+  });  assert(landed?.name === TITLE, 'realtime: crew write lands on owner channel', landed ? `landed=${landed.name}` : 'no event within window');
+  U1.removeChannel(channel);
+
+  // ---- 13b. presence — two clients join one trip's presence room
+  // M6 B1: the workspace joins `presence:<tripId>` per open trip. Both test
+  // users track a session with a display name; each side must see the other
+  // (and only the other — presence excludes self). untrack removes cleanly.
+  const roomKey = `presence_${runid}`;
+  const mkRoom = (client, who) => {
+    const ch = client.channel(roomKey, { config: { presence: { key: who } } });
+    return ch;
+  };
+  const roomA = mkRoom(U1, 'owner-session');
+  const roomB = mkRoom(U2, 'crew-session');
+  // The sync handler must REPLACE this snapshot, never merge into it: an
+  // accumulating map cannot observe an untrack (once a key enters, no later
+  // sync removes it), and the probe would report a ghost session forever.
+  let seenByA = {};
+  roomA.on('presence', { event: 'sync' }, () => { seenByA = roomA.presenceState(); });
+  await new Promise((res, rej) => {
+    const timer = setTimeout(() => rej(new Error('presence subscribe timeout')), 15_000);
+    let joined = 0;
+    const onSub = (status) => { if (status === 'SUBSCRIBED') { joined++; if (joined === 2) { clearTimeout(timer); res(); } } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') { clearTimeout(timer); rej(new Error(status)); } };
+    roomA.subscribe(onSub); roomB.subscribe(onSub);
+  });
+  await roomA.track({ name: 'Owner' });
+  await roomB.track({ name: 'Crew' });
+  const p0 = Date.now();
+  await new Promise((res) => {
+    const t = setInterval(() => {
+      const keys = Object.keys(seenByA);
+      if (keys.includes('crew-session')) { clearInterval(t); res(); }
+      else if (Date.now() - p0 > 15_000) { clearInterval(t); res(); }
     }, 100);
   });
-  assert(landed?.name === TITLE, 'realtime: crew write lands on owner channel', landed ? `landed=${landed.name}` : 'no event within window');
-  U1.removeChannel(channel);
+  const peerKeys = Object.keys(seenByA);
+  assert(peerKeys.includes('crew-session'), 'presence: owner sees the crew session', `saw=${peerKeys.join(',') || 'nothing'}`);
+  assert(!peerKeys.includes('owner-session') || seenByA['owner-session']?.length === 1,
+    'presence: sessions keyed by presence key (one entry per session)', `saw=${peerKeys.join(',')}`);
+  await roomB.untrack();
+  const q0 = Date.now();
+  await new Promise((res) => {
+    const t = setInterval(() => {
+      if (!Object.keys(seenByA).includes('crew-session')) { clearInterval(t); res(); }
+      else if (Date.now() - q0 > 15_000) { clearInterval(t); res(); }
+    }, 100);
+  });
+  assert(!Object.keys(seenByA).includes('crew-session'), 'presence: untrack removes the session from the room', `still=${Object.keys(seenByA).join(',')}`);
+  U1.removeChannel(roomA); U2.removeChannel(roomB);
 
   // ---- 14. trash — tombstones stay with the owner team, live rows return
   // The store's "Delete" is a soft-delete (stamp deleted_at). "trips read

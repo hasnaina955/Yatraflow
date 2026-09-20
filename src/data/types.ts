@@ -105,6 +105,9 @@ export interface Expense {
   /** Member who fronted the money (drives the who-paid/who-owes balances);
    *  absent = paid from the shared kitty, so nobody is individually owed. */
   paidBy?: ID
+  /** M6 B4 — the settled record: who marked this line settled, and when
+   *  (ms epoch). Absent = still open on the balances card. */
+  settled?: { by: ID; at: number }
 }
 
 export interface ItineraryStop {
@@ -305,6 +308,8 @@ export interface TripDecision {
   context?: string
   options: DecisionOption[]
   votesByUserId: Record<ID, ID>   // userId -> optionId
+  comments: Comment[]             // parity with StopSuggestion; column added by
+                                  // supabase/migrations/20260920_decision_comments.sql
   status: 'open' | 'resolved'
   resolvedOptionId?: ID
   raisedBy: ID

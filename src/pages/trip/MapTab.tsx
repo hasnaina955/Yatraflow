@@ -14,7 +14,8 @@ import { Select } from '../../components/Select'
 import { DetourWhisk } from '../../components/DetourWhisk'
 import { useSuggestionCache, isMapCacheFresh } from '../../hooks/useSuggestionCache'
 import { openExternal } from '../../lib/native'
-import { corridorAnchors, detourKm, asymmetricDetourMinutes, googleEnabled, planJourneyHalts, reasonForSegmentHit, searchPlacesText, searchNearbyPoisMulti, kmFromStartForHit, planDriveDays, planTravelClock, rainFactorFor, requireHitCoords, directionalKm, alongRouteKmOf, DEFER_START, type NearbyOpts, type PlaceHit, routeHash } from '../../lib/geocode'
+import { corridorAnchors, detourKm, asymmetricDetourMinutes, googleEnabled, planJourneyHalts, reasonForSegmentHit, searchPlacesText, searchNearbyPoisMulti, kmFromStartForHit, planDriveDays, planTravelClock, rainFactorFor, requireHitCoords, directionalKm, alongRouteKmOf, DEFER_START, type NearbyOpts, type PlaceHit, type TravelClockVerdict, routeHash } from '../../lib/geocode'
+import { deriveClockMilestones } from '../../lib/clockOverlay'
 import { isSightCategory, roadProfileFromLegs, loopProfile } from '../../lib/ridePlan'
 import { QuotaExhaustedError } from '../../lib/providers/google'
 import { isElectric } from '../../lib/vehicleProfile'
@@ -30,7 +31,7 @@ import { visitMinutesForCategory } from '../../lib/slackPrompts'
 import { scrollBehavior } from '../../lib/motion'
 import type { SegmentHit } from '../../lib/geocode'
 import { anchorHash, projectOntoPolyline } from '../../lib/providers/hits'
-import { fetchDailyWeather, forecastAvailable, isoAddDays } from '../../lib/weather'
+import { fetchDailyWeather, forecastAvailable, isoAddDays, todayISO } from '../../lib/weather'
 // MapLibre is heavy (~1MB) — load it only when the Map tab is actually opened.
 const TripMap = React.lazy(() => import('../../components/TripMap').then(m => ({ default: m.TripMap })))
 
@@ -121,7 +122,7 @@ const SCOPE_STORAGE_KEY = 'nearby_scope_km'
 /** Sensible visit durations per suggestion category (tourist pacing). */
 const poiVisitMinutes = visitMinutesForCategory
 
-export function MapTab({ trip, editable, applyChange, suggestionCache, crewSuggestions, road, onOpenTimeline, onOpenBoard }: {
+export function MapTab({ trip, editable, applyChange, suggestionCache, crewSuggestions, road, onOpenTimeline, onOpenBoard, onOpenDay }: {
   trip: Trip
   editable: boolean
   applyChange: (mutator: (d: Trip) => void, kind: ImpactResult['kind'], dayIndex: number) => void
@@ -131,6 +132,9 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
   road: TripRoadView
   onOpenTimeline?: (stopId: string) => void
   onOpenBoard?: () => void
+  /** Phase 3: tapping a halt label asks the workspace to open that day's plan
+   *  in the Timeline. Undefined = halt labels stay decorative labels. */
+  onOpenDay?: (dayIndex: number) => void
 }) {
   const [pois, setPois] = useState<SegmentHit[]>([])
   const timeFormat = useTimeFormat()
@@ -440,6 +444,34 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     // days array identity. #213 Phase 3: dayWeatherCode was missing — a storm
     // code change with unchanged rainChancePct left the banner stale.
     [planKm, wholeTrip.min, trip.travelStyle, trip.transportMode, trip.driverCount, trip.hasVulnerable, trip.driveAfterDinnerMin, dayStartSig, dayRainPct, dayWeatherCode, tripIsRoundTrip, roadProfile],
+  )
+  // The travel clock drawn ON the route as clean road LABELS: one text pair per
+  // planned clock anchor (meal / overnight / destination) — its wall-clock time
+  // + calendar date on the LEFT of the road, its road km on the RIGHT. No pins,
+  // no dots. FIX-1: not a second walk — this projects MapTab's own `clockVerdict`
+  // (the banner's walk) onto the road that just resolved, so the map and the
+  // banner can never disagree. Phase 1: `todayISO` is the device calendar day,
+  // so each label knows whether its day is driven history, the active day, or
+  // still plan. Only renders once the geometry is in, because a label planted
+  // on a straight chord would lie about where the stop lands. Return-leg labels
+  // carry leg:'return'; the map shows them only while its Return home toggle
+  // is on.
+  const clockMilestones = useMemo(
+    () => deriveClockMilestones({
+      verdict: clockVerdict,
+      polyline: routePolyline,
+      tripStartDate: trip.startDate,
+      // anchors the return pass's dates at the trip's tail and decides which
+      // labels have an honest itinerary day behind them (tap targets)
+      tripDaysCount: trip.days.length,
+      todayISO: todayISO(),
+      // Phase 2: the corridor's overnight hits name the halt labels. `pois` is
+      // SegmentHit[] — the annotated hits carry haltPurpose + cumKm from
+      // annotateSegmentHits, which is exactly the join key the label layer
+      // asks for.
+      haltCandidates: pois.map(s => s.hit).filter((h): h is PlaceHit => h != null),
+    }),
+    [clockVerdict, routePolyline, trip.startDate, trip.days.length, pois],
   )
   // One clock story (#123): the banner count comes from the clock walk that
   // knows the start time; planDriveDays stays the geometry-free estimator.
@@ -1256,7 +1288,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
         <div className="row-between">
           <h3 style={{ margin: 0 }}><Lightbulb size={16} aria-hidden style={{ verticalAlign: '-3px', marginRight: 4 }} />Nearby ideas</h3>
           <div className="row-between" style={{ gap: 10 }}>
-            <span className="small muted">{loadingPois ? 'searching…' : `${pois.filter(p => p.hit).length} suggested stops — spaced for fatigue & anchored on cities`}</span>
+            <span className="small muted" aria-live="polite">{loadingPois ? 'searching…' : `${pois.filter(p => p.hit).length} suggested stops — spaced for fatigue & anchored on cities`}</span>
             <button
               className="btn btn-outline btn-sm suggestion-refresh-btn"
               title="Refresh suggestions"
@@ -1486,6 +1518,8 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
               onActivateHit={setActiveHitId}
               onOpenInTimeline={onOpenTimeline}
               onOpenInBoard={onOpenBoard ? () => onOpenBoard() : undefined}
+              onOpenHaltDay={onOpenDay}
+              clockMilestones={clockMilestones}
               onDeleteStop={editable ? removeStopFromMap : undefined}
               enableMapViewModes
               mainRouteGeometry={routeGeometry}

@@ -44,23 +44,28 @@ number collides with a shipped release, the ledger wins.
 
 ## Open issues
 
-Re-derived from the GitHub API 2026-09-16 (`gh issue list --state open`) — **fourteen issues are
-open**, in two sets. The **launch-readiness criteria** (#226–#234) were filed from
+Re-derived from the GitHub API 2026-09-20 (`gh issue list --state open`) — **thirteen issues are
+open**, in two sets. The **launch-readiness criteria** (#227–#234) were filed from
 [`docs/PLAN-LAUNCH-AND-DISTRIBUTION.md`](docs/PLAN-LAUNCH-AND-DISTRIBUTION.md) and its
 `STEP-0-DECISIONS.md` companion; the **milestone tracks** (#236–#240) are the M5 → M9 paragraphs
-below, now tracked as issues so the queue and this file cannot drift apart again:
+below, now tracked as issues so the queue and this file cannot drift apart again. Corrected
+against `gh` on 2026-09-20, because it had drifted both ways: **#226 and #229 were closed** on
+2026-09-19 and still read as live here, while **#252 and #255** had been filed and never added.
+Re-derive the count before quoting it:
 
 | # | Priority | Issue | State |
 |---|---|---|---|
-| #226 | P1 | E1 · Make links preview | **Shipped** in v0.57.0: `/i/<id>` serves public metadata and redirects browsers to the hash route, with no cross-deployment shell fetch; the trip-JSON import that PR #235 also carried landed alongside it. v0.58.0 gives that preview a picture — a branded 1200×630 card for any publication with no cover of its own, and auto-picked covers resized through Wikimedia's own endpoint so none exceeds the 600 KB `og:image` ceiling. The single box still open needs a real messaging client: a card rendered in WhatsApp. See `docs/DEPLOYMENT.md`. |
+| #226 | P1 | E1 · Make links preview | **Closed 2026-09-19.** Shipped in v0.57.0: `/i/<id>` serves public metadata and redirects browsers to the hash route, with no cross-deployment shell fetch; the trip-JSON import that PR #235 also carried landed alongside it. v0.58.0 gave that preview a picture — a branded 1200×630 card for any publication with no cover of its own, and auto-picked covers resized through Wikimedia's own endpoint so none exceeds the 600 KB `og:image` ceiling. The acceptance it could not close by itself — a card rendered in a real messaging client — is what #227 (F3) exercises by hand. See `docs/DEPLOYMENT.md`. |
 | #232 | P1 | E2 · The gallery is curated | `#/explore` holds one itinerary; the shelf has to read as chosen, not as everything that passed the gate |
 | #230 | P1 | E3 · Attribute shares, and settle how the readings are kept | Decides what a share is attributed to, and where the readings live, before any of it is measured |
-| #229 | P1 | F1 · Write the thresholds down, before measuring | The four launch signals (shares→views, views→forks, forks→signups, signups→2nd session) and the Stage 1→2 marks, committed in-repo **before** E3's first reading. D5 of [`docs/commercial/STEP-0-DECISIONS.md`](docs/commercial/STEP-0-DECISIONS.md) holds the numbers, which merged into the repo with PR #214 — no longer an unmerged branch; thresholds are immutable once set, so doing this after E3 starts is the failure mode the rule exists to prevent |
+| #229 | P1 | F1 · Write the thresholds down, before measuring | **Closed 2026-09-19.** The four launch signals (shares→views, views→forks, forks→signups, signups→2nd session) and the Stage 1→2 marks, committed in-repo **before** E3's first reading. D5 of [`docs/commercial/STEP-0-DECISIONS.md`](docs/commercial/STEP-0-DECISIONS.md) holds the numbers, which merged into the repo with PR #214 — no longer an unmerged branch; thresholds are immutable once set, so doing this after E3 starts is the failure mode the rule exists to prevent |
 | #233 | P1 | F2 · Three real trips, four real people each | Real crews on real trips — the evidence that the planning holds outside a fixture |
 | #227 | P1 | F3 · Send one published link to a WhatsApp group | The smallest honest distribution test, in the channel the product is positioned against |
 | #231 | P2 | F4 · Four consecutive weekly readings | Four weeks is the shortest window that shows a trend rather than a day |
 | #234 | P1 | F6 · CA confirms the merchant-of-record branch | Branch 1 (intermediary) vs Branch 2 (merchant of record) moves the creator's net ~₹27 a sale — ₹161.47 vs ₹134.10 on a ₹199 sale — and the 15% fee must clear the ~3.86% cost floor. Also scopes GST/TDS registration |
 | #228 | P2 | F7 · First distribution loop | The repeatable loop, and only after F3 has answered |
+| #252 | — | F7 · Decide who becomes a creator, and who may publish | Filed 2026-09-19, **unlabelled** — no priority, no type — with 3.3 KB of body. The decision: creator mode is self-enabled by any signed-in user (`CreatorHubPage.tsx` → `updateProfile`), `adminSetCreator()` can badge anyone but is not a gate, and publishing is gated on trip ownership rather than on creator status, so the two switches have never been reconciled. Needs a priority and an owner before it can be scheduled |
+| #255 | P3 | Overdrive: the receipt learns to print — morph the itinerary's numbers into a real bill | Filed 2026-09-18 — this is **I-18** from the Tier 1 bank below, now tracked. Parked, not started: blocked on a product decision (whose cost estimate a published bill represents is a factual claim, and inventing one would ship a claim nobody agreed to) and on the design-token approval rule. Its contract stands — 2–3 directions presented and one picked before any code |
 | #236 | P2 | M5 · AI companion — user-configurable LLM endpoint | The track below; the unbuilt fix behind closed #22 → #20 |
 | #237 | P2 | M6 · Together — collaboration depth | The track below |
 | #238 | P2 | M7 · Premium — the payment rail | The track below; needs F6 settled first |

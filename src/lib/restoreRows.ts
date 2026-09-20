@@ -25,13 +25,18 @@ export function suggestionToRow(s: StopSuggestion) {
 
 /** A resolved decision keeps its resolution; `resolved_option_id` is a uuid
  *  column, so an absent resolution has to be null rather than undefined. */
-export function decisionToRow(d: TripDecision) {
-  return {
+export function decisionToRow(d: TripDecision, withComments = false) {
+  const row: Record<string, unknown> = {
     id: d.id, trip_id: d.tripId, question: d.question, context: d.context ?? null,
     options: d.options, votes_by_user_id: d.votesByUserId, status: d.status,
     resolved_option_id: d.resolvedOptionId ?? null, raised_by: d.raisedBy,
     created_at: d.createdAt, resolved_at: d.resolvedAt ?? null,
   }
+  // decisions.comments ships in supabase/migrations/20260920_decision_comments.sql;
+  // omit the key entirely on pre-migration databases, the same shape as
+  // tripToRow's cols gate — a write naming an unknown column is rejected whole.
+  if (withComments) row.comments = d.comments
+  return row
 }
 
 export function activityToRow(a: ActivityEntry) {

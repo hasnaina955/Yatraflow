@@ -20,6 +20,7 @@ function decision(overrides: Partial<TripDecision> = {}): TripDecision {
       { id: 'o-b', label: 'Resort', costImpactInr: 12000, timeImpactMin: 45 },
     ],
     votesByUserId: {},
+    comments: [],
     status: 'open',
     raisedBy: 'u-1',
     createdAt: 1,

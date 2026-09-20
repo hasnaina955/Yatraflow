@@ -362,10 +362,9 @@ unbuilt). **Before picking up a row, and before quoting one in a plan, confirm i
 | I-3 | Recurring expense templates | budget | 2 h | One-click re-add of past lines ("Fuel top-up ₹3,000") from an expense-history chip row. |
 | I-4 | Overspending alerts | budget | 2 h | Threshold notification when a day/category crosses its cap — plumbing already exists in `realtimeCore`. |
 | I-5 | Category envelopes | budget | 3–4 h | Per-category cap (₹) with progress state on the "Where the money goes" bars + a cap editor on the category row. Pattern: YNAB. |
-| I-6 | Settlement acknowledgement + reminder | budget | 2 h | Balances card gains a "mark settled" flag and a nudge. The settlement *engine* already runs (`BudgetTab.tsx:363`) and `Expense.paidBy` already drives balances — only the acknowledgement state and its reminder are missing. **Adjacent to M6.** |
-| I-7 | Decision comments | collaboration | schema | Needs a `comments` JSON column on decisions (migration) — `StopSuggestion` has one, `TripDecision` does not (`types.ts:226` vs `:244`). |
 | I-8 | Monthly statements / invoice export | creator | 2–3 h | Downloadable per-month earnings summary, client-side from the payouts table. **Post-M7.** |
 | I-17 | Theme the text selection and the caret | design system | 1 h | `::selection` and `caret-color` are declared **nowhere** in `src/styles.css` — the UA's highlight blue and caret are the last unthemed browser surfaces in the app (found while scoping v0.60.0's craft-floor pass). Cheap to close with the app's own soft-tint pairing (`--teal-soft` + `--text`) and `caret-color: var(--teal-deep)`, but it is a feel change rather than a defect, so it wants a look first. |
+| I-20 | Settled lines leave the balances | budget | 1–2 h | `computeBalances` still counts a settled expense toward everyone's fair share, so a squared-up line keeps reading as owed (the "balances still count it" note in `BudgetTab.tsx`). Re-base the fair share onto open lines only; the v0.62.0 acknowledgement deliberately kept the old maths — the flag is a record, not a removal — so this is a behaviour change, not a bug fix. |
 
 ### Tier 2 — blocked on a named dependency
 
@@ -436,6 +435,11 @@ Kept as one line each so the origin is traceable without re-listing the work as 
   terrain with `maxPitch` 60 → 75 (I-19), behind a segmented switcher on the Map tab; the Board
   stays hard-2D and the choice persists globally. I-19's mid-range-Android GPU check remains a
   post-merge device step.
+- **Idea bank I-6 + I-7** — [Unreleased]. **Settlement acknowledgement + reminder** (I-6): the
+  per-line "mark settled" flag and settled history landed with M6 PR-B (v0.62.0), and the
+  outstanding-total nudge over the open tagged lines completes the row · **Decision comments**
+  (I-7): `decisions.comments` (`supabase/migrations/20260920_decision_comments.sql`, capability-probe
+  gated like the party-prefs columns) with the same card language as suggestion comments.
 
 ## Historical plans (executed — kept for the record, not live guidance)
 

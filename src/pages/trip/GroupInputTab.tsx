@@ -16,6 +16,7 @@ import { STOP_CATEGORIES } from '../../data/types'
 import {
   useDb, userById, currentUser, addSuggestion, voteSuggestion, addCommentToSuggestion,
   acceptSuggestionIntoTimeline, declineSuggestion, addDecision, voteOnDecision, resolveDecision,
+  addCommentToDecision,
   activityFor,
 } from '../../store/store'
 import { formatInr, minutesToHM } from '../../lib/engine'
@@ -381,6 +382,23 @@ function DecisionCard({ d, me, editable, needsMe, trip }: {
           ))}
         </div>
       )}
+      {/* Discussion, same card language as suggestions (I-7): comments stay
+          visible on a resolved decision — the record of why it was chosen. */}
+      {d.comments.length > 0 && (
+        <div style={{ marginTop: 8 }}>
+          {d.comments.map(c => (
+            <div key={c.id} className="comment">
+              <Avatar user={userById(c.authorId)} />
+              <div className="comment-body">
+                <span className="comment-author">{userById(c.authorId)?.profile.name}</span>
+                <span className="comment-time">{timeAgo(c.createdAt)}</span>
+                <div>{c.text}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      <CommentForm onSubmit={text => addCommentToDecision(trip.id, d.id, me.id, text)} />
     </div>
   )
 }

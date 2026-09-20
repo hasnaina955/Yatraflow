@@ -123,6 +123,8 @@ create table if not exists public.decisions (
   context            text,
   options            jsonb not null default '[]'::jsonb,
   votes_by_user_id   jsonb not null default '{}'::jsonb,
+  -- 20260920_decision_comments.sql — same shape as suggestions.comments
+  comments           jsonb not null default '[]'::jsonb,
   status             text not null default 'open'
                        check (status in ('open', 'resolved')),
   resolved_option_id uuid,
@@ -130,6 +132,10 @@ create table if not exists public.decisions (
   created_at         bigint not null default extract(epoch from now()) * 1000,
   resolved_at        bigint
 );
+
+-- Pre-existing installs: add the comments column without touching data
+-- (idempotent — safe to re-run).
+alter table public.decisions add column if not exists comments jsonb not null default '[]'::jsonb;
 
 -- ---------- activity ----------
 create table if not exists public.activity (

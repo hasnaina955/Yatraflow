@@ -87,7 +87,7 @@ async function freshStore() {
   } as any)
   db.decisions.push({
     id: 'dec-1', tripId: 'trip-1', question: 'Where to eat?', context: '', status: 'open',
-    options: [{ id: 'opt-1', label: 'Time Out' }], votesByUserId: {},
+    options: [{ id: 'opt-1', label: 'Time Out' }], votesByUserId: {}, comments: [],
   } as any)
   db.published.push({
     // creator ≠ session user: registerPubView skips the creator's own visits,

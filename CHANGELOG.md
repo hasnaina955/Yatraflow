@@ -13,6 +13,11 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 > record still exists in `git log`, not here. Archived release notes live in
 > [`docs/history/`](docs/history/).
 
+## [Unreleased]
+
+### Docs
+- **Creator-market research with citations** (`docs/commercial/RESEARCH-2026-09-18-creator-market-and-paywall-value.md`): why travelers buy itineraries (time math, curation, error insurance), why creators strive (honest earnings base rates plus five non-income pitches), what should separate free from paid (a capability stack, not a page count), how the bought plan should be presented (unlock ceremony, owned library, endowment, share card), and the hub as a growth loop — every claim tagged by source strength with the sources listed, feeding Idea bank I-20…I-27 and the commercial plans' post-unlock items (E7/E8).
+
 ## [0.63.0] - 2026-09-20
 
 ### Added

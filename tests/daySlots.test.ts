@@ -669,3 +669,28 @@ describe('the day skeleton (P2 fix round 3)', () => {
     expect(slots.some(s => s.key === 'breakfast')).toBe(true)
   })
 })
+
+describe('claim direction (P2 fix round 4)', () => {
+  it('a timed food stop goes to the meal slot its hours name, not the earliest slot', () => {
+    const slots = daySlots(0, base({
+      haltSegments: [],
+      dayStops: [
+        stop('s1', 'Sadya lunch', { openTime: '12:00', closeTime: '15:00' }),
+        stop('s2', 'Backwater homestay', { category: 'hotel' }),
+      ],
+      fillSkeleton: true,
+    }))
+    expect(slots.find(s => s.key === 'lunch')?.filledStop?.title).toBe('Sadya lunch')
+    expect(slots.find(s => s.key === 'breakfast')?.filledStop).toBeNull()
+    expect(slots.find(s => s.key === 'dinner')?.filledStop).toBeNull()
+  })
+  it('an untimed food stop takes lunch before dinner or breakfast', () => {
+    const slots = daySlots(0, base({
+      haltSegments: [],
+      dayStops: [stop('s1', 'Untimed eatery'), stop('s2', 'A hotel', { category: 'hotel' })],
+      fillSkeleton: true,
+    }))
+    expect(slots.find(s => s.key === 'lunch')?.filledStop?.title).toBe('Untimed eatery')
+    expect(slots.find(s => s.key === 'dinner')?.filledStop).toBeNull()
+  })
+})

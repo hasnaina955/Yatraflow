@@ -293,37 +293,39 @@ function fillStopFor(
     }
   }
 
-  // Pass 3 - meals still empty: remaining food stops. One with hours goes to
-  // the window nearest its span start; one without goes to the first empty
-  // meal slot in the day's natural order (lunch before dinner).
+  // Pass 3 - meals still empty: remaining food stops. Each STOP chooses its
+  // slot (a 12:00 stop is a lunch, not an earliest-slot grab), so the
+  // assignment follows the hours, not the slot order; a stop without hours
+  // falls to the day's natural order (lunch, then dinner, then breakfast).
   const emptyMeals = drafts.filter(d => d.kind === 'meal' && !claims.has(d.key))
   if (emptyMeals.length > 0) {
-    const remaining = foodStops.filter(s => !claimed.has(String(s.id)))
-    for (const d of emptyMeals) {
-      const win = windowFor(d)
-      if (!win) continue
-      const withHours = remaining.filter(s => {
-        if (claimed.has(String(s.id))) return false
-        return stopSpanMin(s) != null
-      })
-      if (withHours.length > 0) {
-        const nearest = withHours.reduce((a, b) => {
-          const sa = stopSpanMin(a)
-          const sb = stopSpanMin(b)
-          const da = sa ? Math.abs(sa[0] - win[0]) : Number.MAX_SAFE_INTEGER
-          const db = sb ? Math.abs(sb[0] - win[0]) : Number.MAX_SAFE_INTEGER
-          return db < da ? b : a
-        }, withHours[0])
-        claims.set(d.key, nearest)
-        claimed.add(String(nearest.id))
+    const slotsWithWin = emptyMeals
+      .map(d => ({ key: d.key, win: windowFor(d) }))
+      .filter((x): x is { key: SlotKey; win: [number, number] } => x.win != null)
+    for (const stop of foodStops) {
+      if (claimed.has(String(stop.id))) continue
+      const span = stopSpanMin(stop)
+      if (span == null) continue
+      let best: { key: SlotKey; dist: number } | null = null
+      for (const slot of slotsWithWin) {
+        if (claims.has(slot.key)) continue
+        const dist = Math.abs(span[0] - slot.win[0])
+        if (best == null || dist < best.dist) best = { key: slot.key, dist }
+      }
+      if (best) {
+        claims.set(best.key, stop)
+        claimed.add(String(stop.id))
       }
     }
-    const untimed = remaining.filter(s => !claimed.has(String(s.id)) && stopSpanMin(s) == null)
-    for (const d of emptyMeals) {
-      if (claims.has(d.key)) continue
+    // Untimed food stops fill what is left in the day's own order.
+    const untimed = foodStops.filter(s => !claimed.has(String(s.id)) && stopSpanMin(s) == null)
+    const order: SlotKey[] = ['lunch', 'dinner', 'breakfast']
+    for (const key of order) {
+      const d = emptyMeals.find(x => x.key === key)
+      if (!d || claims.has(key)) continue
       const pick = takeLatest(untimed.filter(s => !claimed.has(String(s.id))))
       if (pick) {
-        claims.set(d.key, pick)
+        claims.set(key, pick)
         claimed.add(String(pick.id))
       }
     }

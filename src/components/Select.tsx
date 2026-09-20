@@ -128,7 +128,7 @@ export function Select({ value, onChange, options, disabled, compact, placeholde
         role="combobox"
         aria-haspopup="listbox"
         aria-expanded={open}
-        aria-controls={listId}
+        aria-controls={open ? listId : undefined}
         aria-activedescendant={open ? `${listId}-opt-${active}` : undefined}
         aria-describedby={describedby}
         aria-invalid={invalid}

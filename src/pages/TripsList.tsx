@@ -159,7 +159,7 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
         <>
           {/* ---- Search + style chips + when/sort selects (Explore's pattern) ---- */}
           <div className="trips-toolbar" style={{ marginBottom: 18 }}>
-            <input className="input trips-search" placeholder="Search your trips — name, place or stop…"
+            <input className="input trips-search" placeholder="Search places or stops…"
               aria-label="Search your trips" value={q} onChange={e => setQ(e.target.value)} />
             <div className="explore-chips" role="group" aria-label="Travel style">
               <button className={`chip clickable-chip ${style === 'all' ? 'on-teal' : ''}`}

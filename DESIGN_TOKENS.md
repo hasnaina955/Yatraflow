@@ -44,7 +44,7 @@ where the direction doc says so. Every token is mirrored in
 | `--yf-atmos-mint` / `--yf-atmos-peach` | `rgba(124,225,207,.20)` / `rgba(255,179,107,.16)` | `rgba(43,184,172,.10)` / `rgba(245,169,74,.08)` | gradient blobs |
 | `--yf-surface` | `#FFFFFF` | `#16233A` | readable cards |
 | `--yf-border` | `#DCE7E1` | `#27395A` | soft boundaries |
-| `--yf-text-muted` | `#637B7D` | `#8FA0B5` | secondary text |
+| `--yf-text-muted` | `#566A6C` | `#8FA0B5` | secondary text |
 | `--yf-glass` / `--yf-glass-border` | `rgba(255,255,255,.58)` / `rgba(255,255,255,.65)` | `rgba(16,27,43,.58)` / `rgba(255,255,255,.14)` | level-2 overlays |
 
 (`--yf-ink`, `--yf-mint` and `--yf-surface-muted` were removed in v0.30.0 —
@@ -173,6 +173,11 @@ border, not a fixed 32/38/48px ladder. Context can override this: the ≤720px
   (dark), not the formerly documented `#647489` (`src/styles.css:32,137,194,257`).
   Re-check `--text-3` usage on colored surfaces; a palette value alone is not a
   contrast guarantee.
+- `--yf-text-muted` was deepened light-only from `#637B7D` to `#566A6C`: the old
+  value measured 4.19:1 on `--yf-cream` and 4.36:1 on `--yf-surface`, both under
+  AA for the 10.5-13.5px text it paints (`.eyebrow`, `.cal-trigger .muted`,
+  `.unit-input .unit`, `.unit-input .group-lab`, `.mini-lab`). Now 5.01:1 and
+  5.53:1. The dark value was already AA and is unchanged.
 - All interactive elements share one `--ring` focus token — keyboard users get a
   consistent, visible focus indication in both themes.
 - Touch targets on mobile are ≥40px per the `@media (max-width:720px)` block.

@@ -131,6 +131,14 @@ export interface DaySlotsDeps {
    *  belongs to. When given, day slicing follows IT, not the dayEnd flags -
    *  corridor plans without overnight splits still attribute honestly. */
   dayOfSegment?: (sh: SegmentHit) => number | null
+  /** When true, a day with any activity always renders the full day grammar
+   *  (breakfast, lunch, dinner, stay) - engine halts fill what they can and
+   *  the skeleton supplies the rest, so the rail reads the same on every day.
+   */
+  fillSkeleton?: boolean
+  /** The day's road-km span (start inclusive, end inclusive) for positioning
+   *  synthesized slots on the corridor. Absent = the day's own stops only. */
+  daySpanKm?: (dayIndex: number) => { fromKm: number; toKm: number } | null
 }
 
 const SLOT_LABELS: Record<SlotKey, string> = {
@@ -460,10 +468,60 @@ function candidatesFor(
   return out
 }
 
+/** Canonical rail order (the mockup's grammar): breakfast, lunch, fuel,
+ *  stretch, dinner, stay. Stable for equal ranks. */
+const KIND_RANK: Record<SlotKey, number> = { breakfast: 0, lunch: 1, fuel: 2, stretch: 3, dinner: 4, stay: 5 }
+
+/**
+ * Supply the missing parts of the day's grammar. Every day with any activity
+ * gets lunch; a day that ends at a stay gets dinner; a day that begins after
+ * a night (or holds its own stay) gets breakfast. Fuel and stretch stay
+ * engine-only: a need the engine has not derived is not invented.
+ */
+function addSkeleton(drafts: SlotDraft[], deps: DaySlotsDeps, dayIndex: number): void {
+  const hasStay = drafts.some(d => d.key === 'stay')
+  const hasActivity = drafts.length > 0 || deps.dayStops.some(s => s.status !== 'rejected')
+  if (!hasActivity) return
+  const span = deps.daySpanKm?.(dayIndex) ?? null
+  const midKm = span ? span.fromKm + (span.toKm - span.fromKm) * 0.45 : 0
+  const synth = (key: SlotKey, purpose: RideSegment['purpose'], targetKm: number, mealSlot?: MealSlotName): SlotDraft => ({
+    key,
+    kind: key === 'stay' ? 'overnight' : 'meal',
+    ...(mealSlot ? { mealSlot } : {}),
+    segments: [{
+      index: -1,
+      purpose,
+      label: SLOT_LABELS[key],
+      targetKm,
+      minKm: Math.max(0, targetKm - 60),
+      maxKm: targetKm + 60,
+      kmFromPrev: 0,
+      minutesFromPrev: 0,
+      hint: '',
+      // A hint of arrival so candidates get honest times: breakfast reads as
+      // eaten at the day's start, lunch in its window, dinner at its window.
+      ...(key === 'breakfast' ? { etaMinutes: BREAKFAST_WINDOW[0] + 30 }
+        : key === 'lunch' ? { etaMinutes: LUNCH_WINDOW[0] + 30 }
+        : key === 'dinner' ? { etaMinutes: DINNER_WINDOW[0] + 30 }
+        : {}),
+    }],
+  })
+  if (!drafts.some(d => d.key === 'breakfast') && (hasStay || dayIndex > 0)) {
+    drafts.push(synth('breakfast', 'meal', span ? span.fromKm : 0))
+  }
+  if (!drafts.some(d => d.key === 'lunch')) {
+    drafts.push(synth('lunch', 'meal', midKm, 'lunch'))
+  }
+  if (hasStay && !drafts.some(d => d.key === 'dinner')) {
+    drafts.push(synth('dinner', 'meal', span ? span.toKm : 0, 'dinner'))
+  }
+}
+
 /**
  * The day's slots, derived from engine output alone. Order follows the
- * journey; the breakfast slot sits at the day's head when a meal lands in
- * the breakfast window; a no-drive day with a hotel stop renders its stay.
+ * journey; with fillSkeleton the missing parts of the day's grammar are
+ * supplied so every day reads the same; the canonical kind order keeps the
+ * rail identical to the design on every day.
  */
 export function daySlots(dayIndex: number, deps: DaySlotsDeps): DaySlot[] {
   const daySegs = segmentsForDay(deps.haltSegments, dayIndex, deps.dayOfSegment)
@@ -485,13 +543,10 @@ export function daySlots(dayIndex: number, deps: DaySlotsDeps): DaySlot[] {
     if (hotelStop) drafts.unshift({ key: 'stay', kind: 'overnight', segments: [] })
   }
 
-  // Breakfast sits at the day's head: move it before the first non-stay slot.
-  const bIdx = drafts.findIndex(d => d.key === 'breakfast')
-  if (bIdx > 0) {
-    const [b] = drafts.splice(bIdx, 1)
-    const insertAt = drafts[0]?.key === 'stay' ? 1 : 0
-    drafts.splice(insertAt, 0, b)
-  }
+  if (deps.fillSkeleton) addSkeleton(drafts, deps, dayIndex)
+
+  // Canonical rail order (the mockup's grammar) - stable for equal ranks.
+  drafts.sort((a, b) => (KIND_RANK[a.key] - KIND_RANK[b.key]))
 
   if (drafts.length === 0) return []
 

@@ -1103,7 +1103,20 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     existingNames,
     altPool: altPool.all.map(e => e.h),
     dayOfSegment: (sh) => dayForKm(sh.hit?.cumKm ?? sh.segment.targetKm),
-  }), [pois, anchors, routePolyline, trip.transportMode, trip.travelStyle, existingNames, altPool, dayRoadKm])
+    // P2: the rail always renders the day's grammar - the skeleton supplies
+    // the parts the corridor plan did not halt for, positioned on the day's
+    // own road-km span (the same road-true km dayForKm trusts).
+    fillSkeleton: true,
+    daySpanKm: (dayIndex: number) => {
+      const pos = trip.days.findIndex(d => d.index === dayIndex)
+      if (pos < 0) return null
+      const perDay = dayRoadKm ?? trip.days.map(d => buildJourney(trip, d).distanceKm)
+      let from = 0
+      for (let i = 0; i < pos; i++) from += perDay[i] ?? 0
+      const span = perDay[pos] ?? 0
+      return { fromKm: from, toKm: from + Math.max(span, 1) }
+    },
+  }), [pois, anchors, routePolyline, trip.transportMode, trip.travelStyle, existingNames, altPool, dayRoadKm, trip.days])
   const activeDaySlots = useMemo<DaySlot[]>(
     () => daySlots(activeDayIndex, { ...daySlotDeps, dayStops: trip.days.find(d => d.index === activeDayIndex)?.stops ?? [] }),
     [activeDayIndex, daySlotDeps, trip, daySlotSig],

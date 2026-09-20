@@ -614,3 +614,58 @@ describe('day attribution override (P2 fix round 2)', () => {
     expect(rows[1].total).toBe(2)
   })
 })
+
+describe('the day skeleton (P2 fix round 3)', () => {
+  it('fillSkeleton gives every active day the full grammar', () => {
+    const slots = daySlots(0, base({
+      haltSegments: [sh(seg('fuel', { targetKm: 87 }), null)],
+      dayStops: [stop('s1', 'Backwater homestay', { category: 'hotel' })],
+      fillSkeleton: true,
+    }))
+    expect(slots.map(s => s.key)).toEqual(['breakfast', 'lunch', 'fuel', 'dinner', 'stay'])
+    expect(slots.find(s => s.key === 'lunch')?.state).toBe('empty')
+    expect(slots.find(s => s.key === 'stay')?.state).toBe('filled')
+  })
+
+  it('the skeleton fills only the gaps - engine halts keep their slots', () => {
+    const slots = daySlots(0, base({
+      haltSegments: [
+        sh(seg('meal', { etaMinutes: 735 }), null),
+        sh(seg('stretch', { targetKm: 128 }), null),
+        sh(seg('overnight', { targetKm: 440, dayEnd: true }), null),
+      ],
+      dayStops: [],
+      fillSkeleton: true,
+    }))
+    // The day ends at a stay, so it also began after a night - breakfast is part of its grammar.
+    expect(slots.map(s => s.key)).toEqual(['breakfast', 'lunch', 'stretch', 'dinner', 'stay'])
+    expect(slots.find(s => s.key === 'lunch')?.segment?.index).toBe(0)
+  })
+
+  it('a day without any activity still renders nothing', () => {
+    const slots = daySlots(2, base({ haltSegments: [], dayStops: [], fillSkeleton: true }))
+    expect(slots).toEqual([])
+  })
+
+  it('the skeleton is off by default - the engine stays honest', () => {
+    const slots = daySlots(0, base({
+      haltSegments: [sh(seg('fuel', { targetKm: 87 }), null)],
+      dayStops: [stop('s1', 'A hotel', { category: 'hotel' })],
+    }))
+    expect(slots.map(s => s.key)).toEqual(['fuel', 'stay'])
+  })
+
+  it('synthesized slots carry windows and candidates on the day span', () => {
+    const slots = daySlots(1, base({
+      haltSegments: [],
+      dayStops: [stop('s1', 'Cliff stay', { category: 'hotel' })],
+      fillSkeleton: true,
+      daySpanKm: () => ({ fromKm: 300, toKm: 520 }),
+      altPool: [hit('p1', 'Eatery on the way', { alongRouteKm: 400 })],
+    }))
+    const lunch = slots.find(s => s.key === 'lunch')
+    expect(lunch?.windowLabel).toBe('11:30 - 14:30')
+    expect(lunch?.candidates.length).toBeGreaterThanOrEqual(1)
+    expect(slots.some(s => s.key === 'breakfast')).toBe(true)
+  })
+})

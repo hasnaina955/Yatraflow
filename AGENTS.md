@@ -357,6 +357,17 @@ added, run `npm run verify` locally before asking to merge any PR into `test`.
 (Caveat if adding it: the PR run checks out the merge ref, so it duplicates the
 push run rather than replacing it.)
 
+- **A PR's `changedFiles` is measured against ITS OWN base branch, not the
+  integration branch — stacked PRs therefore report inherited work as their
+  own.** Reviewing PR #262 (based on the stacked `feat/clock-map-zones`), the
+  44-file diff carried a DB migration, admin-console and settings changes that
+  the branch's own commits never touched (`git log <merge-base>..head -- <file>`
+  is empty) — they arrived via test-sync merges into the long-lived stack.
+  Before judging scope or "unrelated changes" in a PR, diff against the merge
+  base with the TARGET branch (`git diff $(git merge-base origin/test HEAD)..HEAD
+  --stat`) — and prefer retargeting a stacked PR's base to the integration
+  branch once its parent lands, so review sees the real diff.
+
 ## 4. Code conventions & pitfalls
 
 - **Data model**: times are always stored as 24h `"HH:MM"` strings. Format at
@@ -522,6 +533,20 @@ push run rather than replacing it.)
 - **A cross-surface mutation needs a follow-the-surface check: what does each consumer derive, and does it re-render?** Wiring "resolve vote → stop lands on timeline" required walking every surface that shows the place: Board/Timeline read the trip (free), but the Map rail's see-&-do rows and its count badges derived visibility from `existingNames` only in *some* paths — rows kept offering an already-added place. When adding a mutation that makes a thing "already added", grep every consumer for its added-test and route them all through one predicate (here name-based dedupe), including derived counts (`seeAndDoLive`), not just row render.
 - **An effect that depends on asynchronously-hydrated store data must list those values in its dep array.** `InviteGate` used a mount-only `[]` effect, which fired before `init()` resolved — `me`/`trip` were both null, so the invite never auto-joined and the user sat on the spinner. `react-hooks/exhaustive-deps` (now wired via `npm run lint`) flags exactly this; don't suppress it with `eslint-disable` when the fix is to depend on the resolved object.
 - **Scoping a query invalidates every cache-shape assumption downstream of it.** When hydration was scoped to the user's memberships, `tripById` — consumed by the public itinerary page and the invite gate — silently started returning undefined for every non-member (and every anonymous visitor): "Itinerary not found" on Explore cards, "This invite link is broken" on invites. Before changing what a fetch returns, grep for consumers that derive invariants from that data; flows that legitimately need OTHER people's rows (public pages, invites) get an on-demand fetch (`fetchSharedTrip`) plus an RLS/RPC path, never a cache-shape accident.
+- **The clock walk numbers DRIVE days, not calendar days — anything mapping
+  `TravelClockDay.dayIndex` onto `trip.days` or a date must anchor
+  deliberately.** The walk splits the road by caps (`planDriveDays`) and the
+  return pass (`#145`) indexes its days continuing the outbound count, so its
+  indices are neither itinerary positions nor dates: joining corridor `cumKm`
+  against a return label's turnaround-relative km needs the origin-scale
+  mirror (`outboundKm − km`, measured off the drawn polyline), dating return
+  drives needs the trip's tail (`tripDaysCount − returnDays.length + local`),
+  and a tap target needs the resolved itinerary day (`ClockMilestone.itineraryDay`)
+  with the consumer validating it against `trip.days` — a value no DaySection
+  matches collapses the whole accordion. One-shot cross-component signals must
+  also be consumed-and-cleared at the consumer (the workspace outlives trips;
+  `TripWorkspace` is not keyed by trip id), or they re-fire on every later
+  mount and leak across trips.
 - **The halt planner's plan + resolved spots must be written together** (`setHaltCache(day, segments, plan)`), because hydration rebuilds the editable plan from `cache.plan` and the pinnable real spots from `cache.segments[i]`. And the corridor search behind "🔎 Find real spots" runs **only on that button** — never on plan edits — per the §4 persistence rule; a `[day, sugCache]` hydrate effect that clobbers an in-progress edit is guarded with an "only rehydrate while the plan is empty" check.
 - **`kmFromStartForHit` takes `Pick<PlaceHit, 'latitude' | 'longitude' | 'alongRouteKm'>`** — an ItineraryStop's `lat`/`lng` must be remapped (`{ latitude: s.lat, longitude: s.lng }`), it will not type-accept the stop directly. Same asymmetry to watch on any `PlaceHit`-shaped helper.
 

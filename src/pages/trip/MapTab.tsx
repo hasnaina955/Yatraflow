@@ -451,6 +451,9 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
       verdict: clockVerdict,
       polyline: routePolyline,
       tripStartDate: trip.startDate,
+      // anchors the return pass's dates at the trip's tail and decides which
+      // labels have an honest itinerary day behind them (tap targets)
+      tripDaysCount: trip.days.length,
       todayISO: todayISO(),
       // Phase 2: the corridor's overnight hits name the halt labels. `pois` is
       // SegmentHit[] — the annotated hits carry haltPurpose + cumKm from
@@ -458,7 +461,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
       // asks for.
       haltCandidates: pois.map(s => s.hit).filter((h): h is PlaceHit => h != null),
     }),
-    [clockVerdict, routePolyline, trip.startDate, pois],
+    [clockVerdict, routePolyline, trip.startDate, trip.days.length, pois],
   )
   // One clock story (#123): the banner count comes from the clock walk that
   // knows the start time; planDriveDays stays the geometry-free estimator.

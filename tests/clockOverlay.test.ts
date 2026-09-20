@@ -5,10 +5,11 @@
 // FIX-1: `deriveClockMilestones` takes the walk result (as MapTab passes its
 // `clockVerdict`), never the walk inputs — so fixtures invoke `planTravelClock`
 // directly and these tests pin the projection, not the engine.
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { haversineKm } from '../src/lib/geo'
 import { clockHM, deriveClockMilestones } from '../src/lib/clockOverlay'
-import { planTravelClock } from '../src/lib/ridePlan'
+import { planTravelClock, type TravelClockDay, type TravelClockVerdict } from '../src/lib/ridePlan'
 import type { PlaceHit } from '../src/lib/providers/hits'
 
 /** A straight east-west polyline at the equator; ~111.195 km per degree. */
@@ -303,5 +304,154 @@ describe('deriveClockMilestones - labels, not areas', () => {
       ] as PlaceHit[],
     })
     for (const p of pins) expect(p.haltName).toBeNull()
+  })
+})
+
+// ---- Two-leg fixtures: round trips, where both pre-release review findings
+// lived (the halt-name join and the return dates). A hand-built verdict keeps
+// the walk's night halts at exact, assertable kms — the projection is what's
+// under test, and FIX-1 says the projection is a pure function of its input. ----
+
+function clockDay(over: Partial<TravelClockDay> & { dayIndex: number; kmCovered: number }): TravelClockDay {
+  return {
+    startKm: 0, nightHaltKm: null, nightHaltEtaMin: null, dinnerAtHalt: false,
+    wheelMin: 0, dwellMin: 0, arrivalEtaMin: null, lateArrival: false, anchors: [],
+    ...over,
+  }
+}
+
+/** Drive out 250 km (halt there), stay, drive the 500 km road home in one day
+ *  with a halt 100 km past the turnaround (= 400 km from the ORIGIN). */
+const twoLegVerdict: TravelClockVerdict = {
+  verdict: 'ok',
+  days: [clockDay({ dayIndex: 0, kmCovered: 250, nightHaltKm: 250, nightHaltEtaMin: 18 * 60 })],
+  returnDays: [clockDay({ dayIndex: 1, kmCovered: 250, nightHaltKm: 100, nightHaltEtaMin: 18 * 60, arrivalEtaMin: 19 * 60 })],
+  split: null,
+}
+
+const CORRIDOR_TOWNS = [
+  { id: 't1', name: 'Outbound Town', latitude: 0, longitude: 200 / KM_PER_DEG, haltPurpose: 'overnight', cumKm: 200 },
+  { id: 't2', name: 'Turnaround Town', latitude: 0, longitude: 390 / KM_PER_DEG, haltPurpose: 'overnight', cumKm: 390 },
+] as PlaceHit[]
+
+describe('deriveClockMilestones - round trips (review fixes)', () => {
+  it('the return halt joins its name on the ORIGIN scale, not turnaround-relative', () => {
+    // The return halt sits 100 km past the turnaround = 400 km from the origin.
+    // Comparing turnaround-km 100 straight against candidate cumKm would name
+    // Outbound Town (cumKm 200, 100 km away) — a town 300 km from the halt.
+    const pins = deriveClockMilestones({
+      verdict: twoLegVerdict,
+      polyline: straightPolyline(500),
+      haltCandidates: CORRIDOR_TOWNS,
+    })
+    const out = pins.find(p => p.kind === 'overnight' && p.leg === 'outbound')
+    const back = pins.find(p => p.kind === 'overnight' && p.leg === 'return')
+    expect(out).toBeDefined()
+    expect(back).toBeDefined()
+    expect(out!.haltName).toBe('Outbound Town')
+    expect(back!.haltName).toBe('Turnaround Town')
+  })
+
+  it('return labels date from the trip TAIL: the homecoming is the last day', () => {
+    // 5 itinerary days, one outbound + one return drive day: the return drive
+    // is the trip's LAST day (5 Oct), not the day after the outbound (2 Oct).
+    const pins = deriveClockMilestones({
+      verdict: twoLegVerdict,
+      polyline: straightPolyline(500),
+      tripStartDate: '2026-10-01',
+      tripDaysCount: 5,
+    })
+    const out = pins.find(p => p.leg === 'outbound')!
+    const back = pins.filter(p => p.leg === 'return')
+    expect(out.dateLabel).toBe('1 Oct')
+    expect(out.itineraryDay).toBe(0)
+    expect(back.length).toBe(2)
+    for (const p of back) {
+      expect(p.dateLabel).toBe('5 Oct')
+      expect(p.itineraryDay).toBe(4)
+    }
+  })
+
+  it('dayState reads the tail-anchored return date against today', () => {
+    const pins = deriveClockMilestones({
+      verdict: twoLegVerdict,
+      polyline: straightPolyline(500),
+      tripStartDate: '2026-10-01',
+      tripDaysCount: 5,
+      todayISO: '2026-10-03',
+    })
+    expect(pins.find(p => p.leg === 'outbound')!.dayState).toBe('past')
+    for (const p of pins.filter(p => p.leg === 'return')) expect(p.dayState).toBe('future')
+  })
+
+  it('without a day count the return labels stay honest and undated', () => {
+    const pins = deriveClockMilestones({
+      verdict: twoLegVerdict,
+      polyline: straightPolyline(500),
+      tripStartDate: '2026-10-01',
+      haltCandidates: CORRIDOR_TOWNS,
+    })
+    const out = pins.find(p => p.leg === 'outbound')!
+    expect(out.dateLabel).toBe('1 Oct')
+    expect(out.itineraryDay).toBe(0)
+    for (const p of pins.filter(p => p.leg === 'return')) {
+      expect(p.dateLabel).toBe('')
+      expect(p.itineraryDay).toBeUndefined()
+    }
+  })
+
+  it('a walk split that runs past the trip stops claiming itinerary days', () => {
+    // Two outbound drive days on a 2-day trip: day 2's labels have no honest
+    // itinerary day — undated and untappable rather than pointing at a day
+    // that does not exist.
+    const verdict: TravelClockVerdict = {
+      verdict: 'ok',
+      days: [
+        clockDay({ dayIndex: 0, kmCovered: 250, nightHaltKm: 250, nightHaltEtaMin: 18 * 60 }),
+        clockDay({ dayIndex: 2, startKm: 250, kmCovered: 250, nightHaltKm: 500, nightHaltEtaMin: 18 * 60 }),
+      ],
+      returnDays: null,
+      split: null,
+    }
+    const pins = deriveClockMilestones({
+      verdict,
+      polyline: straightPolyline(500),
+      tripStartDate: '2026-10-01',
+      tripDaysCount: 2,
+    })
+    const day1 = pins.filter(p => p.dayNo === 1)
+    const day3 = pins.filter(p => p.dayNo === 3)
+    expect(day1.length).toBeGreaterThan(0)
+    expect(day3.length).toBeGreaterThan(0)
+    for (const p of day1) expect(p.itineraryDay).toBe(0)
+    for (const p of day3) {
+      expect(p.itineraryDay).toBeUndefined()
+      expect(p.dateLabel).toBe('')
+    }
+  })
+})
+
+describe('Phase 3 signal lifecycle (source invariants)', () => {
+  // The lifecycle bugs (stale refire across mounts, cross-trip leak, tapping a
+  // day the timeline does not have) live in component wiring that node-env
+  // tests cannot render — pinned the repo's way: as invariants on the source.
+  const read = (p: string) => readFileSync(new URL(p, import.meta.url), 'utf8')
+
+  it('the timeline validates the focus signal against its own days and consumes it', () => {
+    const src = read('../src/pages/trip/TimelineTab.tsx')
+    expect(src).toContain('trip.days.some(d => d.index === focusDay)')
+    expect(src).toContain('onFocusConsumed?.()')
+  })
+
+  it('the workspace clears the signal once consumed (no stale refire, no cross-trip leak)', () => {
+    const ws = read('../src/pages/TripWorkspace.tsx')
+    expect(ws).toContain('onFocusConsumed={clearTimelineFocusDay}')
+    expect(ws).toContain('setTimelineFocusDay(null)')
+  })
+
+  it('only labels with an honest itinerary day are tappable, and they open that day', () => {
+    const map = read('../src/components/TripMap.tsx')
+    expect(map).toContain('m.itineraryDay != null')
+    expect(map).toContain('onOpenDay(m.itineraryDay!)')
   })
 })

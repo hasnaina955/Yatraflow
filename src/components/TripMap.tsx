@@ -190,8 +190,11 @@ function ClockMilestoneLayer({ overlay, showReturn, onOpenDay }: { overlay: Cloc
       {overlay.filter(m => m.leg === 'outbound' || showReturn).map((m, i) => {
         // Phase 3: an overnight halt is a decision ("where do we sleep"), so it
         // is the one label that earns a tap — it opens that day's plan. Every
-        // other label stays decorative context.
-        const halts = m.kind === 'overnight' && typeof onOpenDay === 'function'
+        // other label stays decorative context. The tap target must carry an
+        // honest itinerary day (itineraryDay): the walk's return pass indexes
+        // its days past the itinerary, and a value no timeline day matches
+        // would open nothing (or, worse, the wrong day).
+        const halts = m.kind === 'overnight' && typeof onOpenDay === 'function' && m.itineraryDay != null
         const chip = (
           <span className={`yf-milestone yf-milestone--${m.kind}${m.leg === 'return' ? ' yf-milestone--return' : ''} yf-milestone--${m.dayState}`}>
             <span className="yf-milestone-when">
@@ -209,9 +212,9 @@ function ClockMilestoneLayer({ overlay, showReturn, onOpenDay }: { overlay: Cloc
                 <button
                   type="button"
                   className="yf-milestone-hit"
-                  onClick={() => onOpenDay(m.dayNo - 1)}
-                  title={`Open day ${m.dayNo} in the timeline${m.haltName ? ` — ${m.haltName}` : ''}`}
-                  aria-label={`Open day ${m.dayNo} in the timeline${m.haltName ? ` — overnight at ${m.haltName}` : ''}`}
+                  onClick={() => onOpenDay(m.itineraryDay!)}
+                  title={`Open day ${m.itineraryDay! + 1} in the timeline${m.haltName ? ` — ${m.haltName}` : ''}`}
+                  aria-label={`Open day ${m.itineraryDay! + 1} in the timeline${m.haltName ? ` — overnight at ${m.haltName}` : ''}`}
                 >{chip}</button>
               ) : chip}
             </MarkerContent>

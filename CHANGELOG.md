@@ -45,22 +45,35 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
   `dayState` from the trip's own dates against the device calendar: the days
   already behind you dim to the same quiet whisper as the return leg, the day
   you're on now pulses gently on its time chip (frozen under
-  `prefers-reduced-motion`), and the rest stays full plan. A trip fully in the
+  `prefers-reduced-motion`), and the rest stays full plan. Return drives date
+  from the trip's TAIL — the drive home occupies the last of the itinerary's
+  days (drive out → stay → drive home), so the homecoming chip carries the
+  trip's final date rather than the day after the outbound drive — and where
+  no honest itinerary day exists (a walk split that runs past the plan, an
+  undated call), the label claims no date at all. A trip fully in the
   past renders all-dimmed, a future trip all-full, and an undated trip claims
   neither — no `Date` objects cross the comparison, so a +5:30 calendar can't
   flip a day boundary at midnight.
 - **Overnight halts name the town they land at.** Each halt label leads with
   the place the corridor search already found within 120 km of its km — the
   same honesty bound the halt planner itself uses — so the map answers "where
-  do we sleep", not just "how far". Nothing close enough means no name: a bare
-  time and km, never a guess.
+  do we sleep", not just "how far". The join is leg-aware: the corridor scan
+  measured the outbound direction, so a drive-home halt is joined at its
+  origin-scale position (its turnaround-relative km mirrored) — without that,
+  a return halt hundreds of km along would borrow a town near the start.
+  Nothing close enough means no name: a bare time and km, never a guess.
 - **Tapping a halt opens that day's plan.** The overnight label is the one
   tappable mark on the route (generous hit area, focus ring, same visual as its
   decorative siblings): a tap switches to the Timeline, opens that day's
-  accordion and brings its card into view. Meals and the destination stay
-  strictly non-interactive — only where you sleep is a decision.
+  accordion and brings its card into view. Only labels with an honest
+  itinerary day behind them are tappable — the walk's return pass numbers its
+  days past the itinerary's own, and a value no timeline day matches would
+  collapse the whole accordion rather than open anything — and the request is
+  consumed once handled, so a stale focus can neither re-fire on a later visit
+  to the Timeline nor leak into the next trip's plan. Meals and the destination
+  stay strictly non-interactive — only where you sleep is a decision.
 - Pure module `src/lib/clockOverlay.ts` (`deriveClockMilestones`,
-  `ClockMilestone`, `clockHM`) + 19 fixtures in `tests/clockOverlay.test.ts`.
+  `ClockMilestone`, `clockHM`) + 27 fixtures in `tests/clockOverlay.test.ts`.
 - **True user deletion in the masteradmin console.** The Users tab gains a permanent Delete alongside Disable (the existing reversible soft-ban): an audited `admin_delete_user` RPC deletes the auth account, which cascades every trip the user owns (plan, expenses, votes, decisions, activity, publications), their memberships and authored rows in other crews' trips, and their notifications — while other people's trips survive for the remaining crew. Protected by an explicit force confirmation before destroying published Explore listings, self-deletion and last-admin deletion are refused outright, and the audit log records the blast radius (email, owned-trip count, published count, force flag) before the delete. The console confirms by typing the user's email.
 
 ### Changed

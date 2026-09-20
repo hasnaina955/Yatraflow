@@ -13,7 +13,7 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 > record still exists in `git log`, not here. Archived release notes live in
 > [`docs/history/`](docs/history/).
 
-## [Unreleased]
+## [0.63.0] - 2026-09-20
 
 ### Added
 - **The travel clock is drawn on the map as clean road labels.** No pins, no

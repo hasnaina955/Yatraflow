@@ -14,7 +14,7 @@ import {
   PenLine,   TriangleAlert, 
 } from 'lucide-react'
 import type { Trip, ItineraryStop } from '../../data/types'
-import { updateTrip, setStopStatus } from '../../store/store'
+import { updateTrip, setStopStatus, useDb, currentUser, userById } from '../../store/store'
 import {
   computeTotals, minutesToHM, formatInr,
   collectWarnings, buildJourney, dayRoadPolyline,
@@ -26,6 +26,8 @@ import { accordionNext } from '../../lib/daySummary'
 import { scrollBehavior } from '../../lib/motion'
 import { toast } from '../../components/ui'
 import { StopEditor, type StopFormValues } from '../../components/StopEditor'
+import { RemoteEditBanner } from '../../components/RemoteEditBanner'
+import { stopWasRemotelyEdited } from '../../lib/realtimeCore'
 import { stopInitialValues, stopLegContext, stopEditorKey, stopDayIndex, type StopEditorTarget } from '../../lib/stopForm'
 import { useSuggestionCache } from '../../hooks/useSuggestionCache'
 import { kmFromStartForHit } from '../../lib/providers/hits'
@@ -57,6 +59,41 @@ export function TimelineTab({ trip, editable, applyChange, legCorrections, sugge
 }) {
   const [editorState, setEditorState] = useState<StopEditorTarget>(null)
   const [moveModalStop, setMoveModalStop] = useState<ItineraryStop | null>(null)
+
+  // ---- M6 B3 · remote-edit conflict surfacing ----
+  // Snapshot the stop (as a plain record) the moment the editor opens; while
+  // the editor is open the draft writes through only on save, so ANY drift
+  // between the snapshot and the live trip is a remote (or another-surface)
+  // edit. Detection is pure — stopWasRemotelyEdited compares canonically
+  // (jsonb reorders object keys on the wire; a naive stringify compare would
+  // phantom-flag every hydration).
+  const [conflictSnapshot, setConflictSnapshot] = useState<{ stopId: string; mine: Record<string, unknown> } | null>(null)
+  /** Bump to force the editor form to re-seed from the live stop (take-theirs). */
+  const [takeTheirsTick, setTakeTheirsTick] = useState(0)
+  const openEditorState = useCallback((next: StopEditorTarget) => {
+    if (next?.mode === 'edit') {
+      for (const d of trip.days) {
+        const s = d.stops.find(x => x.id === next.stopId)
+        if (s) { setConflictSnapshot({ stopId: s.id, mine: { ...s } }); break }
+      }
+    }
+    setEditorState(next)
+  }, [trip.days])
+  const liveStop = editorState?.mode === 'edit'
+    ? trip.days.flatMap(d => d.stops).find(x => x.id === editorState.stopId)
+    : undefined
+  const conflict = conflictSnapshot && liveStop && stopWasRemotelyEdited(conflictSnapshot.mine, liveStop as unknown as Record<string, unknown>)
+    ? { mine: conflictSnapshot.mine, theirs: liveStop as unknown as Record<string, unknown> }
+    : null
+  // Who edited: the most recent non-local activity entry touching this stop.
+  const dbAll = useDb()
+  const meId = currentUser(dbAll)?.id
+  const conflictBy = conflict
+    ? [...dbAll.activity].reverse().find(a =>
+        a.tripId === trip.id && a.actorId !== meId &&
+        (a.verb.includes('updated') || a.verb.includes('added') || a.verb.includes('removed')))
+    : undefined
+  const conflictByName = conflictBy ? userById(conflictBy.actorId) : undefined
 
   // Sorted once per trip change — a stable array of stable day references so
   // the memoized DaySections below only re-render when their own data changes.
@@ -93,9 +130,9 @@ export function TimelineTab({ trip, editable, applyChange, legCorrections, sugge
   // bites (an unrelated store commit re-renders TimelineTab via the tab counts).
   const handleAdd = useCallback((dayIndex: number) => {
     openDay(dayIndex) // adding into a collapsed day would hide the result — expand it
-    setEditorState({ mode: 'add', dayIndex })
-  }, [openDay])
-  const handleEdit = useCallback((stopId: string) => setEditorState({ mode: 'edit', stopId }), [])
+    openEditorState({ mode: 'add', dayIndex })
+  }, [openDay, openEditorState])
+  const handleEdit = useCallback((stopId: string) => openEditorState({ mode: 'edit', stopId }), [openEditorState])
 
   function handleSave(v: StopFormValues) {
     if (!editorState) return
@@ -296,7 +333,7 @@ export function TimelineTab({ trip, editable, applyChange, legCorrections, sugge
   const planEditable = editable && mode === 'plan'
   function changeMode(m: TimelineMode) {
     setMode(m)
-    if (m === 'inspect') { setEditorState(null); setMoveModalStop(null) }
+    if (m === 'inspect') { openEditorState(null); setMoveModalStop(null) }
   }
 
   return (
@@ -332,7 +369,7 @@ export function TimelineTab({ trip, editable, applyChange, legCorrections, sugge
                 toggling never reflows the header — that reflow was the jerk. */}
             <button className="btn btn-primary btn-sm" disabled={mode !== 'plan'}
               title={mode !== 'plan' ? 'Switch to Plan mode to edit' : undefined}
-              onClick={() => setEditorState({ mode: 'add', dayIndex: 0 })}>+ Add stop</button>
+              onClick={() => openEditorState({ mode: 'add', dayIndex: 0 })}>+ Add stop</button>
           </div>
         )}
       </div>
@@ -386,12 +423,26 @@ export function TimelineTab({ trip, editable, applyChange, legCorrections, sugge
 
       <StopEditor
         open={!!editorState}
-        onClose={() => setEditorState(null)}
+        onClose={() => { setEditorState(null); setConflictSnapshot(null) }}
         initial={stopInitialValues(editorState, trip)}
-        resetKey={stopEditorKey(editorState)}
+        resetKey={stopEditorKey(editorState) + (takeTheirsTick ? `:theirs-${takeTheirsTick}` : '')}
         onSave={handleSave}
         dayLabel={editorState?.mode === 'add' ? `Day ${editorState.dayIndex + 1}` : undefined}
         legContext={stopLegContext(editorState, trip)}
+        banner={conflict && editorState?.mode === 'edit' ? (
+          <RemoteEditBanner
+            byName={conflictByName?.profile.name ?? ''}
+            onKeepMine={() => setConflictSnapshot(null)}
+            onTakeTheirs={() => {
+              // Re-seed the editor's draft from the live (remote) stop: bump
+              // the reset key so the form re-normalizes from `initial`, which
+              // now reads the remote version. Snapshot resets so the banner
+              // clears and a FURTHER remote edit re-flags.
+              setTakeTheirsTick(t => t + 1)
+              setConflictSnapshot({ stopId: editorState.stopId, mine: { ...(liveStop as unknown as Record<string, unknown>) } })
+            }}
+          />
+        ) : undefined}
       />
 
       <MoveStopModal

@@ -27,7 +27,7 @@ import { prefersReducedMotion } from '../../../lib/motion'
 import { stopKindOf, STOP_KIND_LABELS } from '../../../lib/stopKind'
 import { statusLabel } from '../../../lib/labels'
 import { Chip, EmptyState, Modal, toast, useReorder } from '../../../components/ui'
-import { glideOffsetPx, insertionIndexFor, rowLayoutBoxes } from '../../../lib/touchDnd'
+import { glideOffsetPx, insertionIndexFor, rowLayoutBoxes, cancelRowSettle, cancelListSettles, settleRow } from '../../../lib/touchDnd'
 import { useSuggestionCache } from '../../../hooks/useSuggestionCache'
 import { searchNearbyPois } from '../../../lib/geocode'
 import type { PlaceHit } from '../../../lib/geocode'
@@ -227,16 +227,24 @@ export const DaySection = React.memo(function DaySection({ day, trip, editable, 
   const dropRect = useRef<{ id: string; x: number; y: number } | null>(null)
   const { dndHandlers, dayDropHandlers, dragging, foreignOver, moveUp, moveDown, takeCarryRect, listId } = useReorder(
     ordered,
-    (fromIdx) => {
-      // idx counts positions in the full list (dragged slot included), so a
-      // slot past the dragged index shifts down once it is removed.
-      const idx = insertRef.current ?? fromIdx
-      const toIdx = idx > fromIdx ? idx - 1 : idx
+    (fromIdx, commandToIdx, source) => {
+      // Two contracts share this callback. A DRAG drop reports the hit-tested
+      // index but is resolved from the live insertion slot: idx counts
+      // positions in the full list (dragged slot included), so a slot past the
+      // dragged index shifts down once it is removed. A COMMAND (the up/down
+      // buttons) has no slot to read — it carries the destination the user
+      // asked for, so it must be used as-is; reading `insertRef` here resolved
+      // every arrow press to a no-op and the buttons silently did nothing.
+      const toIdx = source === 'command'
+        ? commandToIdx
+        : (() => { const idx = insertRef.current ?? fromIdx; return idx > fromIdx ? idx - 1 : idx })()
       // consume the carry rect on EVERY self-drop: a no-op slot (released at
       // rest) must not leak the engine's rect into a later FLIP pass
       const rect = takeCarryRect()
       if (toIdx !== fromIdx) {
-        if (rect && ordered[fromIdx]) dropRect.current = { id: ordered[fromIdx].id, x: rect.x, y: rect.y }
+        // only a drag has a carry rect to spring from; a command moves nothing
+        // on screen that needs FLIP continuity
+        if (source === 'drag' && rect && ordered[fromIdx]) dropRect.current = { id: ordered[fromIdx].id, x: rect.x, y: rect.y }
         onMoveWithinDay(fromIdx, toIdx, day.index)
       }
       setInsertIdx(null)
@@ -294,8 +302,11 @@ export const DaySection = React.memo(function DaySection({ day, trip, editable, 
   useLayoutEffect(() => {
     const rootEl = stopsRef.current
     if (!rootEl) return
+    const interrupted = new Map<string, DOMRect>()
     const now = new Map<string, { x: number; y: number }>()
     for (const el of Array.from(rootEl.querySelectorAll<HTMLElement>('[data-stop-id]'))) {
+      const visual = cancelRowSettle(el)
+      if (visual) interrupted.set(el.dataset.stopId!, visual)
       const r = el.getBoundingClientRect()
       now.set(el.dataset.stopId!, { x: r.left, y: r.top })
     }
@@ -306,19 +317,18 @@ export const DaySection = React.memo(function DaySection({ day, trip, editable, 
       for (const [id, p] of now) {
         const q = dropped && dropped.id === id ? dropped : prev.get(id)
         if (!q) continue
-        const dx = q.x - p.x
-        const dy = q.y - p.y
+        const visual = interrupted.get(id)
+        const dx = q.x - p.x + (visual && q !== dropped ? visual.left - p.x : 0)
+        const dy = q.y - p.y + (visual && q !== dropped ? visual.top - p.y : 0)
         if (dx || dy) {
-          rootEl.querySelector<HTMLElement>(`[data-stop-id="${CSS.escape(id)}"]`)
-            ?.animate(
-              [{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }],
-              { duration: 240, easing: 'cubic-bezier(.22, .61, .36, 1)' },
-            )
+          const el = rootEl.querySelector<HTMLElement>(`[data-stop-id="${CSS.escape(id)}"]`)
+          if (el && !el.classList.contains('is-carried')) settleRow(el, dx, dy, listId)
         }
       }
     }
     prevRects.current = now
-  }, [ordered])
+  }, [ordered, listId])
+  useLayoutEffect(() => () => cancelListSettles(listId), [listId])
   const commitmentsToday = trip.fixedCommitments.filter(fc => fc.dayIndex === day.index)
 
   // --- Collapsed-by-default accordion (docs/TIMELINE-PLAN.md Phase 1) ---
@@ -391,7 +401,7 @@ export const DaySection = React.memo(function DaySection({ day, trip, editable, 
 
   return (
     <div className={`day-section${collapsed ? ' day-closed' : ''}${collapsed && isStayDay ? ' day-stay-collapsed' : ''}${dragging !== null ? ' drag-live' : ''}`} id={`day-card-${day.index}`}>
-      <div className="day-header">
+      <div className={`day-header${foreignOver === ordered.length && dragging === null ? ' foreign-over' : ''}`} {...(editable ? dayDropHandlers(ordered.length) : {})}>
         {/* Stable name + state attribute (UI audit F-09); the collapsible body
             is a fragment of siblings, so there's no single aria-controls id. */}
         <button className="day-collapse" onClick={onCollapseClick} aria-expanded={!collapsed} aria-label={`Day ${day.index + 1} stops`}>
@@ -584,8 +594,8 @@ export const DaySection = React.memo(function DaySection({ day, trip, editable, 
             }
             return (
               <div key={s.id} data-stop-id={s.id} className="tl-row tl-anchor" style={{ transform: glideOffset(i) != null ? `translateY(${glideOffset(i)}px)` : undefined }} {...(editable ? dndHandlers(i) : {})}>
-                <div className="tl-gutter" aria-hidden="true">
-                  <span className="tl-time">{isFinal ? (sim.arrivalTimes[i] ? formatHM(sim.arrivalTimes[i], timeFormat) : '--:--') : (sim.departures[i] ? formatHM(sim.departures[i], timeFormat) : '--:--')}</span>
+                <div className="tl-gutter">
+                  <span className="tl-time"><span className="sr-only">{isFinal ? 'Arrival: ' : 'Departure: '}</span>{isFinal ? (sim.arrivalTimes[i] ? formatHM(sim.arrivalTimes[i], timeFormat) : '--:--') : (sim.departures[i] ? formatHM(sim.departures[i], timeFormat) : '--:--')}</span>
                 </div>
                 <div className="travel-endpoint">
                   <span className="travel-anchor-ico">{i === 0 || isFinal ? <Flag size={13} aria-hidden /> : <MapPin size={13} aria-hidden />}</span>
@@ -606,10 +616,10 @@ export const DaySection = React.memo(function DaySection({ day, trip, editable, 
                 style={{ transform: glideOffset(i) != null ? `translateY(${glideOffset(i)}px)` : undefined }}
                 {...(editable ? dndHandlers(i) : {})}
               >
-                <div className="tl-gutter" aria-hidden="true">
-                  <span className="tl-time tl-arr">{sim.arrivalTimes[i] ? formatHM(sim.arrivalTimes[i], timeFormat) : '--:--'}</span>
-                  <span className="tl-line" />
-                  <span className="tl-time tl-dep">{sim.departures[i] ? formatHM(sim.departures[i], timeFormat) : '--:--'}</span>
+                <div className="tl-gutter">
+                  <span className="tl-time tl-arr"><span className="sr-only">Arrival: </span>{sim.arrivalTimes[i] ? formatHM(sim.arrivalTimes[i], timeFormat) : '--:--'}</span>
+                  <span className="tl-line" aria-hidden="true" />
+                  <span className="tl-time tl-dep"><span className="sr-only">Departure: </span>{sim.departures[i] ? formatHM(sim.departures[i], timeFormat) : '--:--'}</span>
                 </div>
                 <div
                   className={`stop-card kind-${kind} status-${s.status} ${foreignOver === i && dragging === null ? 'foreign-over' : ''}`}
@@ -686,8 +696,8 @@ export const DaySection = React.memo(function DaySection({ day, trip, editable, 
                 </div>
               )}
               <div className="tl-row tl-anchor">
-                <div className="tl-gutter" aria-hidden="true">
-                  <span className="tl-time tl-arr">{last.arrive ? formatHM(last.arrive, timeFormat) : '--:--'}</span>
+                <div className="tl-gutter">
+                  <span className="tl-time tl-arr"><span className="sr-only">Arrival: </span>{last.arrive ? formatHM(last.arrive, timeFormat) : '--:--'}</span>
                 </div>
                 <div className="travel-endpoint">
                   <span className="travel-anchor-ico"><Flag size={13} aria-hidden /></span>
@@ -699,7 +709,7 @@ export const DaySection = React.memo(function DaySection({ day, trip, editable, 
           )
         })()}
         {ordered.length > 0 && (
-          <div className="tl-end" {...(editable ? dayDropHandlers(ordered.length) : {})}>
+          <div className="tl-end">
             {foreignOver === ordered.length && dragging === null && <div className="tl-drop-line">Drop to add here</div>}
           </div>
         )}

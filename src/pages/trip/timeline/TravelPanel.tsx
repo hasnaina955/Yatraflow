@@ -5,7 +5,7 @@
 // Mechanical extraction from src/pages/TripWorkspace.tsx (M3.4) — no behavior changes.
 // Includes DaySection, DayWeatherChip, TravelPanel, HaltPlanRow, DaySpark,
 // MoveStopModal and ClampedText — the whole timeline hot path.
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
 
   BedDouble, Coffee, Eye, ExternalLink, Fuel, MapPin,
@@ -92,6 +92,12 @@ export function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAdd
   const [draftPurpose, setDraftPurpose] = useState<HaltPurpose>('meal')
   const [resolving, setResolving] = useState(false)
   const [searched, setSearched] = useState(false)
+  const spotRequest = useRef(0)
+  useLayoutEffect(() => {
+    ++spotRequest.current
+    setResolving(false)
+    return () => { ++spotRequest.current }
+  }, [trip.id, day.index, editable])
   // nearby pool for slack prompts — refreshed on every spot search, picked
   // live against current slack so any itinerary change re-computes the nudge
   const [slackPool, setSlackPool] = useState<{ hit: PlaceHit; detourMin: number }[]>([])
@@ -141,6 +147,8 @@ export function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAdd
 
   /** Persist the plan (and its best spots) so it survives tab switches. */
   function commitPlan(next: HaltPlanDraft[]) {
+    ++spotRequest.current
+    setResolving(false)
     setPlan(next)
     const sorted = [...next].sort((a, b) => a.km - b.km)
     const segments = segmentsFromPlan(sorted, journey.distanceKm || 0, journey.driveMinutes)
@@ -171,7 +179,9 @@ export function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAdd
    * explicit action — never on derived-state churn.
    */
   async function resolveSpots() {
-    if (plan.length === 0) return
+    if (!editable || plan.length === 0) return
+    const request = ++spotRequest.current
+    const ownsRequest = () => request === spotRequest.current
     setResolving(true)
     try {
       const routePts = journey.points.map(p => ({ lat: p.lat, lng: p.lng }))
@@ -197,6 +207,7 @@ export function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAdd
           : searchCitiesAlong(anchors, 35000, 8)
         ).catch(() => [] as PlaceHit[]),
       ])
+      if (!ownsRequest()) return
       const seen = new Set<string>()
       const candidates: PlaceHit[] = []
       for (const h of [...cities, ...hits]) {
@@ -229,12 +240,15 @@ export function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAdd
       )
       const hitById = new Map<string, PlaceHit | null>()
       sorted.forEach((item, i) => hitById.set(item.id, assigned[i]?.hit ?? null))
+      setSearched(true)
       commitPlan(plan.map(item => ({ ...item, hit: hitById.get(item.id) ?? null })))
     } catch {
-      toast('Could not find spots for your halts.', 'err')
+      if (ownsRequest()) {
+        toast('Could not find spots for your halts.', 'err')
+        setSearched(true)
+      }
     } finally {
-      setResolving(false)
-      setSearched(true)
+      if (ownsRequest()) setResolving(false)
     }
   }
 

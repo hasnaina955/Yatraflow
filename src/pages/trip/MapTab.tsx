@@ -1,21 +1,20 @@
 // ============ Trip workspace — Map tab ============
 // Mechanical extraction from src/pages/TripWorkspace.tsx (M3.4) — no behavior changes.
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronDown, CircleCheck, Clock, ExternalLink, Fuel, Lightbulb, MapPin, Plus, RotateCcw, Sparkles, Star } from 'lucide-react'
-import { MetaIcon } from '../../components/icons'
+import { ChevronDown, CircleCheck, ExternalLink, Fuel, Lightbulb, MapPin, Plus, RotateCcw, Sparkles, Star } from 'lucide-react'
 import { uid } from '../../data/seed'
 import type { Trip, ItineraryStop } from '../../data/types'
 import type { ImpactResult } from '../../lib/impact'
 import { mapRoadViewFromLegs, outboundLegs, type TripRoadView } from '../../lib/tripRoad'
 import { buildJourney, minutesToHM, fmtDur, computeCategoryBias, MODE_SPEED, isRoundTrip } from '../../lib/engine'
 import { useTimeFormat, formatHM, formatHMRange } from '../../lib/timefmt'
-import { loadPref, savePref, loadHaltPin, loadHaltPinsForTrip, saveHaltPin, clearHaltPin, clearHaltPinsForTrip } from '../../lib/uiPrefs'
-import { Modal, Field, toast, undoToast } from '../../components/ui'
+import { loadPref, savePref, loadHaltPinsForTrip, saveHaltPin, clearHaltPinsForTrip } from '../../lib/uiPrefs'
+import { Modal, Field, toast, undoToast, useInView, useMedia, usePageVisible } from '../../components/ui'
 import { Select } from '../../components/Select'
 import { DetourWhisk } from '../../components/DetourWhisk'
 import { useSuggestionCache, isMapCacheFresh } from '../../hooks/useSuggestionCache'
 import { openExternal } from '../../lib/native'
-import { corridorAnchors, detourKm, detourMinutes, asymmetricDetourMinutes, googleEnabled, planJourneyHalts, reasonForSegmentHit, searchPlacesText, searchNearbyPoisMulti, kmFromStartForHit, planDriveDays, planTravelClock, rainFactorFor, isSelfDrivenMode, requireHitCoords, hasCoords, DEFER_START, type NearbyOpts, type PlaceHit, type TravelClockVerdict, routeHash } from '../../lib/geocode'
+import { corridorAnchors, detourKm, asymmetricDetourMinutes, googleEnabled, planJourneyHalts, reasonForSegmentHit, searchPlacesText, searchNearbyPoisMulti, kmFromStartForHit, planDriveDays, planTravelClock, rainFactorFor, requireHitCoords, directionalKm, alongRouteKmOf, DEFER_START, type NearbyOpts, type PlaceHit, type TravelClockVerdict, routeHash } from '../../lib/geocode'
 import { deriveClockMilestones } from '../../lib/clockOverlay'
 import { isSightCategory, roadProfileFromLegs, loopProfile } from '../../lib/ridePlan'
 import { QuotaExhaustedError } from '../../lib/providers/google'
@@ -29,7 +28,7 @@ import { quotaUsed, SOFT_CAPS } from '../../lib/providers/quota'
 import { buildDnaVectorAcrossTrips, loadDnaLog, recordDnaEvent, dnaNoteForHit, crewSeedsFromSuggestions, crewSeedsToPlannedStops, crewSeedEvents, crewNoteForHit } from '../../lib/tripDna'
 import { clusterStoryArcs } from '../../lib/storyArcs'
 import { visitMinutesForCategory } from '../../lib/slackPrompts'
-import { prefersReducedMotion, scrollBehavior } from '../../lib/motion'
+import { scrollBehavior } from '../../lib/motion'
 import type { SegmentHit } from '../../lib/geocode'
 import { anchorHash, projectOntoPolyline } from '../../lib/providers/hits'
 import { fetchDailyWeather, forecastAvailable, isoAddDays, todayISO } from '../../lib/weather'
@@ -68,13 +67,18 @@ const ENGINE_TIPS = [
 
 function EngineTips() {
   const [tip, setTip] = useState(0)
+  const tipsRef = useRef<HTMLDivElement>(null)
+  const reduced = useMedia('(prefers-reduced-motion: reduce)')
+  const inView = useInView(tipsRef)
+  const visible = usePageVisible()
+  const running = inView && visible && !reduced
   useEffect(() => {
-    if (prefersReducedMotion()) return
+    if (!running) return
     const t = setInterval(() => setTip(i => (i + 1) % ENGINE_TIPS.length), 7000)
     return () => clearInterval(t)
-  }, [])
+  }, [running])
   return (
-    <div className="engine-tips">
+    <div className="engine-tips" ref={tipsRef}>
       <span className="engine-tips-ico"><Sparkles size={12} aria-hidden /></span>
       {/* #168: role="status" on rotating text re-announces every 7s — a live
           region that never shuts up. The rotation is decorative; SR users get
@@ -310,6 +314,13 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     return pts.length >= 2 ? pts : null
   }, [routeGeometry])
 
+  // #polylines: the Return-home toggle is a DIRECTION filter, not a drawing
+  // switch. On (default): the corridor reads the loop — km labels wrap past the
+  // far end onto the ride home, exactly like the plan's loop math. Off: the
+  // outbound road only — a place 30 km before the far end reads ~30 km from
+  // home on the way back instead of a meaningless 95% of the loop.
+  const [showReturn, setShowReturn] = useState(true)
+
   // Crew seeds: open group-input ideas suppress near-duplicates and bias the
   // corridor toward crew-proposed kinds.
   const crewSeeds = useMemo(() => crewSeedsFromSuggestions(crewSuggestions ?? []), [crewSuggestions])
@@ -417,7 +428,6 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
   // #126: conducted modes (train/bus/flight/taxi) have no driving fatigue —
   // the split verdict stays null and every banner/chip/arming consumer below
   // goes quiet through that single gate.
-  const selfDriven = isSelfDrivenMode(trip.transportMode)
   const splitVerdict = useMemo(
     () => planDriveDays({ totalKm: planKm * loopFactor, driveMinutes: wholeTrip.min * loopFactor, rainFactor, profile: tripIsRoundTrip ? loopProfile(roadProfile) : roadProfile, ...partyOpts }),
     // #213 Phase 3: dayWeatherCode IS a dep (rainFactor reads it for severity
@@ -607,6 +617,16 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     if (!routePolyline) return null
     const snap = projectOntoPolyline({ latitude: lat, longitude: lng }, routePolyline)
     return snap?.km ?? null
+  }
+  /** Directional km label: honours the Return-home toggle (#polylines). With
+   *  the return hidden, a place on the way back reads its distance from home
+   *  instead of a misleading 90%+ of the loop. Null off-polyline. */
+  function kmLabelFor(km: number | null | undefined): number | null {
+    if (km == null || !Number.isFinite(km)) return null
+    if (!routePolyline) return km
+    const span = alongRouteKmOf(routePolyline[0].lat, routePolyline[0].lng, routePolyline) // total = span of the drawn road
+    const total = span?.totalKm ?? km
+    return directionalKm(km, total, showReturn)
   }
 
   async function addPoiToDay(hit: PlaceHit, dayIndex: number) {
@@ -861,10 +881,9 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
   // hits, spend each one's detour minutes against that day's budget, and mark
   // whatever no longer fits as HELD BACK — counted and shown as a line, never
   // offered as an addable card.
-  const { budgetHeldIds, budgetHeldCount } = useMemo(() => {
-    const heldIds = new Set<string>()
-    let heldCount = 0
-    const speedK = MODE_SPEED[trip.transportMode] ?? 40
+  const budgetHeldIds = new Set<string>()
+  let budgetHeldCount = 0
+  {
     const byDay = new Map<number, SegmentHit[]>()
     for (const sh of seeAndDoLive) {
       if (!sh.hit) continue
@@ -883,13 +902,11 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
         budget,
       )
       for (const { sh } of deferred) {
-        heldIds.add(sh.hit!.id as string)
-        heldCount += 1
+        budgetHeldIds.add(sh.hit!.id as string)
+        budgetHeldCount += 1
       }
     }
-    return { budgetHeldIds: heldIds, budgetHeldCount: heldCount }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [seeAndDoLive, trip, routePolyline, anchors])
+  }
   // Quota honesty (Google-only directive): when the textSearchPro soft cap is
   // hit, every Google-mode corridor scan returns [] — say why instead of
   // rendering an empty state that reads like "nothing around".
@@ -1065,6 +1082,10 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
         onKeyDown={(e) => {
           // #169: the row is a click div in the a11y tree — keyboard users
           // couldn't highlight a card on the map at all.
+          // Descendant controls (shortlist, reason filter, Add) bubble their own
+          // Enter/Space through here. Without this guard the row claimed the key
+          // and preventDefault() cancelled the child's activation instead.
+          if (e.target !== e.currentTarget) return
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault()
             setActiveHitId(hit.id as string | number)
@@ -1092,7 +1113,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
         {/* The planner is clock-first (PLAN-DAY-PLANNER section 4), so the strip
             leads with the wall clock it derived the halt from, not just km. */}
         <div className="poi-facts">
-          <span className="poi-fact">{hit.cumKm ?? sh.segment.targetKm.toFixed(0)} km in</span>
+          <span className="poi-fact">{kmLabelFor(hit.cumKm) != null ? `${Math.round(kmLabelFor(hit.cumKm)!)} km in` : `${sh.segment.targetKm.toFixed(0)} km in`}</span>
           {sh.segment.etaMinutes != null && (
             <span className="poi-fact"><i>·</i>arrive {formatHM(clockHM(sh.segment.etaMinutes), timeFormat)}</span>
           )}
@@ -1307,7 +1328,10 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
                   <span className="small" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {h.name}{h.nearestCity ? ` · ${h.nearestCity}` : ''}
                     <span className="muted">{' — '}
-                      {km != null ? `~${Math.round(km)} km into the trip` : 'off the road'}
+                      {(() => {
+                        const labelled = kmLabelFor(km)
+                        return km != null ? `~${Math.round(labelled ?? km)} km into the trip${showReturn ? '' : ' (outbound)'}` : 'off the road'
+                      })()}
                       {off != null ? ` · ${off < 0.5 ? 'on route' : `${Math.round(off)} km off-route`}` : ''}
                       {!inScope && ' · beyond your detour scope'}
                     </span>
@@ -1499,6 +1523,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
               onDeleteStop={editable ? removeStopFromMap : undefined}
               enableMapViewModes
               mainRouteGeometry={routeGeometry}
+              onShowReturnChange={setShowReturn}
             />
           </div>
           <div className="poi-col poi-col--see" id="rail-see">

@@ -17,7 +17,7 @@
 // resolve via one Place Details call instead of OSM Nominatim.
 export { DEBOUNCE_MS } from './providers/free'
 export { mapplsEnabled, parseOpeningHours, fetchOpeningHours, type OpeningHours } from './providers/free'
-export { HOME_ZONE_KM, corridorAnchors, detourKm, detourMinutes, asymmetricDetourMinutes, filterPlannedNearby, anchorHash, routeHash } from './providers/hits'
+export { HOME_ZONE_KM, corridorAnchors, detourKm, detourMinutes, asymmetricDetourMinutes, filterPlannedNearby, anchorHash, routeHash, alongRouteKmOf, directionalKm } from './providers/hits'
 export type { NearbyOpts, PlaceHit, PlannedStop } from './providers/hits'
 export { googleEnabled } from './providers/google'
 export { googleSearchText, QuotaExhaustedError } from './providers/google'
@@ -47,7 +47,7 @@ import { googleCitiesAlong } from './providers/google'
 import {
   planRideSegments, assignSegmentHits, annotateSegmentHits, cadenceForCrew, leftoverAsSight,
   preferTownGrade,
-  type SegmentHit, type RideSegment,
+  type SegmentHit,
 } from './ridePlan'
 import { resolveVehicleRange } from './vehicleProfile'
 

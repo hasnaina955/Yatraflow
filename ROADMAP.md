@@ -15,8 +15,8 @@ user confirmation before any push. Feature work reaches `test` **via pull
 request** (never a direct push); `main` merges stay explicitly user-gated
 (AGENTS rule 1).
 
-**Snapshot (2026-09-17, verified against the repo):** **both lines carry v0.56.0** — the settings-integrity release, which lands the full six-phase settings-wiring audit (issue #213, PRs #219/#220/#221): Trip settings as its own eighth workspace tab, party/vehicle preferences persisted to the trips table, the propagation fixes that make a settings change re-derive every downstream surface, style-vs-budget separation, Create↔Settings parity, and the numeric defaults that stop car numbers being written onto bikes and EVs. It sits on v0.55.0's gallery-pipeline release and was promoted to `main` on 2026-09-16 (**PR #223**, `main` at `f314b25`). Since the promotion the two lines differ by two commits each: `main` holds the promotion's merge commits, `test` holds **PR #225** (true user deletion in the masteradmin console) — unreleased, and its `admin_delete_user` RPC is migration-gated on `20260916_admin_delete_user.sql`. The verify gate stands at tsc + **970 tests** (97 files) + build.
-Current version: **0.56.0**.
+**Snapshot (2026-09-19, verified against the repo):** **`main` and `test` both carry v0.61.0** — the money release: a paid unlock behind a server-side paywall, a versioned itinerary format, the M6 access-rule suite, and the public surfaces' own pass — promoted to `main` on 2026-09-18 (**PR #259**, `main` at `647faf1`). **v0.60.0** (the whole-app refinement pass, **PR #257**) sits under it. **v0.59.1** was promoted to `main` on 2026-09-17 (**PR #248**, `main` at `1d1b85f`), on top of v0.59.0 (promoted 2026-09-17, **PR #247**, `main` at `b4f0a18`). v0.59.1 is a routing correction: the corridor span measurement assigned each leg by its position among the *uncached* legs rather than within the span, so a cached leg inside the span handed its geometry to the leg after it and cached that under its neighbour's key — the drawn route stopped early, and every later measurement of that leg was served the wrong road. v0.59.0 measures the road one corridor at a time rather than one leg at a time, scopes day-filter measurements to the day on screen, and keeps copied public itinerary addresses previewable with navigation that works in any tab. It sits on v0.57.0, the sharing-and-honesty release: the itinerary preview endpoint (`/i/<id>` answered by `api/i.js` with the publication's own Open Graph tags, then the hash route), the one-step trip-JSON import in both formats the repo ships, permanent user deletion in the masteradmin console, the offline companion's routing collisions fixed, and per-route browser-tab titles. v0.58.0 gives that preview an image: a 1200×630 branded card backs any publication with no cover of its own, and auto-picked Wikipedia covers now go through Wikimedia's own resize endpoint instead of shipping the 1.3–3.3 MB original. It sits on v0.56.0, the settings-integrity release, which lands the full six-phase settings-wiring audit (issue #213, PRs #219/#220/#221): Trip settings as its own eighth workspace tab, party/vehicle preferences persisted to the trips table, the propagation fixes that make a settings change re-derive every downstream surface, style-vs-budget separation, Create↔Settings parity, and the numeric defaults that stop car numbers being written onto bikes and EVs. That release was promoted on 2026-09-16 (**PR #223**, `main` at `f314b25`) and sits on v0.55.0's gallery-pipeline release. `admin_delete_user` keeps its `20260916_admin_delete_user.sql` migration gate. The verify gate stands at tsc + **1390 tests** (115 files) + build.
+Current version: **0.62.0** on `test` (M6 · Together's co-editing half — B1 presence, B2 stale-update guard, B3 remote-edit banner, B4 mark-settled, B0 write-through fixes — merged 2026-09-20, **PR #265**), pending promotion; `main` carries **0.61.0** — promoted on 2026-09-18 (**PR #259**).
 
 **Live open work is tracked in two places, and this file must agree with both:**
 
@@ -52,10 +52,10 @@ below, now tracked as issues so the queue and this file cannot drift apart again
 
 | # | Priority | Issue | State |
 |---|---|---|---|
-| #226 | P1 | E1 · Make links preview | **Built**, on `feat/share-preview-og` (**PR #235**): links become `/i/<id>`, a real path `vercel.json` rewrites to a new `api/i.js` that serves that itinerary's own Open Graph tags. Awaiting the merge, plus `SUPABASE_URL`/`SUPABASE_ANON_KEY` as Vercel function vars (the `VITE_` pair is inlined at build time and never reaches a function) |
+| #226 | P1 | E1 · Make links preview | **Shipped** in v0.57.0: `/i/<id>` serves public metadata and redirects browsers to the hash route, with no cross-deployment shell fetch; the trip-JSON import that PR #235 also carried landed alongside it. v0.58.0 gives that preview a picture — a branded 1200×630 card for any publication with no cover of its own, and auto-picked covers resized through Wikimedia's own endpoint so none exceeds the 600 KB `og:image` ceiling. The single box still open needs a real messaging client: a card rendered in WhatsApp. See `docs/DEPLOYMENT.md`. |
 | #232 | P1 | E2 · The gallery is curated | `#/explore` holds one itinerary; the shelf has to read as chosen, not as everything that passed the gate |
 | #230 | P1 | E3 · Attribute shares, and settle how the readings are kept | Decides what a share is attributed to, and where the readings live, before any of it is measured |
-| #229 | P1 | F1 · Write the thresholds down, before measuring | The four launch signals (shares→views, views→forks, forks→signups, signups→2nd session) and the Stage 1→2 marks, committed in-repo **before** E3's first reading. D5 of `STEP-0-DECISIONS.md` holds the numbers, currently on PR #214's branch; thresholds are immutable once set, so doing this after E3 starts is the failure mode the rule exists to prevent |
+| #229 | P1 | F1 · Write the thresholds down, before measuring | The four launch signals (shares→views, views→forks, forks→signups, signups→2nd session) and the Stage 1→2 marks, committed in-repo **before** E3's first reading. D5 of [`docs/commercial/STEP-0-DECISIONS.md`](docs/commercial/STEP-0-DECISIONS.md) holds the numbers, which merged into the repo with PR #214 — no longer an unmerged branch; thresholds are immutable once set, so doing this after E3 starts is the failure mode the rule exists to prevent |
 | #233 | P1 | F2 · Three real trips, four real people each | Real crews on real trips — the evidence that the planning holds outside a fixture |
 | #227 | P1 | F3 · Send one published link to a WhatsApp group | The smallest honest distribution test, in the channel the product is positioned against |
 | #231 | P2 | F4 · Four consecutive weekly readings | Four weeks is the shortest window that shows a trend rather than a day |
@@ -145,6 +145,13 @@ and date), per the AGENTS §6 same-edit rule. Detail lives in
 - [x] **v0.54.0** — The suggestion pipeline tells the truth — honest detours, one road measurement, night halts anchored on real towns, the Day Planner's meal and fuel cadences revived, and Create Trip parity with its route-integrity guardrail
 - [x] **v0.55.0** — The gallery gets its pipeline — the import contract and validator, the engine-truth gate in CI, the demand-ranked 20-trip backlog, and six researched, engine-priced shelf itineraries (Goa, Kerala, Mewar, Kashmir, Meghalaya + the Coorg reference); Vercel Web Analytics rides along
 - [x] **v0.56.0** — Settings integrity: the six-phase #213 audit lands as one release — Trip settings becomes its own workspace tab, party/vehicle preferences persist to the trips table, a settings change re-derives every downstream surface, style and budget separate into independent dials, Create Trip and Trip settings share one vocabulary, and blank tank/economy fields stop writing car numbers onto bikes and EVs; promoted to `main` on 2026-09-16 (PR #223)
+- [x] **v0.57.0** — Sharing and honesty: a published itinerary link previews as a card (`/i/<id>` answered by a Vercel function with that itinerary's own Open Graph tags, then the hash route), trip JSON imports in one step from My Trips and reads both formats the repo ships, permanent user deletion lands in the masteradmin console, the offline companion stops routing overloaded days / cost questions / mentions of children to the wrong handler, and every route gets its own browser-tab title
+- [x] **v0.58.0** — The share card gets a picture: a 1200×630 branded card backs any publication with no cover of its own and the shell advertises it too, while auto-picked Wikipedia covers are resized through Wikimedia's own endpoint — the 1.3–3.3 MB originals become 144–406 KB
+- [x] **v0.59.0** — One measurement per corridor: the road draws as one chain measurement instead of one request per leg, the day filter measures only the day on screen, Google-keyed routing spends one quota event per corridor, the Return-home toggle steers the suggestion corridor, and copied public itinerary addresses keep their trip-specific previews with navigation that works in any tab; promoted to `main` on 2026-09-17 (PR #247)
+- [x] **v0.59.1** — Span measurement gives every leg its own result: a cached leg inside the corridor span can no longer hand its geometry to the leg after it or poison that leg's cache entry, so a drawn route stops stopping early; promoted to `main` on 2026-09-17 (PR #248)
+- [x] **v0.60.0** — Whole-app refinement, every route reviewed against its own design language and fixed in place: the phone layouts that pushed their controls off-screen, the Timeline's inert reorder arrows, the calendar painted under the bottom dock, the forced-dark surfaces that stranded white text, the motion that never stopped offscreen, the controls under the 40px touch floor, the keyboard-unreachable scroll regions, and three product claims corrected. No token value changed. The design-system ratchet falls `9 / 11 / 32 / 30 / 1` → `7 / 0 / 28 / 29 / 1`, so the dark theme has no known contrast violation left. Merged to `test` on 2026-09-18 (**PR #257**).
+- [x] **v0.61.0** — The money release: a priced publication can be bought — the price is read server-side so a tampered request cannot change it, the unlock is granted only through a buyer-scoped RPC or the idempotent payment webhook, and a purchase confirmed but never saved is recovered instead of charged twice; the paywall moves to the wire, so locked days no longer travel to every visitor in full; the itinerary format declares its version and its importer migrates and repairs an older export rather than refusing it; the crew-facing RLS shape is pinned by an opt-in suite that runs against the live database (M6); and the two public surfaces get a pass of their own. Promoted to `main` on 2026-09-18 (**PR #259**, `main` at `647faf1`).
+- [x] **v0.62.0** — M6 · Together's co-editing half: the crew is visible while you plan (live presence avatars in the workspace header, one per user across tabs, quiet no-op without a backend), concurrent edits stop destroying each other (a server-clock ledger orders realtime trip updates behind the `trips_touch_updated_at` trigger, and the debounced write persists the snapshot captured at call time), a remote edit of the stop you have open surfaces a keep-mine/take-theirs banner, and expense lines can be marked settled — a record that stays in the balances math, with the arithmetic extracted into a pure, unit-tested module. Merged to `test` on 2026-09-20 (**PR #265**).
 
 ### Remaining — in release order (details in the tracks below)
 - [x] **v0.45.0** — Create-flow + invites + settings release (PR #81 + merged test work): Trip Ticket bento starter (bill print, outline seeding), car rental mode + local-train fares, range calendar, invite short codes + join-flow fixes, auth-refresh fix, Plan Bench trip settings + editable dates, My Trips search/filter/sort restore (branch `feat/create-trip-ticket`)
@@ -158,7 +165,7 @@ and date), per the AGENTS §6 same-edit rule. Detail lives in
 - [x] **M4** — Design-system hygiene: dead CSS purge, mobile-block consolidation, glass/z-index tokens (in [Unreleased], local branch redesign/perf-architecture; raw-rgba glass stragglers intentionally NOT migrated — see commit `f646b45`)
 - [x] **M0 defect** — seed guard: skip demo seeding when hydration had query errors (#94, v0.49.0 — `store.ts` gates the seed on `!tripCountUnknown`)
 - [ ] **M5** — AI companion: user-configurable LLM endpoint (#22 → #20 — **both issues closed; not yet scheduled**)
-- [ ] **M6** — Together: integration test suite, live co-editing depth, split expenses
+- [ ] **M6** — Together: integration test suite shipped (v0.61.0); co-editing depth landed on `test` (v0.62.0, PR #265 — presence, stale-update guard, remote-edit banner, mark-settled); remaining: the track's follow-ups (I-19 settled-lines product call, cross-device DNA persistence I-16)
 - [ ] **M7** — Premium: payment gateway, entitlements, unlock flow
 - [ ] **M9** — Invites & onboarding: creator invites (R1) → referral (R2) → invite-only gate (R3); three releases on `platform_invites`, exec plan in [`docs/PLAN-INVITES-ONBOARDING.md`](docs/PLAN-INVITES-ONBOARDING.md). *Added to the ledger 2026-09-11 — it previously existed only as a track section, so it was invisible to any pending list derived from these checkboxes.*
 - [ ] **1.0 (M8)** — offline-first/PWA, i18n (EN+HI), the 1.0 cut → then PR to `test`
@@ -280,6 +287,16 @@ Supabase integration/RLS test suite first (opt-in `VITE_RUN_INTEGRATION`,
 settlement groundwork (payer tagging + balances card) shipped in v0.36.0;
 M6 adds the multi-currency-free refinement and co-editing depth on top.
 
+**State (2026-09-20): the co-editing half has landed on `test` (v0.62.0, PR #265).**
+Two of the track's three legs are now real: the integration/RLS suite shipped in
+v0.61.0 (37/37 against the live database, presence probe included), and PR-B brought
+the co-editing depth — B0 write integrity (debounced flush persists the snapshot
+captured at call time), B2 stale-update guard (server-derived timestamp ledger + the
+`trips_touch_updated_at` trigger, applied live), B1 presence (avatar row via Supabase
+presence channels), B3 remote-edit banner (keep-mine / take-theirs), B4 mark-settled
+(a record on the expense line — balances math unchanged; see I-19). Issue #237
+stays open until the remaining depth items are called done.
+
 ### M7 — "Premium" (monetization) — **issue #238**
 Gateway integration (Razorpay fits INR), order/entitlement tables + webhook,
 purchase state, unlock flow replacing placeholder toasts. Needs an external
@@ -313,6 +330,7 @@ get a row here again.
 | 4 | A11y attributes & nav semantics (F-02, F-04–F-10) | ✅ |
 | 5 | Form hygiene (F-13–F-16) | ✅ |
 | 6 | URL state (tabs, Explore filters) + copy (F-21, F-22, F-31, F-32) | ✅ |
+| 7 | Impeccable whole-app refinement pass (2026-09-18) — mobile topnav, timeline reorder, `.two-col` overflow, create-trip calendar occlusion, light-theme contrast, board peek transition, reduced-motion delays, keyboard focus for the ledgers, viewer affordances, role/casing leaks, profile save feedback. Snapshot `.impeccable/critique/2026-09-17T17-42-23Z__src-app-tsx.md` closed; narrative in the CHANGELOG | ✅ |
 
 ---
 ## Idea bank
@@ -335,6 +353,8 @@ unbuilt). **Before picking up a row, and before quoting one in a plan, confirm i
 
 ### Tier 1 — ready to pick up (small, unblocked)
 
+> **Heads-up (2026-09-19, M6 B4):** "mark settled" shipped as a RECORD on an expense line — the line stays in the running balances, because the card's fair share is the engine estimate split per head and dropping a settled line's credit while it still sits inside the estimate breaks the zero-sum who-owes-whom maths. I-19 is the follow-up that would make settled lines genuinely leave.
+
 | # | Idea | Area | Effort | Note |
 |---|---|---|---|---|
 | I-1 | CSV export of expense lines | budget | 1 h | Client-side blob download from `trip.expenses`. |
@@ -345,6 +365,7 @@ unbuilt). **Before picking up a row, and before quoting one in a plan, confirm i
 | I-6 | Settlement acknowledgement + reminder | budget | 2 h | Balances card gains a "mark settled" flag and a nudge. The settlement *engine* already runs (`BudgetTab.tsx:363`) and `Expense.paidBy` already drives balances — only the acknowledgement state and its reminder are missing. **Adjacent to M6.** |
 | I-7 | Decision comments | collaboration | schema | Needs a `comments` JSON column on decisions (migration) — `StopSuggestion` has one, `TripDecision` does not (`types.ts:226` vs `:244`). |
 | I-8 | Monthly statements / invoice export | creator | 2–3 h | Downloadable per-month earnings summary, client-side from the payouts table. **Post-M7.** |
+| I-17 | Theme the text selection and the caret | design system | 1 h | `::selection` and `caret-color` are declared **nowhere** in `src/styles.css` — the UA's highlight blue and caret are the last unthemed browser surfaces in the app (found while scoping v0.60.0's craft-floor pass). Cheap to close with the app's own soft-tint pairing (`--teal-soft` + `--text`) and `caret-color: var(--teal-deep)`, but it is a feel change rather than a defect, so it wants a look first. |
 
 ### Tier 2 — blocked on a named dependency
 
@@ -358,6 +379,8 @@ unbuilt). **Before picking up a row, and before quoting one in a plan, confirm i
 | I-14 | Payout method + KYC management | M7 (schema) | Bank/UPI + legal name + PAN on profiles — M7's biggest schema lift. |
 | I-15 | Unlock conversion funnel | M7, then events | Views → premium unlocks per publication; needs entitlement events from M7 first. |
 | I-16 | Cross-device Trip DNA persistence | M6/M7 infra | The engine is **done** (category mix, detour tolerance, stop-length dims, cross-trip device learning). What remains is persistence: a `user_dna` table + RLS so the profile survives a device change. Deliberately parked on infrastructure, not an engine gap. |
+| I-18 | `overdrive` on the four authored surfaces | the owner's direction pick | The v0.60.0 pass scoped `overdrive` for Landing/PlanBench, the Trip Ticket (Create Trip), the Overview hero and the public-itinerary editorial, and deliberately ran without it: the command's contract forbids writing code before 2–3 directions are presented and one is picked, and requires browser iteration plus a banner. Nothing overdrive-shaped has been built anywhere. |
+| I-19 | Settled lines genuinely leave the balances | budget | 3–4 h + product call | M6 B4 shipped "mark settled" as a record (settler + timestamp, history, activity) and the line STILL counts toward the running balances — deliberately: the card's fair share is `fairSharePerHead(travellers, totals.totalCostInr)` (the engine estimate split per head), so dropping a settled line's credit while it remains inside the estimate breaks the zero-sum property and the who-owes-whom transfers stop balancing. Doing it properly means re-basing what the card measures from "the trip estimate" to "the open lines" (fair share from open-line sums), with the settled history as a ledger view — a product decision about what the card should mean, not arithmetic. BudgetTab's `computeBalances` call passes the whole `trip.expenses`; the open/settled split currently styles the two lists only. |
 
 ### Tier 3 — milestone-shaped, tracked as tracks (not ideas)
 
@@ -366,8 +389,9 @@ the bank is a complete index of unbuilt work:
 
 | Track | Where | State |
 |---|---|---|
+| Public route at `/i/<id>` with no hash hop (option B) | [#226](#open-issues) | **Deferred.** The address-bar patch already keeps `/i/<id>#/pub/<id>` crawler-readable, so previews no longer need it. It would still drop the function round-trip on every refresh — and the interim "Opening this itinerary…" page that goes with it — by serving the app at the path the crawler already reads. Needs coordinated app routing, Vercel shell delivery, legacy hash-link handling and refresh/Back/Forward coverage; must not redirect `/i/<id>` to itself or fetch a different deployment's shell |
 | M5 — AI companion | [Strategic track](#m5--ai-companion-issues-22--20-the-next-feature-to-build) | Next up; issues #22 → #20 |
-| M6 — Together | [Strategic track](#m6--together-collaboration-depth) | RLS test suite, co-editing |
+| M6 — Together | [Strategic track](#m6--together-collaboration-depth) | RLS suite shipped (v0.61.0); co-editing depth on `test` (v0.62.0) |
 | M7 — Premium | [Strategic track](#m7--premium-monetization) | Blocked: needs a gateway account |
 | M9 — Invites & onboarding | [`docs/PLAN-INVITES-ONBOARDING.md`](docs/PLAN-INVITES-ONBOARDING.md) | R1 → R2 → R3; exec plan written |
 | M10 — Day Planner (travel-clock engine) | [`docs/PLAN-DAY-PLANNER.md`](docs/PLAN-DAY-PLANNER.md) | P1-A → P1-G; exec plan written. Fixes the short-trip suggestion silence (user feedback) and the 700-km-in-Day-1 gap — meals as fixed clock anchors, duration fatigue cap, derived drive days / night halts / defer proposals |

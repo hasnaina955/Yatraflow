@@ -61,7 +61,7 @@ export function AuthPage({ onNavigate }: { onNavigate: (r: string) => void }) {
 
   // #87: this was a role="tablist" whose children were aria-pressed buttons —
   // a spec mismatch. Now proper tabs: role="tab", aria-selected, roving
-  // tabindex, arrow/Home/End. The form is one panel whose label follows the
+  // tabindex, arrow/Home/End. The form sits in one panel whose label follows the
   // active tab (the fields differ only by the name row).
   const { refs, tabProps } = useTablist(AUTH_MODES, mode, m => { setMode(m); setError(null) })
 
@@ -70,7 +70,7 @@ export function AuthPage({ onNavigate }: { onNavigate: (r: string) => void }) {
       <div className="card auth-card">
         <h1 className="auth-title">{mode === 'login' ? 'Welcome back' : 'Create your account'}</h1>
         <p className="muted small" style={{ marginTop: 4 }}>
-          {mode === 'login' ? 'Log in to your trip plans.' : 'Free forever for planning. No card needed.'}
+          {mode === 'login' ? 'Log in to your trip plans.' : 'Free to plan. No card needed.'}
         </p>
 
         <PillNav className="tabbar auth-tabs" role="tablist" aria-label="Login or sign up" activeKey={mode}>
@@ -91,7 +91,11 @@ export function AuthPage({ onNavigate }: { onNavigate: (r: string) => void }) {
           </div>
         )}
 
-        <form onSubmit={submit} id="auth-panel" role="tabpanel" aria-labelledby={mode === 'login' ? 'auth-tab-login' : 'auth-tab-signup'}>
+        {/* `role="tabpanel"` is not permitted on `<form>`, so the panel wrapper
+            carries it (and the id the tablist's aria-controls points at); the
+            form inside stays a plain form. */}
+        <div id="auth-panel" role="tabpanel" aria-labelledby={mode === 'login' ? 'auth-tab-login' : 'auth-tab-signup'}>
+        <form onSubmit={submit}>
           {mode === 'signup' && (
             <Field label="Your name"><input className="input" name="name" autoComplete="name" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Meera Nair" /></Field>
           )}
@@ -110,6 +114,7 @@ export function AuthPage({ onNavigate }: { onNavigate: (r: string) => void }) {
             </p>
           )}
         </form>
+        </div>
 
         <p className="hint-text" style={{ textAlign: 'center', marginTop: 14 }}>
           Demo trips are added to your account automatically on first sign-in.

@@ -18,6 +18,9 @@ import { BottomNav } from './components/BottomNav'
 import { PillNav } from './components/PillNav'
 import { decodeTripSnapshot } from './lib/snapshot'
 import { scrollBehavior } from './lib/motion'
+import { pageTitle, routeParts } from './lib/pageTitle'
+import { syncPublicAddress } from './lib/shareUrl'
+import { appLink } from './lib/appLink'
 import { App as CapApp } from '@capacitor/app'
 import { isNative } from './lib/native'
 import { feedbackHref } from './lib/feedback'
@@ -89,7 +92,8 @@ export default function App() {
   }
 
   useEffect(() => {
-    const onHash = () => { setRoute(currentRoute()); setMobileNav(false); window.scrollTo({ top: 0, behavior: scrollBehavior() }) }
+    syncPublicAddress()
+    const onHash = () => { syncPublicAddress(); setRoute(currentRoute()); setMobileNav(false); window.scrollTo({ top: 0, behavior: scrollBehavior() }) }
     window.addEventListener('hashchange', onHash)
     return () => window.removeEventListener('hashchange', onHash)
   }, [])
@@ -224,7 +228,19 @@ export default function App() {
   // route shapes: /, /auth, /trips, /new, /trip/:id, /explore, /pub/:slug, /creator/:id, /creator-hub, /join/:code, /invite/:tripId (legacy), /admin, /share/<payload>, /profile
   // Query strings (e.g. /auth?mode=signup) ride on parts[0]; strip them so the
   // segment still matches the switch. Pages read their own params from location.hash.
-  const parts = route.split('/').filter(Boolean).map(s => s.split('?')[0])
+  const parts = routeParts(route)
+
+  // One title per route. `index.html` carries a single static title, so every
+  // route shared it: four open tabs all read the same thing, and a bookmark of
+  // one itinerary was indistinguishable from a bookmark of the site. Routes
+  // whose name lives in the store (`/trip/…`, `/pub/…`, `/creator/…`) get a
+  // generic title here and are refined by the page that already holds the
+  // record — App deliberately slices its subscriptions, and reading the trips
+  // table just to label a tab would undo that.
+  useEffect(() => {
+    document.title = pageTitle(routeParts(route))
+  }, [route])
+
   let page: React.ReactNode
 
   // Before the first hydrate settles, every "empty" is a lie: a deep link to
@@ -381,18 +397,18 @@ export default function App() {
       {(!isNative || !me) && (
       <nav className="topnav">
         <div className="container topnav-inner">
-          <a className="brand" href="#/" aria-label="YatraFlow home">
+          <a className="brand" {...appLink('#/')} aria-label="YatraFlow home">
             <BrandMark size={32} />
             <span>Yatra<b style={{ color: 'var(--teal)' }}>Flow</b></span>
           </a>
           <PillNav activeKey={route} className="nav-links" role="navigation" aria-label="Primary">
             {me && <>
-              <a className={`nav-link ${route === '/trips' ? 'active' : ''}`} data-pill-key="/trips" href="#/trips">My trips</a>
-              <a className={`nav-link ${route === '/new' ? 'active' : ''}`} data-pill-key="/new" href="#/new">Plan a trip</a>
+              <a className={`nav-link ${route === '/trips' ? 'active' : ''}`} data-pill-key="/trips" {...appLink('#/trips')}>My trips</a>
+              <a className={`nav-link ${route === '/new' ? 'active' : ''}`} data-pill-key="/new" {...appLink('#/new')}>Plan a trip</a>
             </>}
-            <a className={`nav-link ${route === '/explore' ? 'active' : ''}`} data-pill-key="/explore" href="#/explore">Explore</a>
+            <a className={`nav-link ${route === '/explore' ? 'active' : ''}`} data-pill-key="/explore" {...appLink('#/explore')}>Explore</a>
             {me?.profile.isCreator && (
-              <a className={`nav-link ${route === '/creator-hub' ? 'active' : ''}`} data-pill-key="/creator-hub" href="#/creator-hub">Creator hub</a>
+              <a className={`nav-link ${route === '/creator-hub' ? 'active' : ''}`} data-pill-key="/creator-hub" {...appLink('#/creator-hub')}>Creator hub</a>
             )}
           </PillNav>
         <div className="nav-right">
@@ -474,8 +490,8 @@ export default function App() {
           </div>{/* /nav-pill-group */}
           {!me && (
             <>
-              <a className="btn btn-outline btn-sm" href="#/auth">Log in</a>
-              <a className="btn btn-primary btn-sm" href="#/auth?mode=signup">Sign up free</a>
+              <a className="btn btn-outline btn-sm" {...appLink('#/auth')}>Log in</a>
+              <a className="btn btn-primary btn-sm" {...appLink('#/auth?mode=signup')}>Sign up free</a>
             </>
           )}
         </div>
@@ -486,13 +502,13 @@ export default function App() {
       {mobileNav && !isNative && (
         <div className="mobile-menu" id="mobile-menu" onClick={() => setMobileNav(false)}>
           {me && <>
-            <a className={`nav-link ${route === '/trips' ? 'active' : ''}`} href="#/trips"><Tent size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 6 }} />My trips</a>
-            <a className={`nav-link ${route === '/new' ? 'active' : ''}`} href="#/new"><Plus size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 6 }} />Plan a trip</a>
+            <a className={`nav-link ${route === '/trips' ? 'active' : ''}`} {...appLink('#/trips')}><Tent size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 6 }} />My trips</a>
+            <a className={`nav-link ${route === '/new' ? 'active' : ''}`} {...appLink('#/new')}><Plus size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 6 }} />Plan a trip</a>
           </>
           }
-          <a className={`nav-link ${route === '/explore' ? 'active' : ''}`} href="#/explore"><Compass size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 6 }} />Explore</a>
-          {me?.profile.isCreator && <a className={`nav-link ${route === '/creator-hub' ? 'active' : ''}`} href="#/creator-hub"><Sparkles size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 6 }} />Creator hub</a>}
-          {me && <a className={`nav-link ${route === '/profile' ? 'active' : ''}`} href="#/profile"><Settings size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 6 }} />Profile & settings</a>}
+          <a className={`nav-link ${route === '/explore' ? 'active' : ''}`} {...appLink('#/explore')}><Compass size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 6 }} />Explore</a>
+          {me?.profile.isCreator && <a className={`nav-link ${route === '/creator-hub' ? 'active' : ''}`} {...appLink('#/creator-hub')}><Sparkles size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 6 }} />Creator hub</a>}
+          {me && <a className={`nav-link ${route === '/profile' ? 'active' : ''}`} {...appLink('#/profile')}><Settings size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 6 }} />Profile & settings</a>}
         </div>
       )}
 
@@ -558,8 +574,11 @@ function SharedTripPage({ payload, onNavigate }: { payload: string; onNavigate: 
     return (
       <div className="container empty-state">
         <div className="big"><Link2 size={38} aria-hidden /></div>
-        <h1 style={{ fontSize: 26 }}>This snapshot link is broken</h1>
-        <p className="muted">The link may have been truncated — ask for a fresh one from the trip’s Share tab.</p>
+        {/* Decoding can fail for reasons that are NOT the link: `inflate` throws
+            where DecompressionStream is missing, and a newer snapshot can fail
+            the shape check. Name the likely cause, keep the alternative. */}
+        <h1 style={{ fontSize: 26 }}>This snapshot didn’t load</h1>
+        <p className="muted">A snapshot travels inside the link itself, so this is usually a link that arrived truncated — ask for a fresh one from the trip’s Share tab. Opening it in an up-to-date browser, which can unpack it, is worth a try too.</p>
         <button className="btn btn-primary" style={{ marginTop: 14 }} onClick={() => onNavigate('/')}>Go home</button>
       </div>
     )
@@ -603,6 +622,9 @@ function InviteGate({ codeOrTripId, onNavigate }: { codeOrTripId: string; onNavi
   // is the capability to preview it.
   const [trip, setTrip] = useState<Trip | null>(null)
   const [status, setStatus] = useState<'loading' | 'broken' | 'joining'>('loading')
+  // A dropped connection resolves to the same null as a dead code, so the
+  // failure screen has to offer the one remedy that costs nothing: try again.
+  const [retryTick, setRetryTick] = useState(0)
   // Keep the latest navigate callback in a ref so we don't re-fire effects
   // on every parent re-render.
   const navigateRef = useRef(onNavigate)
@@ -627,7 +649,7 @@ function InviteGate({ codeOrTripId, onNavigate }: { codeOrTripId: string; onNavi
       else setStatus('broken')
     })
     return () => { alive = false }
-  }, [codeOrTripId])
+  }, [codeOrTripId, retryTick])
 
   // Logged in + trip resolved → join once, then open the trip. The join is
   // awaited: joinViaInvite writes the membership row before its side effects,
@@ -653,7 +675,9 @@ function InviteGate({ codeOrTripId, onNavigate }: { codeOrTripId: string; onNavi
       await fetchSharedTrip(trip.id, true)
       const ok = await joinViaInvite(trip.id, me.id)
       if (ok) toast(`You’re on “${trip.name}” — happy planning!`)
-      else toast('Could not join — the link may be old. Ask for a fresh one.', 'err')
+      // joinViaInvite reports false for an RLS refusal or a dropped connection
+      // just as readily as for a stale code, so this cannot blame the link.
+      else toast('Couldn’t join just now — open the link again, or ask for a fresh one.', 'err')
       navigateRef.current(`/trip/${trip.id}`)
     })()
     // Depend on me/trip objects, not a mount-only []: the store hydrates them
@@ -665,9 +689,12 @@ function InviteGate({ codeOrTripId, onNavigate }: { codeOrTripId: string; onNavi
     return status === 'broken' ? (
       <div className="container empty-state">
         <div className="big"><Link2 size={38} aria-hidden /></div>
-        <h1 style={{ fontSize: 26 }}>This invite link is broken</h1>
-        <p className="muted">Ask the trip organiser for a fresh link from the trip’s Share tab.</p>
-        <button className="btn btn-primary" style={{ marginTop: 14 }} onClick={() => onNavigate('/')}>Go home</button>
+        <h1 style={{ fontSize: 26 }}>This invite didn’t load</h1>
+        <p className="muted">The code may be mistyped or no longer active, or the connection may have dropped — we can’t tell which from here. Ask the organiser for a fresh link, or try again.</p>
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 14 }}>
+          <button className="btn btn-primary" onClick={() => { setStatus('loading'); setRetryTick(t => t + 1) }}>Try again</button>
+          <button className="btn btn-outline" onClick={() => onNavigate('/')}>Go home</button>
+        </div>
       </div>
     ) : (
       <div className="container loading-block"><div className="spinner" />Opening invite…</div>

@@ -11,7 +11,7 @@ import { openExternal } from '../lib/native'
 import { Avatar, Chip } from './ui'
 import { CoverThumb } from './CoverThumb'
 
-export function PubCard({ pub, creator, saved, onFork, onToggleSave, enterIndex }: {
+export function PubCard({ pub, creator, saved, onFork, onToggleSave, enterIndex, needsLogin }: {
   pub: PublishedItinerary
   creator?: User
   saved: boolean
@@ -19,6 +19,10 @@ export function PubCard({ pub, creator, saved, onFork, onToggleSave, enterIndex 
   onToggleSave: () => void
   /** Grid position for the shared entrance stagger (Explore); omit for none. */
   enterIndex?: number
+  /** Signed out: Fork navigates to /auth rather than forking in place, so the
+   *  button has to say so — a click that silently becomes a login redirect
+   *  reads as a broken button. */
+  needsLogin?: boolean
 }) {
   return (
     <div
@@ -50,9 +54,9 @@ export function PubCard({ pub, creator, saved, onFork, onToggleSave, enterIndex 
       </a>
       <div className="row-between itin-meta">
         <a className="creator-line" href={`#/creator/${pub.creatorId}`} aria-label={`View ${creator?.profile.name ?? 'creator'}'s page`}>
-          <Avatar user={creator} />{creator?.profile.name ?? 'Creator'}{creator?.profile.isCreator && <span title="Verified creator" style={{ display: 'inline-flex', verticalAlign: '-2px', marginLeft: 2 }}><Sparkles size={12} aria-hidden /></span>}
+          <Avatar user={creator} />{creator?.profile.name ?? 'Creator'}{creator?.profile.isCreator && <span title="Creator" style={{ display: 'inline-flex', verticalAlign: '-2px', marginLeft: 2 }}><Sparkles size={12} aria-hidden /></span>}
         </a>
-        <button className="btn btn-primary btn-sm" onClick={onFork}>Fork this trip</button>
+        <button className="btn btn-primary btn-sm" onClick={onFork}>{needsLogin ? 'Log in to fork' : 'Fork this trip'}</button>
       </div>
       {creator?.profile.isCreator && (creator.profile.creatorBio || creator.profile.socialLinks?.youtube || creator.profile.socialLinks?.instagram) && (
         <div className="row-between" style={{ gap: 8, marginTop: 6 }}>

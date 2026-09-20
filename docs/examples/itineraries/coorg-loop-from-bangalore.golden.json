@@ -1,4 +1,5 @@
 {
+  "formatVersion": 2,
   "trip": {
     "name": "Coorg Loop from Bangalore",
     "startLocation": "Bangalore",
@@ -35,13 +36,13 @@
             "title": "Mysore masala dosa lunch",
             "category": "food",
             "locationName": "Mysuru, Karnataka",
-            "lat": 12.3041, "lng": 76.653,
+            "lat": 12.3116, "lng": 76.6522,
             "visitMinutes": 60,
             "entryFeeInrPerPerson": 0,
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 0,
+            "orderInDay": 1,
             "notes": "Mylari-style benne dosa with the coconut chutney — a two-minute walk from most city-centre stays"
           },
           {
@@ -56,7 +57,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 1,
+            "orderInDay": 2,
             "sourceUrl": "https://www.mysorepalace.gov.in/",
             "notes": "Audio guide included with the ticket; shoes off inside the residential wing"
           },
@@ -71,7 +72,7 @@
             "transportCostInrTotal": 0,
             "priority": "nice-to-have",
             "status": "confirmed",
-            "orderInDay": 2,
+            "orderInDay": 3,
             "notes": "Kumkum, sandalwood and flower pyramids — cash, and ask before photographing stalls"
           },
           {
@@ -85,7 +86,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 3
+            "orderInDay": 4
           }
         ]
       },
@@ -100,13 +101,13 @@
             "title": "Kodava lunch in Madikeri",
             "category": "food",
             "locationName": "Madikeri, Karnataka",
-            "lat": 12.4215, "lng": 75.7388,
+            "lat": 12.4222, "lng": 75.7407,
             "visitMinutes": 60,
             "entryFeeInrPerPerson": 0,
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 0,
+            "orderInDay": 1,
             "notes": "Pandi (pork) curry and akki roti — Kodagu's own cuisine, not highway thali"
           },
           {
@@ -121,7 +122,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 1,
+            "orderInDay": 2,
             "weatherSensitive": true,
             "sourceUrl": "https://karnatakatourism.org/en/attractions/abbey-falls/",
             "notes": "Approached through private coffee estates; the hanging bridge view is the one to wait for"
@@ -137,7 +138,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 2,
+            "orderInDay": 3,
             "weatherSensitive": true,
             "sourceUrl": "https://coorgtourism.co.in/rajas-seat-coorg",
             "notes": "The kings' viewpoint — arrive 45 minutes before sunset for a rail-side seat"
@@ -153,7 +154,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 3,
+            "orderInDay": 4,
             "notes": "Estate homestays here include dinner and a plantation walk — worth the small premium"
           }
         ]
@@ -175,7 +176,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 0,
+            "orderInDay": 1,
             "sourceUrl": "https://www.trawell.in/karnataka/coorg/dubare-elephant-camp",
             "notes": "Basic camp entry; the Jungle Lodges interaction package (₹1,400+) is separate and must be pre-booked"
           },
@@ -190,7 +191,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 1,
+            "orderInDay": 2,
             "notes": "The 40-ft golden Buddhas of India's largest Nyingma monastery; no shorts, no shoes indoors"
           },
           {
@@ -198,13 +199,13 @@
             "title": "Kushalnagar lunch",
             "category": "food",
             "locationName": "Kushalnagar, Karnataka",
-            "lat": 12.4586, "lng": 75.9614,
+            "lat": 12.4567, "lng": 75.9602,
             "visitMinutes": 60,
             "entryFeeInrPerPerson": 0,
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 2,
+            "orderInDay": 3,
             "notes": "A proper sit-down between the camp and the monastery — the day is short, so eat slowly"
           },
           {
@@ -218,7 +219,7 @@
             "transportCostInrTotal": 0,
             "priority": "nice-to-have",
             "status": "confirmed",
-            "orderInDay": 3,
+            "orderInDay": 4,
             "weatherSensitive": true,
             "sourceUrl": "https://coorgtourism.co.in/kaveri-nisargadhama-forest-park-coorg",
             "notes": "Bamboo-shaded sand island on a hanging bridge — deer and rabbits for the kids"
@@ -234,7 +235,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 4,
+            "orderInDay": 5,
             "notes": "Staying east skips the drive back over the ghat in the morning"
           }
         ]
@@ -257,7 +258,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 0,
+            "orderInDay": 1,
             "weatherSensitive": true,
             "sourceUrl": "https://tickets.ranganathittu.in/",
             "notes": "Boat ride is ₹120/person extra (see the expense line) — the only way close to the crocodiles and storks"
@@ -273,7 +274,7 @@
             "transportCostInrTotal": 0,
             "priority": "nice-to-have",
             "status": "confirmed",
-            "orderInDay": 1,
+            "orderInDay": 2,
             "notes": "Two kilometres from the bird sanctuary — Tipu's island town, and the ghats cost nothing to walk"
           },
           {
@@ -287,7 +288,7 @@
             "transportCostInrTotal": 0,
             "priority": "nice-to-have",
             "status": "confirmed",
-            "orderInDay": 2
+            "orderInDay": 3
           },
           {
             "id": "d4-mysore-stay-2",
@@ -300,7 +301,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 3,
+            "orderInDay": 4,
             "notes": "A different base keeps the last morning's breakfast walk short"
           }
         ]
@@ -322,7 +323,7 @@
             "transportCostInrTotal": 0,
             "priority": "must-do",
             "status": "confirmed",
-            "orderInDay": 0,
+            "orderInDay": 1,
             "notes": "Go before 8:30 — the queue is the only thing on this itinerary that can eat your day"
           },
           {
@@ -336,7 +337,7 @@
             "transportCostInrTotal": 0,
             "priority": "nice-to-have",
             "status": "confirmed",
-            "orderInDay": 1,
+            "orderInDay": 2,
             "notes": "Lacquered-wood toys on the highway itself — a real craft town, not a souvenir stop"
           },
           {
@@ -350,7 +351,7 @@
             "transportCostInrTotal": 0,
             "priority": "optional",
             "status": "confirmed",
-            "orderInDay": 2,
+            "orderInDay": 3,
             "notes": "Thatte idli on Mysore Road — the last food decision before city traffic"
           }
         ]

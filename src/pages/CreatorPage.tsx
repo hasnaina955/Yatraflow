@@ -4,7 +4,7 @@
 // published. Works logged-out (profiles and publications are public app-wide).
 import { useMemo } from 'react'
 import { Camera, Compass, Eye, GitFork, Link2, MapPin, Sparkles, TvMinimalPlay } from 'lucide-react'
-import { useDb, useSessionUserId, usePublished, userById } from '../store/store'
+import { useSessionUserId, usePublished, userById } from '../store/store'
 import { forkPublication } from '../lib/forkPub'
 import { openExternal } from '../lib/native'
 import { useSavedPubs } from '../lib/savedPubs'
@@ -12,7 +12,6 @@ import { Avatar, CopyButton, EmptyState } from '../components/ui'
 import { PubCard } from '../components/PubCard'
 
 export function CreatorPage({ creatorId, onNavigate }: { creatorId: string; onNavigate: (r: string) => void }) {
-  const db = useDb()
   const me = useSessionUserId()
   const published = usePublished()
   const { isSaved, toggleSaved } = useSavedPubs()
@@ -38,7 +37,7 @@ export function CreatorPage({ creatorId, onNavigate }: { creatorId: string; onNa
   const links: { key: 'youtube' | 'instagram'; href: string; label: string; Icon: typeof Camera }[] = []
   if (creator.profile.socialLinks?.youtube) links.push({ key: 'youtube', href: creator.profile.socialLinks.youtube, label: `${creator.profile.name} on YouTube`, Icon: TvMinimalPlay })
   if (creator.profile.socialLinks?.instagram) links.push({ key: 'instagram', href: creator.profile.socialLinks.instagram, label: `${creator.profile.name} on Instagram`, Icon: Camera })
-  const shareLink = `${location.origin}${location.pathname}#/creator/${creatorId}`
+  const shareLink = `${location.origin}/#/creator/${creatorId}`
 
   return (
     <div>
@@ -49,7 +48,7 @@ export function CreatorPage({ creatorId, onNavigate }: { creatorId: string; onNa
           <div className="creator-hero-id">
             <h1>
               {creator.profile.name}
-              {creator.profile.isCreator && <span className="creator-badge" title="Verified creator"><Sparkles size={13} aria-hidden /> Creator</span>}
+              {creator.profile.isCreator && <span className="creator-badge" title="Creator"><Sparkles size={13} aria-hidden /> Creator</span>}
             </h1>
             <p className="creator-hero-meta">
               {[creator.profile.homeCity, ...creator.profile.languages.map(l => l.toUpperCase())].filter(Boolean).join(' · ') || 'Traveller'}
@@ -76,6 +75,8 @@ export function CreatorPage({ creatorId, onNavigate }: { creatorId: string; onNa
           </div>
         )}
 
+        <h2 style={{ marginBottom: 12 }}>Publications</h2>
+
         {pubs.length === 0 ? (
           !creator.profile.isCreator ? (
             <EmptyState icon={<Compass size={38} aria-hidden />} title="No creator page here yet"
@@ -89,7 +90,7 @@ export function CreatorPage({ creatorId, onNavigate }: { creatorId: string; onNa
           <div className="explore-grid">
             {pubs.map(p => (
               <PubCard key={p.id} pub={p} creator={creator} saved={isSaved(p.id)}
-                onFork={() => { void forkPublication(p, me, onNavigate) }}
+                onFork={() => { void forkPublication(p, me, onNavigate) }} needsLogin={!me}
                 onToggleSave={() => toggleSaved(p.id)} />
             ))}
           </div>

@@ -19,9 +19,11 @@ interface Props {
   indiaOnly?: boolean
   /** id for the inner input — lets `Field` associate its label (UI audit F-01). */
   id?: string
+  /** Locks the control for viewers: no typing, no search, no pick. */
+  disabled?: boolean
 }
 
-export function LocationInput({ value, onChange, onPick, placeholder, error, autoFocus, indiaOnly = true, id }: Props) {
+export function LocationInput({ value, onChange, onPick, placeholder, error, autoFocus, indiaOnly = true, id, disabled }: Props) {
   const [hits, setHits] = useState<PlaceHit[]>([])
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -99,6 +101,7 @@ export function LocationInput({ value, onChange, onPick, placeholder, error, aut
       <input
         id={id}
         className="input"
+        disabled={disabled}
         style={error ? { borderColor: 'var(--danger)' } : undefined}
         value={value}
         autoComplete="off"

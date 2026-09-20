@@ -1,7 +1,6 @@
 // ============ Reusable UI components ============
 import React, { useEffect, useId, useRef, useState } from 'react'
-import { Check, Copy, Map as MapIcon, TriangleAlert, Users, X } from 'lucide-react'
-import { formatInr } from '../lib/engine'
+import { Check, Map as MapIcon, TriangleAlert, Users, X } from 'lucide-react'
 import { nativeCopyText } from '../lib/native'
 import { haptic } from '../lib/haptics'
 import { registerTouchDnd, touchPressAbort, touchPressStart, encodeDropKey, isInteractiveTarget, consumeCarryRect } from '../lib/touchDnd'
@@ -135,12 +134,15 @@ export function Field(props: {
     if (el.props.id != null) { associated = true; return child }
     associated = true
     // The hint/error live outside the control — describe them so SR users
-    // tabbing back to the field hear them, and flag the failing field.
-    return React.cloneElement(el, {
-      id: controlId,
-      'aria-describedby': props.error ? errId : props.hint ? hintId : undefined,
-      'aria-invalid': props.error ? true : undefined,
-    })
+    // tabbing back to the field hear them, and flag the failing field. Only
+    // claim these two when this Field actually has something to say: assigning
+    // `undefined` would still overwrite the key, because cloneElement copies it
+    // either way, which silently dropped the invalid flag from controls that
+    // validate themselves (the stop editor's source link, for one).
+    const extra: Partial<{ id: string; 'aria-describedby': string; 'aria-invalid': boolean }> = { id: controlId }
+    if (props.error) { extra['aria-describedby'] = errId; extra['aria-invalid'] = true }
+    else if (props.hint) extra['aria-describedby'] = hintId
+    return React.cloneElement(el, extra)
   })
   return (
     <div className="field">
@@ -164,19 +166,92 @@ export function undoToast(msg: string, undo: () => void) {
   pushToastFn?.(msg, 'ok', { label: 'Undo', run: undo })
 }
 let dismissToastFn: ((id: number) => void) | null = null
+type ToastItem = { id: number; msg: string; kind: string; action?: { label: string; run: () => void } }
+/** How long a toast stays up. An undo toast gets a longer window, and either can
+    be held open indefinitely by pointing at it or tabbing into it. */
+const TOAST_DWELL = 3400
+const TOAST_DWELL_UNDO = 7000
+
 export function ToastZone() {
-  const [toasts, setToasts] = useState<{ id: number; msg: string; kind: string; action?: { label: string; run: () => void } }[]>([])
+  const [toasts, setToasts] = useState<ToastItem[]>([])
+  // One timer per toast, not one per batch: a hold has to bank the elapsed time
+  // and resume where it stopped. The undo toast is the ONLY way back from a
+  // destructive action, so it must not expire out from under the user while they
+  // are reaching for it. (WCAG 2.2.1 Timing Adjustable asks for the limit to be
+  // adjustable or extendable; this covers holding it open, which is the common
+  // case — the remaining gap is recorded in the audit log rather than claimed.)
+  const timers = useRef(new Map<number, { id: number; remaining: number; startedAt: number; handle: number }>())
+  const held = useRef(false)
+  // Hover and focus are INDEPENDENT reasons to hold. Sharing one flag meant a
+  // pointer-out resumed a toast the keyboard was still reading, and a blur
+  // resumed one the pointer was still resting on.
+  const holding = useRef({ pointer: false, focus: false })
+
   useEffect(() => {
+    const drop = (id: number) => {
+      const rec = timers.current.get(id)
+      if (rec) { clearTimeout(rec.handle); timers.current.delete(id) }
+      setToasts(t => t.filter(x => x.id !== id))
+    }
     pushToastFn = (msg, kind = 'ok', action) => {
       const id = Date.now() + Math.random()
       setToasts(t => [...t, { id, msg, kind, action }])
-      setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), action ? 7000 : 3400)
+      const ms = action ? TOAST_DWELL_UNDO : TOAST_DWELL
+      const rec = { id, remaining: ms, startedAt: Date.now(), handle: 0 }
+      // A toast that arrives while the pointer already rests on the zone (a
+      // second save, say) must not start a clock the user cannot see running.
+      if (!held.current) rec.handle = window.setTimeout(() => drop(id), ms)
+      timers.current.set(id, rec)
     }
-    dismissToastFn = (id) => setToasts(t => t.filter(x => x.id !== id))
-    return () => { pushToastFn = null; dismissToastFn = null }
+    dismissToastFn = drop
+    const pending = timers.current
+    return () => {
+      pushToastFn = null
+      dismissToastFn = null
+      for (const rec of pending.values()) clearTimeout(rec.handle)
+      pending.clear()
+    }
   }, [])
+
+  /** Reconcile the hold against both reasons: bank the elapsed time on the way
+      in, re-arm each toast with what it had left (never under a beat) on the way
+      out. Only acts on an actual change, so a stray repeat event is a no-op. */
+  const syncHold = () => {
+    const should = holding.current.pointer || holding.current.focus
+    if (should === held.current) return
+    held.current = should
+    if (should) {
+      for (const rec of timers.current.values()) {
+        clearTimeout(rec.handle)
+        rec.remaining -= Date.now() - rec.startedAt
+      }
+      return
+    }
+    for (const rec of timers.current.values()) {
+      rec.startedAt = Date.now()
+      rec.handle = window.setTimeout(() => {
+        timers.current.delete(rec.id)
+        setToasts(t => t.filter(x => x.id !== rec.id))
+      }, Math.max(rec.remaining, 1000))
+    }
+  }
   return (
-    <div className="toast-zone" role="status" aria-live="polite">
+    <div
+      className="toast-zone"
+      role="status"
+      aria-live="polite"
+      onMouseEnter={() => { holding.current.pointer = true; syncHold() }}
+      onMouseLeave={() => { holding.current.pointer = false; syncHold() }}
+      onFocus={() => { holding.current.focus = true; syncHold() }}
+      onBlur={e => {
+        // React's onBlur is focusout and bubbles, so moving focus between two
+        // toasts would otherwise release and re-take the hold for a frame.
+        const next = e.relatedTarget as Node | null
+        if (next && e.currentTarget.contains(next)) return
+        holding.current.focus = false
+        syncHold()
+      }}
+    >
       {toasts.map(t => (
         <div key={t.id} className={`toast ${t.kind}`} role={t.kind === 'err' ? 'alert' : undefined}>
           <span>{t.msg}</span>
@@ -274,23 +349,25 @@ export function RouteSquiggle() {
   const [outgoing, setOutgoing] = React.useState<number | null>(null)
   // The travelling dot is SMIL motion — CSS kill-switches can't reach it, so
   // it renders only when the user hasn't asked for reduced motion.
-  const [reduced] = React.useState(() =>
-    typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches)
+  const reduced = useMedia('(prefers-reduced-motion: reduce)')
+  const shellRef = React.useRef<HTMLDivElement>(null)
+  const inView = useInView(shellRef)
+  const visible = usePageVisible()
+  const running = inView && visible && !reduced
   const activeRef = React.useRef(0)
   React.useEffect(() => { activeRef.current = idx }, [idx])
   React.useEffect(() => {
-    if (typeof window !== 'undefined' &&
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    if (!running) return
     const t = window.setInterval(() => {
       setOutgoing(activeRef.current)
       setIdx(i => (i + 1) % ROUTE_SCENARIOS.length)
     }, SCENARIO_MS)
     return () => window.clearInterval(t)
-  }, [])
+  }, [running])
   const out = outgoing !== null ? ROUTE_SCENARIOS[outgoing] : null
   const scen = ROUTE_SCENARIOS[idx]
   return (
-    <div className="rs-shell">
+    <div className={`rs-shell${running ? '' : ' rs-paused'}`} ref={shellRef}>
       <svg viewBox="0 0 532 132" className="rs-svg" aria-hidden="true" role="presentation">
         <defs>
           <linearGradient id={`rg-${gid}`} x1="0" x2="1">
@@ -317,7 +394,7 @@ export function RouteSquiggle() {
           className="rs-layer rs-layer-active"
           road={scen.road}
           stops={scen.stops}
-          dots={!reduced}
+          dots={running}
         />
       </svg>
       <div className="rs-caption" key={`cap-${idx}`} aria-hidden="true">
@@ -589,6 +666,16 @@ export function CopyButton({ text, label = 'Copy link', onCopied }: { text: stri
 }
 
 /**
+ * What asked for a reorder. A `drag` drop carries a hit-tested index that
+ * callers deliberately IGNORE in favour of the live insertion slot; a `command`
+ * (the up/down buttons, and any keyboard equivalent) carries the destination
+ * the user actually asked for. Conflating the two is why the Timeline arrows
+ * silently did nothing: the callback read `insertRef.current` (null outside a
+ * drag) and resolved every command to a no-op move.
+ */
+export type ReorderSource = 'drag' | 'command'
+
+/**
  * Accessible move up/down controls + pointer-event drag wrapper for stop cards
  * (mouse starts on an 8px move; touch keeps the long-press gate — see
  * lib/touchDnd.ts). Supports same-list reordering plus foreign (cross-list)
@@ -602,7 +689,7 @@ export function CopyButton({ text, label = 'Copy link', onCopied }: { text: stri
  */
 export function useReorder<T extends { id: string }>(
   items: T[],
-  onMove: (fromIdx: number, toIdx: number) => void,
+  onMove: (fromIdx: number, toIdx: number, source: ReorderSource) => void,
   options?: {
     /** serialised payload attached to every drag (identifies the item across lists) */
     dragPayload?: (item: T) => string
@@ -638,7 +725,7 @@ export function useReorder<T extends { id: string }>(
         // last reading (the free-finger rule: only the reading is clamped)
         else if (idx !== null) latest.current.options?.onOwnHover?.(idx, x, y, latest.current.dragIdx)
       },
-      onDropOnSelf: (from, to) => latest.current.onMove(from, to),
+      onDropOnSelf: (from, to) => latest.current.onMove(from, to, 'drag'),
       onForeignDrop: (payload, to) => latest.current.options?.onForeignDrop?.(payload, to),
       onDragEnd: () => { latest.current.dragIdx = -1; setDragIdx(null); setForeignOver(null) },
     })
@@ -681,8 +768,12 @@ export function useReorder<T extends { id: string }>(
     listId: instId,
     dragging: dragIdx,
     foreignOver,
-    moveUp: (idx: number) => { if (idx > 0) onMove(idx, idx - 1) },
-    moveDown: (idx: number) => { if (idx < items.length - 1) onMove(idx, idx + 1) },
+    /** Explicit one-step move from a keyboard/button affordance. Unlike a drop,
+        this carries its OWN destination — callers that resolve the target from
+        the live drag insertion slot must branch on `source` instead of reading
+        `toIdx` blindly (see DaySection). */
+    moveUp: (idx: number) => { if (idx > 0) latest.current.onMove(idx, idx - 1, 'command') },
+    moveDown: (idx: number) => { if (idx < latest.current.items.length - 1) latest.current.onMove(idx, idx + 1, 'command') },
     /** viewport rect of the carried row at release — feed it to the FLIP
         settle so the row springs from where it was carried to its slot */
     takeCarryRect: consumeCarryRect,
@@ -736,6 +827,31 @@ export function useMedia(query: string, initial = false): boolean {
     return () => mq.removeEventListener?.('change', onChange)
   }, [query])
   return matches
+}
+
+/** Stop decorative work while the document is hidden. */
+export function usePageVisible(): boolean {
+  const [visible, setVisible] = useState(() => typeof document !== 'undefined' && !document.hidden)
+  useEffect(() => {
+    const onChange = () => setVisible(!document.hidden)
+    document.addEventListener('visibilitychange', onChange)
+    onChange()
+    return () => document.removeEventListener('visibilitychange', onChange)
+  }, [])
+  return visible
+}
+
+/** Continuous intersection tracking, like the bench's bill dock. */
+export function useInView(ref: React.RefObject<HTMLElement>): boolean {
+  const [inView, setInView] = useState(false)
+  useEffect(() => {
+    const el = ref.current
+    if (!el || typeof IntersectionObserver === 'undefined') { setInView(true); return }
+    const io = new IntersectionObserver(es => setInView(es.some(e => e.isIntersecting)))
+    io.observe(el)
+    return () => io.disconnect()
+  }, [ref])
+  return inView
 }
 
 const ODO_DIGITS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]

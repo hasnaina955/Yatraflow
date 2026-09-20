@@ -4,23 +4,25 @@
 // expenses + drive against the daily average; expense lines gain an inline
 // quick-add, in-place editing (updateExpense) and a paid-by tag that powers a
 // who-paid/who-owes balances card with the simplest settlement.
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import {
   BedDouble, Car, Fuel, LifeBuoy, Mountain, MoreHorizontal, Pencil,
-  Ticket, TrainFront, Trash2, Utensils,
+  RotateCcw, Ticket, TrainFront, Trash2, Utensils,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import type { Trip, Expense, ExpenseCategory, ID, User } from '../../data/types'
 import { EXPENSE_CATEGORIES } from '../../data/types'
 import {
   addExpense, deleteExpense, restoreExpense, updateExpense,
+  markExpenseSettled, markExpenseUnsettled,
   currentUser, userById, useDb,
 } from '../../store/store'
 import { computeTotals, getAssumptions, formatInr, isRoundTrip, safeToSpendPerDay } from '../../lib/engine'
+import { computeBalances, settleBalances, fairSharePerHead } from '../../lib/settlement'
 import { loadFlag, saveFlag } from '../../lib/uiPrefs'
 import { titleCase } from '../../lib/labels'
-import { Avatar, Chip, Field, StatTile, toast, undoToast } from '../../components/ui'
+import { Avatar, Chip, Field, StatTile, toast, undoToast, useInView, usePageVisible } from '../../components/ui'
 
 // ================= Budget tab =================
 
@@ -128,11 +130,23 @@ function ExpenseFormFields({ trip, members, form, setForm }: {
 const OPTIONAL_WATCH_PCT = 20
 
 export function BudgetTab({ trip, totals, editable }: { trip: Trip; totals: ReturnType<typeof computeTotals>; editable: boolean }) {
+  const visible = usePageVisible()
+  const dayBarsRef = useRef<HTMLDivElement>(null)
+  const categoryBarsRef = useRef<HTMLDivElement>(null)
+  const heroRef = useRef<HTMLDivElement>(null)
+  const optionalBarsRef = useRef<HTMLDivElement>(null)
+  const daysInView = useInView(dayBarsRef)
+  const categoriesInView = useInView(categoryBarsRef)
+  const heroInView = useInView(heroRef)
+  const optionalInView = useInView(optionalBarsRef)
   const db = useDb()
   const me = currentUser(db)
   const members = trip.members ?? []
   const [editingId, setEditingId] = useState<ID | null>(null)
   const [watchOptional, setWatchOptional] = useState<boolean>(() => loadFlag('optional_watch', false))
+  // M6 B4 — settle-up: the id currently being toggled (AGENTS 6a: async
+  // write-through needs its input guard matching the visual state).
+  const [busySettleId, setBusySettleId] = useState<ID | null>(null)
 
   const groupTarget = trip.budgetPerPersonInr * trip.travellers
   const remaining = groupTarget - totals.totalCostInr
@@ -160,20 +174,22 @@ export function BudgetTab({ trip, totals, editable }: { trip: Trip; totals: Retu
 
   // Balances: everyone's fair share is the whole estimate split per head;
   // tagged expenses credit whoever fronted them. Untagged lines stay in the
-  // shared kitty — they move nobody's balance.
-  const fairShare = totals.totalCostInr / Math.max(1, trip.travellers)
-  const paid = new Map<ID, number>()
-  for (const e of trip.expenses) {
-    if (!e.paidBy) continue
-    const amt = e.perPerson ? e.amountInr * trip.travellers : e.amountInr
-    paid.set(e.paidBy, (paid.get(e.paidBy) ?? 0) + amt)
-  }
-  const balances = members
-    .map(m => ({ id: m.userId, user: userById(m.userId), paid: paid.get(m.userId) ?? 0, bal: (paid.get(m.userId) ?? 0) - fairShare }))
-    .sort((a, b) => b.bal - a.bal)
+  // shared kitty — they move nobody's balance. Math lives in the pure
+  // lib/settlement.ts (unit-tested there; the component is presentation only).
+  const balances = computeBalances(members, trip.expenses, trip.travellers, totals.totalCostInr, userById)
+  const fairShare = fairSharePerHead(trip.travellers, totals.totalCostInr)
   const tagged = trip.expenses.some(e => e.paidBy)
-  const transfers = settle(balances)
+  const transfers = settleBalances(balances)
   const nameOf = (u: User | undefined) => u?.profile.name ?? 'Traveller'
+  // M6 B4 — settle-up lists: the open/settled split is for the two lists
+  // only, NOT for the maths — `balances` above is computed from the WHOLE
+  // trip.expenses, so a settled line still counts toward the running
+  // balances. Settling is a record (who squared up the line, when), not a
+  // removal; making settled lines genuinely leave the balances needs the
+  // fair share re-based onto open lines (ROADMAP idea bank, Tier 1).
+  // Newest-settled first in the history so the last action is on top.
+  const openExpenses = trip.expenses.filter(e => !e.settled)
+  const settledExpenses = trip.expenses.filter(e => e.settled).sort((a, b) => (b.settled?.at ?? 0) - (a.settled?.at ?? 0))
 
   return (
     <div>
@@ -209,7 +225,7 @@ export function BudgetTab({ trip, totals, editable }: { trip: Trip; totals: Retu
             <p className="hint-text" style={{ margin: '4px 0 14px' }}>
               Day expenses + that day’s drive{avg > 0 && <> · <span className="avg-key" aria-hidden /> tick = daily average ({formatInr(avg)})</>}{avg > 0 && <> · <span className="daybar-over" aria-hidden>▲</span> = over the average</>}
             </p>
-            <div className="daybars">
+            <div className="daybars" ref={dayBarsRef} data-motion-paused={!visible || !daysInView}>
               {days.map(d => {
                 const over = avg > 0 && d.totalInr > avg * 1.15
                 return (
@@ -246,7 +262,7 @@ export function BudgetTab({ trip, totals, editable }: { trip: Trip; totals: Retu
                 <> Stay is priced from your hotel stops: {totals.lodgingNights} overnight base{totals.lodgingNights !== 1 ? 's' : ''} — the drive needs a stay — × {totals.lodgingRooms} room{totals.lodgingRooms !== 1 ? 's' : ''} × ₹{totals.lodgingRatePerNight.toLocaleString('en-IN')}/night.</>
               )}
             </p>
-            <div className="budget-bars catbars">
+            <div className="budget-bars catbars" ref={categoryBarsRef} data-motion-paused={!visible || !categoriesInView}>
               {cats.map(([c, v]) => {
                 const meta = CAT_META[c]
                 const Icon = meta.icon
@@ -276,7 +292,7 @@ export function BudgetTab({ trip, totals, editable }: { trip: Trip; totals: Retu
             {trip.expenses.length === 0
               ? <p className="muted small">No expense lines yet — add the big ones first (stay, fuel, food).</p>
               : (
-                <table className="compare-table expense-table">
+                <table className="compare-table expense-table" tabIndex={0} aria-label="Expense lines">
                   <thead><tr><th>Line</th><th>Paid by</th><th className="num">Amount</th><th><span className="sr-only">Actions</span></th></tr></thead>
                   <tbody>
                     {trip.expenses.map(e => {
@@ -331,7 +347,7 @@ export function BudgetTab({ trip, totals, editable }: { trip: Trip; totals: Retu
         </div>
 
         <div>
-          <div className="budget-hero">
+          <div className="budget-hero" ref={heroRef} data-motion-paused={!visible || !heroInView}>
             <span className="budget-hero-label">Group budget</span>
             <div className="budget-hero-num">{formatInr(totals.totalCostInr)}</div>
             <div className="budget-hero-sub">
@@ -380,6 +396,67 @@ export function BudgetTab({ trip, totals, editable }: { trip: Trip; totals: Retu
                             <b>Simplest settlement:</b> {transfers.map(t => `${nameOf(t.from.user)} → ${nameOf(t.to.user)} ${formatInr(t.amount)}`).join(' · ')}
                           </p>
                         )}
+                        {editable && openExpenses.length > 0 && (
+                          <div className="settled-strip" style={{ marginTop: 12 }}>
+                            <span className="hint-text" style={{ margin: 0 }}>
+                              <b>Settle up:</b> mark a line squared up — it moves to the settled history below; balances still count it.
+                            </span>
+                            <div className="settled-list">
+                              {openExpenses.map(e => (
+                                <div key={e.id} className="settled-row">
+                                  <span className="settled-label">{e.label}</span>
+                                  <span className="num muted small">{formatInr(e.amountInr * (e.perPerson ? trip.travellers : 1))}</span>
+                                  <button
+                                    type="button"
+                                    className="btn btn-sm settled-btn"
+                                    aria-label={`Mark ${e.label} settled`}
+                                    disabled={busySettleId === e.id}
+                                    onClick={() => {
+                                      if (!me?.id) return
+                                      setBusySettleId(e.id)
+                                      try {
+                                        markExpenseSettled(trip.id, e.id, me.id)
+                                        toast(`Marked “${e.label}” settled`)
+                                      } finally {
+                                        setBusySettleId(null)
+                                      }
+                                    }}
+                                  >Mark settled</button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {settledExpenses.length > 0 && (
+                          <details className="settled-history">
+                            <summary>{settledExpenses.length} settled line{settledExpenses.length !== 1 ? 's' : ''}</summary>
+                            <div className="settled-list">
+                              {settledExpenses.map(e => (
+                                <div key={e.id} className="settled-row is-done">
+                                  <span className="settled-label">{e.label}</span>
+                                  <span className="num muted small">{formatInr(e.amountInr * (e.perPerson ? trip.travellers : 1))}</span>
+                                  {editable && (
+                                    <button
+                                      type="button"
+                                      className="icon-btn"
+                                      aria-label={`Reopen ${e.label}`}
+                                      disabled={busySettleId === e.id}
+                                      onClick={() => {
+                                        setBusySettleId(e.id)
+                                        try {
+                                          markExpenseUnsettled(trip.id, e.id)
+                                          toast(`Reopened “${e.label}”`)
+                                        } finally {
+                                          setBusySettleId(null)
+                                        }
+                                      }}
+                                    ><RotateCcw size={14} /></button>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </details>
+                        )}
                       </>
                     )}
                   </>}
@@ -389,7 +466,7 @@ export function BudgetTab({ trip, totals, editable }: { trip: Trip; totals: Retu
           <div className="card" style={{ marginTop: trip.travellers >= 2 ? 14 : 0 }}>
             <h3>Essential vs optional</h3>
             <hr className="divider" />
-            <div className="budget-bars">
+            <div className="budget-bars" ref={optionalBarsRef} data-motion-paused={!visible || !optionalInView}>
               <div className="budget-bar-row">
                 <span>Essential</span>
                 <div className="budget-bar-track"><div className="budget-bar-fill" style={{ width: `${(totals.essentialInr / Math.max(1, totals.totalCostInr)) * 100}%`, background: 'var(--teal)' }} /></div>
@@ -428,24 +505,6 @@ export function BudgetTab({ trip, totals, editable }: { trip: Trip; totals: Retu
       </div>
     </div>
   )
-}
-
-/** Greedy fewest-transfers settlement: richest creditor meets biggest debtor
- *  until everyone is even. */
-function settle(balances: { id: ID; user: User | undefined; bal: number }[]) {
-  const creditors = balances.filter(b => b.bal > 0.5).map(b => ({ ...b })).sort((a, b) => b.bal - a.bal)
-  const debtors = balances.filter(b => b.bal < -0.5).map(b => ({ ...b })).sort((a, b) => a.bal - b.bal)
-  const out: { from: { id: ID; user: User | undefined }; to: { id: ID; user: User | undefined }; amount: number }[] = []
-  let ci = 0, di = 0
-  while (ci < creditors.length && di < debtors.length) {
-    const amt = Math.min(creditors[ci].bal, -debtors[di].bal)
-    out.push({ from: debtors[di], to: creditors[ci], amount: amt })
-    creditors[ci].bal -= amt
-    debtors[di].bal += amt
-    if (creditors[ci].bal <= 0.5) ci++
-    if (-debtors[di].bal <= 0.5) di++
-  }
-  return out
 }
 
 // ================= Quick add + inline edit =================

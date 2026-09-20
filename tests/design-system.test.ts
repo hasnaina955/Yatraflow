@@ -171,7 +171,7 @@ describe('kicker casing: sentence case in source, uppercase via CSS', () => {
     ['src/pages/PublicItinerary.tsx', 'Trip highlights', 'TRIP HIGHLIGHTS'],
     ['src/pages/PublicItinerary.tsx', 'The practical bit', 'THE PRACTICAL BIT'],
     ['src/pages/PublicItinerary.tsx', 'The route at a glance', 'THE ROUTE AT A GLANCE'],
-    ['src/pages/PublicItinerary.tsx', 'Verified creator', 'VERIFIED CREATOR'],
+    ['src/pages/PublicItinerary.tsx', 'Why this route works', 'WHY THIS ROUTE WORKS'],
     ['src/pages/Explore.tsx', 'Featured itinerary', 'FEATURED ITINERARY'],
   ]
 
@@ -272,8 +272,8 @@ function declMap(block: string): Map<string, string> {
   return out
 }
 
-const rootTokens = declMap(topLevelBlock(css, /^:root\s*\{/m))
-const darkOverrides = declMap(topLevelBlock(css, /^\[data-theme='dark'\]\s*\{/m))
+const rootTokens = declMap(stripCssComments(topLevelBlock(css, /^:root\s*\{/m)))
+const darkOverrides = declMap(stripCssComments(topLevelBlock(css, /^\[data-theme='dark'\]\s*\{/m)))
 const darkTokens = new Map<string, string>([...rootTokens, ...darkOverrides])
 
 /** Follow a `var(--token)` chain inside one theme's table. */
@@ -392,6 +392,19 @@ const normalise = (s: string) => s.replace(/\s+/g, ' ').trim()
 // file. So the known set is frozen in a committed baseline that may only shrink:
 // a NEW offender fails the build, and an entry that no longer reproduces must be
 // deleted (re-baseline deliberately with UPDATE_DESIGN_SYSTEM_BASELINE=1).
+//
+// Every key is the offender's own text with the `styles.css:<line>` prefix
+// DROPPED, for the same reason in every gate: a line number is where a rule
+// happens to sit, not what it is, so a key carrying one is invalidated by any
+// insertion above it — every CSS edit anywhere in the file re-failed the
+// contrast and duration gates with phantom "new violations" and forced a
+// re-baseline instead (hit twice, and it is what a rebase between two branches
+// that both moved `styles.css` conflicted on). Keyed by what the rule declares,
+// a shift moves nothing and only a real change to that declaration does. The
+// trade-off is explicit and narrow: a *second* rule repeating an
+// already-tolerated pair is not flagged, because the pair is what the key
+// names — `duplicateSelectors` catches that selector twice at the top level,
+// which is where it would surface first.
 
 const baselineUrl = new URL('./design-system-baseline.json', import.meta.url)
 const updatingBaseline = process.env.UPDATE_DESIGN_SYSTEM_BASELINE === '1'
@@ -440,7 +453,7 @@ describe('contrast contract: colour pairs declared in one rule', () => {
       // the page atmosphere), so its real contrast is unknowable from source alone.
       if (bg.a !== 1) continue
       const ratio = contrast(fg, bg)
-      if (ratio < 4.5) out.push(`styles.css:${rule.line} ${sel} — ${ratio.toFixed(2)}:1`)
+      if (ratio < 4.5) out.push(`${sel} — ${ratio.toFixed(2)}:1`)
     }
     return out
   }
@@ -510,11 +523,48 @@ describe('motion vocabulary: durations come from the tokens', () => {
         if (prop.startsWith('animation') && /\binfinite\b/.test(value)) continue
         for (const m of value.matchAll(/(?<![\d.])[0-9]*\.?[0-9]+m?s\b/g)) {
           if (parseFloat(m[0]) === 0) continue
-          offenders.push(`styles.css:${rule.line} ${normalise(rule.selector)} — ${prop}: ${m[0]}`)
+          offenders.push(`${normalise(rule.selector)} — ${prop}: ${m[0]}`)
         }
       }
     }
     ratchet('rawDurations', offenders)
+  })
+})
+
+describe('spacing rhythm: new values land on the documented ladder', () => {
+  // DESIGN_TOKENS.md's `--s-1…--s-8` set was deleted in SYS-2 because nothing
+  // routed through it, which left the app with no enforceable rhythm at all —
+  // hundreds of declarations carry a value the ladder does not contain, and
+  // 10px and 9px between them are the app's *de facto* beat rather than an
+  // oversight. Rewriting every literal in one sweep is unverifiable (the
+  // workspace tabs need a signed-in trip), so the drift is FROZEN instead: a
+  // new off-ladder value fails the build, and re-baselining is the same env var
+  // the contrast and duration gates use. The ladder is the documented one plus
+  // the two beats the editorial family already shares — 14 (two cards in a
+  // column) and 22 (two sections). `border-radius` and friends are not spacing
+  // and are not read.
+  //
+  // Keyed by `property: value`, the ratchet's rule for every gate. The frozen
+  // set (76 pairs at the time of writing) is immune to the line-number churn
+  // that made every CSS insertion force a re-baseline, and the set may only
+  // shrink — retiring one of these values means deleting its entry, after which
+  // it can never come back.
+  const LADDER = new Set([2, 4, 6, 8, 12, 14, 16, 20, 22, 24])
+  const SPACING = /^(gap|row-gap|column-gap|margin|padding)(-top|-bottom|-left|-right)?$/
+
+  it('introduces no new off-ladder spacing', () => {
+    const offenders = new Set<string>()
+    for (const rule of cssRules) {
+      for (const [prop, value] of declMap(rule.body)) {
+        if (!SPACING.test(prop)) continue
+        for (const m of value.matchAll(/(?<![\d.])(\d+(?:\.\d+)?)px/g)) {
+          const n = parseFloat(m[1])
+          if (n === 0 || LADDER.has(n)) continue
+          offenders.add(`${prop}: ${m[0]}`)
+        }
+      }
+    }
+    ratchet('offLadderSpacing', [...offenders])
   })
 })
 

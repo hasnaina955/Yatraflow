@@ -110,22 +110,30 @@ that keep quality high:
    warning (its "reorder stops" fix is impossible when the day must return home), and the
    same pattern fires when a zero-hop stop sits mid-day. Give each stop its own real
    coordinate — lunch has a market, the fort has a gate — and the warning disappears.
-2. **Nights where nights fall**: a `hotel` stop in each overnight town; `stayStyle`
+4. **Distinct pins are a rule, not a preference** (spec §4.2): a coordinate carries at most
+   two stops and one of them must be the meal or the night. The first six shelf files were
+   authored before this rule existed and shared 27 coordinates between different places —
+   the map showed one pin for a four-stop Gulmarg day. `validate-itinerary.mjs` now prints
+   every rejected cluster with its titles; the fix is one `gallery-geocode.mjs` lookup per
+   place, and the cluster list *is* the fix list.
+5. **Nights where nights fall**: a `hotel` stop in each overnight town; `stayStyle`
    matching the budget tier you're publishing.
-4. **Fees and visit minutes from the sheet only** — never from memory, never rounded
+6. **Fees and visit minutes from the sheet only** — never from memory, never rounded
    to "look better".
-5. **`status: "confirmed"` everywhere**, honest `priority` tags, `weatherSensitive` on
+7. **`status: "confirmed"` everywhere**, honest `priority` tags, `weatherSensitive` on
    every viewpoint/beach/trek — but **no more than two flagged stops per day**: three
    weather-sensitive stops in one day is a low-severity flag, and a "weather-sensitive"
    tag on a *walk through town* earns it dishonestly.
-6. **Lodging prices per base, not per night.** `computeTotals` counts **distinct overnight
+8. **Lodging prices per base, not per night.** `computeTotals` counts **distinct overnight
    towns**, so two nights in Shillong is one base — and `stayStyle` moves the total further
    than any other field (budget ₹1,200 vs comfort ₹3,200 per room-night in the current
    model). Set the style deliberately, and let the engine's printed estimate set the
    declared budget afterwards.
-7. **Publication copy last**: title/tagline/tips/warnings written *from* the sheet, not
+9. **Publication copy last**: title/tagline/tips/warnings written *from* the sheet, not
    from marketing instinct. The tagline must be cashable by the itinerary.
-8. IDs as readable slugs (`"d2-magnetic-mez"`) — the import tool regenerates them.
+10. **IDs as readable slugs** (`"d2-magnetic-mez"`) — the import tool regenerates them — and
+    **`orderInDay` runs 1..n per day** (the app's own base; the importer renumbers from any
+    base, the validator wants the convention).
 
 **Output:** `docs/examples/itineraries/<slug>.draft.json`.
 
@@ -216,10 +224,12 @@ The card must clear all six — the validator enforces 1–4 structurally; 5–6
 
 | Tool | Role |
 |---|---|
-| `scripts/validate-itinerary.mjs` | Gate 1 — the spec executable (structure, coords, unknown keys) |
+| `scripts/validate-itinerary.mjs` | Gate 1 — the spec executable (structure, coords, distinct pins, `formatVersion`, unknown keys) |
 | `tests/golden-itineraries.test.ts` | Gate 2 — engine truth in CI (health, budget ±15 %, per-day load) |
 | `docs/examples/itineraries/*.golden.json` | The shelf's source files |
-| `scripts/gallery-geocode.mjs` | Stage-2 coordinates — Nominatim lookup with punctuation fallbacks, ≤1 req/s, exits 1 on any miss |
+| `scripts/new-itinerary.mjs` | Scaffold — copies the reference skeleton, renames the slug, geocodes what you hand it, then runs Gate 1. `--slug x --title "X" --days 5` |
+| `scripts/geocode-places.mjs` | The shared geocoder all the other tools call |
+| `scripts/gallery-geocode.mjs` | Stage-2 coordinates — `geocode-places.mjs` with punctuation fallbacks, ≤1 req/s, exits 1 on any miss |
 | Wikipedia REST summary API | Cover images (`.thumbnail.source`), verified live before use |
 | `PLAYBOOK` (this file) | How the numbers were found |
 | `ITINERARY-IMPORT-SPEC.md` | What the JSON must be |

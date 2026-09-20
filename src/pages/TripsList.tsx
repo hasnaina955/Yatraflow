@@ -8,6 +8,7 @@ import { cap } from '../lib/labels'
 import { Avatar, Chip, EmptyState, toast, undoToast, ConfirmDialog } from '../components/ui'
 import { Select } from '../components/Select'
 import { CoverThumb } from '../components/CoverThumb'
+import { ImportTripButton } from '../components/ImportTripButton'
 import type { Trip, User } from '../data/types'
 import { TRAVEL_STYLES } from '../data/types'
 
@@ -108,7 +109,8 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
         </div>
         <div className="trips-head-actions">
           <button className={`btn btn-outline${view === 'trash' ? ' on-teal' : ''}`} aria-pressed={view === 'trash'} onClick={() => setView(v => v === 'trash' ? 'trips' : 'trash')}><Trash2 size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 5 }} />Trash</button>
-          <button className="btn btn-outline" onClick={addDemoTrips} title="Adds 3 sample trips — Kerala, Goa & Rajasthan — to your account"><Rocket size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 5 }} /><span>Load demo trips</span></button>
+          <ImportTripButton ownerId={meId} onNavigate={onNavigate} />
+          <button className="btn btn-outline" onClick={addDemoTrips} aria-label="Load demo trips" title="Adds 3 sample trips — Kerala, Goa & Rajasthan — to your account"><Rocket size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 5 }} /><span>Load demo trips</span></button>
           <button className="btn btn-primary" onClick={() => onNavigate('/new')}><Plus size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Plan a new trip</button>
         </div>
       </div>
@@ -131,8 +133,8 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
                   <div className="small muted">{t.startLocation} → {t.destinations[t.destinations.length - 1] ?? t.startLocation} · {t.days.length} days</div>
                 </div>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  <button className="btn btn-outline btn-sm" onClick={() => { void restoreTrashedTripById(t.id).then(ok => { if (ok) toast(`Restored “${t.name}”`) }) }}>Restore</button>
-                  <button className="btn btn-danger btn-sm" onClick={() => setPendingPurge(t)}>Delete forever</button>
+                  <button className="btn btn-outline" onClick={() => { void restoreTrashedTripById(t.id).then(ok => { if (ok) toast(`Restored “${t.name}”`) }) }}>Restore</button>
+                  <button className="btn btn-danger" onClick={() => setPendingPurge(t)}>Delete forever</button>
                 </div>
               </div>
             ))

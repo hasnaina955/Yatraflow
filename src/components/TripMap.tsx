@@ -2,16 +2,20 @@
 // Real slippy-map rendering via mapcn (MapLibre GL): OpenFreeMap basemaps that follow
 // light/dark theme, numbered stop markers in timeline order, and a polyline
 // connecting each day's stops. Distances/durations still come from the engine.
-import { useMemo, useState, useEffect, useRef, Fragment } from 'react'
+import { useMemo, useState, useEffect, useRef, Fragment, type ComponentProps } from 'react'
+import { useInView, usePageVisible } from './ui'
 import type { Trip } from '../data/types'
 import type { PlaceHit } from '../lib/geocode'
 import { resolveHitCoords } from '../lib/geocode'
 import { hasCoords, mappablePois, projectOntoPolyline } from '../lib/providers/hits'
 import { routePath } from '../lib/routing'
+import { measureDayRide } from '../lib/tripRoad'
 import { buildJourney, getAssumptions, isRoundTrip } from '../lib/engine'
 import { clockHM, type ClockMilestone } from '../lib/clockOverlay'
 import { pointAtKm } from '../lib/geo'
 import { useTimeFormat, formatHM } from '../lib/timefmt'
+import { extraJourneyMarkers } from '../lib/journeyMarkers'
+import { coincidentPinOffsets } from '../lib/pinOffsets'
 import { googleMapsDirectionsUrl } from '../lib/externalMaps'
 import { openExternal } from '../lib/native'
 import { titleCase } from '../lib/labels'
@@ -40,6 +44,15 @@ import {
   prefersCooperativeGestures,
   useMap,
 } from './mapcn/map'
+
+// Observe the marker itself: panning a pin outside the map also pauses its
+// decoration. GPS ownership remains in LiveLocationLayer, independent of this.
+function VisiblePulse({ children, ...props }: ComponentProps<'span'>) {
+  const ref = useRef<HTMLSpanElement>(null)
+  const inView = useInView(ref)
+  const visible = usePageVisible()
+  return <span {...props} ref={ref} data-motion-paused={!inView || !visible}>{children}</span>
+}
 
 const DAY_COLORS = ['#0D8D82', '#F59E2D', '#7C5CFC', '#E2557B', '#2D9CDB', '#6BBF59', '#B7791F']
 
@@ -98,10 +111,10 @@ function LiveLocationLayer({ active }: { active: boolean }) {
   return (
     <MapMarker longitude={fix.coords.longitude} latitude={fix.coords.latitude}>
       <MarkerContent>
-        <span className={`yf-live-dot${denied ? ' yf-live-dot--denied' : ''}`} aria-label="Your live location" role="img">
-          <span className="yf-live-pulse" />
-          <span className="yf-live-core" />
-        </span>
+        <VisiblePulse className={`yf-live-dot${denied ? ' yf-live-dot--denied' : ''}`} aria-label="Your live location" role="img">
+          <span className="yf-live-pulse" aria-hidden />
+          <span className="yf-live-core" aria-hidden />
+        </VisiblePulse>
       </MarkerContent>
     </MapMarker>
   )
@@ -345,33 +358,7 @@ function dedupeConsecutive(coords: [number, number][]): [number, number][] {
 
 /** "transport-hub" → "Transport Hub" for chip labels. */
 
-/** Clean monochrome stroke icon per stop category — Lucide-style paths, no dep. */
-function catIcon(cat: string | undefined): React.ReactNode {
-  const paths: Record<string, string> = {
-    food: 'M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2M7 2v20M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7', // utensils
-    hotel: 'M2 4v16M2 8h18a2 2 0 0 1 2 2v10M2 17h20M6 8v9', // bed
-    rest: 'M17 8h1a4 4 0 1 1 0 8h-1M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4ZM7 2v3M11 2v3', // coffee
-    temple: 'M3 22h18M6 18v-7M10 18v-7M14 18v-7M18 18v-7M12 2 3 7h18l-9-5Z', // landmark
-    beach: 'M22 12a10 10 0 0 0-20 0ZM12 12v8a2 2 0 0 0 4 0M2 12h20', // umbrella
-    nature: 'M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10ZM2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12', // leaf
-    adventure: 'm8 3 4 8 5-5 5 15H2L8 3Z', // mountains
-    shopping: 'M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4ZM3 6h18M16 10a4 4 0 0 1-8 0', // bag
-    museum: 'M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18M6 12h12M2 22h20', // building
-    travel: 'M8 19l-2 3M16 19l2 3M5 11h14M7 4h10a3 3 0 0 1 3 3v7a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3ZM8.5 14.5h.01M15.5 14.5h.01', // train
-    'transport-hub': 'M8 19l-2 3M16 19l2 3M5 11h14M7 4h10a3 3 0 0 1 3 3v7a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3ZM8.5 14.5h.01M15.5 14.5h.01',
-    event: 'M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z', // calendar
-  }
-  // camera — default for sightseeing and anything unmapped
-  const d = paths[cat ?? ''] ?? 'M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3Z'
-  return (
-    <svg className="yf-pin-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d={d} />
-    </svg>
-  )
-}
-
-export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusDay, showToolbar = true, enableMapViewModes = false, activeHitId = null, onActivateHit, onOpenInTimeline, onOpenInBoard, onDeleteStop, mainRouteGeometry = null, clockMilestones = null, onOpenHaltDay }: {
+export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusDay, showToolbar = true, enableMapViewModes = false, activeHitId = null, onActivateHit, onOpenInTimeline, onOpenInBoard, onDeleteStop, mainRouteGeometry = null, clockMilestones = null, onOpenHaltDay, onShowReturnChange }: {
   trip: Trip
   onOpenStop?: (stopId: string) => void
   /** potential POIs to show as gold "idea" markers */
@@ -415,6 +402,10 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   onOpenHaltDay?: (dayIndex: number) => void
   /** Delete the stop straight from the map (popup action) — wired by MapTab. */
   onDeleteStop?: (stopId: string, stop: { title: string; dayIndex: number }) => void
+  /** The Return-home toggle's direction state, reported up so the suggestion
+   *  rails read the same road the map shows (#polylines): on = the loop (out +
+   *  back, the plan's road), off = the outbound road alone. */
+  onShowReturnChange?: (show: boolean) => void
 }) {
   const [dayFilter, setDayFilter] = useState<number | 'all'>('all')
   // Board drives the day filter through the prop; the map's own chips keep working
@@ -434,6 +425,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     })
   }
   const timeFormat = useTimeFormat()
+  useEffect(() => { onShowReturnChange?.(showReturn) }, [showReturn, onShowReturnChange])
   // Live location ("show me on the map") — off by default so GPS stays cold
   // until the user asks for it; the toggle chip sits by the map key.
   const [liveOn, setLiveOn] = useState(false)
@@ -560,6 +552,12 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
         stops: [...d.stops]
           .filter(s => s.status !== 'rejected')
           .filter(s => Number.isFinite(s.lat) && Number.isFinite(s.lng))
+          // #polylines plot-boundary guard: a stored (0,0)/mixed placeholder or
+          // other absurd coordinate stretches the LineString across the globe,
+          // which reads on screen as "the line only connects the first few
+          // stops". Same rule as the suggestion rail's hasCoords: lat 0 is
+          // never a real pick for an India trip-planner.
+          .filter(s => !(s.lat === 0 && s.lng === 0) && s.lat !== 0 && Math.abs(s.lng) <= 180 && Math.abs(s.lat) <= 90)
           .sort((a, b) => a.orderInDay - b.orderInDay),
       }))
       .filter(d => d.stops.length > 0)
@@ -572,6 +570,12 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
       ),
     [daysToPlot],
   )
+
+  // Stops sharing one place (a meal at your night's base, or two stops the user
+  // added in the same town) would otherwise draw as a single pin — the second
+  // stop invisible and unclickable. Nudge each one apart for drawing only; the
+  // markers keep their real coordinates. See lib/pinOffsets.ts.
+  const pinOffsets = useMemo(() => coincidentPinOffsets(allPoints), [allPoints])
 
   // A day's ride as the ENGINE plans it: origin → stops → synthesized
   // destination (an outbound continuation, or the final day's ride home).
@@ -609,6 +613,21 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
       .join('|'),
     [dayRoutePoints],
   )
+
+  // A synthesized day-endpoint that the drawn line touches but no plotted
+  // stop pins (the previous night's place ahead, or the ride home / next
+  // destination beyond) renders as its own unnumbered endpoint marker, so
+  // the line never starts or ends at a bare spot. All-days view draws the
+  // shared stop chain and doesn't need them. Dedupe: the engine's own
+  // same-place rule (`coLocates`, < 1 km) against the plotted stops.
+  const dayEndpointMarkers = useMemo(() => {
+    if (dayFilter === 'all') return []
+    const day = trip.days.find(d => d.index === dayFilter)
+    if (!day) return []
+    const j = buildJourney(trip, day)
+    const plotted = daysToPlot.find(d => d.index === dayFilter)?.stops ?? []
+    return extraJourneyMarkers(j.points, plotted, j.direction)
+  }, [trip, dayFilter, daysToPlot])
 
   // The map mounts lazily inside a Suspense boundary, so mapRef may be null on
   // the first render(s). Poll until the instance exists, then attach to its real
@@ -760,6 +779,10 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   // the stops in timeline order — is drawn as one main line. In single-day mode
   // each day gets its own coloured line. Falls back to straight lines.
   const [geom, setGeom] = useState<Record<string, [number, number][]>>({})
+  // Measured day geometry, keyed by day index and the ride's points-hash —
+  // revisiting a day chip redraws from cache instead of re-measuring (#polylines).
+  // A ref, not state: cache validity never drives rendering on its own.
+  const dayGeomCache = useRef<Record<string, { key: string; coords: [number, number][] }>>({})
   const chainKey = useMemo(
     () => allPoints.map(p => `${p.lat.toFixed(5)},${p.lng.toFixed(5)}`).join('>'),
     [allPoints],
@@ -796,22 +819,31 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
 
   useEffect(() => {
     if (allPoints.length === 0) { setGeom({}); return }
+    // AbortSignal, not just a flag: a cancelled effect must STOP the in-flight
+    // fetches (they eat the shared OSRM rate-limit budget and their results
+    // were being thrown away anyway) — #polylines.
+    const ac = new AbortController()
+    const { signal } = ac
     let cancelled = false
     ;(async () => {
-      const pts: { lat: number; lng: number }[] = allPoints.map(p => ({ lat: p.lat, lng: p.lng }))
+      const asm = getAssumptions(trip)
       if (dayFilter === 'all') {
+        const pts: { lat: number; lng: number }[] = allPoints.map(p => ({ lat: p.lat, lng: p.lng }))
         if (pts.length < 2) return
         const next: Record<string, [number, number][]> = {}
         // #184: reuse the caller's road measurement when one arrived (MapTab
         // already measured the same chain) — one routePath per map open, and
         // the drawn line can never contradict the detour math again. Only a
-        // caller without the prop (Board view) measures here.
+        // caller without the prop (Board view) measures here, and until the
+        // shared geometry arrives TripMap no longer races it with its own
+        // full chain: the routing layer's leg cache turns that double-
+        // measurement into cache hits once the workspace result lands.
         if (mainRouteGeometry && mainRouteGeometry.length > 1) {
           const shared = dedupeConsecutive(mainRouteGeometry)
           if (shared.length > 1) next.all = shared
         } else {
           try {
-            const legs = await routePath(pts, getAssumptions(trip))
+            const legs = await routePath(pts, asm, signal)
             const coords = legs.flatMap(l => l.geometry)
             if (!cancelled && coords.length > 1) next.all = dedupeConsecutive(coords)
           } catch { /* straight-line fallback below */ }
@@ -819,27 +851,44 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
         // return drive home — real roads when OSRM answers, straight line otherwise
         if (returnLeg) {
           try {
-            const legs = await routePath([returnLeg.from, returnLeg.home], getAssumptions(trip))
+            const legs = await routePath([returnLeg.from, returnLeg.home], asm, signal)
             const coords = legs.flatMap(l => l.geometry)
             if (!cancelled && coords.length > 1) next.return = dedupeConsecutive(coords)
           } catch { /* keep straight line */ }
         }
         if (!cancelled) setGeom(next)
       } else {
-        const next: Record<string, [number, number][]> = {}
-        for (const d of trip.days) {
-          const ride = dayRoutePoints[String(d.index)]
-          if (!ride || ride.length < 2) continue
-          try {
-            const legs = await routePath(ride, getAssumptions(trip))
-            const coords = legs.flatMap(l => l.geometry)
-            if (!cancelled && coords.length > 1) next[String(d.index)] = dedupeConsecutive(coords)
-          } catch { /* straight-line fallback below */ }
+        // Day-filter contract: measure ONLY the selected day's ride. The old
+        // loop re-measured every day on every chip click (35+ serial fetches
+        // to see one line on a 7-day trip) and painted only after all of
+        // them finished. Now: one measurement for the day on screen, cached
+        // by the ride's points-hash so revisiting a chip is instant, and the
+        // shared leg cache means legs already measured for the whole-trip
+        // chain resolve without any fetch at all.
+        const ride = dayRoutePoints[String(dayFilter)]
+        if (!ride || ride.length < 2) { setGeom({}); return }
+        const rideKey = ride.map(p => `${p.lat.toFixed(5)},${p.lng.toFixed(5)}`).join('>')
+        const cached = dayGeomCache.current[String(dayFilter)]
+        if (cached && cached.key === rideKey && cached.coords.length > 1) {
+          setGeom({ [String(dayFilter)]: cached.coords })
+          return
         }
-        if (!cancelled) setGeom(next)
+        const outcome = await measureDayRide(ride, asm, { signal })
+        if (cancelled || signal.aborted) return
+        if (outcome.ok) {
+          const coords = dedupeConsecutive(outcome.legs.flatMap(l => l.geometry))
+          if (coords.length > 1) {
+            dayGeomCache.current[String(dayFilter)] = { key: rideKey, coords }
+            setGeom({ [String(dayFilter)]: coords })
+            return
+          }
+        }
+        // unresolved (rate-limited both attempts): keep the straight-line
+        // fallback visible rather than wiping the day's line entirely
+        setGeom({})
       }
     })()
-    return () => { cancelled = true }
+    return () => { cancelled = true; ac.abort() }
   }, [chainKey, dayRoutesKey, dayFilter, returnLeg, mainRouteGeometry]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Turn-by-turn directions for the selected day's ride in the traveller's own
@@ -877,7 +926,9 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
               className={`map-day-chip ${showReturn ? 'on' : ''}`}
               aria-pressed={showReturn}
               onClick={() => setShowReturn(s => !s)}
-              title="Show or hide the drive back home"
+              title={showReturn
+                ? 'Return leg shown. The loop km (out + back) feed the plan; hide to read the outbound road alone.'
+                : 'Return leg hidden — the corridor and km labels read the OUTBOUND road only.'}
             >
               <RotateCcw size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Return home
             </button>
@@ -1068,15 +1119,18 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
               return allPoints.map((p, idx) => {
                 // Auto anchor stops (trip start / final destination) render as
                 // distinct start/end badges instead of numbered pins.
-                const isFirst = idx === 0
                 const isLast = idx === allPoints.length - 1
+                const off = pinOffsets.get(p.id)
+                const offsetStyle = off ? { transform: `translate(${off.dx}px, ${off.dy}px)` } : undefined
                 if (p.auto) {
                   const label = isLast ? <Flag size={13} aria-hidden /> : <PlaneTakeoff size={13} aria-hidden />
                   const c = showClockChips ? stopClock.get(p.id) : undefined
                   return (
                     <MapMarker key={p.id} longitude={p.lng} latitude={p.lat}>
                       <MarkerContent>
-                        <span className="yf-map-pin yf-map-flag" title={p.title}>{label}</span>
+                        <span className="yf-pin-cluster" style={offsetStyle}>
+                          <span className="yf-map-pin yf-map-flag" title={p.title}>{label}</span>
+                        </span>
                         {c && <span className="yf-pin-time">{formatHM(c.arrive, timeFormat)}</span>}
                       </MarkerContent>
                       <MarkerTooltip>{isLast ? `Final destination — ${p.title}` : `Trip start — ${p.title}`}{c ? ` · arrives ${formatHM(c.arrive, timeFormat)} · ~${c.cumKm} km into the trip` : ''}</MarkerTooltip>
@@ -1088,6 +1142,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                 return (
                   <MapMarker key={p.id} longitude={p.lng} latitude={p.lat}>
                     <MarkerContent>
+                      <span className="yf-pin-cluster" style={offsetStyle}>
                       <button
                         className={`yf-map-pin yf-map-tear${p.status === 'maybe' ? ' yf-map-maybe' : ''}`}
                         style={{ '--pin-color': colorForDay(p.dayIndex) } as React.CSSProperties}
@@ -1100,6 +1155,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                           <i className="yf-pin-num">{num}</i>
                         </span>
                       </button>
+                      </span>
                       {c && <span className="yf-pin-time">{formatHM(c.arrive, timeFormat)}</span>}
                     </MarkerContent>
                     <MarkerTooltip>{p.title}{c ? ` · arrives ${formatHM(c.arrive, timeFormat)} · ~${c.cumKm} km into the trip` : ''}</MarkerTooltip>
@@ -1107,6 +1163,23 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                 )
               })
             })()}
+            {/* synthesized day-journey endpoints the line touches but no stop
+                pins — the previous night's place ahead, or the ride home / next
+                destination beyond (single-day view only). Not numbered, not
+                clickable-to-edit: nothing is stored behind them. */}
+            {dayEndpointMarkers.map(m => (
+              <MapMarker key={`yf-endpoint-${m.kind}-${m.position.lat}-${m.position.lng}`} longitude={m.position.lng} latitude={m.position.lat}>
+                <MarkerContent>
+                  <span
+                    className="yf-map-pin yf-map-flag"
+                    title={m.label}
+                  >
+                    {m.kind === 'start' ? <PlaneTakeoff size={13} aria-hidden /> : <Flag size={13} aria-hidden />}
+                  </span>
+                </MarkerContent>
+                <MarkerTooltip>{m.label}</MarkerTooltip>
+              </MapMarker>
+            ))}
             {/* home anchor for round trips — the return drive ends here; gated on
                 the same Return home toggle as the line it belongs to */}
             {dayFilter === 'all' && returnLeg && showReturn && (
@@ -1125,7 +1198,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
               return (
                 <MapMarker key={`nearby_${hit.id}`} longitude={hit.longitude} latitude={hit.latitude}>
                   <MarkerContent>
-                    <span className="yf-map-idea" title={`${hit.name} — click to locate in the suggestions panel`}>
+                    <VisiblePulse className="yf-map-idea" title={`${hit.name} — click to locate in the suggestions panel`}>
                       <span
                         className={`yf-map-pin yf-map-pin-idea${active ? ' yf-map-pin-idea--active' : ''}`}
                         style={{ background: ideaPinColor(hit.category) } as React.CSSProperties}
@@ -1145,7 +1218,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                           title={`Add ${hit.name} to the trip`}
                         >+</button>
                       )}
-                    </span>
+                    </VisiblePulse>
                   </MarkerContent>
                   <MarkerTooltip>
                     <Lightbulb size={11} aria-hidden style={{ verticalAlign: '-1px', marginRight: 3 }} />{hit.name}{hit.haltPurpose ? ` · ${hit.haltPurpose === 'overnight' ? 'overnight option' : hit.haltPurpose}` : ''}{hit.cumKm != null ? ` · ~${hit.cumKm} km in` : ''}{hit.nearestCity ? ` · near ${hit.nearestCity}` : ''}
@@ -1197,7 +1270,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
               {dayFilter === 'all'
                 ? <>blue line = whole route{returnLeg ? ' · dashed = drive back home' : ''} · </>
                 : <>colours = day · </>}
-              pin icon = stop type · number = timeline order · dashed pin = "maybe" · plane/flag pins = start & final destination · gold bulb markers = nearby ideas{onAddNearby ? ' (+ to add)' : ''}{ideaCats.length > 0 ? ' · chips filter ideas by type' : ''} · click a pin for details
+              pin icon = stop type · number = timeline order · dashed pin = "maybe" · plane/flag pins = start & final destination · plane/flag pins on a single day = that day's start and end where no stop is pinned · gold bulb markers = nearby ideas{onAddNearby ? ' (+ to add)' : ''}{ideaCats.length > 0 ? ' · chips filter ideas by type' : ''} · click a pin for details
             </div>
           )}
         </div>

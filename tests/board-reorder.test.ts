@@ -117,3 +117,86 @@ describe('cross-day move (handleMoveStopInto, shared shape)', () => {
     expect(days[0]).toEqual(['A', 'C'])
   })
 })
+
+// ============ Explicit move commands (Timeline up/down buttons) ============
+// Defect found 2026-09-17 by clicking the real control: every Timeline stop's
+// up/down arrow did nothing at all.
+//
+// `useReorder` handed BOTH contracts through one callback — a drag drop and the
+// arrow buttons — and DaySection resolved the destination by reading
+// `insertRef.current`, the live drag insertion slot. Outside a drag that ref is
+// null, so it fell back to `fromIdx`, `toIdx` equalled `fromIdx`, and the
+// guarded mutation was skipped every time. Board's own arrows were unaffected
+// because Board implements them outside `useReorder`.
+//
+// The fix threads an explicit `ReorderSource` so the two contracts stop
+// sharing a resolution rule: a `drag` still reads the insertion slot, a
+// `command` carries its own destination.
+
+/** Mirror of useReorder's returned moveUp/moveDown guard + the destination it
+ *  passes (`onMove(idx, idx ± 1, 'command')`). */
+function commandMove(list: string[], fromIdx: number, dir: 'up' | 'down'): string[] {
+  if (dir === 'up' && !(fromIdx > 0)) return list
+  if (dir === 'down' && !(fromIdx < list.length - 1)) return list
+  const toIdx = dir === 'up' ? fromIdx - 1 : fromIdx + 1
+  return toIdx === fromIdx ? list : applyMove(list, fromIdx, toIdx)
+}
+
+/** Mirror of the source-aware resolution in DaySection's callback. */
+function resolveForSource(
+  fromIdx: number,
+  commandToIdx: number,
+  source: 'drag' | 'command',
+  insertSlot: number | null,
+): number | null {
+  const toIdx = source === 'command'
+    ? commandToIdx
+    : (() => { const idx = insertSlot ?? fromIdx; return idx > fromIdx ? idx - 1 : idx })()
+  return toIdx === fromIdx ? null : toIdx
+}
+
+describe('explicit move commands resolve to their own destination', () => {
+  const list = ['Cheeyappara', 'Valara', 'Resort', 'Park']
+
+  it('moves a stop up one position', () => {
+    expect(commandMove(list, 1, 'up')).toEqual(['Valara', 'Cheeyappara', 'Resort', 'Park'])
+  })
+
+  it('moves a stop down one position', () => {
+    expect(commandMove(list, 1, 'down')).toEqual(['Cheeyappara', 'Resort', 'Valara', 'Park'])
+  })
+
+  it('is a no-op at the boundaries the buttons disable themselves on', () => {
+    expect(commandMove(list, 0, 'up')).toEqual(list)
+    expect(commandMove(list, list.length - 1, 'down')).toEqual(list)
+  })
+
+  it('resolves a command to the requested index even with no drag in flight', () => {
+    // The reported defect: a button click has no insertion slot.
+    expect(resolveForSource(1, 0, 'command', null)).toBe(0)
+    expect(resolveForSource(1, 2, 'command', null)).toBe(2)
+  })
+
+  it('still resolves a DRAG through the insertion slot, not the passed index', () => {
+    // Board and Timeline drags deliberately ignore the hit-tested index in
+    // favour of the live slot, including its removal shift.
+    expect(resolveForSource(0, 9, 'drag', 2)).toBe(1)
+    expect(resolveForSource(3, 0, 'drag', 1)).toBe(1)
+    expect(resolveForSource(0, 9, 'drag', 0)).toBeNull()
+  })
+
+  it('the REGRESSION: reading the insertion slot for a command is always a no-op', () => {
+    // The old rule, verbatim: no `source`, destination derived from the slot.
+    const oldRule = (fromIdx: number, insertSlot: number | null) => {
+      const idx = insertSlot ?? fromIdx
+      const toIdx = idx > fromIdx ? idx - 1 : idx
+      return toIdx === fromIdx ? null : toIdx
+    }
+    // A button click never has a slot, so every arrow resolved to "no move" —
+    // the exact silent no-op that shipped.
+    expect(oldRule(1, null)).toBeNull()
+    expect(oldRule(2, null)).toBeNull()
+    // …while the fixed command path does move.
+    expect(resolveForSource(1, 0, 'command', null)).toBe(0)
+  })
+})

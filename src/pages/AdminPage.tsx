@@ -6,19 +6,18 @@
 // store. Destructive actions confirm first; trip delete confirms by typing
 // the trip name (no undo — cascades take the collab layer).
 import { useEffect, useMemo, useState } from 'react'
-import { Eye, EyeOff, GitFork, ShieldAlert, Trash2, UserX, Users } from 'lucide-react'
+import { Eye, EyeOff, ShieldAlert, Trash2, UserX, Users } from 'lucide-react'
 import { PillNav } from '../components/PillNav'
 import { useTablist } from '../hooks/useTablist'
-import { Avatar, Chip, ConfirmDialog, EmptyState, Modal, toast } from '../components/ui'
+import { Avatar, Chip, ConfirmDialog, EmptyState, Modal } from '../components/ui'
 import {
-  useDb, useIsAdmin, useAdminAudit, useSessionUserId, currentUser,
+  useDb, useIsAdmin, useAdminAudit, useSessionUserId,
   adminSetDisabled, adminSetCreator, adminSetTripVisibility,
   adminRemoveMember, adminUnpublish, adminDeleteTrip, adminDeleteUser,
 } from '../store/store'
 import {
-  computeAdminOverview, computeGrowthSeries, computeFunnel, recentJoins, weekBucket,
+  computeAdminOverview, computeGrowthSeries, computeFunnel, recentJoins,
 } from '../lib/adminStats'
-import { formatInr } from '../lib/engine'
 import type { Trip, User } from '../data/types'
 
 type AdminTab = 'overview' | 'users' | 'trips' | 'invites' | 'content' | 'analytics' | 'audit'
@@ -65,7 +64,7 @@ export function AdminPage({ onNavigate }: { onNavigate: (r: string) => void }) {
       <div style={{ marginTop: 18 }} id="admin-panel" role="tabpanel" aria-labelledby={`admin-tab-${tab}`}>
         {tab === 'overview' && <OverviewTab />}
         {tab === 'users' && <UsersTab />}
-        {tab === 'trips' && <TripsTab onNavigate={onNavigate} />}
+        {tab === 'trips' && <TripsTab />}
         {tab === 'invites' && <InvitesTab />}
         {tab === 'content' && <ContentTab />}
         {tab === 'analytics' && <AnalyticsTab />}
@@ -133,7 +132,7 @@ function UsersTab() {
       {users.length === 0 ? (
         <EmptyState icon={<Users size={38} aria-hidden />} title="No users match" body="Clear the search to see everyone." />
       ) : (
-        <table className="compare-table">
+        <table className="compare-table" tabIndex={0} aria-label="Users">
           <thead><tr><th>User</th><th className="num">Trips</th><th>Flags</th><th>Joined</th><th>Actions</th></tr></thead>
           <tbody>
             {users.map(u => (
@@ -256,7 +255,7 @@ function UsersTab() {
   )
 }
 
-function TripsTab({ onNavigate }: { onNavigate: (r: string) => void }) {
+function TripsTab() {
   const db = useDb()
   const [q, setQ] = useState('')
   const [vis, setVis] = useState<'all' | 'private' | 'public'>('all')
@@ -285,7 +284,7 @@ function TripsTab({ onNavigate }: { onNavigate: (r: string) => void }) {
         </PillNav>
       </div>
       <p className="sr-only" role="status">{trips.length} trips</p>
-      <table className="compare-table">
+      <table className="compare-table" tabIndex={0} aria-label="Trips">
         <thead><tr><th>Trip</th><th>Owner</th><th className="num">Crew</th><th>Visibility</th><th>Updated</th><th>Actions</th></tr></thead>
         <tbody>
           {trips.map(t => (
@@ -363,7 +362,7 @@ function InvitesTab() {
       <p className="hint-text" style={{ margin: '0 0 12px' }}>
         Ranked by member joins in the last 30 days, so unusual invite spread surfaces first.
       </p>
-      <table className="compare-table">
+      <table className="compare-table" tabIndex={0} aria-label="Invites">
         <thead><tr><th>Trip</th><th className="num">Joins 30d</th><th className="num">Crew</th><th>Members</th></tr></thead>
         <tbody>
           {rows.map(({ trip: t, joins30d }) => (
@@ -431,7 +430,7 @@ function ContentTab() {
       {pubs.length === 0 ? (
         <EmptyState icon={<Eye size={38} aria-hidden />} title="Nothing published" body="Published itineraries appear here for moderation." />
       ) : (
-        <table className="compare-table">
+        <table className="compare-table" tabIndex={0} aria-label="Published itineraries">
           <thead><tr><th>Itinerary</th><th>Creator</th><th className="num">Views</th><th className="num">Forks</th><th>Published</th><th>Actions</th></tr></thead>
           <tbody>
             {pubs.map(p => {
@@ -489,8 +488,8 @@ function AnalyticsTab() {
         <div className="stat-tile"><div className="stat-label">Trips published</div><div className="stat-value">{pct(funnel.publishPct)}</div></div>
         <div className="stat-tile"><div className="stat-label">Explore views → forks</div><div className="stat-value">{pct(funnel.viewToCopyPct)}</div></div>
       </div>
-      <h3 style={{ marginTop: 18 }}>Growth — last 12 weeks</h3>
-      <table className="compare-table">
+      <h2 style={{ marginTop: 18 }}>Growth — last 12 weeks</h2>
+      <table className="compare-table" tabIndex={0} aria-label="Growth — last 12 weeks">
         <thead><tr><th>Week of</th><th className="num">Signups</th><th className="num">Trips</th><th>Trend</th></tr></thead>
         <tbody>
           {growth.map(g => (
@@ -527,7 +526,7 @@ function AuditTab() {
         <EmptyState icon={<ShieldAlert size={38} aria-hidden />} title="No admin actions yet"
           body="Every disable, visibility flip, removal, unpublish and delete lands here with who did it and when." />
       ) : (
-        <table className="compare-table">
+        <table className="compare-table" tabIndex={0} aria-label="Audit log">
           <thead><tr><th>When</th><th>Actor</th><th>Action</th><th>Target</th><th>Detail</th></tr></thead>
           <tbody>
             {audit.map(e => (

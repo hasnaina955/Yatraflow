@@ -14,7 +14,7 @@ import { haversineKm } from './geo'
 import { classifyRoadWindow, CITY_SPEED_KMH, CITY_CRAWL_WARNING, type RoadKind } from './roadPersonality'
 import { dnaBoostForHit, type DnaVector } from './tripDna'
 import { hmToMinutes } from './engine'
-import { HOME_ZONE_KM, kmFromStartForHit, detourKm, detourMinutes, asymmetricDetourMinutes, dedupeCandidates, type HaltPurpose, type PlaceHit } from './providers/hits'
+import { HOME_ZONE_KM, kmFromStartForHit, asymmetricDetourMinutes, dedupeCandidates, type HaltPurpose, type PlaceHit } from './providers/hits'
 
 // ---- Fatigue cadence (named constants — later settings can expose them) ----
 /** ≈2 h at 70–80 km/h — stretch, hydrate, bio-break. */
@@ -484,7 +484,7 @@ function walkClockDay(input: {
   profile?: RoadProfilePoint[] | null
 }): TravelClockDay {
   const { dayIndex, startKm, kmBudget, startMin, kmPerMin, isFinal, capKm = Infinity, profile = null } = input
-  const { dinnerStartMin, dinnerEndMin, nightEndMin, allowPostDinnerDriveMin } = resolveAnchors(input.anchors)
+  const { dinnerStartMin, nightEndMin, allowPostDinnerDriveMin } = resolveAnchors(input.anchors)
   const maxKm = startKm + kmBudget
   let t = startMin
   let km = startKm
@@ -1263,7 +1263,6 @@ export function fuelGapWarnings(
   capKm: number,
 ): void {
   if (!(fuelStrideKm > 0) || segments.length === 0) return
-  const fuelIdx = segments.map(s => s.purpose === 'fuel')
   for (let i = 0; i < segments.length; i++) {
     if (segments[i].purpose !== 'fuel') continue
     // next fuel segment or the journey end (no planned refuel beyond here)

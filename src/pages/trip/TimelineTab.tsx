@@ -7,7 +7,7 @@
 // Mechanical extraction from src/pages/TripWorkspace.tsx (M3.4) — no behavior changes.
 // Includes DaySection, DayWeatherChip, TravelPanel, HaltPlanRow, DaySpark,
 // MoveStopModal and ClampedText — the whole timeline hot path.
-import React, { useCallback, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   
   Eye, 
@@ -41,7 +41,7 @@ import { MoveStopModal } from './timeline/MoveStopModal'
 const NO_WARNINGS: ScheduleWarning[] = []
 // ================= Timeline =================
 
-export function TimelineTab({ trip, editable, applyChange, legCorrections, suggestionCache, onOpenBoard }: {
+export function TimelineTab({ trip, editable, applyChange, legCorrections, suggestionCache, onOpenBoard, focusDay, onFocusConsumed }: {
   trip: Trip
   editable: boolean
   applyChange: (mutator: (d: Trip) => void, kind: ImpactResult['kind'], dayIndex: number) => void
@@ -49,6 +49,13 @@ export function TimelineTab({ trip, editable, applyChange, legCorrections, sugge
   suggestionCache: ReturnType<typeof useSuggestionCache>
   /** M5: the doc's §6.3 "Open in Board" bridge — Board now exists. */
   onOpenBoard?: () => void
+  /** Phase 3 (the living plan): the map's halt label handed us a day to open.
+   *  Consumed once — the workspace clears it through onFocusConsumed, so a
+   *  stale value can neither re-fire on a later mount (tab navigation) nor
+   *  leak into another trip's timeline (the workspace outlives trips). */
+  focusDay?: number | null
+  /** clears the workspace's focusDay signal once the request is handled */
+  onFocusConsumed?: () => void
 }) {
   const [editorState, setEditorState] = useState<StopEditorTarget>(null)
   const [moveModalStop, setMoveModalStop] = useState<ItineraryStop | null>(null)
@@ -232,6 +239,27 @@ export function TimelineTab({ trip, editable, applyChange, legCorrections, sugge
     const isVisible = rect.top >= 0 && rect.bottom <= window.innerHeight
     if (!isVisible) el.scrollIntoView({ behavior: scrollBehavior(), block: 'start' })
   }
+
+  // Phase 3 (the living plan): a halt label on the map asked for this day's
+  // plan — open its accordion and bring the card into view. Runs after mount
+  // so the day cards exist (the workspace mounts this tab in the same commit
+  // that sets the tab). focusDay is a one-shot REQUEST, not a controlled
+  // value: it is validated against THIS trip's days, then consumed — the
+  // workspace clears it so the same value cannot re-fire on a later mount
+  // (tab navigation) or leak across trips, and re-tapping the same halt
+  // re-arms it. Validation matters because the clock walk numbers its own
+  // drive days (the return pass indexes past the itinerary), and a value no
+  // DaySection matches would collapse the whole accordion and scroll nowhere.
+  useEffect(() => {
+    if (focusDay == null || !Number.isFinite(focusDay)) return
+    if (!trip.days.some(d => d.index === focusDay)) {
+      onFocusConsumed?.()
+      return
+    }
+    jumpToDay(focusDay)
+    onFocusConsumed?.()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- jumpToDay reads openDay (stable) + the DOM; focusDay is the one-shot signal
+  }, [focusDay])
 
   /** Inline day rename — a lightweight label change, applied directly (no impact preview). */
   const handleRenameDay = useCallback((dayIndex: number, title: string) => {

@@ -16,6 +16,64 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 ## [Unreleased]
 
 ### Added
+- **The travel clock is drawn on the map as clean road labels.** No pins, no
+  dots, no circles: each planned clock anchor (meal / overnight / destination)
+  is a zero-size point ON the route flanked by two quiet text chips — its
+  wall-clock time with the calendar date on the LEFT of the road ("4:03 PM ·
+  18 Sep") and its road km on the RIGHT ("Km 500"), so a traveller reads when
+  and how far at the exact point they belong to. Kind shows only as a whisper
+  of colour on the time chip's leading edge, never a glyph.
+- **Return-journey labels only appear with the Return home toggle.** Each label
+  is tagged with its leg; the outbound half renders by default and the drive
+  home's labels, its dashed line and its home anchor show only while the Return
+  home chip is on — the going-home readings never clutter a map the traveller
+  hasn't asked to see. The return leg is the honest #145 directed walk from the
+  destination (matching the banner's day count), positioned back along the
+  reversed road.
+- **The suggestion engine's placed stops become distance labels.** Each placed
+  place is projected onto the road at its cumulative km and labelled there with
+  a "Km N" chip on the right, so the map shows the planned schedule (the
+  clock's anchors) and the placed stops' distances on the same road.
+- **🕐 Milestones toolbar chip** (default on) hides/shows the whole label layer;
+  with it off the map is the plain route, and the choice is remembered per
+  browser like the map key. Only the trip Map tab supplies it — the Board never
+  shows milestones.
+- **Planned-stop pins keep their itinerary arrival** — a tiny `13:40` chip
+  under the pin while the milestone layer is on, with "~X km into the trip" in
+  the tooltip (from the day-by-day journey simulation).
+- **The map knows what day it is (the living plan).** Each label carries a
+  `dayState` from the trip's own dates against the device calendar: the days
+  already behind you dim to the same quiet whisper as the return leg, the day
+  you're on now pulses gently on its time chip (frozen under
+  `prefers-reduced-motion`), and the rest stays full plan. Return drives date
+  from the trip's TAIL — the drive home occupies the last of the itinerary's
+  days (drive out → stay → drive home), so the homecoming chip carries the
+  trip's final date rather than the day after the outbound drive — and where
+  no honest itinerary day exists (a walk split that runs past the plan, an
+  undated call), the label claims no date at all. A trip fully in the
+  past renders all-dimmed, a future trip all-full, and an undated trip claims
+  neither — no `Date` objects cross the comparison, so a +5:30 calendar can't
+  flip a day boundary at midnight.
+- **Overnight halts name the town they land at.** Each halt label leads with
+  the place the corridor search already found within 120 km of its km — the
+  same honesty bound the halt planner itself uses — so the map answers "where
+  do we sleep", not just "how far". The join is leg-aware: the corridor scan
+  measured the outbound direction, so a drive-home halt is joined at its
+  origin-scale position (its turnaround-relative km mirrored) — without that,
+  a return halt hundreds of km along would borrow a town near the start.
+  Nothing close enough means no name: a bare time and km, never a guess.
+- **Tapping a halt opens that day's plan.** The overnight label is the one
+  tappable mark on the route (generous hit area, focus ring, same visual as its
+  decorative siblings): a tap switches to the Timeline, opens that day's
+  accordion and brings its card into view. Only labels with an honest
+  itinerary day behind them are tappable — the walk's return pass numbers its
+  days past the itinerary's own, and a value no timeline day matches would
+  collapse the whole accordion rather than open anything — and the request is
+  consumed once handled, so a stale focus can neither re-fire on a later visit
+  to the Timeline nor leak into the next trip's plan. Meals and the destination
+  stay strictly non-interactive — only where you sleep is a decision.
+- Pure module `src/lib/clockOverlay.ts` (`deriveClockMilestones`,
+  `ClockMilestone`, `clockHM`) + 27 fixtures in `tests/clockOverlay.test.ts`.
 - **The site has a crawl surface for the first time (SEO).** `/robots.txt` and `/sitemap.xml` both answered 404 in production, so there was no crawl guidance and no discovery path to any publication — and the only server-rendered URL (`/i/<id>`) had no inbound link at all, because the app links the hash route, which is a different URL. `public/robots.txt` now allows the app, disallows `/api/` (the target `/i/<id>` rewrites to, which would otherwise put every itinerary at a second URL) and `/mappls/` (an upstream API proxy, not content), and advertises the sitemap; the hash-routed screens are deliberately *not* disallowed, since a fragment never reaches the server and such a rule would be inert. `api/sitemap.js`, served at `/sitemap.xml` through a `vercel.json` rewrite, lists the shell plus every row in `published_itineraries` with `<lastmod>` from `refreshed_at ?? published_at`. An unreachable catalogue answers 503 rather than a valid-looking document listing only `/`, which would tell a crawler every publication had gone; `lastmod` is omitted rather than guessed when no timestamp parses. Sixteen tests in `tests/seo-discovery.test.ts` pin the robots rules, the rewrite pair, the `lastmod` preference and fallback, id validation, the empty and unreachable catalogue cases, XML escaping and the caching contract. Hash → path routing with server rendering is deliberately out of scope: it is the structural fix, it touches the router and every deep link, and it belongs in its own change.
 
 ### Changed
@@ -23,6 +81,20 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 - **The map's place rail loses its heaviest furniture without changing what it shows.** The whisker that sketches a candidate's detour drops to a 1.5px stroke at 35% opacity (from 2px at 55%) with its spur at 1.1px, so the notation reads as a note rather than a second route; the km label settles at 9.5px; and the card's own action buttons tighten to 12px on slimmer padding. The sticky tray at the foot of the rail stops floating — no shadow, the tighter radius, a softer border and a slightly smaller padding — and the in-card description chips and the add-a-stop gap action stop drawing boxes, becoming underlined links instead.
 
 ### Fixed
+- **The map's clock labels and the Day Planner banner now come from ONE walk.**
+  The label layer used to re-run the travel-clock engine from reconstructed
+  inputs while the Map tab already held the identical verdict for its banner —
+  two walks kept in step by discipline, where one forgotten input (a terrain
+  profile, a party cap, a dinner anchor) would have let the map and the banner
+  quietly disagree. The projection now consumes the banner's own verdict: a
+  walk twice with identical inputs returning different labels is impossible by
+  construction, not merely unlikely.
+- **The drive home's distance chips no longer read the same as the outbound's.**
+  A round trip showed "Km 500" twice — once 500 km from home, once 500 km from
+  the destination — and only the hover tooltip said which. Return-leg chips now
+  carry their own arrow (`Km 500 ↩`) against the outbound's plain `Km 500`:
+  per-leg km kept (no renumbering), the ambiguity gone at a glance.
+- **Audit batch on the map rails.** `map-day-chip` reaches the 40px touch floor on coarse pointers (desktop silhouette unchanged; toolbar gaps 5→8px); the scan status span announces via `aria-live`; clock glyphs carry `role="img"` labels instead of being `aria-hidden`-only; the detour-budget split is memoised instead of recomputed per render; `.board-col-day` drops the dangling `var(--text-1)` (deleted in the v0.53.0 scale sweep).
 - **A public itinerary page renders for every publication shape.** The server-side read (`get_public_trip`) returns the whole trip for an unpriced publication, returns every day locked — instead of no page at all — when a priced publication lists no free days, and stubs locked days for everyone else. The stub's replacement text is typed for the database (`::text` into polymorphic `to_jsonb`) — without that cast the locked-day path failed for every visitor who had not unlocked the trip, while buyers and the creator kept working, their branch returning before the stub. The creator-sales RPC is signed-in only — an anonymous caller inherited Supabase's default EXECUTE and always received an empty list (`20260918_payments_security.sql`).
 
 ## [0.62.0] - 2026-09-19

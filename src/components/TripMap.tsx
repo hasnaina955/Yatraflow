@@ -11,6 +11,9 @@ import { hasCoords, mappablePois, projectOntoPolyline } from '../lib/providers/h
 import { routePath } from '../lib/routing'
 import { measureDayRide } from '../lib/tripRoad'
 import { buildJourney, getAssumptions, isRoundTrip } from '../lib/engine'
+import { clockHM, type ClockMilestone } from '../lib/clockOverlay'
+import { pointAtKm } from '../lib/geo'
+import { useTimeFormat, formatHM } from '../lib/timefmt'
 import { extraJourneyMarkers } from '../lib/journeyMarkers'
 import { coincidentPinOffsets } from '../lib/pinOffsets'
 import { googleMapsDirectionsUrl } from '../lib/externalMaps'
@@ -27,7 +30,7 @@ import {
 import type { MapRef } from './mapcn/map'
 import { CatIcon } from './icons'
 import {
-  Box, Flag, Home, Info, Lightbulb, LocateFixed, Map as MapIcon, Mountain, Navigation, PlaneTakeoff,
+  Box, Clock, Flag, Home, Info, Lightbulb, LocateFixed, Map as MapIcon, Mountain, Navigation, PlaneTakeoff,
   RotateCcw, TriangleAlert, X,
 } from 'lucide-react'
 import { prefersReducedMotion } from '../lib/motion'
@@ -177,6 +180,107 @@ function RouteArrows({ coordinates, dark }: { coordinates: [number, number][]; d
 declare module './mapcn/map' {}
 type GeoJSONSourceLike = { setData(d: unknown): void }
 
+// ============ Road milestone labels on the map (requested redesign) ============
+
+/**
+ * The clock drawn as clean ROAD LABELS — no pins, no dots, no circles. Each
+ * planned anchor (meal / overnight / destination) is a zero-size anchor ON the
+ * route with two text chips flanking it: the wall-clock time + calendar date on
+ * the LEFT of the road and the road km on the RIGHT. Replaces the old soft
+ * circles / evening band / moon glyphs: nothing here is an area or an icon,
+ * every label is a planned stop.
+ *
+ * Return-leg labels follow the Return home toggle: with it off, only the
+ * outbound half renders, so the going-home readings never clutter the map the
+ * traveller hasn't asked to see.
+ */
+function ClockMilestoneLayer({ overlay, showReturn, onOpenDay }: { overlay: ClockMilestone[]; showReturn: boolean; onOpenDay?: (dayIndex: number) => void }) {
+  const { isLoaded } = useMap()
+  const timeFormat = useTimeFormat()
+  if (!isLoaded || overlay.length === 0) return null
+  return (
+    <>
+      {overlay.filter(m => m.leg === 'outbound' || showReturn).map((m, i) => {
+        // Phase 3: an overnight halt is a decision ("where do we sleep"), so it
+        // is the one label that earns a tap — it opens that day's plan. Every
+        // other label stays decorative context. The tap target must carry an
+        // honest itinerary day (itineraryDay): the walk's return pass indexes
+        // its days past the itinerary, and a value no timeline day matches
+        // would open nothing (or, worse, the wrong day).
+        const halts = m.kind === 'overnight' && typeof onOpenDay === 'function' && m.itineraryDay != null
+        const chip = (
+          <span className={`yf-milestone yf-milestone--${m.kind}${m.leg === 'return' ? ' yf-milestone--return' : ''} yf-milestone--${m.dayState}`}>
+            <span className="yf-milestone-when">
+              {m.haltName && <b className="yf-milestone-halt">{m.haltName}</b>}
+              <b className="yf-milestone-time">{formatHM(clockHM(m.etaMin), timeFormat)}</b>
+              {m.dateLabel && <em className="yf-milestone-date">{m.dateLabel}</em>}
+            </span>
+            <em className="yf-milestone-km">{m.kmLabel}</em>
+          </span>
+        )
+        return (
+          <MapMarker key={`cm-${m.kind}-${m.dayNo}-${m.kmIn}-${i}`} longitude={m.lng} latitude={m.lat} anchor="center">
+            <MarkerContent className="yf-milestone-anchor">
+              {halts ? (
+                <button
+                  type="button"
+                  className="yf-milestone-hit"
+                  onClick={() => onOpenDay(m.itineraryDay!)}
+                  title={`Open day ${m.itineraryDay! + 1} in the timeline${m.haltName ? ` — ${m.haltName}` : ''}`}
+                  aria-label={`Open day ${m.itineraryDay! + 1} in the timeline${m.haltName ? ` — overnight at ${m.haltName}` : ''}`}
+                >{chip}</button>
+              ) : chip}
+            </MarkerContent>
+            <MarkerTooltip>
+              {`${m.kind === 'mealtime' ? 'Meal break' : m.kind === 'overnight' ? 'Overnight halt' : 'Destination'}${m.haltName ? ` — ${m.haltName}` : ''} — day ${m.dayNo}${m.dateLabel ? ` (${m.dateLabel})` : ''}: ${formatHM(clockHM(m.etaMin), timeFormat)} at ${m.kmLabel} on the road${m.leg === 'return' ? ' · drive home' : ''}${halts ? ' · tap for the day' : ''}`}
+            </MarkerTooltip>
+          </MapMarker>
+        )
+      })}
+    </>
+  )
+}
+
+/**
+ * The suggestion engine's placed stops as DISTANCE labels on the road: one
+ * "Km N" chip per placed place that carries a road km, sitting at that km ON
+ * the route line (not at the place's own coords, which can sit off the road).
+ * No dot — just the label, flanked right of the road like the clock's km half.
+ * On a round trip the placed stops are all outbound (the drive home plans no
+ * sightseeing), so no return gate is needed here.
+ */
+function SuggestionDistanceLayer({ places, road }: { places: PlaceHit[]; road: [number, number][] | null }) {
+  const { isLoaded } = useMap()
+  const pins = useMemo(() => {
+    if (!road || road.length < 2) return [] as Array<{ id: string; name: string; km: number; lat: number; lng: number }>
+    const poly = road.map(c => ({ lat: c[1], lng: c[0] }))
+    const out: Array<{ id: string; name: string; km: number; lat: number; lng: number }> = []
+    for (const p of places) {
+      const km = p.cumKm
+      if (km == null || !(km > 0)) continue
+      const at = pointAtKm(poly, km)
+      if (!at) continue
+      out.push({ id: String(p.id), name: p.name, km, lat: at.lat, lng: at.lng })
+    }
+    return out
+  }, [places, road])
+  if (!isLoaded || pins.length === 0) return null
+  return (
+    <>
+      {pins.map(pin => (
+        <MapMarker key={`sd-${pin.id}`} longitude={pin.lng} latitude={pin.lat} anchor="center">
+          <MarkerContent className="yf-milestone-anchor">
+            <span className="yf-milestone yf-milestone--place">
+              <em className="yf-milestone-km">{`Km ${Math.round(pin.km)}`}</em>
+            </span>
+          </MarkerContent>
+          <MarkerTooltip>{`${pin.name} — ${Math.round(pin.km)} km into the trip`}</MarkerTooltip>
+        </MapMarker>
+      ))}
+    </>
+  )
+}
+
 /**
  * Gesture mode follows the layout AND the device. An inline map is embedded in
  * a scrolling page, so on a coarse pointer it keeps MapLibre's cooperative
@@ -254,7 +358,7 @@ function dedupeConsecutive(coords: [number, number][]): [number, number][] {
 
 /** "transport-hub" → "Transport Hub" for chip labels. */
 
-export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusDay, showToolbar = true, enableMapViewModes = false, activeHitId = null, onActivateHit, onOpenInTimeline, onOpenInBoard, onDeleteStop, mainRouteGeometry = null, onShowReturnChange }: {
+export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusDay, showToolbar = true, enableMapViewModes = false, activeHitId = null, onActivateHit, onOpenInTimeline, onOpenInBoard, onDeleteStop, mainRouteGeometry = null, clockMilestones = null, onOpenHaltDay, onShowReturnChange }: {
   trip: Trip
   onOpenStop?: (stopId: string) => void
   /** potential POIs to show as gold "idea" markers */
@@ -286,6 +390,16 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
       firing a duplicate routePath; absent callers (Board view) self-measure. */
   mainRouteGeometry?: [number, number][] | null
   onOpenInBoard?: (stopId: string) => void
+  /** the travel clock projected onto the route as road milestones — one pin per
+      planned anchor with its wall-clock time and road km on the side, plus the
+      suggestion engine's placed stops as distance milestones. Only the trip Map
+      tab supplies it; with it present the toolbar gains the Clock toggle and
+      stop pins show their planned arrival. The Board never passes it. */
+  clockMilestones?: ClockMilestone[] | null
+  /** Phase 3: tapping an overnight halt label opens that day's plan — the
+   *  handler the workspace wires to the Timeline's day accordion. Undefined
+   *  leaves every label decorative (Board view, tests). */
+  onOpenHaltDay?: (dayIndex: number) => void
   /** Delete the stop straight from the map (popup action) — wired by MapTab. */
   onDeleteStop?: (stopId: string, stop: { title: string; dayIndex: number }) => void
   /** The Return-home toggle's direction state, reported up so the suggestion
@@ -300,6 +414,17 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     if (focusDay !== undefined) setDayFilter(focusDay)
   }, [focusDay])
   const [showReturn, setShowReturn] = useState(true)
+  // The clock overlay's visibility — on by default when a surface supplies
+  // it; the choice persists per browser via uiPrefs, like the map key.
+  const [clockOn, setClockOn] = useState(() => loadFlag('map_clock_on', true))
+  function toggleClock() {
+    haptic('toggle')
+    setClockOn(on => {
+      saveFlag('map_clock_on', !on)
+      return !on
+    })
+  }
+  const timeFormat = useTimeFormat()
   useEffect(() => { onShowReturnChange?.(showReturn) }, [showReturn, onShowReturnChange])
   // Live location ("show me on the map") — off by default so GPS stays cold
   // until the user asks for it; the toggle chip sits by the map key.
@@ -458,8 +583,14 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   // ride (Day 1 outbound from the start anchor, the last day's drive back to
   // home) exists only in the synthesis, and drawing stored stops alone left
   // those days with no route on the map at all. Null = no drive (stay day).
-  const dayRoutePoints = useMemo(() => {
+  // stopClock doubles as the itinerary clock for the pin chips: arrival
+  // "HH:MM" and km-into-the-trip (journey legs accumulate in day order), so a
+  // pin can say when the PLAN says you get there — the engine's clock zones
+  // say when the ROUTE demands it; the two never claim to be one source.
+  const { dayRoutePoints, stopClock } = useMemo(() => {
     const out: Record<string, { lat: number; lng: number }[] | null> = {}
+    const clock = new Map<string, { arrive: string; cumKm: number }>()
+    let cum = 0
     for (const d of trip.days) {
       const j = buildJourney(trip, d)
       if (!(j.distanceKm >= 0.5 || j.driveMinutes > 0)) { out[String(d.index)] = null; continue }
@@ -467,8 +598,14 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
         .map(p => ({ lat: p.lat, lng: p.lng }))
         .filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lng))
       out[String(d.index)] = pts.length >= 2 ? pts : null
+      let legKm = 0
+      for (const p of j.points) {
+        legKm += p.legIn?.distanceKm ?? 0
+        if (!p.synthesized) clock.set(p.stop.id, { arrive: p.arrive, cumKm: Math.round(cum + legKm) })
+      }
+      cum += j.distanceKm
     }
-    return out
+    return { dayRoutePoints: out, stopClock: clock }
   }, [trip])
   const dayRoutesKey = useMemo(
     () => Object.entries(dayRoutePoints)
@@ -774,6 +911,16 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
             </button>
           ))}
           <button className="map-day-chip map-recenter" onClick={fitToTrip} title="Recentre the map on the trip route"><LocateFixed size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Recentre</button>
+          {clockMilestones && (
+            <button
+              className={`map-day-chip ${clockOn ? 'on' : ''}`}
+              aria-pressed={clockOn}
+              onClick={toggleClock}
+              title="Show or hide the road milestones — each planned stop's time and distance on the road"
+            >
+              <Clock size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Milestones
+            </button>
+          )}
           {returnLeg && (
             <button
               className={`map-day-chip ${showReturn ? 'on' : ''}`}
@@ -954,8 +1101,21 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                 </>
               )
             })()}
+            {/* The travel clock as road labels: one text pair per planned anchor
+                (meal / overnight / destination) — time + date left of the road,
+                km right — plus the suggestion engine's placed stops as distance
+                labels. Return-leg labels follow the Return home toggle.
+                Whole-trip only — filtering to a day drops it with the loop
+                geometry. */}
+            {clockMilestones && clockOn && dayFilter === 'all' && (
+              <>
+                <ClockMilestoneLayer overlay={clockMilestones} showReturn={!returnLeg || showReturn} onOpenDay={onOpenHaltDay} />
+                <SuggestionDistanceLayer places={nearbyPois} road={geom.all ?? null} />
+              </>
+            )}
             {(() => {
               let num = 0
+              const showClockChips = !!(clockMilestones && clockOn)
               return allPoints.map((p, idx) => {
                 // Auto anchor stops (trip start / final destination) render as
                 // distinct start/end badges instead of numbered pins.
@@ -964,18 +1124,21 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                 const offsetStyle = off ? { transform: `translate(${off.dx}px, ${off.dy}px)` } : undefined
                 if (p.auto) {
                   const label = isLast ? <Flag size={13} aria-hidden /> : <PlaneTakeoff size={13} aria-hidden />
+                  const c = showClockChips ? stopClock.get(p.id) : undefined
                   return (
                     <MapMarker key={p.id} longitude={p.lng} latitude={p.lat}>
                       <MarkerContent>
                         <span className="yf-pin-cluster" style={offsetStyle}>
                           <span className="yf-map-pin yf-map-flag" title={p.title}>{label}</span>
                         </span>
+                        {c && <span className="yf-pin-time">{formatHM(c.arrive, timeFormat)}</span>}
                       </MarkerContent>
-                      <MarkerTooltip>{isLast ? `Final destination — ${p.title}` : `Trip start — ${p.title}`}</MarkerTooltip>
+                      <MarkerTooltip>{isLast ? `Final destination — ${p.title}` : `Trip start — ${p.title}`}{c ? ` · arrives ${formatHM(c.arrive, timeFormat)} · ~${c.cumKm} km into the trip` : ''}</MarkerTooltip>
                     </MapMarker>
                   )
                 }
                 num += 1
+                const c = showClockChips ? stopClock.get(p.id) : undefined
                 return (
                   <MapMarker key={p.id} longitude={p.lng} latitude={p.lat}>
                     <MarkerContent>
@@ -993,8 +1156,9 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                         </span>
                       </button>
                       </span>
+                      {c && <span className="yf-pin-time">{formatHM(c.arrive, timeFormat)}</span>}
                     </MarkerContent>
-                    <MarkerTooltip>{p.title}</MarkerTooltip>
+                    <MarkerTooltip>{p.title}{c ? ` · arrives ${formatHM(c.arrive, timeFormat)} · ~${c.cumKm} km into the trip` : ''}</MarkerTooltip>
                   </MapMarker>
                 )
               })
@@ -1016,8 +1180,9 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                 <MarkerTooltip>{m.label}</MarkerTooltip>
               </MapMarker>
             ))}
-            {/* home anchor for round trips — the return drive ends here */}
-            {dayFilter === 'all' && returnLeg && (
+            {/* home anchor for round trips — the return drive ends here; gated on
+                the same Return home toggle as the line it belongs to */}
+            {dayFilter === 'all' && returnLeg && showReturn && (
               <MapMarker longitude={returnLeg.home.lng} latitude={returnLeg.home.lat}>
                 <MarkerContent>
                   <span className="yf-map-pin yf-map-flag" title={trip.startLocation}><Home size={13} aria-hidden /></span>

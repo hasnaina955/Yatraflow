@@ -19,10 +19,10 @@ import { toast } from '../components/ui'
 import { isMissingColumnError, rowToTrip, tripToRow, type OptionalColumnsProbe, type TripRow } from '../lib/tripRow'
 import { makeInviteCode, normalizeInviteCode } from '../lib/inviteCode'
 import { suggestionToRow, decisionToRow, activityToRow, notificationToRow, publishedToRow } from '../lib/restoreRows'
-import { reduceSlice, applyMemberChange, isRecentLocalWrite } from '../lib/realtimeCore'
+import { reduceSlice, applyMemberChange, isRecentLocalWrite, isStaleServerRow } from '../lib/realtimeCore'
 import { MISSING_BACKEND_MESSAGE, describeAuthFailure } from '../lib/authErrors'
 import { adminFromSession, clearAdminCache, isAdminCached } from '../lib/adminSession'
-import type { RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/supabase-js'
+import type { RealtimeChannel, RealtimePostgresChangesPayload, SupabaseClient } from '@supabase/supabase-js'
 
 // In-memory cache — the synchronous snapshot the UI reads. No localStorage.
 interface DB {
@@ -601,6 +601,12 @@ async function hydrateFromSupabase(userId: string, gen: number, seedIfEmpty = tr
       ? undefined
       : [...tripList, ...catalogTrips]
 
+    // B2: seed the server-clock ledger with every server-applied trip row —
+    // hydration is the definition of "server-applied" (see
+    // serverTripTimestamps above for why the guard must read this and not
+    // Trip.updatedAt).
+    for (const t of [...tripList, ...catalogTrips]) recordServerTripTimestamp(t.id, t.updatedAt)
+
     patch({
       users,
       ...(tripsRead !== undefined ? { trips: tripsRead } : {}),
@@ -793,6 +799,7 @@ export async function fetchSharedTrip(tripId: ID, allowInvitePreview = false): P
   }
   if (!row) return null
   const trip = rowToTrip(row, [])
+  recordServerTripTimestamp(trip.id, trip.updatedAt)
   if (!cache.trips.some(t => t.id === trip.id)) {
     cache.trips = [...cache.trips, trip]
     commit()
@@ -825,6 +832,7 @@ export async function fetchPublicTrip(pubId: string): Promise<Trip | null> {
   const rows = rpc.data as TripRow[] | null
   if (!Array.isArray(rows) || rows.length === 0) return null
   const trip = rowToTrip(rows[0], [])
+  recordServerTripTimestamp(trip.id, trip.updatedAt)
   if (!cache.trips.some(t => t.id === trip.id)) {
     cache.trips = [...cache.trips, trip]
     commit()
@@ -852,6 +860,7 @@ export async function fetchTripByInviteCode(code: string): Promise<Trip | null> 
   const rows = rpc.data as TripRow[] | null
   if (!Array.isArray(rows) || rows.length === 0) return null
   const trip = rowToTrip(rows[0], [])
+  recordServerTripTimestamp(trip.id, trip.updatedAt)
   if (!cache.trips.some(t => t.id === trip.id)) {
     cache.trips = [...cache.trips, trip]
     commit()
@@ -1643,6 +1652,9 @@ export async function fetchTrashedTrips(): Promise<void> {
   const { data, error } = await supabase.rpc('get_trashed_trips')
   if (error) { console.error('[yatraflow] trashed trips fetch failed', error); return }
   cache.trashedTrips = mapOrSkip((data ?? []) as unknown[], r => rowToTrip(r as TripRow, []))
+  // Trashed rows are server-applied too — a restored trip's guard must not
+  // compare a fresh remote UPDATE against a nonexistent ledger entry.
+  for (const t of cache.trashedTrips) recordServerTripTimestamp(t.id, t.updatedAt)
   commit()
 }
 
@@ -1720,13 +1732,13 @@ export function updateTrip(id: ID, patchFields: Partial<Trip>): boolean {
 // Bursty mutations — a drag-reorder firing reorderStop per move, settings
 // keystrokes, undo/redo chains — each used to issue its own row UPDATE. A
 // trailing-edge coalescer per trip id turns a burst into ONE write whose
-// snapshot is always the freshest cache state (read at fire time, not call
-// time). Deletes and member changes stay immediate (only persistTripField
-// debounces); the pagehide/visibilitychange hooks in init() flush pending
-// writes when the tab hides or closes so the trailing timer can't eat the
-// last edit.
+// snapshot is captured AT CALL TIME and never re-read. Snapshot-at-call matters:
+// if the timer re-read the cache at fire time, a REMOTE update landing inside
+// the debounce window would make the flush persist the REMOTE row and silently
+// discard the local edit that scheduled it (the exact failure B0 exists to
+// prevent).
 let TRIP_WRITE_DEBOUNCE_MS = 600
-const pendingTripWrites = new Map<ID, { timer: ReturnType<typeof setTimeout> }>()
+const pendingTripWrites = new Map<ID, { timer: ReturnType<typeof setTimeout>; trip: Trip }>()
 
 /** Test hook — 0 disables the debounce: writes issue immediately, as before. */
 export function _setTripWriteDebounceMs(ms: number): void {
@@ -1742,7 +1754,11 @@ export function _flushTripWrites(): void {
     if (!pending) continue
     clearTimeout(pending.timer)
     pendingTripWrites.delete(id)
-    void persistTripFieldNow(id, tripById(id))
+    // Persist the CAPTURED snapshot, not tripById(id) — see the coalescer note
+    // above: a remote update that landed while the write was pending must not
+    // be re-persisted over the local edit, and the local edit must not be
+    // lost by persisting the remote row.
+    void persistTripFieldNow(id, pending.trip)
   }
 }
 
@@ -1768,19 +1784,25 @@ function persistTripField(id: ID, t: Trip): void {
   // debounce but before the server round trip finishes is still suppressed.
   // (Re-arm happens again inside persistTripFieldNow at fire time.)
   markLocalWrite('trips', id)
+  // Capture the snapshot as a CLONE, not a reference: callers hand the live
+  // cached object, and the cache may swap or mutate it (remote row swap, a
+  // later edit) before the debounce fires. A shared reference let the pending
+  // write drift with the cache — the exact loss B0 exists to prevent.
+  const snapshot = structuredClone(t)
   if (TRIP_WRITE_DEBOUNCE_MS <= 0) {
-    void persistTripFieldNow(id, t)
+    void persistTripFieldNow(id, snapshot)
     return
   }
   const prev = pendingTripWrites.get(id)
   if (prev) clearTimeout(prev.timer)
   const timer = setTimeout(() => {
     pendingTripWrites.delete(id)
-    // Read the trip again at fire time: the pending snapshot may be several
-    // edits stale by now, and the cache always holds the newest state.
-    void persistTripFieldNow(id, tripById(id) ?? t)
+    // Persist the CAPTURED snapshot, never a re-read of tripById(id): the
+    // timer's re-read let a REMOTE update landing inside the debounce window
+    // be persisted over the local edit that scheduled this write (B0).
+    void persistTripFieldNow(id, snapshot)
   }, TRIP_WRITE_DEBOUNCE_MS)
-  pendingTripWrites.set(id, { timer })
+  pendingTripWrites.set(id, { timer, trip: snapshot })
 }
 
 // ---------------- Members & collaboration ----------------
@@ -1979,6 +2001,9 @@ export function moveStopBetweenDays(tripId: ID, stopId: ID, toDayIndex: number, 
       renumber(fromDraft)
     }
   }, opts)
+  // Write through like every sibling mutator (reorderStop, setStopStatus) —
+  // the mutateTrip cache edit alone vanished on the next reload (B0).
+  void persistTripField(tripId, tripById(tripId)!)
 }
 
 export function setStopStatus(tripId: ID, status: ItineraryStop['status'], stopId: ID): void {
@@ -1992,7 +2017,12 @@ export function setStopStatus(tripId: ID, status: ItineraryStop['status'], stopI
     const s = day.stops.find(x => x.id === stopId)!
     s.status = status
   }, { log: `marked “${before.title}” as ${status}`, target: `Day ${dayIdx + 1}` })
-  void persistTripField(tripId, t)
+  // Persist the POST-mutation cache reference. The old pre-mutation snapshot
+  // was only ever safe while the flush re-read the cache at fire time; since
+  // B0 the coalescer persists the call-time snapshot verbatim, so a stale
+  // reference here wrote the trip WITHOUT the new status (the flip reverted
+  // on the next hydration or collaborator sync).
+  void persistTripField(tripId, tripById(tripId)!)
 }
 
 function renumber(day: ItineraryDay): void {
@@ -2023,6 +2053,39 @@ export function updateExpense(tripId: ID, expenseId: ID, patch: Partial<Omit<Exp
   mutateTrip(tripId, draft => {
     draft.expenses = draft.expenses.map(x => x.id === expenseId ? { ...x, ...patch } : x)
   }, { touch: false })
+  void persistTripField(tripId, tripById(tripId)!)
+}
+
+/** M6 B4 — mark an expense line settled ("this one's sorted, stop counting
+ *  it"). Records who + when for the activity entry and the balances card.
+ *  Crew members with an editor role; viewer/commenter roles get a silent
+ *  no-op here, mirroring the rest of the mutation surface's gating. */
+export function markExpenseSettled(tripId: ID, expenseId: ID, by: ID): void {
+  const t = tripById(tripId)
+  if (!t || !t.expenses.some(x => x.id === expenseId)) return
+  const expense = t.expenses.find(x => x.id === expenseId)
+  if (!expense || expense.settled) return
+  const label = expense.label
+  mutateTrip(tripId, draft => {
+    draft.expenses = draft.expenses.map(x => x.id === expenseId ? { ...x, settled: { by, at: Date.now() } } : x)
+  }, { log: `marked “${label}” settled`, target: 'Budget' })
+  void persistTripField(tripId, tripById(tripId)!)
+}
+
+/** M6 B4 — the undo: reopen a settled line. */
+export function markExpenseUnsettled(tripId: ID, expenseId: ID): void {
+  const t = tripById(tripId)
+  if (!t) return
+  const expense = t.expenses.find(x => x.id === expenseId)
+  if (!expense?.settled) return
+  const label = expense.label
+  mutateTrip(tripId, draft => {
+    draft.expenses = draft.expenses.map(x => {
+      if (x.id !== expenseId) return x
+      const { settled: _drop, ...rest } = x
+      return rest
+    })
+  }, { log: `reopened “${label}”`, target: 'Budget' })
   void persistTripField(tripId, tripById(tripId)!)
 }
 
@@ -2396,6 +2459,34 @@ export function _clearRecentLocalWrites(): void {
   recentLocalWrites.clear()
 }
 
+/** B2 server-clock ledger: the last SERVER-APPLIED `trips.updated_at` per trip
+ *  id. Written ONLY from hydration, the shared/public/invite/trash fetchers and
+ *  applyRealtimeEvent — NEVER from optimistic mutations. This is the only
+ *  honest clock for the stale-update guard: `Trip.updatedAt` on the cache is
+ *  the optimistic client clock (`mutateTrip` bumps it to `Date.now()` on every
+ *  local edit), so after any local edit it outranks the server's `updated_at`
+ *  forever and a guard comparing against it would suppress every real remote
+ *  edit. DB clock vs DB clock, mirrored on recentLocalWrites above (bounded
+ *  map; per-id entries are re-seeded by every hydrate, so an account switch
+ *  self-corrects for any trip the new session can see). */
+const serverTripTimestamps = new Map<string, number>()
+const MAX_SERVER_TRIP_TS = 500
+
+function recordServerTripTimestamp(id: string, raw: unknown): void {
+  const n = Number(raw)
+  if (!Number.isFinite(n)) return
+  serverTripTimestamps.set(id, n)
+  if (serverTripTimestamps.size > MAX_SERVER_TRIP_TS) {
+    const oldestKey = serverTripTimestamps.keys().next().value
+    if (oldestKey) serverTripTimestamps.delete(oldestKey)
+  }
+}
+
+/** Test hook — clear the server-timestamp ledger (see _clearRecentLocalWrites). */
+export function _clearServerTripTimestamps(): void {
+  serverTripTimestamps.clear()
+}
+
 /** Realtime payloads come off the wire, so they are not ours to trust. An
  *  unexpected shape throws, and a throw from inside a `postgres_changes` callback
  *  escapes into the realtime client's own event dispatch instead of stopping
@@ -2413,6 +2504,13 @@ function dispatchRealtimeEvent(table: string, payload: RealtimePostgresChangesPa
   } catch (e) {
     console.error(`[yatraflow] realtime ${table} event dropped`, e)
   }
+}
+
+/** Test hook — feed a postgres_changes payload into the dispatch without a
+ *  live channel (dispatchRealtimeEvent is module-private). Containment try/
+ *  catch included, matching the real path exactly. */
+export function _applyRealtimeEventForTest(table: string, payload: RealtimePostgresChangesPayload<Record<string, unknown>>): void {
+  dispatchRealtimeEvent(table, payload)
 }
 
 /** Start listening for row changes. Call after a successful hydration. */
@@ -2453,7 +2551,15 @@ function applyRealtimeEvent(table: string, payload: RealtimePostgresChangesPaylo
 
   switch (table) {
     case 'trips': {
-      if (echoWindowEh('trips', id)) return
+      if (echoWindowEh('trips', id)) {
+        // Our own write's echo: suppress the row swap, but record the server's
+        // updated_at in the B2 ledger so the NEXT remote row for this trip is
+        // compared against the clock the DB actually wrote (M6 B2). The
+        // cache's Trip.updatedAt stays the optimistic client clock — nothing
+        // derives the guard from it.
+        if (event === 'UPDATE') recordServerTripTimestamp(id, row?.updated_at)
+        break
+      }
       if (event === 'DELETE') {
         cache.trips = cache.trips.filter(t => t.id !== id)
         cache.suggestions = cache.suggestions.filter(s => s.tripId !== id)
@@ -2462,7 +2568,21 @@ function applyRealtimeEvent(table: string, payload: RealtimePostgresChangesPaylo
         cache.notifications = cache.notifications.filter(n => n.tripId !== id)
       } else {
         const existing = tripById(id)
-        cache.trips = reduceSlice(cache.trips, event, rowToTrip(row as TripRow, existing?.members ?? []), oldRow?.id)
+        const incoming = rowToTrip(row as TripRow, existing?.members ?? [])
+        if (event === 'UPDATE') {
+          // B2 stale-update guard — TRIPS ONLY (the generic reduceSlice stays
+          // plain: no other table carries a comparable timestamp pair;
+          // profiles has no updated_at at all), and against the SERVER ledger
+          // above, never Trip.updatedAt. STRICTLY older rows are replays and
+          // are dropped; EQUAL timestamps APPLY — before
+          // 20260919_trip_touch_updated_at.sql is applied, updated_at never
+          // advances, so equal is every remote update's normal case (see
+          // isStaleServerRow). The echo window above already handled our own
+          // writes, so this only ever drops genuinely remote stale rows.
+          if (isStaleServerRow(serverTripTimestamps.get(id), row?.updated_at)) break
+          recordServerTripTimestamp(id, row?.updated_at)
+        }
+        cache.trips = reduceSlice(cache.trips, event, incoming, oldRow?.id)
       }
       break
     }
@@ -2543,6 +2663,7 @@ async function fetchTripIntoCache(tripId: string): Promise<void> {
     if (tripRes.error || !tripRes.data) return
     const members = ((memRes.data ?? []) as MemberRow[]).map(m => ({ userId: m.user_id, role: m.role as TripMember['role'], joinedAt: m.joined_at }))
     const trip = rowToTrip(tripRes.data as TripRow, members)
+    recordServerTripTimestamp(trip.id, trip.updatedAt)
     if (!cache.trips.some(t => t.id === trip.id)) cache.trips = [...cache.trips, trip]
     commit()
   })()
@@ -2553,6 +2674,16 @@ async function fetchTripIntoCache(tripId: string): Promise<void> {
 /** Trips with a select currently in flight, so a burst of events for one trip
  *  costs one round-trip. #36-15. */
 const tripFetches = new Map<string, Promise<void>>()
+
+// ---------------- Presence (M6 · B1) ----------------
+
+/** The realtime client presence sessions run on — null when no backend is
+ *  compiled in, so the UI hook degrades to a no-op instead of throwing on the
+ *  placeholder project. Components never import the client directly; this is
+ *  the one door (matches every other surface's store-only rule). */
+export function presenceClient(): SupabaseClient | null {
+  return isSupabaseConfigured ? supabase : null
+}
 
 // ---------------- utils ----------------
 

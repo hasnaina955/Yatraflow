@@ -5,6 +5,10 @@
       "destination": "/api/i?id=:id"
     },
     {
+      "source": "/sitemap.xml",
+      "destination": "/api/sitemap"
+    },
+    {
       "source": "/mappls/:path*",
       "destination": "https://search.mappls.com/:path*"
     }

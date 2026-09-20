@@ -392,6 +392,19 @@ const normalise = (s: string) => s.replace(/\s+/g, ' ').trim()
 // file. So the known set is frozen in a committed baseline that may only shrink:
 // a NEW offender fails the build, and an entry that no longer reproduces must be
 // deleted (re-baseline deliberately with UPDATE_DESIGN_SYSTEM_BASELINE=1).
+//
+// Every key is the offender's own text with the `styles.css:<line>` prefix
+// DROPPED, for the same reason in every gate: a line number is where a rule
+// happens to sit, not what it is, so a key carrying one is invalidated by any
+// insertion above it — every CSS edit anywhere in the file re-failed the
+// contrast and duration gates with phantom "new violations" and forced a
+// re-baseline instead (hit twice, and it is what a rebase between two branches
+// that both moved `styles.css` conflicted on). Keyed by what the rule declares,
+// a shift moves nothing and only a real change to that declaration does. The
+// trade-off is explicit and narrow: a *second* rule repeating an
+// already-tolerated pair is not flagged, because the pair is what the key
+// names — `duplicateSelectors` catches that selector twice at the top level,
+// which is where it would surface first.
 
 const baselineUrl = new URL('./design-system-baseline.json', import.meta.url)
 const updatingBaseline = process.env.UPDATE_DESIGN_SYSTEM_BASELINE === '1'
@@ -440,7 +453,7 @@ describe('contrast contract: colour pairs declared in one rule', () => {
       // the page atmosphere), so its real contrast is unknowable from source alone.
       if (bg.a !== 1) continue
       const ratio = contrast(fg, bg)
-      if (ratio < 4.5) out.push(`styles.css:${rule.line} ${sel} — ${ratio.toFixed(2)}:1`)
+      if (ratio < 4.5) out.push(`${sel} — ${ratio.toFixed(2)}:1`)
     }
     return out
   }
@@ -510,7 +523,7 @@ describe('motion vocabulary: durations come from the tokens', () => {
         if (prop.startsWith('animation') && /\binfinite\b/.test(value)) continue
         for (const m of value.matchAll(/(?<![\d.])[0-9]*\.?[0-9]+m?s\b/g)) {
           if (parseFloat(m[0]) === 0) continue
-          offenders.push(`styles.css:${rule.line} ${normalise(rule.selector)} — ${prop}: ${m[0]}`)
+          offenders.push(`${normalise(rule.selector)} — ${prop}: ${m[0]}`)
         }
       }
     }
@@ -531,11 +544,11 @@ describe('spacing rhythm: new values land on the documented ladder', () => {
   // column) and 22 (two sections). `border-radius` and friends are not spacing
   // and are not read.
   //
-  // Keyed by `property: value`, NOT by line (unlike the other gates): the frozen
+  // Keyed by `property: value`, the ratchet's rule for every gate. The frozen
   // set (76 pairs at the time of writing) is immune to the line-number churn
-  // that makes every CSS
-  // insertion force a re-baseline, and the set may only shrink — retiring one of
-  // these values means deleting its entry, after which it can never come back.
+  // that made every CSS insertion force a re-baseline, and the set may only
+  // shrink — retiring one of these values means deleting its entry, after which
+  // it can never come back.
   const LADDER = new Set([2, 4, 6, 8, 12, 14, 16, 20, 22, 24])
   const SPACING = /^(gap|row-gap|column-gap|margin|padding)(-top|-bottom|-left|-right)?$/
 

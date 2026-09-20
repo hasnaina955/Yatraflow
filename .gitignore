@@ -29,6 +29,7 @@ vitest_out.txt
 # local APK downloads from CI artifacts
 *.apk
 android/app/yatraflow-debug.p12
+dev-5174.log
 
 # local agent skills (project-local installs). `.claude/` itself stays
 # un-ignored so committed editor config remains possible.
@@ -36,10 +37,24 @@ android/app/yatraflow-debug.p12
 .claude/skills/
 skills-lock.json
 
-# Agent-tool working directories and generated briefs — same class as
-# `.freebuff/`: regenerateable output, never repo content. `.impeccable/browser/`
-# alone is a full browser profile (12 MB), and `PRODUCT.md` carries the skill's
-# own schema marker rather than being a hand-written product doc.
+# Agent-tool working directories and generated briefs — regenerateable output,
+# never repo content, and never worth a conflict between two branches.
+# `.impeccable/browser/` alone is a full browser profile (12 MB); `PRODUCT.md`
+# carries the skill's own schema marker rather than being a hand-written product
+# doc; `.freebuff/` and `.cache/` hold tool state and probe/log dumps — the
+# latter is why `vite.config.ts` pins the vitest `include` (stale copies of this
+# repo turn up under these trees and the gate used to fail on their months-old
+# tests). `.cache/` was covered only by a local `.git/info/exclude`, which does
+# not travel with a clone.
 .impeccable/
 .commandcode/
+.freebuff/
+.cache/
 PRODUCT.md
+
+# The Verdent agent's PR-body scratch file — same class a third time. It held a
+# whole PR body (10 KB of prose), and every branch that used the tool rewrote
+# it, so two of them could never stay open together without conflicting on it.
+# `.verdentc.json` is deliberately NOT ignored: that one is real deploy config
+# (install/build commands, output dir), not tool output.
+.verdent/

@@ -58,7 +58,7 @@ export interface LegContext {
   fuelPricePerL?: number
 }
 
-export function StopEditor({ open, onClose, initial, resetKey, onSave, dayLabel, legContext }: {
+export function StopEditor({ open, onClose, initial, resetKey, onSave, dayLabel, legContext, banner }: {
   open: boolean
   onClose: () => void
   initial?: Partial<StopFormValues>
@@ -67,6 +67,8 @@ export function StopEditor({ open, onClose, initial, resetKey, onSave, dayLabel,
   onSave: (v: StopFormValues) => void
   dayLabel?: string
   legContext?: LegContext
+  /** M6 B3 — non-blocking remote-edit conflict banner rendered above the form */
+  banner?: React.ReactNode
 }) {
   const timeFormat = useTimeFormat()
   const [v, setV] = useState<StopFormValues>(normalize(initial))
@@ -220,6 +222,7 @@ export function StopEditor({ open, onClose, initial, resetKey, onSave, dayLabel,
 
   return (
     <Modal open={open} onClose={onClose} title={`${initial?.title ? 'Edit stop' : 'Add stop'}${dayLabel ? ` — ${dayLabel}` : ''}`}>
+      {banner}
       <form onSubmit={submit}>
         <div className="form-row">
           <Field label="Stop name" error={errs.title}>

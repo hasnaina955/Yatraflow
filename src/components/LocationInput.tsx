@@ -117,7 +117,7 @@ export function LocationInput({ value, onChange, onPick, placeholder, error, aut
         role="combobox"
         aria-autocomplete="list"
         aria-expanded={open}
-        aria-controls={listId}
+        aria-controls={open ? listId : undefined}
         aria-activedescendant={open && hits[highlight] ? `${listId}-opt-${highlight}` : undefined}
       />
       {loading && <span className="loc-spinner" aria-label="Searching places" />}

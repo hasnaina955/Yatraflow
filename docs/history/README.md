@@ -7,6 +7,7 @@ what superseded it and when.
 |---|---|---|
 | [`CHANGELOG-through-0.41.1.md`](CHANGELOG-through-0.41.1.md) | Every release from `0.1.0` to `0.41.1` (48 versions) as they stood before the `0.42.0` cleanup | [`/CHANGELOG.md`](../../CHANGELOG.md) — the live file |
 | [`implementation-plan-v0.23.0-cti.md`](implementation-plan-v0.23.0-cti.md) | The Calm Travel Intelligence implementation plan | Shipped in v0.31.0 |
+| [`branch-prunes.md`](branch-prunes.md) | The 17 merged branches deleted from `origin` on 2026-09-20, each with its head SHA and owning PR | Nothing — a permanent record of deleted refs |
 
 ## Why the changelog archive exists
 

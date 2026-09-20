@@ -3,7 +3,8 @@
 // second live session — see scripts/integration/); these pin the reducer the
 // channel callbacks run: join/leave/replace, one-avatar-per-user, stable
 // ordering, and hostile sync payloads.
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
+import { readFileSync } from 'node:fs'
 import {
   reducePresence, removePresence, presenceFromSync, visiblePeers,
   presenceChannelName, presenceKey, presencePayload, EMPTY_PRESENCE,
@@ -112,6 +113,33 @@ describe('helpers', () => {
   it('mints session keys that carry the user id prefix', () => {
     expect(presenceKey('u1')).toMatch(/^u1:/)
     expect(presenceKey('u1')).not.toBe(presenceKey('u1'))
+  })
+
+  it('never repeats a key across a roomful of tabs', () => {
+    const keys = new Set(Array.from({ length: 500 }, () => presenceKey('u1')))
+    expect(keys.size).toBe(500)
+  })
+
+  it('still mints distinct keys with no Web Crypto (the insecure-context path)', () => {
+    vi.stubGlobal('crypto', undefined)
+    try {
+      const keys = new Set(Array.from({ length: 200 }, () => presenceKey('u2')))
+      expect(keys.size).toBe(200)
+      expect(presenceKey('u2')).toMatch(/^u2:/)
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('keeps the module off the weak generator the linter flags', () => {
+    const src = readFileSync(new URL('../src/lib/presence.ts', import.meta.url), 'utf8')
+    // Comments may name the generator — the key's history is worth recording —
+    // so judge code lines only, and only an actual CALL counts.
+    const code = src
+      .split('\n')
+      .filter((line) => !/^\s*(\/\/|\*|\/\*)/.test(line))
+      .join('\n')
+    expect(code).not.toMatch(/Math\s*\.\s*random\s*\(/)
   })
 
   it('broadcasts a payload with userId, name and a fresh joinedAt', () => {

@@ -100,9 +100,33 @@ export function presenceChannelName(tripId: string): string {
   return `presence:${tripId}`
 }
 
-/** Opaque per-session identity that survives across join/leave/untrack. */
+/** Opaque per-session identity that survives across join/leave/untrack.
+ *
+ *  The token comes from the platform CSPRNG rather than `Math.random()`. The
+ *  key is broadcast into the room, so it is not a secret — but it IS the
+ *  identity every peer keys this tab by, and a weak source collides two tabs
+ *  into one avatar. `getRandomValues` (unlike `randomUUID`) also resolves in an
+ *  insecure context, so a plain-http LAN session keeps its own identity. */
 export function presenceKey(userId: string): string {
-  return `${userId}:${Math.random().toString(36).slice(2, 10)}`
+  return `${userId}:${randomToken()}`
+}
+
+const TOKEN_BYTES = 8
+let lastResortSeq = 0
+
+/** 16 hex characters from the platform CSPRNG, with a no-crypto last resort. */
+function randomToken(): string {
+  const c = globalThis.crypto as Crypto | undefined
+  if (c?.getRandomValues) {
+    const bytes = new Uint8Array(TOKEN_BYTES)
+    c.getRandomValues(bytes)
+    return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
+  }
+  // Unreachable on every platform this app ships on: a per-document counter
+  // plus a high-resolution clock, which only has to differ between tabs.
+  lastResortSeq += 1
+  const clock = typeof performance === 'undefined' ? Date.now() : performance.now()
+  return `${Date.now().toString(36)}${Math.trunc(clock * 1000).toString(36)}${lastResortSeq.toString(36)}`
 }
 
 /** What this client broadcasts about itself on join. */

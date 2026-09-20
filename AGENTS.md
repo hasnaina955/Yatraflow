@@ -98,7 +98,7 @@ Key locations:
 - **Rebrand (issue #96) — ARCHIVED 2026-09-15: no need or plan to rename.** The seam exists on `refactor/brand-seam` (one source of truth for the product name across 21 files incl. `vite.config.ts`) and is kept as archaeology, not as pending work. If it is ever revived: the Android shell has brand-adjacent fields (`appId` `app.yatraflow.mobile`, `versionName`, APK artifact naming) and an `appId` change **breaks updates over existing installs**, so that cut must be planned deliberately. The landing-page experiment on `explore/landing-hero-local` is unrelated to this decision
 - **v0.63.0 is promoted: `main` and `test` are the same tree (`55efd21`, PR #267, 2026-09-20) — the only part of this release still outstanding is the database.** `[Unreleased]` was consolidated into `## [0.63.0] - 2026-09-20` (the §2.6b coverage audit ran: every commit in `main..test` either has an entry in `[0.62.0]`/`[0.63.0]` or is user-invisible — a merge, a doc, a test, or a CI change), `package.json` + lockfile bumped to 0.63.0, and ROADMAP's Snapshot date, `Current version` line and ledger row updated to match (`tests/roadmap-status.test.ts` pins those three to each other, so a cut that misses one fails the gate). Both pushes happened with the user's explicit confirmation under §2.1/§2.8. PR #267's Codacy run flagged two real inherited defects, both now fixed on `test`: the presence key drew from `Math.random()` (now `getRandomValues`, with a comment-aware tripwire in `tests/presence.test.ts`) and ROADMAP's strategic-track table linked four anchors that no heading produced (M5/M6/M7/M8 — all repaired). **Both of this release's migrations are applied** (2026-09-20, run by the user in the Supabase SQL editor) — `20260918_payments_security.sql` (the server-side paywall — `get_public_trip`, the tightened `trips read` policy, the gated `get_invite_trip`, refund revocation, the nullable entitlements FK and `get_creator_sales`) and `20260919_trip_touch_updated_at.sql` (M6's `updated_at` trigger, byte-equivalent to `schema.sql`'s canonical function) — and `v0.63.0` is tagged on `main` (`55efd21`). **The rule this release earned: a promotion's DB half is a separate, user-run step, so a release is not finished until someone has run its migrations** — CI, the merge and the deploy all pass without them, and the only symptom is a live surface failing at runtime. Two scoped items from v0.60.0 remain deliberately unexecuted in ROADMAP's Idea bank: `overdrive` on its four authored surfaces (**I-18**, filed as issue **#255** — its contract requires 2–3 directions to be presented and one picked before any code) and theming `::selection`/`caret-color` (**I-17**, unblocked and a one-file change)
 - Working-tree noise is now *ignored*, not merely noticed: `.verdent/` agent-tool scratch was untracked and added to `.gitignore` (PR #263) — see §4. `.freebuff/` does not exist in this clone (checked 2026-09-20) and the tree is clean
-- Release tags stop at **`v0.54.0`** (re-checked 2026-09-20, still the newest, `git tag --sort=-creatordate`): `v0.55.0` and `v0.56.0` both shipped untagged, joining v0.42.0 and v0.45–v0.48. `v0.49.0` is the one carrying its APK on the GitHub release. Backfill optional
+- Release tags: **`v0.63.0` is the newest** — annotated on the promotion merge commit `55efd21` and pushed 2026-09-20 (`git push origin vX.Y.Z` is the only path that builds the Android APK, §3.1). Before it they stopped at **`v0.54.0`**: `v0.55.0` and `v0.56.0` both shipped untagged, joining v0.42.0 and v0.45–v0.48, and `v0.49.0` is the one carrying its APK on the GitHub release. Backfilling those is optional.
 - The `shabtab` fork remote is **present again** (checked 2026-09-16: `git remote -v` lists it beside `origin`, and a plain `git fetch --all` reaches it) — re-adding it is no longer needed. It carries its own day-route line, latest `ae581f3` (2026-09-12)
 - **`docs/history/` now holds archived records** (pre-0.42.0 changelog + the v0.23.0 CTI plan). Do not bulk-rewrite `CHANGELOG.md` (rule 9 below)
 
@@ -245,6 +245,34 @@ Hard rules (each learned the hard way — do not relearn them):
   running (cost debugging time fetching `gh issue view` bodies, Aug 2026).
 - **`tsc -b --clean` first** in any session before trusting a typecheck —
   incremental build caches pass code that clean builds reject.
+- **But `--clean` DIRTIES, it does not typecheck — and in `verify` the real
+  typecheck runs LAST (learned 2026-09-20).** `tsc -b --clean` deletes build
+  info and **exits without compiling**, and `verify` is
+  `tsc -b --clean && npm test && npm run build` with `build` = `tsc -b && vite
+  build`. So an undefined identifier reaches the test run *before* any
+  typecheck happens and surfaces as a runtime `ReferenceError` in whichever
+  suite exercises that path — the rebase of #261 left one use of a variable
+  the other side had deleted and 18 hydration tests failed with
+  `ReferenceError: catalogTrips is not defined` while the log contained no
+  `error TS` line at all. A red run whose failures all sit in one code path
+  and all report the same ReferenceError is a compile error wearing a test
+  failure's clothes: read the failure's own text and grep the log for
+  `[yatraflow]` before blaming the tests. And a green `verify` is only
+  complete when the `built in …` line is present — that line is the proof the
+  typecheck and bundle actually ran.
+- **A conflict-free rebase is not a correct rebase — git's auto-merge can
+  produce code neither side ever had (learned 2026-09-20).** Rebasing #261 onto
+  `test` merged `src/store/store.ts` cleanly, but one side had deleted a
+  `catalogTrips` query and the other had *added* a loop over it: the result
+  referenced a variable that no longer existed, in a file git reported as
+  merged. Auto-merge resolves **text**, never meaning. After any rebase that
+  touched a file both sides edited, run the full `npm run verify` on the
+  rebased tree before pushing — and when a suite fails wholesale after a
+  rebase, suspect the merge of the file the suite covers before suspecting the
+  branch's own change. The replay also means **the branch's CHANGELOG entries
+  re-filed themselves into the released section** if the branch was cut before
+  the release: check `git diff origin/test..HEAD -- CHANGELOG.md` lands under
+  `[Unreleased]`.
 - **`npm run verify` outlives a 30 s shell window — run it DETACHED and poll
   the log.** `Start-Process cmd.exe -ArgumentList '/d','/c','npm run verify >
   %TEMP%\v.log 2>&1' -WorkingDirectory <repo> -WindowStyle Hidden`, then

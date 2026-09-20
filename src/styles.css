@@ -6067,3 +6067,37 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
   .day-slot-cands { animation: none; }
   .slots-daychip, .slots-meter i, .day-slot, .day-slot-fill { transition: none; }
 }
+
+/* ---- P2 fix round: the ledger's own rows (see-&-do rail) ----
+   Flat two-line rows on the spine replacing the boxed cards inside the
+   ledger: name + one meta line, expanding in place to a shelf. */
+.lrow-new {
+  position: relative; border-bottom: 1px solid var(--line-2);
+}
+.lrow-new:last-of-type { border-bottom: 0; }
+.lrow-sum {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 4px 9px 20px; cursor: pointer; list-style: none;
+  border-radius: 8px;
+  transition: background var(--t-fast) var(--ease-out);
+}
+.lrow-sum::-webkit-details-marker { display: none; }
+.lrow-sum:hover { background: color-mix(in srgb, var(--yf-poi-see) 6%, transparent); }
+.lrow-sum:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--focus-ring, rgba(228, 174, 67, .55)); }
+.lr-name {
+  flex: 1; min-width: 0; font-size: 12.5px; font-weight: 600; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.lr-meta { flex: none; font-size: 10.5px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.lr-go { flex: none; color: var(--text-3); transition: transform var(--t-fast) var(--ease-out); }
+.lrow-new[open] .lr-go { transform: rotate(180deg); }
+.ledger-shelf {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  margin: 0 4px 9px 20px; padding: 8px 10px;
+  background: var(--card); border: 1px solid var(--line-2); border-radius: 12px;
+  animation: day-slot-drop var(--t-fast) var(--ease-out);
+}
+.shelf-title {
+  flex-basis: 100%; font-size: 11px; font-weight: 700; letter-spacing: .03em;
+  text-transform: uppercase; color: var(--yf-poi-see-ink);
+}

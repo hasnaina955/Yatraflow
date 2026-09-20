@@ -584,3 +584,13 @@ describe('P2 fill-loop support (added with the rail)', () => {
     expect(slots.find(s => s.key === 'stay')?.state).toBe('filled')
   })
 })
+
+describe('single-blob corridor plans (P2 fix round)', () => {
+  it('a plan with no dayEnd flags is one driving day, not an empty day 2', () => {
+    const haltSegments = [sh(seg('meal', { etaMinutes: 735 }), null), sh(seg('stretch'), null)]
+    expect(daySlots(0, base({ haltSegments, dayStops: [] })).map(s => s.key)).toEqual(['lunch', 'stretch'])
+    expect(daySlots(1, base({ haltSegments, dayStops: [] }))).toEqual([])
+    const rows = tripReadiness(haltSegments, [{ index: 0, stops: [] }], { dayStops: [], anchors: ANCHORS })
+    expect(rows.map(r => r.dayIndex)).toEqual([0])
+  })
+})

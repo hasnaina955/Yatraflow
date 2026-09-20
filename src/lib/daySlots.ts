@@ -551,6 +551,14 @@ export function tripReadiness(
     maxDay = Math.max(maxDay, day)
     if (sh.segment.dayEnd) day += 1
   }
+  // A corridor plan with no dayEnd flags (short / single-blob plans) is one
+  // driving day: without this fallback every non-zero dayIndex rendered the
+  // empty-day state and the rail looked unredesigned there.
+  if (maxDay === 0 && haltSegments.length > 0) {
+    const dayEntry = days.find(x => x.index === 0)
+    out.push(dayReadiness(0, { ...base, haltSegments, dayStops: dayEntry?.stops ?? [] }))
+    return out
+  }
   for (let d = 0; d <= maxDay; d++) {
     const dayEntry = days.find(x => x.index === d)
     out.push(

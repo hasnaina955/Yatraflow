@@ -983,6 +983,84 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
    * Detour distance is the expensive part (it walks the anchor list), so it is
    * computed once per hit here; rows only rank the already-filtered pool.
    */
+
+  /**
+   * P2 ledger row for the see-&-do rail: the corridor pick as a flat two-line
+   * row on the spine - name + one meta line (detour, day, window reasons) -
+   * expanding in place to a shelf with the card's actions. Replaces the old
+   * boxed cards in the ledger, keeping every behaviour reachable.
+   */
+  function renderLedgerRow(sh: SegmentHit) {
+    const hit = sh.hit
+    if (hit && dismissedIds.has(hit.id as string)) return null
+    if (!hit) return renderPoi(sh) // gaps keep their honest row
+    const added = addedIds.has(hit.id as string) || existingNames.has(hit.name.toLowerCase())
+    const detourMin = hitEngine.get(String(hit.id))?.detourMin
+      ?? asymmetricDetourMinutes(hit, anchors, routePolyline ?? null, MODE_SPEED[trip.transportMode] ?? 40)
+    const chips = chipsFor(sh, hit)
+    const hitDay = dayForKm(hit.cumKm)
+    const alts = alternativesFor(sh, hit).filter(e => e.h.id !== hit.id)
+    const shelf = (
+      <div className="ledger-shelf">
+        <span className="shelf-title">{hit.name}</span>
+        {chips.length > 0 && chips.map(c => (
+          <button
+            key={c.key}
+            type="button"
+            className={(c.tone === 'warn' ? 'poi-rchip poi-rchip--warn' : 'poi-rchip') + (chipFilter === c.key ? ' is-on' : '')}
+            aria-pressed={chipFilter === c.key}
+            onClick={(e) => { e.stopPropagation(); setChipFilter(prev => (prev === c.key ? null : c.key)) }}
+          >
+            {c.icon === 'star' && <Star size={11} aria-hidden />}
+            {c.label}
+          </button>
+        ))}
+        {editable && (
+          added
+            ? <span className="chip chip-teal"><CircleCheck size={11} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />Added</span>
+            : <button className="day-slot-fill" onClick={() => openAddModal(hit)}>+ Add to a day</button>
+        )}
+        {!added && editable && (
+          <button
+            className="btn btn-ghost btn-sm"
+            title="Not interested - hide this and teach the engine"
+            onClick={() => {
+              recordDnaEvent({ tripId: trip.id, action: 'decline', category: hit.category, detourMin })
+              suggestionCache.clearMap()
+              setDnaTick(t => t + 1)
+              setDismissedIds(prev => new Set(prev).add(hit.id as string))
+            }}
+          >Dismiss</button>
+        )}
+        {alts.length > 0 && alts.map(({ h, dKm }) => (
+          <button
+            key={h.id as string}
+            className="chip chip-sm"
+            title={h.name}
+            onClick={() => openAddModal(h)}
+          >
+            {h.name}{dKm != null ? ` \u00b7 ${dKm.toFixed(1)} km off` : ''}
+          </button>
+        ))}
+      </div>
+    )
+    const meta = [
+      detourMin > 0 ? `+${Math.round(detourMin)} min detour` : 'on route',
+      hitDay != null ? `Day ${hitDay + 1}` : null,
+      ...chips.slice(0, 2).map(c => c.label.toLowerCase()),
+    ].filter(Boolean).join(' \u00b7 ')
+    return (
+      <details key={hit.id as string} className="lrow-new" onToggle={undefined}>
+        <summary className="lrow-sum" title={hit.name}>
+          <span className="lr-name">{hit.name}</span>
+          <span className="lr-meta">{meta}</span>
+          <ChevronDown className="lr-go" size={12} aria-hidden />
+        </summary>
+        {shelf}
+      </details>
+    )
+  }
+
   const altPool = useMemo(() => {
     type AltEntry = { h: PlaceHit; dKm: number | null }
     const all: AltEntry[] = []
@@ -1840,11 +1918,11 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
                         <span className="poi-grp-n">{seeForRail.length}</span>
                         <span className="poi-grp-ln" />
                       </div>
-                      {seeForRail.slice(0, SEE_VISIBLE).map(renderPoi)}
+                      {seeForRail.slice(0, SEE_VISIBLE).map(renderLedgerRow)}
                       {seeForRail.length > SEE_VISIBLE && (
                         <details className="poi-more">
                           <summary><ChevronDown className="poi-chev" size={12} aria-hidden />{seeForRail.length - SEE_VISIBLE} more picks</summary>
-                          <div className="poi-more-list">{seeForRail.slice(SEE_VISIBLE).map(renderPoi)}</div>
+                          <div className="poi-more-list">{seeForRail.slice(SEE_VISIBLE).map(renderLedgerRow)}</div>
                         </details>
                       )}
                     </>

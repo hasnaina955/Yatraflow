@@ -1,4 +1,5 @@
 import { defineConfig, loadEnv } from 'vite'
+import { configDefaults } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import { readFileSync } from 'node:fs'
 
@@ -60,6 +61,15 @@ export default defineConfig(({ mode }) => {
           rewrite: (p) => p.replace(/^\/mappls/, ''),
         },
       },
+    },
+    test: {
+      // The repo's tests live in exactly these two trees. Vitest 4's default
+      // include is **/*.{test,spec}.* minus node_modules/.git, which swept up
+      // STALE COPIES of this repo inside tool working dirs (.cache/itinerary/, .agents/, .impeccable/ — all git-ignored) and failed the verify gate
+      // on months-old tests the repo tree had already fixed. Pinning include
+      // makes any tool-debris copy structurally invisible to the gate.
+      include: ['tests/**/*.test.ts', 'scripts/**/*.test.ts'],
+      exclude: [...configDefaults.exclude, '**/.cache/**'],
     },
   }
 })

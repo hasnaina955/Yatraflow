@@ -1098,7 +1098,8 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     travelStyle: trip.travelStyle,
     existingNames,
     altPool: altPool.all.map(e => e.h),
-  }), [pois, anchors, routePolyline, trip.transportMode, trip.travelStyle, existingNames, altPool])
+    dayOfSegment: (sh) => dayForKm(sh.hit?.cumKm ?? sh.segment.targetKm),
+  }), [pois, anchors, routePolyline, trip.transportMode, trip.travelStyle, existingNames, altPool, dayRoadKm])
   const activeDaySlots = useMemo<DaySlot[]>(
     () => daySlots(activeDayIndex, { ...daySlotDeps, dayStops: trip.days.find(d => d.index === activeDayIndex)?.stops ?? [] }),
     [activeDayIndex, daySlotDeps, trip, daySlotSig],
@@ -1108,6 +1109,13 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     [activeDayIndex, daySlotDeps, trip, daySlotSig],
   )
   const [openSlotKey, setOpenSlotKey] = useState<string | null>(null)
+  const [openLedgerKey, setOpenLedgerKey] = useState<string | null>(null)
+  /** The rail's meter copy: honest per-day, never jargon. */
+  function activeReadinessLabel() {
+    const r = activeDayReadiness
+    if (r.total === 0) return 'nothing scheduled for this day yet'
+    return `${r.filled} of ${r.total} planned${r.auto > 0 ? ` · ${r.auto} handled by the plan` : ''}`
+  }
 
 
   /** One corridor-suggestion row (gap or hit). Shared by both split columns. */
@@ -1626,7 +1634,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
               <span className="poi-col-head-ico"><Fuel size={13} aria-hidden /></span>
               <div>
                 <b>The day's plan</b>
-                <span className="small muted">{needs.length === 0 ? 'fuel · food · rest · stretch · overnight' : `${needs.length} halts on this corridor`}</span>
+                <span className="small muted">{activeDaySlots.length === 0 ? 'the day takes shape as you plan the drive' : `${activeReadinessLabel()}`}</span>
               </div>
               <span className="poi-col-count">{activeDaySlots.length > 0 ? `${activeDayReadiness.filled}/${activeDayReadiness.total}` : needsForRail.length}</span>
               <button
@@ -1671,17 +1679,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
                   ? 'Google search quota reached - the day plan is paused until the counter rolls over.'
                   : needs.length === 0
                     ? 'No driving plan yet - the day takes shape as you add driving days.'
-                    : `Nothing to plan on Day ${activeDayIndex + 1} - pick another day above.`}</p>
-                {needsForRail.length > 0 && groupByPurpose(needsForRail).map(([label, items]) => (
-                  <div key={label}>
-                    <div className="poi-grp">
-                      <span className="poi-grp-k">{label}</span>
-                      <span className="poi-grp-n">{items.length}</span>
-                      <span className="poi-grp-ln" />
-                    </div>
-                    {items.map(renderPoi)}
-                  </div>
-                ))}
+                    : `Nothing scheduled for Day ${activeDayIndex + 1} yet - its halts belong to other days.`}</p>
               </div>
             ) : (
               <div className="slots-list">

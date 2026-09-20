@@ -126,6 +126,11 @@ export interface DaySlotsDeps {
   altPool?: PlaceHit[]
   /** max candidates rendered inside one slot (default 3) */
   limit?: number
+  /** Day attribution override (the caller's own dayForKm over road-true
+   *  per-day km): receives a journey segment, returns the trip day index it
+   *  belongs to. When given, day slicing follows IT, not the dayEnd flags -
+   *  corridor plans without overnight splits still attribute honestly. */
+  dayOfSegment?: (sh: SegmentHit) => number | null
 }
 
 const SLOT_LABELS: Record<SlotKey, string> = {
@@ -140,8 +145,10 @@ const SLOT_LABELS: Record<SlotKey, string> = {
 const LUNCH_END_MIN = LUNCH_WINDOW[1] // 14:30 - the meal split boundary
 const BREAKFAST_END_MIN = BREAKFAST_WINDOW[1] // 9:30
 
-/** Journey-ordered day slicing: each `dayEnd` segment closes its day. */
-function segmentsForDay(segs: SegmentHit[], dayIndex: number): SegmentHit[] {
+/** Day slicing: the caller's attribution (dayOfSegment) wins when given;
+ *  otherwise each `dayEnd` segment closes its day. */
+function segmentsForDay(segs: SegmentHit[], dayIndex: number, dayOfSegment?: (sh: SegmentHit) => number | null): SegmentHit[] {
+  if (dayOfSegment) return segs.filter(sh => dayOfSegment(sh) === dayIndex)
   const out: SegmentHit[] = []
   let day = 0
   for (const sh of segs) {
@@ -459,7 +466,7 @@ function candidatesFor(
  * the breakfast window; a no-drive day with a hotel stop renders its stay.
  */
 export function daySlots(dayIndex: number, deps: DaySlotsDeps): DaySlot[] {
-  const daySegs = segmentsForDay(deps.haltSegments, dayIndex)
+  const daySegs = segmentsForDay(deps.haltSegments, dayIndex, deps.dayOfSegment)
 
   const drafts: SlotDraft[] = []
   const pushDraft = (d: SlotDraft) => {
@@ -546,10 +553,17 @@ export function tripReadiness(
 ): DayReadiness[] {
   const out: DayReadiness[] = []
   let maxDay = 0
-  let day = 0
-  for (const sh of haltSegments) {
-    maxDay = Math.max(maxDay, day)
-    if (sh.segment.dayEnd) day += 1
+  if (base.dayOfSegment) {
+    for (const sh of haltSegments) {
+      const d = base.dayOfSegment(sh)
+      if (d != null && d > maxDay) maxDay = d
+    }
+  } else {
+    let day = 0
+    for (const sh of haltSegments) {
+      maxDay = Math.max(maxDay, day)
+      if (sh.segment.dayEnd) day += 1
+    }
   }
   // A corridor plan with no dayEnd flags (short / single-blob plans) is one
   // driving day: without this fallback every non-zero dayIndex rendered the

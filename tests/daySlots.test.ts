@@ -594,3 +594,23 @@ describe('single-blob corridor plans (P2 fix round)', () => {
     expect(rows.map(r => r.dayIndex)).toEqual([0])
   })
 })
+
+describe('day attribution override (P2 fix round 2)', () => {
+  const haltSegments = [
+    sh(seg('meal', { etaMinutes: 735, targetKm: 100 }), null),
+    sh(seg('meal', { etaMinutes: 800, targetKm: 400 }), null),
+    sh(seg('fuel', { targetKm: 500 }), null),
+  ]
+  it('dayOfSegment slices by the caller\'s own day mapping', () => {
+    const deps = base({ haltSegments, dayStops: [], dayOfSegment: (s) => (s.segment.targetKm >= 400 ? 1 : 0) })
+    expect(daySlots(0, deps).map(s => s.key)).toEqual(['lunch'])
+    expect(daySlots(1, deps).map(s => s.key)).toEqual(['lunch', 'fuel'])
+  })
+  it('tripReadiness covers every attributed day', () => {
+    const rows = tripReadiness(haltSegments, [{ index: 0, stops: [] }, { index: 1, stops: [] }], {
+      dayStops: [], anchors: ANCHORS, dayOfSegment: (s) => (s.segment.targetKm >= 400 ? 1 : 0),
+    })
+    expect(rows.map(r => r.dayIndex)).toEqual([0, 1])
+    expect(rows[1].total).toBe(2)
+  })
+})

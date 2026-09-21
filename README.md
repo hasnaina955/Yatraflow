@@ -328,6 +328,13 @@ deliberately no `is_admin` column to flip. Set `SUPABASE_SERVICE_ROLE_KEY` (or
 `PGCONN`) to have both applied, and without either the script prints the SQL to
 paste into the dashboard instead. It only ever touches the rows it names.
 
+The write plumbing is `scripts/fixtureKit.mjs` -- sessions, ownership inserts,
+the elevated writer, chunked bulk inserts, the admin promotion -- so the next
+session-gated surface (an analytics screen, a money path) seeds its own browser
+check from the same harness instead of copying this script's internals. A new
+fixture is a pure plan module (see `fixtureFunnelPlan.mjs`) plus a thin CLI over
+the kit; `tests/fixture-kit.test.ts` keeps the kit the only write path.
+
 ## 🤝 Contributing
 
 PRs welcome! Keep TypeScript strict clean, match the existing style (plain CSS in `styles.css`, no new UI/router/state libs without discussion), preserve the transparency promise, and respect the MVP constraints. See [CONTRIBUTING.md](CONTRIBUTING.md).

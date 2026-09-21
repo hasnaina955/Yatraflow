@@ -491,9 +491,8 @@ Kept as one line each so the origin is traceable without re-listing the work as 
   for the same sale. What could not be read was views and forks: `published_itineraries.views` /
   `.copies` are LIFETIME counters with no time dimension, they count different things (a view is
   deduped to one per browser session and skips the creator's own visits; a fork was a raw event
-  count with neither), and they live on the row unpublishing deletes. So the recording landed:
-  `pub_events` (migration `20260921_pub_funnel_events.sql`, **not yet applied** — run it in the
-  SQL editor before this reaches a deployed environment), one dated row per step, written by the
+  count with neither), and they live on the row unpublishing deletes. So the recording landed:  `pub_events` (migration `20260921_pub_funnel_events.sql`, applied 2026-09-21), one dated row per step,
+  written by the
   SAME function that moves the counter so the two cannot drift, holding `pub_id`, kind and time
   and nothing about a person. The Overview tab reads it per day through the creator-scoped
   `get_creator_funnel` and shows **Visits → Forks → Unlocks** over a 7/30/90-day window, each
@@ -505,6 +504,13 @@ Kept as one line each so the origin is traceable without re-listing the work as 
   that instead of printing three zeroes that read as a measurement. The fork counter also stopped
   counting a creator forking their own plan — the view counter had always refused it, so the two
   stages had disagreed about who a reader is.
+  Shipped since, as follow-ups: the plan's OWN public page shows its creator the same funnel over the last 7 days
+  (one derivation and one window rule shared with the hub, so the two cannot disagree, and a visitor's session runs
+  none of the reads); the counters-versus-log gap is a stated number with a one-sentence explanation on both surfaces,
+  never negative, silent when aligned and silent on a failed read; and `pub_events` prunes itself past the reader's own
+  730-day horizon (`20260922_pub_events_retention.sql` — apply, then run `select public.prune_pub_events();` once; the
+  pg_cron schedule is the optional commented block), with the horizon pairing pinned in the RLS contract test. The
+  fixture's plumbing moved to `scripts/fixtureKit.mjs` so the next session-gated surface seeds from the same harness.
 - **The console can read the platform's own books** — [Unreleased]. Source: the Analytics tab's
   own promise since v0.46.0 ("the revenue row … is still to come here"), now deleted. Entitlements
   are owner-scoped by RLS and deliberately absent from the hydrated cache, so the platform's cut

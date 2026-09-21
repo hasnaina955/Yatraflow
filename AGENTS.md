@@ -195,7 +195,14 @@ Key locations:
    shared branch and keeps the user in control of what ships.
 9. **Never bulk-rewrite `CHANGELOG.md` with a script, heredoc or shell
    interpolation — edit it with editor primitives only.** This failure mode has
-   already hit twice. In `adf5f66` (*"chore: v0.42.0 — changelog cleanup"*) a
+   already hit twice — three, counting the scripting-language variant (2026-09-21):
+   a python splice meant as `lines[i:i] = [entry]` was written as `lines[i:i] =
+   entry` over a *string*, which slice-assigns CHARACTER-wise and shredded 4
+   lines into 6,000 (the file blew up 4×; `git restore` recovered it, and was
+   only safe because every other change in the file was already committed).
+   Splice lists of LINES, and re-check the diff stat before moving on: a doc
+   edit whose insertions outnumber the lines you meant to add is a shredding
+   in progress. In `adf5f66` (*"chore: v0.42.0 — changelog cleanup"*) a
    bulk rewrite truncated the file from **830 lines to 21**, discarding the
    entire pre-`0.42.0` record, and while rewriting ate the leading byte out of
    code spans — `` `applyChange` `` committed as `` `pplyChange` ``,

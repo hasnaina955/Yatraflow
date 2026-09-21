@@ -183,6 +183,20 @@ create table if not exists public.published_itineraries (
   copies                      integer not null default 0
 );
 
+-- ---------- pub_events (dated funnel steps: see migrations/20260921_pub_funnel_events.sql)
+-- One row per view/fork. Written ONLY by bump_published_stats below (the same
+-- statement that moves the counter), so the lifetime counters and this log
+-- cannot drift. No user id, no IP — a step happened, never who took it.
+create table if not exists public.pub_events (
+  id     bigint generated always as identity primary key,
+  pub_id text not null references public.published_itineraries (id) on delete cascade,
+  kind   text not null,
+  at     timestamptz not null default now(),
+  constraint pub_events_kind_check check (kind in ('view', 'fork'))
+);
+
+create index if not exists pub_events_pub_at_idx on public.pub_events (pub_id, at desc);
+
 -- ---------- admin_audit (append-only log of every admin action) ----------
 create table if not exists public.admin_audit (
   id          uuid primary key default gen_random_uuid(),
@@ -338,6 +352,7 @@ alter table public.decisions enable row level security;
 alter table public.activity enable row level security;
 alter table public.notifications enable row level security;
 alter table public.published_itineraries enable row level security;
+alter table public.pub_events enable row level security;
 alter table public.admin_audit enable row level security;
 
 -- ---------- admin deny (RESTRICTIVE — the only policies that take access
@@ -350,6 +365,7 @@ create policy "deny disabled" on public.decisions as restrictive for all to auth
 create policy "deny disabled" on public.activity as restrictive for all to authenticated using (not public.is_disabled());
 create policy "deny disabled" on public.notifications as restrictive for all to authenticated using (not public.is_disabled());
 create policy "deny disabled" on public.published_itineraries as restrictive for all to authenticated using (not public.is_disabled());
+create policy "deny disabled" on public.pub_events as restrictive for all to authenticated using (not public.is_disabled());
 
 -- ---------- admin read bypass (SELECT everywhere) ----------
 create policy "admin read" on public.profiles for select to authenticated using (public.is_admin());
@@ -505,6 +521,17 @@ create policy "published read" on public.published_itineraries
 create policy "published write" on public.published_itineraries
   for all using (auth.uid() = creator_id) with check (auth.uid() = creator_id);
 
+-- ---------- pub_events ----------
+-- Read your own publications' funnel. NO write policy for anon/authenticated:
+-- rows are written only by bump_published_stats below (the definer function),
+-- exactly like the counters it maintains.
+create policy "pub_events read own publications" on public.pub_events
+  for select to authenticated
+  using (exists (
+    select 1 from public.published_itineraries p
+    where p.id = pub_id and p.creator_id = auth.uid()
+  ));
+
 -- ============================================================
 -- Realtime (Phase 4): broadcast row changes for live multi-editor sync.
 -- ============================================================
@@ -524,18 +551,73 @@ alter publication supabase_realtime add table public.admin_audit;  -- masteradmi
 -- p_id is TEXT: published ids are client-minted slugs ("pub_xxx"), and the
 -- original uuid typing made every call fail the cast (see
 -- migrations/20260906_bump_published_stats_text.sql).
+--
+-- This is the ONE write path for views/forks: each bump also records a dated
+-- row in pub_events (migrations/20260921_pub_funnel_events.sql), so the
+-- lifetime counter and the funnel log cannot drift. The `not found` guard
+-- keeps an event from describing a step whose counter did not move, and keeps
+-- the anon-callable RPC from stuffing the log with arbitrary ids.
 create or replace function public.bump_published_stats(p_id text, p_kind text)
 returns void as $$
+declare
+  v_kind text;
 begin
   if p_kind = 'views' then
     update public.published_itineraries set views = views + 1 where id = p_id;
+    v_kind := 'view';
   elsif p_kind = 'copies' then
     update public.published_itineraries set copies = copies + 1 where id = p_id;
+    v_kind := 'fork';
+  else
+    return;  -- unknown kind: no counter, no event
   end if;
+
+  -- FOUND is the UPDATE's own result: publication row missing (unpublished or
+  -- never issued) means nothing to count and nothing to record.
+  if not found then
+    return;
+  end if;
+
+  insert into public.pub_events (pub_id, kind) values (p_id, v_kind);
 end;
-$$ language plpgsql security definer;
+$$ language plpgsql security definer set search_path = public;
 
 grant execute on function public.bump_published_stats(text, text) to anon, authenticated;
+
+-- ============================================================
+-- Creator funnel read (see migrations/20260921_pub_funnel_events.sql)
+-- ============================================================
+-- Daily buckets for the logged-in creator's OWN publications: the client owns
+-- the window control, so switching it costs no round trip. Scoped by
+-- auth.uid() inside a definer function (the get_creator_sales precedent) so a
+-- caller cannot read another creator's funnel, and a half-applied migration
+-- surfaces as an error rather than a silent zero. Authenticated only:
+-- revoking from `public` does not revoke from anon on Supabase, so the roles
+-- are named.
+create or replace function public.get_creator_funnel(p_days integer default 180)
+returns table (pub_id text, day date, views bigint, forks bigint)
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select
+    e.pub_id,
+    (e.at at time zone 'utc')::date as day,
+    count(*) filter (where e.kind = 'view') as views,
+    count(*) filter (where e.kind = 'fork') as forks
+  from public.pub_events e
+  where e.pub_id in (
+      select p.id from public.published_itineraries p
+      where p.creator_id = auth.uid()
+    )
+    and e.at >= now() - make_interval(days => greatest(1, least(coalesce(p_days, 180), 730)))
+  group by e.pub_id, day
+  order by day desc;
+$$;
+
+revoke all on function public.get_creator_funnel(integer) from public, anon;
+grant execute on function public.get_creator_funnel(integer) to authenticated;
 
 -- ============================================================
 -- Invite-code lookup (see migrations/20260909_invite_codes.sql)

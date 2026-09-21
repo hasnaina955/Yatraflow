@@ -346,5 +346,72 @@ begin
   end if;
 end $$;
 
+-- ------------------------------------------------- 10. funnel events (I-22)
+-- The dated funnel log is a NEW anon-reachable write surface (it is filled by
+-- bump_published_stats, which anon may call), so its contract is pinned here
+-- rather than left to review: no direct writes from a client, no reading
+-- another creator's funnel, and no anon access to the reader.
+do $$
+begin
+  -- The log must exist with its shape: kind is constrained, and a publication
+  -- delete takes its events with it (no orphan rows accumulating unreachable).
+  if not exists (
+    select 1 from pg_constraint
+    where conrelid = 'public.pub_events'::regclass
+      and conname = 'pub_events_kind_check'
+  ) then
+    raise exception 'pub_events.kind must be CHECK-constrained to view/fork — (re-)apply 20260921_pub_funnel_events.sql';
+  end if;
+
+  if not exists (
+    select 1 from pg_constraint
+    where conrelid = 'public.pub_events'::regclass
+      and contype = 'f'
+      and confrelid = 'public.published_itineraries'::regclass
+      and confdeltype = 'c'   -- ON DELETE CASCADE
+  ) then
+    raise exception 'pub_events.pub_id must cascade with its publication';
+  end if;
+
+  -- RLS on, and NO insert/update/delete policy: the definer function is the
+  -- only writer, so a client cannot fabricate funnel steps.
+  if not exists (
+    select 1 from pg_class where oid = 'public.pub_events'::regclass and relrowsecurity
+  ) then
+    raise exception 'pub_events must have row level security enabled';
+  end if;
+
+  if exists (
+    select 1 from pg_policies
+    where schemaname = 'public' and tablename = 'pub_events'
+      and cmd in ('INSERT', 'UPDATE', 'DELETE', 'ALL')
+      and not (roles = '{authenticated}' and policyname = 'deny disabled')
+  ) then
+    raise exception 'pub_events must have no client write policy (only bump_published_stats writes it)';
+  end if;
+
+  -- The reader is definer-scoped by the caller's own uid, and authenticated
+  -- only: `revoke ... from public` does not revoke from anon on Supabase, so
+  -- an anon grant here would hand out a funnel to nobody.
+  if not exists (
+    select 1 from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public' and p.proname = 'get_creator_funnel'
+      and p.prosecdef = true
+  ) then
+    raise exception 'get_creator_funnel must be SECURITY DEFINER (it reads past RLS) — (re-)apply 20260921_pub_funnel_events.sql';
+  end if;
+
+  if exists (
+    select 1 from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    cross join lateral aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) e
+    where n.nspname = 'public' and p.proname = 'get_creator_funnel'
+      and (e.grantee = 0 or e.grantee = (select oid from pg_roles where rolname = 'anon'))
+  ) then
+    raise exception 'get_creator_funnel must never be granted to anon or PUBLIC (a creator funnel is not public)';
+  end if;
+end $$;
+
 -- ------------------------------------------------------------------------ done
 select 'rls contract: all crew-facing policies verified' as result;

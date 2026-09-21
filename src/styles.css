@@ -6153,3 +6153,14 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 /* P4: the part's live vote (a chip + the leading option, opening Group input) */
 .day-slot-vote { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 10px 8px; }
 .day-slot-vote-lead { font-size: 10.5px; color: var(--text-3); }
+/* P5: the day chip carries its weather, and the rail its meta chips */
+.slots-daychip-rain { font-size: 9.5px; font-weight: 700; color: var(--warn); text-transform: uppercase; letter-spacing: .03em; }
+.slots-daychip.is-on .slots-daychip-rain { color: var(--teal-deep); }
+.slots-railmeta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 0 2px 8px; }
+.slots-legend { position: relative; }
+.slots-legend summary { list-style: none; cursor: pointer; }
+.slots-legend summary::-webkit-details-marker { display: none; }
+.slots-legend-body { margin-top: 6px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); font-size: 11px; color: var(--text-2); }
+.slots-legend-body p { margin: 0 0 4px; }
+.slots-legend-body p:last-child { margin-bottom: 0; }
+.slots-legend-body b { color: var(--text); font-weight: 600; }

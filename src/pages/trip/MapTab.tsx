@@ -884,6 +884,18 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     onOpenGroupInput?.()
   }
 
+  /** P5.4: routing for a search result - an eating place can be filed as an
+   *  empty meal part of the selected day, or added plainly as an extra. */
+  function filingOptionsFor(h: PlaceHit): Array<{ key: string; label: string }> {
+    const cat = String(h.category ?? '')
+    const isMeal = cat === 'food' || cat === 'cafe' || cat === 'rest'
+    if (!isMeal) return []
+    return activeDaySlots
+      .filter(s => s.state === 'empty' && s.kind === 'meal')
+      .slice(0, 2)
+      .map(s => ({ key: s.key, label: `Add as ${s.label}` }))
+  }
+
   function openAddModal(hit: PlaceHit) {
     // Pick-day default: an unknown position can't preselect honestly, so fall
     // back to the first day — the picker is user-adjustable, so nothing is
@@ -1666,7 +1678,23 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
                       {!inScope && ' · beyond your detour scope'}
                     </span>
                   </span>
-                  {editable && <button className="btn btn-primary btn-sm" type="button" style={{ flex: '0 0 auto', marginLeft: 8 }} onClick={() => openAddModal(h)}>+ Add</button>}
+                  {editable && (
+                    <span style={{ display: 'flex', gap: 4, flex: '0 0 auto', alignItems: 'center', marginLeft: 8 }}>
+                      {filingOptionsFor(h).map(o => (
+                        <button
+                          key={o.key}
+                          type="button"
+                          className="chip chip-sm"
+                          title={`File this place as the selected day's ${o.key}`}
+                          onClick={() => {
+                            const slot = activeDaySlots.find(x => x.key === o.key)
+                            if (slot) void fillSlot(slot, h)
+                          }}
+                        >{o.label}</button>
+                      ))}
+                      <button className="btn btn-primary btn-sm" type="button" onClick={() => openAddModal(h)}>+ Add</button>
+                    </span>
+                  )}
                 </div>
               )
             })}
@@ -1837,9 +1865,26 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
                     onClick={() => { setActiveDayIndex(d.index); setOpenSlotKey(null) }}
                   >
                     Day {d.index + 1} <span className="slots-daychip-rd">{r.filled}/{r.total}</span>
+                    {dayRainPct?.[d.index] != null && dayRainPct[d.index]! >= 40 && (
+                      <span className="slots-daychip-rain" title={`${Math.round(dayRainPct[d.index]!)}% rain chance`}>rain</span>
+                    )}
                   </button>
                 )
               })}
+            </div>
+            <div className="slots-railmeta">
+              {quotaOut && (
+                <span className="chip chip-sm" title="Google search quota reached - suggestions pause until the counter rolls over">Suggestions paused</span>
+              )}
+              <details className="slots-legend">
+                <summary className="chip chip-sm">Legend</summary>
+                <div className="slots-legend-body">
+                  <p><b>✓</b> a planned part - one quiet line</p>
+                  <p><b>○</b> an unplanned part - candidates inside</p>
+                  <p><b>dashed ring</b> engine-managed (stretch breaks)</p>
+                  <p><b>violet dot</b> an extra worth adding</p>
+                </div>
+              </details>
             </div>
             {activeDaySlots.length > 0 && (
               <div className="slots-meter" role="status" aria-label={`Day ${activeDayIndex + 1}: ${activeDayReadiness.filled} of ${activeDayReadiness.total} parts of the day planned`}>
@@ -1960,6 +2005,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
               onActivateHit={setActiveHitId}
               onOpenInTimeline={onOpenTimeline}
               onOpenInBoard={onOpenBoard ? () => onOpenBoard() : undefined}
+              focusDay={activeDayIndex}
               onOpenHaltDay={onOpenDay}
               clockMilestones={clockMilestones}
               onDeleteStop={editable ? removeStopFromMap : undefined}

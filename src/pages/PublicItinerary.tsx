@@ -20,6 +20,7 @@ import { useTimeFormat, formatHM, formatHMRange } from '../lib/timefmt'
 import { stopKindOf, STOP_KIND_LABELS } from '../lib/stopKind'
 import { useSavedPubs } from '../lib/savedPubs'
 import { fetchMyEntitlements, purchaseUnlock } from '../lib/unlock'
+import { UnlockReveal } from '../components/UnlockReveal'
 import { hasUnlock } from '../lib/payments'
 import { currentPublicShareUrl } from '../lib/shareUrl'
 import { appLink } from '../lib/appLink'
@@ -46,6 +47,10 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
   // not carried in the hydrate cache. Re-read after a purchase resolves.
   const [entitlements, setEntitlements] = useState<Entitlement[]>([])
   const [buying, setBuying] = useState(false)
+  // The itinerary the unlock moment is showing, held separately from `fetched`:
+  // it is only ever the copy the server served AFTER the entitlement existed
+  // (see unlockThis), and it doubles as the reveal's open/closed state.
+  const [revealTrip, setRevealTrip] = useState<Trip | null>(null)
   const trip: Trip | undefined = cachedTrip ?? fetched ?? undefined
   const { isSaved, toggleSaved } = useSavedPubs()
   const heroAuto = useDestinationCover(pub ? (pub.routeSummary.length ? pub.routeSummary : [pub.title]) : null)
@@ -184,6 +189,23 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
       onUnlocked: () => {
         void fetchMyEntitlements(meId).then(rows => setEntitlements(rows))
       },
+    }).then(async outcome => {
+      // Both a completed purchase and a 409 mean the days are readable now (the
+      // 409 path can have just self-healed the grant), but only a purchase
+      // earns the ceremony.
+      if (outcome !== 'unlocked' && outcome !== 'already') return
+      // This page holds the copy the server served BEFORE the purchase, and
+      // that copy is wire-stubbed: the stub keeps stop titles and coordinates
+      // while emptying descriptions, notes, timings and costs. Rendering it
+      // with the lock lifted shows a full-looking plan that is still
+      // placeholder text. Re-read through the same RPC — the entitlement now
+      // exists, so it answers with real days — rather than clearing `fetched`,
+      // which would flash the loading state mid-ceremony.
+      const fresh = await fetchPublicTrip(pub!.id)
+      if (fresh) setFetched(fresh)
+      // The reveal opens only on a real trip: its numbers ARE the point, and
+      // stats read from the stubbed copy would describe an empty plan.
+      if (outcome === 'unlocked' && fresh) setRevealTrip(fresh)
     }).finally(() => setBuying(false))
   }
 
@@ -406,6 +428,21 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
             </div>
           </div>
         </div>
+
+        {/* ROADMAP I-20: the purchase stops being a toast. Mounted only while a
+            just-bought, freshly-read itinerary is in hand, so a returning owner
+            never sees "you now own" for a plan they already had. */}
+        {revealTrip && (
+          <UnlockReveal
+            open
+            pub={pub}
+            trip={revealTrip}
+            creator={creator}
+            amountPaidInr={pub.premiumPriceInr}
+            onFork={() => { setRevealTrip(null); copyThis() }}
+            onClose={() => setRevealTrip(null)}
+          />
+        )}
 
         <p className="pub-footer-line">Published with YatraFlow · Plan real trips, together</p>
       </div>

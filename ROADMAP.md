@@ -374,7 +374,6 @@ unbuilt). **Before picking up a row, and before quoting one in a plan, confirm i
 | I-8 | Monthly statements / invoice export | creator | 2–3 h | Downloadable per-month earnings summary, client-side from the payouts table. **Post-M7.** |
 | I-17 | Theme the text selection and the caret | design system | 1 h | `::selection` and `caret-color` are declared **nowhere** in `src/styles.css` — the UA's highlight blue and caret are the last unthemed browser surfaces in the app (found while scoping v0.60.0's craft-floor pass). Cheap to close with the app's own soft-tint pairing (`--teal-soft` + `--text`) and `caret-color: var(--teal-deep)`, but it is a feel change rather than a defect, so it wants a look first — and the baseline's line-keyed entries must be re-mapped in the same commit (AGENTS §4). |
 | I-19 | Settled lines genuinely leave the balances | budget | 3–4 h + product call | M6 B4 shipped "mark settled" as a record (settler + timestamp, history, activity) and the line STILL counts toward the running balances — deliberately: the card's fair share is `fairSharePerHead(travellers, totals.totalCostInr)` (the engine estimate split per head), so dropping a settled line's credit while it remains inside the estimate breaks the zero-sum property and the who-owes-whom transfers stop balancing. Doing it properly means re-basing what the card measures from "the trip estimate" to "the open lines" (fair share from open-line sums), with the settled history as a ledger view — a product decision about what the card should mean, not arithmetic. BudgetTab's `computeBalances` call passes the whole `trip.expenses`; the open/settled split currently styles the two lists only. |
-| I-20 | Unlock moment + owned library | creator | 1–2 days | Full-screen "you now own X" reveal with real computed stats (days/stops/km), then a persistent "My purchases" shelf (cover, creator, version badge, update marker) reachable from My Trips. Research: `docs/commercial/RESEARCH-2026-09-18…` §4. **Unblocked: #251 has merged, so the M7 rail and its unlock flow are live.** |
 | I-21 | Purchase share card | growth | 3–4 h | WhatsApp-sized "I bought the Spiti plan" og-image the buyer can post — buyers are the distribution channel (research §4.5). Depends on the share-card pipeline (`public/og-default.png`, `api/i.js`). |
 | I-23 | Publish-quality score | creator | 1 d | Checklist with nudges (cover photo, budget filled, notes density, preview-day choice) on the hub + Share tab. Ship, measure via I-22, then claim any lift (research §5). |
 | I-25 | Buyer reviews | creator | 2 d | Post-purchase ratings on itineraries: schema (reviews table + RLS), policy question (purchase-gated?) first. Feeds conversion, creator feedback, and I-26. |
@@ -456,6 +455,19 @@ Kept as one line each so the origin is traceable without re-listing the work as 
   outstanding-total nudge over the open tagged lines completes the row · **Decision comments**
   (I-7): `decisions.comments` (`supabase/migrations/20260920_decision_comments.sql`, capability-probe
   gated like the party-prefs columns) with the same card language as suggestion comments.
+- **Idea bank I-20 — the unlock moment and the owned library** — [Unreleased]. Source:
+  [`docs/commercial/RESEARCH-2026-09-18-creator-market-and-paywall-value.md`](docs/commercial/RESEARCH-2026-09-18-creator-market-and-paywall-value.md)
+  §4. A purchase now lands on a full-screen reveal — the cover, the creator, and days / stops /
+  planned km / the engine's rebuilt per-person budget computed from the itinerary the buyer just
+  gained, plus the creator's tip count and a receipt of what was paid — with the fork CTA inside
+  it; and **My purchases** (`#/purchases`, linked from My Trips): cover, creator, length, the
+  entitlement's own price snapshot, purchase date, newest first, an update chip on any plan its
+  creator has refreshed since (`refreshed_at`), a withdrawn publication kept as a "no longer
+  listed" row instead of dropped, and a failed read shown as an error rather than "nothing bought
+  yet". Both surfaces derive from one pure module (`src/lib/purchases.ts`). The build found and
+  fixed a defect on the money path, unrelated to the shelf: the public page never re-read the
+  itinerary after an unlock, so a buyer kept rendering the wire-stubbed pre-purchase copy —
+  titles and coordinates over emptied days — until a manual reload.
 
 ## Historical plans (executed — kept for the record, not live guidance)
 

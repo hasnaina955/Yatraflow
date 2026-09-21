@@ -82,6 +82,35 @@ export async function fetchMyEntitlements(userId: string | null): Promise<Entitl
   }
 }
 
+/** The buyer's entitlement rows for the SHELF (I-20), where a failed read and
+ *  an empty shelf are different truths.
+ *
+ *  `fetchMyEntitlements` above deliberately degrades to []: on the public
+ *  itinerary a dropped connection must not break the page, and "no
+ *  entitlements" is the honest pre-purchase state there. On a shelf whose whole
+ *  job is to say what you own, that same degradation would tell a paying
+ *  customer they own nothing — so this one REJECTS (after logging), exactly
+ *  like `fetchCreatorSales`, and the page owns the error state. */
+export async function fetchMyPurchases(userId: string | null): Promise<Entitlement[]> {
+  if (!userId) return []
+  const { data, error } = await supabase
+    .from('entitlements')
+    .select(ENTITLEMENT_COLUMNS)
+    .eq('user_id', userId)
+  if (error) {
+    console.error('[yatraflow] purchases read failed', error)
+    throw error
+  }
+  return (Array.isArray(data) ? data : []).map((row: Record<string, unknown>) => ({
+    id: row.id as string,
+    userId: (row.user_id as string | null) ?? null,
+    pubId: row.pub_id as string,
+    orderId: row.order_id as string,
+    amountPaidInr: row.amount_paid_inr as number,
+    grantedAt: new Date(row.granted_at as string).getTime(),
+  }))
+}
+
 /** The SALES of the logged-in creator's publications (I-11). Reads through
  *  the security-definer `get_creator_sales` RPC, scoped by the caller's own
  *  auth.uid() — the RLS-policy path could answer 200-with-zero-rows when the

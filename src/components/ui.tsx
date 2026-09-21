@@ -23,7 +23,17 @@ export function Chip({ children, tone, onClick, active, 'aria-pressed': ariaPres
   return <span className={cls}>{children}</span>
 }
 
-export function Modal({ open, onClose, title, children, initialFocus }: { open: boolean; onClose: () => void; title: string; children: React.ReactNode; initialFocus?: string }) {
+export function Modal({ open, onClose, title, children, initialFocus, variant = 'dialog' }: {
+  open: boolean
+  onClose: () => void
+  title: string
+  children: React.ReactNode
+  initialFocus?: string
+  /** `full` is the same dialog — one focus trap, one Escape handler, one
+   *  scroll lock — with the sheet's own padding given to the content. Used by
+   *  the unlock moment, which is a page-filling ceremony rather than a form. */
+  variant?: 'dialog' | 'full'
+}) {
   const bodyRef = useRef<HTMLDivElement>(null)
   const dialogRef = useRef<HTMLDivElement>(null)
   const titleId = React.useId()
@@ -69,7 +79,7 @@ export function Modal({ open, onClose, title, children, initialFocus }: { open: 
   if (!open) return null
   return (
     <div className="modal-overlay" onMouseDown={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div ref={dialogRef} className="modal" role="dialog" aria-modal="true" aria-labelledby={titleId}>
+      <div ref={dialogRef} className={variant === 'full' ? 'modal modal-full' : 'modal'} role="dialog" aria-modal="true" aria-labelledby={titleId}>
         <div className="modal-head">
           <h2 id={titleId}>{title}</h2>
           <button className="icon-btn" onClick={onClose} aria-label="Close"><X size={16} aria-hidden /></button>

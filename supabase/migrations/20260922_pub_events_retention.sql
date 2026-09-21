@@ -27,6 +27,7 @@ security definer
 set search_path = public
 as $$
 declare
+  v_keep_days integer;
   v_horizon timestamptz;
   v_deleted integer;
 begin

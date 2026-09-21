@@ -2,10 +2,11 @@
 // The balances card and the greedy fewest-transfers settlement live in
 // src/lib/settlement.ts; the store-action tests (m6-together.test.ts) cover
 // the persistence wiring but never reach this arithmetic — this file is its
-// only coverage. Semantics are the BudgetTab's original ones, preserved
-// verbatim: see the module header there and in settlement.ts.
+// only coverage. I-19 re-based the balances onto the OPEN tagged lines, so
+// settling a line now genuinely removes it; the I-19 cases below are the
+// regression guard for that. See the module header in settlement.ts.
 import { describe, it, expect } from 'vitest'
-import { computeBalances, settleBalances } from '../src/lib/settlement'
+import { computeBalances, settleBalances, fairSharePerHead, linesTotal, openTaggedLines } from '../src/lib/settlement'
 import type { BalanceRow } from '../src/lib/settlement'
 import type { User } from '../src/data/types'
 
@@ -18,10 +19,23 @@ const user = (id: string, name: string): User => ({
 describe('computeBalances', () => {
   const members = [{ userId: 'a' }, { userId: 'b' }, { userId: 'c' }]
 
-  it('splits the estimate evenly as the fair share', () => {
-    // 30_000 estimate, 3 travellers → each owes 10_000; no tagged lines.
-    const rows = computeBalances(members, [], 3, 30_000)
-    expect(rows.map(r => r.bal)).toEqual([-10_000, -10_000, -10_000])
+  it('measures the OPEN tagged lines, split evenly as the fair share', () => {
+    // 30_000 across 3 travellers → 10_000 each, and 'a' fronted all of it.
+    const expenses = [{ id: 'e1', paidBy: 'a', amountInr: 30_000 }] as never[]
+    const rows = computeBalances(members, expenses, 3)
+    expect(rows.find(r => r.id === 'a')!.bal).toBe(20_000)
+    expect(rows.find(r => r.id === 'b')!.bal).toBe(-10_000)
+    expect(rows.find(r => r.id === 'c')!.bal).toBe(-10_000)
+  })
+
+  it('nets to zero across the crew (so the transfers have nothing left over)', () => {
+    const expenses = [{ id: 'e1', paidBy: 'a', amountInr: 30_000 }] as never[]
+    const rows = computeBalances(members, expenses, 3)
+    expect(rows.reduce((s, r) => s + r.bal, 0)).toBeCloseTo(0, 6)
+  })
+
+  it('no lines yet → nobody owes anybody anything', () => {
+    expect(computeBalances(members, [], 3).map(r => r.bal)).toEqual([0, 0, 0])
   })
 
   it('credits tagged lines to their payer', () => {
@@ -29,36 +43,65 @@ describe('computeBalances', () => {
       { id: 'e1', paidBy: 'a', amountInr: 6_000 },
       { id: 'e2', paidBy: 'a', amountInr: 4_000 },
     ] as never[]
-    // Everyone's share is 10_000; 'a' fronted all 10_000 → even; b/c owe.
-    const rows = computeBalances(members, expenses, 3, 30_000)
-    expect(rows.find(r => r.id === 'a')!.bal).toBe(0)
+    // 10_000 of open lines over 3 heads; 'a' fronted all 10_000, so a is up
+    // and b/c are down by the per-head share.
+    const rows = computeBalances(members, expenses, 3)
+    expect(rows.find(r => r.id === 'a')!.paid).toBe(10_000)
+    expect(rows.find(r => r.id === 'a')!.bal).toBeCloseTo(10_000 - 10_000 / 3, 6)
+    expect(rows.find(r => r.id === 'b')!.bal).toBeCloseTo(-10_000 / 3, 6)
+  })
+
+  it('I-19: a SETTLED line genuinely leaves the balances', () => {
+    // e2 is squared up, so it is gone from BOTH sides — the fair share is the
+    // 30_000 still open, and b's 6_000 credit is not counted at all.
+    const expenses = [
+      { id: 'e1', paidBy: 'a', amountInr: 30_000 },
+      { id: 'e2', paidBy: 'b', amountInr: 6_000, settled: { by: 'a', at: 1 } },
+    ] as never[]
+    const rows = computeBalances(members, expenses, 3)
+    expect(rows.find(r => r.id === 'b')!.paid).toBe(0)
     expect(rows.find(r => r.id === 'b')!.bal).toBe(-10_000)
+    expect(rows.find(r => r.id === 'a')!.bal).toBe(20_000)
+  })
+
+  it('I-19: settling every line zeroes the card', () => {
+    const settled = { by: 'a', at: 1 }
+    const expenses = [
+      { id: 'e1', paidBy: 'a', amountInr: 30_000, settled },
+      { id: 'e2', paidBy: 'b', amountInr: 6_000, settled },
+    ] as never[]
+    expect(computeBalances(members, expenses, 3).map(r => r.bal)).toEqual([0, 0, 0])
   })
 
   it('expands a per-person line to the full head count', () => {
-    // 2 travellers, per-person line of 2_000 → 'a' actually fronted 4_000.
+    // 2 travellers, per-person line of 2_000 → 'a' fronted 4_000, and the fair
+    // share is that same 4_000 over the 2 heads.
     const expenses = [{ id: 'e1', paidBy: 'a', amountInr: 2_000, perPerson: true }] as never[]
-    const rows = computeBalances(members.slice(0, 2), expenses, 2, 10_000)
+    const rows = computeBalances(members.slice(0, 2), expenses, 2)
     expect(rows.find(r => r.id === 'a')!.paid).toBe(4_000)
-    expect(rows.find(r => r.id === 'a')!.bal).toBe(-1_000)
+    expect(rows.find(r => r.id === 'a')!.bal).toBe(2_000)
+    expect(rows.find(r => r.id === 'b')!.bal).toBe(-2_000)
   })
 
-  it('untagged lines stay in the shared kitty — they move nobody', () => {
+  it('untagged lines stay in the shared kitty — no credit and no fair share', () => {
     const expenses = [{ id: 'e1', amountInr: 5_000 }] as never[]
-    const rows = computeBalances(members, expenses, 3, 30_000)
+    const rows = computeBalances(members, expenses, 3)
     expect(rows.every(r => r.paid === 0)).toBe(true)
-    expect(rows.every(r => r.bal === -10_000)).toBe(true)
+    expect(rows.every(r => r.bal === 0)).toBe(true)
   })
 
   it('a payer who is not a member credits nobody (stale removed crew)', () => {
     const expenses = [{ id: 'e1', paidBy: 'ghost', amountInr: 9_000 }] as never[]
-    const rows = computeBalances(members, expenses, 3, 30_000)
+    const rows = computeBalances(members, expenses, 3)
     expect(rows.every(r => r.paid === 0)).toBe(true)
   })
 
   it('a 0 head count cannot divide by zero (floor of 1 traveller)', () => {
-    const rows = computeBalances(members, [], 0, 30_000)
-    expect(rows.map(r => r.bal)).toEqual([-30_000, -30_000, -30_000])
+    // One line, one head: the only payer is exactly even and nothing is NaN.
+    const expenses = [{ id: 'e1', paidBy: 'a', amountInr: 1_000 }] as never[]
+    const rows = computeBalances(members, expenses, 0)
+    expect(rows.find(r => r.id === 'a')!.bal).toBe(0)
+    expect(rows.every(r => Number.isFinite(r.bal))).toBe(true)
   })
 
   it('sorts richest-first for the balances card', () => {
@@ -66,14 +109,49 @@ describe('computeBalances', () => {
       { id: 'e1', paidBy: 'a', amountInr: 15_000 },
       { id: 'e2', paidBy: 'b', amountInr: 0 },
     ] as never[]
-    const rows = computeBalances(members, expenses, 3, 30_000)
+    const rows = computeBalances(members, expenses, 3)
     expect(rows.map(r => r.id)).toEqual(['a', 'b', 'c'])
     expect(rows[0].bal).toBeGreaterThanOrEqual(rows[rows.length - 1].bal)
   })
 
   it('resolves users through the injected lookup', () => {
-    const rows = computeBalances(members, [], 3, 30_000, id => user(id, `User ${id}`))
+    const rows = computeBalances(members, [], 3, id => user(id, `User ${id}`))
     expect(rows[0].user?.profile.name).toBe('User a')
+  })
+})
+
+describe('openTaggedLines / linesTotal', () => {
+  const settled = { by: 'a', at: 1 }
+
+  it('keeps only the open lines that have a payer', () => {
+    const expenses = [
+      { id: 'e1', paidBy: 'a', amountInr: 1_000 },
+      { id: 'e2', amountInr: 2_000 },
+      { id: 'e3', paidBy: 'b', amountInr: 3_000, settled },
+    ] as never[]
+    expect(openTaggedLines(expenses).map(e => e.id)).toEqual(['e1'])
+  })
+
+  it('linesTotal expands per-person lines to the head count', () => {
+    const expenses = [
+      { id: 'e1', amountInr: 1_000 },
+      { id: 'e2', amountInr: 1_000, perPerson: true },
+    ] as never[]
+    expect(linesTotal(expenses, 3)).toBe(4_000)
+    // Floor of 1: a 0/undefined head count expands to one head, never to zero.
+    expect(linesTotal(expenses, 0)).toBe(2_000)
+  })
+
+  it('is the figure the card measures and the nudge prints (they cannot drift)', () => {
+    const expenses = [
+      { id: 'e1', paidBy: 'a', amountInr: 30_000 },
+      { id: 'e2', paidBy: 'b', amountInr: 6_000, settled },
+    ] as never[]
+    // The settled 6_000 is outside the open population, so the share comes off
+    // the 30_000 alone — and every row is its own credits minus that share.
+    expect(fairSharePerHead(2, linesTotal(openTaggedLines(expenses), 2))).toBe(15_000)
+    const rows = computeBalances([{ userId: 'a' }, { userId: 'b' }], expenses, 2)
+    expect(rows.map(r => r.bal)).toEqual([15_000, -15_000])
   })
 })
 

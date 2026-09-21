@@ -491,7 +491,12 @@ Kept as one line each so the origin is traceable without re-listing the work as 
   **Gross/Net** switch for the headline figures (I-10) and a payout card (I-9) naming the next Friday run,
   the ₹500 minimum, and what would clear — including the part that is not built: payout RUNS are not
   automated (no payouts table, no gateway payout API), so the card names the balance a run would disburse
-  rather than implying money is in transit. I-11's per-publication attribution had shipped already.
+  rather than implying money is in transit. The final ledger anatomy ships with it as **Payout runs**
+  (`payoutPeriods()`): one derived row per Friday run (Date/period · Sales · Gross · Fee · Net · Status)
+  that reuses the per-sale fee attribution and adds up to the ledger exactly, with a status that never
+  claims money was sent — `Scheduled`, `Owed — not disbursed`, or `rolls over` under the minimum. And the
+  publish editor's price field now states the split where the decision is made (`netOfFeeInr`), as a floor
+  because a price alone cannot know a lifetime gross. I-11's per-publication attribution had shipped already.
 
 ## Historical plans (executed — kept for the record, not live guidance)
 

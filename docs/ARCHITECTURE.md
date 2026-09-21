@@ -237,8 +237,16 @@ surface never needs redesigning when Razorpay lands. Its fixed shape:
   payout (the next Friday's run date once the balance clears the ₹500 minimum,
   `—` below it — I-9).
 - **Ledger columns (final):** Payout period · Sales · Platform fee · Net payout.
-  Each future payout inserts one row with these exact fields (Gumroad's
-  payouts-dashboard anatomy).
+  Shipped as **Payout runs** (`payoutPeriods()`, I-9): Rows are DERIVED by
+  grouping the sales ledger into the Friday run each sale lands on — Run · Sales
+  · Gross · Fee · Net · Status — rather than inserted by a payout job, because
+  nothing disburses. Status therefore reads `Scheduled`, `Owed — not disbursed`
+  or `Under ₹500 — rolls over`; it never says paid, and the fee column reuses
+  the same per-sale attribution so the runs add up to the ledger exactly.
+- **Pricing states the split:** the publish editor's price field names the floor
+  a creator keeps on a sale at that price (`netOfFeeInr`, I-13) — a price on its
+  own cannot know a lifetime gross, so it promises the least, which is what the
+  first tier charges.
 - **Projection view (v0.38):** `projectEarnings()` in `src/lib/earnings.ts` —
   price × forks per priced publication, labeled as not-money.
 - **Platform fee (real as of I-13, 2026-09-21):** a MARGINAL ladder over a

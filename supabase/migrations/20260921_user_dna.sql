@@ -22,6 +22,13 @@
 -- what switches the sync on. README's "apply migrations" section has the
 -- dashboard walkthrough.
 --
+-- **Safe to re-run.** Every statement is idempotent (`create table if not
+-- exists`, and a `drop policy if exists` before each `create policy` — the
+-- pattern the covers-bucket migration uses, since Postgres has no
+-- `create policy if not exists`). That matters here more than usual: a SQL
+-- editor run that fails halfway leaves a table with some policies, and the
+-- second attempt must be able to finish rather than colliding with the first.
+--
 -- RLS: owner-only on all four verbs, `auth.uid() = user_id`. Unlike trips there
 -- is no member/editor branch to reason about — the log is behavioural (what
 -- THIS person accepted and declined), never crew-visible. The RESTRICTIVE
@@ -44,22 +51,28 @@ create table if not exists public.user_dna (
 
 alter table public.user_dna enable row level security;
 
+drop policy if exists "deny disabled" on public.user_dna;
 create policy "deny disabled" on public.user_dna
   as restrictive for all to authenticated using (not public.is_disabled());
 
+drop policy if exists "user_dna read" on public.user_dna;
 create policy "user_dna read" on public.user_dna
   for select using (auth.uid() = user_id);
 
+drop policy if exists "user_dna insert" on public.user_dna;
 create policy "user_dna insert" on public.user_dna
   for insert with check (auth.uid() = user_id);
 
+drop policy if exists "user_dna update" on public.user_dna;
 create policy "user_dna update" on public.user_dna
   for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
+drop policy if exists "user_dna delete" on public.user_dna;
 create policy "user_dna delete" on public.user_dna
   for delete using (auth.uid() = user_id);
 
 -- The admin read bypass every other app table carries, so the masteradmin
 -- console's god-view stays uniform (append-only admin_audit is the exception).
+drop policy if exists "admin read" on public.user_dna;
 create policy "admin read" on public.user_dna
   for select to authenticated using (public.is_admin());

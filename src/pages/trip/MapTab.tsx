@@ -126,7 +126,7 @@ const poiVisitMinutes = visitMinutesForCategory
 export function MapTab({ trip, editable, applyChange, suggestionCache, crewSuggestions, road, onOpenTimeline, onOpenBoard, onOpenDay }: {
   trip: Trip
   editable: boolean
-  applyChange: (mutator: (d: Trip) => void, kind: ImpactResult['kind'], dayIndex: number) => void
+  applyChange: (mutator: (d: Trip) => void, kind: ImpactResult['kind'], dayIndex: number, onKept?: () => void) => void
   suggestionCache: ReturnType<typeof useSuggestionCache>
   crewSuggestions?: { status: string; title: string; category?: string; lat: number; lng: number }[]
   /** #188: the workspace's ONE road measurement — the Map tab no longer measures. */
@@ -733,20 +733,23 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
         orderInDay: day.stops.length,
       } as ItineraryStop
       day.stops.push(stop)
-    }, 'add', dayIdx)
-    setAddedIds(prev => new Set(prev).add(hit.id as string))
-    // #143: an overnight fill pins the halt, same as addPoiToDay's rule.
-    if (hit.haltPurpose === 'overnight') {
-      const ordinals = pois
-        .filter(x => x.segment.purpose === 'overnight')
-        .sort((a, b) => a.segment.targetKm - b.segment.targetKm)
-        .findIndex(x => x.segment.index === slot.segment?.index)
-      if (ordinals >= 0) saveHaltPin(trip.id, ordinals, slot.segment?.targetKm ?? 0)
-    }
-    undoToast(`${hit.name} fills ${slot.label} on Day ${dayIdx + 1}`, () => {
-      deleteStop(trip.id, stopId)
+    }, 'add', dayIdx, () => {
+      setAddedIds(prev => new Set(prev).add(hit.id as string))
+      // #143: an overnight fill pins the halt, same as addPoiToDay's rule.
+      if (hit.haltPurpose === 'overnight') {
+        const ordinals = pois
+          .filter(x => x.segment.purpose === 'overnight')
+          .sort((a, b) => a.segment.targetKm - b.segment.targetKm)
+          .findIndex(x => x.segment.index === slot.segment?.index)
+        if (ordinals >= 0) saveHaltPin(trip.id, ordinals, slot.segment?.targetKm ?? 0)
+      }
       suggestionCache.clearMap()
       setRefreshTick(t => t + 1)
+      undoToast(`"${hit.name}" fills ${slot.label} on Day ${dayIdx + 1}`, () => {
+        deleteStop(trip.id, stopId)
+        suggestionCache.clearMap()
+        setRefreshTick(t => t + 1)
+      })
     })
     setOpenSlotKey(null)
   }
@@ -815,30 +818,31 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
             day.stops.push(stop)
           }
         })
-      }, 'add', dayIdx)
-      setAddedIds(prev => {
-        const next = new Set(prev)
-        for (const { hit } of ordered) next.add(hit.id as string)
-        return next
+      }, 'add', dayIdx, () => {
+        setAddedIds(prev => {
+          const next = new Set(prev)
+          for (const { hit } of ordered) next.add(hit.id as string)
+          return next
+        })
+        for (const { hit } of ordered) {
+          recordDnaEvent({ tripId: trip.id, action: 'accept', category: hit.category, detourMin: asymmetricDetourMinutes(hit, anchors, routePolyline ?? null, MODE_SPEED[trip.transportMode] ?? 40), visitMin: visitMinutesForCategory(hit.category) })
+        }
+        suggestionCache.clearMap()
+        setDnaTick(t => t + 1)
+        setRefreshTick(t => t + 1)
+        setOpenSlotKey(null)
+        const n = ordered.length
+        const left = targets.length - ordered.length
+        undoToast(
+          `Day ${dayIdx + 1} planned - ${n} stop${n === 1 ? '' : 's'} added${left > 0 ? ` · ${left} left for you` : ''}`,
+          () => {
+            for (const id of newIds) deleteStop(trip.id, id)
+            suggestionCache.clearMap()
+            setRefreshTick(t => t + 1)
+            toast('The planned fills were pulled back')
+          },
+        )
       })
-      for (const { hit } of ordered) {
-        recordDnaEvent({ tripId: trip.id, action: 'accept', category: hit.category, detourMin: asymmetricDetourMinutes(hit, anchors, routePolyline ?? null, MODE_SPEED[trip.transportMode] ?? 40), visitMin: visitMinutesForCategory(hit.category) })
-      }
-      suggestionCache.clearMap()
-      setDnaTick(t => t + 1)
-      setRefreshTick(t => t + 1)
-      setOpenSlotKey(null)
-      const n = ordered.length
-      const left = targets.length - ordered.length
-      undoToast(
-        `Day ${dayIdx + 1} planned - ${n} stop${n === 1 ? '' : 's'} added${left > 0 ? ` · ${left} left for you` : ''}`,
-        () => {
-          for (const id of newIds) deleteStop(trip.id, id)
-          suggestionCache.clearMap()
-          setRefreshTick(t => t + 1)
-          toast('The planned fills were pulled back')
-        },
-      )
     } finally {
       setFillingDay(false)
     }

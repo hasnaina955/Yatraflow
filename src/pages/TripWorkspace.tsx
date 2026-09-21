@@ -134,7 +134,7 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
   const suggestionCache = useSuggestionCache(tripId)
 
   // Pending change: a proposed plan held until the user keeps or discards it.
-  const [pending, setPending] = useState<{ proposed: Trip; result: ImpactResult } | null>(null)
+  const [pending, setPending] = useState<{ proposed: Trip; result: ImpactResult; onKept?: () => void } | null>(null)
 
   // Phase 3 (the living plan): a halt label on the map asks the timeline to open
   // that day. One-shot signal — TimelineTab consumes it on mount, then the
@@ -148,12 +148,12 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
   // Stable identity for applyChange (useCallback over the trip reference): it
   // flows into TimelineTab → DaySection props, and an unstable identity would
   // defeat the DaySection React.memo on every workspace render.
-  const applyChange = useCallback((mutator: (draft: Trip) => void, kind: ImpactResult['kind'], dayIndex: number) => {
+  const applyChange = useCallback((mutator: (draft: Trip) => void, kind: ImpactResult['kind'], dayIndex: number, onKept?: () => void) => {
     if (!trip) return
     const proposed = structuredClone(trip) as Trip
     mutator(proposed)
     const result = computeImpact(trip, proposed, kind, dayIndex)
-    setPending({ proposed, result })
+    setPending({ proposed, result, onKept })
   }, [trip])
 
   // F-16: a reload or tab close while a proposed change is pending silently
@@ -191,9 +191,13 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
 
   function keepPending() {
     if (!pending || !trip) return
+    const onKept = pending.onKept
     updateTrip(trip.id, pending.proposed)
     setPending(null)
-    toast('Change saved to your plan')
+    // A caller carrying its own follow-up (the day plan's Fill, with its Undo)
+    // speaks for the change; the generic confirmation would double-toast it.
+    if (onKept) onKept()
+    else toast('Change saved to your plan')
   }
 
   function removePending() {

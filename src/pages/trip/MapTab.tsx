@@ -1792,7 +1792,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
               <span className="poi-col-head-ico"><MapPin size={13} aria-hidden /></span>
               <div>
                 <b>See &amp; do</b>
-                <span className="small muted">{arcs.slice(0, 2).length + seeAndDoLive.length === 0 ? 'sightseeing · detours · scenic stops' : `${arcs.slice(0, 2).length} arcs · ${seeAndDoLive.length} picks on this corridor`}</span>
+                <span className="small muted">{arcs.slice(0, 2).length + seeAndDoLive.length === 0 ? 'optional extras - never required' : `${seeAndDoLive.length} thing${seeAndDoLive.length === 1 ? '' : 's'} to see and do along the drive`}</span>
               </div>
               <span className="poi-col-count">{filterActive ? seeForRail.length : arcs.slice(0, 2).length + seeAndDoLive.length}</span>
               <button
@@ -1805,13 +1805,6 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
               >
                 <ChevronDown size={13} aria-hidden />
               </button>
-            </div>
-            <div className="poi-ruler" aria-hidden>
-              <span className="poi-ruler-axis" />
-              {seeMarks.map(m => (
-                <span key={m.id} className={`poi-ruler-dot poi-ruler-dot--${m.tone}`} style={{ left: `${m.pct}%` }} />
-              ))}
-              <span className="poi-ruler-km">{Math.round(planKm)} km</span>
             </div>
             <div className="poi-plan-list is-ledger">
               <span className="ledger-spine" aria-hidden />

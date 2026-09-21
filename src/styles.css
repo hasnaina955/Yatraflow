@@ -6052,7 +6052,11 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 }
 .ledger-lede { display: flex; flex-direction: column; padding: 0 2px 10px 20px; font-size: 12px; font-weight: 700; color: var(--yf-poi-see-ink); }
 .ledger-lede small { font-weight: 500; font-size: 10.5px; color: var(--text-3); }
-.poi-plan-list.is-ledger .poi-plan-row { position: relative; }
+.poi-plan-list.is-ledger .poi-plan-row {
+  position: relative; border: 0; background: transparent; border-radius: 0; margin: 0;
+  border-bottom: 1px solid var(--line-2);
+  padding: 9px 4px 9px 20px;
+}
 .poi-plan-list.is-ledger .poi-plan-row::before {
   content: ''; position: absolute; left: -13px; top: 50%; margin-top: -3px;
   width: 8px; height: 8px; border-radius: 50%;
@@ -6101,3 +6105,13 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
   flex-basis: 100%; font-size: 11px; font-weight: 700; letter-spacing: .03em;
   text-transform: uppercase; color: var(--yf-poi-see-ink);
 }
+
+/* ---- P2: the ledger reads as one object ---- */
+/* Every row in the see-&-do ledger - picks, route arcs, quarter gaps - is a
+   flat row on the spine: no boxes, hairline separators, one set of metrics.
+   Declares no new colour pair, so the contrast contract is untouched. */
+.poi-plan-list.is-ledger .poi-plan-row:last-of-type { border-bottom: 0; }
+.poi-plan-list.is-ledger .poi-plan-row.poi-plan-arc { padding-top: 8px; padding-bottom: 8px; }
+.poi-plan-list.is-ledger .poi-plan-row .ride-purpose { font-size: 10px; }
+.poi-plan-list.is-ledger .poi-more { padding-left: 20px; }
+.poi-plan-list.is-ledger .hint-text { padding-left: 20px; }

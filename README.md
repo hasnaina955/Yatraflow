@@ -305,15 +305,20 @@ node scripts/seedCreatorFixture.mjs --apply    # create the accounts + rows
 node scripts/seedCreatorFixture.mjs --clean    # remove the fixture's rows
 ```
 
-It works on the project `VITE_SUPABASE_URL` points at, creating a creator, three
-buyers, two priced publications and five backdated sales, then prints the
-credentials and the deep links (`#/creator-hub`, the publish editor, the creator
-page). The sales are the same five `tests/earnings.test.ts` pins the ledger
-against, so the numbers on screen have an answer key. Writing the sales rows
-needs elevation -- `entitlements` is SELECT-only for authenticated clients by
-design -- so set `SUPABASE_SERVICE_ROLE_KEY` (or `PGCONN`) to apply them, and
-without either the script prints the SQL to paste into the dashboard instead.
-It only ever touches the rows it names.
+It works on the project `VITE_SUPABASE_URL` points at, creating a creator, an
+admin, three buyers, three priced publications and seven backdated sales, then
+prints the credentials, the deep links (`#/creator-hub`, the publish editor, the
+creator page, `#/admin` → Analytics) and any SQL it could not run. The sales are
+the same ones `tests/earnings.test.ts` (per creator) and `tests/admin.test.ts`
+(platform-wide) pin, so the numbers on screen have an answer key — including the
+console's, where two payees are what make "charged once per creator" a different
+figure from one ladder over the platform total. Two things need elevation, and
+the script says so rather than half-seeding: the sales rows, because
+`entitlements` is SELECT-only for authenticated clients by design, and the
+admin's role, because it lives in the JWT's `app_metadata` and there is
+deliberately no `is_admin` column to flip. Set `SUPABASE_SERVICE_ROLE_KEY` (or
+`PGCONN`) to have both applied, and without either the script prints the SQL to
+paste into the dashboard instead. It only ever touches the rows it names.
 
 ## 🤝 Contributing
 

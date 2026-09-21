@@ -7,7 +7,7 @@ import {
   weekBucket, computeAdminOverview, computeGrowthSeries, computeFunnel, recentJoins,
   platformRevenue, type PlatformSale,
 } from '../src/lib/adminStats'
-import { buildSalesLedger } from '../src/lib/earnings'
+import { buildSalesLedger, platformFeeInr } from '../src/lib/earnings'
 import type { Trip, User } from '../src/data/types'
 
 function user(id: string, createdAt: number, extra: Partial<User['profile']> = {}): User {
@@ -196,6 +196,61 @@ describe('platformRevenue (the console\u2019s Analytics tab)', () => {
     const rev = platformRevenue([])
     expect(rev).toMatchObject({ periods: [], creators: 0 })
     expect(rev.sales).toMatchObject({ rows: [], grossInr: 0, feeInr: 0, netInr: 0, soldPubIds: [] })
+  })
+})
+
+describe('the fixture\u2019s console plan \u2014 two payees, one ladder each', () => {
+  // scripts/seedCreatorFixture.mjs seeds a creator AND an admin, each with their
+  // own publication and sales, so the Analytics tab can be LOOKED at \u2014 a node
+  // suite cannot render it (no DOM, and no admin session to gate on). This is the
+  // answer key for that browser check, priced through the shipped code path.
+  //
+  // It exists because a SINGLE payee makes the console's correctness invisible:
+  // with one creator, "charged per creator" and "one ladder over the platform
+  // total" are the same number. Two make the difference a figure.
+  const sale2 = (over: Partial<PlatformSale>): PlatformSale => ({
+    grantedAt: 1000, amountPaidInr: 199, pubId: 'p1', creatorId: 'c1', ...over,
+  })
+  const day = 86_400_000
+  const base = new Date(2026, 8, 21, 9, 0, 0).getTime()
+  const rows: PlatformSale[] = [
+    // The creator's five \u2014 the same plan `tests/earnings.test.ts` prices per row.
+    sale2({ creatorId: 'creator', pubId: 'pub-fixture-kerala', amountPaidInr: 199, grantedAt: base - 30 * day }),
+    sale2({ creatorId: 'creator', pubId: 'pub-fixture-kerala', amountPaidInr: 499, grantedAt: base - 21 * day }),
+    sale2({ creatorId: 'creator', pubId: 'pub-fixture-goa', amountPaidInr: 149, grantedAt: base - 9 * day }),
+    sale2({ creatorId: 'creator', pubId: 'pub-fixture-goa', amountPaidInr: 25_000, grantedAt: base - 3 * day }),
+    sale2({ creatorId: 'creator', pubId: 'pub-fixture-kerala', amountPaidInr: 199, grantedAt: base }),
+    // The admin's two \u2014 round numbers, so its own fee is exactly 15% with no
+    // straddling arithmetic, which keeps the console's key a statement about
+    // PER-CREATOR charging rather than about rounding.
+    sale2({ creatorId: 'admin', pubId: 'pub-fixture-spiti', amountPaidInr: 12_000, grantedAt: base - 12 * day }),
+    sale2({ creatorId: 'admin', pubId: 'pub-fixture-spiti', amountPaidInr: 8_000, grantedAt: base - 5 * day }),
+  ]
+
+  it('reads as \u20b946,046 gross / \u20b96,855 fee / \u20b939,191 net over 7 sales and 2 creators', () => {
+    const rev = platformRevenue(rows)
+    expect(rev.sales.grossInr).toBe(46_046)
+    expect(rev.sales.feeInr).toBe(6_855)
+    expect(rev.sales.netInr).toBe(39_191)
+    expect(rev.sales.rows).toHaveLength(7)
+    expect(rev.creators).toBe(2)
+  })
+
+  it('is NOT what one shared ladder over the platform total would claim', () => {
+    // \u20b95,854.6 is the number the console must never show: it is what applying the
+    // ladder once to the platform's whole gross produces. If a later edit
+    // collapses the per-creator grouping, this pair is what fails.
+    expect(platformFeeInr(46_046)).toBeCloseTo(5_854.6, 1)
+    expect(platformRevenue(rows).sales.feeInr).not.toBeCloseTo(platformFeeInr(46_046), 0)
+  })
+
+  it('gives each payee its own ledger figure, and they sum to the console\u2019s', () => {
+    const rev = platformRevenue(rows)
+    const admin = platformRevenue(rows.filter(r => r.creatorId === 'admin'))
+    expect(admin.sales.feeInr).toBe(3_000)   // \u20b920,000 entirely inside the 15% tier
+    // The rest is the creator's own fee column, so the tab an operator reads and
+    // the tab each creator reads cannot disagree.
+    expect(rev.sales.feeInr - admin.sales.feeInr).toBe(3_855)
   })
 })
 

@@ -694,3 +694,40 @@ describe('claim direction (P2 fix round 4)', () => {
     expect(slots.find(s => s.key === 'dinner')?.filledStop).toBeNull()
   })
 })
+
+describe('coupled re-ranking after a stay (plan P3.4)', () => {
+  const stay = stop('stay1', 'Backwater homestay', { category: 'hotel', lat: 10.0, lng: 76.0 })
+  it('a day with a stay ranks its meals by proximity to it', () => {
+    const slots = daySlots(0, base({
+      haltSegments: [sh(seg('meal', { etaMinutes: 735 }), null)],
+      dayStops: [stay],
+      altPool: [
+        hit('far', 'Far kitchen', { latitude: 10.9, longitude: 76.9, alongRouteKm: 200 }),
+        hit('near', 'Kitchen next door', { latitude: 10.01, longitude: 76.01, alongRouteKm: 100 }),
+      ],
+    }))
+    expect(slots[0].candidates[0].hit.name).toBe('Kitchen next door')
+  })
+
+  it('a candidate beside the stay says so in its why-line', () => {
+    const slots = daySlots(0, base({
+      haltSegments: [sh(seg('meal', { etaMinutes: 735 }), null)],
+      dayStops: [stay],
+      altPool: [hit('near', 'Kitchen next door', { latitude: 10.005, longitude: 76.005, alongRouteKm: 100 })],
+    }))
+    expect(slots[0].candidates[0].reason).toContain('from your stay')
+  })
+
+  it('without a stay the engine score still orders the candidates', () => {
+    const slots = daySlots(0, base({
+      haltSegments: [sh(seg('meal', { etaMinutes: 735 }), null)],
+      dayStops: [],
+      altPool: [
+        hit('a', 'A', { latitude: 10.9, longitude: 76.9, alongRouteKm: 100 }),
+        hit('b', 'B', { latitude: 10.01, longitude: 76.01, alongRouteKm: 105 }),
+      ],
+    }))
+    expect(slots[0].candidates.length).toBeGreaterThanOrEqual(2)
+    expect(slots[0].candidates[0].reason).not.toContain('from your stay')
+  })
+})

@@ -750,6 +750,100 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     })
     setOpenSlotKey(null)
   }
+  /** P3.1: fill every empty part of the day with its top candidate in ONE
+   *  batched write, undoable back to the exact pre-fill snapshot. */
+  async function fillTheDay() {
+    const dayIdx = activeDayIndex
+    const targets = activeDaySlots
+      .filter(s => s.state === 'empty' && s.candidates.length > 0)
+      .map(s => ({ slot: s, hit: s.candidates[0].hit as PlaceHit }))
+    if (targets.length === 0 || fillingDay) return
+    setFillingDay(true)
+    try {
+      // Placeholder coords resolve BEFORE the write (the Null Island guard).
+      const resolved: Array<{ slot: DaySlot; hit: PlaceHit }> = []
+      for (const t of targets) {
+        const pinned = await requireHitCoords(t.hit)
+        if (pinned) resolved.push({ slot: t.slot, hit: pinned })
+      }
+      if (resolved.length === 0) {
+        toast('Nothing could be pinned from the suggestions - try filling one at a time.')
+        return
+      }
+      // Road order first, so sequential splices land in journey order.
+      const ordered = [...resolved].sort((a, b) =>
+        (routeKmOf(a.hit.latitude, a.hit.longitude) ?? Infinity) -
+        (routeKmOf(b.hit.latitude, b.hit.longitude) ?? Infinity))
+      const bytes = new Uint32Array(ordered.length * 2)
+      crypto.getRandomValues(bytes)
+      const newIds = ordered.map((_, i) => `pending_${bytes[i * 2].toString(36)}${bytes[i * 2 + 1].toString(36)}`)
+      applyChange(draft => {
+        const day = draft.days.find(d => d.index === dayIdx)
+        if (!day) return
+        ordered.forEach((item, i) => {
+          const hit = item.hit
+          const stop = {
+            id: newIds[i],
+            title: hit.name,
+            category: (hit.category as ItineraryStop['category']) ?? 'sightseeing',
+            locationName: hit.description ?? hit.name,
+            placeId: hit.placeId,
+            lat: hit.latitude,
+            lng: hit.longitude,
+            description: hit.description ?? '',
+            notes: 'Filled from the day plan',
+            visitMinutes: poiVisitMinutes(hit.category),
+            openTime: hit.openTime ?? '', closeTime: hit.closeTime ?? '',
+            entryFeeInrPerPerson: 0,
+            transportCostInrTotal: 0,
+            priority: 'nice-to-have',
+            sourceUrl: '',
+            status: 'suggested',
+            orderInDay: day.stops.length + 1,
+          } as ItineraryStop
+          const newKm = routeKmOf(hit.latitude, hit.longitude)
+          let at = day.stops.length
+          if (newKm != null) {
+            at = day.stops.findIndex(x => {
+              const km = routeKmOf(x.lat, x.lng)
+              return km != null && km > newKm
+            })
+            if (at === -1) at = day.stops.length
+            day.stops.splice(at, 0, stop)
+            day.stops.forEach((x, j) => { x.orderInDay = j + 1 })
+          } else {
+            day.stops.push(stop)
+          }
+        })
+      }, 'add', dayIdx)
+      setAddedIds(prev => {
+        const next = new Set(prev)
+        for (const { hit } of ordered) next.add(hit.id as string)
+        return next
+      })
+      for (const { hit } of ordered) {
+        recordDnaEvent({ tripId: trip.id, action: 'accept', category: hit.category, detourMin: asymmetricDetourMinutes(hit, anchors, routePolyline ?? null, MODE_SPEED[trip.transportMode] ?? 40), visitMin: visitMinutesForCategory(hit.category) })
+      }
+      suggestionCache.clearMap()
+      setDnaTick(t => t + 1)
+      setRefreshTick(t => t + 1)
+      setOpenSlotKey(null)
+      const n = ordered.length
+      const left = targets.length - ordered.length
+      undoToast(
+        `Day ${dayIdx + 1} planned - ${n} stop${n === 1 ? '' : 's'} added${left > 0 ? ` · ${left} left for you` : ''}`,
+        () => {
+          for (const id of newIds) deleteStop(trip.id, id)
+          suggestionCache.clearMap()
+          setRefreshTick(t => t + 1)
+          toast('The planned fills were pulled back')
+        },
+      )
+    } finally {
+      setFillingDay(false)
+    }
+  }
+
   function openAddModal(hit: PlaceHit) {
     // Pick-day default: an unknown position can't preselect honestly, so fall
     // back to the first day — the picker is user-adjustable, so nothing is
@@ -1126,6 +1220,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     [activeDayIndex, daySlotDeps, trip, daySlotSig],
   )
   const [openSlotKey, setOpenSlotKey] = useState<string | null>(null)
+  const [fillingDay, setFillingDay] = useState(false)
   const [openLedgerKey, setOpenLedgerKey] = useState<string | null>(null)
   /** The rail's meter copy: the mockup's wording, honest per day. */
   function activeReadinessLabel() {
@@ -1666,6 +1761,15 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
                 <b>Day {activeDayIndex + 1} · {activeDayLabel()}</b>
                 <span className="small muted">{activeDaySlots.length === 0 ? 'the day takes shape as you plan the drive' : `${activeReadinessLabel()}`}</span>
               </div>
+              {editable && activeDaySlots.some(s => s.state === 'empty' && s.candidates.length > 0) && (
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  disabled={fillingDay}
+                  onClick={() => { void fillTheDay() }}
+                  title="Add the top candidate for every empty part of the day"
+                >{fillingDay ? 'Planning.' : 'Fill the day'}</button>
+              )}
               <span className="poi-col-count">{activeDaySlots.length > 0 ? `${activeDayReadiness.filled}/${activeDayReadiness.total}` : needsForRail.length}</span>
               <button
                 type="button"

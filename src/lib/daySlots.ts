@@ -35,6 +35,7 @@ import {
 import { budgetSharePct, dayDetourBudgetMin } from './detourBudget'
 import { asymmetricDetourMinutes, detourKm, type HaltPurpose, type PlaceHit } from './providers/hits'
 import { clockHM } from './clockOverlay'
+import { haversineKm } from './geo'
 import { MODE_SPEED } from './engine'
 import type { ItineraryStop, TransportMode } from '../data/types'
 
@@ -432,8 +433,21 @@ function candidatesFor(
     rows.push({ hit: h, score })
   }
 
-  // Engine score orders (lower = better); ties keep corridor order.
-  rows.sort((a, b) => a.score - b.score)
+  // Coupled re-ranking (plan P3.4): once the day has a stay, its meals rank
+  // by proximity to that stay - the engine score separates the ties.
+  const stay = deps.dayStops.find(s => s.status !== 'rejected' && s.category === 'hotel'
+    && Number.isFinite(s.lat) && Number.isFinite(s.lng))
+  const nearStay = draft.kind === 'meal' && stay ? stay : null
+  const stayKmOf = (h: PlaceHit): number | null =>
+    nearStay ? haversineKm(h.latitude, h.longitude, nearStay.lat, nearStay.lng) : null
+  rows.sort((a, b) => {
+    if (nearStay) {
+      const da = stayKmOf(a.hit)
+      const db = stayKmOf(b.hit)
+      if (da != null && db != null && da !== db) return da - db
+    }
+    return a.score - b.score
+  })
 
   const budget = dayDetourBudgetMin({
     travelStyle: deps.travelStyle ?? undefined,
@@ -464,7 +478,13 @@ function candidatesFor(
       arriveLabel: arriveMin != null ? clockHM(arriveMin) : null,
       inWindow,
       score: row.score,
-      reason: reasonForSegmentHit({ segment: synthSegment(draft, seg), hit: row.hit, score: row.score }, dKm),
+      reason: [
+        reasonForSegmentHit({ segment: synthSegment(draft, seg), hit: row.hit, score: row.score }, dKm),
+        (() => {
+          const km = stayKmOf(row.hit)
+          return km != null && km <= 2 ? `${km.toFixed(1)} km from your stay` : null
+        })(),
+      ].filter((x): x is string => !!x).join(' \u00b7 '),
     })
   }
   return out

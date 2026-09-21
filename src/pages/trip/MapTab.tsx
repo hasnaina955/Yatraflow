@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { BedDouble, ChevronDown, CircleCheck, Coffee, ExternalLink, Fuel, Lightbulb, MapPin, Pause, Plus, RotateCcw, Sparkles, Star, Utensils } from 'lucide-react'
 import { uid } from '../../data/seed'
-import type { Trip, ItineraryStop } from '../../data/types'
+import type { Trip, ItineraryStop, TripDecision } from '../../data/types'
 import type { ImpactResult } from '../../lib/impact'
 import { mapRoadViewFromLegs, outboundLegs, type TripRoadView } from '../../lib/tripRoad'
 import { buildJourney, minutesToHM, fmtDur, computeCategoryBias, MODE_SPEED, isRoundTrip } from '../../lib/engine'
@@ -123,7 +123,7 @@ const SCOPE_STORAGE_KEY = 'nearby_scope_km'
 /** Sensible visit durations per suggestion category (tourist pacing). */
 const poiVisitMinutes = visitMinutesForCategory
 
-export function MapTab({ trip, editable, applyChange, suggestionCache, crewSuggestions, road, onOpenTimeline, onOpenBoard, onOpenDay }: {
+export function MapTab({ trip, editable, applyChange, suggestionCache, crewSuggestions, decisions, road, onOpenTimeline, onOpenBoard, onOpenDay, onOpenGroupInput }: {
   trip: Trip
   editable: boolean
   applyChange: (mutator: (d: Trip) => void, kind: ImpactResult['kind'], dayIndex: number, onKept?: () => void) => void
@@ -136,6 +136,10 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
   /** Phase 3: tapping a halt label asks the workspace to open that day's plan
    *  in the Timeline. Undefined = halt labels stay decorative labels. */
   onOpenDay?: (dayIndex: number) => void
+  /** The part's live vote opens the crew's Group input to resolve it (P4). */
+  onOpenGroupInput?: () => void
+  /** This trip's decisions - an open one raised for a part shows as its vote. */
+  decisions?: TripDecision[]
 }) {
   const [pois, setPois] = useState<SegmentHit[]>([])
   const timeFormat = useTimeFormat()
@@ -848,6 +852,38 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     }
   }
 
+  /** P4: raise the crew's vote for this part - the candidates become the
+   *  options (each carrying its place), and resolving it lands the winner. */
+  function raiseSlotVote(slot: DaySlot) {
+    const picks = slot.candidates.slice(0, 3)
+    if (picks.length < 2) return
+    addDecision(trip.id, {
+      question: `Day ${activeDayIndex + 1} ${slot.label.toLowerCase()} - where?`,
+      context: `Voting from the day plan (Day ${activeDayIndex + 1})`,
+      options: picks.map(c => ({
+        // The id carries the part, so the rail reads the vote back onto it.
+        id: `slot:${slot.key}:${String(c.hit.id)}`,
+        label: c.hit.name,
+        timeImpactMin: Math.round(c.detourMin) || undefined,
+        place: {
+          title: c.hit.name,
+          category: (c.hit.category as ItineraryStop['category']) ?? 'sightseeing',
+          locationName: c.hit.description ?? c.hit.name,
+          lat: c.hit.latitude,
+          lng: c.hit.longitude,
+          description: c.hit.description,
+          visitMinutes: poiVisitMinutes(c.hit.category),
+          openTime: c.hit.openTime,
+          closeTime: c.hit.closeTime,
+          dayIndex: activeDayIndex,
+        },
+      })),
+    })
+    toast(`The crew is voting on Day ${activeDayIndex + 1} ${slot.label.toLowerCase()} - resolve it in Group input`)
+    setOpenSlotKey(null)
+    onOpenGroupInput?.()
+  }
+
   function openAddModal(hit: PlaceHit) {
     // Pick-day default: an unknown position can't preselect honestly, so fall
     // back to the first day — the picker is user-adjustable, so nothing is
@@ -1200,6 +1236,8 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     travelStyle: trip.travelStyle,
     existingNames,
     altPool: altPool.all.map(e => e.h),
+    decisions,
+    travellers: trip.travellers,
     dayOfSegment: (sh) => dayForKm(sh.hit?.cumKm ?? sh.segment.targetKm),
     // P2: the rail always renders the day's grammar - the skeleton supplies
     // the parts the corridor plan did not halt for, positioned on the day's
@@ -1214,7 +1252,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
       const span = perDay[pos] ?? 0
       return { fromKm: from, toKm: from + Math.max(span, 1) }
     },
-  }), [pois, anchors, routePolyline, trip.transportMode, trip.travelStyle, existingNames, altPool, dayRoadKm, trip.days])
+  }), [pois, anchors, routePolyline, trip.transportMode, trip.travelStyle, existingNames, altPool, dayRoadKm, trip.days, decisions, trip.travellers])
   const activeDaySlots = useMemo<DaySlot[]>(
     () => daySlots(activeDayIndex, { ...daySlotDeps, dayStops: trip.days.find(d => d.index === activeDayIndex)?.stops ?? [] }),
     [activeDayIndex, daySlotDeps, trip, daySlotSig],
@@ -1834,22 +1872,34 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
                           <button
                             type="button"
                             className="day-slot-top"
-                            aria-expanded={isOpen}
-                            onClick={() => setOpenSlotKey(prev => (prev === slot.key ? null : slot.key))}
+                            aria-expanded={slot.vote ? undefined : isOpen}
+                            onClick={() => {
+                              if (slot.vote) { onOpenGroupInput?.(); return }
+                              setOpenSlotKey(prev => (prev === slot.key ? null : slot.key))
+                            }}
                           >
                             <span className="day-slot-st" aria-hidden />
                             <span className="day-slot-lab">{slot.label}</span>
                             {slot.windowLabel && <span className="day-slot-win">{slot.windowLabel}</span>}
                             {urgent && <span className="day-slot-urgent">closes {slot.windowLabel ? slot.windowLabel.slice(-5) : ''}</span>}
                           </button>
-                          <div className="day-slot-hint">
-                            Nothing planned yet
-                            <span className="n">
-                              {slot.candidates.length > 0
-                                ? ` · ${slot.candidates.length} candidate${slot.candidates.length === 1 ? '' : 's'} inside · tap to compare`
-                                : ' · search the map to source one'}
-                            </span>
-                          </div>
+                          {slot.vote ? (
+                            <div className="day-slot-vote">
+                              <span className="chip chip-sm">Voting · {slot.vote.votesCast} of {slot.vote.voters}</span>
+                              <span className="day-slot-vote-lead">
+                                {slot.vote.leadingLabel ? `${slot.vote.leadingLabel} leads` : 'no votes yet'} · open Group input
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="day-slot-hint">
+                              Nothing planned yet
+                              <span className="n">
+                                {slot.candidates.length > 0
+                                  ? ` · ${slot.candidates.length} candidate${slot.candidates.length === 1 ? '' : 's'} inside · tap to compare`
+                                  : ' · search the map to source one'}
+                              </span>
+                            </div>
+                          )}
                         </>
                       ) : (
                         <div className="day-slot-top">
@@ -1887,6 +1937,11 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
                             <p className="muted small" style={{ margin: '4px 0 0' }}>
                               No candidates in reach{slot.windowLabel ? ` inside ${slot.windowLabel}` : ''} - add one on the Timeline, or search the map.
                             </p>
+                          )}
+                          {editable && !slot.vote && slot.candidates.length >= 2 && (
+                            <button type="button" className="chip chip-sm" onClick={() => raiseSlotVote(slot)}>
+                              Ask the crew to vote
+                            </button>
                           )}
                         </div>
                       )}

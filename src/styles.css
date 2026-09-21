@@ -6150,3 +6150,6 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
    two wrapped rows need a hairline of air between them. */
 .ledger-shelf .shelf-alt + .shelf-alt { margin-top: 4px; }
 .lrow-new[open] { padding-bottom: 4px; }
+/* P4: the part's live vote (a chip + the leading option, opening Group input) */
+.day-slot-vote { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 10px 8px; }
+.day-slot-vote-lead { font-size: 10.5px; color: var(--text-3); }

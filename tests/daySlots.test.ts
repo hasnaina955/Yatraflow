@@ -752,3 +752,57 @@ describe('fill provenance (plan P3)', () => {
     expect(slots[0].state).toBe('filled')
   })
 })
+
+describe('slot voting (plan P4)', () => {
+  const decision = (over: Partial<TripDecision> = {}): TripDecision => ({
+    id: 'd1', tripId: 't1', question: 'Day 1 lunch - where?', context: 'Voting from the day plan',
+    options: [
+      { id: 'slot:lunch:h1', label: 'Grand Hotel' },
+      { id: 'slot:lunch:h2', label: 'Halais' },
+    ],
+    votesByUserId: { u1: 'slot:lunch:h2', u2: 'slot:lunch:h2', u3: 'slot:lunch:h1' },
+    comments: [], status: 'open', raisedBy: 'u1', createdAt: 1,
+    ...over,
+  } as TripDecision)
+
+  it('an open vote for a part surfaces on that part with its tally', () => {
+    const slots = daySlots(0, base({
+      haltSegments: [sh(seg('meal', { etaMinutes: 735 }), null)],
+      dayStops: [],
+      decisions: [decision()],
+      travellers: 4,
+    }))
+    const lunch = slots.find(s => s.key === 'lunch')
+    expect(lunch?.vote?.decisionId).toBe('d1')
+    expect(lunch?.vote?.votesCast).toBe(3)
+    expect(lunch?.vote?.voters).toBe(4)
+    expect(lunch?.vote?.leadingLabel).toBe('Halais')
+  })
+
+  it('a vote raised for another part does not leak onto this one', () => {
+    const slots = daySlots(0, base({
+      haltSegments: [sh(seg('meal', { etaMinutes: 735 }), null)],
+      dayStops: [],
+      decisions: [decision({ options: [{ id: 'slot:stay:h9', label: 'X' }] })],
+    }))
+    expect(slots.find(s => s.key === 'lunch')?.vote).toBeUndefined()
+  })
+
+  it('a resolved decision is no longer a live vote', () => {
+    const slots = daySlots(0, base({
+      haltSegments: [sh(seg('meal', { etaMinutes: 735 }), null)],
+      dayStops: [],
+      decisions: [decision({ status: 'resolved' })],
+    }))
+    expect(slots.find(s => s.key === 'lunch')?.vote).toBeUndefined()
+  })
+
+  it('a filled part carries no vote (the decision is moot)', () => {
+    const slots = daySlots(0, base({
+      haltSegments: [sh(seg('meal', { etaMinutes: 735 }), null)],
+      dayStops: [stop('s1', 'Grand Hotel')],
+      decisions: [decision()],
+    }))
+    expect(slots.find(s => s.key === 'lunch')?.vote).toBeUndefined()
+  })
+})

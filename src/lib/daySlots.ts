@@ -37,7 +37,7 @@ import { asymmetricDetourMinutes, detourKm, type HaltPurpose, type PlaceHit } fr
 import { clockHM } from './clockOverlay'
 import { haversineKm } from './geo'
 import { MODE_SPEED } from './engine'
-import type { ItineraryStop, TransportMode } from '../data/types'
+import type { ItineraryStop, TransportMode, TripDecision } from '../data/types'
 
 /** How close to its window end an empty slot reads as urgent ("closes 14:30"). */
 export const SLOT_URGENCY_MIN = 20
@@ -70,6 +70,18 @@ export interface SlotCandidate {
   reason: string
 }
 
+/** The part's live crew vote (plan P4): raised from the day plan, resolved in
+ *  Group input, and its winner lands as the part's stop. */
+export interface SlotVote {
+  decisionId: string
+  question: string
+  optionCount: number
+  votesCast: number
+  voters: number
+  /** The option holding the most votes so far (null before any vote). */
+  leadingLabel: string | null
+}
+
 /** One slot of the day: a required halt as the rail renders it. */
 export interface DaySlot {
   key: SlotKey
@@ -94,6 +106,8 @@ export interface DaySlot {
   /** window end minus ETA; <= SLOT_URGENCY_MIN means "closing", negative = missed (null = no window or no ETA) */
   urgencyMin: number | null
   candidates: SlotCandidate[]
+  /** an open crew decision raised for this part (plan P4) */
+  vote?: SlotVote
   /** why-line for the auto state ("Engine-managed stretch") */
   reason: string | null
 }
@@ -127,6 +141,11 @@ export interface DaySlotsDeps {
   altPool?: PlaceHit[]
   /** max candidates rendered inside one slot (default 3) */
   limit?: number
+  /** The trip's decisions: an open one whose options name this part shows as
+   *  the part's live vote instead of its candidates. */
+  decisions?: TripDecision[]
+  /** Crew size for the vote's "N of M" reading. */
+  travellers?: number
   /** Day attribution override (the caller's own dayForKm over road-true
    *  per-day km): receives a journey segment, returns the trip day index it
    *  belongs to. When given, day slicing follows IT, not the dayEnd flags -
@@ -550,6 +569,35 @@ function addSkeleton(drafts: SlotDraft[], deps: DaySlotsDeps, dayIndex: number):
   }
 }
 
+/** The part's live vote, if the crew has one open for it. The option ids a
+ *  slot poll raises carry `slot:<key>:` - the join that makes this exact. */
+function voteFor(draft: SlotDraft, deps: DaySlotsDeps): SlotVote | undefined {
+  const prefix = `slot:${draft.key}:`
+  const dec = (deps.decisions ?? []).find(d => d.status === 'open'
+    && d.options.some(o => String(o.id).startsWith(prefix)))
+  if (!dec) return undefined
+  const cast = Object.values(dec.votesByUserId ?? {}).filter(Boolean)
+  const tally = new Map<string, number>()
+  for (const optionId of cast) tally.set(optionId, (tally.get(optionId) ?? 0) + 1)
+  let leading: string | null = null
+  let best = 0
+  for (const o of dec.options) {
+    const n = tally.get(o.id) ?? 0
+    if (n > best) {
+      best = n
+      leading = o.label
+    }
+  }
+  return {
+    decisionId: dec.id,
+    question: dec.question,
+    optionCount: dec.options.length,
+    votesCast: cast.length,
+    voters: deps.travellers ?? 0,
+    leadingLabel: leading,
+  }
+}
+
 /**
  * The day's slots, derived from engine output alone. Order follows the
  * journey; with fillSkeleton the missing parts of the day's grammar are
@@ -614,6 +662,7 @@ export function daySlots(dayIndex: number, deps: DaySlotsDeps): DaySlot[] {
         filledStop || auto
           ? []
           : candidatesFor(draft, seg, daySegs.filter(sh => sh.segment.purpose === draft.segments[0]?.purpose), deps),
+      ...(filledStop ? {} : { vote: voteFor(draft, deps) }),
       reason: auto ? 'Engine-managed stretch' : null,
     }
   })

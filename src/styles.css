@@ -6197,3 +6197,6 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .slotmatrix-cell.is-empty { border: 1px dashed var(--warn); color: var(--warn); }
 .slotmatrix-cell.is-none { color: var(--line); }
 .slotmatrix-total { font-size: 11px; color: var(--text-2); text-align: right; font-variant-numeric: tabular-nums; }
+
+/* P7.2: the log's learned pattern for a kind of part (context, not a claim) */
+.day-slot-pattern { margin: 0 10px 6px; font-size: 10.5px; font-style: italic; color: var(--text-3); }

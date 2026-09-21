@@ -108,6 +108,32 @@ export function dnaNoteForHit(
   return `you've picked ${affinity} ${cat} stops this trip`
 }
 
+/** P7.2: what the log has learned about a KIND of part - how often the crew
+ *  takes it and the detour they tolerate. Null until the evidence is real
+ *  (3+ accepts for the kind), so a young log never pretends to a habit. */
+export function slotPatternHint(log: DnaEvent[], kind: 'meal' | 'fuel' | 'overnight' | 'stretch'): string | null {
+  const cats: Record<string, string[]> = {
+    meal: ['food', 'cafe', 'rest'],
+    fuel: ['fuel', 'transport-hub'],
+    overnight: ['hotel'],
+    stretch: ['rest', 'cafe'],
+  }
+  const wanted = cats[kind]
+  if (!wanted) return null
+  const relevant = log.filter(e => e.category != null && wanted.includes(normCat(e.category) ?? ''))
+  const accepts = relevant.filter(e => e.action === 'accept')
+  if (accepts.length < 3) return null
+  const detours = accepts
+    .map(e => e.detourMin)
+    .filter((n): n is number => typeof n === 'number' && Number.isFinite(n))
+  if (detours.length >= 3) {
+    const avg = Math.round(detours.reduce((a, b) => a + b, 0) / detours.length)
+    return avg <= 2
+      ? 'you usually take these without a detour'
+      : `you usually accept about +${avg} min for these`
+  }
+  return `you have accepted ${accepts.length} of these`
+}
 // ---- best-effort local log (impure; UI layer only) ----
 const DNA_KEY = 'yatraflow_dna_log'
 const DNA_CAP = 500

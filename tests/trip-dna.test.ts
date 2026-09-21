@@ -2,7 +2,7 @@
 // The engine remembers accepted/declined suggestions per trip, builds a small
 // preference vector, and reranks + explains new candidates by similarity.
 import { describe, it, expect } from 'vitest'
-import { buildDnaVector, buildDnaVectorAcrossTrips, dnaBoostForHit, dnaNoteForHit, type DnaEvent } from '../src/lib/tripDna'
+import { buildDnaVector, buildDnaVectorAcrossTrips, dnaBoostForHit, dnaNoteForHit, slotPatternHint, type DnaEvent } from '../src/lib/tripDna'
 
 const TRIP = 'trip-1'
 const TRIP2 = 'trip-2'
@@ -98,5 +98,26 @@ describe('trip DNA', () => {
     const v = buildDnaVector(events, TRIP)
     expect(v.categoryAffinity['waterfall']).toBe(1) // only trip-1's
     expect(v.avgVisitMin).toBeNull() // the visitMin was on trip-2
+  })
+})
+
+describe('slot pattern hints (plan P7.2)', () => {
+  const ev = (action: 'accept' | 'decline', category: string, detourMin?: number): DnaEvent =>
+    ({ tripId: 't1', action, category, detourMin })
+  it('says nothing until the evidence is real', () => {
+    expect(slotPatternHint([ev('accept', 'food', 5)], 'meal')).toBeNull()
+    expect(slotPatternHint([ev('accept', 'food', 5), ev('accept', 'food', 6)], 'meal')).toBeNull()
+  })
+  it('speaks once the crew has taken the kind three times', () => {
+    const log = [ev('accept', 'food', 8), ev('accept', 'food', 10), ev('accept', 'cafe', 6), ev('decline', 'food', 40)]
+    expect(slotPatternHint(log, 'meal')).toBe('you usually accept about +8 min for these')
+  })
+  it('reads a no-detour habit', () => {
+    const log = [ev('accept', 'fuel', 0), ev('accept', 'fuel', 1), ev('accept', 'transport-hub', 0)]
+    expect(slotPatternHint(log, 'fuel')).toBe('you usually take these without a detour')
+  })
+  it('food accepts do not speak for the fuel part', () => {
+    const log = [ev('accept', 'food', 5), ev('accept', 'food', 5), ev('accept', 'food', 5)]
+    expect(slotPatternHint(log, 'fuel')).toBeNull()
   })
 })

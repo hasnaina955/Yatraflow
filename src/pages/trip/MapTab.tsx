@@ -26,7 +26,7 @@ import { daySlots, dayReadiness, dayShape, SLOT_URGENCY_MIN, type DaySlot, type 
 import { addDecision, deleteStop, restoreStop } from '../../store/store'
 import { dayDetourBudgetMin, budgetSharePct, splitByDetourBudget } from '../../lib/detourBudget'
 import { quotaUsed, SOFT_CAPS } from '../../lib/providers/quota'
-import { buildDnaVectorAcrossTrips, loadDnaLog, recordDnaEvent, dnaNoteForHit, crewSeedsFromSuggestions, crewSeedsToPlannedStops, crewSeedEvents, crewNoteForHit } from '../../lib/tripDna'
+import { buildDnaVectorAcrossTrips, loadDnaLog, recordDnaEvent, dnaNoteForHit, slotPatternHint, crewSeedsFromSuggestions, crewSeedsToPlannedStops, crewSeedEvents, crewNoteForHit } from '../../lib/tripDna'
 import { clusterStoryArcs } from '../../lib/storyArcs'
 import { visitMinutesForCategory } from '../../lib/slackPrompts'
 import { scrollBehavior } from '../../lib/motion'
@@ -1298,6 +1298,20 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     [activeDayIndex, daySlotDeps, trip, daySlotSig],
   )
   const [openSlotKey, setOpenSlotKey] = useState<string | null>(null)
+  /** P7.2: what the log has learned about each KIND of part - shown on an open
+   *  part as context, never as a claim (silent until 3+ accepts). */
+  const dnaSlotHints = useMemo(() => {
+    const log = loadDnaLog()
+    return {
+      meal: slotPatternHint(log, 'meal'),
+      fuel: slotPatternHint(log, 'fuel'),
+      overnight: slotPatternHint(log, 'overnight'),
+      stretch: slotPatternHint(log, 'stretch'),
+    }
+  }, [dnaTick])
+  const slotPattern = (kind: string): string | null =>
+    kind === 'meal' ? dnaSlotHints.meal : kind === 'fuel' ? dnaSlotHints.fuel
+      : kind === 'overnight' ? dnaSlotHints.overnight : dnaSlotHints.stretch
   const [fillingDay, setFillingDay] = useState(false)
   /** P6.1: the rail's second reading - the day as a shape on one clock. */
   const [shapeView, setShapeView] = useState(false)
@@ -1995,6 +2009,9 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
                             {slot.windowLabel && <span className="day-slot-win">{slot.windowLabel}</span>}
                             {urgent && <span className="day-slot-urgent">closes {slot.windowLabel ? slot.windowLabel.slice(-5) : ''}</span>}
                           </button>
+                          {slot.state === 'empty' && slotPattern(slot.kind) && (
+                            <p className="day-slot-pattern">{slotPattern(slot.kind)}</p>
+                          )}
                           {slot.vote ? (
                             <div className="day-slot-vote">
                               <span className="chip chip-sm">Voting · {slot.vote.votesCast} of {slot.vote.voters}</span>

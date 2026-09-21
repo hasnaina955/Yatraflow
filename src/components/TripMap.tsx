@@ -358,7 +358,7 @@ function dedupeConsecutive(coords: [number, number][]): [number, number][] {
 
 /** "transport-hub" → "Transport Hub" for chip labels. */
 
-export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusDay, showToolbar = true, enableMapViewModes = false, activeHitId = null, onActivateHit, onOpenInTimeline, onOpenInBoard, onDeleteStop, mainRouteGeometry = null, clockMilestones = null, onOpenHaltDay, onShowReturnChange }: {
+export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusDay, showToolbar = true, enableMapViewModes = false, activeHitId = null, onActivateHit, onOpenInTimeline, onOpenInBoard, onDeleteStop, mainRouteGeometry = null, clockMilestones = null, onOpenHaltDay, onShowReturnChange, slotPins = [], onOpenSlot }: {
   trip: Trip
   onOpenStop?: (stopId: string) => void
   /** potential POIs to show as gold "idea" markers */
@@ -400,6 +400,11 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
    *  handler the workspace wires to the Timeline's day accordion. Undefined
    *  leaves every label decorative (Board view, tests). */
   onOpenHaltDay?: (dayIndex: number) => void
+  /** P5.3: an empty part of the day's top candidates - hollow amber pins.
+   *  Their tooltip carries P5.2's cost line (arrive / detour / budget share). */
+  slotPins?: Array<{ key: string; label: string; name: string; lat: number; lng: number; meta: string }>
+  /** Tapping a slot pin opens that part in the plan rail. */
+  onOpenSlot?: (key: string) => void
   /** Delete the stop straight from the map (popup action) — wired by MapTab. */
   onDeleteStop?: (stopId: string, stop: { title: string; dayIndex: number }) => void
   /** The Return-home toggle's direction state, reported up so the suggestion
@@ -1111,6 +1116,23 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
               <>
                 <ClockMilestoneLayer overlay={clockMilestones} showReturn={!returnLeg || showReturn} onOpenDay={onOpenHaltDay} />
                 <SuggestionDistanceLayer places={nearbyPois} road={geom.all ?? null} />
+                {slotPins.map(pin => (
+                  <MapMarker key={`slot-${pin.key}`} longitude={pin.lng} latitude={pin.lat} anchor="center">
+                    <MarkerContent>
+                      <button
+                        type="button"
+                        className="yf-map-pin yf-map-pin--slot"
+                        title={`${pin.label}: ${pin.name} - tap to open in the plan`}
+                        onClick={() => onOpenSlot?.(pin.key)}
+                      >
+                        {pin.label.slice(0, 1)}
+                      </button>
+                    </MarkerContent>
+                    <MarkerTooltip>
+                      {`${pin.label}: ${pin.name} - ${pin.meta} - tap to open in the plan`}
+                    </MarkerTooltip>
+                  </MapMarker>
+                ))}
               </>
             )}
             {(() => {

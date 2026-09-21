@@ -6164,3 +6164,6 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .slots-legend-body p { margin: 0 0 4px; }
 .slots-legend-body p:last-child { margin-bottom: 0; }
 .slots-legend-body b { color: var(--text); font-weight: 600; }
+/* P5.3: a slot pin - an empty part of the day, hollow amber, tap to open */
+.yf-map-pin--slot { border: 2px solid var(--warn); color: var(--warn); font-weight: 800; }
+.yf-map-pin--slot:hover { background: var(--warn-soft); }

@@ -140,6 +140,47 @@ export async function fetchCreatorSales(): Promise<Entitlement[]> {
   }))
 }
 
+/** One day of a publication's RECORDED funnel steps, as the RPC returns it. */
+export interface FunnelDailyRow {
+  pubId: string
+  /** UTC day the steps happened on, `YYYY-MM-DD` (the SQL buckets by UTC). */
+  day: string
+  views: number
+  forks: number
+}
+
+/**
+ * The recorded funnel steps for the logged-in creator's OWN publications,
+ * bucketed by day (I-22 / I-15).
+ *
+ * Through the definer `get_creator_funnel` RPC, scoped inside by the caller's
+ * own auth.uid() — the `fetchCreatorSales` precedent. Like it, this REJECTS on
+ * a failed read instead of degrading to [] : "nothing recorded yet" and "the
+ * log could not be read" are different truths, and a funnel that quietly reads
+ * zero over real traffic is the conflation the sales ledger already fixed
+ * once.
+ *
+ * DAILY BUCKETS, not a fixed window: the page owns the window control, so
+ * switching 7/30/90 days costs no round trip. The default covers the log's
+ * whole life, which is what lets the UI name the day recording began — it
+ * matters, because the lifetime counters on each publication PREDATE this log
+ * and the two are not the same number.
+ */
+export async function fetchCreatorFunnel(days = 730): Promise<FunnelDailyRow[]> {
+  const { data, error } = await supabase
+    .rpc('get_creator_funnel', { p_days: days })
+  if (error) {
+    console.error('[yatraflow] creator funnel read failed', error)
+    throw error
+  }
+  return (Array.isArray(data) ? data : []).map((row: Record<string, unknown>) => ({
+    pubId: row.pub_id as string,
+    day: String(row.day ?? '').slice(0, 10),
+    views: Number(row.views ?? 0),
+    forks: Number(row.forks ?? 0),
+  }))
+}
+
 /**
  * Every sale on the platform, for the masteradmin console's revenue row.
  *

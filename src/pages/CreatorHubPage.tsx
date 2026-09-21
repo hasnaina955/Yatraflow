@@ -12,7 +12,10 @@ import {
   projectEarnings, deriveActualSales, payoutStatus, payoutPeriods, payoutPeriodStatus,
   PAYOUT_MINIMUM_INR, PLATFORM_FEE_SUMMARY, type ActualSales,
 } from '../lib/earnings'
-import { fetchCreatorSales } from '../lib/unlock'
+import { fetchCreatorSales, fetchCreatorFunnel, type FunnelDailyRow } from '../lib/unlock'
+import {
+  buildPubFunnels, formatPct, FUNNEL_WINDOWS, type FunnelSale, type FunnelWindowDays, type PubFunnel,
+} from '../lib/pubFunnel'
 import { formatInr } from '../lib/engine'
 import { Chip, ConfirmDialog, Field, toast } from '../components/ui'
 
@@ -61,6 +64,14 @@ export function CreatorHubPage({ onNavigate }: { onNavigate: (r: string) => void
   const [sales, setSales] = useState<ActualSales | null>(null)
   const [salesError, setSalesError] = useState(false)
   const [salesRetry, setSalesRetry] = useState(0)
+  // The RECORDED funnel (I-22/I-15): the dated event log, read per day so the
+  // window control costs no round trip. Deliberately separate from the counter
+  // tiles above, which are lifetime totals that include traffic from before
+  // recording began — the two are not the same number and are labelled so.
+  const [daily, setDaily] = useState<FunnelDailyRow[] | null>(null)
+  const [funnelError, setFunnelError] = useState(false)
+  const [funnelRetry, setFunnelRetry] = useState(0)
+  const [funnelDays, setFunnelDays] = useState<FunnelWindowDays>(30)
   useEffect(() => {
     let alive = true
     setSalesError(false)
@@ -69,6 +80,18 @@ export function CreatorHubPage({ onNavigate }: { onNavigate: (r: string) => void
       .catch(() => { if (alive) { setSalesError(true); setSales(null) } })
     return () => { alive = false }
   }, [me?.id, salesRetry]) // eslint-disable-line react-hooks/exhaustive-deps
+  // Same shape as the sales read above, and for the same reason: a log with
+  // nothing in it and a log that could not be read are different truths, and a
+  // funnel that quietly reads zero over real traffic is the exact conflation
+  // the sales ledger already had to fix once.
+  useEffect(() => {
+    let alive = true
+    setFunnelError(false)
+    fetchCreatorFunnel()
+      .then(rows => { if (alive) setDaily(rows) })
+      .catch(() => { if (alive) { setFunnelError(true); setDaily(null) } })
+    return () => { alive = false }
+  }, [me?.id, funnelRetry]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const loggedIn = Boolean(me)
   useEffect(() => { if (!loggedIn) onNavigate('/auth') })
@@ -151,7 +174,9 @@ export function CreatorHubPage({ onNavigate }: { onNavigate: (r: string) => void
                   Nothing published yet — list a trip on Explore from its Share tab.
                 </p>
               ) : (
-                <PubOverview myPubs={myPubs} onUnpublish={setUnpubTarget} onNavigate={onNavigate} />
+                <PubOverview myPubs={myPubs} onUnpublish={setUnpubTarget} onNavigate={onNavigate}
+                  daily={daily} salesRows={sales?.rows ?? []} funnelError={funnelError}
+                  onRetry={() => setFunnelRetry(n => n + 1)} days={funnelDays} onDays={setFunnelDays} />
               )
             ) : (
               <EarningsTab myPubs={myPubs} sales={sales} salesError={salesError}
@@ -193,14 +218,96 @@ export function CreatorHubPage({ onNavigate }: { onNavigate: (r: string) => void
   )
 }
 
-/** Overview tab: lifetime KPIs + the per-publication manager rows. */
-function PubOverview({ myPubs, onUnpublish, onNavigate }: {
+/** One publication's recorded funnel, for the selected window.
+ *
+ *  Says NOTHING RECORDED rather than printing three zeroes, because "no traffic
+ *  yet" and "traffic that converted at 0%" are different claims and only one of
+ *  them is a measurement.
+ *
+ *  The lifetime line is the honesty: a window's numbers sit beside that
+ *  publication's own all-time totals, because the counters predate the event
+ *  log. "38 forks" alone cannot tell a creator whether that is most of their
+ *  forks or a slice of them. */
+function FunnelLine({ f, unread }: { f: PubFunnel | undefined; unread: boolean }) {
+  if (!f) return null
+  // The all-time line reads the counters from the hydrated cache, so it is true
+  // even when the log could not be read. The windowed steps are NOT, so a failed
+  // read withholds them and says why — "no traffic" and "traffic I could not
+  // read" are different claims and only one of them is a measurement.
+  const lifetime = (
+    <span className="pf-lifetime muted num">
+      All time {f.lifetimeViews} visits · {f.lifetimeForks} forks · {f.lifetimeUnlocks} unlocks
+    </span>
+  )
+  if (unread) {
+    return (
+      <span className="pub-funnel">
+        <span className="muted">Traffic could not be read just now.</span>
+        {lifetime}
+      </span>
+    )
+  }
+  if (f.unreported) {
+    return (
+      <span className="pub-funnel">
+        <span className="muted">No recorded traffic yet — nothing to measure for this plan.</span>
+        {lifetime}
+      </span>
+    )
+  }
+  return (
+    <span className="pub-funnel">
+      <span className="pf-steps">
+        <span className="pf-step"><b className="num">{f.views}</b> visits</span>
+        <span className="pf-arrow" aria-hidden>→</span>
+        <span className="pf-step"><b className="num">{f.forks}</b> forks <span className="muted">({formatPct(f.forkRatePct)})</span></span>
+        <span className="pf-arrow" aria-hidden>→</span>
+        <span className="pf-step"><b className="num">{f.unlocks}</b> unlocks <span className="muted">({formatPct(f.unlockRatePct)})</span></span>
+        {f.forksExceedViews && (
+          <span className="muted">· more forks than visits — Explore&apos;s card forks a plan without opening it</span>
+        )}
+      </span>
+      {lifetime}
+    </span>
+  )
+}
+
+/** Overview tab: lifetime KPIs + the per-publication manager rows, each with the
+ *  RECORDED view → fork → unlock funnel for the selected window. */
+function PubOverview({ myPubs, onUnpublish, onNavigate, daily, salesRows, funnelError, onRetry, days, onDays }: {
   myPubs: PublishedItinerary[]
   onUnpublish: (p: PublishedItinerary) => void
+  /** null while the funnel read is in flight; [] when it succeeded empty. */
+  daily: FunnelDailyRow[] | null
+  /** The sales ledger's own rows — the unlock stage's only source. */
+  salesRows: readonly FunnelSale[]
+  funnelError: boolean
+  onRetry: () => void
+  days: FunnelWindowDays
+  onDays: (d: FunnelWindowDays) => void
   onNavigate: (r: string) => void
 }) {
   const totalViews = myPubs.reduce((s, p) => s + p.views, 0)
   const totalForks = myPubs.reduce((s, p) => s + p.copies, 0)
+  // ONE derivation, read by both the rows and the note above them, so the table
+  // and the sentence explaining it cannot disagree about a rate.
+  const funnels = buildPubFunnels({
+    daily: daily ?? [],
+    sales: salesRows,
+    pubs: myPubs.map(p => ({
+      id: p.id, title: p.title, priceInr: p.premiumPriceInr ?? null,
+      lifetimeViews: p.views, lifetimeForks: p.copies,
+    })),
+    days,
+    now: Date.now(),
+  })
+  const funnelOf = new Map(funnels.map(f => [f.pubId, f]))
+  // When the log's own history starts, page-wide. The tiles above are all-time
+  // and most of their number PREDATES the first recorded event, which is
+  // exactly the pair a reader would otherwise compare and conclude wrongly from.
+  const recordingSince = daily && daily.length > 0
+    ? daily.reduce((min, r) => (r.day < min ? r.day : min), daily[0].day)
+    : null
   const staleCount = myPubs.filter(p => {
     const t = tripById(p.tripId)
     return !!t && t.updatedAt > (p.refreshedAt ?? p.publishedAt)
@@ -208,12 +315,31 @@ function PubOverview({ myPubs, onUnpublish, onNavigate }: {
   return (
     <>
       <div className="pub-kpis">
-        <div className="stat-tile"><div className="stat-label">Views</div><div className="stat-value">{totalViews}</div></div>
-        <div className="stat-tile"><div className="stat-label">Forks</div><div className="stat-value">{totalForks}</div></div>
+        <div className="stat-tile"><div className="stat-label">Views (all time)</div><div className="stat-value">{totalViews}</div></div>
+        <div className="stat-tile"><div className="stat-label">Forks (all time)</div><div className="stat-value">{totalForks}</div></div>
         <div className="stat-tile"><div className="stat-label">Live</div><div className="stat-value">{myPubs.length}</div></div>
         <div className="stat-tile"><div className="stat-label">Behind</div><div className="stat-value">{staleCount > 0 ? <span className="metric-warn">{staleCount}</span> : 0}</div></div>
       </div>
       <div style={{ marginTop: 4 }}>
+        <div className="pub-funnel-head">
+          <PillNav className="filter-pillbar" role="group" aria-label="Funnel window" activeKey={String(days)}>
+            {FUNNEL_WINDOWS.map(w => (
+              <button key={w.days} type="button" data-pill-key={String(w.days)}
+                className={`clickable-chip chip${days === w.days ? ' on-teal' : ''}`}
+                onClick={() => onDays(w.days)} aria-pressed={days === w.days}>{w.label}</button>
+            ))}
+          </PillNav>
+          <span className="small muted">
+            {funnelError
+              ? 'Recorded traffic could not be read just now — the trend is unchanged on the server.'
+              : daily === null
+              ? 'Reading recorded traffic…'
+              : recordingSince
+                ? `Traffic recorded since ${new Date(`${recordingSince}T00:00:00Z`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}.`
+                : 'Nothing recorded yet — the trend starts with the first visit.'}
+          </span>
+          {funnelError && <button className="btn btn-outline btn-sm" onClick={onRetry}>Retry</button>}
+        </div>
         {myPubs.map(p => {
           const trip = tripById(p.tripId)
           const stale = !!trip && trip.updatedAt > (p.refreshedAt ?? p.publishedAt)
@@ -224,7 +350,7 @@ function PubOverview({ myPubs, onUnpublish, onNavigate }: {
                   <a href={`#/pub/${p.id}`}>{p.title}</a>
                   {stale && <Chip tone="saffron">Page behind itinerary</Chip>}
                 </span>
-                <span className="small muted num">{p.views} view{p.views === 1 ? '' : 's'} · {p.copies} fork{p.copies === 1 ? '' : 's'}</span>
+                <FunnelLine f={funnelOf.get(p.id)} unread={funnelError} />
               </div>
               <span className="pub-row-actions">
                 {stale && (

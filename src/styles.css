@@ -6122,7 +6122,7 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
   padding: 10px 10px 8px;
 }
 .map-ideas-grid .poi-col--needs {
-  background: color-mix(in srgb, var(--teal) 7%, var(--bg));
+  background: color-mix(in srgb, var(--teal) 10%, var(--bg));
   border: 1px solid color-mix(in srgb, var(--teal) 20%, var(--line));
 }
 .map-ideas-grid .poi-col--see {

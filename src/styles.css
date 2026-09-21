@@ -2281,14 +2281,16 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
   background: linear-gradient(135deg, var(--yf-teal-600), var(--yf-navy));
   color: #fff; font-size: 24px;
   box-shadow: var(--shadow-glow-teal); display: flex; align-items: center; justify-content: center;
-  transition: transform .12s ease;
+  transition: transform var(--motion-fast) var(--ease-out);
 }
-.ai-fab:hover { transform: scale(1.06); }
+@media (hover: hover) {
+  .ai-fab:hover { transform: scale(1.06); }
+}
 .ai-drawer {
   position: fixed; z-index: var(--z-drawer); right: 0; top: 0; bottom: 0;
   width: min(420px, 100vw); background: var(--card);
   border-left: 1px solid var(--line); box-shadow: -12px 0 40px rgba(var(--shadow-navy-rgb),.14);
-  display: flex; flex-direction: column; animation: drawerIn var(--t-med) var(--ease-out);
+  display: flex; flex-direction: column; animation: drawerIn var(--motion-slow) var(--ease-out);
   /* Edge-to-edge: keep content clear of the landscape home-indicator edge. */
   padding-right: var(--safe-area-inset-right, env(safe-area-inset-right, 0px));
 }
@@ -2309,16 +2311,16 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
   background: rgba(255, 255, 255, .16);
 }
 .ai-head b { display: block; font-family: var(--font-display); font-size: 14.5px; letter-spacing: -0.01em; }
-.ai-head-sub { font-size: 11.5px; color: rgba(255, 255, 255, .78); }
+.ai-head-sub { font-size: 12px; color: rgba(255, 255, 255, .78); }
 .ai-head .icon-btn { margin-left: auto; color: #fff; }
 .ai-head .icon-btn:hover { background: rgba(255, 255, 255, .14); }
 .ai-msgs { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 17px 16px; display: flex; flex-direction: column; gap: 11px; scrollbar-width: thin; scrollbar-color: var(--text-3) transparent; }
-.ai-bubble { max-width: 88%; padding: 10px 14px; border-radius: 16px; font-size: 13.5px; line-height: 1.5; white-space: pre-wrap; }
+.ai-bubble { max-width: 88%; padding: 10px 14px; border-radius: 16px; font-size: 13.5px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: break-word; }
 .ai-bubble.user { align-self: flex-end; background: var(--teal-deep); color: #fff; border-bottom-right-radius: 6px; }
 /* dark lightens --teal-deep to #35C9BC — white on it is 2.11:1; ink passes 7.9 */
 [data-theme='dark'] .ai-bubble.user { color: #06251f; }
 .ai-bubble.bot { align-self: flex-start; background: var(--bg-soft); color: var(--text); border: 1px solid var(--line); border-bottom-left-radius: 6px; }
-.ai-assumption { margin-top: 9px; font-size: 11.8px; color: var(--text-3); border-top: 1px dashed var(--line); padding-top: 7px; }
+.ai-assumption { margin-top: 9px; font-size: 12px; color: var(--text-3); border-top: 1px dashed var(--line); padding-top: 7px; }
 .ai-quick { padding: 10px 14px 8px; border-top: 1px solid var(--line); }
 .ai-quick-scroll { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 5px; scrollbar-width: thin; scrollbar-color: var(--text-3) transparent; -webkit-overflow-scrolling: touch; }
 /* Quick prompts: single-line pills on a scroll rail — never the wrapped
@@ -2332,6 +2334,12 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
 .typing-dots span { width: 6px; height: 6px; border-radius: 50%; background: var(--text-3); animation: blink 1.2s infinite; }
 .typing-dots span:nth-child(2) { animation-delay: .2s; } .typing-dots span:nth-child(3) { animation-delay: .4s; }
 @keyframes blink { 0%,80%,100% { opacity: .25; } 40% { opacity: 1; } }
+/* The companion's two looping/entering motions opt out under reduced motion,
+   like every other animated surface (AGENTS §10). */
+@media (prefers-reduced-motion: reduce) {
+  .typing-dots span { animation: none; opacity: .6; }
+  .ai-drawer { animation: none; }
+}
 
 /* ---------- Notifications ---------- */
 /* Entrance is owned by .popover (the shared family rule at the end of the
@@ -6438,6 +6446,6 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
   font-size: 10.5px; font-weight: 600; letter-spacing: 0.04em;
   padding: 2px 8px; border-radius: 999px; vertical-align: middle;
 }
-.ai-source.llm { color: var(--color-accent); border: 1px solid var(--color-accent); }
+.ai-source.llm { color: var(--ink-amber); border: 1px solid var(--ink-amber); }
 .ai-source.off { color: var(--text-3); border: 1px solid var(--line); }
 .ai-source.jev { color: var(--ink-ok); border: 1px solid var(--ok); }

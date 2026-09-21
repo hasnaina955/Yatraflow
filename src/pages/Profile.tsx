@@ -305,10 +305,13 @@ function AiProviderCard() {
 
   async function onTest() {
     if (testing) return
-    const err = saveAiProviderConfig(cfg)
+    // An empty key field with a config already saved means "keep the saved
+    // key" — matching the field's own hint. Nothing stored yet stays an error.
+    const key = cfg.apiKey.trim() || loadAiProviderConfig()?.apiKey || ''
+    const err = saveAiProviderConfig({ ...cfg, apiKey: key })
     if (err) { setResult(err); return }
     setTesting(true)
-    setResult(null)
+    setResult('')
     const failure = await testAiProviderConnection(loadAiProviderConfig()!)
     setTesting(false)
     setResult(failure ? `Could not connect: ${failure}` : 'Connected — the companion will answer with this model.')
@@ -325,7 +328,7 @@ function AiProviderCard() {
     <div className="card stack-gap">
       <div className="row-between">
         <h3>AI companion</h3>
-        <Chip tone={saved ? 'ok' : 'info'}>{saved ? 'LLM configured' : 'Offline mode'}</Chip>
+        <Chip tone={saved ? 'ok' : 'info'}>{saved ? 'LLM configured' : 'Not configured'}</Chip>
       </div>
       <p className="hint-text" style={{ margin: '6px 0 0' }}>
         Optional. Point the companion at any OpenAI-compatible endpoint and it answers with that model — grounded in this
@@ -357,7 +360,9 @@ function AiProviderCard() {
         <button className="btn btn-primary btn-sm" onClick={onTest} disabled={testing}>{testing ? 'Testing…' : 'Save & test connection'}</button>
         {saved && <button className="btn btn-outline btn-sm" onClick={onClear} disabled={testing}>Clear</button>}
       </div>
-      {result && <p className="hint-text" role="status" style={{ margin: 0 }}>{result}</p>}
+      {/* A stable empty live region: dynamically inserted status nodes are
+          announced unreliably, an always-present one is not (a11y rule). */}
+      <p className="hint-text" role="status" style={{ margin: 0 }}>{result}</p>
     </div>
   )
 }
@@ -379,7 +384,7 @@ function JevCard() {
     const err = saveJevConfig(cfg)
     if (err) { setResult(err); return }
     setTesting(true)
-    setResult(null)
+    setResult('')
     const failure = await testJevConnection(loadJevConfig()!)
     setTesting(false)
     setResult(failure ? `Could not connect: ${failure}` : 'Connected — companion answers route through Jev.')
@@ -422,7 +427,7 @@ function JevCard() {
         <button className="btn btn-primary btn-sm" onClick={onTest} disabled={testing}>{testing ? 'Testing…' : 'Save & test connection'}</button>
         {saved && <button className="btn btn-outline btn-sm" onClick={onClear} disabled={testing}>Clear</button>}
       </div>
-      {result && <p className="hint-text" role="status" style={{ margin: 0 }}>{result}</p>}
+      <p className="hint-text" role="status" style={{ margin: 0 }}>{result}</p>
     </div>
   )
 }

@@ -14,9 +14,11 @@
 -- split for a policy to get wrong.
 --
 -- **Applied 2026-09-21 to the live Supabase project** — run by the owner in the
--- Dashboard SQL editor. Recorded as the owner's confirmation rather than a
--- probe: this clone's dev shell has no outbound HTTP, so the PostgREST check
--- the other applied migrations cite could not be made from here.
+-- Dashboard SQL editor, then probe-verified from the dev shell: an anonymous REST
+-- select on the table answers `200 []`, where a table that does not exist answers
+-- `404 PGRST205` (control-run against a nonsense name to anchor the reading). The
+-- empty array is both halves of the claim — the table is there, and RLS withholds
+-- every row from a caller who is not the owner.
 --
 -- The degradation it was built behind stays in the client, because it is what
 -- any database that has not run this file still needs: reads answer PGRST205

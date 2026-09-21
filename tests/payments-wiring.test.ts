@@ -10,6 +10,20 @@ import { describe, expect, it } from 'vitest'
 
 const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8')
 
+// One exported function's OWN source, up to the next top-level export. A check
+// about a function must not be bent by whatever is later added beside it: the
+// assertions below used to slice a fixed 400/500-character window off a name,
+// which both under-read the body and swallowed the next function — so adding an
+// unrelated read nearby failed a check about the creator-sales path, and a
+// `catch { return [] }` anywhere below silently satisfied a check about this one.
+const fnSource = (src: string, name: string) => {
+  const start = src.indexOf(`export async function ${name}(`)
+  expect(start, `${name} not found in the source`).toBeGreaterThan(-1)
+  const rest = src.slice(start)
+  const end = rest.indexOf('\nexport ')
+  return end === -1 ? rest : rest.slice(0, end)
+}
+
 describe('the public page wires the real unlock flow', () => {
   const page = read('../src/pages/PublicItinerary.tsx')
 
@@ -66,8 +80,7 @@ describe('the public page wires the real unlock flow', () => {
     // And lib/unlock's creator read must NOT filter by user_id — the RPC's
     // auth.uid() scoping does it.
     const unlock = read('../src/lib/unlock.ts')
-    const creatorFn = unlock.slice(unlock.indexOf('fetchCreatorSales'))
-    expect(creatorFn.slice(0, 400)).not.toContain(".eq('user_id'")
+    expect(fnSource(unlock, 'fetchCreatorSales')).not.toContain(".eq('user_id'")
   })
 
   it('the sales ledger reads through the definer RPC, not client-facing RLS', () => {
@@ -76,9 +89,9 @@ describe('the public page wires the real unlock flow', () => {
     // from honest emptiness. Through the security-definer RPC the same
     // accident surfaces as an error (function not found) the tab can render.
     const unlock = read('../src/lib/unlock.ts')
-    const creatorFn = unlock.slice(unlock.indexOf('export async function fetchCreatorSales'))
-    expect(creatorFn.slice(0, 500)).toContain(".rpc('get_creator_sales')")
-    expect(creatorFn.slice(0, 500)).not.toContain("from('entitlements')")
+    const creatorFn = fnSource(unlock, 'fetchCreatorSales')
+    expect(creatorFn).toContain(".rpc('get_creator_sales')")
+    expect(creatorFn).not.toContain("from('entitlements')")
     // And the migration must ship the RPC scoped by the caller's auth.uid().
     const sql = read('../supabase/migrations/20260918_payments_security.sql')
     expect(sql).toContain('create or replace function public.get_creator_sales()')
@@ -92,7 +105,7 @@ describe('the public page wires the real unlock flow', () => {
     // it — indistinguishable from genuinely zero sales. Pin both halves of
     // the fix: the fetch throws, and the tab renders a distinct retry state.
     const unlock = read('../src/lib/unlock.ts')
-    const creatorFn = unlock.slice(unlock.indexOf('export async function fetchCreatorSales'))
+    const creatorFn = fnSource(unlock, 'fetchCreatorSales')
     expect(creatorFn).toContain('throw error')
     expect(creatorFn).not.toMatch(/catch[^}]*return \[\]/)
     const hub = read('../src/pages/CreatorHubPage.tsx')

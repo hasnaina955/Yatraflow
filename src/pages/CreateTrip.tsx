@@ -24,6 +24,7 @@ import { regionFor, regionBand, experienceTier, anchorNote } from '../lib/budget
 import { createFunnelOn } from '../lib/featureFlags'
 import { createReadiness, readinessFromDraft, readinessLine } from '../lib/createReadiness'
 import { saveDraft, loadDraft, clearDraft, draftIsWorthKeeping, draftAgeLabel, type StoredDraft } from '../lib/createDraft'
+import { addCrewEntry, PLANNER_ROLE_LINE, type CrewEntry } from '../lib/crewInvite'
 import { fetchTripThumbUrl } from '../lib/tripThumb'
 import { Field, Chip, toast, Odometer, useMedia } from '../components/ui'
 import { Select } from '../components/Select'
@@ -251,6 +252,11 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
   // pending draft can never be overwritten by the blank form it is offering.
   const [draft, setDraft] = useState<StoredDraft | null>(null)
   const [draftDecided, setDraftDecided] = useState(false)
+  // P5 - the crew collector. Local state only: nothing is written to the trip
+  // and nothing is sent from here. The invite is composed (and marked ready)
+  // once the trip exists, so this page never promises a message it cannot send.
+  const [crew, setCrew] = useState<CrewEntry[]>([])
+  const [crewInput, setCrewInput] = useState('')
   useEffect(() => {
     if (!createFunnelOn('drafts')) { setDraftDecided(true); return }
     const found = loadDraft()
@@ -265,6 +271,18 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
     }, 800)
     return () => clearTimeout(t)
   }, [f, dests, returnCount, draftDecided])
+
+  /** P5: who can be invited - the party minus the planner, capped at four so the
+   *  create flow never turns into an address book (more live on the Share tab). */
+  const crewLimit = Math.min(4, Math.max(0, f.travellers - 1))
+
+  function addCrewMember() {
+    const next = addCrewEntry(crew, crewInput, crewLimit)
+    if (next === crew) { setCrewInput(''); return }
+    haptic(HAPTIC.tick)
+    setCrew(next)
+    setCrewInput('')
+  }
 
   /** P4: the percentage on the banner counts required things only, exactly like
    *  the checklist (optional rows never move it), so the pull back is honest. */
@@ -854,6 +872,37 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
 
               </div>
             </div>
+              {createFunnelOn('crew') && (
+                <div className="crew-invite">
+                  <span className="group-lab">Bring the crew <span className="crew-opt">optional</span></span>
+                  <div className="crew-invite-row">
+                    <input className="input" value={crewInput} autoComplete="off"
+                      placeholder="Name or mobile, e.g. Ammu 98450 21234"
+                      aria-label="Crew member name or mobile number"
+                      onChange={e => setCrewInput(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCrewMember() } }} />
+                    <button type="button" className="btn btn-outline btn-sm" onClick={addCrewMember}
+                      disabled={crew.length >= crewLimit || !crewInput.trim()}>Add</button>
+                  </div>
+                  {crew.length > 0 && (
+                    <div className="crew-chips">
+                      {crew.map((m, i) => (
+                        <span className="crew-chip" key={`${m.phone ?? m.name}-${i}`}>
+                          {m.name || `+91 ${m.phone}`}
+                          {m.name && m.phone ? <small>{m.phone}</small> : null}
+                          <button type="button" aria-label={`Remove ${m.name || m.phone}`}
+                            onClick={() => setCrew(list => list.filter((_, n) => n !== i))}>&#10005;</button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <p className="hint-text">
+                    {crewLimit === 0
+                      ? 'One traveller - nobody to invite. Add the crew from the trip’s Share tab.'
+                      : `${PLANNER_ROLE_LINE} The invite is ready for each of them the moment the trip exists.`}
+                  </p>
+                </div>
+              )}
               <details className="adv-drawer">
                 <summary>
                   <span className="group-lab">Fuel, vehicle &amp; party details</span>

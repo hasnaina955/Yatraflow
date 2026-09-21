@@ -6542,3 +6542,17 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .draft-card-body b { font-size: 13.5px; }
 .draft-card-meta { font-size: 11.5px; color: var(--text-3); font-variant-numeric: tabular-nums; }
 .draft-card > .btn { margin-left: auto; }
+/* ============================================================
+   Create Trip - the crew collector (P5)
+   Local only: nothing here is written to the trip or sent anywhere. Appended
+   at the file end for the line-keyed ratchet reason as with the blocks above.
+   ============================================================ */
+
+.crew-invite { margin-top: 12px; }
+.crew-opt { font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--text-3); }
+.crew-invite-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.crew-invite-row .input { flex: 1; min-width: 0; }
+.crew-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.crew-chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 6px 4px 10px; border-radius: 999px; background: var(--teal-soft); font-size: 12px; }
+.crew-chip small { color: var(--text-3); font-size: 10.5px; font-variant-numeric: tabular-nums; }
+.crew-chip button { display: grid; place-items: center; width: 16px; height: 16px; border: 0; border-radius: 50%; background: transparent; color: var(--text-3); font-size: 11px; cursor: pointer; }

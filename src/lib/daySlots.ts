@@ -253,8 +253,19 @@ function fillStopFor(
   const takeLatest = (list: ItineraryStop[]): ItineraryStop | null =>
     list.length > 0 ? list[list.length - 1] : null
 
-  const foodStops = active.filter(s => s.category === 'food')
+  const foodStops = active.filter(s => s.category === 'food' || (s.category as string) === 'cafe')
   const hotelStops = active.filter(s => s.category === 'hotel')
+
+  // Pass 0 - provenance: a stop the day plan itself filled names its part in
+  // its notes, so the rail's Fill always reads back as filled - whatever the
+  // place's category happens to be.
+  for (const d of drafts) {
+    const pick = active.find(s => !claimed.has(String(s.id)) && String(s.notes ?? '').includes(`day plan: ${d.key}`))
+    if (pick) {
+      claims.set(d.key, pick)
+      claimed.add(String(pick.id))
+    }
+  }
 
   // Pass 1 - meals: a food stop whose hours overlap the slot's window.
   for (const d of drafts) {

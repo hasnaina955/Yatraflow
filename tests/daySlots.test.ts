@@ -731,3 +731,24 @@ describe('coupled re-ranking after a stay (plan P3.4)', () => {
     expect(slots[0].candidates[0].reason).not.toContain('from your stay')
   })
 })
+
+describe('fill provenance (plan P3)', () => {
+  it('a stop the day plan filled claims its part outright', () => {
+    const slots = daySlots(0, base({
+      haltSegments: [],
+      dayStops: [
+        stop('s1', 'Somewhere generic', { category: 'sightseeing', notes: 'Filled from the day plan: lunch' }),
+        stop('s2', 'A hotel', { category: 'hotel' }),
+      ],
+      fillSkeleton: true,
+    }))
+    expect(slots.find(s => s.key === 'lunch')?.filledStop?.id).toBe('s1')
+  })
+  it('a cafe counts as meal-capable', () => {
+    const slots = daySlots(0, base({
+      haltSegments: [sh(seg('meal', { etaMinutes: 735 }), null)],
+      dayStops: [stop('s1', 'Corner cafe', { category: 'cafe' as never })],
+    }))
+    expect(slots[0].state).toBe('filled')
+  })
+})

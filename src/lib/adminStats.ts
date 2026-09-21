@@ -6,7 +6,10 @@
 import type {
   ActivityEntry, PublishedItinerary, Trip, TripDecision, TripMember, User,
 } from '../data/types'
-import { buildSalesLedger, revenuePeriods, type ActualSales, type RevenuePeriod } from './earnings'
+import {
+  buildSalesLedger, revenueByPublication, revenuePeriods,
+  type ActualSales, type PublicationRevenue, type RevenuePeriod,
+} from './earnings'
 
 /** Week-bucket key (Monday 00:00 UTC) for growth series. */
 export function weekBucket(at: number): number {
@@ -134,12 +137,22 @@ export interface PlatformSale {
   creatorId: string
 }
 
+/** One publication's slice of the platform's books, with its payee. The console
+ *  is a god-view: "which plan sold" is more actionable beside whose plan it is,
+ *  and a fee only means anything as that creator's own slice of the ladder. */
+export interface PlatformPublicationRevenue extends PublicationRevenue {
+  creatorId: string
+}
+
 export interface PlatformRevenue {
   /** Every sale on the platform, in one ledger. The fee on it is the sum of
    *  what each creator was charged, not one ladder over the platform's total. */
   sales: ActualSales
   /** The same rows grouped into the weekly windows they fall in. */
   periods: RevenuePeriod[]
+  /** The same rows grouped by publication instead — "which plan sold", which a
+   *  weekly window cannot answer. Sorted by gross, biggest earner first. */
+  publications: PlatformPublicationRevenue[]
   /** How many distinct creators the fee was charged to — the reason the
    *  per-creator grouping above exists at all. */
   creators: number
@@ -158,10 +171,18 @@ export interface PlatformRevenue {
  * comment in the body for why a single ladder over the platform's total would
  * understate the cut.
  *
- * Titles fall back to the publication id: this view groups by week, so it has
- * nothing to render a title for, and inventing one would be worse than an id.
+ * Titles come from the CALLER (the console resolves them from its own hydrated
+ * gallery, where `published read` is open to everyone). A publication it cannot
+ * resolve falls back to its id rather than being dropped from the books: a sale
+ * whose plan is unknown is still money that was collected.
+ *
+ * Rows group two ways, because "when" and "which plan" are different questions:
+ * weekly windows (`periods`) and per publication (`publications`).
  */
-export function platformRevenue(rows: PlatformSale[]): PlatformRevenue {
+export function platformRevenue(
+  rows: PlatformSale[],
+  titleOf: (pubId: string) => string = pubId => pubId,
+): PlatformRevenue {
   // ONE LEDGER PER CREATOR, then sum. The ladder runs over each creator's own
   // lifetime gross — that is what each of them is charged — so a single ladder
   // over the platform's total would UNDERSTATE the cut: the platform's total
@@ -175,7 +196,11 @@ export function platformRevenue(rows: PlatformSale[]): PlatformRevenue {
     if (list) list.push(row)
     else byCreator.set(row.creatorId, [row])
   }
-  const ledgers = [...byCreator.values()].map(creatorRows => buildSalesLedger(creatorRows, pubId => pubId))
+  const ledgerByCreator = new Map<string, ActualSales>()
+  for (const [creatorId, creatorRows] of byCreator) {
+    ledgerByCreator.set(creatorId, buildSalesLedger(creatorRows, titleOf))
+  }
+  const ledgers = [...ledgerByCreator.values()]
   const allRows = ledgers.flatMap(ledger => ledger.rows).sort((a, b) => b.grantedAt - a.grantedAt)
   const grossInr = ledgers.reduce((sum, ledger) => sum + ledger.grossInr, 0)
   const feeInr = ledgers.reduce((sum, ledger) => sum + ledger.feeInr, 0)
@@ -188,6 +213,12 @@ export function platformRevenue(rows: PlatformSale[]): PlatformRevenue {
       soldPubIds: [...new Set(allRows.map(r => r.pubId))],
     },
     periods: revenuePeriods(allRows),
+    // Grouped per creator FIRST and only then keyed by publication: a fee is that
+    // creator's own slice of the ladder, so one platform-wide fee per publication
+    // would be a ladder nobody walked.
+    publications: [...ledgerByCreator.entries()]
+      .flatMap(([creatorId, ledger]) => revenueByPublication(ledger.rows).map(p => ({ ...p, creatorId })))
+      .sort((a, b) => b.grossInr - a.grossInr || a.pubId.localeCompare(b.pubId)),
     creators: byCreator.size,
   }
 }

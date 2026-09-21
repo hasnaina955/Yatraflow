@@ -340,6 +340,45 @@ export function deriveActualSales(entitlements: Entitlement[], pubs: PublishedIt
   )
 }
 
+/**
+ * Per-publication attribution over a ledger's rows — the breakdown a reader asks
+ * for after a weekly one: not "what came in that week" but "WHICH PLAN sold".
+ *
+ * Same rule as `revenuePeriods`, for the same reason: the rows' fees are the
+ * LIFETIME-ladder attribution, so a publication's fee is the sum of its rows'
+ * fees. Re-deriving a fee per publication would charge the 15% tier again for
+ * every plan a creator has, and the parts would stop adding up to the ledger.
+ *
+ * The title comes off the rows (`buildSalesLedger`'s resolver), so a publication
+ * its caller no longer has still reads as its id rather than vanishing from the
+ * books.
+ */
+export interface PublicationRevenue {
+  pubId: string
+  title: string
+  salesCount: number
+  grossInr: number
+  feeInr: number
+  netInr: number
+}
+
+export function revenueByPublication(rows: SaleRow[]): PublicationRevenue[] {
+  const byPub = new Map<string, PublicationRevenue>()
+  for (const row of rows) {
+    const entry = byPub.get(row.pubId) ?? {
+      pubId: row.pubId, title: row.title, salesCount: 0, grossInr: 0, feeInr: 0, netInr: 0,
+    }
+    entry.salesCount += 1
+    entry.grossInr += row.amountPaidInr
+    entry.feeInr += row.feeInr
+    entry.netInr += row.netInr
+    byPub.set(row.pubId, entry)
+  }
+  // Biggest earner first — the question this table exists to answer — with the id
+  // as a stable tie-break, so two equal plans cannot swap rows between renders.
+  return [...byPub.values()].sort((a, b) => b.grossInr - a.grossInr || a.pubId.localeCompare(b.pubId))
+}
+
 // ---- Projection ----
 
 export interface ProjectedEarning {

@@ -194,8 +194,58 @@ describe('platformRevenue (the console\u2019s Analytics tab)', () => {
 
   it('is an honest zero on an empty platform, never NaN', () => {
     const rev = platformRevenue([])
-    expect(rev).toMatchObject({ periods: [], creators: 0 })
+    expect(rev).toMatchObject({ periods: [], publications: [], creators: 0 })
     expect(rev.sales).toMatchObject({ rows: [], grossInr: 0, feeInr: 0, netInr: 0, soldPubIds: [] })
+  })
+
+  it('groups the same rows by publication, and the parts add up to the totals', () => {
+    // The question a weekly window cannot answer: WHICH PLAN sold. It is the
+    // same ledger rows grouped the other way, so the breakdown cannot disagree
+    // with the tiles it sits under.
+    const rows = [
+      sale({ creatorId: 'c1', pubId: 'pa', amountPaidInr: 199, grantedAt: 1 }),
+      sale({ creatorId: 'c1', pubId: 'pb', amountPaidInr: 25_000, grantedAt: 2 }),
+      sale({ creatorId: 'c1', pubId: 'pa', amountPaidInr: 499, grantedAt: 3 }),
+      sale({ creatorId: 'c2', pubId: 'pc', amountPaidInr: 20_000, grantedAt: 4 }),
+    ]
+    const rev = platformRevenue(rows)
+    expect(rev.publications).toHaveLength(3)
+    // Biggest earner first, so the table answers its own question at the top.
+    expect(rev.publications.map(p => p.pubId)).toEqual(['pb', 'pc', 'pa'])
+    expect(rev.publications.reduce((s, p) => s + p.grossInr, 0)).toBe(rev.sales.grossInr)
+    expect(rev.publications.reduce((s, p) => s + p.feeInr, 0)).toBe(rev.sales.feeInr)
+    expect(rev.publications.reduce((s, p) => s + p.netInr, 0)).toBe(rev.sales.netInr)
+    expect(rev.publications.reduce((s, p) => s + p.salesCount, 0)).toBe(rev.sales.rows.length)
+    expect(rev.publications.find(p => p.pubId === 'pa')).toMatchObject({ salesCount: 2, grossInr: 698 })
+    // One publication has one payee — the fee was charged to THAT creator.
+    expect(rev.publications.find(p => p.pubId === 'pc')!.creatorId).toBe('c2')
+  })
+
+  it('takes a publication’s fee from its own ROWS, never from its own gross', () => {
+    // One creator, two ₹20,000 plans. The ladder is charged once over the
+    // creator’s LIFETIME gross, so the second plan’s fee is ₹2,250 — ₹5,000 of it
+    // inside the 15% tier and the rest past it. Applying the ladder to each
+    // plan’s own total would charge ₹3,000 twice and report ₹6,000 collected.
+    // (Same shape as the per-creator rule one level up, and the same reason.)
+    const rev = platformRevenue([
+      sale({ creatorId: 'c1', pubId: 'pa', amountPaidInr: 20_000, grantedAt: 1 }),
+      sale({ creatorId: 'c1', pubId: 'pb', amountPaidInr: 20_000, grantedAt: 2 }),
+    ])
+    expect(rev.sales.feeInr).toBe(5_250)
+    expect(rev.publications.find(p => p.pubId === 'pa')!.feeInr).toBe(3_000)
+    expect(rev.publications.find(p => p.pubId === 'pb')!.feeInr).toBe(2_250)
+    // The wrong rule, spelled out, on the same rows.
+    expect(Math.round(platformFeeInr(20_000))).toBe(3_000)
+    expect(rev.publications.find(p => p.pubId === 'pb')!.feeInr).not.toBe(3_000)
+  })
+
+  it('labels a publication through the caller’s resolver, and falls back to its id', () => {
+    const rows = [sale({ creatorId: 'c1', pubId: 'pub_b', amountPaidInr: 199, grantedAt: 1 })]
+    const titles = new Map([['pub_b', 'Spiti Circuit']])
+    expect(platformRevenue(rows, id => titles.get(id) ?? id).publications[0]!.title).toBe('Spiti Circuit')
+    // No resolver: the id, which is still money the platform collected — not a
+    // blank cell and not an invented name.
+    expect(platformRevenue(rows).publications[0]!.title).toBe('pub_b')
   })
 })
 
@@ -244,6 +294,24 @@ describe('the fixture\u2019s console plan \u2014 two payees, one ladder each', (
     expect(platformRevenue(rows).sales.feeInr).not.toBeCloseTo(platformFeeInr(46_046), 0)
   })
 
+  it('splits the console\u2019s books per publication without changing the totals', () => {
+    // The answer key for the console’s by-publication table, priced through the
+    // shipped path. Goa carries the ₹25,000 sale, so it dominates; Spiti is the
+    // admin’s own ladder; Kerala is the row that proves a publication’s fee is
+    // the SUM of its sales’ slices rather than a rate on the plan — 15% of its
+    // own ₹897 would be ₹135, and the ladder says ₹125, because its three sales were
+    // charged at three different points along its creator’s lifetime gross.
+    const rev = platformRevenue(rows)
+    expect(rev.publications.map(p => [p.pubId, p.grossInr, p.feeInr])).toEqual([
+      ['pub-fixture-goa', 25_149, 3_730],
+      ['pub-fixture-spiti', 20_000, 3_000],
+      ['pub-fixture-kerala', 897, 125],
+    ])
+    expect(rev.publications.reduce((s, p) => s + p.feeInr, 0)).toBe(rev.sales.feeInr)
+    expect(rev.publications.reduce((s, p) => s + p.salesCount, 0)).toBe(rev.sales.rows.length)
+    expect(Math.round(platformFeeInr(897))).toBe(135)
+  })
+
   it('gives each payee its own ledger figure, and they sum to the console\u2019s', () => {
     const rev = platformRevenue(rows)
     const admin = platformRevenue(rows.filter(r => r.creatorId === 'admin'))
@@ -265,10 +333,26 @@ describe('the console renders the books, or says it could not read them', () => 
   it('shows the revenue row instead of promising it', () => {
     expect(page).toMatch(/aria-label="Platform revenue"/)
     expect(page).toMatch(/aria-label="Platform revenue by week"/)
-    expect(page).toMatch(/platformRevenue\(rows\)/)
+    expect(page).toMatch(/platformRevenue\(revenue\.rows, pubTitle\)/)
     // The copy that said this tab reads nothing from the ledger is gone.
     expect(page).not.toContain('reads nothing from them yet')
     expect(page).not.toMatch(/revenue row \(payout periods, gross → net\) is still to/)
+  })
+
+  it('shows WHICH PLAN sold, not only which week was good', () => {
+    // The RPC returns each sale's pub_id and the console's cache can resolve its
+    // title (`published read` is `using (true)` — a public gallery), so a weekly
+    // total is not the most an operator can be told. "What sold?" is the question
+    // a console exists to answer, and the row that answers it must sit under the
+    // numbers it adds up to.
+    expect(page).toMatch(/aria-label="Revenue by publication"/)
+    expect(page).toMatch(/books\.publications\.map/)
+    expect(page).toMatch(/creatorName\(p\.creatorId\)/)
+    expect(page).toMatch(/const titles = new Map\(db\.published\.map\(p => \[p\.id, p\.title\]\)\)/)
+    // Resolver PASSED, not the default: without it every row would read as a pub id.
+    expect(page).toMatch(/platformRevenue\(revenue\.rows, pubTitle\)/)
+    // Any rate-per-plan claim would be the wrong rule (see the pure tests).
+    expect(page).not.toMatch(/revenueByPublication\([^)]*platformFeeInr/)
   })
 
   it('reports a failed read rather than a zero it cannot vouch for', () => {

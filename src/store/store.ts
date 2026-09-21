@@ -17,6 +17,7 @@ import type { LatLngPoint } from '../data/types'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
 import { toast } from '../components/ui'
 import { isMissingColumnError, rowToTrip, tripToRow, type OptionalColumnsProbe, type TripRow } from '../lib/tripRow'
+import { attachDnaAccount, detachDnaAccount } from '../lib/tripDna'
 import { ownSuggestedCover, unclaimedCovers } from '../lib/coverUpload'
 import { makeInviteCode, normalizeInviteCode } from '../lib/inviteCode'
 import { suggestionToRow, decisionToRow, activityToRow, notificationToRow, publishedToRow } from '../lib/restoreRows'
@@ -361,6 +362,9 @@ export function init(): void {
       // Serialized like the signed-in path: getSession + onAuthStateChange both
       // fire hydrate(null) on a cold load, which used to double-fetch.
       disconnectRealtime()
+      // I-16 — signed out: drop the account's Trip DNA log from memory, so the
+      // next person on this device never inherits the last one's profile.
+      detachDnaAccount()
       if (activeHydrate && activeHydrate.userId === null) { await activeHydrate.promise; return }
       const anonPromise = (async () => {
       try {
@@ -397,6 +401,10 @@ export function init(): void {
     // Only go live for the account the cache still belongs to: a sign-out or an
     // account switch during the hydration above bumped hydrateGen.
     if (gen === hydrateGen && cache.sessionUserId === userId) connectRealtime(userId)
+    // I-16 — fold the account's Trip DNA into this device's log. Best-effort and
+    // probe-gated (no `user_dna` table → device-local, exactly as before), and
+    // fired after realtime so a slow DNA read never delays the workspace.
+    if (gen === hydrateGen && cache.sessionUserId === userId) void attachDnaAccount(supabase, userId)
   }
 
   supabase.auth.getSession().then(({ data }) => {

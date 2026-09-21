@@ -2,7 +2,11 @@
 // The engine remembers accepted/declined suggestions per trip, builds a small
 // preference vector, and reranks + explains new candidates by similarity.
 import { describe, it, expect } from 'vitest'
-import { buildDnaVector, buildDnaVectorAcrossTrips, dnaBoostForHit, dnaNoteForHit, type DnaEvent } from '../src/lib/tripDna'
+import {
+  buildDnaVector, buildDnaVectorAcrossTrips, dnaBoostForHit, dnaNoteForHit,
+  normalizeDnaLog, mergeDnaLogs, loadDnaLog, attachDnaAccount, detachDnaAccount,
+  type DnaEvent,
+} from '../src/lib/tripDna'
 
 const TRIP = 'trip-1'
 const TRIP2 = 'trip-2'
@@ -98,5 +102,72 @@ describe('trip DNA', () => {
     const v = buildDnaVector(events, TRIP)
     expect(v.categoryAffinity['waterfall']).toBe(1) // only trip-1's
     expect(v.avgVisitMin).toBeNull() // the visitMin was on trip-2
+  })
+})
+
+describe('DNA log — merge + account sync (I-16)', () => {
+  it('normalizeDnaLog keeps well-formed events and ignores the rest', () => {
+    const ok = { tripId: TRIP, action: 'accept' as const, category: 'waterfall' }
+    expect(normalizeDnaLog(null)).toEqual([])
+    expect(normalizeDnaLog({ nope: 1 })).toEqual([])
+    expect(normalizeDnaLog([ok, { tripId: TRIP, action: 'wat' }, { action: 'accept' }, null, 'x'])).toEqual([ok])
+  })
+
+  it('merges the account log ahead of the device log', () => {
+    const account: DnaEvent[] = [{ tripId: TRIP, action: 'accept', category: 'museum' }]
+    const device: DnaEvent[] = [{ tripId: TRIP2, action: 'accept', category: 'waterfall' }]
+    expect(mergeDnaLogs(device, account)).toEqual([...account, ...device])
+  })
+
+  it('collapses an event both sides know, so a sync cannot double a count', () => {
+    const both: DnaEvent = { tripId: TRIP, action: 'accept', category: 'waterfall', detourMin: 20 }
+    const merged = mergeDnaLogs([both], [{ ...both }])
+    expect(merged).toHaveLength(1)
+    expect(buildDnaVector(merged).categoryAffinity['waterfall']).toBe(1)
+  })
+
+  it('keeps the newest events when the union passes the cap', () => {
+    const many = Array.from({ length: 6 }, (_, i): DnaEvent => ({ tripId: `t${i}`, action: 'accept' }))
+    expect(mergeDnaLogs(many.slice(3), many.slice(0, 3), 4).map(e => e.tripId)).toEqual(['t2', 't3', 't4', 't5'])
+  })
+
+  it('is device-only with no account attached', () => {
+    detachDnaAccount()
+    // Node has no localStorage, so the device copy reads empty — the point is
+    // that no account state leaks in behind it.
+    expect(loadDnaLog()).toEqual([])
+  })
+
+  it('degrades quietly when user_dna has not been migrated yet', async () => {
+    detachDnaAccount()
+    const client = {
+      from: () => ({
+        select: () => ({
+          eq: () => ({
+            maybeSingle: async () => ({
+              data: null,
+              error: { code: 'PGRST205', message: "Could not find the table 'public.user_dna' in the schema cache" },
+            }),
+          }),
+        }),
+      }),
+    } as never
+    await expect(attachDnaAccount(client, 'user-1')).resolves.toBeUndefined()
+    expect(loadDnaLog()).toEqual([])
+  })
+
+  it('adopts the account log, and forgets it on sign-out', async () => {
+    detachDnaAccount()
+    const log: DnaEvent[] = [{ tripId: TRIP, action: 'accept', category: 'waterfall' }]
+    const client = {
+      from: () => ({
+        select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: { log }, error: null }) }) }),
+        upsert: () => ({ then: (fn: (r: { error: null }) => void) => fn({ error: null }) }),
+      }),
+    } as never
+    await attachDnaAccount(client, 'user-2')
+    expect(loadDnaLog()).toEqual(log)
+    detachDnaAccount()
+    expect(loadDnaLog()).toEqual([])
   })
 })

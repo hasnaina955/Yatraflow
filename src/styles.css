@@ -6046,12 +6046,6 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 
 /* The see-&-do rail's ledger spine: one object, rows hang off it. */
 .poi-plan-list.is-ledger { position: relative; }
-.ledger-spine {
-  position: absolute; left: 6px; top: 30px; bottom: 10px; width: 3px;
-  border-radius: 2px; background: color-mix(in srgb, var(--yf-poi-see) 60%, var(--line));
-}
-.ledger-lede { display: flex; flex-direction: column; padding: 0 2px 10px 20px; font-size: 12px; font-weight: 700; color: var(--yf-poi-see-ink); }
-.ledger-lede small { font-weight: 500; font-size: 10.5px; color: var(--text-3); }
 .poi-plan-list.is-ledger .poi-plan-row {
   position: relative; border: 0; background: transparent; border-radius: 0; margin: 0;
   border-bottom: 1px solid var(--line-2);
@@ -6076,25 +6070,26 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
    Flat two-line rows on the spine replacing the boxed cards inside the
    ledger: name + one meta line, expanding in place to a shelf. */
 .lrow-new {
-  position: relative; border-bottom: 1px solid var(--line-2);
+  position: relative; border: 1px solid var(--line); border-radius: 12px;
+  background: var(--card); margin-bottom: 6px;
 }
-.lrow-new:last-of-type { border-bottom: 0; }
+.lrow-new:last-of-type { margin-bottom: 0; }
 .lrow-sum {
-  display: grid; grid-template-columns: 1fr auto; column-gap: 8px; row-gap: 2px;
-  align-items: start;
-  padding: 9px 4px 9px 20px; cursor: pointer; list-style: none;
-  border-radius: 8px;
+  display: grid; grid-template-columns: auto 1fr auto; column-gap: 8px; row-gap: 2px;
+  align-items: center;
+  padding: 8px 10px; cursor: pointer; list-style: none;
+  border-radius: 12px;
   transition: background var(--t-fast) var(--ease-out);
 }
 .lrow-sum::-webkit-details-marker { display: none; }
 .lrow-sum:hover { background: color-mix(in srgb, var(--yf-poi-see) 6%, transparent); }
 .lrow-sum:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--focus-ring, rgba(228, 174, 67, .55)); }
 .lr-name {
-  grid-column: 1; min-width: 0; font-size: 12.5px; font-weight: 600; color: var(--text);
+  grid-column: 2; grid-row: 1; min-width: 0; font-size: 12.5px; font-weight: 600; color: var(--text);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.lr-meta { grid-column: 1; font-size: 10.5px; color: var(--text-3); font-variant-numeric: tabular-nums; }
-.lr-go { grid-column: 2; grid-row: 1 / span 2; align-self: center; color: var(--text-3); transition: transform var(--t-fast) var(--ease-out); }
+.lr-meta { grid-column: 2; grid-row: 2; font-size: 10.5px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.lr-go { grid-column: 3; grid-row: 1 / span 2; align-self: center; color: var(--text-3); transition: transform var(--t-fast) var(--ease-out); }
 .lrow-new[open] .lr-go { transform: rotate(180deg); }
 .ledger-shelf {
   display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
@@ -6139,3 +6134,9 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
   margin: 0 10px 8px; font-size: 10.5px; font-weight: 600; color: var(--warn);
 }
 .day-slot-hint .n { color: var(--text-3); font-weight: 500; }
+/* P2: the extras row dot (the mockup's .xrow .d) */
+.xdot {
+  grid-column: 1; grid-row: 1 / span 2; justify-self: center;
+  width: 8px; height: 8px; border-radius: 50%;
+  border: 2px solid var(--yf-poi-see);
+}

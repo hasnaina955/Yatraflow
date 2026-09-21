@@ -1056,6 +1056,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     return (
       <details key={hit.id as string} className="lrow-new" onToggle={undefined}>
         <summary className="lrow-sum" title={hit.name}>
+          <span className="xdot" aria-hidden />
           <span className="lr-name">{hit.name}</span>
           <span className="lr-meta">{meta}</span>
           <ChevronDown className="lr-go" size={12} aria-hidden />
@@ -1127,11 +1128,24 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
   )
   const [openSlotKey, setOpenSlotKey] = useState<string | null>(null)
   const [openLedgerKey, setOpenLedgerKey] = useState<string | null>(null)
-  /** The rail's meter copy: honest per-day, never jargon. */
+  /** The rail's meter copy: the mockup's wording, honest per day. */
   function activeReadinessLabel() {
     const r = activeDayReadiness
     if (r.total === 0) return 'nothing scheduled for this day yet'
-    return `${r.filled} of ${r.total} planned${r.auto > 0 ? ` · ${r.auto} handled by the plan` : ''}`
+    return `${r.filled} of ${r.total} filled${r.auto > 0 ? ` · ${r.auto} auto` : ''}`
+  }
+
+  /** The header's day identity: the day's own title, else its first-to-last
+   *  stops - the mockup reads 'Day 2 - Kochi to Alleppey' where it can. */
+  function activeDayLabel(): string {
+    const d = trip.days.find(x => x.index === activeDayIndex)
+    if (!d) return 'your drive'
+    if (d.title && d.title.trim()) return d.title.trim()
+    const stops = d.stops.filter(s => s.status !== 'rejected')
+    const first = stops[0]?.locationName ?? stops[0]?.title
+    const last = stops[stops.length - 1]?.locationName ?? stops[stops.length - 1]?.title
+    if (first && last && first !== last) return `${first} to ${last}`
+    return first ?? 'your drive'
   }
 
 
@@ -1650,7 +1664,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
             <div className="poi-col-head">
               <span className="poi-col-head-ico"><Fuel size={13} aria-hidden /></span>
               <div>
-                <b>The day's plan</b>
+                <b>Day {activeDayIndex + 1} · {activeDayLabel()}</b>
                 <span className="small muted">{activeDaySlots.length === 0 ? 'the day takes shape as you plan the drive' : `${activeReadinessLabel()}`}</span>
               </div>
               <span className="poi-col-count">{activeDaySlots.length > 0 ? `${activeDayReadiness.filled}/${activeDayReadiness.total}` : needsForRail.length}</span>
@@ -1796,8 +1810,8 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
             <div className="poi-col-head">
               <span className="poi-col-head-ico"><MapPin size={13} aria-hidden /></span>
               <div>
-                <b>See &amp; do</b>
-                <span className="small muted">{arcs.slice(0, 2).length + seeAndDoLive.length === 0 ? 'optional extras - never required' : `${seeAndDoLive.length} thing${seeAndDoLive.length === 1 ? '' : 's'} to see and do along the drive`}</span>
+                <b>Optional extras</b>
+                <span className="small muted">sights · detours - never required</span>
               </div>
               <span className="poi-col-count">{filterActive ? seeForRail.length : arcs.slice(0, 2).length + seeAndDoLive.length}</span>
               <button
@@ -1812,8 +1826,6 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
               </button>
             </div>
             <div className="poi-plan-list is-ledger">
-              <span className="ledger-spine" aria-hidden />
-              <p className="ledger-lede">The spine is the drive<small>Pick positions on the rail match the pins on the map</small></p>
               {!filterActive && arcs.slice(0, 2).length > 0 && (
                 <div className="poi-grp">
                   <span className="poi-grp-k">Route arcs</span>

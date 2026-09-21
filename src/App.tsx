@@ -430,17 +430,23 @@ export default function App() {
         <div className="nav-right">
           {/* CTI control tray: icon controls live in one soft pill. Auth
               buttons stay outside it (they're wide, and logged-out mobile
-              needs the width). Hamburger is ≤720px only (CSS-gated). */}
+              needs the width). Hamburger is ≤720px only (CSS-gated) and
+              web-only — its tray below never mounts in the shell. */}
           <div className="nav-pill-group">
-            <button
-              className="mobile-nav-btn"
-              onClick={() => setMobileNav(o => !o)}
-              aria-label="Menu"
-              aria-expanded={mobileNav}
-              aria-controls="mobile-menu"
-            >
-              {mobileNav ? <X size={20} aria-hidden /> : <Menu size={20} aria-hidden />}
-            </button>
+            {/* Web-only, like its tray below (`mobileNav && !isNative`): the
+                signed-out shell keeps the topnav, and an ungated button there
+                toggles state that renders nothing — a dead control. */}
+            {!isNative && (
+              <button
+                className="mobile-nav-btn"
+                onClick={() => setMobileNav(o => !o)}
+                aria-label="Menu"
+                aria-expanded={mobileNav}
+                aria-controls="mobile-menu"
+              >
+                {mobileNav ? <X size={20} aria-hidden /> : <Menu size={20} aria-hidden />}
+              </button>
+            )}
 
             <button className="theme-toggle" onClick={toggleTheme} aria-label="Toggle dark mode" title="Toggle dark mode">
               {dark ? <Sun size={18} aria-hidden /> : <Moon size={18} aria-hidden />}
@@ -547,10 +553,11 @@ export default function App() {
 
       {/* The shell's primary navigation - same platform gate as the shell home
           above (isNative && me), so the website never renders it. It replaces
-          the floating pill (hidden in the shell via CSS) but deliberately NOT
-          the hamburger tray, which keeps Plan a trip / Creator hub / Log out.
-          A plain bar, not an overlay: registerAndroidBack above still closes
-          only the real overlays, so back walks history while this is mounted. */}
+          the floating pill (hidden in the shell via CSS); the hamburger tray
+          is web-only — its shell-side destinations are these four tabs or the
+          relocated controls on Profile. A plain bar, not an overlay:
+          registerAndroidBack above still closes only the real overlays, so
+          back walks history while this is mounted. */}
       {isNative && me && <BottomNav route={route} onNavigate={navigate} />}
 
       <ToastZone />

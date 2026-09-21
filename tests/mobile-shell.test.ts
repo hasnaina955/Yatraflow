@@ -73,9 +73,14 @@ describe('bottom navigation is a shell-only primary nav', () => {
     expect(profile).toContain('logout()')
   })
 
-  it('hides the redundant floating pill but keeps the hamburger overflow', () => {
+  it('gates the hamburger and its tray identically — no dead control in the shell', () => {
     expect(css).toContain('html.native-shell .nav-links { display: none; }')
-    expect(app).toContain('className="mobile-nav-btn"')
+    // The tray renders only on the web (`mobileNav && !isNative`); the button
+    // must carry the same platform gate. Until the 2026-09-22 APK audit it did
+    // not: the signed-out shell (landing/auth keep the topnav) showed a menu
+    // button whose tap toggled state that rendered nothing.
+    expect(app).toContain('{mobileNav && !isNative && (')
+    expect(app).toMatch(/\{!isNative && \(\s*<button\s+className="mobile-nav-btn"/)
     // the tray keeps every destination the pill carried
     for (const dest of ['#/trips', '#/new', '#/explore', '#/creator-hub', '#/profile']) {
       expect(app, `${dest} must stay reachable`).toContain(dest)

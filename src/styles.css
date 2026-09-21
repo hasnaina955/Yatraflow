@@ -6092,14 +6092,10 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .lr-go { grid-column: 3; grid-row: 1 / span 2; align-self: center; color: var(--text-3); transition: transform var(--t-fast) var(--ease-out); }
 .lrow-new[open] .lr-go { transform: rotate(180deg); }
 .ledger-shelf {
-  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
-  margin: 0 4px 9px 20px; padding: 8px 10px;
-  background: var(--card); border: 1px solid var(--line-2); border-radius: 12px;
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin: 0 0 8px; padding: 8px 10px;
+  background: var(--bg); border: 1px solid var(--line-2); border-radius: 12px;
   animation: day-slot-drop var(--t-fast) var(--ease-out);
-}
-.shelf-title {
-  flex-basis: 100%; font-size: 11px; font-weight: 700; letter-spacing: .03em;
-  text-transform: uppercase; color: var(--yf-poi-see-ink);
 }
 
 /* ---- P2: the ledger reads as one object ---- */
@@ -6140,3 +6136,13 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
   width: 8px; height: 8px; border-radius: 50%;
   border: 2px solid var(--yf-poi-see);
 }
+/* P2: the shelf's alternatives as rows, not centred chips */
+.shelf-alt {
+  flex-basis: 100%; display: flex; align-items: baseline; gap: 8px;
+  padding: 6px 8px; border: 1px solid var(--line); border-radius: 10px;
+  background: var(--card); text-align: left; font: inherit; color: inherit; cursor: pointer;
+  transition: border-color var(--t-fast) var(--ease-out);
+}
+.shelf-alt:hover { border-color: var(--yf-poi-see); }
+.shelf-alt-nm { flex: 1; min-width: 0; font-size: 11.5px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.shelf-alt-km { flex: none; font-size: 10.5px; color: var(--text-3); font-variant-numeric: tabular-nums; }

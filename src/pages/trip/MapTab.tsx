@@ -1006,7 +1006,6 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     const alts = alternativesFor(sh, hit).filter(e => e.h.id !== hit.id)
     const shelf = (
       <div className="ledger-shelf">
-        <span className="shelf-title">{hit.name}</span>
         {chips.length > 0 && chips.map(c => (
           <button
             key={c.key}
@@ -1026,7 +1025,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
         )}
         {!added && editable && (
           <button
-            className="btn btn-ghost btn-sm"
+            className="chip chip-sm"
             title="Not interested - hide this and teach the engine"
             onClick={() => {
               recordDnaEvent({ tripId: trip.id, action: 'decline', category: hit.category, detourMin })
@@ -1039,11 +1038,12 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
         {alts.length > 0 && alts.map(({ h, dKm }) => (
           <button
             key={h.id as string}
-            className="chip chip-sm"
+            className="shelf-alt"
             title={h.name}
             onClick={() => openAddModal(h)}
           >
-            {h.name}{dKm != null ? ` \u00b7 ${dKm.toFixed(1)} km off` : ''}
+            <span className="shelf-alt-nm">{h.name}</span>
+            <span className="shelf-alt-km">{dKm != null ? `${dKm.toFixed(1)} km off` : 'on route'}</span>
           </button>
         ))}
       </div>
@@ -1051,7 +1051,6 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     const meta = [
       detourMin > 0 ? `+${Math.round(detourMin)} min detour` : 'on route',
       hitDay != null ? `Day ${hitDay + 1}` : null,
-      ...chips.slice(0, 2).map(c => c.label.toLowerCase()),
     ].filter(Boolean).join(' \u00b7 ')
     return (
       <details key={hit.id as string} className="lrow-new" onToggle={undefined}>
@@ -1813,7 +1812,6 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
                 <b>Optional extras</b>
                 <span className="small muted">sights · detours - never required</span>
               </div>
-              <span className="poi-col-count">{filterActive ? seeForRail.length : arcs.slice(0, 2).length + seeAndDoLive.length}</span>
               <button
                 type="button"
                 className="poi-fold"

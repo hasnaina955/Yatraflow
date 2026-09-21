@@ -6483,3 +6483,22 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
   .tpl-card { transition: none; }
   .tpl-card:hover, .tpl-card:focus-visible { transform: none; }
 }
+/* ============================================================
+   Create Trip - the advanced drawer (P1)
+   Fuel/vehicle economics and the #142 party dials tuck away here; the
+   engine's defaults hold if nobody opens it. Appended at the file's end
+   for the same line-keyed ratchet reason as the blocks above.
+   ============================================================ */
+
+.adv-drawer { margin-top: 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--card); }
+.adv-drawer > summary { display: flex; align-items: baseline; gap: 10px; padding: 10px 12px; cursor: pointer; list-style: none; }
+.adv-drawer > summary::-webkit-details-marker { display: none; }
+.adv-drawer[open] > summary { border-bottom: 1px solid var(--line); }
+.adv-drawer > summary::after { content: ""; width: 7px; height: 7px; flex: none; align-self: center; margin-left: 10px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg); transition: transform var(--t-fast) var(--ease-out); }
+.adv-drawer[open] > summary::after { transform: rotate(-135deg); }
+.adv-hint { margin-left: auto; font-size: 11px; color: var(--text-3); font-weight: 500; }
+.adv-body { display: grid; gap: 12px; padding: 12px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .adv-drawer > summary::after { transition: none; }
+}

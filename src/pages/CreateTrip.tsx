@@ -596,7 +596,7 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
           {/* ---- Route (7) ---- */}
           <section className="ts-block span7">
             <div className="ts-block-head">
-              <span className="eyebrow">Route</span>
+              <span className="eyebrow">1 &middot; Where</span>
               <span className="ts-block-value">
                 {dests.length > 0 && <>{dests.length} stop{dests.length !== 1 ? 's' : ''}{bill.roadKm != null ? ` · ≈ ${bill.roadKm} km` : ''}</>}
               </span>
@@ -674,7 +674,7 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
           {/* ---- Dates (5) ---- */}
           <section className="ts-block span5">
             <div className="ts-block-head">
-              <span className="eyebrow">Dates</span>
+              <span className="eyebrow">2 &middot; When</span>
             </div>
             <DateRangeCalendar
               start={f.startDate} end={f.endDate}
@@ -690,7 +690,7 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
           {/* ---- Crew & transport (12) ---- */}
           <section className="ts-block span12">
             <div className="ts-block-head">
-              <span className="eyebrow">Crew &amp; transport</span>
+              <span className="eyebrow">3 &middot; Who &amp; how</span>
               <span className="ts-block-value">{f.travellers} traveller{f.travellers !== 1 ? 's' : ''} · {cap(f.transportMode)}</span>
             </div>
             <div className="ct-grid">
@@ -732,6 +732,36 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
                   })}
                 </div>
               </div>
+              <div>
+                <span className="group-lab">Crew size</span>
+                <div className="crew-row" role="group" aria-label="Crew size">
+                  {CREW_CHIPS.map(n => (
+                    <button key={n} type="button" className={`crew-btn${f.travellers === n ? ' on' : ''}`}
+                      aria-pressed={f.travellers === n}
+                      onClick={() => { haptic(HAPTIC.select); patchFields({ travellers: n }) }}>{n}</button>
+                  ))}
+                  <button type="button" className={`crew-btn crew-btn--custom${showCustomCrew ? ' on' : ''}`}
+                    aria-pressed={showCustomCrew}
+                    onClick={() => { haptic(HAPTIC.select); patchFields({ travellers: showCustomCrew ? 2 : 9 }) }}>Custom…</button>
+                </div>
+                {showCustomCrew && (
+                  <div className="crew-custom">
+                    <Field label="Travellers" error={errs.travellers}>
+                      <input className="input mono" type="number" min={CREW_MIN} max={CREW_MAX} ref={el => (fieldRefs.current.travellers = el)}
+                        aria-invalid={!!errs.travellers} value={f.travellers}
+                        onChange={e => patchFields({ travellers: clampCrew(Number(e.target.value)) })} />
+                    </Field>
+                  </div>
+                )}
+
+              </div>
+            </div>
+              <details className="adv-drawer">
+                <summary>
+                  <span className="group-lab">Fuel, vehicle &amp; party details</span>
+                  <span className="adv-hint">{f.fuelEconomy || f.fuelPrice || f.tankL || f.rentPerDay || f.driverCount || f.hasVulnerable || f.driveAfterDinnerMin ? 'set' : 'the engine has good defaults'}</span>
+                </summary>
+                <div className="adv-body">
               {fuelMode && (
                 <div>
                   <span className="group-lab">Fuel &amp; vehicle</span>
@@ -789,27 +819,6 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
                   </div>
                 </div>
               )}
-              <div>
-                <span className="group-lab">Crew size</span>
-                <div className="crew-row" role="group" aria-label="Crew size">
-                  {CREW_CHIPS.map(n => (
-                    <button key={n} type="button" className={`crew-btn${f.travellers === n ? ' on' : ''}`}
-                      aria-pressed={f.travellers === n}
-                      onClick={() => { haptic(HAPTIC.select); patchFields({ travellers: n }) }}>{n}</button>
-                  ))}
-                  <button type="button" className={`crew-btn crew-btn--custom${showCustomCrew ? ' on' : ''}`}
-                    aria-pressed={showCustomCrew}
-                    onClick={() => { haptic(HAPTIC.select); patchFields({ travellers: showCustomCrew ? 2 : 9 }) }}>Custom…</button>
-                </div>
-                {showCustomCrew && (
-                  <div className="crew-custom">
-                    <Field label="Travellers" error={errs.travellers}>
-                      <input className="input mono" type="number" min={CREW_MIN} max={CREW_MAX} ref={el => (fieldRefs.current.travellers = el)}
-                        aria-invalid={!!errs.travellers} value={f.travellers}
-                        onChange={e => patchFields({ travellers: clampCrew(Number(e.target.value)) })} />
-                    </Field>
-                  </div>
-                )}
                 {/* #142 party inputs — the two dials that move the honest wheel
                     cap. Hidden for conducted modes: nobody drives, nobody
                     fatigues. #213 Phase 5: gated on the ENGINE's own predicate
@@ -842,15 +851,14 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
                       </div>
                     </Field>
                   </div>
-                )}
-              </div>
-            </div>
+                )}                </div>
+              </details>
           </section>
 
           {/* ---- Budget & style (7) ---- */}
           <section className="ts-block span7">
             <div className="ts-block-head">
-              <span className="eyebrow">Budget &amp; style</span>
+              <span className="eyebrow">Refine &middot; budget &amp; style</span>
             </div>
             <div className="form-row">
               <Field label="Budget per person (₹)" error={errs.budgetPerPersonInr}

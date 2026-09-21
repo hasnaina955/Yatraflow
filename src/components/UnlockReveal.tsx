@@ -36,21 +36,21 @@ export function UnlockReveal({ open, pub, trip, creator, amountPaidInr, onFork, 
 
   return (
     <Modal open={open} onClose={onClose} title="You now own it" variant="full">
-      <div className="reveal">
-        <div className="reveal-hero">
+      <div className="unlock-reveal">
+        <div className="unlock-reveal-hero">
           <CoverThumb variant="wide" explicitUrl={pub.coverImageUrl} trip={{ name: pub.title, destinations: pub.routeSummary }} emoji="🧭" />
         </div>
 
-        <p className="reveal-kicker">Unlocked</p>
-        <h3 className="reveal-title">{pub.title}</h3>
-        <p className="reveal-by">
+        <p className="unlock-reveal-kicker">Unlocked</p>
+        <h3 className="unlock-reveal-title">{pub.title}</h3>
+        <p className="unlock-reveal-by">
           {creator?.profile?.name ? <>by <b>{creator.profile.name}</b></> : <>an independent creator</>}
           {trip.startLocation ? <> · {trip.startLocation}</> : null}
         </p>
 
         {/* Only facts that are actually true: a zero-day or zero-stop line is
             noise, and a made-up "0 km" would undercut every other number here. */}
-        <div className="reveal-facts">
+        <div className="unlock-reveal-facts">
           {stats.days > 0 && (
             <StatTile label="Days" value={stats.days} sub="every one unlocked" />
           )}
@@ -66,24 +66,24 @@ export function UnlockReveal({ open, pub, trip, creator, amountPaidInr, onFork, 
         </div>
 
         {pub.travelTips.length > 0 && (
-          <p className="reveal-tips">
+          <p className="unlock-reveal-tips">
             <b>{pub.travelTips.length}</b> {pub.travelTips.length === 1 ? 'travel tip' : 'travel tips'} from the creator are included.
           </p>
         )}
 
-        <p className="reveal-receipt">
+        <p className="unlock-reveal-receipt">
           {typeof amountPaidInr === 'number' ? <>Paid <b>{formatInr(amountPaidInr)}</b> · </> : null}
           yours for good — find it any time under <b>My purchases</b>.
         </p>
 
-        <div className="reveal-actions">
+        <div className="unlock-reveal-actions">
           <button className="btn btn-saffron btn-lg" onClick={onFork}>
             <CalendarDays size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 6 }} />
             Fork into my trips
           </button>
           <button className="btn btn-ghost" onClick={onClose}>Read the plan</button>
         </div>
-        <p className="hint-text reveal-hint">
+        <p className="hint-text unlock-reveal-hint">
           Forking copies the whole plan into your own trips with today’s dates — you can rename it, re-time it and
           take it with you offline.
         </p>

@@ -5967,20 +5967,25 @@ html.native-shell {
 /* ============ I-20: the unlock moment + the purchases shelf ============ */
 
 /* The reveal is the app's own dialog with the sheet's padding handed to its
-   content, so the cover can run to the card's edge (Modal `variant="full"`). */
+   content, so the cover can run to the card's edge (Modal `variant="full"`).
+   Namespaced deliberately: a bare `.reveal` ALREADY belongs to the Landing
+   page's scroll-reveal utility (`body.reveal-armed .reveal`), and a later rule
+   reusing that name silently re-lays-out every Landing card and step. See
+   AGENTS §4 — check a name against the pre-existing stylesheet before taking
+   a single-word class. */
 .modal-full { max-width: 720px; padding: 0; }
 .modal-full .modal-head { padding: 14px 18px 0; margin-bottom: 0; }
-.reveal { display: flex; flex-direction: column; gap: 10px; padding: 10px 18px calc(20px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px))); }
-.reveal-hero { border-radius: var(--radius); overflow: hidden; border: 1px solid var(--line); }
-.reveal-kicker { margin: 4px 0 0; font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--teal-deep); }
-.reveal-title { margin: 0; font-size: 25px; line-height: 1.15; }
-.reveal-by { margin: 0; font-size: 13px; color: var(--text-3); }
-.reveal-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(138px, 1fr)); gap: 10px; margin-top: 4px; }
-.reveal-tips, .reveal-receipt { margin: 0; font-size: 13px; color: var(--text-3); }
-.reveal-tips b, .reveal-receipt b { color: var(--text-2); }
-.reveal-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
-.reveal-actions .btn { flex: 1 1 auto; }
-.reveal-hint { margin: 0; }
+.unlock-reveal { display: flex; flex-direction: column; gap: 10px; padding: 10px 18px calc(20px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px))); }
+.unlock-reveal-hero { border-radius: var(--radius); overflow: hidden; border: 1px solid var(--line); }
+.unlock-reveal-kicker { margin: 4px 0 0; font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--teal-deep); }
+.unlock-reveal-title { margin: 0; font-size: 25px; line-height: 1.15; }
+.unlock-reveal-by { margin: 0; font-size: 13px; color: var(--text-3); }
+.unlock-reveal-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(138px, 1fr)); gap: 10px; margin-top: 4px; }
+.unlock-reveal-tips, .unlock-reveal-receipt { margin: 0; font-size: 13px; color: var(--text-3); }
+.unlock-reveal-tips b, .unlock-reveal-receipt b { color: var(--text-2); }
+.unlock-reveal-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.unlock-reveal-actions .btn { flex: 1 1 auto; }
+.unlock-reveal-hint { margin: 0; }
 
 /* Same rhythm as My trips' own wrapper: the page's two beats are the head and the
    shelf. Both values sit on the spacing ladder (22 is the documented two-sections
@@ -6016,17 +6021,17 @@ html.native-shell {
    transform leaves a compositor group behind, hence `backwards`). */
 @media (prefers-reduced-motion: no-preference) {
   .modal-full { animation: slideUp var(--motion-slow) var(--ease-out); }
-  .reveal > * { animation: revealRise var(--motion-slow) var(--ease-out) backwards; }
-  .reveal > *:nth-child(2) { animation-delay: calc(var(--stagger-step) * 1); }
-  .reveal > *:nth-child(3) { animation-delay: calc(var(--stagger-step) * 2); }
-  .reveal > *:nth-child(4) { animation-delay: calc(var(--stagger-step) * 3); }
-  .reveal > *:nth-child(5) { animation-delay: calc(var(--stagger-step) * 4); }
-  .reveal > *:nth-child(6) { animation-delay: calc(var(--stagger-step) * 5); }
-  .reveal > *:nth-child(7) { animation-delay: calc(var(--stagger-step) * 6); }
-  .reveal-facts > * { animation: revealRise var(--motion-med) var(--ease-out) backwards; }
-  .reveal-facts > *:nth-child(2) { animation-delay: calc(var(--stagger-step) * 1); }
-  .reveal-facts > *:nth-child(3) { animation-delay: calc(var(--stagger-step) * 2); }
-  .reveal-facts > *:nth-child(4) { animation-delay: calc(var(--stagger-step) * 3); }
+  .unlock-reveal > * { animation: revealRise var(--motion-slow) var(--ease-out) backwards; }
+  .unlock-reveal > *:nth-child(2) { animation-delay: calc(var(--stagger-step) * 1); }
+  .unlock-reveal > *:nth-child(3) { animation-delay: calc(var(--stagger-step) * 2); }
+  .unlock-reveal > *:nth-child(4) { animation-delay: calc(var(--stagger-step) * 3); }
+  .unlock-reveal > *:nth-child(5) { animation-delay: calc(var(--stagger-step) * 4); }
+  .unlock-reveal > *:nth-child(6) { animation-delay: calc(var(--stagger-step) * 5); }
+  .unlock-reveal > *:nth-child(7) { animation-delay: calc(var(--stagger-step) * 6); }
+  .unlock-reveal-facts > * { animation: revealRise var(--motion-med) var(--ease-out) backwards; }
+  .unlock-reveal-facts > *:nth-child(2) { animation-delay: calc(var(--stagger-step) * 1); }
+  .unlock-reveal-facts > *:nth-child(3) { animation-delay: calc(var(--stagger-step) * 2); }
+  .unlock-reveal-facts > *:nth-child(4) { animation-delay: calc(var(--stagger-step) * 3); }
   .purchase-list > * { animation: revealRise var(--motion-slow) var(--ease-out) backwards; }
   .purchase-list > *:nth-child(2) { animation-delay: calc(var(--stagger-step) * 1); }
   .purchase-list > *:nth-child(3) { animation-delay: calc(var(--stagger-step) * 2); }

@@ -306,7 +306,7 @@ stays open until the remaining depth items are called done.
 
 ### M7 — "Premium" (monetization) — **issue #238**
 
-> Post-unlock value presentation (why the buy feels worth it) and the creator-growth-loop shape are researched with citations in `docs/commercial/RESEARCH-2026-09-18-creator-market-and-paywall-value.md`; the buildable items were I-20…I-27, of which **I-20**, **I-21**, **I-9**, **I-10**, **I-11** and **I-13** have shipped (see the shipped record below) — I-22…I-27 remain in the bank.
+> Post-unlock value presentation (why the buy feels worth it) and the creator-growth-loop shape are researched with citations in `docs/commercial/RESEARCH-2026-09-18-creator-market-and-paywall-value.md`; the buildable items were I-20…I-27, of which **I-20**, **I-21**, **I-22**, **I-15**, **I-9**, **I-10**, **I-11** and **I-13** have shipped (see the shipped record below) — I-23…I-27 remain in the bank.
 Gateway integration (Razorpay fits INR), order/entitlement tables + webhook,
 purchase state, unlock flow replacing placeholder toasts: **all shipped** — the
 rail landed in v0.61.0 (PR #251) and its paywall is enforced server-side, and
@@ -392,10 +392,8 @@ unbuilt). **Before picking up a row, and before quoting one in a plan, confirm i
 |---|---|---|---|
 | I-12 | Price history | M7 (schema) | The BOOKS are already right — `purchase_orders.price_snapshot_inr` is written at checkout and copied to `entitlements.amount_paid_inr`, so no sale is re-priced by a later edit. What remains is the creator-facing trail of their own price changes; I-24 still reads from it. |
 | I-14 | Payout method + KYC management | M7 (schema) | Bank/UPI + legal name + PAN on profiles — M7's biggest schema lift. |
-| I-15 | Unlock conversion funnel | M7, then events | Views → premium unlocks per publication; needs entitlement events from M7 first. |
 | I-16 | Cross-device Trip DNA persistence | M6/M7 infra | The engine is **done** (category mix, detour tolerance, stop-length dims, cross-trip device learning). What remains is persistence: a `user_dna` table + RLS so the profile survives a device change. Deliberately parked on infrastructure, not an engine gap. |
 | I-18 | `overdrive` on the four authored surfaces | the owner's direction pick | The v0.60.0 pass scoped `overdrive` for Landing/PlanBench, the Trip Ticket (Create Trip), the Overview hero and the public-itinerary editorial, and deliberately ran without it: the command's contract forbids writing code before 2–3 directions are presented and one is picked, and requires browser iteration plus a banner. Nothing overdrive-shaped has been built anywhere. |
-| I-22 | Publication funnel UI | E3 instrumentation | Per-pub views→forks→sales funnel with preview→sale conversion, against a benchmark once measured. The events do not exist to read yet (research §5). |
 | I-24 | Pricing assistant | I-12 price history | Per-day anchor ("6 days · ₹83/day"), the ₹99–499 band, and a price-change trail. |
 | I-26 | Creator levels | I-25 reviews | Progress strip (portfolio, sales, ratings) with tier perks (Explore placement). |
 
@@ -485,6 +483,28 @@ Kept as one line each so the origin is traceable without re-listing the work as 
   body, or an id that is not a UUID. Offered on **My purchases** as a row action and, last and
   quietest, in the unlock reveal; withheld for a withdrawn plan, because unpublishing deletes the
   row and the link would preview as nothing.
+- **Idea bank I-22 + I-15 — the funnel has something to read** — [Unreleased]. Source:
+  [`docs/commercial/RESEARCH-2026-09-18-creator-market-and-paywall-value.md`](docs/commercial/RESEARCH-2026-09-18-creator-market-and-paywall-value.md)
+  §5. The bank named its own blocker ("the events do not exist to read yet") and was precise
+  about which: `entitlements` rows are already dated, per-buyer and per-publication, so the SALE
+  stage needed no new recording at all — a second copy would have been a second source of truth
+  for the same sale. What could not be read was views and forks: `published_itineraries.views` /
+  `.copies` are LIFETIME counters with no time dimension, they count different things (a view is
+  deduped to one per browser session and skips the creator's own visits; a fork was a raw event
+  count with neither), and they live on the row unpublishing deletes. So the recording landed:
+  `pub_events` (migration `20260921_pub_funnel_events.sql`, **not yet applied** — run it in the
+  SQL editor before this reaches a deployed environment), one dated row per step, written by the
+  SAME function that moves the counter so the two cannot drift, holding `pub_id`, kind and time
+  and nothing about a person. The Overview tab reads it per day through the creator-scoped
+  `get_creator_funnel` and shows **Visits → Forks → Unlocks** over a 7/30/90-day window, each
+  step with its conversion and each publication's own all-time totals beside it — the counters
+  predate the log, so a window figure without its lifetime context is not a reading a creator
+  can act on. Two things it refuses to pretend: the stages are not monotone, because a fork rate
+  can honestly exceed 100% (Explore's card carries its own Fork CTA while a visit is counted once
+  per session on the plan's own page), and a publication the log has never reported says exactly
+  that instead of printing three zeroes that read as a measurement. The fork counter also stopped
+  counting a creator forking their own plan — the view counter had always refused it, so the two
+  stages had disagreed about who a reader is.
 - **The console can read the platform's own books** — [Unreleased]. Source: the Analytics tab's
   own promise since v0.46.0 ("the revenue row … is still to come here"), now deleted. Entitlements
   are owner-scoped by RLS and deliberately absent from the hydrated cache, so the platform's cut

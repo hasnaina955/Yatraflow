@@ -852,3 +852,33 @@ describe('a flex row under pressure gives up the right part', () => {
     expect(source('src/pages/trip/TripSettingsForm.tsx')).toContain('bench-block bench-mode-block')
   })
 })
+
+describe('a class name has one owner: a new block may not claim an existing one', () => {
+  // The Landing page's scroll-reveal utility IS the bare `.reveal` class —
+  // `body.reveal-armed .reveal` in the stylesheet, nine elements in
+  // `Landing.tsx` (the section title, three feature cards, four steps), armed
+  // by one IntersectionObserver. I-20's unlock sheet shipped its own `.reveal`
+  // block; being later in the file, it won on equal specificity, so every one
+  // of those elements was silently re-laid-out as a flex column with the
+  // sheet's padding and each of their children took the sheet's stagger
+  // animation. No node test can see that and neither the contrast nor the
+  // spacing gate can either — the only thing that caught it was rendering the
+  // Landing page — so the collision is pinned here instead. Render the page
+  // when you rename CSS: the gates all stayed green through this.
+  it('never selects a bare `.reveal` — that one belongs to the Landing page', () => {
+    const offenders: string[] = []
+    for (const rule of cssRules) {
+      for (const part of rule.selector.split(',')) {
+        const sel = part.trim().replace(/\s+/g, ' ')
+        // Exactly `.reveal`, optionally with one pseudo — the shape a block
+        // claims for its own root. `body.reveal-armed .reveal`, `.reveal-d1`
+        // and the namespaced `.unlock-reveal*` family are all legitimate.
+        if (/^\.reveal(?::[\w-]+)?$/.test(sel)) offenders.push(sel)
+      }
+    }
+    expect(
+      offenders,
+      "these rules claim the Landing page's `.reveal` class — namespace the new block instead (e.g. `.unlock-reveal`)",
+    ).toEqual([])
+  })
+})

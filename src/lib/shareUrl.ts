@@ -36,3 +36,31 @@ export function syncPublicAddress(): void {
 export function currentPublicShareUrl(pubId: string): string {
   return publicShareUrl(pubId, location.origin, Capacitor.isNativePlatform())
 }
+
+/**
+ * The buyer's own card address (ROADMAP I-21): the publication, plus the
+ * entitlement that proves the purchase.
+ *
+ * The parameter is a REQUEST to be verified, never a claim the client gets to
+ * make: `api/i.js` renders the "I bought …" framing only when the database
+ * confirms that this entitlement is for this publication, and otherwise serves
+ * the creator's card. So an unverified address is still safe to hand a crawler —
+ * that is the whole reason the framing can be trusted when it does appear.
+ */
+export function buyerShareUrl(pubId: string, entitlementId: string, origin: string, native = false): string {
+  return `${publicShareUrl(pubId, origin, native)}?buyer=${encodeURIComponent(entitlementId)}`
+}
+
+export function currentBuyerShareUrl(pubId: string, entitlementId: string): string {
+  return buyerShareUrl(pubId, entitlementId, location.origin, Capacitor.isNativePlatform())
+}
+
+/**
+ * What a buyer posts alongside it. Deliberately one sentence: the card
+ * underneath carries the plan's own facts, and the buyer's own words sit above
+ * it — so this adds the claim they are making and nothing they did not say,
+ * which is why it carries no price and no numbers.
+ */
+export function purchaseShareMessage(title: string, url: string): string {
+  return `I bought the "${title}" plan on YatraFlow — you can see it here: ${url}`
+}

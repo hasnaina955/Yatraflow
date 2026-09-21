@@ -14,7 +14,7 @@ import { Select } from '../../components/Select'
 import { DetourWhisk } from '../../components/DetourWhisk'
 import { useSuggestionCache, isMapCacheFresh } from '../../hooks/useSuggestionCache'
 import { openExternal } from '../../lib/native'
-import { corridorAnchors, detourKm, asymmetricDetourMinutes, googleEnabled, planJourneyHalts, reasonForSegmentHit, searchPlacesText, searchNearbyPoisMulti, kmFromStartForHit, planDriveDays, planTravelClock, rainFactorFor, requireHitCoords, directionalKm, alongRouteKmOf, DEFER_START, type NearbyOpts, type PlaceHit, type TravelClockVerdict, routeHash } from '../../lib/geocode'
+import { corridorAnchors, detourKm, asymmetricDetourKm, asymmetricDetourMinutes, googleEnabled, planJourneyHalts, reasonForSegmentHit, searchPlacesText, searchNearbyPoisMulti, kmFromStartForHit, planDriveDays, planTravelClock, rainFactorFor, requireHitCoords, directionalKm, alongRouteKmOf, DEFER_START, type NearbyOpts, type PlaceHit, type TravelClockVerdict, routeHash } from '../../lib/geocode'
 import { deriveClockMilestones } from '../../lib/clockOverlay'
 import { isSightCategory, roadProfileFromLegs, loopProfile } from '../../lib/ridePlan'
 import { QuotaExhaustedError } from '../../lib/providers/google'
@@ -200,7 +200,22 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
   const [searchQ, setSearchQ] = useState('')
   const [searchResults, setSearchResults] = useState<{ h: PlaceHit; km: number | null; off: number | null }[]>([])
   const [searching, setSearching] = useState(false)
+  // "show all N" — the rail lists 5 by default; this unfolds the rest.
+  const [showAllResults, setShowAllResults] = useState(false)
   const listRef = useRef<HTMLDivElement | null>(null)
+  // Monotonic search token: a slow earlier query must never clobber the rows of
+  // a newer one that resolved first (out-of-order responses).
+  const searchSeq = useRef(0)
+  // Search hits join the corridor ideas on the map so a hovered result row
+  // eases the camera to its pin and draws its spur — the same cross-highlight
+  // the suggestion rail already has. Deduped by id (a place can be BOTH a
+  // corridor idea and a search hit) and empty until a search lands, so the map
+  // is unchanged when nobody is searching.
+  const mapPois = useMemo(() => {
+    const corridor = pois.flatMap(p => (p.hit ? [p.hit] : []))
+    const seen = new Set(corridor.map(h => h.id))
+    return [...corridor, ...searchResults.map(r => r.h).filter(h => !seen.has(h.id))]
+  }, [pois, searchResults])
 
   const existingNames = useMemo(() => {
     const names = new Set<string>()
@@ -920,11 +935,18 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
       .map(s => ({ key: s.key, label: `Add as ${s.label}`, noun: s.label.toLowerCase() }))
   }
 
-  function openAddModal(hit: PlaceHit) {
-    // Pick-day default: an unknown position can't preselect honestly, so fall
-    // back to the first day — the picker is user-adjustable, so nothing is
-    // attributed silently (unlike the old dayForKm Day-1 fallback).
-    setPickDay(dayForKm(hit.cumKm) ?? 0)
+  function openAddModal(hit: PlaceHit, kmOverride?: number | null) {
+    // Duplicate guard (#179 family): a place already in the plan (matched by
+    // title) can't be added again from ANY path — the map-pin "+", a search
+    // row, or the shortlist tray — so the modal never opens for a repeat.
+    if (existingNames.has(hit.name.toLowerCase())) { toast(`“${hit.name}” is already in your trip.`); return }
+    // Pick-day default: prefer the caller's road position (search rows pass the
+    // along-route km they already measured — searchPlacesText hits carry NO
+    // cumKm, so reading hit.cumKm alone always defaulted to Day 1), else the
+    // hit's own ride-plan cumKm (corridor pins). An unknown position can't
+    // preselect honestly, so fall back to the first day — the picker is
+    // user-adjustable, so nothing is attributed silently.
+    setPickDay(dayForKm(kmOverride ?? hit.cumKm) ?? 0)
     setPoiDraft({ hit })
   }
 
@@ -1011,6 +1033,9 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     e.preventDefault()
     const q = searchQ.trim()
     if (q.length < 2) return
+    // Claim this as the latest search; a slower earlier query that resolves
+    // later is ignored so it can never overwrite the newer rows.
+    const mySeq = ++searchSeq.current
     setSearching(true)
     try {
       // searchPlacesText (NOT searchPlaces): this surface ranks and annotates
@@ -1019,25 +1044,34 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
       // (live 2026-09-14: five different places all read "~1675 km · 8448 km
       // off-route" because they shared the placeholder).
       const hits = await searchPlacesText(q)
+      if (mySeq !== searchSeq.current) return // a newer search superseded this one
       // Trip/route/map aware (user ask): "coffee on my route", not coffee
       // everywhere in India. Each hit is projected onto this trip's road and
       // ranked by detour (then road position); anything beyond the current
       // detour scope renders muted and the toast says why.
+      // asymmetricDetourKm measures the perpendicular spur against the DRAWN
+      // polyline (road-true) and only falls back to straight-line-to-anchor
+      // when the road isn't measured — detourKm over-counts hits that sit
+      // between two anchors.
       const ranked = hits
-        .map(h => ({ h, km: routeKmOf(h.latitude, h.longitude), off: detourKm(h, anchors) }))
+        .map(h => ({ h, km: routeKmOf(h.latitude, h.longitude), off: asymmetricDetourKm(h, anchors, routePolyline) }))
         .sort((a, b) => (a.off ?? 9999) - (b.off ?? 9999) || (a.km ?? 0) - (b.km ?? 0))
+      setShowAllResults(false)
       setSearchResults(ranked)
       const onScope = ranked.filter(en => en.off != null && en.off <= scopeKm)
       if (hits.length === 0) toast('No places found for that search.')
-      else if (onScope.length === 0) toast(`Nothing for “${q}” within your ${scopeKm} km detour scope — widen the slider and search again.`)
+      else if (onScope.length === 0) toast(`Nothing for “${q}” within your ${scopeKm} km detour scope — widen the detour-scope slider to see them.`)
     } catch (err) {
+      if (mySeq !== searchSeq.current) return
       if (err instanceof QuotaExhaustedError) {
         toast('Google Places monthly cap reached — text search stays paused until the counter rolls over. Remove the key to search the free stack.', 'err')
       } else {
         toast('Search failed — try again.', 'err')
       }
     } finally {
-      setSearching(false)
+      // Only the newest search owns the spinner; a superseded one leaves the
+      // newer request's "searching" state untouched.
+      if (mySeq === searchSeq.current) setSearching(false)
     }
   }
 
@@ -1494,34 +1528,46 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
           Live data from {googleEnabled() ? 'Google Places' : 'OpenStreetMap, Wikipedia & Mappls'}: ideas are clock-anchored — lunch lands in the 11:30–14:30 window, stretch breaks follow wheel time, fuel rides your tank’s rhythm, and long drives end at a real city for the night. Every pick is checked against your detour budget. Never around your starting point.
         </p>
         <form className="row-between" style={{ gap: 8, marginBottom: 8 }} onSubmit={onSearch}>
-          <input className="input" value={searchQ} onChange={e => {
+          <input className="input" value={searchQ} disabled={quotaOut} onChange={e => {
             setSearchQ(e.target.value)
             // #164: stale results from a PREVIOUS query must not sit visible
             // under the new one while typing — clear on edit.
-            if (searchResults.length > 0) setSearchResults([])
+            if (searchResults.length > 0) { setSearchResults([]); setShowAllResults(false) }
           }}
             placeholder="Search anything to add — a trek, a homestay, a petrol pump…"
             aria-label="Search places to add to the trip" style={{ flex: 1 }} />
-          <button className="btn btn-outline btn-sm" type="submit" disabled={searching} style={{ flex: '0 0 auto' }}>
-            {searching ? 'Searching…' : 'Search'}
+          <button className="btn btn-outline btn-sm" type="submit" disabled={searching || quotaOut}
+            title={quotaOut ? 'Google Places monthly cap reached — remove the key to search the free stack' : undefined}
+            style={{ flex: '0 0 auto' }}>
+            {searching ? 'Searching…' : quotaOut ? 'Search paused' : 'Search'}
           </button>
         </form>
+        {/* Quota honesty: say why the box is paused instead of a dead control. */}
+        {quotaOut && (
+          <p className="muted small" role="status" style={{ margin: '0 0 8px' }}>Google Places monthly cap reached — text search is paused until the counter rolls over. Remove the key to search the free stack.</p>
+        )}
         {/* #164: the short-query state was silent — say why nothing happens. */}
         {searchQ.trim().length > 0 && searchQ.trim().length < 2 && (
           <p className="muted small" role="status" style={{ margin: '0 0 8px' }}>Keep typing — search starts at 2 characters.</p>
         )}
         {searchResults.length > 0 && (
-          <div className="map-search-results" style={{ marginBottom: 10 }} role="list" aria-label={`Search results (${Math.min(5, searchResults.length)} of ${searchResults.length} shown)`}>
-            {searchResults.slice(0, 5).map(({ h, km, off }) => {
+          <div className="map-search-results" style={{ marginBottom: 10 }} role="list" aria-label={`Search results (${Math.min(showAllResults ? searchResults.length : 5, searchResults.length)} of ${searchResults.length} shown)`}>
+            {searchResults.slice(0, showAllResults ? searchResults.length : 5).map(({ h, km, off }) => {
               const inScope = off != null && off <= scopeKm
               // SB2: the same membership guard every other rail row uses
               // (renderLedgerRow, and the card before it). Without it this row
               // was the one place that would happily add the same place twice.
               const added = addedIds.has(h.id as string) || existingNames.has(h.name.toLowerCase())
               return (
-                <div key={h.id as string} className="row-between" style={{ padding: '5px 2px', borderBottom: '1px solid var(--line)', opacity: inScope ? undefined : 0.6 }}>
+                <div key={h.id as string} role="listitem" className="row-between"
+                  onMouseEnter={() => setActiveHitId(h.id as string | number)}
+                  onMouseLeave={() => setActiveHitId(cur => (cur === (h.id as string | number) ? null : cur))}
+                  style={{ padding: '5px 2px', borderBottom: '1px solid var(--line)', opacity: inScope ? undefined : 0.6 }}>
                   <span className="small" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {h.name}{h.nearestCity ? ` · ${h.nearestCity}` : ''}
+                    {/* Google hits carry a trusted rating + reported hours — surface them. */}
+                    {h.rating != null && (h.ratingCount ?? 0) >= 10 ? ` · ${h.rating.toFixed(1)}★` : ''}
+                    {(h.openTime || h.closeTime) ? ` · ${formatHMRange(h.openTime, h.closeTime, timeFormat)}` : ''}
                     <span className="muted">{' — '}
                       {(() => {
                         const labelled = kmLabelFor(km)
@@ -1552,13 +1598,18 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
                           }}
                         >{o.label}</button>
                       ))}
-                      <button className="btn btn-primary btn-sm" type="button" onClick={() => openAddModal(h)}>+ Add</button>
+                      <button className="btn btn-primary btn-sm" type="button" onClick={() => openAddModal(h, km)}>+ Add</button>
                     </span>
                   ))}
                 </div>
               )
             })}
           </div>
+        )}
+        {searchResults.length > 5 && (
+          <button type="button" className="btn btn-outline btn-sm" style={{ marginBottom: 10 }} onClick={() => setShowAllResults(v => !v)}>
+            {showAllResults ? 'Show top 5' : `Show all ${searchResults.length}`}
+          </button>
         )}
         <div className="row-between" style={{ gap: 12, marginBottom: 10, flexWrap: 'wrap' }}>
           <label className="small" style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 230 }}>
@@ -1904,7 +1955,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
           <div className="map-ideas-map">
             <TripMap
               trip={trip}
-              nearbyPois={pois.flatMap(p => p.hit ? [p.hit] : [])}
+              nearbyPois={mapPois}
               onAddNearby={editable ? (hit) => openAddModal(hit) : undefined}
               activeHitId={activeHitId}
               onActivateHit={setActiveHitId}

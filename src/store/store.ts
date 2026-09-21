@@ -17,6 +17,7 @@ import type { LatLngPoint } from '../data/types'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
 import { toast } from '../components/ui'
 import { isMissingColumnError, rowToTrip, tripToRow, type OptionalColumnsProbe, type TripRow } from '../lib/tripRow'
+import { attachDnaAccount, detachDnaAccount } from '../lib/tripDna'
 import { ownSuggestedCover, unclaimedCovers } from '../lib/coverUpload'
 import { makeInviteCode, normalizeInviteCode } from '../lib/inviteCode'
 import { suggestionToRow, decisionToRow, activityToRow, notificationToRow, publishedToRow } from '../lib/restoreRows'
@@ -361,6 +362,9 @@ export function init(): void {
       // Serialized like the signed-in path: getSession + onAuthStateChange both
       // fire hydrate(null) on a cold load, which used to double-fetch.
       disconnectRealtime()
+      // I-16 — signed out: drop the account's Trip DNA log from memory, so the
+      // next person on this device never inherits the last one's profile.
+      detachDnaAccount()
       if (activeHydrate && activeHydrate.userId === null) { await activeHydrate.promise; return }
       const anonPromise = (async () => {
       try {
@@ -397,6 +401,10 @@ export function init(): void {
     // Only go live for the account the cache still belongs to: a sign-out or an
     // account switch during the hydration above bumped hydrateGen.
     if (gen === hydrateGen && cache.sessionUserId === userId) connectRealtime(userId)
+    // I-16 — fold the account's Trip DNA into this device's log. Best-effort and
+    // probe-gated (no `user_dna` table → device-local, exactly as before), and
+    // fired after realtime so a slow DNA read never delays the workspace.
+    if (gen === hydrateGen && cache.sessionUserId === userId) void attachDnaAccount(supabase, userId)
   }
 
   supabase.auth.getSession().then(({ data }) => {
@@ -2527,12 +2535,20 @@ export function registerPubView(id: ID): void {
 
 export function registerPubCopy(id: ID): void {
   const p = cache.published.find(x => x.id === id)
-  if (p) {
-    cache.published = cache.published.map(x => x.id === id ? { ...x, copies: x.copies + 1 } : x)
-    commit()
-    // Use RPC function that bypasses RLS - anyone can increment counters now.
-    fire('published_itineraries', supabase.rpc('bump_published_stats', { p_id: id, p_kind: 'copies' }))
-  }
+  if (!p) return
+  // Same exclusion as the view counter above, and for the same reason: a
+  // creator forking their OWN plan is testing it, not being converted by it.
+  // Without this the funnel's fork stage counted a step its view stage had
+  // already refused to count, so the two stages disagreed about who a reader
+  // is — and a fork rate over that is not a conversion rate.
+  if (cache.sessionUserId && p.creatorId === cache.sessionUserId) return
+  cache.published = cache.published.map(x => x.id === id ? { ...x, copies: x.copies + 1 } : x)
+  commit()
+  // Use RPC function that bypasses RLS - anyone can increment counters now.
+  // The same call also records the dated funnel event (see
+  // supabase/migrations/20260921_pub_funnel_events.sql), so the lifetime
+  // counter and the funnel log cannot drift.
+  fire('published_itineraries', supabase.rpc('bump_published_stats', { p_id: id, p_kind: 'copies' }))
 }
 
 // ---------------- Feed & notifications ----------------

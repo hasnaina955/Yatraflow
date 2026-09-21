@@ -171,7 +171,7 @@ and date), per the AGENTS §6 same-edit rule. Detail lives in
 - [x] **M4** — Design-system hygiene: dead CSS purge, mobile-block consolidation, glass/z-index tokens (in [Unreleased], local branch redesign/perf-architecture; raw-rgba glass stragglers intentionally NOT migrated — see commit `f646b45`)
 - [x] **M0 defect** — seed guard: skip demo seeding when hydration had query errors (#94, v0.49.0 — `store.ts` gates the seed on `!tripCountUnknown`)
 - [ ] **M5** — AI companion: user-configurable LLM endpoint (#22 → #20 — **both issues closed; not yet scheduled**)
-- [ ] **M6** — Together: integration test suite shipped (v0.61.0); co-editing depth landed on `test` (v0.62.0, PR #265 — presence, stale-update guard, remote-edit banner, mark-settled); remaining: the track's follow-ups (I-19 settled-lines product call, cross-device DNA persistence I-16)
+- [ ] **M6** — Together: every named item shipped — integration/RLS suite (v0.61.0); co-editing depth (v0.62.0, PR #265 — presence, stale-update guard, remote-edit banner, mark-settled, plus the Board/socket-gap follow-up `e5bba2a`); I-6/I-7 (v0.64.0); I-19 (open-lines balances) and I-16 (cross-device Trip DNA) in `[Unreleased]`. What is left is a human step, not code: the two-account presence confirmation pass, after which issue #237 closes
 - [x] **M10** — Day Planner / travel clock: the engine line shipped through P1-G (plan doc implemented, Sep 13) and the map half — clock anchors, planned-stop arrival chips, return-leg labels, living-plan day states, named overnight halts and tap-to-day — is on `test` (released as **v0.63.0** on 2026-09-20, **PR #262**); no open phases remain named in the plan doc
 - [ ] **M7** — Premium: payment gateway, entitlements, unlock flow
 - [ ] **M9** — Invites & onboarding: creator invites (R1) → referral (R2) → invite-only gate (R3); three releases on `platform_invites`, exec plan in [`docs/PLAN-INVITES-ONBOARDING.md`](docs/PLAN-INVITES-ONBOARDING.md). *Added to the ledger 2026-09-11 — it previously existed only as a track section, so it was invisible to any pending list derived from these checkboxes.*
@@ -292,24 +292,46 @@ see [Open issues](#open-issues) — fourteen issues are open (2026-09-16).
 Supabase integration/RLS test suite first (opt-in `VITE_RUN_INTEGRATION`,
 ~3h — old item #10), then live multi-user editing sync. Split-expense
 settlement groundwork (payer tagging + balances card) shipped in v0.36.0;
-M6 adds the multi-currency-free refinement and co-editing depth on top.
+M6 adds settlement refinement and co-editing depth on top. *(An earlier heading
+promised a "multi-currency-free refinement"; no such work was ever scoped or built —
+the budget and settlement maths are INR-only end to end, and `currency` appears nowhere
+in them in `src/`.)*
 
-**State (2026-09-20): the co-editing half has landed on `test` (v0.62.0, PR #265).**
-Two of the track's three legs are now real: the integration/RLS suite shipped in
-v0.61.0 (37/37 against the live database, presence probe included), and PR-B brought
-the co-editing depth — B0 write integrity (debounced flush persists the snapshot
-captured at call time), B2 stale-update guard (server-derived timestamp ledger + the
-`trips_touch_updated_at` trigger, applied live), B1 presence (avatar row via Supabase
-presence channels), B3 remote-edit banner (keep-mine / take-theirs), B4 mark-settled
-(a record on the expense line — balances math unchanged; see I-19). Issue #237
-stays open until the remaining depth items are called done.
+**State (2026-09-21): every named item in the track has shipped.** The integration/RLS
+suite landed in v0.61.0 (37/37 against the live database, presence probe included), and
+the co-editing depth in v0.62.0 (**PR #265**) — B0 write integrity (the debounced flush
+persists the snapshot captured at call time), B2 stale-update guard (server-derived
+timestamp ledger + the `trips_touch_updated_at` trigger, applied live), B1 presence
+(avatar row via Supabase presence channels), B3 remote-edit banner (keep-mine /
+take-theirs), B4 mark-settled. A follow-up commit (`e5bba2a`, 2026-09-20) carried the
+banner to the Board — until then `BoardView` opened the same stop editor with no conflict
+surface — and made a socket-gap re-join replay the rows changed while away. The two
+adjacent idea-bank rows followed: **I-6** (settlement acknowledgement + reminder) and
+**I-7** (decision comments) in v0.64.0, then **I-19** (settled lines genuinely leave the
+balances) and **I-16** (Trip DNA across devices) in `[Unreleased]` — so all four have left
+the idea bank.
+
+**The one thing M6 still owes is a two-account confirmation pass, not code.** The
+manual-pass follow-up on presence needs two *distinct* accounts on one trip — presence
+excludes your own session by design, so a second tab of the same account can never show
+an avatar — and that check cannot run from the dev shell (no outbound HTTP), so it stays a
+human step. Issue #237 closes when it is called done. Full build record and both
+follow-up verdicts: [`docs/PLAN-TOGETHER-M6.md`](docs/PLAN-TOGETHER-M6.md).
 
 ### M7 — "Premium" (monetization) — **issue #238**
 
-> Post-unlock value presentation (why the buy feels worth it) and the creator-growth-loop shape are researched with citations in `docs/commercial/RESEARCH-2026-09-18-creator-market-and-paywall-value.md`; the buildable items are I-20…I-27 below.
+> Post-unlock value presentation (why the buy feels worth it) and the creator-growth-loop shape are researched with citations in `docs/commercial/RESEARCH-2026-09-18-creator-market-and-paywall-value.md`; the buildable items were I-20…I-27, of which **I-20**, **I-21**, **I-22**, **I-15**, **I-9**, **I-10**, **I-11** and **I-13** have shipped (see the shipped record below) — I-23…I-27 remain in the bank.
 Gateway integration (Razorpay fits INR), order/entitlement tables + webhook,
-purchase state, unlock flow replacing placeholder toasts. Needs an external
-gateway account. Deliberately after M6's test-suite groundwork.
+purchase state, unlock flow replacing placeholder toasts: **all shipped** — the
+rail landed in v0.61.0 (PR #251) and its paywall is enforced server-side, and
+the fee model landed 2026-09-21 (I-13), and the console's Analytics tab now reads the platform's
+own books — gross, fee and net by week, charged per creator — through the admin-gated
+`admin_revenue` RPC, closing the revenue row it had promised since v0.46.0. These surfaces also
+have a local fixture at last (`scripts/seedCreatorFixture.mjs`: a creator, two priced
+publications and five backdated sales, whose ledger figures `tests/earnings.test.ts` pins), so
+the hub, the runs ledger and the publish editor can be rendered rather than only asserted.
+What is genuinely still open here is not engineering: **F6 (#234)** — the CA call on the merchant of record — which is the
+one row of this milestone no commit can close.
 
 ### M8 — 1.0 enablers → the 1.0 cut — **issue #239**
 Offline-first (IndexedDB + service worker/PWA, ~4–6h), i18n (EN + HI, ~6–8h),
@@ -362,7 +384,7 @@ unbuilt). **Before picking up a row, and before quoting one in a plan, confirm i
 
 ### Tier 1 — ready to pick up (small, unblocked)
 
-> **Heads-up (2026-09-19, M6 B4):** "mark settled" shipped as a RECORD on an expense line — the line stays in the running balances, because the card's fair share is the engine estimate split per head and dropping a settled line's credit while it still sits inside the estimate breaks the zero-sum who-owes-whom maths. I-19 is the follow-up that would make settled lines genuinely leave.
+> **Resolved (2026-09-21):** "mark settled" shipped first as a RECORD on an expense line, because the card's fair share was the engine estimate split per head — dropping a settled line's credit while it still sat inside that estimate broke the zero-sum who-owes-whom maths. I-19 re-based the card onto the open lines, so a settled line now genuinely leaves both sides (shipped record below).
 
 | # | Idea | Area | Effort | Note |
 |---|---|---|---|---|
@@ -373,9 +395,6 @@ unbuilt). **Before picking up a row, and before quoting one in a plan, confirm i
 | I-5 | Category envelopes | budget | 3–4 h | Per-category cap (₹) with progress state on the "Where the money goes" bars + a cap editor on the category row. Pattern: YNAB. |
 | I-8 | Monthly statements / invoice export | creator | 2–3 h | Downloadable per-month earnings summary, client-side from the payouts table. **Post-M7.** |
 | I-17 | Theme the text selection and the caret | design system | 1 h | `::selection` and `caret-color` are declared **nowhere** in `src/styles.css` — the UA's highlight blue and caret are the last unthemed browser surfaces in the app (found while scoping v0.60.0's craft-floor pass). Cheap to close with the app's own soft-tint pairing (`--teal-soft` + `--text`) and `caret-color: var(--teal-deep)`, but it is a feel change rather than a defect, so it wants a look first — and the baseline's line-keyed entries must be re-mapped in the same commit (AGENTS §4). |
-| I-19 | Settled lines genuinely leave the balances | budget | 3–4 h + product call | M6 B4 shipped "mark settled" as a record (settler + timestamp, history, activity) and the line STILL counts toward the running balances — deliberately: the card's fair share is `fairSharePerHead(travellers, totals.totalCostInr)` (the engine estimate split per head), so dropping a settled line's credit while it remains inside the estimate breaks the zero-sum property and the who-owes-whom transfers stop balancing. Doing it properly means re-basing what the card measures from "the trip estimate" to "the open lines" (fair share from open-line sums), with the settled history as a ledger view — a product decision about what the card should mean, not arithmetic. BudgetTab's `computeBalances` call passes the whole `trip.expenses`; the open/settled split currently styles the two lists only. |
-| I-20 | Unlock moment + owned library | creator | 1–2 days | Full-screen "you now own X" reveal with real computed stats (days/stops/km), then a persistent "My purchases" shelf (cover, creator, version badge, update marker) reachable from My Trips. Research: `docs/commercial/RESEARCH-2026-09-18…` §4. **Unblocked: #251 has merged, so the M7 rail and its unlock flow are live.** |
-| I-21 | Purchase share card | growth | 3–4 h | WhatsApp-sized "I bought the Spiti plan" og-image the buyer can post — buyers are the distribution channel (research §4.5). Depends on the share-card pipeline (`public/og-default.png`, `api/i.js`). |
 | I-23 | Publish-quality score | creator | 1 d | Checklist with nudges (cover photo, budget filled, notes density, preview-day choice) on the hub + Share tab. Ship, measure via I-22, then claim any lift (research §5). |
 | I-25 | Buyer reviews | creator | 2 d | Post-purchase ratings on itineraries: schema (reviews table + RLS), policy question (purchase-gated?) first. Feeds conversion, creator feedback, and I-26. |
 | I-27 | Hub presentation pass | creator | 1 d | KPI sparklines, activity feed ("Admin unlocked Spiti · 2h ago"), motion per `docs/MOTION-TOKENS.md`. The studio-dashboard pass over the existing Overview + Earnings. Research §5. |
@@ -384,16 +403,9 @@ unbuilt). **Before picking up a row, and before quoting one in a plan, confirm i
 
 | # | Idea | Blocked on | Note |
 |---|---|---|---|
-| I-9 | Payout-schedule card | M7 | "Next payout: Friday · clears ₹X once payments live" — the Earnings tab's `Next payout —` tile grows a date + threshold explainer. |
-| I-10 | Gross vs net split | M7 | Ledger rows already carry the columns; M7 adds the fee model + a gross/net toggle. |
-| I-11 | Per-publication revenue attribution | M7 | Sale rows join on `pub_id`; Overview rows gain an "earned" figure. |
-| I-12 | Price history | M7 (schema) | `premiumPriceInr` is overwritten on publish; correct books need a per-sale price snapshot or price-history rows. |
-| I-13 | Tiered platform fee | M7 (decision) | Fee % drops above a lifetime-earnings threshold — a pricing decision, surfaced in the fee column. Pattern: X's 90%-tier model. |
+| I-12 | Price history | M7 (schema) | The BOOKS are already right — `purchase_orders.price_snapshot_inr` is written at checkout and copied to `entitlements.amount_paid_inr`, so no sale is re-priced by a later edit. What remains is the creator-facing trail of their own price changes; I-24 still reads from it. |
 | I-14 | Payout method + KYC management | M7 (schema) | Bank/UPI + legal name + PAN on profiles — M7's biggest schema lift. |
-| I-15 | Unlock conversion funnel | M7, then events | Views → premium unlocks per publication; needs entitlement events from M7 first. |
-| I-16 | Cross-device Trip DNA persistence | M6/M7 infra | The engine is **done** (category mix, detour tolerance, stop-length dims, cross-trip device learning). What remains is persistence: a `user_dna` table + RLS so the profile survives a device change. Deliberately parked on infrastructure, not an engine gap. |
 | I-18 | `overdrive` on the four authored surfaces | the owner's direction pick | The v0.60.0 pass scoped `overdrive` for Landing/PlanBench, the Trip Ticket (Create Trip), the Overview hero and the public-itinerary editorial, and deliberately ran without it: the command's contract forbids writing code before 2–3 directions are presented and one is picked, and requires browser iteration plus a banner. Nothing overdrive-shaped has been built anywhere. |
-| I-22 | Publication funnel UI | E3 instrumentation | Per-pub views→forks→sales funnel with preview→sale conversion, against a benchmark once measured. The events do not exist to read yet (research §5). |
 | I-24 | Pricing assistant | I-12 price history | Per-day anchor ("6 days · ₹83/day"), the ₹99–499 band, and a price-change trail. |
 | I-26 | Creator levels | I-25 reviews | Progress strip (portfolio, sales, ratings) with tier perks (Explore placement). |
 
@@ -406,7 +418,7 @@ the bank is a complete index of unbuilt work:
 |---|---|---|
 | Public route at `/i/<id>` with no hash hop (option B) | [#226](#open-issues) | **Deferred.** The address-bar patch already keeps `/i/<id>#/pub/<id>` crawler-readable, so previews no longer need it. It would still drop the function round-trip on every refresh — and the interim "Opening this itinerary…" page that goes with it — by serving the app at the path the crawler already reads. Needs coordinated app routing, Vercel shell delivery, legacy hash-link handling and refresh/Back/Forward coverage; must not redirect `/i/<id>` to itself or fetch a different deployment's shell |
 | M5 — AI companion | [Strategic track](#m5--ai-companion--issue-236) | Next up; issues #22 → #20 |
-| M6 — Together | [Strategic track](#m6--together-collaboration-depth--issue-237) | RLS suite shipped (v0.61.0); co-editing depth shipped (v0.62.0) |
+| M6 — Together | [Strategic track](#m6--together-collaboration-depth--issue-237) | Every named item shipped — RLS suite (v0.61.0); co-editing depth (v0.62.0); I-6/I-7 (v0.64.0); I-19/I-16 (`[Unreleased]`). Open: the two-account presence confirmation pass |
 | M7 — Premium | [Strategic track](#m7--premium-monetization--issue-238) | Blocked: needs a gateway account |
 | M9 — Invites & onboarding | [`docs/PLAN-INVITES-ONBOARDING.md`](docs/PLAN-INVITES-ONBOARDING.md) | R1 → R2 → R3; exec plan written |
 | M10 — Day Planner (travel-clock engine) | [`docs/PLAN-DAY-PLANNER.md`](docs/PLAN-DAY-PLANNER.md) | Engine implemented through P1-G (Sep 13, 2026, per the plan doc’s §17 deltas); the map half — the travel clock drawn as living road labels (`lib/clockOverlay.ts`, 27 fixtures) — landed on `test` 2026-09-20 (**PR #262**, in `[Unreleased]`). Origin: fixes the short-trip suggestion silence (user feedback) and the 700-km-in-Day-1 gap — meals as fixed clock anchors, duration fatigue cap, derived drive days / night halts / defer proposals |
@@ -456,6 +468,102 @@ Kept as one line each so the origin is traceable without re-listing the work as 
   outstanding-total nudge over the open tagged lines completes the row · **Decision comments**
   (I-7): `decisions.comments` (`supabase/migrations/20260920_decision_comments.sql`, capability-probe
   gated like the party-prefs columns) with the same card language as suggestion comments.
+- **Idea bank I-20 — the unlock moment and the owned library** — [Unreleased]. Source:
+  [`docs/commercial/RESEARCH-2026-09-18-creator-market-and-paywall-value.md`](docs/commercial/RESEARCH-2026-09-18-creator-market-and-paywall-value.md)
+  §4. A purchase now lands on a full-screen reveal — the cover, the creator, and days / stops /
+  planned km / the engine's rebuilt per-person budget computed from the itinerary the buyer just
+  gained, plus the creator's tip count and a receipt of what was paid — with the fork CTA inside
+  it; and **My purchases** (`#/purchases`, linked from My Trips): cover, creator, length, the
+  entitlement's own price snapshot, purchase date, newest first, an update chip on any plan its
+  creator has refreshed since (`refreshed_at`), a withdrawn publication kept as a "no longer
+  listed" row instead of dropped, and a failed read shown as an error rather than "nothing bought
+  yet". Both surfaces derive from one pure module (`src/lib/purchases.ts`). The build found and
+  fixed a defect on the money path, unrelated to the shelf: the public page never re-read the
+  itinerary after an unlock, so a buyer kept rendering the wire-stubbed pre-purchase copy —
+  titles and coordinates over emptied days — until a manual reload.
+- **Idea bank I-21 — the buyer's card** — [Unreleased]. Source:
+  [`docs/commercial/RESEARCH-2026-09-18-creator-market-and-paywall-value.md`](docs/commercial/RESEARCH-2026-09-18-creator-market-and-paywall-value.md)
+  §4.5 ("buyers are the distribution channel"). `/i/<id>?buyer=<entitlement>` serves a
+  buyer's variant of the share card — "I bought <plan>" over the plan's own days, budget and
+  route, on the plan's own stored cover (or the brand card), reusing the shipped `api/i.js`
+  pipeline rather than compositing a per-buyer image (no renderer sits behind the function, and
+  an image making the purchase claim is the part that must be verifiable). The claim is verified
+  rather than trusted: the new `owns_publication()` answers one boolean and the handler renders
+  the framing only on a literal `true`, falling back to the creator's card for every other
+  answer — the function absent (migration `20260921_purchase_share_card.sql`, **not yet applied**:
+  run it in the SQL editor before this reaches a deployed environment), a timeout, a non-boolean
+  body, or an id that is not a UUID. Offered on **My purchases** as a row action and, last and
+  quietest, in the unlock reveal; withheld for a withdrawn plan, because unpublishing deletes the
+  row and the link would preview as nothing.
+- **Idea bank I-22 + I-15 — the funnel has something to read** — [Unreleased]. Source:
+  [`docs/commercial/RESEARCH-2026-09-18-creator-market-and-paywall-value.md`](docs/commercial/RESEARCH-2026-09-18-creator-market-and-paywall-value.md)
+  §5. The bank named its own blocker ("the events do not exist to read yet") and was precise
+  about which: `entitlements` rows are already dated, per-buyer and per-publication, so the SALE
+  stage needed no new recording at all — a second copy would have been a second source of truth
+  for the same sale. What could not be read was views and forks: `published_itineraries.views` /
+  `.copies` are LIFETIME counters with no time dimension, they count different things (a view is
+  deduped to one per browser session and skips the creator's own visits; a fork was a raw event
+  count with neither), and they live on the row unpublishing deletes. So the recording landed:  `pub_events` (migration `20260921_pub_funnel_events.sql`, applied 2026-09-21), one dated row per step,
+  written by the
+  SAME function that moves the counter so the two cannot drift, holding `pub_id`, kind and time
+  and nothing about a person. The Overview tab reads it per day through the creator-scoped
+  `get_creator_funnel` and shows **Visits → Forks → Unlocks** over a 7/30/90-day window, each
+  step with its conversion and each publication's own all-time totals beside it — the counters
+  predate the log, so a window figure without its lifetime context is not a reading a creator
+  can act on. Two things it refuses to pretend: the stages are not monotone, because a fork rate
+  can honestly exceed 100% (Explore's card carries its own Fork CTA while a visit is counted once
+  per session on the plan's own page), and a publication the log has never reported says exactly
+  that instead of printing three zeroes that read as a measurement. The fork counter also stopped
+  counting a creator forking their own plan — the view counter had always refused it, so the two
+  stages had disagreed about who a reader is.
+  Shipped since, as follow-ups: the plan's OWN public page shows its creator the same funnel over the last 7 days
+  (one derivation and one window rule shared with the hub, so the two cannot disagree, and a visitor's session runs
+  none of the reads); the counters-versus-log gap is a stated number with a one-sentence explanation on both surfaces,
+  never negative, silent when aligned and silent on a failed read; and `pub_events` prunes itself past the reader's own
+  730-day horizon (`20260922_pub_events_retention.sql` — apply, then run `select public.prune_pub_events();` once; the
+  pg_cron schedule is the optional commented block), with the horizon pairing pinned in the RLS contract test. The
+  fixture's plumbing moved to `scripts/fixtureKit.mjs` so the next session-gated surface seeds from the same harness.
+- **The console can read the platform's own books** — [Unreleased]. Source: the Analytics tab's
+  own promise since v0.46.0 ("the revenue row … is still to come here"), now deleted. Entitlements
+  are owner-scoped by RLS and deliberately absent from the hydrated cache, so the platform's cut
+  had no client-side source and needed a read of its own: the admin-gated `admin_revenue` RPC
+  (migration `20260921_admin_revenue.sql`, **not yet applied** — run it in the SQL editor before
+  this reaches a deployed environment) returns facts only — when, how much, which publication,
+  which creator — and never a buyer, because revenue reporting needs amounts, dates and payees
+  rather than identities. The client applies the fee ladder **once per creator** through the same
+  `buildSalesLedger` a creator's own earnings tab uses, so the platform's cut IS the sum of the
+  creators' charges and the two figures cannot drift; one ladder over the platform's total would
+  understate the cut, since that total crosses ₹25,000 long before most creators' do. The tab
+  shows gross / platform fee / creator net / sales over one row per weekly run, and it reports a
+  failed read rather than a ₹0 it cannot vouch for.
+- **Idea bank I-9 + I-10 + I-11 + I-13 — the fee stopped being a placeholder** — [Unreleased]. Source:
+  [`docs/commercial/PLAN-MONETISATION.md`](docs/commercial/PLAN-MONETISATION.md) §11 (decision-table row 2,
+  "confirm 15%") and §4.2. The platform fee is real: a MARGINAL ladder over a creator's lifetime gross —
+  15% to ₹25,000, then 10% — as `PLATFORM_FEE_TIERS` in `src/lib/earnings.ts`, chosen because 15% is the
+  number the plan asked to confirm and it has to clear the 2–3% processing floor to be worth charging.
+  Per-sale fees are attributed oldest-first, so the sale that carried the gross over the line is the one
+  that gets the cheaper rate, and every total is the sum of its rows rather than the ladder applied to the
+  total — a ledger has to add up the way a reader checks it. The hub gained the fee column I-13 promised, a
+  **Gross/Net** switch for the headline figures (I-10) and a payout card (I-9) naming the next Friday run,
+  the ₹500 minimum, and what would clear — including the part that is not built: payout RUNS are not
+  automated (no payouts table, no gateway payout API), so the card names the balance a run would disburse
+  rather than implying money is in transit. The final ledger anatomy ships with it as **Payout runs**
+  (`payoutPeriods()`): one derived row per Friday run (Date/period · Sales · Gross · Fee · Net · Status)
+  that reuses the per-sale fee attribution and adds up to the ledger exactly, with a status that never
+  claims money was sent — `Scheduled`, `Owed — not disbursed`, or `rolls over` under the minimum. And the
+  publish editor's price field now states the split where the decision is made (`netOfFeeInr`), as a floor
+  because a price alone cannot know a lifetime gross. I-11's per-publication attribution had shipped already.
+- **Idea bank I-19 + I-16** — `[Unreleased]`. **Settled lines genuinely leave the
+  balances** (I-19): the card's fair share is now the open *tagged* lines over the
+  travellers, credited to whoever fronted those same lines, so the rows net to zero and
+  settling every line leaves every row at zero — the re-base the 2026-09-19 heads-up above
+  called for, taken as a product call (the estimate keeps its place in the metric strip).
+  *Watch the number:* this is the idea bank's I-19, **not** the map-view request's I-19
+  (`docs/FEATURE-REQUEST-MAP-VIEWS.md` has its own I-17–I-19 numbering) · **Trip DNA
+  across devices** (I-16): `public.user_dna` — one row per user, the PK *is* the owner,
+  owner-only RLS on all four verbs (`supabase/migrations/20260921_user_dna.sql`, **applied
+  live 2026-09-21 and probe-verified**), read once per hydrate and written back debounced, with the merge a
+  de-duplicated union so a sync cannot double a count.
 
 ## Historical plans (executed — kept for the record, not live guidance)
 

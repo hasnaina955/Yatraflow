@@ -1819,7 +1819,10 @@ button.board-col-zone--add:active { transform: translateY(1px); }
 
 /* Landing section headings & grids */
 .section-title { font-size: clamp(1.45rem, 3vw, 1.9rem); text-align: center; margin: 46px auto 6px; max-width: 620px; }
-.feature-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 14px; margin: 0 0 44px; }
+/* Bento, not three equal cards: one tall photo cell beside two stacked cells.
+   Three items, three cells, no empty tile. Collapses to one column at 980px. */
+.feature-strip { display: grid; grid-template-columns: 1.2fr 1fr; gap: 14px; margin: 0 0 44px; }
+.feature-bento > .feature-card:first-child { grid-row: span 2; }
 .feature-card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 21px; box-shadow: var(--shadow-sm); transition: transform var(--t-fast) var(--ease-out), box-shadow var(--t-fast) var(--ease-out); }
 .feature-card:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(var(--shadow-navy-rgb),.06), 0 16px 40px rgba(var(--shadow-navy-rgb),.12); }
 .feature-card h3 { font-size: 15.5px; }
@@ -1827,17 +1830,29 @@ button.board-col-zone--add:active { transform: translateY(1px); }
 .feature-card p { font-size: 13.5px; color: var(--text-2); margin-top: 6px; line-height: 1.55; }
 
 /* Steps */
-.steps-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; }
+/* A route, not a card grid: four stops along one dashed road line. The line
+   runs behind the roundels (they carry the page canvas as their own fill), and
+   the whole thing collapses to a vertical timeline at 720px. */
+.steps-route {
+  position: relative; display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 14px; margin-top: 24px;
+  content-visibility: auto; contain-intrinsic-size: auto 300px;
+}
+.steps-route::before {
+  content: ''; position: absolute; left: 7%; right: 7%; top: 15px; height: 0;
+  border-top: 2px dashed color-mix(in srgb, var(--yf-teal-600) 45%, transparent);
+}
 /* Below-the-fold landing sections skip layout/paint entirely until the
    scroll approaches (content-visibility). The size estimate keeps the
    scrollbar honest — measured ~600px per section. Big win on first paint
    in the phone WebView, invisible on desktop. */
 .cta-band { content-visibility: auto; contain-intrinsic-size: auto 620px; }
-.feature-strip { content-visibility: auto; contain-intrinsic-size: auto 300px; }
-.steps-grid { content-visibility: auto; contain-intrinsic-size: auto 340px; }
-.step-card { position: relative; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 21px 19px 19px; box-shadow: var(--shadow-sm); }
+.feature-strip { content-visibility: auto; contain-intrinsic-size: auto 400px; }
+.step-card { position: relative; padding: 0; }
+.step-body { min-width: 0; }
 .step-num {
   display: inline-flex; align-items: center; justify-content: center;
+  position: relative; z-index: var(--z-content);
   width: 30px; height: 30px; border-radius: 50%;
   background: var(--teal-deep); color: #fff; font-weight: 800; font-size: 14px;
   font-family: var(--font-display); margin-bottom: 11px;
@@ -1847,12 +1862,18 @@ button.board-col-zone--add:active { transform: translateY(1px); }
 
 /* Demo CTA band — a forced-dark surface in BOTH themes: its gradient stops
    must be literals, not theme-flipping tokens (--gray-900 turns near-white in
-   dark mode and stranded the white text). Same rule as .budget-hero. */
+   dark mode and stranded the white text). Same rule as .budget-hero. The
+   open-road photo sits under a .92 navy scrim (and under the base gradient as
+   the load-failure floor), so white copy stays AA over any underlying image. */
 .cta-band {
   text-align: center; padding: 42px 26px; border-radius: 22px;
   background:
     radial-gradient(ellipse 90% 130% at 50% -30%, color-mix(in srgb, var(--saffron) 20%, transparent), transparent),
+    linear-gradient(150deg, rgba(20, 63, 76, .84), rgba(17, 44, 76, .9)),
+    url('/img/landing-open-road.jpg'),
     linear-gradient(150deg, #143f4c, #112c4c);
+  background-size: cover, cover, cover, auto;
+  background-position: center, center, center, 0 0;
   color: #fff;
 }
 .cta-band h2 { color: #fff; }
@@ -1860,6 +1881,67 @@ button.board-col-zone--add:active { transform: translateY(1px); }
 .cta-buttons { display: flex; gap: 14px; justify-content: center; align-items: center; flex-wrap: wrap; }
 .cta-hint { opacity: .85; }
 .cta-hint code { background: rgba(255,255,255,.14); padding: 2px 7px; border-radius: 6px; }
+
+/* ---------- Handoff strip (directly below the hero) ----------
+   The boarding-pass ticket and the trip-code join form live here, not in the
+   hero: the hero stays chip + headline + subtext + two CTAs, and a visitor who
+   skipped those still finds a next step one scroll-length below. Ticket first
+   (the product-led entry, under the headline column), form second; both top-
+   aligned so the ticket's top edge lines up with the form's label instead of
+   floating centered against it. */
+.handoff {
+  position: relative; z-index: var(--z-content);
+  display: grid; grid-template-columns: 1fr auto; gap: 18px 24px;
+  align-items: start; padding: 20px 0 24px;
+}
+.handoff-lead { font-weight: 800; font-size: 14px; margin-bottom: 8px; }
+.invite-entry { display: flex; gap: 8px; max-width: 400px; }
+.invite-entry .input { flex: 1; min-width: 0; }
+.handoff-note { margin-top: 10px; }
+
+/* Bento surfaces: photo cell, tinted cell, plain cell. The photo is a local
+   asset under a navy scrim so white copy clears AA over any underlying image
+   (measured: the scrim holds the composite near #0F2A33 even over a bright
+   sky). */
+.feature-bento .feature-photo {
+  display: flex; flex-direction: column;
+  background-image:
+    linear-gradient(165deg, rgba(18, 63, 73, .88), rgba(12, 30, 53, .94)),
+    url('/img/landing-high-route.jpg');
+  background-size: cover, cover;
+  background-position: center, center;
+  border-color: transparent;
+  color: #fff;
+}
+.feature-bento .feature-photo h3 { color: #fff; }
+.feature-bento .feature-photo p { color: rgba(255, 255, 255, .85); }
+.feature-bento .feature-photo .feature-ico { background: rgba(255, 255, 255, .16); color: #fff; }
+/* The impact-preview echo inside the photo cell: a forced-light mini panel
+   (light literals, no dark mirror) so it reads as the product's own dialog
+   artifact on the dark photo in BOTH themes. Pins to the cell's bottom. */
+.feature-preview {
+  margin-top: auto;
+  background: #FFFDF7;
+  color: #0B2545;
+  border-radius: 12px;
+  padding: 12px;
+  box-shadow: 0 10px 24px -8px rgba(12, 30, 53, .35);
+}
+.feature-preview-head { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 800; }
+.fp-chip {
+  margin-left: auto; background: #FFE3B8; color: #6B3D05;
+  border-radius: 999px; padding: 2px 8px; font-size: 9.5px; font-weight: 800; letter-spacing: .04em;
+}
+.fp-deltas { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 8px; }
+.fp-delta { background: rgba(18, 63, 73, .07); border-radius: 8px; padding: 6px 8px; }
+.fp-delta b { display: block; font-family: var(--font-display); font-size: 13px; font-variant-numeric: tabular-nums; }
+.fp-delta span { display: block; font-size: 8.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; opacity: .62; margin-top: 1px; }
+.fp-warn { background: #FFF4E4; color: #3A2506; border-radius: 8px; padding: 6px 8px; font-size: 11px; font-weight: 800; margin-top: 6px; line-height: 1.3; }
+.fp-warn span { display: block; font-weight: 500; font-size: 10.5px; opacity: .85; margin-top: 1px; }
+.fp-tip { background: #E5F4EE; color: #0C4A42; border-radius: 8px; padding: 6px 8px; font-size: 11px; font-weight: 800; margin-top: 6px; line-height: 1.3; }
+.fp-tip span { display: block; font-weight: 500; font-size: 10.5px; opacity: .85; margin-top: 1px; }
+.feature-bento .feature-tint { background: var(--yf-teal-100); border-color: color-mix(in srgb, var(--yf-teal-600) 22%, transparent); }
+[data-theme='dark'] .feature-bento .feature-tint { background: #12332F; border-color: rgba(255, 255, 255, .12); }
 
 /* ---------- Explore cards ---------- */
 .explore-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 16px; }
@@ -2444,6 +2526,9 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
    keyboard focus (tabIndex=0 on the peer chip), so the name is reachable
    without a pointer. Entrance rides the motion tokens (dropdown pattern). */
 .presence-stack { display: inline-flex; align-items: center; margin-left: 14px; }
+/* Empty presence room: inherits the head card's text colour at the same opacity
+   as the member count beside it, so it needs no token of its own. */
+.presence-solo { opacity: .85; }
 .presence-peer { position: relative; display: inline-flex; align-items: center; margin-left: -8px; }
 .presence-peer:first-child { margin-left: 0; }
 .presence-peer .avatar { border: 2px solid var(--card); }
@@ -4391,8 +4476,12 @@ html.vt-active :where(*) {
   to   { opacity: 0; transform: translateY(-8px); }
 }
 .rs-caption { display: flex; flex-direction: column; gap: 2px; margin-top: 8px; line-height: 1.25; }
-.rs-caption-name { font-weight: 800; font-size: 13.5px; color: #fff; }
-.rs-caption-meta { font-size: 11px; opacity: .66; color: #fff; letter-spacing: .01em; }
+.rs-caption-name { font-weight: 800; font-size: 13.5px; color: #fff; display: inline-flex; align-items: center; gap: 6px; }
+.rs-caption-name svg { flex: none; opacity: .9; }
+.rs-caption-meta { font-size: 11px; opacity: .66; color: #fff; letter-spacing: .01em; display: flex; flex-wrap: wrap; gap: 4px 10px; }
+/* Hairline separators, not a row of middle dots: one rule for every gap. */
+.rs-meta-field { display: inline-flex; align-items: center; gap: 10px; }
+.rs-meta-field + .rs-meta-field::before { content: ''; width: 1px; height: 9px; background: currentColor; opacity: .5; }
 /* caption is remounted with the scenario (key=cap-idx), so it fades in exactly
    when the new road starts drawing — no independent loop to drift out of sync */
 @media (prefers-reduced-motion: no-preference) {
@@ -4530,6 +4619,28 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 /* ---- <=980px: tablet collapses ---- */
 @media (max-width: 980px) { .hero-split { grid-template-columns: 1fr; gap: 30px; } }
 @media (max-width: 980px) { .two-col, .two-col--even { grid-template-columns: minmax(0, 1fr); } }
+/* Landing: the bento stacks (photo cell keeps a floor height), the handoff
+   strip goes one column, the steps drop to two. The dashed road line only
+   makes sense across the four-column row, so it retires here. */
+@media (max-width: 980px) {
+  .feature-bento { grid-template-columns: 1fr; }
+  .feature-bento > .feature-card:first-child { grid-row: auto; min-height: 340px; }
+  .handoff { grid-template-columns: 1fr; }
+  .handoff .hero-bench-cta { justify-self: start; }
+  .steps-route { grid-template-columns: repeat(2, 1fr); gap: 24px 14px; }
+  .steps-route::before { display: none; }
+}
+/* Under 720 the steps become a vertical timeline: the dashed road turns the
+   corner and runs down the left edge, through the roundels. */
+@media (max-width: 720px) {
+  .steps-route { grid-template-columns: 1fr; gap: 22px; margin-top: 24px; }
+  .steps-route::before {
+    display: block; left: 15px; right: auto; top: 12px; bottom: 12px; width: 0; height: auto;
+    border-top: none; border-left: 2px dashed color-mix(in srgb, var(--yf-teal-600) 45%, transparent);
+  }
+  .step-card { display: flex; align-items: flex-start; gap: 14px; }
+  .step-card .step-num { flex: none; margin-bottom: 0; }
+}
 
 /* ---- <=900px ---- */
 @media (max-width: 900px) { .poi-split { grid-template-columns: 1fr; } }
@@ -6216,3 +6327,107 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 
 /* P7.2: the log's learned pattern for a kind of part (context, not a claim) */
 .day-slot-pattern { margin: 0 10px 6px; font-size: 10.5px; font-style: italic; color: var(--text-3); }
+/* ============ I-20: the unlock moment + the purchases shelf ============ */
+
+/* The reveal is the app's own dialog with the sheet's padding handed to its
+   content, so the cover can run to the card's edge (Modal `variant="full"`).
+   Namespaced deliberately: a bare `.reveal` ALREADY belongs to the Landing
+   page's scroll-reveal utility (`body.reveal-armed .reveal`), and a later rule
+   reusing that name silently re-lays-out every Landing card and step. See
+   AGENTS §4 — check a name against the pre-existing stylesheet before taking
+   a single-word class. */
+.modal-full { max-width: 720px; padding: 0; }
+.modal-full .modal-head { padding: 14px 18px 0; margin-bottom: 0; }
+.unlock-reveal { display: flex; flex-direction: column; gap: 10px; padding: 10px 18px calc(20px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px))); }
+.unlock-reveal-hero { border-radius: var(--radius); overflow: hidden; border: 1px solid var(--line); }
+.unlock-reveal-kicker { margin: 4px 0 0; font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--teal-deep); }
+.unlock-reveal-title { margin: 0; font-size: 25px; line-height: 1.15; }
+.unlock-reveal-by { margin: 0; font-size: 13px; color: var(--text-3); }
+.unlock-reveal-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(138px, 1fr)); gap: 10px; margin-top: 4px; }
+.unlock-reveal-tips, .unlock-reveal-receipt { margin: 0; font-size: 13px; color: var(--text-3); }
+.unlock-reveal-tips b, .unlock-reveal-receipt b { color: var(--text-2); }
+.unlock-reveal-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.unlock-reveal-actions .btn { flex: 1 1 auto; }
+.unlock-reveal-hint { margin: 0; }
+
+/* Same rhythm as My trips' own wrapper: the page's two beats are the head and the
+   shelf. Both values sit on the spacing ladder (22 is the documented two-sections
+   beat), so this adds no entry to the frozen off-ladder baseline. */
+.purchases-page { padding-top: 22px; padding-bottom: 22px; }
+.purchases-head { margin-bottom: 10px; }
+.purchases-title { margin: 0 0 4px; }
+.purchases-lede { margin: 0 0 18px; max-width: 62ch; }
+.purchases-sum { margin: 0 0 14px; font-size: 13px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.purchases-sum b { color: var(--text-2); }
+.purchases-error h2 { margin: 0 0 6px; font-size: 17px; }
+.purchases-error .hint-text { margin: 0 0 14px; }
+.purchases-foot { margin: 14px 0 0; max-width: 68ch; }
+.purchase-list { display: flex; flex-direction: column; gap: 12px; }
+.purchase-row { display: flex; gap: 14px; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; box-shadow: var(--shadow-sm); }
+.purchase-thumb { flex: 0 0 132px; border-radius: var(--radius-sm); overflow: hidden; }
+.purchase-body { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.purchase-name { margin: 0; font-size: 17px; }
+.purchase-by { margin: 0; font-size: 12.5px; color: var(--text-3); }
+.purchase-by b { color: var(--text-2); }
+.purchase-meta { display: flex; flex-wrap: wrap; gap: 6px; }
+.purchase-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 2px; }
+@media (max-width: 560px) {
+  /* Below this the cover stops being a column and becomes a banner: at 320px a
+     132px thumb leaves the title about eight characters a line. */
+  .purchase-row { flex-direction: column; }
+  .purchase-thumb { flex: 0 0 auto; }
+}
+
+/* The reveal's sheet is a large surface (the drawer duration), and the reveal
+   and the shelf arrive in stages on the shared stagger vocabulary — opted into
+   under no-preference, the same way the empty states do it (a forwards-filled
+   transform leaves a compositor group behind, hence `backwards`). */
+@media (prefers-reduced-motion: no-preference) {
+  .modal-full { animation: slideUp var(--motion-slow) var(--ease-out); }
+  .unlock-reveal > * { animation: revealRise var(--motion-slow) var(--ease-out) backwards; }
+  .unlock-reveal > *:nth-child(2) { animation-delay: calc(var(--stagger-step) * 1); }
+  .unlock-reveal > *:nth-child(3) { animation-delay: calc(var(--stagger-step) * 2); }
+  .unlock-reveal > *:nth-child(4) { animation-delay: calc(var(--stagger-step) * 3); }
+  .unlock-reveal > *:nth-child(5) { animation-delay: calc(var(--stagger-step) * 4); }
+  .unlock-reveal > *:nth-child(6) { animation-delay: calc(var(--stagger-step) * 5); }
+  .unlock-reveal > *:nth-child(7) { animation-delay: calc(var(--stagger-step) * 6); }
+  .unlock-reveal-facts > * { animation: revealRise var(--motion-med) var(--ease-out) backwards; }
+  .unlock-reveal-facts > *:nth-child(2) { animation-delay: calc(var(--stagger-step) * 1); }
+  .unlock-reveal-facts > *:nth-child(3) { animation-delay: calc(var(--stagger-step) * 2); }
+  .unlock-reveal-facts > *:nth-child(4) { animation-delay: calc(var(--stagger-step) * 3); }
+  .purchase-list > * { animation: revealRise var(--motion-slow) var(--ease-out) backwards; }
+  .purchase-list > *:nth-child(2) { animation-delay: calc(var(--stagger-step) * 1); }
+  .purchase-list > *:nth-child(3) { animation-delay: calc(var(--stagger-step) * 2); }
+  @keyframes revealRise { from { opacity: 0; transform: translateY(8px); } }
+}
+@media (prefers-reduced-motion: reduce) {
+  .modal-full { animation: none; }
+}
+
+/* ============================================================
+   I-22 — the publication funnel (recorded views → forks → unlocks)
+   ============================================================ */
+
+/* the window pills, and the line saying what the log can speak for */
+.pub-funnel-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 4px 0 10px; }
+
+/* one publication's funnel: windowed steps above its own all-time totals */
+.pub-funnel { display: flex; flex-direction: column; gap: 3px; }
+.pub-funnel.muted { color: var(--text-3); }
+.pf-steps { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 12.5px; }
+.pf-step b { font-variant-numeric: tabular-nums; color: var(--text); }
+.pf-arrow { color: var(--text-3); }
+.pf-lifetime { font-size: 11.5px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+
+@media (max-width: 720px) {
+  .pub-funnel-head { align-items: flex-start; }
+}
+
+
+/* ============ Creator's own funnel glance, on the plan's public page ==== */
+/* Appended at the file's end on purpose: the design-system ratchet is keyed
+   by line number, so an insertion above it re-baselines every entry (AGENTS §3). */
+.pub-funnel-glance { display: flex; flex-direction: column; gap: 2px; margin-top: 8px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); }
+.pub-fg-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-3); }
+.pub-fg-line { font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.pub-fg-prelog { font-size: 11.5px; }

@@ -31,10 +31,14 @@ function respond(rows: unknown, status = 200) {
   fetchMock.mockResolvedValue(new Response(JSON.stringify(rows), { status }))
 }
 
-async function runHandler(method = 'GET', id: unknown = publication.id) {
+async function runHandler(
+  method = 'GET',
+  id: unknown = publication.id,
+  extra: Record<string, unknown> = {},
+) {
   const res = makeRes()
   const { default: handler } = await import(apiPath)
-  await handler({ method, query: { id } }, res)
+  await handler({ method, query: { id, ...extra } }, res)
   return res
 }
 
@@ -273,6 +277,150 @@ describe('share preview handler in node', () => {
     expect(res.body).toBe('')
     expect(res.ended).toBe(true)
     expect(fetchMock).not.toHaveBeenCalled()
+  })
+})
+
+/** The buyer-thrown request: the publication row, then the gate's verdict. */
+const BUYER = '3f1a2b4c-5d6e-4f70-8a91-b2c3d4e5f601'
+const DEFAULT_ORIGIN = 'https://yatraflow-blond.vercel.app'
+
+function respondBuyerCard(bought: unknown, publicationRows: unknown = [publication]) {
+  fetchMock.mockResolvedValueOnce(new Response(JSON.stringify(publicationRows)))
+  fetchMock.mockResolvedValueOnce(new Response(JSON.stringify(bought)))
+}
+
+describe('the buyer’s card (I-21)', () => {
+  it('renders the purchase framing once the gate confirms the entitlement', async () => {
+    respondBuyerCard(true)
+    const res = await runHandler('GET', publication.id, { buyer: BUYER })
+    expect(res.statusCode).toBe(200)
+    expect(res.body).toContain('I bought Tom &amp; Jerry&#39;s &quot;Monsoon&quot; Escape — YatraFlow')
+    expect(res.body).toContain('Bought on YatraFlow · 5 days · ₹12,500/person · Kochi → Munnar')
+    // The creator's own pitch belongs on the creator's card.
+    expect(res.body).not.toContain('tea hills')
+    expect(res.body).toContain('<meta name="twitter:title" content="I bought')
+  })
+
+  it('asks the database with a POST to the gate, carrying only the pair', async () => {
+    respondBuyerCard(true)
+    await runHandler('GET', publication.id, { buyer: BUYER })
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(fetchMock.mock.calls.map(call => new URL(String(call[0])).pathname))
+      .toEqual(['/rest/v1/published_itineraries', '/rest/v1/rpc/owns_publication'])
+    const [, init] = fetchMock.mock.calls[1]!
+    expect(init?.method).toBe('POST')
+    expect(JSON.parse(String(init?.body))).toEqual({ p_entitlement: BUYER, p_pub_id: publication.id })
+    expect(init?.headers).toMatchObject({ apikey: 'test-anon-key', authorization: 'Bearer test-anon-key' })
+    expect(init?.signal).toBeInstanceOf(AbortSignal)
+  })
+
+  it('declares itself as its own address while the canonical stays the publication’s', async () => {
+    respondBuyerCard(true)
+    const body = (await runHandler('GET', publication.id, { buyer: BUYER })).body
+    expect(body).toContain(
+      `<meta property="og:url" content="${DEFAULT_ORIGIN}/i/${publication.id}?buyer=${BUYER}" />`,
+    )
+    expect(body).toContain(`<link rel="canonical" href="${DEFAULT_ORIGIN}/i/${publication.id}" />`)
+  })
+
+  it('names the entitlement in exactly one place — the address, never the words', async () => {
+    respondBuyerCard(true)
+    const body = (await runHandler('GET', publication.id, { buyer: BUYER })).body
+    expect(body.split(BUYER)).toHaveLength(2)
+    const words = body.slice(0, body.indexOf('<meta property="og:url"'))
+    expect(words).not.toContain(BUYER)
+  })
+
+  it.each([
+    ['a plain no', () => respondBuyerCard(false)],
+    ['a missing function (migration not applied)', () => {
+      fetchMock.mockResolvedValueOnce(new Response(JSON.stringify([publication])))
+      fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ code: 'PGRST202' }), { status: 404 }))
+    }],
+    ['a server error', () => {
+      fetchMock.mockResolvedValueOnce(new Response(JSON.stringify([publication])))
+      fetchMock.mockResolvedValueOnce(new Response('{}', { status: 500 }))
+    }],
+    ['a request that rejects', () => {
+      fetchMock.mockResolvedValueOnce(new Response(JSON.stringify([publication])))
+      fetchMock.mockRejectedValueOnce(new Error('Offline fixture'))
+    }],
+    ['a body that is not a literal true', () => {
+      fetchMock.mockResolvedValueOnce(new Response(JSON.stringify([publication])))
+      fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ bought: true })))
+    }],
+  ])('falls back to the creator’s card on %s', async (_label, script) => {
+    script()
+    const res = await runHandler('GET', publication.id, { buyer: BUYER })
+    // A preview must still render: unverified reads as the ordinary card, not
+    // as an error and never as a claim nobody checked.
+    expect(res.statusCode).toBe(200)
+    expect(res.body).not.toContain('I bought')
+    expect(res.body).not.toContain('Bought on YatraFlow')
+    expect(res.body).toContain('tea hills')
+  })
+
+  // The array entry is double-wrapped on purpose: an un-wrapped `[BUYER]` row
+  // is treated as the argument LIST and would test a plain string instead.
+  it.each(['', 'not-a-uuid', BUYER.replace(/-/g, ''), BUYER.toUpperCase() + 'x', 42, [[BUYER]]])(
+    'ignores an unusable buyer id (%j) without asking the database',
+    async buyer => {
+      respond([publication])
+      const res = await runHandler('GET', publication.id, { buyer })
+      expect(res.statusCode).toBe(200)
+      expect(res.body).not.toContain('I bought')
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+    },
+  )
+
+  it('accepts an upper-case uuid — they are the same id', async () => {
+    respondBuyerCard(true)
+    const res = await runHandler('GET', publication.id, { buyer: BUYER.toUpperCase() })
+    expect(res.body).toContain('I bought')
+  })
+
+  it('never asks about a purchase for a publication that is not there', async () => {
+    respond([])
+    const res = await runHandler('GET', publication.id, { buyer: BUYER })
+    expect(res.statusCode).toBe(404)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('HEAD with a buyer still sends no body', async () => {
+    respondBuyerCard(true)
+    const res = await runHandler('HEAD', publication.id, { buyer: BUYER })
+    expect(res.statusCode).toBe(200)
+    expect(res.body).toBe('')
+    expect(res.ended).toBe(true)
+  })
+})
+
+describe('the buyer’s share address and message (I-21)', () => {
+  it('adds the entitlement to the publication’s own address, escaped', async () => {
+    const { buyerShareUrl } = await import(shareUrlPath)
+    expect(buyerShareUrl('kerala-trip_1', 'ent/1 2', 'https://app.example.test/', false))
+      .toBe('https://app.example.test/i/kerala-trip_1?buyer=ent%2F1%202')
+  })
+
+  it('sends a native share to the public origin, never the WebView origin', async () => {
+    const { buyerShareUrl } = await import(shareUrlPath)
+    expect(buyerShareUrl('kerala-trip_1', 'ent-1', 'capacitor://localhost', true))
+      .toBe(`${DEFAULT_ORIGIN}/i/kerala-trip_1?buyer=ent-1`)
+  })
+
+  it('writes one sentence that names the plan and links the card', async () => {
+    const { purchaseShareMessage } = await import(shareUrlPath)
+    const message = purchaseShareMessage('Spiti Valley Circuit', 'https://x.test/i/p?buyer=e')
+    expect(message).toContain('I bought the "Spiti Valley Circuit" plan on YatraFlow')
+    expect(message).toContain('https://x.test/i/p?buyer=e')
+  })
+
+  it('states nothing the buyer did not say — no price, no figures', async () => {
+    const { purchaseShareMessage } = await import(shareUrlPath)
+    const message = purchaseShareMessage('Spiti Valley Circuit', 'https://x.test/i/p?buyer=e')
+    expect(message).not.toMatch(/₹/)
+    expect(message).not.toMatch(/\bpaid\b/i)
+    expect(message).not.toMatch(/\d+\s*(days|places|km)/i)
   })
 })
 

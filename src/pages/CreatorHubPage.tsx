@@ -8,8 +8,14 @@ import { ExternalLink, Pencil } from 'lucide-react'
 import { PillNav } from '../components/PillNav'
 import type { PublishedItinerary } from '../data/types'
 import { useDb, currentUser, updateProfile, unpublishItinerary, tripById } from '../store/store'
-import { projectEarnings, deriveActualSales, type ActualSales } from '../lib/earnings'
-import { fetchCreatorSales } from '../lib/unlock'
+import {
+  projectEarnings, deriveActualSales, payoutStatus, payoutPeriods, payoutPeriodStatus,
+  PAYOUT_MINIMUM_INR, PLATFORM_FEE_SUMMARY, type ActualSales,
+} from '../lib/earnings'
+import { fetchCreatorSales, fetchCreatorFunnel, type FunnelDailyRow } from '../lib/unlock'
+import {
+  buildPubFunnels, describePreLog, formatPct, FUNNEL_WINDOWS, type FunnelSale, type FunnelWindowDays, type PubFunnel,
+} from '../lib/pubFunnel'
 import { formatInr } from '../lib/engine'
 import { Chip, ConfirmDialog, Field, toast } from '../components/ui'
 
@@ -26,6 +32,17 @@ function isValidSocialUrl(v: string): boolean {
   }
 }
 
+/** "26 Sep" — a run date, not a timestamp. */
+function shortDate(ms: number): string {
+  return new Date(ms).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+}
+
+/** "Friday, 26 Sep" — the sentence form, where a weekday tells the reader how
+ *  far away the run is without their counting. */
+function longDate(ms: number): string {
+  return new Date(ms).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short' })
+}
+
 export function CreatorHubPage({ onNavigate }: { onNavigate: (r: string) => void }) {
   const db = useDb()
   const me = currentUser(db)
@@ -39,6 +56,7 @@ export function CreatorHubPage({ onNavigate }: { onNavigate: (r: string) => void
   const [unpubTarget, setUnpubTarget] = useState<PublishedItinerary | null>(null)
   const [hubTab, setHubTab] = useState<'overview' | 'earnings'>('overview')
   const [earningsView, setEarningsView] = useState<'actual' | 'projection'>('actual')
+  const [earningsBasis, setEarningsBasis] = useState<'gross' | 'net'>('gross')
   // Real sales (I-11): entitlements for MY publications, read through the
   // creator RLS policy. A failed read is an ERROR state with retry, not a
   // silent empty ledger — "No sales yet" and "read failed" are different
@@ -46,6 +64,14 @@ export function CreatorHubPage({ onNavigate }: { onNavigate: (r: string) => void
   const [sales, setSales] = useState<ActualSales | null>(null)
   const [salesError, setSalesError] = useState(false)
   const [salesRetry, setSalesRetry] = useState(0)
+  // The RECORDED funnel (I-22/I-15): the dated event log, read per day so the
+  // window control costs no round trip. Deliberately separate from the counter
+  // tiles above, which are lifetime totals that include traffic from before
+  // recording began — the two are not the same number and are labelled so.
+  const [daily, setDaily] = useState<FunnelDailyRow[] | null>(null)
+  const [funnelError, setFunnelError] = useState(false)
+  const [funnelRetry, setFunnelRetry] = useState(0)
+  const [funnelDays, setFunnelDays] = useState<FunnelWindowDays>(30)
   useEffect(() => {
     let alive = true
     setSalesError(false)
@@ -54,6 +80,18 @@ export function CreatorHubPage({ onNavigate }: { onNavigate: (r: string) => void
       .catch(() => { if (alive) { setSalesError(true); setSales(null) } })
     return () => { alive = false }
   }, [me?.id, salesRetry]) // eslint-disable-line react-hooks/exhaustive-deps
+  // Same shape as the sales read above, and for the same reason: a log with
+  // nothing in it and a log that could not be read are different truths, and a
+  // funnel that quietly reads zero over real traffic is the exact conflation
+  // the sales ledger already had to fix once.
+  useEffect(() => {
+    let alive = true
+    setFunnelError(false)
+    fetchCreatorFunnel()
+      .then(rows => { if (alive) setDaily(rows) })
+      .catch(() => { if (alive) { setFunnelError(true); setDaily(null) } })
+    return () => { alive = false }
+  }, [me?.id, funnelRetry]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const loggedIn = Boolean(me)
   useEffect(() => { if (!loggedIn) onNavigate('/auth') })
@@ -136,11 +174,14 @@ export function CreatorHubPage({ onNavigate }: { onNavigate: (r: string) => void
                   Nothing published yet — list a trip on Explore from its Share tab.
                 </p>
               ) : (
-                <PubOverview myPubs={myPubs} onUnpublish={setUnpubTarget} onNavigate={onNavigate} />
+                <PubOverview myPubs={myPubs} onUnpublish={setUnpubTarget} onNavigate={onNavigate}
+                  daily={daily} salesRows={sales?.rows ?? []} funnelError={funnelError}
+                  onRetry={() => setFunnelRetry(n => n + 1)} days={funnelDays} onDays={setFunnelDays} />
               )
             ) : (
               <EarningsTab myPubs={myPubs} sales={sales} salesError={salesError}
-                onRetry={() => setSalesRetry(n => n + 1)} view={earningsView} onView={setEarningsView} />
+                onRetry={() => setSalesRetry(n => n + 1)} view={earningsView} onView={setEarningsView}
+                basis={earningsBasis} onBasis={setEarningsBasis} />
             )}
           </div>
         </>
@@ -177,14 +218,105 @@ export function CreatorHubPage({ onNavigate }: { onNavigate: (r: string) => void
   )
 }
 
-/** Overview tab: lifetime KPIs + the per-publication manager rows. */
-function PubOverview({ myPubs, onUnpublish, onNavigate }: {
+/** One publication's recorded funnel, for the selected window.
+ *
+ *  Says NOTHING RECORDED rather than printing three zeroes, because "no traffic
+ *  yet" and "traffic that converted at 0%" are different claims and only one of
+ *  them is a measurement.
+ *
+ *  The lifetime line is the honesty: a window's numbers sit beside that
+ *  publication's own all-time totals, because the counters predate the event
+ *  log. "38 forks" alone cannot tell a creator whether that is most of their
+ *  forks or a slice of them. */
+function FunnelLine({ f, unread }: { f: PubFunnel | undefined; unread: boolean }) {
+  if (!f) return null
+  // The all-time line reads the counters from the hydrated cache, so it is true
+  // even when the log could not be read. The windowed steps are NOT, so a failed
+  // read withholds them and says why — "no traffic" and "traffic I could not
+  // read" are different claims and only one of them is a measurement.
+  const lifetime = (
+    <span className="pf-lifetime muted num">
+      All time {f.lifetimeViews} visits · {f.lifetimeForks} forks · {f.lifetimeUnlocks} unlocks
+    </span>
+  )
+  // The counters-vs-log sentence. Computed once here (one derivation, shared
+  // with the public page through describePreLog) so the two surfaces cannot
+  // disagree about why the numbers differ.
+  const preLog = describePreLog(f)
+  if (unread) {
+    return (
+      <span className="pub-funnel">
+        <span className="muted">Traffic could not be read just now.</span>
+        {lifetime}
+      </span>
+    )
+  }
+  if (f.unreported) {
+    return (
+      <span className="pub-funnel">
+        <span className="muted">No recorded traffic yet — nothing to measure for this plan.</span>
+        {lifetime}
+      </span>
+    )
+  }
+  return (
+    <span className="pub-funnel">
+      <span className="pf-steps">
+        <span className="pf-step"><b className="num">{f.views}</b> visits</span>
+        <span className="pf-arrow" aria-hidden>→</span>
+        <span className="pf-step"><b className="num">{f.forks}</b> forks <span className="muted">({formatPct(f.forkRatePct)})</span></span>
+        <span className="pf-arrow" aria-hidden>→</span>
+        <span className="pf-step"><b className="num">{f.unlocks}</b> unlocks <span className="muted">({formatPct(f.unlockRatePct)})</span></span>
+        {f.forksExceedViews && (
+          <span className="muted">· more forks than visits — Explore&apos;s card forks a plan without opening it</span>
+        )}
+      </span>
+      {/* Thread 2: the lifetime line usually disagrees with the log, because the
+          counters predate it. Naming that beats leaving a reader to conclude
+          the window is wrong — this is the explanation, one source, both
+          surfaces (the plan's public page renders it too). */}
+      {preLog && <span className="pf-prelog muted">{preLog}</span>}
+      {lifetime}
+    </span>
+  )
+}
+
+/** Overview tab: lifetime KPIs + the per-publication manager rows, each with the
+ *  RECORDED view → fork → unlock funnel for the selected window. */
+function PubOverview({ myPubs, onUnpublish, onNavigate, daily, salesRows, funnelError, onRetry, days, onDays }: {
   myPubs: PublishedItinerary[]
   onUnpublish: (p: PublishedItinerary) => void
+  /** null while the funnel read is in flight; [] when it succeeded empty. */
+  daily: FunnelDailyRow[] | null
+  /** The sales ledger's own rows — the unlock stage's only source. */
+  salesRows: readonly FunnelSale[]
+  funnelError: boolean
+  onRetry: () => void
+  days: FunnelWindowDays
+  onDays: (d: FunnelWindowDays) => void
   onNavigate: (r: string) => void
 }) {
   const totalViews = myPubs.reduce((s, p) => s + p.views, 0)
   const totalForks = myPubs.reduce((s, p) => s + p.copies, 0)
+  // ONE derivation, read by both the rows and the note above them, so the table
+  // and the sentence explaining it cannot disagree about a rate.
+  const funnels = buildPubFunnels({
+    daily: daily ?? [],
+    sales: salesRows,
+    pubs: myPubs.map(p => ({
+      id: p.id, title: p.title, priceInr: p.premiumPriceInr ?? null,
+      lifetimeViews: p.views, lifetimeForks: p.copies,
+    })),
+    days,
+    now: Date.now(),
+  })
+  const funnelOf = new Map(funnels.map(f => [f.pubId, f]))
+  // When the log's own history starts, page-wide. The tiles above are all-time
+  // and most of their number PREDATES the first recorded event, which is
+  // exactly the pair a reader would otherwise compare and conclude wrongly from.
+  const recordingSince = daily && daily.length > 0
+    ? daily.reduce((min, r) => (r.day < min ? r.day : min), daily[0].day)
+    : null
   const staleCount = myPubs.filter(p => {
     const t = tripById(p.tripId)
     return !!t && t.updatedAt > (p.refreshedAt ?? p.publishedAt)
@@ -192,12 +324,31 @@ function PubOverview({ myPubs, onUnpublish, onNavigate }: {
   return (
     <>
       <div className="pub-kpis">
-        <div className="stat-tile"><div className="stat-label">Views</div><div className="stat-value">{totalViews}</div></div>
-        <div className="stat-tile"><div className="stat-label">Forks</div><div className="stat-value">{totalForks}</div></div>
+        <div className="stat-tile"><div className="stat-label">Views (all time)</div><div className="stat-value">{totalViews}</div></div>
+        <div className="stat-tile"><div className="stat-label">Forks (all time)</div><div className="stat-value">{totalForks}</div></div>
         <div className="stat-tile"><div className="stat-label">Live</div><div className="stat-value">{myPubs.length}</div></div>
         <div className="stat-tile"><div className="stat-label">Behind</div><div className="stat-value">{staleCount > 0 ? <span className="metric-warn">{staleCount}</span> : 0}</div></div>
       </div>
       <div style={{ marginTop: 4 }}>
+        <div className="pub-funnel-head">
+          <PillNav className="filter-pillbar" role="group" aria-label="Funnel window" activeKey={String(days)}>
+            {FUNNEL_WINDOWS.map(w => (
+              <button key={w.days} type="button" data-pill-key={String(w.days)}
+                className={`clickable-chip chip${days === w.days ? ' on-teal' : ''}`}
+                onClick={() => onDays(w.days)} aria-pressed={days === w.days}>{w.label}</button>
+            ))}
+          </PillNav>
+          <span className="small muted">
+            {funnelError
+              ? 'Recorded traffic could not be read just now — the trend is unchanged on the server.'
+              : daily === null
+              ? 'Reading recorded traffic…'
+              : recordingSince
+                ? `Traffic recorded since ${new Date(`${recordingSince}T00:00:00Z`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}.`
+                : 'Nothing recorded yet — the trend starts with the first visit.'}
+          </span>
+          {funnelError && <button className="btn btn-outline btn-sm" onClick={onRetry}>Retry</button>}
+        </div>
         {myPubs.map(p => {
           const trip = tripById(p.tripId)
           const stale = !!trip && trip.updatedAt > (p.refreshedAt ?? p.publishedAt)
@@ -208,7 +359,7 @@ function PubOverview({ myPubs, onUnpublish, onNavigate }: {
                   <a href={`#/pub/${p.id}`}>{p.title}</a>
                   {stale && <Chip tone="saffron">Page behind itinerary</Chip>}
                 </span>
-                <span className="small muted num">{p.views} view{p.views === 1 ? '' : 's'} · {p.copies} fork{p.copies === 1 ? '' : 's'}</span>
+                <FunnelLine f={funnelOf.get(p.id)} unread={funnelError} />
               </div>
               <span className="pub-row-actions">
                 {stale && (
@@ -230,22 +381,37 @@ function PubOverview({ myPubs, onUnpublish, onNavigate }: {
 /** Earnings tab: the Gumroad-shaped payout ledger. The "Actual" view shows
  *  REAL sales once the payments rail is live (empty honestly until then);
  *  the Projection view stays clearly-labeled not-money. */
-function EarningsTab({ myPubs, sales, salesError, onRetry, view, onView }: {
+function EarningsTab({ myPubs, sales, salesError, onRetry, view, onView, basis, onBasis }: {
   myPubs: PublishedItinerary[]
   sales: ActualSales | null   // null while the fetch is in flight
   salesError: boolean         // the read itself failed — distinct from an empty ledger
   onRetry: () => void
   view: 'actual' | 'projection'
   onView: (v: 'actual' | 'projection') => void
+  /** Which figure the headline tiles read: what buyers paid, or what is kept
+   *  after the platform fee. The ledger shows both columns either way, so the
+   *  toggle changes emphasis rather than hiding a number. */
+  basis: 'gross' | 'net'
+  onBasis: (b: 'gross' | 'net') => void
 }) {
   const projection = projectEarnings(myPubs)
   const actual = sales
+  const lifetimeInr = basis === 'net' ? (actual?.netInr ?? 0) : (actual?.grossInr ?? 0)
+  // The schedule is about real money, so it reads the actual ledger and is
+  // rendered in the Actual view only — a projection has no payout date.
+  const now = Date.now()
+  const payout = payoutStatus(actual?.netInr ?? 0, now)
+  // Same rows, same fees, grouped by the run each sale would land in — so this
+  // table adds up to the ledger above it rather than re-deriving the ladder.
+  const payoutRuns = payoutPeriods(actual?.rows ?? [], now)
   return (
     <>
       <div className="pub-kpis">
-        <div className="stat-tile wide"><div className="stat-label">Lifetime gross</div><div className="stat-value">{formatInr(actual?.grossInr ?? 0)}</div></div>
+        <div className="stat-tile wide"><div className="stat-label">Lifetime {basis === 'net' ? 'net' : 'gross'}</div><div className="stat-value">{formatInr(lifetimeInr)}</div></div>
         <div className="stat-tile"><div className="stat-label">Sales</div><div className="stat-value">{actual?.rows.length ?? 0}</div></div>
-        <div className="stat-tile"><div className="stat-label">Next payout</div><div className="stat-value">—</div></div>
+        {/* A date only once there is something to send: a run date over a ₹0
+            balance reads as money on its way. */}
+        <div className="stat-tile"><div className="stat-label">Next payout</div><div className="stat-value">{payout.clearsInr > 0 ? shortDate(payout.dueAt) : '—'}</div></div>
       </div>
       <PillNav className="filter-pillbar" role="group" aria-label="Earnings view" activeKey={view}>
         {([['actual', 'Actual'], ['projection', 'Projection']] as const).map(([k, label]) => (
@@ -253,6 +419,32 @@ function EarningsTab({ myPubs, sales, salesError, onRetry, view, onView }: {
             onClick={() => onView(k)} aria-pressed={view === k}>{label}</button>
         ))}
       </PillNav>
+      <span className="small muted" style={{ margin: '0 8px' }}>Show amounts as</span>
+      <PillNav className="filter-pillbar" role="group" aria-label="Show amounts as" activeKey={basis}>
+        {([['gross', 'Gross'], ['net', 'Net']] as const).map(([k, label]) => (
+          <button key={k} type="button" data-pill-key={k} className={`clickable-chip chip${basis === k ? ' on-teal' : ''}`}
+            onClick={() => onBasis(k)} aria-pressed={basis === k}>{label}</button>
+        ))}
+      </PillNav>
+
+      {view === 'actual' && (
+        <div className="card" style={{ marginTop: 12 }}>
+          <h3 style={{ margin: '0 0 6px' }}>Payouts</h3>
+          <p className="hint-text" style={{ margin: '0 0 6px' }}>
+            {payout.clearsInr > 0 ? (
+              <>The next run is <b>{longDate(payout.dueAt)}</b> — it would clear <b>{formatInr(payout.clearsInr)}</b>, your net balance after the platform fee.</>
+            ) : payout.belowMinimum ? (
+              <>Runs happen weekly on Fridays. Your balance is under the <b>{formatInr(payout.minimumInr)}</b> minimum, so it stays on the books until it clears it — nothing is lost.</>
+            ) : (
+              <>Runs happen weekly on Fridays. There is nothing to pay out yet — your balance is <b>{formatInr(0)}</b> until a priced itinerary sells.</>
+            )}
+          </p>
+          <p className="hint-text" style={{ margin: 0 }}>
+            Runs are not automated yet: this balance is what a payout would disburse and nothing transfers
+            on its own. Platform fee — {PLATFORM_FEE_SUMMARY}.
+          </p>
+        </div>
+      )}
 
       {view === 'actual' ? (
         actual === null ? (
@@ -268,9 +460,9 @@ function EarningsTab({ myPubs, sales, salesError, onRetry, view, onView }: {
         ) : actual.rows.length === 0 ? (
           <>
             <table className="compare-table pub-ledger" tabIndex={0} aria-label="Sales ledger">
-              <thead><tr><th>Date</th><th>Itinerary</th><th className="num">Amount paid</th><th className="num">Net*</th></tr></thead>
+              <thead><tr><th>Date</th><th>Itinerary</th><th className="num">Paid</th><th className="num">Fee</th><th className="num">Net</th></tr></thead>
               <tbody>
-                <tr><td colSpan={4} className="empty-ledger">No sales yet</td></tr>
+                <tr><td colSpan={5} className="empty-ledger">No sales yet</td></tr>
               </tbody>
             </table>
             <div className="hub-note">
@@ -282,27 +474,58 @@ function EarningsTab({ myPubs, sales, salesError, onRetry, view, onView }: {
         ) : (
           <>
             <table className="compare-table pub-ledger" tabIndex={0} aria-label="Sales ledger">
-              <thead><tr><th>Date</th><th>Itinerary</th><th className="num">Amount paid</th><th className="num">Net*</th></tr></thead>
+              <thead><tr><th>Date</th><th>Itinerary</th><th className="num">Paid</th><th className="num">Fee</th><th className="num">Net</th></tr></thead>
               <tbody>
                 {actual.rows.map(r => (
                   <tr key={`${r.pubId}-${r.grantedAt}`}>
                     <td>{new Date(r.grantedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
                     <td>{r.title}</td>
                     <td className="num">{formatInr(r.amountPaidInr)}</td>
-                    <td className="num">{formatInr(r.amountPaidInr)}</td>
+                    <td className="num">{formatInr(r.feeInr)}</td>
+                    <td className="num">{formatInr(r.netInr)}</td>
                   </tr>
                 ))}
                 <tr>
                   <td colSpan={2}><b>Total</b></td>
                   <td className="num"><b>{formatInr(actual.grossInr)}</b></td>
+                  <td className="num"><b>{formatInr(actual.feeInr)}</b></td>
                   <td className="num"><b>{formatInr(actual.netInr)}</b></td>
                 </tr>
               </tbody>
             </table>
             <p className="hint-text" style={{ marginTop: 8 }}>
-              * Net mirrors gross for now — the platform-fee model is still TBD (M7 keeps the constant honestly
-              named). Amounts are what buyers actually paid at purchase time, not your publication's current price.
+              Fee is the platform's cut — {PLATFORM_FEE_SUMMARY}, charged across your sales in the order they
+              happened, so a row's fee depends on where it fell on your lifetime gross and not on the order this
+              table is read in. Amounts are what buyers actually paid at purchase time, not your publication's
+              current price.
             </p>
+
+            {payoutRuns.length > 0 && (
+              <>
+                <h4 style={{ margin: '18px 0 6px' }}>Payout runs</h4>
+                <table className="compare-table pub-ledger" tabIndex={0} aria-label="Payout runs">
+                  <thead><tr><th>Run</th><th className="num">Sales</th><th className="num">Gross</th><th className="num">Fee</th><th className="num">Net</th><th>Status</th></tr></thead>
+                  <tbody>
+                    {payoutRuns.map(p => (
+                      <tr key={p.dueAt}>
+                        <td>{new Date(p.dueAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
+                        <td className="num">{p.salesCount}</td>
+                        <td className="num">{formatInr(p.grossInr)}</td>
+                        <td className="num">{formatInr(p.feeInr)}</td>
+                        <td className="num">{formatInr(p.netInr)}</td>
+                        <td>{payoutPeriodStatus(p)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <p className="hint-text" style={{ marginTop: 8 }}>
+                  Each run covers the sales made since the previous one, and a sale lands on the Friday after it
+                  was bought. Nothing here has been disbursed — payouts are not automated yet, so a past run is
+                  money owed rather than money sent, and a balance under {formatInr(PAYOUT_MINIMUM_INR)} rolls
+                  into the next run instead of clearing.
+                </p>
+              </>
+            )}
           </>
         )
       ) : projection.rows.length === 0 ? (
@@ -313,7 +536,7 @@ function EarningsTab({ myPubs, sales, salesError, onRetry, view, onView }: {
       ) : (
         <>
           <table className="compare-table pub-ledger" tabIndex={0} aria-label="Projection ledger">
-            <thead><tr><th>Itinerary</th><th className="num">Price</th><th className="num">Forks</th><th className="num">If all unlocked</th><th className="num">Net*</th></tr></thead>
+            <thead><tr><th>Itinerary</th><th className="num">Price</th><th className="num">Forks</th><th className="num">If all unlocked</th><th className="num">Fee</th><th className="num">Net</th></tr></thead>
             <tbody>
               {projection.rows.map(r => (
                 <tr key={r.pubId}>
@@ -329,13 +552,15 @@ function EarningsTab({ myPubs, sales, salesError, onRetry, view, onView }: {
                 <td />
                 <td className="num"><b>{projection.rows.reduce((s, r) => s + r.forks, 0)}</b></td>
                 <td className="num"><b>{formatInr(projection.potentialInr)}</b></td>
+                <td className="num"><b>{formatInr(projection.feeInr)}</b></td>
                 <td className="num"><b>{formatInr(projection.netInr)}</b></td>
               </tr>
             </tbody>
           </table>
           <p className="hint-text" style={{ marginTop: 8 }}>
-            * A projection, not money: price × forks so far, assuming every fork had bought the unlock. The
-            platform-fee model arrives with Razorpay — until then the fee stays ₹0 (TBD).
+            A projection, not money: price × forks so far, assuming every fork had bought the unlock. The
+            potential total is exact for the fee ladder ({PLATFORM_FEE_SUMMARY}); the per-row fee shares are
+            illustrative, because which sale earns the lower rate depends on what actually sells first.
           </p>
           {projection.unpricedCount > 0 && (
             <div className="hub-note">

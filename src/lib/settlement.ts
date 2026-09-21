@@ -3,14 +3,22 @@
 // tests (the store-action tests never reach this code). Pure: no store, no
 // React, no dates — members in, balances and transfers out.
 //
-// Semantics preserved verbatim from the component (do not "improve" here
-// without updating the component AND these tests):
-//  - Fair share is the whole trip estimate split per head (travellers floor of
-//    1, so a 0/undefined head count cannot divide by zero).
+// Semantics (I-19 re-based the first one; the component and these tests moved
+// with it):
+//  - Fair share is the OPEN (unsettled) TAGGED lines split per head, and those
+//    same lines credit whoever fronted them. Both sides come from one
+//    population, so the balances net to zero and the settlement transfers
+//    balance exactly. It used to be the whole trip estimate
+//    (`totals.totalCostInr`), which made "mark settled" a pure record: the right
+//    behaviour for a planner, the wrong one for settling up. The estimate still
+//    lives in the Budget tab's metric strip, where a planning figure belongs.
+//  - SETTLED lines are dropped in here rather than by the caller, so no call
+//    site can quietly re-introduce them (the I-19 invariant, pinned by tests).
 //  - Only lines TAGGED with a payer move a balance; untagged lines stay in the
-//    shared kitty and move nobody.
+//    shared kitty and move nobody — they are outside the fair share too.
 //  - A per-person line is multiplied by the head count — whoever fronted it
-//    paid for everyone.
+//    paid for everyone — using the same floor of 1 as the division, so a
+//    0/undefined head count cannot divide by zero.
 //  - A payer who is not a member (stale row, removed crew member) credits
 //    nobody: balances are computed over members only.
 import type { Expense, ID, User } from '../data/types'
@@ -36,26 +44,57 @@ export function fairSharePerHead(travellers: number, totalCostInr: number): numb
   return totalCostInr / Math.max(1, travellers)
 }
 
+/** One line's credited amount: a per-person line covers the whole head count. */
+function lineAmount(e: Expense, heads: number): number {
+  return e.perPerson ? e.amountInr * heads : e.amountInr
+}
+
+/** Total of a set of lines, with per-person amounts expanded. No policy of its
+ *  own — callers choose the population (the card sums the settled history with
+ *  this to print what has already left the balances). */
+export function linesTotal(expenses: Expense[], travellers: number): number {
+  const heads = Math.max(1, travellers)
+  let total = 0
+  for (const e of expenses) total += lineAmount(e, heads)
+  return total
+}
+
 /**
- * Per-member balances for a trip: everyone's fair share is `totalCostInr`
- * split per head; tagged expenses credit whoever fronted them, with per-person
- * lines expanded to the full head count. Sorted richest-first (the balances
- * card's display order). `getUser` is an injected lookup so this module never
- * imports the store.
+ * The population the balances measure: the OPEN lines that have a payer.
+ * Settled lines are done and untagged ones sit in the shared kitty without
+ * owing anybody anything — neither belongs in a "who owes whom" figure. One
+ * predicate, both consumers (the balances and the card's "still to square up"
+ * total), so the two figures can never disagree.
+ */
+export function openTaggedLines(expenses: Expense[]): Expense[] {
+  return expenses.filter(e => !e.settled && e.paidBy)
+}
+
+/**
+ * Per-member balances for a trip: everyone's fair share is the OPEN tagged
+ * lines' total split per head, and those same lines credit whoever fronted
+ * them, with per-person lines expanded to the full head count. Because both
+ * sides come from one population the balances net to zero across the crew and
+ * the settlement transfers balance exactly; settle every line and every row
+ * reads 0.
+ *
+ * Pass the trip's WHOLE expense list — settled lines are filtered in here
+ * (I-19), never by the caller. Sorted richest-first (the balances card's
+ * display order). `getUser` is an injected lookup so this module never imports
+ * the store.
  */
 export function computeBalances(
   members: { userId: ID }[],
   expenses: Expense[],
   travellers: number,
-  totalCostInr: number,
   getUser?: (id: ID) => User | undefined,
 ): BalanceRow[] {
-  const fairShare = fairSharePerHead(travellers, totalCostInr)
+  const heads = Math.max(1, travellers)
+  const open = openTaggedLines(expenses)
+  const fairShare = fairSharePerHead(heads, linesTotal(open, heads))
   const paid = new Map<ID, number>()
-  for (const e of expenses) {
-    if (!e.paidBy) continue
-    const amt = e.perPerson ? e.amountInr * travellers : e.amountInr
-    paid.set(e.paidBy, (paid.get(e.paidBy) ?? 0) + amt)
+  for (const e of open) {
+    paid.set(e.paidBy as ID, (paid.get(e.paidBy as ID) ?? 0) + lineAmount(e, heads))
   }
   return members
     .map(m => ({

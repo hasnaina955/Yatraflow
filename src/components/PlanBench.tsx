@@ -1,5 +1,5 @@
-// ============ Plan Bench — homepage what-if cost calculator (issue #37) ============
-// Interactive bill on the Landing page. Every line renders its own formula —
+// ============ Plan Bench - homepage what-if cost calculator (issue #37) ============
+// Interactive bill on the Landing page. Every line renders its own formula -
 // the transparency promise is the feature. Stateless hand-off: the CTA stashes
 // the inputs into sessionStorage and CreateTrip reads them once on mount.
 // Inputs also persist to localStorage (view-prefs pattern) so returning
@@ -70,7 +70,7 @@ function shortInr(v: number): string {
   return `≈₹${s}`
 }
 
-/** Reusable dial: bare range with a drag bubble and a haptic step tick — the
+/** Reusable dial: bare range with a drag bubble and a haptic step tick - the
  *  v2 layout puts labels/values in each section's own header, not the slider. */
 function BenchRange(props: {
   value: number; min: number; max: number; step: number
@@ -107,7 +107,7 @@ function modeIcon(m: BenchMode, size = 15): React.ReactNode {
 
 const CONFETTI_COLORS = ['#2f9e8f', '#F3AA3D', '#e05656', '#7c5cff', '#2f9e8f']
 
-/** Clipboard with a legacy fallback — native plugin first (in the app shell),
+/** Clipboard with a legacy fallback - native plugin first (in the app shell),
  *  then the async Clipboard API, then the near-universal execCommand path for
  *  restricted/embedded contexts. */
 async function copyText(text: string): Promise<boolean> {
@@ -163,7 +163,7 @@ export function PlanBench() {
     return () => io.disconnect()
   }, [])
 
-  // The mobile bill dock tracks visibility continuously — it slides away when
+  // The mobile bill dock tracks visibility continuously - it slides away when
   // the bench (with its full receipt) is off-screen and follows while tuning.
   const [inView, setInView] = useState(false)
   useEffect(() => {
@@ -271,7 +271,7 @@ export function PlanBench() {
       setCopied(true)
       later(() => setCopied(false), 1600)
     }
-    // clipboard fully unavailable: the receipt is on screen — stay quiet
+    // clipboard fully unavailable: the receipt is on screen - stay quiet
   }
 
   /** Snapshot the live receipt to a PNG and share it: native share sheet →
@@ -290,7 +290,7 @@ export function PlanBench() {
       later(() => setImgState('idle'), 1600)
     } catch (err) {
       const aborted = err instanceof DOMException && err.name === 'AbortError'
-      if (!aborted) toast('Could not create the bill image — try "Copy bill as text"', 'err')
+      if (!aborted) toast('Could not create the bill image. Try "Copy bill as text"', 'err')
       setImgState('idle')
     } finally {
       setCapturing(false)
@@ -301,13 +301,13 @@ export function PlanBench() {
     haptic(HAPTIC.select)
     stashBenchPrefill(bill, input)
     // '#/new' is the Create Trip route (App.tsx `case 'new'`). This used to
-    // point at '#/create', which no route handles — the router's `default:`
+    // point at '#/create', which no route handles - the router's `default:`
     // sent the visitor back to the landing page, so the CTA looked inert and
     // the stashed prefill was never read.
     window.location.hash = '#/new'
   }
 
-  // Pointer-follow tilt — desktop pointers only, never reduced-motion.
+  // Pointer-follow tilt - desktop pointers only, never reduced-motion.
   function onTiltMove(e: React.MouseEvent) {
     if (reduced || !pointerFine || !receiptRef.current) return
     const r = receiptRef.current.getBoundingClientRect()
@@ -345,7 +345,7 @@ export function PlanBench() {
         cost?
       </h2>
       <p className="small muted bench-sub">
-        Distance, mode, crew, stay — dial it in and watch every rupee explain itself. Then take the whole bill straight into a real plan.
+        Distance, mode, crew, stay: dial it in and watch every rupee explain itself. Then take the whole bill straight into a real plan.
       </p>
       <div className="bench-grid">
         <div className="bench-controls">
@@ -354,7 +354,7 @@ export function PlanBench() {
             <div className="bench-head-actions">
               <button type="button" className={`bench-toggle${input.roundTrip ? ' on' : ''}`}
                 aria-pressed={input.roundTrip}
-                aria-label={`Return leg${input.roundTrip ? ' ×2 — billed twice (round trip)' : ' — off (one way)'}`}
+                aria-label={`Return leg${input.roundTrip ? ' ×2, billed twice (round trip)' : ', off (one way)'}`}
                 onClick={() => { haptic(HAPTIC.toggle); patch({ roundTrip: !input.roundTrip }) }}>
                 Return leg{input.roundTrip ? ' ×2' : ''}
               </button>
@@ -442,7 +442,7 @@ export function PlanBench() {
                   </button>
                 ))}
               </div>
-              <p className="bench-hint">{shown.rooms} room{shown.rooms === 1 ? '' : 's'} for {shownInput.crew} — costs split {shownInput.crew} way{shownInput.crew === 1 ? '' : 's'}</p>
+              <p className="bench-hint">{shown.rooms} room{shown.rooms === 1 ? '' : 's'} for {shownInput.crew} - costs split {shownInput.crew} way{shownInput.crew === 1 ? '' : 's'}</p>
             </div>
             <div className="bench-block">
               <div className="bench-block-head">
@@ -562,11 +562,11 @@ export function PlanBench() {
             )}
           </div>
           <p className="bench-fineprint">
-            We pre-fill your new trip with the crew, mode, style, budget and fuel figures — the route itself is yours to add · excludes tolls, parking & entry fees · no live traffic, no hidden margins · stay ₹{STAY_RATE_PER_NIGHT[input.stay]}/room-night, 2 per room · food ₹{MEALS_PER_HEAD_DAY}/head/day
+            We pre-fill your new trip with the crew, mode, style, budget and fuel figures. The route itself is yours to add. Estimates exclude tolls, parking and entry fees, assume no live traffic, and carry no hidden margins. Stay ₹{STAY_RATE_PER_NIGHT[input.stay]}/room-night, 2 per room. Food ₹{MEALS_PER_HEAD_DAY}/head/day.
           </p>
         </div>
       </div>
-      {/* Mobile bill dock — the total follows the user while they tune the dials
+      {/* Mobile bill dock - the total follows the user while they tune the dials
           (one-screen rule: never scroll away from the number you're changing). */}
       <div className="bench-dock">
         <div className="bench-dock-figures">

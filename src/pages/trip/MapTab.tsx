@@ -1059,6 +1059,26 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     }
     return m
   }, [pois, anchors, routePolyline, trip.transportMode])
+  /** P5.2: the cost line a suggestion's map popup shows - arrive, detour and
+   *  the day's detour-budget share, from numbers the corridor already computed. */
+  const hitCosts = useMemo(() => {
+    const m: Record<string, string> = {}
+    const budget = dayDetourBudgetMin({
+      travelStyle: trip.travelStyle,
+      plannedStops: (trip.days[0]?.stops ?? []).filter(x => x.status !== 'rejected').length,
+    })
+    for (const sh of pois) {
+      if (!sh.hit) continue
+      const dMin = hitEngine.get(String(sh.hit.id))?.detourMin ?? 0
+      const eta = sh.segment.etaMinutes
+      const bits: string[] = []
+      if (eta != null && Number.isFinite(eta)) bits.push(`arrive ${clockHM(Math.round(eta + dMin))}`)
+      bits.push(dMin > 0 ? `+${Math.round(dMin)} min` : 'on route')
+      if (dMin > 0 && budget > 0) bits.push(`${budgetSharePct(dMin, budget)}% of the day's detour budget`)
+      m[String(sh.hit.id)] = bits.join(' · ')
+    }
+    return m
+  }, [pois, hitEngine, trip.travelStyle, trip.days])
   const detourMinFor = (hit: PlaceHit): number =>
     hitEngine.get(String(hit.id))?.detourMin
       ?? asymmetricDetourMinutes(hit, anchors, routePolyline ?? null, MODE_SPEED[trip.transportMode] ?? 40)
@@ -2021,6 +2041,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
               onOpenInBoard={onOpenBoard ? () => onOpenBoard() : undefined}
               focusDay={activeDayIndex}
               slotPins={slotPins}
+              hitCosts={hitCosts}
               onOpenSlot={(key) => setOpenSlotKey(key)}
               onOpenHaltDay={onOpenDay}
               clockMilestones={clockMilestones}

@@ -181,8 +181,19 @@ const JEV_TIMEOUT_MS = 8_000
 /** Jev 429/529 retry budget (same backoff family as the dev audit). */
 const JEV_RETRIES = 2
 
+/** The one strict boundary every endpoint fetch passes through — a WHATWG parse
+ *  plus an http(s) origin assertion, so a URL is never assembled from a string
+ *  that has not survived a real parse. The user-configured endpoint is the
+ *  FEATURE here (bring your own provider); this gate is what makes that safe,
+ *  not a duplicate of the config validators — it is the last word before fetch. */
+function endpointUrl(baseUrl: string, path: string): string {
+  const u = new URL(`${baseUrl.replace(/\/+$/, '')}${path}`)
+  if (u.protocol !== 'https:' && u.protocol !== 'http:') throw new Error('unsupported endpoint protocol')
+  return u.toString()
+}
+
 async function chatCompletion(cfg: AiProviderConfig, messages: { role: string; content: string }[], signal: AbortSignal): Promise<string> {
-  const res = await fetch(`${cfg.baseUrl}/chat/completions`, {
+  const res = await fetch(endpointUrl(cfg.baseUrl, '/chat/completions'), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -248,7 +259,7 @@ async function askJevIntent(cfg: JevConfig, question: string, signal: AbortSigna
   let lastErr: unknown
   for (let attempt = 0; attempt <= JEV_RETRIES; attempt++) {
     try {
-      const res = await fetch(`${cfg.baseUrl}/systemone`, {
+      const res = await fetch(endpointUrl(cfg.baseUrl, '/systemone'), {
         method: 'POST',
         headers: { Authorization: `Bearer ${cfg.apiKey}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(body),

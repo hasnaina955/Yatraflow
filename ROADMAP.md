@@ -306,7 +306,7 @@ stays open until the remaining depth items are called done.
 
 ### M7 — "Premium" (monetization) — **issue #238**
 
-> Post-unlock value presentation (why the buy feels worth it) and the creator-growth-loop shape are researched with citations in `docs/commercial/RESEARCH-2026-09-18-creator-market-and-paywall-value.md`; the buildable items are I-20…I-27 below.
+> Post-unlock value presentation (why the buy feels worth it) and the creator-growth-loop shape are researched with citations in `docs/commercial/RESEARCH-2026-09-18-creator-market-and-paywall-value.md`; the buildable items were I-20…I-27, of which **I-20** and **I-21** have shipped (see below) — I-22…I-27 remain in the bank.
 Gateway integration (Razorpay fits INR), order/entitlement tables + webhook,
 purchase state, unlock flow replacing placeholder toasts. Needs an external
 gateway account. Deliberately after M6's test-suite groundwork.
@@ -374,7 +374,6 @@ unbuilt). **Before picking up a row, and before quoting one in a plan, confirm i
 | I-8 | Monthly statements / invoice export | creator | 2–3 h | Downloadable per-month earnings summary, client-side from the payouts table. **Post-M7.** |
 | I-17 | Theme the text selection and the caret | design system | 1 h | `::selection` and `caret-color` are declared **nowhere** in `src/styles.css` — the UA's highlight blue and caret are the last unthemed browser surfaces in the app (found while scoping v0.60.0's craft-floor pass). Cheap to close with the app's own soft-tint pairing (`--teal-soft` + `--text`) and `caret-color: var(--teal-deep)`, but it is a feel change rather than a defect, so it wants a look first — and the baseline's line-keyed entries must be re-mapped in the same commit (AGENTS §4). |
 | I-19 | Settled lines genuinely leave the balances | budget | 3–4 h + product call | M6 B4 shipped "mark settled" as a record (settler + timestamp, history, activity) and the line STILL counts toward the running balances — deliberately: the card's fair share is `fairSharePerHead(travellers, totals.totalCostInr)` (the engine estimate split per head), so dropping a settled line's credit while it remains inside the estimate breaks the zero-sum property and the who-owes-whom transfers stop balancing. Doing it properly means re-basing what the card measures from "the trip estimate" to "the open lines" (fair share from open-line sums), with the settled history as a ledger view — a product decision about what the card should mean, not arithmetic. BudgetTab's `computeBalances` call passes the whole `trip.expenses`; the open/settled split currently styles the two lists only. |
-| I-21 | Purchase share card | growth | 3–4 h | WhatsApp-sized "I bought the Spiti plan" og-image the buyer can post — buyers are the distribution channel (research §4.5). Depends on the share-card pipeline (`public/og-default.png`, `api/i.js`). |
 | I-23 | Publish-quality score | creator | 1 d | Checklist with nudges (cover photo, budget filled, notes density, preview-day choice) on the hub + Share tab. Ship, measure via I-22, then claim any lift (research §5). |
 | I-25 | Buyer reviews | creator | 2 d | Post-purchase ratings on itineraries: schema (reviews table + RLS), policy question (purchase-gated?) first. Feeds conversion, creator feedback, and I-26. |
 | I-27 | Hub presentation pass | creator | 1 d | KPI sparklines, activity feed ("Admin unlocked Spiti · 2h ago"), motion per `docs/MOTION-TOKENS.md`. The studio-dashboard pass over the existing Overview + Earnings. Research §5. |
@@ -468,6 +467,20 @@ Kept as one line each so the origin is traceable without re-listing the work as 
   fixed a defect on the money path, unrelated to the shelf: the public page never re-read the
   itinerary after an unlock, so a buyer kept rendering the wire-stubbed pre-purchase copy —
   titles and coordinates over emptied days — until a manual reload.
+- **Idea bank I-21 — the buyer's card** — [Unreleased]. Source:
+  [`docs/commercial/RESEARCH-2026-09-18-creator-market-and-paywall-value.md`](docs/commercial/RESEARCH-2026-09-18-creator-market-and-paywall-value.md)
+  §4.5 ("buyers are the distribution channel"). `/i/<id>?buyer=<entitlement>` serves a
+  buyer's variant of the share card — "I bought <plan>" over the plan's own days, budget and
+  route, on the plan's own stored cover (or the brand card), reusing the shipped `api/i.js`
+  pipeline rather than compositing a per-buyer image (no renderer sits behind the function, and
+  an image making the purchase claim is the part that must be verifiable). The claim is verified
+  rather than trusted: the new `owns_publication()` answers one boolean and the handler renders
+  the framing only on a literal `true`, falling back to the creator's card for every other
+  answer — the function absent (migration `20260921_purchase_share_card.sql`, **not yet applied**:
+  run it in the SQL editor before this reaches a deployed environment), a timeout, a non-boolean
+  body, or an id that is not a UUID. Offered on **My purchases** as a row action and, last and
+  quietest, in the unlock reveal; withheld for a withdrawn plan, because unpublishing deletes the
+  row and the link would preview as nothing.
 
 ## Historical plans (executed — kept for the record, not live guidance)
 

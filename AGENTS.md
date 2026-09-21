@@ -394,6 +394,7 @@ Hard rules (each learned the hard way — do not relearn them):
   both (see `store.login`/`signup`) and map through `lib/authErrors.ts`; an
   unwrapped throw leaves the sign-in form silently re-enabling after its 10 s
   failsafe timer with no message shown.
+- **A source-level test regex that spans a line boundary must tolerate CRLF — `core.autocrlf=true` means a pre-existing file is checked out CRLF while a file you created is LF, so the same pattern matches one and silently never matches the other (learned 2026-09-21).** Pinning I-21, `expect(handler).toMatch(/} catch {\n    return false\n  }/)` failed against `api/i.js` while single-line patterns over the same file passed — the file's lines end `\r\n`, so `\n` never follows `catch {`. Write `/\r?\n/` in any multi-line source assertion, and be aware the *opposite* trap is live too: a test file or migration authored this session is LF in the working tree until the next checkout converts it, so an assertion that passes today can be reading a different line ending than the file it pins. (Companion: when a source assertion fails, print what the regex was actually run against before suspecting the code — `codeOf()` in `tests/purchase-share-card.test.ts` exists because the failing match was a COMMENT saying "I bought", not the code claiming it.)
 - **Each `run_commands` array entry is a separate shell process** — a `$var`
   assigned in one entry is empty in the next, so multi-step probes silently
   return nothing and look like failures. Put a dependent pipeline in a single

@@ -402,7 +402,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   onOpenHaltDay?: (dayIndex: number) => void
   /** P5.3: an empty part of the day's top candidates - hollow amber pins.
    *  Their tooltip carries P5.2's cost line (arrive / detour / budget share). */
-  slotPins?: Array<{ key: string; label: string; name: string; lat: number; lng: number; meta: string }>
+  slotPins?: Array<{ key: string; label: string; name: string; meta: string; hit: PlaceHit }>
   /** Tapping a slot pin opens that part in the plan rail. */
   onOpenSlot?: (key: string) => void
   /** Delete the stop straight from the map (popup action) — wired by MapTab. */
@@ -495,7 +495,9 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   const [coordFixes, setCoordFixes] = useState<Record<string, { lat: number; lng: number }>>({})
   useEffect(() => {
     let cancelled = false
-    const pending = nearbyPois.filter(h => !hasCoords(h) && coordFixes[h.id as string] == null).slice(0, 10)
+    const pending = [...nearbyPois, ...slotPins.map(p => p.hit)]
+      .filter(h => !hasCoords(h) && coordFixes[h.id as string] == null)
+      .slice(0, 10)
     if (pending.length === 0) return
     ;(async () => {
       for (const h of pending) {
@@ -1116,25 +1118,34 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
               <>
                 <ClockMilestoneLayer overlay={clockMilestones} showReturn={!returnLeg || showReturn} onOpenDay={onOpenHaltDay} />
                 <SuggestionDistanceLayer places={nearbyPois} road={geom.all ?? null} />
-                {slotPins.map(pin => (
-                  <MapMarker key={`slot-${pin.key}`} longitude={pin.lng} latitude={pin.lat} anchor="center">
-                    <MarkerContent>
-                      <button
-                        type="button"
-                        className="yf-map-pin yf-map-pin--slot"
-                        title={`${pin.label}: ${pin.name} - tap to open in the plan`}
-                        onClick={() => onOpenSlot?.(pin.key)}
-                      >
-                        {pin.label.slice(0, 1)}
-                      </button>
-                    </MarkerContent>
-                    <MarkerTooltip>
-                      {`${pin.label}: ${pin.name} - ${pin.meta} - tap to open in the plan`}
-                    </MarkerTooltip>
-                  </MapMarker>
-                ))}
               </>
             )}
+            {/* P5.3: the day's empty parts stand on the map - hollow amber pins at
+                their top candidate's real position (placeholder hits resolve via
+                the same coord-fix pass as the ideas), the cost line in the tooltip. */}
+            {slotPins.map(pin => {
+              const fix = coordFixes[pin.hit.id as string]
+              const lat = fix ? fix.lat : pin.hit.latitude
+              const lng = fix ? fix.lng : pin.hit.longitude
+              if (!Number.isFinite(lat) || !Number.isFinite(lng) || (lat === 0 && lng === 0)) return null
+              return (
+                <MapMarker key={`slot-${pin.key}`} longitude={lng} latitude={lat} anchor="center">
+                  <MarkerContent>
+                    <button
+                      type="button"
+                      className="yf-map-pin yf-map-pin--slot"
+                      title={`${pin.label}: ${pin.name} - ${pin.meta} - tap to open in the plan`}
+                      onClick={() => onOpenSlot?.(pin.key)}
+                    >
+                      {pin.label.slice(0, 1)}
+                    </button>
+                  </MarkerContent>
+                  <MarkerTooltip>
+                    {`${pin.label}: ${pin.name} - ${pin.meta} - tap to open in the plan`}
+                  </MarkerTooltip>
+                </MapMarker>
+              )
+            })}
             {(() => {
               let num = 0
               const showClockChips = !!(clockMilestones && clockOn)

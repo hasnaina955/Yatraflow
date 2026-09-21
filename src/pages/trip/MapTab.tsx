@@ -1281,17 +1281,13 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     .filter(s => s.state === 'empty' && s.candidates.length > 0)
     .map(s => {
       const c = s.candidates[0]
-      const lat = c.hit.latitude
-      const lng = c.hit.longitude
-      if (!Number.isFinite(lat) || !Number.isFinite(lng) || (lat === 0 && lng === 0)) return null
       const bits = [
         c.arriveLabel ? `arrive ${c.arriveLabel}` : null,
         c.detourMin > 0 ? `+${Math.round(c.detourMin)} min` : 'on route',
         c.budgetSharePct > 0 ? `${c.budgetSharePct}% of the day's detour budget` : null,
       ].filter(Boolean)
-      return { key: s.key, label: s.label, name: c.hit.name, lat, lng, meta: bits.join(' · ') }
-    })
-    .filter(Boolean) as Array<{ key: string; label: string; name: string; lat: number; lng: number; meta: string }>,
+      return { key: s.key, label: s.label, name: c.hit.name, meta: bits.join(' · '), hit: c.hit }
+    }),
   [activeDaySlots])
   const [openLedgerKey, setOpenLedgerKey] = useState<string | null>(null)
   /** The rail's meter copy: the mockup's wording, honest per day. */

@@ -509,8 +509,9 @@ function AnalyticsTab() {
         </tbody>
       </table>
       <p className="hint-text" style={{ marginTop: 8 }}>
-        Teal bar = signups, saffron = trips. When M7 payments land, this tab grows the revenue row
-        (payout periods, gross → net) on the existing earnings-ledger contract.
+        Teal bar = signups, saffron = trips. The revenue row (payout periods, gross → net) is still to
+        come here — the platform fee ladder and the per-sale ledger behind it exist in
+        `src/lib/earnings.ts`, but this tab reads nothing from them yet.
       </p>
     </div>
   )

@@ -123,25 +123,80 @@ export interface PayoutStatus {
 }
 
 /**
+ * The next payout run strictly after `ms` — the coming Friday at local
+ * midnight. Strictly, because a run that has already started is not one a sale
+ * made today can join, and "0 days away" would render as "today" every Friday
+ * and invite a creator to wait for money that has no rail to arrive on.
+ */
+export function nextPayoutRun(ms: number): number {
+  const day = new Date(ms)
+  day.setHours(0, 0, 0, 0)
+  const ahead = ((PAYOUT_WEEKDAY - day.getDay() + 7) % 7) || 7
+  day.setDate(day.getDate() + ahead)
+  return day.getTime()
+}
+
+/**
  * The schedule this ledger is built around — NOT an automated disbursement.
  * See the file header: no payout rail exists, so callers must not present this
  * as money in transit.
  */
 export function payoutStatus(netInr: number, now: number): PayoutStatus {
   const balance = Math.max(0, Math.round(netInr))
-  const day = new Date(now)
-  day.setHours(0, 0, 0, 0)
-  // Strictly the NEXT Friday. `0` would mean "a run today", which renders as
-  // "today" every Friday and invites a creator to wait for money that has no
-  // rail to arrive on.
-  const ahead = ((PAYOUT_WEEKDAY - day.getDay() + 7) % 7) || 7
-  day.setDate(day.getDate() + ahead)
   return {
-    dueAt: day.getTime(),
+    dueAt: nextPayoutRun(now),
     clearsInr: balance >= PAYOUT_MINIMUM_INR ? balance : 0,
     belowMinimum: balance > 0 && balance < PAYOUT_MINIMUM_INR,
     minimumInr: PAYOUT_MINIMUM_INR,
   }
+}
+
+/** One payout run, as the history table reads it. */
+export interface PayoutPeriod {
+  /** The run date this period pays on. */
+  dueAt: number
+  salesCount: number
+  grossInr: number
+  feeInr: number
+  netInr: number
+  /** What that run would actually send — 0 when the period is under the
+   *  minimum and therefore rides into a later one. */
+  clearsInr: number
+  /** The date has passed. NOT "paid": nothing disburses, so a past run is
+   *  money owed, and the UI has to say which of the two it means. */
+  past: boolean
+  belowMinimum: boolean
+}
+
+/**
+ * Group sales into the payout runs they would land in, newest run first.
+ *
+ * The input must be the rows from `deriveActualSales` — their `feeInr` is the
+ * lifetime-ladder attribution, and re-deriving a fee per period would charge the
+ * 15% tier again for every run. Period totals are sums of those rows, so the
+ * periods add up to the ledger exactly.
+ */
+export function payoutPeriods(rows: SaleRow[], now: number): PayoutPeriod[] {
+  const byRun = new Map<number, PayoutPeriod>()
+  for (const row of rows) {
+    const dueAt = nextPayoutRun(row.grantedAt)
+    const period = byRun.get(dueAt) ?? {
+      dueAt, salesCount: 0, grossInr: 0, feeInr: 0, netInr: 0, clearsInr: 0, past: false, belowMinimum: false,
+    }
+    period.salesCount += 1
+    period.grossInr += row.amountPaidInr
+    period.feeInr += row.feeInr
+    period.netInr += row.netInr
+    byRun.set(dueAt, period)
+  }
+  return [...byRun.values()]
+    .map(p => ({
+      ...p,
+      past: p.dueAt <= now,
+      belowMinimum: p.netInr < PAYOUT_MINIMUM_INR,
+      clearsInr: p.netInr >= PAYOUT_MINIMUM_INR ? p.netInr : 0,
+    }))
+    .sort((a, b) => b.dueAt - a.dueAt)
 }
 
 // ---- Actual sales (I-11: per-publication revenue attribution) ----

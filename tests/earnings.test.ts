@@ -3,7 +3,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import {
-  projectEarnings, deriveActualSales, payoutStatus,
+  projectEarnings, deriveActualSales, payoutStatus, payoutPeriods, nextPayoutRun,
   feeForSliceInr, platformFeeInr, netOfFeeInr, attributeFeesInr,
   PLATFORM_FEE_TIERS, PAYOUT_MINIMUM_INR, PAYOUT_WEEKDAY,
 } from '../src/lib/earnings'
@@ -184,10 +184,11 @@ describe('the hub reads the ledger as written (I-9/I-10/I-13)', () => {
   const hub = readFileSync(new URL('../src/pages/CreatorHubPage.tsx', import.meta.url), 'utf8')
 
   it('shows the fee beside what is left, in both ledgers', () => {
-    // Three headers, not two: the actual ledger writes its <thead> twice — once
-    // for the empty state and once for the rows — and the two must stay the
-    // same shape or an empty ledger teaches the wrong columns.
-    expect(hub.match(/<th className="num">Fee<\/th>/g)).toHaveLength(3)
+    // Four headers: the actual ledger writes its <thead> twice — once for the
+    // empty state and once for the rows, and the two must stay the same shape or
+    // an empty ledger teaches the wrong columns — plus the projection ledger and
+    // the payout runs, which are ledgers of their own.
+    expect(hub.match(/<th className="num">Fee<\/th>/g)).toHaveLength(4)
     expect(hub).toMatch(/formatInr\(r\.feeInr\)/)
     expect(hub).toMatch(/formatInr\(actual\.feeInr\)/)
     expect(hub).toMatch(/formatInr\(projection\.feeInr\)/)
@@ -199,7 +200,8 @@ describe('the hub reads the ledger as written (I-9/I-10/I-13)', () => {
   })
 
   it('keeps the payout schedule on the actual ledger, never on a projection', () => {
-    expect(hub).toMatch(/payoutStatus\(actual\?\.netInr \?\? 0, Date\.now\(\)\)/)
+    expect(hub).toMatch(/payoutStatus\(actual\?\.netInr \?\? 0, now\)/)
+    expect(hub).toMatch(/payoutPeriods\(actual\?\.rows \?\? \[\], now\)/)
     expect(hub).toMatch(/\{view === 'actual' && \(/)
   })
 
@@ -208,6 +210,95 @@ describe('the hub reads the ledger as written (I-9/I-10/I-13)', () => {
     // The old placeholder's copy must not survive anywhere.
     expect(hub).not.toContain('TBD')
     expect(hub).not.toContain('mirrors gross')
+  })
+
+  it('never calls a past run paid', () => {
+    // The one word that would turn an honest ledger into a false promise. Scoped
+    // to the status helper: the sales ledger's own "Paid" column means what the
+    // BUYER paid, which is a different word for a different thing.
+    const status = hub.slice(hub.indexOf('function periodStatus'), hub.indexOf('/** "26 Sep"'))
+    expect(status.length).toBeGreaterThan(0)
+    expect(status).toContain("'Owed — not disbursed'")
+    expect(status).not.toMatch(/paid/i)
+    expect(hub).toMatch(/<th>Status<\/th>/)
+  })
+})
+
+describe('the price field states what is kept (I-13)', () => {
+  const shareTab = readFileSync(new URL('../src/pages/trip/ShareTab.tsx', import.meta.url), 'utf8')
+
+  it('puts the net beside the price, as a floor rather than a rate', () => {
+    // A price on its own cannot know the creator's lifetime gross, so the only
+    // honest figure it can promise is the least they keep — which is what the
+    // first tier charges.
+    expect(shareTab).toMatch(/netOfFeeInr\(priceNum\)/)
+    expect(shareTab).toContain('a sale nets you at least')
+    // FLOORED: `formatInr` rounds, and a net of ₹172.55 promised as "at least
+    // ₹173" is a rupee more than the sale can produce.
+    expect(shareTab).toMatch(/formatInr\(Math\.floor\(netOfFeeInr\(priceNum\)\)\)/)
+    expect(shareTab).toMatch(/import \{[^}]*PLATFORM_FEE_SUMMARY[^}]*\} from '\.\.\/\.\.\/lib\/earnings'|PLATFORM_FEE_SUMMARY/)
+  })
+})
+
+describe('the payout runs ledger (I-9)', () => {
+  // Local midnights: a sale made during a week lands on the Friday after it,
+  // so the arithmetic below is timezone-independent.
+  const monday = new Date(2026, 8, 21, 9, 0, 0).getTime()
+  const nextMonday = monday + 7 * 86_400_000
+
+  it('puts a sale on the Friday after it was bought, at local midnight', () => {
+    const run = new Date(nextPayoutRun(monday))
+    expect(run.getDay()).toBe(PAYOUT_WEEKDAY)
+    expect(run.getTime()).toBeGreaterThan(monday)
+    expect([run.getHours(), run.getMinutes(), run.getSeconds()]).toEqual([0, 0, 0])
+    expect(run.toDateString()).not.toBe(new Date(monday).toDateString())
+  })
+
+  it('groups a week of sales into one run, newest run first', () => {
+    const led = deriveActualSales([
+      ent({ id: 'a', amountPaidInr: 199, grantedAt: monday }),
+      ent({ id: 'b', amountPaidInr: 199, grantedAt: monday + 86_400_000 }),
+      ent({ id: 'c', amountPaidInr: 499, grantedAt: nextMonday }),
+    ], [])
+    const periods = payoutPeriods(led.rows, nextMonday + 86_400_000)
+    expect(periods).toHaveLength(2)
+    expect(periods[0]!.dueAt).toBeGreaterThan(periods[1]!.dueAt)
+    expect(periods[0]!.salesCount).toBe(1)
+    expect(periods[1]!.salesCount).toBe(2)
+    expect(periods[1]!.grossInr).toBe(398)
+  })
+
+  it('adds up to the ledger above it — the same rows, the same fees', () => {
+    const led = deriveActualSales([
+      ent({ id: 'a', amountPaidInr: 199, grantedAt: monday }),
+      ent({ id: 'b', amountPaidInr: 25_000, grantedAt: monday + 86_400_000 }),
+      ent({ id: 'c', amountPaidInr: 499, grantedAt: nextMonday }),
+    ], [])
+    const periods = payoutPeriods(led.rows, nextMonday + 86_400_000)
+    const sum = (pick: (p: ReturnType<typeof payoutPeriods>[number]) => number) =>
+      periods.reduce((s, p) => s + pick(p), 0)
+    expect(sum(p => p.grossInr)).toBe(led.grossInr)
+    expect(sum(p => p.feeInr)).toBe(led.feeInr)
+    expect(sum(p => p.netInr)).toBe(led.netInr)
+    expect(sum(p => p.salesCount)).toBe(led.rows.length)
+  })
+
+  it('calls a run behind us owed, and one ahead scheduled', () => {
+    const led = deriveActualSales([ent({ amountPaidInr: 499, grantedAt: monday })], [])
+    expect(payoutPeriods(led.rows, monday)[0]).toMatchObject({ past: false })
+    expect(payoutPeriods(led.rows, monday + 30 * 86_400_000)[0]).toMatchObject({ past: true })
+  })
+
+  it('rolls a run under the minimum over instead of clearing it', () => {
+    // ₹149 → fee ₹22 → net ₹127, which is under the ₹500 minimum.
+    const led = deriveActualSales([ent({ amountPaidInr: 149, grantedAt: monday })], [])
+    expect(payoutPeriods(led.rows, monday)[0]).toMatchObject({
+      netInr: 127, belowMinimum: true, clearsInr: 0,
+    })
+  })
+
+  it('has no runs to show for a creator with no sales', () => {
+    expect(payoutPeriods([], monday)).toEqual([])
   })
 })
 

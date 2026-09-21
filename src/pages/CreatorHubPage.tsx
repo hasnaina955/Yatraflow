@@ -8,7 +8,10 @@ import { ExternalLink, Pencil } from 'lucide-react'
 import { PillNav } from '../components/PillNav'
 import type { PublishedItinerary } from '../data/types'
 import { useDb, currentUser, updateProfile, unpublishItinerary, tripById } from '../store/store'
-import { projectEarnings, deriveActualSales, payoutStatus, PLATFORM_FEE_SUMMARY, type ActualSales } from '../lib/earnings'
+import {
+  projectEarnings, deriveActualSales, payoutStatus, payoutPeriods, PAYOUT_MINIMUM_INR,
+  PLATFORM_FEE_SUMMARY, type ActualSales, type PayoutPeriod,
+} from '../lib/earnings'
 import { fetchCreatorSales } from '../lib/unlock'
 import { formatInr } from '../lib/engine'
 import { Chip, ConfirmDialog, Field, toast } from '../components/ui'
@@ -24,6 +27,15 @@ function isValidSocialUrl(v: string): boolean {
   } catch {
     return false
   }
+}
+
+/** How a run reads: what happened to it, in the one word a table cell has room
+ *  for. "Owed" rather than "Paid" is the whole point — nothing disburses, so a
+ *  date in the past is money the platform owes, not money it sent. */
+function periodStatus(p: PayoutPeriod): string {
+  if (p.belowMinimum) return `Under ${formatInr(PAYOUT_MINIMUM_INR)} — rolls over`
+  if (p.past) return 'Owed — not disbursed'
+  return 'Scheduled'
 }
 
 /** "26 Sep" — a run date, not a timestamp. */
@@ -261,7 +273,11 @@ function EarningsTab({ myPubs, sales, salesError, onRetry, view, onView, basis, 
   const lifetimeInr = basis === 'net' ? (actual?.netInr ?? 0) : (actual?.grossInr ?? 0)
   // The schedule is about real money, so it reads the actual ledger and is
   // rendered in the Actual view only — a projection has no payout date.
-  const payout = payoutStatus(actual?.netInr ?? 0, Date.now())
+  const now = Date.now()
+  const payout = payoutStatus(actual?.netInr ?? 0, now)
+  // Same rows, same fees, grouped by the run each sale would land in — so this
+  // table adds up to the ledger above it rather than re-deriving the ladder.
+  const payoutRuns = payoutPeriods(actual?.rows ?? [], now)
   return (
     <>
       <div className="pub-kpis">
@@ -357,6 +373,33 @@ function EarningsTab({ myPubs, sales, salesError, onRetry, view, onView, basis, 
               table is read in. Amounts are what buyers actually paid at purchase time, not your publication's
               current price.
             </p>
+
+            {payoutRuns.length > 0 && (
+              <>
+                <h4 style={{ margin: '18px 0 6px' }}>Payout runs</h4>
+                <table className="compare-table pub-ledger" tabIndex={0} aria-label="Payout runs">
+                  <thead><tr><th>Run</th><th className="num">Sales</th><th className="num">Gross</th><th className="num">Fee</th><th className="num">Net</th><th>Status</th></tr></thead>
+                  <tbody>
+                    {payoutRuns.map(p => (
+                      <tr key={p.dueAt}>
+                        <td>{new Date(p.dueAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
+                        <td className="num">{p.salesCount}</td>
+                        <td className="num">{formatInr(p.grossInr)}</td>
+                        <td className="num">{formatInr(p.feeInr)}</td>
+                        <td className="num">{formatInr(p.netInr)}</td>
+                        <td>{periodStatus(p)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <p className="hint-text" style={{ marginTop: 8 }}>
+                  Each run covers the sales made since the previous one, and a sale lands on the Friday after it
+                  was bought. Nothing here has been disbursed — payouts are not automated yet, so a past run is
+                  money owed rather than money sent, and a balance under {formatInr(PAYOUT_MINIMUM_INR)} rolls
+                  into the next run instead of clearing.
+                </p>
+              </>
+            )}
           </>
         )
       ) : projection.rows.length === 0 ? (

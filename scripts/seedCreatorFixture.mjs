@@ -90,10 +90,15 @@
 //   creator (see the credentials the script prints).
 // ============================================================================
 
-import { createClient } from '@supabase/supabase-js'
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
 import { randomBytes } from 'node:crypto'
+// Transport/session plumbing lives in the KIT (scripts/fixtureKit.mjs) so other
+// fixtures — the next session-gated surface's browser check — reuse one write
+// path instead of copying this script's. The PLAN stays here.
+import {
+  SUPABASE_URL as URL, SUPABASE_ANON_KEY as ANON,
+  SERVICE_ROLE_KEY as SERVICE, PG_CONN as PGCONN,
+  hasElevation, insertAsUser, insertInChunks, makeSqlRunner, promoteMasteradmin, sessionFor,
+} from './fixtureKit.mjs'
 // The traffic plan lives in its own PURE module because this script runs its
 // whole seed on import — a test cannot import it to check its numbers, and the
 // numbers a browser check needs an answer key for are in `fixtureFunnelPlan.mjs`
@@ -122,11 +127,6 @@ function loadEnv() {
 
 const dotenv = loadEnv()
 const env = k => dotenv.get(k) ?? ''
-
-const URL = env('VITE_SUPABASE_URL')
-const ANON = env('VITE_SUPABASE_ANON_KEY')
-const SERVICE = env('SUPABASE_SERVICE_ROLE_KEY')
-const PGCONN = env('PGCONN')
 
 const args = new Set(process.argv.slice(2))
 const APPLY = args.has('--apply')
@@ -346,74 +346,6 @@ function randomUUID() {
   return crypto.randomUUID()
 }
 
-// ------------------------------------------------------------------- clients
-function anonClient() {
-  return createClient(URL, ANON, { auth: { persistSession: false, autoRefreshToken: false } })
-}
-
-/** Sign in, or sign up then sign in — the harness's own idiom. Signup is
- *  best-effort: an existing account answers "already registered", which is not
- *  a failure here. */
-async function sessionFor(who) {
-  const sb = anonClient()
-  await sb.auth.signUp({ email: who.email, password: who.pass }).catch(() => {})
-  const { data, error } = await sb.auth.signInWithPassword({ email: who.email, password: who.pass })
-  if (error) throw new Error(`${who.email}: ${error.message}`)
-  return { sb, userId: data.user.id }
-}
-
-// --------------------------------------------------------------- write paths
-// Trips, members and publications go through the caller's OWN session, which is
-// the point: those writes are exactly the ones a real creator makes, and RLS
-// (`published write`: creator_id = auth.uid()) is what authorizes them. Only the
-// sales need elevation, because `entitlements` has no authenticated write path.
-async function insertAsUser(sb, table, rows) {
-  const { error } = await sb.from(table).insert(rows)
-  if (error) throw new Error(`${table}: ${error.message}`)
-}
-
-/**
- * The elevated writer the sales need, over whichever elevation the machine
- * already has: the service-role REST client, or a `pg` connection (`PGCONN`, the
- * same env var `scripts/apply-schema.mjs` uses). One interface, two transports,
- * so the fixture does not care which one is available.
- *
- * `jsonb_populate_recordset` writes any of these shapes from the same JSON the
- * REST path posts, so the `pg` branch is a single statement rather than a
- * hand-built column list that would drift from the tables.
- */
-async function makeSqlRunner() {
-  if (SERVICE) {
-    const svc = createClient(URL, SERVICE, { auth: { persistSession: false, autoRefreshToken: false } })
-    return {
-      async insert(table, rows) {
-        const { error } = await svc.from(table).insert(rows)
-        if (error) throw new Error(`${table}: ${error.message}`)
-      },
-      async remove(table, column, values) {
-        const { error } = await svc.from(table).delete().in(column, values)
-        if (error) throw new Error(`${table}: ${error.message}`)
-      },
-    }
-  }
-  if (PGCONN) {
-    const { Client } = await import('pg')
-    const client = new Client({ connectionString: PGCONN, ssl: { rejectUnauthorized: false } })
-    await client.connect()
-    return {
-      async insert(table, rows) {
-        await client.query(
-          `insert into public.${table} select * from jsonb_populate_recordset(null::public.${table}, $1::jsonb)`,
-          [JSON.stringify(rows)],
-        )
-      },
-      async remove(table, column, values) {
-        await client.query(`delete from public.${table} where ${column} = any($1)`, [values])
-      },
-    }
-  }
-  return null
-}
 
 // ------------------------------------------------------------------ the plan
 /** Lifetime unlocks per publication, from the sales plan above — the third stage
@@ -492,12 +424,6 @@ function funnelRows(idsBySlug) {
  * rows), and one request carrying all of them is both a bigger failure surface
  * and a slower thing to diagnose than three bounded ones.
  */
-async function insertInChunks(sql, table, rows, size = 250) {
-  for (let i = 0; i < rows.length; i += size) {
-    await sql.insert(table, rows.slice(i, i + size))
-  }
-}
-
 /**
  * The order + entitlement ROWS for one owner's sale plan.
  *
@@ -601,7 +527,7 @@ ${events}
  * (`published write`: creator_id = auth.uid()) is what authorizes them.
  */
 async function seedOwner(who, pubs, label) {
-  const owner = await sessionFor(who)
+  const owner = await sessionFor(URL, ANON, who)
   console.log(`${GREEN}${label} ready${OFF} ${who.email} (${owner.userId})`)
 
   // Creator mode, or the hub renders the "become a creator" card instead of the
@@ -685,30 +611,10 @@ async function seedOwner(who, pubs, label) {
   return { userId: owner.userId, sb: owner.sb, trips, pubIds: pubs.map(p => p.id), tripIds: trips.map(t => t.id) }
 }
 
-/**
- * Give the admin the JWT role the console gates on.
- *
- * `auth.admin.updateUserById` REPLACES `app_metadata` rather than merging it —
- * harmless for a fresh fixture signup with nothing else in there, and the reason
- * the printed SQL fallback MERGES instead (`adminPromotionSql`): a statement
- * pasted against a real account must not drop the metadata it already has.
- *
- * Returns false when the machine has no service key: an anon client cannot set
- * another user's metadata at all, and seeding an account that silently fails the
- * console's gate would look like a broken console rather than a missing key.
- */
-async function promoteAdmin(userId) {
-  if (!SERVICE) return false
-  const svc = createClient(URL, SERVICE, { auth: { persistSession: false, autoRefreshToken: false } })
-  const { error } = await svc.auth.admin.updateUserById(userId, { app_metadata: { role: 'masteradmin' } })
-  if (error) throw new Error(`promote ${ADMIN.email}: ${error.message}`)
-  return true
-}
-
 async function apply() {
   const buyers = []
   for (const b of BUYERS) {
-    const s = await sessionFor(b)
+    const s = await sessionFor(URL, ANON, b)
     buyers.push(s.userId)
     console.log(`${GREEN}buyer ready${OFF}   ${b.email} (${s.userId})`)
   }
@@ -716,7 +622,7 @@ async function apply() {
   const creator = await seedOwner(CREATOR, PUBLICATIONS, 'creator')
   const admin = await seedOwner(ADMIN, [ADMIN_PUBLICATION], 'admin')
 
-  const promoted = await promoteAdmin(admin.userId)
+  const promoted = await promoteMasteradmin(URL, SERVICE, admin.userId, ADMIN.email)
   if (promoted) {
     console.log(`${GREEN}admin promoted${OFF} ${ADMIN.email} → masteradmin (sign OUT and back in: the role lives in the JWT)`)
   } else {
@@ -737,7 +643,7 @@ async function apply() {
     [ADMIN_PUBLICATION.slug, adminPubIds[0]],
   ])
   const funnelEvents = funnelRows(idsBySlug)
-  const sql = await makeSqlRunner()
+  const sql = await makeSqlRunner(URL, SERVICE, PGCONN)
   if (!sql) {
     printSqlFallback({
       creatorId: creator.userId, adminId: admin.userId, buyerIds: buyers,
@@ -812,7 +718,7 @@ Remove the fixture with:  node scripts/seedCreatorFixture.mjs --clean
  *  sales behind (which would keep the console's revenue row populated by
  *  entitlements pointing at publications that no longer exist). */
 async function cleanOwner(who, sql) {
-  const owner = await sessionFor(who)
+  const owner = await sessionFor(URL, ANON, who)
   const { data: pubs } = await owner.sb.from('published_itineraries').select('id, trip_id').eq('creator_id', owner.userId)
   const mine = (pubs ?? []).filter(p => String(p.id).includes('-fixture-'))
   if (mine.length === 0) {
@@ -839,7 +745,7 @@ async function cleanOwner(who, sql) {
 }
 
 async function clean() {
-  const sql = await makeSqlRunner()
+  const sql = await makeSqlRunner(URL, SERVICE, PGCONN)
   if (!sql) {
     console.error(`${RED}--clean needs SUPABASE_SERVICE_ROLE_KEY or PGCONN${OFF} — without elevation this script cannot
 delete the entitlement rows, and deleting only the publications would leave every
@@ -872,7 +778,7 @@ if (CLEAN) {
   await apply()
 } else {
   console.log(`\n${DIM}Dry run — nothing was written. Re-run with --apply to create it.${OFF}`)
-  if (!SERVICE && !PGCONN) {
+  if (!hasElevation()) {
     console.log(`${YELLOW}Note:${OFF} no SUPABASE_SERVICE_ROLE_KEY and no PGCONN are set, so --apply will create the
 accounts, trips and publications and then print the SQL for the rest: the sales
 rows (entitlements have no authenticated write path by design) AND the admin's

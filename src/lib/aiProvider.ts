@@ -11,7 +11,8 @@
 // the deterministic router so the drawer can never dead-end.
 
 import type { Trip } from '../data/types'
-import { answerQuestion, type AiReply } from './ai'
+import { answerQuestion, answerForIntent, type AiReply } from './ai'
+import { INTENT_CRITERIA, INTENT_KEYS, type CompanionIntent } from './jevTaxonomy'
 
 // ---------- config (localStorage-backed, device-local) ----------
 
@@ -24,7 +25,18 @@ export interface AiProviderConfig {
   model: string
 }
 
+/** Jev (TypeSafe System One) — the fast intent classifier. One tiny call per
+ *  question picks WHICH local handler answers; the handler itself is instant,
+ *  so a Jev answer is one network hop instead of a full LLM generation. */
+export interface JevConfig {
+  /** Absolute base URL, e.g. https://api.typesafe.ai/v1 */
+  baseUrl: string
+  /** API key. Stored only on this device. */
+  apiKey: string
+}
+
 const PROVIDER_KEY = 'yatraflow_ai_provider'
+const JEV_KEY = 'yatraflow_ai_jev'
 
 function parseConfig(raw: string | null): AiProviderConfig | null {
   if (!raw) return null
@@ -75,6 +87,54 @@ export function clearAiProviderConfig(): void {
   } catch { /* nothing to undo */ }
 }
 
+// ---------- Jev (TypeSafe System One) config ----------
+
+function parseJevConfig(raw: string | null): JevConfig | null {
+  if (!raw) return null
+  try {
+    const p: unknown = JSON.parse(raw)
+    if (p === null || typeof p !== 'object' || Array.isArray(p)) return null
+    const rec = p as Record<string, unknown>
+    const baseUrl = typeof rec.baseUrl === 'string' ? rec.baseUrl.trim() : ''
+    const apiKey = typeof rec.apiKey === 'string' ? rec.apiKey.trim() : ''
+    if (!baseUrl || !apiKey || !/^https?:\/\//i.test(baseUrl)) return null
+    return { baseUrl: baseUrl.replace(/\/+$/, ''), apiKey }
+  } catch {
+    return null
+  }
+}
+
+/** The saved Jev config, or null when none (or an invalid one) is stored. */
+export function loadJevConfig(): JevConfig | null {
+  if (typeof localStorage === 'undefined') return null
+  try {
+    return parseJevConfig(localStorage.getItem(JEV_KEY))
+  } catch {
+    return null
+  }
+}
+
+/** Validate + persist the Jev endpoint. Returns an error string, or null. */
+export function saveJevConfig(cfg: JevConfig): string | null {
+  const baseUrl = cfg.baseUrl.trim()
+  if (!baseUrl) return 'Enter the Jev endpoint base URL.'
+  if (!/^https?:\/\//i.test(baseUrl)) return 'The URL must start with http:// or https://.'
+  if (!cfg.apiKey.trim()) return 'Enter a TypeSafe API key.'
+  try {
+    localStorage.setItem(JEV_KEY, JSON.stringify({ baseUrl: baseUrl.replace(/\/+$/, ''), apiKey: cfg.apiKey.trim() }))
+  } catch {
+    return 'Could not save on this device (storage unavailable).'
+  }
+  return null
+}
+
+/** Forget the Jev key on this device. */
+export function clearJevConfig(): void {
+  try {
+    localStorage.removeItem(JEV_KEY)
+  } catch { /* nothing to undo */ }
+}
+
 // ---------- trip context (pure, testable) ----------
 
 /**
@@ -108,7 +168,7 @@ export function buildMessages(trip: Trip, question: string): { role: 'system' | 
 
 // ---------- the ask path (LLM with deterministic fallback) ----------
 
-export type CompanionSource = 'llm' | 'offline'
+export type CompanionSource = 'llm' | 'offline' | 'jev'
 
 export interface CompanionAnswer extends AiReply {
   source: CompanionSource
@@ -116,6 +176,10 @@ export interface CompanionAnswer extends AiReply {
 
 /** How long the LLM may take before we fall back to the offline router. */
 const LLM_TIMEOUT_MS = 20_000
+/** Jev classifies one phrase — much smaller than a generation, so a tighter budget. */
+const JEV_TIMEOUT_MS = 8_000
+/** Jev 429/529 retry budget (same backoff family as the dev audit). */
+const JEV_RETRIES = 2
 
 async function chatCompletion(cfg: AiProviderConfig, messages: { role: string; content: string }[], signal: AbortSignal): Promise<string> {
   const res = await fetch(`${cfg.baseUrl}/chat/completions`, {
@@ -150,14 +214,105 @@ export function extractContent(data: unknown): string | null {
   return typeof content === 'string' && content.trim() ? content.trim() : null
 }
 
+// ---------- Jev intent classification (TypeSafe System One) ----------
+
+export function extractJevIntent(data: unknown): CompanionIntent | null {
+  if (data === null || typeof data !== 'object') return null
+  const answers = (data as { answers?: unknown }).answers
+  if (answers === null || typeof answers !== 'object' || Array.isArray(answers)) return null
+  const intent = (answers as Record<string, unknown>).intent
+  if (intent === null || typeof intent !== 'object') return null
+  const choice = (intent as { choice?: unknown }).choice
+  if (typeof choice !== 'string') return null
+  return (INTENT_KEYS as string[]).includes(choice) ? (choice as CompanionIntent) : null
+}
+
+/** Ask Jev which capability the question needs. One call, one tiny response.
+ *  Throws on transport failure — the caller decides the fallback. */
+async function askJevIntent(cfg: JevConfig, question: string, signal: AbortSignal): Promise<CompanionIntent> {
+  const body = {
+    state: question,
+    model: 'jev-latest',
+    questions: {
+      intent: {
+        type: 'choice',
+        instructions:
+          'A traveller planning a group trip typed the message in the state. ' +
+          'Decide which ONE capability described in the criteria best serves what they actually want. ' +
+          'Judge the intent behind the message, not its surface keywords. ' +
+          'Choose "none" when no listed capability genuinely serves it.',
+        criteria: INTENT_CRITERIA,
+      },
+    },
+  }
+  let lastErr: unknown
+  for (let attempt = 0; attempt <= JEV_RETRIES; attempt++) {
+    try {
+      const res = await fetch(`${cfg.baseUrl}/systemone`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${cfg.apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal,
+      })
+      if ((res.status === 429 || res.status === 529) && attempt < JEV_RETRIES) {
+        await new Promise(r => setTimeout(r, 500 * 2 ** attempt))
+        continue
+      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      return extractJevIntent(await res.json()) ?? (() => { throw new Error('unclassifiable response') })()
+    } catch (e) {
+      lastErr = e
+      if (signal.aborted) throw e
+      // backoff between retryable attempts is handled above; anything else ends the loop
+      if (attempt >= JEV_RETRIES) break
+      // only rate-limit shapes retry; everything else throws now
+      const msg = e instanceof Error ? e.message : ''
+      if (!msg.startsWith('HTTP 429') && !msg.startsWith('HTTP 529')) throw e
+    }
+  }
+  throw lastErr instanceof Error ? lastErr : new Error('Jev failed')
+}
+
 /**
- * Ask the companion. With a working configured endpoint the answer comes from
- * the LLM (source 'llm'); ANY failure — no config, network, timeout, bad key,
- * malformed response — falls back to the deterministic router (source
- * 'offline'), so the drawer always answers and the badge always tells the truth
- * about which brain spoke.
+ * One-shot probe for the Profile save card. Returns null when the endpoint
+ * answers with a valid classification, else a short human-readable reason.
+ */
+export async function testJevConnection(cfg: JevConfig, signal?: AbortSignal): Promise<string | null> {
+  const timeout = AbortSignal.timeout(JEV_TIMEOUT_MS)
+  const merged = signal ? AbortSignal.any([signal, timeout]) : timeout
+  try {
+    await askJevIntent(cfg, 'What could go wrong in this plan?', merged)
+    return null
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    if (/abort/i.test(msg)) return 'Timed out — the endpoint did not answer in time.'
+    if (msg.startsWith('HTTP 401') || msg.startsWith('HTTP 403')) return 'The key was rejected (401/403).'
+    if (msg.startsWith('HTTP 404')) return 'Endpoint not found — the base URL should end before /systemone.'
+    return msg || 'Could not reach the endpoint.'
+  }
+}
+
+/**
+ * Ask the companion. Resolution order when configured: Jev classifies the
+ * intent (one tiny call) and the deterministic handler for that intent answers
+ * locally — fast AND intent-accurate. Otherwise/next the full LLM endpoint;
+ * ANY failure — no config, network, timeout, bad key, malformed response —
+ * falls back to the keyword router, so the drawer always answers and the badge
+ * always tells the truth about which brain spoke.
  */
 export async function askCompanion(trip: Trip, question: string, signal?: AbortSignal): Promise<CompanionAnswer> {
+  const jev = loadJevConfig()
+  if (jev) {
+    const timeout = AbortSignal.timeout(JEV_TIMEOUT_MS)
+    const merged = signal ? AbortSignal.any([signal, timeout]) : timeout
+    try {
+      const intent = await askJevIntent(jev, question, merged)
+      const reply = answerForIntent(trip, intent, question)
+      return { ...reply, source: 'jev' }
+    } catch {
+      // fall through — the badge on the reply carries the truth
+    }
+  }
   const cfg = loadAiProviderConfig()
   if (cfg) {
     const timeout = AbortSignal.timeout(LLM_TIMEOUT_MS)

@@ -126,8 +126,8 @@ export function AiDrawer({ trip, open, onOpen, onClose }: { trip: Trip; open: bo
               <span className="sr-only">{m.role === 'user' ? 'You: ' : 'Companion: '}</span>
               {m.text}
               {m.source && (
-                <span className={`ai-source ${m.source === 'llm' ? 'llm' : 'off'}`}>
-                  {m.source === 'llm' ? 'LLM' : 'offline'}
+                <span className={`ai-source ${m.source === 'llm' ? 'llm' : m.source === 'jev' ? 'jev' : 'off'}`}>
+                  {m.source === 'llm' ? 'LLM' : m.source === 'jev' ? 'Jev' : 'offline'}
                 </span>
               )}
               {m.assumptions && <div className="ai-assumption"><ClipboardList size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />{m.assumptions}</div>}

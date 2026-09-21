@@ -28,7 +28,7 @@ import { useDestinationCover } from '../hooks/useDestinationCover'
 import { pickTripQueryCandidates } from '../lib/tripThumb'
 import { OverviewTab } from './trip/OverviewTab'
 import { TimelineTab } from './trip/TimelineTab'
-import { MapTab } from './trip/MapTab'
+import { MapTab, MapTabSkeleton } from './trip/MapTab'
 import { GroupInputTab } from './trip/GroupInputTab'
 import { BudgetTab } from './trip/BudgetTab'
 import { ShareTab } from './trip/ShareTab'
@@ -309,7 +309,7 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
         </React.Suspense>
       )}
       {tab === 'map' && (
-        <React.Suspense fallback={<div className="container loading-block"><div className="spinner" />Loading map…</div>}>
+        <React.Suspense fallback={<MapTabSkeleton />}>
           <MapTab trip={effective} editable={editable} applyChange={applyChange} suggestionCache={suggestionCache} crewSuggestions={db.suggestions.filter(s => s.tripId === trip.id)} decisions={db.decisions.filter(d => d.tripId === trip.id)} road={road} onOpenTimeline={() => setTab('timeline')} onOpenBoard={() => setTab('board')} onOpenDay={(dayIndex) => { setTimelineFocusDay(dayIndex); setTab('timeline') }} onOpenGroupInput={() => setTab('group')} />
         </React.Suspense>
       )}

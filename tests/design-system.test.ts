@@ -138,8 +138,16 @@ describe('one green (#0D8D82)', () => {
 
   it('drives the focus ring and form accents through the CTI token', () => {
     expect(css).toContain('accent-color: var(--yf-teal-600);')
-    expect(css).toContain('color-mix(in srgb, var(--yf-teal-600) 35%, transparent)')
-    expect(css).toContain('color-mix(in srgb, var(--yf-teal-600) 40%, transparent)')
+    // The ring's VISIBILITY is asserted as an outcome in 'a focus indicator you
+    // can actually see' below. This used to pin the implementation instead
+    // (`color-mix(in srgb, var(--yf-teal-600) 35%, transparent)`), which froze
+    // an alpha that measured 1.50:1 against --bg — the pin held the defect in
+    // place, so changing the tint failed the build that should have wanted it.
+    // What matters here is only that the ring still routes through the CTI
+    // token, in both themes.
+    for (const tokens of [rootTokens, darkTokens]) {
+      expect(tokens.get('--ring')).toContain('var(--yf-teal-600)')
+    }
   })
 
   it('paints the primary button through the semantic chain', () => {
@@ -880,5 +888,94 @@ describe('a class name has one owner: a new block may not claim an existing one'
       offenders,
       "these rules claim the Landing page's `.reveal` class — namespace the new block instead (e.g. `.unlock-reveal`)",
     ).toEqual([])
+  })
+})
+
+// --- the focus indicator -------------------------------------------------------
+// WCAG 1.4.11 asks a focus indicator for 3:1 against the colours adjacent to it.
+// The contrast gate above cannot see one: `--ring` is a `box-shadow`, so no rule
+// declares the `color` + `background` pair it measures, and a token's own value
+// is never a rule at all. That blind spot is how a 35% tint measuring 1.50:1 on
+// --bg survived a ratchet reporting "no known dark-theme violation left" — and
+// how a `--focus-ring` token referenced by four rules and defined by none kept
+// its sub-3:1 amber fallback on the three controls that had already removed
+// their outline, leaving that ring as the only focus signal on the slots rail.
+
+/** The colour a `box-shadow`-shaped ring paints, as an alpha-carrying Rgb. */
+function ringColor(shadow: string | undefined, tokens: Map<string, string>): Rgb | null {
+  if (shadow === undefined) return null
+  const mix = shadow.match(/color-mix\(in srgb,\s*([^,]+?)\s+([\d.]+)%\s*,\s*transparent\s*\)/i)
+  if (mix) {
+    const base = parseColor(resolveVar(mix[1], tokens))
+    return base ? { ...base, a: Number(mix[2]) / 100 } : null
+  }
+  // A solid colour at the end of the shadow: `0 0 0 3px var(--yf-teal-600)`.
+  const solid = shadow.trim().match(/(var\([^)]*\)|#[0-9a-fA-F]{3,8}|rgba?\([^)]*\))$/)
+  return solid ? parseColor(resolveVar(solid[1], tokens)) : null
+}
+
+describe('a focus indicator you can actually see', () => {
+  const FLOOR = 3 // 1.4.11: non-text contrast, and a focus ring is the state it names.
+
+  it('paints one focus recipe, not one per block', () => {
+    // The `.reveal` lesson applied to a token: a second one declared later in
+    // the file wins on equal specificity, so the controls that adopted it and
+    // the ones that kept the first would silently disagree about what focus
+    // looks like. Evolving the recipe means editing `--ring`, in place.
+    const declared = [...new Set([...stripCssComments(css).matchAll(/(--(?:focus-)?ring)\s*:/g)].map((m) => m[1]))].sort()
+    expect(
+      declared,
+      'more than one focus token is declared — evolve `--ring` in place instead of adding a parallel token',
+    ).toEqual(['--ring'])
+  })
+
+  it('clears 3:1 against every surface it outlines, in both themes', () => {
+    const surfaces = [
+      ['--bg', 'the page'],
+      ['--card', 'a card / rail'],
+    ] as const
+    for (const [theme, tokens] of [['light', rootTokens], ['dark', darkTokens]] as const) {
+      const ring = ringColor(tokens.get('--ring'), tokens)
+      expect(ring, `--ring must resolve to a colour in ${theme}`).not.toBeNull()
+      for (const [bgVar, name] of surfaces) {
+        const bg = parseColor(resolveVar(tokens.get(bgVar) ?? '', tokens))
+        expect(bg, `${bgVar} must resolve in ${theme}`).not.toBeNull()
+        const ratio = contrast(ring!, bg!)
+        expect(
+          ratio,
+          `${theme}: the focus ring measures ${ratio.toFixed(2)}:1 on ${name} (${bgVar}) — it must clear ${FLOOR}:1`,
+        ).toBeGreaterThanOrEqual(FLOOR)
+      }
+    }
+  })
+})
+
+// --- type floor ----------------------------------------------------------------
+describe('data type keeps its floor', () => {
+  // The day plan set the numbers a decision hangs on — the day chip's fill count,
+  // a window's closing time, a candidate's detour cost, its share of the budget —
+  // at 9.5–10.5px, in the weakest ink (`--text-3`), while the decoration around
+  // them read at 12–14px. The smallest type on the screen was the type the screen
+  // was for. 11px is the floor; 12px+ is the target for anything carrying a
+  // number. The ratchet freezes what remains below it and may only shrink.
+  //
+  // A later override does NOT retire an entry: the frozen key is the declaration,
+  // so a descendant selector that lifts a size leaves the original below the
+  // floor until the declaration itself moves. That is deliberate — the entry is
+  // the thing to fix, not the thing to shadow.
+  const FLOOR = 11
+
+  it('introduces no new type below the floor', () => {
+    const offenders: string[] = []
+    for (const rule of cssRules) {
+      for (const [prop, value] of declMap(rule.body)) {
+        if (prop !== 'font-size') continue
+        const m = value.match(/(?<![\d.])(\d+(?:\.\d+)?)px/)
+        if (!m) continue
+        if (parseFloat(m[1]) >= FLOOR) continue
+        offenders.push(`${normalise(rule.selector)} — font-size: ${m[1]}px`)
+      }
+    }
+    ratchet('subPixelType', offenders)
   })
 })

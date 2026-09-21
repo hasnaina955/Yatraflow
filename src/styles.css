@@ -118,7 +118,14 @@
   --color-accent-foreground: #3A2506;
   --color-destructive: var(--danger-500);
   --color-destructive-soft: #F9E7E7;
-  --ring: 0 0 0 3px color-mix(in srgb, var(--yf-teal-600) 35%, transparent);
+  /* The focus indicator, at full strength. As a 35% tint the teal measured
+     1.50:1 against --bg and 1.57:1 against --card — under the 3:1 WCAG 1.4.11
+     asks of a focus indicator, and it is the ONLY signal on the controls that
+     remove their outline (the slots rail's day chips, its Fill buttons and the
+     ledger's rows all set `outline: none`). Solid --yf-teal-600 measures 3.80:1
+     on --bg and 4.08:1 on --card, and the token is theme-aware, so the dark
+     block needs no second recipe — one focus token, both themes. */
+  --ring: 0 0 0 3px var(--yf-teal-600);
   /* SYS-3a: deepened amber/green TEXT inks. The raw --warn/--ok pass only ~3.5–
      4.25:1 on light tints; these clear AA on every light surface (#8F5B06:
      5.08–5.73; #1F6B41: 5.61–6.49). Text/label roles consume these; decorative
@@ -245,7 +252,10 @@
   --color-accent-foreground: #3A2506;
   --color-destructive: var(--danger-500);
   --color-destructive-soft: #3A2020;
-  --ring: 0 0 0 3px color-mix(in srgb, var(--yf-teal-600) 40%, transparent);
+  /* Same single recipe: --yf-teal-600 is the dark mirror (#2BB8AC), so the
+     indicator measures 6.43:1 on --card and 7.61:1 on --bg here. The 40% tint
+     this used to carry measured 2.17:1 on the dark card. */
+  --ring: 0 0 0 3px var(--yf-teal-600);
   /* SYS-3a: dark re-declares the ink tokens to the raw aliases — the darkened
      --warn/--ok (#D99A2B/#52BE80) already clear AA on dark surfaces. */
   --ink-amber: var(--warn);
@@ -6048,6 +6058,18 @@ html.native-shell {
   .map-ideas-grid.is-needs-folded.is-see-folded { grid-template-columns: 1fr; }
   .map-ideas-map { order: -1; }
   .map-ideas-grid .poi-col { max-height: none; }
+  /* The fold buys no width in stacked mode - it still hides a long rail, so it
+     stays - but the folded head must not inherit the `column` direction those
+     rules set for the 48px spine they were written for. Here the bar is
+     full-width, so `column` read as a broken panel (an [icon, count, fold] stack
+     down a bar with room for a line) and it hid the label saying WHICH rail
+     collapsed. One line, label kept. */
+  .map-ideas-grid.is-needs-folded > .poi-col--needs > .poi-col-head,
+  .map-ideas-grid.is-see-folded > .poi-col--see > .poi-col-head {
+    flex-direction: row; align-items: center; flex-wrap: nowrap;
+  }
+  .map-ideas-grid.is-needs-folded > .poi-col--needs > .poi-col-head > .poi-col-head-txt,
+  .map-ideas-grid.is-see-folded > .poi-col--see > .poi-col-head > .poi-col-head-txt { display: block; }
 }
 .gi-item:focus, .day-header.foreign-over { outline: none; box-shadow: var(--ring); }
 
@@ -6091,7 +6113,7 @@ html.native-shell {
 .slots-daychip:hover { background: var(--teal-soft); color: var(--teal-deep); }
 .slots-daychip.is-on { background: var(--teal-soft); border-color: var(--teal-deep); color: var(--teal-deep); }
 .slots-daychip-rd { font-size: 9.5px; font-weight: 700; opacity: .78; font-variant-numeric: tabular-nums; }
-.slots-daychip:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--focus-ring, rgba(228, 174, 67, .55)); }
+.slots-daychip:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--ring); }
 
 .slots-meter { display: flex; gap: 4px; align-items: center; margin: 0 2px 9px; }
 .slots-meter i { width: 22px; height: 5px; border-radius: 3px; background: var(--line); transition: background var(--t-fast) var(--ease-out); }
@@ -6109,7 +6131,7 @@ html.native-shell {
 .day-slot.is-empty { border-color: color-mix(in srgb, var(--warn) 38%, var(--line)); }
 .day-slot.is-open { border-color: var(--teal); box-shadow: 0 6px 18px rgba(16, 46, 75, .08); }
 .day-slot.is-auto { background: transparent; border-style: dashed; }
-.day-slot:focus-within { box-shadow: 0 0 0 3px var(--focus-ring, rgba(228, 174, 67, .55)); }
+.day-slot:focus-within { box-shadow: 0 0 0 3px var(--ring); }
 
 .day-slot-top {
   display: flex; align-items: center; gap: 8px; width: 100%;
@@ -6162,7 +6184,7 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
   transition: background var(--t-fast) var(--ease-out), color var(--t-fast) var(--ease-out);
 }
 .day-slot-fill:hover { border-color: var(--teal-deep); }
-.day-slot-fill:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--focus-ring, rgba(228, 174, 67, .55)); }
+.day-slot-fill:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--ring); }
 
 /* The see-&-do rail's ledger spine: one object, rows hang off it. */
 .poi-plan-list.is-ledger { position: relative; }
@@ -6203,7 +6225,7 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 }
 .lrow-sum::-webkit-details-marker { display: none; }
 .lrow-sum:hover { background: color-mix(in srgb, var(--yf-poi-see) 6%, transparent); }
-.lrow-sum:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--focus-ring, rgba(228, 174, 67, .55)); }
+.lrow-sum:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--ring); }
 .lr-name {
   grid-column: 2; grid-row: 1; min-width: 0; font-size: 12.5px; font-weight: 600; color: var(--text);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -6431,3 +6453,140 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .pub-fg-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-3); }
 .pub-fg-line { font-size: 12.5px; font-variant-numeric: tabular-nums; }
 .pub-fg-prelog { font-size: 11.5px; }
+
+/* ============ Map tab review round: the rail's ring, header and numbers ===== */
+/* Appended at the file's end on purpose: the design-system ratchet is keyed by
+   line number, so an insertion above it re-baselines every entry (AGENTS 3). */
+
+/* The rail referenced a `--focus-ring` token in four rules that was never
+   defined, so every one fell back to `rgba(228,174,67,.55)`: 1.40:1 against the
+   rail's cream, where WCAG 1.4.11 wants 3:1, and three of the four had already
+   removed the outline, leaving that ring as the only signal. The missing
+   declaration was the symptom; the missing token was the cause. They now ride
+   the app's ONE focus recipe (`--ring`, evolved to full strength in the token
+   blocks above: 3.80:1 on --bg, 4.08:1 on --card, 6.43:1 on the dark card), so
+   `--focus-ring` is retired rather than given a parallel definition — two focus
+   tokens that can drift is how a control goes invisible to a keyboard again. */
+
+/* The rail header packs five controls beside a title block that could not
+   shrink (`min-width: auto`), so at the 320px rail the row ran past the column
+   and the rail scrolled sideways. The title now owns a floor and the controls
+   take their own row when one row cannot hold both — the answer the bench's
+   mode grid already took at 230px. */
+.map-ideas-grid .poi-col-head { flex-wrap: wrap; row-gap: 6px; }
+.map-ideas-grid .poi-col-head > *:not(.poi-col-head-txt) { flex: none; }
+.map-ideas-grid .poi-col-head-txt { flex: 1 1 160px; min-width: 0; }
+.map-ideas-grid .poi-col-head-txt > b,
+.map-ideas-grid .poi-col-head-txt > .small {
+  display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* The numbers the rail asks a decision from were its smallest type. The day
+   chip's fill count also carried .78 opacity — 4.30:1 on the chip's own white
+   and 3.79:1 on its teal-soft "on" fill, under AA at that size. */
+.slots-daychip .slots-daychip-rd { font-size: 11px; opacity: 1; }
+.slots-meter .slots-meter-lbl { font-size: 11px; }
+.slots-list .day-slot-win,
+.slots-list .day-slot-urgent,
+.slots-list .day-slot-missed { font-size: 11px; }
+.slots-list .day-slot-cand-nm > span { font-size: 11px; color: var(--text-2); }
+
+/* The candidate list animates in and had no reduced-motion guard, while the
+   rest of the app stops its entrances. */
+@media (prefers-reduced-motion: reduce) {
+  .day-slot-cands { animation: none; }
+}
+
+/* The toolbar packed ~20 same-weight pills over four different intents — pick a
+   day, change the view, toggle a layer, leave for Google Maps. The utilities sit
+   in their own group behind the segmented control's own separator, and read as
+   secondary until touched. */
+.map-util-group {
+  display: flex; gap: 8px; flex-wrap: wrap; align-items: center; flex: none;
+  padding-left: 9px; border-left: 1px solid var(--yf-glass-border);
+}
+.map-day-chip--util {
+  background: transparent; border-color: transparent;
+  -webkit-backdrop-filter: none; backdrop-filter: none;
+}
+.map-day-chip--util:hover { background: var(--yf-glass); border-color: var(--teal); color: var(--text); }
+[data-theme='dark'] .map-day-chip--util { background: transparent; border-color: transparent; }
+[data-theme='dark'] .map-day-chip--util:hover { background: rgba(22, 35, 58, .95); }
+
+/* The engine-tips banner borrowed the scenic hue (--yf-purple, documented as
+   "scenic / creative discovery") for something the tips are not: fatigue
+   spacing and detour budgets. It keeps the tab's own accent for the icon and
+   reads on the quiet surface. */
+.map-ideas-grid > .engine-tips { border-color: var(--line); background: var(--card-soft); }
+.map-ideas-grid > .engine-tips .engine-tips-ico { color: var(--teal-deep); }
+.map-ideas-grid > .engine-tips .engine-tips-dot { background: color-mix(in srgb, var(--teal) 30%, transparent); }
+.map-ideas-grid > .engine-tips .engine-tips-dot.on { background: var(--teal); }
+[data-theme='dark'] .map-ideas-grid > .engine-tips { border-color: var(--line); background: var(--card); }
+
+/* Opening the Map tab replaced the whole tab with a spinner while the map chunk
+   loaded. The skeleton mirrors what arrives — the frame and the two rails — and
+   rides the tab's own grid, so it inherits the same breakpoints. */
+.map-skel-rail, .map-skel-map {
+  border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--card-soft);
+  animation: mapSkelPulse 1200ms var(--ease-soft) infinite alternate;
+}
+.map-skel-map { height: 480px; }
+.map-skel-rail { height: 360px; }
+@keyframes mapSkelPulse { from { opacity: .5; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .map-skel-rail, .map-skel-map { animation: none; opacity: 1; }
+}
+
+/* The split view starts at 1501px, so on a laptop the day rail opened below a
+   480px map. The frame gives height back in stacked mode, where the rail is the
+   tab's work surface; the expanded shell still owns the viewport. */
+@media (min-width: 721px) and (max-width: 1500px) {
+  .map-ideas-grid .map-ideas-map .map-shell:not(.map-shell--expanded) .map-frame { height: 44vh; min-height: 320px; }
+}
+
+/* ---- A folded rail is a spine, not a cropped panel ---------------------------
+   The fold was designed (rail comment, MapTab) around a 48px column with
+   `padding: 8px 6px` - a 34px content box. The needs rail's head has since grown
+   a Shape toggle (~52px), a "Fill the day" button (~86px) and a count pill
+   (~36px), and only its TITLE was hidden when folded, so at 1501px and up the
+   spine rendered controls two to four times its own width: clipped at the column
+   edge (the "cropped" look) on a rail whose `overflow-y: auto` computes
+   `overflow-x` to `auto` as well - which is what made the collapsed strip
+   draggable sideways, the "unnecessary slide".
+   A spine keeps what fits and what still means something while collapsed: the
+   lane's icon, the day's count, and the control that reopens it. The Fill and
+   Shape actions are hidden rather than squashed, because a 34px strip cannot
+   render them and neither action is legible from one - you unfold to act. The
+   see rail's head carries only its icon and the fold, so this is a no-op there
+   and it covers whatever head control arrives next. It applies at EVERY width, not
+   just the spine's: in the stacked band those same two actions would crowd the
+   one-line bar instead of overhanging it. */
+.map-ideas-grid.is-needs-folded > .poi-col--needs > .poi-col-head > .chip,
+.map-ideas-grid.is-needs-folded > .poi-col--needs > .poi-col-head > .btn,
+.map-ideas-grid.is-see-folded > .poi-col--see > .poi-col-head > .chip,
+.map-ideas-grid.is-see-folded > .poi-col--see > .poi-col-head > .btn { display: none; }
+
+@media (min-width: 1501px) {
+  /* 2px of spine padding leaves a 42px content box: the 30px lane icon, the
+     count pill and the 40px coarse-pointer floor the fold button takes all fit
+     inside the column instead of overhanging it. */
+  .map-ideas-grid.is-needs-folded > .poi-col--needs,
+  .map-ideas-grid.is-see-folded > .poi-col--see { padding: 8px 2px; }
+  /* In a column, an auto cross-axis margin parks the pill against the edge
+     instead of centring it with the icon - and the pill is what fits. */
+  .map-ideas-grid.is-needs-folded > .poi-col--needs > .poi-col-head > .poi-col-count,
+  .map-ideas-grid.is-see-folded > .poi-col--see > .poi-col-head > .poi-col-count {
+    margin-left: 0; padding: 2px 6px;
+  }
+  .map-ideas-grid.is-needs-folded > .poi-col--needs > .poi-col-head,
+  .map-ideas-grid.is-see-folded > .poi-col--see > .poi-col-head { flex-wrap: nowrap; gap: 8px; }
+}
+
+/* The stacked band's half of this lives in the single narrow-width reset above,
+   beside the #156 rules it belongs with - that file keeps exactly one such block,
+   after every desktop folded rule, and a test pins it (stage2-p1). */
+
+/* Nothing in a folded rail is meant to scroll sideways, so nothing can - the
+   backstop behind the sizing above, for a head control that arrives later. */
+.map-ideas-grid.is-needs-folded > .poi-col--needs,
+.map-ideas-grid.is-see-folded > .poi-col--see { overflow-x: hidden; }

@@ -99,13 +99,6 @@ interface Claim {
 
 // ---- The markers -----------------------------------------------------------
 
-/** M5 names this exact file as the thing it will add. */
-const AI_PROVIDER: Marker = {
-  what: 'src/lib/aiProvider.ts — the configurable LLM endpoint M5 is queued to add',
-  paths: ['../src/lib/aiProvider.ts'],
-  contains: /export/,
-}
-
 /** The payout rail. Both the card copy and the architecture note say RUNS are
  *  not automated and there is no payouts table; either claim dies with this. */
 const PAYOUTS_TABLE: Marker = {
@@ -124,18 +117,6 @@ const KYC_FIELDS: Marker = {
 // ---- The registry ----------------------------------------------------------
 
 const CLAIMS: Claim[] = [
-  {
-    file: '../ROADMAP.md',
-    contains: 'unbuilt fix behind closed #22 → #20',
-    why: 'The M5 AI-companion track (issue #236) is genuinely unbuilt — its original issue pair closed as audit findings, so this row is a queue entry, not a claim about shipped work.',
-    marker: AI_PROVIDER,
-  },
-  {
-    file: '../ROADMAP.md',
-    contains: 'the unbuilt fix is carried by issue #236',
-    why: 'Same track, restated in the Open-issues prose; still unbuilt.',
-    marker: AI_PROVIDER,
-  },
   {
     file: '../ROADMAP.md',
     contains: 'Before picking up a row',
@@ -194,12 +175,6 @@ const CLAIMS: Claim[] = [
     file: '../AGENTS.md',
     contains: 'does not exist in this clone',
     why: 'A checked fact about this working copy, with the date it was checked.',
-  },
-  {
-    file: '../AGENTS.md',
-    contains: 'the fix is unbuilt but unqueued',
-    why: 'The M5 track, in the What-is-next list. Same state as the ROADMAP rows.',
-    marker: AI_PROVIDER,
   },
   {
     file: '../AGENTS.md',

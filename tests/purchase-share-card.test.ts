@@ -13,7 +13,12 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 
-const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8')
+/** Normalised to `\n` on read: this repo checks out CRLF on Windows
+ *  (`core.autocrlf=true`), and the assertions below match `\n`-anchored SQL
+ *  (`expect(sqlCode).toMatch(/\n\s*stable\n/)`), so a raw read passes in CI's
+ *  Linux checkout and fails on a Windows one — a local-only red that has
+ *  nothing to do with the code. */
+const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8').replace(/\r\n/g, '\n')
 
 /** Code only — whole-line `//`, block comments and SQL `--` removed.
  *

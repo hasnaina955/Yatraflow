@@ -6138,11 +6138,15 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 }
 /* P2: the shelf's alternatives as rows, not centred chips */
 .shelf-alt {
-  flex-basis: 100%; display: flex; align-items: baseline; gap: 8px;
+  flex-basis: 100%; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
   padding: 6px 8px; border: 1px solid var(--line); border-radius: 10px;
   background: var(--card); text-align: left; font: inherit; color: inherit; cursor: pointer;
   transition: border-color var(--t-fast) var(--ease-out);
 }
 .shelf-alt:hover { border-color: var(--yf-poi-see); }
-.shelf-alt-nm { flex: 1; min-width: 0; font-size: 11.5px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.shelf-alt-nm { flex: 1; min-width: 0; font-size: 11.5px; font-weight: 600; color: var(--text); overflow-wrap: anywhere; }
 .shelf-alt-km { flex: none; font-size: 10.5px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+/* P2 polish: the shelf's last row must not sit flush on the card edge, and
+   two wrapped rows need a hairline of air between them. */
+.ledger-shelf .shelf-alt + .shelf-alt { margin-top: 4px; }
+.lrow-new[open] { padding-bottom: 4px; }

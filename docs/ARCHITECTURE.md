@@ -225,8 +225,8 @@ The architecture isolates its shortcuts behind small interfaces:
 | OSM Overpass opening hours | Google Places details | `src/lib/geocode.ts` (`fetchOpeningHours`) |
 | Supabase email/password auth | OAuth (Google, phone OTP) | `store.ts` `login/signup` + Auth page UI — RLS and data model unchanged |
 | Rule-based AI | LLM with engine grounding | `answerQuestion()` in `ai.ts` |
-| Placeholder payment buttons | Razorpay/etc. | Share tab CTAs + `premiumPriceInr` on `PublishedItinerary` |
-| Placeholder earnings ledger | Real payouts (M7) | Profile's Earnings tab (v0.38) — see "Creator earnings contract (M7)" below |
+| Razorpay checkout | Stripe / Paddle / bundled payments | `src/lib/unlock.ts` + `api/checkout.js`, `api/payments-verify.js`, `api/payments-webhook.js`; `premiumPriceInr` on `PublishedItinerary` is the price the paywall charges |
+| Derived payout runs (no rail) | Scheduled payouts + KYC | Profile's Earnings tab — see "Creator earnings contract (M7)" below |
 
 ### Creator earnings contract (M7)
 
@@ -257,14 +257,23 @@ surface never needs redesigning when Razorpay lands. Its fixed shape:
   automated: there is no payouts table and no gateway payout API, so
   `payoutStatus()` is a schedule the ledger is built around and the UI says so.
 
-What M7 must add for real rows (none of it exists yet, by design):
-`sale_events` (id, pub_id, buyer/guest, amount_inr, price snapshot, status
-created/paid/refunded, created_at), Razorpay order/payment ids + webhook log
-with idempotency keys, a platform-fee model (flat or tiered bps + GST/TCS
-fields), `payouts` (creator, period, gross/fees/net, status, UTR reference),
-payout-account/KYC fields on profiles, and an entitlements/unlocks table so
-premium gating persists across devices. Until then the ledger's empty state and
-the projection footnote say exactly this to the user.
+**What M7 shipped, and what it still does not have.** Shipped (v0.61.0, with the
+fee model following as I-13): the redacting `get_public_trip` read path and the
+narrowed `trips read` policy, so locked days are stubs **at the wire** rather
+than blurred in the client; `purchase_orders` with Razorpay order/payment ids and
+a webhook log carrying idempotency keys; an `entitlements` table so premium
+gating persists across devices; the signature-verified confirm that is the only
+way an entitlement is granted; a refund path that revokes it
+(`revoke_refunded_entitlement`); and the platform-fee ladder
+(`PLATFORM_FEE_TIERS`).
+
+**Still absent by design:** `sale_events` (nothing records per-visit events, so
+the console's funnel is derived from the hydrated cache and a per-publication
+view→fork→sale funnel has nothing to read — the reason E3/E8 stay open);
+`payouts` (creator, period, gross/fees/net, status, UTR reference) and
+payout-account/KYC fields on profiles, which is why nothing disburses and the
+runs ledger is derived rather than read; and GST/TCS registration. The ledger's
+empty state and the projection footnote say exactly this to the user.
 
 ## 12. Gotchas & hard-won lessons
 

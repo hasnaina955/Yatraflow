@@ -293,6 +293,28 @@ prefix per run and a printed teardown ledger -- only rows the run created are
 ever touched. The catalog-level shape is additionally locked by
 `supabase/tests/rls_contract.test.sql` (run in the dashboard SQL editor).
 
+## Rendering the money surfaces (local creator fixture)
+
+The earnings ledger, the payout-runs ledger and the publish editor need a creator
+with real sales behind them, and a node test cannot supply one -- the suite has no
+DOM and no session. The fixture builds that account:
+
+```bash
+node scripts/seedCreatorFixture.mjs            # dry run: prints the plan
+node scripts/seedCreatorFixture.mjs --apply    # create the accounts + rows
+node scripts/seedCreatorFixture.mjs --clean    # remove the fixture's rows
+```
+
+It works on the project `VITE_SUPABASE_URL` points at, creating a creator, three
+buyers, two priced publications and five backdated sales, then prints the
+credentials and the deep links (`#/creator-hub`, the publish editor, the creator
+page). The sales are the same five `tests/earnings.test.ts` pins the ledger
+against, so the numbers on screen have an answer key. Writing the sales rows
+needs elevation -- `entitlements` is SELECT-only for authenticated clients by
+design -- so set `SUPABASE_SERVICE_ROLE_KEY` (or `PGCONN`) to apply them, and
+without either the script prints the SQL to paste into the dashboard instead.
+It only ever touches the rows it names.
+
 ## 🤝 Contributing
 
 PRs welcome! Keep TypeScript strict clean, match the existing style (plain CSS in `styles.css`, no new UI/router/state libs without discussion), preserve the transparency promise, and respect the MVP constraints. See [CONTRIBUTING.md](CONTRIBUTING.md).

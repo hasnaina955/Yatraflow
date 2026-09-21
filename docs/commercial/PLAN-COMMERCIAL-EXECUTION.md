@@ -2,6 +2,21 @@
 
 **Date:** 2026-09-16 · **Baseline:** `v0.54.0` (`test` = `main` = `d370aef`) · **Revenue:** ₹0
 
+> **Status, re-derived 2026-09-21 (`test` = `v0.63.0`).** This is a dated plan, so the queue
+> below is left as written — read it with the following beside it rather than as open work.
+>
+> **Shipped since:** **E1** (v0.57.0 — per-route browser titles, the `/i/<id>` preview function
+> and its OG tags), **E4** (v0.61.0 — `get_public_trip` redacts locked days and `trips read` is
+> narrowed, so the lock is enforced at the wire, not by a CSS overlay), **E7** (the I-20 unlock
+> reveal and **My purchases** shelf, plus the I-21 buyer's share card), and **the rail E4 sat on**
+> — order → signature-verified confirm → entitlement, with the fee ladder following as I-13.
+>
+> **Still open, unchanged:** **E3** (nothing records per-visit events, so a funnel has nothing to
+> read), **E5** (the companion is still flag-off), **E8** (blocked on E3). Scope note: §4's
+> anti-list item 1 — "no payment-rail code until Stage 1's gate passes" — was overtaken by the
+> rail shipping ahead of that gate, which is a business decision this file recorded rather than
+> made; the i18n, acquisition and marketplace bans in that list still stand.
+
 This is the **execution** plan — the when/what-done layer. The why/what lives in the
 source docs and is not repeated here:
 

@@ -41,7 +41,7 @@ An inventory of what already exists, because it determines how cheap Stage 2 is.
 | Component | State | Evidence |
 |---|---|---|
 | Unlock price points | **Chosen** — ₹149 / ₹199 / ₹249 / ₹499 | `src/data/seed.ts` **[MEASURED]** |
-| `premiumPriceInr` on the publication | Ships, commented *"placeholder for future payments"* | `src/data/types.ts` **[MEASURED]** |
+| `premiumPriceInr` on the publication | Ships, and is **the price the paywall charges** — read server-side from the row, `0`/unset meaning entirely free | `src/data/types.ts`, `api/checkout.js` **[MEASURED]** |
 | Free/paid split per publication | **`freeDayIndexes: number[]`** — which days are free | `src/data/types.ts` **[MEASURED]** |
 | Locked-day UX | Blurred preview of the **first 3 stops** + *"N more stops on this day"* + *"Unlock the full day-by-day plan with stay contacts, timings and budget breakdown"* | `PublicItinerary.tsx` **[MEASURED]** |
 | Unlock CTAs | **Two** — inline on the locked day, and a sticky sidebar button | `PublicItinerary.tsx` **[MEASURED]** |
@@ -54,13 +54,16 @@ An inventory of what already exists, because it determines how cheap Stage 2 is.
 | Fee model | **Decided and shipped 2026-09-21 (I-13)** — a marginal ladder over lifetime gross: 15% to ₹25,000, then 10%. `PLATFORM_FEE_TIERS` is the one seam | `src/lib/earnings.ts` **[MEASURED]** |
 | AI companion | **Fully implemented, flag-gated off** for *"the premium packaging milestone"* | `featureFlags.ts`, `TripWorkspace.tsx:289` **[MEASURED]** |
 | M7 schema contract | `sale_events`, `payouts`, entitlements table, KYC fields, Razorpay ids, webhook log with idempotency keys | `docs/ARCHITECTURE.md` §"Creator earnings contract (M7)" **[MEASURED]** |
-| Payment rail | **Does not exist** | **[MEASURED]** |
-| Entitlements | **Does not exist** | **[MEASURED]** |
-| Analytics backend | **Does not exist**; `computeFunnel()` runs server-side in the admin console | **[MEASURED]** |
+| Payment rail | **Shipped v0.61.0** — order created server-side at the row's own price, signature-verified confirm, idempotent webhook | `api/checkout.js`, `api/payments-verify.js`, `api/payments-webhook.js` **[MEASURED]** |
+| Entitlements | **Shipped** — `entitlements` + `purchase_orders`, owner-scoped RLS, granted only through the buyer-scoped RPC or the webhook, revoked on refund | `supabase/migrations/20260918_payments_*.sql` **[MEASURED]** |
+| Analytics backend | **No vendor, by design.** Fork/view counts ride the publication row, `computeFunnel()` derives the rates in the admin console, and platform revenue reads through the admin-gated `admin_revenue` RPC. `sale_events` — per-visit events — is still absent, which is what blocks a per-publication funnel (E3/E8) | `src/lib/adminStats.ts`, `20260921_admin_revenue.sql` **[MEASURED]** |
 
-**The paywall is designed.** The blurred-teaser-then-unlock pattern, the free-day index, the
-dual CTA, and the explicit degradation path for forkers are all shipped. What is missing is the
-rail underneath them.
+**The paywall is designed, and the rail underneath it shipped in v0.61.0.** The
+blurred-teaser-then-unlock pattern, the free-day index, the dual CTA, and the explicit
+degradation path for forkers are all live — and the locked days are now redacted at the wire
+(`get_public_trip`), so the blur is presentation rather than the protection. What is still
+missing is the money *out*: no `payouts` table and no KYC fields, so the ledger's runs are
+derived and nothing disburses.
 
 One detail worth calling out as genuinely good design: **forking a paid itinerary copies only the
 free days.** The paid content is not handed over at fork time — it arrives as placeholders the
@@ -334,23 +337,31 @@ surface already exists.
 
 **Steps — the build, from the shipped M7 contract [MEASURED]**
 
-1. **Migration** (schema in §6): `sale_events`, `payouts`, `entitlements`, KYC fields on
-   `profiles`.
-2. **Razorpay**: order creation, webhooks with **idempotency keys**, refund path, dispute handling.
-3. **Redacting read path + narrowed RLS — this is the first thing to build, not the third.**
-   An audit of the publish path on 2026-09-15 proved against production that the
-   lock is a CSS overlay: `publishItinerary` sets `trips.visibility = 'public'`, the `trips read`
-   RLS policy has no `to` clause so it applies to `anon`, and the entire itinerary lives in that
+1. ~~**Migration** (schema in §6): `sale_events`, `payouts`, `entitlements`, KYC fields on
+   `profiles`.~~ **Partly done (v0.61.0)** — `entitlements` and `purchase_orders` shipped with the
+   rail. `sale_events`, `payouts` and the KYC fields are still to build, which is why nothing
+   disburses and no per-visit funnel can be read.
+2. ~~**Razorpay**: order creation, webhooks with **idempotency keys**, refund path, dispute handling.~~
+   **Done (v0.61.0)** — order created server-side, signature-verified confirm, idempotent webhook,
+   refund revocation via `revoke_refunded_entitlement`. Dispute handling remains.
+3. ~~**Redacting read path + narrowed RLS — this is the first thing to build, not the third.**~~
+   **Done (v0.61.0)**, and it was built first. The audit below is kept as the finding it closed:
+   an audit of the publish path on 2026-09-15 proved against production that the
+   lock was a CSS overlay: `publishItinerary` sets `trips.visibility = 'public'`, the `trips read`
+   RLS policy had no `to` clause so it applied to `anon`, and the entire itinerary lived in that
    row's `days` column. **Both live premium publications (₹199 and ₹500) returned all 7 locked
-   days and 20 stops to an unauthenticated client.** Add a redacting `SECURITY DEFINER` RPC
-   mirroring `get_invite_trip`, and narrow the table policy — together, or the public page breaks.
+   days and 20 stops to an unauthenticated client.** `get_public_trip` now redacts those days to
+   stubs and `trips read` is narrowed to `authenticated` — shipped together, so the public page
+   keeps working.
 4. ~~**Set the fee model** — replace `PROJECTED_PLATFORM_FEE_INR = 0`.~~ **Done** — see §11 row 2.
-5. **Switch on the existing unlock buttons** (two per page, already placed).
+5. ~~**Switch on the existing unlock buttons** (two per page, already placed).~~ **Done** — the
+   buttons run the real checkout (`src/lib/unlock.ts`), and the free preview degrades rather than
+   failing if the rail is unconfigured.
 6. **GST/TDS registration and invoicing** — see §4.2.
-7. **Post-unlock value presentation** — the unlock ceremony, owned library and
-   purchase share card (research §4; buildable as I-20/I-21). A buy that evaporates into
-   a regular trip list reads as money lost; one that lands as a visible owned product is
-   the cheapest conversion and word-of-mouth lever this stage has.
+7. ~~**Post-unlock value presentation** — the unlock ceremony, owned library and
+   purchase share card (research §4; buildable as I-20/I-21).~~ **Done** — I-20 (the reveal plus the
+   **My purchases** shelf) and I-21 (the buyer's share card) both shipped. The reasoning held: the
+   plan now lands as a visible owned product, and the buyer is the distribution channel.
 
 **Revenue mechanics.** Revenue = `views × view→copy × copy→pay × ₹199 × 15%`, netting ₹25.30 per
 unlock **[DERIVED]**.
@@ -697,7 +708,8 @@ Stated in advance, so it cannot be rationalised later.
 6. **The companion is deterministic today and worth little as a paid tier.** Its value arrives
    with the documented LLM upgrade — and so does its cost. Apply the 10× rule.
 7. **The dominant unknown is audience, and it is measurable this week for free.**
-8. **The lock does not exist yet.** An audit against production proved the locked days are
-   readable by an unauthenticated client — 7 locked days and 20 stops across both live premium
-   publications. The redacting read path is now **item zero of M7**, and no sale should be taken
-   before it ships.
+8. **The lock exists now** (v0.61.0). The audit this item was written from proved the opposite
+   against production: the locked days *were* readable by an unauthenticated client — 7 locked
+   days and 20 stops across both live premium publications. The redacting read path it demanded
+   became **item zero of M7** and shipped, and the fee model followed (I-13). What is still not
+   there is the money out: no `payouts` table, no KYC.

@@ -71,18 +71,26 @@ Recorded so nobody mistakes green for complete:
 - **Gradients and translucent surfaces.** The audit's hardest findings — `.route-snap`'s forced-dark
   gradient, the `.notif-badge` fill — only became visible when the surface was *composed*. Static source
   analysis structurally cannot do this. It is what the planned Playwright matrix is for.
-- **Rules inside `@media`** are not parsed yet.
-- **The baseline is not yet triaged.** The 20 contrast entries are a mix of documented owner decisions (the
-  amber/ok soft-fill family) and external-backdrop cases. Until each is classified, the baseline is a
+- **The duplicate-selector scan is top-level only.** Rules inside `@media`/`@container` are out of
+  scope for it; a few newer gates do read named media blocks (the 720px mobile recipes, `@container`),
+  so "inside a media query" is not a blanket blind spot — but a duplicate introduced only there would
+  still pass.
+- **The baseline is not yet triaged.** What remains is **7 light-theme contrast entries and 0 dark**
+  (the dark side was cleared in the #107 pass; the light rows are a mix of documented owner decisions —
+  the amber/ok soft-fill family — and external-backdrop cases), plus 28 duplicate selectors, 29 raw
+  durations, 1 hue collision and 76 off-ladder spacings. Until each is classified, the baseline is a
   freeze, not an endorsement.
 
 ## Roadmap
 
-1. **hue-distance gate** — categorical palettes (day colours, stop kinds, expense categories, POI lanes)
-   must stay ≥15° apart in hue; the audit found three collisions in one 8-member palette.
+1. ~~**hue-distance gate** — categorical palettes (day colours, stop kinds, expense categories, POI lanes)
+   must stay ≥15° apart in hue; the audit found three collisions in one 8-member palette.~~ **Shipped**
+   (`hueCollisions` is a ratcheted key; one baselined collision remains, `DAY_COLORS #F59E2D vs #B7791F`).
 2. **Playwright matrix** — `{light, dark} × {390, 1280} × route`, with overlays **forced open** before
-   snapshotting. This is the half of the audit static analysis cannot replace.
-3. **Primitive consolidation** — one `Select` (extend to the last native ones), variant-bound
+   snapshotting. This is the half of the audit static analysis cannot replace. Not started (no
+   Playwright dependency in the repo).
+3. **Primitive consolidation** — one `Select` (extend to the last native ones — 7 native `<select>`s
+   remain in the three workspace tabs), variant-bound
    `Button`/`Chip` so a wrong foreground cannot be hand-typed, `Field` injecting `id` structurally,
    `@layer` to make a silently-dead duplicate impossible.
 4. **Process** — a UI definition-of-done in AGENTS §2, a PR-template checklist, a pre-commit hook running

@@ -1,6 +1,6 @@
 // ============ My trips ============
 import { useEffect, useMemo, useState } from 'react'
-import { Clock, Compass, Plus, Rocket, Trash2, Wallet } from 'lucide-react'
+import { Clock, Compass, Plus, Rocket, ShoppingBag, Trash2, Wallet } from 'lucide-react'
 import { MetaIcon } from '../components/icons'
 import { useTrips, useTrashedTrips, useUsers, useSessionUserId, tripsForUser, trashTrip, restoreTrashedTrip, restoreTrashedTripById, permanentlyDeleteTrip, fetchTrashedTrips, addDemoTrips } from '../store/store'
 import { computeTotals, formatInrShort } from '../lib/engine'
@@ -108,6 +108,12 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
           <p className="muted small">Everything you’re planning or collaborating on.</p>
         </div>
         <div className="trips-head-actions">
+          {/* I-20: the shelf has to be reachable from where people look for
+              their travel — a bought plan is not one of your trips, so it gets
+              its own list rather than a row among them. */}
+          <button className="btn btn-outline" onClick={() => onNavigate('/purchases')}>
+            <ShoppingBag size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 5 }} />My purchases
+          </button>
           <button className={`btn btn-outline${view === 'trash' ? ' on-teal' : ''}`} aria-pressed={view === 'trash'} onClick={() => setView(v => v === 'trash' ? 'trips' : 'trash')}><Trash2 size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 5 }} />Trash</button>
           <ImportTripButton ownerId={meId} onNavigate={onNavigate} />
           <button className="btn btn-outline" onClick={addDemoTrips} aria-label="Load demo trips" title="Adds 3 sample trips — Kerala, Goa & Rajasthan — to your account"><Rocket size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 5 }} /><span>Load demo trips</span></button>

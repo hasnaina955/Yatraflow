@@ -19,8 +19,10 @@ import { cap, titleCase } from '../lib/labels'
 import { useTimeFormat, formatHM, formatHMRange } from '../lib/timefmt'
 import { stopKindOf, STOP_KIND_LABELS } from '../lib/stopKind'
 import { useSavedPubs } from '../lib/savedPubs'
-import { fetchMyEntitlements, purchaseUnlock } from '../lib/unlock'
+import { fetchMyEntitlements, fetchCreatorSales, fetchCreatorFunnel, purchaseUnlock, type FunnelDailyRow } from '../lib/unlock'
+import { UnlockReveal } from '../components/UnlockReveal'
 import { hasUnlock } from '../lib/payments'
+import { buildPubFunnels, describePreLog, funnelGlance, type FunnelSale } from '../lib/pubFunnel'
 import { currentPublicShareUrl } from '../lib/shareUrl'
 import { appLink } from '../lib/appLink'
 import { pageTitle } from '../lib/pageTitle'
@@ -46,6 +48,10 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
   // not carried in the hydrate cache. Re-read after a purchase resolves.
   const [entitlements, setEntitlements] = useState<Entitlement[]>([])
   const [buying, setBuying] = useState(false)
+  // The itinerary the unlock moment is showing, held separately from `fetched`:
+  // it is only ever the copy the server served AFTER the entitlement existed
+  // (see unlockThis), and it doubles as the reveal's open/closed state.
+  const [revealTrip, setRevealTrip] = useState<Trip | null>(null)
   const trip: Trip | undefined = cachedTrip ?? fetched ?? undefined
   const { isSaved, toggleSaved } = useSavedPubs()
   const heroAuto = useDestinationCover(pub ? (pub.routeSummary.length ? pub.routeSummary : [pub.title]) : null)
@@ -68,6 +74,51 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
     void fetchMyEntitlements(meId).then(rows => { if (alive) setEntitlements(rows) })
     return () => { alive = false }
   }, [pub?.id, meId])
+  // ---- The creator's own glance (I-22 follow-up): the page's creator reads
+  // how THIS link converts without opening the hub. Same RPC, same derivation
+  // and same window rule as the hub (buildPubFunnels + funnelGlance), so a
+  // number cannot differ between the two surfaces. A visitor's session never
+  // runs these reads — isMyPub gates them, and the strip mounts for nobody
+  // else. Sales ride along because the unlock stage comes from the ledger,
+  // never from a re-recording of it.
+  const isMyPub = !!(meId && pub && pub.creatorId === meId)
+  const [myDaily, setMyDaily] = useState<FunnelDailyRow[] | null>(null)
+  const [mySales, setMySales] = useState<FunnelSale[] | null>(null)
+  const [myFunnelError, setMyFunnelError] = useState(false)
+  const [mySalesError, setMySalesError] = useState(false)
+  useEffect(() => {
+    if (!isMyPub) return
+    let alive = true
+    setMyFunnelError(false)
+    void fetchCreatorFunnel()
+      .then(rows => { if (alive) setMyDaily(rows) })
+      .catch(() => { if (alive) { setMyFunnelError(true); setMyDaily(null) } })
+    void fetchCreatorSales()
+      .then(rows => { if (alive) { setMySales(rows); setMySalesError(false) } })
+      .catch(() => { if (alive) { setMySalesError(true); setMySales(null) } })
+    return () => { alive = false }
+  }, [isMyPub, pub?.id, meId])
+  // Above the early return with every other hook (the #310 rule). A failed
+  // funnel read surfaces as myFunnelError — the strip then says it failed
+  // rather than rendering a measurement it does not have.
+  const myGlance = useMemo(() => {
+    if (!isMyPub || !pub || !myDaily || !mySales) return null
+    const [f] = buildPubFunnels({
+      daily: myDaily,
+      sales: mySales,
+      pubs: [{
+        id: pub.id, title: pub.title, priceInr: pub.premiumPriceInr ?? null,
+        lifetimeViews: pub.views, lifetimeForks: pub.copies,
+      }],
+      days: 7,
+      now: Date.now(),
+    })
+    return { glance: funnelGlance(f), preLog: describePreLog(f) }
+  }, [isMyPub, pub, myDaily, mySales])
+  // A failed SALES read is a failed read too — the strip's unlock step would
+  // otherwise render a zero that is a measurement of nothing.
+  const myReadFailed = myFunnelError || mySalesError
+  const myReadPending = !myFunnelError && myDaily === null
   useEffect(() => {
     if (!pub || fetched || miss) return
     let alive = true
@@ -184,6 +235,23 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
       onUnlocked: () => {
         void fetchMyEntitlements(meId).then(rows => setEntitlements(rows))
       },
+    }).then(async outcome => {
+      // Both a completed purchase and a 409 mean the days are readable now (the
+      // 409 path can have just self-healed the grant), but only a purchase
+      // earns the ceremony.
+      if (outcome !== 'unlocked' && outcome !== 'already') return
+      // This page holds the copy the server served BEFORE the purchase, and
+      // that copy is wire-stubbed: the stub keeps stop titles and coordinates
+      // while emptying descriptions, notes, timings and costs. Rendering it
+      // with the lock lifted shows a full-looking plan that is still
+      // placeholder text. Re-read through the same RPC — the entitlement now
+      // exists, so it answers with real days — rather than clearing `fetched`,
+      // which would flash the loading state mid-ceremony.
+      const fresh = await fetchPublicTrip(pub!.id)
+      if (fresh) setFetched(fresh)
+      // The reveal opens only on a real trip: its numbers ARE the point, and
+      // stats read from the stubbed copy would describe an empty plan.
+      if (outcome === 'unlocked' && fresh) setRevealTrip(fresh)
     }).finally(() => setBuying(false))
   }
 
@@ -298,6 +366,27 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
                 <div>
                   <b>{creator?.profile.name ?? 'Creator'}</b>{creator?.profile.isCreator && <span className="chip chip-saffron" style={{ marginLeft: 8 }}><Sparkles size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />Creator</span>}
                   {creator?.profile.creatorBio && <p className="small muted" style={{ margin: '5px 0 0' }}>{creator.profile.creatorBio}</p>}
+                  {isMyPub && (
+                    <div className="pub-funnel-glance" role="note" aria-label="How this plan converts, last 7 days">
+                      <b className="pub-fg-title">This link, last 7 days</b>
+                      <span className="pub-fg-line num">
+                        {myReadFailed
+                          ? 'Recorded traffic could not be read just now — the creator hub shows the same numbers when it can.'
+                          : myReadPending
+                          ? 'Reading this link’s traffic…'
+                          : myGlance?.glance
+                          ? myGlance.glance
+                          : 'No recorded traffic for this plan yet.'}
+                      </span>
+                      {myGlance?.preLog && <span className="pub-fg-prelog muted">{myGlance.preLog}</span>}
+                      {/* In-app navigation (onNavigate), not a new appLink anchor —
+                          the anchor-count pin in tests/app-link.test.ts exists so
+                          new route anchors get reviewed, and this one is internal. */}
+                      <button className="btn btn-outline btn-sm" style={{ marginTop: 6, alignSelf: 'flex-start' }} onClick={() => onNavigate('/creator-hub')}>
+                        Open the creator hub →
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
               {creator?.profile.socialLinks && (
@@ -406,6 +495,25 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
             </div>
           </div>
         </div>
+
+        {/* ROADMAP I-20: the purchase stops being a toast. Mounted only while a
+            just-bought, freshly-read itinerary is in hand, so a returning owner
+            never sees "you now own" for a plan they already had. */}
+        {revealTrip && (
+          <UnlockReveal
+            open
+            pub={pub}
+            trip={revealTrip}
+            creator={creator}
+            amountPaidInr={pub.premiumPriceInr}
+            // The grant itself, for the reveal's share card (I-21) — read from the
+            // entitlement list the purchase refreshed, so it arrives with the read
+            // that followed the unlock.
+            entitlementId={entitlements.find(e => e.pubId === pub.id)?.id}
+            onFork={() => { setRevealTrip(null); copyThis() }}
+            onClose={() => setRevealTrip(null)}
+          />
+        )}
 
         <p className="pub-footer-line">Published with YatraFlow · Plan real trips, together</p>
       </div>

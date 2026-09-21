@@ -38,6 +38,7 @@ const AuthPage = lazy(() => import('./pages/Auth').then(m => ({ default: m.AuthP
 const CreateTripPage = lazy(() => import('./pages/CreateTrip').then(m => ({ default: m.CreateTripPage })))
 const PublicItineraryPage = lazy(() => import('./pages/PublicItinerary').then(m => ({ default: m.PublicItineraryPage })))
 const ProfilePage = lazy(() => import('./pages/Profile').then(m => ({ default: m.ProfilePage })))
+const PurchasesPage = lazy(() => import('./pages/Purchases').then(m => ({ default: m.PurchasesPage })))
 const CreatorPage = lazy(() => import('./pages/CreatorPage').then(m => ({ default: m.CreatorPage })))
 // Gated route: only shown in the nav when the account has creator mode on.
 const CreatorHubPage = lazy(() => import('./pages/CreatorHubPage').then(m => ({ default: m.CreatorHubPage })))
@@ -325,6 +326,12 @@ export default function App() {
         break
       case 'profile':
         page = <Suspense fallback={lazyRouteFallback}><ProfilePage onNavigate={navigate} /></Suspense>
+        break
+      // I-20: the buyer's shelf. Reached from My trips (and from the unlock
+      // moment's own copy); deliberately its own route so it can be bookmarked
+      // and titled, rather than a third view inside the trip list.
+      case 'purchases':
+        page = <Suspense fallback={lazyRouteFallback}><PurchasesPage onNavigate={navigate} /></Suspense>
         break
       case 'creator-hub':
         page = <Suspense fallback={lazyRouteFallback}><CreatorHubPage onNavigate={navigate} /></Suspense>

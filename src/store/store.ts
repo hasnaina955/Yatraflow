@@ -2527,12 +2527,20 @@ export function registerPubView(id: ID): void {
 
 export function registerPubCopy(id: ID): void {
   const p = cache.published.find(x => x.id === id)
-  if (p) {
-    cache.published = cache.published.map(x => x.id === id ? { ...x, copies: x.copies + 1 } : x)
-    commit()
-    // Use RPC function that bypasses RLS - anyone can increment counters now.
-    fire('published_itineraries', supabase.rpc('bump_published_stats', { p_id: id, p_kind: 'copies' }))
-  }
+  if (!p) return
+  // Same exclusion as the view counter above, and for the same reason: a
+  // creator forking their OWN plan is testing it, not being converted by it.
+  // Without this the funnel's fork stage counted a step its view stage had
+  // already refused to count, so the two stages disagreed about who a reader
+  // is — and a fork rate over that is not a conversion rate.
+  if (cache.sessionUserId && p.creatorId === cache.sessionUserId) return
+  cache.published = cache.published.map(x => x.id === id ? { ...x, copies: x.copies + 1 } : x)
+  commit()
+  // Use RPC function that bypasses RLS - anyone can increment counters now.
+  // The same call also records the dated funnel event (see
+  // supabase/migrations/20260921_pub_funnel_events.sql), so the lifetime
+  // counter and the funnel log cannot drift.
+  fire('published_itineraries', supabase.rpc('bump_published_stats', { p_id: id, p_kind: 'copies' }))
 }
 
 // ---------------- Feed & notifications ----------------

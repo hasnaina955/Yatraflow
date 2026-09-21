@@ -350,7 +350,7 @@ export interface PublishedItinerary {
   travelTips: string[]
   warningsAndAssumptions: string[]
   freeDayIndexes: number[]  // which itinerary days are freely viewable
-  premiumPriceInr?: number  // placeholder for future payments
+  premiumPriceInr?: number  // what the paywall charges; 0/undefined = entirely free
   subscriberCta?: string
   publishedAt: number
   /** Last time the creator re-published (synced the page with the itinerary).

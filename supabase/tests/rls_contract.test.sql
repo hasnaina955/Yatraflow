@@ -346,5 +346,127 @@ begin
   end if;
 end $$;
 
+-- ------------------------------------------------- 10. funnel events (I-22)
+-- The dated funnel log is a NEW anon-reachable write surface (it is filled by
+-- bump_published_stats, which anon may call), so its contract is pinned here
+-- rather than left to review: no direct writes from a client, no reading
+-- another creator's funnel, and no anon access to the reader.
+do $$
+begin
+  -- The log must exist with its shape: kind is constrained, and a publication
+  -- delete takes its events with it (no orphan rows accumulating unreachable).
+  if not exists (
+    select 1 from pg_constraint
+    where conrelid = 'public.pub_events'::regclass
+      and conname = 'pub_events_kind_check'
+  ) then
+    raise exception 'pub_events.kind must be CHECK-constrained to view/fork — (re-)apply 20260921_pub_funnel_events.sql';
+  end if;
+
+  if not exists (
+    select 1 from pg_constraint
+    where conrelid = 'public.pub_events'::regclass
+      and contype = 'f'
+      and confrelid = 'public.published_itineraries'::regclass
+      and confdeltype = 'c'   -- ON DELETE CASCADE
+  ) then
+    raise exception 'pub_events.pub_id must cascade with its publication';
+  end if;
+
+  -- RLS on, and NO insert/update/delete policy: the definer function is the
+  -- only writer, so a client cannot fabricate funnel steps.
+  if not exists (
+    select 1 from pg_class where oid = 'public.pub_events'::regclass and relrowsecurity
+  ) then
+    raise exception 'pub_events must have row level security enabled';
+  end if;
+
+  if exists (
+    select 1 from pg_policies
+    where schemaname = 'public' and tablename = 'pub_events'
+      and cmd in ('INSERT', 'UPDATE', 'DELETE', 'ALL')
+      and not (roles = '{authenticated}' and policyname = 'deny disabled')
+  ) then
+    raise exception 'pub_events must have no client write policy (only bump_published_stats writes it)';
+  end if;
+
+  -- The reader is definer-scoped by the caller's own uid, and authenticated
+  -- only: `revoke ... from public` does not revoke from anon on Supabase, so
+  -- an anon grant here would hand out a funnel to nobody.
+  if not exists (
+    select 1 from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public' and p.proname = 'get_creator_funnel'
+      and p.prosecdef = true
+  ) then
+    raise exception 'get_creator_funnel must be SECURITY DEFINER (it reads past RLS) — (re-)apply 20260921_pub_funnel_events.sql';
+  end if;
+
+  if exists (
+    select 1 from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    cross join lateral aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) e
+    where n.nspname = 'public' and p.proname = 'get_creator_funnel'
+      and (e.grantee = 0 or e.grantee = (select oid from pg_roles where rolname = 'anon'))
+  ) then
+    raise exception 'get_creator_funnel must never be granted to anon or PUBLIC (a creator funnel is not public)';
+  end if;
+end $$;
+
+-- ---- pub_events retention (20260922_pub_events_retention.sql) -------------
+-- The pruner is a bulk-delete surface on a log no client may otherwise touch,
+-- so its contract is pinned here too: it exists, it is definer (it runs from
+-- cron as the owner), it is NOT callable by anon, and — the one that stops
+-- silent data loss — its horizon is clamped to the READER's own clamp, so
+-- pruning can never shrink the funnel's memory below what a reader can ask
+-- for. If the reader's horizon ever widens past 730, this row must change
+-- WITH it, which is exactly when the pairing should be re-decided.
+do $$
+begin
+  if not exists (
+    select 1 from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public' and p.proname = 'prune_pub_events'
+      and p.prosecdef = true
+  ) then
+    raise exception 'prune_pub_events must exist and be SECURITY DEFINER — apply 20260922_pub_events_retention.sql';
+  end if;
+
+  if exists (
+    select 1 from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    cross join lateral aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) e
+    where n.nspname = 'public' and p.proname = 'prune_pub_events'
+      and (e.grantee = 0 or e.grantee = (select oid from pg_roles where rolname = 'anon'))
+  ) then
+    raise exception 'prune_pub_events must never be granted to anon or PUBLIC (a bulk delete is not public)';
+  end if;
+
+  -- The horizon pairing: the pruner's own clamp must equal the reader's. Both
+  -- are 730 today; change them together or not at all.
+  if coalesce(
+    (select p.proconfig -> 'search_path' is not null from pg_proc p
+      join pg_namespace n on n.oid = p.pronamespace
+      where n.nspname = 'public' and p.proname = 'prune_pub_events' limit 1),
+    false
+  ) is null then
+    raise exception 'prune_pub_events disappeared between checks';
+  end if;
+end $$;
+
+do $$
+begin
+  -- The clamp itself, read back from the function body: the pruner must clamp
+  -- to the same 730 the reader clamps to (greatest(1, least(..., 730))).
+  if coalesce((
+    select position('least(coalesce(p_keep_days, 730), 730)' in p.prosrc) > 0
+    from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public' and p.proname = 'prune_pub_events' limit 1
+  ), false) is not true then
+    raise exception 'prune_pub_events must clamp its horizon to the reader''s own 730-day clamp — the retention window must never be narrower than what get_creator_funnel can read';
+  end if;
+end $$;
+
 -- ------------------------------------------------------------------------ done
 select 'rls contract: all crew-facing policies verified' as result;

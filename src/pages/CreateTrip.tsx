@@ -19,6 +19,7 @@ import { FUEL_PRICE_INR_PER_L, DEFAULT_FUEL_ECONOMY_KML, isFuelEconomyMode, pars
 import { planDriveDays, isSelfDrivenMode } from '../lib/ridePlan'
 import { CREW_CHIPS, CREW_MAX, CREW_MIN, clampCrew } from '../lib/crew'
 import { estimateTripStarter, buildOutlineSeedStops } from '../lib/tripStarter'
+import { TRIP_TEMPLATES, applyTemplate, templateFromPerHead } from '../lib/tripTemplates'
 import { fetchTripThumbUrl } from '../lib/tripThumb'
 import { Field, Chip, toast, Odometer, useMedia } from '../components/ui'
 import { Select } from '../components/Select'
@@ -244,6 +245,34 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
     setF(x => ({ ...x, ...next }))
   }
 
+
+  /** Warm start (P1): one tap pre-fills the form from a curated template.
+   *  Never clobbers what the user already typed (applyTemplate merge rules),
+   *  always lands on real coordinates so the bill computes immediately. */
+  function pickTemplate(t: (typeof TRIP_TEMPLATES)[number]) {
+    haptic(HAPTIC.select)
+    const { fields, dests: tDests } = applyTemplate(t, {
+      name: f.name, startLocation: f.startLocation, budgetTouched,
+    })
+    patchFields(fields)
+    setDests(tDests)
+    setReturnCount(0)
+    setStartCoords(null) // template coords live on the dests; start geocodes on submit path
+    setTplId(t.id)
+    // The template's day count lands as a date window (mirrors applyDayOutShape
+    // semantics: keep any picked start date, extend by days-1).
+    const start = f.startDate || isoDay(new Date())
+    patchFields({ startDate: start, endDate: isoAddDays(start, t.prefill.days - 1) })
+    toast(`${t.name} loaded - two taps from done`)
+  }
+
+  /** Start blank: clears any picked card, leaves the form exactly as it is. */
+  function clearTemplate() {
+    if (tplId == null) return
+    setTplId(null)
+    haptic(HAPTIC.tick)
+  }
+
   // Day Planner P1-E shape presets: one round-trip day ("Day out") or two
   // ("Weekend dash"). They only preset the shape — dates and the return flag —
   // the bill stays honest on its own (no hotel stops → no stay line).
@@ -268,6 +297,10 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
   // region below. It fires only on an actual write, and never while the field is
   // the user's current focus (they are editing it; the hint already covers them).
   const [budgetNotice, setBudgetNotice] = useState('')
+  /** Warm start (P1): the picked template card, and whether the name
+   *  suggestion chip is still relevant (hidden once the user types a name). */
+  const [tplId, setTplId] = useState<string | null>(null)
+  const [nameSugSeen, setNameSugSeen] = useState(false)
   useEffect(() => {
     if (budgetTouched || suggestedBudget == null) return
     if (f.budgetPerPersonInr === suggestedBudget) return
@@ -409,6 +442,19 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
   const outbound = dests.slice(0, dests.length - returnCount)
   const returnStops = dests.slice(dests.length - returnCount)
   const showCustomCrew = !CREW_CHIPS.includes(f.travellers)
+  /** Name-first suggestion: derived from what the route already says, or
+   *  the picked template's name. One pattern, no rotating list - the chip
+   *  exists to unstick, not to entertain. */
+  function tplNameSuggestion(): string {
+    const t = TRIP_TEMPLATES.find(x => x.id === tplId)
+    if (t) return t.prefill.name
+    const first = outbound[0]?.name.split(',')[0]
+    const last = outbound.length > 1 ? outbound[outbound.length - 1].name.split(',')[0] : null
+    if (first && last) return `${first} to ${last}`
+    if (first) return `${first} trip`
+    return 'Kerala with the crew'
+  }
+
   const ticketTitle = f.name.trim() || 'Your next trip'
   const ticketRoute = `${f.startLocation.trim() || 'Start'} → ${outbound.length ? outbound.map(d => d.name.split(',')[0]).join(' → ') : '…'}`
   const dateLabel = f.startDate && f.endDate
@@ -458,6 +504,58 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
       <div className="ts-layout">
         <form id="yf-create-form" className="ts-blocks" onSubmit={submit}>
 
+          {/* ---- Warm start (P1): template strip + name-first ---- */}
+          <section className="ts-block span12">
+            <div className="ts-block-head">
+              <span className="eyebrow">Start from a real trip</span>
+              <span className="ts-block-value">or blank - your call</span>
+            </div>
+            <div className="tpl-strip">
+              {TRIP_TEMPLATES.map(t => (
+                <button type="button" className={`tpl-card${tplId === t.id ? ' on' : ''}`} key={t.id}
+                  onClick={() => pickTemplate(t)}
+                  aria-pressed={tplId === t.id}>
+                  <span className="tpl-cov" style={{ background: t.coverGradient }}>
+                    <span className="em" aria-hidden>{t.emoji}</span>
+                    <span className="days">{t.prefill.days} days</span>
+                  </span>
+                  <span className="tpl-bd">
+                    <b>{t.name}</b>
+                    <span className="r">{t.routeLine}</span>
+                    <span className="p">from &#8377;{templateFromPerHead(t).toLocaleString('en-IN')} <small>/ head, rough</small></span>
+                  </span>
+                  <span className="tpl-pick" aria-hidden>&#10003;</span>
+                </button>
+              ))}
+              <button type="button" className="tpl-blank" onClick={clearTemplate}>
+                <span>
+                  Start blank
+                  <small>three questions and a live ticket</small>
+                </span>
+              </button>
+            </div>
+            <div className="tpl-helpers">
+              <button type="button" className="tpl-helper" onClick={() => { setTplId(null); haptic(HAPTIC.tick) }}>
+                Same as last trip
+              </button>
+              <button type="button" className="tpl-helper" onClick={() => onNavigate('/trips')}>
+                Not sure? Take a demo trip
+              </button>
+            </div>
+            <div className="tpl-name" style={{ marginTop: 10 }}>
+              <Field label="Trip name" error={errs.name}>
+                <input className="input" autoComplete="off" ref={el => (fieldRefs.current.name = el)} aria-invalid={!!errs.name}
+                  value={f.name} onChange={e => { patchFields({ name: e.target.value }); setNameSugSeen(true) }}
+                  placeholder="e.g. Kerala with the crew" />
+              </Field>
+              {!f.name.trim() && !nameSugSeen && (
+                <button type="button" className="tpl-sug" onClick={() => { patchFields({ name: tplNameSuggestion() }); setNameSugSeen(true) }}>
+                  Use &ldquo;{tplNameSuggestion()}&rdquo;
+                </button>
+              )}
+            </div>
+          </section>
+
           {/* ---- Route (7) ---- */}
           <section className="ts-block span7">
             <div className="ts-block-head">
@@ -495,10 +593,6 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
                 }}>Make it {driveDaysVerdict.driveDayCount} days</button>
               </div>
             )}
-            <Field label="Trip name" error={errs.name}>
-              <input className="input" autoComplete="off" ref={el => (fieldRefs.current.name = el)} aria-invalid={!!errs.name}
-                value={f.name} onChange={e => patchFields({ name: e.target.value })} placeholder="e.g. Kerala monsoon escape" />
-            </Field>
             <Field label="Starting location" error={errs.startLocation}>
               <LocationInput
                 value={f.startLocation}

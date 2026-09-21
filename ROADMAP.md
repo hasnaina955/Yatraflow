@@ -306,10 +306,13 @@ stays open until the remaining depth items are called done.
 
 ### M7 — "Premium" (monetization) — **issue #238**
 
-> Post-unlock value presentation (why the buy feels worth it) and the creator-growth-loop shape are researched with citations in `docs/commercial/RESEARCH-2026-09-18-creator-market-and-paywall-value.md`; the buildable items were I-20…I-27, of which **I-20** and **I-21** have shipped (see below) — I-22…I-27 remain in the bank.
+> Post-unlock value presentation (why the buy feels worth it) and the creator-growth-loop shape are researched with citations in `docs/commercial/RESEARCH-2026-09-18-creator-market-and-paywall-value.md`; the buildable items were I-20…I-27, of which **I-20**, **I-21**, **I-9**, **I-10**, **I-11** and **I-13** have shipped (see the shipped record below) — I-22…I-27 remain in the bank.
 Gateway integration (Razorpay fits INR), order/entitlement tables + webhook,
-purchase state, unlock flow replacing placeholder toasts. Needs an external
-gateway account. Deliberately after M6's test-suite groundwork.
+purchase state, unlock flow replacing placeholder toasts: **all shipped** — the
+rail landed in v0.61.0 (PR #251) and its paywall is enforced server-side, and
+the fee model landed 2026-09-21 (I-13). What is genuinely still open here is not
+engineering: **F6 (#234)** — the CA call on the merchant of record — which is the
+one row of this milestone no commit can close.
 
 ### M8 — 1.0 enablers → the 1.0 cut — **issue #239**
 Offline-first (IndexedDB + service worker/PWA, ~4–6h), i18n (EN + HI, ~6–8h),
@@ -382,11 +385,7 @@ unbuilt). **Before picking up a row, and before quoting one in a plan, confirm i
 
 | # | Idea | Blocked on | Note |
 |---|---|---|---|
-| I-9 | Payout-schedule card | M7 | "Next payout: Friday · clears ₹X once payments live" — the Earnings tab's `Next payout —` tile grows a date + threshold explainer. |
-| I-10 | Gross vs net split | M7 | Ledger rows already carry the columns; M7 adds the fee model + a gross/net toggle. |
-| I-11 | Per-publication revenue attribution | M7 | Sale rows join on `pub_id`; Overview rows gain an "earned" figure. |
-| I-12 | Price history | M7 (schema) | `premiumPriceInr` is overwritten on publish; correct books need a per-sale price snapshot or price-history rows. |
-| I-13 | Tiered platform fee | M7 (decision) | Fee % drops above a lifetime-earnings threshold — a pricing decision, surfaced in the fee column. Pattern: X's 90%-tier model. |
+| I-12 | Price history | M7 (schema) | The BOOKS are already right — `purchase_orders.price_snapshot_inr` is written at checkout and copied to `entitlements.amount_paid_inr`, so no sale is re-priced by a later edit. What remains is the creator-facing trail of their own price changes; I-24 still reads from it. |
 | I-14 | Payout method + KYC management | M7 (schema) | Bank/UPI + legal name + PAN on profiles — M7's biggest schema lift. |
 | I-15 | Unlock conversion funnel | M7, then events | Views → premium unlocks per publication; needs entitlement events from M7 first. |
 | I-16 | Cross-device Trip DNA persistence | M6/M7 infra | The engine is **done** (category mix, detour tolerance, stop-length dims, cross-trip device learning). What remains is persistence: a `user_dna` table + RLS so the profile survives a device change. Deliberately parked on infrastructure, not an engine gap. |
@@ -481,6 +480,18 @@ Kept as one line each so the origin is traceable without re-listing the work as 
   body, or an id that is not a UUID. Offered on **My purchases** as a row action and, last and
   quietest, in the unlock reveal; withheld for a withdrawn plan, because unpublishing deletes the
   row and the link would preview as nothing.
+- **Idea bank I-9 + I-10 + I-11 + I-13 — the fee stopped being a placeholder** — [Unreleased]. Source:
+  [`docs/commercial/PLAN-MONETISATION.md`](docs/commercial/PLAN-MONETISATION.md) §11 (decision-table row 2,
+  "confirm 15%") and §4.2. The platform fee is real: a MARGINAL ladder over a creator's lifetime gross —
+  15% to ₹25,000, then 10% — as `PLATFORM_FEE_TIERS` in `src/lib/earnings.ts`, chosen because 15% is the
+  number the plan asked to confirm and it has to clear the 2–3% processing floor to be worth charging.
+  Per-sale fees are attributed oldest-first, so the sale that carried the gross over the line is the one
+  that gets the cheaper rate, and every total is the sum of its rows rather than the ladder applied to the
+  total — a ledger has to add up the way a reader checks it. The hub gained the fee column I-13 promised, a
+  **Gross/Net** switch for the headline figures (I-10) and a payout card (I-9) naming the next Friday run,
+  the ₹500 minimum, and what would clear — including the part that is not built: payout RUNS are not
+  automated (no payouts table, no gateway payout API), so the card names the balance a run would disburse
+  rather than implying money is in transit. I-11's per-publication attribution had shipped already.
 
 ## Historical plans (executed — kept for the record, not live guidance)
 

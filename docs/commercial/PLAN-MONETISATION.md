@@ -51,7 +51,7 @@ An inventory of what already exists, because it determines how cheap Stage 2 is.
 | Creator hub | Publications manager, stats, unpublish, stale-page nudge | `CreatorHubPage.tsx`, v0.37/v0.38 **[MEASURED]** |
 | Earnings ledger | Ships with its **final** column shape: Payout period · Sales · Platform fee · Net payout | `ARCHITECTURE.md` **[MEASURED]** |
 | Projection view | `projectEarnings()`, labelled *"never money"* | `src/lib/earnings.ts` **[MEASURED]** |
-| Fee seam | `PROJECTED_PLATFORM_FEE_INR = 0` — *"the seam where the real fee model plugs in"* | `src/lib/earnings.ts` **[MEASURED]** |
+| Fee model | **Decided and shipped 2026-09-21 (I-13)** — a marginal ladder over lifetime gross: 15% to ₹25,000, then 10%. `PLATFORM_FEE_TIERS` is the one seam | `src/lib/earnings.ts` **[MEASURED]** |
 | AI companion | **Fully implemented, flag-gated off** for *"the premium packaging milestone"* | `featureFlags.ts`, `TripWorkspace.tsx:289` **[MEASURED]** |
 | M7 schema contract | `sale_events`, `payouts`, entitlements table, KYC fields, Razorpay ids, webhook log with idempotency keys | `docs/ARCHITECTURE.md` §"Creator earnings contract (M7)" **[MEASURED]** |
 | Payment rail | **Does not exist** | **[MEASURED]** |
@@ -285,7 +285,7 @@ determine revenue are measurable today for free.
 2. **Record the funnel weekly.** `computeFunnel()` already returns `activationPct`, `collabPct`,
    `publishPct`, `viewToCopyPct`, plus raw `views` and `copies` **[MEASURED]**. Put it in the
    admin console and write it down. No new instrumentation required.
-3. **Set the fee model constant.** `PROJECTED_PLATFORM_FEE_INR` is the seam **[MEASURED]**.
+3. ~~**Set the fee model constant.**~~ **Done 2026-09-21 (I-13):** 15% to ₹25,000 of lifetime gross, 10% after, as a marginal ladder in `PLATFORM_FEE_TIERS` **[MEASURED]**.
 4. **Decide the merchant-of-record question with a CA** (§4.2). It changes the creator payout by
    ~₹27 per sale and cannot be deferred past the first sale.
 5. **Record infrastructure invoices.** Currently **[UNKNOWN]** — the actual Supabase/Vercel bills
@@ -344,7 +344,7 @@ surface already exists.
    row's `days` column. **Both live premium publications (₹199 and ₹500) returned all 7 locked
    days and 20 stops to an unauthenticated client.** Add a redacting `SECURITY DEFINER` RPC
    mirroring `get_invite_trip`, and narrow the table policy — together, or the public page breaks.
-4. **Set the fee model** — replace `PROJECTED_PLATFORM_FEE_INR = 0`.
+4. ~~**Set the fee model** — replace `PROJECTED_PLATFORM_FEE_INR = 0`.~~ **Done** — see §11 row 2.
 5. **Switch on the existing unlock buttons** (two per page, already placed).
 6. **GST/TDS registration and invoicing** — see §4.2.
 7. **Post-unlock value presentation** — the unlock ceremony, owned library and
@@ -672,7 +672,7 @@ Stated in advance, so it cannot be rationalised later.
 | # | Decision | Why it blocks | Needed by |
 |---|---|---|---|
 | 1 | Merchant of record: Branch 1 or 2 (§4.2) | Changes creator payout ~₹27/sale | Stage 0, with a CA |
-| 2 | Platform fee: confirm 15% | Sets `PROJECTED_PLATFORM_FEE_INR` | Stage 0 |
+| 2 | ~~Platform fee: confirm 15%~~ — **DECIDED 2026-09-21**: 15% marginal to ₹25,000 of lifetime gross, then 10% (I-13) | Sets `PLATFORM_FEE_TIERS` | Stage 0 |
 | 3 | Subscription price: ₹99 vs ₹149 | Sets the primary SKU | Stage 3 |
 | 4 | Free-day policy default | Drives copy→pay | Stage 2 |
 | 5 | Re-publication policy for unlocked content | The leak | **Before Stage 2 launch** |

@@ -17,6 +17,10 @@ import {
   buildPubFunnels, conversionPct, formatPct, funnelWindowStart, utcDayKey, utcDayStart,
   FUNNEL_WINDOWS, type FunnelDailyRow, type FunnelPub, type FunnelSale,
 } from '../src/lib/pubFunnel'
+// The fixture's traffic plan. A PURE module rather than the CLI script itself:
+// `scripts/seedCreatorFixture.mjs` runs its whole seed on import, so a test
+// cannot import it to check its numbers.
+import { funnelTotals, planFunnelEvents, PLAN_WINDOWS, windowTotals } from '../scripts/fixtureFunnelPlan.mjs'
 
 const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8')
 
@@ -409,5 +413,139 @@ describe('a failed funnel read is an error, not an empty funnel', () => {
     expect(fn).toContain('throw error')
     expect(fn).not.toMatch(/catch[^}]*return \[\]/)
     expect(fn).toContain(".rpc('get_creator_funnel'")
+  })
+})
+
+describe('the creator fixture\u2019s traffic plan', () => {
+  // scripts/seedCreatorFixture.mjs seeds 100 days of backdated views and forks,
+  // because the hub's Visits → Forks → Unlocks table needs a TREND and the app
+  // only records traffic as it happens — a fixture without events would render a
+  // funnel whose every window reads zero, which is the state it was in before.
+  //
+  // A node suite cannot render that table (no DOM, no session), so this is the
+  // answer key for the browser check — and it is produced by the SHIPPED
+  // derivation run over the fixture's own rows, not by restating what the numbers
+  // "ought" to be. If the window rule moves, this fails here instead of the
+  // fixture quietly describing a window the app no longer computes.
+  const PUBS = [
+    { slug: 'kerala', id: 'pub-fixture-kerala' },
+    { slug: 'goa', id: 'pub-fixture-goa' },
+    { slug: 'spiti', id: 'pub-fixture-spiti' },
+  ]
+  const eventsOf = (p: { slug: string; id: string }) => planFunnelEvents({ slug: p.slug, pubId: p.id, now: NOW })
+
+  /** `get_creator_funnel`'s own output shape, from the fixture's raw events. The
+   *  SQL buckets them per publication per UTC day in production, so the test
+   *  reproduces exactly that and nothing more. */
+  const daily: FunnelDailyRow[] = (() => {
+    const byKey = new Map<string, FunnelDailyRow>()
+    for (const p of PUBS) {
+      for (const e of eventsOf(p)) {
+        const day = utcDayKey(Date.parse(e.at))
+        const key = `${e.pub_id}|${day}`
+        const bucket = byKey.get(key) ?? { pubId: e.pub_id, day, views: 0, forks: 0 }
+        if (e.kind === 'view') bucket.views += 1
+        else bucket.forks += 1
+        byKey.set(key, bucket)
+      }
+    }
+    return [...byKey.values()]
+  })()
+
+  /** The sales plan the fixture writes, reduced to what a funnel counts. */
+  const sales: FunnelSale[] = [
+    sale('pub-fixture-kerala', 30), sale('pub-fixture-kerala', 21),
+    sale('pub-fixture-goa', 9), sale('pub-fixture-goa', 3),
+    sale('pub-fixture-kerala', 0),
+    sale('pub-fixture-spiti', 12), sale('pub-fixture-spiti', 5),
+  ]
+
+  const pubsForFunnel: FunnelPub[] = PUBS.map(p => {
+    const totals = funnelTotals(eventsOf(p))
+    return {
+      id: p.id, title: p.slug, priceInr: 199,
+      lifetimeViews: totals.views, lifetimeForks: totals.forks,
+    }
+  })
+
+  const funnels = (days: number) => buildPubFunnels({ daily, sales, pubs: pubsForFunnel, days, now: NOW })
+  const of = (days: number, slug: string) => {
+    const found = funnels(days).find(f => f.pubId === `pub-fixture-${slug}`)
+    if (!found) throw new Error(`no funnel for ${slug}`)
+    return found
+  }
+
+  it('writes a trend, so the 7 / 30 / 90-day pills show different numbers', () => {
+    // A flat plan makes every window identical, which reads like a broken window
+    // control and proves nothing about it.
+    const seven = of(7, 'kerala').views
+    const thirty = of(30, 'kerala').views
+    const ninety = of(90, 'kerala').views
+    expect(seven).toBeGreaterThan(0)
+    expect(thirty).toBeGreaterThan(seven)
+    expect(ninety).toBeGreaterThan(thirty)
+  })
+
+  it('agrees with the fixture\u2019s own printed windows \u2014 the key is the shipped rule', () => {
+    // The fixture prints these windows before it writes anything, through its own
+    // `windowTotals` helper. This is the cross-check that the number a browser
+    // check compares against is the number the app computes.
+    for (const p of PUBS) {
+      const rows = eventsOf(p)
+      for (const days of PLAN_WINDOWS) {
+        const printed = windowTotals(rows, days, NOW)
+        const derived = of(days, p.slug)
+        expect([days, p.slug, derived.views, derived.forks])
+          .toEqual([days, p.slug, printed.views, printed.forks])
+      }
+    }
+  })
+
+  it('counts the lifetime totals from the log the fixture seeds', () => {
+    // The hub shows these beside the windowed numbers, and the fixture seeds the
+    // publication ROW's counters to the same totals so the two agree on screen.
+    // In production they legitimately disagree — the counters predate the log —
+    // and a fixture has no reason to reproduce that. It must not be `unreported`
+    // either: the log holds events for every publication in the plan.
+    for (const p of PUBS) {
+      const totals = funnelTotals(eventsOf(p))
+      const f = of(90, p.slug)
+      expect([p.slug, f.lifetimeViews, f.lifetimeForks]).toEqual([p.slug, totals.views, totals.forks])
+      expect([p.slug, f.unreported]).toEqual([p.slug, false])
+    }
+  })
+
+  it('windows the unlocks by SALE date, exercising the boundary', () => {
+    // The sale stage is READ, not recorded: these are the fixture's own sales.
+    // Kerala's oldest is exactly 30 days back, and a 30-day window starts at the
+    // beginning of the day 29 back — so it falls OUTSIDE, and the fixture tests
+    // that boundary instead of sitting safely inside it.
+    expect(of(7, 'kerala').unlocks).toBe(1)
+    expect(of(30, 'kerala').unlocks).toBe(2)
+    expect(of(90, 'kerala').unlocks).toBe(3)
+    expect(of(7, 'goa').unlocks).toBe(1)
+    expect(of(30, 'goa').unlocks).toBe(2)
+    expect(of(7, 'spiti').unlocks).toBe(1)
+    expect(of(30, 'spiti').unlocks).toBe(2)
+  })
+
+  it('dates the log from its first RECORDED day, not from the plan\u2019s start', () => {
+    // The plan ramps up from nothing, so a publication whose first days are empty
+    // must not claim to have been recording since day one. Kerala starts at one
+    // visit a day — its first day IS recorded — while Goa starts at zero.
+    const planStart = utcDayKey(NOW - 99 * DAY)
+    expect(of(90, 'kerala').recordingSinceDay).toBe(planStart)
+    expect(of(90, 'goa').recordingSinceDay! > planStart).toBe(true)
+  })
+
+  it('is what the fixture actually writes \u2014 imported, not copied', () => {
+    // The wiring a node suite cannot run: the script must SEED this plan rather
+    // than restate it, replace the log rather than append to it on a re-run, and
+    // set the row counters from the log's own totals.
+    const script = read('../scripts/seedCreatorFixture.mjs')
+    expect(script).toContain("from './fixtureFunnelPlan.mjs'")
+    expect(script).toContain('planFunnelEvents(')
+    expect(script).toContain("sql.remove('pub_events', 'pub_id'")
+    expect(script).toContain('FUNNEL_TOTALS.get(p.slug)')
   })
 })

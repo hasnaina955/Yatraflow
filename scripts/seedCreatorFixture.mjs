@@ -30,6 +30,26 @@
 //                                     points the monetisation plan measured),
 //                                     plus the admin's ₹12,000 Spiti circuit
 //   seven orders + entitlements     — backdated, so the ledgers are not one day
+//   ~724 pub_events                 — 100 days of views and forks per
+//                                     publication, so the hub's
+//                                     Visits → Forks → Unlocks window has a
+//                                     TREND to render rather than an empty one
+//
+// WHY THE EVENT LOG IS PART OF THE FIXTURE: the funnel has two stages, and only
+// one of them was ever readable. Unlocks come from the sales ledger (already
+// backdated here), but visits and forks come from `pub_events`, which the app
+// only writes as traffic happens — so a fixture with no events would render a
+// funnel whose every window reads zero, and a real trend could not be looked at
+// at all. The events below are generated from a deterministic plan (ramping
+// traffic, a weekend rhythm, a per-publication fork rate), because the point is
+// to LOOK at the window control: flat traffic makes 7 / 30 / 90 days show the
+// same number, which reads like a rendering bug and proves nothing.
+//
+// The publication row's lifetime `views`/`copies` counters are set to the
+// event log's own totals, which is the honest pairing here: in production those
+// counters PREDATE the log (the log starts the day it shipped), so they
+// legitimately disagree — a fixture that reproduced that would put two
+// different numbers on one screen for no reason.
 //
 // WHY A SECOND CREATOR, NOT JUST AN ADMIN: one creator exercises a ledger; two
 // exercise the CONSOLE. The platform fee is charged PER CREATOR, so with a
@@ -74,6 +94,11 @@ import { createClient } from '@supabase/supabase-js'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { randomBytes } from 'node:crypto'
+// The traffic plan lives in its own PURE module because this script runs its
+// whole seed on import — a test cannot import it to check its numbers, and the
+// numbers a browser check needs an answer key for are in `fixtureFunnelPlan.mjs`
+// (see that file's header).
+import { FUNNEL_PLAN, funnelTotals, planFunnelEvents, PLAN_WINDOWS, windowTotals } from './fixtureFunnelPlan.mjs'
 
 const GREEN = '\x1b[32m', RED = '\x1b[31m', YELLOW = '\x1b[33m', DIM = '\x1b[2m', OFF = '\x1b[0m'
 
@@ -188,6 +213,44 @@ const SALES = [
 
 /** ₹Expected ledger, from the shipped ladder — pinned in tests/earnings.test.ts. */
 const EXPECTED = { grossInr: 26_046, feeInr: 3_855, netInr: 22_191 }
+
+// ------------------------------------------------------------ the event log
+// NOW is FROZEN for the run: the plan is spread across UTC days from the run's
+// own clock, so a `Date.now()` per call would let the printed expectations and
+// the written rows land on different sides of a day boundary.
+const NOW = Date.now()
+
+/** The fixture's publications — the creator's two and the admin's one — so the
+ *  plan, the print and the seed all iterate the same list. */
+const ALL_PUBLICATIONS = [...PUBLICATIONS, ADMIN_PUBLICATION]
+
+/** How far back the traffic plan reaches, for the printed summary. */
+const PLAN_DAYS = Math.max(...ALL_PUBLICATIONS.map(p => FUNNEL_PLAN[p.slug].days))
+
+/**
+ * The event log per SLUG, built from the shared plan at the DECLARED ids.
+ *
+ * Ids do not matter to a total (`planFunnelEvents` uses one only to label a
+ * row), so this is what the print and the lifetime counters read. The rows that
+ * are actually WRITTEN are rebuilt against whatever ids `seedOwner` ended up on
+ * (see `funnelRows`) — on a re-run those are the rows it reused, not the ones
+ * this run would have minted.
+ */
+const FUNNEL = ALL_PUBLICATIONS.map(p => {
+  const rows = planFunnelEvents({ slug: p.slug, pubId: p.id, now: NOW })
+  return {
+    slug: p.slug,
+    title: p.title,
+    rows,
+    totals: funnelTotals(rows),
+    windows: PLAN_WINDOWS.map(days => ({ days, ...windowTotals(rows, days, NOW) })),
+  }
+})
+
+/** The lifetime `views`/`copies` a publication row is seeded with — the log's
+ *  own totals, so the hub's all-time tiles and its window agree instead of
+ *  putting two different numbers on one screen (see the header). */
+const FUNNEL_TOTALS = new Map(FUNNEL.map(f => [f.slug, f.totals]))
 
 // ------------------------------------------------------------- trip contents
 // Minimal but VALID ItineraryDay/ItineraryStop shapes (src/data/types.ts): the
@@ -353,6 +416,33 @@ async function makeSqlRunner() {
 }
 
 // ------------------------------------------------------------------ the plan
+/** Lifetime unlocks per publication, from the sales plan above — the third stage
+ *  of the funnel, which is READ rather than recorded (see the migration). */
+const UNLOCKS_BY_SLUG = new Map([
+  ...PUBLICATIONS.map((p, i) => [p.slug, SALES.filter(s => s.pub === i).length]),
+  [ADMIN_PUBLICATION.slug, ADMIN_SALES.length],
+])
+
+/**
+ * The funnel's expectations as printable lines, shared by the dry run and the
+ * post-`--apply` handoff: the answer key must not depend on which one you ran.
+ *
+ * The windows come from the fixture's own plan module, and
+ * `tests/pub-funnel.test.ts` checks those numbers against the SHIPPED derivation
+ * — so this text is a prediction the code is held to, not a second opinion.
+ */
+function funnelPlanLines() {
+  const lines = []
+  for (const f of FUNNEL) {
+    const windows = f.windows.map(w => `${w.days}d ${w.views}v/${w.forks}f`).join('  ·  ')
+    const unlocks = UNLOCKS_BY_SLUG.get(f.slug) ?? 0
+    lines.push(`  ${f.title}`)
+    lines.push(`    ${String(f.totals.views).padStart(4)} visits · ${String(f.totals.forks).padStart(3)} forks · ${unlocks} unlocks`)
+    lines.push(`    ${DIM}${windows}${OFF}`)
+  }
+  return lines
+}
+
 function printPlan() {
   console.log(`\n${DIM}YatraFlow creator fixture — ${APPLY ? 'APPLY' : 'DRY RUN'}${OFF}`)
   console.log(`project: ${URL}`)
@@ -378,7 +468,37 @@ function printPlan() {
   console.log(`  gross ₹${CONSOLE_EXPECTED.grossInr.toLocaleString('en-IN')} · fee ₹${CONSOLE_EXPECTED.feeInr.toLocaleString('en-IN')} · net ₹${CONSOLE_EXPECTED.netInr.toLocaleString('en-IN')} · ${CONSOLE_EXPECTED.sales} sales · ${CONSOLE_EXPECTED.creators} creators`)
   console.log(`  the fee MUST be ₹${CONSOLE_EXPECTED.feeInr.toLocaleString('en-IN')}, not ₹${CONSOLE_EXPECTED.oneSharedLadderFeeInr.toLocaleString('en-IN')}`)
   console.log(`  ${DIM}(one shared ladder over the platform total is the wrong answer — the tier follows each creator's own gross)${OFF}`)
+  console.log(`\nthe funnel's event log — the hub's Visits → Forks → Unlocks (20260921_pub_funnel_events.sql)`)
+  for (const line of funnelPlanLines()) console.log(line)
+  console.log(`  ${DIM}the pills window the visits and forks by recorded day and the unlocks by sale date, so 7 / 30 / 90 days differ; the row's all-time counters are seeded to these same totals${OFF}`)
 }/**
+ * The `pub_events` rows to WRITE, re-pointed at the ids that are really there.
+ *
+ * `idsBySlug` is what `seedOwner` reported: the fresh ids on a first run, the
+ * publications it REUSED on a re-run. The row shape comes from the shared plan
+ * module, so the elevated writer and the printed SQL cannot describe different
+ * logs — the same one-builder rule `saleRows` follows for the money rows.
+ */
+function funnelRows(idsBySlug) {
+  return FUNNEL.flatMap(f => {
+    const pubId = idsBySlug.get(f.slug)
+    if (!pubId) throw new Error(`no publication id for "${f.slug}" — the plan and the seeded publications have diverged`)
+    return planFunnelEvents({ slug: f.slug, pubId, now: NOW })
+  })
+}
+
+/**
+ * Write rows in batches. The event log is the fixture's largest write (~700
+ * rows), and one request carrying all of them is both a bigger failure surface
+ * and a slower thing to diagnose than three bounded ones.
+ */
+async function insertInChunks(sql, table, rows, size = 250) {
+  for (let i = 0; i < rows.length; i += size) {
+    await sql.insert(table, rows.slice(i, i + size))
+  }
+}
+
+/**
  * The order + entitlement ROWS for one owner's sale plan.
  *
  * ONE builder, consumed by both transports — the elevated REST/pg writer and the
@@ -435,13 +555,19 @@ function adminPromotionSql(email) {
  where email = '${email}';`
 }
 
-function printSqlFallback({ creatorId, adminId, buyerIds, creatorPubIds, adminPubIds, creatorOrderIds, adminOrderIds }) {
+function printSqlFallback({ creatorId, adminId, buyerIds, creatorPubIds, adminPubIds, creatorOrderIds, adminOrderIds, funnelEvents }) {
   const rows = [
     ...saleRows(SALES, creatorPubIds, s => s.pub, buyerIds, creatorOrderIds),
     ...saleRows(ADMIN_SALES, adminPubIds, () => 0, buyerIds, adminOrderIds),
   ]
   const orders = insertSql('purchase_orders', rows.map(r => r.order))
   const ents = insertSql('entitlements', rows.map(r => r.entitlement))
+  // The event log is REPLACED, not appended to: `pub_events` has no client write
+  // policy (the definer function is the app's only writer), so a pasted re-run
+  // would otherwise stack a second copy of the same traffic on the first and
+  // double every window. Same rule the elevated path follows.
+  const pubIdList = [...creatorPubIds, ...adminPubIds].map(id => `'${id}'`).join(', ')
+  const events = insertSql('pub_events', funnelEvents)
   console.log(`\n${YELLOW}No SUPABASE_SERVICE_ROLE_KEY and no PGCONN — paste this into the Supabase SQL editor,\nthen sign out and back in (the admin role lives in the JWT, so a fresh one is needed).${OFF}
 
 -- 1. the admin's role (account ${adminId})
@@ -452,6 +578,11 @@ ${orders}
 
 -- 3. entitlements (the ledgers read these)
 ${ents}
+
+-- 4. the funnel's event log — ${funnelEvents.length} dated views and forks
+--    (delete first: the fixture owns its publications' whole log)
+delete from public.pub_events where pub_id in (${pubIdList});
+${events}
 `)
 }
 
@@ -486,7 +617,7 @@ async function seedOwner(who, pubs, label) {
   // publications and then point the sales at the new ids, leaving the old ones
   // behind — the ledgers would read right and the account would quietly hold
   // two of everything. Reuse what is already there, matched by slug.
-  const { data: already } = await owner.sb.from('published_itineraries').select('id, title').eq('creator_id', owner.userId)
+  const { data: already } = await owner.sb.from('published_itineraries').select('id, title, trip_id').eq('creator_id', owner.userId)
   const existing = (already ?? []).filter(p => String(p.id).includes('-fixture-'))
   if (existing.length > 0) {
     const pubIds = pubs.map(p => {
@@ -495,7 +626,21 @@ async function seedOwner(who, pubs, label) {
       return String(found.id)
     })
     console.log(`${YELLOW}${label} is already seeded${OFF} — reusing ${pubIds.length} existing publication(s), creating nothing new.`)
-    return { userId: owner.userId, sb: owner.sb, trips: [], pubIds }
+    // The lifetime counters are RE-SYNCED rather than left alone: they mirror
+    // the event log's totals, so editing the traffic plan and re-running would
+    // otherwise leave the all-time tiles describing the previous plan.
+    for (const id of pubIds) {
+      const slug = pubs.find(p => id.includes(`-${p.slug}-`))?.slug
+      const totals = slug ? FUNNEL_TOTALS.get(slug) : undefined
+      if (!totals) continue
+      const { error } = await owner.sb.from('published_itineraries')
+        .update({ views: totals.views, copies: totals.forks }).eq('id', id)
+      if (error) throw new Error(`published_itineraries (counters): ${error.message}`)
+    }
+    return {
+      userId: owner.userId, sb: owner.sb, pubIds,
+      tripIds: pubIds.map(id => String(existing.find(e => String(e.id) === id)?.trip_id ?? '')),
+    }
   }
 
   const trips = []
@@ -530,12 +675,14 @@ async function seedOwner(who, pubs, label) {
       premium_price_inr: p.priceInr,
       subscriber_cta: null,
       published_at: Date.now(), refreshed_at: Date.now(),
-      views: 1_240, copies: 86,
+      // The event log's own totals, not invented counters — see the header.
+      views: FUNNEL_TOTALS.get(p.slug)?.views ?? 0,
+      copies: FUNNEL_TOTALS.get(p.slug)?.forks ?? 0,
     }])
     console.log(`${GREEN}publication${OFF} ${p.id}  ₹${p.priceInr}`)
   }
 
-  return { userId: owner.userId, sb: owner.sb, trips, pubIds: pubs.map(p => p.id) }
+  return { userId: owner.userId, sb: owner.sb, trips, pubIds: pubs.map(p => p.id), tripIds: trips.map(t => t.id) }
 }
 
 /**
@@ -583,11 +730,18 @@ async function apply() {
   const adminPubIds = admin.pubIds
   const creatorOrderIds = SALES.map(() => randomUUID())
   const adminOrderIds = ADMIN_SALES.map(() => randomUUID())
+  // The event log, re-pointed at those ids. `creator.pubIds` is in the order of
+  // PUBLICATIONS, which is what `funnelRows` matches a slug against.
+  const idsBySlug = new Map([
+    ...PUBLICATIONS.map((p, i) => [p.slug, creatorPubIds[i]]),
+    [ADMIN_PUBLICATION.slug, adminPubIds[0]],
+  ])
+  const funnelEvents = funnelRows(idsBySlug)
   const sql = await makeSqlRunner()
   if (!sql) {
     printSqlFallback({
       creatorId: creator.userId, adminId: admin.userId, buyerIds: buyers,
-      creatorPubIds, adminPubIds, creatorOrderIds, adminOrderIds,
+      creatorPubIds, adminPubIds, creatorOrderIds, adminOrderIds, funnelEvents,
     })
   } else {
     // The SAME `saleRows` the SQL fallback formats, so an elevated seed and a
@@ -599,6 +753,13 @@ async function apply() {
     await sql.insert('purchase_orders', rows.map(r => r.order))
     await sql.insert('entitlements', rows.map(r => r.entitlement))
     console.log(`${GREEN}${rows.length} sales written${OFF} (orders + entitlements, backdated)`)
+    // DELETE then insert: a bare second --apply must not stack a second copy of
+    // the same traffic on top of the first, which would double every window and
+    // read as a product whose traffic is exploding. The fixture owns its
+    // publications' whole log, so replacing it is the honest operation.
+    await sql.remove('pub_events', 'pub_id', [...creatorPubIds, ...adminPubIds])
+    await insertInChunks(sql, 'pub_events', funnelEvents)
+    console.log(`${GREEN}${funnelEvents.length} funnel events written${OFF} (views + forks, backdated across ${PLAN_DAYS} days)`)
   }
 
   console.log(`
@@ -612,7 +773,7 @@ Open the app and sign in as the creator:
   http://localhost:5173/#/creator-hub                       the earnings ledger, the fee column,
                                                             the Gross/Net switch, the payout card
                                                             and the payout-runs ledger
-  http://localhost:5173/#/trip/${trips[0]?.id}/share        the publish editor for a ₹${PUBLICATIONS[0].priceInr} plan
+  http://localhost:5173/#/trip/${creator.tripIds?.[0]}/share   the publish editor for a ₹${PUBLICATIONS[0].priceInr} plan
   http://localhost:5173/#/creator                             the public creator page
 
 Expected ledger: gross ₹${EXPECTED.grossInr.toLocaleString('en-IN')} · fee ₹${EXPECTED.feeInr.toLocaleString('en-IN')} · net ₹${EXPECTED.netInr.toLocaleString('en-IN')}
@@ -628,6 +789,14 @@ and back in first — the role lives in the JWT, not in a profile column):
 The console's fee is the number that matters: ₹${CONSOLE_EXPECTED.feeInr.toLocaleString('en-IN')}, NOT ₹${CONSOLE_EXPECTED.oneSharedLadderFeeInr.toLocaleString('en-IN')}.
 The fee is charged once per creator, so with a single payee that distinction is
 invisible — which is why the fixture seeds two (tests/admin.test.ts pins both).
+
+The creator's own hub — #/creator-hub → the Visits → Forks → Unlocks table — has a
+trend to read now, from backdated events. The pills should show DIFFERENT numbers:
+
+${funnelPlanLines().join('\n')}
+
+Unlocks are the sales plan above, windowed by sale date; visits and forks are the
+events, windowed by the UTC day they were recorded.
 
 Two surfaces need their migrations before they can read anything: the console's
 revenue row (20260921_admin_revenue.sql) and the hub's funnel
@@ -656,6 +825,11 @@ async function cleanOwner(who, sql) {
   // would refuse the delete the other way round.
   await sql.remove('entitlements', 'pub_id', pubIds)
   await sql.remove('purchase_orders', 'pub_id', pubIds)
+  // The event log needs no delete of its own: `pub_events.pub_id` cascades with
+  // the publication (the same FK the app relies on when unpublishing). A
+  // referential action runs as the table owner and is not subject to RLS, so the
+  // owner's own delete clears the events even though the table has no delete
+  // policy — which is exactly why the log cannot be cleaned up independently.
   const del = await owner.sb.from('published_itineraries').delete().in('id', pubIds)
   if (del.error) throw new Error(`published_itineraries: ${del.error.message}`)
   const delTrips = await owner.sb.from('trips').delete().in('id', tripIds)

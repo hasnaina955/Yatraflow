@@ -306,13 +306,21 @@ node scripts/seedCreatorFixture.mjs --clean    # remove the fixture's rows
 ```
 
 It works on the project `VITE_SUPABASE_URL` points at, creating a creator, an
-admin, three buyers, three priced publications and seven backdated sales, then
-prints the credentials, the deep links (`#/creator-hub`, the publish editor, the
-creator page, `#/admin` → Analytics) and any SQL it could not run. The sales are
+admin, three buyers, three priced publications, seven backdated sales and 100
+days of backdated visits and forks — the last so the hub's funnel renders a trend
+rather than an empty one — then prints the credentials, the deep links
+(`#/creator-hub`, the publish editor, the creator page, `#/admin` → Analytics)
+and any SQL it could not run. The sales are
 the same ones `tests/earnings.test.ts` (per creator) and `tests/admin.test.ts`
 (platform-wide) pin, so the numbers on screen have an answer key — including the
 console's, where two payees are what make "charged once per creator" a different
-figure from one ladder over the platform total. Two things need elevation, and
+figure from one ladder over the platform total. The traffic plan lives in
+`scripts/fixtureFunnelPlan.mjs`, a pure module rather than the CLI script itself
+(that runs its whole seed on import, so a test cannot import it to check its
+numbers), and `tests/pub-funnel.test.ts` runs the shipped derivation over the very
+events the fixture writes — so the windows the script prints before writing
+anything are checked against the arithmetic the app uses. Two things need
+elevation, and
 the script says so rather than half-seeding: the sales rows, because
 `entitlements` is SELECT-only for authenticated clients by design, and the
 admin's role, because it lives in the JWT's `app_metadata` and there is

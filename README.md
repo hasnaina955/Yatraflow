@@ -293,6 +293,29 @@ prefix per run and a printed teardown ledger -- only rows the run created are
 ever touched. The catalog-level shape is additionally locked by
 `supabase/tests/rls_contract.test.sql` (run in the dashboard SQL editor).
 
+## Migration status (is the database actually updated?)
+
+The database half of a release is the one part the offline gate cannot see:
+`npm run verify` typechecks, tests and builds, and says nothing about SQL that
+has never run. This asks the live project directly -- read-only, with the app's
+own anon key:
+
+```bash
+npm run check:migrations              # applied / MISSING per migration
+npm run check:migrations -- --list    # what it would probe, with no network
+```
+
+For every file in `supabase/migrations/` it derives the artifacts that migration
+creates -- a table, a column, a Storage bucket -- from its own SQL, and reports
+which are live. Exit **0** means everything it can probe is present; **1** means
+something is missing, or could not be checked (which is not the same as present);
+**2** means no credentials. Function-, policy- and trigger-only migrations are
+listed as having no probe surface, with the reason.
+
+The check found its first real one the day it was written: `trips.stay_style`
+was absent from the live database, so the stay-budget tier reverted on every
+reload without a word from the app.
+
 ## 🤝 Contributing
 
 PRs welcome! Keep TypeScript strict clean, match the existing style (plain CSS in `styles.css`, no new UI/router/state libs without discussion), preserve the transparency promise, and respect the MVP constraints. See [CONTRIBUTING.md](CONTRIBUTING.md).

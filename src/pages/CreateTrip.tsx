@@ -20,6 +20,7 @@ import { planDriveDays, isSelfDrivenMode } from '../lib/ridePlan'
 import { CREW_CHIPS, CREW_MAX, CREW_MIN, clampCrew } from '../lib/crew'
 import { estimateTripStarter, buildOutlineSeedStops } from '../lib/tripStarter'
 import { TRIP_TEMPLATES, applyTemplate, templateFromRange, fmtBand } from '../lib/tripTemplates'
+import { regionFor, regionBand, experienceTier, anchorNote } from '../lib/budgetBenchmarks'
 import { fetchTripThumbUrl } from '../lib/tripThumb'
 import { Field, Chip, toast, Odometer, useMedia } from '../components/ui'
 import { Select } from '../components/Select'
@@ -225,6 +226,20 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
     // this bill and the settings page could disagree about the same room.
     stayStyle: f.stayStyle,
   }), [f.startDate, f.endDate, f.travellers, f.transportMode, f.localTrain, f.roundTrip, f.fuelEconomy, f.fuelPrice, f.tankL, f.rentPerDay, f.stayStyle, orderedPoints, returnCount, fuelMode, tankNum, rentNum])
+
+  // P2 - the honest anchor: what a typical party spends on this region's own
+  // run, computed by the same engine that prints the bill. Null when we honestly
+  // have no baseline for the region - the UI then says nothing at all.
+  const region = useMemo(
+    () => regionFor([f.startLocation, ...dests.map(d => d.name)]),
+    [f.startLocation, dests],
+  )
+  const band = useMemo(
+    () => (region ? regionBand(region, bill.days || undefined) : null),
+    [region, bill.days],
+  )
+  // P2 - money in the user's hands, described by what it buys.
+  const tier = experienceTier(f.budgetPerPersonInr)
 
   // Day Planner (P1, PR #105): the engine kicks in the moment a start and a
   // destination exist — the route demands its own days from the wheel-hour
@@ -851,7 +866,8 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
                       </div>
                     </Field>
                   </div>
-                )}                </div>
+                )}
+                </div>
               </details>
           </section>
 
@@ -901,6 +917,15 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
                 })}
               </div>
             </div>
+            {band && (
+              <p className="hint-text budget-anchor" role="status">
+                A typical {band.days}-day {band.label} run costs <b>&#8377;{band.low.toLocaleString('en-IN')}&ndash;{band.high.toLocaleString('en-IN')}</b> per head
+                {f.budgetPerPersonInr > 0 ? <> - {anchorNote(f.budgetPerPersonInr, band)}</> : null}.
+              </p>
+            )}
+            <p className="hint-text budget-tier">
+              At <b>&#8377;{f.budgetPerPersonInr.toLocaleString('en-IN')}</b> per head: {tier.blurb}.
+            </p>
             <span className="group-lab">Budget preference</span>
             <PillNav className="tabbar" role="group" aria-label="Budget preference" activeKey={f.stayStyle}>
               {(['budget', 'comfort', 'luxury'] as const).map(s => (

@@ -1073,8 +1073,12 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
       const eta = sh.segment.etaMinutes
       const bits: string[] = []
       if (eta != null && Number.isFinite(eta)) bits.push(`arrive ${clockHM(Math.round(eta + dMin))}`)
-      bits.push(dMin > 0 ? `+${Math.round(dMin)} min` : 'on route')
-      if (dMin > 0 && budget > 0) bits.push(`${budgetSharePct(dMin, budget)}% of the day's detour budget`)
+      const dMinRound = Math.round(dMin)
+      bits.push(dMinRound > 0 ? `+${dMinRound} min` : 'on route')
+      if (dMinRound > 0 && budget > 0) {
+        const share = budgetSharePct(dMin, budget)
+        if (share > 0) bits.push(`${share}% of the day's detour budget`)
+      }
       m[String(sh.hit.id)] = bits.join(' · ')
     }
     return m

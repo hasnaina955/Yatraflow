@@ -6075,6 +6075,258 @@ html.native-shell {
 /* The drift prompt and the rest of the in-card chips stop drawing boxes. */
 .poi-plan-row .poi-desc .chip-sm { border-color: transparent; background: transparent; text-decoration: underline; text-underline-offset: 3px; }
 
+/* ================= P2: the day's plan (slots rail) + ledger extras ================= */
+/* Appended per the append-only guardrail: new selectors only, motion tokens
+   only, no baselined line touched. Composes with the existing rail shell. */
+.slots-daystrip {
+  display: flex; gap: 4px; flex-wrap: wrap; margin: 2px 2px 8px;
+}
+.slots-daychip {
+  border: 1px solid var(--line); background: var(--card); color: var(--text-2);
+  border-radius: 999px; font-size: 11.5px; font-weight: 600;
+  padding: 4px 11px; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 5px;
+  transition: background var(--t-fast) var(--ease-out), color var(--t-fast) var(--ease-out), border-color var(--t-fast) var(--ease-out);
+}
+.slots-daychip:hover { background: var(--teal-soft); color: var(--teal-deep); }
+.slots-daychip.is-on { background: var(--teal-soft); border-color: var(--teal-deep); color: var(--teal-deep); }
+.slots-daychip-rd { font-size: 9.5px; font-weight: 700; opacity: .78; font-variant-numeric: tabular-nums; }
+.slots-daychip:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--focus-ring, rgba(228, 174, 67, .55)); }
+
+.slots-meter { display: flex; gap: 4px; align-items: center; margin: 0 2px 9px; }
+.slots-meter i { width: 22px; height: 5px; border-radius: 3px; background: var(--line); transition: background var(--t-fast) var(--ease-out); }
+.slots-meter i.is-filled { background: var(--teal); }
+.slots-meter i.is-auto { background: color-mix(in srgb, var(--teal) 35%, var(--line)); }
+.slots-meter i.is-empty { background: var(--line); }
+.slots-meter-lbl { margin-left: 6px; font-size: 10px; letter-spacing: .04em; text-transform: uppercase; font-weight: 700; color: var(--text-3); font-variant-numeric: tabular-nums; }
+
+.slots-list { display: flex; flex-direction: column; gap: 6px; padding: 2px 2px 6px; }
+
+.day-slot {
+  border-radius: 12px; border: 1px solid var(--line); background: var(--card);
+  transition: border-color var(--t-fast) var(--ease-out);
+}
+.day-slot.is-empty { border-color: color-mix(in srgb, var(--warn) 38%, var(--line)); }
+.day-slot.is-open { border-color: var(--teal); box-shadow: 0 6px 18px rgba(16, 46, 75, .08); }
+.day-slot.is-auto { background: transparent; border-style: dashed; }
+.day-slot:focus-within { box-shadow: 0 0 0 3px var(--focus-ring, rgba(228, 174, 67, .55)); }
+
+.day-slot-top {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  padding: 8px 10px; text-align: left;
+}
+button.day-slot-top { background: none; border: 0; cursor: pointer; font: inherit; color: inherit; border-radius: 12px; }
+.day-slot-st {
+  flex: none; width: 18px; height: 18px; border-radius: 50%;
+  display: grid; place-items: center; font-size: 10px; font-weight: 800;
+  border: 1.5px solid var(--line); color: transparent; background: var(--card);
+}
+.day-slot.is-filled .day-slot-st { background: var(--teal-soft); border-color: var(--teal); color: var(--teal-deep); }
+.day-slot.is-auto .day-slot-st { border-style: dashed; border-color: var(--text-3); }
+.day-slot.is-empty .day-slot-st { border-color: var(--warn); }
+.day-slot-lab { font-size: 12px; font-weight: 700; }
+.day-slot.is-auto .day-slot-lab { color: var(--text-3); font-weight: 600; }
+.day-slot.is-filled .day-slot-lab { color: var(--text-2); }
+.day-slot-win { font-size: 10px; color: var(--text-3); letter-spacing: .03em; text-transform: uppercase; font-weight: 600; font-variant-numeric: tabular-nums; }
+/* B2: these five rules paint AMBER AS TEXT. `--warn` (#B47207) is a surface
+   token — as ink it is 3.65:1 on --bg and 3.92:1 on --card, under AA's 4.5:1
+   for normal text (and these run at 9.5–12px, far below the large-text
+   exemption). `--ink-amber` is the token this codebase already routes amber
+   ink through for exactly this reason; it measures 5.33:1 / 5.73:1. */
+.day-slot-urgent { flex: none; font-size: 10px; font-weight: 700; color: var(--ink-amber); }
+/* B4: a part whose window has already CLOSED. Distinct from the closing state
+   above — the message is "you missed it", not "hurry" — so it reads in the
+   muted ink instead of shouting in amber. */
+.day-slot-missed { flex: none; font-size: 10px; font-weight: 700; color: var(--text-3); }
+.day-slot-val { margin-left: auto; font-size: 11px; color: var(--text-2); text-align: right; max-width: 55%; font-variant-numeric: tabular-nums; }
+.day-slot-val b { font-weight: 600; color: var(--text); }
+.day-slot-val small { display: block; color: var(--text-3); font-size: 10px; }
+
+.day-slot-cands {
+  margin: 0 10px 8px; border-top: 1px solid var(--line-2); padding-top: 6px;
+  animation: day-slot-drop var(--t-fast) var(--ease-out);
+}
+@keyframes day-slot-drop { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
+.day-slot-cand {
+  display: flex; align-items: center; gap: 8px; padding: 7px 0;
+  border-bottom: 1px solid var(--line-2);
+}
+.day-slot-cand:last-of-type { border-bottom: 0; }
+.day-slot-cand-nm { flex: 1; min-width: 0; }
+.day-slot-cand-nm b { display: block; font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.day-slot-cand-nm > span { font-size: 10.5px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.day-slot-fill {
+  flex: none; font-size: 11px; font-weight: 700; color: var(--teal-deep);
+  background: var(--teal-soft); border: 1px solid transparent; border-radius: 999px;
+  padding: 4px 11px; cursor: pointer;
+  transition: background var(--t-fast) var(--ease-out), color var(--t-fast) var(--ease-out);
+}
+.day-slot-fill:hover { border-color: var(--teal-deep); }
+.day-slot-fill:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--focus-ring, rgba(228, 174, 67, .55)); }
+
+/* The see-&-do rail's ledger spine: one object, rows hang off it. */
+.poi-plan-list.is-ledger { position: relative; }
+.poi-plan-list.is-ledger .poi-plan-row {
+  position: relative; border: 0; background: transparent; border-radius: 0; margin: 0;
+  border-bottom: 1px solid var(--line-2);
+  padding: 9px 4px 9px 20px;
+}
+.poi-plan-list.is-ledger .poi-plan-row::before {
+  content: ''; position: absolute; left: -13px; top: 50%; margin-top: -3px;
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--card); border: 2px solid var(--yf-poi-see);
+}
+.poi-plan-list.is-ledger .poi-grp { padding-left: 20px; }
+
+/* The no-slot empty-day fallback list (needs cards still renderable there). */
+.poi-plan-list.is-emptyday { border-top: 1px solid var(--line-2); padding-top: 8px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .day-slot-cands { animation: none; }
+  .slots-daychip, .slots-meter i, .day-slot, .day-slot-fill { transition: none; }
+}
+
+/* ---- P2 fix round: the ledger's own rows (see-&-do rail) ----
+   Flat two-line rows on the spine replacing the boxed cards inside the
+   ledger: name + one meta line, expanding in place to a shelf. */
+.lrow-new {
+  position: relative; border: 1px solid var(--line); border-radius: 12px;
+  background: var(--card); margin-bottom: 6px;
+}
+.lrow-new:last-of-type { margin-bottom: 0; }
+.lrow-sum {
+  display: grid; grid-template-columns: auto 1fr auto; column-gap: 8px; row-gap: 2px;
+  align-items: center;
+  padding: 8px 10px; cursor: pointer; list-style: none;
+  border-radius: 12px;
+  transition: background var(--t-fast) var(--ease-out);
+}
+.lrow-sum::-webkit-details-marker { display: none; }
+.lrow-sum:hover { background: color-mix(in srgb, var(--yf-poi-see) 6%, transparent); }
+.lrow-sum:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--focus-ring, rgba(228, 174, 67, .55)); }
+.lr-name {
+  grid-column: 2; grid-row: 1; min-width: 0; font-size: 12.5px; font-weight: 600; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.lr-meta { grid-column: 2; grid-row: 2; font-size: 10.5px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.lr-go { grid-column: 3; grid-row: 1 / span 2; align-self: center; color: var(--text-3); transition: transform var(--t-fast) var(--ease-out); }
+.lrow-new[open] .lr-go { transform: rotate(180deg); }
+.ledger-shelf {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin: 0 0 8px; padding: 8px 10px;
+  background: var(--bg); border: 1px solid var(--line-2); border-radius: 12px;
+  animation: day-slot-drop var(--t-fast) var(--ease-out);
+}
+
+/* ---- P2: the ledger reads as one object ---- */
+/* Every row in the see-&-do ledger - picks, route arcs, quarter gaps - is a
+   flat row on the spine: no boxes, hairline separators, one set of metrics.
+   Declares no new colour pair, so the contrast contract is untouched. */
+.poi-plan-list.is-ledger .poi-plan-row:last-of-type { border-bottom: 0; }
+.poi-plan-list.is-ledger .poi-plan-row.poi-plan-arc { padding-top: 8px; padding-bottom: 8px; }
+.poi-plan-list.is-ledger .poi-plan-row .ride-purpose { font-size: 10px; }
+.poi-plan-list.is-ledger .poi-more { padding-left: 20px; }
+.poi-plan-list.is-ledger .hint-text { padding-left: 20px; }
+
+/* ---- P2 design pass: the rails as designed cards (the mockup's tinted
+   containers) and the empty row's amber hint. New selectors only; no colour
+   pair is declared in the container rules, so the contrast contract is
+   untouched. ---- */
+.map-ideas-grid .poi-col--needs,
+.map-ideas-grid .poi-col--see {
+  border-radius: 18px;
+  padding: 10px 10px 8px;
+}
+.map-ideas-grid .poi-col--needs {
+  background: color-mix(in srgb, var(--teal) 10%, var(--bg));
+  border: 1px solid color-mix(in srgb, var(--teal) 20%, var(--line));
+}
+.map-ideas-grid .poi-col--see {
+  background: color-mix(in srgb, var(--yf-poi-see) 4%, var(--bg));
+  border: 1px solid color-mix(in srgb, var(--yf-poi-see) 20%, var(--line));
+}
+.day-slot-hint {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  margin: 0 10px 8px; font-size: 10.5px; font-weight: 600; color: var(--ink-amber);
+}
+.day-slot-hint .n { color: var(--text-3); font-weight: 500; }
+/* P2: the extras row dot (the mockup's .xrow .d) */
+.xdot {
+  grid-column: 1; grid-row: 1 / span 2; justify-self: center;
+  width: 8px; height: 8px; border-radius: 50%;
+  border: 2px solid var(--yf-poi-see);
+}
+/* P2: the shelf's alternatives as rows, not centred chips */
+.shelf-alt {
+  flex-basis: 100%; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+  padding: 6px 8px; border: 1px solid var(--line); border-radius: 10px;
+  background: var(--card); text-align: left; font: inherit; color: inherit; cursor: pointer;
+  transition: border-color var(--t-fast) var(--ease-out);
+}
+.shelf-alt:hover { border-color: var(--yf-poi-see); }
+.shelf-alt-nm { flex: 1; min-width: 0; font-size: 11.5px; font-weight: 600; color: var(--text); overflow-wrap: anywhere; }
+.shelf-alt-km { flex: none; font-size: 10.5px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+/* P2 polish: the shelf's last row must not sit flush on the card edge, and
+   two wrapped rows need a hairline of air between them. */
+.ledger-shelf .shelf-alt + .shelf-alt { margin-top: 4px; }
+.lrow-new[open] { padding-bottom: 4px; }
+/* P4: the part's live vote (a chip + the leading option, opening Group input) */
+.day-slot-vote { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 10px 8px; }
+.day-slot-vote-lead { font-size: 10.5px; color: var(--text-3); }
+/* P5: the day chip carries its weather, and the rail its meta chips */
+.slots-daychip-rain { font-size: 9.5px; font-weight: 700; color: var(--ink-amber); text-transform: uppercase; letter-spacing: .03em; }
+.slots-daychip.is-on .slots-daychip-rain { color: var(--teal-deep); }
+.slots-railmeta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 0 2px 8px; }
+.slots-legend { position: relative; }
+.slots-legend summary { list-style: none; cursor: pointer; }
+.slots-legend summary::-webkit-details-marker { display: none; }
+.slots-legend-body { margin-top: 6px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); font-size: 11px; color: var(--text-2); }
+.slots-legend-body p { margin: 0 0 4px; }
+.slots-legend-body p:last-child { margin-bottom: 0; }
+.slots-legend-body b { color: var(--text); font-weight: 600; }
+/* P5.3: a slot pin - an empty part of the day, hollow amber, tap to open */
+/* P5.3: a slot pin — an empty part of the day, hollow amber, tap to open.
+   It carries its own card fill: the base `.yf-map-pin` sets NO background, so
+   without this the glyph sat straight on the map tiles and its legibility
+   depended on whatever imagery happened to be behind it. */
+.yf-map-pin--slot {
+  background: var(--card); border: 2px solid var(--warn);
+  color: var(--ink-amber); font-weight: 800;
+}
+.yf-map-pin--slot:hover { background: var(--warn-soft); border-color: var(--ink-amber); }
+/* P6.1: the day as a shape - drives and parts sized to their minutes */
+.dayshape { display: flex; flex-direction: column; gap: 3px; padding: 2px 2px 6px; }
+.shape-block {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  border-radius: 8px; padding: 0 10px; min-height: 18px;
+  font-size: 10.5px; font-variant-numeric: tabular-nums; overflow: hidden;
+}
+.shape-drive { background: var(--line-2); color: var(--text-2); }
+.shape-meal { background: var(--teal-soft); color: var(--teal-deep); }
+.shape-fuel { background: var(--warn-soft); color: var(--text-2); }
+.shape-stretch { background: transparent; border: 1px dashed var(--line); color: var(--text-2); }
+.shape-overnight { background: var(--teal-soft); color: var(--teal-deep); }
+.shape-state-empty { background: transparent; border: 1px dashed var(--warn); color: var(--ink-amber); }
+.shape-state-auto { background: transparent; border: 1px dashed var(--line); color: var(--text-2); }
+.shape-name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.shape-min { flex: none; opacity: .85; }
+
+/* P6.3: the trip's slot matrix on Overview */
+.slotmatrix { display: flex; flex-direction: column; gap: 3px; margin-top: 4px; }
+.slotmatrix-row { display: grid; grid-template-columns: 58px repeat(6, 1fr) 46px; align-items: center; gap: 4px; }
+.slotmatrix-head .slotmatrix-cell, .slotmatrix-head .slotmatrix-total {
+  font-size: 10px; letter-spacing: .04em; text-transform: uppercase; color: var(--text-3); text-align: center;
+}
+.slotmatrix-day { font-size: 11.5px; color: var(--text-2); }
+.slotmatrix-cell { text-align: center; font-size: 12px; line-height: 1.6; border-radius: 6px; }
+.slotmatrix-cell.is-filled { background: var(--teal-soft); color: var(--teal-deep); }
+.slotmatrix-cell.is-auto { border: 1px dashed var(--line); color: var(--text-2); }
+.slotmatrix-cell.is-empty { border: 1px dashed var(--warn); color: var(--ink-amber); }
+.slotmatrix-cell.is-none { color: var(--line); }
+.slotmatrix-total { font-size: 11px; color: var(--text-2); text-align: right; font-variant-numeric: tabular-nums; }
+
+/* P7.2: the log's learned pattern for a kind of part (context, not a claim) */
+.day-slot-pattern { margin: 0 10px 6px; font-size: 10.5px; font-style: italic; color: var(--text-3); }
 /* ============ I-20: the unlock moment + the purchases shelf ============ */
 
 /* The reveal is the app's own dialog with the sheet's padding handed to its

@@ -7,12 +7,18 @@
 // since I-16, an account copy in `user_dna` (both best-effort, capped, and
 // never throwing).
 import type { SupabaseClient } from '@supabase/supabase-js'
-
+import { SLOT_KIND_CATEGORIES, SLOT_KIND_PURPOSES, type SlotKind } from './haltFit'
 export interface DnaEvent {
   tripId: string
   /** 'seed' = an open crew idea: bends affinity but is NOT a crew acceptance */
   action: 'accept' | 'decline' | 'seed'
   category?: string
+  /** The engine purpose this pick was offered for ('meal' | 'fuel' | 'rest' |
+   *  'overnight' | 'stretch' | 'sight'), when the caller knew it. `category`
+   *  alone cannot tell a town accepted as a night halt from one accepted as
+   *  lunch — both log 'rest' — so the P7.2 hints read this first and fall back
+   *  to the category only for events written before it existed. */
+  haltKind?: string
   detourMin?: number
   /** predicted visit length for the stop (stop-length preference learning) */
   visitMin?: number
@@ -111,6 +117,35 @@ export function dnaNoteForHit(
   return `you've picked ${affinity} ${cat} stops this trip`
 }
 
+/** P7.2: what the log has learned about a KIND of part - how often the crew
+ *  takes it and the detour they tolerate. Null until the evidence is real
+ *  (3+ accepts for the kind), so a young log never pretends to a habit.
+ *
+ *  Membership is the event's OWN recorded purpose (`haltKind`) whenever it has
+ *  one. Category alone is not enough to tell the kinds apart: a town accepted
+ *  as a NIGHT HALT and a town accepted as LUNCH both log `category: 'rest'`,
+ *  so the old category-only filter counted one accept toward every kind's hint.
+ *  Events written before `haltKind` existed fall back to the engine's own
+ *  category list (`SLOT_KIND_CATEGORIES`, derived from `PURPOSE_FIT`). */
+export function slotPatternHint(log: DnaEvent[], kind: SlotKind): string | null {
+  const purposes: readonly string[] = SLOT_KIND_PURPOSES[kind]
+  const legacyCats = SLOT_KIND_CATEGORIES[kind]
+  const relevant = log.filter(e => e.haltKind != null
+    ? purposes.includes(e.haltKind)
+    : e.category != null && legacyCats.includes(normCat(e.category) ?? ''))
+  const accepts = relevant.filter(e => e.action === 'accept')
+  if (accepts.length < 3) return null
+  const detours = accepts
+    .map(e => e.detourMin)
+    .filter((n): n is number => typeof n === 'number' && Number.isFinite(n))
+  if (detours.length >= 3) {
+    const avg = Math.round(detours.reduce((a, b) => a + b, 0) / detours.length)
+    return avg <= 2
+      ? 'you usually take these without a detour'
+      : `you usually accept about +${avg} min for these`
+  }
+  return `you have accepted ${accepts.length} of these`
+}
 // ---- best-effort log (impure; UI layer only) ----
 const DNA_KEY = 'yatraflow_dna_log'
 const DNA_CAP = 500

@@ -15,6 +15,7 @@ import { classifyRoadWindow, CITY_SPEED_KMH, CITY_CRAWL_WARNING, type RoadKind }
 import { dnaBoostForHit, type DnaVector } from './tripDna'
 import { hmToMinutes } from './engine'
 import { HOME_ZONE_KM, kmFromStartForHit, asymmetricDetourMinutes, dedupeCandidates, type HaltPurpose, type PlaceHit } from './providers/hits'
+import { DEFAULT_FIT, PURPOSE_FIT } from './haltFit'
 
 // ---- Fatigue cadence (named constants — later settings can expose them) ----
 /** ≈2 h at 70–80 km/h — stretch, hydrate, bio-break. */
@@ -804,16 +805,11 @@ export interface SegmentHit {
 }
 
 // ---- purpose affinity (category → purposes it serves well) ----
-export const PURPOSE_FIT: Record<string, Partial<Record<HaltPurpose, number>>> = {
-  food: { meal: 3, stretch: 2, rest: 2 },
-  'transport-hub': { fuel: 3, stretch: 2, meal: 1, rest: 1 },
-  hotel: { overnight: 3, rest: 1 },
-  cafe: { stretch: 3, meal: 1 },
-  rest: { stretch: 2, rest: 3, meal: 1 },
-  sightseeing: { sight: 3 },
-}
-
-const DEFAULT_FIT: Partial<Record<HaltPurpose, number>> = { stretch: 1, rest: 1, sight: 2 }
+// The purpose-fit tables live in their own leaf module (haltFit) because this
+// file imports tripDna for the DNA boost, so a consumer of tripDna's cannot
+// import them from here without a cycle. Re-exported so existing callers and
+// the sight-purity test keep working unchanged.
+export { PURPOSE_FIT, DEFAULT_FIT } from './haltFit'
 
 /** Merge priority when cadence targets collide — the most significant wins the label. */
 export const PURPOSE_PRIORITY: Record<HaltPurpose, number> = {

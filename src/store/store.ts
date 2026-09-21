@@ -2292,6 +2292,10 @@ export function resolveDecision(decisionId: ID, optionId: ID): void {
   // the suggestion rows it beats drop out via the same name check.
   if (winning?.place && trip) {
     const dayIndex = Math.min(Math.max(0, winning.place.dayIndex), trip.days.length - 1)
+    // A slot poll's option id carries the part it was raised for
+    // (slot:<key>:<placeId>), so the landed stop says which part it fills -
+    // the day plan reads that part as filled the moment the vote resolves (P4).
+    const slotKey = /^slot:([a-z]+):/.exec(String(winning.id))?.[1]
     addStop(d.tripId, dayIndex, {
       title: winning.place.title,
       category: winning.place.category,
@@ -2306,6 +2310,10 @@ export function resolveDecision(decisionId: ID, optionId: ID): void {
       transportCostInrTotal: 0,
       priority: 'nice-to-have',
       notes: `Chosen by group vote — “${d.question}”`,
+      // The part this vote was raised for, as DATA. It used to be appended to
+      // `notes` as prose, which made a user-editable, printed field the only
+      // record of a derived state: tidying the note un-planned the day.
+      ...(slotKey ? { slotKey } : {}),
       status: 'confirmed',
     })
   }

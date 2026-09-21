@@ -3,7 +3,7 @@
 // preference vector, and reranks + explains new candidates by similarity.
 import { describe, it, expect } from 'vitest'
 import {
-  buildDnaVector, buildDnaVectorAcrossTrips, dnaBoostForHit, dnaNoteForHit,
+  buildDnaVector, buildDnaVectorAcrossTrips, dnaBoostForHit, dnaNoteForHit, slotPatternHint,
   normalizeDnaLog, mergeDnaLogs, loadDnaLog, attachDnaAccount, detachDnaAccount,
   type DnaEvent,
 } from '../src/lib/tripDna'
@@ -105,7 +105,52 @@ describe('trip DNA', () => {
   })
 })
 
-describe('DNA log — merge + account sync (I-16)', () => {
+describe('slot pattern hints (plan P7.2)', () => {
+  const ev = (action: 'accept' | 'decline', category: string, detourMin?: number, haltKind?: string): DnaEvent =>
+    ({ tripId: 't1', action, category, detourMin, ...(haltKind ? { haltKind } : {}) })
+  it('says nothing until the evidence is real', () => {
+    expect(slotPatternHint([ev('accept', 'food', 5, 'meal')], 'meal')).toBeNull()
+    expect(slotPatternHint([ev('accept', 'food', 5, 'meal'), ev('accept', 'food', 6, 'meal')], 'meal')).toBeNull()
+  })
+  it('speaks once the crew has taken the kind three times', () => {
+    const log = [ev('accept', 'food', 8, 'meal'), ev('accept', 'food', 10, 'meal'), ev('accept', 'cafe', 6, 'meal'), ev('decline', 'food', 40, 'meal')]
+    expect(slotPatternHint(log, 'meal')).toBe('you usually accept about +8 min for these')
+  })
+  it('reads a no-detour habit', () => {
+    const log = [ev('accept', 'transport-hub', 0, 'fuel'), ev('accept', 'transport-hub', 1, 'fuel'), ev('accept', 'transport-hub', 0, 'fuel')]
+    expect(slotPatternHint(log, 'fuel')).toBe('you usually take these without a detour')
+  })
+  it('food accepts do not speak for the fuel part', () => {
+    const log = [ev('accept', 'food', 5, 'meal'), ev('accept', 'food', 5, 'meal'), ev('accept', 'food', 5, 'meal')]
+    expect(slotPatternHint(log, 'fuel')).toBeNull()
+  })
+  // The defect this replaced: a town accepted as a NIGHT HALT and a town
+  // accepted as LUNCH both log `category: 'rest'`, so a category-only filter
+  // incremented every kind's hint from the one accept.
+  it('one accept speaks only for its OWN part, whatever the category', () => {
+    const log = [ev('accept', 'rest', 3, 'overnight'), ev('accept', 'rest', 4, 'overnight'), ev('accept', 'rest', 5, 'overnight')]
+    expect(slotPatternHint(log, 'overnight')).not.toBeNull()
+    expect(slotPatternHint(log, 'meal')).toBeNull()
+    expect(slotPatternHint(log, 'fuel')).toBeNull()
+    expect(slotPatternHint(log, 'stretch')).toBeNull()
+  })
+  it('a recovery break counts as a stretch, since that is the slot it fills', () => {
+    const log = [ev('accept', 'rest', 2, 'rest'), ev('accept', 'rest', 2, 'rest'), ev('accept', 'rest', 2, 'rest')]
+    expect(slotPatternHint(log, 'stretch')).toBe('you usually take these without a detour')
+  })
+  // Events written before `haltKind` existed fall back to the engine's own
+  // category list (derived from PURPOSE_FIT) rather than the hand-written one,
+  // which had listed `cafe` under meal despite a fit of 1 against a gate of 2.
+  it('legacy events still read through the engine category list', () => {
+    const legacy = [ev('accept', 'food', 5), ev('accept', 'food', 5), ev('accept', 'rest', 5)]
+    expect(slotPatternHint(legacy, 'meal')).toBe('you usually accept about +5 min for these')
+    // ...and a category the engine cannot offer for the kind stays silent.
+    const cafeOnly = [ev('accept', 'cafe', 5), ev('accept', 'cafe', 5), ev('accept', 'cafe', 5)]
+    expect(slotPatternHint(cafeOnly, 'meal')).toBeNull()
+  })
+})
+
+describe('DNA log - merge + account sync (I-16)', () => {
   it('normalizeDnaLog keeps well-formed events and ignores the rest', () => {
     const ok = { tripId: TRIP, action: 'accept' as const, category: 'waterfall' }
     expect(normalizeDnaLog(null)).toEqual([])

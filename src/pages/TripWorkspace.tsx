@@ -137,7 +137,7 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
   const suggestionCache = useSuggestionCache(tripId)
 
   // Pending change: a proposed plan held until the user keeps or discards it.
-  const [pending, setPending] = useState<{ proposed: Trip; result: ImpactResult } | null>(null)
+  const [pending, setPending] = useState<{ proposed: Trip; result: ImpactResult; onKept?: () => void } | null>(null)
 
   // Phase 3 (the living plan): a halt label on the map asks the timeline to open
   // that day. One-shot signal — TimelineTab consumes it on mount, then the
@@ -151,12 +151,12 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
   // Stable identity for applyChange (useCallback over the trip reference): it
   // flows into TimelineTab → DaySection props, and an unstable identity would
   // defeat the DaySection React.memo on every workspace render.
-  const applyChange = useCallback((mutator: (draft: Trip) => void, kind: ImpactResult['kind'], dayIndex: number) => {
+  const applyChange = useCallback((mutator: (draft: Trip) => void, kind: ImpactResult['kind'], dayIndex: number, onKept?: () => void) => {
     if (!trip) return
     const proposed = structuredClone(trip) as Trip
     mutator(proposed)
     const result = computeImpact(trip, proposed, kind, dayIndex)
-    setPending({ proposed, result })
+    setPending({ proposed, result, onKept })
   }, [trip])
 
   // F-16: a reload or tab close while a proposed change is pending silently
@@ -194,9 +194,13 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
 
   function keepPending() {
     if (!pending || !trip) return
+    const onKept = pending.onKept
     updateTrip(trip.id, pending.proposed)
     setPending(null)
-    toast('Change saved to your plan')
+    // A caller carrying its own follow-up (the day plan's Fill, with its Undo)
+    // speaks for the change; the generic confirmation would double-toast it.
+    if (onKept) onKept()
+    else toast('Change saved to your plan')
   }
 
   function removePending() {
@@ -291,7 +295,10 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
       </PillNav>
 
       <div className="tab-panel" key={tab} role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
-      {tab === 'overview' && <OverviewTab trip={effective} editable={editable} onOpenDecisions={() => setTab('group')} onOpenTimeline={() => setTab('timeline')} onOpenMap={() => setTab('map')} onInvite={() => setTab('share')} health={health} totals={totals} />}
+      {/* The Overview matrix reads the SAME corridor halts and the SAME road
+          measurement the Map tab does — taken from the suggestion cache, so it
+          costs no fetch and the two surfaces cannot disagree about a day. */}
+      {tab === 'overview' && <OverviewTab trip={effective} editable={editable} onOpenDecisions={() => setTab('group')} onOpenTimeline={() => setTab('timeline')} onOpenMap={() => setTab('map')} onInvite={() => setTab('share')} health={health} totals={totals} road={road} corridorSegments={suggestionCache.cache.map?.segments} />}
       {/* key: the timeline holds per-trip view state (open-day accordion) —
           remount it when the workspace switches trips (e.g. browser back/forward). */}
       {tab === 'timeline' && <TimelineTab key={effective.id} trip={effective} editable={editable} applyChange={applyChange} legCorrections={legCorrections} suggestionCache={suggestionCache} onOpenBoard={() => setTab('board')} focusDay={timelineFocusDay} onFocusConsumed={clearTimelineFocusDay} />}
@@ -303,7 +310,7 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
       )}
       {tab === 'map' && (
         <React.Suspense fallback={<div className="container loading-block"><div className="spinner" />Loading map…</div>}>
-          <MapTab trip={effective} editable={editable} applyChange={applyChange} suggestionCache={suggestionCache} crewSuggestions={db.suggestions.filter(s => s.tripId === trip.id)} road={road} onOpenTimeline={() => setTab('timeline')} onOpenBoard={() => setTab('board')} onOpenDay={(dayIndex) => { setTimelineFocusDay(dayIndex); setTab('timeline') }} />
+          <MapTab trip={effective} editable={editable} applyChange={applyChange} suggestionCache={suggestionCache} crewSuggestions={db.suggestions.filter(s => s.tripId === trip.id)} decisions={db.decisions.filter(d => d.tripId === trip.id)} road={road} onOpenTimeline={() => setTab('timeline')} onOpenBoard={() => setTab('board')} onOpenDay={(dayIndex) => { setTimelineFocusDay(dayIndex); setTab('timeline') }} onOpenGroupInput={() => setTab('group')} />
         </React.Suspense>
       )}
       {tab === 'group' && <GroupInputTab trip={effective} editable={editable} me={me} />}

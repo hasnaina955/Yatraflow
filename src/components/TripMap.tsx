@@ -358,7 +358,14 @@ function dedupeConsecutive(coords: [number, number][]): [number, number][] {
 
 /** "transport-hub" → "Transport Hub" for chip labels. */
 
-export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusDay, showToolbar = true, enableMapViewModes = false, activeHitId = null, onActivateHit, onOpenInTimeline, onOpenInBoard, onDeleteStop, mainRouteGeometry = null, clockMilestones = null, onOpenHaltDay, onShowReturnChange }: {
+/** m2: distinct glyphs for the empty-part pins. Keyed on the PART, not the
+ *  label's first letter — Stay and Stretch both read "S" that way, so two
+ *  different kinds wore one badge. */
+const SLOT_PIN_GLYPH: Record<string, string> = {
+  breakfast: 'B', lunch: 'L', fuel: 'F', stretch: 'S', dinner: 'D', stay: 'N',
+}
+
+export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusDay, showToolbar = true, enableMapViewModes = false, activeHitId = null, onActivateHit, onOpenInTimeline, onOpenInBoard, onDeleteStop, mainRouteGeometry = null, clockMilestones = null, onOpenHaltDay, onShowReturnChange, slotPins = [], onOpenSlot, hitCosts }: {
   trip: Trip
   onOpenStop?: (stopId: string) => void
   /** potential POIs to show as gold "idea" markers */
@@ -400,6 +407,13 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
    *  handler the workspace wires to the Timeline's day accordion. Undefined
    *  leaves every label decorative (Board view, tests). */
   onOpenHaltDay?: (dayIndex: number) => void
+  /** P5.3: an empty part of the day's top candidates - hollow amber pins.
+   *  Their tooltip carries P5.2's cost line (arrive / detour / budget share). */
+  slotPins?: Array<{ key: string; label: string; name: string; meta: string; hit: PlaceHit }>
+  /** Tapping a slot pin opens that part in the plan rail. */
+  onOpenSlot?: (key: string) => void
+  /** P5.2: cost line per suggestion id - the popup's "arrive / +N min / % of budget". */
+  hitCosts?: Record<string, string>
   /** Delete the stop straight from the map (popup action) — wired by MapTab. */
   onDeleteStop?: (stopId: string, stop: { title: string; dayIndex: number }) => void
   /** The Return-home toggle's direction state, reported up so the suggestion
@@ -488,9 +502,28 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   // otherwise (1 req/s). Markers pop in as coords land; failures stay
   // panel-only. Capped at 10 per ideas batch.
   const [coordFixes, setCoordFixes] = useState<Record<string, { lat: number; lng: number }>>({})
+  // Slot pins carry placeholder hits too, and they were read here but missing
+  // from the dep list: switching the day changed `slotPins` while `nearbyPois`
+  // stayed identical, so the effect never re-ran, the pin never resolved, and a
+  // (0,0) placeholder fell through the render guard below and disappeared
+  // silently — the Null Island class this file already documents as found live.
+  //
+  // Ideas and slot pins also get SEPARATE budgets. One shared 10-item queue
+  // ordered ideas-first meant a slot pin only got a turn after every unresolved
+  // idea, which on a fresh load is never.
   useEffect(() => {
     let cancelled = false
-    const pending = nearbyPois.filter(h => !hasCoords(h) && coordFixes[h.id as string] == null).slice(0, 10)
+    const seen = new Set<string>()
+    const take = (list: PlaceHit[], cap: number) => list
+      .filter(h => !hasCoords(h) && coordFixes[h.id as string] == null)
+      .slice(0, cap)
+    const pending = [...take(nearbyPois, 10), ...take(slotPins.map(p => p.hit), 4)]
+      .filter(h => {
+        const id = String(h.id)
+        if (seen.has(id)) return false
+        seen.add(id)
+        return true
+      })
     if (pending.length === 0) return
     ;(async () => {
       for (const h of pending) {
@@ -504,7 +537,10 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
       }
     })()
     return () => { cancelled = true }
-  }, [nearbyPois])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `coordFixes` is read
+    // to skip what is already fixed; depending on it would restart the queue on
+    // every landing and re-attempt hits that can never resolve.
+  }, [nearbyPois, slotPins])
   const mappedPois = useMemo(
     () => nearbyPois.map(h => {
       const f = coordFixes[h.id as string]
@@ -521,6 +557,11 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     },
     [mappedPois, hiddenIdeaCats],
   )
+  /** S4: the hits an empty-part pin is already standing on. Every slot
+   *  candidate is drawn from the same corridor pool as the ideas, so without
+   *  this the slot pin landed exactly on the idea pin — two markers, one
+   *  coordinate, an ambiguous click target. */
+  const slotPinIds = useMemo(() => new Set(slotPins.map(p => String(p.hit.id))), [slotPins])
   function toggleIdeaCat(cat: string) {
     setHiddenIdeaCats(prev => {
       const next = new Set(prev)
@@ -1113,6 +1154,34 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                 <SuggestionDistanceLayer places={nearbyPois} road={geom.all ?? null} />
               </>
             )}
+            {/* P5.3: the day's empty parts stand on the map - hollow amber pins at
+                their top candidate's real position (placeholder hits resolve via
+                the same coord-fix pass as the ideas), the cost line in the tooltip. */}
+            {slotPins.map(pin => {
+              const fix = coordFixes[pin.hit.id as string]
+              const lat = fix ? fix.lat : pin.hit.latitude
+              const lng = fix ? fix.lng : pin.hit.longitude
+              if (!Number.isFinite(lat) || !Number.isFinite(lng) || (lat === 0 && lng === 0)) return null
+              // m3: one string, used as the accessible name and the tooltip.
+              // It used to be a `title` AND a MarkerTooltip with identical text,
+              // so hovering showed two tooltips saying the same thing.
+              const label = `${pin.label}: ${pin.name} — ${pin.meta}. Tap to open this part in the plan.`
+              return (
+                <MapMarker key={`slot-${pin.key}`} longitude={lng} latitude={lat} anchor="center">
+                  <MarkerContent>
+                    <button
+                      type="button"
+                      className="yf-map-pin yf-map-pin--slot"
+                      aria-label={label}
+                      onClick={() => onOpenSlot?.(pin.key)}
+                    >
+                      {SLOT_PIN_GLYPH[pin.key] ?? pin.label.slice(0, 1)}
+                    </button>
+                  </MarkerContent>
+                  <MarkerTooltip>{label}</MarkerTooltip>
+                </MapMarker>
+              )
+            })}
             {(() => {
               let num = 0
               const showClockChips = !!(clockMilestones && clockOn)
@@ -1194,6 +1263,10 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                 Pin click/hover = select: the panel row highlights and scrolls
                 into view; adding moved to the explicit + chip beside the pin. */}
             {visiblePois.map(hit => {
+              // S4: an empty-part pin already stands here for this exact hit —
+              // it carries more (the part it would fill, plus the cost line) and
+              // its tap opens the plan, so it is the one that stays.
+              if (slotPinIds.has(String(hit.id))) return null
               const active = activeHitId != null && activeHitId === hit.id
               return (
                 <MapMarker key={`nearby_${hit.id}`} longitude={hit.longitude} latitude={hit.latitude}>
@@ -1221,7 +1294,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                     </VisiblePulse>
                   </MarkerContent>
                   <MarkerTooltip>
-                    <Lightbulb size={11} aria-hidden style={{ verticalAlign: '-1px', marginRight: 3 }} />{hit.name}{hit.haltPurpose ? ` · ${hit.haltPurpose === 'overnight' ? 'overnight option' : hit.haltPurpose}` : ''}{hit.cumKm != null ? ` · ~${hit.cumKm} km in` : ''}{hit.nearestCity ? ` · near ${hit.nearestCity}` : ''}
+                    <Lightbulb size={11} aria-hidden style={{ verticalAlign: '-1px', marginRight: 3 }} />{hit.name}{hit.haltPurpose ? ` · ${hit.haltPurpose === 'overnight' ? 'overnight option' : hit.haltPurpose}` : ''}{hit.cumKm != null ? ` · ~${hit.cumKm} km in` : ''}{hit.nearestCity ? ` · near ${hit.nearestCity}` : ''}{hitCosts?.[String(hit.id)] ? ` · ${hitCosts[String(hit.id)]}` : ''}
                   </MarkerTooltip>
                 </MapMarker>
               )

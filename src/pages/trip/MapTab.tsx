@@ -1,9 +1,9 @@
 // ============ Trip workspace — Map tab ============
 // Mechanical extraction from src/pages/TripWorkspace.tsx (M3.4) — no behavior changes.
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronDown, CircleCheck, ExternalLink, Fuel, Lightbulb, MapPin, Plus, RotateCcw, Sparkles, Star } from 'lucide-react'
+import { BedDouble, ChevronDown, CircleCheck, Coffee, ExternalLink, Fuel, Lightbulb, MapPin, Pause, Plus, RotateCcw, Sparkles, Star, Utensils } from 'lucide-react'
 import { uid } from '../../data/seed'
-import type { Trip, ItineraryStop } from '../../data/types'
+import type { Trip, ItineraryStop, TripDecision } from '../../data/types'
 import type { ImpactResult } from '../../lib/impact'
 import { mapRoadViewFromLegs, outboundLegs, type TripRoadView } from '../../lib/tripRoad'
 import { buildJourney, minutesToHM, fmtDur, computeCategoryBias, MODE_SPEED, isRoundTrip } from '../../lib/engine'
@@ -21,11 +21,11 @@ import { QuotaExhaustedError } from '../../lib/providers/google'
 import { isElectric } from '../../lib/vehicleProfile'
 import { planInputsHash } from '../../hooks/useSuggestionCache'
 import { railReasonChips, type RailChip } from '../../lib/railReasons'
-import { rulerMarks } from '../../lib/railRuler'
+import { daySlots, dayShape, tripDayAttribution, tripReadiness, SLOT_URGENCY_MIN, type DaySlot, type DaySlotKind, type DaySlotsDeps } from '../../lib/daySlots'
 import { addDecision, deleteStop, restoreStop } from '../../store/store'
 import { dayDetourBudgetMin, budgetSharePct, splitByDetourBudget } from '../../lib/detourBudget'
 import { quotaUsed, SOFT_CAPS } from '../../lib/providers/quota'
-import { buildDnaVectorAcrossTrips, loadDnaLog, recordDnaEvent, dnaNoteForHit, crewSeedsFromSuggestions, crewSeedsToPlannedStops, crewSeedEvents, crewNoteForHit } from '../../lib/tripDna'
+import { buildDnaVectorAcrossTrips, loadDnaLog, recordDnaEvent, dnaNoteForHit, slotPatternHint, crewSeedsFromSuggestions, crewSeedsToPlannedStops, crewSeedEvents, crewNoteForHit } from '../../lib/tripDna'
 import { clusterStoryArcs } from '../../lib/storyArcs'
 import { visitMinutesForCategory } from '../../lib/slackPrompts'
 import { scrollBehavior } from '../../lib/motion'
@@ -115,6 +115,15 @@ function googleMapsUrl(hit: PlaceHit): string {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(hit.name)}`
 }
 
+/** A locally minted stop id. Platform CSPRNG, never `Math.random` (#267's
+ *  presence-key lesson): a temporary handle is still a handle, and three
+ *  different add paths had drifted onto two different generators. */
+function newStopId(): string {
+  const rnd = new Uint32Array(2)
+  crypto.getRandomValues(rnd)
+  return `pending_${rnd[0].toString(36)}${rnd[1].toString(36)}`
+}
+
 /** Detour-scope presets for nearby suggestions (km off the route). */
 const SCOPE_KM_STEPS = [10, 20, 30, 50, 80, 100]
 const SCOPE_STORAGE_KEY = 'nearby_scope_km'
@@ -122,10 +131,10 @@ const SCOPE_STORAGE_KEY = 'nearby_scope_km'
 /** Sensible visit durations per suggestion category (tourist pacing). */
 const poiVisitMinutes = visitMinutesForCategory
 
-export function MapTab({ trip, editable, applyChange, suggestionCache, crewSuggestions, road, onOpenTimeline, onOpenBoard, onOpenDay }: {
+export function MapTab({ trip, editable, applyChange, suggestionCache, crewSuggestions, decisions, road, onOpenTimeline, onOpenBoard, onOpenDay, onOpenGroupInput }: {
   trip: Trip
   editable: boolean
-  applyChange: (mutator: (d: Trip) => void, kind: ImpactResult['kind'], dayIndex: number) => void
+  applyChange: (mutator: (d: Trip) => void, kind: ImpactResult['kind'], dayIndex: number, onKept?: () => void) => void
   suggestionCache: ReturnType<typeof useSuggestionCache>
   crewSuggestions?: { status: string; title: string; category?: string; lat: number; lng: number }[]
   /** #188: the workspace's ONE road measurement — the Map tab no longer measures. */
@@ -135,6 +144,10 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
   /** Phase 3: tapping a halt label asks the workspace to open that day's plan
    *  in the Timeline. Undefined = halt labels stay decorative labels. */
   onOpenDay?: (dayIndex: number) => void
+  /** The part's live vote opens the crew's Group input to resolve it (P4). */
+  onOpenGroupInput?: () => void
+  /** This trip's decisions - an open one raised for a part shows as its vote. */
+  decisions?: TripDecision[]
 }) {
   const [pois, setPois] = useState<SegmentHit[]>([])
   const timeFormat = useTimeFormat()
@@ -180,6 +193,8 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
   // Fold-to-spines: either rail can step back to a 48px spine so the map gains
   // the room. Session state on purpose - a layout whim should not persist.
   const [folded, setFolded] = useState<{ needs: boolean; see: boolean }>({ needs: false, see: false })
+  // P2: the day the plan rail reads. Day 1 by default; the strip's chips switch it.
+  const [activeDayIndex, setActiveDayIndex] = useState(0)
   // In-map place search (§6.5): a free-text query over the provider facade,
   // plus the results to add straight from the Map tab.
   const [searchQ, setSearchQ] = useState('')
@@ -263,25 +278,16 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     return { km: routeTotalKm ?? km, min: routeTotalMin ?? min }
   }, [trip, stopSig, routeTotalKm, routeTotalMin])
 
-  /** Which day's cumulative drive covers a given along-route km (for pick-a-day defaults). */
-  const dayForKm = (km: number | null | undefined): number | null => {
-    // #161: unknown km used to silently attribute to Day 1 — an off-polyline
-    // hit's budget, day lookup and pick-day default all lied. Return null and
-    // let each consumer decide honestly (day ?/clamped/default).
-    if (km == null || !Number.isFinite(km)) return null
-    // Road-true per-day km from the routing legs when resolved — chord-scale
-    // day sums undercount curvy roads and attribute the km to the wrong day.
-    const perDay = dayRoadKm ?? trip.days.map(d => buildJourney(trip, d).distanceKm)
-    // #161: walk positionally (dayRoadKm is aligned with trip.days) but key
-    // the RESULT by the day's own index — indexes can skip (deleted day), and
-    // position ≠ index.
-    let covered = 0
-    for (let i = 0; i < trip.days.length; i++) {
-      covered += perDay[i] ?? 0
-      if (km <= covered) return trip.days[i].index
-    }
-    return trip.days[trip.days.length - 1]?.index ?? null
-  }
+  /** ONE day attribution for this tab, and the very same helper the Overview
+   *  matrix reads (`tripDayAttribution`) — road-true per-day km from the
+   *  routing legs when resolved, keyed by the day's own index (#161: indexes
+   *  can skip when a day is deleted, and position ≠ index). A second definition
+   *  here is how two surfaces start disagreeing about which day it is. */
+  const dayAttribution = useMemo(() => tripDayAttribution(trip, dayRoadKm), [trip, dayRoadKm])
+  /** Which day's cumulative drive covers a given along-route km (pick-a-day
+   *  defaults, per-day budgets, day chips). #161: unknown km returns null and
+   *  each consumer decides honestly — never a silent Day 1. */
+  const dayForKm = dayAttribution.dayForKm
 
   // search the WHOLE route corridor (start → stops → destination); the home
   // zone around the starting point is excluded inside the engine
@@ -654,7 +660,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     applyChange(draft => {
       const day = draft.days.find(d => d.index === dayIndex)!
       const newStop = {
-        id: 'pending_' + Math.random().toString(36).slice(2),
+        id: newStopId(),
         title: hit.name,
         category: (hit.category as ItineraryStop['category']) ?? 'sightseeing',
         locationName: hit.description ?? hit.name,
@@ -708,6 +714,225 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
       }
     }
     toast(`“${hit.name}” added to Day ${dayIndex + 1}`)
+  }
+
+  /** P2: fill one empty part of the day with a candidate. The stop id is
+   *  minted here so Undo can delete exactly what was added (addPoiToDay's
+   *  own undo hooks into toasts we do not own). Coord resolution stays. */
+  async function fillSlot(slot: DaySlot, hit: PlaceHit) {
+    const dayIdx = activeDayIndex
+    const pinned = await requireHitCoords(hit)
+    if (!pinned) { toast(`Could not pin "${hit.name}" on the map - not added. Try another suggestion.`); return }
+    const stopId = newStopId()
+    applyChange(draft => {
+      const day = draft.days.find(d => d.index === dayIdx)
+      if (!day) return
+      const stop = {
+        id: stopId,
+        title: hit.name,
+        category: (hit.category as ItineraryStop['category']) ?? 'sightseeing',
+        locationName: hit.description ?? hit.name,
+        placeId: pinned.placeId,
+        lat: pinned.latitude,
+        lng: pinned.longitude,
+        description: hit.description ?? '',
+        // The note stays human prose; `slotKey` below is the provenance the
+        // rail actually reads back, so this line is free to be edited or
+        // cleared without silently un-planning the day.
+        notes: 'Filled from the day plan',
+        slotKey: slot.key,
+        visitMinutes: poiVisitMinutes(hit.category),
+        openTime: hit.openTime ?? '', closeTime: hit.closeTime ?? '',
+        entryFeeInrPerPerson: 0,
+        transportCostInrTotal: 0,
+        priority: 'nice-to-have',
+        sourceUrl: '',
+        status: 'suggested',
+        orderInDay: day.stops.length,
+      } as ItineraryStop
+      day.stops.push(stop)
+    }, 'add', dayIdx, () => {
+      setAddedIds(prev => new Set(prev).add(hit.id as string))
+      // S6: the single Fill is the PRIMARY path, so it has to teach the engine
+      // too. The batch fill did and this did not, which made one action's
+      // consequence depend on which button was pressed - and starved the P7.2
+      // hints, which stay silent below 3 accepts.
+      recordDnaEvent({ tripId: trip.id, action: 'accept', haltKind: slot.kind, category: hit.category, detourMin: asymmetricDetourMinutes(hit, anchors, routePolyline ?? null, MODE_SPEED[trip.transportMode] ?? 40), visitMin: visitMinutesForCategory(hit.category) })
+      setDnaTick(t => t + 1)
+      // #143: an overnight fill pins the halt, same as addPoiToDay's rule.
+      if (hit.haltPurpose === 'overnight') {
+        const ordinals = pois
+          .filter(x => x.segment.purpose === 'overnight')
+          .sort((a, b) => a.segment.targetKm - b.segment.targetKm)
+          .findIndex(x => x.segment.index === slot.segment?.index)
+        if (ordinals >= 0) saveHaltPin(trip.id, ordinals, slot.segment?.targetKm ?? 0)
+      }
+      suggestionCache.clearMap()
+      setRefreshTick(t => t + 1)
+      undoToast(`"${hit.name}" fills ${slot.label} on Day ${dayIdx + 1}`, () => {
+        deleteStop(trip.id, stopId)
+        suggestionCache.clearMap()
+        setRefreshTick(t => t + 1)
+      })
+    })
+    setOpenSlotKey(null)
+  }
+  /** P3.1: fill every empty part of the day with its top candidate in ONE
+   *  batched write. Undo removes exactly the stops the fill added; `deleteStop`
+   *  renumbers the day, so the stops that were already there land back in their
+   *  original sequence without needing a separate snapshot. */
+  async function fillTheDay() {
+    const dayIdx = activeDayIndex
+    const targets = activeDaySlots
+      .filter(s => s.state === 'empty' && s.candidates.length > 0)
+      .map(s => ({ slot: s, hit: s.candidates[0].hit as PlaceHit }))
+    if (targets.length === 0 || fillingDay) return
+    setFillingDay(true)
+    try {
+      // Placeholder coords resolve BEFORE the write (the Null Island guard).
+      const resolved: Array<{ slot: DaySlot; hit: PlaceHit }> = []
+      for (const t of targets) {
+        const pinned = await requireHitCoords(t.hit)
+        if (pinned) resolved.push({ slot: t.slot, hit: pinned })
+      }
+      if (resolved.length === 0) {
+        toast('Nothing could be pinned from the suggestions - try filling one at a time.')
+        return
+      }
+      // Road order first, so sequential splices land in journey order.
+      const ordered = [...resolved].sort((a, b) =>
+        (routeKmOf(a.hit.latitude, a.hit.longitude) ?? Infinity) -
+        (routeKmOf(b.hit.latitude, b.hit.longitude) ?? Infinity))
+      const bytes = new Uint32Array(ordered.length * 2)
+      crypto.getRandomValues(bytes)
+      const newIds = ordered.map((_, i) => `pending_${bytes[i * 2].toString(36)}${bytes[i * 2 + 1].toString(36)}`)
+      applyChange(draft => {
+        const day = draft.days.find(d => d.index === dayIdx)
+        if (!day) return
+        ordered.forEach((item, i) => {
+          const hit = item.hit
+          const stop = {
+            id: newIds[i],
+            title: hit.name,
+            category: (hit.category as ItineraryStop['category']) ?? 'sightseeing',
+            locationName: hit.description ?? hit.name,
+            placeId: hit.placeId,
+            lat: hit.latitude,
+            lng: hit.longitude,
+            description: hit.description ?? '',
+            notes: 'Filled from the day plan',
+            slotKey: item.slot.key,
+            visitMinutes: poiVisitMinutes(hit.category),
+            openTime: hit.openTime ?? '', closeTime: hit.closeTime ?? '',
+            entryFeeInrPerPerson: 0,
+            transportCostInrTotal: 0,
+            priority: 'nice-to-have',
+            sourceUrl: '',
+            status: 'suggested',
+            orderInDay: day.stops.length + 1,
+          } as ItineraryStop
+          const newKm = routeKmOf(hit.latitude, hit.longitude)
+          let at = day.stops.length
+          if (newKm != null) {
+            at = day.stops.findIndex(x => {
+              const km = routeKmOf(x.lat, x.lng)
+              return km != null && km > newKm
+            })
+            if (at === -1) at = day.stops.length
+            day.stops.splice(at, 0, stop)
+            day.stops.forEach((x, j) => { x.orderInDay = j + 1 })
+          } else {
+            day.stops.push(stop)
+          }
+        })
+      }, 'add', dayIdx, () => {
+        setAddedIds(prev => {
+          const next = new Set(prev)
+          for (const { hit } of ordered) next.add(hit.id as string)
+          return next
+        })
+        for (const { slot, hit } of ordered) {
+          recordDnaEvent({ tripId: trip.id, action: 'accept', haltKind: slot.kind, category: hit.category, detourMin: asymmetricDetourMinutes(hit, anchors, routePolyline ?? null, MODE_SPEED[trip.transportMode] ?? 40), visitMin: visitMinutesForCategory(hit.category) })
+        }
+        suggestionCache.clearMap()
+        setDnaTick(t => t + 1)
+        setRefreshTick(t => t + 1)
+        setOpenSlotKey(null)
+        const n = ordered.length
+        const left = targets.length - ordered.length
+        undoToast(
+          `Day ${dayIdx + 1} planned - ${n} stop${n === 1 ? '' : 's'} added${left > 0 ? ` · ${left} left for you` : ''}`,
+          () => {
+            // Removing exactly the stops the fill added is enough: deleteStop
+            // renumbers the day, so the stops that were already there come back
+            // to 1..n in their original sequence.
+            for (const id of newIds) deleteStop(trip.id, id)
+            suggestionCache.clearMap()
+            setRefreshTick(t => t + 1)
+            toast('The planned fills were pulled back')
+          },
+        )
+      })
+    } finally {
+      setFillingDay(false)
+    }
+  }
+
+  /** P4: raise the crew's vote for this part - the candidates become the
+   *  options (each carrying its place), and resolving it lands the winner. */
+  function raiseSlotVote(slot: DaySlot) {
+    const picks = slot.candidates.slice(0, 3)
+    if (picks.length < 2) return
+    addDecision(trip.id, {
+      question: `Day ${activeDayIndex + 1} ${slot.label.toLowerCase()} - where?`,
+      context: `Voting from the day plan (Day ${activeDayIndex + 1})`,
+      options: picks.map(c => ({
+        // The id carries the part, so the rail reads the vote back onto it.
+        id: `slot:${slot.key}:${String(c.hit.id)}`,
+        label: c.hit.name,
+        timeImpactMin: Math.round(c.detourMin) || undefined,
+        place: {
+          title: c.hit.name,
+          category: (c.hit.category as ItineraryStop['category']) ?? 'sightseeing',
+          locationName: c.hit.description ?? c.hit.name,
+          lat: c.hit.latitude,
+          lng: c.hit.longitude,
+          description: c.hit.description,
+          visitMinutes: poiVisitMinutes(c.hit.category),
+          openTime: c.hit.openTime,
+          closeTime: c.hit.closeTime,
+          dayIndex: activeDayIndex,
+        },
+      })),
+    })
+    toast(`The crew is voting on Day ${activeDayIndex + 1} ${slot.label.toLowerCase()} - resolve it in Group input`)
+    setOpenSlotKey(null)
+    onOpenGroupInput?.()
+  }
+
+  /** P5.4: routing for a search result - a place whose own category can serve a
+   *  part of the day can be filed straight into it, or added plainly as an
+   *  extra. The kinds mirror the category claims `fillStopFor` already makes
+   *  (food -> meals, transport-hub -> fuel, hotel -> stay), so the search box
+   *  covers every category-claimable part rather than meals alone.
+   *
+   *  A note on `rest`: it is the category both providers tag a POPULATED PLACE
+   *  with (towns; restaurants are `food`), and `fitScoreForPurpose` treats a
+   *  populated place as meal-capable - so it files as a meal, which is right. */
+  function filingOptionsFor(h: PlaceHit): Array<{ key: string; label: string; noun: string }> {
+    const cat = String(h.category ?? '')
+    const kinds: DaySlotKind[] =
+      cat === 'food' || cat === 'cafe' || cat === 'rest' ? ['meal']
+        : cat === 'transport-hub' ? ['fuel']
+          : cat === 'hotel' ? ['overnight']
+            : []
+    if (kinds.length === 0) return []
+    // No cap. `activeDaySlots` is in rail order (breakfast, lunch, dinner), so
+    // the old `slice(0, 2)` always dropped the LAST meal - dinner, the one most
+    // often away from the hotel and most worth sourcing.
+    return activeDaySlots
+      .filter(s => s.state === 'empty' && kinds.includes(s.kind))
+      .map(s => ({ key: s.key, label: `Add as ${s.label}`, noun: s.label.toLowerCase() }))
   }
 
   function openAddModal(hit: PlaceHit, kmOverride?: number | null) {
@@ -858,25 +1083,6 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
   // map tab needs no scrolling to reach either kind (§6.10 CTI tone coding).
   const needs = pois.filter(sh => sh.segment && NEED_PURPOSES.has(sh.segment.purpose))
   const seeAndDo = pois.filter(sh => sh.segment && !NEED_PURPOSES.has(sh.segment.purpose))
-  // #175: "Best fit" must DISTINGUISH — the top-scoring pick per purpose group
-  // (SegmentHit.score, lower = better), not a participation badge on every
-  // need card. Ties within epsilon earn no badge at all, honestly.
-  const bestFitIds = useMemo(() => {
-    const byPurpose = new Map<string, SegmentHit[]>()
-    for (const sh of needs) {
-      if (!sh.hit) continue
-      const list = byPurpose.get(sh.segment.purpose) ?? []
-      list.push(sh)
-      byPurpose.set(sh.segment.purpose, list)
-    }
-    const ids = new Set<string>()
-    const EPSILON = 1e-9
-    for (const [, list] of byPurpose) {
-      const best = list.reduce((a, b) => (b.score < a.score ? b : a), list[0])
-      if (list.filter(sh => sh.score - best.score <= EPSILON).length === 1) ids.add(best.hit!.id as string)
-    }
-    return ids
-  }, [needs])
   // Rail derivations for the V2 pass: one chip filter narrows both rails, and the
   // ruler marks reuse each card's own cumulative km so a dot never disagrees with
   // #178: per-hit engine math in ONE memo keyed by hit id. Every card's
@@ -892,11 +1098,49 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     }
     return m
   }, [pois, anchors, routePolyline, trip.transportMode])
+  /** P5.2: the cost line a suggestion's map popup shows - arrive, detour and
+   *  the day's detour-budget share, from numbers the corridor already computed.
+   *  The budget is the hit's OWN day's, the same one `chipsFor` and the rail
+   *  read: charging every hit against Day 1's stop count made the popup and the
+   *  card disagree about the same place. */
+  const hitCosts = useMemo(() => {
+    const m: Record<string, string> = {}
+    // One budget per day, not one per hit - the lookup is cheap, the repetition
+    // across every hit on the map was not.
+    const budgetByDay = new Map<number, number>()
+    const budgetFor = (dayIndex: number): number => {
+      const cached = budgetByDay.get(dayIndex)
+      if (cached != null) return cached
+      const budget = dayDetourBudgetMin({
+        travelStyle: trip.travelStyle,
+        plannedStops: (trip.days.find(d => d.index === dayIndex)?.stops ?? []).filter(x => x.status !== 'rejected').length,
+      })
+      budgetByDay.set(dayIndex, budget)
+      return budget
+    }
+    for (const sh of pois) {
+      if (!sh.hit) continue
+      const dMin = hitEngine.get(String(sh.hit.id))?.detourMin ?? 0
+      const eta = sh.segment.etaMinutes
+      const bits: string[] = []
+      if (eta != null && Number.isFinite(eta)) bits.push(`arrive ${clockHM(Math.round(eta + dMin))}`)
+      const dMinRound = Math.round(dMin)
+      bits.push(dMinRound > 0 ? `+${dMinRound} min` : 'on route')
+      if (dMinRound > 0) {
+        const budget = budgetFor(dayForKm(sh.hit.cumKm) ?? 0)
+        if (budget > 0) {
+          const share = budgetSharePct(dMin, budget)
+          if (share > 0) bits.push(`${share}% of the day's detour budget`)
+        }
+      }
+      m[String(sh.hit.id)] = bits.join(' · ')
+    }
+    return m
+  }, [pois, hitEngine, trip.travelStyle, trip.days, dayAttribution])
   const detourMinFor = (hit: PlaceHit): number =>
     hitEngine.get(String(hit.id))?.detourMin
       ?? asymmetricDetourMinutes(hit, anchors, routePolyline ?? null, MODE_SPEED[trip.transportMode] ?? 40)
   // the number printed on its card.
-  const needsForRail = chipFilter ? needs.filter(sh => sh.hit && chipsFor(sh, sh.hit).some(c => c.key === chipFilter)) : needs
   // A resolved group vote lands its winner on the timeline; those stops then
   // drop out of the see-&-do rail entirely (count included), same as the
   // “Added” state does for need halts. Name-match matches the rail's dedupe.
@@ -904,10 +1148,6 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     !!sh.hit && existingNames.has(sh.hit.name.toLowerCase())
   const seeAndDoLive = seeAndDo.filter(sh => !voteResolvedOut(sh))
   const seeForRail = chipFilter ? seeAndDoLive.filter(sh => sh.hit && chipsFor(sh, sh.hit).some(c => c.key === chipFilter)) : seeAndDoLive
-  // #157: the ruler reads the SAME km the card prints — targetKm fallback
-  // included. An off-polyline halt can never again be a card-dot disagreement.
-  const needMarks = rulerMarks(needs.filter(sh => sh.hit).map(sh => ({ id: String(sh.hit!.id), km: sh.hit!.cumKm ?? sh.segment.targetKm, purpose: sh.segment.purpose })), planKm)
-  const seeMarks = rulerMarks(seeAndDoLive.filter(sh => sh.hit).map(sh => ({ id: String(sh.hit!.id), km: sh.hit!.cumKm ?? sh.segment.targetKm, purpose: sh.segment.purpose })), planKm)
   const filterActive = chipFilter != null
   // Detour-budget enforcement (Horizon 3.2's "finite, honest menu"): the
   // see-&-do list is the endless one — need halts are finite by construction,
@@ -966,6 +1206,84 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
    * Detour distance is the expensive part (it walks the anchor list), so it is
    * computed once per hit here; rows only rank the already-filtered pool.
    */
+
+  /**
+   * P2 ledger row for the see-&-do rail: the corridor pick as a flat two-line
+   * row on the spine - name + one meta line (detour, day, window reasons) -
+   * expanding in place to a shelf with the card's actions. Replaces the old
+   * boxed cards in the ledger, keeping every behaviour reachable.
+   */
+  function renderLedgerRow(sh: SegmentHit) {
+    const hit = sh.hit
+    if (hit && dismissedIds.has(hit.id as string)) return null
+    if (!hit) return renderGapRow(sh) // gaps keep their honest row
+    const added = addedIds.has(hit.id as string) || existingNames.has(hit.name.toLowerCase())
+    const detourMin = hitEngine.get(String(hit.id))?.detourMin
+      ?? asymmetricDetourMinutes(hit, anchors, routePolyline ?? null, MODE_SPEED[trip.transportMode] ?? 40)
+    const chips = chipsFor(sh, hit)
+    const hitDay = dayForKm(hit.cumKm)
+    const alts = alternativesFor(sh, hit).filter(e => e.h.id !== hit.id)
+    const shelf = (
+      <div className="ledger-shelf">
+        {chips.length > 0 && chips.map(c => (
+          <button
+            key={c.key}
+            type="button"
+            className={(c.tone === 'warn' ? 'poi-rchip poi-rchip--warn' : 'poi-rchip') + (chipFilter === c.key ? ' is-on' : '')}
+            aria-pressed={chipFilter === c.key}
+            onClick={(e) => { e.stopPropagation(); setChipFilter(prev => (prev === c.key ? null : c.key)) }}
+          >
+            {c.icon === 'star' && <Star size={11} aria-hidden />}
+            {c.label}
+          </button>
+        ))}
+        {editable && (
+          added
+            ? <span className="chip chip-teal"><CircleCheck size={11} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />Added</span>
+            : <button className="day-slot-fill" onClick={() => openAddModal(hit)}>+ Add to a day</button>
+        )}
+        {!added && editable && (
+          <button
+            className="chip chip-sm"
+            title="Not interested - hide this and teach the engine"
+            onClick={() => {
+              recordDnaEvent({ tripId: trip.id, action: 'decline', haltKind: sh.segment.purpose, category: hit.category, detourMin })
+              suggestionCache.clearMap()
+              setDnaTick(t => t + 1)
+              setDismissedIds(prev => new Set(prev).add(hit.id as string))
+            }}
+          >Dismiss</button>
+        )}
+        {alts.length > 0 && alts.map(({ h, dKm }) => (
+          <button
+            key={h.id as string}
+            className="shelf-alt"
+            title={h.name}
+            onClick={() => openAddModal(h)}
+          >
+            <span className="shelf-alt-nm">{h.name}</span>
+            <span className="shelf-alt-km">{dKm != null ? `${dKm.toFixed(1)} km off` : 'on route'}</span>
+          </button>
+        ))}
+      </div>
+    )
+    const meta = [
+      detourMin > 0 ? `+${Math.round(detourMin)} min detour` : 'on route',
+      hitDay != null ? `Day ${hitDay + 1}` : null,
+    ].filter(Boolean).join(' \u00b7 ')
+    return (
+      <details key={hit.id as string} className="lrow-new" onToggle={undefined}>
+        <summary className="lrow-sum" title={hit.name}>
+          <span className="xdot" aria-hidden />
+          <span className="lr-name">{hit.name}</span>
+          <span className="lr-meta">{meta}</span>
+          <ChevronDown className="lr-go" size={12} aria-hidden />
+        </summary>
+        {shelf}
+      </details>
+    )
+  }
+
   const altPool = useMemo(() => {
     type AltEntry = { h: PlaceHit; dKm: number | null }
     const all: AltEntry[] = []
@@ -989,20 +1307,125 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     return { all, byPurpose, byCategory }
   }, [pois, dismissedIds, addedIds, existingNames, anchors])
 
-  /** One corridor-suggestion row (gap or hit). Shared by both split columns. */
-  // Group need halts by purpose, keeping engine order. The header label comes
-  // from the segment itself ("Fuel", "Lunch", ...) so no extra label map is
-  // needed and the copy stays in sync with the planner.
-  function groupByPurpose(list: SegmentHit[]): Array<[string, SegmentHit[]]> {
-    const groups: Array<[string, SegmentHit[]]> = []
-    for (const sh of list) {
-      const key = sh.segment.purpose
-      const found = groups.find(([k]) => k === key)
-      if (found) found[1].push(sh)
-      else groups.push([key, [sh]])
+  // ---- P2: the day's plan (slots rail) ----
+  // One derivation feeds the rail, the meter and the fill flow: slots derive
+  // from engine output alone (src/lib/daySlots.ts), so the view can never
+  // drift from the engine. stopSig/refreshTick keep the memo honest against
+  // store writes; the deps memo carries the expensive shared inputs.
+  const daySlotSig = `${stopSig}|${refreshTick}|${dismissedIds.size}|${shortlist.length}`
+  const daySlotDeps = useMemo<Omit<DaySlotsDeps, 'dayStops'>>(() => ({
+    haltSegments: pois,
+    anchors,
+    routePolyline: routePolyline ?? null,
+    transportMode: trip.transportMode,
+    travelStyle: trip.travelStyle,
+    existingNames,
+    altPool: altPool.all.map(e => e.h),
+    decisions,
+    travellers: trip.travellers,
+    // The shared attribution object - the same shape the Overview matrix feeds
+    // its own deps, so the two surfaces cannot attribute a halt to two days.
+    dayOfSegment: dayAttribution.dayOfSegment,
+    // P2: the rail always renders the day's grammar - the skeleton supplies
+    // the parts the corridor plan did not halt for, positioned on the day's
+    // own road-km span (the same road-true km dayForKm trusts).
+    fillSkeleton: true,
+    daySpanKm: dayAttribution.daySpanKm,
+  }), [pois, anchors, routePolyline, trip.transportMode, trip.travelStyle, existingNames, altPool, dayAttribution, decisions, trip.travellers])
+  /** This day's stops - one lookup, shared by the slots, the shape and the fills. */
+  const activeDayStops = useMemo(
+    () => trip.days.find(d => d.index === activeDayIndex)?.stops ?? [],
+    [trip.days, activeDayIndex],
+  )
+  const activeDaySlots = useMemo<DaySlot[]>(
+    () => daySlots(activeDayIndex, { ...daySlotDeps, dayStops: activeDayStops }),
+    [activeDayIndex, daySlotDeps, activeDayStops, daySlotSig],
+  )
+  /** Counted off the very slots the rail renders, not re-derived: a second
+   *  `daySlots` call here was a whole extra derivation of the same day, and a
+   *  meter that could in principle disagree with the list beside it. */
+  const activeDayReadiness = useMemo(() => {
+    const auto = activeDaySlots.filter(s => s.auto).length
+    return {
+      dayIndex: activeDayIndex,
+      filled: activeDaySlots.filter(s => s.state === 'filled').length,
+      total: activeDaySlots.length,
+      auto,
+      required: activeDaySlots.length - auto,
     }
-    return groups.map(([key, items]) => [items[0]?.segment.label ?? key, items])
+  }, [activeDaySlots, activeDayIndex])
+  /** S2: the whole day-chip row in ONE pass. The chips used to call
+   *  `dayReadiness` per day inline in the render body, so every keystroke in
+   *  the search box re-derived every day's slots - and each empty slot scores
+   *  the entire corridor pool through `scoreHitForSegment`, two geometry
+   *  projections per hit. */
+  const tripReadinessRows = useMemo(
+    () => tripReadiness(pois, trip.days.map(d => ({ index: d.index, stops: d.stops })), daySlotDeps),
+    [pois, trip.days, daySlotDeps, daySlotSig],
+  )
+  const [openSlotKey, setOpenSlotKey] = useState<string | null>(null)
+  /** P7.2: what the log has learned about each KIND of part - shown on an open
+   *  part as context, never as a claim (silent until 3+ accepts). */
+  const dnaSlotHints = useMemo(() => {
+    const log = loadDnaLog()
+    return {
+      meal: slotPatternHint(log, 'meal'),
+      fuel: slotPatternHint(log, 'fuel'),
+      overnight: slotPatternHint(log, 'overnight'),
+      stretch: slotPatternHint(log, 'stretch'),
+    }
+  }, [dnaTick])
+  /** m5: `DaySlotKind` is exactly the four keys the hints are built for, so an
+   *  unknown kind yields nothing. The old ternary's last branch fell through to
+   *  the stretch hint, which would quietly mislabel any future kind. */
+  const slotPattern = (kind: DaySlotKind): string | null => dnaSlotHints[kind] ?? null
+  const [fillingDay, setFillingDay] = useState(false)
+  /** P6.1: the rail's second reading - the day as a shape on one clock. */
+  const [shapeView, setShapeView] = useState(false)
+  const shapeBlocks = useMemo(
+    // Derived only while the Shape view is open (it ran on every render even
+    // with the list showing), and handed the slots already computed for the
+    // rail so the day is not derived a third time.
+    () => (shapeView
+      ? dayShape(activeDayIndex, { ...daySlotDeps, dayStops: activeDayStops }, activeDaySlots)
+      : []),
+    [shapeView, activeDayIndex, daySlotDeps, activeDayStops, activeDaySlots],
+  )
+  /** P5.3: the selected day's empty parts as hollow amber pins - their top
+   *  candidate's real position, with P5.2's cost line in the tooltip. */
+  const slotPins = useMemo(() => activeDaySlots
+    .filter(s => s.state === 'empty' && s.candidates.length > 0)
+    .map(s => {
+      const c = s.candidates[0]
+      const bits = [
+        c.arriveLabel ? `arrive ${c.arriveLabel}` : null,
+        c.detourMin > 0 ? `+${Math.round(c.detourMin)} min` : 'on route',
+        c.budgetSharePct > 0 ? `${c.budgetSharePct}% of the day's detour budget` : null,
+      ].filter(Boolean)
+      return { key: s.key, label: s.label, name: c.hit.name, meta: bits.join(' · '), hit: c.hit }
+    }),
+  [activeDaySlots])
+  /** The rail's meter copy: the mockup's wording, honest per day. The count is
+   *  over `required` (engine-managed parts excluded) — the work the crew owns. */
+  function activeReadinessLabel() {
+    const r = activeDayReadiness
+    if (r.total === 0) return 'nothing scheduled for this day yet'
+    return `${r.filled} of ${r.required} planned${r.auto > 0 ? ` · ${r.auto} auto` : ''}`
   }
+
+  /** The header's day identity: the day's own title, else its first-to-last
+   *  stops - the mockup reads 'Day 2 - Kochi to Alleppey' where it can. */
+  function activeDayLabel(): string {
+    const d = trip.days.find(x => x.index === activeDayIndex)
+    if (!d) return 'your drive'
+    if (d.title && d.title.trim()) return d.title.trim()
+    const stops = d.stops.filter(s => s.status !== 'rejected')
+    const first = stops[0]?.locationName ?? stops[0]?.title
+    const last = stops[stops.length - 1]?.locationName ?? stops[stops.length - 1]?.title
+    if (first && last && first !== last) return `${first} to ${last}`
+    return first ?? 'your drive'
+  }
+
 
   /** Closest alternatives for a halt: next 2 by road position plus detour. */
   function alternativesFor(sh: SegmentHit, hit: PlaceHit): Array<{ h: PlaceHit; dKm: number | null }> {
@@ -1051,7 +1474,13 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     })
   }
 
-  function renderPoi(sh: SegmentHit) {
+  /** A corridor halt the engine found no place for. The only row still rendered
+   *  through here: every hit row is a flat ledger row (`renderLedgerRow`), so
+   *  this is the honest gap — and its action is the lever the engine actually
+   *  has, a wider detour scope. The live card renderer that used to follow this
+   *  branch was unreachable once the ledger replaced the boxed cards, and has
+   *  been removed. */
+  function renderGapRow(sh: SegmentHit) {
     const hit = sh.hit
     // dismissed stays hidden for the session (logged as a DNA decline)
     if (hit && dismissedIds.has(hit.id as string)) return null
@@ -1076,244 +1505,6 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
             </div>
       )
     }
-    const added = addedIds.has(hit.id as string) || existingNames.has(hit.name.toLowerCase())
-    // A resolved group vote puts the winner ON the timeline — the losing rows
-    // and the winner's own suggestion row must not keep offering it. Name-match
-    // is the same convention the rest of the rail uses for dedupe.
-    if (added && !NEED_PURPOSES.has(sh.segment.purpose)) return null
-    const offRoute = detourKm(hit, anchors)
-    const detourMin = detourMinFor(hit)
-    // per-day budget: the hit's own day sets the density, not the whole trip
-    const hitDay = trip.days.find(d => d.index === dayForKm(hit.cumKm))
-    const dayBudget = dayDetourBudgetMin({
-      travelStyle: trip.travelStyle,
-      plannedStops: (hitDay?.stops ?? []).filter(s => s.status !== 'rejected').length,
-    })
-    // Trip DNA is already built once per render in nearbyOpts (it reads and
-    // parses the localStorage log) — never rebuild it per row.
-    const dnaNote = (nearbyOpts.dnaVector ? dnaNoteForHit(hit, nearbyOpts.dnaVector) : null)
-      ?? crewNoteForHit(hit, crewSeeds)
-    const alts = alternativesFor(sh, hit)
-    // Structured reasons: every chip traces back to a number the engine already
-    // produced (clock, detour budget, hours, rating) - nothing is invented here.
-    const chips = chipsFor(sh, hit)
-    const shortlisted = shortlist.some(h => h.id === hit.id)
-    // Over the day's detour budget: shown as a counted line, not an offer.
-    if (budgetHeldIds.has(hit.id as string)) {
-      return (
-        <div key={hit.id} className="poi-plan-row poi-plan-gap">
-          <span className={`ride-purpose ride-purpose-${sh.segment.purpose} ride-purpose-muted`}>{sh.segment.label}</span>
-          <span className="muted small">{hit.name} — held back: its ≈{fmtDur(detourMin)} detour exceeds what&apos;s left of Day {(dayForKm(hit.cumKm) ?? 0) + 1}&apos;s detour budget. Add it from the map pin if it is worth it.</span>
-        </div>
-      )
-    }
-    return (
-      <div
-        key={hit.id}
-        data-hit-id={hit.id}
-        className={`poi-plan-row${activeHitId === hit.id ? ' poi-plan-row--active' : ''}`}
-        onClick={() => setActiveHitId(hit.id as string | number)}
-        onKeyDown={(e) => {
-          // #169: the row is a click div in the a11y tree — keyboard users
-          // couldn't highlight a card on the map at all.
-          // Descendant controls (shortlist, reason filter, Add) bubble their own
-          // Enter/Space through here. Without this guard the row claimed the key
-          // and preventDefault() cancelled the child's activation instead.
-          if (e.target !== e.currentTarget) return
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault()
-            setActiveHitId(hit.id as string | number)
-          }
-        }}
-        role="button"
-        tabIndex={0}
-        aria-label={`Show ${hit.name} on the map`}
-      >
-        <div className="ride-spot-title">
-          {hit.thumb && <img className="poi-thumb" src={smallThumb(hit.thumb)} alt="" loading="lazy" onError={e => { e.currentTarget.style.display = 'none' }} />}
-          <b>{hit.name}</b>
-          {NEED_PURPOSES.has(sh.segment.purpose) && !added && bestFitIds.has(hit.id as string) && <span className="poi-best">Best fit</span>}
-          <button
-            type="button"
-            className={shortlisted ? 'poi-short is-on' : 'poi-short'}
-            aria-pressed={shortlisted}
-            title={shortlisted ? `Remove ${hit.name} from the shortlist` : `Shortlist ${hit.name} for the group`}
-            aria-label={shortlisted ? `Remove ${hit.name} from the shortlist` : `Shortlist ${hit.name} for the group`}
-            onClick={(e) => { e.stopPropagation(); toggleShortlist(hit) }}
-          >
-            {shortlisted ? <CircleCheck size={13} aria-hidden /> : <Plus size={13} aria-hidden />}
-          </button>
-        </div>
-        {/* The planner is clock-first (PLAN-DAY-PLANNER section 4), so the strip
-            leads with the wall clock it derived the halt from, not just km. */}
-        <div className="poi-facts">
-          <span className="poi-fact">{kmLabelFor(hit.cumKm) != null ? `${Math.round(kmLabelFor(hit.cumKm)!)} km in` : `${sh.segment.targetKm.toFixed(0)} km in`}</span>
-          {sh.segment.etaMinutes != null && (
-            <span className="poi-fact"><i>·</i>arrive {formatHM(clockHM(sh.segment.etaMinutes), timeFormat)}</span>
-          )}
-          {(hit.openTime || hit.closeTime) && (
-            <span className="poi-fact" title="Reported hours"><i>·</i>{formatHMRange(hit.openTime, hit.closeTime, timeFormat)}</span>
-          )}
-          {detourMin > 0.5 && (
-            <span className={'poi-fact' + (Math.round(detourMin) > dayBudget ? ' poi-fact--warn' : detourMin <= 10 ? ' poi-fact--fine' : '')}>
-              <i>·</i>{fmtDur(detourMin)} detour
-            </span>
-          )}
-          {sh.segment.purpose === 'overnight' && (
-            <span className="poi-fact"><i>·</i>day ends here</span>
-          )}
-          {/* #143: accepted halts are PINNED. Below the hysteresis floor they
-              hold silently; past it the row proposes the derived move and the
-              user decides — never a silent jump. */}
-          {sh.segment.haltPinned && sh.segment.haltDriftToKm == null && (
-            <span className="poi-fact" title="You accepted this halt — it stays put unless you move it"><i>·</i>📌 you pinned it</span>
-          )}
-          {sh.segment.haltPinned && sh.segment.haltDriftToKm != null && !driftDismissed.has(sh.segment.index) && (
-            <div className="poi-desc small" onClick={e => e.stopPropagation()}>
-              📌 The road now says ~{Math.round(sh.segment.haltDriftToKm)} km
-              {' '}
-              <button className="chip chip-sm" type="button"
-                onClick={() => {
-                  const ord = overnightOrdinals.get(sh.segment.index) ?? -1
-                  if (ord >= 0) saveHaltPin(trip.id, ord, sh.segment.haltDriftToKm!)
-                  suggestionCache.clearMap()
-                  setRefreshTick(t => t + 1)
-                  setDnaTick(t => t + 1)
-                  toast('Halt moved with the road — re-pinned')
-                }}>Move here</button>
-              {' '}
-              <button className="chip chip-sm" type="button"
-                onClick={() => setDriftDismissed(prev => new Set(prev).add(sh.segment.index))}>Stay at {sh.segment.targetKm.toFixed(0)}</button>
-            </div>
-          )}
-          {/* Detour whisker (#160): one shared component; spur length scales
-              with the detour's share of the day budget. */}
-          <DetourWhisk detourMin={detourMin} budgetMin={dayBudget} />
-        </div>
-        {/* Day Planner chips (P1-D/P1-F): which derived day the hit lands on,
-            whether it sits past a night halt, and — on round trips — whether
-            you only ever pass it on the drive back. */}
-        {hit.cumKm != null && (
-          <div className="poi-desc small">
-            {splitVerdict && splitVerdict.driveDayCount > 1 && (
-              <span className="ride-day-chip">
-                Day {splitVerdict.nightHalts.filter(n => hit.cumKm! > n).length + 1}
-                {splitVerdict.nightHalts.some(n => hit.cumKm! > n) ? ' · after your night stop' : ''}
-              </span>
-            )}
-            {/* #145: a round trip walks the drive home too — a point is on the
-                return leg iff the return walk reaches it, which the corridor
-                covers twice. The old midpoint cut (planKm/2) mislabelled
-                circuits and asymmetric loops; the return walk's own km are
-                return-relative, so the honest test is that the point sits
-                within the return leg's covered range. */}
-            {tripIsRoundTrip && clockVerdict.verdict === 'ok' && clockVerdict.returnDays && clockVerdict.returnDays.length > 0 && hit.cumKm != null && hit.cumKm > planKm * 0.75 && (
-              <span className="ride-day-chip" title="You pass this point again on the drive back">return leg</span>
-            )}
-          </div>
-        )}
-        {/* Structured reasons first. The prose why only stands in when there are
-            none, and a learned DNA or crew note keeps its own labelled line. */}
-        {chips.length > 0 && (
-          <div className="poi-rchips">
-            {chips.map(c => (
-              <button
-                key={c.key}
-                type="button"
-                className={(c.tone === 'warn' ? 'poi-rchip poi-rchip--warn' : 'poi-rchip') + (chipFilter === c.key ? ' is-on' : '')}
-                aria-pressed={chipFilter === c.key}
-                title={chipFilter === c.key ? 'Stop filtering by this reason' : 'Show only suggestions with this reason'}
-                onClick={(e) => { e.stopPropagation(); setChipFilter(prev => (prev === c.key ? null : c.key)) }}
-              >
-                {c.icon === 'star' && <Star size={11} aria-hidden />}
-                {c.label}
-              </button>
-            ))}
-          </div>
-        )}
-        {dnaNote && (
-          <div className="poi-reason">
-            <span className="poi-reason-k">For you</span>
-            <span>{dnaNote}</span>
-          </div>
-        )}
-        {!dnaNote && chips.length === 0 && (
-          <div className="poi-reason">
-            <span className="poi-reason-k">Why</span>
-            <span>{reasonForSegmentHit(sh, offRoute)}</span>
-          </div>
-        )}
-        {sh.segment.roadWarning && (
-          <div className="poi-desc small">⚠ {sh.segment.roadWarning}</div>
-        )}
-        {/* Closest alternatives: need halts show them as candidate rows under the
-            recommended pick; sights keep them folded behind an expander. */}
-        {alts.length > 0 && NEED_PURPOSES.has(sh.segment.purpose) && (
-          <div className="poi-cands">
-            {alts.map(({ h, dKm }) => (
-              <div key={h.id as string} className="poi-cand">
-                <b>{h.name}</b>
-                <span className="poi-cand-f">{dKm != null ? `${dKm.toFixed(1)} km off` : 'on route'}</span>
-                <button
-                  type="button"
-                  className={shortlist.some(s => s.id === h.id) ? 'poi-cand-add is-on' : 'poi-cand-add'}
-                  onClick={(e) => { e.stopPropagation(); toggleShortlist(h) }}
-                  aria-pressed={shortlist.some(s => s.id === h.id)}
-                  title={shortlist.some(s => s.id === h.id) ? `Remove ${h.name} from the shortlist` : `Shortlist ${h.name}`}
-                  aria-label={shortlist.some(s => s.id === h.id) ? `Remove ${h.name} from the shortlist` : `Shortlist ${h.name}`}
-                >{shortlist.some(s => s.id === h.id) ? <CircleCheck size={12} aria-hidden /> : <Plus size={12} aria-hidden />}</button>
-              </div>
-            ))}
-          </div>
-        )}
-        {alts.length > 0 && !NEED_PURPOSES.has(sh.segment.purpose) && (
-          <details className="poi-alts">
-            <summary onClick={(e) => e.stopPropagation()}><ChevronDown className="poi-chev" size={12} aria-hidden />{alts.length} alternative{alts.length === 1 ? '' : 's'}</summary>
-            <div className="poi-alt-list">
-              {alts.map(({ h, dKm }) => (
-                <button key={h.id as string} className="chip chip-sm" onClick={(e) => { e.stopPropagation(); openAddModal(h) }} title={h.name}>
-                  {h.name}{dKm != null ? ` · ${dKm.toFixed(1)} km off` : ''}
-                </button>
-              ))}
-            </div>
-          </details>
-        )}
-        <div className="poi-actions">
-          {editable && (
-            added
-              ? <span className="chip chip-teal"><CircleCheck size={11} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />Added</span>
-              : <>
-                  <button className="btn btn-primary btn-sm" onClick={() => openAddModal(hit)}>+ Add</button>
-                  {' '}
-                  <button
-                    className="btn btn-ghost btn-sm"
-                    title="Not interested — hide this and teach the engine"
-                    onClick={() => {
-                      recordDnaEvent({ tripId: trip.id, action: 'decline', category: hit.category, detourMin })
-                      suggestionCache.clearMap()
-                      setDnaTick(t => t + 1)
-                      // House rule: a cache clear must pair with a tick that is
-                      // IN the fetch effect's dep array, or nothing refills it.
-                      setRefreshTick(t => t + 1)
-                      setDismissedIds(prev => new Set(prev).add(hit.id as string))
-                    }}
-                  >Not for us</button>
-                  {' '}
-                  <a
-                    href={googleMapsUrl(hit)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="btn btn-ghost btn-sm"
-                    title="Open in Google Maps"
-                    onClick={e => { e.preventDefault(); openExternal(googleMapsUrl(hit)) }}
-                  >
-                    <ExternalLink size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />Maps
-                  </a>
-                </>
-          )}
-        </div>
-      </div>
-    )
   }
 
   return (
@@ -1363,6 +1554,10 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
           <div className="map-search-results" style={{ marginBottom: 10 }} role="list" aria-label={`Search results (${Math.min(showAllResults ? searchResults.length : 5, searchResults.length)} of ${searchResults.length} shown)`}>
             {searchResults.slice(0, showAllResults ? searchResults.length : 5).map(({ h, km, off }) => {
               const inScope = off != null && off <= scopeKm
+              // SB2: the same membership guard every other rail row uses
+              // (renderLedgerRow, and the card before it). Without it this row
+              // was the one place that would happily add the same place twice.
+              const added = addedIds.has(h.id as string) || existingNames.has(h.name.toLowerCase())
               return (
                 <div key={h.id as string} role="listitem" className="row-between"
                   onMouseEnter={() => setActiveHitId(h.id as string | number)}
@@ -1382,7 +1577,30 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
                       {!inScope && ' · beyond your detour scope'}
                     </span>
                   </span>
-                  {editable && <button className="btn btn-primary btn-sm" type="button" style={{ flex: '0 0 auto', marginLeft: 8 }} onClick={() => openAddModal(h, km)}>+ Add</button>}
+                  {editable && (added ? (
+                    <span style={{ flex: '0 0 auto', marginLeft: 8 }}>
+                      <span className="chip chip-teal"><CircleCheck size={11} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />Added</span>
+                    </span>
+                  ) : (
+                    <span style={{ display: 'flex', gap: 4, flex: '0 0 auto', alignItems: 'center', marginLeft: 8 }}>
+                      {filingOptionsFor(h).map(o => (
+                        <button
+                          key={o.key}
+                          type="button"
+                          className="chip chip-sm"
+                          title={`File this place as Day ${activeDayIndex + 1}'s ${o.noun}`}
+                          onClick={() => {
+                            const slot = activeDaySlots.find(x => x.key === o.key)
+                            // SB3: say why rather than swallowing the tap when
+                            // the part filled itself in the meantime.
+                            if (!slot) { toast(`Day ${activeDayIndex + 1}'s ${o.noun} is already planned.`); return }
+                            void fillSlot(slot, h)
+                          }}
+                        >{o.label}</button>
+                      ))}
+                      <button className="btn btn-primary btn-sm" type="button" onClick={() => openAddModal(h, km)}>+ Add</button>
+                    </span>
+                  ))}
                 </div>
               )
             })}
@@ -1521,10 +1739,26 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
             <div className="poi-col-head">
               <span className="poi-col-head-ico"><Fuel size={13} aria-hidden /></span>
               <div>
-                <b>Need-based halts</b>
-                <span className="small muted">{needs.length === 0 ? 'fuel · food · rest · stretch · overnight' : `${needs.length} halts on this corridor`}</span>
+                <b>Day {activeDayIndex + 1} · {activeDayLabel()}</b>
+                <span className="small muted">{activeDaySlots.length === 0 ? 'the day takes shape as you plan the drive' : `${activeReadinessLabel()}`}</span>
               </div>
-              <span className="poi-col-count">{needsForRail.length}</span>
+              <button
+                type="button"
+                className="chip chip-sm"
+                aria-pressed={shapeView}
+                title={shapeView ? 'Back to the list' : 'See the day as a shape - drives and parts on one clock'}
+                onClick={() => setShapeView(v => !v)}
+              >{shapeView ? 'List' : 'Shape'}</button>
+              {editable && activeDaySlots.some(s => s.state === 'empty' && s.candidates.length > 0) && (
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  disabled={fillingDay}
+                  onClick={() => { void fillTheDay() }}
+                  title="Add the top candidate for every empty part of the day"
+                >{fillingDay ? 'Planning.' : 'Fill the day'}</button>
+              )}
+              <span className="poi-col-count">{`${activeDayReadiness.filled}/${activeDayReadiness.required}`}</span>
               <button
                 type="button"
                 className="poi-fold"
@@ -1536,29 +1770,187 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
                 <ChevronDown size={13} aria-hidden />
               </button>
             </div>
-            <div className="poi-ruler" aria-hidden>
-              <span className="poi-ruler-axis" />
-              {needMarks.map(m => (
-                <span key={m.id} className={`poi-ruler-dot poi-ruler-dot--${m.tone}`} style={{ left: `${m.pct}%` }} />
-              ))}
-              <span className="poi-ruler-km">{Math.round(planKm)} km</span>
+            {/* S9: this was `role="tablist"` / `role="tab"` with no tabpanel and
+                no arrow-key roving focus — a screen reader was told these are
+                tabs and told to use the arrow keys, and nothing happened. A
+                group of pressed buttons says what is actually true. */}
+            <div className="slots-daystrip" role="group" aria-label="Which day to plan">
+              {trip.days.map(d => {
+                const r = tripReadinessRows.find(x => x.dayIndex === d.index)
+                const filled = r?.filled ?? 0
+                // `required` (total minus engine-managed) is the honest
+                // denominator: a stretch break the user is told demands nothing
+                // should not sit in the count they are measured against.
+                const required = r?.required ?? 0
+                const auto = r?.auto ?? 0
+                return (
+                  <button
+                    key={d.index}
+                    type="button"
+                    aria-pressed={d.index === activeDayIndex}
+                    aria-label={`Day ${d.index + 1}: ${filled} of ${required} planned${auto > 0 ? `, ${auto} engine-managed` : ''}`}
+                    className={'slots-daychip' + (d.index === activeDayIndex ? ' is-on' : '')}
+                    onClick={() => { setActiveDayIndex(d.index); setOpenSlotKey(null) }}
+                  >
+                    Day {d.index + 1} <span className="slots-daychip-rd">{filled}/{required}</span>
+                    {dayRainPct?.[d.index] != null && dayRainPct[d.index]! >= 40 && (
+                      <span className="slots-daychip-rain" title={`${Math.round(dayRainPct[d.index]!)}% rain chance`}>rain</span>
+                    )}
+                  </button>
+                )
+              })}
             </div>
-            <div className="poi-plan-list">
-              {needsForRail.length === 0
-                ? <p className="muted small">{quotaOut
-                  ? 'Google search quota reached — need-based halts are paused until the counter rolls over.'
-                  : 'No need-based halts surfaced yet — they appear as you add driving days.'}</p>
-                : groupByPurpose(needsForRail).map(([label, items]) => (
-                    <div key={label}>
-                      <div className="poi-grp">
-                        <span className="poi-grp-k">{label}</span>
-                        <span className="poi-grp-n">{items.length}</span>
-                        <span className="poi-grp-ln" />
-                      </div>
-                      {items.map(renderPoi)}
+            <div className="slots-railmeta">
+              {quotaOut && (
+                <span className="chip chip-sm" title="Google search quota reached - suggestions pause until the counter rolls over">Suggestions paused</span>
+              )}
+              <details className="slots-legend">
+                <summary className="chip chip-sm">Legend</summary>
+                <div className="slots-legend-body">
+                  <p><b>✓</b> a planned part - one quiet line</p>
+                  <p><b>○</b> an unplanned part - candidates inside</p>
+                  <p><b>dashed ring</b> engine-managed (stretch breaks)</p>
+                  <p><b>violet dot</b> an extra worth adding</p>
+                </div>
+              </details>
+            </div>
+            {activeDaySlots.length > 0 && (
+              <div className="slots-meter" role="status" aria-label={`Day ${activeDayIndex + 1}: ${activeDayReadiness.filled} of ${activeDayReadiness.required} parts of the day planned${activeDayReadiness.auto > 0 ? `, ${activeDayReadiness.auto} engine-managed` : ''}`}>
+                {activeDaySlots.map(s => (
+                  <i key={s.key} className={s.state === 'filled' ? 'is-filled' : s.state === 'auto' ? 'is-auto' : 'is-empty'} />
+                ))}
+                <span className="slots-meter-lbl">{activeDayReadiness.filled} of {activeDayReadiness.required} planned{activeDayReadiness.auto > 0 ? ` · ${activeDayReadiness.auto} auto` : ''}</span>
+              </div>
+            )}
+            {shapeView && shapeBlocks.length > 0 ? (
+              <div className="dayshape">
+                {shapeBlocks.map((b, i) => (
+                  <div
+                    key={`${b.kind}-${i}`}
+                    className={`shape-block shape-${b.kind} shape-state-${b.state}`}
+                    style={{ height: `${Math.max(18, Math.round(b.minutes * 0.45))}px` }}
+                    title={b.startMin != null
+                      ? `${b.label} - ${Math.round(b.minutes)} min from ${clockHM(b.startMin)}`
+                      : `${b.label} - ${Math.round(b.minutes)} min`}
+                  >
+                    <span className="shape-name">{b.label}</span>
+                    <span className="shape-min">{Math.round(b.minutes)}m</span>
+                  </div>
+                ))}
+              </div>
+            ) : activeDaySlots.length === 0 ? (
+              <div className="poi-plan-list is-emptyday">
+                <p className="muted small">{quotaOut
+                  ? 'Google search quota reached - the day plan is paused until the counter rolls over.'
+                  : needs.length === 0
+                    ? 'No driving plan yet - the day takes shape as you add driving days.'
+                    : `Nothing scheduled for Day ${activeDayIndex + 1} yet - its halts belong to other days.`}</p>
+              </div>
+            ) : (
+              <div className="slots-list">
+                {activeDaySlots.map(slot => {
+                  const isOpen = openSlotKey === slot.key
+                  // `urgencyMin` is window-end minus ETA, so it goes NEGATIVE
+                  // once the window has passed. Both cases were swept up by the
+                  // old `<= SLOT_URGENCY_MIN` test, so a slot 40 minutes past
+                  // its window said "closes 14:30" — telling the user to hurry
+                  // for a door that had already shut.
+                  const closing = slot.state === 'empty' && slot.urgencyMin != null && slot.urgencyMin >= 0 && slot.urgencyMin <= SLOT_URGENCY_MIN
+                  const missed = slot.state === 'empty' && slot.urgencyMin != null && slot.urgencyMin < 0
+                  // Read the window, don't slice the formatted label.
+                  const windowEnd = slot.windowMin ? clockHM(slot.windowMin[1]) : ''
+                  return (
+                    <div
+                      key={slot.key}
+                      className={'day-slot' + (slot.state === 'filled' ? ' is-filled' : slot.state === 'auto' ? ' is-auto' : ' is-empty') + (isOpen ? ' is-open' : '') + (closing ? ' is-urgent' : '') + (missed ? ' is-missed' : '')}
+                    >
+                      {slot.state === 'empty' ? (
+                        <>
+                          <button
+                            type="button"
+                            className="day-slot-top"
+                            aria-expanded={slot.vote ? undefined : isOpen}
+                            onClick={() => {
+                              if (slot.vote) { onOpenGroupInput?.(); return }
+                              setOpenSlotKey(prev => (prev === slot.key ? null : slot.key))
+                            }}
+                          >
+                            <span className="day-slot-st" aria-hidden />
+                            <span className="day-slot-lab">{slot.label}</span>
+                            {slot.windowLabel && <span className="day-slot-win">{slot.windowLabel}</span>}
+                            {closing && <span className="day-slot-urgent">closes {windowEnd}</span>}
+                            {missed && <span className="day-slot-missed">closed {windowEnd}</span>}
+                          </button>
+                          {slot.state === 'empty' && slotPattern(slot.kind) && (
+                            <p className="day-slot-pattern">{slotPattern(slot.kind)}</p>
+                          )}
+                          {slot.vote ? (
+                            <div className="day-slot-vote">
+                              <span className="chip chip-sm">Voting · {slot.vote.votesCast} of {slot.vote.voters}</span>
+                              <span className="day-slot-vote-lead">
+                                {slot.vote.leadingLabel ? `${slot.vote.leadingLabel} leads` : 'no votes yet'} · open Group input
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="day-slot-hint">
+                              Nothing planned yet
+                              <span className="n">
+                                {slot.candidates.length > 0
+                                  ? ` · ${slot.candidates.length} candidate${slot.candidates.length === 1 ? '' : 's'} inside · tap to compare`
+                                  : ' · search the map to source one'}
+                              </span>
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <div className="day-slot-top">
+                          <span className="day-slot-st" aria-hidden>{slot.state === 'filled' ? '\u2713' : ''}</span>
+                          <span className="day-slot-lab">{slot.label}</span>
+                          <span className="day-slot-win">{slot.windowLabel ?? ''}</span>
+                          <span className="day-slot-val">
+                            {slot.state === 'filled'
+                              ? <b>{slot.filledStop?.title ?? slot.segment?.label ?? 'Planned'}</b>
+                              : <small>{slot.reason ?? 'Engine-managed'}</small>}
+                          </span>
+                        </div>
+                      )}
+                      {slot.state === 'empty' && isOpen && (
+                        <div className="day-slot-cands">
+                          {slot.candidates.map(c => (
+                            <div key={String(c.hit.id)} className="day-slot-cand">
+                              <span className="day-slot-cand-nm">
+                                <b>{c.hit.name}</b>
+                                <span>
+                                  +{Math.round(c.detourMin)} min
+                                  {c.arriveLabel ? ` · arrive ${c.arriveLabel}` : ''}
+                                  {c.budgetSharePct > 0 ? ` · ${c.budgetSharePct}% of day detours` : ' · on route'}
+                                  {c.reason ? ` · ${c.reason}` : ''}
+                                </span>
+                              </span>
+                              <button
+                                type="button"
+                                className="day-slot-fill"
+                                onClick={() => { void fillSlot(slot, c.hit) }}
+                              >Fill</button>
+                            </div>
+                          ))}
+                          {slot.candidates.length === 0 && (
+                            <p className="muted small" style={{ margin: '4px 0 0' }}>
+                              No candidates in reach{slot.windowLabel ? ` inside ${slot.windowLabel}` : ''} - add one on the Timeline, or search the map.
+                            </p>
+                          )}
+                          {editable && !slot.vote && slot.candidates.length >= 2 && (
+                            <button type="button" className="chip chip-sm" onClick={() => raiseSlotVote(slot)}>
+                              Ask the crew to vote
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
-                  ))}
-            </div>
+                  )
+                })}
+              </div>
+            )}
           </div>
           <div className="map-ideas-map">
             <TripMap
@@ -1569,6 +1961,20 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
               onActivateHit={setActiveHitId}
               onOpenInTimeline={onOpenTimeline}
               onOpenInBoard={onOpenBoard ? () => onOpenBoard() : undefined}
+              focusDay={activeDayIndex}
+              slotPins={slotPins}
+              hitCosts={hitCosts}
+              onOpenSlot={(key) => {
+                // Tapping a pin on the map has to actually reveal the part.
+                // With the rail folded the expansion was invisible, so the pin
+                // appeared to do nothing at all.
+                setFolded(f => (f.needs ? { ...f, needs: false } : f))
+                setOpenSlotKey(key)
+                // After the unfold has painted.
+                requestAnimationFrame(() => {
+                  document.getElementById('rail-needs')?.scrollIntoView({ behavior: scrollBehavior(), block: 'nearest' })
+                })
+              }}
               onOpenHaltDay={onOpenDay}
               clockMilestones={clockMilestones}
               onDeleteStop={editable ? removeStopFromMap : undefined}
@@ -1581,10 +1987,9 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
             <div className="poi-col-head">
               <span className="poi-col-head-ico"><MapPin size={13} aria-hidden /></span>
               <div>
-                <b>See &amp; do</b>
-                <span className="small muted">{arcs.slice(0, 2).length + seeAndDoLive.length === 0 ? 'sightseeing · detours · scenic stops' : `${arcs.slice(0, 2).length} arcs · ${seeAndDoLive.length} picks on this corridor`}</span>
+                <b>Optional extras</b>
+                <span className="small muted">sights · detours - never required</span>
               </div>
-              <span className="poi-col-count">{filterActive ? seeForRail.length : arcs.slice(0, 2).length + seeAndDoLive.length}</span>
               <button
                 type="button"
                 className="poi-fold"
@@ -1596,14 +2001,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
                 <ChevronDown size={13} aria-hidden />
               </button>
             </div>
-            <div className="poi-ruler" aria-hidden>
-              <span className="poi-ruler-axis" />
-              {seeMarks.map(m => (
-                <span key={m.id} className={`poi-ruler-dot poi-ruler-dot--${m.tone}`} style={{ left: `${m.pct}%` }} />
-              ))}
-              <span className="poi-ruler-km">{Math.round(planKm)} km</span>
-            </div>
-            <div className="poi-plan-list">
+            <div className="poi-plan-list is-ledger">
               {!filterActive && arcs.slice(0, 2).length > 0 && (
                 <div className="poi-grp">
                   <span className="poi-grp-k">Route arcs</span>
@@ -1640,7 +2038,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
                         for (const item of toAdd) {
                           const pinned = await requireHitCoords(item.hit)
                           if (!pinned) { unpinned += 1; continue }
-                          recordDnaEvent({ tripId: trip.id, action: 'accept', category: pinned.category, detourMin: asymmetricDetourMinutes(pinned, anchors, routePolyline ?? null, MODE_SPEED[trip.transportMode] ?? 40), visitMin: visitMinutesForCategory(pinned.category) })
+                          recordDnaEvent({ tripId: trip.id, action: 'accept', haltKind: pinned.haltPurpose, category: pinned.category, detourMin: asymmetricDetourMinutes(pinned, anchors, routePolyline ?? null, MODE_SPEED[trip.transportMode] ?? 40), visitMin: visitMinutesForCategory(pinned.category) })
                           resolved.push({ hit: pinned, dayIndex: item.dayIndex })
                         }
                         const n = resolved.length
@@ -1663,7 +2061,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
                                 (routeKmOf(b.hit.latitude, b.hit.longitude) ?? Infinity))
                               for (const { hit } of sorted) {
                                 const stop = {
-                                  id: 'pending_' + Math.random().toString(36).slice(2),
+                                  id: newStopId(),
                                   title: hit.name,
                                   category: (hit.category as ItineraryStop['category']) ?? 'sightseeing',
                                   locationName: hit.description ?? hit.name,
@@ -1717,15 +2115,15 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
                 : (
                     <>
                       <div className="poi-grp">
-                        <span className="poi-grp-k">Individual picks</span>
+                        <span className="poi-grp-k">The corridor's picks</span>
                         <span className="poi-grp-n">{seeForRail.length}</span>
                         <span className="poi-grp-ln" />
                       </div>
-                      {seeForRail.slice(0, SEE_VISIBLE).map(renderPoi)}
+                      {seeForRail.slice(0, SEE_VISIBLE).map(renderLedgerRow)}
                       {seeForRail.length > SEE_VISIBLE && (
                         <details className="poi-more">
                           <summary><ChevronDown className="poi-chev" size={12} aria-hidden />{seeForRail.length - SEE_VISIBLE} more picks</summary>
-                          <div className="poi-more-list">{seeForRail.slice(SEE_VISIBLE).map(renderPoi)}</div>
+                          <div className="poi-more-list">{seeForRail.slice(SEE_VISIBLE).map(renderLedgerRow)}</div>
                         </details>
                       )}
                     </>
@@ -1763,7 +2161,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
             <p className="hint-text">You can fine-tune duration, fees and timings in the Timeline afterwards.</p>
             <div style={{ display: 'flex', gap: 9, justifyContent: 'flex-end', marginTop: 8 }}>
               <button className="btn btn-outline" onClick={() => setPoiDraft(null)}>Cancel</button>
-              <button className="btn btn-primary" onClick={() => { recordDnaEvent({ tripId: trip.id, action: 'accept', category: poiDraft.hit.category, detourMin: asymmetricDetourMinutes(poiDraft.hit, anchors, routePolyline ?? null, MODE_SPEED[trip.transportMode] ?? 40), visitMin: visitMinutesForCategory(poiDraft.hit.category) }); suggestionCache.clearMap(); setDnaTick(t => t + 1); addPoiToDay(poiDraft.hit, pickDay); setPoiDraft(null) }}>
+              <button className="btn btn-primary" onClick={() => { recordDnaEvent({ tripId: trip.id, action: 'accept', haltKind: poiDraft.hit.haltPurpose, category: poiDraft.hit.category, detourMin: asymmetricDetourMinutes(poiDraft.hit, anchors, routePolyline ?? null, MODE_SPEED[trip.transportMode] ?? 40), visitMin: visitMinutesForCategory(poiDraft.hit.category) }); suggestionCache.clearMap(); setDnaTick(t => t + 1); addPoiToDay(poiDraft.hit, pickDay); setPoiDraft(null) }}>
                 Add to timeline
               </button>
             </div>

@@ -213,6 +213,11 @@ const CLAIMS: Claim[] = [
   },
   {
     file: '../AGENTS.md',
+    contains: '`404 PGRST205` means it does not exist',
+    why: 'A probe RECIPE, not a claim about this product: the sentence explains what two PostgREST codes mean when you ask for a table. It cannot become false by us shipping something — it would only go stale the day PostgREST renumbers its codes, which is their fact and not ours.',
+  },
+  {
+    file: '../AGENTS.md',
     contains: 'every unbuilt idea',
     why: "Describes ROADMAP's Idea bank, same as the ROADMAP entries above.",
   },

@@ -123,6 +123,10 @@ const RUN = randomBytes(3).toString('hex')
 const PUBLICATIONS = [
   {
     id: `pub-fixture-kerala-${RUN}`,
+    // `slug` is how a RE-RUN recognizes this publication again: publication ids
+    // carry a fresh random RUN, so a second --apply would otherwise stack a
+    // second Kerala beside the first. See `seedOwner`.
+    slug: 'kerala',
     title: 'Kerala Backwaters & Hills (fixture)',
     tagline: 'The fixture publication — priced ₹199',
     priceInr: 199,
@@ -131,6 +135,7 @@ const PUBLICATIONS = [
   },
   {
     id: `pub-fixture-goa-${RUN}`,
+    slug: 'goa',
     title: 'Goa Coast in Four Days (fixture)',
     tagline: 'The fixture publication — priced ₹500',
     priceInr: 500,
@@ -146,6 +151,7 @@ const PUBLICATIONS = [
 // statement about PER-CREATOR charging rather than about rounding.
 const ADMIN_PUBLICATION = {
   id: `pub-fixture-spiti-${RUN}`,
+  slug: 'spiti',
   title: 'Spiti Circuit, Seven Days (fixture · admin)',
   tagline: 'The admin fixture publication — priced ₹12,000',
   priceInr: 12_000,
@@ -475,6 +481,23 @@ async function seedOwner(who, pubs, label) {
     .eq('id', owner.userId)
   if (profErr) throw new Error(`profiles: ${profErr.message}`)
 
+  // A RE-RUN must not double the fixture. Publication ids carry a fresh random
+  // RUN, so without this a second --apply would create a second set of trips and
+  // publications and then point the sales at the new ids, leaving the old ones
+  // behind — the ledgers would read right and the account would quietly hold
+  // two of everything. Reuse what is already there, matched by slug.
+  const { data: already } = await owner.sb.from('published_itineraries').select('id, title').eq('creator_id', owner.userId)
+  const existing = (already ?? []).filter(p => String(p.id).includes('-fixture-'))
+  if (existing.length > 0) {
+    const pubIds = pubs.map(p => {
+      const found = existing.find(e => String(e.id).includes(`-${p.slug}-`))
+      if (!found) throw new Error(`${label}: has fixture publications but none matching "${p.slug}" — run --clean first`)
+      return String(found.id)
+    })
+    console.log(`${YELLOW}${label} is already seeded${OFF} — reusing ${pubIds.length} existing publication(s), creating nothing new.`)
+    return { userId: owner.userId, sb: owner.sb, trips: [], pubIds }
+  }
+
   const trips = []
   for (const p of pubs) {
     const row = tripRow(p)
@@ -512,7 +535,7 @@ async function seedOwner(who, pubs, label) {
     console.log(`${GREEN}publication${OFF} ${p.id}  ₹${p.priceInr}`)
   }
 
-  return { userId: owner.userId, sb: owner.sb, trips }
+  return { userId: owner.userId, sb: owner.sb, trips, pubIds: pubs.map(p => p.id) }
 }
 
 /**
@@ -553,8 +576,11 @@ async function apply() {
     console.log(`${YELLOW}admin NOT promoted${OFF} — no elevation, so the role cannot be set. Paste the statement below, then sign out and back in.`)
   }
 
-  const creatorPubIds = PUBLICATIONS.map(p => p.id)
-  const adminPubIds = [ADMIN_PUBLICATION.id]
+  // The ids the publications actually landed on: the fresh ones on a first run,
+  // the EXISTING rows on a re-run (seedOwner reports what it reused), so the
+  // sales always point at what is really there.
+  const creatorPubIds = creator.pubIds
+  const adminPubIds = admin.pubIds
   const creatorOrderIds = SALES.map(() => randomUUID())
   const adminOrderIds = ADMIN_SALES.map(() => randomUUID())
   const sql = await makeSqlRunner()

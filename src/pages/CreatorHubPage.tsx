@@ -9,8 +9,8 @@ import { PillNav } from '../components/PillNav'
 import type { PublishedItinerary } from '../data/types'
 import { useDb, currentUser, updateProfile, unpublishItinerary, tripById } from '../store/store'
 import {
-  projectEarnings, deriveActualSales, payoutStatus, payoutPeriods, PAYOUT_MINIMUM_INR,
-  PLATFORM_FEE_SUMMARY, type ActualSales, type PayoutPeriod,
+  projectEarnings, deriveActualSales, payoutStatus, payoutPeriods, payoutPeriodStatus,
+  PAYOUT_MINIMUM_INR, PLATFORM_FEE_SUMMARY, type ActualSales,
 } from '../lib/earnings'
 import { fetchCreatorSales } from '../lib/unlock'
 import { formatInr } from '../lib/engine'
@@ -27,15 +27,6 @@ function isValidSocialUrl(v: string): boolean {
   } catch {
     return false
   }
-}
-
-/** How a run reads: what happened to it, in the one word a table cell has room
- *  for. "Owed" rather than "Paid" is the whole point — nothing disburses, so a
- *  date in the past is money the platform owes, not money it sent. */
-function periodStatus(p: PayoutPeriod): string {
-  if (p.belowMinimum) return `Under ${formatInr(PAYOUT_MINIMUM_INR)} — rolls over`
-  if (p.past) return 'Owed — not disbursed'
-  return 'Scheduled'
 }
 
 /** "26 Sep" — a run date, not a timestamp. */
@@ -387,7 +378,7 @@ function EarningsTab({ myPubs, sales, salesError, onRetry, view, onView, basis, 
                         <td className="num">{formatInr(p.grossInr)}</td>
                         <td className="num">{formatInr(p.feeInr)}</td>
                         <td className="num">{formatInr(p.netInr)}</td>
-                        <td>{periodStatus(p)}</td>
+                        <td>{payoutPeriodStatus(p)}</td>
                       </tr>
                     ))}
                   </tbody>

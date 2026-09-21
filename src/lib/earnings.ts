@@ -169,6 +169,19 @@ export interface PayoutPeriod {
 }
 
 /**
+ * How a run reads in one table cell. Lives here rather than in either page
+ * because two surfaces render it — a creator's own hub and the platform's
+ * console — and the wording is the honesty: "Owed", never "paid", because
+ * nothing disburses, so a date in the past is money the platform holds for a
+ * creator and not money it sent.
+ */
+export function payoutPeriodStatus(period: PayoutPeriod): string {
+  if (period.belowMinimum) return `Under ₹${PAYOUT_MINIMUM_INR.toLocaleString('en-IN')} — rolls over`
+  if (period.past) return 'Owed — not disbursed'
+  return 'Scheduled'
+}
+
+/**
  * Group sales into the payout runs they would land in, newest run first.
  *
  * The input must be the rows from `deriveActualSales` — their `feeInr` is the
@@ -199,6 +212,47 @@ export function payoutPeriods(rows: SaleRow[], now: number): PayoutPeriod[] {
     .sort((a, b) => b.dueAt - a.dueAt)
 }
 
+/**
+ * One weekly window of revenue, as a revenue-over-time table reads it.
+ *
+ * Deliberately NOT a `PayoutPeriod`: the minimum, the rollover and the
+ * "owed" status are facts about ONE creator's balance, and the platform does
+ * not pay itself out — a console rendering `payoutPeriodStatus` over everyone's
+ * sales would claim the platform's own revenue "rolls over" under ₹500.
+ * What transfers is only the time axis: the same run dates creators are told
+ * about, so a figure in the console and a run in a creator's hub line up.
+ */
+export interface RevenuePeriod {
+  /** The payout run date this window's sales belong to. */
+  runAt: number
+  salesCount: number
+  grossInr: number
+  feeInr: number
+  netInr: number
+}
+
+/**
+ * Group a ledger into the weekly run windows it falls in, newest first.
+ *
+ * `rows` must be a ledger's own rows: their `feeInr` is the lifetime-ladder
+ * attribution, so the windows are sums of the ledger's rows and add up to its
+ * totals exactly. Re-deriving a fee per window would charge the 15% tier again
+ * for every week.
+ */
+export function revenuePeriods(rows: SaleRow[]): RevenuePeriod[] {
+  const byRun = new Map<number, RevenuePeriod>()
+  for (const row of rows) {
+    const runAt = nextPayoutRun(row.grantedAt)
+    const period = byRun.get(runAt) ?? { runAt, salesCount: 0, grossInr: 0, feeInr: 0, netInr: 0 }
+    period.salesCount += 1
+    period.grossInr += row.amountPaidInr
+    period.feeInr += row.feeInr
+    period.netInr += row.netInr
+    byRun.set(runAt, period)
+  }
+  return [...byRun.values()].sort((a, b) => b.runAt - a.runAt)
+}
+
 // ---- Actual sales (I-11: per-publication revenue attribution) ----
 
 export interface SaleRow {
@@ -227,16 +281,23 @@ export interface ActualSales {
   soldPubIds: string[]
 }
 
-/** Build the actual-sales ledger from the creator's entitlement rows.
- *  Titles are resolved from the creator's own publications — a publication
- *  unpublished or deleted after a sale still shows, as its row's history.
- *  Publication ids NOT in `pubs` still appear (with the id as the title)
- *  rather than vanishing from the books. */
-export function deriveActualSales(entitlements: Entitlement[], pubs: PublishedItinerary[]): ActualSales {
-  const titleOf = new Map(pubs.map(p => [p.id, p.title]))
-  const rows: SaleRow[] = entitlements.map(e => ({
+/** One sale, before it has a title or a fee. */
+export interface SaleEntry {
+  pubId: string
+  amountPaidInr: number
+  grantedAt: number
+}
+
+/** The ledger from raw sale entries — one ladder pass, one total rule.
+ *
+ *  `deriveActualSales` is this plus mapping entitlements onto entries, and the
+ *  admin console's platform-wide revenue is this over everyone's rows. That is
+ *  the point of the extraction: the platform's total and the sum of the
+ *  creators' nets are then the SAME function, so they cannot drift apart. */
+export function buildSalesLedger(entries: SaleEntry[], titleOf: (pubId: string) => string): ActualSales {
+  const rows: SaleRow[] = entries.map(e => ({
     pubId: e.pubId,
-    title: titleOf.get(e.pubId) ?? e.pubId,
+    title: titleOf(e.pubId),
     amountPaidInr: e.amountPaidInr,
     feeInr: 0,
     netInr: 0,
@@ -244,9 +305,9 @@ export function deriveActualSales(entitlements: Entitlement[], pubs: PublishedIt
   }))
 
   // Fees are attributed OLDEST FIRST, because that is the order the ladder was
-  // actually walked: the sale that carried the creator's lifetime gross past
-  // ₹25,000 is the one that gets the cheaper rate, and a later re-sort for
-  // display must not move a fee to a different sale.
+  // actually walked: the sale that carried the lifetime gross past ₹25,000 is
+  // the one that gets the cheaper rate, and a later re-sort for display must
+  // not move a fee to a different sale.
   const chronological = [...rows].sort((a, b) => a.grantedAt - b.grantedAt)
   const fees = attributeFeesInr(chronological.map(r => r.amountPaidInr))
   chronological.forEach((row, i) => {
@@ -264,6 +325,19 @@ export function deriveActualSales(entitlements: Entitlement[], pubs: PublishedIt
     netInr: grossInr - feeInr,
     soldPubIds: [...new Set(rows.map(r => r.pubId))],
   }
+}
+
+/** Build the actual-sales ledger from the creator's entitlement rows.
+ *  Titles are resolved from the creator's own publications — a publication
+ *  unpublished or deleted after a sale still shows, as its row's history.
+ *  Publication ids NOT in `pubs` still appear (with the id as the title)
+ *  rather than vanishing from the books. */
+export function deriveActualSales(entitlements: Entitlement[], pubs: PublishedItinerary[]): ActualSales {
+  const titleOf = new Map(pubs.map(p => [p.id, p.title]))
+  return buildSalesLedger(
+    entitlements.map(e => ({ pubId: e.pubId, amountPaidInr: e.amountPaidInr, grantedAt: e.grantedAt })),
+    pubId => titleOf.get(pubId) ?? pubId,
+  )
 }
 
 // ---- Projection ----

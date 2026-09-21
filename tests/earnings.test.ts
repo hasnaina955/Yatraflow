@@ -3,7 +3,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import {
-  projectEarnings, deriveActualSales, payoutStatus, payoutPeriods, nextPayoutRun,
+  projectEarnings, deriveActualSales, payoutStatus, payoutPeriods, revenuePeriods, nextPayoutRun,
   feeForSliceInr, platformFeeInr, netOfFeeInr, attributeFeesInr,
   PLATFORM_FEE_TIERS, PAYOUT_MINIMUM_INR, PAYOUT_WEEKDAY,
 } from '../src/lib/earnings'
@@ -216,10 +216,20 @@ describe('the hub reads the ledger as written (I-9/I-10/I-13)', () => {
     // The one word that would turn an honest ledger into a false promise. Scoped
     // to the status helper: the sales ledger's own "Paid" column means what the
     // BUYER paid, which is a different word for a different thing.
-    const status = hub.slice(hub.indexOf('function periodStatus'), hub.indexOf('/** "26 Sep"'))
+    //
+    // The helper MOVED to lib/earnings.ts (`payoutPeriodStatus`) because two
+    // surfaces render it now — a creator's hub and the platform console — so the
+    // wording is pinned where it lives, plus a check that the hub calls it
+    // instead of growing a second copy of the label.
+    const lib = readFileSync(new URL('../src/lib/earnings.ts', import.meta.url), 'utf8')
+    const status = lib.slice(
+      lib.indexOf('export function payoutPeriodStatus'),
+      lib.indexOf('/**\n * Group sales into the payout runs'),
+    )
     expect(status.length).toBeGreaterThan(0)
     expect(status).toContain("'Owed — not disbursed'")
     expect(status).not.toMatch(/paid/i)
+    expect(hub).toMatch(/payoutPeriodStatus\(p\)/)
     expect(hub).toMatch(/<th>Status<\/th>/)
   })
 })
@@ -299,6 +309,92 @@ describe('the payout runs ledger (I-9)', () => {
 
   it('has no runs to show for a creator with no sales', () => {
     expect(payoutPeriods([], monday)).toEqual([])
+  })
+})
+
+describe('revenue over time, for the console (I-20)', () => {
+  const monday = new Date(2026, 8, 21, 9, 0, 0).getTime()
+  const nextMonday = monday + 7 * 86_400_000
+
+  it('groups a ledger into the weekly windows its sales fall in, newest first', () => {
+    const led = deriveActualSales([
+      ent({ id: 'a', amountPaidInr: 199, grantedAt: monday }),
+      ent({ id: 'b', amountPaidInr: 199, grantedAt: monday + 86_400_000 }),
+      ent({ id: 'c', amountPaidInr: 499, grantedAt: nextMonday }),
+    ], [])
+    const windows = revenuePeriods(led.rows)
+    expect(windows).toHaveLength(2)
+    expect(windows[0]!.runAt).toBeGreaterThan(windows[1]!.runAt)
+    expect(windows[0]).toMatchObject({ salesCount: 1, grossInr: 499 })
+    expect(windows[1]!.salesCount).toBe(2)
+  })
+
+  it('adds up to the ledger it came from — the same rows, the same fees', () => {
+    // Re-deriving a fee per window would charge the 15% tier again every week,
+    // so the windows are sums of the ledger's own rows.
+    const led = deriveActualSales([
+      ent({ id: 'a', amountPaidInr: 199, grantedAt: monday }),
+      ent({ id: 'b', amountPaidInr: 25_000, grantedAt: monday + 86_400_000 }),
+      ent({ id: 'c', amountPaidInr: 499, grantedAt: nextMonday }),
+    ], [])
+    const windows = revenuePeriods(led.rows)
+    const sum = (pick: (p: ReturnType<typeof revenuePeriods>[number]) => number) =>
+      windows.reduce((s, p) => s + pick(p), 0)
+    expect(sum(p => p.grossInr)).toBe(led.grossInr)
+    expect(sum(p => p.feeInr)).toBe(led.feeInr)
+    expect(sum(p => p.netInr)).toBe(led.netInr)
+    expect(sum(p => p.salesCount)).toBe(led.rows.length)
+  })
+
+  it('carries no rollover semantics — the platform does not pay itself out', () => {
+    // The reason this is not `payoutPeriods`: a ₹500 minimum and an "owed"
+    // status are facts about ONE creator's balance. Rendering them platform-wide
+    // would claim the platform's own revenue rolls over under ₹500.
+    const led = deriveActualSales([ent({ amountPaidInr: 199, grantedAt: monday })], [])
+    const window = revenuePeriods(led.rows)[0]!
+    expect(Object.keys(window).sort()).toEqual(['feeInr', 'grossInr', 'netInr', 'runAt', 'salesCount'])
+    expect(revenuePeriods([])).toEqual([])
+  })
+})
+
+describe('the local creator fixture\u2019s sales plan', () => {
+  // scripts/seedCreatorFixture.mjs builds a creator with real sales so the
+  // Earnings tab, the payout-runs ledger and the publish editor can be LOOKED
+  // at — a node suite cannot render them (no DOM, no session), so the arithmetic
+  // was pinned while the rendering was checked by nothing. This is the answer
+  // key for that browser check: the same five sales the script writes, priced by
+  // the shipped ladder. If the rendered ledger disagrees with the numbers here,
+  // the ladder and the surface have drifted apart.
+  const day = 86_400_000
+  const base = new Date(2026, 8, 21, 9, 0, 0).getTime()
+  const led = deriveActualSales([
+    ent({ id: 'f1', pubId: 'pub-fixture-kerala', amountPaidInr: 199, grantedAt: base - 30 * day }),
+    ent({ id: 'f2', pubId: 'pub-fixture-kerala', amountPaidInr: 499, grantedAt: base - 21 * day }),
+    ent({ id: 'f3', pubId: 'pub-fixture-goa', amountPaidInr: 149, grantedAt: base - 9 * day }),
+    ent({ id: 'f4', pubId: 'pub-fixture-goa', amountPaidInr: 25_000, grantedAt: base - 3 * day }),
+    ent({ id: 'f5', pubId: 'pub-fixture-kerala', amountPaidInr: 199, grantedAt: base }),
+  ], [pub({ id: 'pub-fixture-kerala', title: 'Kerala' }), pub({ id: 'pub-fixture-goa', title: 'Goa' })])
+
+  it('reads as ₹26,046 gross / ₹3,855 fee / ₹22,191 net', () => {
+    expect(led.grossInr).toBe(26_046)
+    expect(led.feeInr).toBe(3_855)
+    expect(led.netInr).toBe(22_191)
+  })
+
+  it('puts the ₹25,000 sale across the tier line, and the newest sale past it', () => {
+    // ₹847 of gross precedes the big sale, so it is charged 15% up to ₹25,000
+    // and 10% on the rest — ₹3,708 — while the ₹199 sale after it pays only 10%.
+    const big = led.rows.find(r => r.amountPaidInr === 25_000)!
+    expect(big.feeInr).toBe(3_708)
+    expect(led.rows[0]!.feeInr).toBe(20)
+  })
+
+  it('leaves one run under the minimum, so the runs ledger shows a rollover', () => {
+    // The ₹149 sale nets ₹127 — under the ₹500 floor — and the runs ledger must
+    // be able to say so, which is the state a creator asks about first.
+    const periods = payoutPeriods(led.rows, base + day)
+    expect(periods.some(p => p.belowMinimum)).toBe(true)
+    expect(periods.some(p => p.past)).toBe(true)
   })
 })
 

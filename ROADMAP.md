@@ -310,8 +310,13 @@ stays open until the remaining depth items are called done.
 Gateway integration (Razorpay fits INR), order/entitlement tables + webhook,
 purchase state, unlock flow replacing placeholder toasts: **all shipped** — the
 rail landed in v0.61.0 (PR #251) and its paywall is enforced server-side, and
-the fee model landed 2026-09-21 (I-13). What is genuinely still open here is not
-engineering: **F6 (#234)** — the CA call on the merchant of record — which is the
+the fee model landed 2026-09-21 (I-13), and the console's Analytics tab now reads the platform's
+own books — gross, fee and net by week, charged per creator — through the admin-gated
+`admin_revenue` RPC, closing the revenue row it had promised since v0.46.0. These surfaces also
+have a local fixture at last (`scripts/seedCreatorFixture.mjs`: a creator, two priced
+publications and five backdated sales, whose ledger figures `tests/earnings.test.ts` pins), so
+the hub, the runs ledger and the publish editor can be rendered rather than only asserted.
+What is genuinely still open here is not engineering: **F6 (#234)** — the CA call on the merchant of record — which is the
 one row of this milestone no commit can close.
 
 ### M8 — 1.0 enablers → the 1.0 cut — **issue #239**
@@ -480,6 +485,19 @@ Kept as one line each so the origin is traceable without re-listing the work as 
   body, or an id that is not a UUID. Offered on **My purchases** as a row action and, last and
   quietest, in the unlock reveal; withheld for a withdrawn plan, because unpublishing deletes the
   row and the link would preview as nothing.
+- **The console can read the platform's own books** — [Unreleased]. Source: the Analytics tab's
+  own promise since v0.46.0 ("the revenue row … is still to come here"), now deleted. Entitlements
+  are owner-scoped by RLS and deliberately absent from the hydrated cache, so the platform's cut
+  had no client-side source and needed a read of its own: the admin-gated `admin_revenue` RPC
+  (migration `20260921_admin_revenue.sql`, **not yet applied** — run it in the SQL editor before
+  this reaches a deployed environment) returns facts only — when, how much, which publication,
+  which creator — and never a buyer, because revenue reporting needs amounts, dates and payees
+  rather than identities. The client applies the fee ladder **once per creator** through the same
+  `buildSalesLedger` a creator's own earnings tab uses, so the platform's cut IS the sum of the
+  creators' charges and the two figures cannot drift; one ladder over the platform's total would
+  understate the cut, since that total crosses ₹25,000 long before most creators' do. The tab
+  shows gross / platform fee / creator net / sales over one row per weekly run, and it reports a
+  failed read rather than a ₹0 it cannot vouch for.
 - **Idea bank I-9 + I-10 + I-11 + I-13 — the fee stopped being a placeholder** — [Unreleased]. Source:
   [`docs/commercial/PLAN-MONETISATION.md`](docs/commercial/PLAN-MONETISATION.md) §11 (decision-table row 2,
   "confirm 15%") and §4.2. The platform fee is real: a MARGINAL ladder over a creator's lifetime gross —

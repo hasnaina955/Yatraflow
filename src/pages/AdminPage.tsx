@@ -17,7 +17,10 @@ import {
 } from '../store/store'
 import {
   computeAdminOverview, computeGrowthSeries, computeFunnel, recentJoins,
+  platformRevenue, type PlatformRevenue,
 } from '../lib/adminStats'
+import { fetchAdminRevenue } from '../lib/unlock'
+import { formatInr } from '../lib/engine'
 import type { Trip, User } from '../data/types'
 
 type AdminTab = 'overview' | 'users' | 'trips' | 'invites' | 'content' | 'analytics' | 'audit'
@@ -474,10 +477,35 @@ function ContentTab() {
   )
 }
 
+/** Reading the sales ledger: the read is async and can fail, and a console
+ *  that renders ₹0 for a failed read has told the operator something false. */
+type RevenueState =
+  | { phase: 'loading' }
+  | { phase: 'error'; message: string }
+  | { phase: 'ready'; revenue: PlatformRevenue }
+
 function AnalyticsTab() {
   const db = useDb()
   const funnel = useMemo(() => computeFunnel(db.users, db.trips, db.published), [db])
   const growth = useMemo(() => computeGrowthSeries(db.users, db.trips, 12), [db.users, db.trips])
+  const [revenue, setRevenue] = useState<RevenueState>({ phase: 'loading' })
+  const [attempt, setAttempt] = useState(0)
+  // Entitlements are not in the hydrated cache — they are owner-scoped by RLS —
+  // so unlike every other figure on this tab the revenue read is a network call
+  // through the admin-gated RPC. It rejects rather than degrading to [], which
+  // is why this has a real error state instead of an empty one.
+  useEffect(() => {
+    let live = true
+    setRevenue({ phase: 'loading' })
+    fetchAdminRevenue()
+      .then(rows => { if (live) setRevenue({ phase: 'ready', revenue: platformRevenue(rows) }) })
+      .catch((err: unknown) => {
+        if (!live) return
+        const message = err instanceof Error ? err.message : String((err as { message?: string })?.message ?? err)
+        setRevenue({ phase: 'error', message })
+      })
+    return () => { live = false }
+  }, [attempt])
   const maxBar = Math.max(1, ...growth.map(g => Math.max(g.signups, g.trips)))
   const pct = (n: number) => `${n.toFixed(1)}%`
   return (
@@ -509,10 +537,58 @@ function AnalyticsTab() {
         </tbody>
       </table>
       <p className="hint-text" style={{ marginTop: 8 }}>
-        Teal bar = signups, saffron = trips. The revenue row (payout periods, gross → net) is still to
-        come here — the platform fee ladder and the per-sale ledger behind it exist in
-        `src/lib/earnings.ts`, but this tab reads nothing from them yet.
+        Teal bar = signups, saffron = trips.
       </p>
+
+      <h2 style={{ marginTop: 18 }}>Revenue</h2>
+      {revenue.phase === 'loading' && <p className="hint-text">Reading the sales ledger…</p>}
+      {revenue.phase === 'error' && (
+        <>
+          <p className="hint-text">
+            The sales ledger could not be read — {revenue.message}. The numbers below are the
+            books as the database reports them, so this tab shows nothing rather than a zero it
+            cannot vouch for.
+          </p>
+          <button type="button" className="btn btn-outline btn-sm" style={{ marginTop: 8 }} onClick={() => setAttempt(a => a + 1)}>
+            Retry
+          </button>
+        </>
+      )}
+      {revenue.phase === 'ready' && (revenue.revenue.sales.rows.length === 0 ? (
+        <p className="hint-text">
+          No sales yet — this fills in as soon as someone buys a priced publication.
+        </p>
+      ) : (
+        <>
+          <div className="creator-stats" role="group" aria-label="Platform revenue">
+            <div className="stat-tile"><div className="stat-label">Gross</div><div className="stat-value">{formatInr(revenue.revenue.sales.grossInr)}</div></div>
+            <div className="stat-tile"><div className="stat-label">Platform fee</div><div className="stat-value">{formatInr(revenue.revenue.sales.feeInr)}</div></div>
+            <div className="stat-tile"><div className="stat-label">Creator net</div><div className="stat-value">{formatInr(revenue.revenue.sales.netInr)}</div></div>
+            <div className="stat-tile"><div className="stat-label">Sales</div><div className="stat-value">{revenue.revenue.sales.rows.length}</div></div>
+          </div>
+          <table className="compare-table" tabIndex={0} aria-label="Platform revenue by week">
+            <thead><tr><th>Week of</th><th className="num">Sales</th><th className="num">Gross</th><th className="num">Fee</th><th className="num">Net</th></tr></thead>
+            <tbody>
+              {revenue.revenue.periods.map(p => (
+                <tr key={p.runAt}>
+                  <td className="small">{new Date(p.runAt).toLocaleDateString()}</td>
+                  <td className="num">{p.salesCount}</td>
+                  <td className="num">{formatInr(p.grossInr)}</td>
+                  <td className="num">{formatInr(p.feeInr)}</td>
+                  <td className="num">{formatInr(p.netInr)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="hint-text" style={{ marginTop: 8 }}>
+            Weeks are the payout runs creators are told about. The fee is the 15% / 10% ladder
+            charged to each of {revenue.revenue.creators} {revenue.revenue.creators === 1 ? 'creator' : 'creators'}
+            {' '}separately — the tier follows a creator's own lifetime gross, so it is not one
+            ladder over the platform total. Figures cover current unlocks: a refunded sale is
+            revoked, so refunded money leaves these totals.
+          </p>
+        </>
+      ))}
     </div>
   )
 }

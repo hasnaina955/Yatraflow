@@ -6,6 +6,7 @@
 import type {
   ActivityEntry, PublishedItinerary, Trip, TripDecision, TripMember, User,
 } from '../data/types'
+import { buildSalesLedger, revenuePeriods, type ActualSales, type RevenuePeriod } from './earnings'
 
 /** Week-bucket key (Monday 00:00 UTC) for growth series. */
 export function weekBucket(at: number): number {
@@ -119,4 +120,74 @@ export function computeFunnel(
 export function recentJoins(members: TripMember[], now = Date.now()): number {
   const cutoff = now - 30 * 86400000
   return members.filter(m => m.joinedAt >= cutoff).length
+}
+
+// ============ Platform revenue (the console's Analytics tab) ============
+
+/** A sale as `admin_revenue` returns it — facts only, no buyer. */
+export interface PlatformSale {
+  grantedAt: number
+  amountPaidInr: number
+  pubId: string
+  /** The payee. Not a leak: the ladder is charged PER CREATOR, so without this
+   *  the platform's cut cannot be computed at all (see `platformRevenue`). */
+  creatorId: string
+}
+
+export interface PlatformRevenue {
+  /** Every sale on the platform, in one ledger. The fee on it is the sum of
+   *  what each creator was charged, not one ladder over the platform's total. */
+  sales: ActualSales
+  /** The same rows grouped into the weekly windows they fall in. */
+  periods: RevenuePeriod[]
+  /** How many distinct creators the fee was charged to — the reason the
+   *  per-creator grouping above exists at all. */
+  creators: number
+}
+
+/**
+ * Platform-wide revenue from the admin RPC's rows.
+ *
+ * Deliberately the SAME ledger function a creator's own earnings tab uses
+ * (`buildSalesLedger`), so the platform's cut cannot disagree with the sum of
+ * the creators' own charges — there is one implementation of the ladder and one
+ * attribution order behind both figures.
+ *
+ * It runs the ladder ONCE PER CREATOR and sums, because that is what actually
+ * happens: the tier is walked over each creator's own lifetime gross. See the
+ * comment in the body for why a single ladder over the platform's total would
+ * understate the cut.
+ *
+ * Titles fall back to the publication id: this view groups by week, so it has
+ * nothing to render a title for, and inventing one would be worse than an id.
+ */
+export function platformRevenue(rows: PlatformSale[]): PlatformRevenue {
+  // ONE LEDGER PER CREATOR, then sum. The ladder runs over each creator's own
+  // lifetime gross — that is what each of them is charged — so a single ladder
+  // over the platform's total would UNDERSTATE the cut: the platform's total
+  // crosses ₹25,000 long before most creators' do, and most of it would then be
+  // charged the lower rate. The test that pins this uses two creators with
+  // ₹20,000 each: ₹6,000 of cut (₹3,000 apiece), where one shared ladder over
+  // ₹40,000 would claim ₹5,250.
+  const byCreator = new Map<string, PlatformSale[]>()
+  for (const row of rows) {
+    const list = byCreator.get(row.creatorId)
+    if (list) list.push(row)
+    else byCreator.set(row.creatorId, [row])
+  }
+  const ledgers = [...byCreator.values()].map(creatorRows => buildSalesLedger(creatorRows, pubId => pubId))
+  const allRows = ledgers.flatMap(ledger => ledger.rows).sort((a, b) => b.grantedAt - a.grantedAt)
+  const grossInr = ledgers.reduce((sum, ledger) => sum + ledger.grossInr, 0)
+  const feeInr = ledgers.reduce((sum, ledger) => sum + ledger.feeInr, 0)
+  return {
+    sales: {
+      rows: allRows,
+      grossInr,
+      feeInr,
+      netInr: grossInr - feeInr,
+      soldPubIds: [...new Set(allRows.map(r => r.pubId))],
+    },
+    periods: revenuePeriods(allRows),
+    creators: byCreator.size,
+  }
 }

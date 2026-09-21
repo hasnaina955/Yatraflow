@@ -20,6 +20,7 @@
 
 import { supabase } from './supabase'
 import { ENTITLEMENT_COLUMNS, type Entitlement } from './payments'
+import type { PlatformSale } from './adminStats'
 import { toast } from '../components/ui'
 
 declare global {
@@ -136,6 +137,34 @@ export async function fetchCreatorSales(): Promise<Entitlement[]> {
     orderId: row.order_id as string,
     amountPaidInr: row.amount_paid_inr as number,
     grantedAt: new Date(row.granted_at as string).getTime(),
+  }))
+}
+
+/**
+ * Every sale on the platform, for the masteradmin console's revenue row.
+ *
+ * Reads through the admin-gated `admin_revenue` RPC (`is_admin()` inside the
+ * function). REJECTS rather than degrading to [] — an empty platform and an
+ * unapplied migration are different truths, and a console that quietly shows
+ * ₹0 revenue is worse than one that says it could not read the books.
+ *
+ * The RPC returns facts only (when, how much, which publication, and which
+ * creator is owed) and never a buyer, so nothing here can leak an identity into
+ * the console. The creator IS a payee, and it is what lets the console charge
+ * the fee ladder per creator rather than once over the platform total.
+ */
+export async function fetchAdminRevenue(limit = 1000): Promise<PlatformSale[]> {
+  const { data, error } = await supabase
+    .rpc('admin_revenue', { p_limit: limit })
+  if (error) {
+    console.error('[yatraflow] admin revenue read failed', error)
+    throw error
+  }
+  return (Array.isArray(data) ? data : []).map((row: Record<string, unknown>) => ({
+    grantedAt: new Date(row.granted_at as string).getTime(),
+    amountPaidInr: row.amount_paid_inr as number,
+    pubId: row.pub_id as string,
+    creatorId: row.creator_id as string,
   }))
 }
 

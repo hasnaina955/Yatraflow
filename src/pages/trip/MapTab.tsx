@@ -1709,22 +1709,27 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
                       className={'day-slot' + (slot.state === 'filled' ? ' is-filled' : slot.state === 'auto' ? ' is-auto' : ' is-empty') + (isOpen ? ' is-open' : '') + (urgent ? ' is-urgent' : '')}
                     >
                       {slot.state === 'empty' ? (
-                        <button
-                          type="button"
-                          className="day-slot-top"
-                          aria-expanded={isOpen}
-                          onClick={() => setOpenSlotKey(prev => (prev === slot.key ? null : slot.key))}
-                        >
-                          <span className="day-slot-st" aria-hidden />
-                          <span className="day-slot-lab">{slot.label}</span>
-                          {slot.windowLabel && <span className="day-slot-win">{slot.windowLabel}</span>}
-                          {urgent && <span className="day-slot-urgent">closes {slot.windowLabel ? slot.windowLabel.slice(-5) : ''}</span>}
-                          <span className="day-slot-val">
-                            {slot.candidates.length > 0
-                              ? <>{slot.candidates.length} option{slot.candidates.length === 1 ? '' : 's'} · tap to compare</>
-                              : 'nothing planned · search the map to fill'}
-                          </span>
-                        </button>
+                        <>
+                          <button
+                            type="button"
+                            className="day-slot-top"
+                            aria-expanded={isOpen}
+                            onClick={() => setOpenSlotKey(prev => (prev === slot.key ? null : slot.key))}
+                          >
+                            <span className="day-slot-st" aria-hidden />
+                            <span className="day-slot-lab">{slot.label}</span>
+                            {slot.windowLabel && <span className="day-slot-win">{slot.windowLabel}</span>}
+                            {urgent && <span className="day-slot-urgent">closes {slot.windowLabel ? slot.windowLabel.slice(-5) : ''}</span>}
+                          </button>
+                          <div className="day-slot-hint">
+                            Nothing planned yet
+                            <span className="n">
+                              {slot.candidates.length > 0
+                                ? ` · ${slot.candidates.length} candidate${slot.candidates.length === 1 ? '' : 's'} inside · tap to compare`
+                                : ' · search the map to source one'}
+                            </span>
+                          </div>
+                        </>
                       ) : (
                         <div className="day-slot-top">
                           <span className="day-slot-st" aria-hidden>{slot.state === 'filled' ? '\u2713' : ''}</span>

@@ -6080,7 +6080,8 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 }
 .lrow-new:last-of-type { border-bottom: 0; }
 .lrow-sum {
-  display: flex; align-items: center; gap: 8px;
+  display: grid; grid-template-columns: 1fr auto; column-gap: 8px; row-gap: 2px;
+  align-items: start;
   padding: 9px 4px 9px 20px; cursor: pointer; list-style: none;
   border-radius: 8px;
   transition: background var(--t-fast) var(--ease-out);
@@ -6089,11 +6090,11 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .lrow-sum:hover { background: color-mix(in srgb, var(--yf-poi-see) 6%, transparent); }
 .lrow-sum:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--focus-ring, rgba(228, 174, 67, .55)); }
 .lr-name {
-  flex: 1; min-width: 0; font-size: 12.5px; font-weight: 600; color: var(--text);
+  grid-column: 1; min-width: 0; font-size: 12.5px; font-weight: 600; color: var(--text);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.lr-meta { flex: none; font-size: 10.5px; color: var(--text-3); font-variant-numeric: tabular-nums; }
-.lr-go { flex: none; color: var(--text-3); transition: transform var(--t-fast) var(--ease-out); }
+.lr-meta { grid-column: 1; font-size: 10.5px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.lr-go { grid-column: 2; grid-row: 1 / span 2; align-self: center; color: var(--text-3); transition: transform var(--t-fast) var(--ease-out); }
 .lrow-new[open] .lr-go { transform: rotate(180deg); }
 .ledger-shelf {
   display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
@@ -6115,3 +6116,26 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .poi-plan-list.is-ledger .poi-plan-row .ride-purpose { font-size: 10px; }
 .poi-plan-list.is-ledger .poi-more { padding-left: 20px; }
 .poi-plan-list.is-ledger .hint-text { padding-left: 20px; }
+
+/* ---- P2 design pass: the rails as designed cards (the mockup's tinted
+   containers) and the empty row's amber hint. New selectors only; no colour
+   pair is declared in the container rules, so the contrast contract is
+   untouched. ---- */
+.map-ideas-grid .poi-col--needs,
+.map-ideas-grid .poi-col--see {
+  border-radius: 18px;
+  padding: 10px 10px 8px;
+}
+.map-ideas-grid .poi-col--needs {
+  background: color-mix(in srgb, var(--teal) 4%, var(--bg));
+  border: 1px solid color-mix(in srgb, var(--teal) 20%, var(--line));
+}
+.map-ideas-grid .poi-col--see {
+  background: color-mix(in srgb, var(--yf-poi-see) 4%, var(--bg));
+  border: 1px solid color-mix(in srgb, var(--yf-poi-see) 20%, var(--line));
+}
+.day-slot-hint {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  margin: 0 10px 8px; font-size: 10.5px; font-weight: 600; color: var(--warn);
+}
+.day-slot-hint .n { color: var(--text-3); font-weight: 500; }

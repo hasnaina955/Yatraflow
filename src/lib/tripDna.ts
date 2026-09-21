@@ -2,9 +2,12 @@
 // The engine remembers accepted/declined suggestions and builds a small
 // preference vector per trip: category affinity, detour tolerance, accept
 // volume. New candidates score a similarity boost and explain themselves
-// ("you've picked 3 waterfall stops this trip"). Pure core below; the
-// localStorage log at the bottom is the only impure part (best-effort,
-// capped, never throws).
+// ("you've picked 3 waterfall stops this trip"). Pure core first; the log at
+// the bottom is the only impure part — a device copy in localStorage and,
+// since I-16, an account copy in `user_dna` (both best-effort, capped, and
+// never throwing).
+import type { SupabaseClient } from '@supabase/supabase-js'
+
 export interface DnaEvent {
   tripId: string
   /** 'seed' = an open crew idea: bends affinity but is NOT a crew acceptance */
@@ -108,34 +111,171 @@ export function dnaNoteForHit(
   return `you've picked ${affinity} ${cat} stops this trip`
 }
 
-// ---- best-effort local log (impure; UI layer only) ----
+// ---- best-effort log (impure; UI layer only) ----
 const DNA_KEY = 'yatraflow_dna_log'
 const DNA_CAP = 500
+/** One upsert per burst of accepts, rather than one per tap. */
+const DNA_PUSH_DELAY_MS = 1200
 
-export function loadDnaLog(): DnaEvent[] {
+/**
+ * Keep only well-formed events. The same rule guards the device copy and the
+ * `user_dna.log` row, because both are JSON this session did not author: a
+ * malformed entry must degrade to "ignored", never to a broken suggestion list.
+ */
+export function normalizeDnaLog(parsed: unknown): DnaEvent[] {
+  if (!Array.isArray(parsed)) return []
+  return parsed.filter(
+    (e): e is DnaEvent =>
+      !!e && typeof e === 'object' && typeof (e as DnaEvent).tripId === 'string' &&
+      ((e as DnaEvent).action === 'accept' || (e as DnaEvent).action === 'decline' || (e as DnaEvent).action === 'seed'),
+  )
+}
+
+/**
+ * Identity of one event, for the merge below. Events carry no id and no clock
+ * — the engine only ever needs what happened, never when — so two identical
+ * records are indistinguishable from one record synced twice. Collapsing them
+ * is the deliberate trade: without it every sync would double every count,
+ * which is systematic, while a genuinely repeated twin costs at most one
+ * affinity point.
+ */
+function dnaEventKey(e: DnaEvent): string {
+  return [e.tripId, e.action, e.category ?? '', e.detourMin ?? '', e.visitMin ?? ''].join('|')
+}
+
+/**
+ * Union of the device log and the account log, newest-last and capped. This is
+ * how a second device inherits the profile: the account's events land in front
+ * of whatever this device recorded on its own.
+ */
+export function mergeDnaLogs(device: DnaEvent[], account: DnaEvent[], cap: number = DNA_CAP): DnaEvent[] {
+  const seen = new Set<string>()
+  const out: DnaEvent[] = []
+  for (const e of [...account, ...device]) {
+    const key = dnaEventKey(e)
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push(e)
+  }
+  return out.slice(-Math.max(0, cap))
+}
+
+function readDeviceLog(): DnaEvent[] {
   try {
     const raw = localStorage.getItem(DNA_KEY)
-    if (!raw) return []
-    const parsed: unknown = JSON.parse(raw)
-    if (!Array.isArray(parsed)) return []
-    return parsed.filter(
-      (e): e is DnaEvent =>
-        !!e && typeof e === 'object' && typeof (e as DnaEvent).tripId === 'string' &&
-        ((e as DnaEvent).action === 'accept' || (e as DnaEvent).action === 'decline' || (e as DnaEvent).action === 'seed'),
-    )
+    return raw ? normalizeDnaLog(JSON.parse(raw)) : []
   } catch {
     return []
   }
 }
 
-export function recordDnaEvent(event: DnaEvent): void {
+function writeDeviceLog(log: DnaEvent[]): void {
   try {
-    const log = loadDnaLog()
-    log.push(event)
     localStorage.setItem(DNA_KEY, JSON.stringify(log.slice(-DNA_CAP)))
   } catch {
     /* DNA is best-effort — a full/blocked store never breaks suggestions */
   }
+}
+
+// ---- account copy (I-16) — one `user_dna` row per user, migration
+// 20260921_user_dna.sql. Read once per hydrate; written back debounced. ----
+
+let accountClient: SupabaseClient | null = null
+let accountUserId: string | null = null
+let accountLog: DnaEvent[] = []
+let pushTimer: ReturnType<typeof setTimeout> | null = null
+let warnedMissingTable = false
+
+/** "The table does not exist yet" — PGRST205/42P01, or the message when a proxy
+ *  rewrites the code away. A capability to report once, never an error. */
+function isMissingTableError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false
+  const code = (error as { code?: string }).code
+  if (code === 'PGRST205' || code === '42P01') return true
+  const msg = (error as { message?: string }).message ?? ''
+  return /could not find the table|relation .* does not exist/i.test(msg)
+}
+
+/**
+ * Point the log at the signed-in account and fold in what it already knows.
+ * Called from the store's hydrate; a null client or userId (signed out, public
+ * view, no backend) leaves the device-only behaviour exactly as it was.
+ *
+ * Best-effort by construction: a database that has not run
+ * 20260921_user_dna.sql answers PGRST205, which is treated as a capability and
+ * warned about once. Every other failure (offline, RLS denial, a malformed
+ * row) is silent — the device log stays the source of truth until the account
+ * copy proves otherwise.
+ */
+export async function attachDnaAccount(client: SupabaseClient | null, userId: string | null): Promise<void> {
+  detachDnaAccount()
+  if (!client || !userId) return
+  accountClient = client
+  accountUserId = userId
+  try {
+    const { data, error } = await client.from('user_dna').select('log').eq('user_id', userId).maybeSingle()
+    if (error) {
+      if (isMissingTableError(error) && !warnedMissingTable) {
+        console.warn('[yatraflow] user_dna missing — run supabase/migrations/20260921_user_dna.sql; Trip DNA stays device-local until then.')
+        warnedMissingTable = true
+      }
+      return
+    }
+    // An account switch during the read must not adopt the wrong log.
+    if (accountUserId !== userId) return
+    accountLog = normalizeDnaLog((data as { log?: unknown } | null)?.log)
+    const merged = mergeDnaLogs(readDeviceLog(), accountLog)
+    if (merged.length !== accountLog.length) {
+      // Something lived only on this device: adopt the union locally and let
+      // the debounced push carry it up, so the profile follows the account
+      // from here on instead of starting over per device.
+      accountLog = merged
+      writeDeviceLog(merged)
+      schedulePush()
+    }
+  } catch { /* offline / transport — device-only until the next hydrate */ }
+}
+
+/** Sign-out and anonymous hydrates: stop syncing and forget the account's log,
+ *  so the next person on this device never inherits the last one's profile. */
+export function detachDnaAccount(): void {
+  if (pushTimer) { clearTimeout(pushTimer); pushTimer = null }
+  accountClient = null
+  accountUserId = null
+  accountLog = []
+}
+
+/** The log the engine reads: the device copy plus whatever the account brought. */
+export function loadDnaLog(): DnaEvent[] {
+  const device = readDeviceLog()
+  return accountUserId ? mergeDnaLogs(device, accountLog) : mergeDnaLogs(device, [])
+}
+
+function schedulePush(): void {
+  if (!accountClient || !accountUserId) return
+  if (pushTimer) clearTimeout(pushTimer)
+  pushTimer = setTimeout(() => {
+    pushTimer = null
+    const client = accountClient
+    const userId = accountUserId
+    if (!client || !userId) return
+    const log = loadDnaLog().slice(-DNA_CAP)
+    accountLog = log
+    void client.from('user_dna')
+      .upsert({ user_id: userId, log, updated_at: new Date().toISOString() }, { onConflict: 'user_id' })
+      .then(({ error }) => {
+        if (error) console.warn('[yatraflow] Trip DNA sync failed', error)
+      })
+  }, DNA_PUSH_DELAY_MS)
+}
+
+/** Record one accept/decline/seed. The device copy is written synchronously (it
+ *  is what the next render reads); the account copy follows, debounced. */
+export function recordDnaEvent(event: DnaEvent): void {
+  const log = readDeviceLog()
+  log.push(event)
+  writeDeviceLog(log)
+  schedulePush()
 }
 
 // ---- crew seeds (Horizon 3.4): open group-input ideas feed the engine ----

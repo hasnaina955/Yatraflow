@@ -29,8 +29,8 @@ import { hideSplash, registerAndroidBack, setNativeTheme } from './lib/appShell'
 import { LandingPage } from './pages/Landing'
 import { NativeHomePage } from './pages/NativeHome'
 // Route-level code splitting: only the landing page stays in the main chunk (it
-// is the app's front door and reads no store data); every other route —
-// including the workspace and its map/editor subtree — loads on first visit.
+// is the app's front door and reads no store data); every other route -
+// including the workspace and its map/editor subtree - loads on first visit.
 const TripsListPage = lazy(() => import('./pages/TripsList').then(m => ({ default: m.TripsListPage })))
 const TripWorkspace = lazy(() => import('./pages/TripWorkspace').then(m => ({ default: m.TripWorkspace })))
 const ExplorePage = lazy(() => import('./pages/Explore').then(m => ({ default: m.ExplorePage })))
@@ -42,11 +42,11 @@ const PurchasesPage = lazy(() => import('./pages/Purchases').then(m => ({ defaul
 const CreatorPage = lazy(() => import('./pages/CreatorPage').then(m => ({ default: m.CreatorPage })))
 // Gated route: only shown in the nav when the account has creator mode on.
 const CreatorHubPage = lazy(() => import('./pages/CreatorHubPage').then(m => ({ default: m.CreatorHubPage })))
-// Masteradmin console: JWT app_metadata role only (never linked anywhere —
+// Masteradmin console: JWT app_metadata role only (never linked anywhere -
 // admins type #/admin; non-admins fall through to landing inside the page).
 const AdminPage = lazy(() => import('./pages/AdminPage').then(m => ({ default: m.AdminPage })))
 
-/** Suspense fallback for the lazy routes — the same loading block the ready-gate shows. */
+/** Suspense fallback for the lazy routes - the same loading block the ready-gate shows. */
 const lazyRouteFallback = <div className="container loading-block"><div className="spinner" />Loading…</div>
 
 function currentRoute(): string {
@@ -56,7 +56,7 @@ function currentRoute(): string {
 
 export default function App() {
   // Slice subscriptions: the shell re-renders only when profiles, the session
-  // or notifications change — a trip edit no longer re-renders the entire
+  // or notifications change - a trip edit no longer re-renders the entire
   // page tree through App.
   const users = useUsers()
   const sessionUserId = useSessionUserId()
@@ -65,11 +65,11 @@ export default function App() {
   const me = useMemo(() => users.find(u => u.id === sessionUserId) ?? null, [users, sessionUserId])
   const [route, setRoute] = useState(currentRoute)
   // Theme is shared (src/lib/theme.ts) so the web topnav toggle and the
-  // Profile card in the Android shell stay in sync — setTheme applies the
+  // Profile card in the Android shell stay in sync - setTheme applies the
   // DOM + persistence + status bar and notifies both render trees.
   const dark = useTheme()
   const [notifOpen, setNotifOpen] = useState(false)
-  // #84: the panel capped at 12 with no way to reach older items — silently
+  // #84: the panel capped at 12 with no way to reach older items - silently
   // lossy. "Show all" expands the list in place; it resets when the popover
   // closes so the bell always opens on the recent view.
   const [notifShowAll, setNotifShowAll] = useState(false)
@@ -79,7 +79,7 @@ export default function App() {
   const [menuRef, userMenuRef] = useClickOutside(() => setMenuOpen(false))
   // Both popovers portal to document.body: nested inside .topnav (which has
   // its own backdrop-filter), their backdrop blur would only sample the nav's
-  // own interior — the page behind stayed sharp. Portaled panels need
+  // own interior - the page behind stayed sharp. Portaled panels need
   // position: fixed, so capture the trigger's viewport rect at open time.
   const [notifPos, setNotifPos] = useState({ top: 0, right: 0 })
   const [menuPos, setMenuPos] = useState({ top: 0, right: 0 })
@@ -142,14 +142,14 @@ export default function App() {
     return off
   }, [mobileNav, notifOpen, menuOpen])
 
-  // Theme radiate via View Transitions — the real UI morphs in both themes.
+  // Theme radiate via View Transitions - the real UI morphs in both themes.
   // Two hard-won rules make this flawless:
   //  1. Suppress backdrop-filter for the transition's lifetime: Chromium
   //     renders glass inside VT snapshots WITHOUT its backdrop, so any glass
   //     layer turns the captured page into a flat gray veil. Unblurred glass
   //     for ~600ms is imperceptible; the veil is not.
   //  2. Drive the clip-path from CSS keyframes selected by a class that is set
-  //     BEFORE startViewTransition — the animation exists from the snapshot
+  //     BEFORE startViewTransition - the animation exists from the snapshot
   //     tree's first frame (no JS-attach gap → no pre-flash) and `fill: both`
   //     holds the end state until teardown (no end flash).
   // Dark → light: the new light view radiates OUT of the icon (slow → zap).
@@ -157,7 +157,7 @@ export default function App() {
   // The landing page runs continuous CSS animations (atmosphere blobs, route
   // line draw, ticker, odometer). A full-page View-Transition snapshots the DOM,
   // so all of that scenery visibly freezes for the ~700 ms the snapshot plays.
-  // Swap instantly there — no radiate — keeping the homepage alive; the radiate
+  // Swap instantly there - no radiate - keeping the homepage alive; the radiate
   // stays for the calmer in-app pages. (Also fixes the mobile eruption point,
   // which was only ever observed on the landing route.)
   function toggleTheme(e: MouseEvent<HTMLButtonElement>) {
@@ -200,7 +200,7 @@ export default function App() {
 
   // On close, hand focus back to the trigger so keyboard users aren't stranded
   // at the end of <body> (the close paths are Escape, outside-click and the
-  // menu items themselves — all leave the trigger as the right landing spot).
+  // menu items themselves - all leave the trigger as the right landing spot).
   const prevNotifOpen = useRef(false)
   const prevMenuOpen = useRef(false)
   useEffect(() => {
@@ -210,7 +210,7 @@ export default function App() {
     prevMenuOpen.current = menuOpen
   }, [notifOpen, menuOpen, notifRef, menuRef])
 
-  // Escape closes any open popover (UI audit F-10) — outside-click alone
+  // Escape closes any open popover (UI audit F-10) - outside-click alone
   // leaves keyboard users stranded.
   useEffect(() => {
     if (!mobileNav && !notifOpen && !menuOpen) return
@@ -236,7 +236,7 @@ export default function App() {
   // one itinerary was indistinguishable from a bookmark of the site. Routes
   // whose name lives in the store (`/trip/…`, `/pub/…`, `/creator/…`) get a
   // generic title here and are refined by the page that already holds the
-  // record — App deliberately slices its subscriptions, and reading the trips
+  // record - App deliberately slices its subscriptions, and reading the trips
   // table just to label a tab would undo that.
   useEffect(() => {
     document.title = pageTitle(routeParts(route))
@@ -247,10 +247,10 @@ export default function App() {
   // Before the first hydrate settles, every "empty" is a lie: a deep link to
   // #/trip/... used to flash Landing, "No trips yet" rendered before data, and
   // invite links showed "broken" mid-load. One gate at the router fixes all
-  // three — auth and share links don't read the cache, so they stay live.
+  // three - auth and share links don't read the cache, so they stay live.
   // The landing route stays live too: LandingPage (and the Plan Bench inside
   // it) never reads the store, and route "/" renders LandingPage after the
-  // gate regardless of who is signed in — so rendering it immediately shows
+  // gate regardless of who is signed in - so rendering it immediately shows
   // exactly what the post-gate frame would be, instead of a spinner that
   // swaps to the full page (the landing load shift, Lighthouse CLS 0.997).
   const ready = useStoreReady()
@@ -262,8 +262,8 @@ export default function App() {
   }, [ready])
   // Collect any share-link cover still pointing at someone else's host. Taking
   // ownership at publish time is a write-path fix, so rows published before it
-  // shipped — and any publish whose copy failed, which keeps the third-party URL
-  // by design — would otherwise keep pointing at Wikimedia forever. Idempotent:
+  // shipped - and any publish whose copy failed, which keeps the third-party URL
+  // by design - would otherwise keep pointing at Wikimedia forever. Idempotent:
   // with nothing to collect it reads the cache and returns.
   useEffect(() => {
     if (!ready || !sessionUserId) return
@@ -271,9 +271,9 @@ export default function App() {
   }, [ready, sessionUserId])
   const bareRoute = parts[0] === undefined || parts[0] === ''
   // The web paints its landing instantly while the store hydrates (no spinner
-  // in front of the marketing home). The shell never shows that page — not
+  // in front of the marketing home). The shell never shows that page - not
   // even as a flash before hydration completes: a signed-in user opening the
-  // app must see the loading block (under the splash), then their app home —
+  // app must see the loading block (under the splash), then their app home -
   // never the website's home. That ready-gate exclusion used to be
   // unconditional, so every launch flashed the marketing landing + its
   // website chrome before NativeHome arrived.
@@ -299,7 +299,7 @@ export default function App() {
       case undefined:
       case '':
         // In the installed app the marketing landing is the wrong front
-        // door — a signed-in user wants their trips, not a sales pitch.
+        // door - a signed-in user wants their trips, not a sales pitch.
         // The shell gets a task-first home; the website keeps the landing
         // (SEO, first-time visitors, the Plan Bench calculator).
         page = isNative && me
@@ -339,12 +339,12 @@ export default function App() {
       case 'auth':
         // A logged-in user landing on /auth (e.g. right after the invite
         // round-trip's login submit) used to fall to `default:` → Landing,
-        // and AuthPage — whose me-effect performs the post-login redirect —
+        // and AuthPage - whose me-effect performs the post-login redirect -
         // never mounted, stranding the user on the landing page with the
         // invite lost. Mount it; the effect sends them on to `next` (or /trips).
         page = <Suspense fallback={lazyRouteFallback}><AuthPage onNavigate={navigate} /></Suspense>
         break
-      // Masteradmin console — intentionally unlinked (no nav pill anywhere):
+      // Masteradmin console - intentionally unlinked (no nav pill anywhere):
       // admins type #/admin; AdminPage itself falls through to Landing for
       // non-admins (the JWT role is the gate, the route existing is not).
       case 'admin':
@@ -375,7 +375,7 @@ export default function App() {
   // Guards: user opted in (Profile toggle) + permission granted + per-id
   // dedupe + read-flag + unfocused tab. Own local writes land in the slice
   // too, but they arrive while the tab is focused, so shouldBrowserNotify()
-  // already filters them — no echo-suppression map needed here.
+  // already filters them - no echo-suppression map needed here.
   const seenNotifIds = useRef<Set<string>>(new Set())
   // A fresh login must not replay the whole inbox as OS pings: seed the seen
   // set with whatever is already in the slice on first run / account switch.
@@ -407,7 +407,7 @@ export default function App() {
           preventDefault and focus <main> programmatically instead. */}
       <a className="skip-link" href="#main" onClick={e => { e.preventDefault(); document.getElementById('main')?.focus() }}>Skip to main content</a>
       {/* The topnav is the website's chrome. The signed-in Android shell hides
-          it entirely — its controls (theme, notifications, account, feedback,
+          it entirely - its controls (theme, notifications, account, feedback,
           creator hub, logout) relocate to the Profile page, reachable from the
           bottom nav. Signed-out users (login entry) and the web keep it. */}
       {(!isNative || !me) && (
@@ -506,12 +506,12 @@ export default function App() {
           </div>{/* /nav-pill-group */}
           {/* On the auth route the card below already offers both, as tabs plus
               a submit. Repeating them in the chrome gave the accent two owners
-              on one screen — and two controls a screen apart that both said
+              on one screen - and two controls a screen apart that both said
               "Log in". */}
           {!me && parts[0] !== 'auth' && (
             <>
               <a className="btn btn-outline btn-sm" {...appLink('#/auth')}>Log in</a>
-              <a className="btn btn-primary btn-sm" {...appLink('#/auth?mode=signup')}>Sign up free</a>
+              <a className="btn btn-primary btn-sm" {...appLink('#/auth?mode=signup')}>Start planning free</a>
             </>
           )}
         </div>
@@ -540,12 +540,12 @@ export default function App() {
 
       <footer className="footer">
         <div className="container footer-inner">
-          <span><b>YatraFlow</b> — plan together, travel better. Built for Indian travellers</span>
-          <span className="small muted">All costs are transparent estimates · No bookings, no payments — planning only</span>
+          <span><b>YatraFlow</b>: plan together, travel better. Built for Indian travellers</span>
+          <span className="small muted">All costs are transparent estimates. No bookings, no payments, planning only. <a className="footer-link" href={feedbackHref()}>Send feedback</a></span>
         </div>
       </footer>
 
-      {/* The shell's primary navigation — same platform gate as the shell home
+      {/* The shell's primary navigation - same platform gate as the shell home
           above (isNative && me), so the website never renders it. It replaces
           the floating pill (hidden in the shell via CSS) but deliberately NOT
           the hamburger tray, which keeps Plan a trip / Creator hub / Log out.
@@ -586,7 +586,7 @@ function SharedTripPage({ payload, onNavigate }: { payload: string; onNavigate: 
   function importIt() {
     if (!trip || !me) { onNavigate('/auth'); return }
     duplicateTrip(trip, me.id)
-    toast('Snapshot imported — it is now in your trips')
+    toast('Snapshot imported - it is now in your trips')
     onNavigate('/trips')
   }
 
@@ -598,7 +598,7 @@ function SharedTripPage({ payload, onNavigate }: { payload: string; onNavigate: 
             where DecompressionStream is missing, and a newer snapshot can fail
             the shape check. Name the likely cause, keep the alternative. */}
         <h1 style={{ fontSize: 26 }}>This snapshot didn’t load</h1>
-        <p className="muted">A snapshot travels inside the link itself, so this is usually a link that arrived truncated — ask for a fresh one from the trip’s Share tab. Opening it in an up-to-date browser, which can unpack it, is worth a try too.</p>
+        <p className="muted">A snapshot travels inside the link itself, so this is usually a link that arrived truncated - ask for a fresh one from the trip’s Share tab. Opening it in an up-to-date browser, which can unpack it, is worth a try too.</p>
         <button className="btn btn-primary" style={{ marginTop: 14 }} onClick={() => onNavigate('/')}>Go home</button>
       </div>
     )
@@ -612,7 +612,7 @@ function SharedTripPage({ payload, onNavigate }: { payload: string; onNavigate: 
         <p className="muted">{state.days}-day trip · {state.destinations}</p>
       )}
       <p className="muted small" style={{ maxWidth: 460 }}>
-        This whole plan is embedded in the link itself — nothing was stored on a server.
+        This whole plan is embedded in the link itself - nothing was stored on a server.
         Import it to get your own editable copy{me ? '' : ' (you will be asked to log in first)'}.
       </p>
       <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 14 }}>
@@ -637,7 +637,7 @@ function InviteGate({ codeOrTripId, onNavigate }: { codeOrTripId: string; onNavi
   const db = useDb()
   const me = currentUser(db)
   // The invited trip is (by definition) not the viewer's yet, so the
-  // membership-scoped hydration never loaded it — fetch it on demand. The
+  // membership-scoped hydration never loaded it - fetch it on demand. The
   // RPC fallback covers private trips: holding the link (the trip's UUID)
   // is the capability to preview it.
   const [trip, setTrip] = useState<Trip | null>(null)
@@ -653,7 +653,7 @@ function InviteGate({ codeOrTripId, onNavigate }: { codeOrTripId: string; onNavi
   // Resolve the code/UUID to a trip, once per link target. A hydration can
   // evict the fetched trip from the cache (fetchSharedTrip merges it, the
   // next full hydrate may drop it), so `trip` lives in local state, not the
-  // cache — the gate must survive re-hydrations without refetching.
+  // cache - the gate must survive re-hydrations without refetching.
   // decodeURIComponent first: the landing page's code box navigates with
   // encodeURIComponent, and a code typed with a space would otherwise arrive
   // as a %20 inside the segment.
@@ -677,7 +677,7 @@ function InviteGate({ codeOrTripId, onNavigate }: { codeOrTripId: string; onNavi
   const joinedRef = useRef(false)
   useEffect(() => {
     if (!me || !trip || joinedRef.current) return
-    // A member re-clicking the link just opens the trip — no re-join toast.
+    // A member re-clicking the link just opens the trip - no re-join toast.
     // The cached copy carries the viewer's membership; a fresh RPC fetch may
     // not, so prefer the cache's memberful view for this check.
     const cached = tripById(trip.id)
@@ -689,15 +689,15 @@ function InviteGate({ codeOrTripId, onNavigate }: { codeOrTripId: string; onNavi
     joinedRef.current = true // StrictMode double-fire guard
     void (async () => {
       setStatus('joining')
-      // Ensure the trip is in the cache before joining — a sign-in hydration
+      // Ensure the trip is in the cache before joining - a sign-in hydration
       // can have replaced the cache after our first fetch, and joinViaInvite
       // reads tripById.
       await fetchSharedTrip(trip.id, true)
       const ok = await joinViaInvite(trip.id, me.id)
-      if (ok) toast(`You’re on “${trip.name}” — happy planning!`)
+      if (ok) toast(`You’re on “${trip.name}” - happy planning!`)
       // joinViaInvite reports false for an RLS refusal or a dropped connection
       // just as readily as for a stale code, so this cannot blame the link.
-      else toast('Couldn’t join just now — open the link again, or ask for a fresh one.', 'err')
+      else toast('Couldn’t join just now - open the link again, or ask for a fresh one.', 'err')
       navigateRef.current(`/trip/${trip.id}`)
     })()
     // Depend on me/trip objects, not a mount-only []: the store hydrates them
@@ -710,7 +710,7 @@ function InviteGate({ codeOrTripId, onNavigate }: { codeOrTripId: string; onNavi
       <div className="container empty-state">
         <div className="big"><Link2 size={38} aria-hidden /></div>
         <h1 style={{ fontSize: 26 }}>This invite didn’t load</h1>
-        <p className="muted">The code may be mistyped or no longer active, or the connection may have dropped — we can’t tell which from here. Ask the organiser for a fresh link, or try again.</p>
+        <p className="muted">The code may be mistyped or no longer active, or the connection may have dropped - we can’t tell which from here. Ask the organiser for a fresh link, or try again.</p>
         <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 14 }}>
           <button className="btn btn-primary" onClick={() => { setStatus('loading'); setRetryTick(t => t + 1) }}>Try again</button>
           <button className="btn btn-outline" onClick={() => onNavigate('/')}>Go home</button>
@@ -722,7 +722,7 @@ function InviteGate({ codeOrTripId, onNavigate }: { codeOrTripId: string; onNavi
   }
 
   if (!me) {
-    // Park the invite in the URL and bounce through auth with a next param —
+    // Park the invite in the URL and bounce through auth with a next param -
     // the old buttons went to plain /auth, and AuthPage's post-login redirect
     // to /trips dropped the invite entirely: users logged in, landed on My
     // Trips, and the trip never appeared.

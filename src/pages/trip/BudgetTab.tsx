@@ -19,7 +19,7 @@ import {
   currentUser, userById, useDb,
 } from '../../store/store'
 import { computeTotals, getAssumptions, formatInr, isRoundTrip, safeToSpendPerDay } from '../../lib/engine'
-import { computeBalances, settleBalances, fairSharePerHead } from '../../lib/settlement'
+import { computeBalances, settleBalances, fairSharePerHead, linesTotal, openTaggedLines } from '../../lib/settlement'
 import { loadFlag, saveFlag } from '../../lib/uiPrefs'
 import { titleCase } from '../../lib/labels'
 import { Avatar, Chip, Field, StatTile, toast, undoToast, useInView, usePageVisible } from '../../components/ui'
@@ -172,29 +172,28 @@ export function BudgetTab({ trip, totals, editable }: { trip: Trip; totals: Retu
     .sort((a, b) => b[1] - a[1])
   const maxCat = cats.length ? cats[0][1] : 1
 
-  // Balances: everyone's fair share is the whole estimate split per head;
-  // tagged expenses credit whoever fronted them. Untagged lines stay in the
-  // shared kitty — they move nobody's balance. Math lives in the pure
+  // I-19 — the balances measure the OPEN lines: fair share = open tagged total
+  // ÷ travellers, credited to whoever fronted those same lines. One population
+  // on both sides, so the card nets to zero and marking a line settled really
+  // does remove it — settle every line and every row reads 0. The trip estimate
+  // is deliberately NOT part of this card any more: it stays in the metric strip
+  // above, which is where a planning figure belongs. Math lives in the pure
   // lib/settlement.ts (unit-tested there; the component is presentation only).
-  const balances = computeBalances(members, trip.expenses, trip.travellers, totals.totalCostInr, userById)
-  const fairShare = fairSharePerHead(trip.travellers, totals.totalCostInr)
-  const tagged = trip.expenses.some(e => e.paidBy)
-  const transfers = settleBalances(balances)
-  const nameOf = (u: User | undefined) => u?.profile.name ?? 'Traveller'
-  // M6 B4 — settle-up lists: the open/settled split is for the two lists
-  // only, NOT for the maths — `balances` above is computed from the WHOLE
-  // trip.expenses, so a settled line still counts toward the running
-  // balances. Settling is a record (who squared up the line, when), not a
-  // removal; making settled lines genuinely leave the balances needs the
-  // fair share re-based onto open lines (ROADMAP idea bank, Tier 1).
   // Newest-settled first in the history so the last action is on top.
   const openExpenses = trip.expenses.filter(e => !e.settled)
   const settledExpenses = trip.expenses.filter(e => e.settled).sort((a, b) => (b.settled?.at ?? 0) - (a.settled?.at ?? 0))
-  // I-6 nudge: only tagged lines move money between people, so the "still to
-  // square up" count is over those alone — an untagged shared-kitty line owes
-  // nobody anything.
-  const openPayable = openExpenses.filter(e => e.paidBy)
-  const openPayableTotal = openPayable.reduce((s, e) => s + e.amountInr * (e.perPerson ? trip.travellers : 1), 0)
+  // I-6 nudge: only tagged lines move money between people, so both the "still
+  // to square up" count and the card's fair share are over those alone (an
+  // untagged shared-kitty line owes nobody anything) — and both come from the
+  // same two helpers, so the figures can never disagree.
+  const openPayable = openTaggedLines(trip.expenses)
+  const openPayableTotal = linesTotal(openPayable, trip.travellers)
+  const settledTotal = linesTotal(settledExpenses, trip.travellers)
+  const balances = computeBalances(members, trip.expenses, trip.travellers, userById)
+  const fairShare = fairSharePerHead(trip.travellers, openPayableTotal)
+  const tagged = openPayable.length > 0
+  const transfers = settleBalances(balances)
+  const nameOf = (u: User | undefined) => u?.profile.name ?? 'Traveller'
 
   return (
     <div>
@@ -375,12 +374,14 @@ export function BudgetTab({ trip, totals, editable }: { trip: Trip; totals: Retu
             <div className="card" style={{ marginTop: 14 }}>
               <h3>Who paid · who owes</h3>
               {members.length < 2
-                ? <p className="hint-text" style={{ margin: '6px 0 0' }}>Fair share is {formatInr(fairShare)} each. Invite your crew from the Share tab, then tag who paid on expense lines — who owes whom shows up here.</p>
+                ? <p className="hint-text" style={{ margin: '6px 0 0' }}>{tagged && <>Fair share is {formatInr(fairShare)} each. </>}Invite your crew from the Share tab, then tag who paid on expense lines — who owes whom shows up here.</p>
                 : <>
                     <p className="hint-text" style={{ margin: '6px 0 10px' }}>
                       {tagged
-                        ? <>Fair share is {formatInr(fairShare)} each.</>
-                        : <>Fair share is {formatInr(fairShare)} each — tag who paid on expense lines and balances appear here.</>}
+                        ? <>Fair share is {formatInr(fairShare)} each, counted over the {openPayable.length} open tagged line{openPayable.length !== 1 ? 's' : ''}.</>
+                        : settledExpenses.length > 0
+                          ? <>Every tagged line is squared up — nothing left to split.</>
+                          : <>Nothing to split yet — tag who paid on expense lines and balances appear here. The estimates above are your planning figure, not a debt.</>}
                     </p>
                     {tagged && (
                       <>
@@ -409,7 +410,7 @@ export function BudgetTab({ trip, totals, editable }: { trip: Trip; totals: Retu
                         {editable && openExpenses.length > 0 && (
                           <div className="settled-strip" style={{ marginTop: 12 }}>
                             <span className="hint-text" style={{ margin: 0 }}>
-                              <b>Settle up:</b> mark a line squared up — it moves to the settled history below; balances still count it.
+                              <b>Settle up:</b> mark a line squared up — it leaves the balances and moves to the settled history below.
                             </span>
                             <div className="settled-list">
                               {openExpenses.map(e => (
@@ -439,7 +440,7 @@ export function BudgetTab({ trip, totals, editable }: { trip: Trip; totals: Retu
                         )}
                         {settledExpenses.length > 0 && (
                           <details className="settled-history">
-                            <summary>{settledExpenses.length} settled line{settledExpenses.length !== 1 ? 's' : ''}</summary>
+                            <summary>{settledExpenses.length} settled · {formatInr(settledTotal)} already squared up</summary>
                             <div className="settled-list">
                               {settledExpenses.map(e => (
                                 <div key={e.id} className="settled-row is-done">

@@ -122,4 +122,32 @@ describe('facade: searchPlacesText (search-to-add)', () => {
     const hits = await searchPlacesText('food express')
     expect(hits.some(h => h.latitude === 0 && h.longitude === 0)).toBe(false)
   })
+
+  it('merges a pool beyond the geocode box\'s 8 so route-ranking can surface a closer free hit', async () => {
+    // The search-to-add surface ranks EVERY hit by its road detour and only
+    // then slices — so the merge must not drop free-stack hits in provider
+    // order (Google first, capped at 8) before that ranking ever runs. Google
+    // Text Search returns its max of 8; the free stack adds 3 more distinct
+    // places that the old cap of 8 silently discarded.
+    vi.stubEnv('VITE_GOOGLE_MAPS_API_KEY', 'test-key')
+    const googlePlaces = Array.from({ length: 8 }, (_, i) => ({
+      id: `G${i}`,
+      displayName: { text: `Google Place ${i}` },
+      location: { latitude: 20 + i * 0.1, longitude: 78 + i * 0.1 },
+    }))
+    const freeResults = Array.from({ length: 3 }, (_, i) => ({
+      id: 1000 + i, name: `Free Place ${i}`, latitude: 21 + i * 0.1, longitude: 79 + i * 0.1, country: 'India',
+    }))
+    const f = routeFetch([
+      [/places:searchText/, { places: googlePlaces }],
+      [/open-meteo/, { results: freeResults }],
+      [/wikipedia/, {}],
+    ])
+    vi.stubGlobal('fetch', f)
+    const hits = await searchPlacesText('place')
+    // All 8 Google + 3 free survive the merge (old behaviour capped it at 8).
+    expect(hits.length).toBe(11)
+    expect(hits.filter(h => h.source === 'google').length).toBe(8)
+    expect(hits.filter(h => h.source === 'open-meteo').length).toBe(3)
+  })
 })

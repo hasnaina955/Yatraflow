@@ -66,7 +66,7 @@ Re-derive the count before quoting it:
 | #228 | P2 | F7 · First distribution loop | The repeatable loop, and only after F3 has answered |
 | #252 | — | F7 · Decide who becomes a creator, and who may publish | Filed 2026-09-19, **unlabelled** — no priority, no type — with 3.3 KB of body. The decision: creator mode is self-enabled by any signed-in user (`CreatorHubPage.tsx` → `updateProfile`), `adminSetCreator()` can badge anyone but is not a gate, and publishing is gated on trip ownership rather than on creator status, so the two switches have never been reconciled. Needs a priority and an owner before it can be scheduled |
 | #255 | P3 | Overdrive: the receipt learns to print — morph the itinerary's numbers into a real bill | Filed 2026-09-18 — this is **I-18** from the Tier 1 bank below, now tracked. Parked, not started: blocked on a product decision (whose cost estimate a published bill represents is a factual claim, and inventing one would ship a claim nobody agreed to) and on the design-token approval rule. Its contract stands — 2–3 directions presented and one picked before any code |
-| #236 | P2 | M5 · AI companion — user-configurable LLM endpoint | The track below; the unbuilt fix behind closed #22 → #20 |
+| #236 | P2 | M5 · AI companion — user-configurable LLM endpoint | Built — the endpoint, Jev fast path and offline fallback ship in `[Unreleased]`; flag-off until M8 |
 | #237 | P2 | M6 · Together — collaboration depth | The track below |
 | #238 | P2 | M7 · Premium — the payment rail | The track below; needs F6 settled first |
 | #239 | P2 | M8 · 1.0 enablers → the 1.0 cut | The track below |
@@ -170,7 +170,7 @@ and date), per the AGENTS §6 same-edit rule. Detail lives in
 - [x] **M3** — Performance architecture: store immutability → slice selectors → DaySection memo → workspace split into pages/trip/* + weather dedup + lazy routes (in [Unreleased], local branch redesign/perf-architecture)
 - [x] **M4** — Design-system hygiene: dead CSS purge, mobile-block consolidation, glass/z-index tokens (in [Unreleased], local branch redesign/perf-architecture; raw-rgba glass stragglers intentionally NOT migrated — see commit `f646b45`)
 - [x] **M0 defect** — seed guard: skip demo seeding when hydration had query errors (#94, v0.49.0 — `store.ts` gates the seed on `!tripCountUnknown`)
-- [ ] **M5** — AI companion: user-configurable LLM endpoint (#22 → #20 — **both issues closed; not yet scheduled**)
+- [x] **M5** — AI companion: user-configurable LLM endpoint (#22 → #20 — both closed as audit findings; the fix is built, in `[Unreleased]`)
 - [ ] **M6** — Together: every named item shipped — integration/RLS suite (v0.61.0); co-editing depth (v0.62.0, PR #265 — presence, stale-update guard, remote-edit banner, mark-settled, plus the Board/socket-gap follow-up `e5bba2a`); I-6/I-7 (v0.64.0); I-19 (open-lines balances) and I-16 (cross-device Trip DNA) in `[Unreleased]`. What is left is a human step, not code: the two-account presence confirmation pass, after which issue #237 closes
 - [x] **M10** — Day Planner / travel clock: the engine line shipped through P1-G (plan doc implemented, Sep 13) and the map half — clock anchors, planned-stop arrival chips, return-leg labels, living-plan day states, named overnight halts and tap-to-day — is on `test` (released as **v0.63.0** on 2026-09-20, **PR #262**); no open phases remain named in the plan doc
 - [ ] **M7** — Premium: payment gateway, entitlements, unlock flow

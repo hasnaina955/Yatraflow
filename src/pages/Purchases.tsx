@@ -13,10 +13,11 @@
 //     publication's price today — a creator raising their price does not
 //     retroactively change what you paid.
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, ShoppingBag } from 'lucide-react'
+import { ArrowLeft, Share2, ShoppingBag } from 'lucide-react'
 import { usePublished, useUsers, useSessionUserId } from '../store/store'
 import { fetchMyPurchases } from '../lib/unlock'
-import { buildPurchaseShelf } from '../lib/purchases'
+import { buildPurchaseShelf, purchaseShareable } from '../lib/purchases'
+import { sharePurchase } from '../lib/purchaseShare'
 import { forkPublication } from '../lib/forkPub'
 import { CoverThumb } from '../components/CoverThumb'
 import { Chip, EmptyState, toast } from '../components/ui'
@@ -129,6 +130,15 @@ export function PurchasesPage({ onNavigate }: { onNavigate: (r: string) => void 
                   <div className="purchase-actions">
                     <button className="btn btn-primary" onClick={() => onNavigate(`/pub/${row.pubId}`)}>Open the plan</button>
                     {row.listed && <button className="btn btn-ghost" onClick={() => fork(row.pubId)}>Fork into my trips</button>}
+                    {/* ROADMAP I-21: the buyer's own card. Offered only while the
+                        publication still exists — a withdrawn plan's link
+                        previews as nothing, and handing someone a dead link to
+                        post is worse than not offering it (purchaseShareable). */}
+                    {purchaseShareable(row) && (
+                      <button className="btn btn-ghost" onClick={() => void sharePurchase(row)}>
+                        <Share2 size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Share what you bought
+                      </button>
+                    )}
                   </div>
                 </div>
               </article>

@@ -12,14 +12,15 @@
 // Motion follows the token catalog: a full-screen sheet is a large surface
 // (--motion-slow + --ease-out), the facts take the entrance pattern, and both
 // opt out under prefers-reduced-motion (AGENTS rule 10).
-import { CalendarDays } from 'lucide-react'
+import { CalendarDays, Share2 } from 'lucide-react'
 import { Modal, StatTile } from './ui'
 import { CoverThumb } from './CoverThumb'
 import { formatInr } from '../lib/engine'
 import { unlockRevealStats } from '../lib/purchases'
+import { sharePurchase } from '../lib/purchaseShare'
 import type { PublishedItinerary, Trip, User } from '../data/types'
 
-export function UnlockReveal({ open, pub, trip, creator, amountPaidInr, onFork, onClose }: {
+export function UnlockReveal({ open, pub, trip, creator, amountPaidInr, entitlementId, onFork, onClose }: {
   open: boolean
   pub: PublishedItinerary
   /** The itinerary served AFTER the entitlement existed — the pre-purchase
@@ -29,6 +30,11 @@ export function UnlockReveal({ open, pub, trip, creator, amountPaidInr, onFork, 
   trip: Trip
   creator?: User
   amountPaidInr?: number
+  /** The grant this purchase produced. Absent for a moment while the
+   *  entitlement read lands (the purchase callback refreshes it), which only
+   *  keeps the share control from appearing a beat early — the card is gated on
+   *  the server anyway. */
+  entitlementId?: string
   onFork: () => void
   onClose: () => void
 }) {
@@ -82,6 +88,19 @@ export function UnlockReveal({ open, pub, trip, creator, amountPaidInr, onFork, 
             Fork into my trips
           </button>
           <button className="btn btn-ghost" onClick={onClose}>Read the plan</button>
+          {/* ROADMAP I-21 — the artifact buyers voluntarily circulate. This is
+              the highest-intent moment there is for one, but it stays the last
+              and quietest action: the ceremony is about what was just gained,
+              not about asking for a post. */}
+          {entitlementId && (
+            <button
+              className="btn btn-ghost"
+              onClick={() => void sharePurchase({ pubId: pub.id, entitlementId, title: pub.title })}
+            >
+              <Share2 size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 6 }} />
+              Share what you bought
+            </button>
+          )}
         </div>
         <p className="hint-text unlock-reveal-hint">
           Forking copies the whole plan into your own trips with today’s dates — you can rename it, re-time it and

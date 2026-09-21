@@ -439,6 +439,10 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
             trip={revealTrip}
             creator={creator}
             amountPaidInr={pub.premiumPriceInr}
+            // The grant itself, for the reveal's share card (I-21) — read from the
+            // entitlement list the purchase refreshed, so it arrives with the read
+            // that followed the unlock.
+            entitlementId={entitlements.find(e => e.pubId === pub.id)?.id}
             onFork={() => { setRevealTrip(null); copyThis() }}
             onClose={() => setRevealTrip(null)}
           />

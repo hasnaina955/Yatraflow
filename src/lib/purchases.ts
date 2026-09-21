@@ -18,6 +18,10 @@ import type { PublishedItinerary, Trip, User } from '../data/types'
 /** One owned publication, as the shelf needs it. */
 export interface PurchaseRow {
   pubId: string
+  /** The entitlement itself — the buyer's title deed, and the capability that
+   *  unlocks the buyer-framed share card. Owner-only RLS keeps it readable to
+   *  this buyer alone, so the shelf is the right place to hold it. */
+  entitlementId: string
   title: string
   coverImageUrl?: string
   creatorId: string
@@ -69,6 +73,7 @@ export function buildPurchaseShelf(
     const pub = pubById.get(e.pubId)
     rows.push({
       pubId: e.pubId,
+      entitlementId: e.id,
       title: pub?.title || 'A plan you own',
       coverImageUrl: pub?.coverImageUrl,
       creatorId: pub?.creatorId ?? '',
@@ -93,6 +98,17 @@ export function buildPurchaseShelf(
     totalPaidInr: rows.reduce((sum, r) => sum + r.amountPaidInr, 0),
     updatedCount: rows.filter(r => r.updatedSince).length,
   }
+}
+
+/** Whether this purchase can be offered for sharing at all (ROADMAP I-21).
+ *
+ *  A buyer's card resolves through `/i/<pubId>`, and unpublishing DELETES the
+ *  publication row — so the link for a withdrawn plan previews as nothing, and
+ *  offering it would hand somebody a dead link to post. The buyer's own access
+ *  and their copy are untouched by this: only the public card needs the row to
+ *  exist. */
+export function purchaseShareable(row: PurchaseRow): boolean {
+  return row.listed
 }
 
 export interface RevealStats {

@@ -9,7 +9,7 @@
 // still owns it.
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
-import { buildPurchaseShelf, unlockRevealStats } from '../src/lib/purchases'
+import { buildPurchaseShelf, purchaseShareable, unlockRevealStats } from '../src/lib/purchases'
 import { computeTotals } from '../src/lib/engine'
 import { seedData } from '../src/data/seed'
 import type { Entitlement } from '../src/lib/payments'
@@ -234,5 +234,23 @@ describe('I-20 — the shelf distinguishes "nothing" from "could not read"', () 
   it('uses the strict read, so a dropped connection cannot read as an empty shelf', () => {
     expect(shelfSource).toMatch(/fetchMyPurchases/)
     expect(shelfSource).not.toMatch(/fetchMyEntitlements/)
+  })
+})
+
+describe('I-21 — a purchase carries the entitlement its card is verified against', () => {
+  it('puts the grant on the row, not just the publication', () => {
+    // The share card is gated on the entitlement id (owner-only RLS keeps it
+    // readable to its buyer alone), so the shelf is where it has to come from.
+    const shelf = buildPurchaseShelf([entitlement({ id: 'ent_9' })], [pub()], [])
+    expect(shelf.rows[0]!.entitlementId).toBe('ent_9')
+  })
+
+  it('offers sharing only while the publication still resolves', () => {
+    // Unpublishing DELETES the row, so `/i/<id>` 404s and the shared link would
+    // preview as nothing at all — the buyer's own access is unaffected.
+    const listed = buildPurchaseShelf([entitlement()], [pub()], [])
+    const withdrawn = buildPurchaseShelf([entitlement()], [], [])
+    expect(purchaseShareable(listed.rows[0]!)).toBe(true)
+    expect(purchaseShareable(withdrawn.rows[0]!)).toBe(false)
   })
 })

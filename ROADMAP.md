@@ -282,11 +282,14 @@ version is whatever the ledger says is unshipped — read the **Snapshot** line 
 file for the current number rather than trusting a sentence that can rot.
 
 ### M5 — "AI companion" — **issue #236**
-User-configurable OpenAI-compatible endpoint (Profile settings,
-`src/lib/aiProvider.ts`), real LLM answers with the deterministic router kept
-as offline fallback + "(LLM)/(offline)" badge. The original pair (#22 → #20) are both
-**closed** as audit findings, so the unbuilt fix is carried by issue #236. For what *is* live,
-see [Open issues](#open-issues) — fourteen issues are open (2026-09-16).
+**State (2026-09-21): built — the LLM leg ships in `[Unreleased]`.** Profile
+settings takes any OpenAI-compatible endpoint (`src/lib/aiProvider.ts`); the
+companion answers with that model, grounded in the trip data, and falls back to
+the deterministic router on ANY failure (no config, network, timeout, bad key,
+malformed response), with an (LLM)/(offline) badge on every reply so the user
+always knows which brain spoke. The key is device-local (localStorage), never
+sent to YatraFlow servers. The drawer stays behind `VITE_AI_COMPANION=on` until
+M8 unmounts it as the premium perk.
 
 ### M6 — "Together" (collaboration depth) — **issue #237**
 Supabase integration/RLS test suite first (opt-in `VITE_RUN_INTEGRATION`,
@@ -417,8 +420,8 @@ the bank is a complete index of unbuilt work:
 | Track | Where | State |
 |---|---|---|
 | Public route at `/i/<id>` with no hash hop (option B) | [#226](#open-issues) | **Deferred.** The address-bar patch already keeps `/i/<id>#/pub/<id>` crawler-readable, so previews no longer need it. It would still drop the function round-trip on every refresh — and the interim "Opening this itinerary…" page that goes with it — by serving the app at the path the crawler already reads. Needs coordinated app routing, Vercel shell delivery, legacy hash-link handling and refresh/Back/Forward coverage; must not redirect `/i/<id>` to itself or fetch a different deployment's shell |
-| M5 — AI companion | [Strategic track](#m5--ai-companion--issue-236) | Next up; issues #22 → #20 |
 | M6 — Together | [Strategic track](#m6--together-collaboration-depth--issue-237) | Every named item shipped — RLS suite (v0.61.0); co-editing depth (v0.62.0); I-6/I-7 (v0.64.0); I-19/I-16 (`[Unreleased]`). Open: the two-account presence confirmation pass |
+| M5 — AI companion | [Strategic track](#m5--ai-companion--issue-236) | Built: LLM endpoint + offline fallback + badge (in `[Unreleased]`); flag-off until M8 |
 | M7 — Premium | [Strategic track](#m7--premium-monetization--issue-238) | Blocked: needs a gateway account |
 | M9 — Invites & onboarding | [`docs/PLAN-INVITES-ONBOARDING.md`](docs/PLAN-INVITES-ONBOARDING.md) | R1 → R2 → R3; exec plan written |
 | M10 — Day Planner (travel-clock engine) | [`docs/PLAN-DAY-PLANNER.md`](docs/PLAN-DAY-PLANNER.md) | Engine implemented through P1-G (Sep 13, 2026, per the plan doc’s §17 deltas); the map half — the travel clock drawn as living road labels (`lib/clockOverlay.ts`, 27 fixtures) — landed on `test` 2026-09-20 (**PR #262**, in `[Unreleased]`). Origin: fixes the short-trip suggestion silence (user feedback) and the 700-km-in-Day-1 gap — meals as fixed clock anchors, duration fatigue cap, derived drive days / night halts / defer proposals |

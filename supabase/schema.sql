@@ -157,6 +157,17 @@ create table if not exists public.notifications (
   at        bigint not null default extract(epoch from now()) * 1000
 );
 
+-- ---------- user_dna ----------
+-- I-16 — the account half of Trip DNA. One row per user; the PK IS the owner.
+-- Client-side cap of 500 events, mirroring the localStorage log. Vocabulary
+-- lives in src/data/types.ts, never in a CHECK here. Migration of record:
+-- 20260921_user_dna.sql.
+create table if not exists public.user_dna (
+  user_id    uuid primary key references public.profiles (id) on delete cascade,
+  log        jsonb not null default '[]'::jsonb,
+  updated_at timestamptz not null default now()
+);
+
 -- ---------- published_itineraries ----------
 create table if not exists public.published_itineraries (
   id                          text primary key,                       -- slug
@@ -338,6 +349,7 @@ alter table public.decisions enable row level security;
 alter table public.activity enable row level security;
 alter table public.notifications enable row level security;
 alter table public.published_itineraries enable row level security;
+alter table public.user_dna enable row level security;
 alter table public.admin_audit enable row level security;
 
 -- ---------- admin deny (RESTRICTIVE — the only policies that take access
@@ -349,6 +361,7 @@ create policy "deny disabled" on public.suggestions as restrictive for all to au
 create policy "deny disabled" on public.decisions as restrictive for all to authenticated using (not public.is_disabled());
 create policy "deny disabled" on public.activity as restrictive for all to authenticated using (not public.is_disabled());
 create policy "deny disabled" on public.notifications as restrictive for all to authenticated using (not public.is_disabled());
+create policy "deny disabled" on public.user_dna as restrictive for all to authenticated using (not public.is_disabled());
 create policy "deny disabled" on public.published_itineraries as restrictive for all to authenticated using (not public.is_disabled());
 
 -- ---------- admin read bypass (SELECT everywhere) ----------
@@ -360,6 +373,7 @@ create policy "admin read" on public.decisions for select to authenticated using
 create policy "admin read" on public.activity for select to authenticated using (public.is_admin());
 create policy "admin read" on public.notifications for select to authenticated using (public.is_admin());
 create policy "admin read" on public.published_itineraries for select to authenticated using (public.is_admin());
+create policy "admin read" on public.user_dna for select to authenticated using (public.is_admin());
 create policy "admin audit read" on public.admin_audit for select to authenticated using (public.is_admin());
 
 -- ---------- admin write bypass (escape hatch for the workspace UI; the
@@ -504,6 +518,22 @@ create policy "published read" on public.published_itineraries
 
 create policy "published write" on public.published_itineraries
   for all using (auth.uid() = creator_id) with check (auth.uid() = creator_id);
+
+-- ---------- user_dna ----------
+-- Owner-only on all four verbs: the DNA log is behavioural (what this person
+-- accepted and declined), never crew-visible, so there is no member/editor
+-- branch to reason about the way trips has one.
+create policy "user_dna read" on public.user_dna
+  for select using (auth.uid() = user_id);
+
+create policy "user_dna insert" on public.user_dna
+  for insert with check (auth.uid() = user_id);
+
+create policy "user_dna update" on public.user_dna
+  for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+create policy "user_dna delete" on public.user_dna
+  for delete using (auth.uid() = user_id);
 
 -- ============================================================
 -- Realtime (Phase 4): broadcast row changes for live multi-editor sync.

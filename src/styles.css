@@ -2526,6 +2526,9 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
    keyboard focus (tabIndex=0 on the peer chip), so the name is reachable
    without a pointer. Entrance rides the motion tokens (dropdown pattern). */
 .presence-stack { display: inline-flex; align-items: center; margin-left: 14px; }
+/* Empty presence room: inherits the head card's text colour at the same opacity
+   as the member count beside it, so it needs no token of its own. */
+.presence-solo { opacity: .85; }
 .presence-peer { position: relative; display: inline-flex; align-items: center; margin-left: -8px; }
 .presence-peer:first-child { margin-left: 0; }
 .presence-peer .avatar { border: 2px solid var(--card); }

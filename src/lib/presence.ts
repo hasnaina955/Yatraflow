@@ -93,6 +93,27 @@ export function visiblePeers(state: PresenceState, selfSessionKey: string): Pres
   return state.peers.filter(p => p.sessionKey !== selfSessionKey)
 }
 
+/**
+ * What the trip header's presence row renders. Three states, and the third is
+ * the point: a room with nobody else in it is an ANSWER ("just you"), not the
+ * same thing as presence being off. The old render gate
+ * (`peers.length > 0`) collapsed both into "render nothing", so a solo viewer
+ * could not tell an empty room from a broken feature — the first thing the
+ * owner asked on the two-browser pass (see docs/PLAN-TOGETHER-M6.md).
+ *   hidden — presence is not running (anon/public view, no trip, no backend)
+ *   solo   — connected, and nobody else is in the room
+ *   peers  — connected, with one entry per other viewer
+ */
+export type PresenceView =
+  | { kind: 'hidden' }
+  | { kind: 'solo' }
+  | { kind: 'peers'; peers: PresencePeer[] }
+
+export function presenceView(peers: PresencePeer[], connected: boolean): PresenceView {
+  if (!connected) return { kind: 'hidden' }
+  return peers.length > 0 ? { kind: 'peers', peers } : { kind: 'solo' }
+}
+
 // ---------------- channel wrapper ----------------
 
 /** The channel name for one trip's presence room. */

@@ -19,9 +19,10 @@ import { cap, titleCase } from '../lib/labels'
 import { useTimeFormat, formatHM, formatHMRange } from '../lib/timefmt'
 import { stopKindOf, STOP_KIND_LABELS } from '../lib/stopKind'
 import { useSavedPubs } from '../lib/savedPubs'
-import { fetchMyEntitlements, purchaseUnlock } from '../lib/unlock'
+import { fetchMyEntitlements, fetchCreatorSales, fetchCreatorFunnel, purchaseUnlock, type FunnelDailyRow } from '../lib/unlock'
 import { UnlockReveal } from '../components/UnlockReveal'
 import { hasUnlock } from '../lib/payments'
+import { buildPubFunnels, describePreLog, funnelGlance, type FunnelSale } from '../lib/pubFunnel'
 import { currentPublicShareUrl } from '../lib/shareUrl'
 import { appLink } from '../lib/appLink'
 import { pageTitle } from '../lib/pageTitle'
@@ -73,6 +74,51 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
     void fetchMyEntitlements(meId).then(rows => { if (alive) setEntitlements(rows) })
     return () => { alive = false }
   }, [pub?.id, meId])
+  // ---- The creator's own glance (I-22 follow-up): the page's creator reads
+  // how THIS link converts without opening the hub. Same RPC, same derivation
+  // and same window rule as the hub (buildPubFunnels + funnelGlance), so a
+  // number cannot differ between the two surfaces. A visitor's session never
+  // runs these reads — isMyPub gates them, and the strip mounts for nobody
+  // else. Sales ride along because the unlock stage comes from the ledger,
+  // never from a re-recording of it.
+  const isMyPub = !!(meId && pub && pub.creatorId === meId)
+  const [myDaily, setMyDaily] = useState<FunnelDailyRow[] | null>(null)
+  const [mySales, setMySales] = useState<FunnelSale[] | null>(null)
+  const [myFunnelError, setMyFunnelError] = useState(false)
+  const [mySalesError, setMySalesError] = useState(false)
+  useEffect(() => {
+    if (!isMyPub) return
+    let alive = true
+    setMyFunnelError(false)
+    void fetchCreatorFunnel()
+      .then(rows => { if (alive) setMyDaily(rows) })
+      .catch(() => { if (alive) { setMyFunnelError(true); setMyDaily(null) } })
+    void fetchCreatorSales()
+      .then(rows => { if (alive) { setMySales(rows); setMySalesError(false) } })
+      .catch(() => { if (alive) { setMySalesError(true); setMySales(null) } })
+    return () => { alive = false }
+  }, [isMyPub, pub?.id, meId])
+  // Above the early return with every other hook (the #310 rule). A failed
+  // funnel read surfaces as myFunnelError — the strip then says it failed
+  // rather than rendering a measurement it does not have.
+  const myGlance = useMemo(() => {
+    if (!isMyPub || !pub || !myDaily || !mySales) return null
+    const [f] = buildPubFunnels({
+      daily: myDaily,
+      sales: mySales,
+      pubs: [{
+        id: pub.id, title: pub.title, priceInr: pub.premiumPriceInr ?? null,
+        lifetimeViews: pub.views, lifetimeForks: pub.copies,
+      }],
+      days: 7,
+      now: Date.now(),
+    })
+    return { glance: funnelGlance(f), preLog: describePreLog(f) }
+  }, [isMyPub, pub, myDaily, mySales])
+  // A failed SALES read is a failed read too — the strip's unlock step would
+  // otherwise render a zero that is a measurement of nothing.
+  const myReadFailed = myFunnelError || mySalesError
+  const myReadPending = !myFunnelError && myDaily === null
   useEffect(() => {
     if (!pub || fetched || miss) return
     let alive = true
@@ -320,6 +366,27 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
                 <div>
                   <b>{creator?.profile.name ?? 'Creator'}</b>{creator?.profile.isCreator && <span className="chip chip-saffron" style={{ marginLeft: 8 }}><Sparkles size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />Creator</span>}
                   {creator?.profile.creatorBio && <p className="small muted" style={{ margin: '5px 0 0' }}>{creator.profile.creatorBio}</p>}
+                  {isMyPub && (
+                    <div className="pub-funnel-glance" role="note" aria-label="How this plan converts, last 7 days">
+                      <b className="pub-fg-title">This link, last 7 days</b>
+                      <span className="pub-fg-line num">
+                        {myReadFailed
+                          ? 'Recorded traffic could not be read just now — the creator hub shows the same numbers when it can.'
+                          : myReadPending
+                          ? 'Reading this link’s traffic…'
+                          : myGlance?.glance
+                          ? myGlance.glance
+                          : 'No recorded traffic for this plan yet.'}
+                      </span>
+                      {myGlance?.preLog && <span className="pub-fg-prelog muted">{myGlance.preLog}</span>}
+                      {/* In-app navigation (onNavigate), not a new appLink anchor —
+                          the anchor-count pin in tests/app-link.test.ts exists so
+                          new route anchors get reviewed, and this one is internal. */}
+                      <button className="btn btn-outline btn-sm" style={{ marginTop: 6, alignSelf: 'flex-start' }} onClick={() => onNavigate('/creator-hub')}>
+                        Open the creator hub →
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
               {creator?.profile.socialLinks && (

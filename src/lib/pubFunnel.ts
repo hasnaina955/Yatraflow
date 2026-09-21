@@ -87,6 +87,14 @@ export interface PubFunnel {
   /** No recorded step at all in the fetched range. Distinct from a window with
    *  no traffic: this is a publication whose trend nothing can speak for yet. */
   unreported: boolean
+  /** Lifetime views minus everything the log holds for this publication — the
+   *  traffic the counters saw BEFORE recording began. 0 when the log accounts
+   *  for the counters; null when the read failed and the size of the gap is
+   *  simply not known. Never negative (a log cannot hold more than the
+   *  counter saw), so a test-heavy re-run cannot render a phantom deficit. */
+  preLogViews: number | null
+  /** Same, for forks. */
+  preLogForks: number | null
 }
 
 /** The windows the hub offers. Days, so the label and the arithmetic cannot
@@ -185,6 +193,15 @@ export function buildPubFunnels(input: {
     const views = windowed.views
     const forks = windowed.forks
     const unlocks = unlocksInWindow.get(pub.id) ?? 0
+    // The counters were born BEFORE the log (v0.36-era rows vs a 2026-09
+    // migration), so the two never agreed and nothing on screen said why.
+    // The gap is stated, not clamped into silence, and never negative.
+    const preLogViews = lifetime
+      ? Math.max(0, pub.lifetimeViews - lifetime.views)
+      : null
+    const preLogForks = lifetime
+      ? Math.max(0, pub.lifetimeForks - lifetime.forks)
+      : null
     return {
       pubId: pub.id,
       title: pub.title,
@@ -201,13 +218,60 @@ export function buildPubFunnels(input: {
       forksExceedViews: forks > views,
       recordingSinceDay: earliestDay.get(pub.id) ?? null,
       unreported: !lifetime || (lifetime.views === 0 && lifetime.forks === 0),
+      preLogViews,
+      preLogForks,
     }
   })
+}
+
+/**
+ * The one sentence the two surfaces (hub, and the plan's own public page)
+ * render about the traffic that predates the event log — so "the counters and
+ * the log disagree" has the same explanation everywhere instead of two
+ * paraphrases that can drift.
+ *
+ * The case split matters:
+ *   * `aligned` — the log accounts for the counters (a young publication, or a
+ *     test-heavy one). Silence is correct; inventing a story would be noise.
+ *   * `preLog` — real counters, partially unlogged history. Named and dated.
+ *   * `unknown` — the read failed, so the SIZE of any gap is not knowable. A
+ *     failed read may not quietly claim "the difference is just pre-log
+ *     traffic" — that is the conflation class this view was built to avoid.
+ */
+export function describePreLog(f: Pick<PubFunnel, 'preLogViews' | 'preLogForks' | 'recordingSinceDay'>): string | null {
+  if (f.preLogViews === null || f.preLogForks === null) return null
+  if (f.preLogViews === 0 && f.preLogForks === 0) return null
+  const bits: string[] = []
+  if (f.preLogViews > 0) bits.push(`${f.preLogViews.toLocaleString('en-IN')} visit${f.preLogViews === 1 ? '' : 's'}`)
+  if (f.preLogForks > 0) bits.push(`${f.preLogForks.toLocaleString('en-IN')} fork${f.preLogForks === 1 ? '' : 's'}`)
+  const counts = bits.join(' and ')
+  const since = f.recordingSinceDay
+    ? ` — recording began ${new Date(`${f.recordingSinceDay}T00:00:00Z`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`
+    : ''
+  return `${counts} of the all-time counts predate the event log${since}.`
 }
 
 /** Percentages as a reader expects them — one decimal only when it carries
  *  information ("9.2%", "0.4%", "12%"). Shared so two surfaces cannot round the
  *  same rate differently. */
+/**
+ * The glance strip the PLAN'S OWN PUBLIC PAGE shows its creator: the same
+ * windowed steps the hub draws, in one line, with the same boundary rule (the
+ * whole-UTC-days window through `funnelWindowStart`). One helper, two
+ * surfaces, so a visit/fork a visitor creates while reading shows up
+ * identically wherever the creator looks.
+ *
+ * `null` means "say nothing": the strip is absent for any viewer who is not
+ * the publication's creator, for a failed read, and for a publication the log
+ * has never reported — those are covered by caller-side copy, not a strip.
+ */
+export function funnelGlance(f: Pick<PubFunnel, 'views' | 'forks' | 'unlocks' | 'forkRatePct' | 'unlockRatePct' | 'unreported'>): string | null {
+  if (f.unreported) return null
+  const fork = f.forkRatePct > 0 ? ` (${formatPct(f.forkRatePct)})` : ''
+  const unlock = f.unlockRatePct > 0 ? ` (${formatPct(f.unlockRatePct)})` : ''
+  return `${f.views} visit${f.views === 1 ? '' : 's'} → ${f.forks} fork${f.forks === 1 ? '' : 's'}${fork} → ${f.unlocks} unlock${f.unlocks === 1 ? '' : 's'}${unlock} · last 7 days`
+}
+
 export function formatPct(pct: number): string {
   if (!(pct > 0)) return '0%'
   const rounded = pct >= 10 ? pct.toFixed(0) : pct.toFixed(1)

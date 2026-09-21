@@ -14,7 +14,7 @@ import {
 } from '../lib/earnings'
 import { fetchCreatorSales, fetchCreatorFunnel, type FunnelDailyRow } from '../lib/unlock'
 import {
-  buildPubFunnels, formatPct, FUNNEL_WINDOWS, type FunnelSale, type FunnelWindowDays, type PubFunnel,
+  buildPubFunnels, describePreLog, formatPct, FUNNEL_WINDOWS, type FunnelSale, type FunnelWindowDays, type PubFunnel,
 } from '../lib/pubFunnel'
 import { formatInr } from '../lib/engine'
 import { Chip, ConfirmDialog, Field, toast } from '../components/ui'
@@ -239,6 +239,10 @@ function FunnelLine({ f, unread }: { f: PubFunnel | undefined; unread: boolean }
       All time {f.lifetimeViews} visits · {f.lifetimeForks} forks · {f.lifetimeUnlocks} unlocks
     </span>
   )
+  // The counters-vs-log sentence. Computed once here (one derivation, shared
+  // with the public page through describePreLog) so the two surfaces cannot
+  // disagree about why the numbers differ.
+  const preLog = describePreLog(f)
   if (unread) {
     return (
       <span className="pub-funnel">
@@ -267,6 +271,11 @@ function FunnelLine({ f, unread }: { f: PubFunnel | undefined; unread: boolean }
           <span className="muted">· more forks than visits — Explore&apos;s card forks a plan without opening it</span>
         )}
       </span>
+      {/* Thread 2: the lifetime line usually disagrees with the log, because the
+          counters predate it. Naming that beats leaving a reader to conclude
+          the window is wrong — this is the explanation, one source, both
+          surfaces (the plan's public page renders it too). */}
+      {preLog && <span className="pf-prelog muted">{preLog}</span>}
       {lifetime}
     </span>
   )

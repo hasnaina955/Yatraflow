@@ -14,7 +14,7 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import {
-  buildPubFunnels, conversionPct, formatPct, funnelWindowStart, utcDayKey, utcDayStart,
+  buildPubFunnels, conversionPct, describePreLog, formatPct, funnelGlance, funnelWindowStart, utcDayKey, utcDayStart,
   FUNNEL_WINDOWS, type FunnelDailyRow, type FunnelPub, type FunnelSale,
 } from '../src/lib/pubFunnel'
 // The fixture's traffic plan. A PURE module rather than the CLI script itself:
@@ -237,6 +237,8 @@ describe('formatPct shows a decimal only when it carries information', () => {
 
 const migration = read('../supabase/migrations/20260921_pub_funnel_events.sql')
 const migrationCode = codeOf(migration)
+const hubCode = read('../src/pages/CreatorHubPage.tsx')
+const publicCode = read('../src/pages/PublicItinerary.tsx')
 const schema = read('../supabase/schema.sql')
 
 describe('the log is written by the ONE function that moves the counter', () => {
@@ -547,5 +549,118 @@ describe('the creator fixture\u2019s traffic plan', () => {
     expect(script).toContain('planFunnelEvents(')
     expect(script).toContain("sql.remove('pub_events', 'pub_id'")
     expect(script).toContain('FUNNEL_TOTALS.get(p.slug)')
+  })
+})
+
+// ---- The pre-log story (thread 2) ------------------------------------------
+// The lifetime counters were born before the event log, so they disagree with
+// it by design — and until now nothing on screen said so. The derivation
+// exposes the gap as a NUMBER with three cases that must stay distinct:
+// aligned (silence), a real gap (named and dated), and a failed read (null —
+// the size of the gap is simply not knowable).
+describe('the pre-log story: counters vs the event log', () => {
+  const NOW = Date.UTC(2026, 8, 21, 12) // 2026-09-21 noon UTC
+  const pub = (lifetimeViews: number, lifetimeForks: number): FunnelPub => ({
+    id: 'p1', title: 'P1', priceInr: 199, lifetimeViews, lifetimeForks,
+  })
+  const f = (daily: FunnelDailyRow[], lifetimeViews: number, lifetimeForks: number) =>
+    buildPubFunnels({ daily, sales: [], pubs: [pub(lifetimeViews, lifetimeForks)], days: 7, now: NOW })[0]
+
+  it('stays silent when the log accounts for the counters', () => {
+    // 3 views + 1 fork all inside the window: nothing unlogged to explain.
+    const daily: FunnelDailyRow[] = [{ pubId: 'p1', day: utcDayKey(NOW), views: 3, forks: 1 }]
+    const row = f(daily, 3, 1)
+    expect(row.preLogViews).toBe(0)
+    expect(row.preLogForks).toBe(0)
+    expect(describePreLog(row)).toBeNull()
+  })
+
+  it('names and dates a real gap', () => {
+    // 12 lifetime views but the log only holds 3: 9 predate recording.
+    const daily: FunnelDailyRow[] = [{ pubId: 'p1', day: utcDayKey(NOW), views: 3, forks: 0 }]
+    const row = f(daily, 12, 5)
+    expect(row.preLogViews).toBe(9)
+    expect(row.preLogForks).toBe(5)
+    const line = describePreLog(row)
+    expect(line).toContain('9 visits')
+    expect(line).toContain('5 forks')
+    expect(line).toContain('predate the event log')
+    expect(line).toMatch(/recording began 21 Sept 2026|no dated log yet/)
+  })
+
+  it('never claims a negative gap (a log cannot hold more than the counter saw)', () => {
+    // A test-heavy re-run (counters re-synced low, log replaced) must not
+    // render a phantom deficit.
+    const daily: FunnelDailyRow[] = [{ pubId: 'p1', day: utcDayKey(NOW), views: 50, forks: 20 }]
+    const row = f(daily, 4, 2)
+    expect(row.preLogViews).toBe(0)
+    expect(row.preLogForks).toBe(0)
+    expect(describePreLog(row)).toBeNull()
+  })
+
+  it('says nothing on a failed read — the size of the gap is not knowable', () => {
+    // The UI renders this as "could not be read"; the derivation's half of the
+    // promise is that describePreLog CANNOT produce a sentence from no data.
+    const row = f([], 400, 12)
+    expect(row.preLogViews).toBeNull()
+    expect(row.preLogForks).toBeNull()
+    expect(describePreLog(row)).toBeNull()
+  })
+
+  it('renders the same explanation on both surfaces (one source)', () => {
+    // The hub line and the plan page's strip both call describePreLog; the
+    // tripwire is that both imports resolve to the same function.
+    expect(hubCode).toContain('describePreLog(f)')
+    expect(publicCode).toContain('describePreLog(f)')
+  })
+})
+
+// ---- The creator's glance on the plan's own page (thread 1) -----------------
+describe('funnelGlance: the strip the plan\u2019s own page shows its creator', () => {
+  const NOW = Date.UTC(2026, 8, 21, 12)
+
+  it('formats the windowed steps with the same rates the hub shows', () => {
+    expect(funnelGlance({ views: 43, forks: 6, unlocks: 1, forkRatePct: 14, unlockRatePct: 16.7, unreported: false }))
+      // formatPct rounds anything ≥10 to a whole percent, so 16.7 reads 17%.
+      .toBe('43 visits → 6 forks (14%) → 1 unlock (17%) · last 7 days')
+  })
+
+  it('omits rate parens where a stage is zero, and pluralizes correctly', () => {
+    expect(funnelGlance({ views: 1, forks: 0, unlocks: 0, forkRatePct: 0, unlockRatePct: 0, unreported: false }))
+      .toBe('1 visit → 0 forks → 0 unlocks · last 7 days')
+  })
+
+  it('says nothing for an unreported plan (the caller\u2019s copy covers it)', () => {
+    expect(funnelGlance({ views: 0, forks: 0, unlocks: 0, forkRatePct: 0, unlockRatePct: 0, unreported: true })).toBeNull()
+  })
+})
+
+// ---- Wiring a node suite cannot run -----------------------------------------
+describe('the glance strip and the pre-log line, as wired', () => {
+  it('the public page gates every funnel read behind isMyPub', () => {
+    const code = codeOf(publicCode)
+    // A visitor's session must never run the creator reads.
+    expect(code).toContain('if (!isMyPub) return')
+    expect(code).toContain('fetchCreatorFunnel()')
+    expect(code).toContain('fetchCreatorSales()')
+    // The strip itself must be inside the isMyPub block.
+    expect(code).toContain('{isMyPub && (')
+    // The same derivation, the same 7-day window, as the hub's own line.
+    expect(code).toContain('days: 7,')
+    expect(code).toContain('funnelGlance(f)')
+  })
+
+  it('a failed read says it failed instead of rendering a measurement', () => {
+    const code = codeOf(publicCode)
+    expect(code).toContain('myReadFailed')
+    expect(code).toContain('Recorded traffic could not be read just now')
+    expect(code).toContain('Reading this link')
+    expect(code).toContain('No recorded traffic for this plan yet.')
+  })
+
+  it('the hub renders the pre-log line beside the lifetime totals', () => {
+    const code = codeOf(hubCode)
+    expect(code).toContain('describePreLog(f)')
+    expect(code).toContain('pf-prelog')
   })
 })

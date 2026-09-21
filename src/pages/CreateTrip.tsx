@@ -22,6 +22,7 @@ import { estimateTripStarter, buildOutlineSeedStops } from '../lib/tripStarter'
 import { TRIP_TEMPLATES, applyTemplate, templateFromRange, fmtBand } from '../lib/tripTemplates'
 import { regionFor, regionBand, experienceTier, anchorNote } from '../lib/budgetBenchmarks'
 import { createFunnelOn } from '../lib/featureFlags'
+import { createReadiness, readinessLine } from '../lib/createReadiness'
 import { fetchTripThumbUrl } from '../lib/tripThumb'
 import { Field, Chip, toast, Odometer, useMedia } from '../components/ui'
 import { Select } from '../components/Select'
@@ -227,6 +228,22 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
     // this bill and the settings page could disagree about the same room.
     stayStyle: f.stayStyle,
   }), [f.startDate, f.endDate, f.travellers, f.transportMode, f.localTrain, f.roundTrip, f.fuelEconomy, f.fuelPrice, f.tankL, f.rentPerDay, f.stayStyle, orderedPoints, returnCount, fuelMode, tankNum, rentNum])
+
+  // P3 - what is left, said plainly. Mirrors submit()'s own rules, so it can
+  // never claim ready when submit would refuse (see createReadiness tests).
+  const readiness = useMemo(() => createReadiness({
+    name: f.name,
+    startLocation: f.startLocation,
+    stopCount: dests.length,
+    roadKm: bill.roadKm,
+    startDate: f.startDate,
+    endDate: f.endDate,
+    days: bill.days,
+    travellers: f.travellers,
+    budgetPerPersonInr: f.budgetPerPersonInr,
+    hasCover: f.coverImageUrl.trim().length > 0,
+    commitmentCount: commitments.filter(x => x.title.trim()).length,
+  }), [f.name, f.startLocation, f.startDate, f.endDate, f.travellers, f.budgetPerPersonInr, f.coverImageUrl, dests.length, bill.roadKm, bill.days, commitments])
 
   // P2 - the honest anchor: what a typical party spends on this region's own
   // run, computed by the same engine that prints the bill. Null when we honestly
@@ -1068,6 +1085,21 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
               </div>
             </div>
             <div className="tear" aria-hidden="true"></div>
+            {createFunnelOn('readiness') && (
+              <div className="ready-block" role="status" aria-label="What is left before the trip can be created">
+                <div className="ready-head">
+                  <span className="ready-lab">{readinessLine(readiness)}</span>
+                  <span className="ready-pct">{readiness.pct}%</span>
+                </div>
+                {readiness.items.map(item => (
+                  <div key={item.key} className={`ready-row${item.done ? ' ok' : ''}${item.optional ? ' opt' : ''}`}>
+                    <span className="ready-tick" aria-hidden>{item.done ? '\u2713' : ''}</span>
+                    <span className="ready-name">{item.label}</span>
+                    <span className="ready-why">{item.why}</span>
+                  </div>
+                ))}
+              </div>
+            )}
             <div className="tk-stub">
               {!billPrinted ? (
                 <>
@@ -1125,6 +1157,7 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
             {dayCount > 0 ? `${dayCount}d · ${Math.max(0, dayCount - 1)}n · ${f.travellers} travellers` : 'Pick your dates'}
             {billPrinted && bill.perHead != null && <> · <span className="mono dock-amt">{'≈ '}<Money v={bill.perHead} animate={!reduced} />{'/head'}</span></>}
           </span>
+          {createFunnelOn('readiness') && <span className="dock-ready">{readinessLine(readiness)}</span>}
         </div>
         {!billPrinted ? (
           <button type="button" className="dock-cta" onClick={printBill}><Printer size={15} aria-hidden /> Print bill</button>

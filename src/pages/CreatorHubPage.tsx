@@ -8,7 +8,7 @@ import { ExternalLink, Pencil } from 'lucide-react'
 import { PillNav } from '../components/PillNav'
 import type { PublishedItinerary } from '../data/types'
 import { useDb, currentUser, updateProfile, unpublishItinerary, tripById } from '../store/store'
-import { projectEarnings, deriveActualSales, type ActualSales } from '../lib/earnings'
+import { projectEarnings, deriveActualSales, payoutStatus, PLATFORM_FEE_SUMMARY, type ActualSales } from '../lib/earnings'
 import { fetchCreatorSales } from '../lib/unlock'
 import { formatInr } from '../lib/engine'
 import { Chip, ConfirmDialog, Field, toast } from '../components/ui'
@@ -26,6 +26,17 @@ function isValidSocialUrl(v: string): boolean {
   }
 }
 
+/** "26 Sep" — a run date, not a timestamp. */
+function shortDate(ms: number): string {
+  return new Date(ms).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+}
+
+/** "Friday, 26 Sep" — the sentence form, where a weekday tells the reader how
+ *  far away the run is without their counting. */
+function longDate(ms: number): string {
+  return new Date(ms).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short' })
+}
+
 export function CreatorHubPage({ onNavigate }: { onNavigate: (r: string) => void }) {
   const db = useDb()
   const me = currentUser(db)
@@ -39,6 +50,7 @@ export function CreatorHubPage({ onNavigate }: { onNavigate: (r: string) => void
   const [unpubTarget, setUnpubTarget] = useState<PublishedItinerary | null>(null)
   const [hubTab, setHubTab] = useState<'overview' | 'earnings'>('overview')
   const [earningsView, setEarningsView] = useState<'actual' | 'projection'>('actual')
+  const [earningsBasis, setEarningsBasis] = useState<'gross' | 'net'>('gross')
   // Real sales (I-11): entitlements for MY publications, read through the
   // creator RLS policy. A failed read is an ERROR state with retry, not a
   // silent empty ledger — "No sales yet" and "read failed" are different
@@ -140,7 +152,8 @@ export function CreatorHubPage({ onNavigate }: { onNavigate: (r: string) => void
               )
             ) : (
               <EarningsTab myPubs={myPubs} sales={sales} salesError={salesError}
-                onRetry={() => setSalesRetry(n => n + 1)} view={earningsView} onView={setEarningsView} />
+                onRetry={() => setSalesRetry(n => n + 1)} view={earningsView} onView={setEarningsView}
+                basis={earningsBasis} onBasis={setEarningsBasis} />
             )}
           </div>
         </>
@@ -230,22 +243,33 @@ function PubOverview({ myPubs, onUnpublish, onNavigate }: {
 /** Earnings tab: the Gumroad-shaped payout ledger. The "Actual" view shows
  *  REAL sales once the payments rail is live (empty honestly until then);
  *  the Projection view stays clearly-labeled not-money. */
-function EarningsTab({ myPubs, sales, salesError, onRetry, view, onView }: {
+function EarningsTab({ myPubs, sales, salesError, onRetry, view, onView, basis, onBasis }: {
   myPubs: PublishedItinerary[]
   sales: ActualSales | null   // null while the fetch is in flight
   salesError: boolean         // the read itself failed — distinct from an empty ledger
   onRetry: () => void
   view: 'actual' | 'projection'
   onView: (v: 'actual' | 'projection') => void
+  /** Which figure the headline tiles read: what buyers paid, or what is kept
+   *  after the platform fee. The ledger shows both columns either way, so the
+   *  toggle changes emphasis rather than hiding a number. */
+  basis: 'gross' | 'net'
+  onBasis: (b: 'gross' | 'net') => void
 }) {
   const projection = projectEarnings(myPubs)
   const actual = sales
+  const lifetimeInr = basis === 'net' ? (actual?.netInr ?? 0) : (actual?.grossInr ?? 0)
+  // The schedule is about real money, so it reads the actual ledger and is
+  // rendered in the Actual view only — a projection has no payout date.
+  const payout = payoutStatus(actual?.netInr ?? 0, Date.now())
   return (
     <>
       <div className="pub-kpis">
-        <div className="stat-tile wide"><div className="stat-label">Lifetime gross</div><div className="stat-value">{formatInr(actual?.grossInr ?? 0)}</div></div>
+        <div className="stat-tile wide"><div className="stat-label">Lifetime {basis === 'net' ? 'net' : 'gross'}</div><div className="stat-value">{formatInr(lifetimeInr)}</div></div>
         <div className="stat-tile"><div className="stat-label">Sales</div><div className="stat-value">{actual?.rows.length ?? 0}</div></div>
-        <div className="stat-tile"><div className="stat-label">Next payout</div><div className="stat-value">—</div></div>
+        {/* A date only once there is something to send: a run date over a ₹0
+            balance reads as money on its way. */}
+        <div className="stat-tile"><div className="stat-label">Next payout</div><div className="stat-value">{payout.clearsInr > 0 ? shortDate(payout.dueAt) : '—'}</div></div>
       </div>
       <PillNav className="filter-pillbar" role="group" aria-label="Earnings view" activeKey={view}>
         {([['actual', 'Actual'], ['projection', 'Projection']] as const).map(([k, label]) => (
@@ -253,6 +277,32 @@ function EarningsTab({ myPubs, sales, salesError, onRetry, view, onView }: {
             onClick={() => onView(k)} aria-pressed={view === k}>{label}</button>
         ))}
       </PillNav>
+      <span className="small muted" style={{ margin: '0 8px' }}>Show amounts as</span>
+      <PillNav className="filter-pillbar" role="group" aria-label="Show amounts as" activeKey={basis}>
+        {([['gross', 'Gross'], ['net', 'Net']] as const).map(([k, label]) => (
+          <button key={k} type="button" data-pill-key={k} className={`clickable-chip chip${basis === k ? ' on-teal' : ''}`}
+            onClick={() => onBasis(k)} aria-pressed={basis === k}>{label}</button>
+        ))}
+      </PillNav>
+
+      {view === 'actual' && (
+        <div className="card" style={{ marginTop: 12 }}>
+          <h3 style={{ margin: '0 0 6px' }}>Payouts</h3>
+          <p className="hint-text" style={{ margin: '0 0 6px' }}>
+            {payout.clearsInr > 0 ? (
+              <>The next run is <b>{longDate(payout.dueAt)}</b> — it would clear <b>{formatInr(payout.clearsInr)}</b>, your net balance after the platform fee.</>
+            ) : payout.belowMinimum ? (
+              <>Runs happen weekly on Fridays. Your balance is under the <b>{formatInr(payout.minimumInr)}</b> minimum, so it stays on the books until it clears it — nothing is lost.</>
+            ) : (
+              <>Runs happen weekly on Fridays. There is nothing to pay out yet — your balance is <b>{formatInr(0)}</b> until a priced itinerary sells.</>
+            )}
+          </p>
+          <p className="hint-text" style={{ margin: 0 }}>
+            Runs are not automated yet: this balance is what a payout would disburse and nothing transfers
+            on its own. Platform fee — {PLATFORM_FEE_SUMMARY}.
+          </p>
+        </div>
+      )}
 
       {view === 'actual' ? (
         actual === null ? (
@@ -268,9 +318,9 @@ function EarningsTab({ myPubs, sales, salesError, onRetry, view, onView }: {
         ) : actual.rows.length === 0 ? (
           <>
             <table className="compare-table pub-ledger" tabIndex={0} aria-label="Sales ledger">
-              <thead><tr><th>Date</th><th>Itinerary</th><th className="num">Amount paid</th><th className="num">Net*</th></tr></thead>
+              <thead><tr><th>Date</th><th>Itinerary</th><th className="num">Paid</th><th className="num">Fee</th><th className="num">Net</th></tr></thead>
               <tbody>
-                <tr><td colSpan={4} className="empty-ledger">No sales yet</td></tr>
+                <tr><td colSpan={5} className="empty-ledger">No sales yet</td></tr>
               </tbody>
             </table>
             <div className="hub-note">
@@ -282,26 +332,30 @@ function EarningsTab({ myPubs, sales, salesError, onRetry, view, onView }: {
         ) : (
           <>
             <table className="compare-table pub-ledger" tabIndex={0} aria-label="Sales ledger">
-              <thead><tr><th>Date</th><th>Itinerary</th><th className="num">Amount paid</th><th className="num">Net*</th></tr></thead>
+              <thead><tr><th>Date</th><th>Itinerary</th><th className="num">Paid</th><th className="num">Fee</th><th className="num">Net</th></tr></thead>
               <tbody>
                 {actual.rows.map(r => (
                   <tr key={`${r.pubId}-${r.grantedAt}`}>
                     <td>{new Date(r.grantedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
                     <td>{r.title}</td>
                     <td className="num">{formatInr(r.amountPaidInr)}</td>
-                    <td className="num">{formatInr(r.amountPaidInr)}</td>
+                    <td className="num">{formatInr(r.feeInr)}</td>
+                    <td className="num">{formatInr(r.netInr)}</td>
                   </tr>
                 ))}
                 <tr>
                   <td colSpan={2}><b>Total</b></td>
                   <td className="num"><b>{formatInr(actual.grossInr)}</b></td>
+                  <td className="num"><b>{formatInr(actual.feeInr)}</b></td>
                   <td className="num"><b>{formatInr(actual.netInr)}</b></td>
                 </tr>
               </tbody>
             </table>
             <p className="hint-text" style={{ marginTop: 8 }}>
-              * Net mirrors gross for now — the platform-fee model is still TBD (M7 keeps the constant honestly
-              named). Amounts are what buyers actually paid at purchase time, not your publication's current price.
+              Fee is the platform's cut — {PLATFORM_FEE_SUMMARY}, charged across your sales in the order they
+              happened, so a row's fee depends on where it fell on your lifetime gross and not on the order this
+              table is read in. Amounts are what buyers actually paid at purchase time, not your publication's
+              current price.
             </p>
           </>
         )
@@ -313,7 +367,7 @@ function EarningsTab({ myPubs, sales, salesError, onRetry, view, onView }: {
       ) : (
         <>
           <table className="compare-table pub-ledger" tabIndex={0} aria-label="Projection ledger">
-            <thead><tr><th>Itinerary</th><th className="num">Price</th><th className="num">Forks</th><th className="num">If all unlocked</th><th className="num">Net*</th></tr></thead>
+            <thead><tr><th>Itinerary</th><th className="num">Price</th><th className="num">Forks</th><th className="num">If all unlocked</th><th className="num">Fee</th><th className="num">Net</th></tr></thead>
             <tbody>
               {projection.rows.map(r => (
                 <tr key={r.pubId}>
@@ -329,13 +383,15 @@ function EarningsTab({ myPubs, sales, salesError, onRetry, view, onView }: {
                 <td />
                 <td className="num"><b>{projection.rows.reduce((s, r) => s + r.forks, 0)}</b></td>
                 <td className="num"><b>{formatInr(projection.potentialInr)}</b></td>
+                <td className="num"><b>{formatInr(projection.feeInr)}</b></td>
                 <td className="num"><b>{formatInr(projection.netInr)}</b></td>
               </tr>
             </tbody>
           </table>
           <p className="hint-text" style={{ marginTop: 8 }}>
-            * A projection, not money: price × forks so far, assuming every fork had bought the unlock. The
-            platform-fee model arrives with Razorpay — until then the fee stays ₹0 (TBD).
+            A projection, not money: price × forks so far, assuming every fork had bought the unlock. The
+            potential total is exact for the fee ladder ({PLATFORM_FEE_SUMMARY}); the per-row fee shares are
+            illustrative, because which sale earns the lower rate depends on what actually sells first.
           </p>
           {projection.unpricedCount > 0 && (
             <div className="hub-note">

@@ -1,7 +1,12 @@
 // ============ Earnings helpers — actual sales (M7) + projection ============
 // The Earnings tab's two views run on this arithmetic — pin both.
 import { describe, it, expect } from 'vitest'
-import { projectEarnings, deriveActualSales, PROJECTED_PLATFORM_FEE_INR } from '../src/lib/earnings'
+import { readFileSync } from 'node:fs'
+import {
+  projectEarnings, deriveActualSales, payoutStatus,
+  feeForSliceInr, platformFeeInr, netOfFeeInr, attributeFeesInr,
+  PLATFORM_FEE_TIERS, PAYOUT_MINIMUM_INR, PAYOUT_WEEKDAY,
+} from '../src/lib/earnings'
 import type { PublishedItinerary } from '../src/data/types'
 import type { Entitlement } from '../src/lib/payments'
 
@@ -12,6 +17,10 @@ const pub = (over: Partial<PublishedItinerary>): PublishedItinerary => ({
   freeDayIndexes: [0], publishedAt: 1, views: 0, copies: 0, ...over,
 })
 
+const ent = (over: Partial<Entitlement>): Entitlement => ({
+  id: 'e1', userId: 'buyer-1', pubId: 'a', orderId: 'o1', amountPaidInr: 199, grantedAt: 1000, ...over,
+})
+
 describe('projectEarnings', () => {
   it('projects price × forks per priced publication and totals them', () => {
     const r = projectEarnings([
@@ -19,9 +28,17 @@ describe('projectEarnings', () => {
       pub({ id: 'b', title: 'Goa', premiumPriceInr: 149, copies: 2 }),
     ])
     expect(r.rows).toHaveLength(2)
-    expect(r.rows[0]).toMatchObject({ pubId: 'a', priceInr: 199, forks: 7, grossInr: 1393, netInr: 1393 })
+    // 15% of ₹1,393 = ₹208.95 → ₹209 on the row; the second row's ₹298 slice
+    // is still inside the first tier: ₹44.70 → ₹45.
+    expect(r.rows[0]).toMatchObject({ pubId: 'a', priceInr: 199, forks: 7, grossInr: 1393, feeInr: 209, netInr: 1184 })
+    expect(r.rows[1]).toMatchObject({ pubId: 'b', grossInr: 298, feeInr: 45, netInr: 253 })
     expect(r.potentialInr).toBe(1691)
-    expect(r.netInr).toBe(1691 - 2 * PROJECTED_PLATFORM_FEE_INR)
+    expect(r.feeInr).toBe(254)
+    expect(r.netInr).toBe(1437)
+    // The total is the sum of the rows, never the ladder applied to the total —
+    // a ledger whose columns do not add up is worse than one a rupee out.
+    expect(r.feeInr).toBe(r.rows.reduce((s, x) => s + x.feeInr, 0))
+    expect(r.netInr).toBe(r.potentialInr - r.feeInr)
   })
 
   it('never invents money for unpriced publications — counts them instead', () => {
@@ -47,10 +64,6 @@ describe('projectEarnings', () => {
 })
 
 describe('deriveActualSales (I-11)', () => {
-  const ent = (over: Partial<Entitlement>): Entitlement => ({
-    id: 'e1', userId: 'buyer-1', pubId: 'a', orderId: 'o1', amountPaidInr: 199, grantedAt: 1000, ...over,
-  })
-
   it('attributes each sale to its publication with the PAID amount, not the current price', () => {
     const r = deriveActualSales(
       [ent({ amountPaidInr: 199, grantedAt: 2000 }), ent({ id: 'e2', pubId: 'b', amountPaidInr: 149, grantedAt: 3000 })],
@@ -61,7 +74,13 @@ describe('deriveActualSales (I-11)', () => {
     expect(r.rows.map(x => x.pubId)).toEqual(['b', 'a'])
     expect(r.rows.map(x => x.amountPaidInr)).toEqual([149, 199])
     expect(r.grossInr).toBe(348)
-    expect(r.netInr).toBe(348 - 2 * PROJECTED_PLATFORM_FEE_INR)
+    // 15% of ₹199 = ₹29.85 → ₹30, then 15% of ₹149 = ₹22.35 → ₹22, charged
+    // oldest first (₹199 was granted first) even though the table reads newest
+    // first — re-sorting for display must not move a fee onto another sale.
+    expect(r.rows.map(x => x.amountPaidInr)).toEqual([149, 199])
+    expect(r.rows.map(x => x.feeInr)).toEqual([22, 30])
+    expect(r.feeInr).toBe(52)
+    expect(r.netInr).toBe(296)
     // Sold pubs follow row order (newest sale's publication first).
     expect(r.soldPubIds).toEqual(['b', 'a'])
   })
@@ -86,5 +105,143 @@ describe('deriveActualSales (I-11)', () => {
     expect(r.rows).toEqual([])
     expect(r.grossInr).toBe(0)
     expect(r.soldPubIds).toEqual([])
+  })
+})
+
+describe('the platform fee ladder (I-13)', () => {
+  it('is 15% of the first ₹25,000 of lifetime gross, then 10%', () => {
+    expect(PLATFORM_FEE_TIERS).toEqual([
+      { upToInr: 25_000, rate: 0.15 },
+      { upToInr: null, rate: 0.10 },
+    ])
+    expect(platformFeeInr(10_000)).toBeCloseTo(1_500, 6)
+    expect(platformFeeInr(25_000)).toBeCloseTo(3_750, 6)
+    // MARGINAL, not a re-rate: crossing ₹25,000 never re-charges the first
+    // ₹25,000 at the lower rate, so the fee cannot fall as a creator earns more.
+    expect(platformFeeInr(35_000)).toBeCloseTo(3_750 + 1_000, 6)
+    expect(netOfFeeInr(35_000)).toBeCloseTo(30_250, 6)
+    expect(platformFeeInr(25_001)).toBeGreaterThan(platformFeeInr(25_000))
+  })
+
+  it('charges one slice the same wherever it sits inside a tier', () => {
+    expect(feeForSliceInr(0, 1_000)).toBeCloseTo(150, 6)
+    expect(feeForSliceInr(0, 20_000)).toBeCloseTo(3_000, 6)
+    // A slice straddling the threshold pays each tier on its own part.
+    expect(feeForSliceInr(20_000, 30_000)).toBeCloseTo(750 + 500, 6)
+    expect(feeForSliceInr(30_000, 20_000)).toBe(0)
+  })
+
+  it('attributes a run of sales without ever charging a slice twice', () => {
+    // Three ₹10,000 sales. The first two are wholly in the 15% tier; the third
+    // STRADDLES the ₹25,000 line, so ₹5,000 of it is still charged 15% and only
+    // the rest gets 10% — ₹1,250, not ₹1,000. Σ = ₹4,250 = the ladder on ₹30,000,
+    // which is the property that makes the split safe to show at all.
+    expect(attributeFeesInr([10_000, 10_000, 10_000])).toEqual([1_500, 1_500, 1_250])
+    expect(platformFeeInr(30_000)).toBeCloseTo(4_250, 6)
+    expect(attributeFeesInr([])).toEqual([])
+  })
+
+  it('totals the same whichever order sales arrived, though the split differs', () => {
+    const smallFirst = attributeFeesInr([15_000, 25_000])
+    const bigFirst = attributeFeesInr([25_000, 15_000])
+    expect(smallFirst.reduce((s, f) => s + f, 0)).toBe(5_250)
+    expect(bigFirst.reduce((s, f) => s + f, 0)).toBe(5_250)
+    // Which sale gets the cheaper rate is a fact about ordering, so it differs —
+    // and the UI says so rather than presenting the split as fixed.
+    expect(smallFirst).not.toEqual(bigFirst)
+  })
+
+  it('walks the ladder oldest first on the real ledger', () => {
+    const r = deriveActualSales(
+      [
+        ent({ id: 'late', amountPaidInr: 10_000, grantedAt: 5_000 }),
+        ent({ id: 'early', amountPaidInr: 20_000, grantedAt: 1_000 }),
+      ],
+      [],
+    )
+    expect(r.grossInr).toBe(30_000)
+    expect(r.rows.map(x => x.amountPaidInr)).toEqual([10_000, 20_000])
+    expect(r.rows.map(x => x.feeInr)).toEqual([1_250, 3_000])
+    expect(r.feeInr).toBe(4_250)
+    expect(r.netInr).toBe(25_750)
+    expect(r.feeInr).toBe(r.rows.reduce((s, x) => s + x.feeInr, 0))
+    expect(r.netInr).toBe(r.rows.reduce((s, x) => s + x.netInr, 0))
+  })
+
+  it('is whole rupees on every row', () => {
+    const r = deriveActualSales([ent({ amountPaidInr: 199 }), ent({ id: 'e2', amountPaidInr: 149, grantedAt: 2 } )], [])
+    for (const row of r.rows) {
+      expect(Number.isInteger(row.feeInr)).toBe(true)
+      expect(Number.isInteger(row.netInr)).toBe(true)
+    }
+  })
+})
+
+describe('the hub reads the ledger as written (I-9/I-10/I-13)', () => {
+  // The hub needs a creator account to render, which a node test cannot supply,
+  // so the wiring is pinned at the source: these are the four ways the numbers
+  // above could be computed correctly and then shown wrongly.
+  const hub = readFileSync(new URL('../src/pages/CreatorHubPage.tsx', import.meta.url), 'utf8')
+
+  it('shows the fee beside what is left, in both ledgers', () => {
+    // Three headers, not two: the actual ledger writes its <thead> twice — once
+    // for the empty state and once for the rows — and the two must stay the
+    // same shape or an empty ledger teaches the wrong columns.
+    expect(hub.match(/<th className="num">Fee<\/th>/g)).toHaveLength(3)
+    expect(hub).toMatch(/formatInr\(r\.feeInr\)/)
+    expect(hub).toMatch(/formatInr\(actual\.feeInr\)/)
+    expect(hub).toMatch(/formatInr\(projection\.feeInr\)/)
+  })
+
+  it('lets the basis switch move emphasis, not hide a number', () => {
+    expect(hub).toMatch(/aria-label="Show amounts as"/)
+    expect(hub).toMatch(/basis === 'net' \? \(actual\?\.netInr \?\? 0\) : \(actual\?\.grossInr \?\? 0\)/)
+  })
+
+  it('keeps the payout schedule on the actual ledger, never on a projection', () => {
+    expect(hub).toMatch(/payoutStatus\(actual\?\.netInr \?\? 0, Date\.now\(\)\)/)
+    expect(hub).toMatch(/\{view === 'actual' && \(/)
+  })
+
+  it('states the fee rule wherever it explains a figure', () => {
+    expect(hub.match(/PLATFORM_FEE_SUMMARY/g)?.length ?? 0).toBeGreaterThanOrEqual(2)
+    // The old placeholder's copy must not survive anywhere.
+    expect(hub).not.toContain('TBD')
+    expect(hub).not.toContain('mirrors gross')
+  })
+})
+
+describe('the payout schedule (I-9)', () => {
+  it('lands on a Friday, strictly ahead of now, at local midnight', () => {
+    const now = new Date(2026, 8, 21, 14, 30, 0).getTime()
+    const due = new Date(payoutStatus(1_000, now).dueAt)
+    expect(due.getDay()).toBe(PAYOUT_WEEKDAY)
+    expect(due.getTime()).toBeGreaterThan(now)
+    expect([due.getHours(), due.getMinutes(), due.getSeconds(), due.getMilliseconds()])
+      .toEqual([0, 0, 0, 0])
+    expect(due.getTime() - now).toBeLessThanOrEqual(7 * 86_400_000)
+  })
+
+  it('never schedules a run on today\u2019s own date — not even when today is the run day', () => {
+    // "Today" would render as a promise every Friday, and there is no rail to
+    // keep it; a balance always waits for the next one.
+    for (let offset = 0; offset < 7; offset++) {
+      const now = new Date(2026, 8, 21 + offset, 9, 0, 0)
+      const due = new Date(payoutStatus(1_000, now.getTime()).dueAt)
+      expect(due.getDay()).toBe(PAYOUT_WEEKDAY)
+      expect(due.toDateString()).not.toBe(now.toDateString())
+    }
+  })
+
+  it('clears a balance only once it reaches the minimum, and never invents one', () => {
+    const now = Date.now()
+    expect(payoutStatus(PAYOUT_MINIMUM_INR, now)).toMatchObject({
+      clearsInr: PAYOUT_MINIMUM_INR, belowMinimum: false,
+    })
+    expect(payoutStatus(PAYOUT_MINIMUM_INR - 1, now)).toMatchObject({ clearsInr: 0, belowMinimum: true })
+    // Nothing owed is not the same as too little owed.
+    expect(payoutStatus(0, now)).toMatchObject({ clearsInr: 0, belowMinimum: false })
+    expect(payoutStatus(-50, now).clearsInr).toBe(0)
+    expect(payoutStatus(12_345.6, now).clearsInr).toBe(12_346)
   })
 })

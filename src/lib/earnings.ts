@@ -4,34 +4,145 @@
 //   ACTUAL — derived from entitlements rows (real money that changed hands).
 //   Each row joins a sale back to its publication via `pubId`; the per-sale
 //   price snapshot on the entitlement row is what was actually charged, not
-//   the publication's current price (I-12). No fee model exists yet, so net
-//   mirrors gross and the constant stays honestly named.
+//   the publication's current price (I-12).
 //
 //   PROJECTION — price × forks, "if every fork had bought the unlock".
 //   Labeled a projection in the UI; it is never money.
+//
+// THE FEE MODEL (I-13, decided 2026-09-21) ---------------------------------
+// The platform's cut is a MARGINAL ladder over a creator's LIFETIME gross:
+// 15% up to ₹25,000, then 10%.
+//
+//   * MARGINAL, not "re-rate the whole balance once you cross the line": the
+//     fee is then a function of cumulative gross rather than of the order
+//     sales happened to arrive in, and the rule fits in one sentence a creator
+//     can read on the ledger.
+//   * 15% because that is the number the commercial plan's own decision table
+//     asked to confirm (docs/commercial/PLAN-MONETISATION.md §11), and because
+//     it has to clear the ~2–3% payment-processing floor with margin to be
+//     worth charging at all (REPORT-2026-09-15 §7).
+//   * ₹25,000 is ~125 sales at ₹199 — reachable for a creator with real
+//     distribution, which is the point of a threshold: it rewards volume
+//     rather than being decorative.
+//
+// The whole model is `PLATFORM_FEE_TIERS` below. Changing the business decision
+// is one edit there; every number on the ledger derives from it.
+//
+// TWO ARITHMETIC RULES the figures obey, because a ledger that does not add up
+// is worse than one that is a rupee out: each ROW's fee is rounded to the
+// rupee, and every TOTAL is the sum of its rows rather than the ladder applied
+// to the total. So `deriveActualSales(...).feeInr` === Σ row fees, and the same
+// holds for the projection.
+//
+// WHAT IS NOT SETTLED HERE: payout RUNS are not automated. There is no payouts
+// table and no gateway payout API anywhere in this repo — `payoutStatus` is the
+// schedule this ledger is built around, and the card that renders it says so in
+// as many words rather than implying money is on its way.
 import type { PublishedItinerary } from '../data/types'
 import type { Entitlement } from './payments'
 
-export interface ProjectedEarning {
-  pubId: string
-  title: string
-  priceInr: number
-  forks: number
-  grossInr: number   // price × forks
-  netInr: number     // gross − platform fee (0 until the fee model exists)
+// ---- The platform fee (I-13) ----
+
+export interface FeeTier {
+  /** Lifetime gross up to which this rate applies; `null` = no ceiling. */
+  upToInr: number | null
+  /** Fraction of that slice the platform keeps (0.15 = 15%). */
+  rate: number
 }
 
-export interface EarningsProjection {
-  rows: ProjectedEarning[]     // priciest potential first
-  potentialInr: number         // Σ gross
-  netInr: number               // Σ net
-  unpricedCount: number        // live publications published as fully free
+export const PLATFORM_FEE_TIERS: readonly FeeTier[] = [
+  { upToInr: 25_000, rate: 0.15 },
+  { upToInr: null, rate: 0.10 },
+]
+
+/** The model as the one sentence the ledger and the changelog use. */
+export const PLATFORM_FEE_SUMMARY = '15% of the first ₹25,000 you earn, 10% after that'
+
+/**
+ * The ladder's fee over the slice of lifetime gross between two positions.
+ * This IS the model — every other number here is this function applied to a
+ * slice — which is why it is exported rather than kept private.
+ */
+export function feeForSliceInr(fromInr: number, toInr: number): number {
+  if (!(toInr > fromInr)) return 0
+  let fee = 0
+  let cursor = Math.max(0, fromInr)
+  for (const tier of PLATFORM_FEE_TIERS) {
+    const ceiling = tier.upToInr ?? Number.POSITIVE_INFINITY
+    if (cursor >= ceiling) continue
+    const end = Math.min(toInr, ceiling)
+    if (end <= cursor) continue
+    fee += (end - cursor) * tier.rate
+    cursor = end
+  }
+  return fee
 }
 
-/** Projected platform fee until M7 defines the real one. Applies to the
- *  PROJECTION view only — actuals carry the same constant until a real
- *  fee model exists, and both say so in the UI. */
-export const PROJECTED_PLATFORM_FEE_INR = 0
+/** What the ladder charges on a total lifetime gross. */
+export function platformFeeInr(grossInr: number): number {
+  return feeForSliceInr(0, Math.max(0, grossInr))
+}
+
+/** What a creator keeps of a given gross. */
+export function netOfFeeInr(grossInr: number): number {
+  const gross = Math.max(0, grossInr)
+  return gross - platformFeeInr(gross)
+}
+
+/**
+ * Attribute the ladder across a run of amounts, IN THE ORDER GIVEN, so the
+ * parts sum to the ladder applied to their total. Callers own the order:
+ * actual sales are passed oldest first (that is when they were charged);
+ * the projection passes its rows in display order and says so on screen.
+ */
+export function attributeFeesInr(amounts: number[]): number[] {
+  let cursor = 0
+  return amounts.map(amount => {
+    const fee = Math.round(feeForSliceInr(cursor, cursor + amount))
+    cursor += amount
+    return fee
+  })
+}
+
+// ---- Payout schedule (I-9) ----
+
+/** Payouts run weekly, on Fridays (0 = Sunday). */
+export const PAYOUT_WEEKDAY = 5
+
+/** Below this a balance stays put instead of triggering a run. */
+export const PAYOUT_MINIMUM_INR = 500
+
+export interface PayoutStatus {
+  /** Epoch ms of the next run — the coming Friday, 00:00 local. */
+  dueAt: number
+  /** What would be disbursed then; 0 while the balance is under the minimum. */
+  clearsInr: number
+  /** There is a balance, but it is too small to send yet. */
+  belowMinimum: boolean
+  minimumInr: number
+}
+
+/**
+ * The schedule this ledger is built around — NOT an automated disbursement.
+ * See the file header: no payout rail exists, so callers must not present this
+ * as money in transit.
+ */
+export function payoutStatus(netInr: number, now: number): PayoutStatus {
+  const balance = Math.max(0, Math.round(netInr))
+  const day = new Date(now)
+  day.setHours(0, 0, 0, 0)
+  // Strictly the NEXT Friday. `0` would mean "a run today", which renders as
+  // "today" every Friday and invites a creator to wait for money that has no
+  // rail to arrive on.
+  const ahead = ((PAYOUT_WEEKDAY - day.getDay() + 7) % 7) || 7
+  day.setDate(day.getDate() + ahead)
+  return {
+    dueAt: day.getTime(),
+    clearsInr: balance >= PAYOUT_MINIMUM_INR ? balance : 0,
+    belowMinimum: balance > 0 && balance < PAYOUT_MINIMUM_INR,
+    minimumInr: PAYOUT_MINIMUM_INR,
+  }
+}
 
 // ---- Actual sales (I-11: per-publication revenue attribution) ----
 
@@ -39,15 +150,23 @@ export interface SaleRow {
   pubId: string
   title: string          // resolved by the caller from its own publications
   /** Rupees actually paid — the entitlement's price snapshot. */
-  amountPaidInr: number  /** Epoch ms of the grant (sale time). */
-  grantedAt: number}
+  amountPaidInr: number
+  /** The platform's cut on THIS sale — its own slice of the ladder. */
+  feeInr: number
+  /** What the creator keeps of it: amountPaidInr − feeInr. */
+  netInr: number
+  /** Epoch ms of the grant (sale time). */
+  grantedAt: number
+}
 
 export interface ActualSales {
   /** Newest first. */
   rows: SaleRow[]
   /** Σ of what buyers actually paid (gross). */
   grossInr: number
-  /** gross − fee (fee is ₹0 until the real model lands). */
+  /** Σ of the rows' fees — the platform's cut, not a rounded integral. */
+  feeInr: number
+  /** gross − fee, summed over the rows. */
   netInr: number
   /** Publications with at least one sale. */
   soldPubIds: string[]
@@ -60,34 +179,86 @@ export interface ActualSales {
  *  rather than vanishing from the books. */
 export function deriveActualSales(entitlements: Entitlement[], pubs: PublishedItinerary[]): ActualSales {
   const titleOf = new Map(pubs.map(p => [p.id, p.title]))
-  const rows: SaleRow[] = entitlements
-    .map(e => ({
-      pubId: e.pubId,
-      title: titleOf.get(e.pubId) ?? e.pubId,
-      amountPaidInr: e.amountPaidInr,
-      grantedAt: e.grantedAt,
-    }))
-    .sort((a, b) => b.grantedAt - a.grantedAt)
+  const rows: SaleRow[] = entitlements.map(e => ({
+    pubId: e.pubId,
+    title: titleOf.get(e.pubId) ?? e.pubId,
+    amountPaidInr: e.amountPaidInr,
+    feeInr: 0,
+    netInr: 0,
+    grantedAt: e.grantedAt,
+  }))
+
+  // Fees are attributed OLDEST FIRST, because that is the order the ladder was
+  // actually walked: the sale that carried the creator's lifetime gross past
+  // ₹25,000 is the one that gets the cheaper rate, and a later re-sort for
+  // display must not move a fee to a different sale.
+  const chronological = [...rows].sort((a, b) => a.grantedAt - b.grantedAt)
+  const fees = attributeFeesInr(chronological.map(r => r.amountPaidInr))
+  chronological.forEach((row, i) => {
+    row.feeInr = fees[i]!
+    row.netInr = row.amountPaidInr - row.feeInr
+  })
+
+  rows.sort((a, b) => b.grantedAt - a.grantedAt)
+  const grossInr = rows.reduce((s, r) => s + r.amountPaidInr, 0)
+  const feeInr = rows.reduce((s, r) => s + r.feeInr, 0)
   return {
     rows,
-    grossInr: rows.reduce((s, r) => s + r.amountPaidInr, 0),
-    netInr: rows.reduce((s, r) => s + r.amountPaidInr, 0) - PROJECTED_PLATFORM_FEE_INR * rows.length,
+    grossInr,
+    feeInr,
+    netInr: grossInr - feeInr,
     soldPubIds: [...new Set(rows.map(r => r.pubId))],
   }
 }
 
+// ---- Projection ----
+
+export interface ProjectedEarning {
+  pubId: string
+  title: string
+  priceInr: number
+  forks: number
+  grossInr: number   // price × forks
+  /** The ladder applied to this row's potential, attributed in the order the
+   *  rows are listed (priciest first) — illustrative, because which sale gets
+   *  the lower rate depends on what actually sells first. The TOTAL is exact
+   *  either way: it is the ladder over the whole potential. */
+  feeInr: number
+  netInr: number
+}
+
+export interface EarningsProjection {
+  rows: ProjectedEarning[]     // priciest potential first
+  potentialInr: number         // Σ gross
+  feeInr: number               // Σ the rows' fees
+  netInr: number               // potential − fee
+  unpricedCount: number        // live publications published as fully free
+}
+
 export function projectEarnings(pubs: PublishedItinerary[]): EarningsProjection {
-  const rows: ProjectedEarning[] = pubs
+  const priced = pubs
     .filter(p => (p.premiumPriceInr ?? 0) > 0)
-    .map(p => {
-      const grossInr = p.premiumPriceInr! * p.copies
-      return { pubId: p.id, title: p.title, priceInr: p.premiumPriceInr!, forks: p.copies, grossInr, netInr: grossInr - PROJECTED_PLATFORM_FEE_INR }
-    })
+    .map(p => ({
+      pubId: p.id,
+      title: p.title,
+      priceInr: p.premiumPriceInr!,
+      forks: p.copies,
+      grossInr: p.premiumPriceInr! * p.copies,
+    }))
     .sort((a, b) => b.grossInr - a.grossInr)
+  const fees = attributeFeesInr(priced.map(r => r.grossInr))
+  const rows: ProjectedEarning[] = priced.map((r, i) => ({
+    ...r,
+    feeInr: fees[i]!,
+    netInr: r.grossInr - fees[i]!,
+  }))
+  const potentialInr = rows.reduce((s, r) => s + r.grossInr, 0)
+  const feeInr = rows.reduce((s, r) => s + r.feeInr, 0)
   return {
     rows,
-    potentialInr: rows.reduce((s, r) => s + r.grossInr, 0),
-    netInr: rows.reduce((s, r) => s + r.netInr, 0),
+    potentialInr,
+    feeInr,
+    netInr: potentialInr - feeInr,
     unpricedCount: pubs.filter(p => (p.premiumPriceInr ?? 0) === 0).length,
   }
 }

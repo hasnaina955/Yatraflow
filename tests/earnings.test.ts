@@ -221,7 +221,11 @@ describe('the hub reads the ledger as written (I-9/I-10/I-13)', () => {
     // surfaces render it now — a creator's hub and the platform console — so the
     // wording is pinned where it lives, plus a check that the hub calls it
     // instead of growing a second copy of the label.
-    const lib = readFileSync(new URL('../src/lib/earnings.ts', import.meta.url), 'utf8')
+    // Normalized to LF before slicing: with core.autocrlf=true a fresh checkout
+    // is CRLF, so an LF-only needle finds nothing, the slice over-captures into
+    // code that mentions amountPaidInr, and the paid-guard fails on a file that
+    // is innocent (the CRLF trap AGENTS section 3 records, hit 2026-09-21).
+    const lib = readFileSync(new URL('../src/lib/earnings.ts', import.meta.url), 'utf8').replace(/\r\n/g, '\n')
     const status = lib.slice(
       lib.indexOf('export function payoutPeriodStatus'),
       lib.indexOf('/**\n * Group sales into the payout runs'),

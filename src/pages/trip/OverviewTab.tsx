@@ -1,5 +1,6 @@
 // ============ Trip workspace — Overview tab ============
 // Mechanical extraction from src/pages/TripWorkspace.tsx (M3.4) — no behavior changes.
+import { daySlots } from '../../lib/daySlots'
 import { useEffect, useMemo, useState } from 'react'
 import { CircleCheck, CloudSun, Droplets, Lightbulb, Pin, Siren, TriangleAlert } from 'lucide-react'
 import type { Trip } from '../../data/types'
@@ -142,6 +143,8 @@ export function OverviewTab({ trip, onOpenTimeline, onOpenMap, onInvite, health,
           </div>
         </div>
 
+        <SlotMatrix trip={trip} />
+
         <div className="card">
           <div className="row-between card-head">
             <h3>Fixed commitments</h3>
@@ -253,6 +256,68 @@ function WeatherCard({ trip }: { trip: Trip }) {
           <TriangleAlert size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />High rain chance on {wetDays} day{wetDays > 1 ? 's' : ''} — consider indoor alternatives for weather-sensitive stops (beaches, viewpoints, treks).
         </p>
       )}
+    </div>
+  )
+}
+
+/** P6.3: which parts each day holds, at a glance - the trip's own plan read
+ *  day by day (the rail's grammar, without needing the corridor scan). */
+function SlotMatrix({ trip }: { trip: Trip }) {
+  const kinds: Array<{ key: 'breakfast' | 'lunch' | 'fuel' | 'stretch' | 'dinner' | 'stay'; label: string }> = [
+    { key: 'breakfast', label: 'B' },
+    { key: 'lunch', label: 'L' },
+    { key: 'fuel', label: 'F' },
+    { key: 'stretch', label: 'S' },
+    { key: 'dinner', label: 'D' },
+    { key: 'stay', label: 'N' },
+  ]
+  const rows = trip.days.map(d => ({
+    day: d,
+    slots: daySlots(d.index, {
+      haltSegments: [], dayStops: d.stops, anchors: [], fillSkeleton: true, travellers: trip.travellers,
+    }),
+  }))
+  const thinnest = rows
+    .map(r => ({ index: r.day.index, filled: r.slots.filter(s => s.state === 'filled').length, total: r.slots.length }))
+    .filter(r => r.total > 0)
+    .sort((a, b) => (a.filled / Math.max(1, a.total)) - (b.filled / Math.max(1, b.total)))[0]
+  return (
+    <div className="card">
+      <h3 className="card-head">What each day holds</h3>
+      <div className="slotmatrix" role="table" aria-label="Planned parts per day">
+        <div className="slotmatrix-row slotmatrix-head" role="row">
+          <span className="slotmatrix-day" role="columnheader" />
+          {kinds.map(k => <span key={k.key} className="slotmatrix-cell" role="columnheader">{k.label}</span>)}
+          <span className="slotmatrix-total" role="columnheader">filled</span>
+        </div>
+        {rows.map(({ day, slots }) => {
+          const filled = slots.filter(s => s.state === 'filled').length
+          return (
+            <div key={day.index} className="slotmatrix-row" role="row">
+              <span className="slotmatrix-day" role="cell">Day {day.index + 1}</span>
+              {kinds.map(k => {
+                const slot = slots.find(x => x.key === k.key)
+                const state = slot ? slot.state : 'none'
+                return (
+                  <span
+                    key={k.key}
+                    className={`slotmatrix-cell is-${state}`}
+                    role="cell"
+                    title={slot
+                      ? `${slot.label}: ${slot.state === 'filled' ? (slot.filledStop?.title ?? 'planned') : slot.state}`
+                      : 'not part of this day'}
+                  >{state === 'filled' ? '●' : state === 'auto' ? '○' : state === 'empty' ? '·' : ''}</span>
+                )
+              })}
+              <span className="slotmatrix-total" role="cell">{filled}/{slots.length}</span>
+            </div>
+          )
+        })}
+      </div>
+      <p className="muted small" style={{ margin: '6px 0 0' }}>
+        Solid = planned, hollow = engine-managed, dot = still open.
+        {thinnest ? ` Thinnest day: Day ${thinnest.index + 1} (${thinnest.filled} of ${thinnest.total}).` : ''}
+      </p>
     </div>
   )
 }

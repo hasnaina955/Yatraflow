@@ -6167,3 +6167,33 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 /* P5.3: a slot pin - an empty part of the day, hollow amber, tap to open */
 .yf-map-pin--slot { border: 2px solid var(--warn); color: var(--warn); font-weight: 800; }
 .yf-map-pin--slot:hover { background: var(--warn-soft); }
+/* P6.1: the day as a shape - drives and parts sized to their minutes */
+.dayshape { display: flex; flex-direction: column; gap: 3px; padding: 2px 2px 6px; }
+.shape-block {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  border-radius: 8px; padding: 0 10px; min-height: 18px;
+  font-size: 10.5px; font-variant-numeric: tabular-nums; overflow: hidden;
+}
+.shape-drive { background: var(--line-2); color: var(--text-2); }
+.shape-meal { background: var(--teal-soft); color: var(--teal-deep); }
+.shape-fuel { background: var(--warn-soft); color: var(--text-2); }
+.shape-stretch { background: transparent; border: 1px dashed var(--line); color: var(--text-2); }
+.shape-overnight { background: var(--teal-soft); color: var(--teal-deep); }
+.shape-state-empty { background: transparent; border: 1px dashed var(--warn); color: var(--warn); }
+.shape-state-auto { background: transparent; border: 1px dashed var(--line); color: var(--text-2); }
+.shape-name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.shape-min { flex: none; opacity: .85; }
+
+/* P6.3: the trip's slot matrix on Overview */
+.slotmatrix { display: flex; flex-direction: column; gap: 3px; margin-top: 4px; }
+.slotmatrix-row { display: grid; grid-template-columns: 58px repeat(6, 1fr) 46px; align-items: center; gap: 4px; }
+.slotmatrix-head .slotmatrix-cell, .slotmatrix-head .slotmatrix-total {
+  font-size: 10px; letter-spacing: .04em; text-transform: uppercase; color: var(--text-3); text-align: center;
+}
+.slotmatrix-day { font-size: 11.5px; color: var(--text-2); }
+.slotmatrix-cell { text-align: center; font-size: 12px; line-height: 1.6; border-radius: 6px; }
+.slotmatrix-cell.is-filled { background: var(--teal-soft); color: var(--teal-deep); }
+.slotmatrix-cell.is-auto { border: 1px dashed var(--line); color: var(--text-2); }
+.slotmatrix-cell.is-empty { border: 1px dashed var(--warn); color: var(--warn); }
+.slotmatrix-cell.is-none { color: var(--line); }
+.slotmatrix-total { font-size: 11px; color: var(--text-2); text-align: right; font-variant-numeric: tabular-nums; }

@@ -22,7 +22,7 @@ import { isElectric } from '../../lib/vehicleProfile'
 import { planInputsHash } from '../../hooks/useSuggestionCache'
 import { railReasonChips, type RailChip } from '../../lib/railReasons'
 import { rulerMarks } from '../../lib/railRuler'
-import { daySlots, dayReadiness, SLOT_URGENCY_MIN, type DaySlot, type DaySlotsDeps } from '../../lib/daySlots'
+import { daySlots, dayReadiness, dayShape, SLOT_URGENCY_MIN, type DaySlot, type DaySlotsDeps } from '../../lib/daySlots'
 import { addDecision, deleteStop, restoreStop } from '../../store/store'
 import { dayDetourBudgetMin, budgetSharePct, splitByDetourBudget } from '../../lib/detourBudget'
 import { quotaUsed, SOFT_CAPS } from '../../lib/providers/quota'
@@ -1299,6 +1299,12 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
   )
   const [openSlotKey, setOpenSlotKey] = useState<string | null>(null)
   const [fillingDay, setFillingDay] = useState(false)
+  /** P6.1: the rail's second reading - the day as a shape on one clock. */
+  const [shapeView, setShapeView] = useState(false)
+  const shapeBlocks = useMemo(
+    () => dayShape(activeDayIndex, { ...daySlotDeps, dayStops: trip.days.find(d => d.index === activeDayIndex)?.stops ?? [] }),
+    [activeDayIndex, daySlotDeps, trip, daySlotSig],
+  )
   /** P5.3: the selected day's empty parts as hollow amber pins - their top
    *  candidate's real position, with P5.2's cost line in the tooltip. */
   const slotPins = useMemo(() => activeDaySlots
@@ -1869,6 +1875,13 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
                 <b>Day {activeDayIndex + 1} · {activeDayLabel()}</b>
                 <span className="small muted">{activeDaySlots.length === 0 ? 'the day takes shape as you plan the drive' : `${activeReadinessLabel()}`}</span>
               </div>
+              <button
+                type="button"
+                className="chip chip-sm"
+                aria-pressed={shapeView}
+                title={shapeView ? 'Back to the list' : 'See the day as a shape - drives and parts on one clock'}
+                onClick={() => setShapeView(v => !v)}
+              >{shapeView ? 'List' : 'Shape'}</button>
               {editable && activeDaySlots.some(s => s.state === 'empty' && s.candidates.length > 0) && (
                 <button
                   type="button"
@@ -1932,7 +1945,23 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
                 <span className="slots-meter-lbl">{activeDayReadiness.filled} of {activeDayReadiness.total} planned{activeDayReadiness.auto > 0 ? ` · ${activeDayReadiness.auto} auto` : ''}</span>
               </div>
             )}
-            {activeDaySlots.length === 0 ? (
+            {shapeView && shapeBlocks.length > 0 ? (
+              <div className="dayshape">
+                {shapeBlocks.map((b, i) => (
+                  <div
+                    key={`${b.kind}-${i}`}
+                    className={`shape-block shape-${b.kind} shape-state-${b.state}`}
+                    style={{ height: `${Math.max(18, Math.round(b.minutes * 0.45))}px` }}
+                    title={b.startMin != null
+                      ? `${b.label} - ${Math.round(b.minutes)} min from ${clockHM(b.startMin)}`
+                      : `${b.label} - ${Math.round(b.minutes)} min`}
+                  >
+                    <span className="shape-name">{b.label}</span>
+                    <span className="shape-min">{Math.round(b.minutes)}m</span>
+                  </div>
+                ))}
+              </div>
+            ) : activeDaySlots.length === 0 ? (
               <div className="poi-plan-list is-emptyday">
                 <p className="muted small">{quotaOut
                   ? 'Google search quota reached - the day plan is paused until the counter rolls over.'

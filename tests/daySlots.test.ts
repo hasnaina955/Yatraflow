@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest'
 import {
   SLOT_URGENCY_MIN,
   dayReadiness,
+  dayShape,
   daySlots,
   tripReadiness,
   type DaySlotsDeps,
@@ -804,5 +805,36 @@ describe('slot voting (plan P4)', () => {
       decisions: [decision()],
     }))
     expect(slots.find(s => s.key === 'lunch')?.vote).toBeUndefined()
+  })
+})
+
+describe('the shape of the day (plan P6.1)', () => {
+  it('scales drives against the parts they serve', () => {
+    const blocks = dayShape(0, base({
+      haltSegments: [
+        sh(seg('meal', { etaMinutes: 735, minutesFromPrev: 180 }), null),
+        sh(seg('overnight', { etaMinutes: 1260, minutesFromPrev: 60, dayEnd: true }), null),
+      ],
+      dayStops: [],
+    }))
+    const drive = blocks.find(b => b.kind === 'drive')
+    const lunch = blocks.find(b => b.label === 'meal')
+    expect(drive?.minutes).toBe(180)
+    expect(lunch?.minutes).toBe(45)
+    expect((drive!.minutes) / (lunch!.minutes)).toBe(4)
+  })
+
+  it('lists the day in journey order with each part state', () => {
+    const blocks = dayShape(0, base({
+      haltSegments: [sh(seg('meal', { etaMinutes: 735, minutesFromPrev: 120 }), null)],
+      dayStops: [stop('s1', 'Grand Hotel', { openTime: '12:00', closeTime: '14:00' })],
+    }))
+    expect(blocks.map(b => b.kind)).toEqual(['drive', 'meal'])
+    expect(blocks[1].state).toBe('filled')
+    expect(blocks[1].startMin).toBe(735)
+  })
+
+  it('a day with no segments has no shape', () => {
+    expect(dayShape(2, base({ haltSegments: [], dayStops: [] }))).toEqual([])
   })
 })

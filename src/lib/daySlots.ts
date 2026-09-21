@@ -24,6 +24,7 @@
 //     nearest-window fallback - two slots never claim one stop.
 import {
   BREAKFAST_WINDOW,
+  HALT_MIN,
   DINNER_WINDOW,
   LUNCH_WINDOW,
   fitScoreForPurpose,
@@ -666,6 +667,51 @@ export function daySlots(dayIndex: number, deps: DaySlotsDeps): DaySlot[] {
       reason: auto ? 'Engine-managed stretch' : null,
     }
   })
+}
+
+/** One block of the day's shape: a drive or one of its parts. Minutes are the
+ *  only unit - the view scales them, the tests compare them. */
+export interface ShapeBlock {
+  kind: 'drive' | DaySlotKind
+  label: string
+  minutes: number
+  state: SlotState | 'drive'
+  /** wall-clock start (minutes since midnight) when the segment carries one */
+  startMin: number | null
+}
+
+/** How long a part of the day is assumed to take when the engine has no
+ *  figure of its own (nights are the one long block). */
+const SHAPE_MINUTES: Record<string, number> = {
+  stretch: HALT_MIN.stretch,
+  meal: HALT_MIN.meal,
+  fuel: HALT_MIN.fuel,
+  dinner: HALT_MIN.dinner,
+  overnight: 480,
+}
+
+/** The day's shape in journey order: each drive followed by the part it
+ *  serves. Pure over the same deps the rail uses - no new estimates. */
+export function dayShape(dayIndex: number, deps: DaySlotsDeps): ShapeBlock[] {
+  const segs = segmentsForDay(deps.haltSegments, dayIndex, deps.dayOfSegment)
+  const slots = daySlots(dayIndex, deps)
+  const out: ShapeBlock[] = []
+  for (const sh of segs) {
+    const drive = Math.round(sh.segment.minutesFromPrev)
+    if (drive > 0) {
+      out.push({ kind: 'drive', label: 'Drive', minutes: drive, state: 'drive', startMin: null })
+    }
+    const slot = slots.find(s => s.segment === sh.segment)
+    const minutes = SHAPE_MINUTES[sh.segment.purpose] ?? 30
+    out.push({
+      kind: slot?.kind ?? 'meal',
+      label: sh.segment.label,
+      minutes,
+      state: slot?.state ?? 'empty',
+      startMin: sh.segment.etaMinutes ?? null,
+    })
+  }
+  return out
 }
 
 /** The rail's meter for one day. */

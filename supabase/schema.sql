@@ -619,6 +619,41 @@ $$;
 revoke all on function public.get_creator_funnel(integer) from public, anon;
 grant execute on function public.get_creator_funnel(integer) to authenticated;
 
+-- ---------- pub_events retention (see migrations/20260922_pub_events_retention.sql)
+-- The log prunes itself: nothing reads a step older than the reader's own
+-- 730-day horizon (`get_creator_funnel` clamps there), so a row past it is
+-- pure storage cost. The horizon lives in ONE place — the reader's clamp —
+-- and the pruner clamps its own argument to the same number, so pruning can
+-- never manufacture a "recording began" date the log never had.
+create or replace function public.prune_pub_events(p_keep_days integer default 730)
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_horizon timestamptz;
+  v_deleted integer;
+begin
+  -- Same clamp the reader uses: a caller cannot prune beyond the reader's
+  -- own horizon, and a smaller call prunes less, never more.
+  v_keep_days := greatest(1, least(coalesce(p_keep_days, 730), 730));
+  v_horizon := now() - make_interval(days => v_keep_days);
+
+  delete from public.pub_events
+  where at < v_horizon;
+
+  get diagnostics v_deleted = row_count;
+  return v_deleted;
+end;
+$$;
+
+revoke all on function public.prune_pub_events(integer) from public, anon;
+grant execute on function public.prune_pub_events(integer) to authenticated;
+-- Scheduling is optional and plan-gated (pg_cron): the same stance as
+-- migrations/20260910_schedule_purge.sql. Apply manually if pg_cron is off:
+--   select public.prune_pub_events();
+
 -- ============================================================
 -- Invite-code lookup (see migrations/20260909_invite_codes.sql)
 -- ============================================================

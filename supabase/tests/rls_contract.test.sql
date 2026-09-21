@@ -413,5 +413,60 @@ begin
   end if;
 end $$;
 
+-- ---- pub_events retention (20260922_pub_events_retention.sql) -------------
+-- The pruner is a bulk-delete surface on a log no client may otherwise touch,
+-- so its contract is pinned here too: it exists, it is definer (it runs from
+-- cron as the owner), it is NOT callable by anon, and — the one that stops
+-- silent data loss — its horizon is clamped to the READER's own clamp, so
+-- pruning can never shrink the funnel's memory below what a reader can ask
+-- for. If the reader's horizon ever widens past 730, this row must change
+-- WITH it, which is exactly when the pairing should be re-decided.
+do $$
+begin
+  if not exists (
+    select 1 from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public' and p.proname = 'prune_pub_events'
+      and p.prosecdef = true
+  ) then
+    raise exception 'prune_pub_events must exist and be SECURITY DEFINER — apply 20260922_pub_events_retention.sql';
+  end if;
+
+  if exists (
+    select 1 from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    cross join lateral aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) e
+    where n.nspname = 'public' and p.proname = 'prune_pub_events'
+      and (e.grantee = 0 or e.grantee = (select oid from pg_roles where rolname = 'anon'))
+  ) then
+    raise exception 'prune_pub_events must never be granted to anon or PUBLIC (a bulk delete is not public)';
+  end if;
+
+  -- The horizon pairing: the pruner's own clamp must equal the reader's. Both
+  -- are 730 today; change them together or not at all.
+  if coalesce(
+    (select p.proconfig -> 'search_path' is not null from pg_proc p
+      join pg_namespace n on n.oid = p.pronamespace
+      where n.nspname = 'public' and p.proname = 'prune_pub_events' limit 1),
+    false
+  ) is null then
+    raise exception 'prune_pub_events disappeared between checks';
+  end if;
+end $$;
+
+do $$
+begin
+  -- The clamp itself, read back from the function body: the pruner must clamp
+  -- to the same 730 the reader clamps to (greatest(1, least(..., 730))).
+  if coalesce((
+    select position('least(coalesce(p_keep_days, 730), 730)' in p.prosrc) > 0
+    from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public' and p.proname = 'prune_pub_events' limit 1
+  ), false) is not true then
+    raise exception 'prune_pub_events must clamp its horizon to the reader''s own 730-day clamp — the retention window must never be narrower than what get_creator_funnel can read';
+  end if;
+end $$;
+
 -- ------------------------------------------------------------------------ done
 select 'rls contract: all crew-facing policies verified' as result;

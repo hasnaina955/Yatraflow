@@ -7,7 +7,7 @@ import { describe, it, expect, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import {
   reducePresence, removePresence, presenceFromSync, visiblePeers,
-  presenceChannelName, presenceKey, presencePayload, EMPTY_PRESENCE,
+  presenceChannelName, presenceKey, presencePayload, EMPTY_PRESENCE, presenceView,
 } from '../src/lib/presence'
 
 describe('reducePresence', () => {
@@ -147,5 +147,36 @@ describe('helpers', () => {
     expect(p.userId).toBe('u1')
     expect(p.name).toBe('Amelia')
     expect(typeof p.joinedAt).toBe('number')
+  })
+})
+
+describe('presenceView — what the trip header row shows', () => {
+  const amelia = { sessionKey: 'u1:aaa', userId: 'u1', name: 'Amelia', joinedAt: 100 }
+
+  it('hides the row only when presence is not actually running', () => {
+    // The quiet no-op: no backend (channel null), anon/public views and
+    // "no trip open" all land here.
+    expect(presenceView([], false)).toEqual({ kind: 'hidden' })
+    // Peers known but the session is not live: still hidden — the row is a
+    // live claim, never a cached one.
+    expect(presenceView([amelia], false)).toEqual({ kind: 'hidden' })
+  })
+
+  it('says the room is empty instead of rendering nothing', () => {
+    expect(presenceView([], true)).toEqual({ kind: 'solo' })
+  })
+
+  it('hands the peers through once someone else is here', () => {
+    expect(presenceView([amelia], true)).toEqual({ kind: 'peers', peers: [amelia] })
+  })
+
+  it('is the gate the trip header renders from', () => {
+    // Follow-up 1 of docs/PLAN-TOGETHER-M6.md: the bare `peers.length > 0`
+    // gate made an empty room indistinguishable from a dead feature. The
+    // header must go through presenceView, so a solo viewer always reads
+    // "just you" rather than nothing.
+    const src = readFileSync(new URL('../src/pages/TripWorkspace.tsx', import.meta.url), 'utf8')
+    expect(src).toMatch(/presenceView\(presence\.peers, presence\.connected\)/)
+    expect(src).not.toMatch(/presence\.peers\.length\s*>/)
   })
 })

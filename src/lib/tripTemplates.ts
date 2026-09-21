@@ -26,7 +26,8 @@ export interface TemplatePrefill {
   transportMode: TransportMode
   travelStyle: TravelStyle
   stayStyle: StayStyle
-  budgetPerPersonInr: number
+  /** Resolved from templateBudget() - not authored content. */
+  budgetPerPersonInr?: number
   /** True = same road back (roundTrip on). All v1 templates are round trips. */
   roundTrip: boolean
 }
@@ -83,7 +84,6 @@ export const TRIP_TEMPLATES: readonly TripTemplate[] = [
       transportMode: 'car',
       travelStyle: 'balanced',
       stayStyle: 'comfort',
-      budgetPerPersonInr: 15000,
       roundTrip: true,
     },
   },
@@ -103,7 +103,6 @@ export const TRIP_TEMPLATES: readonly TripTemplate[] = [
       transportMode: 'car',
       travelStyle: 'balanced',
       stayStyle: 'comfort',
-      budgetPerPersonInr: 18000,
       roundTrip: true,
     },
   },
@@ -123,7 +122,6 @@ export const TRIP_TEMPLATES: readonly TripTemplate[] = [
       transportMode: 'car',
       travelStyle: 'relaxed',
       stayStyle: 'budget',
-      budgetPerPersonInr: 12000,
       roundTrip: true,
     },
   },
@@ -143,17 +141,22 @@ export const TRIP_TEMPLATES: readonly TripTemplate[] = [
       transportMode: 'car',
       travelStyle: 'relaxed',
       stayStyle: 'comfort',
-      budgetPerPersonInr: 9000,
       roundTrip: true,
     },
   },
 ]
 
-/** Compute the honest "from" figure for a template: the starter bill's
- *  per-head at the template's own inputs, rounded to the nearest hundred.
- *  Public so the test can pin the card's promise to the engine's math and
- *  the UI can render the same number the trip will actually estimate. */
-export function templateFromPerHead(t: TripTemplate): number {
+/** The bed one tier up - the upper end of a card's price band. The band is
+ *  NOT a marketing cushion: it is the same trip priced at the tier the card
+ *  loads and at the next bed up, both computed by the engine. The bed is what
+ *  actually moves a trip's cost by 2x, so the band says exactly that. */
+const NEXT_STAY_TIER: Record<StayStyle, StayStyle> = {
+  budget: 'comfort', comfort: 'luxury', luxury: 'luxury',
+}
+
+/** Per-head for a template at a given bed tier - the single source both ends
+ *  of the band come from, so the card can never promise more than the math. */
+function headAt(t: TripTemplate, stayStyle: StayStyle): number {
   const pts = [TEMPLATE_COORDS[t.prefill.startLocation], ...t.prefill.destinations.map(d => TEMPLATE_COORDS[d])]
   const bill: StarterBill = estimateTripStarter({
     // Dates only shape day count in the bill; a fixed 2026 window keeps the
@@ -165,10 +168,40 @@ export function templateFromPerHead(t: TripTemplate): number {
     orderedPoints: pts,
     returnCount: 0,
     roundTrip: t.prefill.roundTrip,
-    stayStyle: t.prefill.stayStyle,
+    stayStyle,
   })
   if (bill.perHead == null) return 0
   return Math.round(bill.perHead / 100) * 100
+}
+
+/** The card's honest band, both ends computed: what the template loads
+ *  (low) and the same trip with the next bed up (high). Public so the test
+ *  pins both ends to the engine and the UI renders the same numbers. */
+export function templateFromRange(t: TripTemplate): { low: number; high: number } {
+  const low = headAt(t, t.prefill.stayStyle)
+  const high = Math.max(low, headAt(t, NEXT_STAY_TIER[t.prefill.stayStyle]))
+  return { low, high }
+}
+
+/** Compact money for the narrow template tiles: 12700 -> "12,700",
+ *  24700 -> "24,700" (Indian grouping), prefixed once and joined with an en
+ *  dash, e.g. "\u20B912,700-24,700". Kept here so the card and the test agree
+ *  on the exact string the user reads. */
+export function fmtBand(r: { low: number; high: number }): string {
+  const inr = (v: number) => v.toLocaleString('en-IN')
+  return r.high > r.low ? `\u20B9${inr(r.low)}\u2013${inr(r.high)}` : `\u20B9${inr(r.low)}`
+}
+
+/** The budget the form should load for this template: the low end of the band,
+ *  rounded the way the page's own smart-budget rounds (nearest 500). Derived,
+ *  never typed - so the card's band and the form's number agree by construction. */
+export function templateBudget(t: TripTemplate): number {
+  return Math.max(500, Math.round(templateFromRange(t).low / 500) * 500)
+}
+
+/** Kept for callers that want the single loaded-tier figure. */
+export function templateFromPerHead(t: TripTemplate): number {
+  return templateFromRange(t).low
 }
 
 /** Minimal local day-add (no imports from weather.ts - keeps this module
@@ -200,7 +233,7 @@ export function applyTemplate(
   if (!current.startLocation.trim()) fields.startLocation = t.prefill.startLocation
   // The budget dial: never clobber a number the user set their own number.
   // (budgetTouched mirrors the page's flag of the same name.)
-  if (!current.budgetTouched) fields.budgetPerPersonInr = t.prefill.budgetPerPersonInr
+  if (!current.budgetTouched) fields.budgetPerPersonInr = templateBudget(t)
   const dests = t.prefill.destinations.map(name => {
     const c = TEMPLATE_COORDS[name]
     return c ? { name, lat: c.lat, lng: c.lng } : { name }

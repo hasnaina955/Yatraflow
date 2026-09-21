@@ -19,7 +19,7 @@ import { FUEL_PRICE_INR_PER_L, DEFAULT_FUEL_ECONOMY_KML, isFuelEconomyMode, pars
 import { planDriveDays, isSelfDrivenMode } from '../lib/ridePlan'
 import { CREW_CHIPS, CREW_MAX, CREW_MIN, clampCrew } from '../lib/crew'
 import { estimateTripStarter, buildOutlineSeedStops } from '../lib/tripStarter'
-import { TRIP_TEMPLATES, applyTemplate, templateFromPerHead } from '../lib/tripTemplates'
+import { TRIP_TEMPLATES, applyTemplate, templateFromRange, fmtBand } from '../lib/tripTemplates'
 import { fetchTripThumbUrl } from '../lib/tripThumb'
 import { Field, Chip, toast, Odometer, useMedia } from '../components/ui'
 import { Select } from '../components/Select'
@@ -531,16 +531,13 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
         </div>
       </header>
 
-      <div className="ts-layout">
-        <form id="yf-create-form" className="ts-blocks" onSubmit={submit}>
-
-          {/* ---- Warm start (P1): template strip + name-first ---- */}
-          <section className="ts-block span12">
-            <div className="ts-block-head">
-              <span className="eyebrow">Start from a real trip</span>
-              <span className="ts-block-value">or blank - your call</span>
-            </div>
-            <div className="tpl-strip">
+      {/* ---- Warm start (P1): the front door, full width above the grid ---- */}
+      <section className="tpl-warm" aria-label="Start from a real trip">
+        <div className="tpl-warm-head">
+          <span className="eyebrow">Start from a real trip</span>
+          <span className="why">one tap loads the route, dates and budget - or fill the blocks yourself</span>
+        </div>
+<div className="tpl-strip">
               {TRIP_TEMPLATES.map(t => (
                 <button type="button" className={`tpl-card${tplId === t.id ? ' on' : ''}`} key={t.id}
                   onClick={() => pickTemplate(t)}
@@ -552,30 +549,37 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
                   <span className="tpl-bd">
                     <b>{t.name}</b>
                     <span className="r">{t.routeLine}</span>
-                    <span className="p">from &#8377;{templateFromPerHead(t).toLocaleString('en-IN')} <small>/ head, rough</small></span>
+                    <span className="p">{fmtBand(templateFromRange(t))}<small> / head, rough</small></span>
                   </span>
                   <span className="tpl-pick" aria-hidden>&#10003;</span>
                 </button>
               ))}
-              <button type="button" className="tpl-blank" onClick={clearTemplate}>
+              <button type="button" className="tpl-blank" key="blank" onClick={clearTemplate}>
                 <span>
                   Start blank
                   <small>three questions and a live ticket</small>
                 </span>
               </button>
             </div>
-            <div className="tpl-helpers">
+        <div className="tpl-helpers">
               {lastTrip && (
-                <button type="button" className="tpl-helper" onClick={copyLastTrip}
+                <button type="button" className="tpl-helper" key="same-as-last" onClick={copyLastTrip}
                   title={`Party, mode, style and budget from "${lastTrip.name}"`}>
                   Same as {lastTrip.name.length > 18 ? lastTrip.name.slice(0, 18) + '\u2026' : lastTrip.name}
                 </button>
               )}
-              <button type="button" className="tpl-helper" onClick={() => onNavigate('/trips')}>
+              <button type="button" className="tpl-helper" key="demo" onClick={() => onNavigate('/trips')}>
                 Not sure? Take a demo trip
               </button>
-            </div>
-            <div className="tpl-name" style={{ marginTop: 10 }}>
+        </div>
+      </section>
+
+      <div className="ts-layout">
+        <form id="yf-create-form" className="ts-blocks" onSubmit={submit}>
+
+          {/* ---- Name first (P1): the trip becomes yours the moment it has a name ---- */}
+          <section className="ts-block span12">
+            <div className="tpl-name">
               <Field label="Trip name" error={errs.name}>
                 <input className="input" autoComplete="off" ref={el => (fieldRefs.current.name = el)} aria-invalid={!!errs.name}
                   value={f.name} onChange={e => { patchFields({ name: e.target.value }); setNameSugSeen(true) }}
@@ -694,8 +698,11 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
                 <span className="group-lab">Transport mode</span>
                 <div className="mode-grid" role="group" aria-label="Transport mode">
                   {MODE_TILES.map(t => {
+                    // key on the tile itself: seven of the eight modes return
+                    // this button straight from the map, and React needs a key
+                    // on every returned element (the train tile wraps it).
                     const tile = (
-                      <button type="button" className={`mode-btn${f.transportMode === t.mode ? ' on' : ''}`}
+                      <button key={t.mode} type="button" className={`mode-btn${f.transportMode === t.mode ? ' on' : ''}`}
                         aria-pressed={f.transportMode === t.mode}
                         onClick={() => {
                           haptic(HAPTIC.select)

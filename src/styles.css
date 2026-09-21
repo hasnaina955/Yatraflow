@@ -6431,7 +6431,7 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .pub-fg-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-3); }
 .pub-fg-line { font-size: 12.5px; font-variant-numeric: tabular-nums; }
 .pub-fg-prelog { font-size: 11.5px; }
-\r\n
+
 /* ============================================================
    Create Trip warm start - template strip (P1)
    Appended at the file's end on purpose: the design-system ratchet
@@ -6440,7 +6440,10 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
    ============================================================ */
 
 /* the strip: cards + start-blank, one row that wraps */
-.tpl-strip { display: grid; grid-template-columns: repeat(auto-fill, minmax(178px, 1fr)); gap: 10px; margin: 10px 0 2px; }
+.tpl-warm { margin: 14px 0 16px; }
+.tpl-warm-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 8px; }
+.tpl-warm-head .why { font-size: 11.5px; color: var(--text-3); }
+.tpl-strip { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
 
 /* one template card: cover gradient + copy, hover lifts like a ticket */
 .tpl-card { position: relative; display: block; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--card); overflow: hidden; cursor: pointer; padding: 0; text-align: left; color: inherit; font: inherit; transition: transform var(--t-fast) var(--ease-out), box-shadow var(--t-fast) var(--ease-out), border-color var(--t-fast) var(--ease-out); }
@@ -6449,11 +6452,12 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .tpl-cov { height: 56px; display: flex; align-items: flex-end; padding: 6px 9px; }
 .tpl-cov .em { font-size: 18px; line-height: 1; }
 .tpl-cov .days { margin-left: auto; font-size: 9.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; background: rgba(255,255,255,.88); border-radius: 999px; padding: 2px 8px; color: var(--text-2); }
-.tpl-bd { padding: 7px 10px 9px; }
+.tpl-bd { display: block; padding: 7px 10px 9px; }
 .tpl-bd b { display: block; font-size: 12.5px; font-weight: 700; }
 .tpl-bd .r { font-size: 10.5px; color: var(--text-3); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.tpl-bd .p { margin-top: 5px; font-size: 11px; color: var(--teal-deep, var(--teal)); font-weight: 700; }
-.tpl-bd .p small { color: var(--text-3); font-weight: 500; }
+.tpl-bd .p { display: block; margin-top: 5px; font-size: 11px; color: var(--teal-deep, var(--teal)); font-weight: 700; }
+
+.tpl-bd .p small { display: block; color: var(--text-3); font-weight: 500; font-size: 9.5px; }
 .tpl-pick { position: absolute; top: 7px; right: 7px; width: 20px; height: 20px; border-radius: 50%; background: var(--card); color: var(--teal-deep); border: 1.5px solid var(--teal); display: none; place-items: center; font-size: 10px; }
 .tpl-card.on .tpl-pick { display: grid; }
 
@@ -6468,7 +6472,8 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .tpl-helper:hover, .tpl-helper:focus-visible { border-color: var(--teal); color: var(--teal-deep, var(--teal)); outline: none; }
 
 /* name-first row: the input + the suggestion chip */
-.tpl-name { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.tpl-name { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; }
+.tpl-name > .field { flex: 1 1 260px; min-width: 0; }
 .tpl-name .input { flex: 1; min-width: 200px; }
 .tpl-sug { flex: none; font-size: 11.5px; font-weight: 600; color: var(--teal-deep, var(--teal)); background: var(--teal-soft); border: 0; border-radius: 999px; padding: 6px 12px; cursor: pointer; }
 .tpl-sug:hover, .tpl-sug:focus-visible { background: var(--card); color: var(--teal-deep); outline: none; }

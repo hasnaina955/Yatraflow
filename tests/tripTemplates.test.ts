@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, it, expect } from 'vitest'
-import { TRIP_TEMPLATES, TEMPLATE_COORDS, templateFromPerHead, applyTemplate } from '../src/lib/tripTemplates'
+import { TRIP_TEMPLATES, TEMPLATE_COORDS, templateFromPerHead, templateFromRange, templateBudget, applyTemplate } from '../src/lib/tripTemplates'
 import { estimateTripStarter } from '../src/lib/tripStarter'
 import { STAY_RATE_PER_NIGHT } from '../src/lib/rates'
 import { TRAVEL_STYLES, TRANSPORT_MODES, STAY_STYLES } from '../src/data/types'
@@ -90,13 +90,46 @@ describe('trip templates - the warm start', () => {
     }
   })
 
+
+
+  it('the loaded budget is DERIVED from the band low end (nearest 500) - never a typed number', () => {
+    for (const t of TRIP_TEMPLATES) {
+      const { low } = templateFromRange(t)
+      const b = templateBudget(t)
+      expect(b % 500, t.id).toBe(0)
+      expect(Math.abs(b - low), t.id).toBeLessThanOrEqual(250)
+      const applied = applyTemplate(t, { name: '', startLocation: '', budgetTouched: false })
+      expect(applied.fields.budgetPerPersonInr, t.id).toBe(b)
+    }
+  })
+
+  it('HONESTY GUARD: the card band is computed at both ends, low <= high, both engine-derived', () => {
+    for (const t of TRIP_TEMPLATES) {
+      const { low, high } = templateFromRange(t)
+      expect(low, t.id).toBeGreaterThan(0)
+      expect(high, t.id).toBeGreaterThanOrEqual(low)
+      expect(low % 100, t.id).toBe(0)
+      expect(high % 100, t.id).toBe(0)
+      // the low end is exactly what the template's own tier prices at
+      expect(low, t.id).toBe(templateFromPerHead(t))
+      // a comfort-tier template must show a real band (the bed is the variable)
+      if (t.prefill.stayStyle !== 'luxury') expect(high, t.id).toBeGreaterThan(low)
+    }
+  })
+
+  it('HONESTY GUARD: the band is stable - re-deriving it twice gives the same numbers', () => {
+    for (const t of TRIP_TEMPLATES) {
+      expect(templateFromRange(t)).toEqual(templateFromRange(t))
+    }
+  })
+
   it('applyTemplate fills blanks but never clobbers user input', () => {
     const t = TRIP_TEMPLATES[0]
     // Blank form: everything fills.
     const fresh = applyTemplate(t, { name: '', startLocation: '', budgetTouched: false })
     expect(fresh.fields.name).toBe(t.prefill.name)
     expect(fresh.fields.startLocation).toBe(t.prefill.startLocation)
-    expect(fresh.fields.budgetPerPersonInr).toBe(t.prefill.budgetPerPersonInr)
+    expect(fresh.fields.budgetPerPersonInr).toBe(templateBudget(t))
     expect(fresh.dests).toHaveLength(2)
     expect(fresh.dests[0]).toEqual({ name: 'Munnar, Kerala', lat: 10.0889, lng: 77.0595 })
     // Typed name + start + touched budget: all three win over the template.

@@ -552,6 +552,49 @@ job, and name this mechanism rather than reaching for "flaky".
   production is about to receive; and audit coverage with
   `git log --oneline <base>..HEAD [-- CHANGELOG.md]` (§2.6b).
 
+### 3.2 The migration status check (the one part `verify` cannot see)
+
+```bash
+npm run check:migrations              # applied / MISSING per migration; exit 1 if anything is
+npm run check:migrations -- --list    # what it would probe, no network
+```
+
+`verify` typechecks, tests and builds; it says nothing about SQL that has never
+run — so a release can merge, deploy, pass CI and Vercel while its migration was
+never applied. `scripts/checkMigrations.mjs` closes that hole: it derives each
+migration's artifacts from its own SQL (`create table`, `add column`, the
+`storage.buckets` insert) and asks the live project whether each one is really
+there. It uses the app's own anon key and **GET only**, so pointing it at
+production is safe.
+
+Read it by exit code: **0** everything probed is present · **1** something is
+missing, undeclared, or could not be checked (unchecked is NOT present — a probe
+that could not answer has proved nothing) · **2** no credentials. Run it before
+promoting a release and after applying a migration; `--allow-missing` makes it a
+report instead of a gate, `--json` makes it machine-readable.
+
+Two things it deliberately does NOT probe — do not "fix" these:
+
+- **Functions.** PostgREST answers the *same* `404 PGRST202` for a function
+  called without its parameters whether or not it exists (verified live against
+  `admin_delete_user`), so the only way to probe one is to execute it. Their
+  absence is loud instead: the app fails at call time.
+- **Policies and triggers.** Covered by `supabase/tests/rls_contract.test.sql`
+  through `npm run test:integration`, and by behavior rather than by catalog.
+
+Such a migration is declared in the script's `NO_PROBE_SURFACE` with its reason.
+A new migration that is neither probed nor declared fails the check as
+**undeclared** — that ratchet, plus `tests/migration-status.test.ts` (coverage,
+the parser against real SQL shapes plus fixtures, a stub server replaying the
+bodies the live project returns, and a tripwire keeping the check GET-only), is
+what keeps the check honest as the directory grows.
+
+It earned its place on the first run: `20260914_trip_stay_budget.sql` had never
+been applied to production, so `trips.stay_style` was absent, the store's
+optional-column probe reported `stayStyle: false`, and the stay-budget dial
+silently reverted on every reload — the same class as the `cover_image_url`
+migration-gap rule in §4, and the first thing in this repo that could see it.
+
 ## 4. Code conventions & pitfalls
 
 - **Anything that leaves the device must read STORED state, never what a component happens to render (learned 2026-09-19).** `CoverThumb` resolves a trip's cover from three sources in order — the owner's explicit `coverImageUrl`, then a Wikipedia photo fetched at runtime and cached in localStorage — so a trip with no stored cover still *looks* illustrated. The share preview has no such fallback chain: `api/i.js` reads `published_itineraries.cover_image_url` and nothing else, so a publication published without an explicit cover stamped `NULL` and previewed as the brand card while the app showed a photo of the destination. Both halves were correct in isolation and the reporter's symptom ("it shows the brand image on all links") read like a handler bug; the data answered it in one query (`select id, cover_image_url from published_itineraries`). Rule: when a rendered value has a runtime fallback, ask what the *stored* value is before debugging the consumer — and if a downstream surface (a crawler, an API, an export) can only read the stored one, make the fallback explicit and persisted at the moment the user commits (here: the publish form requires a saved cover), or the two will disagree silently forever.

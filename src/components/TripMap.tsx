@@ -358,6 +358,13 @@ function dedupeConsecutive(coords: [number, number][]): [number, number][] {
 
 /** "transport-hub" → "Transport Hub" for chip labels. */
 
+/** m2: distinct glyphs for the empty-part pins. Keyed on the PART, not the
+ *  label's first letter — Stay and Stretch both read "S" that way, so two
+ *  different kinds wore one badge. */
+const SLOT_PIN_GLYPH: Record<string, string> = {
+  breakfast: 'B', lunch: 'L', fuel: 'F', stretch: 'S', dinner: 'D', stay: 'N',
+}
+
 export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusDay, showToolbar = true, enableMapViewModes = false, activeHitId = null, onActivateHit, onOpenInTimeline, onOpenInBoard, onDeleteStop, mainRouteGeometry = null, clockMilestones = null, onOpenHaltDay, onShowReturnChange, slotPins = [], onOpenSlot, hitCosts }: {
   trip: Trip
   onOpenStop?: (stopId: string) => void
@@ -495,11 +502,28 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   // otherwise (1 req/s). Markers pop in as coords land; failures stay
   // panel-only. Capped at 10 per ideas batch.
   const [coordFixes, setCoordFixes] = useState<Record<string, { lat: number; lng: number }>>({})
+  // Slot pins carry placeholder hits too, and they were read here but missing
+  // from the dep list: switching the day changed `slotPins` while `nearbyPois`
+  // stayed identical, so the effect never re-ran, the pin never resolved, and a
+  // (0,0) placeholder fell through the render guard below and disappeared
+  // silently — the Null Island class this file already documents as found live.
+  //
+  // Ideas and slot pins also get SEPARATE budgets. One shared 10-item queue
+  // ordered ideas-first meant a slot pin only got a turn after every unresolved
+  // idea, which on a fresh load is never.
   useEffect(() => {
     let cancelled = false
-    const pending = [...nearbyPois, ...slotPins.map(p => p.hit)]
+    const seen = new Set<string>()
+    const take = (list: PlaceHit[], cap: number) => list
       .filter(h => !hasCoords(h) && coordFixes[h.id as string] == null)
-      .slice(0, 10)
+      .slice(0, cap)
+    const pending = [...take(nearbyPois, 10), ...take(slotPins.map(p => p.hit), 4)]
+      .filter(h => {
+        const id = String(h.id)
+        if (seen.has(id)) return false
+        seen.add(id)
+        return true
+      })
     if (pending.length === 0) return
     ;(async () => {
       for (const h of pending) {
@@ -513,7 +537,10 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
       }
     })()
     return () => { cancelled = true }
-  }, [nearbyPois])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `coordFixes` is read
+    // to skip what is already fixed; depending on it would restart the queue on
+    // every landing and re-attempt hits that can never resolve.
+  }, [nearbyPois, slotPins])
   const mappedPois = useMemo(
     () => nearbyPois.map(h => {
       const f = coordFixes[h.id as string]
@@ -530,6 +557,11 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     },
     [mappedPois, hiddenIdeaCats],
   )
+  /** S4: the hits an empty-part pin is already standing on. Every slot
+   *  candidate is drawn from the same corridor pool as the ideas, so without
+   *  this the slot pin landed exactly on the idea pin — two markers, one
+   *  coordinate, an ambiguous click target. */
+  const slotPinIds = useMemo(() => new Set(slotPins.map(p => String(p.hit.id))), [slotPins])
   function toggleIdeaCat(cat: string) {
     setHiddenIdeaCats(prev => {
       const next = new Set(prev)
@@ -1130,21 +1162,23 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
               const lat = fix ? fix.lat : pin.hit.latitude
               const lng = fix ? fix.lng : pin.hit.longitude
               if (!Number.isFinite(lat) || !Number.isFinite(lng) || (lat === 0 && lng === 0)) return null
+              // m3: one string, used as the accessible name and the tooltip.
+              // It used to be a `title` AND a MarkerTooltip with identical text,
+              // so hovering showed two tooltips saying the same thing.
+              const label = `${pin.label}: ${pin.name} — ${pin.meta}. Tap to open this part in the plan.`
               return (
                 <MapMarker key={`slot-${pin.key}`} longitude={lng} latitude={lat} anchor="center">
                   <MarkerContent>
                     <button
                       type="button"
                       className="yf-map-pin yf-map-pin--slot"
-                      title={`${pin.label}: ${pin.name} - ${pin.meta} - tap to open in the plan`}
+                      aria-label={label}
                       onClick={() => onOpenSlot?.(pin.key)}
                     >
-                      {pin.label.slice(0, 1)}
+                      {SLOT_PIN_GLYPH[pin.key] ?? pin.label.slice(0, 1)}
                     </button>
                   </MarkerContent>
-                  <MarkerTooltip>
-                    {`${pin.label}: ${pin.name} - ${pin.meta} - tap to open in the plan`}
-                  </MarkerTooltip>
+                  <MarkerTooltip>{label}</MarkerTooltip>
                 </MapMarker>
               )
             })}
@@ -1229,6 +1263,10 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                 Pin click/hover = select: the panel row highlights and scrolls
                 into view; adding moved to the explicit + chip beside the pin. */}
             {visiblePois.map(hit => {
+              // S4: an empty-part pin already stands here for this exact hit —
+              // it carries more (the part it would fill, plus the cost line) and
+              // its tap opens the plan, so it is the one that stays.
+              if (slotPinIds.has(String(hit.id))) return null
               const active = activeHitId != null && activeHitId === hit.id
               return (
                 <MapMarker key={`nearby_${hit.id}`} longitude={hit.longitude} latitude={hit.latitude}>

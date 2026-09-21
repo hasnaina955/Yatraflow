@@ -12,6 +12,7 @@ import {
   type DaySlotsDeps,
 } from '../src/lib/daySlots'
 import { BREAKFAST_WINDOW, DINNER_WINDOW, LUNCH_WINDOW, type RideSegment, type SegmentHit } from '../src/lib/ridePlan'
+import { SLOT_KIND_CATEGORIES } from '../src/lib/haltFit'
 import type { PlaceHit } from '../src/lib/providers/hits'
 import type { ItineraryStop } from '../src/data/types'
 
@@ -412,11 +413,21 @@ describe('windows & urgency (P3 groundwork)', () => {
     expect(slots[0].urgencyMin).toBe(39)
   })
 
-  it('a slot past its window reads negative (missed)', () => {
-    const slots = daySlots(0, base({ haltSegments: [sh(seg('meal', { etaMinutes: LUNCH_WINDOW[1] + 10 }), null)], dayStops: [] }))
-    expect(slots[0].key).toBe('dinner') // it became dinner, so use lunch's slot directly
-    const lunch = daySlots(0, base({ haltSegments: [sh(seg('meal', { etaMinutes: 860 }), null)], dayStops: [] }))
-    expect(lunch[0].urgencyMin).toBe(10)
+  // T1: this test used to be named "reads negative (missed)" and assert
+  // `toBe(10)` — a POSITIVE number — so the missed case was never covered at
+  // all, and the rail went on saying "closes 14:30" about a window that had
+  // already shut. A dinner arriving past DINNER_WINDOW's close is the reachable
+  // missed case (a lunch can never be late: `draftForSegment` only calls an
+  // arrival "lunch" while it is still inside the lunch window).
+  it('a slot past its window end reads NEGATIVE, and the closing side reads positive', () => {
+    const late = daySlots(0, base({ haltSegments: [sh(seg('meal', { etaMinutes: DINNER_WINDOW[1] + 40 }), null)], dayStops: [] }))
+    expect(late[0].key).toBe('dinner')
+    expect(late[0].urgencyMin).toBe(-40)
+    expect(late[0].windowMin).toEqual(DINNER_WINDOW)
+
+    const soon = daySlots(0, base({ haltSegments: [sh(seg('meal', { etaMinutes: DINNER_WINDOW[1] - 10 }), null)], dayStops: [] }))
+    expect(soon[0].urgencyMin).toBe(10)
+    expect(soon[0].urgencyMin!).toBeLessThanOrEqual(SLOT_URGENCY_MIN)
   })
 
   it('slots without windows (fuel, stay) never carry urgency', () => {
@@ -836,5 +847,111 @@ describe('the shape of the day (plan P6.1)', () => {
 
   it('a day with no segments has no shape', () => {
     expect(dayShape(2, base({ haltSegments: [], dayStops: [] }))).toEqual([])
+  })
+})
+
+// ---------------------------------------------------------------------------
+// The fixes from the #271 review. Each pins a defect the green gate did not
+// catch: the tests that existed were either silent on the case (S1, m13, m14)
+// or, in T1's case, named after a case their assertion never exercised.
+// ---------------------------------------------------------------------------
+describe('the review fixes', () => {
+  it('dayShape leaves sights out — an extra is not a part of the day (S1)', () => {
+    const blocks = dayShape(0, base({
+      haltSegments: [
+        sh(seg('meal', { etaMinutes: 735, minutesFromPrev: 120 }), null),
+        sh(seg('sight', { etaMinutes: 800, targetKm: 200, minutesFromPrev: 40 }), null),
+      ],
+      dayStops: [],
+    }))
+    // The sight takes its own drive with it: a detour the crew opted into is
+    // not outstanding work, and rendering it as a dashed "unplanned" block
+    // asked for work the right rail calls "never required".
+    expect(blocks.map(b => b.kind)).toEqual(['drive', 'meal'])
+  })
+
+  it('a stretch part claimed by a stop is filled, never also auto (m13)', () => {
+    const deps = base({
+      haltSegments: [sh(seg('stretch', { targetKm: 128, etaMinutes: 660 }), null)],
+      dayStops: [stop('s-fill', 'Coffee stop', { category: 'cafe', slotKey: 'stretch' })],
+    })
+    const stretch = daySlots(0, deps).find(s => s.key === 'stretch')!
+    expect(stretch.state).toBe('filled')
+    expect(stretch.auto).toBe(false)
+
+    const r = dayReadiness(0, deps)
+    expect(r.filled + r.auto).toBeLessThanOrEqual(r.total)
+    expect(r.required).toBe(r.total - r.auto)
+  })
+
+  it('a fill is remembered as DATA, so tidying its note cannot un-plan it (B3)', () => {
+    const at = (over: Partial<ItineraryStop>) => daySlots(0, base({
+      haltSegments: [sh(seg('meal', { etaMinutes: 735 }), null)],
+      dayStops: [stop('s1', 'Lunch place', over)],
+    })).find(s => s.key === 'lunch')!
+
+    expect(at({ slotKey: 'lunch' }).state).toBe('filled')
+    // A note the user edited or cleared must change nothing.
+    expect(at({ slotKey: 'lunch', notes: 'Great thali' }).state).toBe('filled')
+    // The legacy marker, for fills written before the field existed.
+    expect(at({ notes: 'Filled from the day plan: lunch' }).state).toBe('filled')
+    // ...and neither marker alone is a fill for the wrong part.
+    expect(at({ slotKey: 'dinner' }).state).toBe('empty')
+  })
+
+  it('lunch and dinner draw on their OWN halt, not on every meal halt (m14)', () => {
+    const slots = daySlots(0, base({
+      haltSegments: [
+        sh(seg('meal', { etaMinutes: 735, targetKm: 250 }), hit('h-lunch', 'Lunch place', { alongRouteKm: 250 })),
+        sh(seg('meal', { etaMinutes: 1170, targetKm: 420 }), hit('h-dinner', 'Dinner place', { alongRouteKm: 420 })),
+      ],
+      dayStops: [],
+    }))
+    expect(slots.find(s => s.key === 'lunch')!.candidates[0]?.hit.id).toBe('h-lunch')
+    expect(slots.find(s => s.key === 'dinner')!.candidates[0]?.hit.id).toBe('h-dinner')
+  })
+
+  it('tripReadiness gives a halt-less day its own row (the bound is the trip, not the halts)', () => {
+    const rows = tripReadiness(
+      [sh(seg('meal', { etaMinutes: 735, dayEnd: true }), null)],
+      [
+        { index: 0, stops: [] },
+        { index: 1, stops: [stop('s2', 'Beach day', { category: 'sightseeing' })] },
+      ],
+      { dayStops: [], anchors: ANCHORS, fillSkeleton: true },
+    )
+    expect(rows.map(r => r.dayIndex)).toEqual([0, 1])
+    // Day 1 has no halts but does have a stop, so its skeleton gives it parts —
+    // the old bound dropped this row entirely and the day vanished from the row.
+    expect(rows[1].total).toBeGreaterThan(0)
+  })
+
+  it('dayShape takes the caller’s slots rather than re-deriving the day', () => {
+    const deps = base({ haltSegments: [sh(seg('meal', { etaMinutes: 735, minutesFromPrev: 60 }), null)], dayStops: [] })
+    expect(dayShape(0, deps, daySlots(0, deps))).toEqual(dayShape(0, deps))
+  })
+})
+
+describe('the engine’s own category table (haltFit)', () => {
+  it('derives each kind’s categories from PURPOSE_FIT rather than restating them', () => {
+    expect(SLOT_KIND_CATEGORIES.meal).toContain('food')
+    expect(SLOT_KIND_CATEGORIES.fuel).toContain('transport-hub')
+    expect(SLOT_KIND_CATEGORIES.overnight).toContain('hotel')
+    expect(SLOT_KIND_CATEGORIES.stretch).toContain('cafe')
+    // `cafe` has meal fit 1 against `candidatesFor`'s pool gate of 2, so the
+    // engine can never offer one as a meal — the hand-written list this
+    // replaced included it anyway and the hint counted picks that cannot exist.
+    expect(SLOT_KIND_CATEGORIES.meal).not.toContain('cafe')
+    // `rest` is the category both providers tag a TOWN with, and the
+    // populated-place bonus makes it meal/fuel/overnight-capable. It appears
+    // under more than one kind — which is why a DNA event records its own
+    // `haltKind` instead of relying on the category.
+    for (const kind of ['meal', 'fuel', 'overnight', 'stretch'] as const) {
+      expect(SLOT_KIND_CATEGORIES[kind]).toContain('rest')
+    }
+  })
+
+  it('the four kinds the day plan names are the four the hint speaks for', () => {
+    expect(Object.keys(SLOT_KIND_CATEGORIES).sort()).toEqual(['fuel', 'meal', 'overnight', 'stretch'])
   })
 })

@@ -464,9 +464,17 @@ describe('contrast contract: colour pairs declared in one rule', () => {
   // 3.65:1 warn-on-white shipped. These pins make the Map-rail's warn-ink
   // pairs an explicit contract: measured against the surfaces the rail
   // actually paints (its own card bg, and the soft warn chip fill).
+  //
+  // #271 added five more colour-only amber-ink rules (the closing-slot label,
+  // the empty-slot hint, the day chip's rain flag, the unplanned shape block,
+  // the empty matrix cell) and reproduced the same 3.65:1 — on `--card`, which
+  // was not in this list. `--card` is therefore a pinned surface now, and every
+  // amber-ink rule in the rail routes through `--ink-amber` (which resolves to
+  // `--warn` in the dark theme, where the surface token IS the ink token).
   it('map-rail warn ink meets AA on every surface it paints (#154)', () => {
     const surfaces: Array<[string, string]> = [
       ['--bg', 'card background'],
+      ['--card', 'raised card / rail surface'],
       ['--warn-soft', 'warn chip fill'],
     ]
     for (const [theme, tokens] of [['light', rootTokens], ['dark', darkTokens]] as const) {

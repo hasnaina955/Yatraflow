@@ -5,11 +5,18 @@
 // ("you've picked 3 waterfall stops this trip"). Pure core below; the
 // localStorage log at the bottom is the only impure part (best-effort,
 // capped, never throws).
+import { SLOT_KIND_CATEGORIES, SLOT_KIND_PURPOSES, type SlotKind } from './haltFit'
 export interface DnaEvent {
   tripId: string
   /** 'seed' = an open crew idea: bends affinity but is NOT a crew acceptance */
   action: 'accept' | 'decline' | 'seed'
   category?: string
+  /** The engine purpose this pick was offered for ('meal' | 'fuel' | 'rest' |
+   *  'overnight' | 'stretch' | 'sight'), when the caller knew it. `category`
+   *  alone cannot tell a town accepted as a night halt from one accepted as
+   *  lunch — both log 'rest' — so the P7.2 hints read this first and fall back
+   *  to the category only for events written before it existed. */
+  haltKind?: string
   detourMin?: number
   /** predicted visit length for the stop (stop-length preference learning) */
   visitMin?: number
@@ -110,17 +117,20 @@ export function dnaNoteForHit(
 
 /** P7.2: what the log has learned about a KIND of part - how often the crew
  *  takes it and the detour they tolerate. Null until the evidence is real
- *  (3+ accepts for the kind), so a young log never pretends to a habit. */
-export function slotPatternHint(log: DnaEvent[], kind: 'meal' | 'fuel' | 'overnight' | 'stretch'): string | null {
-  const cats: Record<string, string[]> = {
-    meal: ['food', 'cafe', 'rest'],
-    fuel: ['fuel', 'transport-hub'],
-    overnight: ['hotel'],
-    stretch: ['rest', 'cafe'],
-  }
-  const wanted = cats[kind]
-  if (!wanted) return null
-  const relevant = log.filter(e => e.category != null && wanted.includes(normCat(e.category) ?? ''))
+ *  (3+ accepts for the kind), so a young log never pretends to a habit.
+ *
+ *  Membership is the event's OWN recorded purpose (`haltKind`) whenever it has
+ *  one. Category alone is not enough to tell the kinds apart: a town accepted
+ *  as a NIGHT HALT and a town accepted as LUNCH both log `category: 'rest'`,
+ *  so the old category-only filter counted one accept toward every kind's hint.
+ *  Events written before `haltKind` existed fall back to the engine's own
+ *  category list (`SLOT_KIND_CATEGORIES`, derived from `PURPOSE_FIT`). */
+export function slotPatternHint(log: DnaEvent[], kind: SlotKind): string | null {
+  const purposes: readonly string[] = SLOT_KIND_PURPOSES[kind]
+  const legacyCats = SLOT_KIND_CATEGORIES[kind]
+  const relevant = log.filter(e => e.haltKind != null
+    ? purposes.includes(e.haltKind)
+    : e.category != null && legacyCats.includes(normCat(e.category) ?? ''))
   const accepts = relevant.filter(e => e.action === 'accept')
   if (accepts.length < 3) return null
   const detours = accepts

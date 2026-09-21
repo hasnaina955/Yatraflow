@@ -2301,7 +2301,11 @@ export function resolveDecision(decisionId: ID, optionId: ID): void {
       entryFeeInrPerPerson: 0,
       transportCostInrTotal: 0,
       priority: 'nice-to-have',
-      notes: `Chosen by group vote — “${d.question}”${slotKey ? " - Filled from the day plan: " + slotKey : ""}`,
+      notes: `Chosen by group vote — “${d.question}”`,
+      // The part this vote was raised for, as DATA. It used to be appended to
+      // `notes` as prose, which made a user-editable, printed field the only
+      // record of a derived state: tidying the note un-planned the day.
+      ...(slotKey ? { slotKey } : {}),
       status: 'confirmed',
     })
   }

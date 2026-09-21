@@ -129,6 +129,13 @@ export interface ItineraryStop {
   transportCostInrTotal: number   // cost of travelling TO this stop from previous point
   priority: 'must-do' | 'nice-to-have' | 'optional'
   notes?: string
+  /** The part of the day this stop was filed as, when the day plan's Fill (or a
+   *  resolved slot vote) created it — one of `SlotKey` (breakfast / lunch /
+   *  dinner / fuel / stretch / stay). Provenance as DATA, so the rail reads the
+   *  part back as filled without parsing prose: `notes` is user-editable (the
+   *  Stop editor exposes it, the print export renders it) and must never be the
+   *  source of truth for a derived state. */
+  slotKey?: string
   sourceUrl?: string
   status: StopStatus
   orderInDay: number

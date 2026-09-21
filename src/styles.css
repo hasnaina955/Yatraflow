@@ -6017,7 +6017,16 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .day-slot.is-auto .day-slot-lab { color: var(--text-3); font-weight: 600; }
 .day-slot.is-filled .day-slot-lab { color: var(--text-2); }
 .day-slot-win { font-size: 10px; color: var(--text-3); letter-spacing: .03em; text-transform: uppercase; font-weight: 600; font-variant-numeric: tabular-nums; }
-.day-slot-urgent { flex: none; font-size: 10px; font-weight: 700; color: var(--warn); }
+/* B2: these five rules paint AMBER AS TEXT. `--warn` (#B47207) is a surface
+   token — as ink it is 3.65:1 on --bg and 3.92:1 on --card, under AA's 4.5:1
+   for normal text (and these run at 9.5–12px, far below the large-text
+   exemption). `--ink-amber` is the token this codebase already routes amber
+   ink through for exactly this reason; it measures 5.33:1 / 5.73:1. */
+.day-slot-urgent { flex: none; font-size: 10px; font-weight: 700; color: var(--ink-amber); }
+/* B4: a part whose window has already CLOSED. Distinct from the closing state
+   above — the message is "you missed it", not "hurry" — so it reads in the
+   muted ink instead of shouting in amber. */
+.day-slot-missed { flex: none; font-size: 10px; font-weight: 700; color: var(--text-3); }
 .day-slot-val { margin-left: auto; font-size: 11px; color: var(--text-2); text-align: right; max-width: 55%; font-variant-numeric: tabular-nums; }
 .day-slot-val b { font-weight: 600; color: var(--text); }
 .day-slot-val small { display: block; color: var(--text-3); font-size: 10px; }
@@ -6127,7 +6136,7 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 }
 .day-slot-hint {
   display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
-  margin: 0 10px 8px; font-size: 10.5px; font-weight: 600; color: var(--warn);
+  margin: 0 10px 8px; font-size: 10.5px; font-weight: 600; color: var(--ink-amber);
 }
 .day-slot-hint .n { color: var(--text-3); font-weight: 500; }
 /* P2: the extras row dot (the mockup's .xrow .d) */
@@ -6154,7 +6163,7 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .day-slot-vote { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 10px 8px; }
 .day-slot-vote-lead { font-size: 10.5px; color: var(--text-3); }
 /* P5: the day chip carries its weather, and the rail its meta chips */
-.slots-daychip-rain { font-size: 9.5px; font-weight: 700; color: var(--warn); text-transform: uppercase; letter-spacing: .03em; }
+.slots-daychip-rain { font-size: 9.5px; font-weight: 700; color: var(--ink-amber); text-transform: uppercase; letter-spacing: .03em; }
 .slots-daychip.is-on .slots-daychip-rain { color: var(--teal-deep); }
 .slots-railmeta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 0 2px 8px; }
 .slots-legend { position: relative; }
@@ -6165,8 +6174,15 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .slots-legend-body p:last-child { margin-bottom: 0; }
 .slots-legend-body b { color: var(--text); font-weight: 600; }
 /* P5.3: a slot pin - an empty part of the day, hollow amber, tap to open */
-.yf-map-pin--slot { border: 2px solid var(--warn); color: var(--warn); font-weight: 800; }
-.yf-map-pin--slot:hover { background: var(--warn-soft); }
+/* P5.3: a slot pin — an empty part of the day, hollow amber, tap to open.
+   It carries its own card fill: the base `.yf-map-pin` sets NO background, so
+   without this the glyph sat straight on the map tiles and its legibility
+   depended on whatever imagery happened to be behind it. */
+.yf-map-pin--slot {
+  background: var(--card); border: 2px solid var(--warn);
+  color: var(--ink-amber); font-weight: 800;
+}
+.yf-map-pin--slot:hover { background: var(--warn-soft); border-color: var(--ink-amber); }
 /* P6.1: the day as a shape - drives and parts sized to their minutes */
 .dayshape { display: flex; flex-direction: column; gap: 3px; padding: 2px 2px 6px; }
 .shape-block {
@@ -6179,7 +6195,7 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .shape-fuel { background: var(--warn-soft); color: var(--text-2); }
 .shape-stretch { background: transparent; border: 1px dashed var(--line); color: var(--text-2); }
 .shape-overnight { background: var(--teal-soft); color: var(--teal-deep); }
-.shape-state-empty { background: transparent; border: 1px dashed var(--warn); color: var(--warn); }
+.shape-state-empty { background: transparent; border: 1px dashed var(--warn); color: var(--ink-amber); }
 .shape-state-auto { background: transparent; border: 1px dashed var(--line); color: var(--text-2); }
 .shape-name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .shape-min { flex: none; opacity: .85; }
@@ -6194,7 +6210,7 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .slotmatrix-cell { text-align: center; font-size: 12px; line-height: 1.6; border-radius: 6px; }
 .slotmatrix-cell.is-filled { background: var(--teal-soft); color: var(--teal-deep); }
 .slotmatrix-cell.is-auto { border: 1px dashed var(--line); color: var(--text-2); }
-.slotmatrix-cell.is-empty { border: 1px dashed var(--warn); color: var(--warn); }
+.slotmatrix-cell.is-empty { border: 1px dashed var(--warn); color: var(--ink-amber); }
 .slotmatrix-cell.is-none { color: var(--line); }
 .slotmatrix-total { font-size: 11px; color: var(--text-2); text-align: right; font-variant-numeric: tabular-nums; }
 

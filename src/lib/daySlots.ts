@@ -37,14 +37,18 @@ import { budgetSharePct, dayDetourBudgetMin } from './detourBudget'
 import { asymmetricDetourMinutes, detourKm, type HaltPurpose, type PlaceHit } from './providers/hits'
 import { clockHM } from './clockOverlay'
 import { haversineKm } from './geo'
-import { MODE_SPEED } from './engine'
-import type { ItineraryStop, TransportMode, TripDecision } from '../data/types'
+import { buildJourney, MODE_SPEED } from './engine'
+import type { SlotKind } from './haltFit'
+import type { ItineraryStop, TransportMode, Trip, TripDecision } from '../data/types'
 
 /** How close to its window end an empty slot reads as urgent ("closes 14:30"). */
 export const SLOT_URGENCY_MIN = 20
 
 export type SlotKey = 'breakfast' | 'lunch' | 'dinner' | 'fuel' | 'stretch' | 'stay'
-export type DaySlotKind = 'meal' | 'fuel' | 'stretch' | 'overnight'
+/** The four kinds of part a day can hold. Aliased to `SlotKind` (haltFit) so
+ *  there is exactly ONE definition of "what a part of the day can be" — the
+ *  hint's kind vocabulary and this module's are the same thing. */
+export type DaySlotKind = SlotKind
 export type MealSlotName = 'lunch' | 'dinner'
 export type SlotState = 'filled' | 'empty' | 'auto'
 
@@ -275,12 +279,24 @@ function fillStopFor(
 
   const foodStops = active.filter(s => s.category === 'food' || (s.category as string) === 'cafe')
   const hotelStops = active.filter(s => s.category === 'hotel')
+  /** A stop that NAMES the part it fills belongs to that part ONLY. Without
+   *  this the category and hours passes could re-claim a place the crew filed
+   *  as dinner for the LUNCH slot, so the rail showed a dinner pick sitting in
+   *  lunch. An unnamed stop stays claimable by anything, as before. */
+  const belongsTo = (key: SlotKey) => (s: ItineraryStop) => s.slotKey == null || s.slotKey === key
 
-  // Pass 0 - provenance: a stop the day plan itself filled names its part in
-  // its notes, so the rail's Fill always reads back as filled - whatever the
-  // place's category happens to be.
+  // Pass 0 - provenance: a stop the day plan itself filled carries the part it
+  // filled as DATA (`ItineraryStop.slotKey`), so the rail's Fill always reads
+  // back as filled - whatever the place's category happens to be. The `notes`
+  // substring is kept as a fallback for stops filled before that field
+  // existed: notes are user-editable prose (the Stop editor exposes them and
+  // the print export renders them), so they must never be the only source of
+  // truth for a derived state.
   for (const d of drafts) {
-    const pick = active.find(s => !claimed.has(String(s.id)) && String(s.notes ?? '').includes(`day plan: ${d.key}`))
+    const pick = takeLatest(active.filter(s =>
+      !claimed.has(String(s.id)) &&
+      (s.slotKey === d.key || String(s.notes ?? '').includes(`day plan: ${d.key}`)),
+    ))
     if (pick) {
       claims.set(d.key, pick)
       claimed.add(String(pick.id))
@@ -293,7 +309,7 @@ function fillStopFor(
     const win = windowFor(d)
     if (!win) continue
     const matching = foodStops.filter(s => {
-      if (claimed.has(String(s.id))) return false
+      if (claimed.has(String(s.id)) || !belongsTo(d.key)(s)) return false
       const span = stopSpanMin(s)
       return span != null && span[0] < win[1] && span[1] > win[0]
     })
@@ -308,7 +324,7 @@ function fillStopFor(
   // window, so category is the only honest claim.
   const fuelDraft = drafts.find(d => d.kind === 'fuel')
   if (fuelDraft) {
-    const pick = takeLatest(active.filter(s => !claimed.has(String(s.id)) && s.category === 'transport-hub'))
+    const pick = takeLatest(active.filter(s => !claimed.has(String(s.id)) && belongsTo(fuelDraft.key)(s) && s.category === 'transport-hub'))
     if (pick) {
       claims.set(fuelDraft.key, pick)
       claimed.add(String(pick.id))
@@ -318,7 +334,7 @@ function fillStopFor(
   // Pass 2 - stay: the hotel-category stop claims it.
   const stayDraft = drafts.find(d => d.kind === 'overnight')
   if (stayDraft) {
-    const pick = takeLatest(hotelStops.filter(s => !claimed.has(String(s.id))))
+    const pick = takeLatest(hotelStops.filter(s => !claimed.has(String(s.id)) && belongsTo(stayDraft.key)(s)))
     if (pick) {
       claims.set(stayDraft.key, pick)
       claimed.add(String(pick.id))
@@ -340,7 +356,7 @@ function fillStopFor(
       if (span == null) continue
       let best: { key: SlotKey; dist: number } | null = null
       for (const slot of slotsWithWin) {
-        if (claims.has(slot.key)) continue
+        if (claims.has(slot.key) || !belongsTo(slot.key)(stop)) continue
         const dist = Math.abs(span[0] - slot.win[0])
         if (best == null || dist < best.dist) best = { key: slot.key, dist }
       }
@@ -355,7 +371,7 @@ function fillStopFor(
     for (const key of order) {
       const d = emptyMeals.find(x => x.key === key)
       if (!d || claims.has(key)) continue
-      const pick = takeLatest(untimed.filter(s => !claimed.has(String(s.id))))
+      const pick = takeLatest(untimed.filter(s => !claimed.has(String(s.id)) && belongsTo(key)(s)))
       if (pick) {
         claims.set(key, pick)
         claimed.add(String(pick.id))
@@ -371,7 +387,7 @@ function fillStopFor(
     const win = windowFor(d)
     if (!win) continue
     const matching = active.filter(s => {
-      if (claimed.has(String(s.id))) return false
+      if (claimed.has(String(s.id)) || !belongsTo(d.key)(s)) return false
       if (s.category === 'food' || s.category === 'hotel') return false
       const span = stopSpanMin(s)
       return span != null && span[0] < win[1] && span[1] > win[0]
@@ -643,9 +659,23 @@ export function daySlots(dayIndex: number, deps: DaySlotsDeps): DaySlot[] {
       isStretch && seg?.haltPinned && minute(seg.haltDriftToKm)
         ? { fromKm: seg.targetKm, toKm: seg.haltDriftToKm as number }
         : null
-    const auto = isStretch && drift == null
+    // A filled slot is never also engine-managed. `auto` means "the engine
+    // handles this, no work is demanded of you"; a claimed stop is work already
+    // done. Without the `!filledStop` guard a stretch slot claimed by a stop
+    // counted in BOTH `filled` and `auto`, so readiness could sum past its own
+    // total and the meter drew a part as filled and dashed at once.
+    const auto = isStretch && drift == null && !filledStop
     const eta = seg && minute(seg.etaMinutes) ? (seg.etaMinutes as number) : null
     const urgencyMin = win && eta != null ? win[1] - eta : null
+    // Candidate hits are the draft's OWN segments, never every same-purpose
+    // segment in the day. Lunch and dinner are both purpose `meal`, so a
+    // purpose filter handed the two meals an identical pool - and a synthesized
+    // slot borrowed another meal's engine halt as its lead candidate. A draft
+    // with no engine segment (a skeleton part) honestly draws from the corridor
+    // pool alone.
+    const segHits = draft.segments.length > 0
+      ? daySegs.filter(sh => draft.segments.includes(sh.segment))
+      : []
     return {
       key: draft.key,
       kind: draft.kind,
@@ -659,10 +689,7 @@ export function daySlots(dayIndex: number, deps: DaySlotsDeps): DaySlot[] {
       auto,
       drift,
       urgencyMin,
-      candidates:
-        filledStop || auto
-          ? []
-          : candidatesFor(draft, seg, daySegs.filter(sh => sh.segment.purpose === draft.segments[0]?.purpose), deps),
+      candidates: filledStop || auto ? [] : candidatesFor(draft, seg, segHits, deps),
       ...(filledStop ? {} : { vote: voteFor(draft, deps) }),
       reason: auto ? 'Engine-managed stretch' : null,
     }
@@ -691,20 +718,34 @@ const SHAPE_MINUTES: Record<string, number> = {
 }
 
 /** The day's shape in journey order: each drive followed by the part it
- *  serves. Pure over the same deps the rail uses - no new estimates. */
-export function dayShape(dayIndex: number, deps: DaySlotsDeps): ShapeBlock[] {
+ *  serves. Pure over the same deps the rail uses - no new estimates.
+ *
+ *  Sights are deliberately absent. `draftForSegment` routes only the day's
+ *  grammar (meal / fuel / stretch / rest / overnight) to a slot, and the right
+ *  rail's own copy calls sights "never required" - so a sight is an extra the
+ *  crew opts into, not a part of the day that is outstanding. Rendering one
+ *  here would show a dashed "unplanned" block demanding work the product
+ *  elsewhere says is optional. */
+export function dayShape(dayIndex: number, deps: DaySlotsDeps, precomputed?: DaySlot[]): ShapeBlock[] {
   const segs = segmentsForDay(deps.haltSegments, dayIndex, deps.dayOfSegment)
-  const slots = daySlots(dayIndex, deps)
+  // The caller's own slots when it already has them: re-deriving the day here
+  // made the shape a third full derivation of the same day on every render.
+  const slots = precomputed ?? daySlots(dayIndex, deps)
   const out: ShapeBlock[] = []
   for (const sh of segs) {
+    // The segment's OWN draft key, not an identity match on `slot.segment`:
+    // a draft that merged two same-key segments only carries the first, so
+    // identity lookup left the second block with no slot at all.
+    const draft = draftForSegment(sh.segment)
+    if (!draft) continue
+    const slot = slots.find(s => s.key === draft.key)
     const drive = Math.round(sh.segment.minutesFromPrev)
     if (drive > 0) {
       out.push({ kind: 'drive', label: 'Drive', minutes: drive, state: 'drive', startMin: null })
     }
-    const slot = slots.find(s => s.segment === sh.segment)
     const minutes = SHAPE_MINUTES[sh.segment.purpose] ?? 30
     out.push({
-      kind: slot?.kind ?? 'meal',
+      kind: slot?.kind ?? draft.kind,
       label: sh.segment.label,
       minutes,
       state: slot?.state ?? 'empty',
@@ -728,14 +769,18 @@ export function dayReadiness(dayIndex: number, deps: DaySlotsDeps): DayReadiness
   }
 }
 
-/** Trip-wide readiness, one entry per day that has any slot (chip row / Overview matrix). */
+/** Trip-wide readiness, one entry per day that has any slot (chip row / Overview matrix).
+ *
+ *  The day bound is the UNION of the days the engine attributed halts to and
+ *  the trip's own days: a rest day with stops but no halts still owns a row,
+ *  and bounding by halts alone silently dropped it from the chip row. */
 export function tripReadiness(
   haltSegments: SegmentHit[],
   days: Array<{ index: number; stops: ItineraryStop[] }>,
   base: Omit<DaySlotsDeps, 'haltSegments' | 'dayStops'>,
 ): DayReadiness[] {
   const out: DayReadiness[] = []
-  let maxDay = 0
+  let maxDay = days.reduce((m, d) => Math.max(m, d.index), 0)
   if (base.dayOfSegment) {
     for (const sh of haltSegments) {
       const d = base.dayOfSegment(sh)
@@ -748,14 +793,6 @@ export function tripReadiness(
       if (sh.segment.dayEnd) day += 1
     }
   }
-  // A corridor plan with no dayEnd flags (short / single-blob plans) is one
-  // driving day: without this fallback every non-zero dayIndex rendered the
-  // empty-day state and the rail looked unredesigned there.
-  if (maxDay === 0 && haltSegments.length > 0) {
-    const dayEntry = days.find(x => x.index === 0)
-    out.push(dayReadiness(0, { ...base, haltSegments, dayStops: dayEntry?.stops ?? [] }))
-    return out
-  }
   for (let d = 0; d <= maxDay; d++) {
     const dayEntry = days.find(x => x.index === d)
     out.push(
@@ -767,4 +804,54 @@ export function tripReadiness(
     )
   }
   return out
+}
+
+/**
+ * The trip's own day attribution, over the road-true per-day km the Map tab
+ * already trusts. **One definition, shared** - the Map rail, the day chips and
+ * the Overview matrix all read this. Two surfaces deriving the same day from
+ * two different attributions is exactly how a "day plan" ends up disagreeing
+ * with itself on screen.
+ *
+ * `dayRoadKm` is the routing legs' per-day km, aligned with `trip.days`
+ * POSITIONALLY - indexes can skip (a deleted day), so every result is keyed by
+ * the day's own index, never its position. Absent, the journey-summed estimate
+ * stands in.
+ */
+export function tripDayAttribution(
+  trip: Trip,
+  dayRoadKm?: number[] | null,
+): {
+  /** Which trip day a road km belongs to (null = unpositionable). */
+  dayForKm: (km: number | null | undefined) => number | null
+  /** `DaySlotsDeps.dayOfSegment` for this trip. */
+  dayOfSegment: (sh: SegmentHit) => number | null
+  /** `DaySlotsDeps.daySpanKm` for this trip. */
+  daySpanKm: (dayIndex: number) => { fromKm: number; toKm: number } | null
+} {
+  const perDay = dayRoadKm ?? trip.days.map(d => buildJourney(trip, d).distanceKm)
+  // #161: unknown km used to silently attribute to Day 1 - an off-polyline
+  // hit's budget, day lookup and pick-day default all lied. Return null and let
+  // each consumer decide honestly.
+  const dayForKm = (km: number | null | undefined): number | null => {
+    if (km == null || !Number.isFinite(km)) return null
+    let covered = 0
+    for (let i = 0; i < trip.days.length; i++) {
+      covered += perDay[i] ?? 0
+      if (km <= covered) return trip.days[i].index
+    }
+    return trip.days[trip.days.length - 1]?.index ?? null
+  }
+  return {
+    dayForKm,
+    dayOfSegment: sh => dayForKm(sh.hit?.cumKm ?? sh.segment.targetKm),
+    daySpanKm: dayIndex => {
+      const pos = trip.days.findIndex(d => d.index === dayIndex)
+      if (pos < 0) return null
+      let from = 0
+      for (let i = 0; i < pos; i++) from += perDay[i] ?? 0
+      const span = perDay[pos] ?? 0
+      return { fromKm: from, toKm: from + Math.max(span, 1) }
+    },
+  }
 }

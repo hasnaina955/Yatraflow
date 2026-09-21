@@ -21,6 +21,7 @@ import { CREW_CHIPS, CREW_MAX, CREW_MIN, clampCrew } from '../lib/crew'
 import { estimateTripStarter, buildOutlineSeedStops } from '../lib/tripStarter'
 import { TRIP_TEMPLATES, applyTemplate, templateFromRange, fmtBand } from '../lib/tripTemplates'
 import { regionFor, regionBand, experienceTier, anchorNote } from '../lib/budgetBenchmarks'
+import { createFunnelOn } from '../lib/featureFlags'
 import { fetchTripThumbUrl } from '../lib/tripThumb'
 import { Field, Chip, toast, Odometer, useMedia } from '../components/ui'
 import { Select } from '../components/Select'
@@ -547,6 +548,7 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
       </header>
 
       {/* ---- Warm start (P1): the front door, full width above the grid ---- */}
+      {createFunnelOn('templates') && (
       <section className="tpl-warm" aria-label="Start from a real trip">
         <div className="tpl-warm-head">
           <span className="eyebrow">Start from a real trip</span>
@@ -588,6 +590,7 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
               </button>
         </div>
       </section>
+      )}
 
       <div className="ts-layout">
         <form id="yf-create-form" className="ts-blocks" onSubmit={submit}>
@@ -917,15 +920,15 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
                 })}
               </div>
             </div>
-            {band && (
+            {createFunnelOn('budget') && band && (
               <p className="hint-text budget-anchor" role="status">
                 A typical {band.days}-day {band.label} run costs <b>&#8377;{band.low.toLocaleString('en-IN')}&ndash;{band.high.toLocaleString('en-IN')}</b> per head
                 {f.budgetPerPersonInr > 0 ? <> - {anchorNote(f.budgetPerPersonInr, band)}</> : null}.
               </p>
             )}
-            <p className="hint-text budget-tier">
+            {createFunnelOn('budget') && (<p className="hint-text budget-tier">
               At <b>&#8377;{f.budgetPerPersonInr.toLocaleString('en-IN')}</b> per head: {tier.blurb}.
-            </p>
+            </p>)}
             <span className="group-lab">Budget preference</span>
             <PillNav className="tabbar" role="group" aria-label="Budget preference" activeKey={f.stayStyle}>
               {(['budget', 'comfort', 'luxury'] as const).map(s => (

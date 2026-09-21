@@ -20,6 +20,7 @@ import {
   loadJevConfig, saveJevConfig, clearJevConfig, testJevConnection,
   type AiProviderConfig, type JevConfig,
 } from '../lib/aiProvider'
+import { AI_COMPANION_ENABLED } from '../lib/featureFlags'
 import { cap } from '../lib/labels'
 import { scrollBehavior } from '../lib/motion'
 
@@ -123,9 +124,16 @@ export function ProfilePage({ onNavigate }: { onNavigate: (r: string) => void })
             </Field>
           </div>
 
-          <AiProviderCard />
+          {/* The companion drawer mounts only under VITE_AI_COMPANION=on
+              (until M8) — its settings cards follow the same flag, so a build
+              without the companion never shows settings for it. */}
+          {AI_COMPANION_ENABLED && (
+            <>
+              <AiProviderCard />
 
-          <JevCard />
+              <JevCard />
+            </>
+          )}
         </div>
 
         <div>
@@ -314,7 +322,9 @@ function AiProviderCard() {
     setResult('')
     const failure = await testAiProviderConnection(loadAiProviderConfig()!)
     setTesting(false)
-    setResult(failure ? `Could not connect: ${failure}` : 'Connected — the companion will answer with this model.')
+    setResult(failure
+      ? `Saved, but the endpoint did not answer: ${failure} Until it connects, answers fall back to the offline router.`
+      : 'Connected — the companion will answer with this model.')
   }
 
   function onClear() {
@@ -387,7 +397,9 @@ function JevCard() {
     setResult('')
     const failure = await testJevConnection(loadJevConfig()!)
     setTesting(false)
-    setResult(failure ? `Could not connect: ${failure}` : 'Connected — companion answers route through Jev.')
+    setResult(failure
+      ? `Saved, but the endpoint did not answer: ${failure} Until it connects, answers fall back to the LLM or the offline router.`
+      : 'Connected — companion answers route through Jev.')
   }
 
   function onClear() {

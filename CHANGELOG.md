@@ -56,7 +56,9 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
   no config, network trouble, timeout, rejected key, malformed response — falls back to the deterministic
   trip-grounded router, with an (LLM)/(offline) badge on every reply so the traveller always knows which
   brain spoke. The endpoint is validated and probed with a "Save & test connection" button that reports the
-  real reason a key or URL was rejected. The drawer itself stays behind `VITE_AI_COMPANION=on` until M8.
+  real reason a key or URL was rejected — and a saved endpoint that does not answer says so, with answers
+  falling back to the offline router until it connects. The drawer and its Profile settings cards both stay
+  behind `VITE_AI_COMPANION=on` until M8.
   (M5, issue #236; tests `tests/aiProvider.test.ts`.)
 - **A search result can be located on the map before it is added.** Hovering a result row eases the map to that place's pin and draws the same dashed detour spur the suggestion rail uses, so "where is this?" is answered by pointing instead of by adding it. The pins exist only while a search has results, so an unsearched map is unchanged.
 - **The Map tab's search box lists every match, not just the first five.** A "Show all N" control unfolds the full ranked list; the default of five is unchanged.

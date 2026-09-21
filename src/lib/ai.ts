@@ -6,7 +6,7 @@ import {
   getAssumptions, simulateDay, computeTotals, originOf,
   minutesToHM, hmToMinutes, collectWarnings, formatInr, countHotelNights,
 } from './engine'
-import { INTENTS, INTENT_NONE } from './jevTaxonomy'
+import { INTENT_NONE, type CompanionIntent } from './jevTaxonomy'
 
 export interface AiReply {
   text: string
@@ -60,7 +60,6 @@ export function quickPrompts(): string[] {
 
 export function answerQuestion(trip: Trip, question: string): AiReply {
   const q = question.toLowerCase()
-  const totals = computeTotals(trip)
   const has = (...words: string[]) => words.some((w) => q.includes(w))
 
   return answerForIntent(trip, routeIntent(q, has), question)
@@ -69,7 +68,7 @@ export function answerQuestion(trip: Trip, question: string): AiReply {
 /** Map one classified intent to its handler. Exported for the Jev path — a
  *  classifier picks the capability, the same local handlers compute the answer,
  *  so both routers share one body of trip analysis and can never drift apart. */
-export function answerForIntent(trip: Trip, intent: string, question: string): AiReply {
+export function answerForIntent(trip: Trip, intent: CompanionIntent, question: string): AiReply {
   const totals = totals_of(trip)
   switch (intent) {
     case 'compare': return compareRelaxedPacked(trip)
@@ -89,7 +88,7 @@ export function answerForIntent(trip: Trip, intent: string, question: string): A
   }
 }
 
-function routeIntent(q: string, has: (...words: string[]) => boolean): string {
+function routeIntent(q: string, has: (...words: string[]) => boolean): CompanionIntent {
   // Route to the most relevant handler.
   //
   // ORDER IS LOAD-BEARING. This is a first-match chain, so an earlier rule always

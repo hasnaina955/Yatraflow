@@ -111,10 +111,11 @@ export function AiDrawer({ trip, open, onOpen, onClose }: { trip: Trip; open: bo
       )}
       <div ref={drawerRef} className={`ai-drawer ${open ? 'open' : ''}`} role="dialog" aria-modal="true" aria-label="AI travel companion">
         <div className="ai-head">
-          <span className="ai-head-icon"><Sparkles size={19} aria-hidden /></span>            <div>
-              <b>YatraFlow Companion</b>
-              <div className="ai-head-sub">Grounded in this trip’s data · estimates only</div>
-            </div>
+          <span className="ai-head-icon"><Sparkles size={19} aria-hidden /></span>
+          <div>
+            <b>YatraFlow Companion</b>
+            <div className="ai-head-sub">Grounded in this trip’s data · estimates only</div>
+          </div>
           <button className="icon-btn" onClick={onClose} aria-label="Close assistant"><X size={16} aria-hidden /></button>
         </div>
 

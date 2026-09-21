@@ -20,7 +20,7 @@ export const INTENT_NONE: CompanionIntent = 'none'
 export const INTENT_KEYS: string[] = [...INTENTS, INTENT_NONE]
 
 /** What the traveller WANTS, phrased as intent not keywords — handed to Jev
- *  verbatim, and mirrored in the audit script. */
+ *  verbatim; the development audit imports this same object. */
 export const INTENT_CRITERIA: Record<string, string> = {
   tiring: 'Make one particular day less demanding — less travel, walking or fewer stops.',
   airport: 'Check whether a fixed flight or train departure can actually be reached in time.',

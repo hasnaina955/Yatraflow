@@ -192,6 +192,21 @@ function endpointUrl(baseUrl: string, path: string): string {
   return u.toString()
 }
 
+/** Combine the caller's signal with the per-request timeout where supported.
+ *  `AbortSignal.any` is Baseline-2024 (Safari < 17.4 lacks it), so feature-
+ *  detect it — the same pattern as `routing.ts`'s `requestSignal` — instead
+ *  of throwing past the companion's fallback chain on an older browser. An
+ *  already-aborted caller gets an already-aborted signal, never a fresh
+ *  timeout (a fresh one would send post-abort fallback fetches out live). */
+function mergeSignal(signal: AbortSignal | undefined, timeoutMs: number): AbortSignal {
+  if (signal?.aborted) return AbortSignal.abort()
+  const timeout = AbortSignal.timeout(timeoutMs)
+  if (!signal) return timeout
+  const Any = AbortSignal as unknown as { any?: (sigs: AbortSignal[]) => AbortSignal }
+  return Any.any ? Any.any([signal, timeout]) : timeout
+}
+
+
 async function chatCompletion(cfg: AiProviderConfig, messages: { role: string; content: string }[], signal: AbortSignal): Promise<string> {
   const res = await fetch(endpointUrl(cfg.baseUrl, '/chat/completions'), {
     method: 'POST',
@@ -256,32 +271,24 @@ async function askJevIntent(cfg: JevConfig, question: string, signal: AbortSigna
       },
     },
   }
-  let lastErr: unknown
   for (let attempt = 0; attempt <= JEV_RETRIES; attempt++) {
-    try {
-      const res = await fetch(endpointUrl(cfg.baseUrl, '/systemone'), {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${cfg.apiKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-        signal,
-      })
-      if ((res.status === 429 || res.status === 529) && attempt < JEV_RETRIES) {
-        await new Promise(r => setTimeout(r, 500 * 2 ** attempt))
-        continue
-      }
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      return extractJevIntent(await res.json()) ?? (() => { throw new Error('unclassifiable response') })()
-    } catch (e) {
-      lastErr = e
-      if (signal.aborted) throw e
-      // backoff between retryable attempts is handled above; anything else ends the loop
-      if (attempt >= JEV_RETRIES) break
-      // only rate-limit shapes retry; everything else throws now
-      const msg = e instanceof Error ? e.message : ''
-      if (!msg.startsWith('HTTP 429') && !msg.startsWith('HTTP 529')) throw e
+    const res = await fetch(endpointUrl(cfg.baseUrl, '/systemone'), {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${cfg.apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal,
+    })
+    // Only a rate-limit answer retries, with backoff; every other failure is
+    // final — the caller's fallback chain decides what happens next.
+    if ((res.status === 429 || res.status === 529) && attempt < JEV_RETRIES) {
+      await new Promise(r => setTimeout(r, 500 * 2 ** attempt))
+      continue
     }
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    return extractJevIntent(await res.json()) ?? (() => { throw new Error('unclassifiable response') })()
   }
-  throw lastErr instanceof Error ? lastErr : new Error('Jev failed')
+  // Unreachable — the final attempt always returns or throws — but TS can't prove it.
+  throw new Error('Jev failed')
 }
 
 /**
@@ -289,8 +296,7 @@ async function askJevIntent(cfg: JevConfig, question: string, signal: AbortSigna
  * answers with a valid classification, else a short human-readable reason.
  */
 export async function testJevConnection(cfg: JevConfig, signal?: AbortSignal): Promise<string | null> {
-  const timeout = AbortSignal.timeout(JEV_TIMEOUT_MS)
-  const merged = signal ? AbortSignal.any([signal, timeout]) : timeout
+  const merged = mergeSignal(signal, JEV_TIMEOUT_MS)
   try {
     await askJevIntent(cfg, 'What could go wrong in this plan?', merged)
     return null
@@ -314,8 +320,7 @@ export async function testJevConnection(cfg: JevConfig, signal?: AbortSignal): P
 export async function askCompanion(trip: Trip, question: string, signal?: AbortSignal): Promise<CompanionAnswer> {
   const jev = loadJevConfig()
   if (jev) {
-    const timeout = AbortSignal.timeout(JEV_TIMEOUT_MS)
-    const merged = signal ? AbortSignal.any([signal, timeout]) : timeout
+    const merged = mergeSignal(signal, JEV_TIMEOUT_MS)
     try {
       const intent = await askJevIntent(jev, question, merged)
       const reply = answerForIntent(trip, intent, question)
@@ -326,8 +331,7 @@ export async function askCompanion(trip: Trip, question: string, signal?: AbortS
   }
   const cfg = loadAiProviderConfig()
   if (cfg) {
-    const timeout = AbortSignal.timeout(LLM_TIMEOUT_MS)
-    const merged = signal ? AbortSignal.any([signal, timeout]) : timeout
+    const merged = mergeSignal(signal, LLM_TIMEOUT_MS)
     try {
       const text = await chatCompletion(cfg, buildMessages(trip, question), merged)
       return { text, source: 'llm' }
@@ -349,8 +353,7 @@ export async function askCompanion(trip: Trip, question: string, signal?: AbortS
  * endpoint answers, else a short human-readable reason it did not.
  */
 export async function testAiProviderConnection(cfg: AiProviderConfig, signal?: AbortSignal): Promise<string | null> {
-  const timeout = AbortSignal.timeout(LLM_TIMEOUT_MS)
-  const merged = signal ? AbortSignal.any([signal, timeout]) : timeout
+  const merged = mergeSignal(signal, LLM_TIMEOUT_MS)
   try {
     await chatCompletion(cfg, [
       { role: 'system', content: 'Reply with the single word: ok' },

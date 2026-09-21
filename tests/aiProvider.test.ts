@@ -9,7 +9,7 @@ import {
   askCompanion, loadAiProviderConfig, saveAiProviderConfig, clearAiProviderConfig, testAiProviderConnection,
   extractJevIntent, loadJevConfig, saveJevConfig, clearJevConfig, testJevConnection,
 } from '../src/lib/aiProvider'
-import { INTENTS, INTENT_KEYS, INTENT_CRITERIA, INTENT_NONE } from '../src/lib/jevTaxonomy'
+import { INTENTS, INTENT_KEYS, INTENT_CRITERIA, INTENT_NONE, type CompanionIntent } from '../src/lib/jevTaxonomy'
 import { answerForIntent, answerQuestion } from '../src/lib/ai'
 
 const trip = {
@@ -105,7 +105,7 @@ describe('the Jev intent layer (taxonomy + handlers + parsing)', () => {
   })
 
   it('every intent maps to a real handler with a grounded answer', () => {
-    for (const intent of INTENT_KEYS) {
+    for (const intent of INTENT_KEYS as CompanionIntent[]) {
       const reply = answerForIntent(trip, intent, 'test question')
       expect(reply.text.length, `intent ${intent} produced an empty answer`).toBeGreaterThan(10)
     }
@@ -169,6 +169,11 @@ describe('wiring tripwires (source-level, CRLF-tolerant)', () => {
     expect(ai).toContain('export function answerForIntent')
     expect(ai).toContain('routeIntent(q, has)')
     expect(ai).toContain("from './jevTaxonomy'")
+  })
+  it('the request-signal merge stays feature-detected (Safari < 17.4 has no AbortSignal.any)', () => {
+    const provider = readFileSync('src/lib/aiProvider.ts', 'utf8')
+    expect(provider).toContain('mergeSignal(')
+    expect(provider).not.toMatch(/AbortSignal\.any\(/)
   })
 })
 

@@ -14,7 +14,7 @@ import {
 } from 'lucide-react'
 import type { FixedCommitment, LatLngPoint, TransportMode, TravelStyle } from '../data/types'
 import { TRAVEL_STYLES, TRANSPORT_MODES } from '../data/types'
-import { useDb, currentUser, createTrip } from '../store/store'
+import { useDb, currentUser, createTrip, useTrips, tripsForUser } from '../store/store'
 import { FUEL_PRICE_INR_PER_L, DEFAULT_FUEL_ECONOMY_KML, isFuelEconomyMode, parseFuelEconomyKmL, parseFuelPricePerL, isImplausibleFuelEconomy, MODE_SPEED, minutesToHM } from '../lib/engine'
 import { planDriveDays, isSelfDrivenMode } from '../lib/ridePlan'
 import { CREW_CHIPS, CREW_MAX, CREW_MIN, clampCrew } from '../lib/crew'
@@ -266,6 +266,25 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
     toast(`${t.name} loaded - two taps from done`)
   }
 
+  /** Same as last trip: recognition over recall - the second trip should
+   *  take ten seconds. Copies party/mode/style/budget (+ #142 party inputs
+   *  when set); never the route, never the dates, never the name. */
+  function copyLastTrip() {
+    if (!lastTrip) return
+    haptic(HAPTIC.select)
+    patchFields({
+      travellers: lastTrip.travellers,
+      transportMode: lastTrip.transportMode,
+      travelStyle: lastTrip.travelStyle,
+      stayStyle: lastTrip.stayStyle ?? 'comfort',
+      budgetPerPersonInr: lastTrip.budgetPerPersonInr,
+      ...(lastTrip.driverCount != null ? { driverCount: lastTrip.driverCount } : {}),
+      ...(lastTrip.hasVulnerable != null ? { hasVulnerable: lastTrip.hasVulnerable } : {}),
+    })
+    setTplId(null)
+    toast(`Copied the crew and the car from "${lastTrip.name}" - pick a new road`)
+  }
+
   /** Start blank: clears any picked card, leaves the form exactly as it is. */
   function clearTemplate() {
     if (tplId == null) return
@@ -297,6 +316,17 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
   // region below. It fires only on an actual write, and never while the field is
   // the user's current focus (they are editing it; the hint already covers them).
   const [budgetNotice, setBudgetNotice] = useState('')
+  /** Warm start (P1): the most recent trip, for the "same as last trip" chip.
+   *  Copies the choices that repeat (party, mode, style, budget) - the
+   *  route stays blank: a new trip deserves a new road. */
+  const allTrips = useTrips()
+  const lastTrip = useMemo(
+    () => {
+      const mine = tripsForUser(me?.id ?? null)
+      return mine.length ? mine[mine.length - 1] : null
+    },
+    [allTrips, me],
+  )
   /** Warm start (P1): the picked template card, and whether the name
    *  suggestion chip is still relevant (hidden once the user types a name). */
   const [tplId, setTplId] = useState<string | null>(null)
@@ -535,9 +565,12 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
               </button>
             </div>
             <div className="tpl-helpers">
-              <button type="button" className="tpl-helper" onClick={() => { setTplId(null); haptic(HAPTIC.tick) }}>
-                Same as last trip
-              </button>
+              {lastTrip && (
+                <button type="button" className="tpl-helper" onClick={copyLastTrip}
+                  title={`Party, mode, style and budget from "${lastTrip.name}"`}>
+                  Same as {lastTrip.name.length > 18 ? lastTrip.name.slice(0, 18) + '\u2026' : lastTrip.name}
+                </button>
+              )}
               <button type="button" className="tpl-helper" onClick={() => onNavigate('/trips')}>
                 Not sure? Take a demo trip
               </button>

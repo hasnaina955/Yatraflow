@@ -64,8 +64,11 @@ async function markOrderPaid(supabaseUrl, serviceKey, razorpayOrderId, paymentId
 }
 
 async function fetchOrderRow(supabaseUrl, serviceKey, razorpayOrderId, signal) {
+  // status=eq.paid is the refund guard: a late or replayed `payment.captured`
+  // after a refund must not re-grant — revoke_refunded_entitlement flips the
+  // row paid -> failed, and without this filter the read would return it.
   const url = `${supabaseUrl.replace(/\/+$/, '')}/rest/v1/purchase_orders` +
-    `?razorpay_order_id=eq.${encodeURIComponent(razorpayOrderId)}&select=id,user_id,pub_id,price_snapshot_inr,status&limit=1`
+    `?razorpay_order_id=eq.${encodeURIComponent(razorpayOrderId)}&status=eq.paid&select=id,user_id,pub_id,price_snapshot_inr,status&limit=1`
   const response = await fetch(url, {
     headers: supabaseServiceHeaders(serviceKey),
     signal,
@@ -181,7 +184,7 @@ export default async function handler(req, res) {
   try {
     await markOrderPaid(supabaseUrl, serviceKey, orderId, paymentId, signal)
     const order = await fetchOrderRow(supabaseUrl, serviceKey, orderId, signal)
-    if (!order) return json(res, 200, { ok: true, note: 'no local order for this gateway order (foreign or test event)' })
+    if (!order) return json(res, 200, { ok: true, note: 'no paid local order for this gateway order (foreign, refunded, or test event)' })
     await grantEntitlement(supabaseUrl, serviceKey, order, signal)
     return json(res, 200, { ok: true })
   } catch {

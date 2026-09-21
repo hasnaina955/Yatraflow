@@ -492,6 +492,26 @@ describe('POST /api/payments-webhook', () => {
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
+  it('never re-grants after a refund: a replayed captured event finds no paid row (audit 2026-09-22)', async () => {
+    // Sequence: captured -> paid -> granted; refunded -> the revoke RPC flips
+    // the row paid -> failed and deletes the entitlement. A duplicate or
+    // manually re-fired captured delivery must NOT re-grant: the order read
+    // now carries status=eq.paid, so the refunded row is invisible to it and
+    // no entitlement call is made at all.
+    const sig = await hmacHex(JSON.stringify(event), ENV.RAZORPAY_WEBHOOK_SECRET)
+    fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.includes('/rest/v1/purchase_orders') && url.includes('status=eq.pending')) return jsonResponse(null, 200)
+      if (url.includes('/rest/v1/purchase_orders') && url.includes('status=eq.paid')) return jsonResponse([])
+      throw new Error(`unexpected fetch ${url}`)
+    })
+    const res = await run(JSON.stringify(event), sig)
+    expect(res.statusCode).toBe(200)
+    const read = fetchMock.mock.calls.find(c => String(c[0]).includes('select='))
+    expect(String(read![0])).toContain('status=eq.paid')
+    expect(fetchMock.mock.calls.some(c => String(c[0]).includes('/rest/v1/entitlements'))).toBe(false)
+  })
+
   it('returns 200 with a note for a captured event with no local order', async () => {
     const sig = await hmacHex(JSON.stringify(event), ENV.RAZORPAY_WEBHOOK_SECRET)
     fetchMock.mockImplementation(async (input: RequestInfo | URL) => {

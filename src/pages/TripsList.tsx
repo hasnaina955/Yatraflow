@@ -7,6 +7,9 @@ import { computeTotals, formatInrShort } from '../lib/engine'
 import { cap } from '../lib/labels'
 import { Avatar, Chip, EmptyState, toast, undoToast, ConfirmDialog } from '../components/ui'
 import { Select } from '../components/Select'
+import { loadDraft, draftIsWorthKeeping, draftAgeLabel } from '../lib/createDraft'
+import { readinessFromDraft } from '../lib/createReadiness'
+import { createFunnelOn } from '../lib/featureFlags'
 import { CoverThumb } from '../components/CoverThumb'
 import { ImportTripButton } from '../components/ImportTripButton'
 import type { Trip, User } from '../data/types'
@@ -90,6 +93,15 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
 
   const hasFilters = q !== '' || style !== 'all' || when !== 'all' || sortKey !== 'recent'
 
+  // P4 - the unfinished trip shows up where people look for their trips. It is
+  // not a trip yet, so it is not a row among them: one card, above the grid.
+  const draft = useMemo(() => {
+    if (!createFunnelOn('drafts')) return null
+    const d = loadDraft()
+    return draftIsWorthKeeping(d) ? d : null
+  }, [])
+  const draftReady = useMemo(() => (draft ? readinessFromDraft(draft.form, draft.dests.length) : null), [draft])
+
   function confirmDelete() {
     if (!pendingDelete) return
     const doomed = pendingDelete
@@ -145,6 +157,21 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
               </div>
             ))
           )}
+        </div>
+      )}
+
+      {view !== 'trash' && draft && (
+        <div className="draft-card" role="status">
+          <span className="draft-card-thumb" aria-hidden>&#128221;</span>
+          <div className="draft-card-body">
+            <b>{String((draft.form as Record<string, unknown>).name || 'Untitled trip')}</b>
+            <span className="draft-card-meta">
+              {draftReady ? `${draftReady.pct}% ready` : 'saved'}
+              {draft.dests.length > 0 ? ` - ${draft.dests.length} stop${draft.dests.length === 1 ? '' : 's'}` : ''}
+              {' - saved '}{draftAgeLabel(draft.savedAt)}
+            </span>
+          </div>
+          <button className="btn btn-primary btn-sm" onClick={() => onNavigate('/new')}>Finish planning</button>
         </div>
       )}
 

@@ -22,7 +22,7 @@ import { estimateTripStarter, buildOutlineSeedStops } from '../lib/tripStarter'
 import { TRIP_TEMPLATES, applyTemplate, templateFromRange, fmtBand } from '../lib/tripTemplates'
 import { regionFor, regionBand, experienceTier, anchorNote } from '../lib/budgetBenchmarks'
 import { createFunnelOn } from '../lib/featureFlags'
-import { createReadiness, readinessLine } from '../lib/createReadiness'
+import { createReadiness, readinessFromDraft, readinessLine } from '../lib/createReadiness'
 import { saveDraft, loadDraft, clearDraft, draftIsWorthKeeping, draftAgeLabel, type StoredDraft } from '../lib/createDraft'
 import { fetchTripThumbUrl } from '../lib/tripThumb'
 import { Field, Chip, toast, Odometer, useMedia } from '../components/ui'
@@ -268,19 +268,10 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
 
   /** P4: the percentage on the banner counts required things only, exactly like
    *  the checklist (optional rows never move it), so the pull back is honest. */
-  const draftReadiness = useMemo(() => (draft ? createReadiness({
-    name: String((draft.form as Record<string, unknown>).name ?? ''),
-    startLocation: String((draft.form as Record<string, unknown>).startLocation ?? ''),
-    stopCount: draft.dests.length,
-    roadKm: null,
-    startDate: String((draft.form as Record<string, unknown>).startDate ?? ''),
-    endDate: String((draft.form as Record<string, unknown>).endDate ?? ''),
-    days: 0,
-    travellers: Number((draft.form as Record<string, unknown>).travellers ?? 1),
-    budgetPerPersonInr: Number((draft.form as Record<string, unknown>).budgetPerPersonInr ?? 0),
-    hasCover: false,
-    commitmentCount: 0,
-  }) : null), [draft])
+  const draftReadiness = useMemo(
+    () => (draft ? readinessFromDraft(draft.form, draft.dests.length) : null),
+    [draft],
+  )
 
   function resumeDraft() {
     if (!draft) return

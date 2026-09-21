@@ -108,6 +108,30 @@ export function createReadiness(input: ReadinessInput): Readiness {
   }
 }
 
+/** Adapter for a stored draft's opaque form blob: pulls the fields readiness
+ *  needs and defaults the rest defensively. Shared by the create page's banner
+ *  and the My-trips ghost card so both surfaces say the same number. */
+export function readinessFromDraft(form: Record<string, unknown>, stopCount: number): Readiness {
+  const str = (k: string) => (typeof form[k] === 'string' ? (form[k] as string) : '')
+  const num = (k: string, fallback: number) => {
+    const v = form[k]
+    return typeof v === 'number' && Number.isFinite(v) ? v : fallback
+  }
+  return createReadiness({
+    name: str('name'),
+    startLocation: str('startLocation'),
+    stopCount,
+    roadKm: null,
+    startDate: str('startDate'),
+    endDate: str('endDate'),
+    days: 0,
+    travellers: num('travellers', 1),
+    budgetPerPersonInr: num('budgetPerPersonInr', 0),
+    hasCover: false,
+    commitmentCount: 0,
+  })
+}
+
 /** The one line that goes next to the submit button: honest about nearness. */
 export function readinessLine(r: Readiness): string {
   if (r.ready) return 'Ready to plan'

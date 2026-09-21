@@ -476,9 +476,9 @@ Kept as one line each so the origin is traceable without re-listing the work as 
   *Watch the number:* this is the idea bank's I-19, **not** the map-view request's I-19
   (`docs/FEATURE-REQUEST-MAP-VIEWS.md` has its own I-17–I-19 numbering) · **Trip DNA
   across devices** (I-16): `public.user_dna` — one row per user, the PK *is* the owner,
-  owner-only RLS on all four verbs (`supabase/migrations/20260921_user_dna.sql`; **apply
-  it to the live project**), read once per hydrate and written back debounced, with the
-  merge a de-duplicated union so a sync cannot double a count.
+  owner-only RLS on all four verbs (`supabase/migrations/20260921_user_dna.sql`, **applied
+  live 2026-09-21**), read once per hydrate and written back debounced, with the merge a
+  de-duplicated union so a sync cannot double a count.
 
 ## Historical plans (executed — kept for the record, not live guidance)
 

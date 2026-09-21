@@ -136,8 +136,8 @@ What landed, per item:
 balances, because the card's fair share is the open *tagged* lines over the travellers
 rather than the trip estimate (a product call: the estimate keeps its place in the metric
 strip, where a planning figure belongs); **I-16** — cross-device Trip DNA persistence via
-`public.user_dna` (**apply `supabase/migrations/20260921_user_dna.sql`** — until it is
-run, a missing table is treated as a capability and the log stays device-local); and the
+`public.user_dna` (`supabase/migrations/20260921_user_dna.sql`, applied live 2026-09-21;
+an unmigrated database still degrades to a device-local log rather than erroring); and the
 "just you" presence affordance from follow-up 1 below. What is left is a check rather
 than code: the two-account presence pass, after which issue #237 closes.
 

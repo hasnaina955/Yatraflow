@@ -13,14 +13,18 @@
 -- local copy. The primary key IS the owner (user_id), so there is no id/owner
 -- split for a policy to get wrong.
 --
--- **NOT YET APPLIED.** Until it is run in the Supabase SQL editor:
---   * reads answer PGRST205 ("relation not found"), the store's
---     `attachDnaAccount` catches that, warns once and keeps the device-only
---     behaviour — a missing table is a capability, not a crash;
---   * writes are skipped for the same reason (the probe caches the miss).
--- So the pre-application behaviour is exactly today's, and applying it later is
--- what switches the sync on. README's "apply migrations" section has the
--- dashboard walkthrough.
+-- **Applied 2026-09-21 to the live Supabase project** — run by the owner in the
+-- Dashboard SQL editor. Recorded as the owner's confirmation rather than a
+-- probe: this clone's dev shell has no outbound HTTP, so the PostgREST check
+-- the other applied migrations cite could not be made from here.
+--
+-- The degradation it was built behind stays in the client, because it is what
+-- any database that has not run this file still needs: reads answer PGRST205
+-- ("relation not found"), which the store's `attachDnaAccount` catches, warns
+-- about once and treats as a capability rather than a crash; writes are skipped
+-- for the same reason (the probe caches the miss). On an unmigrated database
+-- the log stays device-local, and running this file is what switches the sync
+-- on — README's "apply migrations" section has the dashboard walkthrough.
 --
 -- **Safe to re-run.** Every statement is idempotent (`create table if not
 -- exists`, and a `drop policy if exists` before each `create policy` — the

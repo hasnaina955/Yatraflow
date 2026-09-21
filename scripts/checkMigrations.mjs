@@ -348,11 +348,14 @@ function render(report, { quiet, only }) {
   }
 
   const s = report.summary
+  // The optional entry is counted once, inside `noProbeSurface` — the first
+  // draft added the two and reported 20 migrations out of 19.
+  const optional = s.optional > 0 ? ` (${s.optional} optional)` : ''
   lines.push('')
   lines.push(
     `${s.migrations} migrations · ${paint(`${s.applied} applied`, GREEN)} · ` +
     `${s.missing ? paint(`${s.missing} missing`, RED) : '0 missing'} · ` +
-    `${s.noProbeSurface + s.optional} no probe surface · ${s.unknown ? paint(`${s.unknown} unchecked`, YELLOW) : '0 unchecked'}` +
+    `${s.noProbeSurface} no probe surface${optional} · ${s.unknown ? paint(`${s.unknown} unchecked`, YELLOW) : '0 unchecked'}` +
     (s.undeclared ? ` · ${paint(`${s.undeclared} undeclared`, YELLOW)}` : ''),
   )
 

@@ -279,6 +279,23 @@ describe('migration status — verdicts against a replay of the live responses',
     })
   })
 
+  it('counts every migration exactly once in the summary line', async () => {
+    // The rendered tally has to add up to the file count: the optional scheduler
+    // is already inside the no-probe-surface bucket, and the first draft added
+    // it again, reporting 20 migrations out of 19.
+    await withStub(allPresent, async (base) => {
+      const json = await runAsync(['--json'], { env: creds(base) })
+      const { summary } = JSON.parse(json.stdout) as {
+        summary: { migrations: number; applied: number; missing: number; noProbeSurface: number; optional: number }
+      }
+      const res = await runAsync([], { env: creds(base) })
+      expect(res.stdout).toContain(`${summary.migrations} migrations`)
+      expect(res.stdout).toContain(`${summary.applied} applied`)
+      expect(res.stdout).toContain(`${summary.noProbeSurface} no probe surface (${summary.optional} optional)`)
+      expect(summary.applied + summary.missing + summary.noProbeSurface).toBe(summary.migrations)
+    })
+  })
+
   it('fails, names the artifact and names the file when a column is absent', async () => {
     // The failure this check was built for: 20260914_trip_stay_budget.sql was
     // never applied to production, and its absence is invisible in the app —

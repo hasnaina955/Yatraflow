@@ -23,6 +23,7 @@ import { TRIP_TEMPLATES, applyTemplate, templateFromRange, fmtBand } from '../li
 import { regionFor, regionBand, experienceTier, anchorNote } from '../lib/budgetBenchmarks'
 import { createFunnelOn } from '../lib/featureFlags'
 import { createReadiness, readinessLine } from '../lib/createReadiness'
+import { saveDraft, loadDraft, clearDraft, draftIsWorthKeeping, draftAgeLabel, type StoredDraft } from '../lib/createDraft'
 import { fetchTripThumbUrl } from '../lib/tripThumb'
 import { Field, Chip, toast, Odometer, useMedia } from '../components/ui'
 import { Select } from '../components/Select'
@@ -244,6 +245,62 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
     hasCover: f.coverImageUrl.trim().length > 0,
     commitmentCount: commitments.filter(x => x.title.trim()).length,
   }), [f.name, f.startLocation, f.startDate, f.endDate, f.travellers, f.budgetPerPersonInr, f.coverImageUrl, dests.length, bill.roadKm, bill.days, commitments])
+
+  // P4 - the draft that waits. Loaded once on mount; the banner decides whether
+  // it is resumed or thrown away. Autosave stays OFF until that decision, so a
+  // pending draft can never be overwritten by the blank form it is offering.
+  const [draft, setDraft] = useState<StoredDraft | null>(null)
+  const [draftDecided, setDraftDecided] = useState(false)
+  useEffect(() => {
+    if (!createFunnelOn('drafts')) { setDraftDecided(true); return }
+    const found = loadDraft()
+    if (draftIsWorthKeeping(found)) setDraft(found)
+    else { setDraftDecided(true) }
+  }, [])
+
+  useEffect(() => {
+    if (!createFunnelOn('drafts') || !draftDecided) return
+    const t = setTimeout(() => {
+      saveDraft({ form: f as unknown as Record<string, unknown>, dests, returnCount })
+    }, 800)
+    return () => clearTimeout(t)
+  }, [f, dests, returnCount, draftDecided])
+
+  /** P4: the percentage on the banner counts required things only, exactly like
+   *  the checklist (optional rows never move it), so the pull back is honest. */
+  const draftReadiness = useMemo(() => (draft ? createReadiness({
+    name: String((draft.form as Record<string, unknown>).name ?? ''),
+    startLocation: String((draft.form as Record<string, unknown>).startLocation ?? ''),
+    stopCount: draft.dests.length,
+    roadKm: null,
+    startDate: String((draft.form as Record<string, unknown>).startDate ?? ''),
+    endDate: String((draft.form as Record<string, unknown>).endDate ?? ''),
+    days: 0,
+    travellers: Number((draft.form as Record<string, unknown>).travellers ?? 1),
+    budgetPerPersonInr: Number((draft.form as Record<string, unknown>).budgetPerPersonInr ?? 0),
+    hasCover: false,
+    commitmentCount: 0,
+  }) : null), [draft])
+
+  function resumeDraft() {
+    if (!draft) return
+    haptic(HAPTIC.select)
+    setF(prev => ({ ...prev, ...(draft.form as Partial<typeof prev>) }))
+    setDests(draft.dests)
+    setReturnCount(draft.returnCount)
+    // the restored budget is the user's own number - hand the field back to them
+    setBudgetTouched(true)
+    setDraft(null)
+    setDraftDecided(true)
+    toast('Picked up where you left off')
+  }
+
+  function discardDraft() {
+    haptic(HAPTIC.toggle)
+    clearDraft()
+    setDraft(null)
+    setDraftDecided(true)
+  }
 
   // P2 - the honest anchor: what a typical party spends on this region's own
   // run, computed by the same engine that prints the bill. Null when we honestly
@@ -491,6 +548,7 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
       coverImageUrl: f.coverImageUrl.trim() || undefined,
     }, seed)
     haptic(HAPTIC.success)
+    clearDraft()
     toast('Trip created — your rough outline is on the timeline')
     navigateWithTransition(`/trip/${trip.id}`)
   }
@@ -556,6 +614,20 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
 
   return (
     <div className="container form-page trip-starter">
+      {createFunnelOn('drafts') && draft && (
+        <div className="draft-banner" role="status">
+          <div className="draft-banner-copy">
+            <b>Picking up where you left off</b>
+            <span className="draft-banner-meta">
+              {draftReadiness ? `${draftReadiness.pct}% ready` : 'saved'} - saved {draftAgeLabel(draft.savedAt)}
+            </span>
+          </div>
+          <div className="draft-banner-acts">
+            <button type="button" className="btn btn-primary btn-sm" onClick={resumeDraft}>Resume</button>
+            <button type="button" className="btn btn-outline btn-sm" onClick={discardDraft}>Discard</button>
+          </div>
+        </div>
+      )}
       <header className="ts-head">
         <div>
           <p className="eyebrow">Start something</p>

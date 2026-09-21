@@ -6519,3 +6519,14 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .ready-name { font-weight: 600; }
 .ready-why { margin-left: auto; color: var(--text-3); font-size: 11px; font-variant-numeric: tabular-nums; }
 .dock-ready { color: var(--text-3); font-size: 11px; }
+/* ============================================================
+   Create Trip - the draft banner (P4)
+   The unfinished trip pulls you back with the truth: how far along it is,
+   and when you left it. Appended at the file's end (line-keyed ratchet).
+   ============================================================ */
+
+.draft-banner { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 0 0 14px; padding: 10px 14px; border: 1px solid var(--teal); border-radius: var(--radius-sm); background: var(--teal-soft); }
+.draft-banner-copy { display: flex; flex-direction: column; gap: 1px; }
+.draft-banner-copy b { font-size: 13px; color: var(--text); }
+.draft-banner-meta { font-size: 11.5px; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.draft-banner-acts { display: flex; gap: 8px; margin-left: auto; }

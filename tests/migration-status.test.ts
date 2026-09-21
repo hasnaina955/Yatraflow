@@ -55,18 +55,43 @@ function runSync(args: string[], opts: { env?: Record<string, string>; cwd?: str
   return { status: res.status, stdout: res.stdout ?? '', stderr: res.stderr ?? '' }
 }
 
-/** Run the CLI while a stub server lives in THIS process. It cannot be
- *  spawnSync: that blocks the event loop, so the stub could never answer and
- *  every probe in the child would sit until its own timeout — which reads like
- *  a slow check rather than like a deadlocked test. */
-function runAsync(args: string[], opts: { env?: Record<string, string>; cwd?: string } = {}) {
-  return new Promise<{ status: number | null; stdout: string; stderr: string }>((resolve) => {
+type ChildResult = { status: number | null; stdout: string; stderr: string }
+
+function spawnOnce(args: string[], opts: { env?: Record<string, string>; cwd?: string }): Promise<ChildResult> {
+  return new Promise<ChildResult>((resolve) => {
     const child = spawn(process.execPath, [SCRIPT_ABS, ...args], childEnv(opts))
     let stdout = '', stderr = ''
     child.stdout.on('data', (chunk: Buffer) => { stdout += chunk.toString() })
     child.stderr.on('data', (chunk: Buffer) => { stderr += chunk.toString() })
     child.on('close', (status) => resolve({ status, stdout, stderr }))
   })
+}
+
+/** Run the CLI while a stub server lives in THIS process. It cannot be
+ *  spawnSync: that blocks the event loop, so the stub could never answer and
+ *  every probe in the child would sit until its own timeout — which reads like
+ *  a slow check rather than like a deadlocked test.
+ *
+ *  The retry is narrow and named on purpose. Running the full parallel suite on
+ *  this box, a spawned node child occasionally dies before executing anything —
+ *  seen as an empty stdout, and once as Windows `0xC0000409` (V8's fastfail) —
+ *  while the identical test passes in isolation and the check itself runs fine
+ *  from a shell. Every real outcome of the check prints something, including
+ *  exit 2 (which writes to stderr), so "exited non-zero with no output at all"
+ *  can only mean the process never ran. That is retried once; a second time it
+ *  throws naming the environment failure, rather than failing as an assertion
+ *  on an empty string — which is what makes a spawn problem look like a broken
+ *  check. A child that produces output is never retried, and never was: a
+ *  wrong verdict must fail here. */
+async function runAsync(args: string[], opts: { env?: Record<string, string>; cwd?: string } = {}) {
+  const first = await spawnOnce(args, opts)
+  if (first.status === 0 || first.stdout !== '' || first.stderr !== '') return first
+  const second = await spawnOnce(args, opts)
+  if (second.status !== 0 && second.stdout === '' && second.stderr === '') {
+    throw new Error(`the check produced no output twice (status ${second.status}) — the spawned process never ran, ` +
+      `which is an environment failure and not a verdict about the database`)
+  }
+  return second
 }
 
 

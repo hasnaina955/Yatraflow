@@ -314,7 +314,8 @@ listed as having no probe surface, with the reason.
 
 The check found its first real one the day it was written: `trips.stay_style`
 was absent from the live database, so the stay-budget tier reverted on every
-reload without a word from the app.
+reload without a word from the app. Applying that migration's own one-line
+`alter table` closed it the same day, and the sweep went from 1 missing to 0.
 
 ## 🤝 Contributing
 

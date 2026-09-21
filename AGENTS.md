@@ -388,6 +388,23 @@ Hard rules (each learned the hard way — do not relearn them):
   production: the alias's bundle hash equals a local `npm run build`'s, i.e.
   the artifact you tested is the artifact that shipped.
 - **A browser probe that imports an app module can silently get a SECOND copy of it (learned 2026-09-19).** After any HMR update Vite serves the app's modules under timestamped URLs (`/src/store/store.ts?t=1789806911002`), so a probe doing `await import('/src/store/store.ts')` resolves the *clean* URL and instantiates a fresh module with empty state — no user, no trips, `ready: false`. It reads exactly like "the app is signed out and hydrate is broken", and it produced a wrong diagnosis until the DOM contradicted it: the page rendered "3 trips match …" while the probe's own snapshot reported zero users and zero trips. Before believing a probe about app state, restart the dev server (a fresh module graph carries no timestamps) or reload and probe **without editing a file in between**; and cross-check the rendered DOM, which always reflects the app's real instance. Related: `import.meta.url` in an `agent-browser eval` payload is a SyntaxError — it is not a module context.
+- **A test that spawns `node` children is unreliable inside the full parallel
+  vitest run on this box — the child dies before executing anything, while the
+  same test passes in isolation (learned 2026-09-21).**
+  `tests/migration-status.test.ts` failed twice in `npm run verify`, each time a
+  *different* one of its stub-server tests, and each time as an assertion that
+  read like a broken check: once an empty `stdout`, once
+  `expected 3221226505 to be 0` (Windows `0xC0000409`, V8's fastfail).
+  `npx vitest run tests/migration-status.test.ts` was green every time, and the
+  script itself ran fine from the shell against the live project. The file now
+  retries once when a child exits non-zero **with no output on either stream** —
+  every real outcome of that check prints something, including exit 2, which
+  writes to stderr, so that signature can only mean the process never ran — and
+  otherwise throws naming it as an environment failure. Generalize the reading:
+  when a spawned-child test fails only under the full suite, ask whether it
+  produced *any* output before suspecting the code, and make "the process died" a
+  distinct, named failure so an environment problem can never masquerade as a
+  wrong verdict about the thing being tested.
 
 - **Supabase auth fails two different ways** — rejected credentials come back as
   `{ error }`, but a network failure *throws* `AuthRetryableFetchError`. Wrap
@@ -594,6 +611,9 @@ been applied to production, so `trips.stay_style` was absent, the store's
 optional-column probe reported `stayStyle: false`, and the stay-budget dial
 silently reverted on every reload — the same class as the `cover_image_url`
 migration-gap rule in §4, and the first thing in this repo that could see it.
+Applying that file's own one-line `alter table` closed it the same day. Expect
+that shape: the check names a file, a human runs it, the next run flips to `ok`
+— and nothing else in the pipeline would have noticed either way.
 
 ## 4. Code conventions & pitfalls
 

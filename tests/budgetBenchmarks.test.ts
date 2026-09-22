@@ -1,15 +1,18 @@
 // @vitest-environment node
 import { describe, it, expect } from 'vitest'
 import {
-  REGION_BASELINES, regionFor, regionBand, experienceTier, anchorNote, EXPERIENCE_TIERS,
+  REGION_BASELINES, regionFor, regionBand, nationalBand, experienceTier, anchorNote, EXPERIENCE_TIERS,
 } from '../src/lib/budgetBenchmarks'
 import { TEMPLATE_COORDS } from '../src/lib/tripTemplates'
+import { BASELINE_COORDS } from '../src/lib/budgetBenchmarks'
 
 describe('budget benchmarks - the honest anchor', () => {
   it('every baseline names a route whose stops all resolve to coordinates (no dangling places)', () => {
     for (const r of REGION_BASELINES) {
-      expect(TEMPLATE_COORDS, r.key).toHaveProperty(r.start)
-      for (const d of r.destinations) expect(TEMPLATE_COORDS, r.key).toHaveProperty(d)
+      for (const place of [r.start, ...r.destinations]) {
+        const found = TEMPLATE_COORDS[place] != null || BASELINE_COORDS[place] != null
+        expect(found, r.key + ' -> ' + place).toBe(true)
+      }
       expect(r.days, r.key).toBeGreaterThanOrEqual(2)
       expect(r.label.trim(), r.key).not.toBe('')
       expect(r.matches.length, r.key).toBeGreaterThan(0)
@@ -23,8 +26,20 @@ describe('budget benchmarks - the honest anchor', () => {
     expect(regionFor(['Palolem, Goa'])?.key).toBe('coast')
   })
 
-  it('regionFor returns null for an unknown place - the UI must render nothing, not a filler', () => {
-    expect(regionFor(['Shillong, Meghalaya'])).toBeNull()
+  it('an out-of-network place falls back honestly - MP is a region now, Kolkata is not', () => {
+    expect(regionFor(['Bhopal, Madhya Pradesh'])?.label).toBe('Madhya Pradesh')
+    expect(regionFor(['Kolkata, West Bengal'])).toBeNull()
+  })
+
+  it('the national fallback is what an unknown region renders (plan P2.2)', () => {
+    // regionFor -> null; the page then uses nationalBand(days) so the anchor
+    // line still appears, labeled "India" rather than a guessed region
+    const nb = nationalBand(6)
+    expect(nb.label).toBe('India')
+    expect(nb.low).toBeGreaterThan(0)
+  })
+
+  it('blank and empty place lists render nothing, not a filler', () => {
     expect(regionFor([''])).toBeNull()
     expect(regionFor([])).toBeNull()
   })

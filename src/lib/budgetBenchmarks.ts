@@ -35,6 +35,9 @@ export const REGION_BASELINES: readonly RegionBaseline[] = [
   { key: 'rajasthan', label: 'Rajasthan', matches: ['rajasthan', 'jaipur', 'jodhpur', 'udaipur', 'jaisalmer', 'bikaner'], start: 'Jaipur, Rajasthan', destinations: ['Jodhpur, Rajasthan', 'Udaipur, Rajasthan'], days: 7 },
   { key: 'himachal', label: 'Himachal', matches: ['himachal', 'manali', 'shimla', 'kaza', 'spiti', 'kasol', 'dharamshala'], start: 'Manali, Himachal Pradesh', destinations: ['Kaza, Himachal Pradesh', 'Kasol, Himachal Pradesh'], days: 8 },
   { key: 'coast', label: 'the Konkan coast', matches: ['goa', 'panaji', 'palolem', 'gokarna', 'karnataka', 'mangalore', 'udupi'], start: 'Panaji, Goa', destinations: ['Palolem, Goa', 'Gokarna, Karnataka'], days: 4 },
+  { key: 'mp', label: 'Madhya Pradesh', matches: ['madhya pradesh', 'bhopal', 'khajuraho', 'orchha', 'gwalior', 'indore', 'bandhavgarh', 'kanha'], start: 'Bhopal, Madhya Pradesh', destinations: ['Khajuraho, Madhya Pradesh', 'Orchha, Madhya Pradesh'], days: 6 },
+  { key: 'ne', label: 'the North-East', matches: ['meghalaya', 'shillong', 'cherrapunji', 'sohra', 'assam', 'kaziranga', 'guwahati'], start: 'Guwahati, Assam', destinations: ['Shillong, Meghalaya', 'Kaziranga, Assam'], days: 6 },
+  { key: 'tamilnadu', label: 'Tamil Nadu', matches: ['tamil nadu', 'chennai', 'madurai', 'kanyakumari', 'ooty', 'coimbatore', 'rameswaram'], start: 'Chennai, Tamil Nadu', destinations: ['Madurai, Tamil Nadu', 'Kanyakumari, Tamil Nadu'], days: 5 },
 ]
 
 /** Which baseline a trip's destinations belong to, or null when we honestly
@@ -50,10 +53,29 @@ export function regionFor(places: readonly string[]): RegionBaseline | null {
 
 /** Per-head for a region's stand-in route at a given bed tier - the same
  *  engine call the ticket makes, so the anchor and the bill cannot drift. */
+/** Baseline routes need coordinates too - facts about cities, kept here
+ *  rather than polluting the template registry's own map. */
+export const BASELINE_COORDS: Record<string, { lat: number; lng: number }> = {
+  'Guwahati, Assam': { lat: 26.1445, lng: 91.7362 },
+  'Shillong, Meghalaya': { lat: 25.5788, lng: 91.8933 },
+  'Kaziranga, Assam': { lat: 26.5775, lng: 93.1711 },
+  'Chennai, Tamil Nadu': { lat: 13.0827, lng: 80.2707 },
+  'Madurai, Tamil Nadu': { lat: 9.9252, lng: 78.1198 },
+  'Kanyakumari, Tamil Nadu': { lat: 8.0883, lng: 77.5385 },
+  'Bhopal, Madhya Pradesh': { lat: 23.2599, lng: 77.4126 },
+  'Khajuraho, Madhya Pradesh': { lat: 24.8528, lng: 79.9194 },
+  'Orchha, Madhya Pradesh': { lat: 25.3516, lng: 78.3894 },
+}
+
+/** One lookup for any place a baseline names. */
+export function baselineCoords(name: string): { lat: number; lng: number } | null {
+  return TEMPLATE_COORDS[name] ?? BASELINE_COORDS[name] ?? null
+}
+
 function regionHeadAt(r: RegionBaseline, days: number, stayStyle: StayStyle, crew = 4): number {
   const pts: (LatLngPoint | null)[] = [
-    TEMPLATE_COORDS[r.start] ?? null,
-    ...r.destinations.map(d => TEMPLATE_COORDS[d] ?? null),
+    baselineCoords(r.start),
+    ...r.destinations.map(d => baselineCoords(d)),
   ]
   const start = '2026-02-14'
   const end = isoAdd(start, Math.max(1, days) - 1)
@@ -75,6 +97,16 @@ export function regionBand(r: RegionBaseline, days?: number): { low: number; hig
   const low = regionHeadAt(r, d, 'budget')
   const high = Math.max(low, regionHeadAt(r, d, 'comfort'))
   return { low, high, days: d, label: r.label }
+}
+
+/** The P2.2 fallback: when the trip's region is unknown, the anchor is still
+ *  available - the mean of every region's band, labeled honestly as a national
+ *  rough take rather than pretending to know the region. */
+export function nationalBand(days?: number): { low: number; high: number; days: number; label: string } {
+  const d = Math.min(14, Math.max(2, Math.round(days ?? 6)))
+  const bands = REGION_BASELINES.map(r => regionBand(r, d))
+  const mean = (pick: 'low' | 'high') => Math.round((bands.reduce((a, b) => a + b[pick], 0) / bands.length) / 100) * 100
+  return { low: mean('low'), high: Math.max(mean('high'), mean('low')), days: d, label: 'India' }
 }
 
 /** What a per-head number actually buys, tied to the bed tier and mode the

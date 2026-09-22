@@ -20,7 +20,7 @@ import { planDriveDays, isSelfDrivenMode } from '../lib/ridePlan'
 import { CREW_CHIPS, CREW_MAX, CREW_MIN, clampCrew } from '../lib/crew'
 import { estimateTripStarter, buildOutlineSeedStops } from '../lib/tripStarter'
 import { TRIP_TEMPLATES, applyTemplate, templateFromRange, fmtBand } from '../lib/tripTemplates'
-import { regionFor, regionBand, experienceTier, anchorNote } from '../lib/budgetBenchmarks'
+import { regionFor, regionBand, nationalBand, experienceTier, anchorNote } from '../lib/budgetBenchmarks'
 import { createFunnelOn } from '../lib/featureFlags'
 import { createReadiness, readinessFromDraft, readinessLine } from '../lib/createReadiness'
 import { saveDraft, loadDraft, clearDraft, draftIsWorthKeeping, draftAgeLabel, type StoredDraft } from '../lib/createDraft'
@@ -361,7 +361,7 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
     [f.startLocation, dests],
   )
   const band = useMemo(
-    () => (region ? regionBand(region, bill.days || undefined) : null),
+    () => (region ? regionBand(region, bill.days || undefined) : (bill.days ? nationalBand(bill.days) : null)),
     [region, bill.days],
   )
   // P2 - money in the user's hands, described by what it buys.

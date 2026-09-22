@@ -26,6 +26,7 @@ const payload = {
   form: { name: 'Kerala with the crew', startLocation: 'Kochi, Kerala', startDate: '2026-02-14', endDate: '2026-02-19' },
   dests: [{ name: 'Munnar, Kerala', lat: 10.0889, lng: 77.0595 }],
   returnCount: 0,
+  crew: [{ name: 'Ammu', phone: '9845021234' }, { name: 'Rahul', phone: null }],
 }
 
 describe('create drafts - the unfinished trip that waits', () => {
@@ -38,6 +39,8 @@ describe('create drafts - the unfinished trip that waits', () => {
     expect(got!.savedAt).toBe('2026-02-01T10:00:00.000Z')
     expect(got!.form.name).toBe('Kerala with the crew')
     expect(got!.dests).toHaveLength(1)
+    // the crew rides along - a resumed draft does not lose the people
+    expect(got!.crew).toEqual([{ name: 'Ammu', phone: '9845021234' }, { name: 'Rahul', phone: null }])
     expect(store.map.has(DRAFT_KEY)).toBe(true)
   })
 
@@ -75,6 +78,20 @@ describe('create drafts - the unfinished trip that waits', () => {
     expect(clearDraft({ store: null })).toBe(false)
   })
 
+  it('a draft written before crew existed loads with an empty crew, not a crash', () => {
+    const store = fakeStore()
+    saveDraft({ form: { name: 'Old' }, dests: [], returnCount: 0 }, { store })
+    const got = loadDraft({ store })!
+    expect(got.crew).toEqual([])
+  })
+
+  it('junk in the crew list is dropped rather than believed', () => {
+    const store = fakeStore()
+    store.map.set(DRAFT_KEY, JSON.stringify({ v: DRAFT_VERSION, savedAt: 'x', form: { name: 'X' }, dests: [], returnCount: 0, crew: [{ phone: 42 }, null, { name: 'ok', phone: '9845021234' }] }))
+    const got = loadDraft({ store })!
+    expect(got.crew).toEqual([{ name: 'ok', phone: '9845021234' }])
+  })
+
   it('clear removes it for good', () => {
     const store = fakeStore()
     saveDraft(payload, { store })
@@ -88,6 +105,11 @@ describe('create drafts - the unfinished trip that waits', () => {
       v: DRAFT_VERSION, savedAt: 'x', returnCount: 0, dests: [],
       form: { name: '', startLocation: '', startDate: '', endDate: '', travellers: 2 },
     })).toBe(false)
+  })
+
+  it('a crew-only draft is worth resuming - the planner typed those people', () => {
+    const d = { v: DRAFT_VERSION, savedAt: 'x', returnCount: 0, dests: [], form: { name: '', startLocation: '' }, crew: [{ name: 'Ammu', phone: '9845021234' }] } as never as StoredDraft
+    expect(draftIsWorthKeeping(d)).toBe(true)
   })
 
   it('any real progress makes it worth keeping', () => {

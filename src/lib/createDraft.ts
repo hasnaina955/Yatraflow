@@ -26,6 +26,9 @@ export interface DraftPayload {
   form: Record<string, unknown>
   dests: DraftDest[]
   returnCount: number
+  /** P5: crew collected for the invite, so a resumed draft does not lose the
+   *  people the planner already typed. Optional - older drafts simply have none. */
+  crew?: { name: string; phone: string | null }[]
 }
 
 export interface StoredDraft extends DraftPayload {
@@ -60,6 +63,7 @@ export function saveDraft(payload: DraftPayload, opts: Opts = {}): boolean {
       form: payload.form,
       dests: payload.dests,
       returnCount: payload.returnCount,
+      crew: payload.crew,
     }
     store.setItem(DRAFT_KEY, JSON.stringify(envelope))
     return true
@@ -83,7 +87,14 @@ export function loadDraft(opts: Opts = {}): StoredDraft | null {
     if (!parsed.form || typeof parsed.form !== 'object') return null
     const dests = Array.isArray(parsed.dests) ? parsed.dests.filter(d => d && typeof d.name === 'string') : []
     const returnCount = typeof parsed.returnCount === 'number' && Number.isFinite(parsed.returnCount) ? Math.max(0, Math.round(parsed.returnCount)) : 0
-    return { v: DRAFT_VERSION, savedAt: parsed.savedAt, form: parsed.form as Record<string, unknown>, dests, returnCount }
+    const crew = Array.isArray(parsed.crew)
+      ? parsed.crew.filter((c: unknown) => !!c && typeof c === 'object' && (typeof (c as { name?: unknown }).name === 'string' || typeof (c as { phone?: unknown }).phone === 'string'))
+          .map((c: { name?: unknown; phone?: unknown }) => ({
+            name: typeof c.name === 'string' ? c.name : '',
+            phone: typeof c.phone === 'string' ? c.phone : null,
+          }))
+      : []
+    return { v: DRAFT_VERSION, savedAt: parsed.savedAt, form: parsed.form as Record<string, unknown>, dests, returnCount, crew }
   } catch {
     return null
   }
@@ -111,7 +122,9 @@ export function draftIsWorthKeeping(d: StoredDraft | null): boolean {
   const startDate = typeof f.startDate === 'string' ? f.startDate : ''
   const endDate = typeof f.endDate === 'string' ? f.endDate : ''
   const touched = [name, start, startDate, endDate].filter(Boolean).length
-  return touched >= DRAFT_WORTH_KEEPING || d.dests.length > 0
+  // crew the planner typed is real progress too - a draft holding only
+  // names/numbers is worth resuming, not worth discarding silently
+  return touched >= DRAFT_WORTH_KEEPING || d.dests.length > 0 || (d.crew?.length ?? 0) > 0
 }
 
 /** "just now" / "12 min ago" / "3 h ago" / "2 days ago" - honest, coarse, no clock. */

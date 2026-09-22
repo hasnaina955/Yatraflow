@@ -6733,3 +6733,7 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 /* the pinned-plans time control needs room for its own meridiem - it used to
    clip to '02:00 P' in the 0.8fr track */
 .commitment-row input[type="time"] { min-width: 118px; }
+/* the dock's print action is a quiet secondary beside the primary, not a gate */
+.dock-secondary { display: grid; place-items: center; flex: none; width: 42px; height: 42px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--card); color: var(--text-2); cursor: pointer; }
+.dock-secondary:hover:not(:disabled), .dock-secondary:focus-visible:not(:disabled) { border-color: var(--teal); color: var(--teal-deep); outline: none; }
+.dock-secondary:disabled { opacity: 0.45; cursor: not-allowed; }

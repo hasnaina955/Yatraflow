@@ -290,10 +290,10 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
   useEffect(() => {
     if (!createFunnelOn('drafts') || !draftDecided) return
     const t = setTimeout(() => {
-      saveDraft({ form: f as unknown as Record<string, unknown>, dests, returnCount })
+      saveDraft({ form: f as unknown as Record<string, unknown>, dests, returnCount, crew: crew.map(c => ({ name: c.name, phone: c.phone })) })
     }, 800)
     return () => clearTimeout(t)
-  }, [f, dests, returnCount, draftDecided])
+  }, [f, dests, returnCount, crew, draftDecided])
 
   /** P5: who can be invited - the party minus the planner, capped at four so the
    *  create flow never turns into an address book (more live on the Share tab). */
@@ -327,6 +327,7 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
     setF(prev => ({ ...prev, ...(draft.form as Partial<typeof prev>) }))
     setDests(draft.dests)
     setReturnCount(draft.returnCount)
+    if (draft.crew?.length) setCrew(draft.crew.map(c => ({ raw: c.name || c.phone || '', name: c.name, phone: c.phone })))
     // the restored budget is the user's own number - hand the field back to them
     setBudgetTouched(true)
     setDraft(null)
@@ -1274,7 +1275,7 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
                   Create trip behind "Print my bill", which left a form with no
                   visible way to finish. Printing is now a secondary peek. */}
               <button type="submit" form="yf-create-form" className="tk-cta">
-                Create trip <ArrowRight size={16} aria-hidden />
+                Start planning <ArrowRight size={16} aria-hidden />
               </button>
               <div className="tk-subrow">
                 <button type="button" className="tk-cancel" onClick={printBill} disabled={!bill.perHead}>
@@ -1325,11 +1326,10 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
           </span>
           {createFunnelOn('readiness') && <span className="dock-ready">{readinessLine(readiness)}</span>}
         </div>
-        {!billPrinted ? (
-          <button type="button" className="dock-cta" onClick={printBill}><Printer size={15} aria-hidden /> Print bill</button>
-        ) : (
-          <button type="submit" form="yf-create-form" className="dock-cta">Create trip <ArrowRight size={15} aria-hidden /></button>
-        )}
+        {/* Same fix as the rail: the primary is the primary, and printing is a
+            peek at the numbers - not a gate in front of creating. */}
+        <button type="submit" form="yf-create-form" className="dock-cta">Start planning <ArrowRight size={15} aria-hidden /></button>
+        <button type="button" className="dock-secondary" onClick={printBill} disabled={!bill.perHead} aria-label="Print the rough bill"><Printer size={15} aria-hidden /></button>
       </div>
     </div>
   )

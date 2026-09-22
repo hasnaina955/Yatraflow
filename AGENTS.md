@@ -291,6 +291,7 @@ Hard rules (each learned the hard way — do not relearn them):
   stderr progress lines into a fake `NativeCommandError` exit 1 even when the
   gate is green — judge the run by the LOG's own summary lines
   (`Test Files`, `built in`), never by $LASTEXITCODE or the tool's error flag.
+- **A merge's own output lists its conflicts by omission — `tail` hides them, and the `git status` U-list is the checklist (learned 2026-09-22, queue integration).** Two merges in one run printed three conflicted files each while a fourth (`AGENTS.md` both times) conflicted *above* the `tail -8/-10` window; `git commit --no-edit` then failed with `U <file>`, and a gate started over that half-merged tree is untrustworthy. After ANY merge or rebase step: `git status --short | grep -E '^(U|.U|AA|DD)'` FIRST, resolve every row, only then commit and gate. Companion: a `grep -c` that prints 0 exits 1 and silently short-circuits the `&&` chain after it — zero matches is a fact to report, not a command failure.
 - **ANY `src/styles.css` edit moves line numbers, and the design-system
   ratchet reads line numbers — expect `contrastLight/contrastDark/rawDurations`
   to "fail" after every CSS change.** Before re-baselining, prove the failure

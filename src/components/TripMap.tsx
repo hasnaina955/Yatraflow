@@ -54,7 +54,7 @@ function VisiblePulse({ children, ...props }: ComponentProps<'span'>) {
   return <span {...props} ref={ref} data-motion-paused={!inView || !visible}>{children}</span>
 }
 
-const DAY_COLORS = ['#0D8D82', '#F59E2D', '#7C5CFC', '#E2557B', '#2D9CDB', '#6BBF59', '#B7791F']
+const DAY_COLORS = ['#0D8D82', '#F59E2D', '#7C5CFC', '#E2557B', '#2D9CDB', '#6BBF59', '#B03A2E'] // #B7791F sat 1.6° from #F59E2D (two orange days); brick clears it by 28°
 
 // Basemaps come from the mapcn <Map> default (OpenFreeMap — see mapcn/map.tsx).
 // The old CARTO Voyager / dark-matter and Esri World Imagery style URLs that

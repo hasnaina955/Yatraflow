@@ -716,6 +716,18 @@ describe('spacing rhythm: new values land on the documented ladder', () => {
   })
 })
 
+describe('the spacing ladder has a token home (design-audit F4)', () => {
+  // The --s-1…--s-8 set was deleted by SYS-2 as unconsumed, leaving the ladder
+  // with no token home. The --space-* ramp re-homes it WITH adopters (the
+  // adopt-or-delete rule), and this pin keeps ramp and ratchet in lockstep.
+  it('declares --space-1…--space-10 matching the gate ladder exactly', () => {
+    const ladder = [2, 4, 6, 8, 12, 14, 16, 20, 22, 24]
+    ladder.forEach((px, i) => {
+      expect(css).toContain('--space-' + (i + 1) + ': ' + px + 'px')
+    })
+  })
+})
+
 describe('categorical palettes: hues stay distinguishable', () => {
   // Colour-coded categories must not collide: two "days" or two expense categories
   // sharing a hue are indistinguishable in a legend, however different their

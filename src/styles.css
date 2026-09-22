@@ -51,14 +51,18 @@
   --yf-poi-see-ink: #8a2999;   /* its text ink, light theme */
   /* Expense-category bar colors (Budget tab "Where the money goes") — one
      hue per spend category, reused by the per-line icon chips. */
-  --cat-transport: #897ABB;
-  --cat-accommodation: #0D8D82;
-  --cat-food: #F59E2D;
-  --cat-activities: #2E8B57;
-  --cat-entry-fees: #D6534D;
+  /* A dedicated categorical family, NOT the status palette: the first version
+     borrowed warn/ok/coral verbatim (entry fees wore the critical coral), so a
+     money bar read as an alert. Every hue sits >=15° from its siblings — the
+     hue gate reads the first four. */
+  --cat-transport: #2D61A9;        /* steel blue */
+  --cat-accommodation: #237895;    /* cerulean */
+  --cat-food: #B24F24;             /* terracotta */
+  --cat-activities: #378637;       /* leaf green (NOT the ok green) */
+  --cat-entry-fees: #AB367A;       /* rose (NOT the critical coral) */
   --cat-tolls-parking: var(--gray-500);
-  --cat-local-travel: #B47207;
-  --cat-emergency-buffer: #E4AE43;
+  --cat-local-travel: #747722;     /* olive — the auto-rickshaw hue */
+  --cat-emergency-buffer: #9E6D1A; /* deep honey — caution-family, not the token */
   --yf-cream: #F8F7EF;         /* main app canvas */
   --yf-mist: #ECF8F4;          /* atmospheric gradient edge */
   --yf-peach: #FFF2E8;         /* atmospheric gradient edge */
@@ -126,6 +130,8 @@
      tokens (its lightened --warn/--ok already pass on dark surfaces). */
   --ink-amber: #8F5B06;
   --ink-ok: #1F6B41;
+  --ink-coral: #A82E2E;  /* AA on the soft danger tints (5.16–5.69): #C93B3B read 4.22 */
+  --ink-teal: #0B6B63;   /* teal ink for tint chips/hovers: teal-deep reads 4.0–4.5 there */
 
   /* ---- 3. LEGACY flat aliases (do not remove; new code uses --color-*) ---- */
   --bg: var(--yf-cream);   /* CTI canvas (was --gray-50) */
@@ -152,12 +158,18 @@
   --shadow-navy-rgb: 11, 37, 69;  /* shared shadow/shade navy — keep alphas on the consumers */
   --shadow: 0 1px 2px rgba(var(--shadow-navy-rgb),.05), 0 8px 28px rgba(var(--shadow-navy-rgb),.08);
   --shadow-sm: 0 1px 2px rgba(var(--shadow-navy-rgb),.07);
-  --shadow-soft: 0 2px 6px rgba(16,46,75,.04), 0 16px 40px rgba(16,46,75,.10);  /* CTI diffuse depth */
-  --shadow-carry: 0 6px 18px rgba(16,46,75,.14), 0 24px 48px rgba(16,46,75,.18);  /* carried drag row lift */
+  --shadow-soft: 0 2px 6px rgba(var(--shadow-navy-rgb),.04), 0 16px 40px rgba(var(--shadow-navy-rgb),.10);  /* CTI diffuse depth */
+  --shadow-carry: 0 6px 18px rgba(var(--shadow-navy-rgb),.14), 0 24px 48px rgba(var(--shadow-navy-rgb),.18);  /* carried drag row lift */
   --shadow-carry-dark: 0 6px 18px rgba(0,0,0,.45), 0 24px 48px rgba(0,0,0,.5);
   --radius: 18px;
   --radius-sm: 12px;
   --radius-lg: 24px;   /* CTI large bento cards */
+  /* ---- Spacing ladder: the ratchet's law for new code (tests/design-system
+     .test.ts' spacing gate), tokenised so surfaces route through it. Matches
+     the gate's LADDER set exactly — change one side and the pin fails. */
+  --space-1: 2px; --space-2: 4px; --space-3: 6px; --space-4: 8px;
+  --space-5: 12px; --space-6: 14px; --space-7: 16px; --space-8: 20px;
+  --space-9: 22px; --space-10: 24px;
   --nav-h: 62px;
   /* ---- bottom chrome (mobile / native shell) ----
      One offset every fixed/sticky bottom layer clears: the shell's own
@@ -214,14 +226,14 @@
   --yf-purple-100: #2A2440;
   --yf-poi-see: #e488f2;       /* scenic base lifts in dark (spine 7.6:1 on the dark card) */
   --yf-poi-see-ink: #f0a7fb;   /* POI-see text ink lifts in dark */
-  --cat-transport: #A99BD6;
-  --cat-accommodation: #2BB8AC;
-  --cat-food: #F5A94A;
-  --cat-activities: #52BE80;
-  --cat-entry-fees: #E06C6C;
+  --cat-transport: #689ADF;
+  --cat-accommodation: #68C1DF;
+  --cat-food: #DF8C68;
+  --cat-activities: #6BC76B;
+  --cat-entry-fees: #DF68AD;
   --cat-tolls-parking: #93A6BC;
-  --cat-local-travel: #D99A2B;
-  --cat-emergency-buffer: #E4B45E;
+  --cat-local-travel: #D0D454;
+  --cat-emergency-buffer: #DFB368;
   --yf-cream: #0C1420;
   --yf-mist: #0F1B2B;
   --yf-peach: #1A2030;
@@ -250,6 +262,8 @@
      --warn/--ok (#D99A2B/#52BE80) already clear AA on dark surfaces. */
   --ink-amber: var(--warn);
   --ink-ok: var(--ok);
+  --ink-coral: var(--danger);
+  --ink-teal: var(--teal-deep);
 
   /* ---- 3. LEGACY flat aliases (dark) ---- */
   --bg: var(--gray-50);
@@ -588,7 +602,7 @@ a.btn { text-decoration: none; }
 .btn-outline:hover { background: var(--bg-soft); }
 .btn-ghost { background: none; border: none; color: var(--text-2); padding: 8px 10px; border-radius: 999px; }
 .btn-ghost:hover { background: var(--bg-soft); color: var(--text); }
-.btn-danger { background: var(--color-destructive-soft); color: var(--color-destructive); }
+.btn-danger { background: var(--color-destructive-soft); color: var(--ink-coral); }
 .btn-danger:hover:not(:disabled) { background: color-mix(in srgb, var(--color-destructive) 14%, transparent); }
 .btn-sm { padding: 6px 12px; font-size: 13px; }
 /* The LARGE size is the one that carries a sentence, so it is the one that may
@@ -639,7 +653,7 @@ a.btn { text-decoration: none; }
 .card {
   background: var(--card); border: 1px solid var(--line);
   border-radius: var(--radius); box-shadow: var(--shadow);
-  padding: 20px;
+  padding: var(--space-8);
 }
 .card + .card { margin-top: 14px; }
 /* …except inside a grid, which already spaces its own items with `gap`. The
@@ -763,14 +777,10 @@ a.btn { text-decoration: none; }
 .chip-teal { background: var(--teal-soft); color: var(--teal-deep); }
 .chip-outline { background: var(--card); color: var(--text-2); border-color: var(--line); }
 .chip-saffron { background: var(--saffron-soft); color: var(--ink-amber); }
-/* AA contrast: warn-600 reads 3.48:1 on the saffron tint — light theme gets a
-   deeper amber (--ink-amber); dark theme's #D99A2B on #3A2C15 already passes.
-   The same --warn-on-tint pair shipped unfixed on sibling surfaces (3.48–3.69:1
-   light; all pass dark) — now routed through --ink-amber for one source. */
-:root:not([data-theme='dark']) .day-warn-pill:not(.sev-high),
-  :root:not([data-theme='dark']) .day-rail-chip.warn,
-:root:not([data-theme='dark']) .share-intent--saffron,
-:root:not([data-theme='dark']) .stop-num.cat-food { color: var(--ink-amber); }
+/* AA contrast: the warn-amber-on-tint pair (3.48–3.69:1 in light) is folded
+   INTO the base rules — each declares --ink-amber directly (5.08–5.38:1), and
+   dark re-resolves --ink-amber to --warn, so one declaration is correct in
+   both themes. The danger pair folds the same way through --ink-coral. */
 /* SYS-2 dark-foreground swap: these solid-teal-fill surfaces take `#06251f`
    ink in dark (the lightened --teal-500 can't carry white — 2.0–2.5:1). One
    block for the whole family; base rules now use --teal-deep (5.19:1 light).
@@ -784,7 +794,7 @@ a.btn { text-decoration: none; }
   background: var(--teal); border-color: var(--teal); color: #06251f;
 }
 [data-theme='dark'] .mode-btn.on .hint { color: rgba(6, 37, 31, .85); }
-.chip-danger { background: var(--danger-soft); color: var(--danger); }
+.chip-danger { background: var(--danger-soft); color: var(--ink-coral); }
 .chip-ok { background: var(--ok-soft); color: var(--ink-ok); }
 .chip-info { background: var(--info-soft); color: var(--text-2); }
 .clickable-chip { cursor: pointer; border: 1.5px solid var(--line); background: var(--card); user-select: none;
@@ -793,7 +803,7 @@ a.btn { text-decoration: none; }
      box-shadow, so the selected chip's text/glow popped while its fill eased. */
   transition: transform var(--t-fast) var(--ease-out), background var(--t-fast) var(--ease-out), border-color var(--t-fast) var(--ease-out), color var(--t-fast) var(--ease-out), box-shadow var(--t-fast) var(--ease-out); }
 .clickable-chip.on-teal { border-color: var(--teal); background: var(--teal-soft); color: var(--teal-deep); }
-.clickable-chip.on-saffron { border-color: var(--saffron); background: var(--saffron-soft); color: var(--warn); }
+.clickable-chip.on-saffron { border-color: var(--saffron); background: var(--saffron-soft); color: var(--ink-amber); }
 .clickable-chip:hover { transform: translateY(-1px); }
 .chip-row { display: flex; flex-wrap: wrap; gap: 7px; }
 /* Segmented pill bars — ONE recipe for every pill-style toggle/filter rail
@@ -940,7 +950,7 @@ a.btn { text-decoration: none; }
   background: var(--teal-soft); color: var(--teal-deep);
 }
 .stop-num.cat-travel { background: var(--info-soft); color: var(--text-2); }
-.stop-num.cat-food { background: var(--saffron-soft); color: var(--warn); }
+.stop-num.cat-food { background: var(--saffron-soft); color: var(--ink-amber); }
 .stop-num.cat-hotel { background: var(--info-soft); color: var(--text-2); }
 .stop-main { flex: 1; min-width: 0; }
 .stop-toprow { display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap; }
@@ -1328,17 +1338,17 @@ a.btn { text-decoration: none; }
   transition: border-color var(--t-fast) var(--ease-out), background var(--t-fast) var(--ease-out), color var(--t-fast) var(--ease-out);
 }
 .day-rail-chip:hover { border-color: var(--teal); color: var(--teal-deep); background: var(--teal-soft); }
-.day-rail-chip.warn { background: var(--yf-amber-100); border-color: transparent; color: var(--warn); font-weight: 700; }
-.day-rail-chip.warn:hover { background: var(--saffron-soft); color: var(--warn); }
+.day-rail-chip.warn { background: var(--yf-amber-100); border-color: transparent; color: var(--ink-amber); font-weight: 700; }
+.day-rail-chip.warn:hover { background: var(--saffron-soft); color: var(--ink-amber); }
 /* Warning state inside the affected day's header (doc §6.3). */
 .day-warn-pill {
   align-self: flex-start;
-  border-radius: 12px; padding: 6px 12px;
+  border-radius: var(--radius-sm); padding: var(--space-3) var(--space-5);
   font-size: 11.5px; font-weight: 700;
-  background: var(--yf-amber-100); color: var(--warn);
+  background: var(--yf-amber-100); color: var(--ink-amber);
   max-width: 340px;
 }
-.day-warn-pill.sev-high { background: var(--yf-coral-100); color: var(--danger); }
+.day-warn-pill.sev-high { background: var(--yf-coral-100); color: var(--ink-coral); }
 /* Per-day cost + dwell chips in the day header — quiet metadata pills that
    mirror the stop-kind tag treatment (soft tint, no border) so they read as
    engine-derived context, not actions. */
@@ -1539,9 +1549,10 @@ a.btn { text-decoration: none; }
 }
 /* Mockup card anatomy: accent bar (from kind-*) → kicker → title → one meta line. */
 .board-stop-kicker {
-  display: block; font-size: 9.5px; font-weight: 800; letter-spacing: .08em;
-  text-transform: uppercase; color: var(--text-3);
+  display: block; color: var(--text-3);
   font-variant-numeric: tabular-nums;
+  /* size/weight/tracking/casing come from the kicker-unification block
+     (var(--kicker-*), later in this file) — nothing local left to drift. */
 }
 .board-stop .stop-title {
   display: block; font-size: 13px; margin-top: 2px;
@@ -1590,7 +1601,7 @@ button.board-col-zone--add:active { transform: translateY(1px); }
   text-transform: uppercase; padding: 4px 10px; border-radius: 999px; margin-bottom: 8px;
 }
 .share-intent--teal { background: var(--teal-soft); color: var(--teal-deep); }
-.share-intent--saffron { background: var(--saffron-soft); color: var(--warn); }
+.share-intent--saffron { background: var(--saffron-soft); color: var(--ink-amber); }
 .share-intent--info { background: var(--info-soft); color: var(--text-2); }
 [data-theme='dark'] .budget-hero { background: linear-gradient(120deg, #0e2f39, #0c1e35); }
 [data-theme='dark'] .budget-hero-sub { color: #9fc4bf; }
@@ -1798,7 +1809,7 @@ button.board-col-zone--add:active { transform: translateY(1px); }
   background-size: 26px 26px;
 }
 .hero-adventure > * { position: relative; }
-.ha-kicker { font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; opacity: .75; font-weight: 800; }
+.ha-kicker { opacity: .75; /* type specs: the kicker-unification block (var(--kicker-*)) */ }
 .ha-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 14px 0 8px; }
 .ha-stats > div { background: rgba(255,255,255,.09); border: 1px solid rgba(255,255,255,.14); border-radius: 10px; padding: 8px 10px; }
 .ha-stats b { display: block; font-family: var(--font-display); font-size: 15px; font-variant-numeric: tabular-nums; }
@@ -1993,7 +2004,7 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
   color: var(--text-2); display: inline-flex; padding: 3px; border-radius: 7px;
   transition: color var(--motion-fast) var(--ease-out), background var(--motion-fast) var(--ease-out);
 }
-.icon-link:hover { color: var(--teal-deep); background: var(--bg-soft); }
+.icon-link:hover { color: var(--ink-teal); background: var(--bg-soft); }
 .icon-link:focus-visible { outline: 2px solid var(--teal); outline-offset: 1px; }
 /* Inline text links in body copy — the teal colour alone didn't read as
    clickable. */
@@ -2145,7 +2156,7 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
 .map-idea-chip { display: inline-flex; align-items: center; gap: 5px; }
 .map-idea-chip .yf-idea-chip-ico { opacity: .85; flex: 0 0 auto; }
 .map-idea-chip .yf-idea-chip-count {
-  background: rgba(var(--shadow-navy-rgb),.12); border-radius: 99px;
+  background: rgba(var(--shadow-navy-rgb),.12); border-radius: 999px;
   font-size: 10.5px; font-weight: 800; padding: 1px 6px;
   font-variant-numeric: tabular-nums;
 }
@@ -2159,7 +2170,7 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
 .vote-btn:hover { border-color: var(--teal); color: var(--teal-deep); }
 .vote-btn.on { background: var(--teal-deep); border-color: var(--teal-deep); color: #fff; }
 .vote-count { font-weight: 800; font-size: 15px; font-family: var(--font-display); font-variant-numeric: tabular-nums; }
-.consensus-bar { height: 7px; border-radius: 99px; background: var(--bg-soft); overflow: hidden; display: flex; }
+.consensus-bar { height: 7px; border-radius: 999px; background: var(--bg-soft); overflow: hidden; display: flex; }
 .consensus-bar > div { height: 100%; }
 .comment { display: flex; gap: 9px; padding: 9px 0; border-top: 1px dashed var(--line); }
 .comment-body { font-size: 13.5px; }
@@ -2174,9 +2185,9 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
 /* ---------- Budget ---------- */
 .budget-bars { display: flex; flex-direction: column; gap: 11px; }
 .budget-bar-row { display: grid; grid-template-columns: 120px 1fr auto; gap: 10px; align-items: center; font-size: 13.5px; }
-.budget-bar-track { height: 10px; background: var(--bg-soft); border-radius: 99px; overflow: hidden; }
+.budget-bar-track { height: 10px; background: var(--bg-soft); border-radius: 999px; overflow: hidden; }
 .budget-bar-fill {
-  height: 100%; border-radius: 99px; transition: width var(--t-slow) var(--ease-out);
+  height: 100%; border-radius: 999px; transition: width var(--t-slow) var(--ease-out);
   position: relative; overflow: hidden;
 }
 /* A sheen sweeping across each budget bar via left-position keyframes.
@@ -2611,7 +2622,7 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
    Dark ink on the same bright fill (5.5:1+) fixes both themes in one rule;
    same lightness-not-hue move as .clickable-chip.on-teal. */
 .notif-badge { position: absolute; top: -4px; right: -4px; background: var(--saffron); color: #06251F;
-  border-radius: 99px; font-size: 10px; font-weight: 800; min-width: 17px; height: 17px; line-height: 17px; }
+  border-radius: 999px; font-size: 10px; font-weight: 800; min-width: 17px; height: 17px; line-height: 17px; }
 
 /* ---------- Footer ---------- */
 .footer-inner { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
@@ -3087,7 +3098,7 @@ main:focus { outline: none; }
 .loc-texts { display: grid; gap: 1px; min-width: 0; flex: 1; }
 .loc-kind {
   flex: none; font-size: 9.5px; font-weight: 800; letter-spacing: .05em;
-  padding: 3px 7px; border-radius: 99px; text-transform: uppercase;
+  padding: 3px 7px; border-radius: 999px; text-transform: uppercase;
 }
 .loc-kind.poi { background: color-mix(in srgb, var(--saffron) 16%, transparent); color: #9A6206; }
 .loc-kind.place { background: color-mix(in srgb, var(--teal) 14%, transparent); color: var(--teal-deep); }
@@ -3174,10 +3185,10 @@ main:focus { outline: none; }
   padding: 2px 8px; border-radius: 999px; white-space: nowrap;
   background: var(--line); color: var(--text-2);
 }
-.ride-purpose-meal { background: color-mix(in srgb, var(--saffron) 16%, transparent); color: var(--teal-deep); }
-.ride-purpose-fuel { background: var(--info-soft); color: var(--teal-deep); }
-.ride-purpose-stretch { background: color-mix(in srgb, var(--teal) 14%, transparent); color: var(--teal-deep); }
-.ride-purpose-rest { background: color-mix(in srgb, var(--teal) 14%, transparent); color: var(--teal-deep); }
+.ride-purpose-meal { background: color-mix(in srgb, var(--saffron) 16%, transparent); color: var(--ink-teal); }
+.ride-purpose-fuel { background: var(--info-soft); color: var(--ink-teal); }
+.ride-purpose-stretch { background: color-mix(in srgb, var(--teal) 14%, transparent); color: var(--ink-teal); }
+.ride-purpose-rest { background: color-mix(in srgb, var(--teal) 14%, transparent); color: var(--ink-teal); }
 .ride-purpose-overnight { background: var(--text); color: var(--bg); }
 .ride-purpose-sight { background: color-mix(in srgb, var(--saffron) 22%, transparent); color: var(--text); }
 .ride-purpose-muted { background: transparent; border: 1px dashed var(--line); color: var(--text-3); }
@@ -4870,9 +4881,9 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 .daybars { display: flex; flex-direction: column; gap: 10px; }
 .daybar-row { display: grid; grid-template-columns: 52px 1fr auto; gap: 10px; align-items: center; font-size: 13.5px; }
 .daybar-label { font-weight: 700; color: var(--text-2); white-space: nowrap; }
-.daybar-track { position: relative; height: 12px; background: var(--bg-soft); border-radius: 99px; }
+.daybar-track { position: relative; height: 12px; background: var(--bg-soft); border-radius: 999px; }
 .daybar-fill {
-  height: 100%; border-radius: 99px; transition: width var(--t-med) var(--ease-out);
+  height: 100%; border-radius: 999px; transition: width var(--t-med) var(--ease-out);
   position: relative; overflow: hidden;
 }
 /* Same calm sheen the category bars wear (barSheen) — the per-day bars were the
@@ -5882,7 +5893,7 @@ html.native-shell {
 }
 
 /* ============ Optimise-day preview (anti-crisscross reorder) ============ */
-.opt-delta { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+.opt-delta { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: var(--space-5); }
 .opt-delta-cell { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; background: var(--bg-soft); }
 .opt-delta-cell .k { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--text-2); margin-bottom: 4px; }
 .opt-delta-cell .v { font-size: 15px; font-weight: 700; }
@@ -5902,7 +5913,7 @@ html.native-shell {
   background: var(--card); border: 1px solid var(--line); border-radius: 999px;
   padding: 2px 8px; font-variant-numeric: tabular-nums;
 }
-.poi-grp { display: flex; align-items: center; gap: 8px; margin: 12px 0 6px; }
+.poi-grp { display: flex; align-items: center; gap: var(--space-4); margin: var(--space-5) 0 var(--space-3); }
 /* Size/weight/tracking come from the kicker recipe above; only colour is local.
    Declared here (not inline) so the rail cannot drift from the one recipe. */
 .poi-grp-k { color: var(--text-3); }

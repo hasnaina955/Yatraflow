@@ -1,13 +1,5 @@
 {
-  "contrastLight": [
-    ".btn-danger — 4.22:1",
-    ".chip-danger — 4.22:1",
-    ".clickable-chip.on-saffron — 3.48:1",
-    ".day-rail-chip.warn:hover — 3.48:1",
-    ".day-warn-pill — 3.69:1",
-    ".icon-link:hover — 4.49:1",
-    ".ride-purpose-fuel — 4.45:1"
-  ],
+  "contrastLight": [],
   "contrastDark": [],
   "duplicateSelectors": [
     ".bench-cta",
@@ -69,9 +61,7 @@
     ":root.vt-radiate-in::view-transition-old(root) — animation: 680ms",
     ":root.vt-radiate-out::view-transition-new(root) — animation: 780ms"
   ],
-  "hueCollisions": [
-    "DAY_COLORS #F59E2D vs #B7791F — 1.6°"
-  ],
+  "hueCollisions": [],
   "offLadderSpacing": [
     "gap: 10px",
     "gap: 11px",

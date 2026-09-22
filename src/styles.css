@@ -6596,3 +6596,81 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .created-bill-formula { font-size: 10.5px; color: var(--text-3); margin: 0 0 6px; }
 .created-bill-acts { display: flex; gap: 8px; margin-top: 12px; }
 .created-receipt-holder { position: absolute; left: -9999px; top: 0; width: 380px; pointer-events: none; }
+/* ============================================================
+   Create Trip - the flow (mockup presentation layer)
+   Replaces the boxed ts-block grid with the numbered question flow the mockup
+   specified: circular step markers, stop chips, a party stepper, tier pills and
+   a budget slider. Spacing is on the design-system ladder; colours are the
+   existing tokens so the contrast ratchet stays green.
+   ============================================================ */
+
+.ct-flow { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+.ct-flow > * { min-width: 0; }
+.ct-q-body > * { min-width: 0; }
+.ct-q { display: flex; align-items: flex-start; gap: 12px; }
+.ct-n { display: grid; place-items: center; flex: none; width: 26px; height: 26px; margin-top: 2px; border-radius: 50%; background: var(--teal-deep); color: var(--card); font-size: 12px; font-weight: 700; }
+.ct-q.done .ct-n { background: var(--teal-soft); color: var(--teal-deep); }
+.ct-q-body { flex: 1; min-width: 0; }
+.ct-q-body h2 { margin: 0; font-size: 15px; letter-spacing: -0.01em; }
+.ct-hint { margin: 2px 0 0; font-size: 11.5px; color: var(--text-3); }
+.ct-q-field { margin-top: 8px; }
+
+/* stop chips */
+.ct-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.ct-dchip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 8px 6px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--card); font-size: 13px; font-weight: 600; }
+.ct-dchip .n { display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: var(--teal-deep); color: var(--card); font-size: 10px; font-weight: 700; }
+.ct-dchip.ret .n { background: var(--violet-ink); }
+.ct-dchip .x { display: grid; place-items: center; width: 16px; height: 16px; border: 0; border-radius: 50%; background: transparent; color: var(--text-3); font-size: 11px; cursor: pointer; }
+.ct-dchip .mv { display: grid; place-items: center; width: 16px; height: 16px; border: 0; border-radius: 50%; background: transparent; color: var(--text-3); font-size: 10px; cursor: pointer; }
+.ct-dadd { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border: 1px dashed var(--teal); border-radius: 999px; background: transparent; color: var(--teal-deep); font-size: 13px; font-weight: 600; cursor: pointer; }
+.ct-dadd:hover, .ct-dadd:focus-visible { background: var(--teal-soft); outline: none; }
+.ct-presets { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.ct-pre { padding: 8px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--card); color: var(--text-2); font-size: 12px; font-weight: 600; text-align: left; cursor: pointer; }
+.ct-pre small { display: block; margin-top: 2px; color: var(--text-3); font-size: 10px; font-weight: 500; }
+.ct-pre:hover, .ct-pre:focus-visible { border-color: var(--teal); outline: none; }
+.ct-pre.on { border-color: var(--teal); background: var(--teal-soft); color: var(--teal-deep); }
+
+/* dates: three readout boxes above the picker */
+.ct-daterow { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin-top: 8px; max-width: 440px; }
+.ct-din { padding: 8px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--card); }
+.ct-din .lab { display: block; font-size: 9.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-3); }
+.ct-din b { font-size: 13.5px; font-weight: 600; }
+
+/* party stepper */
+.ct-party { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.ct-step { display: inline-flex; align-items: center; overflow: hidden; border: 1px solid var(--line); border-radius: 999px; background: var(--card); }
+.ct-step button { width: 34px; height: 34px; border: 0; background: transparent; color: var(--teal-deep); font-size: 16px; font-weight: 700; cursor: pointer; }
+.ct-step b { min-width: 34px; text-align: center; font-size: 14px; font-variant-numeric: tabular-nums; }
+.ct-party-sub { font-size: 11px; color: var(--text-3); }
+.ct-mini { padding: 5px 11px; border: 0; border-radius: 999px; background: var(--teal-soft); color: var(--teal-deep); font-size: 11.5px; font-weight: 600; cursor: pointer; }
+
+/* refine layer */
+.ct-refine { display: flex; flex-direction: column; gap: 12px; padding-top: 16px; border-top: 1px solid var(--line); }
+.ct-lbl { font-size: 10.5px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-3); }
+.ct-rrow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.ct-tier { display: inline-flex; overflow: hidden; border: 1px solid var(--line); border-radius: 999px; background: var(--card); }
+.ct-tier button { padding: 7px 14px; border: 0; background: transparent; color: var(--text-3); font-size: 12px; font-weight: 600; cursor: pointer; }
+.ct-tier button.on { background: var(--teal-deep); color: var(--card); }
+.ct-tier button:hover:not(.on), .ct-tier button:focus-visible:not(.on) { color: var(--teal-deep); outline: none; }
+
+/* budget slider + the exact-value escape hatch */
+.ct-bud { display: flex; flex: 1 1 260px; align-items: center; gap: 12px; padding: 8px 14px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--card); }
+.ct-bud input[type="range"] { flex: 1; min-width: 120px; accent-color: var(--teal); }
+.ct-bud .v { min-width: 84px; text-align: right; font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.ct-bud .v small { display: block; font-size: 9.5px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-3); }
+.ct-bud-exact { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--card); font-size: 11.5px; color: var(--text-3); }
+.ct-bud-exact input { width: 88px; border: 0; background: transparent; color: var(--text); font: inherit; font-variant-numeric: tabular-nums; outline: none; }
+
+/* compact mode pills (all modes stay, the tile grid goes) */
+.ct-modes { display: flex; flex-wrap: wrap; gap: 6px; }
+.ct-mode { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--card); color: var(--text-2); font-size: 12px; font-weight: 600; cursor: pointer; }
+.ct-mode.on { border-color: var(--teal); background: var(--teal-soft); color: var(--teal-deep); }
+.ct-mode:hover:not(.on), .ct-mode:focus-visible:not(.on) { border-color: var(--teal); outline: none; }
+
+/* style pills (wrapped, no carousel) */
+.ct-styles { display: flex; flex-wrap: wrap; gap: 6px; }
+.ct-style { padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--card); color: var(--text-2); font-size: 12px; font-weight: 600; cursor: pointer; }
+.ct-style.on { border-color: var(--teal); background: var(--teal-soft); color: var(--teal-deep); }
+.ct-style:hover:not(.on), .ct-style:focus-visible:not(.on) { border-color: var(--teal); outline: none; }
+.ct-optional { display: flex; flex-direction: column; gap: 12px; padding-top: 16px; border-top: 1px solid var(--line); }
+.ct-opt-head { display: flex; align-items: baseline; gap: 8px; }

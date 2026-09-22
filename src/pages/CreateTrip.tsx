@@ -9,7 +9,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
-  Calendar, ChevronDown, ChevronUp, Pin, TriangleAlert, X, ArrowRight, Printer,
+  Calendar, ChevronDown, ChevronUp, Pin, TriangleAlert, X, ArrowRight, Printer, Plus,
   Car, Bike, Bus, TrainFront, Plane, KeyRound, CarTaxiFront, Shuffle, Fuel, Wallet,
 } from 'lucide-react'
 import type { FixedCommitment, LatLngPoint, TransportMode, TravelStyle } from '../data/types'
@@ -276,6 +276,10 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
   // once the trip exists, so this page never promises a message it cannot send.
   const [crew, setCrew] = useState<CrewEntry[]>([])
   const [crewInput, setCrewInput] = useState('')
+  /** The tucked drawer is a real controlled element so the party chip can open
+   *  it and the native summary still closes it (P1's "advanced is tucked, not
+   *  hidden" promise - the chip in the flow is the second way in). */
+  const [drawerOpen, setDrawerOpen] = useState(false)
   useEffect(() => {
     if (!createFunnelOn('drafts')) { setDraftDecided(true); return }
     const found = loadDraft()
@@ -294,6 +298,13 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
   /** P5: who can be invited - the party minus the planner, capped at four so the
    *  create flow never turns into an address book (more live on the Share tab). */
   const crewLimit = Math.min(4, Math.max(0, f.travellers - 1))
+
+  /** The dashed "Add a stop" is a shortcut to the search field, not a second
+   *  input: one control owns the value, the button just puts the cursor in it. */
+  function focusAddStop() {
+    const el = document.querySelector<HTMLInputElement>('.ct-add-stop input')
+    if (el) { el.focus(); el.scrollIntoView({ block: 'nearest', behavior: scrollBehavior() }) }
+  }
 
   function addCrewMember() {
     const next = addCrewEntry(crew, crewInput, crewLimit)
@@ -629,34 +640,6 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
 
   // ---- Shared fragments ----------------------------------------------------
 
-  function RouteLeg({ stops, offset, returnLeg }: { stops: DestDraft[]; offset: number; returnLeg?: boolean }) {
-    return (
-      <div className={returnLeg ? 'route-line route-line--return' : 'route-line'}>
-        {stops.map((d, i) => {
-          const gi = offset + i
-          const first = i === 0
-          const lastInLeg = i === stops.length - 1
-          return (
-            <div key={`${d.name}-${gi}`} className="route-row">
-              <span className="route-dot">{returnLeg ? i + 1 : offset + i + 1}</span>
-              <span className="route-name" title={d.name}>{d.name}</span>
-              <span className="route-acts">
-                <button type="button" className="route-btn" aria-label={`Move ${d.name} earlier`}
-                  disabled={first} style={{ opacity: first ? .25 : undefined }}
-                  onClick={() => { haptic(HAPTIC.tick); moveDest(gi, -1) }}><ChevronUp size={13} aria-hidden /></button>
-                <button type="button" className="route-btn" aria-label={`Move ${d.name} later`}
-                  disabled={lastInLeg} style={{ opacity: lastInLeg ? .25 : undefined }}
-                  onClick={() => { haptic(HAPTIC.tick); moveDest(gi, 1) }}><ChevronDown size={13} aria-hidden /></button>
-                <button type="button" className="route-btn" aria-label={`Remove ${d.name}`}
-                  onClick={() => { haptic(HAPTIC.tick); removeDest(gi) }}><X size={13} aria-hidden /></button>
-              </span>
-            </div>
-          )
-        })}
-      </div>
-    )
-  }
-
   return (
     <div className="container form-page trip-starter">
       {createFunnelOn('drafts') && draft && (
@@ -727,11 +710,10 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
       )}
 
       <div className="ts-layout">
-        <form id="yf-create-form" className="ts-blocks" onSubmit={submit}>
+        <form id="yf-create-form" className="ct-flow" onSubmit={submit}>
 
-          {/* ---- Name first (P1): the trip becomes yours the moment it has a name ---- */}
-          <section className="ts-block span12">
-            <div className="tpl-name">
+          {/* ---- Name first: the trip becomes yours the moment it has a name ---- */}
+          <div className="tpl-name">
               <Field label="Trip name" error={errs.name}>
                 <input className="input" autoComplete="off" ref={el => (fieldRefs.current.name = el)} aria-invalid={!!errs.name}
                   value={f.name} onChange={e => { patchFields({ name: e.target.value }); setNameSugSeen(true) }}
@@ -742,140 +724,182 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
                   Use &ldquo;{tplNameSuggestion()}&rdquo;
                 </button>
               )}
-            </div>
-          </section>
+          </div>
 
-          {/* ---- Route (7) ---- */}
-          <section className="ts-block span7">
-            <div className="ts-block-head">
-              <span className="eyebrow">1 &middot; Where</span>
-              <span className="ts-block-value">
-                {dests.length > 0 && <>{dests.length} stop{dests.length !== 1 ? 's' : ''}{bill.roadKm != null ? ` · ≈ ${bill.roadKm} km` : ''}</>}
-              </span>
-              <label className="ts-switch">
-                <input type="checkbox" role="switch" checked={returnCount > 0}
-                  onChange={e => setReturnOn(e.target.checked)} aria-label="Configure custom return journey stops" />
-                <span className="ts-switch-track" aria-hidden="true"></span>
-                <span className="ts-switch-label">Plot the drive back</span>
-              </label>
-            </div>
-            {/* Day Planner P1-E shape presets: a day out is ONE round-trip day
-                (no stay line in the bill — meals and parking ride on the day);
-                a weekend dash is two. They preset the shape; every field stays
-                editable. */}
-            <div className="chip-row" role="group" aria-label="Trip shape presets" style={{ marginBottom: 12 }}>
-              <Chip onClick={() => applyDayOutShape(1)}>Day out</Chip>
-              <Chip onClick={() => applyDayOutShape(2)}>Weekend dash</Chip>
-            </div>
-            {createFunnelOn('iq') && iq && (
-              <p className="hint-text route-iq" role="status">{routeIqLine(iq)}</p>
-            )}
-            {/* The engine's verdict the moment start + end exist: when the
-                route demands more days than the date range gives, say so and
-                offer the honest fix — one tap, still fully editable. */}
-            {driveDaysVerdict && driveDaysVerdict.driveDayCount > bill.days && (
-              <div className="dayplanner-banner" style={{ marginBottom: 12 }} role="status">
-                <b>The drive wants {driveDaysVerdict.driveDayCount} travel days{fuelMode && f.roundTrip !== false ? ' — there and back' : ''}.</b>
-                <span className="small muted">
-                  ≈{Math.round(driveDaysVerdict.perDay)} km a day keeps wheel time ≈{minutesToHM(driveDaysVerdict.maxDailyWheelMin)} — in {bill.days} day{bill.days !== 1 ? 's' : ''} it's ≈{minutesToHM((bill.roadKm ?? 0) / (MODE_SPEED[f.transportMode] ?? 42) * 60)} in one stretch.
-                </span>
-                <button className="btn btn-primary btn-sm" onClick={() => {
-                  const start = f.startDate || isoDay(new Date())
-                  patchFields({ startDate: start, endDate: isoAddDays(start, driveDaysVerdict.driveDayCount - 1) })
-                }}>Make it {driveDaysVerdict.driveDayCount} days</button>
+          {/* ---- 1 - Where ---- */}
+          <div className="ct-q done">
+            <span className="ct-n">1</span>
+            <div className="ct-q-body">
+              <h2>Where are you going?</h2>
+              <p className="ct-hint">Start typing - places geocode and order themselves along the road.</p>
+              <div className="ct-q-field">
+                <Field label="Starting location" error={errs.startLocation}>
+                  <LocationInput
+                    value={f.startLocation}
+                    onChange={v => patchFields({ startLocation: v })}
+                    onPick={p => setStartCoords({ lat: p.latitude, lng: p.longitude })}
+                    placeholder="Search a city, e.g. Kochi"
+                  />
+                </Field>
               </div>
-            )}
-            <Field label="Starting location" error={errs.startLocation}>
-              <LocationInput
-                value={f.startLocation}
-                onChange={v => patchFields({ startLocation: v })}
-                onPick={p => setStartCoords({ lat: p.latitude, lng: p.longitude })}
-                placeholder="Search a city, e.g. Kochi"
-              />
-            </Field>
-            <div className="route-line">
-              <div className="route-row route-row--start">
-                <span className="route-dot">★</span>
-                <span className="route-name" title={f.startLocation.trim() || 'Start of the journey'}>{f.startLocation.trim() || 'Start of the journey'}</span>
-                <span className="route-tag">start</span>
-              </div>
-            </div>
-            <RouteLeg stops={outbound} offset={0} />
-            {errs.destinations && <p className="err-text" role="alert">{errs.destinations}</p>}
-            <LocationInput
-              value={destInput}
-              onChange={setDestInput}
-              onPick={p => addDest({ name: p.name + (p.admin1 ? `, ${p.admin1}` : ''), lat: p.latitude, lng: p.longitude }, false)}
-              placeholder={dests.length === 0 ? 'Search your first stop, e.g. Munnar' : 'Add another destination…'}
-            />
 
-            {returnCount > 0 && (
-              <div className="return-section" aria-label="Return journey stops">
-                <div className="return-head">
-                  <span className="eyebrow">Return</span>
-                  <span className="return-note">Auto-filled with the reverse route — edit freely</span>
-                </div>
-                <RouteLeg stops={returnStops} offset={outbound.length} returnLeg />
+              <div className="ct-chips" role="list" aria-label="Stops in order">
+                {dests.map((d, i) => {
+                  const first = i === 0
+                  const lastStop = i === dests.length - 1
+                  const isReturn = returnCount > 0 && i >= dests.length - returnCount
+                  return (
+                    <span className={`ct-dchip${isReturn ? ' ret' : ''}`} role="listitem" key={`${d.name}-${i}`}>
+                      <span className="n" aria-hidden>{i + 1}</span>
+                      <span title={d.name}>{d.name}</span>
+                      <button type="button" className="mv" aria-label={`Move ${d.name} earlier`} disabled={first}
+                        onClick={() => { haptic(HAPTIC.tick); moveDest(i, -1) }}>&lsaquo;</button>
+                      <button type="button" className="mv" aria-label={`Move ${d.name} later`} disabled={lastStop}
+                        onClick={() => { haptic(HAPTIC.tick); moveDest(i, 1) }}>&rsaquo;</button>
+                      <button type="button" className="x" aria-label={`Remove ${d.name}`}
+                        onClick={() => { haptic(HAPTIC.tick); removeDest(i) }}>&#10005;</button>
+                    </span>
+                  )
+                })}
+                <button type="button" className="ct-dadd" onClick={() => focusAddStop()}>
+                  <Plus size={12} aria-hidden /> Add a stop
+                </button>
+              </div>
+              {errs.destinations && <p className="err-text" role="alert">{errs.destinations}</p>}
+
+              <div className="ct-q-field ct-add-stop">
                 <LocationInput
-                  value={returnInput}
-                  onChange={setReturnInput}
-                  onPick={p => addDest({ name: p.name + (p.admin1 ? `, ${p.admin1}` : ''), lat: p.latitude, lng: p.longitude }, true)}
-                  placeholder="Add a return stop…  e.g. Guruvayur"
+                  value={destInput}
+                  onChange={setDestInput}
+                  onPick={p => addDest({ name: p.name + (p.admin1 ? `, ${p.admin1}` : ''), lat: p.latitude, lng: p.longitude }, false)}
+                  placeholder={dests.length === 0 ? 'Search your first stop, e.g. Munnar' : 'Add another destination.'}
                 />
               </div>
-            )}
-          </section>
 
-          {/* ---- Dates (5) ---- */}
-          <section className="ts-block span5">
-            <div className="ts-block-head">
-              <span className="eyebrow">2 &middot; When</span>
-            </div>
-            <DateRangeCalendar
-              start={f.startDate} end={f.endDate}
-              error={errs.startDate || errs.endDate}
-              registerRef={el => { fieldRefs.current.startDate = el; fieldRefs.current.endDate = el }}
-              onChange={({ startDate, endDate }) => patchFields({ startDate, endDate })}
-            />
-            {createFunnelOn('iq') && seasonLine && (
-              <p className="hint-text season-note" role="status">{seasonLine}</p>
-            )}
-            {dayCount > 0 && (
-              <span className="pill"><Calendar size={12} aria-hidden /> {dayCount} day{dayCount !== 1 ? 's' : ''} · {Math.max(0, dayCount - 1)} night{dayCount - 1 !== 1 ? 's' : ''}</span>
-            )}
-          </section>
+              {createFunnelOn('iq') && iq && (
+                <p className="hint-text route-iq" role="status">{routeIqLine(iq)}</p>
+              )}
 
-          {/* ---- Crew & transport (12) ---- */}
-          <section className="ts-block span12">
-            <div className="ts-block-head">
-              <span className="eyebrow">3 &middot; Who &amp; how</span>
-              <span className="ts-block-value">{f.travellers} traveller{f.travellers !== 1 ? 's' : ''} · {cap(f.transportMode)}</span>
+              {/* The engine's verdict the moment start + end exist: when the
+                  route demands more days than the date range gives, say so and
+                  offer the honest fix - one tap, still fully editable. */}
+              {driveDaysVerdict && driveDaysVerdict.driveDayCount > bill.days && (
+                <div className="dayplanner-banner" style={{ marginBottom: 12 }} role="status">
+                  <b>The drive wants {driveDaysVerdict.driveDayCount} travel days{fuelMode && f.roundTrip !== false ? ' - there and back' : ''}.</b>
+                  <span className="small muted">
+                    {'\u2248'}{Math.round(driveDaysVerdict.perDay)} km a day keeps wheel time {'\u2248'}{minutesToHM(driveDaysVerdict.maxDailyWheelMin)} - in {bill.days} day{bill.days !== 1 ? 's' : ''} it's {'\u2248'}{minutesToHM((bill.roadKm ?? 0) / (MODE_SPEED[f.transportMode] ?? 42) * 60)} in one stretch.
+                  </span>
+                  <button className="btn btn-primary btn-sm" onClick={() => {
+                    const start = f.startDate || isoDay(new Date())
+                    patchFields({ startDate: start, endDate: isoAddDays(start, driveDaysVerdict.driveDayCount - 1) })
+                  }}>Make it {driveDaysVerdict.driveDayCount} days</button>
+                </div>
+              )}
+
+              <div className="ct-presets" role="group" aria-label="Trip shape presets">
+                <button type="button" className="ct-pre" onClick={() => applyDayOutShape(1)}>
+                  A day out<small>one round trip - no stay</small>
+                </button>
+                <button type="button" className="ct-pre" onClick={() => applyDayOutShape(2)}>
+                  Weekend dash<small>two days, one night</small>
+                </button>
+                <button type="button" className="ct-pre" onClick={() => focusAddStop()}>
+                  The full route<small>multi-day, stays planned</small>
+                </button>
+              </div>
+
+              <div className="ct-rrow" style={{ marginTop: 12 }}>
+                <label className="ts-switch">
+                  <input type="checkbox" role="switch" checked={returnCount > 0}
+                    onChange={e => setReturnOn(e.target.checked)} aria-label="Configure custom return journey stops" />
+                  <span className="ts-switch-track" aria-hidden="true"></span>
+                  <span className="ts-switch-label">Plot the drive back</span>
+                </label>
+              </div>
+
+              {returnCount > 0 && (
+                <div className="return-section" aria-label="Return journey stops">
+                  <div className="return-head">
+                    <span className="eyebrow">Return</span>
+                    <span className="return-note">Auto-filled with the reverse route - edit freely</span>
+                  </div>
+                  <div className="ct-chips" role="list" aria-label="Return stops">
+                    {returnStops.map((d, i) => {
+                      const gi = outbound.length + i
+                      return (
+                        <span className="ct-dchip ret" role="listitem" key={`ret-${d.name}-${gi}`}>
+                          <span className="n" aria-hidden>{i + 1}</span>
+                          <span title={d.name}>{d.name}</span>
+                          <button type="button" className="x" aria-label={`Remove ${d.name}`}
+                            onClick={() => { haptic(HAPTIC.tick); removeDest(gi) }}>&#10005;</button>
+                        </span>
+                      )
+                    })}
+                  </div>
+                  <LocationInput
+                    value={returnInput}
+                    onChange={setReturnInput}
+                    onPick={p => addDest({ name: p.name + (p.admin1 ? `, ${p.admin1}` : ''), lat: p.latitude, lng: p.longitude }, true)}
+                    placeholder="Add a return stop.  e.g. Guruvayur"
+                  />
+                </div>
+              )}
             </div>
-            <div className="ct-grid">
-              <div>
-                <span className="group-lab">Transport mode</span>
-                <div className="mode-grid" role="group" aria-label="Transport mode">
+          </div>
+
+          {/* ---- 2 - When ---- */}
+          <div className="ct-q done">
+            <span className="ct-n">2</span>
+            <div className="ct-q-body">
+              <h2>When?</h2>
+              <p className="ct-hint">The clock walk and every window on the trip starts here.</p>
+              <div className="ct-daterow">
+                <div className="ct-din"><span className="lab">Start</span><b>{f.startDate ? fmtDay(f.startDate) : '-'}</b></div>
+                <div className="ct-din"><span className="lab">End</span><b>{f.endDate ? fmtDay(f.endDate) : '-'}</b></div>
+                <div className="ct-din"><span className="lab">Nights</span><b>{dayCount > 0 ? Math.max(0, dayCount - 1) : '-'}</b></div>
+              </div>
+              <div className="ct-q-field">
+                <DateRangeCalendar
+                  start={f.startDate} end={f.endDate}
+                  error={errs.startDate || errs.endDate}
+                  registerRef={el => { fieldRefs.current.startDate = el; fieldRefs.current.endDate = el }}
+                  onChange={({ startDate, endDate }) => patchFields({ startDate, endDate })}
+                />
+              </div>
+              {createFunnelOn('iq') && seasonLine && (
+                <p className="hint-text season-note" role="status">{seasonLine}</p>
+              )}
+            </div>
+          </div>
+
+          {/* ---- 3 - Who & how ---- */}
+          <div className="ct-q done">
+            <span className="ct-n">3</span>
+            <div className="ct-q-body">
+              <h2>Who's coming, and how are you travelling?</h2>
+              <p className="ct-hint">Party shape tunes the engine - meal windows, driver rotation, fatigue cadence.</p>
+              <div className="ct-q-field">
+                <span className="ct-lbl">Transport</span>
+                <div className="ct-modes" role="group" aria-label="Transport mode">
                   {MODE_TILES.map(t => {
-                    // key on the tile itself: seven of the eight modes return
-                    // this button straight from the map, and React needs a key
-                    // on every returned element (the train tile wraps it).
-                    const tile = (
-                      <button key={t.mode} type="button" className={`mode-btn${f.transportMode === t.mode ? ' on' : ''}`}
+                    // The local-train switch belongs to the train pill, so the
+                    // pill and its switch stay siblings inside one tile.
+                    const pill = (
+                      <button key={t.mode} type="button" className={`ct-mode${f.transportMode === t.mode ? ' on' : ''}`}
                         aria-pressed={f.transportMode === t.mode}
+                        title={t.hint}
                         onClick={() => {
                           haptic(HAPTIC.select)
                           patchFields(t.mode !== 'train' && f.localTrain ? { transportMode: t.mode, localTrain: false } : { transportMode: t.mode })
                         }}>
-                        <t.icon size={17} aria-hidden />
-                        <span><span className="nm">{t.mode === 'rental' ? 'Car rental' : cap(t.mode)}</span><span className="hint">{t.mode === 'train' && f.localTrain ? 'local · ₹0.45/km' : t.hint}</span></span>
+                        <t.icon size={13} aria-hidden />
+                        <span>{t.mode === 'rental' ? 'Car rental' : cap(t.mode)}</span>
                       </button>
                     )
-                    // The local-train toggle lives inside the train tile — a
-                    // sibling of the select button so both stay real controls.
-                    if (t.mode !== 'train') return tile
+                    if (t.mode !== 'train') return pill
                     return (
-                      <div key="train" className="mode-tile">
-                        {tile}
+                      <span key="train" className="mode-tile">
+                        {pill}
                         {f.transportMode === 'train' && (
                           <label className="ts-switch mode-local-switch">
                             <input type="checkbox" role="switch" checked={f.localTrain}
@@ -885,35 +909,35 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
                             <span className="ts-switch-label">Local</span>
                           </label>
                         )}
-                      </div>
+                      </span>
                     )
                   })}
                 </div>
               </div>
-              <div>
-                <span className="group-lab">Crew size</span>
-                <div className="crew-row" role="group" aria-label="Crew size">
-                  {CREW_CHIPS.map(n => (
-                    <button key={n} type="button" className={`crew-btn${f.travellers === n ? ' on' : ''}`}
-                      aria-pressed={f.travellers === n}
-                      onClick={() => { haptic(HAPTIC.select); patchFields({ travellers: n }) }}>{n}</button>
-                  ))}
-                  <button type="button" className={`crew-btn crew-btn--custom${showCustomCrew ? ' on' : ''}`}
-                    aria-pressed={showCustomCrew}
-                    onClick={() => { haptic(HAPTIC.select); patchFields({ travellers: showCustomCrew ? 2 : 9 }) }}>Custom…</button>
+              <div className="ct-q-field">
+                <span className="ct-lbl">Party size</span>
+                <div className="ct-party">
+                  <span className="ct-step" role="group" aria-label="Party size">
+                    <button type="button" aria-label="One fewer traveller"
+                      onClick={() => { haptic(HAPTIC.tick); patchFields({ travellers: clampCrew(f.travellers - 1) }) }}>&minus;</button>
+                    <b aria-live="polite">{f.travellers}</b>
+                    <button type="button" aria-label="One more traveller"
+                      onClick={() => { haptic(HAPTIC.tick); patchFields({ travellers: clampCrew(f.travellers + 1) }) }}>+</button>
+                  </span>
+                  <span className="ct-party-sub">traveller{f.travellers !== 1 ? 's' : ''}</span>
+                  <button type="button" className="ct-mini" onClick={() => setDrawerOpen(true)}>
+                    {f.driverCount ? `${f.driverCount} driver${f.driverCount === 1 ? '' : 's'}` : 'drivers'}{f.hasVulnerable ? ' \u00b7 kids/seniors' : ''}
+                  </button>
+                  <span className="sr-only">{f.travellers} traveller{f.travellers !== 1 ? 's' : ''} on {cap(f.transportMode)}</span>
                 </div>
-                {showCustomCrew && (
-                  <div className="crew-custom">
-                    <Field label="Travellers" error={errs.travellers}>
-                      <input className="input mono" type="number" min={CREW_MIN} max={CREW_MAX} ref={el => (fieldRefs.current.travellers = el)}
-                        aria-invalid={!!errs.travellers} value={f.travellers}
-                        onChange={e => patchFields({ travellers: clampCrew(Number(e.target.value)) })} />
-                    </Field>
-                  </div>
-                )}
-
+                <div className="sr-only">
+                  <Field label="Travellers" error={errs.travellers}>
+                    <input className="input mono" type="number" min={CREW_MIN} max={CREW_MAX} ref={el => (fieldRefs.current.travellers = el)}
+                      aria-invalid={!!errs.travellers} value={f.travellers}
+                      onChange={e => patchFields({ travellers: clampCrew(Number(e.target.value)) })} />
+                  </Field>
+                </div>
               </div>
-            </div>
               {createFunnelOn('crew') && (
                 <div className="crew-invite">
                   <span className="group-lab">Bring the crew <span className="crew-opt">optional</span></span>
@@ -945,7 +969,8 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
                   </p>
                 </div>
               )}
-              <details className="adv-drawer">
+              <details className="adv-drawer" open={drawerOpen}
+                onToggle={e => setDrawerOpen((e.target as HTMLDetailsElement).open)}>
                 <summary>
                   <span className="group-lab">Fuel, vehicle &amp; party details</span>
                   <span className="adv-hint">{f.fuelEconomy || f.fuelPrice || f.tankL || f.rentPerDay || f.driverCount || f.hasVulnerable || f.driveAfterDinnerMin ? 'set' : 'the engine has good defaults'}</span>
@@ -1043,88 +1068,85 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
                 )}
                 </div>
               </details>
-          </section>
-
-          {/* ---- Budget & style (7) ---- */}
-          <section className="ts-block span7">
-            <div className="ts-block-head">
-              <span className="eyebrow">Refine &middot; budget &amp; style</span>
             </div>
-            <div className="form-row">
-              <Field label="Budget per person (₹)" error={errs.budgetPerPersonInr}
-                hint={budgetTouched
-                  ? `Manual amount — tap the highlighted quick amount again to hand the field back to our maths${bill.perHead != null && bill.perHead > 0 ? ` (≈ ₹${bill.perHead.toLocaleString('en-IN')}/head · ≈ ₹${(bill.perHead * f.travellers).toLocaleString('en-IN')} total)` : ''}.`
-                  : bill.perHead != null && bill.perHead > 0
-                    ? `Our rough take ≈ ₹${bill.perHead.toLocaleString('en-IN')}/head · ≈ ₹${(bill.perHead * f.travellers).toLocaleString('en-IN')} total — prefilled above, updates as you plan (excludes tolls, parking & entry fees).`
-                    : 'Pick dates (and a stop or two) and our rough take lands here automatically.'}>
-                <input className="input mono" type="number" min={500} step={500} ref={el => (fieldRefs.current.budgetPerPersonInr = el)}
-                  aria-invalid={!!errs.budgetPerPersonInr} value={f.budgetPerPersonInr}
-                  onChange={e => { setBudgetTouched(true); patchFields({ budgetPerPersonInr: Number(e.target.value) }) }} />
-              </Field>
-              {/* Politely live: the auto-fill above rewrites this field, so say so
-                  for anyone who cannot see the number change. */}
-              <span className="sr-only" role="status">{budgetNotice}</span>
-              {/* Quick amounts are a toggle, not a one-way trap: clicking an
-                  amount claims the field for manual editing, clicking the
-                  highlighted one again releases it — auto-fill from the rough
-                  bill resumes (budgetTouched reset + suggested value back in). */}
-              <div className="quick-budget" role="group" aria-label="Quick budget amounts">
-                {[10000, 15000, 25000].map(v => {
-                  const on = f.budgetPerPersonInr === v
-                  return (
-                    <button key={v} type="button" className={`chip${on ? ' on' : ''}`}
-                      aria-pressed={on}
-                      title={on ? 'Tap again to go back to our suggested budget' : `Set ₹${v.toLocaleString('en-IN')} per person`}
-                      onClick={() => {
-                        haptic(HAPTIC.tick)
-                        if (on) {
-                          setBudgetTouched(false)
-                          if (suggestedBudget != null) patchFields({ budgetPerPersonInr: suggestedBudget })
-                        } else {
-                          setBudgetTouched(true)
-                          patchFields({ budgetPerPersonInr: v })
-                        }
-                      }}>
-                      ₹{v >= 1000 ? `${Math.round(v / 1000)}k` : v}
-                    </button>
-                  )
-                })}
+          </div>
+
+          {/* ---- Refine: budget & style ---- */}
+          <div className="ct-refine">
+            <span className="ct-lbl">Refine the trip</span>
+
+            <div className="ct-q-field">
+              <span className="ct-lbl">Budget per head</span>
+              <div className="ct-rrow" style={{ marginTop: 8 }}>
+                <div className="ct-bud">
+                  <input type="range" min={2500} max={60000} step={500}
+                    value={Math.min(60000, Math.max(2500, f.budgetPerPersonInr))}
+                    aria-label="Budget per person in rupees"
+                    onChange={e => { setBudgetTouched(true); patchFields({ budgetPerPersonInr: Number(e.target.value) }) }} />
+                  <span className="v">
+                    &#8377;{f.budgetPerPersonInr.toLocaleString('en-IN')}
+                    <small>group &#8377;{(f.budgetPerPersonInr * f.travellers).toLocaleString('en-IN')}</small>
+                  </span>
+                </div>
+                {/* The exact number still matters - a slider cannot say 13,750. */}
+                <label className="ct-bud-exact">
+                  exact
+                  <input className="mono" type="number" min={0} step={500}
+                    ref={el => (fieldRefs.current.budgetPerPersonInr = el)}
+                    aria-label="Budget per person, exact amount"
+                    aria-invalid={!!errs.budgetPerPersonInr}
+                    value={f.budgetPerPersonInr}
+                    onChange={e => { setBudgetTouched(true); patchFields({ budgetPerPersonInr: Number(e.target.value) }) }} />
+                </label>
+                <button type="button" className="ct-mini"
+                  onClick={() => { setBudgetTouched(false); if (suggestedBudget != null) patchFields({ budgetPerPersonInr: suggestedBudget }) }}>
+                  use our maths
+                </button>
               </div>
+              {errs.budgetPerPersonInr && <p className="err-text" role="alert">{errs.budgetPerPersonInr}</p>}
+              {/* Politely live: the auto-fill above rewrites this number. */}
+              <span className="sr-only" role="status">{budgetNotice}</span>
+              {createFunnelOn('budget') && band && (
+                <p className="hint-text budget-anchor" role="status">
+                  A typical {band.days}-day {band.label} run costs <b>&#8377;{band.low.toLocaleString('en-IN')}&ndash;{band.high.toLocaleString('en-IN')}</b> per head
+                  {f.budgetPerPersonInr > 0 ? <> - {anchorNote(f.budgetPerPersonInr, band)}</> : null}.
+                </p>
+              )}
+              {createFunnelOn('budget') && (<p className="hint-text budget-tier">
+                At <b>&#8377;{f.budgetPerPersonInr.toLocaleString('en-IN')}</b> per head: {tier.blurb}.
+              </p>)}
             </div>
-            {createFunnelOn('budget') && band && (
-              <p className="hint-text budget-anchor" role="status">
-                A typical {band.days}-day {band.label} run costs <b>&#8377;{band.low.toLocaleString('en-IN')}&ndash;{band.high.toLocaleString('en-IN')}</b> per head
-                {f.budgetPerPersonInr > 0 ? <> - {anchorNote(f.budgetPerPersonInr, band)}</> : null}.
-              </p>
-            )}
-            {createFunnelOn('budget') && (<p className="hint-text budget-tier">
-              At <b>&#8377;{f.budgetPerPersonInr.toLocaleString('en-IN')}</b> per head: {tier.blurb}.
-            </p>)}
-            <span className="group-lab">Budget preference</span>
-            <PillNav className="tabbar" role="group" aria-label="Budget preference" activeKey={f.stayStyle}>
-              {(['budget', 'comfort', 'luxury'] as const).map(s => (
-                <button key={s} type="button" data-pill-key={s} className={`tab-btn${f.stayStyle === s ? ' active' : ''}`}
-                  aria-pressed={f.stayStyle === s}
-                  onClick={() => { haptic(HAPTIC.select); patchFields({ stayStyle: s }) }}>{cap(s)}</button>
-              ))}
-            </PillNav>
-            <p className="hint-text style-copy">Prices the bed: ₹1,200 / ₹3,200 / ₹8,000 per room-night, 2 guests per room.</p>
 
-            <span className="group-lab">Travel style</span>
-            <PillNav className="tabbar style-carousel" role="group" aria-label="Travel style" activeKey={f.travelStyle}>
-              {TRAVEL_STYLES.map(s => (
-                <button key={s} type="button" data-pill-key={s} className={`tab-btn${f.travelStyle === s ? ' active' : ''}`}
-                  aria-pressed={f.travelStyle === s}
-                  onClick={() => { haptic(HAPTIC.select); patchFields({ travelStyle: s }) }}>{cap(s)}</button>
-              ))}
-            </PillNav>
-            <p className="hint-text style-copy" role="status"><b>{cap(f.travelStyle)}</b> — {STYLE_COPY[f.travelStyle]}</p>
-          </section>
+            <div className="ct-rrow">
+              <span className="ct-lbl">The bed</span>
+              <span className="ct-tier" role="group" aria-label="Bed tier">
+                {(['budget', 'comfort', 'luxury'] as const).map(st => (
+                  <button key={st} type="button" className={f.stayStyle === st ? 'on' : ''}
+                    aria-pressed={f.stayStyle === st}
+                    onClick={() => { haptic(HAPTIC.select); patchFields({ stayStyle: st }) }}>{cap(st)}</button>
+                ))}
+              </span>
+              <span className="ct-party-sub">prices the bed - the drive never changes with it</span>
+            </div>
 
-          {/* ---- Trip cover (5) ---- */}
-          <section className="ts-block span5">
-            <div className="ts-block-head">
-              <span className="eyebrow">Trip cover</span>
+            <div>
+              <span className="ct-lbl">Travel style</span>
+              <div className="ct-styles" role="group" aria-label="Travel style" style={{ marginTop: 6 }}>
+                {TRAVEL_STYLES.map(st => (
+                  <button key={st} type="button" className={`ct-style${f.travelStyle === st ? ' on' : ''}`}
+                    aria-pressed={f.travelStyle === st}
+                    onClick={() => { haptic(HAPTIC.select); patchFields({ travelStyle: st }) }}>{cap(st)}</button>
+                ))}
+              </div>
+              <p className="hint-text style-copy" role="status"><b>{cap(f.travelStyle)}</b> - {STYLE_COPY[f.travelStyle]}</p>
+            </div>
+          </div>
+
+          {/* ---- cover + pinned: the optional layer ---- */}
+          <div className="ct-optional">
+            <div className="ct-opt-head">
+              <span className="ct-lbl">Trip cover</span>
+              <span className="ct-party-sub">optional</span>
             </div>
             <Field label="Trip emoji">
               <div className="chip-row" style={{ marginTop: 6 }}>
@@ -1163,12 +1185,10 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
                 </div>
               </div>
             </Field>
-          </section>
 
-          {/* ---- Pinned plans (12) ---- */}
-          <section className="ts-block span12">
-            <div className="ts-block-head">
-              <span className="eyebrow">Pinned plans <span className="muted" style={{ fontWeight: 500 }}>(optional)</span></span>
+          <div className="ct-opt-head" style={{ marginTop: 16 }}>
+              <span className="ct-lbl">Pinned plans</span>
+              <span className="ct-party-sub">optional - trains, weddings, anything with a time</span>
             </div>
             <p className="hint-text" style={{ margin: '0 0 10px' }}>
               Hotel check-ins, train or flight departures, events. The planner protects these when it warns about tight schedules.
@@ -1207,7 +1227,7 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
               <Field label="Time"><input className="input" type="time" value={c.time} onChange={e => setC(x => ({ ...x, time: e.target.value }))} /></Field>
               <button type="button" className="btn btn-outline" onClick={addCommitment} style={{ height: 42 }}>Add</button>
             </div>
-          </section>
+          </div>
         </form>
 
         {/* ---- The Trip Ticket (right rail / hidden on mobile) ---- */}

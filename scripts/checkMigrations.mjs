@@ -154,6 +154,15 @@ export const NO_PROBE_SURFACE = {
   '20260907_shared_trip_reads.sql': {
     reason: 'function only — a missing RPC fails at call time with PGRST202, not silently',
   },
+  '20260921_admin_revenue.sql': {
+    reason: 'function only (`admin_revenue`) — a missing RPC fails at call time with PGRST202, not silently',
+  },
+  '20260921_purchase_share_card.sql': {
+    reason: 'functions only (`owns_publication` and kin) — a missing RPC fails at call time with PGRST202, not silently',
+  },
+  '20260922_pub_events_retention.sql': {
+    reason: 'function only (`prune_pub_events`) — a missing RPC fails at call time with PGRST202, not silently',
+  },
   '20260910_schedule_purge.sql': {
     optional: true,
     reason: 'schedules pg_cron, which is opt-in and needs the extension enabled by hand — optional by design, never expect it',

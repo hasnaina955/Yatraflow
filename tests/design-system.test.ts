@@ -703,6 +703,146 @@ describe('the day collapse moves as one gesture', () => {
   })
 })
 
+describe('the day collapse moves as one gesture', () => {
+  // Measured 2026-09-19. The collapse ran on --ease-glide, and a day body runs
+  // up to ~1000px: a decelerate curve throws 24% of that distance away in the
+  // first 6ms (0 → 930px of 967 inside 45% of the duration), so the collapse
+  // read as a pop followed by a 150ms dribble. Both --ease-glide and --ease-out
+  // are that curve (they agree within .015 at every sampled point), so the fix
+  // is the both-ends --ease-resize — ~3px of movement in the first 60Hz frame.
+  //
+  // Measured again the same day, frame by frame: with the right easing the row
+  // below a folding day still moved 115px between two sampled frames (942px of
+  // travel on --motion-slow) — the "cards colliding" report. Peak speed is
+  // distance ÷ duration (x the curve's peak slope), so the collapse moved to
+  // --motion-slower/560ms, and its curve was made symmetric: on this much
+  // travel the Material standard curve peaks at 2.73x its average (96px inside
+  // a 60Hz frame) against 1.72x for the symmetric one (60px), for the same
+  // total time. Both halves are pinned here.
+  const rule = (selector: string) => cssRules.find((r) => normalise(r.selector) === selector)
+
+  it('opens and closes on the both-ends easing, not the decelerate family', () => {
+    const clip = rule('.day-body-clip')
+    expect(clip, '.day-body-clip is missing from styles.css').toBeTruthy()
+    expect(clip!.body).toMatch(/transition:\s*grid-template-rows var\(--motion-slower\) var\(--ease-resize\)/)
+    expect(clip!.body).not.toMatch(/--ease-(glide|out)\b/)
+  })
+
+  it('runs on the large-surface duration, and holds visibility for all of it', () => {
+    // The inner's visibility must lag the whole collapse. Pinning both keeps a
+    // retime from leaving content unpaintable mid-animation or a timer from
+    // unmounting a body that is still moving.
+    const inner = rule('.day-body-clip-inner')
+    expect(inner, '.day-body-clip-inner is missing from styles.css').toBeTruthy()
+    expect(inner!.body).toMatch(/visibility 0s var\(--motion-slower\)/)
+    const declared = [...css.matchAll(/--motion-slower:\s*([^;]+);/g)].map((m) => m[1].trim())
+    expect(declared).toEqual(['560ms'])
+  })
+
+  it('declares that easing once, in the motion token block', () => {
+    // Symmetric, not the asymmetric Material standard curve: the peak slope is
+    // what a large resize is felt through (see the comment above).
+    const declared = [...css.matchAll(/--ease-resize:\s*([^;]+);/g)].map((m) => m[1].trim())
+    expect(declared).toEqual(['cubic-bezier(.42, 0, .58, 1)'])
+  })
+
+  it('turns the chevron on the same clock as the body', () => {
+    // At --t-fast/180ms the arrow settled ~90ms before the body did, so one
+    // click read as two separate movements.
+    const icon = rule('.day-collapse-icon')
+    expect(icon, '.day-collapse-icon is missing from styles.css').toBeTruthy()
+    expect(icon!.body).toMatch(/transform var\(--motion-slower\) var\(--ease-resize\)/)
+  })
+
+  it('takes the unmount delay from the token, not a literal', () => {
+    // Retiming the CSS must not leave a half-collapsed body mounted.
+    const src = source('src/pages/trip/timeline/DaySection.tsx')
+    expect(src).toMatch(/window\.setTimeout\(\(\) => \{ setMounted\(false\) \}, motionTiming\('--motion-slower'\)\.duration \+ COLLAPSE_UNMOUNT_SLACK_MS\)/)
+    // Covers both shapes of the callback (`setMounted(false), 280` and the
+    // braced `{ setMounted(false) }, 280`) — the second arrived when a lint rule
+    // asked for braces on a void shorthand, and the pin has to survive that.
+    expect(src).not.toMatch(/setMounted\(false\)\s*\}?\s*,\s*\d+/)
+    // and the token itself is what the stylesheet declares (no drift between
+    // the JS timer and the CSS transition it is waiting on)
+    expect(source('src/lib/motion.ts')).toMatch(/'--motion-slower':\s*560/)
+  })
+
+  it('pins the header items to the top, so no sibling can re-centre them', () => {
+    // Measured: the chevron and the day badge moved ~32px in the frame the click
+    // landed — the middle block's height changes with the collapse and a centred
+    // sibling is repositioned by every one of those changes. Top-aligned, every
+    // item's position is its own; after the fix the displacement of each header
+    // item across a toggle is 0px (the chips' 4px is their entrance rise).
+    const header = rule('.day-header')
+    expect(header, '.day-header is missing from styles.css').toBeTruthy()
+    expect(header!.body).toMatch(/align-items:\s*flex-start/)
+    expect(header!.body).not.toMatch(/align-items:\s*center/)
+  })
+
+  it('collapses the route chain with the body instead of popping it', () => {
+    // That line is what changes the header's height; appearing at full height in
+    // one frame moved every wrapped row below it at once.
+    const src = source('src/pages/trip/timeline/DaySection.tsx')
+    expect(src).toContain('<SmoothCollapse open={collapsed} fallbackFocus={collapseRef}>')
+    // It discloses the same body as the chevron, so it carries the same state.
+    expect(src).toMatch(/className="day-route"[^>]*aria-expanded=\{!collapsed\}/)
+  })
+
+  it('gives the day chevron the coarse-pointer hit budget too', () => {
+    // 28px is under both the repo's 40px floor and the 48dp Android budget, and
+    // this was the one compact control the block's inventory missed. The
+    // expander brings it to 40px; measured, its only neighbour within 14px is
+    // the day badge, 12px away, so the extra 6px stays clear of it. The
+    // collapsed route line deliberately needs no expander — it wraps to 2+ lines
+    // (41–62px) at phone widths, which the budget already covers.
+    const coarse = css.slice(css.indexOf('@media (pointer: coarse)'))
+    expect(coarse, 'no coarse-pointer block').not.toBe('')
+    expect(coarse).toMatch(/\.day-collapse \{\s*position: relative;/)
+    expect(coarse).toMatch(/\.day-collapse::after \{[^}]*inset: -6px;/)
+  })
+
+  it('wears the app ring on the route line, not the browser default', () => {
+    // Focused, this control painted Chromium's own `1px auto rgb(16,16,16)` —
+    // invisible on the dark card — while every other control in the header
+    // carried var(--ring).
+    // The list's last selector is .bench-surprise, so the declaration block ends
+    // at the first `}` after it (searching for .yf-map-pin would stop early — it
+    // appears inside the list itself).
+    const listStart = css.indexOf('.day-collapse:focus-visible')
+    const shared = css.slice(listStart, css.indexOf('}', css.indexOf('.bench-surprise:focus-visible', listStart)))
+    expect(shared, 'the shared ring list').toContain('.day-route:focus-visible')
+    expect(shared).toMatch(/outline: none;\s*box-shadow: var\(--ring\)/)
+    // the radius a wrapped multi-line line box needs (same call as .link-btn)
+    expect(css).toMatch(/\.day-route:focus-visible \{ border-radius: 6px; \}/)
+  })
+
+  it('hands focus back before a clip unmounts under the keyboard user', () => {
+    // Measured: opening a day from its route line (Enter on the chain) unmounted
+    // that control one animation later and dropped focus to <body> — the next Tab
+    // restarted at the top of the document. Both clips can unmount the focused
+    // element (the chain on open, the body on collapse), so both must hand it back.
+    const src = source('src/pages/trip/timeline/DaySection.tsx')
+    expect(src).toMatch(/clipRef\.current\?\.contains\(document\.activeElement\)\) fallbackFocus\?\.current\?\.focus\(\)/)
+    // And it must run BEFORE the unmount timer's line: the clip's inner wrapper
+    // flips to visibility:hidden one animation earlier, and the browser blurs a
+    // hidden element on the spot — a handoff after that point finds <body>.
+    const handoff = src.indexOf('fallbackFocus?.current?.focus()')
+    const unmount = src.indexOf('window.setTimeout(() => { setMounted(false) }')
+    expect(handoff, 'no focus handoff found').toBeGreaterThan(-1)
+    expect(unmount, 'no token-derived unmount timer found').toBeGreaterThan(-1)
+    expect(handoff).toBeLessThan(unmount)
+    const callSites = [...src.matchAll(/<SmoothCollapse open=\{[^}]+\}([^>]*)>/g)].map((m) => m[1])
+    expect(callSites.length, 'expected exactly two anchored clips').toBe(2)
+    expect(callSites.every((s) => s.includes('fallbackFocus={collapseRef}'))).toBe(true)
+  })
+
+  it('fades the header extras that exist in one state only', () => {
+    const chips = rule('.day-cost-chip, .day-dwell-chip, .weather-chip, .dwell-bars')
+    expect(chips, 'the header extras are missing from styles.css').toBeTruthy()
+    expect(chips!.body).toMatch(/animation:\s*popover-in var\(--motion-med\) var\(--ease-out\)/)
+  })
+})
+
 describe('spacing rhythm: new values land on the documented ladder', () => {
   // DESIGN_TOKENS.md's `--s-1…--s-8` set was deleted in SYS-2 because nothing
   // routed through it, which left the app with no enforceable rhythm at all —

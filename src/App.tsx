@@ -265,8 +265,8 @@ export default function App() {
   }, [ready])
   // Collect any share-link cover still pointing at someone else's host. Taking
   // ownership at publish time is a write-path fix, so rows published before it
-  // shipped - and any publish whose copy failed, which keeps the third-party URL
-  // by design - would otherwise keep pointing at Wikimedia forever. Idempotent:
+  // shipped — and any publish whose copy failed, which keeps the third-party URL
+  // by design — would otherwise keep pointing at Wikimedia forever. Idempotent:
   // with nothing to collect it reads the cache and returns.
   useEffect(() => {
     if (!ready || !sessionUserId) return
@@ -518,7 +518,7 @@ export default function App() {
           </div>{/* /nav-pill-group */}
           {/* On the auth route the card below already offers both, as tabs plus
               a submit. Repeating them in the chrome gave the accent two owners
-              on one screen - and two controls a screen apart that both said
+              on one screen — and two controls a screen apart that both said
               "Log in". */}
           {!me && parts[0] !== 'auth' && (
             <>

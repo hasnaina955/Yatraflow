@@ -56,8 +56,6 @@
     ".btn — transition: .06s",
     ".gi-flash — animation: 1.6s",
     ".hero-bench-cta — transition: .2s",
-    ".map-shell--closing — animation: 280ms",
-    ".map-shell--expanded — animation: 320ms",
     ".odo-strip — transition: .55s",
     ".reveal-underline::after — transition: .15s",
     ".reveal-underline::after — transition: .8s",

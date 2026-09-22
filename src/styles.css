@@ -2069,8 +2069,8 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
   border: 1px solid var(--yf-glass-border); background: var(--yf-glass);
   -webkit-backdrop-filter: blur(var(--yf-blur-chip)); backdrop-filter: blur(var(--yf-blur-chip));
   color: var(--text-2); border-radius: 999px; font-size: 12px; font-weight: 700;
-  padding: 5px 12px; white-space: nowrap; transition: background var(--t-fast) var(--ease-out),
-    color var(--t-fast) var(--ease-out), border-color var(--t-fast) var(--ease-out), box-shadow var(--t-fast) var(--ease-out);
+  padding: 5px 12px; white-space: nowrap; transition: background var(--motion-fast) var(--ease-out),
+    color var(--motion-fast) var(--ease-out), border-color var(--motion-fast) var(--ease-out), box-shadow var(--motion-fast) var(--ease-out), transform var(--motion-fast) var(--ease-out);
 }
 .map-day-chip:hover { color: var(--text); border-color: var(--teal); }
 .map-day-chip.on { background: var(--teal-deep); color: #fff; border-color: var(--teal-deep); box-shadow: var(--shadow-glow-teal); }
@@ -2090,9 +2090,9 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
 /* Map key: hidden behind a small ⓘ chip by default (it used to blanket the
    bottom-right corner); the body card reopens above the same corner. */
 .map-legend { position: absolute; right: 12px; bottom: 12px; z-index: var(--z-frost); display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
-.map-legend-toggle { border: 1px solid var(--yf-glass-border); background: var(--yf-glass); -webkit-backdrop-filter: blur(var(--yf-blur-chip)); backdrop-filter: blur(var(--yf-blur-chip)); color: var(--text); border-radius: 999px; font-size: 12px; font-weight: 700; padding: 5px 12px; white-space: nowrap; }
+.map-legend-toggle { border: 1px solid var(--yf-glass-border); background: var(--yf-glass); -webkit-backdrop-filter: blur(var(--yf-blur-chip)); backdrop-filter: blur(var(--yf-blur-chip)); color: var(--text); border-radius: 999px; font-size: 12px; font-weight: 700; padding: 5px 12px; white-space: nowrap; transition: background var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out), border-color var(--motion-fast) var(--ease-out), transform var(--motion-fast) var(--ease-out); }
 /* Readable-content overlay (level 3): near-opaque surface, glass border, light frost. */
-.map-legend-body { background: var(--yf-surface); border: 1px solid var(--yf-glass-border); -webkit-backdrop-filter: blur(var(--yf-blur-chip)); backdrop-filter: blur(var(--yf-blur-chip)); border-radius: 12px; padding: 8px 12px; font-size: 11.5px; color: var(--text-2); font-weight: 600; max-width: min(440px, 78vw); }
+.map-legend-body { background: var(--yf-surface); border: 1px solid var(--yf-glass-border); -webkit-backdrop-filter: blur(var(--yf-blur-chip)); backdrop-filter: blur(var(--yf-blur-chip)); border-radius: 12px; padding: 8px 12px; font-size: 11.5px; color: var(--text-2); font-weight: 600; max-width: min(440px, 78vw); animation: popover-in var(--motion-med) var(--ease-glide); }
 [data-theme='dark'] .map-legend-toggle { background: var(--yf-glass); color: var(--text); }
 [data-theme='dark'] .map-legend-body { background: rgba(22,35,58,.92); }
 /* "Locate me" chip — the live-location toggle. ON state reads as the blue
@@ -2114,14 +2114,14 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
 .yf-live-pulse {
   position: absolute; inset: 0; border-radius: 50%;
   background: rgba(42, 111, 219, .28);
-  animation: yf-live-ping 1.8s cubic-bezier(.215,.61,.355,1) infinite;
+  animation: yf-live-ping 1.8s var(--ease-out) infinite;
 }
 .yf-live-dot--denied .yf-live-core { background: #C93B3B; }
 @keyframes yf-live-ping {
   0% { transform: scale(.45); opacity: .9; }
   80%, 100% { transform: scale(1.25); opacity: 0; }
 }
-@media (prefers-reduced-motion: reduce) { .yf-live-pulse { animation: none; opacity: .5; } }
+@media (prefers-reduced-motion: reduce) { .yf-live-pulse { animation: none; opacity: .5; } .map-shell--expanded, .map-shell--closing { animation: none; } .map-legend-body { animation: none; } }
 /* Expand mode — the map shell breaks out into a fixed overlay so the canvas
    gets the viewport. Sits BELOW the modal (100), impact sheet (90) and
    notifications (80) so dialogs opened from the expanded map still layer on
@@ -2136,11 +2136,11 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
      inset by design: the shell must NOT be lifted by the nav's offset. */
   padding-bottom: calc(2px + var(--safe-bottom));
   display: flex; flex-direction: column;
-  animation: mapExpand 320ms var(--ease-out);
+  animation: mapExpand var(--motion-slow) var(--ease-out);
 }
 /* Collapse plays the reverse scale-down first; the shell is removed from the
    fixed overlay only after it finishes (TripMap keeps a `closing` state). */
-.map-shell--closing { animation: mapCollapse 280ms var(--ease-out) both; pointer-events: none; }
+.map-shell--closing { animation: mapCollapse var(--motion-slow) var(--ease-out) both; pointer-events: none; }
 @keyframes mapExpand {
   from { opacity: .25; transform: scale(.94); }
   to { opacity: 1; transform: none; }
@@ -3266,12 +3266,13 @@ main:focus { outline: none; }
 }
 [data-theme='dark'] .engine-tips { border-color: rgba(137, 122, 187, .35); background: rgba(137, 122, 187, .14); }
 .engine-tips-ico { color: var(--yf-purple); display: inline-flex; flex-shrink: 0; }
-.engine-tips-text { flex: 1; min-width: 0; animation: engineTipIn var(--t-med) var(--ease-out); }
+.engine-tips-text { flex: 1; min-width: 0; animation: engineTipIn var(--motion-med) var(--ease-out); }
 @keyframes engineTipIn { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
 .engine-tips-dots { display: inline-flex; gap: 4px; flex-shrink: 0; }
 .engine-tips-dot {
   width: 6px; height: 6px; border-radius: 50%; border: none; padding: 0;
   background: color-mix(in srgb, var(--yf-purple) 30%, transparent); cursor: pointer;
+  transition: background var(--motion-fast) var(--ease-out);
 }
 .engine-tips-dot.on { background: var(--yf-purple); }
 @media (max-width: 720px) { .engine-tips-dots { display: none; } }
@@ -3330,6 +3331,10 @@ main:focus { outline: none; }
   gap: 14px;
   margin-top: 12px;
   align-items: start;
+  /* The fold is an in-place resize of both rails (~270px) with the map re-fitting
+     beside them — a day-collapse in miniature, so it rides the resize clock
+     (both ends at rest; a decelerate curve would snap the columns open). */
+  transition: grid-template-columns var(--motion-slow) var(--ease-resize);
 }
 .map-ideas-grid .poi-col {
   max-height: 72vh;
@@ -5990,7 +5995,7 @@ html.native-shell {
    the two expanders and the candidate button, chevron motion that respects
    reduced motion, and no leading separator when the fact strip wraps. */
 .poi-fact { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
-.poi-chev { flex: none; transition: transform var(--t-fast) var(--ease-out); }
+.poi-chev { flex: none; transition: transform var(--motion-fast) var(--ease-out); }
 .poi-alts[open] .poi-chev, .poi-more[open] .poi-chev { transform: rotate(180deg); }
 .poi-alts summary:hover, .poi-more summary:hover { text-decoration: underline; text-underline-offset: 3px; }
 .poi-alts summary:focus-visible, .poi-more summary:focus-visible, .poi-cand-add:focus-visible {
@@ -6032,7 +6037,7 @@ html.native-shell {
 .poi-fold { flex: none; width: 24px; height: 24px; border-radius: 50%; border: 1px solid var(--line); background: var(--card); color: var(--text-3); display: grid; place-items: center; }
 .poi-fold:hover { border-color: var(--teal); color: var(--teal-deep); }
 .poi-fold:focus-visible { outline: none; box-shadow: var(--ring); }
-.poi-fold svg { transition: transform var(--t-fast) var(--ease-out); }
+.poi-fold svg { transition: transform var(--motion-slow) var(--ease-resize); }
 .poi-plan-gap .poi-gap-add { align-self: flex-end; border: 1px solid transparent; background: transparent; color: var(--teal-deep); border-radius: 999px; font-size: 11px; font-weight: 700; padding: 2px 0; text-decoration: underline; text-underline-offset: 3px; }
 .poi-plan-gap .poi-gap-add:hover { background: var(--teal-soft); }
 .poi-plan-gap .poi-gap-add:focus-visible { outline: none; box-shadow: var(--ring); }
@@ -6108,7 +6113,7 @@ html.native-shell {
   border-radius: 999px; font-size: 11.5px; font-weight: 600;
   padding: 4px 11px; cursor: pointer;
   display: inline-flex; align-items: center; gap: 5px;
-  transition: background var(--t-fast) var(--ease-out), color var(--t-fast) var(--ease-out), border-color var(--t-fast) var(--ease-out);
+  transition: background var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out), border-color var(--motion-fast) var(--ease-out);
 }
 .slots-daychip:hover { background: var(--teal-soft); color: var(--teal-deep); }
 .slots-daychip.is-on { background: var(--teal-soft); border-color: var(--teal-deep); color: var(--teal-deep); }
@@ -6116,7 +6121,7 @@ html.native-shell {
 .slots-daychip:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--ring); }
 
 .slots-meter { display: flex; gap: 4px; align-items: center; margin: 0 2px 9px; }
-.slots-meter i { width: 22px; height: 5px; border-radius: 3px; background: var(--line); transition: background var(--t-fast) var(--ease-out); }
+.slots-meter i { width: 22px; height: 5px; border-radius: 3px; background: var(--line); transition: background var(--motion-fast) var(--ease-out); }
 .slots-meter i.is-filled { background: var(--teal); }
 .slots-meter i.is-auto { background: color-mix(in srgb, var(--teal) 35%, var(--line)); }
 .slots-meter i.is-empty { background: var(--line); }
@@ -6126,7 +6131,7 @@ html.native-shell {
 
 .day-slot {
   border-radius: 12px; border: 1px solid var(--line); background: var(--card);
-  transition: border-color var(--t-fast) var(--ease-out);
+  transition: border-color var(--motion-fast) var(--ease-out);
 }
 .day-slot.is-empty { border-color: color-mix(in srgb, var(--warn) 38%, var(--line)); }
 .day-slot.is-open { border-color: var(--teal); box-shadow: 0 6px 18px rgba(16, 46, 75, .08); }
@@ -6166,7 +6171,7 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 
 .day-slot-cands {
   margin: 0 10px 8px; border-top: 1px solid var(--line-2); padding-top: 6px;
-  animation: day-slot-drop var(--t-fast) var(--ease-out);
+  animation: day-slot-drop var(--motion-med) var(--ease-out);
 }
 @keyframes day-slot-drop { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
 .day-slot-cand {
@@ -6181,7 +6186,7 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
   flex: none; font-size: 11px; font-weight: 700; color: var(--teal-deep);
   background: var(--teal-soft); border: 1px solid transparent; border-radius: 999px;
   padding: 4px 11px; cursor: pointer;
-  transition: background var(--t-fast) var(--ease-out), color var(--t-fast) var(--ease-out);
+  transition: background var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out);
 }
 .day-slot-fill:hover { border-color: var(--teal-deep); }
 .day-slot-fill:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--ring); }
@@ -6221,7 +6226,7 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
   align-items: center;
   padding: 8px 10px; cursor: pointer; list-style: none;
   border-radius: 12px;
-  transition: background var(--t-fast) var(--ease-out);
+  transition: background var(--motion-fast) var(--ease-out);
 }
 .lrow-sum::-webkit-details-marker { display: none; }
 .lrow-sum:hover { background: color-mix(in srgb, var(--yf-poi-see) 6%, transparent); }
@@ -6231,13 +6236,13 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .lr-meta { grid-column: 2; grid-row: 2; font-size: 10.5px; color: var(--text-3); font-variant-numeric: tabular-nums; }
-.lr-go { grid-column: 3; grid-row: 1 / span 2; align-self: center; color: var(--text-3); transition: transform var(--t-fast) var(--ease-out); }
+.lr-go { grid-column: 3; grid-row: 1 / span 2; align-self: center; color: var(--text-3); transition: transform var(--motion-fast) var(--ease-out); }
 .lrow-new[open] .lr-go { transform: rotate(180deg); }
 .ledger-shelf {
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
   margin: 0 0 8px; padding: 8px 10px;
   background: var(--bg); border: 1px solid var(--line-2); border-radius: 12px;
-  animation: day-slot-drop var(--t-fast) var(--ease-out);
+  animation: day-slot-drop var(--motion-med) var(--ease-out);
 }
 
 /* ---- P2: the ledger reads as one object ---- */
@@ -6283,7 +6288,7 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
   flex-basis: 100%; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
   padding: 6px 8px; border: 1px solid var(--line); border-radius: 10px;
   background: var(--card); text-align: left; font: inherit; color: inherit; cursor: pointer;
-  transition: border-color var(--t-fast) var(--ease-out);
+  transition: border-color var(--motion-fast) var(--ease-out);
 }
 .shelf-alt:hover { border-color: var(--yf-poi-see); }
 .shelf-alt-nm { flex: 1; min-width: 0; font-size: 11.5px; font-weight: 600; color: var(--text); overflow-wrap: anywhere; }
@@ -6491,12 +6496,6 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .slots-list .day-slot-missed { font-size: 11px; }
 .slots-list .day-slot-cand-nm > span { font-size: 11px; color: var(--text-2); }
 
-/* The candidate list animates in and had no reduced-motion guard, while the
-   rest of the app stops its entrances. */
-@media (prefers-reduced-motion: reduce) {
-  .day-slot-cands { animation: none; }
-}
-
 /* The toolbar packed ~20 same-weight pills over four different intents — pick a
    day, change the view, toggle a layer, leave for Google Maps. The utilities sit
    in their own group behind the segmented control's own separator, and read as
@@ -6528,7 +6527,7 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
    rides the tab's own grid, so it inherits the same breakpoints. */
 .map-skel-rail, .map-skel-map {
   border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--card-soft);
-  animation: mapSkelPulse 1200ms var(--ease-soft) infinite alternate;
+  animation: mapSkelPulse 1200ms var(--ease-resize) infinite alternate;
 }
 .map-skel-map { height: 480px; }
 .map-skel-rail { height: 360px; }
@@ -6590,3 +6589,16 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
    backstop behind the sizing above, for a head control that arrives later. */
 .map-ideas-grid.is-needs-folded > .poi-col--needs,
 .map-ideas-grid.is-see-folded > .poi-col--see { overflow-x: hidden; }
+
+/* ---- Motion polish: every animated rule on this tab opts out ----
+   The fold glide, the toolbar/legend chips' hover+press easing, the legend
+   card's popover entrance, the shelf and row entrances, and the rotating tip
+   all become instant state changes under prefers-reduced-motion — the same
+   stop the rail's own slots block applies above. The shell's expand/collapse
+   opt-out lives with the live-dot block (both are media-internal); TripMap
+   collapses instantly too, since its unmount timer reads prefersReducedMotion(). */
+@media (prefers-reduced-motion: reduce) {
+  .map-day-chip, .map-legend-toggle, .lrow-sum, .lr-go, .shelf-alt, .engine-tips-dot { transition: none; }
+  .ledger-shelf, .engine-tips-text { animation: none; }
+  .map-ideas-grid { transition: none; }
+}

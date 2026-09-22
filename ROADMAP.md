@@ -337,6 +337,15 @@ one row of this milestone no commit can close.
 Offline-first (IndexedDB + service worker/PWA, ~4–6h), i18n (EN + HI, ~6–8h),
 then the 1.0 release.
 
+**Phase 1 — the installable shell — is in `[Unreleased]`:** `public/manifest.webmanifest`
+plus launcher icons (192 / 512 / a maskable tile / an opaque apple-touch-icon, generated
+from the brand mark by a script kept in the repo), and a hand-rolled `public/sw.js` that
+precaches the shell, serves navigations network-first with a cached-shell fallback, and is
+registered only when `!isNative && import.meta.env.PROD`. **Phase 2 — offline read —** is
+the remaining slice of this line: an IndexedDB snapshot of the last hydrated trips, a
+stale-while-revalidate boot, an honest offline banner, and the demo-seed-guard interaction
+the store's partial-failure model already names.
+
 ### M9 — Invites & onboarding — **issue #240** (exec plan: docs/PLAN-INVITES-ONBOARDING.md)
 Creator invites (admins mint YF-… member/creator codes with audit + gate) →
 referral (R2) → invite-only gate (R3, flagged). R1 ships creator invites and a

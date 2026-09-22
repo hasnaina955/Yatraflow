@@ -29,6 +29,17 @@ if (isNative) {
   }, { passive: true })
 }
 
+// The service worker is a WEB concern: inside the Capacitor shell the app is
+// already installed and every asset ships in the APK, so a worker would only
+// fight the WebView's own cache. Dev is excluded too — HMR rewrites modules
+// and a cache-first worker would serve stale ones. Registration failures must
+// never surface: offline support is a bonus, not a boot dependency.
+if (!isNative && import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {})
+  })
+}
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <ErrorBoundary>

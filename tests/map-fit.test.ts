@@ -75,6 +75,18 @@ describe('TripMap fits through the one helper', () => {
     }
     expect(tripMapSrc).toContain('<CircleDot size={13} aria-hidden />')
   })
+
+  it('a stalled style cannot leave the auto-fit dead: the load gate arms a watchdog', () => {
+    // The gate waited on the style 'load' event alone; a style that never
+    // reports it (hidden tab mid-load, stalled tile host) left mapLoaded
+    // false forever and the fit never ran at all. The watchdog opens the
+    // gate on a timer and is cancelled whenever the gate re-arms.
+    expect(tripMapSrc).toMatch(/const STYLE_LOAD_WATCHDOG_MS = \d+/)
+    const gate = /const tick = setInterval[\s\S]*?\}, \[pointsKey\]/.exec(tripMapSrc)
+    expect(gate, 'mapLoaded gate effect missing or reshaped').not.toBeNull()
+    expect(gate![0]).toContain('window.setTimeout(onLoad, STYLE_LOAD_WATCHDOG_MS)')
+    expect(gate![0]).toContain('window.clearTimeout(watchdog)')
+  })
 })
 
 describe('the seeded Mehrangarh sits on the fort', () => {

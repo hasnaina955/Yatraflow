@@ -57,6 +57,13 @@ function VisiblePulse({ children, ...props }: ComponentProps<'span'>) {
 
 const DAY_COLORS = ['#0D8D82', '#F59E2D', '#7C5CFC', '#E2557B', '#2D9CDB', '#6BBF59', '#B7791F']
 
+// How long the map's ready gate waits for the style's 'load' event before
+// opening anyway (see the mapLoaded effect). The fit behind that gate is a
+// camera operation — resize + fitBounds need the instance and its container,
+// not a resolved style — so a stalled style must never leave it permanently
+// dead. The stall is real: a hidden webview can hold a style mid-load forever.
+const STYLE_LOAD_WATCHDOG_MS = 4000
+
 // Basemaps come from the mapcn <Map> default (OpenFreeMap — see mapcn/map.tsx).
 // The old CARTO Voyager / dark-matter and Esri World Imagery style URLs that
 // used to live here were dead code (never referenced) and carried a licensing
@@ -696,6 +703,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     if (allPoints.length === 0) { setMapLoaded(false); return }
     let cancelled = false
     let attached = false
+    let watchdog = 0
     const tick = setInterval(() => {
       if (cancelled) return
       const m = mapRef.current
@@ -704,11 +712,19 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
         attached = true
         const onLoad = () => { if (!cancelled) setMapLoaded(true) }
         if (m.isStyleLoaded()) onLoad()
-        else m.once('load', onLoad)
+        else {
+          m.once('load', onLoad)
+          // Watchdog: a style that never reports 'load' (a hidden tab holding
+          // it mid-load, a stalled or blocked tile host) must not leave the
+          // auto-fit permanently dead behind this gate — the fit is a camera
+          // operation and does not need the style. A late 'load' changes
+          // nothing: opening the gate is idempotent.
+          watchdog = window.setTimeout(onLoad, STYLE_LOAD_WATCHDOG_MS)
+        }
         clearInterval(tick)
       }
     }, 120)
-    return () => { cancelled = true; clearInterval(tick) }
+    return () => { cancelled = true; clearInterval(tick); window.clearTimeout(watchdog) }
   }, [pointsKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // EVERYTHING the current view draws — the fit frames the drawing, not just

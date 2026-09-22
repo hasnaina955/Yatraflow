@@ -103,6 +103,34 @@ lesson is the one §6 already states in reverse: **a roadmap row is a claim abou
 fact** — this one stayed wrong for weeks because nobody re-read it against `src/`, and it was
 found only while auditing the file for a release.
 
+**Recorded (2026-09-22) — the slots plan's open questions, decided as shipped (late P0 acceptance).**
+The day-slots implementation plan required "decisions recorded in ROADMAP.md" and they were never
+written down; the plan-vs-code audit (2026-09-22) caught it. Recorded now, exactly as the tree
+behaves — no rationale is invented where none was written:
+
+- **P0.1 / #260 — keep, not close.** The plan recommended *closing* the calm-pass PR; it was
+  **merged** instead on 2026-09-19 (merge `468fb18`) and its calm-pass CSS remains in
+  `src/styles.css`. The merge supersedes the recommendation; no rationale was recorded at the
+  time, so this entry records the fact and leaves the "why" open.
+- **P0.2 → P0.4 shipped as written:** the extras rail became the corridor ledger; `meal` kept its
+  purpose with a `mealSlot` split; and the word "slot" never reaches the UI — the rail says
+  "part" (`daySlots.ts` label rule, CHANGELOG).
+- **Breakfast (plan §8.2's open question): always for stay-days**, drawn from the engine's own
+  `BREAKFAST_WINDOW` (ends 09:30, not the plan's proposed 10:30) — the plan's rule was "verify
+  against existing constants"; the skeleton lives in `daySlots.ts:550–580` and is covered by
+  `tests/daySlots.test.ts`.
+- **Dinner likewise ships on the engine's `DINNER_WINDOW` (20:00–21:00)**, not the proposed
+  19:30–22:00, for the same reason.
+- **Readiness counts `filled / required`** (total minus engine-managed), not the plan's plain
+  "N of M" — the engine's own work can't count against the user; disclosed in `MapTab.tsx` and
+  in the CHANGELOG entry that shipped it.
+
+Superseded items that DID have a disclosure live in their CHANGELOG entries (popup-Fill became
+tap-opens-the-rail; day switching hides rather than dims, per the #1119 regression; the km ruler
+was removed; result filing keys on category rather than window/km, with the rationale in
+`MapTab.tsx`). The plan's mobile slots summary and its cost micro-bars/per-slot glyphs did not
+ship and remain open audit findings here — findings, not decisions.
+
 ---
 
 ## Progress ledger

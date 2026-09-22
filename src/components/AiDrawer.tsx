@@ -3,7 +3,8 @@ import React, { useEffect, useRef, useState } from 'react'
 import { InlineIcon } from './icons'
 import { ClipboardList, Sparkles, X } from 'lucide-react'
 import type { Trip } from '../data/types'
-import { answerQuestion, quickPrompts, type AiReply } from '../lib/ai'
+import { quickPrompts } from '../lib/ai'
+import { askCompanion, type CompanionSource } from '../lib/aiProvider'
 import { scrollBehavior } from '../lib/motion'
 import { Chip } from './ui'
 interface Msg {
@@ -11,6 +12,8 @@ interface Msg {
   role: 'user' | 'bot'
   text: string
   assumptions?: string
+  /** Which brain answered — shown as a badge so the user is never misled. */
+  source?: CompanionSource
 }
 
 export function AiDrawer({ trip, open, onOpen, onClose }: { trip: Trip; open: boolean; onOpen: () => void; onClose: () => void }) {
@@ -31,6 +34,8 @@ export function AiDrawer({ trip, open, onOpen, onClose }: { trip: Trip; open: bo
   const onCloseRef = useRef(onClose)
   /** handle of the pending simulated reply, so it can be cancelled */
   const replyTimer = useRef(0)
+  /** aborts an in-flight LLM request when the drawer unmounts */
+  const askAbort = useRef<AbortController | null>(null)
   useEffect(() => { onCloseRef.current = onClose })
 
   // The drawer behaves as a dialog (fixed full-height panel), so it gets the
@@ -69,7 +74,10 @@ export function AiDrawer({ trip, open, onOpen, onClose }: { trip: Trip; open: bo
 
   // Unmount only — closing must NOT cancel an in-flight reply, or the answer
   // the user asked for is lost; it lands in the transcript to be seen on reopen.
-  useEffect(() => () => { window.clearTimeout(replyTimer.current) }, [])
+  useEffect(() => () => {
+    window.clearTimeout(replyTimer.current)
+    askAbort.current?.abort()
+  }, [])
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: scrollBehavior() })
@@ -80,18 +88,21 @@ export function AiDrawer({ trip, open, onOpen, onClose }: { trip: Trip; open: bo
     setMsgs(m => [...m, { id: Date.now(), role: 'user', text: q }])
     setInput('')
     setThinking(true)
-    // Simulated reasoning latency so the interaction feels like an assistant,
-    // while every answer stays grounded in the actual trip data.
+    // A short minimum-latency so an instant offline answer still feels like an
+    // assistant, not a form post; the LLM path takes as long as it takes.
     replyTimer.current = window.setTimeout(() => {
-      let reply: AiReply
-      try {
-        reply = answerQuestion(trip, q)
-      } catch {
-        reply = { text: 'Something went wrong analysing the plan. Try rephrasing that.' }
-      }
-      setMsgs(m => [...m, { id: Date.now() + 1, role: 'bot', text: reply.text, assumptions: reply.assumptions }])
-      setThinking(false)
-    }, 650)
+      askAbort.current = new AbortController()
+      askCompanion(trip, q, askAbort.current.signal)
+        .then(reply => {
+          setMsgs(m => [...m, { id: Date.now() + 1, role: 'bot', text: reply.text, assumptions: reply.assumptions, source: reply.source }])
+        })
+        .catch(() => {
+          // askCompanion already falls back internally; this only guards an
+          // unexpected rejection so the composer can never stay disabled.
+          setMsgs(m => [...m, { id: Date.now() + 1, role: 'bot', text: 'Something went wrong analysing the plan. Try rephrasing that.', source: 'offline' }])
+        })
+        .finally(() => setThinking(false))
+    }, 250)
   }
 
   return (
@@ -116,6 +127,11 @@ export function AiDrawer({ trip, open, onOpen, onClose }: { trip: Trip; open: bo
                   which is invisible in a linearised transcript. */}
               <span className="sr-only">{m.role === 'user' ? 'You: ' : 'Companion: '}</span>
               {m.text}
+              {m.source && (
+                <span className={`ai-source ${m.source === 'llm' ? 'llm' : m.source === 'jev' ? 'jev' : 'off'}`}>
+                  {m.source === 'llm' ? 'LLM' : m.source === 'jev' ? 'Jev' : 'offline'}
+                </span>
+              )}
               {m.assumptions && <div className="ai-assumption"><InlineIcon icon={ClipboardList} size={12} gap={3} />{m.assumptions}</div>}
             </div>
           ))}

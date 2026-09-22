@@ -16,6 +16,12 @@ import {
   browserNotifEnabled, setBrowserNotifEnabled, browserNotifSupported,
   browserNotifPermission, requestBrowserNotifPermission,
 } from '../lib/browserNotifications'
+import {
+  loadAiProviderConfig, saveAiProviderConfig, clearAiProviderConfig, testAiProviderConnection,
+  loadJevConfig, saveJevConfig, clearJevConfig, testJevConnection,
+  type AiProviderConfig, type JevConfig,
+} from '../lib/aiProvider'
+import { AI_COMPANION_ENABLED } from '../lib/featureFlags'
 import { cap } from '../lib/labels'
 import { scrollBehavior } from '../lib/motion'
 
@@ -118,6 +124,17 @@ export function ProfilePage({ onNavigate }: { onNavigate: (r: string) => void })
               </div>
             </Field>
           </div>
+
+          {/* The companion drawer mounts only under VITE_AI_COMPANION=on
+              (until M8) — its settings cards follow the same flag, so a build
+              without the companion never shows settings for it. */}
+          {AI_COMPANION_ENABLED && (
+            <>
+              <AiProviderCard />
+
+              <JevCard />
+            </>
+          )}
         </div>
 
         <div>
@@ -277,6 +294,153 @@ export function ProfilePage({ onNavigate }: { onNavigate: (r: string) => void })
           </>}
         </div>
       </div>
+    </div>
+  )
+}
+
+// ============ AI companion endpoint card (M5) ============
+// Per-device LLM configuration. The key lives in localStorage only — it never
+// enters the database, a snapshot or a share. Inputs are disabled while a
+// connection test is in flight (the repo's async-input guard rule), and the
+// result is shown inline rather than toasted so it can be re-read.
+
+function AiProviderCard() {
+  const [cfg, setCfg] = useState<AiProviderConfig>(() => loadAiProviderConfig() ?? { baseUrl: '', apiKey: '', model: '' })
+  const [testing, setTesting] = useState(false)
+  const [result, setResult] = useState<string | null>(null)
+  const saved = loadAiProviderConfig()
+
+  const set = (patch: Partial<AiProviderConfig>) => setCfg(c => ({ ...c, ...patch }))
+
+  async function onTest() {
+    if (testing) return
+    // An empty key field with a config already saved means "keep the saved
+    // key" — matching the field's own hint. Nothing stored yet stays an error.
+    const key = cfg.apiKey.trim() || loadAiProviderConfig()?.apiKey || ''
+    const err = saveAiProviderConfig({ ...cfg, apiKey: key })
+    if (err) { setResult(err); return }
+    setTesting(true)
+    setResult('')
+    const failure = await testAiProviderConnection(loadAiProviderConfig()!)
+    setTesting(false)
+    setResult(failure
+      ? `Saved, but the endpoint did not answer: ${failure} Until it connects, answers fall back to the offline router.`
+      : 'Connected — the companion will answer with this model.')
+  }
+
+  function onClear() {
+    if (testing) return
+    clearAiProviderConfig()
+    setCfg({ baseUrl: '', apiKey: '', model: '' })
+    setResult('Cleared — the companion answers offline (deterministic) again.')
+  }
+
+  return (
+    <div className="card stack-gap">
+      <div className="row-between">
+        <h3>AI companion</h3>
+        <Chip tone={saved ? 'ok' : 'info'}>{saved ? 'LLM configured' : 'Not configured'}</Chip>
+      </div>
+      <p className="hint-text" style={{ margin: '6px 0 0' }}>
+        Optional. Point the companion at any OpenAI-compatible endpoint and it answers with that model — grounded in this
+        trip's data. Without one it uses the built-in deterministic assistant. The key is stored on this device only and
+        is never sent to YatraFlow's servers.
+      </p>
+      <Field label="Endpoint base URL" hint="e.g. https://api.openai.com/v1 — everything before /chat/completions">
+        <input
+          className="input" type="url" inputMode="url" autoComplete="off" spellCheck={false}
+          placeholder="https://api.openai.com/v1"
+          value={cfg.baseUrl} disabled={testing} onChange={e => set({ baseUrl: e.target.value })}
+        />
+      </Field>
+      <Field label="API key" hint="Stored locally on this device; leave blank to keep the saved one.">
+        <input
+          className="input" type="password" autoComplete="off" spellCheck={false}
+          placeholder={saved ? '•••••••• (saved)' : 'sk-…'}
+          value={cfg.apiKey} disabled={testing} onChange={e => set({ apiKey: e.target.value })}
+        />
+      </Field>
+      <Field label="Model" hint="e.g. gpt-4o-mini">
+        <input
+          className="input" type="text" autoComplete="off" spellCheck={false}
+          placeholder="gpt-4o-mini"
+          value={cfg.model} disabled={testing} onChange={e => set({ model: e.target.value })}
+        />
+      </Field>
+      <div className="chip-row">
+        <button className="btn btn-primary btn-sm" onClick={onTest} disabled={testing}>{testing ? 'Testing…' : 'Save & test connection'}</button>
+        {saved && <button className="btn btn-outline btn-sm" onClick={onClear} disabled={testing}>Clear</button>}
+      </div>
+      {/* A stable empty live region: dynamically inserted status nodes are
+          announced unreliably, an always-present one is not (a11y rule). */}
+      <p className="hint-text" role="status" style={{ margin: 0 }}>{result}</p>
+    </div>
+  )
+}
+
+// ============ Jev (TypeSafe System One) card ============
+// The speed option: Jev only CLASSIFIES which capability the question needs
+// (one tiny network call); the local deterministic handler then answers
+// instantly. Faster than a full LLM answer, more intent-accurate than keyword
+// matching. Falls back through LLM → offline exactly like the other paths.
+
+function JevCard() {
+  const [cfg, setCfg] = useState<JevConfig>(() => loadJevConfig() ?? { baseUrl: '', apiKey: '' })
+  const [testing, setTesting] = useState(false)
+  const [result, setResult] = useState<string | null>(null)
+  const saved = loadJevConfig()
+
+  async function onTest() {
+    if (testing) return
+    const err = saveJevConfig(cfg)
+    if (err) { setResult(err); return }
+    setTesting(true)
+    setResult('')
+    const failure = await testJevConnection(loadJevConfig()!)
+    setTesting(false)
+    setResult(failure
+      ? `Saved, but the endpoint did not answer: ${failure} Until it connects, answers fall back to the LLM or the offline router.`
+      : 'Connected — companion answers route through Jev.')
+  }
+
+  function onClear() {
+    if (testing) return
+    clearJevConfig()
+    setCfg({ baseUrl: '', apiKey: '' })
+    setResult('Cleared — companion answers come from the LLM or offline router again.')
+  }
+
+  return (
+    <div className="card stack-gap">
+      <div className="row-between">
+        <h3>Jev intent router <span className="hint-text" style={{ fontWeight: 400 }}>(faster answers)</span></h3>
+        <Chip tone={saved ? 'ok' : 'info'}>{saved ? 'Routing via Jev' : 'Not configured'}</Chip>
+      </div>
+      <p className="hint-text" style={{ margin: '6px 0 0' }}>
+        Optional, and independent of the LLM above. Jev (TypeSafe System One) reads the question and picks which
+        analysis to run — the answer itself is then computed on-device, so replies arrive after one small request
+        instead of a full model generation. When configured it takes precedence over the LLM endpoint. The key is
+        stored on this device only.
+      </p>
+      <Field label="Endpoint base URL" hint="e.g. https://api.typesafe.ai/v1 — everything before /systemone">
+        <input
+          className="input" type="url" inputMode="url" autoComplete="off" spellCheck={false}
+          placeholder="https://api.typesafe.ai/v1"
+          value={cfg.baseUrl} disabled={testing} onChange={e => setCfg(c => ({ ...c, baseUrl: e.target.value }))}
+        />
+      </Field>
+      <Field label="TypeSafe API key" hint="Stored locally on this device only.">
+        <input
+          className="input" type="password" autoComplete="off" spellCheck={false}
+          placeholder={saved ? '•••••••• (saved)' : 'ts-…'}
+          value={cfg.apiKey} disabled={testing} onChange={e => setCfg(c => ({ ...c, apiKey: e.target.value }))}
+        />
+      </Field>
+      <div className="chip-row">
+        <button className="btn btn-primary btn-sm" onClick={onTest} disabled={testing}>{testing ? 'Testing…' : 'Save & test connection'}</button>
+        {saved && <button className="btn btn-outline btn-sm" onClick={onClear} disabled={testing}>Clear</button>}
+      </div>
+      <p className="hint-text" role="status" style={{ margin: 0 }}>{result}</p>
     </div>
   )
 }

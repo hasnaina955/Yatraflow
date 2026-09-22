@@ -30,6 +30,7 @@ import { seedData } from '../src/data/seed'
 import type { Trip } from '../src/data/types'
 import { CORPUS } from './jev-router-corpus'
 import { HARVESTED, HARVESTED_PROVENANCE } from './jev-router-corpus-harvested'
+import { INTENT_CRITERIA } from '../src/lib/jevTaxonomy'
 
 const ENABLED = process.env.JEV_AUDIT === '1'
 const API_KEY = process.env.TYPESAFE_API_KEY
@@ -73,21 +74,9 @@ function routeOf(text: string): string {
 // Scope note: this is what the AI companion exposes. Placing a stop, booking, or
 // looking up live data are app features the companion cannot do, so they are
 // deliberately absent and fall to "none".
-const CRITERIA: Record<string, string> = {
-  tiring: 'Make one particular day less demanding — less travel, walking or fewer stops.',
-  airport: 'Check whether a fixed flight or train departure can actually be reached in time.',
-  cheaper: 'Propose changes that reduce what the trip costs.',
-  rain: 'Plan alternatives for wet weather.',
-  family: 'Re-cast the itinerary to be gentler and better suited to a family group.',
-  kids: 'Identify which specific stops are unsuitable when travelling with children.',
-  compare: 'Compare a relaxed itinerary against a packed one.',
-  risks: 'Identify what could go wrong — the biggest risks in the plan.',
-  delay: 'Get a contingency plan for being delayed in transit.',
-  youtube: 'Draft publishable promotional text (video description, blog or caption) from the trip.',
-  cost: 'Report the cost breakdown as it stands — total, per person, per day, by category.',
-  summary: 'Give a high-level recap of the whole plan.',
-  none: 'None of the above serve this request — it needs something the assistant cannot do.',
-}
+// The criteria now live in src/lib/jevTaxonomy.ts — one truth shared with the
+// runtime classifier, so the audit and the product can never classify differently.
+const CRITERIA: Record<string, string> = INTENT_CRITERIA
 
 // ---- Jev call --------------------------------------------------------------
 interface JevAnswer {

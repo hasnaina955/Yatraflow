@@ -957,6 +957,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
       {showToolbar && (
       <div className="map-toolbar">
         <div className="map-day-filter" role="group" aria-label="Which day the map draws">
+          <span className="map-scope-lbl">Show on map</span>
           <button className={`map-day-chip ${dayFilter === 'all' ? 'on' : ''}`} aria-pressed={dayFilter === 'all'} onClick={() => { setDayFilter('all'); onDayFilterChange?.('all') }}>All days</button>
           {trip.days.map(d => (
             <button key={d.index} className={`map-day-chip ${dayFilter === d.index ? 'on' : ''}`} aria-pressed={dayFilter === d.index} onClick={() => { setDayFilter(d.index); onDayFilterChange?.(d.index) }}>
@@ -1083,7 +1084,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
           >
             {/* yf-map-ctrls: mapcn ships this group in Tailwind utilities this
                 app doesn't compile — the class hooks the hand-ported CSS. */}
-            <MapControls position="top-right" showFullscreen className="yf-map-ctrls" />
+            <MapControls position="top-right" className="yf-map-ctrls" />
             {/* Terrain stack reconcile (2D · Terrain · 3D hero) — no-op on a
                 hard-2D surface like the Board. */}
             {enableMapViewModes && <MapViewModeController mode={viewMode} bearing={heroBearing} />}

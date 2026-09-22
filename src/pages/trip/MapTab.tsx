@@ -1546,9 +1546,13 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
             </button>
           </div>
         </div>
-        <p className="hint-text" style={{ margin: '4px 0 6px' }}>
-          Live data from {googleEnabled() ? 'Google Places' : 'OpenStreetMap, Wikipedia & Mappls'}: ideas are clock-anchored - lunch lands in the 11:30–14:30 window, stretch breaks follow wheel time, fuel rides your tank’s rhythm, and long drives end at a real city for the night. Every pick is checked against your detour budget. Never around your starting point.
-        </p>
+        <div className="hint-text" style={{ margin: '4px 0 6px' }}>
+          Live data from {googleEnabled() ? 'Google Places' : 'OpenStreetMap, Wikipedia & Mappls'} — every idea is clock-anchored, budget-checked, and never around your starting point.{' '}
+          <details className="hint-more">
+            <summary>How suggestions work</summary>
+            Lunch lands in the 11:30–14:30 window, stretch breaks follow wheel time, fuel rides your tank’s rhythm, and long drives end at a real city for the night. Every pick is checked against your detour budget.
+          </details>
+        </div>
         <form className="row-between" style={{ gap: 8, marginBottom: 8 }} onSubmit={onSearch}>
           <input className="input" value={searchQ} disabled={quotaOut} onChange={e => {
             setSearchQ(e.target.value)
@@ -1801,6 +1805,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
                 tabs and told to use the arrow keys, and nothing happened. A
                 group of pressed buttons says what is actually true. */}
             <div className="slots-daystrip" role="group" aria-label="Which day to plan">
+              <span className="map-scope-lbl">Plan this day</span>
               {trip.days.map(d => {
                 const r = tripReadinessRows.find(x => x.dayIndex === d.index)
                 const filled = r?.filled ?? 0

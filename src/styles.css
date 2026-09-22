@@ -6301,7 +6301,7 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .day-slot-vote { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 10px 8px; }
 .day-slot-vote-lead { font-size: 10.5px; color: var(--text-3); }
 /* P5: the day chip carries its weather, and the rail its meta chips */
-.slots-daychip-rain { font-size: 9.5px; font-weight: 700; color: var(--ink-amber); text-transform: uppercase; letter-spacing: .03em; }
+.slots-daychip-rain { font-size: 11px; font-weight: 700; color: var(--ink-amber); text-transform: uppercase; letter-spacing: .03em; }
 .slots-daychip.is-on .slots-daychip-rain { color: var(--teal-deep); }
 .slots-railmeta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 0 2px 8px; }
 .slots-legend { position: relative; }
@@ -6602,6 +6602,19 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
   .ledger-shelf, .engine-tips-text { animation: none; }
   .map-ideas-grid { transition: none; }
 }
+
+/* ---- The critique's P2/P3 batch: scope labels, the hint's disclosure ----
+   Two pickers, one synced state: the map DRAWS a day, the rail PLANS one —
+   the labels put that asymmetry on the surface instead of leaving it a learned
+   fact. The hint keeps its three commitments up front and moves the window /
+   wheel / fuel mechanics behind a disclosure row; the element is a div because
+   a <details> cannot nest inside a <p>. */
+.map-scope-lbl {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .06em; color: var(--text-3); align-self: center;
+}
+.hint-more { margin-top: 2px; }
+.hint-more summary { cursor: pointer; color: var(--text-2); font-weight: 600; }
 
 /* ---- The toolbar restructures into three ranked weights ---------------------
    The critique's P1: ~20 same-weight pills over four intents. The day segment

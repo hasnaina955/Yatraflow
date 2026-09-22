@@ -441,8 +441,8 @@ discriminates a migration-gated table in one call — **`200 []` means the table
   slow, so warm the route *and its modules* with `curl` first; and
   `transferSize` reads 0 on cross-origin images (Wikimedia exposes no resource
   timing), so prove a cover's weight from the origin
-  (`curl -w '%{size_download}'` on the `src` the DOM actually rendered) rather
-  than from `performance.getEntriesByType('resource')`.
+  (`curl -w '%{size_download}'` on the `src` the DOM actually rendered)rather than from `performance.getEntriesByType('resource')`.
+- **A hidden preview webview freezes `requestAnimationFrame` and can stall the MapLibre style forever (learned 2026-09-22).** With `document.visibilityState === "hidden"` rAF callbacks never run (screenshots report "produced no frames" for the same reason) and the map style can sit `isStyleLoaded() === false` indefinitely. A map fit that "never runs" in that state is the environment, not the product: verify geometry through an un-gated path (`fitBounds({duration: 0})` jumps synchronously), or patch `requestAnimationFrame`→`setTimeout` and `matchMedia('(prefers-reduced-motion: reduce)')`→`{ matches: true }` in-page BEFORE driving the UI (the app reads both at call time), then measure the camera through the map instance found via the host node's React fiber — importing app modules to probe state gets a SECOND instance under HMR's timestamped URLs.
 - **`str_replace` can report a real, existing file as missing** (`package-lock.json`,
   ~160 KB, during the v0.55.0 cut) — fall back to a targeted `sed -i` and verify
   with grep before moving on. Related: Vercel Agent opens its PRs as **drafts**;

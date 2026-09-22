@@ -33,6 +33,7 @@ import { NativeHomePage } from './pages/NativeHome'
 // including the workspace and its map/editor subtree - loads on first visit.
 const TripsListPage = lazy(() => import('./pages/TripsList').then(m => ({ default: m.TripsListPage })))
 const TripWorkspace = lazy(() => import('./pages/TripWorkspace').then(m => ({ default: m.TripWorkspace })))
+const TripCreatedPage = lazy(() => import('./pages/TripCreated').then(m => ({ default: m.TripCreatedPage })))
 const ExplorePage = lazy(() => import('./pages/Explore').then(m => ({ default: m.ExplorePage })))
 const AuthPage = lazy(() => import('./pages/Auth').then(m => ({ default: m.AuthPage })))
 const CreateTripPage = lazy(() => import('./pages/CreateTrip').then(m => ({ default: m.CreateTripPage })))
@@ -311,6 +312,9 @@ export default function App() {
         break
       case 'new':
         page = <Suspense fallback={lazyRouteFallback}><CreateTripPage onNavigate={navigate} /></Suspense>
+        break
+      case 'created':
+        page = <Suspense fallback={lazyRouteFallback}><TripCreatedPage tripId={parts[1] ?? ''} onNavigate={navigate} /></Suspense>
         break
       case 'trip':
         page = <Suspense fallback={lazyRouteFallback}><TripWorkspace tripId={parts[1] ?? ''} initialTab={parts[2]} onNavigate={navigate} /></Suspense>

@@ -25,6 +25,7 @@ import { createFunnelOn } from '../lib/featureFlags'
 import { createReadiness, readinessFromDraft, readinessLine } from '../lib/createReadiness'
 import { saveDraft, loadDraft, clearDraft, draftIsWorthKeeping, draftAgeLabel, type StoredDraft } from '../lib/createDraft'
 import { addCrewEntry, PLANNER_ROLE_LINE, type CrewEntry } from '../lib/crewInvite'
+import { stashHandoff } from '../lib/createHandoff'
 import { fetchTripThumbUrl } from '../lib/tripThumb'
 import { Field, Chip, toast, Odometer, useMedia } from '../components/ui'
 import { Select } from '../components/Select'
@@ -558,7 +559,28 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
     }, seed)
     haptic(HAPTIC.success)
     clearDraft()
-    toast('Trip created — your rough outline is on the timeline')
+    if (createFunnelOn('moment')) {
+      // P6 - hand the moment-after screen what it needs to speak truthfully:
+      // the figures the ticket just printed, and the crew the planner collected.
+      stashHandoff({
+        tripId: trip.id,
+        tripName: trip.name,
+        plannerName: me?.profile.name ?? '',
+        roadKm: bill.roadKm,
+        rangeKm: bill.rangeKm,
+        days: bill.days,
+        travellers: f.travellers,
+        crew: crew.map(c => ({ name: c.name, phone: c.phone })),
+        bill: {
+          roadKm: bill.roadKm,
+          perHead: bill.perHead,
+          total: bill.perHead != null ? Math.round(bill.perHead * f.travellers) : null,
+        },
+      })
+      navigateWithTransition(`/created/${trip.id}`)
+      return
+    }
+    toast('Trip created - your rough outline is on the timeline')
     navigateWithTransition(`/trip/${trip.id}`)
   }
 

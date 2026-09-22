@@ -6556,3 +6556,36 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .crew-chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 6px 4px 10px; border-radius: 999px; background: var(--teal-soft); font-size: 12px; }
 .crew-chip small { color: var(--text-3); font-size: 10.5px; font-variant-numeric: tabular-nums; }
 .crew-chip button { display: grid; place-items: center; width: 16px; height: 16px; border: 0; border-radius: 50%; background: transparent; color: var(--text-3); font-size: 11px; cursor: pointer; }
+/* ============================================================
+   Trip created - the moment after (P6)
+   Peak-end, taken seriously. Appended at the file end for the line-keyed
+   ratchet reason as with the blocks above. Every gap and pad below is on the
+   spacing ladder; the badges use the AA-verified teal pair.
+   ============================================================ */
+
+.created-page { max-width: 720px; margin: 0 auto; padding: 24px 20px 24px; display: flex; flex-direction: column; gap: 16px; }
+.created-head h1 { font-size: 26px; line-height: 1.15; margin: 4px 0 2px; }
+.created-card { padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--card); }
+.created-card-title { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; font-size: 13px; font-weight: 700; margin: 0 0 12px; }
+.created-role { font-size: 11.5px; font-weight: 600; color: var(--violet-ink); background: var(--violet-soft); border-radius: 999px; padding: 2px 8px; }
+.created-list { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
+.created-item { display: flex; align-items: flex-start; gap: 8px; }
+.created-badge { display: grid; place-items: center; flex: none; width: 22px; height: 22px; border-radius: 8px; font-size: 11px; background: var(--teal-soft); color: var(--teal-deep); }
+.created-item.kind-conflict .created-badge { background: var(--violet-soft); color: var(--violet-ink); }
+.created-item.kind-scale .created-badge { background: var(--bg); color: var(--text-2); }
+.created-item-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.created-item-body b { font-size: 13px; }
+.created-detail { font-size: 11.5px; color: var(--text-3); }
+.created-crew { display: grid; gap: 8px; }
+.created-crew-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.created-crew-name { font-size: 13px; font-weight: 600; }
+.created-crew-status { font-size: 11px; color: var(--text-3); }
+.created-crew-hint { margin-left: auto; font-size: 11px; color: var(--text-3); }
+.created-crew-row .btn { margin-left: auto; }
+.created-crew-acts { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.created-link { font-size: 11px; color: var(--text-2); word-break: break-all; }
+.created-bill { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; margin: 0 0 6px; }
+.created-bill-perhead { font-size: 24px; font-weight: 700; color: var(--teal-deep); font-variant-numeric: tabular-nums; }
+.created-bill-unit { font-size: 12px; color: var(--text-3); }
+.created-bill-total { font-size: 12px; color: var(--text-2); margin-left: auto; font-variant-numeric: tabular-nums; }
+.created-next { display: flex; gap: 8px; flex-wrap: wrap; }

@@ -67,3 +67,9 @@ PRODUCT.md
 # clone must not see six new untracked analysis files in `git status`, and because
 # ignoring the directory does not affect the skill - it reads them from disk.
 .superdesign/
+
+# Our own transient `gh pr create --body-file` scratch — the same class as the
+# Verdent block above: regenerated per PR, rewritten by every branch that uses
+# it, never repo content. It slipped into one commit only while the mavis-trash
+# launcher was stale; ignored so it can never recur.
+.pr-body.md

@@ -15,6 +15,7 @@ import { clockHM, type ClockMilestone } from '../lib/clockOverlay'
 import { pointAtKm } from '../lib/geo'
 import { useTimeFormat, formatHM } from '../lib/timefmt'
 import { extraJourneyMarkers } from '../lib/journeyMarkers'
+import { boundsOf, type LatLng } from '../lib/mapFit'
 import { coincidentPinOffsets } from '../lib/pinOffsets'
 import { googleMapsDirectionsUrl } from '../lib/externalMaps'
 import { openExternal } from '../lib/native'
@@ -30,7 +31,7 @@ import {
 import type { MapRef } from './mapcn/map'
 import { CatIcon } from './icons'
 import {
-  Box, Clock, Flag, Home, Info, Lightbulb, LocateFixed, Map as MapIcon, Mountain, Navigation, PlaneTakeoff,
+  Box, CircleDot, Clock, Flag, Home, Info, Lightbulb, LocateFixed, Map as MapIcon, Mountain, Navigation, PlaneTakeoff,
   RotateCcw, TriangleAlert, X,
 } from 'lucide-react'
 import { prefersReducedMotion, motionTiming } from '../lib/motion'
@@ -710,29 +711,49 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     return () => { cancelled = true; clearInterval(tick) }
   }, [pointsKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // fit the viewport to the route whenever the map is ready and the points change
-  useEffect(() => {
-    if (!mapLoaded || !mapRef.current || allPoints.length === 0) return
-    const m = mapRef.current
-    let minLng = Infinity, maxLng = -Infinity, minLat = Infinity, maxLat = -Infinity
-    for (const p of allPoints) {
-      if (p.lng < minLng) minLng = p.lng
-      if (p.lng > maxLng) maxLng = p.lng
-      if (p.lat < minLat) minLat = p.lat
-      if (p.lat > maxLat) maxLat = p.lat
+  // EVERYTHING the current view draws — the fit frames the drawing, not just
+  // the stop pins. A day's journey chain carries its synthesized origin (last
+  // night's town), drawn as an endpoint flag and as the road line's far end,
+  // but it is NOT a stop: fitting stop bounds alone glued the camera to a stop
+  // cluster at maxZoom while the route ran off-screen — the reported case is
+  // Day 2 of the sample Rajasthan trip, two pins inside Jodhpur framed at
+  // zoom 12 while 280 km of drawn road to Jaipur sat16,000 px outside the
+  // canvas. All-days adds the return-home pin when that line is shown (its
+  // home is beyond the last stop by definition). Nearby-suggestion pins stay
+  // OUT on purpose: another day's ideas would balloon the fit. The late OSRM
+  // polyline stays out too — it arrives after this fit and follows the chain
+  // well inside the 70px padding, and mixing it in would fit a PREVIOUS day's
+  // line while the fetch for this one is still in flight.
+  const fitPoints = useMemo(() => {
+    const pts: LatLng[] = allPoints.map(p => ({ lat: p.lat, lng: p.lng }))
+    if (dayFilter === 'all') {
+      if (showReturn && isRoundTrip(trip) && trip.startLocationCoords) pts.push(trip.startLocationCoords)
+    } else {
+      for (const p of dayRoutePoints[String(dayFilter)] ?? []) pts.push(p)
     }
-    // single point (or near-zero bounds) — pad so fitBounds has real area
-    if (maxLng - minLng < 1e-4) { minLng -= 0.08; maxLng += 0.08 }
-    if (maxLat - minLat < 1e-4) { minLat -= 0.08; maxLat += 0.08 }
+    return pts
+  }, [allPoints, dayFilter, dayRoutePoints, showReturn, trip])
+  const fitPointsKey = useMemo(
+    () => fitPoints.map(p => `${p.lat.toFixed(4)},${p.lng.toFixed(4)}`).join('|'),
+    [fitPoints],
+  )
+
+  // fit the viewport to everything the view draws, whenever the map is ready
+  // and that extent changes
+  useEffect(() => {
+    if (!mapLoaded || !mapRef.current) return
+    const bounds = boundsOf(fitPoints)
+    if (!bounds) return
+    const m = mapRef.current
     const run = () => {
       m.resize()
       m.fitBounds(
-        [[minLng, minLat], [maxLng, maxLat]],
+        bounds,
         { padding: 70, maxZoom: 12, duration: prefersReducedMotion() ? 0 : 400 },
       )
     }
     requestAnimationFrame(run)
-  }, [pointsKey, mapLoaded]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [fitPointsKey, mapLoaded]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Panel → map highlight: when a suggestion card is hovered/selected in the
   // side panels, glide the camera to its pin so the user sees where it is.
@@ -790,18 +811,10 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
 
   function fitToTrip() {
     const m = mapRef.current
-    if (!m || allPoints.length === 0) return
-    let minLng = Infinity, maxLng = -Infinity, minLat = Infinity, maxLat = -Infinity
-    for (const p of allPoints) {
-      if (p.lng < minLng) minLng = p.lng
-      if (p.lng > maxLng) maxLng = p.lng
-      if (p.lat < minLat) minLat = p.lat
-      if (p.lat > maxLat) maxLat = p.lat
-    }
-    if (maxLng - minLng < 1e-4) { minLng -= 0.08; maxLng += 0.08 }
-    if (maxLat - minLat < 1e-4) { minLat -= 0.08; maxLat += 0.08 }
+    const bounds = boundsOf(fitPoints)
+    if (!m || !bounds) return
     m.resize()
-    m.fitBounds([[minLng, minLat], [maxLng, maxLat]], { padding: 70, maxZoom: 12, duration: prefersReducedMotion() ? 0 : 400 })
+    m.fitBounds(bounds, { padding: 70, maxZoom: 12, duration: prefersReducedMotion() ? 0 : 400 })
   }
 
   function colorForDay(i: number): string {
@@ -1232,7 +1245,10 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                 const off = pinOffsets.get(p.id)
                 const offsetStyle = off ? { transform: `translate(${off.dx}px, ${off.dy}px)` } : undefined
                 if (p.auto) {
-                  const label = isLast ? <Flag size={13} aria-hidden /> : <PlaneTakeoff size={13} aria-hidden />
+                  const label = isLast ? <Flag size={13} aria-hidden />
+                    : trip.transportMode === 'flight'
+                      ? <PlaneTakeoff size={13} aria-hidden />
+                      : <CircleDot size={13} aria-hidden />
                   const c = showClockChips ? stopClock.get(p.id) : undefined
                   return (
                     <MapMarker key={p.id} longitude={p.lng} latitude={p.lat}>
@@ -1283,7 +1299,11 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                     className="yf-map-pin yf-map-flag"
                     title={m.label}
                   >
-                    {m.kind === 'start' ? <PlaneTakeoff size={13} aria-hidden /> : <Flag size={13} aria-hidden />}
+                    {m.kind === 'start'
+                      ? (trip.transportMode === 'flight'
+                        ? <PlaneTakeoff size={13} aria-hidden />
+                        : <CircleDot size={13} aria-hidden />)
+                      : <Flag size={13} aria-hidden />}
                   </span>
                 </MarkerContent>
                 <MarkerTooltip>{m.label}</MarkerTooltip>

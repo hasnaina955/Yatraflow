@@ -15,6 +15,14 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ## [Unreleased]
 
+### Changed
+- **Selected text and the typing caret follow the app's theme instead of the browser's
+  defaults** — the last two browser-native surfaces join the design system: a selection is
+  theme ink on the soft teal tint in both themes (`--teal-soft` + `--text`: 13.56:1 light /
+  12.01:1 dark), and the text-entry caret is the brand teal (`caret-color: var(--teal-deep)`
+  on `:root`, inherited by every input). One appended block in `styles.css`; the idea-bank
+  row that scoped it (I-17, Tier 1) is spent and recorded in ROADMAP's shipped record.
+
 ## [0.65.0] - 2026-09-22
 
 The Create Trip page was rebuilt around the questions a planner actually answers,

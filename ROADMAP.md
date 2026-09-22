@@ -444,7 +444,6 @@ unbuilt). **Before picking up a row, and before quoting one in a plan, confirm i
 | I-4 | Overspending alerts | budget | 2 h | Threshold notification when a day/category crosses its cap — plumbing already exists in `realtimeCore`. |
 | I-5 | Category envelopes | budget | 3–4 h | Per-category cap (₹) with progress state on the "Where the money goes" bars + a cap editor on the category row. Pattern: YNAB. |
 | I-8 | Monthly statements / invoice export | creator | 2–3 h | Downloadable per-month earnings summary, client-side from the payouts table. **Post-M7.** |
-| I-17 | Theme the text selection and the caret | design system | 1 h | `::selection` and `caret-color` are declared **nowhere** in `src/styles.css` — the UA's highlight blue and caret are the last unthemed browser surfaces in the app (found while scoping v0.60.0's craft-floor pass). Cheap to close with the app's own soft-tint pairing (`--teal-soft` + `--text`) and `caret-color: var(--teal-deep)`, but it is a feel change rather than a defect, so it wants a look first — and the baseline's line-keyed entries must be re-mapped in the same commit (AGENTS §4). |
 | I-19 | Settled lines genuinely leave the balances | budget | 3–4 h + product call | M6 B4 shipped "mark settled" as a record (settler + timestamp, history, activity) and the line STILL counts toward the running balances — deliberately: the card's fair share is `fairSharePerHead(travellers, totals.totalCostInr)` (the engine estimate split per head), so dropping a settled line's credit while it remains inside the estimate breaks the zero-sum property and the who-owes-whom transfers stop balancing. Doing it properly means re-basing what the card measures from "the trip estimate" to "the open lines" (fair share from open-line sums), with the settled history as a ledger view — a product decision about what the card should mean, not arithmetic. BudgetTab's `computeBalances` call passes the whole `trip.expenses`; the open/settled split currently styles the two lists only. |
 | I-20 | Unlock moment + owned library | creator | 1–2 days | Full-screen "you now own X" reveal with real computed stats (days/stops/km), then a persistent "My purchases" shelf (cover, creator, version badge, update marker) reachable from My Trips. Research: `docs/commercial/RESEARCH-2026-09-18…` §4. **Unblocked: #251 has merged, so the M7 rail and its unlock flow are live.** |
 | I-21 | Purchase share card | growth | 3–4 h | WhatsApp-sized "I bought the Spiti plan" og-image the buyer can post — buyers are the distribution channel (research §4.5). Depends on the share-card pipeline (`public/og-default.png`, `api/i.js`). |
@@ -619,6 +618,14 @@ Kept as one line each so the origin is traceable without re-listing the work as 
   owner-only RLS on all four verbs (`supabase/migrations/20260921_user_dna.sql`, **applied
   live 2026-09-21 and probe-verified**), read once per hydrate and written back debounced, with the merge a
   de-duplicated union so a sync cannot double a count.
+- **Idea bank I-17 — the selection and the caret join the theme** — `[Unreleased]`. Source: the
+  Tier 1 row itself ("the last unthemed browser surfaces", found while scoping v0.60.0's
+  craft-floor pass). `::selection` paints theme ink on the soft teal tint (`--teal-soft` +
+  `--text` — #E5F4EE/#0B2545 light, #12332F/#ECF1F8 dark: 13.56:1 / 12.01:1, computed), and
+  `caret-color: var(--teal-deep)` rides `:root` so every editable surface inherits the brand
+  teal — one appended block in `styles.css`, both declarations resolving per theme. The row's
+  own caveat about the baseline's line-keyed entries predates the text-key migration and no
+  longer applies.
 
 ## Historical plans (executed — kept for the record, not live guidance)
 

@@ -57,7 +57,7 @@ drag; movement is translation only (compositor-only).
 
 | Pattern | Recipe | Where it lives |
 | --- | --- | --- |
-| Dropdown / popover entrance | fade 0→1 + rise 4px, `--motion-med`, `--ease-out` | `.popover` (location list, calendar, menus), `.map-legend-body` (the map key card) |
+| Dropdown / popover entrance | fade 0→1 + rise 4px, `--motion-med`, `--ease-out` | `.popover` (location list, calendar, menus), `.map-legend-body` (the map key card), `.map-filters-pop` (the toolbar's idea filters) |
 | Toggle glider | thumb `transform` slide, `--motion-med` | `.pill-glider` (workspace tabs, Plan/Inspect, filters, composer mode) |
 | Day collapse | grid-rows `0fr↔1fr`, `--motion-slower`, `--ease-resize` (both ends at rest, symmetric — the body can be 1000px, and the peak lands mid-animation), unmount after that token's duration (and a clip that unmounts the focused element hands focus to the day's collapse control as the close begins — a hidden element is blurred on the spot, so waiting for the unmount is too late). Anything that changes the header's height rides the same collapse in reverse (the route chain), and the state-only extras take the entrance pattern below | `.day-body-clip` (SmoothCollapse) |
 | Drag carry | pointer-pinned `translate3d(var(--carry-x/-y))` on the row, **no transition** — position never eases | `.is-carried` (Timeline `.tl-row`, Board `.board-row`) |

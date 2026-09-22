@@ -970,7 +970,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
               "which day am I looking at", these four answer "what is drawn" and
               "where do I go next". */}
           <div className="map-util-group" role="group" aria-label="Map layers and day actions">
-          <button className="map-day-chip map-day-chip--util map-recenter" onClick={fitToTrip} aria-label="Recentre the map on the trip route" title="Recentre the map on the trip route"><LocateFixed size={13} aria-hidden />
+          <button className="map-day-chip map-day-chip--util map-recenter" onClick={fitToTrip} aria-label="Recentre the map on the trip route" title="Recentre the map on the trip route"><LocateFixed size={13} aria-hidden /></button>
           {clockMilestones && (
             <button
               className={`map-day-chip map-day-chip--util ${clockOn ? 'on' : ''}`}
@@ -1068,7 +1068,6 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
           </button>
         </div>
         </div>
-      </div>
       )}
 
       <div className="map-frame">

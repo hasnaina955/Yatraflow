@@ -182,6 +182,13 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
   // #143: overnight segment ids the user told to "stay at the pin" — the
   // drift proposal hides for the session (the pin holds; it re-asks next open)
   const [driftDismissed, setDriftDismissed] = useState<Set<number>>(new Set())
+  // P1 ("search lands in its slot"): the open part's own search. Keyed to the
+  // slot it was typed in, so a query resolved after switching slots can never
+  // render its rows into the wrong slot (seq guard + key check), and the
+  // manual picks live per slot, re-validated at render like the tray (#179).
+  const [slotSearch, setSlotSearch] = useState<{ key: string; q: string; busy: boolean; hits: PlaceHit[]; err: string | null } | null>(null)
+  const [slotManual, setSlotManual] = useState<Record<string, PlaceHit[]>>({})
+  const slotSeq = useRef(0)
   // detour-scope control — how far off the route suggestions may sit.
   // #181: guarded through uiPrefs (private-mode throw crashes a useState
   // initializer); namespace follows the app's yatraflow_* convention.
@@ -957,6 +964,85 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
       .map(s => ({ key: s.key, label: `Add as ${s.label}`, noun: s.label.toLowerCase() }))
   }
 
+  /** A search pick filed into a slot: real detour math from the SAME helpers
+   *  the engine uses (asymmetric against the drawn road + the day's real
+   *  budget), unknown fields honestly null — no fabricated arrival time — and
+   *  provenance carried in the reason line. */
+  function makeManualCandidate(h: PlaceHit) {
+    const budget = dayDetourBudgetMin({
+      travelStyle: trip.travelStyle,
+      plannedStops: (trip.days.find(d => d.index === activeDayIndex)?.stops ?? []).filter(x => x.status !== 'rejected').length,
+    })
+    const dMin = asymmetricDetourMinutes(h, anchors, routePolyline ?? null, MODE_SPEED[trip.transportMode] ?? 40)
+    return {
+      hit: h,
+      detourMin: dMin,
+      detourKm: asymmetricDetourKm(h, anchors, routePolyline),
+      budgetSharePct: budgetSharePct(dMin, budget),
+      posKm: null,
+      arriveMin: null,
+      arriveLabel: null,
+      inWindow: false,
+      score: Number.MAX_SAFE_INTEGER,
+      reason: 'added from this slot’s search',
+    }
+  }
+
+  /** Engine candidates plus this slot's own search picks — manual ones first
+   *  (they are the user's explicit picks), re-validated at render per #179: a
+   *  hit later added to the plan or dismissed drops out instead of doubling. */
+  function slotCands(slot: DaySlot) {
+    const manual = (slotManual[slot.key] ?? [])
+      .filter(h => !addedIds.has(h.id as string) && !existingNames.has(h.name.toLowerCase()) && !dismissedIds.has(h.id as string))
+      .map(makeManualCandidate)
+    const manualIds = new Set(manual.map(m => m.hit.id))
+    return [...manual, ...slot.candidates.filter(c => !manualIds.has(c.hit.id))]
+  }
+
+  /** The mockup's headline interaction: find inside the open part. Mirrors
+   *  onSearch's guards (2-char floor, seq ownership, scope rank, quota class)
+   *  but answers into slot-local state, so the top search card keeps owning
+   *  corridor-wide discovery. */
+  async function runSlotSearch(slot: DaySlot) {
+    const q = (slotSearch?.key === slot.key ? slotSearch.q : '').trim()
+    if (q.length < 2 || slotSearch?.busy) return
+    const mySeq = ++slotSeq.current
+    setSlotSearch({ key: slot.key, q, busy: true, hits: [], err: null })
+    try {
+      const hits = await searchPlacesText(q)
+      if (mySeq !== slotSeq.current) return
+      const ranked = hits
+        .map(h => ({ h, off: asymmetricDetourKm(h, anchors, routePolyline) }))
+        .sort((a, b) => (a.off ?? 9999) - (b.off ?? 9999))
+        .map(x => x.h)
+      setSlotSearch(s => (s && mySeq === slotSeq.current ? { ...s, busy: false, hits: ranked } : s))
+      if (hits.length === 0) toast(`No places found for "${q}".`)
+    } catch (err) {
+      if (mySeq !== slotSeq.current) return
+      setSlotSearch(s => (s && mySeq === slotSeq.current
+        ? { ...s, busy: false, err: err instanceof QuotaExhaustedError
+            ? 'Google Places monthly cap reached - text search stays paused until the counter rolls over.'
+            : 'Search failed - try again.' }
+        : s))
+    }
+  }
+
+  /** File a found place into THIS slot as a candidate (never straight into the
+   *  plan — Fill stays the second, explicit act) under the #179 guards. */
+  function addManualCandidate(slot: DaySlot, h: PlaceHit) {
+    if (addedIds.has(h.id as string) || existingNames.has(h.name.toLowerCase()) || dismissedIds.has(h.id as string)) {
+      toast(`"${h.name}" is already on the plan or was dismissed.`)
+      return
+    }
+    if ((slotManual[slot.key] ?? []).some(x => x.id === h.id) || slot.candidates.some(c => c.hit.id === h.id)) {
+      toast(`"${h.name}" is already a candidate for the ${slot.label.toLowerCase()} slot.`)
+      return
+    }
+    setSlotManual(prev => ({ ...prev, [slot.key]: [h, ...(prev[slot.key] ?? [])] }))
+    setSlotSearch(s => (s && s.key === slot.key ? { ...s, q: '', hits: [], err: null } : s))
+    toast(`"${h.name}" added as a candidate for the ${slot.label.toLowerCase()} slot.`)
+  }
+
   function openAddModal(hit: PlaceHit, kmOverride?: number | null) {
     // Duplicate guard (#179 family): a place already in the plan (matched by
     // title) can't be added again from ANY path — the map-pin "+", a search
@@ -1396,6 +1482,9 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     [pois, trip.days, daySlotDeps, daySlotSig],
   )
   const [openSlotKey, setOpenSlotKey] = useState<string | null>(null)
+  // P1: closing or switching parts drops the in-flight search (the seq bump
+  // retires any query still in the air so its rows can never land elsewhere).
+  useEffect(() => { slotSeq.current += 1; setSlotSearch(null) }, [openSlotKey])
   /** P7.2: what the log has learned about each KIND of part - shown on an open
    *  part as context, never as a claim (silent until 3+ accepts). */
   const dnaSlotHints = useMemo(() => {
@@ -1995,7 +2084,47 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
                       )}
                       {slot.state === 'empty' && isOpen && (
                         <div className="day-slot-cands">
-                          {slot.candidates.map(c => (
+                          {/* P1: search lands in its slot - find inside the open
+                              part; a picked result becomes ITS candidate (real
+                              detour + budget share), never a direct plan write. */}
+                          <div className="day-slot-search">
+                            <input
+                              className="input"
+                              type="search"
+                              placeholder="Find a place for this slot..."
+                              aria-label={`Search to source the ${slot.label.toLowerCase()} slot`}
+                              disabled={quotaOut}
+                              value={slotSearch?.key === slot.key ? slotSearch.q : ''}
+                              onChange={e => setSlotSearch({ key: slot.key, q: e.target.value, busy: false, hits: [], err: null })}
+                              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); void runSlotSearch(slot) } }}
+                            />
+                            <button
+                              type="button"
+                              className="day-slot-fill"
+                              disabled={quotaOut || !!slotSearch?.busy || slotSearch?.key !== slot.key || slotSearch.q.trim().length < 2}
+                              onClick={() => void runSlotSearch(slot)}
+                            >{slotSearch?.key === slot.key && slotSearch.busy ? 'Finding…' : 'Find'}</button>
+                          </div>
+                          {slotSearch?.key === slot.key && slotSearch.q.trim().length === 1 && !slotSearch.busy && (
+                            <p className="muted small" style={{ margin: '0 0 6px' }}>Keep typing - search starts at 2 characters.</p>
+                          )}
+                          {slotSearch?.key === slot.key && slotSearch.err && (
+                            <p className="muted small" role="status" style={{ margin: '0 0 6px' }}>{slotSearch.err}</p>
+                          )}
+                          {slotSearch?.key === slot.key && !slotSearch.busy && slotSearch.hits.length > 0 && (
+                            <div className="day-slot-search-hits">
+                              {slotSearch.hits.slice(0, 6).map(h => (
+                                <div key={String(h.id)} className="day-slot-search-hit">
+                                  <span className="day-slot-search-hit-nm">{h.name}{h.nearestCity ? ` · ${h.nearestCity}` : ''}</span>
+                                  <button type="button" className="day-slot-fill" onClick={() => addManualCandidate(slot, h)}>Use</button>
+                                </div>
+                              ))}
+                              {slotSearch.hits.length > 6 && (
+                                <p className="muted small" style={{ margin: '4px 2px 0' }}>{slotSearch.hits.length - 6} more - refine the search to narrow it.</p>
+                              )}
+                            </div>
+                          )}
+                          {slotCands(slot).map(c => (
                             <div key={String(c.hit.id)} className="day-slot-cand">
                               <span className="day-slot-cand-nm">
                                 <b>{c.hit.name}</b>
@@ -2014,12 +2143,12 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
                               >Fill</button>
                             </div>
                           ))}
-                          {slot.candidates.length === 0 && (
+                          {slotCands(slot).length === 0 && (
                             <p className="muted small" style={{ margin: '4px 0 0' }}>
                               No candidates in reach{slot.windowLabel ? ` inside ${slot.windowLabel}` : ''} - add one on the Timeline, or search the map.
                             </p>
                           )}
-                          {editable && !slot.vote && slot.candidates.length >= 2 && (
+                          {editable && !slot.vote && slotCands(slot).length >= 2 && (
                             <button type="button" className="chip chip-sm" onClick={() => raiseSlotVote(slot)}>
                               Ask the crew to vote
                             </button>

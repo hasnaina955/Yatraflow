@@ -6643,6 +6643,25 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .day-slot-drift-t { font-size: 11px; font-weight: 600; color: var(--text-2); }
 .day-slot-drift-a { display: inline-flex; gap: 6px; margin-left: auto; }
 
+/* ---- P1: search lands in its slot (day-slots mockup tag) ----------------
+   Find lives inside the open part; a picked result becomes its candidate
+   through the engine's own detour/budget helpers. Whole-px type only (the
+   sub-pixel ratchet), no colour pair declared in these rules, and no motion
+   added - rows answer instantly like the rail's own list. */
+.day-slot-search { display: flex; gap: 6px; margin: 0 10px 8px; }
+.day-slot-search .input { flex: 1; min-width: 0; font-size: 13px; padding: 5px 8px; }
+.day-slot-search-hits {
+  margin: 0 10px 8px; padding: 4px; max-height: 156px; overflow-y: auto;
+  border: 1px dashed var(--line); border-radius: 8px;
+}
+.day-slot-search-hit { display: flex; align-items: center; gap: 8px; padding: 4px 6px; }
+.day-slot-search-hit:hover { background: var(--yf-glass); }
+.day-slot-search-hit + .day-slot-search-hit { border-top: 1px solid var(--line-2); }
+.day-slot-search-hit-nm {
+  flex: 1; min-width: 0; font-size: 12px; font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
 /* ---- The toolbar restructures into three ranked weights ---------------------
    The critique's P1: ~20 same-weight pills over four intents. The day segment
    is primary (its own glass container); this middle cluster answers "what's

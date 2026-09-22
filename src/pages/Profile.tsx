@@ -23,6 +23,7 @@ import {
 } from '../lib/aiProvider'
 import { AI_COMPANION_ENABLED } from '../lib/featureFlags'
 import { cap } from '../lib/labels'
+import { isIosSafari, isStandalone, onInstallAvailability, promptInstall } from '../lib/pwaInstall'
 import { scrollBehavior } from '../lib/motion'
 
 /** Compact relative timestamp for the notifications list ("3m ago"). */
@@ -237,6 +238,8 @@ export function ProfilePage({ onNavigate }: { onNavigate: (r: string) => void })
             </p>
           </div>
 
+          <InstallCard />
+
           {/* The signed-in Android shell hides the website topnav, so its
               controls relocate here — Profile is a bottom-nav destination. Each
               card is shell-only; the web keeps the topnav. */}
@@ -441,6 +444,44 @@ function JevCard() {
         {saved && <button className="btn btn-outline btn-sm" onClick={onClear} disabled={testing}>Clear</button>}
       </div>
       <p className="hint-text" role="status" style={{ margin: 0 }}>{result}</p>
+    </div>
+  )
+}
+
+// ============ Install card (PWA, web only) ============
+// One honest affordance, only when it can actually do something: Chromium's
+// captured install prompt, or the iOS Share-sheet hint. In the Capacitor shell
+// (already an app) and once installed, the card renders nothing at all — and
+// it says what installing DOES, not what we wish it did: offline reading of a
+// saved plan is phase 2 and is deliberately not claimed here.
+function InstallCard() {
+  const [available, setAvailable] = useState(false)
+  const [installed, setInstalled] = useState(false)
+
+  useEffect(() => onInstallAvailability(setAvailable), [])
+
+  if (isNative || installed || isStandalone()) return null
+  const ios = isIosSafari()
+  if (!available && !ios) return null
+
+  return (
+    <div className="card stack-gap">
+      <h3>Install YatraFlow</h3>
+      <p className="hint-text" style={{ margin: '6px 0 10px' }}>
+        {ios
+          ? 'On iPhone and iPad: tap Share, then “Add to Home Screen”. It opens in its own window, like an app.'
+          : 'Adds YatraFlow to your home screen — its own window, its own icon, and a faster start.'}
+      </p>
+      {available && (
+        <div className="chip-row">
+          <button
+            className="btn btn-primary btn-sm"
+            onClick={() => { void promptInstall().then(ok => { if (ok) setInstalled(true) }) }}
+          >
+            Install app
+          </button>
+        </div>
+      )}
     </div>
   )
 }

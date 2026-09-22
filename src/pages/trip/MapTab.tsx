@@ -8,7 +8,7 @@ import type { ImpactResult } from '../../lib/impact'
 import { mapRoadViewFromLegs, outboundLegs, type TripRoadView } from '../../lib/tripRoad'
 import { buildJourney, minutesToHM, fmtDur, computeCategoryBias, MODE_SPEED, isRoundTrip } from '../../lib/engine'
 import { useTimeFormat, formatHM, formatHMRange } from '../../lib/timefmt'
-import { loadPref, savePref, loadHaltPinsForTrip, saveHaltPin, clearHaltPinsForTrip } from '../../lib/uiPrefs'
+import { loadPref, savePref, loadHaltPinsForTrip, saveHaltPin, clearHaltPin, clearHaltPinsForTrip } from '../../lib/uiPrefs'
 import { Modal, Field, toast, undoToast, useInView, useMedia, usePageVisible } from '../../components/ui'
 import { Select } from '../../components/Select'
 import { DetourWhisk } from '../../components/DetourWhisk'
@@ -1276,6 +1276,16 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
             }}
           >Dismiss</button>
         )}
+        {!added && editable && (
+          <button
+            className="chip chip-sm"
+            aria-pressed={trayShortlist.some(h => h.id === hit.id)}
+            title="Collect for the shortlist tray - the rail collects, the tray decides"
+            onClick={() => toggleShortlist(hit)}
+          >
+            {trayShortlist.some(h => h.id === hit.id) ? 'Shortlisted' : 'Shortlist'}
+          </button>
+        )}
         {alts.length > 0 && alts.map(({ h, dKm }) => (
           <button
             key={h.id as string}
@@ -1914,6 +1924,44 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
                           </button>
                           {slot.state === 'empty' && slotPattern(slot.kind) && (
                             <p className="day-slot-pattern">{slotPattern(slot.kind)}</p>
+                          )}
+                          {/* #143: the drift proposal's home that the P2 rewrite
+                              orphaned - shown while the slot is open; Stay hides it
+                              for the session (the pin holds, it re-asks next open),
+                              Move here accepts the re-derived position. */}
+                          {slot.drift && !driftDismissed.has(slot.segment?.index ?? -1) && (
+                            <div className="day-slot-drift" role="group" aria-label="Pinned rest drifted">
+                              <span className="day-slot-drift-t">
+                                The plan now puts your pinned rest {Math.abs(Math.round(slot.drift.toKm - slot.drift.fromKm))} km from your pin.
+                              </span>
+                              <span className="day-slot-drift-a">
+                                <button
+                                  type="button"
+                                  className="day-slot-fill"
+                                  title="Accept the new spot - it stops being pinned"
+                                  onClick={() => {
+                                    const drift = slot.drift
+                                    const segIdx = slot.segment?.index ?? -1
+                                    if (!drift || segIdx < 0) return
+                                    const ords = pois
+                                      .filter(x => x.segment.purpose === 'overnight')
+                                      .sort((a, b) => a.segment.targetKm - b.segment.targetKm)
+                                      .findIndex(x => x.segment.index === segIdx)
+                                    if (ords < 0) { setDriftDismissed(prev => new Set(prev).add(segIdx)); return }
+                                    clearHaltPin(trip.id, ords)
+                                    suggestionCache.clearMap()
+                                    setRefreshTick(t => t + 1)
+                                    undoToast('Moved the pinned rest to its new spot', () => saveHaltPin(trip.id, ords, drift.fromKm))
+                                  }}
+                                >Move here</button>
+                                <button
+                                  type="button"
+                                  className="chip chip-sm"
+                                  title="The pin holds - this asks again next open"
+                                  onClick={() => setDriftDismissed(prev => new Set(prev).add(slot.segment?.index ?? -1))}
+                                >Stay</button>
+                              </span>
+                            </div>
                           )}
                           {slot.vote ? (
                             <div className="day-slot-vote">

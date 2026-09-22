@@ -6631,6 +6631,18 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
    dead class; it now owns its rows' static styling (opacity stays inline). */
 .map-search-results .row-between { padding: 5px 2px; border-bottom: 1px solid var(--line); cursor: pointer; }
 
+/* The #143 drift prompt (plan P1.3's orphaned Move/Stay choice): amber
+   proposal language; no colour pair is declared in either rule, so the
+   contrast contract stays untouched, and the buttons reuse existing shapes. */
+.day-slot-drift {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin: 0 10px 8px; padding: 6px 8px; border-radius: 8px;
+  background: color-mix(in srgb, var(--ink-amber) 10%, transparent);
+  border: 1px dashed color-mix(in srgb, var(--ink-amber) 45%, var(--line));
+}
+.day-slot-drift-t { font-size: 11px; font-weight: 600; color: var(--text-2); }
+.day-slot-drift-a { display: inline-flex; gap: 6px; margin-left: auto; }
+
 /* ---- The toolbar restructures into three ranked weights ---------------------
    The critique's P1: ~20 same-weight pills over four intents. The day segment
    is primary (its own glass container); this middle cluster answers "what's

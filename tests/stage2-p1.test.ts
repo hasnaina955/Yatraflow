@@ -73,8 +73,8 @@ describe('Stage 2 P1 regressions', () => {
 
   it('places the existing narrow reset after all desktop folded rules and uses only ring ink', () => {
     const css = source('styles.css')
-    expect(css.match(/@media \(max-width: 1500px\)/g)).toHaveLength(1)
-    expect(css.indexOf('@media (max-width: 1500px)')).toBeGreaterThan(css.lastIndexOf('grid-template-columns: 48px minmax(0, 1fr) 48px'))
+    expect(css.match(/@media \(max-width: 1278px\)/g)).toHaveLength(1)
+    expect(css.indexOf('@media (max-width: 1278px)')).toBeGreaterThan(css.lastIndexOf('grid-template-columns: 48px minmax(0, 1fr) 48px'))
     expect(css).toContain('.gi-item:focus, .day-header.foreign-over { outline: none; box-shadow: var(--ring); }')
   })
 

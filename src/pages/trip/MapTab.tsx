@@ -150,6 +150,14 @@ export function MapTabSkeleton() {
   )
 }
 
+/** Per-slot glyphs (plan P2.1/P6.2): the kind's icon, with the breakfast
+ *  special-case on the label — kinds can't tell meals apart, and an unknown
+ *  label simply renders no glyph (graceful, never wrong). */
+const KIND_GLYPH = { meal: Utensils, fuel: Fuel, overnight: BedDouble, stretch: Pause } as const
+function SlotGlyph({ kind, label }: { kind: DaySlotKind; label: string }) {
+  const G = label === 'Breakfast' ? Coffee : KIND_GLYPH[kind]
+  return G ? <InlineIcon icon={G} size={12} /> : null
+}
 export function MapTab({ trip, editable, applyChange, suggestionCache, crewSuggestions, decisions, road, onOpenTimeline, onOpenBoard, onOpenDay, onOpenGroupInput }: {
   trip: Trip
   editable: boolean
@@ -1486,6 +1494,9 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
   // P1: closing or switching parts drops the in-flight search (the seq bump
   // retires any query still in the air so its rows can never land elsewhere).
   useEffect(() => { slotSeq.current += 1; setSlotSearch(null) }, [openSlotKey])
+  // Plan P2.5's mobile slots summary: collapsed to a count + open on phones,
+  // desktop hides the summary so this state never touches it there.
+  const [slotsPeek, setSlotsPeek] = useState(false)
   /** P7.2: what the log has learned about each KIND of part - shown on an open
    *  part as context, never as a claim (silent until 3+ accepts). */
   const dnaSlotHints = useMemo(() => {
@@ -1630,8 +1641,8 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
   }
 
   return (
-    <div>
-      <div className="card">
+    <div style={{ display: 'flex', flexDirection: 'column' }}>
+      <div className="card" style={{ order: 1 }}>
         <div className="row-between">
           <h3 style={{ margin: 0 }}><InlineIcon icon={Lightbulb} size={16} gap={4} vAlign="-3px" />Nearby ideas</h3>
           <div className="row-between" style={{ gap: 10 }}>
@@ -1953,6 +1964,21 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
                 <span className="slots-meter-lbl">{activeDayReadiness.filled} of {activeDayReadiness.required} planned{activeDayReadiness.auto > 0 ? ` · ${activeDayReadiness.auto} auto` : ''}</span>
               </div>
             )}
+            {activeDaySlots.length > 0 && (
+              <div className="slots-mobile-sum">
+                <button
+                  type="button"
+                  className="chip chip-sm"
+                  aria-expanded={slotsPeek}
+                  aria-controls="slots-list"
+                  onClick={() => setSlotsPeek(p => !p)}
+                >
+                  {slotsPeek ? 'Hide' : activeDaySlots.some(s => s.state === 'empty')
+                    ? `${activeDaySlots.filter(s => s.state === 'empty').length} empty — open`
+                    : 'Open'}
+                </button>
+              </div>
+            )}
             {shapeView && shapeBlocks.length > 0 ? (
               <div className="dayshape">
                 {shapeBlocks.map((b, i) => (
@@ -1978,7 +2004,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
                     : `Nothing scheduled for Day ${activeDayIndex + 1} yet - its halts belong to other days.`}</p>
               </div>
             ) : (
-              <div className="slots-list">
+              <div className={'slots-list' + (slotsPeek ? ' is-peek' : '')} id="slots-list">
                 {activeDaySlots.map(slot => {
                   const isOpen = openSlotKey === slot.key
                   // `urgencyMin` is window-end minus ETA, so it goes NEGATIVE
@@ -2007,7 +2033,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
                             }}
                           >
                             <span className="day-slot-st" aria-hidden />
-                            <span className="day-slot-lab">{slot.label}</span>
+                            <span className="day-slot-lab"><SlotGlyph kind={slot.kind} label={slot.label} />{slot.label}</span>
                             {slot.windowLabel && <span className="day-slot-win">{slot.windowLabel}</span>}
                             {closing && <span className="day-slot-urgent">Closes {windowEnd}</span>}
                             {missed && <span className="day-slot-missed">Closed {windowEnd}</span>}
@@ -2074,7 +2100,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
                       ) : (
                         <div className="day-slot-top">
                           <span className="day-slot-st" aria-hidden>{slot.state === 'filled' ? '\u2713' : ''}</span>
-                          <span className="day-slot-lab">{slot.label}</span>
+                          <span className="day-slot-lab"><SlotGlyph kind={slot.kind} label={slot.label} />{slot.label}</span>
                           <span className="day-slot-win">{slot.windowLabel ?? ''}</span>
                           <span className="day-slot-val">
                             {slot.state === 'filled'
@@ -2136,6 +2162,9 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
                                   {c.budgetSharePct > 0 ? ` · ${c.budgetSharePct}% of day detours` : ' · on route'}
                                   {c.reason ? ` · ${c.reason}` : ''}
                                 </span>
+                                {c.budgetSharePct > 0 && (
+                                  <span className="day-slot-cand-bar"><i className={c.budgetSharePct > 100 ? 'is-over' : ''} style={{ width: `${Math.min(100, c.budgetSharePct)}%` }} /></span>
+                                )}
                               </span>
                               <button
                                 type="button"

@@ -3337,7 +3337,7 @@ main:focus { outline: none; }
 }
 .poi-col--needs .poi-col-head-ico { background: var(--teal-soft); }
 .poi-col--see .poi-col-head-ico { background: color-mix(in srgb, var(--yf-poi-see) 16%, transparent); }
-.poi-col-head b { display: block; font-size: 14px; }
+.poi-col-head b { display: block; font-size: 14px; font-family: var(--font-display); }
 .poi-col--needs .poi-col-head b { color: var(--teal-deep); }
 .poi-col--see .poi-col-head b { color: var(--yf-poi-see-ink); }
 /* tint the purpose chips inside their lane — sightseeing reads scenic violet.
@@ -3365,7 +3365,7 @@ main:focus { outline: none; }
   top: 12px;
 }
 .map-ideas-map { min-width: 0; }
-/* The ≤1500px reset lives below the folded-rail rules at the end of the file.
+/* The ≤1278px reset lives below the folded-rail rules at the end of the file.
    Keep this space so the line-keyed design-system baseline stays unchanged. */
 
 
@@ -4780,6 +4780,7 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
   /* Map: viewport-relative height so it doesn't eat the whole screen, but
      never collapses below a usable canvas. */
   .map-frame { height: 52vh; min-height: 300px; }
+  .map-skel-map { height: 52vh; min-height: 300px; }
   .map-legend { right: 8px; bottom: 8px; max-width: 46%; }
   /* Stop cards: the 5-button action cluster sits beside the content on
      desktop, which strangles the title on a 360px screen. Wrap it to its own
@@ -6079,7 +6080,7 @@ html.native-shell {
 @media (prefers-reduced-motion: reduce) {
   .poi-fold svg { transition: none; }
 }
-@media (max-width: 1500px) {
+@media (max-width: 1278px) {
   /* #156: keep stacked mode after the equally specific folded-rail rules. */
   .map-ideas-grid, .map-ideas-grid.is-needs-folded, .map-ideas-grid.is-see-folded,
   .map-ideas-grid.is-needs-folded.is-see-folded { grid-template-columns: 1fr; }
@@ -6559,10 +6560,10 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
   .map-skel-rail, .map-skel-map { animation: none; opacity: 1; }
 }
 
-/* The split view starts at 1501px, so on a laptop the day rail opened below a
+/* The split view starts at 1280px (320+320 rails + gaps leave a ~560px map —
    480px map. The frame gives height back in stacked mode, where the rail is the
    tab's work surface; the expanded shell still owns the viewport. */
-@media (min-width: 721px) and (max-width: 1500px) {
+@media (min-width: 721px) and (max-width: 1278px) {
   .map-ideas-grid .map-ideas-map .map-shell:not(.map-shell--expanded) .map-frame { height: 44vh; min-height: 320px; }
 }
 
@@ -6570,7 +6571,7 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
    The fold was designed (rail comment, MapTab) around a 48px column with
    `padding: 8px 6px` - a 34px content box. The needs rail's head has since grown
    a Shape toggle (~52px), a "Fill the day" button (~86px) and a count pill
-   (~36px), and only its TITLE was hidden when folded, so at 1501px and up the
+   (~36px), and only its TITLE was hidden when folded, so at 1280px and up the
    spine rendered controls two to four times its own width: clipped at the column
    edge (the "cropped" look) on a rail whose `overflow-y: auto` computes
    `overflow-x` to `auto` as well - which is what made the collapsed strip
@@ -6588,7 +6589,7 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .map-ideas-grid.is-see-folded > .poi-col--see > .poi-col-head > .chip,
 .map-ideas-grid.is-see-folded > .poi-col--see > .poi-col-head > .btn { display: none; }
 
-@media (min-width: 1501px) {
+@media (min-width: 1280px) {
   /* 2px of spine padding leaves a 42px content box: the 30px lane icon, the
      count pill and the 40px coarse-pointer floor the fold button takes all fit
      inside the column instead of overhanging it. */
@@ -6683,6 +6684,26 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .day-slot-search-hit-nm {
   flex: 1; min-width: 0; font-size: 12px; font-weight: 600;
   overflow-wrap: anywhere;
+}
+
+/* Plan P2.1's cost micro-bar: the % the candidate spends of the day's detour
+   budget, as the rail's meter draws bars - track and fill are background-only
+   rules (no `color` property in either, so the contrast contract is untouched),
+   over-budget fills in warn. Rendered only when the share is > 0. */
+.day-slot-cand-bar {
+  display: block; height: 4px; border-radius: 2px; margin-top: 3px;
+  background: var(--line); overflow: hidden;
+}
+.day-slot-cand-bar i { display: block; height: 100%; border-radius: 2px; background: var(--teal); }
+.day-slot-cand-bar i.is-over { background: var(--warn); }
+
+/* Plan P2.5's mobile slots summary: hidden at desktop widths, one count+open
+   line on phones where the list starts collapsed (the meter above still
+   carries the filled count). */
+.slots-mobile-sum { display: none; }
+@media (max-width: 720px) {
+  .slots-mobile-sum { display: flex; margin: 0 10px 8px; }
+  .slots-list:not(.is-peek) { display: none; }
 }
 
 /* ---- The toolbar restructures into three ranked weights ---------------------

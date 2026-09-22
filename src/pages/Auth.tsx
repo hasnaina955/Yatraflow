@@ -75,6 +75,12 @@ export function AuthPage({ onNavigate }: { onNavigate: (r: string) => void }) {
         nameRef.current?.focus()
         return
       }
+      if (password.length < 8) {
+        clearTimeout(failSafe)
+        setError('Passwords need at least 8 characters.')
+        setSaving(false)
+        return
+      }
       const r = await signup(name, email, password)
       if (!r.ok) { clearTimeout(failSafe); setError(r.error ?? 'Signup failed'); setSaving(false); return }
     }
@@ -129,7 +135,7 @@ export function AuthPage({ onNavigate }: { onNavigate: (r: string) => void }) {
           )}
           <Field label="Email"><input className="input" type="email" name="email" autoComplete="email" spellCheck={false} value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" /></Field>
           <Field label="Password" hint={mode === 'signup' ? 'At least 8 characters' : undefined}>
-            <input className="input" type="password" name="password" autoComplete={mode === 'signup' ? 'new-password' : 'current-password'} value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" />
+            <input className="input" type="password" name="password" autoComplete={mode === 'signup' ? 'new-password' : 'current-password'} minLength={mode === 'signup' ? 8 : undefined} value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" />
           </Field>
           {error && <div className="err-text" role="alert" tabIndex={-1} ref={errRef} style={{ marginBottom: 10 }}><TriangleAlert size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />{error}</div>}
           <button type="submit" className="btn btn-primary btn-lg" style={{ width: '100%' }} disabled={saving}>

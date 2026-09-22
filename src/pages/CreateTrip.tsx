@@ -1275,45 +1275,42 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
               </div>
             )}
             <div className="tk-stub">
-              {!billPrinted ? (
-                <>
-                  <button type="button" className="tk-print-btn" onClick={printBill}>
-                    <Printer size={16} aria-hidden /> Print my bill
-                  </button>
-                  <p className="tk-fine">
-                    {bill.perHead
-                      ? 'The rough take stays hidden until you print it.'
-                      : 'Add a date range and at least one geocoded stop to price the trip.'}
-                  </p>
-                  <button type="button" className="tk-cancel" onClick={() => onNavigate('/trips')}>Cancel</button>
-                </>
-              ) : (
+              {/* One primary action, always visible. The page used to hide
+                  Create trip behind "Print my bill", which left a form with no
+                  visible way to finish. Printing is now a secondary peek. */}
+              <button type="submit" form="yf-create-form" className="tk-cta">
+                Create trip <ArrowRight size={16} aria-hidden />
+              </button>
+              <div className="tk-subrow">
+                <button type="button" className="tk-cancel" onClick={printBill} disabled={!bill.perHead}>
+                  {billPrinted ? 'Hide the rough bill' : 'Print the rough bill'}
+                </button>
+                <button type="button" className="tk-cancel" onClick={() => onNavigate('/trips')}>Cancel</button>
+              </div>
+              <p className="tk-fine">
+                {bill.perHead
+                  ? 'Every figure on the bill shows its own maths.'
+                  : 'Add a date range and at least one geocoded stop to price the drive.'}
+              </p>
+              {billPrinted && (
                 <>
                   <div className="bill-printer" role="region" aria-label="Rough trip bill" ref={billRef}>
                     <div className="bill-slot" aria-hidden="true"><span></span></div>
                     <div className="bill-reveal">
                       <div className="bill-paper bill-paper-sway">
-                        <p className="bill-brand">YATRAFLOW · ROUGH BILL</p>
-                        <div className="bill-row"><span>Road (est.)</span><b className="mono">{bill.roadKm != null ? `≈ ${bill.roadKm} km` : '—'}</b></div>
+                        <p className="bill-brand">YATRAFLOW &ndash; ROUGH BILL</p>
+                        <div className="bill-row"><span>Road (est.)</span><b className="mono">{bill.roadKm != null ? `\u2248 ${bill.roadKm} km` : '-'}</b></div>
                         <div className="bill-row"><span>Transport</span><b className="mono"><Money v={bill.transportCost} animate={!reduced} /></b></div>
                         <p className="bill-formula">{bill.transportFormula || 'add a geocoded stop to price the drive'}</p>
                         <div className="bill-row"><span>Stay</span><b className="mono"><Money v={bill.stayCost} animate={!reduced} /></b></div>
                         <p className="bill-formula">{bill.stayFormula}</p>
                         <div className="bill-row"><span>Food</span><b className="mono"><Money v={bill.mealCost} animate={!reduced} /></b></div>
                         <p className="bill-formula">{bill.mealFormula}</p>
-                        <div className="bill-row bill-total"><span>Total</span><b className="mono">{'≈ '}<Money v={bill.perHead != null ? Math.round(bill.perHead * f.travellers) : null} animate={!reduced} /></b></div>
-                        <div className="bill-perhead"><span className="mono">{'≈ '}<Money v={bill.perHead ?? 0} animate={!reduced} /></span><span className="per">/ head</span></div>
-                        <p className="bill-note">rough take — refined once your route resolves in the workspace · excludes tolls, parking &amp; entry fees</p>
+                        <div className="bill-row bill-total"><span>Total</span><b className="mono">{'\u20B9 '}<Money v={bill.perHead != null ? Math.round(bill.perHead * f.travellers) : null} animate={!reduced} /></b></div>
+                        <div className="bill-perhead"><span className="mono">{'\u20B9 '}<Money v={bill.perHead ?? 0} animate={!reduced} /></span><span className="per">/ head</span></div>
+                        <p className="bill-note">rough take - refined once your route resolves in the workspace &middot; excludes tolls, parking &amp; entry fees</p>
                       </div>
                     </div>
-                  </div>
-                  <button type="submit" form="yf-create-form" className="tk-cta">
-                    Create trip <ArrowRight size={16} aria-hidden />
-                  </button>
-                  <div className="tk-subrow">
-                    <button type="button" className="tk-cancel" aria-label="Discard the printed bill and edit the trip details"
-                      onClick={() => { haptic(HAPTIC.toggle); setBillPrinted(false) }}>Discard bill</button>
-                    <button type="button" className="tk-cancel" onClick={() => onNavigate('/trips')}>Cancel</button>
                   </div>
                 </>
               )}

@@ -5463,7 +5463,7 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 .cal-hint { margin: 8px 0 0; font-size: 11px; color: var(--yf-text-muted); text-align: center; }
 
 /* ============ The Trip Ticket (right rail) ============ */
-.ts-rail { position: sticky; top: calc(var(--nav-h, 64px) + 16px); }
+.ts-rail { --rail-ink: #F2F7F5; --rail-ink-dim: rgba(242, 247, 245, 0.74); --rail-line: rgba(255, 255, 255, 0.16); position: sticky; top: calc(var(--nav-h, 64px) + 16px); }
 .ticket {
   position: relative; border-radius: 22px; overflow: hidden;
   background: linear-gradient(168deg, var(--yf-navy), color-mix(in srgb, var(--yf-navy) 78%, #04191F));
@@ -6451,10 +6451,10 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .tpl-card.on { border-color: var(--teal); box-shadow: 0 0 0 2px var(--teal-soft); }
 .tpl-cov { height: 56px; display: flex; align-items: flex-end; padding: 6px 9px; }
 .tpl-cov .em { font-size: 18px; line-height: 1; }
-.tpl-cov .days { margin-left: auto; font-size: 9.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; background: rgba(255,255,255,.88); border-radius: 999px; padding: 2px 8px; color: var(--text-2); }
-.tpl-bd { display: block; padding: 7px 10px 9px; }
+.tpl-cov .days { margin-left: auto; font-size: 9.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; background: var(--card); border-radius: 999px; padding: 2px 8px; color: var(--text); }
+.tpl-bd { display: block; min-height: 68px; padding: 7px 10px 9px; }
 .tpl-bd b { display: block; font-size: 12.5px; font-weight: 700; }
-.tpl-bd .r { font-size: 10.5px; color: var(--text-3); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tpl-bd .r { font-size: 10.5px; color: var(--text-3); margin-top: 1px; line-height: 1.3; min-height: 27px; }
 .tpl-bd .p { display: block; margin-top: 5px; font-size: 11px; color: var(--teal-deep, var(--teal)); font-weight: 700; }
 
 .tpl-bd .p small { display: block; color: var(--text-3); font-weight: 500; font-size: 9.5px; }
@@ -6686,15 +6686,39 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 /* the mockup fixes the pass at 380px and lets the flow take the rest */
 .container.form-page .ts-layout { grid-template-columns: minmax(0, 1fr) 380px; }
 
-.ts-rail .ticket { border: 1px solid var(--line); border-radius: var(--radius); background: var(--card); overflow: hidden; box-shadow: 0 14px 24px rgba(16, 46, 75, 0.10); }
-.ts-rail .tk-head { display: flex; align-items: center; justify-content: space-between; height: 40px; padding: 0 16px; background: var(--text); color: var(--card); }
-.ts-rail .tk-brand { font-size: 13px; font-weight: 700; letter-spacing: 0; text-transform: none; opacity: 1; }
-.ts-rail .tk-kind { font-size: 9.5px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--card); opacity: 0.75; }
+/* The pass is the app's own navy boarding pass, kept: it is the one component
+   on this page that already read as designed. Only the mockup's PROPORTIONS
+   are adopted here (tighter head, 86px cover, 12px rows, 18px radius). An
+   earlier pass repainted it white and left the light-on-dark ink in place,
+   which made the ticket's own content unreadable - the ink and the surface
+   have to move together, so the surface stays. */
+.ts-rail .ticket { border-radius: var(--radius); }
+.ts-rail .tk-head { height: 40px; padding: 0 16px; align-items: center; }
 .ts-rail .tk-cover { margin: 0; height: 86px; border-radius: 0; }
-.ts-rail .tk-body { padding: 12px 16px 8px; }
-.ts-rail .tk-title { font-size: 18px; font-weight: 800; }
-.ts-rail .tk-row { font-size: 12px; }
-.ts-rail .tk-rows { margin-top: 8px; gap: 4px; }
-.ts-rail .tear { border-top: 1.5px dashed var(--line); margin: 8px 0 0; }
-.ts-rail .tk-stub { padding: 12px 16px 16px; background: color-mix(in srgb, var(--amber) 6%, var(--card)); }
+.ts-rail .tk-body { padding: 12px 16px 0; }
+.ts-rail .tk-rows { margin-top: 8px; gap: 6px; }
+.ts-rail .tk-row { font-size: 12.5px; }
+.ts-rail .tk-stub { padding: 12px 16px 16px; }
 .ts-rail .tk-cta { width: 100%; }
+/* ============================================================
+   Create Trip - polish pass (from the screenshot review)
+   The readiness block and the pass's fine print were drawn with the LIGHT
+   theme's text tokens, which on the navy pass read as disabled rather than
+   secondary. The pass has its own ink; these rules give it its own tokens.
+   ============================================================ */
+
+.ts-rail .ready-block { padding: 12px; border: 1px solid var(--rail-line); border-radius: var(--radius-sm); background: rgba(255, 255, 255, 0.06); }
+.ts-rail .ready-lab { font-size: 12.5px; font-weight: 700; color: var(--rail-ink); }
+.ts-rail .ready-pct { font-size: 13px; font-weight: 700; color: var(--rail-ink); }
+.ts-rail .ready-row { font-size: 12.5px; color: var(--rail-ink-dim); }
+.ts-rail .ready-row.ok { color: var(--rail-ink); }
+.ts-rail .ready-name { font-weight: 600; }
+.ts-rail .ready-why { font-size: 11.5px; color: var(--rail-ink-dim); }
+.ts-rail .ready-tick { width: 16px; height: 16px; border: 1.5px solid var(--rail-line); font-size: 10px; color: transparent; }
+.ts-rail .ready-row.ok .ready-tick { border-color: var(--rail-ink); background: var(--rail-ink); color: #0B2545; }
+
+.ts-rail .tk-fine { color: var(--rail-ink-dim); font-size: 11.5px; }
+.ts-rail .tk-cancel { color: var(--rail-ink-dim); font-size: 11.5px; }
+.ts-rail .tk-subrow .tk-cancel:first-child { color: var(--rail-ink); text-decoration: underline; text-underline-offset: 3px; }
+.ts-rail .tk-route { font-size: 12.5px; }
+

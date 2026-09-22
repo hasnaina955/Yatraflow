@@ -1,5 +1,6 @@
 // ============ Profile & settings ============
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { InlineIcon } from '../components/icons'
 import { Bell, LogOut, Mail, Moon, Sparkles, Sun } from 'lucide-react'
 import { TravelStyle } from '../data/types'
 import { TRAVEL_STYLES } from '../data/types'
@@ -231,7 +232,7 @@ export function ProfilePage({ onNavigate }: { onNavigate: (r: string) => void })
                 aria-pressed={dark}
                 onClick={() => setTheme(!dark)}
               >
-                {dark ? <><Sun size={14} aria-hidden style={{ verticalAlign: '-2px', marginRight: 6 }} />Light mode</> : <><Moon size={14} aria-hidden style={{ verticalAlign: '-2px', marginRight: 6 }} />Dark mode</>}
+                {dark ? <><InlineIcon icon={Sun} size={14} gap={6} />Light mode</> : <><InlineIcon icon={Moon} size={14} gap={6} />Dark mode</>}
               </button>
             </div>
 
@@ -261,16 +262,16 @@ export function ProfilePage({ onNavigate }: { onNavigate: (r: string) => void })
               <h3>Account</h3>
               {me.profile.isCreator && (
                 <button className="btn btn-outline btn-sm" style={{ marginBottom: 8 }} onClick={() => onNavigate('/creator-hub')}>
-                  <Sparkles size={14} aria-hidden style={{ verticalAlign: '-2px', marginRight: 6 }} />Creator hub
+                  <InlineIcon icon={Sparkles} size={14} gap={6} />Creator hub
                 </button>
               )}
               <div>
                 <a className="btn btn-outline btn-sm" href={feedbackHref()} style={{ marginBottom: 8 }}>
-                  <Mail size={14} aria-hidden style={{ verticalAlign: '-2px', marginRight: 6 }} />Send feedback
+                  <InlineIcon icon={Mail} size={14} gap={6} />Send feedback
                 </a>
               </div>
               <button className="btn btn-danger btn-sm" onClick={() => { logout(); onNavigate('/') }}>
-                <LogOut size={14} aria-hidden style={{ verticalAlign: '-2px', marginRight: 6 }} />Log out
+                <InlineIcon icon={LogOut} size={14} gap={6} />Log out
               </button>
             </div>
           </>}

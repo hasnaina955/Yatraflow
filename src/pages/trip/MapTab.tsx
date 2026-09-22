@@ -1,6 +1,7 @@
 // ============ Trip workspace — Map tab ============
 // Mechanical extraction from src/pages/TripWorkspace.tsx (M3.4) — no behavior changes.
 import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { InlineIcon } from '../../components/icons'
 import { BedDouble, ChevronDown, CircleCheck, Coffee, ExternalLink, Fuel, Lightbulb, MapPin, Pause, Plus, RotateCcw, Sparkles, Star, Utensils } from 'lucide-react'
 import { uid } from '../../data/seed'
 import type { Trip, ItineraryStop, TripDecision } from '../../data/types'
@@ -1261,7 +1262,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
         ))}
         {editable && (
           added
-            ? <span className="chip chip-teal"><CircleCheck size={11} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />Added</span>
+            ? <span className="chip chip-teal"><InlineIcon icon={CircleCheck} size={11} gap={3} />Added</span>
             : <button className="day-slot-fill" onClick={() => openAddModal(hit)}>+ Add to a day</button>
         )}
         {!added && editable && (
@@ -1543,7 +1544,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     <div>
       <div className="card">
         <div className="row-between">
-          <h3 style={{ margin: 0 }}><Lightbulb size={16} aria-hidden style={{ verticalAlign: '-3px', marginRight: 4 }} />Nearby ideas</h3>
+          <h3 style={{ margin: 0 }}><InlineIcon icon={Lightbulb} size={16} gap={4} vAlign="-3px" />Nearby ideas</h3>
           <div className="row-between" style={{ gap: 10 }}>
             <span className="small muted" aria-live="polite">{loadingPois ? 'searching…' : `${pois.filter(p => p.hit).length} suggested stops - spaced for fatigue & anchored on cities`}</span>
             <button
@@ -1552,7 +1553,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
               onClick={() => { suggestionCache.clearMap(); setRefreshTick(t => t + 1) }}
               disabled={loadingPois}
             >
-              <RotateCcw size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />Refresh
+              <InlineIcon icon={RotateCcw} size={12} gap={3} />Refresh
             </button>
           </div>
         </div>
@@ -1619,7 +1620,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
                   </span>
                   {editable && (added ? (
                     <span style={{ flex: '0 0 auto', marginLeft: 8 }}>
-                      <span className="chip chip-teal"><CircleCheck size={11} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />Added</span>
+                      <span className="chip chip-teal"><InlineIcon icon={CircleCheck} size={11} gap={3} />Added</span>
                     </span>
                   ) : (
                     <span style={{ display: 'flex', gap: 4, flex: '0 0 auto', alignItems: 'center', marginLeft: 8 }}>

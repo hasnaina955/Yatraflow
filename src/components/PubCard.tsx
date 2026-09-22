@@ -3,7 +3,7 @@
 // lands everywhere at once. Fork + save behavior arrive as callbacks; the
 // creator line links to the creator's public page (#/creator/:id).
 import { Calendar, Camera, GitFork, Heart, MapPin, Sparkles, TvMinimalPlay, Wallet } from 'lucide-react'
-import { MetaIcon } from './icons'
+import { InlineIcon, MetaIcon } from './icons'
 import type { PublishedItinerary, User } from '../data/types'
 import { formatInr } from '../lib/engine'
 import { cap } from '../lib/labels'
@@ -41,7 +41,7 @@ export function PubCard({ pub, creator, saved, onFork, onToggleSave, enterIndex,
         <div className="itin-body">
           <div className="row-between" style={{ marginTop: 0 }}>
             <Chip tone="teal">{cap(pub.travelStyle)}</Chip>
-            <span className="small muted"><GitFork size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />{pub.copies}</span>
+            <span className="small muted"><InlineIcon icon={GitFork} size={12} gap={3} />{pub.copies}</span>
           </div>
           <h2 className="card-title">{pub.title}</h2>
           <p className="small muted" style={{ margin: 0 }}>{pub.tagline}</p>
@@ -54,7 +54,7 @@ export function PubCard({ pub, creator, saved, onFork, onToggleSave, enterIndex,
       </a>
       <div className="row-between itin-meta">
         <a className="creator-line" href={`#/creator/${pub.creatorId}`} aria-label={`View ${creator?.profile.name ?? 'creator'}'s page`}>
-          <Avatar user={creator} />{creator?.profile.name ?? 'Creator'}{creator?.profile.isCreator && <span title="Creator" style={{ display: 'inline-flex', verticalAlign: '-2px', marginLeft: 2 }}><Sparkles size={12} aria-hidden /></span>}
+          <Avatar user={creator} />{creator?.profile.name ?? 'Creator'}{creator?.profile.isCreator && <InlineIcon icon={Sparkles} size={12} gap={0} style={{ marginLeft: 2 }} />}
         </a>
         <button className="btn btn-primary btn-sm" onClick={onFork}>{needsLogin ? 'Log in to fork' : 'Fork this trip'}</button>
       </div>

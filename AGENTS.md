@@ -298,6 +298,18 @@ Hard rules (each learned the hard way — do not relearn them):
   baseline and confirm the finding names are identical before/after (e.g. 29
   in → 29 out). A name that appears on only one side is a REAL new violation —
   fix it, don't ratchet it in (Sep 2026, three label phases in a row).
+- **The ratchet parses each selector's OWN declaration pair — it never walks
+  the cascade (learned 2026-09-22).** A `:root` override can fix a contrast
+  finding on screen while the baseline keeps it forever: `.day-warn-pill`
+  rendered at its override's `--ink-amber` 5.38:1 while the baseline still
+  recorded `.day-warn-pill — 3.69:1` from the base rule, so an audit reading
+  the baseline reported a defect the screen did not have — and a browser check
+  would have "disproved" it. Fix the **base rule** (the later override then
+  becomes redundant), re-baseline, and expect exactly that name to LEAVE the
+  diff; a name that stays means the fix never reached the declaration the
+  checker parses. Same root, other direction: `offLadderSpacing` flags a
+  `margin-right: 3px` written in CSS even when the component beside it renders
+  the same gap from JS — pick the ladder value (4) in the CSS too.
 - If Vercel's deploy fails, reproduce locally with `npm run build` (the exact
   Vercel command: `tsc -b && vite build`), not `tsc` alone.
 - `npm warn allow-scripts` about esbuild is a **warning, not a failure**; it's

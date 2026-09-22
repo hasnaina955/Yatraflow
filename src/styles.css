@@ -813,6 +813,13 @@ a.btn { text-decoration: none; }
      box-shadow, so the selected chip's text/glow popped while its fill eased. */
   transition: transform var(--t-fast) var(--ease-out), background var(--t-fast) var(--ease-out), border-color var(--t-fast) var(--ease-out), color var(--t-fast) var(--ease-out), box-shadow var(--t-fast) var(--ease-out); }
 .clickable-chip.on-teal { border-color: var(--teal); background: var(--teal-soft); color: var(--teal-deep); }
+/* AA: the base rules below used raw --warn on a light tint (3.48–3.69:1 as
+   the design-system ratchet reads them — and 3.48:1 rendered on
+   .clickable-chip.on-saffron OUTSIDE a pill-nav, where the glider's own
+   #5C3600 ink does not reach). SYS-3a's --ink-amber is the text ink for this
+   exact hue: 5.08–5.38:1 light; dark re-declares it to --warn, so dark is
+   byte-identical. Fixed at the SOURCE rule — the ratchet computes each
+   selector's own declaration pair. */
 .clickable-chip.on-saffron { border-color: var(--saffron); background: var(--saffron-soft); color: var(--ink-amber); }
 .clickable-chip:hover { transform: translateY(-1px); }
 .chip-row { display: flex; flex-wrap: wrap; gap: 7px; }
@@ -1564,6 +1571,11 @@ a.btn { text-decoration: none; }
   /* size/weight/tracking/casing come from the kicker-unification block
      (var(--kicker-*), later in this file) — nothing local left to drift. */
 }
+/* The kind glyph leads its label in the kicker. 11px sits optical-centre on
+   the 9.5px caps; the offset mirrors InlineIcon's baseline rule so every
+   inline glyph in the app lands on the same line — and the gap is 4, the
+   helper's own default (on the spacing ladder, unlike the 3px drift). */
+.board-stop-kicker svg { vertical-align: -1.5px; margin-right: 4px; }
 .board-stop .stop-title {
   display: block; font-size: 13px; margin-top: 2px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;

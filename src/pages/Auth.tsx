@@ -1,5 +1,6 @@
 // ============ Auth page ============
 import { useEffect, useRef, useState } from 'react'
+import { InlineIcon } from '../components/icons'
 import { TriangleAlert } from 'lucide-react'
 import { PillNav } from '../components/PillNav'
 import { useTablist } from '../hooks/useTablist'
@@ -117,7 +118,7 @@ export function AuthPage({ onNavigate }: { onNavigate: (r: string) => void }) {
             only ever fail, and "Failed to fetch" blames the wrong thing. */}
         {!isSupabaseConfigured && (
           <div className="err-text" style={{ marginBottom: 12 }}>
-            <TriangleAlert size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} /><strong>This build has no backend configured.</strong>
+            <InlineIcon icon={TriangleAlert} size={13} gap={4} /><strong>This build has no backend configured.</strong>
             <div className="small" style={{ marginTop: 4 }}>{MISSING_BACKEND_MESSAGE}</div>
           </div>
         )}
@@ -137,7 +138,7 @@ export function AuthPage({ onNavigate }: { onNavigate: (r: string) => void }) {
           <Field label="Password" hint={mode === 'signup' ? 'At least 8 characters' : undefined}>
             <input className="input" type="password" name="password" autoComplete={mode === 'signup' ? 'new-password' : 'current-password'} minLength={mode === 'signup' ? 8 : undefined} value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" />
           </Field>
-          {error && <div className="err-text" role="alert" tabIndex={-1} ref={errRef} style={{ marginBottom: 10 }}><TriangleAlert size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />{error}</div>}
+          {error && <div className="err-text" role="alert" tabIndex={-1} ref={errRef} style={{ marginBottom: 10 }}><InlineIcon icon={TriangleAlert} size={13} gap={4} />{error}</div>}
           <button type="submit" className="btn btn-primary btn-lg" style={{ width: '100%' }} disabled={saving}>
             {saving ? (mode === 'login' ? 'Signing in…' : 'Creating account…') : mode === 'login' ? 'Log in' : 'Create account'}
           </button>

@@ -7,7 +7,7 @@ import {
   Calendar, Camera, Car, Clock, Flag, GitFork, Heart, Link2, Lock, MapPin,
   Route, Sparkles, Ticket, TriangleAlert,
 } from 'lucide-react'
-import { MetaIcon } from '../components/icons'
+import { InlineIcon, MetaIcon, modeIcon } from '../components/icons'
 import { openExternal } from '../lib/native'
 import type { Trip, PublishedItinerary } from '../data/types'
 import type { Entitlement } from '../lib/payments'
@@ -282,7 +282,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
           <p className="pub-hero-story">{pub.tagline}</p>
           <p className="pub-hero-byline">
             By {creator?.profile.name ?? 'a YatraFlow traveller'} · {pub.durationDays} days · {trip.travellers} travellers · {cap(trip.transportMode)}
-            {creator?.profile.isCreator && <> · <Sparkles size={11} aria-hidden style={{ verticalAlign: '-1px', margin: '0 2px' }} />Creator</>}
+            {creator?.profile.isCreator && <> · <InlineIcon icon={Sparkles} size={11} gap={2} vAlign="-1px" style={{ marginLeft: 2 }} />Creator</>}
           </p>
         </div>
         {/* "The practical bit" — the evidence cluster, floating over the hero */}
@@ -293,7 +293,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
           <hr className="pub-stats-divider" />
           <div className="pub-stats-row">
             <span><MetaIcon icon={ MapPin } tone="place" />{pub.routeSummary.length} place{pub.routeSummary.length === 1 ? '' : 's'}</span>
-            <span><Route size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />{totalsN.totalDistanceKm.toFixed(0)} km</span>
+            <span><InlineIcon icon={Route} size={12} gap={3} />{totalsN.totalDistanceKm.toFixed(0)} km</span>
             <span><MetaIcon icon={ Clock } tone="time" />{minutesToHM(totalsN.totalTravelMinutes)} on the road</span>
             <span><MetaIcon icon={ Calendar } tone="time" />{pub.durationDays} days</span>
           </div>
@@ -307,10 +307,10 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
             <b>Made to be copied, adjusted and made your own.</b>
             <div className="pub-actions-btns">
               <button className="btn save-btn" onClick={saveThis} aria-pressed={savedFlag}>
-                <Heart size={13} aria-hidden fill={savedFlag ? 'currentColor' : 'none'} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+                <InlineIcon icon={Heart} size={13} gap={4} fill={savedFlag ? 'currentColor' : 'none'} />
                 {savedFlag ? 'Saved' : 'Save itinerary'}
               </button>
-              <button className="btn fork-btn" onClick={copyThis}><GitFork size={14} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />{me ? 'Fork this trip' : 'Log in to fork'}</button>
+              <button className="btn fork-btn" onClick={copyThis}><InlineIcon icon={GitFork} size={14} gap={4} />{me ? 'Fork this trip' : 'Log in to fork'}</button>
             </div>
           </div>
 
@@ -364,7 +364,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
               <div className="creator-line">
                 <Avatar user={creator} size="lg" />
                 <div>
-                  <b>{creator?.profile.name ?? 'Creator'}</b>{creator?.profile.isCreator && <span className="chip chip-saffron" style={{ marginLeft: 8 }}><Sparkles size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />Creator</span>}
+                  <b>{creator?.profile.name ?? 'Creator'}</b>{creator?.profile.isCreator && <span className="chip chip-saffron" style={{ marginLeft: 8 }}><InlineIcon icon={Sparkles} size={12} gap={3} />Creator</span>}
                   {creator?.profile.creatorBio && <p className="small muted" style={{ margin: '5px 0 0' }}>{creator.profile.creatorBio}</p>}
                   {isMyPub && (
                     <div className="pub-funnel-glance" role="note" aria-label="How this plan converts, last 7 days">
@@ -392,7 +392,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
               {creator?.profile.socialLinks && (
                 <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
                   {creator.profile.socialLinks.youtube && <a className="chip chip-info" href={creator.profile.socialLinks.youtube} target="_blank" rel="noreferrer" onClick={e => { e.preventDefault(); openExternal(creator.profile.socialLinks!.youtube!) }}>▶ YouTube</a>}
-                  {creator.profile.socialLinks.instagram && <a className="chip chip-info" href={creator.profile.socialLinks.instagram} target="_blank" rel="noreferrer" onClick={e => { e.preventDefault(); openExternal(creator.profile.socialLinks!.instagram!) }}><Camera size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />Instagram</a>}
+                  {creator.profile.socialLinks.instagram && <a className="chip chip-info" href={creator.profile.socialLinks.instagram} target="_blank" rel="noreferrer" onClick={e => { e.preventDefault(); openExternal(creator.profile.socialLinks!.instagram!) }}><InlineIcon icon={Camera} size={12} gap={3} />Instagram</a>}
                 </div>
               )}
               {creator && (
@@ -420,11 +420,11 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
                           : `${stops.length} stops · ~${minutesToHM(sim.totalTravelMinutes)} travel`}
                       </div>
                     </div>
-                    {!isFree && <Chip tone="saffron"><Lock size={11} aria-hidden style={{ verticalAlign: '-1px', marginRight: 3 }} />Premium</Chip>}
+                    {!isFree && <Chip tone="saffron"><InlineIcon icon={Lock} size={11} gap={3} vAlign="-1px" />Premium</Chip>}
                   </div>
 
                   {(isFree || unlocked) ? (
-                    <DayStops stops={stops} sim={sim} assumptions={A} timeFormat={timeFormat} stayDay={sim.activeStops.length <= 1 && sim.totalDistanceKm < 0.5} />
+                    <DayStops stops={stops} sim={sim} assumptions={A} timeFormat={timeFormat} stayDay={sim.activeStops.length <= 1 && sim.totalDistanceKm < 0.5} mode={trip.transportMode} />
                   ) : (
                     <>
                       <div className="locked-overlay">
@@ -434,7 +434,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
                           ))}
                         </div>
                         <div className="locked-cta">
-                          <b><Lock size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />{stops.length} more stops on this day</b>
+                          <b><InlineIcon icon={Lock} size={13} gap={4} />{stops.length} more stops on this day</b>
                           <p className="small">Stay contacts, timings and the budget breakdown are in the full plan.</p>
                           {price !== undefined && <button className="btn btn-saffron" disabled={buying} onClick={unlockThis}>{buying ? 'Opening payments…' : <>Unlock full plan · {formatInr(price)}</>}</button>}
                         </div>
@@ -458,7 +458,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
                 <h2>Warnings & assumptions</h2>
                 <hr className="divider" />
                 <ul style={{ paddingLeft: 18, lineHeight: 1.9, margin: 0 }}>
-                  {pub.warningsAndAssumptions.map((t, i) => <li key={i}><TriangleAlert size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />{t}</li>)}
+                  {pub.warningsAndAssumptions.map((t, i) => <li key={i}><InlineIcon icon={TriangleAlert} size={12} gap={3} />{t}</li>)}
                 </ul>
               </div>
             </div>
@@ -472,11 +472,11 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
                 Forks the free preview into your YatraFlow account — locked days come over as placeholders you can fill in yourself.
               </p>
               <button className="btn fork-btn btn-lg" style={{ width: '100%' }} onClick={copyThis}>
-                <GitFork size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 5 }} />{me ? 'Fork this trip' : 'Log in to fork'}
+                <InlineIcon icon={GitFork} size={15} gap={5} />{me ? 'Fork this trip' : 'Log in to fork'}
               </button>
               {price !== undefined && !unlocked && <button className="btn btn-saffron btn-lg" style={{ width: '100%', marginTop: 10 }}
                 disabled={buying} onClick={unlockThis}>
-                <Lock size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 5 }} />{buying ? 'Opening payments…' : <>Unlock full plan · {formatInr(price)}</>}
+                <InlineIcon icon={Lock} size={15} gap={5} />{buying ? 'Opening payments…' : <>Unlock full plan · {formatInr(price)}</>}
               </button>}
               {price !== undefined && unlocked && <p className="hint-text" style={{ textAlign: 'center', marginTop: 10 }}>
                 ✓ Full plan unlocked — forking carries every day as a real, editable plan.
@@ -525,7 +525,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
  *  views — one renderer so an unlocked day shows EXACTLY what a free day
  *  shows, including the travelling strips (departure/arrival, distance,
  *  cost) the first cut of the unlock flow silently dropped. */
-function DayStops({ stops, sim, assumptions, timeFormat, stayDay }: {
+function DayStops({ stops, sim, assumptions, timeFormat, stayDay, mode }: {
   stops: ReturnType<typeof simulateDay>['activeStops'] extends never ? never : Array<{
     id: string
     auto?: boolean
@@ -542,6 +542,8 @@ function DayStops({ stops, sim, assumptions, timeFormat, stayDay }: {
   assumptions: ReturnType<typeof getAssumptions>
   timeFormat: '12h' | '24h'
   stayDay: boolean
+  /** the trip's transport mode — the travelling strip's glyph follows it. */
+  mode: string
 }) {
   return (
     <>
@@ -572,7 +574,7 @@ function DayStops({ stops, sim, assumptions, timeFormat, stayDay }: {
           return (
             <div key={s.id} className="travel-anchor">
               <div className="travel-anchor-title">
-                <span className="travel-anchor-ico">{i === 0 ? <Flag size={13} aria-hidden /> : <Car size={13} aria-hidden />}</span>
+                <span className="travel-anchor-ico">{i === 0 ? <Flag size={13} aria-hidden /> : modeIcon(mode, 13)}</span>
                 <span>{i === 0 ? `Start · ${cleanName}` : `Travelling to ${cleanName}`}</span>
               </div>
               <div className="travel-anchor-meta">

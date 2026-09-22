@@ -13,7 +13,7 @@ import { fetchDailyWeather, forecastAvailable, wmoInfo } from '../../lib/weather
 import type { DayWeather } from '../../lib/weather'
 import { timeAgo } from './shared'
 import { Avatar, Chip, StatTile, RouteSnapshot } from '../../components/ui'
-import { wmoIcon } from '../../components/icons'
+import { InlineIcon, wmoIcon } from '../../components/icons'
 
 // ================= Overview =================
 
@@ -84,10 +84,10 @@ export function OverviewTab({ trip, onOpenTimeline, onOpenMap, onInvite, health,
                   ? <li>No schedule issues detected — buffers look healthy.</li>
                   : health.warnings.slice(0, 3).map(w => (
                     <li key={w.code + w.title}>{w.severity === 'high'
-                      ? <><Siren size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} /></>
+                      ? <><InlineIcon icon={Siren} size={12} gap={3} /></>
                       : w.severity === 'medium'
-                      ? <><TriangleAlert size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} /></>
-                      : <><Lightbulb size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} /></>}{w.title}</li>
+                      ? <><InlineIcon icon={TriangleAlert} size={12} gap={3} /></>
+                      : <><InlineIcon icon={Lightbulb} size={12} gap={3} /></>}{w.title}</li>
                   ))}
               </ul>
             </div>
@@ -118,7 +118,7 @@ export function OverviewTab({ trip, onOpenTimeline, onOpenMap, onInvite, health,
                   <span className="warn-icon">{w.severity === 'high' ? <Siren size={13} aria-hidden /> : w.severity === 'medium' ? <TriangleAlert size={13} aria-hidden /> : <Lightbulb size={13} aria-hidden />}</span>
                   <div>
                     <div className="warn-title">{w.title}</div>
-                    <div className="warn-fix"><CircleCheck size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />{w.fix}</div>
+                    <div className="warn-fix"><InlineIcon icon={CircleCheck} size={12} gap={3} />{w.fix}</div>
                   </div>
                 </div>
               ))}
@@ -231,7 +231,7 @@ function WeatherCard({ trip }: { trip: Trip }) {
   }, [anchor, trip.startDate, trip.days.length]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (state === 'loading') {
-    return <div className="card"><h3 className="card-head"><CloudSun size={14} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Weather</h3><p className="muted small">Loading forecast…</p></div>
+    return <div className="card"><h3 className="card-head"><InlineIcon icon={CloudSun} size={14} gap={4} />Weather</h3><p className="muted small">Loading forecast…</p></div>
   }
   if (state !== 'ready') return null
 
@@ -240,7 +240,7 @@ function WeatherCard({ trip }: { trip: Trip }) {
   return (
     <div className="card">
       <div className="row-between card-head">
-        <h3><CloudSun size={14} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Weather along the route</h3>
+        <h3><InlineIcon icon={CloudSun} size={14} gap={4} />Weather along the route</h3>
         <span className="small muted">Open-Meteo · forecasts ±15 days</span>
       </div>
       <div className="weather-strip">
@@ -253,14 +253,14 @@ function WeatherCard({ trip }: { trip: Trip }) {
               <div className="weather-day">{dayNum >= 0 ? `Day ${dayNum + 1}` : w.date}</div>
               <div className="weather-icon">{(() => { const W = wmoIcon(w.code); return <W size={15} aria-hidden /> })()}</div>
               <div className="weather-temp">{Math.round(w.tempMinC)}°–{Math.round(w.tempMaxC)}°</div>
-              <div className="small muted"><Droplets size={11} aria-hidden style={{ verticalAlign: '-2px', marginRight: 2 }} />{w.rainChancePct}%</div>
+              <div className="small muted"><InlineIcon icon={Droplets} size={11} gap={2} />{w.rainChancePct}%</div>
             </div>
           )
         })}
       </div>
       {wetDays > 0 && (
         <p className="hint-text" style={{ marginTop: 8 }}>
-          <TriangleAlert size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />High rain chance on {wetDays} day{wetDays > 1 ? 's' : ''} — consider indoor alternatives for weather-sensitive stops (beaches, viewpoints, treks).
+          <InlineIcon icon={TriangleAlert} size={12} gap={3} />High rain chance on {wetDays} day{wetDays > 1 ? 's' : ''} — consider indoor alternatives for weather-sensitive stops (beaches, viewpoints, treks).
         </p>
       )}
     </div>

@@ -4,6 +4,7 @@
 // "Creator hub" nav pill (and the Profile gateway card). Requires a creator
 // account; non-creators see an enable call-to-action.
 import { useEffect, useState } from 'react'
+import { InlineIcon } from '../components/icons'
 import { ExternalLink, Pencil } from 'lucide-react'
 import { PillNav } from '../components/PillNav'
 import type { PublishedItinerary } from '../data/types'
@@ -157,7 +158,7 @@ export function CreatorHubPage({ onNavigate }: { onNavigate: (r: string) => void
               <h2 className="card-title">My publications</h2>
               {myPubs.length > 0 && (
                 <a className="small" href={`#/creator/${me.id}`} style={{ fontWeight: 600 }}>
-                  <ExternalLink size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />View public page
+                  <InlineIcon icon={ExternalLink} size={12} gap={3} />View public page
                 </a>
               )}
             </div>
@@ -366,7 +367,7 @@ function PubOverview({ myPubs, onUnpublish, onNavigate, daily, salesRows, funnel
                   <button className="btn btn-saffron btn-sm" onClick={() => onNavigate(`/trip/${p.tripId}/share`)}>Update page</button>
                 )}
                 <button className="btn btn-outline btn-sm" aria-label={`Edit ${p.title}`} onClick={() => onNavigate(`/trip/${p.tripId}/share`)}>
-                  <Pencil size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />Edit
+                  <InlineIcon icon={Pencil} size={13} gap={3} />Edit
                 </button>
                 <button className="btn btn-ghost btn-sm" onClick={() => onUnpublish(p)}>Unpublish</button>
               </span>

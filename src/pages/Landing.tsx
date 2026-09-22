@@ -1,5 +1,6 @@
 // ============ Landing page ============
 import { useEffect, useRef, type ReactNode } from 'react'
+import { InlineIcon } from '../components/icons'
 import { ArrowDown, ArrowRight, Clock, MapPin, Plane, Route, TriangleAlert, Users, Zap } from 'lucide-react'
 import { RouteSquiggle, useInView, usePageVisible } from '../components/ui'
 import { PlanBench } from '../components/PlanBench'
@@ -37,7 +38,7 @@ export function LandingPage({ onNavigate }: { onNavigate: (r: string) => void })
               and keep your whole crew on the same page.
             </p>
             <div className="hero-ctas hero-rise rise-d3">
-              <a className="btn btn-primary btn-lg" href={startPlanningHref}>Start planning free <ArrowRight size={16} aria-hidden style={{ verticalAlign: '-3px', marginLeft: 4 }} /></a>
+              <a className="btn btn-primary btn-lg" href={startPlanningHref}>Start planning free <InlineIcon icon={ArrowRight} size={16} gap={0} vAlign="-3px" style={{ marginLeft: 4 }} /></a>
               <a className="btn btn-saffron btn-lg" href="#/explore">Explore itineraries</a>
             </div>
           </div>
@@ -131,8 +132,8 @@ export function LandingPage({ onNavigate }: { onNavigate: (r: string) => void })
                 <div className="fp-delta"><b>+38 km</b><span>Distance</span></div>
                 <div className="fp-delta"><b>+₹1,240</b><span>Est. cost</span></div>
               </div>
-              <div className="fp-warn"><TriangleAlert size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Day 3 is overloaded<span>Add a rest halt to protect your arrival time.</span></div>
-              <div className="fp-tip"><Clock size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Fort Kochi closes at 5 PM<span>Reach by 4:30, or swap with the naval museum.</span></div>
+              <div className="fp-warn"><InlineIcon icon={TriangleAlert} size={12} gap={4} />Day 3 is overloaded<span>Add a rest halt to protect your arrival time.</span></div>
+              <div className="fp-tip"><InlineIcon icon={Clock} size={12} gap={4} />Fort Kochi closes at 5 PM<span>Reach by 4:30, or swap with the naval museum.</span></div>
             </div>
           </FeatureCard>
           <FeatureCard cls="reveal reveal-d1 feature-tint" icon={<Route size={20} aria-hidden />} title="Plan around real road time" body="Route days, break suggestions and arrival times designed for how journeys really work." />

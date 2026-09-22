@@ -1,7 +1,7 @@
 // ============ My trips ============
 import { useEffect, useMemo, useState } from 'react'
 import { Clock, Compass, Plus, Rocket, ShoppingBag, Trash2, Wallet } from 'lucide-react'
-import { MetaIcon } from '../components/icons'
+import { InlineIcon, MetaIcon } from '../components/icons'
 import { useTrips, useTrashedTrips, useUsers, useSessionUserId, tripsForUser, trashTrip, restoreTrashedTrip, restoreTrashedTripById, permanentlyDeleteTrip, fetchTrashedTrips, addDemoTrips } from '../store/store'
 import { computeTotals, formatInrShort } from '../lib/engine'
 import { cap } from '../lib/labels'
@@ -112,12 +112,12 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
               their travel — a bought plan is not one of your trips, so it gets
               its own list rather than a row among them. */}
           <button className="btn btn-outline" onClick={() => onNavigate('/purchases')}>
-            <ShoppingBag size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 5 }} />My purchases
+            <InlineIcon icon={ShoppingBag} size={15} gap={5} />My purchases
           </button>
-          <button className={`btn btn-outline${view === 'trash' ? ' on-teal' : ''}`} aria-pressed={view === 'trash'} onClick={() => setView(v => v === 'trash' ? 'trips' : 'trash')}><Trash2 size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 5 }} />Trash</button>
+          <button className={`btn btn-outline${view === 'trash' ? ' on-teal' : ''}`} aria-pressed={view === 'trash'} onClick={() => setView(v => v === 'trash' ? 'trips' : 'trash')}><InlineIcon icon={Trash2} size={15} gap={5} />Trash</button>
           <ImportTripButton ownerId={meId} onNavigate={onNavigate} />
-          <button className="btn btn-outline" onClick={addDemoTrips} aria-label="Load demo trips" title="Adds 3 sample trips — Kerala, Goa & Rajasthan — to your account"><Rocket size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 5 }} /><span>Load demo trips</span></button>
-          <button className="btn btn-primary" onClick={() => onNavigate('/new')}><Plus size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Plan a new trip</button>
+          <button className="btn btn-outline" onClick={addDemoTrips} aria-label="Load demo trips" title="Adds 3 sample trips — Kerala, Goa & Rajasthan — to your account"><InlineIcon icon={Rocket} size={15} gap={5} /><span>Load demo trips</span></button>
+          <button className="btn btn-primary" onClick={() => onNavigate('/new')}><InlineIcon icon={Plus} size={15} gap={4} />Plan a new trip</button>
         </div>
       </div>
 
@@ -156,7 +156,7 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
           action={
             <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
               <button className="btn btn-outline" onClick={() => onNavigate('/new')}>Plan your first trip</button>
-              <button className="btn btn-outline" onClick={addDemoTrips}><Rocket size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 5 }} />Load demo trips</button>
+              <button className="btn btn-outline" onClick={addDemoTrips}><InlineIcon icon={Rocket} size={15} gap={5} />Load demo trips</button>
               <button className="btn btn-outline" onClick={() => onNavigate('/explore')}>Explore itineraries</button>
             </div>
           }

@@ -7,6 +7,7 @@
 // decision context, and per-filter empty states each get an exit.
 // The underlying data model (two tables) and store actions are unchanged.
 import { useEffect, useMemo, useState } from 'react'
+import { InlineIcon } from '../../components/icons'
 import { scrollBehavior } from '../../lib/motion'
 import type { FormEvent } from 'react'
 import { Car, ChevronDown, ChevronUp, ClipboardList, Clock, Lightbulb, MapPin, Plus, Scale, Sparkles, Ticket, X } from 'lucide-react'
@@ -356,12 +357,12 @@ function DecisionCard({ d, me, editable, needsMe, trip }: {
       {d.status === 'open' && (
         <div className="gi-guide" style={{ marginTop: 10 }}>
           <p className="small muted" style={{ margin: 0 }}>
-            <ClipboardList size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />
+            <InlineIcon icon={ClipboardList} size={12} gap={4} />
             {contextLine(ctx)}
           </p>
           {rec && (
             <p className="small" style={{ margin: '4px 0 0' }}>
-              <Sparkles size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />
+              <InlineIcon icon={Sparkles} size={12} gap={4} />
               <b>{rec.label}</b> — {rec.reason} <Chip tone="info">offline</Chip>
             </p>
           )}

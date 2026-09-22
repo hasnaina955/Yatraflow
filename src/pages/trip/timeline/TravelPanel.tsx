@@ -32,7 +32,7 @@ import { segmentsFromPlan, assignSegmentHits, annotateSegmentHits, type HaltPlan
 import { daySlackMin, slackPrompt, pickSlackHit, visitMinutesForCategory } from '../../../lib/slackPrompts'
 import { pointAtKm } from '../../../lib/geo'
 import type { LucideIcon } from 'lucide-react'
-import { MetaIcon } from '../../../components/icons'
+import { InlineIcon, MetaIcon } from '../../../components/icons'
 import { cap } from '../shared'
 function modeLabelMode(m: string): string {
   const map: Record<string, string> = {
@@ -308,7 +308,7 @@ export function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAdd
     <div className="travel-panel">
       <div className="travel-panel-head">
         <div className="travel-panel-toprow">
-          <div className="travel-panel-title"><RouteIcon size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />{title}</div>
+          <div className="travel-panel-title"><InlineIcon icon={RouteIcon} size={13} gap={4} />{title}</div>
           {directionsUrl && (
             <button
               className="btn btn-ghost btn-sm"
@@ -316,7 +316,7 @@ export function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAdd
               onClick={() => openExternal(directionsUrl)}
               title="Open this ride with turn-by-turn directions in Google Maps"
             >
-              <ExternalLink size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Directions
+              <InlineIcon icon={ExternalLink} size={13} gap={4} />Directions
             </button>
           )}
         </div>
@@ -422,10 +422,10 @@ export function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAdd
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button className="btn btn-outline btn-sm" onClick={resolveSpots} disabled={resolving}>
                     {resolving ? 'Searching the route…'
-                      : plan.some(p => p.hit) ? <><RotateCcw size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Re-find real spots</>
-                      : <><Search size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Find real spots</>}
+                      : plan.some(p => p.hit) ? <><InlineIcon icon={RotateCcw} size={13} gap={4} />Re-find real spots</>
+                      : <><InlineIcon icon={Search} size={13} gap={4} />Find real spots</>}
                   </button>
-                  <button className="btn btn-primary btn-sm" onClick={addHaltsToDay}><Plus size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Add {plan.length} to the day</button>
+                  <button className="btn btn-primary btn-sm" onClick={addHaltsToDay}><InlineIcon icon={Plus} size={13} gap={4} />Add {plan.length} to the day</button>
                 </div>
               </div>
               {searched && !plan.some(p => p.hit) && (
@@ -500,7 +500,7 @@ function HaltPlanRow({ item, onRemove, onTogglePin }: {
     <div className="ride-spot halt-plan-row">
       <div className="ride-spot-main">
         <div className="ride-spot-title">
-          <span className={`ride-purpose ride-purpose-${item.purpose}`}>{(() => { const m = HALT_PURPOSE_META[item.purpose]; return <><m.Icon size={11} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />{m.label}</> })()}</span>
+          <span className={`ride-purpose ride-purpose-${item.purpose}`}>{(() => { const m = HALT_PURPOSE_META[item.purpose]; return <><InlineIcon icon={m.Icon} size={11} gap={3} />{m.label}</> })()}</span>
           <b>{usingSpot ? h!.name : 'On the route'}</b>
         </div>
         <span className="muted small">

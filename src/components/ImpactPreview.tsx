@@ -1,5 +1,6 @@
 // ============ Impact Preview panel ============
 import { AlarmClock, ArrowUpRight, ClipboardList, Clock, Repeat, Zap } from 'lucide-react'
+import { InlineIcon } from './icons'
 import type { ImpactResult } from '../lib/impact'
 import { minutesToHM, formatInr } from '../lib/engine'
 
@@ -97,14 +98,14 @@ export function ImpactPreviewPanel({ result, onKeep, onMoveDay, onRemove, onScro
             </div>
           )}
           {result.crossDayNote && (
-            <p className="small muted" style={{ marginTop: 10 }}><ArrowUpRight size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />{result.crossDayNote}</p>
+            <p className="small muted" style={{ marginTop: 10 }}><InlineIcon icon={ArrowUpRight} size={12} gap={3} />{result.crossDayNote}</p>
           )}
 
           {(result.clearedWarnings.length > 0 && !result.newWarnings.length) && (
             <p className="small chip chip-ok" style={{ marginTop: 10 }}>This change actually clears an earlier warning. Nice.</p>
           )}
 
-          <div className="assumptions" style={{ marginTop: 12 }}><ClipboardList size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />{result.assumptions}</div>
+          <div className="assumptions" style={{ marginTop: 12 }}><InlineIcon icon={ClipboardList} size={12} gap={3} />{result.assumptions}</div>
 
           <div className="impact-actions">
             <button className="btn btn-primary btn-sm" onClick={handleKeep}>Keep change</button>

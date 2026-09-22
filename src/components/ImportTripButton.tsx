@@ -6,6 +6,7 @@
 // The file input is the whole interaction: no dummy trip, no placeholder
 // details to fill in first.
 import { useRef } from 'react'
+import { InlineIcon } from './icons'
 import { Upload } from 'lucide-react'
 import type { ID } from '../data/types'
 import { importTrip } from '../store/store'
@@ -51,7 +52,7 @@ export function ImportTripButton({ ownerId, onNavigate, className = 'btn btn-out
   return (
     <>
       <button className={className} onClick={() => fileRef.current?.click()}>
-        <Upload size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 5 }} />
+        <InlineIcon icon={Upload} size={15} gap={5} />
         {label}
       </button>
       <input

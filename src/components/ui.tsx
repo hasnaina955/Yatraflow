@@ -1,5 +1,6 @@
 // ============ Reusable UI components ============
 import React, { useEffect, useId, useRef, useState } from 'react'
+import { InlineIcon } from './icons'
 import { Check, Map as MapIcon, Mountain, Sailboat, Tent, TriangleAlert, Trees, Users, X } from 'lucide-react'
 import { nativeCopyText } from '../lib/native'
 import { haptic } from '../lib/haptics'
@@ -465,8 +466,8 @@ function ScenarioStats({ scen }: { scen: (typeof ROUTE_SCENARIOS)[number] }) {
         <div className="rs-stat rs-stat-d2"><b style={{ color: 'var(--yf-saffron)' }}>{health}</b><span>trip health</span></div>
       </div>
       <div className="ha-row">
-        <div className="ha-warn"><TriangleAlert size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />{scen.warn[0]}<span>{scen.warn[1]}</span></div>
-        <div className="ha-sync"><Users size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />{scen.sync[0]}<span>{scen.sync[1]}</span></div>
+        <div className="ha-warn"><InlineIcon icon={TriangleAlert} size={13} gap={3} />{scen.warn[0]}<span>{scen.warn[1]}</span></div>
+        <div className="ha-sync"><InlineIcon icon={Users} size={13} gap={3} />{scen.sync[0]}<span>{scen.sync[1]}</span></div>
       </div>
     </>
   )
@@ -681,7 +682,7 @@ export function CopyButton({ text, label = 'Copy link', onCopied }: { text: stri
         setTimeout(() => setDone(false), 1800)
         onCopied?.()
       }}
-    >{done ? <><Check size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Copied</> : label}</button>
+    >{done ? <><InlineIcon icon={Check} size={13} gap={4} />Copied</> : label}</button>
   )
 }
 

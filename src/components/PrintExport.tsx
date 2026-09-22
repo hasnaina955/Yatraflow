@@ -8,6 +8,7 @@
 // under @media print, where the rest of the app is suppressed. The preview
 // modal shows the same markup scaled down, so what you see is what prints.
 import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { InlineIcon } from './icons'
 import { createPortal } from 'react-dom'
 import { Printer } from 'lucide-react'
 import type { Trip } from '../data/types'
@@ -89,7 +90,7 @@ export function PrintExport({ trip, legCorrections }: { trip: Trip; legCorrectio
   return (
     <>
       <button className="btn btn-outline btn-sm" onClick={() => setOpen(true)}>
-        <Printer size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Print day cards
+        <InlineIcon icon={Printer} size={13} gap={4} />Print day cards
       </button>
 
       <Modal open={open} onClose={() => setOpen(false)} title="Print day cards / offline PDF">

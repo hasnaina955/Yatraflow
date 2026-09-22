@@ -13,6 +13,7 @@
 // (--motion-slow + --ease-out), the facts take the entrance pattern, and both
 // opt out under prefers-reduced-motion (AGENTS rule 10).
 import { CalendarDays, Share2 } from 'lucide-react'
+import { InlineIcon } from './icons'
 import { Modal, StatTile } from './ui'
 import { CoverThumb } from './CoverThumb'
 import { formatInr } from '../lib/engine'
@@ -84,7 +85,7 @@ export function UnlockReveal({ open, pub, trip, creator, amountPaidInr, entitlem
 
         <div className="unlock-reveal-actions">
           <button className="btn btn-saffron btn-lg" onClick={onFork}>
-            <CalendarDays size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 6 }} />
+            <InlineIcon icon={CalendarDays} size={15} gap={6} />
             Fork into my trips
           </button>
           <button className="btn btn-ghost" onClick={onClose}>Read the plan</button>
@@ -97,7 +98,7 @@ export function UnlockReveal({ open, pub, trip, creator, amountPaidInr, entitlem
               className="btn btn-ghost"
               onClick={() => void sharePurchase({ pubId: pub.id, entitlementId, title: pub.title })}
             >
-              <Share2 size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 6 }} />
+              <InlineIcon icon={Share2} size={15} gap={6} />
               Share what you bought
             </button>
           )}

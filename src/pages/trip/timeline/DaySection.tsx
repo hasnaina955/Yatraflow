@@ -31,7 +31,7 @@ import { glideOffsetPx, insertionIndexFor, rowLayoutBoxes, cancelRowSettle, canc
 import { useSuggestionCache } from '../../../hooks/useSuggestionCache'
 import { searchNearbyPois } from '../../../lib/geocode'
 import type { PlaceHit } from '../../../lib/geocode'
-import { MetaIcon } from '../../../components/icons'
+import { InlineIcon, MetaIcon } from '../../../components/icons'
 import { fetchDailyWeather, forecastAvailable, isoAddDays, wmoInfo } from '../../../lib/weather'
 import type { DayWeather } from '../../../lib/weather'
 import { TravelPanel } from './TravelPanel'
@@ -55,7 +55,7 @@ function DayWeatherChip({ trip, dayIndex }: { trip: Trip; dayIndex: number }) {
   const info = wmoInfo(w.code)
   return (
     <span className="weather-chip" title={`${info.label} · ${Math.round(w.tempMinC)}–${Math.round(w.tempMaxC)}°C · ${w.rainChancePct}% rain chance`}>
-      {info.icon} {Math.round(w.tempMaxC)}°<Droplets size={11} aria-hidden style={{ verticalAlign: '-1px', marginLeft: 4, marginRight: 2 }} />{w.rainChancePct}%
+      {info.icon} {Math.round(w.tempMaxC)}°<InlineIcon icon={Droplets} size={11} gap={2} vAlign="-1px" style={{ marginLeft: 4 }} />{w.rainChancePct}%
     </span>
   )
 }
@@ -523,7 +523,7 @@ export const DaySection = React.memo(function DaySection({ day, trip, editable, 
         )}
         {sev !== 'ok' && (
           <span className={`day-warn-pill sev-${sev}`} title={warnings.map(w => w.title).join('\n')}>
-            <TriangleAlert size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />{warnings[0].title.replace(/^Day \d+:\s*/, '')}{warnings.length > 1 ? ` · +${warnings.length - 1} more` : ''}
+            <InlineIcon icon={TriangleAlert} size={12} gap={3} />{warnings[0].title.replace(/^Day \d+:\s*/, '')}{warnings.length > 1 ? ` · +${warnings.length - 1} more` : ''}
           </span>
         )}
         {ordered.filter(s => s.status !== 'rejected').length >= 2 && <DaySpark stops={ordered.filter(s => s.status !== 'rejected')} />}
@@ -537,14 +537,14 @@ export const DaySection = React.memo(function DaySection({ day, trip, editable, 
                 className="btn btn-outline btn-sm"
                 onClick={() => setOptPreview(optResult)}
                 title={`Reorder this day's stops to cut crisscrossing — saves ~${Math.round((optResult.beforeKm - optResult.afterKm) * roadRatio)} km of travel`}
-              ><RouteIcon size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Optimise{optResult.beforeKm - optResult.afterKm > 0 ? ` (−${Math.round((optResult.beforeKm - optResult.afterKm) * roadRatio)} km)` : ''}</button>
+              ><InlineIcon icon={RouteIcon} size={13} gap={4} />Optimise{optResult.beforeKm - optResult.afterKm > 0 ? ` (−${Math.round((optResult.beforeKm - optResult.afterKm) * roadRatio)} km)` : ''}</button>
             )}
             <button
               className="btn btn-outline btn-sm"
               disabled={ordered.length === 0 || day.index + 1 >= trip.days.length}
               onClick={() => onCopyDay(day.index)}
               title={ordered.length ? `Copy these stops to Day ${day.index + 2}` : 'Nothing to copy yet'}
-            ><Copy size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Copy</button>
+            ><InlineIcon icon={Copy} size={13} gap={4} />Copy</button>
             <button className="btn btn-outline btn-sm" onClick={() => onAdd(day.index)}>+ Add here</button>
           </div>
         )}
@@ -583,12 +583,12 @@ export const DaySection = React.memo(function DaySection({ day, trip, editable, 
           <div className="day-suggest">
             {nextAnchor && !alreadyAtNext && (
               <button className="chip-btn" onClick={() => onAddQuickStop(day.index, nextWaypointStop(nextAnchor))} title="Add this as a route waypoint">
-                <ArrowRight size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />Continue to {nextAnchor.name.replace(/ \((start|end)\)$/, '')}
+                <InlineIcon icon={ArrowRight} size={13} gap={3} />Continue to {nextAnchor.name.replace(/ \((start|end)\)$/, '')}
               </button>
             )}
             {nearby.map(h => (
               <button key={h.name} className="chip-btn" onClick={() => onAddQuickStop(day.index, poiQuickStop(h))} title="Add this nearby idea">
-                <Plus size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />{h.name}
+                <InlineIcon icon={Plus} size={12} gap={3} />{h.name}
               </button>
             ))}
           </div>
@@ -661,7 +661,7 @@ export const DaySection = React.memo(function DaySection({ day, trip, editable, 
                   <span className={`stop-kind-tag kind-${kind}`}>{STOP_KIND_LABELS[kind]}</span>
                   {s.priority === 'must-do' && <Chip tone="danger">Must do</Chip>}
                   {s.priority === 'optional' && <Chip tone="saffron">Optional</Chip>}
-                  {s.weatherSensitive && <Chip tone="info"><CloudRain size={11} aria-hidden style={{ verticalAlign: '-1px', marginRight: 3 }} />weather-sensitive</Chip>}
+                  {s.weatherSensitive && <Chip tone="info"><InlineIcon icon={CloudRain} size={11} gap={3} vAlign="-1px" />weather-sensitive</Chip>}
                 </div>
                 <div className="stop-meta">
                   <span><MetaIcon icon={ MapPin } tone="place" />{s.locationName}</span>
@@ -674,8 +674,8 @@ export const DaySection = React.memo(function DaySection({ day, trip, editable, 
                   )}
                 </div>
                 {s.description && <ClampedText className="stop-desc">{s.description}</ClampedText>}
-                {s.notes && <ClampedText className="stop-desc muted"><PenLine size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />{s.notes}</ClampedText>}
-                {s.sourceUrl && <a href={s.sourceUrl} target="_blank" rel="noreferrer" className="small" onClick={e => { e.preventDefault(); openExternal(s.sourceUrl!) }}>Source <ExternalLink size={11} aria-hidden style={{ verticalAlign: '-2px', marginLeft: 2 }} /></a>}
+                {s.notes && <ClampedText className="stop-desc muted"><InlineIcon icon={PenLine} size={12} gap={3} />{s.notes}</ClampedText>}
+                {s.sourceUrl && <a href={s.sourceUrl} target="_blank" rel="noreferrer" className="small" onClick={e => { e.preventDefault(); openExternal(s.sourceUrl!) }}>Source <InlineIcon icon={ExternalLink} size={11} gap={0} style={{ marginLeft: 2 }} /></a>}
               </div>
               {editable && (
                 <div className="stop-actions">

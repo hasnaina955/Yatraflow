@@ -1909,8 +1909,8 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
                             <span className="day-slot-st" aria-hidden />
                             <span className="day-slot-lab">{slot.label}</span>
                             {slot.windowLabel && <span className="day-slot-win">{slot.windowLabel}</span>}
-                            {closing && <span className="day-slot-urgent">closes {windowEnd}</span>}
-                            {missed && <span className="day-slot-missed">closed {windowEnd}</span>}
+                            {closing && <span className="day-slot-urgent">Closes {windowEnd}</span>}
+                            {missed && <span className="day-slot-missed">Closed {windowEnd}</span>}
                           </button>
                           {slot.state === 'empty' && slotPattern(slot.kind) && (
                             <p className="day-slot-pattern">{slotPattern(slot.kind)}</p>
@@ -2024,7 +2024,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
               <span className="poi-col-head-ico"><MapPin size={13} aria-hidden /></span>
               <div className="poi-col-head-txt">
                 <b>Optional extras</b>
-                <span className="small muted">sights · detours - never required</span>
+                <span className="small muted">Sights · detours - never required</span>
               </div>
               <button
                 type="button"

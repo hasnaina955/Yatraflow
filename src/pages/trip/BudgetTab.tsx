@@ -390,7 +390,7 @@ export function BudgetTab({ trip, totals, editable }: { trip: Trip; totals: Retu
                             <div key={b.id} className="balance-row">
                               <span className="balance-who"><Avatar user={b.user} /> {nameOf(b.user)}</span>
                               {Math.abs(b.bal) <= 0.5
-                                ? <span className="muted small">settled</span>
+                                ? <span className="muted small">Settled</span>
                                 : b.bal > 0
                                   ? <span className="balance-pos">gets {formatInr(b.bal)}</span>
                                   : <span className="balance-neg">owes {formatInr(-b.bal)}</span>}

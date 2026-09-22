@@ -6588,7 +6588,16 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .created-bill-perhead { font-size: 24px; font-weight: 700; color: var(--teal-deep); font-variant-numeric: tabular-nums; }
 .created-bill-unit { font-size: 12px; color: var(--text-3); }
 .created-bill-total { font-size: 12px; color: var(--text-2); margin-left: auto; font-variant-numeric: tabular-nums; }
-.created-next { display: flex; gap: 8px; flex-wrap: wrap; }
+.created-next { display: grid; gap: 8px; }
+.created-next .ns { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--card); cursor: pointer; text-align: left; color: inherit; font: inherit; }
+.created-next .ns:hover, .created-next .ns:focus-visible { border-color: var(--teal); outline: none; }
+.created-next .ns-ic { display: grid; place-items: center; flex: none; width: 30px; height: 30px; border-radius: 10px; background: var(--teal-soft); color: var(--teal-deep); font-size: 13px; font-weight: 700; }
+.created-next .ns-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.created-next .ns-body b { font-size: 13px; }
+.created-next .ns-body span { font-size: 11.5px; color: var(--text-3); }
+.created-next .ns-primary { border-color: var(--teal); background: var(--teal-soft); }
+.created-next .ns-quiet { justify-content: center; padding: 10px; color: var(--text-2); }
+.created-invite-preview { margin: 10px 0 0; }
 /* P7 - the rough-take rows and the off-screen receipt the image is captured from */
 .created-bill-rows { display: grid; gap: 2px; margin-bottom: 8px; }
 .created-bill-row { display: flex; justify-content: space-between; gap: 8px; font-size: 12.5px; color: var(--text-2); font-variant-numeric: tabular-nums; }

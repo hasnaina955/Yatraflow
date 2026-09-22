@@ -68,6 +68,29 @@ export interface RouteIq {
   coversLunch: boolean
 }
 
+export interface LunchEstimate {
+  title: string
+  atMin: number
+}
+
+/** Where the first day's drive crosses the lunch window, from an 8am start.
+ *  The same legs routeIq measures - so the meal line and the route line cannot
+ *  tell different stories. Returns the hop's DESTINATION as the honest guess;
+ *  real halt places need the workspace's halt search, which is not free. */
+export function estimateLunchStop(points: readonly RoutePoint[], mode: TransportMode, startMinOfDay = 8 * 60): LunchEstimate | null {
+  const legs = measurableLegs(points).map(l => ({ ...l, minutes: legMinutes(l.km, mode) }))
+  let clock = startMinOfDay
+  for (const leg of legs) {
+    const arrive = clock + leg.minutes
+    if (arrive >= LUNCH_WINDOW[0] && clock <= LUNCH_WINDOW[1]) {
+      const atMin = Math.max(LUNCH_WINDOW[0], Math.min(arrive, LUNCH_WINDOW[1]))
+      return { title: leg.to, atMin }
+    }
+    clock = arrive
+  }
+  return null
+}
+
 /** The one line under the stops, or null when there is nothing honest to say. */
 export function routeIq(points: readonly RoutePoint[], mode: TransportMode, startMinOfDay = 8 * 60): RouteIq | null {
   const legs = measurableLegs(points).map(l => ({ ...l, minutes: legMinutes(l.km, mode) }))

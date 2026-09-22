@@ -14,6 +14,7 @@ import {
 } from '../store/store'
 import { collectWarnings } from '../lib/engine'
 import { anticipate, type AnticipationItem } from '../lib/anticipation'
+import { estimateLunchStop } from '../lib/routeIq'
 import { fetchDailyWeather, forecastAvailable, isoAddDays } from '../lib/weather'
 import { readHandoff, clearHandoff, billTotal } from '../lib/createHandoff'
 import { shareBillImage } from '../lib/billCapture'
@@ -94,6 +95,12 @@ export function TripCreatedPage({ tripId, onNavigate }: { tripId: string; onNavi
 
   const items: AnticipationItem[] = useMemo(() => {
     if (!trip) return []
+    // the meal line's source: the trip's own coordinates and mode, measured the
+    // same way routeIq does - the destination the clock lands on at lunchtime.
+    const points = [
+      ...(trip.startLocationCoords ? [{ name: trip.startLocation, lat: trip.startLocationCoords.lat, lng: trip.startLocationCoords.lng }] : []),
+      ...(trip.destinations ?? []).map((d, i) => ({ name: d, lat: trip.destinationCoords?.[i]?.lat, lng: trip.destinationCoords?.[i]?.lng })),
+    ]
     return anticipate({
       tripName: trip.name,
       days: trip.days.length,
@@ -101,7 +108,7 @@ export function TripCreatedPage({ tripId, onNavigate }: { tripId: string; onNavi
       roadKm: handoff?.bill?.roadKm ?? handoff?.roadKm ?? null,
       rangeKm: handoff?.rangeKm ?? null,
       fuelHalts: [],
-      lunch: null,
+      lunch: estimateLunchStop(points, trip.transportMode),
       rainyDays,
       conflicts,
     })
@@ -211,7 +218,7 @@ export function TripCreatedPage({ tripId, onNavigate }: { tripId: string; onNavi
 
       {items.length > 0 && (
         <section className="created-card" aria-label="What the engine already knows">
-          <h2 className="created-card-title">Watch for these</h2>
+          <h2 className="created-card-title">Watch for these - the engine already knows</h2>
           <ul className="created-list">
             {items.map(item => (
               <li key={item.key} className={`created-item kind-${item.kind}`}>
@@ -244,6 +251,9 @@ export function TripCreatedPage({ tripId, onNavigate }: { tripId: string; onNavi
             <button type="button" className="btn btn-outline btn-sm" onClick={() => void copyAll()}>Copy the invite</button>
             {joinUrl && <code className="created-link" title={joinUrl}>{joinUrl}</code>}
           </div>
+          {joinUrl && (
+            <p className="created-detail">They get: {crewInviteMessage({ tripName: trip.name, joinUrl, plannerName: handoff?.plannerName || me?.profile.name || '' })}</p>
+          )}
         </section>
       )}
 
@@ -319,11 +329,25 @@ export function TripCreatedPage({ tripId, onNavigate }: { tripId: string; onNavi
       )}
 
       <div className="created-next">
-        <button type="button" className="btn btn-primary" onClick={finish}>Open my workspace</button>
+        <button type="button" className="ns ns-primary" onClick={finish}>
+          <span className="ns-ic" aria-hidden>→</span>
+          <span className="ns-body"><b>Open the workspace</b><span>The map, slots and engine are already working on this plan.</span></span>
+        </button>
         {crew.length > 0 && (
-          <button type="button" className="btn btn-outline" onClick={() => void copyAll()}>Bring the crew</button>
+          <button type="button" className="ns" onClick={() => void copyAll()}>
+            <span className="ns-ic" aria-hidden>✉</span>
+            <span className="ns-body"><b>Bring the crew</b><span>Copy the invite, or send it from each row above.</span></span>
+          </button>
         )}
-        <button type="button" className="btn btn-outline" onClick={() => { clearHandoff(); onNavigate('/trips') }}>Back to my trips</button>
+        {conflicts.length > 0 && (
+          <button type="button" className="ns" onClick={finish}>
+            <span className="ns-ic" aria-hidden>⚑</span>
+            <span className="ns-body"><b>Watch {conflicts[0].title.split(' ').slice(0, 4).join(' ')}</b><span>Open the plan on that day before it gets tight.</span></span>
+          </button>
+        )}
+        <button type="button" className="ns ns-quiet" onClick={() => { clearHandoff(); onNavigate('/trips') }}>
+          <span className="ns-body"><b>Back to my trips</b></span>
+        </button>
       </div>
     </div>
   )

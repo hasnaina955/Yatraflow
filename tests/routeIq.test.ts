@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, it, expect } from 'vitest'
-import { measurableLegs, legMinutes, durationLabel, routeIq, routeIqLine } from '../src/lib/routeIq'
+import { measurableLegs, legMinutes, durationLabel, routeIq, routeIqLine, estimateLunchStop } from '../src/lib/routeIq'
 
 const kochi = { name: 'Kochi, Kerala', lat: 9.9312, lng: 76.2673 }
 const munnar = { name: 'Munnar, Kerala', lat: 10.0889, lng: 77.0595 }
@@ -62,6 +62,16 @@ describe('route IQ - what the road says while you are still choosing', () => {
     expect(short).not.toBeNull()
     expect(short.coversLunch).toBe(false)
     expect(routeIqLine(short)).not.toContain('lunch')
+  })
+
+  it('lunch is where the clock lands, and names the leg destination', () => {
+    const lunch = estimateLunchStop([kochi, munnar, alleppey], 'car')!
+    expect(lunch).not.toBeNull()
+    expect(lunch.title).toBe('Alleppey, Kerala')
+    expect(lunch.atMin).toBeGreaterThanOrEqual(11 * 60 + 30)
+    expect(lunch.atMin).toBeLessThanOrEqual(14 * 60 + 30)
+    // a run whose clock never reaches the window says nothing
+    expect(estimateLunchStop([{ name: 'A', lat: 9.93, lng: 76.27 }, { name: 'B', lat: 10.05, lng: 76.35 }], 'car')).toBeNull()
   })
 
   it('the line is honest about being an estimate - never a stated road time', () => {

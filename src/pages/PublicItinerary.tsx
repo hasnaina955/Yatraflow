@@ -7,7 +7,7 @@ import {
   Calendar, Camera, Car, Clock, Flag, GitFork, Heart, Link2, Lock, MapPin,
   Route, Sparkles, Ticket, TriangleAlert,
 } from 'lucide-react'
-import { MetaIcon } from '../components/icons'
+import { InlineIcon, MetaIcon, modeIcon } from '../components/icons'
 import { openExternal } from '../lib/native'
 import type { Trip, PublishedItinerary } from '../data/types'
 import type { Entitlement } from '../lib/payments'
@@ -19,8 +19,10 @@ import { cap, titleCase } from '../lib/labels'
 import { useTimeFormat, formatHM, formatHMRange } from '../lib/timefmt'
 import { stopKindOf, STOP_KIND_LABELS } from '../lib/stopKind'
 import { useSavedPubs } from '../lib/savedPubs'
-import { fetchMyEntitlements, purchaseUnlock } from '../lib/unlock'
+import { fetchMyEntitlements, fetchCreatorSales, fetchCreatorFunnel, purchaseUnlock, type FunnelDailyRow } from '../lib/unlock'
+import { UnlockReveal } from '../components/UnlockReveal'
 import { hasUnlock } from '../lib/payments'
+import { buildPubFunnels, describePreLog, funnelGlance, type FunnelSale } from '../lib/pubFunnel'
 import { currentPublicShareUrl } from '../lib/shareUrl'
 import { appLink } from '../lib/appLink'
 import { pageTitle } from '../lib/pageTitle'
@@ -46,6 +48,10 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
   // not carried in the hydrate cache. Re-read after a purchase resolves.
   const [entitlements, setEntitlements] = useState<Entitlement[]>([])
   const [buying, setBuying] = useState(false)
+  // The itinerary the unlock moment is showing, held separately from `fetched`:
+  // it is only ever the copy the server served AFTER the entitlement existed
+  // (see unlockThis), and it doubles as the reveal's open/closed state.
+  const [revealTrip, setRevealTrip] = useState<Trip | null>(null)
   const trip: Trip | undefined = cachedTrip ?? fetched ?? undefined
   const { isSaved, toggleSaved } = useSavedPubs()
   const heroAuto = useDestinationCover(pub ? (pub.routeSummary.length ? pub.routeSummary : [pub.title]) : null)
@@ -68,6 +74,51 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
     void fetchMyEntitlements(meId).then(rows => { if (alive) setEntitlements(rows) })
     return () => { alive = false }
   }, [pub?.id, meId])
+  // ---- The creator's own glance (I-22 follow-up): the page's creator reads
+  // how THIS link converts without opening the hub. Same RPC, same derivation
+  // and same window rule as the hub (buildPubFunnels + funnelGlance), so a
+  // number cannot differ between the two surfaces. A visitor's session never
+  // runs these reads — isMyPub gates them, and the strip mounts for nobody
+  // else. Sales ride along because the unlock stage comes from the ledger,
+  // never from a re-recording of it.
+  const isMyPub = !!(meId && pub && pub.creatorId === meId)
+  const [myDaily, setMyDaily] = useState<FunnelDailyRow[] | null>(null)
+  const [mySales, setMySales] = useState<FunnelSale[] | null>(null)
+  const [myFunnelError, setMyFunnelError] = useState(false)
+  const [mySalesError, setMySalesError] = useState(false)
+  useEffect(() => {
+    if (!isMyPub) return
+    let alive = true
+    setMyFunnelError(false)
+    void fetchCreatorFunnel()
+      .then(rows => { if (alive) setMyDaily(rows) })
+      .catch(() => { if (alive) { setMyFunnelError(true); setMyDaily(null) } })
+    void fetchCreatorSales()
+      .then(rows => { if (alive) { setMySales(rows); setMySalesError(false) } })
+      .catch(() => { if (alive) { setMySalesError(true); setMySales(null) } })
+    return () => { alive = false }
+  }, [isMyPub, pub?.id, meId])
+  // Above the early return with every other hook (the #310 rule). A failed
+  // funnel read surfaces as myFunnelError — the strip then says it failed
+  // rather than rendering a measurement it does not have.
+  const myGlance = useMemo(() => {
+    if (!isMyPub || !pub || !myDaily || !mySales) return null
+    const [f] = buildPubFunnels({
+      daily: myDaily,
+      sales: mySales,
+      pubs: [{
+        id: pub.id, title: pub.title, priceInr: pub.premiumPriceInr ?? null,
+        lifetimeViews: pub.views, lifetimeForks: pub.copies,
+      }],
+      days: 7,
+      now: Date.now(),
+    })
+    return { glance: funnelGlance(f), preLog: describePreLog(f) }
+  }, [isMyPub, pub, myDaily, mySales])
+  // A failed SALES read is a failed read too — the strip's unlock step would
+  // otherwise render a zero that is a measurement of nothing.
+  const myReadFailed = myFunnelError || mySalesError
+  const myReadPending = !myFunnelError && myDaily === null
   useEffect(() => {
     if (!pub || fetched || miss) return
     let alive = true
@@ -184,6 +235,23 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
       onUnlocked: () => {
         void fetchMyEntitlements(meId).then(rows => setEntitlements(rows))
       },
+    }).then(async outcome => {
+      // Both a completed purchase and a 409 mean the days are readable now (the
+      // 409 path can have just self-healed the grant), but only a purchase
+      // earns the ceremony.
+      if (outcome !== 'unlocked' && outcome !== 'already') return
+      // This page holds the copy the server served BEFORE the purchase, and
+      // that copy is wire-stubbed: the stub keeps stop titles and coordinates
+      // while emptying descriptions, notes, timings and costs. Rendering it
+      // with the lock lifted shows a full-looking plan that is still
+      // placeholder text. Re-read through the same RPC — the entitlement now
+      // exists, so it answers with real days — rather than clearing `fetched`,
+      // which would flash the loading state mid-ceremony.
+      const fresh = await fetchPublicTrip(pub!.id)
+      if (fresh) setFetched(fresh)
+      // The reveal opens only on a real trip: its numbers ARE the point, and
+      // stats read from the stubbed copy would describe an empty plan.
+      if (outcome === 'unlocked' && fresh) setRevealTrip(fresh)
     }).finally(() => setBuying(false))
   }
 
@@ -214,7 +282,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
           <p className="pub-hero-story">{pub.tagline}</p>
           <p className="pub-hero-byline">
             By {creator?.profile.name ?? 'a YatraFlow traveller'} · {pub.durationDays} days · {trip.travellers} travellers · {cap(trip.transportMode)}
-            {creator?.profile.isCreator && <> · <Sparkles size={11} aria-hidden style={{ verticalAlign: '-1px', margin: '0 2px' }} />Creator</>}
+            {creator?.profile.isCreator && <> · <InlineIcon icon={Sparkles} size={11} gap={2} vAlign="-1px" style={{ marginLeft: 2 }} />Creator</>}
           </p>
         </div>
         {/* "The practical bit" — the evidence cluster, floating over the hero */}
@@ -225,7 +293,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
           <hr className="pub-stats-divider" />
           <div className="pub-stats-row">
             <span><MetaIcon icon={ MapPin } tone="place" />{pub.routeSummary.length} place{pub.routeSummary.length === 1 ? '' : 's'}</span>
-            <span><Route size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />{totalsN.totalDistanceKm.toFixed(0)} km</span>
+            <span><InlineIcon icon={Route} size={12} gap={3} />{totalsN.totalDistanceKm.toFixed(0)} km</span>
             <span><MetaIcon icon={ Clock } tone="time" />{minutesToHM(totalsN.totalTravelMinutes)} on the road</span>
             <span><MetaIcon icon={ Calendar } tone="time" />{pub.durationDays} days</span>
           </div>
@@ -239,10 +307,10 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
             <b>Made to be copied, adjusted and made your own.</b>
             <div className="pub-actions-btns">
               <button className="btn save-btn" onClick={saveThis} aria-pressed={savedFlag}>
-                <Heart size={13} aria-hidden fill={savedFlag ? 'currentColor' : 'none'} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+                <InlineIcon icon={Heart} size={13} gap={4} fill={savedFlag ? 'currentColor' : 'none'} />
                 {savedFlag ? 'Saved' : 'Save itinerary'}
               </button>
-              <button className="btn fork-btn" onClick={copyThis}><GitFork size={14} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />{me ? 'Fork this trip' : 'Log in to fork'}</button>
+              <button className="btn fork-btn" onClick={copyThis}><InlineIcon icon={GitFork} size={14} gap={4} />{me ? 'Fork this trip' : 'Log in to fork'}</button>
             </div>
           </div>
 
@@ -296,14 +364,35 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
               <div className="creator-line">
                 <Avatar user={creator} size="lg" />
                 <div>
-                  <b>{creator?.profile.name ?? 'Creator'}</b>{creator?.profile.isCreator && <span className="chip chip-saffron" style={{ marginLeft: 8 }}><Sparkles size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />Creator</span>}
+                  <b>{creator?.profile.name ?? 'Creator'}</b>{creator?.profile.isCreator && <span className="chip chip-saffron" style={{ marginLeft: 8 }}><InlineIcon icon={Sparkles} size={12} gap={3} />Creator</span>}
                   {creator?.profile.creatorBio && <p className="small muted" style={{ margin: '5px 0 0' }}>{creator.profile.creatorBio}</p>}
+                  {isMyPub && (
+                    <div className="pub-funnel-glance" role="note" aria-label="How this plan converts, last 7 days">
+                      <b className="pub-fg-title">This link, last 7 days</b>
+                      <span className="pub-fg-line num">
+                        {myReadFailed
+                          ? 'Recorded traffic could not be read just now — the creator hub shows the same numbers when it can.'
+                          : myReadPending
+                          ? 'Reading this link’s traffic…'
+                          : myGlance?.glance
+                          ? myGlance.glance
+                          : 'No recorded traffic for this plan yet.'}
+                      </span>
+                      {myGlance?.preLog && <span className="pub-fg-prelog muted">{myGlance.preLog}</span>}
+                      {/* In-app navigation (onNavigate), not a new appLink anchor —
+                          the anchor-count pin in tests/app-link.test.ts exists so
+                          new route anchors get reviewed, and this one is internal. */}
+                      <button className="btn btn-outline btn-sm" style={{ marginTop: 6, alignSelf: 'flex-start' }} onClick={() => onNavigate('/creator-hub')}>
+                        Open the creator hub →
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
               {creator?.profile.socialLinks && (
                 <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
                   {creator.profile.socialLinks.youtube && <a className="chip chip-info" href={creator.profile.socialLinks.youtube} target="_blank" rel="noreferrer" onClick={e => { e.preventDefault(); openExternal(creator.profile.socialLinks!.youtube!) }}>▶ YouTube</a>}
-                  {creator.profile.socialLinks.instagram && <a className="chip chip-info" href={creator.profile.socialLinks.instagram} target="_blank" rel="noreferrer" onClick={e => { e.preventDefault(); openExternal(creator.profile.socialLinks!.instagram!) }}><Camera size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />Instagram</a>}
+                  {creator.profile.socialLinks.instagram && <a className="chip chip-info" href={creator.profile.socialLinks.instagram} target="_blank" rel="noreferrer" onClick={e => { e.preventDefault(); openExternal(creator.profile.socialLinks!.instagram!) }}><InlineIcon icon={Camera} size={12} gap={3} />Instagram</a>}
                 </div>
               )}
               {creator && (
@@ -331,11 +420,11 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
                           : `${stops.length} stops · ~${minutesToHM(sim.totalTravelMinutes)} travel`}
                       </div>
                     </div>
-                    {!isFree && <Chip tone="saffron"><Lock size={11} aria-hidden style={{ verticalAlign: '-1px', marginRight: 3 }} />Premium</Chip>}
+                    {!isFree && <Chip tone="saffron"><InlineIcon icon={Lock} size={11} gap={3} vAlign="-1px" />Premium</Chip>}
                   </div>
 
                   {(isFree || unlocked) ? (
-                    <DayStops stops={stops} sim={sim} assumptions={A} timeFormat={timeFormat} stayDay={sim.activeStops.length <= 1 && sim.totalDistanceKm < 0.5} />
+                    <DayStops stops={stops} sim={sim} assumptions={A} timeFormat={timeFormat} stayDay={sim.activeStops.length <= 1 && sim.totalDistanceKm < 0.5} mode={trip.transportMode} />
                   ) : (
                     <>
                       <div className="locked-overlay">
@@ -345,7 +434,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
                           ))}
                         </div>
                         <div className="locked-cta">
-                          <b><Lock size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />{stops.length} more stops on this day</b>
+                          <b><InlineIcon icon={Lock} size={13} gap={4} />{stops.length} more stops on this day</b>
                           <p className="small">Stay contacts, timings and the budget breakdown are in the full plan.</p>
                           {price !== undefined && <button className="btn btn-saffron" disabled={buying} onClick={unlockThis}>{buying ? 'Opening payments…' : <>Unlock full plan · {formatInr(price)}</>}</button>}
                         </div>
@@ -369,7 +458,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
                 <h2>Warnings & assumptions</h2>
                 <hr className="divider" />
                 <ul style={{ paddingLeft: 18, lineHeight: 1.9, margin: 0 }}>
-                  {pub.warningsAndAssumptions.map((t, i) => <li key={i}><TriangleAlert size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />{t}</li>)}
+                  {pub.warningsAndAssumptions.map((t, i) => <li key={i}><InlineIcon icon={TriangleAlert} size={12} gap={3} />{t}</li>)}
                 </ul>
               </div>
             </div>
@@ -383,11 +472,11 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
                 Forks the free preview into your YatraFlow account — locked days come over as placeholders you can fill in yourself.
               </p>
               <button className="btn fork-btn btn-lg" style={{ width: '100%' }} onClick={copyThis}>
-                <GitFork size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 5 }} />{me ? 'Fork this trip' : 'Log in to fork'}
+                <InlineIcon icon={GitFork} size={15} gap={5} />{me ? 'Fork this trip' : 'Log in to fork'}
               </button>
               {price !== undefined && !unlocked && <button className="btn btn-saffron btn-lg" style={{ width: '100%', marginTop: 10 }}
                 disabled={buying} onClick={unlockThis}>
-                <Lock size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 5 }} />{buying ? 'Opening payments…' : <>Unlock full plan · {formatInr(price)}</>}
+                <InlineIcon icon={Lock} size={15} gap={5} />{buying ? 'Opening payments…' : <>Unlock full plan · {formatInr(price)}</>}
               </button>}
               {price !== undefined && unlocked && <p className="hint-text" style={{ textAlign: 'center', marginTop: 10 }}>
                 ✓ Full plan unlocked — forking carries every day as a real, editable plan.
@@ -407,6 +496,25 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
           </div>
         </div>
 
+        {/* ROADMAP I-20: the purchase stops being a toast. Mounted only while a
+            just-bought, freshly-read itinerary is in hand, so a returning owner
+            never sees "you now own" for a plan they already had. */}
+        {revealTrip && (
+          <UnlockReveal
+            open
+            pub={pub}
+            trip={revealTrip}
+            creator={creator}
+            amountPaidInr={pub.premiumPriceInr}
+            // The grant itself, for the reveal's share card (I-21) — read from the
+            // entitlement list the purchase refreshed, so it arrives with the read
+            // that followed the unlock.
+            entitlementId={entitlements.find(e => e.pubId === pub.id)?.id}
+            onFork={() => { setRevealTrip(null); copyThis() }}
+            onClose={() => setRevealTrip(null)}
+          />
+        )}
+
         <p className="pub-footer-line">Published with YatraFlow · Plan real trips, together</p>
       </div>
     </div>
@@ -417,7 +525,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
  *  views — one renderer so an unlocked day shows EXACTLY what a free day
  *  shows, including the travelling strips (departure/arrival, distance,
  *  cost) the first cut of the unlock flow silently dropped. */
-function DayStops({ stops, sim, assumptions, timeFormat, stayDay }: {
+function DayStops({ stops, sim, assumptions, timeFormat, stayDay, mode }: {
   stops: ReturnType<typeof simulateDay>['activeStops'] extends never ? never : Array<{
     id: string
     auto?: boolean
@@ -434,6 +542,8 @@ function DayStops({ stops, sim, assumptions, timeFormat, stayDay }: {
   assumptions: ReturnType<typeof getAssumptions>
   timeFormat: '12h' | '24h'
   stayDay: boolean
+  /** the trip's transport mode — the travelling strip's glyph follows it. */
+  mode: string
 }) {
   return (
     <>
@@ -464,7 +574,7 @@ function DayStops({ stops, sim, assumptions, timeFormat, stayDay }: {
           return (
             <div key={s.id} className="travel-anchor">
               <div className="travel-anchor-title">
-                <span className="travel-anchor-ico">{i === 0 ? <Flag size={13} aria-hidden /> : <Car size={13} aria-hidden />}</span>
+                <span className="travel-anchor-ico">{i === 0 ? <Flag size={13} aria-hidden /> : modeIcon(mode, 13)}</span>
                 <span>{i === 0 ? `Start · ${cleanName}` : `Travelling to ${cleanName}`}</span>
               </div>
               <div className="travel-anchor-meta">

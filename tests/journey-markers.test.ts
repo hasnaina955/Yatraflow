@@ -16,7 +16,7 @@ const pt = (over: Partial<JourneyPoint> & { lat: number; lng: number }): Journey
 // Real coordinates from the trip this was reported against: Day 1 is the Jodhpur
 // day, and its journey opens at the previous day's last stop near Jaipur.
 const CHOWKI_DHANI = { lat: 26.759, lng: 75.808 }
-const MEHRANGARH = { lat: 26.2967, lng: 73.0351 }
+const MEHRANGARH = { lat: 26.2980, lng: 73.0184 }
 
 describe('extraJourneyMarkers', () => {
   it('pins a synthesized day-start that no stop covers', () => {

@@ -58,3 +58,18 @@ PRODUCT.md
 # `.verdentc.json` is deliberately NOT ignored: that one is real deploy config
 # (install/build commands, output dir), not tool output.
 .verdent/
+
+# The Superdesign design-tool working directory - same class as the block above:
+# its `init/` context is regenerated from source by the skill, its `tmp/` holds the
+# Petite-Vue component HTML waiting on `create-component`, and neither is repo
+# content. `tmp/` must be ignored per the skill's own SOP so generated HTML is
+# never committed; `init/` is ignored with it because a second agent working this
+# clone must not see six new untracked analysis files in `git status`, and because
+# ignoring the directory does not affect the skill - it reads them from disk.
+.superdesign/
+
+# Our own transient `gh pr create --body-file` scratch — the same class as the
+# Verdent block above: regenerated per PR, rewritten by every branch that uses
+# it, never repo content. It slipped into one commit only while the mavis-trash
+# launcher was stale; ignored so it can never recur.
+.pr-body.md

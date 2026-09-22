@@ -10,6 +10,7 @@ import type { Trip } from '../data/types'
 /** Unambiguous uppercase alphabet for the random tail: no 0/O, 1/I, 5/S, 2/Z. */
 const TAIL_ALPHABET = 'ABCDEFGHJKLMNPQRTUVWXY346789'
 const TAIL_LENGTH = 4
+let tailLastResortSeq = 0
 
 /** Characters that never appear in a slug, and therefore safely separate it
  *  from the tail. */
@@ -28,11 +29,33 @@ function slugifyHead(text: string): string {
   return slug.slice(0, 10)
 }
 
-/** Random 4-char tail from the unambiguous alphabet. */
+/** Random 4-char tail from the unambiguous alphabet, drawn from the platform
+ *  CSPRNG — an invite code is a join credential, so generator predictability
+ *  is a security property, not a style choice (the same fix class as
+ *  presence.ts's session key). Rejection sampling keeps the 26-char alphabet
+ *  unbiased: bytes >= 234 (= floor(256/26)*26) are redrawn. */
 function randomTail(): string {
+  const size = TAIL_ALPHABET.length
+  const maxUnbiased = Math.floor(256 / size) * size
   let out = ''
-  for (let i = 0; i < TAIL_LENGTH; i++) {
-    out += TAIL_ALPHABET[Math.floor(Math.random() * TAIL_ALPHABET.length)]
+  while (out.length < TAIL_LENGTH) {
+    const c = globalThis.crypto as Crypto | undefined
+    if (c?.getRandomValues) {
+      const bytes = new Uint8Array(TAIL_LENGTH)
+      c.getRandomValues(bytes)
+      for (const byte of bytes) {
+        if (byte >= maxUnbiased) continue
+        out += TAIL_ALPHABET[byte % size]
+        if (out.length === TAIL_LENGTH) break
+      }
+    } else {
+      // Unreachable on every platform this app ships on: a clock-plus-counter
+      // stand-in that only has to differ between calls in a no-crypto env.
+      tailLastResortSeq += 1
+      const clock = typeof performance === 'undefined' ? Date.now() : performance.now()
+      const n = Math.abs(Math.trunc(Date.now() * 31 + clock * 7 + tailLastResortSeq))
+      out += TAIL_ALPHABET[n % size]
+    }
   }
   return out
 }

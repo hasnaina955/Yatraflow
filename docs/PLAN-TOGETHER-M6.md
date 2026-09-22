@@ -1,10 +1,10 @@
 # M6 · Together — continuation guide (for any agent picking this up)
 
 > Milestone: [#237](https://github.com/hasnaina955/Yatraflow/issues/237) · M6 — collaboration depth.
-> Branch: `feat/together-rls-suite` (PR-A, security half — MERGED) · `freebuff/m6-together` (PR-B, co-editing half — code complete, unpushed).
-> Companion doc: this file. Status: PR-A merged into `test` (the leak fix + both suites). PR-B code complete 2026-09-19 (B0–B4 incl. the review rework: server-ledger guard, snapshot-preserving flush, settlement extraction), pending verify + push + PR.
+> Branches: `feat/together-rls-suite` (PR-A, security half) · `freebuff/m6-together` (PR-B, co-editing half) — both merged into `test` and pruned.
+> Companion doc: this file. **Status (2026-09-21): both halves are shipped.** PR-A merged into `test` (the leak fix + both suites); PR-B merged as **PR #265** on 2026-09-20 and released as **v0.62.0** (B0–B4 incl. the review rework: server-ledger guard, snapshot-preserving flush, settlement extraction), with its Board/socket-gap follow-up `e5bba2a` landing the same day. With both halves merged this doc is a record of how the milestone was built rather than a queue item — the two items M6 still has open are listed under the done criteria below.
 
-## What PR-A shipped (this branch)
+## What PR-A shipped
 
 Three commits, all local (push + open PR is a human step — do not push unprompted):
 
@@ -129,31 +129,63 @@ What landed, per item:
 - [x] Two-tab ping-pong dead — stale updates ignored (B2)
 - [x] Remote edit while editing surfaces keep/take (B3)
 - [x] Mark settled on balances (B4)
-- [ ] Both PRs merged into `test`; ROADMAP M6 row updated; CHANGELOG entries landed (PR-B: CHANGELOG landed under [Unreleased]; merge + ROADMAP row pending)
+- [x] Both PRs merged into `test` (PR-B as **PR #265**, 2026-09-20 — released as v0.62.0); ROADMAP M6 row updated; CHANGELOG entries landed
 
-## Manual-pass follow-ups (2026-09-19) — INVESTIGATE
+**Nothing is open on M6 any more — the three items this note used to list shipped on
+2026-09-21, in `[Unreleased]`:** **I-19** — a settled expense line genuinely leaves the
+balances, because the card's fair share is the open *tagged* lines over the travellers
+rather than the trip estimate (a product call: the estimate keeps its place in the metric
+strip, where a planning figure belongs); **I-16** — cross-device Trip DNA persistence via
+`public.user_dna` (`supabase/migrations/20260921_user_dna.sql`, applied live and
+probe-verified 2026-09-21; an unmigrated database still degrades to a device-local log
+rather than erroring); and the
+"just you" presence affordance from follow-up 1 below. What is left is a check rather
+than code: the two-account presence pass, after which issue #237 closes.
+
+## Manual-pass follow-ups (2026-09-19) — VERDICTS RECORDED 2026-09-21
 
 Two unconfirmed observations from the owner's first two-browser pass, recorded the same
-day (PR #265). **Both have the same leading confound: the two sessions must be on two
+day (PR #265). **Both shared one confound: the two sessions must be on two
 different accounts** — the same account in two tabs explains both misses by design
 (presence excludes self; a same-user cross-tab write lands inside the store's echo
 window and is suppressed as our own echo, so no realtime event reaches the banner).
 
-1. **"No green dot / where do I look?"** Avatars render in the workspace header beside
-   the member list (`TripWorkspace.tsx` `.presence-stack`), and ONLY when
-   `presence.peers.length > 0` — a solo viewer gets no presence UI at all, so the first
-   look with no second viewer shows nothing by design. Retest protocol: two distinct
-   accounts (the harness throwaways in `.env.local` work), both open the same trip;
-   expect the other's avatar + green dot in each header, gone a few seconds after the
-   peer's tab closes. If still absent on distinct accounts, inspect the
-   `useTripPresence` join state (`SUBSCRIBED`?) before touching code. Product follow-up
-   to consider (Idea-bank sized): a quiet "just you" affordance so an empty room is
-   visible rather than absent.
+**Verdicts: one was by design, the other was a real gap that has since been fixed —
+neither was the bug it first looked like.** What remains on both is the two-account
+confirmation pass, which cannot be run from this clone (no outbound HTTP from the shell
+— AGENTS §3), so it stays a human step rather than a closed question.
 
-2. **"Simultaneous same-stop edit showed no amber banner."** The banner fires only when
-   the remote SAVE lands while the editor is already open: open the stop editor in
-   session A FIRST, then edit + save the same stop in session B, then watch A. If B's
-   save happens before A opens the editor, A's form simply shows the new data — no
-   conflict, correct behavior. Retest with two distinct accounts in that exact order;
-   if it still fails, check whether A received B's trip UPDATE at all (the B2 guard
-   logs nothing by default) before suspecting the TimelineTab wiring.
+1. **"No green dot / where do I look?" — WAS by design, and the design was the
+   problem — FIXED 2026-09-21.** Avatars render in the workspace header beside the member
+   list (`src/pages/TripWorkspace.tsx` `.presence-stack`), and they rendered ONLY when
+   `presence.peers.length > 0` — so a solo viewer got no presence UI at all and could not
+   tell an empty room from a feature that was not working. The header now renders from a
+   three-state helper (`presenceView` in `src/lib/presence.ts`: `hidden` when presence is
+   not running at all — anonymous view, no backend — `solo` when it is running and the
+   room is empty, `peers` when the crew is there), and `solo` is a quiet "Just you
+   viewing" chip that inherits the member count's own colour recipe instead of adding a
+   token. The product follow-up this entry used to park — a quiet "just you" affordance
+   so an empty room is visible rather than absent — is therefore shipped, and the three
+   states are node-tested (`tests/presence.test.ts`), including a source-invariant that
+   the header can no longer go back to a bare peer count. **Still unconfirmed live**, and
+   that is the last thing M6 owes: retest with two *distinct* accounts (the harness
+   throwaways in `.env.local` work), both open the same trip; expect the other's avatar +
+   green dot in each header, gone a few seconds after the peer's tab closes. If it is
+   absent on distinct accounts, inspect the `useTripPresence` join state (`SUBSCRIBED`?)
+   before touching code.
+
+2. **"Simultaneous same-stop edit showed no amber banner." — REAL GAP, fixed in
+   `e5bba2a` (2026-09-20).** The banner only ever surfaced on the Timeline: `BoardView`
+   opened the *same* `StopEditor` modal without the banner prop, so a crew member
+   editing from the Board edited stale data with no conflict surface at all — a miss the
+   original protocol could not have produced, which is why the observation was worth
+   keeping. The conflict logic now lives in one shared hook
+   (`src/components/useStopConflict.ts`) that both surfaces ride (`TimelineTab.tsx:65`,
+   `BoardView.tsx:120`), with a source-invariant test (`tests/remote-edit-banner.test.ts`)
+   pinning that neither call site can silently drop it again. The same commit closed the
+   second half of the class: the realtime channel subscribed bare, so a socket gap
+   (laptop sleep, network switch) dropped every row changed while away — re-subscribes
+   now refetch the cached trip rows and dispatch them through the same
+   `applyRealtimeEvent` path a live UPDATE takes. The retest protocol still stands for
+   the banner itself: open the stop editor in session A FIRST, then edit + save the same
+   stop in session B, then watch A.

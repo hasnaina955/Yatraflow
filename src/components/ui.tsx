@@ -1,6 +1,7 @@
 // ============ Reusable UI components ============
 import React, { useEffect, useId, useRef, useState } from 'react'
-import { Check, Map as MapIcon, TriangleAlert, Users, X } from 'lucide-react'
+import { InlineIcon } from './icons'
+import { Check, Map as MapIcon, Mountain, Sailboat, Tent, TriangleAlert, Trees, Users, X } from 'lucide-react'
 import { nativeCopyText } from '../lib/native'
 import { haptic } from '../lib/haptics'
 import { registerTouchDnd, touchPressAbort, touchPressStart, encodeDropKey, isInteractiveTarget, consumeCarryRect } from '../lib/touchDnd'
@@ -23,7 +24,17 @@ export function Chip({ children, tone, onClick, active, 'aria-pressed': ariaPres
   return <span className={cls}>{children}</span>
 }
 
-export function Modal({ open, onClose, title, children, initialFocus }: { open: boolean; onClose: () => void; title: string; children: React.ReactNode; initialFocus?: string }) {
+export function Modal({ open, onClose, title, children, initialFocus, variant = 'dialog' }: {
+  open: boolean
+  onClose: () => void
+  title: string
+  children: React.ReactNode
+  initialFocus?: string
+  /** `full` is the same dialog — one focus trap, one Escape handler, one
+   *  scroll lock — with the sheet's own padding given to the content. Used by
+   *  the unlock moment, which is a page-filling ceremony rather than a form. */
+  variant?: 'dialog' | 'full'
+}) {
   const bodyRef = useRef<HTMLDivElement>(null)
   const dialogRef = useRef<HTMLDivElement>(null)
   const titleId = React.useId()
@@ -51,7 +62,7 @@ export function Modal({ open, onClose, title, children, initialFocus }: { open: 
     const prevOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     // focus the first sensible control so keyboard users can start typing
-    // immediately — callers can override via `initialFocus` (ConfirmDialog
+    // immediately - callers can override via `initialFocus` (ConfirmDialog
     // aims at Cancel so a stray Enter can't confirm a destructive action)
     const t = setTimeout(() => {
       const el = (initialFocus ? dialogRef.current?.querySelector<HTMLElement>(initialFocus) : null)
@@ -69,7 +80,7 @@ export function Modal({ open, onClose, title, children, initialFocus }: { open: 
   if (!open) return null
   return (
     <div className="modal-overlay" onMouseDown={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div ref={dialogRef} className="modal" role="dialog" aria-modal="true" aria-labelledby={titleId}>
+      <div ref={dialogRef} className={variant === 'full' ? 'modal modal-full' : 'modal'} role="dialog" aria-modal="true" aria-labelledby={titleId}>
         <div className="modal-head">
           <h2 id={titleId}>{title}</h2>
           <button className="icon-btn" onClick={onClose} aria-label="Close"><X size={16} aria-hidden /></button>
@@ -82,7 +93,7 @@ export function Modal({ open, onClose, title, children, initialFocus }: { open: 
   )
 }
 
-/** Styled replacement for window.confirm — destructive actions go through here. */
+/** Styled replacement for window.confirm - destructive actions go through here. */
 export function ConfirmDialog({ open, title, body, confirmLabel = 'Confirm', cancelLabel = 'Cancel', danger, onConfirm, onClose }: {
   open: boolean
   title: string
@@ -109,7 +120,7 @@ export function ConfirmDialog({ open, title, body, confirmLabel = 'Confirm', can
 
 /** Form row: label + control + hint/error. The label is programmatically
  *  associated with the row's control (UI audit F-01): Field generates an id
- *  and injects it into the first control child via cloneElement — host
+ *  and injects it into the first control child via cloneElement - host
  *  controls (input/select/textarea) take it directly, custom control
  *  components (LocationInput) accept an `id` prop and forward it to their
  *  input. An explicit `id` on the child wins. Non-control children (chip
@@ -133,7 +144,7 @@ export function Field(props: {
     if (!isHostControl && !isCustomControl) return child
     if (el.props.id != null) { associated = true; return child }
     associated = true
-    // The hint/error live outside the control — describe them so SR users
+    // The hint/error live outside the control - describe them so SR users
     // tabbing back to the field hear them, and flag the failing field. Only
     // claim these two when this Field actually has something to say: assigning
     // `undefined` would still overwrite the key, because cloneElement copies it
@@ -161,7 +172,7 @@ export function toast(msg: string, kind: 'ok' | 'err' = 'ok') {
   haptic(kind === 'err' ? 'warn' : 'success')
   pushToastFn?.(msg, kind)
 }
-/** Toast with an Undo button — for destructive actions that can be reversed. */
+/** Toast with an Undo button - for destructive actions that can be reversed. */
 export function undoToast(msg: string, undo: () => void) {
   pushToastFn?.(msg, 'ok', { label: 'Undo', run: undo })
 }
@@ -179,7 +190,7 @@ export function ToastZone() {
   // destructive action, so it must not expire out from under the user while they
   // are reaching for it. (WCAG 2.2.1 Timing Adjustable asks for the limit to be
   // adjustable or extendable; this covers holding it open, which is the common
-  // case — the remaining gap is recorded in the audit log rather than claimed.)
+  // case - the remaining gap is recorded in the audit log rather than claimed.)
   const timers = useRef(new Map<number, { id: number; remaining: number; startedAt: number; handle: number }>())
   const held = useRef(false)
   // Hover and focus are INDEPENDENT reasons to hold. Sharing one flag meant a
@@ -279,21 +290,25 @@ export function EmptyState({ icon = <MapIcon size={38} aria-hidden />, title, bo
 }
 
 /** Route snapshot for dark hero/snapshot cards (CTI homepage mockup): the trip
- *  route as an illustration — a gradient road (saffron→gold→coral) with a dashed
+ *  route as an illustration - a gradient road (saffron→gold→coral) with a dashed
  *  cream centreline and white day-numbered badges (1 · 3 · 6 · 10), exactly the
  *  mockup's grammar. Aspect preserved: 'none' stretching is what made the old
  *  version read as a decorative wave instead of a route.
  *
  *  Scenario carousel: instead of a single static trip, the card cycles through
- *  a handful of India trip scenarios on autopilot — each draws its own road,
+ *  a handful of India trip scenarios on autopilot - each draws its own road,
  *  pops its day badges and slides out before the next. One shared timer;
  *  calm cadence + slow crossfade so it reads satisfying, not frantic. */
 const ROUTE_SCENARIOS: Array<{
   name: string
-  meta: string
+  /** Lucide glyph, not an emoji: the caption sits on the navy card where emoji
+   *  render in the platform's own colors and break the palette. */
+  icon: React.ReactNode
+  /** Fields, not one dotted string: the caption renders them hairline-separated. */
+  meta: string[]
   road: string
   stops: Array<[number, number, number]>
-  /** live figures that change with the scenario — count up on each switch */
+  /** live figures that change with the scenario - count up on each switch */
   perPerson: number
   driveMinutes: number
   health: number
@@ -301,8 +316,9 @@ const ROUTE_SCENARIOS: Array<{
   sync: [string, string]
 }> = [
   {
-    name: '🏔️ Leh–Ladakh road escape',
-    meta: '12–21 Sep · 10 days · 4 travellers · Motorcycle',
+    name: 'Leh-Ladakh road escape',
+    icon: <Mountain size={13} aria-hidden />,
+    meta: ['12-21 Sep', '10 days', '4 travellers', 'Motorcycle'],
     road: 'M21 104 C 83 40, 139 107, 197 55 S 320 5, 382 67 S 484 128, 531 36',
     stops: [[21, 91, 1], [176, 55, 3], [361, 67, 6], [510, 36, 10]],
     perPerson: 5408, driveMinutes: 3615, health: 53,
@@ -310,8 +326,9 @@ const ROUTE_SCENARIOS: Array<{
     sync: ['4 friends synced', 'live collaboration on'],
   },
   {
-    name: '🛶 Kerala backwaters drift',
-    meta: 'Oct 4–8 · 5 days · 2 travellers · Houseboat',
+    name: 'Kerala backwaters drift',
+    icon: <Sailboat size={13} aria-hidden />,
+    meta: ['Oct 4-8', '5 days', '2 travellers', 'Houseboat'],
     road: 'M20 92 C 62 62, 101 118, 160 96 S 278 30, 336 74 S 442 120, 516 48',
     stops: [[20, 92, 1], [160, 87, 2], [336, 70, 3], [516, 51, 5]],
     perPerson: 4980, driveMinutes: 1290, health: 84,
@@ -319,17 +336,19 @@ const ROUTE_SCENARIOS: Array<{
     sync: ['2 friends synced', 'vote closes tonight'],
   },
   {
-    name: '⛰️ Spiti high-pass loop',
-    meta: 'Jun 18–27 · 10 days · 3 travellers · SUV',
+    name: 'Spiti high-pass loop',
+    icon: <Tent size={13} aria-hidden />,
+    meta: ['Jun 18-27', '10 days', '3 travellers', 'SUV'],
     road: 'M24 44 C 88 100, 150 22, 214 64 S 340 120, 402 60 S 468 108, 526 74',
     stops: [[24, 44, 1], [214, 62, 4], [402, 66, 7], [526, 74, 10]],
     perPerson: 7150, driveMinutes: 2320, health: 71,
-    warn: ['Fuel window is tight', 'top up at Kaza — next pump is 180 km away.'],
+    warn: ['Fuel window is tight', 'top up at Kaza. Next pump is 180 km away.'],
     sync: ['3 friends synced', 'permit question resolved'],
   },
   {
-    name: '🌿 Meghalaya double-decker trail',
-    meta: 'Nov 11–16 · 6 days · 3 travellers · Trek',
+    name: 'Meghalaya double-decker trail',
+    icon: <Trees size={13} aria-hidden />,
+    meta: ['Nov 11-16', '6 days', '3 travellers', 'Trek'],
     road: 'M22 84 C 78 30, 128 110, 190 72 S 320 20, 388 58 S 462 116, 528 40',
     stops: [[22, 84, 1], [190, 78, 2], [388, 60, 4], [528, 40, 6]],
     perPerson: 4260, driveMinutes: 1055, health: 91,
@@ -347,7 +366,7 @@ export function RouteSquiggle() {
   // crossfade). Undefined until the first tick; only a single outgoing exists at
   // a time because each tick overwrites it with the previously-active trip.
   const [outgoing, setOutgoing] = React.useState<number | null>(null)
-  // The travelling dot is SMIL motion — CSS kill-switches can't reach it, so
+  // The travelling dot is SMIL motion - CSS kill-switches can't reach it, so
   // it renders only when the user hasn't asked for reduced motion.
   const reduced = useMedia('(prefers-reduced-motion: reduce)')
   const shellRef = React.useRef<HTMLDivElement>(null)
@@ -376,7 +395,7 @@ export function RouteSquiggle() {
         </defs>
         {/*
           Layers stack inside one viewBox: the outgoing trip animates to a whisper
-          while the incoming one draws in over it — a true crossfade, driven by the
+          while the incoming one draws in over it - a true crossfade, driven by the
           SCENARIO_CROSSFADE_MS duration in CSS (rs-layer-in / rs-layer-out).
         */}
         {out && (
@@ -398,15 +417,17 @@ export function RouteSquiggle() {
         />
       </svg>
       <div className="rs-caption" key={`cap-${idx}`} aria-hidden="true">
-        <span className="rs-caption-name">{scen.name}</span>
-        <span className="rs-caption-meta">{scen.meta}</span>
+        <span className="rs-caption-name">{scen.icon}{scen.name}</span>
+        <span className="rs-caption-meta">
+          {scen.meta.map(m => <span className="rs-meta-field" key={m}>{m}</span>)}
+        </span>
       </div>
       <ScenarioStats key={`stats-${idx}`} scen={scen} />
     </div>
   )
 }
 
-/** rAF count-up for one number — runs once per mount (the parent remounts it
+/** rAF count-up for one number - runs once per mount (the parent remounts it
  *  on every scenario switch, so each figure rolls from a low start to its
  *  target). Falls back to the final value under reduced motion. */
 function useCountUp(target: number, ms: number) {
@@ -445,8 +466,8 @@ function ScenarioStats({ scen }: { scen: (typeof ROUTE_SCENARIOS)[number] }) {
         <div className="rs-stat rs-stat-d2"><b style={{ color: 'var(--yf-saffron)' }}>{health}</b><span>trip health</span></div>
       </div>
       <div className="ha-row">
-        <div className="ha-warn"><TriangleAlert size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />{scen.warn[0]}<span>{scen.warn[1]}</span></div>
-        <div className="ha-sync"><Users size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />{scen.sync[0]}<span>{scen.sync[1]}</span></div>
+        <div className="ha-warn"><InlineIcon icon={TriangleAlert} size={13} gap={3} />{scen.warn[0]}<span>{scen.warn[1]}</span></div>
+        <div className="ha-sync"><InlineIcon icon={Users} size={13} gap={3} />{scen.sync[0]}<span>{scen.sync[1]}</span></div>
       </div>
     </>
   )
@@ -479,7 +500,7 @@ function RouteLayer({
         <g className="rs-vehicle">
           <circle r="5.5" fill="#2BB8AC" stroke="#FFFFFF" strokeWidth="2" />
           {/* one gentle eased pass per scenario, starting as the road finishes
-              drawing (2.3s) — the layer remounts on every switch, so the dot
+              drawing (2.3s) - the layer remounts on every switch, so the dot
               never jumps mid-loop or runs ahead of an undrawn road */}
           <animateMotion dur="5.2s" begin="2.3s" fill="freeze" rotate="auto" calcMode="spline"
             keyTimes="0;1" keySplines="0.42 0 0.35 1">
@@ -496,12 +517,12 @@ function RouteLayer({
  *  is a simplified, north-up snapshot of the actual geography: bounds fitted
  *  aspect-true (like the map's fitBounds), points decimated and smoothed into a
  *  flowing road, day badges on each day's first stop. Without points it falls
- *  back to the mockup's illustrative curve. Pure math — no DOM measurement. */
+ *  back to the mockup's illustrative curve. Pure math - no DOM measurement. */
 export function RouteSnapshot({ count, startLabel, endLabel, roundTripNote, points }: {
   count: number
   startLabel?: string
   endLabel?: string
-  /** set when the trip returns to its start — a small note; the end label stays
+  /** set when the trip returns to its start - a small note; the end label stays
       the final destination, never a duplicate of the start */
   roundTripNote?: string
   /** ordered stop coordinates (lat/lng) with day index; optional */
@@ -524,7 +545,7 @@ export function RouteSnapshot({ count, startLabel, endLabel, roundTripNote, poin
     const hKm = Math.max((maxLat - minLat) * 111, 1e-4)
     const s = Math.min((W - 2 * PAD) / wKm, (H - 2 * PAD) / hKm)
     // project with the fit scale (raw, unoffset), then centre the *drawn*
-    // bounds in the canvas — a route flatter or narrower than the viewBox
+    // bounds in the canvas - a route flatter or narrower than the viewBox
     // would otherwise sit small in the top-left instead of filling the card
     const raw = points.map(p => ({
       x: (p.lng - minLng) * kcos * 111 * s,
@@ -612,7 +633,7 @@ export function RouteSnapshot({ count, startLabel, endLabel, roundTripNote, poin
           <text x={x} y={y + 4} textAnchor="middle" fontSize="11" fontWeight="700" fill="#155B60">{day}</text>
         </g>
       ))}
-      {/* start label bottom-left, final destination top-right — never duplicated */}
+      {/* start label bottom-left, final destination top-right - never duplicated */}
       {startLabel && (
         <text x="6" y={H - 6} textAnchor="start" fontSize="12.5" fontWeight="800" fill="#EAF6F2">{short(startLabel)}</text>
       )}
@@ -661,7 +682,7 @@ export function CopyButton({ text, label = 'Copy link', onCopied }: { text: stri
         setTimeout(() => setDone(false), 1800)
         onCopied?.()
       }}
-    >{done ? <><Check size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Copied</> : label}</button>
+    >{done ? <><InlineIcon icon={Check} size={13} gap={4} />Copied</> : label}</button>
   )
 }
 
@@ -677,14 +698,14 @@ export type ReorderSource = 'drag' | 'command'
 
 /**
  * Accessible move up/down controls + pointer-event drag wrapper for stop cards
- * (mouse starts on an 8px move; touch keeps the long-press gate — see
+ * (mouse starts on an 8px move; touch keeps the long-press gate - see
  * lib/touchDnd.ts). Supports same-list reordering plus foreign (cross-list)
  * drags: cards carry a payload built by `dragPayload`, and `onForeignDrop` is
  * called when such a drag is released on a card (insert at its index) or a
  * `dayDropHandlers` zone (insert at that index). Drop targets are found by the
  * engine via `data-yf-drop` / `data-yf-gap` attributes, with the list root
  * (render `data-yf-list={listId}`) keeping the own-list reading alive across
- * the dead bands — both handlers are plain attribute renderers now, no native
+ * the dead bands - both handlers are plain attribute renderers now, no native
  * drag events anywhere.
  */
 export function useReorder<T extends { id: string }>(
@@ -696,8 +717,8 @@ export function useReorder<T extends { id: string }>(
     /** called with the payload and the insertion index when a foreign drag lands */
     onForeignDrop?: (payload: string, toIdx: number) => void
     /** own-list hover: the hovered row/gap index, the pointer x, the CARRIED
-        CARD's centre y (viewport — NOT the pointer), and the dragged row's
-        index (synchronous — React state lags the activation hover). Owners
+        CARD's centre y (viewport - NOT the pointer), and the dragged row's
+        index (synchronous - React state lags the activation hover). Owners
         read the insertion slot from stable layout (insertionIndexFor). */
     onOwnHover?: (idx: number, x: number, centreY: number, dragIdx: number) => void
     /** touch dragging is enabled only for editable lists (default true) */
@@ -712,8 +733,8 @@ export function useReorder<T extends { id: string }>(
   // The engine is a module singleton and needs stable callbacks; route it
   // through a ref that always points at the latest closures.
   const instId = useId()
-  // dragIdx rides the ref (not state) so the activation-time hover — which
-  // fires before React commits setDragIdx — still knows which row is carried.
+  // dragIdx rides the ref (not state) so the activation-time hover - which
+  // fires before React commits setDragIdx - still knows which row is carried.
   const latest = useRef({ items, onMove, options, touch: options?.touch ?? true, dragIdx: -1 })
   latest.current = { items, onMove, options, touch: options?.touch ?? true, dragIdx: latest.current.dragIdx }
   useEffect(() => {
@@ -733,7 +754,7 @@ export function useReorder<T extends { id: string }>(
   // unmount safety: end any press/drag owned by this list
   useEffect(() => () => touchPressAbort(), [])
 
-  /** Row press handler — rows are never `draggable` (the engine owns the
+  /** Row press handler - rows are never `draggable` (the engine owns the
       whole gesture); buttons/inputs inside a row keep their own behaviour. */
   const press = (idx: number) => (e: React.PointerEvent<HTMLElement>) => {
     if (e.pointerType === 'mouse' ? e.button !== 0 : !latest.current.touch) return
@@ -755,7 +776,7 @@ export function useReorder<T extends { id: string }>(
     onPointerDown: press(idx),
   })
 
-  /** Drop zone for gap/empty areas of the list — foreign drags only. */
+  /** Drop zone for gap/empty areas of the list - foreign drags only. */
   const dayDropHandlers = (idx: number) => ({
     'data-yf-gap': encodeDropKey(instId, idx),
   })
@@ -769,12 +790,12 @@ export function useReorder<T extends { id: string }>(
     dragging: dragIdx,
     foreignOver,
     /** Explicit one-step move from a keyboard/button affordance. Unlike a drop,
-        this carries its OWN destination — callers that resolve the target from
+        this carries its OWN destination - callers that resolve the target from
         the live drag insertion slot must branch on `source` instead of reading
         `toIdx` blindly (see DaySection). */
     moveUp: (idx: number) => { if (idx > 0) latest.current.onMove(idx, idx - 1, 'command') },
     moveDown: (idx: number) => { if (idx < latest.current.items.length - 1) latest.current.onMove(idx, idx + 1, 'command') },
-    /** viewport rect of the carried row at release — feed it to the FLIP
+    /** viewport rect of the carried row at release - feed it to the FLIP
         settle so the row springs from where it was carried to its slot */
     takeCarryRect: consumeCarryRect,
   }
@@ -810,12 +831,12 @@ export function BrandMark({ size = 26 }: { size?: number }) {
 }
 
 // ============ Settings-form primitives (the Plan Bench control idiom) ============
-// Workspace settings forms borrow the bench's compact controls — slider dials
-// with drag bubbles, sticky action bars — implemented once here so forms stay
+// Workspace settings forms borrow the bench's compact controls - slider dials
+// with drag bubbles, sticky action bars - implemented once here so forms stay
 // consistent. The controls reuse the bench's own global classes for fidelity.
 
 /** Reactive matchMedia. The reactive sibling of lib/motion's
- *  prefersReducedMotion(), which reads the query once and never updates — use
+ *  prefersReducedMotion(), which reads the query once and never updates - use
  *  this one when a component must re-render as the user flips the OS setting. */
 export function useMedia(query: string, initial = false): boolean {
   const [matches, setMatches] = useState(initial)
@@ -856,9 +877,9 @@ export function useInView(ref: React.RefObject<HTMLElement>): boolean {
 
 const ODO_DIGITS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
-/** Odometer-style money figure: each digit is a vertical 0–9 strip that rolls
+/** Odometer-style money figure: each digit is a vertical 0-9 strip that rolls
  *  into place (masked edges, springy overshoot). Non-digits (₹, commas) sit
- *  static. `animate: false` renders the plain value instead — the
+ *  static. `animate: false` renders the plain value instead - the
  *  reduced-motion path. Pass `label` when the figure is the only place the
  *  amount appears: the rolling digits are aria-hidden, so without it a screen
  *  reader loses the number entirely. */
@@ -882,7 +903,7 @@ export function Odometer({ value, animate, label }: { value: string; animate: bo
   )
 }
 
-/** Slider dial with a value bubble while dragging — ports the bench's
+/** Slider dial with a value bubble while dragging - ports the bench's
  *  BenchRange onto the shared .yf-range track (--fill). The caller renders the
  *  big readout (bench-block-value) and end labels (bench-scale-ends). */
 export function RangeDial({ value, min, max, step, fmt, ariaLabel, disabled, onChange }: {

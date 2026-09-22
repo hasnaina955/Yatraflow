@@ -309,7 +309,7 @@ const rajasthanTrip: Trip = {
     {
       id: 'day_r_2', index: 1, title: 'Jaipur → Jodhpur',
       stops: [
-        { id: 'st_r_mehrangarh', title: 'Mehrangarh Fort', category: 'temple', locationName: 'Jodhpur', lat: 26.2967, lng: 73.0351, description: 'Rampart views over the blue city.', visitMinutes: 150, openTime: '09:00', closeTime: '17:00', entryFeeInrPerPerson: 200, transportCostInrTotal: 400, priority: 'must-do', status: 'confirmed', orderInDay: 1 },
+        { id: 'st_r_mehrangarh', title: 'Mehrangarh Fort', category: 'temple', locationName: 'Jodhpur', lat: 26.2980, lng: 73.0184, description: 'Rampart views over the blue city.', visitMinutes: 150, openTime: '09:00', closeTime: '17:00', entryFeeInrPerPerson: 200, transportCostInrTotal: 400, priority: 'must-do', status: 'confirmed', orderInDay: 1 },
         { id: 'st_r_toorji', title: 'Toorji ka Jhalra stepwell café hop', category: 'food', locationName: 'Old Jodhpur', lat: 26.2935, lng: 73.0270, description: 'Stepwell sunset + rooftop dinner.', visitMinutes: 90, openTime: '08:00', closeTime: '22:00', entryFeeInrPerPerson: 0, transportCostInrTotal: 150, priority: 'nice-to-have', status: 'suggested', orderInDay: 2 },
       ],
     },

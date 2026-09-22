@@ -15,6 +15,7 @@ import { clockHM, type ClockMilestone } from '../lib/clockOverlay'
 import { pointAtKm } from '../lib/geo'
 import { useTimeFormat, formatHM } from '../lib/timefmt'
 import { extraJourneyMarkers } from '../lib/journeyMarkers'
+import { boundsOf, type LatLng } from '../lib/mapFit'
 import { coincidentPinOffsets } from '../lib/pinOffsets'
 import { googleMapsDirectionsUrl } from '../lib/externalMaps'
 import { openExternal } from '../lib/native'
@@ -28,12 +29,12 @@ import {
   type MapViewMode,
 } from '../lib/mapViewModes'
 import type { MapRef } from './mapcn/map'
-import { CatIcon } from './icons'
+import { InlineIcon, CatIcon } from './icons'
 import {
-  Box, Clock, Flag, Home, Info, Lightbulb, LocateFixed, Map as MapIcon, Mountain, Navigation, PlaneTakeoff,
+  Box, CircleDot, Clock, Flag, Home, Info, Lightbulb, LocateFixed, Map as MapIcon, Mountain, Navigation, PlaneTakeoff,
   RotateCcw, TriangleAlert, X,
 } from 'lucide-react'
-import { prefersReducedMotion } from '../lib/motion'
+import { prefersReducedMotion, motionTiming } from '../lib/motion'
 import {
   Map as MapLibreMap,
   MapMarker,
@@ -54,7 +55,14 @@ function VisiblePulse({ children, ...props }: ComponentProps<'span'>) {
   return <span {...props} ref={ref} data-motion-paused={!inView || !visible}>{children}</span>
 }
 
-const DAY_COLORS = ['#0D8D82', '#F59E2D', '#7C5CFC', '#E2557B', '#2D9CDB', '#6BBF59', '#B7791F']
+const DAY_COLORS = ['#0D8D82', '#F59E2D', '#7C5CFC', '#E2557B', '#2D9CDB', '#6BBF59', '#B03A2E'] // #B7791F sat 1.6° from #F59E2D (two orange days); brick clears it by 28°
+
+// How long the map's ready gate waits for the style's 'load' event before
+// opening anyway (see the mapLoaded effect). The fit behind that gate is a
+// camera operation — resize + fitBounds need the instance and its container,
+// not a resolved style — so a stalled style must never leave it permanently
+// dead. The stall is real: a hidden webview can hold a style mid-load forever.
+const STYLE_LOAD_WATCHDOG_MS = 4000
 
 // Basemaps come from the mapcn <Map> default (OpenFreeMap — see mapcn/map.tsx).
 // The old CARTO Voyager / dark-matter and Esri World Imagery style URLs that
@@ -226,13 +234,13 @@ function ClockMilestoneLayer({ overlay, showReturn, onOpenDay }: { overlay: Cloc
                   type="button"
                   className="yf-milestone-hit"
                   onClick={() => onOpenDay(m.itineraryDay!)}
-                  title={`Open day ${m.itineraryDay! + 1} in the timeline${m.haltName ? ` — ${m.haltName}` : ''}`}
-                  aria-label={`Open day ${m.itineraryDay! + 1} in the timeline${m.haltName ? ` — overnight at ${m.haltName}` : ''}`}
+                  title={`Open day ${m.itineraryDay! + 1} in the timeline${m.haltName ? ` - ${m.haltName}` : ''}`}
+                  aria-label={`Open day ${m.itineraryDay! + 1} in the timeline${m.haltName ? ` - overnight at ${m.haltName}` : ''}`}
                 >{chip}</button>
               ) : chip}
             </MarkerContent>
             <MarkerTooltip>
-              {`${m.kind === 'mealtime' ? 'Meal break' : m.kind === 'overnight' ? 'Overnight halt' : 'Destination'}${m.haltName ? ` — ${m.haltName}` : ''} — day ${m.dayNo}${m.dateLabel ? ` (${m.dateLabel})` : ''}: ${formatHM(clockHM(m.etaMin), timeFormat)} at ${m.kmLabel} on the road${m.leg === 'return' ? ' · drive home' : ''}${halts ? ' · tap for the day' : ''}`}
+              {`${m.kind === 'mealtime' ? 'Meal break' : m.kind === 'overnight' ? 'Overnight halt' : 'Destination'}${m.haltName ? ` - ${m.haltName}` : ''} - day ${m.dayNo}${m.dateLabel ? ` (${m.dateLabel})` : ''}: ${formatHM(clockHM(m.etaMin), timeFormat)} at ${m.kmLabel} on the road${m.leg === 'return' ? ', drive home' : ''}${halts ? ', tap for the day' : ''}`}
             </MarkerTooltip>
           </MapMarker>
         )
@@ -274,7 +282,7 @@ function SuggestionDistanceLayer({ places, road }: { places: PlaceHit[]; road: [
               <em className="yf-milestone-km">{`Km ${Math.round(pin.km)}`}</em>
             </span>
           </MarkerContent>
-          <MarkerTooltip>{`${pin.name} — ${Math.round(pin.km)} km into the trip`}</MarkerTooltip>
+          <MarkerTooltip>{`${pin.name} - ${Math.round(pin.km)} km into the trip`}</MarkerTooltip>
         </MapMarker>
       ))}
     </>
@@ -358,7 +366,14 @@ function dedupeConsecutive(coords: [number, number][]): [number, number][] {
 
 /** "transport-hub" → "Transport Hub" for chip labels. */
 
-export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusDay, showToolbar = true, enableMapViewModes = false, activeHitId = null, onActivateHit, onOpenInTimeline, onOpenInBoard, onDeleteStop, mainRouteGeometry = null, clockMilestones = null, onOpenHaltDay, onShowReturnChange }: {
+/** m2: distinct glyphs for the empty-part pins. Keyed on the PART, not the
+ *  label's first letter — Stay and Stretch both read "S" that way, so two
+ *  different kinds wore one badge. */
+const SLOT_PIN_GLYPH: Record<string, string> = {
+  breakfast: 'B', lunch: 'L', fuel: 'F', stretch: 'S', dinner: 'D', stay: 'N',
+}
+
+export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusDay, onDayFilterChange, tripReadinessRows = [], showToolbar = true, enableMapViewModes = false, activeHitId = null, onActivateHit, onOpenInTimeline, onOpenInBoard, onDeleteStop, mainRouteGeometry = null, clockMilestones = null, onOpenHaltDay, onShowReturnChange, slotPins = [], onOpenSlot, hitCosts }: {
   trip: Trip
   onOpenStop?: (stopId: string) => void
   /** potential POIs to show as gold "idea" markers */
@@ -368,6 +383,11 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   /** external day-focus driver (Board column select): a day index shows just that
       day's route, 'all' resets to the whole trip. Undefined = map owns its filter. */
   focusDay?: number | 'all'
+  /** the map's own day chips report the day they just filtered to, so a host
+      whose plan rail carries the same choice can follow it. A host that cannot
+      represent 'all' (the slots rail always plans one day) simply ignores it. */
+  onDayFilterChange?: (day: number | 'all') => void
+  tripReadinessRows?: ReadonlyArray<{ dayIndex: number; filled: number; required: number }>
   /** false = no in-map toolbar (day chips / Recentre / Expand). The Board hides
       it: those controls sit at the top of the map shell, which is an absolute
       backdrop there, so the chips peeked out from behind the Board's info card.
@@ -400,6 +420,13 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
    *  handler the workspace wires to the Timeline's day accordion. Undefined
    *  leaves every label decorative (Board view, tests). */
   onOpenHaltDay?: (dayIndex: number) => void
+  /** P5.3: an empty part of the day's top candidates - hollow amber pins.
+   *  Their tooltip carries P5.2's cost line (arrive / detour / budget share). */
+  slotPins?: Array<{ key: string; label: string; name: string; meta: string; hit: PlaceHit }>
+  /** Tapping a slot pin opens that part in the plan rail. */
+  onOpenSlot?: (key: string) => void
+  /** P5.2: cost line per suggestion id - the popup's "arrive / +N min / % of budget". */
+  hitCosts?: Record<string, string>
   /** Delete the stop straight from the map (popup action) — wired by MapTab. */
   onDeleteStop?: (stopId: string, stop: { title: string; dayIndex: number }) => void
   /** The Return-home toggle's direction state, reported up so the suggestion
@@ -408,8 +435,11 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   onShowReturnChange?: (show: boolean) => void
 }) {
   const [dayFilter, setDayFilter] = useState<number | 'all'>('all')
-  // Board drives the day filter through the prop; the map's own chips keep working
-  // independently until the next focus change (React bails on identical values).
+  // A host drives the day filter through the prop (Board columns, the slots
+  // rail's day strip); the map's own chips report their choice back through
+  // `onDayFilterChange`, so the two selectors agree whichever one was touched.
+  // The effect stays out of that loop: it sets state directly and never calls
+  // back, and React bails on an identical value.
   useEffect(() => {
     if (focusDay !== undefined) setDayFilter(focusDay)
   }, [focusDay])
@@ -461,7 +491,9 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   function collapseExpanded() {
     if (!expanded || closing) return
     setClosing(true)
-    collapseTimer.current = window.setTimeout(() => { setExpanded(false); setClosing(false) }, 280)
+    // The unmount rides the same token as mapCollapse's animation, so retiming
+    // the CSS retimes the timer; reduced motion skips the glide entirely.
+    collapseTimer.current = window.setTimeout(() => { setExpanded(false); setClosing(false) }, prefersReducedMotion() ? 0 : motionTiming('--motion-slow').duration)
   }
   useEffect(() => () => window.clearTimeout(collapseTimer.current), [])
   useEffect(() => {
@@ -473,6 +505,9 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   // Nearby-idea category filter: categories listed here are HIDDEN on the map.
   // Empty set = everything visible (the default).
   const [hiddenIdeaCats, setHiddenIdeaCats] = useState<Set<string>>(new Set())
+  // The categories fold into one Filters popover — nine chips sitting beside the
+  // day filter is the "twenty same-weight pills" the critique flagged (P1).
+  const [filtersOpen, setFiltersOpen] = useState(false)
   // Categories actually present among the ideas, most common first — chips are
   // only shown for categories that have at least one marker on the map.
   const ideaCats = useMemo(() => {
@@ -488,9 +523,28 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   // otherwise (1 req/s). Markers pop in as coords land; failures stay
   // panel-only. Capped at 10 per ideas batch.
   const [coordFixes, setCoordFixes] = useState<Record<string, { lat: number; lng: number }>>({})
+  // Slot pins carry placeholder hits too, and they were read here but missing
+  // from the dep list: switching the day changed `slotPins` while `nearbyPois`
+  // stayed identical, so the effect never re-ran, the pin never resolved, and a
+  // (0,0) placeholder fell through the render guard below and disappeared
+  // silently — the Null Island class this file already documents as found live.
+  //
+  // Ideas and slot pins also get SEPARATE budgets. One shared 10-item queue
+  // ordered ideas-first meant a slot pin only got a turn after every unresolved
+  // idea, which on a fresh load is never.
   useEffect(() => {
     let cancelled = false
-    const pending = nearbyPois.filter(h => !hasCoords(h) && coordFixes[h.id as string] == null).slice(0, 10)
+    const seen = new Set<string>()
+    const take = (list: PlaceHit[], cap: number) => list
+      .filter(h => !hasCoords(h) && coordFixes[h.id as string] == null)
+      .slice(0, cap)
+    const pending = [...take(nearbyPois, 10), ...take(slotPins.map(p => p.hit), 4)]
+      .filter(h => {
+        const id = String(h.id)
+        if (seen.has(id)) return false
+        seen.add(id)
+        return true
+      })
     if (pending.length === 0) return
     ;(async () => {
       for (const h of pending) {
@@ -504,7 +558,10 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
       }
     })()
     return () => { cancelled = true }
-  }, [nearbyPois])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `coordFixes` is read
+    // to skip what is already fixed; depending on it would restart the queue on
+    // every landing and re-attempt hits that can never resolve.
+  }, [nearbyPois, slotPins])
   const mappedPois = useMemo(
     () => nearbyPois.map(h => {
       const f = coordFixes[h.id as string]
@@ -521,6 +578,11 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     },
     [mappedPois, hiddenIdeaCats],
   )
+  /** S4: the hits an empty-part pin is already standing on. Every slot
+   *  candidate is drawn from the same corridor pool as the ideas, so without
+   *  this the slot pin landed exactly on the idea pin — two markers, one
+   *  coordinate, an ambiguous click target. */
+  const slotPinIds = useMemo(() => new Set(slotPins.map(p => String(p.hit.id))), [slotPins])
   function toggleIdeaCat(cat: string) {
     setHiddenIdeaCats(prev => {
       const next = new Set(prev)
@@ -641,6 +703,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     if (allPoints.length === 0) { setMapLoaded(false); return }
     let cancelled = false
     let attached = false
+    let watchdog = 0
     const tick = setInterval(() => {
       if (cancelled) return
       const m = mapRef.current
@@ -649,36 +712,64 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
         attached = true
         const onLoad = () => { if (!cancelled) setMapLoaded(true) }
         if (m.isStyleLoaded()) onLoad()
-        else m.once('load', onLoad)
+        else {
+          m.once('load', onLoad)
+          // Watchdog: a style that never reports 'load' (a hidden tab holding
+          // it mid-load, a stalled or blocked tile host) must not leave the
+          // auto-fit permanently dead behind this gate — the fit is a camera
+          // operation and does not need the style. A late 'load' changes
+          // nothing: opening the gate is idempotent.
+          watchdog = window.setTimeout(onLoad, STYLE_LOAD_WATCHDOG_MS)
+        }
         clearInterval(tick)
       }
     }, 120)
-    return () => { cancelled = true; clearInterval(tick) }
+    return () => { cancelled = true; clearInterval(tick); window.clearTimeout(watchdog) }
   }, [pointsKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // fit the viewport to the route whenever the map is ready and the points change
-  useEffect(() => {
-    if (!mapLoaded || !mapRef.current || allPoints.length === 0) return
-    const m = mapRef.current
-    let minLng = Infinity, maxLng = -Infinity, minLat = Infinity, maxLat = -Infinity
-    for (const p of allPoints) {
-      if (p.lng < minLng) minLng = p.lng
-      if (p.lng > maxLng) maxLng = p.lng
-      if (p.lat < minLat) minLat = p.lat
-      if (p.lat > maxLat) maxLat = p.lat
+  // EVERYTHING the current view draws — the fit frames the drawing, not just
+  // the stop pins. A day's journey chain carries its synthesized origin (last
+  // night's town), drawn as an endpoint flag and as the road line's far end,
+  // but it is NOT a stop: fitting stop bounds alone glued the camera to a stop
+  // cluster at maxZoom while the route ran off-screen — the reported case is
+  // Day 2 of the sample Rajasthan trip, two pins inside Jodhpur framed at
+  // zoom 12 while 280 km of drawn road to Jaipur sat16,000 px outside the
+  // canvas. All-days adds the return-home pin when that line is shown (its
+  // home is beyond the last stop by definition). Nearby-suggestion pins stay
+  // OUT on purpose: another day's ideas would balloon the fit. The late OSRM
+  // polyline stays out too — it arrives after this fit and follows the chain
+  // well inside the 70px padding, and mixing it in would fit a PREVIOUS day's
+  // line while the fetch for this one is still in flight.
+  const fitPoints = useMemo(() => {
+    const pts: LatLng[] = allPoints.map(p => ({ lat: p.lat, lng: p.lng }))
+    if (dayFilter === 'all') {
+      if (showReturn && isRoundTrip(trip) && trip.startLocationCoords) pts.push(trip.startLocationCoords)
+    } else {
+      for (const p of dayRoutePoints[String(dayFilter)] ?? []) pts.push(p)
     }
-    // single point (or near-zero bounds) — pad so fitBounds has real area
-    if (maxLng - minLng < 1e-4) { minLng -= 0.08; maxLng += 0.08 }
-    if (maxLat - minLat < 1e-4) { minLat -= 0.08; maxLat += 0.08 }
+    return pts
+  }, [allPoints, dayFilter, dayRoutePoints, showReturn, trip])
+  const fitPointsKey = useMemo(
+    () => fitPoints.map(p => `${p.lat.toFixed(4)},${p.lng.toFixed(4)}`).join('|'),
+    [fitPoints],
+  )
+
+  // fit the viewport to everything the view draws, whenever the map is ready
+  // and that extent changes
+  useEffect(() => {
+    if (!mapLoaded || !mapRef.current) return
+    const bounds = boundsOf(fitPoints)
+    if (!bounds) return
+    const m = mapRef.current
     const run = () => {
       m.resize()
       m.fitBounds(
-        [[minLng, minLat], [maxLng, maxLat]],
+        bounds,
         { padding: 70, maxZoom: 12, duration: prefersReducedMotion() ? 0 : 400 },
       )
     }
     requestAnimationFrame(run)
-  }, [pointsKey, mapLoaded]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [fitPointsKey, mapLoaded]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Panel → map highlight: when a suggestion card is hovered/selected in the
   // side panels, glide the camera to its pin so the user sees where it is.
@@ -736,18 +827,10 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
 
   function fitToTrip() {
     const m = mapRef.current
-    if (!m || allPoints.length === 0) return
-    let minLng = Infinity, maxLng = -Infinity, minLat = Infinity, maxLat = -Infinity
-    for (const p of allPoints) {
-      if (p.lng < minLng) minLng = p.lng
-      if (p.lng > maxLng) maxLng = p.lng
-      if (p.lat < minLat) minLat = p.lat
-      if (p.lat > maxLat) maxLat = p.lat
-    }
-    if (maxLng - minLng < 1e-4) { minLng -= 0.08; maxLng += 0.08 }
-    if (maxLat - minLat < 1e-4) { minLat -= 0.08; maxLat += 0.08 }
+    const bounds = boundsOf(fitPoints)
+    if (!m || !bounds) return
     m.resize()
-    m.fitBounds([[minLng, minLat], [maxLng, maxLat]], { padding: 70, maxZoom: 12, duration: prefersReducedMotion() ? 0 : 400 })
+    m.fitBounds(bounds, { padding: 70, maxZoom: 12, duration: prefersReducedMotion() ? 0 : 400 })
   }
 
   function colorForDay(i: number): string {
@@ -903,45 +986,50 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     <div className={`map-shell${expanded ? ' map-shell--expanded' : ''}${closing ? ' map-shell--closing' : ''}`}>
       {showToolbar && (
       <div className="map-toolbar">
-        <div className="map-day-filter">
-          <button className={`map-day-chip ${dayFilter === 'all' ? 'on' : ''}`} aria-pressed={dayFilter === 'all'} onClick={() => setDayFilter('all')}>All days</button>
-          {trip.days.map(d => (
-            <button key={d.index} className={`map-day-chip ${dayFilter === d.index ? 'on' : ''}`} aria-pressed={dayFilter === d.index} onClick={() => setDayFilter(d.index)}>
-              Day {d.index + 1}
-            </button>
-          ))}
-          <button className="map-day-chip map-recenter" onClick={fitToTrip} title="Recentre the map on the trip route"><LocateFixed size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Recentre</button>
+        <div className="map-day-filter" role="group" aria-label="Which day the map draws">
+          <span className="map-scope-lbl">Show on map</span>
+          <button className={`map-day-chip ${dayFilter === 'all' ? 'on' : ''}`} aria-pressed={dayFilter === 'all'} onClick={() => { setDayFilter('all'); onDayFilterChange?.('all') }}>All days</button>
+          {trip.days.map(d => {
+            const rd = tripReadinessRows.find(x => x.dayIndex === d.index)
+            return (
+              <button key={d.index} className={`map-day-chip ${dayFilter === d.index ? 'on' : ''}`} aria-pressed={dayFilter === d.index} onClick={() => { setDayFilter(d.index); onDayFilterChange?.(d.index) }}
+                aria-label={`Day ${d.index + 1}${rd ? `, ${rd.filled} of ${rd.required} planned` : ''}`}>
+                Day {d.index + 1}
+                {rd && <span className="map-day-chip-rd">{rd.filled}/{rd.required}</span>}
+              </button>
+            )
+          })}
+        </div>
+        <div className="map-toolbar-mid" role="group" aria-label="What the map shows">
+          {/* The utilities read as one family, held apart from the day filter by
+              the same hairline the view modes use: the chips around them answer
+              "which day am I looking at", these four answer "what is drawn" and
+              "where do I go next". */}
+          <div className="map-util-group" role="group" aria-label="Map layers and day actions">
+          <button className="map-day-chip map-day-chip--util map-recenter" onClick={fitToTrip} aria-label="Recentre the map on the trip route" title="Recentre the map on the trip route"><LocateFixed size={13} aria-hidden /></button>
           {clockMilestones && (
             <button
-              className={`map-day-chip ${clockOn ? 'on' : ''}`}
+              className={`map-day-chip map-day-chip--util ${clockOn ? 'on' : ''}`}
               aria-pressed={clockOn}
               onClick={toggleClock}
-              title="Show or hide the road milestones — each planned stop's time and distance on the road"
+              title="Show or hide the road milestones - each planned stop's time and distance on the road"
             >
-              <Clock size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Milestones
+              <InlineIcon icon={Clock} size={13} gap={4} />Milestones
             </button>
           )}
           {returnLeg && (
             <button
-              className={`map-day-chip ${showReturn ? 'on' : ''}`}
+              className={`map-day-chip map-day-chip--util ${showReturn ? 'on' : ''}`}
               aria-pressed={showReturn}
               onClick={() => setShowReturn(s => !s)}
               title={showReturn
                 ? 'Return leg shown. The loop km (out + back) feed the plan; hide to read the outbound road alone.'
-                : 'Return leg hidden — the corridor and km labels read the OUTBOUND road only.'}
+                : 'Return leg hidden - the corridor and km labels read the OUTBOUND road only.'}
             >
-              <RotateCcw size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Return home
+              <InlineIcon icon={RotateCcw} size={13} gap={4} />Return home
             </button>
           )}
-          {dayDirectionsUrl && (
-            <button
-              className="map-day-chip"
-              onClick={() => openExternal(dayDirectionsUrl)}
-              title="Open this day's ride with turn-by-turn directions in Google Maps"
-            >
-              <Navigation size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Directions
-            </button>
-          )}
+          </div>
           {/* Map view modes — three first-class states, none "off", so a
               segmented role="group" (AGENTS' segmented-control rule), same
               chip styling as the day filter. The long form lives in the
@@ -957,35 +1045,57 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                   title={MAP_VIEW_MODE_META[m].aria}
                   onClick={() => { haptic('select'); setViewMode(m) }}
                 >
-                  {m === '2d' ? <MapIcon size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />
-                    : m === 'terrain' ? <Mountain size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />
-                      : <Box size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />}
+                  {m === '2d' ? <InlineIcon icon={MapIcon} size={13} gap={4} />
+                    : m === 'terrain' ? <InlineIcon icon={Mountain} size={13} gap={4} />
+                      : <InlineIcon icon={Box} size={13} gap={4} />}
                   {MAP_VIEW_MODE_META[m].label}
                 </button>
               ))}
             </div>
           )}
-          {/* Nearby-idea category filters — hide/show the gold idea markers by
-              type. Only rendered when there are ideas to filter. */}
           {ideaCats.length > 0 && (
-            <>
-              {ideaCats.map(([cat, count]) => (
-                <button
-                  key={cat}
-                  className={`map-day-chip map-idea-chip ${hiddenIdeaCats.has(cat) ? '' : 'on'}`}
-                  aria-pressed={!hiddenIdeaCats.has(cat)}
-                  onClick={() => toggleIdeaCat(cat)}
-                  title={hiddenIdeaCats.has(cat) ? `Show ${count} ${titleCase(cat).toLowerCase()} idea${count === 1 ? '' : 's'}` : `Hide ${titleCase(cat).toLowerCase()} ideas`}
-                >
-                  <CatIcon category={cat} size={13} className="yf-idea-chip-ico" />
-                  {titleCase(cat)}
-                  <span className="yf-idea-chip-count">{count}</span>
-                </button>
-              ))}
-            </>
+            <div className="map-filters">
+              <button
+                className="map-day-chip map-day-chip--util"
+                aria-expanded={filtersOpen}
+                onClick={() => setFiltersOpen(o => !o)}
+                title={hiddenIdeaCats.size > 0 ? `Idea filters — ${hiddenIdeaCats.size} hidden` : 'Filter nearby ideas by type'}
+              >
+                Filters{hiddenIdeaCats.size > 0 ? ` (${hiddenIdeaCats.size})` : ''}
+              </button>
+              {filtersOpen && (
+                <div className="map-filters-pop" role="group" aria-label="Nearby idea categories">
+                  {ideaCats.map(([cat, count]) => (
+                    <button
+                      key={cat}
+                      className="map-filters-row"
+                      aria-pressed={!hiddenIdeaCats.has(cat)}
+                      onClick={() => toggleIdeaCat(cat)}
+                    >
+                      <CatIcon category={cat} size={13} aria-hidden />
+                      {titleCase(cat)}
+                      <span className="n">{count}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+        <div className="map-toolbar-end">
+          {dayDirectionsUrl && (
+            <button
+              className="map-day-chip map-day-chip--util map-day-chip--ghost"
+              onClick={() => openExternal(dayDirectionsUrl)}
+              title="Open this day's ride with turn-by-turn directions in Google Maps"
+              aria-label="Directions for this day in Google Maps"
+            >
+              <Navigation size={13} aria-hidden />
+            </button>
           )}
           <button
-            className={`map-day-chip map-expand-chip${expanded ? ' on' : ''}`}
+            className={`map-day-chip map-day-chip--util map-day-chip--ghost map-expand-chip${expanded ? ' on' : ''}`}
+            aria-pressed={expanded}
             onClick={() => (expanded ? collapseExpanded() : setExpanded(true))}
             title={expanded ? 'Shrink the map back into the page (Esc)' : 'Expand the map to fill the screen'}
             aria-label={expanded ? 'Shrink the map back into the page' : 'Expand the map to fill the screen'}
@@ -993,12 +1103,12 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
             {expanded ? '⤡ Collapse' : '⤢ Expand'}
           </button>
         </div>
-      </div>
+        </div>
       )}
 
       <div className="map-frame">
         {allPoints.length === 0 ? (
-          <div className="empty-state"><div className="big"><MapIcon size={38} aria-hidden /></div><p>No confirmed stops to plot yet — add some in the Timeline.</p></div>
+          <div className="empty-state"><div className="big"><MapIcon size={38} aria-hidden /></div><p>No confirmed stops to plot yet - add some in the Timeline.</p></div>
         ) : (
           <MapLibreMap
             ref={mapRef}
@@ -1009,7 +1119,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
           >
             {/* yf-map-ctrls: mapcn ships this group in Tailwind utilities this
                 app doesn't compile — the class hooks the hand-ported CSS. */}
-            <MapControls position="top-right" showFullscreen className="yf-map-ctrls" />
+            <MapControls position="top-right" className="yf-map-ctrls" />
             {/* Terrain stack reconcile (2D · Terrain · 3D hero) — no-op on a
                 hard-2D surface like the Board. */}
             {enableMapViewModes && <MapViewModeController mode={viewMode} bearing={heroBearing} />}
@@ -1035,7 +1145,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                     opacity={dark ? 0.6 : 0.75}
                     interactive={false}
                   />
-                  <MapRoute coordinates={coords} color="#2A6FDB" width={4.5} opacity={0.95} />
+                  <MapRoute coordinates={coords} color={dark ? '#2A6FDB' : '#0B2545'} width={4.5} opacity={0.95} />
                   <RouteArrows coordinates={coords} dark={dark} />
                 </>
               )
@@ -1113,6 +1223,34 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                 <SuggestionDistanceLayer places={nearbyPois} road={geom.all ?? null} />
               </>
             )}
+            {/* P5.3: the day's empty parts stand on the map - hollow amber pins at
+                their top candidate's real position (placeholder hits resolve via
+                the same coord-fix pass as the ideas), the cost line in the tooltip. */}
+            {slotPins.map(pin => {
+              const fix = coordFixes[pin.hit.id as string]
+              const lat = fix ? fix.lat : pin.hit.latitude
+              const lng = fix ? fix.lng : pin.hit.longitude
+              if (!Number.isFinite(lat) || !Number.isFinite(lng) || (lat === 0 && lng === 0)) return null
+              // m3: one string, used as the accessible name and the tooltip.
+              // It used to be a `title` AND a MarkerTooltip with identical text,
+              // so hovering showed two tooltips saying the same thing.
+              const label = `${pin.label}: ${pin.name} - ${pin.meta}. Tap to open this part in the plan.`
+              return (
+                <MapMarker key={`slot-${pin.key}`} longitude={lng} latitude={lat} anchor="center">
+                  <MarkerContent>
+                    <button
+                      type="button"
+                      className="yf-map-pin yf-map-pin--slot"
+                      aria-label={label}
+                      onClick={() => onOpenSlot?.(pin.key)}
+                    >
+                      {SLOT_PIN_GLYPH[pin.key] ?? pin.label.slice(0, 1)}
+                    </button>
+                  </MarkerContent>
+                  <MarkerTooltip>{label}</MarkerTooltip>
+                </MapMarker>
+              )
+            })}
             {(() => {
               let num = 0
               const showClockChips = !!(clockMilestones && clockOn)
@@ -1123,7 +1261,10 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                 const off = pinOffsets.get(p.id)
                 const offsetStyle = off ? { transform: `translate(${off.dx}px, ${off.dy}px)` } : undefined
                 if (p.auto) {
-                  const label = isLast ? <Flag size={13} aria-hidden /> : <PlaneTakeoff size={13} aria-hidden />
+                  const label = isLast ? <Flag size={13} aria-hidden />
+                    : trip.transportMode === 'flight'
+                      ? <PlaneTakeoff size={13} aria-hidden />
+                      : <CircleDot size={13} aria-hidden />
                   const c = showClockChips ? stopClock.get(p.id) : undefined
                   return (
                     <MapMarker key={p.id} longitude={p.lng} latitude={p.lat}>
@@ -1133,7 +1274,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                         </span>
                         {c && <span className="yf-pin-time">{formatHM(c.arrive, timeFormat)}</span>}
                       </MarkerContent>
-                      <MarkerTooltip>{isLast ? `Final destination — ${p.title}` : `Trip start — ${p.title}`}{c ? ` · arrives ${formatHM(c.arrive, timeFormat)} · ~${c.cumKm} km into the trip` : ''}</MarkerTooltip>
+                      <MarkerTooltip>{isLast ? `Final destination - ${p.title}` : `Trip start - ${p.title}`}{c ? `, arrives ${formatHM(c.arrive, timeFormat)}, ~${c.cumKm} km into the trip` : ''}</MarkerTooltip>
                     </MapMarker>
                   )
                 }
@@ -1158,7 +1299,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                       </span>
                       {c && <span className="yf-pin-time">{formatHM(c.arrive, timeFormat)}</span>}
                     </MarkerContent>
-                    <MarkerTooltip>{p.title}{c ? ` · arrives ${formatHM(c.arrive, timeFormat)} · ~${c.cumKm} km into the trip` : ''}</MarkerTooltip>
+                    <MarkerTooltip>{p.title}{c ? `, arrives ${formatHM(c.arrive, timeFormat)}, ~${c.cumKm} km into the trip` : ''}</MarkerTooltip>
                   </MapMarker>
                 )
               })
@@ -1174,7 +1315,11 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                     className="yf-map-pin yf-map-flag"
                     title={m.label}
                   >
-                    {m.kind === 'start' ? <PlaneTakeoff size={13} aria-hidden /> : <Flag size={13} aria-hidden />}
+                    {m.kind === 'start'
+                      ? (trip.transportMode === 'flight'
+                        ? <PlaneTakeoff size={13} aria-hidden />
+                        : <CircleDot size={13} aria-hidden />)
+                      : <Flag size={13} aria-hidden />}
                   </span>
                 </MarkerContent>
                 <MarkerTooltip>{m.label}</MarkerTooltip>
@@ -1187,18 +1332,22 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                 <MarkerContent>
                   <span className="yf-map-pin yf-map-flag" title={trip.startLocation}><Home size={13} aria-hidden /></span>
                 </MarkerContent>
-                <MarkerTooltip>Home — return drive ends here ({trip.startLocation})</MarkerTooltip>
+                <MarkerTooltip>Home - return drive ends here ({trip.startLocation})</MarkerTooltip>
               </MapMarker>
             )}
             {/* nearby idea markers — category-coloured, dashed, with quick-add.
                 Pin click/hover = select: the panel row highlights and scrolls
                 into view; adding moved to the explicit + chip beside the pin. */}
             {visiblePois.map(hit => {
+              // S4: an empty-part pin already stands here for this exact hit —
+              // it carries more (the part it would fill, plus the cost line) and
+              // its tap opens the plan, so it is the one that stays.
+              if (slotPinIds.has(String(hit.id))) return null
               const active = activeHitId != null && activeHitId === hit.id
               return (
                 <MapMarker key={`nearby_${hit.id}`} longitude={hit.longitude} latitude={hit.latitude}>
                   <MarkerContent>
-                    <VisiblePulse className="yf-map-idea" title={`${hit.name} — click to locate in the suggestions panel`}>
+                    <VisiblePulse className="yf-map-idea" title={`${hit.name} - click to locate in the suggestions panel`}>
                       <span
                         className={`yf-map-pin yf-map-pin-idea${active ? ' yf-map-pin-idea--active' : ''}`}
                         style={{ background: ideaPinColor(hit.category) } as React.CSSProperties}
@@ -1221,7 +1370,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                     </VisiblePulse>
                   </MarkerContent>
                   <MarkerTooltip>
-                    <Lightbulb size={11} aria-hidden style={{ verticalAlign: '-1px', marginRight: 3 }} />{hit.name}{hit.haltPurpose ? ` · ${hit.haltPurpose === 'overnight' ? 'overnight option' : hit.haltPurpose}` : ''}{hit.cumKm != null ? ` · ~${hit.cumKm} km in` : ''}{hit.nearestCity ? ` · near ${hit.nearestCity}` : ''}
+                    <InlineIcon icon={Lightbulb} size={11} gap={3} vAlign="-1px" />{hit.name}{hit.haltPurpose ? `, ${hit.haltPurpose === 'overnight' ? 'overnight option' : hit.haltPurpose}` : ''}{hit.cumKm != null ? `, ~${hit.cumKm} km in` : ''}{hit.nearestCity ? `, near ${hit.nearestCity}` : ''}{hitCosts?.[String(hit.id)] ? `, ${hitCosts[String(hit.id)]}` : ''}
                   </MarkerTooltip>
                 </MapMarker>
               )
@@ -1254,7 +1403,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
             title={liveOn ? 'Stop showing my live location' : 'Show my live location on the map'}
             aria-label={liveOn ? 'Stop showing my live location' : 'Show my live location on the map'}
           >
-            <LocateFixed size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />{liveOn ? 'Live on' : 'Locate me'}
+            <InlineIcon icon={LocateFixed} size={12} gap={3} />{liveOn ? 'Live on' : 'Locate me'}
           </button>
           <button
             className="map-legend-toggle"
@@ -1263,20 +1412,20 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
             title={legendOpen ? 'Hide the map key' : 'Show the map key'}
             aria-label={legendOpen ? 'Hide the map key' : 'Show the map key'}
           >
-            {legendOpen ? <><X size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />Hide key</> : <><Info size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />Key</>}
+            {legendOpen ? <><InlineIcon icon={X} size={12} gap={3} />Hide key</> : <><InlineIcon icon={Info} size={12} gap={3} />Key</>}
           </button>
           {legendOpen && (
             <div className="map-legend-body">
               {dayFilter === 'all'
-                ? <>blue line = whole route{returnLeg ? ' · dashed = drive back home' : ''} · </>
+                ? <>main line = whole route{returnLeg ? ' · dashed = drive back home' : ''} · </>
                 : <>colours = day · </>}
-              pin icon = stop type · number = timeline order · dashed pin = "maybe" · plane/flag pins = start & final destination · plane/flag pins on a single day = that day's start and end where no stop is pinned · gold bulb markers = nearby ideas{onAddNearby ? ' (+ to add)' : ''}{ideaCats.length > 0 ? ' · chips filter ideas by type' : ''} · click a pin for details
+              pin icon = stop type · number = timeline order · dashed pin = "maybe" · plane/flag pins = start & final destination · plane/flag pins on a single day = that day's start and end where no stop is pinned · gold bulb markers = nearby ideas{onAddNearby ? ' (+ to add)' : ''}{ideaCats.length > 0 ? ' · chips filter ideas by type' : ''} · click a pin for details · hollow amber pin = an unplanned part · tap to open it
             </div>
           )}
         </div>
       </div>
       <p className="hint-text" style={{ marginTop: 8 }}>
-        <TriangleAlert size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />Route lines follow real roads (© OSRM/OpenStreetMap) when available; distances/durations in the plan are real-road estimates for ground travel, falling back to transparent haversine assumptions when offline/other modes — no live traffic data.
+        <InlineIcon icon={TriangleAlert} size={12} gap={3} />Route lines follow real roads (© OSRM/OpenStreetMap) when available; distances/durations in the plan are real-road estimates for ground travel, falling back to transparent haversine assumptions when offline/other modes - no live traffic data.
       </p>
     </div>
   )

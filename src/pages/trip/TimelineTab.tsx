@@ -8,6 +8,7 @@
 // Includes DaySection, DayWeatherChip, TravelPanel, HaltPlanRow, DaySpark,
 // MoveStopModal and ClampedText — the whole timeline hot path.
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import { InlineIcon } from '../../components/icons'
 import {
   
   Eye, 
@@ -354,7 +355,7 @@ export function TimelineTab({ trip, editable, applyChange, legCorrections, sugge
         <span className="tl-total-dot" aria-hidden="true">·</span>
         <span>{formatInr(totals.totalCostInr)} estimated</span>
         {warnDayCount > 0 && (
-          <span className="tl-total-warn"><TriangleAlert size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />{warnDayCount} day{warnDayCount !== 1 ? 's' : ''} need{warnDayCount === 1 ? 's' : ''} attention</span>
+          <span className="tl-total-warn"><InlineIcon icon={TriangleAlert} size={12} gap={3} />{warnDayCount} day{warnDayCount !== 1 ? 's' : ''} need{warnDayCount === 1 ? 's' : ''} attention</span>
         )}
       </div>
 
@@ -366,7 +367,7 @@ export function TimelineTab({ trip, editable, applyChange, legCorrections, sugge
               const hasWarn = (dayWarnings[d.index] ?? []).length > 0
               return (
                 <button key={d.id} type="button" className={`day-rail-chip ${hasWarn ? 'warn' : ''}`} onClick={() => jumpToDay(d.index)}>
-                  Day {d.index + 1}{hasWarn && <TriangleAlert size={11} aria-hidden style={{ verticalAlign: '-1px', marginLeft: 3 }} />}
+                  Day {d.index + 1}{hasWarn && <InlineIcon icon={TriangleAlert} size={11} gap={0} vAlign="-1px" style={{ marginLeft: 3 }} />}
                 </button>
               )
             })}

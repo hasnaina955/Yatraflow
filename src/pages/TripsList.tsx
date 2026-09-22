@@ -1,12 +1,15 @@
 // ============ My trips ============
 import { useEffect, useMemo, useState } from 'react'
-import { Clock, Compass, Plus, Rocket, Trash2, Wallet } from 'lucide-react'
-import { MetaIcon } from '../components/icons'
+import { Clock, Compass, Plus, Rocket, ShoppingBag, Trash2, Wallet } from 'lucide-react'
+import { InlineIcon, MetaIcon } from '../components/icons'
 import { useTrips, useTrashedTrips, useUsers, useSessionUserId, tripsForUser, trashTrip, restoreTrashedTrip, restoreTrashedTripById, permanentlyDeleteTrip, fetchTrashedTrips, addDemoTrips } from '../store/store'
 import { computeTotals, formatInrShort } from '../lib/engine'
 import { cap } from '../lib/labels'
 import { Avatar, Chip, EmptyState, toast, undoToast, ConfirmDialog } from '../components/ui'
 import { Select } from '../components/Select'
+import { loadDraft, draftIsWorthKeeping, draftAgeLabel } from '../lib/createDraft'
+import { readinessFromDraft } from '../lib/createReadiness'
+import { createFunnelOn } from '../lib/featureFlags'
 import { CoverThumb } from '../components/CoverThumb'
 import { ImportTripButton } from '../components/ImportTripButton'
 import type { Trip, User } from '../data/types'
@@ -90,6 +93,15 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
 
   const hasFilters = q !== '' || style !== 'all' || when !== 'all' || sortKey !== 'recent'
 
+  // P4 - the unfinished trip shows up where people look for their trips. It is
+  // not a trip yet, so it is not a row among them: one card, above the grid.
+  const draft = useMemo(() => {
+    if (!createFunnelOn('drafts')) return null
+    const d = loadDraft()
+    return draftIsWorthKeeping(d) ? d : null
+  }, [])
+  const draftReady = useMemo(() => (draft ? readinessFromDraft(draft.form, draft.dests.length) : null), [draft])
+
   function confirmDelete() {
     if (!pendingDelete) return
     const doomed = pendingDelete
@@ -108,10 +120,16 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
           <p className="muted small">Everything you’re planning or collaborating on.</p>
         </div>
         <div className="trips-head-actions">
-          <button className={`btn btn-outline${view === 'trash' ? ' on-teal' : ''}`} aria-pressed={view === 'trash'} onClick={() => setView(v => v === 'trash' ? 'trips' : 'trash')}><Trash2 size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 5 }} />Trash</button>
+          {/* I-20: the shelf has to be reachable from where people look for
+              their travel — a bought plan is not one of your trips, so it gets
+              its own list rather than a row among them. */}
+          <button className="btn btn-outline" onClick={() => onNavigate('/purchases')}>
+            <InlineIcon icon={ShoppingBag} size={15} gap={5} />My purchases
+          </button>
+          <button className={`btn btn-outline${view === 'trash' ? ' on-teal' : ''}`} aria-pressed={view === 'trash'} onClick={() => setView(v => v === 'trash' ? 'trips' : 'trash')}><InlineIcon icon={Trash2} size={15} gap={5} />Trash</button>
           <ImportTripButton ownerId={meId} onNavigate={onNavigate} />
-          <button className="btn btn-outline" onClick={addDemoTrips} aria-label="Load demo trips" title="Adds 3 sample trips — Kerala, Goa & Rajasthan — to your account"><Rocket size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 5 }} /><span>Load demo trips</span></button>
-          <button className="btn btn-primary" onClick={() => onNavigate('/new')}><Plus size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Plan a new trip</button>
+          <button className="btn btn-outline" onClick={addDemoTrips} aria-label="Load demo trips" title="Adds 3 sample trips — Kerala, Goa & Rajasthan — to your account"><InlineIcon icon={Rocket} size={15} gap={5} /><span>Load demo trips</span></button>
+          <button className="btn btn-primary" onClick={() => onNavigate('/new')}><InlineIcon icon={Plus} size={15} gap={4} />Plan a new trip</button>
         </div>
       </div>
 
@@ -142,6 +160,21 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
         </div>
       )}
 
+      {view !== 'trash' && draft && (
+        <div className="draft-card" role="status">
+          <span className="draft-card-thumb" aria-hidden>&#128221;</span>
+          <div className="draft-card-body">
+            <b>{String((draft.form as Record<string, unknown>).name || 'Untitled trip')}</b>
+            <span className="draft-card-meta">
+              {draftReady ? `${draftReady.pct}% ready` : 'saved'}
+              {draft.dests.length > 0 ? ` - ${draft.dests.length} stop${draft.dests.length === 1 ? '' : 's'}` : ''}
+              {' - saved '}{draftAgeLabel(draft.savedAt)}
+            </span>
+          </div>
+          <button className="btn btn-primary btn-sm" onClick={() => onNavigate('/new')}>Finish planning</button>
+        </div>
+      )}
+
       {view !== 'trash' && (trips.length === 0 && !hasFilters ? (
         <EmptyState
           icon={<Compass size={38} aria-hidden />}
@@ -150,7 +183,7 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
           action={
             <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
               <button className="btn btn-outline" onClick={() => onNavigate('/new')}>Plan your first trip</button>
-              <button className="btn btn-outline" onClick={addDemoTrips}><Rocket size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 5 }} />Load demo trips</button>
+              <button className="btn btn-outline" onClick={addDemoTrips}><InlineIcon icon={Rocket} size={15} gap={5} />Load demo trips</button>
               <button className="btn btn-outline" onClick={() => onNavigate('/explore')}>Explore itineraries</button>
             </div>
           }

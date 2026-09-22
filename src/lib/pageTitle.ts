@@ -23,6 +23,7 @@ const STATIC: Record<string, string> = {
   new: `New trip · ${SITE}`,
   explore: `Explore itineraries · ${SITE}`,
   'creator-hub': `Creator hub · ${SITE}`,
+  purchases: `My purchases · ${SITE}`,
   admin: `Admin · ${SITE}`,
   profile: `Profile · ${SITE}`,
   join: `Join a trip · ${SITE}`,

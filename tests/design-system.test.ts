@@ -138,8 +138,16 @@ describe('one green (#0D8D82)', () => {
 
   it('drives the focus ring and form accents through the CTI token', () => {
     expect(css).toContain('accent-color: var(--yf-teal-600);')
-    expect(css).toContain('color-mix(in srgb, var(--yf-teal-600) 35%, transparent)')
-    expect(css).toContain('color-mix(in srgb, var(--yf-teal-600) 40%, transparent)')
+    // The ring's VISIBILITY is asserted as an outcome in 'a focus indicator you
+    // can actually see' below. This used to pin the implementation instead
+    // (`color-mix(in srgb, var(--yf-teal-600) 35%, transparent)`), which froze
+    // an alpha that measured 1.50:1 against --bg — the pin held the defect in
+    // place, so changing the tint failed the build that should have wanted it.
+    // What matters here is only that the ring still routes through the CTI
+    // token, in both themes.
+    for (const tokens of [rootTokens, darkTokens]) {
+      expect(tokens.get('--ring')).toContain('var(--yf-teal-600)')
+    }
   })
 
   it('paints the primary button through the semantic chain', () => {
@@ -464,9 +472,17 @@ describe('contrast contract: colour pairs declared in one rule', () => {
   // 3.65:1 warn-on-white shipped. These pins make the Map-rail's warn-ink
   // pairs an explicit contract: measured against the surfaces the rail
   // actually paints (its own card bg, and the soft warn chip fill).
+  //
+  // #271 added five more colour-only amber-ink rules (the closing-slot label,
+  // the empty-slot hint, the day chip's rain flag, the unplanned shape block,
+  // the empty matrix cell) and reproduced the same 3.65:1 — on `--card`, which
+  // was not in this list. `--card` is therefore a pinned surface now, and every
+  // amber-ink rule in the rail routes through `--ink-amber` (which resolves to
+  // `--warn` in the dark theme, where the surface token IS the ink token).
   it('map-rail warn ink meets AA on every surface it paints (#154)', () => {
     const surfaces: Array<[string, string]> = [
       ['--bg', 'card background'],
+      ['--card', 'raised card / rail surface'],
       ['--warn-soft', 'warn chip fill'],
     ]
     for (const [theme, tokens] of [['light', rootTokens], ['dark', darkTokens]] as const) {
@@ -528,6 +544,162 @@ describe('motion vocabulary: durations come from the tokens', () => {
       }
     }
     ratchet('rawDurations', offenders)
+  })
+
+  it('keeps the map tab on the motion tokens, not the legacy --t-* ladder', () => {
+    // The map-tab review round moved the tab's own rules off the pre-catalog
+    // ladder (--t-fast/med/slow); this holds that surface there. Scope is the
+    // tab's selector families: toolbar chips and its filters popover, legend,
+    // shell, skeleton, rails, slots, ledger rows, chevrons/fold, shelf, tips.
+    const scoped = /\.(map-(day-chip|legend|shell|skel|idea|toolbar|filters|mode-group|util-group|day-filter)|slots-|day-slot|lrow-|lr-(go|name|meta)|poi-(chev|fold)|shelf-alt|engine-tips)/
+    const legacy: string[] = []
+    for (const rule of cssRules) {
+      if (!rule.selector.split(',').some((p) => scoped.test(p.trim()))) continue
+      for (const m of rule.body.matchAll(/var\(--t-(?:fast|med|slow)\)/g)) {
+        legacy.push(`${normalise(rule.selector)} — ${m[0]}`)
+      }
+    }
+    expect([...new Set(legacy)].sort(), `migrate these to var(--motion-*):\n${legacy.join('\n')}`).toEqual([])
+  })
+})
+
+describe('the day collapse moves as one gesture', () => {
+  // Measured 2026-09-19. The collapse ran on --ease-glide, and a day body runs
+  // up to ~1000px: a decelerate curve throws 24% of that distance away in the
+  // first 6ms (0 → 930px of 967 inside 45% of the duration), so the collapse
+  // read as a pop followed by a 150ms dribble. Both --ease-glide and --ease-out
+  // are that curve (they agree within .015 at every sampled point), so the fix
+  // is the both-ends --ease-resize — ~3px of movement in the first 60Hz frame.
+  //
+  // Measured again the same day, frame by frame: with the right easing the row
+  // below a folding day still moved 115px between two sampled frames (942px of
+  // travel on --motion-slow) — the "cards colliding" report. Peak speed is
+  // distance ÷ duration (x the curve's peak slope), so the collapse moved to
+  // --motion-slower/560ms, and its curve was made symmetric: on this much
+  // travel the Material standard curve peaks at 2.73x its average (96px inside
+  // a 60Hz frame) against 1.72x for the symmetric one (60px), for the same
+  // total time. Both halves are pinned here.
+  const rule = (selector: string) => cssRules.find((r) => normalise(r.selector) === selector)
+
+  it('opens and closes on the both-ends easing, not the decelerate family', () => {
+    const clip = rule('.day-body-clip')
+    expect(clip, '.day-body-clip is missing from styles.css').toBeTruthy()
+    expect(clip!.body).toMatch(/transition:\s*grid-template-rows var\(--motion-slower\) var\(--ease-resize\)/)
+    expect(clip!.body).not.toMatch(/--ease-(glide|out)\b/)
+  })
+
+  it('runs on the large-surface duration, and holds visibility for all of it', () => {
+    // The inner's visibility must lag the whole collapse. Pinning both keeps a
+    // retime from leaving content unpaintable mid-animation or a timer from
+    // unmounting a body that is still moving.
+    const inner = rule('.day-body-clip-inner')
+    expect(inner, '.day-body-clip-inner is missing from styles.css').toBeTruthy()
+    expect(inner!.body).toMatch(/visibility 0s var\(--motion-slower\)/)
+    const declared = [...css.matchAll(/--motion-slower:\s*([^;]+);/g)].map((m) => m[1].trim())
+    expect(declared).toEqual(['560ms'])
+  })
+
+  it('declares that easing once, in the motion token block', () => {
+    // Symmetric, not the asymmetric Material standard curve: the peak slope is
+    // what a large resize is felt through (see the comment above).
+    const declared = [...css.matchAll(/--ease-resize:\s*([^;]+);/g)].map((m) => m[1].trim())
+    expect(declared).toEqual(['cubic-bezier(.42, 0, .58, 1)'])
+  })
+
+  it('turns the chevron on the same clock as the body', () => {
+    // At --t-fast/180ms the arrow settled ~90ms before the body did, so one
+    // click read as two separate movements.
+    const icon = rule('.day-collapse-icon')
+    expect(icon, '.day-collapse-icon is missing from styles.css').toBeTruthy()
+    expect(icon!.body).toMatch(/transform var\(--motion-slower\) var\(--ease-resize\)/)
+  })
+
+  it('takes the unmount delay from the token, not a literal', () => {
+    // Retiming the CSS must not leave a half-collapsed body mounted.
+    const src = source('src/pages/trip/timeline/DaySection.tsx')
+    expect(src).toMatch(/window\.setTimeout\(\(\) => \{ setMounted\(false\) \}, motionTiming\('--motion-slower'\)\.duration \+ COLLAPSE_UNMOUNT_SLACK_MS\)/)
+    // Covers both shapes of the callback (`setMounted(false), 280` and the
+    // braced `{ setMounted(false) }, 280`) — the second arrived when a lint rule
+    // asked for braces on a void shorthand, and the pin has to survive that.
+    expect(src).not.toMatch(/setMounted\(false\)\s*\}?\s*,\s*\d+/)
+    // and the token itself is what the stylesheet declares (no drift between
+    // the JS timer and the CSS transition it is waiting on)
+    expect(source('src/lib/motion.ts')).toMatch(/'--motion-slower':\s*560/)
+  })
+
+  it('pins the header items to the top, so no sibling can re-centre them', () => {
+    // Measured: the chevron and the day badge moved ~32px in the frame the click
+    // landed — the middle block's height changes with the collapse and a centred
+    // sibling is repositioned by every one of those changes. Top-aligned, every
+    // item's position is its own; after the fix the displacement of each header
+    // item across a toggle is 0px (the chips' 4px is their entrance rise).
+    const header = rule('.day-header')
+    expect(header, '.day-header is missing from styles.css').toBeTruthy()
+    expect(header!.body).toMatch(/align-items:\s*flex-start/)
+    expect(header!.body).not.toMatch(/align-items:\s*center/)
+  })
+
+  it('collapses the route chain with the body instead of popping it', () => {
+    // That line is what changes the header's height; appearing at full height in
+    // one frame moved every wrapped row below it at once.
+    const src = source('src/pages/trip/timeline/DaySection.tsx')
+    expect(src).toContain('<SmoothCollapse open={collapsed} fallbackFocus={collapseRef}>')
+    // It discloses the same body as the chevron, so it carries the same state.
+    expect(src).toMatch(/className="day-route"[^>]*aria-expanded=\{!collapsed\}/)
+  })
+
+  it('gives the day chevron the coarse-pointer hit budget too', () => {
+    // 28px is under both the repo's 40px floor and the 48dp Android budget, and
+    // this was the one compact control the block's inventory missed. The
+    // expander brings it to 40px; measured, its only neighbour within 14px is
+    // the day badge, 12px away, so the extra 6px stays clear of it. The
+    // collapsed route line deliberately needs no expander — it wraps to 2+ lines
+    // (41–62px) at phone widths, which the budget already covers.
+    const coarse = css.slice(css.indexOf('@media (pointer: coarse)'))
+    expect(coarse, 'no coarse-pointer block').not.toBe('')
+    expect(coarse).toMatch(/\.day-collapse \{\s*position: relative;/)
+    expect(coarse).toMatch(/\.day-collapse::after \{[^}]*inset: -6px;/)
+  })
+
+  it('wears the app ring on the route line, not the browser default', () => {
+    // Focused, this control painted Chromium's own `1px auto rgb(16,16,16)` —
+    // invisible on the dark card — while every other control in the header
+    // carried var(--ring).
+    // The list's last selector is .bench-surprise, so the declaration block ends
+    // at the first `}` after it (searching for .yf-map-pin would stop early — it
+    // appears inside the list itself).
+    const listStart = css.indexOf('.day-collapse:focus-visible')
+    const shared = css.slice(listStart, css.indexOf('}', css.indexOf('.bench-surprise:focus-visible', listStart)))
+    expect(shared, 'the shared ring list').toContain('.day-route:focus-visible')
+    expect(shared).toMatch(/outline: none;\s*box-shadow: var\(--ring\)/)
+    // the radius a wrapped multi-line line box needs (same call as .link-btn)
+    expect(css).toMatch(/\.day-route:focus-visible \{ border-radius: 6px; \}/)
+  })
+
+  it('hands focus back before a clip unmounts under the keyboard user', () => {
+    // Measured: opening a day from its route line (Enter on the chain) unmounted
+    // that control one animation later and dropped focus to <body> — the next Tab
+    // restarted at the top of the document. Both clips can unmount the focused
+    // element (the chain on open, the body on collapse), so both must hand it back.
+    const src = source('src/pages/trip/timeline/DaySection.tsx')
+    expect(src).toMatch(/clipRef\.current\?\.contains\(document\.activeElement\)\) fallbackFocus\?\.current\?\.focus\(\)/)
+    // And it must run BEFORE the unmount timer's line: the clip's inner wrapper
+    // flips to visibility:hidden one animation earlier, and the browser blurs a
+    // hidden element on the spot — a handoff after that point finds <body>.
+    const handoff = src.indexOf('fallbackFocus?.current?.focus()')
+    const unmount = src.indexOf('window.setTimeout(() => { setMounted(false) }')
+    expect(handoff, 'no focus handoff found').toBeGreaterThan(-1)
+    expect(unmount, 'no token-derived unmount timer found').toBeGreaterThan(-1)
+    expect(handoff).toBeLessThan(unmount)
+    const callSites = [...src.matchAll(/<SmoothCollapse open=\{[^}]+\}([^>]*)>/g)].map((m) => m[1])
+    expect(callSites.length, 'expected exactly two anchored clips').toBe(2)
+    expect(callSites.every((s) => s.includes('fallbackFocus={collapseRef}'))).toBe(true)
+  })
+
+  it('fades the header extras that exist in one state only', () => {
+    const chips = rule('.day-cost-chip, .day-dwell-chip, .weather-chip, .dwell-bars')
+    expect(chips, 'the header extras are missing from styles.css').toBeTruthy()
+    expect(chips!.body).toMatch(/animation:\s*popover-in var\(--motion-med\) var\(--ease-out\)/)
   })
 })
 
@@ -708,6 +880,18 @@ describe('spacing rhythm: new values land on the documented ladder', () => {
   })
 })
 
+describe('the spacing ladder has a token home (design-audit F4)', () => {
+  // The --s-1…--s-8 set was deleted by SYS-2 as unconsumed, leaving the ladder
+  // with no token home. The --space-* ramp re-homes it WITH adopters (the
+  // adopt-or-delete rule), and this pin keeps ramp and ratchet in lockstep.
+  it('declares --space-1…--space-10 matching the gate ladder exactly', () => {
+    const ladder = [2, 4, 6, 8, 12, 14, 16, 20, 22, 24]
+    ladder.forEach((px, i) => {
+      expect(css).toContain('--space-' + (i + 1) + ': ' + px + 'px')
+    })
+  })
+})
+
 describe('categorical palettes: hues stay distinguishable', () => {
   // Colour-coded categories must not collide: two "days" or two expense categories
   // sharing a hue are indistinguishable in a legend, however different their
@@ -842,5 +1026,124 @@ describe('a flex row under pressure gives up the right part', () => {
     // The rule changes nothing unless the block that holds the grid carries it.
     expect(source('src/components/PlanBench.tsx')).toContain('bench-block bench-mode-block')
     expect(source('src/pages/trip/TripSettingsForm.tsx')).toContain('bench-block bench-mode-block')
+  })
+})
+
+describe('a class name has one owner: a new block may not claim an existing one', () => {
+  // The Landing page's scroll-reveal utility IS the bare `.reveal` class —
+  // `body.reveal-armed .reveal` in the stylesheet, nine elements in
+  // `Landing.tsx` (the section title, three feature cards, four steps), armed
+  // by one IntersectionObserver. I-20's unlock sheet shipped its own `.reveal`
+  // block; being later in the file, it won on equal specificity, so every one
+  // of those elements was silently re-laid-out as a flex column with the
+  // sheet's padding and each of their children took the sheet's stagger
+  // animation. No node test can see that and neither the contrast nor the
+  // spacing gate can either — the only thing that caught it was rendering the
+  // Landing page — so the collision is pinned here instead. Render the page
+  // when you rename CSS: the gates all stayed green through this.
+  it('never selects a bare `.reveal` — that one belongs to the Landing page', () => {
+    const offenders: string[] = []
+    for (const rule of cssRules) {
+      for (const part of rule.selector.split(',')) {
+        const sel = part.trim().replace(/\s+/g, ' ')
+        // Exactly `.reveal`, optionally with one pseudo — the shape a block
+        // claims for its own root. `body.reveal-armed .reveal`, `.reveal-d1`
+        // and the namespaced `.unlock-reveal*` family are all legitimate.
+        if (/^\.reveal(?::[\w-]+)?$/.test(sel)) offenders.push(sel)
+      }
+    }
+    expect(
+      offenders,
+      "these rules claim the Landing page's `.reveal` class — namespace the new block instead (e.g. `.unlock-reveal`)",
+    ).toEqual([])
+  })
+})
+
+// --- the focus indicator -------------------------------------------------------
+// WCAG 1.4.11 asks a focus indicator for 3:1 against the colours adjacent to it.
+// The contrast gate above cannot see one: `--ring` is a `box-shadow`, so no rule
+// declares the `color` + `background` pair it measures, and a token's own value
+// is never a rule at all. That blind spot is how a 35% tint measuring 1.50:1 on
+// --bg survived a ratchet reporting "no known dark-theme violation left" — and
+// how a `--focus-ring` token referenced by four rules and defined by none kept
+// its sub-3:1 amber fallback on the three controls that had already removed
+// their outline, leaving that ring as the only focus signal on the slots rail.
+
+/** The colour a `box-shadow`-shaped ring paints, as an alpha-carrying Rgb. */
+function ringColor(shadow: string | undefined, tokens: Map<string, string>): Rgb | null {
+  if (shadow === undefined) return null
+  const mix = shadow.match(/color-mix\(in srgb,\s*([^,]+?)\s+([\d.]+)%\s*,\s*transparent\s*\)/i)
+  if (mix) {
+    const base = parseColor(resolveVar(mix[1], tokens))
+    return base ? { ...base, a: Number(mix[2]) / 100 } : null
+  }
+  // A solid colour at the end of the shadow: `0 0 0 3px var(--yf-teal-600)`.
+  const solid = shadow.trim().match(/(var\([^)]*\)|#[0-9a-fA-F]{3,8}|rgba?\([^)]*\))$/)
+  return solid ? parseColor(resolveVar(solid[1], tokens)) : null
+}
+
+describe('a focus indicator you can actually see', () => {
+  const FLOOR = 3 // 1.4.11: non-text contrast, and a focus ring is the state it names.
+
+  it('paints one focus recipe, not one per block', () => {
+    // The `.reveal` lesson applied to a token: a second one declared later in
+    // the file wins on equal specificity, so the controls that adopted it and
+    // the ones that kept the first would silently disagree about what focus
+    // looks like. Evolving the recipe means editing `--ring`, in place.
+    const declared = [...new Set([...stripCssComments(css).matchAll(/(--(?:focus-)?ring)\s*:/g)].map((m) => m[1]))].sort()
+    expect(
+      declared,
+      'more than one focus token is declared — evolve `--ring` in place instead of adding a parallel token',
+    ).toEqual(['--ring'])
+  })
+
+  it('clears 3:1 against every surface it outlines, in both themes', () => {
+    const surfaces = [
+      ['--bg', 'the page'],
+      ['--card', 'a card / rail'],
+    ] as const
+    for (const [theme, tokens] of [['light', rootTokens], ['dark', darkTokens]] as const) {
+      const ring = ringColor(tokens.get('--ring'), tokens)
+      expect(ring, `--ring must resolve to a colour in ${theme}`).not.toBeNull()
+      for (const [bgVar, name] of surfaces) {
+        const bg = parseColor(resolveVar(tokens.get(bgVar) ?? '', tokens))
+        expect(bg, `${bgVar} must resolve in ${theme}`).not.toBeNull()
+        const ratio = contrast(ring!, bg!)
+        expect(
+          ratio,
+          `${theme}: the focus ring measures ${ratio.toFixed(2)}:1 on ${name} (${bgVar}) — it must clear ${FLOOR}:1`,
+        ).toBeGreaterThanOrEqual(FLOOR)
+      }
+    }
+  })
+})
+
+// --- type floor ----------------------------------------------------------------
+describe('data type keeps its floor', () => {
+  // The day plan set the numbers a decision hangs on — the day chip's fill count,
+  // a window's closing time, a candidate's detour cost, its share of the budget —
+  // at 9.5–10.5px, in the weakest ink (`--text-3`), while the decoration around
+  // them read at 12–14px. The smallest type on the screen was the type the screen
+  // was for. 11px is the floor; 12px+ is the target for anything carrying a
+  // number. The ratchet freezes what remains below it and may only shrink.
+  //
+  // A later override does NOT retire an entry: the frozen key is the declaration,
+  // so a descendant selector that lifts a size leaves the original below the
+  // floor until the declaration itself moves. That is deliberate — the entry is
+  // the thing to fix, not the thing to shadow.
+  const FLOOR = 11
+
+  it('introduces no new type below the floor', () => {
+    const offenders: string[] = []
+    for (const rule of cssRules) {
+      for (const [prop, value] of declMap(rule.body)) {
+        if (prop !== 'font-size') continue
+        const m = value.match(/(?<![\d.])(\d+(?:\.\d+)?)px/)
+        if (!m) continue
+        if (parseFloat(m[1]) >= FLOOR) continue
+        offenders.push(`${normalise(rule.selector)} — font-size: ${m[1]}px`)
+      }
+    }
+    ratchet('subPixelType', offenders)
   })
 })

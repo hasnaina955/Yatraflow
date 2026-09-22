@@ -1,6 +1,7 @@
 // ============ Landing page ============
 import { useEffect, useRef, type ReactNode } from 'react'
-import { ArrowDown, ArrowRight, MapPin, Plane, Rocket, Route, Users, Zap } from 'lucide-react'
+import { InlineIcon } from '../components/icons'
+import { ArrowDown, ArrowRight, Clock, MapPin, Plane, Route, TriangleAlert, Users, Zap } from 'lucide-react'
 import { RouteSquiggle, useInView, usePageVisible } from '../components/ui'
 import { PlanBench } from '../components/PlanBench'
 import { scrollBehavior } from '../lib/motion'
@@ -19,7 +20,7 @@ export function LandingPage({ onNavigate }: { onNavigate: (r: string) => void })
       {/* ---------- Hero (split layout, per CTI homepage mockup) ---------- */}
       {/* hero-blob spans + hero-rise choreography: the atmosphere drifts slowly
           and the copy rises in one orchestrated stagger on load. */}
-      {/* One continuous atmospheric canvas behind the whole page — hero, bench and
+      {/* One continuous atmospheric canvas behind the whole page - hero, bench and
           sections share a single fixed-attachment ramp, so there are no section
           seams; the canvas is pulled up behind the floating nav pill too. */}
       <div className="landing-canvas">
@@ -37,49 +38,15 @@ export function LandingPage({ onNavigate }: { onNavigate: (r: string) => void })
               and keep your whole crew on the same page.
             </p>
             <div className="hero-ctas hero-rise rise-d3">
-              <a className="btn btn-primary btn-lg" href={startPlanningHref}>Start planning free <ArrowRight size={16} aria-hidden style={{ verticalAlign: '-3px', marginLeft: 4 }} /></a>
+              <a className="btn btn-primary btn-lg" href={startPlanningHref}>Start planning free <InlineIcon icon={ArrowRight} size={16} gap={0} vAlign="-3px" style={{ marginLeft: 4 }} /></a>
               <a className="btn btn-saffron btn-lg" href="#/explore">Explore itineraries</a>
             </div>
-            {/* Boarding-pass entry: travel-themed ticket that "issues" a pass to
-                the Plan Bench — bigger than a pill, unmistakably the next step */}
-            <button type="button" className="hero-bench-cta hero-rise rise-d4"
-              onClick={() => document.getElementById('plan-bench')?.scrollIntoView({ behavior: scrollBehavior(), block: 'start' })}>
-              <span className="hbc-stub" aria-hidden="true">
-                <span className="hbc-plane"><Plane size={18} aria-hidden /></span>
-              </span>
-              <span className="hbc-text">
-                <span className="hbc-label">Price a trip in 10 seconds</span>
-                <span className="hbc-sub">Boarding pass · no signup · dials below</span>
-              </span>
-              <span className="hbc-tear" aria-hidden="true" />
-              <span className="hbc-code" aria-hidden="true">
-                <b>YF-10S</b>
-                <span>SEAT 1A</span>
-                <span className="hbc-arrow"><ArrowDown size={14} aria-hidden /></span>
-              </span>
-            </button>
-            <p className="small muted hero-rise rise-d5" style={{ marginTop: 16 }}>No card needed · Free to plan · Your planning data is yours</p>
-            {/* Invite-code entry: friends who got a code (not a link) land here
-                and type it in — routes to #/join/<code>, which previews the trip
-                and asks for login only if needed. */}
-            <form className="hero-rise rise-d5 invite-entry" style={{ display: 'flex', gap: 8, marginTop: 10, maxWidth: 360 }}
-              onSubmit={e => {
-                e.preventDefault()
-                const code = new FormData(e.currentTarget).get('invite-code')
-                if (typeof code === 'string' && code.trim()) onNavigate(`/join/${encodeURIComponent(code.trim())}`)
-              }}>
-              <label className="sr-only" htmlFor="invite-code-input">Trip invite code</label>
-              <input id="invite-code-input" className="input" name="invite-code"
-                placeholder="Have a trip code? GOA-K7QF" autoComplete="off"
-                style={{ textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: 'var(--mono, monospace)' }} />
-              <button type="submit" className="btn btn-outline">Join</button>
-            </form>
           </div>
 
           {/* Adventure preview card (dark navy, animated multi-trip route, mockup) */}
           <div className="hero-adventure hero-rise rise-d2" aria-hidden="true">
             <div className="ha-kicker">Your next adventure</div>
-            {/* RouteSquiggle is a scenario carousel — it draws a different India trip
+            {/* RouteSquiggle is a scenario carousel - it draws a different India trip
                 on autopilot (Leh, Kerala, Spiti, Meghalaya) with a live caption AND
                 count-up stats + warn/sync rows that change with each trip. */}
             <RouteSquiggle />
@@ -87,11 +54,56 @@ export function LandingPage({ onNavigate }: { onNavigate: (r: string) => void })
         </div>
       </section>
 
-      {/* Infinite destination ticker — hero hands off to the Plan Bench over a living
+      {/* ---------- Handoff strip: the two "already halfway in" entries ----------
+          Directly below the hero, where a visitor who skipped the main CTA still
+          finds a next step. The boarding-pass ticket issues a pass to the Plan
+          Bench (bigger than a pill, unmistakably the next step); the invite-code
+          entry serves friends who got a code, not a link - it routes to
+          #/join/<code>, which previews the trip and asks for login only if
+          needed. The reassurance line lives here, not under the hero CTAs. */}
+      <section className="container handoff" aria-label="Other ways to start">
+        {/* Ticket first: it is the product-led next step, so it sits under the
+            headline column (the hero's card sits right, the strip's ticket sits
+            left) and the invite form follows as the secondary entry. */}
+        <button type="button" className="hero-bench-cta"
+          onClick={() => document.getElementById('plan-bench')?.scrollIntoView({ behavior: scrollBehavior(), block: 'start' })}>
+          <span className="hbc-stub" aria-hidden="true">
+            <span className="hbc-plane"><Plane size={18} aria-hidden /></span>
+          </span>
+          <span className="hbc-text">
+            <span className="hbc-label">Price a trip in 10 seconds</span>
+            <span className="hbc-sub">Boarding pass · no signup needed</span>
+          </span>
+          <span className="hbc-tear" aria-hidden="true" />
+          <span className="hbc-code" aria-hidden="true">
+            <b>YF-10S</b>
+            <span>SEAT 1A</span>
+            <span className="hbc-arrow"><ArrowDown size={14} aria-hidden /></span>
+          </span>
+        </button>
+        <div className="handoff-join">
+          <p className="handoff-lead">Invited to a trip?</p>
+          <form className="invite-entry"
+            onSubmit={e => {
+              e.preventDefault()
+              const code = new FormData(e.currentTarget).get('invite-code')
+              if (typeof code === 'string' && code.trim()) onNavigate(`/join/${encodeURIComponent(code.trim())}`)
+            }}>
+            <label className="sr-only" htmlFor="invite-code-input">Trip invite code</label>
+            <input id="invite-code-input" className="input" name="invite-code"
+              placeholder="Trip code, e.g. GOA-K7QF" autoComplete="off"
+              style={{ textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: 'var(--mono, monospace)' }} />
+            <button type="submit" className="btn btn-outline">Join</button>
+          </form>
+          <p className="small muted handoff-note">Free to plan, no card needed. Your planning data stays yours.</p>
+        </div>
+      </section>
+
+      {/* Infinite destination ticker - hero hands off to the Plan Bench over a living
           marquee of common + offbeat India spots (pure CSS loop, hover-pause). */}
       <DestTicker />
 
-      {/* ---------- Plan Bench (interactive cost calculator) — the showpiece, one scroll from the fold ---------- */}
+      {/* ---------- Plan Bench (interactive cost calculator) - the showpiece, one scroll from the fold ---------- */}
       <PlanBench />
 
       {/* ---------- What changes for you ---------- */}
@@ -99,19 +111,44 @@ export function LandingPage({ onNavigate }: { onNavigate: (r: string) => void })
         <TravelMotifs mode="features" />
         <p className="small reveal" style={{ textAlign: 'center', fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--yf-teal-600)', marginBottom: 8 }}>One place for the reality of a trip</p>
         <h2 className="section-title reveal reveal-d1" style={{ maxWidth: 640, margin: '0 auto 26px' }}><span className="reveal-underline">From “let’s go” to a plan everyone can actually follow.</span></h2>
-        <div className="feature-strip">
-          <FeatureCard cls="reveal" icon={<Zap size={20} aria-hidden />} title="See the impact before you change" body="Every move shows time, distance and budget consequences — no surprises later." />
-          <FeatureCard cls="reveal reveal-d1" icon={<Route size={20} aria-hidden />} title="Plan around real road time" body="Route days, break suggestions and arrival times designed for how journeys really work." />
+        {/* Three items, three cells: one tall photo cell beside two stacked
+            cells. No empty tile, and each cell carries a different surface
+            (photo / tinted / plain) so the row never reads as three identical
+            cards. */}
+        <div className="feature-strip feature-bento">
+          <FeatureCard cls="reveal feature-photo" icon={<Zap size={20} aria-hidden />} title="See the impact before you change" body="Every move shows time, distance and budget consequences. No surprises later.">
+            {/* A mini echo of the real Impact Preview panel (deltas + warnings
+                with their fixes), so the tallest cell shows the feature instead
+                of describing it. Forced-light literals: it is an artifact of the
+                product's own dialog sitting on the dark photo in both themes. */}
+            <div className="feature-preview">
+              <div className="feature-preview-head">
+                <Zap size={12} aria-hidden />
+                <span>Impact preview</span>
+                <span className="fp-chip">+1 warning</span>
+              </div>
+              <div className="fp-deltas">
+                <div className="fp-delta"><b>+2h 15m</b><span>Time on the road</span></div>
+                <div className="fp-delta"><b>+38 km</b><span>Distance</span></div>
+                <div className="fp-delta"><b>+₹1,240</b><span>Est. cost</span></div>
+              </div>
+              <div className="fp-warn"><InlineIcon icon={TriangleAlert} size={12} gap={4} />Day 3 is overloaded<span>Add a rest halt to protect your arrival time.</span></div>
+              <div className="fp-tip"><InlineIcon icon={Clock} size={12} gap={4} />Fort Kochi closes at 5 PM<span>Reach by 4:30, or swap with the naval museum.</span></div>
+            </div>
+          </FeatureCard>
+          <FeatureCard cls="reveal reveal-d1 feature-tint" icon={<Route size={20} aria-hidden />} title="Plan around real road time" body="Route days, break suggestions and arrival times designed for how journeys really work." />
           <FeatureCard cls="reveal reveal-d2" icon={<Users size={20} aria-hidden />} title="Keep the whole group aligned" body="Share the itinerary, decide together, and know what still needs an answer." />
         </div>
       </section>
 
       {/* ---------- How it works ---------- */}
+      {/* A route, not a card grid: the four steps sit as stops along one dashed
+          road line, so the section reads as a journey (collapses to a vertical
+          timeline on narrow screens). */}
       <section className="container" style={{ paddingBottom: 60, position: 'relative' }}>
-        <TravelMotifs mode="steps" />
         <h2 className="section-title reveal"><span className="reveal-underline">From chaos to itinerary in four steps</span></h2>
-        <div className="steps-grid">
-          <Step cls="reveal" n={1} title="Create a trip" body="Dates, travellers, transport mode, budget — and searchable real locations." />
+        <div className="steps-route">
+          <Step cls="reveal" n={1} title="Create a trip" body="Dates, travellers, transport mode, budget, and searchable real locations." />
           <Step cls="reveal reveal-d1" n={2} title="Build the timeline" body="Add stops day by day; every change previews its impact instantly." />
           <Step cls="reveal reveal-d2" n={3} title="Invite the crew" body="Share a link; friends suggest, vote and comment right inside the plan." />
           <Step cls="reveal reveal-d3" n={4} title="Lock it & go" body="Resolve decisions, confirm bookings-worthy stops, publish if you like." />
@@ -124,16 +161,11 @@ export function LandingPage({ onNavigate }: { onNavigate: (r: string) => void })
           <h2>See the whole product on a real trip</h2>
           <p>
             A 4-day Kerala road trip (Kochi → Munnar → Thekkady → Alleppey) with real stops, timings,
-            votes, decisions and budgets — loaded into your account the moment you sign up.
+            votes, decisions and budgets, loaded into your account the moment you sign up.
           </p>
           <DemoButtons />
         </div>
       </section>
-
-      <footer className="footer" style={{ justifyContent: 'center', gap: 12 }}>
-        <span>YatraFlow · Plan real trips, together.</span>
-        <a className="footer-link" href={`mailto:support@yatraflow.app?subject=${encodeURIComponent(`YatraFlow feedback (v${__APP_VERSION__})`)}&body=${encodeURIComponent(`Page: /\nApp version: ${__APP_VERSION__}\n\nWhat worked, what broke, what you wish existed:\n\n`)}`}>Send feedback</a>
-      </footer>
       </div>
     </div>
   )
@@ -167,7 +199,7 @@ function useReveal() {
 
 /** Destination marquee: two identical tracks translate -50% for a seamless,
  *  fully-CSS infinite loop. Hover pauses, and so does the page being offscreen
- *  or hidden — a nonessential loop must not keep the compositor busy. Mixes
+ *  or hidden - a nonessential loop must not keep the compositor busy. Mixes
  *  common + offbeat Indian spots. */
 const DESTINATIONS: Array<{ label: string; tag: string; off?: boolean }> = [
   { label: 'Goa', tag: 'Beach' },
@@ -200,7 +232,7 @@ function DestTicker() {
         </span>
       ))}
       {/* Decorative separator as an SVG shape, not the ◇ text glyph: text at
-          saffron-on-cream can never reach AA contrast — a shape is exempt. */}
+          saffron-on-cream can never reach AA contrast - a shape is exempt. */}
       <span className="ticker-sep" aria-hidden="true">
         <svg width="9" height="9" viewBox="0 0 10 10" fill="none">
           <path d="M5 1 L9 5 L5 9 L1 5 Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
@@ -219,7 +251,7 @@ function DestTicker() {
   )
 }
 
-/** Lightweight travel-silhouette SVG motifs behind the feature/steps grids —
+/** Lightweight travel-silhouette SVG motifs behind the feature/steps grids -
  *  spinning compass, floating plane, bobbing trekker, swaying boat, drifting
  *  hot-air balloon, gliding birds. transform-only, off under reduced motion. */
 function TravelMotifs({ mode }: { mode: 'features' | 'steps' }) {
@@ -298,8 +330,7 @@ function DemoButtons() {
   return (
     <div className="cta-buttons">
       <a className="btn btn-navy btn-lg" href="#/auth?mode=signup">
-        <Rocket size={16} aria-hidden style={{ verticalAlign: '-3px', marginRight: 6 }} />
-        Create a free account — demo trips included
+        Start planning free
       </a>
       <BrandHint />
     </div>
@@ -314,18 +345,21 @@ function Step({ cls, n, title, body }: { cls?: string; n: number; title: string;
   return (
     <div className={`step-card ${cls ?? ''}`.trim()}>
       <span className="step-num">{n}</span>
-      <h3>{title}</h3>
-      <p className="small muted">{body}</p>
+      <div className="step-body">
+        <h3>{title}</h3>
+        <p className="small muted">{body}</p>
+      </div>
     </div>
   )
 }
 
-function FeatureCard({ cls, icon, title, body }: { cls?: string; icon: ReactNode; title: string; body: string }) {
+function FeatureCard({ cls, icon, title, body, children }: { cls?: string; icon: ReactNode; title: string; body: string; children?: ReactNode }) {
   return (
     <div className={`card feature-card ${cls ?? ''}`.trim()}>
       <div className="feature-ico" aria-hidden="true">{icon}</div>
       <h3>{title}</h3>
       <p className="small muted">{body}</p>
+      {children}
     </div>
   )
 }

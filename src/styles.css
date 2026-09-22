@@ -51,14 +51,18 @@
   --yf-poi-see-ink: #8a2999;   /* its text ink, light theme */
   /* Expense-category bar colors (Budget tab "Where the money goes") — one
      hue per spend category, reused by the per-line icon chips. */
-  --cat-transport: #897ABB;
-  --cat-accommodation: #0D8D82;
-  --cat-food: #F59E2D;
-  --cat-activities: #2E8B57;
-  --cat-entry-fees: #D6534D;
+  /* A dedicated categorical family, NOT the status palette: the first version
+     borrowed warn/ok/coral verbatim (entry fees wore the critical coral), so a
+     money bar read as an alert. Every hue sits >=15° from its siblings — the
+     hue gate reads the first four. */
+  --cat-transport: #2D61A9;        /* steel blue */
+  --cat-accommodation: #237895;    /* cerulean */
+  --cat-food: #B24F24;             /* terracotta */
+  --cat-activities: #378637;       /* leaf green (NOT the ok green) */
+  --cat-entry-fees: #AB367A;       /* rose (NOT the critical coral) */
   --cat-tolls-parking: var(--gray-500);
-  --cat-local-travel: #B47207;
-  --cat-emergency-buffer: #E4AE43;
+  --cat-local-travel: #747722;     /* olive — the auto-rickshaw hue */
+  --cat-emergency-buffer: #9E6D1A; /* deep honey — caution-family, not the token */
   --yf-cream: #F8F7EF;         /* main app canvas */
   --yf-mist: #ECF8F4;          /* atmospheric gradient edge */
   --yf-peach: #FFF2E8;         /* atmospheric gradient edge */
@@ -118,7 +122,14 @@
   --color-accent-foreground: #3A2506;
   --color-destructive: var(--danger-500);
   --color-destructive-soft: #F9E7E7;
-  --ring: 0 0 0 3px color-mix(in srgb, var(--yf-teal-600) 35%, transparent);
+  /* The focus indicator, at full strength. As a 35% tint the teal measured
+     1.50:1 against --bg and 1.57:1 against --card — under the 3:1 WCAG 1.4.11
+     asks of a focus indicator, and it is the ONLY signal on the controls that
+     remove their outline (the slots rail's day chips, its Fill buttons and the
+     ledger's rows all set `outline: none`). Solid --yf-teal-600 measures 3.80:1
+     on --bg and 4.08:1 on --card, and the token is theme-aware, so the dark
+     block needs no second recipe — one focus token, both themes. */
+  --ring: 0 0 0 3px var(--yf-teal-600);
   /* SYS-3a: deepened amber/green TEXT inks. The raw --warn/--ok pass only ~3.5–
      4.25:1 on light tints; these clear AA on every light surface (#8F5B06:
      5.08–5.73; #1F6B41: 5.61–6.49). Text/label roles consume these; decorative
@@ -126,6 +137,8 @@
      tokens (its lightened --warn/--ok already pass on dark surfaces). */
   --ink-amber: #8F5B06;
   --ink-ok: #1F6B41;
+  --ink-coral: #A82E2E;  /* AA on the soft danger tints (5.16–5.69): #C93B3B read 4.22 */
+  --ink-teal: #0B6B63;   /* teal ink for tint chips/hovers: teal-deep reads 4.0–4.5 there */
 
   /* ---- 3. LEGACY flat aliases (do not remove; new code uses --color-*) ---- */
   --bg: var(--yf-cream);   /* CTI canvas (was --gray-50) */
@@ -152,12 +165,18 @@
   --shadow-navy-rgb: 11, 37, 69;  /* shared shadow/shade navy — keep alphas on the consumers */
   --shadow: 0 1px 2px rgba(var(--shadow-navy-rgb),.05), 0 8px 28px rgba(var(--shadow-navy-rgb),.08);
   --shadow-sm: 0 1px 2px rgba(var(--shadow-navy-rgb),.07);
-  --shadow-soft: 0 2px 6px rgba(16,46,75,.04), 0 16px 40px rgba(16,46,75,.10);  /* CTI diffuse depth */
-  --shadow-carry: 0 6px 18px rgba(16,46,75,.14), 0 24px 48px rgba(16,46,75,.18);  /* carried drag row lift */
+  --shadow-soft: 0 2px 6px rgba(var(--shadow-navy-rgb),.04), 0 16px 40px rgba(var(--shadow-navy-rgb),.10);  /* CTI diffuse depth */
+  --shadow-carry: 0 6px 18px rgba(var(--shadow-navy-rgb),.14), 0 24px 48px rgba(var(--shadow-navy-rgb),.18);  /* carried drag row lift */
   --shadow-carry-dark: 0 6px 18px rgba(0,0,0,.45), 0 24px 48px rgba(0,0,0,.5);
   --radius: 18px;
   --radius-sm: 12px;
   --radius-lg: 24px;   /* CTI large bento cards */
+  /* ---- Spacing ladder: the ratchet's law for new code (tests/design-system
+     .test.ts' spacing gate), tokenised so surfaces route through it. Matches
+     the gate's LADDER set exactly — change one side and the pin fails. */
+  --space-1: 2px; --space-2: 4px; --space-3: 6px; --space-4: 8px;
+  --space-5: 12px; --space-6: 14px; --space-7: 16px; --space-8: 20px;
+  --space-9: 22px; --space-10: 24px;
   --nav-h: 62px;
   /* ---- bottom chrome (mobile / native shell) ----
      One offset every fixed/sticky bottom layer clears: the shell's own
@@ -214,14 +233,14 @@
   --yf-purple-100: #2A2440;
   --yf-poi-see: #e488f2;       /* scenic base lifts in dark (spine 7.6:1 on the dark card) */
   --yf-poi-see-ink: #f0a7fb;   /* POI-see text ink lifts in dark */
-  --cat-transport: #A99BD6;
-  --cat-accommodation: #2BB8AC;
-  --cat-food: #F5A94A;
-  --cat-activities: #52BE80;
-  --cat-entry-fees: #E06C6C;
+  --cat-transport: #689ADF;
+  --cat-accommodation: #68C1DF;
+  --cat-food: #DF8C68;
+  --cat-activities: #6BC76B;
+  --cat-entry-fees: #DF68AD;
   --cat-tolls-parking: #93A6BC;
-  --cat-local-travel: #D99A2B;
-  --cat-emergency-buffer: #E4B45E;
+  --cat-local-travel: #D0D454;
+  --cat-emergency-buffer: #DFB368;
   --yf-cream: #0C1420;
   --yf-mist: #0F1B2B;
   --yf-peach: #1A2030;
@@ -245,11 +264,16 @@
   --color-accent-foreground: #3A2506;
   --color-destructive: var(--danger-500);
   --color-destructive-soft: #3A2020;
-  --ring: 0 0 0 3px color-mix(in srgb, var(--yf-teal-600) 40%, transparent);
+  /* Same single recipe: --yf-teal-600 is the dark mirror (#2BB8AC), so the
+     indicator measures 6.43:1 on --card and 7.61:1 on --bg here. The 40% tint
+     this used to carry measured 2.17:1 on the dark card. */
+  --ring: 0 0 0 3px var(--yf-teal-600);
   /* SYS-3a: dark re-declares the ink tokens to the raw aliases — the darkened
      --warn/--ok (#D99A2B/#52BE80) already clear AA on dark surfaces. */
   --ink-amber: var(--warn);
   --ink-ok: var(--ok);
+  --ink-coral: var(--danger);
+  --ink-teal: var(--teal-deep);
 
   /* ---- 3. LEGACY flat aliases (dark) ---- */
   --bg: var(--gray-50);
@@ -588,7 +612,7 @@ a.btn { text-decoration: none; }
 .btn-outline:hover { background: var(--bg-soft); }
 .btn-ghost { background: none; border: none; color: var(--text-2); padding: 8px 10px; border-radius: 999px; }
 .btn-ghost:hover { background: var(--bg-soft); color: var(--text); }
-.btn-danger { background: var(--color-destructive-soft); color: var(--color-destructive); }
+.btn-danger { background: var(--color-destructive-soft); color: var(--ink-coral); }
 .btn-danger:hover:not(:disabled) { background: color-mix(in srgb, var(--color-destructive) 14%, transparent); }
 .btn-sm { padding: 6px 12px; font-size: 13px; }
 /* The LARGE size is the one that carries a sentence, so it is the one that may
@@ -639,7 +663,7 @@ a.btn { text-decoration: none; }
 .card {
   background: var(--card); border: 1px solid var(--line);
   border-radius: var(--radius); box-shadow: var(--shadow);
-  padding: 20px;
+  padding: var(--space-8);
 }
 .card + .card { margin-top: 14px; }
 /* …except inside a grid, which already spaces its own items with `gap`. The
@@ -763,14 +787,10 @@ a.btn { text-decoration: none; }
 .chip-teal { background: var(--teal-soft); color: var(--teal-deep); }
 .chip-outline { background: var(--card); color: var(--text-2); border-color: var(--line); }
 .chip-saffron { background: var(--saffron-soft); color: var(--ink-amber); }
-/* AA contrast: warn-600 reads 3.48:1 on the saffron tint — light theme gets a
-   deeper amber (--ink-amber); dark theme's #D99A2B on #3A2C15 already passes.
-   The same --warn-on-tint pair shipped unfixed on sibling surfaces (3.48–3.69:1
-   light; all pass dark) — now routed through --ink-amber for one source. */
-:root:not([data-theme='dark']) .day-warn-pill:not(.sev-high),
-  :root:not([data-theme='dark']) .day-rail-chip.warn,
-:root:not([data-theme='dark']) .share-intent--saffron,
-:root:not([data-theme='dark']) .stop-num.cat-food { color: var(--ink-amber); }
+/* AA contrast: the warn-amber-on-tint pair (3.48–3.69:1 in light) is folded
+   INTO the base rules — each declares --ink-amber directly (5.08–5.38:1), and
+   dark re-resolves --ink-amber to --warn, so one declaration is correct in
+   both themes. The danger pair folds the same way through --ink-coral. */
 /* SYS-2 dark-foreground swap: these solid-teal-fill surfaces take `#06251f`
    ink in dark (the lightened --teal-500 can't carry white — 2.0–2.5:1). One
    block for the whole family; base rules now use --teal-deep (5.19:1 light).
@@ -784,7 +804,7 @@ a.btn { text-decoration: none; }
   background: var(--teal); border-color: var(--teal); color: #06251f;
 }
 [data-theme='dark'] .mode-btn.on .hint { color: rgba(6, 37, 31, .85); }
-.chip-danger { background: var(--danger-soft); color: var(--danger); }
+.chip-danger { background: var(--danger-soft); color: var(--ink-coral); }
 .chip-ok { background: var(--ok-soft); color: var(--ink-ok); }
 .chip-info { background: var(--info-soft); color: var(--text-2); }
 .clickable-chip { cursor: pointer; border: 1.5px solid var(--line); background: var(--card); user-select: none;
@@ -793,7 +813,14 @@ a.btn { text-decoration: none; }
      box-shadow, so the selected chip's text/glow popped while its fill eased. */
   transition: transform var(--t-fast) var(--ease-out), background var(--t-fast) var(--ease-out), border-color var(--t-fast) var(--ease-out), color var(--t-fast) var(--ease-out), box-shadow var(--t-fast) var(--ease-out); }
 .clickable-chip.on-teal { border-color: var(--teal); background: var(--teal-soft); color: var(--teal-deep); }
-.clickable-chip.on-saffron { border-color: var(--saffron); background: var(--saffron-soft); color: var(--warn); }
+/* AA: the base rules below used raw --warn on a light tint (3.48–3.69:1 as
+   the design-system ratchet reads them — and 3.48:1 rendered on
+   .clickable-chip.on-saffron OUTSIDE a pill-nav, where the glider's own
+   #5C3600 ink does not reach). SYS-3a's --ink-amber is the text ink for this
+   exact hue: 5.08–5.38:1 light; dark re-declares it to --warn, so dark is
+   byte-identical. Fixed at the SOURCE rule — the ratchet computes each
+   selector's own declaration pair. */
+.clickable-chip.on-saffron { border-color: var(--saffron); background: var(--saffron-soft); color: var(--ink-amber); }
 .clickable-chip:hover { transform: translateY(-1px); }
 .chip-row { display: flex; flex-wrap: wrap; gap: 7px; }
 /* Segmented pill bars — ONE recipe for every pill-style toggle/filter rail
@@ -940,7 +967,7 @@ a.btn { text-decoration: none; }
   background: var(--teal-soft); color: var(--teal-deep);
 }
 .stop-num.cat-travel { background: var(--info-soft); color: var(--text-2); }
-.stop-num.cat-food { background: var(--saffron-soft); color: var(--warn); }
+.stop-num.cat-food { background: var(--saffron-soft); color: var(--ink-amber); }
 .stop-num.cat-hotel { background: var(--info-soft); color: var(--text-2); }
 .stop-main { flex: 1; min-width: 0; }
 .stop-toprow { display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap; }
@@ -1328,17 +1355,17 @@ a.btn { text-decoration: none; }
   transition: border-color var(--t-fast) var(--ease-out), background var(--t-fast) var(--ease-out), color var(--t-fast) var(--ease-out);
 }
 .day-rail-chip:hover { border-color: var(--teal); color: var(--teal-deep); background: var(--teal-soft); }
-.day-rail-chip.warn { background: var(--yf-amber-100); border-color: transparent; color: var(--warn); font-weight: 700; }
-.day-rail-chip.warn:hover { background: var(--saffron-soft); color: var(--warn); }
+.day-rail-chip.warn { background: var(--yf-amber-100); border-color: transparent; color: var(--ink-amber); font-weight: 700; }
+.day-rail-chip.warn:hover { background: var(--saffron-soft); color: var(--ink-amber); }
 /* Warning state inside the affected day's header (doc §6.3). */
 .day-warn-pill {
   align-self: flex-start;
-  border-radius: 12px; padding: 6px 12px;
+  border-radius: var(--radius-sm); padding: var(--space-3) var(--space-5);
   font-size: 11.5px; font-weight: 700;
-  background: var(--yf-amber-100); color: var(--warn);
+  background: var(--yf-amber-100); color: var(--ink-amber);
   max-width: 340px;
 }
-.day-warn-pill.sev-high { background: var(--yf-coral-100); color: var(--danger); }
+.day-warn-pill.sev-high { background: var(--yf-coral-100); color: var(--ink-coral); }
 /* Per-day cost + dwell chips in the day header — quiet metadata pills that
    mirror the stop-kind tag treatment (soft tint, no border) so they read as
    engine-derived context, not actions. */
@@ -1539,10 +1566,16 @@ a.btn { text-decoration: none; }
 }
 /* Mockup card anatomy: accent bar (from kind-*) → kicker → title → one meta line. */
 .board-stop-kicker {
-  display: block; font-size: 9.5px; font-weight: 800; letter-spacing: .08em;
-  text-transform: uppercase; color: var(--text-3);
+  display: block; color: var(--text-3);
   font-variant-numeric: tabular-nums;
+  /* size/weight/tracking/casing come from the kicker-unification block
+     (var(--kicker-*), later in this file) — nothing local left to drift. */
 }
+/* The kind glyph leads its label in the kicker. 11px sits optical-centre on
+   the 9.5px caps; the offset mirrors InlineIcon's baseline rule so every
+   inline glyph in the app lands on the same line — and the gap is 4, the
+   helper's own default (on the spacing ladder, unlike the 3px drift). */
+.board-stop-kicker svg { vertical-align: -1.5px; margin-right: 4px; }
 .board-stop .stop-title {
   display: block; font-size: 13px; margin-top: 2px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -1590,7 +1623,7 @@ button.board-col-zone--add:active { transform: translateY(1px); }
   text-transform: uppercase; padding: 4px 10px; border-radius: 999px; margin-bottom: 8px;
 }
 .share-intent--teal { background: var(--teal-soft); color: var(--teal-deep); }
-.share-intent--saffron { background: var(--saffron-soft); color: var(--warn); }
+.share-intent--saffron { background: var(--saffron-soft); color: var(--ink-amber); }
 .share-intent--info { background: var(--info-soft); color: var(--text-2); }
 [data-theme='dark'] .budget-hero { background: linear-gradient(120deg, #0e2f39, #0c1e35); }
 [data-theme='dark'] .budget-hero-sub { color: #9fc4bf; }
@@ -1798,7 +1831,7 @@ button.board-col-zone--add:active { transform: translateY(1px); }
   background-size: 26px 26px;
 }
 .hero-adventure > * { position: relative; }
-.ha-kicker { font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; opacity: .75; font-weight: 800; }
+.ha-kicker { opacity: .75; /* type specs: the kicker-unification block (var(--kicker-*)) */ }
 .ha-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 14px 0 8px; }
 .ha-stats > div { background: rgba(255,255,255,.09); border: 1px solid rgba(255,255,255,.14); border-radius: 10px; padding: 8px 10px; }
 .ha-stats b { display: block; font-family: var(--font-display); font-size: 15px; font-variant-numeric: tabular-nums; }
@@ -1819,7 +1852,10 @@ button.board-col-zone--add:active { transform: translateY(1px); }
 
 /* Landing section headings & grids */
 .section-title { font-size: clamp(1.45rem, 3vw, 1.9rem); text-align: center; margin: 46px auto 6px; max-width: 620px; }
-.feature-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 14px; margin: 0 0 44px; }
+/* Bento, not three equal cards: one tall photo cell beside two stacked cells.
+   Three items, three cells, no empty tile. Collapses to one column at 980px. */
+.feature-strip { display: grid; grid-template-columns: 1.2fr 1fr; gap: 14px; margin: 0 0 44px; }
+.feature-bento > .feature-card:first-child { grid-row: span 2; }
 .feature-card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 21px; box-shadow: var(--shadow-sm); transition: transform var(--t-fast) var(--ease-out), box-shadow var(--t-fast) var(--ease-out); }
 .feature-card:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(var(--shadow-navy-rgb),.06), 0 16px 40px rgba(var(--shadow-navy-rgb),.12); }
 .feature-card h3 { font-size: 15.5px; }
@@ -1827,17 +1863,29 @@ button.board-col-zone--add:active { transform: translateY(1px); }
 .feature-card p { font-size: 13.5px; color: var(--text-2); margin-top: 6px; line-height: 1.55; }
 
 /* Steps */
-.steps-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; }
+/* A route, not a card grid: four stops along one dashed road line. The line
+   runs behind the roundels (they carry the page canvas as their own fill), and
+   the whole thing collapses to a vertical timeline at 720px. */
+.steps-route {
+  position: relative; display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 14px; margin-top: 24px;
+  content-visibility: auto; contain-intrinsic-size: auto 300px;
+}
+.steps-route::before {
+  content: ''; position: absolute; left: 7%; right: 7%; top: 15px; height: 0;
+  border-top: 2px dashed color-mix(in srgb, var(--yf-teal-600) 45%, transparent);
+}
 /* Below-the-fold landing sections skip layout/paint entirely until the
    scroll approaches (content-visibility). The size estimate keeps the
    scrollbar honest — measured ~600px per section. Big win on first paint
    in the phone WebView, invisible on desktop. */
 .cta-band { content-visibility: auto; contain-intrinsic-size: auto 620px; }
-.feature-strip { content-visibility: auto; contain-intrinsic-size: auto 300px; }
-.steps-grid { content-visibility: auto; contain-intrinsic-size: auto 340px; }
-.step-card { position: relative; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 21px 19px 19px; box-shadow: var(--shadow-sm); }
+.feature-strip { content-visibility: auto; contain-intrinsic-size: auto 400px; }
+.step-card { position: relative; padding: 0; }
+.step-body { min-width: 0; }
 .step-num {
   display: inline-flex; align-items: center; justify-content: center;
+  position: relative; z-index: var(--z-content);
   width: 30px; height: 30px; border-radius: 50%;
   background: var(--teal-deep); color: #fff; font-weight: 800; font-size: 14px;
   font-family: var(--font-display); margin-bottom: 11px;
@@ -1847,12 +1895,18 @@ button.board-col-zone--add:active { transform: translateY(1px); }
 
 /* Demo CTA band — a forced-dark surface in BOTH themes: its gradient stops
    must be literals, not theme-flipping tokens (--gray-900 turns near-white in
-   dark mode and stranded the white text). Same rule as .budget-hero. */
+   dark mode and stranded the white text). Same rule as .budget-hero. The
+   open-road photo sits under a .92 navy scrim (and under the base gradient as
+   the load-failure floor), so white copy stays AA over any underlying image. */
 .cta-band {
   text-align: center; padding: 42px 26px; border-radius: 22px;
   background:
     radial-gradient(ellipse 90% 130% at 50% -30%, color-mix(in srgb, var(--saffron) 20%, transparent), transparent),
+    linear-gradient(150deg, rgba(20, 63, 76, .84), rgba(17, 44, 76, .9)),
+    url('/img/landing-open-road.jpg'),
     linear-gradient(150deg, #143f4c, #112c4c);
+  background-size: cover, cover, cover, auto;
+  background-position: center, center, center, 0 0;
   color: #fff;
 }
 .cta-band h2 { color: #fff; }
@@ -1860,6 +1914,67 @@ button.board-col-zone--add:active { transform: translateY(1px); }
 .cta-buttons { display: flex; gap: 14px; justify-content: center; align-items: center; flex-wrap: wrap; }
 .cta-hint { opacity: .85; }
 .cta-hint code { background: rgba(255,255,255,.14); padding: 2px 7px; border-radius: 6px; }
+
+/* ---------- Handoff strip (directly below the hero) ----------
+   The boarding-pass ticket and the trip-code join form live here, not in the
+   hero: the hero stays chip + headline + subtext + two CTAs, and a visitor who
+   skipped those still finds a next step one scroll-length below. Ticket first
+   (the product-led entry, under the headline column), form second; both top-
+   aligned so the ticket's top edge lines up with the form's label instead of
+   floating centered against it. */
+.handoff {
+  position: relative; z-index: var(--z-content);
+  display: grid; grid-template-columns: 1fr auto; gap: 18px 24px;
+  align-items: start; padding: 20px 0 24px;
+}
+.handoff-lead { font-weight: 800; font-size: 14px; margin-bottom: 8px; }
+.invite-entry { display: flex; gap: 8px; max-width: 400px; }
+.invite-entry .input { flex: 1; min-width: 0; }
+.handoff-note { margin-top: 10px; }
+
+/* Bento surfaces: photo cell, tinted cell, plain cell. The photo is a local
+   asset under a navy scrim so white copy clears AA over any underlying image
+   (measured: the scrim holds the composite near #0F2A33 even over a bright
+   sky). */
+.feature-bento .feature-photo {
+  display: flex; flex-direction: column;
+  background-image:
+    linear-gradient(165deg, rgba(18, 63, 73, .88), rgba(12, 30, 53, .94)),
+    url('/img/landing-high-route.jpg');
+  background-size: cover, cover;
+  background-position: center, center;
+  border-color: transparent;
+  color: #fff;
+}
+.feature-bento .feature-photo h3 { color: #fff; }
+.feature-bento .feature-photo p { color: rgba(255, 255, 255, .85); }
+.feature-bento .feature-photo .feature-ico { background: rgba(255, 255, 255, .16); color: #fff; }
+/* The impact-preview echo inside the photo cell: a forced-light mini panel
+   (light literals, no dark mirror) so it reads as the product's own dialog
+   artifact on the dark photo in BOTH themes. Pins to the cell's bottom. */
+.feature-preview {
+  margin-top: auto;
+  background: #FFFDF7;
+  color: #0B2545;
+  border-radius: 12px;
+  padding: 12px;
+  box-shadow: 0 10px 24px -8px rgba(12, 30, 53, .35);
+}
+.feature-preview-head { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 800; }
+.fp-chip {
+  margin-left: auto; background: #FFE3B8; color: #6B3D05;
+  border-radius: 999px; padding: 2px 8px; font-size: 9.5px; font-weight: 800; letter-spacing: .04em;
+}
+.fp-deltas { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 8px; }
+.fp-delta { background: rgba(18, 63, 73, .07); border-radius: 8px; padding: 6px 8px; }
+.fp-delta b { display: block; font-family: var(--font-display); font-size: 13px; font-variant-numeric: tabular-nums; }
+.fp-delta span { display: block; font-size: 8.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; opacity: .62; margin-top: 1px; }
+.fp-warn { background: #FFF4E4; color: #3A2506; border-radius: 8px; padding: 6px 8px; font-size: 11px; font-weight: 800; margin-top: 6px; line-height: 1.3; }
+.fp-warn span { display: block; font-weight: 500; font-size: 10.5px; opacity: .85; margin-top: 1px; }
+.fp-tip { background: #E5F4EE; color: #0C4A42; border-radius: 8px; padding: 6px 8px; font-size: 11px; font-weight: 800; margin-top: 6px; line-height: 1.3; }
+.fp-tip span { display: block; font-weight: 500; font-size: 10.5px; opacity: .85; margin-top: 1px; }
+.feature-bento .feature-tint { background: var(--yf-teal-100); border-color: color-mix(in srgb, var(--yf-teal-600) 22%, transparent); }
+[data-theme='dark'] .feature-bento .feature-tint { background: #12332F; border-color: rgba(255, 255, 255, .12); }
 
 /* ---------- Explore cards ---------- */
 .explore-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 16px; }
@@ -1911,7 +2026,7 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
   color: var(--text-2); display: inline-flex; padding: 3px; border-radius: 7px;
   transition: color var(--motion-fast) var(--ease-out), background var(--motion-fast) var(--ease-out);
 }
-.icon-link:hover { color: var(--teal-deep); background: var(--bg-soft); }
+.icon-link:hover { color: var(--ink-teal); background: var(--bg-soft); }
 .icon-link:focus-visible { outline: 2px solid var(--teal); outline-offset: 1px; }
 /* Inline text links in body copy — the teal colour alone didn't read as
    clickable. */
@@ -1971,18 +2086,17 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
 /* Filter pills live in a static toolbar ABOVE the canvas — they used to be an
    absolute overlay (top-left, z-index 5) that covered the map itself. The row
    wraps on desktop and scrolls horizontally on mobile (media query below). */
-.map-toolbar { margin-bottom: 8px; }
-.map-day-filter { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.map-toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }
+.map-day-filter { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; background: var(--yf-surface); border: 1px solid var(--yf-glass-border); border-radius: 999px; padding: 3px 4px; }
 .map-day-chip {
   border: 1px solid var(--yf-glass-border); background: var(--yf-glass);
   -webkit-backdrop-filter: blur(var(--yf-blur-chip)); backdrop-filter: blur(var(--yf-blur-chip));
   color: var(--text-2); border-radius: 999px; font-size: 12px; font-weight: 700;
-  padding: 5px 12px; white-space: nowrap; transition: background var(--t-fast) var(--ease-out),
-    color var(--t-fast) var(--ease-out), border-color var(--t-fast) var(--ease-out), box-shadow var(--t-fast) var(--ease-out);
+  padding: 5px 12px; white-space: nowrap; transition: background var(--motion-fast) var(--ease-out),
+    color var(--motion-fast) var(--ease-out), border-color var(--motion-fast) var(--ease-out), box-shadow var(--motion-fast) var(--ease-out), transform var(--motion-fast) var(--ease-out);
 }
 .map-day-chip:hover { color: var(--text); border-color: var(--teal); }
 .map-day-chip.on { background: var(--teal-deep); color: #fff; border-color: var(--teal-deep); box-shadow: var(--shadow-glow-teal); }
-.map-expand-chip { margin-left: auto; }
 /* Map view modes (2D · Terrain · 3D) — the same glass chips, held apart from
    the day filter by a hairline so the two control families read as separate. */
 .map-mode-group { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding-left: 9px; border-left: 1px solid var(--yf-glass-border); }
@@ -1998,9 +2112,9 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
 /* Map key: hidden behind a small ⓘ chip by default (it used to blanket the
    bottom-right corner); the body card reopens above the same corner. */
 .map-legend { position: absolute; right: 12px; bottom: 12px; z-index: var(--z-frost); display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
-.map-legend-toggle { border: 1px solid var(--yf-glass-border); background: var(--yf-glass); -webkit-backdrop-filter: blur(var(--yf-blur-chip)); backdrop-filter: blur(var(--yf-blur-chip)); color: var(--text); border-radius: 999px; font-size: 12px; font-weight: 700; padding: 5px 12px; white-space: nowrap; }
+.map-legend-toggle { border: 1px solid var(--yf-glass-border); background: var(--yf-glass); -webkit-backdrop-filter: blur(var(--yf-blur-chip)); backdrop-filter: blur(var(--yf-blur-chip)); color: var(--text); border-radius: 999px; font-size: 12px; font-weight: 700; padding: 5px 12px; white-space: nowrap; transition: background var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out), border-color var(--motion-fast) var(--ease-out), transform var(--motion-fast) var(--ease-out); }
 /* Readable-content overlay (level 3): near-opaque surface, glass border, light frost. */
-.map-legend-body { background: var(--yf-surface); border: 1px solid var(--yf-glass-border); -webkit-backdrop-filter: blur(var(--yf-blur-chip)); backdrop-filter: blur(var(--yf-blur-chip)); border-radius: 12px; padding: 8px 12px; font-size: 11.5px; color: var(--text-2); font-weight: 600; max-width: min(440px, 78vw); }
+.map-legend-body { background: var(--yf-surface); border: 1px solid var(--yf-glass-border); -webkit-backdrop-filter: blur(var(--yf-blur-chip)); backdrop-filter: blur(var(--yf-blur-chip)); border-radius: 12px; padding: 8px 12px; font-size: 11.5px; color: var(--text-2); font-weight: 600; max-width: min(440px, 78vw); animation: popover-in var(--motion-med) var(--ease-glide); }
 [data-theme='dark'] .map-legend-toggle { background: var(--yf-glass); color: var(--text); }
 [data-theme='dark'] .map-legend-body { background: rgba(22,35,58,.92); }
 /* "Locate me" chip — the live-location toggle. ON state reads as the blue
@@ -2022,14 +2136,14 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
 .yf-live-pulse {
   position: absolute; inset: 0; border-radius: 50%;
   background: rgba(42, 111, 219, .28);
-  animation: yf-live-ping 1.8s cubic-bezier(.215,.61,.355,1) infinite;
+  animation: yf-live-ping 1.8s var(--ease-out) infinite;
 }
 .yf-live-dot--denied .yf-live-core { background: #C93B3B; }
 @keyframes yf-live-ping {
   0% { transform: scale(.45); opacity: .9; }
   80%, 100% { transform: scale(1.25); opacity: 0; }
 }
-@media (prefers-reduced-motion: reduce) { .yf-live-pulse { animation: none; opacity: .5; } }
+@media (prefers-reduced-motion: reduce) { .yf-live-pulse { animation: none; opacity: .5; } .map-shell--expanded, .map-shell--closing { animation: none; } .map-legend-body { animation: none; } }
 /* Expand mode — the map shell breaks out into a fixed overlay so the canvas
    gets the viewport. Sits BELOW the modal (100), impact sheet (90) and
    notifications (80) so dialogs opened from the expanded map still layer on
@@ -2044,11 +2158,11 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
      inset by design: the shell must NOT be lifted by the nav's offset. */
   padding-bottom: calc(2px + var(--safe-bottom));
   display: flex; flex-direction: column;
-  animation: mapExpand 320ms var(--ease-out);
+  animation: mapExpand var(--motion-slow) var(--ease-out);
 }
 /* Collapse plays the reverse scale-down first; the shell is removed from the
    fixed overlay only after it finishes (TripMap keeps a `closing` state). */
-.map-shell--closing { animation: mapCollapse 280ms var(--ease-out) both; pointer-events: none; }
+.map-shell--closing { animation: mapCollapse var(--motion-slow) var(--ease-out) both; pointer-events: none; }
 @keyframes mapExpand {
   from { opacity: .25; transform: scale(.94); }
   to { opacity: 1; transform: none; }
@@ -2063,7 +2177,7 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
 .map-idea-chip { display: inline-flex; align-items: center; gap: 5px; }
 .map-idea-chip .yf-idea-chip-ico { opacity: .85; flex: 0 0 auto; }
 .map-idea-chip .yf-idea-chip-count {
-  background: rgba(var(--shadow-navy-rgb),.12); border-radius: 99px;
+  background: rgba(var(--shadow-navy-rgb),.12); border-radius: 999px;
   font-size: 10.5px; font-weight: 800; padding: 1px 6px;
   font-variant-numeric: tabular-nums;
 }
@@ -2077,7 +2191,7 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
 .vote-btn:hover { border-color: var(--teal); color: var(--teal-deep); }
 .vote-btn.on { background: var(--teal-deep); border-color: var(--teal-deep); color: #fff; }
 .vote-count { font-weight: 800; font-size: 15px; font-family: var(--font-display); font-variant-numeric: tabular-nums; }
-.consensus-bar { height: 7px; border-radius: 99px; background: var(--bg-soft); overflow: hidden; display: flex; }
+.consensus-bar { height: 7px; border-radius: 999px; background: var(--bg-soft); overflow: hidden; display: flex; }
 .consensus-bar > div { height: 100%; }
 .comment { display: flex; gap: 9px; padding: 9px 0; border-top: 1px dashed var(--line); }
 .comment-body { font-size: 13.5px; }
@@ -2092,9 +2206,9 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
 /* ---------- Budget ---------- */
 .budget-bars { display: flex; flex-direction: column; gap: 11px; }
 .budget-bar-row { display: grid; grid-template-columns: 120px 1fr auto; gap: 10px; align-items: center; font-size: 13.5px; }
-.budget-bar-track { height: 10px; background: var(--bg-soft); border-radius: 99px; overflow: hidden; }
+.budget-bar-track { height: 10px; background: var(--bg-soft); border-radius: 999px; overflow: hidden; }
 .budget-bar-fill {
-  height: 100%; border-radius: 99px; transition: width var(--t-slow) var(--ease-out);
+  height: 100%; border-radius: 999px; transition: width var(--t-slow) var(--ease-out);
   position: relative; overflow: hidden;
 }
 /* A sheen sweeping across each budget bar via left-position keyframes.
@@ -2199,14 +2313,16 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
   background: linear-gradient(135deg, var(--yf-teal-600), var(--yf-navy));
   color: #fff; font-size: 24px;
   box-shadow: var(--shadow-glow-teal); display: flex; align-items: center; justify-content: center;
-  transition: transform .12s ease;
+  transition: transform var(--motion-fast) var(--ease-out);
 }
-.ai-fab:hover { transform: scale(1.06); }
+@media (hover: hover) {
+  .ai-fab:hover { transform: scale(1.06); }
+}
 .ai-drawer {
   position: fixed; z-index: var(--z-drawer); right: 0; top: 0; bottom: 0;
   width: min(420px, 100vw); background: var(--card);
   border-left: 1px solid var(--line); box-shadow: -12px 0 40px rgba(var(--shadow-navy-rgb),.14);
-  display: flex; flex-direction: column; animation: drawerIn var(--t-med) var(--ease-out);
+  display: flex; flex-direction: column; animation: drawerIn var(--motion-slow) var(--ease-out);
   /* Edge-to-edge: keep content clear of the landscape home-indicator edge. */
   padding-right: var(--safe-area-inset-right, env(safe-area-inset-right, 0px));
 }
@@ -2227,16 +2343,16 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
   background: rgba(255, 255, 255, .16);
 }
 .ai-head b { display: block; font-family: var(--font-display); font-size: 14.5px; letter-spacing: -0.01em; }
-.ai-head-sub { font-size: 11.5px; color: rgba(255, 255, 255, .78); }
+.ai-head-sub { font-size: 12px; color: rgba(255, 255, 255, .78); }
 .ai-head .icon-btn { margin-left: auto; color: #fff; }
 .ai-head .icon-btn:hover { background: rgba(255, 255, 255, .14); }
 .ai-msgs { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 17px 16px; display: flex; flex-direction: column; gap: 11px; scrollbar-width: thin; scrollbar-color: var(--text-3) transparent; }
-.ai-bubble { max-width: 88%; padding: 10px 14px; border-radius: 16px; font-size: 13.5px; line-height: 1.5; white-space: pre-wrap; }
+.ai-bubble { max-width: 88%; padding: 10px 14px; border-radius: 16px; font-size: 13.5px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: break-word; }
 .ai-bubble.user { align-self: flex-end; background: var(--teal-deep); color: #fff; border-bottom-right-radius: 6px; }
 /* dark lightens --teal-deep to #35C9BC — white on it is 2.11:1; ink passes 7.9 */
 [data-theme='dark'] .ai-bubble.user { color: #06251f; }
 .ai-bubble.bot { align-self: flex-start; background: var(--bg-soft); color: var(--text); border: 1px solid var(--line); border-bottom-left-radius: 6px; }
-.ai-assumption { margin-top: 9px; font-size: 11.8px; color: var(--text-3); border-top: 1px dashed var(--line); padding-top: 7px; }
+.ai-assumption { margin-top: 9px; font-size: 12px; color: var(--text-3); border-top: 1px dashed var(--line); padding-top: 7px; }
 .ai-quick { padding: 10px 14px 8px; border-top: 1px solid var(--line); }
 .ai-quick-scroll { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 5px; scrollbar-width: thin; scrollbar-color: var(--text-3) transparent; -webkit-overflow-scrolling: touch; }
 /* Quick prompts: single-line pills on a scroll rail — never the wrapped
@@ -2250,6 +2366,12 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
 .typing-dots span { width: 6px; height: 6px; border-radius: 50%; background: var(--text-3); animation: blink 1.2s infinite; }
 .typing-dots span:nth-child(2) { animation-delay: .2s; } .typing-dots span:nth-child(3) { animation-delay: .4s; }
 @keyframes blink { 0%,80%,100% { opacity: .25; } 40% { opacity: 1; } }
+/* The companion's two looping/entering motions opt out under reduced motion,
+   like every other animated surface (AGENTS §10). */
+@media (prefers-reduced-motion: reduce) {
+  .typing-dots span { animation: none; opacity: .6; }
+  .ai-drawer { animation: none; }
+}
 
 /* ---------- Notifications ---------- */
 /* Entrance is owned by .popover (the shared family rule at the end of the
@@ -2444,6 +2566,9 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
    keyboard focus (tabIndex=0 on the peer chip), so the name is reachable
    without a pointer. Entrance rides the motion tokens (dropdown pattern). */
 .presence-stack { display: inline-flex; align-items: center; margin-left: 14px; }
+/* Empty presence room: inherits the head card's text colour at the same opacity
+   as the member count beside it, so it needs no token of its own. */
+.presence-solo { opacity: .85; }
 .presence-peer { position: relative; display: inline-flex; align-items: center; margin-left: -8px; }
 .presence-peer:first-child { margin-left: 0; }
 .presence-peer .avatar { border: 2px solid var(--card); }
@@ -2526,7 +2651,7 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
    Dark ink on the same bright fill (5.5:1+) fixes both themes in one rule;
    same lightness-not-hue move as .clickable-chip.on-teal. */
 .notif-badge { position: absolute; top: -4px; right: -4px; background: var(--saffron); color: #06251F;
-  border-radius: 99px; font-size: 10px; font-weight: 800; min-width: 17px; height: 17px; line-height: 17px; }
+  border-radius: 999px; font-size: 10px; font-weight: 800; min-width: 17px; height: 17px; line-height: 17px; }
 
 /* ---------- Footer ---------- */
 .footer-inner { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
@@ -3002,7 +3127,7 @@ main:focus { outline: none; }
 .loc-texts { display: grid; gap: 1px; min-width: 0; flex: 1; }
 .loc-kind {
   flex: none; font-size: 9.5px; font-weight: 800; letter-spacing: .05em;
-  padding: 3px 7px; border-radius: 99px; text-transform: uppercase;
+  padding: 3px 7px; border-radius: 999px; text-transform: uppercase;
 }
 .loc-kind.poi { background: color-mix(in srgb, var(--saffron) 16%, transparent); color: #9A6206; }
 .loc-kind.place { background: color-mix(in srgb, var(--teal) 14%, transparent); color: var(--teal-deep); }
@@ -3089,10 +3214,10 @@ main:focus { outline: none; }
   padding: 2px 8px; border-radius: 999px; white-space: nowrap;
   background: var(--line); color: var(--text-2);
 }
-.ride-purpose-meal { background: color-mix(in srgb, var(--saffron) 16%, transparent); color: var(--teal-deep); }
-.ride-purpose-fuel { background: var(--info-soft); color: var(--teal-deep); }
-.ride-purpose-stretch { background: color-mix(in srgb, var(--teal) 14%, transparent); color: var(--teal-deep); }
-.ride-purpose-rest { background: color-mix(in srgb, var(--teal) 14%, transparent); color: var(--teal-deep); }
+.ride-purpose-meal { background: color-mix(in srgb, var(--saffron) 16%, transparent); color: var(--ink-teal); }
+.ride-purpose-fuel { background: var(--info-soft); color: var(--ink-teal); }
+.ride-purpose-stretch { background: color-mix(in srgb, var(--teal) 14%, transparent); color: var(--ink-teal); }
+.ride-purpose-rest { background: color-mix(in srgb, var(--teal) 14%, transparent); color: var(--ink-teal); }
 .ride-purpose-overnight { background: var(--text); color: var(--bg); }
 .ride-purpose-sight { background: color-mix(in srgb, var(--saffron) 22%, transparent); color: var(--text); }
 .ride-purpose-muted { background: transparent; border: 1px dashed var(--line); color: var(--text-3); }
@@ -3171,12 +3296,13 @@ main:focus { outline: none; }
 }
 [data-theme='dark'] .engine-tips { border-color: rgba(137, 122, 187, .35); background: rgba(137, 122, 187, .14); }
 .engine-tips-ico { color: var(--yf-purple); display: inline-flex; flex-shrink: 0; }
-.engine-tips-text { flex: 1; min-width: 0; animation: engineTipIn var(--t-med) var(--ease-out); }
+.engine-tips-text { flex: 1; min-width: 0; animation: engineTipIn var(--motion-med) var(--ease-out); }
 @keyframes engineTipIn { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
 .engine-tips-dots { display: inline-flex; gap: 4px; flex-shrink: 0; }
 .engine-tips-dot {
   width: 6px; height: 6px; border-radius: 50%; border: none; padding: 0;
   background: color-mix(in srgb, var(--yf-purple) 30%, transparent); cursor: pointer;
+  transition: background var(--motion-fast) var(--ease-out);
 }
 .engine-tips-dot.on { background: var(--yf-purple); }
 @media (max-width: 720px) { .engine-tips-dots { display: none; } }
@@ -3219,7 +3345,7 @@ main:focus { outline: none; }
 }
 .poi-col--needs .poi-col-head-ico { background: var(--teal-soft); }
 .poi-col--see .poi-col-head-ico { background: color-mix(in srgb, var(--yf-poi-see) 16%, transparent); }
-.poi-col-head b { display: block; font-size: 14px; }
+.poi-col-head b { display: block; font-size: 14px; font-family: var(--font-display); }
 .poi-col--needs .poi-col-head b { color: var(--teal-deep); }
 .poi-col--see .poi-col-head b { color: var(--yf-poi-see-ink); }
 /* tint the purpose chips inside their lane — sightseeing reads scenic violet.
@@ -3235,6 +3361,10 @@ main:focus { outline: none; }
   gap: 14px;
   margin-top: 12px;
   align-items: start;
+  /* The fold is an in-place resize of both rails (~270px) with the map re-fitting
+     beside them — a day-collapse in miniature, so it rides the resize clock
+     (both ends at rest; a decelerate curve would snap the columns open). */
+  transition: grid-template-columns var(--motion-slow) var(--ease-resize);
 }
 .map-ideas-grid .poi-col {
   max-height: 72vh;
@@ -3243,7 +3373,7 @@ main:focus { outline: none; }
   top: 12px;
 }
 .map-ideas-map { min-width: 0; }
-/* The ≤1500px reset lives below the folded-rail rules at the end of the file.
+/* The ≤1278px reset lives below the folded-rail rules at the end of the file.
    Keep this space so the line-keyed design-system baseline stays unchanged. */
 
 
@@ -4391,8 +4521,12 @@ html.vt-active :where(*) {
   to   { opacity: 0; transform: translateY(-8px); }
 }
 .rs-caption { display: flex; flex-direction: column; gap: 2px; margin-top: 8px; line-height: 1.25; }
-.rs-caption-name { font-weight: 800; font-size: 13.5px; color: #fff; }
-.rs-caption-meta { font-size: 11px; opacity: .66; color: #fff; letter-spacing: .01em; }
+.rs-caption-name { font-weight: 800; font-size: 13.5px; color: #fff; display: inline-flex; align-items: center; gap: 6px; }
+.rs-caption-name svg { flex: none; opacity: .9; }
+.rs-caption-meta { font-size: 11px; opacity: .66; color: #fff; letter-spacing: .01em; display: flex; flex-wrap: wrap; gap: 4px 10px; }
+/* Hairline separators, not a row of middle dots: one rule for every gap. */
+.rs-meta-field { display: inline-flex; align-items: center; gap: 10px; }
+.rs-meta-field + .rs-meta-field::before { content: ''; width: 1px; height: 9px; background: currentColor; opacity: .5; }
 /* caption is remounted with the scenario (key=cap-idx), so it fades in exactly
    when the new road starts drawing — no independent loop to drift out of sync */
 @media (prefers-reduced-motion: no-preference) {
@@ -4530,6 +4664,28 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 /* ---- <=980px: tablet collapses ---- */
 @media (max-width: 980px) { .hero-split { grid-template-columns: 1fr; gap: 30px; } }
 @media (max-width: 980px) { .two-col, .two-col--even { grid-template-columns: minmax(0, 1fr); } }
+/* Landing: the bento stacks (photo cell keeps a floor height), the handoff
+   strip goes one column, the steps drop to two. The dashed road line only
+   makes sense across the four-column row, so it retires here. */
+@media (max-width: 980px) {
+  .feature-bento { grid-template-columns: 1fr; }
+  .feature-bento > .feature-card:first-child { grid-row: auto; min-height: 340px; }
+  .handoff { grid-template-columns: 1fr; }
+  .handoff .hero-bench-cta { justify-self: start; }
+  .steps-route { grid-template-columns: repeat(2, 1fr); gap: 24px 14px; }
+  .steps-route::before { display: none; }
+}
+/* Under 720 the steps become a vertical timeline: the dashed road turns the
+   corner and runs down the left edge, through the roundels. */
+@media (max-width: 720px) {
+  .steps-route { grid-template-columns: 1fr; gap: 22px; margin-top: 24px; }
+  .steps-route::before {
+    display: block; left: 15px; right: auto; top: 12px; bottom: 12px; width: 0; height: auto;
+    border-top: none; border-left: 2px dashed color-mix(in srgb, var(--yf-teal-600) 45%, transparent);
+  }
+  .step-card { display: flex; align-items: flex-start; gap: 14px; }
+  .step-card .step-num { flex: none; margin-bottom: 0; }
+}
 
 /* ---- <=900px ---- */
 @media (max-width: 900px) { .poi-split { grid-template-columns: 1fr; } }
@@ -4632,6 +4788,7 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
   /* Map: viewport-relative height so it doesn't eat the whole screen, but
      never collapses below a usable canvas. */
   .map-frame { height: 52vh; min-height: 300px; }
+  .map-skel-map { height: 52vh; min-height: 300px; }
   .map-legend { right: 8px; bottom: 8px; max-width: 46%; }
   /* Stop cards: the 5-button action cluster sits beside the content on
      desktop, which strangles the title on a 360px screen. Wrap it to its own
@@ -4759,9 +4916,9 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 .daybars { display: flex; flex-direction: column; gap: 10px; }
 .daybar-row { display: grid; grid-template-columns: 52px 1fr auto; gap: 10px; align-items: center; font-size: 13.5px; }
 .daybar-label { font-weight: 700; color: var(--text-2); white-space: nowrap; }
-.daybar-track { position: relative; height: 12px; background: var(--bg-soft); border-radius: 99px; }
+.daybar-track { position: relative; height: 12px; background: var(--bg-soft); border-radius: 999px; }
 .daybar-fill {
-  height: 100%; border-radius: 99px; transition: width var(--t-med) var(--ease-out);
+  height: 100%; border-radius: 999px; transition: width var(--t-med) var(--ease-out);
   position: relative; overflow: hidden;
 }
 /* Same calm sheen the category bars wear (barSheen) — the per-day bars were the
@@ -5352,7 +5509,7 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 .cal-hint { margin: 8px 0 0; font-size: 11px; color: var(--yf-text-muted); text-align: center; }
 
 /* ============ The Trip Ticket (right rail) ============ */
-.ts-rail { position: sticky; top: calc(var(--nav-h, 64px) + 16px); }
+.ts-rail { --rail-ink: #F2F7F5; --rail-ink-dim: rgba(242, 247, 245, 0.74); --rail-line: rgba(255, 255, 255, 0.16); position: sticky; top: calc(var(--nav-h, 64px) + 16px); }
 .ticket {
   position: relative; border-radius: 22px; overflow: hidden;
   background: linear-gradient(168deg, var(--yf-navy), color-mix(in srgb, var(--yf-navy) 78%, #04191F));
@@ -5771,7 +5928,7 @@ html.native-shell {
 }
 
 /* ============ Optimise-day preview (anti-crisscross reorder) ============ */
-.opt-delta { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+.opt-delta { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: var(--space-5); }
 .opt-delta-cell { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; background: var(--bg-soft); }
 .opt-delta-cell .k { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--text-2); margin-bottom: 4px; }
 .opt-delta-cell .v { font-size: 15px; font-weight: 700; }
@@ -5791,7 +5948,7 @@ html.native-shell {
   background: var(--card); border: 1px solid var(--line); border-radius: 999px;
   padding: 2px 8px; font-variant-numeric: tabular-nums;
 }
-.poi-grp { display: flex; align-items: center; gap: 8px; margin: 12px 0 6px; }
+.poi-grp { display: flex; align-items: center; gap: var(--space-4); margin: var(--space-5) 0 var(--space-3); }
 /* Size/weight/tracking come from the kicker recipe above; only colour is local.
    Declared here (not inline) so the rail cannot drift from the one recipe. */
 .poi-grp-k { color: var(--text-3); }
@@ -5869,7 +6026,7 @@ html.native-shell {
    the two expanders and the candidate button, chevron motion that respects
    reduced motion, and no leading separator when the fact strip wraps. */
 .poi-fact { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
-.poi-chev { flex: none; transition: transform var(--t-fast) var(--ease-out); }
+.poi-chev { flex: none; transition: transform var(--motion-fast) var(--ease-out); }
 .poi-alts[open] .poi-chev, .poi-more[open] .poi-chev { transform: rotate(180deg); }
 .poi-alts summary:hover, .poi-more summary:hover { text-decoration: underline; text-underline-offset: 3px; }
 .poi-alts summary:focus-visible, .poi-more summary:focus-visible, .poi-cand-add:focus-visible {
@@ -5911,7 +6068,7 @@ html.native-shell {
 .poi-fold { flex: none; width: 24px; height: 24px; border-radius: 50%; border: 1px solid var(--line); background: var(--card); color: var(--text-3); display: grid; place-items: center; }
 .poi-fold:hover { border-color: var(--teal); color: var(--teal-deep); }
 .poi-fold:focus-visible { outline: none; box-shadow: var(--ring); }
-.poi-fold svg { transition: transform var(--t-fast) var(--ease-out); }
+.poi-fold svg { transition: transform var(--motion-slow) var(--ease-resize); }
 .poi-plan-gap .poi-gap-add { align-self: flex-end; border: 1px solid transparent; background: transparent; color: var(--teal-deep); border-radius: 999px; font-size: 11px; font-weight: 700; padding: 2px 0; text-decoration: underline; text-underline-offset: 3px; }
 .poi-plan-gap .poi-gap-add:hover { background: var(--teal-soft); }
 .poi-plan-gap .poi-gap-add:focus-visible { outline: none; box-shadow: var(--ring); }
@@ -5931,12 +6088,24 @@ html.native-shell {
 @media (prefers-reduced-motion: reduce) {
   .poi-fold svg { transition: none; }
 }
-@media (max-width: 1500px) {
+@media (max-width: 1278px) {
   /* #156: keep stacked mode after the equally specific folded-rail rules. */
   .map-ideas-grid, .map-ideas-grid.is-needs-folded, .map-ideas-grid.is-see-folded,
   .map-ideas-grid.is-needs-folded.is-see-folded { grid-template-columns: 1fr; }
   .map-ideas-map { order: -1; }
   .map-ideas-grid .poi-col { max-height: none; }
+  /* The fold buys no width in stacked mode - it still hides a long rail, so it
+     stays - but the folded head must not inherit the `column` direction those
+     rules set for the 48px spine they were written for. Here the bar is
+     full-width, so `column` read as a broken panel (an [icon, count, fold] stack
+     down a bar with room for a line) and it hid the label saying WHICH rail
+     collapsed. One line, label kept. */
+  .map-ideas-grid.is-needs-folded > .poi-col--needs > .poi-col-head,
+  .map-ideas-grid.is-see-folded > .poi-col--see > .poi-col-head {
+    flex-direction: row; align-items: center; flex-wrap: nowrap;
+  }
+  .map-ideas-grid.is-needs-folded > .poi-col--needs > .poi-col-head > .poi-col-head-txt,
+  .map-ideas-grid.is-see-folded > .poi-col--see > .poi-col-head > .poi-col-head-txt { display: block; }
 }
 .gi-item:focus, .day-header.foreign-over { outline: none; box-shadow: var(--ring); }
 
@@ -5963,3 +6132,982 @@ html.native-shell {
 .poi-facts-meta i { font-style: normal; color: var(--line); }
 /* The drift prompt and the rest of the in-card chips stop drawing boxes. */
 .poi-plan-row .poi-desc .chip-sm { border-color: transparent; background: transparent; text-decoration: underline; text-underline-offset: 3px; }
+
+/* ================= P2: the day's plan (slots rail) + ledger extras ================= */
+/* Appended per the append-only guardrail: new selectors only, motion tokens
+   only, no baselined line touched. Composes with the existing rail shell. */
+.slots-daystrip {
+  display: flex; gap: 4px; flex-wrap: wrap; margin: 2px 2px 8px;
+}
+.slots-daychip {
+  border: 1px solid var(--line); background: var(--card); color: var(--text-2);
+  border-radius: 999px; font-size: 11.5px; font-weight: 600;
+  padding: 4px 11px; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 5px;
+  transition: background var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out), border-color var(--motion-fast) var(--ease-out);
+}
+.slots-daychip:hover { background: var(--teal-soft); color: var(--teal-deep); }
+.slots-daychip.is-on { background: var(--teal-soft); border-color: var(--teal-deep); color: var(--teal-deep); }
+.slots-daychip-rd { font-size: 9.5px; font-weight: 700; opacity: .78; font-variant-numeric: tabular-nums; }
+.slots-daychip:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--ring); }
+
+.slots-meter { display: flex; gap: 4px; align-items: center; margin: 0 2px 9px; }
+.slots-meter i { width: 22px; height: 5px; border-radius: 3px; background: var(--line); transition: background var(--motion-fast) var(--ease-out); }
+.slots-meter i.is-filled { background: var(--teal); }
+.slots-meter i.is-auto { background: color-mix(in srgb, var(--teal) 35%, var(--line)); }
+.slots-meter i.is-empty { background: var(--line); }
+.slots-meter-lbl { margin-left: 6px; font-size: 10px; letter-spacing: .04em; text-transform: uppercase; font-weight: 700; color: var(--text-3); font-variant-numeric: tabular-nums; }
+
+.slots-list { display: flex; flex-direction: column; gap: 6px; padding: 2px 2px 6px; }
+
+.day-slot {
+  border-radius: 12px; border: 1px solid var(--line); background: var(--card);
+  transition: border-color var(--motion-fast) var(--ease-out);
+}
+.day-slot.is-empty { border-color: color-mix(in srgb, var(--warn) 38%, var(--line)); }
+.day-slot.is-open { border-color: var(--teal); box-shadow: 0 6px 18px rgba(16, 46, 75, .08); }
+.day-slot.is-auto { background: transparent; border-style: dashed; }
+.day-slot:focus-within { box-shadow: 0 0 0 3px var(--ring); }
+.day-slot:hover { border-color: color-mix(in srgb, var(--teal) 40%, var(--line)); }
+
+.day-slot-top {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  padding: 8px 10px; text-align: left;
+}
+button.day-slot-top { background: none; border: 0; cursor: pointer; font: inherit; color: inherit; border-radius: 12px; }
+.day-slot-st {
+  flex: none; width: 18px; height: 18px; border-radius: 50%;
+  display: grid; place-items: center; font-size: 10px; font-weight: 800;
+  border: 1.5px solid var(--line); color: transparent; background: var(--card);
+}
+.day-slot.is-filled .day-slot-st { background: var(--teal-soft); border-color: var(--teal); color: var(--teal-deep); }
+.day-slot.is-auto .day-slot-st { border-style: dashed; border-color: var(--text-3); }
+.day-slot.is-empty .day-slot-st { border-color: var(--warn); }
+.day-slot-lab { font-size: 12px; font-weight: 700; }
+.day-slot.is-auto .day-slot-lab { color: var(--text-3); font-weight: 600; }
+.day-slot.is-filled .day-slot-lab { color: var(--text-2); }
+.day-slot-win { font-size: 10px; color: var(--text-3); letter-spacing: .03em; text-transform: uppercase; font-weight: 600; font-variant-numeric: tabular-nums; }
+/* B2: these five rules paint AMBER AS TEXT. `--warn` (#B47207) is a surface
+   token — as ink it is 3.65:1 on --bg and 3.92:1 on --card, under AA's 4.5:1
+   for normal text (and these run at 9.5–12px, far below the large-text
+   exemption). `--ink-amber` is the token this codebase already routes amber
+   ink through for exactly this reason; it measures 5.33:1 / 5.73:1. */
+.day-slot-urgent { flex: none; font-size: 10px; font-weight: 700; color: var(--ink-amber); }
+/* B4: a part whose window has already CLOSED. Distinct from the closing state
+   above — the message is "you missed it", not "hurry" — so it reads in the
+   muted ink instead of shouting in amber. */
+.day-slot-missed { flex: none; font-size: 10px; font-weight: 700; color: var(--text-3); }
+.day-slot-val { margin-left: auto; font-size: 11px; color: var(--text-2); text-align: right; max-width: 55%; font-variant-numeric: tabular-nums; }
+.day-slot-val b { font-weight: 600; color: var(--text); }
+.day-slot-val small { display: block; color: var(--text-3); font-size: 10px; }
+
+.day-slot-cands {
+  margin: 0 10px 8px; border-top: 1px solid var(--line-2); padding-top: 6px;
+  animation: day-slot-drop var(--motion-med) var(--ease-out);
+}
+@keyframes day-slot-drop { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
+.day-slot-cand {
+  display: flex; align-items: center; gap: 8px; padding: 7px 0;
+  border-bottom: 1px solid var(--line-2);
+}
+.day-slot-cand:last-of-type { border-bottom: 0; }
+.day-slot-cand-nm { flex: 1; min-width: 0; }
+.day-slot-cand-nm b { display: block; font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.day-slot-cand-nm > span { font-size: 10.5px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.day-slot-fill {
+  flex: none; font-size: 11px; font-weight: 700; color: var(--teal-deep);
+  background: var(--teal-soft); border: 1px solid transparent; border-radius: 999px;
+  padding: 4px 11px; cursor: pointer;
+  transition: background var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out);
+}
+.day-slot-fill:hover { border-color: var(--teal-deep); }
+.day-slot-fill:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--ring); }
+
+/* The see-&-do rail's ledger spine: one object, rows hang off it. */
+.poi-plan-list.is-ledger { position: relative; }
+.poi-plan-list.is-ledger .poi-plan-row {
+  position: relative; border: 0; background: transparent; border-radius: 0; margin: 0;
+  border-bottom: 1px solid var(--line-2);
+  padding: 9px 4px 9px 20px;
+}
+.poi-plan-list.is-ledger .poi-plan-row::before {
+  content: ''; position: absolute; left: -13px; top: 50%; margin-top: -3px;
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--card); border: 2px solid var(--yf-poi-see);
+}
+.poi-plan-list.is-ledger .poi-grp { padding-left: 20px; }
+
+/* The no-slot empty-day fallback list (needs cards still renderable there). */
+.poi-plan-list.is-emptyday { border-top: 1px solid var(--line-2); padding-top: 8px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .day-slot-cands { animation: none; }
+  .slots-daychip, .slots-meter i, .day-slot, .day-slot-fill { transition: none; }
+}
+
+/* ---- P2 fix round: the ledger's own rows (see-&-do rail) ----
+   Flat two-line rows on the spine replacing the boxed cards inside the
+   ledger: name + one meta line, expanding in place to a shelf. */
+.lrow-new {
+  position: relative; border: 1px solid var(--line); border-radius: 12px;
+  background: var(--card); margin-bottom: 6px;
+}
+.lrow-new:last-of-type { margin-bottom: 0; }
+.lrow-sum {
+  display: grid; grid-template-columns: auto 1fr auto; column-gap: 8px; row-gap: 2px;
+  align-items: center;
+  padding: 8px 10px; cursor: pointer; list-style: none;
+  border-radius: 12px;
+  transition: background var(--motion-fast) var(--ease-out);
+}
+.lrow-sum::-webkit-details-marker { display: none; }
+.lrow-sum:hover { background: color-mix(in srgb, var(--yf-poi-see) 6%, transparent); }
+.lrow-sum:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--ring); }
+.lr-name {
+  grid-column: 2; grid-row: 1; min-width: 0; font-size: 12.5px; font-weight: 600; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.lr-meta { grid-column: 2; grid-row: 2; font-size: 10.5px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.lr-go { grid-column: 3; grid-row: 1 / span 2; align-self: center; color: var(--text-3); transition: transform var(--motion-fast) var(--ease-out); }
+.lrow-new[open] .lr-go { transform: rotate(180deg); }
+.ledger-shelf {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin: 0 0 8px; padding: 8px 10px;
+  background: var(--bg); border: 1px solid var(--line-2); border-radius: 12px;
+  animation: day-slot-drop var(--motion-med) var(--ease-out);
+}
+
+/* ---- P2: the ledger reads as one object ---- */
+/* Every row in the see-&-do ledger - picks, route arcs, quarter gaps - is a
+   flat row on the spine: no boxes, hairline separators, one set of metrics.
+   Declares no new colour pair, so the contrast contract is untouched. */
+.poi-plan-list.is-ledger .poi-plan-row:last-of-type { border-bottom: 0; }
+.poi-plan-list.is-ledger .poi-plan-row.poi-plan-arc { padding-top: 8px; padding-bottom: 8px; }
+.poi-plan-list.is-ledger .poi-plan-row .ride-purpose { font-size: 10px; }
+.poi-plan-list.is-ledger .poi-more { padding-left: 20px; }
+.poi-plan-list.is-ledger .hint-text { padding-left: 20px; }
+
+/* ---- P2 design pass: the rails as designed cards (the mockup's tinted
+   containers) and the empty row's amber hint. New selectors only; no colour
+   pair is declared in the container rules, so the contrast contract is
+   untouched. ---- */
+.map-ideas-grid .poi-col--needs,
+.map-ideas-grid .poi-col--see {
+  border-radius: 18px;
+  padding: 10px 10px 8px;
+}
+.map-ideas-grid .poi-col--needs {
+  background: color-mix(in srgb, var(--teal) 4%, var(--bg));
+  border: 1px solid color-mix(in srgb, var(--teal) 20%, var(--line));
+}
+.map-ideas-grid .poi-col--see {
+  background: color-mix(in srgb, var(--yf-poi-see) 4%, var(--bg));
+  border: 1px solid color-mix(in srgb, var(--yf-poi-see) 20%, var(--line));
+}
+.day-slot-hint {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  margin: 0 10px 8px; font-size: 10.5px; font-weight: 600; color: var(--ink-amber);
+}
+.day-slot-hint .n { color: var(--text-3); font-weight: 500; }
+/* P2: the extras row dot (the mockup's .xrow .d) */
+.xdot {
+  grid-column: 1; grid-row: 1 / span 2; justify-self: center;
+  width: 8px; height: 8px; border-radius: 50%;
+  border: 2px solid var(--yf-poi-see);
+}
+/* P2: the shelf's alternatives as rows, not centred chips */
+.shelf-alt {
+  flex-basis: 100%; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+  padding: 6px 8px; border: 1px solid var(--line); border-radius: 10px;
+  background: var(--card); text-align: left; font: inherit; color: inherit; cursor: pointer;
+  transition: border-color var(--motion-fast) var(--ease-out);
+}
+.shelf-alt:hover { border-color: var(--yf-poi-see); }
+.shelf-alt-nm { flex: 1; min-width: 0; font-size: 11.5px; font-weight: 600; color: var(--text); overflow-wrap: anywhere; }
+.shelf-alt-km { flex: none; font-size: 10.5px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+/* P2 polish: the shelf's last row must not sit flush on the card edge, and
+   two wrapped rows need a hairline of air between them. */
+.ledger-shelf .shelf-alt + .shelf-alt { margin-top: 4px; }
+.lrow-new[open] { padding-bottom: 4px; }
+/* P4: the part's live vote (a chip + the leading option, opening Group input) */
+.day-slot-vote { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 10px 8px; }
+.day-slot-vote-lead { font-size: 10.5px; color: var(--text-3); }
+/* P5: the day chip carries its weather, and the rail its meta chips */
+.slots-daychip-rain { font-size: 11px; font-weight: 700; color: var(--ink-amber); text-transform: uppercase; letter-spacing: .03em; }
+.slots-daychip.is-on .slots-daychip-rain { color: var(--teal-deep); }
+.slots-railmeta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 0 2px 8px; }
+.slots-legend { position: relative; }
+.slots-legend summary { list-style: none; cursor: pointer; }
+.slots-legend summary::-webkit-details-marker { display: none; }
+.slots-legend-body { margin-top: 6px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); font-size: 11px; color: var(--text-2); }
+.slots-legend-body p { margin: 0 0 4px; }
+.slots-legend-body p:last-child { margin-bottom: 0; }
+.slots-legend-body b { color: var(--text); font-weight: 600; }
+/* P5.3: a slot pin - an empty part of the day, hollow amber, tap to open */
+/* P5.3: a slot pin — an empty part of the day, hollow amber, tap to open.
+   It carries its own card fill: the base `.yf-map-pin` sets NO background, so
+   without this the glyph sat straight on the map tiles and its legibility
+   depended on whatever imagery happened to be behind it. */
+.yf-map-pin--slot {
+  background: var(--card); border: 2px solid var(--warn);
+  color: var(--ink-amber); font-weight: 800;
+}
+.yf-map-pin--slot:hover { background: var(--warn-soft); border-color: var(--ink-amber); }
+/* P6.1: the day as a shape - drives and parts sized to their minutes */
+.dayshape { display: flex; flex-direction: column; gap: 3px; padding: 2px 2px 6px; }
+.shape-block {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  border-radius: 8px; padding: 0 10px; min-height: 18px;
+  font-size: 10.5px; font-variant-numeric: tabular-nums; overflow: hidden;
+}
+.shape-drive { background: var(--line-2); color: var(--text-2); }
+.shape-meal { background: var(--teal-soft); color: var(--teal-deep); }
+.shape-fuel { background: var(--warn-soft); color: var(--text-2); }
+.shape-stretch { background: transparent; border: 1px dashed var(--line); color: var(--text-2); }
+.shape-overnight { background: var(--teal-soft); color: var(--teal-deep); }
+.shape-state-empty { background: transparent; border: 1px dashed var(--warn); color: var(--ink-amber); }
+.shape-state-auto { background: transparent; border: 1px dashed var(--line); color: var(--text-2); }
+.shape-name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.shape-min { flex: none; opacity: .85; }
+
+/* P6.3: the trip's slot matrix on Overview */
+.slotmatrix { display: flex; flex-direction: column; gap: 3px; margin-top: 4px; }
+.slotmatrix-row { display: grid; grid-template-columns: 58px repeat(6, 1fr) 46px; align-items: center; gap: 4px; }
+.slotmatrix-head .slotmatrix-cell, .slotmatrix-head .slotmatrix-total {
+  font-size: 10px; letter-spacing: .04em; text-transform: uppercase; color: var(--text-3); text-align: center;
+}
+.slotmatrix-day { font-size: 11.5px; color: var(--text-2); }
+.slotmatrix-cell { text-align: center; font-size: 12px; line-height: 1.6; border-radius: 6px; }
+.slotmatrix-cell.is-filled { background: var(--teal-soft); color: var(--teal-deep); }
+.slotmatrix-cell.is-auto { border: 1px dashed var(--line); color: var(--text-2); }
+.slotmatrix-cell.is-empty { border: 1px dashed var(--warn); color: var(--ink-amber); }
+.slotmatrix-cell.is-none { color: var(--line); }
+.slotmatrix-total { font-size: 11px; color: var(--text-2); text-align: right; font-variant-numeric: tabular-nums; }
+
+/* P7.2: the log's learned pattern for a kind of part (context, not a claim) */
+.day-slot-pattern { margin: 0 10px 6px; font-size: 10.5px; font-style: italic; color: var(--text-3); }
+/* ============ I-20: the unlock moment + the purchases shelf ============ */
+
+/* The reveal is the app's own dialog with the sheet's padding handed to its
+   content, so the cover can run to the card's edge (Modal `variant="full"`).
+   Namespaced deliberately: a bare `.reveal` ALREADY belongs to the Landing
+   page's scroll-reveal utility (`body.reveal-armed .reveal`), and a later rule
+   reusing that name silently re-lays-out every Landing card and step. See
+   AGENTS §4 — check a name against the pre-existing stylesheet before taking
+   a single-word class. */
+.modal-full { max-width: 720px; padding: 0; }
+.modal-full .modal-head { padding: 14px 18px 0; margin-bottom: 0; }
+.unlock-reveal { display: flex; flex-direction: column; gap: 10px; padding: 10px 18px calc(20px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px))); }
+.unlock-reveal-hero { border-radius: var(--radius); overflow: hidden; border: 1px solid var(--line); }
+.unlock-reveal-kicker { margin: 4px 0 0; font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--teal-deep); }
+.unlock-reveal-title { margin: 0; font-size: 25px; line-height: 1.15; }
+.unlock-reveal-by { margin: 0; font-size: 13px; color: var(--text-3); }
+.unlock-reveal-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(138px, 1fr)); gap: 10px; margin-top: 4px; }
+.unlock-reveal-tips, .unlock-reveal-receipt { margin: 0; font-size: 13px; color: var(--text-3); }
+.unlock-reveal-tips b, .unlock-reveal-receipt b { color: var(--text-2); }
+.unlock-reveal-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.unlock-reveal-actions .btn { flex: 1 1 auto; }
+.unlock-reveal-hint { margin: 0; }
+
+/* Same rhythm as My trips' own wrapper: the page's two beats are the head and the
+   shelf. Both values sit on the spacing ladder (22 is the documented two-sections
+   beat), so this adds no entry to the frozen off-ladder baseline. */
+.purchases-page { padding-top: 22px; padding-bottom: 22px; }
+.purchases-head { margin-bottom: 10px; }
+.purchases-title { margin: 0 0 4px; }
+.purchases-lede { margin: 0 0 18px; max-width: 62ch; }
+.purchases-sum { margin: 0 0 14px; font-size: 13px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.purchases-sum b { color: var(--text-2); }
+.purchases-error h2 { margin: 0 0 6px; font-size: 17px; }
+.purchases-error .hint-text { margin: 0 0 14px; }
+.purchases-foot { margin: 14px 0 0; max-width: 68ch; }
+.purchase-list { display: flex; flex-direction: column; gap: 12px; }
+.purchase-row { display: flex; gap: 14px; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; box-shadow: var(--shadow-sm); }
+.purchase-thumb { flex: 0 0 132px; border-radius: var(--radius-sm); overflow: hidden; }
+.purchase-body { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.purchase-name { margin: 0; font-size: 17px; }
+.purchase-by { margin: 0; font-size: 12.5px; color: var(--text-3); }
+.purchase-by b { color: var(--text-2); }
+.purchase-meta { display: flex; flex-wrap: wrap; gap: 6px; }
+.purchase-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 2px; }
+@media (max-width: 560px) {
+  /* Below this the cover stops being a column and becomes a banner: at 320px a
+     132px thumb leaves the title about eight characters a line. */
+  .purchase-row { flex-direction: column; }
+  .purchase-thumb { flex: 0 0 auto; }
+}
+
+/* The reveal's sheet is a large surface (the drawer duration), and the reveal
+   and the shelf arrive in stages on the shared stagger vocabulary — opted into
+   under no-preference, the same way the empty states do it (a forwards-filled
+   transform leaves a compositor group behind, hence `backwards`). */
+@media (prefers-reduced-motion: no-preference) {
+  .modal-full { animation: slideUp var(--motion-slow) var(--ease-out); }
+  .unlock-reveal > * { animation: revealRise var(--motion-slow) var(--ease-out) backwards; }
+  .unlock-reveal > *:nth-child(2) { animation-delay: calc(var(--stagger-step) * 1); }
+  .unlock-reveal > *:nth-child(3) { animation-delay: calc(var(--stagger-step) * 2); }
+  .unlock-reveal > *:nth-child(4) { animation-delay: calc(var(--stagger-step) * 3); }
+  .unlock-reveal > *:nth-child(5) { animation-delay: calc(var(--stagger-step) * 4); }
+  .unlock-reveal > *:nth-child(6) { animation-delay: calc(var(--stagger-step) * 5); }
+  .unlock-reveal > *:nth-child(7) { animation-delay: calc(var(--stagger-step) * 6); }
+  .unlock-reveal-facts > * { animation: revealRise var(--motion-med) var(--ease-out) backwards; }
+  .unlock-reveal-facts > *:nth-child(2) { animation-delay: calc(var(--stagger-step) * 1); }
+  .unlock-reveal-facts > *:nth-child(3) { animation-delay: calc(var(--stagger-step) * 2); }
+  .unlock-reveal-facts > *:nth-child(4) { animation-delay: calc(var(--stagger-step) * 3); }
+  .purchase-list > * { animation: revealRise var(--motion-slow) var(--ease-out) backwards; }
+  .purchase-list > *:nth-child(2) { animation-delay: calc(var(--stagger-step) * 1); }
+  .purchase-list > *:nth-child(3) { animation-delay: calc(var(--stagger-step) * 2); }
+  @keyframes revealRise { from { opacity: 0; transform: translateY(8px); } }
+}
+@media (prefers-reduced-motion: reduce) {
+  .modal-full { animation: none; }
+}
+
+/* ============================================================
+   I-22 — the publication funnel (recorded views → forks → unlocks)
+   ============================================================ */
+
+/* the window pills, and the line saying what the log can speak for */
+.pub-funnel-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 4px 0 10px; }
+
+/* one publication's funnel: windowed steps above its own all-time totals */
+.pub-funnel { display: flex; flex-direction: column; gap: 3px; }
+.pub-funnel.muted { color: var(--text-3); }
+.pf-steps { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 12.5px; }
+.pf-step b { font-variant-numeric: tabular-nums; color: var(--text); }
+.pf-arrow { color: var(--text-3); }
+.pf-lifetime { font-size: 11.5px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+
+@media (max-width: 720px) {
+  .pub-funnel-head { align-items: flex-start; }
+}
+
+
+/* ============ Creator's own funnel glance, on the plan's public page ==== */
+/* Appended at the file's end on purpose: the design-system ratchet is keyed
+   by line number, so an insertion above it re-baselines every entry (AGENTS §3). */
+.pub-funnel-glance { display: flex; flex-direction: column; gap: 2px; margin-top: 8px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); }
+.pub-fg-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-3); }
+.pub-fg-line { font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.pub-fg-prelog { font-size: 11.5px; }
+
+/* ============ Map tab review round: the rail's ring, header and numbers ===== */
+/* Appended at the file's end on purpose: the design-system ratchet is keyed by
+   line number, so an insertion above it re-baselines every entry (AGENTS 3). */
+
+/* The rail referenced a `--focus-ring` token in four rules that was never
+   defined, so every one fell back to `rgba(228,174,67,.55)`: 1.40:1 against the
+   rail's cream, where WCAG 1.4.11 wants 3:1, and three of the four had already
+   removed the outline, leaving that ring as the only signal. The missing
+   declaration was the symptom; the missing token was the cause. They now ride
+   the app's ONE focus recipe (`--ring`, evolved to full strength in the token
+   blocks above: 3.80:1 on --bg, 4.08:1 on --card, 6.43:1 on the dark card), so
+   `--focus-ring` is retired rather than given a parallel definition — two focus
+   tokens that can drift is how a control goes invisible to a keyboard again. */
+
+/* The rail header packs five controls beside a title block that could not
+   shrink (`min-width: auto`), so at the 320px rail the row ran past the column
+   and the rail scrolled sideways. The title now owns a floor and the controls
+   take their own row when one row cannot hold both — the answer the bench's
+   mode grid already took at 230px. */
+.map-ideas-grid .poi-col-head { flex-wrap: wrap; row-gap: 6px; }
+.map-ideas-grid .poi-col-head > *:not(.poi-col-head-txt) { flex: none; }
+.map-ideas-grid .poi-col-head-txt { flex: 1 1 160px; min-width: 0; }
+.map-ideas-grid .poi-col-head-txt > b,
+.map-ideas-grid .poi-col-head-txt > .small {
+  display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* The numbers the rail asks a decision from were its smallest type. The day
+   chip's fill count also carried .78 opacity — 4.30:1 on the chip's own white
+   and 3.79:1 on its teal-soft "on" fill, under AA at that size. */
+.slots-daychip .slots-daychip-rd { font-size: 11px; opacity: 1; }
+.slots-meter .slots-meter-lbl { font-size: 11px; }
+.slots-list .day-slot-win,
+.slots-list .day-slot-urgent,
+.slots-list .day-slot-missed { font-size: 11px; }
+.slots-list .day-slot-cand-nm > span { font-size: 11px; color: var(--text-2); }
+
+/* The toolbar packed ~20 same-weight pills over four different intents — pick a
+   day, change the view, toggle a layer, leave for Google Maps. The utilities sit
+   in their own group behind the segmented control's own separator, and read as
+   secondary until touched. */
+.map-util-group {
+  display: flex; gap: 8px; flex-wrap: wrap; align-items: center; flex: none;
+  padding-left: 9px; border-left: 1px solid var(--yf-glass-border);
+}
+.map-day-chip--util {
+  background: transparent; border-color: transparent;
+  -webkit-backdrop-filter: none; backdrop-filter: none;
+}
+.map-day-chip--util:hover { background: var(--yf-glass); border-color: var(--teal); color: var(--text); }
+[data-theme='dark'] .map-day-chip--util { background: transparent; border-color: transparent; }
+[data-theme='dark'] .map-day-chip--util:hover { background: rgba(22, 35, 58, .95); }
+
+/* The engine-tips banner borrowed the scenic hue (--yf-purple, documented as
+   "scenic / creative discovery") for something the tips are not: fatigue
+   spacing and detour budgets. It keeps the tab's own accent for the icon and
+   reads on the quiet surface. */
+.map-ideas-grid > .engine-tips { border-color: var(--line); background: var(--card-soft); }
+.map-ideas-grid > .engine-tips .engine-tips-ico { color: var(--teal-deep); }
+.map-ideas-grid > .engine-tips .engine-tips-dot { background: color-mix(in srgb, var(--teal) 30%, transparent); }
+.map-ideas-grid > .engine-tips .engine-tips-dot.on { background: var(--teal); }
+[data-theme='dark'] .map-ideas-grid > .engine-tips { border-color: var(--line); background: var(--card); }
+
+/* Opening the Map tab replaced the whole tab with a spinner while the map chunk
+   loaded. The skeleton mirrors what arrives — the frame and the two rails — and
+   rides the tab's own grid, so it inherits the same breakpoints. */
+.map-skel-rail, .map-skel-map {
+  border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--card-soft);
+  animation: mapSkelPulse 1200ms var(--ease-resize) infinite alternate;
+}
+.map-skel-map { height: 480px; }
+.map-skel-rail { height: 360px; }
+@keyframes mapSkelPulse { from { opacity: .5; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .map-skel-rail, .map-skel-map { animation: none; opacity: 1; }
+}
+
+/* The split view starts at 1280px (320+320 rails + gaps leave a ~560px map —
+   480px map. The frame gives height back in stacked mode, where the rail is the
+   tab's work surface; the expanded shell still owns the viewport. */
+@media (min-width: 721px) and (max-width: 1278px) {
+  .map-ideas-grid .map-ideas-map .map-shell:not(.map-shell--expanded) .map-frame { height: 44vh; min-height: 320px; }
+}
+
+/* ---- A folded rail is a spine, not a cropped panel ---------------------------
+   The fold was designed (rail comment, MapTab) around a 48px column with
+   `padding: 8px 6px` - a 34px content box. The needs rail's head has since grown
+   a Shape toggle (~52px), a "Fill the day" button (~86px) and a count pill
+   (~36px), and only its TITLE was hidden when folded, so at 1280px and up the
+   spine rendered controls two to four times its own width: clipped at the column
+   edge (the "cropped" look) on a rail whose `overflow-y: auto` computes
+   `overflow-x` to `auto` as well - which is what made the collapsed strip
+   draggable sideways, the "unnecessary slide".
+   A spine keeps what fits and what still means something while collapsed: the
+   lane's icon, the day's count, and the control that reopens it. The Fill and
+   Shape actions are hidden rather than squashed, because a 34px strip cannot
+   render them and neither action is legible from one - you unfold to act. The
+   see rail's head carries only its icon and the fold, so this is a no-op there
+   and it covers whatever head control arrives next. It applies at EVERY width, not
+   just the spine's: in the stacked band those same two actions would crowd the
+   one-line bar instead of overhanging it. */
+.map-ideas-grid.is-needs-folded > .poi-col--needs > .poi-col-head > .chip,
+.map-ideas-grid.is-needs-folded > .poi-col--needs > .poi-col-head > .btn,
+.map-ideas-grid.is-see-folded > .poi-col--see > .poi-col-head > .chip,
+.map-ideas-grid.is-see-folded > .poi-col--see > .poi-col-head > .btn { display: none; }
+
+@media (min-width: 1280px) {
+  /* 2px of spine padding leaves a 42px content box: the 30px lane icon, the
+     count pill and the 40px coarse-pointer floor the fold button takes all fit
+     inside the column instead of overhanging it. */
+  .map-ideas-grid.is-needs-folded > .poi-col--needs,
+  .map-ideas-grid.is-see-folded > .poi-col--see { padding: 8px 2px; }
+  /* In a column, an auto cross-axis margin parks the pill against the edge
+     instead of centring it with the icon - and the pill is what fits. */
+  .map-ideas-grid.is-needs-folded > .poi-col--needs > .poi-col-head > .poi-col-count,
+  .map-ideas-grid.is-see-folded > .poi-col--see > .poi-col-head > .poi-col-count {
+    margin-left: 0; padding: 2px 6px;
+  }
+  .map-ideas-grid.is-needs-folded > .poi-col--needs > .poi-col-head,
+  .map-ideas-grid.is-see-folded > .poi-col--see > .poi-col-head { flex-wrap: nowrap; gap: 8px; }
+}
+
+/* The stacked band's half of this lives in the single narrow-width reset above,
+   beside the #156 rules it belongs with - that file keeps exactly one such block,
+   after every desktop folded rule, and a test pins it (stage2-p1). */
+
+/* Nothing in a folded rail is meant to scroll sideways, so nothing can - the
+   backstop behind the sizing above, for a head control that arrives later. */
+.map-ideas-grid.is-needs-folded > .poi-col--needs,
+.map-ideas-grid.is-see-folded > .poi-col--see { overflow-x: hidden; }
+
+/* ---- Motion polish: every animated rule on this tab opts out ----
+   The fold glide, the toolbar/legend chips' hover+press easing, the legend
+   card's popover entrance, the shelf and row entrances, and the rotating tip
+   all become instant state changes under prefers-reduced-motion — the same
+   stop the rail's own slots block applies above. The shell's expand/collapse
+   opt-out lives with the live-dot block (both are media-internal); TripMap
+   collapses instantly too, since its unmount timer reads prefersReducedMotion(). */
+@media (prefers-reduced-motion: reduce) {
+  .map-day-chip, .map-legend-toggle, .lrow-sum, .lr-go, .shelf-alt, .engine-tips-dot { transition: none; }
+  .ledger-shelf, .engine-tips-text { animation: none; }
+  .map-ideas-grid { transition: none; }
+}
+
+/* ---- The critique's P2/P3 batch: scope labels, the hint's disclosure ----
+   Two pickers, one synced state: the map DRAWS a day, the rail PLANS one —
+   the labels put that asymmetry on the surface instead of leaving it a learned
+   fact. The hint keeps its three commitments up front and moves the window /
+   wheel / fuel mechanics behind a disclosure row; the element is a div because
+   a <details> cannot nest inside a <p>. */
+.map-scope-lbl {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .06em; color: var(--text-3); align-self: center;
+}
+.hint-more { margin-top: 2px; }
+.hint-more summary { cursor: pointer; color: var(--text-2); font-weight: 600; }
+
+/* ---- Quick-win sweep (reviews B/C/D): mockup parity + cascade fixes ---- */
+.map-day-chip-rd {
+  margin-left: 6px; font-size: 11px; font-weight: 700;
+  color: var(--teal-deep); font-variant-numeric: tabular-nums;
+}
+[data-theme='dark'] .map-day-chip-rd { color: var(--teal); }
+/* The dark lane washes declared earlier tie on specificity with the light
+   grid rules and lose the cascade (review C, finding 5) — restate them AFTER
+   the grid rules so dark keeps its own tint. */
+[data-theme='dark'] .map-ideas-grid .poi-col--needs { background: color-mix(in srgb, var(--teal) 10%, var(--bg)); }
+[data-theme='dark'] .map-ideas-grid .poi-col--see { background: color-mix(in srgb, var(--yf-poi-see) 12%, var(--bg)); }
+/* Rows de-shipped from inline styles: the .map-search-results container was a
+   dead class; it now owns its rows' static styling (opacity stays inline). */
+.map-search-results .row-between { padding: 5px 2px; border-bottom: 1px solid var(--line); cursor: pointer; }
+
+/* The #143 drift prompt (plan P1.3's orphaned Move/Stay choice): amber
+   proposal language; no colour pair is declared in either rule, so the
+   contrast contract stays untouched, and the buttons reuse existing shapes. */
+.day-slot-drift {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin: 0 10px 8px; padding: 6px 8px; border-radius: 8px;
+  background: color-mix(in srgb, var(--ink-amber) 10%, transparent);
+  border: 1px dashed color-mix(in srgb, var(--ink-amber) 45%, var(--line));
+}
+.day-slot-drift-t { font-size: 11px; font-weight: 600; color: var(--text-2); }
+.day-slot-drift-a { display: inline-flex; gap: 6px; margin-left: auto; }
+
+/* ---- P1: search lands in its slot (day-slots mockup tag) ----------------
+   Find lives inside the open part; a picked result becomes its candidate
+   through the engine's own detour/budget helpers. Whole-px type only (the
+   sub-pixel ratchet), no colour pair declared in these rules, and no motion
+   added - rows answer instantly like the rail's own list. */
+.day-slot-search { display: flex; gap: 6px; margin: 0 10px 8px; }
+.day-slot-search .input { flex: 1; min-width: 0; font-size: 13px; padding: 5px 8px; }
+.day-slot-search-hits {
+  margin: 0 10px 8px; padding: 4px; max-height: 156px; overflow-y: auto;
+  border: 1px dashed var(--line); border-radius: 8px;
+}
+.day-slot-search-hit { display: flex; align-items: center; gap: 8px; padding: 4px 6px; }
+.day-slot-search-hit:hover { background: var(--yf-glass); }
+.day-slot-search-hit + .day-slot-search-hit { border-top: 1px solid var(--line-2); }
+.day-slot-search-hit-nm {
+  flex: 1; min-width: 0; font-size: 12px; font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+/* Plan P2.1's cost micro-bar: the % the candidate spends of the day's detour
+   budget, as the rail's meter draws bars - track and fill are background-only
+   rules (no `color` property in either, so the contrast contract is untouched),
+   over-budget fills in warn. Rendered only when the share is > 0. */
+.day-slot-cand-bar {
+  display: block; height: 4px; border-radius: 2px; margin-top: 3px;
+  background: var(--line); overflow: hidden;
+}
+.day-slot-cand-bar i { display: block; height: 100%; border-radius: 2px; background: var(--teal); }
+.day-slot-cand-bar i.is-over { background: var(--warn); }
+
+/* Plan P2.5's mobile slots summary: hidden at desktop widths, one count+open
+   line on phones where the list starts collapsed (the meter above still
+   carries the filled count). */
+.slots-mobile-sum { display: none; }
+@media (max-width: 720px) {
+  .slots-mobile-sum { display: flex; margin: 0 10px 8px; }
+  .slots-list:not(.is-peek) { display: none; }
+}
+
+/* ---- The toolbar restructures into three ranked weights ---------------------
+   The critique's P1: ~20 same-weight pills over four intents. The day segment
+   is primary (its own glass container); this middle cluster answers "what's
+   drawn" behind the family hairlines; the end group is for leaving the app or
+   resizing the page, so it ghosts down to icons and quiet text. The nine idea chips fold
+   into one Filters popover that reuses the catalog's popover entrance. */
+.map-toolbar-mid {
+  display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+  flex: 1 1 auto; min-width: 0; padding-left: 9px;
+  border-left: 1px solid var(--yf-glass-border);
+}
+.map-toolbar-end {
+  display: flex; gap: 6px; align-items: center; flex: none;
+  margin-left: auto; padding-left: 9px;
+  border-left: 1px solid var(--yf-glass-border);
+}
+.map-day-filter .map-day-chip:not(.on) {
+  background: transparent; border-color: transparent;
+  -webkit-backdrop-filter: none; backdrop-filter: none;
+}
+.map-day-filter .map-day-chip:not(.on):hover { background: var(--yf-glass); border-color: var(--teal); }
+[data-theme='dark'] .map-day-filter .map-day-chip:not(.on) { background: transparent; }
+.map-day-chip--ghost {
+  background: transparent; border-color: transparent;
+  -webkit-backdrop-filter: none; backdrop-filter: none;
+  color: var(--text-3);
+}
+.map-day-chip--ghost:hover { background: transparent; border-color: transparent; color: var(--text-2); }
+[data-theme='dark'] .map-day-chip--ghost:hover { color: var(--text); }
+.map-filters { position: relative; display: inline-flex; }
+.map-filters-pop {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 30;
+  min-width: 210px; padding: 6px;
+  background: var(--popover-bg); border: 1px solid var(--popover-border);
+  border-radius: 12px; box-shadow: var(--shadow-soft);
+  animation: popover-in var(--motion-med) var(--ease-glide);
+}
+.map-filters-row {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  padding: 6px 8px; border: 0; background: none; font: inherit;
+  font-size: 12.5px; color: var(--text-2); text-align: left;
+  cursor: pointer; border-radius: 8px;
+  transition: background var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out);
+}
+.map-filters-row:hover { background: var(--yf-glass); color: var(--text); }
+.map-filters-row .n {
+  margin-left: auto; font-size: 11px; color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+.map-filters-row[aria-pressed='true'] { color: var(--text); font-weight: 600; }
+@media (prefers-reduced-motion: reduce) {
+  .map-filters-pop { animation: none; }
+  .map-filters-row { transition: none; }
+}
+/* ============================================================
+   Create Trip warm start - template strip (P1)
+   Appended at the file's end on purpose: the design-system ratchet
+   is keyed by line number, so an insertion above it re-baselines
+   every entry (AGENTS 3). Same rule as the pub-funnel blocks above.
+   ============================================================ */
+
+/* the strip: cards + start-blank, one row that wraps */
+.tpl-warm { margin: 14px 0 16px; }
+.tpl-warm-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 8px; }
+.tpl-warm-head .why { font-size: 11.5px; color: var(--text-3); }
+.tpl-strip { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
+
+/* one template card: cover gradient + copy, hover lifts like a ticket */
+.tpl-card { position: relative; display: block; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--card); overflow: hidden; cursor: pointer; padding: 0; text-align: left; color: inherit; font: inherit; transition: transform var(--t-fast) var(--ease-out), box-shadow var(--t-fast) var(--ease-out), border-color var(--t-fast) var(--ease-out); }
+.tpl-card:hover, .tpl-card:focus-visible { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(16,46,75,.12); border-color: var(--teal); outline: none; }
+.tpl-card.on { border-color: var(--teal); box-shadow: 0 0 0 2px var(--teal-soft); }
+.tpl-cov { height: 56px; display: flex; align-items: flex-end; padding: 6px 9px; }
+.tpl-cov .em { font-size: 18px; line-height: 1; }
+.tpl-cov .days { margin-left: auto; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; background: var(--card); border-radius: 999px; padding: 2px 8px; color: var(--text); }
+.tpl-bd { display: block; min-height: 68px; padding: 7px 10px 9px; }
+.tpl-bd b { display: block; font-size: 12.5px; font-weight: 700; }
+.tpl-bd .r { font-size: 11px; color: var(--text-3); margin-top: 1px; line-height: 1.3; min-height: 27px; }
+.tpl-bd .p { display: block; margin-top: 5px; font-size: 11px; color: var(--teal-deep, var(--teal)); font-weight: 700; }
+
+.tpl-bd .p small { display: block; color: var(--text-3); font-weight: 500; font-size: 11px; }
+.tpl-pick { position: absolute; top: 7px; right: 7px; width: 20px; height: 20px; border-radius: 50%; background: var(--card); color: var(--teal-deep); border: 1.5px solid var(--teal); display: none; place-items: center; font-size: 11px; }
+.tpl-card.on .tpl-pick { display: grid; }
+
+/* the quiet start-blank tile closes the strip */
+.tpl-blank { display: flex; align-items: center; gap: 10px; border: 1px dashed var(--teal); border-radius: var(--radius-sm); background: transparent; cursor: pointer; padding: 12px 13px; font: inherit; color: var(--teal-deep, var(--teal)); font-weight: 600; text-align: left; }
+.tpl-blank:hover, .tpl-blank:focus-visible { background: var(--teal-soft); outline: none; }
+.tpl-blank small { display: block; font-weight: 500; color: var(--text-3); font-size: 11px; }
+
+/* the two helper chips under the strip: same-as-last + demo */
+.tpl-helpers { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 9px; }
+.tpl-helper { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 600; color: var(--text-2); background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: 5px 11px; cursor: pointer; }
+.tpl-helper:hover, .tpl-helper:focus-visible { border-color: var(--teal); color: var(--teal-deep, var(--teal)); outline: none; }
+
+/* name-first row: the input + the suggestion chip */
+.tpl-name { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; }
+.tpl-name > .field { flex: 1 1 260px; min-width: 0; }
+.tpl-name .input { flex: 1; min-width: 200px; }
+.tpl-sug { flex: none; font-size: 11.5px; font-weight: 600; color: var(--teal-deep, var(--teal)); background: var(--teal-soft); border: 0; border-radius: 999px; padding: 6px 12px; cursor: pointer; }
+.tpl-sug:hover, .tpl-sug:focus-visible { background: var(--card); color: var(--teal-deep); outline: none; }
+
+/* reduced motion: hover lift is decorative, keep it off */
+@media (prefers-reduced-motion: reduce) {
+  .tpl-card { transition: none; }
+  .tpl-card:hover, .tpl-card:focus-visible { transform: none; }
+}
+/* ============================================================
+   Create Trip - the advanced drawer (P1)
+   Fuel/vehicle economics and the #142 party dials tuck away here; the
+   engine's defaults hold if nobody opens it. Appended at the file's end
+   for the same line-keyed ratchet reason as the blocks above.
+   ============================================================ */
+
+.adv-drawer { margin-top: 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--card); }
+.adv-drawer > summary { display: flex; align-items: baseline; gap: 10px; padding: 10px 12px; cursor: pointer; list-style: none; }
+.adv-drawer > summary::-webkit-details-marker { display: none; }
+.adv-drawer[open] > summary { border-bottom: 1px solid var(--line); }
+.adv-drawer > summary::after { content: ""; width: 7px; height: 7px; flex: none; align-self: center; margin-left: 10px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg); transition: transform var(--t-fast) var(--ease-out); }
+.adv-drawer[open] > summary::after { transform: rotate(-135deg); }
+.adv-hint { margin-left: auto; font-size: 11px; color: var(--text-3); font-weight: 500; }
+.adv-body { display: grid; gap: 12px; padding: 12px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .adv-drawer > summary::after { transition: none; }
+}
+/* ============================================================
+   Create Trip - the readiness checklist (P3)
+   Four required things, two that say they are optional. Appended at the
+   file's end for the line-keyed ratchet reason as with the blocks above.
+   ============================================================ */
+
+.ready-block { margin: 10px 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--card); }
+.ready-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+.ready-lab { font-size: 11.5px; font-weight: 700; color: var(--text-2); }
+.ready-pct { font-size: 13px; font-weight: 700; color: var(--teal-deep); font-variant-numeric: tabular-nums; }
+.ready-row { display: flex; align-items: center; gap: 8px; padding: 2px 0; font-size: 12px; color: var(--text-3); }
+.ready-row.ok { color: var(--text-2); }
+.ready-tick { display: grid; place-items: center; flex: none; width: 15px; height: 15px; border-radius: 50%; border: 1.5px solid var(--line); font-size: 11px; color: transparent; }
+.ready-row.ok .ready-tick { border-color: var(--teal-deep); background: var(--teal-deep); color: var(--card); }
+.ready-name { font-weight: 600; }
+.ready-why { margin-left: auto; color: var(--text-3); font-size: 11px; font-variant-numeric: tabular-nums; }
+.dock-ready { color: var(--text-3); font-size: 11px; }
+/* ============================================================
+   Create Trip - the draft banner (P4)
+   The unfinished trip pulls you back with the truth: how far along it is,
+   and when you left it. Appended at the file's end (line-keyed ratchet).
+   ============================================================ */
+
+.draft-banner { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 0 0 14px; padding: 10px 14px; border: 1px solid var(--teal); border-radius: var(--radius-sm); background: var(--teal-soft); }
+.draft-banner-copy { display: flex; flex-direction: column; gap: 1px; }
+.draft-banner-copy b { font-size: 13px; color: var(--text); }
+.draft-banner-meta { font-size: 11.5px; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.draft-banner-acts { display: flex; gap: 8px; margin-left: auto; }
+/* ============================================================
+   My trips - the draft card (P4)
+   Above the grid, because it is not a trip yet. Appended at the file's end
+   for the line-keyed ratchet reason as with the blocks above.
+   ============================================================ */
+
+.draft-card { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 0 0 18px; padding: 12px 14px; border: 1px dashed var(--teal); border-radius: var(--radius-sm); background: var(--card); }
+.draft-card-thumb { display: grid; place-items: center; flex: none; width: 34px; height: 34px; border-radius: 10px; background: var(--teal-soft); font-size: 16px; }
+.draft-card-body { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.draft-card-body b { font-size: 13.5px; }
+.draft-card-meta { font-size: 11.5px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.draft-card > .btn { margin-left: auto; }
+/* ============================================================
+   Create Trip - the crew collector (P5)
+   Local only: nothing here is written to the trip or sent anywhere. Appended
+   at the file end for the line-keyed ratchet reason as with the blocks above.
+   ============================================================ */
+
+.crew-invite { margin-top: 12px; }
+.crew-opt { font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--text-3); }
+.crew-invite-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.crew-invite-row .input { flex: 1; min-width: 0; }
+.crew-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.crew-chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 6px 4px 10px; border-radius: 999px; background: var(--teal-soft); font-size: 12px; }
+.crew-chip small { color: var(--text-3); font-size: 11px; font-variant-numeric: tabular-nums; }
+.crew-chip button { display: grid; place-items: center; width: 16px; height: 16px; border: 0; border-radius: 50%; background: transparent; color: var(--text-3); font-size: 11px; cursor: pointer; }
+/* ============================================================
+   Trip created - the moment after (P6)
+   Peak-end, taken seriously. Appended at the file end for the line-keyed
+   ratchet reason as with the blocks above. Every gap and pad below is on the
+   spacing ladder; the badges use the AA-verified teal pair.
+   ============================================================ */
+
+.created-page { max-width: 720px; margin: 0 auto; padding: 24px 20px 24px; display: flex; flex-direction: column; gap: 16px; }
+.created-head h1 { font-size: 26px; line-height: 1.15; margin: 4px 0 2px; }
+.created-card { padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--card); }
+.created-card-title { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; font-size: 13px; font-weight: 700; margin: 0 0 12px; }
+.created-role { font-size: 11.5px; font-weight: 600; color: var(--violet-ink); background: var(--violet-soft); border-radius: 999px; padding: 2px 8px; }
+.created-list { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
+.created-item { display: flex; align-items: flex-start; gap: 8px; }
+.created-badge { display: grid; place-items: center; flex: none; width: 22px; height: 22px; border-radius: 8px; font-size: 11px; background: var(--teal-soft); color: var(--teal-deep); }
+.created-item.kind-conflict .created-badge { background: var(--violet-soft); color: var(--violet-ink); }
+.created-item.kind-scale .created-badge { background: var(--bg); color: var(--text-2); }
+.created-item-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.created-item-body b { font-size: 13px; }
+.created-detail { font-size: 11.5px; color: var(--text-3); }
+.created-crew { display: grid; gap: 8px; }
+.created-crew-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.created-crew-name { font-size: 13px; font-weight: 600; }
+.created-crew-status { font-size: 11px; color: var(--text-3); }
+.created-crew-hint { margin-left: auto; font-size: 11px; color: var(--text-3); }
+.created-crew-row .btn { margin-left: auto; }
+.created-crew-acts { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.created-link { font-size: 11px; color: var(--text-2); word-break: break-all; }
+.created-bill { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; margin: 0 0 6px; }
+.created-bill-perhead { font-size: 24px; font-weight: 700; color: var(--teal-deep); font-variant-numeric: tabular-nums; }
+.created-bill-unit { font-size: 12px; color: var(--text-3); }
+.created-bill-total { font-size: 12px; color: var(--text-2); margin-left: auto; font-variant-numeric: tabular-nums; }
+.created-next { display: grid; gap: 8px; }
+.created-next .ns { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--card); cursor: pointer; text-align: left; color: inherit; font: inherit; }
+.created-next .ns:hover, .created-next .ns:focus-visible { border-color: var(--teal); outline: none; }
+.created-next .ns-ic { display: grid; place-items: center; flex: none; width: 30px; height: 30px; border-radius: 10px; background: var(--teal-soft); color: var(--teal-deep); font-size: 13px; font-weight: 700; }
+.created-next .ns-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.created-next .ns-body b { font-size: 13px; }
+.created-next .ns-body span { font-size: 11.5px; color: var(--text-3); }
+.created-next .ns-primary { border-color: var(--teal); background: var(--teal-soft); }
+.created-next .ns-quiet { justify-content: center; padding: 10px; color: var(--text-2); }
+.created-invite-preview { margin: 10px 0 0; }
+/* P7 - the rough-take rows and the off-screen receipt the image is captured from */
+.created-bill-rows { display: grid; gap: 2px; margin-bottom: 8px; }
+.created-bill-row { display: flex; justify-content: space-between; gap: 8px; font-size: 12.5px; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.created-bill-row b { color: var(--text); font-weight: 600; }
+.created-bill-formula { font-size: 11px; color: var(--text-3); margin: 0 0 6px; }
+.created-bill-acts { display: flex; gap: 8px; margin-top: 12px; }
+.created-receipt-holder { position: absolute; left: -9999px; top: 0; width: 380px; pointer-events: none; }
+/* ============================================================
+   Create Trip - the flow (mockup presentation layer)
+   Replaces the boxed ts-block grid with the numbered question flow the mockup
+   specified: circular step markers, stop chips, a party stepper, tier pills and
+   a budget slider. Spacing is on the design-system ladder; colours are the
+   existing tokens so the contrast ratchet stays green.
+   ============================================================ */
+
+.ct-flow { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+.ct-flow > * { min-width: 0; }
+.ct-q-body > * { min-width: 0; }
+.ct-q { display: flex; align-items: flex-start; gap: 12px; }
+.ct-n { display: grid; place-items: center; flex: none; width: 26px; height: 26px; margin-top: 2px; border-radius: 50%; background: var(--teal-deep); color: var(--card); font-size: 12px; font-weight: 700; }
+.ct-q.done .ct-n { background: var(--teal-soft); color: var(--teal-deep); }
+.ct-q-body { flex: 1; min-width: 0; }
+.ct-q-body h2 { margin: 0; font-size: 15px; letter-spacing: -0.01em; }
+.ct-hint { margin: 2px 0 0; font-size: 11.5px; color: var(--text-3); }
+.ct-q-field { margin-top: 8px; }
+
+/* stop chips */
+.ct-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.ct-dchip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 8px 6px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--card); font-size: 13px; font-weight: 600; }
+.ct-dchip .n { display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: var(--teal-deep); color: var(--card); font-size: 11px; font-weight: 700; }
+.ct-dchip.ret .n { background: var(--violet-ink); }
+.ct-dchip .x { display: grid; place-items: center; width: 16px; height: 16px; border: 0; border-radius: 50%; background: transparent; color: var(--text-3); font-size: 11px; cursor: pointer; }
+.ct-dchip .mv { display: grid; place-items: center; width: 16px; height: 16px; border: 0; border-radius: 50%; background: transparent; color: var(--text-3); font-size: 11px; cursor: pointer; }
+.ct-dadd { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border: 1px dashed var(--teal); border-radius: 999px; background: transparent; color: var(--teal-deep); font-size: 13px; font-weight: 600; cursor: pointer; }
+.ct-dadd:hover, .ct-dadd:focus-visible { background: var(--teal-soft); outline: none; }
+.ct-presets { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.ct-pre { padding: 8px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--card); color: var(--text-2); font-size: 12px; font-weight: 600; text-align: left; cursor: pointer; }
+.ct-pre small { display: block; margin-top: 2px; color: var(--text-3); font-size: 11px; font-weight: 500; }
+.ct-pre:hover, .ct-pre:focus-visible { border-color: var(--teal); outline: none; }
+.ct-pre.on { border-color: var(--teal); background: var(--teal-soft); color: var(--teal-deep); }
+
+/* dates: three readout boxes above the picker */
+.ct-daterow { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin-top: 8px; max-width: 440px; }
+.ct-din { padding: 8px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--card); }
+.ct-din .lab { display: block; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-3); }
+.ct-din b { font-size: 13.5px; font-weight: 600; }
+
+/* party stepper */
+.ct-party { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.ct-step { display: inline-flex; align-items: center; overflow: hidden; border: 1px solid var(--line); border-radius: 999px; background: var(--card); }
+.ct-step button { width: 34px; height: 34px; border: 0; background: transparent; color: var(--teal-deep); font-size: 16px; font-weight: 700; cursor: pointer; }
+.ct-step b { min-width: 34px; text-align: center; font-size: 14px; font-variant-numeric: tabular-nums; }
+.ct-party-sub { font-size: 11px; color: var(--text-3); }
+.ct-mini { padding: 5px 11px; border: 1px solid var(--teal); border-radius: 999px; background: var(--card); color: var(--teal-deep); font-size: 11.5px; font-weight: 600; cursor: pointer; }
+
+/* refine layer */
+.ct-refine { display: flex; flex-direction: column; gap: 12px; padding-top: 16px; border-top: 1px solid var(--line); }
+.ct-lbl { font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-3); }
+.ct-rrow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.ct-tier { display: inline-flex; overflow: hidden; border: 1px solid var(--line); border-radius: 999px; background: var(--card); }
+.ct-tier button { padding: 7px 14px; border: 0; background: transparent; color: var(--text-3); font-size: 12px; font-weight: 600; cursor: pointer; }
+.ct-tier button.on { background: var(--teal-deep); color: var(--card); }
+.ct-tier button:hover:not(.on), .ct-tier button:focus-visible:not(.on) { color: var(--teal-deep); outline: none; }
+
+/* budget slider + the exact-value escape hatch */
+.ct-bud { display: flex; flex: 1 1 260px; align-items: center; gap: 12px; padding: 8px 14px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--card); }
+.ct-bud input[type="range"] { flex: 1; min-width: 120px; accent-color: var(--teal); }
+.ct-bud .v { min-width: 84px; text-align: right; font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.ct-bud .v small { display: block; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-3); }
+.ct-bud-exact { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--card); font-size: 11.5px; color: var(--text-3); }
+.ct-bud-exact input { width: 88px; border: 0; background: transparent; color: var(--text); font: inherit; font-variant-numeric: tabular-nums; outline: none; }
+
+/* compact mode pills (all modes stay, the tile grid goes) */
+.ct-modes { display: flex; flex-wrap: wrap; gap: 6px; }
+.ct-mode { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--card); color: var(--text-2); font-size: 12px; font-weight: 600; cursor: pointer; }
+.ct-mode.on { border-color: var(--teal); background: var(--teal-soft); color: var(--teal-deep); }
+.ct-mode:hover:not(.on), .ct-mode:focus-visible:not(.on) { border-color: var(--teal); outline: none; }
+
+/* style pills (wrapped, no carousel) */
+.ct-styles { display: flex; flex-wrap: wrap; gap: 6px; }
+.ct-style { padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--card); color: var(--text-2); font-size: 12px; font-weight: 600; cursor: pointer; }
+.ct-style.on { border-color: var(--teal); background: var(--teal-soft); color: var(--teal-deep); }
+.ct-style:hover:not(.on), .ct-style:focus-visible:not(.on) { border-color: var(--teal); outline: none; }
+.ct-optional { display: flex; flex-direction: column; gap: 12px; padding-top: 16px; border-top: 1px solid var(--line); }
+.ct-opt-head { display: flex; align-items: baseline; gap: 8px; }
+/* ============================================================
+   Create Trip - the ticket rail, to the mockup's spec
+   The app's .ticket is a floating white card with a transparent head; the
+   mockup is a boarding pass: full-bleed navy head, full-bleed cover, dashed
+   stub with the warm tint. Scoped to .ts-rail so no other surface moves.
+   Values are the mockup's own, expressed in the app's tokens.
+   ============================================================ */
+
+.container.form-page { max-width: 1240px; }
+/* the mockup fixes the pass at 380px and lets the flow take the rest */
+.container.form-page .ts-layout { grid-template-columns: minmax(0, 1fr) 380px; }
+
+/* The pass is the app's own navy boarding pass, kept: it is the one component
+   on this page that already read as designed. Only the mockup's PROPORTIONS
+   are adopted here (tighter head, 86px cover, 12px rows, 18px radius). An
+   earlier pass repainted it white and left the light-on-dark ink in place,
+   which made the ticket's own content unreadable - the ink and the surface
+   have to move together, so the surface stays. */
+.ts-rail .ticket { border-radius: var(--radius); }
+.ts-rail .tk-head { height: 40px; padding: 0 16px; align-items: center; }
+.ts-rail .tk-cover { margin: 0; height: 86px; border-radius: 0; }
+.ts-rail .tk-body { padding: 12px 16px 0; }
+.ts-rail .tk-rows { margin-top: 8px; gap: 6px; }
+.ts-rail .tk-row { font-size: 12.5px; }
+.ts-rail .tk-stub { padding: 12px 16px 16px; }
+.ts-rail .tk-cta { width: 100%; }
+/* ============================================================
+   Create Trip - polish pass (from the screenshot review)
+   The readiness block and the pass's fine print were drawn with the LIGHT
+   theme's text tokens, which on the navy pass read as disabled rather than
+   secondary. The pass has its own ink; these rules give it its own tokens.
+   ============================================================ */
+
+.ts-rail .ready-block { padding: 12px; border: 1px solid var(--rail-line); border-radius: var(--radius-sm); background: rgba(255, 255, 255, 0.06); }
+.ts-rail .ready-lab { font-size: 13px; font-weight: 700; color: var(--rail-ink); }
+.ts-rail .ready-pct { font-size: 14px; font-weight: 700; color: var(--rail-ink); }
+.ts-rail .ready-row { font-size: 12.5px; color: var(--rail-ink-dim); }
+.ts-rail .ready-row.ok { color: var(--rail-ink); }
+.ts-rail .ready-name { font-weight: 600; }
+.ts-rail .ready-why { font-size: 11.5px; color: var(--rail-ink-dim); }
+.ts-rail .ready-tick { width: 16px; height: 16px; border: 1.5px solid var(--rail-line); font-size: 11px; color: transparent; }
+.ts-rail .ready-row.ok .ready-tick { width: 17px; height: 17px; border-color: var(--rail-ink); background: var(--rail-ink); color: #0B2545; font-size: 11px; font-weight: 700; }
+.ts-rail .ready-row.opt .ready-tick { border-style: dashed; }
+.ts-rail .ready-row.opt .ready-why { color: var(--rail-ink); opacity: 0.66; }
+.ts-rail .ready-head { margin-bottom: 8px; }
+
+.ts-rail .tk-fine { color: var(--rail-ink-dim); font-size: 11.5px; }
+.ts-rail .tk-cancel { color: var(--rail-ink-dim); font-size: 11.5px; }
+.ts-rail .tk-subrow .tk-cancel:first-child { color: var(--rail-ink); text-decoration: underline; text-underline-offset: 3px; }
+.ts-rail .tk-route { font-size: 12.5px; }
+
+/* review pass 2 - the pass's finish, and the optional rows */
+/* the tear notches must match whatever surface the pass sits on */
+.ts-rail .tear::before, .ts-rail .tear::after { background: var(--bg); }
+/* the selected emoji must be visible on the page surface */
+.chip-row .chip.on { border-color: var(--teal); background: var(--teal-soft); color: var(--teal-deep); }
+/* the pinned-plans time control needs room for its own meridiem - it used to
+   clip to '02:00 P' in the 0.8fr track */
+.commitment-row input[type="time"] { min-width: 118px; }
+/* the dock's print action is a quiet secondary beside the primary, not a gate */
+.dock-secondary { display: grid; place-items: center; flex: none; width: 42px; height: 42px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--card); color: var(--text-2); cursor: pointer; }
+.dock-secondary:hover:not(:disabled), .dock-secondary:focus-visible:not(:disabled) { border-color: var(--teal); color: var(--teal-deep); outline: none; }
+.dock-secondary:disabled { opacity: 0.45; cursor: not-allowed; }
+/* P8.3 - the calm radar under the pinned plans */
+.ct-radar { display: grid; gap: 6px; margin: 0 0 10px; }
+.ct-radar-line { display: flex; flex-direction: column; gap: 2px; padding: 8px 12px; border: 1px solid var(--violet-soft); border-radius: var(--radius-sm); background: var(--card); }
+.ct-radar-line b { font-size: 12.5px; }
+.ct-radar-line span { font-size: 11.5px; color: var(--text-3); }
+/* AI companion reply badge — which brain answered (M5). Static label, not an
+   animation, so no motion token applies; colors are theme tokens. */
+.ai-source {
+  display: inline-block; margin-top: 9px; margin-right: 6px;
+  font-size: 11px; font-weight: 600; letter-spacing: 0.04em;
+  padding: 2px 8px; border-radius: 999px; vertical-align: middle;
+}
+.ai-source.llm { color: var(--ink-amber); border: 1px solid var(--ink-amber); }
+.ai-source.off { color: var(--text-3); border: 1px solid var(--line); }
+.ai-source.jev { color: var(--ink-ok); border: 1px solid var(--ok); }
+/* ---------- Offline banner (PWA phase 2) ----------
+   A plain block in the flow, not a sticky/fixed strip: it appears above the
+   routed page, scrolls away with it, and can never fight the nav's rung. */
+.offline-banner {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 8px 16px;
+  background: var(--warn-soft); color: var(--text);
+  border-bottom: 1px solid var(--line);
+  font-size: 12.5px;
+}
+.offline-banner .btn { flex: none; }
+@media (max-width: 720px) {
+  .offline-banner { padding: 8px 14px; font-size: 12px; align-items: flex-start; }
+}

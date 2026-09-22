@@ -2,6 +2,7 @@
 // Mechanical extraction from src/pages/TripWorkspace.tsx (M3.4) — no behavior changes.
 // Includes SnapshotCard — ShareTab is its only consumer.
 import { useEffect, useState } from 'react'
+import { InlineIcon } from '../../components/icons'
 import { CalendarDays, Download, Link2, Lock } from 'lucide-react'
 import type { Trip, PublishedItinerary } from '../../data/types'
 import { useDb, userById, setMemberRole, removeMember, restoreMember, publishItinerary, unpublishItinerary, ensureInviteCode } from '../../store/store'
@@ -12,7 +13,8 @@ import { currentPublicShareUrl } from '../../lib/shareUrl'
 import { downloadTripIcs } from '../../lib/ics'
 import { nativeCopyText } from '../../lib/native'
 import { useTablist } from '../../hooks/useTablist'
-import type { LegEstimate } from '../../lib/engine'
+import { formatInr, type LegEstimate } from '../../lib/engine'
+import { netOfFeeInr, PLATFORM_FEE_SUMMARY } from '../../lib/earnings'
 import { Avatar, Chip, ConfirmDialog, CopyButton, Field, toast, undoToast } from '../../components/ui'
 import { PrintExport } from '../../components/PrintExport'
 import { cap, timeAgo } from './shared'
@@ -47,10 +49,10 @@ function SnapshotCard({ trip, me, onNavigate, legCorrections, publication }: {
       </p>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   <ImportTripButton ownerId={me.id} onNavigate={onNavigate} className="btn btn-outline btn-sm" />
-                  <button className="btn btn-outline btn-sm" onClick={() => downloadTripJson(trip, publication)}><Download size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Download JSON</button>
+                  <button className="btn btn-outline btn-sm" onClick={() => downloadTripJson(trip, publication)}><InlineIcon icon={Download} size={13} gap={4} />Download JSON</button>
                   <PrintExport trip={trip} legCorrections={legCorrections} />
-                  <button className="btn btn-outline btn-sm" onClick={() => downloadTripIcs(trip, legCorrections)} title="One calendar event per day plus timed events for fixed commitments — imports into Google/Apple/Outlook calendars"><CalendarDays size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Add to calendar</button>
-                  <button className="btn btn-saffron btn-sm" onClick={makeLink}><Link2 size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Create snapshot link</button>
+                  <button className="btn btn-outline btn-sm" onClick={() => downloadTripIcs(trip, legCorrections)} title="One calendar event per day plus timed events for fixed commitments — imports into Google/Apple/Outlook calendars"><InlineIcon icon={CalendarDays} size={13} gap={4} />Add to calendar</button>
+                  <button className="btn btn-saffron btn-sm" onClick={makeLink}><InlineIcon icon={Link2} size={13} gap={4} />Create snapshot link</button>
       </div>
       {link && (
         <div className="share-link-box" style={{ marginTop: 10 }}>
@@ -162,7 +164,17 @@ function PublicationForm({ trip, pub, isOwner, creatorId, onDone }: {
         <input className="input" value={tagline} onChange={e => setTagline(e.target.value)} maxLength={140} />
       </Field>
       <div className="form-row">
-        <Field label="Premium price (₹)" hint="Leave empty or 0 for an entirely free itinerary.">
+        <Field label="Premium price (₹)" hint={priceNum > 0
+          // The floor, not the rate: the ladder charges 15% up to ₹25,000 of
+          // LIFETIME gross and 10% after, so a price seen on its own can only
+          // honestly promise the least a creator keeps. Pricing is the moment
+          // this number matters, and the hub is too late to inform it.
+          //
+          // Floored, because `formatInr` rounds: a net of ₹172.55 must not be
+          // promised as ₹173 — a figure you can *at least* count on is the only
+          // one this sentence is allowed to state.
+          ? `At ${formatInr(priceNum)} a sale nets you at least ${formatInr(Math.floor(netOfFeeInr(priceNum)))} — the platform fee is ${PLATFORM_FEE_SUMMARY}.`
+          : 'Leave empty or 0 for an entirely free itinerary.'}>
           <input className="input" type="number" min={0} inputMode="numeric" placeholder="e.g. 199"
             value={price} onChange={e => { setPrice(e.target.value); setErr(null) }} />
         </Field>
@@ -191,7 +203,7 @@ function PublicationForm({ trip, pub, isOwner, creatorId, onDone }: {
                 disabled={entirelyFree} aria-pressed={!isFree}
                 aria-label={`Day ${d.index + 1}${d.title ? ` — ${d.title}` : ''}: ${isFree ? 'Free' : 'Premium'}`}
                 onClick={() => toggleDay(d.index)}>
-                {isFree ? <>Free</> : <><Lock size={11} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />Premium</>}
+                {isFree ? <>Free</> : <><InlineIcon icon={Lock} size={11} gap={3} />Premium</>}
               </button>
             </div>
           )

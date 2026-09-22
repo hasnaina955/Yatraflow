@@ -17,7 +17,7 @@
 // resolve via one Place Details call instead of OSM Nominatim.
 export { DEBOUNCE_MS } from './providers/free'
 export { mapplsEnabled, parseOpeningHours, fetchOpeningHours, type OpeningHours } from './providers/free'
-export { HOME_ZONE_KM, corridorAnchors, detourKm, detourMinutes, asymmetricDetourMinutes, filterPlannedNearby, anchorHash, routeHash, alongRouteKmOf, directionalKm } from './providers/hits'
+export { HOME_ZONE_KM, corridorAnchors, detourKm, detourMinutes, asymmetricDetourKm, asymmetricDetourMinutes, filterPlannedNearby, anchorHash, routeHash, alongRouteKmOf, directionalKm } from './providers/hits'
 export type { NearbyOpts, PlaceHit, PlannedStop } from './providers/hits'
 export { googleEnabled } from './providers/google'
 export { googleSearchText, QuotaExhaustedError } from './providers/google'
@@ -68,8 +68,12 @@ export async function searchPlaces(q: string, opts?: { indiaOnly?: boolean }): P
   return dedupePlaceHits([...google, ...free])
 }
 
-/** Cross-provider dedupe: same name AND same ~100 m location is one place. */
-function dedupePlaceHits(hits: PlaceHit[]): PlaceHit[] {
+/** Cross-provider dedupe: same name AND same ~100 m location is one place.
+ *  `limit` caps the returned pool — the geocode box keeps the UI-sized 8, while
+ *  the route-aware search-to-add passes a larger pool so its detour ranking can
+ *  still surface a closer free-stack hit that would otherwise be sliced off in
+ *  provider order before ranking ever saw it. */
+function dedupePlaceHits(hits: PlaceHit[], limit = 8): PlaceHit[] {
   // Dedupe across providers, but only when the hits actually point at the
   // same location — Open-Meteo and Google can legitimately both return
   // "Munnar" with different precision/coords, and both belong in the list.
@@ -84,7 +88,7 @@ function dedupePlaceHits(hits: PlaceHit[]): PlaceHit[] {
     seen.add(key)
     out.push(hit)
   }
-  return out.slice(0, 8)
+  return out.slice(0, limit)
 }
 
 /**
@@ -116,7 +120,10 @@ export async function searchPlacesText(q: string, opts?: { indiaOnly?: boolean }
     }
   }
   const free = await searchPlacesFree(q, opts).catch(() => [] as PlaceHit[])
-  const merged = dedupePlaceHits([...google, ...free])
+  // Larger pool than the geocode box's 8: the caller ranks every hit by its
+  // road detour and only then slices, so a closer free-stack hit must survive
+  // the merge to be ranked in (see MapTab onSearch).
+  const merged = dedupePlaceHits([...google, ...free], 24)
   const resolved = await Promise.all(merged.map(h => (hasCoords(h) ? h : resolveHitCoords(h).catch(() => h))))
   return resolved.filter(hasCoords)
 }

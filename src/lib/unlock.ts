@@ -20,6 +20,7 @@
 
 import { supabase } from './supabase'
 import { ENTITLEMENT_COLUMNS, type Entitlement } from './payments'
+import type { PlatformSale } from './adminStats'
 import { toast } from '../components/ui'
 
 declare global {
@@ -82,6 +83,35 @@ export async function fetchMyEntitlements(userId: string | null): Promise<Entitl
   }
 }
 
+/** The buyer's entitlement rows for the SHELF (I-20), where a failed read and
+ *  an empty shelf are different truths.
+ *
+ *  `fetchMyEntitlements` above deliberately degrades to []: on the public
+ *  itinerary a dropped connection must not break the page, and "no
+ *  entitlements" is the honest pre-purchase state there. On a shelf whose whole
+ *  job is to say what you own, that same degradation would tell a paying
+ *  customer they own nothing — so this one REJECTS (after logging), exactly
+ *  like `fetchCreatorSales`, and the page owns the error state. */
+export async function fetchMyPurchases(userId: string | null): Promise<Entitlement[]> {
+  if (!userId) return []
+  const { data, error } = await supabase
+    .from('entitlements')
+    .select(ENTITLEMENT_COLUMNS)
+    .eq('user_id', userId)
+  if (error) {
+    console.error('[yatraflow] purchases read failed', error)
+    throw error
+  }
+  return (Array.isArray(data) ? data : []).map((row: Record<string, unknown>) => ({
+    id: row.id as string,
+    userId: (row.user_id as string | null) ?? null,
+    pubId: row.pub_id as string,
+    orderId: row.order_id as string,
+    amountPaidInr: row.amount_paid_inr as number,
+    grantedAt: new Date(row.granted_at as string).getTime(),
+  }))
+}
+
 /** The SALES of the logged-in creator's publications (I-11). Reads through
  *  the security-definer `get_creator_sales` RPC, scoped by the caller's own
  *  auth.uid() — the RLS-policy path could answer 200-with-zero-rows when the
@@ -107,6 +137,75 @@ export async function fetchCreatorSales(): Promise<Entitlement[]> {
     orderId: row.order_id as string,
     amountPaidInr: row.amount_paid_inr as number,
     grantedAt: new Date(row.granted_at as string).getTime(),
+  }))
+}
+
+/** One day of a publication's RECORDED funnel steps, as the RPC returns it. */
+export interface FunnelDailyRow {
+  pubId: string
+  /** UTC day the steps happened on, `YYYY-MM-DD` (the SQL buckets by UTC). */
+  day: string
+  views: number
+  forks: number
+}
+
+/**
+ * The recorded funnel steps for the logged-in creator's OWN publications,
+ * bucketed by day (I-22 / I-15).
+ *
+ * Through the definer `get_creator_funnel` RPC, scoped inside by the caller's
+ * own auth.uid() — the `fetchCreatorSales` precedent. Like it, this REJECTS on
+ * a failed read instead of degrading to [] : "nothing recorded yet" and "the
+ * log could not be read" are different truths, and a funnel that quietly reads
+ * zero over real traffic is the conflation the sales ledger already fixed
+ * once.
+ *
+ * DAILY BUCKETS, not a fixed window: the page owns the window control, so
+ * switching 7/30/90 days costs no round trip. The default covers the log's
+ * whole life, which is what lets the UI name the day recording began — it
+ * matters, because the lifetime counters on each publication PREDATE this log
+ * and the two are not the same number.
+ */
+export async function fetchCreatorFunnel(days = 730): Promise<FunnelDailyRow[]> {
+  const { data, error } = await supabase
+    .rpc('get_creator_funnel', { p_days: days })
+  if (error) {
+    console.error('[yatraflow] creator funnel read failed', error)
+    throw error
+  }
+  return (Array.isArray(data) ? data : []).map((row: Record<string, unknown>) => ({
+    pubId: row.pub_id as string,
+    day: String(row.day ?? '').slice(0, 10),
+    views: Number(row.views ?? 0),
+    forks: Number(row.forks ?? 0),
+  }))
+}
+
+/**
+ * Every sale on the platform, for the masteradmin console's revenue row.
+ *
+ * Reads through the admin-gated `admin_revenue` RPC (`is_admin()` inside the
+ * function). REJECTS rather than degrading to [] — an empty platform and an
+ * unapplied migration are different truths, and a console that quietly shows
+ * ₹0 revenue is worse than one that says it could not read the books.
+ *
+ * The RPC returns facts only (when, how much, which publication, and which
+ * creator is owed) and never a buyer, so nothing here can leak an identity into
+ * the console. The creator IS a payee, and it is what lets the console charge
+ * the fee ladder per creator rather than once over the platform total.
+ */
+export async function fetchAdminRevenue(limit = 1000): Promise<PlatformSale[]> {
+  const { data, error } = await supabase
+    .rpc('admin_revenue', { p_limit: limit })
+  if (error) {
+    console.error('[yatraflow] admin revenue read failed', error)
+    throw error
+  }
+  return (Array.isArray(data) ? data : []).map((row: Record<string, unknown>) => ({
+    grantedAt: new Date(row.granted_at as string).getTime(),
+    amountPaidInr: row.amount_paid_inr as number,
+    pubId: row.pub_id as string,
+    creatorId: row.creator_id as string,
   }))
 }
 

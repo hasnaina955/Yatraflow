@@ -17,6 +17,11 @@ import type { LatLngPoint } from '../data/types'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
 import { toast } from '../components/ui'
 import { isMissingColumnError, rowToTrip, tripToRow, type OptionalColumnsProbe, type TripRow } from '../lib/tripRow'
+import { attachDnaAccount, detachDnaAccount } from '../lib/tripDna'
+import { clearSnapshot, loadSnapshot, saveSnapshot } from '../lib/offlineCache'
+import {
+  clearWritesFor, dropWrite, pendingWrites, queueWrite, replayVerdict, shouldRetry,
+} from '../lib/writeQueue'
 import { ownSuggestedCover, unclaimedCovers } from '../lib/coverUpload'
 import { makeInviteCode, normalizeInviteCode } from '../lib/inviteCode'
 import { suggestionToRow, decisionToRow, activityToRow, notificationToRow, publishedToRow } from '../lib/restoreRows'
@@ -41,12 +46,17 @@ interface DB {
   /** True once the first hydrate of this session has settled (success OR
    *  failure). Until then, "empty" is a lie — pages must show loading. */
   ready: boolean
+  /** When the rows on screen came from the offline snapshot (PWA phase 2),
+   *  the moment that snapshot was taken; null when they came from the network.
+   *  Drives the offline banner's "showing your saved plan from HH:MM" and is
+   *  set by the cache boot below, cleared by every network hydrate. */
+  cachedAt: number | null
 }
 
 let cache: DB = {
   users: [], trips: [], trashedTrips: [], suggestions: [], decisions: [],
   activity: [], notifications: [], published: [], adminAudit: [], sessionUserId: null,
-  ready: false,
+  ready: false, cachedAt: null,
 }
 
 const listeners = new Set<() => void>()
@@ -337,6 +347,9 @@ export function init(): void {
     })
   }
   if (typeof addEventListener !== 'undefined') addEventListener('pagehide', _flushTripWrites)
+  // PWA phase 3: the moment the network returns, push everything this device
+  // held. (Node tests have no addEventListener - init() must not throw there.)
+  if (typeof addEventListener !== 'undefined') addEventListener('online', () => { void replayQueuedWrites() })
 
   const hydrate = async (userId: string | null) => {
     // Same-user dedupe FIRST, generation bump second. The old order bumped
@@ -361,7 +374,20 @@ export function init(): void {
       // Serialized like the signed-in path: getSession + onAuthStateChange both
       // fire hydrate(null) on a cold load, which used to double-fetch.
       disconnectRealtime()
+      // I-16 — signed out: drop the account's Trip DNA log from memory, so the
+      // next person on this device never inherits the last one's profile.
+      detachDnaAccount()
       if (activeHydrate && activeHydrate.userId === null) { await activeHydrate.promise; return }
+      // PWA phase 2: signing out forgets this device's snapshot for the account
+      // that just left. The in-memory version of this bug (#45) showed the
+      // previous user's trips; the on-disk one would survive a reload.
+      const departingUser = cache.sessionUserId
+      if (departingUser) {
+        void clearSnapshot(departingUser)
+        // Their unsynced edits are theirs alone - the next person on this
+        // device must never be the one whose session "syncs" them.
+        void clearWritesFor(departingUser)
+      }
       const anonPromise = (async () => {
       try {
         const [profRes, pubRes] = await Promise.all([
@@ -372,17 +398,40 @@ export function init(): void {
         const pubRows = mapOrSkip((pubRes.data ?? []), rowToPublished)
         if (profRes.error) { console.error('[yatraflow] hydrate profiles failed', profRes.error) }
         if (pubRes.error) { console.error('[yatraflow] hydrate published failed', pubRes.error) }
-        patch({ users, trips: [], suggestions: [], decisions: [], activity: [], notifications: [], published: dedupePublished(pubRows), adminAudit: [], sessionUserId: null, ready: true })
+        patch({ users, trips: [], suggestions: [], decisions: [], activity: [], notifications: [], published: dedupePublished(pubRows), adminAudit: [], sessionUserId: null, ready: true, cachedAt: null })
         commit()
       } catch (e) {
         console.error('[yatraflow] anonymous hydration failed', e)
-        patch({ users: [], trips: [], suggestions: [], decisions: [], activity: [], notifications: [], published: [], adminAudit: [], sessionUserId: null, ready: true })
+        patch({ users: [], trips: [], suggestions: [], decisions: [], activity: [], notifications: [], published: [], adminAudit: [], sessionUserId: null, ready: true, cachedAt: null })
         commit()
       }
       })()
       activeHydrate = { userId: null, promise: anonPromise }
       try { await anonPromise } finally { if (activeHydrate?.userId === null) activeHydrate = null }
       return
+    }
+    // Offline-first boot (PWA phase 2): on a cold cache, show this account's
+    // last clean snapshot immediately — the network hydrate below replaces it
+    // when it lands. Read-only by construction: every write still needs the
+    // network, and a cache boot can never seed demo trips (the failed reads
+    // that made the cache necessary keep `tripCountUnknown` true).
+    if (!cache.ready) {
+      const snapshot = await loadSnapshot(userId)
+      if (snapshot && gen === hydrateGen) {
+        patch({
+          trips: snapshot.trips as Trip[],
+          trashedTrips: snapshot.trashedTrips as Trip[],
+          users: snapshot.users as User[],
+          published: snapshot.published as PublishedItinerary[],
+          suggestions: snapshot.suggestions as StopSuggestion[],
+          decisions: snapshot.decisions as TripDecision[],
+          activity: snapshot.activity as ActivityEntry[],
+          sessionUserId: userId,
+          cachedAt: snapshot.savedAt,
+          ready: true,
+        })
+        commit()
+      }
     }
     // The same-user dedupe already ran at the top of hydrate(); reaching here
     // means this user has no in-flight hydrate, so start one.
@@ -397,6 +446,14 @@ export function init(): void {
     // Only go live for the account the cache still belongs to: a sign-out or an
     // account switch during the hydration above bumped hydrateGen.
     if (gen === hydrateGen && cache.sessionUserId === userId) connectRealtime(userId)
+    // I-16 — fold the account's Trip DNA into this device's log. Best-effort and
+    // probe-gated (no `user_dna` table → device-local, exactly as before), and
+    // fired after realtime so a slow DNA read never delays the workspace.
+    if (gen === hydrateGen && cache.sessionUserId === userId) void attachDnaAccount(supabase, userId)
+    // PWA phase 3: a boot that came online (or never left it) pushes any edits
+    // this device is still holding - e.g. a tab closed mid-debounce, or a
+    // replay that raced the last offline period.
+    if (gen === hydrateGen && cache.sessionUserId === userId) void replayQueuedWrites()
   }
 
   supabase.auth.getSession().then(({ data }) => {
@@ -428,6 +485,9 @@ export async function resumeSync(): Promise<void> {
   activeHydrate = null
   await hydrateFromSupabase(userId, gen, false)
   if (gen === hydrateGen && cache.sessionUserId === userId) connectRealtime(userId)
+  // PWA phase 3: a resumed app is by definition back on the network - push any
+  // edits the backgrounded device is still holding.
+  if (gen === hydrateGen && cache.sessionUserId === userId) void replayQueuedWrites()
 }
 
 async function hydrateFromSupabase(userId: string, gen: number, seedIfEmpty = true): Promise<void> {
@@ -604,8 +664,25 @@ async function hydrateFromSupabase(userId: string, gen: number, seedIfEmpty = tr
       // row cascades away with its trip, so a publication stands on its own.
       published: dedupePublished(pubRows),
       sessionUserId: userId,
+      cachedAt: null,
     })
     commit()
+
+    // Keep this account's snapshot for the next offline boot — but only a CLEAN
+    // hydrate. A partial read is the store's own "half an account" signal, and
+    // writing it would present half an account as the truth on the next cold
+    // start, which is exactly what the cache must never do.
+    if (partial.length === 0) {
+      void saveSnapshot(userId, {
+        trips: cache.trips,
+        trashedTrips: cache.trashedTrips,
+        users: cache.users,
+        published: cache.published,
+        suggestions: cache.suggestions,
+        decisions: cache.decisions,
+        activity: cache.activity,
+      })
+    }
 
     // #36-18: name what is missing instead of letting a half-loaded account render
     // as an empty one. Deliberately after the staleness check above, so a run that
@@ -1798,9 +1875,74 @@ async function persistTripFieldNow(id: ID, t: Trip | undefined): Promise<void> {
   // optimistic reorder the user had just accepted. (Board/Timeline reorder bug.)
   markLocalWrite('trips', id)
   const owner = t.members?.find(m => m.role === 'owner')
+  // PWA phase 3 - durable BEFORE the attempt: an edit captured here survives a
+  // failed send, a crashed tab or a closed laptop, and is dropped the moment
+  // the server confirms. Keyed by trip id, so a burst of edits leaves ONE
+  // entry holding the newest snapshot - the same coalescing the in-memory map
+  // above performs. capturedAt is the send time (up to one debounce window
+  // after the edit itself); it only steers the conflict NOTICE, never the write.
+  await queueWrite({ tripId: id, ownerId: owner?.userId ?? id, capturedAt: Date.now(), attempts: 0, trip: t })
   const cols = await tripsHaveOptionalColumns()
   const { error } = await supabase.from('trips').update(tripToRow(t, owner?.userId ?? id, cols)).eq('id', id)
-  if (error) toast('Could not save changes.')
+  if (error) {
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      // Offline: the failure is expected and the edit is already queued - the
+      // banner carries the message; a toast per keystroke burst is noise.
+      return
+    }
+    // Online and still failing: the edit stays queued for the next replay
+    // (bounded), and the user is told now rather than at some future sync.
+    toast('Could not save changes - they will retry when you reconnect.')
+    return
+  }
+  void dropWrite(id)
+}
+
+/** PWA phase 3 - push every queued offline edit, oldest first. Bounded: a
+ *  failing attempt counts, and after MAX_WRITE_ATTEMPTS the entry is dropped
+ *  with a toast instead of retried forever. Deliberately NOT routed through
+ *  persistTripFieldNow (that path always re-queues with attempts reset to 0,
+ *  which would unbound the retries); this is its own send so the count sticks.
+ *  No markLocalWrite here on purpose: the echo of our own replay refreshes the
+ *  cache from the server's truth instead of being suppressed. */
+export async function replayQueuedWrites(): Promise<number> {
+  const userId = cache.sessionUserId
+  // isSupabaseConfigured is a boolean VALUE here, not a function (lib/supabase.ts).
+  if (!userId || !isSupabaseConfigured) return 0
+  let synced = 0
+  for (const write of await pendingWrites()) {
+    // Only this account's entries: another owner's queue is not ours to send.
+    if (write.ownerId !== userId) continue
+    const trip = write.trip as Trip
+    // Conflict notice: a server row newer than the edit's capture means a
+    // collaborator changed the trip while this device was away. The write
+    // still applies (the app's whole-trip model is last-writer-wins, and the
+    // peer's remote-edit banner covers their side) - but this user is told.
+    const { data: current } = await supabase.from('trips').select('id, updated_at').eq('id', write.tripId).limit(1)
+    const verdict = replayVerdict((current?.[0] as { updated_at?: unknown } | undefined)?.updated_at, write.capturedAt)
+    const owner = trip.members?.find(m => m.role === 'owner')
+    const cols = await tripsHaveOptionalColumns()
+    const { error } = await supabase.from('trips').update(tripToRow(trip, owner?.userId ?? userId, cols)).eq('id', write.tripId)
+    if (error) {
+      const attempts = write.attempts + 1
+      if (shouldRetry({ attempts })) {
+        await queueWrite({ ...write, attempts })
+      } else {
+        await dropWrite(write.tripId)
+        toast('An offline change could not be saved and was dropped.')
+      }
+      // Stop at the first failure - the network is not back for this row's
+      // write, so it is not back for the rest either.
+      return synced
+    }
+    await dropWrite(write.tripId)
+    synced += 1
+    if (verdict === 'overwrite') {
+      toast(`Your offline changes to ${trip.name || 'a trip'} replaced a newer edit by a teammate.`)
+    }
+  }
+  if (synced > 0) toast(`${synced} offline change${synced === 1 ? '' : 's'} synced.`)
+  return synced
 }
 
 function persistTripField(id: ID, t: Trip): void {
@@ -2284,6 +2426,10 @@ export function resolveDecision(decisionId: ID, optionId: ID): void {
   // the suggestion rows it beats drop out via the same name check.
   if (winning?.place && trip) {
     const dayIndex = Math.min(Math.max(0, winning.place.dayIndex), trip.days.length - 1)
+    // A slot poll's option id carries the part it was raised for
+    // (slot:<key>:<placeId>), so the landed stop says which part it fills -
+    // the day plan reads that part as filled the moment the vote resolves (P4).
+    const slotKey = /^slot:([a-z]+):/.exec(String(winning.id))?.[1]
     addStop(d.tripId, dayIndex, {
       title: winning.place.title,
       category: winning.place.category,
@@ -2298,6 +2444,10 @@ export function resolveDecision(decisionId: ID, optionId: ID): void {
       transportCostInrTotal: 0,
       priority: 'nice-to-have',
       notes: `Chosen by group vote — “${d.question}”`,
+      // The part this vote was raised for, as DATA. It used to be appended to
+      // `notes` as prose, which made a user-editable, printed field the only
+      // record of a derived state: tidying the note un-planned the day.
+      ...(slotKey ? { slotKey } : {}),
       status: 'confirmed',
     })
   }
@@ -2519,12 +2669,20 @@ export function registerPubView(id: ID): void {
 
 export function registerPubCopy(id: ID): void {
   const p = cache.published.find(x => x.id === id)
-  if (p) {
-    cache.published = cache.published.map(x => x.id === id ? { ...x, copies: x.copies + 1 } : x)
-    commit()
-    // Use RPC function that bypasses RLS - anyone can increment counters now.
-    fire('published_itineraries', supabase.rpc('bump_published_stats', { p_id: id, p_kind: 'copies' }))
-  }
+  if (!p) return
+  // Same exclusion as the view counter above, and for the same reason: a
+  // creator forking their OWN plan is testing it, not being converted by it.
+  // Without this the funnel's fork stage counted a step its view stage had
+  // already refused to count, so the two stages disagreed about who a reader
+  // is — and a fork rate over that is not a conversion rate.
+  if (cache.sessionUserId && p.creatorId === cache.sessionUserId) return
+  cache.published = cache.published.map(x => x.id === id ? { ...x, copies: x.copies + 1 } : x)
+  commit()
+  // Use RPC function that bypasses RLS - anyone can increment counters now.
+  // The same call also records the dated funnel event (see
+  // supabase/migrations/20260921_pub_funnel_events.sql), so the lifetime
+  // counter and the funnel log cannot drift.
+  fire('published_itineraries', supabase.rpc('bump_published_stats', { p_id: id, p_kind: 'copies' }))
 }
 
 // ---------------- Feed & notifications ----------------

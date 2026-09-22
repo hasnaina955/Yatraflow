@@ -6,6 +6,7 @@ import {
   getAssumptions, simulateDay, computeTotals, originOf,
   minutesToHM, hmToMinutes, collectWarnings, formatInr, countHotelNights,
 } from './engine'
+import { INTENT_NONE, type CompanionIntent } from './jevTaxonomy'
 
 export interface AiReply {
   text: string
@@ -59,9 +60,35 @@ export function quickPrompts(): string[] {
 
 export function answerQuestion(trip: Trip, question: string): AiReply {
   const q = question.toLowerCase()
-  const totals = computeTotals(trip)
   const has = (...words: string[]) => words.some((w) => q.includes(w))
 
+  return answerForIntent(trip, routeIntent(q, has), question)
+}
+
+/** Map one classified intent to its handler. Exported for the Jev path — a
+ *  classifier picks the capability, the same local handlers compute the answer,
+ *  so both routers share one body of trip analysis and can never drift apart. */
+export function answerForIntent(trip: Trip, intent: CompanionIntent, question: string): AiReply {
+  const totals = totals_of(trip)
+  switch (intent) {
+    case 'compare': return compareRelaxedPacked(trip)
+    case 'rain': return rainPlan(trip)
+    case 'airport': return airportFeasibility(trip)
+    case 'youtube': return youtubeDescription(trip)
+    case 'cheaper': return cheaperAlternative(trip)
+    case 'family': return familyVersion(trip)
+    case 'kids': return removeForKids(trip)
+    case 'cost': return costSummary(trip, totals)
+    case 'tiring': return makeLessTiring(trip)
+    case 'risks': return biggestRisks(trip)
+    case 'delay': return delayBackup(trip)
+    case 'summary': return planSummary(trip, totals)
+    case INTENT_NONE: return generalAnswer(trip, totals, question)
+    default: return generalAnswer(trip, totals, question)
+  }
+}
+
+function routeIntent(q: string, has: (...words: string[]) => boolean): CompanionIntent {
   // Route to the most relevant handler.
   //
   // ORDER IS LOAD-BEARING. This is a first-match chain, so an earlier rule always
@@ -89,19 +116,19 @@ export function answerQuestion(trip: Trip, question: string): AiReply {
     has('compare', 'slower', 'faster and', 'lighter', 'heavier', 'trade off', 'more or less', 'difference between') ||
     (has('packed') && has('see more')) ||
     (has('fewer stops') && has('or more'))
-  ) return compareRelaxedPacked(trip)
+  ) return 'compare'
 
   // Word-boundary match so the substring "rain" inside "train" does not mis-route
   // train questions to the rain plan. Extended to conjugations and to "rain" + ed
   // while still rejecting false positives like "rainbow" or "rainforest"; test t12
   // and tests/ai-routing.test.ts pin both directions.
-  if (/\brain(s|ing|y|ed)?\b/.test(q) || has('monsoon', 'wet weather', 'poor weather', 'weather turns', 'washed out', 'forecast', 'drizzle', 'pours', 'wet day', 'indoor alternative')) return rainPlan(trip)
+  if (/\brain(s|ing|y|ed)?\b/.test(q) || has('monsoon', 'wet weather', 'poor weather', 'weather turns', 'washed out', 'forecast', 'drizzle', 'pours', 'wet day', 'indoor alternative')) return 'rain'
 
   // The handler checks saved flight/train departures, so match those words — not
   // just the word "airport" (issue: "catch a 6am flight" used to fall through).
-  if (has('airport', 'flight', 'departure', 'station') || (has('catch', 'make') && has('train')) || (q.includes('reach') && has('pm', 'on time'))) return airportFeasibility(trip)
+  if (has('airport', 'flight', 'departure', 'station') || (has('catch', 'make') && has('train')) || (q.includes('reach') && has('pm', 'on time'))) return 'airport'
 
-  if (has('youtube', 'description', 'instagram', 'caption', 'reel', 'blog', 'vlog', 'social media', 'promo', 'seo', 'publish')) return youtubeDescription(trip)
+  if (has('youtube', 'description', 'instagram', 'caption', 'reel', 'blog', 'vlog', 'social media', 'promo', 'seo', 'publish')) return 'youtube'
 
   // Money to SPEND LESS, before money AS IT STANDS and before family — "cheaper
   // family options" is a budget ask, not a family recast. The reduction verbs are
@@ -114,38 +141,38 @@ export function answerQuestion(trip: Trip, question: string): AiReply {
     /\blean(er)?\b/.test(q) ||
     (has('reduce', 'lower', 'cut') && has('cost', 'bill', 'spend', 'price', 'fee', 'fuel', 'budget')) ||
     (has('bring') && has('down'))
-  ) return cheaperAlternative(trip)
+  ) return 'cheaper'
 
-  if (has('family', 'in-law', 'grandparent', 'baby', 'generation', 'young one', 'older folk', 'softer', 'kid friendly', 'kid-friendly')) return familyVersion(trip)
+  if (has('family', 'in-law', 'grandparent', 'baby', 'generation', 'young one', 'older folk', 'softer', 'kid friendly', 'kid-friendly')) return 'family'
   if (
     /\b(children|kids?|child|toddlers?|year old)\b/.test(q) &&
     /\b(remove|drop|cut|skip|unsuitable|not good|not child friendly|too much|too long|bore|bored)\b/.test(q)
-  ) return removeForKids(trip)
+  ) return 'kids'
 
   const asksEstimateAccuracy = /\b(costs?|prices?|times?|estimates?)\b/.test(q) && /\b(real|accurate|reliable|trust)\b/.test(q)
-  if (!asksEstimateAccuracy && has('cost', 'budget', 'expense', 'spend', 'total', 'per person', 'per head', 'how much', 'breakdown', 'afford', 'add up', 'money split', '₹')) return costSummary(trip, totals)
+  if (!asksEstimateAccuracy && has('cost', 'budget', 'expense', 'spend', 'total', 'per person', 'per head', 'how much', 'breakdown', 'afford', 'add up', 'money split', '₹')) return 'cost'
 
   // Tiring last of the "distinctive" group: its vocabulary overlaps money and
   // family phrasing, so it is tested after both have had their chance.
   if (
     has('tiring', 'relax', 'ease off', 'take it easy', 'exhaust', 'rushed', 'overstuffed', 'brutal', 'too many stops', 'fewer stops', 'too much walking', 'too much', 'lighten', 'lighter', 'gentler', 'simplify', 'slow', 'reduce the driving', 'cut down', 'trim day', 'dead by', 'back and forth', 'tone it down', 'too packed') ||
     (/\bpacked\b/.test(q) && /\b(drop|remove|cut|skip)\b/.test(q))
-  ) return makeLessTiring(trip)
+  ) return 'tiring'
 
   // "get stuck" is a risk question unless it is about traffic, which is a delay
   // question; the two share the word, so the traffic half is carved out here.
-  if (has('risk', 'worry', 'go wrong', 'goes wrong', 'weak point', 'danger', 'red flag', 'cautious', 'trouble', 'derail', 'overambitious', 'safe', 'problem') || (has('stuck') && !has('traffic'))) return biggestRisks(trip)
+  if (has('risk', 'worry', 'go wrong', 'goes wrong', 'weak point', 'danger', 'red flag', 'cautious', 'trouble', 'derail', 'overambitious', 'safe', 'problem') || (has('stuck') && !has('traffic'))) return 'risks'
 
   // "backup" stays here but is safe: rain is tested far above, so "monsoon backup
   // plan" and "backup for a washed out day" reach the rain plan, not this one.
   // /\blate\b/ rather than a substring so "Translate this into Malayalam" is not a
   // delay question.
-  if (has('delay', 'backup', 'traffic', 'stuck', 'breakdown', 'contingency', 'fallback', 'lose two hours', 'longer than plan') || /\blate\b/.test(q)) return delayBackup(trip)
+  if (has('delay', 'backup', 'traffic', 'stuck', 'breakdown', 'contingency', 'fallback', 'lose two hours', 'longer than plan') || /\blate\b/.test(q)) return 'delay'
 
   // Summary last, and deliberately narrow: no bare "plan".
-  if (has('summary', 'summarise', 'summarize', 'overview', 'recap', 'high level', 'overall', 'brief me', 'run me through', 'walk me through', 'tell me about', 'shape of this trip')) return planSummary(trip, totals)
+  if (has('summary', 'summarise', 'summarize', 'overview', 'recap', 'high level', 'overall', 'brief me', 'run me through', 'walk me through', 'tell me about', 'shape of this trip')) return 'summary'
 
-  return generalAnswer(trip, totals, question)
+  return INTENT_NONE
 }
 
 function footer(): string {

@@ -57,14 +57,22 @@ never the hex.
 
 | Token | Light | Dark | Category |
 |------|-------|------|-----|
-| `--cat-transport` | `#897ABB` | `#A99BD6` | transport |
-| `--cat-accommodation` | `#0D8D82` | `#2BB8AC` | accommodation |
-| `--cat-food` | `#F59E2D` | `#F5A94A` | food |
-| `--cat-activities` | `#2E8B57` | `#52BE80` | activities |
-| `--cat-entry-fees` | `#D6534D` | `#E06C6C` | entry fees |
-| `--cat-tolls-parking` | `--gray-500` → `#5A6A80` | `#93A6BC` | tolls & parking |
-| `--cat-local-travel` | `#B47207` | `#D99A2B` | local travel |
-| `--cat-emergency-buffer` | `#E4AE43` | `#E4B45E` | emergency buffer |
+| `--cat-transport` | `#2D61A9` | `#689ADF` | transport (steel blue) |
+| `--cat-accommodation` | `#237895` | `#68C1DF` | accommodation (cerulean) |
+| `--cat-food` | `#B24F24` | `#DF8C68` | food (terracotta) |
+| `--cat-activities` | `#378637` | `#6BC76B` | activities (leaf green) |
+| `--cat-entry-fees` | `#AB367A` | `#DF68AD` | entry fees (rose) |
+| `--cat-tolls-parking` | `--gray-500` → `#5A6A80` | `#93A6BC` | tolls & parking (neutral) |
+| `--cat-local-travel` | `#747722` | `#D0D454` | local travel (olive) |
+| `--cat-emergency-buffer` | `#9E6D1A` | `#DFB368` | emergency buffer (deep honey) |
+
+**The ramp is its own categorical family, NOT the status palette.** The first
+version reused `--warn-600`, `--ok-500`, `--danger-500` and `--yf-amber`
+verbatim, so an entry-fees bar wore the critical coral and read as an alert,
+and a chart colour was indistinguishable from a status chip. The replacement
+keeps one lightness band, every hue ≥15° from its siblings (the hue gate reads
+the first four) and clear of the POI magenta — the gate's tolerated-collision
+list is empty as a result.
 
 Also (v0.37.0, selects): `.select` drops its glass-pill override and shares the
 exact `.input` surface — the custom chevron `background-image` is the only
@@ -181,6 +189,15 @@ border, not a fixed 32/38/48px ladder. Context can override this: the ≤720px
 - All interactive elements share one `--ring` focus token — keyboard users get a
   consistent, visible focus indication in both themes.
 - Touch targets on mobile are ≥40px per the `@media (max-width:720px)` block.
+- **The `--ink-*` family is the AA-bearing text layer for tinted surfaces** —
+  `--ink-amber` / `--ink-ok` (SYS-3a), plus `--ink-coral` (`#A82E2E`; 5.16–5.69
+  on the soft danger tints where `#C93B3B` read 4.22:1) and `--ink-teal`
+  (`#0B6B63`; 5.08–5.79 on the tint chips and hover states where `--teal-deep`
+  read 4.0–4.5:1). Dark re-declares each to the raw alias, whose lighter values
+  already pass there, so one declaration is correct in both themes. **The
+  light-theme AA exception list is now empty** — the seven previously tolerated
+  pairs (danger chips, saffron chips, warn pills, the fuel chip, the icon-link
+  hover) were folded into the base rules rather than exempted.
 
 ## v0.48 consistency pass
 
@@ -198,6 +215,16 @@ One ladder replaces the eight blur values previously scattered across components
 Text-bearing overlays (map legend body) keep a near-opaque `--yf-surface` with a
 glass border: readability before transparency. The locked-CTA scrim keeps
 its gentler 1.5px frost by design.
+
+### Native-shell dialect (the installed app)
+
+`html.native-shell` — set by `main.tsx` inside Capacitor — deliberately renders
+a **flatter variant**: backdrop blur on the nav / bottom-nav / glass layers and
+the landing's decorative animations are switched off for WebView performance,
+scrollbars are hidden, and the shell swaps the website topnav for the
+`BottomNav`. This is a platform dialect, not a regression to repair: the same
+tokens, the same hierarchy, fewer GPU effects. A future "the app looks flatter
+than the site" pass should read this paragraph first.
 
 ### One green
 
@@ -226,15 +253,21 @@ already resolved to `#2BB8AC` in both families, so nothing there changes.
   and `--text-2xl` are absent: each has zero declarations and zero usages in
   `src/styles.css`. The CSS records deletion rather than adoption of the unused
   steps (`5202–5205`); the previously documented eight-step scale does not exist.
-- **Spacing scale:** `--s-1`, `--s-2`, `--s-3`, `--s-4`, `--s-5`, `--s-6`,
-  `--s-8` are all absent: each has zero declarations and zero usages in
-  `src/styles.css`. There is no implemented `--s-*` scale; see the same deletion
-  comment (`5202–5205`) and the literal-padding inventory below.
+- **Spacing scale:** the historical `--s-1…--s-8` set stays deleted (it never
+  had a consumer). The ladder now lives in `--space-1…--space-10`
+  (2/4/6/8/12/14/16/20/22/24 — the spacing gate's `LADDER` set exactly), added
+  **with adopters** per the adopt-or-delete rule (`.card` padding, `.poi-grp`
+  gap/margins, `.opt-delta`, `.day-warn-pill`). No value changed; only the home
+  is new. A pin in `tests/design-system.test.ts` fails the build if the ramp and
+  the gate's ladder drift apart, and the literal-padding inventory below is a
+  dated snapshot of what has not yet moved.
 
 ### Radii
 
 Card and popover radii touched by the consistency pass use `--radius-sm` (12), `--radius` (18) or
-`--radius-lg` (24); pills use 999px. A handful of one-off card radii (9-14px) remain, staged for the spacing sweep. The mobile trip dock, sticky totals strip
+`--radius-lg` (24); pills use 999px — the eight rules that spelled the pill radius `99px` (tracks,
+badges, chip counts) are unified on `999px`, and every one is a small-height element where the two
+values clamp identically. A handful of one-off card radii (9-14px) remain, staged for the spacing sweep. The mobile trip dock, sticky totals strip
 and board corner cards moved from 16/20 to `--radius`.
 
 ### Z-index ladder
@@ -367,3 +400,16 @@ entries: light `.ride-purpose-fuel` (4.45:1); dark `.yf-map-idea-add` (2.05:1),
 raw-duration entries. These are test-output observations, not browser-verified
 contrast results or proof of a new regression. CSS line numbers changed during
 the pass; no source, tests or baselines were edited for this reconciliation.
+
+## Status since the reconciliation snapshot (2026-09-22 design-audit pass)
+
+The token layer changed after the measured appendix above, without a full
+re-measure: the categorical ramp and the `--ink-*` additions (see their tables),
+the `--space-*` ramp with its first adopters, the shadow hue unified on
+`--shadow-navy-rgb` (two hardcoded `16,46,75` shadows joined the shared var),
+eight `99px` pills spelled `999px`, and two dead kicker spec blocks deleted —
+the kicker-unification block was already the render truth, because it is
+declared later at equal specificity and therefore wins; a static read that
+compares the base declarations alone will wrongly call the recipe inconsistent.
+Line references in the historical sections above may be stale, and the
+appendix's counts describe the pre-pass file.

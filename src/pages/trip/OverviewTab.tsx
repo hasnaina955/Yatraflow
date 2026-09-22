@@ -1,5 +1,8 @@
 // ============ Trip workspace — Overview tab ============
 // Mechanical extraction from src/pages/TripWorkspace.tsx (M3.4) — no behavior changes.
+import { daySlots, tripDayAttribution, type DaySlotsDeps } from '../../lib/daySlots'
+import { mapRoadViewFromLegs, type TripRoadView } from '../../lib/tripRoad'
+import type { SegmentHit } from '../../lib/geocode'
 import { useEffect, useMemo, useState } from 'react'
 import { CircleCheck, CloudSun, Droplets, Lightbulb, Pin, Siren, TriangleAlert } from 'lucide-react'
 import type { Trip } from '../../data/types'
@@ -10,11 +13,11 @@ import { fetchDailyWeather, forecastAvailable, wmoInfo } from '../../lib/weather
 import type { DayWeather } from '../../lib/weather'
 import { timeAgo } from './shared'
 import { Avatar, Chip, StatTile, RouteSnapshot } from '../../components/ui'
-import { wmoIcon } from '../../components/icons'
+import { InlineIcon, wmoIcon } from '../../components/icons'
 
 // ================= Overview =================
 
-export function OverviewTab({ trip, onOpenTimeline, onOpenMap, onInvite, health, totals }: {
+export function OverviewTab({ trip, onOpenTimeline, onOpenMap, onInvite, health, totals, road, corridorSegments }: {
   trip: Trip
   editable: boolean
   onOpenDecisions: () => void
@@ -23,6 +26,11 @@ export function OverviewTab({ trip, onOpenTimeline, onOpenMap, onInvite, health,
   onInvite: () => void
   health: ReturnType<typeof computeHealth>
   totals: ReturnType<typeof computeTotals>
+  /** The workspace's ONE road measurement, so the matrix attributes days by the
+   *  same road-true km the Map rail does. */
+  road?: TripRoadView | null
+  /** The corridor scan's segments, shared with the Map rail (from the cache). */
+  corridorSegments?: SegmentHit[]
 }) {
   const db = useDb()
   const timeFormat = useTimeFormat()
@@ -76,10 +84,10 @@ export function OverviewTab({ trip, onOpenTimeline, onOpenMap, onInvite, health,
                   ? <li>No schedule issues detected — buffers look healthy.</li>
                   : health.warnings.slice(0, 3).map(w => (
                     <li key={w.code + w.title}>{w.severity === 'high'
-                      ? <><Siren size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} /></>
+                      ? <><InlineIcon icon={Siren} size={12} gap={3} /></>
                       : w.severity === 'medium'
-                      ? <><TriangleAlert size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} /></>
-                      : <><Lightbulb size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} /></>}{w.title}</li>
+                      ? <><InlineIcon icon={TriangleAlert} size={12} gap={3} /></>
+                      : <><InlineIcon icon={Lightbulb} size={12} gap={3} /></>}{w.title}</li>
                   ))}
               </ul>
             </div>
@@ -110,7 +118,7 @@ export function OverviewTab({ trip, onOpenTimeline, onOpenMap, onInvite, health,
                   <span className="warn-icon">{w.severity === 'high' ? <Siren size={13} aria-hidden /> : w.severity === 'medium' ? <TriangleAlert size={13} aria-hidden /> : <Lightbulb size={13} aria-hidden />}</span>
                   <div>
                     <div className="warn-title">{w.title}</div>
-                    <div className="warn-fix"><CircleCheck size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />{w.fix}</div>
+                    <div className="warn-fix"><InlineIcon icon={CircleCheck} size={12} gap={3} />{w.fix}</div>
                   </div>
                 </div>
               ))}
@@ -141,6 +149,8 @@ export function OverviewTab({ trip, onOpenTimeline, onOpenMap, onInvite, health,
             <button className="link-btn teal" onClick={onOpenMap}>Open map →</button>
           </div>
         </div>
+
+        <SlotMatrix trip={trip} road={road} corridorSegments={corridorSegments} />
 
         <div className="card">
           <div className="row-between card-head">
@@ -221,7 +231,7 @@ function WeatherCard({ trip }: { trip: Trip }) {
   }, [anchor, trip.startDate, trip.days.length]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (state === 'loading') {
-    return <div className="card"><h3 className="card-head"><CloudSun size={14} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Weather</h3><p className="muted small">Loading forecast…</p></div>
+    return <div className="card"><h3 className="card-head"><InlineIcon icon={CloudSun} size={14} gap={4} />Weather</h3><p className="muted small">Loading forecast…</p></div>
   }
   if (state !== 'ready') return null
 
@@ -230,7 +240,7 @@ function WeatherCard({ trip }: { trip: Trip }) {
   return (
     <div className="card">
       <div className="row-between card-head">
-        <h3><CloudSun size={14} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Weather along the route</h3>
+        <h3><InlineIcon icon={CloudSun} size={14} gap={4} />Weather along the route</h3>
         <span className="small muted">Open-Meteo · forecasts ±15 days</span>
       </div>
       <div className="weather-strip">
@@ -243,14 +253,126 @@ function WeatherCard({ trip }: { trip: Trip }) {
               <div className="weather-day">{dayNum >= 0 ? `Day ${dayNum + 1}` : w.date}</div>
               <div className="weather-icon">{(() => { const W = wmoIcon(w.code); return <W size={15} aria-hidden /> })()}</div>
               <div className="weather-temp">{Math.round(w.tempMinC)}°–{Math.round(w.tempMaxC)}°</div>
-              <div className="small muted"><Droplets size={11} aria-hidden style={{ verticalAlign: '-2px', marginRight: 2 }} />{w.rainChancePct}%</div>
+              <div className="small muted"><InlineIcon icon={Droplets} size={11} gap={2} />{w.rainChancePct}%</div>
             </div>
           )
         })}
       </div>
       {wetDays > 0 && (
         <p className="hint-text" style={{ marginTop: 8 }}>
-          <TriangleAlert size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />High rain chance on {wetDays} day{wetDays > 1 ? 's' : ''} — consider indoor alternatives for weather-sensitive stops (beaches, viewpoints, treks).
+          <InlineIcon icon={TriangleAlert} size={12} gap={3} />High rain chance on {wetDays} day{wetDays > 1 ? 's' : ''} — consider indoor alternatives for weather-sensitive stops (beaches, viewpoints, treks).
+        </p>
+      )}
+    </div>
+  )
+}
+
+/** P6.3: which parts each day holds, at a glance - the trip's own plan read
+ *  day by day, in the rail's own grammar.
+ *
+ *  This reads the SAME corridor halts and the SAME day attribution the Map
+ *  rail does. It used to pass `haltSegments: []` and `anchors: []`, which had
+ *  two consequences: the F and S columns could never fill (fuel and stretch are
+ *  engine-derived parts — `addSkeleton` deliberately never invents them, so
+ *  with no engine segments those two of the six columns were decorative), and
+ *  the day's `total` disagreed with the rail's for the same day. A second
+ *  derivation of the same day is the bug, so there is no longer one. */
+function SlotMatrix({ trip, road, corridorSegments }: {
+  trip: Trip
+  road?: TripRoadView | null
+  /** The corridor scan's segments — the same array the Map rail reads. */
+  corridorSegments?: SegmentHit[]
+}) {
+  const kinds: Array<{ key: 'breakfast' | 'lunch' | 'fuel' | 'stretch' | 'dinner' | 'stay'; label: string; name: string }> = [
+    { key: 'breakfast', label: 'B', name: 'breakfast' },
+    { key: 'lunch', label: 'L', name: 'lunch' },
+    { key: 'fuel', label: 'F', name: 'fuel' },
+    { key: 'stretch', label: 'S', name: 'a stretch break' },
+    { key: 'dinner', label: 'D', name: 'dinner' },
+    { key: 'stay', label: 'N', name: 'the night' },
+  ]
+  const deps = useMemo<Omit<DaySlotsDeps, 'dayStops'>>(() => {
+    // Same helper, same inputs as the Map tab, so the attribution cannot differ.
+    const dayRoadKm = mapRoadViewFromLegs(road?.chain ?? null, road?.legs ?? null, trip.days.map(d => d.index)).dayRoadKm
+    const attribution = tripDayAttribution(trip, dayRoadKm)
+    return {
+      haltSegments: corridorSegments ?? [],
+      anchors: [],
+      dayOfSegment: attribution.dayOfSegment,
+      daySpanKm: attribution.daySpanKm,
+      fillSkeleton: true,
+      travelStyle: trip.travelStyle,
+      transportMode: trip.transportMode,
+      travellers: trip.travellers,
+      existingNames: new Set(trip.days.flatMap(d => d.stops.map(s => s.title.toLowerCase()))),
+      // The matrix reads slot STATES only, so candidate scoring (two geometry
+      // projections per hit across the whole corridor pool) is pure waste here.
+      limit: 0,
+    }
+  }, [trip, road, corridorSegments])
+  const rows = useMemo(
+    () => trip.days.map(d => ({ day: d, slots: daySlots(d.index, { ...deps, dayStops: d.stops }) })),
+    [trip.days, deps],
+  )
+  const hasCorridor = (corridorSegments?.length ?? 0) > 0
+  // S11: a day with no slots at all is the EMPTIEST day, and the old
+  // `total > 0` filter dropped it — so the callout could never name the one day
+  // that most needed naming.
+  const thinnest = rows
+    .map(r => ({ index: r.day.index, filled: r.slots.filter(s => s.state === 'filled').length, total: r.slots.length }))
+    .sort((a, b) => (a.filled / Math.max(1, a.total)) - (b.filled / Math.max(1, b.total)))[0]
+  return (
+    <div className="card">
+      <h3 className="card-head">What each day holds</h3>
+      <div className="slotmatrix" role="table" aria-label="Planned parts per day">
+        <div className="slotmatrix-row slotmatrix-head" role="row">
+          <span className="slotmatrix-day" role="columnheader"><span className="sr-only">Day</span></span>
+          {kinds.map(k => (
+            <span key={k.key} className="slotmatrix-cell" role="columnheader" aria-label={k.name}>{k.label}</span>
+          ))}
+          <span className="slotmatrix-total" role="columnheader">filled</span>
+        </div>
+        {rows.map(({ day, slots }) => {
+          const filled = slots.filter(s => s.state === 'filled').length
+          return (
+            <div key={day.index} className="slotmatrix-row" role="row">
+              <span className="slotmatrix-day" role="rowheader">Day {day.index + 1}</span>
+              {kinds.map(k => {
+                const slot = slots.find(x => x.key === k.key)
+                const state = slot ? slot.state : 'none'
+                // S10: the cell was a bare glyph with the meaning in a `title`,
+                // which assistive tech does not reliably announce — the whole
+                // grid read as punctuation. The glyph is now decorative and the
+                // cell carries the sentence.
+                const meaning = slot
+                  ? `${slot.label}: ${slot.state === 'filled'
+                    ? (slot.filledStop?.title ?? 'planned')
+                    : slot.state === 'auto' ? 'engine-managed' : 'still open'}`
+                  : `${k.name}: not part of this day`
+                return (
+                  <span
+                    key={k.key}
+                    className={`slotmatrix-cell is-${state}`}
+                    role="cell"
+                    aria-label={`Day ${day.index + 1} ${meaning}`}
+                  >
+                    <span aria-hidden>{state === 'filled' ? '●' : state === 'auto' ? '○' : state === 'empty' ? '·' : ''}</span>
+                  </span>
+                )
+              })}
+              <span className="slotmatrix-total" role="cell">{filled}/{slots.length}</span>
+            </div>
+          )
+        })}
+      </div>
+      <p className="muted small" style={{ margin: '6px 0 0' }}>
+        Solid = planned, hollow = engine-managed, dot = still open.
+        {thinnest ? ` Thinnest day: Day ${thinnest.index + 1}${thinnest.total === 0 ? ' (nothing planned yet)' : ` (${thinnest.filled} of ${thinnest.total})`}.` : ''}
+      </p>
+      {!hasCorridor && (
+        <p className="muted small" style={{ margin: '4px 0 0' }}>
+          Partial: this trip&apos;s corridor hasn&apos;t been scanned yet, so the fuel and stretch breaks the engine
+          derives aren&apos;t counted here. Open the Map tab once and this fills in.
         </p>
       )}
     </div>

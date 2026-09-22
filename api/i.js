@@ -2,6 +2,7 @@ const DEFAULT_ORIGIN = 'https://yatraflow-blond.vercel.app'
 const DEFAULT_TITLE = 'YatraFlow — Plan real trips, together'
 const DEFAULT_DESCRIPTION = 'Plan realistic India trips together. See the time, distance and cost impact of every stop.'
 const ID_RE = /^[A-Za-z0-9_-]{1,64}$/
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const COVER_WIDTH = 1200
 const WIKIMEDIA_PATH_RE = /^https:\/\/[^/]*wikimedia\.org\/wikipedia\/([^/]+)\/(.+)$/
 
@@ -33,11 +34,47 @@ function escapeHtml(value) {
   })[character])
 }
 
-function renderPublication(publication, id) {
+/** Does this entitlement belong to this publication?
+ *
+ *  The gate for a buyer's card (ROADMAP I-21). `?buyer=<entitlement id>` asks
+ *  for the purchase framing, and that framing is a claim — "I bought this" —
+ *  so it is rendered only when the database agrees the entitlement is real and
+ *  is for THIS publication. The entitlement id is the capability: owner-only
+ *  RLS keeps it readable to its buyer alone, so nobody else can mint the card.
+ *
+ *  Fails CLOSED and silently — every not-verified path (a missing function
+ *  because the migration has not been applied, a timeout, an unexpected body)
+ *  answers false, and the caller then renders the publication's own card. So
+ *  the worst case is a buyer's link previewing as the creator's card, never a
+ *  broken preview and never an unverified claim. */
+async function ownsPublication(url, key, entitlement, id) {
+  try {
+    const response = await fetch(`${url.replace(/\/+$/, '')}/rest/v1/rpc/owns_publication`, {
+      method: 'POST',
+      headers: {
+        apikey: key,
+        authorization: `Bearer ${key}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ p_entitlement: entitlement, p_pub_id: id }),
+      signal: AbortSignal.timeout(4000),
+    })
+    if (!response.ok) return false
+    // Strictly `=== true`: the RPC answers a JSON boolean, and anything else
+    // (an error object, a string) must not read as verified.
+    return (await response.json()) === true
+  } catch {
+    return false
+  }
+}
+
+function renderPublication(publication, id, buyer = null) {
   const origin = (process.env.PUBLIC_ORIGIN ||
     (process.env.VERCEL_PROJECT_PRODUCTION_URL && `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`) ||
     DEFAULT_ORIGIN).replace(/\/+$/, '')
-  const title = publication?.title ? `${publication.title} — YatraFlow` : DEFAULT_TITLE
+  const title = publication?.title
+    ? (buyer ? `I bought ${publication.title} — YatraFlow` : `${publication.title} — YatraFlow`)
+    : DEFAULT_TITLE
   const facts = []
   if (publication?.duration_days) facts.push(`${publication.duration_days} days`)
   const budget = Number(publication?.estimated_budget_per_person_inr)
@@ -45,7 +82,12 @@ function renderPublication(publication, id) {
   const route = publication?.route_summary
   if (Array.isArray(route)) facts.push(route.join(' → '))
   else if (typeof route === 'string' && route) facts.push(route)
-  const description = publication?.tagline || facts.join(' · ') || DEFAULT_DESCRIPTION
+  // A buyer's card leads with the fact that was verified and then the plan's
+  // own numbers; the creator's tagline belongs on the creator's card. No
+  // amount paid and no buyer's name — see the migration header.
+  const description = buyer
+    ? ['Bought on YatraFlow', ...facts].join(' · ')
+    : (publication?.tagline || facts.join(' · ') || DEFAULT_DESCRIPTION)
   const cover = typeof publication?.cover_image_url === 'string' && /^https:\/\/\S+$/.test(publication.cover_image_url)
     ? sizedCover(publication.cover_image_url) : ''
   // A publication with no cover still needs a picture: without one the link
@@ -61,6 +103,9 @@ function renderPublication(publication, id) {
   ].join('\n')
   const target = `/#/pub/${id}`
   const canonical = `${origin}/i/${id}`
+  // The buyer's address is a variant of the same page with its own metadata, so
+  // it advertises itself; the canonical link still points at the publication.
+  const ogUrl = buyer ? `${canonical}?buyer=${encodeURIComponent(buyer)}` : canonical
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -72,7 +117,7 @@ function renderPublication(publication, id) {
 <meta property="og:site_name" content="YatraFlow" />
 <meta property="og:title" content="${escapeHtml(title)}" />
 <meta property="og:description" content="${escapeHtml(description)}" />
-<meta property="og:url" content="${escapeHtml(canonical)}" />
+<meta property="og:url" content="${escapeHtml(ogUrl)}" />
 ${imageTags}
 <meta name="twitter:card" content="summary_large_image" />
 <meta name="twitter:title" content="${escapeHtml(title)}" />
@@ -95,6 +140,11 @@ export default async function handler(req, res) {
   }
   const id = req.query?.id
   if (typeof id !== 'string' || !ID_RE.test(id)) return res.status(400).end()
+  // A malformed `buyer` is IGNORED rather than rejected: a garbled parameter
+  // must still preview as the publication, never as a dead link. Nothing is
+  // rendered from it until the RPC above confirms it.
+  const rawBuyer = req.query?.buyer
+  const buyer = typeof rawBuyer === 'string' && UUID_RE.test(rawBuyer) ? rawBuyer : null
 
   let publication = null
   let status = 503
@@ -121,6 +171,13 @@ export default async function handler(req, res) {
       status = 503
     }
   }
+  // Verified only once the publication is known to exist, so a purchase claim
+  // can never be rendered over a missing plan.
+  let verifiedBuyer = null
+  if (publication && buyer && url && key && (await ownsPublication(url, key, buyer, id))) {
+    verifiedBuyer = buyer
+  }
+
   res.status(status)
-  return req.method === 'HEAD' ? res.end() : res.send(renderPublication(publication, id))
+  return req.method === 'HEAD' ? res.end() : res.send(renderPublication(publication, id, verifiedBuyer))
 }

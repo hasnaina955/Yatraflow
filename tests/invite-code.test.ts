@@ -4,6 +4,7 @@
 // from the trip name, one separator, a 4-char unambiguous tail; casual input
 // (lowercase, spaces, stray dashes) normalises to the canonical form.
 import { describe, it, expect } from 'vitest'
+import { readFileSync } from 'node:fs'
 import { makeInviteCode, normalizeInviteCode, looksLikeInviteCode, inviteRoute, INVITE_SEPARATOR } from '../src/lib/inviteCode'
 
 describe('makeInviteCode', () => {
@@ -35,6 +36,15 @@ describe('makeInviteCode', () => {
     const head = code.split(INVITE_SEPARATOR)[0]
     expect(head).toMatch(/^[A-Z0-9]{1,10}$/)
     expect(head).toBe('MEGHALAYAL')
+  })
+
+  it('draws the tail from the platform CSPRNG, never Math.random (audit 2026-09-22)', () => {
+    // A join credential's generator is a security property (the presence.ts
+    // fix class). Comments may MENTION the weak generator — strip them.
+    const source = readFileSync(new URL('../src/lib/inviteCode.ts', import.meta.url), 'utf8')
+    const code = source.split('\n').filter(l => !/^\s*(\/\/|\*|\/\*)/.test(l)).join('\n')
+    expect(code).not.toMatch(/Math\s*\.\s*random\s*\(/)
+    expect(code).toContain('getRandomValues')
   })
 })
 

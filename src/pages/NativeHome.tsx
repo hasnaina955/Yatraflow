@@ -11,6 +11,7 @@
 // isNative && me, so the landing page's SEO/marketing job stays untouched.
 
 import { useMemo } from 'react'
+import { InlineIcon } from '../components/icons'
 import { Bell, Compass, MapPin, Plus, Sparkles, Users, Wallet } from 'lucide-react'
 import type { Trip } from '../data/types'
 import { useUsers, useSessionUserId, useNotifications, tripsForUser } from '../store/store'
@@ -56,9 +57,9 @@ function HomeTripRow({ trip, onNavigate }: { trip: Trip; onNavigate: (r: string)
               ? <>Starts {new Date(Date.parse(trip.startDate!)).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}</>
               : <>{trip.days.length} days</>}
           <span aria-hidden>·</span>
-          <span><Wallet size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 2 }} />{formatInrShort(totals.costPerPersonInr)}/person</span>
+          <span><InlineIcon icon={Wallet} size={12} gap={2} />{formatInrShort(totals.costPerPersonInr)}/person</span>
           {crew > 1 && (
-            <><span aria-hidden>·</span><span><Users size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 2 }} />{crew}</span></>
+            <><span aria-hidden>·</span><span><InlineIcon icon={Users} size={12} gap={2} />{crew}</span></>
           )}
         </span>
       </span>

@@ -28,6 +28,7 @@ import { addCrewEntry, PLANNER_ROLE_LINE, type CrewEntry } from '../lib/crewInvi
 import { stashHandoff } from '../lib/createHandoff'
 import { routeIq, routeIqLine, type RoutePoint } from '../lib/routeIq'
 import { seasonNoteFor, monthOfIso } from '../lib/seasonality'
+import { radarLines } from '../lib/createRadar'
 import { fetchTripThumbUrl } from '../lib/tripThumb'
 import { Field, Chip, toast, Odometer, useMedia } from '../components/ui'
 import { Select } from '../components/Select'
@@ -265,6 +266,16 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
     if (!month) return null
     return seasonNoteFor([f.startLocation, ...dests.map(d => d.name)], month)
   }, [f.startDate, f.startLocation, dests])
+
+  // P8.3 - the calm radar: what the pinned plans and the drive will negotiate
+  // about, said once, here, while changing the plan is still free.
+  const radar = useMemo(() => radarLines({
+    commitments: commitments.map(x => ({ title: x.title, type: x.type, dayIndex: x.dayIndex, time: x.time })),
+    days: bill.days,
+    roadKm: bill.roadKm,
+    roundTrip: f.roundTrip,
+    startName: f.startLocation.trim() || 'your start',
+  }), [commitments, bill.days, bill.roadKm, f.roundTrip, f.startLocation])
 
   // P4 - the draft that waits. Loaded once on mount; the banner decides whether
   // it is resumed or thrown away. Autosave stays OFF until that decision, so a
@@ -1186,9 +1197,16 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
               <span className="ct-lbl">Pinned plans</span>
               <span className="ct-party-sub">optional - trains, weddings, anything with a time</span>
             </div>
-            <p className="hint-text" style={{ margin: '0 0 10px' }}>
-              Hotel check-ins, train or flight departures, events. The planner protects these when it warns about tight schedules.
-            </p>
+            {createFunnelOn('iq') && radar.length > 0 && (
+              <div className="ct-radar" role="status">
+                {radar.map(line => (
+                  <div key={line.headline} className="ct-radar-line">
+                    <b>{line.headline}</b>
+                    <span>{line.detail}</span>
+                  </div>
+                ))}
+              </div>
+            )}
             {commitments.length > 0 && (
               <div style={{ marginBottom: 10 }}>
                 {commitments.map((x, i) => (

@@ -6737,3 +6737,8 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .dock-secondary { display: grid; place-items: center; flex: none; width: 42px; height: 42px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--card); color: var(--text-2); cursor: pointer; }
 .dock-secondary:hover:not(:disabled), .dock-secondary:focus-visible:not(:disabled) { border-color: var(--teal); color: var(--teal-deep); outline: none; }
 .dock-secondary:disabled { opacity: 0.45; cursor: not-allowed; }
+/* P8.3 - the calm radar under the pinned plans */
+.ct-radar { display: grid; gap: 6px; margin: 0 0 10px; }
+.ct-radar-line { display: flex; flex-direction: column; gap: 2px; padding: 8px 12px; border: 1px solid var(--violet-soft); border-radius: var(--radius-sm); background: var(--card); }
+.ct-radar-line b { font-size: 12.5px; }
+.ct-radar-line span { font-size: 11.5px; color: var(--text-3); }

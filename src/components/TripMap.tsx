@@ -1116,7 +1116,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                     opacity={dark ? 0.6 : 0.75}
                     interactive={false}
                   />
-                  <MapRoute coordinates={coords} color="#2A6FDB" width={4.5} opacity={0.95} />
+                  <MapRoute coordinates={coords} color={dark ? '#2A6FDB' : '#0B2545'} width={4.5} opacity={0.95} />
                   <RouteArrows coordinates={coords} dark={dark} />
                 </>
               )
@@ -1381,7 +1381,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
           {legendOpen && (
             <div className="map-legend-body">
               {dayFilter === 'all'
-                ? <>blue line = whole route{returnLeg ? ' · dashed = drive back home' : ''} · </>
+                ? <>main line = whole route{returnLeg ? ' · dashed = drive back home' : ''} · </>
                 : <>colours = day · </>}
               pin icon = stop type · number = timeline order · dashed pin = "maybe" · plane/flag pins = start & final destination · plane/flag pins on a single day = that day's start and end where no stop is pinned · gold bulb markers = nearby ideas{onAddNearby ? ' (+ to add)' : ''}{ideaCats.length > 0 ? ' · chips filter ideas by type' : ''} · click a pin for details · hollow amber pin = an unplanned part · tap to open it
             </div>

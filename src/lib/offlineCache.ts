@@ -21,7 +21,43 @@
 export const SNAPSHOT_VERSION = 1
 
 const DB_NAME = 'yatraflow-offline'
-const STORE_NAME = 'snapshots'
+// v2 adds the pending-write queue (lib/writeQueue.ts). An upgrade is exactly
+// how an existing install gets the new store: onupgradeneeded creates whichever
+// store this version names and leaves the other's data alone.
+const DB_VERSION = 2
+/** The account's last clean hydrate. */
+export const SNAPSHOT_STORE = 'snapshots'
+/** Trip edits that have not reached the server yet (PWA phase 3). */
+export const WRITE_STORE = 'writes'
+
+let dbPromise: Promise<IDBDatabase | null> | null = null
+
+/** Open (once) the offline database, creating any missing store. Resolves null
+ *  when IndexedDB is unavailable or blocked — every caller degrades to "no
+ *  cache" rather than failing. */
+export function openOfflineDb(): Promise<IDBDatabase | null> {
+  if (dbPromise) return dbPromise
+  dbPromise = new Promise<IDBDatabase | null>(resolve => {
+    try {
+      if (typeof indexedDB === 'undefined') {
+        resolve(null)
+        return
+      }
+      const request = indexedDB.open(DB_NAME, DB_VERSION)
+      request.onupgradeneeded = () => {
+        const db = request.result
+        for (const store of [SNAPSHOT_STORE, WRITE_STORE]) {
+          if (!db.objectStoreNames.contains(store)) db.createObjectStore(store)
+        }
+      }
+      request.onsuccess = () => resolve(request.result)
+      request.onerror = () => resolve(null)
+    } catch {
+      resolve(null)
+    }
+  })
+  return dbPromise
+}
 
 /** The slices worth keeping: the plans themselves plus what renders around
  *  them. Notifications are perishable and the admin audit log is not this
@@ -52,37 +88,13 @@ export interface SnapshotStore {
 
 /** IndexedDB-backed store. Every path resolves — "no cache" is a valid answer. */
 function idbStore(): SnapshotStore {
-  let dbPromise: Promise<IDBDatabase | null> | null = null
-
-  const open = (): Promise<IDBDatabase | null> => {
-    if (dbPromise) return dbPromise
-    dbPromise = new Promise<IDBDatabase | null>(resolve => {
-      try {
-        if (typeof indexedDB === 'undefined') {
-          resolve(null)
-          return
-        }
-        const request = indexedDB.open(DB_NAME, 1)
-        request.onupgradeneeded = () => {
-          const db = request.result
-          if (!db.objectStoreNames.contains(STORE_NAME)) db.createObjectStore(STORE_NAME)
-        }
-        request.onsuccess = () => resolve(request.result)
-        request.onerror = () => resolve(null)
-      } catch {
-        resolve(null)
-      }
-    })
-    return dbPromise
-  }
-
   const run = async <T>(mode: IDBTransactionMode, fn: (store: IDBObjectStore) => IDBRequest, fallback: T): Promise<T> => {
-    const db = await open()
+    const db = await openOfflineDb()
     if (!db) return fallback
     return new Promise<T>(resolve => {
       try {
-        const transaction = db.transaction(STORE_NAME, mode)
-        const request = fn(transaction.objectStore(STORE_NAME))
+        const transaction = db.transaction(SNAPSHOT_STORE, mode)
+        const request = fn(transaction.objectStore(SNAPSHOT_STORE))
         request.onsuccess = () => resolve((request.result as T) ?? fallback)
         request.onerror = () => resolve(fallback)
       } catch {

@@ -19,6 +19,9 @@ import { toast } from '../components/ui'
 import { isMissingColumnError, rowToTrip, tripToRow, type OptionalColumnsProbe, type TripRow } from '../lib/tripRow'
 import { attachDnaAccount, detachDnaAccount } from '../lib/tripDna'
 import { clearSnapshot, loadSnapshot, saveSnapshot } from '../lib/offlineCache'
+import {
+  clearWritesFor, dropWrite, pendingWrites, queueWrite, replayVerdict, shouldRetry,
+} from '../lib/writeQueue'
 import { ownSuggestedCover, unclaimedCovers } from '../lib/coverUpload'
 import { makeInviteCode, normalizeInviteCode } from '../lib/inviteCode'
 import { suggestionToRow, decisionToRow, activityToRow, notificationToRow, publishedToRow } from '../lib/restoreRows'
@@ -344,6 +347,9 @@ export function init(): void {
     })
   }
   if (typeof addEventListener !== 'undefined') addEventListener('pagehide', _flushTripWrites)
+  // PWA phase 3: the moment the network returns, push everything this device
+  // held. (Node tests have no addEventListener - init() must not throw there.)
+  if (typeof addEventListener !== 'undefined') addEventListener('online', () => { void replayQueuedWrites() })
 
   const hydrate = async (userId: string | null) => {
     // Same-user dedupe FIRST, generation bump second. The old order bumped
@@ -376,7 +382,12 @@ export function init(): void {
       // that just left. The in-memory version of this bug (#45) showed the
       // previous user's trips; the on-disk one would survive a reload.
       const departingUser = cache.sessionUserId
-      if (departingUser) void clearSnapshot(departingUser)
+      if (departingUser) {
+        void clearSnapshot(departingUser)
+        // Their unsynced edits are theirs alone - the next person on this
+        // device must never be the one whose session "syncs" them.
+        void clearWritesFor(departingUser)
+      }
       const anonPromise = (async () => {
       try {
         const [profRes, pubRes] = await Promise.all([
@@ -439,6 +450,10 @@ export function init(): void {
     // probe-gated (no `user_dna` table → device-local, exactly as before), and
     // fired after realtime so a slow DNA read never delays the workspace.
     if (gen === hydrateGen && cache.sessionUserId === userId) void attachDnaAccount(supabase, userId)
+    // PWA phase 3: a boot that came online (or never left it) pushes any edits
+    // this device is still holding - e.g. a tab closed mid-debounce, or a
+    // replay that raced the last offline period.
+    if (gen === hydrateGen && cache.sessionUserId === userId) void replayQueuedWrites()
   }
 
   supabase.auth.getSession().then(({ data }) => {
@@ -470,6 +485,9 @@ export async function resumeSync(): Promise<void> {
   activeHydrate = null
   await hydrateFromSupabase(userId, gen, false)
   if (gen === hydrateGen && cache.sessionUserId === userId) connectRealtime(userId)
+  // PWA phase 3: a resumed app is by definition back on the network - push any
+  // edits the backgrounded device is still holding.
+  if (gen === hydrateGen && cache.sessionUserId === userId) void replayQueuedWrites()
 }
 
 async function hydrateFromSupabase(userId: string, gen: number, seedIfEmpty = true): Promise<void> {
@@ -1857,9 +1875,74 @@ async function persistTripFieldNow(id: ID, t: Trip | undefined): Promise<void> {
   // optimistic reorder the user had just accepted. (Board/Timeline reorder bug.)
   markLocalWrite('trips', id)
   const owner = t.members?.find(m => m.role === 'owner')
+  // PWA phase 3 - durable BEFORE the attempt: an edit captured here survives a
+  // failed send, a crashed tab or a closed laptop, and is dropped the moment
+  // the server confirms. Keyed by trip id, so a burst of edits leaves ONE
+  // entry holding the newest snapshot - the same coalescing the in-memory map
+  // above performs. capturedAt is the send time (up to one debounce window
+  // after the edit itself); it only steers the conflict NOTICE, never the write.
+  await queueWrite({ tripId: id, ownerId: owner?.userId ?? id, capturedAt: Date.now(), attempts: 0, trip: t })
   const cols = await tripsHaveOptionalColumns()
   const { error } = await supabase.from('trips').update(tripToRow(t, owner?.userId ?? id, cols)).eq('id', id)
-  if (error) toast('Could not save changes.')
+  if (error) {
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      // Offline: the failure is expected and the edit is already queued - the
+      // banner carries the message; a toast per keystroke burst is noise.
+      return
+    }
+    // Online and still failing: the edit stays queued for the next replay
+    // (bounded), and the user is told now rather than at some future sync.
+    toast('Could not save changes - they will retry when you reconnect.')
+    return
+  }
+  void dropWrite(id)
+}
+
+/** PWA phase 3 - push every queued offline edit, oldest first. Bounded: a
+ *  failing attempt counts, and after MAX_WRITE_ATTEMPTS the entry is dropped
+ *  with a toast instead of retried forever. Deliberately NOT routed through
+ *  persistTripFieldNow (that path always re-queues with attempts reset to 0,
+ *  which would unbound the retries); this is its own send so the count sticks.
+ *  No markLocalWrite here on purpose: the echo of our own replay refreshes the
+ *  cache from the server's truth instead of being suppressed. */
+export async function replayQueuedWrites(): Promise<number> {
+  const userId = cache.sessionUserId
+  // isSupabaseConfigured is a boolean VALUE here, not a function (lib/supabase.ts).
+  if (!userId || !isSupabaseConfigured) return 0
+  let synced = 0
+  for (const write of await pendingWrites()) {
+    // Only this account's entries: another owner's queue is not ours to send.
+    if (write.ownerId !== userId) continue
+    const trip = write.trip as Trip
+    // Conflict notice: a server row newer than the edit's capture means a
+    // collaborator changed the trip while this device was away. The write
+    // still applies (the app's whole-trip model is last-writer-wins, and the
+    // peer's remote-edit banner covers their side) - but this user is told.
+    const { data: current } = await supabase.from('trips').select('id, updated_at').eq('id', write.tripId).limit(1)
+    const verdict = replayVerdict((current?.[0] as { updated_at?: unknown } | undefined)?.updated_at, write.capturedAt)
+    const owner = trip.members?.find(m => m.role === 'owner')
+    const cols = await tripsHaveOptionalColumns()
+    const { error } = await supabase.from('trips').update(tripToRow(trip, owner?.userId ?? userId, cols)).eq('id', write.tripId)
+    if (error) {
+      const attempts = write.attempts + 1
+      if (shouldRetry({ attempts })) {
+        await queueWrite({ ...write, attempts })
+      } else {
+        await dropWrite(write.tripId)
+        toast('An offline change could not be saved and was dropped.')
+      }
+      // Stop at the first failure - the network is not back for this row's
+      // write, so it is not back for the rest either.
+      return synced
+    }
+    await dropWrite(write.tripId)
+    synced += 1
+    if (verdict === 'overwrite') {
+      toast(`Your offline changes to ${trip.name || 'a trip'} replaced a newer edit by a teammate.`)
+    }
+  }
+  if (synced > 0) toast(`${synced} offline change${synced === 1 ? '' : 's'} synced.`)
+  return synced
 }
 
 function persistTripField(id: ID, t: Trip): void {

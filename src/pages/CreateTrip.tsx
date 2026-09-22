@@ -772,7 +772,7 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
                   value={destInput}
                   onChange={setDestInput}
                   onPick={p => addDest({ name: p.name + (p.admin1 ? `, ${p.admin1}` : ''), lat: p.latitude, lng: p.longitude }, false)}
-                  placeholder={dests.length === 0 ? 'Search your first stop, e.g. Munnar' : 'Add another destination.'}
+                  placeholder={dests.length === 0 ? 'Type a place to add your first stop - e.g. Munnar' : 'Type a place to add the next stop'}
                 />
               </div>
 
@@ -853,11 +853,6 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
             <div className="ct-q-body">
               <h2>When?</h2>
               <p className="ct-hint">The clock walk and every window on the trip starts here.</p>
-              <div className="ct-daterow">
-                <div className="ct-din"><span className="lab">Start</span><b>{f.startDate ? fmtDay(f.startDate) : '-'}</b></div>
-                <div className="ct-din"><span className="lab">End</span><b>{f.endDate ? fmtDay(f.endDate) : '-'}</b></div>
-                <div className="ct-din"><span className="lab">Nights</span><b>{dayCount > 0 ? Math.max(0, dayCount - 1) : '-'}</b></div>
-              </div>
               <div className="ct-q-field">
                 <DateRangeCalendar
                   start={f.startDate} end={f.endDate}
@@ -926,7 +921,7 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
                   </span>
                   <span className="ct-party-sub">traveller{f.travellers !== 1 ? 's' : ''}</span>
                   <button type="button" className="ct-mini" onClick={() => setDrawerOpen(true)}>
-                    {f.driverCount ? `${f.driverCount} driver${f.driverCount === 1 ? '' : 's'}` : 'drivers'}{f.hasVulnerable ? ' \u00b7 kids/seniors' : ''}
+                    {f.driverCount && f.driverCount > 1 ? `${f.driverCount} drivers` : 'Drivers &amp; pace'}{f.hasVulnerable ? ' \u00b7 kids aboard' : ''}
                   </button>
                   <span className="sr-only">{f.travellers} traveller{f.travellers !== 1 ? 's' : ''} on {cap(f.transportMode)}</span>
                 </div>
@@ -1090,7 +1085,7 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
                 </div>
                 {/* The exact number still matters - a slider cannot say 13,750. */}
                 <label className="ct-bud-exact">
-                  exact
+                  exact amount
                   <input className="mono" type="number" min={0} step={500}
                     ref={el => (fieldRefs.current.budgetPerPersonInr = el)}
                     aria-label="Budget per person, exact amount"
@@ -1100,7 +1095,7 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
                 </label>
                 <button type="button" className="ct-mini"
                   onClick={() => { setBudgetTouched(false); if (suggestedBudget != null) patchFields({ budgetPerPersonInr: suggestedBudget }) }}>
-                  use our maths
+                  use our estimate
                 </button>
               </div>
               {errs.budgetPerPersonInr && <p className="err-text" role="alert">{errs.budgetPerPersonInr}</p>}
@@ -1130,7 +1125,7 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
             </div>
 
             <div>
-              <span className="ct-lbl">Travel style</span>
+              <span className="ct-lbl">Travel style &middot; pick one</span>
               <div className="ct-styles" role="group" aria-label="Travel style" style={{ marginTop: 6 }}>
                 {TRAVEL_STYLES.map(st => (
                   <button key={st} type="button" className={`ct-style${f.travelStyle === st ? ' on' : ''}`}
@@ -1289,7 +1284,7 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
               </div>
               <p className="tk-fine">
                 {bill.perHead
-                  ? 'Every figure on the bill shows its own maths.'
+                  ? 'Updates as you plan. Excludes tolls, parking and entry fees.'
                   : 'Add a date range and at least one geocoded stop to price the drive.'}
               </p>
               {billPrinted && (

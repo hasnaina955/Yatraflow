@@ -6642,7 +6642,7 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .ct-step button { width: 34px; height: 34px; border: 0; background: transparent; color: var(--teal-deep); font-size: 16px; font-weight: 700; cursor: pointer; }
 .ct-step b { min-width: 34px; text-align: center; font-size: 14px; font-variant-numeric: tabular-nums; }
 .ct-party-sub { font-size: 11px; color: var(--text-3); }
-.ct-mini { padding: 5px 11px; border: 0; border-radius: 999px; background: var(--teal-soft); color: var(--teal-deep); font-size: 11.5px; font-weight: 600; cursor: pointer; }
+.ct-mini { padding: 5px 11px; border: 1px solid var(--teal); border-radius: 999px; background: var(--card); color: var(--teal-deep); font-size: 11.5px; font-weight: 600; cursor: pointer; }
 
 /* refine layer */
 .ct-refine { display: flex; flex-direction: column; gap: 12px; padding-top: 16px; border-top: 1px solid var(--line); }
@@ -6708,17 +6708,25 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
    ============================================================ */
 
 .ts-rail .ready-block { padding: 12px; border: 1px solid var(--rail-line); border-radius: var(--radius-sm); background: rgba(255, 255, 255, 0.06); }
-.ts-rail .ready-lab { font-size: 12.5px; font-weight: 700; color: var(--rail-ink); }
-.ts-rail .ready-pct { font-size: 13px; font-weight: 700; color: var(--rail-ink); }
+.ts-rail .ready-lab { font-size: 13px; font-weight: 700; color: var(--rail-ink); }
+.ts-rail .ready-pct { font-size: 14px; font-weight: 700; color: var(--rail-ink); }
 .ts-rail .ready-row { font-size: 12.5px; color: var(--rail-ink-dim); }
 .ts-rail .ready-row.ok { color: var(--rail-ink); }
 .ts-rail .ready-name { font-weight: 600; }
 .ts-rail .ready-why { font-size: 11.5px; color: var(--rail-ink-dim); }
 .ts-rail .ready-tick { width: 16px; height: 16px; border: 1.5px solid var(--rail-line); font-size: 10px; color: transparent; }
-.ts-rail .ready-row.ok .ready-tick { border-color: var(--rail-ink); background: var(--rail-ink); color: #0B2545; }
+.ts-rail .ready-row.ok .ready-tick { width: 17px; height: 17px; border-color: var(--rail-ink); background: var(--rail-ink); color: #0B2545; font-size: 11px; font-weight: 700; }
+.ts-rail .ready-row.opt .ready-tick { border-style: dashed; }
+.ts-rail .ready-row.opt .ready-why { color: var(--rail-ink); opacity: 0.66; }
+.ts-rail .ready-head { margin-bottom: 8px; }
 
 .ts-rail .tk-fine { color: var(--rail-ink-dim); font-size: 11.5px; }
 .ts-rail .tk-cancel { color: var(--rail-ink-dim); font-size: 11.5px; }
 .ts-rail .tk-subrow .tk-cancel:first-child { color: var(--rail-ink); text-decoration: underline; text-underline-offset: 3px; }
 .ts-rail .tk-route { font-size: 12.5px; }
 
+/* review pass 2 - the pass's finish, and the optional rows */
+/* the tear notches must match whatever surface the pass sits on */
+.ts-rail .tear::before, .ts-rail .tear::after { background: var(--bg); }
+/* the selected emoji must be visible on the page surface */
+.chip-row .chip.on { border-color: var(--teal); background: var(--teal-soft); color: var(--teal-deep); }

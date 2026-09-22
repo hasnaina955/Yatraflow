@@ -365,7 +365,7 @@ const SLOT_PIN_GLYPH: Record<string, string> = {
   breakfast: 'B', lunch: 'L', fuel: 'F', stretch: 'S', dinner: 'D', stay: 'N',
 }
 
-export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusDay, onDayFilterChange, showToolbar = true, enableMapViewModes = false, activeHitId = null, onActivateHit, onOpenInTimeline, onOpenInBoard, onDeleteStop, mainRouteGeometry = null, clockMilestones = null, onOpenHaltDay, onShowReturnChange, slotPins = [], onOpenSlot, hitCosts }: {
+export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusDay, onDayFilterChange, tripReadinessRows = [], showToolbar = true, enableMapViewModes = false, activeHitId = null, onActivateHit, onOpenInTimeline, onOpenInBoard, onDeleteStop, mainRouteGeometry = null, clockMilestones = null, onOpenHaltDay, onShowReturnChange, slotPins = [], onOpenSlot, hitCosts }: {
   trip: Trip
   onOpenStop?: (stopId: string) => void
   /** potential POIs to show as gold "idea" markers */
@@ -379,6 +379,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
       whose plan rail carries the same choice can follow it. A host that cannot
       represent 'all' (the slots rail always plans one day) simply ignores it. */
   onDayFilterChange?: (day: number | 'all') => void
+  tripReadinessRows?: ReadonlyArray<{ dayIndex: number; filled: number; required: number }>
   /** false = no in-map toolbar (day chips / Recentre / Expand). The Board hides
       it: those controls sit at the top of the map shell, which is an absolute
       backdrop there, so the chips peeked out from behind the Board's info card.
@@ -957,12 +958,18 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
       {showToolbar && (
       <div className="map-toolbar">
         <div className="map-day-filter" role="group" aria-label="Which day the map draws">
+          <span className="map-scope-lbl">Show on map</span>
           <button className={`map-day-chip ${dayFilter === 'all' ? 'on' : ''}`} aria-pressed={dayFilter === 'all'} onClick={() => { setDayFilter('all'); onDayFilterChange?.('all') }}>All days</button>
-          {trip.days.map(d => (
-            <button key={d.index} className={`map-day-chip ${dayFilter === d.index ? 'on' : ''}`} aria-pressed={dayFilter === d.index} onClick={() => { setDayFilter(d.index); onDayFilterChange?.(d.index) }}>
-              Day {d.index + 1}
-            </button>
-          ))}
+          {trip.days.map(d => {
+            const rd = tripReadinessRows.find(x => x.dayIndex === d.index)
+            return (
+              <button key={d.index} className={`map-day-chip ${dayFilter === d.index ? 'on' : ''}`} aria-pressed={dayFilter === d.index} onClick={() => { setDayFilter(d.index); onDayFilterChange?.(d.index) }}
+                aria-label={`Day ${d.index + 1}${rd ? `, ${rd.filled} of ${rd.required} planned` : ''}`}>
+                Day {d.index + 1}
+                {rd && <span className="map-day-chip-rd">{rd.filled}/{rd.required}</span>}
+              </button>
+            )
+          })}
         </div>
         <div className="map-toolbar-mid" role="group" aria-label="What the map shows">
           {/* The utilities read as one family, held apart from the day filter by
@@ -1083,7 +1090,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
           >
             {/* yf-map-ctrls: mapcn ships this group in Tailwind utilities this
                 app doesn't compile — the class hooks the hand-ported CSS. */}
-            <MapControls position="top-right" showFullscreen className="yf-map-ctrls" />
+            <MapControls position="top-right" className="yf-map-ctrls" />
             {/* Terrain stack reconcile (2D · Terrain · 3D hero) — no-op on a
                 hard-2D surface like the Board. */}
             {enableMapViewModes && <MapViewModeController mode={viewMode} bearing={heroBearing} />}
@@ -1376,7 +1383,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
               {dayFilter === 'all'
                 ? <>blue line = whole route{returnLeg ? ' · dashed = drive back home' : ''} · </>
                 : <>colours = day · </>}
-              pin icon = stop type · number = timeline order · dashed pin = "maybe" · plane/flag pins = start & final destination · plane/flag pins on a single day = that day's start and end where no stop is pinned · gold bulb markers = nearby ideas{onAddNearby ? ' (+ to add)' : ''}{ideaCats.length > 0 ? ' · chips filter ideas by type' : ''} · click a pin for details
+              pin icon = stop type · number = timeline order · dashed pin = "maybe" · plane/flag pins = start & final destination · plane/flag pins on a single day = that day's start and end where no stop is pinned · gold bulb markers = nearby ideas{onAddNearby ? ' (+ to add)' : ''}{ideaCats.length > 0 ? ' · chips filter ideas by type' : ''} · click a pin for details · hollow amber pin = an unplanned part · tap to open it
             </div>
           )}
         </div>

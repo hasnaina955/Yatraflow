@@ -1546,9 +1546,13 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
             </button>
           </div>
         </div>
-        <p className="hint-text" style={{ margin: '4px 0 6px' }}>
-          Live data from {googleEnabled() ? 'Google Places' : 'OpenStreetMap, Wikipedia & Mappls'}: ideas are clock-anchored - lunch lands in the 11:30–14:30 window, stretch breaks follow wheel time, fuel rides your tank’s rhythm, and long drives end at a real city for the night. Every pick is checked against your detour budget. Never around your starting point.
-        </p>
+        <div className="hint-text" style={{ margin: '4px 0 6px' }}>
+          Live data from {googleEnabled() ? 'Google Places' : 'OpenStreetMap, Wikipedia & Mappls'} — every idea is clock-anchored, budget-checked, and never around your starting point.{' '}
+          <details className="hint-more">
+            <summary>How suggestions work</summary>
+            Lunch lands in the 11:30–14:30 window, stretch breaks follow wheel time, fuel rides your tank’s rhythm, and long drives end at a real city for the night. Every pick is checked against your detour budget.
+          </details>
+        </div>
         <form className="row-between" style={{ gap: 8, marginBottom: 8 }} onSubmit={onSearch}>
           <input className="input" value={searchQ} disabled={quotaOut} onChange={e => {
             setSearchQ(e.target.value)
@@ -1588,7 +1592,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
                   onBlur={() => setActiveHitId(cur => (cur === (h.id as string | number) ? pinnedHitId ?? null : cur))}
                   onClick={() => { const id = h.id as string | number; const next = pinnedHitId === id ? null : id; setPinnedHitId(next); setActiveHitId(next) }}
                   onKeyDown={e => { if (e.key === 'Enter' && e.target === e.currentTarget) { e.preventDefault(); const id = h.id as string | number; const next = pinnedHitId === id ? null : id; setPinnedHitId(next); setActiveHitId(next) } }}
-                  style={{ padding: '5px 2px', borderBottom: '1px solid var(--line)', opacity: inScope ? undefined : 0.6, cursor: 'pointer' }}>
+                  style={{ opacity: inScope ? undefined : 0.6 }}>
                   <span className="small" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {h.name}{h.nearestCity ? ` · ${h.nearestCity}` : ''}
                     {/* Google hits carry a trusted rating + reported hours — surface them. */}
@@ -1801,6 +1805,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
                 tabs and told to use the arrow keys, and nothing happened. A
                 group of pressed buttons says what is actually true. */}
             <div className="slots-daystrip" role="group" aria-label="Which day to plan">
+              <span className="map-scope-lbl">Plan this day</span>
               {trip.days.map(d => {
                 const r = tripReadinessRows.find(x => x.dayIndex === d.index)
                 const filled = r?.filled ?? 0
@@ -1904,8 +1909,8 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
                             <span className="day-slot-st" aria-hidden />
                             <span className="day-slot-lab">{slot.label}</span>
                             {slot.windowLabel && <span className="day-slot-win">{slot.windowLabel}</span>}
-                            {closing && <span className="day-slot-urgent">closes {windowEnd}</span>}
-                            {missed && <span className="day-slot-missed">closed {windowEnd}</span>}
+                            {closing && <span className="day-slot-urgent">Closes {windowEnd}</span>}
+                            {missed && <span className="day-slot-missed">Closed {windowEnd}</span>}
                           </button>
                           {slot.state === 'empty' && slotPattern(slot.kind) && (
                             <p className="day-slot-pattern">{slotPattern(slot.kind)}</p>
@@ -1949,6 +1954,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
                                 <span>
                                   +{Math.round(c.detourMin)} min
                                   {c.arriveLabel ? ` · arrive ${c.arriveLabel}` : ''}
+                                  {(c.hit.openTime || c.hit.closeTime) ? ` · ${formatHMRange(c.hit.openTime, c.hit.closeTime, timeFormat)}` : ''}
                                   {c.budgetSharePct > 0 ? ` · ${c.budgetSharePct}% of day detours` : ' · on route'}
                                   {c.reason ? ` · ${c.reason}` : ''}
                                 </span>
@@ -1988,6 +1994,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
               onOpenInTimeline={onOpenTimeline}
               onOpenInBoard={onOpenBoard ? () => onOpenBoard() : undefined}
               focusDay={activeDayIndex}
+              tripReadinessRows={tripReadinessRows}
               onDayFilterChange={day => {
                 // The rail always plans exactly one day, so the map's "All days"
                 // leaves it where it is; a day chip moves the rail onto that day.
@@ -2019,7 +2026,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
               <span className="poi-col-head-ico"><MapPin size={13} aria-hidden /></span>
               <div className="poi-col-head-txt">
                 <b>Optional extras</b>
-                <span className="small muted">sights · detours - never required</span>
+                <span className="small muted">Sights · detours — never required</span>
               </div>
               <button
                 type="button"
@@ -2142,11 +2149,11 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
                 <p className="hint-text" role="status">⚠ Google search quota reached for this month - corridor suggestions are paused until the counter rolls over. Removing the key from settings serves the free stack instead.</p>
               )}
               {seeForRail.length === 0
-                ? <p className="muted small">Sightseeing &amp; detour stops will appear here along the corridor.</p>
+                ? <p className="muted small">Sightseeing &amp; detour stops will appear here along your route.</p>
                 : (
                     <>
                       <div className="poi-grp">
-                        <span className="poi-grp-k">The corridor's picks</span>
+                        <span className="poi-grp-k">Along your route</span>
                         <span className="poi-grp-n">{seeForRail.length}</span>
                         <span className="poi-grp-ln" />
                       </div>

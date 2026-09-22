@@ -2063,8 +2063,8 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
 /* Filter pills live in a static toolbar ABOVE the canvas — they used to be an
    absolute overlay (top-left, z-index 5) that covered the map itself. The row
    wraps on desktop and scrolls horizontally on mobile (media query below). */
-.map-toolbar { margin-bottom: 8px; }
-.map-day-filter { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.map-toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }
+.map-day-filter { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; background: var(--yf-surface); border: 1px solid var(--yf-glass-border); border-radius: 999px; padding: 3px 4px; }
 .map-day-chip {
   border: 1px solid var(--yf-glass-border); background: var(--yf-glass);
   -webkit-backdrop-filter: blur(var(--yf-blur-chip)); backdrop-filter: blur(var(--yf-blur-chip));
@@ -6601,4 +6601,59 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
   .map-day-chip, .map-legend-toggle, .lrow-sum, .lr-go, .shelf-alt, .engine-tips-dot { transition: none; }
   .ledger-shelf, .engine-tips-text { animation: none; }
   .map-ideas-grid { transition: none; }
+}
+
+/* ---- The toolbar restructures into three ranked weights ---------------------
+   The critique's P1: ~20 same-weight pills over four intents. The day segment
+   is primary (its own glass container); this middle cluster answers "what's
+   drawn" behind the family hairlines; the end group is for leaving the app or
+   resizing the page, so it ghosts down to icon-only. The nine idea chips fold
+   into one Filters popover that reuses the catalog's popover entrance. */
+.map-toolbar-mid {
+  display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+  flex: 1 1 auto; min-width: 0; padding-left: 9px;
+  border-left: 1px solid var(--yf-glass-border);
+}
+.map-toolbar-end {
+  display: flex; gap: 6px; align-items: center; flex: none;
+  margin-left: auto; padding-left: 9px;
+  border-left: 1px solid var(--yf-glass-border);
+}
+.map-day-filter .map-day-chip:not(.on) {
+  background: transparent; border-color: transparent;
+  -webkit-backdrop-filter: none; backdrop-filter: none;
+}
+.map-day-filter .map-day-chip:not(.on):hover { background: var(--yf-glass); border-color: var(--teal); }
+[data-theme='dark'] .map-day-filter .map-day-chip:not(.on) { background: transparent; }
+.map-day-chip--ghost {
+  background: transparent; border-color: transparent;
+  -webkit-backdrop-filter: none; backdrop-filter: none;
+  color: var(--text-3);
+}
+.map-day-chip--ghost:hover { background: transparent; border-color: transparent; color: var(--text-2); }
+[data-theme='dark'] .map-day-chip--ghost:hover { color: var(--text); }
+.map-filters { position: relative; display: inline-flex; }
+.map-filters-pop {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 30;
+  min-width: 210px; padding: 6px;
+  background: var(--popover-bg); border: 1px solid var(--popover-border);
+  border-radius: 12px; box-shadow: var(--shadow-soft);
+  animation: popover-in var(--motion-med) var(--ease-glide);
+}
+.map-filters-row {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  padding: 6px 8px; border: 0; background: none; font: inherit;
+  font-size: 12.5px; color: var(--text-2); text-align: left;
+  cursor: pointer; border-radius: 8px;
+  transition: background var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out);
+}
+.map-filters-row:hover { background: var(--yf-glass); color: var(--text); }
+.map-filters-row .n {
+  margin-left: auto; font-size: 11px; color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+.map-filters-row[aria-pressed='true'] { color: var(--text); font-weight: 600; }
+@media (prefers-reduced-motion: reduce) {
+  .map-filters-pop { animation: none; }
+  .map-filters-row { transition: none; }
 }

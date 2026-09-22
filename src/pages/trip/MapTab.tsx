@@ -202,6 +202,10 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
   // side panels or the map. Panel hover/click sets it (map flies to the pin);
   // map hover/click sets it (panel row highlights and scrolls into view).
   const [activeHitId, setActiveHitId] = useState<string | number | null>(null)
+  // Keyboard/touch parity for the cross-highlight (the critique's P1: it was
+  // mouse-only): a click or Enter pins the row — the map holds that place —
+  // hover and focus still peek, and leaving falls back to the pin.
+  const [pinnedHitId, setPinnedHitId] = useState<string | number | null>(null)
   // Shortlist: the rail collects picks before anything lands in the plan, so the
   // group can vote on them. The tray under the grid owns the actions.
   const [shortlist, setShortlist] = useState<PlaceHit[]>([])
@@ -1577,10 +1581,14 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
               // was the one place that would happily add the same place twice.
               const added = addedIds.has(h.id as string) || existingNames.has(h.name.toLowerCase())
               return (
-                <div key={h.id as string} role="listitem" className="row-between"
+                <div key={h.id as string} role="listitem" className="row-between" tabIndex={0}
                   onMouseEnter={() => setActiveHitId(h.id as string | number)}
-                  onMouseLeave={() => setActiveHitId(cur => (cur === (h.id as string | number) ? null : cur))}
-                  style={{ padding: '5px 2px', borderBottom: '1px solid var(--line)', opacity: inScope ? undefined : 0.6 }}>
+                  onMouseLeave={() => setActiveHitId(cur => (cur === (h.id as string | number) ? pinnedHitId ?? null : cur))}
+                  onFocus={() => setActiveHitId(h.id as string | number)}
+                  onBlur={() => setActiveHitId(cur => (cur === (h.id as string | number) ? pinnedHitId ?? null : cur))}
+                  onClick={() => { const id = h.id as string | number; const next = pinnedHitId === id ? null : id; setPinnedHitId(next); setActiveHitId(next) }}
+                  onKeyDown={e => { if (e.key === 'Enter' && e.target === e.currentTarget) { e.preventDefault(); const id = h.id as string | number; const next = pinnedHitId === id ? null : id; setPinnedHitId(next); setActiveHitId(next) } }}
+                  style={{ padding: '5px 2px', borderBottom: '1px solid var(--line)', opacity: inScope ? undefined : 0.6, cursor: 'pointer' }}>
                   <span className="small" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {h.name}{h.nearestCity ? ` · ${h.nearestCity}` : ''}
                     {/* Google hits carry a trusted rating + reported hours — surface them. */}

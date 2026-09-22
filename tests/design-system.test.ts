@@ -549,9 +549,9 @@ describe('motion vocabulary: durations come from the tokens', () => {
   it('keeps the map tab on the motion tokens, not the legacy --t-* ladder', () => {
     // The map-tab review round moved the tab's own rules off the pre-catalog
     // ladder (--t-fast/med/slow); this holds that surface there. Scope is the
-    // tab's selector families: toolbar chips, legend, shell, skeleton, rails,
-    // slots, ledger rows, chevrons/fold, shelf, engine tips.
-    const scoped = /\.(map-(day-chip|legend|shell|skel|idea|toolbar|mode-group|util-group|day-filter)|slots-|day-slot|lrow-|lr-(go|name|meta)|poi-(chev|fold)|shelf-alt|engine-tips)/
+    // tab's selector families: toolbar chips and its filters popover, legend,
+    // shell, skeleton, rails, slots, ledger rows, chevrons/fold, shelf, tips.
+    const scoped = /\.(map-(day-chip|legend|shell|skel|idea|toolbar|filters|mode-group|util-group|day-filter)|slots-|day-slot|lrow-|lr-(go|name|meta)|poi-(chev|fold)|shelf-alt|engine-tips)/
     const legacy: string[] = []
     for (const rule of cssRules) {
       if (!rule.selector.split(',').some((p) => scoped.test(p.trim()))) continue

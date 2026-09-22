@@ -496,6 +496,9 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   // Nearby-idea category filter: categories listed here are HIDDEN on the map.
   // Empty set = everything visible (the default).
   const [hiddenIdeaCats, setHiddenIdeaCats] = useState<Set<string>>(new Set())
+  // The categories fold into one Filters popover — nine chips sitting beside the
+  // day filter is the "twenty same-weight pills" the critique flagged (P1).
+  const [filtersOpen, setFiltersOpen] = useState(false)
   // Categories actually present among the ideas, most common first — chips are
   // only shown for categories that have at least one marker on the map.
   const ideaCats = useMemo(() => {
@@ -953,19 +956,21 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     <div className={`map-shell${expanded ? ' map-shell--expanded' : ''}${closing ? ' map-shell--closing' : ''}`}>
       {showToolbar && (
       <div className="map-toolbar">
-        <div className="map-day-filter">
+        <div className="map-day-filter" role="group" aria-label="Which day the map draws">
           <button className={`map-day-chip ${dayFilter === 'all' ? 'on' : ''}`} aria-pressed={dayFilter === 'all'} onClick={() => { setDayFilter('all'); onDayFilterChange?.('all') }}>All days</button>
           {trip.days.map(d => (
             <button key={d.index} className={`map-day-chip ${dayFilter === d.index ? 'on' : ''}`} aria-pressed={dayFilter === d.index} onClick={() => { setDayFilter(d.index); onDayFilterChange?.(d.index) }}>
               Day {d.index + 1}
             </button>
           ))}
+        </div>
+        <div className="map-toolbar-mid" role="group" aria-label="What the map shows">
           {/* The utilities read as one family, held apart from the day filter by
               the same hairline the view modes use: the chips around them answer
               "which day am I looking at", these four answer "what is drawn" and
               "where do I go next". */}
           <div className="map-util-group" role="group" aria-label="Map layers and day actions">
-          <button className="map-day-chip map-day-chip--util map-recenter" onClick={fitToTrip} title="Recentre the map on the trip route"><LocateFixed size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Recentre</button>
+          <button className="map-day-chip map-day-chip--util map-recenter" onClick={fitToTrip} aria-label="Recentre the map on the trip route" title="Recentre the map on the trip route"><LocateFixed size={13} aria-hidden />
           {clockMilestones && (
             <button
               className={`map-day-chip map-day-chip--util ${clockOn ? 'on' : ''}`}
@@ -986,15 +991,6 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                 : 'Return leg hidden - the corridor and km labels read the OUTBOUND road only.'}
             >
               <RotateCcw size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Return home
-            </button>
-          )}
-          {dayDirectionsUrl && (
-            <button
-              className="map-day-chip map-day-chip--util"
-              onClick={() => openExternal(dayDirectionsUrl)}
-              title="Open this day's ride with turn-by-turn directions in Google Maps"
-            >
-              <Navigation size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Directions
             </button>
           )}
           </div>
@@ -1021,33 +1017,56 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
               ))}
             </div>
           )}
-          {/* Nearby-idea category filters — hide/show the gold idea markers by
-              type. Only rendered when there are ideas to filter. */}
           {ideaCats.length > 0 && (
-            <>
-              {ideaCats.map(([cat, count]) => (
-                <button
-                  key={cat}
-                  className={`map-day-chip map-idea-chip ${hiddenIdeaCats.has(cat) ? '' : 'on'}`}
-                  aria-pressed={!hiddenIdeaCats.has(cat)}
-                  onClick={() => toggleIdeaCat(cat)}
-                  title={hiddenIdeaCats.has(cat) ? `Show ${count} ${titleCase(cat).toLowerCase()} idea${count === 1 ? '' : 's'}` : `Hide ${titleCase(cat).toLowerCase()} ideas`}
-                >
-                  <CatIcon category={cat} size={13} className="yf-idea-chip-ico" />
-                  {titleCase(cat)}
-                  <span className="yf-idea-chip-count">{count}</span>
-                </button>
-              ))}
-            </>
+            <div className="map-filters">
+              <button
+                className="map-day-chip map-day-chip--util"
+                aria-expanded={filtersOpen}
+                onClick={() => setFiltersOpen(o => !o)}
+                title={hiddenIdeaCats.size > 0 ? `Idea filters — ${hiddenIdeaCats.size} hidden` : 'Filter nearby ideas by type'}
+              >
+                Filters{hiddenIdeaCats.size > 0 ? ` (${hiddenIdeaCats.size})` : ''}
+              </button>
+              {filtersOpen && (
+                <div className="map-filters-pop" role="group" aria-label="Nearby idea categories">
+                  {ideaCats.map(([cat, count]) => (
+                    <button
+                      key={cat}
+                      className="map-filters-row"
+                      aria-pressed={!hiddenIdeaCats.has(cat)}
+                      onClick={() => toggleIdeaCat(cat)}
+                    >
+                      <CatIcon category={cat} size={13} aria-hidden />
+                      {titleCase(cat)}
+                      <span className="n">{count}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+        <div className="map-toolbar-end">
+          {dayDirectionsUrl && (
+            <button
+              className="map-day-chip map-day-chip--util map-day-chip--ghost"
+              onClick={() => openExternal(dayDirectionsUrl)}
+              title="Open this day's ride with turn-by-turn directions in Google Maps"
+              aria-label="Directions for this day in Google Maps"
+            >
+              <Navigation size={13} aria-hidden />
+            </button>
           )}
           <button
-            className={`map-day-chip map-expand-chip${expanded ? ' on' : ''}`}
+            className={`map-day-chip map-day-chip--util map-day-chip--ghost map-expand-chip${expanded ? ' on' : ''}`}
+            aria-pressed={expanded}
             onClick={() => (expanded ? collapseExpanded() : setExpanded(true))}
             title={expanded ? 'Shrink the map back into the page (Esc)' : 'Expand the map to fill the screen'}
             aria-label={expanded ? 'Shrink the map back into the page' : 'Expand the map to fill the screen'}
           >
             {expanded ? '⤡ Collapse' : '⤢ Expand'}
           </button>
+        </div>
         </div>
       </div>
       )}

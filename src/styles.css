@@ -6431,3 +6431,18 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .pub-fg-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-3); }
 .pub-fg-line { font-size: 12.5px; font-variant-numeric: tabular-nums; }
 .pub-fg-prelog { font-size: 11.5px; }
+
+/* ---------- Offline banner (PWA phase 2) ----------
+   A plain block in the flow, not a sticky/fixed strip: it appears above the
+   routed page, scrolls away with it, and can never fight the nav's rung. */
+.offline-banner {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 8px 16px;
+  background: var(--warn-soft); color: var(--text);
+  border-bottom: 1px solid var(--line);
+  font-size: 12.5px;
+}
+.offline-banner .btn { flex: none; }
+@media (max-width: 720px) {
+  .offline-banner { padding: 8px 14px; font-size: 12px; align-items: flex-start; }
+}

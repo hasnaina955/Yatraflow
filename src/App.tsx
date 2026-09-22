@@ -15,6 +15,7 @@ import type { Trip } from './data/types'
 import { useDb, currentUser, useUsers, useNotifications, useSessionUserId, logout, markAllNotificationsRead, tripById, joinViaInvite, duplicateTrip, init, resumeSync, useStoreReady, fetchSharedTrip, fetchTripByInviteCode, collectUnclaimedCovers } from './store/store'
 import { Avatar, BrandMark, ToastZone, useClickOutside, toast } from './components/ui'
 import { BottomNav } from './components/BottomNav'
+import { OfflineBanner } from './components/OfflineBanner'
 import { PillNav } from './components/PillNav'
 import { decodeTripSnapshot } from './lib/snapshot'
 import { scrollBehavior } from './lib/motion'
@@ -531,6 +532,10 @@ export default function App() {
           {me && <a className={`nav-link ${route === '/profile' ? 'active' : ''}`} {...appLink('#/profile')}><Settings size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 6 }} />Profile & settings</a>}
         </div>
       )}
+
+      {/* Offline state is global, so the strip lives in the shell rather than
+          in any one page. It renders only while actually offline. */}
+      <OfflineBanner />
 
       <main id="main" tabIndex={-1} style={{ flex: 1 }}>
         {/* keyed on the route so every page change (My trips ↔ Explore ↔ a trip)

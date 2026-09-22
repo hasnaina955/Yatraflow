@@ -18,6 +18,7 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase'
 import { toast } from '../components/ui'
 import { isMissingColumnError, rowToTrip, tripToRow, type OptionalColumnsProbe, type TripRow } from '../lib/tripRow'
 import { attachDnaAccount, detachDnaAccount } from '../lib/tripDna'
+import { clearSnapshot, loadSnapshot, saveSnapshot } from '../lib/offlineCache'
 import { ownSuggestedCover, unclaimedCovers } from '../lib/coverUpload'
 import { makeInviteCode, normalizeInviteCode } from '../lib/inviteCode'
 import { suggestionToRow, decisionToRow, activityToRow, notificationToRow, publishedToRow } from '../lib/restoreRows'
@@ -42,12 +43,17 @@ interface DB {
   /** True once the first hydrate of this session has settled (success OR
    *  failure). Until then, "empty" is a lie — pages must show loading. */
   ready: boolean
+  /** When the rows on screen came from the offline snapshot (PWA phase 2),
+   *  the moment that snapshot was taken; null when they came from the network.
+   *  Drives the offline banner's "showing your saved plan from HH:MM" and is
+   *  set by the cache boot below, cleared by every network hydrate. */
+  cachedAt: number | null
 }
 
 let cache: DB = {
   users: [], trips: [], trashedTrips: [], suggestions: [], decisions: [],
   activity: [], notifications: [], published: [], adminAudit: [], sessionUserId: null,
-  ready: false,
+  ready: false, cachedAt: null,
 }
 
 const listeners = new Set<() => void>()
@@ -366,6 +372,11 @@ export function init(): void {
       // next person on this device never inherits the last one's profile.
       detachDnaAccount()
       if (activeHydrate && activeHydrate.userId === null) { await activeHydrate.promise; return }
+      // PWA phase 2: signing out forgets this device's snapshot for the account
+      // that just left. The in-memory version of this bug (#45) showed the
+      // previous user's trips; the on-disk one would survive a reload.
+      const departingUser = cache.sessionUserId
+      if (departingUser) void clearSnapshot(departingUser)
       const anonPromise = (async () => {
       try {
         const [profRes, pubRes] = await Promise.all([
@@ -376,17 +387,40 @@ export function init(): void {
         const pubRows = mapOrSkip((pubRes.data ?? []), rowToPublished)
         if (profRes.error) { console.error('[yatraflow] hydrate profiles failed', profRes.error) }
         if (pubRes.error) { console.error('[yatraflow] hydrate published failed', pubRes.error) }
-        patch({ users, trips: [], suggestions: [], decisions: [], activity: [], notifications: [], published: dedupePublished(pubRows), adminAudit: [], sessionUserId: null, ready: true })
+        patch({ users, trips: [], suggestions: [], decisions: [], activity: [], notifications: [], published: dedupePublished(pubRows), adminAudit: [], sessionUserId: null, ready: true, cachedAt: null })
         commit()
       } catch (e) {
         console.error('[yatraflow] anonymous hydration failed', e)
-        patch({ users: [], trips: [], suggestions: [], decisions: [], activity: [], notifications: [], published: [], adminAudit: [], sessionUserId: null, ready: true })
+        patch({ users: [], trips: [], suggestions: [], decisions: [], activity: [], notifications: [], published: [], adminAudit: [], sessionUserId: null, ready: true, cachedAt: null })
         commit()
       }
       })()
       activeHydrate = { userId: null, promise: anonPromise }
       try { await anonPromise } finally { if (activeHydrate?.userId === null) activeHydrate = null }
       return
+    }
+    // Offline-first boot (PWA phase 2): on a cold cache, show this account's
+    // last clean snapshot immediately — the network hydrate below replaces it
+    // when it lands. Read-only by construction: every write still needs the
+    // network, and a cache boot can never seed demo trips (the failed reads
+    // that made the cache necessary keep `tripCountUnknown` true).
+    if (!cache.ready) {
+      const snapshot = await loadSnapshot(userId)
+      if (snapshot && gen === hydrateGen) {
+        patch({
+          trips: snapshot.trips as Trip[],
+          trashedTrips: snapshot.trashedTrips as Trip[],
+          users: snapshot.users as User[],
+          published: snapshot.published as PublishedItinerary[],
+          suggestions: snapshot.suggestions as StopSuggestion[],
+          decisions: snapshot.decisions as TripDecision[],
+          activity: snapshot.activity as ActivityEntry[],
+          sessionUserId: userId,
+          cachedAt: snapshot.savedAt,
+          ready: true,
+        })
+        commit()
+      }
     }
     // The same-user dedupe already ran at the top of hydrate(); reaching here
     // means this user has no in-flight hydrate, so start one.
@@ -612,8 +646,25 @@ async function hydrateFromSupabase(userId: string, gen: number, seedIfEmpty = tr
       // row cascades away with its trip, so a publication stands on its own.
       published: dedupePublished(pubRows),
       sessionUserId: userId,
+      cachedAt: null,
     })
     commit()
+
+    // Keep this account's snapshot for the next offline boot — but only a CLEAN
+    // hydrate. A partial read is the store's own "half an account" signal, and
+    // writing it would present half an account as the truth on the next cold
+    // start, which is exactly what the cache must never do.
+    if (partial.length === 0) {
+      void saveSnapshot(userId, {
+        trips: cache.trips,
+        trashedTrips: cache.trashedTrips,
+        users: cache.users,
+        published: cache.published,
+        suggestions: cache.suggestions,
+        decisions: cache.decisions,
+        activity: cache.activity,
+      })
+    }
 
     // #36-18: name what is missing instead of letting a half-loaded account render
     // as an empty one. Deliberately after the staleness check above, so a run that

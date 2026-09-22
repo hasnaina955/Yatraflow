@@ -26,6 +26,8 @@ import { createReadiness, readinessFromDraft, readinessLine } from '../lib/creat
 import { saveDraft, loadDraft, clearDraft, draftIsWorthKeeping, draftAgeLabel, type StoredDraft } from '../lib/createDraft'
 import { addCrewEntry, PLANNER_ROLE_LINE, type CrewEntry } from '../lib/crewInvite'
 import { stashHandoff } from '../lib/createHandoff'
+import { routeIq, routeIqLine, type RoutePoint } from '../lib/routeIq'
+import { seasonNoteFor, monthOfIso } from '../lib/seasonality'
 import { fetchTripThumbUrl } from '../lib/tripThumb'
 import { Field, Chip, toast, Odometer, useMedia } from '../components/ui'
 import { Select } from '../components/Select'
@@ -247,6 +249,22 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
     hasCover: f.coverImageUrl.trim().length > 0,
     commitmentCount: commitments.filter(x => x.title.trim()).length,
   }), [f.name, f.startLocation, f.startDate, f.endDate, f.travellers, f.budgetPerPersonInr, f.coverImageUrl, dests.length, bill.roadKm, bill.days, commitments])
+
+  // P8 - input intelligence. Both are silent when they have nothing honest to
+  // say: no measurable hops, no note for this region, no date picked yet.
+  const iq = useMemo(() => {
+    const points: RoutePoint[] = [
+      ...(startCoords ? [{ name: f.startLocation || 'Start', lat: startCoords.lat, lng: startCoords.lng }] : []),
+      ...dests.map(d => ({ name: d.name, lat: d.lat, lng: d.lng })),
+    ]
+    return routeIq(points, f.transportMode)
+  }, [startCoords, f.startLocation, dests, f.transportMode])
+
+  const seasonLine = useMemo(() => {
+    const month = monthOfIso(f.startDate)
+    if (!month) return null
+    return seasonNoteFor([f.startLocation, ...dests.map(d => d.name)], month)
+  }, [f.startDate, f.startLocation, dests])
 
   // P4 - the draft that waits. Loaded once on mount; the banner decides whether
   // it is resumed or thrown away. Autosave stays OFF until that decision, so a
@@ -749,6 +767,9 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
               <Chip onClick={() => applyDayOutShape(1)}>Day out</Chip>
               <Chip onClick={() => applyDayOutShape(2)}>Weekend dash</Chip>
             </div>
+            {createFunnelOn('iq') && iq && (
+              <p className="hint-text route-iq" role="status">{routeIqLine(iq)}</p>
+            )}
             {/* The engine's verdict the moment start + end exist: when the
                 route demands more days than the date range gives, say so and
                 offer the honest fix — one tap, still fully editable. */}
@@ -816,6 +837,9 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
               registerRef={el => { fieldRefs.current.startDate = el; fieldRefs.current.endDate = el }}
               onChange={({ startDate, endDate }) => patchFields({ startDate, endDate })}
             />
+            {createFunnelOn('iq') && seasonLine && (
+              <p className="hint-text season-note" role="status">{seasonLine}</p>
+            )}
             {dayCount > 0 && (
               <span className="pill"><Calendar size={12} aria-hidden /> {dayCount} day{dayCount !== 1 ? 's' : ''} · {Math.max(0, dayCount - 1)} night{dayCount - 1 !== 1 ? 's' : ''}</span>
             )}

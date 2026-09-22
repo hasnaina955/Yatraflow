@@ -413,6 +413,23 @@ discriminates a migration-gated table in one call — **`200 []` means the table
   production: the alias's bundle hash equals a local `npm run build`'s, i.e.
   the artifact you tested is the artifact that shipped.
 - **A browser probe that imports an app module can silently get a SECOND copy of it (learned 2026-09-19).** After any HMR update Vite serves the app's modules under timestamped URLs (`/src/store/store.ts?t=1789806911002`), so a probe doing `await import('/src/store/store.ts')` resolves the *clean* URL and instantiates a fresh module with empty state — no user, no trips, `ready: false`. It reads exactly like "the app is signed out and hydrate is broken", and it produced a wrong diagnosis until the DOM contradicted it: the page rendered "3 trips match …" while the probe's own snapshot reported zero users and zero trips. Before believing a probe about app state, restart the dev server (a fresh module graph carries no timestamps) or reload and probe **without editing a file in between**; and cross-check the rendered DOM, which always reflects the app's real instance. Related: `import.meta.url` in an `agent-browser eval` payload is a SyntaxError — it is not a module context.
+- **A test that spawns `node` children is unreliable inside the full parallel
+  vitest run on this box — the child dies before executing anything, while the
+  same test passes in isolation (learned 2026-09-21).**
+  `tests/migration-status.test.ts` failed twice in `npm run verify`, each time a
+  *different* one of its stub-server tests, and each time as an assertion that
+  read like a broken check: once an empty `stdout`, once
+  `expected 3221226505 to be 0` (Windows `0xC0000409`, V8's fastfail).
+  `npx vitest run tests/migration-status.test.ts` was green every time, and the
+  script itself ran fine from the shell against the live project. The file now
+  retries once when a child exits non-zero **with no output on either stream** —
+  every real outcome of that check prints something, including exit 2, which
+  writes to stderr, so that signature can only mean the process never ran — and
+  otherwise throws naming it as an environment failure. Generalize the reading:
+  when a spawned-child test fails only under the full suite, ask whether it
+  produced *any* output before suspecting the code, and make "the process died" a
+  distinct, named failure so an environment problem can never masquerade as a
+  wrong verdict about the thing being tested.
 
 - **Supabase auth fails two different ways** — rejected credentials come back as
   `{ error }`, but a network failure *throws* `AuthRetryableFetchError`. Wrap
@@ -579,6 +596,52 @@ job, and name this mechanism rather than reaching for "flaky".
   none of them. Quote the diffstat, not the commit count, when saying what
   production is about to receive; and audit coverage with
   `git log --oneline <base>..HEAD [-- CHANGELOG.md]` (§2.6b).
+
+### 3.2 The migration status check (the one part `verify` cannot see)
+
+```bash
+npm run check:migrations              # applied / MISSING per migration; exit 1 if anything is
+npm run check:migrations -- --list    # what it would probe, no network
+```
+
+`verify` typechecks, tests and builds; it says nothing about SQL that has never
+run — so a release can merge, deploy, pass CI and Vercel while its migration was
+never applied. `scripts/checkMigrations.mjs` closes that hole: it derives each
+migration's artifacts from its own SQL (`create table`, `add column`, the
+`storage.buckets` insert) and asks the live project whether each one is really
+there. It uses the app's own anon key and **GET only**, so pointing it at
+production is safe.
+
+Read it by exit code: **0** everything probed is present · **1** something is
+missing, undeclared, or could not be checked (unchecked is NOT present — a probe
+that could not answer has proved nothing) · **2** no credentials. Run it before
+promoting a release and after applying a migration; `--allow-missing` makes it a
+report instead of a gate, `--json` makes it machine-readable.
+
+Two things it deliberately does NOT probe — do not "fix" these:
+
+- **Functions.** PostgREST answers the *same* `404 PGRST202` for a function
+  called without its parameters whether or not it exists (verified live against
+  `admin_delete_user`), so the only way to probe one is to execute it. Their
+  absence is loud instead: the app fails at call time.
+- **Policies and triggers.** Covered by `supabase/tests/rls_contract.test.sql`
+  through `npm run test:integration`, and by behavior rather than by catalog.
+
+Such a migration is declared in the script's `NO_PROBE_SURFACE` with its reason.
+A new migration that is neither probed nor declared fails the check as
+**undeclared** — that ratchet, plus `tests/migration-status.test.ts` (coverage,
+the parser against real SQL shapes plus fixtures, a stub server replaying the
+bodies the live project returns, and a tripwire keeping the check GET-only), is
+what keeps the check honest as the directory grows.
+
+It earned its place on the first run: `20260914_trip_stay_budget.sql` had never
+been applied to production, so `trips.stay_style` was absent, the store's
+optional-column probe reported `stayStyle: false`, and the stay-budget dial
+silently reverted on every reload — the same class as the `cover_image_url`
+migration-gap rule in §4, and the first thing in this repo that could see it.
+Applying that file's own one-line `alter table` closed it the same day. Expect
+that shape: the check names a file, a human runs it, the next run flips to `ok`
+— and nothing else in the pipeline would have noticed either way.
 
 ## 4. Code conventions & pitfalls
 

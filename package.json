@@ -10,6 +10,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:integration": "node scripts/integration/integrationHarness.mjs",
+    "check:migrations": "node scripts/checkMigrations.mjs",
     "lint": "eslint src",
     "verify": "tsc -b --clean && npm test && npm run build"
   },

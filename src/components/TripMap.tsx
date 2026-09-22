@@ -33,7 +33,7 @@ import {
   Box, Clock, Flag, Home, Info, Lightbulb, LocateFixed, Map as MapIcon, Mountain, Navigation, PlaneTakeoff,
   RotateCcw, TriangleAlert, X,
 } from 'lucide-react'
-import { prefersReducedMotion } from '../lib/motion'
+import { prefersReducedMotion, motionTiming } from '../lib/motion'
 import {
   Map as MapLibreMap,
   MapMarker,
@@ -226,13 +226,13 @@ function ClockMilestoneLayer({ overlay, showReturn, onOpenDay }: { overlay: Cloc
                   type="button"
                   className="yf-milestone-hit"
                   onClick={() => onOpenDay(m.itineraryDay!)}
-                  title={`Open day ${m.itineraryDay! + 1} in the timeline${m.haltName ? ` — ${m.haltName}` : ''}`}
-                  aria-label={`Open day ${m.itineraryDay! + 1} in the timeline${m.haltName ? ` — overnight at ${m.haltName}` : ''}`}
+                  title={`Open day ${m.itineraryDay! + 1} in the timeline${m.haltName ? ` - ${m.haltName}` : ''}`}
+                  aria-label={`Open day ${m.itineraryDay! + 1} in the timeline${m.haltName ? ` - overnight at ${m.haltName}` : ''}`}
                 >{chip}</button>
               ) : chip}
             </MarkerContent>
             <MarkerTooltip>
-              {`${m.kind === 'mealtime' ? 'Meal break' : m.kind === 'overnight' ? 'Overnight halt' : 'Destination'}${m.haltName ? ` — ${m.haltName}` : ''} — day ${m.dayNo}${m.dateLabel ? ` (${m.dateLabel})` : ''}: ${formatHM(clockHM(m.etaMin), timeFormat)} at ${m.kmLabel} on the road${m.leg === 'return' ? ' · drive home' : ''}${halts ? ' · tap for the day' : ''}`}
+              {`${m.kind === 'mealtime' ? 'Meal break' : m.kind === 'overnight' ? 'Overnight halt' : 'Destination'}${m.haltName ? ` - ${m.haltName}` : ''} - day ${m.dayNo}${m.dateLabel ? ` (${m.dateLabel})` : ''}: ${formatHM(clockHM(m.etaMin), timeFormat)} at ${m.kmLabel} on the road${m.leg === 'return' ? ', drive home' : ''}${halts ? ', tap for the day' : ''}`}
             </MarkerTooltip>
           </MapMarker>
         )
@@ -274,7 +274,7 @@ function SuggestionDistanceLayer({ places, road }: { places: PlaceHit[]; road: [
               <em className="yf-milestone-km">{`Km ${Math.round(pin.km)}`}</em>
             </span>
           </MarkerContent>
-          <MarkerTooltip>{`${pin.name} — ${Math.round(pin.km)} km into the trip`}</MarkerTooltip>
+          <MarkerTooltip>{`${pin.name} - ${Math.round(pin.km)} km into the trip`}</MarkerTooltip>
         </MapMarker>
       ))}
     </>
@@ -365,7 +365,7 @@ const SLOT_PIN_GLYPH: Record<string, string> = {
   breakfast: 'B', lunch: 'L', fuel: 'F', stretch: 'S', dinner: 'D', stay: 'N',
 }
 
-export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusDay, showToolbar = true, enableMapViewModes = false, activeHitId = null, onActivateHit, onOpenInTimeline, onOpenInBoard, onDeleteStop, mainRouteGeometry = null, clockMilestones = null, onOpenHaltDay, onShowReturnChange, slotPins = [], onOpenSlot, hitCosts }: {
+export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusDay, onDayFilterChange, showToolbar = true, enableMapViewModes = false, activeHitId = null, onActivateHit, onOpenInTimeline, onOpenInBoard, onDeleteStop, mainRouteGeometry = null, clockMilestones = null, onOpenHaltDay, onShowReturnChange, slotPins = [], onOpenSlot, hitCosts }: {
   trip: Trip
   onOpenStop?: (stopId: string) => void
   /** potential POIs to show as gold "idea" markers */
@@ -375,6 +375,10 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   /** external day-focus driver (Board column select): a day index shows just that
       day's route, 'all' resets to the whole trip. Undefined = map owns its filter. */
   focusDay?: number | 'all'
+  /** the map's own day chips report the day they just filtered to, so a host
+      whose plan rail carries the same choice can follow it. A host that cannot
+      represent 'all' (the slots rail always plans one day) simply ignores it. */
+  onDayFilterChange?: (day: number | 'all') => void
   /** false = no in-map toolbar (day chips / Recentre / Expand). The Board hides
       it: those controls sit at the top of the map shell, which is an absolute
       backdrop there, so the chips peeked out from behind the Board's info card.
@@ -422,8 +426,11 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   onShowReturnChange?: (show: boolean) => void
 }) {
   const [dayFilter, setDayFilter] = useState<number | 'all'>('all')
-  // Board drives the day filter through the prop; the map's own chips keep working
-  // independently until the next focus change (React bails on identical values).
+  // A host drives the day filter through the prop (Board columns, the slots
+  // rail's day strip); the map's own chips report their choice back through
+  // `onDayFilterChange`, so the two selectors agree whichever one was touched.
+  // The effect stays out of that loop: it sets state directly and never calls
+  // back, and React bails on an identical value.
   useEffect(() => {
     if (focusDay !== undefined) setDayFilter(focusDay)
   }, [focusDay])
@@ -475,7 +482,9 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   function collapseExpanded() {
     if (!expanded || closing) return
     setClosing(true)
-    collapseTimer.current = window.setTimeout(() => { setExpanded(false); setClosing(false) }, 280)
+    // The unmount rides the same token as mapCollapse's animation, so retiming
+    // the CSS retimes the timer; reduced motion skips the glide entirely.
+    collapseTimer.current = window.setTimeout(() => { setExpanded(false); setClosing(false) }, prefersReducedMotion() ? 0 : motionTiming('--motion-slow').duration)
   }
   useEffect(() => () => window.clearTimeout(collapseTimer.current), [])
   useEffect(() => {
@@ -487,6 +496,9 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   // Nearby-idea category filter: categories listed here are HIDDEN on the map.
   // Empty set = everything visible (the default).
   const [hiddenIdeaCats, setHiddenIdeaCats] = useState<Set<string>>(new Set())
+  // The categories fold into one Filters popover — nine chips sitting beside the
+  // day filter is the "twenty same-weight pills" the critique flagged (P1).
+  const [filtersOpen, setFiltersOpen] = useState(false)
   // Categories actually present among the ideas, most common first — chips are
   // only shown for categories that have at least one marker on the map.
   const ideaCats = useMemo(() => {
@@ -944,45 +956,44 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     <div className={`map-shell${expanded ? ' map-shell--expanded' : ''}${closing ? ' map-shell--closing' : ''}`}>
       {showToolbar && (
       <div className="map-toolbar">
-        <div className="map-day-filter">
-          <button className={`map-day-chip ${dayFilter === 'all' ? 'on' : ''}`} aria-pressed={dayFilter === 'all'} onClick={() => setDayFilter('all')}>All days</button>
+        <div className="map-day-filter" role="group" aria-label="Which day the map draws">
+          <button className={`map-day-chip ${dayFilter === 'all' ? 'on' : ''}`} aria-pressed={dayFilter === 'all'} onClick={() => { setDayFilter('all'); onDayFilterChange?.('all') }}>All days</button>
           {trip.days.map(d => (
-            <button key={d.index} className={`map-day-chip ${dayFilter === d.index ? 'on' : ''}`} aria-pressed={dayFilter === d.index} onClick={() => setDayFilter(d.index)}>
+            <button key={d.index} className={`map-day-chip ${dayFilter === d.index ? 'on' : ''}`} aria-pressed={dayFilter === d.index} onClick={() => { setDayFilter(d.index); onDayFilterChange?.(d.index) }}>
               Day {d.index + 1}
             </button>
           ))}
-          <button className="map-day-chip map-recenter" onClick={fitToTrip} title="Recentre the map on the trip route"><LocateFixed size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Recentre</button>
+        </div>
+        <div className="map-toolbar-mid" role="group" aria-label="What the map shows">
+          {/* The utilities read as one family, held apart from the day filter by
+              the same hairline the view modes use: the chips around them answer
+              "which day am I looking at", these four answer "what is drawn" and
+              "where do I go next". */}
+          <div className="map-util-group" role="group" aria-label="Map layers and day actions">
+          <button className="map-day-chip map-day-chip--util map-recenter" onClick={fitToTrip} aria-label="Recentre the map on the trip route" title="Recentre the map on the trip route"><LocateFixed size={13} aria-hidden /></button>
           {clockMilestones && (
             <button
-              className={`map-day-chip ${clockOn ? 'on' : ''}`}
+              className={`map-day-chip map-day-chip--util ${clockOn ? 'on' : ''}`}
               aria-pressed={clockOn}
               onClick={toggleClock}
-              title="Show or hide the road milestones — each planned stop's time and distance on the road"
+              title="Show or hide the road milestones - each planned stop's time and distance on the road"
             >
               <Clock size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Milestones
             </button>
           )}
           {returnLeg && (
             <button
-              className={`map-day-chip ${showReturn ? 'on' : ''}`}
+              className={`map-day-chip map-day-chip--util ${showReturn ? 'on' : ''}`}
               aria-pressed={showReturn}
               onClick={() => setShowReturn(s => !s)}
               title={showReturn
                 ? 'Return leg shown. The loop km (out + back) feed the plan; hide to read the outbound road alone.'
-                : 'Return leg hidden — the corridor and km labels read the OUTBOUND road only.'}
+                : 'Return leg hidden - the corridor and km labels read the OUTBOUND road only.'}
             >
               <RotateCcw size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Return home
             </button>
           )}
-          {dayDirectionsUrl && (
-            <button
-              className="map-day-chip"
-              onClick={() => openExternal(dayDirectionsUrl)}
-              title="Open this day's ride with turn-by-turn directions in Google Maps"
-            >
-              <Navigation size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Directions
-            </button>
-          )}
+          </div>
           {/* Map view modes — three first-class states, none "off", so a
               segmented role="group" (AGENTS' segmented-control rule), same
               chip styling as the day filter. The long form lives in the
@@ -1006,27 +1017,49 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
               ))}
             </div>
           )}
-          {/* Nearby-idea category filters — hide/show the gold idea markers by
-              type. Only rendered when there are ideas to filter. */}
           {ideaCats.length > 0 && (
-            <>
-              {ideaCats.map(([cat, count]) => (
-                <button
-                  key={cat}
-                  className={`map-day-chip map-idea-chip ${hiddenIdeaCats.has(cat) ? '' : 'on'}`}
-                  aria-pressed={!hiddenIdeaCats.has(cat)}
-                  onClick={() => toggleIdeaCat(cat)}
-                  title={hiddenIdeaCats.has(cat) ? `Show ${count} ${titleCase(cat).toLowerCase()} idea${count === 1 ? '' : 's'}` : `Hide ${titleCase(cat).toLowerCase()} ideas`}
-                >
-                  <CatIcon category={cat} size={13} className="yf-idea-chip-ico" />
-                  {titleCase(cat)}
-                  <span className="yf-idea-chip-count">{count}</span>
-                </button>
-              ))}
-            </>
+            <div className="map-filters">
+              <button
+                className="map-day-chip map-day-chip--util"
+                aria-expanded={filtersOpen}
+                onClick={() => setFiltersOpen(o => !o)}
+                title={hiddenIdeaCats.size > 0 ? `Idea filters — ${hiddenIdeaCats.size} hidden` : 'Filter nearby ideas by type'}
+              >
+                Filters{hiddenIdeaCats.size > 0 ? ` (${hiddenIdeaCats.size})` : ''}
+              </button>
+              {filtersOpen && (
+                <div className="map-filters-pop" role="group" aria-label="Nearby idea categories">
+                  {ideaCats.map(([cat, count]) => (
+                    <button
+                      key={cat}
+                      className="map-filters-row"
+                      aria-pressed={!hiddenIdeaCats.has(cat)}
+                      onClick={() => toggleIdeaCat(cat)}
+                    >
+                      <CatIcon category={cat} size={13} aria-hidden />
+                      {titleCase(cat)}
+                      <span className="n">{count}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+        <div className="map-toolbar-end">
+          {dayDirectionsUrl && (
+            <button
+              className="map-day-chip map-day-chip--util map-day-chip--ghost"
+              onClick={() => openExternal(dayDirectionsUrl)}
+              title="Open this day's ride with turn-by-turn directions in Google Maps"
+              aria-label="Directions for this day in Google Maps"
+            >
+              <Navigation size={13} aria-hidden />
+            </button>
           )}
           <button
-            className={`map-day-chip map-expand-chip${expanded ? ' on' : ''}`}
+            className={`map-day-chip map-day-chip--util map-day-chip--ghost map-expand-chip${expanded ? ' on' : ''}`}
+            aria-pressed={expanded}
             onClick={() => (expanded ? collapseExpanded() : setExpanded(true))}
             title={expanded ? 'Shrink the map back into the page (Esc)' : 'Expand the map to fill the screen'}
             aria-label={expanded ? 'Shrink the map back into the page' : 'Expand the map to fill the screen'}
@@ -1034,12 +1067,12 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
             {expanded ? '⤡ Collapse' : '⤢ Expand'}
           </button>
         </div>
-      </div>
+        </div>
       )}
 
       <div className="map-frame">
         {allPoints.length === 0 ? (
-          <div className="empty-state"><div className="big"><MapIcon size={38} aria-hidden /></div><p>No confirmed stops to plot yet — add some in the Timeline.</p></div>
+          <div className="empty-state"><div className="big"><MapIcon size={38} aria-hidden /></div><p>No confirmed stops to plot yet - add some in the Timeline.</p></div>
         ) : (
           <MapLibreMap
             ref={mapRef}
@@ -1165,7 +1198,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
               // m3: one string, used as the accessible name and the tooltip.
               // It used to be a `title` AND a MarkerTooltip with identical text,
               // so hovering showed two tooltips saying the same thing.
-              const label = `${pin.label}: ${pin.name} — ${pin.meta}. Tap to open this part in the plan.`
+              const label = `${pin.label}: ${pin.name} - ${pin.meta}. Tap to open this part in the plan.`
               return (
                 <MapMarker key={`slot-${pin.key}`} longitude={lng} latitude={lat} anchor="center">
                   <MarkerContent>
@@ -1202,7 +1235,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                         </span>
                         {c && <span className="yf-pin-time">{formatHM(c.arrive, timeFormat)}</span>}
                       </MarkerContent>
-                      <MarkerTooltip>{isLast ? `Final destination — ${p.title}` : `Trip start — ${p.title}`}{c ? ` · arrives ${formatHM(c.arrive, timeFormat)} · ~${c.cumKm} km into the trip` : ''}</MarkerTooltip>
+                      <MarkerTooltip>{isLast ? `Final destination - ${p.title}` : `Trip start - ${p.title}`}{c ? `, arrives ${formatHM(c.arrive, timeFormat)}, ~${c.cumKm} km into the trip` : ''}</MarkerTooltip>
                     </MapMarker>
                   )
                 }
@@ -1227,7 +1260,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                       </span>
                       {c && <span className="yf-pin-time">{formatHM(c.arrive, timeFormat)}</span>}
                     </MarkerContent>
-                    <MarkerTooltip>{p.title}{c ? ` · arrives ${formatHM(c.arrive, timeFormat)} · ~${c.cumKm} km into the trip` : ''}</MarkerTooltip>
+                    <MarkerTooltip>{p.title}{c ? `, arrives ${formatHM(c.arrive, timeFormat)}, ~${c.cumKm} km into the trip` : ''}</MarkerTooltip>
                   </MapMarker>
                 )
               })
@@ -1256,7 +1289,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                 <MarkerContent>
                   <span className="yf-map-pin yf-map-flag" title={trip.startLocation}><Home size={13} aria-hidden /></span>
                 </MarkerContent>
-                <MarkerTooltip>Home — return drive ends here ({trip.startLocation})</MarkerTooltip>
+                <MarkerTooltip>Home - return drive ends here ({trip.startLocation})</MarkerTooltip>
               </MapMarker>
             )}
             {/* nearby idea markers — category-coloured, dashed, with quick-add.
@@ -1271,7 +1304,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
               return (
                 <MapMarker key={`nearby_${hit.id}`} longitude={hit.longitude} latitude={hit.latitude}>
                   <MarkerContent>
-                    <VisiblePulse className="yf-map-idea" title={`${hit.name} — click to locate in the suggestions panel`}>
+                    <VisiblePulse className="yf-map-idea" title={`${hit.name} - click to locate in the suggestions panel`}>
                       <span
                         className={`yf-map-pin yf-map-pin-idea${active ? ' yf-map-pin-idea--active' : ''}`}
                         style={{ background: ideaPinColor(hit.category) } as React.CSSProperties}
@@ -1294,7 +1327,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                     </VisiblePulse>
                   </MarkerContent>
                   <MarkerTooltip>
-                    <Lightbulb size={11} aria-hidden style={{ verticalAlign: '-1px', marginRight: 3 }} />{hit.name}{hit.haltPurpose ? ` · ${hit.haltPurpose === 'overnight' ? 'overnight option' : hit.haltPurpose}` : ''}{hit.cumKm != null ? ` · ~${hit.cumKm} km in` : ''}{hit.nearestCity ? ` · near ${hit.nearestCity}` : ''}{hitCosts?.[String(hit.id)] ? ` · ${hitCosts[String(hit.id)]}` : ''}
+                    <Lightbulb size={11} aria-hidden style={{ verticalAlign: '-1px', marginRight: 3 }} />{hit.name}{hit.haltPurpose ? `, ${hit.haltPurpose === 'overnight' ? 'overnight option' : hit.haltPurpose}` : ''}{hit.cumKm != null ? `, ~${hit.cumKm} km in` : ''}{hit.nearestCity ? `, near ${hit.nearestCity}` : ''}{hitCosts?.[String(hit.id)] ? `, ${hitCosts[String(hit.id)]}` : ''}
                   </MarkerTooltip>
                 </MapMarker>
               )
@@ -1349,7 +1382,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
         </div>
       </div>
       <p className="hint-text" style={{ marginTop: 8 }}>
-        <TriangleAlert size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />Route lines follow real roads (© OSRM/OpenStreetMap) when available; distances/durations in the plan are real-road estimates for ground travel, falling back to transparent haversine assumptions when offline/other modes — no live traffic data.
+        <TriangleAlert size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />Route lines follow real roads (© OSRM/OpenStreetMap) when available; distances/durations in the plan are real-road estimates for ground travel, falling back to transparent haversine assumptions when offline/other modes - no live traffic data.
       </p>
     </div>
   )

@@ -57,13 +57,21 @@ drag; movement is translation only (compositor-only).
 
 | Pattern | Recipe | Where it lives |
 | --- | --- | --- |
-| Dropdown / popover entrance | fade 0→1 + rise 4px, `--motion-med`, `--ease-out` | `.popover` (location list, calendar, menus) |
+| Dropdown / popover entrance | fade 0→1 + rise 4px, `--motion-med`, `--ease-out` | `.popover` (location list, calendar, menus), `.map-legend-body` (the map key card), `.map-filters-pop` (the toolbar's idea filters) |
 | Toggle glider | thumb `transform` slide, `--motion-med` | `.pill-glider` (workspace tabs, Plan/Inspect, filters, composer mode) |
 | Day collapse | grid-rows `0fr↔1fr`, `--motion-slower`, `--ease-resize` (both ends at rest, symmetric — the body can be 1000px, and the peak lands mid-animation), unmount after that token's duration (and a clip that unmounts the focused element hands focus to the day's collapse control as the close begins — a hidden element is blurred on the spot, so waiting for the unmount is too late). Anything that changes the header's height rides the same collapse in reverse (the route chain), and the state-only extras take the entrance pattern below | `.day-body-clip` (SmoothCollapse) |
 | Drag carry | pointer-pinned `translate3d(var(--carry-x/-y))` on the row, **no transition** — position never eases | `.is-carried` (Timeline `.tl-row`, Board `.board-row`) |
 | Drag warp | skin `rotate(tilt) scale(1+x−y·.55, 1+y−x·.55)` from pointer velocity, `--motion-fast`, `--ease-out`; JS calm timer (`WARP_CALM_MS` 90ms) flattens the vars when the finger stops | `.is-carried .stop-card / .travel-endpoint` |
 | Drag sibling glide | rows between slot and target translate by the carried row's height, `--motion-fast`, `--ease-glide` | Timeline `.tl`, Board `.board-row` |
 | Drag settle | FLIP translate→none, `--motion-slow`, `--ease-out`; the carried row springs from its release point (engine `consumeCarryRect`) | same surfaces, on commit |
+| Map shell expand / collapse | `scale(.94↔1)` + fade, `--motion-slow`, `--ease-out`; TripMap's unmount timer reads `motionTiming('--motion-slow')` so CSS and JS can't drift (0 under reduced motion — the glide is skipped entirely) | `.map-shell--expanded` / `.map-shell--closing` |
+| Rail fold | `grid-template-columns` glide, `--motion-slow`, `--ease-resize` — an in-place resize of both rails with the map re-fitting beside them (a day-collapse in miniature, so the symmetric curve; the fold icon rides the same clock so one click reads as one movement) | `.map-ideas-grid` folded states |
+
+**Ambient loops are the cadence's own exception.** An `infinite` keyframe — the map
+skeleton's breathe, the live dot's ping — is exempt from the raw-duration ratchet
+because its cadence belongs to the effect, not to a UI transition; its easing still
+rides a token (`--ease-resize` / `--ease-out`), and it still stops under
+`prefers-reduced-motion`.
 
 The drag is pointer-events–driven (lib/touchDnd.ts): mouse starts on an 8px
 move, touch keeps the long-press gate. The warp is a skin-only deformation

@@ -1592,7 +1592,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
                   onBlur={() => setActiveHitId(cur => (cur === (h.id as string | number) ? pinnedHitId ?? null : cur))}
                   onClick={() => { const id = h.id as string | number; const next = pinnedHitId === id ? null : id; setPinnedHitId(next); setActiveHitId(next) }}
                   onKeyDown={e => { if (e.key === 'Enter' && e.target === e.currentTarget) { e.preventDefault(); const id = h.id as string | number; const next = pinnedHitId === id ? null : id; setPinnedHitId(next); setActiveHitId(next) } }}
-                  style={{ padding: '5px 2px', borderBottom: '1px solid var(--line)', opacity: inScope ? undefined : 0.6, cursor: 'pointer' }}>
+                  style={{ opacity: inScope ? undefined : 0.6 }}>
                   <span className="small" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {h.name}{h.nearestCity ? ` · ${h.nearestCity}` : ''}
                     {/* Google hits carry a trusted rating + reported hours — surface them. */}
@@ -1954,6 +1954,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
                                 <span>
                                   +{Math.round(c.detourMin)} min
                                   {c.arriveLabel ? ` · arrive ${c.arriveLabel}` : ''}
+                                  {(c.hit.openTime || c.hit.closeTime) ? ` · ${formatHMRange(c.hit.openTime, c.hit.closeTime, timeFormat)}` : ''}
                                   {c.budgetSharePct > 0 ? ` · ${c.budgetSharePct}% of day detours` : ' · on route'}
                                   {c.reason ? ` · ${c.reason}` : ''}
                                 </span>
@@ -1993,6 +1994,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
               onOpenInTimeline={onOpenTimeline}
               onOpenInBoard={onOpenBoard ? () => onOpenBoard() : undefined}
               focusDay={activeDayIndex}
+              tripReadinessRows={tripReadinessRows}
               onDayFilterChange={day => {
                 // The rail always plans exactly one day, so the map's "All days"
                 // leaves it where it is; a day chip moves the rail onto that day.
@@ -2024,7 +2026,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
               <span className="poi-col-head-ico"><MapPin size={13} aria-hidden /></span>
               <div className="poi-col-head-txt">
                 <b>Optional extras</b>
-                <span className="small muted">Sights · detours - never required</span>
+                <span className="small muted">Sights · detours — never required</span>
               </div>
               <button
                 type="button"
@@ -2147,11 +2149,11 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
                 <p className="hint-text" role="status">⚠ Google search quota reached for this month - corridor suggestions are paused until the counter rolls over. Removing the key from settings serves the free stack instead.</p>
               )}
               {seeForRail.length === 0
-                ? <p className="muted small">Sightseeing &amp; detour stops will appear here along the corridor.</p>
+                ? <p className="muted small">Sightseeing &amp; detour stops will appear here along your route.</p>
                 : (
                     <>
                       <div className="poi-grp">
-                        <span className="poi-grp-k">The corridor's picks</span>
+                        <span className="poi-grp-k">Along your route</span>
                         <span className="poi-grp-n">{seeForRail.length}</span>
                         <span className="poi-grp-ln" />
                       </div>

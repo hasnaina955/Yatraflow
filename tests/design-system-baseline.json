@@ -1,13 +1,5 @@
 {
-  "contrastLight": [
-    ".btn-danger — 4.22:1",
-    ".chip-danger — 4.22:1",
-    ".clickable-chip.on-saffron — 3.48:1",
-    ".day-rail-chip.warn:hover — 3.48:1",
-    ".day-warn-pill — 3.69:1",
-    ".icon-link:hover — 4.49:1",
-    ".ride-purpose-fuel — 4.45:1"
-  ],
+  "contrastLight": [],
   "contrastDark": [],
   "duplicateSelectors": [
     ".bench-cta",
@@ -67,9 +59,7 @@
     ":root.vt-radiate-in::view-transition-old(root) — animation: 680ms",
     ":root.vt-radiate-out::view-transition-new(root) — animation: 780ms"
   ],
-  "hueCollisions": [
-    "DAY_COLORS #F59E2D vs #B7791F — 1.6°"
-  ],
+  "hueCollisions": [],
   "offLadderSpacing": [
     "gap: 10px",
     "gap: 11px",
@@ -157,7 +147,6 @@
     ".bill-note — font-size: 9.5px",
     ".board-col-count — font-size: 10.5px",
     ".board-pulse .pulse-label — font-size: 10.5px",
-    ".board-stop-kicker — font-size: 9.5px",
     ".day-badge small — font-size: 9px",
     ".day-kind — font-size: 10.5px",
     ".day-slot-cand-nm > span — font-size: 10.5px",
@@ -174,7 +163,6 @@
     ".fp-delta span — font-size: 8.5px",
     ".fp-tip span — font-size: 10.5px",
     ".fp-warn span — font-size: 10.5px",
-    ".ha-kicker — font-size: 10.5px",
     ".ha-stats span — font-size: 9.5px",
     ".hbc-code span — font-size: 9px",
     ".loc-foot — font-size: 10.5px",

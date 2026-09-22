@@ -11,10 +11,11 @@
 // gated behind prefers-reduced-motion; the reduced path is instant swaps.
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
-  BedDouble, Bike, Bus, Car, Check, Copy, Dices, ImageDown, ReceiptText, RotateCcw,
-  TrainFront, UtensilsCrossed, User, Users,
+  BedDouble, Check, Copy, Dices, ImageDown, ReceiptText, RotateCcw,
+  UtensilsCrossed, User, Users,
 } from 'lucide-react'
 import { formatInr, MODE_SPEED, MODE_COST_PER_KM } from '../lib/engine'
+import { InlineIcon, modeIcon } from './icons'
 import { nativeCopyText } from '../lib/native'
 import { cap } from '../lib/labels'
 import {
@@ -95,14 +96,6 @@ function BenchRange(props: {
         }} />
     </div>
   )
-}
-
-/** Icon per bench mode (receipt fares line reuses it for bus/train). */
-function modeIcon(m: BenchMode, size = 15): React.ReactNode {
-  if (m === 'motorcycle') return <Bike size={size} aria-hidden />
-  if (m === 'car') return <Car size={size} aria-hidden />
-  if (m === 'bus') return <Bus size={size} aria-hidden />
-  return <TrainFront size={size} aria-hidden />
 }
 
 const CONFETTI_COLORS = ['#2f9e8f', '#F3AA3D', '#e05656', '#7c5cff', '#2f9e8f']
@@ -350,7 +343,7 @@ export function PlanBench() {
       <div className="bench-grid">
         <div className="bench-controls">
           <div className="bench-head-row">
-            <div className="bench-badge"><span className="bench-badge-dot" aria-hidden="true" /><ReceiptText size={14} aria-hidden style={{ verticalAlign: '-2px' }} /> The Plan Bench</div>
+            <div className="bench-badge"><span className="bench-badge-dot" aria-hidden="true" /><InlineIcon icon={ReceiptText} size={14} gap={0} /> The Plan Bench</div>
             <div className="bench-head-actions">
               <button type="button" className={`bench-toggle${input.roundTrip ? ' on' : ''}`}
                 aria-pressed={input.roundTrip}
@@ -363,7 +356,7 @@ export function PlanBench() {
               </button>
               {dirty(input) && (
                 <button type="button" className="chip chip-outline" onClick={resetAll} aria-label="Reset the calculator to defaults">
-                  <RotateCcw size={13} aria-hidden style={{ verticalAlign: '-2px' }} />Reset
+                  <InlineIcon icon={RotateCcw} size={13} gap={0} />Reset
                 </button>
               )}
             </div>
@@ -511,11 +504,11 @@ export function PlanBench() {
               <span className="bench-line-formula">{shown.transportFormula}</span>
             </div>
             <div className="bench-line">
-              <div className="bench-line-head"><span><BedDouble size={14} aria-hidden style={{ verticalAlign: '-2px', marginRight: 5 }} />Stays ({shown.rooms} room{shown.rooms === 1 ? '' : 's'})</span><b><Odometer value={formatInr(shown.stayCost)} animate={odometerAnimate} /></b></div>
+              <div className="bench-line-head"><span><InlineIcon icon={BedDouble} size={14} gap={5} />Stays ({shown.rooms} room{shown.rooms === 1 ? '' : 's'})</span><b><Odometer value={formatInr(shown.stayCost)} animate={odometerAnimate} /></b></div>
               <span className="bench-line-formula">{shown.stayFormula}</span>
             </div>
             <div className="bench-line">
-              <div className="bench-line-head"><span><UtensilsCrossed size={14} aria-hidden style={{ verticalAlign: '-2px', marginRight: 5 }} />Meals</span><b><Odometer value={formatInr(shown.mealCost)} animate={odometerAnimate} /></b></div>
+              <div className="bench-line-head"><span><InlineIcon icon={UtensilsCrossed} size={14} gap={5} />Meals</span><b><Odometer value={formatInr(shown.mealCost)} animate={odometerAnimate} /></b></div>
               <span className="bench-line-formula">{shown.mealFormula}</span>
             </div>
           </div>
@@ -539,14 +532,14 @@ export function PlanBench() {
           <div className="bench-receipt-actions">
             <button type="button" className={`chip chip-outline${copied ? ' chip-copied' : ''}`} onClick={copyBill}>
               {copied
-                ? <><Check size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Copied to clipboard</>
-                : <><Copy size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Copy bill as text</>}
+                ? <><InlineIcon icon={Check} size={13} gap={4} />Copied to clipboard</>
+                : <><InlineIcon icon={Copy} size={13} gap={4} />Copy bill as text</>}
             </button>
             <button type="button" className={`chip chip-outline${imgState === 'done' ? ' chip-copied' : ''}`}
               onClick={shareImage} disabled={imgState === 'busy'}>
               {imgState === 'done'
-                ? <><Check size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Sent</>
-                : <><ImageDown size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />{imgState === 'busy' ? 'Rendering…' : 'Share as image'}</>}
+                ? <><InlineIcon icon={Check} size={13} gap={4} />Sent</>
+                : <><InlineIcon icon={ImageDown} size={13} gap={4} />{imgState === 'busy' ? 'Rendering…' : 'Share as image'}</>}
             </button>
             {(copied || imgState === 'done') && !reduced && !capturing && (
               <span className="bench-confetti" aria-hidden="true">

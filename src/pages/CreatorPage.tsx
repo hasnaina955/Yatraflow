@@ -3,6 +3,7 @@
 // public itinerary pages: bio + links + every itinerary this creator has
 // published. Works logged-out (profiles and publications are public app-wide).
 import { useMemo } from 'react'
+import { InlineIcon } from '../components/icons'
 import { Camera, Compass, Eye, GitFork, Link2, MapPin, Sparkles, TvMinimalPlay } from 'lucide-react'
 import { useSessionUserId, usePublished, userById } from '../store/store'
 import { forkPublication } from '../lib/forkPub'
@@ -58,7 +59,7 @@ export function CreatorPage({ creatorId, onNavigate }: { creatorId: string; onNa
           <div className="creator-hero-actions">
             {links.map(({ key, href, label, Icon }) => (
               <a key={key} className="btn btn-outline btn-sm" href={href} target="_blank" rel="noreferrer noopener" aria-label={label} onClick={e => { e.preventDefault(); openExternal(href) }}>
-                <Icon size={14} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />{key === 'youtube' ? 'YouTube' : 'Instagram'}
+                <InlineIcon icon={Icon} size={14} gap={4} />{key === 'youtube' ? 'YouTube' : 'Instagram'}
               </a>
             ))}
             <CopyButton text={shareLink} label="Copy page link" />
@@ -70,8 +71,8 @@ export function CreatorPage({ creatorId, onNavigate }: { creatorId: string; onNa
         {pubs.length > 0 && (
           <div className="creator-stats" role="group" aria-label="Creator track record">
             <div className="stat-tile"><div className="stat-label">Itineraries</div><div className="stat-value">{pubs.length}</div></div>
-            <div className="stat-tile"><div className="stat-label">Total views</div><div className="stat-value"><Eye size={15} aria-hidden style={{ verticalAlign: '-1px', marginRight: 5 }} />{totalViews}</div></div>
-            <div className="stat-tile"><div className="stat-label">Total forks</div><div className="stat-value"><GitFork size={15} aria-hidden style={{ verticalAlign: '-1px', marginRight: 5 }} />{totalForks}</div></div>
+            <div className="stat-tile"><div className="stat-label">Total views</div><div className="stat-value"><InlineIcon icon={Eye} size={15} gap={5} vAlign="-1px" />{totalViews}</div></div>
+            <div className="stat-tile"><div className="stat-label">Total forks</div><div className="stat-value"><InlineIcon icon={GitFork} size={15} gap={5} vAlign="-1px" />{totalForks}</div></div>
           </div>
         )}
 

@@ -2,9 +2,6 @@
   "contrastLight": [
     ".btn-danger — 4.22:1",
     ".chip-danger — 4.22:1",
-    ".clickable-chip.on-saffron — 3.48:1",
-    ".day-rail-chip.warn:hover — 3.48:1",
-    ".day-warn-pill — 3.69:1",
     ".icon-link:hover — 4.49:1",
     ".ride-purpose-fuel — 4.45:1"
   ],

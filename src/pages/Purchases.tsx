@@ -13,6 +13,7 @@
 //     publication's price today — a creator raising their price does not
 //     retroactively change what you paid.
 import { useEffect, useMemo, useState } from 'react'
+import { InlineIcon } from '../components/icons'
 import { ArrowLeft, Share2, ShoppingBag } from 'lucide-react'
 import { usePublished, useUsers, useSessionUserId } from '../store/store'
 import { fetchMyPurchases } from '../lib/unlock'
@@ -65,7 +66,7 @@ export function PurchasesPage({ onNavigate }: { onNavigate: (r: string) => void 
     <div className="container purchases-page">
       <div className="purchases-head">
         <button className="btn btn-ghost" onClick={() => onNavigate('/trips')}>
-          <ArrowLeft size={14} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />My trips
+          <InlineIcon icon={ArrowLeft} size={14} gap={4} />My trips
         </button>
       </div>
 
@@ -136,7 +137,7 @@ export function PurchasesPage({ onNavigate }: { onNavigate: (r: string) => void 
                         post is worse than not offering it (purchaseShareable). */}
                     {purchaseShareable(row) && (
                       <button className="btn btn-ghost" onClick={() => void sharePurchase(row)}>
-                        <Share2 size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Share what you bought
+                        <InlineIcon icon={Share2} size={13} gap={4} />Share what you bought
                       </button>
                     )}
                   </div>

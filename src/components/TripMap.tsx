@@ -28,7 +28,7 @@ import {
   type MapViewMode,
 } from '../lib/mapViewModes'
 import type { MapRef } from './mapcn/map'
-import { CatIcon } from './icons'
+import { InlineIcon, CatIcon } from './icons'
 import {
   Box, Clock, Flag, Home, Info, Lightbulb, LocateFixed, Map as MapIcon, Mountain, Navigation, PlaneTakeoff,
   RotateCcw, TriangleAlert, X,
@@ -978,7 +978,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
               onClick={toggleClock}
               title="Show or hide the road milestones - each planned stop's time and distance on the road"
             >
-              <Clock size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Milestones
+              <InlineIcon icon={Clock} size={13} gap={4} />Milestones
             </button>
           )}
           {returnLeg && (
@@ -990,7 +990,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                 ? 'Return leg shown. The loop km (out + back) feed the plan; hide to read the outbound road alone.'
                 : 'Return leg hidden - the corridor and km labels read the OUTBOUND road only.'}
             >
-              <RotateCcw size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Return home
+              <InlineIcon icon={RotateCcw} size={13} gap={4} />Return home
             </button>
           )}
           </div>
@@ -1009,9 +1009,9 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                   title={MAP_VIEW_MODE_META[m].aria}
                   onClick={() => { haptic('select'); setViewMode(m) }}
                 >
-                  {m === '2d' ? <MapIcon size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />
-                    : m === 'terrain' ? <Mountain size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />
-                      : <Box size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />}
+                  {m === '2d' ? <InlineIcon icon={MapIcon} size={13} gap={4} />
+                    : m === 'terrain' ? <InlineIcon icon={Mountain} size={13} gap={4} />
+                      : <InlineIcon icon={Box} size={13} gap={4} />}
                   {MAP_VIEW_MODE_META[m].label}
                 </button>
               ))}
@@ -1327,7 +1327,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                     </VisiblePulse>
                   </MarkerContent>
                   <MarkerTooltip>
-                    <Lightbulb size={11} aria-hidden style={{ verticalAlign: '-1px', marginRight: 3 }} />{hit.name}{hit.haltPurpose ? `, ${hit.haltPurpose === 'overnight' ? 'overnight option' : hit.haltPurpose}` : ''}{hit.cumKm != null ? `, ~${hit.cumKm} km in` : ''}{hit.nearestCity ? `, near ${hit.nearestCity}` : ''}{hitCosts?.[String(hit.id)] ? `, ${hitCosts[String(hit.id)]}` : ''}
+                    <InlineIcon icon={Lightbulb} size={11} gap={3} vAlign="-1px" />{hit.name}{hit.haltPurpose ? `, ${hit.haltPurpose === 'overnight' ? 'overnight option' : hit.haltPurpose}` : ''}{hit.cumKm != null ? `, ~${hit.cumKm} km in` : ''}{hit.nearestCity ? `, near ${hit.nearestCity}` : ''}{hitCosts?.[String(hit.id)] ? `, ${hitCosts[String(hit.id)]}` : ''}
                   </MarkerTooltip>
                 </MapMarker>
               )
@@ -1360,7 +1360,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
             title={liveOn ? 'Stop showing my live location' : 'Show my live location on the map'}
             aria-label={liveOn ? 'Stop showing my live location' : 'Show my live location on the map'}
           >
-            <LocateFixed size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />{liveOn ? 'Live on' : 'Locate me'}
+            <InlineIcon icon={LocateFixed} size={12} gap={3} />{liveOn ? 'Live on' : 'Locate me'}
           </button>
           <button
             className="map-legend-toggle"
@@ -1369,7 +1369,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
             title={legendOpen ? 'Hide the map key' : 'Show the map key'}
             aria-label={legendOpen ? 'Hide the map key' : 'Show the map key'}
           >
-            {legendOpen ? <><X size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />Hide key</> : <><Info size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />Key</>}
+            {legendOpen ? <><InlineIcon icon={X} size={12} gap={3} />Hide key</> : <><InlineIcon icon={Info} size={12} gap={3} />Key</>}
           </button>
           {legendOpen && (
             <div className="map-legend-body">
@@ -1382,7 +1382,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
         </div>
       </div>
       <p className="hint-text" style={{ marginTop: 8 }}>
-        <TriangleAlert size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />Route lines follow real roads (© OSRM/OpenStreetMap) when available; distances/durations in the plan are real-road estimates for ground travel, falling back to transparent haversine assumptions when offline/other modes - no live traffic data.
+        <InlineIcon icon={TriangleAlert} size={12} gap={3} />Route lines follow real roads (© OSRM/OpenStreetMap) when available; distances/durations in the plan are real-road estimates for ground travel, falling back to transparent haversine assumptions when offline/other modes - no live traffic data.
       </p>
     </div>
   )

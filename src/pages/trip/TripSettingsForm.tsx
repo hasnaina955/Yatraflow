@@ -3,16 +3,16 @@
 // blocks, big-value heads, mode grid, crew buttons, slider dials with drag
 // bubbles) and a live "settings bill" receipt on the right mirrors every choice
 // before it is saved. The sticky save bar spans both columns.
-import { useState, type ReactNode } from 'react'
+import { useState } from 'react'
 import {
-  Bike, Bus, Car, CarTaxiFront, ChevronDown, ChevronUp,
-  KeyRound, Plane, Shuffle, TrainFront, TriangleAlert, X,
+  ChevronDown, ChevronUp, TriangleAlert, X,
 } from 'lucide-react'
 import type { Trip, LatLngPoint, TransportMode } from '../../data/types'
 import { TRANSPORT_MODES, TRAVEL_STYLES, STAY_STYLES } from '../../data/types'
 import { updateTrip } from '../../store/store'
 import { FUEL_PRICE_INR_PER_L, DEFAULT_FUEL_ECONOMY_KML, MODE_SPEED, formatInr, isFuelEconomyMode, parseFuelEconomyKmL, isImplausibleFuelEconomy, parseFuelPricePerL } from '../../lib/engine'
 import { cap } from '../../lib/labels'
+import { InlineIcon, modeIcon } from '../../components/icons'
 import { isSelfDrivenMode } from '../../lib/ridePlan'
 import { CREW_CHIPS, CREW_MAX, CREW_MIN, clampCrew } from '../../lib/crew'
 import { defaultVehicleProfile } from '../../lib/vehicleProfile'
@@ -27,12 +27,8 @@ import { CoverImagePicker } from '../../components/CoverImagePicker'
  *  (#122's dhaba case: dinner at X, two more hours to Y). */
 const DEFAULT_DRIVE_AFTER_DINNER_MIN = 120
 
-/** Icon per transport mode — mirrors the bench's mode tiles. */
-const MODE_ICON: Record<TransportMode, ReactNode> = {
-  car: <Car size={15} />, rental: <KeyRound size={15} />, motorcycle: <Bike size={15} />, train: <TrainFront size={15} />,
-  bus: <Bus size={15} />, flight: <Plane size={15} />, taxi: <CarTaxiFront size={15} />,
-  mixed: <Shuffle size={15} />,
-}
+/** Icon per transport mode — the ONE map lives in components/icons (modeIcon);
+ *  this file used to keep a private copy that drifted from the bench's. */
 
 export function TripSettingsForm({ trip, editable }: { trip: Trip; editable: boolean }) {
   const [f, setF] = useState({
@@ -329,7 +325,7 @@ export function TripSettingsForm({ trip, editable }: { trip: Trip; editable: boo
                 <button key={m} type="button" className={`bench-mode-btn${f.transportMode === m ? ' on' : ''}`}
                   aria-pressed={f.transportMode === m} disabled={!editable}
                   onClick={() => setF(x => ({ ...x, transportMode: m }))}>
-                  {MODE_ICON[m]}
+                  {modeIcon(m)}
                   <span className="bench-mode-name">{cap(m)}</span>
                   <span className="bench-mode-speed" aria-hidden="true">{MODE_SPEED[m] ?? 40}</span>
                 </button>
@@ -359,12 +355,12 @@ export function TripSettingsForm({ trip, editable }: { trip: Trip; editable: boo
               </div>
               {isImplausibleFuelEconomy(f.transportMode, ecoSet ? ecoNum : undefined) && (
                 <p className="hint-text ts-warn-note">
-                  <TriangleAlert size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />Unusual for a {f.transportMode} — most do far better. Double-check the mileage.
+                  <InlineIcon icon={TriangleAlert} size={12} gap={3} />Unusual for a {f.transportMode} — most do far better. Double-check the mileage.
                 </p>
               )}
               {priceIgnored && (
                 <p className="hint-text ts-warn-note">
-                  <TriangleAlert size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />Your fuel price is unused until you set a mileage — the bill is pricing the blended {cap(f.transportMode)} rate instead.
+                  <InlineIcon icon={TriangleAlert} size={12} gap={3} />Your fuel price is unused until you set a mileage — the bill is pricing the blended {cap(f.transportMode)} rate instead.
                 </p>
               )}
               <button type="button" className={`bench-toggle${f.roundTrip ? ' on' : ''}`}
@@ -410,7 +406,7 @@ export function TripSettingsForm({ trip, editable }: { trip: Trip; editable: boo
             </div>
             <div className="ts-receipt-name">{f.name || 'Untitled trip'}</div>
             <div className="bench-meta-row">
-              {MODE_ICON[f.transportMode]}
+              {modeIcon(f.transportMode)}
               <span>{cap(f.transportMode)} · {travellers} travelling · {cap(f.travelStyle)}</span>
             </div>
             <div className="bench-total" aria-live="polite">

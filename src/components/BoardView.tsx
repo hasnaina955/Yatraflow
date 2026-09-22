@@ -9,6 +9,7 @@ import {
   Plus, Trash2, TriangleAlert,
 } from 'lucide-react'
 import { prefersReducedMotion } from '../lib/motion'
+import { InlineIcon, KindIcon } from './icons'
 import type { Trip, ItineraryStop } from '../data/types'
 import { computeTotals, computeHealth, collectWarnings, minutesToHM, formatInr } from '../lib/engine'
 import type { ScheduleWarning } from '../lib/engine'
@@ -162,11 +163,11 @@ export function BoardView({ trip, editable, applyChange, health, totals, onOpenO
               onClick={() => setMapFocus(f => !f)} aria-pressed={mapFocus}
               title={mapFocus ? 'Bring the day columns back' : 'Slide the columns aside and read the map full-bleed (Esc)'}>
               {mapFocus
-                ? <><ArrowLeft size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Back to cards</>
-                : <><MapIcon size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />View map</>}
+                ? <><InlineIcon icon={ArrowLeft} size={13} gap={4} />Back to cards</>
+                : <><InlineIcon icon={MapIcon} size={13} gap={4} />View map</>}
             </button>
             <button className="btn btn-primary btn-sm" onClick={() => openEditorTarget({ mode: 'add', dayIndex: focusedDay === 'all' ? 0 : focusedDay })}>
-              <Plus size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Add a stop
+              <InlineIcon icon={Plus} size={13} gap={4} />Add a stop
             </button>
           </div>
         )}
@@ -186,7 +187,7 @@ export function BoardView({ trip, editable, applyChange, health, totals, onOpenO
             <span className="small muted" style={{ display: 'block', marginTop: 3 }}>
               Drag a stop to another day — its impact previews before saving. Click a column to focus its route.
             </span>
-            <button type="button" className="board-fit" onClick={fitToTrip}><LocateFixed size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Fit route</button>
+            <button type="button" className="board-fit" onClick={fitToTrip}><InlineIcon icon={LocateFixed} size={13} gap={4} />Fit route</button>
           </div>
 
           {/* Trip Pulse — health, decisions, budget (doc §6.4) */}
@@ -204,7 +205,7 @@ export function BoardView({ trip, editable, applyChange, health, totals, onOpenO
               <i className={health.score >= 70 ? 'ok' : health.score >= 40 ? 'mid' : 'bad'} style={{ width: `${Math.max(4, health.score)}%` }} />
             </div>
             <div className="board-pulse-lines">
-              {warnDayCount > 0 && <span><TriangleAlert size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />{warnDayCount} route day{warnDayCount === 1 ? '' : 's'} overloaded</span>}
+              {warnDayCount > 0 && <span><InlineIcon icon={TriangleAlert} size={12} gap={3} />{warnDayCount} route day{warnDayCount === 1 ? '' : 's'} overloaded</span>}
               {openDecisions > 0 && <span>{openDecisions} open decision{openDecisions === 1 ? '' : 's'}</span>}
               <span>{formatInr(totals.totalCostInr)} est. budget{optionalExpenses > 0 ? ` · ${optionalExpenses} optional item${optionalExpenses === 1 ? '' : 's'}` : ''}</span>
             </div>
@@ -396,7 +397,7 @@ function BoardColumn({ day, allDays, editable, warnings, focused, onToggleFocus,
         <span className="board-col-day">Day {day.index + 1}</span>
         <span className="board-col-count">{focused ? 'Focused · ' : ''}{totalStops} stop{totalStops === 1 ? '' : 's'}</span>
         <span className="board-col-subtitle">{day.title || `Day ${day.index + 1}`}</span>
-        {topWarn && <span className={`day-warn-pill ${sev === 'high' ? 'sev-high' : ''}`}><TriangleAlert size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />{topWarn.title.replace(/^Day \d+: /, '')}{warnings.length > 1 ? ` +${warnings.length - 1}` : ''}</span>}
+        {topWarn && <span className={`day-warn-pill ${sev === 'high' ? 'sev-high' : ''}`}><InlineIcon icon={TriangleAlert} size={12} gap={3} />{topWarn.title.replace(/^Day \d+: /, '')}{warnings.length > 1 ? ` +${warnings.length - 1}` : ''}</span>}
       </button>
 
       <div className={`board-col-stops${dragging !== null ? ' is-dragging' : ''}`} ref={stopsRef} data-yf-list={listId}>
@@ -418,7 +419,7 @@ function BoardColumn({ day, allDays, editable, warnings, focused, onToggleFocus,
               {...(editable ? dndHandlers(i) : {})}>
               <div className={`board-stop stop-card kind-${kind} status-${s.status} ${foreignOver === i && dragging === null ? 'foreign-over' : ''}`}>
                 <div className="stop-main">
-                  <span className="board-stop-kicker">{s.departTime ? `${formatHM(s.departTime, timeFormat)} · ` : ''}{STOP_KIND_LABELS[kind]}</span>
+                  <span className="board-stop-kicker">{s.departTime ? `${formatHM(s.departTime, timeFormat)} · ` : ''}<KindIcon kind={kind} size={11} />{STOP_KIND_LABELS[kind]}</span>
                   {editable ? (
                     <button type="button" className="board-stop-title-btn" onClick={() => onEdit(s.id)}
                       title={`Edit ${s.title}`} aria-label={`Edit ${s.title}`}>
@@ -465,7 +466,7 @@ function BoardColumn({ day, allDays, editable, warnings, focused, onToggleFocus,
             onClick={onAdd}
             title={`Add a stop to Day ${day.index + 1}`}
             aria-label={`Add a stop to Day ${day.index + 1}`}>
-            <b><Plus size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />Add or drop a stop</b>
+            <b><InlineIcon icon={Plus} size={13} gap={3} />Add or drop a stop</b>
             <span className="small">Impact preview before saving</span>
           </button>
         ) : (

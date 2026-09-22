@@ -1,5 +1,6 @@
 // ============ AI travel companion drawer ============
 import React, { useEffect, useRef, useState } from 'react'
+import { InlineIcon } from './icons'
 import { ClipboardList, Sparkles, X } from 'lucide-react'
 import type { Trip } from '../data/types'
 import { answerQuestion, quickPrompts, type AiReply } from '../lib/ai'
@@ -115,7 +116,7 @@ export function AiDrawer({ trip, open, onOpen, onClose }: { trip: Trip; open: bo
                   which is invisible in a linearised transcript. */}
               <span className="sr-only">{m.role === 'user' ? 'You: ' : 'Companion: '}</span>
               {m.text}
-              {m.assumptions && <div className="ai-assumption"><ClipboardList size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />{m.assumptions}</div>}
+              {m.assumptions && <div className="ai-assumption"><InlineIcon icon={ClipboardList} size={12} gap={3} />{m.assumptions}</div>}
             </div>
           ))}
           {thinking && (

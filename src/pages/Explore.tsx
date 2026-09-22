@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   Calendar, Compass, Eye, GitFork, Heart, MapPin, Search, Sparkles, Star, Wallet, X,
 } from 'lucide-react'
-import { MetaIcon } from '../components/icons'
+import { InlineIcon, MetaIcon } from '../components/icons'
 import { usePublished, useUsers, useTrips, useSessionUserId } from '../store/store'
 import type { User } from '../data/types'
 import { computeHealth, formatInr } from '../lib/engine'
@@ -214,7 +214,7 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
             </button>
           ))}
           <button className={`chip clickable-chip ${savedOnly ? 'chip-saffron' : ''}`} aria-pressed={savedOnly}
-            onClick={() => setSavedOnly(v => !v)}><Heart size={12} aria-hidden fill={savedOnly ? 'currentColor' : 'none'} style={{ verticalAlign: '-2px', marginRight: 4 }} />Saved {saved.length > 0 && <span className="chip-count">{saved.length}</span>}</button>
+            onClick={() => setSavedOnly(v => !v)}><InlineIcon icon={Heart} size={12} gap={4} fill={savedOnly ? 'currentColor' : 'none'} />Saved {saved.length > 0 && <span className="chip-count">{saved.length}</span>}</button>
         </div>
 
         {/* ---- Compact filter bar: budget / duration / sort ---- */}
@@ -244,7 +244,7 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
                 { value: 'duration', label: 'Longest first' },
               ]} />
             {filtersActive && (
-              <button className="btn btn-ghost btn-sm" onClick={() => { setQ(''); setStyle('all'); setMaxBudget(''); setDuration('all'); setSavedOnly(false); syncUrl({ q: '', style: 'all', max: '', dur: 'all' }) }}><X size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Clear filters</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => { setQ(''); setStyle('all'); setMaxBudget(''); setDuration('all'); setSavedOnly(false); syncUrl({ q: '', style: 'all', max: '', dur: 'all' }) }}><InlineIcon icon={X} size={13} gap={4} />Clear filters</button>
             )}
           </div>
         </div>
@@ -257,14 +257,14 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
         {featured && (
           <div className="featured-card" key={featured.id}>
             <div className="featured-body">
-              <span className="editorial-kicker featured-kicker"><Star size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />Featured itinerary{featuredOutsideFilters && <> · outside your filters</>}</span>
+              <span className="editorial-kicker featured-kicker"><InlineIcon icon={Star} size={12} gap={3} />Featured itinerary{featuredOutsideFilters && <> · outside your filters</>}</span>
               <h2><a className="featured-title-link" href={`#/pub/${featured.id}`}>{featured.title}</a></h2>
               <p className="featured-tagline">{featured.tagline}</p>
               <p className="featured-credibility">
                 Why featured: {featured.copies >= 1
-                  ? <><GitFork size={12} aria-hidden style={{ verticalAlign: '-2px', margin: '0 2px' }} /> {featured.copies} fork{featured.copies === 1 ? '' : 's'} — the most-forked plan here</>
-                  : <><Eye size={12} aria-hidden style={{ verticalAlign: '-2px', margin: '0 2px' }} /> {featured.views} views</>}
-                {featuredHealth !== undefined && <> · trip health {featuredHealth}/100</>} — by {userOf(users, featured.creatorId)?.profile.name ?? 'a YatraFlow traveller'}{userOf(users, featured.creatorId)?.profile.isCreator && <Sparkles size={11} aria-hidden style={{ verticalAlign: '-1px', marginLeft: 2 }} />}.
+                  ? <><InlineIcon icon={GitFork} size={12} gap={2} style={{ marginLeft: 2 }} /> {featured.copies} fork{featured.copies === 1 ? '' : 's'} — the most-forked plan here</>
+                  : <><InlineIcon icon={Eye} size={12} gap={2} style={{ marginLeft: 2 }} /> {featured.views} views</>}
+                {featuredHealth !== undefined && <> · trip health {featuredHealth}/100</>} — by {userOf(users, featured.creatorId)?.profile.name ?? 'a YatraFlow traveller'}{userOf(users, featured.creatorId)?.profile.isCreator && <InlineIcon icon={Sparkles} size={11} gap={0} vAlign="-1px" style={{ marginLeft: 2 }} />}.
               </p>
               <div className="featured-meta">
                 <span><MetaIcon icon={ Calendar } tone="time" />{featured.durationDays} days</span>
@@ -272,9 +272,9 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
                 <span><MetaIcon icon={ MapPin } tone="place" />{featured.routeSummary.length} places · {featured.routeSummary[0]} → {featured.routeSummary[featured.routeSummary.length - 1]}</span>
               </div>
               <div className="featured-actions">
-                <button className="btn fork-btn" onClick={() => forkTrip(featured.id)}><GitFork size={14} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />{me ? 'Fork this trip' : 'Log in to fork'}</button>
+                <button className="btn fork-btn" onClick={() => forkTrip(featured.id)}><InlineIcon icon={GitFork} size={14} gap={4} />{me ? 'Fork this trip' : 'Log in to fork'}</button>
                 <button className="btn save-btn" onClick={() => toggleHeart(featured.id)} aria-pressed={isSaved(featured.id)}>
-                  <Heart size={13} aria-hidden fill={isSaved(featured.id) ? 'currentColor' : 'none'} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+                  <InlineIcon icon={Heart} size={13} gap={4} fill={isSaved(featured.id) ? 'currentColor' : 'none'} />
                   {isSaved(featured.id) ? 'Saved' : 'Save'}
                 </button>
               </div>

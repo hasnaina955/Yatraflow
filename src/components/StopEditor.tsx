@@ -1,5 +1,6 @@
 // ============ Stop add/edit modal ============
 import React, { useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { InlineIcon } from './icons'
 import type { ItineraryStop, StopCategory, StopStatus, Trip } from '../data/types'
 import { STOP_CATEGORIES, STOP_STATUSES } from '../data/types'
 import { Car } from 'lucide-react'
@@ -288,7 +289,7 @@ export function StopEditor({ open, onClose, initial, resetKey, onSave, dayLabel,
         {legContext && v.geocoded && (
           <div className="card" style={{ background: 'var(--bg-soft)', padding: 12, marginBottom: 12 }}>
             <div className="small" style={{ fontWeight: 600, marginBottom: 6 }}>
-              <Car size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Travel to this stop {legState === 'loading' ? <span className="muted">— measuring road…</span> : ''}
+              <InlineIcon icon={Car} size={13} gap={4} />Travel to this stop {legState === 'loading' ? <span className="muted">— measuring road…</span> : ''}
             </div>
             <div className="small muted" style={{ marginBottom: 10 }}>
               {legContext.fromName} → {v.title || v.locationName || 'this stop'}

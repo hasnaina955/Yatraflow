@@ -10,7 +10,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Calendar, ChevronDown, ChevronUp, Pin, TriangleAlert, X, ArrowRight, Printer,
-  Car, Bike, Bus, TrainFront, Plane, KeyRound, CarTaxiFront, Shuffle, Fuel, Wallet,
+  Fuel, Wallet,
 } from 'lucide-react'
 import type { FixedCommitment, LatLngPoint, TransportMode, TravelStyle } from '../data/types'
 import { TRAVEL_STYLES, TRANSPORT_MODES } from '../data/types'
@@ -18,6 +18,7 @@ import { useDb, currentUser, createTrip } from '../store/store'
 import { FUEL_PRICE_INR_PER_L, DEFAULT_FUEL_ECONOMY_KML, isFuelEconomyMode, parseFuelEconomyKmL, parseFuelPricePerL, isImplausibleFuelEconomy, MODE_SPEED, minutesToHM } from '../lib/engine'
 import { planDriveDays, isSelfDrivenMode } from '../lib/ridePlan'
 import { CREW_CHIPS, CREW_MAX, CREW_MIN, clampCrew } from '../lib/crew'
+import { InlineIcon, modeIcon, MODE_ICONS } from '../components/icons'
 import { estimateTripStarter, buildOutlineSeedStops } from '../lib/tripStarter'
 import { fetchTripThumbUrl } from '../lib/tripThumb'
 import { Field, Chip, toast, Odometer, useMedia } from '../components/ui'
@@ -48,22 +49,24 @@ interface DestDraft {
 
 /** Per-mode tile copy. The Record is EXHAUSTIVE over TransportMode, so adding a
  *  mode to TRANSPORT_MODES in src/data/types.ts is a compile error here until it
- *  gets a tile — the grid can't silently fall behind the vocabulary again. */
-const MODE_TILE_META: Record<TransportMode, { icon: typeof Car; hint: string }> = {
-  car: { icon: Car, hint: 'your fuel · ≈42 km/h' },
-  rental: { icon: KeyRound, hint: 'self-drive · ₹/day' },
-  motorcycle: { icon: Bike, hint: 'your fuel · ≈44 km/h' },
-  train: { icon: TrainFront, hint: '₹1.6/km fare' },
-  bus: { icon: Bus, hint: '₹2.2/km fare' },
-  flight: { icon: Plane, hint: '₹6.5/km + fees' },
-  taxi: { icon: CarTaxiFront, hint: '₹16/km fare' },
-  mixed: { icon: Shuffle, hint: 'a bit of everything' },
+ *  gets a tile — the grid can't silently fall behind the vocabulary again.
+ *  The GLYPH is no longer listed here: it comes from the one MODE_ICONS map in
+ *  components/icons, so this file only owns the copy. */
+const MODE_TILE_META: Record<TransportMode, { hint: string }> = {
+  car: { hint: 'your fuel · ≈42 km/h' },
+  rental: { hint: 'self-drive · ₹/day' },
+  motorcycle: { hint: 'your fuel · ≈44 km/h' },
+  train: { hint: '₹1.6/km fare' },
+  bus: { hint: '₹2.2/km fare' },
+  flight: { hint: '₹6.5/km + fees' },
+  taxi: { hint: '₹16/km fare' },
+  mixed: { hint: 'a bit of everything' },
 }
 
 /** Mode tiles for the transport grid — every mode a trip can BE (#213 Phase 5).
  *  This used to be a hand-rolled six, missing `taxi` and `mixed`, so a trip
  *  could be switched to a mode it was impossible to create. */
-const MODE_TILES = TRANSPORT_MODES.map(mode => ({ mode, ...MODE_TILE_META[mode] }))
+const MODE_TILES = TRANSPORT_MODES.map(mode => ({ mode, icon: MODE_ICONS[mode], ...MODE_TILE_META[mode] }))
 
 /** Explainer copy — grounded in what the style really tunes later: halt cadence
  *  (cadenceForCrew), daily detour budget (STYLE_DELTA, relaxed +15 / packed −15
@@ -611,7 +614,7 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
                       </span>
                     </label>
                     {isImplausibleFuelEconomy(f.transportMode, parseFuelEconomyKmL(f.fuelEconomy)) && (
-                      <p className="hint-text"><TriangleAlert size={12} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />Unusual for a {f.transportMode === 'rental' ? 'rented car' : f.transportMode} — double-check the value.</p>
+                      <p className="hint-text"><InlineIcon icon={TriangleAlert} size={12} gap={3} />Unusual for a {f.transportMode === 'rental' ? 'rented car' : f.transportMode} — double-check the value.</p>
                     )}
                     <label className="mini-field">
                       <span className="mini-lab">Fuel price</span>
@@ -890,7 +893,7 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
               </p>
               <div className="tk-rows">
                 <div className="tk-row"><span className="ic"><Calendar size={12} aria-hidden /></span><b>{dateLabel}</b></div>
-                <div className="tk-row"><span className="ic"><Car size={12} aria-hidden /></span><span className="lab">{f.travellers} traveller{f.travellers !== 1 ? 's' : ''}</span><b>· {cap(f.transportMode)}{f.transportMode === 'train' && f.localTrain ? ' · local' : ''}</b></div>
+                <div className="tk-row"><span className="ic">{modeIcon(f.transportMode, 12)}</span><span className="lab">{f.travellers} traveller{f.travellers !== 1 ? 's' : ''}</span><b>· {cap(f.transportMode)}{f.transportMode === 'train' && f.localTrain ? ' · local' : ''}</b></div>
                 {fuelMode && (f.fuelEconomy || f.fuelPrice || f.tankL) && (
                   <div className="tk-row"><span className="ic"><Fuel size={12} aria-hidden /></span><span className="lab">{f.fuelEconomy ? `${f.fuelEconomy} km/L` : null}{f.fuelPrice && f.fuelEconomy ? ' · ' : ''}{f.fuelPrice ? `₹${f.fuelPrice}/L` : null}{f.tankL && f.fuelEconomy ? ` · ${f.tankL} L tank` : ''}</span></div>
                 )}

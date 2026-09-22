@@ -1,6 +1,7 @@
 // ============ YatraFlow app shell ============
 // Hash-based routing so the built app works from any static host or file://.
 import { Suspense, lazy, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
+import { InlineIcon } from './components/icons'
 import { createPortal } from 'react-dom'
 import {
   Bell, Compass, Import, Inbox, Luggage, Link2, Mail, Menu, Moon, Plus,
@@ -496,7 +497,7 @@ export default function App() {
                   </div>
                   <button className="user-menu-item" onClick={() => { setMenuOpen(false); navigate('/profile') }}>Profile & settings</button>
                   <button className="user-menu-item" onClick={() => { setMenuOpen(false); navigate('/explore') }}>Explore itineraries</button>
-                  <a className="user-menu-item" href={feedbackHref()} onClick={() => setMenuOpen(false)}><Mail size={14} aria-hidden style={{ verticalAlign: '-2px', marginRight: 6 }} />Send feedback</a>
+                  <a className="user-menu-item" href={feedbackHref()} onClick={() => setMenuOpen(false)}><InlineIcon icon={Mail} size={14} gap={6} />Send feedback</a>
                   <button className="user-menu-item danger" onClick={() => { logout(); setMenuOpen(false); navigate('/') }}>Log out</button>
                 </div>,
                 document.body
@@ -522,13 +523,13 @@ export default function App() {
       {mobileNav && !isNative && (
         <div className="mobile-menu" id="mobile-menu" onClick={() => setMobileNav(false)}>
           {me && <>
-            <a className={`nav-link ${route === '/trips' ? 'active' : ''}`} {...appLink('#/trips')}><Tent size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 6 }} />My trips</a>
-            <a className={`nav-link ${route === '/new' ? 'active' : ''}`} {...appLink('#/new')}><Plus size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 6 }} />Plan a trip</a>
+            <a className={`nav-link ${route === '/trips' ? 'active' : ''}`} {...appLink('#/trips')}><InlineIcon icon={Tent} size={15} gap={6} />My trips</a>
+            <a className={`nav-link ${route === '/new' ? 'active' : ''}`} {...appLink('#/new')}><InlineIcon icon={Plus} size={15} gap={6} />Plan a trip</a>
           </>
           }
-          <a className={`nav-link ${route === '/explore' ? 'active' : ''}`} {...appLink('#/explore')}><Compass size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 6 }} />Explore</a>
-          {me?.profile.isCreator && <a className={`nav-link ${route === '/creator-hub' ? 'active' : ''}`} {...appLink('#/creator-hub')}><Sparkles size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 6 }} />Creator hub</a>}
-          {me && <a className={`nav-link ${route === '/profile' ? 'active' : ''}`} {...appLink('#/profile')}><Settings size={15} aria-hidden style={{ verticalAlign: '-2px', marginRight: 6 }} />Profile & settings</a>}
+          <a className={`nav-link ${route === '/explore' ? 'active' : ''}`} {...appLink('#/explore')}><InlineIcon icon={Compass} size={15} gap={6} />Explore</a>
+          {me?.profile.isCreator && <a className={`nav-link ${route === '/creator-hub' ? 'active' : ''}`} {...appLink('#/creator-hub')}><InlineIcon icon={Sparkles} size={15} gap={6} />Creator hub</a>}
+          {me && <a className={`nav-link ${route === '/profile' ? 'active' : ''}`} {...appLink('#/profile')}><InlineIcon icon={Settings} size={15} gap={6} />Profile & settings</a>}
         </div>
       )}
 
@@ -616,7 +617,7 @@ function SharedTripPage({ payload, onNavigate }: { payload: string; onNavigate: 
         Import it to get your own editable copy{me ? '' : ' (you will be asked to log in first)'}.
       </p>
       <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 14 }}>
-        <button className="btn btn-primary" onClick={importIt}><Import size={16} aria-hidden style={{ verticalAlign: '-3px', marginRight: 6 }} />{me ? 'Import into my trips' : 'Log in & import'}</button>
+        <button className="btn btn-primary" onClick={importIt}><InlineIcon icon={Import} size={16} gap={6} vAlign="-3px" />{me ? 'Import into my trips' : 'Log in & import'}</button>
         <button className="btn btn-outline" onClick={() => onNavigate('/')}>Not now</button>
       </div>
     </div>

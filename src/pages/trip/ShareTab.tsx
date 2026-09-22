@@ -2,6 +2,7 @@
 // Mechanical extraction from src/pages/TripWorkspace.tsx (M3.4) — no behavior changes.
 // Includes SnapshotCard — ShareTab is its only consumer.
 import { useEffect, useState } from 'react'
+import { InlineIcon } from '../../components/icons'
 import { CalendarDays, Download, Link2, Lock } from 'lucide-react'
 import type { Trip, PublishedItinerary } from '../../data/types'
 import { useDb, userById, setMemberRole, removeMember, restoreMember, publishItinerary, unpublishItinerary, ensureInviteCode } from '../../store/store'
@@ -48,10 +49,10 @@ function SnapshotCard({ trip, me, onNavigate, legCorrections, publication }: {
       </p>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   <ImportTripButton ownerId={me.id} onNavigate={onNavigate} className="btn btn-outline btn-sm" />
-                  <button className="btn btn-outline btn-sm" onClick={() => downloadTripJson(trip, publication)}><Download size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Download JSON</button>
+                  <button className="btn btn-outline btn-sm" onClick={() => downloadTripJson(trip, publication)}><InlineIcon icon={Download} size={13} gap={4} />Download JSON</button>
                   <PrintExport trip={trip} legCorrections={legCorrections} />
-                  <button className="btn btn-outline btn-sm" onClick={() => downloadTripIcs(trip, legCorrections)} title="One calendar event per day plus timed events for fixed commitments — imports into Google/Apple/Outlook calendars"><CalendarDays size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Add to calendar</button>
-                  <button className="btn btn-saffron btn-sm" onClick={makeLink}><Link2 size={13} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />Create snapshot link</button>
+                  <button className="btn btn-outline btn-sm" onClick={() => downloadTripIcs(trip, legCorrections)} title="One calendar event per day plus timed events for fixed commitments — imports into Google/Apple/Outlook calendars"><InlineIcon icon={CalendarDays} size={13} gap={4} />Add to calendar</button>
+                  <button className="btn btn-saffron btn-sm" onClick={makeLink}><InlineIcon icon={Link2} size={13} gap={4} />Create snapshot link</button>
       </div>
       {link && (
         <div className="share-link-box" style={{ marginTop: 10 }}>
@@ -202,7 +203,7 @@ function PublicationForm({ trip, pub, isOwner, creatorId, onDone }: {
                 disabled={entirelyFree} aria-pressed={!isFree}
                 aria-label={`Day ${d.index + 1}${d.title ? ` — ${d.title}` : ''}: ${isFree ? 'Free' : 'Premium'}`}
                 onClick={() => toggleDay(d.index)}>
-                {isFree ? <>Free</> : <><Lock size={11} aria-hidden style={{ verticalAlign: '-2px', marginRight: 3 }} />Premium</>}
+                {isFree ? <>Free</> : <><InlineIcon icon={Lock} size={11} gap={3} />Premium</>}
               </button>
             </div>
           )

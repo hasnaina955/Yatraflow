@@ -9,17 +9,27 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
-  Calendar, ChevronDown, ChevronUp, Pin, TriangleAlert, X, ArrowRight, Printer,
-  Fuel, Wallet,
+  Calendar, ChevronDown, ChevronUp, Pin, TriangleAlert, X, ArrowRight, Printer, Plus,
+  Car, Bike, Bus, TrainFront, Plane, KeyRound, CarTaxiFront, Shuffle, Fuel, Wallet,
 } from 'lucide-react'
 import type { FixedCommitment, LatLngPoint, TransportMode, TravelStyle } from '../data/types'
 import { TRAVEL_STYLES, TRANSPORT_MODES } from '../data/types'
-import { useDb, currentUser, createTrip } from '../store/store'
+import { useDb, currentUser, createTrip, useTrips, tripsForUser } from '../store/store'
 import { FUEL_PRICE_INR_PER_L, DEFAULT_FUEL_ECONOMY_KML, isFuelEconomyMode, parseFuelEconomyKmL, parseFuelPricePerL, isImplausibleFuelEconomy, MODE_SPEED, minutesToHM } from '../lib/engine'
 import { planDriveDays, isSelfDrivenMode } from '../lib/ridePlan'
 import { CREW_CHIPS, CREW_MAX, CREW_MIN, clampCrew } from '../lib/crew'
 import { InlineIcon, modeIcon, MODE_ICONS } from '../components/icons'
 import { estimateTripStarter, buildOutlineSeedStops } from '../lib/tripStarter'
+import { TRIP_TEMPLATES, applyTemplate, templateFromRange, fmtBand } from '../lib/tripTemplates'
+import { regionFor, regionBand, nationalBand, experienceTier, anchorNote } from '../lib/budgetBenchmarks'
+import { createFunnelOn } from '../lib/featureFlags'
+import { createReadiness, readinessFromDraft, readinessLine } from '../lib/createReadiness'
+import { saveDraft, loadDraft, clearDraft, draftIsWorthKeeping, draftAgeLabel, type StoredDraft } from '../lib/createDraft'
+import { addCrewEntry, PLANNER_ROLE_LINE, type CrewEntry } from '../lib/crewInvite'
+import { stashHandoff } from '../lib/createHandoff'
+import { routeIq, routeIqLine, type RoutePoint } from '../lib/routeIq'
+import { seasonNoteFor, monthOfIso } from '../lib/seasonality'
+import { radarLines } from '../lib/createRadar'
 import { fetchTripThumbUrl } from '../lib/tripThumb'
 import { Field, Chip, toast, Odometer, useMedia } from '../components/ui'
 import { Select } from '../components/Select'
@@ -228,6 +238,138 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
     stayStyle: f.stayStyle,
   }), [f.startDate, f.endDate, f.travellers, f.transportMode, f.localTrain, f.roundTrip, f.fuelEconomy, f.fuelPrice, f.tankL, f.rentPerDay, f.stayStyle, orderedPoints, returnCount, fuelMode, tankNum, rentNum])
 
+  // P3 - what is left, said plainly. Mirrors submit()'s own rules, so it can
+  // never claim ready when submit would refuse (see createReadiness tests).
+  const readiness = useMemo(() => createReadiness({
+    name: f.name,
+    startLocation: f.startLocation,
+    stopCount: dests.length,
+    roadKm: bill.roadKm,
+    startDate: f.startDate,
+    endDate: f.endDate,
+    days: bill.days,
+    travellers: f.travellers,
+    budgetPerPersonInr: f.budgetPerPersonInr,
+    hasCover: f.coverImageUrl.trim().length > 0,
+    commitmentCount: commitments.filter(x => x.title.trim()).length,
+  }), [f.name, f.startLocation, f.startDate, f.endDate, f.travellers, f.budgetPerPersonInr, f.coverImageUrl, dests.length, bill.roadKm, bill.days, commitments])
+
+  // P8 - input intelligence. Both are silent when they have nothing honest to
+  // say: no measurable hops, no note for this region, no date picked yet.
+  const iq = useMemo(() => {
+    const points: RoutePoint[] = [
+      ...(startCoords ? [{ name: f.startLocation || 'Start', lat: startCoords.lat, lng: startCoords.lng }] : []),
+      ...dests.map(d => ({ name: d.name, lat: d.lat, lng: d.lng })),
+    ]
+    return routeIq(points, f.transportMode)
+  }, [startCoords, f.startLocation, dests, f.transportMode])
+
+  const seasonLine = useMemo(() => {
+    const month = monthOfIso(f.startDate)
+    if (!month) return null
+    return seasonNoteFor([f.startLocation, ...dests.map(d => d.name)], month)
+  }, [f.startDate, f.startLocation, dests])
+
+  // P8.3 - the calm radar: what the pinned plans and the drive will negotiate
+  // about, said once, here, while changing the plan is still free.
+  const radar = useMemo(() => radarLines({
+    commitments: commitments.map(x => ({ title: x.title, type: x.type, dayIndex: x.dayIndex, time: x.time })),
+    days: bill.days,
+    roadKm: bill.roadKm,
+    roundTrip: f.roundTrip,
+    startName: f.startLocation.trim() || 'your start',
+  }), [commitments, bill.days, bill.roadKm, f.roundTrip, f.startLocation])
+
+  // P4 - the draft that waits. Loaded once on mount; the banner decides whether
+  // it is resumed or thrown away. Autosave stays OFF until that decision, so a
+  // pending draft can never be overwritten by the blank form it is offering.
+  const [draft, setDraft] = useState<StoredDraft | null>(null)
+  const [draftDecided, setDraftDecided] = useState(false)
+  // P5 - the crew collector. Local state only: nothing is written to the trip
+  // and nothing is sent from here. The invite is composed (and marked ready)
+  // once the trip exists, so this page never promises a message it cannot send.
+  const [crew, setCrew] = useState<CrewEntry[]>([])
+  const [crewInput, setCrewInput] = useState('')
+  /** The tucked drawer is a real controlled element so the party chip can open
+   *  it and the native summary still closes it (P1's "advanced is tucked, not
+   *  hidden" promise - the chip in the flow is the second way in). */
+  const [drawerOpen, setDrawerOpen] = useState(false)
+  useEffect(() => {
+    if (!createFunnelOn('drafts')) { setDraftDecided(true); return }
+    const found = loadDraft()
+    if (draftIsWorthKeeping(found)) setDraft(found)
+    else { setDraftDecided(true) }
+  }, [])
+
+  useEffect(() => {
+    if (!createFunnelOn('drafts') || !draftDecided) return
+    const t = setTimeout(() => {
+      saveDraft({ form: f as unknown as Record<string, unknown>, dests, returnCount, crew: crew.map(c => ({ name: c.name, phone: c.phone })) })
+    }, 800)
+    return () => clearTimeout(t)
+  }, [f, dests, returnCount, crew, draftDecided])
+
+  /** P5: who can be invited - the party minus the planner, capped at four so the
+   *  create flow never turns into an address book (more live on the Share tab). */
+  const crewLimit = Math.min(4, Math.max(0, f.travellers - 1))
+
+  /** The dashed "Add a stop" is a shortcut to the search field, not a second
+   *  input: one control owns the value, the button just puts the cursor in it. */
+  function focusAddStop() {
+    const el = document.querySelector<HTMLInputElement>('.ct-add-stop input')
+    if (el) { el.focus(); el.scrollIntoView({ block: 'nearest', behavior: scrollBehavior() }) }
+  }
+
+  function addCrewMember() {
+    const next = addCrewEntry(crew, crewInput, crewLimit)
+    if (next === crew) { setCrewInput(''); return }
+    haptic(HAPTIC.tick)
+    setCrew(next)
+    setCrewInput('')
+  }
+
+  /** P4: the percentage on the banner counts required things only, exactly like
+   *  the checklist (optional rows never move it), so the pull back is honest. */
+  const draftReadiness = useMemo(
+    () => (draft ? readinessFromDraft(draft.form, draft.dests.length) : null),
+    [draft],
+  )
+
+  function resumeDraft() {
+    if (!draft) return
+    haptic(HAPTIC.select)
+    setF(prev => ({ ...prev, ...(draft.form as Partial<typeof prev>) }))
+    setDests(draft.dests)
+    setReturnCount(draft.returnCount)
+    if (draft.crew?.length) setCrew(draft.crew.map(c => ({ raw: c.name || c.phone || '', name: c.name, phone: c.phone })))
+    // the restored budget is the user's own number - hand the field back to them
+    setBudgetTouched(true)
+    setDraft(null)
+    setDraftDecided(true)
+    toast('Picked up where you left off')
+  }
+
+  function discardDraft() {
+    haptic(HAPTIC.toggle)
+    clearDraft()
+    setDraft(null)
+    setDraftDecided(true)
+  }
+
+  // P2 - the honest anchor: what a typical party spends on this region's own
+  // run, computed by the same engine that prints the bill. Null when we honestly
+  // have no baseline for the region - the UI then says nothing at all.
+  const region = useMemo(
+    () => regionFor([f.startLocation, ...dests.map(d => d.name)]),
+    [f.startLocation, dests],
+  )
+  const band = useMemo(
+    () => (region ? regionBand(region, bill.days || undefined) : (bill.days ? nationalBand(bill.days) : null)),
+    [region, bill.days],
+  )
+  // P2 - money in the user's hands, described by what it buys.
+  const tier = experienceTier(f.budgetPerPersonInr)
+
   // Day Planner (P1, PR #105): the engine kicks in the moment a start and a
   // destination exist — the route demands its own days from the wheel-hour
   // cap, before any date juggling. Blended mode speed until the workspace's
@@ -245,6 +387,53 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
 
   function patchFields(next: Partial<typeof f>) {
     setF(x => ({ ...x, ...next }))
+  }
+
+
+  /** Warm start (P1): one tap pre-fills the form from a curated template.
+   *  Never clobbers what the user already typed (applyTemplate merge rules),
+   *  always lands on real coordinates so the bill computes immediately. */
+  function pickTemplate(t: (typeof TRIP_TEMPLATES)[number]) {
+    haptic(HAPTIC.select)
+    const { fields, dests: tDests } = applyTemplate(t, {
+      name: f.name, startLocation: f.startLocation, budgetTouched,
+    })
+    patchFields(fields)
+    setDests(tDests)
+    setReturnCount(0)
+    setStartCoords(null) // template coords live on the dests; start geocodes on submit path
+    setTplId(t.id)
+    // The template's day count lands as a date window (mirrors applyDayOutShape
+    // semantics: keep any picked start date, extend by days-1).
+    const start = f.startDate || isoDay(new Date())
+    patchFields({ startDate: start, endDate: isoAddDays(start, t.prefill.days - 1) })
+    toast(`${t.name} loaded - two taps from done`)
+  }
+
+  /** Same as last trip: recognition over recall - the second trip should
+   *  take ten seconds. Copies party/mode/style/budget (+ #142 party inputs
+   *  when set); never the route, never the dates, never the name. */
+  function copyLastTrip() {
+    if (!lastTrip) return
+    haptic(HAPTIC.select)
+    patchFields({
+      travellers: lastTrip.travellers,
+      transportMode: lastTrip.transportMode,
+      travelStyle: lastTrip.travelStyle,
+      stayStyle: lastTrip.stayStyle ?? 'comfort',
+      budgetPerPersonInr: lastTrip.budgetPerPersonInr,
+      ...(lastTrip.driverCount != null ? { driverCount: lastTrip.driverCount } : {}),
+      ...(lastTrip.hasVulnerable != null ? { hasVulnerable: lastTrip.hasVulnerable } : {}),
+    })
+    setTplId(null)
+    toast(`Copied the crew and the car from "${lastTrip.name}" - pick a new road`)
+  }
+
+  /** Start blank: clears any picked card, leaves the form exactly as it is. */
+  function clearTemplate() {
+    if (tplId == null) return
+    setTplId(null)
+    haptic(HAPTIC.tick)
   }
 
   // Day Planner P1-E shape presets: one round-trip day ("Day out") or two
@@ -271,6 +460,21 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
   // region below. It fires only on an actual write, and never while the field is
   // the user's current focus (they are editing it; the hint already covers them).
   const [budgetNotice, setBudgetNotice] = useState('')
+  /** Warm start (P1): the most recent trip, for the "same as last trip" chip.
+   *  Copies the choices that repeat (party, mode, style, budget) - the
+   *  route stays blank: a new trip deserves a new road. */
+  const allTrips = useTrips()
+  const lastTrip = useMemo(
+    () => {
+      const mine = tripsForUser(me?.id ?? null)
+      return mine.length ? mine[mine.length - 1] : null
+    },
+    [allTrips, me],
+  )
+  /** Warm start (P1): the picked template card, and whether the name
+   *  suggestion chip is still relevant (hidden once the user types a name). */
+  const [tplId, setTplId] = useState<string | null>(null)
+  const [nameSugSeen, setNameSugSeen] = useState(false)
   useEffect(() => {
     if (budgetTouched || suggestedBudget == null) return
     if (f.budgetPerPersonInr === suggestedBudget) return
@@ -398,7 +602,25 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
       coverImageUrl: f.coverImageUrl.trim() || undefined,
     }, seed)
     haptic(HAPTIC.success)
-    toast('Trip created — your rough outline is on the timeline')
+    clearDraft()
+    if (createFunnelOn('moment')) {
+      // P6 - hand the moment-after screen what it needs to speak truthfully:
+      // the figures the ticket just printed, and the crew the planner collected.
+      stashHandoff({
+        tripId: trip.id,
+        tripName: trip.name,
+        plannerName: me?.profile.name ?? '',
+        roadKm: bill.roadKm,
+        rangeKm: bill.rangeKm,
+        days: bill.days,
+        travellers: f.travellers,
+        crew: crew.map(c => ({ name: c.name, phone: c.phone })),
+        bill,
+      })
+      navigateWithTransition(`/created/${trip.id}`)
+      return
+    }
+    toast('Trip created - your rough outline is on the timeline')
     navigateWithTransition(`/trip/${trip.id}`)
   }
 
@@ -412,6 +634,19 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
   const outbound = dests.slice(0, dests.length - returnCount)
   const returnStops = dests.slice(dests.length - returnCount)
   const showCustomCrew = !CREW_CHIPS.includes(f.travellers)
+  /** Name-first suggestion: derived from what the route already says, or
+   *  the picked template's name. One pattern, no rotating list - the chip
+   *  exists to unstick, not to entertain. */
+  function tplNameSuggestion(): string {
+    const t = TRIP_TEMPLATES.find(x => x.id === tplId)
+    if (t) return t.prefill.name
+    const first = outbound[0]?.name.split(',')[0]
+    const last = outbound.length > 1 ? outbound[outbound.length - 1].name.split(',')[0] : null
+    if (first && last) return `${first} to ${last}`
+    if (first) return `${first} trip`
+    return 'Kerala with the crew'
+  }
+
   const ticketTitle = f.name.trim() || 'Your next trip'
   const ticketRoute = `${f.startLocation.trim() || 'Start'} → ${outbound.length ? outbound.map(d => d.name.split(',')[0]).join(' → ') : '…'}`
   const dateLabel = f.startDate && f.endDate
@@ -420,36 +655,22 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
 
   // ---- Shared fragments ----------------------------------------------------
 
-  function RouteLeg({ stops, offset, returnLeg }: { stops: DestDraft[]; offset: number; returnLeg?: boolean }) {
-    return (
-      <div className={returnLeg ? 'route-line route-line--return' : 'route-line'}>
-        {stops.map((d, i) => {
-          const gi = offset + i
-          const first = i === 0
-          const lastInLeg = i === stops.length - 1
-          return (
-            <div key={`${d.name}-${gi}`} className="route-row">
-              <span className="route-dot">{returnLeg ? i + 1 : offset + i + 1}</span>
-              <span className="route-name" title={d.name}>{d.name}</span>
-              <span className="route-acts">
-                <button type="button" className="route-btn" aria-label={`Move ${d.name} earlier`}
-                  disabled={first} style={{ opacity: first ? .25 : undefined }}
-                  onClick={() => { haptic(HAPTIC.tick); moveDest(gi, -1) }}><ChevronUp size={13} aria-hidden /></button>
-                <button type="button" className="route-btn" aria-label={`Move ${d.name} later`}
-                  disabled={lastInLeg} style={{ opacity: lastInLeg ? .25 : undefined }}
-                  onClick={() => { haptic(HAPTIC.tick); moveDest(gi, 1) }}><ChevronDown size={13} aria-hidden /></button>
-                <button type="button" className="route-btn" aria-label={`Remove ${d.name}`}
-                  onClick={() => { haptic(HAPTIC.tick); removeDest(gi) }}><X size={13} aria-hidden /></button>
-              </span>
-            </div>
-          )
-        })}
-      </div>
-    )
-  }
-
   return (
     <div className="container form-page trip-starter">
+      {createFunnelOn('drafts') && draft && (
+        <div className="draft-banner" role="status">
+          <div className="draft-banner-copy">
+            <b>Picking up where you left off</b>
+            <span className="draft-banner-meta">
+              {draftReadiness ? `${draftReadiness.pct}% ready` : 'saved'} - saved {draftAgeLabel(draft.savedAt)}
+            </span>
+          </div>
+          <div className="draft-banner-acts">
+            <button type="button" className="btn btn-primary btn-sm" onClick={resumeDraft}>Resume</button>
+            <button type="button" className="btn btn-outline btn-sm" onClick={discardDraft}>Discard</button>
+          </div>
+        </div>
+      )}
       <header className="ts-head">
         <div>
           <p className="eyebrow">Start something</p>
@@ -458,135 +679,237 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
         </div>
       </header>
 
-      <div className="ts-layout">
-        <form id="yf-create-form" className="ts-blocks" onSubmit={submit}>
-
-          {/* ---- Route (7) ---- */}
-          <section className="ts-block span7">
-            <div className="ts-block-head">
-              <span className="eyebrow">Route</span>
-              <span className="ts-block-value">
-                {dests.length > 0 && <>{dests.length} stop{dests.length !== 1 ? 's' : ''}{bill.roadKm != null ? ` · ≈ ${bill.roadKm} km` : ''}</>}
-              </span>
-              <label className="ts-switch">
-                <input type="checkbox" role="switch" checked={returnCount > 0}
-                  onChange={e => setReturnOn(e.target.checked)} aria-label="Configure custom return journey stops" />
-                <span className="ts-switch-track" aria-hidden="true"></span>
-                <span className="ts-switch-label">Plot the drive back</span>
-              </label>
-            </div>
-            {/* Day Planner P1-E shape presets: a day out is ONE round-trip day
-                (no stay line in the bill — meals and parking ride on the day);
-                a weekend dash is two. They preset the shape; every field stays
-                editable. */}
-            <div className="chip-row" role="group" aria-label="Trip shape presets" style={{ marginBottom: 12 }}>
-              <Chip onClick={() => applyDayOutShape(1)}>Day out</Chip>
-              <Chip onClick={() => applyDayOutShape(2)}>Weekend dash</Chip>
-            </div>
-            {/* The engine's verdict the moment start + end exist: when the
-                route demands more days than the date range gives, say so and
-                offer the honest fix — one tap, still fully editable. */}
-            {driveDaysVerdict && driveDaysVerdict.driveDayCount > bill.days && (
-              <div className="dayplanner-banner" style={{ marginBottom: 12 }} role="status">
-                <b>The drive wants {driveDaysVerdict.driveDayCount} travel days{fuelMode && f.roundTrip !== false ? ' — there and back' : ''}.</b>
-                <span className="small muted">
-                  ≈{Math.round(driveDaysVerdict.perDay)} km a day keeps wheel time ≈{minutesToHM(driveDaysVerdict.maxDailyWheelMin)} — in {bill.days} day{bill.days !== 1 ? 's' : ''} it's ≈{minutesToHM((bill.roadKm ?? 0) / (MODE_SPEED[f.transportMode] ?? 42) * 60)} in one stretch.
+      {/* ---- Warm start (P1): the front door, full width above the grid ---- */}
+      {createFunnelOn('templates') && (
+      <section className="tpl-warm" aria-label="Start from a real trip">
+        <div className="tpl-warm-head">
+          <span className="eyebrow">Start from a real trip</span>
+          <span className="why">one tap loads the route, dates and budget - or fill the blocks yourself</span>
+        </div>
+<div className="tpl-strip">
+              {TRIP_TEMPLATES.map(t => (
+                <button type="button" className={`tpl-card${tplId === t.id ? ' on' : ''}`} key={t.id}
+                  onClick={() => pickTemplate(t)}
+                  aria-pressed={tplId === t.id}>
+                  <span className="tpl-cov" style={{ background: t.coverGradient }}>
+                    <span className="em" aria-hidden>{t.emoji}</span>
+                    <span className="days">{t.prefill.days} days</span>
+                  </span>
+                  <span className="tpl-bd">
+                    <b>{t.name}</b>
+                    <span className="r">{t.routeLine}</span>
+                    <span className="p">{fmtBand(templateFromRange(t))}<small> / head, rough</small></span>
+                  </span>
+                  <span className="tpl-pick" aria-hidden>&#10003;</span>
+                </button>
+              ))}
+              <button type="button" className="tpl-blank" key="blank" onClick={clearTemplate}>
+                <span>
+                  Start blank
+                  <small>three questions and a live ticket</small>
                 </span>
-                <button className="btn btn-primary btn-sm" onClick={() => {
-                  const start = f.startDate || isoDay(new Date())
-                  patchFields({ startDate: start, endDate: isoAddDays(start, driveDaysVerdict.driveDayCount - 1) })
-                }}>Make it {driveDaysVerdict.driveDayCount} days</button>
-              </div>
-            )}
-            <Field label="Trip name" error={errs.name}>
-              <input className="input" autoComplete="off" ref={el => (fieldRefs.current.name = el)} aria-invalid={!!errs.name}
-                value={f.name} onChange={e => patchFields({ name: e.target.value })} placeholder="e.g. Kerala monsoon escape" />
-            </Field>
-            <Field label="Starting location" error={errs.startLocation}>
-              <LocationInput
-                value={f.startLocation}
-                onChange={v => patchFields({ startLocation: v })}
-                onPick={p => setStartCoords({ lat: p.latitude, lng: p.longitude })}
-                placeholder="Search a city, e.g. Kochi"
-              />
-            </Field>
-            <div className="route-line">
-              <div className="route-row route-row--start">
-                <span className="route-dot">★</span>
-                <span className="route-name" title={f.startLocation.trim() || 'Start of the journey'}>{f.startLocation.trim() || 'Start of the journey'}</span>
-                <span className="route-tag">start</span>
-              </div>
+              </button>
             </div>
-            <RouteLeg stops={outbound} offset={0} />
-            {errs.destinations && <p className="err-text" role="alert">{errs.destinations}</p>}
-            <LocationInput
-              value={destInput}
-              onChange={setDestInput}
-              onPick={p => addDest({ name: p.name + (p.admin1 ? `, ${p.admin1}` : ''), lat: p.latitude, lng: p.longitude }, false)}
-              placeholder={dests.length === 0 ? 'Search your first stop, e.g. Munnar' : 'Add another destination…'}
-            />
+        <div className="tpl-helpers">
+              {lastTrip && (
+                <button type="button" className="tpl-helper" key="same-as-last" onClick={copyLastTrip}
+                  title={`Party, mode, style and budget from "${lastTrip.name}"`}>
+                  Same as {lastTrip.name.length > 18 ? lastTrip.name.slice(0, 18) + '\u2026' : lastTrip.name}
+                </button>
+              )}
+              <button type="button" className="tpl-helper" key="demo" onClick={() => onNavigate('/trips')}>
+                Not sure? Take a demo trip
+              </button>
+        </div>
+      </section>
+      )}
 
-            {returnCount > 0 && (
-              <div className="return-section" aria-label="Return journey stops">
-                <div className="return-head">
-                  <span className="eyebrow">Return</span>
-                  <span className="return-note">Auto-filled with the reverse route — edit freely</span>
-                </div>
-                <RouteLeg stops={returnStops} offset={outbound.length} returnLeg />
+      <div className="ts-layout">
+        <form id="yf-create-form" className="ct-flow" onSubmit={submit}>
+
+          {/* ---- Name first: the trip becomes yours the moment it has a name ---- */}
+          <div className="tpl-name">
+              <Field label="Trip name" error={errs.name}>
+                <input className="input" autoComplete="off" ref={el => (fieldRefs.current.name = el)} aria-invalid={!!errs.name}
+                  value={f.name} onChange={e => { patchFields({ name: e.target.value }); setNameSugSeen(true) }}
+                  placeholder="e.g. Kerala with the crew" />
+              </Field>
+              {!f.name.trim() && !nameSugSeen && (
+                <button type="button" className="tpl-sug" onClick={() => { patchFields({ name: tplNameSuggestion() }); setNameSugSeen(true) }}>
+                  Use &ldquo;{tplNameSuggestion()}&rdquo;
+                </button>
+              )}
+          </div>
+
+          {/* ---- 1 - Where ---- */}
+          <div className="ct-q done">
+            <span className="ct-n">1</span>
+            <div className="ct-q-body">
+              <h2>Where are you going?</h2>
+              <p className="ct-hint">Start typing - places geocode and order themselves along the road.</p>
+              <div className="ct-q-field">
+                <Field label="Starting location" error={errs.startLocation}>
+                  <LocationInput
+                    value={f.startLocation}
+                    onChange={v => patchFields({ startLocation: v })}
+                    onPick={p => setStartCoords({ lat: p.latitude, lng: p.longitude })}
+                    placeholder="Search a city, e.g. Kochi"
+                  />
+                </Field>
+              </div>
+
+              <div className="ct-chips" role="list" aria-label="Stops in order">
+                {dests.map((d, i) => {
+                  const first = i === 0
+                  const lastStop = i === dests.length - 1
+                  const isReturn = returnCount > 0 && i >= dests.length - returnCount
+                  return (
+                    <span className={`ct-dchip${isReturn ? ' ret' : ''}`} role="listitem" key={`${d.name}-${i}`}>
+                      <span className="n" aria-hidden>{i + 1}</span>
+                      <span title={d.name}>{d.name}</span>
+                      <button type="button" className="mv" aria-label={`Move ${d.name} earlier`} disabled={first}
+                        onClick={() => { haptic(HAPTIC.tick); moveDest(i, -1) }}>&lsaquo;</button>
+                      <button type="button" className="mv" aria-label={`Move ${d.name} later`} disabled={lastStop}
+                        onClick={() => { haptic(HAPTIC.tick); moveDest(i, 1) }}>&rsaquo;</button>
+                      <button type="button" className="x" aria-label={`Remove ${d.name}`}
+                        onClick={() => { haptic(HAPTIC.tick); removeDest(i) }}>&#10005;</button>
+                    </span>
+                  )
+                })}
+                <button type="button" className="ct-dadd" onClick={() => focusAddStop()}>
+                  <Plus size={12} aria-hidden /> Add a stop
+                </button>
+              </div>
+              {errs.destinations && <p className="err-text" role="alert">{errs.destinations}</p>}
+
+              <div className="ct-q-field ct-add-stop">
                 <LocationInput
-                  value={returnInput}
-                  onChange={setReturnInput}
-                  onPick={p => addDest({ name: p.name + (p.admin1 ? `, ${p.admin1}` : ''), lat: p.latitude, lng: p.longitude }, true)}
-                  placeholder="Add a return stop…  e.g. Guruvayur"
+                  value={destInput}
+                  onChange={setDestInput}
+                  onPick={p => addDest({ name: p.name + (p.admin1 ? `, ${p.admin1}` : ''), lat: p.latitude, lng: p.longitude }, false)}
+                  placeholder={dests.length === 0 ? 'Type a place to add your first stop - e.g. Munnar' : 'Type a place to add the next stop'}
                 />
               </div>
-            )}
-          </section>
 
-          {/* ---- Dates (5) ---- */}
-          <section className="ts-block span5">
-            <div className="ts-block-head">
-              <span className="eyebrow">Dates</span>
-            </div>
-            <DateRangeCalendar
-              start={f.startDate} end={f.endDate}
-              error={errs.startDate || errs.endDate}
-              registerRef={el => { fieldRefs.current.startDate = el; fieldRefs.current.endDate = el }}
-              onChange={({ startDate, endDate }) => patchFields({ startDate, endDate })}
-            />
-            {dayCount > 0 && (
-              <span className="pill"><Calendar size={12} aria-hidden /> {dayCount} day{dayCount !== 1 ? 's' : ''} · {Math.max(0, dayCount - 1)} night{dayCount - 1 !== 1 ? 's' : ''}</span>
-            )}
-          </section>
+              {createFunnelOn('iq') && iq && (
+                <p className="hint-text route-iq" role="status">{routeIqLine(iq)}</p>
+              )}
 
-          {/* ---- Crew & transport (12) ---- */}
-          <section className="ts-block span12">
-            <div className="ts-block-head">
-              <span className="eyebrow">Crew &amp; transport</span>
-              <span className="ts-block-value">{f.travellers} traveller{f.travellers !== 1 ? 's' : ''} · {cap(f.transportMode)}</span>
+              {/* The engine's verdict the moment start + end exist: when the
+                  route demands more days than the date range gives, say so and
+                  offer the honest fix - one tap, still fully editable. */}
+              {driveDaysVerdict && driveDaysVerdict.driveDayCount > bill.days && (
+                <div className="dayplanner-banner" style={{ marginBottom: 12 }} role="status">
+                  <b>The drive wants {driveDaysVerdict.driveDayCount} travel days{fuelMode && f.roundTrip !== false ? ' - there and back' : ''}.</b>
+                  <span className="small muted">
+                    {'\u2248'}{Math.round(driveDaysVerdict.perDay)} km a day keeps wheel time {'\u2248'}{minutesToHM(driveDaysVerdict.maxDailyWheelMin)} - in {bill.days} day{bill.days !== 1 ? 's' : ''} it's {'\u2248'}{minutesToHM((bill.roadKm ?? 0) / (MODE_SPEED[f.transportMode] ?? 42) * 60)} in one stretch.
+                  </span>
+                  <button className="btn btn-primary btn-sm" onClick={() => {
+                    const start = f.startDate || isoDay(new Date())
+                    patchFields({ startDate: start, endDate: isoAddDays(start, driveDaysVerdict.driveDayCount - 1) })
+                  }}>Make it {driveDaysVerdict.driveDayCount} days</button>
+                </div>
+              )}
+
+              <div className="ct-presets" role="group" aria-label="Trip shape presets">
+                <button type="button" className="ct-pre" onClick={() => applyDayOutShape(1)}>
+                  A day out<small>one round trip - no stay</small>
+                </button>
+                <button type="button" className="ct-pre" onClick={() => applyDayOutShape(2)}>
+                  Weekend dash<small>two days, one night</small>
+                </button>
+                <button type="button" className="ct-pre" onClick={() => focusAddStop()}>
+                  The full route<small>multi-day, stays planned</small>
+                </button>
+              </div>
+
+              <div className="ct-rrow" style={{ marginTop: 12 }}>
+                <label className="ts-switch">
+                  <input type="checkbox" role="switch" checked={returnCount > 0}
+                    onChange={e => setReturnOn(e.target.checked)} aria-label="Configure custom return journey stops" />
+                  <span className="ts-switch-track" aria-hidden="true"></span>
+                  <span className="ts-switch-label">Plot the drive back</span>
+                </label>
+              </div>
+
+              {returnCount > 0 && (
+                <div className="return-section" aria-label="Return journey stops">
+                  <div className="return-head">
+                    <span className="eyebrow">Return</span>
+                    <span className="return-note">Auto-filled with the reverse route - edit freely</span>
+                  </div>
+                  <div className="ct-chips" role="list" aria-label="Return stops">
+                    {returnStops.map((d, i) => {
+                      const gi = outbound.length + i
+                      return (
+                        <span className="ct-dchip ret" role="listitem" key={`ret-${d.name}-${gi}`}>
+                          <span className="n" aria-hidden>{i + 1}</span>
+                          <span title={d.name}>{d.name}</span>
+                          <button type="button" className="x" aria-label={`Remove ${d.name}`}
+                            onClick={() => { haptic(HAPTIC.tick); removeDest(gi) }}>&#10005;</button>
+                        </span>
+                      )
+                    })}
+                  </div>
+                  <LocationInput
+                    value={returnInput}
+                    onChange={setReturnInput}
+                    onPick={p => addDest({ name: p.name + (p.admin1 ? `, ${p.admin1}` : ''), lat: p.latitude, lng: p.longitude }, true)}
+                    placeholder="Add a return stop.  e.g. Guruvayur"
+                  />
+                </div>
+              )}
             </div>
-            <div className="ct-grid">
-              <div>
-                <span className="group-lab">Transport mode</span>
-                <div className="mode-grid" role="group" aria-label="Transport mode">
+          </div>
+
+          {/* ---- 2 - When ---- */}
+          <div className="ct-q done">
+            <span className="ct-n">2</span>
+            <div className="ct-q-body">
+              <h2>When?</h2>
+              <p className="ct-hint">The clock walk and every window on the trip starts here.</p>
+              <div className="ct-q-field">
+                <DateRangeCalendar
+                  start={f.startDate} end={f.endDate}
+                  error={errs.startDate || errs.endDate}
+                  registerRef={el => { fieldRefs.current.startDate = el; fieldRefs.current.endDate = el }}
+                  onChange={({ startDate, endDate }) => patchFields({ startDate, endDate })}
+                />
+              </div>
+              {createFunnelOn('iq') && seasonLine && (
+                <p className="hint-text season-note" role="status">{seasonLine}</p>
+              )}
+            </div>
+          </div>
+
+          {/* ---- 3 - Who & how ---- */}
+          <div className="ct-q done">
+            <span className="ct-n">3</span>
+            <div className="ct-q-body">
+              <h2>Who's coming, and how are you travelling?</h2>
+              <p className="ct-hint">Party shape tunes the engine - meal windows, driver rotation, fatigue cadence.</p>
+              <div className="ct-q-field">
+                <span className="ct-lbl">Transport</span>
+                <div className="ct-modes" role="group" aria-label="Transport mode">
                   {MODE_TILES.map(t => {
-                    const tile = (
-                      <button type="button" className={`mode-btn${f.transportMode === t.mode ? ' on' : ''}`}
+                    // The local-train switch belongs to the train pill, so the
+                    // pill and its switch stay siblings inside one tile.
+                    const pill = (
+                      <button key={t.mode} type="button" className={`ct-mode${f.transportMode === t.mode ? ' on' : ''}`}
                         aria-pressed={f.transportMode === t.mode}
+                        title={t.hint}
                         onClick={() => {
                           haptic(HAPTIC.select)
                           patchFields(t.mode !== 'train' && f.localTrain ? { transportMode: t.mode, localTrain: false } : { transportMode: t.mode })
                         }}>
-                        <t.icon size={17} aria-hidden />
-                        <span><span className="nm">{t.mode === 'rental' ? 'Car rental' : cap(t.mode)}</span><span className="hint">{t.mode === 'train' && f.localTrain ? 'local · ₹0.45/km' : t.hint}</span></span>
+                        <t.icon size={13} aria-hidden />
+                        <span>{t.mode === 'rental' ? 'Car rental' : cap(t.mode)}</span>
                       </button>
                     )
-                    // The local-train toggle lives inside the train tile — a
-                    // sibling of the select button so both stay real controls.
-                    if (t.mode !== 'train') return tile
+                    if (t.mode !== 'train') return pill
                     return (
-                      <div key="train" className="mode-tile">
-                        {tile}
+                      <span key="train" className="mode-tile">
+                        {pill}
                         {f.transportMode === 'train' && (
                           <label className="ts-switch mode-local-switch">
                             <input type="checkbox" role="switch" checked={f.localTrain}
@@ -596,11 +919,73 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
                             <span className="ts-switch-label">Local</span>
                           </label>
                         )}
-                      </div>
+                      </span>
                     )
                   })}
                 </div>
               </div>
+              <div className="ct-q-field">
+                <span className="ct-lbl">Party size</span>
+                <div className="ct-party">
+                  <span className="ct-step" role="group" aria-label="Party size">
+                    <button type="button" aria-label="One fewer traveller"
+                      onClick={() => { haptic(HAPTIC.tick); patchFields({ travellers: clampCrew(f.travellers - 1) }) }}>&minus;</button>
+                    <b aria-live="polite">{f.travellers}</b>
+                    <button type="button" aria-label="One more traveller"
+                      onClick={() => { haptic(HAPTIC.tick); patchFields({ travellers: clampCrew(f.travellers + 1) }) }}>+</button>
+                  </span>
+                  <span className="ct-party-sub">traveller{f.travellers !== 1 ? 's' : ''}</span>
+                  <button type="button" className="ct-mini" onClick={() => setDrawerOpen(true)}>
+                    {f.driverCount && f.driverCount > 1 ? `${f.driverCount} drivers` : 'Drivers &amp; pace'}{f.hasVulnerable ? ' \u00b7 kids aboard' : ''}
+                  </button>
+                  <span className="sr-only">{f.travellers} traveller{f.travellers !== 1 ? 's' : ''} on {cap(f.transportMode)}</span>
+                </div>
+                <div className="sr-only">
+                  <Field label="Travellers" error={errs.travellers}>
+                    <input className="input mono" type="number" min={CREW_MIN} max={CREW_MAX} ref={el => (fieldRefs.current.travellers = el)}
+                      aria-invalid={!!errs.travellers} value={f.travellers}
+                      onChange={e => patchFields({ travellers: clampCrew(Number(e.target.value)) })} />
+                  </Field>
+                </div>
+              </div>
+              {createFunnelOn('crew') && (
+                <div className="crew-invite">
+                  <span className="group-lab">Bring the crew <span className="crew-opt">optional</span></span>
+                  <div className="crew-invite-row">
+                    <input className="input" value={crewInput} autoComplete="off"
+                      placeholder="Name or mobile, e.g. Ammu 98450 21234"
+                      aria-label="Crew member name or mobile number"
+                      onChange={e => setCrewInput(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCrewMember() } }} />
+                    <button type="button" className="btn btn-outline btn-sm" onClick={addCrewMember}
+                      disabled={crew.length >= crewLimit || !crewInput.trim()}>Add</button>
+                  </div>
+                  {crew.length > 0 && (
+                    <div className="crew-chips">
+                      {crew.map((m, i) => (
+                        <span className="crew-chip" key={`${m.phone ?? m.name}-${i}`}>
+                          {m.name || `+91 ${m.phone}`}
+                          {m.name && m.phone ? <small>{m.phone}</small> : null}
+                          <button type="button" aria-label={`Remove ${m.name || m.phone}`}
+                            onClick={() => setCrew(list => list.filter((_, n) => n !== i))}>&#10005;</button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <p className="hint-text">
+                    {crewLimit === 0
+                      ? 'One traveller - nobody to invite. Add the crew from the trip’s Share tab.'
+                      : `${PLANNER_ROLE_LINE} The invite is ready for each of them the moment the trip exists.`}
+                  </p>
+                </div>
+              )}
+              <details className="adv-drawer" open={drawerOpen}
+                onToggle={e => setDrawerOpen((e.target as HTMLDetailsElement).open)}>
+                <summary>
+                  <span className="group-lab">Fuel, vehicle &amp; party details</span>
+                  <span className="adv-hint">{f.fuelEconomy || f.fuelPrice || f.tankL || f.rentPerDay || f.driverCount || f.hasVulnerable || f.driveAfterDinnerMin ? 'set' : 'the engine has good defaults'}</span>
+                </summary>
+                <div className="adv-body">
               {fuelMode && (
                 <div>
                   <span className="group-lab">Fuel &amp; vehicle</span>
@@ -658,27 +1043,6 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
                   </div>
                 </div>
               )}
-              <div>
-                <span className="group-lab">Crew size</span>
-                <div className="crew-row" role="group" aria-label="Crew size">
-                  {CREW_CHIPS.map(n => (
-                    <button key={n} type="button" className={`crew-btn${f.travellers === n ? ' on' : ''}`}
-                      aria-pressed={f.travellers === n}
-                      onClick={() => { haptic(HAPTIC.select); patchFields({ travellers: n }) }}>{n}</button>
-                  ))}
-                  <button type="button" className={`crew-btn crew-btn--custom${showCustomCrew ? ' on' : ''}`}
-                    aria-pressed={showCustomCrew}
-                    onClick={() => { haptic(HAPTIC.select); patchFields({ travellers: showCustomCrew ? 2 : 9 }) }}>Custom…</button>
-                </div>
-                {showCustomCrew && (
-                  <div className="crew-custom">
-                    <Field label="Travellers" error={errs.travellers}>
-                      <input className="input mono" type="number" min={CREW_MIN} max={CREW_MAX} ref={el => (fieldRefs.current.travellers = el)}
-                        aria-invalid={!!errs.travellers} value={f.travellers}
-                        onChange={e => patchFields({ travellers: clampCrew(Number(e.target.value)) })} />
-                    </Field>
-                  </div>
-                )}
                 {/* #142 party inputs — the two dials that move the honest wheel
                     cap. Hidden for conducted modes: nobody drives, nobody
                     fatigues. #213 Phase 5: gated on the ENGINE's own predicate
@@ -712,81 +1076,87 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
                     </Field>
                   </div>
                 )}
-              </div>
+                </div>
+              </details>
             </div>
-          </section>
+          </div>
 
-          {/* ---- Budget & style (7) ---- */}
-          <section className="ts-block span7">
-            <div className="ts-block-head">
-              <span className="eyebrow">Budget &amp; style</span>
-            </div>
-            <div className="form-row">
-              <Field label="Budget per person (₹)" error={errs.budgetPerPersonInr}
-                hint={budgetTouched
-                  ? `Manual amount — tap the highlighted quick amount again to hand the field back to our maths${bill.perHead != null && bill.perHead > 0 ? ` (≈ ₹${bill.perHead.toLocaleString('en-IN')}/head · ≈ ₹${(bill.perHead * f.travellers).toLocaleString('en-IN')} total)` : ''}.`
-                  : bill.perHead != null && bill.perHead > 0
-                    ? `Our rough take ≈ ₹${bill.perHead.toLocaleString('en-IN')}/head · ≈ ₹${(bill.perHead * f.travellers).toLocaleString('en-IN')} total — prefilled above, updates as you plan (excludes tolls, parking & entry fees).`
-                    : 'Pick dates (and a stop or two) and our rough take lands here automatically.'}>
-                <input className="input mono" type="number" min={500} step={500} ref={el => (fieldRefs.current.budgetPerPersonInr = el)}
-                  aria-invalid={!!errs.budgetPerPersonInr} value={f.budgetPerPersonInr}
-                  onChange={e => { setBudgetTouched(true); patchFields({ budgetPerPersonInr: Number(e.target.value) }) }} />
-              </Field>
-              {/* Politely live: the auto-fill above rewrites this field, so say so
-                  for anyone who cannot see the number change. */}
+          {/* ---- Refine: budget & style ---- */}
+          <div className="ct-refine">
+            <span className="ct-lbl">Refine the trip</span>
+
+            <div className="ct-q-field">
+              <span className="ct-lbl">Budget per head</span>
+              <div className="ct-rrow" style={{ marginTop: 8 }}>
+                <div className="ct-bud">
+                  <input type="range" min={2500} max={60000} step={500}
+                    value={Math.min(60000, Math.max(2500, f.budgetPerPersonInr))}
+                    aria-label="Budget per person in rupees"
+                    onChange={e => { setBudgetTouched(true); patchFields({ budgetPerPersonInr: Number(e.target.value) }) }} />
+                  <span className="v">
+                    &#8377;{f.budgetPerPersonInr.toLocaleString('en-IN')}
+                    <small>group &#8377;{(f.budgetPerPersonInr * f.travellers).toLocaleString('en-IN')}</small>
+                  </span>
+                </div>
+                {/* The exact number still matters - a slider cannot say 13,750. */}
+                <label className="ct-bud-exact">
+                  exact amount
+                  <input className="mono" type="number" min={0} step={500}
+                    ref={el => (fieldRefs.current.budgetPerPersonInr = el)}
+                    aria-label="Budget per person, exact amount"
+                    aria-invalid={!!errs.budgetPerPersonInr}
+                    value={f.budgetPerPersonInr}
+                    onChange={e => { setBudgetTouched(true); patchFields({ budgetPerPersonInr: Number(e.target.value) }) }} />
+                </label>
+                <button type="button" className="ct-mini"
+                  onClick={() => { setBudgetTouched(false); if (suggestedBudget != null) patchFields({ budgetPerPersonInr: suggestedBudget }) }}>
+                  use our estimate
+                </button>
+              </div>
+              {errs.budgetPerPersonInr && <p className="err-text" role="alert">{errs.budgetPerPersonInr}</p>}
+              {/* Politely live: the auto-fill above rewrites this number. */}
               <span className="sr-only" role="status">{budgetNotice}</span>
-              {/* Quick amounts are a toggle, not a one-way trap: clicking an
-                  amount claims the field for manual editing, clicking the
-                  highlighted one again releases it — auto-fill from the rough
-                  bill resumes (budgetTouched reset + suggested value back in). */}
-              <div className="quick-budget" role="group" aria-label="Quick budget amounts">
-                {[10000, 15000, 25000].map(v => {
-                  const on = f.budgetPerPersonInr === v
-                  return (
-                    <button key={v} type="button" className={`chip${on ? ' on' : ''}`}
-                      aria-pressed={on}
-                      title={on ? 'Tap again to go back to our suggested budget' : `Set ₹${v.toLocaleString('en-IN')} per person`}
-                      onClick={() => {
-                        haptic(HAPTIC.tick)
-                        if (on) {
-                          setBudgetTouched(false)
-                          if (suggestedBudget != null) patchFields({ budgetPerPersonInr: suggestedBudget })
-                        } else {
-                          setBudgetTouched(true)
-                          patchFields({ budgetPerPersonInr: v })
-                        }
-                      }}>
-                      ₹{v >= 1000 ? `${Math.round(v / 1000)}k` : v}
-                    </button>
-                  )
-                })}
-              </div>
+              {createFunnelOn('budget') && band && (
+                <p className="hint-text budget-anchor" role="status">
+                  A typical {band.days}-day {band.label} run costs <b>&#8377;{band.low.toLocaleString('en-IN')}&ndash;{band.high.toLocaleString('en-IN')}</b> per head
+                  {f.budgetPerPersonInr > 0 ? <> - {anchorNote(f.budgetPerPersonInr, band)}</> : null}.
+                </p>
+              )}
+              {createFunnelOn('budget') && (<p className="hint-text budget-tier">
+                At <b>&#8377;{f.budgetPerPersonInr.toLocaleString('en-IN')}</b> per head: {tier.blurb}.
+              </p>)}
             </div>
-            <span className="group-lab">Budget preference</span>
-            <PillNav className="tabbar" role="group" aria-label="Budget preference" activeKey={f.stayStyle}>
-              {(['budget', 'comfort', 'luxury'] as const).map(s => (
-                <button key={s} type="button" data-pill-key={s} className={`tab-btn${f.stayStyle === s ? ' active' : ''}`}
-                  aria-pressed={f.stayStyle === s}
-                  onClick={() => { haptic(HAPTIC.select); patchFields({ stayStyle: s }) }}>{cap(s)}</button>
-              ))}
-            </PillNav>
-            <p className="hint-text style-copy">Prices the bed: ₹1,200 / ₹3,200 / ₹8,000 per room-night, 2 guests per room.</p>
 
-            <span className="group-lab">Travel style</span>
-            <PillNav className="tabbar style-carousel" role="group" aria-label="Travel style" activeKey={f.travelStyle}>
-              {TRAVEL_STYLES.map(s => (
-                <button key={s} type="button" data-pill-key={s} className={`tab-btn${f.travelStyle === s ? ' active' : ''}`}
-                  aria-pressed={f.travelStyle === s}
-                  onClick={() => { haptic(HAPTIC.select); patchFields({ travelStyle: s }) }}>{cap(s)}</button>
-              ))}
-            </PillNav>
-            <p className="hint-text style-copy" role="status"><b>{cap(f.travelStyle)}</b> — {STYLE_COPY[f.travelStyle]}</p>
-          </section>
+            <div className="ct-rrow">
+              <span className="ct-lbl">The bed</span>
+              <span className="ct-tier" role="group" aria-label="Bed tier">
+                {(['budget', 'comfort', 'luxury'] as const).map(st => (
+                  <button key={st} type="button" className={f.stayStyle === st ? 'on' : ''}
+                    aria-pressed={f.stayStyle === st}
+                    onClick={() => { haptic(HAPTIC.select); patchFields({ stayStyle: st }) }}>{cap(st)}</button>
+                ))}
+              </span>
+              <span className="ct-party-sub">prices the bed - the drive never changes with it</span>
+            </div>
 
-          {/* ---- Trip cover (5) ---- */}
-          <section className="ts-block span5">
-            <div className="ts-block-head">
-              <span className="eyebrow">Trip cover</span>
+            <div>
+              <span className="ct-lbl">Travel style &middot; pick one</span>
+              <div className="ct-styles" role="group" aria-label="Travel style" style={{ marginTop: 6 }}>
+                {TRAVEL_STYLES.map(st => (
+                  <button key={st} type="button" className={`ct-style${f.travelStyle === st ? ' on' : ''}`}
+                    aria-pressed={f.travelStyle === st}
+                    onClick={() => { haptic(HAPTIC.select); patchFields({ travelStyle: st }) }}>{cap(st)}</button>
+                ))}
+              </div>
+              <p className="hint-text style-copy" role="status"><b>{cap(f.travelStyle)}</b> - {STYLE_COPY[f.travelStyle]}</p>
+            </div>
+          </div>
+
+          {/* ---- cover + pinned: the optional layer ---- */}
+          <div className="ct-optional">
+            <div className="ct-opt-head">
+              <span className="ct-lbl">Trip cover</span>
+              <span className="ct-party-sub">optional</span>
             </div>
             <Field label="Trip emoji">
               <div className="chip-row" style={{ marginTop: 6 }}>
@@ -825,16 +1195,21 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
                 </div>
               </div>
             </Field>
-          </section>
 
-          {/* ---- Pinned plans (12) ---- */}
-          <section className="ts-block span12">
-            <div className="ts-block-head">
-              <span className="eyebrow">Pinned plans <span className="muted" style={{ fontWeight: 500 }}>(optional)</span></span>
+          <div className="ct-opt-head" style={{ marginTop: 16 }}>
+              <span className="ct-lbl">Pinned plans</span>
+              <span className="ct-party-sub">optional - trains, weddings, anything with a time</span>
             </div>
-            <p className="hint-text" style={{ margin: '0 0 10px' }}>
-              Hotel check-ins, train or flight departures, events. The planner protects these when it warns about tight schedules.
-            </p>
+            {createFunnelOn('iq') && radar.length > 0 && (
+              <div className="ct-radar" role="status">
+                {radar.map(line => (
+                  <div key={line.headline} className="ct-radar-line">
+                    <b>{line.headline}</b>
+                    <span>{line.detail}</span>
+                  </div>
+                ))}
+              </div>
+            )}
             {commitments.length > 0 && (
               <div style={{ marginBottom: 10 }}>
                 {commitments.map((x, i) => (
@@ -869,7 +1244,7 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
               <Field label="Time"><input className="input" type="time" value={c.time} onChange={e => setC(x => ({ ...x, time: e.target.value }))} /></Field>
               <button type="button" className="btn btn-outline" onClick={addCommitment} style={{ height: 42 }}>Add</button>
             </div>
-          </section>
+          </div>
         </form>
 
         {/* ---- The Trip Ticket (right rail / hidden on mobile) ---- */}
@@ -901,46 +1276,58 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
               </div>
             </div>
             <div className="tear" aria-hidden="true"></div>
+            {createFunnelOn('readiness') && (
+              <div className="ready-block" role="status" aria-label="What is left before the trip can be created">
+                <div className="ready-head">
+                  <span className="ready-lab">{readinessLine(readiness)}</span>
+                  <span className="ready-pct">{readiness.pct}%</span>
+                </div>
+                {readiness.items.map(item => (
+                  <div key={item.key} className={`ready-row${item.done ? ' ok' : ''}${item.optional ? ' opt' : ''}`}>
+                    <span className="ready-tick" aria-hidden>{item.done ? '\u2713' : ''}</span>
+                    <span className="ready-name">{item.label}</span>
+                    <span className="ready-why">{item.why}</span>
+                  </div>
+                ))}
+              </div>
+            )}
             <div className="tk-stub">
-              {!billPrinted ? (
-                <>
-                  <button type="button" className="tk-print-btn" onClick={printBill}>
-                    <Printer size={16} aria-hidden /> Print my bill
-                  </button>
-                  <p className="tk-fine">
-                    {bill.perHead
-                      ? 'The rough take stays hidden until you print it.'
-                      : 'Add a date range and at least one geocoded stop to price the trip.'}
-                  </p>
-                  <button type="button" className="tk-cancel" onClick={() => onNavigate('/trips')}>Cancel</button>
-                </>
-              ) : (
+              {/* One primary action, always visible. The page used to hide
+                  Create trip behind "Print my bill", which left a form with no
+                  visible way to finish. Printing is now a secondary peek. */}
+              <button type="submit" form="yf-create-form" className="tk-cta">
+                Start planning <ArrowRight size={16} aria-hidden />
+              </button>
+              <div className="tk-subrow">
+                <button type="button" className="tk-cancel" onClick={printBill} disabled={!bill.perHead}>
+                  {billPrinted ? 'Hide the rough bill' : 'Print the rough bill'}
+                </button>
+                <button type="button" className="tk-cancel" onClick={() => onNavigate('/trips')}>Cancel</button>
+              </div>
+              <p className="tk-fine">
+                {bill.perHead
+                  ? 'Updates as you plan. Excludes tolls, parking and entry fees.'
+                  : 'Add a date range and at least one geocoded stop to price the drive.'}
+              </p>
+              {billPrinted && (
                 <>
                   <div className="bill-printer" role="region" aria-label="Rough trip bill" ref={billRef}>
                     <div className="bill-slot" aria-hidden="true"><span></span></div>
                     <div className="bill-reveal">
                       <div className="bill-paper bill-paper-sway">
-                        <p className="bill-brand">YATRAFLOW · ROUGH BILL</p>
-                        <div className="bill-row"><span>Road (est.)</span><b className="mono">{bill.roadKm != null ? `≈ ${bill.roadKm} km` : '—'}</b></div>
+                        <p className="bill-brand">YATRAFLOW &ndash; ROUGH BILL</p>
+                        <div className="bill-row"><span>Road (est.)</span><b className="mono">{bill.roadKm != null ? `\u2248 ${bill.roadKm} km` : '-'}</b></div>
                         <div className="bill-row"><span>Transport</span><b className="mono"><Money v={bill.transportCost} animate={!reduced} /></b></div>
                         <p className="bill-formula">{bill.transportFormula || 'add a geocoded stop to price the drive'}</p>
                         <div className="bill-row"><span>Stay</span><b className="mono"><Money v={bill.stayCost} animate={!reduced} /></b></div>
                         <p className="bill-formula">{bill.stayFormula}</p>
                         <div className="bill-row"><span>Food</span><b className="mono"><Money v={bill.mealCost} animate={!reduced} /></b></div>
                         <p className="bill-formula">{bill.mealFormula}</p>
-                        <div className="bill-row bill-total"><span>Total</span><b className="mono">{'≈ '}<Money v={bill.perHead != null ? Math.round(bill.perHead * f.travellers) : null} animate={!reduced} /></b></div>
-                        <div className="bill-perhead"><span className="mono">{'≈ '}<Money v={bill.perHead ?? 0} animate={!reduced} /></span><span className="per">/ head</span></div>
-                        <p className="bill-note">rough take — refined once your route resolves in the workspace · excludes tolls, parking &amp; entry fees</p>
+                        <div className="bill-row bill-total"><span>Total</span><b className="mono">{'\u20B9 '}<Money v={bill.perHead != null ? Math.round(bill.perHead * f.travellers) : null} animate={!reduced} /></b></div>
+                        <div className="bill-perhead"><span className="mono">{'\u20B9 '}<Money v={bill.perHead ?? 0} animate={!reduced} /></span><span className="per">/ head</span></div>
+                        <p className="bill-note">rough take - refined once your route resolves in the workspace &middot; excludes tolls, parking &amp; entry fees</p>
                       </div>
                     </div>
-                  </div>
-                  <button type="submit" form="yf-create-form" className="tk-cta">
-                    Create trip <ArrowRight size={16} aria-hidden />
-                  </button>
-                  <div className="tk-subrow">
-                    <button type="button" className="tk-cancel" aria-label="Discard the printed bill and edit the trip details"
-                      onClick={() => { haptic(HAPTIC.toggle); setBillPrinted(false) }}>Discard bill</button>
-                    <button type="button" className="tk-cancel" onClick={() => onNavigate('/trips')}>Cancel</button>
                   </div>
                 </>
               )}
@@ -958,12 +1345,12 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
             {dayCount > 0 ? `${dayCount}d · ${Math.max(0, dayCount - 1)}n · ${f.travellers} travellers` : 'Pick your dates'}
             {billPrinted && bill.perHead != null && <> · <span className="mono dock-amt">{'≈ '}<Money v={bill.perHead} animate={!reduced} />{'/head'}</span></>}
           </span>
+          {createFunnelOn('readiness') && <span className="dock-ready">{readinessLine(readiness)}</span>}
         </div>
-        {!billPrinted ? (
-          <button type="button" className="dock-cta" onClick={printBill}><Printer size={15} aria-hidden /> Print bill</button>
-        ) : (
-          <button type="submit" form="yf-create-form" className="dock-cta">Create trip <ArrowRight size={15} aria-hidden /></button>
-        )}
+        {/* Same fix as the rail: the primary is the primary, and printing is a
+            peek at the numbers - not a gate in front of creating. */}
+        <button type="submit" form="yf-create-form" className="dock-cta">Start planning <ArrowRight size={15} aria-hidden /></button>
+        <button type="button" className="dock-secondary" onClick={printBill} disabled={!bill.perHead} aria-label="Print the rough bill"><Printer size={15} aria-hidden /></button>
       </div>
     </div>
   )

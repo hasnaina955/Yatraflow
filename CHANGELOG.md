@@ -13,6 +13,30 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 > record still exists in `git log`, not here. Archived release notes live in
 > [`docs/history/`](docs/history/).
 
+## Unreleased (create-trip funnel)
+
+The Create Trip page was rebuilt around the questions a planner actually answers,
+plus the moments around creating. Behind per-phase `VITE_CREATE_FUNNEL` flags
+(unset in dev = all on; unset in prod = dark).
+
+- **Warm start** - four curated India templates with engine-computed price bands;
+  one tap loads route, dates and a derived budget. Same-as-last-trip, demo trip.
+- **Three questions** - numbered flow (Where / When / Who & how) with stop chips,
+  a party stepper, compact mode pills, and the tucked advanced drawer.
+- **Budget honesty** - a region band and a money-to-experience line under the
+  slider, both computed by the same engine that prints the bill.
+- **Readiness** - a live checklist in the ticket rail and the mobile dock that
+  mirrors submit()'s own rules exactly.
+- **Drafts** - the form autosaves; returning offers Resume/Discard, and My trips
+  carries a draft card above the grid.
+- **Crew invites** - collect names/numbers; the moment-after screen sends the
+  WhatsApp invite (or copies it) with per-member status.
+- **The moment after** - /created/:id lands with anticipation items from the
+  engine (warnings, weather, tank maths), the rough bill verbatim, and the CTA
+  ladder (Start planning / Open my workspace / Bring the crew).
+- **Input intelligence** - route IQ (longest hop, lunch window) and seasonality
+  notes for seven Indian regions.
+
 ## [Unreleased]
 
 ### Added

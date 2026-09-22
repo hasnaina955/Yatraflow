@@ -6730,3 +6730,6 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .ts-rail .tear::before, .ts-rail .tear::after { background: var(--bg); }
 /* the selected emoji must be visible on the page surface */
 .chip-row .chip.on { border-color: var(--teal); background: var(--teal-soft); color: var(--teal-deep); }
+/* the pinned-plans time control needs room for its own meridiem - it used to
+   clip to '02:00 P' in the 0.8fr track */
+.commitment-row input[type="time"] { min-width: 118px; }

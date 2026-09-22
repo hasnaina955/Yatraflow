@@ -571,11 +571,7 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
         days: bill.days,
         travellers: f.travellers,
         crew: crew.map(c => ({ name: c.name, phone: c.phone })),
-        bill: {
-          roadKm: bill.roadKm,
-          perHead: bill.perHead,
-          total: bill.perHead != null ? Math.round(bill.perHead * f.travellers) : null,
-        },
+        bill,
       })
       navigateWithTransition(`/created/${trip.id}`)
       return

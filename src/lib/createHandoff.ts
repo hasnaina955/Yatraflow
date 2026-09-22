@@ -14,11 +14,7 @@ export interface HandoffCrew {
   phone: string | null
 }
 
-export interface HandoffBill {
-  roadKm: number | null
-  perHead: number | null
-  total: number | null
-}
+import type { StarterBill } from './tripStarter'
 
 export interface CreateHandoff {
   tripId: string
@@ -29,9 +25,10 @@ export interface CreateHandoff {
   days: number
   travellers: number
   crew: HandoffCrew[]
-  /** The rough bill the ticket printed - carried over verbatim so the
-   *  moment-after screen cannot show a second, slightly different total. */
-  bill: HandoffBill | null
+  /** The rough bill the ticket printed, carried over verbatim - every row and
+   *  its formula - so the shared artifact and the moment-after screen cannot
+   *  show a second, slightly different total. */
+  bill: StarterBill | null
 }
 
 export type HandoffStore = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>
@@ -67,10 +64,23 @@ export function readHandoff(tripId: string, opts: { store?: HandoffStore | null 
       ? parsed.crew.filter(c => c && typeof c === 'object' && (typeof c.name === 'string' || typeof c.phone === 'string'))
         .map(c => ({ name: typeof c.name === 'string' ? c.name : '', phone: typeof c.phone === 'string' ? c.phone : null }))
       : []
-    const rawBill = parsed.bill as Partial<HandoffBill> | null | undefined
-    const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : null)
-    const bill = rawBill && typeof rawBill === 'object'
-      ? { roadKm: num(rawBill.roadKm), perHead: num(rawBill.perHead), total: num(rawBill.total) }
+    const rawBill = parsed.bill as Partial<StarterBill> | null | undefined
+    const num = (v: unknown, fallback: number | null = null) => (typeof v === 'number' && Number.isFinite(v) ? v : fallback)
+    const str = (v: unknown) => (typeof v === 'string' ? v : '')
+    const bill: StarterBill | null = rawBill && typeof rawBill === 'object'
+      ? {
+        days: num(rawBill.days, 0) as number,
+        nights: num(rawBill.nights, 0) as number,
+        roadKm: num(rawBill.roadKm),
+        transportCost: num(rawBill.transportCost),
+        transportFormula: str(rawBill.transportFormula),
+        stayCost: num(rawBill.stayCost, 0) as number,
+        stayFormula: str(rawBill.stayFormula),
+        mealCost: num(rawBill.mealCost, 0) as number,
+        mealFormula: str(rawBill.mealFormula),
+        perHead: num(rawBill.perHead),
+        rangeKm: num(rawBill.rangeKm),
+      }
       : null
     return {
       tripId,
@@ -86,6 +96,13 @@ export function readHandoff(tripId: string, opts: { store?: HandoffStore | null 
   } catch {
     return null
   }
+}
+
+/** Stamps the handoff with the bill that was just printed. Kept here so the
+ *  two callers (the create page and its tests) cannot disagree about shape. */
+export function billTotal(bill: StarterBill | null, travellers: number): number | null {
+  if (!bill || bill.perHead == null) return null
+  return Math.round(bill.perHead * Math.max(1, travellers))
 }
 
 export function clearHandoff(opts: { store?: HandoffStore | null } = {}): boolean {

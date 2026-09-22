@@ -8,20 +8,27 @@
 // fetch, or the engine's own warnings. Nothing is recomputed behind the user's
 // back: the bill figures ride over from the create page verbatim.
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   useDb, currentUser, useTrips, tripById, ensureInviteCode, userById,
 } from '../store/store'
 import { collectWarnings } from '../lib/engine'
 import { anticipate, type AnticipationItem } from '../lib/anticipation'
 import { fetchDailyWeather, forecastAvailable, isoAddDays } from '../lib/weather'
-import { readHandoff, clearHandoff } from '../lib/createHandoff'
+import { readHandoff, clearHandoff, billTotal } from '../lib/createHandoff'
+import { shareBillImage } from '../lib/billCapture'
 import { crewInviteMessage, whatsappInviteUrl, PLANNER_ROLE_LINE } from '../lib/crewInvite'
 import { nativeCopyText, nativeShareText } from '../lib/native'
 import { haptic, HAPTIC } from '../lib/haptics'
 import { toast } from '../components/ui'
 
 type InviteStatus = 'idle' | 'sent' | 'copied' | 'skipped'
+
+/** The receipt capture inlines fonts and can stall on a cross-origin stylesheet
+ *  (html-to-image retries such a fetch indefinitely - SecurityError on
+ *  cssRules). A stuck button is worse than a plainer share, so the capture gets
+ *  a deadline and the text fallback takes over. */
+const SHARE_TIMEOUT_MS = 8000
 
 export function TripCreatedPage({ tripId, onNavigate }: { tripId: string; onNavigate: (r: string) => void }) {
   const db = useDb()
@@ -32,6 +39,11 @@ export function TripCreatedPage({ tripId, onNavigate }: { tripId: string; onNavi
 
   const [inviteCode, setInviteCode] = useState<string | null>(null)
   const [statuses, setStatuses] = useState<Record<number, InviteStatus>>({})
+  /** P7 - the receipt node the shared image is captured from. It is rendered
+   *  off-screen: the artifact is the dark till-roll the product prints
+   *  elsewhere, which is not what this page should look like. */
+  const receiptRef = useRef<HTMLDivElement>(null)
+  const [sharing, setSharing] = useState(false)
 
   // the join link: the same short code the Share tab mints, lazily
   useEffect(() => {
@@ -152,6 +164,43 @@ export function TripCreatedPage({ tripId, onNavigate }: { tripId: string; onNavi
     onNavigate(`/trip/${trip!.id}`)
   }
 
+  /** P7 - share the rough take as the product's own receipt image. Every exit
+   *  is accounted for: a dismissed sheet is not an error, and anything else
+   *  falls back to the numbers as text rather than a dead button. */
+  async function shareTake() {
+    haptic(HAPTIC.select)
+    setSharing(true)
+    let timer: ReturnType<typeof setTimeout> | undefined
+    try {
+      const result = await Promise.race([
+        shareBillImage(receiptRef.current),
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(() => reject(new Error('capture timed out')), SHARE_TIMEOUT_MS)
+        }),
+      ])
+      toast(result === 'shared' ? 'Rough take shared' : result === 'copied' ? 'Receipt image copied' : 'Receipt image downloaded')
+    } catch (err) {
+      if ((err as DOMException)?.name === 'AbortError') return
+      // image share unavailable or too slow - the numbers as text still travel
+      const copied = await nativeCopyText(takeText())
+      toast(copied ? 'Copied the rough take as text instead' : 'Could not share - the numbers are on this page')
+    } finally {
+      if (timer) clearTimeout(timer)
+      setSharing(false)
+    }
+  }
+
+  /** The text fallback - the same facts, readable anywhere. */
+  function takeText(): string {
+    const b = handoff?.bill
+    const total = billTotal(b ?? null, trip!.travellers)
+    const lines = [`${trip!.name} - ${trip!.days.length} days`]
+    if (trip!.destinations.length) lines.push(trip!.destinations.join(' \u00b7 '))
+    if (b?.perHead != null) lines.push(`\u20b9${b.perHead.toLocaleString('en-IN')} per head${total != null ? ` \u00b7 \u20b9${total.toLocaleString('en-IN')} for the group` : ''}`)
+    lines.push('Rough take from YatraFlow - every number shows its math.')
+    return lines.join('\n')
+  }
+
   return (
     <div className="container created-page">
       <header className="created-head">
@@ -204,10 +253,69 @@ export function TripCreatedPage({ tripId, onNavigate }: { tripId: string; onNavi
           <p className="created-bill">
             <span className="created-bill-perhead">&#8377;{bill.perHead.toLocaleString('en-IN')}</span>
             <span className="created-bill-unit">per head</span>
-            {bill.total != null && <span className="created-bill-total">&#8377;{bill.total.toLocaleString('en-IN')} for the group</span>}
+            {billTotal(bill, trip.travellers) != null && (
+              <span className="created-bill-total">&#8377;{billTotal(bill, trip.travellers)!.toLocaleString('en-IN')} for the group</span>
+            )}
           </p>
-          <p className="created-detail">Same numbers the ticket printed - the workspace refines them as the route resolves. Excludes tolls, parking and entry fees.</p>
+          <div className="created-bill-rows">
+            <div className="created-bill-row">
+              <span>Road{bill.roadKm != null ? ` \u00b7 ${Math.round(bill.roadKm)} km` : ''}</span>
+              <b>{bill.transportCost != null ? `\u20b9${bill.transportCost.toLocaleString('en-IN')}` : '-'}</b>
+            </div>
+            {bill.transportFormula && <p className="created-bill-formula">{bill.transportFormula}</p>}
+            <div className="created-bill-row"><span>Stays</span><b>&#8377;{bill.stayCost.toLocaleString('en-IN')}</b></div>
+            {bill.stayFormula && <p className="created-bill-formula">{bill.stayFormula}</p>}
+            <div className="created-bill-row"><span>Food</span><b>&#8377;{bill.mealCost.toLocaleString('en-IN')}</b></div>
+            {bill.mealFormula && <p className="created-bill-formula">{bill.mealFormula}</p>}
+          </div>
+          <p className="created-detail">Same rows the ticket printed - the workspace refines them as the route resolves. Excludes tolls, parking and entry fees.</p>
+          <div className="created-bill-acts">
+            <button type="button" className="btn btn-outline btn-sm" onClick={() => void shareTake()} disabled={sharing}>
+              {sharing ? 'Preparing\u2026' : 'Share the rough take'}
+            </button>
+          </div>
         </section>
+      )}
+
+      {/* The artifact itself - off-screen, dark till-roll, captured on demand. */}
+      {bill && (
+        <div className="created-receipt-holder" aria-hidden="true">
+          <div className="bench-receipt card" ref={receiptRef}>
+            <span className="bench-barcode" />
+            <span className="bench-stamp">Rough take</span>
+            <div className="bench-receipt-head">
+              <span className="bench-receipt-kicker">YatraFlow</span>
+              <span className="bench-receipt-date">{trip.name}</span>
+            </div>
+            <div className="bench-meta-row"><span>{trip.days.length} days \u00b7 {trip.travellers} travellers</span></div>
+            <div className="bench-total">
+              <div className="bench-total-label">Per head</div>
+              <div className="bench-total-main bench-total-perhead">
+                <span>&#8377;{bill.perHead != null ? bill.perHead.toLocaleString('en-IN') : '-'}</span>
+                <span className="bench-perhead-unit">/ head</span>
+              </div>
+              <span className="bench-total-sub">
+                {billTotal(bill, trip.travellers) != null ? `\u20b9${billTotal(bill, trip.travellers)!.toLocaleString('en-IN')} total` : ''}
+                {bill.roadKm != null ? ` \u00b7 ${Math.round(bill.roadKm)} km` : ''} \u00b7 {trip.days.length} days
+              </span>
+            </div>
+            <div className="bench-receipt-lines">
+              <div className="bench-line">
+                <div className="bench-line-head"><span>Fuel</span><b>{bill.transportCost != null ? `\u20b9${bill.transportCost.toLocaleString('en-IN')}` : '-'}</b></div>
+                <span className="bench-line-formula">{bill.transportFormula}</span>
+              </div>
+              <div className="bench-line">
+                <div className="bench-line-head"><span>Stays</span><b>&#8377;{bill.stayCost.toLocaleString('en-IN')}</b></div>
+                <span className="bench-line-formula">{bill.stayFormula}</span>
+              </div>
+              <div className="bench-line">
+                <div className="bench-line-head"><span>Food</span><b>&#8377;{bill.mealCost.toLocaleString('en-IN')}</b></div>
+                <span className="bench-line-formula">{bill.mealFormula}</span>
+              </div>
+            </div>
+            <p className="bench-line-formula">every number shows its math \u00b7 YatraFlow</p>
+          </div>
+        </div>
       )}
 
       <div className="created-next">

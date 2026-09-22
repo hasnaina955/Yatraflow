@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, it, expect } from 'vitest'
-import { stashHandoff, readHandoff, clearHandoff, HANDOFF_KEY, type HandoffStore, type CreateHandoff } from '../src/lib/createHandoff'
+import { stashHandoff, readHandoff, clearHandoff, billTotal, HANDOFF_KEY, type HandoffStore, type CreateHandoff } from '../src/lib/createHandoff'
 
 function fakeStore(): HandoffStore & { map: Map<string, string> } {
   const map = new Map<string, string>()
@@ -16,7 +16,13 @@ const h: CreateHandoff = {
   tripId: 't1', tripName: 'Kerala with the crew', plannerName: 'Asha',
   roadKm: 412, rangeKm: 720, days: 6, travellers: 4,
   crew: [{ name: 'Ammu', phone: '9845021234' }, { name: 'Rahul', phone: null }],
-  bill: { roadKm: 412, perHead: 12700, total: 50800 },
+  bill: {
+    days: 6, nights: 5, roadKm: 412,
+    transportCost: 2730, transportFormula: '412 km / 16 km/L x 106',
+    stayCost: 32000, stayFormula: '5 nights x 3200 x 2 rooms',
+    mealCost: 14400, mealFormula: '6 days x 4 heads x 600',
+    perHead: 12700, rangeKm: 720,
+  },
 }
 
 describe('create handoff - the one hop to the moment-after screen', () => {
@@ -27,8 +33,10 @@ describe('create handoff - the one hop to the moment-after screen', () => {
     expect(got.tripName).toBe('Kerala with the crew')
     expect(got.roadKm).toBe(412)
     expect(got.crew).toHaveLength(2)
-    // the bill travels verbatim - the moment-after screen must not recompute it
-    expect(got.bill).toEqual({ roadKm: 412, perHead: 12700, total: 50800 })
+    // the bill travels verbatim, formulas and all
+    expect(got.bill?.perHead).toBe(12700)
+    expect(got.bill?.stayFormula).toContain('3200')
+    expect(billTotal(got.bill, got.travellers)).toBe(50800)
     expect(store.map.has(HANDOFF_KEY)).toBe(true)
   })
 
@@ -51,6 +59,11 @@ describe('create handoff - the one hop to the moment-after screen', () => {
     expect(partial.roadKm).toBeNull()
     expect(partial.travellers).toBe(1)
     expect(readHandoff('t1', { store: null })).toBeNull()
+  })
+
+  it('a missing bill is null, and billTotal refuses to invent a number', () => {
+    expect(billTotal(null, 4)).toBeNull()
+    expect(billTotal({ days: 1, nights: 0, roadKm: null, transportCost: null, transportFormula: '', stayCost: 0, stayFormula: '', mealCost: 0, mealFormula: '', perHead: null, rangeKm: null }, 4)).toBeNull()
   })
 
   it('clear removes it, and clearing twice is harmless', () => {

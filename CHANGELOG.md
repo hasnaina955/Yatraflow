@@ -13,12 +13,15 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 > record still exists in `git log`, not here. Archived release notes live in
 > [`docs/history/`](docs/history/).
 
-## Unreleased (create-trip funnel)
+## [Unreleased]
+
+## [0.65.0] - 2026-09-22
 
 The Create Trip page was rebuilt around the questions a planner actually answers,
 plus the moments around creating. Behind per-phase `VITE_CREATE_FUNNEL` flags
 (unset in dev = all on; unset in prod = dark).
 
+### Added
 - **Warm start** - four curated India templates with engine-computed price bands;
   one tap loads route, dates and a derived budget. Same-as-last-trip, demo trip.
 - **Three questions** - numbered flow (Where / When / Who & how) with stop chips,
@@ -36,10 +39,6 @@ plus the moments around creating. Behind per-phase `VITE_CREATE_FUNNEL` flags
   ladder (Start planning / Open my workspace / Bring the crew).
 - **Input intelligence** - route IQ (longest hop, lunch window) and seasonality
   notes for seven Indian regions.
-
-## [Unreleased]
-
-### Added
 - **The Map tab's day planning gets its slot engine.** The slots-rail concept - the day rendered as the work it is still missing (breakfast, lunch, fuel, dinner, stay), filled by search, comparison or vote - starts with its pure, tested module: `src/lib/daySlots.ts` derives each day's slots from engine output alone (the halt segmentation, the day's stops, the corridor candidate pool), so the view can never drift from the engine. Meal segments split into lunch/dinner by their arrival against the engine's own windows (`LUNCH_WINDOW` / `DINNER_WINDOW`; purpose stays `meal` per P0.3), breakfast reads the `BREAKFAST_WINDOW` meal, stretch halts render as the quiet auto state unless a #143 drift proposal is open, and a no-drive day's hotel stop still owns its stay. Filled = a stop claims the slot (category first, then reported opening hours overlapping the window, one stop per slot), empty = the top engine-scored candidates with their detour minutes, budget share, arrival time and in-window honesty, auto = no work demanded. Day slicing follows the caller's own road-true per-day km when given (one shared `tripDayAttribution`, so the rail, the day chips and the Overview matrix cannot attribute a halt to two different days) and falls back to the journey-ordered `dayEnd` flags. Readiness (`dayReadiness` / `tripReadiness`) counts filled/total/auto for the day chips and the rail's meter. Tests: `tests/daySlots.test.ts` - 80 fixtures including the mockup's Day-2 structure (6 slots, 2 of 6 filled with 1 auto) derived from engine data alone, plus the review round's cases (a sight stays out of the day's shape, a filled part is never also engine-managed, a fill is remembered as data rather than as prose, lunch and dinner draw on their own halt, and a halt-less day keeps its readiness row).
 - **The rail starts remembering (plan P7).** An open part now says what the log has learned about that KIND of stop - "you usually accept about +8 min for these", "you usually take these without a detour" - drawn from the accepts and declines already recorded, shown as context, and silent until the log carries at least three real accepts so a young log never pretends to a habit.
 - **The day has a shape, and the trip a grid.** The plan rail gained a second reading: a Shape toggle turns the day into its blocks sized to their minutes - a two-hour drive is four times a lunch, a night is a night - each carrying its state, so the day's rhythm is legible before the detail. On Overview, "What each day holds" answers trip readiness at a glance: a day-by-day grid of the six parts (solid = planned, hollow = engine-managed, dot = still open), each day's count, and the thinnest day called out by name.

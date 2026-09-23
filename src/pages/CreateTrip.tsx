@@ -806,12 +806,14 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
                   <Plus size={12} aria-hidden /> Add a stop
                 </button>
               </div>
-              {errs.destinations && <p className="err-text" role="alert">{errs.destinations}</p>}
+              {errs.destinations && <p className="err-text" id="ct-dest-err">{errs.destinations}</p>}
 
               <div className="ct-q-field ct-add-stop">
                 <LocationInput
                   value={destInput}
                   onChange={setDestInput}
+                  errorId={errs.destinations ? 'ct-dest-err' : undefined}
+                  error={errs.destinations}
                   onPick={p => addDest({ name: p.name + (p.admin1 ? `, ${p.admin1}` : ''), lat: p.latitude, lng: p.longitude }, false)}
                   placeholder={dests.length === 0 ? 'Type a place to add your first stop - e.g. Munnar' : 'Type a place to add the next stop'}
                 />
@@ -991,7 +993,7 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
                       onChange={e => setCrewInput(e.target.value)}
                       onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCrewMember() } }} />
                     <button type="button" className="btn btn-outline btn-sm" onClick={addCrewMember}
-                      disabled={crew.length >= crewLimit || !crewInput.trim()}>Add</button>
+                      disabled={crew.length >= crewLimit || !crewInput.trim()}>Add crew member</button>
                   </div>
                   {crew.length > 0 && (
                     <div className="crew-chips">
@@ -1141,6 +1143,7 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
                     ref={el => (fieldRefs.current.budgetPerPersonInr = el)}
                     aria-label="Budget per person, exact amount"
                     aria-invalid={!!errs.budgetPerPersonInr}
+                    aria-describedby={errs.budgetPerPersonInr ? 'ct-budget-err' : undefined}
                     value={f.budgetPerPersonInr}
                     onChange={e => { setBudgetTouched(true); patchFields({ budgetPerPersonInr: Number(e.target.value) }) }} />
                 </label>
@@ -1149,7 +1152,7 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
                   use our estimate
                 </button>
               </div>
-              {errs.budgetPerPersonInr && <p className="err-text" role="alert">{errs.budgetPerPersonInr}</p>}
+              {errs.budgetPerPersonInr && <p className="err-text" id="ct-budget-err">{errs.budgetPerPersonInr}</p>}
               {/* Politely live: the auto-fill above rewrites this number. */}
               <span className="sr-only" role="status">{budgetNotice}</span>
               {/* Mockup order: money in the hand first (the translation), then
@@ -1285,7 +1288,7 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
                   options={Array.from({ length: Math.max(1, dayCount) }, (_, i) => ({ value: String(i), label: `Day ${i + 1}` }))} />
               </Field>
               <Field label="Time"><input className="input" type="time" value={c.time} onChange={e => setC(x => ({ ...x, time: e.target.value }))} /></Field>
-              <button type="button" className="btn btn-outline" onClick={addCommitment} style={{ height: 42 }}>Add</button>
+              <button type="button" className="btn btn-outline" onClick={addCommitment} style={{ height: 42 }}>Add pinned plan</button>
             </div>
           </div>
           </div>

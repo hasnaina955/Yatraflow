@@ -316,7 +316,7 @@ export function TripCreatedPage({ tripId, onNavigate }: { tripId: string; onNavi
               <div key={`${m.phone ?? m.name}-${i}`} className={`created-crew-row${statuses[i] === 'sent' || statuses[i] === 'copied' ? ' done' : ''}`}>
                 <span className="created-dot" aria-hidden />
                 <span className="created-crew-name">{m.name || `+91 ${m.phone}`}</span>
-                <span className="created-channels" role="group" aria-label={`Send the invite via`}>
+                <span className="created-channels" role="group" aria-label="Send the invite">
                   {CREW_CHANNELS.map(ch => {
                     const off = channelNeedsPhone(ch) && !m.phone
                     return (

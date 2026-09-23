@@ -618,7 +618,7 @@ a.btn { text-decoration: none; }
 .btn-ghost:hover { background: var(--bg-soft); color: var(--text); }
 .btn-danger { background: var(--color-destructive-soft); color: var(--ink-coral); }
 .btn-danger:hover:not(:disabled) { background: color-mix(in srgb, var(--color-destructive) 14%, transparent); }
-.btn-sm { padding: 6px 12px; font-size: 13px; }
+.btn-sm { padding: 6px 12px; font-size: 13px; min-height: 24px; }
 /* The LARGE size is the one that carries a sentence, so it is the one that may
    wrap. `.btn`'s global `white-space: nowrap` keeps pill labels single-line,
    but it also makes a sentence-length label's MIN-CONTENT equal to the whole
@@ -5580,7 +5580,7 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 }
 .tk-print-btn:hover { background: rgba(255, 255, 255, 0.18); border-style: solid; }
 .tk-fine { margin: 10px 0 0; font-size: 11px; line-height: 1.5; color: var(--text-3); }
-.tk-cancel { margin-top: 9px; width: 100%; text-align: center; font-size: 12.5px; color: var(--text-3); background: none; border: none; cursor: pointer; padding: 4px; text-decoration: underline; text-underline-offset: 3px; }
+.tk-cancel { margin-top: 9px; width: 100%; text-align: center; font-size: 12.5px; color: var(--text-3); background: none; border: none; cursor: pointer; padding: 4px; min-height: 24px; text-decoration: underline; text-underline-offset: 3px; }
 .tk-cancel:hover { color: var(--text-2); }
 .tk-subrow { display: flex; justify-content: center; gap: 18px; margin-top: 9px; }
 .tk-subrow .tk-cancel { margin-top: 0; width: auto; }
@@ -5873,7 +5873,7 @@ html.native-shell {
    bottom-nav label uses it); sizes stay literal elsewhere by design. */
 :root {
   --text-xs: 11px;
-  --kicker-size: 10.5px; --kicker-weight: 700; --kicker-tracking: .06em;
+  --kicker-size: 11px; --kicker-weight: 700; --kicker-tracking: .06em;
 }
 /* Glass blur tiers: chrome 18, panel 14, chip 8, scrim 3. */
 :root {
@@ -6819,7 +6819,10 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 
 /* one template card: cover gradient + copy, hover lifts like a ticket */
 .tpl-card { position: relative; display: block; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--card); overflow: hidden; cursor: pointer; padding: 0; text-align: left; color: inherit; font: inherit; transition: transform var(--t-fast) var(--ease-out), box-shadow var(--t-fast) var(--ease-out), border-color var(--t-fast) var(--ease-out); }
-.tpl-card:hover, .tpl-card:focus-visible { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(16,46,75,.12); border-color: var(--teal); outline: none; }
+/* hover decoration is pointer-only: gated so touch devices don't get sticky
+   hover states; :focus-visible twins stay ungated. */
+.tpl-card:focus-visible { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(16,46,75,.12); border-color: var(--teal); outline: none; }
+@media (hover: hover) { .tpl-card:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(16,46,75,.12); border-color: var(--teal); } }
 .tpl-card.on { border-color: var(--teal); box-shadow: 0 0 0 2px var(--teal-soft); }
 .tpl-cov { height: 64px; display: flex; align-items: flex-end; padding: 8px 10px; }
 .tpl-cov .em { font-size: 20px; line-height: 1; }
@@ -6835,25 +6838,29 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 
 /* the quiet start-blank tile closes the strip */
 .tpl-blank { display: flex; align-items: center; gap: 10px; border: 1px dashed var(--teal); border-radius: var(--radius-sm); background: transparent; cursor: pointer; padding: 12px 13px; font: inherit; color: var(--teal-deep, var(--teal)); font-weight: 600; text-align: left; }
-.tpl-blank:hover, .tpl-blank:focus-visible { background: var(--teal-soft); outline: none; }
+.tpl-blank:focus-visible { background: var(--teal-soft); outline: none; }
+@media (hover: hover) { .tpl-blank:hover { background: var(--teal-soft); } }
 .tpl-blank small { display: block; font-weight: 500; color: var(--text-3); font-size: 11px; }
 
 /* the two helper chips under the strip: same-as-last + demo */
 .tpl-helpers { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 9px; }
 .tpl-helper { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 600; color: var(--text-2); background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: 5px 11px; cursor: pointer; }
-.tpl-helper:hover, .tpl-helper:focus-visible { border-color: var(--teal); color: var(--teal-deep, var(--teal)); outline: none; }
+.tpl-helper:focus-visible { border-color: var(--teal); color: var(--teal-deep, var(--teal)); outline: none; }
+@media (hover: hover) { .tpl-helper:hover { border-color: var(--teal); color: var(--teal-deep, var(--teal)); } }
 
 /* name-first row: the input + the suggestion chip */
 .tpl-name { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; }
 .tpl-name > .field { flex: 1 1 260px; min-width: 0; }
 .tpl-name .input { flex: 1; min-width: 200px; }
 .tpl-sug { flex: none; font-size: 11.5px; font-weight: 600; color: var(--teal-deep, var(--teal)); background: var(--teal-soft); border: 0; border-radius: 999px; padding: 6px 12px; cursor: pointer; }
-.tpl-sug:hover, .tpl-sug:focus-visible { background: var(--card); color: var(--teal-deep); outline: none; }
+.tpl-sug:focus-visible { background: var(--card); color: var(--teal-deep); outline: none; }
+@media (hover: hover) { .tpl-sug:hover { background: var(--card); color: var(--teal-deep); } }
 
 /* reduced motion: hover lift is decorative, keep it off */
 @media (prefers-reduced-motion: reduce) {
   .tpl-card { transition: none; }
-  .tpl-card:hover, .tpl-card:focus-visible { transform: none; }
+  .tpl-card:focus-visible { transform: none; }
+  @media (hover: hover) { .tpl-card:hover { transform: none; } }
 }
 /* ============================================================
    Create Trip - the advanced drawer (P1)
@@ -7052,7 +7059,9 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .ct-styles { display: flex; flex-wrap: wrap; gap: 6px; }
 .ct-style { padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--card); color: var(--text-2); font-size: 12px; font-weight: 600; cursor: pointer; }
 .ct-style.on { border-color: var(--teal); background: var(--teal-soft); color: var(--teal-deep); }
-.ct-style:hover:not(.on), .ct-style:focus-visible:not(.on) { border-color: var(--teal); outline: none; }
+.ct-style:active { transform: scale(.97); }
+.ct-style:focus-visible:not(.on) { border-color: var(--teal); outline: none; }
+@media (hover: hover) { .ct-style:hover:not(.on) { border-color: var(--teal); } }
 .ct-optional { display: flex; flex-direction: column; gap: 12px; padding-top: 16px; border-top: 1px solid var(--line); }
 .ct-opt-head { display: flex; align-items: baseline; gap: 8px; }
 /* ============================================================
@@ -7065,8 +7074,12 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 
 .container.form-page { max-width: 1240px; }
 /* the mockup fixes the pass at 380px and lets the flow take the rest - but the
-   pass yields down to 340px on a tight window rather than squeezing the flow */
-.container.form-page .ts-layout { grid-template-columns: minmax(0, 1fr) minmax(340px, 380px); }
+   pass yields down to 340px on a tight window rather than squeezing the flow.
+   Wide layout only: the ≤980px single-column collapse (line ~5216) must win
+   below that, or the rail becomes a forced 340px column that overflows phones. */
+@media (min-width: 981px) {
+  .container.form-page .ts-layout { grid-template-columns: minmax(0, 1fr) minmax(340px, 380px); }
+}
 
 /* The pass is the app's own navy boarding pass, kept: it is the one component
    on this page that already read as designed. Only the mockup's PROPORTIONS
@@ -7297,9 +7310,11 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .created-ch {
   border: 1px solid var(--line); border-radius: 999px; background: var(--card);
   color: var(--text-2); font-size: 11px; font-weight: 700; padding: 3px 10px;
+  min-height: 24px;
   cursor: pointer; transition: border-color var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out), background var(--motion-fast) var(--ease-out);
 }
-.created-ch:hover:not(:disabled) { border-color: var(--teal-deep); color: var(--ink-teal); background: var(--teal-soft); }
+@media (hover: hover) { .created-ch:hover:not(:disabled) { border-color: var(--teal-deep); color: var(--ink-teal); background: var(--teal-soft); } }
+.created-ch:active { transform: scale(.97); }
 .created-ch:disabled { opacity: .45; cursor: not-allowed; }
 .created-ch:focus-visible { outline: none; box-shadow: var(--ring); }
 .created-broadcast { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; flex-basis: 100%; }
@@ -7319,4 +7334,8 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
   display: flex; flex-direction: column; gap: 18px;
   padding: 20px; border: 1px solid var(--line); border-radius: var(--radius);
   background: var(--card);
+}
+/* the panel's 20px gutters double the page's own at phone width */
+@media (max-width: 480px) {
+  .ct-panel { padding: 14px; }
 }

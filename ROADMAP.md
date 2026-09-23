@@ -447,7 +447,6 @@ unbuilt). **Before picking up a row, and before quoting one in a plan, confirm i
 | I-4 | Overspending alerts | budget | 2 h | Threshold notification when a day/category crosses its cap — plumbing already exists in `realtimeCore`. |
 | I-5 | Category envelopes | budget | 3–4 h | Per-category cap (₹) with progress state on the "Where the money goes" bars + a cap editor on the category row. Pattern: YNAB. |
 | I-8 | Monthly statements / invoice export | creator | 2–3 h | Downloadable per-month earnings summary, client-side from the payouts table. **Post-M7.** |
-| I-17 | Theme the text selection and the caret | design system | 1 h | `::selection` and `caret-color` are declared **nowhere** in `src/styles.css` — the UA's highlight blue and caret are the last unthemed browser surfaces in the app (found while scoping v0.60.0's craft-floor pass). Cheap to close with the app's own soft-tint pairing (`--teal-soft` + `--text`) and `caret-color: var(--teal-deep)`, but it is a feel change rather than a defect, so it wants a look first — and the baseline's line-keyed entries must be re-mapped in the same commit (AGENTS §4). |
 | I-23 | Publish-quality score | creator | 1 d | Checklist with nudges (cover photo, budget filled, notes density, preview-day choice) on the hub + Share tab. Ship, measure via I-22, then claim any lift (research §5). |
 | I-25 | Buyer reviews | creator | 2 d | Post-purchase ratings on itineraries: schema (reviews table + RLS), policy question (purchase-gated?) first. Feeds conversion, creator feedback, and I-26. |
 | I-27 | Hub presentation pass | creator | 1 d | KPI sparklines, activity feed ("Admin unlocked Spiti · 2h ago"), motion per `docs/MOTION-TOKENS.md`. The studio-dashboard pass over the existing Overview + Earnings. Research §5. |
@@ -620,6 +619,14 @@ Kept as one line each so the origin is traceable without re-listing the work as 
   owner-only RLS on all four verbs (`supabase/migrations/20260921_user_dna.sql`, **applied
   live 2026-09-21 and probe-verified**), read once per hydrate and written back debounced, with the merge a
   de-duplicated union so a sync cannot double a count.
+- **Idea bank I-17 — the selection and the caret join the theme** — `[Unreleased]`. Source: the
+  Tier 1 row itself ("the last unthemed browser surfaces", found while scoping v0.60.0's
+  craft-floor pass). `::selection` paints theme ink on the soft teal tint (`--teal-soft` +
+  `--text` — #E5F4EE/#0B2545 light, #12332F/#ECF1F8 dark: 13.56:1 / 12.01:1, computed), and
+  `caret-color: var(--teal-deep)` rides `:root` so every editable surface inherits the brand
+  teal — one appended block in `styles.css`, both declarations resolving per theme. The row's
+  own caveat about the baseline's line-keyed entries predates the text-key migration and no
+  longer applies.
 
 ## Historical plans (executed — kept for the record, not live guidance)
 

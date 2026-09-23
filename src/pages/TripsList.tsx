@@ -220,7 +220,10 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
                 { value: 'budget-desc', label: 'Budget: high → low' },
               ]} />
             {/* always mounted so the row doesn't shift when it appears mid-typing */}
-            <button className="btn btn-ghost btn-sm" style={{ visibility: hasFilters ? 'visible' : 'hidden' }} onClick={() => { setQ(''); setStyle('all'); setWhen('all'); setSortKey('recent') }}>Clear</button>
+            {/* "Clear filters" (review finding 4): the empty state's action said
+                "Clear filters" while this ghost button said "Clear" — the same
+                reset under two names, both once visible in one frame. */}
+            <button className="btn btn-ghost btn-sm" style={{ visibility: hasFilters ? 'visible' : 'hidden' }} onClick={() => { setQ(''); setStyle('all'); setWhen('all'); setSortKey('recent') }}>Clear filters</button>
           </div>
 
           <p className="sr-only" role="status">{trips.length} {trips.length === 1 ? 'trip matches' : 'trips match'}</p>

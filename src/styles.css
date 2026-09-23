@@ -4736,6 +4736,14 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
    horizontal padding, never from the target height. */
 @media (max-width: 350px) {
   .nav-right:has(> .btn) .btn { padding: 9px 8px; font-size: 12.5px; }
+  /* The reflow rung's last gap, found in the 2026-09-23 entry-path review:
+     even after every tightening above, the logged-out pair (Log in + Start
+     planning free) measured 335px against a 303px content box at 320px, and
+     the root's overflow-x: clip cut the CTA mid-label. The hamburger tray
+     (App.tsx mobile-menu) carries Log in at these widths, so the chrome copy
+     yields and the primary CTA fits whole. Signed-in headers have no outline
+     button in .nav-right, so this is a no-op for them. */
+  .nav-right > .btn-outline { display: none; }
 }
 
 /* ---- <=360px: the last few pixels ---- */

@@ -364,7 +364,7 @@ export function TripCreatedPage({ tripId, onNavigate }: { tripId: string; onNavi
             {sharing ? 'Preparing\u2026' : 'Share the rough take'}
           </button>
           {joinUrl && <button type="button" className="share-ghost" onClick={() => void copyAll()}>Copy the invite</button>}
-          <div className="created-broadcast" role="group" aria-label="Send the invite on">
+          <div className="created-broadcast" role="group" aria-label="Send the invite">
             <span className="created-broadcast-label">or send the invite on</span>
             {CREW_CHANNELS.map(ch => (
               <button key={ch} type="button" className="created-ch" aria-label={`Send the invite via ${CHANNEL_LABEL[ch]}`}

@@ -7278,3 +7278,25 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
    every input, textarea and contenteditable surface without enumerating them. */
 ::selection { background: var(--teal-soft); color: var(--text); }
 :root { caret-color: var(--teal-deep); }
+
+/* ---- The moment-after: crew channels + add-more (WhatsApp/Telegram/SMS/Insta).
+   New names only - the existing .created-* rules above stay untouched. Chips are
+   buttons with their own focus ring; no animation, so no reduced-motion duties. */
+.created-channels { display: inline-flex; gap: 5px; flex-wrap: wrap; }
+.created-ch {
+  border: 1px solid var(--line); border-radius: 999px; background: var(--card);
+  color: var(--text-2); font-size: 11px; font-weight: 700; padding: 3px 10px;
+  cursor: pointer; transition: border-color var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out), background var(--motion-fast) var(--ease-out);
+}
+.created-ch:hover:not(:disabled) { border-color: var(--teal-deep); color: var(--ink-teal); background: var(--teal-soft); }
+.created-ch:disabled { opacity: .45; cursor: not-allowed; }
+.created-ch:focus-visible { outline: none; box-shadow: var(--ring); }
+.created-broadcast { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; flex-basis: 100%; }
+.created-broadcast-label { font-size: 11px; color: var(--text-3); }
+.created-crew-add { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+.created-crew-add input {
+  flex: 1; min-width: 180px; border: 1px solid var(--line); border-radius: 999px;
+  padding: 7px 13px; font: inherit; font-size: 13px; background: var(--bg); color: var(--text);
+}
+.created-crew-add input:focus-visible { outline: none; box-shadow: var(--ring); border-color: var(--teal-deep); }
+.created-crew-add input::placeholder { color: var(--text-3); }

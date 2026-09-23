@@ -18,12 +18,23 @@ import { estimateLunchStop } from '../lib/routeIq'
 import { fetchDailyWeather, forecastAvailable, isoAddDays } from '../lib/weather'
 import { readHandoff, clearHandoff, billTotal } from '../lib/createHandoff'
 import { shareBillImage } from '../lib/billCapture'
-import { crewInviteMessage, whatsappInviteUrl, PLANNER_ROLE_LINE } from '../lib/crewInvite'
+import { crewInviteMessage, PLANNER_ROLE_LINE, CREW_CHANNELS, inviteChannelUrl, channelNeedsPhone, telegramShareUrl, addCrewEntry, parseCrewEntry, type CrewChannel, type CrewEntry } from '../lib/crewInvite'
 import { nativeCopyText, nativeShareText } from '../lib/native'
 import { haptic, HAPTIC } from '../lib/haptics'
 import { toast } from '../components/ui'
 
 type InviteStatus = 'idle' | 'sent' | 'copied' | 'skipped'
+
+/** The in-flow collector caps at 4 (P5's anti-spam call); the moment-after
+ *  screen is a calmer moment, so it allows a few more - but never unbounded. */
+const CREW_LIMIT = 8
+
+const CHANNEL_LABEL: Record<CrewChannel, string> = {
+  whatsapp: 'WhatsApp',
+  telegram: 'Telegram',
+  sms: 'SMS',
+  insta: 'Insta',
+}
 
 /** The receipt capture inlines fonts and can stall on a cross-origin stylesheet
  *  (html-to-image retries such a fetch indefinitely - SecurityError on
@@ -45,6 +56,9 @@ export function TripCreatedPage({ tripId, onNavigate }: { tripId: string; onNavi
    *  elsewhere, which is not what this page should look like. */
   const receiptRef = useRef<HTMLDivElement>(null)
   const [sharing, setSharing] = useState(false)
+  /** Crew added after creation - raw entries, merged into the list below. */
+  const [extras, setExtras] = useState<string[]>([])
+  const [crewInput, setCrewInput] = useState('')
 
   // the join link: the same short code the Share tab mints, lazily
   useEffect(() => {
@@ -114,6 +128,23 @@ export function TripCreatedPage({ tripId, onNavigate }: { tripId: string; onNavi
     })
   }, [trip?.id, handoff, rainyDays, conflicts])
 
+  // Crew composition is pure and hook-ordered: it lives ABOVE the `!trip`
+  // early return so the render's hook count never changes (a conditional
+  // useMemo here crashed the screen on first load - "Rendered more hooks
+  // than during the previous render" - because trips hydrate after mount).
+  const crew = useMemo(
+    () =>
+      extras.reduce<CrewEntry[]>(
+        (acc, raw) => addCrewEntry(acc, raw, CREW_LIMIT),
+        // handoff entries re-enter through the same parse/dedupe as new ones,
+        // so a duplicate added here is refused no matter which side it came from
+        (handoff?.crew ?? [])
+          .map(m => (m.phone ? `${m.name} ${m.phone}` : m.name).trim())
+          .map(parseCrewEntry),
+      ),
+    [handoff, extras],
+  )
+
   if (!trip) {
     return (
       <div className="container created-page">
@@ -123,7 +154,6 @@ export function TripCreatedPage({ tripId, onNavigate }: { tripId: string; onNavi
     )
   }
 
-  const crew = handoff?.crew ?? []
   const bill = handoff?.bill ?? null
 
   function inviteText(): string {
@@ -134,22 +164,61 @@ export function TripCreatedPage({ tripId, onNavigate }: { tripId: string; onNavi
     })
   }
 
-  async function sendInvite(index: number) {
+  async function sendInvite(index: number, channel: CrewChannel) {
     const member = crew[index]
-    if (!member?.phone) return
+    if (!member) return
+    if (channelNeedsPhone(channel) && !member.phone) return
     haptic(HAPTIC.select)
     setStatuses(s => ({ ...s, [index]: 'sent' }))
     const text = inviteText()
-    try {
-      // the native sheet first, then the WhatsApp deep link (which is what an
-      // Indian crew actually uses), then the share sheet as a last resort
-      const opened = openWhatsApp(member.phone, text)
-      if (!opened) {
-        const res = await nativeShareText({ text, title: trip!.name })
-        if (res === 'unavailable') toast('Could not open a share sheet - the link is on this page to copy.', 'err')
-      }
-    } catch {
-      toast('Could not open WhatsApp - the invite link is below to copy.', 'err')
+    const url = inviteChannelUrl(channel, member.phone, text, joinUrl || (typeof location !== 'undefined' ? location.origin : ''))
+    if (url) {
+      if (openExternal(url)) return
+      toast('The browser blocked the link - the invite is on this page to copy.', 'err')
+      return
+    }
+    // No direct scheme (Instagram has no DM intent URL): the OS share sheet
+    // carries it - its picker includes DMs and everything else installed.
+    const res = await nativeShareText({ text, title: trip!.name })
+    if (res === 'unavailable') toast('No share sheet here - the invite link is on this page to copy.', 'err')
+  }
+
+  /** Add a crew member from this screen. Same parse/dedupe rules as the
+   *  create-page collector, so the list stays clean wherever it is edited. */
+  function addExtra() {
+    const raw = crewInput.trim()
+    if (raw.length < 2 || crew.length >= CREW_LIMIT) return
+    const merged = addCrewEntry(crew, raw, CREW_LIMIT)
+    if (merged.length === crew.length) {
+      toast('That entry is already on the crew list')
+      setCrewInput('')
+      return
+    }
+    setExtras(x => [...x, raw])
+    setCrewInput('')
+    haptic(HAPTIC.tick)
+  }
+
+  /** Send the invite with no recipient chosen - WhatsApp/Telegram open their
+   *  own chooser; SMS/Insta ride the OS share sheet (Android and iOS prefill
+   *  the body there). Everything degrades to the copied link. */
+  async function broadcastInvite(channel: CrewChannel) {
+    haptic(HAPTIC.select)
+    const text = inviteText()
+    const url = channel === 'whatsapp'
+      ? `https://wa.me/?text=${encodeURIComponent(text)}`
+      : channel === 'telegram'
+        ? telegramShareUrl(text, joinUrl || (typeof location !== 'undefined' ? location.origin : ''))
+        : null
+    if (url) {
+      if (openExternal(url)) return
+      toast('The browser blocked the link - the invite is on this page to copy.', 'err')
+      return
+    }
+    const res = await nativeShareText({ text, title: trip!.name })
+    if (res === 'unavailable') {
+      const copied = await nativeCopyText(text)
+      toast(copied ? 'Invite copied - paste it into the chat' : 'No share sheet here - the invite link is on this page to copy.', copied ? undefined : 'err')
     }
   }
 
@@ -237,20 +306,47 @@ export function TripCreatedPage({ tripId, onNavigate }: { tripId: string; onNavi
         </section>
       )}
 
-      {crew.length > 0 && (
-        <section className="created-card" aria-label="Bring the crew">
+      <section className="created-card" aria-label="Bring the crew">
           <h2 className="created-card-title">The crew <span className="created-role">{PLANNER_ROLE_LINE}</span></h2>
+          {crew.length === 0 && (
+            <p className="created-detail">No one on the list yet - add them here; the invite is ready the moment you do.</p>
+          )}
           <div className="created-crew">
             {crew.map((m, i) => (
               <div key={`${m.phone ?? m.name}-${i}`} className={`created-crew-row${statuses[i] === 'sent' || statuses[i] === 'copied' ? ' done' : ''}`}>
                 <span className="created-dot" aria-hidden />
                 <span className="created-crew-name">{m.name || `+91 ${m.phone}`}</span>
-                {m.phone
-                  ? <button type="button" className="btn btn-outline btn-sm" onClick={() => void sendInvite(i)}>Send invite</button>
-                  : <span className="created-crew-hint">no number - share the link instead</span>}
+                <span className="created-channels" role="group" aria-label={`Send the invite via`}>
+                  {CREW_CHANNELS.map(ch => {
+                    const off = channelNeedsPhone(ch) && !m.phone
+                    return (
+                      <button key={ch} type="button" className="created-ch" disabled={off}
+                        title={off ? 'needs a number - Telegram or the share sheet work without one' : `Send via ${CHANNEL_LABEL[ch]}`}
+                        aria-label={`Send the invite via ${CHANNEL_LABEL[ch]}`}
+                        onClick={() => void sendInvite(i, ch)}>
+                        {CHANNEL_LABEL[ch]}
+                      </button>
+                    )
+                  })}
+                </span>
+                {!m.phone && <span className="created-crew-hint">no number - Telegram or the share sheet still work</span>}
                 <span className="created-crew-status">{statusLabel(statuses[i], m.phone)}</span>
               </div>
             ))}
+          </div>
+          <div className="created-crew-add">
+            <input
+              value={crewInput}
+              onChange={e => setCrewInput(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addExtra() } }}
+              placeholder="Name or mobile - e.g. Ammu 98450 21234"
+              aria-label="Add a crew member by name or mobile number"
+              maxLength={40}
+            />
+            <button type="button" className="btn btn-outline btn-sm" onClick={addExtra}
+              disabled={crewInput.trim().length < 2 || crew.length >= CREW_LIMIT}>
+              Add to crew
+            </button>
           </div>
           <div className="created-crew-acts">
             <button type="button" className="btn btn-outline btn-sm" onClick={() => void copyAll()}>Copy the invite</button>
@@ -260,7 +356,6 @@ export function TripCreatedPage({ tripId, onNavigate }: { tripId: string; onNavi
             <p className="created-detail">They get: {crewInviteMessage({ tripName: trip.name, joinUrl, plannerName: handoff?.plannerName || me?.profile.name || '' })}</p>
           )}
         </section>
-      )}
 
       {/* The mockup's share row: the green action travels, the invite copies. */}
       {bill && bill.perHead != null && (
@@ -269,6 +364,15 @@ export function TripCreatedPage({ tripId, onNavigate }: { tripId: string; onNavi
             {sharing ? 'Preparing\u2026' : 'Share the rough take'}
           </button>
           {joinUrl && <button type="button" className="share-ghost" onClick={() => void copyAll()}>Copy the invite</button>}
+          <div className="created-broadcast" role="group" aria-label="Send the invite on">
+            <span className="created-broadcast-label">or send the invite on</span>
+            {CREW_CHANNELS.map(ch => (
+              <button key={ch} type="button" className="created-ch" aria-label={`Send the invite via ${CHANNEL_LABEL[ch]}`}
+                onClick={() => void broadcastInvite(ch)}>
+                {CHANNEL_LABEL[ch]}
+              </button>
+            ))}
+          </div>
         </div>
       )}
       </div>
@@ -375,11 +479,16 @@ export function TripCreatedPage({ tripId, onNavigate }: { tripId: string; onNavi
   )
 }
 
-/** Open WhatsApp for a number; returns false when the browser blocked it. */
-function openWhatsApp(phone: string, text: string): boolean {
+/** Open an external link without handing the tab back: `window.open(url,
+ *  '_blank', 'noopener')` ALWAYS returns null (noopener implies no window
+ *  handle), so "did it open" can never be read from the return value. The
+ *  opener is detached instead - the popup-blocker toast only fires on a real
+ *  throw (rare, and the invite is on the page to copy either way). */
+function openExternal(url: string): boolean {
   try {
-    const win = window.open(whatsappInviteUrl(phone, text), '_blank', 'noopener')
-    return !!win
+    const win = window.open(url, '_blank')
+    if (win) { try { win.opener = null } catch { /* cross-origin refuse is fine */ } }
+    return true
   } catch {
     return false
   }

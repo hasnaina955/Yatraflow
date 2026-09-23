@@ -34,6 +34,7 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
   row that scoped it (I-17, Tier 1) is spent and recorded in ROADMAP's shipped record.
 
 ### Fixed
+- **The moment-after screen's "Send invite" never actually opened WhatsApp**: `window.open(url, '_blank', 'noopener')` always returns null (the `noopener` feature implies no window handle), so the code misread every success as a blocked popup and fell through to the OS share sheet instead. Links now open through a helper that detaches the opener rather than trusting the return value. The screen also crashed with "Rendered more hooks than during the previous render" when reopened for a trip whose list was still hydrating - the crew memo ran below the loading early-return, so the render's hook count changed mid-load.
 - **Entry-path accessibility review landed**: at 320px the logged-out header clipped the "Start planning free" CTA mid-label (the reflow rungs were tuned for the older, shorter label) — the ≤350px block now hides the chrome "Log in" outline button (the hamburger tray carries it) so the primary CTA fits whole. The landing kicker's small teal text measured 3.80:1 on cream; it now uses the text-grade `--ink-teal` token instead of the focus-ring accent. Route changes and the loading gate announce themselves to screen readers via a polite live region fed by the page title, and decorative travel motifs are `aria-hidden`. The auth form's short-password error moved from the form-level alert onto the password field (marked invalid, focus follows) like the name check beside it, the signup tab now matches its submit button's "Create account" naming, My Trips' filter reset and empty state both say "Clear filters", the header's nested navigation landmarks are disambiguated, and the demo band's CTA got a name distinct from the chrome's.
 
 - **The header's CTA stays whole on narrow desktop windows**: the signed-out pill's tightening
@@ -58,7 +59,10 @@ plus the moments around creating. Behind per-phase `VITE_CREATE_FUNNEL` flags
 - **Drafts** - the form autosaves; returning offers Resume/Discard, and My trips
   carries a draft card above the grid.
 - **Crew invites** - collect names/numbers; the moment-after screen sends the
-  WhatsApp invite (or copies it) with per-member status.
+  invite on WhatsApp, Telegram, SMS or Instagram (per-member chips, a
+  no-recipient broadcast row, and an add-more field so crew can join the list
+  after creation - Telegram works without a number, and a channel with no
+  direct scheme says so instead of dead-ending), with per-member status.
 - **The moment after** - /created/:id lands with anticipation items from the
   engine (warnings, weather, tank maths), the rough bill verbatim, and the CTA
   ladder (Start planning / Open my workspace / Bring the crew).

@@ -68,6 +68,44 @@ export function whatsappInviteUrl(phone: string, text: string): string {
   return `https://wa.me/91${phone}?text=${encodeURIComponent(text)}`
 }
 
+/** The channels a crew actually talks on, in tap order. */
+export const CREW_CHANNELS = ['whatsapp', 'telegram', 'sms', 'insta'] as const
+export type CrewChannel = (typeof CREW_CHANNELS)[number]
+
+/** SMS with the invite prefilled - the fallback that reaches any phone. */
+export function smsInviteUrl(phone: string, text: string): string {
+  return `sms:+91${phone}?body=${encodeURIComponent(text)}`
+}
+
+/** Telegram has no per-number web scheme, but its own chooser is better than
+ *  one: t.me/share opens Telegram's chat picker with the invite prefilled. */
+export function telegramShareUrl(text: string, url: string): string {
+  return `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`
+}
+
+/** The deep link a channel opens directly, or null when it has no per-number
+ *  scheme and must ride the OS share sheet / a copy instead (Instagram has no
+ *  DM intent URL - pretending otherwise would dead-end the planner). */
+export function inviteChannelUrl(
+  channel: CrewChannel,
+  phone: string | null,
+  text: string,
+  url: string,
+): string | null {
+  switch (channel) {
+    case 'whatsapp': return phone ? whatsappInviteUrl(phone, text) : null
+    case 'sms': return phone ? smsInviteUrl(phone, text) : null
+    case 'telegram': return telegramShareUrl(text, url)
+    case 'insta': return null
+    default: return null
+  }
+}
+
+/** Channels that need a number at all (Telegram's chooser needs none). */
+export function channelNeedsPhone(channel: CrewChannel): boolean {
+  return channel === 'whatsapp' || channel === 'sms'
+}
+
 /** The invite message. Short, specific, and honest about what joining does -
  *  it is the first thing this product ever says to someone. */
 export function crewInviteMessage(opts: {

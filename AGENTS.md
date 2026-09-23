@@ -181,6 +181,21 @@ Key locations:
    own rule, so the rendered size never changed. After a fold, confirm the RENDERED
    computed style, and when a class changes role (kicker → boarding-pass head bar),
    REMOVE it from the shared-recipe list — that is the delete-cheaper-than-add fix.
+ 6e. **Two silent killers from the crew-channels pass (learned 2026-09-23).**
+   (1) `window.open(url, '_blank', 'noopener')` **always returns null** — the
+   `noopener` feature implies no window handle — so `if (!win) throw` or
+   `return !!win` misreads every SUCCESS as a popup-blocked failure (the
+   moment-after screen's "Send invite" therefore never once opened WhatsApp
+   and always fell through to the share sheet). Read nothing from the return:
+   open without the feature flag and detach the opener yourself
+   (`win.opener = null`), or just fire-and-forget. `src/lib/native.ts`'s use
+   is statement-only and unaffected. (2) A hook placed **below** an early
+   return crashes with "Rendered more hooks than during the previous render"
+   the moment data hydrates after mount (store async) — the component renders
+   the not-loaded branch first, then the loaded branch, and the hook counts
+   differ. It only reproduces on a FULL reload, never on hash navigation
+   into an already-hydrated app, so "it worked when I clicked around" proves
+   nothing: test the fresh-load path for any component with an early return.
 7. **When asking the user to review/test locally, always hand them the exact
    URL — never make them find or start the server.** Check if the dev server
    is up (probe `http://localhost:5173`); if not, start `npm run dev`

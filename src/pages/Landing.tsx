@@ -15,6 +15,12 @@ export function LandingPage({ onNavigate }: { onNavigate: (r: string) => void })
   // straight to the create-trip page (route /new); everyone else funnels
   // through signup and lands back on it via the auth page's `next` param.
   const startPlanningHref = me ? '#/new' : '#/auth?mode=signup&next=%2Fnew'
+  // One label per action (review finding 8): the hero CTA funnels signed-out
+  // visitors through signup AND lands them in the create-trip flow (the
+  // `next` param), so it says what it does rather than reusing the chrome
+  // CTA's name — three identical link names on one page pointing at two
+  // different targets made every link list ambiguous.
+  const heroCtaLabel = me ? 'Plan a new trip' : 'Start a trip plan'
   return (
     <div>
       {/* ---------- Hero (split layout, per CTI homepage mockup) ---------- */}
@@ -38,7 +44,7 @@ export function LandingPage({ onNavigate }: { onNavigate: (r: string) => void })
               and keep your whole crew on the same page.
             </p>
             <div className="hero-ctas hero-rise rise-d3">
-              <a className="btn btn-primary btn-lg" href={startPlanningHref}>Start planning free <InlineIcon icon={ArrowRight} size={16} gap={0} vAlign="-3px" style={{ marginLeft: 4 }} /></a>
+              <a className="btn btn-primary btn-lg" href={startPlanningHref}>{heroCtaLabel} <InlineIcon icon={ArrowRight} size={16} gap={0} vAlign="-3px" style={{ marginLeft: 4 }} /></a>
               <a className="btn btn-saffron btn-lg" href="#/explore">Explore itineraries</a>
             </div>
           </div>
@@ -109,7 +115,12 @@ export function LandingPage({ onNavigate }: { onNavigate: (r: string) => void })
       {/* ---------- What changes for you ---------- */}
       <section className="container" style={{ paddingBottom: 8, position: 'relative' }}>
         <TravelMotifs mode="features" />
-        <p className="small reveal" style={{ textAlign: 'center', fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--yf-teal-600)', marginBottom: 8 }}>One place for the reality of a trip</p>
+        {/* --ink-teal, not the accent (review finding 2): at 12.5px this is body
+            text and --yf-teal-600 measures 3.80:1 on cream (the same figure the
+            focus-ring ledger at styles.css:129 documents for a 3:1 non-text
+            use). --ink-teal is the text-grade teal, and re-resolves to
+            --teal-deep in dark. */}
+        <p className="small reveal" style={{ textAlign: 'center', fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--ink-teal)', marginBottom: 8 }}>One place for the reality of a trip</p>
         <h2 className="section-title reveal reveal-d1" style={{ maxWidth: 640, margin: '0 auto 26px' }}><span className="reveal-underline">From “let’s go” to a plan everyone can actually follow.</span></h2>
         {/* Three items, three cells: one tall photo cell beside two stacked
             cells. No empty tile, and each cell carries a different surface
@@ -160,6 +171,8 @@ export function LandingPage({ onNavigate }: { onNavigate: (r: string) => void })
         <div className="cta-band reveal">
           <h2>See the whole product on a real trip</h2>
           <p>
+            {/* The band's own verb (review finding 8): the chrome CTA keeps
+                "Start planning free" as the one owner of that name. */}
             A 4-day Kerala road trip (Kochi → Munnar → Thekkady → Alleppey) with real stops, timings,
             votes, decisions and budgets, loaded into your account the moment you sign up.
           </p>
@@ -255,19 +268,22 @@ function DestTicker() {
  *  spinning compass, floating plane, bobbing trekker, swaying boat, drifting
  *  hot-air balloon, gliding birds. transform-only, off under reduced motion. */
 function TravelMotifs({ mode }: { mode: 'features' | 'steps' }) {
+  // aria-hidden on the wrapper spans (review finding 7): the SVGs are pure
+  // atmosphere and used to surface as unnamed `image` nodes in the
+  // accessibility tree — 4–9 of them, one reading-flow noise node each.
   return (
     <>
       {mode === 'features' ? (<>
-        <span className="motif motif-compass" style={{ top: 30, right: 44 }}><CompassSvg /></span>
-        <span className="motif motif-float" style={{ bottom: 34, left: 24 }}><PlaneSvg /></span>
-        <span className="motif motif-rise" style={{ top: '38%', right: '8%' }}><BalloonSvg /></span>
-        <span className="motif motif-birds" style={{ top: 70, left: '12%' }}><BirdsSvg /></span>
+        <span className="motif motif-compass" style={{ top: 30, right: 44 }} aria-hidden="true"><CompassSvg /></span>
+        <span className="motif motif-float" style={{ bottom: 34, left: 24 }} aria-hidden="true"><PlaneSvg /></span>
+        <span className="motif motif-rise" style={{ top: '38%', right: '8%' }} aria-hidden="true"><BalloonSvg /></span>
+        <span className="motif motif-birds" style={{ top: 70, left: '12%' }} aria-hidden="true"><BirdsSvg /></span>
       </>) : (<>
-        <span className="motif motif-bob" style={{ top: 22, left: 48 }}><TrekkerSvg /></span>
-        <span className="motif motif-float" style={{ bottom: 40, right: 34 }}><PlaneSvg /></span>
-        <span className="motif motif-sway" style={{ bottom: 90, left: '6%' }}><BoatSvg /></span>
-        <span className="motif motif-birds" style={{ top: 90, right: '14%' }}><BirdsSvg /></span>
-        <span className="motif motif-rise" style={{ top: '30%', left: '22%' }}><BalloonSvg /></span>
+        <span className="motif motif-bob" style={{ top: 22, left: 48 }} aria-hidden="true"><TrekkerSvg /></span>
+        <span className="motif motif-float" style={{ bottom: 40, right: 34 }} aria-hidden="true"><PlaneSvg /></span>
+        <span className="motif motif-sway" style={{ bottom: 90, left: '6%' }} aria-hidden="true"><BoatSvg /></span>
+        <span className="motif motif-birds" style={{ top: 90, right: '14%' }} aria-hidden="true"><BirdsSvg /></span>
+        <span className="motif motif-rise" style={{ top: '30%', left: '22%' }} aria-hidden="true"><BalloonSvg /></span>
       </>)}
     </>
   )
@@ -330,7 +346,7 @@ function DemoButtons() {
   return (
     <div className="cta-buttons">
       <a className="btn btn-navy btn-lg" href="#/auth?mode=signup">
-        Start planning free
+        Create a free account
       </a>
       <BrandHint />
     </div>

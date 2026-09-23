@@ -32,11 +32,15 @@ export function AuthPage({ onNavigate }: { onNavigate: (r: string) => void }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
-  /** Field-scoped error. The form-level `error` above is for failures with no
-   *  single field to blame (bad credentials); a "your name is empty" failure
-   *  belongs on the name field, marked and focused. */
+  /** Field-scoped errors. The form-level `error` above is for failures with
+   *  no single field to blame (bad credentials, network); a field's own
+   *  failure (empty name, short password) belongs on that field, marked and
+   *  focused (review finding 5 — the password check used to post to the
+   *  form-level alert instead). */
   const [nameErr, setNameErr] = useState<string | null>(null)
+  const [passwordErr, setPasswordErr] = useState<string | null>(null)
   const nameRef = useRef<HTMLInputElement>(null)
+  const passwordRef = useRef<HTMLInputElement>(null)
   /** The form-level alert, for failures no single field owns. */
   const errRef = useRef<HTMLDivElement>(null)
 
@@ -58,6 +62,7 @@ export function AuthPage({ onNavigate }: { onNavigate: (r: string) => void }) {
     e.preventDefault()
     setError(null)
     setNameErr(null)
+    setPasswordErr(null)
     setSaving(true)
     // Safety net: if the session never materialises (e.g. hydration failure),
     // re-enable the form so the user isn't stuck on a disabled button.
@@ -78,8 +83,11 @@ export function AuthPage({ onNavigate }: { onNavigate: (r: string) => void }) {
       }
       if (password.length < 8) {
         clearTimeout(failSafe)
-        setError('Passwords need at least 8 characters.')
+        setPasswordErr('Passwords need at least 8 characters.')
         setSaving(false)
+        // Field-level, like the name check above: the message goes on the
+        // field that failed and focus follows it.
+        passwordRef.current?.focus()
         return
       }
       const r = await signup(name, email, password)
@@ -95,7 +103,7 @@ export function AuthPage({ onNavigate }: { onNavigate: (r: string) => void }) {
   // a spec mismatch. Now proper tabs: role="tab", aria-selected, roving
   // tabindex, arrow/Home/End. The form sits in one panel whose label follows the
   // active tab (the fields differ only by the name row).
-  const { refs, tabProps } = useTablist(AUTH_MODES, mode, m => { setMode(m); setError(null); setNameErr(null) })
+  const { refs, tabProps } = useTablist(AUTH_MODES, mode, m => { setMode(m); setError(null); setNameErr(null); setPasswordErr(null) })
 
   return (
     <div className="auth-wrap">
@@ -108,10 +116,10 @@ export function AuthPage({ onNavigate }: { onNavigate: (r: string) => void }) {
         <PillNav className="tabbar auth-tabs" role="tablist" aria-label="Login or sign up" activeKey={mode}>
           <button ref={refs(0)} className={`tab-btn${mode === 'login' ? ' active' : ''}`} type="button" role="tab" id="auth-tab-login" data-pill-key="login"
             aria-selected={mode === 'login'} aria-controls="auth-panel"
-            onClick={() => { setMode('login'); setError(null); setNameErr(null) }} {...tabProps('login', 0)}>Log in</button>
+            onClick={() => { setMode('login'); setError(null); setNameErr(null); setPasswordErr(null) }} {...tabProps('login', 0)}>Log in</button>
           <button ref={refs(1)} className={`tab-btn${mode === 'signup' ? ' active' : ''}`} type="button" role="tab" id="auth-tab-signup" data-pill-key="signup"
             aria-selected={mode === 'signup'} aria-controls="auth-panel"
-            onClick={() => { setMode('signup'); setError(null); setNameErr(null) }} {...tabProps('signup', 1)}>Sign up</button>
+            onClick={() => { setMode('signup'); setError(null); setNameErr(null); setPasswordErr(null) }} {...tabProps('signup', 1)}>Create account</button>
         </PillNav>
 
         {/* Say so up front: a build with no Supabase project compiled in can
@@ -135,8 +143,8 @@ export function AuthPage({ onNavigate }: { onNavigate: (r: string) => void }) {
             </Field>
           )}
           <Field label="Email"><input className="input" type="email" name="email" autoComplete="email" spellCheck={false} value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" /></Field>
-          <Field label="Password" hint={mode === 'signup' ? 'At least 8 characters' : undefined}>
-            <input className="input" type="password" name="password" autoComplete={mode === 'signup' ? 'new-password' : 'current-password'} minLength={mode === 'signup' ? 8 : undefined} value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" />
+          <Field label="Password" hint={mode === 'signup' ? 'At least 8 characters' : undefined} error={passwordErr ?? undefined}>
+            <input className="input" type="password" name="password" autoComplete={mode === 'signup' ? 'new-password' : 'current-password'} minLength={mode === 'signup' ? 8 : undefined} value={password} onChange={e => { setPassword(e.target.value); if (passwordErr) setPasswordErr(null) }} placeholder="••••••••" ref={passwordRef} />
           </Field>
           {error && <div className="err-text" role="alert" tabIndex={-1} ref={errRef} style={{ marginBottom: 10 }}><InlineIcon icon={TriangleAlert} size={13} gap={4} />{error}</div>}
           <button type="submit" className="btn btn-primary btn-lg" style={{ width: '100%' }} disabled={saving}>

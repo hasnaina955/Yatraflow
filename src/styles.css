@@ -5346,15 +5346,10 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 }
 
 /* ============================================================
-   v0.38 — Creator hub (Profile · My publications: Overview | Earnings)
+   v0.38 — Creator hub, which after the v0.66 dashboard rebuild is: the payout
+   ledger, the hub note, and the publication-row pattern the new page reuses.
+   The hub's own rules now live in the v0.66 block at the file's end.
    ============================================================ */
-
-/* mini KPI tiles inside the 340px profile column */
-.pub-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px; }
-.pub-kpis .stat-tile { padding: 9px 11px; box-shadow: none; }
-.pub-kpis .stat-tile .stat-value { font-size: 16.5px; }
-.pub-kpis .stat-tile.wide { grid-column: span 2; }
-.pub-kpis .metric-warn { color: var(--ink-amber); }
 
 /* the payout ledger (and its projection twin) */
 .pub-ledger th { font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); }
@@ -5365,11 +5360,6 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 .hub-note { background: var(--yf-teal-100); border-radius: 12px; padding: 12px 14px; font-size: 12.5px; margin-top: 12px; line-height: 1.55; }
 .hub-note b { color: var(--teal-deep); }
 [data-theme='dark'] .hub-note b { color: var(--yf-teal-600); }
-
-@media (max-width: 720px) {
-  .pub-kpis { grid-template-columns: repeat(2, 1fr); }
-  .pub-kpis .stat-tile.wide { grid-column: span 2; }
-}
 
 /* ---- Semantic meta-icon tints (v0.40) — colour-coded icons app-wide ---- */
 .mi-money { color: var(--yf-saffron); }
@@ -6735,9 +6725,6 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
    I-22 — the publication funnel (recorded views → forks → unlocks)
    ============================================================ */
 
-/* the window pills, and the line saying what the log can speak for */
-.pub-funnel-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 4px 0 10px; }
-
 /* one publication's funnel: windowed steps above its own all-time totals */
 .pub-funnel { display: flex; flex-direction: column; gap: 3px; }
 .pub-funnel.muted { color: var(--text-3); }
@@ -6745,10 +6732,6 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .pf-step b { font-variant-numeric: tabular-nums; color: var(--text); }
 .pf-arrow { color: var(--text-3); }
 .pf-lifetime { font-size: 11.5px; color: var(--text-3); font-variant-numeric: tabular-nums; }
-
-@media (max-width: 720px) {
-  .pub-funnel-head { align-items: flex-start; }
-}
 
 
 /* ============ Creator's own funnel glance, on the plan's public page ==== */
@@ -7633,10 +7616,11 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .hub-trend-void { display: grid; place-items: center; width: 100%; aspect-ratio: 600 / 150; font-size: 13px; color: var(--text-3); }
 
 /* ---- publications ---- */
+/* The list is the app's own publication-row pattern (`.pub-row` and its
+   children, including their <=720 stack), not a second copy of it: this page
+   first introduced a twin and left the original without a user, which is how a
+   codebase ends up with two of everything. Only the wrapper is new. */
 .hub-pubs { display: flex; flex-direction: column; margin-top: 12px; }
-.hub-pub { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 14px 0; }
-.hub-pub + .hub-pub { border-top: 1px dashed var(--line); }
-.hub-pub-main { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; }
 
 /* ---- the creator profile, closed by default ---- */
 /* The summary takes the card's own padding back so the whole row is the hit
@@ -7645,6 +7629,18 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .hub-profile-summary::-webkit-details-marker { display: none; }
 .hub-profile[open] .hub-profile-summary { margin-bottom: 12px; border-bottom: 1px solid var(--line); }
 .hub-profile-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
+/* Hiding the native marker without putting something else there leaves a row
+   that reads as a static heading, so the summary carries the same chevron
+   treatment as the POI disclosures: token-eased, frozen under reduced motion. */
+.hub-chev { display: inline-flex; margin-inline-start: auto; color: var(--text-3); transition: transform var(--motion-fast) var(--ease-out); }
+.hub-profile[open] .hub-chev { transform: rotate(180deg); }
+.hub-profile-summary:hover .hub-panel-title { text-decoration: underline; text-underline-offset: 3px; }
+/* Same ring as its sibling summaries (`.poi-alts summary`, `.poi-more summary`)
+   — a disclosure you cannot see focus on is not keyboard-reachable in practice. */
+.hub-profile-summary:focus-visible { outline: none; box-shadow: var(--ring); border-radius: var(--radius); }
+@media (prefers-reduced-motion: reduce) {
+  .hub-chev { transition: none; }
+}
 
 @media (max-width: 720px) {
   .hub-page { padding-top: 16px; }
@@ -7654,9 +7650,6 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
   .hub-cell + .hub-cell { border-inline-start: 0; }
   .hub-cell:nth-child(even) { border-inline-start: 1px solid var(--line); }
   .hub-cell:nth-child(n+3) { border-top: 1px solid var(--line); }
-  /* Rows stack: the actions go under the numbers they act on rather than
-     squeezing the funnel line into a column. */
-  .hub-pub { flex-direction: column; }
   /* Two cells across 320px leave ~107px of content box, which a six-figure
      rupee amount at the desktop 23px would clip rather than wrap. */
   .hub-cell-value { font-size: 20px; }

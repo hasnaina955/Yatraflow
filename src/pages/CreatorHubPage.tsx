@@ -16,7 +16,7 @@
 // describe a different window from the numbers beneath it.
 import { useEffect, useState } from 'react'
 import { InlineIcon } from '../components/icons'
-import { ExternalLink, Pencil } from 'lucide-react'
+import { ChevronDown, ExternalLink, Pencil } from 'lucide-react'
 import { PillNav } from '../components/PillNav'
 import { TrendChart, type UnlockRead } from '../components/TrendChart'
 import type { PublishedItinerary } from '../data/types'
@@ -164,6 +164,7 @@ export function CreatorHubPage({ onNavigate }: { onNavigate: (r: string) => void
             <summary className="hub-profile-summary">
               <span className="card-title hub-panel-title">Creator profile</span>
               <Chip tone="ok">Enabled</Chip>
+              <ChevronDown className="hub-chev" size={16} aria-hidden />
             </summary>
             <p className="hint-text" style={{ margin: '10px 0 12px' }}>
               Publishing to Explore is open to everyone — do it from any trip&apos;s Share tab.
@@ -407,8 +408,8 @@ function HubOverview({ myPubs, onUnpublish, onNavigate, daily, salesRows, funnel
               const trip = tripById(p.tripId)
               const stale = !!trip && trip.updatedAt > (p.refreshedAt ?? p.publishedAt)
               return (
-                <div key={p.id} className="hub-pub">
-                  <div className="hub-pub-main">
+                <div key={p.id} className="pub-row">
+                  <div className="pub-row-main">
                     <span className="pub-row-title">
                       <a href={`#/pub/${p.id}`}>{p.title}</a>
                       {stale && <Chip tone="saffron">Page behind itinerary</Chip>}

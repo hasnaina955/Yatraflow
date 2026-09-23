@@ -83,6 +83,17 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
   still says which page is behind, and the counters-predate-the-log sentence still sits beside the
   numbers it explains. Two things the review caught are fixed with it: the trend and the table now share one CLOSED window, so a step dated after the clock counts in neither instead of counting in the table and falling off the chart; and because unlocks come from the sales ledger, an unread ledger leaves that stage *unknown* in the row and the legend rather than printing a zero that reads as "nobody bought".
 
+- **The hub's figures got their hierarchy, and the trend its readout.** The publication panel now
+  leads with the funnel: each stage renders as a large figure in the hue the trend above already
+  uses for that stage, over a bar that *nests* the stages — a fork is a visit that forked, so the
+  narrower stages sit inside the widest — instead of three segments that add up past the traffic
+  there was. The trend draws a monotone-smoothed curve: smooth between days, and mathematically
+  unable to overshoot and invent traffic between two points, with a gradient area and a hover guide
+  naming that day's visits, forks and unlocks (and saying "unlocks not read" rather than zero when
+  the ledger is unread). The KPI strip wears the chart-navy anchor band the map and AI panels
+  already use, inked in white — not `--yf-cream`, which is the canvas colour and would vanish in
+  the dark theme.
+
 ## [0.65.0] - 2026-09-22
 
 The Create Trip page was rebuilt around the questions a planner actually answers,

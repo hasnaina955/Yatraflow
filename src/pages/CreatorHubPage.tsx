@@ -266,51 +266,57 @@ function FunnelLine({ f, unread, unlockRead = 'ready' }: { f: PubFunnel | undefi
   const preLog = describePreLog(f)
   if (unread) {
     return (
-      <span className="pub-funnel">
+      <>
         <span className="muted">Traffic could not be read just now.</span>
         {lifetime}
-      </span>
+      </>
     )
   }
   if (f.unreported) {
     return (
-      <span className="pub-funnel">
+      <>
         <span className="muted">No recorded traffic yet — nothing to measure for this plan.</span>
         {lifetime}
-      </span>
+      </>
     )
   }
   return (
-    <span className="pub-funnel">
-      <span className="pf-steps hub-steps">
-        <span className="pf-step"><b className="num">{f.views}</b> {unit(f.views, 'visit')}</span>
-        <span className="pf-arrow" aria-hidden>→</span>
-        <span className="pf-step"><b className="num">{f.forks}</b> {unit(f.forks, 'fork')} <span className="muted">({formatPct(f.forkRatePct)})</span></span>
-        <span className="pf-arrow" aria-hidden>→</span>
+    <>
+      {/* The accepted hierarchy: the funnel is the row's largest element, each
+          stage in the hue the chart above uses for that same stage, so a stage
+          means one thing everywhere on the page. */}
+      <span className="hub-lead-steps">
+        <span className="hub-lead-step hub-lead-visits"><b className="hub-lead-n">{f.views}</b> {unit(f.views, 'visit')}</span>
+        <span className="hub-lead-step hub-lead-forks"><b className="hub-lead-n">{f.forks}</b> {unit(f.forks, 'fork')} <span className="hub-lead-rate">{formatPct(f.forkRatePct)}</span></span>
         {/* Unlocks come from the sales ledger, so an unread ledger leaves this
             stage UNKNOWN. Printing 0 here would say "nobody bought" — the same
-            conflation the row above avoids for the log as a whole. */}
+            conflation the branches above avoid for the log as a whole. */}
         {unlockRead === 'ready'
-          ? <span className="pf-step"><b className="num">{f.unlocks}</b> {unit(f.unlocks, 'unlock')} <span className="muted">({formatPct(f.unlockRatePct)})</span></span>
-          : <span className="pf-step muted">{unlockRead === 'reading' ? 'unlocks still being read' : 'unlocks could not be read'}</span>}
+          ? <span className="hub-lead-step hub-lead-unlocks"><b className="hub-lead-n">{f.unlocks}</b> {unit(f.unlocks, 'unlock')} <span className="hub-lead-rate">{formatPct(f.unlockRatePct)}</span></span>
+          : <span className="hub-lead-step muted">{unlockRead === 'reading' ? 'unlocks still being read' : 'unlocks could not be read'}</span>}
         {f.forksExceedViews && (
           <span className="muted">· more forks than visits — Explore&apos;s card forks a plan without opening it</span>
         )}
       </span>
-      {/* Thread 2: the lifetime line usually disagrees with the log, because the
-          counters predate it. Naming that beats leaving a reader to conclude
-          the window is wrong — this is the explanation, one source, both
-          surfaces (the plan's public page renders it too). */}
+      {/* The funnel as one bar. The three stages are nested by definition — a
+          fork is a visit that forked — so the widest stage is the track and each
+          narrower stage sits on top of it, rather than three unrelated segments
+          adding up to more than the traffic there was. */}
+      <span className="hub-lead-bar" aria-hidden="true">
+        <i style={{ width: '100%' }} />
+        <i style={{ width: `${Math.min(100, Math.max(0, f.forkRatePct))}%` }} />
+        {unlockRead === 'ready' && <i style={{ width: `${Math.min(100, Math.max(0, f.unlockRatePct))}%` }} />}
+      </span>
       {preLog && <span className="pf-prelog muted">{preLog}</span>}
       {lifetime}
-    </span>
+    </>
   )
 }
 
 /** Overview: the KPI strip, the recorded-traffic trend, and the publication
  *  manager rows — the trend and the rows built from one derivation over one
  *  clock, so the picture and the table describe the same window. */
-function HubOverview({ myPubs, onUnpublish, onNavigate, daily, salesRows, funnelError, onRetry, days, onDays, unlockRead, salesError, onRetrySales }: {
+export function HubOverview({ myPubs, onUnpublish, onNavigate, daily, salesRows, funnelError, onRetry, days, onDays, unlockRead, salesError, onRetrySales }: {
   myPubs: PublishedItinerary[]
   onUnpublish: (p: PublishedItinerary) => void
   onNavigate: (r: string) => void
@@ -434,9 +440,9 @@ function HubOverview({ myPubs, onUnpublish, onNavigate, daily, salesRows, funnel
         </section>
 
         <section className="card" aria-labelledby="hub-pubs-h">
-          <div className="hub-panel-head">
-            <h2 className="card-title hub-panel-title" id="hub-pubs-h">Publications</h2>
-            <span className="small muted">
+          <div className="hub-lead-head">
+            <h2 id="hub-pubs-h">Publications</h2>
+            <span>
               {myPubs.length} live{staleCount > 0 ? ` · ${staleCount} behind` : ''}
             </span>
           </div>
@@ -445,24 +451,27 @@ function HubOverview({ myPubs, onUnpublish, onNavigate, daily, salesRows, funnel
               Nothing published yet — list a trip on Explore from its Share tab.
             </p>
           ) : (
-            <div className="hub-pubs">
+            <div>
               {myPubs.map(p => {
                 const trip = tripById(p.tripId)
                 const stale = !!trip && trip.updatedAt > (p.refreshedAt ?? p.publishedAt)
                 return (
-                  <div key={p.id} className="pub-row">
-                    <div className="pub-row-main">
-                      <span className="pub-row-title">
-                        <a href={`#/pub/${p.id}`}>{p.title}</a>
-                        {stale && <Chip tone="saffron">Page behind itinerary</Chip>}
+                  <div key={p.id} className="hub-lead-row">
+                    <span className="hub-lead-title">
+                      <a href={`#/pub/${p.id}`}>{p.title}</a>
+                      {stale && <Chip tone="saffron">Page behind itinerary</Chip>}
+                      {/* Where it goes and how long — not what it costs. The
+                          price belongs with the money surfaces; this row is
+                          about whether the page converts. */}
+                      <span className="hub-lead-where">
+                        {[
+                          p.routeSummary.slice(0, 3).join(' · '),
+                          p.durationDays ? `${p.durationDays} days` : '',
+                        ].filter(Boolean).join(' · ')}
                       </span>
-                      <FunnelLine f={funnelOf.get(p.id)} unread={funnelError} unlockRead={unlockRead} />
-                    </div>
+                    </span>
+                    <FunnelLine f={funnelOf.get(p.id)} unread={funnelError} unlockRead={unlockRead} />
                     <span className="pub-row-actions">
-                      {/* One destination, one control: a stale row used to offer
-                          "Update page" AND "Edit", both opening the same Share
-                          tab, so the emphasis promised a difference that was not
-                          there. The stale action absorbs the pencil. */}
                       {stale ? (
                         <button className="btn btn-saffron btn-sm" aria-label={`Update page for ${p.title}`}
                           onClick={() => onNavigate(`/trip/${p.tripId}/share`)}>
@@ -482,6 +491,7 @@ function HubOverview({ myPubs, onUnpublish, onNavigate, daily, salesRows, funnel
           )}
         </section>
       </div>
+
     </>
   )
 }
@@ -489,7 +499,7 @@ function HubOverview({ myPubs, onUnpublish, onNavigate, daily, salesRows, funnel
 /** Earnings tab: the Gumroad-shaped payout ledger. The "Actual" view shows
  *  REAL sales once the payments rail is live (empty honestly until then);
  *  the Projection view stays clearly-labeled not-money. */
-function EarningsTab({ myPubs, sales, salesError, onRetry, view, onView, basis, onBasis }: {
+export function EarningsTab({ myPubs, sales, salesError, onRetry, view, onView, basis, onBasis }: {
   myPubs: PublishedItinerary[]
   sales: ActualSales | null   // null while the fetch is in flight
   salesError: boolean         // the read itself failed — distinct from an empty ledger

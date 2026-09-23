@@ -7577,10 +7577,21 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 
 /* ONE ruled strip, not four floating cards: the four lifetime figures are read
    together or not at all, and four separate boxes would claim they are four
-   unrelated things. Dividers are logical so the strip mirrors under RTL. */
-.hub-strip { display: grid; grid-template-columns: repeat(4, 1fr); background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; margin-bottom: 16px; }
+   unrelated things. Dividers are logical so the strip mirrors under RTL.
+   It wears the app's chart-navy anchor band rather than another white card: on
+   a page of cream surfaces this is the one place the product raises its voice,
+   and navy is already the language for anchor panels (map, AI, dark cards). */
+.hub-strip { display: grid; grid-template-columns: repeat(4, 1fr); background: var(--yf-navy); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; margin-bottom: 16px; }
 .hub-cell { display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; }
-.hub-cell + .hub-cell { border-inline-start: 1px solid var(--line); }
+.hub-cell + .hub-cell { border-inline-start: 1px solid rgba(255, 255, 255, .16); }
+/* White on navy, which is the incumbent ink for this surface (see the navy
+   cards and the bench chip). NOT `--yf-cream`: that token is the canvas, so in
+   the dark theme it is near-black and the figures would vanish. Labels and
+   hints are softened with opacity rather than a translucent colour, so each
+   declaration stays measurable by the contrast gate. */
+.hub-strip .stat-value { color: #fff; }
+.hub-strip .stat-label { color: #fff; opacity: .78; }
+.hub-strip .metric-warn { color: var(--saffron); }
 
 /* Panel furniture. The surface itself is `.card`; only the internal head and
    the figure's own margin are added, so the panel can never drift from the
@@ -7592,19 +7603,33 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .hub-controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
 
 /* ---- the trend ---- */
-.hub-chart { margin: 12px 0 0; }
+.hub-chart { position: relative; margin: 12px 0 0; }
 /* Aspect-locked to the viewBox: the chart scales as one drawing (round marks,
    even strokes) instead of stretching to fill a fixed height. */
-.hub-chart-svg { display: block; width: 100%; height: auto; aspect-ratio: 600 / 150; }
+.hub-chart-svg { display: block; width: 100%; height: auto; aspect-ratio: 600 / 150; cursor: crosshair; touch-action: pan-y; }
 .hc-zero { stroke: var(--line); stroke-width: 1; }
-.hc-views-area { fill: var(--teal-soft); }
+/* The area is painted by a gradient defined in the SVG (the `fill` attribute
+   points at it), so this class must not set `fill` — CSS beats a presentation
+   attribute, and a fill here would silently replace the fade with a flat tint. */
+.hc-fade-top { stop-color: var(--teal-deep); stop-opacity: .30; }
+.hc-fade-bottom { stop-color: var(--teal-deep); stop-opacity: 0; }
 .hc-views-line { fill: none; stroke: var(--teal-deep); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
 /* Forks ride a categorical hue (steel blue), not the warn family: a fork is a
    step in the funnel, not a problem with it. */
-.hc-forks-line { fill: none; stroke: var(--cat-transport); stroke-width: 2; stroke-dasharray: 4 3; stroke-linejoin: round; stroke-linecap: round; }
+.hc-forks-line { fill: none; stroke: var(--cat-transport); stroke-width: 2; stroke-dasharray: 3 4; stroke-linejoin: round; stroke-linecap: round; }
 .hc-unlock { fill: var(--saffron); }
+/* The hover guide: a hairline where the pointer is, with a ringed dot per
+   series so the reading is precise rather than approximate. */
+.hc-guide { stroke: var(--text-3); stroke-width: 1; stroke-opacity: .45; }
+.hc-hover-dot { fill: var(--card); stroke: var(--teal-deep); stroke-width: 2; }
+.hc-hover-dot.is-forks { stroke: var(--cat-transport); }
 .hub-chart-axis { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 6px; font-size: 11.5px; color: var(--text-3); }
 .hub-chart-key { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-top: 12px; font-size: 12.5px; color: var(--text-3); }
+/* The hover readout: the same navy anchor surface as the strip, so the chart's
+   own interactive chrome belongs to the system rather than floating above it. */
+.hub-chart-tip { position: absolute; top: 0; transform: translateX(-50%); display: flex; flex-direction: column; gap: 2px; padding: 8px 12px; border-radius: var(--radius-sm); background: var(--yf-navy); color: #fff; font-size: 12px; line-height: 1.4; white-space: nowrap; box-shadow: var(--shadow); pointer-events: none; z-index: 2; }
+.hub-chart-tip b { font-family: var(--font-display); font-size: 12.5px; }
+.hub-chart-tip .muted { color: #fff; opacity: .72; }
 .hc-key { display: inline-flex; align-items: center; gap: 6px; }
 .hc-swatch { display: inline-block; width: 8px; height: 8px; border-radius: 2px; }
 .hc-swatch-views { background: var(--teal-deep); }
@@ -7641,16 +7666,38 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .hub-note-action { margin: 8px 0 0; }
 
 /* Windowed figures lead; the all-time line stays the qualifier. */
-.hub-steps .pf-step b { font-size: 13.5px; }
 .hub-cell-hint { font-size: 11px; color: var(--text-3); }
+.hub-strip .hub-cell-hint { color: #fff; opacity: .66; }
 .hub-controls-div { width: 1px; align-self: stretch; background: var(--line); }
 
-/* ---- publications ---- */
-/* The list is the app's own publication-row pattern (`.pub-row` and its
-   children, including their <=720 stack), not a second copy of it: this page
-   first introduced a twin and left the original without a user, which is how a
-   codebase ends up with two of everything. Only the wrapper is new. */
-.hub-pubs { display: flex; flex-direction: column; margin-top: 12px; }
+/* ---- publications, in the accepted "figures lead" hierarchy ---- */
+/* The funnel is the row's largest element and each stage wears the hue the
+   trend above uses for that stage, so a stage means one thing on the page. Rows
+   are a column stack; the actions close each one, left-aligned. */
+.hub-lead-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.hub-lead-head h2 { margin: 0; font-family: var(--font-body); font-size: 11.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); }
+.hub-lead-head span { font-size: 11.5px; color: var(--text-3); }
+.hub-lead-row { display: flex; flex-direction: column; gap: 6px; padding: 12px 0; }
+.hub-lead-row + .hub-lead-row { border-top: 1px solid var(--line); }
+.hub-lead-title { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.hub-lead-title a { font-weight: 600; font-size: 13.5px; color: var(--text); }
+.hub-lead-where { font-size: 11.5px; color: var(--text-3); }
+.hub-lead-steps { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; font-size: 11.5px; color: var(--text-3); }
+.hub-lead-step { display: flex; align-items: baseline; gap: 5px; }
+.hub-lead-n { font-family: var(--font-display); font-size: 23px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.hub-lead-visits .hub-lead-n { color: var(--teal-deep); }
+.hub-lead-forks .hub-lead-n { color: var(--cat-transport); }
+.hub-lead-unlocks .hub-lead-n { color: var(--ink-amber); }
+/* The funnel as ONE bar. The stages are nested by definition — a fork is a
+   visit that forked — so the widest stage is the track and each narrower stage
+   sits on top of it, instead of three segments that add up past the traffic
+   there ever was. Logical insets, so the nest mirrors under RTL. */
+.hub-lead-bar { position: relative; height: 6px; border-radius: 999px; background: var(--bg-soft); overflow: hidden; }
+.hub-lead-bar i { position: absolute; inset-block: 0; inset-inline-start: 0; border-radius: 999px; }
+.hub-lead-bar i:nth-child(1) { background: var(--teal-deep); }
+.hub-lead-bar i:nth-child(2) { background: var(--cat-transport); }
+.hub-lead-bar i:nth-child(3) { background: var(--saffron); }
+.hub-lead-row .pub-row-actions { justify-content: flex-start; }
 
 /* ---- the creator profile, closed by default ---- */
 /* The summary takes the card's own padding back so the whole row is the hit
@@ -7678,8 +7725,8 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
      for a rupee figure, and a wrapped strip reads as four rows anyway. */
   .hub-strip { grid-template-columns: repeat(2, 1fr); }
   .hub-cell + .hub-cell { border-inline-start: 0; }
-  .hub-cell:nth-child(even) { border-inline-start: 1px solid var(--line); }
-  .hub-cell:nth-child(n+3) { border-top: 1px solid var(--line); }
+  .hub-cell:nth-child(even) { border-inline-start: 1px solid rgba(255, 255, 255, .16); }
+  .hub-cell:nth-child(n+3) { border-top: 1px solid rgba(255, 255, 255, .16); }
   /* Two cells across 320px leave ~107px of content box, which a six-figure
      rupee amount at the desktop 23px would clip rather than wrap. */
   .hub-cell-value { font-size: 20px; }

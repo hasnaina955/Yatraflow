@@ -5529,7 +5529,12 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 .cal-hint { margin: 8px 0 0; font-size: 11px; color: var(--yf-text-muted); text-align: center; }
 
 /* ============ The Trip Ticket (right rail) ============ */
-.ts-rail { --rail-ink: #F2F7F5; --rail-ink-dim: rgba(242, 247, 245, 0.74); --rail-line: rgba(255, 255, 255, 0.16); display: flex; flex-direction: column; gap: 13px; padding: 20px 20px 22px; border-left: 1px solid var(--line); background: color-mix(in srgb, var(--teal) 3%, var(--bg)); position: sticky; top: calc(var(--nav-h, 64px) + 16px); }
+/* Rail ink follows the theme: the rail's own background is color-mix(..var(--bg)),
+   so the old navy-pass whites (#F2F7F5 on white wash) went invisible on the
+   mockup's light ticket — the readiness block read only in dark. The dark
+   values re-declare below. */
+.ts-rail { --rail-ink: var(--text); --rail-ink-dim: var(--text-2); --rail-line: var(--line); display: flex; flex-direction: column; gap: 13px; padding: 20px 20px 22px; border-left: 1px solid var(--line); background: color-mix(in srgb, var(--teal) 3%, var(--bg)); position: sticky; top: calc(var(--nav-h, 64px) + 16px); }
+[data-theme='dark'] .ts-rail { --rail-ink: #F2F7F5; --rail-ink-dim: rgba(242, 247, 245, 0.74); --rail-line: rgba(255, 255, 255, 0.16); }
 .ticket {
   position: relative; border-radius: 18px; overflow: hidden;
   background: var(--card); border: 1px solid var(--line);
@@ -7079,7 +7084,8 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
    secondary. The pass has its own ink; these rules give it its own tokens.
    ============================================================ */
 
-.ts-rail .ready-block { padding: 12px; border: 1px solid var(--rail-line); border-radius: var(--radius-sm); background: rgba(255, 255, 255, 0.06); }
+.ts-rail .ready-block { padding: 12px; border: 1px solid var(--rail-line); border-radius: var(--radius-sm); background: var(--card); }
+[data-theme='dark'] .ts-rail .ready-block { background: rgba(255, 255, 255, 0.06); }
 .ts-rail .ready-lab { font-size: 13px; font-weight: 700; color: var(--rail-ink); }
 .ts-rail .ready-pct { font-size: 14px; font-weight: 700; color: var(--rail-ink); }
 .ts-rail .ready-row { font-size: 12.5px; color: var(--rail-ink-dim); }
@@ -7087,7 +7093,7 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .ts-rail .ready-name { font-weight: 600; }
 .ts-rail .ready-why { font-size: 11.5px; color: var(--rail-ink-dim); }
 .ts-rail .ready-tick { width: 16px; height: 16px; border: 1.5px solid var(--rail-line); font-size: 11px; color: transparent; }
-.ts-rail .ready-row.ok .ready-tick { width: 17px; height: 17px; border-color: var(--rail-ink); background: var(--rail-ink); color: #0B2545; font-size: 11px; font-weight: 700; }
+.ts-rail .ready-row.ok .ready-tick { width: 17px; height: 17px; border-color: var(--rail-ink); background: var(--rail-ink); color: var(--card); font-size: 11px; font-weight: 700; }
 .ts-rail .ready-row.opt .ready-tick { border-style: dashed; }
 .ts-rail .ready-row.opt .ready-why { color: var(--rail-ink); opacity: 0.66; }
 .ts-rail .ready-head { margin-bottom: 8px; }

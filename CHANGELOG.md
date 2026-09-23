@@ -73,9 +73,15 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 - **The moment-after screen's "Send invite" never actually opened WhatsApp**: `window.open(url, '_blank', 'noopener')` always returns null (the `noopener` feature implies no window handle), so the code misread every success as a blocked popup and fell through to the OS share sheet instead. Links now open through a helper that detaches the opener rather than trusting the return value. The screen also crashed with "Rendered more hooks than during the previous render" when reopened for a trip whose list was still hydrating - the crew memo ran below the loading early-return, so the render's hook count changed mid-load.
 - **Entry-path accessibility review landed**: at 320px the logged-out header clipped the "Start planning free" CTA mid-label (the reflow rungs were tuned for the older, shorter label) — the ≤350px block now hides the chrome "Log in" outline button (the hamburger tray carries it) so the primary CTA fits whole. The landing kicker's small teal text measured 3.80:1 on cream; it now uses the text-grade `--ink-teal` token instead of the focus-ring accent. Route changes and the loading gate announce themselves to screen readers via a polite live region fed by the page title, and decorative travel motifs are `aria-hidden`. The auth form's short-password error moved from the form-level alert onto the password field (marked invalid, focus follows) like the name check beside it, the signup tab now matches its submit button's "Create account" naming, My Trips' filter reset and empty state both say "Clear filters", the header's nested navigation landmarks are disambiguated, and the demo band's CTA got a name distinct from the chrome's.
 
-- **The header's CTA stays whole on narrow desktop windows**: the signed-out pill's tightening
-  rung now covers 481–560px (it stopped at 480px), a band where the desktop spacings overflowed
-  the pill and `overflow-x: clip` cut "Start planning free" mid-label.
+- **The Creator hub is a dashboard now.** It opens on performance instead of settings: one ruled
+  KPI strip, then the recorded-traffic trend — visits, forks and unlocks over 7/30/90 days, drawn
+  from the same derivation the rows beneath it read, so the chart and the table can never describe
+  different windows — then one row per publication with its funnel and actions. The creator profile
+  (bio, socials, the disable switch) moved into a disclosure at the foot of the page; it used to own
+  the entire fold. Every honesty state is unchanged and verbatim: a failed read still never reads as
+  an empty ledger, an un-recorded window still says so rather than printing zeroes, the stale page
+  still says which page is behind, and the counters-predate-the-log sentence still sits beside the
+  numbers it explains. Two things the review caught are fixed with it: the trend and the table now share one CLOSED window, so a step dated after the clock counts in neither instead of counting in the table and falling off the chart; and because unlocks come from the sales ledger, an unread ledger leaves that stage *unknown* in the row and the legend rather than printing a zero that reads as "nobody bought".
 
 ## [0.65.0] - 2026-09-22
 

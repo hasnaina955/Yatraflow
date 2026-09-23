@@ -7571,3 +7571,93 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 @media (max-width: 480px) {
   .ct-panel { padding: 14px; }
 }
+
+/* ============================================================
+   v0.66 — Creator hub: the working dashboard
+   ============================================================
+   The page leads with performance — one ruled KPI strip, the recorded-traffic
+   trend, then the publication rows — and closes with the creator profile in a
+   disclosure. Structure only: surfaces reuse `.card`, labels and figures reuse
+   the `.stat-label`/`.stat-value` ramp, and the only colour declared here is on
+   the chart's marks (fill/stroke, never a text pair), so this block adds no new
+   contrast pair and no new type below the floor.
+
+   APPENDED AT THE FILE'S END on purpose: the design-system ratchet is keyed by
+   the declaration text, but the design-doc pins read the file in order, so a
+   new section goes last like every section before it. */
+
+.hub-page { padding-top: 24px; padding-bottom: 24px; }
+.hub-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
+.hub-head-id h1 { margin: 0; }
+.hub-head-id p { margin: 4px 0 0; }
+.hub-tabs { margin-bottom: 16px; }
+
+/* ONE ruled strip, not four floating cards: the four lifetime figures are read
+   together or not at all, and four separate boxes would claim they are four
+   unrelated things. Dividers are logical so the strip mirrors under RTL. */
+.hub-strip { display: grid; grid-template-columns: repeat(4, 1fr); background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; margin-bottom: 16px; }
+.hub-cell { display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; }
+.hub-cell + .hub-cell { border-inline-start: 1px solid var(--line); }
+
+/* Panel furniture. The surface itself is `.card`; only the internal head and
+   the figure's own margin are added, so the panel can never drift from the
+   cards the rest of the app draws. */
+.hub-panel-title { margin: 0; }
+.hub-panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.hub-panel-note { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 6px; }
+.hub-subhead { font-family: var(--font-display); font-size: 15px; font-weight: 700; margin: 20px 0 6px; }
+.hub-controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+
+/* ---- the trend ---- */
+.hub-chart { margin: 12px 0 0; }
+/* Aspect-locked to the viewBox: the chart scales as one drawing (round marks,
+   even strokes) instead of stretching to fill a fixed height. */
+.hub-chart-svg { display: block; width: 100%; height: auto; aspect-ratio: 600 / 150; }
+.hc-zero { stroke: var(--line); stroke-width: 1; }
+.hc-views-area { fill: var(--teal-soft); }
+.hc-views-line { fill: none; stroke: var(--teal-deep); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+/* Forks ride a categorical hue (steel blue), not the warn family: a fork is a
+   step in the funnel, not a problem with it. */
+.hc-forks-line { fill: none; stroke: var(--cat-transport); stroke-width: 2; stroke-dasharray: 4 3; stroke-linejoin: round; stroke-linecap: round; }
+.hc-unlock { fill: var(--saffron); }
+.hub-chart-axis { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 6px; font-size: 11.5px; color: var(--text-3); }
+.hub-chart-key { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-top: 12px; font-size: 12.5px; color: var(--text-3); }
+.hc-key { display: inline-flex; align-items: center; gap: 6px; }
+.hc-swatch { display: inline-block; width: 8px; height: 8px; border-radius: 2px; }
+.hc-swatch-views { background: var(--teal-deep); }
+.hc-swatch-forks { background: var(--cat-transport); }
+.hc-swatch-unlocks { background: var(--saffron); }
+/* The SAME box the chart occupies, not a fixed height: the chart is
+   aspect-locked to its viewBox, so the only way the panel can hold its height
+   while a read is in flight is to reserve the identical rectangle. */
+.hub-trend-void { display: grid; place-items: center; width: 100%; aspect-ratio: 600 / 150; font-size: 13px; color: var(--text-3); }
+
+/* ---- publications ---- */
+.hub-pubs { display: flex; flex-direction: column; margin-top: 12px; }
+.hub-pub { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 14px 0; }
+.hub-pub + .hub-pub { border-top: 1px dashed var(--line); }
+.hub-pub-main { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; }
+
+/* ---- the creator profile, closed by default ---- */
+/* The summary takes the card's own padding back so the whole row is the hit
+   target, then restores it — one control, not a small text link. */
+.hub-profile-summary { display: flex; align-items: center; gap: 12px; margin: calc(var(--space-8) * -1) calc(var(--space-8) * -1) 0; padding: var(--space-8); cursor: pointer; list-style: none; }
+.hub-profile-summary::-webkit-details-marker { display: none; }
+.hub-profile[open] .hub-profile-summary { margin-bottom: 12px; border-bottom: 1px solid var(--line); }
+.hub-profile-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
+
+@media (max-width: 720px) {
+  .hub-page { padding-top: 16px; }
+  /* Two figures per row: four across a phone gives each one a column too narrow
+     for a rupee figure, and a wrapped strip reads as four rows anyway. */
+  .hub-strip { grid-template-columns: repeat(2, 1fr); }
+  .hub-cell + .hub-cell { border-inline-start: 0; }
+  .hub-cell:nth-child(even) { border-inline-start: 1px solid var(--line); }
+  .hub-cell:nth-child(n+3) { border-top: 1px solid var(--line); }
+  /* Rows stack: the actions go under the numbers they act on rather than
+     squeezing the funnel line into a column. */
+  .hub-pub { flex-direction: column; }
+  /* Two cells across 320px leave ~107px of content box, which a six-figure
+     rupee amount at the desktop 23px would clip rather than wrap. */
+  .hub-cell-value { font-size: 20px; }
+}

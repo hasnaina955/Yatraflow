@@ -3,10 +3,22 @@
 // "Creator mode" + "My publications" cards in Profile. Reached from the gated
 // "Creator hub" nav pill (and the Profile gateway card). Requires a creator
 // account; non-creators see an enable call-to-action.
+//
+// SHAPE (2026-09-23): rebuilt as a working dashboard rather than a settings
+// page. The page now leads with performance — one ruled KPI strip, then the
+// recorded-traffic trend for the selected window — because "how are my
+// publications doing" is the question a creator arrives with. The creator
+// profile (bio, socials, the disable switch) moved into a disclosure at the
+// foot: it is a thing you set once, and it used to hold the entire fold.
+//
+// The trend and the per-publication rows are ONE derivation over ONE clock
+// (`now` is computed once and handed to both builders), so the chart can never
+// describe a different window from the numbers beneath it.
 import { useEffect, useState } from 'react'
 import { InlineIcon } from '../components/icons'
 import { ExternalLink, Pencil } from 'lucide-react'
 import { PillNav } from '../components/PillNav'
+import { TrendChart, type UnlockRead } from '../components/TrendChart'
 import type { PublishedItinerary } from '../data/types'
 import { useDb, currentUser, updateProfile, unpublishItinerary, tripById } from '../store/store'
 import {
@@ -15,7 +27,8 @@ import {
 } from '../lib/earnings'
 import { fetchCreatorSales, fetchCreatorFunnel, type FunnelDailyRow } from '../lib/unlock'
 import {
-  buildPubFunnels, describePreLog, formatPct, FUNNEL_WINDOWS, type FunnelSale, type FunnelWindowDays, type PubFunnel,
+  buildDailySeries, buildPubFunnels, describePreLog, formatPct, FUNNEL_WINDOWS,
+  type FunnelSale, type FunnelWindowDays, type PubFunnel,
 } from '../lib/pubFunnel'
 import { formatInr } from '../lib/engine'
 import { Chip, ConfirmDialog, Field, toast } from '../components/ui'
@@ -99,13 +112,22 @@ export function CreatorHubPage({ onNavigate }: { onNavigate: (r: string) => void
   if (!me) return null
 
   return (
-    <div className="container form-page">
-      <h1>Creator hub</h1>
-      <p className="muted small" style={{ marginBottom: 20 }}>{me.email}</p>
+    <div className="container hub-page">
+      <header className="hub-head">
+        <div className="hub-head-id">
+          <h1>Creator hub</h1>
+          <p className="muted small">{me.email}</p>
+        </div>
+        {me.profile.isCreator && (
+          <a className="btn btn-outline btn-sm" href={`#/creator/${me.id}`}>
+            <InlineIcon icon={ExternalLink} size={13} gap={5} />View public page
+          </a>
+        )}
+      </header>
 
       {!me.profile.isCreator ? (
         <div className="card">
-          <h2 className="card-title">Creator mode</h2>
+          <h2 className="card-title hub-panel-title">Creator mode</h2>
           <p className="hint-text" style={{ margin: '6px 0 12px' }}>
             Creator mode is a branding badge: your bio and social links appear on the itineraries you publish, and you get a public creator page others can follow.
           </p>
@@ -115,12 +137,35 @@ export function CreatorHubPage({ onNavigate }: { onNavigate: (r: string) => void
         </div>
       ) : (
         <>
-          <div className="card">
-            <div className="row-between">
-              <h2 className="card-title">Creator mode</h2>
+          {/* One view switch for the page, sitting above everything it controls
+              so the tabs read as the page's axis rather than a decoration on a
+              card. */}
+          <PillNav className="filter-pillbar hub-tabs" role="group" aria-label="Creator hub view" activeKey={hubTab}>
+            {([['overview', 'Overview'], ['earnings', 'Earnings']] as const).map(([k, label]) => (
+              <button key={k} type="button" data-pill-key={k} className={`clickable-chip chip${hubTab === k ? ' on-teal' : ''}`}
+                onClick={() => setHubTab(k)} aria-pressed={hubTab === k}>{label}</button>
+            ))}
+          </PillNav>
+
+          {hubTab === 'overview' ? (
+            <HubOverview myPubs={myPubs} onUnpublish={setUnpubTarget} onNavigate={onNavigate}
+              daily={daily} salesRows={sales?.rows ?? []} funnelError={funnelError}
+              onRetry={() => setFunnelRetry(n => n + 1)} days={funnelDays} onDays={setFunnelDays}
+              unlockRead={salesError ? 'failed' : sales === null ? 'reading' : 'ready'} />
+          ) : (
+            <EarningsTab myPubs={myPubs} sales={sales} salesError={salesError}
+              onRetry={() => setSalesRetry(n => n + 1)} view={earningsView} onView={setEarningsView}
+              basis={earningsBasis} onBasis={setEarningsBasis} />
+          )}
+
+          {/* The profile is a thing you set once. It used to own the fold and
+              push every number below it; it now closes the page instead. */}
+          <details className="card hub-profile">
+            <summary className="hub-profile-summary">
+              <span className="card-title hub-panel-title">Creator profile</span>
               <Chip tone="ok">Enabled</Chip>
-            </div>
-            <p className="hint-text" style={{ margin: '6px 0 12px' }}>
+            </summary>
+            <p className="hint-text" style={{ margin: '10px 0 12px' }}>
               Publishing to Explore is open to everyone — do it from any trip&apos;s Share tab.
               Creator mode is a branding badge: your bio and social links appear
               on the itineraries you publish.
@@ -130,61 +175,27 @@ export function CreatorHubPage({ onNavigate }: { onNavigate: (r: string) => void
               <Field label="YouTube link" error={socialErrors.youtube}><input className="input" type="url" inputMode="url" value={youtube} onChange={e => { setYoutube(e.target.value); if (socialErrors.youtube) setSocialErrors(s => ({ ...s, youtube: undefined })) }} placeholder="https://youtube.com/@…" /></Field>
               <Field label="Instagram link" error={socialErrors.instagram}><input className="input" type="url" inputMode="url" value={instagram} onChange={e => { setInstagram(e.target.value); if (socialErrors.instagram) setSocialErrors(s => ({ ...s, instagram: undefined })) }} placeholder="https://instagram.com/…" /></Field>
             </div>
-            <button className="btn btn-primary btn-sm" onClick={() => {
-              const yt = youtube.trim()
-              const ig = instagram.trim()
-              const nextErrors = {
-                youtube: yt && !isValidSocialUrl(yt) ? 'Enter a full link starting with http:// or https://' : undefined,
-                instagram: ig && !isValidSocialUrl(ig) ? 'Enter a full link starting with http:// or https://' : undefined,
-              }
-              setSocialErrors(nextErrors)
-              if (nextErrors.youtube || nextErrors.instagram) return
-              updateProfile({
-                creatorBio: creatorBio.trim() || undefined,
-                socialLinks: (yt || ig)
-                  ? { youtube: yt || undefined, instagram: ig || undefined }
-                  : undefined,
-              })
-              toast('Creator profile saved')
-            }}>Save creator profile</button>
-            <button className="btn btn-outline btn-sm" style={{ marginLeft: 10 }}
-              onClick={() => onNavigate(`/creator/${me.id}`)}>View your public page</button>
-            <button className="btn btn-ghost btn-sm" style={{ marginLeft: 10 }}
-              onClick={() => setConfirmDisable(true)}>Disable creator mode</button>
-          </div>
-
-          <div className="card stack-gap">
-            <div className="row-between">
-              <h2 className="card-title">My publications</h2>
-              {myPubs.length > 0 && (
-                <a className="small" href={`#/creator/${me.id}`} style={{ fontWeight: 600 }}>
-                  <InlineIcon icon={ExternalLink} size={12} gap={3} />View public page
-                </a>
-              )}
+            <div className="hub-profile-actions">
+              <button className="btn btn-primary btn-sm" onClick={() => {
+                const yt = youtube.trim()
+                const ig = instagram.trim()
+                const nextErrors = {
+                  youtube: yt && !isValidSocialUrl(yt) ? 'Enter a full link starting with http:// or https://' : undefined,
+                  instagram: ig && !isValidSocialUrl(ig) ? 'Enter a full link starting with http:// or https://' : undefined,
+                }
+                setSocialErrors(nextErrors)
+                if (nextErrors.youtube || nextErrors.instagram) return
+                updateProfile({
+                  creatorBio: creatorBio.trim() || undefined,
+                  socialLinks: (yt || ig)
+                    ? { youtube: yt || undefined, instagram: ig || undefined }
+                    : undefined,
+                })
+                toast('Creator profile saved')
+              }}>Save creator profile</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => setConfirmDisable(true)}>Disable creator mode</button>
             </div>
-            <PillNav className="filter-pillbar hub-tabs" role="group" aria-label="Publications view" activeKey={hubTab}>
-              {([['overview', 'Overview'], ['earnings', 'Earnings']] as const).map(([k, label]) => (
-                <button key={k} type="button" data-pill-key={k} className={`clickable-chip chip${hubTab === k ? ' on-teal' : ''}`}
-                  onClick={() => setHubTab(k)} aria-pressed={hubTab === k}>{label}</button>
-              ))}
-            </PillNav>
-
-            {hubTab === 'overview' ? (
-              myPubs.length === 0 ? (
-                <p className="hint-text" style={{ margin: '6px 0 0' }}>
-                  Nothing published yet — list a trip on Explore from its Share tab.
-                </p>
-              ) : (
-                <PubOverview myPubs={myPubs} onUnpublish={setUnpubTarget} onNavigate={onNavigate}
-                  daily={daily} salesRows={sales?.rows ?? []} funnelError={funnelError}
-                  onRetry={() => setFunnelRetry(n => n + 1)} days={funnelDays} onDays={setFunnelDays} />
-              )
-            ) : (
-              <EarningsTab myPubs={myPubs} sales={sales} salesError={salesError}
-                onRetry={() => setSalesRetry(n => n + 1)} view={earningsView} onView={setEarningsView}
-                basis={earningsBasis} onBasis={setEarningsBasis} />
-            )}
-          </div>
+          </details>
         </>
       )}
 
@@ -229,7 +240,7 @@ export function CreatorHubPage({ onNavigate }: { onNavigate: (r: string) => void
  *  publication's own all-time totals, because the counters predate the event
  *  log. "38 forks" alone cannot tell a creator whether that is most of their
  *  forks or a slice of them. */
-function FunnelLine({ f, unread }: { f: PubFunnel | undefined; unread: boolean }) {
+function FunnelLine({ f, unread, unlockRead = 'ready' }: { f: PubFunnel | undefined; unread: boolean; unlockRead?: UnlockRead }) {
   if (!f) return null
   // The all-time line reads the counters from the hydrated cache, so it is true
   // even when the log could not be read. The windowed steps are NOT, so a failed
@@ -267,7 +278,12 @@ function FunnelLine({ f, unread }: { f: PubFunnel | undefined; unread: boolean }
         <span className="pf-arrow" aria-hidden>→</span>
         <span className="pf-step"><b className="num">{f.forks}</b> forks <span className="muted">({formatPct(f.forkRatePct)})</span></span>
         <span className="pf-arrow" aria-hidden>→</span>
-        <span className="pf-step"><b className="num">{f.unlocks}</b> unlocks <span className="muted">({formatPct(f.unlockRatePct)})</span></span>
+        {/* Unlocks come from the sales ledger, so an unread ledger leaves this
+            stage UNKNOWN. Printing 0 here would say "nobody bought" — the same
+            conflation the row above avoids for the log as a whole. */}
+        {unlockRead === 'ready'
+          ? <span className="pf-step"><b className="num">{f.unlocks}</b> unlocks <span className="muted">({formatPct(f.unlockRatePct)})</span></span>
+          : <span className="pf-step muted">{unlockRead === 'reading' ? 'unlocks still being read' : 'unlocks could not be read'}</span>}
         {f.forksExceedViews && (
           <span className="muted">· more forks than visits — Explore&apos;s card forks a plan without opening it</span>
         )}
@@ -282,11 +298,13 @@ function FunnelLine({ f, unread }: { f: PubFunnel | undefined; unread: boolean }
   )
 }
 
-/** Overview tab: lifetime KPIs + the per-publication manager rows, each with the
- *  RECORDED view → fork → unlock funnel for the selected window. */
-function PubOverview({ myPubs, onUnpublish, onNavigate, daily, salesRows, funnelError, onRetry, days, onDays }: {
+/** Overview: the KPI strip, the recorded-traffic trend, and the publication
+ *  manager rows — the trend and the rows built from one derivation over one
+ *  clock, so the picture and the table describe the same window. */
+function HubOverview({ myPubs, onUnpublish, onNavigate, daily, salesRows, funnelError, onRetry, days, onDays, unlockRead }: {
   myPubs: PublishedItinerary[]
   onUnpublish: (p: PublishedItinerary) => void
+  onNavigate: (r: string) => void
   /** null while the funnel read is in flight; [] when it succeeded empty. */
   daily: FunnelDailyRow[] | null
   /** The sales ledger's own rows — the unlock stage's only source. */
@@ -295,12 +313,19 @@ function PubOverview({ myPubs, onUnpublish, onNavigate, daily, salesRows, funnel
   onRetry: () => void
   days: FunnelWindowDays
   onDays: (d: FunnelWindowDays) => void
-  onNavigate: (r: string) => void
+  /** Whether the sales ledger — and therefore every unlock figure — has been
+   *  read. Passed down rather than inferred, because "no sales" and "no answer
+   *  yet" look identical in the row array. */
+  unlockRead: UnlockRead
 }) {
   const totalViews = myPubs.reduce((s, p) => s + p.views, 0)
   const totalForks = myPubs.reduce((s, p) => s + p.copies, 0)
-  // ONE derivation, read by both the rows and the note above them, so the table
-  // and the sentence explaining it cannot disagree about a rate.
+  // ONE clock for the whole window. The trend and the rows are both cut from
+  // it, so switching the window cannot leave the chart a day ahead of the
+  // table, and no surface has to re-derive "now" for itself.
+  const now = Date.now()
+  // ONE derivation, read by the trend above, the rows below and the note beside
+  // them, so none of the three can disagree about a rate or a window.
   const funnels = buildPubFunnels({
     daily: daily ?? [],
     sales: salesRows,
@@ -309,8 +334,9 @@ function PubOverview({ myPubs, onUnpublish, onNavigate, daily, salesRows, funnel
       lifetimeViews: p.views, lifetimeForks: p.copies,
     })),
     days,
-    now: Date.now(),
+    now,
   })
+  const series = buildDailySeries({ daily: daily ?? [], sales: salesRows, days, now })
   const funnelOf = new Map(funnels.map(f => [f.pubId, f]))
   // When the log's own history starts, page-wide. The tiles above are all-time
   // and most of their number PREDATES the first recorded event, which is
@@ -322,16 +348,20 @@ function PubOverview({ myPubs, onUnpublish, onNavigate, daily, salesRows, funnel
     const t = tripById(p.tripId)
     return !!t && t.updatedAt > (p.refreshedAt ?? p.publishedAt)
   }).length
+  const windowLabel = FUNNEL_WINDOWS.find(w => w.days === days)?.label ?? `${days} days`
+
   return (
     <>
-      <div className="pub-kpis">
-        <div className="stat-tile"><div className="stat-label">Views (all time)</div><div className="stat-value">{totalViews}</div></div>
-        <div className="stat-tile"><div className="stat-label">Forks (all time)</div><div className="stat-value">{totalForks}</div></div>
-        <div className="stat-tile"><div className="stat-label">Live</div><div className="stat-value">{myPubs.length}</div></div>
-        <div className="stat-tile"><div className="stat-label">Behind</div><div className="stat-value">{staleCount > 0 ? <span className="metric-warn">{staleCount}</span> : 0}</div></div>
+      <div className="hub-strip">
+        <div className="hub-cell"><span className="stat-label">Views (all time)</span><span className="stat-value hub-cell-value">{totalViews.toLocaleString('en-IN')}</span></div>
+        <div className="hub-cell"><span className="stat-label">Forks (all time)</span><span className="stat-value hub-cell-value">{totalForks.toLocaleString('en-IN')}</span></div>
+        <div className="hub-cell"><span className="stat-label">Live</span><span className="stat-value hub-cell-value">{myPubs.length}</span></div>
+        <div className="hub-cell"><span className="stat-label">Behind</span><span className="stat-value hub-cell-value">{staleCount > 0 ? <span className="metric-warn">{staleCount}</span> : 0}</span></div>
       </div>
-      <div style={{ marginTop: 4 }}>
-        <div className="pub-funnel-head">
+
+      <section className="card hub-trend" aria-labelledby="hub-trend-h">
+        <div className="hub-panel-head">
+          <h2 className="card-title hub-panel-title" id="hub-trend-h">Recorded traffic</h2>
           <PillNav className="filter-pillbar" role="group" aria-label="Funnel window" activeKey={String(days)}>
             {FUNNEL_WINDOWS.map(w => (
               <button key={w.days} type="button" data-pill-key={String(w.days)}
@@ -339,6 +369,8 @@ function PubOverview({ myPubs, onUnpublish, onNavigate, daily, salesRows, funnel
                 onClick={() => onDays(w.days)} aria-pressed={days === w.days}>{w.label}</button>
             ))}
           </PillNav>
+        </div>
+        <div className="hub-panel-note">
           <span className="small muted">
             {funnelError
               ? 'Recorded traffic could not be read just now — the trend is unchanged on the server.'
@@ -350,31 +382,54 @@ function PubOverview({ myPubs, onUnpublish, onNavigate, daily, salesRows, funnel
           </span>
           {funnelError && <button className="btn btn-outline btn-sm" onClick={onRetry}>Retry</button>}
         </div>
-        {myPubs.map(p => {
-          const trip = tripById(p.tripId)
-          const stale = !!trip && trip.updatedAt > (p.refreshedAt ?? p.publishedAt)
-          return (
-            <div key={p.id} className="pub-row">
-              <div className="pub-row-main">
-                <span className="pub-row-title">
-                  <a href={`#/pub/${p.id}`}>{p.title}</a>
-                  {stale && <Chip tone="saffron">Page behind itinerary</Chip>}
-                </span>
-                <FunnelLine f={funnelOf.get(p.id)} unread={funnelError} />
-              </div>
-              <span className="pub-row-actions">
-                {stale && (
-                  <button className="btn btn-saffron btn-sm" onClick={() => onNavigate(`/trip/${p.tripId}/share`)}>Update page</button>
-                )}
-                <button className="btn btn-outline btn-sm" aria-label={`Edit ${p.title}`} onClick={() => onNavigate(`/trip/${p.tripId}/share`)}>
-                  <InlineIcon icon={Pencil} size={13} gap={3} />Edit
-                </button>
-                <button className="btn btn-ghost btn-sm" onClick={() => onUnpublish(p)}>Unpublish</button>
-              </span>
-            </div>
-          )
-        })}
-      </div>
+        {/* A failed or in-flight read must not draw as "nothing recorded": the
+            chart's own empty state is a measurement, so it is only shown once
+            the log was actually read. */}
+        {daily === null
+          ? <div className="hub-trend-void" role="status">{funnelError ? 'The trend could not be read.' : 'Reading recorded traffic…'}</div>
+          : <TrendChart points={series} label={windowLabel} unlockRead={unlockRead} />}
+      </section>
+
+      <section className="card" aria-labelledby="hub-pubs-h">
+        <div className="hub-panel-head">
+          <h2 className="card-title hub-panel-title" id="hub-pubs-h">Publications</h2>
+          <span className="small muted">
+            {myPubs.length} live{staleCount > 0 ? ` · ${staleCount} behind` : ''}
+          </span>
+        </div>
+        {myPubs.length === 0 ? (
+          <p className="hint-text" style={{ margin: '6px 0 0' }}>
+            Nothing published yet — list a trip on Explore from its Share tab.
+          </p>
+        ) : (
+          <div className="hub-pubs">
+            {myPubs.map(p => {
+              const trip = tripById(p.tripId)
+              const stale = !!trip && trip.updatedAt > (p.refreshedAt ?? p.publishedAt)
+              return (
+                <div key={p.id} className="hub-pub">
+                  <div className="hub-pub-main">
+                    <span className="pub-row-title">
+                      <a href={`#/pub/${p.id}`}>{p.title}</a>
+                      {stale && <Chip tone="saffron">Page behind itinerary</Chip>}
+                    </span>
+                    <FunnelLine f={funnelOf.get(p.id)} unread={funnelError} unlockRead={unlockRead} />
+                  </div>
+                  <span className="pub-row-actions">
+                    {stale && (
+                      <button className="btn btn-saffron btn-sm" onClick={() => onNavigate(`/trip/${p.tripId}/share`)}>Update page</button>
+                    )}
+                    <button className="btn btn-outline btn-sm" aria-label={`Edit ${p.title}`} onClick={() => onNavigate(`/trip/${p.tripId}/share`)}>
+                      <InlineIcon icon={Pencil} size={13} gap={3} />Edit
+                    </button>
+                    <button className="btn btn-ghost btn-sm" onClick={() => onUnpublish(p)}>Unpublish</button>
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </section>
     </>
   )
 }
@@ -407,31 +462,34 @@ function EarningsTab({ myPubs, sales, salesError, onRetry, view, onView, basis, 
   const payoutRuns = payoutPeriods(actual?.rows ?? [], now)
   return (
     <>
-      <div className="pub-kpis">
-        <div className="stat-tile wide"><div className="stat-label">Lifetime {basis === 'net' ? 'net' : 'gross'}</div><div className="stat-value">{formatInr(lifetimeInr)}</div></div>
-        <div className="stat-tile"><div className="stat-label">Sales</div><div className="stat-value">{actual?.rows.length ?? 0}</div></div>
+      <div className="hub-strip">
+        <div className="hub-cell"><span className="stat-label">Lifetime {basis === 'net' ? 'net' : 'gross'}</span><span className="stat-value hub-cell-value">{formatInr(lifetimeInr)}</span></div>
+        <div className="hub-cell"><span className="stat-label">Sales</span><span className="stat-value hub-cell-value">{actual?.rows.length ?? 0}</span></div>
         {/* A date only once there is something to send: a run date over a ₹0
             balance reads as money on its way. */}
-        <div className="stat-tile"><div className="stat-label">Next payout</div><div className="stat-value">{payout.clearsInr > 0 ? shortDate(payout.dueAt) : '—'}</div></div>
+        <div className="hub-cell"><span className="stat-label">Next payout</span><span className="stat-value hub-cell-value">{payout.clearsInr > 0 ? shortDate(payout.dueAt) : '—'}</span></div>
       </div>
-      <PillNav className="filter-pillbar" role="group" aria-label="Earnings view" activeKey={view}>
-        {([['actual', 'Actual'], ['projection', 'Projection']] as const).map(([k, label]) => (
-          <button key={k} type="button" data-pill-key={k} className={`clickable-chip chip${view === k ? ' on-teal' : ''}`}
-            onClick={() => onView(k)} aria-pressed={view === k}>{label}</button>
-        ))}
-      </PillNav>
-      <span className="small muted" style={{ margin: '0 8px' }}>Show amounts as</span>
-      <PillNav className="filter-pillbar" role="group" aria-label="Show amounts as" activeKey={basis}>
-        {([['gross', 'Gross'], ['net', 'Net']] as const).map(([k, label]) => (
-          <button key={k} type="button" data-pill-key={k} className={`clickable-chip chip${basis === k ? ' on-teal' : ''}`}
-            onClick={() => onBasis(k)} aria-pressed={basis === k}>{label}</button>
-        ))}
-      </PillNav>
+
+      <div className="hub-controls">
+        <PillNav className="filter-pillbar" role="group" aria-label="Earnings view" activeKey={view}>
+          {([['actual', 'Actual'], ['projection', 'Projection']] as const).map(([k, label]) => (
+            <button key={k} type="button" data-pill-key={k} className={`clickable-chip chip${view === k ? ' on-teal' : ''}`}
+              onClick={() => onView(k)} aria-pressed={view === k}>{label}</button>
+          ))}
+        </PillNav>
+        <span className="small muted">Show amounts as</span>
+        <PillNav className="filter-pillbar" role="group" aria-label="Show amounts as" activeKey={basis}>
+          {([['gross', 'Gross'], ['net', 'Net']] as const).map(([k, label]) => (
+            <button key={k} type="button" data-pill-key={k} className={`clickable-chip chip${basis === k ? ' on-teal' : ''}`}
+              onClick={() => onBasis(k)} aria-pressed={basis === k}>{label}</button>
+          ))}
+        </PillNav>
+      </div>
 
       {view === 'actual' && (
-        <div className="card" style={{ marginTop: 12 }}>
-          <h3 style={{ margin: '0 0 6px' }}>Payouts</h3>
-          <p className="hint-text" style={{ margin: '0 0 6px' }}>
+        <section className="card">
+          <h3 className="card-title hub-panel-title">Payouts</h3>
+          <p className="hint-text" style={{ margin: '6px 0 6px' }}>
             {payout.clearsInr > 0 ? (
               <>The next run is <b>{longDate(payout.dueAt)}</b> — it would clear <b>{formatInr(payout.clearsInr)}</b>, your net balance after the platform fee.</>
             ) : payout.belowMinimum ? (
@@ -444,7 +502,7 @@ function EarningsTab({ myPubs, sales, salesError, onRetry, view, onView, basis, 
             Runs are not automated yet: this balance is what a payout would disburse and nothing transfers
             on its own. Platform fee — {PLATFORM_FEE_SUMMARY}.
           </p>
-        </div>
+        </section>
       )}
 
       {view === 'actual' ? (
@@ -503,7 +561,7 @@ function EarningsTab({ myPubs, sales, salesError, onRetry, view, onView, basis, 
 
             {payoutRuns.length > 0 && (
               <>
-                <h4 style={{ margin: '18px 0 6px' }}>Payout runs</h4>
+                <h4 className="hub-subhead">Payout runs</h4>
                 <table className="compare-table pub-ledger" tabIndex={0} aria-label="Payout runs">
                   <thead><tr><th>Run</th><th className="num">Sales</th><th className="num">Gross</th><th className="num">Fee</th><th className="num">Net</th><th>Status</th></tr></thead>
                   <tbody>

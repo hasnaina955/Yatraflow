@@ -323,7 +323,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
                 pacing, breaks and costs are all in the plan below.
               </p>
             </div>
-            <aside className="card route-snap route-glance">
+            <aside className="card pub-card route-snap route-glance">
               <span className="route-glance-label">The route at a glance</span>
               <RouteSnapshot
                 count={trip.days.length}
@@ -360,7 +360,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
         <div className="two-col">
           <div>
             {/* ---- Creator ---- */}
-            <div className="card">
+            <div className="card pub-card">
               <div className="creator-line">
                 <Avatar user={creator} size="lg" />
                 <div>
@@ -447,14 +447,14 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
 
             {/* ---- Tips & warnings ---- */}
             <div className="two-col two-col--even" style={{ marginTop: 16 }}>
-              <div className="card">
+              <div className="card pub-card">
                 <h2>Travel tips</h2>
                 <hr className="divider" />
                 <ul style={{ paddingLeft: 18, lineHeight: 1.9, margin: 0 }}>
                   {pub.travelTips.map((t, i) => <li key={i}>{t}</li>)}
                 </ul>
               </div>
-              <div className="card">
+              <div className="card pub-card">
                 <h2>Warnings & assumptions</h2>
                 <hr className="divider" />
                 <ul style={{ paddingLeft: 18, lineHeight: 1.9, margin: 0 }}>
@@ -466,7 +466,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
 
           {/* ---- Sidebar ---- */}
           <div>
-            <div className="card" style={{ position: 'sticky', top: 80 }}>
+            <div className="card pub-card" style={{ position: 'sticky', top: 80 }}>
               <h2>Take this trip with you</h2>
               <p className="hint-text" style={{ margin: '8px 0 14px' }}>
                 Forks the free preview into your YatraFlow account — locked days come over as placeholders you can fill in yourself.

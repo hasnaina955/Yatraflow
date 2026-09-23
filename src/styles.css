@@ -219,6 +219,14 @@
   --landing-hero-tracking: -.03em;
   --landing-title-size: clamp(1.8rem, 3.2vw, 2.7rem);
   --landing-section-pad: 132px;
+  /* The rhythm INSIDE a public surface - between its editorial blocks and between
+     its day blocks - as opposed to the section pad BETWEEN surfaces. One token
+     so Tier A surfaces share a beat. A token, not a literal: the spacing ratchet
+     reads literals and would reject a raw 40px; it ignores custom properties.
+     (The plan's `--landing-*` -> `--surface-*` rename is deliberately NOT done
+     here: it churns the landed Landing commit for no behaviour change, and it is
+     still an open question for the owner.) */
+  --surface-block-gap: 40px;
 }
 
 [data-theme='dark'] {
@@ -3597,6 +3605,68 @@ body, .topnav, .glass, .board, .modal, .toast {
 
 /* ---------- M7: editorial paper sheet + actions (public itinerary) ---------- */
 .pub-body { padding-top: 0; position: relative; }
+/* ---------- Double-Bezel as a ring tray ----------
+   A machined card is a PLATE sitting in a TRAY. Here the tray is drawn with
+   box-shadow SPREAD instead of a nested wrapper element:
+
+     0 0 0 6px   the tray fill      (what a wrapper's `padding: 6px` band does)
+     0 0 0 7px   the tray hairline  (what a wrapper's `border: 1px` does)
+     inset ...   the plate's own top highlight
+
+   A spread shadow grows a rounded rect CONCENTRICALLY - the browser expands the
+   corner radius by the spread - so the two curves stay parallel exactly as the
+   nested version's `calc(tray radius - inset)` does.
+   What this avoids is wrapping five cards in a new element: that would re-indent
+   ~70 lines of a 617-line page another branch may still be touching, and it would
+   break the sidebar card's `position: sticky` (a sticky element sticks within its
+   containing block, so a wrapper the same height as the card leaves it no room
+   to move). Zero markup restructuring, one class name per card.
+   The landing's `.feature-card`/`.feature-core` uses true nesting because its
+   photo fill must not be covered by a plate. If a later surface wants nesting,
+   promote THAT pair rather than growing a third variant. */
+/* Specificity is deliberately three classes, not one. `.card.route-snap` is a
+   TWO-class rule that gives the route-glance card its own heavy
+   `0 30px 60px rgba(navy,.28)` shadow, so a bare `.pub-card` lost to it and that
+   one card kept a flat plate while the other four got their tray (caught by
+   reading the computed shadow off the live page, not by eye). Three classes
+   outrank it outright instead of tying and depending on source order.
+   The tray is a NAVY TINT, not `--yf-glass`: these cards sit on the near-white
+   paper sheet, so a white tray read as a faint bright halo (barely visible at
+   1440) rather than the recessed tray the pattern is for. A 5% navy band is
+   darker than the canvas, which is what makes it read as hardware - the same
+   reason the standard reaches for `bg-black/5` on light surfaces. Dark inverts
+   it to a white tint, since navy-on-dark has no contrast at all. */
+.pub-body .card.pub-card {
+  border-color: transparent;
+  border-radius: calc(2rem - 7px);
+  box-shadow:
+    0 0 0 6px rgba(var(--shadow-navy-rgb), .05),
+    0 0 0 7px rgba(var(--shadow-navy-rgb), .09),
+    inset 0 1px 0 var(--yf-glass-sheen),
+    var(--shadow-soft);
+}
+[data-theme='dark'] .pub-body .card.pub-card {
+  box-shadow:
+    0 0 0 6px rgba(255, 255, 255, .06),
+    0 0 0 7px rgba(255, 255, 255, .11),
+    inset 0 1px 0 var(--yf-glass-sheen),
+    var(--shadow-soft);
+}
+
+/* ---------- Public itinerary: the editorial rhythm ---------- */
+/* The block gap is the breathing room inside the surface. Every selector is
+   scoped (`.pub-body ...`) rather than bare, because two of these classes are
+   shared with dense in-app editors: `.day-section` is the in-app timeline's own
+   class (trip/timeline/DaySection.tsx) and keeps its tighter 22px beat, and
+   `.pub-editorial` already declares a margin-bottom that a same-specificity rule
+   could not outrank. */
+/* Consumed directly rather than through a `.pub-body` local alias: `.pub-body`
+   is already declared once (padding-top/position), and a second declaration of
+   the same top-level selector is exactly what the duplicate-selector ratchet
+   rejects. */
+.pub-body > .two-col { margin-top: var(--surface-block-gap); }
+.pub-body .day-section + .day-section { margin-top: var(--surface-block-gap); }
+.pub-body .pub-editorial { margin-bottom: var(--surface-block-gap); }
 .paper-sheet {
   border-radius: var(--radius-lg); margin-top: 0; padding: 20px 24px 24px; position: relative;
   background: linear-gradient(180deg, var(--yf-surface), color-mix(in srgb, var(--yf-cream) 70%, var(--yf-surface)));

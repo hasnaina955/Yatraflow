@@ -4699,15 +4699,28 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 }
 @media (max-width: 640px) { .cta-band { padding: 32px 18px; } }
 
-/* ---- <=480px: narrow phones ---- */
-/* Narrow phones: brand + tray + Log in + Sign up free overflow ~390px
-   viewports and clipped the signup CTA off the edge — tighten instead. */
-@media (max-width: 480px) {
-  .bench-pair { grid-template-columns: 1fr; }
+/* ---- <=560px: the header's tightening rung (content-derived; was ≤480) ----
+   Measured 2026-09-23 during the landing break run: with desktop spacings the
+   signed-out row overflows its pill below ~542px — at 500px the content ran
+   past the 472px pill and `html { overflow-x: clip }` cut "Start planning
+   free" mid-label, because the 481–540px band had NO rung (every tightening
+   rule was ≤480). At 560px the same row renders whole inside the 532px box
+   (content ≤ 532px, probe render), so the tightened spacings now run up to
+   the width where the desktop row provably fits. The ≤440/:has, ≤350 and
+   ≤360 rungs below follow in the file and still win on specificity/order
+   where they overlap. */
+@media (max-width: 560px) {
   .topnav .container.topnav-inner { padding: 0 8px 0 14px; gap: 8px; }
   .brand { font-size: 16px; gap: 7px; }
   .nav-right { gap: 6px; }
   .nav-right .btn { padding: 9px 11px; font-size: 13px; }
+  .nav-pill-group { padding: 3px; gap: 1px; }
+}
+/* ---- <=480px: narrow phones ----
+   (The header's gap-tightening above now covers this band's nav rows too;
+   what stays here is the bench column and the wordmark.) */
+@media (max-width: 480px) {
+  .bench-pair { grid-template-columns: 1fr; }
   /* The pill is a single flex row, every icon control holds the 40px touch
      floor, and the auth pair is the only path to an account — so the wordmark
      is the one part that can give. Tightening gaps (above) was not enough: at
@@ -4716,7 +4729,6 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
      scrolling. The brand anchor carries `aria-label="YatraFlow home"`, so the
      mark alone still names the link and nothing loses its label. */
   .brand span { display: none; }
-  .nav-pill-group { padding: 3px; gap: 1px; }
 }
 /* The signed-OUT header still outgrew the smallest phones even after the
    tightening above: at 390px the brand (121.9px) + gap (8) + control tray +

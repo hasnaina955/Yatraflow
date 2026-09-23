@@ -151,7 +151,8 @@ export function CreatorHubPage({ onNavigate }: { onNavigate: (r: string) => void
             <HubOverview myPubs={myPubs} onUnpublish={setUnpubTarget} onNavigate={onNavigate}
               daily={daily} salesRows={sales?.rows ?? []} funnelError={funnelError}
               onRetry={() => setFunnelRetry(n => n + 1)} days={funnelDays} onDays={setFunnelDays}
-              unlockRead={salesError ? 'failed' : sales === null ? 'reading' : 'ready'} />
+              unlockRead={salesError ? 'failed' : sales === null ? 'reading' : 'ready'}
+              salesError={salesError} onRetrySales={() => setSalesRetry(n => n + 1)} />
           ) : (
             <EarningsTab myPubs={myPubs} sales={sales} salesError={salesError}
               onRetry={() => setSalesRetry(n => n + 1)} view={earningsView} onView={setEarningsView}
@@ -231,6 +232,13 @@ export function CreatorHubPage({ onNavigate }: { onNavigate: (r: string) => void
   )
 }
 
+/** "1 unlock" / "3 unlocks". The counts sit inside sentences, and a plan with a
+ *  single unlock used to read "1 unlocks" — the kind of small wrongness that
+ *  costs a careful reader's trust in the bigger numbers beside it. */
+function unit(n: number, noun: string): string {
+  return n === 1 ? noun : `${noun}s`
+}
+
 /** One publication's recorded funnel, for the selected window.
  *
  *  Says NOTHING RECORDED rather than printing three zeroes, because "no traffic
@@ -249,7 +257,7 @@ function FunnelLine({ f, unread, unlockRead = 'ready' }: { f: PubFunnel | undefi
   // read" are different claims and only one of them is a measurement.
   const lifetime = (
     <span className="pf-lifetime muted num">
-      All time {f.lifetimeViews} visits · {f.lifetimeForks} forks · {f.lifetimeUnlocks} unlocks
+      All time {f.lifetimeViews} {unit(f.lifetimeViews, 'visit')} · {f.lifetimeForks} {unit(f.lifetimeForks, 'fork')} · {f.lifetimeUnlocks} {unit(f.lifetimeUnlocks, 'unlock')}
     </span>
   )
   // The counters-vs-log sentence. Computed once here (one derivation, shared
@@ -274,16 +282,16 @@ function FunnelLine({ f, unread, unlockRead = 'ready' }: { f: PubFunnel | undefi
   }
   return (
     <span className="pub-funnel">
-      <span className="pf-steps">
-        <span className="pf-step"><b className="num">{f.views}</b> visits</span>
+      <span className="pf-steps hub-steps">
+        <span className="pf-step"><b className="num">{f.views}</b> {unit(f.views, 'visit')}</span>
         <span className="pf-arrow" aria-hidden>→</span>
-        <span className="pf-step"><b className="num">{f.forks}</b> forks <span className="muted">({formatPct(f.forkRatePct)})</span></span>
+        <span className="pf-step"><b className="num">{f.forks}</b> {unit(f.forks, 'fork')} <span className="muted">({formatPct(f.forkRatePct)})</span></span>
         <span className="pf-arrow" aria-hidden>→</span>
         {/* Unlocks come from the sales ledger, so an unread ledger leaves this
             stage UNKNOWN. Printing 0 here would say "nobody bought" — the same
             conflation the row above avoids for the log as a whole. */}
         {unlockRead === 'ready'
-          ? <span className="pf-step"><b className="num">{f.unlocks}</b> unlocks <span className="muted">({formatPct(f.unlockRatePct)})</span></span>
+          ? <span className="pf-step"><b className="num">{f.unlocks}</b> {unit(f.unlocks, 'unlock')} <span className="muted">({formatPct(f.unlockRatePct)})</span></span>
           : <span className="pf-step muted">{unlockRead === 'reading' ? 'unlocks still being read' : 'unlocks could not be read'}</span>}
         {f.forksExceedViews && (
           <span className="muted">· more forks than visits — Explore&apos;s card forks a plan without opening it</span>
@@ -302,7 +310,7 @@ function FunnelLine({ f, unread, unlockRead = 'ready' }: { f: PubFunnel | undefi
 /** Overview: the KPI strip, the recorded-traffic trend, and the publication
  *  manager rows — the trend and the rows built from one derivation over one
  *  clock, so the picture and the table describe the same window. */
-function HubOverview({ myPubs, onUnpublish, onNavigate, daily, salesRows, funnelError, onRetry, days, onDays, unlockRead }: {
+function HubOverview({ myPubs, onUnpublish, onNavigate, daily, salesRows, funnelError, onRetry, days, onDays, unlockRead, salesError, onRetrySales }: {
   myPubs: PublishedItinerary[]
   onUnpublish: (p: PublishedItinerary) => void
   onNavigate: (r: string) => void
@@ -318,6 +326,11 @@ function HubOverview({ myPubs, onUnpublish, onNavigate, daily, salesRows, funnel
    *  read. Passed down rather than inferred, because "no sales" and "no answer
    *  yet" look identical in the row array. */
   unlockRead: UnlockRead
+  /** The ledger read failed. Its own flag and its own retry: Overview used to
+   *  offer recovery only for the funnel read, leaving the money-bearing column
+   *  the one thing on the page you could not ask again. */
+  salesError: boolean
+  onRetrySales: () => void
 }) {
   const totalViews = myPubs.reduce((s, p) => s + p.views, 0)
   const totalForks = myPubs.reduce((s, p) => s + p.copies, 0)
@@ -350,6 +363,16 @@ function HubOverview({ myPubs, onUnpublish, onNavigate, daily, salesRows, funnel
     return !!t && t.updatedAt > (p.refreshedAt ?? p.publishedAt)
   }).length
   const windowLabel = FUNNEL_WINDOWS.find(w => w.days === days)?.label ?? `${days} days`
+  // The counters-vs-log fact, said ONCE for the account instead of once per row.
+  // Every publication's counters predate the same log, so repeating the sentence
+  // under each row made the page's longest text its most-skipped, and left the
+  // strip's all-time figures looking like they disagreed with the chart above
+  // them. Stated here, it is a frame the reader applies to everything below.
+  const framingNote = daily === null
+    ? null
+    : recordingSince
+      ? 'The four figures above are all-time counters. The chart and the rows below count only recorded events, and most of a counter predates the log.'
+      : 'The four figures above are all-time counters. Nothing has been recorded yet, so the trend starts with the first visit.'
 
   return (
     <>
@@ -360,77 +383,105 @@ function HubOverview({ myPubs, onUnpublish, onNavigate, daily, salesRows, funnel
         <div className="hub-cell"><span className="stat-label">Behind</span><span className="stat-value hub-cell-value">{staleCount > 0 ? <span className="metric-warn">{staleCount}</span> : 0}</span></div>
       </div>
 
-      <section className="card hub-trend" aria-labelledby="hub-trend-h">
-        <div className="hub-panel-head">
-          <h2 className="card-title hub-panel-title" id="hub-trend-h">Recorded traffic</h2>
-          <PillNav className="filter-pillbar" role="group" aria-label="Funnel window" activeKey={String(days)}>
-            {FUNNEL_WINDOWS.map(w => (
-              <button key={w.days} type="button" data-pill-key={String(w.days)}
-                className={`clickable-chip chip${days === w.days ? ' on-teal' : ''}`}
-                onClick={() => onDays(w.days)} aria-pressed={days === w.days}>{w.label}</button>
-            ))}
-          </PillNav>
-        </div>
-        <div className="hub-panel-note">
-          <span className="small muted">
-            {funnelError
-              ? 'Recorded traffic could not be read just now — the trend is unchanged on the server.'
-              : daily === null
-              ? 'Reading recorded traffic…'
-              : recordingSince
-                ? `Traffic recorded since ${new Date(`${recordingSince}T00:00:00Z`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}.`
-                : 'Nothing recorded yet — the trend starts with the first visit.'}
-          </span>
-          {funnelError && <button className="btn btn-outline btn-sm" onClick={onRetry}>Retry</button>}
-        </div>
-        {/* A failed or in-flight read must not draw as "nothing recorded": the
-            chart's own empty state is a measurement, so it is only shown once
-            the log was actually read. */}
-        {daily === null
-          ? <div className="hub-trend-void" role="status">{funnelError ? 'The trend could not be read.' : 'Reading recorded traffic…'}</div>
-          : <TrendChart points={series} label={windowLabel} unlockRead={unlockRead} />}
-      </section>
+      {framingNote && <div className="hub-note hub-framing">{framingNote}</div>}
 
-      <section className="card" aria-labelledby="hub-pubs-h">
-        <div className="hub-panel-head">
-          <h2 className="card-title hub-panel-title" id="hub-pubs-h">Publications</h2>
-          <span className="small muted">
-            {myPubs.length} live{staleCount > 0 ? ` · ${staleCount} behind` : ''}
-          </span>
+      {salesError && (
+        <div className="hub-note" role="alert">
+          <b>Couldn&apos;t read your sales ledger.</b> Every unlock figure on this tab is unknown until it loads —
+          nothing has been lost, it just could not be read. The Earnings tab shows the ledger itself.
+          <button className="btn btn-outline btn-sm hub-note-action" onClick={onRetrySales}>Retry</button>
         </div>
-        {myPubs.length === 0 ? (
-          <p className="hint-text" style={{ margin: '6px 0 0' }}>
-            Nothing published yet — list a trip on Explore from its Share tab.
-          </p>
-        ) : (
-          <div className="hub-pubs">
-            {myPubs.map(p => {
-              const trip = tripById(p.tripId)
-              const stale = !!trip && trip.updatedAt > (p.refreshedAt ?? p.publishedAt)
-              return (
-                <div key={p.id} className="pub-row">
-                  <div className="pub-row-main">
-                    <span className="pub-row-title">
-                      <a href={`#/pub/${p.id}`}>{p.title}</a>
-                      {stale && <Chip tone="saffron">Page behind itinerary</Chip>}
-                    </span>
-                    <FunnelLine f={funnelOf.get(p.id)} unread={funnelError} unlockRead={unlockRead} />
-                  </div>
-                  <span className="pub-row-actions">
-                    {stale && (
-                      <button className="btn btn-saffron btn-sm" onClick={() => onNavigate(`/trip/${p.tripId}/share`)}>Update page</button>
-                    )}
-                    <button className="btn btn-outline btn-sm" aria-label={`Edit ${p.title}`} onClick={() => onNavigate(`/trip/${p.tripId}/share`)}>
-                      <InlineIcon icon={Pencil} size={13} gap={3} />Edit
-                    </button>
-                    <button className="btn btn-ghost btn-sm" onClick={() => onUnpublish(p)}>Unpublish</button>
-                  </span>
-                </div>
-              )
-            })}
+      )}
+
+      {/* Two columns on a wide screen, one below: the trend and the publication
+          list answer two halves of the same question, and stacking them as
+          full-width banners made the page a scroll of equal-weight bands. */}
+      <div className="hub-grid">
+        <section className="card hub-trend" aria-labelledby="hub-trend-h">
+          <div className="hub-panel-head">
+            <h2 className="card-title hub-panel-title" id="hub-trend-h">Recorded traffic</h2>
+            <PillNav className="filter-pillbar hub-pills-quiet" role="group" aria-label="Funnel window" activeKey={String(days)}>
+              {FUNNEL_WINDOWS.map(w => (
+                <button key={w.days} type="button" data-pill-key={String(w.days)}
+                  className={`clickable-chip chip${days === w.days ? ' on-teal' : ''}`}
+                  onClick={() => onDays(w.days)} aria-pressed={days === w.days}>{w.label}</button>
+              ))}
+            </PillNav>
           </div>
-        )}
-      </section>
+          {/* The state sentence lives here once, and the box below stays silent
+              instead of apologising twice. The failure branch still OPENS this
+              chain, ahead of the load branch: a read that failed must never be
+              described as one still loading. `role="status"` announces a change
+              without needing text in the empty box. */}
+          <div className="hub-panel-note" role="status">
+            <span className="small muted">
+              {funnelError
+                ? 'Recorded traffic could not be read just now — the trend is unchanged on the server.'
+                : daily === null
+                ? 'Reading recorded traffic…'
+                : recordingSince
+                  ? `Chart shows recorded days only; the log begins ${new Date(`${recordingSince}T00:00:00Z`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}.`
+                  : 'Nothing recorded yet — the trend starts with the first visit.'}
+            </span>
+            {funnelError && <button className="btn btn-outline btn-sm" onClick={onRetry}>Retry</button>}
+          </div>
+          {/* A failed or in-flight read must not draw as "nothing recorded": the
+              chart's own empty state is a measurement, so it is only shown once
+              the log was actually read. Reserved box, no second sentence. */}
+          {daily === null
+            ? <div className="hub-trend-void" aria-hidden="true" />
+            : <TrendChart points={series} label={windowLabel} unlockRead={unlockRead} />}
+        </section>
+
+        <section className="card" aria-labelledby="hub-pubs-h">
+          <div className="hub-panel-head">
+            <h2 className="card-title hub-panel-title" id="hub-pubs-h">Publications</h2>
+            <span className="small muted">
+              {myPubs.length} live{staleCount > 0 ? ` · ${staleCount} behind` : ''}
+            </span>
+          </div>
+          {myPubs.length === 0 ? (
+            <p className="hint-text" style={{ margin: '6px 0 0' }}>
+              Nothing published yet — list a trip on Explore from its Share tab.
+            </p>
+          ) : (
+            <div className="hub-pubs">
+              {myPubs.map(p => {
+                const trip = tripById(p.tripId)
+                const stale = !!trip && trip.updatedAt > (p.refreshedAt ?? p.publishedAt)
+                return (
+                  <div key={p.id} className="pub-row">
+                    <div className="pub-row-main">
+                      <span className="pub-row-title">
+                        <a href={`#/pub/${p.id}`}>{p.title}</a>
+                        {stale && <Chip tone="saffron">Page behind itinerary</Chip>}
+                      </span>
+                      <FunnelLine f={funnelOf.get(p.id)} unread={funnelError} unlockRead={unlockRead} />
+                    </div>
+                    <span className="pub-row-actions">
+                      {/* One destination, one control: a stale row used to offer
+                          "Update page" AND "Edit", both opening the same Share
+                          tab, so the emphasis promised a difference that was not
+                          there. The stale action absorbs the pencil. */}
+                      {stale ? (
+                        <button className="btn btn-saffron btn-sm" aria-label={`Update page for ${p.title}`}
+                          onClick={() => onNavigate(`/trip/${p.tripId}/share`)}>
+                          <InlineIcon icon={Pencil} size={13} gap={3} />Update page
+                        </button>
+                      ) : (
+                        <button className="btn btn-outline btn-sm" aria-label={`Edit ${p.title}`} onClick={() => onNavigate(`/trip/${p.tripId}/share`)}>
+                          <InlineIcon icon={Pencil} size={13} gap={3} />Edit
+                        </button>
+                      )}
+                      <button className="btn btn-ghost btn-sm" aria-label={`Unpublish ${p.title}`} onClick={() => onUnpublish(p)}>Unpublish</button>
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </section>
+      </div>
     </>
   )
 }
@@ -467,8 +518,17 @@ function EarningsTab({ myPubs, sales, salesError, onRetry, view, onView, basis, 
         <div className="hub-cell"><span className="stat-label">Lifetime {basis === 'net' ? 'net' : 'gross'}</span><span className="stat-value hub-cell-value">{formatInr(lifetimeInr)}</span></div>
         <div className="hub-cell"><span className="stat-label">Sales</span><span className="stat-value hub-cell-value">{actual?.rows.length ?? 0}</span></div>
         {/* A date only once there is something to send: a run date over a ₹0
-            balance reads as money on its way. */}
-        <div className="hub-cell"><span className="stat-label">Next payout</span><span className="stat-value hub-cell-value">{payout.clearsInr > 0 ? shortDate(payout.dueAt) : '—'}</span></div>
+            balance reads as money on its way. The dash states its own reason
+            underneath, because a bare "—" next to a zero explains nothing. */}
+        <div className="hub-cell">
+          <span className="stat-label">Next payout</span>
+          <span className="stat-value hub-cell-value">{payout.clearsInr > 0 ? shortDate(payout.dueAt) : '—'}</span>
+          {payout.clearsInr === 0 && (
+            <span className="hub-cell-hint muted">
+              {payout.belowMinimum ? `under ${formatInr(payout.minimumInr)} — rolls over` : 'nothing to pay out yet'}
+            </span>
+          )}
+        </div>
       </div>
 
       <div className="hub-controls">
@@ -478,6 +538,7 @@ function EarningsTab({ myPubs, sales, salesError, onRetry, view, onView, basis, 
               onClick={() => onView(k)} aria-pressed={view === k}>{label}</button>
           ))}
         </PillNav>
+        <span className="hub-controls-div" aria-hidden />
         <span className="small muted">Show amounts as</span>
         <PillNav className="filter-pillbar" role="group" aria-label="Show amounts as" activeKey={basis}>
           {([['gross', 'Gross'], ['net', 'Net']] as const).map(([k, label]) => (

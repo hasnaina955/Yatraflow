@@ -7612,8 +7612,38 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .hc-swatch-unlocks { background: var(--saffron); }
 /* The SAME box the chart occupies, not a fixed height: the chart is
    aspect-locked to its viewBox, so the only way the panel can hold its height
-   while a read is in flight is to reserve the identical rectangle. */
-.hub-trend-void { display: grid; place-items: center; width: 100%; aspect-ratio: 600 / 150; font-size: 13px; color: var(--text-3); }
+   while a read is in flight is to reserve the identical rectangle. It carries
+   no sentence — the panel note above states the state once — so the dashed edge
+   is what makes it read as a deliberate empty slot rather than a broken chart. */
+.hub-trend-void { width: 100%; aspect-ratio: 600 / 150; border: 1px dashed var(--line); border-radius: var(--radius); }
+
+/* The panel's own pills. Inside a panel the glass capsule reads as a card
+   nested in a card (the detector flags exactly that), so the container gives up
+   its fill and border and the pills keep every affordance. */
+.hub-pills-quiet { background: transparent; border-color: transparent; box-shadow: none; }
+
+/* ---- the page's grid ------------------------------------------------- */
+/* Two columns on a wide screen, one below. The trend and the publication list
+   answer two halves of one question, and stacking every panel as a full-width
+   banner made the page a scroll of equal-weight bands. The strip stays a band
+   above both: four figures read together or not at all. */
+.hub-grid { display: grid; gap: 16px; }
+.hub-grid > * { margin-top: 0; }
+@media (min-width: 1280px) {
+  .hub-grid { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); align-items: start; }
+}
+/* `.pub-row` is a no-wrap flex row, which is right at full width and overflows
+   at a third of it — so inside the grid it wraps instead. */
+.hub-grid .pub-row { flex-wrap: wrap; align-items: flex-start; }
+
+/* The counters-vs-log frame, said once for the account rather than once per row. */
+.hub-framing { margin: 0 0 16px; }
+.hub-note-action { margin: 8px 0 0; }
+
+/* Windowed figures lead; the all-time line stays the qualifier. */
+.hub-steps .pf-step b { font-size: 13.5px; }
+.hub-cell-hint { font-size: 11px; color: var(--text-3); }
+.hub-controls-div { width: 1px; align-self: stretch; background: var(--line); }
 
 /* ---- publications ---- */
 /* The list is the app's own publication-row pattern (`.pub-row` and its

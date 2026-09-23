@@ -62,7 +62,19 @@ function axisDay(day: string): string {
 export type UnlockRead = 'ready' | 'reading' | 'failed'
 
 export function TrendChart({ points, label, unlockRead = 'ready' }: { points: FunnelDayPoint[]; label: string; unlockRead?: UnlockRead }) {
-  const peak = points.reduce((m, p) => Math.max(m, p.views, p.forks, p.unlocks), 0)
+  // WHICH series peaked, not just how high: "peak 131 a day" named no series on
+  // a chart that draws three, so the panel's only quantified number was the one
+  // thing a reader could not attribute.
+  const peakPoint = points.reduce<{ v: number; series: 'visits' | 'forks' | 'unlocks'; day: string }>(
+    (best, p) => {
+      let next = best
+      const candidates: Array<[typeof best.series, number]> = [['visits', p.views], ['forks', p.forks], ['unlocks', p.unlocks]]
+      for (const [series, v] of candidates) if (v > next.v) next = { v, series, day: p.day }
+      return next
+    },
+    { v: 0, series: 'visits', day: points[0]?.day ?? '' },
+  )
+  const peak = peakPoint.v
   const totalViews = points.reduce((s, p) => s + p.views, 0)
   const totalForks = points.reduce((s, p) => s + p.forks, 0)
   const totalUnlocks = points.reduce((s, p) => s + p.unlocks, 0)
@@ -98,7 +110,7 @@ export function TrendChart({ points, label, unlockRead = 'ready' }: { points: Fu
       <div className="hub-chart-axis">
         <span>{first ? axisDay(first) : ''}</span>
         <span className="hub-chart-peak">
-          {quiet ? 'Nothing recorded in this window' : `peak ${peak.toLocaleString('en-IN')} a day`}
+          {quiet ? 'Nothing recorded in this window' : `peak ${peak.toLocaleString('en-IN')} ${peakPoint.series} on ${axisDay(peakPoint.day)}`}
         </span>
         <span>{last ? axisDay(last) : ''}</span>
       </div>

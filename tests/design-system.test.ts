@@ -19,8 +19,12 @@ const source = (rel: string) => readFileSync(new URL('../' + rel, import.meta.ur
 
 const loadedWeights = (s: string): Set<number> => {
   const out = new Set<number>()
-  for (const m of s.matchAll(/(?:Inter|Sora):wght@([\d;]+)/g)) {
-    for (const w of m[1].split(';')) out.add(Number(w))
+  // Family-agnostic on purpose: read every `family=<Name>:wght@<weights>` axis
+  // in the link rather than naming the families, so swapping one (Inter ->
+  // Plus Jakarta Sans, Sep 2026) or adding a third cannot silently empty this
+  // set and turn the gate into a no-op that passes on nothing.
+  for (const m of s.matchAll(/family=([^:&"']+):wght@([\d;]+)/g)) {
+    for (const w of m[2].split(';')) out.add(Number(w))
   }
   return out
 }
@@ -54,8 +58,8 @@ function mediaBlocks(cssText: string, query: string): string[] {
 describe('font weights match the loaded faces', () => {
   const loaded = loadedWeights(html)
 
-  it('loads the canonical weight set (Inter 400-800, Sora 600-800)', () => {
-    for (const w of [400, 500, 600, 700, 800]) expect(loaded.has(w), `Inter/Sora must ship ${w}`).toBe(true)
+  it('loads the canonical weight set (Plus Jakarta Sans 400-800, Sora 600-800)', () => {
+    for (const w of [400, 500, 600, 700, 800]) expect(loaded.has(w), `Plus Jakarta Sans/Sora must ship ${w}`).toBe(true)
   })
 
   it('declares no font-weight that the font link does not load', () => {
@@ -840,6 +844,27 @@ describe('the day collapse moves as one gesture', () => {
     const chips = rule('.day-cost-chip, .day-dwell-chip, .weather-chip, .dwell-bars')
     expect(chips, 'the header extras are missing from styles.css').toBeTruthy()
     expect(chips!.body).toMatch(/animation:\s*popover-in var\(--motion-med\) var\(--ease-out\)/)
+  })
+})
+
+describe('icon stroke weight is a token, not a library default', () => {
+  // Lucide's stock weight is 2, emitted as a presentation attribute on every
+  // glyph - `stroke-width="2"` on all ~291 icon tags in the app. A presentation
+  // attribute loses to any CSS declaration, so the app re-inks the whole set
+  // from ONE rule rather than carrying a prop on each usage. These pins keep it
+  // that way: the token must exist, the rule must consume it, and no component
+  // may drift back to the library default.
+  it('declares the token and consumes it from the .lucide base rule', () => {
+    expect(css, '--icon-stroke token missing from styles.css').toMatch(/--icon-stroke:\s*1\.5;/)
+    expect(css, 'the .lucide base rule is missing').toMatch(/\.lucide\s*\{\s*stroke-width:\s*var\(--icon-stroke\)/)
+  })
+
+  it('leaves no icon component on the library default weight', () => {
+    const off: string[] = []
+    for (const { rel, text } of sourceFiles) {
+      for (const m of text.matchAll(/<([A-Z]\w*)[^>]*\bstrokeWidth=\{2\}/g)) off.push(`${rel} -> <${m[1]}>`)
+    }
+    expect(off, `use the --icon-stroke token instead of strokeWidth={2}:\n${off.join('\n')}`).toEqual([])
   })
 })
 

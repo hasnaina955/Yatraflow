@@ -4736,6 +4736,14 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
    horizontal padding, never from the target height. */
 @media (max-width: 350px) {
   .nav-right:has(> .btn) .btn { padding: 9px 8px; font-size: 12.5px; }
+  /* The reflow rung's last gap, found in the 2026-09-23 entry-path review:
+     even after every tightening above, the logged-out pair (Log in + Start
+     planning free) measured 335px against a 303px content box at 320px, and
+     the root's overflow-x: clip cut the CTA mid-label. The hamburger tray
+     (App.tsx mobile-menu) carries Log in at these widths, so the chrome copy
+     yields and the primary CTA fits whole. Signed-in headers have no outline
+     button in .nav-right, so this is a no-op for them. */
+  .nav-right > .btn-outline { display: none; }
 }
 
 /* ---- <=360px: the last few pixels ---- */
@@ -7111,3 +7119,11 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 @media (max-width: 720px) {
   .offline-banner { padding: 8px 14px; font-size: 12px; align-items: flex-start; }
 }
+
+/* ---- I-17 · selection + caret — the last browser-native surfaces follow the theme.
+   Both declarations resolve per theme: a selection is theme ink (--text) on the soft
+   teal tint (--teal-soft → #E5F4EE light / #12332F dark — 13.56:1 / 12.01:1), and the
+   caret is the brand teal (--teal-deep). caret-color inherits, so one :root rule themes
+   every input, textarea and contenteditable surface without enumerating them. */
+::selection { background: var(--teal-soft); color: var(--text); }
+:root { caret-color: var(--teal-deep); }

@@ -237,12 +237,20 @@ export default function App() {
   // One title per route. `index.html` carries a single static title, so every
   // route shared it: four open tabs all read the same thing, and a bookmark of
   // one itinerary was indistinguishable from a bookmark of the site. Routes
-  // whose name lives in the store (`/trip/…`, `/pub/…`, `/creator/…`) get a
+  // Whose name lives in the store (`/trip/…`, `/pub/…`, `/creator/…`) get a
   // generic title here and are refined by the page that already holds the
   // record - App deliberately slices its subscriptions, and reading the trips
   // table just to label a tab would undo that.
+  // The same title feeds the route-change live region below: without it a
+  // screen-reader user crossing routes hears nothing (no focus move happens
+  // on navigation, and the new page's headings are not announced on their
+  // own), so the title is the cheapest honest announcement of "where you
+  // are now". Reviewed 2026-09-23 (entry-path interface review, finding 3).
+  const [routeAnnounce, setRouteAnnounce] = useState('')
   useEffect(() => {
-    document.title = pageTitle(routeParts(route))
+    const title = pageTitle(routeParts(route))
+    document.title = title
+    setRouteAnnounce(title)
   }, [route])
 
   let page: React.ReactNode
@@ -281,7 +289,7 @@ export default function App() {
   // unconditional, so every launch flashed the marketing landing + its
   // website chrome before NativeHome arrived.
   if (!ready && parts[0] !== 'auth' && parts[0] !== 'share' && (!bareRoute || isNative)) {
-    page = <div className="container loading-block"><div className="spinner" />Loading…</div>
+    page = <div className="container loading-block" role="status"><div className="spinner" />Loading…</div>
   } else if (parts[0] === 'share' && parts[1]) {
     page = <SharedTripPage payload={parts[1]} onNavigate={navigate} />
   } else if (parts[0] === 'join' && parts[1]) {
@@ -417,13 +425,13 @@ export default function App() {
           creator hub, logout) relocate to the Profile page, reachable from the
           bottom nav. Signed-out users (login entry) and the web keep it. */}
       {(!isNative || !me) && (
-      <nav className="topnav">
+      <nav className="topnav" aria-label="Site header">
         <div className="container topnav-inner">
           <a className="brand" {...appLink('#/')} aria-label="YatraFlow home">
             <BrandMark size={32} />
             <span>Yatra<b style={{ color: 'var(--teal)' }}>Flow</b></span>
           </a>
-          <PillNav activeKey={route} className="nav-links" role="navigation" aria-label="Primary">
+          <PillNav activeKey={route} className="nav-links" aria-label="Primary">
             {me && <>
               <a className={`nav-link ${route === '/trips' ? 'active' : ''}`} data-pill-key="/trips" {...appLink('#/trips')}>My trips</a>
               <a className={`nav-link ${route === '/new' ? 'active' : ''}`} data-pill-key="/new" {...appLink('#/new')}>Plan a trip</a>
@@ -533,6 +541,11 @@ export default function App() {
 
       {mobileNav && !isNative && (
         <div className="mobile-menu" id="mobile-menu" onClick={() => setMobileNav(false)}>
+          {/* The hamburger tray is where Log in lives at the narrowest widths:
+              the reflow rung (≤350px) hides the chrome pair from .nav-right so
+              the primary CTA fits 320px, and this tray keeps Log in reachable
+              (review finding 1). */}
+          {!me && <a className="nav-link" {...appLink('#/auth')}>Log in</a>}
           {me && <>
             <a className={`nav-link ${route === '/trips' ? 'active' : ''}`} {...appLink('#/trips')}><InlineIcon icon={Tent} size={15} gap={6} />My trips</a>
             <a className={`nav-link ${route === '/new' ? 'active' : ''}`} {...appLink('#/new')}><InlineIcon icon={Plus} size={15} gap={6} />Plan a trip</a>
@@ -549,6 +562,10 @@ export default function App() {
       <OfflineBanner />
 
       <main id="main" tabIndex={-1} style={{ flex: 1 }}>
+        {/* Route-change announcement (review finding 3): polite, off-screen,
+            fed by the title effect above. The loading block carries role=status
+            so the pre-hydrate gate announces itself too. */}
+        <p className="sr-only" role="status" aria-live="polite">{routeAnnounce}</p>
         {/* keyed on the route so every page change (My trips ↔ Explore ↔ a trip)
             re-mounts and plays the route-panel entrance animation */}
         <div className="route-panel" key={route}>{page}</div>

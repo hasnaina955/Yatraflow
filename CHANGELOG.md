@@ -15,6 +15,17 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ## [Unreleased]
 
+### Changed
+- **Selected text and the typing caret follow the app's theme instead of the browser's
+  defaults** — the last two browser-native surfaces join the design system: a selection is
+  theme ink on the soft teal tint in both themes (`--teal-soft` + `--text`: 13.56:1 light /
+  12.01:1 dark), and the text-entry caret is the brand teal (`caret-color: var(--teal-deep)`
+  on `:root`, inherited by every input). One appended block in `styles.css`; the idea-bank
+  row that scoped it (I-17, Tier 1) is spent and recorded in ROADMAP's shipped record.
+
+### Fixed
+- **Entry-path accessibility review landed**: at 320px the logged-out header clipped the "Start planning free" CTA mid-label (the reflow rungs were tuned for the older, shorter label) — the ≤350px block now hides the chrome "Log in" outline button (the hamburger tray carries it) so the primary CTA fits whole. The landing kicker's small teal text measured 3.80:1 on cream; it now uses the text-grade `--ink-teal` token instead of the focus-ring accent. Route changes and the loading gate announce themselves to screen readers via a polite live region fed by the page title, and decorative travel motifs are `aria-hidden`. The auth form's short-password error moved from the form-level alert onto the password field (marked invalid, focus follows) like the name check beside it, the signup tab now matches its submit button's "Create account" naming, My Trips' filter reset and empty state both say "Clear filters", the header's nested navigation landmarks are disambiguated, and the demo band's CTA got a name distinct from the chrome's.
+
 ## [0.65.0] - 2026-09-22
 
 The Create Trip page was rebuilt around the questions a planner actually answers,

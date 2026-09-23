@@ -131,8 +131,10 @@ behaves — no rationale is invented where none was written:
 Superseded items that DID have a disclosure live in their CHANGELOG entries (popup-Fill became
 tap-opens-the-rail; day switching hides rather than dims, per the #1119 regression; the km ruler
 was removed; result filing keys on category rather than window/km, with the rationale in
-`MapTab.tsx`). The plan's mobile slots summary and its cost micro-bars/per-slot glyphs did not
-ship and remain open audit findings here — findings, not decisions.
+`MapTab.tsx`). The plan's mobile slots summary, its cost micro-bars and the per-slot glyphs were
+open audit findings when this block was written (2026-09-22) — findings, not decisions — and all
+three shipped that evening in #303 (the deferred P3 sweep), earning their disclosure in 0.65.0's
+CHANGELOG entry.
 
 ---
 

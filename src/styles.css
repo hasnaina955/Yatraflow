@@ -7119,3 +7119,11 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 @media (max-width: 720px) {
   .offline-banner { padding: 8px 14px; font-size: 12px; align-items: flex-start; }
 }
+
+/* ---- I-17 · selection + caret — the last browser-native surfaces follow the theme.
+   Both declarations resolve per theme: a selection is theme ink (--text) on the soft
+   teal tint (--teal-soft → #E5F4EE light / #12332F dark — 13.56:1 / 12.01:1), and the
+   caret is the brand teal (--teal-deep). caret-color inherits, so one :root rule themes
+   every input, textarea and contenteditable surface without enumerating them. */
+::selection { background: var(--teal-soft); color: var(--text); }
+:root { caret-color: var(--teal-deep); }

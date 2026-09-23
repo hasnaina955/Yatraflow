@@ -1,9 +1,12 @@
-# Merged branches pruned on 2026-09-20
+# Merged branches pruned — the running record
 
 Point-in-time record. Two prunes happened on **2026-09-20**: the batched sweep of 17 refs
 below, and then — under the convention that sweep introduced — a single branch pruned at the
-moment its PR merged. This file is what keeps both reversible in writing. `main` was `55efd21`
-throughout; `test` was `e5bba2a` during the sweep and `9bac779` at the second prune.
+moment its PR merged. A third sweep, recorded in its own section below, pruned the three
+`test`-merged hold-outs on **2026-09-22**, once the v0.65.0 promotion made their work
+ancestors of `main`. This file is what keeps all of it reversible in writing. `main` was
+`55efd21` on 2026-09-20 and `3893ccc` at the 2026-09-22 sweep; `test` was `e5bba2a` during
+the first sweep and `9bac779` at the second prune.
 
 ## Why these, and why it was safe
 
@@ -59,8 +62,29 @@ branch, and `refs/pull/268/head` resolved before deletion.
 
 **One honest difference from the 17 above: this branch is not reachable from `main`.** It
 merged into `test` (`9bac779`, 25 commits ahead of `main` at `55efd21`), so it is an ancestor
-of `test` only — the "from `main`" recovery path does not apply to it until the next
-promotion. The PR path does, and was verified.
+of `test` only — the "from `main`" recovery path did not apply to it until the next
+promotion. The PR path did, and was verified. (It reached `main` with the v0.65.0 promotion,
+PR #304, so both paths answer for it now.)
+
+## Pruned at the v0.65.0 promotion (2026-09-22): the three `test`-merged hold-outs
+
+The 2026-09-20 sweep deliberately kept branches whose work had merged into `test` but not yet
+into `main`. **PR #304** (the v0.65.0 promotion, `main` and `test` both at `3893ccc`, merged
+2026-09-22 16:01 UTC) made all of that work ancestors of `main`, and these three refs were
+pruned in its wake. Verified gone 2026-09-22 via `git ls-remote --heads origin` — **5 heads
+remain**: `main`, `test`, and the three kept-on-purpose branches in "Not pruned" below.
+
+| Branch | Head SHA | Owning PR |
+|---|---|---|
+| `docs/creator-market-research` | `09c57d047011efd05929df28dc5db42696764e37` | #254 (→ `test`, merged 2026-09-20) |
+| `fix/explore-clipping` | `da0e724e7b339ac5528f98c575b2a3e8fac7ba59` | #261 (→ `test`, merged 2026-09-20) |
+| `fix/onboarding-design-audit` | `9270a2e4e974c5010312ec31b0a811b9981cdb51` | #269 (→ `test`, merged 2026-09-20) |
+
+The deleted refs cannot be re-inspected, so each SHA above is its PR's head as GitHub
+recorded it (`gh pr view <n> --json headRefOid`), not a fresh ref read. Both recovery paths
+answer for all three, and were checked 2026-09-22: `refs/pull/<n>/head` resolves for #254,
+#261 and #269, and the compare API reports `main` strictly ahead of each SHA
+(`behind_by` 0) — every commit on them is reachable from production.
 
 ## How to recover one
 
@@ -71,7 +95,8 @@ Two independent paths, either of which works after the prune:
   #235, #254, #261 and #265, including #235, which was closed without merging.
 - **From `main`** — every SHA in the 17-ref sweep above is an ancestor of `main`, so
   `git branch <name> <sha>` restores the ref from what production already holds. (The #268
-  entry is not in `main` yet — use the PR path for that one.)
+  entry and the three 2026-09-22 hold-outs reached `main` with the v0.65.0 promotion — the
+  compare checks in that section are the proof.)
 
 The PR is the durable artifact; the branch name was only ever a temporary pointer to it.
 
@@ -80,9 +105,6 @@ The PR is the durable artifact; the branch name was only ever a temporary pointe
 | Branch | Reason kept |
 |---|---|
 | `main`, `test` | the two long-lived refs |
-| `docs/creator-market-research` | #254 merged into `test`, not yet in `main` |
-| `fix/explore-clipping` | #261 merged into `test`, not yet in `main` |
-| `fix/onboarding-design-audit` | PR #269 open |
 | `refactor/brand-seam` | archived by decision; no PR ever, so the branch was the only remote copy of its commit |
 | `explore/landing-hero-local` | landing-page experiment; no PR ever, same single-copy situation |
 | `feat/share-preview-og` | PR #235 closed as superseded; kept as the counter-example whose `api/i.js`/`shareUrl.ts` must not be merged over the versions that landed |

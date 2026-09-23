@@ -163,6 +163,24 @@ Key locations:
  6a. **Async operations need input guards.** The AI drawer's `ask()` function had no protection against rapid re-submission during its 650ms processing delay — users could trigger duplicate questions. Fix: `disabled={thinking}` on input and button. When adding async paths (API calls, simulated latency, data processing), always disable user inputs to prevent race conditions, duplicate requests, or state inconsistency. The guard should match the visual feedback state (spinner, disabled button, etc.).
  6b. **A release cut is not done until every change in it has a CHANGELOG entry — check coverage, not just the heading.** The v0.60.0 refinement pass ran 20 commits and only 10 of them touched `CHANGELOG.md`, so the release was about to go out describing the first half of its own work — while the plan document recording that work also stopped mid-way and read as finished. Both artifacts agreed with each other and neither agreed with `git log`. Before cutting a release, diff the two lists — `git log --oneline <base>..HEAD -- CHANGELOG.md` against `git log --oneline <base>..HEAD` — and account for every commit: it has a bullet, or it is genuinely invisible to a user (a doc reconciliation, a de-duplication, a test-only change). The entries are also where a superseded claim gets *edited* rather than appended, so that diff is the audit.
  6c. **A "missing guard" claim needs the same git check as a "done" claim.** A comment or summary saying something was *absent* ("the one animation with no reduced-motion guard") is also a hypothesis — grep `origin/test` for the guard before "adding" it, or you ship a duplicate rule plus a changelog sentence that isn't true. The map-tab review round did exactly this; found 2026-09-22 while polishing its motion. The mirror case: an absence claim expires at the *next* merge, not at the date on the block — the slots decision record (2026-09-22, 17:27) logged three plan items as still outstanding, and PR #303 landed them 70 minutes later, leaving the sentence false from the moment it merged (fixed 2026-09-23). Check an absence claim against merged-PR timestamps, not the block's date.
+ 6d. **Wired is not "looks like the approved mockup" — and a RESTYLE folds into the
+   original rule, it never appends a twin (learned 2026-09-23).** The create funnel
+   shipped with every phase wired, honesty-guarded and tested while rendering the v0.45
+   navy boarding-pass ticket instead of the mockup's light card. The mockup is a VISUAL
+   contract: check the surface RENDERED against it, not only the plan's wiring checklist.
+   Two mechanical traps from the fix: (1) an appended rule that re-declares an existing
+   top-level selector trips `duplicate top-level selectors`, and a new font-size under
+   11px trips the type floor — grandfathered names keep their sub-floor sizes, so
+   restyles fold INTO the original rules with line counts preserved, and only genuinely
+   new names go in an appended block (media-nested refinements are exempt); (2) filled
+   teal carries `color: var(--card)`, never `#fff` — dark theme flips `--teal-deep` to a
+   LIGHT teal where white text measures 2.05:1 (measured on the CTA pill 2026-09-23;
+   the flipped pair reads 5.84 light / 7.66 dark). (3) A shared-recipe GROUP rule can
+   re-assert itself over the fold-in and win by source order — the kicker unification
+   list still named `.tk-brand`/`.tk-kind` and fed them `--kicker-size` long after their
+   own rule, so the rendered size never changed. After a fold, confirm the RENDERED
+   computed style, and when a class changes role (kicker → boarding-pass head bar),
+   REMOVE it from the shared-recipe list — that is the delete-cheaper-than-add fix.
 7. **When asking the user to review/test locally, always hand them the exact
    URL — never make them find or start the server.** Check if the dev server
    is up (probe `http://localhost:5173`); if not, start `npm run dev`

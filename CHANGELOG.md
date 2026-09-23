@@ -16,6 +16,16 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 ## [Unreleased]
 
 ### Changed
+- **Create Trip and the moment-after screen now render the approved funnel mockups' look**
+  — the Trip Ticket is the mockup's light card (navy head bar, teal-to-sand cover, and the
+  rough take printed live on an amber stub with each line's formula and an honest "Entries
+  & tolls — excluded" row), the name field is the pill name box with its suggestion chip,
+  the question markers go solid-to-soft as each question is answered, "Budget per head" is
+  its own block carrying the anchor and the experience translation, and the moment after
+  is the mockup's two-column composition (celebration beside the bill card and next steps)
+  with the share row, the "every number shows its math" signature and per-kind tiles.
+  Filled teal pills carry theme-flipping ink so they hold AA in both themes (5.84:1 light,
+  7.66:1 dark).
 - **Selected text and the typing caret follow the app's theme instead of the browser's
   defaults** — the last two browser-native surfaces join the design system: a selection is
   theme ink on the soft teal tint in both themes (`--teal-soft` + `--text`: 13.56:1 light /

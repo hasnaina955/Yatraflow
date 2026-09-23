@@ -210,9 +210,13 @@ export function TripCreatedPage({ tripId, onNavigate }: { tripId: string; onNavi
 
   return (
     <div className="container created-page">
+      {/* The mockup's moment-after composition: the celebration column beside
+          the artifact column (the bill and where to go next). */}
+      <div className="created-cols">
+      <div className="created-celebrate">
       <header className="created-head">
         <p className="eyebrow">Trip created</p>
-        <h1>{trip.name} is live.</h1>
+        <h1><span className="created-name">{trip.name}</span> is live.</h1>
         <p className="muted small">Now the engine starts working for you.</p>
       </header>
 
@@ -238,12 +242,13 @@ export function TripCreatedPage({ tripId, onNavigate }: { tripId: string; onNavi
           <h2 className="created-card-title">The crew <span className="created-role">{PLANNER_ROLE_LINE}</span></h2>
           <div className="created-crew">
             {crew.map((m, i) => (
-              <div className="created-crew-row" key={`${m.phone ?? m.name}-${i}`}>
+              <div key={`${m.phone ?? m.name}-${i}`} className={`created-crew-row${statuses[i] === 'sent' || statuses[i] === 'copied' ? ' done' : ''}`}>
+                <span className="created-dot" aria-hidden />
                 <span className="created-crew-name">{m.name || `+91 ${m.phone}`}</span>
-                <span className="created-crew-status">{statusLabel(statuses[i], m.phone)}</span>
                 {m.phone
                   ? <button type="button" className="btn btn-outline btn-sm" onClick={() => void sendInvite(i)}>Send invite</button>
                   : <span className="created-crew-hint">no number - share the link instead</span>}
+                <span className="created-crew-status">{statusLabel(statuses[i], m.phone)}</span>
               </div>
             ))}
           </div>
@@ -257,16 +262,24 @@ export function TripCreatedPage({ tripId, onNavigate }: { tripId: string; onNavi
         </section>
       )}
 
+      {/* The mockup's share row: the green action travels, the invite copies. */}
       {bill && bill.perHead != null && (
-        <section className="created-card" aria-label="The rough bill">
-          <h2 className="created-card-title">The rough take</h2>
-          <p className="created-bill">
-            <span className="created-bill-perhead">&#8377;{bill.perHead.toLocaleString('en-IN')}</span>
-            <span className="created-bill-unit">per head</span>
-            {billTotal(bill, trip.travellers) != null && (
-              <span className="created-bill-total">&#8377;{billTotal(bill, trip.travellers)!.toLocaleString('en-IN')} for the group</span>
-            )}
-          </p>
+        <div className="created-share">
+          <button type="button" className="share-main" onClick={() => void shareTake()} disabled={sharing}>
+            {sharing ? 'Preparing\u2026' : 'Share the rough take'}
+          </button>
+          {joinUrl && <button type="button" className="share-ghost" onClick={() => void copyAll()}>Copy the invite</button>}
+        </div>
+      )}
+      </div>
+
+      <div className="created-side">
+      {bill && bill.perHead != null && (
+        <section className="created-card created-billcard" aria-label="The rough bill">
+          <div className="tk-head"><span className="tk-brand">YatraFlow</span><span className="tk-kind">Rough bill</span></div>
+          <div className="created-bill-body">
+          <h2 className="created-card-title">{trip.name}</h2>
+          <p className="created-bill-rt">{`${trip.destinations.length ? trip.destinations.join(' \u00b7 ') : trip.startLocation} \u00b7 ${trip.days.length} days \u00b7 ${trip.travellers} heads`}</p>
           <div className="created-bill-rows">
             <div className="created-bill-row">
               <span>Road{bill.roadKm != null ? ` \u00b7 ${Math.round(bill.roadKm)} km` : ''}</span>
@@ -278,11 +291,15 @@ export function TripCreatedPage({ tripId, onNavigate }: { tripId: string; onNavi
             <div className="created-bill-row"><span>Food</span><b>&#8377;{bill.mealCost.toLocaleString('en-IN')}</b></div>
             {bill.mealFormula && <p className="created-bill-formula">{bill.mealFormula}</p>}
           </div>
+          <p className="created-bill">
+            <span className="created-bill-perhead">&#8377;{bill.perHead.toLocaleString('en-IN')}</span>
+            <span className="created-bill-unit">per head</span>
+            {billTotal(bill, trip.travellers) != null && (
+              <span className="created-bill-total">&#8377;{billTotal(bill, trip.travellers)!.toLocaleString('en-IN')} for the group</span>
+            )}
+          </p>
           <p className="created-detail">Same rows the ticket printed - the workspace refines them as the route resolves. Excludes tolls, parking and entry fees.</p>
-          <div className="created-bill-acts">
-            <button type="button" className="btn btn-outline btn-sm" onClick={() => void shareTake()} disabled={sharing}>
-              {sharing ? 'Preparing\u2026' : 'Share the rough take'}
-            </button>
+          <p className="created-sig">every number shows its math - YatraFlow</p>
           </div>
         </section>
       )}
@@ -329,25 +346,30 @@ export function TripCreatedPage({ tripId, onNavigate }: { tripId: string; onNavi
       )}
 
       <div className="created-next">
-        <button type="button" className="ns ns-primary" onClick={finish}>
-          <span className="ns-ic" aria-hidden>→</span>
+        <button type="button" className="ns ns-primary ns-work" onClick={finish}>
+          <span className="ns-ic" aria-hidden>M</span>
           <span className="ns-body"><b>Open the workspace</b><span>The map, slots and engine are already working on this plan.</span></span>
+          <span className="ns-ar" aria-hidden>→</span>
         </button>
         {crew.length > 0 && (
-          <button type="button" className="ns" onClick={() => void copyAll()}>
-            <span className="ns-ic" aria-hidden>✉</span>
+          <button type="button" className="ns ns-crew" onClick={() => void copyAll()}>
+            <span className="ns-ic" aria-hidden>C</span>
             <span className="ns-body"><b>Bring the crew</b><span>Copy the invite, or send it from each row above.</span></span>
+            <span className="ns-ar" aria-hidden>→</span>
           </button>
         )}
         {conflicts.length > 0 && (
-          <button type="button" className="ns" onClick={finish}>
-            <span className="ns-ic" aria-hidden>⚑</span>
+          <button type="button" className="ns ns-watch" onClick={finish}>
+            <span className="ns-ic" aria-hidden>W</span>
             <span className="ns-body"><b>Watch {conflicts[0].title.split(' ').slice(0, 4).join(' ')}</b><span>Open the plan on that day before it gets tight.</span></span>
+            <span className="ns-ar" aria-hidden>→</span>
           </button>
         )}
         <button type="button" className="ns ns-quiet" onClick={() => { clearHandoff(); onNavigate('/trips') }}>
           <span className="ns-body"><b>Back to my trips</b></span>
         </button>
+      </div>
+      </div>
       </div>
     </div>
   )

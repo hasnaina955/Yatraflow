@@ -11,6 +11,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Calendar, ChevronDown, ChevronUp, Pin, TriangleAlert, X, ArrowRight, Printer, Plus,
   Car, Bike, Bus, TrainFront, Plane, KeyRound, CarTaxiFront, Shuffle, Fuel, Wallet,
+  PenLine, Users,
 } from 'lucide-react'
 import type { FixedCommitment, LatLngPoint, TransportMode, TravelStyle } from '../data/types'
 import { TRAVEL_STYLES, TRANSPORT_MODES } from '../data/types'
@@ -25,7 +26,7 @@ import { regionFor, regionBand, nationalBand, experienceTier, anchorNote } from 
 import { createFunnelOn } from '../lib/featureFlags'
 import { createReadiness, readinessFromDraft, readinessLine } from '../lib/createReadiness'
 import { saveDraft, loadDraft, clearDraft, draftIsWorthKeeping, draftAgeLabel, type StoredDraft } from '../lib/createDraft'
-import { addCrewEntry, PLANNER_ROLE_LINE, type CrewEntry } from '../lib/crewInvite'
+import { addCrewEntry, type CrewEntry } from '../lib/crewInvite'
 import { stashHandoff } from '../lib/createHandoff'
 import { routeIq, routeIqLine, type RoutePoint } from '../lib/routeIq'
 import { seasonNoteFor, monthOfIso } from '../lib/seasonality'
@@ -631,6 +632,13 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
     setC({ title: '', type: 'hotel-checkin', dayIndex: 0, time: '14:00' })
   }
 
+  // The mockup's step markers answer "is this question done?" - derived from
+  // state, never stamped: the soft circle is the goal-gradient, the solid one
+  // is still inviting an answer.
+  const whereDone = dests.length > 0 && !!f.startLocation.trim()
+  const whenDone = !!f.startDate && !!f.endDate
+  const whoDone = f.travellers >= CREW_MIN && f.travellers <= CREW_MAX
+
   const outbound = dests.slice(0, dests.length - returnCount)
   const returnStops = dests.slice(dests.length - returnCount)
   const showCustomCrew = !CREW_CHIPS.includes(f.travellers)
@@ -683,8 +691,8 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
       {createFunnelOn('templates') && (
       <section className="tpl-warm" aria-label="Start from a real trip">
         <div className="tpl-warm-head">
-          <span className="eyebrow">Start from a real trip</span>
-          <span className="why">one tap loads the route, dates and budget - or fill the blocks yourself</span>
+          <h2>Start from a real trip</h2>
+          <span className="why">or blank - your call</span>
         </div>
 <div className="tpl-strip">
               {TRIP_TEMPLATES.map(t => (
@@ -727,22 +735,35 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
       <div className="ts-layout">
         <form id="yf-create-form" className="ct-flow" onSubmit={submit}>
 
-          {/* ---- Name first: the trip becomes yours the moment it has a name ---- */}
-          <div className="tpl-name">
-              <Field label="Trip name" error={errs.name}>
-                <input className="input" autoComplete="off" ref={el => (fieldRefs.current.name = el)} aria-invalid={!!errs.name}
+          {/* ---- Name first: the mockup's name box - a pill input with the pen
+               inline, headed like every other section, suggestion chip beside.
+               The error stays field-level (F-15): aria-invalid + describedby +
+               the focus ref on the input itself. ---- */}
+          <div className="tpl-nameblock">
+            <div className="tpl-warm-head">
+              <h2 id="ct-name-h">Name your trip</h2>
+              <span className="why">it becomes yours the moment it has a name</span>
+            </div>
+            <div className="tpl-name">
+              <div className="namebox-in">
+                <PenLine size={14} aria-hidden />
+                <input className="namebox-input" autoComplete="off" ref={el => (fieldRefs.current.name = el)}
+                  aria-invalid={!!errs.name} aria-labelledby="ct-name-h"
+                  aria-describedby={errs.name ? 'ct-name-err' : undefined}
                   value={f.name} onChange={e => { patchFields({ name: e.target.value }); setNameSugSeen(true) }}
                   placeholder="e.g. Kerala with the crew" />
-              </Field>
+              </div>
               {!f.name.trim() && !nameSugSeen && (
                 <button type="button" className="tpl-sug" onClick={() => { patchFields({ name: tplNameSuggestion() }); setNameSugSeen(true) }}>
                   Use &ldquo;{tplNameSuggestion()}&rdquo;
                 </button>
               )}
+            </div>
+            {errs.name && <p className="err-text" id="ct-name-err" role="alert">{errs.name}</p>}
           </div>
 
           {/* ---- 1 - Where ---- */}
-          <div className="ct-q done">
+          <div className={`ct-q${whereDone ? ' done' : ''}`}>
             <span className="ct-n">1</span>
             <div className="ct-q-body">
               <h2>Where are you going?</h2>
@@ -792,7 +813,10 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
               </div>
 
               {createFunnelOn('iq') && iq && (
-                <p className="hint-text route-iq" role="status">{routeIqLine(iq)}</p>
+                <p className="route-iq" role="status">
+                  <span className="iq-tile" aria-hidden>i</span>
+                  <span>{routeIqLine(iq)}</span>
+                </p>
               )}
 
               {/* The engine's verdict the moment start + end exist: when the
@@ -863,7 +887,7 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
           </div>
 
           {/* ---- 2 - When ---- */}
-          <div className="ct-q done">
+          <div className={`ct-q${whenDone ? ' done' : ''}`}>
             <span className="ct-n">2</span>
             <div className="ct-q-body">
               <h2>When?</h2>
@@ -883,7 +907,7 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
           </div>
 
           {/* ---- 3 - Who & how ---- */}
-          <div className="ct-q done">
+          <div className={`ct-q${whoDone ? ' done' : ''}`}>
             <span className="ct-n">3</span>
             <div className="ct-q-body">
               <h2>Who's coming, and how are you travelling?</h2>
@@ -949,8 +973,12 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
                 </div>
               </div>
               {createFunnelOn('crew') && (
-                <div className="crew-invite">
-                  <span className="group-lab">Bring the crew <span className="crew-opt">optional</span></span>
+                <div className="crew-card">
+                  <div className="crew-card-t">
+                    <Users size={13} aria-hidden />
+                    <b>Bring the crew</b>
+                    <span className="why">optional - the invite is ready when the trip is</span>
+                  </div>
                   <div className="crew-invite-row">
                     <input className="input" value={crewInput} autoComplete="off"
                       placeholder="Name or mobile, e.g. Ammu 98450 21234"
@@ -975,7 +1003,7 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
                   <p className="hint-text">
                     {crewLimit === 0
                       ? 'One traveller - nobody to invite. Add the crew from the trip’s Share tab.'
-                      : `${PLANNER_ROLE_LINE} The invite is ready for each of them the moment the trip exists.`}
+                      : <>You're the <b className="crew-planner">planner</b> - the crew votes, you decide. The invite is ready for each of them the moment the trip exists.</>}
                   </p>
                 </div>
               )}
@@ -1081,13 +1109,16 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
             </div>
           </div>
 
-          {/* ---- Refine: budget & style ---- */}
-          <div className="ct-refine">
-            <span className="ct-lbl">Refine the trip</span>
-
-            <div className="ct-q-field">
-              <span className="ct-lbl">Budget per head</span>
-              <div className="ct-rrow" style={{ marginTop: 8 }}>
+          {/* ---- Budget: the funnel mockup promotes it out of the refine layer -
+               pricing is a decision, so it gets its own question-sized block
+               carrying the honest anchor and the experience translation. ---- */}
+          <div className="ct-budget">
+            <div className="tpl-warm-head">
+              <h2>Budget per head</h2>
+              <span className="why">anchored honestly - the tool earns trust here</span>
+            </div>
+            <div className="ct-bud-card">
+              <div className="ct-rrow">
                 <div className="ct-bud">
                   <input type="range" min={2500} max={60000} step={500}
                     value={Math.min(60000, Math.max(2500, f.budgetPerPersonInr))}
@@ -1116,16 +1147,23 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
               {errs.budgetPerPersonInr && <p className="err-text" role="alert">{errs.budgetPerPersonInr}</p>}
               {/* Politely live: the auto-fill above rewrites this number. */}
               <span className="sr-only" role="status">{budgetNotice}</span>
-              {createFunnelOn('budget') && band && (
-                <p className="hint-text budget-anchor" role="status">
-                  A typical {band.days}-day {band.label} run costs <b>&#8377;{band.low.toLocaleString('en-IN')}&ndash;{band.high.toLocaleString('en-IN')}</b> per head
-                  {f.budgetPerPersonInr > 0 ? <> - {anchorNote(f.budgetPerPersonInr, band)}</> : null}.
-                </p>
-              )}
+              {/* Mockup order: money in the hand first (the translation), then
+                  the anchor against reality. Both flag-gated (P2). */}
               {createFunnelOn('budget') && (<p className="hint-text budget-tier">
                 At <b>&#8377;{f.budgetPerPersonInr.toLocaleString('en-IN')}</b> per head: {tier.blurb}.
               </p>)}
+              {createFunnelOn('budget') && band && (
+                <p className="hint-text budget-anchor" role="status">
+                  <i className="bench-mark" aria-hidden>&#9650;</i> A typical {band.days}-day {band.label} run costs <b>&#8377;{band.low.toLocaleString('en-IN')}&ndash;{band.high.toLocaleString('en-IN')}</b> per head
+                  {f.budgetPerPersonInr > 0 ? <> - {anchorNote(f.budgetPerPersonInr, band)}</> : null}.
+                </p>
+              )}
             </div>
+          </div>
+
+          {/* ---- Refine: the bed & style ---- */}
+          <div className="ct-refine">
+            <span className="ct-lbl">Refine the trip</span>
 
             <div className="ct-rrow">
               <span className="ct-lbl">The bed</span>
@@ -1251,7 +1289,7 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
         <aside className="ts-rail" aria-label="Trip ticket preview">
           <div className="ticket">
             <div className="tk-head">
-              <span className="tk-brand">Yatraflow</span>
+              <span className="tk-brand">YatraFlow</span>
               <span className="tk-kind">Trip ticket</span>
             </div>
             <div className="tk-cover">
@@ -1276,39 +1314,59 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
               </div>
             </div>
             <div className="tear" aria-hidden="true"></div>
-            {createFunnelOn('readiness') && (
-              <div className="ready-block" role="status" aria-label="What is left before the trip can be created">
-                <div className="ready-head">
-                  <span className="ready-lab">{readinessLine(readiness)}</span>
-                  <span className="ready-pct">{readiness.pct}%</span>
-                </div>
-                {readiness.items.map(item => (
-                  <div key={item.key} className={`ready-row${item.done ? ' ok' : ''}${item.optional ? ' opt' : ''}`}>
-                    <span className="ready-tick" aria-hidden>{item.done ? '\u2713' : ''}</span>
-                    <span className="ready-name">{item.label}</span>
-                    <span className="ready-why">{item.why}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-            <div className="tk-stub">
-              {/* One primary action, always visible. The page used to hide
-                  Create trip behind "Print my bill", which left a form with no
-                  visible way to finish. Printing is now a secondary peek. */}
-              <button type="submit" form="yf-create-form" className="tk-cta">
-                Start planning <ArrowRight size={16} aria-hidden />
-              </button>
-              <div className="tk-subrow">
-                <button type="button" className="tk-cancel" onClick={printBill} disabled={!bill.perHead}>
-                  {billPrinted ? 'Hide the rough bill' : 'Print the rough bill'}
-                </button>
-                <button type="button" className="tk-cancel" onClick={() => onNavigate('/trips')}>Cancel</button>
-              </div>
+            {/* THE BILL ANSWERS AS YOU GO (the mockup's principle 3): the stub
+                carries the rough take live - rows appear with their inputs and
+                each shows its math, nothing hides behind Print. Printing stays
+                as the paper moment below. */}
+            <div className="tk-stub tk-bill">
+              <div className="bill-row"><span>Transport</span><b className="mono">{bill.transportCost != null ? <Money v={bill.transportCost} animate={!reduced} /> : '\u2014'}</b></div>
+              <p className="bill-formula">{bill.transportFormula || 'add a geocoded stop to price the drive'}</p>
+              <div className="bill-row"><span>Stay</span><b className="mono"><Money v={bill.stayCost} animate={!reduced} /></b></div>
+              <p className="bill-formula">{bill.stayFormula}</p>
+              <div className="bill-row"><span>Food</span><b className="mono"><Money v={bill.mealCost} animate={!reduced} /></b></div>
+              <p className="bill-formula">{bill.mealFormula}</p>
+              <div className="bill-row bill-dim"><span>Entries &amp; tolls</span><b>excluded</b></div>
+              {bill.perHead != null && (
+                <>
+                  <div className="bill-row bill-total"><span>Total</span><b className="mono">{'\u20B9 '}<Money v={Math.round(bill.perHead * f.travellers)} animate={!reduced} /></b></div>
+                  <div className="bill-perhead"><span className="mono">{'\u20B9 '}<Money v={bill.perHead} animate={!reduced} /></span><span className="per">/ head</span></div>
+                </>
+              )}
               <p className="tk-fine">
                 {bill.perHead
-                  ? 'Updates as you plan. Excludes tolls, parking and entry fees.'
+                  ? 'Rough take - refined once your route resolves in the workspace. Excludes tolls, parking and entry fees.'
                   : 'Add a date range and at least one geocoded stop to price the drive.'}
               </p>
+            </div>
+          </div>
+          {createFunnelOn('readiness') && (
+            <div className="ready-block" role="status" aria-label="What is left before the trip can be created">
+              <div className="ready-head">
+                <span className="ready-lab">{readinessLine(readiness)}</span>
+                <span className="ready-pct">{readiness.pct}%</span>
+              </div>
+              {readiness.items.map(item => (
+                <div key={item.key} className={`ready-row${item.done ? ' ok' : ''}${item.optional ? ' opt' : ''}`}>
+                  <span className="ready-tick" aria-hidden>{item.done ? '\u2713' : ''}</span>
+                  <span className="ready-name">{item.label}</span>
+                  <span className="ready-why">{item.why}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="tk-cta-block">
+            {/* One primary action, always visible. The page used to hide
+                Create trip behind "Print my bill", which left a form with no
+                visible way to finish. Printing is a secondary peek. */}
+            <button type="submit" form="yf-create-form" className="tk-cta">
+              Start planning <ArrowRight size={16} aria-hidden />
+            </button>
+            <div className="tk-subrow">
+              <button type="button" className="tk-cancel" onClick={printBill} disabled={!bill.perHead}>
+                {billPrinted ? 'Hide the rough bill' : 'Print the rough bill'}
+              </button>
+              <button type="button" className="tk-cancel" onClick={() => onNavigate('/trips')}>Cancel</button>
+            </div>
               {billPrinted && (
                 <>
                   <div className="bill-printer" role="region" aria-label="Rough trip bill" ref={billRef}>
@@ -1331,7 +1389,6 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
                   </div>
                 </>
               )}
-            </div>
           </div>
         </aside>
       </div>

@@ -13,6 +13,10 @@
      pick up the brand accent. --teal-500 re-resolves per theme below. */
   color-scheme: light;
   accent-color: var(--yf-teal-600);
+  /* The scrollbar's gutter is always reserved, so a page that grows past the
+     fold (the budget block, the advanced drawer) no longer shifts every
+     centred layout sideways when the vertical scrollbar appears. */
+  scrollbar-gutter: stable;
 
   /* ---- 1. PRIMITIVES: brand ---- */
   --teal-500: #0D8D82;
@@ -7060,8 +7064,9 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
    ============================================================ */
 
 .container.form-page { max-width: 1240px; }
-/* the mockup fixes the pass at 380px and lets the flow take the rest */
-.container.form-page .ts-layout { grid-template-columns: minmax(0, 1fr) 380px; }
+/* the mockup fixes the pass at 380px and lets the flow take the rest - but the
+   pass yields down to 340px on a tight window rather than squeezing the flow */
+.container.form-page .ts-layout { grid-template-columns: minmax(0, 1fr) minmax(340px, 380px); }
 
 /* The pass is the app's own navy boarding pass, kept: it is the one component
    on this page that already read as designed. Only the mockup's PROPORTIONS
@@ -7306,3 +7311,12 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 }
 .created-crew-add input:focus-visible { outline: none; box-shadow: var(--ring); border-color: var(--teal-deep); }
 .created-crew-add input::placeholder { color: var(--text-3); }
+
+/* ---- The form panel: the funnel sits on one quiet card (no shadow, per
+   review 2026-09-23) instead of floating on the bare canvas - the mockup's
+   .flow column rides an .app background. Only new names appended. ---- */
+.ct-panel {
+  display: flex; flex-direction: column; gap: 18px;
+  padding: 20px; border: 1px solid var(--line); border-radius: var(--radius);
+  background: var(--card);
+}

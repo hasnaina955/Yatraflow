@@ -735,6 +735,11 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
       <div className="ts-layout">
         <form id="yf-create-form" className="ct-flow" onSubmit={submit}>
 
+          {/* The form panel: everything from the name to the pinned plans sits
+              on one quiet card (no shadow, per review) instead of the bare
+              canvas - the mockup's .flow column sits on an .app background. */}
+          <div className="ct-panel">
+
           {/* ---- Name first: the mockup's name box - a pill input with the pen
                inline, headed like every other section, suggestion chip beside.
                The error stays field-level (F-15): aria-invalid + describedby +
@@ -960,7 +965,7 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
                   </span>
                   <span className="ct-party-sub">traveller{f.travellers !== 1 ? 's' : ''}</span>
                   <button type="button" className="ct-mini" onClick={() => setDrawerOpen(true)}>
-                    {f.driverCount && f.driverCount > 1 ? `${f.driverCount} drivers` : 'Drivers &amp; pace'}{f.hasVulnerable ? ' \u00b7 kids aboard' : ''}
+                    {f.driverCount && f.driverCount > 1 ? `${f.driverCount} drivers` : 'Drivers & pace'}{f.hasVulnerable ? ' · kids aboard' : ''}
                   </button>
                   <span className="sr-only">{f.travellers} traveller{f.travellers !== 1 ? 's' : ''} on {cap(f.transportMode)}</span>
                 </div>
@@ -1282,6 +1287,7 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
               <Field label="Time"><input className="input" type="time" value={c.time} onChange={e => setC(x => ({ ...x, time: e.target.value }))} /></Field>
               <button type="button" className="btn btn-outline" onClick={addCommitment} style={{ height: 42 }}>Add</button>
             </div>
+          </div>
           </div>
         </form>
 

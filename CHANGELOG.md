@@ -28,7 +28,12 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
   7.66:1 dark). The ticket rail's ink system follows the theme again — the navy pass's
   white rail inks (which the light ticket turned invisible: the readiness block read only
   in dark) now resolve from the text tokens in light and re-declare their whites for dark
-  (label 15.39:1 light, 19.39:1 dark).
+  (label 15.39:1 light, 19.39:1 dark). The form itself sits on one quiet card from
+  "Name your trip" through the pinned plans instead of floating on the bare canvas
+  (border, no shadow), the page no longer shifts sideways when a section grows the
+  document (the scrollbar's gutter stays reserved), the party chip reads "Drivers &
+  pace" instead of a literal `&amp;`, and the ticket's rail track is fluid so no
+  window width squeezes the flow column.
 - **Selected text and the typing caret follow the app's theme instead of the browser's
   defaults** — the last two browser-native surfaces join the design system: a selection is
   theme ink on the soft teal tint in both themes (`--teal-soft` + `--text`: 13.56:1 light /

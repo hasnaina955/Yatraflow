@@ -16,14 +16,22 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 ## [Unreleased]
 
 ### Changed
+- **Form errors announce once — assertively — and repeat politely, app-wide** —
+  `Field`'s error text is now a polite live region bound to its control
+  (`aria-describedby` + `aria-invalid`), every field-level error follows suit (the
+  create form's name/destinations/budget rows, `LocationInput`'s pick error, the
+  cover picker's upload error), and a new `FormErrorSummary` carries the ONE
+  assertive announcement per failing submit, prefixed with the failing field's
+  label. The create form's empty submit measured four simultaneous
+  `role="alert"` announcements before; it is now one assertive beat plus four
+  polite field rows.
 - **The create funnel passes an interface review** — every invite channel chip, the
   ticket rail's print/cancel row and the small-button style now meet a 24px touch
   floor; hover-only decoration (template lift, chip tints) no longer sticks on touch
   devices (`hover: hover` gates); funnel chips give press feedback (`:active`); the
   micro-label token rises to 11px app-wide; the destinations and budget errors bind to
   their inputs (`aria-invalid` + `aria-describedby`, via a new `errorId` on
-  `LocationInput`) and an empty submit announces one error assertively instead of
-  three; the two buttons both named "Add" are now "Add crew member" and "Add pinned
+  `LocationInput`); the two buttons both named "Add" are now "Add crew member" and "Add pinned
   plan"; and the invite-channel group is labelled "Send the invite" instead of the
   dangling "Send the invite via".
 - **Create Trip and the moment-after screen now render the approved funnel mockups' look**

@@ -320,8 +320,15 @@ Hard rules (each learned the hard way — do not relearn them):
   rebase, suspect the merge of the file the suite covers before suspecting the
   branch's own change. The replay also means **the branch's CHANGELOG entries
   re-filed themselves into the released section** if the branch was cut before
-  the release: check `git diff origin/test..HEAD -- CHANGELOG.md` lands under
-  `[Unreleased]`.
+  the release:  check `git diff origin/test..HEAD -- CHANGELOG.md` lands under `[Unreleased]`.
+- **Probing a submit handler in the preview: `requestSubmit()` runs native
+  constraint validation first** (measured 2026-09-23: a `min={0}` input holding
+  `-5` fires `invalid`, never `submit` — the handler silently never runs and the
+  browser's own bubble is the only symptom), so set `form.noValidate = true`
+  before forcing a validation-error path; and never read the DOM in the same
+  evaluate that triggered a React state update — the render lands next tick, and
+  a same-tick read returns the stale tree, which looks exactly like a broken
+  fix (three phantom "missing error" probes in a row came from these two).
 - **`npm run verify` outlives a 30 s shell window — run it DETACHED and poll
   the log.** `Start-Process cmd.exe -ArgumentList '/d','/c','npm run verify >
   %TEMP%\v.log 2>&1' -WorkingDirectory <repo> -WindowStyle Hidden`, then

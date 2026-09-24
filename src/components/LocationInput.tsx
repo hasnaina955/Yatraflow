@@ -127,7 +127,10 @@ export function LocationInput({ value, onChange, onPick, placeholder, error, err
       />
       {loading && <span className="loc-spinner" aria-label="Searching places" />}
       {resolving && <span className="loc-spinner" aria-label="Pinning the place" />}
-      {pickErr && <div className="field-error small" role="alert" style={{ color: 'var(--danger)', marginTop: 4 }}>{pickErr}</div>}
+      {/* Field-tied, so polite: an unpicked place can fail while a submit's
+          FormErrorSummary is announcing — two role=alert regions would double-
+          interrupt (see ui.tsx Field for the pattern). */}
+      {pickErr && <div className="field-error small" role="status" aria-live="polite" style={{ color: 'var(--danger)', marginTop: 4 }}>{pickErr}</div>}
       {open && hits.length > 0 && (
         <ul className="loc-dropdown popover" role="listbox" id={listId}>
           {hits.map((hit, i) => (

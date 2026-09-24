@@ -32,7 +32,7 @@ import { routeIq, routeIqLine, type RoutePoint } from '../lib/routeIq'
 import { seasonNoteFor, monthOfIso } from '../lib/seasonality'
 import { radarLines } from '../lib/createRadar'
 import { fetchTripThumbUrl } from '../lib/tripThumb'
-import { Field, Chip, toast, Odometer, useMedia } from '../components/ui'
+import { Field, Chip, toast, Odometer, useMedia, FormErrorSummary } from '../components/ui'
 import { Select } from '../components/Select'
 import { DateRangeCalendar, fmtDay, isoDay } from '../components/DateRangeCalendar'
 import { isoAddDays } from '../lib/weather'
@@ -547,6 +547,12 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
     else go()
   }
 
+  /** The summary's field prefixes - which control resolves each error key. */
+  const ERR_LABELS: Record<string, string> = {
+    name: 'Trip name', startLocation: 'Starting location', destinations: 'Destinations',
+    startDate: 'Start date', endDate: 'End date', travellers: 'Travellers', budgetPerPersonInr: 'Budget',
+  }
+
   function submit(e: React.FormEvent) {
     e.preventDefault()
     if (!me) return
@@ -734,6 +740,10 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
 
       <div className="ts-layout">
         <form id="yf-create-form" className="ct-flow" onSubmit={submit}>
+          {/* The ONE assertive announcement when submit fails - the field-tied
+              messages below stay polite, so a multi-field failure interrupts
+              once, not once per field (see FormErrorSummary). */}
+          <FormErrorSummary errors={errs} labels={ERR_LABELS} />
 
           {/* The form panel: everything from the name to the pinned plans sits
               on one quiet card (no shadow, per review) instead of the bare
@@ -764,7 +774,9 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
                 </button>
               )}
             </div>
-            {errs.name && <p className="err-text" id="ct-name-err" role="alert">{errs.name}</p>}
+            {/* Field-tied, so POLITE — FormErrorSummary carries this form's one
+                assertive beat (see ui.tsx Field for the pattern). */}
+            {errs.name && <p className="err-text" id="ct-name-err" role="status" aria-live="polite">{errs.name}</p>}
           </div>
 
           {/* ---- 1 - Where ---- */}
@@ -806,7 +818,7 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
                   <Plus size={12} aria-hidden /> Add a stop
                 </button>
               </div>
-              {errs.destinations && <p className="err-text" id="ct-dest-err">{errs.destinations}</p>}
+              {errs.destinations && <p className="err-text" id="ct-dest-err" role="status" aria-live="polite">{errs.destinations}</p>}
 
               <div className="ct-q-field ct-add-stop">
                 <LocationInput
@@ -1152,7 +1164,7 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
                   use our estimate
                 </button>
               </div>
-              {errs.budgetPerPersonInr && <p className="err-text" id="ct-budget-err">{errs.budgetPerPersonInr}</p>}
+              {errs.budgetPerPersonInr && <p className="err-text" id="ct-budget-err" role="status" aria-live="polite">{errs.budgetPerPersonInr}</p>}
               {/* Politely live: the auto-fill above rewrites this number. */}
               <span className="sr-only" role="status">{budgetNotice}</span>
               {/* Mockup order: money in the hand first (the translation), then

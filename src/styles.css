@@ -1890,7 +1890,14 @@ button.board-col-zone--add:active { transform: translateY(1px); }
 .hero-adventure > * { position: relative; }
 .ha-kicker { opacity: .75; /* type specs: the kicker-unification block (var(--kicker-*)) */ }
 .ha-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 14px 0 8px; }
-.ha-stats > div { background: rgba(255,255,255,.09); border: 1px solid rgba(255,255,255,.14); border-radius: 10px; padding: 8px 10px; }
+/* The stat tiles read as MACHINED PANELS, not wireframe boxes. They used
+   `border: 1px solid rgba(255,255,255,.14)` on a 9% white fill: because the fill
+   is barely visible on the forced-dark navy, the hairline floated free as a grey
+   outline around each tile - the generic 1px border the high-end standard bans
+   outright. The border is now transparent (same box model, so nothing reflows),
+   the fill carries the shape, and an inset top sheen supplies the machined edge
+   that the outline was faking. */
+.ha-stats > div { background: rgba(255,255,255,.11); border: 1px solid transparent; border-radius: 10px; padding: 8px 10px; box-shadow: inset 0 1px 0 rgba(255,255,255,.16); }
 .ha-stats b { display: block; font-family: var(--font-display); font-size: 15px; font-variant-numeric: tabular-nums; }
 .ha-stats span { font-size: 9.5px; letter-spacing: .06em; text-transform: uppercase; opacity: .72; font-weight: 700; }
 .ha-row { display: grid; grid-template-columns: 1.4fr 1fr; gap: 8px; margin-top: 8px; }
@@ -4833,7 +4840,21 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
   .steps-route { grid-template-columns: repeat(2, 1fr); gap: 24px 14px; }
   .steps-route::before { display: none; }
 }
-/* Under 720 the steps become a vertical timeline: the dashed road turns the
+/* ---- hero display type at phone width ----
+   The hero's leading is calibrated for its 4.35rem desktop size. At phone width
+   the same clamp() bottoms out on the 2.4rem floor while the RATIO is unchanged,
+   so 38.4px type received 39.17px line boxes against 48px glyph boxes and the
+   three headline lines collided (measured at 390px: 38.4px / 39.168px / -1.152px).
+   Tight display leading reads as editorial at 70px and as a rendering bug at
+   38px, so it loosens as the type shrinks. Done through the tokens rather than
+   a .hero-title rule so the size, leading and tracking stay one declaration and
+   cannot drift apart one edit at a time. */
+@media (max-width: 720px) {
+  :root { --landing-hero-leading: 1.14; --landing-hero-tracking: -.012em; }
+}
+
+/* ---- <=720px: steps route becomes a vertical timeline ----
+   Under 720 the steps become a vertical timeline: the dashed road turns the
    corner and runs down the left edge, through the roundels. */
 @media (max-width: 720px) {
   .steps-route { grid-template-columns: 1fr; gap: 22px; margin-top: 24px; }

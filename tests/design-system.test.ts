@@ -868,6 +868,57 @@ describe('icon stroke weight is a token, not a library default', () => {
   })
 })
 
+describe('the typefaces are the language, not a preference', () => {
+  // The weight gate above is deliberately FAMILY-AGNOSTIC: it reads every
+  // `family=<name>:wght@` axis so that swapping a family cannot silently empty
+  // the loaded-weight set and leave the gate passing on nothing. That symmetry
+  // has a cost - on its own it would let a revert to Inter pass the build. The
+  // families themselves are pinned here instead.
+  const families = [...html.matchAll(/family=([^:&"']+):wght@/g)].map((m) => m[1].replace(/\+/g, ' '))
+
+  it('declares Plus Jakarta Sans and Sora on the font link', () => {
+    expect(families, `font link declares: ${families.join(', ')}`).toContain('Plus Jakarta Sans')
+    expect(families, `font link declares: ${families.join(', ')}`).toContain('Sora')
+  })
+
+  it('routes both font tokens through them, so every surface inherits them', () => {
+    expect(css, 'the body token must lead with Plus Jakarta Sans').toMatch(/--font-body:\s*'Plus Jakarta Sans'/)
+    expect(css, 'the display token must lead with Sora').toMatch(/--font-display:\s*'Sora'/)
+  })
+})
+
+describe('the toggle glider glides on its box, not a transform', () => {
+  // Two regressions in a single day motivate this block, and both were caught by
+  // eye rather than by the suite. (1) A `scaleX` FLIP was built to match
+  // MOTION-TOKENS.md's catalog row, which claimed a "transform slide" the
+  // implementation never had - it stretched the pill's rounded ends into
+  // ellipses (scaleX 1.93 on a 76px -> 146px tab change), so the glide read as
+  // the animation breaking. (2) That same rewrite dropped the +4 which insets
+  // the glider 4px top and bottom against its `- 8` height, so every active pill
+  // across the fifteen surfaces PillNav renders on sat 4px high.
+  it('transitions the box and never a transform', () => {
+    const rule = cssRules.find((r) => normalise(r.selector) === '.pill-glider')
+    expect(rule, 'the .pill-glider rule is missing from styles.css').toBeTruthy()
+    const transition = declMap(stripCssComments(rule!.body)).get('transition') ?? ''
+    expect(transition, 'the glider must transition its own box').toMatch(/\bleft\b/)
+    expect(transition, 'the glider must transition its own box').toMatch(/\bwidth\b/)
+    expect(transition, 'a transform glide stretches a rounded pill into ellipses - see the note above').not.toMatch(/transform/)
+  })
+
+  it('keeps the 4px inset that centres the fill on its label', () => {
+    const nav = source('src/components/PillNav.tsx')
+    expect(nav, 'the glider must be inset 4px from the item top, paired with the -8 on its height').toMatch(/wrap\.clientTop\s*\+\s*4/)
+    expect(nav, 'the glider must write its box').toMatch(/glider\.style\.left\s*=/)
+    expect(nav, 'and must not write a transform').not.toMatch(/glider\.style\.transform\s*=/)
+  })
+
+  it('does not describe the glider as a transform slide', () => {
+    const row = source('docs/MOTION-TOKENS.md').split(/\r?\n/).find((l) => l.startsWith('| Toggle glider'))
+    expect(row, 'the Toggle glider row is missing from the catalog').toBeTruthy()
+    expect(row!, 'the catalog must describe a BOX glide - its old "transform slide" claim is what pointed the change the wrong way').toMatch(/\bbox\b/i)
+  })
+})
+
 describe('spacing rhythm: new values land on the documented ladder', () => {
   // DESIGN_TOKENS.md's `--s-1…--s-8` set was deleted in SYS-2 because nothing
   // routed through it, which left the app with no enforceable rhythm at all —

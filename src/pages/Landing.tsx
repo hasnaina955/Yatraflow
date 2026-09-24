@@ -1,10 +1,11 @@
 // ============ Landing page ============
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useRef, type ReactNode } from 'react'
 import { InlineIcon } from '../components/icons'
 import { ArrowDown, ArrowRight, Clock, MapPin, Plane, Route, TriangleAlert, Users, Zap } from 'lucide-react'
 import { RouteSquiggle, useInView, usePageVisible } from '../components/ui'
 import { PlanBench } from '../components/PlanBench'
 import { scrollBehavior } from '../lib/motion'
+import { useReveal } from '../hooks/useReveal'
 import { useDb, currentUser } from '../store/store'
 
 export function LandingPage({ onNavigate }: { onNavigate: (r: string) => void }) {
@@ -36,7 +37,7 @@ export function LandingPage({ onNavigate }: { onNavigate: (r: string) => void })
         <div className="container hero-split">
           <div className="hero-copy">
             <span className="chip chip-saffron hero-rise">Built for Indian travellers</span>
-            <h1 className="hero-rise rise-d1" style={{ fontSize: 'clamp(2.4rem, 5vw, 3.7rem)', margin: '18px 0 14px', lineHeight: 1.12 }}>
+            <h1 className="hero-rise rise-d1 hero-title">
               Plan trips that actually <span style={{ color: 'var(--yf-teal-600)' }}>flow together</span>
             </h1>
             <p className="hero-sub hero-rise rise-d2">
@@ -44,7 +45,10 @@ export function LandingPage({ onNavigate }: { onNavigate: (r: string) => void })
               and keep your whole crew on the same page.
             </p>
             <div className="hero-ctas hero-rise rise-d3">
-              <a className="btn btn-primary btn-lg" href={startPlanningHref}>{heroCtaLabel} <InlineIcon icon={ArrowRight} size={16} gap={0} vAlign="-3px" style={{ marginLeft: 4 }} /></a>
+              <a className="btn btn-primary btn-lg btn-trail" href={startPlanningHref}>
+                {heroCtaLabel}
+                <span className="btn-trail-icon" aria-hidden="true"><InlineIcon icon={ArrowRight} size={15} gap={0} /></span>
+              </a>
               <a className="btn btn-saffron btn-lg" href="#/explore">Explore itineraries</a>
             </div>
           </div>
@@ -156,7 +160,7 @@ export function LandingPage({ onNavigate }: { onNavigate: (r: string) => void })
       {/* A route, not a card grid: the four steps sit as stops along one dashed
           road line, so the section reads as a journey (collapses to a vertical
           timeline on narrow screens). */}
-      <section className="container" style={{ paddingBottom: 60, position: 'relative' }}>
+      <section className="container" style={{ paddingBottom: 'var(--landing-section-pad)', position: 'relative' }}>
         <h2 className="section-title reveal"><span className="reveal-underline">From chaos to itinerary in four steps</span></h2>
         <div className="steps-route">
           <Step cls="reveal" n={1} title="Create a trip" body="Dates, travellers, transport mode, budget, and searchable real locations." />
@@ -167,7 +171,7 @@ export function LandingPage({ onNavigate }: { onNavigate: (r: string) => void })
       </section>
 
       {/* ---------- Demo CTA ---------- */}
-      <section className="container" style={{ paddingBottom: 70 }}>
+      <section className="container" style={{ paddingBottom: 'var(--landing-section-pad)' }}>
         <div className="cta-band reveal">
           <h2>See the whole product on a real trip</h2>
           <p>
@@ -182,32 +186,6 @@ export function LandingPage({ onNavigate }: { onNavigate: (r: string) => void })
       </div>
     </div>
   )
-}
-
-/** One IntersectionObserver arms the reveal system once and flips every .reveal
- *  into .io-inview as it scrolls into the viewport (once, not re-hidden on
- *  re-entry). Arms body.reveal-armed first so content never hides if JS is off. */
-function useReveal() {
-  useEffect(() => {
-    if (typeof window === 'undefined' ||
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
-    document.body.classList.add('reveal-armed')
-    const els = Array.from(document.querySelectorAll<HTMLElement>('.reveal'))
-    if (!els.length) return
-    const io = new IntersectionObserver((entries) => {
-      for (const e of entries) {
-        if (e.isIntersecting) {
-          e.target.classList.add('io-inview')
-          io.unobserve(e.target)
-        }
-      }
-    }, { threshold: 0.12, rootMargin: '0px 0px -8% 0px' })
-    for (const el of els) io.observe(el)
-    return () => {
-      io.disconnect()
-      document.body.classList.remove('reveal-armed')
-    }
-  }, [])
 }
 
 /** Destination marquee: two identical tracks translate -50% for a seamless,
@@ -372,10 +350,15 @@ function Step({ cls, n, title, body }: { cls?: string; n: number; title: string;
 function FeatureCard({ cls, icon, title, body, children }: { cls?: string; icon: ReactNode; title: string; body: string; children?: ReactNode }) {
   return (
     <div className={`card feature-card ${cls ?? ''}`.trim()}>
-      <div className="feature-ico" aria-hidden="true">{icon}</div>
-      <h3>{title}</h3>
-      <p className="small muted">{body}</p>
-      {children}
+      {/* Double-Bezel: the .feature-card element is the outer tray, this is the
+          inner plate. The plate's radius is derived from the tray's minus its
+          own inset (see the .feature-core rule), so the curves stay concentric. */}
+      <div className="feature-core">
+        <div className="feature-ico" aria-hidden="true">{icon}</div>
+        <h3>{title}</h3>
+        <p className="small muted">{body}</p>
+        {children}
+      </div>
     </div>
   )
 }

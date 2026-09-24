@@ -323,18 +323,22 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
                 pacing, breaks and costs are all in the plan below.
               </p>
             </div>
-            <aside className="card route-snap route-glance">
-              <span className="route-glance-label">The route at a glance</span>
-              <RouteSnapshot
-                count={trip.days.length}
-                startLabel={trip.startLocation}
-                endLabel={trip.destinations[trip.destinations.length - 1]}
-                roundTripNote={isRoundTrip(trip) ? `↩ returns to ${trip.startLocation}` : undefined}
-                points={routePointsN}
-              />
-              <div className="route-glance-list">{pub.routeSummary.join(' · ')}</div>
-              <span className="route-glance-meta">{totalsN.stopCount} stops in the plan</span>
-            </aside>
+            {/* Double-Bezel: this wrapper is the TRAY, the .card inside it is the
+                PLATE. Same pair Explore uses, so there is one bezel recipe. */}
+            <div className="bezel">
+              <aside className="card route-snap route-glance">
+                <span className="route-glance-label">The route at a glance</span>
+                <RouteSnapshot
+                  count={trip.days.length}
+                  startLabel={trip.startLocation}
+                  endLabel={trip.destinations[trip.destinations.length - 1]}
+                  roundTripNote={isRoundTrip(trip) ? `↩ returns to ${trip.startLocation}` : undefined}
+                  points={routePointsN}
+                />
+                <div className="route-glance-list">{pub.routeSummary.join(' · ')}</div>
+                <span className="route-glance-meta">{totalsN.stopCount} stops in the plan</span>
+              </aside>
+            </div>
           </div>
 
           {highlightsN.length > 0 && (
@@ -360,46 +364,48 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
         <div className="two-col">
           <div>
             {/* ---- Creator ---- */}
-            <div className="card">
-              <div className="creator-line">
-                <Avatar user={creator} size="lg" />
-                <div>
-                  <b>{creator?.profile.name ?? 'Creator'}</b>{creator?.profile.isCreator && <span className="chip chip-saffron" style={{ marginLeft: 8 }}><InlineIcon icon={Sparkles} size={12} gap={3} />Creator</span>}
-                  {creator?.profile.creatorBio && <p className="small muted" style={{ margin: '5px 0 0' }}>{creator.profile.creatorBio}</p>}
-                  {isMyPub && (
-                    <div className="pub-funnel-glance" role="note" aria-label="How this plan converts, last 7 days">
-                      <b className="pub-fg-title">This link, last 7 days</b>
-                      <span className="pub-fg-line num">
-                        {myReadFailed
-                          ? 'Recorded traffic could not be read just now — the creator hub shows the same numbers when it can.'
-                          : myReadPending
-                          ? 'Reading this link’s traffic…'
-                          : myGlance?.glance
-                          ? myGlance.glance
-                          : 'No recorded traffic for this plan yet.'}
-                      </span>
-                      {myGlance?.preLog && <span className="pub-fg-prelog muted">{myGlance.preLog}</span>}
-                      {/* In-app navigation (onNavigate), not a new appLink anchor —
-                          the anchor-count pin in tests/app-link.test.ts exists so
-                          new route anchors get reviewed, and this one is internal. */}
-                      <button className="btn btn-outline btn-sm" style={{ marginTop: 6, alignSelf: 'flex-start' }} onClick={() => onNavigate('/creator-hub')}>
-                        Open the creator hub →
-                      </button>
-                    </div>
-                  )}
+            <div className="bezel">
+              <div className="card">
+                <div className="creator-line">
+                  <Avatar user={creator} size="lg" />
+                  <div>
+                    <b>{creator?.profile.name ?? 'Creator'}</b>{creator?.profile.isCreator && <span className="chip chip-saffron" style={{ marginLeft: 8 }}><InlineIcon icon={Sparkles} size={12} gap={3} />Creator</span>}
+                    {creator?.profile.creatorBio && <p className="small muted" style={{ margin: '5px 0 0' }}>{creator.profile.creatorBio}</p>}
+                    {isMyPub && (
+                      <div className="pub-funnel-glance" role="note" aria-label="How this plan converts, last 7 days">
+                        <b className="pub-fg-title">This link, last 7 days</b>
+                        <span className="pub-fg-line num">
+                          {myReadFailed
+                            ? 'Recorded traffic could not be read just now — the creator hub shows the same numbers when it can.'
+                            : myReadPending
+                            ? 'Reading this link’s traffic…'
+                            : myGlance?.glance
+                            ? myGlance.glance
+                            : 'No recorded traffic for this plan yet.'}
+                        </span>
+                        {myGlance?.preLog && <span className="pub-fg-prelog muted">{myGlance.preLog}</span>}
+                        {/* In-app navigation (onNavigate), not a new appLink anchor —
+                            the anchor-count pin in tests/app-link.test.ts exists so
+                            new route anchors get reviewed, and this one is internal. */}
+                        <button className="btn btn-outline btn-sm" style={{ marginTop: 6, alignSelf: 'flex-start' }} onClick={() => onNavigate('/creator-hub')}>
+                          Open the creator hub →
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
+                {creator?.profile.socialLinks && (
+                  <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+                    {creator.profile.socialLinks.youtube && <a className="chip chip-info" href={creator.profile.socialLinks.youtube} target="_blank" rel="noreferrer" onClick={e => { e.preventDefault(); openExternal(creator.profile.socialLinks!.youtube!) }}>▶ YouTube</a>}
+                    {creator.profile.socialLinks.instagram && <a className="chip chip-info" href={creator.profile.socialLinks.instagram} target="_blank" rel="noreferrer" onClick={e => { e.preventDefault(); openExternal(creator.profile.socialLinks!.instagram!) }}><InlineIcon icon={Camera} size={12} gap={3} />Instagram</a>}
+                  </div>
+                )}
+                {creator && (
+                  <a className="btn btn-outline btn-sm" style={{ marginTop: 12 }} {...appLink(`#/creator/${creator.id}`)}>
+                    More from {creator.profile.name} →
+                  </a>
+                )}
               </div>
-              {creator?.profile.socialLinks && (
-                <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
-                  {creator.profile.socialLinks.youtube && <a className="chip chip-info" href={creator.profile.socialLinks.youtube} target="_blank" rel="noreferrer" onClick={e => { e.preventDefault(); openExternal(creator.profile.socialLinks!.youtube!) }}>▶ YouTube</a>}
-                  {creator.profile.socialLinks.instagram && <a className="chip chip-info" href={creator.profile.socialLinks.instagram} target="_blank" rel="noreferrer" onClick={e => { e.preventDefault(); openExternal(creator.profile.socialLinks!.instagram!) }}><InlineIcon icon={Camera} size={12} gap={3} />Instagram</a>}
-                </div>
-              )}
-              {creator && (
-                <a className="btn btn-outline btn-sm" style={{ marginTop: 12 }} {...appLink(`#/creator/${creator.id}`)}>
-                  More from {creator.profile.name} →
-                </a>
-              )}
             </div>
 
             {/* ---- Day-by-day (free vs premium) ---- */}
@@ -447,51 +453,61 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
 
             {/* ---- Tips & warnings ---- */}
             <div className="two-col two-col--even" style={{ marginTop: 16 }}>
-              <div className="card">
-                <h2>Travel tips</h2>
-                <hr className="divider" />
-                <ul style={{ paddingLeft: 18, lineHeight: 1.9, margin: 0 }}>
-                  {pub.travelTips.map((t, i) => <li key={i}>{t}</li>)}
-                </ul>
+              <div className="bezel">
+                <div className="card">
+                  <h2>Travel tips</h2>
+                  <hr className="divider" />
+                  <ul style={{ paddingLeft: 18, lineHeight: 1.9, margin: 0 }}>
+                    {pub.travelTips.map((t, i) => <li key={i}>{t}</li>)}
+                  </ul>
+                </div>
               </div>
-              <div className="card">
-                <h2>Warnings & assumptions</h2>
-                <hr className="divider" />
-                <ul style={{ paddingLeft: 18, lineHeight: 1.9, margin: 0 }}>
-                  {pub.warningsAndAssumptions.map((t, i) => <li key={i}><InlineIcon icon={TriangleAlert} size={12} gap={3} />{t}</li>)}
-                </ul>
+              <div className="bezel">
+                <div className="card">
+                  <h2>Warnings & assumptions</h2>
+                  <hr className="divider" />
+                  <ul style={{ paddingLeft: 18, lineHeight: 1.9, margin: 0 }}>
+                    {pub.warningsAndAssumptions.map((t, i) => <li key={i}><InlineIcon icon={TriangleAlert} size={12} gap={3} />{t}</li>)}
+                  </ul>
+                </div>
               </div>
             </div>
           </div>
 
           {/* ---- Sidebar ---- */}
           <div>
-            <div className="card" style={{ position: 'sticky', top: 80 }}>
-              <h2>Take this trip with you</h2>
-              <p className="hint-text" style={{ margin: '8px 0 14px' }}>
-                Forks the free preview into your YatraFlow account — locked days come over as placeholders you can fill in yourself.
-              </p>
-              <button className="btn fork-btn btn-lg" style={{ width: '100%' }} onClick={copyThis}>
-                <InlineIcon icon={GitFork} size={15} gap={5} />{me ? 'Fork this trip' : 'Log in to fork'}
-              </button>
-              {price !== undefined && !unlocked && <button className="btn btn-saffron btn-lg" style={{ width: '100%', marginTop: 10 }}
-                disabled={buying} onClick={unlockThis}>
-                <InlineIcon icon={Lock} size={15} gap={5} />{buying ? 'Opening payments…' : <>Unlock full plan · {formatInr(price)}</>}
-              </button>}
-              {price !== undefined && unlocked && <p className="hint-text" style={{ textAlign: 'center', marginTop: 10 }}>
-                ✓ Full plan unlocked — forking carries every day as a real, editable plan.
-              </p>}
-              {/* Which days stay back is read from the publication's own freeDayIndexes
-                  rather than assumed to be the tail — a live ₹500 publication kept days
-                  9–10 free, so the older sentence contradicted the page. The clause is
-                  appended as the module writes it; capitalising belongs to CSS, not here. */}
-              {previewSplit && !unlocked && <p className="hint-text" style={{ textAlign: 'center', marginTop: 8 }}>
-                Preview: {previewSplit.claim}.
-              </p>}
-              {pub.subscriberCta && <p className="hint-text" style={{ textAlign: 'center', marginTop: 8 }}>{pub.subscriberCta}</p>}
-              <hr className="divider" />
-              <div className="share-link-box"><code>{shareLink}</code><CopyButton text={shareLink} label="Copy page link" /></div>
-              {!me && <p className="hint-text" style={{ marginTop: 10 }}>You’ll need a free account to fork trips.</p>}
+            {/* Sticky lives on the TRAY, not the plate. A sticky element sticks
+                within its containing block, so leaving it on the inner card - now
+                the tray's only child, and exactly as tall as the tray - would give
+                it no room to move. */}
+            <div className="bezel" style={{ position: 'sticky', top: 80 }}>
+              <div className="card">
+                <h2>Take this trip with you</h2>
+                <p className="hint-text" style={{ margin: '8px 0 14px' }}>
+                  Forks the free preview into your YatraFlow account — locked days come over as placeholders you can fill in yourself.
+                </p>
+                <button className="btn fork-btn btn-lg" style={{ width: '100%' }} onClick={copyThis}>
+                  <InlineIcon icon={GitFork} size={15} gap={5} />{me ? 'Fork this trip' : 'Log in to fork'}
+                </button>
+                {price !== undefined && !unlocked && <button className="btn btn-saffron btn-lg" style={{ width: '100%', marginTop: 10 }}
+                  disabled={buying} onClick={unlockThis}>
+                  <InlineIcon icon={Lock} size={15} gap={5} />{buying ? 'Opening payments…' : <>Unlock full plan · {formatInr(price)}</>}
+                </button>}
+                {price !== undefined && unlocked && <p className="hint-text" style={{ textAlign: 'center', marginTop: 10 }}>
+                  ✓ Full plan unlocked — forking carries every day as a real, editable plan.
+                </p>}
+                {/* Which days stay back is read from the publication's own freeDayIndexes
+                    rather than assumed to be the tail — a live ₹500 publication kept days
+                    9–10 free, so the older sentence contradicted the page. The clause is
+                    appended as the module writes it; capitalising belongs to CSS, not here. */}
+                {previewSplit && !unlocked && <p className="hint-text" style={{ textAlign: 'center', marginTop: 8 }}>
+                  Preview: {previewSplit.claim}.
+                </p>}
+                {pub.subscriberCta && <p className="hint-text" style={{ textAlign: 'center', marginTop: 8 }}>{pub.subscriberCta}</p>}
+                <hr className="divider" />
+                <div className="share-link-box"><code>{shareLink}</code><CopyButton text={shareLink} label="Copy page link" /></div>
+                {!me && <p className="hint-text" style={{ marginTop: 10 }}>You’ll need a free account to fork trips.</p>}
+              </div>
             </div>
           </div>
         </div>

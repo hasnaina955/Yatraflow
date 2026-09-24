@@ -193,8 +193,40 @@
      --bottom-ui-offset, because the dock consumes that offset itself. */
   --dock-h: 0px;
   --bottom-ui-offset: calc(var(--shell-nav-h) + var(--safe-bottom));
-  --font-display: 'Sora', 'Inter', system-ui, sans-serif;
-  --font-body: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-display: 'Sora', 'Plus Jakarta Sans', system-ui, sans-serif;
+  --font-body: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  /* Icon stroke weight. Lucide ships 2 as a presentation attribute on every
+     glyph; the app's icon grammar is hairline geometry - at the 14-20px the UI
+     renders at, 2 reads as clip-art. One token, consumed by the .lucide base
+     rule near the type rules, so a denser surface can step it deliberately. */
+  --icon-stroke: 1.5;
+  /* ---- Landing display scale + macro-whitespace ----
+     The marketing page is the one surface that is deliberately editorial rather
+     than app-scale: its headline is the largest type on the site and its
+     sections breathe in tens of px, not the 8-24 ladder. The hero's size,
+     leading and tracking were an inline clamp() in the page, which invited
+     exactly the drift the three values now can't have; the section gaps were
+     inline 60/70 literals. Kept in tokens because the spacing gate reads
+     literals - a `padding: 132px` would be a ratchet violation, a token
+     consumed by var() is not, which is how the ladder's law is scoped. */
+  /* Ceilings are deliberately moderate. The real hero headline is a long
+     sentence ("Plan trips that actually flow together") in a ~570px column, so a
+     5rem-class display size wraps to five lines and pushes the whole hero tall.
+     These keep the mobile floor and the leading exactly as they were and lift
+     the desktop ceiling only - the safe half of the scale change. */
+  --landing-hero-size: clamp(2.4rem, 5.4vw, 4.35rem);
+  --landing-hero-leading: 1.02;
+  --landing-hero-tracking: -.03em;
+  --landing-title-size: clamp(1.8rem, 3.2vw, 2.7rem);
+  --landing-section-pad: 132px;
+  /* The rhythm INSIDE a public surface - between its editorial blocks and between
+     its day blocks - as opposed to the section pad BETWEEN surfaces. One token
+     so Tier A surfaces share a beat. A token, not a literal: the spacing ratchet
+     reads literals and would reject a raw 40px; it ignores custom properties.
+     (The plan's `--landing-*` -> `--surface-*` rename is deliberately NOT done
+     here: it churns the landed Landing commit for no behaviour change, and it is
+     still an open question for the owner.) */
+  --surface-block-gap: 40px;
 }
 
 [data-theme='dark'] {
@@ -436,6 +468,15 @@ html { overflow-x: clip; }
   background: linear-gradient(150deg, var(--yf-navy), #0B2545 88%);
   color: #fff;
   box-shadow: 0 30px 60px rgba(var(--shadow-navy-rgb),.28);
+  /* The generic `.card` border is a warm light grey (--line, #E4DCCC). On the
+     white cards around it that reads as a normal card edge; on THIS dark navy
+     plate the same hairline reads as an unwanted grey outline hugging the card.
+     The rule above already exists at (0,2,0) because `.card`'s background
+     shorthand is declared later and would strip the gradient - the border was
+     the other half of that inheritance and was overlooked. Transparent rather
+     than removed so the box model (and the 1px the card's size accounts for) is
+     unchanged; the gradient and the shadow define this card's edge. */
+  border-color: transparent;
 }
 .route-snap::before {
   content: ''; position: absolute; inset: 0; pointer-events: none;
@@ -511,6 +552,15 @@ p, .hint-text { text-wrap: pretty; }
 a { color: var(--teal-deep); text-decoration: none; }
 button { font-family: var(--font-body); cursor: pointer; color: inherit; }
 input, select, textarea { font-family: var(--font-body); font-size: 14.5px; color: var(--text); }
+/* ---------- Icon weight: one rule, every glyph ---------- */
+/* Lucide emits `stroke-width="2"` as a PRESENTATION ATTRIBUTE, and a CSS
+   declaration outranks a presentation attribute - so this single rule re-inks
+   all ~291 icon tags in the app instead of carrying a prop on each usage.
+   Hand-authored decorative SVG (road lines, gauges, travel motifs) sets its own
+   literal weight and is deliberately untouched. Pinned in
+   tests/design-system.test.ts ("icon stroke weight is a token, not a library
+   default") so it cannot silently drift back to the stock weight. */
+.lucide { stroke-width: var(--icon-stroke); }
 
 .app-shell { min-height: 100vh; display: flex; flex-direction: column;
   /* Edge-to-edge (Android 15, iPhone): the gesture bar overlays the last
@@ -549,11 +599,21 @@ input, select, textarea { font-family: var(--font-body); font-size: 14.5px; colo
 .pill-nav { position: relative; display: flex; gap: 2px; }
 .pill-nav > * { position: relative; z-index: 1; }
 .pill-glider {
-  position: absolute; left: 0; width: 0; z-index: 0;
+  position: absolute; left: 0; top: 0; width: 0; z-index: 0;
   border-radius: 999px; background: var(--teal-soft);
-  transition: left var(--motion-med) var(--ease-glide), width var(--motion-med) var(--ease-glide),
-    top var(--motion-med) var(--ease-glide), height var(--motion-med) var(--ease-glide), opacity var(--motion-fast) var(--ease-glide),
-    background var(--motion-fast) var(--ease-glide);
+  /* The glide animates this element's own BOX, and deliberately NOT a transform.
+     A `scaleX` FLIP cannot resize a rounded pill without stretching its ends into
+     ellipses - at a 76px -> 146px tab change that is scaleX 1.93 - which reads as
+     the animation breaking rather than the pill gliding.
+     The box is also not the layout cost it looks like: the glider is absolutely
+     positioned, so its own box cannot reflow its siblings; the work is this one
+     element's layout and paint.
+     MOTION-TOKENS.md's catalog row described this as a "thumb `transform` slide";
+     that was wrong about the implementation, and is corrected there rather than
+     making the pill pay for the doc. */
+  transition: left var(--motion-med) var(--ease-glide), top var(--motion-med) var(--ease-glide),
+    width var(--motion-med) var(--ease-glide), height var(--motion-med) var(--ease-glide),
+    opacity var(--motion-fast) var(--ease-glide), background var(--motion-fast) var(--ease-glide);
   pointer-events: none;
 }
 [data-theme='dark'] .pill-glider { background: var(--teal); }
@@ -625,6 +685,14 @@ a.btn { text-decoration: none; }
    whole calculator overflowed on a common Android width). Word-pair labels at
    `lg` are unaffected — they never reach the wrap point. */
 .btn-lg { padding: 12px 24px; font-size: 15.5px; white-space: normal; }
+/* Button-in-button (landing hero): the trailing glyph rides its own circular
+   housing, flush with the button's right inner padding, and shifts diagonally on
+   hover so the button carries internal kinetic tension instead of only a fill
+   change. Declared after .btn-lg so it owns the right padding at equal
+   specificity rather than needing !important. */
+.btn-trail { padding-right: 6px; }
+.btn-trail-icon { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 50%; background: rgba(255, 255, 255, .18); transition: transform var(--motion-med) var(--ease-out), background var(--motion-fast) var(--ease-out); }
+.btn-trail:hover .btn-trail-icon { transform: translate3d(2px, -2px, 0) scale(1.06); background: rgba(255, 255, 255, .28); }
 .icon-btn {
   display:inline-flex; align-items:center; justify-content:center;
   width: 40px; height: 40px; border-radius: 50%;
@@ -1833,9 +1901,33 @@ button.board-col-zone--add:active { transform: translateY(1px); }
 .hero-adventure > * { position: relative; }
 .ha-kicker { opacity: .75; /* type specs: the kicker-unification block (var(--kicker-*)) */ }
 .ha-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 14px 0 8px; }
-.ha-stats > div { background: rgba(255,255,255,.09); border: 1px solid rgba(255,255,255,.14); border-radius: 10px; padding: 8px 10px; }
+/* The stat tiles read as MACHINED PANELS, not wireframe boxes. They used
+   `border: 1px solid rgba(255,255,255,.14)` on a 9% white fill: because the fill
+   is barely visible on the forced-dark navy, the hairline floated free as a grey
+   outline around each tile - the generic 1px border the high-end standard bans
+   outright. The border is now transparent (same box model, so nothing reflows),
+   the fill carries the shape, and an inset top sheen supplies the machined edge
+   that the outline was faking. */
+.ha-stats > div { background: rgba(255,255,255,.11); border: 1px solid transparent; border-radius: 10px; padding: 8px 10px; box-shadow: inset 0 1px 0 rgba(255,255,255,.16); }
 .ha-stats b { display: block; font-family: var(--font-display); font-size: 15px; font-variant-numeric: tabular-nums; }
-.ha-stats span { font-size: 9.5px; letter-spacing: .06em; text-transform: uppercase; opacity: .72; font-weight: 700; }
+/* The three tiles must read as one row, so the label block is a consistent two
+   lines. "est. per person" cannot fit on one line in a 79px content box at the
+   shared 10.5px kicker size - it measures ~100px - and it is the only label that
+   wraps, which made its tile read as a different kind of cell from its two
+   neighbours. Reserving the same two-line block on all three evens the row
+   without touching the copy and without overriding the kicker recipe: the
+   "estimated" qualifier is load-bearing (this product sells honest numbers, and
+   the public page's own stats card says "estimated per traveller"), and a local
+   px size would break the kicker unification the design-system gate pins.
+   `line-height: 1.6` and `min-height: 3.2em` are those two lines made explicit:
+   the em is font-relative so it tracks the token, and the leading is declared
+   here because the kicker recipe pins only size, weight and tracking - it says
+   nothing about line-height, so this adds rather than overrides. (A first attempt
+   used min-height: 2.4em off an assumed 1.2 leading; the measured label was
+   33px tall, so the block still did not match and the row stayed uneven.) It
+   costs no height: the wrapping tile already set this row's height, so the other
+   two simply fill their share of it. */
+.ha-stats span { font-size: 9.5px; letter-spacing: .06em; text-transform: uppercase; opacity: .72; font-weight: 700; display: block; line-height: 1.6; min-height: 3.2em; }
 .ha-row { display: grid; grid-template-columns: 1.4fr 1fr; gap: 8px; margin-top: 8px; }
 .ha-warn { background: #FFF4E4; color: #3A2506; border-radius: 10px; padding: 8px 11px; font-size: 12px; font-weight: 700; }
 .ha-warn span { display: block; font-weight: 500; font-size: 11px; opacity: .8; }
@@ -1851,13 +1943,66 @@ button.board-col-zone--add:active { transform: translateY(1px); }
 .hero-ctas { display: flex; gap: 11px; justify-content: center; flex-wrap: wrap; }
 
 /* Landing section headings & grids */
-.section-title { font-size: clamp(1.45rem, 3vw, 1.9rem); text-align: center; margin: 46px auto 6px; max-width: 620px; }
+.section-title { font-size: var(--landing-title-size); line-height: 1.08; letter-spacing: -.02em; text-align: center; margin: 46px auto 6px; max-width: 620px; }
+/* The hero headline is the largest type on the site. It reads size, leading and
+   tracking from the landing tokens rather than carrying an inline clamp(), so
+   the three can no longer drift apart one edit at a time. */
+.hero-title { font-size: var(--landing-hero-size); line-height: var(--landing-hero-leading); letter-spacing: var(--landing-hero-tracking); margin: 18px 0 14px; }
 /* Bento, not three equal cards: one tall photo cell beside two stacked cells.
    Three items, three cells, no empty tile. Collapses to one column at 980px. */
 .feature-strip { display: grid; grid-template-columns: 1.2fr 1fr; gap: 14px; margin: 0 0 44px; }
 .feature-bento > .feature-card:first-child { grid-row: span 2; }
-.feature-card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 21px; box-shadow: var(--shadow-sm); transition: transform var(--t-fast) var(--ease-out), box-shadow var(--t-fast) var(--ease-out); }
-.feature-card:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(var(--shadow-navy-rgb),.06), 0 16px 40px rgba(var(--shadow-navy-rgb),.12); }
+/* ---------- Double-Bezel: the shared tray + plate ----------
+   A machined card is a PLATE sitting in a TRAY. This is the pair used by the
+   surfaces whose plate is a `.card` (Explore's grid and the creator pages via
+   PubCard) - the landing's `.feature-card`/`.feature-core` below is the same
+   idea written bespoke for its photo cell.
+   CONCENTRIC is the whole point: the plate's radius is the tray's minus the
+   tray's inset (6px padding + 1px border = 7px), so the two curves stay
+   parallel rather than merely both being round. `border-color: transparent`
+   because the tray's own hairline is the only line the eye should read - the
+   plate inheriting `.card`'s border is what produced a grey outline on the
+   public itinerary.
+   CANVAS CAVEAT, learned the hard way on that page: this reads as a tray when
+   the tray's fill differs from what is behind it. `--yf-glass` is white/58 over
+   the cream canvas, so the band is subtle here; on the near-white paper sheet a
+   tray had to be a darker tint and then read as a wireframe outline instead, so
+   the bezel was dropped there rather than forced. */
+.bezel {
+  display: flex; flex-direction: column;
+  padding: 6px; border-radius: 2rem;
+  background: var(--yf-glass); border: 1px solid var(--yf-glass-border);
+  /* NO outer hairline, deliberately. The first cut carried the landing's
+     `0 0 0 1px rgba(navy,.05)` ring; measured against this canvas the tray FILL
+     is imperceptible - cream #F8F7EF -> 58% white = #FBFAF7, a 1.3% step, then
+     the plate adds another 1.3% to pure white - so the only part of the tray the
+     eye actually caught was that 1px line, which is the "grey outline" reading
+     we already rejected on the public itinerary. On a light canvas a tray has to
+     be defined by DEPTH, not by tone or by a line: the diffuse ambient shadow
+     below is what makes it read as a slab the plate sits in. */
+  box-shadow: var(--shadow-soft);
+}
+.bezel > .card {
+  flex: 1;
+  border-color: transparent;
+  border-radius: calc(2rem - 7px);
+  box-shadow: inset 0 1px 0 var(--yf-glass-sheen);
+}
+
+/* ---------- Double-Bezel feature card (landing) ----------
+   The cell is machined hardware rather than a flat tile: an outer tray
+   (translucent fill, hairline ring, oversized radius, diffuse depth) holding an
+   inner plate with its own surface and its own top highlight. The plate's radius
+   is the tray's MINUS the tray's inset, so the two curves stay concentric -
+   that relationship is the whole point of the pattern, and it is why the radius
+   is a calc() rather than a second literal. A 1px-border card on a single
+   shadow is the template look this replaces.
+   The tray fill and the plate's highlight are the existing glass tokens, NOT
+   light literals: --yf-glass is white/58 in light and #101B2B/58 in dark, so the
+   tray is correct in both themes without a second [data-theme] rule. */
+.feature-card { display: flex; flex-direction: column; background: var(--yf-glass); border: 1px solid var(--yf-glass-border); border-radius: var(--radius-lg); padding: 6px; box-shadow: 0 0 0 1px rgba(var(--shadow-navy-rgb), .05), var(--shadow-soft); transition: transform var(--t-fast) var(--ease-out), box-shadow var(--t-fast) var(--ease-out); }
+.feature-card:hover { transform: translateY(-2px); box-shadow: 0 0 0 1px rgba(var(--shadow-navy-rgb), .05), 0 4px 8px rgba(var(--shadow-navy-rgb), .06), 0 20px 48px rgba(var(--shadow-navy-rgb), .16); }
+.feature-core { display: flex; flex-direction: column; height: 100%; padding: 16px; border-radius: calc(var(--radius-lg) - 7px); background: var(--card); box-shadow: inset 0 1px 0 var(--yf-glass-sheen); }
 .feature-card h3 { font-size: 15.5px; }
 .feature-ico { width: 42px; height: 42px; border-radius: 12px; background: var(--teal-soft); display: flex; align-items: center; justify-content: center; font-size: 20px; margin-bottom: 12px; }
 .feature-card p { font-size: 13.5px; color: var(--text-2); margin-top: 6px; line-height: 1.55; }
@@ -1946,6 +2091,9 @@ button.board-col-zone--add:active { transform: translateY(1px); }
   border-color: transparent;
   color: #fff;
 }
+/* The photo IS the tray's fill, so this card's plate must not paint over it:
+   the core keeps its layout and its inset and drops only its surface. */
+.feature-bento .feature-photo .feature-core { background: transparent; box-shadow: none; }
 .feature-bento .feature-photo h3 { color: #fff; }
 .feature-bento .feature-photo p { color: rgba(255, 255, 255, .85); }
 .feature-bento .feature-photo .feature-ico { background: rgba(255, 255, 255, .16); color: #fff; }
@@ -1973,8 +2121,13 @@ button.board-col-zone--add:active { transform: translateY(1px); }
 .fp-warn span { display: block; font-weight: 500; font-size: 10.5px; opacity: .85; margin-top: 1px; }
 .fp-tip { background: #E5F4EE; color: #0C4A42; border-radius: 8px; padding: 6px 8px; font-size: 11px; font-weight: 800; margin-top: 6px; line-height: 1.3; }
 .fp-tip span { display: block; font-weight: 500; font-size: 10.5px; opacity: .85; margin-top: 1px; }
-.feature-bento .feature-tint { background: var(--yf-teal-100); border-color: color-mix(in srgb, var(--yf-teal-600) 22%, transparent); }
-[data-theme='dark'] .feature-bento .feature-tint { background: #12332F; border-color: rgba(255, 255, 255, .12); }
+/* The tint belongs to the PLATE, not the tray. `.feature-bento .feature-tint`
+   out-specifies `.feature-card`, so painting it on the tray would fill the tray
+   and leave a white plate inside a mint frame - losing the per-cell surface
+   variety this strip is built on (photo / tinted / plain). Every tray stays
+   glass; only the plate's surface changes. */
+.feature-bento .feature-tint .feature-core { background: var(--yf-teal-100); }
+[data-theme='dark'] .feature-bento .feature-tint .feature-core { background: #12332F; }
 
 /* ---------- Explore cards ---------- */
 .explore-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 16px; }
@@ -2242,7 +2395,7 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
   max-width: 190mm;
 }
 
-/* Same type system as the app — Sora headings, Inter body — so the printed
+/* Same type system as the app - Sora headings, Plus Jakarta Sans body - so the printed
    cards read as YatraFlow. system-ui fallbacks cover offline printing where
    the Google-Fonts files aren't cached. */
 .pr-sheet { font: 10.5pt/1.5 var(--font-body); color: #1a2433; }
@@ -3524,6 +3677,45 @@ body, .topnav, .glass, .board, .modal, .toast {
 
 /* ---------- M7: editorial paper sheet + actions (public itinerary) ---------- */
 .pub-body { padding-top: 0; position: relative; }
+/* ---------- Double-Bezel as a ring tray ----------
+   A machined card is a PLATE sitting in a TRAY. Here the tray is drawn with
+   box-shadow SPREAD instead of a nested wrapper element:
+
+     0 0 0 6px   the tray fill      (what a wrapper's `padding: 6px` band does)
+     0 0 0 7px   the tray hairline  (what a wrapper's `border: 1px` does)
+     inset ...   the plate's own top highlight
+
+   A spread shadow grows a rounded rect CONCENTRICALLY - the browser expands the
+   corner radius by the spread - so the two curves stay parallel exactly as the
+   nested version's `calc(tray radius - inset)` does.
+   What this avoids is wrapping five cards in a new element: that would re-indent
+   ~70 lines of a 617-line page another branch may still be touching, and it would
+   break the sidebar card's `position: sticky` (a sticky element sticks within its
+   containing block, so a wrapper the same height as the card leaves it no room
+   to move). Zero markup restructuring, one class name per card.
+   The landing's `.feature-card`/`.feature-core` uses true nesting because its
+   photo fill must not be covered by a plate. If a later surface wants nesting,
+   promote THAT pair rather than growing a third variant. */
+/* The Double-Bezel was tried here as a ring tray (a 6px + 1px box-shadow band)
+   on the five content cards, and REVERTED - it is canvas-dependent and this
+   canvas defeats it. On the landing the tray sits on a mint/peach gradient, so
+   the band reads as a machined tray; on this near-white paper sheet the same
+   5% navy band reads as a grey WIREFRAME OUTLINE around every card, and because
+   these cards already carry their own border and soft shadow the eye got two
+   outlines per card. In the two-column gutters two 7px rings also left only 4px
+   of clear space (left column ended 1154, sidebar began 1172), so the rings
+   nearly merged. A bezel needs a tinted canvas to sit on; on a white sheet the
+   card's own shadow is the better depth cue. Do not re-add it here without
+   changing the canvas. */
+/* The rhythm INSIDE the surface is what this surface actually gained. Every
+   selector is scoped (`.pub-body ...`) rather than bare, because two of these
+   classes are shared with dense in-app editors: `.day-section` is the in-app
+   timeline's own class (trip/timeline/DaySection.tsx) and keeps its tighter 22px
+   beat, and `.pub-editorial` already declares a margin-bottom that a
+   same-specificity rule could not outrank. */
+.pub-body > .two-col { margin-top: var(--surface-block-gap); }
+.pub-body .day-section + .day-section { margin-top: var(--surface-block-gap); }
+.pub-body .pub-editorial { margin-bottom: var(--surface-block-gap); }
 .paper-sheet {
   border-radius: var(--radius-lg); margin-top: 0; padding: 20px 24px 24px; position: relative;
   background: linear-gradient(180deg, var(--yf-surface), color-mix(in srgb, var(--yf-cream) 70%, var(--yf-surface)));
@@ -4591,11 +4783,26 @@ html.vt-active :where(*) {
 /* Hidden state is only applied once the observer is live (body.reveal-armed), so
    content stays visible if JS is off or JS hasn't run yet. */
 @media (prefers-reduced-motion: no-preference) {
+  /* The entrance resolves out of a blur rather than only fading: over 36px of
+     travel a bare rise reads as a slide, and the defocus is what gives it mass.
+     The duration is --motion-slower, the largest step in the catalog - an
+     entrance that spans a whole section is the one move here meant to be slow.
+     (It was a raw .75s, outside the token set.) */
   body.reveal-armed .reveal {
-    opacity: 0; transform: translateY(36px) scale(.97);
-    transition: opacity .75s var(--ease-out), transform .75s var(--ease-out);
+    opacity: 0; transform: translateY(36px) scale(.97); filter: blur(8px);
+    transition: opacity var(--motion-slower) var(--ease-out), transform var(--motion-slower) var(--ease-out),
+      filter var(--motion-slower) var(--ease-out);
   }
-  body.reveal-armed .reveal.io-inview { opacity: 1; transform: none; }
+  body.reveal-armed .reveal.io-inview { opacity: 1; transform: none; filter: blur(0); }
+}
+/* The defocus is a filter pass over a whole section - the only part of this
+   entrance that costs the compositor real work - so a coarse pointer keeps the
+   rise and drops the blur, the same trade the atmosphere blobs and the ticker
+   already make on phones. Both states are neutralised so the element never
+   becomes a filter layer there at all. */
+@media (pointer: coarse) {
+  body.reveal-armed .reveal,
+  body.reveal-armed .reveal.io-inview { filter: none; }
 }
 /* heading underline draws itself past the fold */
 .reveal-underline { position: relative; display: inline-block; }
@@ -4675,7 +4882,21 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
   .steps-route { grid-template-columns: repeat(2, 1fr); gap: 24px 14px; }
   .steps-route::before { display: none; }
 }
-/* Under 720 the steps become a vertical timeline: the dashed road turns the
+/* ---- hero display type at phone width ----
+   The hero's leading is calibrated for its 4.35rem desktop size. At phone width
+   the same clamp() bottoms out on the 2.4rem floor while the RATIO is unchanged,
+   so 38.4px type received 39.17px line boxes against 48px glyph boxes and the
+   three headline lines collided (measured at 390px: 38.4px / 39.168px / -1.152px).
+   Tight display leading reads as editorial at 70px and as a rendering bug at
+   38px, so it loosens as the type shrinks. Done through the tokens rather than
+   a .hero-title rule so the size, leading and tracking stay one declaration and
+   cannot drift apart one edit at a time. */
+@media (max-width: 720px) {
+  :root { --landing-hero-leading: 1.14; --landing-hero-tracking: -.012em; }
+}
+
+/* ---- <=720px: steps route becomes a vertical timeline ----
+   Under 720 the steps become a vertical timeline: the dashed road turns the
    corner and runs down the left edge, through the roundels. */
 @media (max-width: 720px) {
   .steps-route { grid-template-columns: 1fr; gap: 22px; margin-top: 24px; }

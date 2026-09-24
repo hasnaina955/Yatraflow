@@ -25,52 +25,58 @@ export function PubCard({ pub, creator, saved, onFork, onToggleSave, enterIndex,
   needsLogin?: boolean
 }) {
   return (
+    /* Double-Bezel: this element is the TRAY, the .card inside it is the PLATE.
+       The entrance stagger rides the tray rather than the plate, so the whole
+       bezel animates as one object instead of an empty tray appearing first and
+       its plate fading in inside it. */
     <div
-      className={`card itin-card${enterIndex != null ? ' trip-enter' : ''}`}
+      className={`bezel${enterIndex != null ? ' trip-enter' : ''}`}
       style={enterIndex != null ? { animationDelay: `calc(var(--stagger-step) * ${Math.min(enterIndex, 8)})` } : undefined}
     >
-      <button className="save-heart" aria-pressed={saved} aria-label={saved ? 'Remove from saved' : 'Save itinerary'}
-        onClick={onToggleSave}><Heart size={13} aria-hidden fill={saved ? 'currentColor' : 'none'} /></button>
-      <a className="trip-card-hit" href={`#/pub/${pub.id}`}>
-        <CoverThumb
-          trip={{ name: pub.title, destinations: pub.routeSummary }}
-          explicitUrl={pub.coverImageUrl}
-          emoji="🧭"
-          routeLabel={`${pub.routeSummary[0]} → ${pub.routeSummary[pub.routeSummary.length - 1]}`}
-        />
-        <div className="itin-body">
-          <div className="row-between" style={{ marginTop: 0 }}>
-            <Chip tone="teal">{cap(pub.travelStyle)}</Chip>
-            <span className="small muted"><InlineIcon icon={GitFork} size={12} gap={3} />{pub.copies}</span>
+      <div className="card itin-card">
+        <button className="save-heart" aria-pressed={saved} aria-label={saved ? 'Remove from saved' : 'Save itinerary'}
+          onClick={onToggleSave}><Heart size={13} aria-hidden fill={saved ? 'currentColor' : 'none'} /></button>
+        <a className="trip-card-hit" href={`#/pub/${pub.id}`}>
+          <CoverThumb
+            trip={{ name: pub.title, destinations: pub.routeSummary }}
+            explicitUrl={pub.coverImageUrl}
+            emoji="🧭"
+            routeLabel={`${pub.routeSummary[0]} → ${pub.routeSummary[pub.routeSummary.length - 1]}`}
+          />
+          <div className="itin-body">
+            <div className="row-between" style={{ marginTop: 0 }}>
+              <Chip tone="teal">{cap(pub.travelStyle)}</Chip>
+              <span className="small muted"><InlineIcon icon={GitFork} size={12} gap={3} />{pub.copies}</span>
+            </div>
+            <h2 className="card-title">{pub.title}</h2>
+            <p className="small muted" style={{ margin: 0 }}>{pub.tagline}</p>
+            <div className="stop-meta" style={{ marginTop: 2 }}>
+              <span><MetaIcon icon={ Calendar } tone="time" />{pub.durationDays} days</span>
+              <span><MetaIcon icon={ Wallet } tone="money" />~{formatInr(pub.estimatedBudgetPerPersonInr)}/person</span>
+              <span><MetaIcon icon={ MapPin } tone="place" />{pub.routeSummary.length} places</span>
+            </div>
           </div>
-          <h2 className="card-title">{pub.title}</h2>
-          <p className="small muted" style={{ margin: 0 }}>{pub.tagline}</p>
-          <div className="stop-meta" style={{ marginTop: 2 }}>
-            <span><MetaIcon icon={ Calendar } tone="time" />{pub.durationDays} days</span>
-            <span><MetaIcon icon={ Wallet } tone="money" />~{formatInr(pub.estimatedBudgetPerPersonInr)}/person</span>
-            <span><MetaIcon icon={ MapPin } tone="place" />{pub.routeSummary.length} places</span>
-          </div>
-        </div>
-      </a>
-      <div className="row-between itin-meta">
-        <a className="creator-line" href={`#/creator/${pub.creatorId}`} aria-label={`View ${creator?.profile.name ?? 'creator'}'s page`}>
-          <Avatar user={creator} />{creator?.profile.name ?? 'Creator'}{creator?.profile.isCreator && <InlineIcon icon={Sparkles} size={12} gap={0} style={{ marginLeft: 2 }} />}
         </a>
-        <button className="btn btn-primary btn-sm" onClick={onFork}>{needsLogin ? 'Log in to fork' : 'Fork this trip'}</button>
-      </div>
-      {creator?.profile.isCreator && (creator.profile.creatorBio || creator.profile.socialLinks?.youtube || creator.profile.socialLinks?.instagram) && (
-        <div className="row-between itin-foot" style={{ gap: 8 }}>
-          <span className="small muted" style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{creator.profile.creatorBio}</span>
-          <span style={{ display: 'inline-flex', gap: 6, flexShrink: 0 }}>
-            {creator.profile.socialLinks?.youtube && (
-              <a href={creator.profile.socialLinks.youtube} target="_blank" rel="noreferrer noopener" aria-label={`${creator.profile.name} on YouTube`} className="icon-link" onClick={e => { e.preventDefault(); openExternal(creator.profile.socialLinks!.youtube!) }}><TvMinimalPlay size={14} aria-hidden /></a>
-            )}
-            {creator.profile.socialLinks?.instagram && (
-              <a href={creator.profile.socialLinks.instagram} target="_blank" rel="noreferrer noopener" aria-label={`${creator.profile.name} on Instagram`} className="icon-link" onClick={e => { e.preventDefault(); openExternal(creator.profile.socialLinks!.instagram!) }}><Camera size={14} aria-hidden /></a>
-            )}
-          </span>
+        <div className="row-between itin-meta">
+          <a className="creator-line" href={`#/creator/${pub.creatorId}`} aria-label={`View ${creator?.profile.name ?? 'creator'}'s page`}>
+            <Avatar user={creator} />{creator?.profile.name ?? 'Creator'}{creator?.profile.isCreator && <InlineIcon icon={Sparkles} size={12} gap={0} style={{ marginLeft: 2 }} />}
+          </a>
+          <button className="btn btn-primary btn-sm" onClick={onFork}>{needsLogin ? 'Log in to fork' : 'Fork this trip'}</button>
         </div>
-      )}
+        {creator?.profile.isCreator && (creator.profile.creatorBio || creator.profile.socialLinks?.youtube || creator.profile.socialLinks?.instagram) && (
+          <div className="row-between itin-foot" style={{ gap: 8 }}>
+            <span className="small muted" style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{creator.profile.creatorBio}</span>
+            <span style={{ display: 'inline-flex', gap: 6, flexShrink: 0 }}>
+              {creator.profile.socialLinks?.youtube && (
+                <a href={creator.profile.socialLinks.youtube} target="_blank" rel="noreferrer noopener" aria-label={`${creator.profile.name} on YouTube`} className="icon-link" onClick={e => { e.preventDefault(); openExternal(creator.profile.socialLinks!.youtube!) }}><TvMinimalPlay size={14} aria-hidden /></a>
+              )}
+              {creator.profile.socialLinks?.instagram && (
+                <a href={creator.profile.socialLinks.instagram} target="_blank" rel="noreferrer noopener" aria-label={`${creator.profile.name} on Instagram`} className="icon-link" onClick={e => { e.preventDefault(); openExternal(creator.profile.socialLinks!.instagram!) }}><Camera size={14} aria-hidden /></a>
+              )}
+            </span>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

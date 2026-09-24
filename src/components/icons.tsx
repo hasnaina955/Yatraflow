@@ -31,7 +31,7 @@ export function CatIcon({ category, size = 15, className }: {
 }): ReactNode {
   const Icon = CATEGORY_ICONS[category ?? ''] ?? Camera
   return (
-    <Icon size={size} className={className} strokeWidth={2} aria-hidden />
+    <Icon size={size} className={className} strokeWidth={1.5} aria-hidden />
   )
 }
 

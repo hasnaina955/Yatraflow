@@ -1268,6 +1268,20 @@ by orphan check** (Sep 2026): the reported "802 orphan rows" turned out to be
   list, the banner summarises and does not restate every bullet (the `[0.42.0]`
   banner shipped stating its content three times and claiming a C5 that never
   existed — see `docs/history/README.md`).
+- **README release highlights are newest-first, and its evergreen lines rot
+  faster than any other doc's (learned 2026-09-24).** A release's "in plain
+  words" section inserts at the TOP of the highlights block (under the pointer
+  line) — v0.66's once sat between v0.60–61 and v0.55 while v0.62–v0.65 had no
+  section at all, and the tail below ran in no discernible order. The evergreen
+  claims rot just as fast: "six everyday modes" survived the move to eight, the
+  AI-companion bullet outlived its production flag, and "❌ Payments — no
+  gateway integration" outlived the Razorpay rail by four releases. When
+  touching evergreen lines (mode counts, flag-gated features, the MVP
+  constraint list, the structure block), re-derive them from the code — and
+  remember README is in `tests/doc-drift.test.ts`'s LIVE list with zero
+  registered claims, so new prose must avoid the gate's absence-cue phrasings.
+  Screenshots in `docs/screenshots/` need the same freshness check after any
+  visual pass — the v0.66 pass landed ten days after the last capture.
 - **`docs/README.md` is the doc index** — every new doc gets a row there
   (Diátaxis flavor: tutorials / how-to / reference / explanation — tag the
   row with which it is). Root stays lean: README, AGENTS, CONTRIBUTING,

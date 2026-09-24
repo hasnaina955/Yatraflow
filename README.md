@@ -43,7 +43,7 @@ A collaborative travel-planning web app, built India-first. Real multi-day itine
 
 #### 📍 Plan
 
-- **Create trips** — start + ordered destinations (real place autocomplete), dates, crew size, transport mode (six everyday modes incl. car rental and local trains), budget and travel style. The "Trip Ticket" starter prices your rough bill on demand and seeds the timeline with a starting outline
+- **Create trips** — start + ordered destinations (real place autocomplete), dates, crew size, transport mode (eight everyday modes incl. car rental and local trains), budget and travel style. The "Trip Ticket" starter prices your rough bill on demand and seeds the timeline with a starting outline
 - **Day-by-day timeline** — reorder / move stops between days, opening hours, priorities, route sparklines, collapsible headers
 - **One journey per day, however far you drive** — a real arrival clock, travelling strips for pure-travel legs, halts on any driving day, suggested real stop spots along the route
 - **Leg-aware insertion** — picking a place auto-fills road distance, travel time and fuel cost
@@ -84,7 +84,6 @@ A collaborative travel-planning web app, built India-first. Real multi-day itine
 - **Publish itineraries** to the public Explore gallery; readers copy any trip in one click
 - **Creators get a public page** — `#/creator/:id` gathers a creator's bio, links, track record and every itinerary they've published, shareable in one link
 - **Export / import** JSON, or a self-contained snapshot link (`#/share/<payload>`, zero server storage)
-- **AI companion drawer** — deterministic, trip-grounded answers that always cite assumptions
 
 </td>
 </tr>
@@ -92,9 +91,23 @@ A collaborative travel-planning web app, built India-first. Real multi-day itine
 
 ---
 
-## ✨ The v0.56 release, in one line
+_Release highlights, newest first — the full record lives in [CHANGELOG.md](CHANGELOG.md)._
 
-- **Trip settings became a first-class citizen.** The crew, dates, budget and vehicle controls moved out of Share into their own eighth workspace tab; every choice you set there — drivers, vulnerable passengers, after-dinner driving, the exact tank and economy of your bike or EV — now persists across reloads instead of silently reverting, re-derives every surface that depends on it (map suggestions, budget pacing, day plans) instead of serving stale ones, and matches Create Trip option-for-option. Blank tank or economy fields no longer write car numbers onto a motorcycle or an EV.
+## ✨ The v0.66 release, in plain words
+
+- **The creator hub became an operating picture.** It used to open on your settings; it now opens on how your work is doing — one ruled strip of lifetime figures, then a recorded-traffic trend (visits, forks and unlocks over 7, 30 or 90 days) drawn from the *same* derivation the table beneath it reads, so the chart and the rows can never describe different windows. Below that, one row per publication carries its funnel and its actions, and the creator profile moved into a disclosure at the foot of the page where it no longer owns the fold.
+- **The hub says what it doesn't know instead of printing a zero.** Unlocks come from the sales ledger, so an unread ledger leaves that stage *unknown* in the row and in the legend rather than showing "0", which would read as "nobody bought"; a window the log doesn't cover says so too. The trend takes keyboard focus and steps by day, a tap latches its readout instead of losing it on lift, and each row states its window ("in 30 days") and each rate its denominator ("11% of visits").
+- **Map search stopped answering with your own city.** A free-text search carried no spatial constraint, so Google applied its guess from your IP address and a lunch search returned what was near *you* rather than near the trip. Both search surfaces now run as Search-Along-Route over the trip's actual road, and the keyless fallback stack ranks its merged hits by distance to the corridor. The results also draw on the map as selectable teal pins that clear with the search box — the engine's own suggestions keep their dashed gold pin.
+- **The whole app took its high-end visual pass.** One typeface across every surface, one icon weight, and a pill navigation whose active indicator glides as a box instead of stretching as a shape, because the old flip visibly distorted the pill's rounded ends. The landing, the public itinerary and Explore gained the spacing and tray treatment the design plan called for, and the card you see when a link is pasted now renders in the app's own font again.
+
+## ✨ The v0.62–v0.65 run, in plain words
+
+- **Create Trip became a funnel, not a form.** Three numbered questions — Where / When / Who & how — with four curated India templates carrying engine-computed price bands, autosaved drafts you can resume, a readiness checklist that mirrors the submit rules, and a "moment after" screen that sends crew invites over WhatsApp, Telegram or SMS and opens the plan's first warnings.
+- **The app installs and reads offline.** Add it to your home screen or install the Android APK: trips stay readable on a dead connection through a service worker and an on-device snapshot, and edits made offline queue durably and sync when the network returns.
+- **The map gained a travel clock, and the crew gained presence.** The plan's position draws on the road as the day unfolds, collaborators see each other live, and a remote-edit banner plus a stale-update ledger replace silent clobbering. Decision cards carry their own comment threads, and the Balances card names the outstanding total with per-line mark-settled.
+- **Creators upload their own covers.** A publication's share card stopped depending on third-party image hosts: covers upload from the device, are resized before they leave it (a 1.3 MB photo becomes ~78 KB, measured), and auto-suggested covers are backfilled into our own storage.
+- **The AI companion learned to really answer.** Point it at an OpenAI-compatible endpoint (or the fast Jev router) and the drawer answers from it, with the deterministic offline router underneath — it rides behind a launch flag while it readies as the premium perk.
+- **Shared links became crawlable** — robots.txt and a live sitemap list every published itinerary, so search engines can find the gallery.
 
 ## ✨ The v0.60–v0.61 run, in plain words
 
@@ -104,12 +117,10 @@ A collaborative travel-planning web app, built India-first. Real multi-day itine
 - **Every screen got a refinement pass.** The phone layouts that pushed controls off-screen, a Timeline reorder that silently did nothing, a calendar that hid under the bottom bar, text that went invisible in dark mode, decorative motion that kept running while scrolled out of view, and controls below the 40px touch floor. None of the colours or spacing tokens were redesigned.
 - **The public pages stopped over-promising.** Fork says it needs an account; a page that fails to load no longer blames the creator; cards in a row finally sit on one line at one height; and the shared hero stays readable over any cover a creator uploads.
 
-## ✨ The v0.66 release, in plain words
+## ✨ The v0.56 release, in one line
 
-- **The creator hub became an operating picture.** It used to open on your settings; it now opens on how your work is doing — one ruled strip of lifetime figures, then a recorded-traffic trend (visits, forks and unlocks over 7, 30 or 90 days) drawn from the *same* derivation the table beneath it reads, so the chart and the rows can never describe different windows. Below that, one row per publication carries its funnel and its actions, and the creator profile moved into a disclosure at the foot of the page where it no longer owns the fold.
-- **The hub says what it doesn't know instead of printing a zero.** Unlocks come from the sales ledger, so an unread ledger leaves that stage *unknown* in the row and in the legend rather than showing "0", which would read as "nobody bought"; a window the log doesn't cover says so too. The trend takes keyboard focus and steps by day, a tap latches its readout instead of losing it on lift, and each row states its window ("in 30 days") and each rate its denominator ("11% of visits").
-- **Map search stopped answering with your own city.** A free-text search carried no spatial constraint, so Google applied its guess from your IP address and a lunch search returned what was near *you* rather than near the trip. Both search surfaces now run as Search-Along-Route over the trip's actual road, and the keyless fallback stack ranks its merged hits by distance to the corridor. The results also draw on the map as selectable teal pins that clear with the search box — the engine's own suggestions keep their dashed gold pin.
-- **The whole app took its high-end visual pass.** One typeface across every surface, one icon weight, and a pill navigation whose active indicator glides as a box instead of stretching as a shape, because the old flip visibly distorted the pill's rounded ends. The landing, the public itinerary and Explore gained the spacing and tray treatment the design plan called for, and the card you see when a link is pasted now renders in the app's own font again.
+- **Trip settings became a first-class citizen.** The crew, dates, budget and vehicle controls moved out of Share into their own eighth workspace tab; every choice you set there — drivers, vulnerable passengers, after-dinner driving, the exact tank and economy of your bike or EV — now persists across reloads instead of silently reverting, re-derives every surface that depends on it (map suggestions, budget pacing, day plans) instead of serving stale ones, and matches Create Trip option-for-option. Blank tank or economy fields no longer write car numbers onto a motorcycle or an EV.
+
 
 ## ✨ The v0.55 release, in one line
 
@@ -122,34 +133,6 @@ A collaborative travel-planning web app, built India-first. Real multi-day itine
 - **Night halts anchor on real towns.** Google's locality data stops at village level on rural corridors (hamlets with no population to rank by), so the town anchor also consults OpenStreetMap's population-ranked `place=city|town` — the only source out there carrying a town with a bed — and a halt can no longer be anchored to a town hundreds of kilometres away; it reports an honest gap instead.
 - **One road measurement, and honest failure when it fails.** The workspace and the Map tab each measured the same road on every open, doubling the load on the shared routing server that caused the very failures they could not recover from. One measurement now feeds the map, the budget and the suggestions, with a single retry — and since the routing facade quietly falls back to straight-line estimates, a chain that produced *only* estimates now counts as unresolved: the tab says so instead of drawing chords as if they were roads.
 - **Create Trip behaves like its Plan Bench.** The bill's money rolls into place instead of swapping, the printed bill exists on a phone (it used to print into a hidden container), and two dead links are gone — the bench's "turn these numbers into a real trip" CTA landed on the marketing page instead of the Create Trip form, taking its prefill with it. A new test walks every in-app link against the router so that class cannot come back.
-
-## ✨ The v0.38–v0.44 run, in plain words
-
-The last stretch of releases gave the Map tab a brain, taught the plan to learn from you, and turned sharing into a superpower:
-
-- **The Map tab now thinks like a road-trip co-pilot.** Long drives are split into fatigue-spaced segments — stretch ~every 150 km, lunch ~every 300 (auto-slid into the 11:30–14:30 window), fuel on your tank's rhythm for self-drive trips, and a real city to sleep in every ~550 km — each matched to the best actual place on your route, with sightseeing suggestions flowing alongside (that column was quietly broken until v0.43 fixed the pipe that fed it). Hover a suggestion to see it glow on the map; hover a pin to find its card. New stops insert in road order — add something between two confirmed stops and the plan reads A → B → C.
-- **The engine learns you.** Accepting or declining an idea teaches Trip DNA, which biases future suggestions across all your trips. Big crews and relaxed styles get earlier breaks; packed itineraries push further. Rainy days hand the spotlight to museums and cafes; ghat sections and city crawls earn their own warnings.
-- **Leave with the plan, any way you like.** The Share tab (a clean tabbed page now) exports a calendar file — one event per day plus timed events for hotels, trains and fixed commitments — prints the whole plan as A4 day cards straight from the browser's print dialog (a real offline PDF, zero dependencies), and keeps the snapshot links and JSON exports.
-- **Creators got a hub.** Publications live in an Overview + Earnings surface: lifetime views, forks, live pages, a payouts-ledger shape waiting for the premium launch, and a clearly-labelled projection of what priced pages could earn.
-- **The money and the clock, where you're editing.** The Budget tab answers "what can we still spend today?" with a Safe-to-spend-per-day tile that counts the remaining days honestly (today included, a finished trip at zero) and goes red on overspend — or asks you to set a target instead of inventing a number. Timeline day headers carry two quiet chips: what the day costs (travel vs entries in the tooltip) and how long you'll be at its stops.
-- **Quiet reliability work throughout** — every trip edit now writes through to the database before the UI celebrates, failed saves say so instead of silently vanishing on refresh, an already-open tab reloads itself into a fresh deploy instead of crashing on a stale chunk, public itinerary pages and invite links work for people who aren't members yet, and a corrupted-merge incident (v0.43) was repaired byte-for-byte.
-
-## ✨ The v0.45–v0.47 run, in plain words
-
-- **The create flow got a ticket, invites got codes.** Creating a trip is a Trip Ticket — a live boarding-pass starter that prices your rough bill on demand and seeds the timeline. Invites shrank to short trip-shaped codes (`GOABEACHWE-K7QF`) typed on the home screen, with a join flow that actually completes.
-- **Operators got a console.** A masteradmin route (`#/admin`, never linked) gives the two admins a god-view over every user, trip, invite, publication and audit row, with every destructive action behind an audited, role-rechecking RPC.
-- **Deletes are now reversible.** Deleting a trip moves it to a Trash instead of erasing it — restore within 30 days from a new Trash view in My Trips, or delete it forever. A soft-delete tombstone + restrictive RLS policy keep trashed trips invisible to everyone else, and a scheduled purge sweeps anything older than a month.
-- **The app writes faster.** Bursts of edits (drag-reordering, settings keystrokes, undo/redo) coalesce into a single database write per trip, flushed the moment you switch tabs or close the page.
-- **The Map tab grew a search box and cross-links.** Search any place right on the map and add it in one tap; click a stop pin to jump straight into the Timeline or Board.
-- **Decisions got grounded.** Open decision cards show where the trip stands (road time, cost, health) plus a deterministic, data-grounded "(offline)" recommendation.
-- **A backlog of small wins.** Browser push notifications (Profile opt-in, background-tab only), a "Send feedback" link that pre-fills the app version, and Explore pagination with "Load more".
-
-## ✨ The v0.48.0 run, in plain words
-
-- **The Android app got a real bottom navigation bar.** Installed, the shell now has four destinations — Home, My trips, Explore, Profile — in a fixed bar above the gesture area, with a 48px tap target each and the active one marked for screen readers. The website never renders a byte of it. Every page-level bottom layer (toasts, the trip dock, the AI button, settings save bar) now clears it through one shared offset, so nothing hides under the bar any more.
-- **The map stopped fighting the page.** A one-finger drag that started on the trip map used to pan the map and leave the page stuck; on touch, one finger now scrolls the page and two fingers pan the map (MapLibre shows its own hint). The fullscreen map keeps normal gestures — there is no page left to protect.
-- **The keyboard no longer covers the field you're typing in** — the Android shell reflows instead of letting the keyboard float over the layout.
-- **One green, one kicker, four blur tiers.** The design system collapsed primary buttons, focus rings and form accents onto a single teal, everything translucent onto four named blur tiers, and every micro-label onto one recipe — retyped out of literal ALL-CAPS so screen readers stop spelling words out. The stylesheet had also been declaring font weights the font never loaded.
 
 ## ✨ The v0.50.2 run, in plain words
 
@@ -169,6 +152,34 @@ The last stretch of releases gave the Map tab a brain, taught the plan to learn 
 - **Drag-reorder actually sticks now.** Three separate realtime bugs used to let a collaborator's stale update snap your accepted reorder back — the last one surviving two prior fixes. All three are closed, with regression tests.
 - **The whole open-issue backlog closed.** Demo trips can no longer pollute a real account on a flaky connection; "Delete forever" asks first; the notification badge and five warning labels now pass WCAG contrast; screen readers get a real name on the cover-image field, a full notification list, one consistent keyboard tablist across every tab surface, and a Profile page without a phantom empty column.
 
+## ✨ The v0.48.0 run, in plain words
+
+- **The Android app got a real bottom navigation bar.** Installed, the shell now has four destinations — Home, My trips, Explore, Profile — in a fixed bar above the gesture area, with a 48px tap target each and the active one marked for screen readers. The website never renders a byte of it. Every page-level bottom layer (toasts, the trip dock, the AI button, settings save bar) now clears it through one shared offset, so nothing hides under the bar any more.
+- **The map stopped fighting the page.** A one-finger drag that started on the trip map used to pan the map and leave the page stuck; on touch, one finger now scrolls the page and two fingers pan the map (MapLibre shows its own hint). The fullscreen map keeps normal gestures — there is no page left to protect.
+- **The keyboard no longer covers the field you're typing in** — the Android shell reflows instead of letting the keyboard float over the layout.
+- **One green, one kicker, four blur tiers.** The design system collapsed primary buttons, focus rings and form accents onto a single teal, everything translucent onto four named blur tiers, and every micro-label onto one recipe — retyped out of literal ALL-CAPS so screen readers stop spelling words out. The stylesheet had also been declaring font weights the font never loaded.
+
+## ✨ The v0.45–v0.47 run, in plain words
+
+- **The create flow got a ticket, invites got codes.** Creating a trip is a Trip Ticket — a live boarding-pass starter that prices your rough bill on demand and seeds the timeline. Invites shrank to short trip-shaped codes (`GOABEACHWE-K7QF`) typed on the home screen, with a join flow that actually completes.
+- **Operators got a console.** A masteradmin route (`#/admin`, never linked) gives the two admins a god-view over every user, trip, invite, publication and audit row, with every destructive action behind an audited, role-rechecking RPC.
+- **Deletes are now reversible.** Deleting a trip moves it to a Trash instead of erasing it — restore within 30 days from a new Trash view in My Trips, or delete it forever. A soft-delete tombstone + restrictive RLS policy keep trashed trips invisible to everyone else, and a scheduled purge sweeps anything older than a month.
+- **The app writes faster.** Bursts of edits (drag-reordering, settings keystrokes, undo/redo) coalesce into a single database write per trip, flushed the moment you switch tabs or close the page.
+- **The Map tab grew a search box and cross-links.** Search any place right on the map and add it in one tap; click a stop pin to jump straight into the Timeline or Board.
+- **Decisions got grounded.** Open decision cards show where the trip stands (road time, cost, health) plus a deterministic, data-grounded "(offline)" recommendation.
+- **A backlog of small wins.** Browser push notifications (Profile opt-in, background-tab only), a "Send feedback" link that pre-fills the app version, and Explore pagination with "Load more".
+
+## ✨ The v0.38–v0.44 run, in plain words
+
+The last stretch of releases gave the Map tab a brain, taught the plan to learn from you, and turned sharing into a superpower:
+
+- **The Map tab now thinks like a road-trip co-pilot.** Long drives are split into fatigue-spaced segments — stretch ~every 150 km, lunch ~every 300 (auto-slid into the 11:30–14:30 window), fuel on your tank's rhythm for self-drive trips, and a real city to sleep in every ~550 km — each matched to the best actual place on your route, with sightseeing suggestions flowing alongside (that column was quietly broken until v0.43 fixed the pipe that fed it). Hover a suggestion to see it glow on the map; hover a pin to find its card. New stops insert in road order — add something between two confirmed stops and the plan reads A → B → C.
+- **The engine learns you.** Accepting or declining an idea teaches Trip DNA, which biases future suggestions across all your trips. Big crews and relaxed styles get earlier breaks; packed itineraries push further. Rainy days hand the spotlight to museums and cafes; ghat sections and city crawls earn their own warnings.
+- **Leave with the plan, any way you like.** The Share tab (a clean tabbed page now) exports a calendar file — one event per day plus timed events for hotels, trains and fixed commitments — prints the whole plan as A4 day cards straight from the browser's print dialog (a real offline PDF, zero dependencies), and keeps the snapshot links and JSON exports.
+- **Creators got a hub.** Publications live in an Overview + Earnings surface: lifetime views, forks, live pages, a payouts-ledger shape the premium launch later filled in (v0.61), and a clearly-labelled projection of what priced pages could earn.
+- **The money and the clock, where you're editing.** The Budget tab answers "what can we still spend today?" with a Safe-to-spend-per-day tile that counts the remaining days honestly (today included, a finished trip at zero) and goes red on overspend — or asks you to set a target instead of inventing a number. Timeline day headers carry two quiet chips: what the day costs (travel vs entries in the tooltip) and how long you'll be at its stops.
+- **Quiet reliability work throughout** — every trip edit now writes through to the database before the UI celebrates, failed saves say so instead of silently vanishing on refresh, an already-open tab reloads itself into a fresh deploy instead of crashing on a stale chunk, public itinerary pages and invite links work for people who aren't members yet, and a corrupted-merge incident (v0.43) was repaired byte-for-byte.
+
 <details>
 <summary><b>See the full tour of features</b></summary>
 
@@ -180,7 +191,7 @@ The depth below ships in the app today — it is condensed here to keep the fron
 - **Travel stops act as real halts** — pure-travel legs render as travelling strips; stay days show "Based in …"; the drive home appears only on the return day, never double-counted.
 - **Fatigue-aware stop planner** — splits long drives into stretch / meal / fuel / overnight segments and matches each to the best real place by purpose (night halts anchored on key cities; vehicle-profile aware for fuel range, EV/CNG queries).
 - **Opening hours auto-fill** from OSM Overpass where relevant (POIs, temples, food, hotels), context-aware.
-- **Location autocomplete** — Mappls when a key is set, else Open-Meteo + Wikipedia fallback.
+- **Location autocomplete** — Google Places when a key is set, otherwise the keyless stack (Mappls · Open-Meteo · Wikipedia · OSM).
 
 </details>
 
@@ -207,7 +218,7 @@ You'll need a free [Supabase](https://supabase.com) project for accounts + data;
 
 ## 👤 Accounts & demo content
 
-- **Sign up** with any email + password (min 8 chars — new accounts get a seeded Kerala demo trip on first login
+- **Sign up** with any email + password (min 8 chars) — new accounts get a seeded Kerala demo trip on first login
 - Already have trips? Use the **🚀 Load demo trips** button on My Trips anytime
 - Your data lives in Supabase and follows you across devices; invited collaborators act per their role, enforced by Postgres RLS
 
@@ -221,7 +232,7 @@ You'll need a free [Supabase](https://supabase.com) project for accounts + data;
 | State | `useSyncExternalStore` over a module store | Tiny reactive cache hydrated from Supabase; every mutation writes through |
 | Maps | [mapcn](https://github.com/AnmolSaini16/mapcn) (MapLibre GL) | [OpenFreeMap](https://openfreemap.org) basemaps tick light/dark — no key, no signup, no caps |
 | Backend | [Supabase](https://supabase.com) (Postgres + Auth + RLS) | Free tier covers the MVP; JSONB keeps trip internals denormalized |
-| Routing / geo | OSRM, Open-Meteo, Wikipedia, Overpass | Free + keyless, India-biasable; optional Google / Mappls keys behind a failing-open facade |
+| Routing / geo | OSRM, Open-Meteo, Wikipedia, Overpass | Free + keyless, India-biasable; optional Google / Mappls keys — the free stack is the default; a Google key makes suggestions Google-only |
 
 Routing is hash-based (`#/trip/:id`, `#/pub/:slug`, `#/creator/:id`, `#/join/:code`) so the static build runs on any host with no rewrites.
 
@@ -237,8 +248,8 @@ src/
 ├── lib/               # engine.ts · impact.ts · ai.ts · ridePlan.ts · geocode.ts
 │                      # routing.ts · snapshot.ts · weather.ts
 ├── components/        # ui.tsx · StopEditor.tsx · TripMap.tsx · ImpactPreview.tsx · PubCard.tsx · mapcn/
-└── pages/             # Landing · Auth · TripsList · CreateTrip · TripWorkspace · Explore
-                       # PublicItinerary · CreatorPage · CreatorHubPage · Profile · AdminPage
+└── pages/             # Landing · Auth · TripsList · CreateTrip · TripCreated · TripWorkspace · Explore
+                       # PublicItinerary · Purchases · CreatorPage · CreatorHubPage · Profile · AdminPage
                        # NativeHome + trip/ (one file per workspace tab)
 ```
 
@@ -274,7 +285,7 @@ Static hosting is enough. The repo auto-deploys to **Vercel** on every push to `
 ## 📌 MVP constraints (intentional)
 
 - ❌ Hotel/flight **booking** — out of scope. Stops can be flagged *needs booking*, and you add your own confirmations as timed events, but the app never books or links to a booking flow
-- ❌ **Payments** — no gateway integration (the premium **Unlock** buttons are labelled placeholders)
+- 💳 **Payments for paid itineraries** — live since v0.61 (Razorpay checkout + idempotent webhook); what stays manual is creator payout disbursement, worked from the hub's earnings ledger
 - ❌ **Live traffic/prices** — all estimates are transparent formulas with stated assumptions
 - ❌ INR is the default and only currency
 

@@ -4607,7 +4607,13 @@ html.vt-active :where(*) {
     display: flex; flex-direction: column; justify-content: center;
     padding-block: clamp(24px, 3.5vh, 48px);
   }
-  .plan-bench .bench-title { font-size: clamp(1.35rem, 2.4vw, 1.9rem); }
+  /* The same ramp as .section-title, rather than a second clamp. This override
+   kept the pre-token values when .section-title moved onto
+   `--landing-title-size`, and being two classes it outranked the token - so of
+   the three section titles on the landing, this one alone stayed at ~30% smaller
+   (30.4px against 43.2px at 1440). The duplicate-selector gate could not see it:
+   it only checks top-level selectors, and this one is scoped to .plan-bench. */
+.plan-bench .bench-title { font-size: var(--landing-title-size); }
   .plan-bench .bench-sub { margin: 6px auto 14px; }
   .plan-bench .bench-controls { gap: 10px; padding: 14px 16px; }
   .plan-bench .bench-block { gap: 6px; }

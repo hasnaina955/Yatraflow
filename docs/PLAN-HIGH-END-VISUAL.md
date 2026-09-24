@@ -1,6 +1,7 @@
 # Plan - the high-end visual standard, surface by surface
 
-**Status:** proposal for review. No source has been changed for this plan.
+**Status:** Tier A is shipped (#311). Read the Status section below before acting on
+the per-surface instructions - three of them were overtaken by events.
 **Companion:** `docs/HIGH-END-DESIGN-MOCKUP.html` (the reference), and the
 landing commit `d94d4a5` (the recipe, already proved).
 
@@ -30,6 +31,63 @@ So the plan splits by **surface type**, not by page count:
 Tier C is not "deferred work"; it is **excluded on purpose**, with the reasoning
 recorded in section 6. An audit that says "all 25 components need rework" is not
 a plan.
+
+---
+
+## Status (2026-09-24)
+
+**Tier A is shipped.** The per-surface instructions below were right about the
+*shape* of the work and wrong about its *content* in three specific ways. Read
+those three before following any section below.
+
+| Surface | State | What it actually got |
+| --- | --- | --- |
+| Landing | done | Tokenised display scale and macro-whitespace (the hero `clamp()` and the 60/70px section gaps were inline styles), Double-Bezel feature cards, a button-in-button CTA, and a reveal that resolves out of a blur on `--motion-slower` |
+| PublicItinerary | done | Tokenised block rhythm, plus the tray on its five content cards |
+| Explore + creator pages | done | The same tray via `PubCard` - the one component they share, so both surfaces moved from a single change |
+| TripCreated | **held back** | Built, then deliberately split out. See "What remains" |
+| Auth, TripsList, Profile | **closed** | No real work in them; entry animation on an app dashboard is noise, not polish |
+| CreatorHub | **blocked** | Another clone owns creator-hub while it is under active development |
+
+Shipped as **PR #311** (`feat/high-end-design`, base `test`). It is independent of
+**PR #310** - this branch touches no TripCreated file - so the two can merge in
+either order.
+
+### Three corrections the sections below do not know about
+
+1. **The eyebrows were already there - twice.** PublicItinerary already paired
+   `.editorial-kicker` with `.editorial-title`, and TripCreated already carried an
+   `<p className="eyebrow">`. Section 4 lists "eyebrow tags" as work on both. It
+   was not work; adding a second kicker recipe would have been the actual mistake.
+2. **A bezel is canvas-dependent, and the first implementation was reverted.**
+   The plan says the tray "reads `--yf-glass`", and it does - but only where the
+   canvas differs from the tray. On the landing (mint/peach gradient) the white
+   band reads as a tray. On the cream canvas the same band is a **~1.3% step**
+   (`#F8F7EF` -> `#FBFAF7` -> `#FFFFFF`), so there the tray is defined by
+   **depth** (the diffuse `--shadow-soft`) and deliberately carries **no outer
+   hairline**. The first attempt drew a 6px+1px navy ring and read as a grey
+   wireframe outline around every card - two outlines per card, plus two rings
+   landing 4px apart in the gutters. It was reverted. **Do not re-add a ring tray
+   on a light canvas**; the CSS records this too.
+3. **`MOTION-TOKENS.md`'s "transform slide" for the glider was never true.** That
+   stale catalog row pointed a change the wrong way: a `scaleX` FLIP was built to
+   match it, and it stretched the pill's rounded ends into ellipses (scaleX 1.93
+   on a 76px -> 146px tab change), so the glide read as the animation breaking.
+   The glide animates the glider's own box, and the doc has been corrected. Worth
+   carrying forward: the glider is **absolutely positioned**, so its box cannot
+   reflow its siblings - the layout cost that motivated the change was largely
+   imagined.
+
+### What remains
+
+- **TripCreated's entry choreography.** Built, then split out of #311 because
+  #310 relaid that page out (`.created-page` 720px -> 1120px). The work is
+  preserved at the local branch **`backup/tripcreated-reveals`** (`a06bacd`) and
+  is to be **re-applied to the new markup** after #310 lands - not rebased onto
+  markup that is about to be replaced. Section 4.3 needs revisiting at the same
+  time, since it describes the old single-column layout.
+- **Nothing else in Tier A is open.** Tier B and Auth stay closed; CreatorHub
+  stays blocked until its ownership is settled.
 
 ---
 

@@ -14,7 +14,7 @@
 // The trend and the per-publication rows are ONE derivation over ONE clock
 // (`now` is computed once and handed to both builders), so the chart can never
 // describe a different window from the numbers beneath it.
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { InlineIcon } from '../components/icons'
 import { ChevronDown, ExternalLink, Pencil } from 'lucide-react'
 import { PillNav } from '../components/PillNav'
@@ -57,6 +57,19 @@ function longDate(ms: number): string {
   return new Date(ms).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short' })
 }
 
+/** The one clock the page renders against.
+ *
+ *  A component must be pure, so this is not `Date.now()` in the render body —
+ *  that re-derives "now" on every render and makes the output unstable. It is
+ *  read once per mount (or per retry, via `refreshClock`) and held in state, so
+ *  the trend, the rows and the note all describe the same instant. Call
+ *  `refreshClock()` from a Retry: a retry is a new question, asked later. */
+function useStableNow(): [number, () => void] {
+  const [now, setNow] = useState(() => Date.now())
+  const refresh = useCallback(() => setNow(Date.now()), [])
+  return [now, refresh]
+}
+
 export function CreatorHubPage({ onNavigate }: { onNavigate: (r: string) => void }) {
   const db = useDb()
   const me = currentUser(db)
@@ -88,9 +101,11 @@ export function CreatorHubPage({ onNavigate }: { onNavigate: (r: string) => void
   const [funnelDays, setFunnelDays] = useState<FunnelWindowDays>(30)
   useEffect(() => {
     let alive = true
-    setSalesError(false)
+    // The error flag is cleared when the retry STARTS, which is inside the
+    // fetch's own turn — a setState in the effect body would cascade a render
+    // before the request had even been issued.
     fetchCreatorSales()
-      .then(rows => { if (alive) setSales(deriveActualSales(rows, myPubs)) })
+      .then(rows => { if (alive) { setSalesError(false); setSales(deriveActualSales(rows, myPubs)) } })
       .catch(() => { if (alive) { setSalesError(true); setSales(null) } })
     return () => { alive = false }
   }, [me?.id, salesRetry]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -100,12 +115,11 @@ export function CreatorHubPage({ onNavigate }: { onNavigate: (r: string) => void
   // the sales ledger already had to fix once.
   useEffect(() => {
     let alive = true
-    setFunnelError(false)
     fetchCreatorFunnel()
-      .then(rows => { if (alive) setDaily(rows) })
+      .then(rows => { if (alive) { setFunnelError(false); setDaily(rows) } })
       .catch(() => { if (alive) { setFunnelError(true); setDaily(null) } })
     return () => { alive = false }
-  }, [me?.id, funnelRetry]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [me?.id, funnelRetry])
 
   const loggedIn = Boolean(me)
   useEffect(() => { if (!loggedIn) onNavigate('/auth') })
@@ -346,10 +360,13 @@ export function HubOverview({ myPubs, onUnpublish, onNavigate, daily, salesRows,
 }) {
   const totalViews = myPubs.reduce((s, p) => s + p.views, 0)
   const totalForks = myPubs.reduce((s, p) => s + p.copies, 0)
-  // ONE clock for the whole window. The trend and the rows are both cut from
-  // it, so switching the window cannot leave the chart a day ahead of the
-  // table, and no surface has to re-derive "now" for itself.
-  const now = Date.now()
+  // ONE clock for the whole window, held in state rather than re-derived on
+  // every render (a component must be pure). The trend and the rows are both
+  // cut from it, so switching the window cannot leave the chart a day ahead of
+  // the table, and no surface has to re-derive "now" for itself. A Retry
+  // re-reads the clock: asking again is a new question, asked later.
+  const [now, refreshClock] = useStableNow()
+  const handleRetryFunnel = useCallback(() => { refreshClock(); onRetry() }, [refreshClock, onRetry])
   // ONE derivation, read by the trend above, the rows below and the note beside
   // them, so none of the three can disagree about a rate or a window.
   const funnels = buildPubFunnels({
@@ -443,7 +460,7 @@ export function HubOverview({ myPubs, onUnpublish, onNavigate, daily, salesRows,
                     ? `Chart shows recorded days only; the log begins ${new Date(`${recordingSince}T00:00:00Z`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}.`
                     : 'Nothing recorded yet — the trend starts with the first visit.'}
               </span>
-              {funnelError && <button className="btn btn-outline btn-sm" onClick={onRetry}>Retry</button>}
+              {funnelError && <button className="btn btn-outline btn-sm" onClick={handleRetryFunnel}>Retry</button>}
             </div>
             {/* A failed or in-flight read must not draw as "nothing recorded": the
                 chart's own empty state is a measurement, so it is only shown once
@@ -540,8 +557,11 @@ export function EarningsTab({ myPubs, sales, salesError, onRetry, view, onView, 
   const unreadLabel = ledgerRead === 'reading' ? 'Reading…' : 'Not read'
   const lifetimeInr = basis === 'net' ? (actual?.netInr ?? 0) : (actual?.grossInr ?? 0)
   // The schedule is about real money, so it reads the actual ledger and is
-  // rendered in the Actual view only — a projection has no payout date.
-  const now = Date.now()
+  // rendered in the Actual view only — a projection has no payout date. The
+  // clock is held in state, not re-derived per render: a component must be
+  // pure, and a payout date that moves under the reader is its own kind of lie.
+  const [now, refreshClock] = useStableNow()
+  const handleRetry = useCallback(() => { refreshClock(); onRetry() }, [refreshClock, onRetry])
   const payout = payoutStatus(actual?.netInr ?? 0, now)
   // Same rows, same fees, grouped by the run each sale would land in — so this
   // table adds up to the ledger above it rather than re-deriving the ladder.
@@ -642,7 +662,7 @@ export function EarningsTab({ myPubs, sales, salesError, onRetry, view, onView, 
               <b>Couldn't load your sales.</b> The ledger read failed just now — your recorded sales are safe
               and will appear once the connection works. Check your connection and try again.
             </div>
-            <button className="btn btn-outline btn-sm" style={{ marginTop: 8 }} onClick={onRetry}>Retry</button>
+            <button className="btn btn-outline btn-sm" style={{ marginTop: 8 }} onClick={handleRetry}>Retry</button>
           </>
         ) : actual.rows.length === 0 ? (
           <>

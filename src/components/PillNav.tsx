@@ -69,27 +69,30 @@ export function PillNav({ activeKey, className, role = 'presentation', 'aria-lab
       const prev = prevRef.current
       // A re-measure that found the same box has nothing to correct, and acting
       // on it would be worse than ignoring it: ResizeObserver fires once on
-      // observe(), so an unguarded re-place here would snap a glide that had
-      // only just started.
+      // observe(), so an unguarded re-place here would animate a correction that
+      // nobody asked for.
       if (!animate && prev && prev.x === x && prev.y === y && prev.w === w && prev.h === h) return
 
-      // Written, never transitioned — the glide is the transform below.
+      // The glide animates the glider's own BOX - left/top/width/height together -
+      // and NOT a transform. Resizing a rounded pill with `scaleX` stretches its
+      // ends into ellipses; at a 76px -> 146px tab change that is a scaleX of
+      // 1.93, and it read as the animation breaking rather than the pill gliding.
+      // It is also not the layout cost it looks like: the glider is absolutely
+      // positioned, so its own box cannot reflow its siblings - the work is this
+      // one element's layout and paint, which is why the original animation was
+      // cheap all along.
+      // A non-glide write (first paint, or a correction) suppresses the
+      // transition so it places instantly instead of animating into position.
+      const canAnimate = animate && !!prev
+      if (!canAnimate) glider.style.transition = 'none'
+      glider.style.left = `${x}px`
+      glider.style.top = `${y}px`
       glider.style.width = `${w}px`
       glider.style.height = `${h}px`
-
-      const canGlide = animate && !!prev && prev.w > 0 && w > 0
-
-      // Frame 1 (silent): the previous box expressed as a transform of the new
-      // one. Frame 2: the target box at scale 1. Both writes land inside this
-      // layout effect with a forced flush between them, so frame 2 is the only
-      // one ever painted and the transition interpolates 1 -> 2 on the curve.
-      glider.style.transition = 'none'
-      glider.style.transform = canGlide && prev
-        ? `translate3d(${prev.x}px, ${prev.y}px, 0) scaleX(${prev.w / w})`
-        : `translate3d(${x}px, ${y}px, 0) scaleX(1)`
-      void glider.offsetWidth          // commit frame 1 before releasing the curve
-      glider.style.transition = ''     // hand back to .pill-glider's own transition
-      if (canGlide) glider.style.transform = `translate3d(${x}px, ${y}px, 0) scaleX(1)`
+      if (!canAnimate) {
+        void glider.offsetWidth       // commit the placement before handing the curve back
+        glider.style.transition = ''
+      }
 
       prevRef.current = { x, y, w, h }
     }

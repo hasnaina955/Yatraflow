@@ -601,17 +601,19 @@ input, select, textarea { font-family: var(--font-body); font-size: 14.5px; colo
 .pill-glider {
   position: absolute; left: 0; top: 0; width: 0; z-index: 0;
   border-radius: 999px; background: var(--teal-soft);
-  /* Compositor-only glide. PillNav WRITES the target box's width/height — they
-     are never transitioned — and animates a transform from the previous box: a
-     FLIP, the same technique the drag settle already uses. Transitioning
-     left/width/top/height instead relaid out the nav on every tab change, and
-     docs/MOTION-TOKENS.md's catalog row has described this as a "thumb
-     `transform` slide" from the beginning. transform-origin is the LEFT edge
-     because that is the origin the FLIP scales about. */
-  transform-origin: left center;
-  will-change: transform;
-  transition: transform var(--motion-med) var(--ease-glide), opacity var(--motion-fast) var(--ease-glide),
-    background var(--motion-fast) var(--ease-glide);
+  /* The glide animates this element's own BOX, and deliberately NOT a transform.
+     A `scaleX` FLIP cannot resize a rounded pill without stretching its ends into
+     ellipses - at a 76px -> 146px tab change that is scaleX 1.93 - which reads as
+     the animation breaking rather than the pill gliding.
+     The box is also not the layout cost it looks like: the glider is absolutely
+     positioned, so its own box cannot reflow its siblings; the work is this one
+     element's layout and paint.
+     MOTION-TOKENS.md's catalog row described this as a "thumb `transform` slide";
+     that was wrong about the implementation, and is corrected there rather than
+     making the pill pay for the doc. */
+  transition: left var(--motion-med) var(--ease-glide), top var(--motion-med) var(--ease-glide),
+    width var(--motion-med) var(--ease-glide), height var(--motion-med) var(--ease-glide),
+    opacity var(--motion-fast) var(--ease-glide), background var(--motion-fast) var(--ease-glide);
   pointer-events: none;
 }
 [data-theme='dark'] .pill-glider { background: var(--teal); }

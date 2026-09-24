@@ -1,10 +1,11 @@
 // ============ Landing page ============
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useRef, type ReactNode } from 'react'
 import { InlineIcon } from '../components/icons'
 import { ArrowDown, ArrowRight, Clock, MapPin, Plane, Route, TriangleAlert, Users, Zap } from 'lucide-react'
 import { RouteSquiggle, useInView, usePageVisible } from '../components/ui'
 import { PlanBench } from '../components/PlanBench'
 import { scrollBehavior } from '../lib/motion'
+import { useReveal } from '../hooks/useReveal'
 import { useDb, currentUser } from '../store/store'
 
 export function LandingPage({ onNavigate }: { onNavigate: (r: string) => void }) {
@@ -185,32 +186,6 @@ export function LandingPage({ onNavigate }: { onNavigate: (r: string) => void })
       </div>
     </div>
   )
-}
-
-/** One IntersectionObserver arms the reveal system once and flips every .reveal
- *  into .io-inview as it scrolls into the viewport (once, not re-hidden on
- *  re-entry). Arms body.reveal-armed first so content never hides if JS is off. */
-function useReveal() {
-  useEffect(() => {
-    if (typeof window === 'undefined' ||
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
-    document.body.classList.add('reveal-armed')
-    const els = Array.from(document.querySelectorAll<HTMLElement>('.reveal'))
-    if (!els.length) return
-    const io = new IntersectionObserver((entries) => {
-      for (const e of entries) {
-        if (e.isIntersecting) {
-          e.target.classList.add('io-inview')
-          io.unobserve(e.target)
-        }
-      }
-    }, { threshold: 0.12, rootMargin: '0px 0px -8% 0px' })
-    for (const el of els) io.observe(el)
-    return () => {
-      io.disconnect()
-      document.body.classList.remove('reveal-armed')
-    }
-  }, [])
 }
 
 /** Destination marquee: two identical tracks translate -50% for a seamless,

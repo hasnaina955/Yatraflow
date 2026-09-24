@@ -15,6 +15,16 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ## [Unreleased]
 
+### Fixed
+- **A failed sales-ledger read on the Creator hub showed "Loading sales…" forever.** The Earnings
+  body tested `actual === null` *before* `salesError`, and the read's catch sets `sales = null` as
+  well as the error flag — so the failure branch was unreachable. A creator whose ledger read
+  failed saw a spinner that never resolved, under tiles correctly reading "Not read", with no way
+  to ask again on the tab that holds the money. The body now switches on the same `ledgerRead`
+  state the tiles use — `reading` → spinner, `failed` → the alert and its Retry — which is what
+  makes the recovery path reachable at all. Found by the third design-critique pass, after the
+  hub had shipped.
+
 ## [0.66.0] - 2026-09-24
 
 A hub release, with a map correction and a whole-app visual pass beneath it. The creator

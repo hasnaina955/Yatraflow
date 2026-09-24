@@ -654,9 +654,14 @@ export function EarningsTab({ myPubs, sales, salesError, onRetry, view, onView, 
       )}
 
       {view === 'actual' ? (
-        actual === null ? (
+        /* Switched on `ledgerRead`, NOT on `actual === null`. The catch sets `sales = null` as
+             well as `salesError`, so testing for null first made the failure branch
+             unreachable: a creator whose ledger read failed saw "Loading sales…" spin
+             forever, with the tiles above correctly saying "Not read" and no way to ask
+             again. The two states are distinct and must be tested in that order. */
+        ledgerRead === 'reading' ? (
           <div className="container loading-block"><div className="spinner" />Loading sales…</div>
-        ) : salesError ? (
+        ) : ledgerRead === 'failed' ? (
           <>
             <div className="hub-note" role="alert">
               <b>Couldn't load your sales.</b> The ledger read failed just now — your recorded sales are safe
@@ -664,7 +669,7 @@ export function EarningsTab({ myPubs, sales, salesError, onRetry, view, onView, 
             </div>
             <button className="btn btn-outline btn-sm" style={{ marginTop: 8 }} onClick={handleRetry}>Retry</button>
           </>
-        ) : actual.rows.length === 0 ? (
+        ) : !actual || actual.rows.length === 0 ? (
           <>
             <table className="compare-table pub-ledger" tabIndex={0} aria-label="Sales ledger">
               <thead><tr><th>Date</th><th>Itinerary</th><th className="num">Paid</th><th className="num">Fee</th><th className="num">Net</th></tr></thead>

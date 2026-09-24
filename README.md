@@ -334,6 +334,27 @@ session-gated surface (an analytics screen, a money path) seeds its own browser
 check from the same harness instead of copying this script's internals. A new
 fixture is a pure plan module (see `fixtureFunnelPlan.mjs`) plus a thin CLI over
 the kit; `tests/fixture-kit.test.ts` keeps the kit the only write path.
+
+## Benchmarking model token speed
+
+The repository includes a streaming benchmark for MiniMax and other
+OpenAI-compatible chat-completions endpoints. It runs a substantive 3,500–4,500
+word engineering task (normally about 1–2 minutes) and reports time to first
+token, live output rate, decode throughput and end-to-end throughput.
+
+```powershell
+$env:MINIMAX_API_KEY = "your-key"
+$env:MINIMAX_MODEL = "MiniMax-M3"   # optional; this is the default
+npm run benchmark:tokens
+npm run benchmark:tokens -- --help # custom prompt, timeout, output and model options
+```
+
+Keep the key in the environment rather than `--api-key`, which can enter shell
+history. The first MiniMax run downloads the official tokenizer into the user
+cache; later runs reuse it. MiniMax's streaming API may report only
+`total_tokens`, so the benchmark labels its local tokenizer count as an estimate
+instead of presenting combined input/output usage as output speed.
+
 ## Migration status (is the database actually updated?)
 
 The database half of a release is the one part the offline gate cannot see:

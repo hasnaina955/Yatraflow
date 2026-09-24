@@ -15,6 +15,14 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ## [Unreleased]
 
+### Added
+- **A measured model-speed benchmark**: `npm run benchmark:tokens` runs a substantive 1–2 minute
+  design task against any OpenAI-compatible chat-completions endpoint, shows live output rate,
+  time to first token, decode throughput and end-to-end throughput, and uses the model's official
+  tokenizer when an endpoint reports only a combined token total. Run
+  `npm run benchmark:tokens -- --help` for model, prompt, timeout and output options.
+
+
 ### Changed
 - **Selected text and the typing caret follow the app's theme instead of the browser's
   defaults** — the last two browser-native surfaces join the design system: a selection is

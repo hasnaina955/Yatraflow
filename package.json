@@ -11,6 +11,7 @@
     "test": "vitest run",
     "test:integration": "node scripts/integration/integrationHarness.mjs",
     "check:migrations": "node scripts/checkMigrations.mjs",
+    "benchmark:tokens": "node scripts/tokenThroughput.mjs",
     "lint": "eslint src",
     "verify": "tsc -b --clean && npm test && npm run build"
   },
@@ -37,6 +38,7 @@
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@huggingface/tokenizers": "^0.2.0",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^6.0.0",

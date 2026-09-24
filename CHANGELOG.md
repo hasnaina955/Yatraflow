@@ -109,6 +109,21 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
   wears one hue everywhere — `--ink-amber` in the chart mark, the legend and the row figures —
   leaving saffron for publish and invite actions.
 
+- **The creator hub's 23 review findings are cleared — and the gate that raised them is
+  reproducible at last.** Codacy held PR #315 on three ESLint rules that the repo's own
+  `npm run lint` cannot see: 12 object-injection sinks (`obj[identifier]`), 7 void-expression
+  arrow shorthands, and 4 non-null assertions. `@typescript-eslint/no-confusing-void-expression`
+  is type-aware and `eslint.config.js` deliberately never asks the parser for type information,
+  while `eslint-plugin-security` is not installed at all — so a change validated locally was
+  never a change the gate had validated, and the two attempts to satisfy it fixed a different
+  axis. The trend chart's monotone-cubic maths now walks adjacent point pairs instead of
+  addressing `dx[i]` / `slope[i-1]` / `pts[i + 1]` directly, and its hover readout carries the
+  active *index* beside the active day, which is what retires the four `hover!` assertions
+  rather than re-spelling them. The rewrite is the same function arithmetic-for-arithmetic:
+  3,072 sampled inputs — every degenerate shape (one point, all-flat, repeated x, a single
+  spike) plus 3,000 random series — emit byte-identical SVG paths from the old and the new
+  implementation.
+
 ## [0.65.0] - 2026-09-22
 
 The Create Trip page was rebuilt around the questions a planner actually answers,

@@ -66,7 +66,7 @@ function longDate(ms: number): string {
  *  `refreshClock()` from a Retry: a retry is a new question, asked later. */
 function useStableNow(): [number, () => void] {
   const [now, setNow] = useState(() => Date.now())
-  const refresh = useCallback(() => setNow(Date.now()), [])
+  const refresh = useCallback(() => { setNow(Date.now()) }, [])
   return [now, refresh]
 }
 
@@ -157,19 +157,19 @@ export function CreatorHubPage({ onNavigate }: { onNavigate: (r: string) => void
           <PillNav className="filter-pillbar hub-tabs" role="group" aria-label="Creator hub view" activeKey={hubTab}>
             {([['overview', 'Overview'], ['earnings', 'Earnings']] as const).map(([k, label]) => (
               <button key={k} type="button" data-pill-key={k} className={`clickable-chip chip${hubTab === k ? ' on-teal' : ''}`}
-                onClick={() => setHubTab(k)} aria-pressed={hubTab === k}>{label}</button>
+                onClick={() => { setHubTab(k) }} aria-pressed={hubTab === k}>{label}</button>
             ))}
           </PillNav>
 
           {hubTab === 'overview' ? (
             <HubOverview myPubs={myPubs} onUnpublish={setUnpubTarget} onNavigate={onNavigate}
               daily={daily} salesRows={sales?.rows ?? []} funnelError={funnelError}
-              onRetry={() => setFunnelRetry(n => n + 1)} days={funnelDays} onDays={setFunnelDays}
+              onRetry={() => { setFunnelRetry(n => n + 1) }} days={funnelDays} onDays={setFunnelDays}
               unlockRead={salesError ? 'failed' : sales === null ? 'reading' : 'ready'}
-              salesError={salesError} onRetrySales={() => setSalesRetry(n => n + 1)} />
+              salesError={salesError} onRetrySales={() => { setSalesRetry(n => n + 1) }} />
           ) : (
             <EarningsTab myPubs={myPubs} sales={sales} salesError={salesError}
-              onRetry={() => setSalesRetry(n => n + 1)} view={earningsView} onView={setEarningsView}
+              onRetry={() => { setSalesRetry(n => n + 1) }} view={earningsView} onView={setEarningsView}
               basis={earningsBasis} onBasis={setEarningsBasis} />
           )}
 
@@ -186,7 +186,7 @@ export function CreatorHubPage({ onNavigate }: { onNavigate: (r: string) => void
               Creator mode is a branding badge: your bio and social links appear
               on the itineraries you publish.
             </p>
-            <Field label="Creator bio"><textarea className="textarea" value={creatorBio} onChange={e => setCreatorBio(e.target.value)} placeholder="Tell readers who you are and why they should trust your routes." /></Field>
+            <Field label="Creator bio"><textarea className="textarea" value={creatorBio} onChange={e => { setCreatorBio(e.target.value) }} placeholder="Tell readers who you are and why they should trust your routes." /></Field>
             <div className="form-row">
               <Field label="YouTube link" error={socialErrors.youtube}><input className="input" type="url" inputMode="url" value={youtube} onChange={e => { setYoutube(e.target.value); if (socialErrors.youtube) setSocialErrors(s => ({ ...s, youtube: undefined })) }} placeholder="https://youtube.com/@…" /></Field>
               <Field label="Instagram link" error={socialErrors.instagram}><input className="input" type="url" inputMode="url" value={instagram} onChange={e => { setInstagram(e.target.value); if (socialErrors.instagram) setSocialErrors(s => ({ ...s, instagram: undefined })) }} placeholder="https://instagram.com/…" /></Field>
@@ -209,7 +209,7 @@ export function CreatorHubPage({ onNavigate }: { onNavigate: (r: string) => void
                 })
                 toast('Creator profile saved')
               }}>Save creator profile</button>
-              <button className="btn btn-ghost btn-sm" onClick={() => setConfirmDisable(true)}>Disable creator mode</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => { setConfirmDisable(true) }}>Disable creator mode</button>
             </div>
           </details>
         </>
@@ -226,7 +226,7 @@ export function CreatorHubPage({ onNavigate }: { onNavigate: (r: string) => void
           setConfirmDisable(false)
           toast('Creator mode disabled — your publications stay live.')
         }}
-        onClose={() => setConfirmDisable(false)}
+        onClose={() => { setConfirmDisable(false) }}
       />
       <ConfirmDialog
         open={!!unpubTarget}
@@ -240,7 +240,7 @@ export function CreatorHubPage({ onNavigate }: { onNavigate: (r: string) => void
           setUnpubTarget(null)
           toast('Unpublished — removed from Explore')
         }}
-        onClose={() => setUnpubTarget(null)}
+        onClose={() => { setUnpubTarget(null) }}
       />
     </div>
   )
@@ -441,7 +441,7 @@ export function HubOverview({ myPubs, onUnpublish, onNavigate, daily, salesRows,
                 {FUNNEL_WINDOWS.map(w => (
                   <button key={w.days} type="button" data-pill-key={String(w.days)}
                     className={`clickable-chip chip${days === w.days ? ' on-teal' : ''}`}
-                    onClick={() => onDays(w.days)} aria-pressed={days === w.days}>{w.label}</button>
+                    onClick={() => { onDays(w.days) }} aria-pressed={days === w.days}>{w.label}</button>
                 ))}
               </PillNav>
             </div>
@@ -505,15 +505,15 @@ export function HubOverview({ myPubs, onUnpublish, onNavigate, daily, salesRows,
                       <span className="pub-row-actions">
                         {stale ? (
                           <button className="btn btn-saffron btn-sm" aria-label={`Update page for ${p.title}`}
-                            onClick={() => onNavigate(`/trip/${p.tripId}/share`)}>
+                            onClick={() => { onNavigate(`/trip/${p.tripId}/share`) }}>
                             <InlineIcon icon={Pencil} size={13} gap={3} />Update page
                           </button>
                         ) : (
-                          <button className="btn btn-outline btn-sm" aria-label={`Edit ${p.title}`} onClick={() => onNavigate(`/trip/${p.tripId}/share`)}>
+                          <button className="btn btn-outline btn-sm" aria-label={`Edit ${p.title}`} onClick={() => { onNavigate(`/trip/${p.tripId}/share`) }}>
                             <InlineIcon icon={Pencil} size={13} gap={3} />Edit
                           </button>
                         )}
-                        <button className="btn btn-ghost btn-sm" aria-label={`Unpublish ${p.title}`} onClick={() => onUnpublish(p)}>Unpublish</button>
+                        <button className="btn btn-ghost btn-sm" aria-label={`Unpublish ${p.title}`} onClick={() => { onUnpublish(p) }}>Unpublish</button>
                       </span>
                     </div>
                   )
@@ -610,7 +610,7 @@ export function EarningsTab({ myPubs, sales, salesError, onRetry, view, onView, 
         <PillNav className="filter-pillbar" role="group" aria-label="Earnings view" activeKey={view}>
           {([['actual', 'Actual'], ['projection', 'Projection']] as const).map(([k, label]) => (
             <button key={k} type="button" data-pill-key={k} className={`clickable-chip chip${view === k ? ' on-teal' : ''}`}
-              onClick={() => onView(k)} aria-pressed={view === k}>{label}</button>
+              onClick={() => { onView(k) }} aria-pressed={view === k}>{label}</button>
           ))}
         </PillNav>
         <span className="hub-controls-div" aria-hidden />
@@ -618,7 +618,7 @@ export function EarningsTab({ myPubs, sales, salesError, onRetry, view, onView, 
         <PillNav className="filter-pillbar" role="group" aria-label="Show amounts as" activeKey={basis}>
           {([['gross', 'Gross'], ['net', 'Net']] as const).map(([k, label]) => (
             <button key={k} type="button" data-pill-key={k} className={`clickable-chip chip${basis === k ? ' on-teal' : ''}`}
-              onClick={() => onBasis(k)} aria-pressed={basis === k}>{label}</button>
+              onClick={() => { onBasis(k) }} aria-pressed={basis === k}>{label}</button>
           ))}
         </PillNav>
       </div>

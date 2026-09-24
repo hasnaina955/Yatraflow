@@ -43,6 +43,33 @@ function yAt(v: number, peak: number): number {
   return H - PAD_Y - (peak > 0 ? (v / peak) * usable : 0)
 }
 
+/** One segment of the line: how far it runs, and how steeply. */
+type Seg = { dx: number; slope: number }
+
+/**
+ * Adjacent pairs of a list.
+ *
+ * The curve maths below is written in terms of neighbours, and this is what
+ * lets it say `[a, b]` instead of reaching back and forth through `xs[i - 1]`
+ * and `xs[i + 1]`. The arithmetic is unchanged; only the addressing is.
+ */
+function adjacentPairs<T>(xs: T[]): Array<[T, T]> {
+  const out: Array<[T, T]> = []
+  let prev: T | undefined
+  for (const x of xs) {
+    if (prev !== undefined) out.push([prev, x])
+    prev = x
+  }
+  return out
+}
+
+/** The weighted-mean tangent where two consecutive segments meet. */
+function meanTangent(prev: Seg, next: Seg): number {
+  const w1 = 2 * next.dx + prev.dx
+  const w2 = next.dx + 2 * prev.dx
+  return (w1 + w2) / (w1 / prev.slope + w2 / next.slope)
+}
+
 /**
  * A monotone cubic through the points (Fritsch–Carlson tangents).
  *
@@ -53,38 +80,38 @@ function yAt(v: number, peak: number): number {
  * with the guarantee that the curve stays inside the points it connects.
  */
 function smoothPath(pts: Pt[]): string {
-  const n = pts.length
-  if (n === 0) return ''
-  if (n === 1) return `M${pts[0].x.toFixed(2)},${pts[0].y.toFixed(2)}`
+  if (pts.length === 0) return ''
+  const start = pts[0]
+  if (pts.length === 1) return `M${start.x.toFixed(2)},${start.y.toFixed(2)}`
 
-  const dx: number[] = []
-  const slope: number[] = []
-  for (let i = 0; i < n - 1; i++) {
-    dx[i] = pts[i + 1].x - pts[i].x
-    slope[i] = dx[i] === 0 ? 0 : (pts[i + 1].y - pts[i].y) / dx[i]
+  // Every point carries the run and the tangent it LEAVES with, so the curve
+  // out of a point is decided by the two segments on either side of it. The
+  // final point has no segment of its own: it inherits the last slope.
+  const anchors: Array<{ at: Pt; tan: number; dx: number }> = []
+  let prevSeg: Seg | undefined
+  let endPoint: Pt | undefined
+  for (const [a, b] of adjacentPairs(pts)) {
+    const dx = b.x - a.x
+    const seg: Seg = { dx, slope: dx === 0 ? 0 : (b.y - a.y) / dx }
+    // Tangents: flat at local extrema, weighted mean elsewhere.
+    const tan = prevSeg === undefined
+      ? seg.slope
+      : prevSeg.slope * seg.slope <= 0
+        ? 0
+        : meanTangent(prevSeg, seg)
+    anchors.push({ at: a, tan, dx })
+    prevSeg = seg
+    endPoint = b
   }
+  if (prevSeg && endPoint) anchors.push({ at: endPoint, tan: prevSeg.slope, dx: 0 })
 
-  // Tangents: flat at local extrema, weighted mean elsewhere.
-  const tan: number[] = new Array(n)
-  tan[0] = slope[0]
-  tan[n - 1] = slope[n - 2]
-  for (let i = 1; i < n - 1; i++) {
-    if (slope[i - 1] * slope[i] <= 0) {
-      tan[i] = 0
-    } else {
-      const w1 = 2 * dx[i] + dx[i - 1]
-      const w2 = dx[i] + 2 * dx[i - 1]
-      tan[i] = (w1 + w2) / (w1 / slope[i - 1] + w2 / slope[i])
-    }
-  }
-
-  let d = `M${pts[0].x.toFixed(2)},${pts[0].y.toFixed(2)}`
-  for (let i = 0; i < n - 1; i++) {
-    const c1x = pts[i].x + dx[i] / 3
-    const c1y = pts[i].y + (tan[i] * dx[i]) / 3
-    const c2x = pts[i + 1].x - dx[i] / 3
-    const c2y = pts[i + 1].y - (tan[i + 1] * dx[i]) / 3
-    d += ` C${c1x.toFixed(2)},${c1y.toFixed(2)} ${c2x.toFixed(2)},${c2y.toFixed(2)} ${pts[i + 1].x.toFixed(2)},${pts[i + 1].y.toFixed(2)}`
+  let d = `M${start.x.toFixed(2)},${start.y.toFixed(2)}`
+  for (const [a, b] of adjacentPairs(anchors)) {
+    const c1x = a.at.x + a.dx / 3
+    const c1y = a.at.y + (a.tan * a.dx) / 3
+    const c2x = b.at.x - a.dx / 3
+    const c2y = b.at.y - (b.tan * a.dx) / 3
+    d += ` C${c1x.toFixed(2)},${c1y.toFixed(2)} ${c2x.toFixed(2)},${c2y.toFixed(2)} ${b.at.x.toFixed(2)},${b.at.y.toFixed(2)}`
   }
   return d
 }
@@ -129,7 +156,14 @@ export function TrendChart({ points, label, unlockRead = 'ready' }: { points: Fu
   const quiet = peak === 0
   const first = points[0]?.day
   const last = points[points.length - 1]?.day
-  const active = hover !== null && !quiet ? points[hover] : null
+  // The index is kept alongside the point: the guide line and the readout both
+  // need to know WHERE on the axis the active day sits, not only which day it
+  // is. Tracking the index is also what lets the drawing below read a day
+  // without a non-null assertion.
+  const activeIndex = hover !== null && !quiet ? hover : null
+  // A computed index into a plain array is the shape Codacy's object-injection
+  // rule refuses; `find` says the same thing with an honest `| undefined`.
+  const active = activeIndex === null ? null : (points.find((_, i) => i === activeIndex) ?? null)
 
   /** Nearest day to the pointer. The SVG scales to its container, so the mouse
    *  position is converted through the rendered box rather than assumed. */
@@ -143,7 +177,7 @@ export function TrendChart({ points, label, unlockRead = 'ready' }: { points: Fu
     setHover(Math.max(0, Math.min(points.length - 1, i)))
   }
 
-  const tipPct = active ? Math.max(6, Math.min(94, (xAt(hover!, points.length) / W) * 100)) : 0
+  const tipPct = active && activeIndex !== null ? Math.max(6, Math.min(94, (xAt(activeIndex, points.length) / W) * 100)) : 0
 
   return (
     <figure className="hub-chart">
@@ -170,7 +204,7 @@ export function TrendChart({ points, label, unlockRead = 'ready' }: { points: Fu
           else if (e.key === 'End') { setHover(last); e.preventDefault() }
           else if (e.key === 'Escape') setHover(null)
         }}
-        onBlur={() => setHover(null)}
+        onBlur={() => { setHover(null) }}
       >
         <defs>
           <linearGradient id={fadeId} x1="0" y1="0" x2="0" y2="1">
@@ -198,11 +232,11 @@ export function TrendChart({ points, label, unlockRead = 'ready' }: { points: Fu
             ) : null))}
             {/* The guide: one vertical line and one dot per series at the day
                 under the pointer. Drawn last so it sits over the fills. */}
-            {active && (
+            {active && activeIndex !== null && (
               <>
-                <line className="hc-guide" x1={xAt(hover!, points.length)} y1={PAD_Y} x2={xAt(hover!, points.length)} y2={H - PAD_Y} vectorEffect="non-scaling-stroke" />
-                <circle className="hc-hover-dot" cx={xAt(hover!, points.length)} cy={yAt(active.views, peak)} r="4.5" />
-                <circle className="hc-hover-dot is-forks" cx={xAt(hover!, points.length)} cy={yAt(active.forks, peak)} r="3.5" />
+                <line className="hc-guide" x1={xAt(activeIndex, points.length)} y1={PAD_Y} x2={xAt(activeIndex, points.length)} y2={H - PAD_Y} vectorEffect="non-scaling-stroke" />
+                <circle className="hc-hover-dot" cx={xAt(activeIndex, points.length)} cy={yAt(active.views, peak)} r="4.5" />
+                <circle className="hc-hover-dot is-forks" cx={xAt(activeIndex, points.length)} cy={yAt(active.forks, peak)} r="3.5" />
               </>
             )}
           </>

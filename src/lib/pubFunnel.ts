@@ -124,6 +124,20 @@ export function funnelWindowStart(days: number, now: number): number {
   return utcDayStart(now) - (Math.max(1, Math.floor(days)) - 1) * 86400000
 }
 
+/**
+ * Whether a recorded step happened INSIDE the window.
+ *
+ * The upper bound matters as much as the lower one, and it is the bug the
+ * window agreement test exists for: a row dated later than `now` (a skewed
+ * clock, a hand-written timestamp) used to count in the per-publication table
+ * while falling off the trend's axis, so the chart and the numbers under it
+ * described different periods. Both builders ask this one function, so neither
+ * can grow its own opinion about where the window ends.
+ */
+function inWindowAt(at: number, start: number, now: number): boolean {
+  return Number.isFinite(at) && at >= start && at <= now
+}
+
 /** A stage's conversion. Rule 1 lives here: a missing denominator reads 0, and
  *  the result is never NaN or Infinity. Not clamped — see rule 2. */
 export function conversionPct(from: number, to: number): number {
@@ -168,7 +182,7 @@ export function buildPubFunnels(input: {
     bucket.views += row.views
     bucket.forks += row.forks
     inRange.set(row.pubId, bucket)
-    if (Number.isFinite(at) && at >= start) {
+    if (inWindowAt(at, start, now)) {
       const w = inWindow.get(row.pubId) ?? { views: 0, forks: 0 }
       w.views += row.views
       w.forks += row.forks
@@ -182,7 +196,7 @@ export function buildPubFunnels(input: {
   const unlocksInRange = new Map<string, number>()
   for (const sale of sales) {
     unlocksInRange.set(sale.pubId, (unlocksInRange.get(sale.pubId) ?? 0) + 1)
-    if (sale.grantedAt >= start) {
+    if (inWindowAt(sale.grantedAt, start, now)) {
       unlocksInWindow.set(sale.pubId, (unlocksInWindow.get(sale.pubId) ?? 0) + 1)
     }
   }
@@ -276,4 +290,77 @@ export function formatPct(pct: number): string {
   if (!(pct > 0)) return '0%'
   const rounded = pct >= 10 ? pct.toFixed(0) : pct.toFixed(1)
   return `${rounded.replace(/\.0$/, '')}%`
+}
+
+/** One day of the trend: the three steps, bucketed to the UTC day they
+ *  happened on. */
+export interface FunnelDayPoint {
+  /** `YYYY-MM-DD`, UTC — the same bucketing the RPC and the window use. */
+  day: string
+  views: number
+  forks: number
+  unlocks: number
+}
+
+/**
+ * The daily series the trend draws, for one window.
+ *
+ * SAME BOUNDARY, SAME BUCKETS as `buildPubFunnels` — one window rule
+ * (`funnelWindowStart`, whole UTC days) and one day key (`utcDayKey`), so the
+ * chart above the table and the numbers in it cannot describe different
+ * periods. The test suite pins that agreement by summing this series and
+ * comparing it to the windowed totals.
+ *
+ * EMPTY DAYS ARE KEPT. A day with nothing recorded is a point on the axis, not
+ * a gap to compress away: collapsing it would draw a flat line where the truth
+ * is "no traffic that week", and would silently rescale the axis. `days`
+ * buckets are always returned, oldest first, ending on today's UTC day.
+ *
+ * `pubId` narrows the series to one publication; omitted, it is the whole
+ * account. Unlocks are counted from the SALES LEDGER by `grantedAt` (the same
+ * source the table's unlock column reads) and never from an event row, because
+ * a sale already is a dated row and a second copy would be a second truth for
+ * the same money.
+ */
+export function buildDailySeries(input: {
+  daily: readonly FunnelDailyRow[]
+  sales: readonly FunnelSale[]
+  days: number
+  now: number
+  pubId?: string
+}): FunnelDayPoint[] {
+  const { daily, sales, days, now, pubId } = input
+  const span = Math.max(1, Math.floor(days))
+  const start = funnelWindowStart(span, now)
+
+  const byDay = new Map<string, FunnelDayPoint>()
+  const pointFor = (day: string): FunnelDayPoint => {
+    const found = byDay.get(day)
+    if (found) return found
+    const fresh = { day, views: 0, forks: 0, unlocks: 0 }
+    byDay.set(day, fresh)
+    return fresh
+  }
+
+  for (const row of daily) {
+    if (pubId && row.pubId !== pubId) continue
+    const at = Date.parse(`${row.day}T00:00:00Z`)
+    if (!inWindowAt(at, start, now)) continue
+    const point = pointFor(row.day)
+    point.views += row.views
+    point.forks += row.forks
+  }
+
+  for (const sale of sales) {
+    if (pubId && sale.pubId !== pubId) continue
+    if (!inWindowAt(sale.grantedAt, start, now)) continue
+    pointFor(utcDayKey(sale.grantedAt)).unlocks += 1
+  }
+
+  const series: FunnelDayPoint[] = []
+  for (let i = 0; i < span; i++) {
+    const day = utcDayKey(start + i * 86400000)
+    series.push(byDay.get(day) ?? { day, views: 0, forks: 0, unlocks: 0 })
+  }
+  return series
 }

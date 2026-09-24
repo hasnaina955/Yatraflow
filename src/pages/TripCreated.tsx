@@ -24,6 +24,7 @@ import { crewInviteMessage, PLANNER_ROLE_LINE, CREW_CHANNELS, inviteChannelUrl, 
 import { nativeCopyText, nativeShareText } from '../lib/native'
 import { haptic, HAPTIC } from '../lib/haptics'
 import { toast } from '../components/ui'
+import { useReveal } from '../hooks/useReveal'
 
 type InviteStatus = 'idle' | 'sent' | 'copied' | 'skipped'
 
@@ -218,6 +219,15 @@ export function TripCreatedPage({ tripId, onNavigate }: { tripId: string; onNavi
     [handoff, extras],
   )
 
+  /* Entry choreography. This page had none at all, and it is the one surface
+     where motion earns its keep: a confirmation the user lands on exactly once,
+     whose cards should arrive staggered rather than snap into place. Called
+     above the early return so hook order stays unconditional. The shared hook
+     also re-scans on mutation, which matters here because all three cards are
+     conditional - a late-mounting one would otherwise be hidden by the armed
+     body class and never observed. */
+  useReveal()
+
   if (!trip) {
     return (
       <div className="container created-page">
@@ -359,30 +369,33 @@ export function TripCreatedPage({ tripId, onNavigate }: { tripId: string; onNavi
           the artifact column (the bill and where to go next). */}
       <div className="created-cols">
       <div className="created-celebrate">
-      <header className="created-head">
+      <header className="created-head reveal">
         <p className="eyebrow">Trip created</p>
         <h1><span className="created-name">{trip.name}</span> is live.</h1>
         <p className="muted small">Now the engine starts working for you.</p>
       </header>
 
       {items.length > 0 && (
-        <section className="created-card" aria-label="What the engine already knows">
-          <h2 className="created-card-title">Watch for these - the engine already knows</h2>
-          <ul className="created-list">
-            {items.map(item => (
-              <li key={item.key} className={`created-item kind-${item.kind}`}>
-                <span className="created-badge" aria-hidden>{badgeFor(item.kind)}</span>
-                <span className="created-item-body">
-                  <b>{item.headline}</b>
-                  <span className="created-detail">{item.detail}</span>
-                </span>
-              </li>
-            ))}
-          </ul>
-        </section>
+        <div className="bezel reveal reveal-d1">
+          <section className="created-card" aria-label="What the engine already knows">
+            <h2 className="created-card-title">Watch for these - the engine already knows</h2>
+            <ul className="created-list">
+              {items.map(item => (
+                <li key={item.key} className={`created-item kind-${item.kind}`}>
+                  <span className="created-badge" aria-hidden>{badgeFor(item.kind)}</span>
+                  <span className="created-item-body">
+                    <b>{item.headline}</b>
+                    <span className="created-detail">{item.detail}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        </div>
       )}
 
-      <section className="created-card" aria-label="Bring the crew">
+      <div className="bezel reveal reveal-d2">
+        <section className="created-card" aria-label="Bring the crew">
           <h2 className="created-card-title">The crew <span className="created-role">{PLANNER_ROLE_LINE}</span></h2>
           {crew.length === 0 && (
             <p className="created-detail">No one on the list yet - add them here; the invite is ready the moment you do.</p>
@@ -432,6 +445,7 @@ export function TripCreatedPage({ tripId, onNavigate }: { tripId: string; onNavi
             <p className="created-detail">They get: {crewInviteMessage({ tripName: trip.name, joinUrl, plannerName: handoff?.plannerName || me?.profile.name || '' })}</p>
           )}
         </section>
+      </div>
 
       {/* The mockup's share row: the green action travels, the invite copies. */}
       {bill && bill.perHead != null && (
@@ -454,8 +468,11 @@ export function TripCreatedPage({ tripId, onNavigate }: { tripId: string; onNavi
       </div>
 
       <div className="created-side">
+      {/* Reveal, but deliberately NOT a bezel: the bill card is a ticket artifact
+          with its own language (zero padding, a .tk-head band), not one of the
+          generic cards - wrapping a receipt in a glass tray muddies it. */}
       {bill && bill.perHead != null && (
-        <section className="created-card created-billcard" aria-label="The rough bill">
+        <section className="created-card created-billcard reveal reveal-d3" aria-label="The rough bill">
           <div className="tk-head"><span className="tk-brand">YatraFlow</span><span className="tk-kind">Rough bill</span></div>
           <div className="created-bill-body">
           <h2 className="created-card-title">{trip.name}</h2>

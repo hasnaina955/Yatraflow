@@ -15,6 +15,8 @@ import {
 import { collectWarnings } from '../lib/engine'
 import { anticipate, type AnticipationItem } from '../lib/anticipation'
 import { estimateLunchStop } from '../lib/routeIq'
+import { planJourneyHalts } from '../lib/geocode'
+import { MODE_SPEED } from '../lib/engine'
 import { fetchDailyWeather, forecastAvailable, isoAddDays } from '../lib/weather'
 import { readHandoff, clearHandoff, billTotal } from '../lib/createHandoff'
 import { shareBillImage } from '../lib/billCapture'
@@ -87,6 +89,54 @@ export function TripCreatedPage({ tripId, onNavigate }: { tripId: string; onNavi
 
   // weather: only inside the honest forecast window
   const [rainyDays, setRainyDays] = useState<number[]>([])
+  // The fuel line's source: the real halt plan over the trip's own corridor -
+  // the same planner the workspace's day planner uses, asked here for one
+  // number (how many fuel stops the drive implies) and their along-route
+  // positions. Road-modes only: a flight's "fuel halts" is a category error,
+  // and the planner's road math would say nothing honest about one. Degrades
+  // silently - an empty list makes the anticipation skip the fuel line, the
+  // same shape a failed weather fetch takes (a forecast we cannot get says
+  // nothing).
+  const [fuelHalts, setFuelHalts] = useState<{ title: string; cumKm: number }[]>([])
+  useEffect(() => {
+    if (!trip) return
+    const ROAD_MODES = new Set(['car', 'rental', 'motorcycle', 'taxi', 'mixed'])
+    if (!ROAD_MODES.has(trip.transportMode)) return
+    const points = [
+      ...(trip.startLocationCoords ? [{ lat: trip.startLocationCoords.lat, lng: trip.startLocationCoords.lng }] : []),
+      ...(trip.destinationCoords ?? []).filter((c): c is { lat: number; lng: number } => !!c),
+    ]
+    if (points.length < 2) return
+    const roadKm = handoff?.bill?.roadKm ?? handoff?.roadKm ?? null
+    const totalKm = roadKm ?? 0
+    if (totalKm <= 0) return
+    const days = trip.days.length || 1
+    const driveMinutes = Math.round((totalKm / (MODE_SPEED[trip.transportMode] ?? 42)) * 60)
+    let alive = true
+    planJourneyHalts(
+      points, totalKm, driveMinutes,
+      { includeFuel: true, travellers: trip.travellers, travelStyle: trip.travelStyle, transportMode: trip.transportMode, multiDay: days > 1 },
+    )
+      .then(hits => {
+        if (!alive) return
+        setFuelHalts(
+          hits
+            // A fuel tick folded into a meal/overnight (#144A - "refuel where
+            // you eat or sleep") keeps its fuel service in the LABEL
+            // ("Overnight + fuel"), not in `purpose`, and the corridor scan
+            // often names no pump at all. Matching purpose alone while
+            // requiring a name dropped every halt the planner made (measured
+            // on a 1,421 km plan: 3 fuel ticks - one folded+named, one
+            // folded+unnamed, one pure-fuel+unnamed - 0 surfaced). An unnamed
+            // halt keeps the engine's own label as its title rather than
+            // vanishing from the count.
+            .filter(h => h.segment.purpose === 'fuel' || /fuel|charge/i.test(h.segment.label))
+            .map(h => ({ title: h.hit?.name || h.segment.label, cumKm: h.segment.targetKm })),
+        )
+      })
+      .catch(() => { /* the planner failing says nothing - the line just skips */ })
+  }, [trip?.id, handoff])
+  // weather: only inside the honest forecast window
   useEffect(() => {
     if (!trip) return
     if (!forecastAvailable(trip.startDate)) return
@@ -121,12 +171,17 @@ export function TripCreatedPage({ tripId, onNavigate }: { tripId: string; onNavi
       travellers: trip.travellers,
       roadKm: handoff?.bill?.roadKm ?? handoff?.roadKm ?? null,
       rangeKm: handoff?.rangeKm ?? null,
-      fuelHalts: [],
+      fuelHalts,
       lunch: estimateLunchStop(points, trip.transportMode),
       rainyDays,
       conflicts,
     })
-  }, [trip?.id, handoff, rainyDays, conflicts])
+    // fuelHalts belongs in this deps list: the halt fetch resolves AFTER this
+    // memo's first run, and without the dep the fetched halts sat in state
+    // while the list kept rendering the memo's empty-closure shape — visible
+    // only if rain or conflicts happened to change later (a race, live-caught
+    // on a 1,421 km trip that planned fuel halts the list never showed).
+  }, [trip?.id, handoff, rainyDays, conflicts, fuelHalts])
 
   // Crew composition is pure and hook-ordered: it lives ABOVE the `!trip`
   // early return so the render's hook count never changes (a conditional

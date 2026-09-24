@@ -15,6 +15,16 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ## [Unreleased]
 
+### Added
+- **The moment-after's "watch for these" list plans real fuel halts** — the fuel
+  line now comes from the journey halt planner over the trip's own corridor, so a
+  long drive's moment after names where the refuels land (e.g. "3 fuel halts on
+  the way — Overnight + fuel (~355 km), … (~1,148 km)"). Fuel ticks folded into
+  a meal or overnight refuel (#144A) and unnamed pumps are counted and titled
+  with the engine's own halt label; a drive shorter than one tank stride still
+  says nothing (no filler), and the detail's "both" no longer miscounts a halt
+  total that isn't two.
+
 ### Changed
 - **Form errors announce once — assertively — and repeat politely, app-wide** —
   `Field`'s error text is now a polite live region bound to its control

@@ -196,6 +196,15 @@ Key locations:
    differ. It only reproduces on a FULL reload, never on hash navigation
    into an already-hydrated app, so "it worked when I clicked around" proves
    nothing: test the fresh-load path for any component with an early return.
+ 6f. **Two wiring traps the fuel-halts line caught (2026-09-23).** (1) An async
+   result that feeds a `useMemo` MUST be in the memo's deps — the halt fetch
+   landed in state while the memo kept its empty closure and the line never
+   rendered; every pure-layer test was green because the drop happened in the
+   page, so only a rendered check catches this family. (2) A planner halt whose
+   fuel tick folded into a meal/overnight (#144A) keeps the combined service in
+   its `label` ("Overnight + fuel"), not its singular `purpose` — a consumer
+   filtering `purpose === 'fuel'` drops nearly every planned refuel on a
+   multi-day corridor (measured: 3 planned, 0 surfaced). Match the label too.
 7. **When asking the user to review/test locally, always hand them the exact
    URL — never make them find or start the server.** Check if the dev server
    is up (probe `http://localhost:5173`); if not, start `npm run dev`

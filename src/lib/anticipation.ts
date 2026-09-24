@@ -101,7 +101,10 @@ export function anticipate(input: AnticipationInput): AnticipationItem[] {
       key: 'fuel',
       kind: 'fuel',
       headline: `${input.fuelHalts.length} fuel halt${input.fuelHalts.length === 1 ? '' : 's'} on the way`,
-      detail: stops.join(', ') + ' - both from the tank maths against the route.',
+      // No quantifier in the suffix: "both" claimed two stops regardless of
+      // the count (it only read right on the 2-halt fixture), and the headline
+      // already carries the number.
+      detail: stops.join(', ') + ' - from the tank maths against the route.',
     })
   } else if (input.roadKm != null && input.rangeKm != null && input.rangeKm > 0 && input.roadKm > input.rangeKm) {
     const refuels = Math.ceil(input.roadKm / input.rangeKm) - 1

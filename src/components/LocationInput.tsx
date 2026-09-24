@@ -21,9 +21,12 @@ interface Props {
   id?: string
   /** Locks the control for viewers: no typing, no search, no pick. */
   disabled?: boolean
+  /** id of the element carrying `error`'s text — binds the message to the input
+   *  so a screen reader announces which control resolves it (UI audit F-01 pattern). */
+  errorId?: string
 }
 
-export function LocationInput({ value, onChange, onPick, placeholder, error, autoFocus, indiaOnly = true, id, disabled }: Props) {
+export function LocationInput({ value, onChange, onPick, placeholder, error, errorId, autoFocus, indiaOnly = true, id, disabled }: Props) {
   const [hits, setHits] = useState<PlaceHit[]>([])
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -103,6 +106,8 @@ export function LocationInput({ value, onChange, onPick, placeholder, error, aut
         className="input"
         disabled={disabled}
         style={error ? { borderColor: 'var(--danger)' } : undefined}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error && errorId ? errorId : undefined}
         value={value}
         autoComplete="off"
         autoFocus={autoFocus}
@@ -122,7 +127,10 @@ export function LocationInput({ value, onChange, onPick, placeholder, error, aut
       />
       {loading && <span className="loc-spinner" aria-label="Searching places" />}
       {resolving && <span className="loc-spinner" aria-label="Pinning the place" />}
-      {pickErr && <div className="field-error small" role="alert" style={{ color: 'var(--danger)', marginTop: 4 }}>{pickErr}</div>}
+      {/* Field-tied, so polite: an unpicked place can fail while a submit's
+          FormErrorSummary is announcing — two role=alert regions would double-
+          interrupt (see ui.tsx Field for the pattern). */}
+      {pickErr && <div className="field-error small" role="status" aria-live="polite" style={{ color: 'var(--danger)', marginTop: 4 }}>{pickErr}</div>}
       {open && hits.length > 0 && (
         <ul className="loc-dropdown popover" role="listbox" id={listId}>
           {hits.map((hit, i) => (

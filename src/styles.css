@@ -13,6 +13,10 @@
      pick up the brand accent. --teal-500 re-resolves per theme below. */
   color-scheme: light;
   accent-color: var(--yf-teal-600);
+  /* The scrollbar's gutter is always reserved, so a page that grows past the
+     fold (the budget block, the advanced drawer) no longer shifts every
+     centred layout sideways when the vertical scrollbar appears. */
+  scrollbar-gutter: stable;
 
   /* ---- 1. PRIMITIVES: brand ---- */
   --teal-500: #0D8D82;
@@ -674,7 +678,7 @@ a.btn { text-decoration: none; }
 .btn-ghost:hover { background: var(--bg-soft); color: var(--text); }
 .btn-danger { background: var(--color-destructive-soft); color: var(--ink-coral); }
 .btn-danger:hover:not(:disabled) { background: color-mix(in srgb, var(--color-destructive) 14%, transparent); }
-.btn-sm { padding: 6px 12px; font-size: 13px; }
+.btn-sm { padding: 6px 12px; font-size: 13px; min-height: 24px; }
 /* The LARGE size is the one that carries a sentence, so it is the one that may
    wrap. `.btn`'s global `white-space: nowrap` keeps pill labels single-line,
    but it also makes a sentence-length label's MIN-CONTENT equal to the whole
@@ -5750,35 +5754,41 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 .cal-hint { margin: 8px 0 0; font-size: 11px; color: var(--yf-text-muted); text-align: center; }
 
 /* ============ The Trip Ticket (right rail) ============ */
-.ts-rail { --rail-ink: #F2F7F5; --rail-ink-dim: rgba(242, 247, 245, 0.74); --rail-line: rgba(255, 255, 255, 0.16); position: sticky; top: calc(var(--nav-h, 64px) + 16px); }
+/* Rail ink follows the theme: the rail's own background is color-mix(..var(--bg)),
+   so the old navy-pass whites (#F2F7F5 on white wash) went invisible on the
+   mockup's light ticket — the readiness block read only in dark. The dark
+   values re-declare below. */
+.ts-rail { --rail-ink: var(--text); --rail-ink-dim: var(--text-2); --rail-line: var(--line); display: flex; flex-direction: column; gap: 13px; padding: 20px 20px 22px; border-left: 1px solid var(--line); background: color-mix(in srgb, var(--teal) 3%, var(--bg)); position: sticky; top: calc(var(--nav-h, 64px) + 16px); }
+[data-theme='dark'] .ts-rail { --rail-ink: #F2F7F5; --rail-ink-dim: rgba(242, 247, 245, 0.74); --rail-line: rgba(255, 255, 255, 0.16); }
 .ticket {
-  position: relative; border-radius: 22px; overflow: hidden;
-  background: linear-gradient(168deg, var(--yf-navy), color-mix(in srgb, var(--yf-navy) 78%, #04191F));
-  color: #F2F7F5; box-shadow: 0 20px 44px rgba(10, 32, 40, 0.35);
+  position: relative; border-radius: 18px; overflow: hidden;
+  background: var(--card); border: 1px solid var(--line);
+  color: var(--text); box-shadow: 0 14px 34px rgba(16, 46, 75, 0.1);
 }
-.ticket::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(420px 200px at 85% -10%, rgba(255, 255, 255, 0.08), transparent 60%); }
-.tk-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px 0; }
-.tk-brand { font-size: 10.5px; font-weight: 800; letter-spacing: 0.18em; text-transform: uppercase; opacity: 0.85; }
-.tk-kind { font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--yf-saffron); }
-.tk-cover { position: relative; margin: 12px 18px 0; height: 96px; border-radius: 12px; overflow: hidden; background: color-mix(in srgb, var(--yf-navy) 70%, #2E6B5E); }
+.ticket::after { content: none; }
+.tk-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: var(--yf-navy); }
+.tk-brand { font-family: var(--font-display); font-size: 13px; font-weight: 700; color: #fff; }
+.tk-kind { font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(255, 255, 255, 0.72); }
+.tk-cover { position: relative; margin: 0; height: 86px; border-radius: 0; overflow: hidden; background: linear-gradient(135deg, var(--teal-soft), color-mix(in srgb, var(--yf-saffron) 18%, var(--card)) 60%, color-mix(in srgb, var(--yf-saffron) 26%, var(--card))); }
 .tk-cover .tk-scenery { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .tk-cover .emoji-chip {
   position: absolute; right: 9px; bottom: 9px; width: 31px; height: 31px; border-radius: 9px;
-  display: grid; place-items: center; font-size: 15px; background: rgba(255, 255, 255, 0.16);
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  -webkit-backdrop-filter: blur(var(--yf-blur-chip)); backdrop-filter: blur(var(--yf-blur-chip));
+  display: grid; place-items: center; font-size: 15px;
+  background: color-mix(in srgb, var(--card) 88%, transparent);
+  border: 1px solid var(--line);
+  color: var(--text);
 }
-.tk-body { padding: 14px 18px 0; }
-.tk-title { font-size: 19px; font-weight: 700; letter-spacing: -0.01em; line-height: 1.15; overflow-wrap: anywhere; }
-.tk-route { margin: 8px 0 0; font-size: 12px; color: rgba(242, 247, 245, 0.66); }
-.tk-return-chip { display: inline-block; margin-left: 6px; padding: 1px 8px; border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 999px; font-size: 10px; }
-.tk-rows { margin: 12px 0 0; display: grid; gap: 8px; }
-.tk-row { display: flex; align-items: center; gap: 9px; font-size: 12.5px; min-width: 0; }
-.tk-row .ic { width: 24px; height: 24px; border-radius: 7px; display: grid; place-items: center; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.16); font-size: 11.5px; flex: none; }
-.tk-row .lab { color: rgba(242, 247, 245, 0.66); flex: none; }
-.tk-row b { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tear { position: relative; margin: 16px 0 0; border-top: 2px dashed rgba(255, 255, 255, 0.18); }
-.tear::before, .tear::after { content: ""; position: absolute; top: -10px; width: 20px; height: 20px; border-radius: 999px; background: var(--yf-cream); }
+.tk-body { padding: 13px 15px 11px; }
+.tk-title { font-family: var(--font-display); font-size: 17px; font-weight: 800; letter-spacing: -0.01em; line-height: 1.15; overflow-wrap: anywhere; color: var(--text); }
+.tk-route { margin: 8px 0 0; font-size: 11.5px; color: var(--text-2); }
+.tk-return-chip { display: inline-block; margin-left: 6px; padding: 1px 8px; border: 1px solid var(--line); border-radius: 999px; font-size: 10px; color: var(--violet-ink); font-weight: 600; }
+.tk-rows { margin: 9px 0 0; display: grid; gap: 5px; }
+.tk-row { display: flex; align-items: center; gap: 9px; font-size: 12px; min-width: 0; color: var(--text-2); }
+.tk-row .ic { width: 20px; height: 20px; border-radius: 7px; display: grid; place-items: center; background: var(--bg); border: 0; color: var(--ink-teal); font-size: 11.5px; flex: none; }
+.tk-row .lab { color: var(--text-3); flex: none; }
+.tk-row b { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+.tear { position: relative; margin: 12px 0 0; border-top: 1.5px dashed var(--line); }
+.tear::before, .tear::after { content: ""; position: absolute; top: -10px; width: 20px; height: 20px; border-radius: 999px; background: color-mix(in srgb, var(--teal) 3%, var(--bg)); }
 .tear::before { left: -10px; }
 .tear::after { right: -10px; }
 .tk-stub { padding: 12px 18px 18px; }
@@ -5790,9 +5800,9 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
   color: #F2F7F5; font-weight: 700; font-size: 14px; cursor: pointer;
 }
 .tk-print-btn:hover { background: rgba(255, 255, 255, 0.18); border-style: solid; }
-.tk-fine { margin: 10px 0 0; font-size: 11px; line-height: 1.5; color: rgba(242, 247, 245, 0.6); }
-.tk-cancel { margin-top: 9px; width: 100%; text-align: center; font-size: 12.5px; color: rgba(242, 247, 245, 0.6); background: none; border: none; cursor: pointer; padding: 4px; }
-.tk-cancel:hover { color: #F2F7F5; }
+.tk-fine { margin: 10px 0 0; font-size: 11px; line-height: 1.5; color: var(--text-3); }
+.tk-cancel { margin-top: 9px; width: 100%; text-align: center; font-size: 12.5px; color: var(--text-3); background: none; border: none; cursor: pointer; padding: 4px; min-height: 24px; text-decoration: underline; text-underline-offset: 3px; }
+.tk-cancel:hover { color: var(--text-2); }
 .tk-subrow { display: flex; justify-content: center; gap: 18px; margin-top: 9px; }
 .tk-subrow .tk-cancel { margin-top: 0; width: auto; }
 
@@ -5821,11 +5831,14 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 .bill-perhead .mono { font-size: 21px; font-weight: 800; letter-spacing: -0.02em; color: #2E4A3A; }
 .bill-perhead .per { font-size: 11px; color: #6B5E42; font-weight: 600; }
 .bill-note { margin: 8px 0 0; font-size: 9.5px; line-height: 1.5; color: #9A8C6C; }
+/* The CTA pill: filled teal carries var(--card) ink, never #fff - dark theme
+   flips --teal-deep to a LIGHT teal where white text is 2.05:1; the flipped
+   pair reads 5.84 in light and 7.66 in dark (the .ct-n idiom). */
 .tk-cta {
-  margin-top: 12px; width: 100%; height: 46px; border-radius: 13px; border: none; cursor: pointer;
-  background: var(--yf-saffron); color: #3A2506; font-weight: 700; font-size: 14.5px;
+  margin-top: 12px; width: 100%; height: 46px; border-radius: 999px; border: none; cursor: pointer;
+  background: var(--teal-deep); color: var(--card); font-weight: 700; font-size: 14.5px;
   display: flex; align-items: center; justify-content: center; gap: 8px;
-  box-shadow: 0 9px 22px rgba(243, 170, 61, 0.35);
+  font-family: var(--font-display); box-shadow: 0 6px 18px rgba(13, 141, 130, 0.3);
 }
 .tk-cta:hover { filter: brightness(1.05); }
 
@@ -6081,7 +6094,7 @@ html.native-shell {
    bottom-nav label uses it); sizes stay literal elsewhere by design. */
 :root {
   --text-xs: 11px;
-  --kicker-size: 10.5px; --kicker-weight: 700; --kicker-tracking: .06em;
+  --kicker-size: 11px; --kicker-weight: 700; --kicker-tracking: .06em;
 }
 /* Glass blur tiers: chrome 18, panel 14, chip 8, scrim 3. */
 :root {
@@ -6147,10 +6160,13 @@ html.native-shell {
   .stop-kind-tag, .board-pulse .pulse-label, .budget-hero-label, .share-intent, .impact-cell .k,
   .ha-kicker, .ha-stats span, .hbc-code span, .hbc-sub, .loc-kind, .weather-day, .ride-purpose,
   .bench-eyebrow, .bench-scale-ends, .bench-receipt-kicker, .bench-total-label, .bench-badge,
-  .ticker-item .t-tag, .board-stop-kicker, .tk-brand, .tk-kind, .creator-badge, .pub-ledger th, .route-tag, .group-lab, .mini-lab,
+  .ticker-item .t-tag, .board-stop-kicker, .creator-badge, .pub-ledger th, .route-tag, .group-lab, .mini-lab,
   .compare-table th, .toast-action, .editorial-kicker, .pub-stats-label,
   .pub-hero-badge, .pub-hero-byline,
   .eyebrow, .cal-wd,
+  /* .tk-brand / .tk-kind left the kicker family for the boarding-pass head bar
+     (13px brand + 11px class line, folded into their own rules above) — the
+     mockup's ticket is a ticket, not a micro-label. */
   .route-glance .route-glance-label, .stat-label, .app-home-section,
   .poi-grp-k, .poi-reason-k {
     font-size: var(--kicker-size);
@@ -7020,45 +7036,52 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .tpl-warm { margin: 14px 0 16px; }
 .tpl-warm-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 8px; }
 .tpl-warm-head .why { font-size: 11.5px; color: var(--text-3); }
-.tpl-strip { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
+.tpl-strip { display: grid; grid-template-columns: repeat(auto-fill, minmax(196px, 1fr)); gap: 10px; }
 
 /* one template card: cover gradient + copy, hover lifts like a ticket */
 .tpl-card { position: relative; display: block; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--card); overflow: hidden; cursor: pointer; padding: 0; text-align: left; color: inherit; font: inherit; transition: transform var(--t-fast) var(--ease-out), box-shadow var(--t-fast) var(--ease-out), border-color var(--t-fast) var(--ease-out); }
-.tpl-card:hover, .tpl-card:focus-visible { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(16,46,75,.12); border-color: var(--teal); outline: none; }
+/* hover decoration is pointer-only: gated so touch devices don't get sticky
+   hover states; :focus-visible twins stay ungated. */
+.tpl-card:focus-visible { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(16,46,75,.12); border-color: var(--teal); outline: none; }
+@media (hover: hover) { .tpl-card:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(16,46,75,.12); border-color: var(--teal); } }
 .tpl-card.on { border-color: var(--teal); box-shadow: 0 0 0 2px var(--teal-soft); }
-.tpl-cov { height: 56px; display: flex; align-items: flex-end; padding: 6px 9px; }
-.tpl-cov .em { font-size: 18px; line-height: 1; }
+.tpl-cov { height: 64px; display: flex; align-items: flex-end; padding: 8px 10px; }
+.tpl-cov .em { font-size: 20px; line-height: 1; }
 .tpl-cov .days { margin-left: auto; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; background: var(--card); border-radius: 999px; padding: 2px 8px; color: var(--text); }
 .tpl-bd { display: block; min-height: 68px; padding: 7px 10px 9px; }
 .tpl-bd b { display: block; font-size: 12.5px; font-weight: 700; }
-.tpl-bd .r { font-size: 11px; color: var(--text-3); margin-top: 1px; line-height: 1.3; min-height: 27px; }
+.tpl-bd .r { font-size: 11px; color: var(--text-3); margin-top: 1px; line-height: 1.3; min-height: 27px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tpl-bd .p { display: block; margin-top: 5px; font-size: 11px; color: var(--teal-deep, var(--teal)); font-weight: 700; }
 
-.tpl-bd .p small { display: block; color: var(--text-3); font-weight: 500; font-size: 11px; }
-.tpl-pick { position: absolute; top: 7px; right: 7px; width: 20px; height: 20px; border-radius: 50%; background: var(--card); color: var(--teal-deep); border: 1.5px solid var(--teal); display: none; place-items: center; font-size: 11px; }
+.tpl-bd .p small { display: inline; color: var(--text-3); font-weight: 500; font-size: 11px; }
+.tpl-pick { position: absolute; top: 7px; right: 7px; width: 22px; height: 22px; border-radius: 50%; background: var(--teal-deep); color: var(--card); border: 0; display: none; place-items: center; font-size: 11px; }
 .tpl-card.on .tpl-pick { display: grid; }
 
 /* the quiet start-blank tile closes the strip */
 .tpl-blank { display: flex; align-items: center; gap: 10px; border: 1px dashed var(--teal); border-radius: var(--radius-sm); background: transparent; cursor: pointer; padding: 12px 13px; font: inherit; color: var(--teal-deep, var(--teal)); font-weight: 600; text-align: left; }
-.tpl-blank:hover, .tpl-blank:focus-visible { background: var(--teal-soft); outline: none; }
+.tpl-blank:focus-visible { background: var(--teal-soft); outline: none; }
+@media (hover: hover) { .tpl-blank:hover { background: var(--teal-soft); } }
 .tpl-blank small { display: block; font-weight: 500; color: var(--text-3); font-size: 11px; }
 
 /* the two helper chips under the strip: same-as-last + demo */
 .tpl-helpers { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 9px; }
 .tpl-helper { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 600; color: var(--text-2); background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: 5px 11px; cursor: pointer; }
-.tpl-helper:hover, .tpl-helper:focus-visible { border-color: var(--teal); color: var(--teal-deep, var(--teal)); outline: none; }
+.tpl-helper:focus-visible { border-color: var(--teal); color: var(--teal-deep, var(--teal)); outline: none; }
+@media (hover: hover) { .tpl-helper:hover { border-color: var(--teal); color: var(--teal-deep, var(--teal)); } }
 
 /* name-first row: the input + the suggestion chip */
 .tpl-name { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; }
 .tpl-name > .field { flex: 1 1 260px; min-width: 0; }
 .tpl-name .input { flex: 1; min-width: 200px; }
 .tpl-sug { flex: none; font-size: 11.5px; font-weight: 600; color: var(--teal-deep, var(--teal)); background: var(--teal-soft); border: 0; border-radius: 999px; padding: 6px 12px; cursor: pointer; }
-.tpl-sug:hover, .tpl-sug:focus-visible { background: var(--card); color: var(--teal-deep); outline: none; }
+.tpl-sug:focus-visible { background: var(--card); color: var(--teal-deep); outline: none; }
+@media (hover: hover) { .tpl-sug:hover { background: var(--card); color: var(--teal-deep); } }
 
 /* reduced motion: hover lift is decorative, keep it off */
 @media (prefers-reduced-motion: reduce) {
   .tpl-card { transition: none; }
-  .tpl-card:hover, .tpl-card:focus-visible { transform: none; }
+  .tpl-card:focus-visible { transform: none; }
+  @media (hover: hover) { .tpl-card:hover { transform: none; } }
 }
 /* ============================================================
    Create Trip - the advanced drawer (P1)
@@ -7085,7 +7108,7 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
    file's end for the line-keyed ratchet reason as with the blocks above.
    ============================================================ */
 
-.ready-block { margin: 10px 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--card); }
+.ready-block { margin: 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--card); }
 .ready-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
 .ready-lab { font-size: 11.5px; font-weight: 700; color: var(--text-2); }
 .ready-pct { font-size: 13px; font-weight: 700; color: var(--teal-deep); font-variant-numeric: tabular-nums; }
@@ -7140,7 +7163,7 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
    spacing ladder; the badges use the AA-verified teal pair.
    ============================================================ */
 
-.created-page { max-width: 720px; margin: 0 auto; padding: 24px 20px 24px; display: flex; flex-direction: column; gap: 16px; }
+.created-page { max-width: 1120px; margin: 0 auto; padding: 24px 20px 24px; display: flex; flex-direction: column; gap: 16px; }
 .created-head h1 { font-size: 26px; line-height: 1.15; margin: 4px 0 2px; }
 .created-card { padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--card); }
 .created-card-title { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; font-size: 13px; font-weight: 700; margin: 0 0 12px; }
@@ -7156,20 +7179,20 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .created-crew { display: grid; gap: 8px; }
 .created-crew-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .created-crew-name { font-size: 13px; font-weight: 600; }
-.created-crew-status { font-size: 11px; color: var(--text-3); }
-.created-crew-hint { margin-left: auto; font-size: 11px; color: var(--text-3); }
-.created-crew-row .btn { margin-left: auto; }
+.created-crew-status { margin-left: auto; font-size: 11px; color: var(--text-3); }
+.created-crew-hint { margin-left: 0; font-size: 11px; color: var(--text-3); }
+.created-crew-row .btn { margin-left: 0; }
 .created-crew-acts { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
 .created-link { font-size: 11px; color: var(--text-2); word-break: break-all; }
 .created-bill { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; margin: 0 0 6px; }
-.created-bill-perhead { font-size: 24px; font-weight: 700; color: var(--teal-deep); font-variant-numeric: tabular-nums; }
+.created-bill-perhead { font-family: var(--font-display); font-size: 24px; font-weight: 700; color: var(--teal-deep); font-variant-numeric: tabular-nums; }
 .created-bill-unit { font-size: 12px; color: var(--text-3); }
 .created-bill-total { font-size: 12px; color: var(--text-2); margin-left: auto; font-variant-numeric: tabular-nums; }
 .created-next { display: grid; gap: 8px; }
 .created-next .ns { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--card); cursor: pointer; text-align: left; color: inherit; font: inherit; }
 .created-next .ns:hover, .created-next .ns:focus-visible { border-color: var(--teal); outline: none; }
 .created-next .ns-ic { display: grid; place-items: center; flex: none; width: 30px; height: 30px; border-radius: 10px; background: var(--teal-soft); color: var(--teal-deep); font-size: 13px; font-weight: 700; }
-.created-next .ns-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.created-next .ns-body { display: flex; flex: 1; flex-direction: column; gap: 2px; min-width: 0; }
 .created-next .ns-body b { font-size: 13px; }
 .created-next .ns-body span { font-size: 11.5px; color: var(--text-3); }
 .created-next .ns-primary { border-color: var(--teal); background: var(--teal-soft); }
@@ -7194,7 +7217,7 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .ct-flow > * { min-width: 0; }
 .ct-q-body > * { min-width: 0; }
 .ct-q { display: flex; align-items: flex-start; gap: 12px; }
-.ct-n { display: grid; place-items: center; flex: none; width: 26px; height: 26px; margin-top: 2px; border-radius: 50%; background: var(--teal-deep); color: var(--card); font-size: 12px; font-weight: 700; }
+.ct-n { display: grid; place-items: center; flex: none; width: 28px; height: 28px; margin-top: 2px; border-radius: 50%; background: var(--teal-deep); color: var(--card); font-family: var(--font-display); font-size: 13px; font-weight: 700; }
 .ct-q.done .ct-n { background: var(--teal-soft); color: var(--teal-deep); }
 .ct-q-body { flex: 1; min-width: 0; }
 .ct-q-body h2 { margin: 0; font-size: 15px; letter-spacing: -0.01em; }
@@ -7240,10 +7263,10 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .ct-tier button:hover:not(.on), .ct-tier button:focus-visible:not(.on) { color: var(--teal-deep); outline: none; }
 
 /* budget slider + the exact-value escape hatch */
-.ct-bud { display: flex; flex: 1 1 260px; align-items: center; gap: 12px; padding: 8px 14px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--card); }
+.ct-bud { display: flex; flex: 1 1 260px; max-width: 380px; align-items: center; gap: 12px; padding: 8px 14px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--card); }
 .ct-bud input[type="range"] { flex: 1; min-width: 120px; accent-color: var(--teal); }
-.ct-bud .v { min-width: 84px; text-align: right; font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; }
-.ct-bud .v small { display: block; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-3); }
+.ct-bud .v { min-width: 84px; text-align: right; font-family: var(--font-display); font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.ct-bud .v small { display: block; font-family: var(--font-body); font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-3); }
 .ct-bud-exact { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--card); font-size: 11.5px; color: var(--text-3); }
 .ct-bud-exact input { width: 88px; border: 0; background: transparent; color: var(--text); font: inherit; font-variant-numeric: tabular-nums; outline: none; }
 
@@ -7257,7 +7280,9 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .ct-styles { display: flex; flex-wrap: wrap; gap: 6px; }
 .ct-style { padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--card); color: var(--text-2); font-size: 12px; font-weight: 600; cursor: pointer; }
 .ct-style.on { border-color: var(--teal); background: var(--teal-soft); color: var(--teal-deep); }
-.ct-style:hover:not(.on), .ct-style:focus-visible:not(.on) { border-color: var(--teal); outline: none; }
+.ct-style:active { transform: scale(.97); }
+.ct-style:focus-visible:not(.on) { border-color: var(--teal); outline: none; }
+@media (hover: hover) { .ct-style:hover:not(.on) { border-color: var(--teal); } }
 .ct-optional { display: flex; flex-direction: column; gap: 12px; padding-top: 16px; border-top: 1px solid var(--line); }
 .ct-opt-head { display: flex; align-items: baseline; gap: 8px; }
 /* ============================================================
@@ -7269,8 +7294,13 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
    ============================================================ */
 
 .container.form-page { max-width: 1240px; }
-/* the mockup fixes the pass at 380px and lets the flow take the rest */
-.container.form-page .ts-layout { grid-template-columns: minmax(0, 1fr) 380px; }
+/* the mockup fixes the pass at 380px and lets the flow take the rest - but the
+   pass yields down to 340px on a tight window rather than squeezing the flow.
+   Wide layout only: the ≤980px single-column collapse (line ~5216) must win
+   below that, or the rail becomes a forced 340px column that overflows phones. */
+@media (min-width: 981px) {
+  .container.form-page .ts-layout { grid-template-columns: minmax(0, 1fr) minmax(340px, 380px); }
+}
 
 /* The pass is the app's own navy boarding pass, kept: it is the one component
    on this page that already read as designed. Only the mockup's PROPORTIONS
@@ -7293,7 +7323,8 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
    secondary. The pass has its own ink; these rules give it its own tokens.
    ============================================================ */
 
-.ts-rail .ready-block { padding: 12px; border: 1px solid var(--rail-line); border-radius: var(--radius-sm); background: rgba(255, 255, 255, 0.06); }
+.ts-rail .ready-block { padding: 12px; border: 1px solid var(--rail-line); border-radius: var(--radius-sm); background: var(--card); }
+[data-theme='dark'] .ts-rail .ready-block { background: rgba(255, 255, 255, 0.06); }
 .ts-rail .ready-lab { font-size: 13px; font-weight: 700; color: var(--rail-ink); }
 .ts-rail .ready-pct { font-size: 14px; font-weight: 700; color: var(--rail-ink); }
 .ts-rail .ready-row { font-size: 12.5px; color: var(--rail-ink-dim); }
@@ -7301,7 +7332,7 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .ts-rail .ready-name { font-weight: 600; }
 .ts-rail .ready-why { font-size: 11.5px; color: var(--rail-ink-dim); }
 .ts-rail .ready-tick { width: 16px; height: 16px; border: 1.5px solid var(--rail-line); font-size: 11px; color: transparent; }
-.ts-rail .ready-row.ok .ready-tick { width: 17px; height: 17px; border-color: var(--rail-ink); background: var(--rail-ink); color: #0B2545; font-size: 11px; font-weight: 700; }
+.ts-rail .ready-row.ok .ready-tick { width: 17px; height: 17px; border-color: var(--rail-ink); background: var(--rail-ink); color: var(--card); font-size: 11px; font-weight: 700; }
 .ts-rail .ready-row.opt .ready-tick { border-style: dashed; }
 .ts-rail .ready-row.opt .ready-why { color: var(--rail-ink); opacity: 0.66; }
 .ts-rail .ready-head { margin-bottom: 8px; }
@@ -7352,6 +7383,138 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 @media (max-width: 720px) {
   .offline-banner { padding: 8px 14px; font-size: 12px; align-items: flex-start; }
 }
+/* ============================================================
+   Create Trip funnel - the mockup fidelity pass (the look)
+   The funnel mockups were drawn in this palette and these fonts; this block
+   aligns the surfaces to them: the light ticket card with its navy head bar
+   and amber bill stub (the bill answers as you go), the pill name box, step
+   markers that answer "done", the budget block as its own question, and the
+   moment-after two-column composition. Appended at the file end (line-keyed
+   ratchet): the v0.45 navy boarding-pass rules above lose on source order.
+   Every text pair is AA against its own background - accents carry borders
+   and fills, text rides the --ink-* grades.
+   ============================================================ */
+
+/* --- the rail: the mockup's tinted, bordered side panel --- */
+@media (max-width: 900px) {
+  .ts-rail { border-left: 0; border-top: 1px solid var(--line); padding: 16px 16px 18px; }
+}
+
+/* --- the ticket: white card, navy head bar, amber bill stub --- */
+[data-theme='dark'] .ticket { box-shadow: 0 14px 34px rgba(0, 0, 0, 0.35); }
+
+/* the stub: the rough take, live and amber-tinted (mockup .tk-stub) */
+.tk-bill { padding: 10px 15px 12px; background: color-mix(in srgb, var(--yf-saffron) 6%, var(--card)); }
+.tk-bill .bill-row span { color: var(--text-2); }
+.tk-bill .bill-row b { color: var(--text); }
+.tk-bill .bill-row.bill-dim span, .tk-bill .bill-row.bill-dim b { color: var(--text-3); }
+.tk-bill .bill-formula { color: var(--text-3); font-style: normal; font-size: 11px; margin: -2px 0 4px; }
+.tk-bill .bill-total { border-top: 1px solid var(--line); }
+.tk-bill .bill-perhead { justify-content: flex-end; gap: 5px; margin-top: 2px; }
+.tk-bill .bill-perhead .mono { color: var(--text-2); font-size: 13px; }
+.tk-bill .bill-perhead .per { color: var(--text-3); }
+
+/* the CTA block: the mockup keeps it under the ticket, not inside it */
+.tk-cta-block { padding: 0; }
+
+
+/* --- section heads: mockup h2 + short aside --- */
+.tpl-warm-head h2 { font-family: var(--font-display); font-size: 16px; font-weight: 800; letter-spacing: -0.01em; }
+
+/* --- the funnel mockup's name box: pill input, pen inline --- */
+.tpl-nameblock { display: flex; flex-direction: column; gap: 8px; }
+.namebox-in {
+  display: flex; align-items: center; gap: 9px; flex: 1 1 260px; min-width: 0;
+  background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: 9px 15px;
+  color: var(--text-3);
+}
+.namebox-in:focus-within { border-color: var(--teal); box-shadow: var(--ring); }
+.namebox-input { flex: 1; min-width: 0; border: 0; background: none; outline: none; font: inherit; font-size: 14.5px; font-weight: 600; color: var(--text); }
+/* Same iOS zoom-on-focus trap as .unit-input above: without the 16px floor at
+   phone width, focusing the name field zooms Safari into the form. */
+@media (max-width: 720px) { .namebox-input { font-size: 16px; } }
+
+/* --- route IQ: the mockup's tiled intelligence line + season chip --- */
+.route-iq { display: flex; gap: 8px; align-items: flex-start; margin: 10px 0 0; font-size: 11.5px; color: var(--text-2); }
+.iq-tile {
+  flex: none; width: 20px; height: 20px; border-radius: 7px; display: grid; place-items: center;
+  background: var(--info-soft); color: var(--text-2); font-size: 11px; font-weight: 800; font-style: italic;
+}
+.season-note {
+  display: inline-flex; align-items: center; gap: 5px; margin: 8px 0 0; padding: 3px 10px;
+  border-radius: 999px; background: color-mix(in srgb, var(--ok) 10%, transparent);
+  color: var(--ink-ok); font-size: 11px; font-weight: 700;
+}
+
+/* --- budget block: the mockup's card with translation + anchor --- */
+.ct-budget { display: flex; flex-direction: column; gap: 8px; }
+.ct-bud-card { display: flex; flex-direction: column; gap: 7px; padding: 11px 14px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--card); }
+.ct-bud-card .ct-rrow { margin: 0; }
+.budget-tier { margin: 0; font-size: 11.5px; color: var(--text-2); }
+.budget-tier b { color: var(--ink-teal); }
+.budget-anchor { margin: 0; font-size: 11px; color: var(--text-3); }
+.budget-anchor b { color: var(--text-2); }
+.bench-mark { font-style: normal; color: var(--ink-ok); font-weight: 700; margin-right: 2px; }
+
+/* --- crew: the mockup's card, honest copy on the right --- */
+.crew-card { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--card); }
+.crew-card-t { display: flex; align-items: center; gap: 7px; font-size: 12.5px; }
+.crew-card-t b { font-weight: 700; }
+.crew-card-t svg { color: var(--ink-teal); }
+.crew-card-t .why { margin-left: auto; font-size: 11px; color: var(--text-3); font-weight: 500; }
+.crew-hint { margin: 0; font-size: 11px; color: var(--text-3); }
+.crew-planner { color: var(--violet-ink); }
+
+/* --- destination chips: the mockup's pop-in (motion tokens) --- */
+@media (prefers-reduced-motion: no-preference) {
+  .ct-dchip { animation: ct-pop var(--motion-fast) var(--ease-out); }
+  @keyframes ct-pop { from { opacity: 0; transform: scale(0.92); } to { opacity: 1; transform: none; } }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ct-dchip { animation: none; }
+}
+
+/* --- the moment after: the mockup's two-column composition --- */
+.created-cols { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 26px; align-items: start; }
+@media (max-width: 980px) { .created-cols { grid-template-columns: minmax(0, 1fr); } }
+.created-celebrate, .created-side { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.created-name { color: var(--ink-teal); font-weight: 800; }
+.created-item.kind-meal .created-badge { background: var(--warn-soft); color: var(--ink-amber); }
+.created-item.kind-weather .created-badge { background: var(--info-soft); color: var(--text-2); }
+.created-item.kind-fuel .created-badge { background: var(--teal-soft); color: var(--ink-teal); }
+.created-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--yf-saffron); }
+.created-crew-row.done .created-dot { background: var(--ink-ok); }
+.created-crew-row.done .created-crew-status { color: var(--ink-ok); }
+
+/* share row: the green action travels, the invite copies */
+.created-share { display: flex; gap: 8px; flex-wrap: wrap; }
+.share-main {
+  display: inline-flex; align-items: center; gap: 7px; padding: 8px 15px;
+  border: 1px solid var(--teal-deep); border-radius: 999px; background: var(--teal-deep); color: var(--card);
+  font-size: 12.5px; font-weight: 600; cursor: pointer;
+}
+.share-main:hover:not(:disabled) { opacity: 0.94; }
+.share-main:disabled { opacity: 0.6; cursor: not-allowed; }
+.share-ghost {
+  padding: 8px 15px; border: 1px solid var(--line); border-radius: 999px; background: var(--card);
+  color: var(--text-2); font-size: 12.5px; font-weight: 600; cursor: pointer;
+}
+.share-ghost:hover, .share-ghost:focus-visible { border-color: var(--teal); color: var(--ink-teal); outline: none; }
+
+/* the bill card: navy head bar (the .tk-head trio), name + route, rows, big
+   number, sig line */
+.created-billcard { padding: 0; overflow: hidden; }
+.created-bill-body { padding: 13px 15px; }
+.created-bill-body .created-card-title { margin: 0; }
+.created-bill-rt { margin: 1px 0 0; font-size: 11.5px; color: var(--text-2); }
+.created-sig { margin: 10px 0 0; font-size: 11px; font-style: italic; text-align: center; color: var(--text-3); }
+
+/* next steps: per-kind tiles + the mockup's trailing arrow */
+.ns-ar { flex: none; color: var(--text-3); font-size: 13px; }
+.ns-work .ns-ic { background: var(--teal-soft); color: var(--ink-teal); }
+.ns-crew .ns-ic { background: var(--violet-soft); color: var(--violet-ink); }
+.ns-watch .ns-ic { background: var(--warn-soft); color: var(--ink-amber); }
+.created-next .ns-quiet .ns-body { flex: none; }
 
 /* ---- I-17 · selection + caret — the last browser-native surfaces follow the theme.
    Both declarations resolve per theme: a selection is theme ink (--text) on the soft
@@ -7360,3 +7523,40 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
    every input, textarea and contenteditable surface without enumerating them. */
 ::selection { background: var(--teal-soft); color: var(--text); }
 :root { caret-color: var(--teal-deep); }
+
+/* ---- The moment-after: crew channels + add-more (WhatsApp/Telegram/SMS/Insta).
+   New names only - the existing .created-* rules above stay untouched. Chips are
+   buttons with their own focus ring; no animation, so no reduced-motion duties. */
+.created-channels { display: inline-flex; gap: 5px; flex-wrap: wrap; }
+.created-ch {
+  border: 1px solid var(--line); border-radius: 999px; background: var(--card);
+  color: var(--text-2); font-size: 11px; font-weight: 700; padding: 3px 10px;
+  min-height: 24px;
+  cursor: pointer; transition: border-color var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out), background var(--motion-fast) var(--ease-out);
+}
+@media (hover: hover) { .created-ch:hover:not(:disabled) { border-color: var(--teal-deep); color: var(--ink-teal); background: var(--teal-soft); } }
+.created-ch:active { transform: scale(.97); }
+.created-ch:disabled { opacity: .45; cursor: not-allowed; }
+.created-ch:focus-visible { outline: none; box-shadow: var(--ring); }
+.created-broadcast { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; flex-basis: 100%; }
+.created-broadcast-label { font-size: 11px; color: var(--text-3); }
+.created-crew-add { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+.created-crew-add input {
+  flex: 1; min-width: 180px; border: 1px solid var(--line); border-radius: 999px;
+  padding: 7px 13px; font: inherit; font-size: 13px; background: var(--bg); color: var(--text);
+}
+.created-crew-add input:focus-visible { outline: none; box-shadow: var(--ring); border-color: var(--teal-deep); }
+.created-crew-add input::placeholder { color: var(--text-3); }
+
+/* ---- The form panel: the funnel sits on one quiet card (no shadow, per
+   review 2026-09-23) instead of floating on the bare canvas - the mockup's
+   .flow column rides an .app background. Only new names appended. ---- */
+.ct-panel {
+  display: flex; flex-direction: column; gap: 18px;
+  padding: 20px; border: 1px solid var(--line); border-radius: var(--radius);
+  background: var(--card);
+}
+/* the panel's 20px gutters double the page's own at phone width */
+@media (max-width: 480px) {
+  .ct-panel { padding: 14px; }
+}

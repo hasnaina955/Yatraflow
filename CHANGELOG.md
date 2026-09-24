@@ -15,7 +15,53 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ## [Unreleased]
 
+### Added
+- **The moment-after's "watch for these" list plans real fuel halts** — the fuel
+  line now comes from the journey halt planner over the trip's own corridor, so a
+  long drive's moment after names where the refuels land (e.g. "3 fuel halts on
+  the way — Overnight + fuel (~355 km), … (~1,148 km)"). Fuel ticks folded into
+  a meal or overnight refuel (#144A) and unnamed pumps are counted and titled
+  with the engine's own halt label; a drive shorter than one tank stride still
+  says nothing (no filler), and the detail's "both" no longer miscounts a halt
+  total that isn't two.
+
 ### Changed
+- **Form errors announce once — assertively — and repeat politely, app-wide** —
+  `Field`'s error text is now a polite live region bound to its control
+  (`aria-describedby` + `aria-invalid`), every field-level error follows suit (the
+  create form's name/destinations/budget rows, `LocationInput`'s pick error, the
+  cover picker's upload error), and a new `FormErrorSummary` carries the ONE
+  assertive announcement per failing submit, prefixed with the failing field's
+  label. The create form's empty submit measured four simultaneous
+  `role="alert"` announcements before; it is now one assertive beat plus four
+  polite field rows.
+- **The create funnel passes an interface review** — every invite channel chip, the
+  ticket rail's print/cancel row and the small-button style now meet a 24px touch
+  floor; hover-only decoration (template lift, chip tints) no longer sticks on touch
+  devices (`hover: hover` gates); funnel chips give press feedback (`:active`); the
+  micro-label token rises to 11px app-wide; the destinations and budget errors bind to
+  their inputs (`aria-invalid` + `aria-describedby`, via a new `errorId` on
+  `LocationInput`); the two buttons both named "Add" are now "Add crew member" and "Add pinned
+  plan"; and the invite-channel group is labelled "Send the invite" instead of the
+  dangling "Send the invite via".
+- **Create Trip and the moment-after screen now render the approved funnel mockups' look**
+  — the Trip Ticket is the mockup's light card (navy head bar, teal-to-sand cover, and the
+  rough take printed live on an amber stub with each line's formula and an honest "Entries
+  & tolls — excluded" row), the name field is the pill name box with its suggestion chip,
+  the question markers go solid-to-soft as each question is answered, "Budget per head" is
+  its own block carrying the anchor and the experience translation, and the moment after
+  is the mockup's two-column composition (celebration beside the bill card and next steps)
+  with the share row, the "every number shows its math" signature and per-kind tiles.
+  Filled teal pills carry theme-flipping ink so they hold AA in both themes (5.84:1 light,
+  7.66:1 dark). The ticket rail's ink system follows the theme again — the navy pass's
+  white rail inks (which the light ticket turned invisible: the readiness block read only
+  in dark) now resolve from the text tokens in light and re-declare their whites for dark
+  (label 15.39:1 light, 19.39:1 dark). The form itself sits on one quiet card from
+  "Name your trip" through the pinned plans instead of floating on the bare canvas
+  (border, no shadow), the page no longer shifts sideways when a section grows the
+  document (the scrollbar's gutter stays reserved), the party chip reads "Drivers &
+  pace" instead of a literal `&amp;`, and the ticket's rail track is fluid so no
+  window width squeezes the flow column.
 - **Selected text and the typing caret follow the app's theme instead of the browser's
   defaults** — the last two browser-native surfaces join the design system: a selection is
   theme ink on the soft teal tint in both themes (`--teal-soft` + `--text`: 13.56:1 light /
@@ -24,6 +70,7 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
   row that scoped it (I-17, Tier 1) is spent and recorded in ROADMAP's shipped record.
 
 ### Fixed
+- **The moment-after screen's "Send invite" never actually opened WhatsApp**: `window.open(url, '_blank', 'noopener')` always returns null (the `noopener` feature implies no window handle), so the code misread every success as a blocked popup and fell through to the OS share sheet instead. Links now open through a helper that detaches the opener rather than trusting the return value. The screen also crashed with "Rendered more hooks than during the previous render" when reopened for a trip whose list was still hydrating - the crew memo ran below the loading early-return, so the render's hook count changed mid-load.
 - **Entry-path accessibility review landed**: at 320px the logged-out header clipped the "Start planning free" CTA mid-label (the reflow rungs were tuned for the older, shorter label) — the ≤350px block now hides the chrome "Log in" outline button (the hamburger tray carries it) so the primary CTA fits whole. The landing kicker's small teal text measured 3.80:1 on cream; it now uses the text-grade `--ink-teal` token instead of the focus-ring accent. Route changes and the loading gate announce themselves to screen readers via a polite live region fed by the page title, and decorative travel motifs are `aria-hidden`. The auth form's short-password error moved from the form-level alert onto the password field (marked invalid, focus follows) like the name check beside it, the signup tab now matches its submit button's "Create account" naming, My Trips' filter reset and empty state both say "Clear filters", the header's nested navigation landmarks are disambiguated, and the demo band's CTA got a name distinct from the chrome's.
 
 - **The header's CTA stays whole on narrow desktop windows**: the signed-out pill's tightening
@@ -48,7 +95,10 @@ plus the moments around creating. Behind per-phase `VITE_CREATE_FUNNEL` flags
 - **Drafts** - the form autosaves; returning offers Resume/Discard, and My trips
   carries a draft card above the grid.
 - **Crew invites** - collect names/numbers; the moment-after screen sends the
-  WhatsApp invite (or copies it) with per-member status.
+  invite on WhatsApp, Telegram, SMS or Instagram (per-member chips, a
+  no-recipient broadcast row, and an add-more field so crew can join the list
+  after creation - Telegram works without a number, and a channel with no
+  direct scheme says so instead of dead-ending), with per-member status.
 - **The moment after** - /created/:id lands with anticipation items from the
   engine (warnings, weather, tank maths), the rough bill verbatim, and the CTA
   ladder (Start planning / Open my workspace / Bring the crew).

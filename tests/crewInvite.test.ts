@@ -2,7 +2,8 @@
 import { describe, it, expect } from 'vitest'
 import {
   normalizeIndianMobile, parseCrewEntry, addCrewEntry, whatsappInviteUrl,
-  crewInviteMessage, PLANNER_ROLE_LINE, type CrewEntry,
+  crewInviteMessage, PLANNER_ROLE_LINE, inviteChannelUrl, channelNeedsPhone,
+  type CrewEntry,
 } from '../src/lib/crewInvite'
 
 describe('crew invites - everything that must be right before anything is sent', () => {
@@ -89,5 +90,34 @@ describe('crew invites - everything that must be right before anything is sent',
   it('the planner-role line matches what the invite actually asks', () => {
     expect(PLANNER_ROLE_LINE).toContain('planner')
     expect(PLANNER_ROLE_LINE).toContain('vote')
+  })
+})
+
+describe('invite channels (the moment-after crew row)', () => {
+  const TEXT = 'Has9 is planning "Kerala Backwaters" on YatraFlow.'
+  const URL = 'https://yatraflow.app/#/join/KERALABACK-UX6Y'
+
+  it('maps each channel to its honest target - and refuses to fake one', () => {
+    // whatsapp carries the number and the prefilled text
+    expect(inviteChannelUrl('whatsapp', '9845021234', TEXT, URL)).toBe(
+      'https://wa.me/919845021234?text=' + encodeURIComponent(TEXT))
+    // sms carries the body too
+    expect(inviteChannelUrl('sms', '9845021234', TEXT, URL)).toBe(
+      'sms:+919845021234?body=' + encodeURIComponent(TEXT))
+    // telegram opens its own chat chooser - no number needed
+    const tg = inviteChannelUrl('telegram', null, TEXT, URL)
+    expect(tg).toContain('https://t.me/share/url?url=' + encodeURIComponent(URL))
+    expect(tg).toContain('&text=' + encodeURIComponent(TEXT))
+    // instagram has no DM intent URL - null, never a plausible-looking guess
+    expect(inviteChannelUrl('insta', '9845021234', TEXT, URL)).toBeNull()
+  })
+
+  it('channels that need a number say so, and go null without one', () => {
+    expect(channelNeedsPhone('whatsapp')).toBe(true)
+    expect(channelNeedsPhone('sms')).toBe(true)
+    expect(channelNeedsPhone('telegram')).toBe(false)
+    expect(channelNeedsPhone('insta')).toBe(false)
+    expect(inviteChannelUrl('whatsapp', null, TEXT, URL)).toBeNull()
+    expect(inviteChannelUrl('sms', null, TEXT, URL)).toBeNull()
   })
 })

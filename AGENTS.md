@@ -163,6 +163,48 @@ Key locations:
  6a. **Async operations need input guards.** The AI drawer's `ask()` function had no protection against rapid re-submission during its 650ms processing delay — users could trigger duplicate questions. Fix: `disabled={thinking}` on input and button. When adding async paths (API calls, simulated latency, data processing), always disable user inputs to prevent race conditions, duplicate requests, or state inconsistency. The guard should match the visual feedback state (spinner, disabled button, etc.).
  6b. **A release cut is not done until every change in it has a CHANGELOG entry — check coverage, not just the heading.** The v0.60.0 refinement pass ran 20 commits and only 10 of them touched `CHANGELOG.md`, so the release was about to go out describing the first half of its own work — while the plan document recording that work also stopped mid-way and read as finished. Both artifacts agreed with each other and neither agreed with `git log`. Before cutting a release, diff the two lists — `git log --oneline <base>..HEAD -- CHANGELOG.md` against `git log --oneline <base>..HEAD` — and account for every commit: it has a bullet, or it is genuinely invisible to a user (a doc reconciliation, a de-duplication, a test-only change). The entries are also where a superseded claim gets *edited* rather than appended, so that diff is the audit.
  6c. **A "missing guard" claim needs the same git check as a "done" claim.** A comment or summary saying something was *absent* ("the one animation with no reduced-motion guard") is also a hypothesis — grep `origin/test` for the guard before "adding" it, or you ship a duplicate rule plus a changelog sentence that isn't true. The map-tab review round did exactly this; found 2026-09-22 while polishing its motion. The mirror case: an absence claim expires at the *next* merge, not at the date on the block — the slots decision record (2026-09-22, 17:27) logged three plan items as still outstanding, and PR #303 landed them 70 minutes later, leaving the sentence false from the moment it merged (fixed 2026-09-23). Check an absence claim against merged-PR timestamps, not the block's date.
+ 6d. **Wired is not "looks like the approved mockup" — and a RESTYLE folds into the
+   original rule, it never appends a twin (learned 2026-09-23).** The create funnel
+   shipped with every phase wired, honesty-guarded and tested while rendering the v0.45
+   navy boarding-pass ticket instead of the mockup's light card. The mockup is a VISUAL
+   contract: check the surface RENDERED against it, not only the plan's wiring checklist.
+   Two mechanical traps from the fix: (1) an appended rule that re-declares an existing
+   top-level selector trips `duplicate top-level selectors`, and a new font-size under
+   11px trips the type floor — grandfathered names keep their sub-floor sizes, so
+   restyles fold INTO the original rules with line counts preserved, and only genuinely
+   new names go in an appended block (media-nested refinements are exempt); (2) filled
+   teal carries `color: var(--card)`, never `#fff` — dark theme flips `--teal-deep` to a
+   LIGHT teal where white text measures 2.05:1 (measured on the CTA pill 2026-09-23;
+   the flipped pair reads 5.84 light / 7.66 dark). (3) A shared-recipe GROUP rule can
+   re-assert itself over the fold-in and win by source order — the kicker unification
+   list still named `.tk-brand`/`.tk-kind` and fed them `--kicker-size` long after their
+   own rule, so the rendered size never changed. After a fold, confirm the RENDERED
+   computed style, and when a class changes role (kicker → boarding-pass head bar),
+   REMOVE it from the shared-recipe list — that is the delete-cheaper-than-add fix.
+ 6e. **Two silent killers from the crew-channels pass (learned 2026-09-23).**
+   (1) `window.open(url, '_blank', 'noopener')` **always returns null** — the
+   `noopener` feature implies no window handle — so `if (!win) throw` or
+   `return !!win` misreads every SUCCESS as a popup-blocked failure (the
+   moment-after screen's "Send invite" therefore never once opened WhatsApp
+   and always fell through to the share sheet). Read nothing from the return:
+   open without the feature flag and detach the opener yourself
+   (`win.opener = null`), or just fire-and-forget. `src/lib/native.ts`'s use
+   is statement-only and unaffected. (2) A hook placed **below** an early
+   return crashes with "Rendered more hooks than during the previous render"
+   the moment data hydrates after mount (store async) — the component renders
+   the not-loaded branch first, then the loaded branch, and the hook counts
+   differ. It only reproduces on a FULL reload, never on hash navigation
+   into an already-hydrated app, so "it worked when I clicked around" proves
+   nothing: test the fresh-load path for any component with an early return.
+ 6f. **Two wiring traps the fuel-halts line caught (2026-09-23).** (1) An async
+   result that feeds a `useMemo` MUST be in the memo's deps — the halt fetch
+   landed in state while the memo kept its empty closure and the line never
+   rendered; every pure-layer test was green because the drop happened in the
+   page, so only a rendered check catches this family. (2) A planner halt whose
+   fuel tick folded into a meal/overnight (#144A) keeps the combined service in
+   its `label` ("Overnight + fuel"), not its singular `purpose` — a consumer
+   filtering `purpose === 'fuel'` drops nearly every planned refuel on a
+   multi-day corridor (measured: 3 planned, 0 surfaced). Match the label too.
 7. **When asking the user to review/test locally, always hand them the exact
    URL — never make them find or start the server.** Check if the dev server
    is up (probe `http://localhost:5173`); if not, start `npm run dev`
@@ -287,8 +329,15 @@ Hard rules (each learned the hard way — do not relearn them):
   rebase, suspect the merge of the file the suite covers before suspecting the
   branch's own change. The replay also means **the branch's CHANGELOG entries
   re-filed themselves into the released section** if the branch was cut before
-  the release: check `git diff origin/test..HEAD -- CHANGELOG.md` lands under
-  `[Unreleased]`.
+  the release:  check `git diff origin/test..HEAD -- CHANGELOG.md` lands under `[Unreleased]`.
+- **Probing a submit handler in the preview: `requestSubmit()` runs native
+  constraint validation first** (measured 2026-09-23: a `min={0}` input holding
+  `-5` fires `invalid`, never `submit` — the handler silently never runs and the
+  browser's own bubble is the only symptom), so set `form.noValidate = true`
+  before forcing a validation-error path; and never read the DOM in the same
+  evaluate that triggered a React state update — the render lands next tick, and
+  a same-tick read returns the stale tree, which looks exactly like a broken
+  fix (three phantom "missing error" probes in a row came from these two).
 - **`npm run verify` outlives a 30 s shell window — run it DETACHED and poll
   the log.** `Start-Process cmd.exe -ArgumentList '/d','/c','npm run verify >
   %TEMP%\v.log 2>&1' -WorkingDirectory <repo> -WindowStyle Hidden`, then

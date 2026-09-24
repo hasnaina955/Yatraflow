@@ -57,9 +57,13 @@ export function PillNav({ activeKey, className, role = 'presentation', 'aria-lab
       const box = wrap.getBoundingClientRect()
       const item = el.getBoundingClientRect()
       const x = item.left - box.left + wrap.scrollLeft - wrap.clientLeft
-      const y = item.top - box.top + wrap.scrollTop - wrap.clientTop
+      // track the row too, so wrapping pillbars glide correctly, and INSET the
+      // glider 4px from the top to match the `- 8` on the height below, which
+      // centres the pill's fill on its label. The FLIP rewrite dropped this +4
+      // and every active pill across the UI read as off-centre - the fill sat
+      // flush at the top and 8px short at the bottom.
+      const y = item.top - box.top + wrap.scrollTop - wrap.clientTop + 4
       const w = item.width
-      // track the row too, so wrapping pillbars glide correctly
       const h = item.height - 8
 
       const prev = prevRef.current

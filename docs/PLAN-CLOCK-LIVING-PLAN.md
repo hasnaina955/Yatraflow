@@ -1,4 +1,5 @@
 # Option C — the map as a living plan
+> **Status: shipped in v0.63.0 (2026-09-20).** The travel clock and living plan live in `src/lib/clockOverlay.ts` with fixtures in `tests/clockOverlay.test.ts`; the phases below are the build record.
 
 Execution plan for `feat/clock-living-plan` (draft PR against
 `origin/feat/clock-map-zones`), written so any agent can continue: each phase

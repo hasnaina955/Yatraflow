@@ -15,9 +15,21 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ## [Unreleased]
 
-### Changed
+## [0.66.0] - 2026-09-24
 
-- **Map-tab search is route-aware — the box no longer answers with your own city.** A free-text search carried no spatial constraint, so Google applied its implicit IP-based location bias and a lunch search filled the rows with wherever the user was typing from instead of the trip's corridor (found live on the slot search's lunch pill, 2026-09-24). With the trip's road passed, the Google mode of both search surfaces (the main box and each day part's slot search) runs as Search-Along-Route over the actual polyline — the same Text Search Pro event, no quota change — and the keyless free stack (which cannot bias a query spatially at all) ranks its merged hits by distance to the corridor so an on-route place outranks a same-named one in the searcher's city. Post-fetch detour ranking and the detour-scope slider then sort rows worth sorting.
+A hub release, with a map correction and a whole-app visual pass beneath it. The creator
+hub stops being a settings page and becomes an operating picture: one ruled KPI strip, then
+the recorded-traffic trend drawn from the same derivation the rows below it read, then one
+row per publication with its funnel and actions — with the creator profile moved into a
+disclosure at the foot of the page. Its figures get their hierarchy, and every honesty state
+the hub already carried survives the rewrite: a failed read still never renders as an empty
+ledger, and a number that was never read is still never printed as one. The Map tab's search
+stops answering with the searcher's own city, and its hits finally stand on the map as the
+selectable things they are. Under both, the app takes the high-end visual pass the design
+plan had been holding — one typeface, one icon weight, and motion that moves its own box
+instead of distorting a shape. The hub also clears the 23 review findings that had been
+holding its PR, and the gate that raised them turns out to be one the repo's own lint cannot
+see at all.
 
 ### Added
 
@@ -32,6 +44,8 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
   total that isn't two.
 
 ### Changed
+- **Map-tab search is route-aware — the box no longer answers with your own city.** A free-text search carried no spatial constraint, so Google applied its implicit IP-based location bias and a lunch search filled the rows with wherever the user was typing from instead of the trip's corridor (found live on the slot search's lunch pill, 2026-09-24). With the trip's road passed, the Google mode of both search surfaces (the main box and each day part's slot search) runs as Search-Along-Route over the actual polyline — the same Text Search Pro event, no quota change — and the keyless free stack (which cannot bias a query spatially at all) ranks its merged hits by distance to the corridor so an on-route place outranks a same-named one in the searcher's city. Post-fetch detour ranking and the detour-scope slider then sort rows worth sorting.
+
 - **Form errors announce once — assertively — and repeat politely, app-wide** —
   `Field`'s error text is now a polite live region bound to its control
   (`aria-describedby` + `aria-invalid`), every field-level error follows suit (the
@@ -74,6 +88,26 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
   12.01:1 dark), and the text-entry caret is the brand teal (`caret-color: var(--teal-deep)`
   on `:root`, inherited by every input). One appended block in `styles.css`; the idea-bank
   row that scoped it (I-17, Tier 1) is spent and recorded in ROADMAP's shipped record.
+
+- **The app takes the high-end visual pass the design plan had been holding.** The
+  typeface is Plus Jakarta Sans, one family across the app, replacing Inter wherever a
+  display or body face was named. Icons drop to a single weight — stroke 1.5, routed
+  through a new `--icon-stroke` token rather than edited glyph by glyph — so a Lucide icon
+  no longer reads heavier than the text beside it. The pill navigation's active indicator
+  glides on its own box (`left`/`top`/`width`/`height`) instead of a `scaleX` transform:
+  the old flip distorted the pill's rounded ends across a 76→146px move, and because the
+  glider is absolutely positioned its box cannot reflow its siblings, so the layout cost
+  that argued for `scaleX` was never real. The landing takes a display type ramp,
+  macro-whitespace between its blocks and the mockup's button-in-button treatment; the
+  public itinerary's cards sit in soft trays over one tokenised block rhythm instead of
+  five ad-hoc gaps; Explore's and the hub's cards take the same tray, the PlanBench section
+  title joins the shared section ramp it had been the sole exception to, and TripCreated
+  gets its entry choreography applied to its current two-column layout. The reusable half
+  is now pinned — `tests/design-system.test.ts` asserts the typefaces and the glider's box
+  geometry, so those two regressions cannot return silently. One finding is recorded as a
+  decision rather than a fix: a ring tray needs a canvas to sit on, and on a light surface
+  it is a ~1.3% step whose navy ring reads as a grey wireframe outline, so it was reverted
+  rather than tuned — the tray on light canvases is `--shadow-soft`, with no outer hairline.
 
 ### Fixed
 - **The moment-after screen's "Send invite" never actually opened WhatsApp**: `window.open(url, '_blank', 'noopener')` always returns null (the `noopener` feature implies no window handle), so the code misread every success as a blocked popup and fell through to the OS share sheet instead. Links now open through a helper that detaches the opener rather than trusting the return value. The screen also crashed with "Rendered more hooks than during the previous render" when reopened for a trip whose list was still hydrating - the crew memo ran below the loading early-return, so the render's hook count changed mid-load.
@@ -133,6 +167,18 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
   3,072 sampled inputs — every degenerate shape (one point, all-flat, repeated x, a single
   spike) plus 3,000 random series — emit byte-identical SVG paths from the old and the new
   implementation.
+
+- **The OG share card renders in the app's own font again.** `scripts/og-default-card.html`
+  — the template the share-preview handler renders to `public/og-default.png`, which is the
+  image behind every publication with no cover of its own — still linked Inter, so each
+  generated card was drawn in a fallback face once the app had moved to Plus Jakarta Sans.
+  The template and the committed PNG now name the family the app actually ships.
+
+- **The moment-after's invite-channel group announces itself properly.** The
+  `role="group"` wrapping the "or send the invite on" row carried the aria-label "Send the
+  invite on" — a fragment that ended mid-sentence for anyone hearing it read aloud. It now
+  reads "Send the invite", matching the invite group above it, while the visible caption
+  keeps its preposition, where it reads naturally.
 
 ## [0.65.0] - 2026-09-22
 

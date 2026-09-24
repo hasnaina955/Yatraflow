@@ -243,3 +243,85 @@ How to recover any branch deleted here: `git branch <name> <sha>` — every SHA 
 from `origin/test` (or from `refs/pull/<n>/head` where only the PR answers). For the three kept
 locals: `git cherry origin/test <name>` reports whether their patches are already upstream before
 anyone decides to delete them too.
+
+# Merged branches pruned on 2026-09-24
+
+Point-in-time record: the sweep after **#315, #316, #317 and #318** merged into `test` and
+**#319 promoted `test` → `main` as v0.66.0** (#320 then reconciled the status docs the promotion
+had invalidated). **16 remote heads before, 7 after** — `main`, `test`, the three keeps carried
+over from the sections above (`refactor/brand-seam`, `explore/landing-hero-local`,
+`feat/share-preview-og`), and **two heads that failed the gate** and were left alone.
+
+## Why these, and why it was safe
+
+One scripted pre-flight over every candidate, after a fresh `git fetch origin --prune` so the
+local remote-tracking refs could not disagree with the server. Per branch, three checks, and all
+nine passed:
+
+1. the head was an **ancestor of `origin/main` or `origin/test`** — merged-ness in the branch's
+   own target, not in `main`;
+2. the **open-PR check was empty** (`gh pr list --state open` returned nothing);
+3. the name was **not on the keep-list**.
+
+Only then was the set deleted, in one sequence — no branch was hand-picked, and a branch that had
+advanced since the last sweep would have failed (2) or (1) and been left standing rather than
+deleted blind. The two that did fail are named at the foot of this section.
+
+Eight of the nine heads have an owning PR that reads `MERGED`. The ninth, `cline/6v9pm0gn`, has
+**no PR at all**: its single commit `dc3baa1` was pushed straight to `main`, so the branch is
+redundant but its provenance is a direct push rather than a review — recorded rather than
+smoothed over.
+
+## The nine deleted refs
+
+| Branch | Head SHA | Owning PR |
+|---|---|---|
+| `cline/6v9pm0gn` | `dc3baa10beb49f09162f2d77d88fb32ec7f4197c` | none — pushed straight to `main` |
+| `docs/post-promotion-v0.66.0` | `9eddfee555ed8d1bb93628515225e22d030f5278` | #320 |
+| `docs/promote-v0.66.0` | `4277646fa091c0047231ff31943af9f30231a992` | #318 |
+| `feat/creator-hub-dashboard` | `cbf4870e9d3d4e490c6d53058714534fb447bd55` | #315 |
+| `feat/tripcreated-reveals` | `816ff496e6d8b3693af948ae771a5d8a6e84080c` | #313 |
+| `fix/bench-title-ramp` | `378fd001cdf6f0d9f51cf183cef632c4e8952a14` | #314 |
+| `fix/create-funnel-look` | `e2020377271cefd96b714f6721c7a6a4aad9ef63` | #310 |
+| `fix/map-search-route-bias` | `f7beb21edd580ca9dbf6efb50dee858415019b1e` | #316 |
+| `fix/og-card-font` | `ed973067c9705d56bacaa3f1e26c312b07289a93` | #317 |
+
+Every SHA above is reachable from `origin/main` or `origin/test`, and all but `cline/6v9pm0gn`
+are additionally fetchable via `refs/pull/<n>/head`. This sweep's own record-carrier
+(`docs/prune-v0.66.0`) is **pruned at its own merge**, moments after this text reaches `test` —
+its head SHA post-dates this commit by construction; read it from the PR
+(`gh pr view <n> --json headRefOid`), which is also where the deletion is verifiable.
+
+## The two heads that failed the gate, and were kept
+
+| Branch | Head SHA | Why kept |
+|---|---|---|
+| `cline/g9wfhxqs` | `ef9c0cc` | not an ancestor of `origin/main` or `origin/test` — another agent's branch carrying work this repo has never merged |
+| `cline/n478z8sr` | `313999a` | same |
+
+Both belong to the `cline` agent's line rather than to a merged PR, so the gate has no evidence
+that deleting them is safe. They stay until someone with that context says otherwise.
+
+## Local refs this time: 9 deleted, 10 kept
+
+This clone's own branches got the same ancestor gate. Nine were ancestors of a remote tip and
+were deleted with `git branch -d`. **Ten were kept**, and only two of those are the canonical
+names:
+
+| Branch | Head SHA | Why kept |
+|---|---|---|
+| `feat/creator-hub-dashboard` | `5797c1b022dc75685bfbda3380e2bfb4d32e8454` | **checked out in the primary clone** — git refuses to delete a branch a worktree is on. It is also 2 commits behind the remote head just pruned; switch that clone to `test` before deleting it |
+| `backup/creator-hub-prerebase` | `0ed2fab958b18cd9f594b9ba6c9583d2bb9db17f` | pre-rebase safety ref for #315. **Not an ancestor of any remote tip** — its commits exist only in this clone |
+| `backup/tripcreated-reveals` | `a06bacde2b5d4978326b843cf9e72ee68bf37d2b` | pre-split safety ref, same standing |
+| `conflict/268-settle-nudge` | `d2fafabc762a579d460a0d472da6b347aa831543` | kept by the 2026-09-23 sweep as well; still not an ancestor |
+| `docs/changelog-269` | `a77f6e767b288fc5ebc74f397d5c63fb5a18ac03` | same |
+| `promote/v0.64.0` | `2fd3e7ddd68e61f92580c5fbb9711619027d9aca` | `main` took v0.64.0 as a reconciled squash, so the original line is an ancestor nowhere |
+| `scratch/break-landing` | `a4e3c2faef608142d2cb7076f665e3dafe1c4146` | local scratch, not an ancestor — kept pending a human check |
+| `scratch/hub-dashboard` | `34619ddc36667f4903da2ab7765024e928ecb726` | same |
+
+`main` and `test` were left in place as the canonical names; both are behind their remotes and
+should be refreshed with a pull before use rather than treated as current.
+
+How to recover any branch deleted here: `git branch <name> <sha>`. For the kept locals,
+`git cherry origin/test <name>` reports whether their patches are already upstream before anyone
+decides to delete them too.

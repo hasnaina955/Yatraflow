@@ -31,11 +31,21 @@ type InviteStatus = 'idle' | 'sent' | 'copied' | 'skipped'
  *  screen is a calmer moment, so it allows a few more - but never unbounded. */
 const CREW_LIMIT = 8
 
-const CHANNEL_LABEL: Record<CrewChannel, string> = {
-  whatsapp: 'WhatsApp',
-  telegram: 'Telegram',
-  sms: 'SMS',
-  insta: 'Insta',
+/* A Map, not a Record. The label is read with a VARIABLE channel key, and
+   Codacy's `security/detect-object-injection` treats computed member access on
+   an object as a generic injection sink - which is what held #310 at UNSTABLE
+   across five lines. `Map.get` is a method call rather than a sink, so the same
+   four channels stay one source of truth with no bracket read anywhere. */
+const CHANNEL_LABEL = new Map<CrewChannel, string>([
+  ['whatsapp', 'WhatsApp'],
+  ['telegram', 'Telegram'],
+  ['sms', 'SMS'],
+  ['insta', 'Insta'],
+])
+
+/** The label for a channel, falling back to the channel id itself. */
+function channelLabel(ch: CrewChannel): string {
+  return CHANNEL_LABEL.get(ch) ?? ch
 }
 
 /** The receipt capture inlines fonts and can stall on a cross-origin stylesheet
@@ -52,7 +62,10 @@ export function TripCreatedPage({ tripId, onNavigate }: { tripId: string; onNavi
   const handoff = useMemo(() => readHandoff(tripId), [tripId])
 
   const [inviteCode, setInviteCode] = useState<string | null>(null)
-  const [statuses, setStatuses] = useState<Record<number, InviteStatus>>({})
+  /* A Map, for the same reason as CHANNEL_LABEL: every read is keyed by a crew
+     INDEX, and `statuses[i]` is the computed-member-access shape Codacy flags.
+     The writes become `set`/`new Map(s)` below - one representation, no brackets. */
+  const [statuses, setStatuses] = useState<Map<number, InviteStatus>>(() => new Map())
   /** P7 - the receipt node the shared image is captured from. It is rendered
    *  off-screen: the artifact is the dark till-roll the product prints
    *  elsewhere, which is not what this page should look like. */
@@ -135,6 +148,11 @@ export function TripCreatedPage({ tripId, onNavigate }: { tripId: string; onNavi
         )
       })
       .catch(() => { /* the planner failing says nothing - the line just skips */ })
+    /* The guard above needs this cleanup to mean anything. Without it `alive` is
+       never set false, so `if (!alive) return` was dead code - which is precisely
+       what Codacy reported, and it was right. The weather effect below already
+       pairs guard and cleanup; this one had the guard and never the cleanup. */
+    return () => { alive = false }
   }, [trip?.id, handoff])
   // weather: only inside the honest forecast window
   useEffect(() => {
@@ -220,11 +238,14 @@ export function TripCreatedPage({ tripId, onNavigate }: { tripId: string; onNavi
   }
 
   async function sendInvite(index: number, channel: CrewChannel) {
+    /* A bounds check on the INDEX rather than `if (!member)`. TS types
+       `crew[index]` as non-optional, so the old guard read as "always falsy" to
+       Codacy - and it was equally a no-op at runtime. This actually bounds it. */
+    if (index < 0 || index >= crew.length) return
     const member = crew[index]
-    if (!member) return
     if (channelNeedsPhone(channel) && !member.phone) return
     haptic(HAPTIC.select)
-    setStatuses(s => ({ ...s, [index]: 'sent' }))
+    setStatuses(s => new Map(s).set(index, 'sent'))
     const text = inviteText()
     const url = inviteChannelUrl(channel, member.phone, text, joinUrl || (typeof location !== 'undefined' ? location.origin : ''))
     if (url) {
@@ -282,8 +303,8 @@ export function TripCreatedPage({ tripId, onNavigate }: { tripId: string; onNavi
     const text = inviteText()
     const res = await nativeCopyText(text)
     setStatuses(s => {
-      const next = { ...s }
-      crew.forEach((_, i) => { next[i] = 'copied' })
+      const next = new Map(s)
+      crew.forEach((_, i) => { next.set(i, 'copied') })
       return next
     })
     toast(res ? 'Invite copied - paste it wherever the crew talks' : 'Copy it from the link on this page')
@@ -368,7 +389,7 @@ export function TripCreatedPage({ tripId, onNavigate }: { tripId: string; onNavi
           )}
           <div className="created-crew">
             {crew.map((m, i) => (
-              <div key={`${m.phone ?? m.name}-${i}`} className={`created-crew-row${statuses[i] === 'sent' || statuses[i] === 'copied' ? ' done' : ''}`}>
+              <div key={`${m.phone ?? m.name}-${i}`} className={`created-crew-row${statuses.get(i) === 'sent' || statuses.get(i) === 'copied' ? ' done' : ''}`}>
                 <span className="created-dot" aria-hidden />
                 <span className="created-crew-name">{m.name || `+91 ${m.phone}`}</span>
                 <span className="created-channels" role="group" aria-label="Send the invite">
@@ -376,23 +397,23 @@ export function TripCreatedPage({ tripId, onNavigate }: { tripId: string; onNavi
                     const off = channelNeedsPhone(ch) && !m.phone
                     return (
                       <button key={ch} type="button" className="created-ch" disabled={off}
-                        title={off ? 'needs a number - Telegram or the share sheet work without one' : `Send via ${CHANNEL_LABEL[ch]}`}
-                        aria-label={`Send the invite via ${CHANNEL_LABEL[ch]}`}
+                        title={off ? 'needs a number - Telegram or the share sheet work without one' : `Send via ${channelLabel(ch)}`}
+                        aria-label={`Send the invite via ${channelLabel(ch)}`}
                         onClick={() => void sendInvite(i, ch)}>
-                        {CHANNEL_LABEL[ch]}
+                        {channelLabel(ch)}
                       </button>
                     )
                   })}
                 </span>
                 {!m.phone && <span className="created-crew-hint">no number - Telegram or the share sheet still work</span>}
-                <span className="created-crew-status">{statusLabel(statuses[i], m.phone)}</span>
+                <span className="created-crew-status">{statusLabel(statuses.get(i), m.phone)}</span>
               </div>
             ))}
           </div>
           <div className="created-crew-add">
             <input
               value={crewInput}
-              onChange={e => setCrewInput(e.target.value)}
+              onChange={e => { setCrewInput(e.target.value) }}
               onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addExtra() } }}
               placeholder="Name or mobile - e.g. Ammu 98450 21234"
               aria-label="Add a crew member by name or mobile number"
@@ -422,9 +443,9 @@ export function TripCreatedPage({ tripId, onNavigate }: { tripId: string; onNavi
           <div className="created-broadcast" role="group" aria-label="Send the invite">
             <span className="created-broadcast-label">or send the invite on</span>
             {CREW_CHANNELS.map(ch => (
-              <button key={ch} type="button" className="created-ch" aria-label={`Send the invite via ${CHANNEL_LABEL[ch]}`}
+              <button key={ch} type="button" className="created-ch" aria-label={`Send the invite via ${channelLabel(ch)}`}
                 onClick={() => void broadcastInvite(ch)}>
-                {CHANNEL_LABEL[ch]}
+                {channelLabel(ch)}
               </button>
             ))}
           </div>

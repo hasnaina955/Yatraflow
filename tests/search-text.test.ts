@@ -150,4 +150,84 @@ describe('facade: searchPlacesText (search-to-add)', () => {
     expect(hits.filter(h => h.source === 'google').length).toBe(8)
     expect(hits.filter(h => h.source === 'open-meteo').length).toBe(3)
   })
+
+  it('the Google Text Search body carries the route polyline when the caller passes one', async () => {
+    // Found live 2026-09-24: the free-form Text Search carried NO spatial
+    // constraint, so Google applied its implicit IP-based location bias and a
+    // lunch search filled the rows with the SEARCHER's city instead of the
+    // trip's corridor. With the route passed, the same request must run
+    // Search-Along-Route (searchAlongRouteParameters with the encoded
+    // polyline) — the bias rides the trip's road, not the user's location.
+    vi.stubEnv('VITE_GOOGLE_MAPS_API_KEY', 'test-key')
+    let capturedBody = ''
+    const f = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url.includes('places:searchText')) {
+        capturedBody = String(init?.body ?? '')
+        return new Response(JSON.stringify({ places: [] }), { status: 200 })
+      }
+      if (url.includes('open-meteo') || url.includes('wikipedia')) return new Response('{}', { status: 200 })
+      throw new Error('unexpected fetch: ' + url)
+    })
+    vi.stubGlobal('fetch', f)
+    const routeCoords: [number, number][] = [[87.31, 23.52], [87.9, 23.1]] // Durgapur → Panagarh, [lng,lat]
+    await searchPlacesText('food express durgapur', { routeCoords })
+    expect(capturedBody).toContain('searchAlongRouteParameters')
+    expect(capturedBody).toContain('encodedPolyline')
+    // Spot-check the encoding: 23.52e5 and 87.31e5 as the first delta pair.
+    expect(capturedBody).toMatch(/"textQuery":"food express durgapur"/)
+  })
+
+  it('without route geometry the search still goes out (no bias) — never blocked', async () => {
+    vi.stubEnv('VITE_GOOGLE_MAPS_API_KEY', 'test-key')
+    let capturedBody = ''
+    const f = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url.includes('places:searchText')) {
+        capturedBody = String(init?.body ?? '')
+        return new Response(JSON.stringify(TEXT_SEARCH_HITS), { status: 200 })
+      }
+      if (url.includes('open-meteo') || url.includes('wikipedia')) return new Response('{}', { status: 200 })
+      throw new Error('unexpected fetch: ' + url)
+    })
+    vi.stubGlobal('fetch', f)
+    const hits = await searchPlacesText('durgapur food')
+    expect(capturedBody).not.toContain('searchAlongRouteParameters')
+    expect(hits.length).toBeGreaterThan(0)
+  })
+
+  it('free stack: hits rank by distance to the corridor, not provider order', async () => {
+    // Keyless mode has no biasable API either (Mappls needs a premium location
+    // param; Open-Meteo/Wikipedia are global), so the facade must rank the
+    // merged hits against the route: a place ON the corridor outranks a
+    // same-named place in the searcher's own city.
+    vi.stubEnv('VITE_GOOGLE_MAPS_API_KEY', '')
+    const f = routeFetch([
+      // Open-Meteo returns the OFF-route hit first, the ON-route hit second.
+      [/open-meteo/, { results: [
+        { id: 1, name: 'Food Junction', latitude: 12.97, longitude: 77.59, country: 'India' }, // Bangalore — searcher's city
+        { id: 2, name: 'Food Point Durgapur', latitude: 23.52, longitude: 87.315, country: 'India' }, // on the route
+      ] }],
+      [/wikipedia/, {}],
+    ])
+    vi.stubGlobal('fetch', f)
+    const routeCoords: [number, number][] = [[87.31, 23.52], [87.9, 23.1]]
+    const hits = await searchPlacesText('food', { routeCoords })
+    expect(hits[0]?.name).toBe('Food Point Durgapur')
+    expect(hits[1]?.name).toBe('Food Junction')
+  })
+
+  it('free stack: anchors bias the ranking when no route geometry exists', async () => {
+    vi.stubEnv('VITE_GOOGLE_MAPS_API_KEY', '')
+    const f = routeFetch([
+      [/open-meteo/, { results: [
+        { id: 1, name: 'Far Cafe', latitude: 12.97, longitude: 77.59, country: 'India' },
+        { id: 2, name: 'Near Cafe', latitude: 23.53, longitude: 87.32, country: 'India' },
+      ] }],
+      [/wikipedia/, {}],
+    ])
+    vi.stubGlobal('fetch', f)
+    const hits = await searchPlacesText('cafe', { anchors: [{ lat: 23.52, lng: 87.31 }] })
+    expect(hits[0]?.name).toBe('Near Cafe')
+  })
 })

@@ -15,7 +15,13 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ## [Unreleased]
 
+### Changed
+
+- **Map-tab search is route-aware — the box no longer answers with your own city.** A free-text search carried no spatial constraint, so Google applied its implicit IP-based location bias and a lunch search filled the rows with wherever the user was typing from instead of the trip's corridor (found live on the slot search's lunch pill, 2026-09-24). With the trip's road passed, the Google mode of both search surfaces (the main box and each day part's slot search) runs as Search-Along-Route over the actual polyline — the same Text Search Pro event, no quota change — and the keyless free stack (which cannot bias a query spatially at all) ranks its merged hits by distance to the corridor so an on-route place outranks a same-named one in the searcher's city. Post-fetch detour ranking and the detour-scope slider then sort rows worth sorting.
+
 ### Added
+
+- **Search results appear on the map as selectable markers and vanish when the search bar clears.** A search's hits used to render identically to the engine's dashed gold "idea" pins; they now draw as solid teal pins with a search glyph, tapping one selects it (the pin glows, the matching result row highlights and scrolls into view), and clearing the box removes the pins along with the results list — the corridor's own ideas are untouched.
 - **The moment-after's "watch for these" list plans real fuel halts** — the fuel
   line now comes from the journey halt planner over the trip's own corridor, so a
   long drive's moment after names where the refuels land (e.g. "3 fuel halts on

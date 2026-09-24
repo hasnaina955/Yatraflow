@@ -153,7 +153,24 @@ export function TrendChart({ points, label, unlockRead = 'ready' }: { points: Fu
         role="img"
         aria-label={`Recorded traffic over ${label}: ${totalViews} visits, ${totalForks} forks${unlockRead === 'ready' ? `, ${totalUnlocks} unlocks` : unlockRead === 'reading' ? '; unlocks still being read' : '; unlocks could not be read'}.`}
         onPointerMove={trackPointer}
-        onPointerLeave={() => setHover(null)}
+        onPointerDown={trackPointer}
+        // A tap must LATCH the readout — a finger has no hover, and clearing on
+        // lift would make the panel unusable on the phone this app ships to.
+        // Only a departing mouse dismisses it.
+        onPointerLeave={e => { if (e.pointerType === 'mouse') setHover(null) }}
+        // Keyboard parity with the pointer: the chart is a reading tool, and a
+        // readout only a mouse can reach is a readout half the users never see.
+        tabIndex={0}
+        onKeyDown={e => {
+          if (quiet || points.length === 0) return
+          const last = points.length - 1
+          if (e.key === 'ArrowRight' || e.key === 'ArrowUp') { setHover(i => Math.min(last, (i ?? -1) + 1)); e.preventDefault() }
+          else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') { setHover(i => Math.max(0, (i ?? last + 1) - 1)); e.preventDefault() }
+          else if (e.key === 'Home') { setHover(0); e.preventDefault() }
+          else if (e.key === 'End') { setHover(last); e.preventDefault() }
+          else if (e.key === 'Escape') setHover(null)
+        }}
+        onBlur={() => setHover(null)}
       >
         <defs>
           <linearGradient id={fadeId} x1="0" y1="0" x2="0" y2="1">
@@ -172,7 +189,10 @@ export function TrendChart({ points, label, unlockRead = 'ready' }: { points: Fu
             <path className="hc-views-line" d={smoothPath(seriesPoints(points, peak, p => p.views))} vectorEffect="non-scaling-stroke" />
             <path className="hc-forks-line" d={smoothPath(seriesPoints(points, peak, p => p.forks))} vectorEffect="non-scaling-stroke" />
             {/* Only marks we actually read: an unread ledger draws no unlock
-                dots rather than dots at zero. */}
+                dots rather than dots at zero. The mark wears the SAME hue as
+                the row's unlock figure (`--ink-amber`), so the unlock stage is
+                one colour everywhere on the page and saffron stays reserved for
+                publish/invite actions. */}
             {unlockRead === 'ready' && points.map((p, i) => (p.unlocks > 0 ? (
               <circle key={p.day} className="hc-unlock" cx={xAt(i, points.length)} cy={yAt(p.unlocks, peak)} r="4" />
             ) : null))}
@@ -202,7 +222,7 @@ export function TrendChart({ points, label, unlockRead = 'ready' }: { points: Fu
       {/* The hover readout. DOM, not SVG, so the type stays crisp on a phone
           where the drawing itself is scaled down. */}
       {active && (
-        <div className="hub-chart-tip" style={{ left: `${tipPct}%` }}>
+        <div className="hub-chart-tip" style={{ left: `clamp(72px, ${tipPct}%, calc(100% - 72px))` }}>
           <b>{axisDay(active.day)}</b>
           <span>Visits {active.views.toLocaleString('en-IN')}</span>
           <span>Forks {active.forks.toLocaleString('en-IN')}</span>

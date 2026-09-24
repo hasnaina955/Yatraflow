@@ -249,7 +249,7 @@ function unit(n: number, noun: string): string {
  *  publication's own all-time totals, because the counters predate the event
  *  log. "38 forks" alone cannot tell a creator whether that is most of their
  *  forks or a slice of them. */
-function FunnelLine({ f, unread, unlockRead = 'ready' }: { f: PubFunnel | undefined; unread: boolean; unlockRead?: UnlockRead }) {
+function FunnelLine({ f, unread, unlockRead = 'ready', windowLabel }: { f: PubFunnel | undefined; unread: boolean; unlockRead?: UnlockRead; windowLabel: string }) {
   if (!f) return null
   // The all-time line reads the counters from the hydrated cache, so it is true
   // even when the log could not be read. The windowed steps are NOT, so a failed
@@ -286,26 +286,32 @@ function FunnelLine({ f, unread, unlockRead = 'ready' }: { f: PubFunnel | undefi
           stage in the hue the chart above uses for that same stage, so a stage
           means one thing everywhere on the page. */}
       <span className="hub-lead-steps">
+        {/* The window, stated ONCE per row rather than implied: the figures
+            below are windowed, and "12 / 4 / 1" alone left the reader holding
+            the selected window in their head. */}
+        <span className="hub-lead-window">in {windowLabel}</span>
         <span className="hub-lead-step hub-lead-visits"><b className="hub-lead-n">{f.views}</b> {unit(f.views, 'visit')}</span>
-        <span className="hub-lead-step hub-lead-forks"><b className="hub-lead-n">{f.forks}</b> {unit(f.forks, 'fork')} <span className="hub-lead-rate">{formatPct(f.forkRatePct)}</span></span>
+        <span className="hub-lead-step hub-lead-forks"><b className="hub-lead-n">{f.forks}</b> {unit(f.forks, 'fork')} <span className="hub-lead-rate">{formatPct(f.forkRatePct)} of visits</span></span>
         {/* Unlocks come from the sales ledger, so an unread ledger leaves this
             stage UNKNOWN. Printing 0 here would say "nobody bought" — the same
             conflation the branches above avoid for the log as a whole. */}
         {unlockRead === 'ready'
-          ? <span className="hub-lead-step hub-lead-unlocks"><b className="hub-lead-n">{f.unlocks}</b> {unit(f.unlocks, 'unlock')} <span className="hub-lead-rate">{formatPct(f.unlockRatePct)}</span></span>
+          ? <span className="hub-lead-step hub-lead-unlocks"><b className="hub-lead-n">{f.unlocks}</b> {unit(f.unlocks, 'unlock')} <span className="hub-lead-rate">{formatPct(f.unlockRatePct)} of forks</span></span>
           : <span className="hub-lead-step muted">{unlockRead === 'reading' ? 'unlocks still being read' : 'unlocks could not be read'}</span>}
         {f.forksExceedViews && (
           <span className="muted">· more forks than visits — Explore&apos;s card forks a plan without opening it</span>
         )}
       </span>
-      {/* The funnel as one bar. The three stages are nested by definition — a
-          fork is a visit that forked — so the widest stage is the track and each
-          narrower stage sits on top of it, rather than three unrelated segments
-          adding up to more than the traffic there was. */}
+      {/* The drop-off, as two separated marks on an empty track: the track is
+          the traffic you had, the marks are what survived each step, and the
+          gap between them keeps them from reading as one stripe. (The earlier
+          version overlaid all three at the same origin, which looked like a
+          three-colour bar and said nothing the figures hadn't.) */}
       <span className="hub-lead-bar" aria-hidden="true">
-        <i style={{ width: '100%' }} />
-        <i style={{ width: `${Math.min(100, Math.max(0, f.forkRatePct))}%` }} />
-        {unlockRead === 'ready' && <i style={{ width: `${Math.min(100, Math.max(0, f.unlockRatePct))}%` }} />}
+        <i style={{ inlineSize: `${Math.min(100, Math.max(0, f.forkRatePct))}%` }} />
+        {unlockRead === 'ready' && (
+          <i className="is-unlock" style={{ insetInlineStart: `calc(${Math.min(100, Math.max(0, f.forkRatePct))}% + 3px)`, inlineSize: `${Math.min(100, Math.max(0, f.unlockRatePct))}%` }} />
+        )}
       </span>
       {preLog && <span className="pf-prelog muted">{preLog}</span>}
       {lifetime}
@@ -470,7 +476,7 @@ export function HubOverview({ myPubs, onUnpublish, onNavigate, daily, salesRows,
                         ].filter(Boolean).join(' · ')}
                       </span>
                     </span>
-                    <FunnelLine f={funnelOf.get(p.id)} unread={funnelError} unlockRead={unlockRead} />
+                    <FunnelLine f={funnelOf.get(p.id)} unread={funnelError} unlockRead={unlockRead} windowLabel={windowLabel} />
                     <span className="pub-row-actions">
                       {stale ? (
                         <button className="btn btn-saffron btn-sm" aria-label={`Update page for ${p.title}`}
@@ -514,6 +520,14 @@ export function EarningsTab({ myPubs, sales, salesError, onRetry, view, onView, 
 }) {
   const projection = projectEarnings(myPubs)
   const actual = sales
+  /** Whether the ledger has been READ. The figures below still derive from
+   *  `actual ?? 0` — that stays the safe arithmetic — but a figure that was
+   *  never read must not be RENDERED as a measured zero. "₹0 lifetime, 0
+   *  sales" beside reassuring prose is the page contradicting itself at the
+   *  exact moment a money-anxious creator is most attentive, so the render is
+   *  gated on this instead. */
+  const ledgerRead: 'ready' | 'reading' | 'failed' = salesError ? 'failed' : actual === null ? 'reading' : 'ready'
+  const unreadLabel = ledgerRead === 'reading' ? 'Reading…' : 'Not read'
   const lifetimeInr = basis === 'net' ? (actual?.netInr ?? 0) : (actual?.grossInr ?? 0)
   // The schedule is about real money, so it reads the actual ledger and is
   // rendered in the Actual view only — a projection has no payout date.
@@ -525,18 +539,39 @@ export function EarningsTab({ myPubs, sales, salesError, onRetry, view, onView, 
   return (
     <>
       <div className="hub-strip">
-        <div className="hub-cell"><span className="stat-label">Lifetime {basis === 'net' ? 'net' : 'gross'}</span><span className="stat-value hub-cell-value">{formatInr(lifetimeInr)}</span></div>
-        <div className="hub-cell"><span className="stat-label">Sales</span><span className="stat-value hub-cell-value">{actual?.rows.length ?? 0}</span></div>
+        <div className="hub-cell">
+          <span className="stat-label">Lifetime {basis === 'net' ? 'net' : 'gross'}</span>
+          {ledgerRead === 'ready'
+            ? <span className="stat-value hub-cell-value">{formatInr(lifetimeInr)}</span>
+            : <span className="stat-value hub-cell-value hub-cell-unread">{unreadLabel}</span>}
+        </div>
+        <div className="hub-cell">
+          <span className="stat-label">Sales</span>
+          {ledgerRead === 'ready'
+            ? <span className="stat-value hub-cell-value">{actual?.rows.length ?? 0}</span>
+            : <span className="stat-value hub-cell-value hub-cell-unread">{unreadLabel}</span>}
+        </div>
         {/* A date only once there is something to send: a run date over a ₹0
             balance reads as money on its way. The dash states its own reason
-            underneath, because a bare "—" next to a zero explains nothing. */}
+            underneath, because a bare "—" next to a zero explains nothing — and
+            while the ledger is unread, the conclusion is suppressed entirely
+            rather than guessed at zero. */}
         <div className="hub-cell">
           <span className="stat-label">Next payout</span>
-          <span className="stat-value hub-cell-value">{payout.clearsInr > 0 ? shortDate(payout.dueAt) : '—'}</span>
-          {payout.clearsInr === 0 && (
-            <span className="hub-cell-hint muted">
-              {payout.belowMinimum ? `under ${formatInr(payout.minimumInr)} — rolls over` : 'nothing to pay out yet'}
-            </span>
+          {ledgerRead !== 'ready' ? (
+            <>
+              <span className="stat-value hub-cell-value hub-cell-unread">{unreadLabel}</span>
+              <span className="hub-cell-hint muted">balance unknown</span>
+            </>
+          ) : (
+            <>
+              <span className="stat-value hub-cell-value">{payout.clearsInr > 0 ? shortDate(payout.dueAt) : '—'}</span>
+              {payout.clearsInr === 0 && (
+                <span className="hub-cell-hint muted">
+                  {payout.belowMinimum ? `under ${formatInr(payout.minimumInr)} — rolls over` : 'nothing to pay out yet'}
+                </span>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -561,15 +596,26 @@ export function EarningsTab({ myPubs, sales, salesError, onRetry, view, onView, 
       {view === 'actual' && (
         <section className="card">
           <h3 className="card-title hub-panel-title">Payouts</h3>
-          <p className="hint-text" style={{ margin: '6px 0 6px' }}>
-            {payout.clearsInr > 0 ? (
-              <>The next run is <b>{longDate(payout.dueAt)}</b> — it would clear <b>{formatInr(payout.clearsInr)}</b>, your net balance after the platform fee.</>
-            ) : payout.belowMinimum ? (
-              <>Runs happen weekly on Fridays. Your balance is under the <b>{formatInr(payout.minimumInr)}</b> minimum, so it stays on the books until it clears it — nothing is lost.</>
-            ) : (
-              <>Runs happen weekly on Fridays. There is nothing to pay out yet — your balance is <b>{formatInr(0)}</b> until a priced itinerary sells.</>
-            )}
-          </p>
+          {/* The schedule is a statement about real money, so it waits for the
+              ledger. Until then it says the balance is unknown — the old text
+              cheerfully described a ₹0 balance the page had never read. */}
+          {ledgerRead === 'ready' ? (
+            <p className="hint-text" style={{ margin: '6px 0 6px' }}>
+              {payout.clearsInr > 0 ? (
+                <>The next run is <b>{longDate(payout.dueAt)}</b> — it would clear <b>{formatInr(payout.clearsInr)}</b>, your net balance after the platform fee.</>
+              ) : payout.belowMinimum ? (
+                <>Runs happen weekly on Fridays. Your balance is under the <b>{formatInr(payout.minimumInr)}</b> minimum, so it stays on the books until it clears it — nothing is lost.</>
+              ) : (
+                <>Runs happen weekly on Fridays. There is nothing to pay out yet — your balance is <b>{formatInr(0)}</b> until a priced itinerary sells.</>
+              )}
+            </p>
+          ) : (
+            <p className="hint-text" style={{ margin: '6px 0 6px' }}>
+              {ledgerRead === 'reading'
+                ? 'Reading your sales ledger… the next run is not stated until it answers.'
+                : 'Your sales ledger could not be read, so the balance and the next run are unknown — nothing here is a zero.'}
+            </p>
+          )}
           <p className="hint-text" style={{ margin: 0 }}>
             Runs are not automated yet: this balance is what a payout would disburse and nothing transfers
             on its own. Platform fee — {PLATFORM_FEE_SUMMARY}.

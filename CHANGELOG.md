@@ -91,8 +91,23 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
   unable to overshoot and invent traffic between two points, with a gradient area and a hover guide
   naming that day's visits, forks and unlocks (and saying "unlocks not read" rather than zero when
   the ledger is unread). The KPI strip wears the chart-navy anchor band the map and AI panels
-  already use, inked in white — not `--yf-cream`, which is the canvas colour and would vanish in
+  already use, inked in white - not `--yf-cream`, which is the canvas colour and would vanish in
   the dark theme.
+
+- **The second critique pass, answered.** A re-run scored the hub 30/40 and found the earnings tab
+  still contradicting itself: a failed ledger read rendered as `₹0` lifetime, `0` sales and a
+  confident "nothing to pay out yet" beside reassuring prose. All three now read **Not read**
+  (or **Reading…**) and the payout conclusion is withheld until the ledger answers — the
+  arithmetic still falls back to zero, but a number that was never read is never shown as one.
+  The publication row's stage bar was a three-colour stripe (all stages drawn at the same origin);
+  it is now the drop-off it claimed to be — an empty track for the traffic you had, with the
+  surviving stages as two separated marks, and no unlock mark at all while the ledger is unread.
+  Each row states its window ("in 30 days") and each rate its denominator ("11% of visits"), so
+  the figures no longer depend on remembering which window is selected. The trend takes keyboard
+  focus and steps by day (arrows, Home/End, Escape to dismiss), a tap latches the readout instead
+  of losing it on lift, the tooltip can no longer overflow the panel edge, and the unlock stage
+  wears one hue everywhere — `--ink-amber` in the chart mark, the legend and the row figures —
+  leaving saffron for publish and invite actions.
 
 ## [0.65.0] - 2026-09-22
 

@@ -7617,7 +7617,9 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 /* Forks ride a categorical hue (steel blue), not the warn family: a fork is a
    step in the funnel, not a problem with it. */
 .hc-forks-line { fill: none; stroke: var(--cat-transport); stroke-width: 2; stroke-dasharray: 3 4; stroke-linejoin: round; stroke-linecap: round; }
-.hc-unlock { fill: var(--saffron); }
+.hc-unlock { fill: var(--ink-amber); }
+/* Keyboard parity: the chart takes focus, so focus must be visible on it. */
+.hub-chart-svg:focus-visible { outline: none; box-shadow: var(--ring); border-radius: var(--radius-sm); }
 /* The hover guide: a hairline where the pointer is, with a ringed dot per
    series so the reading is precise rather than approximate. */
 .hc-guide { stroke: var(--text-3); stroke-width: 1; stroke-opacity: .45; }
@@ -7634,7 +7636,7 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .hc-swatch { display: inline-block; width: 8px; height: 8px; border-radius: 2px; }
 .hc-swatch-views { background: var(--teal-deep); }
 .hc-swatch-forks { background: var(--cat-transport); }
-.hc-swatch-unlocks { background: var(--saffron); }
+.hc-swatch-unlocks { background: var(--ink-amber); }
 /* The SAME box the chart occupies, not a fixed height: the chart is
    aspect-locked to its viewBox, so the only way the panel can hold its height
    while a read is in flight is to reserve the identical rectangle. It carries
@@ -7667,6 +7669,8 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 
 /* Windowed figures lead; the all-time line stays the qualifier. */
 .hub-cell-hint { font-size: 11px; color: var(--text-3); }
+/* A figure that was never read, said in words rather than as a measured zero. */
+.hub-cell-unread { font-size: 16px; color: var(--yf-cream); opacity: .78; }
 .hub-strip .hub-cell-hint { color: #fff; opacity: .66; }
 .hub-controls-div { width: 1px; align-self: stretch; background: var(--line); }
 
@@ -7684,19 +7688,18 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .hub-lead-where { font-size: 11.5px; color: var(--text-3); }
 .hub-lead-steps { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; font-size: 11.5px; color: var(--text-3); }
 .hub-lead-step { display: flex; align-items: baseline; gap: 5px; }
+.hub-lead-window { font-weight: 600; color: var(--text-2); }
+.hub-lead-rate { color: var(--text-3); }
 .hub-lead-n { font-family: var(--font-display); font-size: 23px; font-weight: 800; font-variant-numeric: tabular-nums; }
 .hub-lead-visits .hub-lead-n { color: var(--teal-deep); }
 .hub-lead-forks .hub-lead-n { color: var(--cat-transport); }
 .hub-lead-unlocks .hub-lead-n { color: var(--ink-amber); }
-/* The funnel as ONE bar. The stages are nested by definition — a fork is a
-   visit that forked — so the widest stage is the track and each narrower stage
-   sits on top of it, instead of three segments that add up past the traffic
-   there ever was. Logical insets, so the nest mirrors under RTL. */
+/* The drop-off: the empty track IS the traffic you had, and the two separated
+   marks are what survived each step. The gap is what stops it reading as one
+   stripe — an earlier version overlaid all three stages at the same origin. */
 .hub-lead-bar { position: relative; height: 6px; border-radius: 999px; background: var(--bg-soft); overflow: hidden; }
-.hub-lead-bar i { position: absolute; inset-block: 0; inset-inline-start: 0; border-radius: 999px; }
-.hub-lead-bar i:nth-child(1) { background: var(--teal-deep); }
-.hub-lead-bar i:nth-child(2) { background: var(--cat-transport); }
-.hub-lead-bar i:nth-child(3) { background: var(--saffron); }
+.hub-lead-bar i { position: absolute; inset-block: 0; inset-inline-start: 0; border-radius: 999px; background: var(--cat-transport); }
+.hub-lead-bar i.is-unlock { background: var(--ink-amber); }
 .hub-lead-row .pub-row-actions { justify-content: flex-start; }
 
 /* ---- the creator profile, closed by default ---- */

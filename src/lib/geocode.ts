@@ -99,21 +99,34 @@ function dedupePlaceHits(hits: PlaceHit[], limit = 8): PlaceHit[] {
  * onto the route measures Null Island — live 2026-09-14, every result row
  * showed the identical "~1675 km into the trip · 8448 km off-route".
  *
- * Google mode runs ONE free-form Text Search (real locations in the same
- * single Text Search Pro event the corridor scan already pays), free stack
- * merged underneath. Quota exhaustion THROWS (surfaced honestly by the
- * caller — no silent fallback); other Google failures degrade to the free
- * stack like the geocode box always has. Any remaining coord-less hit
- * (Mappls "coords pending") is resolved, and still-placeholder rows are
- * dropped — a route-aware list never measures Null Island.
+ * Google mode runs ONE Text Search (real locations in the same single Text
+ * Search Pro event the corridor scan already pays), free stack merged
+ * underneath. When the caller passes the trip's route geometry the search is
+ * biased ALONG THAT ROAD (Search-Along-Route) — without it the request carries
+ * no spatial constraint and Google applies its implicit IP-based bias, which
+ * fills the rows with the searcher's own city (found live 2026-09-24: a lunch
+ * search on a slot showed the user's city, not the corridor). Quota
+ * exhaustion THROWS (surfaced honestly by the caller — no silent fallback);
+ * other Google failures degrade to the free stack like the geocode box always
+ * has. Any remaining coord-less hit (Mappls "coords pending") is resolved,
+ * and still-placeholder rows are dropped — a route-aware list never measures
+ * Null Island.
  */
-export async function searchPlacesText(q: string, opts?: { indiaOnly?: boolean }): Promise<PlaceHit[]> {
+export interface SearchTextOpts {
+  indiaOnly?: boolean
+  /** The trip's route geometry ([lng, lat][], OSRM format) — biases the search along the trip's road. */
+  routeCoords?: [number, number][] | null
+  /** Fallback corridor anchors when no route geometry is available — the free stack ranks against these. */
+  anchors?: { lat: number; lng: number }[] | null
+}
+
+export async function searchPlacesText(q: string, opts?: SearchTextOpts): Promise<PlaceHit[]> {
   const needle = q.trim()
   if (needle.length < 2) return []
   let google: PlaceHit[] = []
   if (googleEnabled()) {
     try {
-      google = await googleSearchText(needle)
+      google = await googleSearchText(needle, { routeCoords: opts?.routeCoords })
     } catch (e) {
       if (e instanceof QuotaExhaustedError) throw e // honest quota note, no fallback
       // transient Google failure → degrade to the free stack (geocode-box contract)

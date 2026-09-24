@@ -7571,3 +7571,30 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 @media (max-width: 480px) {
   .ct-panel { padding: 14px; }
 }
+
+/* ---- In-map search result pins (Map tab search box) ---- */
+/* A current search's hits read as SELECTABLE markers, not corridor ideas:
+   solid teal with a white ring and a search glyph (the gold dashed pin
+   stays reserved for engine ideas). Active state = the row-highlight twin
+   of --active, teal ring instead of gold, steady. They disappear with the
+   results list when the search bar clears. */
+.yf-map-pin-search {
+  background: var(--teal-deep);
+  border-style: solid;
+  border-color: #fff;
+  color: var(--color-primary-foreground);
+  animation: none;
+}
+.yf-map-pin-search--active {
+  animation: none;
+  box-shadow: 0 0 0 2px var(--card), 0 0 0 5px var(--teal);
+  transform: scale(1.15);
+}
+
+/* search-result row: the selected twin of the map's teal search pin
+   (activeHitId highlights the row when its marker is tapped, and
+   scrollIntoView brings it into the list's view) */
+.map-search-results .row-between.is-selected {
+  background: color-mix(in srgb, var(--teal) 10%, transparent);
+  border-radius: 6px;
+}

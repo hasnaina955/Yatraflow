@@ -489,13 +489,33 @@ export async function googleNearbyAtPoint(args: AtPointArgs): Promise<PlaceHit[]
 // because all five hits shared the placeholder). Text Search returns real
 // locations in the SAME single Text Search Pro event the corridor scan
 // already pays — so the search-to-add box ranks on truth.
-export async function googleSearchText(q: string): Promise<PlaceHit[]> {
+export interface SearchTextArgs {
+  /**
+   * The trip's route geometry ([lng, lat][], OSRM format). When present the
+   * search runs as Search-Along-Route — results are biased to the actual road
+   * the trip drives — instead of the default free-form Text Search, whose
+   * only spatial signal is the caller's IP address (a user planning a Kerala
+   * trip from Bangalore got 8 Bangalore restaurants for "lunch", found live
+   * 2026-09-24). Same Text Search Pro SKU either way.
+   */
+  routeCoords?: [number, number][] | null
+}
+
+export async function googleSearchText(q: string, args?: SearchTextArgs): Promise<PlaceHit[]> {
   const needle = q.trim()
   if (needle.length < 2) return []
+  // Route geometry present → Search-Along-Route: one request, biased to the
+  // road. Without it the request carries NO spatial constraint and Google
+  // applies its implicit IP-based location bias — results land in the
+  // searcher's city, not on the trip's corridor.
+  const routeCoords = (args?.routeCoords ?? []).filter(c => Number.isFinite(c[0]) && Number.isFinite(c[1]))
+  const encoded = routeCoords.length >= 2 ? encodePolyline(routeCoords) : null
   // POINT_FIELD_MASK: no routingSummaries — they exist only for
   // Search-Along-Route, and requesting inapplicable mask paths risks a 400.
+  // (The along-route variant below uses NEARBY_FIELD_MASK, which carries them.)
   const responses = [await (placesPost('/places:searchText', 'textSearchPro', {
     textQuery: needle,
+    ...(encoded ? { searchAlongRouteParameters: { polyline: { encodedPolyline: encoded } } } : {}),
     maxResultCount: 8,
     languageCode: 'en',
     regionCode: REGION_CODE,

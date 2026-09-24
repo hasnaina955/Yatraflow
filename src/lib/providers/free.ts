@@ -5,7 +5,7 @@
 // Google call fails, or the Phase-B quota guard trips (providers/quota.ts) —
 // with the free stack in charge the app behaves exactly as it always has.
 import { haversineKm } from '../geo'
-import { hasCoords, distToNearest, normWords, rankAndCap, type NearbyOpts, type PlaceHit, type HaltPurpose } from './hits'
+import { hasCoords, distToNearest, normWords, rankAndCap, spurKm, type NearbyOpts, type PlaceHit, type HaltPurpose } from './hits'
 import { queriesForPurpose } from '../purposeQueries'
 import { cap } from '../labels'
 
@@ -143,8 +143,25 @@ export async function resolveHitCoords(hit: PlaceHit): Promise<PlaceHit> {
  * Search cities AND points of interest at once (free stack).
  * Mappls suggestions first (best India coverage, when a key is configured),
  * then populated places, then POIs — deduped by name.
+ *
+ * Route-aware (found live 2026-09-24): when the caller passes the trip's
+ * route geometry or corridor anchors, hits are RANKED by their distance to
+ * the road/anchors instead of returned in provider order — none of the free
+ * engines can bias a query spatially (Mappls' autosuggest location param
+ * needs a premium key; Open-Meteo and Wikipedia are global name searches),
+ * so ranking against the corridor is the only spatial signal available. A
+ * same-named place in the searcher's own city can no longer outrank the one
+ * on the trip's route.
  */
-export async function searchPlacesFree(q: string, opts?: { indiaOnly?: boolean }): Promise<PlaceHit[]> {
+export interface FreeSearchOpts {
+  indiaOnly?: boolean
+  /** The trip's route geometry ([lng, lat][], OSRM format) — corridor for hit ranking. */
+  routeCoords?: [number, number][] | null
+  /** Corridor anchors to rank against when no route geometry is available. */
+  anchors?: { lat: number; lng: number }[] | null
+}
+
+export async function searchPlacesFree(q: string, opts?: FreeSearchOpts): Promise<PlaceHit[]> {
   const indiaOnly = opts?.indiaOnly ?? true
   const needle = q.trim()
   if (needle.length < 2) return []
@@ -160,6 +177,25 @@ export async function searchPlacesFree(q: string, opts?: { indiaOnly?: boolean }
     if (seen.has(key)) continue
     seen.add(key)
     out.push(hit)
+  }
+  // Route-aware ranking: without corridor geometry this is provider order
+  // (exactly as before). With it, distance-to-corridor is the sort key so a
+  // hit near the road beats a same-named hit in the searcher's city.
+  const polyline = (opts?.routeCoords ?? [])
+    .filter(c => Number.isFinite(c[0]) && Number.isFinite(c[1]))
+    .map(c => ({ lat: c[1], lng: c[0] }))
+  const anchors = opts?.anchors ?? null
+  if ((polyline.length >= 2 || (anchors && anchors.length > 0)) && out.some(hasCoords)) {
+    const distKm = (h: PlaceHit): number => {
+      if (!hasCoords(h)) return Number.MAX_SAFE_INTEGER // keep coord-less (Mappls) rows, ranked last
+      if (polyline.length >= 2) {
+        const spur = spurKm(h, polyline)
+        if (spur != null) return spur
+      }
+      if (anchors && anchors.length > 0) return distToNearest(h, anchors) / 1000
+      return Number.MAX_SAFE_INTEGER
+    }
+    out.sort((a, b) => distKm(a) - distKm(b))
   }
   return out.slice(0, 8)
 }

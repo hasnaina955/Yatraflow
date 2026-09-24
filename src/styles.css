@@ -1986,7 +1986,12 @@ button.board-col-zone--add:active { transform: translateY(1px); }
      below is what makes it read as a slab the plate sits in. */
   box-shadow: var(--shadow-soft);
 }
-.bezel > .card {
+/* Two plate classes, one rule: `.card` (Explore / creator / public-itinerary
+   cards) and `.created-card` (TripCreated's two generic cards - the billcard is
+   deliberately not one of them). A surface that wants the bezel adds its plate
+   class here rather than restating the recipe. */
+.bezel > .card,
+.bezel > .created-card {
   flex: 1;
   border-color: transparent;
   border-radius: calc(2rem - 7px);

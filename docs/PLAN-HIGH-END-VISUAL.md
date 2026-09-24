@@ -45,7 +45,7 @@ those three before following any section below.
 | Landing | done | Tokenised display scale and macro-whitespace (the hero `clamp()` and the 60/70px section gaps were inline styles), Double-Bezel feature cards, a button-in-button CTA, and a reveal that resolves out of a blur on `--motion-slower` |
 | PublicItinerary | done | Tokenised block rhythm, plus the tray on its five content cards |
 | Explore + creator pages | done | The same tray via `PubCard` - the one component they share, so both surfaces moved from a single change |
-| TripCreated | **held back** | Built, then deliberately split out. See "What remains" |
+| TripCreated | done | Reveals on the header and all three cards, staggered; the tray on its two generic cards. Re-applied to #310's new two-column layout |
 | Auth, TripsList, Profile | **closed** | No real work in them; entry animation on an app dashboard is noise, not polish |
 | CreatorHub | **blocked** | Another clone owns creator-hub while it is under active development |
 
@@ -80,14 +80,13 @@ either order.
 
 ### What remains
 
-- **TripCreated's entry choreography.** Built, then split out of #311 because
-  #310 relaid that page out (`.created-page` 720px -> 1120px). The work is
-  preserved at the local branch **`backup/tripcreated-reveals`** (`a06bacd`) and
-  is to be **re-applied to the new markup** after #310 lands - not rebased onto
-  markup that is about to be replaced. Section 4.3 needs revisiting at the same
-  time, since it describes the old single-column layout.
-- **Nothing else in Tier A is open.** Tier B and Auth stay closed; CreatorHub
-  stays blocked until its ownership is settled.
+**Nothing in Tier A.** TripCreated was the last item and is now done: reveals on
+the header and all three cards, staggered, plus the tray on its two generic
+cards - applied to #310's new two-column layout rather than rebased onto the old
+single column. Section 4.3 records what it actually took.
+
+Tier B and Auth stay closed; CreatorHub stays blocked until its ownership is
+settled.
 
 ---
 
@@ -172,9 +171,15 @@ Each bullet below is a real, token-level instruction rather than a vibe.
 
 ### 4.3 TripCreated
 
-- 4 cards, 3 sections, 0 reveals - the clearest gap in Tier A.
-- **Reveals** on all three sections, **Double-Bezel** on the cards,
-  **button-in-button** on the primary next-step CTA, macro-whitespace throughout.
+- 4 cards, 3 sections, 0 reveals - the clearest gap in Tier A. Now closed.
+- **Done:** the shared `useReveal()` hook plus `reveal` / `reveal-d1..d3` on the
+  header and all three cards, and the `.bezel` tray on the two generic cards
+  (which also normalised the crew card's skewed indentation).
+- **Deliberately not done:** the bill card takes the reveal but **not** the tray.
+  It is a ticket artifact - zero padding, a `.tk-head` band - rather than a
+  generic card, and a glass tray around a receipt muddies it. The
+  button-in-button CTA and macro-whitespace from the original sketch were also
+  dropped: the page is a two-column confirmation now and #310 set its rhythm.
 
 ### 4.4 Auth
 

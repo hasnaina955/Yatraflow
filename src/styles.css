@@ -3631,46 +3631,23 @@ body, .topnav, .glass, .board, .modal, .toast {
    The landing's `.feature-card`/`.feature-core` uses true nesting because its
    photo fill must not be covered by a plate. If a later surface wants nesting,
    promote THAT pair rather than growing a third variant. */
-/* Specificity is deliberately three classes, not one. `.card.route-snap` is a
-   TWO-class rule that gives the route-glance card its own heavy
-   `0 30px 60px rgba(navy,.28)` shadow, so a bare `.pub-card` lost to it and that
-   one card kept a flat plate while the other four got their tray (caught by
-   reading the computed shadow off the live page, not by eye). Three classes
-   outrank it outright instead of tying and depending on source order.
-   The tray is a NAVY TINT, not `--yf-glass`: these cards sit on the near-white
-   paper sheet, so a white tray read as a faint bright halo (barely visible at
-   1440) rather than the recessed tray the pattern is for. A 5% navy band is
-   darker than the canvas, which is what makes it read as hardware - the same
-   reason the standard reaches for `bg-black/5` on light surfaces. Dark inverts
-   it to a white tint, since navy-on-dark has no contrast at all. */
-.pub-body .card.pub-card {
-  border-color: transparent;
-  border-radius: calc(2rem - 7px);
-  box-shadow:
-    0 0 0 6px rgba(var(--shadow-navy-rgb), .05),
-    0 0 0 7px rgba(var(--shadow-navy-rgb), .09),
-    inset 0 1px 0 var(--yf-glass-sheen),
-    var(--shadow-soft);
-}
-[data-theme='dark'] .pub-body .card.pub-card {
-  box-shadow:
-    0 0 0 6px rgba(255, 255, 255, .06),
-    0 0 0 7px rgba(255, 255, 255, .11),
-    inset 0 1px 0 var(--yf-glass-sheen),
-    var(--shadow-soft);
-}
-
-/* ---------- Public itinerary: the editorial rhythm ---------- */
-/* The block gap is the breathing room inside the surface. Every selector is
-   scoped (`.pub-body ...`) rather than bare, because two of these classes are
-   shared with dense in-app editors: `.day-section` is the in-app timeline's own
-   class (trip/timeline/DaySection.tsx) and keeps its tighter 22px beat, and
-   `.pub-editorial` already declares a margin-bottom that a same-specificity rule
-   could not outrank. */
-/* Consumed directly rather than through a `.pub-body` local alias: `.pub-body`
-   is already declared once (padding-top/position), and a second declaration of
-   the same top-level selector is exactly what the duplicate-selector ratchet
-   rejects. */
+/* The Double-Bezel was tried here as a ring tray (a 6px + 1px box-shadow band)
+   on the five content cards, and REVERTED - it is canvas-dependent and this
+   canvas defeats it. On the landing the tray sits on a mint/peach gradient, so
+   the band reads as a machined tray; on this near-white paper sheet the same
+   5% navy band reads as a grey WIREFRAME OUTLINE around every card, and because
+   these cards already carry their own border and soft shadow the eye got two
+   outlines per card. In the two-column gutters two 7px rings also left only 4px
+   of clear space (left column ended 1154, sidebar began 1172), so the rings
+   nearly merged. A bezel needs a tinted canvas to sit on; on a white sheet the
+   card's own shadow is the better depth cue. Do not re-add it here without
+   changing the canvas. */
+/* The rhythm INSIDE the surface is what this surface actually gained. Every
+   selector is scoped (`.pub-body ...`) rather than bare, because two of these
+   classes are shared with dense in-app editors: `.day-section` is the in-app
+   timeline's own class (trip/timeline/DaySection.tsx) and keeps its tighter 22px
+   beat, and `.pub-editorial` already declares a margin-bottom that a
+   same-specificity rule could not outrank. */
 .pub-body > .two-col { margin-top: var(--surface-block-gap); }
 .pub-body .day-section + .day-section { margin-top: var(--surface-block-gap); }
 .pub-body .pub-editorial { margin-bottom: var(--surface-block-gap); }

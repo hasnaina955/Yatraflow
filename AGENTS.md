@@ -1126,18 +1126,6 @@ Supabase (auth/data) · Vercel (auto-deploy from `main`) · Google Places
 Open-Meteo · Mappls · **OpenFreeMap** (basemap tiles — keyless, no request
 limits, commercial-OK; its TileJSON carries the required attribution, see §4). Live probe for
 Google: `scripts/verify-google-places.mjs`.
-
-- **MiniMax streaming TPS is not chunk count, and its terminal usage is not an output count.**
-  MiniMax defines tokens/second as `output tokens / (last-token time - first-token time)`;
-  request elapsed time also contains connection and prefill. Its OpenAI-compatible
-  streaming schema accepts `stream_options.include_usage`, but may return only
-  `usage.total_tokens` in the terminal chunk. Never derive output speed from
-  `total_tokens` or SSE events. `npm run benchmark:tokens` therefore uses the
-  official Hugging Face tokenizer for a labelled local estimate, prefers
-  `completion_tokens` when an endpoint supplies it, and shows TTFT and end-to-end
-  timing separately. The tokenizer is cached outside the repo; the API key never is.
-
-
 **Provider directive (Sep 2026, PR #73; amended 2026-09-15 for #189): with a
 Google key configured, the POI pipeline is Google-ONLY** — food, fuel,
 lodging, sights and the along-route scan all come from Google; Google failure,

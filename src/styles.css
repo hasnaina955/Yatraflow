@@ -7602,7 +7602,30 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .hub-subhead { font-family: var(--font-display); font-size: 15px; font-weight: 700; margin: 20px 0 6px; }
 .hub-controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
 
-/* ---- the trend ---- */
+/* ---- the instrument panel ------------------------------------------------
+   One surface, two columns, a hairline between them. Replaces the old
+   strip-then-two-cards stack, which left a gap under whichever column was
+   shorter and pushed the profile card to the foot of a long page. The split
+   starts at 1024 rather than 1280: a 1140px window is an ordinary laptop, and
+   the old threshold left it fully stacked. Logical border so it mirrors. */
+.hub-instrument { padding: 0; overflow: hidden; }
+.hub-instrument-cols { display: grid; grid-template-columns: 1fr; }
+.hub-instrument-col { padding: var(--space-8); min-width: 0; }
+.hub-instrument-col + .hub-instrument-col { border-top: 1px solid var(--line); }
+@media (min-width: 1024px) {
+  .hub-instrument-cols { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .hub-instrument-col + .hub-instrument-col { border-top: 0; border-inline-start: 1px solid var(--line); }
+}
+/* The panel's own head rows sit flush inside the column now that the surface
+   no longer supplies the card padding. */
+.hub-instrument-col .hub-panel-head,
+.hub-instrument-col .hub-lead-head { margin-bottom: var(--space-5); }
+.hub-instrument-col .hub-panel-title { margin: 0; font-family: var(--font-body); font-size: 11.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); }
+.hub-instrument-col .hub-lead-head span { font-size: 11.5px; color: var(--text-3); }
+/* In the narrower column the trend's key would crowd the window pills, so the
+   key rides under the plot with the axis instead of beside the title. */
+.hub-instrument-col .hub-chart { margin-top: var(--space-4); }
+.hub-instrument-col .hub-trend-void { margin-top: var(--space-4); }
 .hub-chart { position: relative; margin: 12px 0 0; }
 /* Aspect-locked to the viewBox: the chart scales as one drawing (round marks,
    even strokes) instead of stretching to fill a fixed height. */
@@ -7650,18 +7673,10 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .hub-pills-quiet { background: transparent; border-color: transparent; box-shadow: none; }
 
 /* ---- the page's grid ------------------------------------------------- */
-/* Two columns on a wide screen, one below. The trend and the publication list
-   answer two halves of one question, and stacking every panel as a full-width
-   banner made the page a scroll of equal-weight bands. The strip stays a band
-   above both: four figures read together or not at all. */
-.hub-grid { display: grid; gap: 16px; }
-.hub-grid > * { margin-top: 0; }
-@media (min-width: 1280px) {
-  .hub-grid { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); align-items: start; }
-}
-/* `.pub-row` is a no-wrap flex row, which is right at full width and overflows
-   at a third of it — so inside the grid it wraps instead. */
-.hub-grid .pub-row { flex-wrap: wrap; align-items: flex-start; }
+/* The old two-card grid is gone: it is the instrument panel above. The only
+   rule that survives is the row-wrap guard its narrow column needed, now
+   applied to the rows inside that panel. */
+.hub-instrument-col .pub-row { flex-wrap: wrap; align-items: flex-start; }
 
 /* The counters-vs-log frame, said once for the account rather than once per row. */
 .hub-framing { margin: 0 0 16px; }
@@ -7702,12 +7717,17 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .hub-lead-bar i.is-unlock { background: var(--ink-amber); }
 .hub-lead-row .pub-row-actions { justify-content: flex-start; }
 
-/* ---- the creator profile, closed by default ---- */
-/* The summary takes the card's own padding back so the whole row is the hit
-   target, then restores it — one control, not a small text link. */
-.hub-profile-summary { display: flex; align-items: center; gap: 12px; margin: calc(var(--space-8) * -1) calc(var(--space-8) * -1) 0; padding: var(--space-8); cursor: pointer; list-style: none; }
+/* ---- the creator profile: one quiet line, closed by default ---- */
+/* Live mode made this a single line rather than a card: it is a thing you set
+   once, and a full-width card at the foot made the page's last thing a
+   maintenance surface rather than a decision. The summary is the whole row —
+   one control, the full-width hit target — and it carries the chevron, because
+   hiding the native marker without replacing it leaves a static-looking heading. */
+.hub-profile { padding: 0 var(--space-7); background: transparent; border-color: transparent; box-shadow: none; }
+.hub-profile[open] { background: var(--card); border-color: var(--line); box-shadow: var(--shadow); padding: var(--space-8); }
+.hub-profile-summary { display: flex; align-items: center; gap: 12px; padding: var(--space-5) 0; cursor: pointer; list-style: none; }
 .hub-profile-summary::-webkit-details-marker { display: none; }
-.hub-profile[open] .hub-profile-summary { margin-bottom: 12px; border-bottom: 1px solid var(--line); }
+.hub-profile[open] .hub-profile-summary { margin-bottom: 12px; padding-bottom: var(--space-5); border-bottom: 1px solid var(--line); }
 .hub-profile-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
 /* Hiding the native marker without putting something else there leaves a row
    that reads as a static heading, so the summary carries the same chevron

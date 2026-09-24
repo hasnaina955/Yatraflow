@@ -408,95 +408,105 @@ export function HubOverview({ myPubs, onUnpublish, onNavigate, daily, salesRows,
       {/* Two columns on a wide screen, one below: the trend and the publication
           list answer two halves of the same question, and stacking them as
           full-width banners made the page a scroll of equal-weight bands. */}
-      <div className="hub-grid">
-        <section className="card hub-trend" aria-labelledby="hub-trend-h">
-          <div className="hub-panel-head">
-            <h2 className="card-title hub-panel-title" id="hub-trend-h">Recorded traffic</h2>
-            <PillNav className="filter-pillbar hub-pills-quiet" role="group" aria-label="Funnel window" activeKey={String(days)}>
-              {FUNNEL_WINDOWS.map(w => (
-                <button key={w.days} type="button" data-pill-key={String(w.days)}
-                  className={`clickable-chip chip${days === w.days ? ' on-teal' : ''}`}
-                  onClick={() => onDays(w.days)} aria-pressed={days === w.days}>{w.label}</button>
-              ))}
-            </PillNav>
-          </div>
-          {/* The state sentence lives here once, and the box below stays silent
-              instead of apologising twice. The failure branch still OPENS this
-              chain, ahead of the load branch: a read that failed must never be
-              described as one still loading. `role="status"` announces a change
-              without needing text in the empty box. */}
-          <div className="hub-panel-note" role="status">
-            <span className="small muted">
-              {funnelError
-                ? 'Recorded traffic could not be read just now — the trend is unchanged on the server.'
-                : daily === null
-                ? 'Reading recorded traffic…'
-                : recordingSince
-                  ? `Chart shows recorded days only; the log begins ${new Date(`${recordingSince}T00:00:00Z`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}.`
-                  : 'Nothing recorded yet — the trend starts with the first visit.'}
-            </span>
-            {funnelError && <button className="btn btn-outline btn-sm" onClick={onRetry}>Retry</button>}
-          </div>
-          {/* A failed or in-flight read must not draw as "nothing recorded": the
-              chart's own empty state is a measurement, so it is only shown once
-              the log was actually read. Reserved box, no second sentence. */}
-          {daily === null
-            ? <div className="hub-trend-void" aria-hidden="true" />
-            : <TrendChart points={series} label={windowLabel} unlockRead={unlockRead} />}
-        </section>
-
-        <section className="card" aria-labelledby="hub-pubs-h">
-          <div className="hub-lead-head">
-            <h2 id="hub-pubs-h">Publications</h2>
-            <span>
-              {myPubs.length} live{staleCount > 0 ? ` · ${staleCount} behind` : ''}
-            </span>
-          </div>
-          {myPubs.length === 0 ? (
-            <p className="hint-text" style={{ margin: '6px 0 0' }}>
-              Nothing published yet — list a trip on Explore from its Share tab.
-            </p>
-          ) : (
-            <div>
-              {myPubs.map(p => {
-                const trip = tripById(p.tripId)
-                const stale = !!trip && trip.updatedAt > (p.refreshedAt ?? p.publishedAt)
-                return (
-                  <div key={p.id} className="hub-lead-row">
-                    <span className="hub-lead-title">
-                      <a href={`#/pub/${p.id}`}>{p.title}</a>
-                      {stale && <Chip tone="saffron">Page behind itinerary</Chip>}
-                      {/* Where it goes and how long — not what it costs. The
-                          price belongs with the money surfaces; this row is
-                          about whether the page converts. */}
-                      <span className="hub-lead-where">
-                        {[
-                          p.routeSummary.slice(0, 3).join(' · '),
-                          p.durationDays ? `${p.durationDays} days` : '',
-                        ].filter(Boolean).join(' · ')}
-                      </span>
-                    </span>
-                    <FunnelLine f={funnelOf.get(p.id)} unread={funnelError} unlockRead={unlockRead} windowLabel={windowLabel} />
-                    <span className="pub-row-actions">
-                      {stale ? (
-                        <button className="btn btn-saffron btn-sm" aria-label={`Update page for ${p.title}`}
-                          onClick={() => onNavigate(`/trip/${p.tripId}/share`)}>
-                          <InlineIcon icon={Pencil} size={13} gap={3} />Update page
-                        </button>
-                      ) : (
-                        <button className="btn btn-outline btn-sm" aria-label={`Edit ${p.title}`} onClick={() => onNavigate(`/trip/${p.tripId}/share`)}>
-                          <InlineIcon icon={Pencil} size={13} gap={3} />Edit
-                        </button>
-                      )}
-                      <button className="btn btn-ghost btn-sm" aria-label={`Unpublish ${p.title}`} onClick={() => onUnpublish(p)}>Unpublish</button>
-                    </span>
-                  </div>
-                )
-              })}
+      {/* One instrument panel, two columns, a hairline between them (live mode,
+          variant 3). The page used to be a strip, then two cards, then the
+          profile card — a tall stack with a maintenance surface at the foot and
+          a gap under whichever column was shorter. A single surface has no
+          inter-card gap to collapse, and the divider does the grouping two
+          borders were doing badly. The pairing starts at 1024 rather than 1280
+          because a 1140px window is a perfectly ordinary laptop. */}
+      <div className="card hub-instrument">
+        <div className="hub-instrument-cols">
+          <section className="hub-instrument-col" aria-labelledby="hub-trend-h">
+            <div className="hub-panel-head">
+              <h2 className="hub-panel-title" id="hub-trend-h">Recorded traffic</h2>
+              <PillNav className="filter-pillbar hub-pills-quiet" role="group" aria-label="Funnel window" activeKey={String(days)}>
+                {FUNNEL_WINDOWS.map(w => (
+                  <button key={w.days} type="button" data-pill-key={String(w.days)}
+                    className={`clickable-chip chip${days === w.days ? ' on-teal' : ''}`}
+                    onClick={() => onDays(w.days)} aria-pressed={days === w.days}>{w.label}</button>
+                ))}
+              </PillNav>
             </div>
-          )}
-        </section>
+            {/* The state sentence lives here once, and the box below stays silent
+                instead of apologising twice. The failure branch still OPENS this
+                chain, ahead of the load branch: a read that failed must never be
+                described as one still loading. `role="status"` announces a change
+                without needing text in the empty box. */}
+            <div className="hub-panel-note" role="status">
+              <span className="small muted">
+                {funnelError
+                  ? 'Recorded traffic could not be read just now — the trend is unchanged on the server.'
+                  : daily === null
+                  ? 'Reading recorded traffic…'
+                  : recordingSince
+                    ? `Chart shows recorded days only; the log begins ${new Date(`${recordingSince}T00:00:00Z`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}.`
+                    : 'Nothing recorded yet — the trend starts with the first visit.'}
+              </span>
+              {funnelError && <button className="btn btn-outline btn-sm" onClick={onRetry}>Retry</button>}
+            </div>
+            {/* A failed or in-flight read must not draw as "nothing recorded": the
+                chart's own empty state is a measurement, so it is only shown once
+                the log was actually read. Reserved box, no second sentence. */}
+            {daily === null
+              ? <div className="hub-trend-void" aria-hidden="true" />
+              : <TrendChart points={series} label={windowLabel} unlockRead={unlockRead} />}
+          </section>
+
+          <section className="hub-instrument-col" aria-labelledby="hub-pubs-h">
+            <div className="hub-lead-head">
+              <h2 id="hub-pubs-h">Publications</h2>
+              <span>
+                {myPubs.length} live{staleCount > 0 ? ` · ${staleCount} behind` : ''}
+              </span>
+            </div>
+            {myPubs.length === 0 ? (
+              <p className="hint-text" style={{ margin: '6px 0 0' }}>
+                Nothing published yet — list a trip on Explore from its Share tab.
+              </p>
+            ) : (
+              <div>
+                {myPubs.map(p => {
+                  const trip = tripById(p.tripId)
+                  const stale = !!trip && trip.updatedAt > (p.refreshedAt ?? p.publishedAt)
+                  return (
+                    <div key={p.id} className="hub-lead-row">
+                      <span className="hub-lead-title">
+                        <a href={`#/pub/${p.id}`}>{p.title}</a>
+                        {stale && <Chip tone="saffron">Page behind itinerary</Chip>}
+                        {/* Where it goes and how long — not what it costs. The
+                            price belongs with the money surfaces; this row is
+                            about whether the page converts. */}
+                        <span className="hub-lead-where">
+                          {[
+                            p.routeSummary.slice(0, 3).join(' · '),
+                            p.durationDays ? `${p.durationDays} days` : '',
+                          ].filter(Boolean).join(' · ')}
+                        </span>
+                      </span>
+                      <FunnelLine f={funnelOf.get(p.id)} unread={funnelError} unlockRead={unlockRead} windowLabel={windowLabel} />
+                      <span className="pub-row-actions">
+                        {stale ? (
+                          <button className="btn btn-saffron btn-sm" aria-label={`Update page for ${p.title}`}
+                            onClick={() => onNavigate(`/trip/${p.tripId}/share`)}>
+                            <InlineIcon icon={Pencil} size={13} gap={3} />Update page
+                          </button>
+                        ) : (
+                          <button className="btn btn-outline btn-sm" aria-label={`Edit ${p.title}`} onClick={() => onNavigate(`/trip/${p.tripId}/share`)}>
+                            <InlineIcon icon={Pencil} size={13} gap={3} />Edit
+                          </button>
+                        )}
+                        <button className="btn btn-ghost btn-sm" aria-label={`Unpublish ${p.title}`} onClick={() => onUnpublish(p)}>Unpublish</button>
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </section>
+        </div>
       </div>
+
 
     </>
   )

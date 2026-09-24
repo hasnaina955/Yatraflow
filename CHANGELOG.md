@@ -15,6 +15,171 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ## [Unreleased]
 
+## [0.66.0] - 2026-09-24
+
+A hub release, with a map correction and a whole-app visual pass beneath it. The creator
+hub stops being a settings page and becomes an operating picture: one ruled KPI strip, then
+the recorded-traffic trend drawn from the same derivation the rows below it read, then one
+row per publication with its funnel and actions — with the creator profile moved into a
+disclosure at the foot of the page. Its figures get their hierarchy, and every honesty state
+the hub already carried survives the rewrite: a failed read still never renders as an empty
+ledger, and a number that was never read is still never printed as one. The Map tab's search
+stops answering with the searcher's own city, and its hits finally stand on the map as the
+selectable things they are. Under both, the app takes the high-end visual pass the design
+plan had been holding — one typeface, one icon weight, and motion that moves its own box
+instead of distorting a shape. The hub also clears the 23 review findings that had been
+holding its PR, and the gate that raised them turns out to be one the repo's own lint cannot
+see at all.
+
+### Added
+
+- **Search results appear on the map as selectable markers and vanish when the search bar clears.** A search's hits used to render identically to the engine's dashed gold "idea" pins; they now draw as solid teal pins with a search glyph, tapping one selects it (the pin glows, the matching result row highlights and scrolls into view), and clearing the box removes the pins along with the results list — the corridor's own ideas are untouched.
+- **The moment-after's "watch for these" list plans real fuel halts** — the fuel
+  line now comes from the journey halt planner over the trip's own corridor, so a
+  long drive's moment after names where the refuels land (e.g. "3 fuel halts on
+  the way — Overnight + fuel (~355 km), … (~1,148 km)"). Fuel ticks folded into
+  a meal or overnight refuel (#144A) and unnamed pumps are counted and titled
+  with the engine's own halt label; a drive shorter than one tank stride still
+  says nothing (no filler), and the detail's "both" no longer miscounts a halt
+  total that isn't two.
+
+### Changed
+- **Map-tab search is route-aware — the box no longer answers with your own city.** A free-text search carried no spatial constraint, so Google applied its implicit IP-based location bias and a lunch search filled the rows with wherever the user was typing from instead of the trip's corridor (found live on the slot search's lunch pill, 2026-09-24). With the trip's road passed, the Google mode of both search surfaces (the main box and each day part's slot search) runs as Search-Along-Route over the actual polyline — the same Text Search Pro event, no quota change — and the keyless free stack (which cannot bias a query spatially at all) ranks its merged hits by distance to the corridor so an on-route place outranks a same-named one in the searcher's city. Post-fetch detour ranking and the detour-scope slider then sort rows worth sorting.
+
+- **Form errors announce once — assertively — and repeat politely, app-wide** —
+  `Field`'s error text is now a polite live region bound to its control
+  (`aria-describedby` + `aria-invalid`), every field-level error follows suit (the
+  create form's name/destinations/budget rows, `LocationInput`'s pick error, the
+  cover picker's upload error), and a new `FormErrorSummary` carries the ONE
+  assertive announcement per failing submit, prefixed with the failing field's
+  label. The create form's empty submit measured four simultaneous
+  `role="alert"` announcements before; it is now one assertive beat plus four
+  polite field rows.
+- **The create funnel passes an interface review** — every invite channel chip, the
+  ticket rail's print/cancel row and the small-button style now meet a 24px touch
+  floor; hover-only decoration (template lift, chip tints) no longer sticks on touch
+  devices (`hover: hover` gates); funnel chips give press feedback (`:active`); the
+  micro-label token rises to 11px app-wide; the destinations and budget errors bind to
+  their inputs (`aria-invalid` + `aria-describedby`, via a new `errorId` on
+  `LocationInput`); the two buttons both named "Add" are now "Add crew member" and "Add pinned
+  plan"; and the invite-channel group is labelled "Send the invite" instead of the
+  dangling "Send the invite via".
+- **Create Trip and the moment-after screen now render the approved funnel mockups' look**
+  — the Trip Ticket is the mockup's light card (navy head bar, teal-to-sand cover, and the
+  rough take printed live on an amber stub with each line's formula and an honest "Entries
+  & tolls — excluded" row), the name field is the pill name box with its suggestion chip,
+  the question markers go solid-to-soft as each question is answered, "Budget per head" is
+  its own block carrying the anchor and the experience translation, and the moment after
+  is the mockup's two-column composition (celebration beside the bill card and next steps)
+  with the share row, the "every number shows its math" signature and per-kind tiles.
+  Filled teal pills carry theme-flipping ink so they hold AA in both themes (5.84:1 light,
+  7.66:1 dark). The ticket rail's ink system follows the theme again — the navy pass's
+  white rail inks (which the light ticket turned invisible: the readiness block read only
+  in dark) now resolve from the text tokens in light and re-declare their whites for dark
+  (label 15.39:1 light, 19.39:1 dark). The form itself sits on one quiet card from
+  "Name your trip" through the pinned plans instead of floating on the bare canvas
+  (border, no shadow), the page no longer shifts sideways when a section grows the
+  document (the scrollbar's gutter stays reserved), the party chip reads "Drivers &
+  pace" instead of a literal `&amp;`, and the ticket's rail track is fluid so no
+  window width squeezes the flow column.
+- **Selected text and the typing caret follow the app's theme instead of the browser's
+  defaults** — the last two browser-native surfaces join the design system: a selection is
+  theme ink on the soft teal tint in both themes (`--teal-soft` + `--text`: 13.56:1 light /
+  12.01:1 dark), and the text-entry caret is the brand teal (`caret-color: var(--teal-deep)`
+  on `:root`, inherited by every input). One appended block in `styles.css`; the idea-bank
+  row that scoped it (I-17, Tier 1) is spent and recorded in ROADMAP's shipped record.
+
+- **The app takes the high-end visual pass the design plan had been holding.** The
+  typeface is Plus Jakarta Sans, one family across the app, replacing Inter wherever a
+  display or body face was named. Icons drop to a single weight — stroke 1.5, routed
+  through a new `--icon-stroke` token rather than edited glyph by glyph — so a Lucide icon
+  no longer reads heavier than the text beside it. The pill navigation's active indicator
+  glides on its own box (`left`/`top`/`width`/`height`) instead of a `scaleX` transform:
+  the old flip distorted the pill's rounded ends across a 76→146px move, and because the
+  glider is absolutely positioned its box cannot reflow its siblings, so the layout cost
+  that argued for `scaleX` was never real. The landing takes a display type ramp,
+  macro-whitespace between its blocks and the mockup's button-in-button treatment; the
+  public itinerary's cards sit in soft trays over one tokenised block rhythm instead of
+  five ad-hoc gaps; Explore's and the hub's cards take the same tray, the PlanBench section
+  title joins the shared section ramp it had been the sole exception to, and TripCreated
+  gets its entry choreography applied to its current two-column layout. The reusable half
+  is now pinned — `tests/design-system.test.ts` asserts the typefaces and the glider's box
+  geometry, so those two regressions cannot return silently. One finding is recorded as a
+  decision rather than a fix: a ring tray needs a canvas to sit on, and on a light surface
+  it is a ~1.3% step whose navy ring reads as a grey wireframe outline, so it was reverted
+  rather than tuned — the tray on light canvases is `--shadow-soft`, with no outer hairline.
+
+### Fixed
+- **The moment-after screen's "Send invite" never actually opened WhatsApp**: `window.open(url, '_blank', 'noopener')` always returns null (the `noopener` feature implies no window handle), so the code misread every success as a blocked popup and fell through to the OS share sheet instead. Links now open through a helper that detaches the opener rather than trusting the return value. The screen also crashed with "Rendered more hooks than during the previous render" when reopened for a trip whose list was still hydrating - the crew memo ran below the loading early-return, so the render's hook count changed mid-load.
+- **Entry-path accessibility review landed**: at 320px the logged-out header clipped the "Start planning free" CTA mid-label (the reflow rungs were tuned for the older, shorter label) — the ≤350px block now hides the chrome "Log in" outline button (the hamburger tray carries it) so the primary CTA fits whole. The landing kicker's small teal text measured 3.80:1 on cream; it now uses the text-grade `--ink-teal` token instead of the focus-ring accent. Route changes and the loading gate announce themselves to screen readers via a polite live region fed by the page title, and decorative travel motifs are `aria-hidden`. The auth form's short-password error moved from the form-level alert onto the password field (marked invalid, focus follows) like the name check beside it, the signup tab now matches its submit button's "Create account" naming, My Trips' filter reset and empty state both say "Clear filters", the header's nested navigation landmarks are disambiguated, and the demo band's CTA got a name distinct from the chrome's.
+
+- **The header's CTA stays whole on narrow desktop windows**: the signed-out pill's tightening
+  rung now covers 481–560px (it stopped at 480px), a band where the desktop spacings overflowed
+  the pill and `overflow-x: clip` cut "Start planning free" mid-label.
+
+- **The Creator hub is a dashboard now.** It opens on performance instead of settings: one ruled
+  KPI strip, then the recorded-traffic trend — visits, forks and unlocks over 7/30/90 days, drawn
+  from the same derivation the rows beneath it read, so the chart and the table can never describe
+  different windows — then one row per publication with its funnel and actions. The creator profile
+  (bio, socials, the disable switch) moved into a disclosure at the foot of the page; it used to own
+  the entire fold. Every honesty state is unchanged and verbatim: a failed read still never reads as
+  an empty ledger, an un-recorded window still says so rather than printing zeroes, the stale page
+  still says which page is behind, and the counters-predate-the-log sentence still sits beside the
+  numbers it explains. Two things the review caught are fixed with it: the trend and the table now share one CLOSED window, so a step dated after the clock counts in neither instead of counting in the table and falling off the chart; and because unlocks come from the sales ledger, an unread ledger leaves that stage *unknown* in the row and the legend rather than printing a zero that reads as "nobody bought".
+
+- **The hub's figures got their hierarchy, and the trend its readout.** The publication panel now
+  leads with the funnel: each stage renders as a large figure in the hue the trend above already
+  uses for that stage, over a bar that *nests* the stages — a fork is a visit that forked, so the
+  narrower stages sit inside the widest — instead of three segments that add up past the traffic
+  there was. The trend draws a monotone-smoothed curve: smooth between days, and mathematically
+  unable to overshoot and invent traffic between two points, with a gradient area and a hover guide
+  naming that day's visits, forks and unlocks (and saying "unlocks not read" rather than zero when
+  the ledger is unread). The KPI strip wears the chart-navy anchor band the map and AI panels
+  already use, inked in white - not `--yf-cream`, which is the canvas colour and would vanish in
+  the dark theme.
+
+- **The second critique pass, answered.** A re-run scored the hub 30/40 and found the earnings tab
+  still contradicting itself: a failed ledger read rendered as `₹0` lifetime, `0` sales and a
+  confident "nothing to pay out yet" beside reassuring prose. All three now read **Not read**
+  (or **Reading…**) and the payout conclusion is withheld until the ledger answers — the
+  arithmetic still falls back to zero, but a number that was never read is never shown as one.
+  The publication row's stage bar was a three-colour stripe (all stages drawn at the same origin);
+  it is now the drop-off it claimed to be — an empty track for the traffic you had, with the
+  surviving stages as two separated marks, and no unlock mark at all while the ledger is unread.
+  Each row states its window ("in 30 days") and each rate its denominator ("11% of visits"), so
+  the figures no longer depend on remembering which window is selected. The trend takes keyboard
+  focus and steps by day (arrows, Home/End, Escape to dismiss), a tap latches the readout instead
+  of losing it on lift, the tooltip can no longer overflow the panel edge, and the unlock stage
+  wears one hue everywhere — `--ink-amber` in the chart mark, the legend and the row figures —
+  leaving saffron for publish and invite actions.
+
+- **The creator hub's 23 review findings are cleared — and the gate that raised them is
+  reproducible at last.** Codacy held PR #315 on three ESLint rules that the repo's own
+  `npm run lint` cannot see: 12 object-injection sinks (`obj[identifier]`), 7 void-expression
+  arrow shorthands, and 4 non-null assertions. `@typescript-eslint/no-confusing-void-expression`
+  is type-aware and `eslint.config.js` deliberately never asks the parser for type information,
+  while `eslint-plugin-security` is not installed at all — so a change validated locally was
+  never a change the gate had validated, and the two attempts to satisfy it fixed a different
+  axis. The trend chart's monotone-cubic maths now walks adjacent point pairs instead of
+  addressing `dx[i]` / `slope[i-1]` / `pts[i + 1]` directly, and its hover readout carries the
+  active *index* beside the active day, which is what retires the four `hover!` assertions
+  rather than re-spelling them. The rewrite is the same function arithmetic-for-arithmetic:
+  3,072 sampled inputs — every degenerate shape (one point, all-flat, repeated x, a single
+  spike) plus 3,000 random series — emit byte-identical SVG paths from the old and the new
+  implementation.
+
+- **The OG share card renders in the app's own font again.** `scripts/og-default-card.html`
+  — the template the share-preview handler renders to `public/og-default.png`, which is the
+  image behind every publication with no cover of its own — still linked Inter, so each
+  generated card was drawn in a fallback face once the app had moved to Plus Jakarta Sans.
+  The template and the committed PNG now name the family the app actually ships.
+
+- **The moment-after's invite-channel group announces itself properly.** The
+  `role="group"` wrapping the "or send the invite on" row carried the aria-label "Send the
+  invite on" — a fragment that ended mid-sentence for anyone hearing it read aloud. It now
+  reads "Send the invite", matching the invite group above it, while the visible caption
+  keeps its preposition, where it reads naturally.
+
 ## [0.65.0] - 2026-09-22
 
 The Create Trip page was rebuilt around the questions a planner actually answers,
@@ -33,7 +198,10 @@ plus the moments around creating. Behind per-phase `VITE_CREATE_FUNNEL` flags
 - **Drafts** - the form autosaves; returning offers Resume/Discard, and My trips
   carries a draft card above the grid.
 - **Crew invites** - collect names/numbers; the moment-after screen sends the
-  WhatsApp invite (or copies it) with per-member status.
+  invite on WhatsApp, Telegram, SMS or Instagram (per-member chips, a
+  no-recipient broadcast row, and an add-more field so crew can join the list
+  after creation - Telegram works without a number, and a channel with no
+  direct scheme says so instead of dead-ending), with per-member status.
 - **The moment after** - /created/:id lands with anticipation items from the
   engine (warnings, weather, tank maths), the rough bill verbatim, and the CTA
   ladder (Start planning / Open my workspace / Bring the crew).

@@ -32,7 +32,7 @@ import type { MapRef } from './mapcn/map'
 import { InlineIcon, CatIcon } from './icons'
 import {
   Box, CircleDot, Clock, Flag, Home, Info, Lightbulb, LocateFixed, Map as MapIcon, Mountain, Navigation, PlaneTakeoff,
-  RotateCcw, TriangleAlert, X,
+  RotateCcw, Search, TriangleAlert, X,
 } from 'lucide-react'
 import { prefersReducedMotion, motionTiming } from '../lib/motion'
 import {
@@ -373,7 +373,7 @@ const SLOT_PIN_GLYPH: Record<string, string> = {
   breakfast: 'B', lunch: 'L', fuel: 'F', stretch: 'S', dinner: 'D', stay: 'N',
 }
 
-export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusDay, onDayFilterChange, tripReadinessRows = [], showToolbar = true, enableMapViewModes = false, activeHitId = null, onActivateHit, onOpenInTimeline, onOpenInBoard, onDeleteStop, mainRouteGeometry = null, clockMilestones = null, onOpenHaltDay, onShowReturnChange, slotPins = [], onOpenSlot, hitCosts }: {
+export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusDay, onDayFilterChange, tripReadinessRows = [], showToolbar = true, enableMapViewModes = false, activeHitId = null, onActivateHit, onOpenInTimeline, onOpenInBoard, onDeleteStop, mainRouteGeometry = null, clockMilestones = null, onOpenHaltDay, onShowReturnChange, slotPins = [], onOpenSlot, hitCosts, searchHitIds }: {
   trip: Trip
   onOpenStop?: (stopId: string) => void
   /** potential POIs to show as gold "idea" markers */
@@ -425,7 +425,11 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   slotPins?: Array<{ key: string; label: string; name: string; meta: string; hit: PlaceHit }>
   /** Tapping a slot pin opens that part in the plan rail. */
   onOpenSlot?: (key: string) => void
-  /** P5.2: cost line per suggestion id - the popup's "arrive / +N min / % of budget". */
+  /** Ids of the CURRENT text search's hits — drawn as distinct selectable
+   *  markers (solid teal, "Search result" tooltip) instead of dashed gold
+   *  ideas. The host clears its search results when the box empties, so the
+   *  markers disappear with them. Undefined = every idea keeps its old look. */
+  searchHitIds?: Set<string | number> | null
   hitCosts?: Record<string, string>
   /** Delete the stop straight from the map (popup action) — wired by MapTab. */
   onDeleteStop?: (stopId: string, stop: { title: string; dayIndex: number }) => void
@@ -1344,20 +1348,25 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
               // its tap opens the plan, so it is the one that stays.
               if (slotPinIds.has(String(hit.id))) return null
               const active = activeHitId != null && activeHitId === hit.id
+              // A current search hit reads differently from a corridor idea:
+              // solid teal, no attention pulse, "Search result" affordance. Its
+              // tap selects it (glow + row highlight) instead of only locating.
+              const isSearchHit = searchHitIds?.has(hit.id as string | number) ?? false
               return (
                 <MapMarker key={`nearby_${hit.id}`} longitude={hit.longitude} latitude={hit.latitude}>
                   <MarkerContent>
-                    <VisiblePulse className="yf-map-idea" title={`${hit.name} - click to locate in the suggestions panel`}>
+                    <VisiblePulse className="yf-map-idea" title={isSearchHit ? `${hit.name} - click to select this search result` : `${hit.name} - click to locate in the suggestions panel`}>
                       <span
-                        className={`yf-map-pin yf-map-pin-idea${active ? ' yf-map-pin-idea--active' : ''}`}
-                        style={{ background: ideaPinColor(hit.category) } as React.CSSProperties}
+                        className={`yf-map-pin yf-map-pin-idea${isSearchHit ? ' yf-map-pin-search' : ''}${active ? (isSearchHit ? ' yf-map-pin-search--active' : ' yf-map-pin-idea--active') : ''}`}
+                        style={isSearchHit ? undefined : { background: ideaPinColor(hit.category) } as React.CSSProperties}
                         role="button"
                         tabIndex={0}
-                        aria-label={`Locate ${hit.name} in the suggestions panel`}
+                        aria-pressed={isSearchHit ? active : undefined}
+                        aria-label={isSearchHit ? `Select ${hit.name}` : `Locate ${hit.name} in the suggestions panel`}
                         onClick={() => onActivateHit?.(hit.id as string | number)}
                         onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onActivateHit?.(hit.id as string | number) } }}
                       >
-                        <CatIcon category={hit.category} size={14} />
+                        {isSearchHit ? <Search size={14} aria-hidden /> : <CatIcon category={hit.category} size={14} />}
                       </span>
                       {onAddNearby && (
                         <button
@@ -1370,7 +1379,9 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                     </VisiblePulse>
                   </MarkerContent>
                   <MarkerTooltip>
-                    <InlineIcon icon={Lightbulb} size={11} gap={3} vAlign="-1px" />{hit.name}{hit.haltPurpose ? `, ${hit.haltPurpose === 'overnight' ? 'overnight option' : hit.haltPurpose}` : ''}{hit.cumKm != null ? `, ~${hit.cumKm} km in` : ''}{hit.nearestCity ? `, near ${hit.nearestCity}` : ''}{hitCosts?.[String(hit.id)] ? `, ${hitCosts[String(hit.id)]}` : ''}
+                    {isSearchHit && <><InlineIcon icon={Search} size={11} gap={3} vAlign="-1px" />Search result: </>}
+                    {!isSearchHit && <InlineIcon icon={Lightbulb} size={11} gap={3} vAlign="-1px" />}
+                    {hit.name}{hit.haltPurpose ? `, ${hit.haltPurpose === 'overnight' ? 'overnight option' : hit.haltPurpose}` : ''}{hit.cumKm != null ? `, ~${hit.cumKm} km in` : ''}{hit.nearestCity ? `, near ${hit.nearestCity}` : ''}{hitCosts?.[String(hit.id)] ? `, ${hitCosts[String(hit.id)]}` : ''}
                   </MarkerTooltip>
                 </MapMarker>
               )

@@ -241,6 +241,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
   // "show all N" — the rail lists 5 by default; this unfolds the rest.
   const [showAllResults, setShowAllResults] = useState(false)
   const listRef = useRef<HTMLDivElement | null>(null)
+  const searchListRef = useRef<HTMLDivElement | null>(null)
   // Monotonic search token: a slow earlier query must never clobber the rows of
   // a newer one that resolved first (out-of-order responses).
   const searchSeq = useRef(0)
@@ -254,6 +255,14 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     const seen = new Set(corridor.map(h => h.id))
     return [...corridor, ...searchResults.map(r => r.h).filter(h => !seen.has(h.id))]
   }, [pois, searchResults])
+
+  // The subset of map pins that came from THIS search — the map draws them as
+  // distinct selectable markers (solid teal, not the dashed gold ideas), and
+  // they vanish with the results list when the search bar clears.
+  const searchHitIds = useMemo(
+    () => new Set<string | number>(searchResults.map(r => r.h.id)),
+    [searchResults],
+  )
 
   const existingNames = useMemo(() => {
     const names = new Set<string>()
@@ -665,9 +674,11 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
 
   // When the activation came from the map (pin hover/click), bring the matching
   // panel row into view so the two surfaces visibly point at the same place.
+  // The search-results card is the other scroll container a pin can answer to.
   useEffect(() => {
     if (activeHitId == null) return
-    const row = listRef.current?.querySelector(`[data-hit-id="${activeHitId}"]`)
+    const sel = `[data-hit-id="${activeHitId}"]`
+    const row = listRef.current?.querySelector(sel) ?? searchListRef.current?.querySelector(sel)
     row?.scrollIntoView({ block: 'nearest', behavior: scrollBehavior() })
   }, [activeHitId])
 
@@ -1018,7 +1029,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     const mySeq = ++slotSeq.current
     setSlotSearch({ key: slot.key, q, busy: true, hits: [], err: null })
     try {
-      const hits = await searchPlacesText(q)
+      const hits = await searchPlacesText(q, { routeCoords: routeGeometry, anchors })
       if (mySeq !== slotSeq.current) return
       const ranked = hits
         .map(h => ({ h, off: asymmetricDetourKm(h, anchors, routePolyline) }))
@@ -1160,7 +1171,10 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
       // coordinates — autocomplete placeholders measure Null Island
       // (live 2026-09-14: five different places all read "~1675 km · 8448 km
       // off-route" because they shared the placeholder).
-      const hits = await searchPlacesText(q)
+      // Route-aware bias (found live 2026-09-24): the trip's road is the
+      // spatial signal — without it Google IP-biases results to wherever the
+      // user is typing from, not the corridor they're planning.
+      const hits = await searchPlacesText(q, { routeCoords: routeGeometry, anchors })
       if (mySeq !== searchSeq.current) return // a newer search superseded this one
       // Trip/route/map aware (user ask): "coffee on my route", not coffee
       // everywhere in India. Each hit is projected onto this trip's road and
@@ -1668,7 +1682,8 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
           <input className="input" value={searchQ} disabled={quotaOut} onChange={e => {
             setSearchQ(e.target.value)
             // #164: stale results from a PREVIOUS query must not sit visible
-            // under the new one while typing — clear on edit.
+            // under the new one while typing — clear on edit. Emptying the box
+            // also clears the map's search markers (searchHitIds → no rows).
             if (searchResults.length > 0) { setSearchResults([]); setShowAllResults(false) }
           }}
             placeholder="Search anything to add - a trek, a homestay, a petrol pump…"
@@ -1688,15 +1703,18 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
           <p className="muted small" role="status" style={{ margin: '0 0 8px' }}>Keep typing - search starts at 2 characters.</p>
         )}
         {searchResults.length > 0 && (
-          <div className="map-search-results" style={{ marginBottom: 10 }} role="list" aria-label={`Search results (${Math.min(showAllResults ? searchResults.length : 5, searchResults.length)} of ${searchResults.length} shown)`}>
+          <div className="map-search-results" ref={searchListRef} style={{ marginBottom: 10 }} role="list" aria-label={`Search results (${Math.min(showAllResults ? searchResults.length : 5, searchResults.length)} of ${searchResults.length} shown)`}>
             {searchResults.slice(0, showAllResults ? searchResults.length : 5).map(({ h, km, off }) => {
               const inScope = off != null && off <= scopeKm
               // SB2: the same membership guard every other rail row uses
               // (renderLedgerRow, and the card before it). Without it this row
               // was the one place that would happily add the same place twice.
               const added = addedIds.has(h.id as string) || existingNames.has(h.name.toLowerCase())
+              // Selected twin: clicking the map's search marker highlights this
+              // row (activeHitId) just as hovering the row glows its pin.
+              const selected = activeHitId != null && activeHitId === h.id
               return (
-                <div key={h.id as string} role="listitem" className="row-between" tabIndex={0}
+                <div key={h.id as string} role="listitem" data-hit-id={h.id as string} className={`row-between${selected ? ' is-selected' : ''}`} aria-selected={selected} tabIndex={0}
                   onMouseEnter={() => setActiveHitId(h.id as string | number)}
                   onMouseLeave={() => setActiveHitId(cur => (cur === (h.id as string | number) ? pinnedHitId ?? null : cur))}
                   onFocus={() => setActiveHitId(h.id as string | number)}
@@ -2209,6 +2227,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
               }}
               slotPins={slotPins}
               hitCosts={hitCosts}
+              searchHitIds={searchHitIds}
               onOpenSlot={(key) => {
                 // Tapping a pin on the map has to actually reveal the part.
                 // With the rail folded the expansion was invisible, so the pin

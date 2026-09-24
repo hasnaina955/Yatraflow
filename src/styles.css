@@ -13,6 +13,10 @@
      pick up the brand accent. --teal-500 re-resolves per theme below. */
   color-scheme: light;
   accent-color: var(--yf-teal-600);
+  /* The scrollbar's gutter is always reserved, so a page that grows past the
+     fold (the budget block, the advanced drawer) no longer shifts every
+     centred layout sideways when the vertical scrollbar appears. */
+  scrollbar-gutter: stable;
 
   /* ---- 1. PRIMITIVES: brand ---- */
   --teal-500: #0D8D82;
@@ -193,8 +197,40 @@
      --bottom-ui-offset, because the dock consumes that offset itself. */
   --dock-h: 0px;
   --bottom-ui-offset: calc(var(--shell-nav-h) + var(--safe-bottom));
-  --font-display: 'Sora', 'Inter', system-ui, sans-serif;
-  --font-body: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-display: 'Sora', 'Plus Jakarta Sans', system-ui, sans-serif;
+  --font-body: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  /* Icon stroke weight. Lucide ships 2 as a presentation attribute on every
+     glyph; the app's icon grammar is hairline geometry - at the 14-20px the UI
+     renders at, 2 reads as clip-art. One token, consumed by the .lucide base
+     rule near the type rules, so a denser surface can step it deliberately. */
+  --icon-stroke: 1.5;
+  /* ---- Landing display scale + macro-whitespace ----
+     The marketing page is the one surface that is deliberately editorial rather
+     than app-scale: its headline is the largest type on the site and its
+     sections breathe in tens of px, not the 8-24 ladder. The hero's size,
+     leading and tracking were an inline clamp() in the page, which invited
+     exactly the drift the three values now can't have; the section gaps were
+     inline 60/70 literals. Kept in tokens because the spacing gate reads
+     literals - a `padding: 132px` would be a ratchet violation, a token
+     consumed by var() is not, which is how the ladder's law is scoped. */
+  /* Ceilings are deliberately moderate. The real hero headline is a long
+     sentence ("Plan trips that actually flow together") in a ~570px column, so a
+     5rem-class display size wraps to five lines and pushes the whole hero tall.
+     These keep the mobile floor and the leading exactly as they were and lift
+     the desktop ceiling only - the safe half of the scale change. */
+  --landing-hero-size: clamp(2.4rem, 5.4vw, 4.35rem);
+  --landing-hero-leading: 1.02;
+  --landing-hero-tracking: -.03em;
+  --landing-title-size: clamp(1.8rem, 3.2vw, 2.7rem);
+  --landing-section-pad: 132px;
+  /* The rhythm INSIDE a public surface - between its editorial blocks and between
+     its day blocks - as opposed to the section pad BETWEEN surfaces. One token
+     so Tier A surfaces share a beat. A token, not a literal: the spacing ratchet
+     reads literals and would reject a raw 40px; it ignores custom properties.
+     (The plan's `--landing-*` -> `--surface-*` rename is deliberately NOT done
+     here: it churns the landed Landing commit for no behaviour change, and it is
+     still an open question for the owner.) */
+  --surface-block-gap: 40px;
 }
 
 [data-theme='dark'] {
@@ -436,6 +472,15 @@ html { overflow-x: clip; }
   background: linear-gradient(150deg, var(--yf-navy), #0B2545 88%);
   color: #fff;
   box-shadow: 0 30px 60px rgba(var(--shadow-navy-rgb),.28);
+  /* The generic `.card` border is a warm light grey (--line, #E4DCCC). On the
+     white cards around it that reads as a normal card edge; on THIS dark navy
+     plate the same hairline reads as an unwanted grey outline hugging the card.
+     The rule above already exists at (0,2,0) because `.card`'s background
+     shorthand is declared later and would strip the gradient - the border was
+     the other half of that inheritance and was overlooked. Transparent rather
+     than removed so the box model (and the 1px the card's size accounts for) is
+     unchanged; the gradient and the shadow define this card's edge. */
+  border-color: transparent;
 }
 .route-snap::before {
   content: ''; position: absolute; inset: 0; pointer-events: none;
@@ -511,6 +556,15 @@ p, .hint-text { text-wrap: pretty; }
 a { color: var(--teal-deep); text-decoration: none; }
 button { font-family: var(--font-body); cursor: pointer; color: inherit; }
 input, select, textarea { font-family: var(--font-body); font-size: 14.5px; color: var(--text); }
+/* ---------- Icon weight: one rule, every glyph ---------- */
+/* Lucide emits `stroke-width="2"` as a PRESENTATION ATTRIBUTE, and a CSS
+   declaration outranks a presentation attribute - so this single rule re-inks
+   all ~291 icon tags in the app instead of carrying a prop on each usage.
+   Hand-authored decorative SVG (road lines, gauges, travel motifs) sets its own
+   literal weight and is deliberately untouched. Pinned in
+   tests/design-system.test.ts ("icon stroke weight is a token, not a library
+   default") so it cannot silently drift back to the stock weight. */
+.lucide { stroke-width: var(--icon-stroke); }
 
 .app-shell { min-height: 100vh; display: flex; flex-direction: column;
   /* Edge-to-edge (Android 15, iPhone): the gesture bar overlays the last
@@ -549,11 +603,21 @@ input, select, textarea { font-family: var(--font-body); font-size: 14.5px; colo
 .pill-nav { position: relative; display: flex; gap: 2px; }
 .pill-nav > * { position: relative; z-index: 1; }
 .pill-glider {
-  position: absolute; left: 0; width: 0; z-index: 0;
+  position: absolute; left: 0; top: 0; width: 0; z-index: 0;
   border-radius: 999px; background: var(--teal-soft);
-  transition: left var(--motion-med) var(--ease-glide), width var(--motion-med) var(--ease-glide),
-    top var(--motion-med) var(--ease-glide), height var(--motion-med) var(--ease-glide), opacity var(--motion-fast) var(--ease-glide),
-    background var(--motion-fast) var(--ease-glide);
+  /* The glide animates this element's own BOX, and deliberately NOT a transform.
+     A `scaleX` FLIP cannot resize a rounded pill without stretching its ends into
+     ellipses - at a 76px -> 146px tab change that is scaleX 1.93 - which reads as
+     the animation breaking rather than the pill gliding.
+     The box is also not the layout cost it looks like: the glider is absolutely
+     positioned, so its own box cannot reflow its siblings; the work is this one
+     element's layout and paint.
+     MOTION-TOKENS.md's catalog row described this as a "thumb `transform` slide";
+     that was wrong about the implementation, and is corrected there rather than
+     making the pill pay for the doc. */
+  transition: left var(--motion-med) var(--ease-glide), top var(--motion-med) var(--ease-glide),
+    width var(--motion-med) var(--ease-glide), height var(--motion-med) var(--ease-glide),
+    opacity var(--motion-fast) var(--ease-glide), background var(--motion-fast) var(--ease-glide);
   pointer-events: none;
 }
 [data-theme='dark'] .pill-glider { background: var(--teal); }
@@ -614,7 +678,7 @@ a.btn { text-decoration: none; }
 .btn-ghost:hover { background: var(--bg-soft); color: var(--text); }
 .btn-danger { background: var(--color-destructive-soft); color: var(--ink-coral); }
 .btn-danger:hover:not(:disabled) { background: color-mix(in srgb, var(--color-destructive) 14%, transparent); }
-.btn-sm { padding: 6px 12px; font-size: 13px; }
+.btn-sm { padding: 6px 12px; font-size: 13px; min-height: 24px; }
 /* The LARGE size is the one that carries a sentence, so it is the one that may
    wrap. `.btn`'s global `white-space: nowrap` keeps pill labels single-line,
    but it also makes a sentence-length label's MIN-CONTENT equal to the whole
@@ -625,6 +689,14 @@ a.btn { text-decoration: none; }
    whole calculator overflowed on a common Android width). Word-pair labels at
    `lg` are unaffected — they never reach the wrap point. */
 .btn-lg { padding: 12px 24px; font-size: 15.5px; white-space: normal; }
+/* Button-in-button (landing hero): the trailing glyph rides its own circular
+   housing, flush with the button's right inner padding, and shifts diagonally on
+   hover so the button carries internal kinetic tension instead of only a fill
+   change. Declared after .btn-lg so it owns the right padding at equal
+   specificity rather than needing !important. */
+.btn-trail { padding-right: 6px; }
+.btn-trail-icon { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 50%; background: rgba(255, 255, 255, .18); transition: transform var(--motion-med) var(--ease-out), background var(--motion-fast) var(--ease-out); }
+.btn-trail:hover .btn-trail-icon { transform: translate3d(2px, -2px, 0) scale(1.06); background: rgba(255, 255, 255, .28); }
 .icon-btn {
   display:inline-flex; align-items:center; justify-content:center;
   width: 40px; height: 40px; border-radius: 50%;
@@ -1833,9 +1905,33 @@ button.board-col-zone--add:active { transform: translateY(1px); }
 .hero-adventure > * { position: relative; }
 .ha-kicker { opacity: .75; /* type specs: the kicker-unification block (var(--kicker-*)) */ }
 .ha-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 14px 0 8px; }
-.ha-stats > div { background: rgba(255,255,255,.09); border: 1px solid rgba(255,255,255,.14); border-radius: 10px; padding: 8px 10px; }
+/* The stat tiles read as MACHINED PANELS, not wireframe boxes. They used
+   `border: 1px solid rgba(255,255,255,.14)` on a 9% white fill: because the fill
+   is barely visible on the forced-dark navy, the hairline floated free as a grey
+   outline around each tile - the generic 1px border the high-end standard bans
+   outright. The border is now transparent (same box model, so nothing reflows),
+   the fill carries the shape, and an inset top sheen supplies the machined edge
+   that the outline was faking. */
+.ha-stats > div { background: rgba(255,255,255,.11); border: 1px solid transparent; border-radius: 10px; padding: 8px 10px; box-shadow: inset 0 1px 0 rgba(255,255,255,.16); }
 .ha-stats b { display: block; font-family: var(--font-display); font-size: 15px; font-variant-numeric: tabular-nums; }
-.ha-stats span { font-size: 9.5px; letter-spacing: .06em; text-transform: uppercase; opacity: .72; font-weight: 700; }
+/* The three tiles must read as one row, so the label block is a consistent two
+   lines. "est. per person" cannot fit on one line in a 79px content box at the
+   shared 10.5px kicker size - it measures ~100px - and it is the only label that
+   wraps, which made its tile read as a different kind of cell from its two
+   neighbours. Reserving the same two-line block on all three evens the row
+   without touching the copy and without overriding the kicker recipe: the
+   "estimated" qualifier is load-bearing (this product sells honest numbers, and
+   the public page's own stats card says "estimated per traveller"), and a local
+   px size would break the kicker unification the design-system gate pins.
+   `line-height: 1.6` and `min-height: 3.2em` are those two lines made explicit:
+   the em is font-relative so it tracks the token, and the leading is declared
+   here because the kicker recipe pins only size, weight and tracking - it says
+   nothing about line-height, so this adds rather than overrides. (A first attempt
+   used min-height: 2.4em off an assumed 1.2 leading; the measured label was
+   33px tall, so the block still did not match and the row stayed uneven.) It
+   costs no height: the wrapping tile already set this row's height, so the other
+   two simply fill their share of it. */
+.ha-stats span { font-size: 9.5px; letter-spacing: .06em; text-transform: uppercase; opacity: .72; font-weight: 700; display: block; line-height: 1.6; min-height: 3.2em; }
 .ha-row { display: grid; grid-template-columns: 1.4fr 1fr; gap: 8px; margin-top: 8px; }
 .ha-warn { background: #FFF4E4; color: #3A2506; border-radius: 10px; padding: 8px 11px; font-size: 12px; font-weight: 700; }
 .ha-warn span { display: block; font-weight: 500; font-size: 11px; opacity: .8; }
@@ -1851,13 +1947,71 @@ button.board-col-zone--add:active { transform: translateY(1px); }
 .hero-ctas { display: flex; gap: 11px; justify-content: center; flex-wrap: wrap; }
 
 /* Landing section headings & grids */
-.section-title { font-size: clamp(1.45rem, 3vw, 1.9rem); text-align: center; margin: 46px auto 6px; max-width: 620px; }
+.section-title { font-size: var(--landing-title-size); line-height: 1.08; letter-spacing: -.02em; text-align: center; margin: 46px auto 6px; max-width: 620px; }
+/* The hero headline is the largest type on the site. It reads size, leading and
+   tracking from the landing tokens rather than carrying an inline clamp(), so
+   the three can no longer drift apart one edit at a time. */
+.hero-title { font-size: var(--landing-hero-size); line-height: var(--landing-hero-leading); letter-spacing: var(--landing-hero-tracking); margin: 18px 0 14px; }
 /* Bento, not three equal cards: one tall photo cell beside two stacked cells.
    Three items, three cells, no empty tile. Collapses to one column at 980px. */
 .feature-strip { display: grid; grid-template-columns: 1.2fr 1fr; gap: 14px; margin: 0 0 44px; }
 .feature-bento > .feature-card:first-child { grid-row: span 2; }
-.feature-card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 21px; box-shadow: var(--shadow-sm); transition: transform var(--t-fast) var(--ease-out), box-shadow var(--t-fast) var(--ease-out); }
-.feature-card:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(var(--shadow-navy-rgb),.06), 0 16px 40px rgba(var(--shadow-navy-rgb),.12); }
+/* ---------- Double-Bezel: the shared tray + plate ----------
+   A machined card is a PLATE sitting in a TRAY. This is the pair used by the
+   surfaces whose plate is a `.card` (Explore's grid and the creator pages via
+   PubCard) - the landing's `.feature-card`/`.feature-core` below is the same
+   idea written bespoke for its photo cell.
+   CONCENTRIC is the whole point: the plate's radius is the tray's minus the
+   tray's inset (6px padding + 1px border = 7px), so the two curves stay
+   parallel rather than merely both being round. `border-color: transparent`
+   because the tray's own hairline is the only line the eye should read - the
+   plate inheriting `.card`'s border is what produced a grey outline on the
+   public itinerary.
+   CANVAS CAVEAT, learned the hard way on that page: this reads as a tray when
+   the tray's fill differs from what is behind it. `--yf-glass` is white/58 over
+   the cream canvas, so the band is subtle here; on the near-white paper sheet a
+   tray had to be a darker tint and then read as a wireframe outline instead, so
+   the bezel was dropped there rather than forced. */
+.bezel {
+  display: flex; flex-direction: column;
+  padding: 6px; border-radius: 2rem;
+  background: var(--yf-glass); border: 1px solid var(--yf-glass-border);
+  /* NO outer hairline, deliberately. The first cut carried the landing's
+     `0 0 0 1px rgba(navy,.05)` ring; measured against this canvas the tray FILL
+     is imperceptible - cream #F8F7EF -> 58% white = #FBFAF7, a 1.3% step, then
+     the plate adds another 1.3% to pure white - so the only part of the tray the
+     eye actually caught was that 1px line, which is the "grey outline" reading
+     we already rejected on the public itinerary. On a light canvas a tray has to
+     be defined by DEPTH, not by tone or by a line: the diffuse ambient shadow
+     below is what makes it read as a slab the plate sits in. */
+  box-shadow: var(--shadow-soft);
+}
+/* Two plate classes, one rule: `.card` (Explore / creator / public-itinerary
+   cards) and `.created-card` (TripCreated's two generic cards - the billcard is
+   deliberately not one of them). A surface that wants the bezel adds its plate
+   class here rather than restating the recipe. */
+.bezel > .card,
+.bezel > .created-card {
+  flex: 1;
+  border-color: transparent;
+  border-radius: calc(2rem - 7px);
+  box-shadow: inset 0 1px 0 var(--yf-glass-sheen);
+}
+
+/* ---------- Double-Bezel feature card (landing) ----------
+   The cell is machined hardware rather than a flat tile: an outer tray
+   (translucent fill, hairline ring, oversized radius, diffuse depth) holding an
+   inner plate with its own surface and its own top highlight. The plate's radius
+   is the tray's MINUS the tray's inset, so the two curves stay concentric -
+   that relationship is the whole point of the pattern, and it is why the radius
+   is a calc() rather than a second literal. A 1px-border card on a single
+   shadow is the template look this replaces.
+   The tray fill and the plate's highlight are the existing glass tokens, NOT
+   light literals: --yf-glass is white/58 in light and #101B2B/58 in dark, so the
+   tray is correct in both themes without a second [data-theme] rule. */
+.feature-card { display: flex; flex-direction: column; background: var(--yf-glass); border: 1px solid var(--yf-glass-border); border-radius: var(--radius-lg); padding: 6px; box-shadow: 0 0 0 1px rgba(var(--shadow-navy-rgb), .05), var(--shadow-soft); transition: transform var(--t-fast) var(--ease-out), box-shadow var(--t-fast) var(--ease-out); }
+.feature-card:hover { transform: translateY(-2px); box-shadow: 0 0 0 1px rgba(var(--shadow-navy-rgb), .05), 0 4px 8px rgba(var(--shadow-navy-rgb), .06), 0 20px 48px rgba(var(--shadow-navy-rgb), .16); }
+.feature-core { display: flex; flex-direction: column; height: 100%; padding: 16px; border-radius: calc(var(--radius-lg) - 7px); background: var(--card); box-shadow: inset 0 1px 0 var(--yf-glass-sheen); }
 .feature-card h3 { font-size: 15.5px; }
 .feature-ico { width: 42px; height: 42px; border-radius: 12px; background: var(--teal-soft); display: flex; align-items: center; justify-content: center; font-size: 20px; margin-bottom: 12px; }
 .feature-card p { font-size: 13.5px; color: var(--text-2); margin-top: 6px; line-height: 1.55; }
@@ -1946,6 +2100,9 @@ button.board-col-zone--add:active { transform: translateY(1px); }
   border-color: transparent;
   color: #fff;
 }
+/* The photo IS the tray's fill, so this card's plate must not paint over it:
+   the core keeps its layout and its inset and drops only its surface. */
+.feature-bento .feature-photo .feature-core { background: transparent; box-shadow: none; }
 .feature-bento .feature-photo h3 { color: #fff; }
 .feature-bento .feature-photo p { color: rgba(255, 255, 255, .85); }
 .feature-bento .feature-photo .feature-ico { background: rgba(255, 255, 255, .16); color: #fff; }
@@ -1973,8 +2130,13 @@ button.board-col-zone--add:active { transform: translateY(1px); }
 .fp-warn span { display: block; font-weight: 500; font-size: 10.5px; opacity: .85; margin-top: 1px; }
 .fp-tip { background: #E5F4EE; color: #0C4A42; border-radius: 8px; padding: 6px 8px; font-size: 11px; font-weight: 800; margin-top: 6px; line-height: 1.3; }
 .fp-tip span { display: block; font-weight: 500; font-size: 10.5px; opacity: .85; margin-top: 1px; }
-.feature-bento .feature-tint { background: var(--yf-teal-100); border-color: color-mix(in srgb, var(--yf-teal-600) 22%, transparent); }
-[data-theme='dark'] .feature-bento .feature-tint { background: #12332F; border-color: rgba(255, 255, 255, .12); }
+/* The tint belongs to the PLATE, not the tray. `.feature-bento .feature-tint`
+   out-specifies `.feature-card`, so painting it on the tray would fill the tray
+   and leave a white plate inside a mint frame - losing the per-cell surface
+   variety this strip is built on (photo / tinted / plain). Every tray stays
+   glass; only the plate's surface changes. */
+.feature-bento .feature-tint .feature-core { background: var(--yf-teal-100); }
+[data-theme='dark'] .feature-bento .feature-tint .feature-core { background: #12332F; }
 
 /* ---------- Explore cards ---------- */
 .explore-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 16px; }
@@ -2242,7 +2404,7 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
   max-width: 190mm;
 }
 
-/* Same type system as the app — Sora headings, Inter body — so the printed
+/* Same type system as the app - Sora headings, Plus Jakarta Sans body - so the printed
    cards read as YatraFlow. system-ui fallbacks cover offline printing where
    the Google-Fonts files aren't cached. */
 .pr-sheet { font: 10.5pt/1.5 var(--font-body); color: #1a2433; }
@@ -3524,6 +3686,45 @@ body, .topnav, .glass, .board, .modal, .toast {
 
 /* ---------- M7: editorial paper sheet + actions (public itinerary) ---------- */
 .pub-body { padding-top: 0; position: relative; }
+/* ---------- Double-Bezel as a ring tray ----------
+   A machined card is a PLATE sitting in a TRAY. Here the tray is drawn with
+   box-shadow SPREAD instead of a nested wrapper element:
+
+     0 0 0 6px   the tray fill      (what a wrapper's `padding: 6px` band does)
+     0 0 0 7px   the tray hairline  (what a wrapper's `border: 1px` does)
+     inset ...   the plate's own top highlight
+
+   A spread shadow grows a rounded rect CONCENTRICALLY - the browser expands the
+   corner radius by the spread - so the two curves stay parallel exactly as the
+   nested version's `calc(tray radius - inset)` does.
+   What this avoids is wrapping five cards in a new element: that would re-indent
+   ~70 lines of a 617-line page another branch may still be touching, and it would
+   break the sidebar card's `position: sticky` (a sticky element sticks within its
+   containing block, so a wrapper the same height as the card leaves it no room
+   to move). Zero markup restructuring, one class name per card.
+   The landing's `.feature-card`/`.feature-core` uses true nesting because its
+   photo fill must not be covered by a plate. If a later surface wants nesting,
+   promote THAT pair rather than growing a third variant. */
+/* The Double-Bezel was tried here as a ring tray (a 6px + 1px box-shadow band)
+   on the five content cards, and REVERTED - it is canvas-dependent and this
+   canvas defeats it. On the landing the tray sits on a mint/peach gradient, so
+   the band reads as a machined tray; on this near-white paper sheet the same
+   5% navy band reads as a grey WIREFRAME OUTLINE around every card, and because
+   these cards already carry their own border and soft shadow the eye got two
+   outlines per card. In the two-column gutters two 7px rings also left only 4px
+   of clear space (left column ended 1154, sidebar began 1172), so the rings
+   nearly merged. A bezel needs a tinted canvas to sit on; on a white sheet the
+   card's own shadow is the better depth cue. Do not re-add it here without
+   changing the canvas. */
+/* The rhythm INSIDE the surface is what this surface actually gained. Every
+   selector is scoped (`.pub-body ...`) rather than bare, because two of these
+   classes are shared with dense in-app editors: `.day-section` is the in-app
+   timeline's own class (trip/timeline/DaySection.tsx) and keeps its tighter 22px
+   beat, and `.pub-editorial` already declares a margin-bottom that a
+   same-specificity rule could not outrank. */
+.pub-body > .two-col { margin-top: var(--surface-block-gap); }
+.pub-body .day-section + .day-section { margin-top: var(--surface-block-gap); }
+.pub-body .pub-editorial { margin-bottom: var(--surface-block-gap); }
 .paper-sheet {
   border-radius: var(--radius-lg); margin-top: 0; padding: 20px 24px 24px; position: relative;
   background: linear-gradient(180deg, var(--yf-surface), color-mix(in srgb, var(--yf-cream) 70%, var(--yf-surface)));
@@ -4406,7 +4607,13 @@ html.vt-active :where(*) {
     display: flex; flex-direction: column; justify-content: center;
     padding-block: clamp(24px, 3.5vh, 48px);
   }
-  .plan-bench .bench-title { font-size: clamp(1.35rem, 2.4vw, 1.9rem); }
+  /* The same ramp as .section-title, rather than a second clamp. This override
+   kept the pre-token values when .section-title moved onto
+   `--landing-title-size`, and being two classes it outranked the token - so of
+   the three section titles on the landing, this one alone stayed at ~30% smaller
+   (30.4px against 43.2px at 1440). The duplicate-selector gate could not see it:
+   it only checks top-level selectors, and this one is scoped to .plan-bench. */
+.plan-bench .bench-title { font-size: var(--landing-title-size); }
   .plan-bench .bench-sub { margin: 6px auto 14px; }
   .plan-bench .bench-controls { gap: 10px; padding: 14px 16px; }
   .plan-bench .bench-block { gap: 6px; }
@@ -4591,11 +4798,26 @@ html.vt-active :where(*) {
 /* Hidden state is only applied once the observer is live (body.reveal-armed), so
    content stays visible if JS is off or JS hasn't run yet. */
 @media (prefers-reduced-motion: no-preference) {
+  /* The entrance resolves out of a blur rather than only fading: over 36px of
+     travel a bare rise reads as a slide, and the defocus is what gives it mass.
+     The duration is --motion-slower, the largest step in the catalog - an
+     entrance that spans a whole section is the one move here meant to be slow.
+     (It was a raw .75s, outside the token set.) */
   body.reveal-armed .reveal {
-    opacity: 0; transform: translateY(36px) scale(.97);
-    transition: opacity .75s var(--ease-out), transform .75s var(--ease-out);
+    opacity: 0; transform: translateY(36px) scale(.97); filter: blur(8px);
+    transition: opacity var(--motion-slower) var(--ease-out), transform var(--motion-slower) var(--ease-out),
+      filter var(--motion-slower) var(--ease-out);
   }
-  body.reveal-armed .reveal.io-inview { opacity: 1; transform: none; }
+  body.reveal-armed .reveal.io-inview { opacity: 1; transform: none; filter: blur(0); }
+}
+/* The defocus is a filter pass over a whole section - the only part of this
+   entrance that costs the compositor real work - so a coarse pointer keeps the
+   rise and drops the blur, the same trade the atmosphere blobs and the ticker
+   already make on phones. Both states are neutralised so the element never
+   becomes a filter layer there at all. */
+@media (pointer: coarse) {
+  body.reveal-armed .reveal,
+  body.reveal-armed .reveal.io-inview { filter: none; }
 }
 /* heading underline draws itself past the fold */
 .reveal-underline { position: relative; display: inline-block; }
@@ -4675,7 +4897,21 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
   .steps-route { grid-template-columns: repeat(2, 1fr); gap: 24px 14px; }
   .steps-route::before { display: none; }
 }
-/* Under 720 the steps become a vertical timeline: the dashed road turns the
+/* ---- hero display type at phone width ----
+   The hero's leading is calibrated for its 4.35rem desktop size. At phone width
+   the same clamp() bottoms out on the 2.4rem floor while the RATIO is unchanged,
+   so 38.4px type received 39.17px line boxes against 48px glyph boxes and the
+   three headline lines collided (measured at 390px: 38.4px / 39.168px / -1.152px).
+   Tight display leading reads as editorial at 70px and as a rendering bug at
+   38px, so it loosens as the type shrinks. Done through the tokens rather than
+   a .hero-title rule so the size, leading and tracking stay one declaration and
+   cannot drift apart one edit at a time. */
+@media (max-width: 720px) {
+  :root { --landing-hero-leading: 1.14; --landing-hero-tracking: -.012em; }
+}
+
+/* ---- <=720px: steps route becomes a vertical timeline ----
+   Under 720 the steps become a vertical timeline: the dashed road turns the
    corner and runs down the left edge, through the roundels. */
 @media (max-width: 720px) {
   .steps-route { grid-template-columns: 1fr; gap: 22px; margin-top: 24px; }
@@ -4699,15 +4935,28 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 }
 @media (max-width: 640px) { .cta-band { padding: 32px 18px; } }
 
-/* ---- <=480px: narrow phones ---- */
-/* Narrow phones: brand + tray + Log in + Sign up free overflow ~390px
-   viewports and clipped the signup CTA off the edge — tighten instead. */
-@media (max-width: 480px) {
-  .bench-pair { grid-template-columns: 1fr; }
+/* ---- <=560px: the header's tightening rung (content-derived; was ≤480) ----
+   Measured 2026-09-23 during the landing break run: with desktop spacings the
+   signed-out row overflows its pill below ~542px — at 500px the content ran
+   past the 472px pill and `html { overflow-x: clip }` cut "Start planning
+   free" mid-label, because the 481–540px band had NO rung (every tightening
+   rule was ≤480). At 560px the same row renders whole inside the 532px box
+   (content ≤ 532px, probe render), so the tightened spacings now run up to
+   the width where the desktop row provably fits. The ≤440/:has, ≤350 and
+   ≤360 rungs below follow in the file and still win on specificity/order
+   where they overlap. */
+@media (max-width: 560px) {
   .topnav .container.topnav-inner { padding: 0 8px 0 14px; gap: 8px; }
   .brand { font-size: 16px; gap: 7px; }
   .nav-right { gap: 6px; }
   .nav-right .btn { padding: 9px 11px; font-size: 13px; }
+  .nav-pill-group { padding: 3px; gap: 1px; }
+}
+/* ---- <=480px: narrow phones ----
+   (The header's gap-tightening above now covers this band's nav rows too;
+   what stays here is the bench column and the wordmark.) */
+@media (max-width: 480px) {
+  .bench-pair { grid-template-columns: 1fr; }
   /* The pill is a single flex row, every icon control holds the 40px touch
      floor, and the auth pair is the only path to an account — so the wordmark
      is the one part that can give. Tightening gaps (above) was not enough: at
@@ -4716,7 +4965,6 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
      scrolling. The brand anchor carries `aria-label="YatraFlow home"`, so the
      mark alone still names the link and nothing loses its label. */
   .brand span { display: none; }
-  .nav-pill-group { padding: 3px; gap: 1px; }
 }
 /* The signed-OUT header still outgrew the smallest phones even after the
    tightening above: at 390px the brand (121.9px) + gap (8) + control tray +
@@ -4736,6 +4984,14 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
    horizontal padding, never from the target height. */
 @media (max-width: 350px) {
   .nav-right:has(> .btn) .btn { padding: 9px 8px; font-size: 12.5px; }
+  /* The reflow rung's last gap, found in the 2026-09-23 entry-path review:
+     even after every tightening above, the logged-out pair (Log in + Start
+     planning free) measured 335px against a 303px content box at 320px, and
+     the root's overflow-x: clip cut the CTA mid-label. The hamburger tray
+     (App.tsx mobile-menu) carries Log in at these widths, so the chrome copy
+     yields and the primary CTA fits whole. Signed-in headers have no outline
+     button in .nav-right, so this is a no-op for them. */
+  .nav-right > .btn-outline { display: none; }
 }
 
 /* ---- <=360px: the last few pixels ---- */
@@ -5090,15 +5346,10 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 }
 
 /* ============================================================
-   v0.38 — Creator hub (Profile · My publications: Overview | Earnings)
+   v0.38 — Creator hub, which after the v0.66 dashboard rebuild is: the payout
+   ledger, the hub note, and the publication-row pattern the new page reuses.
+   The hub's own rules now live in the v0.66 block at the file's end.
    ============================================================ */
-
-/* mini KPI tiles inside the 340px profile column */
-.pub-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px; }
-.pub-kpis .stat-tile { padding: 9px 11px; box-shadow: none; }
-.pub-kpis .stat-tile .stat-value { font-size: 16.5px; }
-.pub-kpis .stat-tile.wide { grid-column: span 2; }
-.pub-kpis .metric-warn { color: var(--ink-amber); }
 
 /* the payout ledger (and its projection twin) */
 .pub-ledger th { font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); }
@@ -5109,11 +5360,6 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 .hub-note { background: var(--yf-teal-100); border-radius: 12px; padding: 12px 14px; font-size: 12.5px; margin-top: 12px; line-height: 1.55; }
 .hub-note b { color: var(--teal-deep); }
 [data-theme='dark'] .hub-note b { color: var(--yf-teal-600); }
-
-@media (max-width: 720px) {
-  .pub-kpis { grid-template-columns: repeat(2, 1fr); }
-  .pub-kpis .stat-tile.wide { grid-column: span 2; }
-}
 
 /* ---- Semantic meta-icon tints (v0.40) — colour-coded icons app-wide ---- */
 .mi-money { color: var(--yf-saffron); }
@@ -5509,35 +5755,41 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 .cal-hint { margin: 8px 0 0; font-size: 11px; color: var(--yf-text-muted); text-align: center; }
 
 /* ============ The Trip Ticket (right rail) ============ */
-.ts-rail { --rail-ink: #F2F7F5; --rail-ink-dim: rgba(242, 247, 245, 0.74); --rail-line: rgba(255, 255, 255, 0.16); position: sticky; top: calc(var(--nav-h, 64px) + 16px); }
+/* Rail ink follows the theme: the rail's own background is color-mix(..var(--bg)),
+   so the old navy-pass whites (#F2F7F5 on white wash) went invisible on the
+   mockup's light ticket — the readiness block read only in dark. The dark
+   values re-declare below. */
+.ts-rail { --rail-ink: var(--text); --rail-ink-dim: var(--text-2); --rail-line: var(--line); display: flex; flex-direction: column; gap: 13px; padding: 20px 20px 22px; border-left: 1px solid var(--line); background: color-mix(in srgb, var(--teal) 3%, var(--bg)); position: sticky; top: calc(var(--nav-h, 64px) + 16px); }
+[data-theme='dark'] .ts-rail { --rail-ink: #F2F7F5; --rail-ink-dim: rgba(242, 247, 245, 0.74); --rail-line: rgba(255, 255, 255, 0.16); }
 .ticket {
-  position: relative; border-radius: 22px; overflow: hidden;
-  background: linear-gradient(168deg, var(--yf-navy), color-mix(in srgb, var(--yf-navy) 78%, #04191F));
-  color: #F2F7F5; box-shadow: 0 20px 44px rgba(10, 32, 40, 0.35);
+  position: relative; border-radius: 18px; overflow: hidden;
+  background: var(--card); border: 1px solid var(--line);
+  color: var(--text); box-shadow: 0 14px 34px rgba(16, 46, 75, 0.1);
 }
-.ticket::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(420px 200px at 85% -10%, rgba(255, 255, 255, 0.08), transparent 60%); }
-.tk-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px 0; }
-.tk-brand { font-size: 10.5px; font-weight: 800; letter-spacing: 0.18em; text-transform: uppercase; opacity: 0.85; }
-.tk-kind { font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--yf-saffron); }
-.tk-cover { position: relative; margin: 12px 18px 0; height: 96px; border-radius: 12px; overflow: hidden; background: color-mix(in srgb, var(--yf-navy) 70%, #2E6B5E); }
+.ticket::after { content: none; }
+.tk-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: var(--yf-navy); }
+.tk-brand { font-family: var(--font-display); font-size: 13px; font-weight: 700; color: #fff; }
+.tk-kind { font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(255, 255, 255, 0.72); }
+.tk-cover { position: relative; margin: 0; height: 86px; border-radius: 0; overflow: hidden; background: linear-gradient(135deg, var(--teal-soft), color-mix(in srgb, var(--yf-saffron) 18%, var(--card)) 60%, color-mix(in srgb, var(--yf-saffron) 26%, var(--card))); }
 .tk-cover .tk-scenery { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .tk-cover .emoji-chip {
   position: absolute; right: 9px; bottom: 9px; width: 31px; height: 31px; border-radius: 9px;
-  display: grid; place-items: center; font-size: 15px; background: rgba(255, 255, 255, 0.16);
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  -webkit-backdrop-filter: blur(var(--yf-blur-chip)); backdrop-filter: blur(var(--yf-blur-chip));
+  display: grid; place-items: center; font-size: 15px;
+  background: color-mix(in srgb, var(--card) 88%, transparent);
+  border: 1px solid var(--line);
+  color: var(--text);
 }
-.tk-body { padding: 14px 18px 0; }
-.tk-title { font-size: 19px; font-weight: 700; letter-spacing: -0.01em; line-height: 1.15; overflow-wrap: anywhere; }
-.tk-route { margin: 8px 0 0; font-size: 12px; color: rgba(242, 247, 245, 0.66); }
-.tk-return-chip { display: inline-block; margin-left: 6px; padding: 1px 8px; border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 999px; font-size: 10px; }
-.tk-rows { margin: 12px 0 0; display: grid; gap: 8px; }
-.tk-row { display: flex; align-items: center; gap: 9px; font-size: 12.5px; min-width: 0; }
-.tk-row .ic { width: 24px; height: 24px; border-radius: 7px; display: grid; place-items: center; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.16); font-size: 11.5px; flex: none; }
-.tk-row .lab { color: rgba(242, 247, 245, 0.66); flex: none; }
-.tk-row b { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tear { position: relative; margin: 16px 0 0; border-top: 2px dashed rgba(255, 255, 255, 0.18); }
-.tear::before, .tear::after { content: ""; position: absolute; top: -10px; width: 20px; height: 20px; border-radius: 999px; background: var(--yf-cream); }
+.tk-body { padding: 13px 15px 11px; }
+.tk-title { font-family: var(--font-display); font-size: 17px; font-weight: 800; letter-spacing: -0.01em; line-height: 1.15; overflow-wrap: anywhere; color: var(--text); }
+.tk-route { margin: 8px 0 0; font-size: 11.5px; color: var(--text-2); }
+.tk-return-chip { display: inline-block; margin-left: 6px; padding: 1px 8px; border: 1px solid var(--line); border-radius: 999px; font-size: 10px; color: var(--violet-ink); font-weight: 600; }
+.tk-rows { margin: 9px 0 0; display: grid; gap: 5px; }
+.tk-row { display: flex; align-items: center; gap: 9px; font-size: 12px; min-width: 0; color: var(--text-2); }
+.tk-row .ic { width: 20px; height: 20px; border-radius: 7px; display: grid; place-items: center; background: var(--bg); border: 0; color: var(--ink-teal); font-size: 11.5px; flex: none; }
+.tk-row .lab { color: var(--text-3); flex: none; }
+.tk-row b { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+.tear { position: relative; margin: 12px 0 0; border-top: 1.5px dashed var(--line); }
+.tear::before, .tear::after { content: ""; position: absolute; top: -10px; width: 20px; height: 20px; border-radius: 999px; background: color-mix(in srgb, var(--teal) 3%, var(--bg)); }
 .tear::before { left: -10px; }
 .tear::after { right: -10px; }
 .tk-stub { padding: 12px 18px 18px; }
@@ -5549,9 +5801,9 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
   color: #F2F7F5; font-weight: 700; font-size: 14px; cursor: pointer;
 }
 .tk-print-btn:hover { background: rgba(255, 255, 255, 0.18); border-style: solid; }
-.tk-fine { margin: 10px 0 0; font-size: 11px; line-height: 1.5; color: rgba(242, 247, 245, 0.6); }
-.tk-cancel { margin-top: 9px; width: 100%; text-align: center; font-size: 12.5px; color: rgba(242, 247, 245, 0.6); background: none; border: none; cursor: pointer; padding: 4px; }
-.tk-cancel:hover { color: #F2F7F5; }
+.tk-fine { margin: 10px 0 0; font-size: 11px; line-height: 1.5; color: var(--text-3); }
+.tk-cancel { margin-top: 9px; width: 100%; text-align: center; font-size: 12.5px; color: var(--text-3); background: none; border: none; cursor: pointer; padding: 4px; min-height: 24px; text-decoration: underline; text-underline-offset: 3px; }
+.tk-cancel:hover { color: var(--text-2); }
 .tk-subrow { display: flex; justify-content: center; gap: 18px; margin-top: 9px; }
 .tk-subrow .tk-cancel { margin-top: 0; width: auto; }
 
@@ -5580,11 +5832,14 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 .bill-perhead .mono { font-size: 21px; font-weight: 800; letter-spacing: -0.02em; color: #2E4A3A; }
 .bill-perhead .per { font-size: 11px; color: #6B5E42; font-weight: 600; }
 .bill-note { margin: 8px 0 0; font-size: 9.5px; line-height: 1.5; color: #9A8C6C; }
+/* The CTA pill: filled teal carries var(--card) ink, never #fff - dark theme
+   flips --teal-deep to a LIGHT teal where white text is 2.05:1; the flipped
+   pair reads 5.84 in light and 7.66 in dark (the .ct-n idiom). */
 .tk-cta {
-  margin-top: 12px; width: 100%; height: 46px; border-radius: 13px; border: none; cursor: pointer;
-  background: var(--yf-saffron); color: #3A2506; font-weight: 700; font-size: 14.5px;
+  margin-top: 12px; width: 100%; height: 46px; border-radius: 999px; border: none; cursor: pointer;
+  background: var(--teal-deep); color: var(--card); font-weight: 700; font-size: 14.5px;
   display: flex; align-items: center; justify-content: center; gap: 8px;
-  box-shadow: 0 9px 22px rgba(243, 170, 61, 0.35);
+  font-family: var(--font-display); box-shadow: 0 6px 18px rgba(13, 141, 130, 0.3);
 }
 .tk-cta:hover { filter: brightness(1.05); }
 
@@ -5840,7 +6095,7 @@ html.native-shell {
    bottom-nav label uses it); sizes stay literal elsewhere by design. */
 :root {
   --text-xs: 11px;
-  --kicker-size: 10.5px; --kicker-weight: 700; --kicker-tracking: .06em;
+  --kicker-size: 11px; --kicker-weight: 700; --kicker-tracking: .06em;
 }
 /* Glass blur tiers: chrome 18, panel 14, chip 8, scrim 3. */
 :root {
@@ -5906,10 +6161,13 @@ html.native-shell {
   .stop-kind-tag, .board-pulse .pulse-label, .budget-hero-label, .share-intent, .impact-cell .k,
   .ha-kicker, .ha-stats span, .hbc-code span, .hbc-sub, .loc-kind, .weather-day, .ride-purpose,
   .bench-eyebrow, .bench-scale-ends, .bench-receipt-kicker, .bench-total-label, .bench-badge,
-  .ticker-item .t-tag, .board-stop-kicker, .tk-brand, .tk-kind, .creator-badge, .pub-ledger th, .route-tag, .group-lab, .mini-lab,
+  .ticker-item .t-tag, .board-stop-kicker, .creator-badge, .pub-ledger th, .route-tag, .group-lab, .mini-lab,
   .compare-table th, .toast-action, .editorial-kicker, .pub-stats-label,
   .pub-hero-badge, .pub-hero-byline,
   .eyebrow, .cal-wd,
+  /* .tk-brand / .tk-kind left the kicker family for the boarding-pass head bar
+     (13px brand + 11px class line, folded into their own rules above) — the
+     mockup's ticket is a ticket, not a micro-label. */
   .route-glance .route-glance-label, .stat-label, .app-home-section,
   .poi-grp-k, .poi-reason-k {
     font-size: var(--kicker-size);
@@ -6467,9 +6725,6 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
    I-22 — the publication funnel (recorded views → forks → unlocks)
    ============================================================ */
 
-/* the window pills, and the line saying what the log can speak for */
-.pub-funnel-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 4px 0 10px; }
-
 /* one publication's funnel: windowed steps above its own all-time totals */
 .pub-funnel { display: flex; flex-direction: column; gap: 3px; }
 .pub-funnel.muted { color: var(--text-3); }
@@ -6477,10 +6732,6 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .pf-step b { font-variant-numeric: tabular-nums; color: var(--text); }
 .pf-arrow { color: var(--text-3); }
 .pf-lifetime { font-size: 11.5px; color: var(--text-3); font-variant-numeric: tabular-nums; }
-
-@media (max-width: 720px) {
-  .pub-funnel-head { align-items: flex-start; }
-}
 
 
 /* ============ Creator's own funnel glance, on the plan's public page ==== */
@@ -6779,45 +7030,52 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .tpl-warm { margin: 14px 0 16px; }
 .tpl-warm-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 8px; }
 .tpl-warm-head .why { font-size: 11.5px; color: var(--text-3); }
-.tpl-strip { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
+.tpl-strip { display: grid; grid-template-columns: repeat(auto-fill, minmax(196px, 1fr)); gap: 10px; }
 
 /* one template card: cover gradient + copy, hover lifts like a ticket */
 .tpl-card { position: relative; display: block; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--card); overflow: hidden; cursor: pointer; padding: 0; text-align: left; color: inherit; font: inherit; transition: transform var(--t-fast) var(--ease-out), box-shadow var(--t-fast) var(--ease-out), border-color var(--t-fast) var(--ease-out); }
-.tpl-card:hover, .tpl-card:focus-visible { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(16,46,75,.12); border-color: var(--teal); outline: none; }
+/* hover decoration is pointer-only: gated so touch devices don't get sticky
+   hover states; :focus-visible twins stay ungated. */
+.tpl-card:focus-visible { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(16,46,75,.12); border-color: var(--teal); outline: none; }
+@media (hover: hover) { .tpl-card:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(16,46,75,.12); border-color: var(--teal); } }
 .tpl-card.on { border-color: var(--teal); box-shadow: 0 0 0 2px var(--teal-soft); }
-.tpl-cov { height: 56px; display: flex; align-items: flex-end; padding: 6px 9px; }
-.tpl-cov .em { font-size: 18px; line-height: 1; }
+.tpl-cov { height: 64px; display: flex; align-items: flex-end; padding: 8px 10px; }
+.tpl-cov .em { font-size: 20px; line-height: 1; }
 .tpl-cov .days { margin-left: auto; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; background: var(--card); border-radius: 999px; padding: 2px 8px; color: var(--text); }
 .tpl-bd { display: block; min-height: 68px; padding: 7px 10px 9px; }
 .tpl-bd b { display: block; font-size: 12.5px; font-weight: 700; }
-.tpl-bd .r { font-size: 11px; color: var(--text-3); margin-top: 1px; line-height: 1.3; min-height: 27px; }
+.tpl-bd .r { font-size: 11px; color: var(--text-3); margin-top: 1px; line-height: 1.3; min-height: 27px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tpl-bd .p { display: block; margin-top: 5px; font-size: 11px; color: var(--teal-deep, var(--teal)); font-weight: 700; }
 
-.tpl-bd .p small { display: block; color: var(--text-3); font-weight: 500; font-size: 11px; }
-.tpl-pick { position: absolute; top: 7px; right: 7px; width: 20px; height: 20px; border-radius: 50%; background: var(--card); color: var(--teal-deep); border: 1.5px solid var(--teal); display: none; place-items: center; font-size: 11px; }
+.tpl-bd .p small { display: inline; color: var(--text-3); font-weight: 500; font-size: 11px; }
+.tpl-pick { position: absolute; top: 7px; right: 7px; width: 22px; height: 22px; border-radius: 50%; background: var(--teal-deep); color: var(--card); border: 0; display: none; place-items: center; font-size: 11px; }
 .tpl-card.on .tpl-pick { display: grid; }
 
 /* the quiet start-blank tile closes the strip */
 .tpl-blank { display: flex; align-items: center; gap: 10px; border: 1px dashed var(--teal); border-radius: var(--radius-sm); background: transparent; cursor: pointer; padding: 12px 13px; font: inherit; color: var(--teal-deep, var(--teal)); font-weight: 600; text-align: left; }
-.tpl-blank:hover, .tpl-blank:focus-visible { background: var(--teal-soft); outline: none; }
+.tpl-blank:focus-visible { background: var(--teal-soft); outline: none; }
+@media (hover: hover) { .tpl-blank:hover { background: var(--teal-soft); } }
 .tpl-blank small { display: block; font-weight: 500; color: var(--text-3); font-size: 11px; }
 
 /* the two helper chips under the strip: same-as-last + demo */
 .tpl-helpers { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 9px; }
 .tpl-helper { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 600; color: var(--text-2); background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: 5px 11px; cursor: pointer; }
-.tpl-helper:hover, .tpl-helper:focus-visible { border-color: var(--teal); color: var(--teal-deep, var(--teal)); outline: none; }
+.tpl-helper:focus-visible { border-color: var(--teal); color: var(--teal-deep, var(--teal)); outline: none; }
+@media (hover: hover) { .tpl-helper:hover { border-color: var(--teal); color: var(--teal-deep, var(--teal)); } }
 
 /* name-first row: the input + the suggestion chip */
 .tpl-name { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; }
 .tpl-name > .field { flex: 1 1 260px; min-width: 0; }
 .tpl-name .input { flex: 1; min-width: 200px; }
 .tpl-sug { flex: none; font-size: 11.5px; font-weight: 600; color: var(--teal-deep, var(--teal)); background: var(--teal-soft); border: 0; border-radius: 999px; padding: 6px 12px; cursor: pointer; }
-.tpl-sug:hover, .tpl-sug:focus-visible { background: var(--card); color: var(--teal-deep); outline: none; }
+.tpl-sug:focus-visible { background: var(--card); color: var(--teal-deep); outline: none; }
+@media (hover: hover) { .tpl-sug:hover { background: var(--card); color: var(--teal-deep); } }
 
 /* reduced motion: hover lift is decorative, keep it off */
 @media (prefers-reduced-motion: reduce) {
   .tpl-card { transition: none; }
-  .tpl-card:hover, .tpl-card:focus-visible { transform: none; }
+  .tpl-card:focus-visible { transform: none; }
+  @media (hover: hover) { .tpl-card:hover { transform: none; } }
 }
 /* ============================================================
    Create Trip - the advanced drawer (P1)
@@ -6844,7 +7102,7 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
    file's end for the line-keyed ratchet reason as with the blocks above.
    ============================================================ */
 
-.ready-block { margin: 10px 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--card); }
+.ready-block { margin: 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--card); }
 .ready-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
 .ready-lab { font-size: 11.5px; font-weight: 700; color: var(--text-2); }
 .ready-pct { font-size: 13px; font-weight: 700; color: var(--teal-deep); font-variant-numeric: tabular-nums; }
@@ -6899,7 +7157,7 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
    spacing ladder; the badges use the AA-verified teal pair.
    ============================================================ */
 
-.created-page { max-width: 720px; margin: 0 auto; padding: 24px 20px 24px; display: flex; flex-direction: column; gap: 16px; }
+.created-page { max-width: 1120px; margin: 0 auto; padding: 24px 20px 24px; display: flex; flex-direction: column; gap: 16px; }
 .created-head h1 { font-size: 26px; line-height: 1.15; margin: 4px 0 2px; }
 .created-card { padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--card); }
 .created-card-title { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; font-size: 13px; font-weight: 700; margin: 0 0 12px; }
@@ -6915,20 +7173,20 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .created-crew { display: grid; gap: 8px; }
 .created-crew-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .created-crew-name { font-size: 13px; font-weight: 600; }
-.created-crew-status { font-size: 11px; color: var(--text-3); }
-.created-crew-hint { margin-left: auto; font-size: 11px; color: var(--text-3); }
-.created-crew-row .btn { margin-left: auto; }
+.created-crew-status { margin-left: auto; font-size: 11px; color: var(--text-3); }
+.created-crew-hint { margin-left: 0; font-size: 11px; color: var(--text-3); }
+.created-crew-row .btn { margin-left: 0; }
 .created-crew-acts { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
 .created-link { font-size: 11px; color: var(--text-2); word-break: break-all; }
 .created-bill { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; margin: 0 0 6px; }
-.created-bill-perhead { font-size: 24px; font-weight: 700; color: var(--teal-deep); font-variant-numeric: tabular-nums; }
+.created-bill-perhead { font-family: var(--font-display); font-size: 24px; font-weight: 700; color: var(--teal-deep); font-variant-numeric: tabular-nums; }
 .created-bill-unit { font-size: 12px; color: var(--text-3); }
 .created-bill-total { font-size: 12px; color: var(--text-2); margin-left: auto; font-variant-numeric: tabular-nums; }
 .created-next { display: grid; gap: 8px; }
 .created-next .ns { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--card); cursor: pointer; text-align: left; color: inherit; font: inherit; }
 .created-next .ns:hover, .created-next .ns:focus-visible { border-color: var(--teal); outline: none; }
 .created-next .ns-ic { display: grid; place-items: center; flex: none; width: 30px; height: 30px; border-radius: 10px; background: var(--teal-soft); color: var(--teal-deep); font-size: 13px; font-weight: 700; }
-.created-next .ns-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.created-next .ns-body { display: flex; flex: 1; flex-direction: column; gap: 2px; min-width: 0; }
 .created-next .ns-body b { font-size: 13px; }
 .created-next .ns-body span { font-size: 11.5px; color: var(--text-3); }
 .created-next .ns-primary { border-color: var(--teal); background: var(--teal-soft); }
@@ -6953,7 +7211,7 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .ct-flow > * { min-width: 0; }
 .ct-q-body > * { min-width: 0; }
 .ct-q { display: flex; align-items: flex-start; gap: 12px; }
-.ct-n { display: grid; place-items: center; flex: none; width: 26px; height: 26px; margin-top: 2px; border-radius: 50%; background: var(--teal-deep); color: var(--card); font-size: 12px; font-weight: 700; }
+.ct-n { display: grid; place-items: center; flex: none; width: 28px; height: 28px; margin-top: 2px; border-radius: 50%; background: var(--teal-deep); color: var(--card); font-family: var(--font-display); font-size: 13px; font-weight: 700; }
 .ct-q.done .ct-n { background: var(--teal-soft); color: var(--teal-deep); }
 .ct-q-body { flex: 1; min-width: 0; }
 .ct-q-body h2 { margin: 0; font-size: 15px; letter-spacing: -0.01em; }
@@ -6999,10 +7257,10 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .ct-tier button:hover:not(.on), .ct-tier button:focus-visible:not(.on) { color: var(--teal-deep); outline: none; }
 
 /* budget slider + the exact-value escape hatch */
-.ct-bud { display: flex; flex: 1 1 260px; align-items: center; gap: 12px; padding: 8px 14px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--card); }
+.ct-bud { display: flex; flex: 1 1 260px; max-width: 380px; align-items: center; gap: 12px; padding: 8px 14px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--card); }
 .ct-bud input[type="range"] { flex: 1; min-width: 120px; accent-color: var(--teal); }
-.ct-bud .v { min-width: 84px; text-align: right; font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; }
-.ct-bud .v small { display: block; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-3); }
+.ct-bud .v { min-width: 84px; text-align: right; font-family: var(--font-display); font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.ct-bud .v small { display: block; font-family: var(--font-body); font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-3); }
 .ct-bud-exact { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--card); font-size: 11.5px; color: var(--text-3); }
 .ct-bud-exact input { width: 88px; border: 0; background: transparent; color: var(--text); font: inherit; font-variant-numeric: tabular-nums; outline: none; }
 
@@ -7016,7 +7274,9 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .ct-styles { display: flex; flex-wrap: wrap; gap: 6px; }
 .ct-style { padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--card); color: var(--text-2); font-size: 12px; font-weight: 600; cursor: pointer; }
 .ct-style.on { border-color: var(--teal); background: var(--teal-soft); color: var(--teal-deep); }
-.ct-style:hover:not(.on), .ct-style:focus-visible:not(.on) { border-color: var(--teal); outline: none; }
+.ct-style:active { transform: scale(.97); }
+.ct-style:focus-visible:not(.on) { border-color: var(--teal); outline: none; }
+@media (hover: hover) { .ct-style:hover:not(.on) { border-color: var(--teal); } }
 .ct-optional { display: flex; flex-direction: column; gap: 12px; padding-top: 16px; border-top: 1px solid var(--line); }
 .ct-opt-head { display: flex; align-items: baseline; gap: 8px; }
 /* ============================================================
@@ -7028,8 +7288,13 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
    ============================================================ */
 
 .container.form-page { max-width: 1240px; }
-/* the mockup fixes the pass at 380px and lets the flow take the rest */
-.container.form-page .ts-layout { grid-template-columns: minmax(0, 1fr) 380px; }
+/* the mockup fixes the pass at 380px and lets the flow take the rest - but the
+   pass yields down to 340px on a tight window rather than squeezing the flow.
+   Wide layout only: the ≤980px single-column collapse (line ~5216) must win
+   below that, or the rail becomes a forced 340px column that overflows phones. */
+@media (min-width: 981px) {
+  .container.form-page .ts-layout { grid-template-columns: minmax(0, 1fr) minmax(340px, 380px); }
+}
 
 /* The pass is the app's own navy boarding pass, kept: it is the one component
    on this page that already read as designed. Only the mockup's PROPORTIONS
@@ -7052,7 +7317,8 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
    secondary. The pass has its own ink; these rules give it its own tokens.
    ============================================================ */
 
-.ts-rail .ready-block { padding: 12px; border: 1px solid var(--rail-line); border-radius: var(--radius-sm); background: rgba(255, 255, 255, 0.06); }
+.ts-rail .ready-block { padding: 12px; border: 1px solid var(--rail-line); border-radius: var(--radius-sm); background: var(--card); }
+[data-theme='dark'] .ts-rail .ready-block { background: rgba(255, 255, 255, 0.06); }
 .ts-rail .ready-lab { font-size: 13px; font-weight: 700; color: var(--rail-ink); }
 .ts-rail .ready-pct { font-size: 14px; font-weight: 700; color: var(--rail-ink); }
 .ts-rail .ready-row { font-size: 12.5px; color: var(--rail-ink-dim); }
@@ -7060,7 +7326,7 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .ts-rail .ready-name { font-weight: 600; }
 .ts-rail .ready-why { font-size: 11.5px; color: var(--rail-ink-dim); }
 .ts-rail .ready-tick { width: 16px; height: 16px; border: 1.5px solid var(--rail-line); font-size: 11px; color: transparent; }
-.ts-rail .ready-row.ok .ready-tick { width: 17px; height: 17px; border-color: var(--rail-ink); background: var(--rail-ink); color: #0B2545; font-size: 11px; font-weight: 700; }
+.ts-rail .ready-row.ok .ready-tick { width: 17px; height: 17px; border-color: var(--rail-ink); background: var(--rail-ink); color: var(--card); font-size: 11px; font-weight: 700; }
 .ts-rail .ready-row.opt .ready-tick { border-style: dashed; }
 .ts-rail .ready-row.opt .ready-why { color: var(--rail-ink); opacity: 0.66; }
 .ts-rail .ready-head { margin-bottom: 8px; }
@@ -7110,4 +7376,408 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .offline-banner .btn { flex: none; }
 @media (max-width: 720px) {
   .offline-banner { padding: 8px 14px; font-size: 12px; align-items: flex-start; }
+}
+/* ============================================================
+   Create Trip funnel - the mockup fidelity pass (the look)
+   The funnel mockups were drawn in this palette and these fonts; this block
+   aligns the surfaces to them: the light ticket card with its navy head bar
+   and amber bill stub (the bill answers as you go), the pill name box, step
+   markers that answer "done", the budget block as its own question, and the
+   moment-after two-column composition. Appended at the file end (line-keyed
+   ratchet): the v0.45 navy boarding-pass rules above lose on source order.
+   Every text pair is AA against its own background - accents carry borders
+   and fills, text rides the --ink-* grades.
+   ============================================================ */
+
+/* --- the rail: the mockup's tinted, bordered side panel --- */
+@media (max-width: 900px) {
+  .ts-rail { border-left: 0; border-top: 1px solid var(--line); padding: 16px 16px 18px; }
+}
+
+/* --- the ticket: white card, navy head bar, amber bill stub --- */
+[data-theme='dark'] .ticket { box-shadow: 0 14px 34px rgba(0, 0, 0, 0.35); }
+
+/* the stub: the rough take, live and amber-tinted (mockup .tk-stub) */
+.tk-bill { padding: 10px 15px 12px; background: color-mix(in srgb, var(--yf-saffron) 6%, var(--card)); }
+.tk-bill .bill-row span { color: var(--text-2); }
+.tk-bill .bill-row b { color: var(--text); }
+.tk-bill .bill-row.bill-dim span, .tk-bill .bill-row.bill-dim b { color: var(--text-3); }
+.tk-bill .bill-formula { color: var(--text-3); font-style: normal; font-size: 11px; margin: -2px 0 4px; }
+.tk-bill .bill-total { border-top: 1px solid var(--line); }
+.tk-bill .bill-perhead { justify-content: flex-end; gap: 5px; margin-top: 2px; }
+.tk-bill .bill-perhead .mono { color: var(--text-2); font-size: 13px; }
+.tk-bill .bill-perhead .per { color: var(--text-3); }
+
+/* the CTA block: the mockup keeps it under the ticket, not inside it */
+.tk-cta-block { padding: 0; }
+
+
+/* --- section heads: mockup h2 + short aside --- */
+.tpl-warm-head h2 { font-family: var(--font-display); font-size: 16px; font-weight: 800; letter-spacing: -0.01em; }
+
+/* --- the funnel mockup's name box: pill input, pen inline --- */
+.tpl-nameblock { display: flex; flex-direction: column; gap: 8px; }
+.namebox-in {
+  display: flex; align-items: center; gap: 9px; flex: 1 1 260px; min-width: 0;
+  background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: 9px 15px;
+  color: var(--text-3);
+}
+.namebox-in:focus-within { border-color: var(--teal); box-shadow: var(--ring); }
+.namebox-input { flex: 1; min-width: 0; border: 0; background: none; outline: none; font: inherit; font-size: 14.5px; font-weight: 600; color: var(--text); }
+/* Same iOS zoom-on-focus trap as .unit-input above: without the 16px floor at
+   phone width, focusing the name field zooms Safari into the form. */
+@media (max-width: 720px) { .namebox-input { font-size: 16px; } }
+
+/* --- route IQ: the mockup's tiled intelligence line + season chip --- */
+.route-iq { display: flex; gap: 8px; align-items: flex-start; margin: 10px 0 0; font-size: 11.5px; color: var(--text-2); }
+.iq-tile {
+  flex: none; width: 20px; height: 20px; border-radius: 7px; display: grid; place-items: center;
+  background: var(--info-soft); color: var(--text-2); font-size: 11px; font-weight: 800; font-style: italic;
+}
+.season-note {
+  display: inline-flex; align-items: center; gap: 5px; margin: 8px 0 0; padding: 3px 10px;
+  border-radius: 999px; background: color-mix(in srgb, var(--ok) 10%, transparent);
+  color: var(--ink-ok); font-size: 11px; font-weight: 700;
+}
+
+/* --- budget block: the mockup's card with translation + anchor --- */
+.ct-budget { display: flex; flex-direction: column; gap: 8px; }
+.ct-bud-card { display: flex; flex-direction: column; gap: 7px; padding: 11px 14px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--card); }
+.ct-bud-card .ct-rrow { margin: 0; }
+.budget-tier { margin: 0; font-size: 11.5px; color: var(--text-2); }
+.budget-tier b { color: var(--ink-teal); }
+.budget-anchor { margin: 0; font-size: 11px; color: var(--text-3); }
+.budget-anchor b { color: var(--text-2); }
+.bench-mark { font-style: normal; color: var(--ink-ok); font-weight: 700; margin-right: 2px; }
+
+/* --- crew: the mockup's card, honest copy on the right --- */
+.crew-card { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--card); }
+.crew-card-t { display: flex; align-items: center; gap: 7px; font-size: 12.5px; }
+.crew-card-t b { font-weight: 700; }
+.crew-card-t svg { color: var(--ink-teal); }
+.crew-card-t .why { margin-left: auto; font-size: 11px; color: var(--text-3); font-weight: 500; }
+.crew-hint { margin: 0; font-size: 11px; color: var(--text-3); }
+.crew-planner { color: var(--violet-ink); }
+
+/* --- destination chips: the mockup's pop-in (motion tokens) --- */
+@media (prefers-reduced-motion: no-preference) {
+  .ct-dchip { animation: ct-pop var(--motion-fast) var(--ease-out); }
+  @keyframes ct-pop { from { opacity: 0; transform: scale(0.92); } to { opacity: 1; transform: none; } }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ct-dchip { animation: none; }
+}
+
+/* --- the moment after: the mockup's two-column composition --- */
+.created-cols { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 26px; align-items: start; }
+@media (max-width: 980px) { .created-cols { grid-template-columns: minmax(0, 1fr); } }
+.created-celebrate, .created-side { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.created-name { color: var(--ink-teal); font-weight: 800; }
+.created-item.kind-meal .created-badge { background: var(--warn-soft); color: var(--ink-amber); }
+.created-item.kind-weather .created-badge { background: var(--info-soft); color: var(--text-2); }
+.created-item.kind-fuel .created-badge { background: var(--teal-soft); color: var(--ink-teal); }
+.created-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--yf-saffron); }
+.created-crew-row.done .created-dot { background: var(--ink-ok); }
+.created-crew-row.done .created-crew-status { color: var(--ink-ok); }
+
+/* share row: the green action travels, the invite copies */
+.created-share { display: flex; gap: 8px; flex-wrap: wrap; }
+.share-main {
+  display: inline-flex; align-items: center; gap: 7px; padding: 8px 15px;
+  border: 1px solid var(--teal-deep); border-radius: 999px; background: var(--teal-deep); color: var(--card);
+  font-size: 12.5px; font-weight: 600; cursor: pointer;
+}
+.share-main:hover:not(:disabled) { opacity: 0.94; }
+.share-main:disabled { opacity: 0.6; cursor: not-allowed; }
+.share-ghost {
+  padding: 8px 15px; border: 1px solid var(--line); border-radius: 999px; background: var(--card);
+  color: var(--text-2); font-size: 12.5px; font-weight: 600; cursor: pointer;
+}
+.share-ghost:hover, .share-ghost:focus-visible { border-color: var(--teal); color: var(--ink-teal); outline: none; }
+
+/* the bill card: navy head bar (the .tk-head trio), name + route, rows, big
+   number, sig line */
+.created-billcard { padding: 0; overflow: hidden; }
+.created-bill-body { padding: 13px 15px; }
+.created-bill-body .created-card-title { margin: 0; }
+.created-bill-rt { margin: 1px 0 0; font-size: 11.5px; color: var(--text-2); }
+.created-sig { margin: 10px 0 0; font-size: 11px; font-style: italic; text-align: center; color: var(--text-3); }
+
+/* next steps: per-kind tiles + the mockup's trailing arrow */
+.ns-ar { flex: none; color: var(--text-3); font-size: 13px; }
+.ns-work .ns-ic { background: var(--teal-soft); color: var(--ink-teal); }
+.ns-crew .ns-ic { background: var(--violet-soft); color: var(--violet-ink); }
+.ns-watch .ns-ic { background: var(--warn-soft); color: var(--ink-amber); }
+.created-next .ns-quiet .ns-body { flex: none; }
+
+/* ---- I-17 · selection + caret — the last browser-native surfaces follow the theme.
+   Both declarations resolve per theme: a selection is theme ink (--text) on the soft
+   teal tint (--teal-soft → #E5F4EE light / #12332F dark — 13.56:1 / 12.01:1), and the
+   caret is the brand teal (--teal-deep). caret-color inherits, so one :root rule themes
+   every input, textarea and contenteditable surface without enumerating them. */
+::selection { background: var(--teal-soft); color: var(--text); }
+:root { caret-color: var(--teal-deep); }
+
+/* ---- The moment-after: crew channels + add-more (WhatsApp/Telegram/SMS/Insta).
+   New names only - the existing .created-* rules above stay untouched. Chips are
+   buttons with their own focus ring; no animation, so no reduced-motion duties. */
+.created-channels { display: inline-flex; gap: 5px; flex-wrap: wrap; }
+.created-ch {
+  border: 1px solid var(--line); border-radius: 999px; background: var(--card);
+  color: var(--text-2); font-size: 11px; font-weight: 700; padding: 3px 10px;
+  min-height: 24px;
+  cursor: pointer; transition: border-color var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out), background var(--motion-fast) var(--ease-out);
+}
+@media (hover: hover) { .created-ch:hover:not(:disabled) { border-color: var(--teal-deep); color: var(--ink-teal); background: var(--teal-soft); } }
+.created-ch:active { transform: scale(.97); }
+.created-ch:disabled { opacity: .45; cursor: not-allowed; }
+.created-ch:focus-visible { outline: none; box-shadow: var(--ring); }
+.created-broadcast { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; flex-basis: 100%; }
+.created-broadcast-label { font-size: 11px; color: var(--text-3); }
+.created-crew-add { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+.created-crew-add input {
+  flex: 1; min-width: 180px; border: 1px solid var(--line); border-radius: 999px;
+  padding: 7px 13px; font: inherit; font-size: 13px; background: var(--bg); color: var(--text);
+}
+.created-crew-add input:focus-visible { outline: none; box-shadow: var(--ring); border-color: var(--teal-deep); }
+.created-crew-add input::placeholder { color: var(--text-3); }
+
+/* ---- The form panel: the funnel sits on one quiet card (no shadow, per
+   review 2026-09-23) instead of floating on the bare canvas - the mockup's
+   .flow column rides an .app background. Only new names appended. ---- */
+.ct-panel {
+  display: flex; flex-direction: column; gap: 18px;
+  padding: 20px; border: 1px solid var(--line); border-radius: var(--radius);
+  background: var(--card);
+}
+/* the panel's 20px gutters double the page's own at phone width */
+@media (max-width: 480px) {
+  .ct-panel { padding: 14px; }
+}
+
+/* ---- In-map search result pins (Map tab search box) ---- */
+/* A current search's hits read as SELECTABLE markers, not corridor ideas:
+   solid teal with a white ring and a search glyph (the gold dashed pin
+   stays reserved for engine ideas). Active state = the row-highlight twin
+   of --active, teal ring instead of gold, steady. They disappear with the
+   results list when the search bar clears. */
+.yf-map-pin-search {
+  background: var(--teal-deep);
+  border-style: solid;
+  border-color: #fff;
+  color: var(--color-primary-foreground);
+  animation: none;
+}
+.yf-map-pin-search--active {
+  animation: none;
+  box-shadow: 0 0 0 2px var(--card), 0 0 0 5px var(--teal);
+  transform: scale(1.15);
+}
+
+/* search-result row: the selected twin of the map's teal search pin
+   (activeHitId highlights the row when its marker is tapped, and
+   scrollIntoView brings it into the list's view) */
+.map-search-results .row-between.is-selected {
+  background: color-mix(in srgb, var(--teal) 10%, transparent);
+  border-radius: 6px;
+}
+
+/* ============================================================
+   v0.66 — Creator hub: the working dashboard
+   ============================================================
+   The page leads with performance — one ruled KPI strip, the recorded-traffic
+   trend, then the publication rows — and closes with the creator profile in a
+   disclosure. Structure only: surfaces reuse `.card`, labels and figures reuse
+   the `.stat-label`/`.stat-value` ramp, and the only colour declared here is on
+   the chart's marks (fill/stroke, never a text pair), so this block adds no new
+   contrast pair and no new type below the floor.
+
+   APPENDED AT THE FILE'S END on purpose: the design-system ratchet is keyed by
+   the declaration text, but the design-doc pins read the file in order, so a
+   new section goes last like every section before it. */
+
+.hub-page { padding-top: 24px; padding-bottom: 24px; }
+.hub-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
+.hub-head-id h1 { margin: 0; }
+.hub-head-id p { margin: 4px 0 0; }
+.hub-tabs { margin-bottom: 16px; }
+
+/* ONE ruled strip, not four floating cards: the four lifetime figures are read
+   together or not at all, and four separate boxes would claim they are four
+   unrelated things. Dividers are logical so the strip mirrors under RTL.
+   It wears the app's chart-navy anchor band rather than another white card: on
+   a page of cream surfaces this is the one place the product raises its voice,
+   and navy is already the language for anchor panels (map, AI, dark cards). */
+.hub-strip { display: grid; grid-template-columns: repeat(4, 1fr); background: var(--yf-navy); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; margin-bottom: 16px; }
+.hub-cell { display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; }
+.hub-cell + .hub-cell { border-inline-start: 1px solid rgba(255, 255, 255, .16); }
+/* White on navy, which is the incumbent ink for this surface (see the navy
+   cards and the bench chip). NOT `--yf-cream`: that token is the canvas, so in
+   the dark theme it is near-black and the figures would vanish. Labels and
+   hints are softened with opacity rather than a translucent colour, so each
+   declaration stays measurable by the contrast gate. */
+.hub-strip .stat-value { color: #fff; }
+.hub-strip .stat-label { color: #fff; opacity: .78; }
+.hub-strip .metric-warn { color: var(--saffron); }
+
+/* Panel furniture. The surface itself is `.card`; only the internal head and
+   the figure's own margin are added, so the panel can never drift from the
+   cards the rest of the app draws. */
+.hub-panel-title { margin: 0; }
+.hub-panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.hub-panel-note { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 6px; }
+.hub-subhead { font-family: var(--font-display); font-size: 15px; font-weight: 700; margin: 20px 0 6px; }
+.hub-controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+
+/* ---- the instrument panel ------------------------------------------------
+   One surface, two columns, a hairline between them. Replaces the old
+   strip-then-two-cards stack, which left a gap under whichever column was
+   shorter and pushed the profile card to the foot of a long page. The split
+   starts at 1024 rather than 1280: a 1140px window is an ordinary laptop, and
+   the old threshold left it fully stacked. Logical border so it mirrors. */
+.hub-instrument { padding: 0; overflow: hidden; }
+.hub-instrument-cols { display: grid; grid-template-columns: 1fr; }
+.hub-instrument-col { padding: var(--space-8); min-width: 0; }
+.hub-instrument-col + .hub-instrument-col { border-top: 1px solid var(--line); }
+@media (min-width: 1024px) {
+  .hub-instrument-cols { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .hub-instrument-col + .hub-instrument-col { border-top: 0; border-inline-start: 1px solid var(--line); }
+}
+/* The panel's own head rows sit flush inside the column now that the surface
+   no longer supplies the card padding. */
+.hub-instrument-col .hub-panel-head,
+.hub-instrument-col .hub-lead-head { margin-bottom: var(--space-5); }
+.hub-instrument-col .hub-panel-title { margin: 0; font-family: var(--font-body); font-size: 11.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); }
+.hub-instrument-col .hub-lead-head span { font-size: 11.5px; color: var(--text-3); }
+/* In the narrower column the trend's key would crowd the window pills, so the
+   key rides under the plot with the axis instead of beside the title. */
+.hub-instrument-col .hub-chart { margin-top: var(--space-4); }
+.hub-instrument-col .hub-trend-void { margin-top: var(--space-4); }
+.hub-chart { position: relative; margin: 12px 0 0; }
+/* Aspect-locked to the viewBox: the chart scales as one drawing (round marks,
+   even strokes) instead of stretching to fill a fixed height. */
+.hub-chart-svg { display: block; width: 100%; height: auto; aspect-ratio: 600 / 150; cursor: crosshair; touch-action: pan-y; }
+.hc-zero { stroke: var(--line); stroke-width: 1; }
+/* The area is painted by a gradient defined in the SVG (the `fill` attribute
+   points at it), so this class must not set `fill` — CSS beats a presentation
+   attribute, and a fill here would silently replace the fade with a flat tint. */
+.hc-fade-top { stop-color: var(--teal-deep); stop-opacity: .30; }
+.hc-fade-bottom { stop-color: var(--teal-deep); stop-opacity: 0; }
+.hc-views-line { fill: none; stroke: var(--teal-deep); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+/* Forks ride a categorical hue (steel blue), not the warn family: a fork is a
+   step in the funnel, not a problem with it. */
+.hc-forks-line { fill: none; stroke: var(--cat-transport); stroke-width: 2; stroke-dasharray: 3 4; stroke-linejoin: round; stroke-linecap: round; }
+.hc-unlock { fill: var(--ink-amber); }
+/* Keyboard parity: the chart takes focus, so focus must be visible on it. */
+.hub-chart-svg:focus-visible { outline: none; box-shadow: var(--ring); border-radius: var(--radius-sm); }
+/* The hover guide: a hairline where the pointer is, with a ringed dot per
+   series so the reading is precise rather than approximate. */
+.hc-guide { stroke: var(--text-3); stroke-width: 1; stroke-opacity: .45; }
+.hc-hover-dot { fill: var(--card); stroke: var(--teal-deep); stroke-width: 2; }
+.hc-hover-dot.is-forks { stroke: var(--cat-transport); }
+.hub-chart-axis { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 6px; font-size: 11.5px; color: var(--text-3); }
+.hub-chart-key { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-top: 12px; font-size: 12.5px; color: var(--text-3); }
+/* The hover readout: the same navy anchor surface as the strip, so the chart's
+   own interactive chrome belongs to the system rather than floating above it. */
+.hub-chart-tip { position: absolute; top: 0; transform: translateX(-50%); display: flex; flex-direction: column; gap: 2px; padding: 8px 12px; border-radius: var(--radius-sm); background: var(--yf-navy); color: #fff; font-size: 12px; line-height: 1.4; white-space: nowrap; box-shadow: var(--shadow); pointer-events: none; z-index: 2; }
+.hub-chart-tip b { font-family: var(--font-display); font-size: 12.5px; }
+.hub-chart-tip .muted { color: #fff; opacity: .72; }
+.hc-key { display: inline-flex; align-items: center; gap: 6px; }
+.hc-swatch { display: inline-block; width: 8px; height: 8px; border-radius: 2px; }
+.hc-swatch-views { background: var(--teal-deep); }
+.hc-swatch-forks { background: var(--cat-transport); }
+.hc-swatch-unlocks { background: var(--ink-amber); }
+/* The SAME box the chart occupies, not a fixed height: the chart is
+   aspect-locked to its viewBox, so the only way the panel can hold its height
+   while a read is in flight is to reserve the identical rectangle. It carries
+   no sentence — the panel note above states the state once — so the dashed edge
+   is what makes it read as a deliberate empty slot rather than a broken chart. */
+.hub-trend-void { width: 100%; aspect-ratio: 600 / 150; border: 1px dashed var(--line); border-radius: var(--radius); }
+
+/* The panel's own pills. Inside a panel the glass capsule reads as a card
+   nested in a card (the detector flags exactly that), so the container gives up
+   its fill and border and the pills keep every affordance. */
+.hub-pills-quiet { background: transparent; border-color: transparent; box-shadow: none; }
+
+/* ---- the page's grid ------------------------------------------------- */
+/* The old two-card grid is gone: it is the instrument panel above. The only
+   rule that survives is the row-wrap guard its narrow column needed, now
+   applied to the rows inside that panel. */
+.hub-instrument-col .pub-row { flex-wrap: wrap; align-items: flex-start; }
+
+/* The counters-vs-log frame, said once for the account rather than once per row. */
+.hub-framing { margin: 0 0 16px; }
+.hub-note-action { margin: 8px 0 0; }
+
+/* Windowed figures lead; the all-time line stays the qualifier. */
+.hub-cell-hint { font-size: 11px; color: var(--text-3); }
+/* A figure that was never read, said in words rather than as a measured zero. */
+.hub-cell-unread { font-size: 16px; color: var(--yf-cream); opacity: .78; }
+.hub-strip .hub-cell-hint { color: #fff; opacity: .66; }
+.hub-controls-div { width: 1px; align-self: stretch; background: var(--line); }
+
+/* ---- publications, in the accepted "figures lead" hierarchy ---- */
+/* The funnel is the row's largest element and each stage wears the hue the
+   trend above uses for that stage, so a stage means one thing on the page. Rows
+   are a column stack; the actions close each one, left-aligned. */
+.hub-lead-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.hub-lead-head h2 { margin: 0; font-family: var(--font-body); font-size: 11.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); }
+.hub-lead-head span { font-size: 11.5px; color: var(--text-3); }
+.hub-lead-row { display: flex; flex-direction: column; gap: 6px; padding: 12px 0; }
+.hub-lead-row + .hub-lead-row { border-top: 1px solid var(--line); }
+.hub-lead-title { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.hub-lead-title a { font-weight: 600; font-size: 13.5px; color: var(--text); }
+.hub-lead-where { font-size: 11.5px; color: var(--text-3); }
+.hub-lead-steps { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; font-size: 11.5px; color: var(--text-3); }
+.hub-lead-step { display: flex; align-items: baseline; gap: 5px; }
+.hub-lead-window { font-weight: 600; color: var(--text-2); }
+.hub-lead-rate { color: var(--text-3); }
+.hub-lead-n { font-family: var(--font-display); font-size: 23px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.hub-lead-visits .hub-lead-n { color: var(--teal-deep); }
+.hub-lead-forks .hub-lead-n { color: var(--cat-transport); }
+.hub-lead-unlocks .hub-lead-n { color: var(--ink-amber); }
+/* The drop-off: the empty track IS the traffic you had, and the two separated
+   marks are what survived each step. The gap is what stops it reading as one
+   stripe — an earlier version overlaid all three stages at the same origin. */
+.hub-lead-bar { position: relative; height: 6px; border-radius: 999px; background: var(--bg-soft); overflow: hidden; }
+.hub-lead-bar i { position: absolute; inset-block: 0; inset-inline-start: 0; border-radius: 999px; background: var(--cat-transport); }
+.hub-lead-bar i.is-unlock { background: var(--ink-amber); }
+.hub-lead-row .pub-row-actions { justify-content: flex-start; }
+
+/* ---- the creator profile: one quiet line, closed by default ---- */
+/* Live mode made this a single line rather than a card: it is a thing you set
+   once, and a full-width card at the foot made the page's last thing a
+   maintenance surface rather than a decision. The summary is the whole row —
+   one control, the full-width hit target — and it carries the chevron, because
+   hiding the native marker without replacing it leaves a static-looking heading. */
+.hub-profile { padding: 0 var(--space-7); background: transparent; border-color: transparent; box-shadow: none; }
+.hub-profile[open] { background: var(--card); border-color: var(--line); box-shadow: var(--shadow); padding: var(--space-8); }
+.hub-profile-summary { display: flex; align-items: center; gap: 12px; padding: var(--space-5) 0; cursor: pointer; list-style: none; }
+.hub-profile-summary::-webkit-details-marker { display: none; }
+.hub-profile[open] .hub-profile-summary { margin-bottom: 12px; padding-bottom: var(--space-5); border-bottom: 1px solid var(--line); }
+.hub-profile-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
+/* Hiding the native marker without putting something else there leaves a row
+   that reads as a static heading, so the summary carries the same chevron
+   treatment as the POI disclosures: token-eased, frozen under reduced motion. */
+.hub-chev { display: inline-flex; margin-inline-start: auto; color: var(--text-3); transition: transform var(--motion-fast) var(--ease-out); }
+.hub-profile[open] .hub-chev { transform: rotate(180deg); }
+.hub-profile-summary:hover .hub-panel-title { text-decoration: underline; text-underline-offset: 3px; }
+/* Same ring as its sibling summaries (`.poi-alts summary`, `.poi-more summary`)
+   — a disclosure you cannot see focus on is not keyboard-reachable in practice. */
+.hub-profile-summary:focus-visible { outline: none; box-shadow: var(--ring); border-radius: var(--radius); }
+@media (prefers-reduced-motion: reduce) {
+  .hub-chev { transition: none; }
+}
+
+@media (max-width: 720px) {
+  .hub-page { padding-top: 16px; }
+  /* Two figures per row: four across a phone gives each one a column too narrow
+     for a rupee figure, and a wrapped strip reads as four rows anyway. */
+  .hub-strip { grid-template-columns: repeat(2, 1fr); }
+  .hub-cell + .hub-cell { border-inline-start: 0; }
+  .hub-cell:nth-child(even) { border-inline-start: 1px solid rgba(255, 255, 255, .16); }
+  .hub-cell:nth-child(n+3) { border-top: 1px solid rgba(255, 255, 255, .16); }
+  /* Two cells across 320px leave ~107px of content box, which a six-figure
+     rupee amount at the desktop 23px would clip rather than wrap. */
+  .hub-cell-value { font-size: 20px; }
 }

@@ -118,6 +118,25 @@ export function ConfirmDialog({ open, title, body, confirmLabel = 'Confirm', can
   )
 }
 
+/** The ONE assertive beat for a failing form submit. Mount once inside a
+ *  <form> and pass it the error record: while it is empty it renders nothing,
+ *  and the moment errors arrive it announces the FIRST one assertively,
+ *  prefixed with the field's label when the caller supplies `labels`, so the
+ *  announcement names which control resolves it. Field-level messages stay
+ *  polite (role=status), so a multi-field failure is one interruption plus
+ *  field-tied repeats, not an announcement per field. */
+export function FormErrorSummary({ errors, labels }: { errors: Record<string, string>; labels?: Record<string, string> }) {
+  const summaryRef = useRef<HTMLParagraphElement>(null)
+  const keys = Object.keys(errors)
+  const first = keys.length ? labels?.[keys[0]] ? `${labels[keys[0]]}: ${errors[keys[0]]}` : errors[keys[0]] : null
+  if (!first) return null
+  return (
+    <p ref={summaryRef} className="sr-only" role="alert" aria-live="assertive">
+      {first}
+    </p>
+  )
+}
+
 /** Form row: label + control + hint/error. The label is programmatically
  *  associated with the row's control (UI audit F-01): Field generates an id
  *  and injects it into the first control child via cloneElement - host
@@ -160,7 +179,13 @@ export function Field(props: {
       <label className="label" htmlFor={associated ? controlId : undefined}>{props.label}</label>
       {wired}
       {props.hint && !props.error && <span className="hint-text" id={hintId}>{props.hint}</span>}
-      {props.error && <span className="err-text" role="alert" id={errId}>{props.error}</span>}
+      {/* Field-tied error copy is POLITE, not assertive: a form submit that fails
+          in several fields would otherwise fire one interrupting announcement per
+          field (the create form measured three at once). The page's summary
+          region — <FormErrorSummary /> when a form mounts one — carries the ONE
+          assertive beat; this message is still bound to its control via
+          aria-describedby, so tabbing to the field repeats it. */}
+      {props.error && <span className="err-text" role="status" aria-live="polite" id={errId}>{props.error}</span>}
     </div>
   )
 }

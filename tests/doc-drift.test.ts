@@ -77,6 +77,10 @@ const CUES = [
   'not wired', 'reads nothing from', 'still to come', 'still to be',
   'will be wired', 'will be added', 'unbuilt', 'is not built', 'not implemented',
   'no payouts table', 'to be wired', 'yet to be', 'nothing from them',
+  // The shipped-work absence phrasings: the slots decision block (2026-09-22) said
+  // three plan items "did not ship" hours before #303 shipped them, and no cue here
+  // could see the claim. Zero live-doc hits on the day this line was added.
+  'did not ship', 'never shipped', 'has not shipped', 'not yet shipped',
 ]
 
 /** Repo evidence that would make a claim false. `paths` takes a file or a

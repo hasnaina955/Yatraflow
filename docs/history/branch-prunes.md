@@ -1,9 +1,12 @@
-# Merged branches pruned on 2026-09-20
+# Merged branches pruned — the running record
 
 Point-in-time record. Two prunes happened on **2026-09-20**: the batched sweep of 17 refs
 below, and then — under the convention that sweep introduced — a single branch pruned at the
-moment its PR merged. This file is what keeps both reversible in writing. `main` was `55efd21`
-throughout; `test` was `e5bba2a` during the sweep and `9bac779` at the second prune.
+moment its PR merged. A third sweep, recorded in its own section below, pruned the three
+`test`-merged hold-outs on **2026-09-22**, once the v0.65.0 promotion made their work
+ancestors of `main`. This file is what keeps all of it reversible in writing. `main` was
+`55efd21` on 2026-09-20 and `3893ccc` at the 2026-09-22 sweep; `test` was `e5bba2a` during
+the first sweep and `9bac779` at the second prune.
 
 ## Why these, and why it was safe
 
@@ -59,8 +62,29 @@ branch, and `refs/pull/268/head` resolved before deletion.
 
 **One honest difference from the 17 above: this branch is not reachable from `main`.** It
 merged into `test` (`9bac779`, 25 commits ahead of `main` at `55efd21`), so it is an ancestor
-of `test` only — the "from `main`" recovery path does not apply to it until the next
-promotion. The PR path does, and was verified.
+of `test` only — the "from `main`" recovery path did not apply to it until the next
+promotion. The PR path did, and was verified. (It reached `main` with the v0.65.0 promotion,
+PR #304, so both paths answer for it now.)
+
+## Pruned at the v0.65.0 promotion (2026-09-22): the three `test`-merged hold-outs
+
+The 2026-09-20 sweep deliberately kept branches whose work had merged into `test` but not yet
+into `main`. **PR #304** (the v0.65.0 promotion, `main` and `test` both at `3893ccc`, merged
+2026-09-22 16:01 UTC) made all of that work ancestors of `main`, and these three refs were
+pruned in its wake. Verified gone 2026-09-22 via `git ls-remote --heads origin` — **5 heads
+remain**: `main`, `test`, and the three kept-on-purpose branches in "Not pruned" below.
+
+| Branch | Head SHA | Owning PR |
+|---|---|---|
+| `docs/creator-market-research` | `09c57d047011efd05929df28dc5db42696764e37` | #254 (→ `test`, merged 2026-09-20) |
+| `fix/explore-clipping` | `da0e724e7b339ac5528f98c575b2a3e8fac7ba59` | #261 (→ `test`, merged 2026-09-20) |
+| `fix/onboarding-design-audit` | `9270a2e4e974c5010312ec31b0a811b9981cdb51` | #269 (→ `test`, merged 2026-09-20) |
+
+The deleted refs cannot be re-inspected, so each SHA above is its PR's head as GitHub
+recorded it (`gh pr view <n> --json headRefOid`), not a fresh ref read. Both recovery paths
+answer for all three, and were checked 2026-09-22: `refs/pull/<n>/head` resolves for #254,
+#261 and #269, and the compare API reports `main` strictly ahead of each SHA
+(`behind_by` 0) — every commit on them is reachable from production.
 
 ## How to recover one
 
@@ -71,7 +95,8 @@ Two independent paths, either of which works after the prune:
   #235, #254, #261 and #265, including #235, which was closed without merging.
 - **From `main`** — every SHA in the 17-ref sweep above is an ancestor of `main`, so
   `git branch <name> <sha>` restores the ref from what production already holds. (The #268
-  entry is not in `main` yet — use the PR path for that one.)
+  entry and the three 2026-09-22 hold-outs reached `main` with the v0.65.0 promotion — the
+  compare checks in that section are the proof.)
 
 The PR is the durable artifact; the branch name was only ever a temporary pointer to it.
 
@@ -80,9 +105,141 @@ The PR is the durable artifact; the branch name was only ever a temporary pointe
 | Branch | Reason kept |
 |---|---|
 | `main`, `test` | the two long-lived refs |
-| `docs/creator-market-research` | #254 merged into `test`, not yet in `main` |
-| `fix/explore-clipping` | #261 merged into `test`, not yet in `main` |
-| `fix/onboarding-design-audit` | PR #269 open |
 | `refactor/brand-seam` | archived by decision; no PR ever, so the branch was the only remote copy of its commit |
 | `explore/landing-hero-local` | landing-page experiment; no PR ever, same single-copy situation |
 | `feat/share-preview-og` | PR #235 closed as superseded; kept as the counter-example whose `api/i.js`/`shareUrl.ts` must not be merged over the versions that landed |
+
+---
+
+# Merged branches pruned on 2026-09-22
+
+Point-in-time record: the sweep after the **v0.65.0** promotion (`3893ccc`). 41 remote heads
+before, **5** after — `main`, `test`, and the three keeps from the section above
+(`refactor/brand-seam`, `explore/landing-hero-local`, `feat/share-preview-og`). PR **#294**
+was closed by hand first (with a comment recording that the queue integration merged its
+branch directly), so the gate's open-PR check ran against the real world.
+
+## Why these, and why it was safe
+
+One scripted pre-flight that aborts wholesale, per the AGENTS prune gate: each of the 36 was
+verified (a) an ancestor of `origin/main` **or** `origin/test` (both `3893ccc` after the
+promotion), (b) with **no open PR**, and (c) with PR history present — or, for the two
+never-PR'd refs, ancestry alone, which is the strict test (their commits are reachable from
+`main`). All 36 passed. This is not an age-based cleanup: `docs/roadmap-slots-decisions` was
+four days old and went for merged-ness alone.
+
+Two mechanics this sweep taught (now rules in AGENTS §1.1):
+
+1. **Enumerate with `git ls-remote --heads origin`**, not `for-each-ref refs/remotes/origin` —
+   the namespace's own `origin/HEAD` prints as a phantom `origin` "branch", passes an ancestry
+   check (it carries `main`'s SHA), and cannot be deleted: one un-deletable name in a batched
+   `git push --delete` **aborts the entire sweep** (the first attempt deleted nothing).
+2. **Record every head SHA before deleting** — a successful `push --delete` also prunes the
+   local remote-tracking refs. The SHAs below come from each PR's `head.sha` (GitHub keeps
+   `refs/pull/<n>/head` after branch deletion, so every deleted head stays fetchable).
+
+Note: three rows of the "Not pruned" table above expired and were pruned here —
+`docs/creator-market-research` (#254) and `fix/explore-clipping` (#261) at this promotion,
+`fix/onboarding-design-audit` (#269) at its merge. Local refs were **not** touched:
+`feat/migration-status-check` and `fix/map-day-fit` remain as local branches — and the latter
+carries two unpushed coordinate commits (`55a3a5a`, `7845d0e`) whose only copy is this clone.
+
+## The 36 deleted refs
+
+| Branch | Head SHA | Owning PR |
+|---|---|---|
+| `cline/g9wfhxqs` | `68c3764df212952b9001b7254a91009d3a6ba935` | — (no PR; cline artifact of `feat/ai-companion-m5`, same head) |
+| `docs/creator-market-research` | `09c57d047011efd05929df28dc5db42696764e37` | #254 |
+| `docs/roadmap-slots-decisions` | `23a9d0df701f925cd2d7d9f5b41af08cbfae4ad5` | #299 |
+| `feat/admin-revenue` | `32fa5d0d5bc89def53d5f472c86c47ffedabb97e` | #277 |
+| `feat/agents-sandbox-docs` | `30be334aeb27b80bb98e0df1199e6fb96ce79a51` | #280 |
+| `feat/ai-companion-m5` | `68c3764df212952b9001b7254a91009d3a6ba935` | #289 |
+| `feat/console-by-pub` | `c5d839032bfba687a701035e5b0062942b150352` | #284 |
+| `feat/create-funnel-p1` | `6453ff199a88d72cffc0e3e25f02f850d85f9751` | #302 |
+| `feat/day-slots-engine` | `3b6a814df5c95419005d0afcae612e843b11176f` | #271 |
+| `feat/doc-drift-gate` | `8aeb913fd0902cb7b3e46b484674ec6794c31fbf` | #282, #278 |
+| `feat/fee-ladder-payouts` | `5df9d357d9a6525c11391cc1fba51cdc7fdb2086` | #276 |
+| `feat/fixture-kit` | `7a26605adc6e0468c4b9681f09ed2e16d9b46a5e` | #286 |
+| `feat/fixture-v2` | `f1bdb9faf61b6574ff088bdc7c690989510d198c` | #283 |
+| `feat/funnel-record` | `76cb93cb5cf8bb583c6cc4e04d96f791022e2e3f` | #281 |
+| `feat/funnel-surface-retention` | `3fd1106df754ee0cd917c6fed73a0f30ea12bacc` | #285 |
+| `feat/i21-share-card` | `ee55e799baad74ee00cc7aa97d9075359e7dc938` | #275 |
+| `feat/m6-followups-i19-i16` | `643cbd537b2c66ba2d21d8e02d51f219b048303e` | #272 |
+| `feat/map-search-fixes` | `43f2a8ce8c5fe317d9a78cf932a055171276e7c4` | #274 |
+| `feat/map-slot-search` | `97a96cfde4297c3e8410a5374631ec8381a11379` | #301 |
+| `feat/offline-read` | `50724b39536896c941b226624049c53d97892da4` | #294 |
+| `feat/purchases-shelf-i20` | `372826e246afd33a1928870c29572041bf51dea1` | #273 |
+| `feat/pwa-shell` | `b9ad58269d178b984f6f64e200e9d0cb0feb863e` | #293 |
+| `fix/agents-recipe-and-eol` | `b7719bb2954462a02d705e1726daca9e54af0c52` | #288 |
+| `fix/apk-native-shell` | `1d28676d7a3c1d8755981e5be30d5915acd3e49c` | #290 |
+| `fix/board-kind-glyphs` | `4e25744c0b116651a9de0c7c9f174bfa7e3d674c` | #296 |
+| `fix/design-language-audit` | `f613d9e9d1fc0ad93a837c92710c347bca1ee880` | #292 |
+| `fix/explore-clipping` | `da0e724e7b339ac5528f98c575b2a3e8fac7ba59` | #261 |
+| `fix/map-day-fit` | `a558bfccddefec4166320ece2148b7d5fa699731` | #300 |
+| `fix/map-tab-batch` | `317179179179a9feecf3b47dde9942c4137397ce` | #297 |
+| `fix/map-tab-p3s` | `d7feae5082180cd7904062daccf33be97973953a` | #303 |
+| `fix/map-tab-review-round` | `7f4c58bf2a42ef93bc33f5d3ff5eb8834db48c28` | #295 |
+| `fix/map-tab-tray-drift` | `d7e3f4b4ce0d1c064df9d2a63632b95a9327ffab` | #298 |
+| `fix/migration-guard` | `144de63f17df397d426be98b1d381588bcf8eb1d` | #287 |
+| `fix/onboarding-design-audit` | `9270a2e4e974c5010312ec31b0a811b9981cdb51` | #269 |
+| `redesign/landing-taste-pass` | `e8c0a1881f7f83b0dd0f80c431bdd37dab87d5ea` | #279 |
+| `security/audit-fixes` | `e3598507dce627b84a5511c6229778d285b20e49` | #291 |
+
+---
+
+# Merged branches pruned on 2026-09-23
+
+Point-in-time record: the sweep after **#305, #306 and #307** merged into `test` (all three
+2026-09-23). 8 remote heads before, **5** after — `main`, `test`, and the three keeps from the
+section above (`refactor/brand-seam`, `explore/landing-hero-local`, `feat/share-preview-og`).
+
+## Why these, and why it was safe
+
+One scripted pre-flight that aborts wholesale, per the AGENTS prune gate; every head enumerated
+with `git ls-remote --heads origin` and every SHA below captured **before** deletion (the
+`push --delete` that follows also prunes the local remote-tracking refs). Per branch, four
+checks had to pass, and all three did:
+
+1. the local `origin/<b>` ref agreed byte-for-byte with the fresh remote (no racing refs);
+2. the head was an **ancestor of `origin/test`** (all three are `test`-only — none had reached
+   `main` yet, which the gate allows: merged-ness in the branch's own target is what matters);
+3. the owning PR read **`MERGED`** (`gh pr view <n> --json state`);
+4. the name was not on the keep-list.
+
+Then one batched `git push --delete` for all three. The same fetch's `--prune` also reaped **34
+stale remote-tracking refs** the local namespace still carried from the 2026-09-22 sweep
+(`origin/fix/map-tab-p3s` et al.) — they were already gone from the server; the local view just
+hadn't caught up. Remote view and local view now agree at 5 heads.
+
+## The three deleted refs
+
+| Branch | Head SHA | Owning PR |
+|---|---|---|
+| `cline/fcbce69x` | `ed44063b89fa49e7c8b7da0456cd3b493c2be795` | #305 |
+| `feat/theme-selection-caret` | `b92c858eca49e13540fa8e5433439f7195023b6f` | #306 |
+| `fix/entry-path-review` | `9c321c90240fb8fef69dff89e7f1ccd3f3c31692` | #307 |
+
+All three SHAs remain fetchable via `refs/pull/<n>/head`. This sweep's own record-carrier
+(`docs/roadmap-slots-record-sync`) is **pruned at its own merge**, moments after this text
+reaches `test` — its head SHA post-dates this commit by construction; read it from the PR
+(`gh pr view <n> --json headRefOid`), which is also where the deletion is verifiable.
+
+## Local refs this time: 17 deleted, 3 kept
+
+Unlike the 2026-09-22 sweep (which deliberately left local refs alone), this clone's own
+branches got the same gate: 17 were ancestors of `origin/test`/`origin/main` and were deleted
+with `git branch -D` (all recoverable — e.g. `fix/map-tab-p3s`, `feat/map-slot-search`,
+`docs/roadmap-slots-decisions`, `promote`-era helpers). Local `test` and `main` were
+fast-forwarded to their remotes. **Kept pending a human check**, because they are *not*
+ancestors of either remote tip and may hold work that exists only here:
+
+| Branch | Head SHA | Why kept |
+|---|---|---|
+| `conflict/268-settle-nudge` | `d2fafabc762a579d460a0d472da6b347aa831543` | not in `origin/test`/`main` — possible unpushed variant of #268's conflict resolution |
+| `docs/changelog-269` | `a77f6e767b288fc5ebc74f397d5c63fb5a18ac03` | not in `origin/test`/`main` — possible unpushed changelog work for #269 |
+| `promote/v0.64.0` | `2fd3e7ddd68e61f92580c5fbb9711619027d9aca` | the v0.64.0 promotion branch; `main` took that release as a reconciled squash (`f50a47a`), so the original line may not be an ancestor anywhere |
+
+How to recover any branch deleted here: `git branch <name> <sha>` — every SHA above is reachable
+from `origin/test` (or from `refs/pull/<n>/head` where only the PR answers). For the three kept
+locals: `git cherry origin/test <name>` reports whether their patches are already upstream before
+anyone decides to delete them too.

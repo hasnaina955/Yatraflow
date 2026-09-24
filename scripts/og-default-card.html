@@ -11,13 +11,13 @@
   "C:\Program Files\Google\Chrome\Application\chrome.exe" --headless=new --disable-gpu --hide-scrollbars --force-device-scale-factor=1 --window-size=1200,630 --virtual-time-budget=15000 --screenshot=public/og-default.png "file:///<repo>/scripts/og-default-card.html"
 
   A fixed canvas, so it positions absolutely and loads the app's own faces
-  (Sora for the headline, Inter for the rest). It is a picture, not a
+  (Sora for the headline, Plus Jakarta Sans for the rest). It is a picture, not a
   responsive surface — do not reuse it as app UI.
 -->
 <meta charset="utf-8" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
 <style>
   :root {
     --cream: #F8F7EF;
@@ -31,7 +31,7 @@
   body {
     position: relative;
     background: var(--cream);
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
     color: var(--navy);
     -webkit-font-smoothing: antialiased;
   }

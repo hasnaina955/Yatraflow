@@ -19,8 +19,12 @@ const source = (rel: string) => readFileSync(new URL('../' + rel, import.meta.ur
 
 const loadedWeights = (s: string): Set<number> => {
   const out = new Set<number>()
-  for (const m of s.matchAll(/(?:Inter|Sora):wght@([\d;]+)/g)) {
-    for (const w of m[1].split(';')) out.add(Number(w))
+  // Family-agnostic on purpose: read every `family=<Name>:wght@<weights>` axis
+  // in the link rather than naming the families, so swapping one (Inter ->
+  // Plus Jakarta Sans, Sep 2026) or adding a third cannot silently empty this
+  // set and turn the gate into a no-op that passes on nothing.
+  for (const m of s.matchAll(/family=([^:&"']+):wght@([\d;]+)/g)) {
+    for (const w of m[2].split(';')) out.add(Number(w))
   }
   return out
 }
@@ -54,8 +58,8 @@ function mediaBlocks(cssText: string, query: string): string[] {
 describe('font weights match the loaded faces', () => {
   const loaded = loadedWeights(html)
 
-  it('loads the canonical weight set (Inter 400-800, Sora 600-800)', () => {
-    for (const w of [400, 500, 600, 700, 800]) expect(loaded.has(w), `Inter/Sora must ship ${w}`).toBe(true)
+  it('loads the canonical weight set (Plus Jakarta Sans 400-800, Sora 600-800)', () => {
+    for (const w of [400, 500, 600, 700, 800]) expect(loaded.has(w), `Plus Jakarta Sans/Sora must ship ${w}`).toBe(true)
   })
 
   it('declares no font-weight that the font link does not load', () => {
@@ -840,6 +844,78 @@ describe('the day collapse moves as one gesture', () => {
     const chips = rule('.day-cost-chip, .day-dwell-chip, .weather-chip, .dwell-bars')
     expect(chips, 'the header extras are missing from styles.css').toBeTruthy()
     expect(chips!.body).toMatch(/animation:\s*popover-in var\(--motion-med\) var\(--ease-out\)/)
+  })
+})
+
+describe('icon stroke weight is a token, not a library default', () => {
+  // Lucide's stock weight is 2, emitted as a presentation attribute on every
+  // glyph - `stroke-width="2"` on all ~291 icon tags in the app. A presentation
+  // attribute loses to any CSS declaration, so the app re-inks the whole set
+  // from ONE rule rather than carrying a prop on each usage. These pins keep it
+  // that way: the token must exist, the rule must consume it, and no component
+  // may drift back to the library default.
+  it('declares the token and consumes it from the .lucide base rule', () => {
+    expect(css, '--icon-stroke token missing from styles.css').toMatch(/--icon-stroke:\s*1\.5;/)
+    expect(css, 'the .lucide base rule is missing').toMatch(/\.lucide\s*\{\s*stroke-width:\s*var\(--icon-stroke\)/)
+  })
+
+  it('leaves no icon component on the library default weight', () => {
+    const off: string[] = []
+    for (const { rel, text } of sourceFiles) {
+      for (const m of text.matchAll(/<([A-Z]\w*)[^>]*\bstrokeWidth=\{2\}/g)) off.push(`${rel} -> <${m[1]}>`)
+    }
+    expect(off, `use the --icon-stroke token instead of strokeWidth={2}:\n${off.join('\n')}`).toEqual([])
+  })
+})
+
+describe('the typefaces are the language, not a preference', () => {
+  // The weight gate above is deliberately FAMILY-AGNOSTIC: it reads every
+  // `family=<name>:wght@` axis so that swapping a family cannot silently empty
+  // the loaded-weight set and leave the gate passing on nothing. That symmetry
+  // has a cost - on its own it would let a revert to Inter pass the build. The
+  // families themselves are pinned here instead.
+  const families = [...html.matchAll(/family=([^:&"']+):wght@/g)].map((m) => m[1].replace(/\+/g, ' '))
+
+  it('declares Plus Jakarta Sans and Sora on the font link', () => {
+    expect(families, `font link declares: ${families.join(', ')}`).toContain('Plus Jakarta Sans')
+    expect(families, `font link declares: ${families.join(', ')}`).toContain('Sora')
+  })
+
+  it('routes both font tokens through them, so every surface inherits them', () => {
+    expect(css, 'the body token must lead with Plus Jakarta Sans').toMatch(/--font-body:\s*'Plus Jakarta Sans'/)
+    expect(css, 'the display token must lead with Sora').toMatch(/--font-display:\s*'Sora'/)
+  })
+})
+
+describe('the toggle glider glides on its box, not a transform', () => {
+  // Two regressions in a single day motivate this block, and both were caught by
+  // eye rather than by the suite. (1) A `scaleX` FLIP was built to match
+  // MOTION-TOKENS.md's catalog row, which claimed a "transform slide" the
+  // implementation never had - it stretched the pill's rounded ends into
+  // ellipses (scaleX 1.93 on a 76px -> 146px tab change), so the glide read as
+  // the animation breaking. (2) That same rewrite dropped the +4 which insets
+  // the glider 4px top and bottom against its `- 8` height, so every active pill
+  // across the fifteen surfaces PillNav renders on sat 4px high.
+  it('transitions the box and never a transform', () => {
+    const rule = cssRules.find((r) => normalise(r.selector) === '.pill-glider')
+    expect(rule, 'the .pill-glider rule is missing from styles.css').toBeTruthy()
+    const transition = declMap(stripCssComments(rule!.body)).get('transition') ?? ''
+    expect(transition, 'the glider must transition its own box').toMatch(/\bleft\b/)
+    expect(transition, 'the glider must transition its own box').toMatch(/\bwidth\b/)
+    expect(transition, 'a transform glide stretches a rounded pill into ellipses - see the note above').not.toMatch(/transform/)
+  })
+
+  it('keeps the 4px inset that centres the fill on its label', () => {
+    const nav = source('src/components/PillNav.tsx')
+    expect(nav, 'the glider must be inset 4px from the item top, paired with the -8 on its height').toMatch(/wrap\.clientTop\s*\+\s*4/)
+    expect(nav, 'the glider must write its box').toMatch(/glider\.style\.left\s*=/)
+    expect(nav, 'and must not write a transform').not.toMatch(/glider\.style\.transform\s*=/)
+  })
+
+  it('does not describe the glider as a transform slide', () => {
+    const row = source('docs/MOTION-TOKENS.md').split(/\r?\n/).find((l) => l.startsWith('| Toggle glider'))
+    expect(row, 'the Toggle glider row is missing from the catalog').toBeTruthy()
+    expect(row!, 'the catalog must describe a BOX glide - its old "transform slide" claim is what pointed the change the wrong way').toMatch(/\bbox\b/i)
   })
 })
 

@@ -105,7 +105,9 @@ export function CoverImagePicker({ trip, editable }: { trip: Trip; editable: boo
             />
             <button type="button" className="btn btn-outline btn-sm" onClick={onCustom}>Set</button>
           </div>
-          {error && <p className="err-text" role="alert">{error}</p>}
+          {/* Field-tied, so polite — FormErrorSummary (when the host form mounts
+              one) owns the assertive beat. */}
+          {error && <p className="err-text" role="status" aria-live="polite">{error}</p>}
           {trip.coverImageUrl && (
             <button type="button" className="btn btn-ghost btn-sm" onClick={() => setCover(undefined)}>Use emoji only</button>
           )}

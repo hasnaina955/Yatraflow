@@ -81,7 +81,7 @@ describe('app link click decisions', () => {
 })
 
 describe('publication-reachable anchor wiring', () => {
-  it.each([['../src/App.tsx', 12], ['../src/pages/PublicItinerary.tsx', 1]] as const)('uses the shared pattern on every route anchor in %s', (path, count) => {
+  it.each([['../src/App.tsx', 13], ['../src/pages/PublicItinerary.tsx', 1]] as const)('uses the shared pattern on every route anchor in %s', (path, count) => {
     const source = readFileSync(new URL(path, import.meta.url), 'utf8')
     expect(source.match(/\{\.\.\.appLink\(/g)).toHaveLength(count)
     expect(source).not.toMatch(/href=\{?["'`]#\//)

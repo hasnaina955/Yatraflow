@@ -1950,6 +1950,43 @@ button.board-col-zone--add:active { transform: translateY(1px); }
    Three items, three cells, no empty tile. Collapses to one column at 980px. */
 .feature-strip { display: grid; grid-template-columns: 1.2fr 1fr; gap: 14px; margin: 0 0 44px; }
 .feature-bento > .feature-card:first-child { grid-row: span 2; }
+/* ---------- Double-Bezel: the shared tray + plate ----------
+   A machined card is a PLATE sitting in a TRAY. This is the pair used by the
+   surfaces whose plate is a `.card` (Explore's grid and the creator pages via
+   PubCard) - the landing's `.feature-card`/`.feature-core` below is the same
+   idea written bespoke for its photo cell.
+   CONCENTRIC is the whole point: the plate's radius is the tray's minus the
+   tray's inset (6px padding + 1px border = 7px), so the two curves stay
+   parallel rather than merely both being round. `border-color: transparent`
+   because the tray's own hairline is the only line the eye should read - the
+   plate inheriting `.card`'s border is what produced a grey outline on the
+   public itinerary.
+   CANVAS CAVEAT, learned the hard way on that page: this reads as a tray when
+   the tray's fill differs from what is behind it. `--yf-glass` is white/58 over
+   the cream canvas, so the band is subtle here; on the near-white paper sheet a
+   tray had to be a darker tint and then read as a wireframe outline instead, so
+   the bezel was dropped there rather than forced. */
+.bezel {
+  display: flex; flex-direction: column;
+  padding: 6px; border-radius: 2rem;
+  background: var(--yf-glass); border: 1px solid var(--yf-glass-border);
+  /* NO outer hairline, deliberately. The first cut carried the landing's
+     `0 0 0 1px rgba(navy,.05)` ring; measured against this canvas the tray FILL
+     is imperceptible - cream #F8F7EF -> 58% white = #FBFAF7, a 1.3% step, then
+     the plate adds another 1.3% to pure white - so the only part of the tray the
+     eye actually caught was that 1px line, which is the "grey outline" reading
+     we already rejected on the public itinerary. On a light canvas a tray has to
+     be defined by DEPTH, not by tone or by a line: the diffuse ambient shadow
+     below is what makes it read as a slab the plate sits in. */
+  box-shadow: var(--shadow-soft);
+}
+.bezel > .card {
+  flex: 1;
+  border-color: transparent;
+  border-radius: calc(2rem - 7px);
+  box-shadow: inset 0 1px 0 var(--yf-glass-sheen);
+}
+
 /* ---------- Double-Bezel feature card (landing) ----------
    The cell is machined hardware rather than a flat tile: an outer tray
    (translucent fill, hairline ring, oversized radius, diffuse depth) holding an

@@ -83,6 +83,57 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
   rung now covers 481–560px (it stopped at 480px), a band where the desktop spacings overflowed
   the pill and `overflow-x: clip` cut "Start planning free" mid-label.
 
+- **The Creator hub is a dashboard now.** It opens on performance instead of settings: one ruled
+  KPI strip, then the recorded-traffic trend — visits, forks and unlocks over 7/30/90 days, drawn
+  from the same derivation the rows beneath it read, so the chart and the table can never describe
+  different windows — then one row per publication with its funnel and actions. The creator profile
+  (bio, socials, the disable switch) moved into a disclosure at the foot of the page; it used to own
+  the entire fold. Every honesty state is unchanged and verbatim: a failed read still never reads as
+  an empty ledger, an un-recorded window still says so rather than printing zeroes, the stale page
+  still says which page is behind, and the counters-predate-the-log sentence still sits beside the
+  numbers it explains. Two things the review caught are fixed with it: the trend and the table now share one CLOSED window, so a step dated after the clock counts in neither instead of counting in the table and falling off the chart; and because unlocks come from the sales ledger, an unread ledger leaves that stage *unknown* in the row and the legend rather than printing a zero that reads as "nobody bought".
+
+- **The hub's figures got their hierarchy, and the trend its readout.** The publication panel now
+  leads with the funnel: each stage renders as a large figure in the hue the trend above already
+  uses for that stage, over a bar that *nests* the stages — a fork is a visit that forked, so the
+  narrower stages sit inside the widest — instead of three segments that add up past the traffic
+  there was. The trend draws a monotone-smoothed curve: smooth between days, and mathematically
+  unable to overshoot and invent traffic between two points, with a gradient area and a hover guide
+  naming that day's visits, forks and unlocks (and saying "unlocks not read" rather than zero when
+  the ledger is unread). The KPI strip wears the chart-navy anchor band the map and AI panels
+  already use, inked in white - not `--yf-cream`, which is the canvas colour and would vanish in
+  the dark theme.
+
+- **The second critique pass, answered.** A re-run scored the hub 30/40 and found the earnings tab
+  still contradicting itself: a failed ledger read rendered as `₹0` lifetime, `0` sales and a
+  confident "nothing to pay out yet" beside reassuring prose. All three now read **Not read**
+  (or **Reading…**) and the payout conclusion is withheld until the ledger answers — the
+  arithmetic still falls back to zero, but a number that was never read is never shown as one.
+  The publication row's stage bar was a three-colour stripe (all stages drawn at the same origin);
+  it is now the drop-off it claimed to be — an empty track for the traffic you had, with the
+  surviving stages as two separated marks, and no unlock mark at all while the ledger is unread.
+  Each row states its window ("in 30 days") and each rate its denominator ("11% of visits"), so
+  the figures no longer depend on remembering which window is selected. The trend takes keyboard
+  focus and steps by day (arrows, Home/End, Escape to dismiss), a tap latches the readout instead
+  of losing it on lift, the tooltip can no longer overflow the panel edge, and the unlock stage
+  wears one hue everywhere — `--ink-amber` in the chart mark, the legend and the row figures —
+  leaving saffron for publish and invite actions.
+
+- **The creator hub's 23 review findings are cleared — and the gate that raised them is
+  reproducible at last.** Codacy held PR #315 on three ESLint rules that the repo's own
+  `npm run lint` cannot see: 12 object-injection sinks (`obj[identifier]`), 7 void-expression
+  arrow shorthands, and 4 non-null assertions. `@typescript-eslint/no-confusing-void-expression`
+  is type-aware and `eslint.config.js` deliberately never asks the parser for type information,
+  while `eslint-plugin-security` is not installed at all — so a change validated locally was
+  never a change the gate had validated, and the two attempts to satisfy it fixed a different
+  axis. The trend chart's monotone-cubic maths now walks adjacent point pairs instead of
+  addressing `dx[i]` / `slope[i-1]` / `pts[i + 1]` directly, and its hover readout carries the
+  active *index* beside the active day, which is what retires the four `hover!` assertions
+  rather than re-spelling them. The rewrite is the same function arithmetic-for-arithmetic:
+  3,072 sampled inputs — every degenerate shape (one point, all-flat, repeated x, a single
+  spike) plus 3,000 random series — emit byte-identical SVG paths from the old and the new
+  implementation.
+
 ## [0.65.0] - 2026-09-22
 
 The Create Trip page was rebuilt around the questions a planner actually answers,

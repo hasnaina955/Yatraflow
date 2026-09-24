@@ -5346,15 +5346,10 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 }
 
 /* ============================================================
-   v0.38 — Creator hub (Profile · My publications: Overview | Earnings)
+   v0.38 — Creator hub, which after the v0.66 dashboard rebuild is: the payout
+   ledger, the hub note, and the publication-row pattern the new page reuses.
+   The hub's own rules now live in the v0.66 block at the file's end.
    ============================================================ */
-
-/* mini KPI tiles inside the 340px profile column */
-.pub-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px; }
-.pub-kpis .stat-tile { padding: 9px 11px; box-shadow: none; }
-.pub-kpis .stat-tile .stat-value { font-size: 16.5px; }
-.pub-kpis .stat-tile.wide { grid-column: span 2; }
-.pub-kpis .metric-warn { color: var(--ink-amber); }
 
 /* the payout ledger (and its projection twin) */
 .pub-ledger th { font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); }
@@ -5365,11 +5360,6 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 .hub-note { background: var(--yf-teal-100); border-radius: 12px; padding: 12px 14px; font-size: 12.5px; margin-top: 12px; line-height: 1.55; }
 .hub-note b { color: var(--teal-deep); }
 [data-theme='dark'] .hub-note b { color: var(--yf-teal-600); }
-
-@media (max-width: 720px) {
-  .pub-kpis { grid-template-columns: repeat(2, 1fr); }
-  .pub-kpis .stat-tile.wide { grid-column: span 2; }
-}
 
 /* ---- Semantic meta-icon tints (v0.40) — colour-coded icons app-wide ---- */
 .mi-money { color: var(--yf-saffron); }
@@ -6735,9 +6725,6 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
    I-22 — the publication funnel (recorded views → forks → unlocks)
    ============================================================ */
 
-/* the window pills, and the line saying what the log can speak for */
-.pub-funnel-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 4px 0 10px; }
-
 /* one publication's funnel: windowed steps above its own all-time totals */
 .pub-funnel { display: flex; flex-direction: column; gap: 3px; }
 .pub-funnel.muted { color: var(--text-3); }
@@ -6745,10 +6732,6 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .pf-step b { font-variant-numeric: tabular-nums; color: var(--text); }
 .pf-arrow { color: var(--text-3); }
 .pf-lifetime { font-size: 11.5px; color: var(--text-3); font-variant-numeric: tabular-nums; }
-
-@media (max-width: 720px) {
-  .pub-funnel-head { align-items: flex-start; }
-}
 
 
 /* ============ Creator's own funnel glance, on the plan's public page ==== */
@@ -7597,4 +7580,204 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .map-search-results .row-between.is-selected {
   background: color-mix(in srgb, var(--teal) 10%, transparent);
   border-radius: 6px;
+}
+
+/* ============================================================
+   v0.66 — Creator hub: the working dashboard
+   ============================================================
+   The page leads with performance — one ruled KPI strip, the recorded-traffic
+   trend, then the publication rows — and closes with the creator profile in a
+   disclosure. Structure only: surfaces reuse `.card`, labels and figures reuse
+   the `.stat-label`/`.stat-value` ramp, and the only colour declared here is on
+   the chart's marks (fill/stroke, never a text pair), so this block adds no new
+   contrast pair and no new type below the floor.
+
+   APPENDED AT THE FILE'S END on purpose: the design-system ratchet is keyed by
+   the declaration text, but the design-doc pins read the file in order, so a
+   new section goes last like every section before it. */
+
+.hub-page { padding-top: 24px; padding-bottom: 24px; }
+.hub-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
+.hub-head-id h1 { margin: 0; }
+.hub-head-id p { margin: 4px 0 0; }
+.hub-tabs { margin-bottom: 16px; }
+
+/* ONE ruled strip, not four floating cards: the four lifetime figures are read
+   together or not at all, and four separate boxes would claim they are four
+   unrelated things. Dividers are logical so the strip mirrors under RTL.
+   It wears the app's chart-navy anchor band rather than another white card: on
+   a page of cream surfaces this is the one place the product raises its voice,
+   and navy is already the language for anchor panels (map, AI, dark cards). */
+.hub-strip { display: grid; grid-template-columns: repeat(4, 1fr); background: var(--yf-navy); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; margin-bottom: 16px; }
+.hub-cell { display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; }
+.hub-cell + .hub-cell { border-inline-start: 1px solid rgba(255, 255, 255, .16); }
+/* White on navy, which is the incumbent ink for this surface (see the navy
+   cards and the bench chip). NOT `--yf-cream`: that token is the canvas, so in
+   the dark theme it is near-black and the figures would vanish. Labels and
+   hints are softened with opacity rather than a translucent colour, so each
+   declaration stays measurable by the contrast gate. */
+.hub-strip .stat-value { color: #fff; }
+.hub-strip .stat-label { color: #fff; opacity: .78; }
+.hub-strip .metric-warn { color: var(--saffron); }
+
+/* Panel furniture. The surface itself is `.card`; only the internal head and
+   the figure's own margin are added, so the panel can never drift from the
+   cards the rest of the app draws. */
+.hub-panel-title { margin: 0; }
+.hub-panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.hub-panel-note { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 6px; }
+.hub-subhead { font-family: var(--font-display); font-size: 15px; font-weight: 700; margin: 20px 0 6px; }
+.hub-controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+
+/* ---- the instrument panel ------------------------------------------------
+   One surface, two columns, a hairline between them. Replaces the old
+   strip-then-two-cards stack, which left a gap under whichever column was
+   shorter and pushed the profile card to the foot of a long page. The split
+   starts at 1024 rather than 1280: a 1140px window is an ordinary laptop, and
+   the old threshold left it fully stacked. Logical border so it mirrors. */
+.hub-instrument { padding: 0; overflow: hidden; }
+.hub-instrument-cols { display: grid; grid-template-columns: 1fr; }
+.hub-instrument-col { padding: var(--space-8); min-width: 0; }
+.hub-instrument-col + .hub-instrument-col { border-top: 1px solid var(--line); }
+@media (min-width: 1024px) {
+  .hub-instrument-cols { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .hub-instrument-col + .hub-instrument-col { border-top: 0; border-inline-start: 1px solid var(--line); }
+}
+/* The panel's own head rows sit flush inside the column now that the surface
+   no longer supplies the card padding. */
+.hub-instrument-col .hub-panel-head,
+.hub-instrument-col .hub-lead-head { margin-bottom: var(--space-5); }
+.hub-instrument-col .hub-panel-title { margin: 0; font-family: var(--font-body); font-size: 11.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); }
+.hub-instrument-col .hub-lead-head span { font-size: 11.5px; color: var(--text-3); }
+/* In the narrower column the trend's key would crowd the window pills, so the
+   key rides under the plot with the axis instead of beside the title. */
+.hub-instrument-col .hub-chart { margin-top: var(--space-4); }
+.hub-instrument-col .hub-trend-void { margin-top: var(--space-4); }
+.hub-chart { position: relative; margin: 12px 0 0; }
+/* Aspect-locked to the viewBox: the chart scales as one drawing (round marks,
+   even strokes) instead of stretching to fill a fixed height. */
+.hub-chart-svg { display: block; width: 100%; height: auto; aspect-ratio: 600 / 150; cursor: crosshair; touch-action: pan-y; }
+.hc-zero { stroke: var(--line); stroke-width: 1; }
+/* The area is painted by a gradient defined in the SVG (the `fill` attribute
+   points at it), so this class must not set `fill` — CSS beats a presentation
+   attribute, and a fill here would silently replace the fade with a flat tint. */
+.hc-fade-top { stop-color: var(--teal-deep); stop-opacity: .30; }
+.hc-fade-bottom { stop-color: var(--teal-deep); stop-opacity: 0; }
+.hc-views-line { fill: none; stroke: var(--teal-deep); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+/* Forks ride a categorical hue (steel blue), not the warn family: a fork is a
+   step in the funnel, not a problem with it. */
+.hc-forks-line { fill: none; stroke: var(--cat-transport); stroke-width: 2; stroke-dasharray: 3 4; stroke-linejoin: round; stroke-linecap: round; }
+.hc-unlock { fill: var(--ink-amber); }
+/* Keyboard parity: the chart takes focus, so focus must be visible on it. */
+.hub-chart-svg:focus-visible { outline: none; box-shadow: var(--ring); border-radius: var(--radius-sm); }
+/* The hover guide: a hairline where the pointer is, with a ringed dot per
+   series so the reading is precise rather than approximate. */
+.hc-guide { stroke: var(--text-3); stroke-width: 1; stroke-opacity: .45; }
+.hc-hover-dot { fill: var(--card); stroke: var(--teal-deep); stroke-width: 2; }
+.hc-hover-dot.is-forks { stroke: var(--cat-transport); }
+.hub-chart-axis { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 6px; font-size: 11.5px; color: var(--text-3); }
+.hub-chart-key { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-top: 12px; font-size: 12.5px; color: var(--text-3); }
+/* The hover readout: the same navy anchor surface as the strip, so the chart's
+   own interactive chrome belongs to the system rather than floating above it. */
+.hub-chart-tip { position: absolute; top: 0; transform: translateX(-50%); display: flex; flex-direction: column; gap: 2px; padding: 8px 12px; border-radius: var(--radius-sm); background: var(--yf-navy); color: #fff; font-size: 12px; line-height: 1.4; white-space: nowrap; box-shadow: var(--shadow); pointer-events: none; z-index: 2; }
+.hub-chart-tip b { font-family: var(--font-display); font-size: 12.5px; }
+.hub-chart-tip .muted { color: #fff; opacity: .72; }
+.hc-key { display: inline-flex; align-items: center; gap: 6px; }
+.hc-swatch { display: inline-block; width: 8px; height: 8px; border-radius: 2px; }
+.hc-swatch-views { background: var(--teal-deep); }
+.hc-swatch-forks { background: var(--cat-transport); }
+.hc-swatch-unlocks { background: var(--ink-amber); }
+/* The SAME box the chart occupies, not a fixed height: the chart is
+   aspect-locked to its viewBox, so the only way the panel can hold its height
+   while a read is in flight is to reserve the identical rectangle. It carries
+   no sentence — the panel note above states the state once — so the dashed edge
+   is what makes it read as a deliberate empty slot rather than a broken chart. */
+.hub-trend-void { width: 100%; aspect-ratio: 600 / 150; border: 1px dashed var(--line); border-radius: var(--radius); }
+
+/* The panel's own pills. Inside a panel the glass capsule reads as a card
+   nested in a card (the detector flags exactly that), so the container gives up
+   its fill and border and the pills keep every affordance. */
+.hub-pills-quiet { background: transparent; border-color: transparent; box-shadow: none; }
+
+/* ---- the page's grid ------------------------------------------------- */
+/* The old two-card grid is gone: it is the instrument panel above. The only
+   rule that survives is the row-wrap guard its narrow column needed, now
+   applied to the rows inside that panel. */
+.hub-instrument-col .pub-row { flex-wrap: wrap; align-items: flex-start; }
+
+/* The counters-vs-log frame, said once for the account rather than once per row. */
+.hub-framing { margin: 0 0 16px; }
+.hub-note-action { margin: 8px 0 0; }
+
+/* Windowed figures lead; the all-time line stays the qualifier. */
+.hub-cell-hint { font-size: 11px; color: var(--text-3); }
+/* A figure that was never read, said in words rather than as a measured zero. */
+.hub-cell-unread { font-size: 16px; color: var(--yf-cream); opacity: .78; }
+.hub-strip .hub-cell-hint { color: #fff; opacity: .66; }
+.hub-controls-div { width: 1px; align-self: stretch; background: var(--line); }
+
+/* ---- publications, in the accepted "figures lead" hierarchy ---- */
+/* The funnel is the row's largest element and each stage wears the hue the
+   trend above uses for that stage, so a stage means one thing on the page. Rows
+   are a column stack; the actions close each one, left-aligned. */
+.hub-lead-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.hub-lead-head h2 { margin: 0; font-family: var(--font-body); font-size: 11.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); }
+.hub-lead-head span { font-size: 11.5px; color: var(--text-3); }
+.hub-lead-row { display: flex; flex-direction: column; gap: 6px; padding: 12px 0; }
+.hub-lead-row + .hub-lead-row { border-top: 1px solid var(--line); }
+.hub-lead-title { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.hub-lead-title a { font-weight: 600; font-size: 13.5px; color: var(--text); }
+.hub-lead-where { font-size: 11.5px; color: var(--text-3); }
+.hub-lead-steps { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; font-size: 11.5px; color: var(--text-3); }
+.hub-lead-step { display: flex; align-items: baseline; gap: 5px; }
+.hub-lead-window { font-weight: 600; color: var(--text-2); }
+.hub-lead-rate { color: var(--text-3); }
+.hub-lead-n { font-family: var(--font-display); font-size: 23px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.hub-lead-visits .hub-lead-n { color: var(--teal-deep); }
+.hub-lead-forks .hub-lead-n { color: var(--cat-transport); }
+.hub-lead-unlocks .hub-lead-n { color: var(--ink-amber); }
+/* The drop-off: the empty track IS the traffic you had, and the two separated
+   marks are what survived each step. The gap is what stops it reading as one
+   stripe — an earlier version overlaid all three stages at the same origin. */
+.hub-lead-bar { position: relative; height: 6px; border-radius: 999px; background: var(--bg-soft); overflow: hidden; }
+.hub-lead-bar i { position: absolute; inset-block: 0; inset-inline-start: 0; border-radius: 999px; background: var(--cat-transport); }
+.hub-lead-bar i.is-unlock { background: var(--ink-amber); }
+.hub-lead-row .pub-row-actions { justify-content: flex-start; }
+
+/* ---- the creator profile: one quiet line, closed by default ---- */
+/* Live mode made this a single line rather than a card: it is a thing you set
+   once, and a full-width card at the foot made the page's last thing a
+   maintenance surface rather than a decision. The summary is the whole row —
+   one control, the full-width hit target — and it carries the chevron, because
+   hiding the native marker without replacing it leaves a static-looking heading. */
+.hub-profile { padding: 0 var(--space-7); background: transparent; border-color: transparent; box-shadow: none; }
+.hub-profile[open] { background: var(--card); border-color: var(--line); box-shadow: var(--shadow); padding: var(--space-8); }
+.hub-profile-summary { display: flex; align-items: center; gap: 12px; padding: var(--space-5) 0; cursor: pointer; list-style: none; }
+.hub-profile-summary::-webkit-details-marker { display: none; }
+.hub-profile[open] .hub-profile-summary { margin-bottom: 12px; padding-bottom: var(--space-5); border-bottom: 1px solid var(--line); }
+.hub-profile-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
+/* Hiding the native marker without putting something else there leaves a row
+   that reads as a static heading, so the summary carries the same chevron
+   treatment as the POI disclosures: token-eased, frozen under reduced motion. */
+.hub-chev { display: inline-flex; margin-inline-start: auto; color: var(--text-3); transition: transform var(--motion-fast) var(--ease-out); }
+.hub-profile[open] .hub-chev { transform: rotate(180deg); }
+.hub-profile-summary:hover .hub-panel-title { text-decoration: underline; text-underline-offset: 3px; }
+/* Same ring as its sibling summaries (`.poi-alts summary`, `.poi-more summary`)
+   — a disclosure you cannot see focus on is not keyboard-reachable in practice. */
+.hub-profile-summary:focus-visible { outline: none; box-shadow: var(--ring); border-radius: var(--radius); }
+@media (prefers-reduced-motion: reduce) {
+  .hub-chev { transition: none; }
+}
+
+@media (max-width: 720px) {
+  .hub-page { padding-top: 16px; }
+  /* Two figures per row: four across a phone gives each one a column too narrow
+     for a rupee figure, and a wrapped strip reads as four rows anyway. */
+  .hub-strip { grid-template-columns: repeat(2, 1fr); }
+  .hub-cell + .hub-cell { border-inline-start: 0; }
+  .hub-cell:nth-child(even) { border-inline-start: 1px solid rgba(255, 255, 255, .16); }
+  .hub-cell:nth-child(n+3) { border-top: 1px solid rgba(255, 255, 255, .16); }
+  /* Two cells across 320px leave ~107px of content box, which a six-figure
+     rupee amount at the desktop 23px would clip rather than wrap. */
+  .hub-cell-value { font-size: 20px; }
 }

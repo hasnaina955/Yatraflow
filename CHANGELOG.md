@@ -15,6 +15,10 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ## [Unreleased]
 
+### Added
+
+- **Unknown-position picks ask for their position instead of being dropped.** Any pick the map cannot pin — a provider placeholder, a mixed (0, lng) zero, or a place with no id to resolve through — now opens a pin-it dialog before the change proceeds: try the resolver again, enter the coordinates by hand (validated: finite, in range, and no zero — the map reads a 0 as "position unknown"), or skip the place explicitly. The same guard fronts every write-into-a-trip path: the Map tab's votes, adds and fills; the location picker; the stop editor, which asks before saving a new stop whose location was never pinned (no more silently landing on the form's default coordinates — a skipped prompt refuses the save, while an existing stop keeps its stored pin through a rename); and a trip import, which offers the same prompt for each row its coordinate wall had to drop and re-parses the rescued rows in with the coordinates entered. Nothing is written as a placeholder and nothing is dropped silently — a skip is the user's own choice.
+
 ### Fixed
 
 - **A failed sales-ledger read on the Creator hub showed "Loading sales…" forever.** The Earnings

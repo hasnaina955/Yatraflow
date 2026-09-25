@@ -291,6 +291,46 @@ describe('parseTripImport — the repair pass', () => {
     expect(parseTripImport(JSON.stringify(trip)).report.droppedStops[0].reason).toMatch(/only one coordinate/)
   })
 
+  it('a hand-entered patch rescues a dropped stop and says so (#424)', () => {
+    const trip = bareExport()
+    Object.assign(trip.days[0].stops[0], { lat: 0, lng: 0 })
+    const first = parseTripImport(JSON.stringify(trip))
+    const d = first.report.droppedStops[0]
+    // The report carries the keys the rescue needs: exact file position.
+    expect(d.dayIndex).toBe(0)
+    expect(d.stopIndex).toBe(0)
+    const r = parseTripImport(JSON.stringify(trip), [
+      { dayIndex: 0, stopIndex: 0, latitude: 15.3, longitude: 73.9 },
+    ])
+    expect(r.trip.days[0].stops).toHaveLength(1)
+    expect(r.trip.days[0].stops[0].lat).toBeCloseTo(15.3)
+    expect(r.trip.days[0].stops[0].lng).toBeCloseTo(73.9)
+    expect(r.report.droppedStops).toHaveLength(0)
+    expect(r.report.repairs.join(' ')).toMatch(/entered by hand/)
+  })
+
+  it('an invalid patch rescues nothing — the wall still refuses', () => {
+    const trip = bareExport()
+    Object.assign(trip.days[0].stops[0], { lat: 0, lng: 0 })
+    const r = parseTripImport(JSON.stringify(trip), [
+      { dayIndex: 0, stopIndex: 0, latitude: 0, longitude: 0 },
+    ])
+    expect(r.trip.days[0].stops).toHaveLength(0)
+    expect(r.report.droppedStops).toHaveLength(1)
+  })
+
+  it('a patch is keyed to the exact file position — it cannot move another stop', () => {
+    const trip = bareExport()
+    Object.assign(trip.days[0].stops[0], { lat: 0, lng: 0 })
+    // Day 1 stop 1 is fine; a patch naming it must not touch the dropped stop 0.
+    const r = parseTripImport(JSON.stringify(trip), [
+      { dayIndex: 1, stopIndex: 0, latitude: 1.1, longitude: 2.2 },
+    ])
+    expect(r.trip.days[0].stops).toHaveLength(0)
+    expect(r.trip.days[1].stops[0].lat).toBeCloseTo(15.01)
+    expect(r.report.droppedStops).toHaveLength(1)
+  })
+
   it('refuses a file where nothing can be placed', () => {
     const trip = bareExport()
     for (const d of trip.days) for (const s of d.stops) { Object.assign(s, { lat: 0, lng: 0 }) }
@@ -361,7 +401,7 @@ describe('digestImportReport — what the person holding the file is told', () =
     expect(d?.message).toMatch(/fixed 2 things/)
   })
   it('treats a dropped stop as an error, not a note', () => {
-    const d = digestImportReport({ repairs: [], warnings: [], droppedStops: [{ day: 2, title: 'Gondola', reason: 'x' }], unknownKeys: [] })
+    const d = digestImportReport({ repairs: [], warnings: [], droppedStops: [{ day: 2, dayIndex: 1, stopIndex: 0, title: 'Gondola', reason: 'x' }], unknownKeys: [] })
     expect(d?.kind).toBe('err')
     expect(d?.message).toMatch(/“Gondola”, Day 2/)
   })

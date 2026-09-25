@@ -123,7 +123,26 @@ export class TripImportError extends Error {
 }
 
 // ---------------- report ----------------
-export interface DroppedStop { day: number; title: string; reason: string }
+export interface DroppedStop {
+  /** 1-based day number, as the user sees it in the report. */
+  day: number
+  /** 0-based day index — half of the patch key a rescue re-parse matches on. */
+  dayIndex: number
+  /** 0-based position of the stop within its day — the other half. */
+  stopIndex: number
+  title: string
+  reason: string
+}
+
+/** Hand-entered coordinates that rescue a dropped stop — the resolve-or-prompt
+ *  guard's answer for an import row. Keyed by the stop's position in the file,
+ *  so a patch can only ever land on the exact stop the person was shown. */
+export interface DroppedStopPatch {
+  dayIndex: number
+  stopIndex: number
+  latitude: number
+  longitude: number
+}
 
 export interface NormalizeReport {
   /** Changes the importer made so the file fits the current contract. */
@@ -472,7 +491,7 @@ function safeSourceUrl(v: unknown, where: string, report: NormalizeReport): stri
  * Returns null when nothing importable remains — the caller turns that into a
  * `TripImportError` that says why.
  */
-export function normalizeTrip(source: Record<string, unknown>, report: NormalizeReport): Trip | null {
+export function normalizeTrip(source: Record<string, unknown>, report: NormalizeReport, patches: DroppedStopPatch[] = []): Trip | null {
   unknownKeys(source, TRIP_KEYS, 'trip', report)
 
   const rawDays = source.days
@@ -507,15 +526,24 @@ export function normalizeTrip(source: Record<string, unknown>, report: Normalize
       if (!str(s.title)) report.repairs.push(`${stopWhere}: had no title — used "${locationName}".`)
 
       // The one refusal: a stop that cannot be placed is not pinned anywhere.
-      const coords = usableCoords(s.lat, s.lng)
+      // A hand-entered patch (the resolve-or-prompt guard's answer, keyed to
+      // this exact file position) rescues it — the wall refuses FABRICATION,
+      // not a person's own coordinates. An invalid patch rescues nothing.
+      const own = usableCoords(s.lat, s.lng)
+      const patch = own ? undefined : patches.find(p => p.dayIndex === di && p.stopIndex === si)
+      const rescued = patch ? usableCoords(patch.latitude, patch.longitude) : null
+      const coords = own ?? rescued
       if (!coords) {
         report.droppedStops.push({
           day: di + 1,
+          dayIndex: di,
+          stopIndex: si,
           title,
           reason: coordsReason(s.lat, s.lng),
         })
         return
       }
+      if (rescued) report.repairs.push(`${stopWhere}: coordinates entered by hand.`)
 
       if (s.orderInDay !== si + 1) renumberedStops++
       if (s.departTime !== undefined || s.arrivalTime !== undefined || s.legDistanceKm !== undefined || s.legTravelMinutes !== undefined) {

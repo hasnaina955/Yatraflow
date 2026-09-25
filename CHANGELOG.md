@@ -26,6 +26,8 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 - **Resolving a decision now persists.** A resolution is written into `decisions.resolved_option_id`, which was declared `uuid` while option ids have always been text — `o_…` from the composer and `slot:<key>:…` from the map rail's votes, which the resolver parses back to fill the part it was raised for. PostgREST therefore rejected every resolve (400 / `22P02`) behind a console-only error: the card read Resolved from memory, the row stayed open, and the decision was open again after a reload — on every trip, for every crew. The column is `text` now (`20260925_decision_resolved_option_text.sql`, run by hand in the SQL editor like every migration here), with the schema, the migration and the store's payload pinned to each other by a test. (#432)
 
+- **Crew slot-votes work end to end again.** Raising a poll no longer rewrites the ids its caller gave it, so a vote raised for a time slot surfaces live on that part of the day's plan, a resolved vote lands the stop *in* that slot (`slotKey` travels as data, not as a note), and a shortlist re-add collapses into the poll already open instead of forking a second one. A hand-typed poll gets fresh ids of its own, and two options arriving with the same id are minted apart so one vote can never count for both. One quorum across both surfaces: the slot rail divides by the crew — members, what Group input already used — rather than by `travellers`, who may not all be crew. (#335)
+
 ## [0.66.0] - 2026-09-24
 
 A hub release, with a map correction and a whole-app visual pass beneath it. The creator

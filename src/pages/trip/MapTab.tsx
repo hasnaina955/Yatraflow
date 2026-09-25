@@ -436,6 +436,9 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     categoryBias: computeCategoryBias(trip),
     // Google mode: bias the search along the real road polyline; free mode ignores it
     routeCoords: routeGeometry,
+    // NOTE (#335): this is the corridor CADENCE crew, not the vote quorum —
+    // cadenceForCrew reads how many people are riding, so `travellers` stays.
+    // The vote denominator lives in daySlots' `memberCount` below.
     travellers: trip.travellers,
     travelStyle: trip.travelStyle,
     speedKmph: MODE_SPEED[trip.transportMode] ?? 40,
@@ -624,6 +627,8 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     travelStyle: trip.travelStyle,
     transportMode: trip.transportMode,
     scopeKm,
+    // #335: planInputsHash keys the suggestion cache on the same cadence crew
+    // the nearby fetch above reads — `travellers`, never the member list.
     travellers: trip.travellers,
     driverCount: trip.driverCount,
     hasVulnerable: trip.hasVulnerable,
@@ -1583,7 +1588,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     existingNames,
     altPool: altPool.all.map(e => e.h),
     decisions,
-    travellers: trip.travellers,
+    memberCount: (trip.members ?? []).length,
     // The shared attribution object - the same shape the Overview matrix feeds
     // its own deps, so the two surfaces cannot attribute a halt to two days.
     dayOfSegment: dayAttribution.dayOfSegment,
@@ -2220,7 +2225,12 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
                           )}
                           {slot.vote ? (
                             <div className="day-slot-vote">
-                              <span className="chip chip-sm">Voting · {slot.vote.votesCast} of {slot.vote.voters}</span>
+                              <span className="chip chip-sm">{slot.vote.voters > 0
+                                ? `Voting · ${slot.vote.votesCast} of ${slot.vote.voters}`
+                                // #335: the denominator is members now, and a trip with no
+                                // member rows has none — say so instead of printing "2 of 0".
+                                : `Voting · ${slot.vote.votesCast} vote${slot.vote.votesCast === 1 ? '' : 's'}`
+                              }</span>
                               <span className="day-slot-vote-lead">
                                 {slot.vote.leadingLabel ? `${slot.vote.leadingLabel} leads` : 'no votes yet'} · open Group input
                               </span>

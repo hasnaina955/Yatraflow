@@ -205,6 +205,22 @@ Key locations:
    its `label` ("Overnight + fuel"), not its singular `purpose` — a consumer
    filtering `purpose === 'fuel'` drops nearly every planned refuel on a
    multi-day corridor (measured: 3 planned, 0 surfaced). Match the label too.
+ 6g. **A deps-object field rename is type-checked only where the object literal
+   is FRESH — and one project decision can land on two unrelated deps objects
+   (learned 2026-09-25).** Renaming `travellers` → `memberCount` for #335 was
+   applied by grep to three `travellers: trip.travellers` lines in MapTab, but
+   only two of them were `DaySlotsDeps` (the vote quorum). The third fed
+   `NearbyOpts` (the corridor's fatigue cadence) and a fourth — in the
+   suggestion-cache hash — surfaced as `error TS2353` while the `NearbyOpts` one
+   built GREEN: `const opts: NearbyOpts = useMemo(() => ({ … }))` is not a fresh
+   literal to TS (the initializer is a call, and excess-property checking does
+   not reach through it), so the wrong key is accepted and `opts.travellers`
+   reads `undefined` at runtime — cadence silently reverts to the default. The
+   generic form `useMemo<NearbyOpts>(() => ({ … }))` DOES reject it. So: after
+   any deps-field rename, enumerate call sites by the TYPE each object feeds
+   (not by grep), and treat a green build as no evidence for the inferred-generic
+   sites. Same family as 6f(1) — the drop happens in a page, and pure-layer
+   tests stay green.
  6h. **An insert-if-absent cache merge is a staleness bug waiting for a state
    change — and a new tripwire must be run against the PRE-FIX source (learned
    2026-09-25).** `fetchPublicTrip` merged its row with `if (!some(…))`, which is

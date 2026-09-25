@@ -525,7 +525,10 @@ function DecisionComposerForm({ trip }: { trip: Trip }) {
     addDecision(trip.id, {
       question: q.trim(),
       context: context.trim() || undefined,
-      options: built.map((o, i) => ({ id: `tmp_${i}`, label: o.label, costImpactInr: o.cost || undefined })),
+      // #335: no placeholder ids — a hand-typed poll gets real ones from the
+      // store, which preserves an id a caller does supply (the Map rail's
+      // slot and place ids are load-bearing).
+      options: built.map(o => ({ label: o.label, costImpactInr: o.cost || undefined })),
     })
     setQ(''); setContext(''); setOpts([{ label: '', cost: '' }, { label: '', cost: '' }])
     toast('Decision posted for the group')

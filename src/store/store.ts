@@ -11,6 +11,7 @@ import { useSyncExternalStore } from 'react'
 import type {
   User, Trip, StopSuggestion, TripDecision, ActivityEntry, Notification,
   PublishedItinerary, ID, ItineraryStop, ItineraryDay, TripMember, Expense, FixedCommitment,
+  NewDecisionOption,
 } from '../data/types'
 import { seedData, uid } from '../data/seed'
 import type { LatLngPoint } from '../data/types'
@@ -2393,16 +2394,29 @@ export function declineSuggestion(tripId: ID, suggestionId: ID): void {
 
 // ---------------- Decisions ----------------
 
-export function addDecision(tripId: ID, d: Pick<TripDecision, 'question' | 'context' | 'options'>): void {
+export function addDecision(tripId: ID, d: Pick<TripDecision, 'question' | 'context'> & { options: NewDecisionOption[] }): void {
   if (!cache.sessionUserId) return
   // Same cache/DB id agreement as addSuggestion.
   const id = uuid()
+  // #335: the caller's option id IS the contract, so keep it. The Map rail
+  // mints `slot:<key>:<hit>` for the join that puts a poll on its part and
+  // stamps `slotKey` on the stop it resolves to; the shortlist mints the place
+  // id so a re-add collapses into the poll already open; and votes recorded in
+  // other rows point at these ids. The old `uid('o')` rewrite broke all three
+  // (and destroyed the slot contract in the cache copy AND the row). Mint only
+  // when there is nothing to keep, or when two options in THIS poll collide —
+  // a shared id would make one vote count for both.
+  const seen = new Set<string>()
+  const options = d.options.map(o => {
+    const optionId = o.id && !seen.has(o.id) ? o.id : uid('o')
+    seen.add(optionId)
+    return { ...o, id: optionId }
+  })
   const row = {
-    id, trip_id: tripId, question: d.question, context: d.context,
-    options: d.options.map(o => ({ ...o, id: uid('o') })),
+    id, trip_id: tripId, question: d.question, context: d.context, options,
     votes_by_user_id: {}, status: 'open', raised_by: cache.sessionUserId,
   }
-  cache.decisions = [...cache.decisions, { ...d, id, tripId, votesByUserId: {}, comments: [], status: 'open', raisedBy: cache.sessionUserId, createdAt: Date.now(), options: row.options }]
+  cache.decisions = [...cache.decisions, { ...d, id, tripId, votesByUserId: {}, comments: [], status: 'open', raisedBy: cache.sessionUserId, createdAt: Date.now(), options }]
   addActivity(tripId, cache.sessionUserId, `raised decision “${d.question}”`, 'Decisions')
   // Notification parity with addSuggestion: the other members hear about new
   // group input too, not just suggestions.

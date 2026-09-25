@@ -67,7 +67,10 @@ describe('#432 — decisions.resolved_option_id is text, and every layer agrees'
     // fails rather than the bug returning silently in production.
     expect(store).toMatch(/update\(\{ status: 'resolved', resolved_option_id: optionId/)
     // …and the shapes it sends are not uuids — which is the whole point.
-    expect(store).toMatch(/options: d\.options\.map\(o => \(\{ \.\.\.o, id: uid\('o'\) \}\)\)/)
+    // (`uid('o')` is the mint; what happens to a caller-supplied id is #335's
+    // own assertion, deliberately not asserted here so this file passes on
+    // either side of that change.)
+    expect(store).toMatch(/uid\('o'\)/)
     expect(store).toMatch(/\^slot:\(\[a-z\]\+\):/)
   })
 })

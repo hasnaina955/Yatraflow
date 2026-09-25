@@ -149,8 +149,12 @@ export interface DaySlotsDeps {
   /** The trip's decisions: an open one whose options name this part shows as
    *  the part's live vote instead of its candidates. */
   decisions?: TripDecision[]
-  /** Crew size for the vote's "N of M" reading. */
-  travellers?: number
+  /** Crew size for the vote's "N of M" reading — the trip's MEMBERS, the
+   *  same denominator Group Input divides by, so one poll reads ONE quorum on
+   *  both surfaces (#335's product call). `travellers` was a different count
+   *  (it can name people who are not crew) and is gone rather than kept as a
+   *  second reading. */
+  memberCount?: number
   /** Day attribution override (the caller's own dayForKm over road-true
    *  per-day km): receives a journey segment, returns the trip day index it
    *  belongs to. When given, day slicing follows IT, not the dayEnd flags -
@@ -609,7 +613,7 @@ function voteFor(draft: SlotDraft, deps: DaySlotsDeps): SlotVote | undefined {
     question: dec.question,
     optionCount: dec.options.length,
     votesCast: cast.length,
-    voters: deps.travellers ?? 0,
+    voters: deps.memberCount ?? 0,
     leadingLabel: leading,
   }
 }

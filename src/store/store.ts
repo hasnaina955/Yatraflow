@@ -11,6 +11,7 @@ import { useSyncExternalStore } from 'react'
 import type {
   User, Trip, StopSuggestion, TripDecision, ActivityEntry, Notification,
   PublishedItinerary, ID, ItineraryStop, ItineraryDay, TripMember, Expense, FixedCommitment,
+  NewDecisionOption,
 } from '../data/types'
 import { seedData, uid } from '../data/seed'
 import type { LatLngPoint } from '../data/types'
@@ -788,7 +789,8 @@ function rowToPublished(row: unknown): PublishedItinerary {
     estimatedBudgetPerPersonInr: r.estimated_budget_per_person_inr, travelStyle: r.travel_style,
     bestSeason: r.best_season, travelTips: r.travel_tips ?? [], warningsAndAssumptions: r.warnings_and_assumptions ?? [],
     freeDayIndexes: r.free_day_indexes ?? [], premiumPriceInr: r.premium_price_inr, subscriberCta: r.subscriber_cta,
-    publishedAt: r.published_at, refreshedAt: r.refreshed_at ?? undefined, views: r.views ?? 0, copies: r.copies ?? 0,
+    publishedAt: r.published_at, refreshedAt: r.refreshed_at ?? undefined,
+    unpublishedAt: r.unpublished_at ?? undefined, views: r.views ?? 0, copies: r.copies ?? 0,
   }
 }
 
@@ -893,8 +895,9 @@ export async function fetchSharedTrip(tripId: ID, allowInvitePreview = false): P
  * "trips read" policy), so an anonymous curl can no longer pull premium day
  * content off the table.
  *
- * Merged into the cache like fetchSharedTrip; returns null for an unknown
- * publication or a deleted/unpublished trip.
+ * Merged into the cache by REPLACING any row for the same id (#349) rather
+ * than inserting only when absent; returns null for an unknown publication or
+ * a deleted/unpublished trip.
  */
 export async function fetchPublicTrip(pubId: string): Promise<Trip | null> {
   const rpc = await supabase.rpc('get_public_trip', { p_pub_id: pubId })
@@ -904,12 +907,48 @@ export async function fetchPublicTrip(pubId: string): Promise<Trip | null> {
   }
   const rows = rpc.data as TripRow[] | null
   if (!Array.isArray(rows) || rows.length === 0) return null
-  const trip = rowToTrip(rows[0], [])
-  recordServerTripTimestamp(trip.id, trip.updatedAt)
-  if (!cache.trips.some(t => t.id === trip.id)) {
-    cache.trips = [...cache.trips, trip]
-    commit()
+  // #351 — the paid public path must never carry the invite code into the cache.
+  // The RPC no longer selects it (20260926_paywall_invite_code_leak.sql, which
+  // replaced `select *` with an explicit column list), and this is the belt to
+  // that migration's suspenders: an un-migrated database still returns the code,
+  // and this function is what put it in the cache, where `fetchTripByInviteCode`
+  // and `ensureInviteCode` would then happily read it back out. Dropped rather
+  // than merely unused — `inviteCode` is a capability for a second endpoint, and
+  // a capability sitting in a cache is one refactor away from being used again.
+  // Nothing on the public path reads it: the public page, the fork and Explore
+  // never touch `trip.inviteCode`, and the owner's own surfaces read the trips
+  // table under RLS.
+  const fetched = rowToTrip({ ...rows[0], invite_code: null }, [])
+  // #349 — the RPC is the server truth FOR THIS VIEWER on every call, so a
+  // re-fetch has to REPLACE the cached row. Insert-if-absent is what kept the
+  // public page locked after a paid unlock: the re-read answered with real
+  // days while `tripById` went on serving the pre-purchase stub, so the page
+  // body (`cachedTrip ?? fetched`) and the fork both stayed on placeholders
+  // until a reload. The same convergence runs the other way when a publication
+  // changes what it withholds. One mechanism, not two: the page keeps reading
+  // the store, and the store keeps up with the wire.
+  //
+  // The one thing the RPC cannot carry is `members` — rowToTrip is handed an
+  // empty list — so a cached membership is carried over into the replacement
+  // instead of being dropped. It is the vote quorum's denominator and has
+  // nothing to do with the paywall.
+  const existing = cache.trips.find(t => t.id === fetched.id)
+  // Same two guards the realtime handler uses, for the same reasons: a strictly
+  // older row is a replay of something we already applied (the ledger holds the
+  // newest server clock this session has seen), and a write this session just
+  // made still outranks the wire — its echo is on the way with this same row.
+  if (existing && isStaleServerRow(serverTripTimestamps.get(fetched.id), fetched.updatedAt)) {
+    return existing
   }
+  if (existing && isRecentLocalWrite(recentLocalWrites, 'trips', fetched.id, Date.now())) {
+    return existing
+  }
+  recordServerTripTimestamp(fetched.id, fetched.updatedAt)
+  const trip = existing ? { ...fetched, members: existing.members ?? [] } : fetched
+  cache.trips = existing
+    ? cache.trips.map(t => (t.id === trip.id ? trip : t))
+    : [...cache.trips, trip]
+  commit()
   return trip
 }
 
@@ -1049,7 +1088,9 @@ export function reconcileDays(
   return { days: next }
 }
 
-export function createTrip(ownerId: ID, input: NewTripInput, seedStops?: ItineraryStop[][]): Trip {
+/** Build the trip a create form describes. Pure: adds nothing to the cache and
+ *  writes nothing, so the two creators below cannot drift apart (#374). */
+function buildNewTrip(ownerId: ID, input: NewTripInput, seedStops?: ItineraryStop[][]): Trip {
   const dayCount = Math.max(1, diffDays(input.startDate, input.endDate))
   const days: ItineraryDay[] = Array.from({ length: dayCount }, (_, i) => ({
     id: uid('day'), index: i, stops: [],
@@ -1091,10 +1132,51 @@ export function createTrip(ownerId: ID, input: NewTripInput, seedStops?: Itinera
     visibility: 'private', createdAt: Date.now(), updatedAt: Date.now(),
     members: [{ userId: ownerId, role: 'owner' as const, joinedAt: Date.now() }],
   } as Trip
-  cache.trips = [...cache.trips, trip]
-  commit()
+  return trip
+}
+
+/** Create a trip optimistically: it is in the cache the moment this returns and
+ *  the row write is fire-and-forget. Callers that must not navigate into a
+ *  workspace a failed write will empty use `createTripPersisted` (#374). */
+export function createTrip(ownerId: ID, input: NewTripInput, seedStops?: ItineraryStop[][]): Trip {
+  const trip = buildNewTrip(ownerId, input, seedStops)
+  admitTripCopy(trip)
   void persistTrip(trip, ownerId)
   return trip
+}
+
+/** Create a trip and WAIT for its rows (#374). The page must not route into the
+ *  workspace before this answers: a failed save used to leave the user in a
+ *  trip that vanished on the next reload, with only a toast saying so.
+ *
+ *  `persisted: false` means the trip was rolled back out of the cache and the
+ *  caller has to stay on the form and offer a retry — so the BUILT trip comes
+ *  back either way, and the retry re-uses it instead of minting a twin. */
+export async function createTripPersisted(ownerId: ID, input: NewTripInput, seedStops?: ItineraryStop[][]): Promise<{ trip: Trip; persisted: boolean }> {
+  const trip = buildNewTrip(ownerId, input, seedStops)
+  admitTripCopy(trip)
+  // A THROW is a failed save too: supabase-js answers with an error object for
+  // a refused write, but a dropped fetch can reject instead, and without this
+  // the optimistic row would stay in the cache as the zombie #374 is about.
+  let persisted = false
+  try { persisted = await persistTrip(trip, ownerId) }
+  catch (e) { console.error('[yatraflow] create failed', e) }
+  if (!persisted) retractTripCopy(trip)
+  return { trip, persisted }
+}
+
+/** Retry a create whose write failed, with the SAME trip object — never a new
+ *  id, so a first attempt that reached the server after the client gave up is
+ *  not followed by a twin. Re-admits the trip for the retry and retracts it
+ *  again if this attempt fails too; the `retry` flag lets this one meet its own
+ *  earlier rows without calling them a failure (see persistTrip). */
+export async function retryCreateTrip(trip: Trip, ownerId: ID): Promise<boolean> {
+  if (!cache.trips.some(t => t.id === trip.id)) admitTripCopy(trip)
+  let persisted = false
+  try { persisted = await persistTrip(trip, ownerId, { retry: true }) }
+  catch (e) { console.error('[yatraflow] create retry failed', e) }
+  if (!persisted) retractTripCopy(trip)
+  return persisted
 }
 
 /** A zero-dwell, auto anchor stop for a trip start/end point. */
@@ -1180,6 +1262,30 @@ function publishedHaveRefreshedAt(): Promise<boolean> {
   return refreshedAtProbe
 }
 
+// Third use of the same capability probe, for
+// published_itineraries.unpublished_at (#350, 20260925_publication_soft_unpublish.sql).
+// Mirrored exactly rather than generalised: publication is too important to
+// break on an un-migrated project, and the fail-closed direction differs here
+// — the publish path OMITS the column, the unpublish path REFUSES (see
+// unpublishItinerary, where falling back to the old delete would take every
+// buyer's entitlement with it).
+let unpublishedAtProbe: Promise<boolean> | null = null
+function publishedHaveUnpublishedAt(): Promise<boolean> {
+  if (!isSupabaseConfigured) return Promise.resolve(false)
+  if (!unpublishedAtProbe) {
+    unpublishedAtProbe = (async () => {
+      try {
+        const { error } = await supabase.from('published_itineraries').select('unpublished_at').limit(1)
+        if (!error) return true
+        if (isMissingColumnError(error)) return false
+      } catch { /* thrown transport error — treat like any transient failure */ }
+      unpublishedAtProbe = null // transient — re-check on the next call
+      return true
+    })()
+  }
+  return unpublishedAtProbe
+}
+
 // Same capability-probe idea for decisions.comments (20260920_decision_comments.sql):
 // databases created before that migration reject writes that mention the column,
 // so a comment would vanish on the next hydration until it is applied.
@@ -1207,19 +1313,32 @@ function decisionsHaveComments(): Promise<boolean> {
   return decisionCommentsProbe
 }
 
-async function persistTrip(trip: Trip, ownerId: ID): Promise<boolean> {
+async function persistTrip(trip: Trip, ownerId: ID, opts: { retry?: boolean } = {}): Promise<boolean> {
   // Claim the echo window before the await — see persistTripFieldNow.
   markLocalWrite('trips', trip.id)
   const cols = await tripsHaveOptionalColumns()
   const { error } = await supabase.from('trips').insert(tripToRow(trip, ownerId, cols))
-  if (error) { toast('Could not save trip.'); return false }
+  // A RETRY can meet the row its own first attempt wrote (#374): the insert
+  // then fails on the primary key while the trip exists and the create has in
+  // fact landed. Tolerating that case is the whole point of retrying with the
+  // same id — the alternative is telling the user a trip failed to save while
+  // it sits in their list. (An upsert cannot express this: the `trips update`
+  // policy is `is_editor`, which reads the member row that the same first
+  // attempt may not have written yet, so it is refused.)
+  const duplicateMyOwnRow = (e: unknown) => (e as { code?: string } | null)?.code === '23505'
+  if (error && !(opts.retry && duplicateMyOwnRow(error))) { toast('Could not save trip.'); return false }
   const { error: mErr } = await supabase.from('trip_members').insert(
     (trip.members ?? []).map(m => ({ trip_id: trip.id, user_id: m.userId, role: m.role, joined_at: m.joinedAt }))
   )
   // A member row is what makes the trip visible to its owner after a reload —
   // without it the trips row is an invisible orphan, so a failure here counts
-  // as "not persisted" even though the trips row landed.
-  if (mErr) { console.error('member insert failed', mErr); toast('Could not save trip.'); return false }
+  // as "not persisted" even though the trips row landed. Same tolerance on a
+  // retry: the membership we are inserting may already be there.
+  if (mErr && !(opts.retry && duplicateMyOwnRow(mErr))) {
+    console.error('member insert failed', mErr)
+    toast('Could not save trip.')
+    return false
+  }
   return true
 }
 
@@ -1295,8 +1414,16 @@ function admitTripCopy(copy: Trip): void {
 }
 
 /** Roll a failed-persist copy back out of the cache so the user is never left
- *  with a zombie trip that vanishes on the next reload. */
+ *  with a zombie trip that vanishes on the next reload.
+ *
+ *  A pending debounced write for the same id is cancelled first (#374): a
+ *  retracted trip whose row write is still in the coalescer would land on the
+ *  server seconds later with no cache row in front of it, and the trip would
+ *  reappear on the next hydrate — the "it vanished, then it was there" the
+ *  create path used to produce. */
 function retractTripCopy(copy: Trip): void {
+  const pending = pendingTripWrites.get(copy.id)
+  if (pending) { clearTimeout(pending.timer); pendingTripWrites.delete(copy.id) }
   cache.trips = cache.trips.filter(t => t.id !== copy.id)
   commit()
 }
@@ -1468,25 +1595,31 @@ export async function adminRemoveMember(tripId: ID, userId: ID): Promise<boolean
   return true
 }
 
-/** Unpublish any itinerary (admin variant — the owner path is creator-scoped). */
+/** Unpublish any itinerary (admin variant — the owner path is creator-scoped).
+ *  Same SOFT policy as the owner path (#350): the row stays, stamped with
+ *  `unpublishedAt`, so buyers keep their entitlements and the creator's sales
+ *  ledger and funnel survive an admin action. The RPC behind it
+ *  (`admin_unpublish`, redefined by 20260925_publication_soft_unpublish.sql)
+ *  stops sales and hides the publication; it no longer deletes the row and no
+ *  longer flips the trip to private — a private trip would make
+ *  `get_public_trip` refuse the very buyers the soft policy protects. */
 export async function adminUnpublish(tripId: ID): Promise<boolean> {
   if (!requireAdmin()) return false
   const prevPubs = cache.published
-  const prevTrips = cache.trips
+  const stamp = Date.now()
   patch({
-    published: prevPubs.filter(p => p.tripId !== tripId),
-    trips: prevTrips.map(t => t.id === tripId ? { ...t, visibility: 'private' as const, updatedAt: Date.now() } : t),
+    published: prevPubs.map(p => (p.tripId === tripId ? { ...p, unpublishedAt: stamp } : p)),
   })
   commit()
   const { error } = await supabase.rpc('admin_unpublish', { p_trip_id: tripId })
   if (error) {
     console.error('[yatraflow] admin_unpublish failed', error)
-    patch({ published: prevPubs, trips: prevTrips })
+    patch({ published: prevPubs })
     commit()
     toast(rpcErrorMessage(error), 'err')
     return false
   }
-  toast('Publication removed.')
+  toast('Publication unpublished.')
   void refreshAdminAudit()
   return true
 }
@@ -2367,16 +2500,29 @@ export function declineSuggestion(tripId: ID, suggestionId: ID): void {
 
 // ---------------- Decisions ----------------
 
-export function addDecision(tripId: ID, d: Pick<TripDecision, 'question' | 'context' | 'options'>): void {
+export function addDecision(tripId: ID, d: Pick<TripDecision, 'question' | 'context'> & { options: NewDecisionOption[] }): void {
   if (!cache.sessionUserId) return
   // Same cache/DB id agreement as addSuggestion.
   const id = uuid()
+  // #335: the caller's option id IS the contract, so keep it. The Map rail
+  // mints `slot:<key>:<hit>` for the join that puts a poll on its part and
+  // stamps `slotKey` on the stop it resolves to; the shortlist mints the place
+  // id so a re-add collapses into the poll already open; and votes recorded in
+  // other rows point at these ids. The old `uid('o')` rewrite broke all three
+  // (and destroyed the slot contract in the cache copy AND the row). Mint only
+  // when there is nothing to keep, or when two options in THIS poll collide —
+  // a shared id would make one vote count for both.
+  const seen = new Set<string>()
+  const options = d.options.map(o => {
+    const optionId = o.id && !seen.has(o.id) ? o.id : uid('o')
+    seen.add(optionId)
+    return { ...o, id: optionId }
+  })
   const row = {
-    id, trip_id: tripId, question: d.question, context: d.context,
-    options: d.options.map(o => ({ ...o, id: uid('o') })),
+    id, trip_id: tripId, question: d.question, context: d.context, options,
     votes_by_user_id: {}, status: 'open', raised_by: cache.sessionUserId,
   }
-  cache.decisions = [...cache.decisions, { ...d, id, tripId, votesByUserId: {}, comments: [], status: 'open', raisedBy: cache.sessionUserId, createdAt: Date.now(), options: row.options }]
+  cache.decisions = [...cache.decisions, { ...d, id, tripId, votesByUserId: {}, comments: [], status: 'open', raisedBy: cache.sessionUserId, createdAt: Date.now(), options }]
   addActivity(tripId, cache.sessionUserId, `raised decision “${d.question}”`, 'Decisions')
   // Notification parity with addSuggestion: the other members hear about new
   // group input too, not just suggestions.
@@ -2471,6 +2617,12 @@ export async function publishItinerary(pub: Omit<PublishedItinerary, 'id' | 'pub
     // Freshness marker for the dashboard's "page behind itinerary" nudge —
     // publishedAt stays the original date for Explore's newest sort.
     refreshedAt: Date.now(),
+    // Re-publishing puts the plan back on Explore and back on sale, so the
+    // soft-unpublish marker (#350) is cleared here — otherwise a plan
+    // unpublished once could never be made live again. The cache object is
+    // built fresh rather than spread from `pub`, so an explicit undefined is
+    // what clears a marker the caller happened to carry in.
+    unpublishedAt: undefined,
     views: existing?.views ?? 0,
     copies: existing?.copies ?? 0,
   }
@@ -2507,6 +2659,12 @@ export async function publishItinerary(pub: Omit<PublishedItinerary, 'id' | 'pub
   // the cache back so the UI never disagrees with the server. (Found live:
   // the gallery table was empty while the UI showed a published card.)
   const hasRefreshedCol = await publishedHaveRefreshedAt()
+  // A re-publish CLEARS the soft-unpublish marker (#350): without it the row
+  // would keep hiding from Explore and from the public page forever. Naming the
+  // column only when the probe says it exists — a write mentioning a missing
+  // column fails the whole statement (PostgREST), which would break publishing
+  // for every creator on an un-migrated project.
+  const hasUnpublishedCol = await publishedHaveUnpublishedAt()
   const { error } = await supabase.from('published_itineraries').upsert({
     id: p.id, trip_id: p.tripId, creator_id: p.creatorId, title: p.title, tagline: p.tagline,
     cover_image_url: p.coverImageUrl, route_summary: p.routeSummary, duration_days: p.durationDays,
@@ -2514,6 +2672,7 @@ export async function publishItinerary(pub: Omit<PublishedItinerary, 'id' | 'pub
     best_season: p.bestSeason, travel_tips: p.travelTips, warnings_and_assumptions: p.warningsAndAssumptions,
     free_day_indexes: p.freeDayIndexes, premium_price_inr: p.premiumPriceInr, subscriber_cta: p.subscriberCta,
     ...(hasRefreshedCol ? { refreshed_at: p.refreshedAt } : {}),
+    ...(hasUnpublishedCol ? { unpublished_at: null } : {}),
   })
   if (error) {
     console.error('[yatraflow] publish persist failed', error)
@@ -2606,12 +2765,21 @@ export async function collectUnclaimedCovers(): Promise<number> {
   try { return await coverSweep } finally { coverSweep = null }
 }
 
-/** Remove a trip's public itinerary from Explore. The cache row is removed
- *  synchronously (the UI reflects it at once) and the Supabase row is deleted;
- *  on a failed delete the cache row is restored so the UI never claims an
- *  unpublish that didn't stick. Owner-gated: only the trip owner (whose id
- *  matches creator_id server-side via RLS) may unpublish. The trip itself
- *  stays in My Trips — unpublish ≠ delete trip. */
+/** Take a trip's public itinerary off Explore — SOFTLY (#350).
+ *
+ *  The row SURVIVES: it is stamped with `unpublishedAt` and that is what hides
+ *  it (Explore, the hub's public surfaces, the `/pub/:id` page for anyone who
+ *  is not the creator or a buyer). It used to be a hard DELETE, and
+ *  `entitlements`, `purchase_orders` and `pub_events` all cascade off `pub_id`
+ *  — so a single click silently took away what buyers had paid for, destroyed
+ *  the creator's sales history and wiped the funnel that explains the plan's
+ *  reach. The hard DELETE is reserved for a separate refund-aware permanent
+ *  delete flow, which is not reachable from here.
+ *
+ *  The marker is written optimistically (the UI reflects it at once) and rolled
+ *  back only if the update comes back failed. Owner-gated: only the trip owner
+ *  (whose id matches creator_id server-side via RLS) may unpublish. The trip
+ *  itself stays in My Trips — unpublish ≠ delete trip. */
 export function unpublishItinerary(tripId: ID): void {
   const idx = cache.published.findIndex(p => p.tripId === tripId)
   if (idx < 0) return
@@ -2620,32 +2788,64 @@ export function unpublishItinerary(tripId: ID): void {
     return
   }
   const pub = cache.published[idx]
-  cache.published = cache.published.filter((_, i) => i !== idx)
-  commit()
+  const previous = pub
   void (async () => {
-    const { error } = await supabase.from('published_itineraries').delete().eq('id', pub.id)
-    if (error) {
-      console.error('[yatraflow] unpublish persist failed', error)
-      toast('Could not remove the publication — it is still live on Explore. (' + error.message + ')')
-      // Roll the optimistic removal back; the next refresh would resurrect it
-      // anyway, and until then the UI must not disagree with the server.
-      if (!cache.published.some(x => x.id === pub.id)) {
-        cache.published = [...cache.published, pub]
-        commit()
-      }
-    } else {
-      markLocalWrite('published_itineraries', pub.id)
-      // Unpublished → the trip is private again (matches the publish-side flip).
-      cache.trips = cache.trips.map(t => t.id === tripId ? { ...t, visibility: 'private' } : t)
-      commit()
-      fire('trips', supabase.from('trips').update({ visibility: 'private' }).eq('id', tripId))
+    // Fail CLOSED on an un-migrated database. Deleting is the bug this fixes,
+    // so the old fallback is deliberately gone: without the column there is no
+    // way to unpublish that keeps buyers whole, and the honest answer is to
+    // refuse and say why. (Checked BEFORE the optimistic stamp, so a refusal
+    // changes nothing at all — not even for one frame.)
+    if (!(await publishedHaveUnpublishedAt())) {
+      console.warn('[yatraflow] published_itineraries.unpublished_at missing — run supabase/migrations/20260925_publication_soft_unpublish.sql; unpublish is unavailable until then (the row must survive for its buyers).')
+      toast('Unpublish needs the soft-unpublish migration (20260925_publication_soft_unpublish.sql) — it is not applied yet.', 'err')
+      return
     }
+    const stamp = Date.now()
+    // Optimistic: the ROW STAYS, only the marker is added. Removing it from
+    // `cache.published` here is what the old hard-delete path did, and it is
+    // the same mistake one layer up — the creator's own ledger reads this list.
+    cache.published = cache.published.map(p => (p.id === pub.id ? { ...p, unpublishedAt: stamp } : p))
+    commit()
+    let failed: { message?: string } | null = null
+    try {
+      const { error } = await supabase.from('published_itineraries')
+        .update({ unpublished_at: stamp }).eq('id', pub.id)
+      failed = error
+    } catch (e) {
+      // A thrown transport error (offline, a rejected fetch) is the same
+      // failure as an error response: the marker did not stick.
+      failed = { message: e instanceof Error ? e.message : String(e) }
+    }
+    if (failed) {
+      console.error('[yatraflow] unpublish persist failed', failed)
+      toast('Could not unpublish — the plan is still live on Explore. (' + (failed.message ?? 'unknown error') + ')')
+      // Roll the marker back off; the next refresh would drop it anyway, and
+      // until then the UI must not disagree with the server.
+      cache.published = cache.published.map(p => (p.id === pub.id ? previous : p))
+      commit()
+      return
+    }
+    markLocalWrite('published_itineraries', pub.id)
+    // Deliberately NO `trips.visibility = 'private'` here (the old path did
+    // that). The public page's RLS policy already restricts a direct trip read
+    // to the owner, a member or an admin, and `get_public_trip` requires
+    // `visibility = 'public'` to serve an entitled buyer — so flipping the trip
+    // private would silently revoke every existing buyer's access, which is the
+    // exact failure this change exists to fix. The trip stays public; only the
+    // publication stops being offered.
   })()
 }
 
+/** Trips this user owns that are not currently published on Explore.
+ *
+ *  #350 — membership of `cache.published` no longer answers this question: a
+ *  soft-unpublished publication KEEPS its row (that is what preserves its
+ *  buyers' access and the creator's sales history), so a trip whose plan has
+ *  been taken down would otherwise be reported as published. A trip counts as
+ *  unpublished when it has no row at all, or a row carrying the marker. */
 export function unpublishedTripIds(userId: ID): ID[] {
   const mine = cache.trips.filter(t => t.members?.some(m => m.userId === userId && m.role === 'owner'))
-  return mine.filter(t => !cache.published.some(p => p.tripId === t.id)).map(t => t.id)
+  return mine.filter(t => !cache.published.some(p => p.tripId === t.id && !p.unpublishedAt)).map(t => t.id)
 }
 
 /** One view per itinerary per browser session, and the creator's own visits

@@ -324,9 +324,14 @@ function spitiDays() {
 }
 
 /** The trips row, shaped exactly as the store writes it (src/data/types.ts Trip). */
-function tripRow(pub) {
+function tripRow(pub, ownerId) {
   return {
     id: randomUUID(),
+    // OWNER IS MANDATORY. trips.owner_id is `not null` and has no default, and
+    // the insert policy is `with check (auth.uid() = owner_id)` - so a row
+    // without it is rejected with 42501 before a single publication, sale or
+    // event can be seeded, which is what made this fixture unusable.
+    owner_id: ownerId,
     name: pub.tripName,
     start_location: pub.days[0].stops[0].locationName,
     start_location_coords: { lat: pub.days[0].stops[0].lat, lng: pub.days[0].stops[0].lng },
@@ -434,12 +439,17 @@ function funnelRows(idsBySlug) {
  * moved.) `pubIndex` says which publication a plan's sale belongs to: `s.pub`
  * when the owner has several, a constant when they have one.
  */
-function saleRows(plan, pubIds, pubIndex, buyerIds, orderIds) {
+function saleRows(plan, pubIds, pubIndex, buyerIds, orderIds, tag) {
   const at = s => new Date(Date.now() - s.daysAgo * 86_400_000).toISOString()
   return plan.map((s, i) => ({
     order: {
       id: orderIds[i], user_id: buyerIds[s.buyer], pub_id: pubIds[pubIndex(s)],
-      razorpay_order_id: `fixture_order_${i}_${RUN}`,
+      // NAMESPACED BY OWNER (`tag`). `razorpay_order_id` is `not null unique`
+      // (20260918_payments_rail.sql:31) and BOTH plans index from 0, so a bare
+      // `fixture_order_${i}_${RUN}` gave the creator's order 0 and the admin's
+      // order 0 the same id - the seven-row insert was rejected with 23505 every
+      // time, in BOTH the pasted fallback and the elevated path below.
+      razorpay_order_id: `fixture_order_${tag}_${i}_${RUN}`,
       amount_inr: s.amountInr, price_snapshot_inr: s.amountInr,
       status: 'paid', created_at: at(s), paid_at: at(s),
     },
@@ -483,8 +493,8 @@ function adminPromotionSql(email) {
 
 function printSqlFallback({ creatorId, adminId, buyerIds, creatorPubIds, adminPubIds, creatorOrderIds, adminOrderIds, funnelEvents }) {
   const rows = [
-    ...saleRows(SALES, creatorPubIds, s => s.pub, buyerIds, creatorOrderIds),
-    ...saleRows(ADMIN_SALES, adminPubIds, () => 0, buyerIds, adminOrderIds),
+    ...saleRows(SALES, creatorPubIds, s => s.pub, buyerIds, creatorOrderIds, 'creator'),
+    ...saleRows(ADMIN_SALES, adminPubIds, () => 0, buyerIds, adminOrderIds, 'admin'),
   ]
   const orders = insertSql('purchase_orders', rows.map(r => r.order))
   const ents = insertSql('entitlements', rows.map(r => r.entitlement))
@@ -571,7 +581,7 @@ async function seedOwner(who, pubs, label) {
 
   const trips = []
   for (const p of pubs) {
-    const row = tripRow(p)
+    const row = tripRow(p, owner.userId)
     await insertAsUser(owner.sb, 'trips', [row])
     // Without a membership row the owner cannot read their own trip back
     // (every trip read goes through trip_members), and the publish editor
@@ -653,8 +663,8 @@ async function apply() {
     // The SAME `saleRows` the SQL fallback formats, so an elevated seed and a
     // pasted one describe one ledger.
     const rows = [
-      ...saleRows(SALES, creatorPubIds, s => s.pub, buyers, creatorOrderIds),
-      ...saleRows(ADMIN_SALES, adminPubIds, () => 0, buyers, adminOrderIds),
+      ...saleRows(SALES, creatorPubIds, s => s.pub, buyers, creatorOrderIds, 'creator'),
+      ...saleRows(ADMIN_SALES, adminPubIds, () => 0, buyers, adminOrderIds, 'admin'),
     ]
     await sql.insert('purchase_orders', rows.map(r => r.order))
     await sql.insert('entitlements', rows.map(r => r.entitlement))

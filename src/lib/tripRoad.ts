@@ -112,6 +112,7 @@ export function roadChainSig(
   const dc = trip.destinationCoords ?? []
   const lastDest = dc.length ? dc[dc.length - 1] : undefined
   if (lastDest) parts.push(roundCoord(lastDest.lat, lastDest.lng))
+  parts.push(trip.transportMode)
   parts.push(isRoundTrip(trip) ? 'rt' : 'ow')
   return parts.join('|')
 }
@@ -261,6 +262,28 @@ export function outboundLegs(chain: RoadChain | null, legs: RoadLeg[] | null): R
 }
 
 /**
+ * The measured return leg from the workspace chain, if the chain contains one.
+ * The Map tab draws the outbound and return as separate lines; keeping this
+ * derivation beside `outboundLegs` prevents the renderer from measuring the
+ * same pair again.
+ */
+export function mapReturnGeometryFromLegs(
+  chain: RoadChain | null,
+  legs: RoadLeg[] | null,
+): [number, number][] | null {
+  if (!chain || !legs) return null
+  // A destination tail is also a post-outbound leg, but it is not the drive
+  // home. Only the repeated first point proves a round-trip return exists.
+  const first = chain.points[0]
+  const afterOutbound = chain.points[chain.outboundCount]
+  if (!first || !afterOutbound || first.lat !== afterOutbound.lat || first.lng !== afterOutbound.lng) return null
+  const returnIndex = chain.outboundCount - 1
+  if (returnIndex < 0 || returnIndex >= legs.length) return null
+  const coords = legs[returnIndex].geometry
+  return coords.length > 1 ? coords : null
+}
+
+/**
  * The Map tab's view of a measured chain: ONLY the outbound legs
  * (start → stops). A round trip's chain carries the drive home too, and the
  * fatigue math already multiplies by its own loop factor — counting the return
@@ -278,7 +301,8 @@ export function mapRoadViewFromLegs(
   dayIndexes: number[],
 ): MapRoadView {
   if (!chain || !legs || legs.length === 0) return EMPTY_MAP_VIEW
-  const outbound = Math.min(legs.length, Math.max(0, chain.outboundCount - 1))
+  if (chain.outboundCount <= 1) return EMPTY_MAP_VIEW
+  const outbound = Math.min(legs.length, chain.outboundCount - 1)
   if (outbound <= 0) return EMPTY_MAP_VIEW
   const legsView = legs.slice(0, outbound)
   const perDay = new Map<number, number>()
@@ -286,10 +310,14 @@ export function mapRoadViewFromLegs(
     const day = chain.ptDay[i + 1]
     if (day != null) perDay.set(day, (perDay.get(day) ?? 0) + l.distanceKm)
   })
+  // The drawn geometry is outbound + (when present) the one-way destination
+  // tail. A round-trip return is a separate line, so skip that middle leg
+  // instead of drawing it once in the main line and again as the return line.
+  const drawnLegs = chain.hasDestTail
+    ? [...legsView, legs[legs.length - 1]].filter(Boolean)
+    : legsView
   return {
-    geometry: legs
-      .slice(0, Math.min(legs.length, (chain.hasDestTail ? chain.points.length : Math.max(1, chain.outboundCount)) - 1))
-      .flatMap(l => l.geometry),
+    geometry: drawnLegs.flatMap(l => l.geometry),
     totalKm: legsView.reduce((sum, l) => sum + l.distanceKm, 0),
     totalMin: legsView.reduce((sum, l) => sum + l.durationMinutes, 0),
     dayRoadKm: dayIndexes.map(idx => perDay.get(idx) ?? 0),

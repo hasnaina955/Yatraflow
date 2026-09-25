@@ -2,8 +2,10 @@
 // Searches cities AND points of interest (via src/lib/geocode.ts — free, no key).
 // Keyboard navigable: ↑/↓ to move, Enter to pick, Esc to dismiss.
 import { useEffect, useId, useRef, useState } from 'react'
-import { googleEnabled, mapplsEnabled, requireHitCoords, searchPlaces } from '../lib/geocode'
+import { googleEnabled, mapplsEnabled, searchPlaces } from '../lib/geocode'
 import type { PlaceHit } from '../lib/geocode'
+import { hasCoords } from '../lib/providers/hits'
+import { useResolvePick } from './ResolvePickDialog'
 
 export type { PlaceHit } from '../lib/geocode'
 
@@ -36,6 +38,10 @@ export function LocationInput({ value, onChange, onPick, placeholder, error, err
   const [resolving, setResolving] = useState(false)
   /** pick-time resolution failure — shown under the field, clears on next search */
   const [pickErr, setPickErr] = useState('')
+  // Shared resolve-or-prompt guard (#424): unknown-position picks get retry /
+  // manual coordinates / explicit skip before the caller sees them. With the
+  // other hooks, above every path out of this component (AGENTS §6e).
+  const { resolvePick, dialog: resolvePickDialog } = useResolvePick()
   const wrapRef = useRef<HTMLDivElement>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const listId = useId()
@@ -71,16 +77,16 @@ export function LocationInput({ value, onChange, onPick, placeholder, error, err
   }
 
   async function choose(hit: PlaceHit) {
-    // Mappls hits carry an eLoc, Google hits a placeId — either way the pick
-    // is resolved to verified coordinates before it reaches the caller.
-    // requireHitCoords() rejects instead of silently handing a (0,0)
-    // placeholder to the caller: a trip born at Null Island measures its
-    // whole journey through the ocean (found live 2026-09-14).
-    if ((hit.eLoc || hit.placeId) && hit.latitude === 0 && hit.longitude === 0) {
+    // Any pick the map cannot pin — a provider placeholder, a mixed (0, lng)
+    // zero, or a place with no id to resolve through — goes through the shared
+    // resolve-or-prompt guard (#424) before it reaches the caller: retry,
+    // manual coordinates, or an explicit skip. A trip born at Null Island
+    // measures its whole journey through the ocean (found live 2026-09-14).
+    if (!hasCoords(hit)) {
       setResolving(true)
       try {
-        const resolved = await requireHitCoords(hit)
-        if (!resolved) { setPickErr('Could not pin that place on the map — try another suggestion.'); return }
+        const resolved = await resolvePick(hit)
+        if (!resolved) { setPickErr('That place was not pinned on the map — pick another suggestion.'); return }
         hit = resolved
       } finally { setResolving(false) }
     }
@@ -170,6 +176,7 @@ export function LocationInput({ value, onChange, onPick, placeholder, error, err
       {open && !loading && searched && hits.length === 0 && value.trim().length >= 2 && (
         <div className="loc-empty popover">No places matched “{value.trim()}”. You can still use this text as-is.</div>
       )}
+      {resolvePickDialog}
     </div>
   )
 }

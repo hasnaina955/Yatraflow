@@ -17,7 +17,11 @@ The app lives at **https://yatraflow-blond.vercel.app**, connected to `hasnaina9
 - Environment variables (Project → Settings → Environment Variables) — required for **Production, Preview and Development**. When editing one, tick **all three** environment checkboxes **and leave Preview free of a Git-branch filter**: a var scoped to Production only — *or* scoped to Preview-but-pinned-to-one-branch — is silently absent from every other branch's build:
   - `VITE_SUPABASE_URL`
   - `VITE_SUPABASE_ANON_KEY`
-  Vite **inlines these at build time**, so changing them never affects an existing deployment — you must **Redeploy** (Vercel → Deployments → ⋯ → Redeploy) for a preview to pick them up. Since 2026-08-31 `vite.config.ts` aborts a Vercel build outright when either is missing, so a mis-scoped environment fails loudly instead of shipping an app whose login is broken.
+  - `VITE_CREATE_FUNNEL` — the create-flow funnel switch, and **the one that shipped dark** (#427). A comma-separated phase list, not a boolean; the value that lights up the whole v0.65.0 arc is
+    `templates,budget,readiness,drafts,crew,moment,iq`.
+    **Leaving it unset is a valid state, and in production it is a silent one**: unset in a production build means *dark* (the app renders, `/new` loads, every funnel phase is simply missing), while unset in a dev build means *everything on*. That asymmetry exists so `test` can dark-run a phase before `main` sees it, so do not "fix" a dark production build by changing the default — set the variable. `tests/deploy-flags.test.ts` keeps this list, the `createFunnelOn()` call sites and `FUNNEL_PHASES` in `vite.config.ts` identical, because a typo here silently darkens one phase while the other six light up. `vite.config.ts` warns (never aborts) when a **production** build has this empty or names a phase the code does not gate.
+  - `VITE_AI_COMPANION` — deliberately **absent** from production until the 1.0 cut (M8), where the companion is unmounted as the premium perk; `AI_COMPANION_ENABLED` requires the exact value `on`. Its dark state is a decision, unlike the funnel's.
+  Vite **inlines these at build time**, so changing them never affects an existing deployment — you must **Redeploy** (Vercel → Deployments → ⋯ → Redeploy) for a preview to pick them up. Since 2026-08-31 `vite.config.ts` aborts a Vercel build outright when either Supabase variable is missing, so a mis-scoped environment fails loudly instead of shipping an app whose login is broken.
 - Build settings (auto-detected Vite preset):
   - Build command: `npm run build`
   - Output directory: `dist`
@@ -90,7 +94,7 @@ For GitHub Pages specifically, the Vite config already uses relative asset paths
 
 ## Runtime data notes
 
-- All user data lives in Supabase Postgres; access is gated by Row Level Security. There is no client-side persistence beyond the auth session — the in-memory store re-hydrates on every login.
+- All user data lives in Supabase Postgres; access is gated by Row Level Security. Beyond the auth session, the client keeps an offline snapshot of the account's rows plus a durable outbox of unsynced edits (IndexedDB, since v0.65) so the installed app reads and edits offline — both keyed by account and cleared on sign-out. The in-memory store still re-hydrates on every login.
 - **Email confirmation** is a Supabase Auth setting (Authentication → Sign In / Providers). With it on, signups send a confirmation email (free tier: ~2/hour); the app detects the unconfirmed state and asks the user to check their inbox.
 - RLS gotcha: policies that query `trip_members` must go through the `security definer` helpers (`is_member`/`is_editor`) — a direct subquery inside a policy causes infinite recursion (Postgres `42P17`) and every request 500s.
 - Top-level table ids are UUIDs; the client generates them (`crypto.randomUUID`). JSONB-internal ids (stops/days/expenses) may be any string.
@@ -105,16 +109,17 @@ All client config is read from `VITE_`-prefixed variables (see `.env.example`). 
 | `VITE_SUPABASE_URL` | ✅ | Your Supabase project URL. |
 | `VITE_SUPABASE_ANON_KEY` | ✅ | Supabase **anon** key (public by design). Never put the `service_role` key in a `VITE_` var. |
 | `VITE_MAPPLS_KEY` | optional | Mappls REST key — powers India-best place autocomplete when set; falls back to the free stack when absent. |
-| `VITE_GOOGLE_MAPS_API_KEY` | optional | Google Places key — opt-in Google autocomplete/nearby/opening-hours; quota-guarded, always falls back to the free stack. |
+| `VITE_GOOGLE_MAPS_API_KEY` | optional | Google Places key — with it, the suggestion pipeline is Google-only (honest quota/failure notes, never a silent fallback; night-halt towns still ask OSM); the place search box degrades Google → free. Quota-guarded per SKU. |
+| `VITE_AI_COMPANION` | optional | `=on` mounts the AI companion drawer and its Profile settings (kept off in production until the premium launch). |
 
 The Google key is **optional** and the app fully works without it (free stack only). See the provider facade in `src/lib/geocode.ts`.
 
 ## Release checklist
 
-1. `npx tsc --noEmit` — clean
-2. `npm run build` — succeeds
+1. `npm run verify` — clean typecheck, full test suite and production build, all green
+2. `npm run check:migrations` — every migration probed present on the live project; apply anything missing in the Supabase SQL editor *first* (a release whose SQL never ran fails at runtime, not in CI)
 3. Smoke-test locally: login → demo trips load → create trip (persists after reload) → add stop → map renders → publish → copy from Explore
 4. Check `vercel env ls` — `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` present for **Production *and* a branch-free Preview** (the `environments (git branch)` column must read `Preview`, never `Preview (<branch>)`; Production-only or branch-pinned scoping is the #1 cause of "login works here but not on the preview")
-5. Update `CHANGELOG.md`
-6. Commit, merge to `main`, push, watch the Vercel deployment finish
-7. Verify the live URL serves the new build (hard-refresh; check bundle hash changed)
+5. Update `CHANGELOG.md`; for feature-worthy releases also bump `package.json` + lockfile and refresh README highlights (newest first)
+6. Commit, merge to `main` (user-gated), push, watch the Vercel deployment finish
+7. Verify the live URL serves the new build (hard-refresh; check bundle hash changed), then tag the promotion merge (`vX.Y.Z`, annotated) — the tag push is what builds the Android APK

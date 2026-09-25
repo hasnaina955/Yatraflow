@@ -31,6 +31,7 @@ import { RemoteEditBanner } from '../../components/RemoteEditBanner'
 import { useStopConflict } from '../../components/useStopConflict'
 import { stopInitialValues, stopLegContext, stopEditorKey, stopDayIndex, type StopEditorTarget } from '../../lib/stopForm'
 import { useSuggestionCache } from '../../hooks/useSuggestionCache'
+import { PREVIEW_BUSY } from '../../lib/previewChain'
 import { kmFromStartForHit } from '../../lib/providers/hits'
 import { useTimelineMode, type TimelineMode } from './timeline/useTimelineMode'
 import { PillNav } from '../../components/PillNav'
@@ -42,10 +43,13 @@ import { MoveStopModal } from './timeline/MoveStopModal'
 const NO_WARNINGS: ScheduleWarning[] = []
 // ================= Timeline =================
 
-export function TimelineTab({ trip, editable, applyChange, legCorrections, suggestionCache, onOpenBoard, focusDay, onFocusConsumed }: {
+export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorrections, suggestionCache, onOpenBoard, focusDay, onFocusConsumed }: {
   trip: Trip
   editable: boolean
   applyChange: (mutator: (d: Trip) => void, kind: ImpactResult['kind'], dayIndex: number) => void
+  /** true while the workspace has a staged change — day rename / ride start
+   *  write the committed row directly, so they must not race a preview (#334). */
+  previewOpen?: boolean
   legCorrections?: Record<string, LegEstimate>
   suggestionCache: ReturnType<typeof useSuggestionCache>
   /** M5: the doc's §6.3 "Open in Board" bridge — Board now exists. */
@@ -236,9 +240,12 @@ export function TimelineTab({ trip, editable, applyChange, legCorrections, sugge
 
   /** Inline day rename — a lightweight label change, applied directly (no impact preview). */
   const handleRenameDay = useCallback((dayIndex: number, title: string) => {
+    // #334: this writes the committed row directly, so while a preview is open
+    // it would race the staged change in either order and one edit would fall.
+    if (previewOpen) { toast(PREVIEW_BUSY, 'err'); return }
     updateTrip(trip.id, { days: trip.days.map(d => d.index === dayIndex ? { ...d, title: title.trim() || undefined } : d) })
     toast('Day renamed')
-  }, [trip])
+  }, [trip, previewOpen])
 
   /** Duplicate this day's stops onto the next day (base-camp style planning). */
   const handleCopyDay = useCallback((dayIndex: number) => {
@@ -267,9 +274,11 @@ export function TimelineTab({ trip, editable, applyChange, legCorrections, sugge
 
   /** Ride start time for a day — a lightweight plan field, applied directly (like rename). */
   const handleSetDayStart = useCallback((dayIndex: number, time: string) => {
+    // #334: direct write, same race as the rename — blocked while previewing.
+    if (previewOpen) { toast(PREVIEW_BUSY, 'err'); return }
     updateTrip(trip.id, { days: trip.days.map(d => d.index === dayIndex ? { ...d, startTime: time || undefined } : d) })
     toast(time ? `Day ${dayIndex + 1} now starts ${time}` : 'Ride start reset to the default')
-  }, [trip])
+  }, [trip, previewOpen])
 
   /** Insert a batch of long-ride break halts, each at a user-chosen km point, ordered by
       distance along the route so the arrival clock and map reflect true stop order. Impact
@@ -293,10 +302,14 @@ export function TimelineTab({ trip, editable, applyChange, legCorrections, sugge
   }, [applyChange, legCorrections])
 
   const handleStatus = useCallback((stop: ItineraryStop, status: ItineraryStop['status']) => {
-    // Status flips are lightweight group signals — applied directly.
+    // Status flips are lightweight group signals — applied directly to the
+    // committed row, so #334 refuses them while a preview is open: the flip
+    // would land on the cache, and Keep would then write the proposal the
+    // preview was built from, silently reverting it.
+    if (previewOpen) { toast(PREVIEW_BUSY, 'err'); return }
     setStopStatus(trip.id, status, stop.id)
     toast(`“${stop.title}” marked ${status === 'needs-booking' ? 'needs booking' : status}`)
-  }, [trip.id])
+  }, [trip.id, previewOpen])
 
   // --- Plan / Inspect (docs/TIMELINE-PLAN.md Phase 3): Inspect is the study
   // view — same data, every editing affordance off (the existing `editable`

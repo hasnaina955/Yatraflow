@@ -57,6 +57,16 @@ it('misses on an empty cache', () => {
   it('misses when the per-person budget changes', () => {
     expect(isMapCacheFresh(cached(), 20, planInputsHash({ ...baseInputs(), budgetPerPersonInr: 25000 }))).toBe(false)
   })
+
+  it('misses when time, weather, halt pins, DNA or speed inputs change', () => {
+    const base = planInputsHash(baseInputs())
+    expect(planInputsHash({ ...baseInputs(), dayStartTimes: ['09:00'] })).not.toBe(base)
+    expect(planInputsHash({ ...baseInputs(), dayRainPct: [80] })).not.toBe(base)
+    expect(planInputsHash({ ...baseInputs(), dayWeatherCode: [95] })).not.toBe(base)
+    expect(planInputsHash({ ...baseInputs(), haltPins: { 0: 120 } })).not.toBe(base)
+    expect(planInputsHash({ ...baseInputs(), dnaVector: { sightseeing: 2 } })).not.toBe(base)
+    expect(planInputsHash({ ...baseInputs(), speedKmph: 25 })).not.toBe(base)
+  })
 })
 
 describe('planInputsHash is order-stable', () => {

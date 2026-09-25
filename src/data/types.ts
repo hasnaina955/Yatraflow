@@ -308,6 +308,16 @@ export interface DecisionOption {
   place?: DecisionPlacePayload
 }
 
+/** What a caller may hand `addDecision`: the option id is OPTIONAL (#335).
+ *
+ *  An id the caller supplies is load-bearing and is preserved verbatim — the
+ *  Map rail mints `slot:<key>:<hit>` so a poll joins to its part (voteFor's
+ *  prefix match) and the resolver can stamp `slotKey` on the landed stop, and
+ *  the shortlist mints the PLACE id so re-adding a place collapses into the
+ *  poll it already opened. The store mints `uid('o')` only when the caller gave
+ *  none (a hand-typed question), or when two options in one poll collide. */
+export type NewDecisionOption = Omit<DecisionOption, 'id'> & { id?: string }
+
 export interface TripDecision {
   id: ID
   tripId: ID
@@ -364,6 +374,11 @@ export interface PublishedItinerary {
    *  Absent on rows published before v0.37 — staleness then falls back to
    *  publishedAt. */
   refreshedAt?: number
+  /** Soft-unpublish (#350): ms-epoch stamp set when the creator unpublishes.
+   *  The row SURVIVES so buyers keep their entitlement and the creator's sales
+   *  history stays whole — absent means live. Deliberately a timestamp and not a
+   *  boolean, so "when did this come down" is answerable later. */
+  unpublishedAt?: number
   views: number
   copies: number
 }

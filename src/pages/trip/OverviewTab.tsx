@@ -303,7 +303,7 @@ function SlotMatrix({ trip, road, corridorSegments }: {
       fillSkeleton: true,
       travelStyle: trip.travelStyle,
       transportMode: trip.transportMode,
-      travellers: trip.travellers,
+      memberCount: (trip.members ?? []).length,
       existingNames: new Set(trip.days.flatMap(d => d.stops.map(s => s.title.toLowerCase()))),
       // The matrix reads slot STATES only, so candidate scoring (two geometry
       // projections per hit across the whole corridor pool) is pure waste here.

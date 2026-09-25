@@ -34,7 +34,7 @@ Sign up / log in with a real account (Supabase auth) — first sign-in seeds dem
 - **No new runtime libraries** (UI kits, routers, state managers) without prior discussion. The MVP intentionally hand-rolls routing and components.
 - **Styles live in `src/styles.css`** — plain CSS with custom properties for theming. No Tailwind/CSS-in-JS. Follow existing naming (`kebab-case`, `.yf-` prefix only for maplibre overrides).
 - **Transparency promise:** any estimate you add must show its assumptions to the user. Never present a computed number as authoritative — the engine's disclaimers exist for a reason.
-- **Respect the MVP constraints:** no real payments, no bookings, no fake "live" data. If a feature needs one of these, design it as an explicit placeholder or raise an issue first.
+- **Respect the MVP constraints:** no bookings, no fake "live" data, and no payments beyond the shipped Razorpay unlock rail for paid itineraries (v0.61). If a feature needs one of these, design it as an explicit placeholder or raise an issue first.
 - **India-first:** INR currency formatting via `formatInr()`, Indian place names in seeds/examples.
 - **Comment density:** match surrounding code — short `// ---- section ----` banners and notes explaining *why*, not *what*.
 

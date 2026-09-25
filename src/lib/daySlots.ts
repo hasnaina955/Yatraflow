@@ -55,8 +55,8 @@ export type SlotState = 'filled' | 'empty' | 'auto'
 /** One fillable candidate for an empty slot, pre-scored and window-annotated. */
 export interface SlotCandidate {
   hit: PlaceHit
-  /** door-to-door detour minutes at the trip's speed (asymmetric when geometry is known) */
-  detourMin: number
+  /** door-to-door detour minutes at the trip's speed; null = position/detour unknown */
+  detourMin: number | null
   /** road detour km (null = on route / unknown) */
   detourKm: number | null
   /** whole-percent share of that day's detour budget this candidate spends */
@@ -149,8 +149,12 @@ export interface DaySlotsDeps {
   /** The trip's decisions: an open one whose options name this part shows as
    *  the part's live vote instead of its candidates. */
   decisions?: TripDecision[]
-  /** Crew size for the vote's "N of M" reading. */
-  travellers?: number
+  /** Crew size for the vote's "N of M" reading — the trip's MEMBERS, the
+   *  same denominator Group Input divides by, so one poll reads ONE quorum on
+   *  both surfaces (#335's product call). `travellers` was a different count
+   *  (it can name people who are not crew) and is gone rather than kept as a
+   *  second reading. */
+  memberCount?: number
   /** Day attribution override (the caller's own dayForKm over road-true
    *  per-day km): receives a journey segment, returns the trip day index it
    *  belongs to. When given, day slicing follows IT, not the dayEnd flags -
@@ -506,14 +510,13 @@ function candidatesFor(
     if (out.length >= limit) break
     const dKm = detourKm(row.hit, deps.anchors)
     const dMin = asymmetricDetourMinutes(row.hit, deps.anchors, deps.routePolyline ?? null, speed)
-    // Budget honesty: the same rule the see-&-do rail spends by. Zero-detour
-    // (on-route) candidates never spend.
-    if (dMin > 0) {
-      if (spent + dMin > budget) continue
-      spent += dMin
-    }
+    // Unknown position is never free or auto-kept: the candidate needs a
+    // measured road position before it can consume the day's finite budget.
+    if (dMin == null) continue
+    if (spent + dMin > budget) continue
+    spent += dMin
     const eta = seg && minute(seg.etaMinutes) ? (seg.etaMinutes as number) : null
-    const arriveMin = eta != null ? Math.round(eta + dMin) : null
+    const arriveMin = eta != null && dMin != null ? Math.round(eta + dMin) : null
     const inWindow = arriveMin != null && win != null && arriveMin >= win[0] && arriveMin <= win[1]
     out.push({
       hit: row.hit,
@@ -610,7 +613,7 @@ function voteFor(draft: SlotDraft, deps: DaySlotsDeps): SlotVote | undefined {
     question: dec.question,
     optionCount: dec.options.length,
     votesCast: cast.length,
-    voters: deps.travellers ?? 0,
+    voters: deps.memberCount ?? 0,
     leadingLabel: leading,
   }
 }

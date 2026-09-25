@@ -23,6 +23,7 @@ import {
 import { formatInr, minutesToHM } from '../../lib/engine'
 import { decisionContext, contextLine, recommendForDecision } from '../../lib/decisionGuide'
 import { Avatar, Chip, EmptyState, Field, toast } from '../../components/ui'
+import { PREVIEW_BUSY } from '../../lib/previewChain'
 import { LocationInput } from '../../components/LocationInput'
 import { cap, timeAgo } from './shared'
 
@@ -46,10 +47,24 @@ const EMPTY_COPY: Record<Filter, { icon: 'idea' | 'question'; title: string; bod
 function itemId(i: GroupItem): string { return i.kind === 'idea' ? i.sg.id : i.d.id }
 function itemTitle(i: GroupItem): string { return i.kind === 'idea' ? i.sg.title : i.d.question }
 
-export function GroupInputTab({ trip, editable, me }: {
+/** #334: accepting a suggestion and resolving a decision are written straight to
+ *  the cache (`addStop` / `decisions`), never staged into an open preview — a
+ *  crew signal must not end up inside one person's unkept proposal, where the
+ *  group cannot see it and Keep could silently revert it. So while a preview is
+ *  open they refuse, in the same words the timeline's direct writers use. */
+function refuseWhilePreviewing(previewOpen: boolean | undefined): boolean {
+  if (!previewOpen) return false
+  toast(PREVIEW_BUSY, 'err')
+  return true
+}
+
+export function GroupInputTab({ trip, editable, me, previewOpen }: {
   trip: Trip
   editable: boolean
   me: NonNullable<ReturnType<typeof currentUser>>
+  /** true while the workspace holds a staged change — the crew-signal buttons
+   *  below write the committed row, so they must not race a preview (#334). */
+  previewOpen?: boolean
 }) {
   const db = useDb()
   const memberCount = (trip.members ?? []).length
@@ -145,9 +160,9 @@ export function GroupInputTab({ trip, editable, me }: {
           )}
           {shown.map(item => item.kind === 'idea'
             ? <SuggestionCard key={item.sg.id} sg={item.sg} trip={trip} me={me} editable={editable} memberCount={memberCount}
-                needsMe={suggestionNeedsMe(item.sg)} />
+                needsMe={suggestionNeedsMe(item.sg)} previewOpen={previewOpen} />
             : <DecisionCard key={item.d.id} d={item.d} me={me} editable={editable}
-                needsMe={decisionNeedsMe(item.d)} trip={trip} />
+                needsMe={decisionNeedsMe(item.d)} trip={trip} previewOpen={previewOpen} />
           )}
 
           <div className="card">
@@ -211,13 +226,14 @@ function digestSub(i: GroupItem): string {
 
 // ================= Suggestion card =================
 
-function SuggestionCard({ sg, trip, me, editable, memberCount, needsMe }: {
+function SuggestionCard({ sg, trip, me, editable, memberCount, needsMe, previewOpen }: {
   sg: StopSuggestion
   trip: Trip
   me: NonNullable<ReturnType<typeof currentUser>>
   editable: boolean
   memberCount: number
   needsMe: boolean
+  previewOpen?: boolean
 }) {
   const ups = sg.votes.filter(v => v.value === 1).length
   const downs = sg.votes.length - ups
@@ -263,7 +279,11 @@ function SuggestionCard({ sg, trip, me, editable, memberCount, needsMe }: {
 
         {editable && sg.status === 'open' && (
           <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginTop: 11 }}>
-            <button className="btn btn-primary btn-sm" onClick={() => { acceptSuggestionIntoTimeline(trip.id, sg.id); toast('Added to timeline') }}>Add to timeline</button>
+            <button className="btn btn-primary btn-sm" onClick={() => {
+              if (refuseWhilePreviewing(previewOpen)) return
+              acceptSuggestionIntoTimeline(trip.id, sg.id)
+              toast('Added to timeline')
+            }}>Add to timeline</button>
             <button className="btn btn-danger btn-sm" onClick={() => { declineSuggestion(trip.id, sg.id); toast('Suggestion declined') }}>Decline</button>
           </div>
         )}
@@ -301,12 +321,13 @@ function CommentForm({ onSubmit }: { onSubmit: (text: string) => void }) {
 
 // ================= Decision card =================
 
-function DecisionCard({ d, me, editable, needsMe, trip }: {
+function DecisionCard({ d, me, editable, needsMe, trip, previewOpen }: {
   d: TripDecision
   me: { id: string }
   editable: boolean
   needsMe: boolean
   trip: Trip
+  previewOpen?: boolean
 }) {
   const tally = d.options.map(o => Object.values(d.votesByUserId).filter(v => v === o.id).length)
   const totalVotes = tally.reduce((s, t) => s + t, 0)
@@ -377,7 +398,11 @@ function DecisionCard({ d, me, editable, needsMe, trip }: {
         <div className="resolve-btns">
           {d.options.map((o, i) => (
             <button key={o.id} className={`btn btn-sm ${i === leadingIdx ? 'btn-primary' : 'btn-outline'}`}
-              onClick={() => { resolveDecision(d.id, o.id); toast('Decision resolved') }}>
+              onClick={() => {
+                if (refuseWhilePreviewing(previewOpen)) return
+                resolveDecision(d.id, o.id)
+                toast('Decision resolved')
+              }}>
               Resolve: {o.label}
             </button>
           ))}
@@ -500,7 +525,10 @@ function DecisionComposerForm({ trip }: { trip: Trip }) {
     addDecision(trip.id, {
       question: q.trim(),
       context: context.trim() || undefined,
-      options: built.map((o, i) => ({ id: `tmp_${i}`, label: o.label, costImpactInr: o.cost || undefined })),
+      // #335: no placeholder ids — a hand-typed poll gets real ones from the
+      // store, which preserves an id a caller does supply (the Map rail's
+      // slot and place ids are load-bearing).
+      options: built.map(o => ({ label: o.label, costImpactInr: o.cost || undefined })),
     })
     setQ(''); setContext(''); setOpts([{ label: '', cost: '' }, { label: '', cost: '' }])
     toast('Decision posted for the group')

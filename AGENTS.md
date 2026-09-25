@@ -32,7 +32,7 @@ Key locations:
 - `tests/` — vitest in **node env (no DOM)** — test pure logic, not DOM
 - CHANGELOG.md — Keep-a-Changelog-style; versions are pre-1.0 milestones
 
-## 1.1 Current project status (as of Sep 24, 2026)
+## 1.1 Current project status (as of Sep 25, 2026)
 
 > **Read this section as a paraphrase, not as a source (added 2026-09-20).** The
 > release bullets below are append-only history and can be trusted; the *live*
@@ -45,11 +45,11 @@ Key locations:
 > test...origin/test` + `gh issue list --state open` and fix this section in the
 > same session you notice the drift (§2.6).
 
-**Version:** **v0.65.0** — the funnel, the companion and the installable app (2026-09-22, cut on `test` and **promoted to `main` the same day — PR #304, `main` at `3893ccc`**): the Create funnel and its ticket, the M5 AI companion (LLM/Jev/offline), the PWA pair with offline reading and durable sync, the map's honesty pass, and the security hardening batch. Production is at **v0.65.0** — the PR #304 merge (2026-09-22 16:01 UTC) is the last promotion, and the branches have diverged since (`test` at `3c97d8e`, v0.66.0 cut with its promotion still pending; `main` at `dc3baa1`) — the release is tagged (annotated `v0.65.0` on the merge commit, Android APK workflow green on the tag push), and the migration-status run at the cut read **24 migrations · 0 missing against live** (the three function-only ones are declared rather than probed — §3.2). It follows **v0.61.0** — the money release (2026-09-18): a priced publication can actually be bought, with the paywall enforced at the wire rather than in the browser (the price read from the publication row server-side, the unlock granted only through a buyer-scoped RPC or the idempotent webhook, and a confirmed-but-unsaved purchase recovered rather than charged twice); a versioned itinerary format whose importer migrates and repairs an older export instead of refusing it; the crew-facing access rules pinned by an opt-in suite that runs against the live database (M6, #237); and the two public surfaces' own pass. **Promoted to `main` on 2026-09-18 (PR #259, `main` at `647faf1`)**; production then stayed there until **v0.62.0 and v0.63.0 were promoted together on 2026-09-20 (PR #267, `main` at `55efd21`)** — the paywall-RPC fix, the crawl surface, live presence and the travel-clock map layer are all on `main` now. The database half is applied as well — both of this release's migrations were run by the user in the Supabase SQL editor on 2026-09-20 — so production's code and production's schema are both at v0.63.0. It follows **v0.60.0**, the whole-app refinement pass (every route reviewed against its own design language and fixed in place; merged to `test` in PR #257), which took the design-system ratchet to `7 / 0 / 28 / 29 / 1` — no known dark-theme contrast violation left.
+**Version:** **v0.66.0** — the hub as an operating picture, and the high-end visual pass (2026-09-24, cut on `test` and **promoted to `main` the same day — PR #319, `main` at `244e74e`**): the creator hub as an operating picture (a KPI strip, a recorded-traffic trend drawn from the same derivation its rows read, one row per publication with its funnel, the profile into a disclosure, every honesty state kept), route-aware map-tab search, and the high-end visual pass (Plus Jakarta Sans, one 1.5 icon stroke, the pill nav's glider, the landing's display scale and Double-Bezel buttons). Production is at **v0.66.0** — the PR #319 merge (2026-09-24) is the last promotion, and `test` has since moved 9 commits past `main` (`main` at `244e74e`, `test` at `5550fae`) — the release is tagged (annotated `v0.66.0` on the merge commit, the Android APK workflow green on the tag push), and the migration-status run read **24 migrations · 13 applied · 0 missing · 11 no probe surface (1 optional) · 0 unchecked** (the function-only ones are declared rather than probed — §3.2). It follows **v0.61.0** — the money release (2026-09-18): a priced publication can actually be bought, with the paywall enforced at the wire rather than in the browser (the price read from the publication row server-side, the unlock granted only through a buyer-scoped RPC or the idempotent webhook, and a confirmed-but-unsaved purchase recovered rather than charged twice); a versioned itinerary format whose importer migrates and repairs an older export instead of refusing it; the crew-facing access rules pinned by an opt-in suite that runs against the live database (M6, #237); and the two public surfaces' own pass. **Promoted to `main` on 2026-09-18 (PR #259, `main` at `647faf1`)**; production then stayed there until **v0.62.0 and v0.63.0 were promoted together on 2026-09-20 (PR #267, `main` at `55efd21`)** — the paywall-RPC fix, the crawl surface, live presence and the travel-clock map layer are all on `main` now. The database half is applied as well — both of this release's migrations were run by the user in the Supabase SQL editor on 2026-09-20 — so production's code and production's schema are both at v0.63.0. It follows **v0.60.0**, the whole-app refinement pass (every route reviewed against its own design language and fixed in place; merged to `test` in PR #257), which took the design-system ratchet to `7 / 0 / 28 / 29 / 1` — no known dark-theme contrast violation left.
 
-**Previous version:** v0.64.0 — decision comments, creator covers and onboarding a11y (2026-09-21, PR #270). Before it: **v0.59.1** — the span-indexing fix (2026-09-17), promoted to `main` on 2026-09-17 (**PR #248**, `main` at `1d1b85f`); v0.59.0 was the corridor-measurement release (promoted 2026-09-17, **PR #247**, `main` at `b4f0a18`). Its scope: the corridor span measurement no longer hands a leg its neighbour's result, so a cached leg inside the span cannot truncate the drawn route or poison a later measurement's cache entry. The v0.59.0 content stands: corridor-wide road measurement replaces per-leg requests, the day filter measures only the day on screen, and copied public itinerary addresses keep their trip-specific previews with navigation that works in any tab. The v0.58.0 content stands: a publication without a cover now previews with a branded 1200×630 card (`public/og-default.png`, emitted by `api/i.js` as a fallback and advertised by the shell too), and auto-picked Wikipedia covers are sized through Wikimedia's own resize endpoint instead of shipping the unscaled upload — measured at 144–406 KB where the originals were 1300–3300 KB, which is what the 600 KB WhatsApp documents for `og:image` requires. The v0.57.0 content stands: a published itinerary link previews as a card (`/i/<id>` answered by `api/i.js` with that itinerary's own Open Graph tags, then the hash route), trip JSON imports in one step from My Trips in both formats the repo ships, permanent user deletion in the masteradmin console, the offline companion's routing collisions fixed, and per-route browser-tab titles. The v0.56.0 content stands: the six-phase settings-wiring audit (issue #213) is fully landed (PRs #219/#220/#221) — Trip settings as the eighth workspace tab, the four party/vehicle fields persisted through `20260915_trip_party_prefs.sql`, `CACHE_VERSION` 3→4, `MapTab`'s verdicts re-deriving on `trip`/`dayWeatherCode`, `roadChainSig`, and honest numeric defaults for non-car vehicles. The `npm run verify` gate at the v0.65.0 cut (2026-09-22): tsc clean + **2104 tests (152 files)** + production build — CI's `Verify` job is green on the `3893ccc` merge for both the `main` and `test` pushes.
+**Previous version:** **v0.65.0** — the funnel, the companion and the installable app (2026-09-22, cut on `test` and **promoted to `main` the same day — PR #304, `main` at `3893ccc`**). Before it: v0.64.0 — decision comments, creator covers and onboarding a11y (2026-09-21, PR #270); **v0.59.1** — the span-indexing fix (2026-09-17), promoted to `main` on 2026-09-17 (**PR #248**, `main` at `1d1b85f`); v0.59.0 was the corridor-measurement release (promoted 2026-09-17, **PR #247**, `main` at `b4f0a18`). Its scope: the corridor span measurement no longer hands a leg its neighbour's result, so a cached leg inside the span cannot truncate the drawn route or poison a later measurement's cache entry. The v0.59.0 content stands: corridor-wide road measurement replaces per-leg requests, the day filter measures only the day on screen, and copied public itinerary addresses keep their trip-specific previews with navigation that works in any tab. The v0.58.0 content stands: a publication without a cover now previews with a branded 1200×630 card (`public/og-default.png`, emitted by `api/i.js` as a fallback and advertised by the shell too), and auto-picked Wikipedia covers are sized through Wikimedia's own resize endpoint instead of shipping the unscaled upload — measured at 144–406 KB where the originals were 1300–3300 KB, which is what the 600 KB WhatsApp documents for `og:image` requires. The v0.57.0 content stands: a published itinerary link previews as a card (`/i/<id>` answered by `api/i.js` with that itinerary's own Open Graph tags, then the hash route), trip JSON imports in one step from My Trips in both formats the repo ships, permanent user deletion in the masteradmin console, the offline companion's routing collisions fixed, and per-route browser-tab titles. The v0.56.0 content stands: the six-phase settings-wiring audit (issue #213) is fully landed (PRs #219/#220/#221) — Trip settings as the eighth workspace tab, the four party/vehicle fields persisted through `20260915_trip_party_prefs.sql`, `CACHE_VERSION` 3→4, `MapTab`'s verdicts re-deriving on `trip`/`dayWeatherCode`, `roadChainSig`, and honest numeric defaults for non-car vehicles. The `npm run verify` gate at the v0.65.0 cut (2026-09-22): tsc clean + **2104 tests (152 files)** + production build — CI's `Verify` job is green on the `3893ccc` merge for both the `main` and `test` pushes.
 
-**State:** Stabilization complete; the v0.40-era 32-finding UI audit AND the deeper #107 tracker are fixed to the floor (**117/117 boxes closed** — every finding carries a verdict; the owner-decision rows are the budget palette kept as authored, the board touch-tooltips product call, and two documented conventions). Device-check flags open on hardware only: 3D map-mode frame rate on a mid-range Android, Liberty label density at phone width, Landing scroll after the attachment change. The Corridor Concierge suggestion-engine brainstorm is FULLY shipped (Horizons 1–3, 16/16) — see ROADMAP's 🧭 table. v0.47.0's soft-delete backend is applied live (probe-verified: `trips.deleted_at` exists on the production project; the `get_trashed_trips` RPC is present with authenticated-only EXECUTE — the anon call returns `42501 permission denied`, not PGRST202). Branch model stays two-branch: `main` (production, Vercel) and `test` (integration) — level with each other at `3893ccc` at the v0.65.0 promotion, and diverged since (`test` at `3c97d8e` with v0.66.0 cut and its promotion still pending, `main` at `dc3baa1`). The `npm run verify` gate at the v0.65.0 cut (2026-09-22): tsc clean + **2104 tests (152 files)** + production build — CI's `Verify` job is green on the `3893ccc` merge for both the `main` and `test` pushes.
+**State:** Stabilization complete; the v0.40-era 32-finding UI audit AND the deeper #107 tracker are fixed to the floor (**117/117 boxes closed** — every finding carries a verdict; the owner-decision rows are the budget palette kept as authored, the board touch-tooltips product call, and two documented conventions). Device-check flags open on hardware only: 3D map-mode frame rate on a mid-range Android, Liberty label density at phone width, Landing scroll after the attachment change. The Corridor Concierge suggestion-engine brainstorm is FULLY shipped (Horizons 1–3, 16/16) — see ROADMAP's 🧭 table. v0.47.0's soft-delete backend is applied live (probe-verified: `trips.deleted_at` exists on the production project; the `get_trashed_trips` RPC is present with authenticated-only EXECUTE — the anon call returns `42501 permission denied`, not PGRST202). Branch model stays two-branch: `main` (production, Vercel) and `test` (integration) — **no longer level**: `test` has moved 9 commits past `main` (`244e74e`), which carries only the v0.66.0 promotion merge and the docs-only `dc3baa1`. The `npm run verify` gate at the v0.65.0 cut (2026-09-22): tsc clean + **2104 tests (152 files)** + production build — CI's `Verify` job is green on the `3893ccc` merge for both the `main` and `test` pushes.
 
 > **A partial patch vs a full-Trip patch through `updateTrip` needs different handling (learned 2026-09-11).** The settings form passes a partial patch while the impact-preview flow passes a whole `Trip` (whose dates are always truthy). Any gate shaped like `if (patch.startDate || …)` fires on every Keep; reconciliation must compare resolved dates against the cache and reconcile the *incoming* days. The two `reconcile-days.test.ts` full-Trip regression tests pin this — they fail on the old code.
 
@@ -93,25 +93,25 @@ Key locations:
 - **v0.35.0** — Publish editor (preview/price/CTA), fork premium gate, creator mode, sourcemaps
 - **v0.31.0** — M0–M7 Calm Travel Intelligence redesign shipped (user-driven halt planner, 3-layer tokens, OpenFreeMap basemap, touch drag-and-drop)
 
-**Current branch:** `test` — the integration branch, **at `3c97d8e` carrying 61 commits `main` lacks, with v0.66.0 cut on it and the promotion to `main` still pending user confirmation; `main` sits at `dc3baa1`, one docs-only commit past the v0.65.0 promotion (`docs: suggestion engine deep-dive report`) that `test` does not carry** — it carried no unique work then, and the next release started from there: on 2026-09-24 `test` took three PRs — **#315** (`feat/creator-hub-dashboard`, merge `8830648`), **#316** (`fix/map-search-route-bias`, merge `9138ff2`) and **#317** (`fix/og-card-font`, merge `3c97d8e`) — leaving **no PRs open**, with `npm run verify` green at the cut (**2,135 tests / 154 files + 1 skipped**; tsc clean, production build clean). How it got there before that: on 2026-09-22 `test` took the **12-PR queue integration** (the Create funnel, the M5 companion, the PWA pair, the map cluster, security hardening, the icon vocabulary and the design AA pass — `npm run verify` green at each of the 12 merges), the **`feat/migration-status-check`** probe (`npm run check:migrations`: 24 migrations · 0 missing against live — 2 artifact-probed, 3 RPC-probed), and the **`origin/main` reconciliation** folding the v0.64.0 release squash against test's originals (12 files, 26 hunks; the CHANGELOG dedupe removed 5 byte-identical twins and lifted the queue's bullets above the released section). v0.65.0 was promoted the same day: **PR #304** (`test` → `main`) merged 2026-09-22 16:01 UTC, the annotated tag `v0.65.0` points at its merge commit, and the Android APK workflow ran green on the tag push. **13 issues and no PRs remain open** — PR #294 was closed by hand at 16:09 UTC, minutes after the promotion, its content having landed through the queue integration's direct merge of `origin/feat/offline-read`. **#261's two migrations are applied** — `20260919_covers_bucket.sql` (the `covers` bucket + its folder-scoped policies) and `20260919_trip_cover_image.sql` (`trips.cover_image_url`), both run by the user in the Supabase SQL editor on 2026-09-20. That mattered more than usual here: the release makes a *saved* cover mandatory to publish, so without the column no cover could be saved and publishing would have been blocked for every creator the moment the code reached a deployed environment. The tree's own gate: the suite stood at **2104 tests (152 files)** at the cut, and CI's `Verify` job is green on the `3893ccc` merge for both the `main` and `test` pushes. `main` had sat at `647faf1` since v0.61.0 (PR #259) — it was 71 commits and two releases behind at the merge. After a promotion the count that matters is `git rev-list --count origin/main..origin/test` (it was 3 on 2026-09-18, the paywall fix, 12 at the v0.62.0 cut, and **0 now** — the v0.65.0 promotion has landed); a non-zero exit from `git merge-base --is-ancestor` alone does not tell you which side is ahead. What the promotion carried — **52 files, +3833/−272** (`git diff --stat origin/main..HEAD`): **v0.62.0** (M6 · Together's co-editing half — presence, the stale-update ledger, the remote-edit banner, mark-settled, PR #265), the **travel clock and living plan** drawn on the map (`lib/clockOverlay.ts` + 457 fixtures in `tests/clockOverlay.test.ts`, PR #262), the crawl surface (`public/robots.txt` + `api/sitemap.js` + its `vercel.json` rewrite, PR #258), the public-page fix (`get_public_trip`'s `::text` cast and the creator-sales RPC revoked from anon, PR #256), the CI gate for PRs into `test` (PR #266), a calmer map rail (`bcf1398`, PR #260), and two migrations (`20260918_payments_security.sql` corrected, `20260919_trip_touch_updated_at.sql` new). `package.json` reads **0.63.0** on both lines (the promotion is `55efd21`). **The commit count overstates the content:** the travel-clock branch carried a Sept-13/14 Day Planner batch whose code was already in `main` via other commits, so `git log main..test` lists commits that change nothing — `git diff --stat` is the truth, and `git log --oneline <base>..HEAD -- CHANGELOG.md` is the coverage audit. **v0.59.0** was the corridor-measurement release, promoted 2026-09-17 (**PR #247**, `main` at `b4f0a18`); **v0.58.0** was the share-card release, promoted 2026-09-17 (**PR #245**, `main` at `cf1c289`). The v0.59.0 work is corridor-wide road measurement, day-scoped measurement, and public addresses that preserve trip-specific previews with navigation that works in any tab. **v0.57.0** was promoted on 2026-09-17 (**PR #244**, `main` at `43c839f`); **v0.56.0** was the settings-integrity release (promoted 2026-09-16, **PR #223**, `main` at `f314b25`). The v0.58.0 work is the share card (`public/og-default.png` plus the `api/i.js` fallback and the shell's own `og:image`) and the Wikimedia cover sizing in `lib/tripThumb.ts`. The v0.57.0 work is the itinerary preview endpoint (`api/i.js` plus the `/i/:id` rewrite that makes a shared link preview as a card), the one-step trip-JSON import, per-route browser-tab titles, the offline companion's routing fixes, and permanent user deletion (**PR #225** — its `admin_delete_user` RPC stays migration-gated on `20260916_admin_delete_user.sql`). The v0.56.0 cycle's own PRs: **#219** (the Settings tab split + propagation fixes, #213 Phases 1–4), **#220** (Create↔Settings parity + numeric defaults, Phases 5+6) and **#221** (the audit docs + ROADMAP queue refresh).
+**Current branch:** `test` — the integration branch, **9 commits ahead of `main` and no longer level with it — `main` at `244e74e` (the v0.66.0 promotion merge, PR #319) carries 2 commits `test` does not (that merge and the docs-only `dc3baa1`), so the next promotion is a real merge rather than a fast-forward** — it carried no unique work then, and the next release started from there: on 2026-09-24 `test` took four PRs — **#315** (`feat/creator-hub-dashboard`, merge `8830648`), **#316** (`fix/map-search-route-bias`, merge `9138ff2`), **#317** (`fix/og-card-font`, merge `3c97d8e`) and **#318** (`docs/promote-v0.66.0`, the release cut, merge `a2d92d9`) — leaving **no PRs open**, with `npm run verify` green at the cut (**2,135 tests / 154 files + 1 skipped**; tsc clean, production build clean). How it got there before that: on 2026-09-22 `test` took the **12-PR queue integration** (the Create funnel, the M5 companion, the PWA pair, the map cluster, security hardening, the icon vocabulary and the design AA pass — `npm run verify` green at each of the 12 merges), the **`feat/migration-status-check`** probe (`npm run check:migrations`: 24 migrations · 0 missing against live — 2 artifact-probed, 3 RPC-probed), and the **`origin/main` reconciliation** folding the v0.64.0 release squash against test's originals (12 files, 26 hunks; the CHANGELOG dedupe removed 5 byte-identical twins and lifted the queue's bullets above the released section). v0.65.0 was promoted the same day: **PR #304** (`test` → `main`) merged 2026-09-22 16:01 UTC, the annotated tag `v0.65.0` points at its merge commit, and the Android APK workflow ran green on the tag push. **40 issues are open and 4 PRs (re-derived 2026-09-25)** — PR #294 was closed by hand at 16:09 UTC, minutes after the promotion, its content having landed through the queue integration's direct merge of `origin/feat/offline-read`. **#261's two migrations are applied** — `20260919_covers_bucket.sql` (the `covers` bucket + its folder-scoped policies) and `20260919_trip_cover_image.sql` (`trips.cover_image_url`), both run by the user in the Supabase SQL editor on 2026-09-20. That mattered more than usual here: the release makes a *saved* cover mandatory to publish, so without the column no cover could be saved and publishing would have been blocked for every creator the moment the code reached a deployed environment. The tree's own gate: the suite stood at **2104 tests (152 files)** at the cut, and CI's `Verify` job is green on the `3893ccc` merge for both the `main` and `test` pushes. `main` had sat at `647faf1` since v0.61.0 (PR #259) — it was 71 commits and two releases behind at the merge. After a promotion the count that matters is `git rev-list --count origin/main..origin/test` (it was 3 on 2026-09-18, the paywall fix, 12 at the v0.62.0 cut, and **0 now** — the v0.65.0 promotion has landed); a non-zero exit from `git merge-base --is-ancestor` alone does not tell you which side is ahead. What the promotion carried — **52 files, +3833/−272** (`git diff --stat origin/main..HEAD`): **v0.62.0** (M6 · Together's co-editing half — presence, the stale-update ledger, the remote-edit banner, mark-settled, PR #265), the **travel clock and living plan** drawn on the map (`lib/clockOverlay.ts` + 457 fixtures in `tests/clockOverlay.test.ts`, PR #262), the crawl surface (`public/robots.txt` + `api/sitemap.js` + its `vercel.json` rewrite, PR #258), the public-page fix (`get_public_trip`'s `::text` cast and the creator-sales RPC revoked from anon, PR #256), the CI gate for PRs into `test` (PR #266), a calmer map rail (`bcf1398`, PR #260), and two migrations (`20260918_payments_security.sql` corrected, `20260919_trip_touch_updated_at.sql` new). `package.json` reads **0.63.0** on both lines (the promotion is `55efd21`). **The commit count overstates the content:** the travel-clock branch carried a Sept-13/14 Day Planner batch whose code was already in `main` via other commits, so `git log main..test` lists commits that change nothing — `git diff --stat` is the truth, and `git log --oneline <base>..HEAD -- CHANGELOG.md` is the coverage audit. **v0.59.0** was the corridor-measurement release, promoted 2026-09-17 (**PR #247**, `main` at `b4f0a18`); **v0.58.0** was the share-card release, promoted 2026-09-17 (**PR #245**, `main` at `cf1c289`). The v0.59.0 work is corridor-wide road measurement, day-scoped measurement, and public addresses that preserve trip-specific previews with navigation that works in any tab. **v0.57.0** was promoted on 2026-09-17 (**PR #244**, `main` at `43c839f`); **v0.56.0** was the settings-integrity release (promoted 2026-09-16, **PR #223**, `main` at `f314b25`). The v0.58.0 work is the share card (`public/og-default.png` plus the `api/i.js` fallback and the shell's own `og:image`) and the Wikimedia cover sizing in `lib/tripThumb.ts`. The v0.57.0 work is the itinerary preview endpoint (`api/i.js` plus the `/i/:id` rewrite that makes a shared link preview as a card), the one-step trip-JSON import, per-route browser-tab titles, the offline companion's routing fixes, and permanent user deletion (**PR #225** — its `admin_delete_user` RPC stays migration-gated on `20260916_admin_delete_user.sql`). The v0.56.0 cycle's own PRs: **#219** (the Settings tab split + propagation fixes, #213 Phases 1–4), **#220** (Create↔Settings parity + numeric defaults, Phases 5+6) and **#221** (the audit docs + ROADMAP queue refresh).
 
 > **Resolved (2026-09-17): the polyline/routing batch and the commercial docs have both landed.** The 2026-09-16 correction this note replaces is obsolete — **PR #224** merged into `test` on 2026-09-17 (`dbd557a`), so `5a8cfd5`, `1125227`, `f4ed706`, `4b2286b`, `146de3d` and `e72810f` are now ancestors of `origin/test` (re-verify with `git merge-base --is-ancestor <sha> origin/test`), and **#214** landed the same day (`d897d53`), putting the commercial docs under `docs/commercial/`. **PR #235** remains **CLOSED as superseded** (2026-09-17): both of its halves — the link-preview endpoint and the trip-JSON import — landed on `test` in a simpler form (`d5a3842`, `f625387`, `7079688`), and its own `api/i.js`/`shareUrl.ts` must not be merged over them; the branch is kept as archaeology. Re-check drift before each push (see the branch note in the State paragraph above).
 
 > **`admin_delete_user` (Sep 2026) is migration-gated.** The RPC ships in `supabase/migrations/20260916_admin_delete_user.sql` and must be applied in the Supabase SQL editor before the console's Delete button works — the store call fails with `PGRST202` (function not found) until then, toasting the error. Its guards (published-force, self, last-admin) and audit-before-delete order are pinned in `tests/admin-delete-user.test.ts` so future edits can't silently drop them.
 
 **In-flight:**
-- **v0.66.0 is cut on `test` and its promotion awaits the user — `test` at `3c97d8e` (61 commits past `main`, v0.66.0 cut), `main` at `dc3baa1`, no PRs open; `[Unreleased]` is becoming the `0.66.0` section.** The release's one open follow-up is DB-side: its three function-only migrations (`20260921_admin_revenue.sql`, `20260921_purchase_share_card.sql`, `20260922_pub_events_retention.sql`) are declared rather than probed by `check:migrations` (§3.2). `owns_publication` was verified live 2026-09-22 (§3), but `admin_revenue` was still recorded as unapplied when its note was written — run `npm run check:migrations` and open the console's Analytics tab on a credentialed machine to settle it (a missing RPC fails loudly with `PGRST202`).
+- **v0.66.0 is promoted (PR #319, `main` at `244e74e`) — but `test` is no longer that tree: it is 9 commits ahead and 4 PRs are open (#322, #429, #430, #431), with `[Unreleased]` live again.** The release is tagged (annotated `v0.66.0` on the merge commit; the Android APK workflow ran green on the tag push, which is the only path that publishes the APK). The release's one open follow-up is DB-side: its three function-only migrations (`20260921_admin_revenue.sql`, `20260921_purchase_share_card.sql`, `20260922_pub_events_retention.sql`) are declared rather than probed by `check:migrations` (§3.2). `owns_publication` was verified live 2026-09-22 (§3), but `admin_revenue` was still recorded as unapplied when its note was written — run `npm run check:migrations` and open the console's Analytics tab on a credentialed machine to settle it (a missing RPC fails loudly with `PGRST202`).
 - **Rebrand (issue #96) — ARCHIVED 2026-09-15: no need or plan to rename.** The seam exists on `refactor/brand-seam` (one source of truth for the product name across 21 files incl. `vite.config.ts`) and is kept as archaeology, not as pending work. If it is ever revived: the Android shell has brand-adjacent fields (`appId` `app.yatraflow.mobile`, `versionName`, APK artifact naming) and an `appId` change **breaks updates over existing installs**, so that cut must be planned deliberately. The landing-page experiment on `explore/landing-hero-local` is unrelated to this decision
 - **v0.63.0 is promoted: `main` and `test` are the same tree (`55efd21`, PR #267, 2026-09-20) — the only part of this release still outstanding is the database.** `[Unreleased]` was consolidated into `## [0.63.0] - 2026-09-20` (the §2.6b coverage audit ran: every commit in `main..test` either has an entry in `[0.62.0]`/`[0.63.0]` or is user-invisible — a merge, a doc, a test, or a CI change), `package.json` + lockfile bumped to 0.63.0, and ROADMAP's Snapshot date, `Current version` line and ledger row updated to match (`tests/roadmap-status.test.ts` pins those three to each other, so a cut that misses one fails the gate). Both pushes happened with the user's explicit confirmation under §2.1/§2.8. PR #267's Codacy run flagged two real inherited defects, both now fixed on `test`: the presence key drew from `Math.random()` (now `getRandomValues`, with a comment-aware tripwire in `tests/presence.test.ts`) and ROADMAP's strategic-track table linked four anchors that no heading produced (M5/M6/M7/M8 — all repaired). **Both of this release's migrations are applied** (2026-09-20, run by the user in the Supabase SQL editor) — `20260918_payments_security.sql` (the server-side paywall — `get_public_trip`, the tightened `trips read` policy, the gated `get_invite_trip`, refund revocation, the nullable entitlements FK and `get_creator_sales`) and `20260919_trip_touch_updated_at.sql` (M6's `updated_at` trigger, byte-equivalent to `schema.sql`'s canonical function) — and `v0.63.0` is tagged on `main` (`55efd21`). **The rule this release earned: a promotion's DB half is a separate, user-run step, so a release is not finished until someone has run its migrations** — CI, the merge and the deploy all pass without them, and the only symptom is a live surface failing at runtime. Two scoped items from v0.60.0 remain deliberately unexecuted in ROADMAP's Idea bank: `overdrive` on its four authored surfaces (**I-18**, filed as issue **#255** — its contract requires 2–3 directions to be presented and one picked before any code) and theming `::selection`/`caret-color` (**I-17**, unblocked and a one-file change — since executed and shipped; see the bank's shipped record)
 - Working-tree noise is now *ignored*, not merely noticed: `.verdent/` agent-tool scratch was untracked and added to `.gitignore` (PR #263) — see §4. `.freebuff/` does not exist in this clone (checked 2026-09-20) and the tree is clean
 - **v0.64.0 — promoted 2026-09-21 (PR #270, `main` at `ee4b2ee`), then folded into the v0.65.0 queue by the `origin/main` reconciliation.** 37 commits on `test`: decision comments + settle-up reminder (#268), creator-owned share covers with automatic backfill of third-party images (#261), onboarding A11y fixes at phone width (#269), Explore filters URL-sync, orphaned store ref cleanup, remote-edit banner Board reach, Timeline collapse motion gliding, Plan Bench tablet labels, toast/dock clearance, cited creator-market research. Its migration `20260920_decision_comments.sql` (`decisions.comments`) is verified applied — the v0.65.0 cut's `check:migrations` run read 24 migrations · 0 missing against live. Changelog coverage audit complete (§2.6b). |
-- Release tags: **`v0.65.0` is the newest** — annotated on the promotion merge commit `3893ccc` and pushed 2026-09-22 (`git push origin vX.Y.Z` is the only path that builds the Android APK, §3.1 — the workflow ran green on it). Before it `v0.63.0` sat on its promotion merge `55efd21` (2026-09-20); before that they stopped at **`v0.54.0`**: `v0.55.0` and `v0.56.0` both shipped untagged, joining v0.42.0 and v0.45–v0.48, and `v0.49.0` is the one carrying its APK on the GitHub release. Backfilling those is optional.
-- **Merged branches are pruned at merge now — the branch name was only ever a pointer, and the PR *is* the archaeology** (changed 2026-09-20). The repo had accumulated 26 remote heads, 21 of them describing work already contained in `main` or `test`; the 17 whose commits were already **ancestors of `origin/main`** were deleted in one batched sweep, taking the remote to 9 heads. Recovery never depended on the branch: GitHub keeps `refs/pull/<n>/head` for merged *and* closed PRs (verified on #235, #254, #261, #265 — including the closed-unmerged one) and every deleted SHA is still reachable from `main`. **Gate any prune on a fresh pre-flight pass, in one scripted sequence that aborts wholesale:** per branch a `git merge-base --is-ancestor origin/<b> origin/main` (or `origin/test` for test-only work) *and* an open-PR check — a branch that advanced or gained a PR since the audit must fail the gate rather than be deleted blind. This is not an age-based cleanup: the oldest head pruned was nine days old, so prune on merged-ness alone and never on staleness. The record of what was deleted, with each head SHA, lives in `docs/history/branch-prunes.md`. **Keep these on purpose:** `refactor/brand-seam` and `explore/landing-hero-local` (no PR has ever existed for either, so the branch is the *only* remote copy of its commits), `feat/share-preview-og` (closed as superseded — it is the counter-example warning the next session off merging its `api/i.js`/`shareUrl.ts`), and any branch whose PR is **open**. Note that **merged-ness in the branch's own target is what matters, not `main`** — `feat/settle-nudge-decision-comments` was pruned at its merge into `test` (#268 → `9bac779`) while that work was still absent from `main`, because the durable recovery path is the PR and not the branch. Holding a `test`-merged branch until promotion is therefore a convenience, not a rule: it is why the sweep's `docs/creator-market-research` (#254) and `fix/explore-clipping` (#261) were held until promotion — both were pruned once PR #304 made their work ancestors of `main`, alongside `fix/onboarding-design-audit` (#269). The **2026-09-22** post-promotion sweep pruned **36** refs the same gated way (the three hold-outs included) and left the remote at **5** — and taught two mechanics: **enumerate with `git ls-remote --heads origin`, never `for-each-ref refs/remotes/origin`** (the namespace's own `origin/HEAD` prints as a phantom `origin` "branch", passes the ancestry check, cannot be deleted, and one un-deletable name aborts a batched `push --delete` wholesale), and **record every head SHA before deleting** (a successful `push --delete` also prunes the local remote-tracking refs — after the sweep the SHAs survive only via `refs/pull/<n>/head`). The record is in `docs/history/branch-prunes.md`, and the remote now stands at **5 heads**: `main`, `test`, and the three kept-on-purpose branches (`refactor/brand-seam`, `explore/landing-hero-local`, `feat/share-preview-og`).
+- Release tags: **`v0.66.0` is the newest** — annotated on the promotion merge commit `244e74e` and pushed 2026-09-24 (`git push origin vX.Y.Z` is the only path that builds the Android APK, §3.1 — the workflow ran green on it). Before it `v0.65.0` sat on its promotion merge `3893ccc` (2026-09-22) and `v0.63.0` on `55efd21` (2026-09-20); before those they stopped at **`v0.54.0`**: `v0.55.0` and `v0.56.0` both shipped untagged, joining v0.42.0 and v0.45–v0.48, and `v0.49.0` is the one carrying its APK on the GitHub release. Backfilling those is optional.
+- **Merged branches are pruned at merge now — the branch name was only ever a pointer, and the PR *is* the archaeology** (changed 2026-09-20). The repo had accumulated 26 remote heads, 21 of them describing work already contained in `main` or `test`; the 17 whose commits were already **ancestors of `origin/main`** were deleted in one batched sweep, taking the remote to 9 heads. Recovery never depended on the branch: GitHub keeps `refs/pull/<n>/head` for merged *and* closed PRs (verified on #235, #254, #261, #265 — including the closed-unmerged one) and every deleted SHA is still reachable from `main`. **Gate any prune on a fresh pre-flight pass, in one scripted sequence that aborts wholesale:** per branch a `git merge-base --is-ancestor origin/<b> origin/main` (or `origin/test` for test-only work) *and* an open-PR check — a branch that advanced or gained a PR since the audit must fail the gate rather than be deleted blind. This is not an age-based cleanup: the oldest head pruned was nine days old, so prune on merged-ness alone and never on staleness. The record of what was deleted, with each head SHA, lives in `docs/history/branch-prunes.md`. **Keep these on purpose:** `refactor/brand-seam` and `explore/landing-hero-local` (no PR has ever existed for either, so the branch is the *only* remote copy of its commits), `feat/share-preview-og` (closed as superseded — it is the counter-example warning the next session off merging its `api/i.js`/`shareUrl.ts`), and any branch whose PR is **open**. Note that **merged-ness in the branch's own target is what matters, not `main`** — `feat/settle-nudge-decision-comments` was pruned at its merge into `test` (#268 → `9bac779`) while that work was still absent from `main`, because the durable recovery path is the PR and not the branch. Holding a `test`-merged branch until promotion is therefore a convenience, not a rule: it is why the sweep's `docs/creator-market-research` (#254) and `fix/explore-clipping` (#261) were held until promotion — both were pruned once PR #304 made their work ancestors of `main`, alongside `fix/onboarding-design-audit` (#269). The **2026-09-22** post-promotion sweep pruned **36** refs the same gated way (the three hold-outs included) and left the remote at **5** — and taught two mechanics: **enumerate with `git ls-remote --heads origin`, never `for-each-ref refs/remotes/origin`** (the namespace's own `origin/HEAD` prints as a phantom `origin` "branch", passes the ancestry check, cannot be deleted, and one un-deletable name aborts a batched `push --delete` wholesale), and **record every head SHA before deleting** (a successful `push --delete` also prunes the local remote-tracking refs — after the sweep the SHAs survive only via `refs/pull/<n>/head`). The record is in `docs/history/branch-prunes.md`, and the remote stood at **5 heads** right after that sweep: `main`, `test`, and the three kept-on-purpose branches (`refactor/brand-seam`, `explore/landing-hero-local`, `feat/share-preview-og`) — **it had refilled to 14 by 2026-09-25**, so treat any head count written here as a timestamp and re-derive it with `git ls-remote --heads origin`.
 - The `shabtab` fork remote is **present again** (checked 2026-09-16: `git remote -v` lists it beside `origin`, and a plain `git fetch --all` reaches it) — re-adding it is no longer needed. It carries its own day-route line, latest `ae581f3` (2026-09-12)
 - **`docs/history/` now holds archived records** (pre-0.42.0 changelog, the v0.23.0 CTI plan, and `branch-prunes.md` — the 2026-09-20 branch-prune roster). Do not bulk-rewrite `CHANGELOG.md` (rule 9 below)
 
 **What's next (ROADMAP.md):**
-- **The queue is 13 open issues (re-derived 2026-09-22, `gh issue list --state open`)** — this count has now been wrong twice, so re-derive it rather than quoting it. Two sets: the **launch-readiness criteria** (#227 F3 · #228 F7 · #230 E3 · #231 F4 · #232 E2 · #233 F2 · #234 F6) and the **milestone tracks** (#236 M5 · #237 M6 · #239 M8 · #240 M9 — **#238 M7 closed 2026-09-19**, the money rail having shipped in v0.61.0), which exist as issues and not only as roadmap prose. `#226` (E1 · make links preview) and `#229` (F1 · thresholds written down) are **closed**; `#252` (F7 · who may publish, filed unlabelled) and `#255` (Overdrive, P3) were filed later and are now listed in ROADMAP's table too — that table was corrected against `gh` on 2026-09-20, having disagreed with it in both directions
+- **The queue is 40 open issues (re-derived 2026-09-25, `gh issue list --state open`)** — it tripled from 13 in three days, the new rows being a full P0–P3 audit sweep (`#388`–`#432`) across Overview, Settings, Purchases, Share, Timeline, Map and routing whose **P0 is #427**: the v0.65.0 create funnel is deployed but dark in production because `VITE_CREATE_FUNNEL` was never set in Vercel. This count has been wrong twice before, so re-derive it rather than quoting it. Two sets: the **launch-readiness criteria** (#227 F3 · #228 F7 · #230 E3 · #231 F4 · #232 E2 · #233 F2 · #234 F6) and the **milestone tracks** (#236 M5 · #237 M6 · #239 M8 · #240 M9 — **#238 M7 closed 2026-09-19**, the money rail having shipped in v0.61.0), which exist as issues and not only as roadmap prose. `#226` (E1 · make links preview) and `#229` (F1 · thresholds written down) are **closed**; `#252` (F7 · who may publish, filed unlabelled) and `#255` (Overdrive, P3) were filed later and are now listed in ROADMAP's table too — that table was corrected against `gh` on 2026-09-20, having disagreed with it in both directions
 - **M5 — AI companion** (tracked as **#236**; its original pair #22 → #20 both closed as audit findings, so the fix went unqueued until M5 shipped it — the LLM endpoint, Jev fast path and offline fallback **shipped in v0.65.0 (PR #304)**; the drawer stays flag-gated off in prod (`VITE_AI_COMPANION`) until M8 unmounts it as the premium perk, which is why #236 remains open): user-configurable OpenAI-compatible LLM endpoint (`src/lib/aiProvider.ts`), real answers with the deterministic `lib/ai.ts` router kept as offline fallback + an "(LLM)/(offline)" badge
 - **M9 — Invites & onboarding** (**#240**): executor playbook shipped at `docs/PLAN-INVITES-ONBOARDING.md` — unified `platform_invites` entity phased R1 creator invites → R2 referral → R3 invite-only gate, `lib/accessCode.ts`, the `#/access/<code>` gate, masteradmin Invites-tab rebuild, creator onboarding flush
 - **M6 — Together** (**#237**): Supabase integration/RLS test suite (opt-in `VITE_RUN_INTEGRATION`), live co-editing depth, split-expense refinement
@@ -205,7 +205,200 @@ Key locations:
    its `label` ("Overnight + fuel"), not its singular `purpose` — a consumer
    filtering `purpose === 'fuel'` drops nearly every planned refuel on a
    multi-day corridor (measured: 3 planned, 0 surfaced). Match the label too.
-7. **When asking the user to review/test locally, always hand them the exact
+ 6g. **A deps-object field rename is type-checked only where the object literal
+   is FRESH — and one project decision can land on two unrelated deps objects
+   (learned 2026-09-25).** Renaming `travellers` → `memberCount` for #335 was
+   applied by grep to three `travellers: trip.travellers` lines in MapTab, but
+   only two of them were `DaySlotsDeps` (the vote quorum). The third fed
+   `NearbyOpts` (the corridor's fatigue cadence) and a fourth — in the
+   suggestion-cache hash — surfaced as `error TS2353` while the `NearbyOpts` one
+   built GREEN: `const opts: NearbyOpts = useMemo(() => ({ … }))` is not a fresh
+   literal to TS (the initializer is a call, and excess-property checking does
+   not reach through it), so the wrong key is accepted and `opts.travellers`
+   reads `undefined` at runtime — cadence silently reverts to the default. The
+   generic form `useMemo<NearbyOpts>(() => ({ … }))` DOES reject it. So: after
+   any deps-field rename, enumerate call sites by the TYPE each object feeds
+   (not by grep), and treat a green build as no evidence for the inferred-generic
+   sites. Same family as 6f(1) — the drop happens in a page, and pure-layer
+   tests stay green.
+ 6h. **An insert-if-absent cache merge is a staleness bug waiting for a state
+   change — and a new tripwire must be run against the PRE-FIX source (learned
+   2026-09-25).** `fetchPublicTrip` merged its row with `if (!some(…))`, which is
+   fine while a row never changes and wrong the moment one does: after a paid
+   unlock the same RPC answered with real days while `tripById` kept serving the
+   pre-purchase stub, so the page body and the fork both stayed on placeholders
+   until a reload (#349). **When a reader is server-authoritative, the merge is a
+   REPLACE** — and if it writes `cache.trips` it must honor the two guards the
+   realtime handler already uses (`isStaleServerRow` against
+   `serverTripTimestamps`, `isRecentLocalWrite` against the echo window) or the
+   echo of a local write starts fighting the fetch. Companion trap: a "trust
+   flag" parameter that is accepted and ignored is worse than none — wire it to a
+   POSITIVE only and never trust its negative, because a page's flag is `false`
+   while its own entitlement read is still in flight, which is exactly when a
+   buyer who just paid clicks the button.
+   **Proving the test is not vacuous:** a tripwire written after the fix tends to
+   pass for the fix's own reasons, so stash the implementation and watch it fail —
+   `git stash push -q -- src/store/store.ts src/lib/forkPub.ts` → run the new
+   suite → `git stash pop -q`. Eight of #349's eleven tests fail that way; the
+   other three are the fail-closed controls, which SHOULD pass before the fix
+   too. Do this before every fix-verifying commit, not just this one.
+ 6i. **A create that is awaited must roll back like the copy path, retry on the
+   SAME object, and tolerate its own duplicate key — and its UI guard must span
+   the await (learned 2026-09-25).** #374/#373: `createTrip` admitted the trip,
+   fired `void persistTrip(...)` and returned, so the page routed into a
+   workspace over a row that might not exist; there was no submitting state, so
+   both CTAs stayed live and every submit minted a fresh uuid. Two mechanics
+   worth keeping: (1) **a retry must reuse the built trip object** — its id is
+   the idempotency key, so a first attempt that reached the server is not
+   followed by a twin; (2) **an upsert CANNOT express that retry.** `trips
+   update`'s policy is `is_editor(trips.id)`, which reads the `trip_members` row
+   the same failed attempt may not have written, so a conflict-update is refused
+   by RLS — tolerate the `23505` on a retry instead (`opts.retry`), on BOTH the
+   trips and the members insert, and never on the first attempt. (3) A "trust the
+   await" flag on the create half must be a ref checked before `setState`
+   resolves, or a same-tick double-click reads `false` twice; and the create
+   wrapper must `try/catch` the persist, because a dropped fetch rejects where
+   supabase-js usually answers `{error}` — an uncaught throw leaves the
+   optimistic row in the cache forever, which is the zombie the fix removes.
+   Test-mock trap from the same session: a mocked thenable must pass BOTH `then`
+   handlers (`Promise.resolve(x).then(res, rej)`) — a `then` that ignores the
+   rejection handler makes the awaiting caller hang to the 5s timeout while the
+   rejection surfaces separately as an unhandled error.
+ 6j. **Deleting a row that money hangs off is a revocation, not a cleanup — and a
+   guard keyed on that row's EXISTENCE breaks in the direction you are not
+   looking (learned 2026-09-25).** `unpublishItinerary` deleted the
+   `published_itineraries` row, and `entitlements`, `purchase_orders` and
+   `pub_events` all carry `on delete cascade` on `pub_id` — so "remove it from
+   Explore" silently confiscated what buyers had paid for and erased the
+   creator's own sales ledger and funnel, with no status change, no refund and no
+   record anywhere. Unpublishing is now a marker (`unpublished_at`, bigint ms
+   like its siblings `published_at`/`refreshed_at`) and the ROW SURVIVES: that is
+   what keeps buyers whole. Three things worth keeping: (1) before deleting a
+   row, grep every FK that cascades FROM it — the blast radius is the schema, not
+   the call site; (2) `get_invite_trip`'s paywall guard keys on a priced
+   publication row EXISTING for the trip, so deleting that row would have opened
+   the very leak the guard was written to close — an existence-keyed guard is
+   satisfied by presence, and silently satisfied again by absence in the other
+   direction; (3) a reader that must work before its migration is applied has to
+   fail CLOSED here — with the column missing, unpublish refuses and names the
+   migration, because the old fallback (delete) IS the bug. Companions: the trip
+   must NOT be flipped `private` on the way out (`get_public_trip` requires
+   `visibility = 'public'` to serve an entitled buyer, so that flip revokes the
+   very buyers the row was kept for — and the tightened `trips read` policy
+   already restricts direct reads to owner/member/admin, so keeping it public
+   leaks nothing); and a KPI that counted those rows stops being true the moment
+   they stop being deleted — a "Live" cell and a "Behind" count had to learn the
+   marker in the same commit, or the strip contradicts the list printed under it.
+ 6k. **A capability one endpoint leaks is a key for every other endpoint — and a
+   `select *` in an anon-facing function is how it gets leaked (learned 2026-09-25,
+   #351).** `get_public_trip` stubbed the paid days correctly and then returned the
+   whole trip row anyway, `invite_code` included; `get_trip_by_invite_code` had no
+   premium gate at all, so the same anonymous caller traded that code back for the
+   complete plan — 4 days, ZERO stubbed stops, no account, no payment. Five rules:
+   (1) a function granted to `anon` must name its columns — `select *` makes every
+   column a future migration adds public by default, and the default has to be the
+   other way round; (2) `returns setof public.<table>` does not let you omit a
+   column, so a secret stays on the wire until the columns are enumerated and it is
+   replaced by a typed NULL (`null::text as invite_code`) — the return type is not a
+   licence to select the row; (3) a gate only guards the paths that have it — the
+   uuid invite link was gated in v0.63.0 while the short code was deliberately
+   "left untouched", which read as caution and was in fact the hole, so when two
+   endpoints serve one capability, guard BOTH and test the pair; (4) a leaked
+   capability is a CHAIN, not a bug: ask "can this field be traded for anything?"
+   before rating the leak, because the field alone is harmless and the second
+   endpoint is what turns it into a bypass; (5) prove it live — three
+   unauthenticated curl calls settled in minutes what reading four migrations only
+   suggested, which is why the issue's own "confirm the bypass first" step is the
+   one that decides hygiene vs incident. Companion trap, specific to this repo's
+   migration style: TWO files redefining one function means NAME ORDER decides
+   which body a fresh database ends up running, so a later fix must carry every
+   earlier guard forward verbatim (#350's soft-unpublish gate had to survive #351's
+   rewrite of the same function, and the rewrite is exactly where it would have
+   been dropped) — pin that ordering with a test, because the failure is invisible
+   until someone rebuilds the database from scratch.
+ 6l. **A grant is API surface, and `service_role` is the right default for a
+   caller-independent delete (learned 2026-09-25, #356).** `prune_pub_events`
+   deletes on `at < horizon` — no pub, no creator, no caller — and shipped
+   `grant execute … to authenticated`, so any signup could erase every
+   publication's funnel history. The symptom is a trend that reads "nothing
+   recorded", which looks like a bug in the reader rather than an attack, and
+   there is no audit trail to say otherwise. Four rules: (1) choose the grant
+   from WHO ACTUALLY CALLS IT — grep first; nothing called this one, which is
+   what makes `service_role` correct and an `is_admin()` gate wrong (it would
+   invent a caller the function does not have and still leave the delete
+   reachable from an anon key plus a user token carrying an admin claim);
+   (2) `revoke … from public` does not revoke from `anon`, and does not revoke
+   from `authenticated` either — name all three, and note that a check covering
+   one role is not a check covering the others (the contract suite asserted anon
+   for months while `authenticated` stayed wide open); (3) a grants-only fix
+   belongs in its OWN migration that creates no function and deletes nothing, so
+   it cannot silently disturb what the function pins (here the 730-day clamp
+   paired with the funnel reader) — and it must sort AFTER the file that granted
+   the door, which is load-bearing rather than cosmetic; (4) `schema.sql` is a
+   second and independent way to build the database, so a grant fixed only in
+   the migration series leaves a fresh `schema.sql` instance wide open. Fix both
+   and let a test compare them.
+ 6m. **A redefinition inherits the holes of the body it copies — and a comment
+   claiming a field is unused is a hypothesis, not evidence (learned
+   2026-09-25, #352/#353).** `get_public_trip` was rewritten three times in one
+   week (#350, then #351, then #352/#353), and the third rewrite is where two
+   long-standing holes finally got fixed: `free_day_indexes` was read with no
+   shape guard, so a scalar in that column makes the RPC raise and the public
+   page shows "didn't load" for **every** visitor (an availability bug, not a
+   disclosure one — failing closed still takes the page down), and the trip's
+   `expenses` and `fixed_commitments` were served in full while the days were
+   stripped. Both had been carried forward **verbatim** by the two rewrites
+   that were busy fixing something else, which is the trap: when you
+   `create or replace` a body you own every unguarded input in it, so read the
+   whole body looking for the input its neighbour loops guard and it does not
+   (this one guarded days, day indexes, stops and corrupt arrays, and missed
+   the free-day list). The second half is worse than a bug: the note this fix
+   deleted asserted the public page "renders neither" money field — written
+   from reading the component's imports instead of grepping for the field. The
+   page calls `computeTotals(trip)`, which reads `trip.expenses`, and its own
+   locked copy promises "the budget breakdown [is] in the full plan". A
+   withheld field with no day key to filter on gets the honest rule — an
+   unentitled viewer of a priced plan receives no money at all — because a
+   partial strip leaves exactly the breakdown the copy says is withheld.
+ 6n. **"Deployed" is not "launched": a build-time flag's switch is part of its
+   release, and its dark default is deliberately asymmetric (learned
+   2026-09-25, #427).** The v0.65.0 create funnel was fully deployed to
+   production and fully invisible there — `/new` loaded, the app rendered, and
+   all seven phases were missing — because `VITE_CREATE_FUNNEL` was never set in
+   Vercel and **no test, check or deploy step can see that**: Vite inlines
+   `VITE_*` at build time and "unset" is a valid state. The asymmetry is the
+   trap: unset means *all on* in a dev build and *dark* in a production one (so
+   `test` can dark-run a phase before `main` sees it), so a dark production
+   build reads as a broken feature rather than a missing switch — never "fix" it
+   by changing the default. Prove a deployed flag without trusting the dashboard
+   by **content-addressed chunk hash equality**: a local build with the variable
+   unset emitted `featureFlags-Exwc-GsR.js` containing `t(void 0,!1)`, the same
+   chunk name production served, so production's baked value was provably
+   `undefined` — the same trick `docs/DEPLOYMENT.md` already documents for
+   `index-<hash>.js`. What ships with the flag: a row in the deploy table (not
+   just a line in the release notes), a source-text test keeping the documented
+   phase list identical to the `createFunnelOn()` call sites (a typo in the
+   deployed value darkens exactly one phase while the rest light up), and a
+   **production-only warning** in `vite.config.ts` — warn, never abort, because
+   a preview branch dark-running a phase is what the flag is for.
+ 6o. **The issue auto-close parser cannot read negation — "this does not close
+   #N" closes #N (learned 2026-09-25, PR #443).** The workflow that mirrors the
+   tracker for `test` matches GitHub's own grammar — a closing keyword
+   (`close[sd]?`, `fix(?:e[sd])?`, `resolve[sd]?`) followed by a reference — and
+   that grammar has no negation. A PR body written to be *careful* — "It does
+   not close the P0, because production is still dark…" — closed that P0 the
+   instant it merged; `github-actions[bot]` did it, and it was reopened by hand
+   twelve seconds later. The reopen is the cheap part: a P0 that stays closed
+   while everyone believes it shipped is not. `refs` is **not** a keyword, so a
+   bare "Refs #N" line is inert — which makes the lesson narrower and nastier
+   than "do not mention issues": a keyword within reach of a number closes it,
+   whatever the surrounding sentence says. To reference an issue you do not mean
+   to close, keep the number out of a keyword's reach ("see the dark-funnel
+   issue"), and if a PR must explain why it is *not* closing something, say so
+   without putting the number behind the word. Pinned in
+   tests/pr-auto-close.test.ts so nobody "improves" the parser into guessing
+   intent.
+ 7. **When asking the user to review/test locally, always hand them the exact
    URL — never make them find or start the server.** Check if the dev server
    is up (probe `http://localhost:5173`); if not, start `npm run dev`
    detached (`Start-Process npm.cmd -ArgumentList 'run','dev'` in PowerShell,
@@ -281,6 +474,36 @@ Key locations:
    author decides when a batch is finished and testable, and says so before any
    push (user-mandated 2026-09-17).
 
+12. **A PR merged into `test` does NOT auto-close its issues — close them by
+   hand (learned 2026-09-25).** GitHub's `Closes #N` keywords fire only when a
+   PR merges into the DEFAULT branch (`main`), so every fix that lands on
+   `test` leaves its issues OPEN: the Wave-0 map merges (#380/#399) carried
+   seven closing keywords and closed nothing until each issue was closed
+   manually with a landing comment (merge SHA + PR number). After merging a
+   PR into `test`, verify with `gh issue view` and close the referenced issues
+   yourself — the tracker must mirror reality, not the keyword's promise.
+   **Automation (same day):** `.github/workflows/issue-autoclose.yml` mirrors
+   the tracker on every PR merged into `test` (keyword grammar in
+   `scripts/pr-auto-close.mjs`, pinned by `tests/pr-auto-close.test.ts`) and
+   leaves a landing comment on each issue it closes. Still verify after a
+   merge, and close by hand when that job is red — the rule is the mirror, not
+   the mechanism.
+
+
+   **A migration the USER must run is handed over as complete SQL, in the chat,
+   with its full local path — never as a filename to go and find (user-mandated
+   2026-09-25).** These are applied by hand in the Supabase SQL editor, so the
+   handover is the whole file, verbatim, pasted as one runnable block, with the
+   absolute path beside it
+   (`C:\Users\hasna\yatraflow-freebuff\supabase\migrations\<file>.sql`). Say
+   whether re-running is safe and what the status check should read afterwards.
+   Then PROVE it landed instead of assuming: `npm run check:migrations` must fall
+   to `0 missing`, and an independent live probe is the stronger evidence — a
+   PostgREST `select` of the new column answers `200`, while the same request
+   naming a control column the schema never had answers `400 42703`. A file
+   sitting in the repo says nothing about the database (#432's
+   `resolved_option_id` type change is the case that proves it:
+   `check:migrations` can never see it, and only the probe did).
 
 ## 3. Verification before every push
 
@@ -518,6 +741,7 @@ discriminates a migration-gated table in one call — **`200 []` means the table
   timing), so prove a cover's weight from the origin
   (`curl -w '%{size_download}'` on the `src` the DOM actually rendered)rather than from `performance.getEntriesByType('resource')`.
 - **A hidden preview webview freezes `requestAnimationFrame` and can stall the MapLibre style forever (learned 2026-09-22).** With `document.visibilityState === "hidden"` rAF callbacks never run (screenshots report "produced no frames" for the same reason) and the map style can sit `isStyleLoaded() === false` indefinitely. A map fit that "never runs" in that state is the environment, not the product: verify geometry through an un-gated path (`fitBounds({duration: 0})` jumps synchronously), or patch `requestAnimationFrame`→`setTimeout` and `matchMedia('(prefers-reduced-motion: reduce)')`→`{ matches: true }` in-page BEFORE driving the UI (the app reads both at call time), then measure the camera through the map instance found via the host node's React fiber — importing app modules to probe state gets a SECOND instance under HMR's timestamped URLs.
+- **That freeze reaches React itself — and the module graph will render a component for you (learned 2026-09-25).** In the same hidden state, passive effects never flush and a state update can run its updater (side effects fire — a resolved promise) yet never commit, so a dialog "stays open" after its close resolved: that reads as a state-code bug and is not one. The tell is `preview_screenshot` failing with "produced no frames"; `preview_navigate "reload"` restores compositing mid-session, and probes should put their side effects in the render body, not `useEffect`. For a rendered check with no test infra: `import('/@id/react')` + `import('/@id/react-dom/client')` (its `createRoot` is on `.default`) + the component's module URL renders the REAL module graph into a detached root, and real clicks drive it end-to-end (empty-submit errors, manual entry, skip-resolves-null). Poll for state instead of fixed sleeps — a hidden webview throttles timers into the evaluate timeout.
 - **`str_replace` can report a real, existing file as missing** (`package-lock.json`,
   ~160 KB, during the v0.55.0 cut) — fall back to a targeted `sed -i` and verify
   with grep before moving on. Related: Vercel Agent opens its PRs as **drafts**;
@@ -1268,6 +1492,20 @@ by orphan check** (Sep 2026): the reported "802 orphan rows" turned out to be
   list, the banner summarises and does not restate every bullet (the `[0.42.0]`
   banner shipped stating its content three times and claiming a C5 that never
   existed — see `docs/history/README.md`).
+- **README release highlights are newest-first, and its evergreen lines rot
+  faster than any other doc's (learned 2026-09-24).** A release's "in plain
+  words" section inserts at the TOP of the highlights block (under the pointer
+  line) — v0.66's once sat between v0.60–61 and v0.55 while v0.62–v0.65 had no
+  section at all, and the tail below ran in no discernible order. The evergreen
+  claims rot just as fast: "six everyday modes" survived the move to eight, the
+  AI-companion bullet outlived its production flag, and "❌ Payments — no
+  gateway integration" outlived the Razorpay rail by four releases. When
+  touching evergreen lines (mode counts, flag-gated features, the MVP
+  constraint list, the structure block), re-derive them from the code — and
+  remember README is in `tests/doc-drift.test.ts`'s LIVE list with zero
+  registered claims, so new prose must avoid the gate's absence-cue phrasings.
+  Screenshots in `docs/screenshots/` need the same freshness check after any
+  visual pass — the v0.66 pass landed ten days after the last capture.
 - **`docs/README.md` is the doc index** — every new doc gets a row there
   (Diátaxis flavor: tutorials / how-to / reference / explanation — tag the
   row with which it is). Root stays lean: README, AGENTS, CONTRIBUTING,

@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import {
   buildRoadChain, measureRoadChain, correctionsFromLegs, mapRoadViewFromLegs,
+  mapReturnGeometryFromLegs,
   type RoadChain,
 } from '../src/lib/tripRoad'
 import { clearRouteCacheForTests } from '../src/lib/routing'
@@ -227,6 +228,13 @@ describe('the wiring: one measurement site, no second caller (#188)', () => {
     expect(mapTab).toMatch(/mapRoadViewFromLegs\(/)
   })
 
+  it('TripMap has no bare routePath caller — Board fallback goes through tripRoad', () => {
+    const tripMap = read('../src/components/TripMap.tsx')
+    expect(tripMap).not.toMatch(/routePath\s*\(/)
+    expect(tripMap).toMatch(/measureDayRide\(/)
+    expect(tripMap).toMatch(/allowSelfMeasurement/)
+  })
+
   it('the workspace measures through tripRoad (not a private routePath chain)', () => {
     const workspace = read('../src/pages/TripWorkspace.tsx')
     expect(workspace).toMatch(/useTripRoad\(trip\)/)
@@ -249,6 +257,13 @@ describe('derivations from the one measurement', () => {    const chain: RoadCha
       outboundCount: 3, // start + 2 stops; the 4th point is the ride home
       hasDestTail: false,
     }
+
+  it('derives the return geometry from the measured chain without a destination-tail false positive', () => {
+    const returnLeg = { ...leg(250, 300), geometry: [[77.2, 10.2], [77, 10]] }
+    expect(mapReturnGeometryFromLegs(chain, [leg(100, 120), leg(150, 180), returnLeg])).toEqual(returnLeg.geometry)
+    const oneWayTail = { ...chain, points: [P(10, 77), P(10.1, 77.1), P(11, 78)], outboundCount: 2, hasDestTail: true }
+    expect(mapReturnGeometryFromLegs(oneWayTail, [leg(100, 120), leg(150, 180)])).toBeNull()
+  })
 
   it('correctionsFromLegs keys both directions (the drive home retraces the road)', () => {
     const legs = [leg(100, 120), leg(150, 180), leg(250, 300)]

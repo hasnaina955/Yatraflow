@@ -1,5 +1,7 @@
 # YatraFlow — Timeline restructure: implementation plan
 
+> **Status (2026-09-24): Phases 1 and 3 shipped in v0.51.0** — day-rail collapse, the one-open accordion and the `src/pages/trip/timeline/` module split are live. Phase 2's specialist-tool eviction was overtaken by later workspace work. Treat this as a build record: re-locate by selector, not by line number.
+
 **Companion to `TIMELINE-MOCKUPS.html`** (the three visual proposals + build-order table).
 This document is the *implementation* plan: what to build, in what order, touching which
 files, with acceptance criteria. The mockups are approved (user, 2026-09-11).

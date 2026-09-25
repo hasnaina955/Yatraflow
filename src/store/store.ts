@@ -907,7 +907,18 @@ export async function fetchPublicTrip(pubId: string): Promise<Trip | null> {
   }
   const rows = rpc.data as TripRow[] | null
   if (!Array.isArray(rows) || rows.length === 0) return null
-  const fetched = rowToTrip(rows[0], [])
+  // #351 — the paid public path must never carry the invite code into the cache.
+  // The RPC no longer selects it (20260926_paywall_invite_code_leak.sql, which
+  // replaced `select *` with an explicit column list), and this is the belt to
+  // that migration's suspenders: an un-migrated database still returns the code,
+  // and this function is what put it in the cache, where `fetchTripByInviteCode`
+  // and `ensureInviteCode` would then happily read it back out. Dropped rather
+  // than merely unused — `inviteCode` is a capability for a second endpoint, and
+  // a capability sitting in a cache is one refactor away from being used again.
+  // Nothing on the public path reads it: the public page, the fork and Explore
+  // never touch `trip.inviteCode`, and the owner's own surfaces read the trips
+  // table under RLS.
+  const fetched = rowToTrip({ ...rows[0], invite_code: null }, [])
   // #349 — the RPC is the server truth FOR THIS VIEWER on every call, so a
   // re-fetch has to REPLACE the cached row. Insert-if-absent is what kept the
   // public page locked after a paid unlock: the re-read answered with real

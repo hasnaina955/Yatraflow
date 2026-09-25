@@ -74,9 +74,14 @@ const DEFAULT_WARNINGS = ['All costs are estimates based on typical prices — v
  *  now chooses which days are the free preview, whether the itinerary is
  *  premium at all (empty/₹0 price = entirely free), and the reader-facing
  *  copy — pre-filled from the live publication when updating. */
-function PublicationForm({ trip, pub, isOwner, creatorId, onDone }: {
+function PublicationForm({ trip, pub, live = true, isOwner, creatorId, onDone }: {
   trip: Trip
   pub: PublishedItinerary | undefined
+  /** Whether that row is up on Explore right now (#350). False while it is
+   *  soft-unpublished: the form keeps the row as its prefill — the creator
+   *  should not retype their tagline — but its button offers publishing again
+   *  rather than "update", because nothing is live to update. */
+  live?: boolean
   isOwner: boolean
   creatorId: string
   onDone: (published: boolean) => void
@@ -144,7 +149,7 @@ function PublicationForm({ trip, pub, isOwner, creatorId, onDone }: {
       premiumPriceInr: entirelyFree ? undefined : priceNum,
       subscriberCta: cta.trim() || undefined,
     })
-    onDone(Boolean(pub))
+    onDone(Boolean(pub) && live)
   }
 
   return (
@@ -212,7 +217,7 @@ function PublicationForm({ trip, pub, isOwner, creatorId, onDone }: {
 
       {err && <p className="err-text ts-warn-note" role="alert">{err}</p>}
       <button className="btn btn-saffron" disabled={!isOwner} onClick={submit}>
-        {pub ? 'Update publication' : 'Publish to Explore'}
+        {pub && live ? 'Update publication' : 'Publish to Explore'}
       </button>
       {!isOwner && <p className="hint-text ts-note">Only the trip owner can publish.</p>}
     </div>
@@ -259,7 +264,13 @@ export function ShareTab({ trip, me, onNavigate, legCorrections }: {
     ? `${location.origin}/#/join/${inviteCode}`
     : `${location.origin}/#/invite/${trip.id}`
   const pub = db.published.find(p => p.tripId === trip.id)
-  const pubLink = pub ? currentPublicShareUrl(pub.id) : ''
+  // #350 — a soft-unpublished publication keeps its row (so buyers keep what
+  // they paid for and the sales history stays whole) but it is NOT live. Every
+  // affordance below that says "this is up" hangs off this flag: the live line,
+  // the public link, the Unpublish action. The form keeps `pub` as its prefill
+  // either way — re-publishing should not mean retyping the tagline.
+  const pubLive = !!pub && !pub.unpublishedAt
+  const pubLink = pubLive && pub ? currentPublicShareUrl(pub.id) : ''
   const isOwner = (trip.members ?? []).some(m => m.userId === me.id && m.role === 'owner')
   const [tab, setTab] = useState<ShareTabId>('plan')
   const [pendingRemove, setPendingRemove] = useState<NonNullable<Trip['members']>[number] | null>(null)
@@ -373,15 +384,21 @@ export function ShareTab({ trip, me, onNavigate, legCorrections }: {
           <p className="hint-text" style={{ margin: '6px 0 12px' }}>
             List this trip on Explore so anyone can discover and fork it. Choose which days are the free preview — the rest sit behind a premium placeholder (no real payments in this MVP).
           </p>
-          {pub && (
+          {pub && (pubLive ? (
             <div className="row-between" style={{ marginBottom: 10 }}>
               <span className="small muted">Live on Explore · {pub.views} views · {pub.copies} forks</span>
               <button className="btn btn-outline btn-sm" onClick={() => onNavigate(`/pub/${pub.id}`)}>View public page</button>
             </div>
-          )}
-          <PublicationForm trip={trip} pub={pub} isOwner={isOwner} creatorId={me.id}
+          ) : (
+            // No "View public page" button and no copyable link here: nothing is
+            // up to share. The form below is the way back.
+            <p className="hint-text ts-note" style={{ marginBottom: 10 }}>
+              Unpublished — it has left Explore and is no longer on sale. Anyone who already unlocked it keeps the full plan.
+            </p>
+          ))}
+          <PublicationForm trip={trip} pub={pub} live={pubLive} isOwner={isOwner} creatorId={me.id}
             onDone={wasPublished => toast(wasPublished ? 'Publication updated' : 'Published to Explore')} />
-          {pub && isOwner && (
+          {pub && isOwner && pubLive && (
             <button className="btn btn-ghost btn-sm" style={{ marginTop: 10 }} onClick={() => setPendingUnpublish(true)}>Unpublish</button>
           )}
           {pubLink && <div className="share-link-box" style={{ marginTop: 10 }}><code title={pubLink}>{pubLink}</code><CopyButton text={pubLink} label="Copy" /></div>}
@@ -413,7 +430,7 @@ export function ShareTab({ trip, me, onNavigate, legCorrections }: {
       <ConfirmDialog
         open={pendingUnpublish}
         title="Unpublish this itinerary?"
-        body="It will be removed from Explore immediately. You can publish it again anytime from this tab."
+        body="It leaves Explore immediately and stops selling. The trip itself is not touched, and anyone who already unlocked it keeps the full plan — you can publish it again anytime from this tab."
         confirmLabel="Unpublish"
         onConfirm={confirmUnpublish}
         onClose={() => setPendingUnpublish(false)}

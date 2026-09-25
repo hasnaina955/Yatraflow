@@ -231,7 +231,7 @@ export function CreatorHubPage({ onNavigate }: { onNavigate: (r: string) => void
       <ConfirmDialog
         open={!!unpubTarget}
         title={`Unpublish “${unpubTarget?.title ?? ''}”?`}
-        body="It is removed from Explore immediately and its public page stops working. The trip itself is not touched — you can publish it again from its Share tab."
+        body="It leaves Explore immediately and stops selling. The trip itself is not touched, and anyone who already unlocked it keeps access — you can publish it again from its Share tab. Its views, forks and sales stay on this page."
         confirmLabel="Unpublish"
         danger
         onConfirm={() => {
@@ -387,7 +387,18 @@ export function HubOverview({ myPubs, onUnpublish, onNavigate, daily, salesRows,
   const recordingSince = daily && daily.length > 0
     ? daily.reduce((min, r) => (r.day < min ? r.day : min), daily[0].day)
     : null
+  // #350 — the strip answers "how much of my work is up?", so a soft-unpublished
+  // publication is neither live nor behind: it cannot be live (that is what the
+  // marker means) and it cannot be behind its itinerary either, because a page
+  // that is down has nothing to catch up on. The row-level nudge is suppressed
+  // for the same reason, and the two MUST agree — a KPI that counts a row the
+  // list below it refuses to label is the strip contradicting its own contents.
+  // The row itself stays in `myPubs` (and so in every ledger and funnel
+  // derivation) because unpublishing does not un-earn a sale or erase reach.
+  const liveCount = myPubs.filter(p => !p.unpublishedAt).length
+  const unpublishedCount = myPubs.length - liveCount
   const staleCount = myPubs.filter(p => {
+    if (p.unpublishedAt) return false
     const t = tripById(p.tripId)
     return !!t && t.updatedAt > (p.refreshedAt ?? p.publishedAt)
   }).length
@@ -408,7 +419,7 @@ export function HubOverview({ myPubs, onUnpublish, onNavigate, daily, salesRows,
       <div className="hub-strip">
         <div className="hub-cell"><span className="stat-label">Views (all time)</span><span className="stat-value hub-cell-value">{totalViews.toLocaleString('en-IN')}</span></div>
         <div className="hub-cell"><span className="stat-label">Forks (all time)</span><span className="stat-value hub-cell-value">{totalForks.toLocaleString('en-IN')}</span></div>
-        <div className="hub-cell"><span className="stat-label">Live</span><span className="stat-value hub-cell-value">{myPubs.length}</span></div>
+        <div className="hub-cell"><span className="stat-label">Live</span><span className="stat-value hub-cell-value">{liveCount}</span></div>
         <div className="hub-cell"><span className="stat-label">Behind</span><span className="stat-value hub-cell-value">{staleCount > 0 ? <span className="metric-warn">{staleCount}</span> : 0}</span></div>
       </div>
 
@@ -474,7 +485,7 @@ export function HubOverview({ myPubs, onUnpublish, onNavigate, daily, salesRows,
             <div className="hub-lead-head">
               <h2 id="hub-pubs-h">Publications</h2>
               <span>
-                {myPubs.length} live{staleCount > 0 ? ` · ${staleCount} behind` : ''}
+                {liveCount} live{unpublishedCount > 0 ? ` · ${unpublishedCount} unpublished` : ''}{staleCount > 0 ? ` · ${staleCount} behind` : ''}
               </span>
             </div>
             {myPubs.length === 0 ? (
@@ -485,11 +496,19 @@ export function HubOverview({ myPubs, onUnpublish, onNavigate, daily, salesRows,
               <div>
                 {myPubs.map(p => {
                   const trip = tripById(p.tripId)
-                  const stale = !!trip && trip.updatedAt > (p.refreshedAt ?? p.publishedAt)
+                  // #350 — a soft-unpublished publication STAYS in this list on
+                  // purpose: the row is where its funnel and its sales history
+                  // live, and unpublishing does not un-earn either. What it must
+                  // not do is read as live, so it is labelled, and the
+                  // "page behind itinerary" nudge is suppressed — a page that is
+                  // down cannot be behind.
+                  const unpublished = Boolean(p.unpublishedAt)
+                  const stale = !unpublished && !!trip && trip.updatedAt > (p.refreshedAt ?? p.publishedAt)
                   return (
                     <div key={p.id} className="hub-lead-row">
                       <span className="hub-lead-title">
                         <a href={`#/pub/${p.id}`}>{p.title}</a>
+                        {unpublished && <Chip tone="info">Unpublished</Chip>}
                         {stale && <Chip tone="saffron">Page behind itinerary</Chip>}
                         {/* Where it goes and how long — not what it costs. The
                             price belongs with the money surfaces; this row is
@@ -503,7 +522,14 @@ export function HubOverview({ myPubs, onUnpublish, onNavigate, daily, salesRows,
                       </span>
                       <FunnelLine f={funnelOf.get(p.id)} unread={funnelError} unlockRead={unlockRead} windowLabel={windowLabel} />
                       <span className="pub-row-actions">
-                        {stale ? (
+                        {unpublished ? (
+                          // The way back up: the Share tab's publish form
+                          // re-lists it (and clears the marker).
+                          <button className="btn btn-saffron btn-sm" aria-label={`Publish ${p.title} again`}
+                            onClick={() => { onNavigate(`/trip/${p.tripId}/share`) }}>
+                            <InlineIcon icon={Pencil} size={13} gap={3} />Publish again
+                          </button>
+                        ) : stale ? (
                           <button className="btn btn-saffron btn-sm" aria-label={`Update page for ${p.title}`}
                             onClick={() => { onNavigate(`/trip/${p.tripId}/share`) }}>
                             <InlineIcon icon={Pencil} size={13} gap={3} />Update page
@@ -513,7 +539,9 @@ export function HubOverview({ myPubs, onUnpublish, onNavigate, daily, salesRows,
                             <InlineIcon icon={Pencil} size={13} gap={3} />Edit
                           </button>
                         )}
-                        <button className="btn btn-ghost btn-sm" aria-label={`Unpublish ${p.title}`} onClick={() => { onUnpublish(p) }}>Unpublish</button>
+                        {!unpublished && (
+                          <button className="btn btn-ghost btn-sm" aria-label={`Unpublish ${p.title}`} onClick={() => { onUnpublish(p) }}>Unpublish</button>
+                        )}
                       </span>
                     </div>
                   )

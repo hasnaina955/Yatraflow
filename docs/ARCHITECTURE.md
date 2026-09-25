@@ -41,15 +41,21 @@ A guided tour of how the app works internally — the data model, the estimation
                 │                        Supabase (Postgres + Auth):
                 │                          profiles, trips, trip_members,
                 │                          suggestions, decisions, activity,
-                │                          notifications, published_itineraries
+                │                          notifications, published_itineraries,
+                │                          purchase_orders, entitlements,
+                │                          pub_funnel_events, covers (Storage)
                 │                          — Row Level Security everywhere
                 │
-        External (all free, keyless, network-failure-safe):
+        External (free + keyless by default, network-failure-safe;
+        Google Places is the one opt-in paid key):
           Open-Meteo geocoding  — location autocomplete + per-day weather
           OSRM demo server      — real road geometry on the map (haversine fallback)
           Wikipedia geosearch   — nearby POI ideas on the Map tab
           OSM Overpass          — auto-fed opening hours for picked POIs
           MapLibre / OpenFreeMap tiles — basemap display only (keyless)
+          Google Places (opt-in key) — autocomplete / along-route search /
+            opening hours; with it the suggestion pipeline is Google-only
+          Mappls (opt-in key)  — India-best autocomplete upgrade in keyless mode
 ```
 
 Key properties:
@@ -71,8 +77,9 @@ All entities live in [`src/data/types.ts`](../src/data/types.ts). The important 
 | `FixedCommitment` | Untouchable anchor | hotel check-ins / train & flight departures with day + time — the scheduler protects these |
 | `Expense` | Cost line | `perPerson?`, `optional?`, `paidBy?` (member who fronted it → balances card), attachable to a stop or day (feeds the Budget tab's per-day bars) |
 | `StopSuggestion` | Group idea | votes (+1/−1), comments, `open → accepted/declined` lifecycle |
-| `TripDecision` | Structured poll | options carry `costImpactInr`/`timeImpactMin`; `votesByUserId`; resolvable |
-| `PublishedItinerary` | Public share | slug id, `freeDayIndexes` for gated preview, view/copy counters, `refreshedAt` staleness marker |
+| `TripDecision` | Structured poll | options carry `costImpactInr`/`timeImpactMin`; `votesByUserId`; resolvable; `comments` thread (v0.64) |
+| `PublishedItinerary` | Public share | slug id, `freeDayIndexes` for gated preview, `premiumPriceInr` (absent/0 = free), `coverImageUrl`, view/copy counters, `refreshedAt` staleness marker |
+| `purchase_orders` / `Entitlement` | The money rail | a **paid** Razorpay order grants exactly one entitlement keyed (buyer, publication), with the price actually paid snapshotted on it — typed in `src/lib/payments.ts`; see §11's earnings contract |
 | `ActivityEntry` / `Notification` | Social plumbing | per-trip feed / per-user inbox |
 
 Design notes:
@@ -141,19 +148,19 @@ The UI shows this panel *before* a suggestion is accepted or a risky edit lands 
 
 ## 6. AI companion
 
-[`src/lib/ai.ts`](../src/lib/ai.ts) is deliberately **not** an LLM call. It's a deterministic rule-based responder that:
+[`src/lib/ai.ts`](../src/lib/ai.ts) is the deterministic rule-based responder — and since v0.65 the **offline brain** of a two-layer companion:
 
 - parses intent from a question ("less tiring", "cheaper", "rain", "airport by 5 PM"),
 - computes real answers from engine simulations (busiest day, cheapest removable non-must-do stop, whether the schedule still meets a deadline),
 - returns `{ text, assumptions }` and always cites the assumptions used, prefixed with the disclaimer that estimates are not live data.
 
-This keeps the MVP honest (nothing hallucinated), offline-capable, and free. Swapping in a real LLM later means replacing `answerQuestion()` while feeding it the same engine outputs as grounding.
+The online layer is [`src/lib/aiProvider.ts`](../src/lib/aiProvider.ts): a user-configured OpenAI-compatible endpoint set in Profile, plus an optional Jev fast path that picks which trip analysis to run. `ai.ts` stays the fallback when no endpoint is configured or the call fails, and an "(LLM)"/"(offline)" badge says which brain answered. The drawer and its Profile settings ride behind `VITE_AI_COMPANION` until the premium launch (M8), so the deployed app may not show them. This keeps the companion honest (nothing hallucinated offline), offline-capable, and free by default.
 
 ## 7. Location autocomplete
 
 [`src/components/LocationInput.tsx`](../src/components/LocationInput.tsx) wraps a plain input with:
 
-- **Open-Meteo geocoding** (`geocoding-api.open-meteo.com/v1/search?name=…&countryCode=IN`) — free, no key, results biased to India via the `indiaOnly` prop.
+- **Provider facade** (`src/lib/geocode.ts`) — Google Places autocomplete when `VITE_GOOGLE_MAPS_API_KEY` is configured (picked hits resolve through one Place Details call), otherwise the keyless stack (Open-Meteo geocoding + Wikipedia, Mappls when its key is set); results biased to India via the `indiaOnly` prop.
 - **280 ms debounce**, minimum 2 characters, abort-safe loading spinner.
 - **Keyboard support:** ↑/↓ move highlight, Enter selects, Esc closes; mouse hover syncs highlight.
 - **Coordinate capture:** selecting fires `onPick(PlaceHit)` with verified `latitude/longitude`. Callers use this to write real coordinates into stops/suggestions — which is why map routes and distance math improve when users pick from the list. Typing free-text is allowed but marks the field un-geocoded.
@@ -177,7 +184,7 @@ The same geocoder powers a second capability in [`src/lib/geocode.ts`](../src/li
 
 ### Road geometry & nearby ideas
 
-By default route lines follow **real roads**: [`src/lib/routing.ts`](../src/lib/routing.ts) requests geometry from the free OSRM demo server (`roadLegBetween`, `routePath`), simplifying and de-duplicating per day and calling the server sequentially to respect the demo rate limit. When OSRM is unreachable it silently falls back to straight-line segments — but schedule numbers in the engine stay on the haversine assumptions regardless, so estimates remain deterministic and offline-safe. The map legend credits OSRM/OSM and restates that plan timings are fixed-assumption estimates.
+By default route lines follow **real roads**: [`src/lib/routing.ts`](../src/lib/routing.ts) requests geometry from the free OSRM demo server (`roadLegBetween`, `routePath`), measured one span-batched corridor chain at a time, with per-leg caching, instead of per-leg sequential calls. When OSRM is unreachable it silently falls back to straight-line segments — but schedule numbers in the engine stay on the haversine assumptions regardless, so estimates remain deterministic and offline-safe. The map legend credits OSRM/OSM and restates that plan timings are fixed-assumption estimates.
 
 The Map tab also surfaces **nearby POI ideas**: gold 💡 markers for real Wikipedia-geosearch points of interest within 10 km of your route, with a "Nearby ideas" panel and a **+ Add** button (pick-a-day modal) that creates the stop through the normal impact-preview flow; already-added ideas show a ✓ badge.
 
@@ -196,19 +203,25 @@ No router library. [`App.tsx`](../src/App.tsx) parses `location.hash` into a rou
 | `/` | Landing |
 | `/auth` | Login/signup |
 | `/trips` | My trips |
-| `/create` | Create trip wizard |
+| `/new` | Create trip |
+| `/created/:id` | The moment-after screen (crew invites, first warnings) |
 | `/trip/:id` | Trip workspace (tabbed) |
 | `/pub/:slug` | Published itinerary |
 | `/explore` | Public gallery |
+| `/purchases` | A buyer's shelf of unlocked plans |
+| `/creator/:id` | Creator public page |
+| `/creator-hub` | Creator dashboard |
 | `/profile` | Profile |
 | `/join/:code` | Join-trip flow via short invite code |
 | `/invite/:id` | Join-trip flow (legacy UUID links, still honoured) |
+| `/admin` | Masteradmin console (never linked) |
+| `/share/<payload>` | Self-contained snapshot import |
 
 Navigation is a plain `onNavigate(route)` callback that sets `location.hash`. Hash routing means zero server config on any static host.
 
 ## 10. Theming
 
-Single stylesheet [`src/styles.css`](../src/styles.css). The token system (primitive → semantic → component layers, plus the button/input state matrix) is documented in [DESIGN_TOKENS.md](../DESIGN_TOKENS.md). The architecture diagram is generated from [`diagrams/yatraflow-architecture.json`](diagrams/yatraflow-architecture.json) — the `.html` output is generated, not tracked; regenerate it, don't hand-edit. Dark mode flips CSS custom properties via `data-theme="dark"` on `<html>`; a toggle persists the choice and map basemaps follow via the observer described above. Mobile-first breakpoints at 720 px enforce ≥44 px touch targets and 16 px inputs (prevents iOS focus zoom).
+Single stylesheet [`src/styles.css`](../src/styles.css). The token system (primitive → semantic → component layers, plus the button/input state matrix) is documented in [DESIGN_TOKENS.md](../DESIGN_TOKENS.md). The architecture diagram is generated from [`diagrams/yatraflow-architecture.json`](diagrams/yatraflow-architecture.json) — the `.html` output is generated, not tracked; regenerate it, don't hand-edit. Dark mode flips CSS custom properties via `data-theme="dark"` on `<html>`; a toggle persists the choice and map basemaps follow via the observer described above. Mobile-first breakpoints at 720 px enforce ≥40 px touch targets and 16 px inputs (prevents iOS focus zoom).
 
 ## 11. Swapping things out
 
@@ -217,21 +230,21 @@ The architecture isolates its shortcuts behind small interfaces:
 | Today | Swap to | Touch points |
 |---|---|---|
 | Supabase | Firebase / self-hosted REST | Only `store.ts` internals + `lib/supabase.ts` — mutation signatures can stay identical |
-| Open-Meteo autocomplete | Google Places / Mapbox | `LocationInput.tsx` only |
+| Open-Meteo autocomplete | Google Places (**landed**, via the `geocode.ts` provider facade) / Mapbox | a new provider goes into `src/lib/providers/`, not `LocationInput.tsx` |
 | Haversine × 1.25 legs | OSRM/Google Directions real routing | Engine stays haversine by design (deterministic, offline-safe); map road shape already comes from `src/lib/routing.ts` (OSRM + `routePath`), whose geometry can later feed `MapRoute` |
 | OSRM map geometry | Google Directions / Mapbox Directions | `src/lib/routing.ts` only (callers like `TripMap.tsx` are unaffected) |
 | Open-Meteo weather | Any forecast provider | `src/lib/weather.ts` (`fetchDailyWeather`) |
-| Wikipedia geosearch POIs | Google Places nearby | `TripMap.tsx` Nearby-ideas panel + `src/lib/geocode.ts` |
-| OSM Overpass opening hours | Google Places details | `src/lib/geocode.ts` (`fetchOpeningHours`) |
+| Wikipedia geosearch POIs | Google Places nearby (**landed** — Google-only with a key) | `TripMap.tsx` + `src/lib/providers/google.ts` |
+| OSM Overpass opening hours | Google Places details (**landed** — hours ride the same Places events) | `src/lib/geocode.ts` (`fetchOpeningHours`) |
 | Supabase email/password auth | OAuth (Google, phone OTP) | `store.ts` `login/signup` + Auth page UI — RLS and data model unchanged |
-| Rule-based AI | LLM with engine grounding | `answerQuestion()` in `ai.ts` |
+| Rule-based AI | LLM with engine grounding (**landed**, v0.65) | `src/lib/aiProvider.ts`; `ai.ts` stays the offline fallback |
 | Razorpay checkout | Stripe / Paddle / bundled payments | `src/lib/unlock.ts` + `api/checkout.js`, `api/payments-verify.js`, `api/payments-webhook.js`; `premiumPriceInr` on `PublishedItinerary` is the price the paywall charges |
 | Derived payout runs (no rail) | Scheduled payouts + KYC | Profile's Earnings tab — see "Creator earnings contract (M7)" below |
 
 ### Creator earnings contract (M7)
 
-The Earnings tab (Profile · My publications) ships **before** payments so the
-surface never needs redesigning when Razorpay lands. Its fixed shape:
+The Earnings tab (Profile · My publications) shipped **before** payments so the
+surface never needed redesigning when Razorpay landed (v0.61). Its fixed shape:
 
 - **KPI tiles:** Lifetime gross/net (a toggle picks the basis — I-10) · Sales · Next
   payout (the next Friday's run date once the balance clears the ₹500 minimum,
@@ -267,12 +280,15 @@ way an entitlement is granted; a refund path that revokes it
 (`revoke_refunded_entitlement`); and the platform-fee ladder
 (`PLATFORM_FEE_TIERS`).
 
-**Still absent by design:** `sale_events` (nothing records per-visit events, so
-the console's funnel is derived from the hydrated cache and a per-publication
-view→fork→sale funnel has nothing to read — the reason E3/E8 stay open);
-`payouts` (creator, period, gross/fees/net, status, UTR reference) and
-payout-account/KYC fields on profiles, which is why nothing disburses and the
-runs ledger is derived rather than read; and GST/TCS registration. The ledger's
+**Still absent by design:** `payouts` (creator, period, gross/fees/net, status, UTR
+reference) and payout-account/KYC fields on profiles, which is why nothing
+disburses and the runs ledger is derived rather than read; and GST/TCS
+registration. Since 2026-09-21 a `pub_funnel_events` log
+(`20260921_pub_funnel_events.sql`, retention-trimmed) records every publication
+view and fork beside its counter, so the creator hub's per-publication
+view→fork→unlock funnel reads real events (unlocks come from the entitlements
+ledger); the admin console's own funnel still derives from the hydrated cache —
+the piece E3/E8 track. The ledger's
 empty state and the projection footnote say exactly this to the user.
 
 ## 12. Gotchas & hard-won lessons

@@ -2166,7 +2166,10 @@ button.board-col-zone--add:active { transform: translateY(1px); }
 }
 /* Card titles are heading-level h2 for outline correctness — sized as the h3
    they replace so the grids don't shift. */
-.card-title { font-size: 16px; font-weight: 700; }
+/* Declares no family of its own, so an `<h3 class="card-title">` inherited Sora
+   from the heading rule while a `<span class="card-title">` inherited Plus
+   Jakarta Sans — one class, one size, two faces. Stated once, here, for both. */
+.card-title { font-family: var(--font-display); font-size: 16px; font-weight: 700; }
 .itin-meta { display: flex; flex-wrap: wrap; gap: 4px 13px; font-size: var(--text-xs); color: var(--text-3); font-weight: 600; }
 /* Explore card footer: full-width divider to the card edges, content inset to
    align with .itin-body's 16px side padding (separate from itin-body above). */
@@ -5360,11 +5363,62 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 .pub-ledger th { font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); }
 .pub-ledger .empty-ledger { text-align: center; color: var(--text-3); padding: 18px 0; }
 .pub-ledger td, .pub-ledger th { font-variant-numeric: tabular-nums; }
+/* The scroll is a RESIDUAL path, not the answer: at ≤720px these tables drop
+   their explanatory money columns so the deciding ones fit (see the media block
+   at the foot of this file). When a long title or a zoomed viewport does push
+   one wider, the scrollbar itself is the cue — `thin`, and visible only while
+   there is something to scroll. The file's other convention for horizontal
+   scrollers (`.share-tablist`) also paints edge fades; not repeated here,
+   because a fade on a `scroll` layer would tint the first and last DATA cells
+   whether or not anything is hidden. */
+.pub-ledger { scrollbar-width: thin; scrollbar-color: var(--text-3) transparent; }
+/* `Show amounts as` governs the whole TABLE, not just the headline tile: the
+   chosen basis keeps full ink and the other money column drops to the muted
+   rank. Emphasis only — no figure is hidden, which is the rule the tile follows
+   and the one the suite names. Columns are counted from the END because each
+   table's Total row opens with a `colSpan` label that shifts every forward index
+   by one; the last cell is Net everywhere, and the gross column is a fixed
+   distance from it. NOTE: the basis and ledger classes must stay COMPOUND on the
+   table (`.pub-ledger.basis-net.ledger-sales`). Written with a space between them
+   the selector asks for a descendant that does not exist, matches nothing, and
+   goes inert without an error — which is how this rule first shipped. */
+.pub-ledger.basis-net.ledger-sales tr > :nth-last-child(3),
+.pub-ledger.basis-net.ledger-runs tr > :nth-last-child(4),
+.pub-ledger.basis-net.ledger-projection tr > :nth-last-child(3),
+.pub-ledger.basis-gross.ledger-sales tr > :last-child,
+.pub-ledger.basis-gross.ledger-runs tr > :nth-last-child(2),
+.pub-ledger.basis-gross.ledger-projection tr > :last-child { color: var(--text-3); }
 
 /* explainer/empty-state note (teal tint, both themes) */
 .hub-note { background: var(--yf-teal-100); border-radius: 12px; padding: 12px 14px; font-size: 12.5px; margin-top: 12px; line-height: 1.55; }
 .hub-note b { color: var(--teal-deep); }
-[data-theme='dark'] .hub-note b { color: var(--yf-teal-600); }
+/* A FAILED read is not a confirmation. The default tint is the teal DESIGN.md
+   itself calls a "low-emphasis success surface" (DESIGN.md:143-144), so the
+   failure alert and the kept-ledger notice wore the same calm as the
+   informational note beside them and the only signal left was prose — the exact
+   reading the Semantic Colour Rule exists to prevent. This reuses the repo's own
+   soft-danger pair (the `.chip-danger` / `.btn-danger` tint with the AA coral
+   ink, both theme-folded through `--ink-coral`), and the inline-start rule keeps
+   the variant legible in greyscale. Informational notes keep the teal. */
+.hub-note.is-failure, .hub-panel-note.is-failure { background: var(--danger-soft); border-inline-start: 3px solid var(--ink-coral); }
+.hub-note.is-failure b { color: var(--ink-coral); }
+/* `.hub-note` already owns this padding; `.hub-panel-note` is a bare status line
+   and owns none — so the shared variant above left its new fill hugging the text
+   with the 3px rule FLUSH against it (measured: a 3.0px left inset, against the
+   teal note's 17px). A filled state gets the same callout box as every other note
+   on the page. The unfilled states keep the bare sentence they were: padding them
+   permanently would indent a status line under a heading that is not indented. */
+.hub-panel-note.is-failure { padding: 12px 14px; border-radius: 12px; }
+/* The sentence lives inside `.small muted`, so the fill said "failure" while the
+   ink said "secondary". Coral is the AA pair for this tint (DESIGN.md:144) and is
+   what the other failure notes paint their lead with. */
+.hub-panel-note.is-failure > span { color: var(--ink-coral); }
+/* `:not(.is-failure)` is load-bearing. Without it this rule has the SAME
+   specificity as `.hub-note.is-failure b` above and comes later in the file, so
+   dark mode repainted the failure's lead teal on the dark-red fill — a hue
+   carrying two meanings, which is the exact failure the variant exists to stop
+   looking like. Found by the fourth critique pass, one pass after it shipped. */
+[data-theme='dark'] .hub-note:not(.is-failure) b { color: var(--yf-teal-600); }
 
 /* ---- Semantic meta-icon tints (v0.40) — colour-coded icons app-wide ---- */
 .mi-money { color: var(--yf-saffron); }
@@ -7631,7 +7685,7 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .hub-panel-title { margin: 0; }
 .hub-panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .hub-panel-note { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 6px; }
-.hub-subhead { font-family: var(--font-display); font-size: 15px; font-weight: 700; margin: 20px 0 6px; }
+.hub-subhead { font-family: var(--font-display); font-size: 15px; font-weight: 700; color: var(--text-2); margin: 20px 0 6px; }
 .hub-controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
 
 /* ---- the instrument panel ------------------------------------------------
@@ -7652,7 +7706,13 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
    no longer supplies the card padding. */
 .hub-instrument-col .hub-panel-head,
 .hub-instrument-col .hub-lead-head { margin-bottom: var(--space-5); }
-.hub-instrument-col .hub-panel-title { margin: 0; font-family: var(--font-body); font-size: 11.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); }
+/* A SECTION HEADING, not a micro-label. This wore the kicker recipe at 11.5px
+   uppercase, which put it BELOW the roles it governs — the 13.5px ledger data,
+   the 15px h4 and the 16px h3 — so the outline ran h1 40px -> h2 11.5px -> h3
+   16px, a heading quieter than its own children. Kickers keep their job for
+   labels (`.stat-label`, column heads); a heading is display-face, sentence
+   case, and colour carries the rank. */
+.hub-instrument-col .hub-panel-title { margin: 0; font-family: var(--font-display); font-size: 16px; font-weight: 700; color: var(--text); }
 .hub-instrument-col .hub-lead-head span { font-size: 11.5px; color: var(--text-3); }
 /* In the narrower column the trend's key would crowd the window pills, so the
    key rides under the plot with the axis instead of beside the title. */
@@ -7712,6 +7772,12 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 
 /* The counters-vs-log frame, said once for the account rather than once per row. */
 .hub-framing { margin: 0 0 16px; }
+/* The page-level read stamp, sitting between the tab bar and the tab's content.
+   It had no rule of its own — its spacing was an inline style, which made the gap
+   ABOVE it additive with the tab bar's own margin: 28px up against 12px down,
+   because `.filter-pillbar` is `inline-flex` and its margins cannot collapse with
+   an adjacent block's. One rule owns both sides now. */
+.hub-read-stamp { margin: 0 0 16px; }
 .hub-note-action { margin: 8px 0 0; }
 
 /* Windowed figures lead; the all-time line stays the qualifier. */
@@ -7726,7 +7792,10 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
    trend above uses for that stage, so a stage means one thing on the page. Rows
    are a column stack; the actions close each one, left-aligned. */
 .hub-lead-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
-.hub-lead-head h2 { margin: 0; font-family: var(--font-body); font-size: 11.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); }
+/* Same repair as the instrument panel's heading: this is a section title and it
+   was rendering at 11.5px uppercase, indistinguishable from the `.stat-label`
+   kicker one step away (11px), which is a 0.5px gap carrying two different jobs. */
+.hub-lead-head h2 { margin: 0; font-family: var(--font-display); font-size: 16px; font-weight: 700; color: var(--text); }
 .hub-lead-head span { font-size: 11.5px; color: var(--text-3); }
 .hub-lead-row { display: flex; flex-direction: column; gap: 6px; padding: 12px 0; }
 .hub-lead-row + .hub-lead-row { border-top: 1px solid var(--line); }
@@ -7785,4 +7854,17 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
   /* Two cells across 320px leave ~107px of content box, which a six-figure
      rupee amount at the desktop 23px would clip rather than wrap. */
   .hub-cell-value { font-size: 20px; }
+  /* A THREE-cell strip (the Earnings tab) left its third figure alone in a
+     half-width box with dead navy beside it — the two-across rule above was
+     written for Overview's four counters. Let the orphan take the whole row. */
+  .hub-strip > .hub-cell:nth-child(3):last-child { grid-column: 1 / -1; border-inline-start: 0; }
+
+  /* Money tables: keep the columns that ANSWER the tab's question, drop the ones
+     that only EXPLAIN it. Fee is stated in the note under each table and Gross is
+     the ledger's Paid at run grain — whereas Net and Status are what the creator
+     came for, and Status was the column 60px past the right edge. The marks are
+     per-CELL rather than `:nth-child`, because each table's Total row starts with
+     a `colSpan={2}` label that shifts every index by one. */
+  .pub-ledger .col-opt { display: none; }
+  .pub-ledger .col-wide { max-width: 18ch; overflow-wrap: anywhere; }
 }

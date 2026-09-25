@@ -340,6 +340,30 @@ export function deriveActualSales(entitlements: Entitlement[], pubs: PublishedIt
   )
 }
 
+/** Which of the ledger's three renderable states the reader is looking at.
+ *
+ *  Four situations look alike in the raw state and are NOT alike to the reader,
+ *  so the ORDER of these tests is the whole function:
+ *
+ *    1. `hasFigures` first. A refresh that fails keeps the ledger it already
+ *       has — discarding real figures punishes the reader for a dropped
+ *       connection, and the page states the read time beside them instead.
+ *    2. `reading` second, ahead of `error`. An attempt in flight is 'reading'
+ *       even when the previous one failed, which is what makes pressing Retry
+ *       change the screen instead of re-rendering the same dead alert.
+ *    3. `error` last, and therefore the ONLY path to 'failed' — so Retry is
+ *       offered exactly when there is nothing to show and nothing in flight,
+ *       never as decoration beside figures already on screen.
+ *
+ *  A read that was never issued is 'reading' too: every attempt is bounded by
+ *  the caller, so that state always resolves into a figure or into 'failed'. */
+export function deriveLedgerRead(state: { hasFigures: boolean; reading: boolean; error: boolean }):
+  'ready' | 'reading' | 'failed' {
+  if (state.hasFigures) return 'ready'
+  if (state.reading) return 'reading'
+  return state.error ? 'failed' : 'reading'
+}
+
 /**
  * Per-publication attribution over a ledger's rows — the breakdown a reader asks
  * for after a weekly one: not "what came in that week" but "WHICH PLAN sold".

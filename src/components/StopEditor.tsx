@@ -8,6 +8,8 @@ import { Modal, Field } from './ui'
 import { Select } from './Select'
 import { LocationInput } from './LocationInput'
 import type { PlaceHit } from './LocationInput'
+import { useResolvePick } from './ResolvePickDialog'
+import { unnamedPick } from '../lib/resolvePick'
 import { fetchOpeningHours } from '../lib/geocode'
 import { roadLegBetween } from '../lib/routing'
 import { getAssumptions, hmToMinutes, addMinutesToClock, formatInr } from '../lib/engine'
@@ -72,6 +74,13 @@ export function StopEditor({ open, onClose, initial, resetKey, onSave, dayLabel,
   banner?: React.ReactNode
 }) {
   const timeFormat = useTimeFormat()
+  // #424 guard: saving a location that was never pinned asks for coordinates
+  // before the write. Hook stays with the others, above every exit (§6e).
+  const { resolvePick, dialog: resolvePickDialog } = useResolvePick()
+  /** true while the pin prompt is up — the editor's own Escape handling must
+   *  stand down so the prompt is the only layer that answers. */
+  const pinPrompting = useRef(false)
+  const onModalClose = React.useCallback(() => { if (!pinPrompting.current) onClose() }, [onClose])
   const [v, setV] = useState<StopFormValues>(normalize(initial))
   const [errs, setErrs] = useState<Record<string, string>>({})
   /** first-invalid focus targets (F-15) — plain inputs register here */
@@ -202,7 +211,7 @@ export function StopEditor({ open, onClose, initial, resetKey, onSave, dayLabel,
     [timeOptions, v.closeTime, timeFormat],
   )
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault()
     const next: Record<string, string> = {}
     if (!v.title.trim()) next.title = 'Give the stop a name.'
@@ -218,11 +227,33 @@ export function StopEditor({ open, onClose, initial, resetKey, onSave, dayLabel,
       if (first) fieldRefs.current[first]!.focus()
       return
     }
+    // #424: a NEW stop whose location was never pinned must not write the
+    // form's default coordinates. (An existing stop keeps its stored pin — a
+    // rename is not a position change, and `initial?.title` is how the form
+    // knows it is editing one.) The shared guard asks — manual coordinates or
+    // an explicit skip — and a skip refuses the save rather than guessing.
+    if (!v.geocoded && !initial?.title) {
+      pinPrompting.current = true
+      let picked: PlaceHit | null = null
+      try {
+        picked = await resolvePick(unnamedPick('stop-editor', v.locationName.trim()))
+      } finally { pinPrompting.current = false }
+      if (!picked) {
+        setErrs({ locationName: 'Pick a suggestion, or enter the coordinates — a stop cannot go on the map without a position.' })
+        return
+      }
+      onSave({
+        ...v, title: v.title.trim(), locationName: v.locationName.trim(),
+        lat: picked.latitude, lng: picked.longitude, placeId: '', geocoded: true,
+      })
+      return
+    }
     onSave({ ...v, title: v.title.trim(), locationName: v.locationName.trim() })
   }
 
   return (
-    <Modal open={open} onClose={onClose} title={`${initial?.title ? 'Edit stop' : 'Add stop'}${dayLabel ? ` — ${dayLabel}` : ''}`}>
+    <>
+    <Modal open={open} onClose={onModalClose} title={`${initial?.title ? 'Edit stop' : 'Add stop'}${dayLabel ? ` — ${dayLabel}` : ''}`}>
       {banner}
       <form onSubmit={submit}>
         <div className="form-row">
@@ -354,6 +385,8 @@ export function StopEditor({ open, onClose, initial, resetKey, onSave, dayLabel,
         </div>
       </form>
     </Modal>
+    {resolvePickDialog}
+    </>
   )
 }
 

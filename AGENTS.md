@@ -741,6 +741,7 @@ discriminates a migration-gated table in one call — **`200 []` means the table
   timing), so prove a cover's weight from the origin
   (`curl -w '%{size_download}'` on the `src` the DOM actually rendered)rather than from `performance.getEntriesByType('resource')`.
 - **A hidden preview webview freezes `requestAnimationFrame` and can stall the MapLibre style forever (learned 2026-09-22).** With `document.visibilityState === "hidden"` rAF callbacks never run (screenshots report "produced no frames" for the same reason) and the map style can sit `isStyleLoaded() === false` indefinitely. A map fit that "never runs" in that state is the environment, not the product: verify geometry through an un-gated path (`fitBounds({duration: 0})` jumps synchronously), or patch `requestAnimationFrame`→`setTimeout` and `matchMedia('(prefers-reduced-motion: reduce)')`→`{ matches: true }` in-page BEFORE driving the UI (the app reads both at call time), then measure the camera through the map instance found via the host node's React fiber — importing app modules to probe state gets a SECOND instance under HMR's timestamped URLs.
+- **That freeze reaches React itself — and the module graph will render a component for you (learned 2026-09-25).** In the same hidden state, passive effects never flush and a state update can run its updater (side effects fire — a resolved promise) yet never commit, so a dialog "stays open" after its close resolved: that reads as a state-code bug and is not one. The tell is `preview_screenshot` failing with "produced no frames"; `preview_navigate "reload"` restores compositing mid-session, and probes should put their side effects in the render body, not `useEffect`. For a rendered check with no test infra: `import('/@id/react')` + `import('/@id/react-dom/client')` (its `createRoot` is on `.default`) + the component's module URL renders the REAL module graph into a detached root, and real clicks drive it end-to-end (empty-submit errors, manual entry, skip-resolves-null). Poll for state instead of fixed sleeps — a hidden webview throttles timers into the evaluate timeout.
 - **`str_replace` can report a real, existing file as missing** (`package-lock.json`,
   ~160 KB, during the v0.55.0 cut) — fall back to a targeted `sed -i` and verify
   with grep before moving on. Related: Vercel Agent opens its PRs as **drafts**;
@@ -1491,6 +1492,20 @@ by orphan check** (Sep 2026): the reported "802 orphan rows" turned out to be
   list, the banner summarises and does not restate every bullet (the `[0.42.0]`
   banner shipped stating its content three times and claiming a C5 that never
   existed — see `docs/history/README.md`).
+- **README release highlights are newest-first, and its evergreen lines rot
+  faster than any other doc's (learned 2026-09-24).** A release's "in plain
+  words" section inserts at the TOP of the highlights block (under the pointer
+  line) — v0.66's once sat between v0.60–61 and v0.55 while v0.62–v0.65 had no
+  section at all, and the tail below ran in no discernible order. The evergreen
+  claims rot just as fast: "six everyday modes" survived the move to eight, the
+  AI-companion bullet outlived its production flag, and "❌ Payments — no
+  gateway integration" outlived the Razorpay rail by four releases. When
+  touching evergreen lines (mode counts, flag-gated features, the MVP
+  constraint list, the structure block), re-derive them from the code — and
+  remember README is in `tests/doc-drift.test.ts`'s LIVE list with zero
+  registered claims, so new prose must avoid the gate's absence-cue phrasings.
+  Screenshots in `docs/screenshots/` need the same freshness check after any
+  visual pass — the v0.66 pass landed ten days after the last capture.
 - **`docs/README.md` is the doc index** — every new doc gets a row there
   (Diátaxis flavor: tutorials / how-to / reference / explanation — tag the
   row with which it is). Root stays lean: README, AGENTS, CONTRIBUTING,

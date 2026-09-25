@@ -191,6 +191,17 @@ export const NO_PROBE_SURFACE = {
     // tests/decision-resolve.test.ts pinning schema, migration and payload.
     reason: 'alter column TYPE only — presence proves nothing here (the column exists before and after), so it is pinned by tests/decision-resolve.test.ts; unapplied, it fails loudly at call time with 22P02 on every resolveDecision',
   },
+  '20260926_paywall_invite_code_leak.sql': {
+    // Same shape of problem as the entry above: it REDEFINES two functions and
+    // creates nothing, so both exist before and after and no presence probe can
+    // tell the fixed body from the leaking one. What an unapplied copy costs is
+    // a live paywall bypass, so the fix is pinned at the source instead —
+    // tests/paywall-invite-code-leak.test.ts asserts the column list with
+    // `invite_code` nulled, the premium clause on the code path and the
+    // migration ordering that keeps both — and the behaviour itself belongs to
+    // the opt-in RLS contract suite.
+    reason: 'functions only — both are redefined rather than created, so presence answers nothing; pinned by tests/paywall-invite-code-leak.test.ts, with the paywall behaviour covered by the RLS contract suite (`npm run test:integration`)',
+  },
 }
 
 /** The plan: one entry per migration file, with its probes and the reason none

@@ -289,6 +289,33 @@ Key locations:
    leaks nothing); and a KPI that counted those rows stops being true the moment
    they stop being deleted — a "Live" cell and a "Behind" count had to learn the
    marker in the same commit, or the strip contradicts the list printed under it.
+ 6k. **A capability one endpoint leaks is a key for every other endpoint — and a
+   `select *` in an anon-facing function is how it gets leaked (learned 2026-09-25,
+   #351).** `get_public_trip` stubbed the paid days correctly and then returned the
+   whole trip row anyway, `invite_code` included; `get_trip_by_invite_code` had no
+   premium gate at all, so the same anonymous caller traded that code back for the
+   complete plan — 4 days, ZERO stubbed stops, no account, no payment. Five rules:
+   (1) a function granted to `anon` must name its columns — `select *` makes every
+   column a future migration adds public by default, and the default has to be the
+   other way round; (2) `returns setof public.<table>` does not let you omit a
+   column, so a secret stays on the wire until the columns are enumerated and it is
+   replaced by a typed NULL (`null::text as invite_code`) — the return type is not a
+   licence to select the row; (3) a gate only guards the paths that have it — the
+   uuid invite link was gated in v0.63.0 while the short code was deliberately
+   "left untouched", which read as caution and was in fact the hole, so when two
+   endpoints serve one capability, guard BOTH and test the pair; (4) a leaked
+   capability is a CHAIN, not a bug: ask "can this field be traded for anything?"
+   before rating the leak, because the field alone is harmless and the second
+   endpoint is what turns it into a bypass; (5) prove it live — three
+   unauthenticated curl calls settled in minutes what reading four migrations only
+   suggested, which is why the issue's own "confirm the bypass first" step is the
+   one that decides hygiene vs incident. Companion trap, specific to this repo's
+   migration style: TWO files redefining one function means NAME ORDER decides
+   which body a fresh database ends up running, so a later fix must carry every
+   earlier guard forward verbatim (#350's soft-unpublish gate had to survive #351's
+   rewrite of the same function, and the rewrite is exactly where it would have
+   been dropped) — pin that ordering with a test, because the failure is invisible
+   until someone rebuilds the database from scratch.
 7. **When asking the user to review/test locally, always hand them the exact
    URL — never make them find or start the server.** Check if the dev server
    is up (probe `http://localhost:5173`); if not, start `npm run dev`

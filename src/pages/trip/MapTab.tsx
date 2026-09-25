@@ -6,6 +6,7 @@ import { BedDouble, ChevronDown, CircleCheck, Coffee, ExternalLink, Fuel, Lightb
 import { uid } from '../../data/seed'
 import type { Trip, ItineraryStop, TripDecision } from '../../data/types'
 import type { ImpactResult } from '../../lib/impact'
+import { PREVIEW_BUSY } from '../../lib/previewChain'
 import { mapRoadViewFromLegs, mapReturnGeometryFromLegs, outboundLegs, type TripRoadView } from '../../lib/tripRoad'
 import { buildJourney, minutesToHM, fmtDur, computeCategoryBias, MODE_SPEED, isRoundTrip } from '../../lib/engine'
 import { useTimeFormat, formatHM, formatHMRange } from '../../lib/timefmt'
@@ -159,7 +160,7 @@ function SlotGlyph({ kind, label }: { kind: DaySlotKind; label: string }) {
   const G = label === 'Breakfast' ? Coffee : KIND_GLYPH[kind]
   return G ? <InlineIcon icon={G} size={12} /> : null
 }
-export function MapTab({ trip, editable, applyChange, suggestionCache, crewSuggestions, decisions, road, onOpenTimeline, onOpenBoard, onOpenDay, onOpenGroupInput }: {
+export function MapTab({ trip, editable, applyChange, suggestionCache, crewSuggestions, decisions, road, onOpenTimeline, onOpenBoard, onOpenDay, onOpenGroupInput, previewOpen }: {
   trip: Trip
   editable: boolean
   applyChange: (mutator: (d: Trip) => void, kind: ImpactResult['kind'], dayIndex: number, onKept?: () => void) => void
@@ -174,6 +175,10 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
   onOpenDay?: (dayIndex: number) => void
   /** The part's live vote opens the crew's Group input to resolve it (P4). */
   onOpenGroupInput?: () => void
+  /** true while the workspace holds a staged change — a direct cache write
+   *  (the popup's stop delete) would make Keep refuse as stale, so it refuses
+   *  instead (#334, same policy as the timeline and Group input). */
+  previewOpen?: boolean
   /** This trip's decisions - an open one raised for a part shows as its vote. */
   decisions?: TripDecision[]
 }) {
@@ -1221,6 +1226,9 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
    *  the stop back on its day at its old order). The stop object must be
    *  captured BEFORE the delete, since the cache drops it immediately. */
   function removeStopFromMap(stopId: string, meta: { title: string; dayIndex: number }) {
+    // #334: this writes the committed row while the sheet may be showing a
+    // staged change — refuse rather than strand the preview as stale.
+    if (previewOpen) { toast(PREVIEW_BUSY, 'err'); return }
     const stop = trip.days.find(d => d.stops.some(s => s.id === stopId))?.stops.find(s => s.id === stopId)
     deleteStop(trip.id, stopId)
     suggestionCache.clearMap()

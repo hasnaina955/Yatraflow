@@ -15,6 +15,10 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ## [Unreleased]
 
+### Added
+
+- **Unknown-position picks ask for their position instead of being dropped.** Any pick the map cannot pin — a provider placeholder, a mixed (0, lng) zero, or a place with no id to resolve through — now opens a pin-it dialog before the change proceeds: try the resolver again, enter the coordinates by hand (validated: finite, in range, and no zero — the map reads a 0 as "position unknown"), or skip the place explicitly. Every vote, add and place path (Map tab votes, adds and fills; the location picker) runs the same shared guard, so nothing is written as a placeholder and nothing is dropped silently — a skip is the user's own choice.
+
 ### Fixed
 
 - **Unknown places stay unknown.** A location with either coordinate at zero is resolved before it can enter a trip, road-measured modes share one source of truth, changing transport mode re-measures the road, and an unmeasurable detour is labeled “position unknown” and held for manual budget review instead of being treated as free/on-route.

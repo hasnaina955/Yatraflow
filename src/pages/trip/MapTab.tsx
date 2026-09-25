@@ -16,7 +16,8 @@ import { Select } from '../../components/Select'
 import { DetourWhisk } from '../../components/DetourWhisk'
 import { useSuggestionCache, isMapCacheFresh } from '../../hooks/useSuggestionCache'
 import { openExternal } from '../../lib/native'
-import { corridorAnchors, detourKm, asymmetricDetourKm, asymmetricDetourMinutes, googleEnabled, planJourneyHalts, reasonForSegmentHit, searchPlacesText, searchNearbyPoisMulti, kmFromStartForHit, planDriveDays, planTravelClock, rainFactorFor, requireHitCoords, directionalKm, alongRouteKmOf, DEFER_START, type NearbyOpts, type PlaceHit, type TravelClockVerdict, routeHash } from '../../lib/geocode'
+import { corridorAnchors, detourKm, asymmetricDetourKm, asymmetricDetourMinutes, googleEnabled, planJourneyHalts, reasonForSegmentHit, searchPlacesText, searchNearbyPoisMulti, kmFromStartForHit, planDriveDays, planTravelClock, rainFactorFor, directionalKm, alongRouteKmOf, DEFER_START, type NearbyOpts, type PlaceHit, type TravelClockVerdict, routeHash } from '../../lib/geocode'
+import { useResolvePick } from '../../components/ResolvePickDialog'
 import { deriveClockMilestones } from '../../lib/clockOverlay'
 import { isSightCategory, roadProfileFromLegs, loopProfile } from '../../lib/ridePlan'
 import { QuotaExhaustedError } from '../../lib/providers/google'
@@ -256,6 +257,11 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
   const searchSeq = useRef(0)
   const searchAbort = useRef<AbortController | null>(null)
   const slotAbort = useRef<AbortController | null>(null)
+  // Shared resolve-or-prompt guard (product decision 2026-09-25, #424): every
+  // unknown-position pick below resolves through resolvePick — retry / manual
+  // coordinates / explicit skip — before anything is written. Lives with the
+  // other hooks, above every path out of this component (AGENTS §6e).
+  const { resolvePick, dialog: resolvePickDialog } = useResolvePick()
   useEffect(() => () => {
     searchAbort.current?.abort()
     slotAbort.current?.abort()
@@ -755,7 +761,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     setAddingIds(new Set(addingIdsRef.current))
     setAddingAny(true)
     try {
-      const pinned = await requireHitCoords(hit)
+      const pinned = await resolvePick(hit)
       if (!pinned) {
         toast(`Could not pin “${hit.name}” on the map - not added. Try another suggestion.`)
         return
@@ -830,7 +836,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     setAddingAny(true)
     try {
       const dayIdx = activeDayIndex
-      const pinned = await requireHitCoords(hit)
+      const pinned = await resolvePick(hit)
       if (!pinned) { toast(`Could not pin "${hit.name}" on the map - not added. Try another suggestion.`); return }
       const stopId = newStopId()
     applyChange(draft => {
@@ -906,7 +912,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
       // Placeholder coords resolve BEFORE the write (the Null Island guard).
       const resolved: Array<{ slot: DaySlot; hit: PlaceHit }> = []
       for (const t of targets) {
-        const pinned = await requireHitCoords(t.hit)
+        const pinned = await resolvePick(t.hit)
         if (pinned) resolved.push({ slot: t.slot, hit: pinned })
       }
       if (resolved.length === 0) {
@@ -999,7 +1005,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     if (picks.length < 2 || addingAny) return
     setAddingAny(true)
     try {
-      const resolved = await Promise.all(picks.map(async c => ({ c, pinned: await requireHitCoords(c.hit) })))
+      const resolved = await Promise.all(picks.map(async c => ({ c, pinned: await resolvePick(c.hit) })))
       const usable = resolved.filter((x): x is { c: (typeof picks)[number]; pinned: PlaceHit } => !!x.pinned)
       if (usable.length < 2) { toast('Those places could not be pinned on the map - the vote was not created.'); return }
       addDecision(trip.id, {
@@ -1171,7 +1177,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
       const ordered = [...trayShortlist].sort((a, b) =>
         (routeKmOf(a.latitude, a.longitude) ?? Infinity) - (routeKmOf(b.latitude, b.longitude) ?? Infinity),
       )
-      const resolved = await Promise.all(ordered.map(async hit => ({ hit, pinned: await requireHitCoords(hit) })))
+      const resolved = await Promise.all(ordered.map(async hit => ({ hit, pinned: await resolvePick(hit) })))
       const usable = resolved.filter((x): x is { hit: PlaceHit; pinned: PlaceHit } => !!x.pinned)
       if (usable.length === 0) {
         toast('Nothing could be pinned from the shortlist - try another place.')
@@ -1241,7 +1247,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     if (trayShortlist.length === 0 || addingAny) return
     setAddingAny(true)
     try {
-      const resolved = await Promise.all(trayShortlist.map(async h => ({ h, pinned: await requireHitCoords(h) })))
+      const resolved = await Promise.all(trayShortlist.map(async h => ({ h, pinned: await resolvePick(h) })))
       const usable = resolved.filter((x): x is { h: PlaceHit; pinned: PlaceHit } => !!x.pinned)
       if (usable.length === 0) { toast('Those places could not be pinned on the map - the vote was not created.'); return }
       addDecision(trip.id, {
@@ -2416,7 +2422,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
                         const resolved: { hit: PlaceHit; dayIndex: number }[] = []
                         let unpinned = 0
                         for (const item of toAdd) {
-                          const pinned = await requireHitCoords(item.hit)
+                          const pinned = await resolvePick(item.hit)
                           if (!pinned) { unpinned += 1; continue }
                           recordDnaEvent({ tripId: trip.id, action: 'accept', haltKind: pinned.haltPurpose, category: pinned.category, detourMin: asymmetricDetourMinutes(pinned, anchors, routePolyline ?? null, MODE_SPEED[trip.transportMode] ?? 40) ?? undefined, visitMin: visitMinutesForCategory(pinned.category) })
                           resolved.push({ hit: pinned, dayIndex: item.dayIndex })
@@ -2548,6 +2554,8 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
           </div>
         )}
       </Modal>
+      {/* resolve-or-prompt dialog — one instance serves every pick guard */}
+      {resolvePickDialog}
     </div>
   )
 }

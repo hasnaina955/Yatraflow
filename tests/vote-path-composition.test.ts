@@ -5,10 +5,12 @@
 //     lng — the 2026-09-14 live-incident signature) as unknown, not only (0,0),
 //     so `requireHitCoords` refuses to hand it back.
 //   · #380's vote-path guards: both crew-vote writers (`raiseSlotVote`,
-//     `raiseShortlistVote`) resolve every pick through `requireHitCoords`
-//     BEFORE writing a decision payload, drop the unresolvable, refuse the
-//     vote when too few survive, and write the PINNED coordinates — never the
-//     raw pick's.
+//     `raiseShortlistVote`) resolve every pick BEFORE writing a decision
+//     payload, drop the unresolvable, refuse the vote when too few survive,
+//     and write the PINNED coordinates — never the raw pick's. Resolution now
+//     runs through the shared resolve-or-prompt guard (`resolvePick`, pinned
+//     in tests/resolve-pick.test.ts), which requires first and prompts over
+//     the unknown.
 // Composed: a mixed-zero pick can never reach a decision payload, and a vote
 // can never be created around a place the map cannot pin.
 //
@@ -104,17 +106,22 @@ describe('MapTab vote writers (source tripwire to the composed contract)', () =>
     return next === -1 ? src.slice(start) : src.slice(start, start + 1 + next)
   }
 
-  it('every write-into-a-trip path uses the require form, never bare resolve', () => {
-    // `resolveHitCoords` returns the placeholder on failure; only
-    // `requireHitCoords` refuses it. No ingestion boundary in MapTab may
-    // call the permissive form (votes, adds and pins alike).
+  it('every pick enters through the shared resolve-or-prompt guard', () => {
+    // MapTab never resolves on its own: `resolveHitCoords` returns the
+    // placeholder on failure, and `requireHitCoords` is the guard's private
+    // resolver (wired in ResolvePickDialog, pinned in tests/resolve-pick.test.ts
+    // to require FIRST and prompt only over the unknown). Every ingestion
+    // boundary here calls resolvePick — votes, adds and fills alike.
     expect(src).not.toMatch(/(?<!require)resolveHitCoords\(/)
-    expect(src).toMatch(/requireHitCoords\(/)
+    expect(src).not.toMatch(/requireHitCoords\(/)
+    expect(src).toMatch(/resolvePick\(/)
+    // …and the dialog the guard opens is actually mounted.
+    expect(src).toMatch(/\{resolvePickDialog\}/)
   })
 
   it('raiseSlotVote resolves every candidate before writing, gates, and pins the payload', () => {
     const body = fnBody('raiseSlotVote')
-    expect(body).toMatch(/requireHitCoords\(c\.hit\)/)          // resolve at the boundary
+    expect(body).toMatch(/resolvePick\(c\.hit\)/)               // resolve-or-prompt at the boundary
     expect(body).toMatch(/usable\.length < 2/)                  // a vote needs ≥2 pinnable places
     expect(body).toMatch(/was not created/)                     // refusal is said out loud
     expect(body).toMatch(/lat:\s*pinned\.latitude/)             // payload carries PINNED coords…
@@ -124,7 +131,7 @@ describe('MapTab vote writers (source tripwire to the composed contract)', () =>
 
   it('raiseShortlistVote resolves every pick before writing, gates, and pins the payload', () => {
     const body = fnBody('raiseShortlistVote')
-    expect(body).toMatch(/requireHitCoords\(h\)/)
+    expect(body).toMatch(/resolvePick\(h\)/)
     expect(body).toMatch(/usable\.length === 0/)                // nothing pinnable, no vote
     expect(body).toMatch(/was not created/)
     expect(body).toMatch(/lat:\s*pinned\.latitude/)

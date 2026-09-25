@@ -866,7 +866,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
       // too. The batch fill did and this did not, which made one action's
       // consequence depend on which button was pressed - and starved the P7.2
       // hints, which stay silent below 3 accepts.
-      recordDnaEvent({ tripId: trip.id, action: 'accept', haltKind: slot.kind, category: hit.category, detourMin: asymmetricDetourMinutes(hit, anchors, routePolyline ?? null, MODE_SPEED[trip.transportMode] ?? 40), visitMin: visitMinutesForCategory(hit.category) })
+      recordDnaEvent({ tripId: trip.id, action: 'accept', haltKind: slot.kind, category: hit.category, detourMin: asymmetricDetourMinutes(hit, anchors, routePolyline ?? null, MODE_SPEED[trip.transportMode] ?? 40) ?? undefined, visitMin: visitMinutesForCategory(hit.category) })
       setDnaTick(t => t + 1)
       // #143: an overnight fill pins the halt, same as addPoiToDay's rule.
       if (hit.haltPurpose === 'overnight') {
@@ -966,7 +966,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
           return next
         })
         for (const { slot, hit } of ordered) {
-          recordDnaEvent({ tripId: trip.id, action: 'accept', haltKind: slot.kind, category: hit.category, detourMin: asymmetricDetourMinutes(hit, anchors, routePolyline ?? null, MODE_SPEED[trip.transportMode] ?? 40), visitMin: visitMinutesForCategory(hit.category) })
+          recordDnaEvent({ tripId: trip.id, action: 'accept', haltKind: slot.kind, category: hit.category, detourMin: asymmetricDetourMinutes(hit, anchors, routePolyline ?? null, MODE_SPEED[trip.transportMode] ?? 40) ?? undefined, visitMin: visitMinutesForCategory(hit.category) })
         }
         suggestionCache.clearMap()
         setDnaTick(t => t + 1)
@@ -1007,7 +1007,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
         context: `Voting from the day plan (Day ${activeDayIndex + 1})`,
         options: usable.map(({ c, pinned }) => ({
           id: `slot:${slot.key}:${String(c.hit.id)}`, label: c.hit.name,
-          timeImpactMin: Math.round(c.detourMin) || undefined,
+          timeImpactMin: c.detourMin == null ? undefined : Math.round(c.detourMin) || undefined,
           place: {
             title: c.hit.name, category: (c.hit.category as ItineraryStop['category']) ?? 'sightseeing',
             locationName: c.hit.description ?? c.hit.name, lat: pinned.latitude, lng: pinned.longitude,
@@ -1061,7 +1061,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
       hit: h,
       detourMin: dMin,
       detourKm: asymmetricDetourKm(h, anchors, routePolyline),
-      budgetSharePct: budgetSharePct(dMin, budget),
+      budgetSharePct: dMin == null ? 100 : budgetSharePct(dMin, budget),
       posKm: null,
       arriveMin: null,
       arriveLabel: null,
@@ -1248,7 +1248,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
         question: usable.length === 1 ? `Should we add "${usable[0].h.name}"?` : 'Which of these should we add?',
         context: 'Shortlisted from the Map rail',
         options: usable.map(({ h, pinned }) => ({
-          id: String(h.id), label: h.name, timeImpactMin: Math.round(detourMinFor(h)) || undefined,
+          id: String(h.id), label: h.name, timeImpactMin: detourMinFor(h) == null ? undefined : Math.round(detourMinFor(h)!) || undefined,
           place: {
             title: h.name, category: (h.category as ItineraryStop['category']) ?? 'sightseeing',
             locationName: h.description ?? h.name, lat: pinned.latitude, lng: pinned.longitude,
@@ -1295,7 +1295,11 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
       // between two anchors.
       const ranked = hits
         .map(h => ({ h, km: routeKmOf(h.latitude, h.longitude), off: asymmetricDetourKm(h, anchors, routePolyline) }))
-        .sort((a, b) => (a.off ?? 9999) - (b.off ?? 9999) || (a.km ?? 0) - (b.km ?? 0))
+        .sort((a, b) => {
+          const ao = a.off == null ? Number.POSITIVE_INFINITY : a.off
+          const bo = b.off == null ? Number.POSITIVE_INFINITY : b.off
+          return ao - bo || (a.km == null ? Number.POSITIVE_INFINITY : a.km) - (b.km == null ? Number.POSITIVE_INFINITY : b.km)
+        })
       setShowAllResults(false)
       setSearchResults(ranked)
       const onScope = ranked.filter(en => en.off != null && en.off <= scopeKm)
@@ -1329,7 +1333,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
   // the budget walk, whiskers and vote contexts all read this map now.
   const hitEngine = useMemo(() => {
     const speedK = MODE_SPEED[trip.transportMode] ?? 40
-    const m = new Map<string, { detourMin: number }>()
+    const m = new Map<string, { detourMin: number | null }>()
     for (const sh of pois) {
       if (!sh.hit) continue
       m.set(String(sh.hit.id), { detourMin: asymmetricDetourMinutes(sh.hit, anchors, routePolyline ?? null, speedK) })
@@ -1358,13 +1362,12 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     }
     for (const sh of pois) {
       if (!sh.hit) continue
-      const dMin = hitEngine.get(String(sh.hit.id))?.detourMin ?? 0
+      const dMin = hitEngine.get(String(sh.hit.id))?.detourMin ?? null
       const eta = sh.segment.etaMinutes
       const bits: string[] = []
-      if (eta != null && Number.isFinite(eta)) bits.push(`arrive ${clockHM(Math.round(eta + dMin))}`)
-      const dMinRound = Math.round(dMin)
-      bits.push(dMinRound > 0 ? `+${dMinRound} min` : 'on route')
-      if (dMinRound > 0) {
+      if (eta != null && Number.isFinite(eta) && dMin != null) bits.push(`arrive ${clockHM(Math.round(eta + dMin))}`)
+      bits.push(dMin == null ? 'position unknown' : dMin > 0.5 ? `+${Math.round(dMin)} min` : 'on route')
+      if (dMin != null && dMin > 0.5) {
         const budget = budgetFor(dayForKm(sh.hit.cumKm) ?? 0)
         if (budget > 0) {
           const share = budgetSharePct(dMin, budget)
@@ -1375,7 +1378,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     }
     return m
   }, [pois, hitEngine, trip.travelStyle, trip.days, dayAttribution])
-  const detourMinFor = (hit: PlaceHit): number =>
+  const detourMinFor = (hit: PlaceHit): number | null =>
     hitEngine.get(String(hit.id))?.detourMin
       ?? asymmetricDetourMinutes(hit, anchors, routePolyline ?? null, MODE_SPEED[trip.transportMode] ?? 40)
   // the number printed on its card.
@@ -1486,7 +1489,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
             className="chip chip-sm"
             title="Not interested - hide this and teach the engine"
             onClick={() => {
-              recordDnaEvent({ tripId: trip.id, action: 'decline', haltKind: sh.segment.purpose, category: hit.category, detourMin })
+              recordDnaEvent({ tripId: trip.id, action: 'decline', haltKind: sh.segment.purpose, category: hit.category, detourMin: detourMin ?? undefined })
               // Dismiss is a local rail decision: keep the current plan visible
               // and do not invalidate/rebill the corridor. DNA is persisted and
               // will be read by the next explicit replan.
@@ -1518,7 +1521,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
       </div>
     )
     const meta = [
-      detourMin > 0 ? `+${Math.round(detourMin)} min detour` : 'on route',
+      detourMin == null ? 'position unknown' : detourMin > 0 ? `+${Math.round(detourMin)} min detour` : 'on route',
       hitDay != null ? `Day ${hitDay + 1}` : null,
     ].filter(Boolean).join(' \u00b7 ')
     return (
@@ -1655,7 +1658,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
       const c = s.candidates[0]
       const bits = [
         c.arriveLabel ? `arrive ${c.arriveLabel}` : null,
-        c.detourMin > 0 ? `+${Math.round(c.detourMin)} min` : 'on route',
+        c.detourMin == null ? 'position unknown' : c.detourMin > 0.5 ? `+${Math.round(c.detourMin)} min` : 'on route',
         c.budgetSharePct > 0 ? `${c.budgetSharePct}% of the day's detour budget` : null,
       ].filter(Boolean)
       return { key: s.key, label: s.label, name: c.hit.name, meta: bits.join(' · '), hit: c.hit }
@@ -1719,12 +1722,12 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
       etaMinutes: sh.segment.etaMinutes ?? null,
       minutesFromPrev: sh.segment.minutesFromPrev,
       isFirstSegment: sh.segment.index === 0,
-      detourMinutes: detourMin,
-      budgetSharePct: detourMin > 0.5 ? budgetSharePct(detourMin, dayBudget) : null,
+      detourMinutes: detourMin ?? 0,
+      budgetSharePct: detourMin != null && detourMin > 0.5 ? budgetSharePct(detourMin, dayBudget) : detourMin == null ? 100 : null,
       // #163: same predicate as the fact strip (round-half-up display math),
       // so a budget-exact halt can't be 'fine' on the card and 'held back' on
       // the rail — or flip between them on a display-rounding nudge.
-      overBudget: Math.round(detourMin) > dayBudget,
+      overBudget: detourMin == null || Math.round(detourMin) > dayBudget,
       rating: hit.rating,
       ratingCount: hit.ratingCount,
     })
@@ -2284,10 +2287,10 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
                               <span className="day-slot-cand-nm">
                                 <b>{c.hit.name}</b>
                                 <span>
-                                  +{Math.round(c.detourMin)} min
+                                  {c.detourMin == null ? 'position unknown' : `+${Math.round(c.detourMin)} min`}
                                   {c.arriveLabel ? ` · arrive ${c.arriveLabel}` : ''}
                                   {(c.hit.openTime || c.hit.closeTime) ? ` · ${formatHMRange(c.hit.openTime, c.hit.closeTime, timeFormat)}` : ''}
-                                  {c.budgetSharePct > 0 ? ` · ${c.budgetSharePct}% of day detours` : ' · on route'}
+                                  {c.detourMin == null ? 'position unknown' : c.budgetSharePct > 0 ? ` · ${c.budgetSharePct}% of day detours` : ' · on route'}
                                   {c.reason ? ` · ${c.reason}` : ''}
                                 </span>
                                 {c.budgetSharePct > 0 && (
@@ -2415,7 +2418,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
                         for (const item of toAdd) {
                           const pinned = await requireHitCoords(item.hit)
                           if (!pinned) { unpinned += 1; continue }
-                          recordDnaEvent({ tripId: trip.id, action: 'accept', haltKind: pinned.haltPurpose, category: pinned.category, detourMin: asymmetricDetourMinutes(pinned, anchors, routePolyline ?? null, MODE_SPEED[trip.transportMode] ?? 40), visitMin: visitMinutesForCategory(pinned.category) })
+                          recordDnaEvent({ tripId: trip.id, action: 'accept', haltKind: pinned.haltPurpose, category: pinned.category, detourMin: asymmetricDetourMinutes(pinned, anchors, routePolyline ?? null, MODE_SPEED[trip.transportMode] ?? 40) ?? undefined, visitMin: visitMinutesForCategory(pinned.category) })
                           resolved.push({ hit: pinned, dayIndex: item.dayIndex })
                         }
                         const n = resolved.length
@@ -2538,7 +2541,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
             <p className="hint-text">You can fine-tune duration, fees and timings in the Timeline afterwards.</p>
             <div style={{ display: 'flex', gap: 9, justifyContent: 'flex-end', marginTop: 8 }}>
               <button className="btn btn-outline" onClick={() => setPoiDraft(null)}>Cancel</button>
-              <button className="btn btn-primary" onClick={() => { recordDnaEvent({ tripId: trip.id, action: 'accept', haltKind: poiDraft.hit.haltPurpose, category: poiDraft.hit.category, detourMin: asymmetricDetourMinutes(poiDraft.hit, anchors, routePolyline ?? null, MODE_SPEED[trip.transportMode] ?? 40), visitMin: visitMinutesForCategory(poiDraft.hit.category) }); suggestionCache.clearMap(); setDnaTick(t => t + 1); addPoiToDay(poiDraft.hit, pickDay); setPoiDraft(null) }}>
+              <button className="btn btn-primary" onClick={() => { recordDnaEvent({ tripId: trip.id, action: 'accept', haltKind: poiDraft.hit.haltPurpose, category: poiDraft.hit.category, detourMin: asymmetricDetourMinutes(poiDraft.hit, anchors, routePolyline ?? null, MODE_SPEED[trip.transportMode] ?? 40) ?? undefined, visitMin: visitMinutesForCategory(poiDraft.hit.category) }); suggestionCache.clearMap(); setDnaTick(t => t + 1); addPoiToDay(poiDraft.hit, pickDay); setPoiDraft(null) }}>
                 Add to timeline
               </button>
             </div>

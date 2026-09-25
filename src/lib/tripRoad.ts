@@ -112,6 +112,7 @@ export function roadChainSig(
   const dc = trip.destinationCoords ?? []
   const lastDest = dc.length ? dc[dc.length - 1] : undefined
   if (lastDest) parts.push(roundCoord(lastDest.lat, lastDest.lng))
+  parts.push(trip.transportMode)
   parts.push(isRoundTrip(trip) ? 'rt' : 'ow')
   return parts.join('|')
 }

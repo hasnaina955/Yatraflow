@@ -33,7 +33,7 @@ export function budgetSharePct(spendMin: number, budgetMin: number): number {
  * items (on-route) never spend and always stay; anything that would push
  * cumulative spend past the budget is deferred. Garbage detours count as 0.
  */
-export function splitByDetourBudget<T extends { detourMin: number }>(
+export function splitByDetourBudget<T extends { detourMin: number | null }>(
   items: T[],
   budgetMin: number,
 ): { within: T[]; deferred: T[] } {
@@ -41,17 +41,18 @@ export function splitByDetourBudget<T extends { detourMin: number }>(
   const deferred: T[] = []
   let spent = 0
   for (const item of items) {
-    const cost = Number.isFinite(item.detourMin) ? Math.max(0, item.detourMin) : 0
+    const unknown = item.detourMin == null
+    const cost = unknown ? budgetMin : typeof item.detourMin === 'number' && Number.isFinite(item.detourMin) ? Math.max(0, item.detourMin) : budgetMin
+    if (unknown || spent + cost > budgetMin) {
+      deferred.push(item)
+      continue
+    }
     if (cost <= 0) {
       within.push(item)
       continue
     }
-    if (spent + cost <= budgetMin) {
-      spent += cost
-      within.push(item)
-    } else {
-      deferred.push(item)
-    }
+    spent += cost
+    within.push(item)
   }
   return { within, deferred }
 }

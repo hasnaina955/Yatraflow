@@ -43,6 +43,14 @@ export const FUEL_PRICE_INR_PER_L = 105
  *  unset. It used to be 15 in two places and 18 in a third (#213 Phase 5). */
 export const DEFAULT_FUEL_ECONOMY_KML = 15
 
+/** Ground modes whose road measurements are meaningful to the map. */
+export const ROAD_MEASURED_MODES = ['car', 'rental', 'motorcycle', 'taxi', 'bus', 'mixed'] as const
+
+/** True when the trip mode receives road measurements/corrections. */
+export function isRoadMeasuredMode(mode: string): boolean {
+  return (ROAD_MEASURED_MODES as readonly string[]).includes(mode)
+}
+
 /** Modes where the vehicle's own fuel economy meaningfully sets the ₹/km rate. */
 const FUEL_ECONOMY_MODES = new Set<string>(['car', 'rental', 'motorcycle'])
 
@@ -76,7 +84,7 @@ export function isImplausibleFuelEconomy(mode: string, economy: number | undefin
  * opt out explicitly via trip.roundTrip === false.
  */
 export function isRoundTrip(trip: Pick<Trip, 'transportMode' | 'roundTrip'>): boolean {
-  return FUEL_ECONOMY_MODES.has(trip.transportMode) && trip.roundTrip !== false
+  return isRoadMeasuredMode(trip.transportMode) && trip.roundTrip !== false
 }
 
 /**

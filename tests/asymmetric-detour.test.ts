@@ -42,6 +42,10 @@ describe('asymmetric detour', () => {
     expect(appr).toBeGreaterThan(2)
   })
 
+  it('leaves unknown detour as unknown instead of charging zero minutes', () => {
+    expect(asymmetricDetourMinutes({ latitude: 10, longitude: 77 } as never, [], null, 40)).toBeNull()
+  })
+
   it('never dwarfs Google real road detour', () => {
     const h = { latitude: 10, longitude: 10.09, offRouteKm: 3 }
     expect(asymmetricDetourKm(h as never, [], EAST)).toBe(3)

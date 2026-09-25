@@ -316,6 +316,28 @@ Key locations:
    rewrite of the same function, and the rewrite is exactly where it would have
    been dropped) — pin that ordering with a test, because the failure is invisible
    until someone rebuilds the database from scratch.
+ 6l. **A grant is API surface, and `service_role` is the right default for a
+   caller-independent delete (learned 2026-09-25, #356).** `prune_pub_events`
+   deletes on `at < horizon` — no pub, no creator, no caller — and shipped
+   `grant execute … to authenticated`, so any signup could erase every
+   publication's funnel history. The symptom is a trend that reads "nothing
+   recorded", which looks like a bug in the reader rather than an attack, and
+   there is no audit trail to say otherwise. Four rules: (1) choose the grant
+   from WHO ACTUALLY CALLS IT — grep first; nothing called this one, which is
+   what makes `service_role` correct and an `is_admin()` gate wrong (it would
+   invent a caller the function does not have and still leave the delete
+   reachable from an anon key plus a user token carrying an admin claim);
+   (2) `revoke … from public` does not revoke from `anon`, and does not revoke
+   from `authenticated` either — name all three, and note that a check covering
+   one role is not a check covering the others (the contract suite asserted anon
+   for months while `authenticated` stayed wide open); (3) a grants-only fix
+   belongs in its OWN migration that creates no function and deletes nothing, so
+   it cannot silently disturb what the function pins (here the 730-day clamp
+   paired with the funnel reader) — and it must sort AFTER the file that granted
+   the door, which is load-bearing rather than cosmetic; (4) `schema.sql` is a
+   second and independent way to build the database, so a grant fixed only in
+   the migration series leaves a fresh `schema.sql` instance wide open. Fix both
+   and let a test compare them.
 7. **When asking the user to review/test locally, always hand them the exact
    URL — never make them find or start the server.** Check if the dev server
    is up (probe `http://localhost:5173`); if not, start `npm run dev`

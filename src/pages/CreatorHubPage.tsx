@@ -22,7 +22,7 @@ import { TrendChart, type UnlockRead } from '../components/TrendChart'
 import type { PublishedItinerary } from '../data/types'
 import { useDb, currentUser, updateProfile, unpublishItinerary, tripById } from '../store/store'
 import {
-  projectEarnings, deriveActualSales, payoutStatus, payoutPeriods, payoutPeriodStatus,
+  projectEarnings, deriveActualSales, deriveLedgerRead, payoutStatus, payoutPeriods, payoutPeriodStatus,
   PAYOUT_MINIMUM_INR, PLATFORM_FEE_SUMMARY, type ActualSales,
 } from '../lib/earnings'
 import { fetchCreatorSales, fetchCreatorFunnel, type FunnelDailyRow } from '../lib/unlock'
@@ -31,6 +31,7 @@ import {
   type FunnelSale, type FunnelWindowDays, type PubFunnel,
 } from '../lib/pubFunnel'
 import { formatInr } from '../lib/engine'
+import { formatHM, useTimeFormat } from '../lib/timefmt'
 import { Chip, ConfirmDialog, Field, toast } from '../components/ui'
 
 /** Social links are stored raw and later emitted as an `href`, so a non-URL
@@ -55,6 +56,13 @@ function shortDate(ms: number): string {
  *  far away the run is without their counting. */
 function longDate(ms: number): string {
   return new Date(ms).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short' })
+}
+
+/** "14:12" in the reader's own 12/24-hour preference — WHEN a figure was read.
+ *  A kept ledger is only honest if it says how old it is: a stale number with
+ *  no age on it is not one a creator can decide anything with. */
+function readAtHM(ms: number): string {
+  return new Date(ms).toTimeString().slice(0, 5)
 }
 
 /** The one clock the page renders against.
@@ -83,42 +91,110 @@ export function CreatorHubPage({ onNavigate }: { onNavigate: (r: string) => void
   const [unpubTarget, setUnpubTarget] = useState<PublishedItinerary | null>(null)
   const [hubTab, setHubTab] = useState<'overview' | 'earnings'>('overview')
   const [earningsView, setEarningsView] = useState<'actual' | 'projection'>('actual')
-  const [earningsBasis, setEarningsBasis] = useState<'gross' | 'net'>('gross')
+  /** null until the reader picks one. The tiles and pills have always SHOWN gross
+   *  by default, and still do (`shownBasis`); what null tracks is that nobody has
+   *  chosen yet — because the tables only take the emphasis once the basis is a
+   *  choice. Before this, a fresh load greyed out Net on every ledger, and at
+   *  ≤720px that is one of only three columns the mobile policy keeps. */
+  const [earningsBasis, setEarningsBasis] = useState<'gross' | 'net' | null>(null)
   // Real sales (I-11): entitlements for MY publications, read through the
   // creator RLS policy. A failed read is an ERROR state with retry, not a
   // silent empty ledger — "No sales yet" and "read failed" are different
   // truths (the conflation hid a live grant bug for a whole session).
+  //
+  // Three things this owes the reader, in the order their absence bites:
+  //   * an attempt must ANNOUNCE itself (`salesReading`), or pressing Retry
+  //     looks exactly like a dead button and a creator concludes the app froze;
+  //   * a failed REFRESH must not discard a ledger that already loaded — the
+  //     figures stay, stamped with the moment they were read (`salesAt`), and
+  //     the failure is stated beside them;
+  //   * no attempt may hang forever (the abort below). "Reading…" is an
+  //     unfalsifiable claim on the tab that holds the money.
   const [sales, setSales] = useState<ActualSales | null>(null)
+  const [salesAt, setSalesAt] = useState<number | null>(null)
   const [salesError, setSalesError] = useState(false)
   const [salesRetry, setSalesRetry] = useState(0)
+  /** Which attempt last SETTLED. Paired with `salesRetry` this is "an attempt is
+   *  in flight", DERIVED rather than stored — storing it would need a setState
+   *  in the effect body (which `react-hooks/set-state-in-effect` refuses, and
+   *  rightly: it forces a render before the request has even been issued). */
+  const [salesSettled, setSalesSettled] = useState(-1)
+  const salesReading = salesRetry !== salesSettled
   // The RECORDED funnel (I-22/I-15): the dated event log, read per day so the
   // window control costs no round trip. Deliberately separate from the counter
   // tiles above, which are lifetime totals that include traffic from before
   // recording began — the two are not the same number and are labelled so.
   const [daily, setDaily] = useState<FunnelDailyRow[] | null>(null)
+  /** When the log on screen was read. Kept alongside `daily` for the same reason
+   *  the ledger keeps `salesAt`: a stale figure whose age is unknown is not one a
+   *  reader can act on. */
+  const [dailyAt, setDailyAt] = useState<number | null>(null)
   const [funnelError, setFunnelError] = useState(false)
   const [funnelRetry, setFunnelRetry] = useState(0)
+  const [funnelSettled, setFunnelSettled] = useState(-1)
+  const funnelReading = funnelRetry !== funnelSettled
   const [funnelDays, setFunnelDays] = useState<FunnelWindowDays>(30)
+  const timeFmt = useTimeFormat()
+
+  // A read that never answers is not a state we can render honestly, so every
+  // attempt is bounded. This is far longer than the RPC takes and far shorter
+  // than a creator's patience — the point is that "Reading…" always resolves
+  // into a figure, or into a failure that still offers a way to ask again:
+  // Retry when nothing is shown, Refresh when the loaded figures were kept.
+  const LEDGER_READ_TIMEOUT_MS = 10_000
   useEffect(() => {
     let alive = true
-    // The error flag is cleared when the retry STARTS, which is inside the
-    // fetch's own turn — a setState in the effect body would cascade a render
-    // before the request had even been issued.
-    fetchCreatorSales()
-      .then(rows => { if (alive) { setSalesError(false); setSales(deriveActualSales(rows, myPubs)) } })
-      .catch(() => { if (alive) { setSalesError(true); setSales(null) } })
-    return () => { alive = false }
+    const ac = new AbortController()
+    const attempt = salesRetry
+    // The REASON is load-bearing: `unlock.ts` logs a cancelled read differently
+    // from a failed one, and with a bare `abort()` this timer is
+    // indistinguishable from the effect being torn down.
+    const timer = setTimeout(
+      () => ac.abort(new DOMException('the sales read timed out', 'TimeoutError')),
+      LEDGER_READ_TIMEOUT_MS,
+    )
+    // Nothing to announce here: `salesRetry` changed, so the DERIVED
+    // `salesReading` is already true before this effect body runs.
+    // A SUCCESS clears the error flag; an in-flight attempt does not, and does
+    // not need to — `salesReading` outranks it wherever the two are read, so a
+    // retry reads as "Reading…" while the last failure stays on the books.
+    fetchCreatorSales({ signal: ac.signal })
+      .then(rows => {
+        if (!alive) return
+        setSales(deriveActualSales(rows, myPubs))
+        setSalesAt(Date.now())
+        setSalesError(false)
+      })
+      // Deliberately does NOT setSales(null): a refresh that failed must leave
+      // the last known good ledger on screen, with its read time, rather than
+      // punish a creator for a dropped connection.
+      .catch(() => { if (alive) setSalesError(true) })
+      .finally(() => { clearTimeout(timer); if (alive) setSalesSettled(attempt) })
+    return () => { alive = false; clearTimeout(timer); ac.abort() }
   }, [me?.id, salesRetry]) // eslint-disable-line react-hooks/exhaustive-deps
   // Same shape as the sales read above, and for the same reason: a log with
   // nothing in it and a log that could not be read are different truths, and a
   // funnel that quietly reads zero over real traffic is the exact conflation
-  // the sales ledger already had to fix once.
+  // the sales ledger already had to fix once. It is bounded for the same
+  // reason too — a retry that cannot be told apart from no retry is not a
+  // recovery path.
   useEffect(() => {
     let alive = true
-    fetchCreatorFunnel()
-      .then(rows => { if (alive) { setFunnelError(false); setDaily(rows) } })
-      .catch(() => { if (alive) { setFunnelError(true); setDaily(null) } })
-    return () => { alive = false }
+    const ac = new AbortController()
+    const attempt = funnelRetry
+    const timer = setTimeout(
+      () => ac.abort(new DOMException('the funnel read timed out', 'TimeoutError')),
+      LEDGER_READ_TIMEOUT_MS,
+    )
+    fetchCreatorFunnel({ signal: ac.signal })
+      .then(rows => { if (alive) { setFunnelError(false); setDaily(rows); setDailyAt(Date.now()) } })
+      // Same policy as the sales read above, and for the same reason: a refresh
+      // that failed must not blank a log that loaded. `daily` survives, stamped
+      // with the moment it was read, and the chart only voids when nothing ever
+      // loaded — which is why this catch no longer clears it.
+      .catch(() => { if (alive) setFunnelError(true) })
+      .finally(() => { clearTimeout(timer); if (alive) setFunnelSettled(attempt) })
+    return () => { alive = false; clearTimeout(timer); ac.abort() }
   }, [me?.id, funnelRetry])
 
   const loggedIn = Boolean(me)
@@ -161,14 +237,45 @@ export function CreatorHubPage({ onNavigate }: { onNavigate: (r: string) => void
             ))}
           </PillNav>
 
+          {/* ONE status and ONE control for the page's reads, on BOTH tabs. This
+              row used to live inside the Earnings ledger, so Overview — whose
+              unlock column derives from the same ledger — could go stale with no
+              way to ask again, while the funnel beside it offered Retry. It
+              re-reads BOTH, because a control reachable only after a failure is
+              not reachable at all: the funnel's kept-log branch needs "loaded,
+              then a later read failed", and its own Retry cannot produce that —
+              the same trap the ledger's Refresh had to fix once already. */}
+          {/* The row must exist whenever the sales read has SETTLED, not only when
+              it succeeded. Gated on `salesAt !== null` alone, a first read that
+              failed left no read time and no Refresh anywhere on the page — the one
+              moment a creator needed both — and recovery came from an alert instead.
+              While the first read is still in flight there is nothing settled to
+              stamp, and the tiles say "Reading…". */}
+          {(salesAt !== null || salesError) && (
+            <div className="row-between hub-read-stamp">
+              <span className="small muted">
+                {salesAt !== null ? `Sales read ${formatHM(readAtHM(salesAt), timeFmt)}` : 'Sales not read yet'}
+                {dailyAt !== null && ` · Traffic read ${formatHM(readAtHM(dailyAt), timeFmt)}`}
+              </span>
+              <button className="btn btn-outline btn-sm"
+                onClick={() => { setSalesRetry(n => n + 1); setFunnelRetry(n => n + 1) }}
+                disabled={salesReading || funnelReading}>
+                {salesReading || funnelReading ? 'Refreshing…' : 'Refresh'}
+              </button>
+            </div>
+          )}
+
           {hubTab === 'overview' ? (
             <HubOverview myPubs={myPubs} onUnpublish={setUnpubTarget} onNavigate={onNavigate}
-              daily={daily} salesRows={sales?.rows ?? []} funnelError={funnelError}
+              daily={daily} dailyAt={dailyAt} salesRows={sales?.rows ?? []} funnelError={funnelError}
               onRetry={() => { setFunnelRetry(n => n + 1) }} days={funnelDays} onDays={setFunnelDays}
-              unlockRead={salesError ? 'failed' : sales === null ? 'reading' : 'ready'}
-              salesError={salesError} onRetrySales={() => { setSalesRetry(n => n + 1) }} />
+              funnelReading={funnelReading}
+              unlockRead={sales !== null ? 'ready' : salesReading ? 'reading' : 'failed'}
+              salesError={salesError} salesAt={salesAt} salesReading={salesReading}
+              onRetrySales={() => { setSalesRetry(n => n + 1) }} />
           ) : (
-            <EarningsTab myPubs={myPubs} sales={sales} salesError={salesError}
+            <EarningsTab myPubs={myPubs} sales={sales} salesError={salesError} salesAt={salesAt}
+              salesReading={salesReading}
               onRetry={() => { setSalesRetry(n => n + 1) }} view={earningsView} onView={setEarningsView}
               basis={earningsBasis} onBasis={setEarningsBasis} />
           )}
@@ -263,12 +370,12 @@ function unit(n: number, noun: string): string {
  *  publication's own all-time totals, because the counters predate the event
  *  log. "38 forks" alone cannot tell a creator whether that is most of their
  *  forks or a slice of them. */
-function FunnelLine({ f, unread, unlockRead = 'ready', windowLabel }: { f: PubFunnel | undefined; unread: boolean; unlockRead?: UnlockRead; windowLabel: string }) {
+function FunnelLine({ f, funnelRead, unlockRead = 'ready', windowLabel }: { f: PubFunnel | undefined; funnelRead: UnlockRead; unlockRead?: UnlockRead; windowLabel: string }) {
   if (!f) return null
   // The all-time line reads the counters from the hydrated cache, so it is true
-  // even when the log could not be read. The windowed steps are NOT, so a failed
-  // read withholds them and says why — "no traffic" and "traffic I could not
-  // read" are different claims and only one of them is a measurement.
+  // whichever way the log read went. The windowed steps are NOT, so an unreadable
+  // log withholds them and says why — "no traffic", "not read yet" and "traffic I
+  // could not read" are three different claims, and only one is a measurement.
   const lifetime = (
     <span className="pf-lifetime muted num">
       All time {f.lifetimeViews} {unit(f.lifetimeViews, 'visit')} · {f.lifetimeForks} {unit(f.lifetimeForks, 'fork')} · {f.lifetimeUnlocks} {unit(f.lifetimeUnlocks, 'unlock')}
@@ -278,7 +385,19 @@ function FunnelLine({ f, unread, unlockRead = 'ready', windowLabel }: { f: PubFu
   // with the public page through describePreLog) so the two surfaces cannot
   // disagree about why the numbers differ.
   const preLog = describePreLog(f)
-  if (unread) {
+  // IN FLIGHT is its own truth, and it is the one the rows used to get wrong: they
+  // announced "nothing to measure for this plan" while the panel above them said
+  // "Reading recorded traffic…". A claim about traffic must not be made before the
+  // read that reports it — the same rule the unlock stage beside them follows.
+  if (funnelRead === 'reading') {
+    return (
+      <>
+        <span className="muted">Traffic still being read…</span>
+        {lifetime}
+      </>
+    )
+  }
+  if (funnelRead === 'failed') {
     return (
       <>
         <span className="muted">Traffic could not be read just now.</span>
@@ -336,12 +455,14 @@ function FunnelLine({ f, unread, unlockRead = 'ready', windowLabel }: { f: PubFu
 /** Overview: the KPI strip, the recorded-traffic trend, and the publication
  *  manager rows — the trend and the rows built from one derivation over one
  *  clock, so the picture and the table describe the same window. */
-export function HubOverview({ myPubs, onUnpublish, onNavigate, daily, salesRows, funnelError, onRetry, days, onDays, unlockRead, salesError, onRetrySales }: {
+export function HubOverview({ myPubs, onUnpublish, onNavigate, daily, dailyAt, salesRows, funnelError, onRetry, days, onDays, unlockRead, salesError, salesAt, salesReading, funnelReading, onRetrySales }: {
   myPubs: PublishedItinerary[]
   onUnpublish: (p: PublishedItinerary) => void
   onNavigate: (r: string) => void
   /** null while the funnel read is in flight; [] when it succeeded empty. */
   daily: FunnelDailyRow[] | null
+  /** When `daily` was read. Non-null alongside a non-null `daily`. */
+  dailyAt: number | null
   /** The sales ledger's own rows — the unlock stage's only source. */
   salesRows: readonly FunnelSale[]
   funnelError: boolean
@@ -356,10 +477,20 @@ export function HubOverview({ myPubs, onUnpublish, onNavigate, daily, salesRows,
    *  offer recovery only for the funnel read, leaving the money-bearing column
    *  the one thing on the page you could not ask again. */
   salesError: boolean
+  /** When the figures on screen were read, or null if none ever loaded. The
+   *  timestamp is the whole point of keeping a stale ledger — a number whose
+   *  age is unknown is not one a creator can act on. */
+  salesAt: number | null
+  /** An attempt is in flight, including a retry. A retry that renders
+   *  identically to the state before it was pressed is a dead button. */
+  salesReading: boolean
+  /** The funnel read's own in-flight flag, for the same reason. */
+  funnelReading: boolean
   onRetrySales: () => void
 }) {
   const totalViews = myPubs.reduce((s, p) => s + p.views, 0)
   const totalForks = myPubs.reduce((s, p) => s + p.copies, 0)
+  const timeFmt = useTimeFormat()
   // ONE clock for the whole window, held in state rather than re-derived on
   // every render (a component must be pure). The trend and the rows are both
   // cut from it, so switching the window cannot leave the chart a day ahead of
@@ -381,6 +512,11 @@ export function HubOverview({ myPubs, onUnpublish, onNavigate, daily, salesRows,
   })
   const series = buildDailySeries({ daily: daily ?? [], sales: salesRows, days, now })
   const funnelOf = new Map(funnels.map(f => [f.pubId, f]))
+  /** The rows' traffic state, derived by the same function the ledger uses — the
+   *  three truths are identical (figures, in flight, nothing to read) and a kept log
+   *  counts as figures whichever way the last attempt went. The name is historical:
+   *  the derivation is not ledger-specific. */
+  const trafficRead = deriveLedgerRead({ hasFigures: daily !== null, reading: funnelReading, error: funnelError })
   // When the log's own history starts, page-wide. The tiles above are all-time
   // and most of their number PREDATES the first recorded event, which is
   // exactly the pair a reader would otherwise compare and conclude wrongly from.
@@ -425,11 +561,30 @@ export function HubOverview({ myPubs, onUnpublish, onNavigate, daily, salesRows,
 
       {framingNote && <div className="hub-note hub-framing">{framingNote}</div>}
 
+      {/* THE ROLE FOLLOWS THE FIGURES, on both tabs. A failure that leaves nothing
+          to show is `alert` — the page has no numbers until it is fixed, so it may
+          interrupt. A failure that KEPT the figures is `status` — there is money on
+          screen the reader can keep using, so it announces without stealing focus.
+          Earnings already draws this line (`status` for its kept-ledger note,
+          `alert` for its hard failure); this was the holdout, rendering `alert` in
+          both branches and making the same condition cost a screen-reader user
+          different attention on each tab. */}
       {salesError && (
-        <div className="hub-note" role="alert">
-          <b>Couldn&apos;t read your sales ledger.</b> Every unlock figure on this tab is unknown until it loads —
-          nothing has been lost, it just could not be read. The Earnings tab shows the ledger itself.
-          <button className="btn btn-outline btn-sm hub-note-action" onClick={onRetrySales}>Retry</button>
+        <div className="hub-note is-failure" role={salesAt ? 'status' : 'alert'}>
+          {salesAt ? (
+            <>
+              <b>Couldn&apos;t refresh your sales ledger.</b> The figures on this tab are the ones that loaded at{' '}
+              {formatHM(readAtHM(salesAt), timeFmt)} — nothing has been lost, they are simply older than now.
+            </>
+          ) : (
+            <>
+              <b>Couldn&apos;t read your sales ledger.</b> Every unlock figure on this tab is unknown until it loads —
+              nothing has been lost, it just could not be read.
+            </>
+          )}
+          <button className="btn btn-outline btn-sm hub-note-action" onClick={onRetrySales} disabled={salesReading}>
+            {salesReading ? 'Retrying…' : 'Retry'}
+          </button>
         </div>
       )}
 
@@ -457,21 +612,28 @@ export function HubOverview({ myPubs, onUnpublish, onNavigate, daily, salesRows,
               </PillNav>
             </div>
             {/* The state sentence lives here once, and the box below stays silent
-                instead of apologising twice. The failure branch still OPENS this
-                chain, ahead of the load branch: a read that failed must never be
-                described as one still loading. `role="status"` announces a change
+                instead of apologising twice. The chain now OPENS with the in-flight
+                case, ahead of the failure — the reverse of what it was, because an
+                attempt is bounded and can be retried: a read that failed and is
+                being asked again is truthfully "reading", and a retry that renders
+                the sentence it was pressed against is a dead button. Failure leads
+                only when nothing is in flight, and it splits in two: nothing ever
+                loaded is the hard sentence, a loaded log that a refresh could not
+                replace is the kept-log notice. `role="status"` announces a change
                 without needing text in the empty box. */}
-            <div className="hub-panel-note" role="status">
+            <div className={`hub-panel-note${funnelError && !funnelReading ? ' is-failure' : ''}`} role="status">
               <span className="small muted">
-                {funnelError
-                  ? 'Recorded traffic could not be read just now — the trend is unchanged on the server.'
-                  : daily === null
+                {funnelReading
                   ? 'Reading recorded traffic…'
-                  : recordingSince
-                    ? `Chart shows recorded days only; the log begins ${new Date(`${recordingSince}T00:00:00Z`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}.`
-                    : 'Nothing recorded yet — the trend starts with the first visit.'}
+                  : funnelError
+                    ? daily !== null && dailyAt !== null
+                      ? `Couldn't refresh — showing the log read at ${formatHM(readAtHM(dailyAt), timeFmt)}.`
+                      : 'Recorded traffic could not be read just now — the trend is unchanged on the server.'
+                    : recordingSince
+                      ? `Chart shows recorded days only; the log begins ${new Date(`${recordingSince}T00:00:00Z`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}.`
+                      : 'Nothing recorded yet — the trend starts with the first visit.'}
               </span>
-              {funnelError && <button className="btn btn-outline btn-sm" onClick={handleRetryFunnel}>Retry</button>}
+              {funnelError && <button className="btn btn-outline btn-sm" onClick={handleRetryFunnel} disabled={funnelReading}>{funnelReading ? 'Retrying…' : 'Retry'}</button>}
             </div>
             {/* A failed or in-flight read must not draw as "nothing recorded": the
                 chart's own empty state is a measurement, so it is only shown once
@@ -520,7 +682,17 @@ export function HubOverview({ myPubs, onUnpublish, onNavigate, daily, salesRows,
                           ].filter(Boolean).join(' · ')}
                         </span>
                       </span>
-                      <FunnelLine f={funnelOf.get(p.id)} unread={funnelError} unlockRead={unlockRead} windowLabel={windowLabel} />
+                      {/* `unread` withholds the WINDOWED steps when there is
+                          nothing to derive them from — which is not the same as
+                          "the last read failed". With a log already on screen the
+                          rows are still measurements, and the panel above states
+                          how old they are; gating on the error flag alone made the
+                          rows contradict the chart beside them. (Before the
+                          `funnelRead` branch below, this let the `unreported`
+                          sentence through for the WHOLE first read — a separate,
+                          older conflation of "loading" with "nothing recorded";
+                          the reading state now returns first.) */}
+                      <FunnelLine f={funnelOf.get(p.id)} funnelRead={trafficRead} unlockRead={unlockRead} windowLabel={windowLabel} />
                       <span className="pub-row-actions">
                         {unpublished ? (
                           // The way back up: the Share tab's publish form
@@ -560,30 +732,56 @@ export function HubOverview({ myPubs, onUnpublish, onNavigate, daily, salesRows,
 /** Earnings tab: the Gumroad-shaped payout ledger. The "Actual" view shows
  *  REAL sales once the payments rail is live (empty honestly until then);
  *  the Projection view stays clearly-labeled not-money. */
-export function EarningsTab({ myPubs, sales, salesError, onRetry, view, onView, basis, onBasis }: {
+export function EarningsTab({ myPubs, sales, salesError, salesAt, salesReading, onRetry, view, onView, basis, onBasis }: {
   myPubs: PublishedItinerary[]
-  sales: ActualSales | null   // null while the fetch is in flight
+  sales: ActualSales | null   // the last ledger that LOADED — kept across a failed refresh
   salesError: boolean         // the read itself failed — distinct from an empty ledger
+  /** When `sales` was read. Non-null alongside a non-null `sales`. */
+  salesAt: number | null
+  /** An attempt is in flight, retries included — see the `ledgerRead` note. */
+  salesReading: boolean
   onRetry: () => void
   view: 'actual' | 'projection'
   onView: (v: 'actual' | 'projection') => void
   /** Which figure the headline tiles read: what buyers paid, or what is kept
    *  after the platform fee. The ledger shows both columns either way, so the
    *  toggle changes emphasis rather than hiding a number. */
-  basis: 'gross' | 'net'
+  basis: 'gross' | 'net' | null
   onBasis: (b: 'gross' | 'net') => void
 }) {
   const projection = projectEarnings(myPubs)
+  /** Σ forks across the priced plans — the denominator the potential is built from,
+   *  and the same sum the projection table's Total row shows. */
+  const projectionForks = projection.rows.reduce((s, r) => s + r.forks, 0)
+  // An empty ledger has TWO causes and the copy must not conflate them: nothing
+  // is priced, so nothing CAN sell — or things are priced and simply unsold.
+  // Those are different truths with different next actions. `projectEarnings`
+  // keeps only publications carrying a premium price, so an empty projection is
+  // exactly "nothing priced".
+  const nothingPriced = projection.rows.length === 0
   const actual = sales
+  const timeFmt = useTimeFormat()
   /** Whether the ledger has been READ. The figures below still derive from
    *  `actual ?? 0` — that stays the safe arithmetic — but a figure that was
    *  never read must not be RENDERED as a measured zero. "₹0 lifetime, 0
    *  sales" beside reassuring prose is the page contradicting itself at the
    *  exact moment a money-anxious creator is most attentive, so the render is
    *  gated on this instead. */
-  const ledgerRead: 'ready' | 'reading' | 'failed' = salesError ? 'failed' : actual === null ? 'reading' : 'ready'
+  // The ordering rule lives in `deriveLedgerRead`, where tests pin it rather
+  // than a comment: figures beat a failed refresh, an in-flight attempt beats
+  // the error flag, and only an empty, idle, failed read is 'failed' — the one
+  // state that owns the Retry button.
+  const ledgerRead = deriveLedgerRead({ hasFigures: actual !== null, reading: salesReading, error: salesError })
   const unreadLabel = ledgerRead === 'reading' ? 'Reading…' : 'Not read'
-  const lifetimeInr = basis === 'net' ? (actual?.netInr ?? 0) : (actual?.grossInr ?? 0)
+  /** What the tiles and pills SHOW — gross until told otherwise. The basis control
+   *  has always opened on gross, even though the product's own balance copy and the
+   *  payout tile beside it are net. */
+  const shownBasis = basis ?? 'gross'
+  /** Applied to the tables only once the basis is a CHOICE: an emphasis nobody asked
+   *  for reads as a disabled column, and at ≤720px the column it mutes is Net — one
+   *  of only three the mobile policy keeps. */
+  const basisClass = basis === null ? '' : ` basis-${basis}`
+  const lifetimeInr = shownBasis === 'net' ? (actual?.netInr ?? 0) : (actual?.grossInr ?? 0)
   // The schedule is about real money, so it reads the actual ledger and is
   // rendered in the Actual view only — a projection has no payout date. The
   // clock is held in state, not re-derived per render: a component must be
@@ -596,43 +794,65 @@ export function EarningsTab({ myPubs, sales, salesError, onRetry, view, onView, 
   const payoutRuns = payoutPeriods(actual?.rows ?? [], now)
   return (
     <>
-      <div className="hub-strip">
-        <div className="hub-cell">
-          <span className="stat-label">Lifetime {basis === 'net' ? 'net' : 'gross'}</span>
-          {ledgerRead === 'ready'
-            ? <span className="stat-value hub-cell-value">{formatInr(lifetimeInr)}</span>
-            : <span className="stat-value hub-cell-value hub-cell-unread">{unreadLabel}</span>}
+      {view === 'projection' ? (
+        /* The Projection view gets its OWN strip. It used to keep the Actual one —
+           Lifetime, Sales, Next payout — directly above a table that is explicitly
+           not money, so two money scales stacked on one screen and the disclaimer
+           had to argue with the tiles above it. These describe what the projection
+           is made OF, in the table's own vocabulary. The money is deliberately NOT
+           restated: the table's Total row carries Potential, Fee and Net, so showing
+           them here too put the headline numbers on the screen twice — the strip
+           orients, the table counts. */
+        <div className="hub-strip">
+          <div className="hub-cell">
+            <span className="stat-label">Priced plans</span>
+            <span className="stat-value hub-cell-value">{projection.rows.length}</span>
+            <span className="hub-cell-hint muted">of {myPubs.length} live</span>
+          </div>
+          <div className="hub-cell">
+            <span className="stat-label">Forks so far</span>
+            <span className="stat-value hub-cell-value">{projectionForks.toLocaleString('en-IN')}</span>
+          </div>
         </div>
-        <div className="hub-cell">
-          <span className="stat-label">Sales</span>
-          {ledgerRead === 'ready'
-            ? <span className="stat-value hub-cell-value">{actual?.rows.length ?? 0}</span>
-            : <span className="stat-value hub-cell-value hub-cell-unread">{unreadLabel}</span>}
+      ) : (
+        <div className="hub-strip">
+          <div className="hub-cell">
+            <span className="stat-label">Lifetime {shownBasis === 'net' ? 'net' : 'gross'}</span>
+            {ledgerRead === 'ready'
+              ? <span className="stat-value hub-cell-value">{formatInr(lifetimeInr)}</span>
+              : <span className="stat-value hub-cell-value hub-cell-unread">{unreadLabel}</span>}
+          </div>
+          <div className="hub-cell">
+            <span className="stat-label">Sales</span>
+            {ledgerRead === 'ready'
+              ? <span className="stat-value hub-cell-value">{actual?.rows.length ?? 0}</span>
+              : <span className="stat-value hub-cell-value hub-cell-unread">{unreadLabel}</span>}
+          </div>
+          {/* A date only once there is something to send: a run date over a ₹0
+              balance reads as money on its way. The dash states its own reason
+              underneath, because a bare "—" next to a zero explains nothing — and
+              while the ledger is unread, the conclusion is suppressed entirely
+              rather than guessed at zero. */}
+          <div className="hub-cell">
+            <span className="stat-label">Next payout</span>
+            {ledgerRead !== 'ready' ? (
+              <>
+                <span className="stat-value hub-cell-value hub-cell-unread">{unreadLabel}</span>
+                <span className="hub-cell-hint muted">balance unknown</span>
+              </>
+            ) : (
+              <>
+                <span className="stat-value hub-cell-value">{payout.clearsInr > 0 ? shortDate(payout.dueAt) : '—'}</span>
+                {payout.clearsInr === 0 && (
+                  <span className="hub-cell-hint muted">
+                    {payout.belowMinimum ? `under ${formatInr(payout.minimumInr)} — rolls over` : 'nothing to pay out yet'}
+                  </span>
+                )}
+              </>
+            )}
+          </div>
         </div>
-        {/* A date only once there is something to send: a run date over a ₹0
-            balance reads as money on its way. The dash states its own reason
-            underneath, because a bare "—" next to a zero explains nothing — and
-            while the ledger is unread, the conclusion is suppressed entirely
-            rather than guessed at zero. */}
-        <div className="hub-cell">
-          <span className="stat-label">Next payout</span>
-          {ledgerRead !== 'ready' ? (
-            <>
-              <span className="stat-value hub-cell-value hub-cell-unread">{unreadLabel}</span>
-              <span className="hub-cell-hint muted">balance unknown</span>
-            </>
-          ) : (
-            <>
-              <span className="stat-value hub-cell-value">{payout.clearsInr > 0 ? shortDate(payout.dueAt) : '—'}</span>
-              {payout.clearsInr === 0 && (
-                <span className="hub-cell-hint muted">
-                  {payout.belowMinimum ? `under ${formatInr(payout.minimumInr)} — rolls over` : 'nothing to pay out yet'}
-                </span>
-              )}
-            </>
-          )}
-        </div>
-      </div>
+      )}
 
       <div className="hub-controls">
         <PillNav className="filter-pillbar" role="group" aria-label="Earnings view" activeKey={view}>
@@ -642,10 +862,18 @@ export function EarningsTab({ myPubs, sales, salesError, onRetry, view, onView, 
           ))}
         </PillNav>
         <span className="hub-controls-div" aria-hidden />
+        {/* `shownBasis` and `basis` are deliberately NOT the same variable here.
+            The visual highlight reports what the headline tile SHOWS (gross until
+            told otherwise, which is what it has always displayed), while
+            `aria-pressed` reports what the tables EMPHASISE — and `basis` is null
+            until anyone chooses. Driven by one variable, the pills passed a
+            pressed-nobody-made to a screen reader and promised an emphasis the
+            tables withheld; the state now speaks for the tables and the ink for
+            the tile. */}
         <span className="small muted">Show amounts as</span>
-        <PillNav className="filter-pillbar" role="group" aria-label="Show amounts as" activeKey={basis}>
+        <PillNav className="filter-pillbar" role="group" aria-label="Show amounts as" activeKey={shownBasis}>
           {([['gross', 'Gross'], ['net', 'Net']] as const).map(([k, label]) => (
-            <button key={k} type="button" data-pill-key={k} className={`clickable-chip chip${basis === k ? ' on-teal' : ''}`}
+            <button key={k} type="button" data-pill-key={k} className={`clickable-chip chip${shownBasis === k ? ' on-teal' : ''}`}
               onClick={() => { onBasis(k) }} aria-pressed={basis === k}>{label}</button>
           ))}
         </PillNav>
@@ -653,7 +881,7 @@ export function EarningsTab({ myPubs, sales, salesError, onRetry, view, onView, 
 
       {view === 'actual' && (
         <section className="card">
-          <h3 className="card-title hub-panel-title">Payouts</h3>
+          <h2 className="card-title hub-panel-title">Payouts</h2>
           {/* The schedule is a statement about real money, so it waits for the
               ledger. Until then it says the balance is unknown — the old text
               cheerfully described a ₹0 balance the page had never read. */}
@@ -668,62 +896,102 @@ export function EarningsTab({ myPubs, sales, salesError, onRetry, view, onView, 
               )}
             </p>
           ) : (
-            <p className="hint-text" style={{ margin: '6px 0 6px' }}>
-              {ledgerRead === 'reading'
-                ? 'Reading your sales ledger… the next run is not stated until it answers.'
-                : 'Your sales ledger could not be read, so the balance and the next run are unknown — nothing here is a zero.'}
-            </p>
+            <>
+              {/* Only the READING case needs a sentence here. The failed case is
+                  already on this screen three times — three "Not read" tiles and
+                  the ledger's own alert, which also carries the recovery — so a
+                  fourth restatement in this card was pure repetition. */}
+              {ledgerRead === 'reading' && (
+                <p className="hint-text" style={{ margin: '6px 0 6px' }}>
+                  Reading your sales ledger… the next run is not stated until it answers.
+                </p>
+              )}
+            </>
           )}
+          {/* The fee ladder is stated ONCE, in the ledger note beside the Fee
+              column it explains. This card was repeating that same sentence a
+              scroll above it. What earns its place here is only what this
+              card's own figure means: the balance is what a run would disburse,
+              and nothing transfers by itself. */}
           <p className="hint-text" style={{ margin: 0 }}>
             Runs are not automated yet: this balance is what a payout would disburse and nothing transfers
-            on its own. Platform fee — {PLATFORM_FEE_SUMMARY}.
+            on its own.
           </p>
         </section>
       )}
 
+      {/* The read stamp and its Refresh used to sit here. They now render one
+          level up, in `CreatorHubPage`, so the sales read has ONE status and ONE
+          control on both tabs — Overview's unlock column reads the same ledger
+          and had neither. */}
+
+      {salesError && salesAt !== null && (
+        <div className="hub-note is-failure" role="status">
+          <b>Couldn&apos;t refresh — showing what loaded at {formatHM(readAtHM(salesAt), timeFmt)}.</b> The ledger
+          below is real; it may simply be older than now.
+        </div>
+      )}
+
       {view === 'actual' ? (
-        actual === null ? (
+        /* Switched on `ledgerRead`, which now outranks the error flag twice over:
+             a kept ledger stays 'ready', so a failed refresh cannot erase figures
+             that already loaded, and an in-flight attempt is 'reading', so Retry
+             cannot look like a dead button. Only "nothing to show AND not in
+             flight" reaches 'failed' — the branch that owns Retry, and the only
+             one where offering it is honest. */
+        ledgerRead === 'reading' ? (
           <div className="container loading-block"><div className="spinner" />Loading sales…</div>
-        ) : salesError ? (
+        ) : ledgerRead === 'failed' ? (
           <>
-            <div className="hub-note" role="alert">
-              <b>Couldn't load your sales.</b> The ledger read failed just now — your recorded sales are safe
+            <div className="hub-note is-failure" role="alert">
+              <b>Couldn't load your sales.</b> The ledger read failed or timed out — your recorded sales are safe
               and will appear once the connection works. Check your connection and try again.
             </div>
             <button className="btn btn-outline btn-sm" style={{ marginTop: 8 }} onClick={handleRetry}>Retry</button>
           </>
-        ) : actual.rows.length === 0 ? (
+        ) : !actual || actual.rows.length === 0 ? (
           <>
-            <table className="compare-table pub-ledger" tabIndex={0} aria-label="Sales ledger">
-              <thead><tr><th>Date</th><th>Itinerary</th><th className="num">Paid</th><th className="num">Fee</th><th className="num">Net</th></tr></thead>
+            <table className={`compare-table pub-ledger${basisClass} ledger-sales`} tabIndex={0} aria-label="Sales ledger">
+              <thead><tr><th>Date</th><th className="col-wide">Itinerary</th><th className="num">Paid</th><th className="num col-opt">Fee</th><th className="num">Net</th></tr></thead>
               <tbody>
-                <tr><td colSpan={5} className="empty-ledger">No sales yet</td></tr>
+                <tr><td colSpan={5} className="empty-ledger">{nothingPriced ? 'Nothing priced yet' : 'No sales yet'}</td></tr>
               </tbody>
             </table>
             <div className="hub-note">
-              <b>No unlocks sold yet.</b> When someone buys the full plan on one of your priced itineraries, the
-              sale lands here with the amount they actually paid. The Projection tab shows what the same traffic
-              would be worth if every fork had bought.
+              {/* The table cell above states the state, so this note adds only what
+                  the reader cannot see: WHY, and what to do about it. */}
+              {nothingPriced ? (
+                <>
+                  <b>An itinerary needs a price before it can sell.</b> Set one from a trip&apos;s Share tab and
+                  its sales land here, with the amount the buyer actually paid.
+                </>
+              ) : (
+                <>
+                  <b>Your priced itineraries are live.</b> When someone buys the full plan on one, the sale lands
+                  here with the amount they actually paid. The Projection tab shows what the same traffic would be
+                  worth if every fork had bought.
+                </>
+              )}
             </div>
           </>
         ) : (
           <>
-            <table className="compare-table pub-ledger" tabIndex={0} aria-label="Sales ledger">
-              <thead><tr><th>Date</th><th>Itinerary</th><th className="num">Paid</th><th className="num">Fee</th><th className="num">Net</th></tr></thead>
+            <table className={`compare-table pub-ledger${basisClass} ledger-sales`} tabIndex={0} aria-label="Sales ledger">
+              <thead><tr><th>Date</th><th className="col-wide">Itinerary</th><th className="num">Paid</th><th className="num col-opt">Fee</th><th className="num">Net</th></tr></thead>
               <tbody>
                 {actual.rows.map(r => (
                   <tr key={`${r.pubId}-${r.grantedAt}`}>
                     <td>{new Date(r.grantedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
-                    <td>{r.title}</td>
+                    <td className="col-wide">{r.title}</td>
                     <td className="num">{formatInr(r.amountPaidInr)}</td>
-                    <td className="num">{formatInr(r.feeInr)}</td>
+                    <td className="num col-opt">{formatInr(r.feeInr)}</td>
                     <td className="num">{formatInr(r.netInr)}</td>
                   </tr>
                 ))}
                 <tr>
                   <td colSpan={2}><b>Total</b></td>
                   <td className="num"><b>{formatInr(actual.grossInr)}</b></td>
-                  <td className="num"><b>{formatInr(actual.feeInr)}</b></td>
+                  <td className="num col-opt"><b>{formatInr(actual.feeInr)}</b></td>
                   <td className="num"><b>{formatInr(actual.netInr)}</b></td>
                 </tr>
               </tbody>
@@ -737,16 +1005,16 @@ export function EarningsTab({ myPubs, sales, salesError, onRetry, view, onView, 
 
             {payoutRuns.length > 0 && (
               <>
-                <h4 className="hub-subhead">Payout runs</h4>
-                <table className="compare-table pub-ledger" tabIndex={0} aria-label="Payout runs">
-                  <thead><tr><th>Run</th><th className="num">Sales</th><th className="num">Gross</th><th className="num">Fee</th><th className="num">Net</th><th>Status</th></tr></thead>
+                <h3 className="hub-subhead">Payout runs</h3>
+                <table className={`compare-table pub-ledger${basisClass} ledger-runs`} tabIndex={0} aria-label="Payout runs">
+                  <thead><tr><th>Run</th><th className="num">Sales</th><th className="num col-opt">Gross</th><th className="num col-opt">Fee</th><th className="num">Net</th><th>Status</th></tr></thead>
                   <tbody>
                     {payoutRuns.map(p => (
                       <tr key={p.dueAt}>
                         <td>{new Date(p.dueAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
                         <td className="num">{p.salesCount}</td>
-                        <td className="num">{formatInr(p.grossInr)}</td>
-                        <td className="num">{formatInr(p.feeInr)}</td>
+                        <td className="num col-opt">{formatInr(p.grossInr)}</td>
+                        <td className="num col-opt">{formatInr(p.feeInr)}</td>
                         <td className="num">{formatInr(p.netInr)}</td>
                         <td>{payoutPeriodStatus(p)}</td>
                       </tr>
@@ -755,9 +1023,8 @@ export function EarningsTab({ myPubs, sales, salesError, onRetry, view, onView, 
                 </table>
                 <p className="hint-text" style={{ marginTop: 8 }}>
                   Each run covers the sales made since the previous one, and a sale lands on the Friday after it
-                  was bought. Nothing here has been disbursed — payouts are not automated yet, so a past run is
-                  money owed rather than money sent, and a balance under {formatInr(PAYOUT_MINIMUM_INR)} rolls
-                  into the next run instead of clearing.
+                  was bought. Nothing here has been disbursed: a past run is money owed rather than money sent,
+                  and a balance under {formatInr(PAYOUT_MINIMUM_INR)} rolls into the next run instead of clearing.
                 </p>
               </>
             )}
@@ -770,33 +1037,42 @@ export function EarningsTab({ myPubs, sales, salesError, onRetry, view, onView, 
         </div>
       ) : (
         <>
-          <table className="compare-table pub-ledger" tabIndex={0} aria-label="Projection ledger">
-            <thead><tr><th>Itinerary</th><th className="num">Price</th><th className="num">Forks</th><th className="num">If all unlocked</th><th className="num">Fee</th><th className="num">Net</th></tr></thead>
-            <tbody>
-              {projection.rows.map(r => (
-                <tr key={r.pubId}>
-                  <td>{r.title}</td>
-                  <td className="num">{formatInr(r.priceInr)}</td>
-                  <td className="num">{r.forks}</td>
-                  <td className="num">{formatInr(r.grossInr)}</td>
-                  <td className="num">{formatInr(r.netInr)}</td>
-                </tr>
-              ))}
-              <tr>
-                <td><b>Potential to date</b></td>
-                <td />
-                <td className="num"><b>{projection.rows.reduce((s, r) => s + r.forks, 0)}</b></td>
-                <td className="num"><b>{formatInr(projection.potentialInr)}</b></td>
-                <td className="num"><b>{formatInr(projection.feeInr)}</b></td>
-                <td className="num"><b>{formatInr(projection.netInr)}</b></td>
-              </tr>
-            </tbody>
-          </table>
-          <p className="hint-text" style={{ marginTop: 8 }}>
+          {/* The not-money marker sits ABOVE the table it qualifies. Below it, the
+              reader met two money scales stacked — the real strip, then this —
+              with the disclaimer arriving after the figures it disclaims; the
+              empty state already promises the potential is "clearly marked as
+              not-money". */}
+          <p className="hint-text" style={{ marginBottom: 8 }}>
             A projection, not money: price × forks so far, assuming every fork had bought the unlock. The
             potential total is exact for the fee ladder ({PLATFORM_FEE_SUMMARY}); the per-row fee shares are
             illustrative, because which sale earns the lower rate depends on what actually sells first.
           </p>
+          <table className={`compare-table pub-ledger${basisClass} ledger-projection`} tabIndex={0} aria-label="Projection ledger">
+            <thead><tr><th className="col-wide">Itinerary</th><th className="num col-opt">Price</th><th className="num">Forks</th><th className="num">If all unlocked</th><th className="num col-opt">Fee</th><th className="num">Net</th></tr></thead>
+            <tbody>
+              {projection.rows.map(r => (
+                <tr key={r.pubId}>
+                  <td className="col-wide">{r.title}</td>
+                  <td className="num col-opt">{formatInr(r.priceInr)}</td>
+                  <td className="num">{r.forks}</td>
+                  <td className="num">{formatInr(r.grossInr)}</td>
+                  {/* The row was FIVE cells under SIX heads, so `netInr` rendered
+                      under Fee and Net sat empty — while the Total row below it
+                      filled both. The fee was computed and never shown. */}
+                  <td className="num col-opt">{formatInr(r.feeInr)}</td>
+                  <td className="num">{formatInr(r.netInr)}</td>
+                </tr>
+              ))}
+              <tr>
+                <td className="col-wide"><b>Potential to date</b></td>
+                <td className="col-opt" />
+                <td className="num"><b>{projection.rows.reduce((s, r) => s + r.forks, 0)}</b></td>
+                <td className="num"><b>{formatInr(projection.potentialInr)}</b></td>
+                <td className="num col-opt"><b>{formatInr(projection.feeInr)}</b></td>
+                <td className="num"><b>{formatInr(projection.netInr)}</b></td>
+              </tr>
+            </tbody>
+          </table>
           {projection.unpricedCount > 0 && (
             <div className="hub-note">
               <b>{projection.unpricedCount} free publication{projection.unpricedCount === 1 ? '' : 's'} not shown.</b>{' '}

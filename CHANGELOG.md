@@ -17,6 +17,31 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ### Fixed
 
+- **A failed sales-ledger read on the Creator hub showed "Loading sales…" forever.** The Earnings
+  body tested `actual === null` *before* `salesError`, and the read's catch sets `sales = null` as
+  well as the error flag — so the failure branch was unreachable. A creator whose ledger read
+  failed saw a spinner that never resolved, under tiles correctly reading "Not read", with no way
+  to ask again on the tab that holds the money. The body now switches on the same `ledgerRead`
+  state the tiles use — `reading` → spinner, `failed` → the alert and its Retry — which is what
+  makes the recovery path reachable at all. Found by the third design-critique pass, after the
+  hub had shipped.
+- **A retry on the Creator hub looked like a dead button, and a failed read erased a ledger that had
+  already loaded.** Pressing Retry rendered byte-identically to the state it was pressed against, so
+  two failures looked like a frozen app; and the read's `catch` cleared `sales`, so a refresh that
+  failed discarded figures the creator could already see. The in-flight state is now derived
+  (`salesRetry !== salesSettled`) so an attempt announces itself, the figures survive a failed
+  refresh stamped with the moment they were read, and both reads take an `AbortSignal` bounded at
+  10s — "Reading…" can no longer be an unfalsifiable claim on the tab that holds the money.
+- **The Earnings ledger could not be re-read once it had loaded.** Retry existed only as a property of
+  failure, so a creator looking at good figures had no way to ask for fresher ones, and the
+  kept-ledger branch above was unreachable in normal use. The ledger now states when it was read and
+  carries a Refresh control.
+- **The creator fixture could not run.** `tripRow()` never set `owner_id`, and `trips.owner_id` is
+  `not null` with no default under an `auth.uid() = owner_id` insert policy, so `--apply` died on its
+  first trip and nothing behind it — publications, sales, events — was ever reachable; the printed SQL
+  fallback then collided two rows on the unique `razorpay_order_id`, because both plans indexed their
+  order ids from zero. Both are fixed, and the order ids are namespaced per owner.
+
 - **The create funnel's switch is documented, and a production build that would ship it dark now says so.** The v0.65.0 arc reached production fully deployed and fully invisible: `/new` loaded, the app rendered, and all seven phases — templates, the budget band, the readiness checklist, drafts, the crew collector, the moment-after screen and input IQ — were missing, because a build-time environment variable had never been set and nothing anywhere said so. Code cannot verify an environment, but the three places that name the phases can no longer drift apart: the deploy table carries `VITE_CREATE_FUNNEL` with the exact phase list and the trap that makes it dangerous (unset means *everything off* in a production build and *everything on* in a development one, so a dark release reads as a broken feature rather than a missing switch), and a test keeps that list identical to the `createFunnelOn()` call sites and to the one the build warning uses — because a single typo in the deployed value silently darkens one phase while the other six light up. A production build whose value is empty, or names a phase the code does not gate, now prints a warning naming exactly what is dark and how to fix it. It warns rather than aborts deliberately: a preview branch dark-running a phase is what the flag is for. (#427)
 
 - **One bad cell can no longer take a public itinerary page down.** The free-day list was the single field in the public endpoint read without asking its shape, so a hand-edited value — a number or an object where the list of free days belongs — made the function raise, and every visitor to that page saw "didn't load", permanently, for everyone. It is now type-checked before it is read, only its numeric elements are used, and anything unexpected resolves to "every day is locked" rather than to an error: a malformed row can hide a preview, never break one. (#353)
@@ -40,6 +65,22 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 - **Resolving a decision now persists.** A resolution is written into `decisions.resolved_option_id`, which was declared `uuid` while option ids have always been text — `o_…` from the composer and `slot:<key>:…` from the map rail's votes, which the resolver parses back to fill the part it was raised for. PostgREST therefore rejected every resolve (400 / `22P02`) behind a console-only error: the card read Resolved from memory, the row stayed open, and the decision was open again after a reload — on every trip, for every crew. The column is `text` now (`20260925_decision_resolved_option_text.sql`, run by hand in the SQL editor like every migration here), with the schema, the migration and the store's payload pinned to each other by a test. (#432)
 
 - **Crew slot-votes work end to end again.** Raising a poll no longer rewrites the ids its caller gave it, so a vote raised for a time slot surfaces live on that part of the day's plan, a resolved vote lands the stop *in* that slot (`slotKey` travels as data, not as a note), and a shortlist re-add collapses into the poll already open instead of forking a second one. A hand-typed poll gets fresh ids of its own, and two options arriving with the same id are minted apart so one vote can never count for both. One quorum across both surfaces: the slot rail divides by the crew — members, what Group input already used — rather than by `travellers`, who may not all be crew. (#335)
+
+### Changed
+
+- **Creator hub headings were quieter than the content they governed.** The two panel titles rendered
+  at 11.5px uppercase in the body face — below the 13.5px data and the 15px `h4` beneath them — so the
+  outline ran `h1` 40px → `h2` 11.5px → `h3` 16px, a heading that read as a label, and the Earnings tab
+  had no level-2 heading at all. They are now 16/700 in the display face, sentence case; `Payouts` is
+  an `h2` and `Payout runs` an `h3`; `.card-title` declares the family it was inheriting by accident
+  (one class was rendering two faces); and `.hub-subhead` gained `--text-2` so the 16/15 pair differs
+  by more than a pixel.
+- **The hub's honesty layer said the same thing twice on one screen.** The fee ladder appeared in the
+  payout card *and* in the ledger note a scroll below it; "payouts are not automated yet" appeared in
+  the card *and* the runs footer; and in the failed state the payout card restated the ledger's own
+  alert. Each fact now has one owner: the card keeps what its balance means, the ledger note keeps the
+  ladder beside the Fee column it explains, the runs footer keeps the past-run fact and the ₹500 rule,
+  and the alert keeps the failure and its recovery.
 
 ## [0.66.0] - 2026-09-24
 

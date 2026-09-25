@@ -15,6 +15,25 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ## [Unreleased]
 
+## [0.67.0] - 2026-09-25
+
+The audit's first two waves, promoted the day they closed: sixteen findings across the map, the
+create flow, decisions, the creator's surfaces and the public wire, ordered by what could hurt a
+person rather than by what was easiest to touch — which is why the security half went first. The
+public itinerary endpoint stops telling a reassuring story: it no longer carries the invite code
+that rode along with every anonymous read, and a viewer who has not bought a priced plan no
+longer receives the budget breakdown the page's own locked overlay says is withheld. Unpublishing
+stops destroying the thing somebody paid for — the publication row survives with its buyers'
+access intact, ledger and funnel frozen so a creator's lifetime numbers keep meaning what they
+said — and traffic history stops being erasable by any signed-in stranger, the retention pruner
+having become an operator action. Beneath those sit the fixes a person feels: resolving a decision
+persists, the create flow can no longer mint twin trips or route into a workspace the save never
+reached, an unlock is live the moment it is paid rather than after a reload, a staged timeline edit
+survives the next one, crew slot-votes work end to end, the map measures the road once instead of
+twice, and a single malformed cell can hide a public preview instead of taking the page down. Five
+migrations, all applied before the promotion. The tracker also stops lying to itself: a PR merged
+into `test` now closes the issues it names.
+
 ### Fixed
 
 - **The create funnel's switch is documented, and a production build that would ship it dark now says so.** The v0.65.0 arc reached production fully deployed and fully invisible: `/new` loaded, the app rendered, and all seven phases — templates, the budget band, the readiness checklist, drafts, the crew collector, the moment-after screen and input IQ — were missing, because a build-time environment variable had never been set and nothing anywhere said so. Code cannot verify an environment, but the three places that name the phases can no longer drift apart: the deploy table carries `VITE_CREATE_FUNNEL` with the exact phase list and the trap that makes it dangerous (unset means *everything off* in a production build and *everything on* in a development one, so a dark release reads as a broken feature rather than a missing switch), and a test keeps that list identical to the `createFunnelOn()` call sites and to the one the build warning uses — because a single typo in the deployed value silently darkens one phase while the other six light up. A production build whose value is empty, or names a phase the code does not gate, now prints a warning naming exactly what is dark and how to fix it. It warns rather than aborts deliberately: a preview branch dark-running a phase is what the flag is for. (#427)

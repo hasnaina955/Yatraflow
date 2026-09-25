@@ -26,6 +26,11 @@ export function stopInitialValues(
     if (!s) continue
     return {
       ...s,
+      // An existing stop IS pinned to its stored name, so the form opens with
+      // the hint telling the truth ("Pinned to a real place on the map"); only
+      // typing in the location field flips this back to false. New stops
+      // default to false — they have no pin until one is picked.
+      geocoded: true,
       description: s.description ?? '',
       notes: s.notes ?? '',
       openTime: s.openTime ?? '',

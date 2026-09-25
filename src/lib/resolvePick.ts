@@ -48,6 +48,14 @@ export function validateManualCoords(latRaw: string, lngRaw: string): ManualCoor
   return { ok: true, latitude: lat.value, longitude: lng.value }
 }
 
+/** A prompt-ready stand-in for a place the app knows only by NAME — the stop
+ *  editor's typed location, an import row whose coordinates the file lost.
+ *  Deliberately carries no usable coordinates and no provider id, so the guard
+ *  can never hand it back unexamined: it always opens the prompt. */
+export function unnamedPick(id: number | string, name: string): PlaceHit {
+  return { id, name, kind: 'poi', latitude: 0, longitude: 0 }
+}
+
 /** What the prompt gets: the pick it could not pin, and a retry that re-runs
  *  the resolver (for the "Try again" button — the provider may have recovered). */
 export type PromptFn = (ctx: {

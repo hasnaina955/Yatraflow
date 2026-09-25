@@ -6,7 +6,8 @@
 // add and place path runs).
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
-import { resolveOrPrompt, validateManualCoords } from '../src/lib/resolvePick'
+import { resolveOrPrompt, unnamedPick, validateManualCoords } from '../src/lib/resolvePick'
+import { requireHitCoords } from '../src/lib/geocode'
 import { hasCoords } from '../src/lib/providers/hits'
 import type { PlaceHit } from '../src/lib/providers/hits'
 
@@ -97,6 +98,18 @@ describe('resolveOrPrompt — resolve first, prompt only over the unknown', () =
     )
     expect(calls).toBe(2)
     expect(out && hasCoords(out)).toBe(true)
+  })
+
+  it('a name-only stand-in (the stop editor, an import row) always prompts', async () => {
+    const p = unnamedPick('import-0-0', 'Fort')
+    expect(hasCoords(p)).toBe(false)
+    // Composed with the REAL resolver: there is nothing to resolve through,
+    // so the guard can never hand the stand-in back unexamined.
+    expect(await requireHitCoords(p)).toBeNull()
+    let prompted = 0
+    const out = await resolveOrPrompt(p, requireHitCoords, async () => { prompted++; return null })
+    expect(prompted).toBe(1)
+    expect(out).toBeNull()
   })
 
   it('the UI hook wires the REQUIRE-form resolver, never the permissive one', () => {

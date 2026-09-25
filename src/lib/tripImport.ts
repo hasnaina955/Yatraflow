@@ -22,11 +22,11 @@
 import type { Trip } from '../data/types'
 import {
   emptyReport, migrateTrip, normalizeTrip, readExport, TripImportError,
-  type NormalizeReport, type PublicationDraft,
+  type DroppedStopPatch, type NormalizeReport, type PublicationDraft,
 } from './itinerarySpec'
 
 export { TripImportError } from './itinerarySpec'
-export type { PublicationDraft, NormalizeReport } from './itinerarySpec'
+export type { DroppedStopPatch, PublicationDraft, NormalizeReport } from './itinerarySpec'
 
 export interface ParsedTripImport {
   /** A complete `Trip`. `id` / `createdAt` / `updatedAt` are placeholders — the
@@ -45,12 +45,17 @@ export interface ParsedTripImport {
 
 /** Parse a trip export, in any supported version, into something importable.
  *  Throws `TripImportError` with a specific reason on anything it cannot read
- *  or rebuild. */
-export function parseTripImport(text: string): ParsedTripImport {
+ *  or rebuild.
+ *
+ *  `patches` are hand-entered coordinates for stops the file could not place
+ *  (the resolve-or-prompt guard's answers, keyed to their file positions by
+ *  `report.droppedStops`): re-parsing with them rescues those stops instead of
+ *  leaving them to the report. */
+export function parseTripImport(text: string, patches: DroppedStopPatch[] = []): ParsedTripImport {
   const found = readExport(text)
   const report = emptyReport()
 
-  const trip = normalizeTrip(migrateTrip(found.trip, found.version), report)
+  const trip = normalizeTrip(migrateTrip(found.trip, found.version), report, patches)
   if (!trip) {
     // Nothing survived the coordinate wall. Say why, with the first example —
     // this is the one case where the file cannot be made importable.

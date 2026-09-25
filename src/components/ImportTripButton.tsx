@@ -11,8 +11,16 @@ import { Upload } from 'lucide-react'
 import type { ID } from '../data/types'
 import { importTrip } from '../store/store'
 import { parseTripImport, TripImportError } from '../lib/tripImport'
+import type { DroppedStopPatch } from '../lib/tripImport'
 import { digestImportReport } from '../lib/itinerarySpec'
+import { useResolvePick } from './ResolvePickDialog'
+import { unnamedPick } from '../lib/resolvePick'
 import { toast } from './ui'
+
+/** How many dropped rows get the pin prompt. A hand-edited file drops a stop
+ *  or two; a corrupt one could drop dozens, and stacking dialogs past this
+ *  point helps nobody — the rest stay in the import report, as before. */
+const RESCUE_PROMPT_CAP = 12
 
 export function ImportTripButton({ ownerId, onNavigate, className = 'btn btn-outline', label = 'Import JSON' }: {
   ownerId: ID | null
@@ -21,6 +29,9 @@ export function ImportTripButton({ ownerId, onNavigate, className = 'btn btn-out
   label?: string
 }) {
   const fileRef = useRef<HTMLInputElement>(null)
+  // #424 guard: rows the file could not place are offered coordinates before
+  // the import lands. Hook with the others, above every exit (§6e).
+  const { resolvePick, dialog: resolvePickDialog } = useResolvePick()
 
   async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -28,7 +39,18 @@ export function ImportTripButton({ ownerId, onNavigate, className = 'btn btn-out
     if (!file) return
     if (!ownerId) { onNavigate('/auth'); return }
     try {
-      const parsed = parseTripImport(await file.text())
+      const text = await file.text()
+      const first = parseTripImport(text)
+      // The coordinate wall refuses FABRICATION, not a person's own numbers:
+      // each dropped row gets the shared pin prompt (manual coordinates or an
+      // explicit skip), and rescued rows are re-parsed in with patches —
+      // never left to a report alone.
+      const patches: DroppedStopPatch[] = []
+      for (const d of first.report.droppedStops.slice(0, RESCUE_PROMPT_CAP)) {
+        const pinned = await resolvePick(unnamedPick(`import-${d.dayIndex}-${d.stopIndex}`, d.title))
+        if (pinned) patches.push({ dayIndex: d.dayIndex, stopIndex: d.stopIndex, latitude: pinned.latitude, longitude: pinned.longitude })
+      }
+      const parsed = patches.length > 0 ? parseTripImport(text, patches) : first
       importTrip(parsed.trip, ownerId)
       // A gallery file also carries publish details. Say so rather than let
       // them vanish — publishing stays a deliberate step in the Share tab.
@@ -62,6 +84,7 @@ export function ImportTripButton({ ownerId, onNavigate, className = 'btn btn-out
         hidden
         onChange={e => void onFile(e)}
       />
+      {resolvePickDialog}
     </>
   )
 }

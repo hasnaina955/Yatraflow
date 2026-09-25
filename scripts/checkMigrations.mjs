@@ -182,6 +182,15 @@ export const NO_PROBE_SURFACE = {
   '20260919_trip_touch_updated_at.sql': {
     reason: 'trigger only — needs a write to observe, and its table is probed by the migration that created it',
   },
+  '20260925_decision_resolved_option_text.sql': {
+    // A type change is the one shape presence cannot answer for: the derived
+    // probe (`public.decisions.resolved_option_id`) reads PRESENT before the
+    // migration too, so a green run would be a lie in the worst direction.
+    // What makes this loud instead of silent is the call itself — an
+    // unapplied column answers 22P02/400 on every resolveDecision — plus
+    // tests/decision-resolve.test.ts pinning schema, migration and payload.
+    reason: 'alter column TYPE only — presence proves nothing here (the column exists before and after), so it is pinned by tests/decision-resolve.test.ts; unapplied, it fails loudly at call time with 22P02 on every resolveDecision',
+  },
 }
 
 /** The plan: one entry per migration file, with its probes and the reason none

@@ -23,6 +23,8 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 - **Map planning is quieter and more truthful.** The Map tab now reuses the workspace's measured outbound and return geometry instead of launching duplicate route measurements; superseded searches are cancelled before they can spend quota; the detour scope is debounced and disabled while a scan is running; quota messaging covers all three Places SKUs and explains the 80% safety pause honestly; shortlist Add-all resolves coordinates once, writes in road order, and blocks duplicate in-flight adds; vote paths resolve coordinates before writing; suggestion-cache keys include timing, weather, halt pins, DNA and speed inputs; the light fraction pool shares the cache TTL; and dismissing a suggestion no longer triggers a full paid rescan.
 
+- **Resolving a decision now persists.** A resolution is written into `decisions.resolved_option_id`, which was declared `uuid` while option ids have always been text — `o_…` from the composer and `slot:<key>:…` from the map rail's votes, which the resolver parses back to fill the part it was raised for. PostgREST therefore rejected every resolve (400 / `22P02`) behind a console-only error: the card read Resolved from memory, the row stayed open, and the decision was open again after a reload — on every trip, for every crew. The column is `text` now (`20260925_decision_resolved_option_text.sql`, run by hand in the SQL editor like every migration here), with the schema, the migration and the store's payload pinned to each other by a test. (#432)
+
 ## [0.66.0] - 2026-09-24
 
 A hub release, with a map correction and a whole-app visual pass beneath it. The creator

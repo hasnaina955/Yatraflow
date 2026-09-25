@@ -120,7 +120,9 @@ describe('the public page wires the real unlock flow', () => {
     // re-applies the stub, so a stale cache can never fork paid content.
     expect(fork).toMatch(/import\s*\{[^}]*fetchPublicTrip[^}]*\}\s*from\s*'\.\.\/store\/store'/)
     expect(fork).not.toMatch(/import\s*\{[^}]*fetchSharedTrip[^}]*\}\s*from\s*'\.\.\/store\/store'/)
-    expect(fork).toContain('restubLockedDays(src, pub.freeDayIndexes)')
+    // #352 added the money flag; the call still re-stubs `src` against the
+    // publication's own free-day list, which is what this pins.
+    expect(fork).toContain('restubLockedDays(src, pub.freeDayIndexes,')
     // The stub shape mirrors the migration's wire stub.
     expect(fork).toContain("description: LOCKED_STOP_DESCRIPTION")
     expect(fork).toContain('entryFeeInrPerPerson: 0')

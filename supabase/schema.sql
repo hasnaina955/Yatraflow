@@ -127,7 +127,11 @@ create table if not exists public.decisions (
   comments           jsonb not null default '[]'::jsonb,
   status             text not null default 'open'
                        check (status in ('open', 'resolved')),
-  resolved_option_id uuid,
+  -- #432: TEXT, not uuid — option ids are `o_<uid()>` (store.addDecision) and
+  -- `slot:<key>:<placeId>` (the Map rail's slot votes, parsed back by
+  -- resolveDecision). As uuid every resolve failed with 22P02 and the
+  -- resolution never persisted. 20260925_decision_resolved_option_text.sql.
+  resolved_option_id text,
   raised_by          uuid not null references public.profiles (id) on delete cascade,
   created_at         bigint not null default extract(epoch from now()) * 1000,
   resolved_at        bigint
@@ -677,8 +681,13 @@ begin
 end;
 $$;
 
-revoke all on function public.prune_pub_events(integer) from public, anon;
-grant execute on function public.prune_pub_events(integer) to authenticated;
+revoke all on function public.prune_pub_events(integer) from public, anon, authenticated;
+grant execute on function public.prune_pub_events(integer) to service_role;
+-- Operator-only (#356, migrations/20260927_prune_pub_events_lockdown.sql): the
+-- predicate is purely `at < horizon`, so an `authenticated` grant was a
+-- whole-tenant bulk delete available to any signup. Nothing in the app calls
+-- it — the SQL editor runs as the owner and pg_cron as the definer, so both
+-- documented paths still work.
 -- Scheduling is optional and plan-gated (pg_cron): the same stance as
 -- migrations/20260910_schedule_purge.sql. Apply manually if pg_cron is off:
 --   select public.prune_pub_events();

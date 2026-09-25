@@ -16,7 +16,7 @@ import { collectWarnings } from '../lib/engine'
 import { anticipate, type AnticipationItem } from '../lib/anticipation'
 import { estimateLunchStop } from '../lib/routeIq'
 import { planJourneyHalts } from '../lib/geocode'
-import { MODE_SPEED } from '../lib/engine'
+import { MODE_SPEED, isRoadMeasuredMode } from '../lib/engine'
 import { fetchDailyWeather, forecastAvailable, isoAddDays } from '../lib/weather'
 import { readHandoff, clearHandoff, billTotal } from '../lib/createHandoff'
 import { shareBillImage } from '../lib/billCapture'
@@ -114,8 +114,7 @@ export function TripCreatedPage({ tripId, onNavigate }: { tripId: string; onNavi
   const [fuelHalts, setFuelHalts] = useState<{ title: string; cumKm: number }[]>([])
   useEffect(() => {
     if (!trip) return
-    const ROAD_MODES = new Set(['car', 'rental', 'motorcycle', 'taxi', 'mixed'])
-    if (!ROAD_MODES.has(trip.transportMode)) return
+    if (!isRoadMeasuredMode(trip.transportMode)) return
     const points = [
       ...(trip.startLocationCoords ? [{ lat: trip.startLocationCoords.lat, lng: trip.startLocationCoords.lng }] : []),
       ...(trip.destinationCoords ?? []).filter((c): c is { lat: number; lng: number } => !!c),

@@ -182,6 +182,41 @@ export const NO_PROBE_SURFACE = {
   '20260919_trip_touch_updated_at.sql': {
     reason: 'trigger only — needs a write to observe, and its table is probed by the migration that created it',
   },
+  '20260925_decision_resolved_option_text.sql': {
+    // A type change is the one shape presence cannot answer for: the derived
+    // probe (`public.decisions.resolved_option_id`) reads PRESENT before the
+    // migration too, so a green run would be a lie in the worst direction.
+    // What makes this loud instead of silent is the call itself — an
+    // unapplied column answers 22P02/400 on every resolveDecision — plus
+    // tests/decision-resolve.test.ts pinning schema, migration and payload.
+    reason: 'alter column TYPE only — presence proves nothing here (the column exists before and after), so it is pinned by tests/decision-resolve.test.ts; unapplied, it fails loudly at call time with 22P02 on every resolveDecision',
+  },
+  '20260926_paywall_invite_code_leak.sql': {
+    // Same shape of problem as the entry above: it REDEFINES two functions and
+    // creates nothing, so both exist before and after and no presence probe can
+    // tell the fixed body from the leaking one. What an unapplied copy costs is
+    // a live paywall bypass, so the fix is pinned at the source instead —
+    // tests/paywall-invite-code-leak.test.ts asserts the column list with
+    // `invite_code` nulled, the premium clause on the code path and the
+    // migration ordering that keeps both — and the behaviour itself belongs to
+    // the opt-in RLS contract suite.
+    reason: 'functions only — both are redefined rather than created, so presence answers nothing; pinned by tests/paywall-invite-code-leak.test.ts, with the paywall behaviour covered by the RLS contract suite (`npm run test:integration`)',
+  },
+  '20260927_prune_pub_events_lockdown.sql': {
+    // Grants only: the pruner is re-granted, not created, so it exists before
+    // and after and no read-only probe can tell the two states apart. The live
+    // grant is asserted by the RLS contract suite (aclexplode against the real
+    // role list — the only place a grant can actually be observed) and the
+    // schema.sql mirror by tests/prune-pub-events-lockdown.test.ts.
+    reason: 'grants only — `prune_pub_events` is re-granted rather than created, so presence answers nothing; the live role list is asserted by the RLS contract suite and the mirror by tests/prune-pub-events-lockdown.test.ts',
+  },
+  '20260928_public_trip_fail_closed.sql': {
+    // Redefines a function that already exists: presence answers nothing about
+    // whether the guards are in the body a fresh apply leaves behind. That is
+    // pinned by tests/public-trip-fail-closed.test.ts, which reads the newest
+    // definition and asserts #350/#351 survive alongside #352/#353.
+    reason: 'redefines `get_public_trip` — the function exists before and after, so presence answers nothing; the body is pinned by tests/public-trip-fail-closed.test.ts and its behaviour by the RLS contract suite',
+  },
 }
 
 /** The plan: one entry per migration file, with its probes and the reason none

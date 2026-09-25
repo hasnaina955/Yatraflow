@@ -5,7 +5,7 @@ import {
 } from 'lucide-react'
 import { InlineIcon, MetaIcon } from '../components/icons'
 import { usePublished, useUsers, useTrips, useSessionUserId } from '../store/store'
-import type { User } from '../data/types'
+import type { PublishedItinerary, User } from '../data/types'
 import { computeHealth, formatInr } from '../lib/engine'
 import { useSavedPubs } from '../lib/savedPubs'
 import { forkPublication } from '../lib/forkPub'
@@ -23,6 +23,22 @@ const PAGE_SIZE = 12
  *  "Why featured: 0 forks · 13 views" advertises emptiness rather than
  *  credibility (§6.10). */
 const FEATURED_MIN_VIEWS = 25
+
+/** The gallery's pool: only publications that are still LIVE on Explore (#350).
+ *
+ *  A soft-unpublished row deliberately keeps existing — its buyers keep the
+ *  plan they paid for and the creator's ledger keeps its sales history — but it
+ *  has come down, so it leaves every Explore surface with it: the grid, the
+ *  featured card (which reads the catalog directly and would otherwise keep
+ *  leading the page with a plan nobody can open) and the style counts beside
+ *  the filters.
+ *
+ *  Exported because the test suite runs in node env and cannot render a page:
+ *  `tests/soft-unpublish.test.ts` calls this rather than re-implementing the
+ *  predicate and asserting its own copy. */
+export function livePubs(pubs: PublishedItinerary[]): PublishedItinerary[] {
+  return pubs.filter(p => !p.unpublishedAt)
+}
 
 /** Filter + sort state encoded in the hash query (F-22). Read at mount and on
  *  every real navigation. Filter edits write the query with `replaceState`,
@@ -92,7 +108,7 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
   const popularity = (p: { views: number; copies: number }) => p.views + p.copies * 5
 
   const pubs = useMemo(() => {
-    let list = [...published]
+    let list = [...livePubs(published)]
     if (q.trim()) {
       const needle = q.trim().toLowerCase()
       list = list.filter(p =>
@@ -126,7 +142,7 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
   // page with its credibility explained (§6.10), and only when that credibility
   // can be stated without printing a zero.
   const featured = useMemo(() => {
-    const pool = published.filter(p => p.copies >= 1 || p.views >= FEATURED_MIN_VIEWS)
+    const pool = livePubs(published).filter(p => p.copies >= 1 || p.views >= FEATURED_MIN_VIEWS)
     // Deterministic order: a tie on the evidence score must not depend on the
     // order rows arrived in (two live publications scored exactly 13).
     return [...pool].sort((a, b) => b.copies - a.copies || b.views - a.views || b.publishedAt - a.publishedAt)[0]
@@ -151,7 +167,7 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
 
   const styleCounts = useMemo(() => {
     const counts = new Map<string, number>()
-    for (const p of published) counts.set(p.travelStyle, (counts.get(p.travelStyle) ?? 0) + 1)
+    for (const p of livePubs(published)) counts.set(p.travelStyle, (counts.get(p.travelStyle) ?? 0) + 1)
     return counts
   }, [published])
 

@@ -1,0 +1,39 @@
+-- ============ prune_pub_events: an operator action, not a user one ==========
+-- #356. `prune_pub_events` deletes rows from `pub_events` on a predicate that is
+-- purely `at < horizon` — it is not scoped to a publication, a creator, or the
+-- caller. That is correct for what it is (retention) and wrong as a grant: it
+-- shipped `to authenticated`, which made a whole-tenant bulk delete available
+-- to every logged-in account. One curious or malicious signup could wipe the
+-- entire funnel log back to the retention horizon, and the only symptom would
+-- be that every creator's traffic trend reads "nothing recorded" — with
+-- nothing in the product to say why, or who did it.
+--
+-- WHO CALLS IT: nothing in the app. A repo-wide grep finds the definition, the
+-- schema.sql mirror, the contract test, and prose telling an operator to run it
+-- from the Dashboard SQL editor (`select public.prune_pub_events();`) or from
+-- the optional, plan-gated pg_cron block that pair of files carries. There is
+-- no UI button, no store call, and no scheduled job wired by the application.
+--
+-- SO IT BECOMES service_role-ONLY, matching `revoke_refunded_entitlement` —
+-- the other destructive maintenance RPC in this schema. Every documented path
+-- still works: the SQL editor executes as the project owner rather than as
+-- `authenticated`, and pg_cron invokes the job as the function's owner under
+-- SECURITY DEFINER. Neither ever needed the `authenticated` grant; it was only
+-- ever an extra door.
+--
+-- WHY NOT `is_admin()`: that is the house rule for the six console RPCs, and it
+-- fits them because the console calls them as a signed-in admin. Nothing calls
+-- this one, so an admin gate would invent a caller it does not have — and it
+-- would still leave a destructive, caller-independent delete reachable from a
+-- browser's anon key plus a user token carrying an admin claim. A service_role
+-- grant cannot be reached with a user token at all, forged claim or not.
+--
+-- NOT TOUCHED, deliberately: the function body, and in particular its clamp
+-- (`least(coalesce(p_keep_days, 730), 730)`). The retention window must stay
+-- pinned to the reader's own clamp in `get_creator_funnel`, or pruning could
+-- manufacture a "recording began" date the log never had. This migration is a
+-- grants-only file and moves no bytes of the function, so the pairing cannot
+-- drift as a side effect of locking the door.
+
+revoke all on function public.prune_pub_events(integer) from public, anon, authenticated;
+grant execute on function public.prune_pub_events(integer) to service_role;

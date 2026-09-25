@@ -37,8 +37,59 @@ function assertDeployEnv(env: Record<string, string>) {
   console.warn(`\n[yatraflow] WARNING — ${msg}\n`)
 }
 
+/** The create-funnel phases this build can switch on — the value
+ *  `VITE_CREATE_FUNNEL` has to carry to light up the v0.65.0 arc. Kept in step
+ *  with the `createFunnelOn()` call sites and with the deploy table by
+ *  `tests/deploy-flags.test.ts`, which reads all three. */
+const FUNNEL_PHASES = ['templates', 'budget', 'readiness', 'drafts', 'crew', 'moment', 'iq']
+
+/**
+ * Warn about a production build whose create-funnel switch is wrong (#427).
+ *
+ * The funnel is a build-time switch, which makes "deployed but dark" silent by
+ * construction: the app renders, `/new` loads, and every phase is simply
+ * missing — the v0.65.0 arc went to production that way and looked like a
+ * regression in the release rather than a missing environment variable. A
+ * warning in the build log is the cheapest place to catch it, because the
+ * variable has to be right *before* the build that bakes it.
+ *
+ * A warning and never an abort, deliberately: a preview branch dark-running a
+ * phase is the whole point of the flag (test before main), so only the
+ * production environment is worth shouting about. CI and local builds have no
+ * `VERCEL_ENV` and stay quiet, which keeps `npm run verify` output clean.
+ */
+function warnDeployFlags(env: Record<string, string>) {
+  if (process.env.VERCEL_ENV !== 'production') return
+
+  const raw = (env.VITE_CREATE_FUNNEL ?? '').trim()
+  const on = raw.split(',').map((p) => p.trim()).filter(Boolean)
+  if (on.length === 0) {
+    console.warn(
+      `\n[yatraflow] WARNING — VITE_CREATE_FUNNEL is not set for the "production" environment, ` +
+      `so this build ships the create funnel DARK: /new renders the bare form with no templates, ` +
+      `budget band, readiness checklist, drafts, crew collector, moment-after screen or input IQ. ` +
+      `That is the default, not a deploy failure — Vite inlines the value, so the switch has to be ` +
+      `set before the build that bakes it. Fix: Vercel → Settings → Environment Variables → ` +
+      `VITE_CREATE_FUNNEL=${FUNNEL_PHASES.join(',')} → tick Production, Preview and Development → ` +
+      `Redeploy. See docs/DEPLOYMENT.md.\n`,
+    )
+    return
+  }
+
+  const unknown = on.filter((p) => !FUNNEL_PHASES.includes(p))
+  if (unknown.length) {
+    console.warn(
+      `\n[yatraflow] WARNING — VITE_CREATE_FUNNEL lists ${unknown.join(', ')}, which ` +
+      `${unknown.length > 1 ? 'are not phases' : 'is not a phase'} this build gates, so ` +
+      `${unknown.length > 1 ? 'they' : 'it'} will do nothing. Valid phases: ${FUNNEL_PHASES.join(', ')}.\n`,
+    )
+  }
+}
+
 export default defineConfig(({ mode }) => {
-  assertDeployEnv(loadEnv(mode, process.cwd(), ''))
+  const env = loadEnv(mode, process.cwd(), '')
+  assertDeployEnv(env)
+  warnDeployFlags(env)
   return {
     plugins: [react()],
     base: './',

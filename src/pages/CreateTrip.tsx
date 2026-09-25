@@ -13,9 +13,9 @@ import {
   Car, Bike, Bus, TrainFront, Plane, KeyRound, CarTaxiFront, Shuffle, Fuel, Wallet,
   PenLine, Users,
 } from 'lucide-react'
-import type { FixedCommitment, LatLngPoint, TransportMode, TravelStyle } from '../data/types'
+import type { FixedCommitment, LatLngPoint, TransportMode, TravelStyle, Trip } from '../data/types'
 import { TRAVEL_STYLES, TRANSPORT_MODES } from '../data/types'
-import { useDb, currentUser, createTrip, useTrips, tripsForUser } from '../store/store'
+import { useDb, currentUser, createTripPersisted, retryCreateTrip, useTrips, tripsForUser } from '../store/store'
 import { FUEL_PRICE_INR_PER_L, DEFAULT_FUEL_ECONOMY_KML, isFuelEconomyMode, parseFuelEconomyKmL, parseFuelPricePerL, isImplausibleFuelEconomy, MODE_SPEED, minutesToHM } from '../lib/engine'
 import { planDriveDays, isSelfDrivenMode } from '../lib/ridePlan'
 import { CREW_CHIPS, CREW_MAX, CREW_MIN, clampCrew } from '../lib/crew'
@@ -168,6 +168,17 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
   const [errs, setErrs] = useState<Record<string, string>>({})
   const [busyCover, setBusyCover] = useState(false)
   const [billPrinted, setBillPrinted] = useState(false)
+  /** The create is in flight (#373): both submit buttons wait on it. */
+  const [submitting, setSubmitting] = useState(false)
+  /** A save that failed (#374) — surfaced on the form, never as a toast alone. */
+  const [saveError, setSaveError] = useState<string | null>(null)
+  /** The trip a FAILED save already built: a retry re-uses it (same id) rather
+   *  than minting a twin, which is what makes the retry idempotent. */
+  const pendingTrip = useRef<Trip | null>(null)
+  /** Re-entrancy guard for the creating half only. State cannot cover the gap:
+   *  two submits in one tick both read `submitting === false`, and the pair
+   *  mints two trips (§6a). */
+  const creatingRef = useRef(false)
   /** first-invalid focus targets (F-15) — plain inputs only register here */
   const fieldRefs = useRef<Record<string, HTMLElement | null>>({})
   /** The printed bill — scrolled into view when the dock prints it (see below). */
@@ -547,13 +558,30 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
     else go()
   }
 
+  /** One message for every way the save can fail: the form cannot tell a
+   *  dropped connection from a refusal, so it says what it does know — the trip
+   *  is not on the server, and nothing typed here is lost. */
+  const SAVE_FAILED = 'Couldn’t save this trip to the server — your inputs are still here. Try again.'
+
+  /** The failure notice, rendered beside BOTH submit surfaces: the ticket rail's
+   *  CTA and the form's own summary. Its Retry is just a submit — the guarded
+   *  handler already knows whether it is a first attempt or a retry. */
+  const saveFailure = saveError ? (
+    <div className="ct-save-err">
+      <span className="chip chip-danger" role="alert">{saveError}</span>
+      <button type="submit" form="yf-create-form" className="btn btn-sm btn-ghost" disabled={submitting}>
+        {submitting ? 'Creating…' : 'Try again'}
+      </button>
+    </div>
+  ) : null
+
   /** The summary's field prefixes - which control resolves each error key. */
   const ERR_LABELS: Record<string, string> = {
     name: 'Trip name', startLocation: 'Starting location', destinations: 'Destinations',
     startDate: 'Start date', endDate: 'End date', travellers: 'Travellers', budgetPerPersonInr: 'Budget',
   }
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault()
     if (!me) return
     const next: Record<string, string> = {}
@@ -584,8 +612,25 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
       return
     }
 
+    // The double-submit guard starts HERE — after validation, so a form with a
+    // missing date never locks its own buttons, and before the network, which is
+    // the window a second click actually races (#373).
+    if (creatingRef.current) return
+    creatingRef.current = true
+    setSubmitting(true)
+    setSaveError(null)
+
     const seed = buildOutlineSeedStops({ dests, returnCount, dayCount })
-    const trip = createTrip(me.id, {
+    try {
+      // A retry re-uses the trip the failed attempt already built: same id, so a
+      // first save that reached the server is not followed by a twin (#374).
+      const retry = pendingTrip.current
+      if (retry) {
+        if (!await retryCreateTrip(retry, me.id)) { setSaveError(SAVE_FAILED); return }
+        finishCreate(retry)
+        return
+      }
+      const { trip, persisted } = await createTripPersisted(me.id, {
       name: f.name.trim(),
       startLocation: f.startLocation.trim(),
       startLocationCoords: startCoords ?? undefined,
@@ -607,7 +652,29 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
       fixedCommitments: commitments.filter(x => x.title.trim()),
       coverEmoji: f.coverEmoji,
       coverImageUrl: f.coverImageUrl.trim() || undefined,
-    }, seed)
+      }, seed)
+      // Not saved: the store has already rolled the trip back out of the cache,
+      // so there is nothing to route into. The form keeps every input and
+      // offers the retry instead.
+      if (!persisted) {
+        pendingTrip.current = trip
+        setSaveError(SAVE_FAILED)
+        return
+      }
+      finishCreate(trip)
+    } catch (err) {
+      console.error('[yatraflow] create failed', err)
+      setSaveError(SAVE_FAILED)
+    } finally {
+      creatingRef.current = false
+      setSubmitting(false)
+    }
+  }
+
+  /** Everything that happens once the trip IS on the server: the haptic, the
+   *  draft cleared, and the route in. Navigation never precedes the save — a
+   *  workspace opened over a failed write is a trip that vanishes on reload. */
+  function finishCreate(trip: Trip) {
     haptic(HAPTIC.success)
     clearDraft()
     if (createFunnelOn('moment')) {
@@ -739,11 +806,12 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
       )}
 
       <div className="ts-layout">
-        <form id="yf-create-form" className="ct-flow" onSubmit={submit}>
+        <form id="yf-create-form" className="ct-flow" onSubmit={submit} aria-busy={submitting}>
           {/* The ONE assertive announcement when submit fails - the field-tied
               messages below stay polite, so a multi-field failure interrupts
               once, not once per field (see FormErrorSummary). */}
           <FormErrorSummary errors={errs} labels={ERR_LABELS} />
+          {saveFailure}
 
           {/* The form panel: everything from the name to the pinned plans sits
               on one quiet card (no shadow, per review) instead of the bare
@@ -1379,8 +1447,9 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
             {/* One primary action, always visible. The page used to hide
                 Create trip behind "Print my bill", which left a form with no
                 visible way to finish. Printing is a secondary peek. */}
-            <button type="submit" form="yf-create-form" className="tk-cta">
-              Start planning <ArrowRight size={16} aria-hidden />
+            {saveFailure}
+            <button type="submit" form="yf-create-form" className="tk-cta" disabled={submitting}>
+              {submitting ? 'Creating…' : <>Start planning <ArrowRight size={16} aria-hidden /></>}
             </button>
             <div className="tk-subrow">
               <button type="button" className="tk-cancel" onClick={printBill} disabled={!bill.perHead}>
@@ -1427,7 +1496,9 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
         </div>
         {/* Same fix as the rail: the primary is the primary, and printing is a
             peek at the numbers - not a gate in front of creating. */}
-        <button type="submit" form="yf-create-form" className="dock-cta">Start planning <ArrowRight size={15} aria-hidden /></button>
+        <button type="submit" form="yf-create-form" className="dock-cta" disabled={submitting}>
+          {submitting ? 'Creating…' : <>Start planning <ArrowRight size={15} aria-hidden /></>}
+        </button>
         <button type="button" className="dock-secondary" onClick={printBill} disabled={!bill.perHead} aria-label="Print the rough bill"><Printer size={15} aria-hidden /></button>
       </div>
     </div>

@@ -30,6 +30,13 @@ describe('detour budget', () => {
     expect(deferred.map(i => i.id)).toEqual(['c'])
   })
 
+  it('defers an unknown-cost hit for manual review instead of treating it as free', () => {
+    const items = [{ id: 'known', detourMin: 10 }, { id: 'unknown', detourMin: null }]
+    const { within, deferred } = splitByDetourBudget(items, 45)
+    expect(within.map(i => i.id)).toEqual(['known'])
+    expect(deferred.map(i => i.id)).toEqual(['unknown'])
+  })
+
   it('keeps on-route hits (zero detour) regardless of spend', () => {
     const items = [{ id: 'a', detourMin: 50 }, { id: 'b', detourMin: 0 }]
     const { within, deferred } = splitByDetourBudget(items, 45)

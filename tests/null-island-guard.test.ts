@@ -5,6 +5,7 @@
 // ~2400 km" off the Atlantic). The engine math was honest; the input was
 // poison. These fixtures pin the guard at the ingestion boundary.
 import { describe, expect, it } from 'vitest'
+import { readFileSync } from 'node:fs'
 import { hasCoords } from '../src/lib/providers/hits'
 import type { PlaceHit } from '../src/lib/providers/hits'
 
@@ -34,6 +35,11 @@ describe('Null Island guard — placeholder coords never enter a trip', () => {
     // would fail, the Google one needs a key, so the resolution falls
     // through to a null, never to a raw placeholder).
     expect(hasCoords({ ...hit({}), latitude: 0, longitude: 0 })).toBe(false)
+  })
+
+  it('LocationInput resolves when either coordinate is zero, not only (0,0)', () => {
+    const source = readFileSync(new URL('../src/components/LocationInput.tsx', import.meta.url), 'utf8')
+    expect(source).toMatch(/hit\.latitude === 0 \|\| hit\.longitude === 0/)
   })
 
   it('a (0,0) stop inside a trip is detectable for repair tooling', () => {

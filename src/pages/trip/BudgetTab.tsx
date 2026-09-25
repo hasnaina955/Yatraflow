@@ -23,6 +23,7 @@ import { computeBalances, settleBalances, fairSharePerHead, linesTotal, openTagg
 import { loadFlag, saveFlag } from '../../lib/uiPrefs'
 import { titleCase } from '../../lib/labels'
 import { Avatar, Chip, Field, StatTile, toast, undoToast, useInView, usePageVisible } from '../../components/ui'
+import { PREVIEW_BUSY } from '../../lib/previewChain'
 
 // ================= Budget tab =================
 
@@ -129,7 +130,15 @@ function ExpenseFormFields({ trip, members, form, setForm }: {
  *  only — nothing in the trip changes when it's crossed. */
 const OPTIONAL_WATCH_PCT = 20
 
-export function BudgetTab({ trip, totals, editable }: { trip: Trip; totals: ReturnType<typeof computeTotals>; editable: boolean }) {
+export function BudgetTab({ trip, totals, editable, previewOpen }: {
+  trip: Trip
+  totals: ReturnType<typeof computeTotals>
+  editable: boolean
+  /** true while the workspace holds a staged change — every expense writer
+   *  below writes the committed row directly, so each refuses instead of
+   *  landing under the preview (#334, same policy as the timeline's). */
+  previewOpen?: boolean
+}) {
   const visible = usePageVisible()
   const dayBarsRef = useRef<HTMLDivElement>(null)
   const categoryBarsRef = useRef<HTMLDivElement>(null)
@@ -220,7 +229,7 @@ export function BudgetTab({ trip, totals, editable }: { trip: Trip; totals: Retu
 
       {/* Capture bar sits above everything — an expense should take one
           glance at the metrics and one row, not a hunt for the right card. */}
-      {editable && <QuickAdd trip={trip} members={members} meId={me?.id} topline />}
+      {editable && <QuickAdd trip={trip} members={members} meId={me?.id} topline previewOpen={previewOpen} />}
 
       <div className="two-col">
         <div>
@@ -306,7 +315,7 @@ export function BudgetTab({ trip, totals, editable }: { trip: Trip; totals: Retu
                       return editingId === e.id ? (
                         <tr key={e.id}>
                           <td colSpan={4}>
-                            <ExpenseEditor trip={trip} members={members} expense={e} onDone={() => setEditingId(null)} />
+                            <ExpenseEditor trip={trip} members={members} expense={e} onDone={() => setEditingId(null)} previewOpen={previewOpen} />
                           </td>
                         </tr>
                       ) : (
@@ -329,6 +338,9 @@ export function BudgetTab({ trip, totals, editable }: { trip: Trip; totals: Retu
                             <span className="row-actions">
                               <button className="icon-btn" aria-label={`Edit ${e.label}`} onClick={() => setEditingId(e.id)}><Pencil size={14} /></button>
                               <button className="icon-btn" aria-label={`Delete ${e.label}`} onClick={() => {
+                                // #334: a direct write while a preview is open would
+                                // make Keep refuse (stale base) — refuse it here instead.
+                                if (previewOpen) { toast(PREVIEW_BUSY, 'err'); return }
                                 const idx = trip.expenses.findIndex(x => x.id === e.id)
                                 deleteExpense(trip.id, e.id)
                                 undoToast(`Removed “${e.label}”`, () => {
@@ -423,6 +435,7 @@ export function BudgetTab({ trip, totals, editable }: { trip: Trip; totals: Retu
                                     aria-label={`Mark ${e.label} settled`}
                                     disabled={busySettleId === e.id}
                                     onClick={() => {
+                                      if (previewOpen) { toast(PREVIEW_BUSY, 'err'); return }
                                       if (!me?.id) return
                                       setBusySettleId(e.id)
                                       try {
@@ -453,6 +466,7 @@ export function BudgetTab({ trip, totals, editable }: { trip: Trip; totals: Retu
                                       aria-label={`Reopen ${e.label}`}
                                       disabled={busySettleId === e.id}
                                       onClick={() => {
+                                        if (previewOpen) { toast(PREVIEW_BUSY, 'err'); return }
                                         setBusySettleId(e.id)
                                         try {
                                           markExpenseUnsettled(trip.id, e.id)
@@ -522,12 +536,14 @@ export function BudgetTab({ trip, totals, editable }: { trip: Trip; totals: Retu
 
 const EMPTY_FORM: FormState = { label: '', amount: '', category: 'food', perPerson: false, optional: false, paidBy: '', attachStop: '' }
 
-function QuickAdd({ trip, members, meId, topline }: { trip: Trip; members: { userId: ID }[]; meId?: ID; topline?: boolean }) {
+function QuickAdd({ trip, members, meId, topline, previewOpen }: { trip: Trip; members: { userId: ID }[]; meId?: ID; topline?: boolean; previewOpen?: boolean }) {
   const [form, setForm] = useState<FormState>({ ...EMPTY_FORM, paidBy: meId ?? '' })
   const [more, setMore] = useState(false)
 
   function submit(e: FormEvent) {
     e.preventDefault()
+    // Refused BEFORE validation so the typed line survives for the retry.
+    if (previewOpen) { toast(PREVIEW_BUSY, 'err'); return }
     const problem = validateForm(form)
     if (problem) { toast(problem, 'err'); return }
     addExpense(trip.id, patchOf(form))
@@ -554,16 +570,20 @@ function QuickAdd({ trip, members, meId, topline }: { trip: Trip; members: { use
   )
 }
 
-function ExpenseEditor({ trip, members, expense, onDone }: {
+function ExpenseEditor({ trip, members, expense, onDone, previewOpen }: {
   trip: Trip
   members: { userId: ID }[]
   expense: Expense
   onDone: () => void
+  previewOpen?: boolean
 }) {
   const [form, setForm] = useState<FormState>(stateFromExpense(expense))
 
   function submit(e: FormEvent) {
     e.preventDefault()
+    // Refused before the save (and before onDone) so the editor stays open
+    // with the edits intact for the retry (#334).
+    if (previewOpen) { toast(PREVIEW_BUSY, 'err'); return }
     const problem = validateForm(form)
     if (problem) { toast(problem, 'err'); return }
     updateExpense(trip.id, expense.id, patchOf(form))

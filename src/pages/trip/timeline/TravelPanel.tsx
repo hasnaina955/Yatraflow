@@ -100,7 +100,7 @@ export function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAdd
   }, [trip.id, day.index, editable])
   // nearby pool for slack prompts — refreshed on every spot search, picked
   // live against current slack so any itinerary change re-computes the nudge
-  const [slackPool, setSlackPool] = useState<{ hit: PlaceHit; detourMin: number }[]>([])
+  const [slackPool, setSlackPool] = useState<{ hit: PlaceHit; detourMin: number | null }[]>([])
 
   // Hydrate the persisted plan + resolved spots so tab switches don't lose work.
   // Only rehydrates while the plan is empty, so in-flight edits are never
@@ -230,7 +230,7 @@ export function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAdd
       setSlackPool(
         unplanned
           .map(h => ({ hit: h, detourMin: asymmetricDetourMinutes(h, anchors, roadPolyline, speed) }))
-          .filter(o => Number.isFinite(o.detourMin) && o.detourMin >= 0)
+          .filter((o): o is { hit: PlaceHit; detourMin: number } => o.detourMin != null && Number.isFinite(o.detourMin) && o.detourMin >= 0)
           .sort((a, b) => a.detourMin - b.detourMin)
           .slice(0, 12),
       )
@@ -296,7 +296,7 @@ export function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAdd
     driveMin: journey.driveMinutes, dwellMin: journey.dwellMinutes,
     planMin: planMinutes, bufferMin: planBuffer,
   })
-  const slackCands = slackPool.map(o => ({ name: o.hit.name, detourMin: o.detourMin, category: o.hit.category }))
+  const slackCands = slackPool.map(o => ({ name: o.hit.name, detourMin: o.detourMin == null ? Number.POSITIVE_INFINITY : o.detourMin, category: o.hit.category }))
   const slackPickHit = (() => {
     const pick = pickSlackHit(slackMin, slackCands)
     if (!pick) return null

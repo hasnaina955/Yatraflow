@@ -325,3 +325,25 @@ should be refreshed with a pull before use rather than treated as current.
 How to recover any branch deleted here: `git branch <name> <sha>`. For the kept locals,
 `git cherry origin/test <name>` reports whether their patches are already upstream before anyone
 decides to delete them too.
+
+## 2026-09-25 — the Wave 0/1 closeout sweep: 3 refs
+
+The audit-fix waves 0 and 1 closed with three of their branches still on the remote; the other
+eleven had already been pruned at their own merges, under the convention above. Each of the
+three was verified an ancestor of `origin/test` immediately before deletion, each had no open
+PR, and every head SHA was recorded first. Remote heads went **14 → 11**. `test` was `c9a529f`
+and `main` `244e74e` when the gate ran.
+
+| Branch | Head SHA | Owning PR |
+|---|---|---|
+| `fix/map-core-flaws` | `7a57f642143bd297f2b52950847535a455827992` | #380 |
+| `fix/map-safety-batch` | `8f0601566c5a3bf030ccd8c708fb0c99c319de9d` | #399 |
+| `fix/public-unlock-freshness` | `e83cb5a05498a972e20803873b59391413c25223` | #435 |
+
+Kept, unchanged from the sections above: `refactor/brand-seam` and `explore/landing-hero-local`
+(no PR has ever existed, so the branch is the only copy), `feat/share-preview-og` (closed as
+superseded), the two `cline` heads that fail the ancestor gate (`g9wfhxqs`, `n478z8sr`), and
+every branch whose PR is open — `fix/hub-recovery-path` (#439), `fix/fixture-tooling` (#440),
+`feat/resolve-pick-prompt` (#430), `cline/ftq10q0f` (#322). The closeout record for the waves
+themselves, including the four rendered checks that were never driven, is
+[`wave-0-1-closeout.md`](wave-0-1-closeout.md).

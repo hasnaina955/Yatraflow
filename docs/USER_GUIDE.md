@@ -31,7 +31,7 @@ New accounts get a fully-modelled **Kerala demo trip** on first login — open i
 
 Inside a trip, open the **Timeline** tab:
 
-- **Add stops** to any day: name, category, location (searchable — Mappls-backed suggestions when configured, with keyless fallbacks), duration, opening hours, entry fee, transport cost, priority.
+- **Add stops** to any day: name, category, location (searchable — Google Places when configured, otherwise the keyless Mappls/OSM/Wikipedia stack), duration, opening hours, entry fee, transport cost, priority.
 - **Context-aware opening hours** — Opens at / Closes at appear only when they're relevant (a geocoded attraction, or categories like temple/museum/food/hotel), and clear themselves for a whole city or town.
 - **Stoppage-point suggestions** — the Map tab and empty days suggest attractions, restaurants, cafés, hotels, fuel pumps and ATMs near your route (live OpenStreetMap, Wikipedia and Mappls data; pins only at verified coordinates). "Add" opens a pick-a-day dialog — choose the day and confirm **Add to timeline**.
 - **Leg-aware travel panel** — once you pick a geocoded place, a "🚗 Travel to this stop" panel appears showing where you're coming from and where you're headed next. It auto-fills the road distance, travel time and fuel/fare cost, and computes your **arrival time** from the **departure time** (default 08:30). Every value stays editable — arrows step by 1 minute.
@@ -49,7 +49,7 @@ The **Map** tab shows your whole route:
 - Each day gets its own colour; pins are numbered in visiting order.
 - Click a pin to open that stop's details.
 - Use the day filter chips to focus on one day.
-- Routes are straight-line approximations — great for shape and relative distance, not turn-by-turn navigation.
+- Routes follow real roads (OSRM road geometry) — great for shape and distance honesty, still not turn-by-turn navigation; if the road service can't be reached the tab says so and draws straight-line estimates.
 
 ### The travel clock (long drives, planned for you)
 
@@ -98,20 +98,20 @@ The **Budget tab** opens with four tiles — **per person** (vs target), **per d
 
 ## 7. Ask the companion
 
-The **AI drawer** answers questions grounded in *your actual trip data*: "Make Day 2 less tiring", "Can we still make the airport if we add this?", "What should we cut with kids along?" Every answer cites the assumptions behind its numbers. It's rule-based, not magic — but it never invents facts.
+The **AI drawer** answers questions grounded in *your actual trip data*: "Make Day 2 less tiring", "Can we still make the airport if we add this?", "What should we cut with kids along?" Every answer cites the assumptions behind its numbers. The offline brain is rule-based and never invents facts; connect your own OpenAI-compatible endpoint in Profile and it answers through that instead, badged so you always know which brain answered. The drawer is rolling out as a premium perk, so it may not be visible in your app yet.
 
 ## 8. Publish, explore & grow an audience
 
-Proud of a route? **Share tab → publish** puts it in the public **Explore** gallery with a tagline, best season and tips. You choose which days preview free (the rest unlock as premium stubs when forked).
+Proud of a route? **Share tab → publish** puts it in the public **Explore** gallery with a tagline, best season and tips. You choose which days preview free — the rest stay locked at the server until a reader buys the plan.
 
 Browsing Explore: filter by style/budget/duration, sort by popularity or **newest**, open any itinerary, and **fork** it into your trips as your own editable copy.
 
 **Creators get a public page.** Turn on creator mode in Profile to add a bio and YouTube/Instagram links, then share `#/creator/<your-id>` — it lists everything you've published with your lifetime views and forks. It's linked from every Explore card, from each of your public itineraries ("More from you"), and from Profile ("View your public page").
 
-**Keep your pages honest — and see your creator hub.** Profile → **My publications** is now two views:
+**Keep your pages honest — and see your creator hub.** The **Creator hub** (in the nav once you're a creator) opens on how your work is doing:
 
-- **Overview** — your lifetime views, forks, live itineraries and how many pages are behind their trips, above the per-itinerary rows (views/forks, **Edit**, and the **"Page behind itinerary"** flag with its **Update page** shortcut whenever you change a trip after publishing). Unpublish takes a page down without touching the trip.
-- **Earnings** — the payouts ledger, ready before payments are. It shows ₹0 balances and a table shaped exactly like a payouts statement (payout period · sales · platform fee · net). The **Projection** toggle does the only honest arithmetic available today: for each priced itinerary, price × forks so far — clearly marked as *not money*, with free publications counted rather than projected. When the premium launch lands, real payouts start filling the ledger in exactly these columns.
+- **Overview** — a lifetime figures strip and a recorded-traffic trend (visits, forks and unlocks over 7, 30 or 90 days), then one row per publication with its funnel and its actions (**Edit**, plus the **"Page behind itinerary"** flag with its **Update page** shortcut whenever you change a trip after publishing). Unpublish takes a page down without touching the trip.
+- **Earnings** — the real sales ledger: what each buyer actually paid at purchase time, the platform-fee split on each sale, and payout runs derived from it (disbursement itself is manual — the ledger says so). A **Projection** toggle does the honest what-if arithmetic for pages that haven't sold, clearly marked as *not money*.
 
 ## FAQ
 
@@ -119,13 +119,13 @@ Browsing Explore: filter by style/budget/duration, sort by popularity or **newes
 They're transparent estimates from declared assumptions (speeds, ₹/km, buffers) — shown alongside every number. No live traffic or prices are used anywhere.
 
 **Can I actually book hotels/trains here?**
-No — booking buttons are placeholders in this MVP. Nothing takes payment.
+No — booking is out of scope: flag a stop *needs booking* and add your own confirmations. (Money does move in exactly one place — a reader can pay a creator to unlock a priced itinerary.)
 
 **Where is my data stored?**
 In Supabase (hosted Postgres), tied to your account — it follows you across devices. Trip access is enforced server-side by row-level security.
 
 **Why does the map route look like crow-flies lines?**
-Routes are haversine distances × a road factor — good enough for planning realism, not navigation.
+It usually shouldn't: routes follow real roads from the OSRM network. Only when that service can't be reached does the map fall back to straight-line estimates — and the Map tab says so rather than pretending.
 
 **Someone deleted everything?!**
 Shared trips are protected by row-level security and soft confirmation dialogs with undo toasts — full-account loss would require losing your Supabase project itself.

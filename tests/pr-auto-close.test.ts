@@ -51,6 +51,22 @@ describe('parseClosingIssueRefs — GitHub closing-keyword grammar', () => {
     expect(stripCode('a `x` b')).toBe('a   b')
   })
 
+  it('cannot read negation — "does not close #N" closes #N (the #427 surprise)', () => {
+    // Not a bug being blessed: the parser mirrors GitHub's own grammar, which
+    // has no negation either, and guessing wrong in THIS direction leaves a P0
+    // closed while everyone believes it shipped. Written after a PR body that
+    // said "**It does not close #427**, because production is still dark…"
+    // closed #427 on merge (PR #443, 2026-09-25) — the bot did it twelve
+    // seconds before a hand reopened it.
+    expect(parseClosingIssueRefs('It does not close #427')).toEqual([427])
+    expect(parseClosingIssueRefs('This does not fix #12 or resolve #13')).toEqual([12, 13])
+    // The spellings that are actually inert, for contrast: `refs` is not a
+    // keyword, and a bare number with no keyword before it binds nothing. Keep
+    // the number OUT of a keyword's reach rather than behind a "does not".
+    expect(parseClosingIssueRefs('Refs #427')).toEqual([])
+    expect(parseClosingIssueRefs('Related to issue #427')).toEqual([])
+  })
+
   it('reads a real PR body (the Wave-0 map batch)', () => {
     const body = '## Summary\n- reuse the workspace road measurement\n\nCloses #324\nCloses #326\nCloses #327\n'
     expect(parseClosingIssueRefs(body)).toEqual([324, 326, 327])

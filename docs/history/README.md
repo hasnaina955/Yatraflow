@@ -8,6 +8,7 @@ what superseded it and when.
 | [`CHANGELOG-through-0.41.1.md`](CHANGELOG-through-0.41.1.md) | Every release from `0.1.0` to `0.41.1` (48 versions) as they stood before the `0.42.0` cleanup | [`/CHANGELOG.md`](../../CHANGELOG.md) — the live file |
 | [`implementation-plan-v0.23.0-cti.md`](implementation-plan-v0.23.0-cti.md) | The Calm Travel Intelligence implementation plan | Shipped in v0.31.0 |
 | [`branch-prunes.md`](branch-prunes.md) | The 17 merged branches deleted from `origin` on 2026-09-20, each with its head SHA and owning PR | Nothing — a permanent record of deleted refs |
+| [`wave-0-1-closeout.md`](wave-0-1-closeout.md) | Waves 0 and 1 of the audit-fix plan closed out on 2026-09-25: the 16 issues, their PRs and merge SHAs, the live evidence each closed on, and the four rendered checks that were never driven | Nothing — a record of completed work |
 
 ## Why the changelog archive exists
 

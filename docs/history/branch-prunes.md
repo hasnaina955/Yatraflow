@@ -357,6 +357,7 @@ was `73c7e0e` and `main` `af373cc` when the gate ran.
 | Branch | Head SHA | Owning PR |
 |---|---|---|
 | `promote/v0.67.0` | `ee132c4644c596a9a9b32360162ef02e1b931ffd` | #446 |
+| `docs/post-promotion-v0.67.0` | `3586ff058862e416c327f23bd99f0c11b0976e5c` | #447 |
 
 **The four branches the sweep above held back because their PRs were open had all merged by the
 time this one ran, and each passed the same gate** — every head a recorded ancestor of

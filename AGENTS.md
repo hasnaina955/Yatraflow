@@ -281,6 +281,15 @@ Key locations:
    author decides when a batch is finished and testable, and says so before any
    push (user-mandated 2026-09-17).
 
+12. **A PR merged into `test` does NOT auto-close its issues — close them by
+   hand (learned 2026-09-25).** GitHub's `Closes #N` keywords fire only when a
+   PR merges into the DEFAULT branch (`main`), so every fix that lands on
+   `test` leaves its issues OPEN: the Wave-0 map merges (#380/#399) carried
+   seven closing keywords and closed nothing until each issue was closed
+   manually with a landing comment (merge SHA + PR number). After merging a
+   PR into `test`, verify with `gh issue view` and close the referenced issues
+   yourself — the tracker must mirror reality, not the keyword's promise.
+
 
 ## 3. Verification before every push
 

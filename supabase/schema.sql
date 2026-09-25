@@ -127,7 +127,11 @@ create table if not exists public.decisions (
   comments           jsonb not null default '[]'::jsonb,
   status             text not null default 'open'
                        check (status in ('open', 'resolved')),
-  resolved_option_id uuid,
+  -- #432: TEXT, not uuid — option ids are `o_<uid()>` (store.addDecision) and
+  -- `slot:<key>:<placeId>` (the Map rail's slot votes, parsed back by
+  -- resolveDecision). As uuid every resolve failed with 22P02 and the
+  -- resolution never persisted. 20260925_decision_resolved_option_text.sql.
+  resolved_option_id text,
   raised_by          uuid not null references public.profiles (id) on delete cascade,
   created_at         bigint not null default extract(epoch from now()) * 1000,
   resolved_at        bigint

@@ -202,6 +202,14 @@ export const NO_PROBE_SURFACE = {
     // the opt-in RLS contract suite.
     reason: 'functions only — both are redefined rather than created, so presence answers nothing; pinned by tests/paywall-invite-code-leak.test.ts, with the paywall behaviour covered by the RLS contract suite (`npm run test:integration`)',
   },
+  '20260927_prune_pub_events_lockdown.sql': {
+    // Grants only: the pruner is re-granted, not created, so it exists before
+    // and after and no read-only probe can tell the two states apart. The live
+    // grant is asserted by the RLS contract suite (aclexplode against the real
+    // role list — the only place a grant can actually be observed) and the
+    // schema.sql mirror by tests/prune-pub-events-lockdown.test.ts.
+    reason: 'grants only — `prune_pub_events` is re-granted rather than created, so presence answers nothing; the live role list is asserted by the RLS contract suite and the mirror by tests/prune-pub-events-lockdown.test.ts',
+  },
 }
 
 /** The plan: one entry per migration file, with its probes and the reason none

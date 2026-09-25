@@ -381,6 +381,23 @@ Key locations:
    deployed value darkens exactly one phase while the rest light up), and a
    **production-only warning** in `vite.config.ts` — warn, never abort, because
    a preview branch dark-running a phase is what the flag is for.
+ 6o. **The issue auto-close parser cannot read negation — "this does not close
+   #N" closes #N (learned 2026-09-25, PR #443).** The workflow that mirrors the
+   tracker for `test` matches GitHub's own grammar — a closing keyword
+   (`close[sd]?`, `fix(?:e[sd])?`, `resolve[sd]?`) followed by a reference — and
+   that grammar has no negation. A PR body written to be *careful* — "It does
+   not close the P0, because production is still dark…" — closed that P0 the
+   instant it merged; `github-actions[bot]` did it, and it was reopened by hand
+   twelve seconds later. The reopen is the cheap part: a P0 that stays closed
+   while everyone believes it shipped is not. `refs` is **not** a keyword, so a
+   bare "Refs #N" line is inert — which makes the lesson narrower and nastier
+   than "do not mention issues": a keyword within reach of a number closes it,
+   whatever the surrounding sentence says. To reference an issue you do not mean
+   to close, keep the number out of a keyword's reach ("see the dark-funnel
+   issue"), and if a PR must explain why it is *not* closing something, say so
+   without putting the number behind the word. Pinned in
+   tests/pr-auto-close.test.ts so nobody "improves" the parser into guessing
+   intent.
  7. **When asking the user to review/test locally, always hand them the exact
    URL — never make them find or start the server.** Check if the dev server
    is up (probe `http://localhost:5173`); if not, start `npm run dev`

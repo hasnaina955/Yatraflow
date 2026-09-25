@@ -461,7 +461,7 @@ function ContentTab() {
       <ConfirmDialog
         open={!!confirmUnpub}
         title={`Unpublish “${confirmUnpub?.name ?? ''}”?`}
-        body="The Explore page disappears and the trip flips back to private. The creator can re-publish from their Share tab."
+        body="It leaves Explore and stops selling. The trip itself is not touched, the creator keeps its sales history, and anyone who already unlocked it keeps the full plan. The creator can re-publish from their Share tab."
         confirmLabel="Unpublish"
         danger
         onConfirm={() => {
@@ -491,12 +491,12 @@ function AnalyticsTab() {
   const [revenue, setRevenue] = useState<RevenueState>({ phase: 'loading' })
   const [attempt, setAttempt] = useState(0)
   const creatorName = (id: string) => db.users.find(u => u.id === id)?.profile.name ?? id.slice(0, 8)
-  // The per-publication breakdown needs publication TITLES, and it can have them:
-  // every sale's plan is still in the public gallery (`published read` is open to
-  // everyone — a sale cannot outlive its publication, because
-  // `entitlements.pub_id` cascades with it), so the cache resolves it. A plan the
-  // cache cannot resolve keeps its id as the label rather than leaving the row
-  // nameless.
+  // The per-publication breakdown needs publication TITLES, and it can normally
+  // have them: `published read` is open to everyone, and a soft-unpublished plan
+  // KEEPS its row (#350 — that is precisely what preserves its buyers' access
+  // and the creator's history), so the cache still resolves it. A row that is
+  // genuinely gone — the reserved permanent-delete path — keeps its id as the
+  // label rather than leaving the row nameless.
   const pubTitle = useMemo(() => {
     const titles = new Map(db.published.map(p => [p.id, p.title]))
     return (pubId: string) => titles.get(pubId) ?? pubId

@@ -264,6 +264,31 @@ Key locations:
    handlers (`Promise.resolve(x).then(res, rej)`) — a `then` that ignores the
    rejection handler makes the awaiting caller hang to the 5s timeout while the
    rejection surfaces separately as an unhandled error.
+ 6j. **Deleting a row that money hangs off is a revocation, not a cleanup — and a
+   guard keyed on that row's EXISTENCE breaks in the direction you are not
+   looking (learned 2026-09-25).** `unpublishItinerary` deleted the
+   `published_itineraries` row, and `entitlements`, `purchase_orders` and
+   `pub_events` all carry `on delete cascade` on `pub_id` — so "remove it from
+   Explore" silently confiscated what buyers had paid for and erased the
+   creator's own sales ledger and funnel, with no status change, no refund and no
+   record anywhere. Unpublishing is now a marker (`unpublished_at`, bigint ms
+   like its siblings `published_at`/`refreshed_at`) and the ROW SURVIVES: that is
+   what keeps buyers whole. Three things worth keeping: (1) before deleting a
+   row, grep every FK that cascades FROM it — the blast radius is the schema, not
+   the call site; (2) `get_invite_trip`'s paywall guard keys on a priced
+   publication row EXISTING for the trip, so deleting that row would have opened
+   the very leak the guard was written to close — an existence-keyed guard is
+   satisfied by presence, and silently satisfied again by absence in the other
+   direction; (3) a reader that must work before its migration is applied has to
+   fail CLOSED here — with the column missing, unpublish refuses and names the
+   migration, because the old fallback (delete) IS the bug. Companions: the trip
+   must NOT be flipped `private` on the way out (`get_public_trip` requires
+   `visibility = 'public'` to serve an entitled buyer, so that flip revokes the
+   very buyers the row was kept for — and the tightened `trips read` policy
+   already restricts direct reads to owner/member/admin, so keeping it public
+   leaks nothing); and a KPI that counted those rows stops being true the moment
+   they stop being deleted — a "Live" cell and a "Behind" count had to learn the
+   marker in the same commit, or the strip contradicts the list printed under it.
 7. **When asking the user to review/test locally, always hand them the exact
    URL — never make them find or start the server.** Check if the dev server
    is up (probe `http://localhost:5173`); if not, start `npm run dev`
@@ -355,6 +380,21 @@ Key locations:
    merge, and close by hand when that job is red — the rule is the mirror, not
    the mechanism.
 
+
+   **A migration the USER must run is handed over as complete SQL, in the chat,
+   with its full local path — never as a filename to go and find (user-mandated
+   2026-09-25).** These are applied by hand in the Supabase SQL editor, so the
+   handover is the whole file, verbatim, pasted as one runnable block, with the
+   absolute path beside it
+   (`C:\Users\hasna\yatraflow-freebuff\supabase\migrations\<file>.sql`). Say
+   whether re-running is safe and what the status check should read afterwards.
+   Then PROVE it landed instead of assuming: `npm run check:migrations` must fall
+   to `0 missing`, and an independent live probe is the stronger evidence — a
+   PostgREST `select` of the new column answers `200`, while the same request
+   naming a control column the schema never had answers `400 42703`. A file
+   sitting in the repo says nothing about the database (#432's
+   `resolved_option_id` type change is the case that proves it:
+   `check:migrations` can never see it, and only the probe did).
 
 ## 3. Verification before every push
 

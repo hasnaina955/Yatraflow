@@ -374,6 +374,11 @@ export interface PublishedItinerary {
    *  Absent on rows published before v0.37 — staleness then falls back to
    *  publishedAt. */
   refreshedAt?: number
+  /** Soft-unpublish (#350): ms-epoch stamp set when the creator unpublishes.
+   *  The row SURVIVES so buyers keep their entitlement and the creator's sales
+   *  history stays whole — absent means live. Deliberately a timestamp and not a
+   *  boolean, so "when did this come down" is answerable later. */
+  unpublishedAt?: number
   views: number
   copies: number
 }

@@ -47,6 +47,13 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
   // Paid-unlock state (M7): entitlements are read on demand (RLS: own rows),
   // not carried in the hydrate cache. Re-read after a purchase resolves.
   const [entitlements, setEntitlements] = useState<Entitlement[]>([])
+  // WHICH publication that read answered for. Needed by the soft-unpublish
+  // branch below (#350): an entitlement list that is merely still empty cannot
+  // tell "not a buyer" apart from "not read yet", and only one of those may be
+  // told that the plan is gone. Held as the publication's id rather than a
+  // boolean so a second publication on the same mounted page cannot inherit the
+  // first one's read.
+  const [entitlementsReadFor, setEntitlementsReadFor] = useState<string | null>(null)
   const [buying, setBuying] = useState(false)
   // The itinerary the unlock moment is showing, held separately from `fetched`:
   // it is only ever the copy the server served AFTER the entitlement existed
@@ -77,7 +84,11 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
   useEffect(() => {
     if (!pub) return
     let alive = true
-    void fetchMyEntitlements(meId).then(rows => { if (alive) setEntitlements(rows) })
+    void fetchMyEntitlements(meId).then(rows => {
+      if (!alive) return
+      setEntitlements(rows)
+      setEntitlementsReadFor(pub.id)
+    })
     return () => { alive = false }
   }, [pub?.id, meId])
   // ---- The creator's own glance (I-22 follow-up): the page's creator reads
@@ -183,6 +194,45 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
     return [...scored].sort((a, b) => b.score - a.score).slice(0, 3).sort((a, b) => a.day.index - b.day.index)
   }, [trip, orderedDays])
 
+  // True when this viewer may read the locked days: the creator, or a buyer
+  // with a paid entitlement. Gating here is presentation; the fork path and
+  // RLS re-derive the same rule server-side. Computed ABOVE the render gates
+  // because the soft-unpublish branch below needs exactly this question
+  // answered: who may still open a publication that has come down. (Empty
+  // strings while the row is missing — hasUnlock can match neither a creator id
+  // nor an entitlement against those, so "no publication" reads as not
+  // unlocked, which is what the loading/error branches below then say.)
+  const unlocked = hasUnlock(entitlements, meId, pub?.id ?? '', pub?.creatorId ?? '')
+  /** The entitlement read has landed FOR THIS publication. */
+  const entitlementsRead = !!pub && entitlementsReadFor === pub.id
+
+  // ---- Soft-unpublish (#350). The row survives — that is what keeps buyers
+  // whole — but the page is no longer public. The creator and anyone holding an
+  // entitlement keep reading the real plan (the wire agrees: get_public_trip
+  // serves them and refuses everyone else), and everyone else is told plainly
+  // that it came down. Deliberately NOT the paywall: there is nothing left to
+  // buy, so a preview, locked placeholders and an Unlock button would all be
+  // lies about a plan that is off sale.
+  if (pub && pub.unpublishedAt && !unlocked) {
+    // An empty entitlement list is only evidence of "not a buyer" once the read
+    // has landed; until then the honest state is the loading one, so a buyer is
+    // never shown "no longer published" for the plan they paid for.
+    if (!entitlementsRead) {
+      return (
+        <div className="container">
+          <div className="container loading-block"><div className="spinner" />Loading itinerary…</div>
+        </div>
+      )
+    }
+    return (
+      <div className="container">
+        <EmptyState icon={<TriangleAlert size={38} aria-hidden />} title="This itinerary is no longer published"
+          body="The creator took it off Explore, so it is no longer on sale. If you unlocked it, sign in with the account that bought it and the full plan is still yours — otherwise browse what’s published now."
+          action={<button className="btn btn-primary" onClick={() => onNavigate('/explore')}>Back to Explore</button>} />
+      </div>
+    )
+  }
+
   if (!pub || !trip) {
     return (
       <div className="container">
@@ -218,10 +268,6 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
   // Undefined when nothing is withheld: the price shows without a claim.
   const previewSplit = describePreviewSplit(pub.freeDayIndexes, trip.days.length)
   const savedFlag = isSaved(pub.id)
-  // True when this viewer may read the locked days: the creator, or a buyer
-  // with a paid entitlement. Gating here is presentation; the fork path and
-  // RLS re-derive the same rule server-side.
-  const unlocked = hasUnlock(entitlements, meId, pub.id, pub.creatorId)
 
   function copyThis() {
     // The fork honors what the SERVER served this viewer: a buyer/creator's

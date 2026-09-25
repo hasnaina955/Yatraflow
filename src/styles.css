@@ -845,6 +845,11 @@ a.btn { text-decoration: none; }
    arrives rather than pops — briefly, and from the field it belongs to. The
    global reduced-motion switch collapses the duration to .01ms. */
 .err-text { color: var(--danger); font-size: 12.5px; font-weight: 500; animation: errIn var(--motion-med) var(--ease-out); }
+/* #374 - a create whose write failed: the message stands beside the action it
+   belongs to (and beside the form's own error summary), not in a toast that
+   scrolls away. Layout only - the chip's measured colour pair paints it, so no
+   new colour pair enters the ratchet. */
+.ct-save-err { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
 @keyframes errIn { from { opacity: 0; transform: translateY(-4px); } }
 .hint-text { color: var(--text-3); font-size: 12.5px; }
 

@@ -242,6 +242,28 @@ Key locations:
    suite → `git stash pop -q`. Eight of #349's eleven tests fail that way; the
    other three are the fail-closed controls, which SHOULD pass before the fix
    too. Do this before every fix-verifying commit, not just this one.
+ 6i. **A create that is awaited must roll back like the copy path, retry on the
+   SAME object, and tolerate its own duplicate key — and its UI guard must span
+   the await (learned 2026-09-25).** #374/#373: `createTrip` admitted the trip,
+   fired `void persistTrip(...)` and returned, so the page routed into a
+   workspace over a row that might not exist; there was no submitting state, so
+   both CTAs stayed live and every submit minted a fresh uuid. Two mechanics
+   worth keeping: (1) **a retry must reuse the built trip object** — its id is
+   the idempotency key, so a first attempt that reached the server is not
+   followed by a twin; (2) **an upsert CANNOT express that retry.** `trips
+   update`'s policy is `is_editor(trips.id)`, which reads the `trip_members` row
+   the same failed attempt may not have written, so a conflict-update is refused
+   by RLS — tolerate the `23505` on a retry instead (`opts.retry`), on BOTH the
+   trips and the members insert, and never on the first attempt. (3) A "trust the
+   await" flag on the create half must be a ref checked before `setState`
+   resolves, or a same-tick double-click reads `false` twice; and the create
+   wrapper must `try/catch` the persist, because a dropped fetch rejects where
+   supabase-js usually answers `{error}` — an uncaught throw leaves the
+   optimistic row in the cache forever, which is the zombie the fix removes.
+   Test-mock trap from the same session: a mocked thenable must pass BOTH `then`
+   handlers (`Promise.resolve(x).then(res, rej)`) — a `then` that ignores the
+   rejection handler makes the awaiting caller hang to the 5s timeout while the
+   rejection surfaces separately as an unhandled error.
 7. **When asking the user to review/test locally, always hand them the exact
    URL — never make them find or start the server.** Check if the dev server
    is up (probe `http://localhost:5173`); if not, start `npm run dev`

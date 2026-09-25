@@ -782,11 +782,13 @@ describe('slot voting (plan P4)', () => {
       haltSegments: [sh(seg('meal', { etaMinutes: 735 }), null)],
       dayStops: [],
       decisions: [decision()],
-      travellers: 4,
+      memberCount: 4,
     }))
     const lunch = slots.find(s => s.key === 'lunch')
     expect(lunch?.vote?.decisionId).toBe('d1')
     expect(lunch?.vote?.votesCast).toBe(3)
+    // #335: the denominator is the crew (members), the same one Group Input
+    // divides by — the travellers-only reading is gone.
     expect(lunch?.vote?.voters).toBe(4)
     expect(lunch?.vote?.leadingLabel).toBe('Halais')
   })

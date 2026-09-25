@@ -29,7 +29,7 @@ describe('roadChainSig (the geometry-only memo key #213)', () => {
     const sig = roadChainSig(t)
     // Source of truth is buildRoadChain itself — if it changes what the chain
     // consumes, this test starts failing and tells us to update roadChainSig.
-    expect(sig.split('|')).toHaveLength(buildRoadChain(t).points.length + 1) // +1 for the roundTrip flag
+    expect(sig.split('|')).toHaveLength(buildRoadChain(t).points.length + 2) // + mode + roundTrip flag
   })
 
   it('changes when the start coords move', () => {
@@ -101,6 +101,13 @@ describe('roadChainSig (the geometry-only memo key #213)', () => {
     const on: Trip = { ...off, roundTrip: true }
     expect(isRoundTrip(on)).toBe(true)
     expect(roadChainSig(on)).toBe(a)
+  })
+
+  it('changes when the transport mode changes', () => {
+    const a = roadChainSig(baseTrip())
+    const t = baseTrip()
+    t.transportMode = 'motorcycle'
+    expect(roadChainSig(t)).not.toBe(a)
   })
 
   it('STAYS stable for fuel/crew/budget/dates/cover changes (the whole point)', () => {

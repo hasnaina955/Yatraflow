@@ -442,6 +442,33 @@ begin
     raise exception 'prune_pub_events must never be granted to anon or PUBLIC (a bulk delete is not public)';
   end if;
 
+  -- #356. The anon check above was necessary and not sufficient: the function
+  -- shipped granted to `authenticated`, and its predicate is purely `at <
+  -- horizon` — not scoped to a publication, a creator, or the caller. So any
+  -- logged-in account could delete EVERY publication's history, and the only
+  -- symptom is a funnel trend reading "nothing recorded". Nothing in the app
+  -- calls it (the SQL editor runs as the owner, pg_cron as the definer), so
+  -- the grant belongs to service_role alone, like revoke_refunded_entitlement.
+  if exists (
+    select 1 from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    cross join lateral aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) e
+    where n.nspname = 'public' and p.proname = 'prune_pub_events'
+      and e.grantee = (select oid from pg_roles where rolname = 'authenticated')
+  ) then
+    raise exception 'prune_pub_events must not be granted to authenticated — it deletes every publication''s history and is not scoped to its caller; apply 20260927_prune_pub_events_lockdown.sql';
+  end if;
+
+  if not exists (
+    select 1 from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    cross join lateral aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) e
+    where n.nspname = 'public' and p.proname = 'prune_pub_events'
+      and e.grantee = (select oid from pg_roles where rolname = 'service_role')
+  ) then
+    raise exception 'prune_pub_events must stay executable by service_role — that is the operator and cron path, and locking it out entirely would leave the log unprunable';
+  end if;
+
   -- The horizon pairing: the pruner's own clamp must equal the reader's. Both
   -- are 730 today; change them together or not at all.
   if coalesce(

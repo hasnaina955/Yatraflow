@@ -126,6 +126,7 @@ export function detourKm(
   // would report a misleadingly tiny "off route" distance. When the real detour is unknown,
   // return null and let the UI say "on route".
   if (h.fromGoogleAlongRoute) return null
+  if (anchors.length === 0) return null
   return distToNearest(h, anchors) / 1000
 }
 
@@ -202,10 +203,11 @@ export function asymmetricDetourMinutes(
   anchors: { lat: number; lng: number }[],
   routePolyline?: { lat: number; lng: number }[] | null,
   speedKmph?: number,
-): number {
+): number | null {
   const speed = speedKmph != null && Number.isFinite(speedKmph) && speedKmph > 0 ? speedKmph : DEFAULT_SPEED_KMH
-  const km = asymmetricDetourKm(h, anchors, routePolyline ?? undefined) ?? 0
-  return (km / speed) * 60
+  if (h.fromGoogleAlongRoute) return 0
+  const km = asymmetricDetourKm(h, anchors, routePolyline ?? undefined)
+  return km == null ? null : (km / speed) * 60
 }
 
 /**
@@ -402,6 +404,8 @@ export interface NearbyOpts {
   transportMode?: string
   /** trip preference vector — favoured categories win scoring ties. */
   dnaVector?: DnaVector
+  /** Cancels an in-flight provider scan when a newer Map action supersedes it. */
+  signal?: AbortSignal
 }
 
 /**

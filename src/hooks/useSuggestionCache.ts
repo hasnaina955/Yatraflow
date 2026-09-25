@@ -5,10 +5,13 @@
 
 import { useCallback, useMemo, useState } from 'react'
 import type { SegmentHit, HaltPlanItem } from '../lib/ridePlan'
+import type { PlaceHit } from '../lib/providers/hits'
 import type { VehicleProfile } from '../data/types'
 
 export interface SuggestionCache {
   map: { segments: SegmentHit[]; inputsHash: string; scopeKm: number; ts: number } | null
+  /** fraction fallback pool cached under the same map TTL */
+  fraction: { hits: PlaceHit[]; inputsHash: string; scopeKm: number; ts: number } | null
   /** per-day manual halt planner: the user's {km, minutes, purpose} list + best real spots */
   halts: Record<number, { segments: SegmentHit[]; plan: HaltPlanItem[]; ts: number }>
 }
@@ -21,15 +24,11 @@ const CACHE_TTL_MS = 1000 * 60 * 60 * 4 // 4 hours
  * again the same day: Google hits now carry real categories (was: purpose
  * strings), so cached 'meal'/'fuel'/'overnight' categories are junk.
  *
- * Bumped to 4 on 2026-09-16 (#213 Phase 3): the cache hash now covers every
- * input the engine reads — crew (travellers/driverCount/hasVulnerable/
- * driveAfterDinnerMin), fuel (fuelEconomyKmL/fuelPricePerL/roundTrip/
- * vehicleProfile), and budget (budgetPerPersonInr) — not just anchors,
- * route, scope and travel style. A crew change now busts the cache and
- * re-searches at the new fatigue cadence instead of serving 4-hour-old
- * suggestions tuned for the old party.
+ * Bumped to 5 on 2026-09-25 (#331): the map plan hash now also covers day
+ * start/weather inputs, accepted halt pins, DNA preferences and speed, and the
+ * light fraction pool shares the same TTL. The shape bump evicts old entries.
  */
-const CACHE_VERSION = 4
+const CACHE_VERSION = 5
 
 /**
  * Build the cache key from every input the corridor search reads. Kept here
@@ -47,6 +46,12 @@ export function planInputsHash(input: {
   driverCount?: number | undefined
   hasVulnerable?: boolean | undefined
   driveAfterDinnerMin?: number | undefined
+  dayStartTimes?: string[]
+  dayRainPct?: (number | null)[] | null | undefined
+  dayWeatherCode?: (number | null)[] | null | undefined
+  haltPins?: Record<number, number> | null | undefined
+  dnaVector?: unknown
+  speedKmph?: number
   budgetPerPersonInr: number
   fuelEconomyKmL?: number | undefined
   fuelPricePerL?: number | undefined
@@ -64,6 +69,12 @@ export function planInputsHash(input: {
     input.hasVulnerable === true ? '1' : '-',
     input.driveAfterDinnerMin ?? '-',
     input.budgetPerPersonInr,
+    (input.dayStartTimes ?? []).join(','),
+    input.dayRainPct ? input.dayRainPct.map(v => v ?? '-').join(',') : '-',
+    input.dayWeatherCode ? input.dayWeatherCode.map(v => v ?? '-').join(',') : '-',
+    input.haltPins ? JSON.stringify(Object.entries(input.haltPins).sort(([a], [b]) => Number(a) - Number(b))) : '-',
+    input.dnaVector ? JSON.stringify(input.dnaVector) : '-',
+    input.speedKmph,
     input.fuelEconomyKmL ?? '-',
     input.fuelPricePerL ?? '-',
     input.roundTrip === true ? 'rt' : input.roundTrip === false ? 'ow' : '-',
@@ -77,7 +88,7 @@ export function planInputsHash(input: {
  * price or vehicle profile (v3 used to silently serve the old plan).
  */
 export function isMapCacheFresh(
-  cached: SuggestionCache['map'],
+  cached: { scopeKm: number; inputsHash: string } | null,
   scopeKm: number,
   inputsHash: string,
 ): boolean {
@@ -91,7 +102,7 @@ function cacheKey(tripId: string) {
 function load(tripId: string): SuggestionCache {
   try {
     const raw = localStorage.getItem(cacheKey(tripId))
-    if (!raw) return { map: null, halts: {} }
+    if (!raw) return { map: null, fraction: null, halts: {} }
     const parsed = JSON.parse(raw) as Partial<SuggestionCache>
     const now = Date.now()
     // evict stale entries on load
@@ -100,9 +111,10 @@ function load(tripId: string): SuggestionCache {
       if (now - v.ts < CACHE_TTL_MS) halts[Number(k)] = v
     }
     const map = parsed.map && (now - parsed.map.ts < CACHE_TTL_MS) ? parsed.map : null
-    return { map, halts }
+    const fraction = parsed.fraction && (now - parsed.fraction.ts < CACHE_TTL_MS) ? parsed.fraction : null
+    return { map, fraction, halts }
   } catch {
-    return { map: null, halts: {} }
+    return { map: null, fraction: null, halts: {} }
   }
 }
 
@@ -137,9 +149,17 @@ export function useSuggestionCache(tripId: string) {
     })
   }, [tripId])
 
+  const setFractionCache = useCallback((hits: PlaceHit[], inputsHash: string, scopeKm: number) => {
+    setCache(prev => {
+      const next: SuggestionCache = { ...prev, fraction: { hits, inputsHash, scopeKm, ts: Date.now() } }
+      save(tripId, next)
+      return next
+    })
+  }, [tripId])
+
   const clearMap = useCallback(() => {
     setCache(prev => {
-      const next: SuggestionCache = { ...prev, map: null }
+      const next: SuggestionCache = { ...prev, map: null, fraction: null }
       save(tripId, next)
       return next
     })
@@ -148,6 +168,6 @@ export function useSuggestionCache(tripId: string) {
   // Memoized so consumers (TimelineTab → memoized DaySection, MapTab) can take
   // this object as a prop without re-rendering on every parent render — the
   // reference only changes when the cache contents (or tripId) actually do.
-  return useMemo(() => ({ cache, setMapCache, setHaltCache, clearMap }),
-    [cache, setMapCache, setHaltCache, clearMap])
+  return useMemo(() => ({ cache, setMapCache, setFractionCache, setHaltCache, clearMap }),
+    [cache, setMapCache, setFractionCache, setHaltCache, clearMap])
 }

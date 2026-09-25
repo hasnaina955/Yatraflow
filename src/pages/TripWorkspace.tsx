@@ -3,11 +3,11 @@
 // routing to the tab components in pages/trip/* (M3.4 split). Tabs:
 // Overview / Timeline / Map / Group input / Budget / Share. The former
 // Suggestions and Decisions tabs merged into `group` (old slugs redirect).
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Trip } from '../data/types'
 import { useDb, tripById, currentUser, roleOf, canEdit, updateTrip, userById, fetchSharedTrip } from '../store/store'
 import { PillNav } from '../components/PillNav'
-import { computeHealth, computeTotals, getAssumptions } from '../lib/engine'
+import { computeHealth, computeTotals, getAssumptions, isRoadMeasuredMode } from '../lib/engine'
 import type { LegEstimate } from '../lib/engine'
 import { buildRoadChain, measureRoadChain, correctionsFromLegs, type RoadStatus, type TripRoadView } from '../lib/tripRoad'
 import { computeImpact, type ImpactResult } from '../lib/impact'
@@ -35,6 +35,11 @@ import { ShareTab } from './trip/ShareTab'
 import { TripSettingsForm } from './trip/TripSettingsForm'
 import { cap } from './trip/shared'
 import { roadChainSig } from '../lib/tripRoad'
+import { keepIsStale, stagedChange } from '../lib/previewChain'
+
+/** A staged change: the proposed shape, its impact against the committed trip,
+ *  and an optional follow-up its caller runs when the change is kept. */
+type PendingChange = { proposed: Trip; result: ImpactResult; onKept?: () => void }
 
 type TabKey = 'overview' | 'timeline' | 'board' | 'map' | 'group' | 'budget' | 'share' | 'settings'
 
@@ -137,7 +142,18 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
   const suggestionCache = useSuggestionCache(tripId)
 
   // Pending change: a proposed plan held until the user keeps or discards it.
-  const [pending, setPending] = useState<{ proposed: Trip; result: ImpactResult; onKept?: () => void } | null>(null)
+  const [pending, setPending] = useState<PendingChange | null>(null)
+  /** The staged change mirrored in a ref: (a) a mutation scheduled in the same
+   *  tick as another, or from a stale closure, still CHAINS onto it (#334), and
+   *  (b) `baseRef` remembers the committed row the preview was built on, so
+   *  Keep can tell when a direct write landed underneath it. */
+  const pendingRef = useRef<PendingChange | null>(null)
+  const baseRef = useRef<Trip | null>(null)
+  const stage = useCallback((next: PendingChange | null) => {
+    pendingRef.current = next
+    if (!next) baseRef.current = null
+    setPending(next)
+  }, [])
 
   // Phase 3 (the living plan): a halt label on the map asks the timeline to open
   // that day. One-shot signal — TimelineTab consumes it on mount, then the
@@ -153,11 +169,28 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
   // defeat the DaySection React.memo on every workspace render.
   const applyChange = useCallback((mutator: (draft: Trip) => void, kind: ImpactResult['kind'], dayIndex: number, onKept?: () => void) => {
     if (!trip) return
-    const proposed = structuredClone(trip) as Trip
-    mutator(proposed)
+    // #334: chain onto the open preview instead of forking from the committed
+    // row — the fork silently discarded the first staged change. The impact is
+    // still measured against the committed trip, so the sheet shows the
+    // COMBINED delta, which is what Keep will actually write.
+    const staged = pendingRef.current
+    const proposed = stagedChange(trip, staged?.proposed ?? null, mutator)
     const result = computeImpact(trip, proposed, kind, dayIndex)
-    setPending({ proposed, result, onKept })
-  }, [trip])
+    // The baseline is recorded only when a NEW preview starts: a chain keeps
+    // the original, so a direct write that landed mid-preview still reads stale.
+    if (!staged) baseRef.current = trip
+    // A previous step's follow-up (the day plan's Fill Undo) survives a chain.
+    stage({ proposed, result, onKept: onKept ?? staged?.onKept })
+  }, [trip, stage])
+
+  // #334 pitfall: this workspace outlives trips (it is not keyed by trip id),
+  // so a pending preview must not survive a trip switch — Keep would write one
+  // trip's shape into another. Cleared on switch, and said out loud.
+  useEffect(() => {
+    if (!pendingRef.current) return
+    stage(null)
+    toast('Staged change discarded — you switched trips', 'err')
+  }, [trip?.id, stage])
 
   // F-16: a reload or tab close while a proposed change is pending silently
   // discards the preview the user is studying — ask before leaving. (The soft
@@ -194,9 +227,17 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
 
   function keepPending() {
     if (!pending || !trip) return
+    // #334: the preview is not modal, so a direct write (a resolved decision,
+    // an accepted suggestion, a realtime edit) can land while it is open.
+    // Saving the proposal would overwrite that edit with no trace, so refuse
+    // and let the person look — remove the preview, then redo the change.
+    if (keepIsStale(baseRef.current, trip)) {
+      toast('The plan changed while you were reviewing — remove this preview and redo the change.', 'err')
+      return
+    }
     const onKept = pending.onKept
     updateTrip(trip.id, pending.proposed)
-    setPending(null)
+    stage(null)
     // A caller carrying its own follow-up (the day plan's Fill, with its Undo)
     // speaks for the change; the generic confirmation would double-toast it.
     if (onKept) onKept()
@@ -204,29 +245,35 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
   }
 
   function removePending() {
-    setPending(null)
+    stage(null)
     toast('Change discarded')
   }
 
+  /** Move the previewed day's last stop to the day after it. #334: staged
+   *  THROUGH applyChange so the sheet's numbers describe what Save will write
+   *  (it used to commit on the spot while the pre-move preview was on screen). */
   function moveToAnotherDay() {
     if (!pending || !trip) return
-    const proposed = structuredClone(pending.proposed) as Trip
-    const day = proposed.days.find(d => d.index === pending.result.dayIndex)
-    if (day && day.stops.length) {
-      const sortedStops = [...day.stops].sort((a, b) => a.orderInDay - b.orderInDay)
-      const last = sortedStops[sortedStops.length - 1]
-      const nextDay = proposed.days.find(d => d.index === day.index + 1)
-      if (nextDay) {
-        day.stops = day.stops.filter(s => s.id !== last.id)
-        last.orderInDay = nextDay.stops.length + 1
-        nextDay.stops.push(last)
-        updateTrip(trip.id, proposed)
-        setPending(null)
-        toast(`Moved “${last.title}” to Day ${day.index + 2}`)
-        return
-      }
+    const dayIndex = pending.result.dayIndex
+    const day = pending.proposed.days.find(d => d.index === dayIndex)
+    const sorted = day ? [...day.stops].sort((a, b) => a.orderInDay - b.orderInDay) : []
+    const last = sorted[sorted.length - 1]
+    if (!last || !pending.proposed.days.some(d => d.index === dayIndex + 1)) {
+      toast('No later day available to move this stop to.', 'err')
+      return
     }
-    toast('No later day available to move this stop to.', 'err')
+    applyChange(draft => {
+      const from = draft.days.find(d => d.index === dayIndex)
+      const to = draft.days.find(d => d.index === dayIndex + 1)
+      if (!from || !to) return
+      const ordered = [...from.stops].sort((a, b) => a.orderInDay - b.orderInDay)
+      const moving = ordered[ordered.length - 1]
+      if (!moving) return
+      from.stops = from.stops.filter(s => s.id !== moving.id)
+      moving.orderInDay = to.stops.length + 1
+      to.stops.push(moving)
+    }, 'move-day', dayIndex)
+    toast(`Moved “${last.title}” to Day ${dayIndex + 2} — review and keep`)
   }
 
   return (
@@ -301,7 +348,7 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
       {tab === 'overview' && <OverviewTab trip={effective} editable={editable} onOpenDecisions={() => setTab('group')} onOpenTimeline={() => setTab('timeline')} onOpenMap={() => setTab('map')} onInvite={() => setTab('share')} health={health} totals={totals} road={road} corridorSegments={suggestionCache.cache.map?.segments} />}
       {/* key: the timeline holds per-trip view state (open-day accordion) —
           remount it when the workspace switches trips (e.g. browser back/forward). */}
-      {tab === 'timeline' && <TimelineTab key={effective.id} trip={effective} editable={editable} applyChange={applyChange} legCorrections={legCorrections} suggestionCache={suggestionCache} onOpenBoard={() => setTab('board')} focusDay={timelineFocusDay} onFocusConsumed={clearTimelineFocusDay} />}
+      {tab === 'timeline' && <TimelineTab key={effective.id} trip={effective} editable={editable} applyChange={applyChange} previewOpen={!!pending} legCorrections={legCorrections} suggestionCache={suggestionCache} onOpenBoard={() => setTab('board')} focusDay={timelineFocusDay} onFocusConsumed={clearTimelineFocusDay} />}
       {tab === 'board' && (
         <React.Suspense fallback={<div className="container loading-block"><div className="spinner" />Loading board…</div>}>
           <BoardView trip={effective} editable={editable} applyChange={applyChange} health={health} totals={totals}
@@ -310,11 +357,11 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
       )}
       {tab === 'map' && (
         <React.Suspense fallback={<MapTabSkeleton />}>
-          <MapTab trip={effective} editable={editable} applyChange={applyChange} suggestionCache={suggestionCache} crewSuggestions={db.suggestions.filter(s => s.tripId === trip.id)} decisions={db.decisions.filter(d => d.tripId === trip.id)} road={road} onOpenTimeline={() => setTab('timeline')} onOpenBoard={() => setTab('board')} onOpenDay={(dayIndex) => { setTimelineFocusDay(dayIndex); setTab('timeline') }} onOpenGroupInput={() => setTab('group')} />
+          <MapTab trip={effective} editable={editable} applyChange={applyChange} suggestionCache={suggestionCache} crewSuggestions={db.suggestions.filter(s => s.tripId === trip.id)} decisions={db.decisions.filter(d => d.tripId === trip.id)} road={road} onOpenTimeline={() => setTab('timeline')} onOpenBoard={() => setTab('board')} onOpenDay={(dayIndex) => { setTimelineFocusDay(dayIndex); setTab('timeline') }} onOpenGroupInput={() => setTab('group')} previewOpen={!!pending} />
         </React.Suspense>
       )}
-      {tab === 'group' && <GroupInputTab trip={effective} editable={editable} me={me} />}
-      {tab === 'budget' && <BudgetTab trip={effective} totals={totals} editable={editable} />}
+      {tab === 'group' && <GroupInputTab trip={effective} editable={editable} me={me} previewOpen={!!pending} />}
+      {tab === 'budget' && <BudgetTab trip={effective} totals={totals} editable={editable} previewOpen={!!pending} />}
       {tab === 'share' && <ShareTab trip={trip} me={me} editable={editable} onNavigate={onNavigate} legCorrections={legCorrections} />}
       {/* key=trip.id: TripSettingsForm holds local draft state in useState
            seeded from the trip at mount and never re-syncs, so without the key
@@ -346,9 +393,6 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
 }
 
 // ================= Real-road distance refinement (ONE measurement, #188) =================
-
-/** Road modes where OSRM's driving distances make sense as estimates. */
-const ROAD_MODES = ['car', 'motorcycle', 'taxi', 'bus', 'mixed']
 
 /**
  * The trip's single road measurement. Owns the one `routePath` chain (with its
@@ -399,7 +443,7 @@ function useTripRoad(trip: Trip | null | undefined): {
   // The engine only takes road numbers for ground modes (OSRM is driving-only);
   // anything else — and a failed or still-pending measurement — leaves the
   // deterministic haversine engine in charge, exactly as before.
-  const roadMode = !!trip?.transportMode && ROAD_MODES.includes(trip.transportMode)
+  const roadMode = !!trip?.transportMode && isRoadMeasuredMode(trip.transportMode)
   const corrections = useMemo(() => {
     if (!trip) return undefined
     if (!chain || !roadMode || chain.points.length < 2) return {}

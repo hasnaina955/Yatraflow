@@ -388,16 +388,33 @@ describe('the hub reads the funnel it says it does', () => {
   it('never claims an empty trend when the read itself failed', () => {
     // The bug this pins: with nothing to derive from, every row rendered "No
     // recorded traffic yet" — a claim about traffic made from a read that never
-    // happened. The failure branch is tested BEFORE `daily === null`, which is
-    // true both while loading and after a failure.
-    expect(hub).toMatch(/unread=\{funnelError\}/)
+    // happened. Two things keep that true, and the second is now the stronger:
+    // the chart voids only on `daily === null`, and the read's catch no longer
+    // CLEARS `daily`, so a failed refresh cannot take a loaded chart down with it.
+    // The row speaks the same three truths the panel does — figures, in flight,
+    // nothing to read — derived by the same function the ledger uses. Gating on the
+    // error flag made the rows withhold a log they already had; gating on a boolean
+    // made them announce "nothing to measure for this plan" under a panel saying
+    // "Reading…", a claim about traffic made before the read that reports it.
+    expect(hub).toMatch(/funnelRead=\{trafficRead\}/)
+    expect(hub).toMatch(/deriveLedgerRead\(\{ hasFigures: daily !== null, reading: funnelReading, error: funnelError \}\)/)
+    expect(hub).toMatch(/if \(funnelRead === 'reading'\)/)
+    expect(hub).toContain('Traffic still being read…')
     expect(hub).toContain('Traffic could not be read just now')
-    expect(hub).toMatch(/if \(unread\)/)
-    // `{funnelError` opens the chain; the load branch is `: daily === null`.
-    const failure = hub.indexOf('{funnelError')
-    const loading = hub.indexOf(': daily === null')
-    expect(loading).toBeGreaterThan(-1)
-    expect(failure).toBeLessThan(loading)
+    // The chain now opens with the IN-FLIGHT case, ahead of the failure sentence —
+    // the reverse of what it was, because every attempt is bounded and retryable:
+    // a read that failed and is being asked again is truthfully "reading", and a
+    // retry that renders the sentence it was pressed against is a dead button.
+    const reading = hub.indexOf("'Reading recorded traffic…'")
+    const failed = hub.indexOf("'Recorded traffic could not be read just now")
+    expect(reading).toBeGreaterThan(-1)
+    expect(failed).toBeGreaterThan(reading)
+    // The kept-log sentence, which exists only because the log survives a failure.
+    expect(hub).toMatch(/daily !== null && dailyAt !== null/)
+    expect(hub).toContain('showing the log read at')
+    // The guarantee in its strongest form: the catch sets the error flag and
+    // nothing else.
+    expect(hub).toMatch(/\.catch\(\(\) => \{ if \(alive\) setFunnelError\(true\) \}\)/)
   })
 
   it('explains a fork rate above 100% rather than clamping it', () => {

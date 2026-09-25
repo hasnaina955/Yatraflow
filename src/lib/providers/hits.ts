@@ -402,6 +402,8 @@ export interface NearbyOpts {
   transportMode?: string
   /** trip preference vector — favoured categories win scoring ties. */
   dnaVector?: DnaVector
+  /** Cancels an in-flight provider scan when a newer Map action supersedes it. */
+  signal?: AbortSignal
 }
 
 /**

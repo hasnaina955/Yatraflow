@@ -47,7 +47,15 @@ export class QuotaExhaustedError extends Error {
   }
 }
 
-async function placesPost(path: string, sku: QuotaSku, body: unknown, fieldMask: string): Promise<Record<string, unknown>> {
+function requestSignal(signal: AbortSignal | undefined): AbortSignal {
+  if (signal?.aborted) return AbortSignal.abort()
+  const timeout = AbortSignal.timeout(8000)
+  if (!signal) return timeout
+  const Any = AbortSignal as unknown as { any?: (sigs: AbortSignal[]) => AbortSignal }
+  return Any.any ? Any.any([signal, timeout]) : timeout
+}
+
+async function placesPost(path: string, sku: QuotaSku, body: unknown, fieldMask: string, signal?: AbortSignal): Promise<Record<string, unknown>> {
   if (!quotaAllows(sku)) throw new QuotaExhaustedError(sku)
   const res = await fetch(`${PLACES}${path}`, {
     method: 'POST',
@@ -57,10 +65,11 @@ async function placesPost(path: string, sku: QuotaSku, body: unknown, fieldMask:
       'X-Goog-FieldMask': fieldMask,
     },
     body: JSON.stringify(body),
-    signal: AbortSignal.timeout(8000),
+    signal: requestSignal(signal),
   })
   if (!res.ok) throw new Error(`places ${path} → HTTP ${res.status}`)
-  quotaCount(sku) // count the event only once a request actually went out
+  if (signal?.aborted) throw new DOMException('The request was aborted.', 'AbortError')
+  quotaCount(sku) // count the event only once a non-aborted request completed
   return res.json()
 }
 
@@ -128,14 +137,14 @@ interface PlacePrediction {
  * via Place Details. Sessionless by design: India pricing bills per-request
  * (70k free/month) and session usage is unlimited-free, so no session tokens.
  */
-export async function googleAutocomplete(q: string, indiaOnly = true): Promise<PlaceHit[]> {
+export async function googleAutocomplete(q: string, indiaOnly = true, signal?: AbortSignal): Promise<PlaceHit[]> {
   const input = q.trim()
   if (input.length < 2) return []
   const data = await placesPost('/places:autocomplete', 'autocomplete', {
     input,
     languageCode: 'en',
     ...(indiaOnly ? { includedRegionCodes: [REGION_CODE] } : {}),
-  }, AUTOCOMPLETE_MASK)
+  }, AUTOCOMPLETE_MASK, signal)
   const preds = ((data.suggestions ?? []) as { placePrediction?: PlacePrediction }[])
     .map(s => s.placePrediction)
     .filter((p): p is PlacePrediction => !!p?.placeId)
@@ -162,7 +171,7 @@ export async function googleAutocomplete(q: string, indiaOnly = true): Promise<P
 // exactly ONE Place Details call (Essentials SKU — 70k free/month in India;
 // one per pick ≈ 1,500/month at the report's 100-user scale ≈ 2%).
 
-export async function googleResolveHitCoords(hit: PlaceHit): Promise<PlaceHit> {
+export async function googleResolveHitCoords(hit: PlaceHit, signal?: AbortSignal): Promise<PlaceHit> {
   if (hasCoords(hit) || !hit.placeId) return hit
   if (!quotaAllows('placeDetails')) throw new QuotaExhaustedError('placeDetails')
   const res = await fetch(
@@ -173,10 +182,11 @@ export async function googleResolveHitCoords(hit: PlaceHit): Promise<PlaceHit> {
         // Place Details masks are root-level paths (no `places.` prefix)
         'X-Goog-FieldMask': 'id,location,formattedAddress',
       },
-      signal: AbortSignal.timeout(8000),
+      signal: requestSignal(signal),
     },
   )
   if (!res.ok) throw new Error(`places details → HTTP ${res.status}`)
+  if (signal?.aborted) throw new DOMException('The request was aborted.', 'AbortError')
   quotaCount('placeDetails')
   const p = (await res.json()) as { location?: { latitude?: number; longitude?: number } }
   const lat = p.location?.latitude
@@ -277,6 +287,7 @@ export interface AlongRouteArgs {
   includeFuel?: boolean
   /** When provided, searches use purpose-specific queries instead of the static tourist set. */
   purposes?: HaltPurpose[]
+  signal?: AbortSignal
 }
 
 /**
@@ -410,7 +421,7 @@ export async function googleNearbyAlongRoute(args: AlongRouteArgs): Promise<Plac
       maxResultCount: 10,
       languageCode: 'en',
       regionCode: REGION_CODE,
-    }, NEARBY_FIELD_MASK) as Promise<{ places?: GooglePlace[]; routingSummaries?: RoutingSummary[] }>,
+    }, NEARBY_FIELD_MASK, args.signal) as Promise<{ places?: GooglePlace[]; routingSummaries?: RoutingSummary[] }>,
   ))
   // {lat,lng} form of the same polyline the search ran along — the detour
   // reference for every hit (spurKm). Engine-free: the polyline may have been
@@ -452,6 +463,7 @@ export interface AtPointArgs {
   radiusM: number
   count: number
   includeFuel?: boolean
+  signal?: AbortSignal
 }
 
 /**
@@ -474,7 +486,7 @@ export async function googleNearbyAtPoint(args: AtPointArgs): Promise<PlaceHit[]
       maxResultCount: 10,
       languageCode: 'en',
       regionCode: REGION_CODE,
-    }, POINT_FIELD_MASK) as Promise<{ places?: GooglePlace[] }>,
+    }, POINT_FIELD_MASK, args.signal) as Promise<{ places?: GooglePlace[] }>,
   ))
   return hitsFromResponses(responses, queries, null)
 }
@@ -499,6 +511,7 @@ export interface SearchTextArgs {
    * 2026-09-24). Same Text Search Pro SKU either way.
    */
   routeCoords?: [number, number][] | null
+  signal?: AbortSignal
 }
 
 export async function googleSearchText(q: string, args?: SearchTextArgs): Promise<PlaceHit[]> {
@@ -519,7 +532,7 @@ export async function googleSearchText(q: string, args?: SearchTextArgs): Promis
     maxResultCount: 8,
     languageCode: 'en',
     regionCode: REGION_CODE,
-  }, POINT_FIELD_MASK) as Promise<{ places?: GooglePlace[] }>)]
+  }, POINT_FIELD_MASK, args?.signal) as Promise<{ places?: GooglePlace[] }>)]
   // No along-route geometry → no road detours; callers annotate with their
   // own route (routeKmOf/detourKm) exactly like the point-search surface.
   return hitsFromResponses(responses, [{ textQuery: needle, cat: 'sightseeing' }], null)
@@ -539,6 +552,7 @@ export async function googleCitiesAlong(
   anchors: { lat: number; lng: number }[],
   radiusM = 35000,
   count = 8,
+  signal?: AbortSignal,
 ): Promise<PlaceHit[]> {
   const capped = anchors.filter(a => Number.isFinite(a.lat) && Number.isFinite(a.lng)).slice(0, 6)
   if (capped.length === 0) return []
@@ -565,7 +579,7 @@ export async function googleCitiesAlong(
       maxResultCount: 8,
       languageCode: 'en',
       regionCode: REGION_CODE,
-    }, NEARBY_SEARCH_FIELD_MASK) as Promise<{ places?: GooglePlace[] }>,
+    }, NEARBY_SEARCH_FIELD_MASK, signal) as Promise<{ places?: GooglePlace[] }>,
   ))
   const seen = new Set<string>()
   const out: PlaceHit[] = []

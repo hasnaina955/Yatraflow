@@ -118,6 +118,7 @@ export interface SearchTextOpts {
   routeCoords?: [number, number][] | null
   /** Fallback corridor anchors when no route geometry is available — the free stack ranks against these. */
   anchors?: { lat: number; lng: number }[] | null
+  signal?: AbortSignal
 }
 
 export async function searchPlacesText(q: string, opts?: SearchTextOpts): Promise<PlaceHit[]> {
@@ -126,9 +127,10 @@ export async function searchPlacesText(q: string, opts?: SearchTextOpts): Promis
   let google: PlaceHit[] = []
   if (googleEnabled()) {
     try {
-      google = await googleSearchText(needle, { routeCoords: opts?.routeCoords })
+      google = await googleSearchText(needle, { routeCoords: opts?.routeCoords, signal: opts?.signal })
     } catch (e) {
       if (e instanceof QuotaExhaustedError) throw e // honest quota note, no fallback
+      if (opts?.signal?.aborted || (e instanceof DOMException && e.name === 'AbortError')) throw e
       // transient Google failure → degrade to the free stack (geocode-box contract)
     }
   }
@@ -193,19 +195,24 @@ async function googlePointScan(
   radiusM: number,
   count: number,
   maxAnchors = 4,
+  signal?: AbortSignal,
 ): Promise<PlaceHit[]> {
   const out: PlaceHit[] = []
   const seen = new Set<string | number>()
   for (const a of anchors.slice(0, maxAnchors)) {
     try {
-      const hits = await googleNearbyAtPoint({ lat: a.lat, lng: a.lng, radiusM, count })
+      if (signal?.aborted) throw new DOMException('The request was aborted.', 'AbortError')
+      const hits = await googleNearbyAtPoint({ lat: a.lat, lng: a.lng, radiusM, count, signal })
       for (const h of hits) {
         if (!h.id || seen.has(h.id)) continue
         seen.add(h.id)
         out.push(h)
       }
       if (out.length >= count) break
-    } catch { /* this anchor failed — try the next one */ }
+    } catch (err) {
+      if (err instanceof QuotaExhaustedError || signal?.aborted || (err instanceof DOMException && err.name === 'AbortError')) throw err
+      /* this anchor failed — try the next one */
+    }
   }
   return out
 }
@@ -240,7 +247,7 @@ export async function searchNearbyPoisMulti(
     try {
       const hits = await googleNearbyAlongRoute({
         routeCoords: route, count,
-        includeFuel: opts.includeFuel, purposes: opts.purposes,
+        includeFuel: opts.includeFuel, purposes: opts.purposes, signal: opts.signal,
       })
       if (hits.length > 0) return rankAndCap(hits, capped, radiusM, count, opts)
       // Round-trip routes (origin ≈ destination) legitimately return zero
@@ -248,11 +255,14 @@ export async function searchNearbyPoisMulti(
       // Google-only directive stays intact: supplement with point searches at
       // the first anchors rather than falling back to the free stack.
       if (isRoundTripRoute(route)) {
-        const pointHits = await googlePointScan(capped, radiusM, count)
+        const pointHits = await googlePointScan(capped, radiusM, count, 4, opts.signal)
         return rankAndCap(pointHits, capped, radiusM, count, opts)
       }
       return rankAndCap(hits, capped, radiusM, count, opts)
-    } catch { return [] as PlaceHit[] }
+    } catch (err) {
+      if (err instanceof QuotaExhaustedError || opts.signal?.aborted || (err instanceof DOMException && err.name === 'AbortError')) throw err
+      return [] as PlaceHit[]
+    }
   } else if (googleEnabled()) {
     // No route geometry (road measurement failed/pending): a multi-anchor
     // corridor must NOT collapse to one point search at the trip start —
@@ -262,12 +272,15 @@ export async function searchNearbyPoisMulti(
     // day chips) keep the one-anchor search.
     try {
       const hits = capped.length >= 2
-        ? await googlePointScan(capped, radiusM, count, 6)
+        ? await googlePointScan(capped, radiusM, count, 6, opts.signal)
         : await googleNearbyAtPoint({
-            lat: capped[0].lat, lng: capped[0].lng, radiusM, count, includeFuel: opts.includeFuel,
+            lat: capped[0].lat, lng: capped[0].lng, radiusM, count, includeFuel: opts.includeFuel, signal: opts.signal,
           })
       return rankAndCap(hits, capped, radiusM, count, opts)
-    } catch { return [] as PlaceHit[] }
+    } catch (err) {
+      if (err instanceof QuotaExhaustedError || opts.signal?.aborted || (err instanceof DOMException && err.name === 'AbortError')) throw err
+      return [] as PlaceHit[]
+    }
   }
   return searchNearbyPoisMultiFree(capped, radiusM, count, opts, opts.purposes)
 }
@@ -348,7 +361,10 @@ export async function planJourneyHalts(
     ? searchCitiesAlong(anchors, radiusM, 8).catch(() => [] as PlaceHit[])
     : Promise.all([
         searchCitiesAlong(cityAnchors, radiusM, 8).catch(() => [] as PlaceHit[]),
-        googleCitiesAlong(cityAnchors, radiusM, 8).catch(() => [] as PlaceHit[]),
+        googleCitiesAlong(cityAnchors, radiusM, 8, opts.signal).catch((err: unknown) => {
+          if (err instanceof QuotaExhaustedError || opts.signal?.aborted) throw err
+          return [] as PlaceHit[]
+        }),
       ]).then(([towns, localities]) => [...towns, ...localities])
   const [hits, cities] = await Promise.all([
     searchNearbyPoisMulti(anchors, radiusM, 16, { ...opts, purposes }).catch(() => [] as PlaceHit[]),

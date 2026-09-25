@@ -8,7 +8,6 @@ import type { Trip } from '../data/types'
 import type { PlaceHit } from '../lib/geocode'
 import { resolveHitCoords } from '../lib/geocode'
 import { hasCoords, mappablePois, projectOntoPolyline } from '../lib/providers/hits'
-import { routePath } from '../lib/routing'
 import { measureDayRide } from '../lib/tripRoad'
 import { buildJourney, getAssumptions, isRoundTrip } from '../lib/engine'
 import { clockHM, type ClockMilestone } from '../lib/clockOverlay'
@@ -373,7 +372,7 @@ const SLOT_PIN_GLYPH: Record<string, string> = {
   breakfast: 'B', lunch: 'L', fuel: 'F', stretch: 'S', dinner: 'D', stay: 'N',
 }
 
-export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusDay, onDayFilterChange, tripReadinessRows = [], showToolbar = true, enableMapViewModes = false, activeHitId = null, onActivateHit, onOpenInTimeline, onOpenInBoard, onDeleteStop, mainRouteGeometry = null, clockMilestones = null, onOpenHaltDay, onShowReturnChange, slotPins = [], onOpenSlot, hitCosts, searchHitIds }: {
+export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusDay, onDayFilterChange, tripReadinessRows = [], showToolbar = true, enableMapViewModes = false, activeHitId = null, onActivateHit, onOpenInTimeline, onOpenInBoard, onDeleteStop, mainRouteGeometry = null, returnRouteGeometry = null, allowSelfMeasurement = true, clockMilestones = null, onOpenHaltDay, onShowReturnChange, slotPins = [], onOpenSlot, hitCosts, searchHitIds }: {
   trip: Trip
   onOpenStop?: (stopId: string) => void
   /** potential POIs to show as gold "idea" markers */
@@ -405,10 +404,14 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   onActivateHit?: (id: string | number | null) => void
   /** stop-pin click offers a jump to the Timeline/Board tabs (Map tab §6.5) */
   onOpenInTimeline?: (stopId: string) => void
-  /** #184 shared road measurement — MapTab's routePath result for the whole-trip
-      chain (home + stops). When present, the all-days line reuses it instead of
-      firing a duplicate routePath; absent callers (Board view) self-measure. */
+  /** #184 shared road measurement — MapTab's already-measured whole-trip
+      outbound geometry. When present, all-days reuses it. */
   mainRouteGeometry?: [number, number][] | null
+  /** The measured drive-home geometry, when the workspace chain contains it. */
+  returnRouteGeometry?: [number, number][] | null
+  /** Board owns its fallback; the workspace-backed Map tab sets this false so
+      it never races a pending shared measurement. */
+  allowSelfMeasurement?: boolean
   onOpenInBoard?: (stopId: string) => void
   /** the travel clock projected onto the route as road milestones — one pin per
       planned anchor with its wall-clock time and road km on the side, plus the
@@ -918,30 +921,31 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
         const pts: { lat: number; lng: number }[] = allPoints.map(p => ({ lat: p.lat, lng: p.lng }))
         if (pts.length < 2) return
         const next: Record<string, [number, number][]> = {}
-        // #184: reuse the caller's road measurement when one arrived (MapTab
-        // already measured the same chain) — one routePath per map open, and
-        // the drawn line can never contradict the detour math again. Only a
-        // caller without the prop (Board view) measures here, and until the
-        // shared geometry arrives TripMap no longer races it with its own
-        // full chain: the routing layer's leg cache turns that double-
-        // measurement into cache hits once the workspace result lands.
+        // #323: the workspace-backed Map tab never measures here. Board has no
+        // shared chain, so it alone may use the same tripRoad measurement helper
+        // for its fallback. The return line is also supplied by the workspace
+        // chain when available, avoiding a second round-trip fetch.
         if (mainRouteGeometry && mainRouteGeometry.length > 1) {
           const shared = dedupeConsecutive(mainRouteGeometry)
           if (shared.length > 1) next.all = shared
-        } else {
-          try {
-            const legs = await routePath(pts, asm, signal)
-            const coords = legs.flatMap(l => l.geometry)
-            if (!cancelled && coords.length > 1) next.all = dedupeConsecutive(coords)
-          } catch { /* straight-line fallback below */ }
+        } else if (allowSelfMeasurement) {
+          const outcome = await measureDayRide(pts, asm, { signal })
+          if (!cancelled && outcome.ok) {
+            const coords = outcome.legs.flatMap(l => l.geometry)
+            if (coords.length > 1) next.all = dedupeConsecutive(coords)
+          }
         }
-        // return drive home — real roads when OSRM answers, straight line otherwise
         if (returnLeg) {
-          try {
-            const legs = await routePath([returnLeg.from, returnLeg.home], asm, signal)
-            const coords = legs.flatMap(l => l.geometry)
-            if (!cancelled && coords.length > 1) next.return = dedupeConsecutive(coords)
-          } catch { /* keep straight line */ }
+          if (returnRouteGeometry && returnRouteGeometry.length > 1) {
+            const coords = dedupeConsecutive(returnRouteGeometry)
+            if (coords.length > 1) next.return = coords
+          } else if (allowSelfMeasurement) {
+            const outcome = await measureDayRide([returnLeg.from, returnLeg.home], asm, { signal })
+            if (!cancelled && outcome.ok) {
+              const coords = outcome.legs.flatMap(l => l.geometry)
+              if (coords.length > 1) next.return = dedupeConsecutive(coords)
+            }
+          }
         }
         if (!cancelled) setGeom(next)
       } else {
@@ -976,7 +980,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
       }
     })()
     return () => { cancelled = true; ac.abort() }
-  }, [chainKey, dayRoutesKey, dayFilter, returnLeg, mainRouteGeometry]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [chainKey, dayRoutesKey, dayFilter, returnLeg, mainRouteGeometry, returnRouteGeometry, allowSelfMeasurement]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Turn-by-turn directions for the selected day's ride in the traveller's own
   // Google Maps — the in-app map plots the route but doesn't navigate. Hidden

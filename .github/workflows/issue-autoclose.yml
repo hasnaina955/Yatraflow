@@ -43,6 +43,8 @@ jobs:
           node-version: 22
 
       - name: Close referenced issues
-        run: node scripts/pr-auto-close.mjs
+        # The event payload goes in on stdin so the script never opens a
+        # dynamic path (static scanners flag that; Codacy did on first land).
+        run: node scripts/pr-auto-close.mjs < "$GITHUB_EVENT_PATH"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

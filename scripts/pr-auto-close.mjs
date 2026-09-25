@@ -9,8 +9,11 @@
 // grammar and closes the referenced issues with a landing comment.
 //
 // Run by .github/workflows/issue-autoclose.yml with the default Actions env
-// (GITHUB_TOKEN, GITHUB_REPOSITORY, GITHUB_EVENT_PATH). The pure parts
-// (stripCode / parseClosingIssueRefs / buildComment) are exported for
+// (GITHUB_TOKEN, GITHUB_REPOSITORY) and the event payload PIPED ON STDIN —
+// `node scripts/pr-auto-close.mjs < "$GITHUB_EVENT_PATH"` — so the module never
+// opens a dynamic path (static scanners flag that pattern, and it was a Codacy
+// finding on first landing). The pure parts (stripCode /
+// parseClosingIssueRefs / buildComment) are exported for
 // tests/pr-auto-close.test.ts — keep them side-effect free.
 import { readFileSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
@@ -23,7 +26,6 @@ export function stripCode(text) {
     .replace(/`[^`\n]*`/g, ' ')
 }
 
-const KEYWORD_RE = /\b(close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s*:?\s*/gi
 // `#12`, `GH-12`, or a full issue URL — GitHub's three reference spellings.
 const REF_RE = /^(?:(?:#|GH-)(\d+)|https:\/\/github\.com\/[^/\s]+\/[^/\s]+\/issues\/(\d+))/i
 const SEP_RE = /^\s*(?:,\s*and\s+|,\s*|\s+and\s+|\s+)/
@@ -36,7 +38,10 @@ const SEP_RE = /^\s*(?:,\s*and\s+|,\s*|\s+and\s+|\s+)/
 export function parseClosingIssueRefs(text) {
   const clean = stripCode(text)
   const found = []
-  const kw = new RegExp(KEYWORD_RE.source, 'gi')
+  // A literal per call, not a rebuilt module constant: global regexes carry
+  // lastIndex state, and a fresh literal keeps callers independent. (A
+  // `new RegExp(name.source)` also trips the non-literal-constructor lint.)
+  const kw = /\b(close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s*:?\s*/gi
   let m
   while ((m = kw.exec(clean)) !== null) {
     let pos = kw.lastIndex
@@ -64,13 +69,14 @@ export function buildComment(prNumber, mergeSha) {
 async function main() {
   const token = process.env.GITHUB_TOKEN
   const repo = process.env.GITHUB_REPOSITORY
-  const eventPath = process.env.GITHUB_EVENT_PATH
-  if (!token || !repo || !eventPath) {
-    console.error('issue-autoclose: GITHUB_TOKEN, GITHUB_REPOSITORY and GITHUB_EVENT_PATH are required')
+  if (!token || !repo) {
+    console.error('issue-autoclose: GITHUB_TOKEN and GITHUB_REPOSITORY are required')
     process.exitCode = 1
     return
   }
-  const event = JSON.parse(readFileSync(eventPath, 'utf8'))
+  // The event payload arrives on STDIN (fd 0 is a literal, so no scanner has
+  // to reason about a dynamic path). The workflow pipes $GITHUB_EVENT_PATH in.
+  const event = JSON.parse(readFileSync(0, 'utf8'))
   const pr = event.pull_request
   if (!pr?.merged) {
     console.log('issue-autoclose: not a merged PR — nothing to do')

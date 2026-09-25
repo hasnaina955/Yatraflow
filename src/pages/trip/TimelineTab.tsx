@@ -31,6 +31,7 @@ import { RemoteEditBanner } from '../../components/RemoteEditBanner'
 import { useStopConflict } from '../../components/useStopConflict'
 import { stopInitialValues, stopLegContext, stopEditorKey, stopDayIndex, type StopEditorTarget } from '../../lib/stopForm'
 import { useSuggestionCache } from '../../hooks/useSuggestionCache'
+import { PREVIEW_BUSY } from '../../lib/previewChain'
 import { kmFromStartForHit } from '../../lib/providers/hits'
 import { useTimelineMode, type TimelineMode } from './timeline/useTimelineMode'
 import { PillNav } from '../../components/PillNav'
@@ -241,7 +242,7 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
   const handleRenameDay = useCallback((dayIndex: number, title: string) => {
     // #334: this writes the committed row directly, so while a preview is open
     // it would race the staged change in either order and one edit would fall.
-    if (previewOpen) { toast('Keep or remove your staged change first.', 'err'); return }
+    if (previewOpen) { toast(PREVIEW_BUSY, 'err'); return }
     updateTrip(trip.id, { days: trip.days.map(d => d.index === dayIndex ? { ...d, title: title.trim() || undefined } : d) })
     toast('Day renamed')
   }, [trip, previewOpen])
@@ -274,7 +275,7 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
   /** Ride start time for a day — a lightweight plan field, applied directly (like rename). */
   const handleSetDayStart = useCallback((dayIndex: number, time: string) => {
     // #334: direct write, same race as the rename — blocked while previewing.
-    if (previewOpen) { toast('Keep or remove your staged change first.', 'err'); return }
+    if (previewOpen) { toast(PREVIEW_BUSY, 'err'); return }
     updateTrip(trip.id, { days: trip.days.map(d => d.index === dayIndex ? { ...d, startTime: time || undefined } : d) })
     toast(time ? `Day ${dayIndex + 1} now starts ${time}` : 'Ride start reset to the default')
   }, [trip, previewOpen])
@@ -301,10 +302,14 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
   }, [applyChange, legCorrections])
 
   const handleStatus = useCallback((stop: ItineraryStop, status: ItineraryStop['status']) => {
-    // Status flips are lightweight group signals — applied directly.
+    // Status flips are lightweight group signals — applied directly to the
+    // committed row, so #334 refuses them while a preview is open: the flip
+    // would land on the cache, and Keep would then write the proposal the
+    // preview was built from, silently reverting it.
+    if (previewOpen) { toast(PREVIEW_BUSY, 'err'); return }
     setStopStatus(trip.id, status, stop.id)
     toast(`“${stop.title}” marked ${status === 'needs-booking' ? 'needs booking' : status}`)
-  }, [trip.id])
+  }, [trip.id, previewOpen])
 
   // --- Plan / Inspect (docs/TIMELINE-PLAN.md Phase 3): Inspect is the study
   // view — same data, every editing affordance off (the existing `editable`

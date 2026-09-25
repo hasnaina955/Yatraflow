@@ -3,8 +3,11 @@
 // proposal — the first staged change vanished with no toast, no merge and no
 // warning. The policy is to CHAIN (the issue's Option A): the second mutation
 // builds on the staged proposal and the sheet reports the combined delta, while
-// the impact stays measured against the committed trip. These fixtures pin the
-// pure composition and tripwire the two surfaces that must not race it.
+// the impact stays measured against the committed trip. The one thing that is
+// NOT staged is a direct-cache crew signal — an accepted suggestion, a resolved
+// decision, a status flip — which refuses instead, so no resolution ever lives
+// inside somebody's unkept preview. These fixtures pin the pure composition and
+// tripwire every surface that must not race it.
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { keepIsStale, previewBase, stagedChange } from '../src/lib/previewChain'
@@ -80,9 +83,23 @@ describe('the surfaces that must not race a preview (#334)', () => {
     expect(src).toMatch(/Staged change discarded — you switched trips/)
   })
 
-  it('day rename and ride-start are refused while a preview is open', () => {
+  it('day rename, ride start and status flips are refused while a preview is open', () => {
     const src = readFileSync(new URL('../src/pages/trip/TimelineTab.tsx', import.meta.url), 'utf8')
-    const guards = src.match(/if \(previewOpen\) \{ toast\('Keep or remove your staged change first\.', 'err'\); return \}/g) ?? []
-    expect(guards).toHaveLength(2) // rename AND ride start — both write the committed row
+    const guards = src.match(/if \(previewOpen\) \{ toast\(PREVIEW_BUSY, 'err'\); return \}/g) ?? []
+    expect(guards).toHaveLength(3) // rename, ride start AND status flip — all write the committed row
+    // One spelling of the refusal, shared with the group tab (no drifting twins).
+    expect(src).toMatch(/import \{ PREVIEW_BUSY \} from '\.\.\/\.\.\/lib\/previewChain'/)
+  })
+
+  it('accepting a suggestion and resolving a decision wait for the preview', () => {
+    const src = readFileSync(new URL('../src/pages/trip/GroupInputTab.tsx', import.meta.url), 'utf8')
+    // ONE refusal helper, spoken by exactly the two crew-signal writers (the
+    // definition takes a typed parameter, so it is not among these two).
+    expect(src.match(/refuseWhilePreviewing\(previewOpen\)/g) ?? []).toHaveLength(2)
+    expect(src).toMatch(/function refuseWhilePreviewing\(previewOpen: boolean \| undefined\): boolean \{/)
+    expect(src).toMatch(/toast\(PREVIEW_BUSY, 'err'\)/)
+    // …and the workspace actually tells the tab that a preview is open.
+    const ws = readFileSync(new URL('../src/pages/TripWorkspace.tsx', import.meta.url), 'utf8')
+    expect(ws).toMatch(/<GroupInputTab trip=\{effective\} editable=\{editable\} me=\{me\} previewOpen=\{!!pending\} \/>/)
   })
 })

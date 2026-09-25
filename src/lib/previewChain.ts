@@ -30,6 +30,16 @@ export function stagedChange(committed: Trip, staged: Trip | null, mutator: (dra
   return proposed
 }
 
+/** The one refusal a direct-cache writer speaks while a preview is open.
+ *
+ *  Resolved decisions and accepted suggestions are CREW signals written
+ *  straight to the cache — they are deliberately NOT staged into the preview.
+ *  Staging one would put a resolution the rest of the group cannot see inside a
+ *  proposal its author might never keep; the group's own record (votes, tally,
+ *  feed) would then disagree with the timeline. So they wait: the preview is a
+ *  study-and-commit surface, not a second place for the crew to vote. */
+export const PREVIEW_BUSY = 'Keep or remove your staged change first.'
+
 /** True when the committed row is no longer the object the preview was built
  *  on — a direct write (a resolved decision, an accepted suggestion, a realtime
  *  edit) landed while the preview was open, so saving the proposal would

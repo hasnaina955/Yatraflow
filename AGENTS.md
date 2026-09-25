@@ -289,6 +289,12 @@ Key locations:
    manually with a landing comment (merge SHA + PR number). After merging a
    PR into `test`, verify with `gh issue view` and close the referenced issues
    yourself — the tracker must mirror reality, not the keyword's promise.
+   **Automation (same day):** `.github/workflows/issue-autoclose.yml` mirrors
+   the tracker on every PR merged into `test` (keyword grammar in
+   `scripts/pr-auto-close.mjs`, pinned by `tests/pr-auto-close.test.ts`) and
+   leaves a landing comment on each issue it closes. Still verify after a
+   merge, and close by hand when that job is red — the rule is the mirror, not
+   the mechanism.
 
 
 ## 3. Verification before every push

@@ -360,6 +360,27 @@ Key locations:
    withheld field with no day key to filter on gets the honest rule — an
    unentitled viewer of a priced plan receives no money at all — because a
    partial strip leaves exactly the breakdown the copy says is withheld.
+ 6n. **"Deployed" is not "launched": a build-time flag's switch is part of its
+   release, and its dark default is deliberately asymmetric (learned
+   2026-09-25, #427).** The v0.65.0 create funnel was fully deployed to
+   production and fully invisible there — `/new` loaded, the app rendered, and
+   all seven phases were missing — because `VITE_CREATE_FUNNEL` was never set in
+   Vercel and **no test, check or deploy step can see that**: Vite inlines
+   `VITE_*` at build time and "unset" is a valid state. The asymmetry is the
+   trap: unset means *all on* in a dev build and *dark* in a production one (so
+   `test` can dark-run a phase before `main` sees it), so a dark production
+   build reads as a broken feature rather than a missing switch — never "fix" it
+   by changing the default. Prove a deployed flag without trusting the dashboard
+   by **content-addressed chunk hash equality**: a local build with the variable
+   unset emitted `featureFlags-Exwc-GsR.js` containing `t(void 0,!1)`, the same
+   chunk name production served, so production's baked value was provably
+   `undefined` — the same trick `docs/DEPLOYMENT.md` already documents for
+   `index-<hash>.js`. What ships with the flag: a row in the deploy table (not
+   just a line in the release notes), a source-text test keeping the documented
+   phase list identical to the `createFunnelOn()` call sites (a typo in the
+   deployed value darkens exactly one phase while the rest light up), and a
+   **production-only warning** in `vite.config.ts` — warn, never abort, because
+   a preview branch dark-running a phase is what the flag is for.
  7. **When asking the user to review/test locally, always hand them the exact
    URL — never make them find or start the server.** Check if the dev server
    is up (probe `http://localhost:5173`); if not, start `npm run dev`

@@ -52,6 +52,12 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
   // it is only ever the copy the server served AFTER the entitlement existed
   // (see unlockThis), and it doubles as the reveal's open/closed state.
   const [revealTrip, setRevealTrip] = useState<Trip | null>(null)
+  // #349 — which of the two wins is settled in the STORE, not here: every
+  // fetchPublicTrip REPLACES the cached row for that id, so `cachedTrip` is the
+  // wire's row for this viewer as of the last read and cannot shadow a fresher
+  // one. Rendering the cached copy first is therefore not a preference between
+  // stale and fresh — after a paid unlock both are the real days. (Preferring
+  // `fetched` here as well would be a second mechanism for one question.)
   const trip: Trip | undefined = cachedTrip ?? fetched ?? undefined
   const { isSaved, toggleSaved } = useSavedPubs()
   const heroAuto = useDestinationCover(pub ? (pub.routeSummary.length ? pub.routeSummary : [pub.title]) : null)

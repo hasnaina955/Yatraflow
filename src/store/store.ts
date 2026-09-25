@@ -893,8 +893,9 @@ export async function fetchSharedTrip(tripId: ID, allowInvitePreview = false): P
  * "trips read" policy), so an anonymous curl can no longer pull premium day
  * content off the table.
  *
- * Merged into the cache like fetchSharedTrip; returns null for an unknown
- * publication or a deleted/unpublished trip.
+ * Merged into the cache by REPLACING any row for the same id (#349) rather
+ * than inserting only when absent; returns null for an unknown publication or
+ * a deleted/unpublished trip.
  */
 export async function fetchPublicTrip(pubId: string): Promise<Trip | null> {
   const rpc = await supabase.rpc('get_public_trip', { p_pub_id: pubId })
@@ -904,12 +905,37 @@ export async function fetchPublicTrip(pubId: string): Promise<Trip | null> {
   }
   const rows = rpc.data as TripRow[] | null
   if (!Array.isArray(rows) || rows.length === 0) return null
-  const trip = rowToTrip(rows[0], [])
-  recordServerTripTimestamp(trip.id, trip.updatedAt)
-  if (!cache.trips.some(t => t.id === trip.id)) {
-    cache.trips = [...cache.trips, trip]
-    commit()
+  const fetched = rowToTrip(rows[0], [])
+  // #349 — the RPC is the server truth FOR THIS VIEWER on every call, so a
+  // re-fetch has to REPLACE the cached row. Insert-if-absent is what kept the
+  // public page locked after a paid unlock: the re-read answered with real
+  // days while `tripById` went on serving the pre-purchase stub, so the page
+  // body (`cachedTrip ?? fetched`) and the fork both stayed on placeholders
+  // until a reload. The same convergence runs the other way when a publication
+  // changes what it withholds. One mechanism, not two: the page keeps reading
+  // the store, and the store keeps up with the wire.
+  //
+  // The one thing the RPC cannot carry is `members` — rowToTrip is handed an
+  // empty list — so a cached membership is carried over into the replacement
+  // instead of being dropped. It is the vote quorum's denominator and has
+  // nothing to do with the paywall.
+  const existing = cache.trips.find(t => t.id === fetched.id)
+  // Same two guards the realtime handler uses, for the same reasons: a strictly
+  // older row is a replay of something we already applied (the ledger holds the
+  // newest server clock this session has seen), and a write this session just
+  // made still outranks the wire — its echo is on the way with this same row.
+  if (existing && isStaleServerRow(serverTripTimestamps.get(fetched.id), fetched.updatedAt)) {
+    return existing
   }
+  if (existing && isRecentLocalWrite(recentLocalWrites, 'trips', fetched.id, Date.now())) {
+    return existing
+  }
+  recordServerTripTimestamp(fetched.id, fetched.updatedAt)
+  const trip = existing ? { ...fetched, members: existing.members ?? [] } : fetched
+  cache.trips = existing
+    ? cache.trips.map(t => (t.id === trip.id ? trip : t))
+    : [...cache.trips, trip]
+  commit()
   return trip
 }
 

@@ -205,6 +205,27 @@ Key locations:
    its `label` ("Overnight + fuel"), not its singular `purpose` — a consumer
    filtering `purpose === 'fuel'` drops nearly every planned refuel on a
    multi-day corridor (measured: 3 planned, 0 surfaced). Match the label too.
+ 6h. **An insert-if-absent cache merge is a staleness bug waiting for a state
+   change — and a new tripwire must be run against the PRE-FIX source (learned
+   2026-09-25).** `fetchPublicTrip` merged its row with `if (!some(…))`, which is
+   fine while a row never changes and wrong the moment one does: after a paid
+   unlock the same RPC answered with real days while `tripById` kept serving the
+   pre-purchase stub, so the page body and the fork both stayed on placeholders
+   until a reload (#349). **When a reader is server-authoritative, the merge is a
+   REPLACE** — and if it writes `cache.trips` it must honor the two guards the
+   realtime handler already uses (`isStaleServerRow` against
+   `serverTripTimestamps`, `isRecentLocalWrite` against the echo window) or the
+   echo of a local write starts fighting the fetch. Companion trap: a "trust
+   flag" parameter that is accepted and ignored is worse than none — wire it to a
+   POSITIVE only and never trust its negative, because a page's flag is `false`
+   while its own entitlement read is still in flight, which is exactly when a
+   buyer who just paid clicks the button.
+   **Proving the test is not vacuous:** a tripwire written after the fix tends to
+   pass for the fix's own reasons, so stash the implementation and watch it fail —
+   `git stash push -q -- src/store/store.ts src/lib/forkPub.ts` → run the new
+   suite → `git stash pop -q`. Eight of #349's eleven tests fail that way; the
+   other three are the fail-closed controls, which SHOULD pass before the fix
+   too. Do this before every fix-verifying commit, not just this one.
 7. **When asking the user to review/test locally, always hand them the exact
    URL — never make them find or start the server.** Check if the dev server
    is up (probe `http://localhost:5173`); if not, start `npm run dev`

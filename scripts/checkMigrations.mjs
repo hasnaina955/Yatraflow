@@ -210,6 +210,13 @@ export const NO_PROBE_SURFACE = {
     // schema.sql mirror by tests/prune-pub-events-lockdown.test.ts.
     reason: 'grants only — `prune_pub_events` is re-granted rather than created, so presence answers nothing; the live role list is asserted by the RLS contract suite and the mirror by tests/prune-pub-events-lockdown.test.ts',
   },
+  '20260928_public_trip_fail_closed.sql': {
+    // Redefines a function that already exists: presence answers nothing about
+    // whether the guards are in the body a fresh apply leaves behind. That is
+    // pinned by tests/public-trip-fail-closed.test.ts, which reads the newest
+    // definition and asserts #350/#351 survive alongside #352/#353.
+    reason: 'redefines `get_public_trip` — the function exists before and after, so presence answers nothing; the body is pinned by tests/public-trip-fail-closed.test.ts and its behaviour by the RLS contract suite',
+  },
 }
 
 /** The plan: one entry per migration file, with its probes and the reason none

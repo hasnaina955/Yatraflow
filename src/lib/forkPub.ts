@@ -12,11 +12,21 @@ const LOCKED_STOP_DESCRIPTION = 'Locked — the full plan is on the original iti
  *  publication's free list, EVEN IF the session's copy somehow carries real
  *  content. The server (get_public_trip) already stubs at the wire; this
  *  mirrors it so a stale cached row or a missed RLS update can never turn
- *  into a fork of paid content. Same field shape as buildTripCopy. */
-function restubLockedDays(src: Trip, freeDayIndexes: number[]): Trip {
+ *  into a fork of paid content. Same field shape as buildTripCopy.
+ *
+ *  #352 — `stripMoney` empties the trip's expenses and fixed commitments for
+ *  the same reason the RPC does: the page's own locked copy promises the
+ *  BUDGET BREAKDOWN is in the full plan, so a viewer who has not bought it
+ *  must not receive it through a fork either. The flag is passed in from the
+ *  publication's price rather than derived here, because the rule is "priced
+ *  and not entitled" and not "has locked days": a trip-level expense carries
+ *  no `dayIndex` for a filter to key on, and a row whose days came back empty
+ *  would otherwise read as having nothing locked at all. */
+function restubLockedDays(src: Trip, freeDayIndexes: number[], stripMoney: boolean): Trip {
   const free = new Set(freeDayIndexes)
   return {
     ...src,
+    ...(stripMoney ? { expenses: [], fixedCommitments: [] } : {}),
     days: src.days.map(d => free.has(d.index) ? d : {
       ...d,
       stops: d.stops.map(s => ({
@@ -92,16 +102,23 @@ export async function forkPublication(pub: PublishedItinerary, meId: string | nu
   // entitlement) forks the locked shape. Nothing a client can say widens this —
   // the wire already decided what content exists.
   const unlockedFork = entitled && wireRow !== null && !wireWithheld(src, pub.freeDayIndexes)
-  const safe = unlockedFork ? src : restubLockedDays(src, pub.freeDayIndexes)
-  // Days the publication withholds that are still stubbed in the copy: the
-  // public persist path drops the expenses and fixed commitments that ride on
-  // them (get_public_trip stubs stop CONTENT at the wire and leaves those to
-  // the copy, see the migration's note). A buyer's full fork takes the plain
-  // path, because none of it is being withheld from them.
-  const hasLockedDays = !unlockedFork && src.days.some(d => !pub.freeDayIndexes.includes(d.index))
-  const { persisted } = hasLockedDays
-    ? await duplicateTripPublicPersisted(safe, meId, pub.freeDayIndexes)
-    : await duplicateTripPersisted(safe, meId)
+  // #352 — the money rides the same decision the wire makes: a priced
+  // publication withholds its budget breakdown from a viewer who has not
+  // bought it, so the re-stub empties it here too. `premiumPriceInr` is the
+  // publication's own row — the field the RPC keys on.
+  const safe = unlockedFork ? src : restubLockedDays(src, pub.freeDayIndexes, (pub.premiumPriceInr ?? 0) > 0)
+  // #352 — and the persist branch keys on the SERVER's decision, not on the
+  // shape of the row in hand. `src.days.some(...)` used to decide it, which
+  // read a wire-stubbed row whose days came back empty (the RPC's own
+  // fail-closed corrupt-days branch) as "nothing is locked" and took the
+  // UNFILTERED full-copy path with the money still attached. Everything the
+  // server did not hand over in full now goes through the public persist path,
+  // which is also correct for an all-free publication: it keeps trip-level
+  // expenses and every free day, so nothing the viewer may have is lost
+  // (buildTripCopy's filter keeps `e.dayIndex === undefined`).
+  const { persisted } = unlockedFork
+    ? await duplicateTripPersisted(safe, meId)
+    : await duplicateTripPublicPersisted(safe, meId, pub.freeDayIndexes)
   if (!persisted) {
     toast('Could not save the forked trip — check your connection and try again.', 'err')
     return false

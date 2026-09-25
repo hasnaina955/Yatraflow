@@ -325,8 +325,10 @@ describe('#349 — the fork asks the wire and the entitlement, never the cache',
     // entitlement read.
     expect(fn).toMatch(/unlockedPresentationOnly === true\s*\n?\s*\|\| hasUnlock\(await fetchMyEntitlements\(meId\)/)
     // The re-stub stays the default and the public persist path stays the one
-    // that drops locked-day expenses.
-    expect(fn).toContain('restubLockedDays(src, pub.freeDayIndexes)')
+    // that drops locked-day expenses. #352 added the money flag to the re-stub
+    // and made the persist path the default for every fork the server did not
+    // hand over in full, so the branch no longer depends on `src.days`.
+    expect(fn).toContain('restubLockedDays(src, pub.freeDayIndexes,')
     expect(fn).toMatch(/duplicateTripPublicPersisted\(safe, meId, pub\.freeDayIndexes\)/)
   })
 })

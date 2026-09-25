@@ -84,6 +84,11 @@ export function quotaUsed(sku: QuotaSku): number {
   return readCount(sku)
 }
 
+/** True when any of the supplied SKUs has reached its safety pause. */
+export function anyQuotaExhausted(...skus: QuotaSku[]): boolean {
+  return skus.some(sku => !quotaAllows(sku))
+}
+
 /** test hook — wipe every stored counter */
 export function quotaResetForTests(): void {
   memory.clear()

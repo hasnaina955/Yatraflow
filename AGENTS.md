@@ -338,7 +338,29 @@ Key locations:
    second and independent way to build the database, so a grant fixed only in
    the migration series leaves a fresh `schema.sql` instance wide open. Fix both
    and let a test compare them.
-7. **When asking the user to review/test locally, always hand them the exact
+ 6m. **A redefinition inherits the holes of the body it copies — and a comment
+   claiming a field is unused is a hypothesis, not evidence (learned
+   2026-09-25, #352/#353).** `get_public_trip` was rewritten three times in one
+   week (#350, then #351, then #352/#353), and the third rewrite is where two
+   long-standing holes finally got fixed: `free_day_indexes` was read with no
+   shape guard, so a scalar in that column makes the RPC raise and the public
+   page shows "didn't load" for **every** visitor (an availability bug, not a
+   disclosure one — failing closed still takes the page down), and the trip's
+   `expenses` and `fixed_commitments` were served in full while the days were
+   stripped. Both had been carried forward **verbatim** by the two rewrites
+   that were busy fixing something else, which is the trap: when you
+   `create or replace` a body you own every unguarded input in it, so read the
+   whole body looking for the input its neighbour loops guard and it does not
+   (this one guarded days, day indexes, stops and corrupt arrays, and missed
+   the free-day list). The second half is worse than a bug: the note this fix
+   deleted asserted the public page "renders neither" money field — written
+   from reading the component's imports instead of grepping for the field. The
+   page calls `computeTotals(trip)`, which reads `trip.expenses`, and its own
+   locked copy promises "the budget breakdown [is] in the full plan". A
+   withheld field with no day key to filter on gets the honest rule — an
+   unentitled viewer of a priced plan receives no money at all — because a
+   partial strip leaves exactly the breakdown the copy says is withheld.
+ 7. **When asking the user to review/test locally, always hand them the exact
    URL — never make them find or start the server.** Check if the dev server
    is up (probe `http://localhost:5173`); if not, start `npm run dev`
    detached (`Start-Process npm.cmd -ArgumentList 'run','dev'` in PowerShell,

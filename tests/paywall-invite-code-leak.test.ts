@@ -163,11 +163,17 @@ describe('#351 — the anon paywalled RPC cannot hand out a capability', () => {
   it('the definition a fresh database ends up with is the fixed one — and it keeps #350', () => {
     const files = defining('get_public_trip')
 
-    // More than one file defines it (#350 and this fix), so name order decides.
+    // More than one file defines it (#350, this fix, then #352/#353), so name
+    // order decides — and it now decides in a LATER file's favour. That is the
+    // point of this test rather than an inconvenience: the fix has to survive
+    // every subsequent redefinition, so the assertions below run against the
+    // newest one, and the loop at the end of this block applies the same rule
+    // to anything added after it.
+    const NEWEST = '20260928_public_trip_fail_closed.sql'
     expect(files.length).toBeGreaterThan(1)
-    expect(files[files.length - 1]).toBe(MIGRATION)
+    expect(files[files.length - 1]).toBe(NEWEST)
 
-    const code = sqlCode(sqlFunction(src(`../supabase/migrations/${MIGRATION}`), 'get_public_trip'))
+    const code = sqlCode(sqlFunction(src(`../supabase/migrations/${NEWEST}`), 'get_public_trip'))
     // Trade one hole for another? The soft-unpublish gate has to survive the
     // rewrite that removes the `select *`.
     expect(code).toMatch(/if v_pub\.unpublished_at is not null then/)

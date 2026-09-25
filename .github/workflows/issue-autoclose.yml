@@ -1,0 +1,50 @@
+name: Issue auto-close
+
+# AGENTS.md rule 12 — GitHub's closing keywords (`Closes #N`) only fire when a
+# PR merges into the DEFAULT branch (`main`), but this repo integrates on
+# `test`. Every fix that lands there therefore leaves its issues OPEN: the
+# Wave-0 map merges (#380/#399) carried seven closing keywords and closed
+# nothing until each issue was closed by hand. This workflow mirrors the
+# tracker — when a PR merges into `test`, the issues its body references with a
+# closing keyword get closed with a landing comment (see
+# scripts/pr-auto-close.mjs for the keyword grammar, which tests pin).
+#
+# It runs only on MERGED PRs (`merged == true`), so a closed-unmerged PR
+# changes nothing. The checkout uses the merge commit, whose tree always
+# contains the script — including on the very merge that first lands it.
+#
+# If this job is ever red, fall back to closing by hand (rule 12 still holds);
+# the tracker must mirror reality, not the keyword's promise.
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [test]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  close-issues:
+    name: Close issues referenced by the merged PR
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+
+      - uses: actions/setup-node@v4
+        with:
+          # Same Node as ci.yml: vite 8 requires ^20.19.0 || >=22.12.0; this
+          # job only needs fetch() for the REST calls, but stay consistent.
+          node-version: 22
+
+      - name: Close referenced issues
+        # The event payload goes in on stdin so the script never opens a
+        # dynamic path (static scanners flag that; Codacy did on first land).
+        run: node scripts/pr-auto-close.mjs < "$GITHUB_EVENT_PATH"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

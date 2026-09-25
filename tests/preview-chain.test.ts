@@ -83,6 +83,23 @@ describe('the surfaces that must not race a preview (#334)', () => {
     expect(src).toMatch(/Staged change discarded — you switched trips/)
   })
 
+  it('the map popup delete and every expense write refuse while a preview is open', () => {
+    const ws = readFileSync(new URL('../src/pages/TripWorkspace.tsx', import.meta.url), 'utf8')
+    // all four surfaces are told: timeline, group input, map, budget
+    expect(ws.match(/previewOpen=\{!!pending\}/g) ?? []).toHaveLength(4)
+
+    const map = readFileSync(new URL('../src/pages/trip/MapTab.tsx', import.meta.url), 'utf8')
+    // The popup delete is the map's one live direct writer — the fill/undo
+    // deleteStops run inside onKept, after Keep has already closed the preview.
+    expect(map).toMatch(/function removeStopFromMap\(stopId: string[\s\S]*?if \(previewOpen\) \{ toast\(PREVIEW_BUSY, 'err'\); return \}[\s\S]*?deleteStop\(trip\.id, stopId\)/)
+
+    const budget = readFileSync(new URL('../src/pages/trip/BudgetTab.tsx', import.meta.url), 'utf8')
+    // delete, mark settled, reopen, quick-add, inline edit — five direct writers
+    expect(budget.match(/if \(previewOpen\) \{ toast\(PREVIEW_BUSY, 'err'\); return \}/g) ?? []).toHaveLength(5)
+    // …and both inline writers are told, so the typed line survives the refusal
+    expect(budget.match(/previewOpen=\{previewOpen\}/g) ?? []).toHaveLength(2)
+  })
+
   it('day rename, ride start and status flips are refused while a preview is open', () => {
     const src = readFileSync(new URL('../src/pages/trip/TimelineTab.tsx', import.meta.url), 'utf8')
     const guards = src.match(/if \(previewOpen\) \{ toast\(PREVIEW_BUSY, 'err'\); return \}/g) ?? []

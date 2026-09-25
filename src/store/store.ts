@@ -1076,7 +1076,9 @@ export function reconcileDays(
   return { days: next }
 }
 
-export function createTrip(ownerId: ID, input: NewTripInput, seedStops?: ItineraryStop[][]): Trip {
+/** Build the trip a create form describes. Pure: adds nothing to the cache and
+ *  writes nothing, so the two creators below cannot drift apart (#374). */
+function buildNewTrip(ownerId: ID, input: NewTripInput, seedStops?: ItineraryStop[][]): Trip {
   const dayCount = Math.max(1, diffDays(input.startDate, input.endDate))
   const days: ItineraryDay[] = Array.from({ length: dayCount }, (_, i) => ({
     id: uid('day'), index: i, stops: [],
@@ -1118,10 +1120,51 @@ export function createTrip(ownerId: ID, input: NewTripInput, seedStops?: Itinera
     visibility: 'private', createdAt: Date.now(), updatedAt: Date.now(),
     members: [{ userId: ownerId, role: 'owner' as const, joinedAt: Date.now() }],
   } as Trip
-  cache.trips = [...cache.trips, trip]
-  commit()
+  return trip
+}
+
+/** Create a trip optimistically: it is in the cache the moment this returns and
+ *  the row write is fire-and-forget. Callers that must not navigate into a
+ *  workspace a failed write will empty use `createTripPersisted` (#374). */
+export function createTrip(ownerId: ID, input: NewTripInput, seedStops?: ItineraryStop[][]): Trip {
+  const trip = buildNewTrip(ownerId, input, seedStops)
+  admitTripCopy(trip)
   void persistTrip(trip, ownerId)
   return trip
+}
+
+/** Create a trip and WAIT for its rows (#374). The page must not route into the
+ *  workspace before this answers: a failed save used to leave the user in a
+ *  trip that vanished on the next reload, with only a toast saying so.
+ *
+ *  `persisted: false` means the trip was rolled back out of the cache and the
+ *  caller has to stay on the form and offer a retry — so the BUILT trip comes
+ *  back either way, and the retry re-uses it instead of minting a twin. */
+export async function createTripPersisted(ownerId: ID, input: NewTripInput, seedStops?: ItineraryStop[][]): Promise<{ trip: Trip; persisted: boolean }> {
+  const trip = buildNewTrip(ownerId, input, seedStops)
+  admitTripCopy(trip)
+  // A THROW is a failed save too: supabase-js answers with an error object for
+  // a refused write, but a dropped fetch can reject instead, and without this
+  // the optimistic row would stay in the cache as the zombie #374 is about.
+  let persisted = false
+  try { persisted = await persistTrip(trip, ownerId) }
+  catch (e) { console.error('[yatraflow] create failed', e) }
+  if (!persisted) retractTripCopy(trip)
+  return { trip, persisted }
+}
+
+/** Retry a create whose write failed, with the SAME trip object — never a new
+ *  id, so a first attempt that reached the server after the client gave up is
+ *  not followed by a twin. Re-admits the trip for the retry and retracts it
+ *  again if this attempt fails too; the `retry` flag lets this one meet its own
+ *  earlier rows without calling them a failure (see persistTrip). */
+export async function retryCreateTrip(trip: Trip, ownerId: ID): Promise<boolean> {
+  if (!cache.trips.some(t => t.id === trip.id)) admitTripCopy(trip)
+  let persisted = false
+  try { persisted = await persistTrip(trip, ownerId, { retry: true }) }
+  catch (e) { console.error('[yatraflow] create retry failed', e) }
+  if (!persisted) retractTripCopy(trip)
+  return persisted
 }
 
 /** A zero-dwell, auto anchor stop for a trip start/end point. */
@@ -1234,19 +1277,32 @@ function decisionsHaveComments(): Promise<boolean> {
   return decisionCommentsProbe
 }
 
-async function persistTrip(trip: Trip, ownerId: ID): Promise<boolean> {
+async function persistTrip(trip: Trip, ownerId: ID, opts: { retry?: boolean } = {}): Promise<boolean> {
   // Claim the echo window before the await — see persistTripFieldNow.
   markLocalWrite('trips', trip.id)
   const cols = await tripsHaveOptionalColumns()
   const { error } = await supabase.from('trips').insert(tripToRow(trip, ownerId, cols))
-  if (error) { toast('Could not save trip.'); return false }
+  // A RETRY can meet the row its own first attempt wrote (#374): the insert
+  // then fails on the primary key while the trip exists and the create has in
+  // fact landed. Tolerating that case is the whole point of retrying with the
+  // same id — the alternative is telling the user a trip failed to save while
+  // it sits in their list. (An upsert cannot express this: the `trips update`
+  // policy is `is_editor`, which reads the member row that the same first
+  // attempt may not have written yet, so it is refused.)
+  const duplicateMyOwnRow = (e: unknown) => (e as { code?: string } | null)?.code === '23505'
+  if (error && !(opts.retry && duplicateMyOwnRow(error))) { toast('Could not save trip.'); return false }
   const { error: mErr } = await supabase.from('trip_members').insert(
     (trip.members ?? []).map(m => ({ trip_id: trip.id, user_id: m.userId, role: m.role, joined_at: m.joinedAt }))
   )
   // A member row is what makes the trip visible to its owner after a reload —
   // without it the trips row is an invisible orphan, so a failure here counts
-  // as "not persisted" even though the trips row landed.
-  if (mErr) { console.error('member insert failed', mErr); toast('Could not save trip.'); return false }
+  // as "not persisted" even though the trips row landed. Same tolerance on a
+  // retry: the membership we are inserting may already be there.
+  if (mErr && !(opts.retry && duplicateMyOwnRow(mErr))) {
+    console.error('member insert failed', mErr)
+    toast('Could not save trip.')
+    return false
+  }
   return true
 }
 
@@ -1322,8 +1378,16 @@ function admitTripCopy(copy: Trip): void {
 }
 
 /** Roll a failed-persist copy back out of the cache so the user is never left
- *  with a zombie trip that vanishes on the next reload. */
+ *  with a zombie trip that vanishes on the next reload.
+ *
+ *  A pending debounced write for the same id is cancelled first (#374): a
+ *  retracted trip whose row write is still in the coalescer would land on the
+ *  server seconds later with no cache row in front of it, and the trip would
+ *  reappear on the next hydrate — the "it vanished, then it was there" the
+ *  create path used to produce. */
 function retractTripCopy(copy: Trip): void {
+  const pending = pendingTripWrites.get(copy.id)
+  if (pending) { clearTimeout(pending.timer); pendingTripWrites.delete(copy.id) }
   cache.trips = cache.trips.filter(t => t.id !== copy.id)
   commit()
 }

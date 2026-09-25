@@ -69,10 +69,12 @@ export type PromptFn = (ctx: {
  *  skipped and the caller must not write anything. */
 export async function resolveOrPrompt(
   hit: PlaceHit,
-  require: (h: PlaceHit) => Promise<PlaceHit | null>,
+  /** the require-form resolver — NOT named `require`, which static scanners
+   *  read as a dynamic module load (Codacy flagged exactly that on #430). */
+  resolveHit: (h: PlaceHit) => Promise<PlaceHit | null>,
   prompt: PromptFn,
 ): Promise<PlaceHit | null> {
-  const direct = await require(hit)
+  const direct = await resolveHit(hit)
   if (direct && hasCoords(direct)) return direct
-  return prompt({ hit, retry: () => require(hit) })
+  return prompt({ hit, retry: () => resolveHit(hit) })
 }

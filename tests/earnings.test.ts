@@ -3,7 +3,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import {
-  projectEarnings, deriveActualSales, payoutStatus, payoutPeriods, revenuePeriods, nextPayoutRun,
+  projectEarnings, deriveActualSales, deriveLedgerRead, payoutStatus, payoutPeriods, revenuePeriods, nextPayoutRun,
   feeForSliceInr, platformFeeInr, netOfFeeInr, attributeFeesInr,
   PLATFORM_FEE_TIERS, PAYOUT_MINIMUM_INR, PAYOUT_WEEKDAY,
 } from '../src/lib/earnings'
@@ -188,7 +188,13 @@ describe('the hub reads the ledger as written (I-9/I-10/I-13)', () => {
     // empty state and once for the rows, and the two must stay the same shape or
     // an empty ledger teaches the wrong columns — plus the projection ledger and
     // the payout runs, which are ledgers of their own.
-    expect(hub.match(/<th className="num">Fee<\/th>/g)).toHaveLength(4)
+    expect(hub.match(/<th className="num col-opt">Fee<\/th>/g)).toHaveLength(4)
+    // The two Actual theads must be ONE shape. Counted directly, now that the
+    // Fee head carries two classes: a drift in either thead shows up as a set of
+    // two, which the count above cannot see on its own.
+    const actualTheads = hub.match(/<thead><tr><th>Date<\/th>[^\n]*<\/tr><\/thead>/g) ?? []
+    expect(actualTheads).toHaveLength(2)
+    expect(new Set(actualTheads).size).toBe(1)
     expect(hub).toMatch(/formatInr\(r\.feeInr\)/)
     expect(hub).toMatch(/formatInr\(actual\.feeInr\)/)
     expect(hub).toMatch(/formatInr\(projection\.feeInr\)/)
@@ -196,7 +202,38 @@ describe('the hub reads the ledger as written (I-9/I-10/I-13)', () => {
 
   it('lets the basis switch move emphasis, not hide a number', () => {
     expect(hub).toMatch(/aria-label="Show amounts as"/)
-    expect(hub).toMatch(/basis === 'net' \? \(actual\?\.netInr \?\? 0\) : \(actual\?\.grossInr \?\? 0\)/)
+    // The tile and the pills SHOW gross until told otherwise …
+    expect(hub).toMatch(/shownBasis === 'net' \? \(actual\?\.netInr \?\? 0\) : \(actual\?\.grossInr \?\? 0\)/)
+    // … but the tables take the emphasis only once the basis is a CHOICE: while
+    // `basis` is null the class is empty, so a fresh load shows both money columns
+    // at full ink instead of greying out Net before anyone asked. A muted column
+    // nobody chose reads as a disabled one, and at ≤720px Net is one of only three
+    // columns the mobile policy keeps.
+    expect(hub).toMatch(/const basisClass = basis === null \? '' : ` basis-\$\{basis\}`/)
+    const tableLines = hub.split('\n').filter(line => line.includes('pub-ledger${basisClass}'))
+    expect(tableLines).toHaveLength(4) // the sales ledger writes its thead twice, then runs and projection
+    // ...and `aria-pressed` reads `basis` (null until a pill is pressed), NOT the
+    // display state: parallel structure A/B'd against it would promise a pressed
+    // nobody made to a screen reader, which is how the pills announced Gross
+    // while the tables emphasised nothing. The visual highlight keeps the default
+    // open; the pressed state reports the choice.
+    expect(hub).toMatch(/aria-pressed=\{basis === k\}/)
+    // The emphasis is emphasis only, never a hidden figure — and the CSS counts the
+    // columns from the END, because each Total row opens with a `colSpan` label that
+    // shifts every forward index by one.
+    for (const table of ['ledger-sales', 'ledger-runs', 'ledger-projection']) expect(hub).toContain(table)
+  })
+
+  it('lets a failure and a kept figure share one role policy', () => {
+    // A failure that leaves nothing to show is an alert; a kept figure is a status.
+    // The first interrupts because nothing is on screen yet; the second announces a
+    // change without stealing anything, because there are figures the reader can
+    // keep using — which is also the line ui.tsx draws (assertive alerts,
+    // polite field errors).
+    const lines = hub.split('\n')
+    const overviewAlert = lines.findIndex(line => line.includes('role="alert"'))
+    expect(overviewAlert).toBeGreaterThan(-1)
+    expect(hub).toContain('role="status"')
   })
 
   it('keeps the payout schedule on the actual ledger, never on a projection', () => {
@@ -206,7 +243,12 @@ describe('the hub reads the ledger as written (I-9/I-10/I-13)', () => {
   })
 
   it('states the fee rule wherever it explains a figure', () => {
-    expect(hub.match(/PLATFORM_FEE_SUMMARY/g)?.length ?? 0).toBeGreaterThanOrEqual(2)
+    // Counted as INTERPOLATIONS, not as mentions. The bare-name form was
+    // satisfied by the import line alone, so the guard could not tell one real
+    // statement from two. It now means what it says: the ladder is stated beside
+    // the Fee column it explains, and again where the projection's exactness is
+    // claimed — and nowhere twice in one viewport.
+    expect(hub.match(/\{PLATFORM_FEE_SUMMARY\}/g)?.length ?? 0).toBeGreaterThanOrEqual(2)
     // The old placeholder's copy must not survive anywhere.
     expect(hub).not.toContain('TBD')
     expect(hub).not.toContain('mirrors gross')
@@ -434,5 +476,38 @@ describe('the payout schedule (I-9)', () => {
     expect(payoutStatus(0, now)).toMatchObject({ clearsInr: 0, belowMinimum: false })
     expect(payoutStatus(-50, now).clearsInr).toBe(0)
     expect(payoutStatus(12_345.6, now).clearsInr).toBe(12_346)
+  })
+})
+
+// ---- The ledger's read state, which decides whether Retry is even offered ---
+// One ternary carried three separate bugs: a failed refresh that erased figures
+// already on screen, a Retry that re-rendered the same alert it was pressed
+// against (indistinguishable from a dead button), and a failure branch that was
+// unreachable because null was tested first. The order is the fix, so pin it.
+describe('deriveLedgerRead — the order of the three states', () => {
+  it('keeps figures through a failed refresh instead of discarding them', () => {
+    expect(deriveLedgerRead({ hasFigures: true, reading: false, error: true })).toBe('ready')
+  })
+
+  it('reports an in-flight attempt as reading, even straight after a failure', () => {
+    // Without this, pressing Retry renders byte-identically to the state it was
+    // pressed in, which is what made it read as a dead button.
+    expect(deriveLedgerRead({ hasFigures: false, reading: true, error: true })).toBe('reading')
+    expect(deriveLedgerRead({ hasFigures: false, reading: true, error: false })).toBe('reading')
+  })
+
+  it('reaches failed only with nothing to show, nothing in flight, and an error', () => {
+    // 'failed' is the only state that offers Retry: it must be REACHABLE (the
+    // original defect) and must not be reachable any other way.
+    expect(deriveLedgerRead({ hasFigures: false, reading: false, error: true })).toBe('failed')
+    expect(deriveLedgerRead({ hasFigures: false, reading: false, error: false })).toBe('reading')
+  })
+
+  it('never reports failed while figures are on screen', () => {
+    for (const reading of [true, false]) {
+      for (const error of [true, false]) {
+        expect(deriveLedgerRead({ hasFigures: true, reading, error })).toBe('ready')
+      }
+    }
   })
 })

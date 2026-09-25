@@ -135,7 +135,14 @@ export function TrendChart({ points, label, unlockRead = 'ready' }: { points: Fu
   // Unique per instance: the hub renders more than one chart (a fixture page,
   // or a future comparison), and duplicate SVG gradient ids would cross-wire.
   const fadeId = useId()
-  const [hover, setHover] = useState<number | null>(null)
+  /** The latched day, WITH the window it was latched in.
+   *
+   *  Storing the index alone made a window change silently re-label it — index 40
+   *  of ninety days is not index 40 of seven — and clearing it from an effect (the
+   *  obvious repair) is a setState in an effect body, which the hooks lint refuses.
+   *  It refuses for a good reason: a latch from another window is simply unreadable,
+   *  so a comparison does what the effect would have, without the render. */
+  const [latch, setLatch] = useState<{ label: string; index: number } | null>(null)
 
   // WHICH series peaked, not just how high: "peak 131 a day" named no series on
   // a chart that draws three, so the panel's only quantified number was the one
@@ -160,21 +167,69 @@ export function TrendChart({ points, label, unlockRead = 'ready' }: { points: Fu
   // need to know WHERE on the axis the active day sits, not only which day it
   // is. Tracking the index is also what lets the drawing below read a day
   // without a non-null assertion.
-  const activeIndex = hover !== null && !quiet ? hover : null
+  const activeIndex = latch !== null && latch.label === label && !quiet ? latch.index : null
   // A computed index into a plain array is the shape Codacy's object-injection
   // rule refuses; `find` says the same thing with an honest `| undefined`.
   const active = activeIndex === null ? null : (points.find((_, i) => i === activeIndex) ?? null)
+  /** The readout's spoken twin — the same numbers as the tooltip, labelled the same
+   *  way rather than written as a sentence. The sentence form reads "1 forks" for a
+   *  single fork — the small wrongness the hub's own `unit` helper exists to stop —
+   *  and the labels keep the two readings identical besides. */
+  const activeSpoken = active === null ? '' : `${axisDay(active.day)} — Visits: ${active.views.toLocaleString('en-IN')}, Forks: ${active.forks.toLocaleString('en-IN')}, Unlocks: ${unlockRead === 'ready' ? active.unlocks.toLocaleString('en-IN') : unlockRead === 'reading' ? 'reading' : 'not read'}.`
 
-  /** Nearest day to the pointer. The SVG scales to its container, so the mouse
-   *  position is converted through the rendered box rather than assumed. */
-  const trackPointer = (e: React.PointerEvent<SVGSVGElement>) => {
-    if (quiet || points.length === 0) return
+  /** Nearest day index to the pointer, or null when there is nothing to track.
+   *  The SVG scales to its container, so the mouse position is converted through
+   *  the rendered box rather than assumed. */
+  const indexAt = (e: React.PointerEvent<SVGSVGElement>): number | null => {
+    if (quiet || points.length === 0) return null
     const box = e.currentTarget.getBoundingClientRect()
-    if (box.width === 0) return
+    if (box.width === 0) return null
     const xView = ((e.clientX - box.left) / box.width) * W
     const t = (xView - PAD_X) / (W - PAD_X * 2)
     const i = Math.round(t * (points.length - 1))
-    setHover(Math.max(0, Math.min(points.length - 1, i)))
+    return Math.max(0, Math.min(points.length - 1, i))
+  }
+
+  const trackPointer = (e: React.PointerEvent<SVGSVGElement>) => {
+    const i = indexAt(e)
+    if (i !== null) setDay(i)
+  }
+
+  /** The tap TOGGLES, and only for a pointer that cannot hover.
+   *
+   *  A tap has to latch — a finger has no hover, and clearing on lift would make
+   *  the panel unusable on the phone this app ships to — but a latch with no
+   *  release is a trap: `onPointerLeave` below is mouse-only by design, and Escape
+   *  is not a key a phone has. Tapping the day that is already showing is the one
+   *  gesture that can mean "never mind", so it dismisses. A mouse keeps plain
+   *  assignment: it clears by leaving, and a click that blanked the readout under
+   *  the cursor would fight the hover it is already using. */
+  const latchPointer = (e: React.PointerEvent<SVGSVGElement>) => {
+    const i = indexAt(e)
+    if (i === null) return
+    setLatch(current => (
+      e.pointerType !== 'mouse' && current !== null && current.label === label && current.index === i
+        ? null
+        : { label, index: i }
+    ))
+  }
+
+  /** Every writer goes through here, so the guard and the window label cannot
+   *  drift apart. */
+  const setDay = (index: number) => {
+    if (quiet || points.length === 0) return
+    setLatch({ label, index: Math.max(0, Math.min(points.length - 1, index)) })
+  }
+
+  /** Moves the latch by one day, starting from -1 when the current latch belongs to
+   *  another window — so a keyboard walk after a window change begins at the first
+   *  day rather than continuing a stranger's index. */
+  const stepLatch = (to: (from: number | null, last: number) => number) => {
+    if (quiet || points.length === 0) return
+    setLatch(current => {
+      const from = current !== null && current.label === label ? current.index : null
+      return { label, index: to(from, points.length - 1) }
+    })
   }
 
   const tipPct = active && activeIndex !== null ? Math.max(6, Math.min(94, (xAt(activeIndex, points.length) / W) * 100)) : 0
@@ -187,24 +242,19 @@ export function TrendChart({ points, label, unlockRead = 'ready' }: { points: Fu
         role="img"
         aria-label={`Recorded traffic over ${label}: ${totalViews} visits, ${totalForks} forks${unlockRead === 'ready' ? `, ${totalUnlocks} unlocks` : unlockRead === 'reading' ? '; unlocks still being read' : '; unlocks could not be read'}.`}
         onPointerMove={trackPointer}
-        onPointerDown={trackPointer}
-        // A tap must LATCH the readout — a finger has no hover, and clearing on
-        // lift would make the panel unusable on the phone this app ships to.
-        // Only a departing mouse dismisses it.
-        onPointerLeave={e => { if (e.pointerType === 'mouse') setHover(null) }}
+        onPointerDown={latchPointer}
+        onPointerLeave={e => { if (e.pointerType === 'mouse') setLatch(null) }}
         // Keyboard parity with the pointer: the chart is a reading tool, and a
         // readout only a mouse can reach is a readout half the users never see.
         tabIndex={0}
         onKeyDown={e => {
-          if (quiet || points.length === 0) return
-          const last = points.length - 1
-          if (e.key === 'ArrowRight' || e.key === 'ArrowUp') { setHover(i => Math.min(last, (i ?? -1) + 1)); e.preventDefault() }
-          else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') { setHover(i => Math.max(0, (i ?? last + 1) - 1)); e.preventDefault() }
-          else if (e.key === 'Home') { setHover(0); e.preventDefault() }
-          else if (e.key === 'End') { setHover(last); e.preventDefault() }
-          else if (e.key === 'Escape') setHover(null)
+          if (e.key === 'ArrowRight' || e.key === 'ArrowUp') { stepLatch((from, last) => Math.min(last, (from ?? -1) + 1)); e.preventDefault() }
+          else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') { stepLatch((from, last) => Math.max(0, (from === null ? last + 1 : from) - 1)); e.preventDefault() }
+          else if (e.key === 'Home') { setDay(0); e.preventDefault() }
+          else if (e.key === 'End') { setDay(points.length - 1); e.preventDefault() }
+          else if (e.key === 'Escape') setLatch(null)
         }}
-        onBlur={() => { setHover(null) }}
+        onBlur={() => { setLatch(null) }}
       >
         <defs>
           <linearGradient id={fadeId} x1="0" y1="0" x2="0" y2="1">
@@ -265,6 +315,14 @@ export function TrendChart({ points, label, unlockRead = 'ready' }: { points: Fu
             : <span className="muted">{unlockRead === 'reading' ? 'Unlocks reading…' : 'Unlocks not read'}</span>}
         </div>
       )}
+
+      {/* The readout's VOICE. A live region inserted at the same moment as its
+          content is not reliably announced, so this one stays in the DOM and only
+          its text changes; the visible tooltip above is untouched. Without it the
+          keyboard path was silence — the arrow keys moved a `hover` index into a
+          plain div while the chart's own label went on describing the WINDOW
+          totals, so focus brought a static description of different numbers. */}
+      <span className="sr-only" role="status" aria-atomic="true">{activeSpoken}</span>
 
       <figcaption className="hub-chart-key">
         <span className="hc-key"><i className="hc-swatch hc-swatch-views" aria-hidden />Visits <b className="num">{totalViews.toLocaleString('en-IN')}</b></span>

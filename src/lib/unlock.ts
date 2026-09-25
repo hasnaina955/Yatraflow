@@ -123,11 +123,29 @@ export async function fetchMyPurchases(userId: string | null): Promise<Entitleme
  *  REJECTS on a failed read (after logging it) instead of degrading to []:
  *  an empty ledger and a broken read are different truths. The caller owns
  *  the error state. */
-export async function fetchCreatorSales(): Promise<Entitlement[]> {
-  const { data, error } = await supabase
-    .rpc('get_creator_sales')
+/** Reports a failed read, distinguishing a FAILURE from a CANCELLATION.
+ *
+ *  A read the caller cancelled is not a failed read: the effect that asked for
+ *  it has gone away (React's dev double-mount tears every effect down once, then
+ *  runs it again), so logging it as a failure makes ordinary navigation look
+ *  like a broken ledger — and it was the loudest console error on the hub. A
+ *  TIMEOUT is a real failure and still logs as one: the page aborts on its own
+ *  timer with a `TimeoutError` reason precisely so the two can be told apart. */
+function reportReadFailure(subject: string, error: unknown, signal?: AbortSignal): void {
+  const timedOut = (signal?.reason as DOMException | undefined)?.name === 'TimeoutError'
+  if (signal?.aborted && !timedOut) console.debug(`[yatraflow] ${subject} read cancelled`, error)
+  else console.error(`[yatraflow] ${subject} read failed`, error)
+}
+
+export async function fetchCreatorSales(opts: { signal?: AbortSignal } = {}): Promise<Entitlement[]> {
+  const query = supabase.rpc('get_creator_sales')
+  // The caller's signal is HONOURED, not ignored: a page that has given up
+  // waiting for this read (a timeout, or an effect that was torn down) must be
+  // able to stop it rather than leave it answering a question nobody is still
+  // asking. Same contract as `routing.ts`.
+  const { data, error } = await (opts.signal ? query.abortSignal(opts.signal) : query)
   if (error) {
-    console.error('[yatraflow] creator sales read failed', error)
+    reportReadFailure('creator sales', error, opts.signal)
     throw error
   }
   return (Array.isArray(data) ? data : []).map((row: Record<string, unknown>) => ({
@@ -166,11 +184,11 @@ export interface FunnelDailyRow {
  * matters, because the lifetime counters on each publication PREDATE this log
  * and the two are not the same number.
  */
-export async function fetchCreatorFunnel(days = 730): Promise<FunnelDailyRow[]> {
-  const { data, error } = await supabase
-    .rpc('get_creator_funnel', { p_days: days })
+export async function fetchCreatorFunnel(opts: { days?: number; signal?: AbortSignal } = {}): Promise<FunnelDailyRow[]> {
+  const query = supabase.rpc('get_creator_funnel', { p_days: opts.days ?? 730 })
+  const { data, error } = await (opts.signal ? query.abortSignal(opts.signal) : query)
   if (error) {
-    console.error('[yatraflow] creator funnel read failed', error)
+    reportReadFailure('creator funnel', error, opts.signal)
     throw error
   }
   return (Array.isArray(data) ? data : []).map((row: Record<string, unknown>) => ({

@@ -7,7 +7,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import type { Trip } from '../data/types'
 import { useDb, tripById, currentUser, roleOf, canEdit, updateTrip, userById, fetchSharedTrip } from '../store/store'
 import { PillNav } from '../components/PillNav'
-import { computeHealth, computeTotals, getAssumptions } from '../lib/engine'
+import { computeHealth, computeTotals, getAssumptions, isRoadMeasuredMode } from '../lib/engine'
 import type { LegEstimate } from '../lib/engine'
 import { buildRoadChain, measureRoadChain, correctionsFromLegs, type RoadStatus, type TripRoadView } from '../lib/tripRoad'
 import { computeImpact, type ImpactResult } from '../lib/impact'
@@ -347,9 +347,6 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
 
 // ================= Real-road distance refinement (ONE measurement, #188) =================
 
-/** Road modes where OSRM's driving distances make sense as estimates. */
-const ROAD_MODES = ['car', 'motorcycle', 'taxi', 'bus', 'mixed']
-
 /**
  * The trip's single road measurement. Owns the one `routePath` chain (with its
  * one retry) and hands out both consumers: the engine's leg corrections (budget,
@@ -399,7 +396,7 @@ function useTripRoad(trip: Trip | null | undefined): {
   // The engine only takes road numbers for ground modes (OSRM is driving-only);
   // anything else — and a failed or still-pending measurement — leaves the
   // deterministic haversine engine in charge, exactly as before.
-  const roadMode = !!trip?.transportMode && ROAD_MODES.includes(trip.transportMode)
+  const roadMode = !!trip?.transportMode && isRoadMeasuredMode(trip.transportMode)
   const corrections = useMemo(() => {
     if (!trip) return undefined
     if (!chain || !roadMode || chain.points.length < 2) return {}

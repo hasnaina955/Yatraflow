@@ -55,8 +55,8 @@ export type SlotState = 'filled' | 'empty' | 'auto'
 /** One fillable candidate for an empty slot, pre-scored and window-annotated. */
 export interface SlotCandidate {
   hit: PlaceHit
-  /** door-to-door detour minutes at the trip's speed (asymmetric when geometry is known) */
-  detourMin: number
+  /** door-to-door detour minutes at the trip's speed; null = position/detour unknown */
+  detourMin: number | null
   /** road detour km (null = on route / unknown) */
   detourKm: number | null
   /** whole-percent share of that day's detour budget this candidate spends */
@@ -506,14 +506,13 @@ function candidatesFor(
     if (out.length >= limit) break
     const dKm = detourKm(row.hit, deps.anchors)
     const dMin = asymmetricDetourMinutes(row.hit, deps.anchors, deps.routePolyline ?? null, speed)
-    // Budget honesty: the same rule the see-&-do rail spends by. Zero-detour
-    // (on-route) candidates never spend.
-    if (dMin > 0) {
-      if (spent + dMin > budget) continue
-      spent += dMin
-    }
+    // Unknown position is never free or auto-kept: the candidate needs a
+    // measured road position before it can consume the day's finite budget.
+    if (dMin == null) continue
+    if (spent + dMin > budget) continue
+    spent += dMin
     const eta = seg && minute(seg.etaMinutes) ? (seg.etaMinutes as number) : null
-    const arriveMin = eta != null ? Math.round(eta + dMin) : null
+    const arriveMin = eta != null && dMin != null ? Math.round(eta + dMin) : null
     const inWindow = arriveMin != null && win != null && arriveMin >= win[0] && arriveMin <= win[1]
     out.push({
       hit: row.hit,

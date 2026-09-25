@@ -1408,12 +1408,14 @@ export function scoreHitForSegment(
   // Asymmetric when route geometry is known: on-the-way hits cost ~0 detour,
   // off-road spurs pay the round trip — so a place you literally pass is not
   // penalized as a "detour".
-  const detour = asymmetricDetourMinutes(h, anchors, opts.routePolyline ?? undefined, opts.speedKmph) * 2
+  const detour = asymmetricDetourMinutes(h, anchors, opts.routePolyline ?? undefined, opts.speedKmph)
+  if (detour == null) return null // unknown position cannot be scored as free/on-route
+  const detourCost = detour * 2
   // Opening-hours fit: a hit closed when you'd arrive is degraded.
   const hours = hoursFitAdj(h, seg.etaMinutes)
   // Trip DNA bends ties only: favoured categories shave up to 3 points.
   const dna = opts.dnaVector ? dnaBoostForHit(h, opts.dnaVector) : 0
-  return distPenalty + detour + hours + (3 - fit) * 4 - dna
+  return distPenalty + detourCost + hours + (3 - fit) * 4 - dna
 }
 
 /**

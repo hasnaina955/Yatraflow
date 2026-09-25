@@ -17,6 +17,8 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ### Fixed
 
+- **Unknown places stay unknown.** A location with either coordinate at zero is resolved before it can enter a trip, road-measured modes share one source of truth, changing transport mode re-measures the road, and an unmeasurable detour is labeled “position unknown” and held for manual budget review instead of being treated as free/on-route.
+
 - **Map planning is quieter and more truthful.** The Map tab now reuses the workspace's measured outbound and return geometry instead of launching duplicate route measurements; superseded searches are cancelled before they can spend quota; the detour scope is debounced and disabled while a scan is running; quota messaging covers all three Places SKUs and explains the 80% safety pause honestly; shortlist Add-all resolves coordinates once, writes in road order, and blocks duplicate in-flight adds; vote paths resolve coordinates before writing; suggestion-cache keys include timing, weather, halt pins, DNA and speed inputs; the light fraction pool shares the cache TTL; and dismissing a suggestion no longer triggers a full paid rescan.
 
 ## [0.66.0] - 2026-09-24

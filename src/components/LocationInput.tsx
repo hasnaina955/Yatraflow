@@ -76,7 +76,7 @@ export function LocationInput({ value, onChange, onPick, placeholder, error, err
     // requireHitCoords() rejects instead of silently handing a (0,0)
     // placeholder to the caller: a trip born at Null Island measures its
     // whole journey through the ocean (found live 2026-09-14).
-    if ((hit.eLoc || hit.placeId) && hit.latitude === 0 && hit.longitude === 0) {
+    if ((hit.eLoc || hit.placeId) && (hit.latitude === 0 || hit.longitude === 0)) {
       setResolving(true)
       try {
         const resolved = await requireHitCoords(hit)

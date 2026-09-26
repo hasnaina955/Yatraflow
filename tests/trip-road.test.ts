@@ -210,6 +210,64 @@ describe('measureRoadChain — the one chain, one retry (#188 acceptance)', () =
     })
     expect(sleep).toHaveBeenCalledWith(1234)
   })
+
+  // ---- #325: the workspace path is abortable, like the day-filter path ----
+
+  it('attempts exactly once when aborted mid-flight — no retry, no 2s sleep', async () => {
+    const controller = new AbortController()
+    const sleep = vi.fn(async () => {})
+    const measure = vi.fn(async () => {
+      // the user switched trips while the first OSRM chain was in flight
+      controller.abort()
+      return [{ distanceKm: 5, durationMinutes: 6, source: 'estimate' as const, geometry: [] }]
+    })
+    const out = await measureRoadChain([P(10, 77), P(10.1, 77.1)], ASSUMPTIONS, {
+      sleep, measure, signal: controller.signal,
+    })
+    expect(out.ok).toBe(false)
+    // An abort is "stop silently", not a transient failure that earns a retry:
+    // the old code slept the full delay and refetched against a trip the user
+    // had already left.
+    expect(measure).toHaveBeenCalledTimes(1)
+    expect(sleep).not.toHaveBeenCalled()
+  })
+
+  it('stops at the network layer too — one fetch, not two (#325)', async () => {
+    const controller = new AbortController()
+    const f = vi.fn(async () => { controller.abort(); return new Response('down', { status: 503 }) })
+    vi.stubGlobal('fetch', f)
+    const sleep = vi.fn(async () => {})
+    // 503 → routePath degrades to haversine internally → unresolved → the abort
+    // check before the retry sleep is what stops the second request.
+    const out = await measureRoadChain([P(10, 77), P(10.1, 77.1)], ASSUMPTIONS, {
+      sleep, retryDelayMs: 0, signal: controller.signal,
+    })
+    expect(out.ok).toBe(false)
+    expect(f).toHaveBeenCalledTimes(1)
+    expect(sleep).not.toHaveBeenCalled()
+  })
+
+  it('never starts a measurement whose signal is already aborted', async () => {
+    const controller = new AbortController()
+    controller.abort()
+    const measure = vi.fn(async () => [leg(100, 120)])
+    const out = await measureRoadChain([P(10, 77), P(10.1, 77.1)], ASSUMPTIONS, {
+      measure, signal: controller.signal,
+    })
+    expect(out.ok).toBe(false)
+    expect(measure).not.toHaveBeenCalled()
+  })
+
+  it('lets a road that already resolved win over a late abort — the caller drops it', async () => {
+    // The division of labour the hook relies on: this layer stops the WORK, the
+    // hook's `cancelled` flag is what discards a result nobody is waiting for.
+    const controller = new AbortController()
+    const measure = async () => { controller.abort(); return [leg(100, 120)] }
+    const out = await measureRoadChain([P(10, 77), P(10.1, 77.1)], ASSUMPTIONS, {
+      measure, signal: controller.signal,
+    })
+    expect(out.ok).toBe(true)
+  })
 })
 
 describe('the wiring: one measurement site, no second caller (#188)', () => {

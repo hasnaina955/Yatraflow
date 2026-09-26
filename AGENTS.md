@@ -553,6 +553,24 @@ Hard rules (each learned the hard way — do not relearn them):
   branch's own change. The replay also means **the branch's CHANGELOG entries
   re-filed themselves into the released section** if the branch was cut before
   the release:  check `git diff origin/test..HEAD -- CHANGELOG.md` lands under `[Unreleased]`.
+- **A custom `merge=<driver>` attribute can delete a file's change from a rebased
+  commit while the rebase reports success (learned 2026-09-26).** Resolving a
+  four-branch stack's recurring `CHANGELOG.md` conflicts with a `--union` driver
+  (`git config merge.X.driver "git merge-file --union %O %A %B; true"` plus
+  `CHANGELOG.md merge=X` in `$GIT_DIR/info/attributes`) rebased all three cleanly
+  and reported "Successfully rebased" for each. Every one of the three commits had
+  silently **lost its `CHANGELOG.md` change** — `git show --numstat <sha>` no longer
+  listed the file at all, and the driver's `; true` was the tell: it exists to hide a
+  non-zero exit, and that exit means `git merge-file` never wrote `%A`, so git
+  recorded the path as merged with the upstream side alone. **Verify a driver-based
+  rebase by content, not by exit status**: after it, `git show --numstat` each
+  replayed commit and confirm the files you expected are still listed, and grep the
+  file for each entry's own issue number. Prefer resolving doc conflicts by hand with
+  editor primitives (§9); if a driver is used, drop the `; true`, treat a non-zero
+  exit as a conflict, and check the file before continuing. The union driver also
+  lives in the **shared** git dir of a linked worktree (`git rev-parse --git-path
+  info/attributes` resolves to the main clone, not the worktree), so it silently
+  changes merge behaviour for every other worktree — remove it when the job is done.
 - **Probing a submit handler in the preview: `requestSubmit()` runs native
   constraint validation first** (measured 2026-09-23: a `min={0}` input holding
   `-5` fires `invalid`, never `submit` — the handler silently never runs and the

@@ -8,13 +8,13 @@ import type { Trip } from '../data/types'
 import type { PlaceHit } from '../lib/geocode'
 import { resolveHitCoords } from '../lib/geocode'
 import { hasCoords, mappablePois, projectOntoPolyline } from '../lib/providers/hits'
-import { measureDayRide } from '../lib/tripRoad'
+import { buildRoadChain, measureDayRide } from '../lib/tripRoad'
 import { buildJourney, getAssumptions, isRoundTrip } from '../lib/engine'
 import { clockHM, type ClockMilestone } from '../lib/clockOverlay'
 import { pointAtKm } from '../lib/geo'
 import { useTimeFormat, formatHM } from '../lib/timefmt'
 import { extraJourneyMarkers } from '../lib/journeyMarkers'
-import { boundsOf, type LatLng } from '../lib/mapFit'
+import { allViewFitPoints, boundsOf, type LatLng } from '../lib/mapFit'
 import { coincidentPinOffsets } from '../lib/pinOffsets'
 import { googleMapsDirectionsUrl } from '../lib/externalMaps'
 import { openExternal } from '../lib/native'
@@ -767,6 +767,14 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     return () => { cancelled = true; clearInterval(tick); window.clearTimeout(watchdog) }
   }, [pointsKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Real road geometry from OSRM. In "all days" mode a single connected chain —
+  // the stops in timeline order — is drawn as one main line. In single-day mode
+  // each day gets its own coloured line. Falls back to straight lines.
+  // Declared HERE, above the fit, because the all-days fit now frames the drawn
+  // road itself (#330) — a render-scoped useState has no forward reference, and
+  // hoisting the declaration is what makes the line available to the camera.
+  const [geom, setGeom] = useState<Record<string, [number, number][]>>({})
+
   // EVERYTHING the current view draws — the fit frames the drawing, not just
   // the stop pins. A day's journey chain carries its synthesized origin (last
   // night's town), drawn as an endpoint flag and as the road line's far end,
@@ -774,21 +782,30 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   // cluster at maxZoom while the route ran off-screen — the reported case is
   // Day 2 of the sample Rajasthan trip, two pins inside Jodhpur framed at
   // zoom 12 while 280 km of drawn road to Jaipur sat16,000 px outside the
-  // canvas. All-days adds the return-home pin when that line is shown (its
-  // home is beyond the last stop by definition). Nearby-suggestion pins stay
-  // OUT on purpose: another day's ideas would balloon the fit. The late OSRM
-  // polyline stays out too — it arrives after this fit and follows the chain
-  // well inside the 70px padding, and mixing it in would fit a PREVIOUS day's
-  // line while the fetch for this one is still in flight.
+  // canvas. Nearby-suggestion pins stay OUT on purpose: another day's ideas
+  // would balloon the fit.
+  //
+  // #330: the ALL-days view used to fit the pins plus home-when-shown, which is
+  // less than the line it draws — the trip-start leg had no point in the set at
+  // all, the destination tail (buildRoadChain's hasDestTail) was drawn but never
+  // fitted, and a road bowing around a ghat or a lake left the 70px padding the
+  // old comment promised it stayed inside (an assertion, never a measurement).
+  // The endpoints now come from the chain builder itself and the drawn road is
+  // sampled in — see allViewFitPoints. The DAY branch is deliberately untouched:
+  // there the polyline arrives after the fit, and mixing it in would frame a
+  // previous day's line while this one is still measuring.
   const fitPoints = useMemo(() => {
-    const pts: LatLng[] = allPoints.map(p => ({ lat: p.lat, lng: p.lng }))
     if (dayFilter === 'all') {
-      if (showReturn && isRoundTrip(trip) && trip.startLocationCoords) pts.push(trip.startLocationCoords)
-    } else {
-      for (const p of dayRoutePoints[String(dayFilter)] ?? []) pts.push(p)
+      return allViewFitPoints({
+        stops: allPoints.map(p => ({ lat: p.lat, lng: p.lng })),
+        chainPoints: trip ? buildRoadChain(trip).points : null,
+        roadGeometry: geom.all,
+      })
     }
+    const pts: LatLng[] = allPoints.map(p => ({ lat: p.lat, lng: p.lng }))
+    for (const p of dayRoutePoints[String(dayFilter)] ?? []) pts.push(p)
     return pts
-  }, [allPoints, dayFilter, dayRoutePoints, showReturn, trip])
+  }, [allPoints, dayFilter, dayRoutePoints, trip, geom.all])
   const fitPointsKey = useMemo(
     () => fitPoints.map(p => `${p.lat.toFixed(4)},${p.lng.toFixed(4)}`).join('|'),
     [fitPoints],
@@ -898,10 +915,6 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     return IDEA_PIN_COLORS[cat ?? ''] ?? '#F59E2D'
   }
 
-  // Real road geometry from OSRM. In "all days" mode a single connected chain —
-  // the stops in timeline order — is drawn as one main line. In single-day mode
-  // each day gets its own coloured line. Falls back to straight lines.
-  const [geom, setGeom] = useState<Record<string, [number, number][]>>({})
   // Measured day geometry, keyed by day index and the ride's points-hash —
   // revisiting a day chip redraws from cache instead of re-measuring (#polylines).
   // A ref, not state: cache validity never drives rendering on its own.

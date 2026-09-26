@@ -950,6 +950,8 @@ discriminates a migration-gated table in one call — **`200 []` means the table
 
 - **A release bullet can name the wrong tag, and nothing in the gate reads tag names — so grep the tag you quote.** Writing the v0.68.0 cut turned up the v0.67.0 promotion bullet asserting the tag `v0.66.0` on its merge commit (the tag itself was right; only the prose was wrong). Compare `git tag -l -n1 vX.Y.Z` against the sentence in the same session you touch the release's status lines, and treat every `vX.Y.Z` in prose as a claim about `refs/tags` — the same rule as §2.6c for "done"/"missing" claims, applied to version strings.
 
+- **A fresh sandbox has no browser AND no fonts — an SVG/PNG render "succeeds" with every glyph silently missing (learned 2026-09-26, the #415 mockup).** There is no `agent-browser`/chromium here, so a mockup's *image* is made by rasterizing the SVG with `@resvg/resvg-js` (`npm i --no-save`, no browser download). Two traps, both silent: (1) `loadSystemFonts: true` finds nothing — the first render shipped every shape with zero text. Fetch the app's own faces as TTFs (Google Fonts' css2 API with an old User-Agent returns TTF links — Plus Jakarta Sans 400–800, plus `Noto Emoji` and `Noto Sans Symbols 2` for pictographs and ✓/↓), pass them as `font.fontFiles` with `defaultFontFamily: 'Plus Jakarta Sans'`, and **eyeball the PNG before shipping it**; (2) run the `.mjs` from the repo root — a script in `/tmp` resolves no `node_modules` (`ERR_MODULE_NOT_FOUND`). The trio lives in `docs/mockups/`: annotated interactive `.html`, inline-renderable `.svg`, and the rasterized `.png` for GitHub/chat.
+
 ### 3.1 What CI actually runs, per destination
 
 Neither workflow has a `paths` filter, so **docs-only changes still run the full

@@ -20,6 +20,12 @@ import { openExternal } from '../../lib/native'
 import { corridorAnchors, detourKm, asymmetricDetourKm, asymmetricDetourMinutes, googleEnabled, planJourneyHalts, reasonForSegmentHit, searchPlacesText, searchNearbyPoisMulti, kmFromStartForHit, planDriveDays, planTravelClock, rainFactorFor, directionalKm, alongRouteKmOf, DEFER_START, type NearbyOpts, type PlaceHit, type TravelClockVerdict, routeHash } from '../../lib/geocode'
 import { useResolvePick } from '../../components/ResolvePickDialog'
 import { deriveClockMilestones } from '../../lib/clockOverlay'
+import { railKeyAction } from '../../lib/railKeys'
+
+/** How many search hits the rail shows before "Show all" (#333 A1). The listbox
+ *  grammar needs the same page size the rows are rendered with, so it lives here
+ *  once instead of as a bare literal in the label, the slice and the key handler. */
+const SEARCH_PAGE = 5
 import { isSightCategory, roadProfileFromLegs, loopProfile } from '../../lib/ridePlan'
 import { QuotaExhaustedError } from '../../lib/providers/google'
 import { isElectric } from '../../lib/vehicleProfile'
@@ -739,8 +745,17 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
   // When the activation came from the map (pin hover/click), bring the matching
   // panel row into view so the two surfaces visibly point at the same place.
   // The search-results card is the other scroll container a pin can answer to.
+  //
+  // #333 A3: keyboard and focus only. This ran for EVERY activation, including
+  // mouse hover, so reading one row yanked the list back to whatever row the
+  // pointer had just crossed — the list fought the person reading it. Focus (Tab,
+  // or the arrow keys in the row handler) raises the flag; `onMouseEnter` never
+  // does, and a click needs no scroll because that row is already on screen.
+  const keyboardScrollRef = useRef(false)
   useEffect(() => {
     if (activeHitId == null) return
+    if (!keyboardScrollRef.current) return
+    keyboardScrollRef.current = false
     const sel = `[data-hit-id="${activeHitId}"]`
     const row = listRef.current?.querySelector(sel) ?? searchListRef.current?.querySelector(sel)
     row?.scrollIntoView({ block: 'nearest', behavior: scrollBehavior() })
@@ -1870,8 +1885,8 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
           <p className="muted small" role="status" style={{ margin: '0 0 8px' }}>Keep typing - search starts at 2 characters.</p>
         )}
         {searchResults.length > 0 && (
-          <div className="map-search-results" ref={searchListRef} style={{ marginBottom: 10 }} role="list" aria-label={`Search results (${Math.min(showAllResults ? searchResults.length : 5, searchResults.length)} of ${searchResults.length} shown)`}>
-            {searchResults.slice(0, showAllResults ? searchResults.length : 5).map(({ h, km, off }) => {
+          <div className="map-search-results" ref={searchListRef} style={{ marginBottom: 10 }} role="listbox" aria-label={`Search results. ${Math.min(showAllResults ? searchResults.length : SEARCH_PAGE, searchResults.length)} of ${searchResults.length} shown. Use the arrow keys to move between them, Enter or Space to pin one.`}>
+            {searchResults.slice(0, showAllResults ? searchResults.length : SEARCH_PAGE).map(({ h, km, off }, rowIndex) => {
               const inScope = off != null && off <= scopeKm
               // SB2: the same membership guard every other rail row uses
               // (renderLedgerRow, and the card before it). Without it this row
@@ -1881,13 +1896,35 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
               // row (activeHitId) just as hovering the row glows its pin.
               const selected = activeHitId != null && activeHitId === h.id
               return (
-                <div key={h.id as string} role="listitem" data-hit-id={h.id as string} className={`row-between${selected ? ' is-selected' : ''}`} aria-selected={selected} tabIndex={0}
+                <div key={h.id as string} role="option" data-hit-id={h.id as string} className={`row-between${selected ? ' is-selected' : ''}`} aria-selected={selected} tabIndex={selected || (activeHitId == null && rowIndex === 0) ? 0 : -1}
                   onMouseEnter={() => setActiveHitId(h.id as string | number)}
                   onMouseLeave={() => setActiveHitId(cur => (cur === (h.id as string | number) ? pinnedHitId ?? null : cur))}
-                  onFocus={() => setActiveHitId(h.id as string | number)}
+                  onFocus={() => { keyboardScrollRef.current = true; setActiveHitId(h.id as string | number) }}
                   onBlur={() => setActiveHitId(cur => (cur === (h.id as string | number) ? pinnedHitId ?? null : cur))}
                   onClick={() => { const id = h.id as string | number; const next = pinnedHitId === id ? null : id; setPinnedHitId(next); setActiveHitId(next) }}
-                  onKeyDown={e => { if (e.key === 'Enter' && e.target === e.currentTarget) { e.preventDefault(); const id = h.id as string | number; const next = pinnedHitId === id ? null : id; setPinnedHitId(next); setActiveHitId(next) } }}
+                  onKeyDown={e => {
+                    // #333 A1: the shared grammar (lib/railKeys), not a lone Enter
+                    // branch. Space must be claimed or the page scrolls under the
+                    // pin it just made; arrows move the roving tabIndex and focus.
+                    const rows = searchResults.slice(0, showAllResults ? searchResults.length : SEARCH_PAGE)
+                    const action = railKeyAction(e.key, { highlight: rows.findIndex(r => r.h.id === h.id), count: rows.length })
+                    if (action.type === 'none') return
+                    e.preventDefault()
+                    if (action.type === 'move') {
+                      const next = rows[action.highlight]
+                      if (!next) return
+                      keyboardScrollRef.current = true
+                      setActiveHitId(next.h.id as string | number)
+                      const el = searchListRef.current?.querySelector(`[data-hit-id="${next.h.id}"]`)
+                      if (el instanceof HTMLElement) el.focus()
+                    } else if (action.type === 'pin') {
+                      const id = h.id as string | number
+                      const next = pinnedHitId === id ? null : id
+                      setPinnedHitId(next); setActiveHitId(next)
+                    } else {
+                      setPinnedHitId(null); setActiveHitId(null)
+                    }
+                  }}
                   style={{ opacity: inScope ? undefined : 0.6 }}>
                   <span className="small" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {h.name}{h.nearestCity ? ` · ${h.nearestCity}` : ''}

@@ -50,6 +50,17 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
   and the winning place lands only on the day it was actually suggested for: an unknown position or
   a day that has since been deleted says so instead of quietly dropping the place on Day 1 or on the
   last day. A suggestion whose day is gone no longer crashes the accept button (#336).
+- **A Board reorder can no longer leave hidden stops with stale numbers.** The Board rearranged only
+  the cards it shows — rejected stops are hidden there — and renumbered just those, so a hidden stop
+  kept its old number and two stops could claim one position; the hidden one then came back
+  mispositioned on the Timeline, which renders every stop. Reorders now run through the shared
+  `lib/stopOrder` rule in its active-list form, which rebuilds and renumbers the whole day, and the
+  move dialog's per-day stop count matches the column header it mirrors (rejected excluded) (#371).
+- **A stop moved to another day from the Board lands in road order, not at the end.** The dialog
+  appended to the chosen day while the drag inserted at the drop slot, so one gesture produced two
+  different plans — and a move onto a day that had since gone could drop the stop. The dialog now
+  moves through the same shared `moveStopToDay` (with the same road measurement) the Timeline's
+  dialog uses, and a target day that no longer exists refuses with a message (#371).
 
 ## [0.67.0] - 2026-09-25
 

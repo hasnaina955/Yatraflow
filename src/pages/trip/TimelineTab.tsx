@@ -18,7 +18,7 @@ import type { Trip, ItineraryStop } from '../../data/types'
 import { updateTrip, setStopStatus, restoreStop, useDb, currentUser, userById } from '../../store/store'
 import {
   computeTotals, minutesToHM, formatInr,
-  collectWarnings, buildJourney, dayRoadPolyline,
+  collectWarnings, buildJourney, dayRoadPolyline, groupWarnings,
 } from '../../lib/engine'
 import type { LegEstimate, ScheduleWarning } from '../../lib/engine'
 import type { ImpactResult } from '../../lib/impact'
@@ -192,16 +192,18 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
     }, 'move-day', toDayIndex)
   }, [applyChange, trip])
 
-  // warnings grouped by day index — powers the per-day progress-bar colour
-  const dayWarnings = useMemo(() => {
+  // Warnings grouped by the day they belong to — powers the per-day
+  // progress-bar colour, the day pills and the trip-wide block. Identity comes
+  // from the engine's `dayIndex`, never from parsing `title` (a display
+  // string): the old regex misfiled every warning with no “Day N:” prefix
+  // (opening hours lead with a stop title) and silently DROPPED the trip-wide
+  // accommodation one (#402).
+  const { dayWarnings, tripWideWarnings, warnDayCount } = useMemo(() => {
+    const { byDay, tripWide } = groupWarnings(collectWarnings(trip))
     const map: Record<number, ScheduleWarning[]> = {}
-    for (const w of collectWarnings(trip)) {
-      const m = /^Day (\d+):/.exec(w.title)
-      if (m) { const di = Number(m[1]) - 1; (map[di] ??= []).push(w) }
-    }
-    return map
+    for (const [idx, list] of byDay) map[idx] = list
+    return { dayWarnings: map, tripWideWarnings: tripWide, warnDayCount: byDay.size }
   }, [trip])
-  const warnDayCount = Object.keys(dayWarnings).length
   // M4: sticky trip-total strip (doc §6.3) — same engine numbers as Overview.
   const totals = useMemo(() => computeTotals(trip, legCorrections), [trip, legCorrections])
 
@@ -369,7 +371,27 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
         {warnDayCount > 0 && (
           <span className="tl-total-warn"><InlineIcon icon={TriangleAlert} size={12} gap={3} />{warnDayCount} day{warnDayCount !== 1 ? 's' : ''} need{warnDayCount === 1 ? 's' : ''} attention</span>
         )}
+        {tripWideWarnings.length > 0 && (
+          <span className="tl-total-warn"><InlineIcon icon={TriangleAlert} size={12} gap={3} />{tripWideWarnings.length} trip-wide warning{tripWideWarnings.length !== 1 ? 's' : ''}</span>
+        )}
       </div>
+
+      {/* Trip-wide warnings have no day card to live in, so they get their own
+          block right after the totals — before it, the regex grouping dropped
+          them from this tab entirely (#402). */}
+      {tripWideWarnings.length > 0 && (
+        <div className="warn-list" style={{ marginTop: 10 }} role="note" aria-label="Trip-wide warnings">
+          {tripWideWarnings.map(w => (
+            <div key={w.code + w.title} className={`warn-item ${w.severity === 'high' ? 'sev-high' : w.severity === 'low' ? 'sev-low' : ''}`}>
+              <span className="warn-icon"><TriangleAlert size={13} aria-hidden /></span>
+              <div>
+                <div className="warn-title">{w.title}</div>
+                <div className="warn-fix">{w.fix}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {days.length >= 4 && (
         <div className="day-rail" role="navigation" aria-label="Jump to day">

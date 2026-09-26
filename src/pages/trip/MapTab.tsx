@@ -1,6 +1,6 @@
 // ============ Trip workspace — Map tab ============
 // Mechanical extraction from src/pages/TripWorkspace.tsx (M3.4) — no behavior changes.
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { InlineIcon } from '../../components/icons'
 import { BedDouble, ChevronDown, CircleCheck, Coffee, ExternalLink, Fuel, Lightbulb, MapPin, Pause, Plus, RotateCcw, Sparkles, Star, Utensils } from 'lucide-react'
 import { uid } from '../../data/seed'
@@ -26,6 +26,7 @@ import { isElectric } from '../../lib/vehicleProfile'
 import { planInputsHash } from '../../hooks/useSuggestionCache'
 import { railReasonChips, type RailChip } from '../../lib/railReasons'
 import { daySlots, dayShape, tripDayAttribution, tripReadiness, SLOT_URGENCY_MIN, type DaySlot, type DaySlotKind, type DaySlotsDeps } from '../../lib/daySlots'
+import { discardedStagedIds, isAlreadyAdded, normalizePlaceName, tripPresence, type PlaceIdentity } from '../../lib/placeIdentity'
 import { addDecision, deleteStop, restoreStop } from '../../store/store'
 import { dayDetourBudgetMin, budgetSharePct, splitByDetourBudget } from '../../lib/detourBudget'
 import { anyQuotaExhausted } from '../../lib/providers/quota'
@@ -189,6 +190,11 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
   const [addedIds, setAddedIds] = useState<Set<string>>(new Set())
   // dismissed suggestion ids — logged as DNA declines, hidden for the session
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set())
+  // #345: ids this tab staged into a preview, with the name they will land
+  // under. The preview-close effect below reads this to release what a
+  // DISCARDED preview staged — the ghost that used to hide a place until
+  // reload. A committed stop keeps its id because its name is then in the plan.
+  const stagedIdsRef = useRef(new Map<string, string>())
   // DNA freshness: bumped on every accept/decline so scoring + notes re-read
   // the log instead of serving the memoised vector
   const [dnaTick, setDnaTick] = useState(0)
@@ -290,11 +296,18 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     [searchResults],
   )
 
-  const existingNames = useMemo(() => {
-    const names = new Set<string>()
-    for (const d of trip.days) for (const s of d.stops) names.add(s.title.toLowerCase())
-    return names
-  }, [trip])
+  // #345: ONE identity answers "is this already mine?" for every rail, slot,
+  // arc, pin and search row. `tripPresence` is the stable half (the plan's own
+  // stops, rejected ones excluded so a turned-down suggestion stays
+  // re-addable, normalized so `" Hotel Taj "` matches); `identity` adds this
+  // session's staged/dismissed ids. Split in two so the day-slot deps below
+  // don't re-derive on every add — only the trip's own stops move those.
+  const tripPresenceIds = useMemo(() => tripPresence(trip), [trip])
+  const existingNames = tripPresenceIds.names
+  const identity = useMemo<PlaceIdentity>(() => ({
+    names: tripPresenceIds.names, keys: tripPresenceIds.keys,
+    added: addedIds, dismissed: dismissedIds,
+  }), [tripPresenceIds, addedIds, dismissedIds])
 
   // OSRM road geometry of the whole route — feeds Google Search-Along-Route
   // (the report's killer feature); the free stack ignores it. #188: the
@@ -764,6 +777,37 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     return directionalKm(km, total, showReturn)
   }
 
+  /** #345: mark the ids a staged change will add — at the moment it is STAGED,
+   *  not when Keep lands. All three add paths call this, so the window in which
+   *  the same place can slip in twice stops existing; `stagedIdsRef` lets the
+   *  preview-close effect release them again if the change is discarded. */
+  const markStaged = useCallback((hits: Array<Pick<PlaceHit, 'id' | 'name'>>) => {
+    if (hits.length === 0) return
+    for (const h of hits) stagedIdsRef.current.set(String(h.id), normalizePlaceName(h.name))
+    setAddedIds(prev => {
+      const next = new Set(prev)
+      for (const h of hits) next.add(String(h.id))
+      return next
+    })
+  }, [])
+
+  // A preview that is DISCARDED must not leave a ghost: when the preview slot
+  // closes, release every id this tab staged whose place is not in the plan.
+  // (After Keep the stop is in `trip`, so its name is in `identity` and the id
+  // stays — which is the invariant: added ⟺ visible-in-preview-or-committed.)
+  useEffect(() => {
+    if (previewOpen || stagedIdsRef.current.size === 0) return
+    const staged = stagedIdsRef.current
+    stagedIdsRef.current = new Map()
+    const release = new Set(discardedStagedIds(staged, identity.names))
+    if (release.size === 0) return
+    setAddedIds(prev => {
+      const next = new Set(prev)
+      for (const id of release) next.delete(id)
+      return next
+    })
+  }, [previewOpen, identity])
+
   async function addPoiToDay(hit: PlaceHit, dayIndex: number) {
     const key = String(hit.id)
     if (addingIdsRef.current.has(key)) return
@@ -812,7 +856,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
           day.stops.push(newStop)
         }
       }, 'add', dayIndex)
-      setAddedIds(prev => new Set(prev).add(hit.id as string))
+      markStaged([hit])
       if (hit.haltPurpose === 'overnight') {
         const seg = pois.find(p => p.hit?.id === hit.id)?.segment
         if (seg) {
@@ -849,6 +893,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
       const pinned = await resolvePick(hit)
       if (!pinned) { toast(`Could not pin "${hit.name}" on the map - not added. Try another suggestion.`); return }
       const stopId = newStopId()
+    markStaged([hit])
     applyChange(draft => {
       const day = draft.days.find(d => d.index === dayIdx)
       if (!day) return
@@ -880,7 +925,6 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
       } as ItineraryStop
       day.stops.push(stop)
     }, 'add', dayIdx, () => {
-      setAddedIds(prev => new Set(prev).add(hit.id as string))
       // S6: the single Fill is the PRIMARY path, so it has to teach the engine
       // too. The batch fill did and this did not, which made one action's
       // consequence depend on which button was pressed - and starved the P7.2
@@ -939,6 +983,10 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
       const bytes = new Uint32Array(ordered.length * 2)
       crypto.getRandomValues(bytes)
       const newIds = ordered.map((_, i) => `pending_${bytes[i * 2].toString(36)}${bytes[i * 2 + 1].toString(36)}`)
+      // Both the pre-resolve candidates (what the rails render) and the pinned
+      // shapes are marked: on discard the effect releases the ones whose place
+      // is not in the plan, so over-marking is self-healing.
+      markStaged([...targets.map(t => t.hit), ...ordered.map(x => x.hit)])
       applyChange(draft => {
         const day = draft.days.find(d => d.index === dayIdx)
         if (!day) return
@@ -979,11 +1027,6 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
           }
         })
       }, 'add', dayIdx, () => {
-        setAddedIds(prev => {
-          const next = new Set(prev)
-          for (const { hit } of ordered) next.add(hit.id as string)
-          return next
-        })
         for (const { slot, hit } of ordered) {
           recordDnaEvent({ tripId: trip.id, action: 'accept', haltKind: slot.kind, category: hit.category, detourMin: asymmetricDetourMinutes(hit, anchors, routePolyline ?? null, MODE_SPEED[trip.transportMode] ?? 40) ?? undefined, visitMin: visitMinutesForCategory(hit.category) })
         }
@@ -1095,7 +1138,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
    *  hit later added to the plan or dismissed drops out instead of doubling. */
   function slotCands(slot: DaySlot) {
     const manual = (slotManual[slot.key] ?? [])
-      .filter(h => !addedIds.has(h.id as string) && !existingNames.has(h.name.toLowerCase()) && !dismissedIds.has(h.id as string))
+      .filter(h => !isAlreadyAdded(h, identity))
       .map(makeManualCandidate)
     const manualIds = new Set(manual.map(m => m.hit.id))
     return [...manual, ...slot.candidates.filter(c => !manualIds.has(c.hit.id))]
@@ -1135,7 +1178,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
   /** File a found place into THIS slot as a candidate (never straight into the
    *  plan — Fill stays the second, explicit act) under the #179 guards. */
   function addManualCandidate(slot: DaySlot, h: PlaceHit) {
-    if (addedIds.has(h.id as string) || existingNames.has(h.name.toLowerCase()) || dismissedIds.has(h.id as string)) {
+    if (isAlreadyAdded(h, identity)) {
       toast(`"${h.name}" is already on the plan or was dismissed.`)
       return
     }
@@ -1152,7 +1195,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     // Duplicate guard (#179 family): a place already in the plan (matched by
     // title) can't be added again from ANY path — the map-pin "+", a search
     // row, or the shortlist tray — so the modal never opens for a repeat.
-    if (existingNames.has(hit.name.toLowerCase())) { toast(`“${hit.name}” is already in your trip.`); return }
+    if (isAlreadyAdded(hit, identity)) { toast(`“${hit.name}” is already in your trip.`); return }
     // Pick-day default: prefer the caller's road position (search rows pass the
     // along-route km they already measured — searchPlacesText hits carry NO
     // cumKm, so reading hit.cumKm alone always defaulted to Day 1), else the
@@ -1169,7 +1212,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
       if (prev.some(h => h.id === hit.id)) return prev.filter(h => h.id !== hit.id)
       // #179: membership systems must not fight — already-added (Timeline or
       // map) and dismissed hits can't re-enter the tray from any path.
-      if (addedIds.has(hit.id as string) || existingNames.has(hit.name.toLowerCase()) || dismissedIds.has(hit.id as string)) return prev
+      if (isAlreadyAdded(hit, identity)) return prev
       return [...prev, hit]
     })
   }
@@ -1177,11 +1220,8 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
   // on the Timeline (or dismissed) must not sit in the tray as a stale
   // double-add waiting to happen. Derived, so every action below sees the
   // same clean list.
-  const trayShortlist = useMemo(() => shortlist.filter(h =>
-    !addedIds.has(h.id as string) &&
-    !existingNames.has(h.name.toLowerCase()) &&
-    !dismissedIds.has(h.id as string)
-  ), [shortlist, addedIds, existingNames, dismissedIds])
+  const trayShortlist = useMemo(() => shortlist.filter(h => !isAlreadyAdded(h, identity)),
+    [shortlist, identity])
 
   async function addShortlisted() {
     if (addingAny || trayShortlist.length === 0) return
@@ -1411,7 +1451,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
   // drop out of the see-&-do rail entirely (count included), same as the
   // “Added” state does for need halts. Name-match matches the rail's dedupe.
   const voteResolvedOut = (sh: { hit?: PlaceHit | null }) =>
-    !!sh.hit && existingNames.has(sh.hit.name.toLowerCase())
+    !!sh.hit && isAlreadyAdded(sh.hit, identity)
   const seeAndDoLive = seeAndDo.filter(sh => !voteResolvedOut(sh))
   const seeForRail = chipFilter ? seeAndDoLive.filter(sh => sh.hit && chipsFor(sh, sh.hit).some(c => c.key === chipFilter)) : seeAndDoLive
   const filterActive = chipFilter != null
@@ -1456,9 +1496,12 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
   // the clustering pass (#166) only re-runs when membership actually changes.
   const arcHits = useMemo(() => seeAndDoLive.flatMap(sh => {
     const h = sh.hit
-    if (!h || addedIds.has(h.id as string) || dismissedIds.has(h.id as string)) return []
+    // #345: arcs advertise "live, not-yet-added sights" — so they read the
+    // SAME predicate as the rails. They used to skip the trip-presence half
+    // and push places you already own.
+    if (!h || isAlreadyAdded(h, identity)) return []
     return [h]
-  }), [seeAndDoLive, addedIds, dismissedIds])
+  }), [seeAndDoLive, identity])
   // #166: clustering walks the whole sight pool per render — memo it so a
   // search keystroke or shortlist toggle doesn't re-cluster 200 sights. The
   // labels are pre-split once here too (title/body were parsed twice per arc
@@ -1484,7 +1527,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     const hit = sh.hit
     if (hit && dismissedIds.has(hit.id as string)) return null
     if (!hit) return renderGapRow(sh) // gaps keep their honest row
-    const added = addedIds.has(hit.id as string) || existingNames.has(hit.name.toLowerCase())
+    const added = isAlreadyAdded(hit, identity)
     const detourMin = hitEngine.get(String(hit.id))?.detourMin
       ?? asymmetricDetourMinutes(hit, anchors, routePolyline ?? null, MODE_SPEED[trip.transportMode] ?? 40)
     const chips = chipsFor(sh, hit)
@@ -1576,21 +1619,21 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
       const h = r.hit
       if (!h) continue
       const id = h.id as string
-      if (dismissedIds.has(id) || addedIds.has(id) || existingNames.has(h.name.toLowerCase())) continue
+      if (isAlreadyAdded(h, identity)) continue
       const e: AltEntry = { h, dKm: detourKm(h, anchors) }
       all.push(e)
       if (h.haltPurpose) push(byPurpose, h.haltPurpose, e)
       if (h.category) push(byCategory, h.category, e)
     }
     return { all, byPurpose, byCategory }
-  }, [pois, dismissedIds, addedIds, existingNames, anchors])
+  }, [pois, identity, anchors])
 
   // ---- P2: the day's plan (slots rail) ----
   // One derivation feeds the rail, the meter and the fill flow: slots derive
   // from engine output alone (src/lib/daySlots.ts), so the view can never
   // drift from the engine. stopSig/refreshTick keep the memo honest against
   // store writes; the deps memo carries the expensive shared inputs.
-  const daySlotSig = `${stopSig}|${refreshTick}|${dismissedIds.size}|${shortlist.length}`
+  const daySlotSig = `${stopSig}|${refreshTick}|${dismissedIds.size}|${addedIds.size}|${shortlist.length}`
   const daySlotDeps = useMemo<Omit<DaySlotsDeps, 'dayStops'>>(() => ({
     haltSegments: pois,
     anchors,
@@ -1598,6 +1641,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     transportMode: trip.transportMode,
     travelStyle: trip.travelStyle,
     existingNames,
+    identity,
     altPool: altPool.all.map(e => e.h),
     decisions,
     memberCount: (trip.members ?? []).length,
@@ -1609,7 +1653,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
     // own road-km span (the same road-true km dayForKm trusts).
     fillSkeleton: true,
     daySpanKm: dayAttribution.daySpanKm,
-  }), [pois, anchors, routePolyline, trip.transportMode, trip.travelStyle, existingNames, altPool, dayAttribution, decisions, trip.travellers])
+  }), [pois, anchors, routePolyline, trip.transportMode, trip.travelStyle, existingNames, identity, altPool, dayAttribution, decisions, trip.travellers])
   /** This day's stops - one lookup, shared by the slots, the shape and the fills. */
   const activeDayStops = useMemo(
     () => trip.days.find(d => d.index === activeDayIndex)?.stops ?? [],
@@ -1846,7 +1890,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
               // SB2: the same membership guard every other rail row uses
               // (renderLedgerRow, and the card before it). Without it this row
               // was the one place that would happily add the same place twice.
-              const added = addedIds.has(h.id as string) || existingNames.has(h.name.toLowerCase())
+              const added = isAlreadyAdded(h, identity)
               // Selected twin: clicking the map's search marker highlights this
               // row (activeHitId) just as hovering the row glows its pin.
               const selected = activeHitId != null && activeHitId === h.id
@@ -2432,7 +2476,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
                         const toAdd: { hit: PlaceHit; dayIndex: number }[] = []
                         for (const id of arc.hitIds) {
                           const m = arcHits.find(h => (h.id as string) === (id as string))
-                          if (!m || addedIds.has(m.id as string)) continue
+                          if (!m || isAlreadyAdded(m, identity)) continue
                           const mDay = dayForKm(m.cumKm)
                           if (mDay == null) continue // no road position — cannot attribute to a day
                           toAdd.push({ hit: m, dayIndex: mDay })

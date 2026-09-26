@@ -606,6 +606,28 @@ export function dayRoadPolyline(
  * road km the travel panel displays — multiply chord figures by this ratio.
  * Returns 1 (no rescale) while corrections are absent or degenerate.
  */
+/** How many of a day's legs carry a MEASURED road estimate (#341). Zero means
+ *  every “road km” the optimise dialog would print is chord math dressed by a
+ *  scale factor of 1 — the honest thing to do is label it an estimate. */
+export function measuredLegCount(
+  points: Array<{ lat: number; lng: number }>,
+  corrections?: Record<string, LegEstimate>,
+): number {
+  if (!corrections || points.length < 2) return 0
+  let n = 0
+  for (let i = 0; i < points.length - 1; i++) if (corrections[legKey(points[i], points[i + 1])]) n++
+  return n
+}
+
+/** How the optimise dialog labels a distance (#341). Its objective is
+ *  straight-line, rescaled by the day's road-vs-chord ratio; with no measured
+ *  leg that ratio is 1, so the number is chord math and must never be dressed
+ *  as a measured road km. Pure, so the rule is testable without a DOM. */
+export function optimiseKmLabel(km: number, ratio: number, measuredLegs: number): string {
+  const shown = Math.round(km * ratio)
+  return measuredLegs === 0 ? `~${shown} km (est.)` : `${shown} km`
+}
+
 export function roadScaleRatio(
   points: JourneyPoint[],
   corrections?: Record<string, LegEstimate>,
@@ -648,12 +670,23 @@ export type Severity = 'high' | 'medium' | 'low'
 /** Wheel time on a self-drive day past which fatigue risk is flagged. */
 const FATIGUE_DRIVE_MINUTES = 420
 
+// Cross-day rest thresholds (#423): the night between two days is measured
+// end-to-start. Under 5 h is a real problem, under 7 h is worth flagging.
+const SHORT_REST_HIGH_MIN = 300
+const SHORT_REST_MEDIUM_MIN = 420
+
 export interface ScheduleWarning {
   code: string
   severity: Severity
   title: string
   detail: string
   fix: string            // recommended action
+  /** The day this warning belongs to, or `null` for a trip-wide one (hotel
+   *  churn). Attached here because `title` is a DISPLAY string — the "Day N:"
+   *  prefix is a rendering convention, not a key, and every surface that
+   *  parsed it drifted (#402). Optional so a legacy/custom warning shape still
+   *  groups through `groupWarnings`' prefix fallback. */
+  dayIndex?: number | null
 }
 
 export interface HealthResult {
@@ -671,20 +704,29 @@ export function collectWarnings(trip: Trip): ScheduleWarning[] {
   const A = getAssumptions(trip)
   const dayCount = Math.max(1, trip.days.length)
 
+  // The clocks the cross-day rest check after this loop needs. Collected here
+  // so the pair walk never re-simulates a day (collectWarnings is on the hot
+  // path: every store commit runs it for the timeline strip + the health dial).
+  const dayClocks = new Map<number, { startsAt: string; endsAt: string; startMin: number; endMin: number }>()
+
   trip.days.forEach((day) => {
     // simulateDay already builds the day's full unified journey — the drive
     // to the day's destination (or back home) is inside these totals, so no
     // overlay math is needed to make travel/fatigue checks honest.
     const sim = simulateDay(day, trip, originOf(trip, day.index), day.index)
     const n = sim.activeStops.length
+    dayClocks.set(day.index, {
+      startsAt: sim.startsAt, endsAt: sim.endsAt,
+      startMin: hmToMinutes(sim.startsAt), endMin: hmToMinutes(sim.endsAt),
+    })
     const travelMinutes = sim.totalTravelMinutes
     const travelKm = sim.totalDistanceKm
 
     // Excessive daily travel (>5h on the road)
     if (travelMinutes > 300) {
-      warnings.push({ code: 'travel', severity: 'high', title: `Day ${day.index + 1}: heavy travel time`, detail: `About ${minutesToHM(travelMinutes)} of driving/transit across ${travelKm.toFixed(0)} km.`, fix: 'Move one activity to another day or pick a closer alternative.' })
+      warnings.push({ code: 'travel', severity: 'high', dayIndex: day.index, title: `Day ${day.index + 1}: heavy travel time`, detail: `About ${minutesToHM(travelMinutes)} of driving/transit across ${travelKm.toFixed(0)} km.`, fix: 'Move one activity to another day or pick a closer alternative.' })
     } else if (travelMinutes > 210) {
-      warnings.push({ code: 'travel', severity: 'medium', title: `Day ${day.index + 1}: long travel time`, detail: `Roughly ${minutesToHM(travelMinutes)} in transit.`, fix: 'Consider starting earlier or dropping an optional stop.' })
+      warnings.push({ code: 'travel', severity: 'medium', dayIndex: day.index, title: `Day ${day.index + 1}: long travel time`, detail: `Roughly ${minutesToHM(travelMinutes)} in transit.`, fix: 'Consider starting earlier or dropping an optional stop.' })
     }
 
     // Fatigue risk: a self-drive day pushing well past ~7 h of wheel time with
@@ -693,23 +735,23 @@ export function collectWarnings(trip: Trip): ScheduleWarning[] {
     if (isFuelEconomyMode(trip.transportMode)) {
       const hasHalt = sim.activeStops.some(s => (s.category === 'food' || s.category === 'rest') && !s.auto && s.visitMinutes > 0)
       if (travelMinutes > FATIGUE_DRIVE_MINUTES && !hasHalt) {
-        warnings.push({ code: 'fatigue', severity: 'high', title: `Day ${day.index + 1}: fatigue risk on a long drive`, detail: `About ${minutesToHM(travelMinutes)} of wheel time with no meal or rest halt.`, fix: 'Use the long-ride planner on this day to add a halt — or split the drive across two days.' })
+        warnings.push({ code: 'fatigue', severity: 'high', dayIndex: day.index, title: `Day ${day.index + 1}: fatigue risk on a long drive`, detail: `About ${minutesToHM(travelMinutes)} of wheel time with no meal or rest halt.`, fix: 'Use the long-ride planner on this day to add a halt — or split the drive across two days.' })
       }
     }
 
     // Too many activities
     if (n > 6) {
-      warnings.push({ code: 'density', severity: 'high', title: `Day ${day.index + 1} is over-packed`, detail: `${n} activities in one day leaves almost no slack.`, fix: 'Move one activity to another day.' })
+      warnings.push({ code: 'density', severity: 'high', dayIndex: day.index, title: `Day ${day.index + 1} is over-packed`, detail: `${n} activities in one day leaves almost no slack.`, fix: 'Move one activity to another day.' })
     } else if (n > 5) {
-      warnings.push({ code: 'density', severity: 'low', title: `Day ${day.index + 1} is busy`, detail: `${n} activities scheduled.`, fix: 'Keep buffer time in mind before adding more.' })
+      warnings.push({ code: 'density', severity: 'low', dayIndex: day.index, title: `Day ${day.index + 1} is busy`, detail: `${n} activities scheduled.`, fix: 'Keep buffer time in mind before adding more.' })
     }
 
     // Late finish
     const endMin = hmToMinutes(sim.endsAt)
     if (endMin > hmToMinutes('21:30')) {
-      warnings.push({ code: 'late-arrival', severity: 'medium', title: `Day ${day.index + 1} ends very late`, detail: `Last activity wraps around ${sim.endsAt}.`, fix: 'Remove an optional stop or shorten visit durations.' })
+      warnings.push({ code: 'late-arrival', severity: 'medium', dayIndex: day.index, title: `Day ${day.index + 1} ends very late`, detail: `Last activity wraps around ${sim.endsAt}.`, fix: 'Remove an optional stop or shorten visit durations.' })
     } else if (endMin > hmToMinutes(A.dayEnd)) {
-      warnings.push({ code: 'late-arrival', severity: 'low', title: `Day ${day.index + 1} runs past plan`, detail: `Plan ends near ${sim.endsAt}.`, fix: 'Trim an optional stop to protect your evening.' })
+      warnings.push({ code: 'late-arrival', severity: 'low', dayIndex: day.index, title: `Day ${day.index + 1} runs past plan`, detail: `Plan ends near ${sim.endsAt}.`, fix: 'Trim an optional stop to protect your evening.' })
     }
 
     // Opening-hours conflicts
@@ -717,9 +759,9 @@ export function collectWarnings(trip: Trip): ScheduleWarning[] {
       if (!s.openTime || !s.closeTime) return
       const arr = sim.arrivalTimes[i]
       if (hmToMinutes(arr) < hmToMinutes(s.openTime)) {
-        warnings.push({ code: 'hours', severity: 'medium', title: `${s.title}: arrives before opening`, detail: `You reach ~${arr}, opens at ${s.openTime}.`, fix: 'Reorder stops so this comes later in the day.' })
+        warnings.push({ code: 'hours', severity: 'medium', dayIndex: day.index, title: `${s.title}: arrives before opening`, detail: `You reach ~${arr}, opens at ${s.openTime}.`, fix: 'Reorder stops so this comes later in the day.' })
       } else if (hmToMinutes(arr) + s.visitMinutes > hmToMinutes(s.closeTime)) {
-        warnings.push({ code: 'hours', severity: 'medium', title: `${s.title}: closes too soon after arrival`, detail: `Arrival ~${arr}, but closes at ${s.closeTime} while you need ${minutesToHM(s.visitMinutes)}.`, fix: 'Visit this stop earlier or reduce time here.' })
+        warnings.push({ code: 'hours', severity: 'medium', dayIndex: day.index, title: `${s.title}: closes too soon after arrival`, detail: `Arrival ~${arr}, but closes at ${s.closeTime} while you need ${minutesToHM(s.visitMinutes)}.`, fix: 'Visit this stop earlier or reduce time here.' })
       }
     })
 
@@ -729,7 +771,7 @@ export function collectWarnings(trip: Trip): ScheduleWarning[] {
       const back = legBetween(pts[i], pts[i - 1], A)
       const fwd = legBetween(pts[i], pts[i + 1], A)
       if (back.distanceKm < fwd.distanceKm * 0.55 && fwd.distanceKm > 18) {
-        warnings.push({ code: 'backtrack', severity: 'low', title: `Day ${day.index + 1}: Route backtracking`, detail: `The order of “${pts[i].title}” adds zig-zag distance.`, fix: 'Reorder stops along one direction.' })
+        warnings.push({ code: 'backtrack', severity: 'low', dayIndex: day.index, title: `Day ${day.index + 1}: Route backtracking`, detail: `The order of “${pts[i].title}” adds zig-zag distance.`, fix: 'Reorder stops along one direction.' })
         break
       }
     }
@@ -738,13 +780,13 @@ export function collectWarnings(trip: Trip): ScheduleWarning[] {
     const hasFoodOrRest = sim.activeStops.some(s => s.category === 'food' || s.category === 'rest')
     const span = endMin - hmToMinutes(A.dayStart)
     if (!hasFoodOrRest && span > 360) {
-      warnings.push({ code: 'meals', severity: 'medium', title: `Day ${day.index + 1}: no meal/rest break`, detail: `A ${minutesToHM(span)} day without a planned food or rest stop.`, fix: 'Add a rest period or lunch stop.' })
+      warnings.push({ code: 'meals', severity: 'medium', dayIndex: day.index, title: `Day ${day.index + 1}: no meal/rest break`, detail: `A ${minutesToHM(span)} day without a planned food or rest stop.`, fix: 'Add a rest period or lunch stop.' })
     }
 
     // Weather-sensitive outdoor items
     const wCount = sim.activeStops.filter(s => s.weatherSensitive).length
     if (wCount >= 3) {
-      warnings.push({ code: 'weather', severity: 'low', title: `Day ${day.index + 1} is weather-dependent`, detail: `${wCount} outdoor stops would all be affected by rain.`, fix: 'Identify an indoor backup for at least one stop.' })
+      warnings.push({ code: 'weather', severity: 'low', dayIndex: day.index, title: `Day ${day.index + 1} is weather-dependent`, detail: `${wCount} outdoor stops would all be affected by rain.`, fix: 'Identify an indoor backup for at least one stop.' })
     }
   })
 
@@ -757,19 +799,74 @@ export function collectWarnings(trip: Trip): ScheduleWarning[] {
     if (fc.type === 'hotel-checkin') continue // check-in is an anchor, not a race
     const lastDepIdx = sim.departures.length - 1
     if (lastDepIdx >= 0 && hmToMinutes(sim.arrivalTimes[lastDepIdx]) > commitMin) {
-      warnings.push({ code: 'commitment', severity: 'high', title: `Conflicts with ${fc.title}`, detail: `Day ${fc.dayIndex + 1} plan reaches its last stop after the ${fc.time} commitment.`, fix: 'Cut an earlier stop so you arrive with buffer.' })
+      warnings.push({ code: 'commitment', severity: 'high', dayIndex: fc.dayIndex, title: `Conflicts with ${fc.title}`, detail: `Day ${fc.dayIndex + 1} plan reaches its last stop after the ${fc.time} commitment.`, fix: 'Cut an earlier stop so you arrive with buffer.' })
     } else if (lastDepIdx >= 0 && commitMin - hmToMinutes(sim.arrivalTimes[lastDepIdx]) < 45 && sim.activeStops.length > 0) {
-      warnings.push({ code: 'buffer', severity: 'medium', title: `Thin buffer before ${fc.title}`, detail: `Less than ~45 min of slack before the ${fc.time} commitment.`, fix: 'Drop one optional stop to protect your connection.' })
+      warnings.push({ code: 'buffer', severity: 'medium', dayIndex: fc.dayIndex, title: `Thin buffer before ${fc.title}`, detail: `Less than ~45 min of slack before the ${fc.time} commitment.`, fix: 'Drop one optional stop to protect your connection.' })
     }
+  }
+
+  // Cross-day rest: the night between two consecutive days is the one thing
+  // neither day can see on its own (#423) — a day that ends at 23:40 and a
+  // next day starting at 06:00 each look fine in isolation. Days are walked in
+  // DAY-ORDER (index), never array order, and each day's clock is its own
+  // midnight's, so the rest window is the time from the earlier day's end to
+  // the next day's start: 1440 + nextStart − dayEndAbsolute.
+  const orderedDays = [...trip.days].sort((a, b) => a.index - b.index)
+  for (let i = 0; i < orderedDays.length - 1; i++) {
+    const prev = orderedDays[i], next = orderedDays[i + 1]
+    const a = dayClocks.get(prev.index), b = dayClocks.get(next.index)
+    if (!a || !b) continue
+    // The check reads CLOCKS, not stop counts: a stopless travel day still has
+    // an end (its synthesized drive), and a late one is still a short night.
+    const endOffset = ((a.endMin - a.startMin) % 1440 + 1440) % 1440
+    const rest = 1440 + b.startMin - (a.startMin + endOffset)
+    if (rest >= SHORT_REST_MEDIUM_MIN) continue
+    const severity: Severity = rest < SHORT_REST_HIGH_MIN ? 'high' : 'medium'
+    warnings.push({
+      code: 'short-rest', severity, dayIndex: next.index,
+      title: `Day ${next.index + 1}: short night after Day ${prev.index + 1}`,
+      detail: `Day ${prev.index + 1} ends ~${a.endsAt} and Day ${next.index + 1} starts ${b.startsAt} — about ${minutesToHM(rest)} of rest between them.`,
+      fix: severity === 'high'
+        ? 'Trim the late stop or start the next day later — under 5 h of rest is not a plan.'
+        : 'Consider starting the next day a little later, or move one stop off it.',
+    })
   }
 
   // Hotel/transport changes between days (each new hotel night counts as friction)
   const hotelNights = countHotelNights(trip)
   if (hotelNights >= dayCount && dayCount >= 3) {
-    warnings.push({ code: 'hotels', severity: 'low', title: 'Frequent accommodation changes', detail: `About ${hotelNights} different overnight bases in ${dayCount} days means packing/unpacking daily.`, fix: 'Consider a 2-night stay in one base town.' })
+    warnings.push({ code: 'hotels', severity: 'low', dayIndex: null, title: 'Frequent accommodation changes', detail: `About ${hotelNights} different overnight bases in ${dayCount} days means packing/unpacking daily.`, fix: 'Consider a 2-night stay in one base town.' })
   }
 
   return warnings
+}
+
+/**
+ * Group warnings by the day they belong to (#402). Identity comes from
+ * `dayIndex` when the engine attached it — never from parsing `title`, which
+ * is a display string. The title fallback exists only for warning shapes that
+ * predate the field (custom/legacy), and a warning with no day at all is
+ * returned as trip-wide rather than dropped — which is exactly how the
+ * regex-parsing surfaces used to lose the accommodation warning.
+ */
+export function groupWarnings(warnings: ScheduleWarning[]): { byDay: Map<number, ScheduleWarning[]>; tripWide: ScheduleWarning[] } {
+  const byDay = new Map<number, ScheduleWarning[]>()
+  const tripWide: ScheduleWarning[] = []
+  for (const w of warnings) {
+    const idx = w.dayIndex !== undefined ? w.dayIndex : dayIndexFromTitle(w.title)
+    if (idx === null) { tripWide.push(w); continue }
+    const list = byDay.get(idx)
+    if (list) list.push(w)
+    else byDay.set(idx, [w])
+  }
+  return { byDay, tripWide }
+}
+
+/** Last-resort day lookup for a warning that predates `dayIndex`. The “Day N:”
+ *  prefix is a rendering convention, so this never runs for engine output. */
+export function dayIndexFromTitle(title: string): number | null {
+  const m = /^Day (\d+)/.exec(title)
+  return m ? Number(m[1]) - 1 : null
 }
 
 /** Public API: compute health from collected warnings. */
@@ -933,6 +1030,11 @@ export interface OptimizeDayResult {
   afterKm: number
   /** false when there was nothing to improve (≤2 movable stops, or already optimal) */
   changed: boolean
+  /** Why the optimiser declined, when it did for a reason the user can act on:
+   *  'mid-anchor' = a manually placed waypoint sits mid-day, so the engine's
+   *  pinned head/tail model doesn't describe this day (#341). Absent = nothing
+   *  to explain (too few movable stops, or already optimal). */
+  blocked?: 'mid-anchor'
 }
 
 /** Reorder a day's MOVABLE stops to minimise crisscrossing: greedy
@@ -954,6 +1056,7 @@ export interface OptimizeDayResult {
 export function optimizeDayOrder(
   origin: { lat: number; lng: number },
   stops: ItineraryStop[],
+  opts: { hasNextDay?: boolean } = {},
 ): OptimizeDayResult {
   const sorted = [...stops].sort((a, b) => a.orderInDay - b.orderInDay)
   const active = sorted.filter(s => s.status !== 'rejected')
@@ -979,14 +1082,21 @@ export function optimizeDayOrder(
   const nightBase = !anchorTail && lastActive && (lastActive.category === 'hotel' || lastActive.category === 'rest')
     ? lastActive
     : undefined
-  const tail = anchorTail ?? nightBase
+  // #341: the tail is the next day's wake-up point, whatever its category —
+  // `dayEndPosition` returns the last stored stop and `originOf(next day)`
+  // walks forward through it, so a tail that is neither hotel nor rest is just
+  // as load-bearing (a food-tailed day moved the next morning ~16 km on the
+  // shelf itineraries). Pinned whenever a later day exists to derive from it;
+  // the last day of a trip owns its own tail and stays free.
+  const hasNextDay = opts.hasNextDay ?? true
+  const storedTail = !anchorTail && hasNextDay && lastActive && !lastActive.auto ? lastActive : undefined
+  const tail = anchorTail ?? nightBase ?? storedTail
   // movable = non-auto, non-rejected; rejected ride along after the actives
-  const movable = active.filter(s => s.auto !== true && s.id !== nightBase?.id)
+  const movable = active.filter(s => s.auto !== true && s.id !== tail?.id)
   const beforeKm = dayRouteKm(origin, active)
 
-  if (movable.length < 3 || midAnchor) {
-    return { stops: sorted, beforeKm, afterKm: beforeKm, changed: false }
-  }
+  if (midAnchor) return { stops: sorted, beforeKm, afterKm: beforeKm, changed: false, blocked: 'mid-anchor' }
+  if (movable.length < 3) return { stops: sorted, beforeKm, afterKm: beforeKm, changed: false }
 
   // Greedy nearest-neighbour with the open-time tie-break (earlier opening
   // first when two candidates sit within ~800 m of each other).

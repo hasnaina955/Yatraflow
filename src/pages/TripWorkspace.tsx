@@ -132,6 +132,11 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
   // ONE road measurement for the whole workspace (#188): the engine's leg
   // corrections and the Map tab's road view come from the same chain.
   const { corrections: legCorrections, road } = useTripRoad(trip)
+  // #342: the preview must measure with the SAME road data the timeline
+  // renders, but `applyChange`'s identity is a memo prop for DaySection — so
+  // the corrections are read through a ref instead of entering its deps.
+  const legCorrRef = useRef(legCorrections)
+  legCorrRef.current = legCorrections
 
   // Auto (Wikipedia) destination photo for the workspace header cover badge.
   // Walk all candidates (last stop → earlier stops → start city) so a single
@@ -175,7 +180,7 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
     // COMBINED delta, which is what Keep will actually write.
     const staged = pendingRef.current
     const proposed = stagedChange(trip, staged?.proposed ?? null, mutator)
-    const result = computeImpact(trip, proposed, kind, dayIndex)
+    const result = computeImpact(trip, proposed, kind, dayIndex, legCorrRef.current)
     // The baseline is recorded only when a NEW preview starts: a chain keeps
     // the original, so a direct write that landed mid-preview still reads stale.
     if (!staged) baseRef.current = trip

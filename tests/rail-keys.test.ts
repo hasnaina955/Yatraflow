@@ -90,3 +90,27 @@ describe('the rail uses that grammar, not a one-branch Enter handler', () => {
     expect(effect![0]).toContain('keyboardScrollRef.current')
   })
 })
+
+describe('the rail states scope in words, and keeps nothing unreachable (#333 A4, A7)', () => {
+  it('A4: the rotating tip dots are indicators, not unreachable buttons', () => {
+    // They were <button onClick tabIndex={-1}> inside an aria-hidden container:
+    // clickable, unreachable by keyboard, 8px wide, and hidden below 720px. The
+    // strip rotates on its own and screen readers get a static summary instead
+    // (#168), so the dots carry no control at all now.
+    expect(mapTabSrc).toMatch(/engine-tips-dots" aria-hidden="true"/)
+    expect(mapTabSrc).toMatch(/<span key=\{i\} className=\{`engine-tips-dot/)
+    // No control anywhere in the rail may opt itself out of the tab order —
+    // that is the shape of "focusable things a keyboard cannot reach".
+    expect(mapTabSrc).not.toMatch(/tabIndex=\{-1\}/)
+    expect(mapTabSrc).not.toMatch(/engine-tips-dot[^>]*onClick/)
+  })
+
+  it('A7: an out-of-scope row is never dimmed, and says why in words', () => {
+    // opacity 0.6 washed out text already near the contrast floor AND made the
+    // row's own action buttons read as disabled while they were still pressable.
+    expect(mapTabSrc).not.toMatch(/opacity: inScope \? undefined : 0\.6/)
+    expect(mapTabSrc).toMatch(/chip chip-saffron[^>]*>beyond your detour scope</)
+    // the phrase must not still be trailing the muted comma-run
+    expect(mapTabSrc).not.toMatch(/, beyond your detour scope'/)
+  })
+})

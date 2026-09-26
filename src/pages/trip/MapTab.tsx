@@ -96,9 +96,20 @@ function EngineTips() {
           one static summary instead. */}
       <span key={tip} className="engine-tips-text" aria-hidden="true">{ENGINE_TIPS[tip]}</span>
       <span className="sr-only" role="status">Suggestions are spaced for fatigue and checked against your detour budget.</span>
+      {/* #333 A4: these were buttons with onClick and a -1 tabIndex INSIDE an
+          aria-hidden container — clickable, unreachable by keyboard, and 8px wide.
+          (Spelled without the JSX braces on purpose: the suite greps this file for
+          that literal, and a comment carrying it would trip its own guard.)
+          The strip is ambient decoration: it rotates on its own every 7s, it is
+          display:none below 720px, and screen readers already get the static
+          summary above instead (#168). So the dots are indicators now, not
+          controls: nothing focusable sits inside aria-hidden (that pairing is the
+          violation the issue named), and no target below the repo's 40px floor
+          remains. If picking a tip is ever wanted back, the shape is ONE
+          "next tip" button on the strip — not six 8px dots. */}
       <span className="engine-tips-dots" aria-hidden="true">
         {ENGINE_TIPS.map((_, i) => (
-          <button key={i} type="button" tabIndex={-1} className={`engine-tips-dot${i === tip ? ' on' : ''}`} onClick={() => setTip(i)} />
+          <span key={i} className={`engine-tips-dot${i === tip ? ' on' : ''}`} />
         ))}
       </span>
     </div>
@@ -1925,7 +1936,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
                       setPinnedHitId(null); setActiveHitId(null)
                     }
                   }}
-                  style={{ opacity: inScope ? undefined : 0.6 }}>
+                  >
                   <span className="small" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {h.name}{h.nearestCity ? ` · ${h.nearestCity}` : ''}
                     {/* Google hits carry a trusted rating + reported hours — surface them. */}
@@ -1937,8 +1948,14 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
                         return km != null ? `~${Math.round(labelled ?? km)} km into the trip${showReturn ? '' : ' (outbound)'}` : 'off the road'
                       })()}
                       {off != null ? `, ${off < 0.5 ? 'on route' : `${Math.round(off)} km off-route`}` : ''}
-                      {!inScope && ', beyond your detour scope'}
                     </span>
+                    {/* #333 A7: out-of-scope rows used to be dimmed to opacity 0.6,
+                        which washed out text that was already near the contrast
+                        floor AND made the row's own action buttons read as
+                        disabled while they were still pressable. The reason is
+                        stated in words instead — the same phrasing the row
+                        already carried, now visible rather than whispered. */}
+                    {!inScope && <span className="chip chip-saffron" style={{ marginLeft: 6 }}>beyond your detour scope</span>}
                   </span>
                   {editable && (added ? (
                     <span style={{ flex: '0 0 auto', marginLeft: 8 }}>

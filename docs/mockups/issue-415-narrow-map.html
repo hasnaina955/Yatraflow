@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>#415 — Narrow Map layouts: persistent map + tabbed planning sheet (mockup)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --teal:#0D8D82; --teal-deep:#0E7A72; --teal-soft:#E5F4EE;
+    --amber:#E4AE43; --ink-amber:#8F5B06; --amber-soft:#FFF4E4;
+    --see:#db4cf0; --see-ink:#8a2999; --see-soft:#F0EAFA;
+    --cream:#F8F7EF; --card:#FFFFFF; --line:#E4DCCC;
+    --ink:#0B2545; --ink2:#45566E; --mut:#5A6A80;
+    --navy:#123F49; --saffron:#F3AA3D; --coral:#D6534D; --mist:#ECF8F4;
+    --r:18px; --r-sm:12px;
+    --sh:0 2px 6px rgba(18,63,73,.05),0 16px 40px rgba(18,63,73,.10);
+    --ring:0 0 0 3px rgba(14,122,114,.28);
+    --fd:'Sora','Plus Jakarta Sans',system-ui,sans-serif;
+    --fb:'Plus Jakarta Sans',system-ui,-apple-system,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:var(--fb);background:linear-gradient(160deg,var(--cream),var(--mist) 60%,#FFF2E8);color:var(--ink);min-height:100vh;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1240px;margin:0 auto;padding:40px 22px 90px}
+  h1,h2,h3,h4{font-family:var(--fd);letter-spacing:-.01em;line-height:1.22;text-wrap:balance}
+  h1{font-size:27px;margin:10px 0 6px}
+  h2{font-size:20px;margin-bottom:4px}
+  h3{font-size:15.5px}
+  .lede{color:var(--ink2);font-size:14.5px;max-width:78ch;margin-bottom:8px}
+  .badges{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 6px}
+  .badge{font:700 11.5px/1 var(--fb);letter-spacing:.04em;padding:6px 10px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--ink2)}
+  .badge.p2{background:var(--amber-soft);color:var(--ink-amber);border-color:#EDD9AE}
+  .badge.ui{background:var(--teal-soft);color:var(--teal-deep);border-color:#CBE5DC}
+  .kicker{font:700 11px/1 var(--fb);letter-spacing:.09em;text-transform:uppercase;color:var(--teal-deep)}
+  section{margin-top:44px}
+  .sec-head{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+  .sec-head .no{font:800 12px/1 var(--fd);color:#fff;background:var(--navy);border-radius:8px;padding:5px 8px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh);padding:18px}
+  .grid2{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:18px;align-items:start}
+  .note{border-left:3px solid var(--amber);background:var(--amber-soft);padding:10px 13px;border-radius:0 10px 10px 0;font-size:13px;color:var(--ink2)}
+  .note.teal{border-color:var(--teal);background:var(--teal-soft)}
+  .note.coral{border-color:var(--coral);background:#FFF0EC}
+  .note b{color:var(--ink)}
+  .note + .note{margin-top:10px}
+  code{font:600 12px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;background:#F1EDE0;border-radius:6px;padding:1px 5px;color:var(--ink)}
+  .files{font-size:12.5px;color:var(--ink2);line-height:1.9}
+  .files b{color:var(--ink)}
+  ul.tight{padding-left:18px;font-size:13.5px;color:var(--ink2)}
+  ul.tight li{margin:5px 0}
+  ul.tight b{color:var(--ink)}
+  /* ------- device frames ------- */
+  .devframe{margin:0 auto;border:2px solid #22303C;border-radius:30px;background:#22303C;padding:10px;box-shadow:var(--sh)}
+  .devscreen{background:var(--cream);border-radius:20px;overflow:hidden;position:relative}
+  .devbar{display:flex;align-items:center;gap:8px;padding:8px 12px;background:#F2EFE4;border-bottom:1px solid var(--line)}
+  .devbar .dot{width:9px;height:9px;border-radius:50%;background:#D8D2BE}
+  .devbar .url{flex:1;font:500 11px/1 var(--fb);color:var(--mut);background:#fff;border:1px solid var(--line);border-radius:999px;padding:5px 10px;text-align:center}
+  .devtag{display:flex;justify-content:space-between;align-items:center;margin:10px 2px 8px;font:700 11.5px/1 var(--fb);letter-spacing:.06em;text-transform:uppercase;color:var(--mut)}
+  .devtag b{color:var(--ink)}
+  /* app chrome inside the frame */
+  .tabbar{display:flex;gap:4px;padding:8px 10px;background:rgba(255,255,255,.86);border-bottom:1px solid var(--line);font:600 11.5px/1 var(--fb);color:var(--mut);align-items:center}
+  .tabbar .logo{font:800 12.5px/1 var(--fd);color:var(--teal-deep);margin-right:auto}
+  .tabbar span{padding:6px 10px;border-radius:999px}
+  .tabbar .on{background:var(--teal-soft);color:var(--teal-deep)}
+  .viewscroll{position:relative;overflow:hidden}
+</style>
+</head>
+<body>
+<div class="wrap">
+<style>
+  /* ------- map card (shared by all frames) ------- */
+  .mapc{position:relative;background:linear-gradient(155deg,#E9F2EA 0%,#DFEDE4 46%,#E7F0EA 100%);overflow:hidden}
+  .mapc svg{position:absolute;inset:0;width:100%;height:100%}
+  .pin{position:absolute;width:26px;height:26px;border-radius:50%;background:var(--teal);color:#fff;font:700 11.5px/26px var(--fb);text-align:center;box-shadow:0 1px 5px rgba(11,37,69,.35);border:2px solid #fff;transform:translate(-50%,-50%)}
+  .pin.sel{width:30px;height:30px;line-height:26px;background:var(--teal-deep);box-shadow:0 0 0 6px rgba(13,141,130,.25),0 2px 8px rgba(11,37,69,.4);z-index:2}
+  .pin.idea{width:20px;height:20px;line-height:16px;background:#fff;border:2px dashed var(--amber);color:var(--ink-amber);font-size:10px}
+  .pin.home{background:var(--navy);font-size:9.5px;letter-spacing:.02em}
+  .mapctl{position:absolute;right:10px;top:10px;display:grid;gap:5px}
+  .mapctl i{display:block;width:30px;height:30px;border-radius:9px;background:#fff;border:1px solid var(--line);box-shadow:var(--sh);font:700 14px/28px var(--fb);text-align:center;color:var(--ink2);font-style:normal}
+  .mapcredit{position:absolute;left:8px;bottom:6px;font:500 9.5px/1 var(--fb);color:rgba(69,86,110,.75)}
+  .mapchip{position:absolute;left:10px;top:10px;background:rgba(255,255,255,.92);border:1px solid var(--line);border-radius:999px;padding:5px 10px;font:700 11px/1 var(--fb);color:var(--ink2);box-shadow:var(--sh)}
+  .mapchip b{color:var(--teal-deep)}
+  /* search row */
+  .searchrow{display:flex;gap:8px;padding:10px 12px;background:var(--card);border-bottom:1px solid var(--line)}
+  .searchrow .inp{flex:1;border:1px solid var(--line);border-radius:10px;padding:9px 11px;font:500 12.5px/1 var(--fb);color:var(--ink2);background:#FDFCF8}
+  .searchrow .go{border:1px solid var(--teal);color:var(--teal-deep);background:#fff;border-radius:10px;padding:9px 13px;font:700 12px/1 var(--fb)}
+  /* rails */
+  .rail{background:var(--card)}
+  .railhead{display:flex;align-items:center;gap:9px;padding:11px 12px;border-bottom:1px solid var(--line)}
+  .railhead .ico{width:28px;height:28px;border-radius:9px;display:grid;place-items:center;font-size:13px}
+  .needs .ico{background:var(--teal-soft)}
+  .see .ico{background:var(--see-soft)}
+  .railhead b{font:700 13.5px/1.15 var(--fd);display:block}
+  .needs .railhead b{color:var(--teal-deep)} .see .railhead b{color:var(--see-ink)}
+  .railhead small{display:block;color:var(--mut);font:500 11px/1.3 var(--fb)}
+  .railhead .chev{margin-left:auto;color:var(--mut);font-size:12px}
+  .slot{display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid #F0EBDC}
+  .slot .sic{width:30px;height:30px;border-radius:9px;background:var(--teal-soft);display:grid;place-items:center;font-size:13px;flex:none}
+  .slot b{font:700 12.5px/1.2 var(--fb);display:block}
+  .slot small{color:var(--mut);font:500 11px/1.3 var(--fb);display:block}
+  .slot .add{margin-left:auto;flex:none;font:700 11px/1 var(--fb);color:var(--teal-deep);border:1px solid var(--teal);background:#fff;border-radius:999px;padding:7px 11px;min-height:32px}
+  .slot .filled{margin-left:auto;flex:none;font:700 10.5px/1 var(--fb);color:var(--teal-deep);background:var(--teal-soft);border-radius:999px;padding:6px 10px}
+  .slot .auto{margin-left:auto;flex:none;font:700 10.5px/1 var(--fb);color:var(--mut);background:#F4F1E6;border-radius:999px;padding:6px 10px}
+  .slot.hovered{background:#F2FAF7;box-shadow:inset 3px 0 0 var(--teal)}
+</style>
+<style>
+  .chiprow{display:flex;flex-wrap:wrap;gap:6px;padding:9px 12px;border-bottom:1px solid #F0EBDC}
+  .pill{font:700 10.5px/1 var(--fb);padding:6px 9px;border-radius:999px;background:var(--see-soft);color:var(--see-ink)}
+  .pill.det{background:#F4F1E6;color:var(--mut)}
+  .rowhit{display:flex;align-items:center;gap:9px;padding:9px 12px;border-bottom:1px solid #F0EBDC;font-size:12.5px}
+  .rowhit .km{margin-left:auto;color:var(--mut);font:600 11px/1.3 var(--fb);text-align:right}
+  /* sheet (the proposal) */
+  .sheet{position:relative;background:var(--card);border-top:1px solid var(--line);border-radius:20px 20px 0 0;box-shadow:0 -8px 28px rgba(18,63,73,.10)}
+  .grab{width:46px;height:5px;border-radius:99px;background:#D9D2BD;margin:9px auto 4px}
+  .tabs{display:flex;gap:6px;padding:8px 12px 0;background:var(--card);border-bottom:1px solid var(--line)}
+  .tabs [role=tab]{flex:1;border:0;background:transparent;font:700 12.5px/1 var(--fb);color:var(--mut);padding:10px 8px 11px;border-radius:11px 11px 0 0;cursor:pointer;min-height:40px;position:relative}
+  .tabs [role=tab][aria-selected=true]{color:var(--teal-deep);background:var(--teal-soft)}
+  .tabs [role=tab][aria-selected=true]::after{content:'';position:absolute;left:14%;right:14%;bottom:-1px;height:3px;border-radius:3px;background:var(--teal)}
+  .tabs [role=tab]:focus-visible{outline:none;box-shadow:var(--ring)}
+  .tabs [role=tab] small{display:block;font:600 9.5px/1.2 var(--fb);color:var(--mut);margin-top:3px}
+  .pane{display:none}
+  .pane.on{display:block}
+  .statebar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:9px 12px;background:var(--teal-soft);border-top:1px dashed #CBE5DC;font:600 11px/1.4 var(--fb);color:var(--ink2)}
+  .statebar .sc{background:#fff;border:1px solid #CBE5DC;border-radius:999px;padding:5px 9px;font:700 10.5px/1 var(--fb);color:var(--teal-deep)}
+  .statebar .lab{font:700 9.5px/1 var(--fb);letter-spacing:.07em;text-transform:uppercase;color:var(--ink-amber)}
+  /* fold marker for the broken frame */
+  .foldmark{position:absolute;left:0;right:0;border-top:2px dashed var(--coral);z-index:5}
+  .foldmark span{position:absolute;right:10px;top:-11px;background:var(--coral);color:#fff;font:700 10px/1 var(--fb);padding:5px 9px;border-radius:999px;letter-spacing:.05em}
+  .offscreen{filter:saturate(.4) opacity(.62)}
+  .scrolldown{display:flex;align-items:center;justify-content:center;gap:8px;padding:13px;font:700 12px/1 var(--fb);color:var(--ink-amber);background:var(--amber-soft);border-top:1px dashed #EDD9AE}
+  .cap{font:500 12px/1.55 var(--fb);color:var(--mut);margin-top:8px}
+  .cap b{color:var(--ink2)}
+  .cols3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;align-items:start}
+  @media (max-width:1180px){.cols3{grid-template-columns:1fr}.grid2{grid-template-columns:1fr}}
+  .accgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+  .accgrid .card{padding:14px}
+  .accgrid h4{font-size:13.5px;margin-bottom:5px;color:var(--teal-deep)}
+  .accgrid p{font-size:12.5px;color:var(--ink2);line-height:1.6}
+  @media (max-width:980px){.accgrid{grid-template-columns:1fr}}
+  @media (prefers-reduced-motion:no-preference){.grab{animation:breathe 3.2s ease-in-out infinite}@keyframes breathe{50%{transform:scaleX(1.35)}}}
+</style>
+<header>
+  <span class="kicker">Visual proposal · issue #415</span>
+  <h1>Narrow Map layouts strand the planning rails below an off-screen map</h1>
+  <p class="lede">Below the split breakpoint the Map tab stacks three full sections — map, the <b>Day&nbsp;plan</b> rail, and the <b>Optional&nbsp;extras</b> rail — so a tablet or a split laptop window shows exactly one at a time. Every pin↔candidate comparison costs a scroll up and a scroll down. This page mocks the fix: <b>the map stays pinned, the rails become one tabbed sheet.</b> All styling uses the app's own tokens (teal&nbsp;500/600, <code>--yf-poi-see</code> violet, Sora&nbsp;+&nbsp;Plus&nbsp;Jakarta&nbsp;Sans, 18/12px radii, 40px touch floor).</p>
+  <div class="badges">
+    <span class="badge p2">priority: P2</span><span class="badge ui">ui</span><span class="badge">enhancement</span>
+    <span class="badge">#415 · open</span><span class="badge">mockup v1 · 2026-09-26</span>
+  </div>
+</header>
+
+<section>
+  <div class="sec-head"><span class="no">1</span><h2>The layout today — three sections, one viewport</h2></div>
+  <div class="grid2">
+    <div class="card">
+      <div class="devtag"><span>desktop &gt;1278px — fine, untouched by this proposal</span></div>
+      <svg viewBox="0 0 760 150" style="width:100%;display:block;background:#F4F1E6;border-radius:12px" role="img" aria-label="Desktop three-column layout">
+        <rect x="10" y="12" width="180" height="126" rx="10" fill="#fff" stroke="#E4DCCC"/>
+        <rect x="22" y="24" width="60" height="12" rx="6" fill="#0D8D82" opacity=".85"/>
+        <rect x="22" y="46" width="150" height="9" rx="4.5" fill="#E4DCCC"/><rect x="22" y="62" width="130" height="9" rx="4.5" fill="#E4DCCC"/><rect x="22" y="78" width="142" height="9" rx="4.5" fill="#E4DCCC"/>
+        <text x="100" y="126" text-anchor="middle" font-family="sans-serif" font-size="10" fill="#5A6A80">Day plan · 320px</text>
+        <rect x="204" y="12" width="352" height="126" rx="10" fill="#DFEDE4" stroke="#E4DCCC"/>
+        <path d="M222 118 C 300 60, 380 100, 440 58 S 520 40, 540 30" stroke="#0D8D82" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+        <circle cx="222" cy="118" r="6" fill="#123F49"/><circle cx="440" cy="58" r="6" fill="#0D8D82" stroke="#fff" stroke-width="2"/>
+        <text x="380" y="140" text-anchor="middle" font-family="sans-serif" font-size="10" fill="#5A6A80">map · 1fr (search sits above it)</text>
+        <rect x="570" y="12" width="180" height="126" rx="10" fill="#fff" stroke="#E4DCCC"/>
+        <rect x="582" y="24" width="74" height="12" rx="6" fill="#8a2999" opacity=".8"/>
+        <rect x="582" y="46" width="140" height="9" rx="4.5" fill="#E4DCCC"/><rect x="582" y="62" width="128" height="9" rx="4.5" fill="#E4DCCC"/>
+        <text x="660" y="126" text-anchor="middle" font-family="sans-serif" font-size="10" fill="#5A6A80">Optional extras · 320px</text>
+      </svg>
+      <p class="cap"><b>Desktop is a three-column grid</b> — <code>.map-ideas-grid { grid-template-columns: 320px minmax(0,1fr) 320px }</code>, rails sticky with their own scroll. Nothing here changes.</p>
+    </div>
+    <div class="card">
+      <h3>Root cause, exactly where the issue says</h3>
+      <p class="files">
+        <b><code>styles.css:3537</code></b> — the 3-column <code>.map-ideas-grid</code>.<br>
+        <b><code>styles.css:6417</code></b> — <code>@media (max-width:1278px)</code> collapses it to <code>1fr</code> and forces <code>.map-ideas-map { order:-1 }</code>: map first, both rails below at natural height (<code>max-height:none</code>).<br>
+        <b><code>MapTab.tsx:2133 / 2503</code></b> — <code>#rail-needs</code> ("Day N · label") and <code>#rail-see</code> ("Optional extras") render as full sections in that stack.
+      </p>
+      <div class="note coral" style="margin-top:10px"><b>So at ≤1278px the page is: search row → whole map → whole Day-plan rail → whole extras rail.</b> A 768px viewport fits about one of those. The fold (<code>is-needs-folded</code>) still works, but it only shortens a rail — it never keeps the map beside it.</div>
+    </div>
+  </div>
+</section>
+<section>
+  <div class="sec-head"><span class="no">2</span><h2>Feel the problem — a 768px tablet today</h2><span class="cap">frame clipped to a real 768×760 viewport</span></div>
+  <div class="grid2">
+    <div>
+      <div class="devframe" style="max-width:788px">
+        <div class="devscreen" style="height:760px">
+          <div class="devbar"><i class="dot"></i><i class="dot"></i><i class="dot"></i><span class="url">yatraflow · #/trip/coorg/map · 768×760</span></div>
+          <div class="tabbar"><span class="logo">YatraFlow</span><span>Timeline</span><span class="on">Map</span><span>Budget</span><span>Share</span></div>
+          <div class="searchrow"><span class="inp">Search anything to add — a trek, a homestay, a petrol pump…</span><span class="go">Search</span></div>
+          <div class="mapc" style="height:560px">
+            <svg viewBox="0 0 768 560" preserveAspectRatio="none">
+              <path d="M40 500 C 190 380, 300 430, 420 300 S 620 180, 700 90" stroke="#0D8D82" stroke-width="5" fill="none" stroke-linecap="round"/>
+            </svg>
+            <span class="pin home" style="left:5%;top:89%">BLR</span>
+            <span class="pin" style="left:33%;top:70%">1</span>
+            <span class="pin sel" style="left:55%;top:52%">2</span>
+            <span class="pin" style="left:72%;top:33%">3</span>
+            <span class="pin idea" style="left:60%;top:40%">?</span>
+            <span class="pin idea" style="left:82%;top:20%">?</span>
+            <span class="mapchip">Day 2 · Mysore → Coorg · <b>route measured</b></span>
+            <div class="mapctl"><i>+</i><i>−</i><i>⤢</i></div>
+            <span class="mapcredit">© OpenMapTiles © OpenStreetMap contributors</span>
+          </div>
+          <div class="foldmark" style="top:704px"><span>viewport ends here</span></div>
+          <div class="offscreen">
+            <div class="scrolldown">↓ 640px of scrolling to reach what pin 2 is a candidate for ↓</div>
+            <div class="rail needs">
+              <div class="railhead"><span class="ico">⛽</span><div><b>Day 2 · Mysore → Coorg</b><small>3 of 6 parts planned</small></div><span class="chev">▾</span></div>
+              <div class="slot"><span class="sic">🍳</span><div><b>Breakfast</b><small>filled — Hotel Mayura, 08:20</small></div><span class="filled">filled</span></div>
+              <div class="slot"><span class="sic">🍛</span><div><b>Lunch</b><small>empty — 2 candidates near the route</small></div><span class="add">+ Add</span></div>
+            </div>
+            <div class="rail see">
+              <div class="railhead"><span class="ico">📍</span><div><b>Optional extras</b><small>Sights · detours — never required</small></div><span class="chev">▾</span></div>
+              <div class="slot"><span class="sic">🌄</span><div><b>Raja's Seat</b><small>viewpoint · +12 min detour</small></div><span class="add">+ Add</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p class="cap"><b>What the user feels (the issue's own words):</b> scroll up to see the pin → scroll down to read the candidate → repeat for every comparison. The map and the rails compete for one viewport instead of sharing it.</p>
+    </div>
+    <div>
+      <div class="note coral"><b>The map is visible, the rails are not.</b> Pin 2 is selected on the map — but the candidate row that explains it sits ~640px below the fold. Hovering/adding happens blind.</div>
+      <div class="note" style="margin-top:10px"><b>It is not just phones.</b> The 721–1278px band covers small tablets, portrait iPads, and every split-screen laptop window — exactly where comparing suggestions matters most.</div>
+      <div class="note teal" style="margin-top:10px"><b>What a fix must keep:</b> the desktop 3-column grid, the fold chips, and all rail state — <code>activeDayIndex</code>, the open slot, the selected pin, the search query, the shortlist tray.</div>
+    </div>
+  </div>
+</section>
+<section>
+  <div class="sec-head"><span class="no">3</span><h2>Proposal A — persistent map + tabbed planning sheet <span style="color:var(--teal-deep)">(recommended)</span></h2><span class="cap">live: click the sheet's tabs</span></div>
+  <div class="grid2">
+    <div>
+      <div class="devframe" style="max-width:788px">
+        <div class="devscreen" style="height:760px;display:flex;flex-direction:column">
+          <div class="devbar"><i class="dot"></i><i class="dot"></i><i class="dot"></i><span class="url">#/trip/coorg/map · 768×760</span></div>
+          <div class="tabbar"><span class="logo">YatraFlow</span><span>Timeline</span><span class="on">Map</span><span>Budget</span><span>Share</span></div>
+          <div class="mapc" style="flex:0 0 336px">
+            <svg viewBox="0 0 768 336" preserveAspectRatio="none">
+              <path d="M40 300 C 190 216, 300 248, 420 172 S 620 108, 700 54" stroke="#0D8D82" stroke-width="5" fill="none" stroke-linecap="round"/>
+            </svg>
+            <span class="pin home" style="left:5%;top:89%">BLR</span>
+            <span class="pin" style="left:33%;top:66%">1</span>
+            <span class="pin sel" style="left:55%;top:49%">2</span>
+            <span class="pin idea" style="left:72%;top:30%">3</span>
+            <span class="pin idea" style="left:61%;top:38%">?</span>
+            <span class="mapchip">Day 2 · Mysore → Coorg · <b>route measured</b></span>
+            <div class="mapctl"><i>+</i><i>−</i><i>⤢</i></div>
+            <span class="mapcredit">© OpenMapTiles © OpenStreetMap contributors</span>
+          </div>
+          <div class="sheet" style="flex:1;min-height:0;display:flex;flex-direction:column">
+            <div class="grab" aria-hidden="true"></div>
+            <div class="tabs" role="tablist" aria-label="Planning sheet">
+              <button role="tab" id="t-needs" aria-selected="true" aria-controls="p-needs" onclick="pickTab('needs')">Needs · Day plan<small>3 of 6 parts planned</small></button>
+              <button role="tab" id="t-see" aria-selected="false" aria-controls="p-see" onclick="pickTab('see')">Sights &amp; extras<small>5 along the route</small></button>
+              <button role="tab" id="t-search" aria-selected="false" aria-controls="p-search" onclick="pickTab('search')">Search<small>“trek” · 4 hits</small></button>
+            </div>
+            <div style="overflow-y:auto;min-height:0;flex:1">
+              <div class="pane on" id="p-needs" role="tabpanel" aria-labelledby="t-needs">
+                <div class="railhead" style="padding-left:12px"><span class="ico" style="background:var(--teal-soft)">⛽</span><div><b style="color:var(--teal-deep)">Day 2 · Mysore → Coorg</b><small>the rail you know — unchanged content</small></div><span class="chev">▾</span></div>
+                <div class="slot"><span class="sic">🍳</span><div><b>Breakfast</b><small>Hotel Mayura · 08:20 · 40 min</small></div><span class="filled">filled</span></div>
+                <div class="slot hovered"><span class="sic">🍛</span><div><b>Lunch — Kamat Lokaruchi</b><small>top candidate · on route +4 min · opens 12:00–15:30 ✓</small></div><span class="add">+ Add</span></div>
+                <div class="slot"><span class="sic">⛽</span><div><b>Fuel</b><small>engine-managed · tank covers 410 km</small></div><span class="auto">auto</span></div>
+                <div class="slot"><span class="sic">🌆</span><div><b>Dinner</b><small>empty — 3 candidates near the stay</small></div><span class="add">+ Add</span></div>
+                <div class="slot"><span class="sic">🛏</span><div><b>Stay</b><small>Coorg homestay · confirmed</small></div><span class="filled">filled</span></div>
+              </div>
+              <div class="pane" id="p-see" role="tabpanel" aria-labelledby="t-see">
+                <div class="railhead" style="padding-left:12px"><span class="ico" style="background:var(--see-soft)">📍</span><div><b style="color:var(--see-ink)">Optional extras</b><small>sights · detours — never required</small></div><span class="chev">▾</span></div>
+                <div class="slot"><span class="sic">🌄</span><div><b>Raja's Seat</b><small>viewpoint · +12 min detour · sunset 18:40</small></div><span class="add">+ Add</span></div>
+                <div class="slot"><span class="sic">💧</span><div><b>Abbey Falls</b><small>waterfall · +18 min detour</small></div><span class="add">+ Add</span></div>
+                <div class="slot"><span class="sic">🐘</span><div><b>Dubare Camp</b><small>elephant camp · +25 min detour · beyond scope</small></div><span class="add" style="opacity:.55">+ Add</span></div>
+                <div class="chiprow"><span class="pill">story arc: coffee country</span><span class="pill det">2 sights · one tap</span></div>
+              </div>
+              <div class="pane" id="p-search" role="tabpanel" aria-labelledby="t-search">
+                <div class="searchrow" style="border-bottom:1px solid var(--line)"><span class="inp">trek</span><span class="go">Search</span></div>
+                <div class="rowhit"><span class="sic" style="width:30px;height:30px;border-radius:9px;background:var(--teal-soft);display:grid;place-items:center">🥾</span><div><b style="font-size:12.5px">Tadiandamol trailhead</b><br><small style="color:var(--mut)">Coorg's highest peak</small></div><span class="km">~95 km in<br>on route</span></div>
+                <div class="rowhit"><span class="sic" style="width:30px;height:30px;border-radius:9px;background:var(--teal-soft);display:grid;place-items:center">🥾</span><div><b style="font-size:12.5px">Kopatty trek</b><br><small style="color:var(--mut)">ridge walk, 4 h</small></div><span class="km">~110 km in<br>+14 min</span></div>
+              </div>
+            </div>
+            <div class="statebar"><span class="lab">kept across tabs</span><span class="sc">Day 2</span><span class="sc">slot: Lunch open</span><span class="sc">pin 2 selected</span><span class="sc">query “trek”</span><span class="sc">shortlist · 3</span></div>
+          </div>
+        </div>
+      </div>
+      <p class="cap"><b>Map never leaves.</b> ~44% of the height stays map; the rest is one sheet with three tabs — the two existing rails plus the search box, promoted from above the map into the sheet so results sit beside their pins. The hovered lunch candidate (inset teal edge) and pin 2's glow are the same selection, visible in one glance.</p>
+    </div>
+    <div>
+      <div class="note teal"><b>Tabs, not new rails.</b> The sheet reuses <code>#rail-needs</code> and <code>#rail-see</code> content verbatim — same slots, same candidates, same shortlist tray — only their <i>container</i> changes below 1278px.</div>
+      <div class="note" style="margin-top:10px"><b>Search joins the sheet.</b> Today the search form rides above the map; on narrow screens its results land in the same disconnected stack. As the third tab, a result row and its teal pin share the screen.</div>
+      <div class="note teal" style="margin-top:10px"><b>State survives tab switches</b> — day, open slot, selected pin, query, shortlist (the issue's step 3). The state bar above is the mock of that guarantee, not new UI.</div>
+      <div class="note" style="margin-top:10px"><b>Sheet is in-flow, not an overlay.</b> It sits below the map by layout, so nothing new enters the z-ladder — modals (<code>--z-modal 100</code>) and the dock (<code>--z-dock 55</code>) are untouched.</div>
+    </div>
+  </div>
+</section>
+<section>
+  <div class="sec-head"><span class="no">4</span><h2>The same pattern at 360px and in a split laptop window</h2></div>
+  <div class="cols3">
+    <div>
+      <div class="devtag"><span><b>360×740</b> · phone</span></div>
+      <div class="devframe" style="max-width:340px">
+        <div class="devscreen" style="height:640px;display:flex;flex-direction:column">
+          <div class="tabbar"><span class="logo">YF</span><span class="on">Map</span></div>
+          <div class="mapc" style="flex:0 0 252px">
+            <svg viewBox="0 0 320 252" preserveAspectRatio="none"><path d="M18 226 C 90 170, 150 190, 210 128 S 280 70, 300 40" stroke="#0D8D82" stroke-width="4.5" fill="none" stroke-linecap="round"/></svg>
+            <span class="pin home" style="left:6%;top:88%">BLR</span>
+            <span class="pin sel" style="left:56%;top:49%">2</span>
+            <span class="pin idea" style="left:78%;top:24%">?</span>
+            <div class="mapctl"><i>+</i><i>−</i></div>
+          </div>
+          <div class="sheet" style="flex:1;min-height:0;display:flex;flex-direction:column">
+            <div class="grab" aria-hidden="true"></div>
+            <div class="tabs" role="tablist" aria-label="Planning sheet">
+              <button role="tab" aria-selected="true">Needs<small>3/6</small></button>
+              <button role="tab" aria-selected="false">Sights<small>5</small></button>
+              <button role="tab" aria-selected="false">Search<small>trek</small></button>
+            </div>
+            <div style="overflow-y:auto;flex:1;min-height:0">
+              <div class="slot"><span class="sic">🍳</span><div><b>Breakfast</b><small>filled · 08:20</small></div><span class="filled">filled</span></div>
+              <div class="slot hovered"><span class="sic">🍛</span><div><b>Lunch — Kamat Lokaruchi</b><small>on route +4 min</small></div><span class="add">+ Add</span></div>
+              <div class="slot"><span class="sic">⛽</span><div><b>Fuel</b><small>engine-managed</small></div><span class="auto">auto</span></div>
+            </div>
+            <div class="statebar"><span class="sc">Day 2</span><span class="sc">pin 2</span><span class="sc">shortlist · 3</span></div>
+          </div>
+        </div>
+      </div>
+      <p class="cap">Phone keeps the bottom-sheet grammar (grab handle, 40px tabs). The map's ~38% is enough to keep the selected pin in context.</p>
+    </div>
+    <div>
+      <div class="devtag"><span><b>1180×720</b> · split laptop (721–1278px)</span></div>
+      <div class="devframe" style="max-width:640px">
+        <div class="devscreen" style="height:560px;display:flex;flex-direction:column">
+          <div class="devbar"><i class="dot"></i><i class="dot"></i><span class="url">#/trip/coorg/map · split window</span></div>
+          <div class="tabbar"><span class="logo">YatraFlow</span><span>Timeline</span><span class="on">Map</span><span>Budget</span></div>
+          <div class="mapc" style="flex:0 0 236px">
+            <svg viewBox="0 0 600 236" preserveAspectRatio="none"><path d="M30 212 C 150 150, 240 176, 340 118 S 500 60, 560 30" stroke="#0D8D82" stroke-width="4.5" fill="none" stroke-linecap="round"/></svg>
+            <span class="pin home" style="left:5%;top:88%">BLR</span>
+            <span class="pin" style="left:33%;top:66%">1</span>
+            <span class="pin sel" style="left:56%;top:48%">2</span>
+            <span class="pin" style="left:75%;top:26%">3</span>
+            <div class="mapctl"><i>+</i><i>−</i><i>⤢</i></div>
+          </div>
+          <div class="sheet" style="flex:1;min-height:0;display:flex;flex-direction:column">
+            <div class="grab" aria-hidden="true"></div>
+            <div class="tabs" role="tablist" aria-label="Planning sheet">
+              <button role="tab" aria-selected="true">Needs · Day plan<small>3 of 6 parts</small></button>
+              <button role="tab" aria-selected="false">Sights &amp; extras<small>5</small></button>
+              <button role="tab" aria-selected="false">Search<small>trek · 4</small></button>
+            </div>
+            <div style="overflow-y:auto;flex:1;min-height:0">
+              <div class="slot"><span class="sic">🍳</span><div><b>Breakfast</b><small>Hotel Mayura · 08:20</small></div><span class="filled">filled</span></div>
+              <div class="slot hovered"><span class="sic">🍛</span><div><b>Lunch — Kamat Lokaruchi</b><small>top candidate · on route +4 min</small></div><span class="add">+ Add</span></div>
+            </div>
+            <div class="statebar"><span class="sc">Day 2</span><span class="sc">pin 2 selected</span><span class="sc">query “trek”</span></div>
+          </div>
+        </div>
+      </div>
+      <p class="cap">The band the issue is about: a browser snapped to half a laptop screen. Map ~42%, sheet scrolls — no more page-scroll gymnastics.</p>
+    </div>
+    <div>
+      <h3 style="margin-bottom:8px">Why one pattern, three sizes</h3>
+      <ul class="tight">
+        <li><b>Same anatomy everywhere:</b> map fraction on top, grab, three tabs, state bar. Nothing to relearn between phone and split desktop.</li>
+        <li><b>The fraction is a token, not a guess:</b> <code>--map-sheet-split: 42%</code> (38% under 480px), so the map never drops below ~230px of usable height.</li>
+        <li><b>Rail content is untouched:</b> the two rails and the search box render inside the sheet's panes — one component, two containers (grid cell on desktop, sheet pane ≤1278px).</li>
+        <li><b>The fold still works:</b> collapsing a rail just selects the other tab and shrinks the sheet's peek height.</li>
+      </ul>
+      <div class="note teal" style="margin-top:12px"><b>Swipe is additive, not required.</b> The sheet can be dragged between peek / half / full on touch — but every state is reachable from the tabs alone, so nothing depends on a gesture.</div>
+    </div>
+  </div>
+</section>
+<section>
+  <div class="sec-head"><span class="no">5</span><h2>Proposal B — the alternative the issue allows (swipeable rail sheet)</h2></div>
+  <div class="grid2">
+    <div class="card">
+      <svg viewBox="0 0 700 300" style="width:100%;display:block;background:#DFEDE4;border-radius:12px" role="img" aria-label="Swipeable rail sheet on a tablet">
+        <path d="M30 270 C 170 190, 280 220, 400 140 S 580 70, 650 36" stroke="#0D8D82" stroke-width="5" fill="none" stroke-linecap="round"/>
+        <circle cx="30" cy="270" r="11" fill="#123F49"/><circle cx="400" cy="140" r="11" fill="#0E7A72" stroke="#fff" stroke-width="3"/><circle cx="560" cy="80" r="11" fill="#0D8D82" stroke="#fff" stroke-width="3"/>
+        <g>
+          <rect x="470" y="120" width="216" height="168" rx="16" fill="#fff" stroke="#E4DCCC"/>
+          <rect x="556" y="130" width="44" height="5" rx="2.5" fill="#D9D2BD"/>
+          <rect x="484" y="146" width="58" height="22" rx="11" fill="#E5F4EE"/><rect x="548" y="146" width="58" height="22" rx="11" fill="#F4F1E6"/><rect x="612" y="146" width="58" height="22" rx="11" fill="#F4F1E6"/>
+          <rect x="484" y="180" width="186" height="12" rx="6" fill="#E4DCCC"/><rect x="484" y="202" width="150" height="12" rx="6" fill="#E4DCCC"/><rect x="484" y="224" width="170" height="12" rx="6" fill="#E4DCCC"/>
+          <text x="578" y="272" text-anchor="middle" font-family="sans-serif" font-size="10" fill="#5A6A80">edge sheet · swipe ⇄</text>
+        </g>
+        <text x="20" y="24" font-family="sans-serif" font-size="11" fill="#45566E">map keeps most of a ≥768px canvas; the sheet docks to an edge</text>
+      </svg>
+      <p class="cap"><b>Where it wins:</b> landscape tablets with room to spare — the map keeps nearly everything and the rail docks as an edge sheet you swipe between Needs / Sights / Search. <b>Where it loses:</b> at 360px and narrow splits the edge sheet eats the map's width, and three horizontal pages are easier to lose state in than three tabs. It also needs gesture plumbing the tab pattern gets for free.</p>
+    </div>
+    <div>
+      <div class="note"><b>Recommendation: ship A, keep B as the ≥900px-landscape refinement.</b> The issue allows either ("sticky top map plus a tabbed planning sheet; or a map plus swipeable rail sheet on larger tablets, only where each remains readable"). A covers every width with one grammar; B can layer on later for big tablets without changing A's structure — the panes are the same components.</div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="no">6</span><h2>What the fix must keep true (from the issue)</h2></div>
+  <div class="accgrid">
+    <div class="card"><h4>Desktop untouched</h4><p>The 3-column <code>.map-ideas-grid</code> above 1278px is not restructured. The sheet exists only inside the narrow media block — new rules appended at the end of <code>styles.css</code>, so the line-keyed design-system baseline never moves.</p></div>
+    <div class="card"><h4>State survives tabs</h4><p><code>activeDayIndex</code>, the open slot, the selected pin, the search query and the shortlist live one level up (or in the existing rail state), so switching tabs is a pure view change. A state test proves day / query / pin / shortlist survive.</p></div>
+    <div class="card"><h4>Keyboard &amp; screen reader</h4><p>The tab strip is a real <code>tablist</code> — arrows move, Home/End jump, one roving tab stop — the same contract the #333 rail work shipped for the result lists. Panels keep their <code>aria-labelledby</code> pairing.</p></div>
+    <div class="card"><h4>Touch floor &amp; motion</h4><p>Tabs and Add buttons stay ≥40px. Sheet drag/peek uses <code>--motion-med</code> + <code>--ease-resize</code> (both ends at rest — it resizes in place) with a <code>prefers-reduced-motion</code> opt-out; type stays on the 11px floor and the 400–800 ramp.</p></div>
+    <div class="card"><h4>Z-ladder untouched</h4><p>The sheet is in-flow layout, not a new overlay: <code>--z-modal 100</code> and <code>--z-dock 55</code> keep their meaning, and any popup the sheet opens (calendar, select) layers above it by the existing rules.</p></div>
+    <div class="card"><h4>Honest map states</h4><p>The pinned map keeps today's honesty: measured road vs dashed-amber estimate, quota-paused search says so, and a day with no placed stop shows no weather chip. Narrow layout changes none of those states — only who shares the viewport.</p></div>
+  </div>
+  <div class="card" style="margin-top:14px">
+    <h3 style="margin-bottom:6px">Tests the issue asks for</h3>
+    <ul class="tight">
+      <li><b>CSS regression coverage</b> for the narrow layout, appended so the design-system baseline is not renumbered.</li>
+      <li><b>A state test</b> proving sheet-tab switches preserve day, search, pin and shortlist.</li>
+      <li><b>No DOM-dependent map assertions</b> — helpers and state, not rendered tiles. Verify at 360px, 768px and a split-desktop width, plus keyboard and reduced-motion passes.</li>
+    </ul>
+  </div>
+</section>
+
+<footer style="margin-top:46px;padding-top:16px;border-top:1px solid var(--line);font:500 12px/1.7 var(--fb);color:var(--mut)">
+  Mockup for <a href="https://github.com/hasnaina955/Yatraflow/issues/415" style="color:var(--teal-deep)">issue #415</a> · Proposal A recommended · grounded in <code>src/styles.css:3537 / 6417</code> and <code>src/pages/trip/MapTab.tsx:2133 / 2503</code> · tokens: teal 500/600, --yf-poi-see violet, Sora + Plus Jakarta Sans.
+</footer>
+</div>
+<script>
+function pickTab(which){
+  ['needs','see','search'].forEach(function(k){
+    var t=document.getElementById('t-'+k), p=document.getElementById('p-'+k);
+    var on = k===which;
+    if(t){t.setAttribute('aria-selected', on?'true':'false'); t.tabIndex = on?0:-1;}
+    if(p){p.classList.toggle('on', on);}
+  });
+}
+</script>
+</body>
+</html>

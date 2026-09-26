@@ -1,0 +1,209 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1500 1010" font-family="system-ui,'Segoe UI',sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#F8F7EF"/><stop offset=".6" stop-color="#ECF8F4"/><stop offset="1" stop-color="#FFF2E8"/>
+    </linearGradient>
+    <linearGradient id="mapg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#E9F2EA"/><stop offset=".5" stop-color="#DFEDE4"/><stop offset="1" stop-color="#E7F0EA"/>
+    </linearGradient>
+    <pattern id="hatch" width="9" height="9" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+      <rect width="9" height="9" fill="#F1EDE0"/><line x1="0" y1="0" x2="0" y2="9" stroke="#DDD5C0" stroke-width="4"/>
+    </pattern>
+  </defs>
+  <rect width="1500" height="1010" fill="url(#bg)"/>
+  <text x="40" y="62" font-size="13" font-weight="700" letter-spacing="2" fill="#0E7A72">VISUAL PROPOSAL · ISSUE #415 · UI · P2</text>
+  <text x="40" y="98" font-size="29" font-weight="800" fill="#0B2545">Narrow Map layouts: the rails strand below an off-screen map</text>
+  <text x="40" y="126" font-size="14.5" fill="#45566E">Fix mocked here — <tspan font-weight="700" fill="#0E7A72">the map stays pinned, the two rails + search become one tabbed sheet.</tspan> Desktop's three columns are untouched.</text>
+  <!-- PANEL 1 · TODAY (broken) -->
+  <g>
+    <text x="40" y="166" font-size="16" font-weight="800" fill="#0B2545">Today @ 768px — one viewport, three sections</text>
+    <rect x="40" y="180" width="360" height="700" rx="26" fill="#22303C"/>
+    <rect x="50" y="190" width="340" height="680" rx="18" fill="#F8F7EF"/>
+    <circle cx="68" cy="208" r="4.5" fill="#D8D2BE"/><circle cx="84" cy="208" r="4.5" fill="#D8D2BE"/><circle cx="100" cy="208" r="4.5" fill="#D8D2BE"/>
+    <rect x="118" y="200" width="260" height="16" rx="8" fill="#fff" stroke="#E4DCCC"/>
+    <text x="248" y="212" text-anchor="middle" font-size="10" fill="#5A6A80">#/trip/coorg/map · 768×760</text>
+    <rect x="50" y="226" width="340" height="30" fill="#FBFAF4"/>
+    <text x="62" y="246" font-size="12" font-weight="800" fill="#0E7A72">YatraFlow</text>
+    <text x="160" y="245" font-size="11" fill="#5A6A80">Timeline</text>
+    <rect x="222" y="232" width="52" height="18" rx="9" fill="#E5F4EE"/><text x="248" y="245" text-anchor="middle" font-size="11" font-weight="700" fill="#0E7A72">Map</text>
+    <text x="288" y="245" font-size="11" fill="#5A6A80">Budget</text>
+    <rect x="50" y="256" width="340" height="38" fill="#fff"/>
+    <rect x="60" y="263" width="252" height="24" rx="8" fill="#FDFCF8" stroke="#E4DCCC"/>
+    <text x="70" y="279" font-size="10.5" fill="#5A6A80">Search anything to add — a trek, a homestay…</text>
+    <rect x="318" y="263" width="62" height="24" rx="8" fill="#fff" stroke="#0D8D82"/>
+    <text x="349" y="279" text-anchor="middle" font-size="10.5" font-weight="700" fill="#0E7A72">Search</text>
+    <rect x="50" y="294" width="340" height="330" fill="url(#mapg)"/>
+    <path d="M64 606 C 150 540, 210 566, 280 500 S 360 430, 380 396" stroke="#0D8D82" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+    <circle cx="64" cy="606" r="10" fill="#123F49"/><text x="64" y="610" text-anchor="middle" font-size="8" font-weight="700" fill="#fff">B</text>
+    <circle cx="168" cy="556" r="11" fill="#0D8D82" stroke="#fff" stroke-width="2.5"/><text x="168" y="560" text-anchor="middle" font-size="10" font-weight="700" fill="#fff">1</text>
+    <circle cx="280" cy="500" r="14" fill="#0E7A72" stroke="#fff" stroke-width="2.5"/><circle cx="280" cy="500" r="22" fill="none" stroke="#0D8D82" stroke-opacity=".35" stroke-width="5"/><text x="280" y="504" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">2</text>
+    <circle cx="348" cy="430" r="11" fill="#0D8D82" stroke="#fff" stroke-width="2.5"/><text x="348" y="434" text-anchor="middle" font-size="10" font-weight="700" fill="#fff">3</text>
+    <circle cx="306" cy="462" r="8" fill="#fff" stroke="#E4AE43" stroke-width="2" stroke-dasharray="3 2"/><text x="306" y="465" text-anchor="middle" font-size="8" fill="#8F5B06">?</text>
+    <rect x="60" y="304" width="180" height="20" rx="10" fill="#fff" stroke="#E4DCCC"/><text x="150" y="317" text-anchor="middle" font-size="9.5" font-weight="700" fill="#45566E">Day 2 · Mysore → Coorg</text>
+    <rect x="352" y="304" width="28" height="26" rx="7" fill="#fff" stroke="#E4DCCC"/><text x="366" y="321" text-anchor="middle" font-size="12" fill="#45566E">+</text>
+    <rect x="352" y="336" width="28" height="26" rx="7" fill="#fff" stroke="#E4DCCC"/><text x="366" y="353" text-anchor="middle" font-size="12" fill="#45566E">−</text>
+    <text x="58" y="618" font-size="8" fill="#5A6A80" opacity=".8">© OpenMapTiles © OpenStreetMap contributors</text>
+    <line x1="50" y1="632" x2="390" y2="632" stroke="#D6534D" stroke-width="2.5" stroke-dasharray="8 5"/>
+    <rect x="246" y="622" width="136" height="20" rx="10" fill="#D6534D"/>
+    <text x="314" y="636" text-anchor="middle" font-size="9.5" font-weight="700" fill="#fff">viewport ends here</text>
+    <rect x="50" y="634" width="340" height="236" fill="url(#hatch)" opacity=".55"/>
+    <rect x="50" y="640" width="340" height="34" fill="#FFF4E4"/>
+    <text x="220" y="661" text-anchor="middle" font-size="11" font-weight="700" fill="#8F5B06">↓ 640px of scrolling to the candidate ↓</text>
+    <rect x="50" y="678" width="340" height="46" fill="#fff" stroke="#E4DCCC"/>
+    <rect x="62" y="688" width="24" height="24" rx="7" fill="#E5F4EE"/>
+    <text x="98" y="699" font-size="11.5" font-weight="800" fill="#0E7A72">Day 2 · Mysore → Coorg</text>
+    <text x="98" y="714" font-size="9.5" fill="#5A6A80">3 of 6 parts planned</text>
+    <rect x="50" y="726" width="340" height="40" fill="#fff" stroke="#E4DCCC"/>
+    <text x="98" y="743" font-size="11" font-weight="700" fill="#0B2545">🍛 Lunch — Kamat Lokaruchi</text>
+    <text x="98" y="757" font-size="9.5" fill="#5A6A80">on route +4 min · opens 12:00 ✓</text>
+    <rect x="50" y="768" width="340" height="46" fill="#fff" stroke="#E4DCCC"/>
+    <rect x="62" y="778" width="24" height="24" rx="7" fill="#F0EAFA"/>
+    <text x="98" y="789" font-size="11.5" font-weight="800" fill="#8a2999">Optional extras</text>
+    <text x="98" y="804" font-size="9.5" fill="#5A6A80">sights · detours — never required</text>
+    <text x="40" y="908" font-size="12.5" font-weight="700" fill="#B03A34">Pin 2 glows on the map — but the row that says what</text>
+    <text x="40" y="928" font-size="12.5" font-weight="700" fill="#B03A34">it is sits below the fold. Every comparison = scroll</text>
+    <text x="40" y="948" font-size="12.5" font-weight="700" fill="#B03A34">up, scroll down, repeat.</text>
+  </g>
+  <!-- PANEL 2 · PROPOSAL A @768 -->
+  <g>
+    <text x="440" y="166" font-size="16" font-weight="800" fill="#0E7A72">Proposal A @ 768px — persistent map + tabbed sheet (recommended)</text>
+    <rect x="440" y="180" width="580" height="700" rx="26" fill="#22303C"/>
+    <rect x="450" y="190" width="560" height="680" rx="18" fill="#F8F7EF"/>
+    <circle cx="470" cy="208" r="4.5" fill="#D8D2BE"/><circle cx="486" cy="208" r="4.5" fill="#D8D2BE"/><circle cx="502" cy="208" r="4.5" fill="#D8D2BE"/>
+    <rect x="520" y="200" width="478" height="16" rx="8" fill="#fff" stroke="#E4DCCC"/>
+    <text x="759" y="212" text-anchor="middle" font-size="10" fill="#5A6A80">#/trip/coorg/map · 768×760</text>
+    <rect x="450" y="226" width="560" height="30" fill="#FBFAF4"/>
+    <text x="462" y="246" font-size="12" font-weight="800" fill="#0E7A72">YatraFlow</text>
+    <text x="560" y="245" font-size="11" fill="#5A6A80">Timeline</text>
+    <rect x="622" y="232" width="52" height="18" rx="9" fill="#E5F4EE"/><text x="648" y="245" text-anchor="middle" font-size="11" font-weight="700" fill="#0E7A72">Map</text>
+    <text x="688" y="245" font-size="11" fill="#5A6A80">Budget</text>
+    <!-- map ~44% -->
+    <rect x="450" y="256" width="560" height="280" fill="url(#mapg)"/>
+    <path d="M470 516 C 580 444, 660 474, 760 394 S 920 322, 986 282" stroke="#0D8D82" stroke-width="5" fill="none" stroke-linecap="round"/>
+    <circle cx="470" cy="516" r="10" fill="#123F49"/><text x="470" y="520" text-anchor="middle" font-size="8" font-weight="700" fill="#fff">B</text>
+    <circle cx="600" cy="454" r="11" fill="#0D8D82" stroke="#fff" stroke-width="2.5"/><text x="600" y="458" text-anchor="middle" font-size="10" font-weight="700" fill="#fff">1</text>
+    <circle cx="760" cy="394" r="14" fill="#0E7A72" stroke="#fff" stroke-width="2.5"/><circle cx="760" cy="394" r="22" fill="none" stroke="#0D8D82" stroke-opacity=".35" stroke-width="5"/><text x="760" y="398" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">2</text>
+    <circle cx="890" cy="322" r="11" fill="#0D8D82" stroke="#fff" stroke-width="2.5"/><text x="890" y="326" text-anchor="middle" font-size="10" font-weight="700" fill="#fff">3</text>
+    <circle cx="806" cy="352" r="8" fill="#fff" stroke="#E4AE43" stroke-width="2" stroke-dasharray="3 2"/><text x="806" y="355" text-anchor="middle" font-size="8" fill="#8F5B06">?</text>
+    <rect x="462" y="266" width="200" height="20" rx="10" fill="#fff" stroke="#E4DCCC"/><text x="562" y="279" text-anchor="middle" font-size="9.5" font-weight="700" fill="#45566E">Day 2 · Mysore → Coorg · measured</text>
+    <rect x="972" y="266" width="28" height="26" rx="7" fill="#fff" stroke="#E4DCCC"/><text x="986" y="283" text-anchor="middle" font-size="12" fill="#45566E">+</text>
+    <rect x="972" y="298" width="28" height="26" rx="7" fill="#fff" stroke="#E4DCCC"/><text x="986" y="315" text-anchor="middle" font-size="12" fill="#45566E">−</text>
+    <text x="458" y="530" font-size="8" fill="#5A6A80" opacity=".8">© OpenMapTiles © OpenStreetMap contributors</text>
+    <!-- sheet -->
+    <path d="M450 556 Q450 536 470 536 L990 536 Q1010 536 1010 556 L1010 870 L450 870 Z" fill="#fff"/>
+    <line x1="450" y1="536" x2="1010" y2="536" stroke="#E4DCCC"/>
+    <rect x="707" y="544" width="46" height="5" rx="2.5" fill="#D9D2BD"/>
+    <!-- tabs -->
+    <rect x="458" y="556" width="181" height="46" rx="10" fill="#E5F4EE"/>
+    <text x="548" y="576" text-anchor="middle" font-size="12" font-weight="800" fill="#0E7A72">Needs · Day plan</text>
+    <text x="548" y="592" text-anchor="middle" font-size="9" fill="#5A6A80">3 of 6 parts planned</text>
+    <rect x="478" y="600" width="141" height="3.5" rx="1.75" fill="#0D8D82"/>
+    <text x="731" y="576" text-anchor="middle" font-size="12" font-weight="700" fill="#5A6A80">Sights &amp; extras</text>
+    <text x="731" y="592" text-anchor="middle" font-size="9" fill="#5A6A80">5 along the route</text>
+    <text x="914" y="576" text-anchor="middle" font-size="12" font-weight="700" fill="#5A6A80">Search</text>
+    <text x="914" y="592" text-anchor="middle" font-size="9" fill="#5A6A80">“trek” · 4 hits</text>
+    <line x1="450" y1="604" x2="1010" y2="604" stroke="#E4DCCC"/>
+    <!-- rows -->
+    <rect x="458" y="612" width="24" height="24" rx="7" fill="#E5F4EE"/>
+    <text x="494" y="626" font-size="11.5" font-weight="800" fill="#0E7A72">Day 2 · Mysore → Coorg</text>
+    <text x="494" y="641" font-size="9.5" fill="#5A6A80">the rail you know — unchanged content</text>
+    <rect x="450" y="652" width="560" height="42" fill="#fff"/>
+    <rect x="462" y="661" width="24" height="24" rx="7" fill="#E5F4EE"/><text x="474" y="677" text-anchor="middle" font-size="11">🍳</text>
+    <text x="496" y="672" font-size="11.5" font-weight="700" fill="#0B2545">Breakfast</text>
+    <text x="496" y="686" font-size="9.5" fill="#5A6A80">Hotel Mayura · 08:20 · 40 min</text>
+    <rect x="934" y="663" width="52" height="20" rx="10" fill="#E5F4EE"/><text x="960" y="677" text-anchor="middle" font-size="9.5" font-weight="800" fill="#0E7A72">filled</text>
+    <rect x="450" y="694" width="560" height="46" fill="#F2FAF7"/>
+    <rect x="450" y="694" width="4" height="46" fill="#0D8D82"/>
+    <rect x="462" y="704" width="24" height="24" rx="7" fill="#E5F4EE"/><text x="474" y="720" text-anchor="middle" font-size="11">🍛</text>
+    <text x="496" y="714" font-size="11.5" font-weight="700" fill="#0B2545">Lunch — Kamat Lokaruchi</text>
+    <text x="496" y="729" font-size="9.5" fill="#5A6A80">top candidate · on route +4 min · opens 12:00–15:30 ✓</text>
+    <rect x="934" y="705" width="56" height="24" rx="12" fill="#fff" stroke="#0D8D82"/><text x="962" y="720" text-anchor="middle" font-size="10" font-weight="800" fill="#0E7A72">+ Add</text>
+    <rect x="450" y="740" width="560" height="42" fill="#fff"/>
+    <rect x="462" y="749" width="24" height="24" rx="7" fill="#E5F4EE"/><text x="474" y="765" text-anchor="middle" font-size="11">⛽</text>
+    <text x="496" y="760" font-size="11.5" font-weight="700" fill="#0B2545">Fuel</text>
+    <text x="496" y="774" font-size="9.5" fill="#5A6A80">engine-managed · tank covers 410 km</text>
+    <rect x="934" y="751" width="52" height="20" rx="10" fill="#F4F1E6"/><text x="960" y="765" text-anchor="middle" font-size="9.5" font-weight="800" fill="#5A6A80">auto</text>
+    <rect x="450" y="782" width="560" height="42" fill="#fff"/>
+    <rect x="462" y="791" width="24" height="24" rx="7" fill="#E5F4EE"/><text x="474" y="807" text-anchor="middle" font-size="11">🛏</text>
+    <text x="496" y="802" font-size="11.5" font-weight="700" fill="#0B2545">Stay</text>
+    <text x="496" y="816" font-size="9.5" fill="#5A6A80">Coorg homestay · confirmed</text>
+    <rect x="934" y="793" width="52" height="20" rx="10" fill="#E5F4EE"/><text x="960" y="807" text-anchor="middle" font-size="9.5" font-weight="800" fill="#0E7A72">filled</text>
+    <!-- state bar -->
+    <rect x="450" y="826" width="560" height="34" fill="#E5F4EE"/>
+    <text x="460" y="847" font-size="9" font-weight="800" letter-spacing="1" fill="#8F5B06">KEPT ACROSS TABS</text>
+    <rect x="566" y="833" width="52" height="20" rx="10" fill="#fff" stroke="#CBE5DC"/><text x="592" y="847" text-anchor="middle" font-size="9.5" font-weight="800" fill="#0E7A72">Day 2</text>
+    <rect x="624" y="833" width="100" height="20" rx="10" fill="#fff" stroke="#CBE5DC"/><text x="674" y="847" text-anchor="middle" font-size="9.5" font-weight="800" fill="#0E7A72">slot: Lunch open</text>
+    <rect x="730" y="833" width="90" height="20" rx="10" fill="#fff" stroke="#CBE5DC"/><text x="775" y="847" text-anchor="middle" font-size="9.5" font-weight="800" fill="#0E7A72">pin 2 selected</text>
+    <rect x="826" y="833" width="86" height="20" rx="10" fill="#fff" stroke="#CBE5DC"/><text x="869" y="847" text-anchor="middle" font-size="9.5" font-weight="800" fill="#0E7A72">query “trek”</text>
+    <rect x="918" y="833" width="84" height="20" rx="10" fill="#fff" stroke="#CBE5DC"/><text x="960" y="847" text-anchor="middle" font-size="9.5" font-weight="800" fill="#0E7A72">shortlist · 3</text>
+    <!-- caption -->
+    <text x="440" y="908" font-size="12.5" font-weight="700" fill="#0E7A72">The map never leaves: ~44% stays map, the rest is one</text>
+    <text x="440" y="928" font-size="12.5" font-weight="700" fill="#0E7A72">sheet with three tabs. The hovered lunch row and pin 2's</text>
+    <text x="440" y="948" font-size="12.5" font-weight="700" fill="#0E7A72">glow are the same selection — visible in one glance.</text>
+  </g>
+  <!-- PANEL 3 · SAME PATTERN @360 -->
+  <g>
+    <text x="1060" y="166" font-size="16" font-weight="800" fill="#0B2545">Same pattern @ 360px — phone</text>
+    <rect x="1060" y="180" width="400" height="700" rx="26" fill="#22303C"/>
+    <rect x="1070" y="190" width="380" height="680" rx="18" fill="#F8F7EF"/>
+    <rect x="1070" y="190" width="380" height="30" fill="#FBFAF4"/>
+    <text x="1082" y="210" font-size="12" font-weight="800" fill="#0E7A72">YatraFlow</text>
+    <rect x="1160" y="196" width="52" height="18" rx="9" fill="#E5F4EE"/><text x="1186" y="209" text-anchor="middle" font-size="11" font-weight="700" fill="#0E7A72">Map</text>
+    <text x="1226" y="209" font-size="11" fill="#5A6A80">Timeline</text>
+    <rect x="1070" y="220" width="380" height="250" fill="url(#mapg)"/>
+    <path d="M1090 452 C 1160 402, 1220 424, 1290 364 S 1390 302, 1430 272" stroke="#0D8D82" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+    <circle cx="1090" cy="452" r="10" fill="#123F49"/><text x="1090" y="456" text-anchor="middle" font-size="8" font-weight="700" fill="#fff">B</text>
+    <circle cx="1290" cy="364" r="14" fill="#0E7A72" stroke="#fff" stroke-width="2.5"/><circle cx="1290" cy="364" r="22" fill="none" stroke="#0D8D82" stroke-opacity=".35" stroke-width="5"/><text x="1290" y="368" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">2</text>
+    <circle cx="1380" cy="306" r="8" fill="#fff" stroke="#E4AE43" stroke-width="2" stroke-dasharray="3 2"/><text x="1380" y="309" text-anchor="middle" font-size="8" fill="#8F5B06">?</text>
+    <rect x="1080" y="230" width="150" height="20" rx="10" fill="#fff" stroke="#E4DCCC"/><text x="1155" y="243" text-anchor="middle" font-size="9.5" font-weight="700" fill="#45566E">Day 2 · Mysore → Coorg</text>
+    <rect x="1412" y="230" width="28" height="26" rx="7" fill="#fff" stroke="#E4DCCC"/><text x="1426" y="247" text-anchor="middle" font-size="12" fill="#45566E">+</text>
+    <rect x="1412" y="262" width="28" height="26" rx="7" fill="#fff" stroke="#E4DCCC"/><text x="1426" y="279" text-anchor="middle" font-size="12" fill="#45566E">−</text>
+    <path d="M1070 490 Q1070 470 1090 470 L1430 470 Q1450 470 1450 490 L1450 870 L1070 870 Z" fill="#fff"/>
+    <line x1="1070" y1="470" x2="1450" y2="470" stroke="#E4DCCC"/>
+    <rect x="1237" y="478" width="46" height="5" rx="2.5" fill="#D9D2BD"/>
+    <rect x="1078" y="490" width="120" height="42" rx="10" fill="#E5F4EE"/>
+    <text x="1138" y="508" text-anchor="middle" font-size="11.5" font-weight="800" fill="#0E7A72">Needs</text>
+    <text x="1138" y="523" text-anchor="middle" font-size="9" fill="#5A6A80">3/6</text>
+    <rect x="1092" y="530" width="92" height="3.5" rx="1.75" fill="#0D8D82"/>
+    <text x="1262" y="508" text-anchor="middle" font-size="11.5" font-weight="700" fill="#5A6A80">Sights</text>
+    <text x="1262" y="523" text-anchor="middle" font-size="9" fill="#5A6A80">5</text>
+    <text x="1380" y="508" text-anchor="middle" font-size="11.5" font-weight="700" fill="#5A6A80">Search</text>
+    <text x="1380" y="523" text-anchor="middle" font-size="9" fill="#5A6A80">trek</text>
+    <line x1="1070" y1="534" x2="1450" y2="534" stroke="#E4DCCC"/>
+    <rect x="1070" y="542" width="380" height="44" fill="#fff"/>
+    <rect x="1082" y="552" width="24" height="24" rx="7" fill="#E5F4EE"/><text x="1094" y="568" text-anchor="middle" font-size="11">🍳</text>
+    <text x="1116" y="562" font-size="11.5" font-weight="700" fill="#0B2545">Breakfast</text>
+    <text x="1116" y="577" font-size="9.5" fill="#5A6A80">filled · 08:20</text>
+    <rect x="1382" y="554" width="52" height="20" rx="10" fill="#E5F4EE"/><text x="1408" y="568" text-anchor="middle" font-size="9.5" font-weight="800" fill="#0E7A72">filled</text>
+    <rect x="1070" y="586" width="380" height="48" fill="#F2FAF7"/>
+    <rect x="1070" y="586" width="4" height="48" fill="#0D8D82"/>
+    <rect x="1082" y="597" width="24" height="24" rx="7" fill="#E5F4EE"/><text x="1094" y="613" text-anchor="middle" font-size="11">🍛</text>
+    <text x="1116" y="607" font-size="11.5" font-weight="700" fill="#0B2545">Lunch — Kamat Lokaruchi</text>
+    <text x="1116" y="622" font-size="9.5" fill="#5A6A80">on route +4 min</text>
+    <rect x="1378" y="598" width="56" height="24" rx="12" fill="#fff" stroke="#0D8D82"/><text x="1406" y="613" text-anchor="middle" font-size="10" font-weight="800" fill="#0E7A72">+ Add</text>
+    <rect x="1070" y="634" width="380" height="44" fill="#fff"/>
+    <rect x="1082" y="644" width="24" height="24" rx="7" fill="#E5F4EE"/><text x="1094" y="660" text-anchor="middle" font-size="11">⛽</text>
+    <text x="1116" y="654" font-size="11.5" font-weight="700" fill="#0B2545">Fuel</text>
+    <text x="1116" y="669" font-size="9.5" fill="#5A6A80">engine-managed</text>
+    <rect x="1382" y="646" width="52" height="20" rx="10" fill="#F4F1E6"/><text x="1408" y="660" text-anchor="middle" font-size="9.5" font-weight="800" fill="#5A6A80">auto</text>
+    <rect x="1070" y="680" width="380" height="32" fill="#E5F4EE"/>
+    <rect x="1080" y="686" width="52" height="20" rx="10" fill="#fff" stroke="#CBE5DC"/><text x="1106" y="700" text-anchor="middle" font-size="9.5" font-weight="800" fill="#0E7A72">Day 2</text>
+    <rect x="1138" y="686" width="70" height="20" rx="10" fill="#fff" stroke="#CBE5DC"/><text x="1173" y="700" text-anchor="middle" font-size="9.5" font-weight="800" fill="#0E7A72">pin 2</text>
+    <rect x="1214" y="686" width="90" height="20" rx="10" fill="#fff" stroke="#CBE5DC"/><text x="1259" y="700" text-anchor="middle" font-size="9.5" font-weight="800" fill="#0E7A72">shortlist · 3</text>
+    <text x="1060" y="908" font-size="12.5" font-weight="700" fill="#45566E">Bottom-sheet grammar: grab handle, 40px tabs,</text>
+    <text x="1060" y="928" font-size="12.5" font-weight="700" fill="#45566E">map keeps ~38% — the selected pin never</text>
+    <text x="1060" y="948" font-size="12.5" font-weight="700" fill="#45566E">leaves context.</text>
+  </g>
+  <!-- footer -->
+  <g>
+    <rect x="40" y="962" width="330" height="30" rx="15" fill="#fff" stroke="#E4DCCC"/>
+    <text x="205" y="981" text-anchor="middle" font-size="11.5" font-weight="700" fill="#0B2545">✓ Desktop 3-column grid untouched</text>
+    <rect x="382" y="962" width="330" height="30" rx="15" fill="#fff" stroke="#E4DCCC"/>
+    <text x="547" y="981" text-anchor="middle" font-size="11.5" font-weight="700" fill="#0B2545">✓ Day · slot · pin · query · shortlist survive tabs</text>
+    <rect x="724" y="962" width="360" height="30" rx="15" fill="#fff" stroke="#E4DCCC"/>
+    <text x="904" y="981" text-anchor="middle" font-size="11.5" font-weight="700" fill="#0B2545">✓ Real tablist · ≥40px targets · reduced-motion opt-out</text>
+    <rect x="1096" y="962" width="364" height="30" rx="15" fill="#fff" stroke="#E4DCCC"/>
+    <text x="1278" y="981" text-anchor="middle" font-size="11.5" font-weight="700" fill="#0B2545">✓ CSS appended at EOF — design baseline never moves</text>
+    <text x="40" y="1006" font-size="11" fill="#5A6A80">Mockup for issue #415 · Proposal A recommended · annotated interactive version: docs/mockups/issue-415-narrow-map.html · grounded in styles.css:3537/6417 + MapTab.tsx:2133/2503</text>
+  </g>
+</svg>

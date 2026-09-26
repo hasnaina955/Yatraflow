@@ -9,6 +9,7 @@ import {
   Plus, Trash2, TriangleAlert,
 } from 'lucide-react'
 import { prefersReducedMotion } from '../lib/motion'
+import { nextOrderInDay, pendingStopId } from '../lib/stopOrder'
 import { InlineIcon, KindIcon } from './icons'
 import type { Trip, ItineraryStop } from '../data/types'
 import { computeTotals, computeHealth, collectWarnings, minutesToHM, formatInr } from '../lib/engine'
@@ -132,8 +133,8 @@ export function BoardView({ trip, editable, applyChange, health, totals, onOpenO
         if (!day) return
         day.stops.push({
           ...(legFields as unknown as ItineraryStop),
-          id: 'pending_' + Math.random().toString(36).slice(2),
-          orderInDay: day.stops.length + 1,
+          id: pendingStopId(),
+          orderInDay: nextOrderInDay(day),
         })
       }, 'add', dayIndex)
     } else {

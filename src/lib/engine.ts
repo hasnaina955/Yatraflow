@@ -448,7 +448,7 @@ export function buildJourney(
   const outboundPlannedEarlier = trip.days.some(d =>
     d.index < day.index && d.stops.some(s => s.status !== 'rejected'))
   const isReturnShape = !!(
-    day.index === trip.days.length - 1 &&
+    day.index === lastDayIndexOf(trip) &&
     isRoundTrip(trip) && home && anchorAtFinalDest && outboundPlannedEarlier &&
     nonAuto.every(s => (s.category === 'food' || s.category === 'rest') && s.visitMinutes > 0)
   )
@@ -840,8 +840,19 @@ export function countHotelNights(trip: Trip): number {
  * continues on to the next planned destination (the synthesized destination)
  * unless the journey is already there; a planned return day ends back home.
  */
+/** The trip's last day INDEX. `trip.days.length - 1` is not the same thing on
+ *  a sparse trip (a deleted middle day leaves indexes 0,2,3 — #338's shape), and
+ *  the return-day shapes below keyed on that count treated Day 3 as an
+ *  intermediate day. */
+function lastDayIndexOf(trip: Pick<Trip, 'days'>): number {
+  return trip.days.reduce((m, d) => Math.max(m, d.index), 0)
+}
+
 function dayEndPosition(trip: Trip, dayIndex: number, startPos: { lat: number; lng: number }): { lat: number; lng: number } {
-  const day = trip.days[dayIndex]
+  // By INDEX, not array position: originOf walks 0..dayIndex-1 and a positional
+  // lookup handed a sparse trip its own day as the wake-up origin (the day's
+  // own legs then measured zero — the #161 index-vs-count class).
+  const day = trip.days.find(d => d.index === dayIndex)
   if (!day) return startPos
   const active = [...day.stops].filter(s => s.status !== 'rejected').sort((a, b) => a.orderInDay - b.orderInDay)
   if (active.length === 0) return startPos
@@ -855,7 +866,7 @@ function dayEndPosition(trip: Trip, dayIndex: number, startPos: { lat: number; l
   const outboundPlannedEarlier = trip.days.some(d =>
     d.index < day.index && d.stops.some(s => s.status !== 'rejected'))
   if (
-    day.index === trip.days.length - 1 && isRoundTrip(trip) && home &&
+    day.index === lastDayIndexOf(trip) && isRoundTrip(trip) && home &&
     anchorAtFinalDest && outboundPlannedEarlier && haltOnly
   ) {
     return home // planned return day: the journey ends back at the start
@@ -889,7 +900,9 @@ export function originOf(trip: Trip, dayIndex: number): { lat: number; lng: numb
 export function firstFixedPoint(trip: Trip): { lat: number; lng: number } {
   // A geocoded start (point A) is the trip's true origin when known.
   if (trip.startLocationCoords) return { lat: trip.startLocationCoords.lat, lng: trip.startLocationCoords.lng }
-  for (const d of trip.days) {
+  // The first day by INDEX, not by array position: an unsorted days array made
+  // the trip's "home" the stop that happened to sit first in the array (#338).
+  for (const d of [...trip.days].sort((a, b) => a.index - b.index)) {
     const first = [...d.stops].filter(s => s.status !== 'rejected').sort((a, b) => a.orderInDay - b.orderInDay)[0]
     if (first) return { lat: first.lat, lng: first.lng }
   }
@@ -1034,8 +1047,11 @@ export function optimizeDayOrder(
 
 /** Last active stop across the trip's days — the turnaround point of the route. */
 export function lastActiveStopPoint(trip: Trip): { lat: number; lng: number } | null {
-  for (let d = trip.days.length - 1; d >= 0; d--) {
-    const stops = trip.days[d]?.stops.filter(s => s.status !== 'rejected') ?? []
+  // The LAST day by index — the turnaround point of the return drive. Walking
+  // the array backwards picked whatever sat last in storage, not on the trip
+  // (#338: the return leg then started from a mid-route stop).
+  for (const day of [...trip.days].sort((a, b) => b.index - a.index)) {
+    const stops = day.stops.filter(s => s.status !== 'rejected')
     if (stops.length) {
       const last = [...stops].sort((a, b) => a.orderInDay - b.orderInDay)[stops.length - 1]
       return { lat: last.lat, lng: last.lng }
@@ -1110,20 +1126,42 @@ function lodgingKey(s: Pick<ItineraryStop, 'placeId' | 'lat' | 'lng' | 'location
   return `name:${(s.locationName || s.title).trim().toLowerCase().replace(/\s+/g, ' ')}`
 }
 
+/** Finite coercion for numbers that arrive from outside the type system —
+ *  hydrated rows, hand-edited JSON, partial writes. `undefined * n` is NaN,
+ *  and one NaN multiplies through every sum it joins: the timeline rendered
+ *  "₹undefined" on the stop and ₹NaN on the strip, the chips and the print
+ *  card (#343). Same shape as the visitMinutes guard in simulateDay, applied
+ *  to each money field. */
+function num0(x: unknown): number {
+  return typeof x === 'number' && Number.isFinite(x) ? x : 0
+}
+
 export function computeTotals(trip: Trip, legCorrections?: Record<string, LegEstimate>): TripTotals {
   const A = getAssumptions(trip)
   let travelMinutes = 0, distanceKm = 0, stopCount = 0
   let transportKmCost = 0
   let journeyReturnsHome = false
+  // Travellers scales every per-person line; a missing/zero count reads as one
+  // rather than poisoning the sums with NaN.
+  const travellers = num0(trip.travellers) > 0 ? num0(trip.travellers) : 1
   const dayCount = Math.max(1, trip.days.length)
+  // Buckets key on the day's OWN index — the same id entryByDay/lodgingByDay
+  // below join on. Positional lookups misattributed the transport/expense half
+  // the moment indexes went sparse (deleting a middle day leaves 0,2,3): an
+  // out-of-range `byDay[index]` was undefined and the day's money vanished,
+  // while the consumers' old clamp showed a stranger's total under the day on
+  // screen (#338).
   const byDay = trip.days.map(d => ({ dayIndex: d.index, expensesInr: 0, transportInr: 0, totalInr: 0, stops: 0, distanceKm: 0 }))
   if (byDay.length === 0) byDay.push({ dayIndex: 0, expensesInr: 0, transportInr: 0, totalInr: 0, stops: 0, distanceKm: 0 })
+  /** The bucket for a day INDEX — never for an array position. */
+  const bucketFor = (index: number | undefined): (typeof byDay)[number] | undefined =>
+    index == null ? undefined : byDay.find(b => b.dayIndex === index)
   const entryByDay = new Map<number, number>()
   trip.days.forEach(day => {
     const sim = simulateDay(day, trip, originOf(trip, day.index), day.index, legCorrections)
     travelMinutes += sim.totalTravelMinutes
     distanceKm += sim.totalDistanceKm
-    const bucket = byDay[day.index]
+    const bucket = bucketFor(day.index)
     if (bucket) {
       bucket.stops = day.stops.filter(s => s.status !== 'rejected').length
       bucket.distanceKm = sim.totalDistanceKm
@@ -1133,7 +1171,7 @@ export function computeTotals(trip: Trip, legCorrections?: Record<string, LegEst
     sim.legs.forEach(l => {
       const legCost = l.distanceKm * (A.inrPerKm ?? 8)
       transportKmCost += legCost
-      if (byDay[day.index]) byDay[day.index].transportInr += legCost
+      if (bucket) bucket.transportInr += legCost
     })
     if (sim.endsAtStart) journeyReturnsHome = true
   })
@@ -1152,9 +1190,12 @@ export function computeTotals(trip: Trip, legCorrections?: Record<string, LegEst
       travelMinutes += ret.durationMinutes
       const retCost = ret.distanceKm * (A.inrPerKm ?? 8)
       transportKmCost += retCost
-      // The drive home happens at the end of the trip — charge the last day.
-      const lastDay = byDay[byDay.length - 1]
-      if (lastDay) { lastDay.transportInr += retCost; lastDay.distanceKm += ret.distanceKm }
+      // The drive home happens at the end of the trip — charge the LAST day by
+      // its index, not its array position (the two differ on an unsorted or
+      // sparse trip).
+      const lastDay = byDay.reduce((a, b) => (b.dayIndex > a.dayIndex ? b : a))
+      lastDay.transportInr += retCost
+      lastDay.distanceKm += ret.distanceKm
     }
   }
 
@@ -1164,13 +1205,17 @@ export function computeTotals(trip: Trip, legCorrections?: Record<string, LegEst
   const dayIndexOfStop = new Map<ID, number>()
   trip.days.forEach(d => d.stops.forEach(s => dayIndexOfStop.set(s.id, d.index)))
   for (const e of trip.expenses) {
-    const amt = e.perPerson ? e.amountInr * trip.travellers : e.amountInr
+    const amt = num0(e.amountInr) * (e.perPerson ? travellers : 1)
     sum += amt
     byCategory[e.category] = (byCategory[e.category] ?? 0) + amt
     if (e.optional) optional += amt; else essential += amt
-    const b = typeof e.dayIndex === 'number' ? byDay[Math.min(Math.max(e.dayIndex, 0), byDay.length - 1)]
-      : e.stopId !== undefined ? byDay[dayIndexOfStop.get(e.stopId) ?? -1]
-      : undefined
+    // The expense's own day, matched by INDEX; a stop-attached line follows its
+    // stop's day. No clamp and no positional guess — a dayIndex that names no
+    // day is treated as unattached (spread with the trip-level costs) instead
+    // of being re-attributed to the last day, which is a different budget.
+    const b = typeof e.dayIndex === 'number' && Number.isFinite(e.dayIndex) ? bucketFor(e.dayIndex)
+      : e.stopId !== undefined ? bucketFor(dayIndexOfStop.get(e.stopId))
+        : undefined
     if (b) b.expensesInr += amt
     else for (const bd of byDay) bd.expensesInr += amt / dayCount // unattached trip-level costs spread evenly
   }
@@ -1178,7 +1223,7 @@ export function computeTotals(trip: Trip, legCorrections?: Record<string, LegEst
   let entryFromStops = 0
   trip.days.forEach(d => d.stops.forEach(s => {
     if (s.status !== 'rejected') {
-      const fee = s.entryFeeInrPerPerson * trip.travellers
+      const fee = num0(s.entryFeeInrPerPerson) * travellers
       entryFromStops += fee
       entryByDay.set(d.index, (entryByDay.get(d.index) ?? 0) + fee)
     }
@@ -1200,8 +1245,8 @@ export function computeTotals(trip: Trip, legCorrections?: Record<string, LegEst
     if (s.category === 'hotel' && s.status !== 'rejected') hotelBases.add(lodgingKey(s))
   }))
   const lodgingNights = hotelBases.size
-  const lodgingRooms = Math.max(1, Math.ceil(trip.travellers / 2))
-  const lodgingRatePerNight = STAY_RATE_PER_NIGHT[stayKeyFor(trip)]
+  const lodgingRooms = Math.max(1, Math.ceil(travellers / 2))
+  const lodgingRatePerNight = num0(STAY_RATE_PER_NIGHT[stayKeyFor(trip)])
   const lodgingInr = lodgingNights * lodgingRooms * lodgingRatePerNight
   // Each base's share lands on the first day that holds it, so the per-day
   // stacks keep summing to the trip total (the v0.36 accounting invariant).
@@ -1224,9 +1269,8 @@ export function computeTotals(trip: Trip, legCorrections?: Record<string, LegEst
   return {
     totalCostInr: sum,
     // #213 Phase 6: guarded like costPerDayInr below — travellers is floored at 1
-    // by both forms, but this is the one unguarded division that reaches a
-    // rendered figure, and `₹∞` / `₹NaN` on the bill is a bad failure mode.
-    costPerPersonInr: sum / Math.max(1, trip.travellers),
+    // above, and `₹∞` / `₹NaN` on the bill is a bad failure mode.
+    costPerPersonInr: sum / travellers,
     totalTravelMinutes: travelMinutes,
     totalDistanceKm: distanceKm,
     stopCount,

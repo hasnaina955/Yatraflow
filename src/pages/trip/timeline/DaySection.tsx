@@ -16,7 +16,7 @@ import type { Trip, ItineraryStop } from '../../../data/types'
 import {
   simulateDay, originOf, getAssumptions, coLocates, minutesToHM, hmToMinutes, formatInr,
   predecessorOf, nextAfter, buildJourney, 
-  computeCategoryBias, optimizeDayOrder, roadScaleRatio,
+  computeCategoryBias, optimizeDayOrder, roadScaleRatio, measuredLegCount, optimiseKmLabel,
 } from '../../../lib/engine'
 import type { LegEstimate, ScheduleWarning, OptimizeDayResult } from '../../../lib/engine'
 import { routeChain, stayDaySummary, dwellSegments, visibleStops } from '../../../lib/daySummary'
@@ -222,15 +222,32 @@ export const DaySection = React.memo(function DaySection({ day, trip, editable, 
   // helper clones its inputs, so the render-phase memo can't touch the store);
   // the apply goes through applyChange so the impact preview guards the commit.
   const [optPreview, setOptPreview] = useState<OptimizeDayResult | null>(null)
+  // #341: whether a LATER day wakes up from this one's tail decides whether the
+  // optimiser may touch the last stop at all. The surface owns that fact; the
+  // engine takes it as an argument.
+  const hasNextDay = day.index + 1 < trip.days.length
+  const optOrigin = originOf(trip, day.index)
+  // The optimiser reads exactly two things — where the day starts (itself
+  // derived from the earlier days' endpoints) and this day's ordered stops — so
+  // the memo is keyed on that signature instead of on `trip`. The O(n²) sweep
+  // used to re-run on every unrelated store commit; the signature changes only
+  // when an input really did (#341).
+  const optKey = `${day.index}|${hasNextDay ? 1 : 0}|${optOrigin.lat.toFixed(5)},${optOrigin.lng.toFixed(5)}|${ordered.map(s => `${s.id}:${s.lat.toFixed(5)},${s.lng.toFixed(5)}:${s.orderInDay}:${s.status}:${s.auto ? 1 : 0}:${s.category}`).join('|')}`
   const optResult = useMemo(
-    () => optimizeDayOrder(originOf(trip, day.index), ordered),
-    [trip, day, ordered],
+    () => optimizeDayOrder(optOrigin, ordered, { hasNextDay }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- optKey IS the read set
+    [optKey],
   )
   // The optimizer's objective is straight-line (pairwise road km between
   // arbitrary stops would need N² route calls), but the numbers it SHOWS must
   // speak the road km the travel panel displays — rescale by the day's
-  // road-vs-chord ratio from the corrected legs (1 = no road data yet).
+  // road-vs-chord ratio from the corrected legs. With NO measured leg that ratio
+  // is 1, so the display was presenting chord km as road km with no qualifier;
+  // the labels below say which number it is (#341).
   const roadRatio = useMemo(() => roadScaleRatio(journey.points, legCorrections), [journey, legCorrections])
+  const roadLegs = useMemo(() => measuredLegCount(journey.points, legCorrections), [journey, legCorrections])
+  /** A distance label that never dresses chord math as a measured road km. */
+  const kmLabel = (km: number) => optimiseKmLabel(km, roadRatio, roadLegs)
   // --- Liquid drag (bencho-style, BoardView parity): the DOM order NEVER
   // changes mid-drag. The carried row is pinned to the pointer by the engine
   // (lib/touchDnd.ts) and its skin warps with the throw; rows between the
@@ -536,8 +553,19 @@ export const DaySection = React.memo(function DaySection({ day, trip, editable, 
               <button
                 className="btn btn-outline btn-sm"
                 onClick={() => setOptPreview(optResult)}
-                title={`Reorder this day's stops to cut crisscrossing — saves ~${Math.round((optResult.beforeKm - optResult.afterKm) * roadRatio)} km of travel`}
-              ><InlineIcon icon={RouteIcon} size={13} gap={4} />Optimise{optResult.beforeKm - optResult.afterKm > 0 ? ` (−${Math.round((optResult.beforeKm - optResult.afterKm) * roadRatio)} km)` : ''}</button>
+                title={`Reorder this day's stops to cut crisscrossing — saves ${kmLabel(optResult.beforeKm - optResult.afterKm)} of travel${roadLegs === 0 ? ' (straight-line estimate: the road has not been measured yet)' : ''}`}
+              ><InlineIcon icon={RouteIcon} size={13} gap={4} />Optimise{optResult.beforeKm - optResult.afterKm > 0 ? ` (−${roadLegs === 0 ? '~' : ''}${Math.round((optResult.beforeKm - optResult.afterKm) * roadRatio)} km)` : ''}</button>
+            )}
+            {/* #341: a day the optimiser refuses for a reason the user can act
+                on says so, instead of hiding the button as if nothing existed.
+                The tooltip needs the wrapper span — a disabled button fires no
+                pointer events, so its own title would never show. */}
+            {!optResult.changed && optResult.blocked === 'mid-anchor' && !isStayDay && (
+              <span title="The order is fixed by your manually placed waypoints — the optimiser only rewires the middle of a day, and one of those sits mid-day." style={{ display: 'inline-flex' }}>
+                <button className="btn btn-outline btn-sm" disabled aria-disabled="true">
+                  <InlineIcon icon={RouteIcon} size={13} gap={4} />Optimise
+                </button>
+              </span>
             )}
             <button
               className="btn btn-outline btn-sm"
@@ -758,19 +786,27 @@ export const DaySection = React.memo(function DaySection({ day, trip, editable, 
         {optPreview && <>
           <p className="hint-text" style={{ margin: '0 0 12px' }}>
             Reorders the day's stops into the shortest route from where you start the day — grouping nearby sights,
-            food and activities so you spend less time in transit. Anchors (your base and the day's destination)
-            stay put; you can still drag anything afterwards.
+            food and activities so you spend less time in transit. Anchors (your base, the day's destination and
+            wherever the next day starts from) stay put; you can still drag anything afterwards.
           </p>
+          {/* #341: with no measured leg the numbers below are straight-line
+              math scaled by 1 — they must say so rather than read as road km. */}
+          {roadLegs === 0 && (
+            <p className="hint-text" style={{ margin: '0 0 12px' }}>
+              These are straight-line estimates — the road for this trip has not been measured yet. Drive times
+              after Keep come from the road itself.
+            </p>
+          )}
           <div className="opt-delta">
             <div className="opt-delta-cell">
               <div className="k">Travel distance</div>
-              <div className="v">{Math.round(optPreview.beforeKm * roadRatio)} km → <b>{Math.round(optPreview.afterKm * roadRatio)} km</b></div>
-              <div className="save">−{Math.round((optPreview.beforeKm - optPreview.afterKm) * roadRatio)} km</div>
+              <div className="v">{kmLabel(optPreview.beforeKm)} → <b>{kmLabel(optPreview.afterKm)}</b></div>
+              <div className="save">−{kmLabel(optPreview.beforeKm - optPreview.afterKm)}</div>
             </div>
             <div className="opt-delta-cell">
               <div className="k">Est. driving time</div>
-              <div className="v">{minutesToHM(Math.round(optPreview.beforeKm * roadRatio / (A.avgSpeedKmph || 40) * 60))} → <b>{minutesToHM(Math.round(optPreview.afterKm * roadRatio / (A.avgSpeedKmph || 40) * 60))}</b></div>
-              <div className="save">−{Math.round((optPreview.beforeKm - optPreview.afterKm) * roadRatio / (A.avgSpeedKmph || 40) * 60)} min</div>
+              <div className="v">{roadLegs === 0 ? '~' : ''}{minutesToHM(Math.round(optPreview.beforeKm * roadRatio / (A.avgSpeedKmph || 40) * 60))} → <b>{roadLegs === 0 ? '~' : ''}{minutesToHM(Math.round(optPreview.afterKm * roadRatio / (A.avgSpeedKmph || 40) * 60))}</b></div>
+              <div className="save">−{roadLegs === 0 ? '~' : ''}{Math.round((optPreview.beforeKm - optPreview.afterKm) * roadRatio / (A.avgSpeedKmph || 40) * 60)} min</div>
             </div>
           </div>
           <div className="opt-order-list" aria-label="New stop order">
@@ -783,8 +819,23 @@ export const DaySection = React.memo(function DaySection({ day, trip, editable, 
           </div>
           <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
             <button className="btn btn-primary btn-sm" onClick={() => {
+              // #341: re-derive from the day as it is NOW. A drag or an edit
+              // that landed while this dialog was open used to be discarded
+              // silently — last write wins over a snapshot nobody re-checked.
+              const fresh = optimizeDayOrder(optOrigin, ordered, { hasNextDay })
+              const idsOf = (r: OptimizeDayResult) => r.stops.filter(s => s.status !== 'rejected').map(s => s.id).join('|')
+              if (!fresh.changed) {
+                setOptPreview(null)
+                toast(`Day ${day.index + 1} already matches its shortest order — nothing to apply.`)
+                return
+              }
+              if (idsOf(fresh) !== idsOf(optPreview)) {
+                setOptPreview(fresh)
+                toast('The day changed while you were reviewing — here is the new order.', 'err')
+                return
+              }
               onReorderDay(day.index, optPreview.stops.map(s => s.id))
-              toast(`Day ${day.index + 1} optimised — saved ~${Math.round((optPreview.beforeKm - optPreview.afterKm) * roadRatio)} km of crisscrossing`)
+              toast(`Day ${day.index + 1} optimised — saved ${kmLabel(optPreview.beforeKm - optPreview.afterKm)} of crisscrossing`)
               setOptPreview(null)
             }}>Apply new order</button>
             <button className="btn btn-ghost btn-sm" onClick={() => setOptPreview(null)}>Not now</button>

@@ -398,6 +398,50 @@ Key locations:
    without putting the number behind the word. Pinned in
    tests/pr-auto-close.test.ts so nobody "improves" the parser into guessing
    intent.
+ 6p. **A display string is not a key — and a derived value is not free to
+   move (learned 2026-09-26, the Timeline/Board wave).** Two sides of one
+   lesson from the same day's fixes. (1) Warnings were filed per day by
+   PARSING their rendered title (`/^Day (\d+):/`), which silently lost every
+   warning whose title leads with a stop name instead of a day (opening hours)
+   and every trip-level one (accommodation churn — no day to find). The fix is
+   the general rule: when a surface needs to know which entity a record
+   belongs to, the PRODUCER must attach it as data (`dayIndex` on
+   `ScheduleWarning`, `null` for trip-wide) and the surface must group on that
+   field; a regex over prose is only a fallback for legacy shapes, and an
+   unmatched record must land in a "trip-wide" bucket rather than vanish. Say
+   the count out loud too: a chip that promises "+N more — see Timeline"
+   forces the Timeline to render exactly those N, trip-wide block included.
+   (2) `optimizeDayOrder` pinned a day's tail only when the tail stop was a
+   hotel or a rest, but `originOf(next day)` derives tomorrow's wake-up point
+   from whatever the day's LAST stored stop is — so a tail stop that was only a
+   dinner move relocated the next morning (~16 km in the reported case).
+   Before letting any writer touch a stored value, ask which OTHER derived
+   values read it (the repo's own dayEndPosition/originOf pair), pin the
+   source, and write the property test that asserts the derived value is
+   unchanged rather than trusting the shape — that property test is what
+   caught this. Companion trap from the same family: the optimize preview was
+   a SNAPSHOT taken when the dialog opened, so a drag that landed while it was
+   up was discarded on Apply; re-derive from current state at commit time and
+   refuse-with-a-toast on divergence rather than last-write-winning silently.
+   And when a number is an estimate, label it as one at every point it is
+   shown (the optimize dialog presented chord km as road km whenever the road
+   had not been measured yet — `measuredLegCount(...) === 0` is the honest
+   signal; a scale ratio of 1 is ambiguous and must never imply measurement).
+ 6q. **An id the UI stages is a claim about the PLAN — reconcile it against
+   the plan, never against time (learned 2026-09-26).** Five inline
+   “already added?” checks in one file disagreed: a rejected stop blocked its
+   name forever, `" Hotel Taj "` never matched `"Hotel Taj"`, a provider
+   `placeId`/`eLoc` was ignored, arcs advertised owned places, and one path
+   marked a hit added BEFORE Keep while another marked it after — so a
+   discarded preview left a ghost id that hid the place until reload, and
+   during an open preview the same hit could be staged twice. One predicate
+   (`lib/placeIdentity.ts`) now owns the rule for every caller, and the staged
+   set is released by a preview-close effect that asks the PLAN whether the
+   place arrived (`discardedStagedIds(staged, identity.names)`) instead of
+   asking how much time has passed. When several call sites each answer the
+   same membership question, that is one predicate with one normalization
+   contract (trim/lowercase/collapse + provider key join) — and the exit path
+   (discard) needs the inverse of the entry path (stage) in the SAME change.
  7. **When asking the user to review/test locally, always hand them the exact
    URL — never make them find or start the server.** Check if the dev server
    is up (probe `http://localhost:5173`); if not, start `npm run dev`

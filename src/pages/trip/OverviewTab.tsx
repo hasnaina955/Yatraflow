@@ -107,7 +107,7 @@ export function OverviewTab({ trip, onOpenTimeline, onOpenMap, onInvite, health,
         <div className="card">
           <div className="row-between card-head">
             <h3>Priority actions</h3>
-            {health.warnings.length > 0 && <span className="chip chip-saffron">{health.warnings.length} to review</span>}
+            {health.warnings.length > 0 && <span className="chip chip-saffron">{health.warnings.length} warning{health.warnings.length !== 1 ? 's' : ''} to review</span>}
           </div>
           {priorityActions.length === 0 ? (
             <p className="muted small">Nothing needs fixing right now — the plan flows.</p>
@@ -122,7 +122,9 @@ export function OverviewTab({ trip, onOpenTimeline, onOpenMap, onInvite, health,
                   </div>
                 </div>
               ))}
-              {health.warnings.length > 3 && <span className="small muted">+{health.warnings.length - 3} more — see Timeline.</span>}
+              {/* Honest cross-link: the Timeline carries every warning this
+                  count includes — its days AND its trip-wide block (#402). */}
+              {health.warnings.length > 3 && <span className="small muted">+{health.warnings.length - 3} more warning{health.warnings.length - 3 !== 1 ? 's' : ''} — see Timeline.</span>}
             </div>
           )}
           <button className="link-btn teal" style={{ marginTop: 12 }} onClick={onOpenTimeline}>Open Timeline to resolve →</button>

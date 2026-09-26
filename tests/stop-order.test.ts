@@ -17,7 +17,7 @@ import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import {
   dayHoldingStop, hasStopNamed, moveStopToDay, moveStopWithinDay, nextOrderInDay,
-  removeStopFromDay, renumberDay, roadOrderInsertionIndex, stopById, stopsInOrder,
+  pendingStopId, removeStopFromDay, renumberDay, roadOrderInsertionIndex, stopById, stopsInOrder,
 } from '../src/lib/stopOrder'
 import type { ItineraryDay, ItineraryStop } from '../src/data/types'
 
@@ -244,6 +244,27 @@ describe('the writers use the shared implementation', () => {
     // showed the last day's total under a day whose index had a gap.
     expect(timeline).not.toMatch(/byDay\[Math\.min/)
     expect(daySection).toMatch(/dayTotals\.dayIndex === day\.index/)
+  })
+
+  it('no stop writer mints an id from the weak generator', () => {
+    // #267's presence-key lesson, applied to a TEMPORARY handle: the Timeline's
+    // add paths and the Board's each called Math.random, and the static-analysis
+    // gate flags exactly that (it failed this wave's PR on one of those lines).
+    // Comments may name the generator — the history is worth recording — so
+    // judge code lines only, as tests/presence.test.ts does for its own module.
+    for (const path of ['../src/pages/trip/TimelineTab.tsx', '../src/components/BoardView.tsx', '../src/lib/stopOrder.ts']) {
+      const code = page(path)
+        .split('\n')
+        .filter(line => !/^\s*(\/\/|\*|\/\*)/.test(line))
+        .join('\n')
+      expect(code, path).not.toMatch(/Math\s*\.\s*random\s*\(/)
+    }
+  })
+
+  it('mints a unique pending_ id per call', () => {
+    const ids = new Set(Array.from({ length: 300 }, () => pendingStopId()))
+    expect(ids.size).toBe(300)
+    for (const id of ids) expect(id).toMatch(/^pending_[0-9a-z]+$/)
   })
 
   it('the Map’s slot fill numbers the appended stop 1-based', () => {

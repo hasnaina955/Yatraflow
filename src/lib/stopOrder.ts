@@ -12,6 +12,17 @@
 
 import type { ItineraryDay, ItineraryStop, Trip } from '../data/types'
 
+/** A locally minted id for a stop that is still being staged (the store hands
+ *  it a real one when the change is kept). Platform CSPRNG, never
+ *  `Math.random` — #267's presence-key lesson, applied to the stop add paths,
+ *  which had each drifted onto the weak generator. `getRandomValues` (unlike
+ *  `randomUUID`) also resolves outside a secure context. */
+export function pendingStopId(): string {
+  const rnd = new Uint32Array(2)
+  globalThis.crypto.getRandomValues(rnd)
+  return `pending_${rnd[0].toString(36)}${rnd[1].toString(36)}`
+}
+
 /** A day's stops in display order (stable: equal orders keep array order). */
 export function stopsInOrder(day: ItineraryDay): ItineraryStop[] {
   return [...day.stops].sort((a, b) => a.orderInDay - b.orderInDay)

@@ -33,7 +33,7 @@ import { stopInitialValues, stopLegContext, stopEditorKey, stopDayIndex, type St
 import { useSuggestionCache } from '../../hooks/useSuggestionCache'
 import { PREVIEW_BUSY } from '../../lib/previewChain'
 import { kmFromStartForHit } from '../../lib/providers/hits'
-import { moveStopToDay, moveStopWithinDay, nextOrderInDay, removeStopFromDay, stopById } from '../../lib/stopOrder'
+import { moveStopToDay, moveStopWithinDay, nextOrderInDay, pendingStopId, removeStopFromDay, stopById } from '../../lib/stopOrder'
 import { useTimelineMode, type TimelineMode } from './timeline/useTimelineMode'
 import { PillNav } from '../../components/PillNav'
 import { DaySection } from './timeline/DaySection'
@@ -124,7 +124,7 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
         const day = draft.days.find(d => d.index === dayIndex)!
         day.stops.push({
           ...(legFields as unknown as ItineraryStop),
-          id: 'pending_' + Math.random().toString(36).slice(2),
+          id: pendingStopId(),
           orderInDay: nextOrderInDay(day),
         })
       }, 'add', dayIndex)
@@ -256,7 +256,7 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
       for (const s of sorted) {
         dst.stops.push({
           ...structuredClone(s),
-          id: 'pending_' + Math.random().toString(36).slice(2),
+          id: pendingStopId(),
           orderInDay: nextOrderInDay(dst),
         })
       }
@@ -267,7 +267,7 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
   const handleAddQuickStop = useCallback((dayIndex: number, stop: Omit<ItineraryStop, 'id' | 'orderInDay'>) => {
     applyChange(draft => {
       const day = draft.days.find(d => d.index === dayIndex)!
-      day.stops.push({ ...stop, id: 'pending_' + Math.random().toString(36).slice(2), orderInDay: nextOrderInDay(day) })
+      day.stops.push({ ...stop, id: pendingStopId(), orderInDay: nextOrderInDay(day) })
     }, 'add', dayIndex)
   }, [applyChange])
 
@@ -294,7 +294,7 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
       const posOf = (p: { lat: number; lng: number }) => kmFromStartForHit({ latitude: p.lat, longitude: p.lng }, road ?? j.points) ?? 0
       const merged = [
         ...day.stops.map(s => ({ km: posOf(s), s: structuredClone(s) })),
-        ...halts.map(h => ({ km: h.km, s: { ...h.stop, id: 'pending_' + Math.random().toString(36).slice(2), orderInDay: 0 } })),
+        ...halts.map(h => ({ km: h.km, s: { ...h.stop, id: pendingStopId(), orderInDay: 0 } })),
       ].sort((a, b) => a.km - b.km)
       day.stops = merged.map((m, i) => ({ ...m.s, orderInDay: i + 1 }))
     }, 'add', dayIndex)

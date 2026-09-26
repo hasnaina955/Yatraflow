@@ -918,7 +918,10 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
         priority: 'nice-to-have',
         sourceUrl: '',
         status: 'suggested',
-        orderInDay: day.stops.length,
+        // 1-based, contiguous (the spec's invariant, and every sibling's
+        // `length + 1`): this one shipped without the +1 and duplicated the
+        // last stop's order until V8's stable sort happened to save it (#337).
+        orderInDay: day.stops.length + 1,
       } as ItineraryStop
       day.stops.push(stop)
     }, 'add', dayIdx, () => {
@@ -1313,7 +1316,10 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, crewSugge
             locationName: h.description ?? h.name, lat: pinned.latitude, lng: pinned.longitude,
             description: h.description, visitMinutes: poiVisitMinutes(h.category),
             ...(h.openTime ? { openTime: h.openTime } : {}), ...(h.closeTime ? { closeTime: h.closeTime } : {}),
-            dayIndex: dayForKm(h.cumKm) ?? 0,
+            // Unknown route position: leave the day ABSENT (not Day 1 —
+            // #336). Resolution then says it cannot place the winner instead
+            // of dropping it on a day nobody chose.
+            dayIndex: dayForKm(h.cumKm) ?? undefined,
           },
         })),
       })

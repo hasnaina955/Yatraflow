@@ -32,6 +32,39 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 - **Opening-hours conflicts could vanish on a hydrated stop.** The preview's own check read `visitMinutes` raw, so a row without one compared `NaN` against its closing time and reported nothing. A missing dwell now counts as zero minutes, the same way the engine treats it.
 - **The trip-wide accommodation warning, and every warning with no “Day N:” prefix, is no longer dropped.** Warnings were filed by parsing the day number out of their display title, which silently lost the trip-level ones (accommodation churn) and every warning that leads with a stop's name instead of a day (opening hours). A warning now carries the day it belongs to — or none, for a trip-level one — and the Timeline renders trip-wide warnings in their own block whose count matches the Overview chip that promises them.
 - **The trip JSON id mint and the toast list no longer draw from the weak generator.** The seed id helper and the toast key were the last two `Math.random()` sites that looked like they were not really identity (an id shape, a React key); the id helper now mints from the platform CSPRNG (also available outside a secure context), and the toast list uses a session counter, which is what it needed all along. PlanBench keeps its random demo picks and ambient offsets — that randomness has no identity role.
+- **A day’s stops stay numbered 1..n, and nothing a plan requires is ever silently lost.** Deleting a
+  stop on the Timeline closes the gap its neighbours inherit — so the next stop added cannot reuse a
+  position a survivor still holds — and the delete now offers Undo, which puts the stop back at the
+  order it had. A stop dropped onto a day that is no longer on the trip is refused with a message
+  and stays where it was, instead of being removed from its day and forgotten. The move dialog
+  places a stop where the day’s route says it belongs rather than at the day’s end, matching what a
+  drag does, and both days it touches end contiguous. The Map’s day-plan fill numbers the stop it
+  appends 1-based like every sibling. The numbering rule lives in one place now
+  (`src/lib/stopOrder.ts`), called by the store’s mutators, the Timeline’s delete/reorder/move
+  handlers, the Map’s fill and the Board — one implementation instead of four (#337, #339).
+- **Per-day money follows the day’s own index, so a skipped day number can no longer show another
+  day’s total.** The engine’s per-day buckets, the day-header chip, its tooltip and the print card
+  all match a day by index rather than by array position, and a day with no bucket shows nothing
+  instead of clamping to the last one. An expense tagged to a day that is no longer on the trip is
+  treated as an unattached trip-level cost — spread with the others — rather than quietly moved onto
+  the last day; an expense attached to a stop follows that stop’s day. The round-trip drive home is
+  charged to the last day by index, and the trip’s origin and turnaround points are read from the
+  lowest and highest day index, so a trip whose days array is out of order plans the same route and
+  the same bill (#338).
+- **A missing or malformed money value no longer prints “₹undefined” or turns the totals into NaN.**
+  Entry fees, expense amounts and the traveller count are finite-coerced where they are used, so one
+  hand-edited or partially hydrated field can no longer multiply through the trip total, the
+  per-day chips, the pacing tiles or the printed itinerary. A stop that carries no fee or no
+  transport figure shows no cost segment at all (a stored ₹0 is a real ₹0 and still shows), the day
+  route spark skips stops with non-finite coordinates instead of drawing a NaN line, and a planned
+  halt with a missing duration no longer poisons the arrival preview (#343).
+- **Resolving a crew vote and accepting a suggestion each act exactly once.** Resolving twice — a
+  double-tap, or a second click after the row already moved — adds the winner a single time, and a
+  decision that is already resolved ignores a later resolve naming a different option. An accept or
+  a resolve whose place is already on the plan records the decision without adding a duplicate stop,
+  and the winning place lands only on the day it was actually suggested for: an unknown position or
+  a day that has since been deleted says so instead of quietly dropping the place on Day 1 or on the
+  last day. A suggestion whose day is gone no longer crashes the accept button (#336).
 
 ## [0.67.0] - 2026-09-25
 

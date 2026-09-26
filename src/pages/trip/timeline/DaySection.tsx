@@ -525,7 +525,11 @@ export const DaySection = React.memo(function DaySection({ day, trip, editable, 
             computes (computeTotals().byDay + simulateDay dwell), surfaced where
             the plan is edited. Hidden while collapsed so a folded day's header
             stays calm. */}
-        {!collapsed && dayTotals != null && dayTotals.totalInr > 0 && (
+        {/* The chip renders only for the day it BELONGS to (matched by index):
+            a lookup that finds no bucket shows nothing, never another day's
+            total under this header (#338 — the old positional clamp showed the
+            last day's money on a day with a skipped index). */}
+        {!collapsed && dayTotals != null && dayTotals.dayIndex === day.index && dayTotals.totalInr > 0 && (
           <span
             className="day-cost-chip"
             title={`≈ ${formatInr(dayTotals.transportInr)} travel · ${formatInr(dayTotals.expensesInr)} day costs (incl. entry fees)`}
@@ -695,8 +699,12 @@ export const DaySection = React.memo(function DaySection({ day, trip, editable, 
                   <span><MetaIcon icon={ MapPin } tone="place" />{s.locationName}</span>
                   <span><MetaIcon icon={ Clock } tone="time" />{minutesToHM(s.visitMinutes)}</span>
                   {s.openTime && <span><MetaIcon icon={ Clock } tone="time" />{formatHMRange(s.openTime, s.closeTime, timeFormat)}</span>}
-                  <span><MetaIcon icon={ Ticket } tone="ticket" />₹{s.entryFeeInrPerPerson}/person</span>
-                  <span><MetaIcon icon={ Car } tone="money" />₹{s.transportCostInrTotal} transport</span>
+                  {/* Money fields are finite-guarded, not defaulted (#343): an
+                      absent/non-finite fee renders NO segment ("₹undefined"
+                      told the user a lie, and a forced ₹0 invents a free
+                      ticket). A stored 0 is a real 0 and still renders. */}
+                  {Number.isFinite(s.entryFeeInrPerPerson) && <span><MetaIcon icon={ Ticket } tone="ticket" />₹{s.entryFeeInrPerPerson}/person</span>}
+                  {Number.isFinite(s.transportCostInrTotal) && <span><MetaIcon icon={ Car } tone="money" />₹{s.transportCostInrTotal} transport</span>}
                   {s.departTime && s.arrivalTime && (
                     <span><MetaIcon icon={ Clock } tone="time" />dep {formatHM(s.departTime, timeFormat)} · arr {formatHM(s.arrivalTime, timeFormat)}{s.legDistanceKm ? ` · ${s.legDistanceKm.toFixed(0)} km` : ''}</span>
                   )}

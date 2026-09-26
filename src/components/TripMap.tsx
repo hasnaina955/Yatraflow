@@ -24,7 +24,7 @@ import { nativeWatch } from '../lib/native'
 import { loadFlag, saveFlag } from '../lib/uiPrefs'
 import {
   applyViewModeOnMap, HERO_3D_CAMERA, MAP_VIEW_MODES, MAP_VIEW_MODE_META,
-  heroBearingForRoute,
+  heroBearingForRoute, heroCameraMove,
   type MapViewMode,
 } from '../lib/mapViewModes'
 import type { MapRef } from './mapcn/map'
@@ -128,20 +128,42 @@ function LiveLocationLayer({ active }: { active: boolean }) {
 }
 
 /**
+ * Per-instance id for a map layer's source/layer/image names (#332 R2).
+ * `getRandomValues` rather than `Math.random()` — it is the repo-wide rule for
+ * minting identity (and it resolves outside a secure context); the counter keeps
+ * two instances created in the same tick apart even where `crypto` is missing.
+ */
+let arrowInstanceSeq = 0
+function arrowInstanceId(): string {
+  const bytes = new Uint8Array(4)
+  globalThis.crypto?.getRandomValues?.(bytes)
+  const hex = Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('')
+  arrowInstanceSeq += 1
+  return `${hex}-${arrowInstanceSeq}`
+}
+
+/**
  * Direction chevrons along the route — a symbol layer fed by the same line
  * geometry, rendered with a tiny dependency-free triangle icon (addImage from
  * raw pixel data, so no font/glyph dependency on the basemap).
  */
 function RouteArrows({ coordinates, dark }: { coordinates: [number, number][]; dark: boolean }) {
   const { map, isLoaded } = useMap()
-  const instId = useRef(`inst-${Math.random().toString(36).slice(2)}`).current
+  const instId = useRef(arrowInstanceId()).current
   useEffect(() => {
     if (!isLoaded || !map || coordinates.length < 2) return
     // Per-instance source/layer ids — a single shared id made concurrent
     // instances (main line + return drive) overwrite each other's geometry.
     const SRC = `yf-arrows-src-${instId}`
     const LAYER = `yf-arrows-${instId}`
-    if (!map.hasImage('yf-arrow')) {
+    // The IMAGE is per-instance too (#332 R2). One shared `yf-arrow` leaked: the
+    // cleanup below removed layer+source and nothing else, so every map open
+    // added a 9×9 image the session never released. Removing it on unmount is
+    // only safe per-instance — a shared image taken away by whichever instance
+    // unmounted first would strip the icon from the sibling still on screen,
+    // which re-adds it only behind `if (!map.hasImage(...))`.
+    const IMAGE = `yf-arrow-${instId}`
+    if (!map.hasImage(IMAGE)) {
       // 9×9 solid triangle pointing up, drawn into raw RGBA pixels
       const size = 9
       const data = new Uint8Array(size * size * 4)
@@ -153,7 +175,7 @@ function RouteArrows({ coordinates, dark }: { coordinates: [number, number][]; d
           if (within) { data[i] = 255; data[i + 1] = 255; data[i + 2] = 255; data[i + 3] = 230 }
         }
       }
-      map.addImage('yf-arrow', { width: size, height: size, data })
+      map.addImage(IMAGE, { width: size, height: size, data })
     }
     if (!map.getSource(SRC)) {
       map.addSource(SRC, { type: 'geojson', data: { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: [] } } })
@@ -162,7 +184,7 @@ function RouteArrows({ coordinates, dark }: { coordinates: [number, number][]; d
         layout: {
           'symbol-placement': 'line',
           'symbol-spacing': 130,
-          'icon-image': 'yf-arrow',
+          'icon-image': IMAGE,
           'icon-rotate': 0,
           'icon-allow-overlap': true,
           'icon-ignore-placement': true,
@@ -177,6 +199,7 @@ function RouteArrows({ coordinates, dark }: { coordinates: [number, number][]; d
       try {
         if (map.getLayer(LAYER)) map.removeLayer(LAYER)
         if (map.getSource(SRC)) map.removeSource(SRC)
+        if (map.hasImage(IMAGE)) map.removeImage(IMAGE)
       } catch { /* style swapped mid-flight */ }
     }
   }, [map, isLoaded, coordinates, dark])
@@ -336,20 +359,30 @@ function MapViewModeController({ mode, bearing }: { mode: MapViewMode; bearing?:
     } catch { /* style swapped mid-flight — the next isLoaded edge re-applies */ }
   }, [map, isLoaded, mode])
   const prevMode = useRef<MapViewMode>('2d')
+  const prevBearing = useRef<number | null>(null)
   useEffect(() => {
-    if (!map) return
+    // Gate on `isLoaded` exactly as the reconcile effect above does (#332 R1):
+    // easing a camera the incoming style is about to disturb leaves it wrong.
+    if (!map || !isLoaded) return
     const duration = prefersReducedMotion() ? 0 : 700
-    if (mode === '3d' && prevMode.current !== '3d') {
+    const { move, bearing: heroBearing } = heroCameraMove(mode, prevMode.current, bearing, prevBearing.current)
+    if (move === 'enter') {
       // Dynamic hero cam: look along THIS trip's road (initial route bearing);
       // the prototype's fixed bearing stays only as a geometry-less fallback.
-      map.easeTo({ pitch: HERO_3D_CAMERA.pitch, bearing: bearing ?? HERO_3D_CAMERA.bearing, duration })
-    } else if (mode !== '3d' && prevMode.current === '3d') {
+      map.easeTo({ pitch: HERO_3D_CAMERA.pitch, bearing: heroBearing, duration })
+    } else if (move === 're-aim') {
+      // The road resolved AFTER 3D opened: the fallback bearing was eased, and
+      // the edge trigger alone would leave the camera stuck on it forever.
+      // Bearing only — the pitch the user is looking at must not jump.
+      map.easeTo({ bearing: heroBearing, duration })
+    } else if (move === 'flatten') {
       // Leaving 3D: flat camera again, and the terrain stack is dropped by
       // the reconcile effect (map.getTerrain() null is the acceptance check).
       map.easeTo({ pitch: 0, bearing: 0, duration })
     }
     prevMode.current = mode
-  }, [map, mode, bearing])
+    prevBearing.current = heroBearing
+  }, [map, isLoaded, mode, bearing])
   return null
 }
 

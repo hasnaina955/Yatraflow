@@ -135,23 +135,9 @@ const SCOPE_STORAGE_KEY = 'nearby_scope_km'
 /** Sensible visit durations per suggestion category (tourist pacing). */
 const poiVisitMinutes = visitMinutesForCategory
 
-/** The Map tab's loading shape. The tab is behind a Suspense boundary because it
-    carries the lazy MapLibre chunk, and the frame it waits for is the heaviest
-    download in the app — so it gets a skeleton of what is arriving (the frame
-    and the two rails, on the tab's own grid so it inherits the breakpoints)
-    rather than a spinner. */
-export function MapTabSkeleton() {
-  return (
-    <div aria-busy="true">
-      <span className="sr-only" role="status">Loading the map and your day plan.</span>
-      <div className="map-ideas-grid">
-        <div className="map-skel-rail" aria-hidden />
-        <div className="map-ideas-map map-skel-map" aria-hidden />
-        <div className="map-skel-rail" aria-hidden />
-      </div>
-    </div>
-  )
-}
+// MapTabSkeleton moved to ./MapTabSkeleton (#332 R4) — it is this module's
+// Suspense fallback, so importing it from here re-created the static edge the
+// lazy boundary exists to cut. Import it from that module instead.
 
 /** Per-slot glyphs (plan P2.1/P6.2): the kind's icon, with the breakfast
  *  special-case on the label — kinds can't tell meals apart, and an unknown

@@ -61,6 +61,24 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
   field follows the same rule, but only while that leg is on screen — a field that is not rendered
   cannot be holding the user's intent (#375).
 
+- **The create form's "how many travellers" error pointed at a control nobody could see.** The
+  number input carrying that message lives inside `.sr-only`, so submitting with an invalid party
+  size moved focus to an invisible element while the stepper people actually touch sat untouched —
+  and the message was rendered a second time for screen readers only, which heard the failure twice
+  and saw it nowhere. The stepper is now the focus target and carries the range in its own label
+  (`min`/`max` were properties of the hidden input); the error renders once, visibly, with both the
+  group and the input pointing at it. Printing the rough bill also moves focus to the bill it just
+  revealed, which used to appear below the fold and leave the keyboard behind (#379).
+- **The Plan Bench's "Start planning" button navigated by a hardcoded route string** — one rename
+  away from silently losing the hand-off, and it had already happened once: the CTA pointed at
+  `#/create`, a route nothing handles, so the router dropped the visitor on the landing page while
+  the CTA still looked alive and the crew, budget and stay tier the bench had just stashed were
+  never read. The create route now lives in one place in all three forms the app needs (hash, path,
+  router segment), and the bench CTA, the hero CTA, the router's case and the nav links all read it.
+  The stash itself is pinned too: one key with one owner, the prefill shape (including the stay tier
+  that decides ₹8,000 versus ₹3,200 a night), read-once, and a corrupt stash that clears rather than
+  blocking every later visit (#398).
+
 ## [0.67.0] - 2026-09-25
 
 The audit's first two waves, promoted the day they closed: sixteen findings across the map, the

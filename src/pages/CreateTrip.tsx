@@ -550,6 +550,10 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
     if (!bill.perHead) { toast('Add a date range and at least one geocoded stop to price the trip.', 'err'); return }
     haptic(HAPTIC.success)
     setBillPrinted(true)
+    // #379: focus follows the reveal. Without this the bill appears below the fold
+    // and a keyboard user is left standing where they were, with nothing to show for
+    // the press. rAF because the region does not exist until this render lands.
+    requestAnimationFrame(() => billRef.current?.focus())
   }
 
   function navigateWithTransition(route: string) {
@@ -1080,7 +1084,15 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
               <div className="ct-q-field">
                 <span className="ct-lbl">Party size</span>
                 <div className="ct-party">
-                  <span className="ct-step" role="group" aria-label="Party size">
+                  {/* #379: the travellers error has to land on something a person can
+                      see. The number input that used to take that focus sits inside
+                      `.sr-only`, so a sighted keyboard user was sent nowhere. The
+                      stepper is the control people actually touch, so the stepper is
+                      the target — and the range travels with it, since `min`/`max`
+                      live on the input nobody can see. */}
+                  <span className="ct-step" role="group" ref={el => (fieldRefs.current.travellers = el)}
+                    tabIndex={-1} aria-label={`Party size, ${CREW_MIN} to ${CREW_MAX} travellers`}
+                    aria-describedby={errs.travellers ? 'ct-travellers-err' : undefined}>
                     <button type="button" aria-label="One fewer traveller"
                       onClick={() => { haptic(HAPTIC.tick); patchFields({ travellers: clampCrew(f.travellers - 1) }) }}>&minus;</button>
                     <b aria-live="polite">{f.travellers}</b>
@@ -1093,10 +1105,18 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
                   </button>
                   <span className="sr-only">{f.travellers} traveller{f.travellers !== 1 ? 's' : ''} on {cap(f.transportMode)}</span>
                 </div>
+                {/* #379: rendered once, visibly, and pointed at by both the group and
+                    the hidden input — the input used to render its own copy of this
+                    message inside `.sr-only`, so a screen reader heard the failure
+                    twice and saw it nowhere. */}
+                {errs.travellers && <p className="err-text" id="ct-travellers-err" role="status" aria-live="polite">{errs.travellers}</p>}
+                {/* The value channel for AT that needs a real input to type into —
+                    deliberately no longer where the error lands. */}
                 <div className="sr-only">
-                  <Field label="Travellers" error={errs.travellers}>
-                    <input className="input mono" type="number" min={CREW_MIN} max={CREW_MAX} ref={el => (fieldRefs.current.travellers = el)}
-                      aria-invalid={!!errs.travellers} value={f.travellers}
+                  <Field label="Travellers">
+                    <input className="input mono" type="number" min={CREW_MIN} max={CREW_MAX}
+                      value={f.travellers} aria-invalid={!!errs.travellers}
+                      aria-describedby={errs.travellers ? 'ct-travellers-err' : undefined}
                       onChange={e => patchFields({ travellers: clampCrew(Number(e.target.value)) })} />
                   </Field>
                 </div>
@@ -1501,7 +1521,7 @@ export function CreateTripPage({ onNavigate }: { onNavigate: (r: string) => void
             </div>
               {billPrinted && (
                 <>
-                  <div className="bill-printer" role="region" aria-label="Rough trip bill" ref={billRef}>
+                  <div className="bill-printer" role="region" aria-label="Rough trip bill" ref={billRef} tabIndex={-1}>
                     <div className="bill-slot" aria-hidden="true"><span></span></div>
                     <div className="bill-reveal">
                       <div className="bill-paper bill-paper-sway">

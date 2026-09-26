@@ -428,12 +428,18 @@ function useTripRoad(trip: Trip | null | undefined): {
       return
     }
     let cancelled = false
+    // #325: two layers, two jobs. The flag guards `setState`; the controller stops
+    // the network work. Without the abort the whole OSRM chain (and its parallel
+    // per-leg fallbacks) ran to completion behind the flag — burning quota on a
+    // trip the user had already left. And because a trip switch unmounts nothing
+    // here, a late result could still land on the next trip's view.
+    const controller = new AbortController()
     setState({ status: 'pending', legs: null })
-    measureRoadChain(chain.points, getAssumptions(trip)).then(outcome => {
+    measureRoadChain(chain.points, getAssumptions(trip), { signal: controller.signal }).then(outcome => {
       if (cancelled) return
       setState(outcome.ok ? { status: 'ok', legs: outcome.legs } : { status: 'failed', legs: null })
     })
-    return () => { cancelled = true }
+    return () => { cancelled = true; controller.abort() }
     // chain reflects chainSig; trip is read for assumptions only.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chainSig, chain, attempt])

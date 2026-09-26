@@ -15,8 +15,23 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ## [Unreleased]
 
+### Added
+
+- **One “already added” identity behind every suggestion surface.** Whether a place is already on the plan was answered five different ways in five places, and they disagreed: a turned-down suggestion blocked its own name forever, `" Hotel Taj "` never matched `"Hotel Taj"`, a provider place id was ignored entirely, story arcs advertised sights you already owned, and a slot could offer a place that had just been dismissed. There is now one predicate, shared by the corridor rail, the search rows, the shortlist tray, the day's slots and the arcs: names are trimmed and case-folded, a Google `placeId` or Mappls `eLoc` joins the same place across spellings, rejected stops stop blocking, and the day-slot engine reads the same facts the rail does. When a preview is discarded, the places it staged are released with it — the place comes back immediately instead of hiding until a reload.
+- **A short night says so, before the alarm does.** Consecutive days were each planned in isolation, so a day ending at 23:20 followed by one starting at 05:00 looked fine twice over. The trip's own clocks are now measured against each other end-to-start (in day order, and correctly across midnight): under seven hours is a warning, under five is a serious one, both naming the two clocks.
+
+### Changed
+
+- **The optimise-day dialog says which number it is showing.** Its objective is straight-line distance, rescaled by the day's road-vs-chord ratio — and with no road measurement yet that ratio is 1, so chord kilometres were presented as road kilometres with nothing to qualify them. An unmeasured estimate is now labelled as one (`~12 km (est.)`) on the button, in the dialog and in its hint, and the disclosure names the anchors that will not move. Days that cannot be optimised because a manually placed waypoint sits mid-day now show the button disabled and say why, instead of hiding it.
+- **The impact preview measures with the same road data the timeline renders.** Every timeline edit is guarded by a before/after sheet, and that sheet was estimating with straight-line distance while the surfaces it was predicting were using measured road data — roughly a fifth low on a detour. Both now read one measurement, so “adds ~40 min” is the number the timeline will show after Keep. Its arrival rows are matched by stop identity rather than by position, so reordering a day reports which stop moved instead of pairing each new occupant with its predecessor's clock, and its “busy” verdict now agrees with the day's own pill at six stops.
+
 ### Fixed
 
+- **Reordering a day could move where the next morning started.** The optimiser pinned a night's base only when the tail stop was a hotel or a rest — but the engine derives the next day's wake-up point from whatever the day's LAST stored stop is, so a food-tailed evening (dinner where you ended up) let it slide — the reported case moved the next morning's start about 16 km. A day's stored tail is now pinned whenever a later day wakes up from it, and a property test asserts the next day's origin is unchanged rather than trusting the shape.
+- **Applying an optimise over an edit that landed meanwhile is no longer silent.** The preview was a snapshot taken when the dialog opened, so a drag or an edit made while it was up was discarded without notice when Apply was pressed. Apply now re-derives from the day as it is, refuses and refreshes when the order no longer matches what was reviewed, and says when there is nothing left to improve.
+- **Opening-hours conflicts could vanish on a hydrated stop.** The preview's own check read `visitMinutes` raw, so a row without one compared `NaN` against its closing time and reported nothing. A missing dwell now counts as zero minutes, the same way the engine treats it.
+- **The trip-wide accommodation warning, and every warning with no “Day N:” prefix, is no longer dropped.** Warnings were filed by parsing the day number out of their display title, which silently lost the trip-level ones (accommodation churn) and every warning that leads with a stop's name instead of a day (opening hours). A warning now carries the day it belongs to — or none, for a trip-level one — and the Timeline renders trip-wide warnings in their own block whose count matches the Overview chip that promises them.
+- **The trip JSON id mint and the toast list no longer draw from the weak generator.** The seed id helper and the toast key were the last two `Math.random()` sites that looked like they were not really identity (an id shape, a React key); the id helper now mints from the platform CSPRNG (also available outside a secure context), and the toast list uses a session counter, which is what it needed all along. PlanBench keeps its random demo picks and ambient offsets — that randomness has no identity role.
 - **A day’s stops stay numbered 1..n, and nothing a plan requires is ever silently lost.** Deleting a
   stop on the Timeline closes the gap its neighbours inherit — so the next stop added cannot reuse a
   position a survivor still holds — and the delete now offers Undo, which puts the stop back at the
@@ -61,6 +76,76 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
   different plans — and a move onto a day that had since gone could drop the stop. The dialog now
   moves through the same shared `moveStopToDay` (with the same road measurement) the Timeline's
   dialog uses, and a target day that no longer exists refuses with a message (#371).
+- **Text typed into the create funnel's add-stop field was thrown away on submit if it was never
+  picked from the suggestions.** The field is an autocomplete: only a pick turned the typed text
+  into a stop, and that text lived in the input's own state, so "I typed Munnar — why isn't it on
+  the trip?" ended with a stop count that never changed and a form that said nothing. Submitting now
+  stops on that field, naming the text it would have dropped and moving focus to it — and a place
+  the providers cannot pin can still become a real stop on purpose: **Add without a map pin** adds it
+  with no coordinates, a state every reader downstream already handles honestly (the rough bill
+  reports no road distance, the outline seed skips it, anchors wait for a pin). A custom return leg's
+  field follows the same rule, but only while that leg is on screen — a field that is not rendered
+  cannot be holding the user's intent (#375).
+
+- **The create form's "how many travellers" error pointed at a control nobody could see.** The
+  number input carrying that message lives inside `.sr-only`, so submitting with an invalid party
+  size moved focus to an invisible element while the stepper people actually touch sat untouched —
+  and the message was rendered a second time for screen readers only, which heard the failure twice
+  and saw it nowhere. The stepper is now the focus target and carries the range in its own label
+  (`min`/`max` were properties of the hidden input); the error renders once, visibly, with both the
+  group and the input pointing at it. Printing the rough bill also moves focus to the bill it just
+  revealed, which used to appear below the fold and leave the keyboard behind (#379).
+- **The Plan Bench's "Start planning" button navigated by a hardcoded route string** — one rename
+  away from silently losing the hand-off, and it had already happened once: the CTA pointed at
+  `#/create`, a route nothing handles, so the router dropped the visitor on the landing page while
+  the CTA still looked alive and the crew, budget and stay tier the bench had just stashed were
+  never read. The create route now lives in one place in all three forms the app needs (hash, path,
+  router segment), and the bench CTA, the hero CTA, the router's case and the nav links all read it.
+  The stash itself is pinned too: one key with one owner, the prefill shape (including the stay tier
+  that decides ₹8,000 versus ₹3,200 a night), read-once, and a corrupt stash that clears rather than
+  blocking every later visit (#398).
+- **Switching trips left the previous trip's road measurement running to completion.** The workspace
+  measured its whole OSRM chain — plus the parallel per-leg fallbacks — behind a flag that only
+  suppressed React state, so the requests kept going: mobile data spent on a trip the user had
+  already left, and, because switching trips unmounts nothing here, a late result could still land
+  on the next trip's view. The workspace now passes an `AbortSignal` through `measureRoadChain`
+  exactly the way the day-filter path already did, and an abort stops the work silently instead of
+  reading as a transient failure that earns the two-second retry (#325).
+- **The 3D hero camera could settle on a fallback angle and never correct itself.** The camera was
+  eased on the 2d→3d transition only, while the angle it aims at comes from the drawn road — so
+  opening 3D before the route resolved left the map looking along the prototype's fixed bearing, and
+  the road arriving afterwards changed nothing. The move is now a pure decision (`heroCameraMove`)
+  that reacts to the bearing VALUE: entering 3D still sets pitch and bearing, a bearing that improves
+  later re-aims without pitching the view out from under the reader, and an unchanged bearing is a
+  no-op rather than a camera that grinds on every unrelated re-render. The effect also waits for the
+  style to load now, as the terrain effect beside it always did. Two smaller map-hygiene fixes ride
+  along: the direction chevrons' triangle icon is per-map-instance and released on unmount (one
+  shared image per instance lifetime was added and never freed — a slow leak across a long session of
+  opening and closing the map), and its instance id comes from `getRandomValues` rather than
+  `Math.random()`. The two stacking-order comments that placed the impact sheet at 90 — it is 210; 90
+  is the AI drawer's rung — now name the ladder tokens instead of repeating numbers that had drifted.
+  Two more from the same batch: a marker's DOM listeners are attached in an effect that removes them
+  again (they sat inside a `useMemo` that runs once and detaches nothing, so every unmounted marker
+  left three listeners behind on a detached element), and the Map tab is now lazily loaded as a
+  whole rather than only the renderer inside it. That second one is the one with a number on it: the
+  tab statically imported the entire suggestion stack, so the workspace bundle carried geocode, the
+  planning engine, day slots, trip DNA and story arcs whether or not anyone ever opened the Map tab.
+  Measured — the workspace chunk drops from 264 KB to 206 KB, and the tab's own 60 KB chunk loads on
+  demand. The three other popup components the report named already synced their options and removed
+  their listeners, so nothing there needed changing (#332).
+- **The full-trip map framed the stops instead of the route it drew.** The all-days camera zoomed to
+  the saved pins, so everything that is part of the line but is not a pin — the leg out of the trip's
+  start, the trailing destination, and any stretch of road bowing around a ghat or a lake — could
+  begin off-screen and had to be panned to. The fit set now comes from the same chain the line is
+  drawn from (trip start, every stop, the drive home, the trailing destination) plus a sampled copy of
+  the measured road, so the camera frames what is actually on the canvas; the sampled set keeps the
+  camera key cheap, and the last road vertex is always included. The old code's reassurance that the
+  measured line stayed "well inside the 70px padding" was an assertion nobody had measured and it is
+  not true of a bowed road, so it is gone rather than restated. The day view is deliberately
+  unchanged: there the polyline arrives after the fit, and folding a whole-trip line into a single
+  day's frame would frame a previous day's road. Return-label anchoring on destination-tail trips —
+  the other half of this report — is recorded on the issue and follows with the Map tab's next change
+  (#330).
 
 ## [0.67.0] - 2026-09-25
 

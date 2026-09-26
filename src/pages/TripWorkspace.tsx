@@ -28,7 +28,13 @@ import { useDestinationCover } from '../hooks/useDestinationCover'
 import { pickTripQueryCandidates } from '../lib/tripThumb'
 import { OverviewTab } from './trip/OverviewTab'
 import { TimelineTab } from './trip/TimelineTab'
-import { MapTab, MapTabSkeleton } from './trip/MapTab'
+import { MapTabSkeleton } from './trip/MapTabSkeleton'
+// #332 R4: the Map TAB is lazy, not just the renderer inside it. MapTab statically
+// imports the whole suggestion stack (geocode, engine, daySlots, tripDna,
+// storyArcs, slackPrompts…), so a static import here put all of it in the
+// workspace chunk whether or not the tab was ever opened. The skeleton stays a
+// static, dependency-free module so the Suspense fallback cannot suspend itself.
+const MapTab = React.lazy(() => import('./trip/MapTab').then(m => ({ default: m.MapTab })))
 import { GroupInputTab } from './trip/GroupInputTab'
 import { BudgetTab } from './trip/BudgetTab'
 import { ShareTab } from './trip/ShareTab'

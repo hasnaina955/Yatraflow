@@ -578,6 +578,15 @@ Hard rules (each learned the hard way — do not relearn them):
   baseline and confirm the finding names are identical before/after (e.g. 29
   in → 29 out). A name that appears on only one side is a REAL new violation —
   fix it, don't ratchet it in (Sep 2026, three label phases in a row).
+  **A comments-only CSS edit is the exception, so run the ratchet before re-baselining
+  (learned 2026-09-26).** Fixing stale prose in two `styles.css` comments — one of them
+  adding lines — left `design-system.test.ts` green: the baseline records selectors and
+  their measured ratios, not source line numbers, so a shift that moves no declaration
+  moves no finding. The reflex the rule above invites ("CSS changed, expect red, re-baseline")
+  would have rewritten the baseline to hide nothing and churned the diff for free. Order of
+  operations: change the CSS, run the ratchet, and only reach for
+  `UPDATE_DESIGN_SYSTEM_BASELINE=1` when it is actually red — then still prove the finding
+  names are identical in and out.
 - **The ratchet parses each selector's OWN declaration pair — it never walks
   the cascade (learned 2026-09-22).** A `:root` override can fix a contrast
   finding on screen while the baseline keeps it forever: `.day-warn-pill`

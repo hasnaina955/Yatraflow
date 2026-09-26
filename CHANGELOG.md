@@ -50,6 +50,16 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
   and the winning place lands only on the day it was actually suggested for: an unknown position or
   a day that has since been deleted says so instead of quietly dropping the place on Day 1 or on the
   last day. A suggestion whose day is gone no longer crashes the accept button (#336).
+- **Text typed into the create funnel's add-stop field was thrown away on submit if it was never
+  picked from the suggestions.** The field is an autocomplete: only a pick turned the typed text
+  into a stop, and that text lived in the input's own state, so "I typed Munnar — why isn't it on
+  the trip?" ended with a stop count that never changed and a form that said nothing. Submitting now
+  stops on that field, naming the text it would have dropped and moving focus to it — and a place
+  the providers cannot pin can still become a real stop on purpose: **Add without a map pin** adds it
+  with no coordinates, a state every reader downstream already handles honestly (the rough bill
+  reports no road distance, the outline seed skips it, anchors wait for a pin). A custom return leg's
+  field follows the same rule, but only while that leg is on screen — a field that is not rendered
+  cannot be holding the user's intent (#375).
 
 ## [0.67.0] - 2026-09-25
 

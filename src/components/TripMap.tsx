@@ -8,13 +8,13 @@ import type { Trip } from '../data/types'
 import type { PlaceHit } from '../lib/geocode'
 import { resolveHitCoords } from '../lib/geocode'
 import { hasCoords, mappablePois, projectOntoPolyline } from '../lib/providers/hits'
-import { measureDayRide } from '../lib/tripRoad'
+import { buildRoadChain, measureDayRide } from '../lib/tripRoad'
 import { buildJourney, getAssumptions, isRoundTrip } from '../lib/engine'
 import { clockHM, type ClockMilestone } from '../lib/clockOverlay'
 import { pointAtKm } from '../lib/geo'
 import { useTimeFormat, formatHM } from '../lib/timefmt'
 import { extraJourneyMarkers } from '../lib/journeyMarkers'
-import { boundsOf, type LatLng } from '../lib/mapFit'
+import { allViewFitPoints, boundsOf, type LatLng } from '../lib/mapFit'
 import { coincidentPinOffsets } from '../lib/pinOffsets'
 import { googleMapsDirectionsUrl } from '../lib/externalMaps'
 import { openExternal } from '../lib/native'
@@ -24,7 +24,7 @@ import { nativeWatch } from '../lib/native'
 import { loadFlag, saveFlag } from '../lib/uiPrefs'
 import {
   applyViewModeOnMap, HERO_3D_CAMERA, MAP_VIEW_MODES, MAP_VIEW_MODE_META,
-  heroBearingForRoute,
+  heroBearingForRoute, heroCameraMove,
   type MapViewMode,
 } from '../lib/mapViewModes'
 import type { MapRef } from './mapcn/map'
@@ -128,20 +128,42 @@ function LiveLocationLayer({ active }: { active: boolean }) {
 }
 
 /**
+ * Per-instance id for a map layer's source/layer/image names (#332 R2).
+ * `getRandomValues` rather than `Math.random()` — it is the repo-wide rule for
+ * minting identity (and it resolves outside a secure context); the counter keeps
+ * two instances created in the same tick apart even where `crypto` is missing.
+ */
+let arrowInstanceSeq = 0
+function arrowInstanceId(): string {
+  const bytes = new Uint8Array(4)
+  globalThis.crypto?.getRandomValues?.(bytes)
+  const hex = Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('')
+  arrowInstanceSeq += 1
+  return `${hex}-${arrowInstanceSeq}`
+}
+
+/**
  * Direction chevrons along the route — a symbol layer fed by the same line
  * geometry, rendered with a tiny dependency-free triangle icon (addImage from
  * raw pixel data, so no font/glyph dependency on the basemap).
  */
 function RouteArrows({ coordinates, dark }: { coordinates: [number, number][]; dark: boolean }) {
   const { map, isLoaded } = useMap()
-  const instId = useRef(`inst-${Math.random().toString(36).slice(2)}`).current
+  const instId = useRef(arrowInstanceId()).current
   useEffect(() => {
     if (!isLoaded || !map || coordinates.length < 2) return
     // Per-instance source/layer ids — a single shared id made concurrent
     // instances (main line + return drive) overwrite each other's geometry.
     const SRC = `yf-arrows-src-${instId}`
     const LAYER = `yf-arrows-${instId}`
-    if (!map.hasImage('yf-arrow')) {
+    // The IMAGE is per-instance too (#332 R2). One shared `yf-arrow` leaked: the
+    // cleanup below removed layer+source and nothing else, so every map open
+    // added a 9×9 image the session never released. Removing it on unmount is
+    // only safe per-instance — a shared image taken away by whichever instance
+    // unmounted first would strip the icon from the sibling still on screen,
+    // which re-adds it only behind `if (!map.hasImage(...))`.
+    const IMAGE = `yf-arrow-${instId}`
+    if (!map.hasImage(IMAGE)) {
       // 9×9 solid triangle pointing up, drawn into raw RGBA pixels
       const size = 9
       const data = new Uint8Array(size * size * 4)
@@ -153,7 +175,7 @@ function RouteArrows({ coordinates, dark }: { coordinates: [number, number][]; d
           if (within) { data[i] = 255; data[i + 1] = 255; data[i + 2] = 255; data[i + 3] = 230 }
         }
       }
-      map.addImage('yf-arrow', { width: size, height: size, data })
+      map.addImage(IMAGE, { width: size, height: size, data })
     }
     if (!map.getSource(SRC)) {
       map.addSource(SRC, { type: 'geojson', data: { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: [] } } })
@@ -162,7 +184,7 @@ function RouteArrows({ coordinates, dark }: { coordinates: [number, number][]; d
         layout: {
           'symbol-placement': 'line',
           'symbol-spacing': 130,
-          'icon-image': 'yf-arrow',
+          'icon-image': IMAGE,
           'icon-rotate': 0,
           'icon-allow-overlap': true,
           'icon-ignore-placement': true,
@@ -177,6 +199,7 @@ function RouteArrows({ coordinates, dark }: { coordinates: [number, number][]; d
       try {
         if (map.getLayer(LAYER)) map.removeLayer(LAYER)
         if (map.getSource(SRC)) map.removeSource(SRC)
+        if (map.hasImage(IMAGE)) map.removeImage(IMAGE)
       } catch { /* style swapped mid-flight */ }
     }
   }, [map, isLoaded, coordinates, dark])
@@ -336,20 +359,30 @@ function MapViewModeController({ mode, bearing }: { mode: MapViewMode; bearing?:
     } catch { /* style swapped mid-flight — the next isLoaded edge re-applies */ }
   }, [map, isLoaded, mode])
   const prevMode = useRef<MapViewMode>('2d')
+  const prevBearing = useRef<number | null>(null)
   useEffect(() => {
-    if (!map) return
+    // Gate on `isLoaded` exactly as the reconcile effect above does (#332 R1):
+    // easing a camera the incoming style is about to disturb leaves it wrong.
+    if (!map || !isLoaded) return
     const duration = prefersReducedMotion() ? 0 : 700
-    if (mode === '3d' && prevMode.current !== '3d') {
+    const { move, bearing: heroBearing } = heroCameraMove(mode, prevMode.current, bearing, prevBearing.current)
+    if (move === 'enter') {
       // Dynamic hero cam: look along THIS trip's road (initial route bearing);
       // the prototype's fixed bearing stays only as a geometry-less fallback.
-      map.easeTo({ pitch: HERO_3D_CAMERA.pitch, bearing: bearing ?? HERO_3D_CAMERA.bearing, duration })
-    } else if (mode !== '3d' && prevMode.current === '3d') {
+      map.easeTo({ pitch: HERO_3D_CAMERA.pitch, bearing: heroBearing, duration })
+    } else if (move === 're-aim') {
+      // The road resolved AFTER 3D opened: the fallback bearing was eased, and
+      // the edge trigger alone would leave the camera stuck on it forever.
+      // Bearing only — the pitch the user is looking at must not jump.
+      map.easeTo({ bearing: heroBearing, duration })
+    } else if (move === 'flatten') {
       // Leaving 3D: flat camera again, and the terrain stack is dropped by
       // the reconcile effect (map.getTerrain() null is the acceptance check).
       map.easeTo({ pitch: 0, bearing: 0, duration })
     }
     prevMode.current = mode
-  }, [map, mode, bearing])
+    prevBearing.current = heroBearing
+  }, [map, isLoaded, mode, bearing])
   return null
 }
 
@@ -734,6 +767,14 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     return () => { cancelled = true; clearInterval(tick); window.clearTimeout(watchdog) }
   }, [pointsKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Real road geometry from OSRM. In "all days" mode a single connected chain —
+  // the stops in timeline order — is drawn as one main line. In single-day mode
+  // each day gets its own coloured line. Falls back to straight lines.
+  // Declared HERE, above the fit, because the all-days fit now frames the drawn
+  // road itself (#330) — a render-scoped useState has no forward reference, and
+  // hoisting the declaration is what makes the line available to the camera.
+  const [geom, setGeom] = useState<Record<string, [number, number][]>>({})
+
   // EVERYTHING the current view draws — the fit frames the drawing, not just
   // the stop pins. A day's journey chain carries its synthesized origin (last
   // night's town), drawn as an endpoint flag and as the road line's far end,
@@ -741,21 +782,30 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   // cluster at maxZoom while the route ran off-screen — the reported case is
   // Day 2 of the sample Rajasthan trip, two pins inside Jodhpur framed at
   // zoom 12 while 280 km of drawn road to Jaipur sat16,000 px outside the
-  // canvas. All-days adds the return-home pin when that line is shown (its
-  // home is beyond the last stop by definition). Nearby-suggestion pins stay
-  // OUT on purpose: another day's ideas would balloon the fit. The late OSRM
-  // polyline stays out too — it arrives after this fit and follows the chain
-  // well inside the 70px padding, and mixing it in would fit a PREVIOUS day's
-  // line while the fetch for this one is still in flight.
+  // canvas. Nearby-suggestion pins stay OUT on purpose: another day's ideas
+  // would balloon the fit.
+  //
+  // #330: the ALL-days view used to fit the pins plus home-when-shown, which is
+  // less than the line it draws — the trip-start leg had no point in the set at
+  // all, the destination tail (buildRoadChain's hasDestTail) was drawn but never
+  // fitted, and a road bowing around a ghat or a lake left the 70px padding the
+  // old comment promised it stayed inside (an assertion, never a measurement).
+  // The endpoints now come from the chain builder itself and the drawn road is
+  // sampled in — see allViewFitPoints. The DAY branch is deliberately untouched:
+  // there the polyline arrives after the fit, and mixing it in would frame a
+  // previous day's line while this one is still measuring.
   const fitPoints = useMemo(() => {
-    const pts: LatLng[] = allPoints.map(p => ({ lat: p.lat, lng: p.lng }))
     if (dayFilter === 'all') {
-      if (showReturn && isRoundTrip(trip) && trip.startLocationCoords) pts.push(trip.startLocationCoords)
-    } else {
-      for (const p of dayRoutePoints[String(dayFilter)] ?? []) pts.push(p)
+      return allViewFitPoints({
+        stops: allPoints.map(p => ({ lat: p.lat, lng: p.lng })),
+        chainPoints: trip ? buildRoadChain(trip).points : null,
+        roadGeometry: geom.all,
+      })
     }
+    const pts: LatLng[] = allPoints.map(p => ({ lat: p.lat, lng: p.lng }))
+    for (const p of dayRoutePoints[String(dayFilter)] ?? []) pts.push(p)
     return pts
-  }, [allPoints, dayFilter, dayRoutePoints, showReturn, trip])
+  }, [allPoints, dayFilter, dayRoutePoints, trip, geom.all])
   const fitPointsKey = useMemo(
     () => fitPoints.map(p => `${p.lat.toFixed(4)},${p.lng.toFixed(4)}`).join('|'),
     [fitPoints],
@@ -865,10 +915,6 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     return IDEA_PIN_COLORS[cat ?? ''] ?? '#F59E2D'
   }
 
-  // Real road geometry from OSRM. In "all days" mode a single connected chain —
-  // the stops in timeline order — is drawn as one main line. In single-day mode
-  // each day gets its own coloured line. Falls back to straight lines.
-  const [geom, setGeom] = useState<Record<string, [number, number][]>>({})
   // Measured day geometry, keyed by day index and the ride's points-hash —
   // revisiting a day chip redraws from cache instead of re-measuring (#polylines).
   // A ref, not state: cache validity never drives rendering on its own.

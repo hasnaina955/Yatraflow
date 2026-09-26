@@ -597,6 +597,24 @@ Hard rules (each learned the hard way — do not relearn them):
   branch's own change. The replay also means **the branch's CHANGELOG entries
   re-filed themselves into the released section** if the branch was cut before
   the release:  check `git diff origin/test..HEAD -- CHANGELOG.md` lands under `[Unreleased]`.
+- **A custom `merge=<driver>` attribute can delete a file's change from a rebased
+  commit while the rebase reports success (learned 2026-09-26).** Resolving a
+  four-branch stack's recurring `CHANGELOG.md` conflicts with a `--union` driver
+  (`git config merge.X.driver "git merge-file --union %O %A %B; true"` plus
+  `CHANGELOG.md merge=X` in `$GIT_DIR/info/attributes`) rebased all three cleanly
+  and reported "Successfully rebased" for each. Every one of the three commits had
+  silently **lost its `CHANGELOG.md` change** — `git show --numstat <sha>` no longer
+  listed the file at all, and the driver's `; true` was the tell: it exists to hide a
+  non-zero exit, and that exit means `git merge-file` never wrote `%A`, so git
+  recorded the path as merged with the upstream side alone. **Verify a driver-based
+  rebase by content, not by exit status**: after it, `git show --numstat` each
+  replayed commit and confirm the files you expected are still listed, and grep the
+  file for each entry's own issue number. Prefer resolving doc conflicts by hand with
+  editor primitives (§9); if a driver is used, drop the `; true`, treat a non-zero
+  exit as a conflict, and check the file before continuing. The union driver also
+  lives in the **shared** git dir of a linked worktree (`git rev-parse --git-path
+  info/attributes` resolves to the main clone, not the worktree), so it silently
+  changes merge behaviour for every other worktree — remove it when the job is done.
 - **Probing a submit handler in the preview: `requestSubmit()` runs native
   constraint validation first** (measured 2026-09-23: a `min={0}` input holding
   `-5` fires `invalid`, never `submit` — the handler silently never runs and the
@@ -622,6 +640,15 @@ Hard rules (each learned the hard way — do not relearn them):
   baseline and confirm the finding names are identical before/after (e.g. 29
   in → 29 out). A name that appears on only one side is a REAL new violation —
   fix it, don't ratchet it in (Sep 2026, three label phases in a row).
+  **A comments-only CSS edit is the exception, so run the ratchet before re-baselining
+  (learned 2026-09-26).** Fixing stale prose in two `styles.css` comments — one of them
+  adding lines — left `design-system.test.ts` green: the baseline records selectors and
+  their measured ratios, not source line numbers, so a shift that moves no declaration
+  moves no finding. The reflex the rule above invites ("CSS changed, expect red, re-baseline")
+  would have rewritten the baseline to hide nothing and churned the diff for free. Order of
+  operations: change the CSS, run the ratchet, and only reach for
+  `UPDATE_DESIGN_SYSTEM_BASELINE=1` when it is actually red — then still prove the finding
+  names are identical in and out.
 - **The ratchet parses each selector's OWN declaration pair — it never walks
   the cascade (learned 2026-09-22).** A `:root` override can fix a contrast
   finding on screen while the baseline keeps it forever: `.day-warn-pill`
@@ -969,6 +996,9 @@ migration-gap rule in §4, and the first thing in this repo that could see it.
 Applying that file's own one-line `alter table` closed it the same day. Expect
 that shape: the check names a file, a human runs it, the next run flips to `ok`
 — and nothing else in the pipeline would have noticed either way.
+
+- **A source-scanning guard that greps for a literal breaks the moment you introduce a constant — teach the guard to resolve it, do not revert the constant (learned 2026-09-26).** Moving the create route into `lib/routes.ts` (#398) turned two green guards red without touching their subject: `tests/route-integrity.test.ts` scanned `case '([a-z-]+)'` to learn the router's route list, and `tests/mobile-shell.test.ts` asserted App.tsx *contains* `'#/new'`. Both are the right tests — a source check is the only way to pin markup and call sites in a node-env suite — but they had learned the literal. Each now substitutes the imported constant into the source before scanning (a shared `expandRouteConstants` / `appResolved`), so they keep checking the real invariant (every in-app link resolves; every shell destination stays reachable) while the rename-proof form stays. The reflex to distrust is "the test is in my way": a guard that fails after a refactor is information about the refactor's reach, and the fix belongs in the guard's parser. Corollary: when a route, class name or storage key is read by a scanner, that scanner is part of the rename surface — grep `tests/` for the literal before concluding a rename is complete. Mechanics that made it cheap: run the gate before pushing and read the *failing file's name* from the log; the two guards were the only reds, which is what told us the fix was right and the guards were stale.
+- **Editing a watched source file while a Vite dev server runs can fail with `ReplaceFileW EIO (Win32 1175)` — that is a file lock, not a bad edit (learned 2026-09-26).** A write to `src/pages/CreateTrip.tsx` was refused mid-session while `vite --port 5180` served that worktree; the file was left byte-intact (confirm with a targeted grep before retrying) and the identical edit succeeded immediately after the server was killed. So an `EIO` during a dev-server session means: stop the server or its watcher, verify the file still parses, then retry — not "the tooling is broken". Cheap prevention: that lock window belongs to the same pid you started for the localhost check (§7), so stop that server when the check is finished instead of leaving it running through the rest of the batch.
 
 ## 4. Code conventions & pitfalls
 

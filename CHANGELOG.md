@@ -93,6 +93,48 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
   The stash itself is pinned too: one key with one owner, the prefill shape (including the stay tier
   that decides ₹8,000 versus ₹3,200 a night), read-once, and a corrupt stash that clears rather than
   blocking every later visit (#398).
+- **Switching trips left the previous trip's road measurement running to completion.** The workspace
+  measured its whole OSRM chain — plus the parallel per-leg fallbacks — behind a flag that only
+  suppressed React state, so the requests kept going: mobile data spent on a trip the user had
+  already left, and, because switching trips unmounts nothing here, a late result could still land
+  on the next trip's view. The workspace now passes an `AbortSignal` through `measureRoadChain`
+  exactly the way the day-filter path already did, and an abort stops the work silently instead of
+  reading as a transient failure that earns the two-second retry (#325).
+- **The 3D hero camera could settle on a fallback angle and never correct itself.** The camera was
+  eased on the 2d→3d transition only, while the angle it aims at comes from the drawn road — so
+  opening 3D before the route resolved left the map looking along the prototype's fixed bearing, and
+  the road arriving afterwards changed nothing. The move is now a pure decision (`heroCameraMove`)
+  that reacts to the bearing VALUE: entering 3D still sets pitch and bearing, a bearing that improves
+  later re-aims without pitching the view out from under the reader, and an unchanged bearing is a
+  no-op rather than a camera that grinds on every unrelated re-render. The effect also waits for the
+  style to load now, as the terrain effect beside it always did. Two smaller map-hygiene fixes ride
+  along: the direction chevrons' triangle icon is per-map-instance and released on unmount (one
+  shared image per instance lifetime was added and never freed — a slow leak across a long session of
+  opening and closing the map), and its instance id comes from `getRandomValues` rather than
+  `Math.random()`. The two stacking-order comments that placed the impact sheet at 90 — it is 210; 90
+  is the AI drawer's rung — now name the ladder tokens instead of repeating numbers that had drifted.
+  Two more from the same batch: a marker's DOM listeners are attached in an effect that removes them
+  again (they sat inside a `useMemo` that runs once and detaches nothing, so every unmounted marker
+  left three listeners behind on a detached element), and the Map tab is now lazily loaded as a
+  whole rather than only the renderer inside it. That second one is the one with a number on it: the
+  tab statically imported the entire suggestion stack, so the workspace bundle carried geocode, the
+  planning engine, day slots, trip DNA and story arcs whether or not anyone ever opened the Map tab.
+  Measured — the workspace chunk drops from 264 KB to 206 KB, and the tab's own 60 KB chunk loads on
+  demand. The three other popup components the report named already synced their options and removed
+  their listeners, so nothing there needed changing (#332).
+- **The full-trip map framed the stops instead of the route it drew.** The all-days camera zoomed to
+  the saved pins, so everything that is part of the line but is not a pin — the leg out of the trip's
+  start, the trailing destination, and any stretch of road bowing around a ghat or a lake — could
+  begin off-screen and had to be panned to. The fit set now comes from the same chain the line is
+  drawn from (trip start, every stop, the drive home, the trailing destination) plus a sampled copy of
+  the measured road, so the camera frames what is actually on the canvas; the sampled set keeps the
+  camera key cheap, and the last road vertex is always included. The old code's reassurance that the
+  measured line stayed "well inside the 70px padding" was an assertion nobody had measured and it is
+  not true of a bowed road, so it is gone rather than restated. The day view is deliberately
+  unchanged: there the polyline arrives after the fit, and folding a whole-trip line into a single
+  day's frame would frame a previous day's road. Return-label anchoring on destination-tail trips —
+  the other half of this report — is recorded on the issue and follows with the Map tab's next change
+  (#330).
 
 ## [0.67.0] - 2026-09-25
 

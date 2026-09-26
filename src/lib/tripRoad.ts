@@ -194,13 +194,22 @@ export async function measureDayRide(
  * contradictory state #184 fixed (a straight-line "road" drawn while the detour
  * math claims to know the road). Any real leg counts: a partial corridor beats
  * none, and the Map tab renders what it got.
+ *
+ * Accepts an AbortSignal for the same reason `measureDayRide` does (#325): the
+ * workspace path used to run a whole OSRM chain plus its parallel per-leg
+ * fallbacks to completion behind a `cancelled` flag that only suppressed
+ * `setState`. Switching trips burns no quota and cannot land a late road on the
+ * next trip's view now — and an abort is "stop silently", never a failure that
+ * earns the 2s retry.
  */
 export async function measureRoadChain(
   points: RoadChainPoint[],
   assumptions: EngineAssumptions,
-  opts: MeasureOpts = {},
+  opts: MeasureOpts & { signal?: AbortSignal } = {},
 ): Promise<RoadOutcome> {
-  const measure = opts.measure ?? ((pts, asm) => routePath(pts, asm))
+  const signal = opts.signal
+  if (signal?.aborted) return { ok: false }
+  const measure = opts.measure ?? ((pts, asm) => routePath(pts, asm, signal))
   const sleep = opts.sleep ?? ((ms: number) => new Promise<void>(r => setTimeout(r, ms)))
   const retryDelayMs = opts.retryDelayMs ?? ROAD_RETRY_DELAY_MS
   const attempt = async (): Promise<RoadLeg[] | null> => {
@@ -209,7 +218,9 @@ export async function measureRoadChain(
   }
   const first = await attempt().catch(() => null)
   if (first) return { ok: true, legs: first }
+  if (signal?.aborted) return { ok: false }
   await sleep(retryDelayMs)
+  if (signal?.aborted) return { ok: false }
   const second = await attempt().catch(() => null)
   return second ? { ok: true, legs: second } : { ok: false }
 }

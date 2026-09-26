@@ -1502,9 +1502,11 @@ a.btn { text-decoration: none; }
 /* ---------- Board — spatial group coordination (CTI §6.4) ---------- */
 /* Pinned route map with day columns floating over it. The floats live inside
    .board (a stacking context of its own), so nothing here fights the app's
-   fixed-overlay ladder: map, columns and panels all layer below modals (100) /
-   impact sheet (90) / notifications (80) — the impact preview opened by a card
-   drop still lands on top of everything. */
+   fixed-overlay ladder: map, columns and panels all layer below modals (--z-modal
+   100) / the impact sheet (--z-impact 210 — deliberately above toasts) /
+   notifications (--z-notif 80) — the impact preview opened by a card drop still
+   lands on top of everything. Read the numbers from the ladder tokens at the top
+   of this file, not from this sentence. */
 .board-head { margin-bottom: 14px; }
 /* ---- Board tab canvas: the kanban wants the whole viewport. The default page
    container caps at 1180px and the trip band + tabs eat ~440px of height, which
@@ -2315,10 +2317,11 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
 }
 @media (prefers-reduced-motion: reduce) { .yf-live-pulse { animation: none; opacity: .5; } .map-shell--expanded, .map-shell--closing { animation: none; } .map-legend-body { animation: none; } }
 /* Expand mode — the map shell breaks out into a fixed overlay so the canvas
-   gets the viewport. Sits BELOW the modal (100), impact sheet (90) and
-   notifications (80) so dialogs opened from the expanded map still layer on
-   top; mapcn's ResizeObserver re-fits the canvas on the size change. Escape
-   or the ⤡ Collapse chip reverts. */
+   gets the viewport. Sits BELOW the modal (--z-modal 100) and the impact sheet
+   (--z-impact 210, deliberately above toasts) so dialogs opened from the expanded
+   map still layer on top, and above notifications (--z-notif 80); mapcn's
+   ResizeObserver re-fits the canvas on the size change. Escape or the ⤡ Collapse
+   chip reverts. */
 .map-shell--expanded {
   position: fixed; inset: 10px; z-index: var(--z-map-expanded);
   background: var(--bg); padding: 2px;

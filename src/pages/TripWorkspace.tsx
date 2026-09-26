@@ -28,7 +28,13 @@ import { useDestinationCover } from '../hooks/useDestinationCover'
 import { pickTripQueryCandidates } from '../lib/tripThumb'
 import { OverviewTab } from './trip/OverviewTab'
 import { TimelineTab } from './trip/TimelineTab'
-import { MapTab, MapTabSkeleton } from './trip/MapTab'
+import { MapTabSkeleton } from './trip/MapTabSkeleton'
+// #332 R4: the Map TAB is lazy, not just the renderer inside it. MapTab statically
+// imports the whole suggestion stack (geocode, engine, daySlots, tripDna,
+// storyArcs, slackPrompts…), so a static import here put all of it in the
+// workspace chunk whether or not the tab was ever opened. The skeleton stays a
+// static, dependency-free module so the Suspense fallback cannot suspend itself.
+const MapTab = React.lazy(() => import('./trip/MapTab').then(m => ({ default: m.MapTab })))
 import { GroupInputTab } from './trip/GroupInputTab'
 import { BudgetTab } from './trip/BudgetTab'
 import { ShareTab } from './trip/ShareTab'
@@ -433,12 +439,18 @@ function useTripRoad(trip: Trip | null | undefined): {
       return
     }
     let cancelled = false
+    // #325: two layers, two jobs. The flag guards `setState`; the controller stops
+    // the network work. Without the abort the whole OSRM chain (and its parallel
+    // per-leg fallbacks) ran to completion behind the flag — burning quota on a
+    // trip the user had already left. And because a trip switch unmounts nothing
+    // here, a late result could still land on the next trip's view.
+    const controller = new AbortController()
     setState({ status: 'pending', legs: null })
-    measureRoadChain(chain.points, getAssumptions(trip)).then(outcome => {
+    measureRoadChain(chain.points, getAssumptions(trip), { signal: controller.signal }).then(outcome => {
       if (cancelled) return
       setState(outcome.ok ? { status: 'ok', legs: outcome.legs } : { status: 'failed', legs: null })
     })
-    return () => { cancelled = true }
+    return () => { cancelled = true; controller.abort() }
     // chain reflects chainSig; trip is read for assumptions only.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chainSig, chain, attempt])

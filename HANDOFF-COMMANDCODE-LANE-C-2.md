@@ -368,3 +368,56 @@ Template (keep it short; the next session reads it):
 - **residual / next:** C2 (#354, #361, #389, #390, #391) is next and is the wave that DOES enter
   `store.ts` — announce its three `store.ts` regions here before the first edit, and serialize `api/i.js`
   only if C3's #362 is running. #360 is still owed the owner's answer, not a diff.
+
+### 2026-09-28 — wave C1 SHIPPED: PR #496 · `dca4fc9` on `fix/money-payout-carry` — **open, awaiting your merge**
+
+- **CI on the PR, not just the local gate:** `Verify (tsc --clean + tests + build)` **pass** in 49s, Vercel pass,
+  Vercel Preview Comments pass, Codacy `success` with **`annotations_count: 0`** (the `action_required` quirk
+  hides real findings, so the count was fetched — 0 is the clean signature, AGENTS §3).
+- **C1 closed three issues, so `gh issue view 348/358/359` will show CLOSED only after you merge this into
+  `test`.** The auto-close workflow mirrors on merge; the keywords in the PR body are `Closes #348/#358/#359`
+  and they say exactly what is meant. **If you merge and the issues stay open, close them by hand** — AGENTS
+  §2.12 has bitten this repo before, and the tracker must mirror reality rather than the keyword's promise.
+- **Free for the next wave:** `store.ts` is untouched, so #361 / #391 / #363 are all still available.
+
+### 2026-09-28 — wave C2 announced BEFORE the first edit: publish, share, cover (#354, #361, #389, #390, #391)
+
+**`store.ts` is CONTENTED (D, F and G all touch it), so every region is named here by function, and each is
+kept narrow and additive. Cut as `fix/creator-publish-honest` from a fresh `origin/test` — NOT from C1's
+branch, which is spent once #496 merges.**
+
+- `src/store/store.ts` :: `publishItinerary` — three edits, all inside that one function: (a) **#354** the form
+  rules become writer-side refusals with the form's own messages, so a direct store caller cannot publish a
+  coverless / all-free-but-priced / over-cap row; (b) **#354** the `visibility → public` flip becomes an
+  AWAITED write with rollback instead of `fire(...)` — a rejected flip must not leave Explore live over a page
+  that serves nothing; (c) **#361** the cover is owned BEFORE the optimistic commit, and the upsert-failure
+  rollback restores the TRIP's previous `coverImageUrl` as well as the publication row. `publishedAt`
+  preservation, `refreshedAt` bumping, the `hasRefreshedCol`/`hasUnpublishedCol` probes and the
+  `markLocalWrite` on success are **untouched** — sitemap ordering and the #350 marker depend on them.
+- `src/store/store.ts` :: `setMemberRole` and `removeMember` — **#391**, rollback + a failure toast on each
+  (the `publishItinerary` upsert-failure block is the template). `restoreMember` is read, not changed: the 7s
+  undo window covers intent-regret and rollback covers write-failure, and both are wanted.
+- `src/store/store.ts` :: **nothing else.** `collectUnclaimedCovers`, `joinViaInvite`, `ensureInviteCode` and
+  every stop/mutation writer are read-only here. The stop path stays lane S's `mutationLifecycle`; this wave
+  adds no second pending-mutation system (§1 and §2's `mutationLifecycle` note).
+- `src/pages/trip/ShareTab.tsx` :: `PublicationForm` (the six rules become a rule→field map for **#389**,
+  the `FormErrorSummary` mount, first-invalid `.focus()`), the cover picker's mount site, and
+  `SnapshotCard.makeLink` (busy guard + error toast, **#391**). The `busy` publish guard, the per-field
+  `setErr(null)` and the trimmed `cover` write from #388 are **untouched** — #389 extends them, never undoes.
+- `src/components/CoverImagePicker.tsx` :: `onCustom` (validate before storing, **#390**), `onAuto` (a total
+  miss says so through the existing `role="status"` channel instead of clearing silently), the error surface
+  (bucket-missing gets friendly copy with the raw message logged), and a new `error` prop (**#389** — two of
+  the six publish rules target the picker and it takes no `error` today). The uploader-id behaviour, the
+  busy union, sized-on-write, the orphan rule and the resolve-before-fetch CORS design are **all verified
+  sound and must not be "fixed"**.
+- `src/lib/coverUpload.ts` :: only the bucket-missing classification for #390. `COVER_MAX_EDGE`, the
+  5 MB cap, the resize-before-upload economics and `ownSuggestedCover`'s never-throws contract are untouched.
+- `tests/share-preview.test.ts` :: the SAME-LITERAL pin gains a THIRD site (`CoverImagePicker`'s new check) —
+  `^https://\S+$` now lives in three places and the test is what keeps them one literal. **If that regex moves,
+  `ShareTab` + `api/i.js` + the picker + this test change in one commit** (§2's pitfall).
+- **A migration is owed for #354's DB backstop** (CHECK constraints on `published_itineraries`), so per §5 item
+  1 it will be written, handed to you as whole SQL in chat with its local path, and re-probed after you run it.
+  **`schema.sql` is a second, independent way to build the database** (§4), so the fix goes in both and a test
+  compares them.
+- **`api/i.js` is NOT touched in C2** — it stays serialized and free for #360/#362. `public/robots.txt` and
+  `vercel.json` are untouched too.

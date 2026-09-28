@@ -15,6 +15,13 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ## [Unreleased]
 
+### Fixed
+
+- **A creator's payout runs now actually roll over, and the header cannot disagree with them.** The run table judged each week on its own — "under ₹500, rolls over" — while the figure above it judged the whole balance, so two ₹300 weeks told the reader they were both still waiting while the header offered a payout on their combined ₹600. A run under the minimum now carries into the next one, shows what it took with it, and clears its whole running total when it reaches the floor; the run ledger gained **Rolled in** and **Clears** columns so a run that sends more than its own week earned reads as arithmetic rather than as an error. The header is derived from that same walk, so the two are one calculation wearing two renderings (#348).
+- **A buyer's access check no longer fails into a sales pitch.** If the app could not read what you own, it used to treat you as owning nothing — so a plan you had already paid for showed locked days and an "Unlock full plan · ₹499" button. A failed check now says so and offers to try again, and the price button appears only once a check has actually answered. The plan stays locked in the meantime: if the read failed, the honest direction is to withhold and say why, never to open content that may not be yours. The same failed check can no longer stop you forking a plan you did buy (#359).
+- **The creator hub's funnel bar stopped hiding the number it sits beside.** When more people fork a plan than visit it — normal, because Explore's card forks without opening — the rate honestly reads above 100% while the bar drew full-width, indistinguishable from a real 100%, with the unlock marker pushed off its own track. The bar is now drawn against a scale that fits the row's largest rate, so the inversion stays visible in the drawing and not only in the sentence above it. The rate itself is untouched: that figure is the point (#358).
+- **The creator hub's two "recording began" dates say which is which.** The page dated the traffic log from the earliest day across all your plans while each publication's own row dated itself from its own first day — both true, side by side, reading as a contradiction. Each label now names its scope, and neither date changed (#358).
+
 ## [0.69.0] - 2026-09-27
 
 The audit's P1 wave is closed, and the map learned to search. Every P1 the day's sweep filed is

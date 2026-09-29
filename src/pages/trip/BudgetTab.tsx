@@ -19,6 +19,7 @@ import {
   currentUser, userById, useDb, canEdit, roleOf, resumeSync,
 } from '../../store/store'
 import { computeTotals, getAssumptions, formatInr, isRoundTrip, safeToSpendPerDay } from '../../lib/engine'
+import { pricingBasisNote } from '../../lib/pricingBasis'
 import { amountRefusal } from '../../lib/expenseAmount'
 import { sliceState, emptyCopyFor } from '../../lib/readState'
 import { computeBalances, settleBalances, fairSharePerHead, linesTotal, openTaggedLines } from '../../lib/settlement'
@@ -317,6 +318,10 @@ export function BudgetTab({ trip, totals, editable, previewOpen, onOpenSettings 
               {A.kmPerLiter
                 ? <>All figures are estimates in INR. Transport is fuel-based: route distance{isRoundTrip(trip) ? ' (incl. return drive)' : ''} ≈{Math.round(totals.totalDistanceKm)} km ÷ {A.kmPerLiter} km/L ≈ <b>{Math.round(totals.totalDistanceKm / A.kmPerLiter)} L</b> of fuel × ₹{A.fuelPricePerL}/L ({A.fuelPriceIsUserSet ? 'your local pump price' : 'indicative petrol price — actual consumption varies'}).</>
                 : <>All figures are estimates in INR. Transport is derived from route distance × ₹{A.inrPerKm}/km for {trip.transportMode}.</>}
+              {/* #521: a rental's daily rate and the local-train flag priced the
+                  create ticket and are not read here — so the tab says which basis
+                  it uses instead of letting the two numbers disagree in silence. */}
+              {pricingBasisNote(trip, A.inrPerKm, !!A.kmPerLiter)}
               {totals.lodgingNights > 0 && (
                 <> Stay is priced from your hotel stops: {totals.lodgingNights} overnight base{totals.lodgingNights !== 1 ? 's' : ''} — the drive needs a stay — × {totals.lodgingRooms} room{totals.lodgingRooms !== 1 ? 's' : ''} × ₹{totals.lodgingRatePerNight.toLocaleString('en-IN')}/night.</>
               )}

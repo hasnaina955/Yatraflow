@@ -44,7 +44,11 @@ describe('sizedCoverUrl on a stored cover', () => {
 describe('every stored-cover surface is wired to the sizer', () => {
   it('the public itinerary hero sizes the stored cover', () => {
     const page = read('../src/pages/PublicItinerary.tsx')
-    expect(page).toMatch(/const heroSrc = pub\.coverImageUrl \? sizedCoverUrl\(pub\.coverImageUrl\) : heroAuto/)
+    // #360 — the fallback arm is `undefined`, not a live suggestion, so the hero
+    // now has exactly ONE source: the stored cover, sized. The invariant this pin
+    // exists for is unchanged and is in fact stronger — every path to `heroSrc`
+    // goes through the sizer, and there is no longer an unsized arm at all.
+    expect(page).toMatch(/const heroSrc = pub\.coverImageUrl \? sizedCoverUrl\(pub\.coverImageUrl\) : undefined/)
     // the hero must render the sized value, never the raw column
     expect(page).toMatch(/src=\{heroSrc\}/)
     expect(page).not.toMatch(/src=\{pub\.coverImageUrl/)

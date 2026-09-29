@@ -3,6 +3,7 @@
 ### Fixed
 
 - **The Overview's day matrix knows when its corridor scan went stale (#404).** It gates on the freshness the Map tab publishes for the scan it wrote: a changed-settings scan renders a stale qualifier with a Refresh path to the Map tab instead of numbers for the old plan, and a never-mounted Map reads as unverified rather than fresh.
+- **A shared link and the page it opens now show the same picture.** A plan published before covers were required had no stored cover, and the two sides disagreed about what to show: the page itself put up a live Wikipedia photo of a guessed destination, while the link's preview served the generic brand card. The page now shows the same brand treatment the card does — the two can never contradict each other — and the photo comes back the honest way instead: for a plan whose cover is missing, the app looks up the destination from the plan's own stops and start city, copies that image into our own storage, and saves it onto the plan, after which the page and every preview read the one stored picture. A destination with no photo leaves the plan on the brand treatment rather than inventing one, and a plan whose creator has since chosen a different cover is left alone (#360).
 
 ## [0.71.0] - 2026-09-29
 

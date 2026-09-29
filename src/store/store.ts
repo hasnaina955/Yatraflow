@@ -25,7 +25,7 @@ import { clearSnapshot, loadSnapshot, saveSnapshot } from '../lib/offlineCache'
 import {
   clearWritesFor, dropWrite, pendingWrites, queueWrite, replayVerdict, shouldRetry,
 } from '../lib/writeQueue'
-import { ownSuggestedCover, unclaimedCovers } from '../lib/coverUpload'
+import { ownSuggestedCover, unclaimedCovers, coverlessPublications, ownDestinationCover } from '../lib/coverUpload'
 import { publishValidation, PUBLISH_FIELD_ORDER, PublishRejected } from '../lib/publishRules'
 import { makeInviteCode, normalizeInviteCode } from '../lib/inviteCode'
 import { suggestionToRow, decisionToRow, activityToRow, notificationToRow, publishedToRow } from '../lib/restoreRows'
@@ -3277,34 +3277,60 @@ export async function collectUnclaimedCovers(): Promise<number> {
   if (coverSweep) return coverSweep
   coverSweep = (async () => {
     let collected = 0
-    // Sequential on purpose: one image at a time keeps a backfill from
-    // competing with the page the user is actually looking at.
-    for (const pub of unclaimedCovers(cache.published, userId)) {
-      const suggestion = pub.coverImageUrl
-      const owned = await ownSuggestedCover(userId, suggestion)
-      if (!owned.owned || !owned.url) continue
+    /** Write a collected cover onto its row, the cache, and (conditionally) its trip.
+     *
+     *  `before` is the row's cover as the work list saw it — `undefined` for a
+     *  coverless row (#360), a third-party URL otherwise. It is what decides
+     *  whether the TRIP follows: publishing copies the trip's cover, so rewriting
+     *  it here is what stops a later re-publish from re-copying the old value,
+     *  while a trip whose creator has since chosen a different cover keeps that
+     *  newer choice. Comparing against `before` rather than against the
+     *  suggestion is what lets ONE rule serve both work lists. */
+    const persist = async (pub: PublishedItinerary, ownedUrl: string, before: string | undefined): Promise<boolean> => {
       // The ROW is persisted first. A cover that only ever reached the cache
       // would be back on Wikimedia after a reload — which is exactly the bug the
       // cover column itself shipped with, and the reason a collected cover is
       // not a local optimization.
       const { error } = await supabase.from('published_itineraries')
-        .update({ cover_image_url: owned.url }).eq('id', pub.id)
+        .update({ cover_image_url: ownedUrl }).eq('id', pub.id)
       if (error) {
         console.error('[yatraflow] cover collection failed', error)
-        continue
+        return false
       }
       markLocalWrite('published_itineraries', pub.id)
-      cache.published = cache.published.map(x => (x.id === pub.id ? { ...x, coverImageUrl: owned.url } : x))
+      cache.published = cache.published.map(x => (x.id === pub.id ? { ...x, coverImageUrl: ownedUrl } : x))
       commit()
-      // Follow the publication onto its trip, but only while that trip still
-      // carries this same suggestion: publishing copies the trip's cover, so
-      // rewriting it here is what stops a later re-publish from re-copying the
-      // suggestion — while a trip whose creator has since chosen a different
-      // cover keeps that newer choice.
-      if (tripById(pub.tripId)?.coverImageUrl === suggestion) {
-        updateTrip(pub.tripId, { coverImageUrl: owned.url })
+      if (tripById(pub.tripId)?.coverImageUrl === before) {
+        updateTrip(pub.tripId, { coverImageUrl: ownedUrl })
       }
-      collected++
+      return true
+    }
+    // Sequential on purpose: one image at a time keeps a backfill from
+    // competing with the page the user is actually looking at.
+    // (1) Rows still pointing at a third-party suggestion — nothing to resolve,
+    //     the URL already in the row is the thing to take ownership of.
+    for (const pub of unclaimedCovers(cache.published, userId)) {
+      const before = pub.coverImageUrl
+      const owned = await ownSuggestedCover(userId, before)
+      if (!owned.owned || !owned.url) continue
+      if (await persist(pub, owned.url, before)) collected++
+    }
+    // (2) Rows with NO cover at all (#360). Nothing is stored, so the suggestion
+    //     is resolved from the trip's own destinations FIRST and owned in the same
+    //     step (`ownDestinationCover` does both). This is the half that makes the
+    //     page and the share card agree on the SAME picture instead of one showing
+    //     a live Wikimedia photo and the other the brand fallback; until it
+    //     succeeds, both show the brand fallback — also agreement, just with no
+    //     photo.
+    for (const pub of coverlessPublications(cache.published, userId)) {
+      const trip = tripById(pub.tripId)
+      // No trip in cache: nothing to derive a destination from. Skipped rather
+      // than guessed from the TITLE, which is the one thing this fix is careful
+      // not to do — a title is not a destination.
+      if (!trip) continue
+      const { url, owned } = await ownDestinationCover(userId, trip)
+      if (!owned || !url) continue
+      if (await persist(pub, url, pub.coverImageUrl)) collected++
     }
     return collected
   })()

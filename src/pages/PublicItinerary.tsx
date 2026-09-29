@@ -27,7 +27,6 @@ import { currentPublicShareUrl } from '../lib/shareUrl'
 import { appLink } from '../lib/appLink'
 import { pageTitle } from '../lib/pageTitle'
 import { sizedCoverUrl } from '../lib/tripThumb'
-import { useDestinationCover } from '../hooks/useDestinationCover'
 import { Avatar, Chip, EmptyState, toast, CopyButton, RouteSnapshot } from '../components/ui'
 
 /** How long the buyer's entitlement read may take before the page stops
@@ -113,7 +112,20 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
   // `fetched` here as well would be a second mechanism for one question.)
   const trip: Trip | undefined = cachedTrip ?? fetched ?? undefined
   const { isSaved, toggleSaved } = useSavedPubs()
-  const heroAuto = useDestinationCover(pub ? (pub.routeSummary.length ? pub.routeSummary : [pub.title]) : null)
+  // #360 (owner's option c) — there is deliberately NO live-suggestion fallback
+  // for the hero. It used to read `useDestinationCover(...)` here, which put a
+  // Wikipedia photo of a guessed destination on the page while `api/i.js` served
+  // `og-default.png` to every crawler — so a pre-cover-requirement row showed a
+  // picture to a human and a generic card to an unfurl, indefinitely, and the
+  // picture was one the creator never chose and could not see from inside the
+  // app. The rule the two sides must obey is "the crawler and the hero never
+  // disagree", and the hero is the side that had to move.
+  //
+  // The photo comes back the honest way instead: the cover sweep writes an
+  // OWNED, resized suggestion into the row (see `collectUnclaimedCovers`), after
+  // which `coverImageUrl` is set and both sides serve the same stored URL. Until
+  // then the branded background below is what a `cover_image_url IS NULL` row
+  // shows, which is exactly what the card shows.
   useEffect(() => {
     if (pub) registerPubView(pub.id)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
@@ -343,7 +355,12 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
   // The stored cover is not necessarily sized: a row written before the sizing
   // fix holds the raw Wikimedia upload (a live publication shipped 1,305 KB as
   // its hero). Sized at render, so existing rows are fixed without a backfill.
-  const heroSrc = pub.coverImageUrl ? sizedCoverUrl(pub.coverImageUrl) : heroAuto
+  //
+  // #360 — a row with NO stored cover renders the branded background, and that is
+  // the point rather than a gap: it is what `api/i.js` already serves such a row
+  // as its card, so the two agree. `undefined` rather than a suggestion, and the
+  // hero's own markup already handles it (no <img>; `.pub-hero-bg` shows).
+  const heroSrc = pub.coverImageUrl ? sizedCoverUrl(pub.coverImageUrl) : undefined
   const shareLink = currentPublicShareUrl(pub.id)
   // Undefined when the creator published the itinerary as entirely free —
   // the Unlock buttons below are hidden rather than inventing a ₹199 fallback.

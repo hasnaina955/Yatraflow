@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   COVER_COPY_TIMEOUT_MS, COVER_MAX_EDGE, COVER_MAX_INPUT_BYTES, COVER_TYPES,
   apiFileTitle, coverFileError, coverObjectPath, coverRandomName, directFileUrlFromApi,
-  fitCoverSize, isSuggestedCover, ownSuggestedCover, unclaimedCovers,
+  fitCoverSize, isSuggestedCover, ownSuggestedCover, unclaimedCovers, coverlessPublications,
 } from '../src/lib/coverUpload'
 import { wikimediaFileName } from '../src/lib/tripThumb'
 
@@ -105,6 +105,15 @@ describe('cover upload rules', () => {
 // are written with \n anchors so they cannot quietly stop matching on one OS.
 const readSrc = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), 'utf8').replace(/\r\n/g, '\n')
 const STORE_SRC = readSrc('src/store/store.ts')
+/** Code only — comments stripped. #360's prose names the very identifiers its
+ *  guards look for (`useDestinationCover`, `og-default.png`), so a raw-source
+ *  match would be satisfiable by a sentence describing the fix rather than by
+ *  the fix (AGENTS §3: a guard reads comments). */
+const codeOnly = (s: string) => s
+  .replace(/\/\*[\s\S]*?\*\//g, '')
+  .split('\n')
+  .filter(line => !/^\s*(\/\/|--)/.test(line))
+  .join('\n')
 const OUR_BUCKET_URL = 'https://project.supabase.co/storage/v1/object/public/covers/d507b604-1f89-46bd-b793-3d0bd67bbd2f/d2g9huw8g9dp.jpg'
 
 describe('telling the app\'s own suggestion from a deliberate choice', () => {
@@ -324,21 +333,32 @@ describe('the re-run that collects rows published before the copy shipped', () =
     // A collected cover that only reached the cache is back on Wikimedia after a
     // reload — the failure the cover column itself shipped with, which is why
     // the row write comes first and a rejected write skips the cache patch.
+    //
+    // #360 moved this into one `persist` step shared by BOTH work lists, so the
+    // pin follows the ordering inside it rather than the loop that used to hold
+    // it: the row write, then the cache patch, and a rejected write returning
+    // without either.
     const b = body()
-    const update = b.indexOf('.update({ cover_image_url: owned.url }).eq(\'id\', pub.id)')
+    const update = b.indexOf(".update({ cover_image_url: ownedUrl }).eq('id', pub.id)")
     const patch = b.indexOf('cache.published = cache.published.map')
-    const bail = b.indexOf('if (!owned.owned || !owned.url) continue')
-    expect(bail).toBeGreaterThan(-1)
-    expect(update).toBeGreaterThan(bail)
+    expect(update).toBeGreaterThan(-1)
     expect(patch).toBeGreaterThan(update)
-    expect(b).toMatch(/if \(error\) \{\s*console\.error\('\[yatraflow\] cover collection failed', error\)\s*continue\s*\}/)
+    expect(b).toMatch(/if \(error\) \{\s*console\.error\('\[yatraflow\] cover collection failed', error\)\s*return false\s*\}/)
+    // Both callers go through it, or one of the two lists persists differently.
+    expect(b.match(/await persist\(pub, /g) ?? []).toHaveLength(2)
   })
 
-  it('follows the publication onto a trip that still carries that same suggestion', () => {
+  it('follows the publication onto a trip that still carries the SAME cover', () => {
     // Publishing copies the trip's cover, so rewriting the trip is what keeps a
     // later re-publish from re-copying the same image — but a trip whose creator
     // has since chosen a different cover must keep that newer choice.
-    expect(body()).toMatch(/if \(tripById\(pub\.tripId\)\?\.coverImageUrl === suggestion\) \{\s*updateTrip\(pub\.tripId, \{ coverImageUrl: owned\.url \}\)/)
+    //
+    // #360 — the comparison is against `before` (the row's cover as the work list
+    // saw it, `undefined` for a coverless row) rather than against the suggestion,
+    // which is what lets ONE rule serve both lists: a coverless row's trip has no
+    // cover either, and `undefined === undefined` is the condition that makes the
+    // trip follow there too.
+    expect(body()).toMatch(/if \(tripById\(pub\.tripId\)\?\.coverImageUrl === before\) \{\s*updateTrip\(pub\.tripId, \{ coverImageUrl: ownedUrl \}\)/)
   })
 
   it('stays silent: housekeeping behind the scenes never speaks up', () => {
@@ -347,6 +367,70 @@ describe('the re-run that collects rows published before the copy shipped', () =
 
   it('runs itself once the session has hydrated, so nobody has to ask for it', () => {
     expect(readSrc('src/App.tsx')).toMatch(/if \(!ready \|\| !sessionUserId\) return[\s\S]{0,80}collectUnclaimedCovers\(\)/)
+  })
+})
+
+// ============ #360 — the hero and the card must never disagree ============
+// The owner chose option (c): make the two AGREE on the brand fallback now, then
+// win the photo back by storing an OWNED suggestion. Both halves are pinned
+// here, because either alone leaves the row wrong — the first without the second
+// leaves a permanent blank, the second without the first keeps the disagreement
+// alive for every unbackfilled row.
+describe('#360 — a coverless row shows the brand fallback on BOTH sides', () => {
+  it('the hero no longer reaches for a live suggestion', () => {
+    // The defect: the page showed a Wikipedia photo of a guessed destination
+    // while `api/i.js` served `og-default.png`. Asserted as the ABSENCE of the
+    // fallback rather than the presence of a comment about it — a source guard
+    // that reads prose is not reading the code.
+    const page = codeOnly(readSrc('src/pages/PublicItinerary.tsx'))
+    expect(page).not.toMatch(/useDestinationCover/)
+    expect(page).toMatch(/const heroSrc = pub\.coverImageUrl \? sizedCoverUrl\(pub\.coverImageUrl\) : undefined/)
+  })
+
+  it('and the card still serves the brand fallback, which is what it now matches', () => {
+    // The other side of the agreement, pinned so a future change to the handler
+    // cannot quietly break it: this is the behaviour the hero was moved to.
+    //
+    // Comment-stripped, and asserted as three facts rather than one line, because
+    // the handler wraps this expression across two lines and its own comment
+    // names `og-default.png` — a raw single-line regex would fail on the wrap
+    // while a raw match could pass on the prose alone.
+    const c = codeOnly(readSrc('api/i.js'))
+    expect(c).toMatch(/const cover = typeof publication\?\.cover_image_url === 'string'/)
+    expect(c).toMatch(/\? sizedCover\(publication\.cover_image_url\) : ''/)
+    expect(c).toMatch(/const image = cover \|\| `\$\{origin\}\/og-default\.png`/)
+  })
+
+  it('the sweep owns a suggestion for coverless rows too, resolved from the TRIP', () => {
+    // The second half. `ownDestinationCover` resolves from the trip's query
+    // candidates — never from the title, which is the guess the whole fix is
+    // careful about: a title is not a destination.
+    const upload = readSrc('src/lib/coverUpload.ts')
+    expect(upload).toMatch(/export async function ownDestinationCover/)
+    expect(upload).toMatch(/pickTripQueryCandidates\(trip\)/)
+    const body = codeOnly(STORE_SRC.slice(STORE_SRC.indexOf('export async function collectUnclaimedCovers')))
+    expect(body).toMatch(/for \(const pub of coverlessPublications\(cache\.published, userId\)\)/)
+    expect(body).toMatch(/ownDestinationCover\(userId, trip\)/)
+    // No trip in cache means nothing to derive a destination from, so the row is
+    // skipped rather than guessed at.
+    expect(body).toMatch(/if \(!trip\) continue/)
+  })
+
+  it('the two work lists are DISJOINT, so no row is processed twice in one pass', () => {
+    // `unclaimedCovers` excludes a null cover (its `isSuggestedCover` test is
+    // false for one) and `coverlessPublications` selects only null covers, so a
+    // row can never be in both. Asserted on the selectors rather than assumed,
+    // because a future widening of either one could silently double-process a
+    // row — two uploads of the same photo, one of them orphaned.
+    const MINE = 'uid-me'
+    const withSuggestion = { id: 'p1', creatorId: MINE, coverImageUrl: 'https://commons.wikimedia.org/wiki/Special:Redirect/file/A.jpg?width=1200' }
+    const coverless = { id: 'p2', creatorId: MINE, coverImageUrl: undefined }
+    const rows = [withSuggestion, coverless]
+    const first = unclaimedCovers(rows, MINE).map(r => r.id)
+    const second = coverlessPublications(rows, MINE).map(r => r.id)
+    expect(first).toEqual(['p1'])
+    expect(second).toEqual(['p2'])
+    expect(first.filter(id => second.includes(id))).toEqual([])
   })
 })
 

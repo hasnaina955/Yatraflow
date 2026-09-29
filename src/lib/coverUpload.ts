@@ -14,7 +14,7 @@
 // the network.
 import { supabase, isSupabaseConfigured } from './supabase'
 import { MISSING_BACKEND_MESSAGE } from './authErrors'
-import { wikimediaFileName } from './tripThumb'
+import { wikimediaFileName, fetchFirstAvailableThumb, pickTripQueryCandidates } from './tripThumb'
 
 /** Bucket created by supabase/migrations/20260919_covers_bucket.sql. */
 export const COVER_BUCKET = 'covers'
@@ -198,6 +198,37 @@ export function unclaimedCovers<T extends { creatorId?: string; coverImageUrl?: 
   return pubs.filter(p => p.creatorId === userId && isSuggestedCover(p.coverImageUrl))
 }
 
+/**
+ * Which of `pubs` have NO cover at all.
+ *
+ * #360 (owner's option c) — the second half of the sweep's work list, and the
+ * reason it is a separate function rather than a widened `unclaimedCovers`:
+ * `isSuggestedCover(null)` is false, so a coverless row is invisible to the
+ * selector above, and its contract ("run it again after a pass and it returns
+ * nothing") stays true because a row this returns is one the sweep either fills
+ * or leaves alone.
+ *
+ * What is wrong with these rows is not a third-party image — it is that they had
+ * TWO different pictures: the page showed a live Wikipedia suggestion while the
+ * share card showed the brand fallback. Nothing was stored, so there was nothing
+ * to take ownership OF; the sweep resolves a suggestion from the trip's own
+ * destinations and stores the owned result, after which both sides read one URL
+ * from the row.
+ *
+ * A whitespace-only value counts as no cover, matching the publish path's trim:
+ * a legacy `"   "` row is coverless in every sense a reader would recognise.
+ *
+ * Unpublished rows are NOT excluded — they keep their row (#350), a collected
+ * cover is what they would need if republished, and the ownership is the
+ * creator's own either way.
+ */
+export function coverlessPublications<T extends { creatorId?: string; coverImageUrl?: string }>(
+  pubs: T[], userId: string | undefined | null,
+): T[] {
+  if (!userId) return []
+  return pubs.filter(p => p.creatorId === userId && !(p.coverImageUrl ?? '').trim())
+}
+
 export async function downscaleCover(file: Blob): Promise<Blob> {
   if (typeof createImageBitmap !== 'function') throw new Error('This browser cannot resize images.')
   const bitmap = await createImageBitmap(file)
@@ -304,4 +335,40 @@ export async function ownSuggestedCover(
   } finally {
     clearTimeout(timer)
   }
+}
+
+/**
+ * Resolve the destination suggestion for a TRIP and take ownership of it (#360).
+ *
+ * The coverless half of the sweep has no stored URL to take ownership of — that
+ * is what "coverless" means — so the suggestion is resolved first, from the
+ * trip's own query candidates (headline destination, then earlier stops, then
+ * the start city, then the trip name), and only then copied into our bucket.
+ *
+ * It lives here rather than in the store because `coverUpload` is the module that
+ * already owns both halves of that dependency — the Wikimedia resolution path and
+ * the upload — so the store gains one import from a module it already imports
+ * instead of a new one.
+ *
+ * NEVER throws and never rejects, like `ownSuggestedCover` and for the same
+ * reason: this runs as housekeeping behind a browsing session, and its worst case
+ * must be "the row is left as it was". `owned: false` covers every failure —
+ * offline, no suggestion found, a copy that timed out — and the caller simply
+ * leaves the row alone. A row that stays coverless is not broken: the page and
+ * its card then BOTH show the brand fallback, which is the agreement this whole
+ * change is for.
+ *
+ * The lookup goes through `fetchFirstAvailableThumb`, which caches per query
+ * INCLUDING a "no photo here" verdict with a TTL. That is what makes it safe for
+ * the sweep to re-offer a coverless row on every hydrate: a destination with no
+ * photo is a cache hit, not a request, until the negative entry expires.
+ */
+export async function ownDestinationCover(
+  userId: string,
+  trip: { name: string; startLocation?: string; destinations?: string[] },
+): Promise<{ url?: string; owned: boolean }> {
+  if (!isSupabaseConfigured) return { owned: false }
+  const suggestion = await fetchFirstAvailableThumb(pickTripQueryCandidates(trip))
+  if (!suggestion) return { owned: false }
+  return ownSuggestedCover(userId, suggestion)
 }

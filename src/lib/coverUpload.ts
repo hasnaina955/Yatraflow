@@ -198,6 +198,38 @@ export function unclaimedCovers<T extends { creatorId?: string; coverImageUrl?: 
   return pubs.filter(p => p.creatorId === userId && isSuggestedCover(p.coverImageUrl))
 }
 
+/** The queries a destination cover is resolved FROM, in order: the itinerary's
+ *  own route summary, falling back to its title (what a route-less publication
+ *  has to offer).
+ *
+ *  One definition on purpose. Three surfaces ask for the same picture — the
+ *  public page's hero, the cover picker's suggestion, and the sweep that stores
+ *  a cover for a publication that never had one — and the whole point of the
+ *  last of those is that the crawler ends up with the picture the page was
+ *  already showing. Two copies of this order is how those two drift apart. */
+export function coverCandidates(pub: { routeSummary?: string[]; title: string }): string[] {
+  return pub.routeSummary?.length ? pub.routeSummary : [pub.title]
+}
+
+/** Publications with NO cover at all (#360) — the rows published before a cover
+ *  was required to publish.
+ *
+ *  Distinct from `unclaimedCovers`, which finds covers that exist but sit on
+ *  someone else's host: there is nothing here to re-host, so a sweep must
+ *  resolve a suggestion first (`coverCandidates` → the same lookup the hero
+ *  performs) and then own it. Until that happens this set disagrees with
+ *  itself: the app renders a destination photo from that lookup while the share
+ *  card, which reads only the stored column, falls back to the brand card.
+ *  Storing the resolved cover is what makes the two agree — and it is a write,
+ *  not a display rule, which is why it is worth doing in the owner's session
+ *  rather than papering over in the handler. */
+export function coverlessPublications<T extends { creatorId?: string; coverImageUrl?: string }>(
+  pubs: T[], userId: string | undefined | null,
+): T[] {
+  if (!userId) return []
+  return pubs.filter(p => p.creatorId === userId && !p.coverImageUrl)
+}
+
 export async function downscaleCover(file: Blob): Promise<Blob> {
   if (typeof createImageBitmap !== 'function') throw new Error('This browser cannot resize images.')
   const bitmap = await createImageBitmap(file)

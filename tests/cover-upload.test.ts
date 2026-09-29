@@ -6,6 +6,10 @@ import {
   fitCoverSize, isSuggestedCover, ownSuggestedCover, unclaimedCovers,
 } from '../src/lib/coverUpload'
 import { wikimediaFileName } from '../src/lib/tripThumb'
+// Imported on its own line on purpose: the block above is edited by the cap
+// work in the same issue, and one shared line would make the two halves of #360
+// conflict in a file neither of them is really changing.
+import { coverCandidates, coverlessPublications } from '../src/lib/coverUpload'
 
 // Uploaded covers are the first bytes in this repo that live on a meter we pay
 // for, and the size we store is the whole cost argument: the object is fetched
@@ -425,5 +429,72 @@ describe('the bucket and the uploader agree on what an upload may be', () => {
     expect(coverFileError({ type: 'image/jpeg', size: 6 * 1024 * 1024 })).not.toBeNull()
     // 4 MB is under both limits, and is the ordinary modern phone photo.
     expect(coverFileError({ type: 'image/jpeg', size: 4 * 1024 * 1024 })).toBeNull()
+  })
+})
+
+// The other half of #360: publications that never had a cover at all. The app
+// renders a destination photo for them from a live lookup; the share card reads
+// only the stored column and falls back to the brand card — so the two answer
+// differently until a stored cover exists. These pin the work list, the one
+// candidate derivation both sides share, and the order of the writes that makes
+// a resolved cover survive a reload.
+describe('the coverless backfill (#360)', () => {
+  it('works only on MY publications that have no cover', () => {
+    const pubs = [
+      { id: 'mine-none', creatorId: 'u1' },
+      { id: 'mine-has', creatorId: 'u1', coverImageUrl: 'https://images.test/a.jpg' },
+      { id: 'theirs-none', creatorId: 'u2' },
+    ]
+    expect(coverlessPublications(pubs, 'u1').map(p => p.id)).toEqual(['mine-none'])
+    expect(coverlessPublications(pubs, null)).toEqual([])
+    expect(coverlessPublications(pubs, undefined)).toEqual([])
+    // An empty string is a missing cover, not a cover whose address is "" — the
+    // same reading `ownSuggestedCover` takes.
+    expect(coverlessPublications([{ id: 'blank', creatorId: 'u1', coverImageUrl: '' }], 'u1').map(p => p.id))
+      .toEqual(['blank'])
+    // The two work lists are disjoint by construction: a suggested third-party
+    // cover is re-hosted by `unclaimedCovers`, never "resolved" again here.
+    expect(coverlessPublications([{ id: 'sug', creatorId: 'u1', coverImageUrl: 'https://upload.wikimedia.org/x.jpg' }], 'u1'))
+      .toEqual([])
+  })
+
+  it('derives the candidates the hero renders, in the same order', () => {
+    expect(coverCandidates({ routeSummary: ['Goa', 'Palolem'], title: 'Monsoon run' }))
+      .toEqual(['Goa', 'Palolem'])
+    // No route: the title is what a route-less publication has to offer.
+    expect(coverCandidates({ routeSummary: [], title: 'Monsoon run' })).toEqual(['Monsoon run'])
+    expect(coverCandidates({ title: 'Monsoon run' })).toEqual(['Monsoon run'])
+  })
+
+  it('is the ONE derivation the page and the sweep share', () => {
+    const page = readFileSync(new URL('../src/pages/PublicItinerary.tsx', import.meta.url), 'utf8')
+    expect(page).toContain('useDestinationCover(pub ? coverCandidates(pub) : null)')
+    // The inline ternary that used to live here is what would drift from the
+    // sweep — the page's own place count (`routeSummary.length}`) is unrelated.
+    expect(page).not.toContain('pub.routeSummary.length ?')
+  })
+
+  it('resolves a suggestion, stores it, and only then caches it', () => {
+    // Source-level: the sweep talks to a network and a canvas this suite cannot
+    // reach, so what is pinned is the shape of the pass.
+    const store = readFileSync(new URL('../src/store/store.ts', import.meta.url), 'utf8')
+    const sweep = store.slice(store.indexOf('export async function collectUnclaimedCovers'))
+    const loop = sweep.slice(sweep.indexOf('coverlessPublications(cache.published, userId)'))
+    const body = loop.slice(0, loop.indexOf('return collected'))
+    expect(body).toContain('await fetchFirstAvailableThumb(coverCandidates(pub))')
+    // A destination with no photo is a real answer, not a failure: leaving the
+    // column null keeps the brand card on BOTH sides, which is the agreement.
+    expect(body).toContain('if (!suggestion) continue')
+    // The ROW is persisted before the cache. A cover that only reached the cache
+    // would be gone on the next reload — the bug the cover column itself shipped
+    // with, and the reason this is a write and not a display rule.
+    const persisted = body.indexOf('.update({ cover_image_url: owned.url })')
+    const cached = body.indexOf('cache.published = cache.published.map')
+    expect(persisted, 'the backfill no longer writes the row').toBeGreaterThan(-1)
+    expect(cached, 'the backfill caches before persisting').toBeGreaterThan(persisted)
+    // The trip follows only when it has no cover of its own: a creator's own
+    // choice is not overwritten, and a re-publish cannot mint another coverless
+    // publication.
+    expect(body).toContain('if (!tripById(pub.tripId)?.coverImageUrl)')
   })
 })

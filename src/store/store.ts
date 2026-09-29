@@ -25,7 +25,8 @@ import { clearSnapshot, loadSnapshot, saveSnapshot } from '../lib/offlineCache'
 import {
   clearWritesFor, dropWrite, pendingWrites, queueWrite, replayVerdict, shouldRetry,
 } from '../lib/writeQueue'
-import { ownSuggestedCover, unclaimedCovers } from '../lib/coverUpload'
+import { coverCandidates, coverlessPublications, ownSuggestedCover, unclaimedCovers } from '../lib/coverUpload'
+import { fetchFirstAvailableThumb } from '../lib/tripThumb'
 import { publishValidation, PUBLISH_FIELD_ORDER, PublishRejected } from '../lib/publishRules'
 import { makeInviteCode, normalizeInviteCode } from '../lib/inviteCode'
 import { suggestionToRow, decisionToRow, activityToRow, notificationToRow, publishedToRow } from '../lib/restoreRows'
@@ -3248,7 +3249,7 @@ export async function publishItinerary(pub: Omit<PublishedItinerary, 'id' | 'pub
 let coverSweep: Promise<number> | null = null
 
 /** Take ownership of any of MY publications that still preview with a
- *  third-party image.
+ *  third-party image — and give a cover to the ones that have none at all.
  *
  *  Publishing already copies an auto-suggested cover into our bucket, but that
  *  is a write-path fix, not a migration: rows published before it shipped still
@@ -3257,6 +3258,15 @@ let coverSweep: Promise<number> | null = null
  *  third-party URL rather than fail the publish. Neither is visible in the app
  *  (the page renders the photo either way), and both leave a share card at the
  *  mercy of another host's uptime, terms and size.
+ *
+ *  The second work list is the older rows still: publications from before a
+ *  cover was REQUIRED to publish, whose `cover_image_url` is null. Those cannot
+ *  be re-hosted — there is nothing stored to copy — so the sweep resolves the
+ *  same destination suggestion the public page's hero renders (`coverCandidates`
+ *  → `fetchFirstAvailableThumb`, one definition shared with that page) and then
+ *  owns it. The point is agreement rather than tidiness: the app has been
+ *  showing a photo the share card cannot see, because the card reads only the
+ *  stored column, so until this runs the two answer differently (#360).
  *
  *  This is the re-run for both. Idempotent by construction: the work list comes
  *  from the data (`unclaimedCovers`), so a second pass over collected rows finds
@@ -3302,6 +3312,35 @@ export async function collectUnclaimedCovers(): Promise<number> {
       // suggestion — while a trip whose creator has since chosen a different
       // cover keeps that newer choice.
       if (tripById(pub.tripId)?.coverImageUrl === suggestion) {
+        updateTrip(pub.tripId, { coverImageUrl: owned.url })
+      }
+      collected++
+    }
+    // The coverless set, second on purpose: it costs a network lookup, while the
+    // pass above is pure re-hosting, and a sweep should do the cheap work first.
+    for (const pub of coverlessPublications(cache.published, userId)) {
+      const suggestion = await fetchFirstAvailableThumb(coverCandidates(pub))
+      // No photo for this destination is a real answer, not a failure: leaving
+      // the column null keeps the brand card on BOTH sides, which is the
+      // agreement this is for.
+      if (!suggestion) continue
+      const owned = await ownSuggestedCover(userId, suggestion)
+      if (!owned.owned || !owned.url) continue
+      const { error } = await supabase.from('published_itineraries')
+        .update({ cover_image_url: owned.url }).eq('id', pub.id)
+      if (error) {
+        console.error('[yatraflow] cover backfill failed', error)
+        continue
+      }
+      markLocalWrite('published_itineraries', pub.id)
+      cache.published = cache.published.map(x => (x.id === pub.id ? { ...x, coverImageUrl: owned.url } : x))
+      commit()
+      // The trip follows only when it has no cover of its own. There is no
+      // stored suggestion to compare against here (that is what made the
+      // publication coverless), so the narrow condition is the honest one: a
+      // trip the creator gave its own cover keeps it, and a re-publish of a
+      // trip that never had one cannot mint another coverless publication.
+      if (!tripById(pub.tripId)?.coverImageUrl) {
         updateTrip(pub.tripId, { coverImageUrl: owned.url })
       }
       collected++

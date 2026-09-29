@@ -22,6 +22,7 @@ import { dayCountForRange } from '../lib/dayCount'
 import { amountRefusal, amountVerdict } from '../lib/expenseAmount'
 import { attachDnaAccount, detachDnaAccount } from '../lib/tripDna'
 import { clearSnapshot, loadSnapshot, saveSnapshot } from '../lib/offlineCache'
+import { backfillCreateFunnelSession } from '../lib/createEvents'
 import {
   clearWritesFor, dropWrite, pendingWrites, queueWrite, replayVerdict, shouldRetry,
 } from '../lib/writeQueue'
@@ -637,6 +638,10 @@ export function init(): void {
     // this device is still holding - e.g. a tab closed mid-debounce, or a
     // replay that raced the last offline period.
     if (gen === hydrateGen && cache.sessionUserId === userId) void replayQueuedWrites()
+    // #428: the funnel rows this browser session wrote pre-signup adopt the
+    // account — exactly one keyed UPDATE, fire-and-forget. Runs on every
+    // hydrate settle but the `is user_id null` filter makes it idempotent.
+    if (gen === hydrateGen && cache.sessionUserId === userId) backfillCreateFunnelSession(userId)
   }
 
   supabase.auth.getSession().then(({ data }) => {
@@ -3248,20 +3253,32 @@ export async function publishItinerary(pub: Omit<PublishedItinerary, 'id' | 'pub
 let coverSweep: Promise<number> | null = null
 
 /** Take ownership of any of MY publications that still preview with a
- *  third-party image.
+ *  third-party image, and converge the ones that have no stored cover at all.
  *
  *  Publishing already copies an auto-suggested cover into our bucket, but that
  *  is a write-path fix, not a migration: rows published before it shipped still
  *  point at Wikimedia, and any publish whose copy failed — offline, a file the
  *  wiki could not resolve, the 8-second timeout — deliberately kept the
- *  third-party URL rather than fail the publish. Neither is visible in the app
- *  (the page renders the photo either way), and both leave a share card at the
- *  mercy of another host's uptime, terms and size.
+ *  third-party URL rather than fail the publish. A second, older population is
+ *  worse in a quieter way: rows from before the cover requirement store NO
+ *  cover, and the public hero then renders a live Wikipedia suggestion while
+ *  `api/i.js` serves the brand card to every crawler — the two disagree for as
+ *  long as the row lives (#360). Neither is visible in the app (the page
+ *  renders the photo either way), and both leave a share card at the mercy of
+ *  another host's uptime, terms and size.
  *
- *  This is the re-run for both. Idempotent by construction: the work list comes
- *  from the data (`unclaimedCovers`), so a second pass over collected rows finds
- *  nothing to do and costs nothing. Called after hydration for a signed-in user;
- *  safe to call at any time, from anywhere.
+ *  This is the re-run for both. Idempotent by construction: the work lists come
+ *  from the data (`unclaimedCovers`, `coverlessPublications`), so a second pass
+ *  over collected rows finds nothing to do and costs nothing. Called after
+ *  hydration for a signed-in user; safe to call at any time, from anywhere.
+ *
+ *  The null-cover list resolves its suggestion from the TRIP's own destinations
+ *  (`ownDestinationCover` — headline destination, then stops, then the start
+ *  city, then the name; never the title, which is a guess dressed as a fact)
+ *  and owns it in the same step. The hero derives nothing at all: until this
+ *  sweep stores a cover, both sides show the brand treatment, which is the
+ *  agreement itself. The handler is untouched: it keeps reading the stored
+ *  column.
  *
  *  Only the creator can collect a publication's cover — the bucket confines
  *  writes to `<auth.uid()>/`, so another creator cannot take it and neither can

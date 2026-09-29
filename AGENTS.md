@@ -148,6 +148,20 @@ Key locations:
    `git status -sb` and `git log origin/<branch>..<branch>`; reconcile
    foreign unpushed commits (reset/supersede **with user approval**) rather
    than shipping them.
+   **A diagnosis in the tracker is an invitation, so claim the work in the
+   same breath (learned 2026-09-29).** One lane re-verified #360, posted a
+   precise analysis on the issue — what had landed, what was left, which of
+   two options it recommended — and then started building that option. A
+   second lane read the comment, agreed with the recommendation, and built
+   the same fix; both were complete, tested and gated, and one had to be
+   closed as superseded. Neither agent did anything wrong: the comment said
+   *what* to do without saying *who*, and an unclaimed recommendation in a
+   shared tracker reads as an invitation. So end an analysis you intend to
+   implement with the claim ("taking this — branch `x` from `test`"), and
+   before starting an issue you have just analysed, run
+   `git ls-remote --heads origin | grep <issue-number>` — a lane-D branch
+   already existed for this one and one command would have shown it. The
+   cheap version of the same check: assign yourself the issue.
 5. **UI-audit remediation is tracked in `ROADMAP.md`** (🟣 section): tick a
    finding in the same commit that fixes it — batch status table only, prose
    goes to CHANGELOG. `docs/UI_AUDIT.md` is the per-finding reference
@@ -162,6 +176,7 @@ Key locations:
    memory; re-derive it from the repo.
  6a. **Async operations need input guards.** The AI drawer's `ask()` function had no protection against rapid re-submission during its 650ms processing delay — users could trigger duplicate questions. Fix: `disabled={thinking}` on input and button. When adding async paths (API calls, simulated latency, data processing), always disable user inputs to prevent race conditions, duplicate requests, or state inconsistency. The guard should match the visual feedback state (spinner, disabled button, etc.).
  6b. **A release cut is not done until every change in it has a CHANGELOG entry — check coverage, not just the heading.** The v0.60.0 refinement pass ran 20 commits and only 10 of them touched `CHANGELOG.md`, so the release was about to go out describing the first half of its own work — while the plan document recording that work also stopped mid-way and read as finished. Both artifacts agreed with each other and neither agreed with `git log`. Before cutting a release, diff the two lists — `git log --oneline <base>..HEAD -- CHANGELOG.md` against `git log --oneline <base>..HEAD` — and account for every commit: it has a bullet, or it is genuinely invisible to a user (a doc reconciliation, a de-duplication, a test-only change). The entries are also where a superseded claim gets *edited* rather than appended, so that diff is the audit.
+ **Check what the cut REMOVED as well as what it added.** A cut edits the head of `CHANGELOG.md` — the place the preamble lives — and the v0.70.0 cut (`36b13b7`) deleted that whole block on its way past: `# Changelog`, the Keep-a-Changelog line, and the "Two version lines" note that stops anyone comparing the Android shell's `-native` numbering with web semver. Nothing failed, because no test reads prose; the loss surfaced days later while adding an unrelated bullet. So a cut's own diff deserves a look at the file's head (`git diff <base>..HEAD -- CHANGELOG.md | head -30`), and the preamble is not part of any release — it is never correct for a version heading to replace it. This block has now been repaired twice (`dfdd2d0`, then the restore after `36b13b7`), which is what makes it worth the glance rather than a rule about paranoia.
  6c. **A "missing guard" claim needs the same git check as a "done" claim.** A comment or summary saying something was *absent* ("the one animation with no reduced-motion guard") is also a hypothesis — grep `origin/test` for the guard before "adding" it, or you ship a duplicate rule plus a changelog sentence that isn't true. The map-tab review round did exactly this; found 2026-09-22 while polishing its motion. The mirror case: an absence claim expires at the *next* merge, not at the date on the block — the slots decision record (2026-09-22, 17:27) logged three plan items as still outstanding, and PR #303 landed them 70 minutes later, leaving the sentence false from the moment it merged (fixed 2026-09-23). Check an absence claim against merged-PR timestamps, not the block's date.
  6d. **Wired is not "looks like the approved mockup" — and a RESTYLE folds into the
    original rule, it never appends a twin (learned 2026-09-23).** The create funnel

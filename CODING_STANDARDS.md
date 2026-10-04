@@ -634,6 +634,18 @@ anywhere in this repo means the entry labelled `6b` below.
    keeps the file compiling, any reduction bails. You must keep the runner
    and its cells in the page. You must move only the writer beside it. You
    must record the split in the hook header.
+ 6ah. **A queued slice replays stale code beside the hook that replaced it
+   (learned 2026-10-04, #420 slices 14-15).** A stacked branch holds the
+   pre-merge page. Its hunks can re-add a memo, a filter or a block that a
+   merged slice already moved into a hook. You must check each hunk side
+   against the hooks that exist now. The merged hook wins. The stale copy
+   dies. A duplicate `const` is the signal: the hook already returns the
+   name, so the incoming copy cannot stay.
+ 6ai. **You must union rebase imports, then prune with the linter (learned
+   2026-10-04, #420 slices 13-15).** Each side names what its own tree used.
+   You must keep every name first. You must delete what `eslint` reports as
+   unused. You must not raise the baseline to cover leftovers. You must
+   regenerate it lower in the same commit.
 
 ## 2. Conventions (`AGENTS.md` §4)
 

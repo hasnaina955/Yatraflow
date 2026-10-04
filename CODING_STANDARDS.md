@@ -646,6 +646,16 @@ anywhere in this repo means the entry labelled `6b` below.
    You must keep every name first. You must delete what `eslint` reports as
    unused. You must not raise the baseline to cover leftovers. You must
    regenerate it lower in the same commit.
+ 6aj. **You must classify a branch by patch ancestry, not by name or age
+   (learned 2026-10-04, prune of 80 refs).** A merged pull request leaves its
+   branch ref behind. Test each ref with `git merge-base --is-ancestor <ref>
+   origin/test`. You must run `git cherry` on what is left. `git cherry`
+   skips merge commits, so a branch of merge commits only reads as empty.
+   `git log origin/test..<ref>` shows those. You must keep a branch whose
+   commits no patch in test owns. You must keep a `release/*` ref, because
+   this repo tags no release. You must run `git worktree list` before you
+   delete a local branch. `git branch -d` refuses an unmerged branch, so it
+   must be the only delete verb you use.
 
 ## 2. Conventions (`AGENTS.md` §4)
 

@@ -1,6 +1,6 @@
 // ============ My trips ============
 import { useEffect, useMemo, useState } from 'react'
-import { ChevronRight, Clock, Compass, LayoutGrid, Plus, Rocket, Rows3, ShoppingBag, Trash2, Wallet } from 'lucide-react'
+import { ArrowRight, Calendar, ChevronRight, Clock, Compass, LayoutGrid, MapPin, Plus, Rocket, Rows3, ShoppingBag, Trash2, Users, Wallet } from 'lucide-react'
 import { InlineIcon, MetaIcon } from '../components/icons'
 import { useTrips, useTrashedTrips, useUsers, useSessionUserId, useSliceReads, useTrashLoaded, useTrashFailed, tripsForUser, trashTrip, restoreTrashedTrip, restoreTrashedTripById, permanentlyDeleteTrip, fetchTrashedTrips, rereadTrips, addDemoTrips } from '../store/store'
 import { computeTotals, formatInrShort } from '../lib/engine'
@@ -13,6 +13,8 @@ import { readinessFromDraft } from '../lib/createReadiness'
 import { createFunnelOn } from '../lib/featureFlags'
 import { loadPref, savePref } from '../lib/uiPrefs'
 import { CoverThumb } from '../components/CoverThumb'
+import { useDestinationCover } from '../hooks/useDestinationCover'
+import { pickTripQueryCandidates, sizedCoverUrl } from '../lib/tripThumb'
 import { ImportTripButton } from '../components/ImportTripButton'
 import { sliceState, emptyCopyFor, readState } from '../lib/readState'
 import type { Trip, User } from '../data/types'
@@ -167,6 +169,43 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
 
   const hasFilters = q !== '' || style !== 'all' || when !== 'all' || sortKey !== 'recent' || status !== 'all'
 
+  // Featured trip (Variant A hierarchy): pick the closest upcoming departure
+  // from the user's trips, or fall back to the most recently updated trip.
+  const featuredTrip = useMemo(() => {
+    const mine = tripsForUser(meId)
+    if (!mine.length) return null
+
+    // Upcoming trips with a valid future start date
+    const nowMs = today.getTime()
+    const upcoming = mine
+      .map(t => {
+        const start = new Date(`${t.startDate}T00:00:00`)
+        const end = new Date(`${t.endDate}T23:59:59`)
+        return { trip: t, startMs: start.getTime(), endMs: end.getTime() }
+      })
+      .filter(({ startMs, endMs }) => !Number.isNaN(startMs) && !Number.isNaN(endMs) && endMs >= nowMs)
+      .sort((a, b) => {
+        // Closest departure starting today or in future first
+        const aFuture = a.startMs >= nowMs
+        const bFuture = b.startMs >= nowMs
+        if (aFuture && !bFuture) return -1
+        if (!aFuture && bFuture) return 1
+        return a.startMs - b.startMs
+      })
+
+    if (upcoming.length > 0) return upcoming[0].trip
+    // Fall back to most recently updated
+    return [...mine].sort((a, b) => b.updatedAt - a.updatedAt)[0]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allTrips, meId, today])
+
+  // The collection excludes the featured trip when no filters are active,
+  // matching Explore's pattern so the lead trip is not duplicated in the shelf.
+  const displayTrips = useMemo(() => {
+    if (hasFilters || !featuredTrip) return trips
+    return trips.filter(t => t.id !== featuredTrip.id)
+  }, [trips, hasFilters, featuredTrip])
+
   // #385: ONE reset for both "Clear filters" buttons. The toolbar ghost reset
   // all four fields while the empty-state action reset three and left
   // `sortKey`, so a sort-only empty was unfixable by its own button. The
@@ -301,9 +340,20 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
         />
       ) : (
         <>
+          {/* Variant A: Featured trip hero when viewing all trips without active search */}
+          {!hasFilters && featuredTrip && (
+            <FeaturedTripLead
+              trip={featuredTrip}
+              users={users}
+              meId={meId}
+              today={today}
+              onNavigate={onNavigate}
+            />
+          )}
+
           {/* ---- Search + style chips + when/sort selects (Explore's pattern) ---- */}
           <div className="trips-toolbar" style={{ marginBottom: 18 }}>
-            <input className="input trips-search" placeholder="Search places or stops…"
+            <input className="input trips-search" placeholder={!hasFilters && featuredTrip ? 'Search your other trips…' : 'Search places or stops…'}
               aria-label="Search your trips" value={q} onChange={e => setQ(e.target.value)} />
             <div className="explore-chips" role="group" aria-label="Travel style">
               <button className={`chip clickable-chip ${style === 'all' ? 'on-teal' : ''}`}
@@ -360,6 +410,13 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
             ))}
           </div>
 
+          {!hasFilters && featuredTrip && displayTrips.length > 0 && (
+            <div className="row-between" style={{ margin: '14px 0 10px', alignItems: 'baseline' }}>
+              <h3 className="trip-other-heading">Your other trips</h3>
+              <span className="trip-other-count">{displayTrips.length} trip{displayTrips.length === 1 ? '' : 's'}</span>
+            </div>
+          )}
+
           {trips.length === 0 ? (
             <EmptyState
               icon={<Compass size={38} aria-hidden />}
@@ -367,8 +424,9 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
               body="Try a different search or clear the filters to see all your trips."
               action={<button className="btn btn-outline" onClick={clearFilters}>Clear filters</button>}
             />
-          ) : (            <div className={`explore-grid${layout === 'list' ? ' as-list' : ''}`}>
-            {trips.map((t, i) => {
+          ) : (
+            <div className={`explore-grid${layout === 'list' ? ' as-list' : ''}`}>
+              {displayTrips.map((t, i) => {
               const totals = computeTotals(t)
               const others = (t.members ?? []).filter(m => m.userId !== meId)
               const departure = departureLabel(t, today)
@@ -471,4 +529,175 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
 
 function userOf(users: User[], id: string): User | undefined {
   return users.find(u => u.id === id)
+}
+
+function FeaturedTripLead({
+  trip,
+  users,
+  meId,
+  today,
+  onNavigate,
+}: {
+  trip: Trip
+  users: User[]
+  meId: string | null
+  today: Date
+  onNavigate: (r: string) => void
+}) {
+  const step = nextTripStep(trip)
+  const plan = plannedDayRatio(trip)
+  const totals = computeTotals(trip)
+  const departure = departureLabel(trip, today)
+  const others = (trip.members ?? []).filter(m => m.userId !== meId)
+
+  // Candidate images for cover: explicit cover URL -> Wikipedia lead image -> fallback hero
+  const candidates = useMemo(() => pickTripQueryCandidates(trip), [trip])
+  const autoThumb = useDestinationCover(candidates)
+  const coverUrl = sizedCoverUrl(trip.coverImageUrl ?? '') || autoThumb || '/img/landing-open-road.jpg'
+
+  // Format date range nicely
+  const dateRangeStr = useMemo(() => {
+    if (!trip.startDate || !trip.endDate) return 'Dates not set'
+    const start = new Date(`${trip.startDate}T00:00:00`)
+    const end = new Date(`${trip.endDate}T00:00:00`)
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 'Dates not set'
+    const opt: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short' }
+    return `${start.toLocaleDateString('en-IN', opt)} – ${end.toLocaleDateString('en-IN', { ...opt, year: 'numeric' })}`
+  }, [trip.startDate, trip.endDate])
+
+  // Destination route string
+  const routeStr = trip.destinations.length > 0
+    ? `${trip.startLocation} → ${trip.destinations.join(' → ')}`
+    : trip.startLocation
+
+  // Primary action button targets
+  const targetRoute = useMemo(() => {
+    if (step.kind === 'add-dates') return `/trip/${trip.id}/settings`
+    if (step.dayIndex !== undefined) {
+      // Deep link: the timeline must land on the day and stop this step names.
+      // The query rides the URL. The tab router reads the path alone.
+      const q = new URLSearchParams({ day: String(step.dayIndex) })
+      if (step.stopId) q.set('stop', step.stopId)
+      return `/trip/${trip.id}/timeline?${q.toString()}`
+    }
+    return `/trip/${trip.id}`
+  }, [step, trip.id])
+
+  return (
+    <section className="trip-featured" aria-labelledby="featured-trip-heading">
+      <div className="trip-featured-head">
+        <h2 id="featured-trip-heading">Your next journey</h2>
+        <span className="trip-featured-subheading">Closest upcoming departure</span>
+      </div>
+      <article className="trip-featured-card">
+        <div
+          className="trip-featured-photo"
+          style={{ backgroundImage: `url("${coverUrl}")` }}
+          role="img"
+          aria-label={`Cover photo for ${trip.name}`}
+        >
+          <div className="trip-featured-photo-top">
+            <span className="trip-featured-photo-badge">
+              {departure ?? 'Upcoming'}
+            </span>
+            <span className="trip-featured-photo-date">{dateRangeStr}</span>
+          </div>
+          <div className="trip-featured-photo-bottom">
+            <h3 className="trip-featured-photo-heading">{trip.name}</h3>
+            <p className="trip-featured-photo-caption">
+              {trip.days.length} day{trip.days.length === 1 ? '' : 's'} · {cap(trip.transportMode)} · {cap(trip.travelStyle)}
+            </p>
+          </div>
+        </div>
+
+        <div className="trip-featured-body">
+          <div>
+            <span className="trip-featured-kicker">
+              {trip.destinations[0] ?? trip.startLocation} · {departure ? 'Upcoming' : 'Featured'}
+            </span>
+            <h3 className="trip-featured-title">{trip.name}</h3>
+            <p className="trip-featured-route">{routeStr}</p>
+
+            <div className="trip-featured-meta">
+              <span><MetaIcon icon={Calendar} tone="time" />{dateRangeStr} · {trip.days.length} days</span>
+              <span><Users size={12} aria-hidden />{(trip.members ?? []).length || 1} traveller{(trip.members ?? []).length === 1 ? '' : 's'}</span>
+              <span><MetaIcon icon={MapPin} tone="place" />{trip.destinations.length + 1} places</span>
+              <span><MetaIcon icon={Wallet} tone="money" />~{formatInrShort(totals.costPerPersonInr)}/person</span>
+            </div>
+
+            <div className="trip-featured-progress">
+              <div className="trip-featured-progress-head">
+                <span>Days with activities</span>
+                <strong>{plan.total === 0 ? 'No days planned' : `${plan.planned}/${plan.total} days`}</strong>
+              </div>
+              <div
+                className="trip-featured-progress-track"
+                role="progressbar"
+                aria-label={`${plan.planned} of ${plan.total} days have activities`}
+                aria-valuenow={plan.pct}
+                aria-valuemin={0}
+                aria-valuemax={100}
+              >
+                <span className="trip-featured-progress-fill" style={{ width: `${plan.pct}%` }} />
+              </div>
+              <p className="trip-featured-progress-note">
+                {plan.pct === 100 ? 'All days have planned stops.' : `${100 - plan.pct}% remaining to schedule.`} This is activity coverage, not readiness to travel.
+              </p>
+            </div>
+
+            <div className="trip-featured-task">
+              <div className="trip-featured-task-icon">
+                {step.kind === 'add-dates' ? <Clock size={16} aria-hidden /> : <MapPin size={16} aria-hidden />}
+              </div>
+              <div>
+                <span className="trip-featured-task-meta">
+                  Next step{step.dayIndex !== undefined ? ` · Day ${step.dayIndex + 1}` : ''}
+                </span>
+                <strong className="trip-featured-task-title">{step.label}</strong>
+                <p className="trip-featured-task-desc">
+                  {step.kind === 'done'
+                    ? 'All scheduled stops are confirmed. You are ready to travel!'
+                    : step.kind === 'book-stop'
+                    ? 'Reserve this stop or slot before you leave.'
+                    : step.kind === 'confirm-stop'
+                    ? 'Check suggestions and confirm this stop.'
+                    : step.kind === 'add-dates'
+                    ? 'Choose travel dates to unlock itinerary day planning.'
+                    : 'Add planned activities and sights for this day.'}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="trip-featured-footer">
+            <div className="trip-featured-crew">
+              <div className="trip-featured-crew-stack" aria-hidden="true">
+                {others.slice(0, 3).map(m => (
+                  <Avatar key={m.userId} user={userOf(users, m.userId)} />
+                ))}
+              </div>
+              <span>
+                {others.length > 0 ? `${others.length + 1} travel group members` : 'Just you planning'}
+              </span>
+            </div>
+
+            <div className="trip-featured-btn-group">
+              <button
+                className="btn btn-primary"
+                onClick={() => onNavigate(targetRoute)}
+              >
+                {step.label} <ArrowRight size={14} aria-hidden />
+              </button>
+              <button
+                className="trip-featured-overview-btn"
+                onClick={() => onNavigate(`/trip/${trip.id}`)}
+              >
+                Trip overview <ChevronRight size={14} aria-hidden />
+              </button>
+            </div>
+          </div>
+        </div>
+      </article>
+    </section>
+  )
 }

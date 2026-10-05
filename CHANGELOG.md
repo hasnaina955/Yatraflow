@@ -95,6 +95,18 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
   what the press will do, and the 40px touch floor. This is deliberately not the map shortlist:
   that tray filters out anything already added to the plan, so a day or a stop put there would have
   been dropped on arrival.
+- **My Trips now features the closest upcoming departure as a prominent hero journey.**
+  Variant A from the layout study leads the page with a photo cover, dates, route, travellers,
+  and a planning progress bar. The hero card surfaces the single next task with a targeted action
+  button and an overview link. When no filters are active, the remaining trips appear below in the
+  supporting grid or list under an explicit heading. The lead journey uses existing design tokens
+  and respects light and dark themes without mockup assets.
+- **The featured journey's action button now opens the exact day and stop it names.**
+  The button carried only the trip link. The timeline opened at the top, and you had to find
+  the day yourself. The button now links with the day and the stop in the address. The
+  workspace checks the request against the trip. It opens that day and scrolls the stop to the
+  centre of the view. A ring marks the row for a moment. A stale request does nothing. A day
+  the trip lacks falls back to the day alone. A request for another trip is ignored.
 
 ### Fixed
 

@@ -21,6 +21,8 @@ Sections:
 
 ## The gate
 
+**A clean working tree makes the default STE check inspect zero lines.** It reads unstaged changes, not committed branch changes. You must also check new branch prose through `--stdin` during a branch review.
+
 Use `npm run verify` — it runs the full gate:
 `tsc -b --clean` → fresh typecheck → full test suite → production build.
 

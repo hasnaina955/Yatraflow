@@ -8378,3 +8378,367 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 @media (prefers-reduced-motion: reduce) {
   .tl-save-heart { transition: none; }
 }
+
+/* ============ Variant A Featured-Trip Hierarchy (My Trips) ============ */
+.trip-featured {
+  margin-bottom: 24px;
+}
+.trip-featured-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.trip-featured-head h2 {
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 700;
+  margin: 0;
+  color: var(--text);
+}
+.trip-featured-subheading {
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+.trip-featured-card {
+  border: 1px solid var(--yf-border);
+  border-radius: var(--radius-lg);
+  background: var(--yf-surface);
+  overflow: hidden;
+  box-shadow: 0 16px 38px -26px rgba(var(--shadow-navy-rgb), 0.5);
+  display: grid;
+  grid-template-columns: 42% 1fr;
+  min-width: 0;
+}
+
+.trip-featured-photo {
+  position: relative;
+  min-height: 400px;
+  background-size: cover;
+  background-position: center 55%;
+  background-repeat: no-repeat;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 24px;
+}
+.trip-featured-photo::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(12, 20, 32, 0.15) 30%, rgba(12, 20, 32, 0.88) 100%);
+  pointer-events: none;
+}
+.trip-featured-photo-top,
+.trip-featured-photo-bottom {
+  position: relative;
+  z-index: 1;
+  color: #ffffff;
+}
+.trip-featured-photo-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: space-between;
+}
+.trip-featured-photo-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 8px;
+  padding: 6px 10px;
+  background: var(--yf-surface);
+  color: var(--yf-teal-700);
+  font-weight: 700;
+  font-size: 11px;
+}
+.trip-featured-photo-date {
+  background: rgba(12, 20, 32, 0.7);
+  color: #ffffff;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  -webkit-backdrop-filter: blur(var(--yf-blur-scrim));
+  backdrop-filter: blur(var(--yf-blur-scrim));
+}
+.trip-featured-photo-heading {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.25;
+  margin: 0 0 6px;
+  color: #ffffff;
+  letter-spacing: -0.03em;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+.trip-featured-photo-caption {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.9);
+  margin: 0;
+}
+
+.trip-featured-body {
+  padding: 24px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.trip-featured-kicker {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--yf-teal-700);
+  display: block;
+}
+.trip-featured-title {
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.3;
+  margin: 8px 0 4px;
+  color: var(--text);
+  letter-spacing: -0.02em;
+}
+.trip-featured-route {
+  color: var(--text-3);
+  font-size: 13px;
+  margin: 0 0 16px;
+}
+.trip-featured-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  color: var(--text-2);
+  font-size: 12px;
+  margin: 0 0 16px;
+}
+.trip-featured-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.trip-featured-progress {
+  margin-bottom: 6px;
+}
+.trip-featured-progress-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  margin-bottom: 8px;
+  color: var(--text-2);
+}
+.trip-featured-progress-head strong {
+  color: var(--text);
+}
+.trip-featured-progress-track {
+  height: 6px;
+  overflow: hidden;
+  background: var(--yf-border);
+  border-radius: 999px;
+}
+.trip-featured-progress-fill {
+  display: block;
+  height: 100%;
+  background: var(--yf-teal-600);
+  border-radius: inherit;
+  transition: width var(--motion-med) var(--ease-glide);
+}
+.trip-featured-progress-note {
+  font-size: 11px;
+  color: var(--text-3);
+  margin: 6px 0 0;
+}
+
+.trip-featured-task {
+  margin: 20px 0 16px;
+  padding: 14px 16px;
+  background: var(--yf-teal-100);
+  border-radius: var(--radius-sm);
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.trip-featured-task-icon {
+  color: var(--yf-teal-700);
+  flex: none;
+  margin-top: 2px;
+}
+.trip-featured-task-meta {
+  color: var(--yf-teal-700);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  display: block;
+}
+.trip-featured-task-title {
+  display: block;
+  margin: 2px 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+.trip-featured-task-desc {
+  color: var(--text-2);
+  font-size: 12px;
+  margin: 2px 0 0;
+}
+
+.trip-featured-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 6px;
+}
+.trip-featured-crew {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-3);
+  font-size: 12px;
+}
+.trip-featured-crew-stack {
+  display: flex;
+  align-items: center;
+}
+.trip-featured-crew-stack > * {
+  margin-left: -4px;
+}
+.trip-featured-crew-stack > *:first-child {
+  margin-left: 0;
+}
+.trip-featured-btn-group {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.trip-featured-overview-btn {
+  color: var(--teal-deep);
+  font-weight: 600;
+  font-size: 12.5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: color var(--motion-fast) var(--ease-out), background var(--motion-fast) var(--ease-out);
+}
+.trip-featured-overview-btn:hover {
+  background: var(--bg-soft);
+  color: var(--ink-teal);
+}
+.trip-featured-overview-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+
+.trip-other-heading {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
+}
+.trip-other-count {
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+@media (max-width: 850px) {
+  .trip-featured-card {
+    grid-template-columns: 38% 1fr;
+  }
+  .trip-featured-body {
+    padding: 22px;
+  }
+  .trip-featured-title {
+    font-size: 22px;
+  }
+  .trip-featured-photo {
+    min-height: 360px;
+  }
+}
+
+@media (max-width: 640px) {
+  .trip-featured-card {
+    grid-template-columns: 1fr;
+    border-radius: var(--radius-md);
+  }
+  .trip-featured-photo {
+    min-height: 180px;
+    height: 180px;
+    padding: 16px;
+  }
+  .trip-featured-photo-bottom p {
+    display: none;
+  }
+  .trip-featured-photo-heading {
+    font-size: 18px;
+  }
+  .trip-featured-body {
+    padding: 20px;
+  }
+  .trip-featured-title {
+    font-size: 20px;
+  }
+  .trip-featured-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .trip-featured-crew {
+    display: none;
+  }
+  .trip-featured-btn-group {
+    flex-direction: column;
+    width: 100%;
+  }
+  .trip-featured-btn-group .btn {
+    width: 100%;
+    min-height: 40px;
+  }
+  .trip-featured-overview-btn {
+    width: 100%;
+    justify-content: center;
+    min-height: 40px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .trip-featured-progress-fill,
+  .trip-featured-overview-btn {
+    transition: none;
+  }
+}
+
+/* ---- Timeline deep-link stop flash (featured next step) ----
+   One ring marks the stop row that the CTA named. The class runs two pulses.
+   JS removes the class on animationend. Reduced motion never animates.
+   JS then clears the class on a token-derived timeout. */
+.tl-row.tl-stop-flash {
+  animation: yf-stop-flash var(--motion-slower) var(--ease-out) 2;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tl-row.tl-stop-flash {
+    animation: none;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--saffron-500) 50%, transparent);
+  }
+}
+@keyframes yf-stop-flash {
+  0%, 55% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--saffron-500) 50%, transparent); }
+  100% { box-shadow: 0 0 0 3px transparent; }
+}
+

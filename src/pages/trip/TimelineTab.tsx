@@ -41,7 +41,7 @@ import type { LegEstimate, ScheduleWarning } from '../../lib/engine'
 import type { ImpactResult } from '../../lib/impact'
 import { loadOpenDay, loadReviewAll, saveOpenDay, saveReviewAll } from '../../lib/uiPrefs'
 import { accordionNext } from '../../lib/daySummary'
-import { scrollBehavior } from '../../lib/motion'
+import { scrollBehavior, motionTiming } from '../../lib/motion'
 import { toast } from '../../components/ui'
 import { StopEditor, type StopFormValues } from '../../components/StopEditor'
 import { RemoteEditBanner } from '../../components/RemoteEditBanner'
@@ -65,7 +65,7 @@ import { MoveStopModal } from './timeline/MoveStopModal'
 const NO_WARNINGS: ScheduleWarning[] = []
 // ================= Timeline =================
 
-export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorrections, suggestionCache, onOpenBoard, focusDay, onFocusConsumed }: {
+export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorrections, suggestionCache, onOpenBoard, focusDay, focusStopId, onFocusConsumed }: {
   trip: Trip
   editable: boolean
   /** `onKept` runs only when the user keeps the staged change — the hook the
@@ -83,6 +83,9 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
    *  stale value can neither re-fire on a later mount (tab navigation) nor
    *  leak into another trip's timeline (the workspace outlives trips). */
   focusDay?: number | null
+  /** Deep link (?stop=): a stop on the focused day. It scrolls to centre and
+   *  flashes once, then the same consume clears it with the day. */
+  focusStopId?: string | null
   /** clears the workspace's focusDay signal once the request is handled */
   onFocusConsumed?: () => void
 }) {
@@ -427,6 +430,32 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
     if (!isVisible) el.scrollIntoView({ behavior: scrollBehavior(), block: 'start' })
   }
 
+  /** Deep-link target: the stop row. The day body mounts one commit after the
+   *  accordion opens (SmoothCollapse), so seek the row first. The land waits
+   *  for the expand to settle — a row scrolled mid-expansion drifts out of the
+   *  centred spot. Then it scrolls the row to centre and flashes it once.
+   *  A row that never appears does nothing. */
+  function focusStopRow(stopId: string) {
+    let tries = 0
+    const land = (row: HTMLElement) => {
+      row.scrollIntoView({ behavior: scrollBehavior(), block: 'center' })
+      row.classList.add('tl-stop-flash')
+      const clear = () => row.classList.remove('tl-stop-flash')
+      row.addEventListener('animationend', clear, { once: true })
+      // Reduced motion sets animation: none, so animationend never fires.
+      window.setTimeout(clear, motionTiming('--motion-slower').duration * 2 + 250)
+    }
+    const seek = () => {
+      const row = document.querySelector<HTMLElement>(`[data-stop-id="${CSS.escape(stopId)}"]`)
+      if (!row) {
+        if (tries++ < 40) window.setTimeout(seek, 50)
+        return
+      }
+      window.setTimeout(() => land(row), motionTiming('--motion-slower').duration + 250)
+    }
+    seek()
+  }
+
   // Phase 3 (the living plan): a halt label on the map asked for this day's
   // plan — open its accordion and bring the card into view. Runs after mount
   // so the day cards exist (the workspace mounts this tab in the same commit
@@ -447,9 +476,10 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
       return
     }
     jumpToDay(focusDay)
+    if (focusStopId) focusStopRow(focusStopId)
     onFocusConsumed?.()
     // eslint-disable-next-line react-hooks/exhaustive-deps -- jumpToDay reads openDay (stable) + the DOM; focusDay is the one-shot signal
-  }, [focusDay])
+  }, [focusDay, focusStopId])
 
   /** Inline day rename — a lightweight label change, applied directly (no impact preview). */
   const handleRenameDay = useCallback((dayIndex: number, title: string) => {

@@ -1516,13 +1516,13 @@ a.btn { text-decoration: none; }
   padding: 8px 12px;
   box-shadow: var(--shadow-soft);
 }
-/* Which day you are in: the chip whose card has scrolled past the sticky line.
-   One marker, not a second colour for "warn" — the warn tint is the day's own
-   state and stays readable next to it. */
-.day-rail-chip[aria-current='true'] {
+/* Which day you are in: the card whose day has scrolled past the sticky
+   line. The marker is the BORDER plus the weight, so the warn tint cannot
+   replace it — the tint is the day's own state and stays next to the marker. */
+.day-rail-card.warn[aria-current='true'] {
   border-color: var(--teal);
-  background: var(--teal-soft);
-  color: var(--teal-deep);
+  background: var(--yf-amber-100);
+  color: var(--ink-amber);
   font-weight: 800;
 }
 
@@ -8284,22 +8284,22 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
   font-size: var(--text-xs); font-weight: 600; color: var(--teal-deep);
   font-variant-numeric: tabular-nums; margin-top: -3px;
 }
-/* List mode turns each card into one row. The cover collapses to a square
-   thumbnail so a row stays scannable, and the card foot moves to the right
-   edge instead of under the body.
-   Measured on a 1440px viewport: one full-width column gave a 1140px row
-   holding a title and two chips, so half the   screen was whitespace and the
-   eye had to travel that far between one trip and the next. The rows now
-   stay a readable measure and the grid takes more of them.
-   `min()` in the floor is load-bearing: a bare `minmax(520px, 1fr)` cannot
-   shrink below its floor, which at 390px held a 520px card in a 373px
-   viewport and pushed the whole document 161px sideways. */
-.explore-grid.as-list { grid-template-columns: repeat(auto-fill, minmax(min(520px, 100%), 1fr)); gap: 10px; }
+/* List mode turns each card into one row: thumbnail, content, actions —
+   explicit columns, one trip per row. One column is the mockup's scan
+   order. A tiled row list was measured at 1440px and kept once, but it
+   split the scan into two 565px columns, so it is one column everywhere.
+   The content column carries min-width: 0 and a minmax(0, 1fr) track: a
+   flex child without it keeps its min-content width, overruns the footer
+   beside it, and the card clips both — zero page overflow never showed
+   this, because the card hides its own children. The footer (members and
+   the delete control) moves below the row at phone widths, so it can
+   never share a line with the content it used to overlap (P1). */
+.explore-grid.as-list { grid-template-columns: 1fr; gap: 10px; }
 .explore-grid.as-list .itin-card { flex-direction: row; align-items: stretch; }
-.explore-grid.as-list .trip-card-hit { flex: 1; display: flex; gap: 14px; align-items: flex-start; min-width: 0; }
+.explore-grid.as-list .trip-card-hit { flex: 1; display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 14px; align-items: start; min-width: 0; }
 .explore-grid.as-list .itin-emoji { width: 96px; height: 96px; flex: none; aspect-ratio: auto; border-radius: var(--radius-sm); }
-.explore-grid.as-list .itin-body { padding: 12px 0 12px 14px; }
-.explore-grid.as-list .itin-card > .itin-meta { flex: none; align-items: center; padding: 12px 14px 12px 0; margin-top: 0; }
+.explore-grid.as-list .itin-body { padding: 12px 0; min-width: 0; }
+.explore-grid.as-list .itin-card > .itin-meta { flex: none; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 12px 14px; margin-top: 0; }
 .explore-grid.as-list .itin-card > .itin-meta::before { display: none; }
 
 @media (prefers-reduced-motion: reduce) {
@@ -8741,4 +8741,26 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
   0%, 55% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--saffron-500) 50%, transparent); }
   100% { box-shadow: 0 0 0 3px transparent; }
 }
+
+/* ---------- MR4 - list rows on a phone (P1) ----------
+   Below 640px the row stacks: thumbnail and content on top, and the member
+   stack with the delete control on their own line under them. The footer
+   used to sit beside the content at 373px, where the body overran it and
+   the card clipped both. Metadata wraps rather than widening the column. */
+@media (max-width: 640px) {
+  .explore-grid.as-list .itin-card { flex-direction: column; }
+  .explore-grid.as-list .trip-card-hit { grid-template-columns: 72px minmax(0, 1fr); gap: 12px; }
+  .explore-grid.as-list .itin-emoji { width: 72px; height: 72px; }
+  .explore-grid.as-list .itin-card > .itin-meta {
+    flex-direction: row; align-items: center; justify-content: space-between;
+    width: 100%; padding: 0 12px 12px;
+  }
+}
+.explore-grid.as-list .stop-meta { flex-wrap: wrap; }
+
+/* ---------- MR9/P4 - a day jump lands clear of the sticky stack ----------
+   The measured stack (the floating nav, plus the sticky rail in review)
+   publishes as --tl-stack, and every scrollIntoView on a day card honours it
+   through scroll-margin — so the day header never lands under the bars. */
+[id^='day-card'] { scroll-margin-top: var(--tl-stack, 84px); }
 

@@ -110,6 +110,33 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ### Fixed
 
+- **The day rail tracks where you are, and a day jump no longer lands under it.**
+  The rail marks the day in view in review mode. It marks the open day in
+  one-day mode. A jump used to land the day header under the sticky bars on a
+  phone. The bar stack is measured per width and mode now, and every jump
+  lands below it. The current-day marker is a border and a weight. A day's
+  warning tint can no longer replace the marker.
+- **The trip list rows stop clipping their content on a phone.** List mode put
+  the member stack and the delete control on the same line as the card body.
+  At 373px the body overran them and the card clipped both. The row now has
+  explicit thumbnail, content and action columns, and the content column can
+  shrink. Below 640px the footer moves onto its own line under the content.
+  Wide screens show one trip per row, the mockup's scan order. Metadata wraps
+  instead of widening the row.
+- **The Timeline day rail names a real place again.** The rail card showed the
+  day title as the city, so two Jaipur days titled "Arrival" and "Fort visit"
+  marked a city change inside one city. The place now comes from the day's
+  base stop: the last stop in plan order, where the day ends. Rejected stops
+  do not place the day. A day with no named stop prints no place and makes no
+  claim.
+- **A heart press can no longer save twice or drop earlier saves.** The save
+  updater flipped the set by reading storage inside React's state calculation.
+  React can run that calculation twice, so one press could land twice. When
+  storage was denied, every read came back empty and each press dropped the
+  ids saved before it. The set now derives from the previous state and is
+  written once after the change. The in-memory set stays authoritative when
+  storage fails.
+
 - **The test fixture no longer publishes dateless itineraries.** Three of the six published
   itineraries carried no start or end date, which made "Set your travel dates" the most common
   next step in the probe histogram. Every one of those three came from

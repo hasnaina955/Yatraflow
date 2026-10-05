@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseSavedIds, savedDayId, savedStopId } from '../src/lib/uiPrefs'
+import { parseSavedIds, savedDayId, savedStopId, flipSavedId, saveSavedIds, loadSavedIds } from '../src/lib/uiPrefs'
 
 /* MR8. The parsing is the only part worth pinning here: the load/save wrappers
    need localStorage, which node does not have. A corrupted value must save
@@ -43,5 +43,58 @@ describe('saved ids', () => {
 
   it('gives the same id for the same day every time, so a reload matches', () => {
     expect(savedDayId(3)).toBe(savedDayId(3))
+  })
+})
+
+/* S1: the updater used to read storage, flip and write storage inside React's
+   state calculation. Strict Mode runs that calculation twice, so one press
+   saved then un-saved; and with storage denied every read came back empty, so
+   two presses kept only the last id. The set is derived from the previous
+   STATE now, and the write mirrors it afterwards. */
+
+describe('flipSavedId', () => {
+  it('is pure: repeated calculation of one press gives the same set', () => {
+    // React may run the updater twice for one dispatch. A derivation from
+    // `prev` lands the same answer twice; a side-effecting flip does not.
+    const prev = ['day:0']
+    expect(flipSavedId(prev, 'day:1')).toEqual(['day:0', 'day:1'])
+    expect(flipSavedId(prev, 'day:1')).toEqual(['day:0', 'day:1'])
+  })
+
+  it('two saves keep both ids with no storage read between them', () => {
+    let state: string[] = []
+    state = flipSavedId(state, 'day:0')
+    state = flipSavedId(state, 'day:1')
+    expect(state).toEqual(['day:0', 'day:1'])
+  })
+
+  it('removes the id on the press that follows the save', () => {
+    expect(flipSavedId(flipSavedId([], 'stop:abc'), 'stop:abc')).toEqual([])
+  })
+})
+
+describe('saved-set persistence', () => {
+  it('fails soft when storage is denied: no throw, and the read stays empty', () => {
+    // Node has no localStorage, which is exactly the denied path.
+    expect(() => saveSavedIds('t1', ['day:0'])).not.toThrow()
+    expect(loadSavedIds('t1')).toEqual([])
+  })
+
+  it('reloads exactly the set it saved', () => {
+    const store = new Map<string, string>()
+    const stub = {
+      getItem: (k: string) => store.get(k) ?? null,
+      setItem: (k: string, v: string) => { store.set(k, v) },
+      removeItem: (k: string) => { store.delete(k) },
+    }
+    const g = globalThis as { localStorage?: unknown }
+    const original = g.localStorage
+    g.localStorage = stub
+    try {
+      saveSavedIds('t2', ['day:1', 'stop:abc'])
+      expect(loadSavedIds('t2')).toEqual(['day:1', 'stop:abc'])
+    } finally {
+      g.localStorage = original
+    }
   })
 })

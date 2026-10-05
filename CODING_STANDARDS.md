@@ -663,6 +663,13 @@ anywhere in this repo means the entry labelled `6b` below.
    never moves. You must poll with `setTimeout`. You must land a scroll after
    the layout settles, or the target drifts. You must check a scroll by class
    and probe, not by `scrollY`. Script-driven scroll needs frames too.
+ 6al. **A class rename must move the class's whole selector family (learned
+   2026-10-06, MR9).** Renaming `.day-rail-chip` to `.day-rail-card` left one
+   selector behind. The `[aria-current]` rule stayed on the dead name, so the
+   current-day marker silently died. The green pins hid it: a sibling rule on
+   the new name already passed. You must grep the old class through
+   `styles.css` before the rename lands. Each selector must take the new
+   name or die with the old one.
 
 ## 2. Conventions (`AGENTS.md` §4)
 

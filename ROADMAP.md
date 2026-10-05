@@ -512,8 +512,17 @@ Neither decision touches a colour value, per [ADR 0002](docs/adr/0002-mockup-pal
     rather than crashing the timeline. **Verified in the browser** on a real trip: 11 hearts
     (3 days, 8 stops), the Day 1 heart pressed and persisted as `["day:0"]` while every stop heart
     stayed off. The class is `.tl-save-heart`, not `.save-heart` — the cover picker owns that one.
-- [ ] **MR9. Sticky section nav with scroll-spy.** `src/pages/TripWorkspace.tsx`. One nav that
-  tracks the section in view. Must respect `prefers-reduced-motion` (AGENTS.md §2.10).
+- [x] **MR9. Sticky section nav with scroll-spy.** One nav that tracks the section in view. Must
+  respect `prefers-reduced-motion` (AGENTS.md §2.10).
+  - **Landed 2026-10-06, resolved against the tab model (P8).** D1 keeps the routed tabs. So
+    this adds no second navigation system. The one nav is the day rail. The sections in view
+    are the Timeline's days. The rail marks the day in view in review mode. It marks the open
+    day otherwise. The jump offset and the spy line read one measured stack height. The
+    measurement replaces a hardcoded constant. On a phone the stack is about 181px, and a jump
+    landed the day header under the bars (P4). The current-day marker is a border and a weight.
+    A warn tint cannot replace it (P4). Jumps use `scrollBehavior()`, so reduced motion is
+    honoured. Pins live in `tests/rail-spy.test.ts`. The row named `TripWorkspace.tsx`. Like
+    MR7, the day surfaces live in `src/pages/trip/TimelineTab.tsx`.
 - [ ] **MR10. Public hub discovery blocks.** `src/pages/CreatorHubPage.tsx`. Featured creators,
   trending itineraries, and a "Share your travel stories" call to action.
 - [ ] **MR11. Creator publications table.** `src/pages/CreatorPage.tsx`. My publications as a table

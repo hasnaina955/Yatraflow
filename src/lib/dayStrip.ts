@@ -9,10 +9,13 @@
 // land on the wrong day, which reads as the plan being wrong rather than the
 // strip being wrong. Pure and tested, so that failure has to argue with a case.
 //
-// THE PLACE A DAY SITS IN: the day's own title when it has one, else its first
-// stop's location. Days are not required to carry a title (most do not), and a
-// day with no stops has no place to name, so the strip prints none rather than
-// reaching into the previous day and implying a stop that is not there.
+// THE PLACE A DAY SITS IN: the location of the day's BASE stop — the last
+// stop of the day in plan order, where the day ends and you sleep. The day's
+// title is an activity description ("Arrival", "Fort visit"), never a place,
+// so it is not read here: two Jaipur days titled that way once produced a city
+// marker between two halves of one city. Rejected stops do not place the day,
+// and a base that names nowhere prints no place — the strip omits the claim
+// rather than reach into another day and imply a stop that is not there.
 //
 // THE COMPARISON IS DELIBERATELY EXACT: two strings, trimmed and lowercased.
 // "Fort Kochi" and "Kochi, India" are the same city and this will call them a
@@ -27,7 +30,8 @@ export interface DayStripItem {
   dayIndex: number
   /** "Day 3" — always present, so a card is never blank. */
   label: string
-  /** Where the day sits, or null when the day names nowhere. */
+  /** Where the day sits — its base stop's location — or null when no planned
+   *  stop names a place. The day title is never used: it describes an activity. */
   place: string | null
   /** Stops on the day, rejected ones included: the strip counts what is written. */
   stopCount: number
@@ -35,12 +39,14 @@ export interface DayStripItem {
   changesCity: boolean
 }
 
-/** The place a day sits in: its title, else its first stop's location. */
+/** The place a day sits in: its base stop's location — the last stop in plan
+ *  order (where the day ends), rejected stops excluded. Never the day title. */
 function placeOf(day: ItineraryDay): string | null {
-  const title = day.title?.trim()
-  if (title) return title
-  const first = day.stops[0]
-  const loc = first?.locationName?.trim()
+  const planned = day.stops
+    .filter(s => s.status !== 'rejected')
+    .sort((a, b) => a.orderInDay - b.orderInDay)
+  const base = planned[planned.length - 1]
+  const loc = base?.locationName?.trim()
   return loc ? loc : null
 }
 

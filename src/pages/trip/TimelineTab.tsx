@@ -10,19 +10,29 @@
 import React, { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowRight } from 'lucide-react'
 import { dayStripItems } from '../../lib/dayStrip'
-import { loadSavedIds, toggleSavedId } from '../../lib/uiPrefs'
+import { loadSavedIds, saveSavedIds, flipSavedId } from '../../lib/uiPrefs'
 
 /**
  * MR8: the hearts' saved set. It lives in lib/uiPrefs, so it survives a reload
  * without becoming trip data — it is never shared with the crew, which is why
  * it needs no sync and no undo. The hook owns the list so every heart on the
  * page re-renders from one read.
+ *
+ * S1: the set is DERIVED from the previous state and persisted after the
+ * change. A side-effecting updater (read storage, flip, write storage) is not
+ * safe under React's repeated calculation: Strict Mode runs the updater
+ * twice, so one press flips twice. And when storage is denied, every read
+ * comes back empty, so each toggle dropped the ids saved before it. State is
+ * the authority; the write mirrors it and may fail silently.
  */
 function useSavedSet(tripId: string) {
   const [savedIds, setSavedIds] = useState<string[]>(() => loadSavedIds(tripId))
   const toggleSaved = useCallback((id: string) => {
-    setSavedIds(() => toggleSavedId(tripId, id))
-  }, [tripId])
+    setSavedIds(prev => flipSavedId(prev, id))
+  }, [])
+  useEffect(() => {
+    saveSavedIds(tripId, savedIds)
+  }, [tripId, savedIds])
   return { savedIds, toggleSaved }
 }
 import { InlineIcon } from '../../components/icons'
@@ -63,6 +73,26 @@ import { MoveStopModal } from './timeline/MoveStopModal'
 /** Shared empty array so the memoized DaySections' `warnings` prop keeps a
  *  stable reference for days without warnings (`?? []` would defeat the memo). */
 const NO_WARNINGS: ScheduleWarning[] = []
+
+/** The bottom edge, px, of the bars stuck to the top of the viewport — the
+ *  space a jumped-to card must clear (P4). MEASURED, never assumed: the stack
+ *  is the floating nav, plus the sticky day rail in review, and it differs per
+ *  width (84px desktop, ~181px on a phone). Only top-anchored bars count. A
+ *  full-screen layer is excluded by the height cap. */
+function measureStickyStack(): number {
+  if (typeof document === 'undefined') return 0
+  let bottom = 0
+  for (const el of Array.from(document.querySelectorAll<HTMLElement>('body *'))) {
+    const s = getComputedStyle(el)
+    if (s.position !== 'sticky' && s.position !== 'fixed') continue
+    const top = parseFloat(s.top)
+    if (!Number.isFinite(top) || top > 120) continue
+    const h = el.offsetHeight
+    if (h === 0 || h > 240) continue
+    bottom = Math.max(bottom, top + h)
+  }
+  return bottom
+}
 // ================= Timeline =================
 
 export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorrections, suggestionCache, onOpenBoard, focusDay, focusStopId, onFocusConsumed }: {
@@ -376,6 +406,25 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
     return () => observer.disconnect()
   }, [reviewAll, dayIndexSig])
 
+  // MR9/P4: the sticky stack is measured and published as --tl-stack. The
+  // scroll-margin on each day card reads it, so every jump lands clear of the
+  // bars, and the spy's line below reads the same number — one measurement,
+  // one answer for both. Re-measured on resize and on the review switch,
+  // which is what makes the rail enter or leave the stack.
+  const stackRef = useRef(84)
+  useEffect(() => {
+    const sync = () => {
+      stackRef.current = measureStickyStack()
+      document.documentElement.style.setProperty('--tl-stack', `${stackRef.current}px`)
+    }
+    sync()
+    window.addEventListener('resize', sync)
+    return () => {
+      window.removeEventListener('resize', sync)
+      document.documentElement.style.removeProperty('--tl-stack')
+    }
+  }, [reviewAll])
+
   // Which day the rail marks as you read (#421). The rail is the mode's own
   // orientation — the day whose card has scrolled past the sticky line — and it
   // exists so the DAY HEADER can stay in flow: measured, a header carrying the
@@ -384,19 +433,23 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
   const [currentDay, setCurrentDay] = useState<number | null>(null)
   useEffect(() => {
     if (!reviewAll) { setCurrentDay(null); return }
-    const line = 12 + 62 + 10 // the rail's own sticky offset (nav + gap)
+    const line = stackRef.current // the measured sticky stack (MR9/P4)
     let raf = 0
     const measure = () => {
       raf = 0
       let best: number | null = null
+      let first: number | null = null
       for (const part of dayIndexSig.split(',')) {
         if (!part) continue
         const idx = Number(part)
         const el = document.getElementById(`day-card-${idx}`)
         if (!el) continue
+        if (first === null) first = idx
         if (el.getBoundingClientRect().top - line <= 1) best = idx
       }
-      setCurrentDay(best)
+      // At the top of the page no card has crossed the line yet, and the day
+      // in view is the first one — the nav must not go blank there.
+      setCurrentDay(best ?? first)
     }
     const onScroll = () => { if (!raf) raf = requestAnimationFrame(measure) }
     measure()
@@ -675,7 +728,7 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
           <div className="day-rail-cards">
             {dayStrip.map(it => {
               const hasWarn = (dayWarnings.get(it.dayIndex)?.length ?? 0) > 0
-              const current = reviewAll && currentDay === it.dayIndex
+              const current = reviewAll ? currentDay === it.dayIndex : openDayIndex === it.dayIndex
               return (
                 <Fragment key={`d${it.dayIndex}`}>
                   {/* The transit marker belongs to the day the route MOVES on,

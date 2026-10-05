@@ -33,14 +33,52 @@ describe('dayStripItems', () => {
     expect(items.map(i => i.label)).toEqual(['Day 1', 'Day 2', 'Day 3'])
   })
 
-  it('names the place from the day title when it has one', () => {
-    const items = dayStripItems([day(0, { title: 'Kochi to Alleppey' })])
-    expect(items[0].place).toBe('Kochi to Alleppey')
+  it('never reads the day title as a place — a title names an activity (P3)', () => {
+    // "Arrival" and "Fort visit" are activity descriptions. Read as cities,
+    // two Jaipur days produced a city-change marker inside one city.
+    const items = dayStripItems([day(0, { title: 'Arrival', stops: [stop({ locationName: 'Jaipur' })] })])
+    expect(items[0].place).toBe('Jaipur')
+    const titled = dayStripItems([day(0, { title: 'Kochi to Alleppey' })])
+    expect(titled[0].place).toBeNull()
   })
 
-  it('falls back to the first stop, because most days carry no title', () => {
-    const items = dayStripItems([day(0, { stops: [stop({ locationName: 'Fort Kochi' })] })])
-    expect(items[0].place).toBe('Fort Kochi')
+  it('keeps two same-city days unmarked even when their titles differ', () => {
+    const items = dayStripItems([
+      day(0, { title: 'Arrival', stops: [stop({ locationName: 'Jaipur' })] }),
+      day(1, { title: 'Fort visit', stops: [stop({ locationName: 'Jaipur' })] }),
+    ])
+    expect(items.map(i => i.changesCity)).toEqual([false, false])
+  })
+
+  it('names the place from the base stop — the last in plan order', () => {
+    // The base is where the day ends and you sleep, so a drive day sits at
+    // its destination — the marker lands on the day the route moves.
+    const items = dayStripItems([day(0, { stops: [
+      stop({ locationName: 'Kochi', orderInDay: 1 }),
+      stop({ locationName: 'Munnar', orderInDay: 2 }),
+    ] })])
+    expect(items[0].place).toBe('Munnar')
+  })
+
+  it('reads plan order for the base, not array position', () => {
+    const items = dayStripItems([day(0, { stops: [
+      stop({ locationName: 'Munnar', orderInDay: 2 }),
+      stop({ locationName: 'Kochi', orderInDay: 1 }),
+    ] })])
+    expect(items[0].place).toBe('Munnar')
+  })
+
+  it('a rejected stop does not place the day', () => {
+    const items = dayStripItems([day(0, { stops: [
+      stop({ locationName: 'Kochi', orderInDay: 1 }),
+      stop({ locationName: 'Munnar', orderInDay: 2, status: 'rejected' }),
+    ] })])
+    expect(items[0].place).toBe('Kochi')
+  })
+
+  it('a base that names nowhere prints no place', () => {
+    const items = dayStripItems([day(0, { stops: [stop({ locationName: '  ' })] })])
+    expect(items[0].place).toBeNull()
   })
 
   it('prints no place for a day that names nowhere, rather than reusing the last one', () => {

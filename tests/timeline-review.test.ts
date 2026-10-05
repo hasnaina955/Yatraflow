@@ -139,9 +139,10 @@ describe('review mode is a continuous read, oriented by the day rail (#421)', ()
     expect(tab).toMatch(/\(days\.length >= 4 \|\| reviewAll\) && \(/)
     expect(tab).toMatch(/aria-current=\{current \? 'true' : undefined\}/)
     // MR7 renamed the loop variable: the rail renders the derived strip now, so
-    // the item is `it` and its index is `it.dayIndex`. The behaviour this case
-    // exists for — marking the day the reader is in — is unchanged.
-    expect(tab).toMatch(/const current = reviewAll && currentDay === it\.dayIndex/)
+    // the item is `it` and its index is `it.dayIndex`. MR9 marks the day the
+    // reader is in on both modes: the day in view in review, the open day
+    // otherwise.
+    expect(tab).toMatch(/const current = reviewAll \? currentDay === it\.dayIndex : openDayIndex === it\.dayIndex/)
     expect(tab).toMatch(/if \(el\.getBoundingClientRect\(\)\.top - line <= 1\) best = idx/)
     expect(css).toMatch(/\.day-rail-card\[aria-current='true'\] \{/)
   })

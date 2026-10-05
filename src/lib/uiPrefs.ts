@@ -230,15 +230,15 @@ export function saveSavedIds(tripId: string, ids: string[]): void {
 }
 
 /**
- * Flip one id and return the new list, so a caller sets state from the SAME
- * read it wrote. Reading the list again on the next render is what makes a
- * heart that appears not to save, or a toggle that fires twice on one id.
+ * Flip one id against the CURRENT set, with no I/O. The caller derives the
+ * next set from React's previous state and persists that exact set after the
+ * change. An updater that reads and writes storage is not safe under React's
+ * repeated calculation (Strict Mode runs it twice, so the flip lands twice),
+ * and a storage read inside it loses the session when storage is denied —
+ * each toggle then starts from empty and drops the ids saved before it.
  */
-export function toggleSavedId(tripId: string, id: string): string[] {
-  const current = loadSavedIds(tripId)
-  const next = current.includes(id) ? current.filter(x => x !== id) : [...current, id]
-  saveSavedIds(tripId, next)
-  return next
+export function flipSavedId(current: string[], id: string): string[] {
+  return current.includes(id) ? current.filter(x => x !== id) : [...current, id]
 }
 
 // ---- Generic named string prefs ----

@@ -24,6 +24,52 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 - **`npm run check:ui` — a gate for the mechanical design rules.** It enforces the three that can be decided with no false positives: no `transition: all`, no raw `z-index` at or above 999, and no blocked pinch-zoom in the viewport meta. Each finding names the file, the line, the offending source and why it matters. The remaining candidate rules were measured against this codebase and deliberately left out — `scale()` on hover has 9 sites that are all correct, emoji-as-icons has 403 codepoints that are mostly the weather map and user-chosen trip content, and blanket line-height normalisation would be ~25 false findings. A gate that fires on correct code gets ignored, so the exclusions are recorded in the script itself rather than quietly dropped. Pass `--json` for machine output.
 - **`docs/UI-REVIEW-CHECKLIST.md` — the review notes worth keeping.** It records the chart-type verdict for every surface that draws data (all correct, nothing to change), the five-point pre-flight for new UI, the rules this codebase deliberately deviates from, and the three ways a generic checklist reports defects that do not exist.
 
+- **Every trip card now says what to do next, and how much of the plan exists.** My Trips
+  prints the one action worth doing under each trip's chips. A chevron carries the card's own
+  link, so the line navigates like the rest of the card. A bar and a count report the planned
+  days. `src/lib/tripNextStep.ts` derives both, and 16 tests pin the order. Set the dates
+  first, because a draft has no days to plan. Then the earliest empty day, because it blocks
+  every day after it. Then the earliest stop that needs a booking. Then the earliest suggestion
+  to confirm. A cover photo waits for last. A rejected stop blocks nothing, so a day left with
+  only rejected stops still counts as unplanned. A finished trip reads "Ready to travel" and
+  drops the chevron, because there is nothing left to open. The bar is the 5px meter the day
+  header already draws, in the same teal and the same motion, and the two read their numbers
+  from one function.
+- **The cover-photo step is reachable again.** The prototype counted any cover emoji as a
+  cover. Every trip is born with 🧭, because the column is `not null default '🧭'` and the
+  cover thumbnail falls back to the same glyph. A live read of every published itinerary found
+  that emoji set on all of them and a photo on one, so the step never fired. A chosen emoji
+  counts now. The default compass does not.
+- **My Trips can now be filtered by what each trip still needs.** Five tabs sit under the
+  toolbar, each with a live count: all trips, needs dates, needs planning, needs booking, and
+  ready. The tab you pick survives a reload, because the choice goes through the same
+  `lib/uiPrefs` store the per-day collapse already uses. A count comes from every trip the
+  search and the other filters leave behind, so a tab says what clicking it would show.
+  A trip needing a booking gets its own tab instead of hiding inside "needs planning". The
+  buckets are disjoint, because the derivation returns one next step per trip, so the five
+  counts add up to the page total.
+- **`npm run probe:next-step` reports the derivation against live data.** It reads every
+  published itinerary, runs it through the app's own row normalizer and next-step derivation,
+  and prints the derived label per publication plus a histogram. Pass `--json` for machine
+  output. It exits non-zero when an invariant breaks, so it doubles as a check. Run it after
+  a schema change: a renamed status or a different days shape shows up as a changed
+  histogram before a user ever sees a wrong card. A priced publication is marked, because an
+  anonymous read returns its locked days.
+- **The mockup's colour palette is not adopted, and the decision is written down.**
+  `docs/adr/0002-mockup-palette-not-adopted.md` records the decision and what it costs. The
+  mockup keeps its typography. Its page layout is adopted section by section through the
+  roadmap's MR track. Its ten swatches never reach the design tokens.
+
+### Fixed
+
+- **The test fixture no longer publishes dateless itineraries.** Three of the six published
+  itineraries carried no start or end date, which made "Set your travel dates" the most common
+  next step in the probe histogram. Every one of those three came from
+  `scripts/seedCreatorFixture.mjs`, which wrote an empty string for both dates; all three real
+  publications have real dates. The seeder now derives a fixed window from each fixture's day
+  count. Publishing a trip with no dates was never the defect, so the publish path is
+  unchanged. Rows already in the database keep their empty dates until the fixture is re-applied.
+
 ### Changed
 
 - **Split the agent operating manual into three files.** `AGENTS.md` was 1,920 lines. Every

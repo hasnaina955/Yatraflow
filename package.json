@@ -13,6 +13,7 @@
     "check:migrations": "node scripts/checkMigrations.mjs",
     "clean:env": "node scripts/clean-env.mjs",
     "check:ui": "node scripts/uiAntipatterns.mjs",
+    "probe:next-step": "node scripts/next-step-probe.mjs",
     "lint": "eslint src",
     "lint:ratchet": "node scripts/lint-ratchet.mjs",
     "lint:ste": "node scripts/lint-ste.mjs",

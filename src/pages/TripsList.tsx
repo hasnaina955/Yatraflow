@@ -1,15 +1,17 @@
 // ============ My trips ============
 import { useEffect, useMemo, useState } from 'react'
-import { Clock, Compass, Plus, Rocket, ShoppingBag, Trash2, Wallet } from 'lucide-react'
+import { ChevronRight, Clock, Compass, Plus, Rocket, ShoppingBag, Trash2, Wallet } from 'lucide-react'
 import { InlineIcon, MetaIcon } from '../components/icons'
 import { useTrips, useTrashedTrips, useUsers, useSessionUserId, useSliceReads, useTrashLoaded, useTrashFailed, tripsForUser, trashTrip, restoreTrashedTrip, restoreTrashedTripById, permanentlyDeleteTrip, fetchTrashedTrips, rereadTrips, addDemoTrips } from '../store/store'
 import { computeTotals, formatInrShort } from '../lib/engine'
+import { nextTripStep, plannedDayRatio, statusBucket, isStatusBucket, STATUS_FILTERS, type StatusBucket } from '../lib/tripNextStep'
 import { cap } from '../lib/labels'
 import { Avatar, Chip, EmptyState, toast, undoToast, ConfirmDialog } from '../components/ui'
 import { Select } from '../components/Select'
 import { loadDraft, draftIsWorthKeeping, draftAgeLabel } from '../lib/createDraft'
 import { readinessFromDraft } from '../lib/createReadiness'
 import { createFunnelOn } from '../lib/featureFlags'
+import { loadPref, savePref } from '../lib/uiPrefs'
 import { CoverThumb } from '../components/CoverThumb'
 import { ImportTripButton } from '../components/ImportTripButton'
 import { sliceState, emptyCopyFor, readState } from '../lib/readState'
@@ -19,6 +21,9 @@ import { appLink } from '../lib/appLink'
 
 type SortKey = 'recent' | 'name' | 'budget-asc' | 'budget-desc' | 'length-desc'
 type WhenKey = 'all' | 'upcoming' | 'past' | 'draft'
+
+/** localStorage key for the MR3 status tabs. See `lib/tripNextStep`. */
+const STATUS_PREF = 'trips_status_filter'
 
 /** Date-bucket helper: "upcoming" starts today or later, "past" ended before
  *  today, "draft" has no meaningful date set. Uses endDate (not startDate) so
@@ -84,8 +89,18 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
   const [style, setStyle] = useState<'all' | Trip['travelStyle']>('all')
   const [when, setWhen] = useState<WhenKey>('all')
   const [sortKey, setSortKey] = useState<SortKey>('recent')
+  // MR3. The chosen filter survives a reload through the generic string prefs
+  // in lib/uiPrefs. A stored value that names no real filter reads as 'all'.
+  const [status, setStatus] = useState<StatusBucket>(() => {
+    const saved = loadPref(STATUS_PREF, 'all')
+    return isStatusBucket(saved) ? saved : 'all'
+  })
+  function pickStatus(v: StatusBucket) {
+    setStatus(v)
+    savePref(STATUS_PREF, v)
+  }
 
-  const trips = useMemo(() => {
+  const { trips, statusCounts } = useMemo(() => {
     const mine = tripsForUser(meId)
     const today = new Date()
     const needle = q.trim().toLowerCase()
@@ -99,8 +114,15 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
       ].join(' ').toLowerCase()
       return hay.includes(needle)
     })
+    // Counts come from everything EXCEPT the status filter, so a tab says what
+    // clicking it would show. Counting the already-filtered list instead makes
+    // every tab but the active one read 0.
+    const counts = new Map<StatusBucket, number>(STATUS_FILTERS.map(f => [f.id, 0]))
+    for (const t of filtered) counts.set(statusBucket(t), (counts.get(statusBucket(t)) ?? 0) + 1)
+    counts.set('all', filtered.length)
+    const shown = filtered.filter(t => status === 'all' || statusBucket(t) === status)
     const budgetOf = (t: Trip) => computeTotals(t).costPerPersonInr
-    return filtered.sort((a, b) => {
+    shown.sort((a, b) => {
       switch (sortKey) {
         case 'name': return a.name.localeCompare(b.name)
         case 'budget-asc': return budgetOf(a) - budgetOf(b)
@@ -109,7 +131,8 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
         default: return b.updatedAt - a.updatedAt
       }
     })
-  }, [allTrips, meId, q, style, when, sortKey])
+    return { trips: shown, statusCounts: counts }
+  }, [allTrips, meId, q, style, when, sortKey, status])
 
   // style chips carry counts of the *unfiltered-by-style* set so they stay
   // stable while toggling (same behavior as Explore's style chips).
@@ -119,13 +142,19 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
     return m
   }, [allTrips, meId])
 
-  const hasFilters = q !== '' || style !== 'all' || when !== 'all' || sortKey !== 'recent'
+  const hasFilters = q !== '' || style !== 'all' || when !== 'all' || sortKey !== 'recent' || status !== 'all'
 
   // #385: ONE reset for both "Clear filters" buttons. The toolbar ghost reset
   // all four fields while the empty-state action reset three and left
   // `sortKey`, so a sort-only empty was unfixable by its own button. The
   // toolbar's set is the superset — adopt it once, call it twice.
-  function clearFilters() { setQ(''); setStyle('all'); setWhen('all'); setSortKey('recent') }
+  function clearFilters() {
+    setQ('')
+    setStyle('all')
+    setWhen('all')
+    setSortKey('recent')
+    pickStatus('all')
+  }
 
   // P4 - the unfinished trip shows up where people look for their trips. It is
   // not a trip yet, so it is not a row among them: one card, above the grid.
@@ -287,6 +316,17 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
 
           <p className="sr-only" role="status">{trips.length} {trips.length === 1 ? 'trip matches' : 'trips match'}</p>
 
+          {/* MR3 — five filters, counted from the unfiltered-by-status set. Same
+              chip row the style chips above use, so it reads as one toolbar. */}
+          <div className="explore-chips trips-status-tabs" role="group" aria-label="Trip status">
+            {STATUS_FILTERS.map(f => (
+              <button key={f.id} className={`chip clickable-chip ${status === f.id ? 'on-teal' : ''}`}
+                aria-pressed={status === f.id} onClick={() => pickStatus(f.id)}>
+                {f.label} <span className="chip-count">{statusCounts.get(f.id) ?? 0}</span>
+              </button>
+            ))}
+          </div>
+
           {trips.length === 0 ? (
             <EmptyState
               icon={<Compass size={38} aria-hidden />}
@@ -299,6 +339,12 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
             {trips.map((t, i) => {
               const totals = computeTotals(t)
               const others = (t.members ?? []).filter(m => m.userId !== meId)
+              // MR1/MR2: the card's own two answers — what to do next, and how
+              // much of the plan exists. Both read one module, so a card that
+              // is 100% planned yet still owes a booking says so on the same
+              // row instead of looking finished.
+              const step = nextTripStep(t)
+              const plan = plannedDayRatio(t)
               return (
                 <div key={t.id} className="card itin-card trip-enter" style={{ animationDelay: `calc(var(--stagger-step) * ${Math.min(i, 8)})` }}>
                   <a className="trip-card-hit" {...appLink(`/trip/${t.id}`)}>
@@ -313,6 +359,19 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
                       <div className="small muted">
                         {t.startLocation} → {t.destinations[t.destinations.length - 1] ?? t.startLocation} · {t.days.length} days
                       </div>
+                      {/* MR2 — the same 5px bar the day header draws, so the two
+                          read as one meter in two places. A trip with no days
+                          states that instead of printing "0 of 0". */}
+                      <div className="trip-plan">
+                        <div className="trip-plan-bar" role="progressbar"
+                          aria-valuenow={plan.pct} aria-valuemin={0} aria-valuemax={100}
+                          aria-label={plan.total === 0 ? 'No days planned yet' : `Planning progress: ${plan.planned} of ${plan.total} days planned`}>
+                          <span className="trip-plan-fill" style={{ width: `${plan.pct}%` }} />
+                        </div>
+                        <span className="trip-plan-text num">
+                          {plan.total === 0 ? 'No days planned yet' : `${plan.planned} of ${plan.total} days planned`}
+                        </span>
+                      </div>
                       <div className="stop-meta num">
                         <span><MetaIcon icon={ Wallet } tone="money" />~{formatInrShort(totals.costPerPersonInr)}/person</span>
                         <span><MetaIcon icon={ Clock } tone="time" />{Math.round(totals.totalTravelMinutes / 60)}h travel</span>
@@ -320,6 +379,14 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
                       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
                         <Chip tone="teal">{cap(t.travelStyle)}</Chip>
                         {(t.members ?? []).length > 1 && <Chip tone="info">{(t.members ?? []).length} planners</Chip>}
+                      </div>
+                      {/* MR1 — the single next action, inside the card's own hit
+                          target, so it navigates like the rest of the card. A
+                          finished trip gets no chevron: the glyph promises a
+                          destination, and there is nothing left to open. */}
+                      <div className={`trip-next${step.kind === 'done' ? ' is-done' : ''}`}>
+                        <span className="trip-next-label">{step.label}</span>
+                        {step.kind !== 'done' && <ChevronRight className="trip-next-chevron" size={15} aria-hidden />}
                       </div>
                     </div>
                   </a>

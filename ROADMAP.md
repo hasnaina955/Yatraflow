@@ -408,6 +408,95 @@ one `platform_invites` entity — detailed execution guide in
 
 ---
 
+### MR — "Mockup adoption" (trip-list and trip-page ideas from `C:\Users\hasna\yatraflow-mockup`)
+
+**Origin.** A four-page static mockup folder, built outside the repo and never reconciled with
+`docs/redesign/ALIGNMENT.md`. It proposes new layout, new interactions and a second palette.
+
+**The palette is out of scope.** You ruled it out. Its ten swatches have zero occurrences in
+`src/styles.css`, and the shipped `--yf-*` layer stays authoritative. Every row below adopts a
+layout or interaction idea and re-points it at the existing tokens. No row changes a colour value.
+
+**This is a second direction, not a follow-up.** The CTI redesign is already shipped and audited
+through M6, with 351 lines and 425 occurrences of `--yf-*` in `src/styles.css`. Read
+`docs/redesign/YATRAFLOW_DESIGN_DIRECTION.md` before you start any row. Two mockup ideas also
+contradict a decision the repo already made, and you must settle those before any code moves.
+
+**Two decisions, now settled.** Both change what a page is, not how it looks.
+
+| # | Decision | The mockup said | Settled | Why |
+|---|---|---|---|---|
+| D1 | Trip page shape | One scrolling page with six sections | **Keep the four tabs.** Adopt the section contents. | The Map tab holds a persistent MapLibre canvas and a search panel. A scrolling page has no place to pin them. |
+| D2 | Mobile navigation | Fixed bottom tabbar with four destinations | **Adopt it, behind `VITE_MOBILE_TABBAR`, and ship last.** | Four destinations in one tap beats two taps through a drawer. The flag keeps the shell change reversible. |
+
+Neither decision touches a colour value, per [ADR 0002](docs/adr/0002-mockup-palette-not-adopted.md).
+
+**Sequencing.** Rows run one after another. Each is one PR, one reviewable change, one gate.
+
+- [x] **MR1. Next-step affordance on the trip card.** `src/pages/TripsList.tsx`. Show the single
+  most useful pending action on the featured trip, with a chevron.
+  - Settled by prototype. `src/lib/tripNextStep.ts` derives it, and
+    `tests/trip-next-step.test.ts` pins the order. An unfilled day comes first, because it blocks
+    every later day. A booking comes second. A suggestion comes third. A cover photo waits for
+    last. MR1 wires the function to the card and owns the click target.
+  - **Landed 2026-10-05, review still owed.** The line renders on EVERY card, not only the
+    featured one, because the page has no separately featured card. It sits inside
+    `.trip-card-hit`, so it inherits the card link. `done` drops the chevron. Two live-data
+    corrections came out of the wiring: the default 🧭 emoji does not count as a cover, and a
+    finished trip can still read 100% planned while owing a booking. **Not yet screened at 1440px
+    or 390px**, so the interaction-review gate below is still open.
+- [x] **MR2. Planning progress per trip.** `src/pages/TripsList.tsx`. A progress bar and a count of
+  planned days on every card.
+  - Settled by prototype. `plannedDayRatio` in the same module supplies the percent. **No engine
+    value exists to reuse.** An earlier draft of this row claimed one did. It does not.
+  - **Landed 2026-10-05.** The bar copies the day header's 5px meter, the same `--teal` fill and
+    the same `--t-med`/`--ease-out` width transition, so the two read as one meter in two places.
+    It carries `role="progressbar"` with the real values, and a trip with no days says so instead
+    of printing "0 of 0". **Not yet screened at 1440px or 390px.**
+- [x] **MR3. Status filter tabs with counts.** `src/pages/TripsList.tsx`. Five filters with live
+  counts. Persist the choice through `src/lib/uiPrefs.ts`, which already stores per-day collapse.
+  - **Landed 2026-10-05, review still owed.** The five filters are all trips, needs dates, needs
+    planning, needs booking, and ready. The taxonomy lives beside the derivation in
+    `src/lib/tripNextStep.ts` as `STATUS_FILTERS` and `statusBucket`, so it is unit-tested
+    without a DOM and cannot drift from the steps it groups. Counts come from the set the
+    search and the other filters leave behind, so a tab says what clicking it would show.
+    **Not yet screened at 1440px or 390px.**
+- [ ] **MR4. Grid and list view toggle.** `src/pages/TripsList.tsx`. Both layouts, persisted the
+  same way as MR3.
+- [ ] **MR5. Cover-photo prompt and solo-traveller line.** `src/pages/TripsList.tsx`. Show
+  "Add a cover photo" when a trip has none. Show avatars, or "Just you so far", in the card foot.
+- [ ] **MR6. Departure countdown.** `src/pages/TripsList.tsx`. "Departs in N days" on upcoming
+  trips only. Compute from the trip start date, never from a stored string.
+- [ ] **MR7. Day strip with transit markers.** `src/pages/TripWorkspace.tsx`, timeline tab. Days as
+  horizontal cards, with a marker where the city changes. Reuse the existing day-collapse state.
+- [ ] **MR8. Save toggles on days and experiences.** `src/pages/TripWorkspace.tsx`. A heart on each
+  day and each experience, wired to the existing shortlist store in `useShortlist.ts`. This adds a
+  new entry point, not a new store.
+- [ ] **MR9. Sticky section nav with scroll-spy.** `src/pages/TripWorkspace.tsx`. One nav that
+  tracks the section in view. Must respect `prefers-reduced-motion` (AGENTS.md §2.10).
+- [ ] **MR10. Public hub discovery blocks.** `src/pages/CreatorHubPage.tsx`. Featured creators,
+  trending itineraries, and a "Share your travel stories" call to action.
+- [ ] **MR11. Creator publications table.** `src/pages/CreatorPage.tsx`. My publications as a table
+  with status, replacing the current card grid.
+- [ ] **MR12. Mobile bottom tabbar.** `src/App.tsx` and `src/styles.css`. Gated on
+  `VITE_MOBILE_TABBAR`, per D2. Measure the trip list paint time before and after, because a
+  fixed bar reflows every page.
+
+**Verification each row must pass.** The gate is `npm run verify`, which runs tsc, the lint
+ratchet, STE lint, the full test suite and the production build. Tests alone do not prove a row.
+Each row also needs one browser screenshot at 1440px and one at 390px, saved next to the PR.
+Rows MR1, MR3, MR4, MR8 and MR12 change an interaction, so you review each with the screenshots
+before merge.
+
+**Appendix A. What the mockup offered that this plan does not adopt.** The mobile phone frame and
+the right-hand "why this design language works" list in `index.html`. Both are board furniture, not
+product. The hero banner behind the page title is a candidate only if MR12 lands, because it
+competes with a fixed tabbar for vertical space.
+
+**Appendix B. Risks.** MR11 replaces a working card grid, so it is the highest regression risk.
+MR12 touches the app shell, so it is the widest blast radius. Both land last for that reason. The
+imagery in `assets/` is AI-generated per `_gen3.json`, so no row may ship those files.
+
 ## 🟣 UI-audit remediation
 
 **Historical audit: 32/32 repaired. Workspace tab audit: 5/8 repaired.**

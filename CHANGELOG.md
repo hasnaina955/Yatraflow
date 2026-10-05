@@ -59,6 +59,19 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
   `docs/adr/0002-mockup-palette-not-adopted.md` records the decision and what it costs. The
   mockup keeps its typography. Its page layout is adopted section by section through the
   roadmap's MR track. Its ten swatches never reach the design tokens.
+- **The trip list can now be read as a list, and an upcoming trip says how long until it leaves.**
+  Two additions to the same card. A labelled pair in the toolbar switches between the grid and a
+  one-row-per-trip list, where each cover collapses to a small thumbnail. The choice survives a
+  reload through the same preferences store the status tabs use, and the buttons carry pressed
+  states and a focus ring rather than being an unlabelled icon pair. An upcoming trip now shows
+  "Departs in 6 days", or "Departs today" and "Departs tomorrow" in words. The line disappears
+  the moment a trip leaves, and for a past or undated one, rather than counting down to nothing.
+  The count comes from the trip's own dates through the repository's single day-count helper, so
+  a daylight-saving edge cannot shift it.
+- **The cover-photo prompt and the solo-traveller line were already there.** A roadmap row asked
+  for both. Checked against the code rather than assumed: the prompt is one of the six next-step
+  labels and only became reachable once the default compass emoji stopped counting as a cover,
+  and the avatars with "Just you so far" were already in the card foot. No new code was needed.
 
 ### Fixed
 

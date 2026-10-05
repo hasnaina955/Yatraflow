@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { nextTripStep, plannedDayRatio, statusBucket, isStatusBucket, STATUS_FILTERS } from '../src/lib/tripNextStep'
+import { nextTripStep, plannedDayRatio, statusBucket, isStatusBucket, STATUS_FILTERS, departureLabel } from '../src/lib/tripNextStep'
 import type { ItineraryDay, ItineraryStop, Trip } from '../src/data/types'
 
 /* The trip card's next-step line (MR1) and planning bar (MR2) read this
@@ -213,8 +213,7 @@ describe('statusBucket', () => {
   })
 })
 
-describe('isStatusBucket', () => {
-  it('accepts every filter the page draws', () => {
+describe('isStatusBucket', () => {  it('accepts every filter the page draws', () => {
     for (const f of STATUS_FILTERS) expect(isStatusBucket(f.id), f.id).toBe(true)
   })
 
@@ -222,5 +221,49 @@ describe('isStatusBucket', () => {
     for (const bad of ['', 'nope', 'ALL', 'null', '__proto__', null, undefined]) {
       expect(isStatusBucket(bad as string), String(bad)).toBe(false)
     }
+  })
+})
+
+describe('departureLabel', () => {
+  const on = (y: number, m: number, d: number) => new Date(y, m - 1, d, 9, 30)
+  const dated = (startDate: string, endDate: string) => trip({ startDate, endDate })
+
+  it('counts down to a trip that has not left yet', () => {
+    expect(departureLabel(dated('2026-10-20', '2026-10-24'), on(2026, 10, 14)))
+      .toBe('Departs in 6 days')
+  })
+
+  it('says today and tomorrow in words, not numbers', () => {
+    expect(departureLabel(dated('2026-10-14', '2026-10-18'), on(2026, 10, 14))).toBe('Departs today')
+    expect(departureLabel(dated('2026-10-15', '2026-10-18'), on(2026, 10, 14))).toBe('Departs tomorrow')
+  })
+
+  it('says nothing for a trip that has already ended', () => {
+    expect(departureLabel(dated('2026-10-01', '2026-10-05'), on(2026, 10, 14))).toBeNull()
+  })
+
+  it('says nothing once a trip has departed, even while it is still running', () => {
+    // Started yesterday and ends next week. It has LEFT, so a countdown would
+    // be counting down to nothing — and "Departs today" would be a day stale.
+    expect(departureLabel(dated('2026-10-13', '2026-10-20'), on(2026, 10, 14))).toBeNull()
+  })
+
+  it('says nothing for an undated trip, rather than counting from nothing', () => {
+    expect(departureLabel(trip({ startDate: '', endDate: '' }), on(2026, 10, 14))).toBeNull()
+  })
+
+  it('says nothing for an unparseable date instead of printing NaN days', () => {
+    expect(departureLabel(dated('not-a-date', 'also-not'), on(2026, 10, 14))).toBeNull()
+  })
+
+  it('refuses an impossible date rather than counting to it', () => {
+    expect(departureLabel(dated('2026-02-30', '2026-03-02'), on(2026, 10, 14))).toBeNull()
+  })
+
+  it('counts whole days across a daylight-saving change', () => {
+    // US DST ends 2026-11-01. Both ends are pinned to local midnight, so a
+    // 23-hour day must not shorten the gap to 6.95 and round to 7 twice over.
+    const label = departureLabel(dated('2026-11-08', '2026-11-12'), on(2026, 11, 1))
+    expect(label).toBe('Departs in 7 days')
   })
 })

@@ -8266,3 +8266,35 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
    Appended at EOF with the MR1/MR2 block for the same reason: the design-system
    baseline is keyed by styles.css line number. */
 .trips-status-tabs { margin: -6px 0 16px; }
+
+/* ---------- MR4/MR6 - view toggle, list rows, departure line ----------
+   Appended at EOF with the other MR blocks for the same reason: the
+   design-system baseline is keyed by styles.css line number. */
+.view-toggle { display: inline-flex; gap: 2px; padding: 2px; border: 1px solid var(--line); border-radius: var(--radius-sm); }
+.view-toggle-btn {
+  display: grid; place-items: center; width: 32px; height: 28px; padding: 0;
+  border: 0; border-radius: calc(var(--radius-sm) - 2px); background: transparent;
+  color: var(--text-3); cursor: pointer;
+  transition: background var(--t-fast) var(--ease-out), color var(--t-fast) var(--ease-out);
+}
+.view-toggle-btn:hover { background: var(--bg-soft); color: var(--text-2); }
+.view-toggle-btn.on-teal { background: var(--teal-soft); color: var(--teal-deep); }
+.view-toggle-btn:focus-visible { outline: none; box-shadow: var(--ring); }
+.trip-departs {
+  font-size: var(--text-xs); font-weight: 600; color: var(--teal-deep);
+  font-variant-numeric: tabular-nums; margin-top: -3px;
+}
+/* List mode turns each card into one row. The cover collapses to a square
+   thumbnail so a row stays scannable, and the card foot moves to the right
+   edge instead of under the body. */
+.explore-grid.as-list { grid-template-columns: 1fr; gap: 10px; }
+.explore-grid.as-list .itin-card { flex-direction: row; align-items: stretch; }
+.explore-grid.as-list .trip-card-hit { flex: 1; display: flex; gap: 14px; align-items: flex-start; min-width: 0; }
+.explore-grid.as-list .itin-emoji { width: 96px; height: 96px; flex: none; aspect-ratio: auto; border-radius: var(--radius-sm); }
+.explore-grid.as-list .itin-body { padding: 12px 0 12px 14px; }
+.explore-grid.as-list .itin-card > .itin-meta { flex: none; align-items: center; padding: 12px 14px 12px 0; margin-top: 0; }
+.explore-grid.as-list .itin-card > .itin-meta::before { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .view-toggle-btn { transition: none; }
+}

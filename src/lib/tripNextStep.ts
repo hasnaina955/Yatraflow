@@ -1,17 +1,17 @@
 /**
- * The one thing worth doing next on a trip card.
+ * The trip card's derivations: its next-step line (MR1), its planning bar
+ * (MR2), its status filter taxonomy (MR3) and its departure countdown (MR6).
+ * Pure on purpose: no React, no store, no DOM, so each answer is testable on
+ * its own and the card only reads them.
  *
- * The derivation behind the trip card's next-step line (MR1) and its planning
- * bar (MR2). Pure on purpose: no React, no store, no DOM, so the order is
- * testable on its own and the card only reads it.
- *
- * The order below is the finding, not a taste call. An unfilled day blocks
- * every later day, because the engine plans days in sequence. A booking blocks
- * the day that carries it. A suggestion blocks nothing, so it waits. A cover
- * photo blocks nothing at all, so it waits for last.
+ * The next-step order below is the finding, not a taste call. An unfilled day
+ * blocks every later day, because the engine plans days in sequence. A booking
+ * blocks the day that carries it. A suggestion blocks nothing, so it waits. A
+ * cover photo blocks nothing at all, so it waits for last.
  */
 
 import type { ItineraryDay, ItineraryStop, Trip } from '../data/types'
+import { dayCountForRange } from './dayCount'
 
 /** What the card should offer. `done` means the trip needs nothing from you. */
 export type NextStepKind =
@@ -163,6 +163,41 @@ export function statusBucket(trip: Trip): Exclude<StatusBucket, 'all'> {
 /** True for a stored pref that names a real filter. Junk degrades to 'all'. */
 export function isStatusBucket(raw: string | null | undefined): raw is StatusBucket {
   return !!raw && STATUS_FILTERS.some(f => f.id === raw)
+}
+
+/**
+ * `yyyy-mm-dd` for a Date's LOCAL calendar day.
+ *
+ * `isoDay` in components/DateRangeCalendar is the same inverse of
+ * `localMidnightMs`, but it lives in a component module — importing it here
+ * would pull React into a pure module that node-env tests load directly. Three
+ * lines beat a framework dependency in a file the engine never renders.
+ */
+function isoOf(d: Date): string {
+  const p = (n: number) => (n < 10 ? `0${n}` : `${n}`)
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+}
+
+/**
+ * "Departs in 6 days", for a trip that has NOT left yet. Returns null the
+ * moment a trip has departed, so the card prints nothing rather than a
+ * negative countdown or a "departs today" that is a day stale.
+ *
+ * Computed from the trip's own dates, never from a stored string, and through
+ * `dayCountForRange` rather than a private copy of the span math — that helper
+ * is the repo's single day-count and it rounds, so a daylight-saving edge
+ * between today and the departure cannot shift the answer.
+ */
+export function departureLabel(trip: Trip, today: Date): string | null {
+  if (!trip.startDate) return null
+  // `dayCountForRange` counts inclusively and returns 0 for a missing,
+  // unparseable or already-elapsed range, so one subtraction turns the span
+  // into "days from now" and the same 0 covers every unusable input.
+  const days = dayCountForRange(isoOf(today), trip.startDate) - 1
+  if (days < 0) return null
+  if (days === 0) return 'Departs today'
+  if (days === 1) return 'Departs tomorrow'
+  return `Departs in ${days} days`
 }
 
 /** Planned days over total days, for the progress bar in MR2. */

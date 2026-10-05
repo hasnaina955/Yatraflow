@@ -1,10 +1,10 @@
 // ============ My trips ============
 import { useEffect, useMemo, useState } from 'react'
-import { ChevronRight, Clock, Compass, Plus, Rocket, ShoppingBag, Trash2, Wallet } from 'lucide-react'
+import { ChevronRight, Clock, Compass, LayoutGrid, Plus, Rocket, Rows3, ShoppingBag, Trash2, Wallet } from 'lucide-react'
 import { InlineIcon, MetaIcon } from '../components/icons'
 import { useTrips, useTrashedTrips, useUsers, useSessionUserId, useSliceReads, useTrashLoaded, useTrashFailed, tripsForUser, trashTrip, restoreTrashedTrip, restoreTrashedTripById, permanentlyDeleteTrip, fetchTrashedTrips, rereadTrips, addDemoTrips } from '../store/store'
 import { computeTotals, formatInrShort } from '../lib/engine'
-import { nextTripStep, plannedDayRatio, statusBucket, isStatusBucket, STATUS_FILTERS, type StatusBucket } from '../lib/tripNextStep'
+import { nextTripStep, plannedDayRatio, statusBucket, isStatusBucket, STATUS_FILTERS, departureLabel, type StatusBucket } from '../lib/tripNextStep'
 import { cap } from '../lib/labels'
 import { Avatar, Chip, EmptyState, toast, undoToast, ConfirmDialog } from '../components/ui'
 import { Select } from '../components/Select'
@@ -24,6 +24,15 @@ type WhenKey = 'all' | 'upcoming' | 'past' | 'draft'
 
 /** localStorage key for the MR3 status tabs. See `lib/tripNextStep`. */
 const STATUS_PREF = 'trips_status_filter'
+/** localStorage key for the MR4 grid/list toggle. */
+const VIEW_PREF = 'trips_view'
+
+type ViewMode = 'grid' | 'list'
+
+/** True for a stored view name. Junk degrades to the grid, today's default. */
+function isViewMode(raw: string | null | undefined): raw is ViewMode {
+  return raw === 'grid' || raw === 'list'
+}
 
 /** Date-bucket helper: "upcoming" starts today or later, "past" ended before
  *  today, "draft" has no meaningful date set. Uses endDate (not startDate) so
@@ -100,9 +109,23 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
     savePref(STATUS_PREF, v)
   }
 
+  // MR4. Grid or list, remembered through the same generic string prefs the
+  // status tab uses, so the two view choices never fight over storage. Named
+  // `layout` because `view` is already the trips/trash switch above.
+  const [layout, setLayout] = useState<ViewMode>(() => {
+    const saved = loadPref(VIEW_PREF, 'grid')
+    return isViewMode(saved) ? saved : 'grid'
+  })
+  function pickLayout(v: ViewMode) {
+    setLayout(v)
+    savePref(VIEW_PREF, v)
+  }
+
+  // MR6 reads one clock for the whole page, so every card agrees on "today".
+  const today = useMemo(() => new Date(), [])
+
   const { trips, statusCounts } = useMemo(() => {
     const mine = tripsForUser(meId)
-    const today = new Date()
     const needle = q.trim().toLowerCase()
     const filtered = mine.filter(t => {
       if (style !== 'all' && t.travelStyle !== style) return false
@@ -132,7 +155,7 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
       }
     })
     return { trips: shown, statusCounts: counts }
-  }, [allTrips, meId, q, style, when, sortKey, status])
+  }, [allTrips, meId, q, style, when, sortKey, status, today])
 
   // style chips carry counts of the *unfiltered-by-style* set so they stay
   // stable while toggling (same behavior as Explore's style chips).
@@ -312,6 +335,16 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
                 "Clear filters" while this ghost button said "Clear" — the same
                 reset under two names, both once visible in one frame. */}
             <button className="btn btn-ghost btn-sm" style={{ visibility: hasFilters ? 'visible' : 'hidden' }} onClick={clearFilters}>Clear filters</button>
+            {/* MR4 — grid or list. A labelled pair rather than one cycling button,
+                so the current choice is readable without pressing it first. */}
+            <div className="view-toggle" role="group" aria-label="Card layout">
+              <button className={`view-toggle-btn${layout === 'grid' ? ' on-teal' : ''}`}
+                aria-pressed={layout === 'grid'} aria-label="Grid view" title="Grid view"
+                onClick={() => pickLayout('grid')}><LayoutGrid size={15} aria-hidden /></button>
+              <button className={`view-toggle-btn${layout === 'list' ? ' on-teal' : ''}`}
+                aria-pressed={layout === 'list'} aria-label="List view" title="List view"
+                onClick={() => pickLayout('list')}><Rows3 size={15} aria-hidden /></button>
+            </div>
           </div>
 
           <p className="sr-only" role="status">{trips.length} {trips.length === 1 ? 'trip matches' : 'trips match'}</p>
@@ -334,11 +367,11 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
               body="Try a different search or clear the filters to see all your trips."
               action={<button className="btn btn-outline" onClick={clearFilters}>Clear filters</button>}
             />
-          ) : (
-          <div className="explore-grid">
+          ) : (            <div className={`explore-grid${layout === 'list' ? ' as-list' : ''}`}>
             {trips.map((t, i) => {
               const totals = computeTotals(t)
               const others = (t.members ?? []).filter(m => m.userId !== meId)
+              const departure = departureLabel(t, today)
               // MR1/MR2: the card's own two answers — what to do next, and how
               // much of the plan exists. Both read one module, so a card that
               // is 100% planned yet still owes a booking says so on the same
@@ -359,6 +392,9 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
                       <div className="small muted">
                         {t.startLocation} → {t.destinations[t.destinations.length - 1] ?? t.startLocation} · {t.days.length} days
                       </div>
+                      {/* MR6 — only on upcoming trips; the derivation returns null
+                          for a past or undated one, so nothing prints. */}
+                      {departure && <div className="trip-departs num">{departure}</div>}
                       {/* MR2 — the same 5px bar the day header draws, so the two
                           read as one meter in two places. A trip with no days
                           states that instead of printing "0 of 0". */}

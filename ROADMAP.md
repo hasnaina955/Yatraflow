@@ -461,12 +461,29 @@ Neither decision touches a colour value, per [ADR 0002](docs/adr/0002-mockup-pal
     without a DOM and cannot drift from the steps it groups. Counts come from the set the
     search and the other filters leave behind, so a tab says what clicking it would show.
     **Not yet screened at 1440px or 390px.**
-- [ ] **MR4. Grid and list view toggle.** `src/pages/TripsList.tsx`. Both layouts, persisted the
+- [x] **MR4. Grid and list view toggle.** `src/pages/TripsList.tsx`. Both layouts, persisted the
   same way as MR3.
-- [ ] **MR5. Cover-photo prompt and solo-traveller line.** `src/pages/TripsList.tsx`. Show
+  - **Landed 2026-10-05, review still owed.** A labelled pair in the toolbar, not one cycling
+    button, so the current choice is readable without pressing it first. List mode lays each
+    card out as one row and collapses the cover to a 96px thumbnail. Persisted through the same
+    `loadPref`/`savePref` pair MR3 uses. **Not yet screened at 1440px or 390px**, and a list row
+    is the layout most likely to need it.
+- [x] **MR5. Cover-photo prompt and solo-traveller line.** `src/pages/TripsList.tsx`. Show
   "Add a cover photo" when a trip has none. Show avatars, or "Just you so far", in the card foot.
-- [ ] **MR6. Departure countdown.** `src/pages/TripsList.tsx`. "Departs in N days" on upcoming
+  - **Satisfied without new code, 2026-10-05 — checked against `src/`, not assumed.** Both halves
+    were already true once MR1 landed. "Add a cover photo" is one of the six next-step labels, and
+    MR1's fix to the default 🧭 emoji is what made it reachable at all; before that it could never
+    render. The avatars and "Just you so far" line were already in the card foot. This row is the
+    clearest case in the track of a plan being a claim about code rather than a fact: it was
+    written as work and turned out to be a description.
+- [x] **MR6. Departure countdown.** `src/pages/TripsList.tsx`. "Departs in N days" on upcoming
   trips only. Compute from the trip start date, never from a stored string.
+  - **Landed 2026-10-05.** `departureLabel` lives beside the other card derivations and returns
+    null the moment a trip has departed, so the card prints nothing rather than a negative count
+    or a "departs today" that is a day stale. "Today" and "tomorrow" are spelled out. The span
+    goes through `dayCountForRange`, the repo's single day-count, which rounds so a
+    daylight-saving edge cannot shift it — `tests/dayCount.test.ts` guards that one home and
+    failed the first private copy of the math. **Not yet screened at 1440px or 390px.**
 - [ ] **MR7. Day strip with transit markers.** `src/pages/TripWorkspace.tsx`, timeline tab. Days as
   horizontal cards, with a marker where the city changes. Reuse the existing day-collapse state.
 - [ ] **MR8. Save toggles on days and experiences.** `src/pages/TripWorkspace.tsx`. A heart on each

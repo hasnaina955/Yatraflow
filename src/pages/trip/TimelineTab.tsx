@@ -10,6 +10,21 @@
 import React, { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowRight } from 'lucide-react'
 import { dayStripItems } from '../../lib/dayStrip'
+import { loadSavedIds, toggleSavedId } from '../../lib/uiPrefs'
+
+/**
+ * MR8: the hearts' saved set. It lives in lib/uiPrefs, so it survives a reload
+ * without becoming trip data — it is never shared with the crew, which is why
+ * it needs no sync and no undo. The hook owns the list so every heart on the
+ * page re-renders from one read.
+ */
+function useSavedSet(tripId: string) {
+  const [savedIds, setSavedIds] = useState<string[]>(() => loadSavedIds(tripId))
+  const toggleSaved = useCallback((id: string) => {
+    setSavedIds(() => toggleSavedId(tripId, id))
+  }, [tripId])
+  return { savedIds, toggleSaved }
+}
 import { InlineIcon } from '../../components/icons'
 import {
   
@@ -93,6 +108,7 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
   // MR7: what the day strip shows — the place each day sits in, and the day the
   // route moves on. Pure and unit-tested in lib/dayStrip.ts.
   const dayStrip = useMemo(() => dayStripItems(days), [days])
+  const { savedIds, toggleSaved } = useSavedSet(trip.id)
 
   // --- Collapsed-by-default accordion (docs/TIMELINE-PLAN.md Phase 1) ---
   // ONE open day per trip, persisted per trip id (uiPrefs `yatraflow_open_day`);
@@ -676,6 +692,8 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
           onLinkCommitment={handleLinkCommitment}
           warnings={dayWarnings.get(day.index) ?? NO_WARNINGS}
           onStatus={handleStatus}
+          savedIds={savedIds}
+          onToggleSaved={toggleSaved}
         />
       ))}
 

@@ -87,6 +87,14 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
   in a 373px viewport and pushed the whole document sideways, fixed with `min(520px, 100%)`. And
   renaming the day-rail chip to a card silently dropped the 40px mobile touch floor the old class
   already carried, leaving the new card at 28px; it is restored under the new name.
+- **Days and experiences can now be saved from the Timeline.** A heart sits beside each day's
+  title and on each planned stop. Saved state lives in the preferences store that already keeps
+  per-day collapse, so it survives a reload without becoming trip data — it is never shared with
+  the crew, so it needs no sync and no undo. Ids are namespaced so a day and a stop can never mean
+  the same thing. The heart is a real button, so it carries a pressed state, a label that says
+  what the press will do, and the 40px touch floor. This is deliberately not the map shortlist:
+  that tray filters out anything already added to the plan, so a day or a stop put there would have
+  been dropped on arrival.
 
 ### Fixed
 

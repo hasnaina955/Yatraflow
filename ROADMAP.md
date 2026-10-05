@@ -498,9 +498,20 @@ Neither decision touches a colour value, per [ADR 0002](docs/adr/0002-mockup-pal
     a title and two chips; the `minmax(520px, …)` floor then could not shrink and held a 520px
     card in a 373px viewport, pushing the document 161px sideways; and renaming the rail chip to
     a card silently dropped the 40px mobile touch floor that `.day-rail-chip` already carried.
-- [ ] **MR8. Save toggles on days and experiences.** `src/pages/TripWorkspace.tsx`. A heart on each
+- [x] **MR8. Save toggles on days and experiences.** `src/pages/TripWorkspace.tsx`. A heart on each
   day and each experience, wired to the existing shortlist store in `useShortlist.ts`. This adds a
   new entry point, not a new store.
+  - **Landed 2026-10-05 — the wiring in this row could not work, and what it names is not a
+    store.** `useShortlist` holds `PlaceHit[]` in `useState` inside MapTab, and `trayShortlist`
+    filters out everything `isAlreadyAdded`. A day or an itinerary stop is already added, so
+    shortlisting one would have been a silent no-op. You chose the alternative: a saved set in
+    `lib/uiPrefs`, the store that already keeps per-day collapse — a real store, a new entry point,
+    and independent of the map tray. It never reaches `trips`, so it is not shared with the crew
+    and needs no sync or undo. Ids are namespaced `day:<n>` and `stop:<id>`, so a stop whose id is
+    `"0"` cannot collide with day 0. Seven tests pin the parsing; a corrupted value saves nothing
+    rather than crashing the timeline. **Verified in the browser** on a real trip: 11 hearts
+    (3 days, 8 stops), the Day 1 heart pressed and persisted as `["day:0"]` while every stop heart
+    stayed off. The class is `.tl-save-heart`, not `.save-heart` — the cover picker owns that one.
 - [ ] **MR9. Sticky section nav with scroll-spy.** `src/pages/TripWorkspace.tsx`. One nav that
   tracks the section in view. Must respect `prefers-reduced-motion` (AGENTS.md §2.10).
 - [ ] **MR10. Public hub discovery blocks.** `src/pages/CreatorHubPage.tsx`. Featured creators,

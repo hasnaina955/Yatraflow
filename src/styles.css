@@ -8350,3 +8350,31 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
   .day-rail-card { min-height: 40px; }
   .view-toggle-btn { min-height: 40px; min-width: 40px; }
 }
+
+/* ---------- MR8 - the save hearts ----------
+   NAMED `tl-save-heart`, NOT `save-heart`: the cover picker already owns
+   `.save-heart` (styles.css ~4013) with its own scale-on-hover, and two
+   components sharing one selector is how a cover heart ends up scaling when a
+   timeline heart is pressed. The `tl-` prefix is what the timeline's own rows
+   already use (.tl-time, .tl-root-review).
+   The hover ink is --teal-700, not --teal-deep: on --bg-soft the deeper token
+   measured 4.49:1, which fails AA. A heart is small enough that its label is
+   the only thing a low-vision reader gets, so the state has to clear. */
+.tl-save-heart {
+  flex: none; display: grid; place-items: center; min-width: 32px; min-height: 32px;
+  padding: 0; border: 0; border-radius: var(--radius-sm);
+  background: transparent; color: var(--text-3); cursor: pointer;
+  transition: color var(--t-fast) var(--ease-out), background var(--t-fast) var(--ease-out);
+}
+.tl-save-heart:hover { background: var(--bg-soft); color: var(--teal-700); }
+.tl-save-heart.on { color: var(--danger); }
+.tl-save-heart:focus-visible { outline: none; box-shadow: var(--ring); }
+.tl-save-heart--stop { min-width: 28px; min-height: 28px; }
+
+@media (pointer: coarse), (max-width: 720px) {
+  .tl-save-heart, .tl-save-heart--stop { min-width: 40px; min-height: 40px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tl-save-heart { transition: none; }
+}

@@ -72,6 +72,21 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
   for both. Checked against the code rather than assumed: the prompt is one of the six next-step
   labels and only became reachable once the default compass emoji stopped counting as a cover,
   and the avatars with "Just you so far" were already in the card foot. No new code was needed.
+- **The Timeline's day rail now says where you are and when the route moves.** Each chip became a
+  card carrying the place that day sits in and its stop count, with a marker on the day the city
+  changes rather than the day before it. The jump and the day-collapse behaviour behind it are
+  unchanged — this is the rail that already existed, made legible. The two facts it shows come
+  from a new pure module with eleven tests, because the marker sits on a boundary and an off-by-one
+  would place it on the wrong day, which reads as the plan being wrong rather than the strip being
+  wrong. A day that names no place prints none, and an unnamed day between two named ones does not
+  make the second look like a change.
+- **Three layout defects, found by measuring the trip list at 1440px and 390px against real
+  trips.** A full-width list column produced 1140px rows holding a title and two chips, so half the
+  screen was whitespace; the rows now keep a readable measure and the grid takes more of them. The
+  replacement used `minmax(520px, 1fr)`, whose floor cannot shrink — at 390px it held a 520px card
+  in a 373px viewport and pushed the whole document sideways, fixed with `min(520px, 100%)`. And
+  renaming the day-rail chip to a card silently dropped the 40px mobile touch floor the old class
+  already carried, leaving the new card at 28px; it is restored under the new name.
 
 ### Fixed
 

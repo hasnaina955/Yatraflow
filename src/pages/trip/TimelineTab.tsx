@@ -7,7 +7,9 @@
 // Mechanical extraction from src/pages/TripWorkspace.tsx (M3.4) — no behavior changes.
 // Includes DaySection, DayWeatherChip, TravelPanel, HaltPlanRow, DaySpark,
 // MoveStopModal and ClampedText — the whole timeline hot path.
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import React, { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { ArrowRight } from 'lucide-react'
+import { dayStripItems } from '../../lib/dayStrip'
 import { InlineIcon } from '../../components/icons'
 import {
   
@@ -88,6 +90,9 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
   // Sorted once per trip change — a stable array of stable day references so
   // the memoized DaySections below only re-render when their own data changes.
   const days = useMemo(() => [...trip.days].sort((a, b) => a.index - b.index), [trip.days])
+  // MR7: what the day strip shows — the place each day sits in, and the day the
+  // route moves on. Pure and unit-tested in lib/dayStrip.ts.
+  const dayStrip = useMemo(() => dayStripItems(days), [days])
 
   // --- Collapsed-by-default accordion (docs/TIMELINE-PLAN.md Phase 1) ---
   // ONE open day per trip, persisted per trip id (uiPrefs `yatraflow_open_day`);
@@ -614,20 +619,40 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
       )}
 
       {/* #421: in review the rail is the mode's navigation, so it appears for
-          any trip length — and it marks the day you are in as you scroll. */}
+          any trip length — and it marks the day you are in as you scroll.
+          MR7: the chip became a card carrying the place that day sits in and a
+          stop count, with a marker on the day the route moves on. The jump and
+          the day-collapse state behind it are untouched — same rail, richer. */}
       {(days.length >= 4 || reviewAll) && (
         <div className="day-rail" role="navigation" aria-label="Jump to day">
           <span className="day-rail-label">Jump to day</span>
-          <div className="day-rail-chips">
-            {days.map(d => {
-              const hasWarn = (dayWarnings.get(d.index)?.length ?? 0) > 0
-              const current = reviewAll && currentDay === d.index
+          <div className="day-rail-cards">
+            {dayStrip.map(it => {
+              const hasWarn = (dayWarnings.get(it.dayIndex)?.length ?? 0) > 0
+              const current = reviewAll && currentDay === it.dayIndex
               return (
-                <button key={d.id} type="button" className={`day-rail-chip ${hasWarn ? 'warn' : ''}`}
-                  aria-current={current ? 'true' : undefined}
-                  onClick={() => jumpToDay(d.index)}>
-                  Day {d.index + 1}{hasWarn && <InlineIcon icon={TriangleAlert} size={11} gap={0} vAlign="-1px" style={{ marginLeft: 3 }} />}
-                </button>
+                <Fragment key={`d${it.dayIndex}`}>
+                  {/* The transit marker belongs to the day the route MOVES on,
+                      so it renders before that day's card, never after the last
+                      one — there is no day 0 boundary to mark. */}
+                  {it.changesCity && (
+                    <span className="day-rail-transit" aria-hidden>
+                      <InlineIcon icon={ArrowRight} size={12} gap={0} />
+                    </span>
+                  )}
+                  <button type="button" className={`day-rail-card${hasWarn ? ' warn' : ''}`}
+                    aria-current={current ? 'true' : undefined}
+                    onClick={() => jumpToDay(it.dayIndex)}>
+                    <span className="day-rail-card-day">
+                      {it.label}
+                      {hasWarn && <InlineIcon icon={TriangleAlert} size={11} gap={0} vAlign="-1px" style={{ marginLeft: 3 }} />}
+                    </span>
+                    {it.place && <span className="day-rail-card-place">{it.place}</span>}
+                    <span className="day-rail-card-meta">
+                      {it.stopCount} {it.stopCount === 1 ? 'stop' : 'stops'}
+                    </span>
+                  </button>
+                </Fragment>
               )
             })}
           </div>

@@ -484,8 +484,20 @@ Neither decision touches a colour value, per [ADR 0002](docs/adr/0002-mockup-pal
     goes through `dayCountForRange`, the repo's single day-count, which rounds so a
     daylight-saving edge cannot shift it — `tests/dayCount.test.ts` guards that one home and
     failed the first private copy of the math. **Not yet screened at 1440px or 390px.**
-- [ ] **MR7. Day strip with transit markers.** `src/pages/TripWorkspace.tsx`, timeline tab. Days as
+- [x] **MR7. Day strip with transit markers.** `src/pages/TripWorkspace.tsx`, timeline tab. Days as
   horizontal cards, with a marker where the city changes. Reuse the existing day-collapse state.
+  - **Landed 2026-10-05 — and the row was half-written already.** The timeline's day rail already
+    existed as a row of chips that jump to a day. This is that rail made legible, not a new surface.
+    The file named in the row is `src/pages/trip/TimelineTab.tsx`; `TripWorkspace.tsx`
+    no longer holds the day surfaces after the M3 split. The new part is the data: `dayStrip.ts`
+    derives each day's place and whether the route moves on, with 11 tests because the marker sits
+    on a BOUNDARY and an off-by-one puts it on the wrong day, which reads as the plan being wrong
+    rather than the strip being wrong. `jumpToDay` and the day-collapse state are untouched.
+  - **Screenshotted at 1440px and 390px, signed in against real trips.** Three defects found and
+    fixed, two of them introduced by this batch: a full-width list column gave 1140px rows holding
+    a title and two chips; the `minmax(520px, …)` floor then could not shrink and held a 520px
+    card in a 373px viewport, pushing the document 161px sideways; and renaming the rail chip to
+    a card silently dropped the 40px mobile touch floor that `.day-rail-chip` already carried.
 - [ ] **MR8. Save toggles on days and experiences.** `src/pages/TripWorkspace.tsx`. A heart on each
   day and each experience, wired to the existing shortlist store in `useShortlist.ts`. This adds a
   new entry point, not a new store.

@@ -8286,8 +8286,15 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 }
 /* List mode turns each card into one row. The cover collapses to a square
    thumbnail so a row stays scannable, and the card foot moves to the right
-   edge instead of under the body. */
-.explore-grid.as-list { grid-template-columns: 1fr; gap: 10px; }
+   edge instead of under the body.
+   Measured on a 1440px viewport: one full-width column gave a 1140px row
+   holding a title and two chips, so half the   screen was whitespace and the
+   eye had to travel that far between one trip and the next. The rows now
+   stay a readable measure and the grid takes more of them.
+   `min()` in the floor is load-bearing: a bare `minmax(520px, 1fr)` cannot
+   shrink below its floor, which at 390px held a 520px card in a 373px
+   viewport and pushed the whole document 161px sideways. */
+.explore-grid.as-list { grid-template-columns: repeat(auto-fill, minmax(min(520px, 100%), 1fr)); gap: 10px; }
 .explore-grid.as-list .itin-card { flex-direction: row; align-items: stretch; }
 .explore-grid.as-list .trip-card-hit { flex: 1; display: flex; gap: 14px; align-items: flex-start; min-width: 0; }
 .explore-grid.as-list .itin-emoji { width: 96px; height: 96px; flex: none; aspect-ratio: auto; border-radius: var(--radius-sm); }
@@ -8297,4 +8304,49 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 
 @media (prefers-reduced-motion: reduce) {
   .view-toggle-btn { transition: none; }
+}
+
+/* ---------- MR7 - the Timeline day strip as cards ----------
+   The rail's own scroll container keeps its old class so the existing
+   overflow-x and scrollbar-width rules still apply; only the inner row and the
+   button shape are new. Appended at EOF for the line-keyed baseline reason. */
+.day-rail-cards { display: flex; align-items: stretch; gap: 6px; overflow-x: auto; padding: 2px; scrollbar-width: thin; }
+.day-rail-card {
+  flex: 0 0 auto; display: flex; flex-direction: column; align-items: flex-start; gap: 1px;
+  min-width: 116px; max-width: 190px; padding: 8px 12px; cursor: pointer;
+  border: 1px solid var(--line); border-radius: var(--radius-sm);
+  background: var(--card); color: var(--text-2); text-align: left;
+  transition: border-color var(--t-fast) var(--ease-out), background var(--t-fast) var(--ease-out), color var(--t-fast) var(--ease-out);
+}
+.day-rail-card:hover { border-color: var(--teal); color: var(--teal-deep); background: var(--teal-soft); }
+.day-rail-card[aria-current='true'] { border-color: var(--teal); background: var(--teal-soft); color: var(--teal-deep); }
+.day-rail-card.warn { background: var(--yf-amber-100); border-color: transparent; color: var(--ink-amber); }
+.day-rail-card.warn:hover { background: var(--saffron-soft); }
+.day-rail-card-day { font-size: 12px; font-weight: 700; white-space: nowrap; }
+/* The place can be a long free-text title, so it truncates rather than
+   widening the card — the strip is a scroller, not a layout that reflows. */
+.day-rail-card-place {
+  font-size: 12px; color: var(--text-3); max-width: 100%;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.day-rail-card-meta { font-size: 11px; color: var(--text-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.day-rail-transit {
+  flex: 0 0 auto; align-self: center; display: grid; place-items: center;
+  width: 18px; height: 18px; border-radius: 999px;
+  background: var(--bg-soft); color: var(--text-3);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .day-rail-card { transition: none; }
+}
+
+/* ---------- MR7 touch floor - the day rail cards ----------
+   The mobile block above already carries `.day-rail-chip { min-height: 40px }`
+   for the 40px touch floor. MR7 renamed the element to `.day-rail-card`, and
+   the old rule silently stopped applying to it — measured at 28px tall on a
+   390px viewport. Same rule, new name. The view toggle is new in MR4 and owes
+   the floor too. */
+@media (pointer: coarse), (max-width: 720px) {
+  .day-rail-card { min-height: 40px; }
+  .view-toggle-btn { min-height: 40px; min-width: 40px; }
 }

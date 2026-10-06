@@ -613,7 +613,11 @@ the row), so it needs no screenshot.
 **Appendix A. What the mockup offered that this plan does not adopt.** The mobile phone frame and
 the right-hand "why this design language works" list in `index.html`. Both are board furniture, not
 product. The hero banner behind the page title is a candidate only if MR12 lands, because it
-competes with a fixed tabbar for vertical space.
+competes with a fixed tabbar for vertical space. The mockup's own palette is not adopted either:
+ADR 0002 keeps this app's tokens, so the card port takes the mockup's geometry and its motion,
+not its colours. The board's `.pill--overlay` shape is adopted, but its status vocabulary is not:
+the pill reads this app's own buckets, because a card must not name a status the filter tabs
+would not.
 
 **Appendix B. Risks.** MR11 changes the owner dashboard's publication rows, so it holds the
 highest regression risk of the two remaining rows. MR12 would touch the app shell, which is the
@@ -717,6 +721,7 @@ unbuilt). **Before picking up a row, and before quoting one in a plan, confirm i
 | I-24 | Pricing assistant | I-12 price history | Per-day anchor ("6 days · ₹83/day"), the ₹99–499 band, and a price-change trail. |
 | I-26 | Creator levels | I-25 reviews | Progress strip (portfolio, sales, ratings) with tier perks (Explore placement). |
 | I-44 | Mobile bottom tabbar | A measured viewport budget at 390px | The MR12 row, parked 2026-10-06. The tray already carries every destination at 720px and below. A fixed bar costs about 60px of viewport on every route, and the Timeline's sticky stack is already about 181px on a phone. Measure the paint time and the usable day-view height first. See the MR12 row. |
+| I-45 | Featured trip lead on the mockup's `.feature` geometry | A product decision on the page's hierarchy | The My Trips cards took the mockup's `.tcard` geometry on 2026-10-06, so they now differ from the featured lead above them. The lead keeps a 24px radius and a deeper shadow on purpose: it is the page's one hero, and `Variant A` was built to make it stand out. Adopt the mockup's 18px radius and hairline shadow only after deciding whether that hierarchy stays. Check `trip-featured-card` in `src/styles.css` against `.feature` in the mockup first. |
 
 ### Tier 3 — milestone-shaped, tracked as tracks (not ideas)
 

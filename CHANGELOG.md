@@ -173,6 +173,19 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ### Changed
 
+- **The My Trips cards now use the mockup's card style, in both list and grid view.** Each
+  card has the mockup's 14px radius, its hairline resting shadow and its 16/8.4 cover. A
+  status pill sits at the cover's top left. The pill reads the same status list the filter
+  tabs render. So a pill cannot name a status the tabs would not. The body reads in the
+  mockup's order: title, route, meta row, tags, departure line, progress meter. The day count
+  left the route line for the meta row, where the mockup keeps it. A hairline separates the
+  card's foot. The foot holds the crew on the left and the next action on the right. One hover
+  moves one surface. The card lifts 3px, the border darkens, and the shadow deepens. The cover
+  zooms to 1.04. Grid and list share the card, and the list view puts a 236px cover beside the
+  body. Below 760px that row stacks and the cover keeps its 16/8.4 shape. All of it runs on the
+  motion tokens, with a `prefers-reduced-motion` opt-out. The port is scoped to `.trips-page`,
+  so the Explore grid keeps the card it had.
+
 - **Split the agent operating manual into three files.** `AGENTS.md` was 1,920 lines. Every
   turn loaded all of it, whatever the task. The workflow rules, the verification gate, the code
   pitfalls and the status block shared one file. `AGENTS.md` is now 407 lines of rules and

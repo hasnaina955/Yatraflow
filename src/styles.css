@@ -8798,3 +8798,137 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
   .saved-row-link { transition: none; }
 }
 
+/* ==========================================================================
+   Mockup card style - My Trips, grid AND list
+   --------------------------------------------------------------------------
+   Ported from the external mockup's `.tcard`. One card geometry serves both
+   views: a 16/8.4 cover with a status pill on it, a 14px radius, a hairline
+   resting shadow, and a hover that lifts 3px, darkens the border, deepens the
+   shadow and zooms the cover. Every value is written in this app's own tokens
+   - the spacing ladder, the motion tokens, the shadow navy - so only the
+   geometry is the mockup's. Scoped to `.trips-page`, so the Explore grid keeps
+   the card it already had.
+   ========================================================================== */
+
+.trips-page .itin-card {
+  border-radius: 14px;
+  border-color: var(--line);
+  box-shadow: 0 1px 2px rgba(var(--shadow-navy-rgb), .05);
+  transition: transform var(--motion-slow) var(--ease-out),
+    box-shadow var(--motion-slow) var(--ease-out),
+    border-color var(--motion-slow) var(--ease-out);
+}
+/* The card, not its inner anchor, owns the lift. `.trip-card-hit` also matches
+   the shared `.trip-card-hit:hover` rule, which lifted the anchor a second time
+   inside the card - the mockup answers one hover with ONE surface moving. */
+.trips-page .trip-card-hit {
+  display: flex; flex-direction: column; flex: 1; min-width: 0;
+  transition: none;
+}
+.trips-page .trip-card-hit:hover { transform: none; box-shadow: none; }
+.trips-page .itin-card:hover {
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--line) 80%, var(--text-3));
+  box-shadow: 0 8px 24px -14px rgba(var(--shadow-navy-rgb), .28);
+}
+
+/* ---- the cover ---- */
+.trips-page .trip-card-media {
+  position: relative; overflow: hidden; flex: none;
+  aspect-ratio: 16 / 8.4; background: var(--bg-soft);
+}
+.trips-page .trip-card-media .itin-emoji {
+  width: 100%; height: 100%; aspect-ratio: auto; border-radius: 0; border-bottom: 0;
+  transition: transform var(--motion-slower) var(--ease-out);
+}
+.trips-page .itin-card:hover .trip-card-media .itin-emoji { transform: scale(1.04); }
+
+/* The mockup's status pill: a tinted capsule with a dot, top-left on the
+   cover. The label and the tint both come from the status tabs' own list, so a
+   pill can never name a status the tabs would not. */
+.trips-page .trip-card-status {
+  position: absolute; top: 10px; left: 10px; z-index: var(--z-raised);
+  height: 28px; padding: 0 var(--space-5); gap: var(--space-3);
+  font-size: 12.5px; font-weight: 700;
+  box-shadow: 0 2px 8px rgba(var(--shadow-navy-rgb), .14);
+}
+.trips-page .trip-card-status::before {
+  content: ''; flex: none; width: 8px; height: 8px;
+  border-radius: 50%; background: currentColor;
+}
+
+/* ---- the body ---- */
+.trips-page .itin-body { flex: 1; padding: var(--space-6) var(--space-7) 0; gap: var(--space-5); }
+.trips-page .trip-card-head { display: flex; flex-direction: column; gap: var(--space-1); }
+.trips-page .itin-body .card-title { font-size: 16.5px; line-height: 22px; letter-spacing: -.015em; }
+.trips-page .trip-card-route { margin: 0; font-size: 13px; line-height: 19px; color: var(--text-2); }
+.trips-page .trip-card-meta {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-4) var(--space-7);
+  margin: 0; padding: 0; list-style: none;
+  font-size: 13px; font-weight: 500; color: var(--text-2);
+}
+.trips-page .trip-card-meta li { display: inline-flex; align-items: center; gap: var(--space-4); white-space: nowrap; }
+.trips-page .trip-card-tags { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+.trips-page .trip-card-departs { margin: 0; font-size: 13px; font-weight: 600; color: var(--text-2); }
+.trips-page .trip-plan { gap: var(--space-4); }
+.trips-page .trip-plan-bar {
+  max-width: none; height: 7px; border-radius: 999px;
+  background: var(--bg-soft); border: 1px solid var(--line);
+}
+.trips-page .trip-plan-fill { border-radius: 999px; }
+
+/* ---- the foot ---- */
+.trips-page .trip-card-foot {
+  margin-top: auto; flex: none;
+  display: flex; align-items: center; gap: var(--space-5);
+  padding: var(--space-5) var(--space-7) var(--space-7);
+  border-top: 1px solid var(--line);
+}
+/* The task row is the mockup's footer action: it takes the free space and ends
+   at the right, where the mockup keeps its button. */
+.trips-page .trip-card-foot .trip-task-row {
+  flex: 1; min-width: 0; justify-content: flex-end;
+  margin: 0; padding: 0; background: transparent; border: 0;
+  font-size: 13px; font-weight: 700; color: var(--teal-deep);
+}
+.trips-page .trip-card-foot .trip-task-row.is-done { color: var(--text-3); font-weight: 500; }
+
+/* ---- list view: the same card, laid on its side ----
+   The mockup's list row is a 236px cover beside the body, and the body's foot
+   sits under the body rather than under the cover. The card grid carries the
+   cover column; the foot takes the body column on its own row, so its hairline
+   starts where the body starts. */
+.trips-page .explore-grid.as-list .itin-card {
+  display: grid; grid-template-columns: 236px minmax(0, 1fr); align-items: stretch;
+}
+.trips-page .explore-grid.as-list .trip-card-hit {
+  display: grid; grid-column: 1 / -1; grid-row: 1; gap: 0;
+  grid-template-columns: 236px minmax(0, 1fr); align-items: stretch;
+}
+.trips-page .explore-grid.as-list .trip-card-media { aspect-ratio: auto; height: 100%; }
+.trips-page .explore-grid.as-list .itin-body { padding: var(--space-6) var(--space-8) 0; }
+.trips-page .explore-grid.as-list .itin-body .card-title { font-size: 17px; }
+.trips-page .explore-grid.as-list .trip-card-foot {
+  grid-column: 2; grid-row: 2;
+  padding: var(--space-5) var(--space-8) var(--space-7);
+}
+
+/* The mockup stacks its list row below 760px, cover on top: 236px of cover
+   leaves no body at a phone width. */
+@media (max-width: 760px) {
+  .trips-page .explore-grid.as-list .itin-card { grid-template-columns: minmax(0, 1fr); }
+  .trips-page .explore-grid.as-list .trip-card-hit { grid-column: 1; grid-template-columns: minmax(0, 1fr); }
+  .trips-page .explore-grid.as-list .trip-card-media { aspect-ratio: 16 / 8.4; height: auto; }
+  .trips-page .explore-grid.as-list .itin-body { padding: var(--space-6) var(--space-7) 0; }
+  .trips-page .explore-grid.as-list .trip-card-foot {
+    grid-column: 1; padding: var(--space-5) var(--space-7) var(--space-7);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .trips-page .itin-card { transition: none; }
+  .trips-page .itin-card:hover { transform: none; }
+  .trips-page .trip-card-media .itin-emoji { transition: none; }
+  .trips-page .itin-card:hover .trip-card-media .itin-emoji { transform: none; }
+}
+

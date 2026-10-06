@@ -38,6 +38,19 @@ function isViewMode(raw: string | null | undefined): raw is ViewMode {
   return raw === 'grid' || raw === 'list'
 }
 
+/** The mockup's card carries a status pill on its cover. The pill's label and
+ *  tint both read `STATUS_FILTERS`, the same list the status tabs render, so a
+ *  pill can never say a status the tabs would not. The bucket model is this
+ *  app's own (`dates`/`planning`/`booking`/`ready`) — only the pill's shape and
+ *  place are ported. */
+const BUCKET_LABEL = new Map<string, string>(STATUS_FILTERS.map(f => [f.id, f.label]))
+const BUCKET_TONE: Record<Exclude<StatusBucket, 'all'>, string> = {
+  dates: 'chip-saffron',
+  planning: 'chip-teal',
+  booking: 'chip-info',
+  ready: 'chip-ok',
+}
+
 /** Date-bucket helper: "upcoming" starts today or later, "past" ended before
  *  today, "draft" has no meaningful date set. Uses endDate (not startDate) so
  *  a trip in progress counts as upcoming. */
@@ -440,25 +453,50 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
               // row instead of looking finished.
               const step = nextTripStep(t)
               const plan = plannedDayRatio(t)
+              const bucket = statusBucket(t)
               return (
                 <div key={t.id} className="card itin-card trip-enter" style={{ animationDelay: `calc(var(--stagger-step) * ${Math.min(i, 8)})` }}>
                   <a className="trip-card-hit" {...appLink(`/trip/${t.id}`)}>
-                    <CoverThumb
-                      variant="short"
-                      trip={t}
-                      explicitUrl={t.coverImageUrl}
-                      emoji={t.coverEmoji}
-                    />
+                    {/* Card style ported from the mockup's `.tcard`: the cover is
+                        its own clipped box, so the hover zooms the photo without
+                        moving the card, and the status pill overlays it exactly
+                        where the mockup puts one. */}
+                    <div className="trip-card-media">
+                      <CoverThumb
+                        variant="short"
+                        trip={t}
+                        explicitUrl={t.coverImageUrl}
+                        emoji={t.coverEmoji}
+                      />
+                      <span className={`chip trip-card-status ${BUCKET_TONE[bucket]}`}>
+                        {BUCKET_LABEL.get(bucket)}
+                      </span>
+                    </div>
                     <div className="itin-body">
-                      <h2 className="card-title">{t.name}</h2>
-                      <div className="small muted">
-                        {t.startLocation} → {t.destinations[t.destinations.length - 1] ?? t.startLocation} · {t.days.length} days
+                      <div className="trip-card-head">
+                        <h2 className="card-title">{t.name}</h2>
+                        <p className="trip-card-route">
+                          {t.startLocation} → {t.destinations[t.destinations.length - 1] ?? t.startLocation}
+                        </p>
+                      </div>
+                      {/* The mockup's body order: the meta row first, then the
+                          tags, then the departure line, then the progress
+                          meter. The day count left the route line for the meta
+                          row, where the mockup keeps it. */}
+                      <ul className="trip-card-meta num">
+                        <li><MetaIcon icon={ Calendar } tone="time" />{t.days.length} day{t.days.length === 1 ? '' : 's'}</li>
+                        <li><MetaIcon icon={ Wallet } tone="money" />~{formatInrShort(totals.costPerPersonInr)}/person</li>
+                        <li><MetaIcon icon={ Clock } tone="time" />{Math.round(totals.totalTravelMinutes / 60)}h travel</li>
+                      </ul>
+                      <div className="trip-card-tags">
+                        <Chip tone="teal">{cap(t.travelStyle)}</Chip>
+                        {(t.members ?? []).length > 1 && <Chip tone="info">{(t.members ?? []).length} planners</Chip>}
                       </div>
                       {/* MR6 — only on upcoming trips; the derivation returns null
                           for a past or undated one, so nothing prints. */}
-                      {departure && <div className="trip-departs num">{departure}</div>}
-                      {/* MR2 — the same 5px bar the day header draws, so the two
-                          read as one meter in two places. The label names the
+                      {departure && <p className="trip-card-departs num">{departure}</p>}
+                      {/* MR2 — the same meter the day header draws, so the two
+                          read as one measure in two places. The label names the
                           measure: activities, not route points (#647). */}
                       <div className="trip-plan">
                         <div className="trip-plan-bar" role="progressbar"
@@ -470,37 +508,31 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
                           {plan.total === 0 ? 'No days added yet' : `${plan.planned} of ${plan.total} days with activities`}
                         </span>
                       </div>
-                      <div className="stop-meta num">
-                        <span><MetaIcon icon={ Wallet } tone="money" />~{formatInrShort(totals.costPerPersonInr)}/person</span>
-                        <span><MetaIcon icon={ Clock } tone="time" />{Math.round(totals.totalTravelMinutes / 60)}h travel</span>
-                      </div>
-                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-                        <Chip tone="teal">{cap(t.travelStyle)}</Chip>
-                        {(t.members ?? []).length > 1 && <Chip tone="info">{(t.members ?? []).length} planners</Chip>}
-                      </div>
                     </div>
                   </a>
-                  {/* #645 — the task row is its own link, a SIBLING of the card
-                      link: a link must not hold a second link. The card still
-                      opens the trip; this row opens the day and the stop its
-                      own label names. A finished trip has nothing left to
-                      open, so it stays a plain row with no chevron. */}
-                  {step.kind === 'done' ? (
-                    <div className="trip-next trip-task-row is-done">
-                      <span className="trip-next-label">{step.label}</span>
-                    </div>
-                  ) : (
-                    <a className="trip-next trip-task-row" {...appLink(nextStepRoute(t, step))}>
-                      <span className="trip-next-label">{step.label}</span>
-                      <ChevronRight className="trip-next-chevron" size={15} aria-hidden />
-                    </a>
-                  )}
-                  <div className="row-between itin-meta">
+                  {/* The mockup's card foot: one band under a hairline, the crew
+                      on the left and the card's action on the right. #645 still
+                      holds — the task row is its own link, a SIBLING of the card
+                      link, because a link must not hold a second link. The card
+                      opens the trip; this row opens the day and the stop its own
+                      label names. A finished trip has nothing left to open, so it
+                      stays a plain row with no chevron. */}
+                  <div className="trip-card-foot">
                     <div className="member-stack">
                       {others.slice(0, 3).map(m => <Avatar key={m.userId} user={userOf(users, m.userId)} />)}
                       {others.length > 3 && <span className="small muted num">+{others.length - 3}</span>}
                       {!others.length && <span className="small muted">Just you so far</span>}
                     </div>
+                    {step.kind === 'done' ? (
+                      <div className="trip-next trip-task-row is-done">
+                        <span className="trip-next-label">{step.label}</span>
+                      </div>
+                    ) : (
+                      <a className="trip-next trip-task-row" {...appLink(nextStepRoute(t, step))}>
+                        <span className="trip-next-label">{step.label}</span>
+                        <ChevronRight className="trip-next-chevron" size={15} aria-hidden />
+                      </a>
+                    )}
                     <button className="icon-btn" aria-label={`Delete ${t.name}`} onClick={() => setPendingDelete(t)}><Trash2 size={14} aria-hidden /></button>
                   </div>
                 </div>

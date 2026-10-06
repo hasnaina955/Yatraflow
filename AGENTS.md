@@ -333,6 +333,7 @@ an operator corrects you on a rule with no row, add the check in the same change
 | §2.12 a merge into `test` does not close issues | `.github/workflows/issue-autoclose.yml` + `scripts/pr-auto-close.mjs`, pinned by `tests/pr-auto-close.test.ts` |
 | §6 the roadmap's version and date track the release | `tests/roadmap-status.test.ts` (against `package.json` and the newest CHANGELOG heading) |
 | §6 docs must not promise a surface the code does not have | `tests/doc-drift.test.ts` (its LIVE list) |
+| A panel painted with the glass token must carry its blur (§4 / `CODING_STANDARDS` 6an) | `tests/design-system.test.ts` → *one rule owns the popover glass*: only `.popover` may paint `var(--popover-bg)`, and it must declare `backdrop-filter` |
 | §4 conventions (RLS, SQL, providers, scripted edits) | `CODING_STANDARDS.md` + `supabase/tests/rls_contract.test.sql`; the CSS gates land in `tests/design-system.test.ts` |
 
 Both local runs and CI run the same command: `npm run verify`.

@@ -1268,6 +1268,33 @@ describe('a surface that appears carries motion (AGENTS §2.10)', () => {
     }
   })
 
+  it('one rule owns the popover glass, and it carries its blur', () => {
+    // `--popover-bg` is `var(--yf-nav-glass)`: glass is TRANSLUCENT by design,
+    // and `.popover` is the rule that makes it readable by pairing it with a
+    // backdrop-filter. A panel that copies the background and leaves the blur
+    // behind renders see-through, so the tabs and cards behind it show through
+    // the menu. That shipped on My Trips on 2026-10-06 (the operator's
+    // screenshot caught it) and was already live on the map's filters popup.
+    //
+    // One owner is the fix at the highest level available in CSS: a second
+    // panel cannot half-copy the pair, because it cannot declare the glass at
+    // all. Reuse `.popover` on the element instead.
+    const owners = cssRules.filter((r) => /background(-color)?:[^;]*var\(--popover-bg\)/.test(r.body))
+    expect(
+      owners.map((o) => normalise(o.selector)),
+      'Only `.popover` may paint `var(--popover-bg)`. A panel that restates the glass ' +
+        'background must restate the `backdrop-filter: blur(var(--yf-blur-nav)) saturate(1.2)` ' +
+        'beside it, or the panel renders see-through. Add the `popover` class to the element ' +
+        'and keep only that panel\'s own position and size in its rule.',
+    ).toEqual(['.popover'])
+    expect(
+      owners[0]?.body ?? '',
+      '.popover paints the glass background with no `backdrop-filter`: every popover in the app ' +
+        'becomes see-through. Put `backdrop-filter: blur(var(--yf-blur-nav)) saturate(1.2)` back, ' +
+        'with its `-webkit-` twin.',
+    ).toMatch(/backdrop-filter:\s*blur\(/)
+  })
+
   it('stops every container entrance under reduced motion', () => {
     // These gates read top-level rules only; a rule inside @media is invisible to
     // them. The opt-out is the one part of the mechanism they cannot check for

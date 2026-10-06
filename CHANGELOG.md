@@ -118,6 +118,13 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ### Fixed
 
+- **The map's idea-filters popup is readable now, not see-through.** The panel restated a
+  popover's background, border, radius, shadow and entrance, and left out one thing: the
+  `backdrop-filter` that goes with the glass background. Glass is translucent by design. The day
+  chips and markers behind the menu showed through it. The panel carries the `popover` class
+  now, which owns that pair in one place, and `tests/design-system.test.ts` fails when a second
+  rule paints the glass without it.
+
 - **My Trips now arrives as a sequence instead of all at once.** The hero, the page head, the
   toolbar, the viewbar and the saved shelf used to appear between two frames while the cards
   below them cascaded. A still hero above moving cards reads as a broken element, not a calm

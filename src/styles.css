@@ -7155,12 +7155,15 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .map-day-chip--ghost:hover { background: transparent; border-color: transparent; color: var(--text-2); }
 [data-theme='dark'] .map-day-chip--ghost:hover { color: var(--text); }
 .map-filters { position: relative; display: inline-flex; }
+/* Position and size only. The element carries `.popover` in TripMap.tsx, which
+   owns the glass pair — background AND `backdrop-filter`. This rule used to
+   restate all five of those declarations and lost the blur, so the panel was
+   translucent with nothing behind it to frost and the map's own chips and day
+   markers read through it. `tests/design-system.test.ts` now pins that
+   `--popover-bg` has exactly one owner. */
 .map-filters-pop {
   position: absolute; top: calc(100% + 6px); left: 0; z-index: 30;
   min-width: 210px; padding: 6px;
-  background: var(--popover-bg); border: 1px solid var(--popover-border);
-  border-radius: 12px; box-shadow: var(--shadow-soft);
-  animation: popover-in var(--motion-med) var(--ease-glide);
 }
 .map-filters-row {
   display: flex; align-items: center; gap: 8px; width: 100%;
@@ -7176,7 +7179,7 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 }
 .map-filters-row[aria-pressed='true'] { color: var(--text); font-weight: 600; }
 @media (prefers-reduced-motion: reduce) {
-  .map-filters-pop { animation: none; }
+  /* the panel's own entrance is `.popover`'s now, and its opt-out is there */
   .map-filters-row { transition: none; }
 }
 /* ============================================================

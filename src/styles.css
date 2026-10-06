@@ -3758,8 +3758,16 @@ body, .topnav, .glass, .board, .modal, .toast {
 }
 
 /* Route-level entrance: every main page change (My trips ↔ Explore ↔ a trip)
-   replays the same gentle fade+rise as workspace tab switches. */
-.route-panel { animation: routeIn .55s cubic-bezier(.22, 1, .36, 1) backwards; }
+   replays the same gentle fade+rise as workspace tab switches.
+   The duration is a token now, not the raw `.55s` this rule shipped with. That
+   rule kept its 550ms clock but paired it with cubic-bezier(.22, 1, .36, 1),
+   a curve whose peak slope puts 63% of the travel into the first 55ms — so the
+   navigation read as an instant snap. Frame samples of /trips -> /trip/:id
+   agreed: the trip page's own content lands ~217ms after the click, past the
+   point where the old curve had already finished. The arrival looked like a
+   pop. On --motion-slow the fade is still running when the content arrives,
+   and the rise is part of one motion instead of ahead of it. */
+.route-panel { animation: routeIn var(--motion-slow) var(--ease-out) backwards; }
 
 /* Drag-and-drop feedback: the carried card's original becomes a dashed slot
    (above), while any valid drop target breathes a teal ring so the landing
@@ -8951,4 +8959,79 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
   .trips-page .trip-card-media .itin-emoji { transition: none; }
   .trips-page .itin-card:hover .trip-card-media .itin-emoji { transform: none; }
 }
+
+/* ---------- My Trips — the viewbar, the segmented view control and the
+   filters dropdown ----------
+   Appended at the file's end, like the other MR blocks.
+   The arrangement is the mockup's: its `.viewbar` puts the status tabs and the
+   view segment on ONE row with the segment right-aligned (`.seg--app` carries
+   `margin-left: auto`), and its segment is labelled rather than icon-only.
+   Ours closed the wrapping `.trips-toolbar` instead, so it was the control that
+   got pushed onto a line of its own at every width — away from the tabs it
+   belongs to and from the grid it arranges. Shape ported; the colours are still
+   ours (ADR 0002 keeps the tokens). */
+
+/* the mockup's `.viewbar`: gap 14, bottom padding 14 — both on our ladder */
+.trips-viewbar {
+  display: flex; align-items: center; flex-wrap: wrap;
+  gap: var(--space-6); margin: 0 0 var(--space-7);
+}
+/* the tabs carry their own bottom margin; inside the viewbar the row's margin
+   is what spaces the row from the shelf below it */
+.trips-viewbar .trips-status-tabs { margin: 0; }
+.trips-seg {
+  margin-left: auto;
+  display: inline-flex; gap: var(--space-2); padding: var(--space-2);
+  border: 1px solid var(--line); border-radius: 999px; background: var(--card);
+}
+/* Overrides the 32x28 icon square the control had when it was icon-only: a
+   labelled segment sizes itself, and the label is what makes the current
+   choice readable without pressing it first. */
+.trips-seg .view-toggle-btn {
+  display: inline-flex; align-items: center; gap: var(--space-2);
+  width: auto; height: auto;
+  padding: var(--space-4) var(--space-6);
+  border: 0; border-radius: 999px; background: transparent;
+  color: var(--text-3); font: inherit; font-size: 12px; font-weight: 600;
+  cursor: pointer;
+  transition: color var(--motion-fast) var(--ease-out);
+}
+.trips-seg .view-toggle-btn:hover { background: transparent; color: var(--text); }
+/* Ink on the glider, never a background on the segment: the glider paints the
+   active fill, and a background that pops on the segment while the glider is
+   still sliding is the two-step switch the glider exists to remove. Light
+   mode's glider is pale teal, so the label keeps deep-teal ink; dark mode's is
+   saturated and wants dark ink — the pair every pill nav already uses. */
+.trips-seg .view-toggle-btn.on-teal,
+.trips-seg .view-toggle-btn.on-teal:hover { background: transparent; box-shadow: none; color: var(--yf-teal-700); }
+[data-theme='dark'] .trips-seg .view-toggle-btn.on-teal { color: #06251f; }
+.trips-seg .view-toggle-btn:focus-visible { outline: none; box-shadow: var(--ring); }
+
+/* The Filters trigger and its menu. The TOOLBAR claims the rung, not the menu:
+   a popup cannot raise itself out of a host that paints its own stacking
+   context, and the Explore filter bar shipped broken exactly that way — the
+   menu's last rows painted over by the cards below while the menu's own
+   z-index read a healthy 5. --z-frost (5) sits far below the glass topnav's
+   --z-nav-glass (60), so this lifts the bar over the cards and nothing else. */
+.trips-page .trips-toolbar { position: relative; z-index: var(--z-frost); }
+.trips-filters { position: relative; display: inline-flex; }
+.trips-filters-pop {
+  position: absolute; top: calc(100% + var(--space-3)); left: 0; z-index: 30;
+  display: flex; flex-direction: column; gap: var(--space-6);
+  width: min(320px, calc(100vw - var(--space-9)));
+  padding: var(--space-6);
+  background: var(--popover-bg); border: 1px solid var(--popover-border);
+  border-radius: 12px; box-shadow: var(--shadow-soft);
+  animation: popover-in var(--motion-med) var(--ease-glide);
+}
+.trips-filters-label {
+  margin: 0; font-size: var(--text-xs); font-weight: 700;
+  letter-spacing: .04em; text-transform: uppercase; color: var(--text-3);
+}
+.trips-filters-pop .explore-chips { margin-bottom: 0; }
+/* the two selects stack full width inside the menu, where the toolbar held them
+   in a min-width row */
+.trips-filters-pop .cselect { display: block; }
+.trips-filters-pop .cselect .select { width: 100%; min-width: 0; }
+@media (prefers-reduced-motion: reduce) { .trips-filters-pop { animation: none; } }
 

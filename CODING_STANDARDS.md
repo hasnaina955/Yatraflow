@@ -678,8 +678,19 @@ anywhere in this repo means the entry labelled `6b` below.
    and the numbers inside `calc()` count too — `padding-left: calc(96px + 14px)`
    fails on the 96. Use `var(--space-*)` instead of the arithmetic.
    `subPixelType` refuses a `font-size` below 11px, and `var(--text-xs)` is the
-   only size token left. Append new blocks at EOF: the contrast and duration
-   entries are keyed by line number.
+   only size token left. **Every ratchet key is declaration text now, not a line
+   number.** Each key in `tests/design-system-baseline.json` is the offending
+   declaration's own text, with the old `styles.css:<line>` prefix dropped; the
+   test file's header records why that changed. Edit a rule where it sits. Add
+   comment lines above it. A shift moves nothing. Only a change to what a rule
+   *declares* trips a gate. So append at EOF when that is where the change
+   belongs — not to protect the baseline.
+   **A migrated legacy value fails the gate until you delete its entry (learned
+   2026-10-06).** Replacing `.route-panel`'s raw `.55s` with `var(--motion-slow)`
+   made the gate report `.route-panel — animation: .55s` under "these no longer
+   reproduce — delete them from design-system-baseline.json". That message is
+   the cleanup the ratchet asks for, not a regression. Delete the line. Never
+   raise the baseline.
 
 ## 2. Conventions (`AGENTS.md` §4)
 

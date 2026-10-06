@@ -478,20 +478,32 @@ Neither decision touches a colour value, per [ADR 0002](docs/adr/0002-mockup-pal
     `src/lib/tripNextStep.ts` as `STATUS_FILTERS` and `statusBucket`, so it is unit-tested
     without a DOM and cannot drift from the steps it groups. Counts come from the set the
     search and the other filters leave behind, so a tab says what clicking it would show.
-    **Not yet screened at 1440px or 390px.**
+  - **Accepted 2026-10-06.** The tab row was screened with the view switch beside it, at both
+    widths: [`docs/screenshots/mr4-viewbar-1440.png`](docs/screenshots/mr4-viewbar-1440.png) and
+    [`mr4-viewbar-390.png`](docs/screenshots/mr4-viewbar-390.png). Six trips were on screen, and
+    the counts matched the trips under each tab.
 - [x] **MR4. Grid and list view toggle.** `src/pages/TripsList.tsx`. Both layouts, persisted the
   same way as MR3.
-  - **Landed 2026-10-05, review still owed.** A labelled pair in the toolbar, not one cycling
-    button, so the current choice is readable without pressing it first. List mode lays each
-    card out as one row. Persisted through the same `loadPref`/`savePref` pair MR3 uses.
+  - **Landed 2026-10-05, review still owed.** A labelled pair, not one cycling button, so the
+    current choice is readable without pressing it first. List mode lays each card out as one
+    row. Persisted through the same `loadPref`/`savePref` pair MR3 uses.
   - **The row's cover is the mockup's now (2026-10-06).** The row ran a 96px thumbnail inside
     the card's link, and the mockup's row runs a 236px cover the card's full height. The cover
     must sit outside the body's link to span the row, so it is its own link now. It stays out
     of the tab order and out of the accessibility tree, and the body link keeps the name.
+  - **The switch moved onto the status-tab row, 2026-10-06.** It used to close the wrapping
+    filter bar, so it wrapped onto a line of its own at every width. The mockup's own bar pairs
+    the tabs and the view segment: one row while the width holds both, the segment dropped below
+    and right-aligned when it does not (measured at 1920 and 1100, and at its own 390). Ours does
+    the same through `flex-wrap` plus `margin-left: auto` on the segment, and it labels the two
+    choices. `PillNav` slides the glider between them, and the cards re-enter on a switch because
+    the grid is keyed by the layout. The style, when and sort controls left that bar for one
+    `Filters` dropdown, which is what stopped the wrap.
   - **Acceptance (2026-10-06):** screened at 1440px and 390px, in
     [`docs/screenshots/mr4-list-1440.png`](docs/screenshots/mr4-list-1440.png) and
     [`mr4-list-390.png`](docs/screenshots/mr4-list-390.png). List mode engaged at both widths and
-    drew 6 rows. No row pushed the page sideways.
+    drew 6 rows. No row pushed the page sideways. The dropdown was screened open at 1440px in
+    [`docs/screenshots/mr4-filters-open-1440.png`](docs/screenshots/mr4-filters-open-1440.png).
 - [x] **MR5. Cover-photo prompt and solo-traveller line.** `src/pages/TripsList.tsx`. Show
   "Add a cover photo" when a trip has none. Show avatars, or "Just you so far", in the card foot.
   - **Satisfied without new code, 2026-10-05 — checked against `src/`, not assumed.** Both halves

@@ -542,27 +542,55 @@ Neither decision touches a colour value, per [ADR 0002](docs/adr/0002-mockup-pal
     A warn tint cannot replace it (P4). Jumps use `scrollBehavior()`, so reduced motion is
     honoured. Pins live in `tests/rail-spy.test.ts`. The row named `TripWorkspace.tsx`. Like
     MR7, the day surfaces live in `src/pages/trip/TimelineTab.tsx`.
-- [ ] **MR10. Public hub discovery blocks.** `src/pages/CreatorHubPage.tsx`. Featured creators,
-  trending itineraries, and a "Share your travel stories" call to action.
-- [ ] **MR11. Creator publications table.** `src/pages/CreatorPage.tsx`. My publications as a table
-  with status, replacing the current card grid.
-- [ ] **MR12. Mobile bottom tabbar.** `src/App.tsx` and `src/styles.css`. Gated on
-  `VITE_MOBILE_TABBAR`, per D2. Measure the trip list paint time before and after, because a
-  fixed bar reflows every page.
+- [ ] **MR10. Public discovery blocks — in Explore, not in the owner dashboard (P8).**
+  `src/pages/Explore.tsx`. Featured creators, trending itineraries, and a "Share your travel
+  stories" call to action.
+  - **Surface corrected 2026-10-06 (P8).** The row named `src/pages/CreatorHubPage.tsx`. That page
+    is the signed-in owner dashboard: it reads the session's own publications and shows the
+    creator their funnels and money. A visitor has none of that and never sees the page. Discovery
+    is a public surface, so it lands in Explore, which any visitor can read. `/pub/:slug` and
+    `/creator/:id` stay visitor-facing and keep their current shape.
+  - **Acceptance pending:** the blocks read from a public source, and one signed-out screenshot at
+    1440px and one at 390px are saved next to the PR.
+- [ ] **MR11. Publications table in the owner dashboard — the public profile stays public (P8).**
+  `src/pages/CreatorHubPage.tsx`. Each publication as a row with its status and its own actions.
+  - **Surface corrected 2026-10-06 (P8).** The row named `src/pages/CreatorPage.tsx`, which is the
+    public creator profile a visitor reads. It cannot carry "my publications" or an unpublish
+    action. The owner dashboard already holds that page. `HubOverview` draws one row per
+    publication from `myPubs`, with its funnel, its window and its actions, and `hubTab` splits
+    Overview from Earnings. So this row is a presentation pass over a table that exists. It is not
+    a new page, and it does not replace the public profile's grid.
+  - **Acceptance pending:** a row states its publication's status and offers that row's own
+    actions, the public profile is unchanged, and one screenshot at 1440px is saved next to the PR.
+- [ ] **MR12. Mobile bottom tabbar — parked, not dropped (2026-10-06).** `src/App.tsx` and
+  `src/styles.css`. Gated on `VITE_MOBILE_TABBAR`, per D2.
+  - **Decision (2026-10-06): do not build this row yet.** The evidence comes from `src/`, not from
+    taste. `VITE_MOBILE_TABBAR` appears nowhere in the repo, so nothing is half-built and nothing
+    is lost by waiting. The shell already serves a phone: the hamburger tray takes over at 720px
+    and carries every destination, Log in and Creator hub included. A fixed bar would hold about
+    60px of viewport on every route for good. The Timeline is where that tax hurts most, because
+    its sticky stack measures about 181px on a phone — the number the P4 repair spent its effort
+    recovering. The gain is one tap. The cost is a shell change on every route (Appendix B's
+    widest blast radius) and a shorter day view.
+  - **What would revive it:** a measurement, not a preference. Measure the trip list paint time
+    and the Timeline's usable height at 390px with the tray, then compare against a bar. The idea
+    keeps a Tier 2 row in the Idea bank, which names the dependency.
+  - **Acceptance pending:** the measurement above.
 
 **Verification each row must pass.** The gate is `npm run verify`, which runs tsc, the lint
 ratchet, STE lint, the full test suite and the production build. Tests alone do not prove a row.
 Each row also needs one browser screenshot at 1440px and one at 390px, saved next to the PR.
-Rows MR1, MR3, MR4, MR8 and MR12 change an interaction, so you review each with the screenshots
-before merge.
+Rows MR1, MR3, MR4 and MR8 change an interaction, so you review each with the screenshots
+before merge. MR12 is parked (see the row), so it needs no screenshot.
 
 **Appendix A. What the mockup offered that this plan does not adopt.** The mobile phone frame and
 the right-hand "why this design language works" list in `index.html`. Both are board furniture, not
 product. The hero banner behind the page title is a candidate only if MR12 lands, because it
 competes with a fixed tabbar for vertical space.
 
-**Appendix B. Risks.** MR11 replaces a working card grid, so it is the highest regression risk.
-MR12 touches the app shell, so it is the widest blast radius. Both land last for that reason. The
+**Appendix B. Risks.** MR11 changes the owner dashboard's publication rows, so it holds the
+highest regression risk of the two remaining rows. MR12 would touch the app shell, which is the
+widest blast radius of any row in this track — one reason it is parked rather than scheduled. The
 imagery in `assets/` is AI-generated per `_gen3.json`, so no row may ship those files.
 
 ## 🟣 UI-audit remediation
@@ -661,6 +689,7 @@ unbuilt). **Before picking up a row, and before quoting one in a plan, confirm i
 | I-22 | Publication funnel UI | the benchmark (research §5) | Per-pub views→forks→sales funnel with preview→sale conversion, against a benchmark once measured. The instrumentation behind it has shipped — the `pub_events` log with `get_creator_funnel` and its retention prune — so what is left is the per-publication view itself and the benchmark to judge it against. |
 | I-24 | Pricing assistant | I-12 price history | Per-day anchor ("6 days · ₹83/day"), the ₹99–499 band, and a price-change trail. |
 | I-26 | Creator levels | I-25 reviews | Progress strip (portfolio, sales, ratings) with tier perks (Explore placement). |
+| I-44 | Mobile bottom tabbar | A measured viewport budget at 390px | The MR12 row, parked 2026-10-06. The tray already carries every destination at 720px and below. A fixed bar costs about 60px of viewport on every route, and the Timeline's sticky stack is already about 181px on a phone. Measure the paint time and the usable day-view height first. See the MR12 row. |
 
 ### Tier 3 — milestone-shaped, tracked as tracks (not ideas)
 

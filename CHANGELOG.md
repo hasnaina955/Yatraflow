@@ -118,6 +118,14 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ### Fixed
 
+- **My Trips now arrives as a sequence instead of all at once.** The hero, the page head, the
+  toolbar, the viewbar and the saved shelf used to appear between two frames while the cards
+  below them cascaded. A still hero above moving cards reads as a broken element, not a calm
+  one. The page root owns one entrance for its own children now, staggered in DOM order, so a
+  block added to the page later cannot miss one. `tests/design-system.test.ts` fails when a
+  pinned page root has no entrance, no stagger, or no reduced-motion opt-out, and the rule table
+  in `AGENTS.md` names that check next to the rule it enforces.
+
 - **The progress meter counts activities, not route points.** The store anchors a new trip's route
   with automatic stops. Those stops have no dwell time. The meter counted one of them as a planned
   day. A trip with nothing to do on it could then read “1 of 1 days planned” and “Ready to travel”.

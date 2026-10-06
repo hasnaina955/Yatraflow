@@ -9007,4 +9007,32 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 [data-theme='dark'] .trips-seg .view-toggle-btn.on-teal { color: #06251f; }
 .trips-seg .view-toggle-btn:focus-visible { outline: none; box-shadow: var(--ring); }
 
+/* ---------- A page's own blocks arrive as one sequence (AGENTS §2.10) ----------
+   My Trips shipped five of its six top-level blocks with no motion at all and a
+   cascade on the sixth, so the hero sat above a stack of cards that moved and
+   did not move itself. A still element above an animating one reads as a broken
+   element, not a calm one.
+   The CONTAINER owns the entrance for that reason: a block added to this page
+   later cannot forget one, because it never had to remember. `.empty-state > *`
+   already worked this way, and this copies its shape.
+   Why these rules sit at the top level rather than inside the `no-preference`
+   media query that shape usually wears: every gate in tests/design-system.test.ts
+   reads top-level rules only, so a rule inside `@media` is invisible to all of
+   them. The opt-out is the one part of the mechanism a gate cannot see for us,
+   and it is asserted against the raw file. */
+.trips-page > * { animation: pageRise var(--motion-slow) var(--ease-out) backwards; }
+.trips-page > *:nth-child(2) { animation-delay: calc(var(--stagger-step) * 1); }
+.trips-page > *:nth-child(3) { animation-delay: calc(var(--stagger-step) * 2); }
+.trips-page > *:nth-child(4) { animation-delay: calc(var(--stagger-step) * 3); }
+.trips-page > *:nth-child(5) { animation-delay: calc(var(--stagger-step) * 4); }
+.trips-page > *:nth-child(6) { animation-delay: calc(var(--stagger-step) * 5); }
+/* 8px: the rise `.empty-state`'s own children use. `cardIn`'s 14px is a card's
+   lift, and a full-width page block lifting that far reads as a bounce. */
+@keyframes pageRise {
+  from { opacity: 0; transform: translateY(8px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .trips-page > * { animation: none; }
+}
+
 

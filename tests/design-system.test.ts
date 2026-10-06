@@ -1223,3 +1223,61 @@ describe('data type keeps its floor', () => {
     ratchet('subPixelType', offenders)
   })
 })
+
+describe('a surface that appears carries motion (AGENTS §2.10)', () => {
+  // Rule 10 was prose with no enforcement, and the omission was structural: the
+  // duration gate above only inspects rules that ALREADY animate, so a surface
+  // that shipped with no motion at all produced no offender and no failure. The
+  // operator corrected exactly that on 2026-10-06 — "why do I have to point out
+  // adding transitions everytime" — and the measurement agreed: on My Trips,
+  // sampled every frame for 900ms at 1440px, ONE class animated
+  // (`card itin-card trip-enter`) while the hero, the page head, the toolbar, the
+  // viewbar and the saved shelf all appeared between two frames. The hero read
+  // as broken precisely because it sat above a cascade.
+  //
+  // The mechanism is the shape `.empty-state > *` already used: the CONTAINER
+  // owns the entrance, so a block added later cannot forget one. Each page root
+  // that owns a cascade is pinned below. A new root goes in this list, and it
+  // copies the shape from `.trips-page` in styles.css.
+  const PAGE_ROOTS: { root: string; page: string }[] = [
+    { root: '.trips-page', page: 'My Trips (src/pages/TripsList.tsx)' },
+  ]
+
+  it('gives every pinned page root a container entrance for its own children', () => {
+    for (const { root, page } of PAGE_ROOTS) {
+      const entrance = cssRules.filter(
+        (r) => r.selector.startsWith(`${root} > `) && (declMap(r.body).get('animation') ?? '').includes('var(--'),
+      )
+      expect(
+        entrance.length,
+        `${page}: ${root} has no container entrance, so its blocks appear one at a time with no motion. ` +
+          `Give the root's children the shape .empty-state already uses: \`${root} > * ` +
+          `{ animation: <keyframes> var(--motion-slow) var(--ease-out) backwards }\`, plus a ` +
+          `\`prefers-reduced-motion: reduce\` opt-out.`,
+      ).toBeGreaterThan(0)
+      const staggered = cssRules.filter(
+        (r) => r.selector.startsWith(`${root} > `) &&
+          /animation-delay:\s*calc\(\s*var\(--stagger-step\)/.test(r.body),
+      )
+      expect(
+        staggered.length,
+        `${page}: the container entrance has no stagger, so the blocks are meant to arrive in DOM ` +
+          `order and cannot. Add \`nth-child\` rules with ` +
+          `\`animation-delay: calc(var(--stagger-step) * N)\`.`,
+      ).toBeGreaterThan(0)
+    }
+  })
+
+  it('stops every container entrance under reduced motion', () => {
+    // These gates read top-level rules only; a rule inside @media is invisible to
+    // them. The opt-out is the one part of the mechanism they cannot check for
+    // us, so this reads the raw file — the same trade `.trip-enter` makes.
+    for (const { root, page } of PAGE_ROOTS) {
+      expect(
+        css.includes(`${root} > * { animation: none;`),
+        `${page}: no \`prefers-reduced-motion: reduce\` opt-out for ${root} > *. ` +
+          `Write \`${root} > * { animation: none; }\` inside that media query.`,
+      ).toBe(true)
+    }
+  })
+})

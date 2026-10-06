@@ -315,6 +315,28 @@ that notices the drift.
     a clone.
 
 
+### What enforces each rule
+
+The rules above are prose, and prose does not fail a build. This table names the
+check behind each one that has a check. **A rule with no row here is a judgment
+call, and that is where repeats come from:** rule 10 (motion) sat here for months
+with nothing enforcing its *presence*, so the duration gate happily passed a
+surface that shipped with no animation at all — the operator had to point that
+out three times before anyone fixed the mechanism instead of the instance. When
+an operator corrects you on a rule with no row, add the check in the same change.
+
+| Rule | Enforced by |
+| --- | --- |
+| §2.10 motion ships with every surface | `tests/design-system.test.ts` → *a surface that appears carries motion*: each pinned page root must give its children a token-duration entrance with a `--stagger-step` delay, plus the reduced-motion opt-out; the same file pins duration/type/spacing/contrast |
+| §2.13 new prose is STE100 | `npm run lint:ste` (changed lines only) |
+| §2.14 never add lint errors | `npm run lint:ratchet` against `eslint-baseline.json`, per rule and per file |
+| §2.12 a merge into `test` does not close issues | `.github/workflows/issue-autoclose.yml` + `scripts/pr-auto-close.mjs`, pinned by `tests/pr-auto-close.test.ts` |
+| §6 the roadmap's version and date track the release | `tests/roadmap-status.test.ts` (against `package.json` and the newest CHANGELOG heading) |
+| §6 docs must not promise a surface the code does not have | `tests/doc-drift.test.ts` (its LIVE list) |
+| §4 conventions (RLS, SQL, providers, scripted edits) | `CODING_STANDARDS.md` + `supabase/tests/rls_contract.test.sql`; the CSS gates land in `tests/design-system.test.ts` |
+
+Both local runs and CI run the same command: `npm run verify`.
+
 ## 3. Verification, CI and the migration check
 
 Moved to [`docs/AGENTS-VERIFICATION.md`](docs/AGENTS-VERIFICATION.md). It answers

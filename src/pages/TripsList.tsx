@@ -456,7 +456,13 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
               const bucket = statusBucket(t)
               return (
                 <div key={t.id} className="card itin-card trip-enter" style={{ animationDelay: `calc(var(--stagger-step) * ${Math.min(i, 8)})` }}>
-                  <a className="trip-card-hit" {...appLink(`/trip/${t.id}`)}>
+                  {/* The cover hangs off the CARD, not off the body's link. A list
+                      row runs the cover the card's full height, and a child cannot
+                      leave its parent's grid area - inside the link it could only
+                      ever be as tall as the body. Its cost is a second route to the
+                      same trip, so it stays out of the tab order and out of the
+                      accessibility tree; the body link below carries the name. */}
+                  <a className="trip-card-cover" aria-hidden="true" tabIndex={-1} {...appLink(`/trip/${t.id}`)}>
                     {/* Card style ported from the mockup's `.tcard`: the cover is
                         its own clipped box, so the hover zooms the photo without
                         moving the card, and the status pill overlays it exactly
@@ -472,6 +478,8 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
                         {BUCKET_LABEL.get(bucket)}
                       </span>
                     </div>
+                  </a>
+                  <a className="trip-card-hit" {...appLink(`/trip/${t.id}`)}>
                     <div className="itin-body">
                       <div className="trip-card-head">
                         <h2 className="card-title">{t.name}</h2>

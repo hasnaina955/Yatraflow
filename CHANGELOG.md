@@ -181,10 +181,13 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
   left the route line for the meta row, where the mockup keeps it. A hairline separates the
   card's foot. The foot holds the crew on the left and the next action on the right. One hover
   moves one surface. The card lifts 3px, the border darkens, and the shadow deepens. The cover
-  zooms to 1.04. Grid and list share the card, and the list view puts a 236px cover beside the
-  body. Below 760px that row stacks and the cover keeps its 16/8.4 shape. All of it runs on the
-  motion tokens, with a `prefers-reduced-motion` opt-out. The port is scoped to `.trips-page`,
-  so the Explore grid keeps the card it had.
+  zooms to 1.04. Grid and list share the card. The list view puts a 236px cover beside the body.
+  The cover runs the row's full height, as the mockup's does. That needs the cover to sit
+  outside the body's link. So the cover is a second link to the same trip. The second link
+  stays out of the tab order and out of the accessibility tree. The body link carries the
+  trip's name, and the focus ring moves to the card. Below 760px the row stacks and the cover
+  keeps its 16/8.4 shape. All of it runs on the motion tokens, with a `prefers-reduced-motion`
+  opt-out. The port is scoped to `.trips-page`, so the Explore grid keeps the card it had.
 
 - **Split the agent operating manual into three files.** `AGENTS.md` was 1,920 lines. Every
   turn loaded all of it, whatever the task. The workflow rules, the verification gate, the code

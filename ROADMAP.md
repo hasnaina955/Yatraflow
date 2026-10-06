@@ -483,8 +483,11 @@ Neither decision touches a colour value, per [ADR 0002](docs/adr/0002-mockup-pal
   same way as MR3.
   - **Landed 2026-10-05, review still owed.** A labelled pair in the toolbar, not one cycling
     button, so the current choice is readable without pressing it first. List mode lays each
-    card out as one row and collapses the cover to a 96px thumbnail. Persisted through the same
-    `loadPref`/`savePref` pair MR3 uses.
+    card out as one row. Persisted through the same `loadPref`/`savePref` pair MR3 uses.
+  - **The row's cover is the mockup's now (2026-10-06).** The row ran a 96px thumbnail inside
+    the card's link, and the mockup's row runs a 236px cover the card's full height. The cover
+    must sit outside the body's link to span the row, so it is its own link now. It stays out
+    of the tab order and out of the accessibility tree, and the body link keeps the name.
   - **Acceptance (2026-10-06):** screened at 1440px and 390px, in
     [`docs/screenshots/mr4-list-1440.png`](docs/screenshots/mr4-list-1440.png) and
     [`mr4-list-390.png`](docs/screenshots/mr4-list-390.png). List mode engaged at both widths and

@@ -8826,6 +8826,13 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
   transition: none;
 }
 .trips-page .trip-card-hit:hover { transform: none; box-shadow: none; }
+/* The cover's own link. It exists because the cover has to sit outside the
+   body's link - see the note on the markup. The ring moves to the card below,
+   because that link now holds only the body and its own ring would outline a
+   third of the card. */
+.trips-page .trip-card-cover { display: block; flex: none; cursor: pointer; border-radius: inherit; }
+.trips-page .trip-card-hit:focus-visible { outline: none; box-shadow: none; }
+.trips-page .itin-card:has(.trip-card-hit:focus-visible) { box-shadow: var(--ring); }
 .trips-page .itin-card:hover {
   transform: translateY(-3px);
   border-color: color-mix(in srgb, var(--line) 80%, var(--text-3));
@@ -8894,18 +8901,27 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .trips-page .trip-card-foot .trip-task-row.is-done { color: var(--text-3); font-weight: 500; }
 
 /* ---- list view: the same card, laid on its side ----
-   The mockup's list row is a 236px cover beside the body, and the body's foot
-   sits under the body rather than under the cover. The card grid carries the
-   cover column; the foot takes the body column on its own row, so its hairline
-   starts where the body starts. */
+   The mockup's list row is a 236px cover beside the body, and the cover runs
+   the CARD's full height - 225px of cover beside a 225px body in a 227px card,
+   not a thumbnail sitting above the foot. So the card is a two-column,
+   two-row grid: the cover spans both rows in column 1, the body is row 1 of
+   column 2, and the foot takes row 2, where its hairline starts at the body's
+   left edge. `grid-template-rows` has to be declared for `-1` to name the
+   last row line. */
 .trips-page .explore-grid.as-list .itin-card {
-  display: grid; grid-template-columns: 236px minmax(0, 1fr); align-items: stretch;
+  display: grid; align-items: stretch;
+  grid-template-columns: 236px minmax(0, 1fr); grid-template-rows: auto auto;
 }
-.trips-page .explore-grid.as-list .trip-card-hit {
-  display: grid; grid-column: 1 / -1; grid-row: 1; gap: 0;
-  grid-template-columns: 236px minmax(0, 1fr); align-items: stretch;
-}
+.trips-page .explore-grid.as-list .trip-card-cover { grid-column: 1; grid-row: 1 / -1; min-width: 0; }
 .trips-page .explore-grid.as-list .trip-card-media { aspect-ratio: auto; height: 100%; }
+/* Re-declared, not just placed: Explore's list rule makes this column a
+   `96px 1fr` grid for its own thumbnail, and an item that only names its grid
+   area still inherits that, which wrapped the body into a 96px column. */
+.trips-page .explore-grid.as-list .trip-card-hit {
+  grid-column: 2; grid-row: 1;
+  display: flex; flex-direction: column; gap: 0; min-width: 0;
+  align-items: stretch;
+}
 .trips-page .explore-grid.as-list .itin-body { padding: var(--space-6) var(--space-8) 0; }
 .trips-page .explore-grid.as-list .itin-body .card-title { font-size: 17px; }
 .trips-page .explore-grid.as-list .trip-card-foot {
@@ -8914,14 +8930,18 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 }
 
 /* The mockup stacks its list row below 760px, cover on top: 236px of cover
-   leaves no body at a phone width. */
+   leaves no body at a phone width. The stacked row is three rows, so the cover
+   stops spanning. */
 @media (max-width: 760px) {
-  .trips-page .explore-grid.as-list .itin-card { grid-template-columns: minmax(0, 1fr); }
-  .trips-page .explore-grid.as-list .trip-card-hit { grid-column: 1; grid-template-columns: minmax(0, 1fr); }
+  .trips-page .explore-grid.as-list .itin-card {
+    grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto auto;
+  }
+  .trips-page .explore-grid.as-list .trip-card-cover { grid-column: 1; grid-row: 1; }
   .trips-page .explore-grid.as-list .trip-card-media { aspect-ratio: 16 / 8.4; height: auto; }
+  .trips-page .explore-grid.as-list .trip-card-hit { grid-column: 1; grid-row: 2; }
   .trips-page .explore-grid.as-list .itin-body { padding: var(--space-6) var(--space-7) 0; }
   .trips-page .explore-grid.as-list .trip-card-foot {
-    grid-column: 1; padding: var(--space-5) var(--space-7) var(--space-7);
+    grid-column: 1; grid-row: 3; padding: var(--space-5) var(--space-7) var(--space-7);
   }
 }
 

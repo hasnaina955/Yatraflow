@@ -203,7 +203,7 @@ export function CreatorHubPage({ onNavigate }: { onNavigate: (r: string) => void
   if (!me) return null
 
   return (
-    <div className="container hub-page">
+    <div className="container hub-page page-enter">
       <header className="hub-head">
         <div className="hub-head-id">
           <h1>Creator hub</h1>

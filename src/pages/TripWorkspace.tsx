@@ -295,10 +295,10 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
   }
 
   if ((!trip && fetchMissed) || !me) {
-    return <div className="container loading-block">Trip not found. <button className="btn btn-outline btn-sm" onClick={() => onNavigate('trips')}>Back to my trips</button></div>
+    return <div className="container loading-block page-enter">Trip not found. <button className="btn btn-outline btn-sm" onClick={() => onNavigate('trips')}>Back to my trips</button></div>
   }
   if (!trip) {
-    return <div className="container loading-block"><div className="spinner" />Loading trip…</div>
+    return <div className="container loading-block page-enter"><div className="spinner" />Loading trip…</div>
   }
 
   const effective = pending?.proposed ?? trip
@@ -357,7 +357,7 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
   }
 
   return (
-    <div className={`container${tab === 'board' ? ' container--board' : ''}${tab === 'map' ? ' container--map' : ''}`} style={{ paddingTop: 22 }}>
+    <div className={`container page-enter${tab === 'board' ? ' container--board' : ''}${tab === 'map' ? ' container--map' : ''}`} style={{ paddingTop: 22 }}>
       {/* ---------- Header ---------- */}
       <div className="trip-head-card">
         <div className="row-between">

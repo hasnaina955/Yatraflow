@@ -17,6 +17,12 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ### Added
 
+- **A browser check in CI fails a page block that appears between two frames.** `npm run check:motion` builds the app, serves it, opens four public routes and samples every block of the page root once per animation frame from before navigation. A block whose opacity and transform never change had no motion at all, so the run fails and names the block. The `motion` job runs beside `verify` in CI, and `npm run verify` still needs no browser.
+
+- **The pages a motion gate checks are discovered from the router, not typed into a list.** `tests/design-system.test.ts` reads `src/App.tsx` and takes every component App renders — a static import, a route-level `lazy()` binding, or a component declared in App itself — then requires each returned root to carry `page-enter`. A new page joins the set by existing, so it cannot ship motionless. A binding the walk cannot read is an error rather than a skip: an unreadable page must not pass as an empty one. The cascade behind the class is one shared rule, `.page-enter > *`, with its stagger and its reduced-motion opt-out beside it.
+
+- **Glass cannot be painted without its blur any more.** A rule that paints a translucent glass token must declare `backdrop-filter` in the same rule, or name its exception and its reason in the gate's list. An entry that no longer matches a rule fails too, so the list cannot outlive its reason.
+
 - **Per-repo configuration for the engineering skills.** `docs/agents/issue-tracker.md` records that issues live in this repo's GitHub Issues (driven with `gh`), alongside the three conventions that override skill defaults: one `priority: P0`–`P3` label per issue, a diagnosis posted on an issue is a claim unless it is claimed in the same breath, and merges into `test` leave issues open. `docs/agents/domain.md` sets the domain-doc layout — single-context, one root `GLOSSARY.md` and `docs/adr/` — with the consumer rules for both: look a term up before naming it, keep entries describing what the code does today, and supersede an ADR rather than rewriting its decision. `docs/agents/triage-labels.md` records the five canonical triage labels the `triage` skill applies — `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix` — and how they sit alongside this repo's own `priority: P0`–`P3` rather than replacing them: priority answers *how urgent*, the triage label answers *what state*, so an issue carries one of each. `AGENTS.md` gained the matching `## Agent skills` block.
 
 - **The domain vocabulary those skills assume now exists.** `GLOSSARY.md` defines the plan, crew, road-measurement, publishing and session terms — each entry grounded in the export that defines it, alongside the traps that have bitten readers (`day.index` vs array position, 1-based `orderInDay`, INTO-legs, unpublish-is-a-marker). `docs/adr/` holds decision records, starting with the two-branch release model that AGENTS.md already assumes. `.out-of-scope/` holds one file per rejected feature request, so `triage` stops re-litigating a decision already made — with an explicit line on what does *not* belong there (bugs, and milestone-scope deferrals, which are ROADMAP's idea bank).
@@ -118,6 +124,10 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ### Fixed
 
+- **Explore, the trip workspace, the creator hub and the public itinerary enter with motion now.** Every top-level block on those four pages appeared between two frames: the hero, the head, the tab bar and the body popped into place with nothing under them. They take the shared container cascade now — each block rises 8px over `--motion-slow`, staggered by `--stagger-step`, and stops under reduced motion. Sampled in the browser after the change: zero motionless blocks on the six routes checked.
+
+- **The bezel tray and the landing's feature cards carry the whole glass pair.** Both restated the glass background and border and left the `backdrop-filter` behind — the same split the popover shipped with. The bezel wears the `.glass` owner now and keeps only its own geometry and shadow. The feature card cannot wear it, because `.card`'s later background would win the cascade, so it declares the pair itself.
+
 - **The map's idea-filters popup is readable now, not see-through.** The panel restated a
   popover's background, border, radius, shadow and entrance, and left out one thing: the
   `backdrop-filter` that goes with the glass background. Glass is translucent by design. The day
@@ -186,7 +196,9 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
   count. Publishing a trip with no dates was never the defect, so the publish path is
   unchanged. Rows already in the database keep their empty dates until the fixture is re-applied.
 
-### Changed- **My Trips puts the view switch on the status-tab row, with travel style, when and sort as
+### Changed
+
+- **My Trips puts the view switch on the status-tab row, with travel style, when and sort as
   three separate dropdowns.** The Grid/List control used to close the wrapping filter bar, so it
   wrapped onto a line of its own at every width, away from the tabs it belongs to. It now sits on
   the status-tab row as a labelled segmented control, right-aligned, and drops below the tabs

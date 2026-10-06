@@ -256,7 +256,7 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
   }
 
   return (
-    <div className="container trips-page">
+    <div className="container trips-page page-enter">
       <div className="row-between trips-head">
         <div className="trips-head-title">
           <h1>My trips</h1>

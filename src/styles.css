@@ -2065,8 +2065,13 @@ button.board-col-zone--add:active { transform: translateY(1px); }
 .bezel {
   display: flex; flex-direction: column;
   padding: 6px; border-radius: 2rem;
-  background: var(--yf-glass); border: 1px solid var(--yf-glass-border);
-  /* NO outer hairline, deliberately. The first cut carried the landing's
+  /* The glass itself comes from `.glass` — this tray RESTATED that recipe's
+     background and border while leaving its backdrop-filter behind, which is
+     the split the popover shipped with. It wears the owner instead and keeps
+     only its own geometry and shadow (its own `box-shadow` below also wins the
+     cascade over the owner's inset sheen, so the tray keeps the depth it was
+     measured with).
+     NO outer hairline, deliberately. The first cut carried the landing's
      `0 0 0 1px rgba(navy,.05)` ring; measured against this canvas the tray FILL
      is imperceptible - cream #F8F7EF -> 58% white = #FBFAF7, a 1.3% step, then
      the plate adds another 1.3% to pure white - so the only part of the tray the
@@ -2099,7 +2104,12 @@ button.board-col-zone--add:active { transform: translateY(1px); }
    The tray fill and the plate's highlight are the existing glass tokens, NOT
    light literals: --yf-glass is white/58 in light and #101B2B/58 in dark, so the
    tray is correct in both themes without a second [data-theme] rule. */
-.feature-card { display: flex; flex-direction: column; background: var(--yf-glass); border: 1px solid var(--yf-glass-border); border-radius: var(--radius-lg); padding: 6px; box-shadow: 0 0 0 1px rgba(var(--shadow-navy-rgb), .05), var(--shadow-soft); transition: transform var(--t-fast) var(--ease-out), box-shadow var(--t-fast) var(--ease-out); }
+/* `.feature-card` cannot wear the `.glass` owner: it also carries `.card`, and
+   `.card`'s background rule sits LATER in this file, so the owner's background
+   would lose the cascade and the tray would turn opaque. So it declares
+   the glass PAIR itself — background and backdrop-filter together, never one
+   without the other (the popover's split). */
+.feature-card { display: flex; flex-direction: column; background: var(--yf-glass); border: 1px solid var(--yf-glass-border); -webkit-backdrop-filter: blur(var(--yf-blur-nav)) saturate(1.2); backdrop-filter: blur(var(--yf-blur-nav)) saturate(1.2); border-radius: var(--radius-lg); padding: 6px; box-shadow: 0 0 0 1px rgba(var(--shadow-navy-rgb), .05), var(--shadow-soft); transition: transform var(--t-fast) var(--ease-out), box-shadow var(--t-fast) var(--ease-out); }
 .feature-card:hover { transform: translateY(-2px); box-shadow: 0 0 0 1px rgba(var(--shadow-navy-rgb), .05), 0 4px 8px rgba(var(--shadow-navy-rgb), .06), 0 20px 48px rgba(var(--shadow-navy-rgb), .16); }
 .feature-core { display: flex; flex-direction: column; height: 100%; padding: 16px; border-radius: calc(var(--radius-lg) - 7px); background: var(--card); box-shadow: inset 0 1px 0 var(--yf-glass-sheen); }
 .feature-card h3 { font-size: 15.5px; }
@@ -9015,27 +9025,31 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
    cascade on the sixth, so the hero sat above a stack of cards that moved and
    did not move itself. A still element above an animating one reads as a broken
    element, not a calm one.
-   The CONTAINER owns the entrance for that reason: a block added to this page
+   The CONTAINER owns the entrance for that reason: a block added to a page
    later cannot forget one, because it never had to remember. `.empty-state > *`
    already worked this way, and this copies its shape.
+   ONE rule owns it for every page: a page root carries the `page-enter` class
+   instead of restating this cascade, so a second page cannot half-copy it —
+   the same rule the popover pair follows. tests/design-system.test.ts discovers
+   the pages from src/App.tsx and fails a root that arrives without the class.
    Why these rules sit at the top level rather than inside the `no-preference`
    media query that shape usually wears: every gate in tests/design-system.test.ts
    reads top-level rules only, so a rule inside `@media` is invisible to all of
    them. The opt-out is the one part of the mechanism a gate cannot see for us,
    and it is asserted against the raw file. */
-.trips-page > * { animation: pageRise var(--motion-slow) var(--ease-out) backwards; }
-.trips-page > *:nth-child(2) { animation-delay: calc(var(--stagger-step) * 1); }
-.trips-page > *:nth-child(3) { animation-delay: calc(var(--stagger-step) * 2); }
-.trips-page > *:nth-child(4) { animation-delay: calc(var(--stagger-step) * 3); }
-.trips-page > *:nth-child(5) { animation-delay: calc(var(--stagger-step) * 4); }
-.trips-page > *:nth-child(6) { animation-delay: calc(var(--stagger-step) * 5); }
+.page-enter > * { animation: pageRise var(--motion-slow) var(--ease-out) backwards; }
+.page-enter > *:nth-child(2) { animation-delay: calc(var(--stagger-step) * 1); }
+.page-enter > *:nth-child(3) { animation-delay: calc(var(--stagger-step) * 2); }
+.page-enter > *:nth-child(4) { animation-delay: calc(var(--stagger-step) * 3); }
+.page-enter > *:nth-child(5) { animation-delay: calc(var(--stagger-step) * 4); }
+.page-enter > *:nth-child(6) { animation-delay: calc(var(--stagger-step) * 5); }
 /* 8px: the rise `.empty-state`'s own children use. `cardIn`'s 14px is a card's
    lift, and a full-width page block lifting that far reads as a bounce. */
 @keyframes pageRise {
   from { opacity: 0; transform: translateY(8px); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .trips-page > * { animation: none; }
+  .page-enter > * { animation: none; }
 }
 
 

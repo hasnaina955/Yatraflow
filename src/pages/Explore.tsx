@@ -188,7 +188,7 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
   const filtersActive = Boolean(q.trim()) || style !== 'all' || maxBudget !== '' || duration !== 'all' || savedOnly
 
   return (
-    <div>
+    <div className="page-enter">
       {/* ---- Dark-teal editorial hero with route-aware search (§6.10) ---- */}
       <section className="explore-hero">
         <div className="container explore-hero-inner">

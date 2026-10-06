@@ -171,21 +171,18 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
   count. Publishing a trip with no dates was never the defect, so the publish path is
   unchanged. Rows already in the database keep their empty dates until the fixture is re-applied.
 
-### Changed
-
-- **My Trips puts the view switch on the status-tab row and the style, when and sort controls
-  behind one dropdown.** The Grid/List control used to close the wrapping filter bar, so it
+### Changed- **My Trips puts the view switch on the status-tab row, with travel style, when and sort as
+  three separate dropdowns.** The Grid/List control used to close the wrapping filter bar, so it
   wrapped onto a line of its own at every width, away from the tabs it belongs to. It now sits on
   the status-tab row as a labelled segmented control, right-aligned, and drops below the tabs
   when the width will not hold both. Its glider slides between the two choices instead of two
-  backgrounds swapping. The three refinements moved behind a `Filters` button that carries its own count, so
-  a filtered list still says why it is short. That button opens a menu like the map's idea
-  filters: Escape closes it and returns focus to the button, a click outside closes it, and a
-  Select inside it closes only its own list. Switching grid to list replays the cards' own
-  entrance cascade instead of changing every card's size between two frames. The page-to-page
-  entrance reads as motion now as well: it kept a 550ms clock but spent 63% of its travel in the
-  first 55ms, which is why a navigation looked like a snap, and it runs on `--motion-slow` with
-  the fade still under way while the next page's content arrives.
+  backgrounds swapping. Style, when and sort each get their own labelled menu, and the style menu
+  carries the count the chip row used to add up, so a filtered list still says why it is short.
+  A switch from grid to list replays the cards' own entrance cascade instead of changing every
+  card's size between two frames. The page-to-page entrance reads as motion now as well: it kept a
+  550ms clock but spent 63% of its travel in the first 55ms, which is why a navigation looked
+  like a snap, and it runs on `--motion-slow` with the fade still under way while the next page's
+  content arrives.
 
 - **The My Trips cards now use the mockup's card style, in both list and grid view.** Each
   card has the mockup's 14px radius, its hairline resting shadow and its 16/8.4 cover. A

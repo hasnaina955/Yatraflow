@@ -1,6 +1,6 @@
 // ============ My trips ============
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowRight, Calendar, ChevronRight, Clock, Compass, LayoutGrid, MapPin, Plus, Rocket, Rows3, ShoppingBag, SlidersHorizontal, Trash2, Users, Wallet } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { ArrowRight, Calendar, ChevronRight, Clock, Compass, LayoutGrid, MapPin, Plus, Rocket, Rows3, ShoppingBag, Trash2, Users, Wallet } from 'lucide-react'
 import { InlineIcon, MetaIcon } from '../components/icons'
 import { useTrips, useTrashedTrips, useUsers, useSessionUserId, useSliceReads, useTrashLoaded, useTrashFailed, tripsForUser, trashTrip, restoreTrashedTrip, restoreTrashedTripById, permanentlyDeleteTrip, fetchTrashedTrips, rereadTrips, addDemoTrips } from '../store/store'
 import { computeTotals, formatInrShort } from '../lib/engine'
@@ -138,38 +138,6 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
     setLayout(v)
     savePref(VIEW_PREF, v)
   }
-
-  // MR4. Style, when and sort sit behind one dropdown. When they were always
-  // open they wrapped onto their own lines at every width, and Grid|List — the
-  // last item in that wrapping row — was the control that got pushed off. The
-  // button carries a count, so a filtered list can always say why it is short
-  // without the user opening anything.
-  const [filtersOpen, setFiltersOpen] = useState(false)
-  const filtersRef = useRef<HTMLDivElement>(null)
-  const filtersBtnRef = useRef<HTMLButtonElement>(null)
-  const refineCount = (style !== 'all' ? 1 : 0) + (when !== 'all' ? 1 : 0) + (sortKey !== 'recent' ? 1 : 0)
-  useEffect(() => {
-    if (!filtersOpen) return
-    // Same dismissal pair the Select uses: a mousedown outside closes it, and
-    // Escape closes it and hands focus back to the button that opened it.
-    // A Select's own Escape calls stopPropagation, so dismissing its menu
-    // inside this popover leaves the popover open — the key that closes the
-    // innermost surface must not also close the surface around it.
-    function onDocDown(e: MouseEvent) {
-      if (!filtersRef.current?.contains(e.target as Node)) setFiltersOpen(false)
-    }
-    function onKey(e: KeyboardEvent) {
-      if (e.key !== 'Escape') return
-      setFiltersOpen(false)
-      filtersBtnRef.current?.focus()
-    }
-    document.addEventListener('mousedown', onDocDown)
-    document.addEventListener('keydown', onKey)
-    return () => {
-      document.removeEventListener('mousedown', onDocDown)
-      document.removeEventListener('keydown', onKey)
-    }
-  }, [filtersOpen])
 
   // MR6/#648 reads one clock for the whole page, so every card agrees on
   // "today" — and the page moves to the next day at local midnight, or when it
@@ -405,43 +373,33 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
           <div className="trips-toolbar" style={{ marginBottom: 18 }}>
             <input className="input trips-search" placeholder={!hasFilters && featuredTrip ? 'Search your other trips…' : 'Search places or stops…'}
               aria-label="Search your trips" value={q} onChange={e => setQ(e.target.value)} />
-            <div className="trips-filters" ref={filtersRef}>
-              <button type="button" className="btn btn-outline btn-sm" ref={filtersBtnRef}
-                aria-expanded={filtersOpen} aria-controls="trips-filters-pop"
-                onClick={() => setFiltersOpen(o => !o)}>
-                <InlineIcon icon={SlidersHorizontal} size={15} gap={6} />Filters{refineCount > 0 ? ` (${refineCount})` : ''}
-              </button>
-              {filtersOpen && (
-                <div className="trips-filters-pop" id="trips-filters-pop" role="group" aria-label="Refine your trips">
-                  <p className="trips-filters-label">Travel style</p>
-                  <div className="explore-chips" role="group" aria-label="Travel style">
-                    <button className={`chip clickable-chip ${style === 'all' ? 'on-teal' : ''}`}
-                      aria-pressed={style === 'all'} onClick={() => setStyle('all')}>All styles</button>
-                    {TRAVEL_STYLES.filter(s => styleCounts.get(s)).map(s => (
-                      <button key={s} className={`chip clickable-chip ${style === s ? 'on-teal' : ''}`}
-                        aria-pressed={style === s} onClick={() => setStyle(style === s ? 'all' : s)}>
-                        {cap(s)} <span className="chip-count">{styleCounts.get(s)}</span>
-                      </button>
-                    ))}
-                  </div>
-                  <Select value={when} onChange={v => setWhen(v as WhenKey)} aria-label="When"
-                    options={[
-                      { value: 'all', label: 'Any time' },
-                      { value: 'upcoming', label: 'Upcoming & live' },
-                      { value: 'past', label: 'Past trips' },
-                      { value: 'draft', label: 'Drafts' },
-                    ]} />
-                  <Select value={sortKey} onChange={v => setSortKey(v as SortKey)} aria-label="Sort by"
-                    options={[
-                      { value: 'recent', label: 'Recently edited' },
-                      { value: 'name', label: 'Name A–Z' },
-                      { value: 'length-desc', label: 'Longest first' },
-                      { value: 'budget-asc', label: 'Budget: low → high' },
-                      { value: 'budget-desc', label: 'Budget: high → low' },
-                    ]} />
-                </div>
-              )}
-            </div>
+            {/* MR4. Three dropdowns, each one surface: travel style, when, sort.
+                They sat behind a single Filters popover for one commit, and a
+                panel that holds every control reads as a settings sheet rather
+                than a toolbar — the three choices are independent, so they get
+                three labelled menus. Style carries its count, which is what the
+                chip row used to add up, so a filtered list still says why it is
+                short without opening anything. */}
+            <Select value={style} onChange={v => setStyle(v as 'all' | Trip['travelStyle'])} aria-label="Travel style"
+              options={[
+                { value: 'all', label: 'All styles' },
+                ...TRAVEL_STYLES.filter(s => styleCounts.get(s)).map(s => ({ value: s, label: `${cap(s)} (${styleCounts.get(s)})` })),
+              ]} />
+            <Select value={when} onChange={v => setWhen(v as WhenKey)} aria-label="When"
+              options={[
+                { value: 'all', label: 'Any time' },
+                { value: 'upcoming', label: 'Upcoming & live' },
+                { value: 'past', label: 'Past trips' },
+                { value: 'draft', label: 'Drafts' },
+              ]} />
+            <Select value={sortKey} onChange={v => setSortKey(v as SortKey)} aria-label="Sort by"
+              options={[
+                { value: 'recent', label: 'Recently edited' },
+                { value: 'name', label: 'Name A–Z' },
+                { value: 'length-desc', label: 'Longest first' },
+                { value: 'budget-asc', label: 'Budget: low → high' },
+                { value: 'budget-desc', label: 'Budget: high → low' },
+              ]} />
             {/* always mounted so the row doesn't shift when it appears mid-typing */}
             {/* "Clear filters" (review finding 4): the empty state's action said
                 "Clear filters" while this ghost button said "Clear" — the same

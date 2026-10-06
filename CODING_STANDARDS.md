@@ -692,6 +692,16 @@ anywhere in this repo means the entry labelled `6b` below.
    the cleanup the ratchet asks for, not a regression. Delete the line. Never
    raise the baseline.
 
+ 6an. **A popover's background is a PAIR — copy `background: var(--popover-bg)`
+   without its `backdrop-filter` and the panel is see-through (learned
+   2026-10-06).** `--popover-bg` is `var(--yf-nav-glass)`, a translucent glass
+   colour. The `.popover` class is what makes it readable: it pairs that
+   background with `backdrop-filter: blur(var(--yf-blur-nav)) saturate(1.2)`.
+   The My Trips filters panel took the background and left the blur behind, so
+   the status tabs and the cards showed straight through it. The screenshot
+   showed the bug and the CSS explained it. Reuse the `.popover` class instead
+   of re-declaring its properties, or carry the filter with the background.
+
 ## 2. Conventions (`AGENTS.md` §4)
 
 - **You must test both sides of a shared focus or schedule contract.** A prop-presence test cannot prove that a child reads the prop. Check a tab round trip through the browser. Compare arrivals and warnings for the same stop after road measurements resolve.

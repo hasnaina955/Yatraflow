@@ -497,13 +497,16 @@ Neither decision touches a colour value, per [ADR 0002](docs/adr/0002-mockup-pal
     and right-aligned when it does not (measured at 1920 and 1100, and at its own 390). Ours does
     the same through `flex-wrap` plus `margin-left: auto` on the segment, and it labels the two
     choices. `PillNav` slides the glider between them, and the cards re-enter on a switch because
-    the grid is keyed by the layout. The style, when and sort controls left that bar for one
-    `Filters` dropdown, which is what stopped the wrap.
+    the grid is keyed by the layout. Travel style, when and sort became three separate dropdowns,
+    which is what stopped the wrap. One `Filters` popover holding all three was built first and
+    rejected: a panel of independent choices reads as a settings sheet, not a toolbar.
   - **Acceptance (2026-10-06):** screened at 1440px and 390px, in
     [`docs/screenshots/mr4-list-1440.png`](docs/screenshots/mr4-list-1440.png) and
     [`mr4-list-390.png`](docs/screenshots/mr4-list-390.png). List mode engaged at both widths and
-    drew 6 rows. No row pushed the page sideways. The dropdown was screened open at 1440px in
-    [`docs/screenshots/mr4-filters-open-1440.png`](docs/screenshots/mr4-filters-open-1440.png).
+    drew 6 rows. No row pushed the page sideways. The three dropdowns were screened with the
+    style menu open, at both widths, in
+    [`docs/screenshots/mr4-toolbar-1440.png`](docs/screenshots/mr4-toolbar-1440.png) and
+    [`mr4-toolbar-390.png`](docs/screenshots/mr4-toolbar-390.png).
 - [x] **MR5. Cover-photo prompt and solo-traveller line.** `src/pages/TripsList.tsx`. Show
   "Add a cover photo" when a trip has none. Show avatars, or "Just you so far", in the card foot.
   - **Satisfied without new code, 2026-10-05 — checked against `src/`, not assumed.** Both halves

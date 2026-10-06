@@ -697,10 +697,11 @@ anywhere in this repo means the entry labelled `6b` below.
    2026-10-06).** `--popover-bg` is `var(--yf-nav-glass)`, a translucent glass
    colour. The `.popover` class is what makes it readable: it pairs that
    background with `backdrop-filter: blur(var(--yf-blur-nav)) saturate(1.2)`.
-   The My Trips filters panel took the background and left the blur behind, so
-   the status tabs and the cards showed straight through it. The screenshot
-   showed the bug and the CSS explained it. Reuse the `.popover` class instead
-   of re-declaring its properties, or carry the filter with the background.
+   A My Trips filters panel took the background and left the blur behind. The
+   status tabs and the cards showed straight through it. The screenshot showed
+   the symptom; only the CSS pair explained it. So reuse the `.popover` class
+   instead of re-declaring its properties, or carry the filter with the
+   background.
 
 ## 2. Conventions (`AGENTS.md` §4)
 

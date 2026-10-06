@@ -719,6 +719,8 @@ unbuilt). **Before picking up a row, and before quoting one in a plan, confirm i
 | I-33 | Slack and deadline clock | Timeline | Not sized | Show waiting and deadline gaps. Preview changes before you keep them. [Audit](docs/UI_AUDIT.md#workspace-tab-audit--2026-10-03). |
 | I-34 | Clear search scope and read states | Map | Not sized | Reduce parallel search entry points. Show failed, empty, cached, and loading results as distinct states. [Audit](docs/UI_AUDIT.md#workspace-tab-audit--2026-10-03). |
 | I-35 | Shared measurement status | workspace | Not sized | State measured, pending, partial, and failed route data on all three tabs. Add a shared Retry action. [Audit](docs/UI_AUDIT.md#workspace-tab-audit--2026-10-03). |
+| I-46 | Cascade Landing's second-level blocks | motion | 1 h | The page root enters, but its six sections sit one level deeper, so the shared rule misses them. Drop the bare wrapper so `.landing-canvas` becomes the returned root, then prove it with `npm run check:motion`. |
+| I-47 | Sample signed-in routes in the CI motion check | motion | 2 h | `check:motion` opens public routes only: a clean browser holds no Supabase session. The workspace and the creator hub then rely on the static gate alone. Seed a test session in CI to sample them. |
 
 ### Tier 2 — blocked on a named dependency
 

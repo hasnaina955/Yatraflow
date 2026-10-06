@@ -118,6 +118,18 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ### Fixed
 
+- **The progress meter counts activities, not route points.** The store anchors a new trip's route
+  with automatic stops. Those stops have no dwell time. The meter counted one of them as a planned
+  day. A trip with nothing to do on it could then read “1 of 1 days planned” and “Ready to travel”.
+  The meter and the card's next-step line now share one definition of a planned day: a day that
+  holds at least one usable stop that is not automatic. The label names the measure — “Days with
+  activities”. An anchored day asks you to “Plan day N” instead of reading as a finished trip.
+- **My Trips moves to the next day while the page stays open.** The page read the clock once and
+  kept that value. A tab left open overnight said “Departs tomorrow” for a trip that leaves today,
+  and the date filter was a day stale with it. `src/lib/dayClock.ts` holds one calendar-day clock.
+  It wakes at local midnight. It also re-reads the day when the window regains focus, because a
+  background tab throttles timers. One value feeds the countdown and the date filter, so the two
+  cannot disagree. The unit is a day, so nothing polls and a focus on the same day renders nothing.
 - **A trip card's next-step line now opens the task it names.** The line lived inside the
   card's own link, so a click opened the trip overview and you had to find “Book Shimla
   tickets” yourself. It is a separate link now, because a link must not hold a second link:

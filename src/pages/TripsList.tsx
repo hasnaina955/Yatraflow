@@ -15,6 +15,7 @@ import { loadPref, savePref } from '../lib/uiPrefs'
 import { CoverThumb } from '../components/CoverThumb'
 import { SavedShelf } from '../components/SavedShelf'
 import { useDestinationCover } from '../hooks/useDestinationCover'
+import { useToday } from '../hooks/useToday'
 import { pickTripQueryCandidates, sizedCoverUrl } from '../lib/tripThumb'
 import { ImportTripButton } from '../components/ImportTripButton'
 import { sliceState, emptyCopyFor, readState } from '../lib/readState'
@@ -124,8 +125,10 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
     savePref(VIEW_PREF, v)
   }
 
-  // MR6 reads one clock for the whole page, so every card agrees on "today".
-  const today = useMemo(() => new Date(), [])
+  // MR6/#648 reads one clock for the whole page, so every card agrees on
+  // "today" — and the page moves to the next day at local midnight, or when it
+  // comes back into focus, instead of freezing on its mount date.
+  const today = useToday()
 
   const { trips, statusCounts } = useMemo(() => {
     const mine = tripsForUser(meId)
@@ -455,16 +458,16 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
                           for a past or undated one, so nothing prints. */}
                       {departure && <div className="trip-departs num">{departure}</div>}
                       {/* MR2 — the same 5px bar the day header draws, so the two
-                          read as one meter in two places. A trip with no days
-                          states that instead of printing "0 of 0". */}
+                          read as one meter in two places. The label names the
+                          measure: activities, not route points (#647). */}
                       <div className="trip-plan">
                         <div className="trip-plan-bar" role="progressbar"
                           aria-valuenow={plan.pct} aria-valuemin={0} aria-valuemax={100}
-                          aria-label={plan.total === 0 ? 'No days planned yet' : `Planning progress: ${plan.planned} of ${plan.total} days planned`}>
+                          aria-label={plan.total === 0 ? 'No days added yet' : `Planning progress: ${plan.planned} of ${plan.total} days with activities`}>
                           <span className="trip-plan-fill" style={{ width: `${plan.pct}%` }} />
                         </div>
                         <span className="trip-plan-text num">
-                          {plan.total === 0 ? 'No days planned yet' : `${plan.planned} of ${plan.total} days planned`}
+                          {plan.total === 0 ? 'No days added yet' : `${plan.planned} of ${plan.total} days with activities`}
                         </span>
                       </div>
                       <div className="stop-meta num">

@@ -8,6 +8,12 @@
  * blocks every later day, because the engine plans days in sequence. A booking
  * blocks the day that carries it. A suggestion blocks nothing, so it waits. A
  * cover photo blocks nothing at all, so it waits for last.
+ *
+ * An automatic route anchor is not an activity (#647). `autoAnchor` in the store
+ * writes one stop at the origin and one at the last destination, each with zero
+ * dwell time, so the route has a start and an end. The engine treats those stops
+ * as waypoints (`src/lib/engine.ts`). A planning meter that counts them reports
+ * progress a traveller does not have.
  */
 
 import type { ItineraryDay, ItineraryStop, Trip } from '../data/types'
@@ -53,6 +59,23 @@ function usableStops(day: ItineraryDay): ItineraryStop[] {
   return day.stops.filter(isUsable).sort((a, b) => a.orderInDay - b.orderInDay)
 }
 
+/**
+ * True for a stop that answers "what will I do here". An automatic route anchor
+ * does not answer it: the store writes it only to anchor the route, so it holds
+ * no dwell time and no chosen activity (#647).
+ */
+function isActivity(stop: ItineraryStop): boolean {
+  return stop.auto !== true
+}
+
+/**
+ * The one definition of a planned day: it holds at least one activity. Both the
+ * meter and the empty-day test read this, so the two can never disagree.
+ */
+function isPlannedDay(day: ItineraryDay): boolean {
+  return usableStops(day).some(isActivity)
+}
+
 /** Days sorted by index, because array order is not a contract. */
 function byIndex(days: ItineraryDay[]): ItineraryDay[] {
   return [...days].sort((a, b) => a.index - b.index)
@@ -80,9 +103,10 @@ export function nextTripStep(trip: Trip): NextStep {
     return { kind: 'plan-day', label: 'Plan your first day' }
   }
 
-  // The earliest empty day blocks every day after it.
+  // The earliest empty day blocks every day after it. A day that holds only an
+  // automatic route anchor is empty: nothing on it answers what to do there.
   for (const day of days) {
-    if (usableStops(day).length === 0) {
+    if (!isPlannedDay(day)) {
       return {
         kind: 'plan-day',
         label: `Plan day ${day.index + 1}`,
@@ -200,11 +224,18 @@ export function departureLabel(trip: Trip, today: Date): string | null {
   return `Departs in ${days} days`
 }
 
-/** Planned days over total days, for the progress bar in MR2. */
+/**
+ * Days with activities over total days, for the progress bar in MR2.
+ *
+ * The measure is activity coverage, not readiness. A day the store anchored
+ * automatically is not planned, because an anchor is a route point (#647). A
+ * trip can therefore read 0 of 3 days while a route already exists, which is the
+ * honest answer to "what have I planned".
+ */
 export function plannedDayRatio(trip: Trip): { planned: number; total: number; pct: number } {
   const days = trip.days ?? []
   const total = days.length
-  const planned = days.filter(d => usableStops(d).length > 0).length
+  const planned = days.filter(isPlannedDay).length
   // A trip with no days is 0% planned, never NaN from an empty denominator.
   const pct = total === 0 ? 0 : Math.round((planned / total) * 100)
   return { planned, total, pct }

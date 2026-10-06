@@ -168,6 +168,60 @@ describe('plannedDayRatio', () => {  it('reports 0 percent rather than NaN when 
   })
 })
 
+/* #647: the store anchors a new trip's route with automatic stops. An anchor is
+   a route point, not an activity, so neither the meter nor the empty-day test
+   may count one. These three trips are the decision's own cases: anchor only,
+   real stop, and a mix of both. */
+describe('#647 an automatic route anchor is not an activity', () => {
+  /** What `autoAnchor` in src/store/store.ts writes: no dwell, already confirmed. */
+  const anchor = () => stop({ title: 'Start point', auto: true, visitMinutes: 0, status: 'confirmed' })
+
+  it('does not count a day that holds only an anchor', () => {
+    const t = trip({ days: [day(0, [anchor()])] })
+    expect(plannedDayRatio(t)).toEqual({ planned: 0, total: 1, pct: 0 })
+  })
+
+  it('still counts a day that holds a real stop', () => {
+    const t = trip({ days: [day(0, [stop()])] })
+    expect(plannedDayRatio(t)).toEqual({ planned: 1, total: 1, pct: 100 })
+  })
+
+  it('counts the real days of a mixed trip and not the anchored one', () => {
+    const t = trip({
+      days: [day(0, [anchor()]), day(1, [stop()]), day(2, [anchor(), stop()])],
+    })
+    expect(plannedDayRatio(t)).toEqual({ planned: 2, total: 3, pct: 67 })
+  })
+
+  it('treats an anchor-only day as empty, so the card asks for a plan', () => {
+    const t = trip({ days: [day(0, [anchor()]), day(1, [stop()])] })
+    expect(nextTripStep(t)).toEqual({ kind: 'plan-day', label: 'Plan day 1', dayIndex: 0 })
+  })
+
+  it('blames the anchored day of a mixed trip, not the planned ones', () => {
+    const t = trip({ days: [day(0, [stop()]), day(1, [anchor()])] })
+    expect(nextTripStep(t)).toEqual({ kind: 'plan-day', label: 'Plan day 2', dayIndex: 1 })
+  })
+
+  it('never claims readiness from anchors alone, even with a cover chosen', () => {
+    // The defect: one anchor plus a chosen emoji read as 1 of 1 planned and
+    // "Ready to travel" while the trip held no activity at all.
+    const t = trip({ days: [day(0, [anchor()])], coverEmoji: '🏔' })
+    const step = nextTripStep(t)
+    expect(step.kind).not.toBe('done')
+    expect(step).toEqual({ kind: 'plan-day', label: 'Plan day 1', dayIndex: 0 })
+    expect(statusBucket(t)).toBe('planning')
+  })
+
+  it('keeps a fully anchored trip out of the Ready filter', () => {
+    const t = trip({
+      days: [day(0, [anchor()]), day(1, [anchor()])],
+      coverImageUrl: 'x.jpg',
+    })
+    expect(statusBucket(t)).toBe('planning')
+  })
+})
+
 /** One trip that lands in each bucket, built to clear the branches above it. */
 const BUCKET_FIXTURES: { kind: string; trip: Trip }[] = [
   { kind: 'add-dates', trip: trip({ startDate: '', endDate: '' }) },

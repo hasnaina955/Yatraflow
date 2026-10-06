@@ -451,7 +451,10 @@ Neither decision touches a colour value, per [ADR 0002](docs/adr/0002-mockup-pal
     trip list at 1440 and 390 CSS px. The row is never inside the card link. It stays inside
     the card box, and it sits below the block in list mode. A click opened
     `/trip/<id>/timeline?day=1&stop=…`, with Day 2 expanded and the stop row in view. The card
-    link alone still opened the Overview. One screenshot at each width is owed.
+    link alone still opened the Overview. The screenshots are
+    [`docs/screenshots/mr1-task-row-1440.png`](docs/screenshots/mr1-task-row-1440.png) and
+    [`mr1-task-row-390.png`](docs/screenshots/mr1-task-row-390.png). A second capture on
+    2026-10-06 found 6 cards and 6 task rows at each width. No row sat inside a card link.
 - [x] **MR2. Planning progress per trip.** `src/pages/TripsList.tsx`. A progress bar and a count of
   planned days on every card.
   - Settled by prototype. `plannedDayRatio` in the same module supplies the percent. **No engine
@@ -459,7 +462,15 @@ Neither decision touches a colour value, per [ADR 0002](docs/adr/0002-mockup-pal
   - **Landed 2026-10-05.** The bar copies the day header's 5px meter, the same `--teal` fill and
     the same `--t-med`/`--ease-out` width transition, so the two read as one meter in two places.
     It carries `role="progressbar"` with the real values, and a trip with no days says so instead
-    of printing "0 of 0". **Not yet screened at 1440px or 390px.**
+    of printing "0 of 0".
+  - **The measure is activities (2026-10-06, #647).** The store anchors a new trip's route with
+    automatic stops. The meter counted one of those as a planned day. The meter and the card's
+    next-step line now share one rule: a planned day holds a usable stop that is not automatic.
+    The label names the measure, "Days with activities".
+  - **Acceptance (2026-10-06):** screened at 1440px and 390px on the signed-in page, in
+    [`docs/screenshots/mr1-task-row-1440.png`](docs/screenshots/mr1-task-row-1440.png) and
+    [`mr1-task-row-390.png`](docs/screenshots/mr1-task-row-390.png). All six cards read
+    "N of M days with activities" at both widths. No card claimed "Ready to travel".
 - [x] **MR3. Status filter tabs with counts.** `src/pages/TripsList.tsx`. Five filters with live
   counts. Persist the choice through `src/lib/uiPrefs.ts`, which already stores per-day collapse.
   - **Landed 2026-10-05, review still owed.** The five filters are all trips, needs dates, needs
@@ -473,8 +484,11 @@ Neither decision touches a colour value, per [ADR 0002](docs/adr/0002-mockup-pal
   - **Landed 2026-10-05, review still owed.** A labelled pair in the toolbar, not one cycling
     button, so the current choice is readable without pressing it first. List mode lays each
     card out as one row and collapses the cover to a 96px thumbnail. Persisted through the same
-    `loadPref`/`savePref` pair MR3 uses. **Not yet screened at 1440px or 390px**, and a list row
-    is the layout most likely to need it.
+    `loadPref`/`savePref` pair MR3 uses.
+  - **Acceptance (2026-10-06):** screened at 1440px and 390px, in
+    [`docs/screenshots/mr4-list-1440.png`](docs/screenshots/mr4-list-1440.png) and
+    [`mr4-list-390.png`](docs/screenshots/mr4-list-390.png). List mode engaged at both widths and
+    drew 6 rows. No row pushed the page sideways.
 - [x] **MR5. Cover-photo prompt and solo-traveller line.** `src/pages/TripsList.tsx`. Show
   "Add a cover photo" when a trip has none. Show avatars, or "Just you so far", in the card foot.
   - **Satisfied without new code, 2026-10-05 — checked against `src/`, not assumed.** Both halves
@@ -490,7 +504,16 @@ Neither decision touches a colour value, per [ADR 0002](docs/adr/0002-mockup-pal
     or a "departs today" that is a day stale. "Today" and "tomorrow" are spelled out. The span
     goes through `dayCountForRange`, the repo's single day-count, which rounds so a
     daylight-saving edge cannot shift it — `tests/dayCount.test.ts` guards that one home and
-    failed the first private copy of the math. **Not yet screened at 1440px or 390px.**
+    failed the first private copy of the math.
+  - **The clock moves while the page lives (2026-10-06, #648).** The page read the clock once, at
+    mount, and kept that value. One calendar-day clock now feeds the countdown and the date
+    filter. It wakes at local midnight and re-reads the day on focus or visibility. The unit is a
+    day, so nothing polls. Eleven cases in `tests/day-clock.test.ts` drive it with an injected
+    clock.
+  - **Acceptance (2026-10-06):** screened at 1440px and 390px, in
+    [`docs/screenshots/mr1-task-row-1440.png`](docs/screenshots/mr1-task-row-1440.png) and
+    [`mr1-task-row-390.png`](docs/screenshots/mr1-task-row-390.png). Two upcoming trips printed a
+    countdown at each width: "Departs in 17 days" and "Departs in 20 days".
 - [x] **MR7. Day strip with transit markers.** `src/pages/TripWorkspace.tsx`, timeline tab. Days as
   horizontal cards, with a marker where the city changes. Reuse the existing day-collapse state.
   - **Landed 2026-10-05 — and the row was half-written already.** The timeline's day rail already
@@ -530,7 +553,9 @@ Neither decision touches a colour value, per [ADR 0002](docs/adr/0002-mockup-pal
     at 1440 and 390 CSS px. A saved day resolved to “Day 1 · Siolim · 2 stops”. Its row linked
     to `/trip/<id>/timeline?day=0`. The meta column hid at 390, so the title kept the width. The
     page had no horizontal overflow at either width. Ten cases in
-    `tests/saved-shelf.test.ts` pin the resolution; the screenshots are owed.
+    `tests/saved-shelf.test.ts` pin the resolution. The screenshots are
+    [`docs/screenshots/mr8-saved-shelf-1440.png`](docs/screenshots/mr8-saved-shelf-1440.png) and
+    [`mr8-saved-shelf-390.png`](docs/screenshots/mr8-saved-shelf-390.png).
 - [x] **MR9. Sticky section nav with scroll-spy.** One nav that tracks the section in view. Must
   respect `prefers-reduced-motion` (AGENTS.md §2.10).
   - **Landed 2026-10-06, resolved against the tab model (P8).** D1 keeps the routed tabs. So
@@ -551,7 +576,7 @@ Neither decision touches a colour value, per [ADR 0002](docs/adr/0002-mockup-pal
     is a public surface, so it lands in Explore, which any visitor can read. `/pub/:slug` and
     `/creator/:id` stay visitor-facing and keep their current shape.
   - **Acceptance pending:** the blocks read from a public source, and one signed-out screenshot at
-    1440px and one at 390px are saved next to the PR.
+    1440px and one at 390px are saved in `docs/screenshots/`.
 - [ ] **MR11. Publications table in the owner dashboard — the public profile stays public (P8).**
   `src/pages/CreatorHubPage.tsx`. Each publication as a row with its status and its own actions.
   - **Surface corrected 2026-10-06 (P8).** The row named `src/pages/CreatorPage.tsx`, which is the
@@ -561,7 +586,8 @@ Neither decision touches a colour value, per [ADR 0002](docs/adr/0002-mockup-pal
     Overview from Earnings. So this row is a presentation pass over a table that exists. It is not
     a new page, and it does not replace the public profile's grid.
   - **Acceptance pending:** a row states its publication's status and offers that row's own
-    actions, the public profile is unchanged, and one screenshot at 1440px is saved next to the PR.
+    actions, the public profile is unchanged, and one screenshot at 1440px is saved in
+    `docs/screenshots/`.
 - [ ] **MR12. Mobile bottom tabbar — parked, not dropped (2026-10-06).** `src/App.tsx` and
   `src/styles.css`. Gated on `VITE_MOBILE_TABBAR`, per D2.
   - **Decision (2026-10-06): do not build this row yet.** The evidence comes from `src/`, not from
@@ -579,9 +605,10 @@ Neither decision touches a colour value, per [ADR 0002](docs/adr/0002-mockup-pal
 
 **Verification each row must pass.** The gate is `npm run verify`, which runs tsc, the lint
 ratchet, STE lint, the full test suite and the production build. Tests alone do not prove a row.
-Each row also needs one browser screenshot at 1440px and one at 390px, saved next to the PR.
-Rows MR1, MR3, MR4 and MR8 change an interaction, so you review each with the screenshots
-before merge. MR12 is parked (see the row), so it needs no screenshot.
+Each row also needs one browser screenshot at 1440px and one at 390px. Save the pair in
+`docs/screenshots/` and name both files in the row's acceptance line. Rows MR1, MR3, MR4 and MR8
+change an interaction, so you review each with the screenshots before merge. MR12 is parked (see
+the row), so it needs no screenshot.
 
 **Appendix A. What the mockup offered that this plan does not adopt.** The mobile phone frame and
 the right-hand "why this design language works" list in `index.html`. Both are board furniture, not

@@ -447,7 +447,7 @@ Neither decision touches a colour value, per [ADR 0002](docs/adr/0002-mockup-pal
     featured card's button and this row, so the two cannot disagree. `done` drops the chevron.
     Two live-data corrections came out of the wiring: the default 🧭 emoji does not count as a
     cover, and a finished trip can still read 100% planned while owing a booking.
-  - **Verified live 2026-10-06 (screenshots owed).** The measurements come from the signed-in
+  - **Acceptance (2026-10-06):** verified live on the signed-in page. The measurements come from the
     trip list at 1440 and 390 CSS px. The row is never inside the card link. It stays inside
     the card box, and it sits below the block in list mode. A click opened
     `/trip/<id>/timeline?day=1&stop=…`, with Day 2 expanded and the stop row in view. The card
@@ -526,7 +526,7 @@ Neither decision touches a colour value, per [ADR 0002](docs/adr/0002-mockup-pal
     order, each row a deep link to that day or stop. A re-split moves a saved stop with its day,
     and an id whose day or stop is gone is dropped rather than drawn as a row that opens nothing.
     A row can be dropped again through the same `flipSavedId` the heart writes with.
-  - **Verified live 2026-10-06 (screenshots owed).** The shelf drew on the signed-in trip list
+  - **Acceptance (2026-10-06):** verified live on the signed-in trip list. The shelf drew
     at 1440 and 390 CSS px. A saved day resolved to “Day 1 · Siolim · 2 stops”. Its row linked
     to `/trip/<id>/timeline?day=0`. The meta column hid at 390, so the title kept the width. The
     page had no horizontal overflow at either width. Ten cases in

@@ -670,6 +670,16 @@ anywhere in this repo means the entry labelled `6b` below.
    the new name already passed. You must grep the old class through
    `styles.css` before the rename lands. Each selector must take the new
    name or die with the old one.
+ 6am. **A CSS gate can fail on how a rule is ADDED, not on what it says
+   (learned 2026-10-06, #645).** Three gates read `styles.css`, and one edit
+   hit all three. `duplicateSelectors` counts TOP-LEVEL rules only, so a new
+   top-level rule that repeats an existing selector fails: extend the existing
+   rule in place. `offLadderSpacing` reads every `NNpx` in a spacing property,
+   and the numbers inside `calc()` count too — `padding-left: calc(96px + 14px)`
+   fails on the 96. Use `var(--space-*)` instead of the arithmetic.
+   `subPixelType` refuses a `font-size` below 11px, and `var(--text-xs)` is the
+   only size token left. Append new blocks at EOF: the contrast and duration
+   entries are keyed by line number.
 
 ## 2. Conventions (`AGENTS.md` §4)
 

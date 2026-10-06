@@ -4,7 +4,7 @@ import { ArrowRight, Calendar, ChevronRight, Clock, Compass, LayoutGrid, MapPin,
 import { InlineIcon, MetaIcon } from '../components/icons'
 import { useTrips, useTrashedTrips, useUsers, useSessionUserId, useSliceReads, useTrashLoaded, useTrashFailed, tripsForUser, trashTrip, restoreTrashedTrip, restoreTrashedTripById, permanentlyDeleteTrip, fetchTrashedTrips, rereadTrips, addDemoTrips } from '../store/store'
 import { computeTotals, formatInrShort } from '../lib/engine'
-import { nextTripStep, plannedDayRatio, statusBucket, isStatusBucket, STATUS_FILTERS, departureLabel, type StatusBucket } from '../lib/tripNextStep'
+import { nextTripStep, nextStepRoute, plannedDayRatio, statusBucket, isStatusBucket, STATUS_FILTERS, departureLabel, type StatusBucket } from '../lib/tripNextStep'
 import { cap } from '../lib/labels'
 import { Avatar, Chip, EmptyState, toast, undoToast, ConfirmDialog } from '../components/ui'
 import { Select } from '../components/Select'
@@ -13,6 +13,7 @@ import { readinessFromDraft } from '../lib/createReadiness'
 import { createFunnelOn } from '../lib/featureFlags'
 import { loadPref, savePref } from '../lib/uiPrefs'
 import { CoverThumb } from '../components/CoverThumb'
+import { SavedShelf } from '../components/SavedShelf'
 import { useDestinationCover } from '../hooks/useDestinationCover'
 import { pickTripQueryCandidates, sizedCoverUrl } from '../lib/tripThumb'
 import { ImportTripButton } from '../components/ImportTripButton'
@@ -474,16 +475,23 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
                         <Chip tone="teal">{cap(t.travelStyle)}</Chip>
                         {(t.members ?? []).length > 1 && <Chip tone="info">{(t.members ?? []).length} planners</Chip>}
                       </div>
-                      {/* MR1 — the single next action, inside the card's own hit
-                          target, so it navigates like the rest of the card. A
-                          finished trip gets no chevron: the glyph promises a
-                          destination, and there is nothing left to open. */}
-                      <div className={`trip-next${step.kind === 'done' ? ' is-done' : ''}`}>
-                        <span className="trip-next-label">{step.label}</span>
-                        {step.kind !== 'done' && <ChevronRight className="trip-next-chevron" size={15} aria-hidden />}
-                      </div>
                     </div>
                   </a>
+                  {/* #645 — the task row is its own link, a SIBLING of the card
+                      link: a link must not hold a second link. The card still
+                      opens the trip; this row opens the day and the stop its
+                      own label names. A finished trip has nothing left to
+                      open, so it stays a plain row with no chevron. */}
+                  {step.kind === 'done' ? (
+                    <div className="trip-next trip-task-row is-done">
+                      <span className="trip-next-label">{step.label}</span>
+                    </div>
+                  ) : (
+                    <a className="trip-next trip-task-row" {...appLink(nextStepRoute(t, step))}>
+                      <span className="trip-next-label">{step.label}</span>
+                      <ChevronRight className="trip-next-chevron" size={15} aria-hidden />
+                    </a>
+                  )}
                   <div className="row-between itin-meta">
                     <div className="member-stack">
                       {others.slice(0, 3).map(m => <Avatar key={m.userId} user={userOf(users, m.userId)} />)}
@@ -497,6 +505,9 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
             })}
           </div>
           )}
+          {/* Every trip the viewer is on, not the filtered list: a saved item
+              belongs to the shelf whatever the toolbar is showing. */}
+          <SavedShelf trips={tripsForUser(meId)} />
         </>
       ))}
 
@@ -570,18 +581,10 @@ function FeaturedTripLead({
     ? `${trip.startLocation} → ${trip.destinations.join(' → ')}`
     : trip.startLocation
 
-  // Primary action button targets
-  const targetRoute = useMemo(() => {
-    if (step.kind === 'add-dates') return `/trip/${trip.id}/settings`
-    if (step.dayIndex !== undefined) {
-      // Deep link: the timeline must land on the day and stop this step names.
-      // The query rides the URL. The tab router reads the path alone.
-      const q = new URLSearchParams({ day: String(step.dayIndex) })
-      if (step.stopId) q.set('stop', step.stopId)
-      return `/trip/${trip.id}/timeline?${q.toString()}`
-    }
-    return `/trip/${trip.id}`
-  }, [step, trip.id])
+  // Primary action button target. One builder, shared with the card's task row
+  // (#645), so the featured button and a list row cannot disagree about where a
+  // step lives.
+  const targetRoute = nextStepRoute(trip, step)
 
   return (
     <section className="trip-featured" aria-labelledby="featured-trip-heading">

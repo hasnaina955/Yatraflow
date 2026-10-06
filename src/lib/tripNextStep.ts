@@ -209,3 +209,36 @@ export function plannedDayRatio(trip: Trip): { planned: number; total: number; p
   const pct = total === 0 ? 0 : Math.round((planned / total) * 100)
   return { planned, total, pct }
 }
+
+/**
+ * Where a step's own action goes (#645).
+ *
+ * The card's task row and the featured card's primary button both read this, so
+ * the two can never disagree about where a step lives. A step that names a stop
+ * rides the timeline's `?day=&stop=` deep link, which `TripWorkspace` validates
+ * against the trip before it opens anything. A step that names a day opens the
+ * timeline at that day. The trip-level steps open the tab that can act on them:
+ * Settings holds the date fields and the cover picker. Only `done` has nothing
+ * to open, and it falls back to the trip root so a caller always gets a route.
+ * The return type is the app's own link shape, so `appLink` takes it unchanged.
+ */
+export function nextStepRoute(trip: Trip, step: NextStep): `/${string}` {
+  if (step.kind === 'add-dates' || step.kind === 'add-cover') return `/trip/${trip.id}/settings`
+  if (step.dayIndex !== undefined) return timelineRoute(trip.id, step.dayIndex, step.stopId)
+  return `/trip/${trip.id}`
+}
+
+/**
+ * A timeline address at one day, with an optional stop (#645).
+ *
+ * The deep link's shape lives here once: `TripWorkspace` reads `?day=&stop=` on
+ * a timeline address and validates both against the trip before it opens
+ * anything, so a caller that invents its own query is one rename away from a
+ * link that silently opens nothing. The next-step route and the saved shelf
+ * both ride this.
+ */
+export function timelineRoute(tripId: string, dayIndex: number, stopId?: string | null): `/${string}` {
+  const q = new URLSearchParams({ day: String(dayIndex) })
+  if (stopId) q.set('stop', stopId)
+  return `/trip/${tripId}/timeline?${q.toString()}`
+}

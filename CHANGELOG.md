@@ -107,9 +107,23 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
   workspace checks the request against the trip. It opens that day and scrolls the stop to the
   centre of the view. A ring marks the row for a moment. A stale request does nothing. A day
   the trip lacks falls back to the day alone. A request for another trip is ignored.
+- **A saved-items shelf on My Trips gives the hearts somewhere to go.** Saving a day or an
+  experience wrote an id that nothing read back. A “Saved for later” section now lists every
+  saved item in plan order, grouped by trip, and each row opens the exact day and stop it
+  names. A saved day opens the whole day. A saved experience opens that stop, and the row
+  says which one it is. A row can be dropped again from the shelf, through the same store the
+  hearts write. An id whose day or stop is gone is dropped rather than shown as a row that
+  opens nothing, and a stop that a re-split moved follows its new day. `src/lib/savedShelf.ts`
+  resolves the ids against live trip data; `src/components/SavedShelf.tsx` draws them.
 
 ### Fixed
 
+- **A trip card's next-step line now opens the task it names.** The line lived inside the
+  card's own link, so a click opened the trip overview and you had to find “Book Shimla
+  tickets” yourself. It is a separate link now, because a link must not hold a second link:
+  the card still opens the trip, and the line opens the day and the stop its own label names.
+  A dates or cover step opens Settings, where those fields live. The featured card's button
+  and a list row read one builder, so the two cannot disagree about where a step lives.
 - **The day rail tracks where you are, and a day jump no longer lands under it.**
   The rail marks the day in view in review mode. It marks the open day in
   one-day mode. A jump used to land the day header under the sticky bars on a

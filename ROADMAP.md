@@ -439,12 +439,19 @@ Neither decision touches a colour value, per [ADR 0002](docs/adr/0002-mockup-pal
     `tests/trip-next-step.test.ts` pins the order. An unfilled day comes first, because it blocks
     every later day. A booking comes second. A suggestion comes third. A cover photo waits for
     last. MR1 wires the function to the card and owns the click target.
-  - **Landed 2026-10-05, review still owed.** The line renders on EVERY card, not only the
-    featured one, because the page has no separately featured card. It sits inside
-    `.trip-card-hit`, so it inherits the card link. `done` drops the chevron. Two live-data
-    corrections came out of the wiring: the default 🧭 emoji does not count as a cover, and a
-    finished trip can still read 100% planned while owing a booking. **Not yet screened at 1440px
-    or 390px**, so the interaction-review gate below is still open.
+  - **Landed 2026-10-05; the action opens its own task now (2026-10-06, #645).** The line
+    renders on EVERY card, not only the featured one, because the page has no separately
+    featured card. It is its own link: a link must not hold a second link, so the row left
+    `.trip-card-hit` — the card still opens the trip, and the row opens the day and the stop
+    its label names. `nextStepRoute` in `src/lib/tripNextStep.ts` builds one address for the
+    featured card's button and this row, so the two cannot disagree. `done` drops the chevron.
+    Two live-data corrections came out of the wiring: the default 🧭 emoji does not count as a
+    cover, and a finished trip can still read 100% planned while owing a booking.
+  - **Verified live 2026-10-06 (screenshots owed).** The measurements come from the signed-in
+    trip list at 1440 and 390 CSS px. The row is never inside the card link. It stays inside
+    the card box, and it sits below the block in list mode. A click opened
+    `/trip/<id>/timeline?day=1&stop=…`, with Day 2 expanded and the stop row in view. The card
+    link alone still opened the Overview. One screenshot at each width is owed.
 - [x] **MR2. Planning progress per trip.** `src/pages/TripsList.tsx`. A progress bar and a count of
   planned days on every card.
   - Settled by prototype. `plannedDayRatio` in the same module supplies the percent. **No engine
@@ -512,6 +519,18 @@ Neither decision touches a colour value, per [ADR 0002](docs/adr/0002-mockup-pal
     rather than crashing the timeline. **Verified in the browser** on a real trip: 11 hearts
     (3 days, 8 stops), the Day 1 heart pressed and persisted as `["day:0"]` while every stop heart
     stayed off. The class is `.tl-save-heart`, not `.save-heart` — the cover picker owns that one.
+  - **The hearts got a destination (2026-10-06).** This was the review's own proposal: the ids
+    had no reader, so a save was decoration. My Trips now carries a “Saved for later” shelf.
+    `src/lib/savedShelf.ts` resolves each id against live trip data — a day, or the stop and the
+    day it sits on today — and `src/components/SavedShelf.tsx` draws them grouped by trip in plan
+    order, each row a deep link to that day or stop. A re-split moves a saved stop with its day,
+    and an id whose day or stop is gone is dropped rather than drawn as a row that opens nothing.
+    A row can be dropped again through the same `flipSavedId` the heart writes with.
+  - **Verified live 2026-10-06 (screenshots owed).** The shelf drew on the signed-in trip list
+    at 1440 and 390 CSS px. A saved day resolved to “Day 1 · Siolim · 2 stops”. Its row linked
+    to `/trip/<id>/timeline?day=0`. The meta column hid at 390, so the title kept the width. The
+    page had no horizontal overflow at either width. Ten cases in
+    `tests/saved-shelf.test.ts` pin the resolution; the screenshots are owed.
 - [x] **MR9. Sticky section nav with scroll-spy.** One nav that tracks the section in view. Must
   respect `prefers-reduced-motion` (AGENTS.md §2.10).
   - **Landed 2026-10-06, resolved against the tab model (P8).** D1 keeps the routed tabs. So

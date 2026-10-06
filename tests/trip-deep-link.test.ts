@@ -12,16 +12,29 @@ function codeOf(path: string): string {
     .join('\n')
 }
 
-describe('featured next-step deep link — the CTA builds the address', () => {
-  const list = codeOf('../src/pages/TripsList.tsx')
+/* #645 moved the address's shape into `lib/tripNextStep`, because the card's
+   task row and the featured card's button both build it now. The pins moved
+   with the code — reading the old file would have pinned a caller that no
+   longer writes a query, and passed on nothing. */
+describe('a step\u2019s deep link \u2014 the builder writes the address', () => {
+  const lib = codeOf('../src/lib/tripNextStep.ts')
 
-  it('the timeline route carries the step day as a query param', () => {
-    expect(list).toMatch(/new URLSearchParams\(\{ day: String\(step\.dayIndex\) \}\)/)
-    expect(list).toMatch(/\/timeline\?\$\{q\.toString\(\)\}/)
+  it('the timeline route carries the day as a query param', () => {
+    expect(lib).toMatch(/new URLSearchParams\(\{ day: String\(dayIndex\) \}\)/)
+    expect(lib).toMatch(/\/timeline\?\$\{q\.toString\(\)\}/)
   })
 
   it('the stop rides the query only when the step names one', () => {
-    expect(list).toMatch(/if \(step\.stopId\) q\.set\('stop', step\.stopId\)/)
+    expect(lib).toMatch(/if \(stopId\) q\.set\('stop', stopId\)/)
+  })
+})
+
+describe('a step\u2019s deep link \u2014 every caller reads that one builder', () => {
+  const list = codeOf('../src/pages/TripsList.tsx')
+
+  it('the featured button and the card task row both build through it', () => {
+    expect(list).toMatch(/const targetRoute = nextStepRoute\(trip, step\)/)
+    expect(list).toMatch(/appLink\(nextStepRoute\(t, step\)\)/)
   })
 })
 

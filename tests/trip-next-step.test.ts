@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { nextTripStep, plannedDayRatio, statusBucket, isStatusBucket, STATUS_FILTERS, departureLabel } from '../src/lib/tripNextStep'
+import { nextTripStep, nextStepRoute, plannedDayRatio, statusBucket, isStatusBucket, STATUS_FILTERS, departureLabel } from '../src/lib/tripNextStep'
 import type { ItineraryDay, ItineraryStop, Trip } from '../src/data/types'
 
 /* The trip card's next-step line (MR1) and planning bar (MR2) read this
@@ -265,5 +265,44 @@ describe('departureLabel', () => {
     // 23-hour day must not shorten the gap to 6.95 and round to 7 twice over.
     const label = departureLabel(dated('2026-11-08', '2026-11-12'), on(2026, 11, 1))
     expect(label).toBe('Departs in 7 days')
+  })
+})
+
+/* #645: the card's task row and the featured card's button both read this
+   builder, so a step's target is pinned once here rather than twice in JSX. */
+describe('nextStepRoute', () => {
+  it('sends a day step to its own day on the timeline', () => {
+    const t = trip({ days: [day(0, [stop()]), day(1, []), day(2, [stop()])] })
+    const step = nextTripStep(t)
+    expect(step).toEqual({ kind: 'plan-day', label: 'Plan day 2', dayIndex: 1 })
+    expect(nextStepRoute(t, step)).toBe('/trip/t1/timeline?day=1')
+  })
+
+  it('carries the stop id, so the row opens the stop its label names', () => {
+    const t = trip({ days: [day(0, [stop({ id: 'stop-9', status: 'needs-booking' })])] })
+    expect(nextStepRoute(t, nextTripStep(t))).toBe('/trip/t1/timeline?day=0&stop=stop-9')
+  })
+
+  it('opens Settings for the steps whose fields live there', () => {
+    const undated = trip({ startDate: '', endDate: '' })
+    expect(nextStepRoute(undated, nextTripStep(undated))).toBe('/trip/t1/settings')
+    // The cover picker is in Settings, not on the timeline.
+    const coverless = trip({ days: [day(0, [stop()])] })
+    expect(nextStepRoute(coverless, nextTripStep(coverless))).toBe('/trip/t1/settings')
+  })
+
+  it('falls back to the trip when the step names no day', () => {
+    // "Plan your first day" has no day index — adding one happens on the trip.
+    const t = trip()
+    expect(nextTripStep(t)).toEqual({ kind: 'plan-day', label: 'Plan your first day' })
+    expect(nextStepRoute(t, nextTripStep(t))).toBe('/trip/t1')
+  })
+
+  it('always answers a usable route, even for a finished trip', () => {
+    const t = trip({ days: [day(0, [stop()])], coverImageUrl: 'x.jpg' })
+    expect(nextTripStep(t).kind).toBe('done')
+    const route = nextStepRoute(t, nextTripStep(t))
+    expect(route).toBe('/trip/t1')
+    expect(route).not.toMatch(/undefined|null/)
   })
 })

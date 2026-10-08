@@ -52,9 +52,22 @@ git status -sb                                  # branch + dirty tree
 git log --oneline -5                            # what actually landed
 git rev-list --left-right --count origin/test...HEAD   # local vs integration
 git describe --tags --abbrev=0                  # newest release
-gh issue list --state open --limit 200          # the real queue
+gh issue list --state open --limit 500          # the real queue
 gh pr list --state open                         # in-flight PRs
 ```
+
+**`--limit` is load-bearing on every `gh` list — pass it explicitly (learned
+2026-10-08).** `gh` answers **30 rows per call** unless told otherwise, and it
+does so *silently*: a bare `gh issue list --state open` returns a well-formed
+30-row answer that looks like the whole queue. This file's own numbers were the
+casualty — an earlier revision counted "thirteen issues are open" from a
+hand-count of one such truncated list against a real queue of 98, and a sibling
+re-derivation fixed the count and the missing flag together (re-derived
+2026-09-26, kept as the rule here). The trap recurs wherever a count is derived
+from a list rather than read from a total, including `--label`/`--json` pipes
+and shell array counts of the same output — a `… | ConvertFrom-Json` result
+piped into `@(...).Count` reports the row *lines*, not the rows. Treat any
+queue number under `--limit 500` as unknown.
 
 `git log` is the release history; `CHANGELOG.md` is the user-facing record of what
 each version does. Neither is summarised here — a summary is a cache of a lookup
@@ -478,7 +491,7 @@ See [`docs/README.md`](docs/README.md) for the full doc index.
 
 - **iOS Safari never vibrates — only Capacitor native does.** `navigator.vibrate` is unsupported on all iOS browsers (WebKit). Haptics that must work on iPhone require `@capacitor/haptics` inside a Capacitor iOS shell (`Capacitor.isNativePlatform()`). Keep the web vibrate fallback for Android Chrome; never assume a pure-web PWA will taptic on iOS.
 
-- **Every open issue carries exactly one `priority: P0`–`P3` label** (scheme added Sep 2026; the definitions live in the label descriptions, read them with `gh label list` rather than guessing). P0 = data loss/corruption, security, or a broken core flow — fix before shipping. P1 = real correctness or user-visible bug with a workaround — fix this milestone. P2 = low-risk, narrow surface — slot when convenient. P3 = hygiene, cosmetics, or blocked on a product decision. Assign one at creation; re-triage only by re-reading the definitions, never by gut severity. The label is a *routing* signal only — the justification belongs in the issue body. Queue via `gh issue list --state open --label 'priority: P0'`, and re-derive counts from `gh` rather than recalling them (same rule as §2.6).
+- **Every open issue carries exactly one `priority: P0`–`P3` label** (scheme added Sep 2026; the definitions live in the label descriptions, read them with `gh label list` rather than guessing). P0 = data loss/corruption, security, or a broken core flow — fix before shipping. P1 = real correctness or user-visible bug with a workaround — fix this milestone. P2 = low-risk, narrow surface — slot when convenient. P3 = hygiene, cosmetics, or blocked on a product decision. Assign one at creation; re-triage only by re-reading the definitions, never by gut severity. The label is a *routing* signal only — the justification belongs in the issue body. Queue via `gh issue list --state open --label 'priority: P0' --limit 500`, and re-derive counts from `gh` rather than recalling them (same rule as §2.6) — **with `--limit` on every call**: a bare list answers 30 rows whatever the real queue is, so an unbounded count silently under-reports (§1.1).
 - **A recovery path that reports success must verify the thing it recovered — and a surface that can fail must not render failure as emptiness.** Two payment-rail bugs from one live incident (Sep 2026): (1) checkout's self-heal toasted "already unlocked" without checking its `claim_paid_order` result — a failed grant would strand the buyer AND let the next click mint a fresh order for money already taken (double charge). Recovery branches must treat "I ran the write" as nothing; only the write's observable result counts, and a failed recovery is a 503 that says what will NOT happen ("no second payment will be taken"). Corollary: the orphan-order guard must read the buyer's NEWEST order of ANY status, not `status=eq.pending` — a row stranded 'paid' by a failed grant otherwise vanishes from the guard's view. (2) `fetchCreatorSales` degraded a failed read to `[]`, so the Earnings tab rendered "No sales yet" over a broken read — an empty-state UI and a broken-state UI must be different renderings (error + retry), or every future read failure hides behind friendly copy. The empty-vs-error distinction cost a whole debugging session to discover.
 - **Diagnose a payment/money mismatch from the DATABASE first, not the code.** The ₹500-vs-empty-ledger incident resolved in one probe once the tables were read: the "missing" sale belonged to a DIFFERENT creator than the account being checked, and the stranded order was visible as `status=pending` + no entitlement row. `select * from purchase_orders; select * from entitlements;` answers "did the money land, did the grant land, whose ledger should show it" before any code reading. Multiple test accounts amplify this: buyer ≠ creator ≠ the account you're logged in as.
 

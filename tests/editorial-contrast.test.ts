@@ -86,6 +86,9 @@ const PAIRS: Array<[label: string, fg: string, bg: string, minimum: number]> = [
   ['meta text on surface', '--text-3', '--color-editorial-surface', 4.5],
   ['accent label on surface', '--color-editorial-accent-ink', '--color-editorial-surface', 4.5],
   ['accent label on mint', '--color-editorial-accent-ink', '--color-editorial-mint', 4.5],
+  // The hero annotation paints its own paper card over the photo, so its ink
+  // must hold on paper in both themes, not only on the light one.
+  ['annotation ink on paper', '--color-editorial-ink', '--color-editorial-paper', 4.5],
   // A hairline is not text, so WCAG 1.4.11's 3:1 is the wrong bar for it and no
   // shipped surface in this app meets it. The honest floor is the app's own
   // accepted hairline: --line on --card. The editorial border must be at least

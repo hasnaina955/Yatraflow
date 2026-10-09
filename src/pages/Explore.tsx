@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { currentQuery, onRouteChange, replaceRoute } from '../lib/router'
 import {
-  Calendar, Compass, Eye, GitFork, Heart, MapPin, Search, Sparkles, Star, Wallet, X,
+  Calendar, Compass, Eye, GitFork, Heart, MapPin, Search, Sparkles, Star, Users, Wallet, X,
 } from 'lucide-react'
 import { InlineIcon, MetaIcon } from '../components/icons'
 import { usePublished, useUsers, useTrips, useSessionUserId, useDb, rereadPublicSlices } from '../store/store'
@@ -18,10 +18,10 @@ import { EXPLORE_HERO } from '../lib/editorialAssets'
 import { scrollBehavior } from '../lib/motion'
 import { Select } from '../components/Select'
 import { PubCard } from '../components/PubCard'
-import { FeaturedCreators, ShareStoriesCta, TrendingShelf } from '../components/ExploreDiscovery'
+import { CommunityPlaces, FeaturedCreators, ShareStoriesCta, TrendingShelf } from '../components/ExploreDiscovery'
 import { appLink } from '../lib/appLink'
 import { livePubs } from '../lib/livePubs'
-import { communityCounts, featuredCreators, popularity, selectFeaturedPublication, trendingPubs } from '../lib/discovery'
+import { communityCounts, communityPlaces, featuredCreators, popularity, selectFeaturedPublication, trendingPubs } from '../lib/discovery'
 import { editorialRouteCover } from '../lib/editorialAssets'
 
 type SortKey = 'popular' | 'newest' | 'budget-asc' | 'budget-desc' | 'duration'
@@ -167,6 +167,7 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
     [published, featured],
   )
   const community = useMemo(() => communityCounts(published), [published])
+  const places = useMemo(() => communityPlaces(published), [published])
 
   // The grid must not re-offer the plan the featured card already leads with —
   // on a three-item shelf the duplicate was a third of the page. Only ever a
@@ -196,6 +197,20 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
   function toggleHeart(id: string) {
     const nowSaved = toggleSaved(id)
     toast(nowSaved ? 'Saved to this browser.' : 'Removed from saved itineraries.')
+  }
+
+  /** A Places tile sets the search query. It clears the narrowing filters
+      and Saved. It keeps the selected sort. It resets pagination and scrolls
+      to the catalog. */
+  function selectCommunityPlace(place: string) {
+    setQ(place)
+    setStyle('all')
+    setMaxBudget('')
+    setDuration('all')
+    setSavedOnly(false)
+    setVisibleCount(PAGE_SIZE)
+    syncUrl({ q: place, style: 'all', max: '', dur: 'all' })
+    showExploreSection('explore-catalog')
   }
 
   const stylesWithCounts = STYLES.filter(s => (styleCounts.get(s) ?? 0) > 0)
@@ -229,11 +244,21 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
               <span className="kicker">Made for the way you travel</span>
               <h1>Find your next<br />great journey.</h1>
               <p>Discover routes from real travellers. Make one your own.</p>
-              {pubsRead === 'ready' && <p className="explore-live-counts num">
-                <span><strong>{community.pubCount}</strong> live {community.pubCount === 1 ? 'itinerary' : 'itineraries'}</span>
-                <span><strong>{community.creatorCount}</strong> {community.creatorCount === 1 ? 'creator' : 'creators'}</span>
-              </p>}
+              {pubsRead === 'ready' && (
+                <ul className="explore-live-counts num" aria-label="Public catalog facts">
+                  <li><Calendar size={17} aria-hidden /><span><strong>{community.pubCount}</strong>live {community.pubCount === 1 ? 'itinerary' : 'itineraries'}</span></li>
+                  <li><Users size={17} aria-hidden /><span><strong>{community.creatorCount}</strong>{community.creatorCount === 1 ? 'creator' : 'creators'}</span></li>
+                  <li><MapPin size={17} aria-hidden /><span><strong>{community.placeCount}</strong>route {community.placeCount === 1 ? 'place' : 'places'}</span></li>
+                  <li><GitFork size={17} aria-hidden /><span><strong>{community.forks}</strong>{community.forks === 1 ? 'fork' : 'forks'}</span></li>
+                </ul>
+              )}
               <button type="button" className="btn btn-primary" onClick={() => showExploreSection('explore-catalog')}>Explore itineraries →</button>
+            </div>
+            <div className="explore-hero-annotation">
+              <p>Real travellers<br />Real stories<br />Better trips</p>
+              <svg viewBox="0 0 64 48" aria-hidden="true" focusable="false">
+                <path d="M9 6c25 1 39 10 43 31M41 30l11 7 4-13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
             </div>
           </EditorialPhoto>
 
@@ -436,6 +461,9 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
               signedIn={!!me}
               onNavigate={onNavigate}
             />
+          )}
+          {pubsRead === 'ready' && discoveryVisible && (
+            <CommunityPlaces places={places} onSelect={selectCommunityPlace} />
           )}
           <section className="explore-fork-note" aria-labelledby="explore-fork-heading">
             <Compass size={28} aria-hidden />

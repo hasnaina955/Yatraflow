@@ -4020,7 +4020,7 @@ html.vt-active :where(*) {
 .explore-photo-hero { min-height: 300px; padding: 24px; border-radius: var(--radius); }
 .explore-photo-hero::before {
   content: ''; position: absolute; inset: 0; z-index: 1;
-  background: var(--color-editorial-scrim); pointer-events: none;
+  background: linear-gradient(100deg, rgba(255, 252, 246, .82) 0%, rgba(255, 252, 246, .52) 42%, rgba(255, 252, 246, .12) 66%, rgba(255, 252, 246, 0) 78%); pointer-events: none;
 }
 .explore-photo-hero-content { max-width: 36ch; }
 .explore-photo-hero h1 {
@@ -4028,9 +4028,9 @@ html.vt-active :where(*) {
   font-weight: 600; line-height: 1.1; letter-spacing: -.025em; margin: 16px 0;
 }
 .explore-photo-hero-content > p { margin: 0 0 16px; font-size: 14px; line-height: 1.6; }
-.explore-live-counts { display: flex; gap: 24px; flex-wrap: wrap; }
+.explore-live-counts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px 12px; padding: 0; margin: 0 0 16px; list-style: none; }
 .explore-live-counts span { display: grid; gap: 2px; font-size: 12px; }
-.explore-live-counts strong { font-size: 22px; line-height: 1.2; }
+.explore-live-counts strong { font-size: 16px; line-height: 1.2; }
 .explore-hero-search {
   width: 100%; min-width: 0; border-radius: var(--radius-sm); padding: 12px 16px;
   border: 1px solid var(--color-editorial-border);
@@ -9443,5 +9443,135 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
    enough that a crowded foot breaks onto a second line, narrow enough to fit
    every ordinary remainder, so squeeze becomes wrap instead of crush. */
 .trips-page .trip-card-actions { display: flex; align-items: center; gap: var(--space-4); flex: none; }
+
+/* ==== Compact-card correction, Task 5 ==== */
+/* The rules that already existed were edited in place above. What follows is
+   new selector text, appended at the end of the file. Every spacing value
+   stays on the ladder: 2, 4, 6, 8, 12, 14, 16, 20, 22, 24. */
+
+/* ---- The dark theme's directional hero scrim ---- */
+/* The light rule above now paints a literal cream. It cannot serve the dark
+   theme. This rule gives the dark theme its own gradient, with the colour of
+   the dark editorial paper token. */
+[data-theme='dark'] .explore-photo-hero::before {
+  background: linear-gradient(100deg, color-mix(in srgb, var(--color-editorial-paper) 82%, transparent) 0%, color-mix(in srgb, var(--color-editorial-paper) 52%, transparent) 42%, color-mix(in srgb, var(--color-editorial-paper) 12%, transparent) 66%, transparent 78%);
+}
+
+/* ---- The four hero facts: one icon, then a stacked count and label ---- */
+.explore-live-counts li { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.explore-live-counts li > svg { flex: none; }
+
+/* ---- The handwritten hero annotation ---- */
+/* It sits where the scrim clears, so the ink needs its own paper. Paper
+   follows the theme. The pair is pinned in tests/editorial-contrast.test.ts. */
+.explore-hero-annotation {
+  padding: 8px 12px;
+  background: var(--color-editorial-paper);
+  border-radius: var(--radius-sm);
+}
+/* Every direct child of `.editorial-photo` takes a relative position. This
+   rule carries the child combinator, so it outranks that generic rule. */
+.explore-photo-hero > .explore-hero-annotation {
+  position: absolute;
+  right: 20px;
+  top: 20px;
+  pointer-events: none;
+  transform: rotate(-5deg);
+  color: var(--color-editorial-ink);
+}
+/* Caveat 600 loads from the font link in index.html. The generic cursive
+   keeps the text visible when the hosted font fails. */
+.explore-hero-annotation p { font-family: 'Caveat', cursive; font-size: 24px; line-height: 1.2; margin: 0; }
+.explore-hero-annotation svg { width: 54px; height: 44px; margin: 4px auto 0; }
+
+/* ---- Places in the community: a route place and its live count ---- */
+.community-places {
+  padding: 20px;
+  border: 1px solid var(--color-editorial-border);
+  border-radius: var(--radius);
+  background: var(--color-editorial-surface);
+}
+.community-places h2 { font-size: 16px; margin: 0 0 14px; }
+.community-place-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px 12px; }
+.community-place { padding: 0; min-width: 0; border: 0; background: transparent; color: var(--color-editorial-ink); text-align: left; cursor: pointer; }
+.community-place-photo { aspect-ratio: 4 / 3; border-radius: var(--radius-sm); }
+.community-place-name { display: block; margin-top: 6px; font-size: 12px; font-weight: 700; overflow-wrap: anywhere; }
+.community-place-count { display: block; font-size: 11px; color: var(--text-2); }
+
+/* ---- Phone and tablet: the annotation joins the flow, after the hero action ---- */
+/* It must not cover the hero controls and it must not vanish, so it becomes
+   a relative block in normal flow below the 1150px layout breakpoint. Two
+   count columns fit where four do not, but only at phone widths. */
+@media (max-width: 1150px) {
+  .explore-photo-hero > .explore-hero-annotation {
+    position: relative;
+    right: auto;
+    top: auto;
+    width: fit-content;
+    margin-top: 12px;
+  }
+}
+@media (max-width: 720px) {
+  .explore-live-counts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* ---- Token motion: the sections arrive, the photo answers the pointer,
+   the bookmark presses back ---- */
+@media (prefers-reduced-motion: no-preference) {
+  .explore-main > *, .explore-aside > * {
+    animation: cardIn var(--motion-slow) var(--ease-out) backwards;
+  }
+  .explore-main > *:nth-child(2), .explore-aside > *:nth-child(2) {
+    animation-delay: var(--stagger-step);
+  }
+  .explore-main > *:nth-child(3), .explore-aside > *:nth-child(3) {
+    animation-delay: calc(var(--stagger-step) * 2);
+  }
+}
+.explore-page .pub-card-editorial .editorial-photo-image,
+.explore-page .community-place .editorial-photo-image {
+  transition: transform var(--motion-slow) var(--ease-out);
+}
+@media (hover: hover) and (pointer: fine) {
+  .explore-page .pub-card-editorial .itin-card:hover .editorial-photo-image,
+  .explore-page .community-place:hover .editorial-photo-image { transform: scale(1.04); }
+}
+.save-bookmark { transition: transform var(--motion-fast) var(--ease-out), background var(--motion-fast) var(--ease-out); }
+.save-bookmark:active { transform: scale(.96); }
+/* Touch screens keep no sticky hover, and the press must not reshape the
+   button's hit bounds: the button itself never transforms. Its glyph carries
+   the zoom and the press, re-added for hover-capable pointers only. */
+.save-bookmark:hover, .save-bookmark:active { transform: none; }
+.save-bookmark svg { transition: transform var(--motion-fast) var(--ease-out); }
+.explore-page .creator-card:hover { transform: none; box-shadow: none; }
+.explore-page .pub-card-editorial .itin-card:hover { transform: none; box-shadow: none; }
+@media (hover: hover) and (pointer: fine) {
+  .save-bookmark:hover svg { transform: scale(1.08); }
+  .save-bookmark:active svg { transform: scale(.96); }
+  .explore-page .creator-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-soft); }
+  .explore-page .pub-card-editorial .itin-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(var(--shadow-navy-rgb),.06), 0 16px 40px rgba(var(--shadow-navy-rgb),.12);
+  }
+}
+.explore-page .creator-card:focus-visible { box-shadow: var(--ring); }
+.explore-page .pub-card-editorial .row-between.itin-meta .btn:focus-visible {
+  outline: 2px solid var(--color-editorial-ink);
+  outline-offset: 2px;
+}
+/* This block sits last in the file, so no later hover rule can put movement
+   back under reduced motion. */
+@media (prefers-reduced-motion: reduce) {
+  .explore-main > *, .explore-aside > * { animation: none; }
+  .explore-page .pub-card-editorial .editorial-photo-image,
+  .explore-page .community-place .editorial-photo-image,
+  .save-bookmark, .save-bookmark svg { transition: none; }
+  .explore-page .pub-card-editorial .itin-card:hover,
+  .explore-page .creator-card:hover,
+  .explore-page .pub-card-editorial .itin-card:hover .editorial-photo-image,
+  .explore-page .community-place:hover .editorial-photo-image,
+  .save-bookmark:hover, .save-bookmark:active,
+  .save-bookmark:hover svg, .save-bookmark:active svg { transform: none; }
+}
 
 

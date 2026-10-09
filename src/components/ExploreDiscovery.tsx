@@ -6,10 +6,10 @@
 // block returns null until its own evidence exists — a section
 // heading over an empty rail would advertise a community that is
 // not there.
-import { Check, GitFork, PenLine, Sparkles, TrendingUp } from 'lucide-react'
+import { Check, GitFork, MapPin, PenLine, Sparkles, TrendingUp } from 'lucide-react'
 import type { PublishedItinerary, User } from '../data/types'
 import { appLink } from '../lib/appLink'
-import type { CreatorRank } from '../lib/discovery'
+import type { CommunityPlace, CreatorRank } from '../lib/discovery'
 import { creatorCardLabel } from '../lib/discovery'
 import { editorialRouteCover } from '../lib/editorialAssets'
 import { EditorialPhoto } from './EditorialPhoto'
@@ -146,6 +146,35 @@ export function ShareStoriesCta({ pubCount, creatorCount, signedIn, onNavigate }
           {signedIn ? 'Publish a trip' : 'Become a creator'}
         </button>
         {signedIn && <span className="share-cta-hint">Publish one of your trips from its Share tab.</span>}
+      </div>
+    </section>
+  )
+}
+
+/** Places in the community: the route places the live catalog names, with
+ *  how many live publications name each one. The block reads the same slice
+ *  the other discovery blocks read, so it cannot advertise a place no live
+ *  plan goes to, and it renders nothing when the catalog holds none. */
+export function CommunityPlaces({ places, onSelect }: {
+  places: CommunityPlace[]
+  onSelect: (place: string) => void
+}) {
+  if (!places.length) return null
+  return (
+    <section className="community-places" aria-labelledby="community-places-heading">
+      <h2 id="community-places-heading">Places in the community</h2>
+      <div className="community-place-grid">
+        {places.map(place => (
+          <button key={place.key} type="button" className="community-place"
+            aria-label={`Explore ${place.name}: ${place.pubCount} public ${place.pubCount === 1 ? 'itinerary' : 'itineraries'}`}
+            onClick={() => onSelect(place.name)}>
+            <EditorialPhoto src={editorialRouteCover([place.name])} className="community-place-photo">
+              <span className="editorial-cover-fallback" aria-hidden="true"><MapPin size={20} /></span>
+            </EditorialPhoto>
+            <span className="community-place-name">{place.name}</span>
+            <span className="community-place-count num">{place.pubCount} {place.pubCount === 1 ? 'itinerary' : 'itineraries'}</span>
+          </button>
+        ))}
       </div>
     </section>
   )

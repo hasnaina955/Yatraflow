@@ -16,7 +16,7 @@ Specification: [Approved compact card correction](../specs/2026-10-09-compact-ca
 
 Written approval: `ask_93fd554f445729375164aa92`, step `written-correction-specification`.
 
-Status: Tasks 1 to 4 are complete. The baseline, the place derivation, the editorial card, and the creator compaction are recorded. Tasks 5 and 6 remain open.
+Status: Tasks 1 to 5 are complete. Only the final proof and comparison remain open.
 
 ## Global constraints
 

@@ -719,6 +719,180 @@ async function acceptance(page, surface, result, fixture) {
       await page.waitForTimeout(400)
       assert(/^\/pub\//.test(currentRoute(page)), `Enter on a card link must open its plan, reached ${currentRoute(page)}`)
     }
+    /* Task 5 correction checks: four hero facts, the annotation, Places tiles
+       with their search behaviour, and sampled motion. Populated mixed only,
+       behind the target flag until the whole correction is ready. */
+    if (compactTarget && scenario === 'mixed' && state === 'populated') {
+      await page.goto(`${base.origin}/#/explore`, { waitUntil: 'domcontentloaded' })
+      await page.locator('.explore-grid a.trip-card-hit').first().waitFor()
+      assert.equal(await page.locator('.explore-live-counts > li').count(), 4, 'Hero shows four live facts')
+      const annotation = await page.locator('.explore-hero-annotation p').innerText()
+      for (const line of ['Real travellers', 'Real stories', 'Better trips']) {
+        assert(annotation.includes(line), `Annotation carries its line: ${line}`)
+      }
+      /* While the annotation floats, it must not cover the hero copy. In flow
+         layout the structure itself prevents overlap. */
+      const annotationOverlap = await page.evaluate(() => {
+        const note = document.querySelector('.explore-hero-annotation')
+        const copy = document.querySelector('.explore-photo-hero-content')
+        if (!note || !copy || getComputedStyle(note).position !== 'absolute') return false
+        const a = note.getBoundingClientRect(), b = copy.getBoundingClientRect()
+        return Math.min(a.right, b.right) - Math.max(a.left, b.left) > 1
+          && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 1
+      })
+      assert.equal(annotationOverlap, false, 'Floating annotation must not cover hero copy')
+      await page.getByRole('heading', { name: 'Places in the community', exact: true }).waitFor()
+      const expectedPlaces = (() => {
+        const counts = new Map()
+        for (const row of fixture.published_itineraries.filter(row => row.unpublished_at == null)) {
+          const seen = new Set()
+          for (const raw of row.route_summary) {
+            const name = raw.trim().replace(/\s+/g, ' ')
+            if (!name) continue
+            const key = name.toLocaleLowerCase('en')
+            if (!counts.has(key)) counts.set(key, { key, name, pubCount: 0 })
+            const place = counts.get(key)
+            if (name < place.name) place.name = name
+            if (!seen.has(key)) place.pubCount += 1
+            seen.add(key)
+          }
+        }
+        return [...counts.values()].sort((a, b) => b.pubCount - a.pubCount || (a.name < b.name ? -1 : 1)).slice(0, 6)
+      })()
+      const tiles = page.locator('.community-place')
+      assert(await tiles.count() >= 1 && await tiles.count() <= 6, 'Places shows one to six tiles')
+      assert.equal(await tiles.count(), expectedPlaces.length, 'Tile count matches the live fixture routes')
+      for (const place of expectedPlaces) {
+        const tile = tiles.filter({ hasText: place.name }).first()
+        assert(await tile.count() === 1, `Place tile renders once: ${place.name}`)
+        assert((await tile.innerText()).includes(String(place.pubCount)), `Tile states its count: ${place.name}`)
+      }
+      // Change the sort, clear a previous search, then take the Goa tile.
+      const sortBox = page.getByRole('combobox', { name: 'Sort by', exact: true })
+      await sortBox.click()
+      await page.getByRole('option', { name: 'Newest first', exact: true }).click()
+      await page.waitForTimeout(150)
+      const searchBox = page.getByRole('textbox', { name: 'Search destination or creator' })
+      await searchBox.fill('Himalayan')
+      await page.waitForTimeout(250)
+      await searchBox.fill('')
+      await page.waitForTimeout(250)
+      /* Every discovery control takes keyboard focus with a rendered ring that
+         was not there before focus. Runs before the tile search hides them. */
+      const focusTargets = [
+        ['place button', '.community-place'],
+        ['cover link', '.pub-card-editorial .pub-card-cover-link'],
+        ['bookmark', '.pub-card-editorial .save-bookmark'],
+        ['fork button', '.pub-card-editorial .row-between.itin-meta button'],
+        ['creator link', '.pub-card-editorial .creator-line'],
+      ]
+      for (const [label, selector] of focusTargets) {
+        const control = page.locator(selector).first()
+        assert(await control.count() > 0, `Focus check needs a ${label}`)
+        const before = await control.evaluate(element => {
+          const style = getComputedStyle(element)
+          return { outlineStyle: style.outlineStyle, shadow: style.boxShadow }
+        })
+        await control.focus()
+        const focus = await control.evaluate(element => {
+          const style = getComputedStyle(element)
+          return {
+            active: element === document.activeElement,
+            visible: element.matches(':focus-visible'),
+            outlineStyle: style.outlineStyle,
+            shadow: style.boxShadow,
+          }
+        })
+        assert(focus.active && focus.visible, `${label} takes keyboard focus visibly`)
+        assert(
+          focus.outlineStyle !== before.outlineStyle || focus.shadow !== before.shadow,
+          `${label} draws a focus ring on focus (was ${before.outlineStyle} / ${before.shadow})`,
+        )
+      }
+      const goaTile = tiles.filter({ hasText: 'Goa' }).first()
+      await goaTile.click()
+      await page.waitForTimeout(250)
+      const query = new URL(currentRoute(page), 'http://fixture.test').searchParams
+      assert.equal(query.get('q'), 'Goa', 'Place tile searches its place')
+      assert.equal(query.has('style'), false, 'Place tile clears the style filter')
+      assert.equal(query.has('max'), false, 'Place tile clears the budget filter')
+      assert.equal(query.has('dur'), false, 'Place tile clears the duration filter')
+      assert.equal(query.get('sort'), 'newest', 'Place tile keeps the selected sort')
+      assert.equal(await page.locator('.community-places').count(), 0, 'Discovery hides under a place search')
+      await page.reload({ waitUntil: 'domcontentloaded' })
+      await page.waitForTimeout(800)
+      assert.equal(new URL(currentRoute(page), 'http://fixture.test').searchParams.get('q'), 'Goa', 'Place search survives reload')
+      /* The featured pick sits outside a Goa filter, so it must still lead with
+         its exception label while the place search is active. */
+      await visible(page.locator('.featured-card'), 'Featured card leads under a place search')
+      await visible(page.getByText(/outside your filters/i), 'Global featured exception under a place search')
+      await page.goto(`${base.origin}/#/explore`, { waitUntil: 'domcontentloaded' })
+      await page.locator('.explore-grid a.trip-card-hit').first().waitFor()
+      // Motion is sampled from frames, never from a declaration. Scroll first so
+      // the scroll itself cannot read as a lift, then sample across the hover.
+      const motionCard = page.locator('.pub-card-editorial .itin-card').first()
+      await motionCard.scrollIntoViewIfNeeded()
+      await page.waitForTimeout(300)
+      await page.mouse.move(0, 0)
+      await page.waitForTimeout(100)
+      const restY = await motionCard.evaluate(element => element.getBoundingClientRect().y)
+      await motionCard.hover()
+      const hovered = await motionCard.evaluate(element => new Promise(resolveSamples => {
+        const rows = []
+        const start = performance.now()
+        const sample = time => {
+          const image = element.querySelector('.editorial-photo-image')
+          rows.push({
+            time: time - start,
+            y: element.getBoundingClientRect().y,
+            imageTransform: image ? getComputedStyle(image).transform : 'none',
+          })
+          if (time - start < 600) requestAnimationFrame(sample)
+          else resolveSamples(rows)
+        }
+        requestAnimationFrame(sample)
+      }))
+      const lifted = Math.min(...hovered.map(sample => sample.y)) < restY - 0.5
+      const zoomed = hovered.some(sample => sample.imageTransform !== 'none')
+      await page.waitForTimeout(200)
+      const held = await motionCard.evaluate(element => ({
+        cardTransform: getComputedStyle(element).transform,
+        imageTransform: getComputedStyle(element.querySelector('.editorial-photo-image')).transform,
+      }))
+      if (motion === 'no-preference') {
+        assert(lifted, `Card lifts on hover under normal motion (held card ${held.cardTransform}, photo ${held.imageTransform})`)
+        assert(zoomed, `Photo zooms on hover under normal motion (held photo ${held.imageTransform})`)
+      } else {
+        assert(!lifted, 'Card holds still under reduced motion')
+        assert(!zoomed, 'Photo holds still under reduced motion')
+      }
+      result.motionSamples = { frames: hovered.length, lifted, zoomed }
+      const bookmark = page.locator('.pub-card-editorial .save-bookmark').first()
+      await bookmark.hover()
+      await page.waitForTimeout(200)
+      /* The button never transforms; its glyph carries the feedback, so the
+         hit bounds hold still through hover, press, and release. */
+      const hoverTransform = await bookmark.evaluate(element => getComputedStyle(element.querySelector('svg')).transform)
+      await page.mouse.down()
+      await page.waitForTimeout(120)
+      const pressedTransform = await bookmark.evaluate(element => getComputedStyle(element.querySelector('svg')).transform)
+      await page.mouse.up()
+      await page.waitForTimeout(200)
+      const releasedTransform = await bookmark.evaluate(element => getComputedStyle(element.querySelector('svg')).transform)
+      const buttonHeld = await bookmark.evaluate(element => getComputedStyle(element).transform)
+      assert.equal(buttonHeld, 'none', 'Bookmark button keeps fixed hit bounds')
+      if (motion === 'no-preference') {
+        assert.notEqual(hoverTransform, 'none', 'Bookmark answers hover under normal motion')
+        assert.notEqual(pressedTransform, hoverTransform, 'Bookmark presses under normal motion')
+        assert.equal(releasedTransform, hoverTransform, 'Bookmark settles back to hover on pointer-up')
+      } else {
+        assert.equal(hoverTransform, 'none', 'Bookmark holds still on hover under reduced motion')
+        assert.equal(pressedTransform, 'none', 'Bookmark holds still under reduced motion')
+      }
+      result.bookmarkSamples = { hoverTransform, pressedTransform, releasedTransform }
+      await bookmark.click()
+      await page.waitForTimeout(120)
+    }
   }
 
   if (workspaceSmoke && surface.name === 'my-trips' && state === 'populated') {
@@ -881,12 +1055,17 @@ try {
                so asserting it loaded would be asserting a lazy load that has no
                reason to happen. Record whether editorial type is on screen. */
             editorialTypeInUse: [...document.querySelectorAll('*')].some(element => getComputedStyle(element).fontFamily.includes('Playfair Display')),
+            handwritten: loaded('Caveat') && document.fonts.check('600 24px "Caveat"'),
+            handwrittenInUse: [...document.querySelectorAll('*')].some(element => getComputedStyle(element).fontFamily.includes('Caveat')),
           }
         })
         if (fontMode === 'allowed') {
           assert(result.fonts.interface, 'Interface font must load before any visual reading')
           if (surface.name === 'explore' && result.fonts.editorialTypeInUse) {
             assert(result.fonts.editorial, 'Explore editorial font must load when editorial type is painted')
+          }
+          if (surface.name === 'explore' && result.fonts.handwrittenInUse) {
+            assert(result.fonts.handwritten, 'Explore annotation font must load when handwritten type is painted')
           }
         } else {
           assert(!result.fonts.interface, 'Blocked-font run must not have loaded the interface font')

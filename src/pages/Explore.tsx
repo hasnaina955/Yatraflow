@@ -5,9 +5,9 @@ import {
   Calendar, Compass, Eye, GitFork, Heart, MapPin, Search, Sparkles, Star, Users, Wallet, X,
 } from 'lucide-react'
 import { InlineIcon, MetaIcon } from '../components/icons'
-import { usePublished, useUsers, useTrips, useSessionUserId, useDb, rereadPublicSlices } from '../store/store'
+import { usePublished, useUsers, useSessionUserId, useDb, rereadPublicSlices } from '../store/store'
 import type { User } from '../data/types'
-import { computeHealth, formatInr } from '../lib/engine'
+import { formatInr } from '../lib/engine'
 import { useSavedPubs } from '../lib/savedPubs'
 import { sliceState, emptyCopyFor } from '../lib/readState'
 import { forkPublication } from '../lib/forkPub'
@@ -62,7 +62,6 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
   // profiles, trips or the session change — not on every store commit.
   const published = usePublished()
   const users = useUsers()
-  const trips = useTrips()
   const me = useSessionUserId()
   // #364: the catalog's own read state, so "the community has published nothing"
   // is never printed over a read that failed. See the empty branch below.
@@ -152,10 +151,6 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
   // can be stated without printing a zero. The evidence bar and the final ID
   // tie live in lib/discovery.ts so every surface that features a plan agrees.
   const featured = useMemo(() => selectFeaturedPublication(published), [published])
-  // Read the underlying trip from the trips slice (subscribed) so the featured
-  // health score stays live without subscribing to the whole cache.
-  const featuredTrip = featured ? trips.find(t => t.id === featured.tripId) : undefined
-  const featuredHealth = featuredTrip ? computeHealth(featuredTrip).score : undefined
 
   // MR10 — the discovery blocks: featured creators, trending plans, and
   // the share-stories counts. Same evidence bar as the featured card,
@@ -360,8 +355,8 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
               <p className="featured-credibility">
                 Why featured: {featured.copies >= 1
                   ? <><InlineIcon icon={GitFork} size={12} gap={2} style={{ marginLeft: 2 }} /> {featured.copies} fork{featured.copies === 1 ? '' : 's'} — the most-forked plan here</>
-                  : <><InlineIcon icon={Eye} size={12} gap={2} style={{ marginLeft: 2 }} /> {featured.views} views</>}
-                {featuredHealth !== undefined && <> · trip health {featuredHealth}/100</>} — by {userOf(users, featured.creatorId)?.profile.name ?? 'a YatraFlow traveller'}{userOf(users, featured.creatorId)?.profile.isCreator && <InlineIcon icon={Sparkles} size={12} gap={0} vAlign="-1px" style={{ marginLeft: 2 }} />}.
+                  : <><InlineIcon icon={Eye} size={12} gap={2} style={{ marginLeft: 2 }} /> {featured.views} views — the most-viewed plan here</>}
+                {' '}— by {userOf(users, featured.creatorId)?.profile.name ?? 'a YatraFlow traveller'}{userOf(users, featured.creatorId)?.profile.isCreator && <InlineIcon icon={Sparkles} size={12} gap={0} vAlign="-1px" style={{ marginLeft: 2 }} />}.
               </p>
               <div className="featured-meta">
                 <span><MetaIcon icon={ Calendar } tone="time" />{featured.durationDays} days</span>

@@ -16,9 +16,11 @@ import { livePubs } from './livePubs'
 export const FEATURED_MIN_VIEWS = 25
 
 /** The catalog's one popularity score: views plus forks weighted
- *  five-to-one (a fork is a stronger signal than a view). Every
- *  surface that ranks publications uses this copy, so "trending"
- *  and "most popular" cannot disagree. */
+ *  five-to-one (a fork is a stronger signal than a view). Trending and the
+ *  Most-popular sort rank by this copy. Featured does not: it crowns the
+ *  most-forked eligible plan (copies first, then views), so a high-views,
+ *  low-forks catalog can feature one plan while another sorts first — and
+ *  each surface names its own basis. */
 export function popularity(p: { views: number; copies: number }): number {
   return p.views + p.copies * 5
 }

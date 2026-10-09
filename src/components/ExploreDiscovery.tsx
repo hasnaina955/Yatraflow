@@ -98,7 +98,7 @@ export function TrendingShelf({ pubs, users, onFork, onToggleSave, isSaved, need
         <h2 id="trending-heading" className="discovery-title">
           <InlineIcon icon={TrendingUp} size={15} gap={6} />Trending itineraries
         </h2>
-        <p className="discovery-sub">The plans the community is copying and reading.</p>
+        <p className="discovery-sub">The most-read and most-copied plans — ranked by views, with a fork counting five times a view.</p>
       </header>
       <div className="trending-grid">
         {pubs.map((p, i) => (

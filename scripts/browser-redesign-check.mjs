@@ -779,6 +779,9 @@ async function acceptance(page, surface, result, fixture) {
       await page.goto(`${base.origin}/#/explore`, { waitUntil: 'domcontentloaded' })
       await page.locator('.explore-grid a.trip-card-hit').first().waitFor()
       assert.equal(await page.locator('.explore-live-counts > li').count(), 4, 'Hero shows four live facts')
+      const credibility = await page.locator('.featured-credibility').innerText()
+      assert(credibility.includes('most-forked plan here'), 'Featured names its most-forked basis')
+      assert(!/trip health/i.test(credibility), 'Featured keeps insider scores out of the visitor sentence')
       const annotation = await page.locator('.explore-hero-annotation p').innerText()
       for (const line of ['Real travellers', 'Real stories', 'Better trips']) {
         assert(annotation.includes(line), `Annotation carries its line: ${line}`)

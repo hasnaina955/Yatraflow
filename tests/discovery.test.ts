@@ -262,6 +262,20 @@ describe('public editorial selection', () => {
     expect(selectFeaturedPublication([pub('forked', 'a', { copies: 1 })])?.id).toBe('forked')
   })
 
+  it('lets featured and popularity disagree, each naming its own basis', () => {
+    // Copies-first featuring against weighted popularity: A carries more
+    // forks, B carries far more views. The UI labels each selection by its
+    // own rule (most-forked vs views-plus-forks), so the split reads as two
+    // answers, never as one ranking contradicting itself.
+    const rows = [
+      pub('forked-more', 'a', { copies: 5, views: 0 }),
+      pub('viewed-more', 'b', { copies: 4, views: 100 }),
+    ]
+    expect(selectFeaturedPublication(rows)?.id).toBe('forked-more')
+    expect(popularity(rows[0])).toBeLessThan(popularity(rows[1]))
+    expect(trendingPubs(rows).map(row => row.id)).toEqual(['viewed-more', 'forked-more'])
+  })
+
   it('uses only the selected creator public publication for their cover', () => {
     const rows = [{ ...pub('hidden', 'a', { copies: 100, unpublishedAt: 1 }), coverImageUrl: '/private.jpg' },
       { ...pub('other', 'b'), coverImageUrl: '/other.jpg' },

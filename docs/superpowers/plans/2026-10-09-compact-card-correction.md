@@ -16,7 +16,7 @@ Specification: [Approved compact card correction](../specs/2026-10-09-compact-ca
 
 Written approval: `ask_93fd554f445729375164aa92`, step `written-correction-specification`.
 
-Status: Task 1 is complete. The baseline card geometry and its guarding checks are recorded. Tasks 2 to 6 remain open.
+Status: Tasks 1 and 2 are complete. The baseline geometry and the place derivation are recorded. Tasks 3 to 6 remain open.
 
 ## Global constraints
 
@@ -425,6 +425,8 @@ npx vitest run tests/discovery.test.ts tests/soft-unpublish.test.ts tests/editor
 
 Acceptance: Live route data supplies every fact. Duplicate route stops do not inflate counts.
 No new backend read or write exists.
+
+- [x] Task 2 complete. Four suites pass with 92 tests. No new backend read or write.
 
 ## Task 3: Replace only the editorial publication card layout
 

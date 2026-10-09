@@ -130,16 +130,51 @@ export function creatorCardLabel(rank: CreatorRank, position: number): string {
 }
 
 /** The community counts the share-stories card states: live
- *  publications, and the distinct creators behind them. Both are
- *  read from the same slice the blocks above read, so the card
- *  can never claim a larger community than the blocks show. */
+ *  publications, the distinct creators behind them, the distinct
+ *  route places those publications name, and the recorded forks.
+ *  All four are read from the same slice the blocks above read, so
+ *  the card can never claim a larger community than the blocks show. */
+export interface CommunityPlace {
+  key: string
+  name: string
+  pubCount: number
+}
+
+function comparePlaceText(a: string, b: string): number {
+  return a.localeCompare(b, 'en') || (a < b ? -1 : a > b ? 1 : 0)
+}
+
+export function communityPlaces(pubs: PublishedItinerary[], limit = 6): CommunityPlace[] {
+  const places = new Map<string, CommunityPlace>()
+  for (const publication of livePubs(pubs)) {
+    const counted = new Set<string>()
+    for (const rawName of publication.routeSummary) {
+      const name = rawName.trim().replace(/\s+/g, ' ')
+      if (!name) continue
+      const key = name.toLocaleLowerCase('en')
+      const place = places.get(key) ?? { key, name, pubCount: 0 }
+      if (name < place.name) place.name = name
+      if (!counted.has(key)) place.pubCount += 1
+      counted.add(key)
+      places.set(key, place)
+    }
+  }
+  return [...places.values()]
+    .sort((a, b) => b.pubCount - a.pubCount || comparePlaceText(a.name, b.name) || comparePlaceText(a.key, b.key))
+    .slice(0, limit)
+}
+
 export function communityCounts(pubs: PublishedItinerary[]): {
   pubCount: number
   creatorCount: number
+  placeCount: number
+  forks: number
 } {
   const live = livePubs(pubs)
   return {
     pubCount: live.length,
-    creatorCount: new Set(live.map(p => p.creatorId)).size,
+    creatorCount: new Set(live.map(publication => publication.creatorId)).size,
+    placeCount: communityPlaces(live, Infinity).length,
+    forks: live.reduce((total, publication) => total + publication.copies, 0),
   }
 }

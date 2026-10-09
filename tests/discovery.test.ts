@@ -15,7 +15,7 @@
 import { describe, expect, it } from 'vitest'
 import type { PublishedItinerary, User } from '../src/data/types'
 import {
-  FEATURED_MIN_VIEWS, communityCounts, featuredCreators, popularity, trendingPubs,
+  FEATURED_MIN_VIEWS, communityCounts, communityPlaces, featuredCreators, popularity, trendingPubs,
   selectFeaturedPublication, creatorCoverPublication, creatorCardLabel,
 } from '../src/lib/discovery'
 
@@ -291,7 +291,7 @@ describe('communityCounts', () => {
       pub('p2', 'c1', { views: 5 }),   // same creator again
       pub('p3', 'c2', { views: 5 }),
     ]
-    expect(communityCounts(pubs)).toEqual({ pubCount: 3, creatorCount: 2 })
+    expect(communityCounts(pubs)).toEqual({ pubCount: 3, creatorCount: 2, placeCount: 2, forks: 0 })
   })
 
   it('leaves soft-unpublished plans out of both counts', () => {
@@ -299,10 +299,74 @@ describe('communityCounts', () => {
       pub('p1', 'c1', { views: 5 }),
       pub('p2', 'c2', { views: 5, unpublishedAt: 5 }),
     ]
-    expect(communityCounts(pubs)).toEqual({ pubCount: 1, creatorCount: 1 })
+    expect(communityCounts(pubs)).toEqual({ pubCount: 1, creatorCount: 1, placeCount: 2, forks: 0 })
   })
 
   it('reads an empty catalog as empty, not as missing', () => {
-    expect(communityCounts([])).toEqual({ pubCount: 0, creatorCount: 0 })
+    expect(communityCounts([])).toEqual({ pubCount: 0, creatorCount: 0, placeCount: 0, forks: 0 })
+  })
+})
+
+describe('communityPlaces', () => {
+  it('counts each publication once per normalized place', () => {
+    const rows = [
+      { ...pub('a', 'one', { copies: 3 }), routeSummary: [' Goa ', 'GOA', 'New   Delhi', ''] },
+      { ...pub('b', 'two', { copies: 2 }), routeSummary: ['Goa', 'New Delhi'] },
+      { ...pub('hidden', 'three', { copies: 100, unpublishedAt: 1 }), routeSummary: ['Hidden'] },
+    ]
+    expect(communityPlaces(rows)).toEqual([
+      { key: 'goa', name: 'GOA', pubCount: 2 },
+      { key: 'new delhi', name: 'New Delhi', pubCount: 2 },
+    ])
+    expect(communityCounts(rows)).toEqual({ pubCount: 2, creatorCount: 2, placeCount: 2, forks: 5 })
+    expect(communityPlaces([...rows].reverse())).toEqual(communityPlaces(rows))
+  })
+
+  it('does not turn a town label into a regional claim', () => {
+    const rows = [{ ...pub('a', 'one'), routeSummary: ['Kochi', 'Kerala'] }]
+    expect(communityPlaces(rows).map(place => place.key)).toEqual(['kerala', 'kochi'])
+  })
+
+  it('caps tiles without capping the hero place count', () => {
+    const rows = [{ ...pub('a', 'one'), routeSummary: Array.from({ length: 8 }, (_, i) => `Place ${i}`) }]
+    expect(communityPlaces(rows)).toHaveLength(6)
+    expect(communityCounts(rows).placeCount).toBe(8)
+  })
+
+  it('reads empty, blank, and unpublished catalogs as no places', () => {
+    expect(communityPlaces([])).toEqual([])
+    expect(communityPlaces([{ ...pub('a', 'one'), routeSummary: [] }])).toEqual([])
+    expect(communityPlaces([{ ...pub('a', 'one'), routeSummary: ['', '   '] }])).toEqual([])
+    expect(communityPlaces([{ ...pub('a', 'one', { unpublishedAt: 1 }), routeSummary: ['Goa'] }])).toEqual([])
+    expect(communityCounts([{ ...pub('a', 'one'), routeSummary: [] }]))
+      .toEqual({ pubCount: 1, creatorCount: 1, placeCount: 0, forks: 0 })
+    expect(communityCounts([{ ...pub('a', 'one'), routeSummary: ['', '   '] }]))
+      .toEqual({ pubCount: 1, creatorCount: 1, placeCount: 0, forks: 0 })
+  })
+
+  it('counts forks as recorded, including zero', () => {
+    const rows = [pub('a', 'one'), { ...pub('b', 'two'), routeSummary: ['Goa'] }]
+    expect(communityCounts(rows).forks).toBe(0)
+    const forked = [{ ...pub('a', 'one', { copies: 4 }), routeSummary: ['Goa'] }]
+    expect(communityCounts(forked).forks).toBe(4)
+  })
+
+  it('orders equal counts by stable label then key', () => {
+    const rows = [{ ...pub('a', 'one'), routeSummary: ['Kochi', 'Goa'] }]
+    expect(communityPlaces(rows)).toEqual([
+      { key: 'goa', name: 'Goa', pubCount: 1 },
+      { key: 'kochi', name: 'Kochi', pubCount: 1 },
+    ])
+  })
+
+  it('leaves the input rows and their order unchanged', () => {
+    const rows = [
+      { ...pub('b', 'two', { copies: 2 }), routeSummary: ['Goa', 'New Delhi'] },
+      { ...pub('a', 'one', { copies: 3 }), routeSummary: [' Goa ', 'GOA'] },
+    ]
+    const snapshot = rows.map(row => ({ id: row.id, routeSummary: [...row.routeSummary] }))
+    communityPlaces(rows)
+    communityCounts(rows)
+    expect(rows.map(row => ({ id: row.id, routeSummary: [...row.routeSummary] }))).toEqual(snapshot)
   })
 })

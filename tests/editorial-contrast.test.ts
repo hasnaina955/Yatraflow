@@ -138,3 +138,42 @@ describe('editorial contrast, measured from the tokens both themes declare', () 
     }
   }
 })
+
+function declaration(selector: string, property: string): string | null {
+  const start = css.indexOf(`${selector} {`)
+  if (start < 0) return null
+  const open = css.indexOf('{', start)
+  let depth = 0
+  for (let index = open; index < css.length; index += 1) {
+    if (css[index] === '{') depth += 1
+    if (css[index] === '}') {
+      depth -= 1
+      if (depth === 0) {
+        for (const line of css.slice(open + 1, index).split('\n')) {
+          const match = new RegExp(`^\\s*${property}\\s*:\\s*([^;]+);`).exec(line)
+          if (match) return match[1].trim()
+        }
+        return null
+      }
+    }
+  }
+  return null
+}
+
+// A control floating over an unknown photo must paint an opaque backing in
+// both themes. The bookmark once inherited the shared translucent heart wash,
+// which the token-pair gate never saw because no new solid backing was added.
+describe('photo-floating editorial controls stay opaque', () => {
+  for (const selector of ['.pub-card-duration', '.explore-page .pub-card-editorial .save-bookmark']) {
+    it(`${selector} declares an opaque background`, () => {
+      const background = declaration(selector, 'background')
+      expect(background, `${selector} must declare a background`).not.toBeNull()
+      for (const [theme, tokens] of [['light', light], ['dark', dark]] as const) {
+        const resolved = resolveVar(background!, tokens)
+        const color = parseColor(resolved)
+        expect(color, `${theme}: ${selector} background must resolve to a colour`).not.toBeNull()
+        expect(color!.a, `${theme}: ${selector} background must stay opaque over photos`).toBe(1)
+      }
+    })
+  }
+})

@@ -1,5 +1,8 @@
 // Compares recorded card rectangles before and after the compact card correction.
 // The checker refuses widening, a missing card, and a height that stays too tall.
+// `checkCompactTarget` wraps it with the capture-condition guards the browser
+// script applies. It lives here (not in the browser script) so node tests can
+// drive it with synthetic results: the script itself runs on import.
 
 const groups = ['trips', 'catalog', 'trending', 'creators']
 const columns = rows => {
@@ -41,4 +44,37 @@ export function compareCompactCardGeometry(before, after) {
     }
   }
   return failures
+}
+
+export function checkCompactTarget(result, baselines, target) {
+  if (!target) return { mode: 'record' }
+  /* The height target describes the populated mixed fixture. Sparse, broken
+     image, long text, and alternate states stay outside it. */
+  if (result.scenario !== 'mixed' || result.state !== 'populated') {
+    return { mode: 'skip', reason: 'geometry comparison covers the populated mixed fixture only' }
+  }
+  /* Each surface owns its groups. An empty group on either side would compare
+     zero rows and pass without measuring anything. */
+  const surfaceGroups = { 'my-trips': ['trips'], explore: ['catalog', 'trending', 'creators'] }
+  const requiredGroups = surfaceGroups[result.surface]
+  if (!requiredGroups) return { mode: 'skip', reason: 'this surface carries no card geometry' }
+  const baseline = baselines.find(side => side.surface === result.surface
+    && side.width === result.width && side.theme === result.theme && side.state === result.state
+    && side.scenario === result.scenario && side.images === result.images
+    && side.exploreAuth === result.exploreAuth && side.fontMode === result.fontMode
+    && side.motion === result.motion)
+  if (!baseline) return { mode: 'fail', failures: ['no baseline capture matches this surface, width, theme, state, scenario, images, auth mode, font mode, and motion mode'] }
+  const fontsReady = side => Boolean(side.fonts?.interface)
+    && (!side.fonts?.editorialTypeInUse || Boolean(side.fonts?.editorial))
+  if (!fontsReady(baseline) || !fontsReady(result)) {
+    return { mode: 'fail', failures: ['loaded interface and editorial fonts are required on both sides'] }
+  }
+  const emptyGroups = side => requiredGroups
+    .filter(group => !side.compactGeometry?.[group]?.length)
+    .map(group => `${side.surface} ${group}`)
+  const missingGroups = [...emptyGroups(baseline), ...emptyGroups(result)]
+  if (missingGroups.length) {
+    return { mode: 'fail', failures: [`no recorded cards in ${missingGroups.join(', ')}`] }
+  }
+  return { mode: 'compare', failures: compareCompactCardGeometry(baseline.compactGeometry ?? {}, result.compactGeometry ?? {}) }
 }

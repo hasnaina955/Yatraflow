@@ -6,7 +6,7 @@ import { mkdir, writeFile, readFile, stat } from 'node:fs/promises'
 import { dirname, resolve, relative, isAbsolute } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium } from 'playwright-core'
-import { compareCompactCardGeometry } from './compactCardChecks.mjs'
+import { checkCompactTarget } from './compactCardChecks.mjs'
 import { buildFixture, buildSession, fixtureResponse, reserveFixtureFork, SYNTHETIC_FORK_ID, FIXTURE_NOW, FIXTURE_COVER, COVER_SVG, TRIP_ID, OWNER_ID, ANALYTICS_SESSION_ID } from './redesignFixture.mjs'
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)))
@@ -85,39 +85,6 @@ if (compactTarget) {
   assert(compactBaselines.length > 0, '--compact-target needs at least one --compact-baseline report')
 }
 
-function compareCompactGeometry(result) {
-  if (!compactTarget) return { mode: 'record' }
-  /* The height target describes the populated mixed fixture. Sparse, broken
-     image, long text, and alternate states stay outside it. */
-  if (result.scenario !== 'mixed' || result.state !== 'populated') {
-    return { mode: 'skip', reason: 'geometry comparison covers the populated mixed fixture only' }
-  }
-  /* Each surface owns its groups. An empty group on either side would compare
-     zero rows and pass without measuring anything. */
-  const surfaceGroups = { 'my-trips': ['trips'], explore: ['catalog', 'trending', 'creators'] }
-  const requiredGroups = surfaceGroups[result.surface]
-  if (!requiredGroups) return { mode: 'skip', reason: 'this surface carries no card geometry' }
-  const baseline = compactBaselines.find(side => side.surface === result.surface
-    && side.width === result.width && side.theme === result.theme && side.state === result.state
-    && side.scenario === result.scenario && side.images === result.images
-    && side.exploreAuth === result.exploreAuth && side.fontMode === result.fontMode
-    && side.motion === result.motion)
-  if (!baseline) return { mode: 'fail', failures: ['no baseline capture matches this surface, width, theme, state, scenario, images, auth mode, font mode, and motion mode'] }
-  const fontsReady = side => Boolean(side.fonts?.interface)
-    && (!side.fonts?.editorialTypeInUse || Boolean(side.fonts?.editorial))
-  if (!fontsReady(baseline) || !fontsReady(result)) {
-    return { mode: 'fail', failures: ['loaded interface and editorial fonts are required on both sides'] }
-  }
-  const emptyGroups = side => requiredGroups
-    .filter(group => !side.compactGeometry?.[group]?.length)
-    .map(group => `${side.surface} ${group}`)
-  const missingGroups = [...emptyGroups(baseline), ...emptyGroups(result)]
-  if (missingGroups.length) {
-    return { mode: 'fail', failures: [`no recorded cards in ${missingGroups.join(', ')}`] }
-  }
-  return { mode: 'compare', failures: compareCompactCardGeometry(baseline.compactGeometry ?? {}, result.compactGeometry ?? {}) }
-}
-
 /** The authorised photographs this project may serve in reference mode. */
 const ADOPTED_PHOTOS = ['kerala-backwaters.jpg', 'goa-panjim.jpg', 'rajasthan-forts.jpg', 'spit-valley.jpg', 'himalayan-loop.jpg', 'ch-hero.jpg', 'hero-banner.jpg']
 const FONT_HOSTS = ['fonts.googleapis.com', 'fonts.gstatic.com']
@@ -125,7 +92,7 @@ const FONT_HOSTS = ['fonts.googleapis.com', 'fonts.gstatic.com']
 const observedFiles = ['src/pages/Explore.tsx', 'src/styles.css', 'src/components/ExploreDiscovery.tsx', 'src/components/PubCard.tsx', 'src/components/CoverThumb.tsx', 'src/lib/discovery.ts', 'src/lib/editorialAssets.ts', 'src/store/store.ts', 'src/pages/TripsList.tsx', 'src/pages/CreatorHubPage.tsx', 'src/pages/trip/TimelineTab.tsx']
 function localRevision() {
   const git = (...args) => execFileSync('git', args, { cwd: root, encoding: 'utf8' }).trim()
-  return { commit: git('rev-parse', 'HEAD'), files: Object.fromEntries([...observedFiles, 'vite.config.ts', 'scripts/browser-redesign-check.mjs', 'scripts/redesignFixture.mjs', 'src/components/EditorialPhoto.tsx', 'index.html', 'public/img/mockup-adopted/sources.json'].map(path => [path, git('hash-object', path)])) }
+  return { commit: git('rev-parse', 'HEAD'), files: Object.fromEntries([...observedFiles, 'vite.config.ts', 'scripts/browser-redesign-check.mjs', 'scripts/compactCardChecks.mjs', 'scripts/redesignFixture.mjs', 'src/components/EditorialPhoto.tsx', 'index.html', 'public/img/mockup-adopted/sources.json'].map(path => [path, git('hash-object', path)])) }
 }
 async function servedRevision() {
   const hashes = {}
@@ -884,7 +851,7 @@ try {
             }),
           ]))
         })
-        result.compactGeometryCheck = compareCompactGeometry(result)
+        result.compactGeometryCheck = checkCompactTarget(result, compactBaselines, compactTarget)
         if (result.compactGeometryCheck.mode === 'fail') {
           result.failures.push(...result.compactGeometryCheck.failures)
         } else if (result.compactGeometryCheck.mode === 'compare' && result.compactGeometryCheck.failures.length) {

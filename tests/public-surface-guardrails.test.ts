@@ -37,7 +37,7 @@ describe('the public itinerary page sells what it can deliver', () => {
 describe('the gallery explains its own vocabulary', () => {
   it('says what Fork means before the first card that offers it', () => {
     const explore = read('../src/pages/Explore.tsx')
-    const gloss = explore.indexOf('Fork any itinerary to copy it into your own trips')
+    const gloss = explore.indexOf('Fork any itinerary to copy its free parts into your own trips')
     expect(gloss).toBeGreaterThan(-1)
     expect(gloss).toBeLessThan(explore.indexOf('<PubCard'))
   })

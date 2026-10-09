@@ -831,13 +831,17 @@ async function acceptance(page, surface, result, fixture) {
           dom: {
             searchBeforeFeatured: order('.explore-hero-searchrow', '.featured-card'),
             catalogBeforeCreators: order('.explore-catalog', '#explore-creators'),
-            placesBetween: order('.share-cta', '.community-places') && order('.community-places', '.explore-fork-note'),
+            placesAfterInvitation: order('.share-cta', '.community-places'),
+            forkNoteGone: !document.querySelector('.explore-fork-note'),
           },
         }
       })
       assert(exploreOrder.dom.searchBeforeFeatured, 'Search precedes featured in DOM order')
       assert(exploreOrder.dom.catalogBeforeCreators, 'Catalog precedes creators in DOM order')
-      assert(exploreOrder.dom.placesBetween, 'Places sits between invitation and fork guidance')
+      assert(exploreOrder.dom.placesAfterInvitation, 'Places follows the creator invitation')
+      assert(exploreOrder.dom.forkNoteGone, 'The duplicate fork guidance card is gone')
+      assert.equal(await page.locator('.explore-fork-gloss').count(), 1, 'One fork explanation sits beside the catalog controls')
+      assert((await page.locator('.explore-fork-gloss').innerText()).includes('free parts'), 'Fork explanation states the copy limit')
       const tops = exploreOrder.tops
       assert(tops.search < tops.featured && tops.featured < tops.catalog && tops.catalog < tops.creators,
         `Controls lead visually: search ${tops.search} featured ${tops.featured} catalog ${tops.catalog} creators ${tops.creators}`)

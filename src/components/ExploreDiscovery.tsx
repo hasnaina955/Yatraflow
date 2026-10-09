@@ -6,7 +6,7 @@
 // block returns null until its own evidence exists — a section
 // heading over an empty rail would advertise a community that is
 // not there.
-import { Check, GitFork, MapPin, PenLine, Sparkles, TrendingUp } from 'lucide-react'
+import { Check, GitFork, MapPin, Sparkles, TrendingUp } from 'lucide-react'
 import type { PublishedItinerary, User } from '../data/types'
 import { appLink } from '../lib/appLink'
 import type { CommunityPlace, CreatorRank } from '../lib/discovery'
@@ -126,9 +126,6 @@ export function ShareStoriesCta({ pubCount, creatorCount, signedIn, onNavigate }
 }) {
   return (
     <section className="share-cta" aria-labelledby="share-stories-heading">
-      <span className="editorial-kicker share-cta-kicker">
-        <InlineIcon icon={PenLine} size={12} gap={3} />Join the community
-      </span>
       <h2 id="share-stories-heading" className="share-cta-title">Share your travel stories</h2>
       <p className="share-cta-sub">
         Turn your travel experiences into helpful itineraries — inspire other

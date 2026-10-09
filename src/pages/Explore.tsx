@@ -332,7 +332,7 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
           </div>
         </div>
 
-        <p className="small muted explore-fork-gloss">Fork any itinerary to copy it into your own trips. Then change the route, pace, and stops. {!me && 'You’ll need a free account to fork trips.'}</p>
+        <p className="small muted explore-fork-gloss">Fork any itinerary to copy its free parts into your own trips. Then change the route, pace, and stops. {!me && 'You’ll need a free account to fork trips.'}</p>
 
         {/* Screen-reader-only result count — filter changes reflow the grid
             silently otherwise (UI audit F-04).
@@ -480,13 +480,6 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
           {pubsRead === 'ready' && discoveryVisible && (
             <CommunityPlaces places={places} onSelect={selectCommunityPlace} />
           )}
-          <section className="explore-fork-note" aria-labelledby="explore-fork-heading">
-            <Compass size={28} aria-hidden />
-            <h2 id="explore-fork-heading">Make a plan your own.</h2>
-            <p>Fork an itinerary to copy it into your trips. Then change the route, pace, and stops.</p>
-            {!me && <p>You need a free account to fork trips.</p>}
-            <a {...appLink(me ? '/trips' : '/auth?mode=signup')}>{me ? 'Open My Trips' : 'Create a free account'} →</a>
-          </section>
         </aside>
       </div>
     </div>

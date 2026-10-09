@@ -6020,7 +6020,7 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(0deg, var(--color-editorial-surface), color-mix(in srgb, var(--color-editorial-surface) 70%, transparent) 24%, transparent 75%);
+  background: linear-gradient(90deg, var(--color-editorial-paper) 0%, var(--color-editorial-paper) max(42%, 420px), transparent 100%);
   pointer-events: none;
 }
 .trips-page-title { padding: 24px 24px 16px; }
@@ -9156,8 +9156,8 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
    ========================================================================== */
 
 .trips-page .itin-card {
-  border-radius: 14px;
-  border-color: var(--line);
+  border-radius: var(--radius);
+  border-color: var(--color-editorial-border);
   box-shadow: 0 1px 2px rgba(var(--shadow-navy-rgb), .05);
   transition: transform var(--motion-slow) var(--ease-out),
     box-shadow var(--motion-slow) var(--ease-out),
@@ -9179,7 +9179,7 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .trips-page .trip-card-hit:focus-visible { outline: none; box-shadow: none; }
 .trips-page .itin-card:has(.trip-card-hit:focus-visible) { box-shadow: var(--ring); }
 .trips-page .itin-card:hover {
-  transform: translateY(-3px);
+  transform: none;
   border-color: color-mix(in srgb, var(--line) 80%, var(--text-3));
   box-shadow: 0 8px 24px -14px rgba(var(--shadow-navy-rgb), .28);
 }
@@ -9187,21 +9187,21 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 /* ---- the cover ---- */
 .trips-page .trip-card-media {
   position: relative; overflow: hidden; flex: none;
-  aspect-ratio: 16 / 8.4; background: var(--bg-soft);
+  aspect-ratio: 16 / 8.4; background: var(--bg-soft); border-radius: 17px 17px 0 0;
 }
 .trips-page .trip-card-media .itin-emoji {
   width: 100%; height: 100%; aspect-ratio: auto; border-radius: 0; border-bottom: 0;
   transition: transform var(--motion-slower) var(--ease-out);
 }
-.trips-page .itin-card:hover .trip-card-media .itin-emoji { transform: scale(1.04); }
+.trips-page .itin-card:hover .trip-card-media .itin-emoji { transform: none; }
 
 /* The mockup's status pill: a tinted capsule with a dot, top-left on the
    cover. The label and the tint both come from the status tabs' own list, so a
    pill can never name a status the tabs would not. */
 .trips-page .trip-card-status {
-  position: absolute; top: 10px; left: 10px; z-index: var(--z-raised);
-  height: 28px; padding: 0 var(--space-5); gap: var(--space-3);
-  font-size: 12.5px; font-weight: 700;
+  position: absolute; top: 12px; left: 12px; z-index: var(--z-raised);
+  height: 28px; padding: 0 12px; gap: 6px;
+  background: var(--color-editorial-surface); color: var(--color-editorial-ink); font-size: 12px; font-weight: 700;
   box-shadow: 0 2px 8px rgba(var(--shadow-navy-rgb), .14);
 }
 .trips-page .trip-card-status::before {
@@ -9212,14 +9212,14 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 /* ---- the body ---- */
 .trips-page .itin-body { flex: 1; padding: var(--space-6) var(--space-7) 0; gap: var(--space-5); }
 .trips-page .trip-card-head { display: flex; flex-direction: column; gap: var(--space-1); }
-.trips-page .itin-body .card-title { font-size: 16.5px; line-height: 22px; letter-spacing: -.015em; }
+.trips-page .itin-body .card-title { font-size: 16px; line-height: 1.3; letter-spacing: -.015em; }
 .trips-page .trip-card-route { margin: 0; font-size: 13px; line-height: 19px; color: var(--text-2); }
 .trips-page .trip-card-meta {
-  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-4) var(--space-7);
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px;
   margin: 0; padding: 0; list-style: none;
-  font-size: 13px; font-weight: 500; color: var(--text-2);
+  font-size: 12px; font-weight: 500; color: var(--text-2);
 }
-.trips-page .trip-card-meta li { display: inline-flex; align-items: center; gap: var(--space-4); white-space: nowrap; }
+.trips-page .trip-card-meta li { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
 .trips-page .trip-card-tags { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
 .trips-page .trip-card-departs { margin: 0; font-size: 13px; font-weight: 600; color: var(--text-2); }
 .trips-page .trip-plan { gap: var(--space-4); margin-top: auto; }
@@ -9239,7 +9239,7 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 /* The task row is the mockup's footer action: it takes the free space and ends
    at the right, where the mockup keeps its button. */
 .trips-page .trip-card-foot .trip-task-row {
-  flex: 1; min-width: min(40px, 100%); justify-content: flex-end;
+  flex: 1; min-width: min(60px, 100%); justify-content: flex-end;
   margin: 0; padding: 0; background: transparent; border: 0;
   font-size: 13px; font-weight: 700; color: var(--teal-deep);
 }
@@ -9258,7 +9258,7 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
   grid-template-columns: 236px minmax(0, 1fr); grid-template-rows: auto auto;
 }
 .trips-page .explore-grid.as-list .trip-card-cover { grid-column: 1; grid-row: 1 / -1; min-width: 0; }
-.trips-page .explore-grid.as-list .trip-card-media { aspect-ratio: auto; height: 100%; }
+.trips-page .explore-grid.as-list .trip-card-media { aspect-ratio: auto; height: 100%; border-radius: 17px 0 0 17px; }
 /* Re-declared, not just placed: Explore's list rule makes this column a
    `96px 1fr` grid for its own thumbnail, and an item that only names its grid
    area still inherits that, which wrapped the body into a 96px column. */
@@ -9282,7 +9282,7 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
     grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto auto;
   }
   .trips-page .explore-grid.as-list .trip-card-cover { grid-column: 1; grid-row: 1; }
-  .trips-page .explore-grid.as-list .trip-card-media { aspect-ratio: 16 / 8.4; height: auto; }
+  .trips-page .explore-grid.as-list .trip-card-media { aspect-ratio: 16 / 8.4; height: auto; border-radius: 17px 17px 0 0; }
   .trips-page .explore-grid.as-list .trip-card-hit { grid-column: 1; grid-row: 2; }
   .trips-page .explore-grid.as-list .itin-body { padding: var(--space-6) var(--space-7) 0; }
   .trips-page .explore-grid.as-list .trip-card-foot {
@@ -9435,7 +9435,7 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 /* The foot may wrap, so its action label wraps with it instead of collapsing
    to an ellipsis. Scoped to the foot: every other `.trip-next-label` keeps
    its single-line truncation. */
-.trips-page .trip-card-foot .trip-next-label { white-space: normal; overflow: visible; overflow-wrap: anywhere; }
+.trips-page .trip-card-foot .trip-next-label { white-space: normal; overflow: visible; overflow-wrap: normal; }
 /* Foot buttons never shrink: the flexible task row absorbs every squeeze with
    its wrapping label, so a button keeps its full text on any line. */
 .trips-page .trip-card-foot .btn { flex: none; }
@@ -9573,5 +9573,24 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
   .save-bookmark:hover, .save-bookmark:active,
   .save-bookmark:hover svg, .save-bookmark:active svg { transform: none; }
 }
+
+/* ==== Compact-card correction, hover gating ====
+   The card lift and the cover zoom answer a real pointer only, so a tap never
+   parks a false hover state. The base rules above answer hover with no
+   movement; this block puts the movement back for a fine pointer, and the
+   reduce block after it takes it away again — later and equal specificity. */
+@media (hover: hover) and (pointer: fine) {
+  .trips-page .itin-card:hover { transform: translateY(-3px); border-color: color-mix(in srgb, var(--line) 80%, var(--text-3)); box-shadow: 0 8px 24px -14px rgba(var(--shadow-navy-rgb), .28); }
+  .trips-page .itin-card:hover .trip-card-media .itin-emoji { transform: scale(1.04); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .trips-page .itin-card:hover { transform: none; }
+  .trips-page .itin-card:hover .trip-card-media .itin-emoji { transform: none; }
+}
+
+/* ---- Compact-card correction, focus rings on the trip foot and the
+   featured-card actions ---- */
+.trips-page .trip-card-foot a:focus-visible, .trips-page .trip-card-foot button:focus-visible { outline: 2px solid var(--color-editorial-ink); outline-offset: 2px; }
+.trip-featured-btn-group a:focus-visible, .trip-featured-btn-group button:focus-visible { outline: 2px solid var(--color-editorial-ink); outline-offset: 2px; }
 
 

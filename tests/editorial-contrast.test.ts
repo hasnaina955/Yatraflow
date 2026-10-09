@@ -83,6 +83,9 @@ const PAIRS: Array<[label: string, fg: string, bg: string, minimum: number]> = [
   ['card text on mint', '--color-editorial-ink', '--color-editorial-mint', 4.5],
   ['secondary text on surface', '--text-2', '--color-editorial-surface', 4.5],
   ['secondary text on mint', '--text-2', '--color-editorial-mint', 4.5],
+  // The banner scrim paints paper where the subtitle sits.
+  // It needs the AA floor in both themes.
+  ['banner subtitle on paper', '--text-2', '--color-editorial-paper', 4.5],
   ['meta text on surface', '--text-3', '--color-editorial-surface', 4.5],
   ['accent label on surface', '--color-editorial-accent-ink', '--color-editorial-surface', 4.5],
   ['accent label on mint', '--color-editorial-accent-ink', '--color-editorial-mint', 4.5],
@@ -167,7 +170,7 @@ function declaration(selector: string, property: string): string | null {
 // both themes. The bookmark once inherited the shared translucent heart wash,
 // which the token-pair gate never saw because no new solid backing was added.
 describe('photo-floating editorial controls stay opaque', () => {
-  for (const selector of ['.pub-card-duration', '.explore-page .pub-card-editorial .save-bookmark']) {
+  for (const selector of ['.pub-card-duration', '.explore-page .pub-card-editorial .save-bookmark', '.trips-page .trip-card-status']) {
     it(`${selector} declares an opaque background`, () => {
       const background = declaration(selector, 'background')
       expect(background, `${selector} must declare a background`).not.toBeNull()

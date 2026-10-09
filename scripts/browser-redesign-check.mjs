@@ -455,6 +455,51 @@ async function acceptance(page, surface, result, fixture) {
         }
       }
       result.footIntegrity = { feet: feet.length }
+      /* Cards sharing a grid row end together: the grid stretches boxes, so a
+         spread wider than tolerance means a row escaped the stretch. */
+      const rowSpreads = await page.locator('.trips-page .explore-grid .itin-card').evaluateAll(cards => {
+        const buckets = []
+        for (const card of cards) {
+          const rect = card.getBoundingClientRect()
+          const bucket = buckets.find(entry => Math.abs(entry.top - rect.top) <= 2)
+          if (bucket) bucket.bottoms.push(rect.bottom)
+          else buckets.push({ top: rect.top, bottoms: [rect.bottom] })
+        }
+        return buckets.map(entry => Math.max(...entry.bottoms) - Math.min(...entry.bottoms))
+      })
+      for (const spread of rowSpreads) {
+        assert(spread <= 2, `Cards in one row end together (spread ${spread.toFixed(1)}px)`)
+      }
+      /* Foot and featured controls take keyboard focus with a changed ring. */
+      const tripFocusTargets = [
+        ['foot action', '.trip-card-foot a.trip-task-row'],
+        ['foot button', '.trip-card-foot .icon-btn'],
+        ['featured overview', '.trip-featured-overview-btn'],
+      ]
+      for (const [label, selector] of tripFocusTargets) {
+        const control = page.locator(selector).first()
+        if (await control.count() === 0) continue
+        const before = await control.evaluate(element => {
+          const style = getComputedStyle(element)
+          return { outlineStyle: style.outlineStyle, shadow: style.boxShadow }
+        })
+        await page.keyboard.press('Tab')
+        await control.focus()
+        const focus = await control.evaluate(element => {
+          const style = getComputedStyle(element)
+          return {
+            active: element === document.activeElement,
+            visible: element.matches(':focus-visible'),
+            outlineStyle: style.outlineStyle,
+            shadow: style.boxShadow,
+          }
+        })
+        assert(focus.active && focus.visible, `My Trips ${label} takes keyboard focus visibly (active ${focus.active} visible ${focus.visible})`)
+        assert(
+          focus.outlineStyle !== before.outlineStyle || focus.shadow !== before.shadow,
+          `My Trips ${label} draws a focus ring on focus`,
+        )
+      }
     }
     if (scenario === 'past-only') {
       await visible(page.locator('.trip-featured-card').getByText('Completed', { exact: true }), 'Completed fallback hero')

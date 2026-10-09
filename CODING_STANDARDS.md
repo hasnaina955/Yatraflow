@@ -737,6 +737,8 @@ anywhere in this repo means the entry labelled `6b` below.
 - **Check staged prose before a checkpoint commit.** Run `node scripts/lint-ste.mjs --staged` after staging.
   Default mode reads only the unstaged diff. A zero-line result does not check the staged prose.
 
+- **The documented `npm run clean:env -- --exec <cmd>` form fails on Windows (learned 2026-10-09).** The wrapper starts the command with `spawnSync` and no shell. Node cannot start `npm.cmd` that way, so the call exits 1 with no output. A silent exit 1 reads like a broken repo. Clear the variable in your own shell (`$env:NODE_ENV = $null; npm ci`). Keep the wrapper for its report mode only.
+
 - **Keep interaction captures separate from initial page images.** Insert each interaction name before the file extension.
   Do not assume a light-theme filename suffix. Check that interactions leave the initial image hash unchanged.
   A route check can pass while its screenshot replaces another page's evidence.

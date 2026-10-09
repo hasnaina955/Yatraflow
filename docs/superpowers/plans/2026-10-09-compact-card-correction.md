@@ -16,7 +16,7 @@ Specification: [Approved compact card correction](../specs/2026-10-09-compact-ca
 
 Written approval: `ask_93fd554f445729375164aa92`, step `written-correction-specification`.
 
-Status: Plan prepared. None of the product tasks below has started.
+Status: Task 1 is complete. The baseline card geometry and its guarding checks are recorded. Tasks 2 to 6 remain open.
 
 ## Global constraints
 
@@ -296,6 +296,8 @@ node scripts/browser-redesign-check.mjs --base-url http://localhost:5189 --produ
 
 Acceptance: Baseline images survive interactions. The geometry checker rejects wider cards and unchanged tall cards.
 No product source changes occur in this task.
+
+- [x] Task 1 complete. Both themes passed 8 of 8 checks. The target run failed only with the expected geometry strings.
 
 ## Task 2: Derive Places and four truthful hero facts
 

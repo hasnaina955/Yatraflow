@@ -16,7 +16,11 @@ export function buildFixture(scenario = 'mixed') {
   const profiles = [[OWNER_ID, 'Fixture Asha', 'Kochi'], [OTHER_ID, 'Fixture Kabir', 'Jaipur']].map(([id, name, city]) => ({
     id, name, email: `${id.slice(-1)}@redesign-fixture.invalid`, home_city: city,
     languages: ['en'], travel_styles: ['balanced'], is_creator: true, is_disabled: false,
-    creator_bio: 'Synthetic creator for local browser checks.', social_links: {}, created_at: FIXTURE_NOW,
+    creator_bio: 'Synthetic creator for local browser checks.', created_at: FIXTURE_NOW,
+    social_links: id === OWNER_ID ? {
+      youtube: 'https://social.redesign-fixture.invalid/youtube/asha',
+      instagram: 'https://social.redesign-fixture.invalid/instagram/asha',
+    } : {},
   }))
   const names = ['Fixture Kerala Coast', 'Fixture Goa Weekend', 'Fixture Rajasthan Trail', 'Fixture Himalayan Paths']
   const places = ['Kochi', 'Goa', 'Jaipur', 'Shimla']

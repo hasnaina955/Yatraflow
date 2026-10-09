@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 // @ts-expect-error The browser fixture is a standalone Node script.
-import { buildFixture, buildSession, fixtureResponse, reserveFixtureFork, OWNER_ID, FIXTURE_NOW, SYNTHETIC_FORK_ID, ANALYTICS_SESSION_ID, ANALYTICS_EVENT_ID } from '../scripts/redesignFixture.mjs'
+import { buildFixture, buildSession, fixtureResponse, reserveFixtureFork, OWNER_ID, OTHER_ID, FIXTURE_NOW, SYNTHETIC_FORK_ID, ANALYTICS_SESSION_ID, ANALYTICS_EVENT_ID } from '../scripts/redesignFixture.mjs'
 import { rowToTrip } from '../src/lib/tripRow'
 import { featuredCreators } from '../src/lib/discovery'
 import type { User, PublishedItinerary } from '../src/data/types'
@@ -16,6 +16,17 @@ describe('local redesign fixture', () => {
       name: 'Fixture Kerala Coast', dayCount: 3, titles: ['Market walk 1', 'Lake viewpoint 1'],
     })
     expect(fixture.profiles.map((profile: { name: string }) => profile.name)).toEqual(['Fixture Asha', 'Fixture Kabir'])
+  })
+
+  it('exposes both synthetic social controls without real account URLs', () => {
+    const fixture = buildFixture()
+    const owner = fixture.profiles.find((profile: { id: string }) => profile.id === OWNER_ID)!
+    const other = fixture.profiles.find((profile: { id: string }) => profile.id === OTHER_ID)!
+    expect(owner.social_links).toEqual({
+      youtube: 'https://social.redesign-fixture.invalid/youtube/asha',
+      instagram: 'https://social.redesign-fixture.invalid/instagram/asha',
+    })
+    expect(other.social_links).toEqual({})
   })
 
   it('keeps three owned pricing states and a second creator', () => {

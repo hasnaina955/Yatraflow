@@ -2,10 +2,11 @@
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { mkdir, writeFile, readFile } from 'node:fs/promises'
+import { mkdir, writeFile, readFile, stat } from 'node:fs/promises'
 import { dirname, resolve, relative, isAbsolute } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium } from 'playwright-core'
+import { compareCompactCardGeometry } from './compactCardChecks.mjs'
 import { buildFixture, buildSession, fixtureResponse, reserveFixtureFork, SYNTHETIC_FORK_ID, FIXTURE_NOW, FIXTURE_COVER, COVER_SVG, TRIP_ID, OWNER_ID, ANALYTICS_SESSION_ID } from './redesignFixture.mjs'
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)))
@@ -57,6 +58,65 @@ const surfaces = [
   { name: 'creator-hub', route: '/creator-hub', signedIn: true, heading: 'Creator hub', peers: ['.hub-lead-row', '.hub-instrument-col'] },
   { name: 'explore', route: '/explore', signedIn: exploreAuth === 'signed-in', heading: 'Find your next great journey.', peers: ['.creator-card', '.trend-row', '.itin-card'] },
 ].filter(surface => requestedSurfaces.includes(surface.name))
+
+/* The compact card correction records card rectangles before any interaction.
+   A baseline run stores them. A target run reads one baseline report per theme
+   and compares the same cards. Each flag may repeat, because the light and the
+   dark baseline are two reports. */
+const compactTarget = args.includes('--compact-target')
+const compactBaselines = []
+for (let index = args.indexOf('--compact-baseline'); index >= 0; index = args.indexOf('--compact-baseline', index + 1)) {
+  const value = args[index + 1]
+  assert(value && !value.startsWith('--'), '--compact-baseline needs a value')
+  const resolved = resolve(root, value)
+  const inside = relative(root, resolved)
+  assert(!inside.startsWith('..') && !isAbsolute(inside), 'Baseline reports must stay in this worktree')
+  const reportPath = (await stat(resolved)).isDirectory() ? resolve(resolved, 'results.json') : resolved
+  const report = JSON.parse(await readFile(reportPath, 'utf8'))
+  assert(!report.blocker, `Baseline report ${value} carries a blocker: ${report.blocker}`)
+  assert(!report.sourceChangedDuringRun, `Baseline report ${value} changed source during its capture`)
+  assert(!report.buildChangedDuringRun, `Baseline report ${value} changed its build during its capture`)
+  for (const baselineResult of report.results) {
+    assert(!baselineResult.failures?.length, `Baseline result ${baselineResult.surface} ${baselineResult.width} carries failures`)
+    compactBaselines.push(baselineResult)
+  }
+}
+if (compactTarget) {
+  assert(compactBaselines.length > 0, '--compact-target needs at least one --compact-baseline report')
+}
+
+function compareCompactGeometry(result) {
+  if (!compactTarget) return { mode: 'record' }
+  /* The height target describes the populated mixed fixture. Sparse, broken
+     image, long text, and alternate states stay outside it. */
+  if (result.scenario !== 'mixed' || result.state !== 'populated') {
+    return { mode: 'skip', reason: 'geometry comparison covers the populated mixed fixture only' }
+  }
+  /* Each surface owns its groups. An empty group on either side would compare
+     zero rows and pass without measuring anything. */
+  const surfaceGroups = { 'my-trips': ['trips'], explore: ['catalog', 'trending', 'creators'] }
+  const requiredGroups = surfaceGroups[result.surface]
+  if (!requiredGroups) return { mode: 'skip', reason: 'this surface carries no card geometry' }
+  const baseline = compactBaselines.find(side => side.surface === result.surface
+    && side.width === result.width && side.theme === result.theme && side.state === result.state
+    && side.scenario === result.scenario && side.images === result.images
+    && side.exploreAuth === result.exploreAuth && side.fontMode === result.fontMode
+    && side.motion === result.motion)
+  if (!baseline) return { mode: 'fail', failures: ['no baseline capture matches this surface, width, theme, state, scenario, images, auth mode, font mode, and motion mode'] }
+  const fontsReady = side => Boolean(side.fonts?.interface)
+    && (!side.fonts?.editorialTypeInUse || Boolean(side.fonts?.editorial))
+  if (!fontsReady(baseline) || !fontsReady(result)) {
+    return { mode: 'fail', failures: ['loaded interface and editorial fonts are required on both sides'] }
+  }
+  const emptyGroups = side => requiredGroups
+    .filter(group => !side.compactGeometry?.[group]?.length)
+    .map(group => `${side.surface} ${group}`)
+  const missingGroups = [...emptyGroups(baseline), ...emptyGroups(result)]
+  if (missingGroups.length) {
+    return { mode: 'fail', failures: [`no recorded cards in ${missingGroups.join(', ')}`] }
+  }
+  return { mode: 'compare', failures: compareCompactCardGeometry(baseline.compactGeometry ?? {}, result.compactGeometry ?? {}) }
+}
 
 /** The authorised photographs this project may serve in reference mode. */
 const ADOPTED_PHOTOS = ['kerala-backwaters.jpg', 'goa-panjim.jpg', 'rajasthan-forts.jpg', 'spit-valley.jpg', 'himalayan-loop.jpg', 'ch-hero.jpg', 'hero-banner.jpg']
@@ -600,7 +660,7 @@ try {
         serviceWorkers: 'block', locale: 'en-IN', timezoneId: 'Asia/Kolkata',
         reducedMotion: motion === 'reduce' ? 'reduce' : 'no-preference',
       })
-      const result = { surface: surface.name, device, width, theme, scenario, state, images, zoom, motion, status: 'INCONCLUSIVE', failures: [], requests: [], rejectedMutations: [], fixtureOperations: [], screenshot: resolve(out, `${surface.name}-${device}-${state}${theme === 'dark' ? '-dark' : ''}${zoom === 1 ? '' : `-zoom${zoom * 100}`}${motion === 'reduce' ? '' : '-motion'}.png`) }
+      const result = { surface: surface.name, device, width, theme, scenario, state, images, exploreAuth, fontMode, zoom, motion, status: 'INCONCLUSIVE', failures: [], requests: [], rejectedMutations: [], fixtureOperations: [], screenshot: resolve(out, `${surface.name}-${device}-${state}${theme === 'dark' ? '-dark' : ''}${zoom === 1 ? '' : `-zoom${zoom * 100}`}${motion === 'reduce' ? '' : '-motion'}.png`) }
       const held = []
       const fixture = buildFixture(scenario)
       if (surface.name === 'explore' && surface.signedIn && scenario !== 'sparse' && state === 'populated') reserveFixtureFork(fixture)
@@ -745,6 +805,37 @@ try {
             assert(bounds?.width > 100 && bounds?.height > 70, 'A failed photo keeps its geometry')
           }
           assert.equal(await page.locator('.explore-photo-hero').getAttribute('data-photo-state'), 'image', 'The local hero still loads')
+        }
+        /* Record card rectangles here, before the initial screenshot and
+           before any Save or Fork interaction changes the collection. */
+        result.compactGeometry = await page.evaluate(() => {
+          const selectors = {
+            trips: '.trips-page .explore-grid:not(.as-list) .itin-card',
+            catalog: '.explore-catalog .pub-card-editorial .itin-card',
+            trending: '.trending-grid .pub-card-editorial .itin-card',
+            creators: '.explore-page .creator-card',
+          }
+          return Object.fromEntries(Object.entries(selectors).map(([group, selector]) => [group,
+            [...document.querySelectorAll(selector)].filter(card => {
+              const rect = card.getBoundingClientRect()
+              return rect.width > 0 && rect.height > 0
+            }).map(card => {
+              const link = card.matches('a') ? card : card.querySelector('.trip-card-hit')
+              const rect = card.getBoundingClientRect()
+              const cover = card.querySelector('.trip-card-media, .itin-cover, .creator-cover')?.getBoundingClientRect()
+              return {
+                key: new URL(link.href).pathname,
+                width: rect.width, height: rect.height, top: rect.top,
+                coverWidth: cover?.width ?? 0, coverHeight: cover?.height ?? 0,
+              }
+            }),
+          ]))
+        })
+        result.compactGeometryCheck = compareCompactGeometry(result)
+        if (result.compactGeometryCheck.mode === 'fail') {
+          result.failures.push(...result.compactGeometryCheck.failures)
+        } else if (result.compactGeometryCheck.mode === 'compare' && result.compactGeometryCheck.failures.length) {
+          result.failures.push(`Card geometry check: ${result.compactGeometryCheck.failures.join('; ')}`)
         }
         await page.screenshot({ path: result.screenshot, fullPage: true, animations: 'disabled' })
         const initialScreenshotSha256 = createHash('sha256').update(await readFile(result.screenshot)).digest('hex')

@@ -703,6 +703,15 @@ anywhere in this repo means the entry labelled `6b` below.
    instead of re-declaring its properties, or carry the filter with the
    background.
 
+ 6ao. **An accepted ADR's hard breaks survive through a scoped `whitespace`
+   attribute, not through an edit (learned 2026-10-10).** ADR 0004's Status
+   and Date lines carry intentional Markdown hard breaks. The staged
+   whitespace check rejects them. Add `-whitespace` for that one file in
+   `.gitattributes`, and never edit an accepted record to please a check.
+   Read a tracked file's current content before any overwrite. A blind write
+   once clobbered the `eslint-baseline.json` LF rule, and the lint-ratchet
+   test would have failed on the next byte-identical rewrite.
+
 ## 2. Conventions (`AGENTS.md` §4)
 
 - **Anonymous hydration must publish read results and honor auth generation guards.** Test late success and rejection after sign-in.

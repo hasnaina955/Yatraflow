@@ -36,13 +36,13 @@ The worktree shares Git history with the parent clone. The parent clone's own ch
 
 ## What the branch contains
 
-- Both page redesigns: My Trips and Explore. 49 commits sit on the branch beyond `origin/main`.
+- Both page redesigns: My Trips and Explore. 50 commits sit on the branch beyond `origin/main`.
 - The approved specs, the implementation plan, the review record, and ADRs 0001 through 0004.
 - The seven adopted mockup images under `public/img/mockup-adopted/`.
 - The browser harness (`scripts/browser-redesign-check.mjs`) and the pure geometry checks (`scripts/compactCardChecks.mjs`).
 - The bounded synthetic fixture (`scripts/redesignFixture.mjs`) with its safety tests.
 
-The branch changes 207 files: 14,717 insertions and 4,075 deletions against `origin/main`, at writing.
+The branch changes 207 files: 14,726 insertions and 4,075 deletions against `origin/main`, at writing.
 
 ## The decision chain
 

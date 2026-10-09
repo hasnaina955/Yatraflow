@@ -577,7 +577,36 @@ async function acceptance(page, surface, result, fixture) {
       assert(coverControls <= 1, `${trip.name} never shows two cover controls`)
       assert.equal(coverControls, taskIsCover || prompts === 1 ? 1 : 0, `${trip.name} keeps its cover control, found ${coverControls}`)
     }
-    await page.getByRole('button', { name: 'Clear filters', exact: true }).click()
+    // Eight trips reconcile as one featured journey plus seven others.
+    if (await page.getByRole('button', { name: 'Clear filters', exact: true }).count() > 0) {
+      await page.getByRole('button', { name: 'Clear filters', exact: true }).last().click()
+      await page.waitForTimeout(200)
+    }
+    const tabsText = await page.locator('.trips-status-tabs').innerText()
+    assert(/All trips\s*8/.test(tabsText), `Tabs reconcile eight trips: ${tabsText}`)
+    const otherText = await page.locator('.trip-other-count').innerText()
+    assert(otherText.includes('7 trips'), `Other-trips count names seven: ${otherText}`)
+    assert(otherText.includes('plus your next journey above'), 'Other-trips count names the featured journey')
+    assert.equal(await page.locator('.explore-grid:not(.as-list) .itin-card').count(), 7, 'Grid shows the seven other trips')
+    // Return state: search and sort survive leaving for a trip and coming back.
+    const searchField = page.getByRole('textbox', { name: 'Search your trips' })
+    await searchField.fill('Himalayan')
+    await page.waitForTimeout(150)
+    await page.getByRole('combobox', { name: 'Sort by', exact: true }).click()
+    await page.getByRole('option', { name: 'Name A–Z', exact: true }).click()
+    await page.waitForTimeout(300)
+    await page.goto(`${base.origin}/#/trip/${TRIP_ID}/timeline`, { waitUntil: 'domcontentloaded' })
+    await page.locator('#panel-timeline').waitFor({ state: 'visible' })
+    await page.goto(`${base.origin}/#/trips`, { waitUntil: 'domcontentloaded' })
+    await page.waitForTimeout(500)
+    assert.equal(await searchField.inputValue(), 'Himalayan', 'Search restores after return')
+    assert((await page.getByRole('combobox', { name: 'Sort by', exact: true }).innerText()).includes('Name A–Z'), 'Sort restores after return')
+    await page.getByRole('button', { name: 'Clear filters', exact: true }).last().click()
+    await page.waitForTimeout(200)
+    assert.equal(await searchField.inputValue(), '', 'Clear filters empties the restored search')
+    if (await page.getByRole('button', { name: 'Clear filters', exact: true }).count() > 0) {
+      await page.getByRole('button', { name: 'Clear filters', exact: true }).click()
+    }
     await page.locator('.trip-featured-card').getByRole('button', { name: 'Trip overview', exact: true }).click()
     assert(currentRoute(page).startsWith(`/trip/${heroTrip.id}`), 'Hero overview must navigate to its own trip')
   } else if (surface.name === 'timeline') {

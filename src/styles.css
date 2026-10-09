@@ -6010,7 +6010,7 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
   background: var(--color-editorial-surface);
 }
 .trips-page-banner {
-  min-height: 220px;
+  min-height: 180px;
   margin: 0 -24px;
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   display: flex;

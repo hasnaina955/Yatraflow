@@ -296,6 +296,59 @@ export function saveFlag(name: string, value: boolean): void {
 }
 
 
+// ---- My Trips return state (session) ----
+// Search and sort survive leaving for a trip and coming back. Session-scoped
+// (a new tab starts clean) and user-scoped (two accounts share no filters).
+// Parsing is pure for node tests; storage guards match the rest of this file.
+const TRIPS_FILTERS_KEY = 'yatraflow_trips_filters'
+const TRIPS_SORT_KEYS = ['recent', 'name', 'length-desc', 'budget-asc', 'budget-desc']
+
+export interface TripsFilterState {
+  q: string
+  sortKey: string
+}
+
+export function tripsFiltersKey(userId: string): string {
+  return `${TRIPS_FILTERS_KEY}:${userId}`
+}
+
+/** Parse stored return state. Anything malformed reads as a clean shelf. */
+export function parseTripsFilters(raw: string | null | undefined): TripsFilterState {
+  const fallback: TripsFilterState = { q: '', sortKey: 'recent' }
+  if (!raw) return fallback
+  try {
+    const parsed: unknown = JSON.parse(raw)
+    if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) return fallback
+    const record = parsed as Record<string, unknown>
+    return {
+      q: typeof record.q === 'string' ? record.q : '',
+      sortKey: typeof record.sortKey === 'string' && TRIPS_SORT_KEYS.includes(record.sortKey) ? record.sortKey : 'recent',
+    }
+  } catch {
+    return fallback
+  }
+}
+
+/** Read return state; unknown user or storage reads as a clean shelf. */
+export function loadTripsFilters(userId: string | null | undefined): TripsFilterState {
+  if (typeof sessionStorage === 'undefined' || !userId) return { q: '', sortKey: 'recent' }
+  try {
+    return parseTripsFilters(sessionStorage.getItem(tripsFiltersKey(userId)))
+  } catch {
+    return { q: '', sortKey: 'recent' }
+  }
+}
+
+/** Write return state. Silent no-op when storage is unavailable. */
+export function saveTripsFilters(userId: string | null | undefined, state: TripsFilterState): void {
+  if (typeof sessionStorage === 'undefined' || !userId) return
+  try {
+    sessionStorage.setItem(tripsFiltersKey(userId), JSON.stringify(state))
+  } catch {
+    // Private mode / quota exceeded — persistence is best-effort by design.
+  }
+}
+
 // ---- Accepted night-halt pins (#143) — local only, never trip data ----
 // An accepted night halt must not jump when an unrelated stop is added:
 // "<tripId>:<nightOrdinal>" → the pinned route-km. The ordinal counts

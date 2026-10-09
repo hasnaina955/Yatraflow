@@ -2,7 +2,7 @@
 // Node env: no localStorage. That's deliberate — the pure parser is what we
 // assert on; the storage wrappers degrade to no-ops when storage is missing.
 import { describe, it, expect, afterEach } from 'vitest'
-import { dayCollapseKey, parseDayCollapseMap, loadDayCollapsed, saveDayCollapsed, parseOpenDayMap, loadOpenDay, saveOpenDay, NO_OPEN_DAY, loadReviewAll, saveReviewAll, loadFlag, saveFlag, loadPref, savePref } from '../src/lib/uiPrefs'
+import { dayCollapseKey, parseDayCollapseMap, loadDayCollapsed, saveDayCollapsed, parseOpenDayMap, loadOpenDay, saveOpenDay, NO_OPEN_DAY, loadReviewAll, saveReviewAll, loadFlag, saveFlag, loadPref, savePref, parseTripsFilters, loadTripsFilters, saveTripsFilters, tripsFiltersKey } from '../src/lib/uiPrefs'
 
 describe('dayCollapseKey', () => {
   it('namespaces by trip id and day index', () => {
@@ -260,5 +260,48 @@ describe('review-all-days view (#421)', () => {
     expect(store.get('yatraflow_open_day')).toBe('{"tripX":2}')
     // and the two prefs live under different keys, so neither can clobber the other
     expect(store.has('yatraflow_review_all')).toBe(true)
+  })
+})
+
+// ---- My Trips return state (session, per user) ----
+describe('trips return-state prefs', () => {
+  const g = globalThis as unknown as { sessionStorage: Storage }
+  const prev = g.sessionStorage
+  const stub = () => {
+    const store = new Map<string, string>()
+    g.sessionStorage = {
+      getItem: (k: string) => store.get(k) ?? null,
+      setItem: (k: string, v: string) => void store.set(k, v),
+    } as unknown as Storage
+    return store
+  }
+  afterEach(() => { g.sessionStorage = prev })
+
+  it('scopes keys per user', () => {
+    expect(tripsFiltersKey('u1')).toBe('yatraflow_trips_filters:u1')
+    expect(tripsFiltersKey('u1')).not.toBe(tripsFiltersKey('u2'))
+  })
+
+  it('parses stored state and degrades junk to a clean shelf', () => {
+    expect(parseTripsFilters('{"q":"goa","sortKey":"name"}')).toEqual({ q: 'goa', sortKey: 'name' })
+    expect(parseTripsFilters('{"q":42,"sortKey":"bogus"}')).toEqual({ q: '', sortKey: 'recent' })
+    expect(parseTripsFilters('{not json')).toEqual({ q: '', sortKey: 'recent' })
+    expect(parseTripsFilters(null)).toEqual({ q: '', sortKey: 'recent' })
+  })
+
+  it('round-trips per user without leaking across accounts', () => {
+    stub()
+    saveTripsFilters('u1', { q: 'goa', sortKey: 'name' })
+    expect(loadTripsFilters('u1')).toEqual({ q: 'goa', sortKey: 'name' })
+    expect(loadTripsFilters('u2')).toEqual({ q: '', sortKey: 'recent' })
+  })
+
+  it('reads a clean shelf without a user or storage', () => {
+    stub()
+    expect(loadTripsFilters(null)).toEqual({ q: '', sortKey: 'recent' })
+    expect(() => saveTripsFilters(null, { q: 'x', sortKey: 'name' })).not.toThrow()
+    g.sessionStorage = undefined as unknown as Storage
+    expect(loadTripsFilters('u1')).toEqual({ q: '', sortKey: 'recent' })
+    expect(() => saveTripsFilters('u1', { q: 'x', sortKey: 'name' })).not.toThrow()
   })
 })

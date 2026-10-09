@@ -57,8 +57,8 @@ describe('#386 — the manual seed refuses duplicates and broken reads (source)'
     expect(body).toContain('demoSeedInFlight')
   })
 
-  it('both wirings call the same guarded function', () => {
-    expect(page().split('onClick={addDemoTrips}').length - 1).toBe(2)
+  it('wires the seed once, in the genuine empty state only', () => {
+    expect(page().split('onClick={addDemoTrips}').length - 1).toBe(1)
   })
 
   it('keeps the load-bearing seed mechanics it did not change', () => {
@@ -71,8 +71,11 @@ describe('#386 — the manual seed refuses duplicates and broken reads (source)'
     expect(s).toContain('seed trip member insert failed')
   })
 
-  it('the header seed button stands down while the trips read is failed', () => {
-    expect(page()).toContain(`disabled={tripsRead === 'failed'}`)
+  it('keeps demo seeding out of the populated actions row', () => {
+    const p = page()
+    const actionsAt = p.indexOf('trips-secondary-actions')
+    expect(actionsAt).toBeGreaterThan(-1)
+    expect(p.slice(actionsAt, p.indexOf("{view === 'trash'")).includes('addDemoTrips')).toBe(false)
   })
 })
 

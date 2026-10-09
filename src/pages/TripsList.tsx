@@ -16,7 +16,7 @@ import { PillNav } from '../components/PillNav'
 import { loadDraft, draftIsWorthKeeping, draftAgeLabel } from '../lib/createDraft'
 import { readinessFromDraft } from '../lib/createReadiness'
 import { createFunnelOn } from '../lib/featureFlags'
-import { loadPref, savePref } from '../lib/uiPrefs'
+import { loadPref, savePref, loadTripsFilters, saveTripsFilters } from '../lib/uiPrefs'
 import { CoverThumb } from '../components/CoverThumb'
 import { SavedShelf } from '../components/SavedShelf'
 import { useDestinationCover } from '../hooks/useDestinationCover'
@@ -116,10 +116,19 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
 
   // ---- Search / filter / sort (local view state — no URL sync needed on a
   // private page, unlike Explore's shareable links) ----
-  const [q, setQ] = useState('')
+  // Search and sort restore when returning from a trip, through session
+  // storage scoped to this account. Status and layout persist longer through
+  // the generic string prefs below.
+  const [q, setQ] = useState(() => loadTripsFilters(meId).q)
   const [style, setStyle] = useState<'all' | Trip['travelStyle']>('all')
   const [when, setWhen] = useState<WhenKey>('all')
-  const [sortKey, setSortKey] = useState<SortKey>('recent')
+  const [sortKey, setSortKey] = useState<SortKey>(() => {
+    const saved = loadTripsFilters(meId).sortKey
+    return saved === 'recent' || saved === 'name' || saved === 'length-desc' || saved === 'budget-asc' || saved === 'budget-desc' ? saved : 'recent'
+  })
+  useEffect(() => {
+    saveTripsFilters(meId, { q, sortKey })
+  }, [meId, q, sortKey])
   // MR3. The chosen filter survives a reload through the generic string prefs
   // in lib/uiPrefs. A stored value that names no real filter reads as 'all'.
   const [status, setStatus] = useState<StatusBucket>(() => {
@@ -279,10 +288,6 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
         <button className={`btn btn-ghost btn-sm${view === 'trash' ? ' on-teal' : ''}`} aria-pressed={view === 'trash'}
           onClick={() => setView(v => v === 'trash' ? 'trips' : 'trash')}><InlineIcon icon={Trash2} size={14} gap={4} />Trash</button>
         <ImportTripButton ownerId={meId} onNavigate={onNavigate} />
-        <button className="btn btn-ghost btn-sm" onClick={addDemoTrips} aria-label="Load demo trips"
-          title="Adds 3 sample trips — Kerala, Goa & Rajasthan — to your account" disabled={tripsRead === 'failed'}>
-          <InlineIcon icon={Rocket} size={14} gap={4} />Load demo trips
-        </button>
       </div>
 
       {/* Status and layout sit beside search, above the featured journey.
@@ -406,7 +411,7 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
           {!hasFilters && featuredTrip && displayTrips.length > 0 && (
             <div className="row-between" style={{ margin: '14px 0 10px', alignItems: 'baseline' }}>
               <h3 className="trip-other-heading">Your other trips</h3>
-              <span className="trip-other-count">{displayTrips.length} trip{displayTrips.length === 1 ? '' : 's'}</span>
+              <span className="trip-other-count">{displayTrips.length} trip{displayTrips.length === 1 ? '' : 's'} · plus your next journey above</span>
             </div>
           )}
 
@@ -668,9 +673,11 @@ function FeaturedTripLead({
               >
                 <span className="trip-featured-progress-fill" style={{ width: `${plan.pct}%` }} />
               </div>
-              <p className="trip-featured-progress-note">
-                {plan.pct === 100 ? 'All days have planned stops.' : `${100 - plan.pct}% remaining to schedule.`} This is activity coverage, not readiness to travel.
-              </p>
+              {step.kind === 'done' ? null : (
+                <p className="trip-featured-progress-note">
+                  {plan.pct === 100 ? 'All days have planned stops.' : `${100 - plan.pct}% remaining to schedule.`} This is activity coverage, not readiness to travel.
+                </p>
+              )}
             </div>
 
             <div className="trip-featured-task">
@@ -682,19 +689,19 @@ function FeaturedTripLead({
                   Next step{step.dayIndex !== undefined ? ` · Day ${step.dayIndex + 1}` : ''}
                 </span>
                 <strong className="trip-featured-task-title">{step.label}</strong>
-                <p className="trip-featured-task-desc">
-                  {step.kind === 'done'
-                    ? 'All scheduled stops are confirmed. Check the full plan before you travel.'
-                    : step.kind === 'book-stop'
-                    ? 'Reserve this stop or slot before you leave.'
-                    : step.kind === 'confirm-stop'
-                    ? 'Check suggestions and confirm this stop.'
-                    : step.kind === 'add-dates'
-                    ? 'Choose travel dates to unlock itinerary day planning.'
-                    : step.kind === 'add-cover'
-                    ? 'Choose and save a cover photo in trip settings.'
-                    : 'Add planned activities and sights for this day.'}
-                </p>
+                {step.kind === 'done' ? null : (
+                  <p className="trip-featured-task-desc">
+                    {step.kind === 'book-stop'
+                      ? 'Reserve this stop or slot before you leave.'
+                      : step.kind === 'confirm-stop'
+                      ? 'Check suggestions and confirm this stop.'
+                      : step.kind === 'add-dates'
+                      ? 'Choose travel dates to unlock itinerary day planning.'
+                      : step.kind === 'add-cover'
+                      ? 'Choose and save a cover photo in trip settings.'
+                      : 'Add planned activities and sights for this day.'}
+                  </p>
+                )}
               </div>
             </div>
           </div>

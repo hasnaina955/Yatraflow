@@ -48,7 +48,7 @@ function EditorialPubCard({ pub, creator, saved, onFork, onToggleSave, enterInde
           </a>
           <span className="pub-card-duration num">{pub.durationDays} {pub.durationDays === 1 ? 'day' : 'days'}</span>
           <button type="button" className="save-heart save-bookmark" aria-pressed={saved}
-            aria-label={saved ? 'Remove from saved' : 'Save itinerary'} onClick={onToggleSave}>
+            aria-label={saved ? `Remove ${pub.title} from saved` : `Save ${pub.title}`} onClick={onToggleSave}>
             <Bookmark size={16} aria-hidden fill={saved ? 'currentColor' : 'none'} />
           </button>
         </div>
@@ -94,6 +94,7 @@ function EditorialPubCard({ pub, creator, saved, onFork, onToggleSave, enterInde
           </span>
           <button type="button" className="btn btn-primary btn-sm" disabled={forkPending}
             title={pub.premiumPriceInr != null ? `Unlocks at ${formatInr(pub.premiumPriceInr)} — forking copies the free parts` : undefined}
+            aria-label={needsLogin ? `Log in to fork ${pub.title}` : forkPending ? `Forking ${pub.title}` : `Fork ${pub.title}`}
             onClick={onFork}>
             {needsLogin ? 'Log in to fork' : forkPending ? 'Forking…' : 'Fork this trip'}
           </button>
@@ -118,7 +119,7 @@ export function PubCard({ pub, creator, saved, onFork, onToggleSave, enterIndex,
       style={enterIndex != null ? { animationDelay: `calc(var(--stagger-step) * ${Math.min(enterIndex, 8)})` } : undefined}
     >
       <div className="card itin-card">
-        <button className="save-heart" aria-pressed={saved} aria-label={saved ? 'Remove from saved' : 'Save itinerary'}
+        <button className="save-heart" aria-pressed={saved} aria-label={saved ? `Remove ${pub.title} from saved` : `Save ${pub.title}`}
           onClick={onToggleSave}><Heart size={13} aria-hidden fill={saved ? 'currentColor' : 'none'} /></button>
         <a className="trip-card-hit" {...appLink(`/pub/${pub.id}`)}>
           <CoverThumb
@@ -150,7 +151,7 @@ export function PubCard({ pub, creator, saved, onFork, onToggleSave, enterIndex,
           <a className="creator-line" {...appLink(`/creator/${pub.creatorId}`)} aria-label={`View ${creator?.profile.name ?? 'creator'}'s page`}>
             <Avatar user={creator} />{creator?.profile.name ?? 'Creator'}{creator?.profile.isCreator && <InlineIcon icon={Sparkles} size={12} gap={0} style={{ marginLeft: 2 }} />}
           </a>
-          <button className="btn btn-primary btn-sm" onClick={onFork}>{needsLogin ? 'Log in to fork' : 'Fork this trip'}</button>
+          <button className="btn btn-primary btn-sm" aria-label={needsLogin ? `Log in to fork ${pub.title}` : `Fork ${pub.title}`} onClick={onFork}>{needsLogin ? 'Log in to fork' : 'Fork this trip'}</button>
         </div>
         {creator?.profile.isCreator && (creator.profile.creatorBio || creator.profile.socialLinks?.youtube || creator.profile.socialLinks?.instagram) && (
           <div className="row-between itin-foot" style={{ gap: 8 }}>

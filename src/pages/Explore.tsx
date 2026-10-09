@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { currentQuery, onRouteChange, replaceRoute } from '../lib/router'
 import {
-  Calendar, Compass, Eye, GitFork, Heart, MapPin, Search, Sparkles, Star, Users, Wallet, X,
+  Bookmark, Calendar, Compass, Eye, GitFork, MapPin, Search, Sparkles, Star, Users, Wallet, X,
 } from 'lucide-react'
 import { InlineIcon, MetaIcon } from '../components/icons'
 import { usePublished, useUsers, useSessionUserId, useDb, rereadPublicSlices } from '../store/store'
@@ -229,7 +229,11 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
   const discoveryVisible = pubsRead === 'ready' && !filtersActive
 
   function showExploreSection(id: string) {
-    document.getElementById(id)?.scrollIntoView({ block: 'start', behavior: scrollBehavior() })
+    const section = document.getElementById(id)
+    section?.scrollIntoView({ block: 'start', behavior: scrollBehavior() })
+    // Keyboard and screen-reader users land on the heading, not just the
+    // scrolled viewport: every section heading below carries tabIndex -1.
+    section?.querySelector('h2')?.focus({ preventScroll: true })
   }
 
   return (
@@ -244,9 +248,6 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
             onClick={() => showExploreSection('explore-trending')}><InlineIcon icon={Star} size={16} gap={8} />Trending itineraries</button>
           <button type="button" disabled={!discoveryVisible || places.length === 0}
             onClick={() => showExploreSection('explore-places')}><InlineIcon icon={MapPin} size={16} gap={8} />Places</button>
-          <button type="button" aria-pressed={savedOnly} onClick={() => { setSavedOnly(value => !value); showExploreSection('explore-catalog') }}>
-            <InlineIcon icon={Heart} size={16} gap={8} fill={savedOnly ? 'currentColor' : 'none'} />Saved itineraries
-          </button>
           <a {...appLink(me ? '/creator-hub' : '/auth?mode=signup')}><InlineIcon icon={GitFork} size={16} gap={8} />{me ? 'My publications' : 'Become a creator'}</a>
         </nav>
 
@@ -297,7 +298,7 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
             </button>
           ))}
           <button className={`chip clickable-chip ${savedOnly ? 'chip-saffron' : ''}`} aria-pressed={savedOnly}
-            onClick={() => setSavedOnly(v => !v)}><InlineIcon icon={Heart} size={12} gap={4} fill={savedOnly ? 'currentColor' : 'none'} />Saved {saved.length > 0 && <span className="chip-count">{saved.length}</span>}</button>
+            onClick={() => setSavedOnly(v => !v)}><InlineIcon icon={Bookmark} size={12} gap={4} fill={savedOnly ? 'currentColor' : 'none'} />Saved {saved.length > 0 && <span className="chip-count">{saved.length}</span>}</button>
         </div>
 
         {/* ---- Compact filter bar: budget / duration / sort ---- */}
@@ -378,9 +379,10 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
               <div className="featured-actions">
                 <button className="btn fork-btn" disabled={featured && forkingIds.has(featured.id)}
                   title={featured && featured.premiumPriceInr != null ? `Unlocks at ${formatInr(featured.premiumPriceInr)} — forking copies the free parts` : undefined}
+                  aria-label={featured ? (me ? `Fork ${featured.title}` : `Log in to fork ${featured.title}`) : undefined}
                   onClick={() => featured && forkTrip(featured.id)}><InlineIcon icon={GitFork} size={14} gap={4} />{me ? (featured && forkingIds.has(featured.id) ? 'Forking…' : 'Fork this trip') : 'Log in to fork'}</button>
-                <button className="btn save-btn" onClick={() => toggleHeart(featured.id)} aria-pressed={isSaved(featured.id)}>
-                  <InlineIcon icon={Heart} size={13} gap={4} fill={isSaved(featured.id) ? 'currentColor' : 'none'} />
+                <button className="btn save-btn" onClick={() => toggleHeart(featured.id)} aria-pressed={isSaved(featured.id)} aria-label={isSaved(featured.id) ? `Saved ${featured.title}` : `Save ${featured.title}`}>
+                  <InlineIcon icon={Bookmark} size={13} gap={4} fill={isSaved(featured.id) ? 'currentColor' : 'none'} />
                   {isSaved(featured.id) ? 'Saved' : 'Save'}
                 </button>
               </div>
@@ -392,7 +394,7 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
                the page retrieves before it promotes. ---- */}
         <section id="explore-catalog" className="explore-catalog" aria-labelledby="explore-catalog-heading">
           <header className="discovery-head">
-            <h2 id="explore-catalog-heading" className="discovery-title">Itineraries</h2>
+            <h2 id="explore-catalog-heading" className="discovery-title" tabIndex={-1}>Itineraries</h2>
             {pubsRead === 'ready' && <p className="discovery-sub">Showing {gridPubs.slice(0, visibleCount).length} of {gridPubs.length} {gridPubs.length === 1 ? 'itinerary' : 'itineraries'}{featured && pubs.some(p => p.id === featured.id) ? ' · 1 matching itinerary featured above' : ''}</p>}
           </header>
         {pubsRead !== 'ready' ? (

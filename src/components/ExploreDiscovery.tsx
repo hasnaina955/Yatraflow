@@ -64,7 +64,7 @@ export function FeaturedCreators({ creators }: { creators: CreatorRank[] }) {
   return (
     <section id="explore-creators" className="discovery-block" aria-labelledby="featured-creators-heading">
       <header className="discovery-head">
-        <h2 id="featured-creators-heading" className="discovery-title">
+        <h2 id="featured-creators-heading" className="discovery-title" tabIndex={-1}>
           <InlineIcon icon={Sparkles} size={15} gap={6} />Featured creators
         </h2>
         <p className="discovery-sub">Discover creators with published itineraries, ranked by views and forks.</p>
@@ -95,7 +95,7 @@ export function TrendingShelf({ pubs, users, onFork, onToggleSave, isSaved, need
   return (
     <section id="explore-trending" className="discovery-block" aria-labelledby="trending-heading">
       <header className="discovery-head">
-        <h2 id="trending-heading" className="discovery-title">
+        <h2 id="trending-heading" className="discovery-title" tabIndex={-1}>
           <InlineIcon icon={TrendingUp} size={15} gap={6} />Trending itineraries
         </h2>
         <p className="discovery-sub">The most-read and most-copied plans — ranked by views, with a fork counting five times a view.</p>
@@ -161,7 +161,7 @@ export function CommunityPlaces({ places, onSelect }: {
   if (!places.length) return null
   return (
     <section id="explore-places" className="community-places" aria-labelledby="community-places-heading">
-      <h2 id="community-places-heading">Places in the community</h2>
+      <h2 id="community-places-heading" tabIndex={-1}>Places in the community</h2>
       <div className="community-place-grid">
         {places.map(place => (
           <button key={place.key} type="button" className="community-place"

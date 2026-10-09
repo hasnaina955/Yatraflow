@@ -247,7 +247,7 @@ async function checkSignedInFork(page, result, fixture) {
   const priorCopies = fixture.published_itineraries.find(row => row.id === 'fixture-publication-4').copies
   // A rapid double click is one flight: the per-publication guard refuses the
   // second request, so only one copy persists and one counter moves.
-  await target.getByRole('button', { name: 'Fork this trip', exact: true }).dblclick()
+  await target.getByRole('button', { name: /^Fork / }).dblclick()
   await page.waitForURL(url => (url.hash.startsWith('#/') ? url.hash.slice(1) : url.pathname) === `/trip/${SYNTHETIC_FORK_ID}/timeline`, { timeout: 10000 })
   await page.getByRole('heading', { name: 'Fixture Himalayan Paths (copy)', exact: true }).waitFor({ state: 'visible' })
   assert(result.fixtureOperations.includes('synthetic-fork-trip'), 'Fork must persist its trip row')
@@ -471,6 +471,18 @@ async function acceptance(page, surface, result, fixture) {
       for (const spread of rowSpreads) {
         assert(spread <= 2, `Cards in one row end together (spread ${spread.toFixed(1)}px)`)
       }
+      /* The decorative cover link stays out of the tab order, and the status
+         it hides visually is exposed as text beside the title. */
+      const coverTabs = await page.locator('.trip-card-cover').evaluateAll(links => links.map(link => link.tabIndex))
+      assert(coverTabs.length > 0, 'Cover-tab check needs cover links')
+      assert(coverTabs.every(tab => tab === -1), 'Decorative cover links stay out of the tab order')
+      const srStatuses = await page.locator('.trips-page .itin-card').evaluateAll(cards => cards.map(card => {
+        const pill = card.querySelector('.trip-card-status')?.textContent?.trim() ?? ''
+        const spoken = card.querySelector('.trip-card-head .sr-only')?.textContent ?? ''
+        return { pill, spoken, namesPill: pill.length > 0 && spoken.includes(pill) }
+      }))
+      assert(srStatuses.length > 0, 'Status check needs trip cards')
+      assert(srStatuses.every(entry => entry.namesPill), 'Every card exposes its status outside the hidden cover')
       /* Collection controls lead the featured journey in DOM and paint order. */
       const tripsOrder = await page.evaluate(() => {
         const top = selector => document.querySelector(selector)?.getBoundingClientRect().top ?? -1
@@ -883,6 +895,7 @@ async function acceptance(page, surface, result, fixture) {
         return rect.top >= 0 && rect.top <= innerHeight
       })
       assert(placesInView, 'Places jump scrolls the rail block into view')
+      assert.equal(await page.evaluate(() => document.activeElement?.tagName), 'H2', 'Places jump moves focus to its heading')
       assert.equal(await page.locator('.explore-live-counts > li').count(), 4, 'Hero shows four live facts')
       const credibility = await page.locator('.featured-credibility').innerText()
       assert(credibility.includes('most-forked plan here'), 'Featured names its most-forked basis')
@@ -992,6 +1005,7 @@ async function acceptance(page, surface, result, fixture) {
       assert.equal(query.has('max'), false, 'Place tile clears the budget filter')
       assert.equal(query.has('dur'), false, 'Place tile clears the duration filter')
       assert.equal(query.get('sort'), 'newest', 'Place tile keeps the selected sort')
+      assert.equal(await page.evaluate(() => document.activeElement?.tagName), 'H2', 'Place search moves focus to the catalog heading')
       assert.equal(await page.locator('.community-places').count(), 0, 'Discovery hides under a place search')
       await page.reload({ waitUntil: 'domcontentloaded' })
       await page.waitForTimeout(800)

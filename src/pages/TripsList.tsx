@@ -471,6 +471,7 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
                     <div className="itin-body">
                       <div className="trip-card-head">
                         <h2 className="card-title">{t.name}</h2>
+                        <span className="sr-only">Status: {BUCKET_LABEL.get(bucket)}</span>
                         <p className="trip-card-route">
                           {t.startLocation} → {t.destinations[t.destinations.length - 1] ?? t.startLocation}
                         </p>

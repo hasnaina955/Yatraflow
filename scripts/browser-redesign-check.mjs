@@ -1326,7 +1326,7 @@ try {
         if (surface.name === 'explore' && state !== 'loading') {
           await page.waitForSelector('.explore-page', { timeout: 15000 })
           if (state === 'error') await page.getByRole('button', { name: 'Try again', exact: true }).waitFor({ state: 'visible' })
-          if (state === 'empty') await page.getByRole('heading', { name: 'The community catalog is just getting started', exact: true }).waitFor({ state: 'visible' })
+          if (state === 'empty') await page.getByRole('heading', { name: exploreAuth === 'signed-in' ? 'No itineraries published yet' : 'The community catalog is just getting started', exact: true }).waitFor({ state: 'visible' })
         }
         await page.waitForTimeout(2000)
         if (surface.name === 'timeline' && state === 'populated') {
@@ -1420,7 +1420,7 @@ try {
             assert.equal(await page.locator('.explore-live-counts').count(), 0, 'Loading is not a real zero')
             assert.equal(await page.getByRole('button', { name: 'Try again', exact: true }).count(), 0)
           } else if (state === 'empty') {
-            assert(await page.getByRole('heading', { name: 'The community catalog is just getting started', exact: true }).isVisible())
+            assert(await page.getByRole('heading', { name: exploreAuth === 'signed-in' ? 'No itineraries published yet' : 'The community catalog is just getting started', exact: true }).isVisible())
             assert.equal(await page.locator('.explore-live-counts strong').first().innerText(), '0')
             assert.equal(await page.getByRole('button', { name: 'Try again', exact: true }).count(), 0)
           } else {

@@ -16,7 +16,8 @@ Specification: [Approved compact card correction](../specs/2026-10-09-compact-ca
 
 Written approval: `ask_93fd554f445729375164aa92`, step `written-correction-specification`.
 
-Status: Tasks 1 to 5 are complete. Only the final proof and comparison remain open.
+Status: Implementation and final check runs are complete. The portable comparison passes its controls.
+The user approved both rendered pages on 10 October 2026. The review record lists incomplete checks.
 
 ## Global constraints
 

@@ -30,6 +30,9 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 - **Production history routes load their entry assets after refresh.** The build base now roots asset URLs at the app origin.
   Nested trip, creator, and public-plan URLs no longer request scripts from a route-local assets directory.
   Capacitor keeps the same local asset origin. Device smoke remains a separate check.
+- **Fork states its limits and opens its copy.** A second flight stops at the guard and mints one copy.
+  Priced copies name their locked days. Catalog counts name rendered cards. Trip feet carry one cover action.
+  The featured line names its most-forked or most-viewed basis.
 
 ### Added
 
@@ -174,6 +177,14 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
   hearts write. An id whose day or stop is gone is dropped rather than shown as a row that
   opens nothing, and a stop that a re-split moved follows its new day. `src/lib/savedShelf.ts`
   resolves the ids against live trip data; `src/components/SavedShelf.tsx` draws them.
+- **My Trips and Explore cards read as one compact family.** Explore itinerary cards pair a
+  duration pill with a bookmark save. Each card shows an endpoint route line and one evidence
+  row. Cards measure 15 to 25 percent shorter at equal widths. Creator cards use a one-row
+  identity under edge-to-edge covers. Creator cards measure 22 to 23 percent shorter. Small pools
+  suppress the mirroring trending shelf. My Trips keeps its sizes and grid with a
+  divider-free footer. The planning meter pins to each card body bottom. Community Places,
+  four live hero facts, and a margin note round out Explore. Motion runs on tokens with
+  reduced-motion opt-outs. Focus rings reach every card control.
 
 ### Fixed
 

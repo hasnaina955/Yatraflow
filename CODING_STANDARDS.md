@@ -1225,3 +1225,6 @@ The editor primitives are the default; a script is the exception.
   quote) each aborted before the first statement, so nothing was ever
   half-written. Keep that property: assert every anchor exists and is unique,
   `throw` before any write, then verify by counting the token you inserted.
+- **Freeze the browser harness before the final capture matrix.** Its fingerprint includes comments.
+  A harness edit makes earlier captures stale, even when the product source stays unchanged.
+  Check script syntax and prose before capturing. Preserve source checks rather than bypassing them.

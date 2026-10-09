@@ -692,15 +692,15 @@ The [design specification](docs/superpowers/specs/2026-10-08-mockup-visual-quali
 - [x] Check blocked-font geometry and tested controls at 1440px, 768px, and 390px in both themes.
   Evidence: `.cache/visual-quality-production-fallback-light/` and `.cache/visual-quality-production-fallback-dark/`.
   These checks do not establish complete accessibility or user visual acceptance.
-- [ ] Build the approved My Trips and Explore direction with all existing controls.
-- [ ] Check both themes, responsive widths, keyboard use, sparse data, and failure states.
-- [ ] Review rendered reference/app comparisons and get user visual acceptance.
+- [x] Build the approved My Trips and Explore direction with all existing controls.
+- [x] Check both themes, responsive widths, keyboard use, sparse data, and failure states.
+- [x] Review rendered reference/app comparisons and get user visual acceptance.
   A fresh portable comparison exists with first-view and full-page captures for both screens,
   both reference kinds, both viewports, and both product themes. It opened and passed 64 control
   combinations with no external request. The comparison is at
   `.cache/visual-quality-review-2026-10-09/YatraFlow-rendered-product-review.html`, and the
-  observed gaps are in `docs/redesign/VISUAL-QUALITY-REVIEW.md`. Visual acceptance stays open
-  until the user answers.
+  observed gaps are in `docs/redesign/VISUAL-QUALITY-REVIEW.md`.
+  The user approved both rendered pages on 10 October 2026. Recorded check gaps remain open.
 - [ ] Review publication polish and workspace integration separately.
 
 **Appendix A. Reference adaptation.** The phone frame and design-explanation rail in `index.html` are presentation furniture, not product controls.

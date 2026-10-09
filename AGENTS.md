@@ -161,6 +161,8 @@ that notices the drift.
    start a fresh server if it comes back empty; the `localhost:54321` fallback
    string is in every bundle, so it discriminates nothing. (Found 2026-09-17:
    the long-running 5173 server had no Supabase project compiled in at all.)
+   On a production preview URL, the server serves `dist` only. Fetch `/`, read
+   its script tags, and grep the served bundle for the ref.
 
    **A signed-in browser is bound to an ORIGIN, not to a person or a machine
    (learned 2026-09-27).** A Supabase session lives in the origin's storage, so

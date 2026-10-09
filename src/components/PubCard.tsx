@@ -36,6 +36,7 @@ type PubCardProps = {
  *  publication page keeps the complete route and description. The default
  *  `PubCard` return below stays byte-identical for every other caller. */
 function EditorialPubCard({ pub, creator, saved, onFork, onToggleSave, enterIndex, needsLogin, forkPending }: PubCardProps) {
+  const routePlaces = pub.routeSummary.filter(Boolean)
   return (
     <div className={`pub-card-editorial${enterIndex != null ? ' trip-enter' : ''}`}
       style={enterIndex != null ? { animationDelay: `calc(var(--stagger-step) * ${Math.min(enterIndex, 8)})` } : undefined}>
@@ -55,6 +56,11 @@ function EditorialPubCard({ pub, creator, saved, onFork, onToggleSave, enterInde
         <a className="trip-card-hit" {...appLink(`/pub/${pub.id}`)}>
           <div className="itin-body">
             <h2 className="card-title">{pub.title}</h2>
+            {routePlaces.length > 0 && (
+              <p className="small muted itin-route" title={routePlaces.join(' → ')}>
+                {routePlaces.length === 1 ? routePlaces[0] : `${routePlaces[0]} → ${routePlaces[routePlaces.length - 1]}`}
+              </p>
+            )}
             <p className="small muted itin-tagline">{pub.tagline}</p>
             <div className="pub-card-tags"><Chip tone="teal">{cap(pub.travelStyle)}</Chip></div>
             <div className="stop-meta num">

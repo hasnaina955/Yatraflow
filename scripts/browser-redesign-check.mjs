@@ -353,6 +353,17 @@ async function acceptance(page, surface, result, fixture) {
           durations: card.querySelectorAll('.pub-card-duration').length,
           evidence: card.querySelectorAll('.itin-public-evidence').length,
           routeOverPhoto: card.querySelectorAll('.itin-cover-route').length,
+          routeLine: (() => {
+            const route = card.querySelector('.itin-body > .itin-route')
+            if (!route) return { present: false, singleLine: false, text: '' }
+            const style = getComputedStyle(route)
+            return {
+              present: true,
+              singleLine: style.whiteSpace === 'nowrap',
+              text: (route.textContent ?? '').trim(),
+              title: route.getAttribute('title') ?? '',
+            }
+          })(),
           bookmark: Boolean(card.querySelector('.save-bookmark .lucide-bookmark')),
           titleFamily: getComputedStyle(card.querySelector('.card-title')).fontFamily,
           divider: getComputedStyle(card.querySelector('.itin-meta'), '::before').borderTopWidth,
@@ -379,6 +390,10 @@ async function acceptance(page, surface, result, fixture) {
           assert(card.titleFamily.includes('Plus Jakarta Sans'), `Editorial title uses the compact sans face, found ${card.titleFamily}`)
           assert.equal(Number.parseFloat(card.divider) || 0, 0, 'No footer divider inside editorial cards')
           assert.equal(card.bioFooter, 0, 'No bio footer inside editorial cards')
+          assert.equal(card.routeLine.present, true, 'Each editorial card carries one route line')
+          assert.equal(card.routeLine.singleLine, true, 'Route line holds one line')
+          assert(card.routeLine.text.length > 0, 'Route line names endpoints')
+          assert(card.routeLine.title.length > 0, 'Route line keeps its full route')
           assert.equal(card.identity, true, 'Creator identity stays visible')
           assert.equal(card.socials, card.creatorId === OWNER_ID ? 2 : 0, 'Owner cards show both social links, other cards show none')
           assert.equal(card.forkVisible, true, 'Fork stays visible')

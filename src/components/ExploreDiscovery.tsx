@@ -80,7 +80,7 @@ export function FeaturedCreators({ creators }: { creators: CreatorRank[] }) {
  *  the one the featured card already leads with. Each row is a
  *  deep link to the public plan, with the creator's own page as
  *  the row's second link. Null until the evidence bar is met. */
-export function TrendingShelf({ pubs, users, onFork, onToggleSave, isSaved, needsLogin }: {
+export function TrendingShelf({ pubs, users, onFork, onToggleSave, isSaved, needsLogin, forkPendingIds }: {
   pubs: PublishedItinerary[]
   users: User[]
   onFork: (id: string) => void
@@ -88,6 +88,8 @@ export function TrendingShelf({ pubs, users, onFork, onToggleSave, isSaved, need
   isSaved: (id: string) => boolean
   /** Signed out: Fork navigates to Auth rather than forking in place. */
   needsLogin: boolean
+  /** Publications with a fork request in flight. */
+  forkPendingIds?: ReadonlySet<string>
 }) {
   if (pubs.length === 0) return null
   return (
@@ -105,7 +107,7 @@ export function TrendingShelf({ pubs, users, onFork, onToggleSave, isSaved, need
             <span className="trend-rank num" aria-hidden="true">{i + 1}</span>
             <PubCard pub={p} creator={users.find(u => u.id === p.creatorId)}
               saved={isSaved(p.id)} onFork={() => onFork(p.id)} onToggleSave={() => onToggleSave(p.id)}
-              needsLogin={needsLogin} editorial />
+              needsLogin={needsLogin} forkPending={forkPendingIds?.has(p.id)} editorial />
           </div>
         ))}
       </div>

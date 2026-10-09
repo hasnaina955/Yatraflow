@@ -329,7 +329,7 @@ describe('#349 — the fork asks the wire and the entitlement, never the cache',
     expect(fn).toMatch(/let entitled = unlockedPresentationOnly === true/)
     expect(fn).toMatch(/if \(!entitled && meId\)/)
     expect(fn).toMatch(/hasUnlock\(await fetchMyEntitlements\(meId\), meId, pub\.id, pub\.creatorId\)/)
-    expect(fn).toMatch(/\} catch \{\s*entitled = false\s*\}/)
+    expect(fn).toMatch(/\} catch \{\s*entitled = false\s*entitlementUnknown = true\s*\}/)
     // The re-stub stays the default and the public persist path stays the one
     // that drops locked-day expenses. #352 added the money flag to the re-stub
     // and made the persist path the default for every fork the server did not

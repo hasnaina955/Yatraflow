@@ -201,7 +201,7 @@ describe('the public page wires the real unlock flow', () => {
     // entitlement would hand paid content to a stranger. Conservative, either way
     // the fork only NARROWS — the wire already decided what exists.
     const fork = read('../src/lib/forkPub.ts')
-    expect(fork).toMatch(/\} catch \{\s*entitled = false\s*\}/)
+    expect(fork).toMatch(/\} catch \{\s*entitled = false\s*entitlementUnknown = true\s*\}/)
   })
 
   it('the fork re-stubs locked days before persisting (defense-in-depth on the P0)', () => {

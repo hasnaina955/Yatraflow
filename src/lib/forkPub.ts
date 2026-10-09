@@ -9,6 +9,14 @@ import { toast } from '../components/ui'
 
 const LOCKED_STOP_DESCRIPTION = 'Locked — the full plan is on the original itinerary.'
 
+/** Publications with a fork request in flight. The guard below is synchronous:
+ *  a second click before the first request settles is refused with a toast,
+ *  so one publication can never mint two copies from a double click. */
+const forkInflight = new Set<string>()
+export function isForkPending(pubId: string): boolean {
+  return forkInflight.has(pubId)
+}
+
 /** Defense-in-depth stub: re-applies the locked-day stub to days NOT in the
  *  publication's free list, EVEN IF the session's copy somehow carries real
  *  content. The server (get_public_trip) already stubs at the wire; this
@@ -87,6 +95,16 @@ export function wireWithheld(src: Trip, freeDayIndexes: number[]): boolean {
  *  clicks Fork. */
 export async function forkPublication(pub: PublishedItinerary, meId: string | null, onNavigate: (r: string) => void, unlockedPresentationOnly?: boolean, source?: ShareSource | null): Promise<boolean> {
   if (!meId) { toast('Log in to fork this trip into your plans.'); onNavigate('/auth'); return false }
+  if (forkInflight.has(pub.id)) { toast('Already forking that itinerary — one copy coming up.'); return false }
+  forkInflight.add(pub.id)
+  try {
+    return await forkPublicationInner(pub, meId, onNavigate, unlockedPresentationOnly, source)
+  } finally {
+    forkInflight.delete(pub.id)
+  }
+}
+
+async function forkPublicationInner(pub: PublishedItinerary, meId: string, onNavigate: (r: string) => void, unlockedPresentationOnly?: boolean, source?: ShareSource | null): Promise<boolean> {
   // Read through the paywall RPC, not the raw table. A creator/buyer session
   // gets the real trip back from the same call a visitor makes — the server
   // compared auth.uid() against the entitlement rows, not this client.
@@ -105,11 +123,13 @@ export async function forkPublication(pub: PublishedItinerary, meId: string | nu
   // whole fork (a buyer who could not be checked could not fork their own plan);
   // treating it as "entitled" would hand paid content to a stranger.
   let entitled = unlockedPresentationOnly === true
+  let entitlementUnknown = false
   if (!entitled && meId) {
     try {
       entitled = hasUnlock(await fetchMyEntitlements(meId), meId, pub.id, pub.creatorId)
     } catch {
       entitled = false
+      entitlementUnknown = true
     }
   }
   // Fail closed: any doubt (no wire row, a wire row the server stubbed, no
@@ -133,7 +153,7 @@ export async function forkPublication(pub: PublishedItinerary, meId: string | nu
   // #230 — the same `source` stamps two places: the funnel event (through the
   // counter RPC's p_source) and the forked trip's own `ref`, so a later
   // conversion on that trip can still name the surface that brought its owner.
-  const { persisted } = unlockedFork
+  const { trip: copy, persisted } = unlockedFork
     ? await duplicateTripPersisted(safe, meId, undefined, source)
     : await duplicateTripPublicPersisted(safe, meId, pub.freeDayIndexes, source)
   if (!persisted) {
@@ -141,7 +161,13 @@ export async function forkPublication(pub: PublishedItinerary, meId: string | nu
     return false
   }
   registerPubCopy(pub.id, source)
-  toast(`“${pub.title}” forked to My trips ✈️`)
-  onNavigate('/trips')
+  // The copy opens, not the collection: the fork promise names an editable
+  // trip, so the success landing is that trip's timeline.
+  const freeSet = new Set(pub.freeDayIndexes)
+  const lockedDays = unlockedFork ? 0 : safe.days.filter(d => !freeSet.has(d.index)).length
+  if (unlockedFork || lockedDays === 0) toast(`“${pub.title}” forked to My trips ✈️`)
+  else if (entitlementUnknown) toast(`“${pub.title}” forked — access check failed, locked parts omitted.`)
+  else toast(`“${pub.title}” forked with free days — ${lockedDays} locked day${lockedDays === 1 ? '' : 's'} stayed locked.`)
+  onNavigate(`/trip/${copy.id}/timeline`)
   return true
 }

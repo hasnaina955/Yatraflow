@@ -245,8 +245,10 @@ async function checkSignedInFork(page, result, fixture) {
     }
   }, SYNTHETIC_FORK_ID)
   const priorCopies = fixture.published_itineraries.find(row => row.id === 'fixture-publication-4').copies
-  await target.getByRole('button', { name: 'Fork this trip', exact: true }).click()
-  await page.waitForURL(url => (url.hash.startsWith('#/') ? url.hash.slice(1) : url.pathname) === '/trips', { timeout: 10000 })
+  // A rapid double click is one flight: the per-publication guard refuses the
+  // second request, so only one copy persists and one counter moves.
+  await target.getByRole('button', { name: 'Fork this trip', exact: true }).dblclick()
+  await page.waitForURL(url => (url.hash.startsWith('#/') ? url.hash.slice(1) : url.pathname) === `/trip/${SYNTHETIC_FORK_ID}/timeline`, { timeout: 10000 })
   await page.getByRole('heading', { name: 'Fixture Himalayan Paths (copy)', exact: true }).waitFor({ state: 'visible' })
   assert(result.fixtureOperations.includes('synthetic-fork-trip'), 'Fork must persist its trip row')
   assert(result.fixtureOperations.includes('synthetic-fork-member'), 'Fork must persist owner membership')
@@ -256,16 +258,15 @@ async function checkSignedInFork(page, result, fixture) {
   assert.equal(copy.owner_id, OWNER_ID)
   assert.equal(copy.visibility, 'private')
   assert.equal(copy.ref, 'explore')
-  assert.equal(fixture.published_itineraries.find(row => row.id === 'fixture-publication-4').copies, priorCopies + 1)
-  await page.goto(`${base.origin}/#/trip/${SYNTHETIC_FORK_ID}/timeline`, { waitUntil: 'domcontentloaded' })
-  await page.locator('#panel-timeline').waitFor({ state: 'visible' })
+  assert.equal(fixture.trips.filter(row => row.id === SYNTHETIC_FORK_ID).length, 1, 'A double click mints one copy')
+  assert.equal(fixture.published_itineraries.find(row => row.id === 'fixture-publication-4').copies, priorCopies + 1, 'A double click moves the counter once')
   await page.reload({ waitUntil: 'domcontentloaded' })
   await page.locator('#panel-timeline').waitFor({ state: 'visible' })
   await page.getByRole('heading', { name: 'Fixture Himalayan Paths (copy)', exact: true }).waitFor({ state: 'visible' })
   assert.equal(currentRoute(page), `/trip/${SYNTHETIC_FORK_ID}/timeline`, 'Fork remains available after reload')
   await page.goto(`${base.origin}/#/trips`, { waitUntil: 'domcontentloaded' })
   await page.getByRole('heading', { name: 'Fixture Himalayan Paths (copy)', exact: true }).waitFor({ state: 'visible' })
-  result.signedInFork = { tripPersisted: true, ownerMemberPersisted: true, counterPersisted: true, reloadPersisted: true, myTripsVisible: true }
+  result.signedInFork = { tripPersisted: true, ownerMemberPersisted: true, counterPersisted: true, reloadPersisted: true, myTripsVisible: true, singleFlight: true }
   await page.goto(`${base.origin}/#/explore`, { waitUntil: 'domcontentloaded' })
   await page.locator('.explore-grid a.trip-card-hit').first().waitFor()
 }
@@ -553,8 +554,15 @@ async function acceptance(page, surface, result, fixture) {
       // the action, so the viewer card is the negative control.
       const editor = fixture.trips.some(row => row.id === trip.id && row.owner_id === OWNER_ID)
         || fixture.trip_members.some(member => member.trip_id === trip.id && member.user_id === OWNER_ID && member.role !== 'viewer')
+      // One cover control: the task row when the step itself is the cover
+      // step, else the button. Viewers never get the button.
+      const taskLabels = await card.locator('.trip-next-label').allTextContents()
+      const taskIsCover = taskLabels.some(label => label.trim() === 'Add a cover photo')
       const prompts = await card.getByRole('link', { name: 'Add cover photo', exact: true }).count()
-      assert.equal(prompts, editor && !trip.cover_image_url ? 1 : 0, `${trip.name} cover prompt: expected ${editor && !trip.cover_image_url ? 1 : 0}, found ${prompts}`)
+      assert.equal(prompts, editor && !trip.cover_image_url && !taskIsCover ? 1 : 0, `${trip.name} cover button: expected ${editor && !trip.cover_image_url && !taskIsCover ? 1 : 0}, found ${prompts}`)
+      const coverControls = await card.getByRole('link', { name: /cover photo/i }).count()
+      assert(coverControls <= 1, `${trip.name} never shows two cover controls`)
+      assert.equal(coverControls, taskIsCover || prompts === 1 ? 1 : 0, `${trip.name} keeps its cover control, found ${coverControls}`)
     }
     await page.getByRole('button', { name: 'Clear filters', exact: true }).click()
     await page.locator('.trip-featured-card').getByRole('button', { name: 'Trip overview', exact: true }).click()

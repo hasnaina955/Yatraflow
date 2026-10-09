@@ -314,7 +314,7 @@ describe('#395 — the catalog read state owns the whole surface', () => {
     // line a screen-reader user hears with no visual cue to contradict it.
     expect(explore).toContain("'The catalog could not be loaded'")
     expect(explore).toContain("'Loading the catalog'")
-    expect(explore).toMatch(/pubsRead === 'ready'\s*\?\s*`\$\{pubs\.length\}/)
+    expect(explore).toMatch(/pubsRead === 'ready'\s*\?\s*`Showing \$\{gridPubs/)
   })
 
   it('keeps the genuine empty copy, both variants', () => {

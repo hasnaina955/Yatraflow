@@ -97,6 +97,7 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
   // other filters describe the ITINERARIES (which anyone can see); this one
   // describes the READER, and that is the line the URL must not cross.
   const [savedOnly, setSavedOnly] = useState(false)
+  const [forkingIds, setForkingIds] = useState<ReadonlySet<string>>(new Set())
   // P4 pagination: show the first page; "Load more" widens the window. Reset
   // to the first page whenever the result set's shape changes (filter/sort
   // edits), but NOT when `published` updates live (realtime insert) — a new
@@ -191,7 +192,11 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
   function forkTrip(slug: string) {
     const pub = published.find(p => p.id === slug)
     if (!pub) { toast('That itinerary is no longer available.', 'err'); return }
-    void forkPublication(pub, me, onNavigate, undefined, 'explore')
+    if (forkingIds.has(slug)) return
+    setForkingIds(prev => new Set(prev).add(slug))
+    void forkPublication(pub, me, onNavigate, undefined, 'explore').finally(() => {
+      setForkingIds(prev => { const next = new Set(prev); next.delete(slug); return next })
+    })
   }
 
   function toggleHeart(id: string) {
@@ -331,7 +336,7 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
             contradict it. It announces the read's own state instead. */}
         <p className="sr-only" role="status">
           {pubsRead === 'ready'
-            ? `${pubs.length} ${pubs.length === 1 ? 'itinerary matches' : 'itineraries match'}`
+            ? `Showing ${gridPubs.slice(0, visibleCount).length} of ${gridPubs.length} itineraries`
             : pubsRead === 'reading' ? 'Loading the catalog' : 'The catalog could not be loaded'}
         </p>
 
@@ -364,7 +369,9 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
                 <span><MetaIcon icon={ MapPin } tone="place" />{featured.routeSummary.length} places · {featured.routeSummary[0]} → {featured.routeSummary[featured.routeSummary.length - 1]}</span>
               </div>
               <div className="featured-actions">
-                <button className="btn fork-btn" onClick={() => forkTrip(featured.id)}><InlineIcon icon={GitFork} size={14} gap={4} />{me ? 'Fork this trip' : 'Log in to fork'}</button>
+                <button className="btn fork-btn" disabled={featured && forkingIds.has(featured.id)}
+                  title={featured && featured.premiumPriceInr != null ? `Unlocks at ${formatInr(featured.premiumPriceInr)} — forking copies the free parts` : undefined}
+                  onClick={() => featured && forkTrip(featured.id)}><InlineIcon icon={GitFork} size={14} gap={4} />{me ? (featured && forkingIds.has(featured.id) ? 'Forking…' : 'Fork this trip') : 'Log in to fork'}</button>
                 <button className="btn save-btn" onClick={() => toggleHeart(featured.id)} aria-pressed={isSaved(featured.id)}>
                   <InlineIcon icon={Heart} size={13} gap={4} fill={isSaved(featured.id) ? 'currentColor' : 'none'} />
                   {isSaved(featured.id) ? 'Saved' : 'Save'}
@@ -383,15 +390,15 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
         {pubsRead === 'ready' && !filtersActive && (
           <>
             <FeaturedCreators creators={creators} />
-            <TrendingShelf pubs={trending} users={users}
+            <TrendingShelf pubs={trending} users={users} forkPendingIds={forkingIds}
               onFork={forkTrip} onToggleSave={toggleHeart} isSaved={isSaved} needsLogin={!me} />
           </>
         )}
 
         <section id="explore-catalog" className="explore-catalog" aria-labelledby="explore-catalog-heading">
           <header className="discovery-head">
-            <h2 id="explore-catalog-heading" className="discovery-title">All itineraries</h2>
-            {pubsRead === 'ready' && <p className="discovery-sub">{pubs.length} {pubs.length === 1 ? 'matching itinerary' : 'matching itineraries'}</p>}
+            <h2 id="explore-catalog-heading" className="discovery-title">Itineraries</h2>
+            {pubsRead === 'ready' && <p className="discovery-sub">Showing {gridPubs.slice(0, visibleCount).length} of {gridPubs.length} {gridPubs.length === 1 ? 'itinerary' : 'itineraries'}{featured && pubs.some(p => p.id === featured.id) ? ' · 1 matching itinerary featured above' : ''}</p>}
           </header>
         {pubsRead !== 'ready' ? (
           /* #364: a failed catalog read used to render "just getting started" —
@@ -429,13 +436,16 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
           <>
             {/* Only when something is left after the featured pick — otherwise
                 the featured card was the whole result and an empty grid would
-                just add a gap under it. */}
+                just add a gap under it. A featured-only match names itself. */}
+            {gridPubs.length === 0 && pubs.length > 0 && (
+              <p className="small muted">The only match is featured above.</p>
+            )}
             {gridPubs.length > 0 && (
               <div className="explore-grid">
                 {gridPubs.slice(0, visibleCount).map((p, i) => (
                   <PubCard key={p.id} pub={p} creator={userOf(users, p.creatorId)} saved={isSaved(p.id)}
                     onFork={() => forkTrip(p.id)} onToggleSave={() => toggleHeart(p.id)} enterIndex={i}
-                    needsLogin={!me} editorial />
+                    needsLogin={!me} forkPending={forkingIds.has(p.id)} editorial />
                 ))}
               </div>
             )}

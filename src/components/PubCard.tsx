@@ -25,6 +25,8 @@ type PubCardProps = {
    *  button has to say so — a click that silently becomes a login redirect
    *  reads as a broken button. */
   needsLogin?: boolean
+  /** A fork request is in flight for this publication: the action disables. */
+  forkPending?: boolean
   /** Compact image-led presentation. Other pages keep the default bezel. */
   editorial?: boolean
 }
@@ -33,7 +35,7 @@ type PubCardProps = {
  *  the duration and the Save control, the body carries the facts, and the
  *  publication page keeps the complete route and description. The default
  *  `PubCard` return below stays byte-identical for every other caller. */
-function EditorialPubCard({ pub, creator, saved, onFork, onToggleSave, enterIndex, needsLogin }: PubCardProps) {
+function EditorialPubCard({ pub, creator, saved, onFork, onToggleSave, enterIndex, needsLogin, forkPending }: PubCardProps) {
   return (
     <div className={`pub-card-editorial${enterIndex != null ? ' trip-enter' : ''}`}
       style={enterIndex != null ? { animationDelay: `calc(var(--stagger-step) * ${Math.min(enterIndex, 8)})` } : undefined}>
@@ -90,8 +92,10 @@ function EditorialPubCard({ pub, creator, saved, onFork, onToggleSave, enterInde
             <span><InlineIcon icon={Eye} size={12} />{pub.views} views</span>
             <span><InlineIcon icon={GitFork} size={12} />{pub.copies} {pub.copies === 1 ? 'fork' : 'forks'}</span>
           </span>
-          <button type="button" className="btn btn-primary btn-sm" onClick={onFork}>
-            {needsLogin ? 'Log in to fork' : 'Fork this trip'}
+          <button type="button" className="btn btn-primary btn-sm" disabled={forkPending}
+            title={pub.premiumPriceInr != null ? `Unlocks at ${formatInr(pub.premiumPriceInr)} — forking copies the free parts` : undefined}
+            onClick={onFork}>
+            {needsLogin ? 'Log in to fork' : forkPending ? 'Forking…' : 'Fork this trip'}
           </button>
         </div>
       </div>
@@ -99,10 +103,10 @@ function EditorialPubCard({ pub, creator, saved, onFork, onToggleSave, enterInde
   )
 }
 
-export function PubCard({ pub, creator, saved, onFork, onToggleSave, enterIndex, needsLogin, editorial = false }: PubCardProps) {
+export function PubCard({ pub, creator, saved, onFork, onToggleSave, enterIndex, needsLogin, forkPending, editorial = false }: PubCardProps) {
   if (editorial) {
     return <EditorialPubCard pub={pub} creator={creator} saved={saved} onFork={onFork}
-      onToggleSave={onToggleSave} enterIndex={enterIndex} needsLogin={needsLogin} />
+      onToggleSave={onToggleSave} enterIndex={enterIndex} needsLogin={needsLogin} forkPending={forkPending} />
   }
   return (
     /* Double-Bezel: this element is the TRAY, the .card inside it is the PLATE.

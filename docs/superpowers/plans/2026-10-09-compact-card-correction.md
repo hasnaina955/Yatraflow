@@ -776,7 +776,7 @@ Do not change `.container`, `.trips-page` width, or `.explore-grid` column defin
 Acceptance: Creator cards become shorter. My Trips widths and column counts remain unchanged.
 No permission, route, or planning fact changes.
 
-- [x] Task 4 complete. Creator cards are 23 percent shorter with flush covers. Ordinary trip cards shrink 1px. One recorded exception: the coverless edge card grows where its four-item foot wraps. The wrap is plan-mandated and spec-sanctioned. The guard stays strict. Foot padding, gaps, controls, labels, and overlap stay pinned.
+- [x] Task 4 complete. Creator cards are 23 percent shorter with flush covers. Ordinary trip cards shrink 1px. Foot padding, gaps, controls, labels, and overlap stay pinned. The coverless wrap exception closed when the duplicate cover action left the foot.
 
 ## Task 5: Restore Places, hero composition, and motion
 

@@ -532,7 +532,11 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
                       </a>
                     )}
                     <div className="trip-card-actions">
-                      {canEdit(roleOf(t, meId)) && !hasSavedCoverPhoto(t) && (
+                      {/* One next-step action per foot: when the task row itself
+                          is the cover step, a second cover button would compete
+                          with it, so the button only prompts where the next step
+                          points elsewhere. */}
+                      {canEdit(roleOf(t, meId)) && !hasSavedCoverPhoto(t) && step.kind !== 'add-cover' && (
                         <a className="btn btn-outline btn-sm" {...appLink(nextStepRoute(t, { kind: 'add-cover', label: 'Add a cover photo' }))}>
                           Add cover photo
                         </a>
@@ -724,7 +728,7 @@ function FeaturedTripLead({
                 className="btn btn-primary"
                 onClick={() => onNavigate(targetRoute)}
               >
-                {step.label} <ArrowRight size={14} aria-hidden />
+                {step.kind === 'done' ? 'Open trip' : step.label} <ArrowRight size={14} aria-hidden />
               </button>
               <button
                 className="trip-featured-overview-btn"

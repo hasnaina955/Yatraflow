@@ -4169,7 +4169,7 @@ html.vt-active :where(*) {
 .explore-page .pub-card-editorial .card-title { font-family: var(--font-body); font-size: 16px; line-height: 1.3; }
 .explore-page .pub-card-editorial .stop-meta { flex-wrap: wrap; gap: 10px; font-size: 12px; }
 .explore-page .itin-tagline { font-size: 12.5px; margin: 0; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
-.explore-page .itin-public-evidence { font-size: 11px; color: var(--text-2); display: flex; flex-wrap: wrap; gap: 4px 8px; }
+.explore-page .itin-public-evidence { font-size: 11px; font-weight: 600; color: var(--text-2); display: flex; flex-wrap: wrap; gap: 4px 8px; }
 .explore-page .pub-card-editorial .row-between.itin-meta { flex-wrap: wrap; gap: 8px; padding: 8px 14px 14px; margin: auto 0 0; }
 .explore-page .pub-card-editorial .creator-line { min-width: 0; }
 .explore-page .pub-card-editorial .itin-foot { padding: 0 14px 14px; margin-top: 6px; overflow-wrap: anywhere; }
@@ -9576,6 +9576,12 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
   outline: 2px solid var(--color-editorial-ink);
   outline-offset: 2px;
 }
+/* Status keeps its word in ink; the dot keeps its tone. Each dot reuses its
+   tone's own text color, so the scanning signal survives the uniform pill. */
+.trips-page .trip-card-status.chip-saffron::before { background: var(--ink-amber); }
+.trips-page .trip-card-status.chip-teal::before { background: var(--teal-deep); }
+.trips-page .trip-card-status.chip-ok::before { background: var(--ink-ok); }
+.trips-page .trip-card-status.chip-info::before { background: var(--text-2); }
 /* Small controls keep their glyph size and grow an invisible hit zone to a
    44px square: the hero clear is 32px, social icons are 20px. The zone paints
    nothing and moves no layout, so only hit-testing can prove it. */

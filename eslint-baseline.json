@@ -1,6 +1,6 @@
 {
   "generatedBy": "npm run lint:ratchet -- --update",
-  "errors": 142,
+  "errors": 140,
   "warnings": 29,
   "files": {
     "src/App.tsx": {
@@ -71,7 +71,6 @@
       "react-hooks/exhaustive-deps": 2
     },
     "src/pages/Explore.tsx": {
-      "@typescript-eslint/no-unused-vars": 2,
       "react-hooks/set-state-in-effect": 1,
       "react-hooks/exhaustive-deps": 1
     },

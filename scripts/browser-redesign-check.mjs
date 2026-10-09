@@ -864,6 +864,43 @@ async function acceptance(page, surface, result, fixture) {
       await page.waitForTimeout(400)
       assert(/^\/pub\//.test(currentRoute(page)), `Enter on a card link must open its plan, reached ${currentRoute(page)}`)
     }
+    /* Ranks attach to their cards: contained in the row, meeting the card
+       top, clear of the duration pill and the bookmark. Product behavior, so
+       it runs whenever the shelf renders, target-gated or not. Starts from a
+       fresh explore: earlier steps may leave the page on a publication. */
+    await page.goto(`${base.origin}/#/explore`, { waitUntil: 'domcontentloaded' })
+    await page.waitForTimeout(800)
+    const trendRowCount = await page.locator('.trend-row').count()
+    if (state === 'populated' && trendRowCount > 0) {      const rankReport = await page.locator('.trend-row').evaluateAll(rows => rows.map(row => {
+        const rank = row.querySelector('.trend-rank')
+        const card = row.querySelector('.pub-card-editorial .itin-card')
+        if (!rank || !card) return { present: false }
+        const rowBox = row.getBoundingClientRect()
+        const r = rank.getBoundingClientRect(), c = card.getBoundingClientRect()
+        const box = element => element?.getBoundingClientRect() ?? null
+        const duration = box(card.querySelector('.pub-card-duration'))
+        const save = box(card.querySelector('.save-bookmark'))
+        const inter = (a, b) => !!b && Math.min(a.right, b.right) - Math.max(a.left, b.left) > 1
+          && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 1
+        const insideRow = (r, box) => r.left >= box.left - 1 && r.top >= box.top - 1
+          && r.right <= box.right + 1 && r.bottom <= box.bottom + 1
+        return {
+          present: true,
+          contained: insideRow(r, rowBox),
+          gapToCard: c.top - r.bottom,
+          clearOfDuration: !inter(r, duration),
+          clearOfSave: !inter(r, save),
+        }
+      }))
+      result.rankReport = rankReport
+      assert(rankReport.length > 0 && rankReport.every(entry => entry.present), 'Every trend row carries a rank and a card')
+      for (const entry of rankReport) {
+        assert(entry.contained, 'Rank stays inside its row')
+        assert(Math.abs(entry.gapToCard) <= 2, `Rank meets its card (gap ${entry.gapToCard.toFixed(1)}px)`)
+        assert(entry.clearOfDuration, 'Rank clears the duration pill')
+        assert(entry.clearOfSave, 'Rank clears the bookmark')
+      }
+    }
     /* Task 5 correction checks: four hero facts, the annotation, Places tiles
        with their search behaviour, and sampled motion. Populated mixed only,
        behind the target flag until the whole correction is ready. */

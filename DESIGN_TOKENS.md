@@ -254,6 +254,13 @@ already resolved to `#2BB8AC` in both families, so nothing there changes.
   and `--text-2xl` are absent: each has zero declarations and zero usages in
   `src/styles.css`. The CSS records deletion rather than adoption of the unused
   steps (`5202–5205`); the previously documented eight-step scale does not exist.
+- **Approved 11px tier:** discovery evidence (`.itin-public-evidence`) and card
+  counts set 11px with semibold weight for trust-bearing numerals. 11px stays
+  the floor: no new type below it.
+- **Scoped display exceptions:** Playfair Display paints Explore editorial
+  titles; Caveat 600 paints the hero annotation only. Both load from the single
+  hosted-font request in `index.html`. Body and workspace type stay on Plus
+  Jakarta Sans and Sora.
 - **Spacing scale:** the historical `--s-1…--s-8` set stays deleted (it never
   had a consumer). The ladder now lives in `--space-1…--space-10`
   (2/4/6/8/12/14/16/20/22/24 — the spacing gate's `LADDER` set exactly), added

@@ -705,6 +705,9 @@ anywhere in this repo means the entry labelled `6b` below.
 
 ## 2. Conventions (`AGENTS.md` §4)
 
+- **Anonymous hydration must publish read results and honor auth generation guards.** Test late success and rejection after sign-in.
+  Deduplicate repeated anonymous auth events before advancing the generation. Empty successful reads must report success, not failure.
+
 - **You must test both sides of a shared focus or schedule contract.** A prop-presence test cannot prove that a child reads the prop. Check a tab round trip through the browser. Compare arrivals and warnings for the same stop after road measurements resolve.
 
 - **lint:ste counts code tokens as prose on added lines.** A long string inside a call fails the 20-word limit — build user-facing strings in `const` lines (the checker skips them) and keep the call short. A new line naming a banned field (a stop's `priority`) fails the vocabulary check — spread the helper that already declares it. (Learned 2026-10-03, #607–#609.)
@@ -730,6 +733,15 @@ anywhere in this repo means the entry labelled `6b` below.
 - **A drawn layer and a marker layer must share their source, or the line will touch points nothing marks.** The Map tab draws a selected day's engine journey (`buildJourney` — which can open at the previous night's stop and close at a synthesized destination or the ride home) while its pins come only from that day's *stored* stops. A route end could therefore sit on a bare spot and read as "the route stops" — a real report on 2026-09-17, where the line proved complete (3,481 road points ending exactly at the engine's endpoints) and only the marker was missing. Synthesized journey endpoints now get their own pin, deduplicated through `coLocates` (< 1 km); `lib/journeyMarkers.ts` is that seam. When two layers derive from different data, walk the drawn geometry's endpoints and assert every one is marked.
 
 - **A span request's results are indexed by span offset, not by missing-leg position.** `routePath` measures ONE span covering the `first..last` *uncached* leg — which necessarily includes any cached legs inside it — so `missing[k]` and `chainLegs[k]` are different legs the moment there is a hole. Indexing by `k` handed the tail leg its neighbour's geometry **and** cached it under the neighbour's key, so the corruption outlived the draw (the symptom was a route that visibly stopped early, #polylines). Cached holes are this design's normal state, not an edge case — the leg cache is deliberately shared between the whole-trip chain and each day's ride — so every span-assignment change needs a test with a hole *between* two misses, not a cold cache or a single missing leg.
+
+- **Check staged prose before a checkpoint commit.** Run `node scripts/lint-ste.mjs --staged` after staging.
+  Default mode reads only the unstaged diff. A zero-line result does not check the staged prose.
+
+- **Keep interaction captures separate from initial page images.** Insert each interaction name before the file extension.
+  Do not assume a light-theme filename suffix. Check that interactions leave the initial image hash unchanged.
+  A route check can pass while its screenshot replaces another page's evidence.
+
+- **Check nested history-route refreshes against the production build.** A relative Vite base (`./`) resolves the entry script under `/trip/<id>/assets` after reload. Dev-server rewrites can hide this defect. Keep web entry assets rooted at the app origin, test the Capacitor root-shell URL separately, and record device smoke as a separate result.
 
 - **Route anchors reachable from a public pathname need `appLink` on the real `<a>`.** Root-absolute web hrefs let new tabs escape `/i/<id>`; unmodified left clicks must still set only the hash to avoid reloading. Leave modified/already-handled clicks to the browser, and keep native/file hrefs fragment-only. The metadata handler cannot recover a fragment. Address promotion must use `routeParts`, then the handler's id allowlist — trailing slashes, per-segment queries and extra segments can still render the publication.
 

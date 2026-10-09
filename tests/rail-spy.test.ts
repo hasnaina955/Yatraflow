@@ -27,6 +27,20 @@ describe('MR9/P4 — the sticky stack is measured, not assumed', () => {
     expect(tab).toMatch(/const line = stackRef\.current/)
   })
 
+  it('reads the stack inside the spy callback, not at effect start', () => {
+    // The effect above re-measures on every resize and on the review switch,
+    // but this spy effect's dependencies changed. A line captured when the
+    // effect started is a number that no longer agrees with --tl-stack, which
+    // is what the jumps land under. The read must sit inside the
+    // measure callback, where every invocation re-reads the current value.
+    const body = /const measure = \(\) => \{([\s\S]*?)\n  \}\n/.exec(tab)?.[1] ?? ''
+    expect(body.trim().length, 'the spy measure callback body was not found').toBeGreaterThan(0)
+    expect(body).toMatch(/const line = stackRef\.current/)
+    const readAt = tab.indexOf('const line = stackRef.current')
+    const callbackAt = tab.indexOf('const measure = () => {')
+    expect(readAt).toBeGreaterThan(callbackAt)
+  })
+
   it('re-measures on resize and on the review switch', () => {
     expect(tab).toMatch(/window\.addEventListener\('resize', sync\)/)
     expect(tab).toMatch(/\}, \[reviewAll\]\)/)

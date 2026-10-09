@@ -426,7 +426,7 @@ contradict a decision the repo already made, and you must settle those before an
 
 | # | Decision | The mockup said | Settled | Why |
 |---|---|---|---|---|
-| D1 | Trip page shape | One scrolling page with six sections | **Keep the four tabs.** Adopt the section contents. | The Map tab holds a persistent MapLibre canvas and a search panel. A scrolling page has no place to pin them. |
+| D1 | Trip page shape | One scrolling page with six sections | **Keep the eight routed workspace tabs.** Adopt the section contents. | The Map tab holds a persistent MapLibre canvas and a search panel. A scrolling page has no place to pin them. |
 | D2 | Mobile navigation | Fixed bottom tabbar with four destinations | **Adopt it, behind `VITE_MOBILE_TABBAR`, and ship last.** | Four destinations in one tap beats two taps through a drawer. The flag keeps the shell change reversible. |
 
 Neither decision touches a colour value, per [ADR 0002](docs/adr/0002-mockup-palette-not-adopted.md).
@@ -440,8 +440,8 @@ Neither decision touches a colour value, per [ADR 0002](docs/adr/0002-mockup-pal
     every later day. A booking comes second. A suggestion comes third. A cover photo waits for
     last. MR1 wires the function to the card and owns the click target.
   - **Landed 2026-10-05; the action opens its own task now (2026-10-06, #645).** The line
-    renders on EVERY card, not only the featured one, because the page has no separately
-    featured card. It is its own link: a link must not hold a second link, so the row left
+    renders on ordinary cards and the featured journey. The separate featured card uses the same route builder.
+    It is its own link: a link must not hold a second link, so the row left
     `.trip-card-hit` — the card still opens the trip, and the row opens the day and the stop
     its label names. `nextStepRoute` in `src/lib/tripNextStep.ts` builds one address for the
     featured card's button and this row, so the two cannot disagree. `done` drops the chevron.
@@ -509,12 +509,10 @@ Neither decision touches a colour value, per [ADR 0002](docs/adr/0002-mockup-pal
     [`mr4-toolbar-390.png`](docs/screenshots/mr4-toolbar-390.png).
 - [x] **MR5. Cover-photo prompt and solo-traveller line.** `src/pages/TripsList.tsx`. Show
   "Add a cover photo" when a trip has none. Show avatars, or "Just you so far", in the card foot.
-  - **Satisfied without new code, 2026-10-05 — checked against `src/`, not assumed.** Both halves
-    were already true once MR1 landed. "Add a cover photo" is one of the six next-step labels, and
-    MR1's fix to the default 🧭 emoji is what made it reachable at all; before that it could never
-    render. The avatars and "Just you so far" line were already in the card foot. This row is the
-    clearest case in the track of a plan being a claim about code rather than a fact: it was
-    written as work and turned out to be a description.
+  - **Current implementation, 2026-10-08:** ordinary cards and the featured journey offer a separate photo action to owners and editors.
+    The action opens Settings and does not depend on the primary task. A nonblank saved photo hides it.
+    Emoji choices and automatic destination images do not count as saved photos. Viewer cards do not offer the action.
+    The avatars and "Just you so far" line remain unchanged.
 - [x] **MR6. Departure countdown.** `src/pages/TripsList.tsx`. "Departs in N days" on upcoming
   trips only. Compute from the trip start date, never from a stored string.
   - **Landed 2026-10-05.** `departureLabel` lives beside the other card derivations and returns
@@ -585,7 +583,7 @@ Neither decision touches a colour value, per [ADR 0002](docs/adr/0002-mockup-pal
     A warn tint cannot replace it (P4). Jumps use `scrollBehavior()`, so reduced motion is
     honoured. Pins live in `tests/rail-spy.test.ts`. The row named `TripWorkspace.tsx`. Like
     MR7, the day surfaces live in `src/pages/trip/TimelineTab.tsx`.
-- [ ] **MR10. Public discovery blocks — in Explore, not in the owner dashboard (P8).**
+- [x] **MR10. Public discovery blocks — in Explore, not in the owner dashboard (P8).**
   `src/pages/Explore.tsx`. Featured creators, trending itineraries, and a "Share your travel
   stories" call to action.
   - **Surface corrected 2026-10-06 (P8).** The row named `src/pages/CreatorHubPage.tsx`. That page
@@ -593,9 +591,15 @@ Neither decision touches a colour value, per [ADR 0002](docs/adr/0002-mockup-pal
     creator their funnels and money. A visitor has none of that and never sees the page. Discovery
     is a public surface, so it lands in Explore, which any visitor can read. `/pub/:slug` and
     `/creator/:id` stay visitor-facing and keep their current shape.
-  - **Acceptance pending:** the blocks read from a public source, and one signed-out screenshot at
-    1440px and one at 390px are saved in `docs/screenshots/`.
-- [ ] **MR11. Publications table in the owner dashboard — the public profile stays public (P8).**
+  - **Local source, uncommitted (2026-10-08).** `src/lib/discovery.ts` holds the rules and `src/components/ExploreDiscovery.tsx`
+    draws the blocks, so Explore reads one public source with no extra slices. The rails hide under
+    search, style, budget, duration and Saved, and the featured card keeps its global exception with a
+    label saying it falls outside the active filters.
+  - **Structural evidence only (2026-10-08):** `docs/screenshots/mr10-explore-1440.png` and `mr10-explore-390.png` show synthetic signed-out states.
+    The fixture blocks external services and substitutes cover artwork.
+    These captures do not establish mockup visual quality or live access enforcement.
+    Product visual acceptance remains open.
+- [x] **MR11. Publications table in the owner dashboard — the public profile stays public (P8).**
   `src/pages/CreatorHubPage.tsx`. Each publication as a row with its status and its own actions.
   - **Surface corrected 2026-10-06 (P8).** The row named `src/pages/CreatorPage.tsx`, which is the
     public creator profile a visitor reads. It cannot carry "my publications" or an unpublish
@@ -603,9 +607,13 @@ Neither decision touches a colour value, per [ADR 0002](docs/adr/0002-mockup-pal
     publication from `myPubs`, with its funnel, its window and its actions, and `hubTab` splits
     Overview from Earnings. So this row is a presentation pass over a table that exists. It is not
     a new page, and it does not replace the public profile's grid.
-  - **Acceptance pending:** a row states its publication's status and offers that row's own
-    actions, the public profile is unchanged, and one screenshot at 1440px is saved in
-    `docs/screenshots/`.
+  - **Local source, uncommitted (2026-10-08).** Every row now states its own status. A live row carries a `Live` chip and an
+    unpublished row carries `Unpublished`, so a row no longer reads as live by the absence of a marker.
+    "Page behind itinerary" stays the separate freshness note, and each row's own actions are unchanged.
+  - **Structural evidence only (2026-10-08):** `docs/screenshots/mr11-hub-1440.png` records the synthetic publication state.
+    The public creator profile is untouched.
+    This capture does not establish mockup visual quality.
+    Publication visual polish remains outside the first My Trips and Explore batch.
 - [ ] **MR12. Mobile bottom tabbar — parked, not dropped (2026-10-06).** `src/App.tsx` and
   `src/styles.css`. Gated on `VITE_MOBILE_TABBAR`, per D2.
   - **Decision (2026-10-06): do not build this row yet.** The evidence comes from `src/`, not from
@@ -628,19 +636,83 @@ Each row also needs one browser screenshot at 1440px and one at 390px. Save the 
 change an interaction, so you review each with the screenshots before merge. MR12 is parked (see
 the row), so it needs no screenshot.
 
-**Appendix A. What the mockup offered that this plan does not adopt.** The mobile phone frame and
-the right-hand "why this design language works" list in `index.html`. Both are board furniture, not
-product. The hero banner behind the page title is a candidate only if MR12 lands, because it
-competes with a fixed tabbar for vertical space. The mockup's own palette is not adopted either:
-ADR 0002 keeps this app's tokens, so the card port takes the mockup's geometry and its motion,
-not its colours. The board's `.pill--overlay` shape is adopted, but its status vocabulary is not:
-the pill reads this app's own buckets, because a card must not name a status the filter tabs
-would not.
+**Mockup visual-quality follow-through (2026-10-08).** MR10 and MR11 ticks record local functional work, not visual completion.
+The source remains uncommitted.
+The user approved the My Trips and Explore studies as the design direction.
+The user confirmed permission to reuse the mockup images.
+[ADR 0004](docs/adr/0004-mockup-visual-direction-and-image-reuse.md) supersedes the old palette and asset limits.
+The [design specification](docs/superpowers/specs/2026-10-08-mockup-visual-quality-design.md) holds the visual and behaviour contract.
 
-**Appendix B. Risks.** MR11 changes the owner dashboard's publication rows, so it holds the
-highest regression risk of the two remaining rows. MR12 would touch the app shell, which is the
-widest blast radius of any row in this track — one reason it is parked rather than scheduled. The
-imagery in `assets/` is AI-generated per `_gen3.json`, so no row may ship those files.
+- [x] Render all four reference pages and compare current app captures.
+- [x] Review the My Trips and Explore studies with the user.
+- [x] Record image permission and write the design specification.
+- [x] Get user approval of the written specification (2026-10-08).
+- [x] Prepare and self-review the [six-task implementation plan](docs/superpowers/plans/2026-10-08-mockup-visual-quality.md).
+- [x] Select inline execution and start the plan in the isolated worktree.
+- [x] Check copied assets, scoped type, and resilient photos.
+- [x] Build and check the My Trips banner, controls, and featured split.
+  Focused tests and desktop/phone checks passed. Visual acceptance remains open.
+  Evidence: `.cache/visual-quality-task2-reviewed/` and `.cache/visual-quality-task2-interactions/`.
+- [x] Build and check the Explore discovery shell, editorial hero, and image-led cards.
+  Creator covers come only from live public routes. Trending cards and the
+  catalog use `PubCard`. The featured plan keeps its own article. Catalog sorts, the featured
+  selector, and creator covers all end in a stable ID tie. Equal creator names
+  carry distinct accessible names. Evidence:
+  `.cache/visual-quality-task4-accepted/`, `.cache/visual-quality-task4-actions/`,
+  and `.cache/visual-quality-task4-duplicate-names/`.
+- [x] Repair responsive card tracks, visible creator ranks, and bio/social footers.
+  Fixture invite writes and view counters use strict local schemas and persist in memory.
+  Unknown writes stay blocked. Reference captures use distinct, route-matched publication photos.
+  Resume evidence: `.cache/visual-quality-resume-grid-track/`,
+  `.cache/visual-quality-resume-final-light/`, and `.cache/visual-quality-resume-final-dark/`.
+- [x] Check empty data, initial loading, error recovery, and dark edge cases.
+  Initial loading checks the application layer, not a rendered catalog skeleton.
+  The error case uses the real Try again action. Sparse, broken-cover, and equal-creator cases pass at desktop and phone widths.
+  Keyboard checks need a rendered focus ring. Workspace checks record the exact route, selected tab, and one screenshot per tab.
+  The latest case reports are under `.cache/visual-quality-resume-state-*/` and `.cache/visual-quality-resume-dark-*/`.
+- [x] Check signed-in Fork persistence, pagination, and the production build with fixtures.
+  One reserved free publication forks in fixture memory: the trip row, the owner membership,
+  and the attributed copies counter all persist, and the copy survives a reload and appears in My Trips.
+  A larger catalog passes all five sorts, tied rows, `Load more` order, and five filter resets
+  at desktop and phone widths. Unknown, foreign, repeated, and malformed writes stay rejected.
+  Production fixtures ran against a verified local preview of this tree's build with the same
+  blocked-backend setup. Evidence: `.cache/visual-quality-production-light-final/`,
+  `.cache/visual-quality-production-dark-final/`, and `.cache/visual-quality-production-pagination/`.
+  Premium Fork and live Supabase persistence remain untested.
+- [x] Repair production history routes so a refresh loads the entry assets.
+  The build base now roots asset URLs at the app origin. Nested trip, creator, and public-plan
+  URLs no longer request scripts from a route-local assets directory. Capacitor keeps the same
+  local asset origin. A device smoke run is still unrecorded.
+- [x] Give Explore cards one photo-led frame.
+  The trending shelf keeps one border, one shadow, and one padded surface, and card photos meet the card edge.
+- [x] Separate editorial accent text from the decorative accent and check solid-token pairs in both themes.
+  The 27 checks passed. Full rendered contrast remains open.
+- [x] Preserve initial page screenshots during interaction checks in both themes.
+  Workspace screenshots use separate filenames. Earlier dark My Trips images were overwritten and must not establish visual acceptance.
+- [x] Check blocked-font geometry and tested controls at 1440px, 768px, and 390px in both themes.
+  Evidence: `.cache/visual-quality-production-fallback-light/` and `.cache/visual-quality-production-fallback-dark/`.
+  These checks do not establish complete accessibility or user visual acceptance.
+- [ ] Build the approved My Trips and Explore direction with all existing controls.
+- [ ] Check both themes, responsive widths, keyboard use, sparse data, and failure states.
+- [ ] Review rendered reference/app comparisons and get user visual acceptance.
+  A fresh portable comparison exists with first-view and full-page captures for both screens,
+  both reference kinds, both viewports, and both product themes. It opened and passed 64 control
+  combinations with no external request. The comparison is at
+  `.cache/visual-quality-review-2026-10-09/YatraFlow-rendered-product-review.html`, and the
+  observed gaps are in `docs/redesign/VISUAL-QUALITY-REVIEW.md`. Visual acceptance stays open
+  until the user answers.
+- [ ] Review publication polish and workspace integration separately.
+
+**Appendix A. Reference adaptation.** The phone frame and design-explanation rail in `index.html` are presentation furniture, not product controls.
+The My Trips page banner no longer depends on MR12.
+MR12 stays parked.
+Use real product status names and counts instead of sample study labels.
+
+**Appendix B. Risks.** Shared tokens can affect routes outside this batch.
+Check those routes when shared styles change.
+Keep the mockup folder read-only and outside build dependencies.
+The image permission is the user's statement, not an independent licence review.
+The separate workspace-sidebar branch needs an explicit integration decision.
 
 ## 🟣 UI-audit remediation
 

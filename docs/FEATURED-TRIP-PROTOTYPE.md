@@ -35,7 +35,7 @@ All simulated trip changes reset on reload.
 
 **Start with A for the mockup direction.**
 You can borrow C's compact mobile treatment if A takes too much space.
-No variant is approved for production yet.
+Variant A now defines the production layout. The standalone prototype remains a historical comparison.
 
 ## What you can try
 
@@ -91,9 +91,12 @@ Screenshots:
 | B | [1440px](screenshots/featured-trip-prototype/B-light-1440.jpg) | [390px](screenshots/featured-trip-prototype/B-light-390.jpg) | [1440px](screenshots/featured-trip-prototype/B-dark-1440.jpg) | [390px](screenshots/featured-trip-prototype/B-dark-390.jpg) |
 | C | [1440px](screenshots/featured-trip-prototype/C-light-1440.jpg) | [390px](screenshots/featured-trip-prototype/C-light-390.jpg) | [1440px](screenshots/featured-trip-prototype/C-dark-1440.jpg) | [390px](screenshots/featured-trip-prototype/C-dark-390.jpg) |
 
-## Remaining decisions
+## Production behavior
 
-You must choose the hierarchy before implementation.
-The production feature also needs empty, undated, in-progress, and completed-trip selection rules.
-Those rules are not settled by this visual prototype.
-Any implementation must preserve the app's existing access and navigation checks.
+`src/lib/featuredTrip.ts` defines selection and timing labels.
+Selection prefers the closest upcoming departure, then an underway trip, then the most recently updated trip.
+Completed and undated fallback trips keep the card with accurate labels. An empty collection has no featured trip.
+Production search covers all trips and hides the featured card during filtering.
+The prototype's supporting-trip search remains a historical behavior, not the production contract.
+Owners and editors get a separate photo action when the trip has no saved photo.
+The task route and overview route remain separate. Existing access checks remain in effect.

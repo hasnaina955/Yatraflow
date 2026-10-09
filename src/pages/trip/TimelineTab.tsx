@@ -433,10 +433,16 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
   const [currentDay, setCurrentDay] = useState<number | null>(null)
   useEffect(() => {
     if (!reviewAll) { setCurrentDay(null); return }
-    const line = stackRef.current // the measured sticky stack (MR9/P4)
     let raf = 0
     const measure = () => {
       raf = 0
+      // Read the stack INSIDE the callback. The effect above re-measures it on
+      // every width change and on every review switch, and this spy effect's
+      // dependencies changed while it was open. A value captured when the effect
+      // started goes stale the moment the viewport or the rail changes, so the
+      // marker would judge days against one line while every jump lands under
+      // another, and a phone marks the day above the one it scrolled you to.
+      const line = stackRef.current
       let best: number | null = null
       let first: number | null = null
       for (const part of dayIndexSig.split(',')) {

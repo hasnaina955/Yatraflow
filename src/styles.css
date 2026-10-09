@@ -8,6 +8,21 @@
  * ~200 existing references keep working; new code should use --color-*.
  */
 :root {
+  --color-editorial-canvas: #F4EDE3;
+  --color-editorial-paper: #FBF5ED;
+  --color-editorial-surface: #FFFFFF;
+  --color-editorial-mint: #E8F5F1;
+  --color-editorial-ink: #0F2D46;
+  --color-editorial-accent: #0EA5A0;
+  /* Accent-coloured TEXT needs its own value: the accent paints non-text at
+     3.04:1 on white, which fails AA for the 12px creator rank and the featured
+     kicker. This darker sibling measures 5.47:1 on surface and 4.89:1 on mint.
+     Borders, dots, and icons keep the accent. */
+  --color-editorial-accent-ink: #0F766E;
+  /* Slightly stronger than the previous #DED3C4, which measured 1.27:1 against
+     the canvas — just under the app's own hairline standard. */
+  --color-editorial-border: #D7C9B6;
+  --color-editorial-scrim: linear-gradient(90deg, #FBF5ED 0%, #FBF5EDEB 36%, #FBF5ED14 100%);
   /* Native UA chrome (scrollbars, <select> popups, date/time pickers, autofill)
      must follow the active theme, and native checkboxes/radios/range sliders
      pick up the brand accent. --teal-500 re-resolves per theme below. */
@@ -67,9 +82,14 @@
   --cat-tolls-parking: var(--gray-500);
   --cat-local-travel: #747722;     /* olive — the auto-rickshaw hue */
   --cat-emergency-buffer: #9E6D1A; /* deep honey — caution-family, not the token */
-  --yf-cream: #F8F7EF;         /* main app canvas */
+  --yf-cream: #F4EDE3;         /* main app canvas — mockup --page (ADR 0003) */
   --yf-mist: #ECF8F4;          /* atmospheric gradient edge */
   --yf-peach: #FFF2E8;         /* atmospheric gradient edge */
+  /* ADR 0003: the mockup's two named surfaces, adopted as tokens rather than as
+     literals. Sand is the soft raised surface (a card on the canvas, a hero panel
+     behind a scrim); mint is the selected and accented surface. */
+  --yf-sand: #FBF5ED;          /* mockup --sand */
+  --yf-mint: #E8F5F1;          /* mockup --mint */
   --yf-atmos-mint: rgba(124, 225, 207, 0.20);
   --yf-atmos-peach: rgba(255, 179, 107, 0.16);
   --yf-surface: #FFFFFF;
@@ -238,6 +258,17 @@
 }
 
 [data-theme='dark'] {
+  --color-editorial-canvas: #121919;
+  --color-editorial-paper: #182222;
+  --color-editorial-surface: #1E2A2A;
+  --color-editorial-mint: #18312E;
+  --color-editorial-ink: #ECF4F1;
+  --color-editorial-accent: #43C7BE;
+  /* The dark accent already clears AA on both editorial surfaces, so text and
+     non-text share one value here. */
+  --color-editorial-accent-ink: #43C7BE;
+  --color-editorial-border: #344644;
+  --color-editorial-scrim: linear-gradient(90deg, #182222 0%, #182222EB 36%, #18222214 100%);
   color-scheme: dark;
 
   /* ---- 1. PRIMITIVES: brand (dark) ---- */
@@ -284,6 +315,10 @@
   --yf-cream: #0C1420;
   --yf-mist: #0F1B2B;
   --yf-peach: #1A2030;
+  /* ADR 0003 dark mirror: the sand and mint surfaces invert to deep equivalents so
+     the three-column shell keeps its spine in dark instead of going flat black. */
+  --yf-sand: #181311;
+  --yf-mint: #10241F;
   --yf-atmos-mint: rgba(43, 184, 172, 0.10);
   --yf-atmos-peach: rgba(245, 169, 74, 0.08);
   --yf-surface: #16233A;
@@ -3955,45 +3990,211 @@ html.vt-active :where(*) {
 .pub-footer-line { text-align: center; color: var(--text-3); font-size: 13px; padding: 24px 0 12px; }
 
 /* ---------- M7: Explore editorial treatment (§6.10) ---------- */
-.explore-hero {
-  color: #fff; padding: 52px 0 44px;
-  background: linear-gradient(160deg, var(--yf-navy) 0%, #0d4b56 58%, #0b3844 100%);
-  position: relative; overflow: hidden;
+.explore-page { background: var(--color-editorial-canvas); padding-top: 20px; }
+.explore-page .explore-discovery-layout {
+  width: 100%; max-width: 1600px; margin: 0 auto;
+  padding: 0 24px 24px; display: grid;
+  grid-template-columns: 206px minmax(0, 1fr) 300px;
+  gap: 20px; align-items: start;
 }
-.explore-hero::before {
-  content: ''; position: absolute; inset: 0; pointer-events: none;
-  background:
-    radial-gradient(60% 70% at 88% 10%, rgba(23, 110, 112, .35), transparent 60%),
-    repeating-radial-gradient(150% 100% at 10% -10%, transparent 0 42px, rgba(255, 255, 255, .045) 42px 43px);
+.explore-discovery-nav {
+  display: flex; flex-direction: column; gap: 4px; padding: 12px;
+  border: 1px solid var(--color-editorial-border); border-radius: var(--radius);
+  background: var(--color-editorial-surface);
 }
-.explore-hero-inner { position: relative; z-index: var(--z-content); }
-/* size/weight ride the global h1 ramp — this hero doesn't get a second scale */
-.explore-hero h1 { margin: 6px 0 0; }
-.explore-hero-kicker { color: #a9eadc; }
-.explore-hero-sub { color: #d9efeb; font-size: clamp(14px, 1.6vw, 16.5px); max-width: 620px; margin: 10px 0 18px; line-height: 1.6; }
-.explore-hero-search {
-  max-width: 520px; width: 100%; border-radius: 999px; padding: 13px 18px;
-  border: 1px solid rgba(255, 255, 255, .3); background: rgba(255, 255, 255, .12); color: #fff;
-  -webkit-backdrop-filter: blur(var(--yf-blur-chip)); backdrop-filter: blur(var(--yf-blur-chip));
-}
-.explore-hero-search::placeholder { color: #e2f1ef; }
-/* Own focus ring: the shared `.input:focus` teal ring reads 1.18:1 over the
-   dark hero; this surface needs a white one, declared here so box-shadow is
-   overridden (not just border-color/outline). */
-.explore-hero-search:focus { background: rgba(255, 255, 255, .18); border-color: rgba(255, 255, 255, .5); outline: none; box-shadow: 0 0 0 3px rgba(255, 255, 255, .5); }
-/* The search's clear affordance lives with its cause: q is typed HERE, but the
-   only Clear button sat in the filter card ~300px below. */
-.explore-hero-searchrow { position: relative; max-width: 520px; }
-.explore-hero-searchrow .explore-hero-search { padding-right: 44px; }
-.explore-hero-clear {
-  position: absolute; right: 7px; top: 50%; transform: translateY(-50%);
-  width: 28px; height: 28px; border-radius: 999px; border: none; cursor: pointer;
-  display: inline-flex; align-items: center; justify-content: center;
-  background: rgba(255, 255, 255, .16); color: #fff;
+.explore-nav-kicker { padding: 12px 8px; }
+.explore-discovery-nav button, .explore-discovery-nav a {
+  display: flex; align-items: center; width: 100%; min-height: 44px;
+  padding: 12px 8px; border: 0; border-radius: var(--radius-sm);
+  text-align: left; text-decoration: none; font: inherit; font-size: 13px;
+  color: var(--color-editorial-ink); background: transparent; cursor: pointer;
   transition: background var(--motion-fast) var(--ease-out);
 }
-.explore-hero-clear:hover { background: rgba(255, 255, 255, .3); }
-.explore-hero-clear:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(255, 255, 255, .5); }
+.explore-discovery-nav button:hover:not(:disabled), .explore-discovery-nav a:hover,
+.explore-discovery-nav button[aria-pressed='true'] { background: var(--color-editorial-mint); }
+.explore-discovery-nav button:disabled { opacity: .5; cursor: default; }
+.explore-discovery-nav button:focus-visible, .explore-discovery-nav a:focus-visible {
+  outline: 2px solid var(--color-editorial-ink); outline-offset: 2px;
+}
+.explore-main, .explore-aside { min-width: 0; }
+.explore-photo-hero { min-height: 300px; padding: 24px; border-radius: var(--radius); }
+.explore-photo-hero::before {
+  content: ''; position: absolute; inset: 0; z-index: 1;
+  background: var(--color-editorial-scrim); pointer-events: none;
+}
+.explore-photo-hero-content { max-width: 36ch; }
+.explore-photo-hero h1 {
+  font-family: var(--font-editorial); font-size: clamp(32px, 3vw, 44px);
+  font-weight: 600; line-height: 1.1; letter-spacing: -.025em; margin: 16px 0;
+}
+.explore-photo-hero-content > p { margin: 0 0 16px; font-size: 14px; line-height: 1.6; }
+.explore-live-counts { display: flex; gap: 24px; flex-wrap: wrap; }
+.explore-live-counts span { display: grid; gap: 2px; font-size: 12px; }
+.explore-live-counts strong { font-size: 22px; line-height: 1.2; }
+.explore-hero-search {
+  width: 100%; min-width: 0; border-radius: var(--radius-sm); padding: 12px 16px;
+  border: 1px solid var(--color-editorial-border);
+  background: var(--color-editorial-surface); color: var(--color-editorial-ink);
+}
+.explore-hero-search::placeholder { color: var(--text-2); }
+.explore-hero-search:focus { outline: 2px solid var(--color-editorial-ink); outline-offset: 2px; box-shadow: none; }
+.explore-hero-searchrow { position: relative; display: flex; align-items: center; margin: 16px 0; }
+.explore-search-icon { flex: none; margin-right: 12px; color: var(--text-2); pointer-events: none; }
+.explore-hero-searchrow .explore-hero-search { padding-right: 44px; }
+.explore-hero-clear {
+  position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+  width: 32px; height: 32px; border-radius: var(--radius-sm); border: none; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--color-editorial-mint); color: var(--color-editorial-ink);
+  transition: background var(--motion-fast) var(--ease-out);
+}
+.explore-hero-clear:hover { background: var(--color-editorial-border); }
+.explore-hero-clear:focus-visible { outline: 2px solid var(--color-editorial-ink); outline-offset: 2px; }
+.explore-catalog, .explore-page .discovery-block { scroll-margin-top: 16px; }
+.explore-aside { display: grid; gap: 16px; }
+.explore-page .share-cta {
+  margin: 0; padding: 20px; text-align: left; justify-items: start;
+  background: var(--color-editorial-mint); border-color: var(--color-editorial-border);
+  box-shadow: none; gap: 16px;
+}
+.explore-page .share-cta-title { font-size: 22px; line-height: 1.25; }
+.explore-page .share-cta-ticks { display: grid; gap: 12px; }
+.explore-page .share-cta-actions { justify-content: flex-start; }
+.explore-fork-note {
+  padding: 20px; border: 1px solid var(--color-editorial-border); border-radius: var(--radius);
+  background: var(--color-editorial-surface);
+}
+.explore-fork-note h2 { font-family: var(--font-display); font-size: 19px; margin: 16px 0 12px; }
+.explore-fork-note p { font-size: 13px; line-height: 1.6; margin: 0 0 16px; color: var(--text-2); }
+.explore-fork-note a { font-size: 13px; }
+@media (max-width: 1150px) {
+  .explore-page .explore-discovery-layout { grid-template-columns: 180px minmax(0, 1fr); }
+  .explore-aside { grid-column: 2; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 720px) {
+  .explore-page { padding-top: 12px; }
+  .explore-page .explore-discovery-layout { grid-template-columns: 1fr; gap: 16px; padding: 0 16px 24px; }
+  .explore-discovery-nav { flex-direction: row; flex-wrap: wrap; gap: 4px; padding: 8px; }
+  .explore-nav-kicker { display: none; }
+  .explore-discovery-nav button, .explore-discovery-nav a { width: auto; font-size: 12px; padding: 8px; }
+  .explore-aside { grid-column: 1; grid-template-columns: 1fr; }
+  .explore-photo-hero { min-height: 300px; padding: 20px; }
+  .explore-photo-hero-content { max-width: 30ch; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .explore-discovery-nav button, .explore-discovery-nav a, .explore-hero-clear { transition: none; }
+}
+
+/* ---- Task 4: image-led discovery cards ----
+   Scoped to `.explore-page` so the default double-bezel presentation on
+   creator and public routes stays exactly as it was. */
+/* The route caption rides the image, so it needs a surface that stays
+   legible over a bright photo in both themes. */
+.explore-page .itin-cover-route {
+  position: relative; z-index: 2; background: var(--color-editorial-scrim);
+  color: var(--color-editorial-ink); padding: 6px 10px; font-size: 11px; font-weight: 600;
+  border-radius: var(--radius-sm);
+  max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.editorial-cover-fallback {
+  position: absolute; inset: 0; z-index: 1;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--color-editorial-ink);
+}
+/* The emoji is a fallback, not a badge: it must disappear the moment a photo
+   is present, and come back if that photo later fails to load. */
+.editorial-photo[data-photo-state='image'] .editorial-cover-fallback { display: none; }
+.explore-page .itin-cover { aspect-ratio: 16/9; border-radius: var(--radius); }
+.explore-page .editorial-photo.itin-cover { display: flex; align-items: flex-end; padding: 8px; }
+
+.explore-page .creator-rail { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.explore-page .creator-card { align-items: stretch; }
+.explore-page .creator-rank { color: var(--color-editorial-accent-ink); font-size: 12px; font-weight: 800; }
+.explore-page .creator-cover { height: 132px; border-radius: var(--radius); flex: none; }
+.explore-page .creator-card-body { display: grid; gap: 8px; padding: 12px 2px 0; }
+.explore-page .creator-card .creator-name { font-size: 14px; }
+
+.explore-page .featured-card {
+  display: grid; grid-template-columns: 1.1fr .9fr; gap: 0; overflow: hidden;
+  padding: 0;
+  background: var(--color-editorial-surface); border: 1px solid var(--color-editorial-border);
+  border-radius: var(--radius); color: var(--color-editorial-ink);
+}
+/* The old card painted white text on a dark gradient. The editorial card is a
+   light surface, so every one of those colours has to be restated here rather
+   than inherited — otherwise the title, tagline, credibility line, and meta
+   render #fff on #FFFFFF. */
+.explore-page .featured-card .featured-body {
+  display: grid; align-content: center; gap: 14px; padding: 24px; min-width: 0;
+  color: var(--color-editorial-ink);
+}
+/* The old card painted white text on a dark gradient. The editorial card is a
+   light surface, so every one of those colours has to be restated here rather
+   than inherited — otherwise the title, tagline, credibility line, and meta
+   render #fff on #FFFFFF. */
+.explore-page .featured-card .featured-kicker { color: var(--color-editorial-accent-ink); }
+.explore-page .featured-card .featured-title-link { color: var(--color-editorial-ink); }
+.explore-page .featured-card .featured-tagline { color: var(--text-2); max-width: 44ch; }
+.explore-page .featured-card .featured-credibility { color: var(--text-2); }
+.explore-page .featured-card .featured-meta { color: var(--text-2); }
+.explore-page .featured-photo { min-height: 320px; }
+.explore-page .featured-card h2 {
+  font-family: var(--font-editorial); font-size: clamp(24px, 2.4vw, 32px);
+  line-height: 1.15; letter-spacing: -.02em; margin: 0; min-width: 0;
+  overflow-wrap: anywhere;
+}
+.explore-page .featured-credibility { font-size: 13px; }
+.explore-page .featured-meta { flex-wrap: wrap; gap: 14px; }
+@media (max-width: 900px) {
+  .explore-page .featured-card { grid-template-columns: 1fr; }
+  .explore-page .featured-photo { min-height: 200px; }
+}
+
+/* Trending and catalog opt into one image-led card surface. The featured
+   article and default PubCard consumers keep their separate treatment. */
+.explore-page .pub-card-editorial { display: grid; align-content: start; gap: 8px; }
+.explore-page .pub-card-editorial .card.itin-card {
+  display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; padding: 0;
+  background: var(--color-editorial-surface);
+  border: 1px solid var(--color-editorial-border); border-radius: var(--radius);
+}
+.explore-page .pub-card-editorial .itin-cover { border-radius: var(--radius) var(--radius) 0 0; }
+.explore-page .pub-card-editorial .save-heart { top: 12px; right: 12px; }
+.explore-page .pub-card-editorial .trip-card-hit { gap: 10px; min-width: 0; width: 100%; box-sizing: border-box; }
+.explore-page .pub-card-editorial .itin-body { min-width: 0; padding: 14px 14px 0; }
+.explore-page .pub-card-editorial .card-title { font-family: var(--font-editorial); font-size: 19px; line-height: 1.25; }
+.explore-page .pub-card-editorial .stop-meta { flex-wrap: wrap; gap: 10px; font-size: 12px; }
+.explore-page .itin-tagline { font-size: 12.5px; }
+.explore-page .itin-public-evidence { font-size: 12px; color: var(--text-2); }
+.explore-page .pub-card-editorial .row-between.itin-meta { flex-wrap: wrap; gap: 8px; }
+.explore-page .pub-card-editorial .creator-line { min-width: 0; }
+.explore-page .pub-card-editorial .itin-foot { padding: 0 14px 14px; margin-top: 6px; overflow-wrap: anywhere; }
+
+/* Three compact columns when the centre region has room. The global
+   `.explore-grid` rule above is shared with other pages, so the column
+   change is scoped here rather than rewritten globally. */
+.explore-page .explore-grid, .explore-page .trending-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.explore-page .trend-row {
+  position: relative; padding: 0; border: 0; background: transparent;
+  box-shadow: none; transition: none;
+}
+.explore-page .trend-row:hover { transform: none; box-shadow: none; }
+.explore-page .trend-rank {
+  position: absolute; top: 4px; left: 4px; z-index: 3;
+  width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 999px; background: var(--color-editorial-scrim);
+  color: var(--color-editorial-ink); font-size: 12px; font-weight: 700;
+}
+@media (max-width: 1150px) {
+  .explore-page .explore-grid, .explore-page .trending-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 720px) {
+  .explore-page .explore-grid, .explore-page .trending-grid { grid-template-columns: 1fr; }
+  .explore-page .creator-rail { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .explore-page .pub-card-editorial, .explore-page .creator-card, .explore-page .trend-row { transition: none; }
+}
 .explore-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
 /* No opacity: .65 composited the inherited ink to 2.5–3.2:1 (it's 11px text,
    needs 4.5). Full strength = the chip's own AA-checked colour, on every surface. */
@@ -4026,6 +4227,107 @@ html.vt-active :where(*) {
 .featured-credibility { color: #a9d8cf; font-size: 13px; margin: 0 0 12px; max-width: 72ch; }
 .featured-meta { display: flex; gap: 18px; flex-wrap: wrap; color: #e2f1ef; font-size: 13px; margin-bottom: 16px; }
 .featured-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+/* ---- MR10 discovery blocks (Explore): featured creators,
+   trending itineraries, the share-stories CTA. Geometry follows
+   the mockup's hub (creator rail, ranked rows, join bar); every
+   colour is a semantic token, per ADR 0002. ---- */
+
+.discovery-block { margin-bottom: var(--space-9); }
+.discovery-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-4); flex-wrap: wrap; margin-bottom: var(--space-5); }
+.discovery-title { font-family: var(--font-display); font-size: clamp(19px, 2vw, 24px); margin: 0; display: flex; align-items: center; gap: var(--space-2); }
+.discovery-sub { margin: 0; color: var(--text-3); font-size: var(--text-xs); max-width: 52ch; }
+
+/* Featured creators — a rail the page scrolls: four cards fit the
+   desktop container, and below that the rail keeps its beat instead
+   of crowding into a narrower grid (the mockup drew exactly four). */
+.creator-rail {
+  display: flex; gap: var(--space-6);
+  overflow-x: auto; scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+  padding: var(--space-1) var(--space-1) var(--space-4);
+}
+.creator-card {
+  scroll-snap-align: start;
+  flex: 0 0 232px;
+  min-width: 0;
+  display: flex; flex-direction: column; align-items: flex-start;
+  gap: var(--space-3);
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: var(--radius); box-shadow: var(--shadow-sm);
+  padding: var(--space-6);
+  color: inherit; text-decoration: none;
+  transition: transform var(--t-fast) var(--ease-out), box-shadow var(--t-fast) var(--ease-out);
+}
+.creator-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-soft); }
+.creator-card:focus-visible { outline: none; box-shadow: var(--ring); }
+.creator-name { display: flex; align-items: center; gap: var(--space-2); max-width: 100%; font-weight: 800; font-size: 15px; letter-spacing: -.01em; color: var(--text); }
+.creator-name-text { min-width: 0; overflow-wrap: anywhere; }
+.creator-bio {
+  max-width: 100%; overflow-wrap: anywhere;
+  font-size: var(--text-xs); color: var(--text-2); line-height: 1.55;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+}
+.creator-evidence { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); max-width: 100%; overflow-wrap: anywhere; margin-top: auto; font-size: var(--text-xs); color: var(--text-3); }
+
+/* Trending itineraries — ranked compact rows (the Trips list-row
+   precedent), not full cards: the grid below already renders every
+   plan as a card, so a second full-card rendering would show the
+   same catalog twice. The hit is the row's first link; the
+   creator's page is the row's second, in the footer. */
+.trending-list { display: grid; gap: var(--space-4); margin: 0; padding: 0; list-style: none; }
+.trend-row {
+  display: grid; gap: var(--space-4);
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: var(--radius); box-shadow: var(--shadow-sm);
+  padding: var(--space-5);
+  transition: transform var(--t-fast) var(--ease-out), box-shadow var(--t-fast) var(--ease-out);
+}
+.trend-row:hover { transform: translateY(-2px); box-shadow: var(--shadow-soft); }
+.trend-hit {
+  all: unset; cursor: pointer;
+  display: grid; grid-template-columns: 20px 96px minmax(0, 1fr);
+  gap: var(--space-5); align-items: center;
+  border-radius: var(--radius-sm);
+}
+.trend-hit:focus-visible { outline: none; box-shadow: var(--ring); }
+.trend-rank { font-family: var(--font-display); font-weight: 800; font-size: 18px; color: var(--text-3); text-align: center; }
+.trend-body { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
+.trend-title { font-size: 15px; font-weight: 800; letter-spacing: -.01em; margin: 0; color: var(--text); }
+.trend-tagline {
+  font-size: var(--text-xs); color: var(--text-2); line-height: 1.55;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+}
+.trend-meta { display: flex; gap: var(--space-5); flex-wrap: wrap; font-size: var(--text-xs); color: var(--text-3); }
+.trend-foot { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); flex-wrap: wrap; }
+.trend-evidence { display: inline-flex; align-items: center; gap: var(--space-3); font-size: var(--text-xs); color: var(--text-3); }
+.trend-evidence-sep { opacity: .55; }
+
+/* Share your travel stories — the join bar. The counts line is the
+   card's only claim; it is derived from the catalog, never asserted. */
+.share-cta {
+  margin-top: var(--space-10);
+  background: var(--card-soft); border: 1px solid var(--line);
+  border-radius: var(--radius-lg); box-shadow: var(--shadow-soft);
+  padding: var(--space-10);
+  display: grid; justify-items: center; gap: var(--space-4);
+  text-align: center;
+}
+.share-cta-title { font-family: var(--font-display); font-size: clamp(22px, 2.6vw, 30px); margin: 0; color: var(--text); }
+.share-cta-sub { margin: 0; color: var(--text-2); font-size: 14px; line-height: 1.6; max-width: 56ch; }
+.share-cta-counts { margin: 0; font-size: var(--text-xs); color: var(--text-3); }
+.share-cta-ticks { display: flex; gap: var(--space-6); flex-wrap: wrap; justify-content: center; margin: 0; padding: 0; list-style: none; color: var(--text-2); font-size: 13px; }
+.share-cta-ticks li { display: flex; align-items: center; }
+.share-cta-actions { display: flex; align-items: center; justify-content: center; gap: var(--space-4); flex-wrap: wrap; }
+.share-cta-hint { margin: 0; font-size: var(--text-xs); color: var(--text-3); }
+
+/* The rail's cards and the list-row's cover narrow with the page,
+   the same way the Trips list rows do at 640px. */
+@media (max-width: 640px) {
+  .creator-card { flex-basis: 190px; }
+  .trend-hit { grid-template-columns: 16px 72px minmax(0, 1fr); gap: var(--space-4); }
+  .trend-meta { gap: var(--space-4); }
+}
 
 /* save heart on grid cards */
 .save-heart {
@@ -5669,7 +5971,70 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
    toolbar wraps mid-row and the 290px cards ride the edges. Reworked as a
    vertical page-header stack with a full-width primary CTA — the Android
    pattern — and single-column cards with comfortable gutters. */
-.trips-page { padding-top: 26px; }
+.trips-page, .explore-page {
+  --card: var(--color-editorial-surface);
+  --yf-surface: var(--color-editorial-surface);
+  --text: var(--color-editorial-ink);
+  --line: var(--color-editorial-border);
+  --font-display: 'Plus Jakarta Sans', sans-serif;
+  --font-editorial: 'Playfair Display', Georgia, serif;
+  color: var(--color-editorial-ink);
+}
+.editorial-photo {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background: var(--color-editorial-mint);
+}
+.editorial-photo-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+}
+.editorial-photo > :not(.editorial-photo-image) {
+  position: relative;
+  z-index: var(--z-content);
+}
+.editorial-photo[data-photo-state='fallback'] {
+  background: var(--color-editorial-mint);
+}
+.trips-page {
+  width: calc(100% - 48px);
+  margin: 20px auto 24px;
+  padding: 0 24px 24px;
+  border: 1px solid var(--color-editorial-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-editorial-surface);
+}
+.trips-page-banner {
+  min-height: 220px;
+  margin: 0 -24px;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  display: flex;
+  align-items: flex-end;
+}
+.trips-page-banner::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(0deg, var(--color-editorial-surface), color-mix(in srgb, var(--color-editorial-surface) 70%, transparent) 24%, transparent 75%);
+  pointer-events: none;
+}
+.trips-page-title { padding: 24px 24px 16px; }
+.trips-page-title h1 { margin: 0; font-size: 38px; letter-spacing: -.045em; color: var(--color-editorial-ink); }
+.trips-page-title p { margin: 4px 0 0; color: var(--text-2); font-size: 14px; }
+.trips-controls.trips-toolbar {
+  padding: 12px;
+  margin-bottom: 0;
+  border: 1px solid var(--color-editorial-border);
+  border-radius: var(--radius);
+  gap: 12px;
+}
+.trips-secondary-actions { justify-content: flex-end; align-items: center; margin: 6px 0 20px; }
+.trips-secondary-actions .btn { font-size: 12px; }
 .trips-head { margin-bottom: 18px; flex-wrap: wrap; gap: 12px; }
 .trips-head-actions { display: flex; gap: 10px; flex-wrap: wrap; }
 @media (max-width: 720px) {
@@ -5691,13 +6056,18 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 }
 
 @media (max-width: 720px) {
-  .trips-page { padding-top: 8px; }
+  .trips-page { width: calc(100% - 24px); margin-top: 12px; padding: 0 16px 20px; }
+  .trips-page-banner { min-height: 180px; margin: 0 -16px; }
+  .trips-page-title { padding: 20px 16px 16px; }
+  .trips-page-title h1 { font-size: 30px; }
+  .trips-create { flex: 1 1 100%; }
+  .trips-secondary-actions { justify-content: flex-start; }
+  .trips-secondary-actions .btn { flex: 0 1 auto; }
   .trips-head-title { flex: 1 1 100%; }
   .trips-head-actions { width: 100%; }
   /* primary CTA owns the row; demo-trips becomes a quiet secondary */
   .trips-head-actions .btn { flex: 1; }
   .trips-head-actions .btn-outline { flex: 0 0 auto; padding: 10px 13px; }
-  .trips-head-actions .btn-outline span { display: none; }
   /* cards: single column, softer radius, no hover-lift (touch has no hover) */
   .explore-grid { grid-template-columns: 1fr; gap: 12px; }
   .itin-card { border-radius: var(--radius-sm); }
@@ -8424,82 +8794,44 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 }
 
 .trip-featured-card {
-  border: 1px solid var(--yf-border);
+  border: 1px solid var(--color-editorial-border);
   border-radius: var(--radius-lg);
-  background: var(--yf-surface);
+  background: var(--color-editorial-surface);
   overflow: hidden;
-  box-shadow: 0 16px 38px -26px rgba(var(--shadow-navy-rgb), 0.5);
+  box-shadow: var(--shadow-sm);
   display: grid;
-  grid-template-columns: 42% 1fr;
+  grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr);
   min-width: 0;
 }
-
 .trip-featured-photo {
-  position: relative;
-  min-height: 400px;
-  background-size: cover;
-  background-position: center 55%;
-  background-repeat: no-repeat;
-  overflow: hidden;
+  min-height: 300px;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  padding: 24px;
-}
-.trip-featured-photo::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(180deg, rgba(12, 20, 32, 0.15) 30%, rgba(12, 20, 32, 0.88) 100%);
-  pointer-events: none;
-}
-.trip-featured-photo-top,
-.trip-featured-photo-bottom {
-  position: relative;
-  z-index: 1;
-  color: #ffffff;
+  padding: 20px;
 }
 .trip-featured-photo-top {
   display: flex;
-  align-items: center;
+  flex: 1;
+  flex-direction: column;
+  align-items: flex-start;
   gap: 8px;
   justify-content: space-between;
 }
-.trip-featured-photo-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  border-radius: 8px;
-  padding: 6px 10px;
-  background: var(--yf-surface);
-  color: var(--yf-teal-700);
-  font-weight: 700;
-  font-size: 11px;
-}
+.trip-featured-photo-badge,
 .trip-featured-photo-date {
-  background: rgba(12, 20, 32, 0.7);
-  color: #ffffff;
-  padding: 6px 10px;
-  border-radius: 8px;
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
-  -webkit-backdrop-filter: blur(var(--yf-blur-scrim));
-  backdrop-filter: blur(var(--yf-blur-scrim));
-}
-.trip-featured-photo-heading {
-  font-family: var(--font-display);
-  font-size: 24px;
+  display: inline-flex;
+  border-radius: 999px;
+  padding: 6px 12px;
+  background: var(--color-editorial-paper);
+  color: var(--color-editorial-ink);
   font-weight: 700;
-  line-height: 1.25;
-  margin: 0 0 6px;
-  color: #ffffff;
-  letter-spacing: -0.03em;
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
-}
-.trip-featured-photo-caption {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.9);
-  margin: 0;
+  font-variant-numeric: tabular-nums;
+  box-shadow: var(--shadow-sm);
+}
+.trip-featured-photo-badge {
+  background: var(--color-editorial-mint);
+  color: var(--text);
 }
 
 .trip-featured-body {
@@ -8680,9 +9012,6 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 }
 
 @media (max-width: 850px) {
-  .trip-featured-card {
-    grid-template-columns: 38% 1fr;
-  }
   .trip-featured-body {
     padding: 22px;
   }
@@ -8690,25 +9019,20 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
     font-size: 22px;
   }
   .trip-featured-photo {
-    min-height: 360px;
+    min-height: 300px;
+    padding: 22px;
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 720px) {
   .trip-featured-card {
     grid-template-columns: 1fr;
-    border-radius: var(--radius-md);
+    border-radius: var(--radius);
   }
   .trip-featured-photo {
     min-height: 180px;
     height: 180px;
     padding: 16px;
-  }
-  .trip-featured-photo-bottom p {
-    display: none;
-  }
-  .trip-featured-photo-heading {
-    font-size: 18px;
   }
   .trip-featured-body {
     padding: 20px;

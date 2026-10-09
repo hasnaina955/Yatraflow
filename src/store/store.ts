@@ -553,7 +553,7 @@ export function init(): void {
     // rendered logged-out on every refresh with a perfectly valid token.
     // hydrateGen still guards real account switches (sign-out / switch):
     // those change userId, so they never hit the dedupe branch.
-    if (userId && activeHydrate && activeHydrate.userId === userId) {
+    if (activeHydrate && activeHydrate.userId === userId) {
       await activeHydrate.promise
       return
     }
@@ -569,7 +569,6 @@ export function init(): void {
       // I-16 — signed out: drop the account's Trip DNA log from memory, so the
       // next person on this device never inherits the last one's profile.
       detachDnaAccount()
-      if (activeHydrate && activeHydrate.userId === null) { await activeHydrate.promise; return }
       // PWA phase 2: signing out forgets this device's snapshot for the account
       // that just left. The in-memory version of this bug (#45) showed the
       // previous user's trips; the on-disk one would survive a reload.
@@ -581,22 +580,31 @@ export function init(): void {
         void clearWritesFor(departingUser)
       }
       const anonPromise = (async () => {
-      try {
-        const [profRes, pubRes] = await Promise.all([
-          supabase.from('profiles').select('*'),
-          supabase.from('published_itineraries').select('*'),
-        ])
-        const users = mapOrSkip((profRes.data ?? []), rowToUser)
-        const pubRows = mapOrSkip((pubRes.data ?? []), rowToPublished)
-        if (profRes.error) { console.error('[yatraflow] hydrate profiles failed', profRes.error) }
-        if (pubRes.error) { console.error('[yatraflow] hydrate published failed', pubRes.error) }
-        patch({ users, trips: [], trashedTrips: [], trashLoaded: false, trashFailed: false, suggestions: [], decisions: [], activity: [], notifications: [], published: dedupePublished(pubRows), adminAudit: [], adminAuditFailed: false, sessionUserId: null, ready: true, cachedAt: null })
+        let users: User[] = []
+        let published: PublishedItinerary[] = []
+        let sliceReads: DB['sliceReads'] = { profiles: 'failed', 'suggested itineraries': 'failed' }
+        try {
+          const [profRes, pubRes] = await Promise.all([
+            supabase.from('profiles').select('*'),
+            supabase.from('published_itineraries').select('*'),
+          ])
+          if (profRes.error) { console.error('[yatraflow] hydrate profiles failed', profRes.error) }
+          if (pubRes.error) { console.error('[yatraflow] hydrate published failed', pubRes.error) }
+          users = profRes.error ? [] : mapOrSkip((profRes.data ?? []), rowToUser)
+          published = pubRes.error ? [] : dedupePublished(mapOrSkip((pubRes.data ?? []), rowToPublished))
+          sliceReads = {
+            profiles: profRes.error ? 'failed' : 'ok',
+            'suggested itineraries': pubRes.error ? 'failed' : 'ok',
+          }
+        } catch (e) {
+          console.error('[yatraflow] anonymous hydration failed', e)
+          users = []
+          published = []
+        }
+        // A newer auth intent owns the cache, including after a rejected anonymous read.
+        if (gen !== hydrateGen) return
+        patch({ users, trips: [], trashedTrips: [], trashLoaded: false, trashFailed: false, suggestions: [], decisions: [], activity: [], notifications: [], published, sliceReads, adminAudit: [], adminAuditFailed: false, sessionUserId: null, ready: true, cachedAt: null })
         commit()
-      } catch (e) {
-        console.error('[yatraflow] anonymous hydration failed', e)
-        patch({ users: [], trips: [], trashedTrips: [], trashLoaded: false, trashFailed: false, suggestions: [], decisions: [], activity: [], notifications: [], published: [], adminAudit: [], adminAuditFailed: false, sessionUserId: null, ready: true, cachedAt: null })
-        commit()
-      }
       })()
       activeHydrate = { userId: null, promise: anonPromise }
       try { await anonPromise } finally { if (activeHydrate?.userId === null) activeHydrate = null }

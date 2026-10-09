@@ -882,6 +882,10 @@ describe('the typefaces are the language, not a preference', () => {
     expect(families, `font link declares: ${families.join(', ')}`).toContain('Sora')
   })
 
+  it('loads the editorial heading face without dropping the existing families', () => {
+    expect(families).toContain('Playfair Display')
+  })
+
   it('routes both font tokens through them, so every surface inherits them', () => {
     expect(css, 'the body token must lead with Plus Jakarta Sans').toMatch(/--font-body:\s*'Plus Jakarta Sans'/)
     expect(css, 'the display token must lead with Sora').toMatch(/--font-display:\s*'Sora'/)

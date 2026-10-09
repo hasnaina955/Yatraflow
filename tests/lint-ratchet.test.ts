@@ -53,11 +53,19 @@ describe('lint ratchet (scripts/lint-ratchet.mjs)', () => {
 
   it('reports what --update wrote, so a raise shows in the diff', () => {
     const before = readFileSync(BASELINE, 'utf8')
-    const r = ratchet(['--update'])
-    expect(r.status).toBe(0)
-    expect(r.stdout).toContain('baseline updated:')
-    // With no source change, the rewritten baseline must be byte-identical.
-    expect(readFileSync(BASELINE, 'utf8')).toBe(before)
+    try {
+      const r = ratchet(['--update'])
+      expect(r.status).toBe(0)
+      const written = JSON.parse(readFileSync(BASELINE, 'utf8'))
+      expect(r.stdout.trim()).toBe(`baseline updated: ${written.errors} errors, ${written.warnings} warnings, ${Object.keys(written.files).length} files`)
+      // A second update must be stable, even when source fixes lowered the debt.
+      const firstUpdate = readFileSync(BASELINE, 'utf8')
+      expect(ratchet(['--update']).status).toBe(0)
+      expect(readFileSync(BASELINE, 'utf8')).toBe(firstUpdate)
+    } finally {
+      // The test must not change the project's reviewed lint ceiling.
+      writeFileSync(BASELINE, before, 'utf8')
+    }
   }, ESLINT_RUN_MS)
 
   it('the baseline records its own totals', () => {

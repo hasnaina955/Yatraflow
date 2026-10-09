@@ -1,0 +1,13 @@
+{
+  "permissionBasis": "User confirmed permission to reuse these mockup images on 2026-10-08. No independent licence review is claimed.",
+  "sourceDirectory": "yatraflow-mockup/assets (read-only)",
+  "files": {
+    "hero-banner.jpg": "My Trips decorative page banner",
+    "ch-hero.jpg": "Explore decorative hero",
+    "kerala-backwaters.jpg": "Kerala route-photo fallback",
+    "goa-panjim.jpg": "Goa route-photo fallback",
+    "rajasthan-forts.jpg": "Rajasthan route-photo fallback",
+    "spit-valley.jpg": "Spiti route-photo fallback",
+    "himalayan-loop.jpg": "Himachal route-photo fallback"
+  }
+}

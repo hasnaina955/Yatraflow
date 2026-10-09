@@ -11,8 +11,9 @@ import { openExternal } from '../lib/native'
 import { Avatar, Chip } from './ui'
 import { CoverThumb } from './CoverThumb'
 import { appLink } from '../lib/appLink'
+import { editorialRouteCover } from '../lib/editorialAssets'
 
-export function PubCard({ pub, creator, saved, onFork, onToggleSave, enterIndex, needsLogin }: {
+export function PubCard({ pub, creator, saved, onFork, onToggleSave, enterIndex, needsLogin, editorial = false }: {
   pub: PublishedItinerary
   creator?: User
   saved: boolean
@@ -24,6 +25,8 @@ export function PubCard({ pub, creator, saved, onFork, onToggleSave, enterIndex,
    *  button has to say so — a click that silently becomes a login redirect
    *  reads as a broken button. */
   needsLogin?: boolean
+  /** Compact image-led presentation. Other pages keep the default bezel. */
+  editorial?: boolean
 }) {
   return (
     /* Double-Bezel: this element is the TRAY, the .card inside it is the PLATE.
@@ -31,7 +34,7 @@ export function PubCard({ pub, creator, saved, onFork, onToggleSave, enterIndex,
        bezel animates as one object instead of an empty tray appearing first and
        its plate fading in inside it. */
     <div
-      className={`bezel${enterIndex != null ? ' trip-enter' : ''}`}
+      className={`${editorial ? 'pub-card-editorial' : 'bezel'}${enterIndex != null ? ' trip-enter' : ''}`}
       style={enterIndex != null ? { animationDelay: `calc(var(--stagger-step) * ${Math.min(enterIndex, 8)})` } : undefined}
     >
       <div className="card itin-card">
@@ -42,7 +45,11 @@ export function PubCard({ pub, creator, saved, onFork, onToggleSave, enterIndex,
             trip={{ name: pub.title, destinations: pub.routeSummary }}
             explicitUrl={pub.coverImageUrl}
             emoji="🧭"
-            routeLabel={`${pub.routeSummary[0]} → ${pub.routeSummary[pub.routeSummary.length - 1]}`}
+            editorial={editorial}
+            fallbackUrl={editorial ? editorialRouteCover(pub.routeSummary) : undefined}
+            routeLabel={editorial
+              ? pub.routeSummary.filter(Boolean).join(' → ')
+              : `${pub.routeSummary[0]} → ${pub.routeSummary[pub.routeSummary.length - 1]}`}
           />
           <div className="itin-body">
             <div className="row-between" style={{ marginTop: 0 }}>
@@ -50,7 +57,8 @@ export function PubCard({ pub, creator, saved, onFork, onToggleSave, enterIndex,
               <span className="small muted"><InlineIcon icon={GitFork} size={12} gap={3} />{pub.copies}</span>
             </div>
             <h2 className="card-title">{pub.title}</h2>
-            <p className="small muted" style={{ margin: 0 }}>{pub.tagline}</p>
+            <p className="small muted itin-tagline" style={{ margin: 0 }}>{pub.tagline}</p>
+            {editorial && <p className="itin-public-evidence num">{pub.views} views · {pub.copies} {pub.copies === 1 ? 'fork' : 'forks'}</p>}
             <div className="stop-meta" style={{ marginTop: 2 }}>
               <span><MetaIcon icon={ Calendar } tone="time" />{pub.durationDays} days</span>
               <span><MetaIcon icon={ Wallet } tone="money" />~{formatInr(pub.estimatedBudgetPerPersonInr)}/person</span>

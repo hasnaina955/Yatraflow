@@ -1,5 +1,6 @@
 import { useDestinationCover } from '../hooks/useDestinationCover'
 import { pickTripQueryCandidates, sizedCoverUrl } from '../lib/tripThumb'
+import { EditorialPhoto } from './EditorialPhoto'
 
 /**
  * Cover thumbnail for trip / itinerary cards. Resolution order:
@@ -16,7 +17,7 @@ import { pickTripQueryCandidates, sizedCoverUrl } from '../lib/tripThumb'
  */
 export function CoverThumb({
   query, explicitUrl, emoji = '🧭', variant = 'wide', routeLabel,
-  trip,
+  trip, editorial = false, fallbackUrl,
 }: {
   query?: string | null
   /** When provided, used to derive an ordered list of candidate queries
@@ -27,6 +28,8 @@ export function CoverThumb({
   emoji?: string
   variant?: 'wide' | 'short'
   routeLabel?: string
+  editorial?: boolean
+  fallbackUrl?: string
 }) {
   const candidates = trip ? pickTripQueryCandidates(trip) : (query ? [query] : [])
   const auto = useDestinationCover(candidates)
@@ -34,8 +37,15 @@ export function CoverThumb({
   // (a live publication shipped its 1,305 KB original as a card background).
   // sizing is idempotent and leaves a non-Wikimedia URL untouched, so a cover
   // the owner pasted is still displayed exactly as given.
-  const url = sizedCoverUrl(explicitUrl ?? '') || auto || null
+  const url = sizedCoverUrl(editorial ? explicitUrl?.trim() ?? '' : explicitUrl ?? '')
+    || (editorial ? fallbackUrl : undefined) || auto || null
   const cls = variant === 'short' ? 'itin-emoji' : 'itin-cover'
+  if (editorial) return (
+    <EditorialPhoto src={url ?? undefined} className={cls}>
+      {routeLabel && <span className="itin-cover-route">{routeLabel}</span>}
+      <span className="itin-cover-fallback editorial-cover-fallback" aria-hidden="true">{emoji}</span>
+    </EditorialPhoto>
+  )
   return (
     <div
       className={cls}

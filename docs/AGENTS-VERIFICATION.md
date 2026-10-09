@@ -21,6 +21,11 @@ Sections:
 
 ## The gate
 
+- **Local redesign checks must not seed live accounts.** Use `scripts/browser-redesign-check.mjs` against the isolated loopback preview.
+  The fixture blocks external services and rejects unknown writes. Synthetic screenshots do not prove live access enforcement.
+- **Stop the owning Vite process before a clean dependency install on Windows.** Vite can lock its native binding.
+  Check the process path before stopping it. Do not stop another clone's preview.
+
 **A clean working tree makes the default STE check inspect zero lines.** It reads unstaged changes, not committed branch changes. You must also check new branch prose through `--stdin` during a branch review.
 
 Use `npm run verify` — it runs the full gate:

@@ -91,6 +91,11 @@ function hasCover(trip: Trip): boolean {
   return Boolean(trip.coverEmoji) && trip.coverEmoji !== DEFAULT_COVER_EMOJI
 }
 
+/** A saved photo is separate from an emoji or a runtime destination image. */
+export function hasSavedCoverPhoto(trip: Trip): boolean {
+  return Boolean(trip.coverImageUrl?.trim())
+}
+
 export function nextTripStep(trip: Trip): NextStep {
   // A draft has no dates, so the engine has no days to plan against.
   if (!trip.startDate || !trip.endDate) {
@@ -145,7 +150,7 @@ export function nextTripStep(trip: Trip): NextStep {
     return { kind: 'add-cover', label: 'Add a cover photo' }
   }
 
-  return { kind: 'done', label: 'Ready to travel' }
+  return { kind: 'done', label: 'All stops confirmed' }
 }
 
 /**
@@ -256,6 +261,7 @@ export function plannedDayRatio(trip: Trip): { planned: number; total: number; p
 export function nextStepRoute(trip: Trip, step: NextStep): `/${string}` {
   if (step.kind === 'add-dates' || step.kind === 'add-cover') return `/trip/${trip.id}/settings`
   if (step.dayIndex !== undefined) return timelineRoute(trip.id, step.dayIndex, step.stopId)
+  if (step.kind === 'plan-day') return `/trip/${trip.id}/timeline`
   return `/trip/${trip.id}`
 }
 

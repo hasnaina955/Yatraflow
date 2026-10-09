@@ -17,6 +17,9 @@ const { state } = vi.hoisted(() => ({
     /** Table rows served by the next query. Reassigned between auth events so
      *  each hydrate captures the data belonging to the account it runs for. */
     tables: {} as Record<string, unknown[]>,
+    errors: {} as Record<string, unknown>,
+    rejectedTable: null as string | null,
+    queries: [] as string[],
     /** Gate per user id; a builder captures the gate of whoever is active when
      *  the query is issued, letting a specific account's hydrate be released late. */
     gates: {} as Record<string, Promise<void>>,
@@ -30,10 +33,14 @@ const { state } = vi.hoisted(() => ({
 vi.mock('../src/lib/supabase', () => {
   const makeBuilder = (table: string) => {
     const rows = state.tables[table] ?? []
+    const error = state.errors[table] ?? null
+    const rejected = state.rejectedTable === table
+    state.queries.push(table)
     const gate = state.gates[state.activeUser ?? ''] ?? Promise.resolve()
     const builder: Record<string, unknown> = {
       select: () => builder,
       eq: () => builder,
+      is: () => builder,
       in: () => builder,
       update: () => builder,
       insert: () => builder,
@@ -42,8 +49,11 @@ vi.mock('../src/lib/supabase', () => {
       maybeSingle: () => builder,
       // Chainable + thenable, but the response is withheld until this account's
       // gate is released — that is what makes the race reproducible.
-      then: (res: (v: { data: unknown; error: unknown }) => unknown) =>
-        gate.then(() => ({ data: rows, error: null })).then(res),
+      then: (res: (v: { data: unknown; error: unknown }) => unknown, rej: (error: unknown) => unknown) =>
+        gate.then(() => {
+          if (rejected) throw new Error('Synthetic query failure')
+          return { data: rows, error }
+        }).then(res, rej),
     }
     return builder
   }
@@ -112,11 +122,126 @@ function gated(user: string) {
 
 beforeEach(() => {
   state.tables = {}
+  state.errors = {}
+  state.rejectedTable = null
+  state.queries = []
   state.gates = {}
   state.activeUser = null
   state.authHandler = null
   state.resolveSession = null
   state.sessionUser = null
+})
+
+function catalogRows() {
+  return {
+    profiles: [{ id: 'creator', email: 'creator@example.invalid', name: 'Creator', created_at: 1 }],
+    published_itineraries: [{
+      id: 'publication', trip_id: 'unreadable-trip', creator_id: 'creator', title: 'Kochi route',
+      route_summary: ['Kochi'], duration_days: 2, published_at: 1,
+    }],
+  }
+}
+
+async function startAnonymous() {
+  const store = await freshStore()
+  store.init()
+  state.resolveSession!()
+  await flush()
+  return store
+}
+
+describe('anonymous catalog hydration', () => {
+  it.each([false, true])('records successful catalogs, including empty results (%s)', async empty => {
+    state.tables = empty ? {} : catalogRows()
+    const store = await startAnonymous()
+    const db = store.getSnapshot()
+    expect(db.ready).toBe(true)
+    expect(db.sessionUserId).toBeNull()
+    expect(db.sliceReads).toEqual({ profiles: 'ok', 'suggested itineraries': 'ok' })
+    expect(db.users.map(u => u.id)).toEqual(empty ? [] : ['creator'])
+    expect(db.published.map(p => p.id)).toEqual(empty ? [] : ['publication'])
+    expect(db.trips).toEqual([])
+    expect(state.queries).toEqual(['profiles', 'published_itineraries'])
+  })
+
+  it.each(['profiles', 'published_itineraries'])('records an independent failed read for %s', async table => {
+    state.tables = catalogRows()
+    state.errors[table] = { message: 'Synthetic denied read' }
+    const store = await startAnonymous()
+    const db = store.getSnapshot()
+    expect(db.ready).toBe(true)
+    expect(db.sliceReads).toEqual({
+      profiles: table === 'profiles' ? 'failed' : 'ok',
+      'suggested itineraries': table === 'published_itineraries' ? 'failed' : 'ok',
+    })
+    expect(db.users.map(u => u.id)).toEqual(table === 'profiles' ? [] : ['creator'])
+    expect(db.published.map(p => p.id)).toEqual(table === 'published_itineraries' ? [] : ['publication'])
+    expect(db.trips).toEqual([])
+  })
+
+  it('records both catalogs as failed after a rejected query', async () => {
+    state.rejectedTable = 'profiles'
+    const store = await startAnonymous()
+    const db = store.getSnapshot()
+    expect(db.ready).toBe(true)
+    expect(db.sliceReads).toEqual({ profiles: 'failed', 'suggested itineraries': 'failed' })
+    expect(db.users).toEqual([])
+    expect(db.published).toEqual([])
+    expect(db.trips).toEqual([])
+  })
+
+  it('deduplicates anonymous auth events without invalidating their result', async () => {
+    state.tables = catalogRows()
+    const release = gated('')
+    const store = await startAnonymous()
+    expect(store.getSnapshot().ready).toBe(false)
+    state.authHandler!('INITIAL_SESSION', null)
+    await flush()
+    expect(state.queries).toEqual(['profiles', 'published_itineraries'])
+    release()
+    await flush()
+    expect(store.getSnapshot().ready).toBe(true)
+    expect(store.getSnapshot().sliceReads).toEqual({ profiles: 'ok', 'suggested itineraries': 'ok' })
+    expect(store.getSnapshot().published.map(p => p.id)).toEqual(['publication'])
+  })
+
+  it.each([false, true])('drops late anonymous results after sign-in, including rejection (%s)', async rejected => {
+    state.tables = catalogRows()
+    if (rejected) state.rejectedTable = 'profiles'
+    const release = gated('')
+    const store = await startAnonymous()
+    state.tables = rowsFor('tripB', 'userB')
+    state.activeUser = 'userB'
+    state.rejectedTable = null
+    state.authHandler!('SIGNED_IN', { user: { id: 'userB' } })
+    await flush()
+    const signedIn = store.getSnapshot()
+    expect(signedIn.sessionUserId).toBe('userB')
+    expect(signedIn.trips.map(t => t.id)).toEqual(['tripB'])
+    release()
+    await flush()
+    expect(store.getSnapshot()).toEqual(signedIn)
+  })
+
+  it('clears the previous account and its read verdicts when anonymous reads fail', async () => {
+    state.tables = rowsFor('tripA', 'userA')
+    state.activeUser = 'userA'
+    state.sessionUser = 'userA'
+    const store = await freshStore()
+    store.init()
+    state.resolveSession!()
+    await flush()
+    expect(store.getSnapshot().trips.map(t => t.id)).toEqual(['tripA'])
+    state.activeUser = null
+    state.errors.profiles = { message: 'Synthetic denied read' }
+    state.authHandler!('SIGNED_OUT', null)
+    await flush()
+    const db = store.getSnapshot()
+    expect(db.sessionUserId).toBeNull()
+    expect(db.trips).toEqual([])
+    expect(db.sliceReads).toEqual({ profiles: 'failed', 'suggested itineraries': 'ok' })
+    expect(db.sliceReads.trips).toBeUndefined()
+  })
 })
 
 describe('hydration isolation across sign-out and account switch (#45)', () => {

@@ -1,5 +1,11 @@
 # CTI Redesign — Alignment Tracker
 
+**Scope note, 2026-10-08:** This tracker records the older CTI design, not the new mockup visual-quality goal.
+Use [ADR 0004](../adr/0004-mockup-visual-direction-and-image-reuse.md) for the approved My Trips and Explore direction.
+Use [ROADMAP.md](../../ROADMAP.md) for current progress.
+The user approved the new written specification on 2026-10-08.
+Product visual acceptance remains open.
+
 Living checklist against `docs/redesign/YATRAFLOW_DESIGN_DIRECTION.md` ("Calm Travel
 Intelligence") and the 10 mockup SVGs. Update this file in **the same commit** as any
 redesign work. Status per line: ✅ done · ⚠️ partial · 🚫 not started · 🔒 intentionally

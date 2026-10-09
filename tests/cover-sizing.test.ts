@@ -56,7 +56,8 @@ describe('every stored-cover surface is wired to the sizer', () => {
 
   it('the shared card sizes an explicit cover', () => {
     const card = read('../src/components/CoverThumb.tsx')
-    expect(card).toMatch(/sizedCoverUrl\(explicitUrl \?\? ''\)/)
+    // Both the unchanged default and the trimmed editorial URL pass through sizing.
+    expect(card).toMatch(/sizedCoverUrl\(editorial \? explicitUrl\?\.trim\(\) \?\? '' : explicitUrl \?\? ''\)/)
     expect(card).not.toMatch(/const url = explicitUrl \|\|/)
   })
 

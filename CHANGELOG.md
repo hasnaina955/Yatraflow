@@ -15,7 +15,64 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ## [Unreleased]
 
+### Fixed
+
+- **Editorial accent text and card borders meet their measured floors.** A new
+  `--color-editorial-accent-ink` token carries accent-coloured text. The accent itself
+  paints non-text only, because it measures 3.04:1 on white and 2.72:1 on mint, which
+  fails AA for the 12px creator rank and the featured kicker. The text token measures
+  5.47:1 on surface and 4.89:1 on mint. The light border moves from `#DED3C4` to
+  `#D7C9B6`, which clears the app's own hairline strength instead of sitting just
+  under it. The dark accent already clears AA, so dark text and non-text share it.
+  `tests/editorial-contrast.test.ts` measures all of these pairs in both themes.
+- **Local review images survive interaction checks.** Workspace captures use separate paths in both themes.
+  The browser harness fails if an interaction replaces an initial page image.
+- **Production history routes load their entry assets after refresh.** The build base now roots asset URLs at the app origin.
+  Nested trip, creator, and public-plan URLs no longer request scripts from a route-local assets directory.
+  Capacitor keeps the same local asset origin. Device smoke remains a separate check.
+
 ### Added
+
+- **Explore cards use a single photo-led surface.** Trending no longer adds a second border, shadow, or padded frame.
+  Photos meet the card edge, while the text and existing actions keep their own padding.
+- **Local checks cover a signed-in free Fork and catalog pagination.** A reserved synthetic trip, its owner membership, and its attributed copy counter persist in fixture memory.
+  Unknown, foreign, repeated, and malformed writes remain blocked. No write reaches a live service.
+  The browser checks the copy after reload and in My Trips. A larger catalog checks all five sorts, tied rows, appended pages, and filter resets.
+- **Responsive cards preserve controls and creator details.** Phone catalog columns now use the same responsive rules as trending cards.
+  Inner grid tracks no longer clip titles or controls. Creator ranks and existing bio/social footers remain visible.
+  The Fork explanation appears before the cards. The My Trips reset keeps its reserved space.
+  Fixture writes are limited to named local operations with strict schemas. Invite codes and view counters persist only in fixture memory.
+  Unknown writes remain blocked. The lint test restores the reviewed baseline after it tests an update.
+- **Explore is rebuilt around photography and a compact three-column shell.** ADR 0004 supersedes the palette and asset guidance of ADRs 0002 and 0003 for My Trips and Explore.
+  A left rail lists the discovery targets. A photographic hero states the live itinerary and creator counts.
+  A right rail carries the creator invite and the fork note.
+  The catalog uses three compact columns on a wide centre region, two at intermediate widths, and one on a phone.
+  Creator cards use route photos. The trending shelf and catalog use the same image-led `PubCard`.
+  The featured plan keeps its own article. Publication photos come before local route photos and neutral fallbacks.
+  Playfair Display joins Plus Jakarta Sans and Sora, and both themes gain `--color-editorial-*` tokens.
+  A failed photograph keeps its surface, its geometry, and its caption, and the fallback returns when the source changes.
+- **Public selection and ranking are deterministic.** `selectFeaturedPublication`, `creatorCoverPublication`, and all five catalog sorts end in a stable ID tie.
+  Equal evidence can no longer reorder between renders.
+  A creator cover is chosen only from that creator's live public routes. A private route cannot advertise a public creator.
+  Equal creator names now carry distinct accessible names with the visible evidence and the card's position.
+- **Explore's own filters, counts, routes, and actions are unchanged.** Search, style, budget, duration, Saved, sort, and pagination behave as before.
+  The global featured plan keeps its outside-filter label.
+  The trending rows and the catalog rows use the same Save and Fork handlers.
+  A signed-out Fork still reaches Auth while the button says so.
+- **Local view counters use a bounded fixture write.** Opening a public itinerary raises its view counter through `bump_published_stats`.
+  The fixture checks the exact request schema and a live synthetic publication. Other named fixture operations have separate guards; unknown mutations are rejected.
+- **My Trips adopts the approved photographic direction.** ADR 0004 supersedes the earlier palette and image limits for this page.
+  A panoramic banner opens the page. The featured trip places its photo beside its content on desktop.
+  Phone layouts stack the photo and content. The trip name appears once in the featured content.
+  Saved cover photos take precedence over matching local route photos, runtime destination photos, and the neutral fallback.
+  Decorative route photos do not change saved-cover facts or cover-edit permissions.
+  Primary controls stay together. Secondary actions remain visible at phone widths.
+- **Public Explore has creator and trending sections.** Creator rankings use views and forks with stable ID ties.
+  A trending plan needs recorded engagement before it can appear. Search, style, budget, duration, and Saved filters hide both sections.
+  Catalog results stay complete. The existing featured plan states when it falls outside your filters.
+  Creator cards wrap long text and keep a fixed width inside the scroll rail.
+- **Local browser checks use synthetic trip and publication data.** The fixture blocks live backend requests and rejects unknown writes.
+  Screenshots and route checks cover My Trips, Timeline, Creator hub, and signed-out Explore at desktop and phone widths.
 
 - **A browser check in CI fails a page block that appears between two frames.** `npm run check:motion` builds the app, serves it, opens four public routes and samples every block of the page root once per animation frame from before navigation. A block whose opacity and transform never change had no motion at all, so the run fails and names the block. The `motion` job runs beside `verify` in CI, and `npm run verify` still needs no browser.
 
@@ -37,8 +94,8 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
   first, because a draft has no days to plan. Then the earliest empty day, because it blocks
   every day after it. Then the earliest stop that needs a booking. Then the earliest suggestion
   to confirm. A cover photo waits for last. A rejected stop blocks nothing, so a day left with
-  only rejected stops still counts as unplanned. A finished trip reads "Ready to travel" and
-  drops the chevron, because there is nothing left to open. The bar is the 5px meter the day
+  only rejected stops still counts as unplanned. A trip with no pending stop task reads "All stops confirmed".
+  That label does not claim travel readiness. The line drops its chevron when no task remains. The bar is the 5px meter the day
   header already draws, in the same teal and the same motion, and the two read their numbers
   from one function.
 - **The cover-photo step is reachable again.** The prototype counted any cover emoji as a
@@ -61,10 +118,9 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
   a schema change: a renamed status or a different days shape shows up as a changed
   histogram before a user ever sees a wrong card. A priced publication is marked, because an
   anonymous read returns its locked days.
-- **The mockup's colour palette is not adopted, and the decision is written down.**
-  `docs/adr/0002-mockup-palette-not-adopted.md` records the decision and what it costs. The
-  mockup keeps its typography. Its page layout is adopted section by section through the
-  roadmap's MR track. Its ten swatches never reach the design tokens.
+- **Palette decisions keep their supersession trail.** ADR 0002 records the earlier palette boundary.
+  ADR 0003 supersedes the canvas and shell choices. ADR 0004 defines the approved My Trips and Explore direction.
+  The earlier accepted decisions remain intact. New editorial styles keep legacy defaults on unchanged routes.
 - **The trip list can now be read as a list, and an upcoming trip says how long until it leaves.**
   Two additions to the same card. A labelled pair in the toolbar switches between the grid and a
   one-row-per-trip list, where each cover collapses to a small thumbnail. The choice survives a
@@ -74,10 +130,9 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
   the moment a trip leaves, and for a past or undated one, rather than counting down to nothing.
   The count comes from the trip's own dates through the repository's single day-count helper, so
   a daylight-saving edge cannot shift it.
-- **The cover-photo prompt and the solo-traveller line were already there.** A roadmap row asked
-  for both. Checked against the code rather than assumed: the prompt is one of the six next-step
-  labels and only became reachable once the default compass emoji stopped counting as a cover,
-  and the avatars with "Just you so far" were already in the card foot. No new code was needed.
+- **Trip cards offer a separate cover-photo action.** Owners and editors see "Add cover photo" without completing other tasks first.
+  The action opens Settings. A nonblank saved photo hides the action. Emoji covers and automatic destination images do not.
+  Viewer cards do not offer this action. Cards retain their avatars and "Just you so far" line.
 - **The Timeline's day rail now says where you are and when the route moves.** Each chip became a
   card carrying the place that day sits in and its stop count, with a marker on the day the city
   changes rather than the day before it. The jump and the day-collapse behaviour behind it are
@@ -101,12 +156,10 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
   what the press will do, and the 40px touch floor. This is deliberately not the map shortlist:
   that tray filters out anything already added to the plan, so a day or a stop put there would have
   been dropped on arrival.
-- **My Trips now features the closest upcoming departure as a prominent hero journey.**
-  Variant A from the layout study leads the page with a photo cover, dates, route, travellers,
-  and a planning progress bar. The hero card surfaces the single next task with a targeted action
-  button and an overview link. When no filters are active, the remaining trips appear below in the
-  supporting grid or list under an explicit heading. The lead journey uses existing design tokens
-  and respects light and dark themes without mockup assets.
+- **My Trips has a featured journey with its next task.** The card uses the approved Variant A layout and existing tokens.
+  Selection prefers the closest upcoming departure, then an underway trip, then the most recently updated trip.
+  Labels distinguish upcoming, underway, completed, and undated trips. Search covers all trips and hides the card during filtering.
+  The card retains its photo, dates, route, travellers, activity progress, task action, and overview link.
 - **The featured journey's action button now opens the exact day and stop it names.**
   The button carried only the trip link. The timeline opened at the top, and you had to find
   the day yourself. The button now links with the day and the stop in the address. The
@@ -123,6 +176,13 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
   resolves the ids against live trip data; `src/components/SavedShelf.tsx` draws them.
 
 ### Fixed
+
+- **Every creator card carries a distinct accessible name.** The label now includes the card's own itinerary and fork
+  evidence, so two creators who share a name no longer produce two links with the same name and different destinations.
+- **Signed-out Explore completes its catalog read.** Anonymous hydration records separate profile and publication read results.
+  Repeated anonymous auth events share their pending read. Late anonymous responses cannot replace a newer signed-in session.
+- **First-day actions open Timeline.** Trips without days no longer send their planning action to Overview.
+- **Dependency patches remove reported security advisories.** Xcode uses a scoped UUID override without changing the Capacitor version.
 
 - **Explore, the trip workspace, the creator hub and the public itinerary enter with motion now.** Every top-level block on those four pages appeared between two frames: the hero, the head, the tab bar and the body popped into place with nothing under them. They take the shared container cascade now — each block rises 8px over `--motion-slow`, staggered by `--stagger-step`, and stops under reduced motion. Sampled in the browser after the change: zero motionless blocks on the six routes checked.
 

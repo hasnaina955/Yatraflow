@@ -92,7 +92,9 @@ export default defineConfig(({ mode }) => {
   warnDeployFlags(env)
   return {
     plugins: [react()],
-    base: './',
+    // Web history routes must reload the entry from /assets, not /trip/<id>/assets.
+    // Capacitor serves the same rooted paths from its local shell origin.
+    base: '/',
     define: {
       // Inlined at build time from package.json — consumed by the feedback
       // mailto so bug reports carry the exact shipped version.

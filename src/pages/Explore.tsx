@@ -12,21 +12,27 @@ import { useSavedPubs } from '../lib/savedPubs'
 import { sliceState, emptyCopyFor } from '../lib/readState'
 import { forkPublication } from '../lib/forkPub'
 import { cap } from '../lib/labels'
-import { Avatar, Chip, EmptyState, toast } from '../components/ui'
+import { EmptyState, toast } from '../components/ui'
+import { EditorialPhoto } from '../components/EditorialPhoto'
+import { EXPLORE_HERO } from '../lib/editorialAssets'
+import { scrollBehavior } from '../lib/motion'
 import { Select } from '../components/Select'
 import { PubCard } from '../components/PubCard'
+import { FeaturedCreators, ShareStoriesCta, TrendingShelf } from '../components/ExploreDiscovery'
 import { appLink } from '../lib/appLink'
 import { livePubs } from '../lib/livePubs'
+import { communityCounts, featuredCreators, popularity, selectFeaturedPublication, trendingPubs } from '../lib/discovery'
+import { editorialRouteCover } from '../lib/editorialAssets'
 
 type SortKey = 'popular' | 'newest' | 'budget-asc' | 'budget-desc' | 'duration'
 const STYLES = ['relaxed', 'balanced', 'packed', 'adventure', 'luxury', 'budget', 'family', 'spiritual', 'food-focused', 'creator'] as const
 /** P4: the grid renders one page at a time; "Load more" grows the window. */
 const PAGE_SIZE = 12
-/** A publication is only worth featuring when it carries real evidence. With a
- *  young catalog the honest answer is often "nothing yet" — leading with
- *  "Why featured: 0 forks · 13 views" advertises emptiness rather than
- *  credibility (§6.10). */
-const FEATURED_MIN_VIEWS = 25
+// The featured-card evidence bar (a plan is only worth featuring when it
+// carries real evidence — with a young catalog the honest answer is often
+// "nothing yet") lives in lib/discovery.ts now, the same module the
+// discovery blocks below use, so "featured" and "trending" can never
+// disagree about what counts as popular.
 
 // #350 — the gallery's pool lives in lib/livePubs.ts so every public catalog
 // surface shares one predicate copy. Re-exported for the test suite, which
@@ -107,8 +113,6 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
     replaceRoute(`/explore${qs ? '?' + qs : ''}`)
   }
 
-  const popularity = (p: { views: number; copies: number }) => p.views + p.copies * 5
-
   const pubs = useMemo(() => {
     let list = [...livePubs(published)]
     if (q.trim()) {
@@ -131,28 +135,38 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
   }, [published, users, q, style, maxBudget, duration, sortKey, savedOnly, saved])
 
   function sortList(list: typeof published) {
+    // Every sort keeps its own meaning and ends in a stable ID tie, so two rows
+    // with equal evidence can never swap places between renders.
     switch (sortKey) {
-      case 'newest': return list.sort((a, b) => b.publishedAt - a.publishedAt)
-      case 'budget-asc': return list.sort((a, b) => a.estimatedBudgetPerPersonInr - b.estimatedBudgetPerPersonInr)
-      case 'budget-desc': return list.sort((a, b) => b.estimatedBudgetPerPersonInr - a.estimatedBudgetPerPersonInr)
-      case 'duration': return list.sort((a, b) => b.durationDays - a.durationDays)
-      default: return list.sort((a, b) => popularity(b) - popularity(a))
+      case 'newest': return list.sort((a, b) => b.publishedAt - a.publishedAt || a.id.localeCompare(b.id))
+      case 'budget-asc': return list.sort((a, b) => a.estimatedBudgetPerPersonInr - b.estimatedBudgetPerPersonInr || a.id.localeCompare(b.id))
+      case 'budget-desc': return list.sort((a, b) => b.estimatedBudgetPerPersonInr - a.estimatedBudgetPerPersonInr || a.id.localeCompare(b.id))
+      case 'duration': return list.sort((a, b) => b.durationDays - a.durationDays || a.id.localeCompare(b.id))
+      default: return list.sort((a, b) => popularity(b) - popularity(a) || b.publishedAt - a.publishedAt || a.id.localeCompare(b.id))
     }
   }
 
   // Featured: the most-forked/viewed plan, independent of filters — it leads the
   // page with its credibility explained (§6.10), and only when that credibility
-  // can be stated without printing a zero.
-  const featured = useMemo(() => {
-    const pool = livePubs(published).filter(p => p.copies >= 1 || p.views >= FEATURED_MIN_VIEWS)
-    // Deterministic order: a tie on the evidence score must not depend on the
-    // order rows arrived in (two live publications scored exactly 13).
-    return [...pool].sort((a, b) => b.copies - a.copies || b.views - a.views || b.publishedAt - a.publishedAt)[0]
-  }, [published])
+  // can be stated without printing a zero. The evidence bar and the final ID
+  // tie live in lib/discovery.ts so every surface that features a plan agrees.
+  const featured = useMemo(() => selectFeaturedPublication(published), [published])
   // Read the underlying trip from the trips slice (subscribed) so the featured
   // health score stays live without subscribing to the whole cache.
   const featuredTrip = featured ? trips.find(t => t.id === featured.tripId) : undefined
   const featuredHealth = featuredTrip ? computeHealth(featuredTrip).score : undefined
+
+  // MR10 — the discovery blocks: featured creators, trending plans, and
+  // the share-stories counts. Same evidence bar as the featured card,
+  // derived from the slices the page already subscribes to (no extra
+  // reads). `trending` excludes the featured pick so the two surfaces
+  // never lead with the same plan.
+  const creators = useMemo(() => featuredCreators(users, published), [users, published])
+  const trending = useMemo(
+    () => trendingPubs(published, 4, featured ? [featured.id] : []),
+    [published, featured],
+  )
+  const community = useMemo(() => communityCounts(published), [published])
 
   // The grid must not re-offer the plan the featured card already leads with —
   // on a three-item shelf the duplicate was a third of the page. Only ever a
@@ -187,37 +201,51 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
   const stylesWithCounts = STYLES.filter(s => (styleCounts.get(s) ?? 0) > 0)
   const filtersActive = Boolean(q.trim()) || style !== 'all' || maxBudget !== '' || duration !== 'all' || savedOnly
 
+  const discoveryVisible = pubsRead === 'ready' && !filtersActive
+
+  function showExploreSection(id: string) {
+    document.getElementById(id)?.scrollIntoView({ block: 'start', behavior: scrollBehavior() })
+  }
+
   return (
-    <div className="page-enter">
-      {/* ---- Dark-teal editorial hero with route-aware search (§6.10) ---- */}
-      <section className="explore-hero">
-        <div className="container explore-hero-inner">
-          <span className="editorial-kicker explore-hero-kicker">Discover · Trust · Fork</span>
-          <h1>Explore itineraries</h1>
-          <p className="explore-hero-sub">
-            Real multi-day plans — real road time, real pacing, honest costs. Copy one and make it yours.
-          </p>
+    <div className="explore-page page-enter">
+      <div className="explore-discovery-layout">
+        <nav className="explore-discovery-nav" aria-label="Explore discovery">
+          <span className="kicker explore-nav-kicker">Discover · Trust · Fork</span>
+          <button type="button" onClick={() => showExploreSection('explore-catalog')}><InlineIcon icon={Compass} size={16} gap={8} />All itineraries</button>
+          <button type="button" disabled={!discoveryVisible || creators.length === 0}
+            onClick={() => showExploreSection('explore-creators')}><InlineIcon icon={Sparkles} size={16} gap={8} />Featured creators</button>
+          <button type="button" disabled={!discoveryVisible || trending.length === 0}
+            onClick={() => showExploreSection('explore-trending')}><InlineIcon icon={Star} size={16} gap={8} />Trending itineraries</button>
+          <button type="button" aria-pressed={savedOnly} onClick={() => { setSavedOnly(value => !value); showExploreSection('explore-catalog') }}>
+            <InlineIcon icon={Heart} size={16} gap={8} fill={savedOnly ? 'currentColor' : 'none'} />Saved itineraries
+          </button>
+          <a {...appLink(me ? '/creator-hub' : '/auth?mode=signup')}><InlineIcon icon={GitFork} size={16} gap={8} />{me ? 'My publications' : 'Become a creator'}</a>
+        </nav>
+
+        <div className="explore-main">
+          <EditorialPhoto src={EXPLORE_HERO} className="explore-photo-hero">
+            <div className="explore-photo-hero-content">
+              <span className="kicker">Made for the way you travel</span>
+              <h1>Find your next<br />great journey.</h1>
+              <p>Discover routes from real travellers. Make one your own.</p>
+              {pubsRead === 'ready' && <p className="explore-live-counts num">
+                <span><strong>{community.pubCount}</strong> live {community.pubCount === 1 ? 'itinerary' : 'itineraries'}</span>
+                <span><strong>{community.creatorCount}</strong> {community.creatorCount === 1 ? 'creator' : 'creators'}</span>
+              </p>}
+              <button type="button" className="btn btn-primary" onClick={() => showExploreSection('explore-catalog')}>Explore itineraries →</button>
+            </div>
+          </EditorialPhoto>
+
           <div className="explore-hero-searchrow">
-            <input className="input explore-hero-search" placeholder="Search a route, place or creator — try “Alleppey”…"
+            <Search size={18} aria-hidden className="explore-search-icon" />
+            <input className="input explore-hero-search" placeholder="Search a route, place or creator…"
               aria-label="Search destination or creator" value={q} onChange={e => { setQ(e.target.value); syncUrl({ q: e.target.value }) }} />
             {q.trim() !== '' && (
               <button type="button" className="explore-hero-clear" aria-label="Clear search"
                 onClick={() => { setQ(''); syncUrl({ q: '' }) }}><X size={14} aria-hidden /></button>
             )}
           </div>
-        </div>
-      </section>
-
-      <div className="container" style={{ paddingTop: 22 }}>
-        {/* "Fork" is the product's own word for copying a plan into your trips and
-            the cards never explain it, so it is said once, here, before anyone
-            meets the button that carries the name. */}
-        <p className="small muted" style={{ margin: '0 0 12px', maxWidth: '72ch' }}>
-          Fork any itinerary to copy it into your own trips — then change whatever you like.
-          {/* Signed out, that button navigates to /auth — say so before the click,
-              not in a toast that the redirect swallows. */}
-          {!me && <> You’ll need a free account to fork trips.</>}
-        </p>
 
         {/* ---- Travel-style chips (§6.10) — replaces the style dropdown ---- */}
         <div className="explore-chips" role="group" aria-label="Travel style">
@@ -267,6 +295,8 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
           </div>
         </div>
 
+        <p className="small muted explore-fork-gloss">Fork any itinerary to copy it into your own trips. Then change the route, pace, and stops. {!me && 'You’ll need a free account to fork trips.'}</p>
+
         {/* Screen-reader-only result count — filter changes reflow the grid
             silently otherwise (UI audit F-04).
             #395 — and it is a claim about the CATALOG, so it may only be made
@@ -288,7 +318,11 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
             load the catalog — one card contradicting the sentence right under
             it. The read's state owns the whole surface until Retry settles it. */}
         {pubsRead === 'ready' && featured && (
-          <div className="featured-card" key={featured.id}>
+          <article className="featured-card" key={featured.id}>
+            <EditorialPhoto
+              src={featured.coverImageUrl?.trim() || editorialRouteCover(featured.routeSummary)}
+              className="featured-photo"
+              alt="" />
             <div className="featured-body">
               <span className="editorial-kicker featured-kicker"><InlineIcon icon={Star} size={12} gap={3} />Featured itinerary{featuredOutsideFilters && <> · outside your filters</>}</span>
               <h2><a className="featured-title-link" {...appLink(`/pub/${featured.id}`)}>{featured.title}</a></h2>
@@ -312,9 +346,28 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
                 </button>
               </div>
             </div>
-          </div>
+          </article>
         )}
 
+        {/* ---- MR10 discovery blocks: the creator rail and the trending
+              shelf sit between the featured card and the grid, the
+              mockup's discovery order. Gated on the same READ as the
+              featured card — a claim about the community may not stand
+              over a failed re-read (#395 discipline) — and each block
+              returns null until its own evidence exists. ---- */}
+        {pubsRead === 'ready' && !filtersActive && (
+          <>
+            <FeaturedCreators creators={creators} />
+            <TrendingShelf pubs={trending} users={users}
+              onFork={forkTrip} onToggleSave={toggleHeart} isSaved={isSaved} needsLogin={!me} />
+          </>
+        )}
+
+        <section id="explore-catalog" className="explore-catalog" aria-labelledby="explore-catalog-heading">
+          <header className="discovery-head">
+            <h2 id="explore-catalog-heading" className="discovery-title">All itineraries</h2>
+            {pubsRead === 'ready' && <p className="discovery-sub">{pubs.length} {pubs.length === 1 ? 'matching itinerary' : 'matching itineraries'}</p>}
+          </header>
         {pubsRead !== 'ready' ? (
           /* #364: a failed catalog read used to render "just getting started" —
              copy that tells a visitor the community is empty when the truth is
@@ -357,7 +410,7 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
                 {gridPubs.slice(0, visibleCount).map((p, i) => (
                   <PubCard key={p.id} pub={p} creator={userOf(users, p.creatorId)} saved={isSaved(p.id)}
                     onFork={() => forkTrip(p.id)} onToggleSave={() => toggleHeart(p.id)} enterIndex={i}
-                    needsLogin={!me} />
+                    needsLogin={!me} editorial />
                 ))}
               </div>
             )}
@@ -371,6 +424,27 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
             )}
           </>
         )}
+
+        </section>
+        </div>
+
+        <aside className="explore-aside" aria-label="Community and planning tips">
+          {pubsRead === 'ready' && (
+            <ShareStoriesCta
+              pubCount={community.pubCount}
+              creatorCount={community.creatorCount}
+              signedIn={!!me}
+              onNavigate={onNavigate}
+            />
+          )}
+          <section className="explore-fork-note" aria-labelledby="explore-fork-heading">
+            <Compass size={28} aria-hidden />
+            <h2 id="explore-fork-heading">Make a plan your own.</h2>
+            <p>Fork an itinerary to copy it into your trips. Then change the route, pace, and stops.</p>
+            {!me && <p>You need a free account to fork trips.</p>}
+            <a {...appLink(me ? '/trips' : '/auth?mode=signup')}>{me ? 'Open My Trips' : 'Create a free account'} →</a>
+          </section>
+        </aside>
       </div>
     </div>
   )

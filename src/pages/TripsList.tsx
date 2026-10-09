@@ -2,10 +2,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ArrowRight, Calendar, ChevronRight, Clock, Compass, LayoutGrid, MapPin, Plus, Rocket, Rows3, ShoppingBag, Trash2, Users, Wallet } from 'lucide-react'
 import { InlineIcon, MetaIcon } from '../components/icons'
-import { useTrips, useTrashedTrips, useUsers, useSessionUserId, useSliceReads, useTrashLoaded, useTrashFailed, tripsForUser, trashTrip, restoreTrashedTrip, restoreTrashedTripById, permanentlyDeleteTrip, fetchTrashedTrips, rereadTrips, addDemoTrips } from '../store/store'
+import { useTrips, useTrashedTrips, useUsers, useSessionUserId, useSliceReads, useTrashLoaded, useTrashFailed, tripsForUser, trashTrip, restoreTrashedTrip, restoreTrashedTripById, permanentlyDeleteTrip, fetchTrashedTrips, rereadTrips, addDemoTrips, canEdit, roleOf } from '../store/store'
 import { computeTotals, formatInrShort } from '../lib/engine'
-import { nextTripStep, nextStepRoute, plannedDayRatio, statusBucket, isStatusBucket, STATUS_FILTERS, departureLabel, type StatusBucket } from '../lib/tripNextStep'
+import { nextTripStep, nextStepRoute, hasSavedCoverPhoto, plannedDayRatio, statusBucket, isStatusBucket, STATUS_FILTERS, departureLabel, type StatusBucket } from '../lib/tripNextStep'
 import { cap } from '../lib/labels'
+import { featuredTripPresentation, selectFeaturedTrip } from '../lib/featuredTrip'
+import { editorialRouteCover, MY_TRIPS_BANNER } from '../lib/editorialAssets'
+import { EditorialPhoto } from '../components/EditorialPhoto'
+import { localMidnightMs } from '../lib/dayCount'
 import { Avatar, Chip, EmptyState, toast, undoToast, ConfirmDialog } from '../components/ui'
 import { Select } from '../components/Select'
 import { PillNav } from '../components/PillNav'
@@ -190,30 +194,7 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
   // Featured trip (Variant A hierarchy): pick the closest upcoming departure
   // from the user's trips, or fall back to the most recently updated trip.
   const featuredTrip = useMemo(() => {
-    const mine = tripsForUser(meId)
-    if (!mine.length) return null
-
-    // Upcoming trips with a valid future start date
-    const nowMs = today.getTime()
-    const upcoming = mine
-      .map(t => {
-        const start = new Date(`${t.startDate}T00:00:00`)
-        const end = new Date(`${t.endDate}T23:59:59`)
-        return { trip: t, startMs: start.getTime(), endMs: end.getTime() }
-      })
-      .filter(({ startMs, endMs }) => !Number.isNaN(startMs) && !Number.isNaN(endMs) && endMs >= nowMs)
-      .sort((a, b) => {
-        // Closest departure starting today or in future first
-        const aFuture = a.startMs >= nowMs
-        const bFuture = b.startMs >= nowMs
-        if (aFuture && !bFuture) return -1
-        if (!aFuture && bFuture) return 1
-        return a.startMs - b.startMs
-      })
-
-    if (upcoming.length > 0) return upcoming[0].trip
-    // Fall back to most recently updated
-    return [...mine].sort((a, b) => b.updatedAt - a.updatedAt)[0]
+    return selectFeaturedTrip(tripsForUser(meId), today)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allTrips, meId, today])
 
@@ -257,23 +238,51 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
 
   return (
     <div className="container trips-page page-enter">
-      <div className="row-between trips-head">
-        <div className="trips-head-title">
+      <EditorialPhoto src={MY_TRIPS_BANNER} className="trips-page-banner">
+        <header className="trips-page-title">
           <h1>My trips</h1>
-          <p className="muted small">Everything you’re planning or collaborating on.</p>
-        </div>
-        <div className="trips-head-actions">
-          {/* I-20: the shelf has to be reachable from where people look for
-              their travel — a bought plan is not one of your trips, so it gets
-              its own list rather than a row among them. */}
-          <button className="btn btn-outline" onClick={() => onNavigate('/purchases')}>
-            <InlineIcon icon={ShoppingBag} size={15} gap={5} />My purchases
-          </button>
-          <button className={`btn btn-outline${view === 'trash' ? ' on-teal' : ''}`} aria-pressed={view === 'trash'} onClick={() => setView(v => v === 'trash' ? 'trips' : 'trash')}><InlineIcon icon={Trash2} size={15} gap={5} />Trash</button>
-          <ImportTripButton ownerId={meId} onNavigate={onNavigate} />
-          <button className="btn btn-outline" onClick={addDemoTrips} aria-label="Load demo trips" title="Adds 3 sample trips — Kerala, Goa & Rajasthan — to your account" disabled={tripsRead === 'failed'}><InlineIcon icon={Rocket} size={15} gap={5} /><span>Load demo trips</span></button>
-          <button className="btn btn-primary" onClick={() => onNavigate('/new')}><InlineIcon icon={Plus} size={15} gap={4} />Plan a new trip</button>
-        </div>
+          <p>Everything you’re planning or collaborating on.</p>
+        </header>
+      </EditorialPhoto>
+      <div className="trips-controls trips-toolbar">
+        <input className="input trips-search" placeholder="Search all your trips, places or stops…"
+          aria-label="Search your trips" value={q} onChange={e => setQ(e.target.value)} />
+        <Select value={style} onChange={v => setStyle(v as 'all' | Trip['travelStyle'])} aria-label="Travel style"
+          options={[
+            { value: 'all', label: 'All styles' },
+            ...TRAVEL_STYLES.filter(s => styleCounts.get(s)).map(s => ({ value: s, label: `${cap(s)} (${styleCounts.get(s)})` })),
+          ]} />
+        <Select value={when} onChange={v => setWhen(v as WhenKey)} aria-label="When"
+          options={[
+            { value: 'all', label: 'Any time' },
+            { value: 'upcoming', label: 'Upcoming & live' },
+            { value: 'past', label: 'Past trips' },
+            { value: 'draft', label: 'Drafts' },
+          ]} />
+        <Select value={sortKey} onChange={v => setSortKey(v as SortKey)} aria-label="Sort by"
+          options={[
+            { value: 'recent', label: 'Recently edited' },
+            { value: 'name', label: 'Name A–Z' },
+            { value: 'length-desc', label: 'Longest first' },
+            { value: 'budget-asc', label: 'Budget: low → high' },
+            { value: 'budget-desc', label: 'Budget: high → low' },
+          ]} />
+        <button className="btn btn-primary trips-create" onClick={() => onNavigate('/new')}>
+          <InlineIcon icon={Plus} size={15} gap={4} />Plan a new trip
+        </button>
+        <button className="btn btn-ghost btn-sm" onClick={clearFilters} style={{ visibility: hasFilters ? 'visible' : 'hidden' }} aria-hidden={!hasFilters} tabIndex={hasFilters ? 0 : -1}>Clear filters</button>
+      </div>
+      <div className="trips-head-actions trips-secondary-actions" aria-label="More trip actions">
+        <button className="btn btn-ghost btn-sm" onClick={() => onNavigate('/purchases')}>
+          <InlineIcon icon={ShoppingBag} size={14} gap={4} />My purchases
+        </button>
+        <button className={`btn btn-ghost btn-sm${view === 'trash' ? ' on-teal' : ''}`} aria-pressed={view === 'trash'}
+          onClick={() => setView(v => v === 'trash' ? 'trips' : 'trash')}><InlineIcon icon={Trash2} size={14} gap={4} />Trash</button>
+        <ImportTripButton ownerId={meId} onNavigate={onNavigate} />
+        <button className="btn btn-ghost btn-sm" onClick={addDemoTrips} aria-label="Load demo trips"
+          title="Adds 3 sample trips — Kerala, Goa & Rajasthan — to your account" disabled={tripsRead === 'failed'}>
+          <InlineIcon icon={Rocket} size={14} gap={4} />Load demo trips
+        </button>
       </div>
 
       {view === 'trash' && (
@@ -368,44 +377,6 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
               onNavigate={onNavigate}
             />
           )}
-
-          {/* ---- Search, with the three refinements behind one dropdown ---- */}
-          <div className="trips-toolbar" style={{ marginBottom: 18 }}>
-            <input className="input trips-search" placeholder={!hasFilters && featuredTrip ? 'Search your other trips…' : 'Search places or stops…'}
-              aria-label="Search your trips" value={q} onChange={e => setQ(e.target.value)} />
-            {/* MR4. Three dropdowns, each one surface: travel style, when, sort.
-                They sat behind a single Filters popover for one commit, and a
-                panel that holds every control reads as a settings sheet rather
-                than a toolbar — the three choices are independent, so they get
-                three labelled menus. Style carries its count, which is what the
-                chip row used to add up, so a filtered list still says why it is
-                short without opening anything. */}
-            <Select value={style} onChange={v => setStyle(v as 'all' | Trip['travelStyle'])} aria-label="Travel style"
-              options={[
-                { value: 'all', label: 'All styles' },
-                ...TRAVEL_STYLES.filter(s => styleCounts.get(s)).map(s => ({ value: s, label: `${cap(s)} (${styleCounts.get(s)})` })),
-              ]} />
-            <Select value={when} onChange={v => setWhen(v as WhenKey)} aria-label="When"
-              options={[
-                { value: 'all', label: 'Any time' },
-                { value: 'upcoming', label: 'Upcoming & live' },
-                { value: 'past', label: 'Past trips' },
-                { value: 'draft', label: 'Drafts' },
-              ]} />
-            <Select value={sortKey} onChange={v => setSortKey(v as SortKey)} aria-label="Sort by"
-              options={[
-                { value: 'recent', label: 'Recently edited' },
-                { value: 'name', label: 'Name A–Z' },
-                { value: 'length-desc', label: 'Longest first' },
-                { value: 'budget-asc', label: 'Budget: low → high' },
-                { value: 'budget-desc', label: 'Budget: high → low' },
-              ]} />
-            {/* always mounted so the row doesn't shift when it appears mid-typing */}
-            {/* "Clear filters" (review finding 4): the empty state's action said
-                "Clear filters" while this ghost button said "Clear" — the same
-                reset under two names, both once visible in one frame. */}
-            <button className="btn btn-ghost btn-sm" style={{ visibility: hasFilters ? 'visible' : 'hidden' }} onClick={clearFilters}>Clear filters</button>
-          </div>
 
           <p className="sr-only" role="status">{trips.length} {trips.length === 1 ? 'trip matches' : 'trips match'}</p>
 
@@ -560,6 +531,11 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
                         <ChevronRight className="trip-next-chevron" size={15} aria-hidden />
                       </a>
                     )}
+                    {canEdit(roleOf(t, meId)) && !hasSavedCoverPhoto(t) && (
+                      <a className="btn btn-outline btn-sm" {...appLink(nextStepRoute(t, { kind: 'add-cover', label: 'Add a cover photo' }))}>
+                        Add cover photo
+                      </a>
+                    )}
                     <button className="icon-btn" aria-label={`Delete ${t.name}`} onClick={() => setPendingDelete(t)}><Trash2 size={14} aria-hidden /></button>
                   </div>
                 </div>
@@ -620,20 +596,21 @@ function FeaturedTripLead({
   const step = nextTripStep(trip)
   const plan = plannedDayRatio(trip)
   const totals = computeTotals(trip)
-  const departure = departureLabel(trip, today)
+  const presentation = featuredTripPresentation(trip, today)
   const others = (trip.members ?? []).filter(m => m.userId !== meId)
 
   // Candidate images for cover: explicit cover URL -> Wikipedia lead image -> fallback hero
   const candidates = useMemo(() => pickTripQueryCandidates(trip), [trip])
   const autoThumb = useDestinationCover(candidates)
-  const coverUrl = sizedCoverUrl(trip.coverImageUrl ?? '') || autoThumb || '/img/landing-open-road.jpg'
+  const coverUrl = sizedCoverUrl(trip.coverImageUrl ?? '') || editorialRouteCover(trip.destinations) || autoThumb || undefined
 
   // Format date range nicely
   const dateRangeStr = useMemo(() => {
-    if (!trip.startDate || !trip.endDate) return 'Dates not set'
-    const start = new Date(`${trip.startDate}T00:00:00`)
-    const end = new Date(`${trip.endDate}T00:00:00`)
-    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 'Dates not set'
+    const startMs = localMidnightMs(trip.startDate)
+    const endMs = localMidnightMs(trip.endDate)
+    if (startMs === null || endMs === null || endMs < startMs) return 'Dates not set'
+    const start = new Date(startMs)
+    const end = new Date(endMs)
     const opt: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short' }
     return `${start.toLocaleDateString('en-IN', opt)} – ${end.toLocaleDateString('en-IN', { ...opt, year: 'numeric' })}`
   }, [trip.startDate, trip.endDate])
@@ -651,41 +628,28 @@ function FeaturedTripLead({
   return (
     <section className="trip-featured" aria-labelledby="featured-trip-heading">
       <div className="trip-featured-head">
-        <h2 id="featured-trip-heading">Your next journey</h2>
-        <span className="trip-featured-subheading">Closest upcoming departure</span>
+        <h2 id="featured-trip-heading">{presentation.heading}</h2>
+        <span className="trip-featured-subheading">{presentation.subheading}</span>
       </div>
       <article className="trip-featured-card">
-        <div
-          className="trip-featured-photo"
-          style={{ backgroundImage: `url("${coverUrl}")` }}
-          role="img"
-          aria-label={`Cover photo for ${trip.name}`}
-        >
+        <EditorialPhoto src={coverUrl} className="trip-featured-photo">
           <div className="trip-featured-photo-top">
-            <span className="trip-featured-photo-badge">
-              {departure ?? 'Upcoming'}
-            </span>
+            <span className="trip-featured-photo-badge">{presentation.badge}</span>
             <span className="trip-featured-photo-date">{dateRangeStr}</span>
           </div>
-          <div className="trip-featured-photo-bottom">
-            <h3 className="trip-featured-photo-heading">{trip.name}</h3>
-            <p className="trip-featured-photo-caption">
-              {trip.days.length} day{trip.days.length === 1 ? '' : 's'} · {cap(trip.transportMode)} · {cap(trip.travelStyle)}
-            </p>
-          </div>
-        </div>
+        </EditorialPhoto>
 
         <div className="trip-featured-body">
           <div>
-            <span className="trip-featured-kicker">
-              {trip.destinations[0] ?? trip.startLocation} · {departure ? 'Upcoming' : 'Featured'}
-            </span>
             <h3 className="trip-featured-title">{trip.name}</h3>
+            <span className="trip-featured-kicker">
+              {trip.destinations[0] ?? trip.startLocation} · {presentation.status}
+            </span>
             <p className="trip-featured-route">{routeStr}</p>
 
             <div className="trip-featured-meta">
               <span><MetaIcon icon={Calendar} tone="time" />{dateRangeStr} · {trip.days.length} days</span>
-              <span><Users size={12} aria-hidden />{(trip.members ?? []).length || 1} traveller{(trip.members ?? []).length === 1 ? '' : 's'}</span>
+              <span><Users size={12} aria-hidden />{(trip.members ?? []).length} traveller{(trip.members ?? []).length === 1 ? '' : 's'}</span>
               <span><MetaIcon icon={MapPin} tone="place" />{trip.destinations.length + 1} places</span>
               <span><MetaIcon icon={Wallet} tone="money" />~{formatInrShort(totals.costPerPersonInr)}/person</span>
             </div>
@@ -721,13 +685,15 @@ function FeaturedTripLead({
                 <strong className="trip-featured-task-title">{step.label}</strong>
                 <p className="trip-featured-task-desc">
                   {step.kind === 'done'
-                    ? 'All scheduled stops are confirmed. You are ready to travel!'
+                    ? 'All scheduled stops are confirmed. Check the full plan before you travel.'
                     : step.kind === 'book-stop'
                     ? 'Reserve this stop or slot before you leave.'
                     : step.kind === 'confirm-stop'
                     ? 'Check suggestions and confirm this stop.'
                     : step.kind === 'add-dates'
                     ? 'Choose travel dates to unlock itinerary day planning.'
+                    : step.kind === 'add-cover'
+                    ? 'Choose and save a cover photo in trip settings.'
                     : 'Add planned activities and sights for this day.'}
                 </p>
               </div>
@@ -747,6 +713,11 @@ function FeaturedTripLead({
             </div>
 
             <div className="trip-featured-btn-group">
+              {canEdit(roleOf(trip, meId)) && !hasSavedCoverPhoto(trip) && (
+                <a className="btn btn-outline btn-sm" {...appLink(nextStepRoute(trip, { kind: 'add-cover', label: 'Add a cover photo' }))}>
+                  Add cover photo
+                </a>
+              )}
               <button
                 className="btn btn-primary"
                 onClick={() => onNavigate(targetRoute)}

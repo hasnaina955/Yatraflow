@@ -1,5 +1,10 @@
 # YatraFlow Design Direction
 
+**Scope note, 2026-10-08:** [ADR 0004](../adr/0004-mockup-visual-direction-and-image-reuse.md) controls conflicting guidance for My Trips and Explore.
+The [visual-quality specification](../superpowers/specs/2026-10-08-mockup-visual-quality-design.md) records their approved direction.
+The user approved the written specification on 2026-10-08.
+Product visual acceptance remains open.
+
 > **Design language:** Calm Travel Intelligence  
 > **Positioning:** A warm, map-aware, glass-accented planning system for trips that work in the real world.
 

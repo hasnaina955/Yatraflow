@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { nextTripStep, nextStepRoute, plannedDayRatio, statusBucket, isStatusBucket, STATUS_FILTERS, departureLabel } from '../src/lib/tripNextStep'
+import { nextTripStep, nextStepRoute, hasSavedCoverPhoto, plannedDayRatio, statusBucket, isStatusBucket, STATUS_FILTERS, departureLabel } from '../src/lib/tripNextStep'
 import type { ItineraryDay, ItineraryStop, Trip } from '../src/data/types'
 
 /* The trip card's next-step line (MR1) and planning bar (MR2) read this
@@ -152,7 +152,29 @@ describe('nextTripStep', () => {
 
   it('reads done only when days are full and a cover exists', () => {
     const t = trip({ days: [day(0, [stop()])], coverImageUrl: 'x.jpg' })
-    expect(nextTripStep(t)).toEqual({ kind: 'done', label: 'Ready to travel' })
+    expect(nextTripStep(t)).toEqual({ kind: 'done', label: 'All stops confirmed' })
+  })
+})
+
+describe('hasSavedCoverPhoto', () => {
+  it('requires a saved photo, not an emoji or a runtime image', () => {
+    for (const coverEmoji of [undefined, '🧭', '🏔']) {
+      expect(hasSavedCoverPhoto(trip({ coverEmoji }))).toBe(false)
+    }
+    expect(hasSavedCoverPhoto(trip({ coverImageUrl: '   ' }))).toBe(false)
+    expect(hasSavedCoverPhoto(trip({ coverImageUrl: 'x.jpg' }))).toBe(true)
+  })
+
+  it('keeps the photo action independent of the main task', () => {
+    for (const t of [
+      trip(),
+      trip({ startDate: '', endDate: '' }),
+      trip({ days: [day(0, [stop({ status: 'needs-booking' })])] }),
+      trip({ days: [day(0, [stop()])], coverEmoji: '🏔' }),
+    ]) {
+      expect(hasSavedCoverPhoto(t)).toBe(false)
+      expect(nextStepRoute(t, { kind: 'add-cover', label: 'Add a cover photo' })).toBe('/trip/t1/settings')
+    }
   })
 })
 
@@ -345,11 +367,10 @@ describe('nextStepRoute', () => {
     expect(nextStepRoute(coverless, nextTripStep(coverless))).toBe('/trip/t1/settings')
   })
 
-  it('falls back to the trip when the step names no day', () => {
-    // "Plan your first day" has no day index — adding one happens on the trip.
+  it('opens the timeline to add the first day when no days exist', () => {
     const t = trip()
     expect(nextTripStep(t)).toEqual({ kind: 'plan-day', label: 'Plan your first day' })
-    expect(nextStepRoute(t, nextTripStep(t))).toBe('/trip/t1')
+    expect(nextStepRoute(t, nextTripStep(t))).toBe('/trip/t1/timeline')
   })
 
   it('always answers a usable route, even for a finished trip', () => {

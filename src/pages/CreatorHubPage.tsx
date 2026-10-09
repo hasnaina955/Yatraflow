@@ -694,7 +694,12 @@ export function HubOverview({ myPubs, onUnpublish, onNavigate, daily, dailyAt, s
                     <div key={p.id} className="hub-lead-row">
                       <span className="hub-lead-title">
                         <a {...appLink(`/pub/${p.id}`)}>{p.title}</a>
-                        {unpublished && <Chip tone="info">Unpublished</Chip>}
+                        {/* MR11: a row must state its own status. A live page is
+                            the reading a row with no marker defaults to, which
+                            is why it stayed invisible. It is written now, and
+                            "Page behind itinerary" remains the separate
+                            freshness note it has always been. */}
+                        {unpublished ? <Chip tone="info">Unpublished</Chip> : <Chip tone="ok">Live</Chip>}
                         {stale && <Chip tone="saffron">Page behind itinerary</Chip>}
                         {/* Where it goes and how long — not what it costs. The
                             price belongs with the money surfaces; this row is

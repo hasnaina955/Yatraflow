@@ -531,12 +531,14 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
                         <ChevronRight className="trip-next-chevron" size={15} aria-hidden />
                       </a>
                     )}
-                    {canEdit(roleOf(t, meId)) && !hasSavedCoverPhoto(t) && (
-                      <a className="btn btn-outline btn-sm" {...appLink(nextStepRoute(t, { kind: 'add-cover', label: 'Add a cover photo' }))}>
-                        Add cover photo
-                      </a>
-                    )}
-                    <button className="icon-btn" aria-label={`Delete ${t.name}`} onClick={() => setPendingDelete(t)}><Trash2 size={14} aria-hidden /></button>
+                    <div className="trip-card-actions">
+                      {canEdit(roleOf(t, meId)) && !hasSavedCoverPhoto(t) && (
+                        <a className="btn btn-outline btn-sm" {...appLink(nextStepRoute(t, { kind: 'add-cover', label: 'Add a cover photo' }))}>
+                          Add cover photo
+                        </a>
+                      )}
+                      <button className="icon-btn" aria-label={`Delete ${t.name}`} onClick={() => setPendingDelete(t)}><Trash2 size={14} aria-hidden /></button>
+                    </div>
                   </div>
                 </div>
               )

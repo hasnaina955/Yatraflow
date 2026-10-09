@@ -38,12 +38,14 @@ function CreatorCard({ rank, index }: { rank: CreatorRank; index: number }) {
         <span className="editorial-cover-fallback" aria-hidden="true"><Sparkles size={20} /></span>
       </EditorialPhoto>
       <div className="creator-card-body">
-        <Avatar user={user} size="lg" />
-        <span className="creator-name">
-          <span className="creator-rank" aria-hidden="true">#{index + 1}</span>
-          <span className="creator-name-text">{user.profile.name}</span>
-          <InlineIcon icon={Sparkles} size={12} gap={0} vAlign="-1px" />
-        </span>
+        <div className="creator-identity">
+          <Avatar user={user} size="lg" />
+          <span className="creator-name">
+            <span className="creator-name-text">{user.profile.name}</span>
+            <InlineIcon icon={Sparkles} size={12} gap={0} vAlign="-1px" />
+          </span>
+          <span className="creator-rank num" aria-hidden="true">#{index + 1}</span>
+        </div>
         {bio && <span className="creator-bio">{bio}</span>}
         <span className="creator-evidence num">
           {pubCount} itinerary{pubCount === 1 ? '' : 's'}

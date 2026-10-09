@@ -2858,7 +2858,7 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
 }
 .trip-hero-back:hover { color: #fff; }
 .trip-hero-back:focus-visible { outline: none; box-shadow: var(--ring); border-radius: 6px; }
-.member-stack { display: flex; align-items: center; }
+.member-stack { display: flex; align-items: center; flex: none; }
 .member-stack .avatar { margin-left: -8px; border: 2px solid var(--card); }
 .member-stack .avatar:first-child { margin-left: 0; }
 
@@ -4108,10 +4108,10 @@ html.vt-active :where(*) {
 .explore-page .editorial-photo.itin-cover { display: flex; align-items: flex-end; padding: 8px; }
 
 .explore-page .creator-rail { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
-.explore-page .creator-card { align-items: stretch; }
+.explore-page .creator-card { align-items: stretch; padding: 0; gap: 0; overflow: hidden; }
 .explore-page .creator-rank { color: var(--color-editorial-accent-ink); font-size: 12px; font-weight: 800; }
-.explore-page .creator-cover { height: 132px; border-radius: var(--radius); flex: none; }
-.explore-page .creator-card-body { display: grid; gap: 8px; padding: 12px 2px 0; }
+.explore-page .creator-cover { height: 112px; border-radius: 0; flex: none; }
+.explore-page .creator-card-body { display: grid; gap: 8px; padding: 12px 14px 14px; }
 .explore-page .creator-card .creator-name { font-size: 14px; }
 
 .explore-page .featured-card {
@@ -9232,14 +9232,14 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 /* ---- the foot ---- */
 .trips-page .trip-card-foot {
   margin-top: auto; flex: none;
-  display: flex; align-items: center; gap: var(--space-5);
+  display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-5);
   padding: var(--space-5) var(--space-7) var(--space-7);
-  border-top: 1px solid var(--line);
+  border-top: 0;
 }
 /* The task row is the mockup's footer action: it takes the free space and ends
    at the right, where the mockup keeps its button. */
 .trips-page .trip-card-foot .trip-task-row {
-  flex: 1; min-width: 0; justify-content: flex-end;
+  flex: 1; min-width: min(40px, 100%); justify-content: flex-end;
   margin: 0; padding: 0; background: transparent; border: 0;
   font-size: 13px; font-weight: 700; color: var(--teal-deep);
 }
@@ -9424,5 +9424,24 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
    app ring on the outer card - the same pattern the Trips cards use. This
    rule sits after the hover reset so a hovered focused link keeps its ring. */
 .explore-page .pub-card-editorial .card.itin-card:has(.trip-card-hit:focus-visible) { box-shadow: var(--ring); }
+
+/* ---- the creator identity row ----
+   Avatar, name and rank share one row inside the card body. The name flexes
+   into the room that is left; the rank is fixed, so it stays outside the
+   name's own text and never joins a screen reader's reading of it. */
+.creator-identity { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.creator-identity .creator-name { flex: 1; min-width: 0; }
+.creator-identity .creator-rank { flex: none; }
+/* The foot may wrap, so its action label wraps with it instead of collapsing
+   to an ellipsis. Scoped to the foot: every other `.trip-next-label` keeps
+   its single-line truncation. */
+.trips-page .trip-card-foot .trip-next-label { white-space: normal; overflow: visible; overflow-wrap: anywhere; }
+/* Foot buttons never shrink: the flexible task row absorbs every squeeze with
+   its wrapping label, so a button keeps its full text on any line. */
+.trips-page .trip-card-foot .btn { flex: none; }
+/* The foot actions wrap as one unit. The task row keeps a 40px floor: wide
+   enough that a crowded foot breaks onto a second line, narrow enough to fit
+   every ordinary remainder, so squeeze becomes wrap instead of crush. */
+.trips-page .trip-card-actions { display: flex; align-items: center; gap: var(--space-4); flex: none; }
 
 

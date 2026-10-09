@@ -312,6 +312,27 @@ async function acceptance(page, surface, result, fixture) {
       if (result.cardGeometry[key] != null) assert.equal(result.cardGeometry[key], expectedColumns, `${key} responsive layout`)
     }
     assert.deepEqual(result.cardGeometry.clipped, [], 'Publication controls and text must fit their card')
+    /* Task 4 creator checks: the avatar and the creator name share one row,
+       and the cover reaches the card edges without an inner frame. These stay
+       behind the target flag until the whole correction is ready. */
+    if (compactTarget && result.scenario === 'mixed' && result.state === 'populated') {
+      const creator = page.locator('.creator-card').first()
+      if (await creator.count()) {
+        const avatarBox = await creator.locator('.avatar').boundingBox()
+        const nameBox = await creator.locator('.creator-name').boundingBox()
+        assert(avatarBox && nameBox, 'Creator identity needs an avatar and a name')
+        assert(
+          Math.min(avatarBox.y + avatarBox.height, nameBox.y + nameBox.height) > Math.max(avatarBox.y, nameBox.y),
+          'Avatar and creator name share one row',
+        )
+        result.creatorEdges = await page.locator('.creator-card').evaluateAll(cards => cards.map(card => {
+          const bounds = card.getBoundingClientRect()
+          const cover = card.querySelector('.creator-cover')?.getBoundingClientRect()
+          return cover ? Math.max(Math.abs(cover.left - bounds.left), Math.abs(bounds.right - cover.right)) : null
+        }))
+        assert(result.creatorEdges.every(inset => inset != null && inset <= 1.5), 'Creator covers reach the card edges')
+      }
+    }
     /* Task 3 anatomy: the compact editorial card carries one duration pill,
        one evidence row, a bookmark Save, a sans-serif title, no photo route
        caption, no footer divider, and no bio footer. Creator identity, social
@@ -381,6 +402,60 @@ async function acceptance(page, surface, result, fixture) {
   if (surface.name === 'my-trips') {
     await count(page.locator('.itin-card'), 2, 'Trip tiles')
     await count(page.locator('.trip-featured-card'), 1, 'Featured trip')
+    /* Task 4 spacing: My Trips footers use spacing instead of a divider. This
+       stays behind the target flag until the whole correction is ready. */
+    if (compactTarget && state === 'populated') {
+      const borders = await page.locator('.trip-card-foot').evaluateAll(rows => rows.map(row => getComputedStyle(row).borderTopWidth))
+      assert(borders.length > 0, 'Footer divider check needs trip footers')
+      assert(borders.every(value => Number.parseFloat(value) === 0), 'My Trips footers carry no divider')
+      /* Foot integrity: padding, gaps, controls, and labels are pinned so a
+         wrapped foot cannot hide a padding or overlap regression. */
+      const feet = await page.locator('.trip-card-foot').evaluateAll(rows => rows.map(row => {
+        const style = getComputedStyle(row)
+        const box = element => {
+          const rect = element.getBoundingClientRect()
+          const elementStyle = getComputedStyle(element)
+          return {
+            label: (element.innerText ?? '').trim().slice(0, 48),
+            left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom,
+            visible: rect.width > 0 && rect.height > 0 && elementStyle.visibility !== 'hidden' && elementStyle.display !== 'none',
+          }
+        }
+        const kids = [...row.children].map(box)
+        const actions = [...row.querySelectorAll('.trip-card-actions > *')].map(box)
+        const labels = [...row.querySelectorAll('.trip-next-label')].map(label => ({
+          text: (label.innerText ?? '').trim(),
+          clipped: label.scrollWidth > label.clientWidth + 1,
+        }))
+        return {
+          padding: [style.paddingTop, style.paddingRight, style.paddingBottom, style.paddingLeft],
+          gap: style.columnGap, kids, actions,
+          buttons: row.querySelectorAll('button').length,
+          labels,
+        }
+      }))
+      for (const foot of feet) {
+        assert.deepEqual(foot.padding, ['12px', '16px', '16px', '16px'], 'Foot padding stays at its specified values')
+        assert.equal(foot.gap, '12px', 'Foot gap stays at its specified value')
+        assert.equal(foot.kids.length, 3, 'Foot keeps its crew, action, and actions-group controls')
+        assert(foot.kids.every(kid => kid.visible), 'Every foot control stays visible')
+        assert(foot.actions.every(kid => kid.visible), 'Every grouped action stays visible')
+        assert.equal(foot.buttons, 1, 'Foot keeps exactly its menu button')
+        for (const label of foot.labels) {
+          assert(label.text.length > 0, 'Foot action keeps its readable label')
+          assert.equal(label.clipped, false, `Foot action label must wrap, not truncate: ${label.text}`)
+        }
+        for (const group of [foot.kids, foot.actions]) {
+          for (let i = 0; i < group.length; i++) for (let j = i + 1; j < group.length; j++) {
+            const a = group[i], b = group[j]
+            const width = Math.min(a.right, b.right) - Math.max(a.left, b.left)
+            const height = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top)
+            assert(!(width > 1 && height > 1), `Foot controls must not overlap: ${a.label} / ${b.label}`)
+          }
+        }
+      }
+      result.footIntegrity = { feet: feet.length }
+    }
     if (scenario === 'past-only') {
       await visible(page.locator('.trip-featured-card').getByText('Completed', { exact: true }), 'Completed fallback hero')
       assert(!/upcoming|next departure/i.test(await page.locator('.trip-featured-card').innerText()), 'Completed hero must not claim an upcoming departure')

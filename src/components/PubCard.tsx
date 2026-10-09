@@ -44,7 +44,7 @@ function EditorialPubCard({ pub, creator, saved, onFork, onToggleSave, enterInde
         <div className="pub-card-media">
           <a className="pub-card-cover-link" {...appLink(`/pub/${pub.id}`)} aria-label={`Open ${pub.title}`}>
             <CoverThumb trip={{ name: pub.title, destinations: pub.routeSummary }}
-              explicitUrl={pub.coverImageUrl} emoji="🧭" editorial
+              explicitUrl={pub.coverImageUrl} emoji="🧭" editorial monogram
               fallbackUrl={editorialRouteCover(pub.routeSummary)} />
           </a>
           <span className="pub-card-duration num">{pub.durationDays} {pub.durationDays === 1 ? 'day' : 'days'}</span>

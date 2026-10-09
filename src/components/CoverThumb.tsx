@@ -17,7 +17,7 @@ import { EditorialPhoto } from './EditorialPhoto'
  */
 export function CoverThumb({
   query, explicitUrl, emoji = '🧭', variant = 'wide', routeLabel,
-  trip, editorial = false, fallbackUrl,
+  trip, editorial = false, fallbackUrl, monogram = false,
 }: {
   query?: string | null
   /** When provided, used to derive an ordered list of candidate queries
@@ -30,6 +30,10 @@ export function CoverThumb({
   routeLabel?: string
   editorial?: boolean
   fallbackUrl?: string
+  /** Opt-in typographic fallback: the first route initial instead of the
+   *  emoji. Editorial cards opt in (their emoji is always the default); trip
+   *  cards keep the emoji so a chosen cover motif is never replaced. */
+  monogram?: boolean
 }) {
   const candidates = trip ? pickTripQueryCandidates(trip) : (query ? [query] : [])
   const auto = useDestinationCover(candidates)
@@ -43,7 +47,11 @@ export function CoverThumb({
   if (editorial) return (
     <EditorialPhoto src={url ?? undefined} className={cls}>
       {routeLabel && <span className="itin-cover-route">{routeLabel}</span>}
-      <span className="itin-cover-fallback editorial-cover-fallback" aria-hidden="true">{emoji}</span>
+      {monogram
+        ? <span className="itin-cover-fallback editorial-cover-fallback editorial-cover-monogram" aria-hidden="true">
+            {((trip?.destinations?.[0] ?? trip?.name ?? '').trim().charAt(0).toUpperCase() || '?')}
+          </span>
+        : <span className="itin-cover-fallback editorial-cover-fallback" aria-hidden="true">{emoji}</span>}
     </EditorialPhoto>
   )
   return (

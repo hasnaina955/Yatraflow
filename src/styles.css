@@ -9422,6 +9422,23 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* Intentional fallback art: a typographic place initial behind the kept
+   icon, on the flat neutral surface — never mistaken for a photograph. */
+.community-place-fallback { flex-direction: column; gap: 4px; }
+.community-place-fallback-initial {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 56px;
+  line-height: 1;
+  color: color-mix(in srgb, var(--color-editorial-ink) 16%, transparent);
+}
+.editorial-cover-monogram {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 64px;
+  line-height: 1;
+  color: color-mix(in srgb, var(--color-editorial-ink) 16%, transparent);
+}
 /* The evidence row may wrap on long counts. Auto margins pin each piece to
    its own side on every line, so a wrapped Fork button stays right instead
    of snapping left as a lone space-between item. */

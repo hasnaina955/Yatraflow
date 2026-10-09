@@ -168,7 +168,10 @@ export function CommunityPlaces({ places, onSelect }: {
             aria-label={`Explore ${place.name}: ${place.pubCount} public ${place.pubCount === 1 ? 'itinerary' : 'itineraries'}`}
             onClick={() => onSelect(place.name)}>
             <EditorialPhoto src={editorialRouteCover([place.name])} className="community-place-photo">
-              <span className="editorial-cover-fallback" aria-hidden="true"><MapPin size={20} /></span>
+              <span className="editorial-cover-fallback community-place-fallback" aria-hidden="true">
+                <span className="community-place-fallback-initial">{place.name.trim().charAt(0).toUpperCase()}</span>
+                <MapPin size={20} />
+              </span>
             </EditorialPhoto>
             <span className="community-place-name">{place.name}</span>
             <span className="community-place-count num">{place.pubCount} {place.pubCount === 1 ? 'itinerary' : 'itineraries'}</span>

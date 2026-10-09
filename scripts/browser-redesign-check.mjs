@@ -969,6 +969,23 @@ async function acceptance(page, surface, result, fixture) {
         assert(await tile.count() === 1, `Place tile renders once: ${place.name}`)
         assert((await tile.innerText()).includes(String(place.pubCount)), `Tile states its count: ${place.name}`)
       }
+      /* A place without photographic cover gets intentional art, not an empty
+         field: an initial watermark behind the kept icon, geometry intact. */
+      const artTiles = await page.locator('.community-place-fallback-initial').evaluateAll(elements => elements.map(element => {
+        const photo = element.closest('.community-place-photo')?.getBoundingClientRect()
+        return {
+          initial: (element.textContent ?? '').trim(),
+          photo: photo ? { width: photo.width, height: photo.height } : null,
+        }
+      }))
+      if (artTiles.length > 0) {
+        for (const art of artTiles) {
+          assert(art.initial.length >= 1, 'Fallback tile carries its place initial')
+          assert(art.photo !== null, 'Fallback art sits inside its photo box')
+          const ratio = art.photo.width / art.photo.height
+          assert(Math.abs(ratio - 4 / 3) < 0.05, `Fallback tile keeps its photo geometry: ${ratio.toFixed(2)}`)
+        }
+      }
       // Change the sort, clear a previous search, then take the Goa tile.
       const sortBox = page.getByRole('combobox', { name: 'Sort by', exact: true })
       await sortBox.click()
@@ -1317,6 +1334,13 @@ try {
             assert.equal(await cover.getAttribute('data-photo-state'), 'fallback', 'Failed publication photos use their neutral fallback')
             const bounds = await cover.boundingBox()
             assert(bounds?.width > 100 && bounds?.height > 70, 'A failed photo keeps its geometry')
+          }
+          /* Failed editorial photos carry the route initial, never an empty
+             field or a claim of a saved cover. */
+          const monograms = await page.locator('.pub-card-editorial .editorial-cover-monogram').evaluateAll(elements => elements.map(element => (element.textContent ?? '').trim()))
+          if (scenario === 'broken-cover') {
+            assert(monograms.length > 0, 'Broken editorial photos show route initials')
+            assert(monograms.every(text => text.length >= 1), 'Every monogram names its route')
           }
           assert.equal(await page.locator('.explore-photo-hero').getAttribute('data-photo-state'), 'image', 'The local hero still loads')
         }

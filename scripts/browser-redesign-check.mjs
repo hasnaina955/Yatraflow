@@ -858,17 +858,30 @@ async function acceptance(page, surface, result, fixture) {
       for (const line of ['Real travellers', 'Real stories', 'Better trips']) {
         assert(annotation.includes(line), `Annotation carries its line: ${line}`)
       }
-      /* While the annotation floats, it must not cover the hero copy. In flow
-         layout the structure itself prevents overlap. */
-      const annotationOverlap = await page.evaluate(() => {
+      /* The margin band never touches the photo, the controls, or the content
+         after it, and it reads lighter than the H1. */
+      const annotationBand = await page.evaluate(() => {
         const note = document.querySelector('.explore-hero-annotation')
-        const copy = document.querySelector('.explore-photo-hero-content')
-        if (!note || !copy || getComputedStyle(note).position !== 'absolute') return false
-        const a = note.getBoundingClientRect(), b = copy.getBoundingClientRect()
-        return Math.min(a.right, b.right) - Math.max(a.left, b.left) > 1
-          && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 1
+        const photo = document.querySelector('.explore-photo-hero')
+        const search = document.querySelector('.explore-hero-searchrow')
+        const h1 = document.querySelector('.explore-photo-hero h1')
+        if (!note || !photo || !search || !h1) return { missing: true }
+        const a = note.getBoundingClientRect()
+        const boxes = [photo, search].map(element => element.getBoundingClientRect())
+        const overlap = boxes.some(b => Math.min(a.right, b.right) - Math.max(a.left, b.left) > 1
+          && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 1)
+        return {
+          missing: false,
+          overlap,
+          belowPhoto: a.top >= photo.getBoundingClientRect().bottom - 2,
+          lighterThanH1: Number.parseFloat(getComputedStyle(note.querySelector('p')).fontSize)
+            < Number.parseFloat(getComputedStyle(h1).fontSize),
+        }
       })
-      assert.equal(annotationOverlap, false, 'Floating annotation must not cover hero copy')
+      assert(!annotationBand.missing, 'Annotation band renders its note, photo, search, and H1')
+      assert.equal(annotationBand.overlap, false, 'Annotation band touches nothing')
+      assert(annotationBand.belowPhoto, 'Annotation band sits below the photograph')
+      assert(annotationBand.lighterThanH1, 'Annotation band reads lighter than the H1')
       await page.getByRole('heading', { name: 'Places in the community', exact: true }).waitFor()
       const expectedPlaces = (() => {
         const counts = new Map()

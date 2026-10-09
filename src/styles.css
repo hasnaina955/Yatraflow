@@ -9461,23 +9461,20 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .explore-live-counts li { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .explore-live-counts li > svg { flex: none; }
 
-/* ---- The handwritten hero annotation ---- */
-/* It sits where the scrim clears, so the ink needs its own paper. Paper
-   follows the theme. The pair is pinned in tests/editorial-contrast.test.ts. */
+/* ---- The handwritten hero annotation: a margin note below the photo ----
+   It never floats over the photograph: the note lives in its own shallow band
+   under the hero, right-aligned toward the catalog action, lighter than the
+   H1. Paper follows the theme. The pair is pinned in
+   tests/editorial-contrast.test.ts. */
 .explore-hero-annotation {
+  width: fit-content;
+  margin: 12px 4px 0 auto;
   padding: 8px 12px;
   background: var(--color-editorial-paper);
   border-radius: var(--radius-sm);
-}
-/* Every direct child of `.editorial-photo` takes a relative position. This
-   rule carries the child combinator, so it outranks that generic rule. */
-.explore-photo-hero > .explore-hero-annotation {
-  position: absolute;
-  right: 20px;
-  top: 20px;
-  pointer-events: none;
-  transform: rotate(-5deg);
+  transform: rotate(-3deg);
   color: var(--color-editorial-ink);
+  pointer-events: none;
 }
 /* Caveat 600 loads from the font link in index.html. The generic cursive
    keeps the text visible when the hosted font fails. */
@@ -9498,19 +9495,8 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .community-place-name { display: block; margin-top: 6px; font-size: 12px; font-weight: 700; overflow-wrap: anywhere; }
 .community-place-count { display: block; font-size: 11px; color: var(--text-2); }
 
-/* ---- Phone and tablet: the annotation joins the flow, after the hero action ---- */
-/* It must not cover the hero controls and it must not vanish, so it becomes
-   a relative block in normal flow below the 1150px layout breakpoint. Two
-   count columns fit where four do not, but only at phone widths. */
-@media (max-width: 1150px) {
-  .explore-photo-hero > .explore-hero-annotation {
-    position: relative;
-    right: auto;
-    top: auto;
-    width: fit-content;
-    margin-top: 12px;
-  }
-}
+/* ---- Phone: two count columns fit where four do not. The annotation band
+   flows everywhere, so it needs no breakpoint of its own. */
 @media (max-width: 720px) {
   .explore-live-counts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }

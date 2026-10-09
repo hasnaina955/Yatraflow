@@ -266,13 +266,13 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
               )}
               <button type="button" className="btn btn-primary" onClick={() => showExploreSection('explore-catalog')}>Explore itineraries →</button>
             </div>
-            <div className="explore-hero-annotation">
-              <p>Real travellers<br />Real stories<br />Better trips</p>
-              <svg viewBox="0 0 64 48" aria-hidden="true" focusable="false">
-                <path d="M9 6c25 1 39 10 43 31M41 30l11 7 4-13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </div>
           </EditorialPhoto>
+          <div className="explore-hero-annotation">
+            <p>Real travellers<br />Real stories<br />Better trips</p>
+            <svg viewBox="0 0 64 48" aria-hidden="true" focusable="false">
+              <path d="M9 6c25 1 39 10 43 31M41 30l11 7 4-13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </div>
 
           <div className="explore-hero-searchrow">
             <Search size={18} aria-hidden className="explore-search-icon" />

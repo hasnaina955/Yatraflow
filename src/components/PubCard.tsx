@@ -2,7 +2,7 @@
 // One card for every place the catalog renders, so a fork/save/creator change
 // lands everywhere at once. Fork + save behavior arrive as callbacks; the
 // creator line links to the creator's public page (#/creator/:id).
-import { Calendar, Camera, GitFork, Heart, MapPin, Sparkles, TvMinimalPlay, Wallet } from 'lucide-react'
+import { Bookmark, Calendar, Camera, Eye, GitFork, Heart, MapPin, Sparkles, TvMinimalPlay, Wallet } from 'lucide-react'
 import { InlineIcon, MetaIcon } from './icons'
 import type { PublishedItinerary, User } from '../data/types'
 import { formatInr } from '../lib/engine'
@@ -13,7 +13,7 @@ import { CoverThumb } from './CoverThumb'
 import { appLink } from '../lib/appLink'
 import { editorialRouteCover } from '../lib/editorialAssets'
 
-export function PubCard({ pub, creator, saved, onFork, onToggleSave, enterIndex, needsLogin, editorial = false }: {
+type PubCardProps = {
   pub: PublishedItinerary
   creator?: User
   saved: boolean
@@ -27,7 +27,83 @@ export function PubCard({ pub, creator, saved, onFork, onToggleSave, enterIndex,
   needsLogin?: boolean
   /** Compact image-led presentation. Other pages keep the default bezel. */
   editorial?: boolean
-}) {
+}
+
+/** Compact image-led card for Explore and the trending rail: the photo carries
+ *  the duration and the Save control, the body carries the facts, and the
+ *  publication page keeps the complete route and description. The default
+ *  `PubCard` return below stays byte-identical for every other caller. */
+function EditorialPubCard({ pub, creator, saved, onFork, onToggleSave, enterIndex, needsLogin }: PubCardProps) {
+  return (
+    <div className={`pub-card-editorial${enterIndex != null ? ' trip-enter' : ''}`}
+      style={enterIndex != null ? { animationDelay: `calc(var(--stagger-step) * ${Math.min(enterIndex, 8)})` } : undefined}>
+      <div className="card itin-card">
+        <div className="pub-card-media">
+          <a className="pub-card-cover-link" {...appLink(`/pub/${pub.id}`)} aria-label={`Open ${pub.title}`}>
+            <CoverThumb trip={{ name: pub.title, destinations: pub.routeSummary }}
+              explicitUrl={pub.coverImageUrl} emoji="🧭" editorial
+              fallbackUrl={editorialRouteCover(pub.routeSummary)} />
+          </a>
+          <span className="pub-card-duration num">{pub.durationDays} {pub.durationDays === 1 ? 'day' : 'days'}</span>
+          <button type="button" className="save-heart save-bookmark" aria-pressed={saved}
+            aria-label={saved ? 'Remove from saved' : 'Save itinerary'} onClick={onToggleSave}>
+            <Bookmark size={16} aria-hidden fill={saved ? 'currentColor' : 'none'} />
+          </button>
+        </div>
+        <a className="trip-card-hit" {...appLink(`/pub/${pub.id}`)}>
+          <div className="itin-body">
+            <h2 className="card-title">{pub.title}</h2>
+            <p className="small muted itin-tagline">{pub.tagline}</p>
+            <div className="pub-card-tags"><Chip tone="teal">{cap(pub.travelStyle)}</Chip></div>
+            <div className="stop-meta num">
+              <span><MetaIcon icon={Wallet} tone="money" />~{formatInr(pub.estimatedBudgetPerPersonInr)}/person</span>
+              <span><MetaIcon icon={MapPin} tone="place" />{pub.routeSummary.length} places</span>
+            </div>
+          </div>
+        </a>
+        <div className="pub-card-creator">
+          <a className="creator-line" {...appLink(`/creator/${pub.creatorId}`)}
+            aria-label={`View ${creator?.profile.name ?? 'creator'}'s page`}>
+            <Avatar user={creator} />
+            <span>{creator?.profile.name ?? 'Creator'}</span>
+            {creator?.profile.isCreator && <Sparkles size={12} aria-hidden />}
+          </a>
+          <div className="pub-card-socials">
+            {creator?.profile.isCreator && creator.profile.socialLinks?.youtube && (
+              <a href={creator.profile.socialLinks.youtube} target="_blank" rel="noreferrer noopener"
+                aria-label={`${creator.profile.name} on YouTube`} className="icon-link"
+                onClick={event => { event.preventDefault(); openExternal(creator.profile.socialLinks!.youtube!) }}>
+                <TvMinimalPlay size={14} aria-hidden />
+              </a>
+            )}
+            {creator?.profile.isCreator && creator.profile.socialLinks?.instagram && (
+              <a href={creator.profile.socialLinks.instagram} target="_blank" rel="noreferrer noopener"
+                aria-label={`${creator.profile.name} on Instagram`} className="icon-link"
+                onClick={event => { event.preventDefault(); openExternal(creator.profile.socialLinks!.instagram!) }}>
+                <Camera size={14} aria-hidden />
+              </a>
+            )}
+          </div>
+        </div>
+        <div className="row-between itin-meta">
+          <span className="itin-public-evidence num">
+            <span><InlineIcon icon={Eye} size={12} />{pub.views} views</span>
+            <span><InlineIcon icon={GitFork} size={12} />{pub.copies} {pub.copies === 1 ? 'fork' : 'forks'}</span>
+          </span>
+          <button type="button" className="btn btn-primary btn-sm" onClick={onFork}>
+            {needsLogin ? 'Log in to fork' : 'Fork this trip'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export function PubCard({ pub, creator, saved, onFork, onToggleSave, enterIndex, needsLogin, editorial = false }: PubCardProps) {
+  if (editorial) {
+    return <EditorialPubCard pub={pub} creator={creator} saved={saved} onFork={onFork}
+      onToggleSave={onToggleSave} enterIndex={enterIndex} needsLogin={needsLogin} />
+  }
   return (
     /* Double-Bezel: this element is the TRAY, the .card inside it is the PLATE.
        The entrance stagger rides the tray rather than the plate, so the whole

@@ -16,7 +16,7 @@ Specification: [Approved compact card correction](../specs/2026-10-09-compact-ca
 
 Written approval: `ask_93fd554f445729375164aa92`, step `written-correction-specification`.
 
-Status: Tasks 1 and 2 are complete. The baseline geometry and the place derivation are recorded. Tasks 3 to 6 remain open.
+Status: Tasks 1 to 3 are complete. The baseline, the place derivation, and the editorial card are recorded. Tasks 4 to 6 remain open.
 
 ## Global constraints
 
@@ -671,6 +671,8 @@ npx vitest run tests/design-system.test.ts tests/editorial-contrast.test.ts test
 
 Acceptance: Real controls remain reachable. Cards are at least 15 percent shorter without increased widths.
 The geometry target must pass through layout correction, not smaller fonts below the existing floor.
+
+- [x] Task 3 complete. Catalog and trending cards are 30 to 35 percent shorter at equal widths. Creator cards stay open into Task 4.
 
 ## Task 4: Compact creator identity and clean My Trips spacing
 

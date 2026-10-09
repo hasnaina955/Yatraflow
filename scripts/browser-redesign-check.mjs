@@ -345,6 +345,59 @@ async function acceptance(page, surface, result, fixture) {
       if (result.cardGeometry[key] != null) assert.equal(result.cardGeometry[key], expectedColumns, `${key} responsive layout`)
     }
     assert.deepEqual(result.cardGeometry.clipped, [], 'Publication controls and text must fit their card')
+    /* Task 3 anatomy: the compact editorial card carries one duration pill,
+       one evidence row, a bookmark Save, a sans-serif title, no photo route
+       caption, no footer divider, and no bio footer. Creator identity, social
+       links, and the Fork action stay visible on every card. These stay behind
+       the target flag until the whole correction is ready. */
+    if (compactTarget) {
+      const anatomy = await page.locator('.pub-card-editorial .itin-card').evaluateAll((cards, ownerId) => cards.map(card => {
+        const seen = element => {
+          if (!element) return false
+          const rect = element.getBoundingClientRect()
+          const style = getComputedStyle(element)
+          return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none'
+        }
+        const creatorLink = card.querySelector('.pub-card-creator .creator-line')
+        const fork = card.querySelector('.row-between.itin-meta button')
+        return {
+          durations: card.querySelectorAll('.pub-card-duration').length,
+          evidence: card.querySelectorAll('.itin-public-evidence').length,
+          routeOverPhoto: card.querySelectorAll('.itin-cover-route').length,
+          bookmark: Boolean(card.querySelector('.save-bookmark .lucide-bookmark')),
+          titleFamily: getComputedStyle(card.querySelector('.card-title')).fontFamily,
+          divider: getComputedStyle(card.querySelector('.itin-meta'), '::before').borderTopWidth,
+          bioFooter: card.querySelectorAll('.itin-foot').length,
+          identity: seen(creatorLink),
+          creatorId: creatorLink ? new URL(creatorLink.href).pathname.split('/').at(-1) : null,
+          socials: [...card.querySelectorAll('.pub-card-socials .icon-link')].filter(seen).length,
+          forkVisible: seen(fork),
+          forkLabel: (fork?.innerText ?? '').trim(),
+        }
+      }), OWNER_ID)
+      /* A sparse catalog holds only the featured article, so it renders no
+         editorial cards by design. Only the populated mixed fixture must have
+         them. */
+      if (anatomy.length === 0 && (result.scenario !== 'mixed' || result.state !== 'populated')) {
+        result.editorialAnatomy = { cards: 0, skipped: 'no editorial cards in this fixture' }
+      } else {
+        assert(anatomy.length > 0, 'Anatomy checks need editorial cards')
+        for (const card of anatomy) {
+          assert.equal(card.durations, 1, 'Each editorial card carries one duration label')
+          assert.equal(card.evidence, 1, 'Each editorial card carries one fork-evidence label')
+          assert.equal(card.routeOverPhoto, 0, 'No route caption over the photo')
+          assert.equal(card.bookmark, true, 'Editorial Save uses the bookmark glyph')
+          assert(card.titleFamily.includes('Plus Jakarta Sans'), `Editorial title uses the compact sans face, found ${card.titleFamily}`)
+          assert.equal(Number.parseFloat(card.divider) || 0, 0, 'No footer divider inside editorial cards')
+          assert.equal(card.bioFooter, 0, 'No bio footer inside editorial cards')
+          assert.equal(card.identity, true, 'Creator identity stays visible')
+          assert.equal(card.socials, card.creatorId === OWNER_ID ? 2 : 0, 'Owner cards show both social links, other cards show none')
+          assert.equal(card.forkVisible, true, 'Fork stays visible')
+          assert(card.forkLabel.length > 0, 'Fork carries a readable label')
+        }
+        result.editorialAnatomy = { cards: anatomy.length }
+      }
+    }
     const creatorRail = page.locator('.creator-rail')
     if (await creatorRail.count()) {
       const creatorColumns = await creatorRail.evaluate(el => getComputedStyle(el).gridTemplateColumns.split(' ').length)

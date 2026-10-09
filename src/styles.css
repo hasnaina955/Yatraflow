@@ -3894,10 +3894,14 @@ body, .topnav, .glass, .board, .modal, .toast {
 .save-btn:hover { filter: brightness(.97); }
 [data-theme='dark'] .save-btn { background: rgba(240, 165, 63, .12); color: #ffcf96; border-color: rgba(240, 165, 63, .25); }
 .fork-btn {
-  background: linear-gradient(120deg, var(--yf-teal-600), var(--yf-teal-700)); color: #fff; border: none; font-weight: 800;
+  background: var(--teal-700); color: #fff; border: none; font-weight: 800;
   border-radius: 999px; padding: 9px 17px; box-shadow: 0 6px 16px rgba(13, 141, 130, .28);
+  transition: filter var(--motion-fast) var(--ease-out);
 }
 .fork-btn:hover { filter: brightness(1.05); }
+.fork-btn:active { filter: brightness(.92); }
+.fork-btn:focus-visible { outline: 2px solid var(--color-editorial-ink); outline-offset: 2px; }
+[data-theme='dark'] .fork-btn { background: #0B6B63; }
 /* One press scale (.97, matching .btn) and one hover lift (-2px cards, -1px
    chips) across every clickable control — no more three languages. */
 .icon-btn:active, .move-btn:active, .vote-btn:active, .clickable-chip:active,
@@ -9544,6 +9548,20 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .explore-page .pub-card-editorial .row-between.itin-meta .btn:focus-visible {
   outline: 2px solid var(--color-editorial-ink);
   outline-offset: 2px;
+}
+/* Small controls keep their glyph size and grow an invisible hit zone to a
+   44px square: the hero clear is 32px, social icons are 20px. The zone paints
+   nothing and moves no layout, so only hit-testing can prove it. */
+.explore-hero-clear::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
+}
+.pub-card-socials .icon-link { position: relative; padding: 5px; }
+.pub-card-socials .icon-link::after {
+  content: '';
+  position: absolute;
+  inset: -12px;
 }
 /* This block sits last in the file, so no later hover rule can put movement
    back under reduced motion. */

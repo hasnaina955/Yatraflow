@@ -183,3 +183,24 @@ describe('photo-floating editorial controls stay opaque', () => {
     })
   }
 })
+
+// The featured Fork button paints white on a flat deep-teal fill in both
+// themes (light: the --teal-700 token; dark: the same ink as a fixed value,
+// because the dark teal tokens are too light for white text). The pair is
+// computed from literals: no token pair names this cross-theme fill.
+describe('fork action contrast', () => {
+  it('white fork labels clear AA on the deep-teal fill', () => {
+    const white = parseColor('#FFFFFF')
+    const fill = parseColor('#0B6B63')
+    expect(white).not.toBeNull()
+    expect(fill).not.toBeNull()
+    expect(contrast(white!, fill!)).toBeGreaterThanOrEqual(4.5)
+  })
+
+  it('wires the deep fill in both themes', () => {
+    expect(declaration('.fork-btn', 'background')).toBe('var(--teal-700)')
+    const darkStart = css.indexOf("[data-theme='dark'] .fork-btn {")
+    expect(darkStart).toBeGreaterThan(-1)
+    expect(css.slice(darkStart, css.indexOf('}', darkStart))).toContain('#0B6B63')
+  })
+})

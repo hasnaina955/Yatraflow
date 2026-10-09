@@ -1010,6 +1010,43 @@ async function acceptance(page, surface, result, fixture) {
       await page.reload({ waitUntil: 'domcontentloaded' })
       await page.waitForTimeout(800)
       assert.equal(new URL(currentRoute(page), 'http://fixture.test').searchParams.get('q'), 'Goa', 'Place search survives reload')
+      /* Touch targets: 24px floor everywhere, with the small controls proving
+         their invisible 44px hit zones by answering points outside their
+         visible boxes. Runs here because the persisted search keeps the hero
+         clear button rendered. The point must resolve to the control itself,
+         not to a neighboring link. */
+      const targetSelectors = [
+        '.featured-actions .fork-btn',
+        '.pub-card-editorial .row-between.itin-meta .btn',
+        '.explore-hero-clear',
+        '.pub-card-socials .icon-link',
+      ]
+      // One viewport cannot center far-apart controls at once, so each
+      // control scrolls to center and settles before its own measurement.
+      const targets = []
+      for (const selector of targetSelectors) {
+        const control = page.locator(selector).first()
+        assert(await control.count() > 0, `Target-size probe needs ${selector}`)
+        await control.scrollIntoViewIfNeeded()
+        await page.waitForTimeout(250)
+        targets.push(await control.evaluate((element, sel) => {
+          const rect = element.getBoundingClientRect()
+          const x = rect.x + rect.width / 2, y = rect.y + rect.height / 2
+          const at = (px, py) => {
+            const hit = document.elementFromPoint(px, py)
+            return !!hit && (hit === element || element.contains(hit))
+          }
+          return { selector: sel, width: rect.width, height: rect.height, centerHit: at(x, y), edgeHit: at(x, y - 19) }
+        }, selector))
+      }
+      assert(targets.length === 4, 'Target-size probe needs fork, card fork, clear, and social controls')
+      for (const target of targets) {
+        assert(target.width >= 24 && target.height >= 24, `${target.selector} clears the 24px floor: ${target.width.toFixed(0)}x${target.height.toFixed(0)}`)
+        assert(target.centerHit, `${target.selector} answers its center hit-test`)
+        if (target.selector === '.explore-hero-clear' || target.selector === '.pub-card-socials .icon-link') {
+          assert(target.edgeHit, `${target.selector} answers its extended hit zone`)
+        }
+      }
       /* The featured pick sits outside a Goa filter, so it must still lead with
          its exception label while the place search is active. */
       await visible(page.locator('.featured-card'), 'Featured card leads under a place search')

@@ -2,3 +2,7 @@
 # tests/lint-ratchet.test.ts demands a byte-identical rewrite of the
 # baseline; a CRLF checkout breaks that comparison on Windows.
 eslint-baseline.json text eol=lf
+
+# ADR 0004's Status and Date lines use Markdown hard breaks.
+# Those two intentional trailing spaces are the record's own formatting.
+docs/adr/0004-mockup-visual-direction-and-image-reuse.md -whitespace

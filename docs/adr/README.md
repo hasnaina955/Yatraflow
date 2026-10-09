@@ -19,7 +19,9 @@ Consumer rules (also in [`docs/agents/domain.md`](../../docs/agents/domain.md)):
 | # | Title | Status |
 | --- | --- | --- |
 | [0001](0001-two-branch-release-model.md) | Feature work integrates on `test`; only releases reach `main` | Accepted |
-| [0002](0002-mockup-palette-not-adopted.md) | The mockup palette is not adopted; the shipped `--yf-*` tokens stay authoritative | Accepted |
+| [0002](0002-mockup-palette-not-adopted.md) | The mockup palette is not adopted; the shipped `--yf-*` tokens stay authoritative | Accepted · superseded by 0004 for this redesign |
+| [0003](0003-mockup-palette-hero-and-shell-adopted.md) | The mockup palette, hero treatment, and three-column shell are adopted | Accepted · superseded by 0004 for this redesign |
+| [0004](0004-mockup-visual-direction-and-image-reuse.md) | Mockup visual direction and image reuse govern the My Trips and Explore redesign | Accepted direction |
 
 ## Status values
 

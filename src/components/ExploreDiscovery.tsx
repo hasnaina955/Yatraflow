@@ -163,7 +163,7 @@ export function CommunityPlaces({ places, onSelect }: {
 }) {
   if (!places.length) return null
   return (
-    <section className="community-places" aria-labelledby="community-places-heading">
+    <section id="explore-places" className="community-places" aria-labelledby="community-places-heading">
       <h2 id="community-places-heading">Places in the community</h2>
       <div className="community-place-grid">
         {places.map(place => (

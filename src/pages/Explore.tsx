@@ -242,6 +242,8 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
             onClick={() => showExploreSection('explore-creators')}><InlineIcon icon={Sparkles} size={16} gap={8} />Featured creators</button>
           <button type="button" disabled={!discoveryVisible || !showTrending}
             onClick={() => showExploreSection('explore-trending')}><InlineIcon icon={Star} size={16} gap={8} />Trending itineraries</button>
+          <button type="button" disabled={!discoveryVisible || places.length === 0}
+            onClick={() => showExploreSection('explore-places')}><InlineIcon icon={MapPin} size={16} gap={8} />Places</button>
           <button type="button" aria-pressed={savedOnly} onClick={() => { setSavedOnly(value => !value); showExploreSection('explore-catalog') }}>
             <InlineIcon icon={Heart} size={16} gap={8} fill={savedOnly ? 'currentColor' : 'none'} />Saved itineraries
           </button>

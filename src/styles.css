@@ -4074,9 +4074,9 @@ html.vt-active :where(*) {
 @media (max-width: 720px) {
   .explore-page { padding-top: 12px; }
   .explore-page .explore-discovery-layout { grid-template-columns: 1fr; gap: 16px; padding: 0 16px 24px; }
-  .explore-discovery-nav { flex-direction: row; flex-wrap: wrap; gap: 4px; padding: 8px; }
+  .explore-discovery-nav { flex-direction: row; flex-wrap: nowrap; gap: 4px; padding: 8px; overflow-x: auto; }
   .explore-nav-kicker { display: none; }
-  .explore-discovery-nav button, .explore-discovery-nav a { width: auto; font-size: 12px; padding: 8px; }
+  .explore-discovery-nav button, .explore-discovery-nav a { width: auto; flex: none; font-size: 12px; padding: 8px; white-space: nowrap; }
   .explore-aside { grid-column: 1; grid-template-columns: 1fr; }
   .explore-photo-hero { min-height: 300px; padding: 20px; }
   .explore-photo-hero-content { max-width: 30ch; }

@@ -285,6 +285,29 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
         </button>
       </div>
 
+      {/* Status and layout sit beside search, above the featured journey.
+          MR3: five status filters counted from the unfiltered-by-status set.
+          MR4: the Grid/List PillNav shares this row, right-aligned, driving
+          its toggle glider — so the switch reads as one movement. */}
+      <div className="trips-viewbar">
+        <div className="explore-chips trips-status-tabs" role="group" aria-label="Trip status">
+          {STATUS_FILTERS.map(f => (
+            <button key={f.id} className={`chip clickable-chip ${status === f.id ? 'on-teal' : ''}`}
+              aria-pressed={status === f.id} onClick={() => pickStatus(f.id)}>
+              {f.label} <span className="chip-count">{statusCounts.get(f.id) ?? 0}</span>
+            </button>
+          ))}
+        </div>
+        <PillNav activeKey={layout} className="view-toggle trips-seg" role="group" aria-label="Card layout">
+          <button className={`view-toggle-btn${layout === 'grid' ? ' on-teal' : ''}`} data-pill-key="grid"
+            aria-pressed={layout === 'grid'} onClick={() => pickLayout('grid')}>
+            <LayoutGrid size={15} aria-hidden />Grid</button>
+          <button className={`view-toggle-btn${layout === 'list' ? ' on-teal' : ''}`} data-pill-key="list"
+            aria-pressed={layout === 'list'} onClick={() => pickLayout('list')}>
+            <Rows3 size={15} aria-hidden />List</button>
+        </PillNav>
+      </div>
+
       {view === 'trash' && (
         <div className="card" style={{ marginBottom: 18 }}>
           <div className="row-between">
@@ -379,36 +402,6 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
           )}
 
           <p className="sr-only" role="status">{trips.length} {trips.length === 1 ? 'trip matches' : 'trips match'}</p>
-
-          {/* MR3 — five filters, counted from the unfiltered-by-status set.
-              MR4 — the Grid/List control shares THIS row, right-aligned, the way
-              the mockup's viewbar pairs its status tabs with its view segment.
-              It used to close the wrapping toolbar above, which parked it alone
-              on a line of its own at every width, away from the tabs it belongs
-              to and from the grid it arranges. */}
-          <div className="trips-viewbar">
-            <div className="explore-chips trips-status-tabs" role="group" aria-label="Trip status">
-              {STATUS_FILTERS.map(f => (
-                <button key={f.id} className={`chip clickable-chip ${status === f.id ? 'on-teal' : ''}`}
-                  aria-pressed={status === f.id} onClick={() => pickStatus(f.id)}>
-                  {f.label} <span className="chip-count">{statusCounts.get(f.id) ?? 0}</span>
-                </button>
-              ))}
-            </div>
-            {/* PillNav, not a plain pair of buttons: its glider slides between
-                the two segments (MOTION-TOKENS' toggle-glider pattern), so the
-                switch reads as one movement instead of two backgrounds
-                swapping. Labelled, so the current choice is readable without
-                pressing it first. */}
-            <PillNav activeKey={layout} className="view-toggle trips-seg" role="group" aria-label="Card layout">
-              <button className={`view-toggle-btn${layout === 'grid' ? ' on-teal' : ''}`} data-pill-key="grid"
-                aria-pressed={layout === 'grid'} onClick={() => pickLayout('grid')}>
-                <LayoutGrid size={15} aria-hidden />Grid</button>
-              <button className={`view-toggle-btn${layout === 'list' ? ' on-teal' : ''}`} data-pill-key="list"
-                aria-pressed={layout === 'list'} onClick={() => pickLayout('list')}>
-                <Rows3 size={15} aria-hidden />List</button>
-            </PillNav>
-          </div>
 
           {!hasFilters && featuredTrip && displayTrips.length > 0 && (
             <div className="row-between" style={{ margin: '14px 0 10px', alignItems: 'baseline' }}>

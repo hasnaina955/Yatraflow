@@ -471,6 +471,19 @@ async function acceptance(page, surface, result, fixture) {
       for (const spread of rowSpreads) {
         assert(spread <= 2, `Cards in one row end together (spread ${spread.toFixed(1)}px)`)
       }
+      /* Collection controls lead the featured journey in DOM and paint order. */
+      const tripsOrder = await page.evaluate(() => {
+        const top = selector => document.querySelector(selector)?.getBoundingClientRect().top ?? -1
+        const bar = document.querySelector('.trips-viewbar'), hero = document.querySelector('.trip-featured')
+        return {
+          dom: !!(bar && hero && (bar.compareDocumentPosition(hero) & Node.DOCUMENT_POSITION_FOLLOWING)),
+          barTop: top('.trips-viewbar'), heroTop: top('.trip-featured'),
+        }
+      })
+      if (await page.locator('.trip-featured').count()) {
+        assert(tripsOrder.dom, 'Status controls precede the featured journey in DOM order')
+        assert(tripsOrder.barTop < tripsOrder.heroTop, `Controls paint above featured: ${tripsOrder.barTop} < ${tripsOrder.heroTop}`)
+      }
       /* Foot and featured controls take keyboard focus with a changed ring. */
       const tripFocusTargets = [
         ['foot action', '.trip-card-foot a.trip-task-row'],
@@ -801,6 +814,42 @@ async function acceptance(page, surface, result, fixture) {
     if (compactTarget && scenario === 'mixed' && state === 'populated') {
       await page.goto(`${base.origin}/#/explore`, { waitUntil: 'domcontentloaded' })
       await page.locator('.explore-grid a.trip-card-hit').first().waitFor()
+      /* Controls lead: search and filters sit above featured, catalog above
+         discovery rails, Places between invitation and fork guidance. */
+      const exploreOrder = await page.evaluate(() => {
+        const top = selector => document.querySelector(selector)?.getBoundingClientRect().top ?? -1
+        const order = (a, b) => {
+          const left = document.querySelector(a), right = document.querySelector(b)
+          return !!(left && right && (left.compareDocumentPosition(right) & Node.DOCUMENT_POSITION_FOLLOWING))
+        }
+        return {
+          tops: {
+            search: top('.explore-hero-searchrow'), filters: top('.explore-filterbar'),
+            featured: top('.featured-card'), catalog: top('.explore-catalog'),
+            creators: top('#explore-creators'), trending: top('#explore-trending'),
+          },
+          dom: {
+            searchBeforeFeatured: order('.explore-hero-searchrow', '.featured-card'),
+            catalogBeforeCreators: order('.explore-catalog', '#explore-creators'),
+            placesBetween: order('.share-cta', '.community-places') && order('.community-places', '.explore-fork-note'),
+          },
+        }
+      })
+      assert(exploreOrder.dom.searchBeforeFeatured, 'Search precedes featured in DOM order')
+      assert(exploreOrder.dom.catalogBeforeCreators, 'Catalog precedes creators in DOM order')
+      assert(exploreOrder.dom.placesBetween, 'Places sits between invitation and fork guidance')
+      const tops = exploreOrder.tops
+      assert(tops.search < tops.featured && tops.featured < tops.catalog && tops.catalog < tops.creators,
+        `Controls lead visually: search ${tops.search} featured ${tops.featured} catalog ${tops.catalog} creators ${tops.creators}`)
+      const placesNav = page.getByRole('navigation', { name: 'Explore discovery' }).getByRole('button', { name: 'Places', exact: true })
+      assert(await placesNav.isEnabled(), 'Places jump stays available')
+      await placesNav.click()
+      await page.waitForTimeout(400)
+      const placesInView = await page.locator('.community-places').evaluate(element => {
+        const rect = element.getBoundingClientRect()
+        return rect.top >= 0 && rect.top <= innerHeight
+      })
+      assert(placesInView, 'Places jump scrolls the rail block into view')
       assert.equal(await page.locator('.explore-live-counts > li').count(), 4, 'Hero shows four live facts')
       const credibility = await page.locator('.featured-credibility').innerText()
       assert(credibility.includes('most-forked plan here'), 'Featured names its most-forked basis')

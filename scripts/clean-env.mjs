@@ -51,8 +51,15 @@ if (execAt >= 0) {
   const env = { ...process.env }
   delete env.NODE_ENV
   // No `shell`: on Windows it re-splits the command and mangles args that
-  // carry their own quotes (e.g. `node -e "..."`).
-  const r = spawnSync(cmd[0], cmd.slice(1), { stdio: 'inherit', env })
+  // carry their own quotes (e.g. `node -e "..."`). But Node also refuses to
+  // start `npm.cmd` without one (`EINVAL`), so npm runs through node itself:
+  // `npm_execpath` is the npm CLI entry npm sets for every `npm run` call.
+  if (cmd[0] === 'npm' && process.env.npm_execpath) {
+    const r = spawnSync(process.execPath, [process.env.npm_execpath, ...cmd.slice(1)], { stdio: 'inherit', env })
+    process.exit(r.status ?? 1)
+  }
+  const file = isWin && cmd[0] === 'npm' ? 'npm.cmd' : cmd[0]
+  const r = spawnSync(file, cmd.slice(1), { stdio: 'inherit', env })
   process.exit(r.status ?? 1)
 }
 

@@ -648,7 +648,22 @@ async function acceptance(page, surface, result, fixture) {
        trending row at all. Padding it would be the defect. */
     if (scenario !== 'sparse') {
       await count(page.locator('.creator-card'), 2, 'Featured creators')
-      await count(page.locator('.trend-row'), 2, 'Trending plans')
+      /* Small pools suppress the shelf instead of mirroring the grid: the
+         remaining eligible plans all sit in the catalog below. Larger pools
+         keep the full four-card shelf. */
+      const livePool = fixture.published_itineraries.filter(row => row.unpublished_at == null)
+      const featuredPath = await page.locator('.featured-card a').first().getAttribute('href').catch(() => null)
+      const featuredPoolId = featuredPath ? new URL(featuredPath, base).pathname.split('/').at(-1) : null
+      const remainingPool = livePool.filter(row => row.id !== featuredPoolId)
+      if (remainingPool.length > 4) {
+        await count(page.locator('.trend-row'), 4, 'Trending plans')
+      } else {
+        assert.equal(await page.locator('.trend-row').count(), 0, 'A small pool suppresses the mirroring shelf')
+        const gridIds = await page.locator('.explore-grid a.trip-card-hit').evaluateAll(links => links.map(link => new URL(link.href).pathname.split('/').at(-1)))
+        for (const row of remainingPool) {
+          assert(gridIds.includes(row.id) || row.id === featuredPoolId, `Suppressed pool keeps every plan visible: ${row.id}`)
+        }
+      }
       await visible(page.locator(`.creator-card[href="/creator/${OWNER_ID}"]`), 'Owner creator card')
     }
     const railLabels = await page.locator('.creator-card').evaluateAll(cards => cards.map(card => card.getAttribute('aria-label')))
@@ -708,7 +723,11 @@ async function acceptance(page, surface, result, fixture) {
       await visible(page.locator('.featured-card'), 'Featured card still leads a sparse catalog')
     } else {
     // Save is a browser-local toggle, so it must change state without a write.
-    const heart = page.locator('.trend-row .save-heart').first()
+    // Without the shelf the same toggle lives on the catalog card.
+    const saveScope = await page.locator('.trend-row').count() > 0
+      ? page.locator('.trend-row')
+      : page.locator('.explore-grid .itin-card')
+    const heart = saveScope.locator('.save-heart').first()
     const before = await heart.getAttribute('aria-pressed')
     await heart.click()
     await page.waitForTimeout(150)
@@ -720,7 +739,11 @@ async function acceptance(page, surface, result, fixture) {
     // click has to actually reach Auth rather than silently doing nothing.
     // Signed in, check the label here. The reserved free catalog Fork below
     // performs bounded synthetic persistence, never a live service write.
-    const fork = page.locator('.trend-row').first().getByRole('button', { name: /fork/i })
+    // Without the shelf the catalog card carries the same action; signed in,
+    // it stays unclicked so the reserved fork below keeps its one flight.
+    const fork = (await page.locator('.trend-row').count() > 0
+      ? page.locator('.trend-row')
+      : page.locator('.explore-grid .itin-card')).first().getByRole('button', { name: /fork/i })
     await visible(fork, 'Trending fork action')
     assert(await fork.isEnabled(), 'Fork must be reachable')
     const forkLabel = (await fork.innerText()).trim()
@@ -1161,12 +1184,7 @@ try {
             }),
           ]))
         })
-        result.compactGeometryCheck = checkCompactTarget(result, compactBaselines, compactTarget)
-        if (result.compactGeometryCheck.mode === 'fail') {
-          result.failures.push(...result.compactGeometryCheck.failures)
-        } else if (result.compactGeometryCheck.mode === 'compare' && result.compactGeometryCheck.failures.length) {
-          result.failures.push(`Card geometry check: ${result.compactGeometryCheck.failures.join('; ')}`)
-        }
+        result.compactGeometryPending = compactTarget && result.scenario === 'mixed' && result.state === 'populated'
         await page.screenshot({ path: result.screenshot, fullPage: true, animations: 'disabled' })
         const initialScreenshotSha256 = createHash('sha256').update(await readFile(result.screenshot)).digest('hex')
         result.initialScreenshotSha256 = initialScreenshotSha256
@@ -1197,6 +1215,32 @@ try {
           result.status = result.failures.length || result.rejectedMutations.length ? 'FAIL' : 'PASS'
         } else if (state === 'populated') {
           await acceptance(page, surface, result, fixture)
+          /* The geometry comparison runs after acceptance so a proven shelf
+             suppression can narrow it: an omitted group without that proof
+             stays a failure, never a silent exemption. */
+          let omitGroups = []
+          if (result.compactGeometryPending && surface.name === 'explore') {
+            await page.goto(`${base.origin}/#/explore`, { waitUntil: 'domcontentloaded' })
+            await page.locator('.explore-grid a.trip-card-hit').first().waitFor()
+            const livePool = fixture.published_itineraries.filter(row => row.unpublished_at == null)
+            const featuredPath = await page.locator('.featured-card a').first().getAttribute('href').catch(() => null)
+            const featuredId = featuredPath ? new URL(featuredPath, base).pathname.split('/').at(-1) : null
+            const remaining = livePool.filter(row => row.id !== featuredId)
+            const trendCount = await page.locator('.trend-row').count()
+            if (trendCount === 0 && remaining.length > 0 && remaining.length <= 4) {
+              const gridIds = await page.locator('.explore-grid a.trip-card-hit').evaluateAll(links => links.map(link => new URL(link.href).pathname.split('/').at(-1)))
+              const missing = remaining.filter(row => row.id !== featuredId && !gridIds.includes(row.id))
+              assert(missing.length === 0, `Suppressed trending must leave every plan in the grid or featured: ${missing.map(row => row.id).join(', ')}`)
+              omitGroups = ['trending']
+              result.trendingSuppressed = { pool: remaining.length }
+            }
+          }
+          result.compactGeometryCheck = checkCompactTarget(result, compactBaselines, compactTarget, omitGroups)
+          if (result.compactGeometryCheck.mode === 'fail') {
+            result.failures.push(...result.compactGeometryCheck.failures)
+          } else if (result.compactGeometryCheck.mode === 'compare' && result.compactGeometryCheck.failures.length) {
+            result.failures.push(`Card geometry check: ${result.compactGeometryCheck.failures.join('; ')}`)
+          }
           assert.equal(createHash('sha256').update(await readFile(result.screenshot)).digest('hex'), initialScreenshotSha256, 'Interaction captures must not overwrite the initial surface screenshot')
           result.initialScreenshotPreserved = true
           if (result.rejectedMutations.length) result.failures.push(`Unexpected mutations rejected: ${result.rejectedMutations.join(', ')}`)

@@ -165,6 +165,16 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
   const community = useMemo(() => communityCounts(published), [published])
   const places = useMemo(() => communityPlaces(published), [published])
 
+  // Trending mirrors the grid when the remaining pool is small: with four or
+  // fewer eligible plans outside the featured pick, the shelf would repeat the
+  // catalog card for card. The shelf stays for larger pools, where its
+  // evidence ranking surfaces plans the grid order buries.
+  const remainingPool = useMemo(() => {
+    const live = livePubs(published)
+    return featured ? live.filter(p => p.id !== featured.id) : live
+  }, [published, featured])
+  const showTrending = remainingPool.length > 4
+
   // The grid must not re-offer the plan the featured card already leads with —
   // on a three-item shelf the duplicate was a third of the page. Only ever a
   // no-op when the featured pick is a card from OUTSIDE the active filters,
@@ -230,7 +240,7 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
           <button type="button" onClick={() => showExploreSection('explore-catalog')}><InlineIcon icon={Compass} size={16} gap={8} />All itineraries</button>
           <button type="button" disabled={!discoveryVisible || creators.length === 0}
             onClick={() => showExploreSection('explore-creators')}><InlineIcon icon={Sparkles} size={16} gap={8} />Featured creators</button>
-          <button type="button" disabled={!discoveryVisible || trending.length === 0}
+          <button type="button" disabled={!discoveryVisible || !showTrending}
             onClick={() => showExploreSection('explore-trending')}><InlineIcon icon={Star} size={16} gap={8} />Trending itineraries</button>
           <button type="button" aria-pressed={savedOnly} onClick={() => { setSavedOnly(value => !value); showExploreSection('explore-catalog') }}>
             <InlineIcon icon={Heart} size={16} gap={8} fill={savedOnly ? 'currentColor' : 'none'} />Saved itineraries
@@ -376,20 +386,8 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
           </article>
         )}
 
-        {/* ---- MR10 discovery blocks: the creator rail and the trending
-              shelf sit between the featured card and the grid, the
-              mockup's discovery order. Gated on the same READ as the
-              featured card — a claim about the community may not stand
-              over a failed re-read (#395 discipline) — and each block
-              returns null until its own evidence exists. ---- */}
-        {pubsRead === 'ready' && !filtersActive && (
-          <>
-            <FeaturedCreators creators={creators} />
-            <TrendingShelf pubs={trending} users={users} forkPendingIds={forkingIds}
-              onFork={forkTrip} onToggleSave={toggleHeart} isSaved={isSaved} needsLogin={!me} />
-          </>
-        )}
-
+        {/* ---- MR10 discovery blocks live after the catalog section:
+               the page retrieves before it promotes. ---- */}
         <section id="explore-catalog" className="explore-catalog" aria-labelledby="explore-catalog-heading">
           <header className="discovery-head">
             <h2 id="explore-catalog-heading" className="discovery-title">Itineraries</h2>
@@ -456,6 +454,16 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
         )}
 
         </section>
+
+        {pubsRead === 'ready' && !filtersActive && (
+          <>
+            <FeaturedCreators creators={creators} />
+            {showTrending && (
+              <TrendingShelf pubs={trending} users={users} forkPendingIds={forkingIds}
+                onFork={forkTrip} onToggleSave={toggleHeart} isSaved={isSaved} needsLogin={!me} />
+            )}
+          </>
+        )}
         </div>
 
         <aside className="explore-aside" aria-label="Community and planning tips">

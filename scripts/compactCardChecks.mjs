@@ -46,7 +46,7 @@ export function compareCompactCardGeometry(before, after) {
   return failures
 }
 
-export function checkCompactTarget(result, baselines, target) {
+export function checkCompactTarget(result, baselines, target, omit = []) {
   if (!target) return { mode: 'record' }
   /* The height target describes the populated mixed fixture. Sparse, broken
      image, long text, and alternate states stay outside it. */
@@ -54,10 +54,14 @@ export function checkCompactTarget(result, baselines, target) {
     return { mode: 'skip', reason: 'geometry comparison covers the populated mixed fixture only' }
   }
   /* Each surface owns its groups. An empty group on either side would compare
-     zero rows and pass without measuring anything. */
+     zero rows and pass without measuring anything. Groups the caller proves
+     suppressed by design leave on both sides instead. */
   const surfaceGroups = { 'my-trips': ['trips'], explore: ['catalog', 'trending', 'creators'] }
-  const requiredGroups = surfaceGroups[result.surface]
-  if (!requiredGroups) return { mode: 'skip', reason: 'this surface carries no card geometry' }
+  const requiredGroups = (surfaceGroups[result.surface] ?? []).filter(group => !omit.includes(group))
+  if (!requiredGroups.length) {
+    if (!surfaceGroups[result.surface]) return { mode: 'skip', reason: 'this surface carries no card geometry' }
+    return { mode: 'skip', reason: `geometry comparison omits ${omit.join(', ')} by design` }
+  }
   const baseline = baselines.find(side => side.surface === result.surface
     && side.width === result.width && side.theme === result.theme && side.state === result.state
     && side.scenario === result.scenario && side.images === result.images
@@ -76,5 +80,8 @@ export function checkCompactTarget(result, baselines, target) {
   if (missingGroups.length) {
     return { mode: 'fail', failures: [`no recorded cards in ${missingGroups.join(', ')}`] }
   }
-  return { mode: 'compare', failures: compareCompactCardGeometry(baseline.compactGeometry ?? {}, result.compactGeometry ?? {}) }
+  const project = geometry => Object.fromEntries(
+    Object.entries(geometry ?? {}).map(([group, rows]) => [group, omit.includes(group) ? [] : rows]),
+  )
+  return { mode: 'compare', failures: compareCompactCardGeometry(project(baseline.compactGeometry), project(result.compactGeometry)) }
 }

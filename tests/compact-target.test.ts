@@ -63,4 +63,14 @@ describe('compact target wiring', () => {
     const verdict = checkCompactTarget({ ...compact, surface: 'timeline' }, [baseline], true)
     expect(verdict.mode).toBe('skip')
   })
+  it('omits only a proven suppression, never a silent exemption', () => {
+    const emptyTrending = {
+      ...compact,
+      compactGeometry: { ...compact.compactGeometry, trending: [] },
+    }
+    expect(checkCompactTarget(emptyTrending, [baseline], true).mode).toBe('fail')
+    const verdict = checkCompactTarget(emptyTrending, [baseline], true, ['trending'])
+    expect(verdict.mode).toBe('compare')
+    expect(verdict.failures).toEqual([])
+  })
 })

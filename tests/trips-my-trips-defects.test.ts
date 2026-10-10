@@ -127,7 +127,10 @@ describe('My trips Trash toggle and hero wiring (source)', () => {
   it('gates the headline, stats, postcards and note on the same ready flag', () => {
     const p = page()
     for (const call of ['heroHeadline', 'heroStats', 'heroPostcards', 'heroNote']) {
-      expect(p, call).toMatch(new RegExp(String.raw`${call}\(\{[^}]*ready: tripsReady`))
+      const start = p.indexOf(`${call}({`)
+      expect(start, call).toBeGreaterThan(-1)
+      const argsEnd = p.indexOf('})', start)
+      expect(p.slice(start, argsEnd), call).toContain('ready: tripsReady')
     }
   })
 

@@ -19,6 +19,20 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 - **A browser verification harness for agents, under `.agents/skills/verify-yatraflow/`.** It starts the dev server on port 5178. It checks the server and the Supabase project ref. It drives a headless Edge or Chrome to a route. Each run writes a screenshot and a JSON record to `.verify-evidence/`, which git ignores. The feature map covers five signed-out flows.
 
+- **My trips shows a pinned Up next card for your live or soonest trip.** The card shows a countdown, a planning meter, the next step and a delete button. It stays pinned through sort and style filters. It hides while you search.
+
+### Changed
+
+- **My trips has a panorama banner and a Grid | List switch.** The page actions sit in the banner and stack on phones. Phone list rows fit the screen, and the filter box no longer leaves blank space.
+
+- **Trip cards show a status tag and labelled Budget, Travel and Dates columns.** The tag reads Live, Upcoming, Past or Draft. A trip without a cover image shows papercut art instead.
+
+### Fixed
+
+- **Icons drawn through the shared inline icon wrapper no longer render as solid black shapes.** The wrapper sets an empty fill, so every outline icon keeps its stroke style.
+
+- **Icon strokes now draw at a visible weight, and small icons match them.** Empty-state icons and select arrows are rebalanced too.
+
 ## [0.74.0] - 2026-10-07
 
 ### Changed

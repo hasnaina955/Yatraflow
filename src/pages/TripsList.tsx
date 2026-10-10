@@ -14,7 +14,7 @@ import { ImportTripButton } from '../components/ImportTripButton'
 import { sliceState, emptyCopyFor, readState } from '../lib/readState'
 import type { Trip } from '../data/types'
 import { TRAVEL_STYLES } from '../data/types'
-import { pickUpNext, whenBucket, type WhenKey } from '../lib/tripsPage'
+import { otherTripsEmptyKind, pickUpNext, whenBucket, type WhenKey } from '../lib/tripsPage'
 import { gridShape, startOfLocalDay } from '../lib/tripsCard'
 import { TripArtSprite } from '../components/trips/TripArt'
 import { TripsBanner } from '../components/trips/TripsBanner'
@@ -137,7 +137,9 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
   const isSearching = q.trim() !== ''
   const upNext = isSearching ? null : pickUpNext(mine, today)
   const upNextIsOutsideFilters = upNext !== null && !trips.includes(upNext)
+  const upNextTotals = upNext ? computeTotals(upNext) : null
   const otherTrips = upNext ? trips.filter(t => t.id !== upNext.id) : trips
+  const otherEmptyKind = otherTripsEmptyKind({ matchCount: trips.length, otherCount: otherTrips.length, hasFilters })
   const shape = gridShape(otherTrips.length, layout === 'grid')
   const upNextTitleId = useId()
   const otherTitleId = useId()
@@ -267,7 +269,7 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
         />
       ) : (
         <div className="mt-catalog">
-          {upNext && (
+          {upNext && upNextTotals && (
             <section aria-labelledby={upNextTitleId}>
               <div className="mt-section-head">
                 <h2 className="mt-section-title" id={upNextTitleId}>
@@ -277,8 +279,8 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
               <UpNextCard
                 trip={upNext}
                 today={today}
-                budget={<BudgetText totals={computeTotals(upNext)} />}
-                totalTravelMinutes={computeTotals(upNext).totalTravelMinutes}
+                budget={<BudgetText totals={upNextTotals} />}
+                totalTravelMinutes={upNextTotals.totalTravelMinutes}
                 users={users}
                 meId={meId}
                 onDelete={setPendingDelete}
@@ -321,9 +323,10 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
                   { value: 'budget-asc', label: 'Budget: low → high' },
                   { value: 'budget-desc', label: 'Budget: high → low' },
                 ]} />
-              {/* always mounted so the row doesn't shift when it appears mid-typing.
-                  Idle, it is taken out of flow so it reserves no space (mt-clear.is-idle).
-                  Active, it takes its own line after the selects, so the search, chips and selects never move. */}
+              {/* Always mounted, so the row never gains or loses an element when a
+                  filter starts or stops. Idle, it is out of flow (mt-clear.is-idle).
+                  Active, it takes its own full-width row under the selects on every
+                  width, so the search, chips and selects do not move as it appears. */}
               {/* "Clear filters" (review finding 4): the empty state's action said
                   "Clear filters" while this ghost button said "Clear" — the same
                   reset under two names, both once visible in one frame. */}
@@ -332,22 +335,22 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
 
             <p className="sr-only" role="status">{trips.length} {trips.length === 1 ? 'trip matches' : 'trips match'}</p>
 
-            {otherTrips.length === 0 ? (
-              upNext && !hasFilters ? (
-                <EmptyState
-                  icon={<Compass size={38} aria-hidden />}
-                  title="No other trips yet"
-                  body="Your next trips will show up here."
-                />
-              ) : (
-                <EmptyState
-                  icon={<Compass size={38} aria-hidden />}
-                  title="No trips match those filters"
-                  body="Try a different search or clear the filters to see all your trips."
-                  action={<button className="btn btn-outline" onClick={clearFilters}>Clear filters</button>}
-                />
-              )
-            ) : (
+            {/* 'no-trips' never reaches this list: the page-level branch above
+                shows the first-run copy for it, so it renders nothing here. */}
+            {otherEmptyKind === 'none-other' ? (
+              <EmptyState
+                icon={<Compass size={38} aria-hidden />}
+                title="No other trips yet"
+                body="Your next trips will show up here."
+              />
+            ) : otherEmptyKind === 'no-match' ? (
+              <EmptyState
+                icon={<Compass size={38} aria-hidden />}
+                title="No trips match those filters"
+                body="Try a different search or clear the filters to see all your trips."
+                action={<button className="btn btn-outline" onClick={clearFilters}>Clear filters</button>}
+              />
+            ) : otherEmptyKind === 'none' ? (
               <div
                 className={`mt-grid${layout === 'list' ? ' is-list' : ''}`}
                 data-lone-two={shape.loneLastTwo ? '1' : '0'}
@@ -371,7 +374,7 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
                   )
                 })}
               </div>
-            )}
+            ) : null}
           </section>
         </div>
       ))}

@@ -5652,8 +5652,6 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
    vertical page-header stack with a full-width primary CTA — the Android
    pattern — and single-column cards with comfortable gutters. */
 .trips-page { padding-top: 26px; }
-.trips-head { margin-bottom: 18px; flex-wrap: wrap; gap: 12px; }
-.trips-head-actions { display: flex; gap: 10px; flex-wrap: wrap; }
 @media (max-width: 720px) {
   .trips-toolbar { align-items: stretch; }
   .trips-toolbar .trips-search { flex-basis: 100%; }
@@ -5674,12 +5672,6 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 
 @media (max-width: 720px) {
   .trips-page { padding-top: 8px; }
-  .trips-head-title { flex: 1 1 100%; }
-  .trips-head-actions { width: 100%; }
-  /* primary CTA owns the row; demo-trips becomes a quiet secondary */
-  .trips-head-actions .btn { flex: 1; }
-  .trips-head-actions .btn-outline { flex: 0 0 auto; padding: 10px 13px; }
-  .trips-head-actions .btn-outline span { display: none; }
   /* cards: single column, softer radius, no hover-lift (touch has no hover) */
   .explore-grid { grid-template-columns: 1fr; gap: 12px; }
   .itin-card { border-radius: var(--radius-sm); }
@@ -8367,11 +8359,11 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
   background: rgb(255 255 255 / .96); color: var(--yf-navy);
   font-size: 12px; font-weight: 700; letter-spacing: .01em; line-height: 1.4;
 }
-.mt-tag-dot { width: 8px; height: 8px; flex: none; border-radius: 50%; background: var(--color-primary); }
+.mt-tag-dot { width: 8px; height: 8px; flex: none; border-radius: 50%; background: var(--yf-navy); }
 .mt-tag--live { background: var(--saffron); color: var(--color-accent-foreground); }
 .mt-tag--live .mt-tag-dot { background: var(--color-accent-foreground); }
-.mt-tag--past .mt-tag-dot { background: var(--text-3); }
-.mt-tag--draft .mt-tag-dot { background: transparent; border: 2px solid var(--text-3); }
+.mt-tag--past .mt-tag-dot { border-radius: 2px; }
+.mt-tag--draft .mt-tag-dot { background: transparent; border: 2px solid var(--yf-navy); }
 @media (prefers-reduced-motion: no-preference) {
   .mt-tag--live .mt-tag-dot { animation: mt-pulse 1.8s var(--ease-out) infinite; }
 }
@@ -8541,3 +8533,8 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 
 /* ---------- Empty-state icon weight ---------- */
 .empty-state .big .lucide { stroke-width: 1.25; }
+
+/* ---------- My trips: the filter bar holds still while you type ----------
+   An active Clear button takes its own full-width row under the selects, on
+   every width. Search, chips and selects keep their place when it appears. */
+.mt-filters > .mt-clear:not(.is-idle) { flex: 0 0 100%; justify-content: flex-end; }

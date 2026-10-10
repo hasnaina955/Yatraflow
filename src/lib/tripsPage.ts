@@ -44,16 +44,15 @@ function compareDays(a: CalendarDay, b: CalendarDay): number {
 }
 
 /**
- * Date-bucket rule used by the My trips filter. "upcoming" ends today or later,
- * "past" ended before today, "draft" has a missing or invalid date. The END date
- * decides, so a trip in progress counts as upcoming. Same behaviour as the
- * original helper in TripsList.tsx.
+ * Date-bucket rule used by the My trips filter. It reads statusOf, so the filter
+ * and the card tag never disagree. "upcoming" covers live and upcoming trips,
+ * "past" ended before today, and "draft" has a missing or impossible date. The
+ * END date decides, so a trip in progress counts as upcoming.
  */
 export function whenBucket(t: TripDates, today: Date): WhenKey {
-  const end = new Date(`${t.endDate}T23:59:59`)
-  const start = new Date(`${t.startDate}T00:00:00`)
-  if (Number.isNaN(end.getTime()) || Number.isNaN(start.getTime())) return 'draft'
-  return end.getTime() < today.getTime() ? 'past' : 'upcoming'
+  const status = statusOf(t, today)
+  if (status === 'draft') return 'draft'
+  return status === 'past' ? 'past' : 'upcoming'
 }
 
 /**
@@ -173,12 +172,36 @@ const REGION_KEYWORDS: ReadonlyArray<readonly [Exclude<TripRegion, 'generic'>, r
 ]
 
 /** Pick the papercut art region from the destination names. The first region
- *  with a keyword match wins. No match returns the neutral "generic" art. */
+ *  with a keyword match wins. A keyword matches a whole word only, so "Goalpara"
+ *  does not take Goa art. No match returns the neutral "generic" art. */
 export function regionFor(t: Pick<Trip, 'destinations'>): TripRegion {
-  const names = (t.destinations ?? []).map(name => name.toLowerCase())
+  const words = (t.destinations ?? []).flatMap(name => name.toLowerCase().split(/[^\p{L}]+/u))
   for (const [region, keywords] of REGION_KEYWORDS) {
-    const hasMatch = names.some(name => keywords.some(keyword => name.includes(keyword)))
+    const hasMatch = words.some(word => keywords.includes(word))
     if (hasMatch) return region
   }
   return 'generic'
+}
+
+export type OtherTripsEmptyKind = 'none' | 'none-other' | 'no-match' | 'no-trips'
+
+/**
+ * Which empty state the list under the pinned Up next card shows.
+ * `matchCount` counts every trip that passes the filters, the pinned card
+ * included. `otherCount` counts the rows under the pinned card.
+ *  - 'none': rows exist, so the grid shows.
+ *  - 'none-other': only the pinned card matches. No filter hides other trips,
+ *    so the copy says there are no other trips yet and offers no Clear button.
+ *  - 'no-match': filters hide every trip. Offer Clear filters.
+ *  - 'no-trips': no trip matches and no filter is set. The page shows its
+ *    first-run copy before this list is reached.
+ */
+export function otherTripsEmptyKind({ matchCount, otherCount, hasFilters }: {
+  matchCount: number
+  otherCount: number
+  hasFilters: boolean
+}): OtherTripsEmptyKind {
+  if (otherCount > 0) return 'none'
+  if (matchCount > 0) return 'none-other'
+  return hasFilters ? 'no-match' : 'no-trips'
 }

@@ -1,6 +1,6 @@
 // ============ My trips page — pure logic ============
 import { describe, expect, it } from 'vitest'
-import { countdownText, nextStep, pickUpNext, planning, rangeText, regionFor, statusOf, whenBucket } from '../src/lib/tripsPage'
+import { countdownText, nextStep, otherTripsEmptyKind, pickUpNext, planning, rangeText, regionFor, statusOf, whenBucket } from '../src/lib/tripsPage'
 import type { ItineraryDay, StopStatus } from '../src/data/types'
 
 // Local noon on 2026-10-10: far from any day boundary.
@@ -33,6 +33,10 @@ describe('whenBucket (behaviour kept from TripsList)', () => {
   it('lets the end date decide, even when the end is before the start', () => {
     expect(whenBucket(trip('2026-11-05', '2026-10-01'), TODAY)).toBe('past')
   })
+  it('treats an impossible calendar date as draft, not as a rolled-over day', () => {
+    expect(whenBucket(trip('2026-02-31', '2026-03-02'), TODAY)).toBe('draft')
+    expect(whenBucket(trip('2026-10-05', '2026-02-30'), TODAY)).toBe('draft')
+  })
 })
 
 describe('statusOf', () => {
@@ -59,12 +63,20 @@ describe('statusOf', () => {
     expect(statusOf(trip('10/10/2026', '2026-10-12'), TODAY)).toBe('draft')
     expect(statusOf(trip('2026-02-31', '2026-03-02'), TODAY)).toBe('draft')
   })
-  it('agrees with whenBucket on past and draft', () => {
-    const samples = [trip('2026-10-05', '2026-10-09'), trip('', ''), trip('2026-10-10', '2026-10-12'), trip('2026-12-01', '2026-12-03')]
+  it('agrees with whenBucket on every status, including impossible dates', () => {
+    const samples = [
+      trip('2026-10-05', '2026-10-09'),
+      trip('', ''),
+      trip('2026-10-10', '2026-10-12'),
+      trip('2026-12-01', '2026-12-03'),
+      trip('2026-02-31', '2026-03-02'),
+      trip('2026-10-05', '2026-02-30'),
+      trip('2026-10-09', '2026-10-12'),
+    ]
+    const expectedBucket = { live: 'upcoming', upcoming: 'upcoming', past: 'past', draft: 'draft' } as const
     for (const sample of samples) {
       const status = statusOf(sample, TODAY)
-      const bucket = whenBucket(sample, TODAY)
-      expect(status === 'past' || status === 'draft' ? status : 'upcoming').toBe(bucket)
+      expect(whenBucket(sample, TODAY)).toBe(expectedBucket[status])
     }
   })
   it('does not shift the day with the time of day', () => {
@@ -218,5 +230,30 @@ describe('regionFor', () => {
   it('falls back to neutral art', () => {
     expect(regionFor({ destinations: ['Hampi', 'Gokarna'] })).toBe('generic')
     expect(regionFor({ destinations: [] })).toBe('generic')
+  })
+  it('matches Goa only as a whole word, so Goalpara gets neutral art', () => {
+    expect(regionFor({ destinations: ['Goalpara'] })).toBe('generic')
+    expect(regionFor({ destinations: ['Goalpara', 'Goa'] })).toBe('goa')
+    expect(regionFor({ destinations: ['Panjim, Goa'] })).toBe('goa')
+    expect(regionFor({ destinations: ['Goa-Kerala loop'] })).toBe('kerala')
+  })
+})
+
+describe('otherTripsEmptyKind', () => {
+  it('shows the grid when rows sit under the pinned card, filters or not', () => {
+    expect(otherTripsEmptyKind({ matchCount: 3, otherCount: 2, hasFilters: false })).toBe('none')
+    expect(otherTripsEmptyKind({ matchCount: 3, otherCount: 2, hasFilters: true })).toBe('none')
+  })
+  it('says there are no other trips when only the pinned Up next matches, with no filter', () => {
+    expect(otherTripsEmptyKind({ matchCount: 1, otherCount: 0, hasFilters: false })).toBe('none-other')
+  })
+  it('says there are no other trips when the one Up next trip still matches a sort or style filter', () => {
+    expect(otherTripsEmptyKind({ matchCount: 1, otherCount: 0, hasFilters: true })).toBe('none-other')
+  })
+  it('offers Clear filters when a search or filter hides every trip', () => {
+    expect(otherTripsEmptyKind({ matchCount: 0, otherCount: 0, hasFilters: true })).toBe('no-match')
+  })
+  it('reports no trips at all when nothing matches and no filter is set', () => {
+    expect(otherTripsEmptyKind({ matchCount: 0, otherCount: 0, hasFilters: false })).toBe('no-trips')
   })
 })

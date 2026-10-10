@@ -27,11 +27,21 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 - **Trip cards show a status tag and labelled Budget, Travel and Dates columns.** The tag reads Live, Upcoming, Past or Draft. A trip without a cover image shows papercut art instead.
 
+- **Icon strokes now draw at a visible weight, and small icons match them.** Empty-state icons and select arrows are rebalanced too.
+
 ### Fixed
 
 - **Icons drawn through the shared inline icon wrapper no longer render as solid black shapes.** The wrapper sets an empty fill, so every outline icon keeps its stroke style.
 
-- **Icon strokes now draw at a visible weight, and small icons match them.** Empty-state icons and select arrows are rebalanced too.
+- **My trips shows "No other trips yet" when the only trip is the pinned Up next card.** A sort or style filter that still matches that trip no longer shows "No trips match those filters" with a Clear filters button.
+
+- **The Clear filters button no longer shifts the search, chips and selects.** While a filter is active, the button takes its own full-width row under the selects.
+
+- **Each My trips status tag has its own dot shape.** Upcoming is a filled circle, Live a pulsing circle, Past a square and Draft a ring. The dot uses a dark ink, so it stays readable in dark mode.
+
+- **The When filter treats an impossible date such as 2026-02-31 as a draft trip.** It now agrees with the status shown on the card.
+
+- **A destination only matches a region as a whole word.** "Goalpara" no longer takes the Goa artwork.
 
 ## [0.74.0] - 2026-10-07
 

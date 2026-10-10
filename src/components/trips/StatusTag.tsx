@@ -1,6 +1,10 @@
 // ============ My trips — status tag ============
-// A dot plus a word. Colour never carries the status alone: the live dot is
-// filled, the draft dot is a ring, and the label is always printed.
+// A dot plus a word. Each status has its own dot shape, so colour never carries
+// the status alone: Upcoming is a filled circle, Live a pulsing filled circle on
+// a saffron pill, Past a filled square and Draft a hollow ring. The label is
+// always in the DOM. On the phone list row the dot is the only visible part, so
+// the label is visually hidden and read by screen readers. The dot uses one dark
+// ink on the white pill in both themes (see styles.css, .mt-tag).
 import type { TripStatus } from '../../lib/tripsPage'
 
 const STATUS_LABEL: Record<TripStatus, string> = {

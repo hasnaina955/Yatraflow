@@ -15,18 +15,20 @@ import { cap } from '../lib/labels'
 import { Avatar, Chip, EmptyState, toast } from '../components/ui'
 import { Select } from '../components/Select'
 import { PubCard } from '../components/PubCard'
+import { FeaturedCreators, ShareStoriesCta, TrendingShelf } from '../components/ExploreDiscovery'
 import { appLink } from '../lib/appLink'
 import { livePubs } from '../lib/livePubs'
+import { communityCounts, FEATURED_MIN_VIEWS, featuredCreators, popularity, trendingPubs } from '../lib/discovery'
 
 type SortKey = 'popular' | 'newest' | 'budget-asc' | 'budget-desc' | 'duration'
 const STYLES = ['relaxed', 'balanced', 'packed', 'adventure', 'luxury', 'budget', 'family', 'spiritual', 'food-focused', 'creator'] as const
 /** P4: the grid renders one page at a time; "Load more" grows the window. */
 const PAGE_SIZE = 12
-/** A publication is only worth featuring when it carries real evidence. With a
- *  young catalog the honest answer is often "nothing yet" — leading with
- *  "Why featured: 0 forks · 13 views" advertises emptiness rather than
- *  credibility (§6.10). */
-const FEATURED_MIN_VIEWS = 25
+// The featured-card evidence bar (a plan is only worth featuring when it
+// carries real evidence — with a young catalog the honest answer is often
+// "nothing yet") lives in lib/discovery.ts now, the same module the
+// discovery blocks below use, so "featured" and "trending" can never
+// disagree about what counts as popular.
 
 // #350 — the gallery's pool lives in lib/livePubs.ts so every public catalog
 // surface shares one predicate copy. Re-exported for the test suite, which
@@ -107,8 +109,6 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
     replaceRoute(`/explore${qs ? '?' + qs : ''}`)
   }
 
-  const popularity = (p: { views: number; copies: number }) => p.views + p.copies * 5
-
   const pubs = useMemo(() => {
     let list = [...livePubs(published)]
     if (q.trim()) {
@@ -154,6 +154,18 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
   const featuredTrip = featured ? trips.find(t => t.id === featured.tripId) : undefined
   const featuredHealth = featuredTrip ? computeHealth(featuredTrip).score : undefined
 
+  // MR10 — the discovery blocks: featured creators, trending plans, and
+  // the share-stories counts. Same evidence bar as the featured card,
+  // derived from the slices the page already subscribes to (no extra
+  // reads). `trending` excludes the featured pick so the two surfaces
+  // never lead with the same plan.
+  const creators = useMemo(() => featuredCreators(users, published), [users, published])
+  const trending = useMemo(
+    () => trendingPubs(published, 4, featured ? [featured.id] : []),
+    [published, featured],
+  )
+  const community = useMemo(() => communityCounts(published), [published])
+
   // The grid must not re-offer the plan the featured card already leads with —
   // on a three-item shelf the duplicate was a third of the page. Only ever a
   // no-op when the featured pick is a card from OUTSIDE the active filters,
@@ -188,7 +200,7 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
   const filtersActive = Boolean(q.trim()) || style !== 'all' || maxBudget !== '' || duration !== 'all' || savedOnly
 
   return (
-    <div>
+    <div className="page-enter">
       {/* ---- Dark-teal editorial hero with route-aware search (§6.10) ---- */}
       <section className="explore-hero">
         <div className="container explore-hero-inner">
@@ -315,6 +327,19 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
           </div>
         )}
 
+        {/* ---- MR10 discovery blocks: the creator rail and the trending
+              shelf sit between the featured card and the grid, the
+              mockup's discovery order. Gated on the same READ as the
+              featured card — a claim about the community may not stand
+              over a failed re-read (#395 discipline) — and each block
+              returns null until its own evidence exists. ---- */}
+        {pubsRead === 'ready' && (
+          <>
+            <FeaturedCreators creators={creators} />
+            <TrendingShelf pubs={trending} users={users} />
+          </>
+        )}
+
         {pubsRead !== 'ready' ? (
           /* #364: a failed catalog read used to render "just getting started" —
              copy that tells a visitor the community is empty when the truth is
@@ -370,6 +395,19 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
               </div>
             )}
           </>
+        )}
+
+        {/* ---- MR10 share-stories CTA. The counts line is a claim about
+              the catalog, so it renders only once the catalog was read.
+              The button points at My trips when signed in (publishing
+              happens from a trip's Share tab) and at signup otherwise. ---- */}
+        {pubsRead === 'ready' && (
+          <ShareStoriesCta
+            pubCount={community.pubCount}
+            creatorCount={community.creatorCount}
+            signedIn={!!me}
+            onNavigate={onNavigate}
+          />
         )}
       </div>
     </div>

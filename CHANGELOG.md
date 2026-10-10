@@ -64,6 +64,7 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
   call-to-action) imported as broken metadata. The importer now runs the same shared
   predicate the form and the writer answer to, and a refused block rides out with the
   rule it broke named. (#368)
+- **Explore loads for logged-out visitors again.** A first visit without an account showed "Loading the catalog…" with no end, although the itineraries had loaded. The logged-out data load now reports the catalog as loaded or failed. A failed read now shows the error with a Retry button. The bug did not affect signed-in users.
 
 ### Changed
 

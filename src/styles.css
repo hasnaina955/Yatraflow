@@ -200,14 +200,14 @@
   --font-display: 'Sora', 'Plus Jakarta Sans', system-ui, sans-serif;
   --font-body: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
   /* Icon stroke weight. Lucide ships 2 as a presentation attribute on every
-     glyph; the app's icon grammar is hairline geometry - at the 14-20px the UI
-     renders at, 2 reads as clip-art. One token, consumed by the .lucide base
-     rule near the type rules, so a denser surface can step it deliberately. */
-  --icon-stroke: 1.5;
-  /* Small-glyph step: at 12px and under in dark ink a 1.5 stroke fills dense
-     glyphs in (Sparkles, Lock, kind kickers read as blobs), so the shared
-     inline wrappers drop to 1.25 through .ic-sm below. */
-  --icon-stroke-sm: 1.25;
+     glyph. At the 13-15px the UI renders at, 1.5 drew under 1px and looked faint,
+     so 1.9 draws about 1.0-1.2px there (stroke x size / 24). One token, consumed by the
+     .lucide base rule near the type rules, so a denser surface can step it deliberately. */
+  --icon-stroke: 1.9;
+  /* Small-glyph step, matched to the base step: at 12px a 1.25 stroke drew under
+     0.7px and read as faint, so the shared inline wrappers keep 1.9 through .ic-sm
+     below (about 0.95px at 12px). */
+  --icon-stroke-sm: 1.9;
   /* ---- Landing display scale + macro-whitespace ----
      The marketing page is the one surface that is deliberately editorial rather
      than app-scale: its headline is the largest type on the site and its
@@ -808,7 +808,7 @@ a.btn { text-decoration: none; }
   padding: 10px 32px 10px 13px;
   cursor: pointer;
   /* soft teal chevron (clean SVG stroke), vertically centred, clear of the text */
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path d='M1.5 1.5L6 6l4.5-4.5' fill='none' stroke='%230E7A72' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path d='M1.5 1.5L6 6l4.5-4.5' fill='none' stroke='%230E7A72' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>");
   background-repeat: no-repeat;
   background-position: right 12px center;
   background-size: 11px 7px;
@@ -857,7 +857,7 @@ a.btn { text-decoration: none; }
 /* The chevron is baked into a background-image, so it can't follow a token —
    re-declare it for dark mode or it lands ~1.8:1 on the dark pill. */
 [data-theme='dark'] .select {
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path d='M1.5 1.5L6 6l4.5-4.5' fill='none' stroke='%238FA0B5' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path d='M1.5 1.5L6 6l4.5-4.5' fill='none' stroke='%238FA0B5' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>");
 }
 .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
 /* Commitments: deliberate 5-track layout on wide screens, but it collapses
@@ -8258,7 +8258,7 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .mt-banner-art svg { width: 100%; height: 100%; }
 .mt-banner-title { position: relative; flex: 1 1 360px; min-width: 0; }
 .mt-banner h1 {
-  margin: 0; color: var(--text); font-family: var(--font-display); font-weight: 700;
+  margin: 0; color: var(--text); font-family: var(--font-display); font-weight: 600;
   font-size: clamp(2.25rem, 1.4rem + 2.2vw, 3.25rem); line-height: 1.05; letter-spacing: -.02em;
 }
 .mt-lede { margin: 8px 0 0; max-width: 46ch; color: var(--text-2); font-size: 17px; line-height: 1.45; text-wrap: pretty; }
@@ -8294,7 +8294,7 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .mt-seg button {
   display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 14px;
   border: 0; border-radius: 999px; background: none; color: var(--text);
-  font-size: 14px; font-weight: 700; cursor: pointer;
+  font-size: 14px; font-weight: 600; cursor: pointer;
   transition: background-color var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out);
 }
 .mt-seg button:hover:not([aria-pressed='true']) { background: var(--bg-soft); }
@@ -8381,7 +8381,7 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .mt-card-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 .mt-card-body { flex: 1; display: flex; flex-direction: column; gap: 8px; padding: 14px 12px 8px; }
 .mt-card-title {
-  margin: 0; color: var(--text); font-family: var(--font-display); font-size: 18px; font-weight: 700; line-height: 1.28; letter-spacing: -.015em; text-wrap: balance;
+  margin: 0; color: var(--text); font-family: var(--font-display); font-size: 18px; font-weight: 600; line-height: 1.28; letter-spacing: -.015em; text-wrap: balance;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
 /* One link covers the whole card. The delete button sits above it. */
@@ -8398,7 +8398,7 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 }
 .mt-stats li { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; }
 .mt-stat-ico { display: none; color: var(--text-3); }
-.mt-stat-lab { color: var(--text-3); font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.mt-stat-lab { color: var(--text-3); font-size: var(--kicker-size); font-weight: var(--kicker-weight); letter-spacing: var(--kicker-tracking); text-transform: uppercase; }
 .mt-stat-val { color: var(--text); font-size: 13.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
 
 .mt-card-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto; padding-top: 2px; }
@@ -8416,7 +8416,7 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .mt-feat { display: grid; grid-template-columns: minmax(0, 1fr); }
 .mt-feat .mt-cover { aspect-ratio: 16 / 9; }
 .mt-feat-body { display: flex; flex-direction: column; gap: 12px; padding: 16px 14px 14px; }
-.mt-feat .mt-card-title { display: block; overflow: visible; font-size: 24px; line-height: 1.2; }
+.mt-feat .mt-card-title { display: block; overflow: visible; font-size: 24px; font-weight: 600; line-height: 1.2; }
 .mt-feat-when { margin: 0; font-size: 15px; font-variant-numeric: tabular-nums; }
 .mt-feat-when b { color: var(--ink-teal); font-weight: 800; }
 .mt-range { color: var(--text); font-weight: 600; }
@@ -8538,3 +8538,6 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
   .mt-grid.is-list .mt-stats li:first-child { flex-basis: 100%; }
   .mt-grid.is-list .mt-stats li:last-child::before { content: '·'; margin: 0 6px; color: var(--text-3); }
 }
+
+/* ---------- Empty-state icon weight ---------- */
+.empty-state .big .lucide { stroke-width: 1.25; }

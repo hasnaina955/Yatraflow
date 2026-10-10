@@ -77,7 +77,7 @@ export function UpNextCard({ trip, today, budget, totalTravelMinutes, users, meI
         <div className="mt-feat-actions">
           <a className="btn btn-outline" {...detailHref}>Continue planning</a>
           <button type="button" className="icon-btn mt-del" aria-label={`Delete ${trip.name}`} onClick={() => onDelete(trip)}>
-            <Trash2 size={14} aria-hidden />
+            <Trash2 size={16} aria-hidden />
           </button>
         </div>
       </div>

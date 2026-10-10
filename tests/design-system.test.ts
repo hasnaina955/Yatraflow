@@ -856,8 +856,13 @@ describe('icon stroke weight is a token, not a library default', () => {
   // from ONE rule rather than carrying a prop on each usage. These pins keep it
   // that way: the token must exist, the rule must consume it, and no component
   // may drift back to the library default.
+  // The value is 1.9, not 1.5. The stroke is drawn at stroke * size / 24, so at
+  // the 13-15px the UI uses, 1.5 drew under 1px and looked faint, while 1.9 draws
+  // about 1.0-1.2px. The small-glyph step is held at the same 1.9 for the same
+  // reason: at 12px a 1.25 stroke drew under 0.7px.
   it('declares the token and consumes it from the .lucide base rule', () => {
-    expect(css, '--icon-stroke token missing from styles.css').toMatch(/--icon-stroke:\s*1\.5;/)
+    expect(css, '--icon-stroke token missing from styles.css').toMatch(/--icon-stroke:\s*1\.9;/)
+    expect(css, '--icon-stroke-sm token missing from styles.css').toMatch(/--icon-stroke-sm:\s*1\.9;/)
     expect(css, 'the .lucide base rule is missing').toMatch(/\.lucide\s*\{\s*stroke-width:\s*var\(--icon-stroke\)/)
   })
 

@@ -18,6 +18,9 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 // outside the app) joined the original five for F7 · #228).
 const SHARE_SOURCES = ['copy', 'buyer', 'explore', 'creator', 'purchases', 'wa', 'community']
 const COVER_WIDTH = 1200
+// A found card is edge-cacheable for five minutes, then served stale for ten
+// while it revalidates. Everything else answers no-store.
+const CARD_CACHE_CONTROL = 'public, max-age=0, s-maxage=300, stale-while-revalidate=600'
 const WIKIMEDIA_PATH_RE = /^https:\/\/[^/]*wikimedia\.org\/wikipedia\/([^/]+)\/(.+)$/
 
 /** The same Wikimedia file at a sane width.
@@ -91,7 +94,7 @@ async function ownsPublication(url, key, entitlement, id) {
 function renderNotFound() {
   const origin = resolveOrigin()
   return `<!doctype html>
-<html lang="en">
+<html lang="en-IN">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -161,7 +164,7 @@ function renderPublication(publication, id, buyer = null, ref = null) {
   // it advertises itself; the canonical link still points at the publication.
   const ogUrl = buyer ? `${canonical}?buyer=${encodeURIComponent(buyer)}` : canonical
   return `<!doctype html>
-<html lang="en">
+<html lang="en-IN">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -247,6 +250,9 @@ export default async function handler(req, res) {
     verifiedBuyer = buyer
   }
 
+  // Only a card for a publication that exists may be shared at the edge. A
+  // not-found, error or unverified answer keeps the no-store header set above.
+  if (publication) res.setHeader('cache-control', CARD_CACHE_CONTROL)
   res.status(status)
   return req.method === 'HEAD' ? res.end() : res.send(renderPublication(publication, id, verifiedBuyer, ref))
 }

@@ -47,7 +47,7 @@
       "destination": "https://search.mappls.com/:path*"
     },
     {
-      "source": "/((?!api/|i/|c/|sitemap.xml|sw.js|manifest.webmanifest|robots.txt).*)",
+      "source": "/((?!api/|i/|c/|sitemap.xml|ladakh-trip-cost-calculator/|sw.js|manifest.webmanifest|robots.txt).*)",
       "destination": "/index.html"
     }
   ]

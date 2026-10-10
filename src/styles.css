@@ -200,14 +200,14 @@
   --font-display: 'Sora', 'Plus Jakarta Sans', system-ui, sans-serif;
   --font-body: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
   /* Icon stroke weight. Lucide ships 2 as a presentation attribute on every
-     glyph; the app's icon grammar is hairline geometry - at the 14-20px the UI
-     renders at, 2 reads as clip-art. One token, consumed by the .lucide base
-     rule near the type rules, so a denser surface can step it deliberately. */
-  --icon-stroke: 1.5;
-  /* Small-glyph step: at 12px and under in dark ink a 1.5 stroke fills dense
-     glyphs in (Sparkles, Lock, kind kickers read as blobs), so the shared
-     inline wrappers drop to 1.25 through .ic-sm below. */
-  --icon-stroke-sm: 1.25;
+     glyph. At the 13-15px the UI renders at, 1.5 drew under 1px and looked faint,
+     so 1.9 draws about 1.0-1.2px there (stroke x size / 24). One token, consumed by the
+     .lucide base rule near the type rules, so a denser surface can step it deliberately. */
+  --icon-stroke: 1.9;
+  /* Small-glyph step, matched to the base step: at 12px a 1.25 stroke drew under
+     0.7px and read as faint, so the shared inline wrappers keep 1.9 through .ic-sm
+     below (about 0.95px at 12px). */
+  --icon-stroke-sm: 1.9;
   /* ---- Landing display scale + macro-whitespace ----
      The marketing page is the one surface that is deliberately editorial rather
      than app-scale: its headline is the largest type on the site and its
@@ -808,7 +808,7 @@ a.btn { text-decoration: none; }
   padding: 10px 32px 10px 13px;
   cursor: pointer;
   /* soft teal chevron (clean SVG stroke), vertically centred, clear of the text */
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path d='M1.5 1.5L6 6l4.5-4.5' fill='none' stroke='%230E7A72' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path d='M1.5 1.5L6 6l4.5-4.5' fill='none' stroke='%230E7A72' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>");
   background-repeat: no-repeat;
   background-position: right 12px center;
   background-size: 11px 7px;
@@ -857,7 +857,7 @@ a.btn { text-decoration: none; }
 /* The chevron is baked into a background-image, so it can't follow a token —
    re-declare it for dark mode or it lands ~1.8:1 on the dark pill. */
 [data-theme='dark'] .select {
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path d='M1.5 1.5L6 6l4.5-4.5' fill='none' stroke='%238FA0B5' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path d='M1.5 1.5L6 6l4.5-4.5' fill='none' stroke='%238FA0B5' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>");
 }
 .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
 /* Commitments: deliberate 5-track layout on wide screens, but it collapses
@@ -5652,8 +5652,6 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
    vertical page-header stack with a full-width primary CTA — the Android
    pattern — and single-column cards with comfortable gutters. */
 .trips-page { padding-top: 26px; }
-.trips-head { margin-bottom: 18px; flex-wrap: wrap; gap: 12px; }
-.trips-head-actions { display: flex; gap: 10px; flex-wrap: wrap; }
 @media (max-width: 720px) {
   .trips-toolbar { align-items: stretch; }
   .trips-toolbar .trips-search { flex-basis: 100%; }
@@ -5674,12 +5672,6 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 
 @media (max-width: 720px) {
   .trips-page { padding-top: 8px; }
-  .trips-head-title { flex: 1 1 100%; }
-  .trips-head-actions { width: 100%; }
-  /* primary CTA owns the row; demo-trips becomes a quiet secondary */
-  .trips-head-actions .btn { flex: 1; }
-  .trips-head-actions .btn-outline { flex: 0 0 auto; padding: 10px 13px; }
-  .trips-head-actions .btn-outline span { display: none; }
   /* cards: single column, softer radius, no hover-lift (touch has no hover) */
   .explore-grid { grid-template-columns: 1fr; gap: 12px; }
   .itin-card { border-radius: var(--radius-sm); }
@@ -8227,3 +8219,322 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .tsx-hero-edit[aria-expanded='true'] { background: rgba(255,255,255,.2); }
 .tsx-card--identity .bench-pair { align-items: start; }
 .tsx-card--identity .cover-picker-preview { height: 72px; }
+
+/* ============ My trips: banner, Up next, filters, grid and list ============
+   Components: src/components/trips/. Every class starts with "mt-" so nothing
+   here touches another page. Colours come from the app tokens only. The
+   exception is the region art: each region sets its own sky and ink, the same
+   in both themes, and dark mode adds a soft dim layer on top.
+   Motion comes from the motion tokens. Each animated rule has a reduced-motion
+   opt-out at the end of this section. */
+
+/* ---------- Banner ---------- */
+.mt-banner {
+  --mt-art-h: 136px;
+  --mt-banner-pad-y: 32px;
+  --mt-banner-pad-x: 36px;
+  position: relative; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 16px 24px;
+  margin-bottom: 20px;
+  padding: var(--mt-banner-pad-y) var(--mt-banner-pad-x) calc(var(--mt-art-h) + 14px);
+  border: 1px solid var(--line); border-radius: var(--radius-lg);
+  background: linear-gradient(180deg, var(--yf-mist) 0%, var(--yf-peach) 100%);
+}
+/* The art sits in its own band along the bottom edge. It is first in the
+   markup and has no z-index, so the title and the buttons paint above it, and
+   the banner makes no stacking context that could trap the import dialog. */
+.mt-banner-art {
+  position: absolute; left: 0; right: 0; bottom: 0; height: var(--mt-art-h);
+  overflow: hidden; border-radius: 0 0 calc(var(--radius-lg) - 1px) calc(var(--radius-lg) - 1px);
+  color: var(--yf-teal-700); pointer-events: none;
+}
+.mt-banner-art svg { width: 100%; height: 100%; }
+.mt-banner-title { position: relative; flex: 1 1 360px; min-width: 0; }
+.mt-banner h1 {
+  margin: 0; color: var(--text); font-family: var(--font-display); font-weight: 600;
+  font-size: clamp(2.25rem, 1.4rem + 2.2vw, 3.25rem); line-height: 1.05; letter-spacing: -.02em;
+}
+.mt-lede { margin: 8px 0 0; max-width: 46ch; color: var(--text-2); font-size: 17px; line-height: 1.45; text-wrap: pretty; }
+.mt-banner-actions { position: relative; display: flex; flex-wrap: nowrap; gap: 8px; flex: 1 1 100%; }
+.mt-act-secondary { display: contents; }
+.mt-banner-actions .btn { min-height: 44px; }
+@media (max-width: 980px) {
+  .mt-banner { --mt-art-h: 112px; --mt-banner-pad-y: 28px; --mt-banner-pad-x: 28px; }
+  .mt-banner-actions { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .mt-banner-actions > .btn-primary { order: -1; grid-column: span 3; }
+  .mt-act-secondary > .btn { grid-column: span 2; }
+  .mt-act-secondary > .btn:first-child { grid-column: span 3; }
+}
+@media (max-width: 640px) {
+  .mt-banner { --mt-art-h: 104px; --mt-banner-pad-y: 22px; --mt-banner-pad-x: 16px; gap: 14px; border-radius: var(--radius); }
+  .mt-banner-art { border-radius: 0 0 calc(var(--radius) - 1px) calc(var(--radius) - 1px); }
+  .mt-lede { font-size: 15.5px; }
+  .mt-banner-actions { display: flex; flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 10px; min-width: 0; max-width: 100%; }
+  .mt-banner-actions > .btn-primary { order: -1; width: 100%; min-height: 48px; }
+  .mt-act-secondary { display: flex; flex-wrap: wrap; gap: 8px; }
+  .mt-act-secondary > .btn, .mt-act-secondary > .btn:first-child { grid-column: auto; flex: 0 1 auto; }
+}
+
+/* ---------- Sections ---------- */
+.mt-catalog { container: mt-catalog / inline-size; }
+.mt-section-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 16px; margin: 24px 0 14px; }
+.mt-catalog > section:first-child > .mt-section-head { margin-top: 0; }
+.mt-section-title { margin: 0; color: var(--text); font-family: var(--font-display); font-size: 24px; font-weight: 700; line-height: 1.2; letter-spacing: -.02em; }
+.mt-kicker-note { color: var(--text-3); font-size: .6em; font-weight: 600; letter-spacing: 0; white-space: nowrap; }
+
+/* ---------- Grid | List switch ---------- */
+.mt-seg { display: inline-flex; gap: 2px; padding: 2px; border: 1px solid var(--line); border-radius: 999px; background: var(--card); }
+.mt-seg button {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 14px;
+  border: 0; border-radius: 999px; background: none; color: var(--text);
+  font-size: 14px; font-weight: 600; cursor: pointer;
+  transition: background-color var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out);
+}
+.mt-seg button:hover:not([aria-pressed='true']) { background: var(--bg-soft); }
+.mt-seg button[aria-pressed='true'] { background: var(--text); color: var(--bg); }
+.mt-seg button:focus-visible { outline: none; box-shadow: var(--ring); }
+
+/* ---------- Filters ---------- */
+/* The bar is a stacking context host: the select menus open inside it and must
+   paint over the positioned cards below. */
+.mt-filters {
+  position: relative; z-index: var(--z-frost); margin-bottom: 16px; padding: 12px;
+  background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow-sm);
+}
+
+/* ---------- Grid ---------- */
+.mt-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+@container mt-catalog (min-width: 560px) {
+  .mt-grid { grid-template-columns: repeat(var(--mt-c2, 2), minmax(0, 1fr)); gap: 18px; }
+}
+@container mt-catalog (min-width: 880px) {
+  .mt-grid { grid-template-columns: repeat(var(--mt-c3, 3), minmax(0, 1fr)); gap: 20px; }
+}
+/* A lone last card spans the row as a compact horizontal card. */
+@container mt-catalog (min-width: 560px) and (max-width: 879px) {
+  .mt-grid[data-lone-two='1'] > .mt-card:last-child { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 36fr) minmax(0, 64fr); }
+  .mt-grid[data-lone-two='1'] > .mt-card:last-child .mt-cover { aspect-ratio: auto; align-self: stretch; min-height: 150px; max-height: 220px; }
+  .mt-grid[data-lone-two='1'] > .mt-card:last-child .mt-card-main { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
+  .mt-grid[data-lone-two='1'] > .mt-card:last-child .mt-card-foot { flex-direction: column; align-items: flex-end; gap: 4px; margin: 0 8px 0 0; padding: 0; }
+}
+@container mt-catalog (min-width: 880px) {
+  .mt-grid[data-lone-three='1'] > .mt-card:last-child { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 36fr) minmax(0, 64fr); }
+  .mt-grid[data-lone-three='1'] > .mt-card:last-child .mt-cover { aspect-ratio: auto; align-self: stretch; min-height: 150px; max-height: 220px; }
+  .mt-grid[data-lone-three='1'] > .mt-card:last-child .mt-card-main { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
+  .mt-grid[data-lone-three='1'] > .mt-card:last-child .mt-card-foot { gap: 18px; margin: 0 14px 0 0; padding: 0; }
+}
+
+/* ---------- Card ---------- */
+.mt-card {
+  position: relative; display: flex; flex-direction: column; padding: 6px;
+  background: var(--card); border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm);
+  transition: transform var(--motion-med) var(--ease-out), box-shadow var(--motion-med) var(--ease-out), border-color var(--motion-med) var(--ease-out);
+  animation: mt-in var(--motion-slow) var(--ease-out) backwards;
+}
+.mt-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-soft); border-color: color-mix(in srgb, var(--text) 18%, var(--line)); }
+.mt-card:hover .mt-motif { transform: scale(1.035); }
+@keyframes mt-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ---------- Cover and region art ---------- */
+.mt-cover { position: relative; isolation: isolate; overflow: hidden; aspect-ratio: 16 / 10; border-radius: var(--radius-sm); }
+.mt-cover .itin-emoji { position: absolute; inset: 0; aspect-ratio: auto; border-bottom: 0; }
+.mt-art { position: absolute; inset: 0; overflow: hidden; background: linear-gradient(180deg, var(--mt-sky1) 0%, var(--mt-sky2) 100%); }
+.mt-art::after { content: ''; position: absolute; inset: 0; background: transparent; pointer-events: none; }
+[data-theme='dark'] .mt-art::after { background: rgba(6, 20, 24, .16); }
+.mt-motif { position: absolute; inset: 0; width: 100%; height: 100%; transition: transform var(--motion-slow) var(--ease-out); }
+.mt-art--coorg { --mt-sky1: #D3E6D4; --mt-sky2: #F2E8C4; color: #28543C; }
+.mt-art--kashmir { --mt-sky1: #C9DCEE; --mt-sky2: #F3E5D3; color: #2B4B62; }
+.mt-art--kerala { --mt-sky1: #D2E9E2; --mt-sky2: #F4E2BA; color: #10494A; }
+.mt-art--meghalaya { --mt-sky1: #CDE4DC; --mt-sky2: #E4EBCF; color: #1F4A3B; }
+.mt-art--rajasthan { --mt-sky1: #F8DAB0; --mt-sky2: #EBA57B; color: #79341F; }
+.mt-art--goa { --mt-sky1: #CFE6EE; --mt-sky2: #F8DDB4; color: #1B5566; }
+.mt-art--generic { --mt-sky1: #D9E8E4; --mt-sky2: #F3E8CC; color: #3A5E5B; }
+
+/* ---------- Status tag: a dot and a word, never colour alone ---------- */
+.mt-tag {
+  position: absolute; top: 10px; left: 10px; z-index: var(--z-content);
+  display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px 4px 8px; border-radius: 999px;
+  background: rgb(255 255 255 / .96); color: var(--yf-navy);
+  font-size: 12px; font-weight: 700; letter-spacing: .01em; line-height: 1.4;
+}
+.mt-tag-dot { width: 8px; height: 8px; flex: none; border-radius: 50%; background: var(--yf-navy); }
+.mt-tag--live { background: var(--saffron); color: var(--color-accent-foreground); }
+.mt-tag--live .mt-tag-dot { background: var(--color-accent-foreground); }
+.mt-tag--past .mt-tag-dot { border-radius: 2px; }
+.mt-tag--draft .mt-tag-dot { background: transparent; border: 2px solid var(--yf-navy); }
+@media (prefers-reduced-motion: no-preference) {
+  .mt-tag--live .mt-tag-dot { animation: mt-pulse 1.8s var(--ease-out) infinite; }
+}
+@keyframes mt-pulse { 50% { transform: scale(1.5); opacity: .55; } }
+
+/* ---------- Card text ---------- */
+.mt-card-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.mt-card-body { flex: 1; display: flex; flex-direction: column; gap: 8px; padding: 14px 12px 8px; }
+.mt-card-title {
+  margin: 0; color: var(--text); font-family: var(--font-display); font-size: 18px; font-weight: 600; line-height: 1.28; letter-spacing: -.015em; text-wrap: balance;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+/* One link covers the whole card. The delete button sits above it. */
+.mt-card-link { color: inherit; text-decoration: none; border-radius: 4px; }
+.mt-card-link::after { content: ''; position: absolute; inset: 0; z-index: var(--z-content); border-radius: var(--radius-lg); }
+.mt-card-link:focus-visible { outline: none; }
+.mt-card-link:focus-visible::after { box-shadow: var(--ring); }
+.mt-route { margin: 0; color: var(--text-2); font-size: 14px; }
+
+/* Three labelled columns: the label sits above the value, with no icons. */
+.mt-stats {
+  display: grid; grid-template-columns: repeat(3, minmax(0, auto)); justify-content: space-between; gap: 0 8px;
+  margin: 0; padding: 12px 0 0; border-top: 1px solid var(--line); list-style: none;
+}
+.mt-stats li { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; }
+.mt-stat-ico { display: none; color: var(--text-3); }
+.mt-stat-lab { color: var(--text-3); font-size: var(--kicker-size); font-weight: var(--kicker-weight); letter-spacing: var(--kicker-tracking); text-transform: uppercase; }
+.mt-stat-val { color: var(--text); font-size: 13.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+.mt-card-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto; padding-top: 2px; }
+.mt-chip { display: inline-flex; align-items: center; min-height: 26px; padding: 0 12px; border-radius: 999px; background: var(--teal-soft); color: var(--ink-teal); font-size: 12.5px; font-weight: 700; }
+.mt-chip--plain { background: var(--bg-soft); color: var(--text); }
+
+/* No divider above the footer. */
+.mt-card-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 12px; padding: 4px 0 6px; }
+.mt-solo { color: var(--text-2); font-size: 13.5px; }
+.mt-planners { max-height: none; overflow: visible; min-height: 30px; }
+.mt-del { position: relative; z-index: var(--z-raised); color: var(--text-2); }
+.mt-del:hover { background: var(--color-destructive-soft); color: var(--ink-coral); }
+
+/* ---------- Up next ---------- */
+.mt-feat { display: grid; grid-template-columns: minmax(0, 1fr); }
+.mt-feat .mt-cover { aspect-ratio: 16 / 9; }
+.mt-feat-body { display: flex; flex-direction: column; gap: 12px; padding: 16px 14px 14px; }
+.mt-feat .mt-card-title { display: block; overflow: visible; font-size: 24px; font-weight: 600; line-height: 1.2; }
+.mt-feat-when { margin: 0; font-size: 15px; font-variant-numeric: tabular-nums; }
+.mt-feat-when b { color: var(--ink-teal); font-weight: 800; }
+.mt-range { color: var(--text); font-weight: 600; }
+.mt-sep { color: var(--text-3); }
+.mt-feat-meta { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 0; color: var(--text-2); font-size: 13.5px; font-variant-numeric: tabular-nums; }
+.mt-feat-planners { display: flex; align-items: center; gap: 12px; color: var(--text); font-size: 14px; font-weight: 600; }
+.mt-feat-planners .mt-planners { min-height: 32px; }
+.mt-meter { display: grid; gap: 6px; }
+.mt-meter-label { margin: 0; color: var(--text-2); font-size: 13.5px; }
+.mt-meter-label b { color: var(--text); font-weight: 700; }
+.mt-meter-bar { height: 8px; overflow: hidden; border-radius: 999px; background: color-mix(in srgb, var(--teal-deep) 18%, var(--card)); }
+.mt-meter-bar i { display: block; height: 100%; border-radius: 999px; background: var(--teal-deep); transition: width var(--motion-slow) var(--ease-out); }
+.mt-next { display: flex; align-items: flex-start; gap: 8px; margin: 0; padding: 8px 12px; border-radius: var(--radius-sm); background: var(--teal-soft); color: var(--text); font-size: 14.5px; line-height: 1.4; }
+.mt-next svg { flex: none; margin-top: 2px; color: var(--ink-teal); }
+.mt-next b { font-weight: 800; }
+.mt-feat-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 4px; }
+.mt-feat-actions .btn { position: relative; z-index: var(--z-raised); }
+.mt-feat-actions .mt-del { margin-left: auto; }
+@container mt-catalog (min-width: 640px) {
+  .mt-feat { grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); }
+  .mt-feat .mt-cover { aspect-ratio: auto; height: 100%; min-height: 300px; }
+  .mt-feat-body { gap: 12px; padding: 18px 20px 16px 22px; }
+  .mt-feat .mt-card-title { font-size: 28px; }
+}
+
+/* ---------- List layout ---------- */
+.mt-grid.is-list { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+.mt-grid.is-list > .mt-card { display: grid; grid-template-columns: 112px minmax(0, 1fr); }
+.mt-grid.is-list .mt-cover { aspect-ratio: auto; height: 100%; min-height: 100%; }
+.mt-grid.is-list .mt-tag { top: 6px; left: 6px; gap: 5px; padding: 2px 8px 2px 6px; font-size: 11px; }
+.mt-grid.is-list .mt-tag-dot { width: 7px; height: 7px; }
+.mt-grid.is-list .mt-card-body { gap: 6px; padding: 12px 12px 6px 14px; }
+.mt-grid.is-list .mt-card-title { font-size: 17px; }
+.mt-grid.is-list .mt-card-foot { margin: 0 4px 0 14px; }
+/* In a row the labels stay for screen readers and the icons carry the look. */
+.mt-grid.is-list .mt-stats { display: flex; flex-wrap: wrap; gap: 4px 16px; padding: 0; border-top: 0; }
+.mt-grid.is-list .mt-stats li { flex-direction: row; align-items: center; gap: 6px; white-space: nowrap; }
+.mt-grid.is-list .mt-stat-ico { display: block; }
+.mt-grid.is-list .mt-stat-lab { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.mt-grid.is-list .mt-stat-val { color: var(--text-2); font-weight: 500; }
+@container mt-catalog (min-width: 720px) {
+  .mt-grid.is-list > .mt-card { grid-template-columns: 168px minmax(0, 1fr); }
+  .mt-grid.is-list .mt-tag { top: 8px; left: 8px; gap: 6px; padding: 4px 12px 4px 8px; font-size: 12px; }
+  .mt-grid.is-list .mt-tag-dot { width: 8px; height: 8px; }
+  .mt-grid.is-list .mt-card-main { display: grid; grid-template-columns: minmax(0, 1.6fr) 150px minmax(0, 1fr) 150px; align-items: center; gap: 0 20px; padding: 4px 8px 4px 18px; }
+  .mt-grid.is-list .mt-card-body { display: contents; }
+  .mt-grid.is-list .mt-card-head { grid-column: 1; min-width: 0; }
+  .mt-grid.is-list .mt-stats { grid-column: 2; flex-direction: column; flex-wrap: nowrap; gap: 2px; }
+  .mt-grid.is-list .mt-card-chips { grid-column: 3; margin-top: 0; padding: 0; }
+  .mt-grid.is-list .mt-card-foot { grid-column: 4; justify-content: flex-end; gap: 12px; margin: 0; padding: 0; }
+  .mt-grid.is-list .mt-card-title { font-size: 18px; }
+}
+
+/* ---------- Phones ---------- */
+@media (max-width: 720px), (pointer: coarse) {
+  .mt-del { width: 44px; height: 44px; }
+  .mt-seg button { min-height: 44px; min-width: 44px; }
+  .mt-filters .input, .mt-filters .select, .mt-filters .clickable-chip, .mt-filters .btn { min-height: 44px; }
+  .mt-feat-actions .btn { min-height: 44px; }
+  .draft-card .btn { min-height: 44px; }
+}
+@media (max-width: 640px) {
+  .mt-section-title { font-size: 22px; }
+  .mt-section-head { margin-top: 22px; }
+  .mt-filters { padding: 8px; border-radius: var(--radius-sm); }
+  .mt-feat .mt-card-title { font-size: 22px; }
+  .mt-card:hover { transform: none; }
+  /* Compact rows: a small square cover, the text, and the delete button. */
+  .mt-grid.is-list { gap: 8px; }
+  .mt-grid.is-list > .mt-card { grid-template-columns: 76px minmax(0, 1fr) 44px; align-items: center; column-gap: 12px; padding: 6px 4px 6px 6px; }
+  .mt-grid.is-list .mt-card-main { display: contents; }
+  .mt-grid.is-list .mt-cover { aspect-ratio: 1 / 1; height: auto; min-height: 0; align-self: center; }
+  .mt-grid.is-list .mt-tag { top: 4px; left: 4px; padding: 2px 6px; font-size: 10.5px; gap: 4px; }
+  .mt-grid.is-list .mt-tag-dot { display: none; }
+  .mt-grid.is-list .mt-card-body { gap: 2px; padding: 0; }
+  .mt-grid.is-list .mt-card-title { font-size: 16px; line-height: 1.25; }
+  .mt-grid.is-list .mt-route { font-size: 13px; line-height: 1.4; }
+  .mt-grid.is-list .mt-stats { gap: 0 10px; font-size: 12.5px; line-height: 1.4; }
+  .mt-grid.is-list .mt-stat-ico { display: none; }
+  .mt-grid.is-list .mt-card-chips, .mt-grid.is-list .mt-planners, .mt-grid.is-list .mt-solo { display: none; }
+  .mt-grid.is-list .mt-card-foot { justify-self: end; margin: 0; padding: 0; }
+}
+@media (max-width: 360px) {
+  .mt-grid.is-list > .mt-card { grid-template-columns: 64px minmax(0, 1fr) 44px; column-gap: 10px; }
+  .mt-grid.is-list .mt-card-title { font-size: 15px; }
+}
+
+/* ---------- Reduced motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .mt-card { animation: none; transition: none; }
+  .mt-card:hover { transform: none; }
+  .mt-card:hover .mt-motif { transform: none; }
+  .mt-motif, .mt-meter-bar i, .mt-seg button { transition: none; }
+  .mt-tag--live .mt-tag-dot { animation: none; }
+}
+
+/* ---------- My trips fixes: toolbar row, 320 selects, phone list rows ----------
+   While no filter is active, the Clear button is out of flow, so the filter
+   box keeps no blank band. When a filter is active, it takes the next line. */
+.mt-filters .mt-clear.is-idle { position: absolute; top: 0; left: 0; pointer-events: none; }
+@media (max-width: 720px) {
+  /* Phone order: search, selects, style chips, then Clear. */
+  .mt-filters > .mt-clear { order: 4; }
+  /* Two selects share a row, equal width, from 361px up. */
+  .mt-filters .cselect { flex: 1 1 calc(50% - 5px); min-width: 0; }
+  .mt-filters .cselect .select { min-width: 0; width: 100%; }
+}
+/* At 360px and below the selects stack, each full width and equal. */
+@media (max-width: 360px) {
+  .mt-filters .cselect { flex: 1 1 100%; }
+}
+@media (max-width: 640px) {
+  /* The status tag shrinks to a dot. The word stays for screen readers. */
+  .mt-grid.is-list .mt-tag { width: 18px; height: 18px; padding: 0; justify-content: center; gap: 0; }
+  .mt-grid.is-list .mt-tag-dot { display: block; width: 8px; height: 8px; }
+  .mt-grid.is-list .mt-tag-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  /* Meta stack: budget on its own line, then travel and dates with a dot. */
+  .mt-grid.is-list .mt-stats { flex-wrap: wrap; justify-content: flex-start; gap: 0; }
+  .mt-grid.is-list .mt-stats li:first-child { flex-basis: 100%; }
+  .mt-grid.is-list .mt-stats li:last-child::before { content: '·'; margin: 0 6px; color: var(--text-3); }
+}
+
+/* ---------- Empty-state icon weight ---------- */
+.empty-state .big .lucide { stroke-width: 1.25; }
+
+/* ---------- My trips: the filter bar holds still while you type ----------
+   An active Clear button takes its own full-width row under the selects, on
+   every width. Search, chips and selects keep their place when it appears. */
+.mt-filters > .mt-clear:not(.is-idle) { flex: 0 0 100%; justify-content: flex-end; }

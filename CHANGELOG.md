@@ -19,6 +19,30 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 - **A browser verification harness for agents, under `.agents/skills/verify-yatraflow/`.** It starts the dev server on port 5178. It checks the server and the Supabase project ref. It drives a headless Edge or Chrome to a route. Each run writes a screenshot and a JSON record to `.verify-evidence/`, which git ignores. The feature map covers five signed-out flows.
 
+- **My trips shows a pinned Up next card for your live or soonest trip.** The card shows a countdown, a planning meter, the next step and a delete button. It stays pinned through sort and style filters. It hides while you search.
+
+### Changed
+
+- **My trips has a panorama banner and a Grid | List switch.** The page actions sit in the banner and stack on phones. Phone list rows fit the screen, and the filter box no longer leaves blank space.
+
+- **Trip cards show a status tag and labelled Budget, Travel and Dates columns.** The tag reads Live, Upcoming, Past or Draft. A trip without a cover image shows papercut art instead.
+
+- **Icon strokes now draw at a visible weight, and small icons match them.** Empty-state icons and select arrows are rebalanced too.
+
+### Fixed
+
+- **Icons drawn through the shared inline icon wrapper no longer render as solid black shapes.** The wrapper sets an empty fill, so every outline icon keeps its stroke style.
+
+- **My trips shows "No other trips yet" when the only trip is the pinned Up next card.** A sort or style filter that still matches that trip no longer shows "No trips match those filters" with a Clear filters button.
+
+- **The Clear filters button no longer shifts the search, chips and selects.** While a filter is active, the button takes its own full-width row under the selects.
+
+- **Each My trips status tag has its own dot shape.** Upcoming is a filled circle, Live a pulsing circle, Past a square and Draft a ring. The dot uses a dark ink, so it stays readable in dark mode.
+
+- **The When filter treats an impossible date such as 2026-02-31 as a draft trip.** It now agrees with the status shown on the card.
+
+- **A destination only matches a region as a whole word.** "Goalpara" no longer takes the Goa artwork.
+
 ## [0.74.0] - 2026-10-07
 
 ### Changed

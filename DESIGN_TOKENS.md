@@ -236,8 +236,9 @@ already resolved to `#2BB8AC` in both families, so nothing there changes.
 
 - **Weights:** only 500/600/700/800. The font link loads Plus Jakarta Sans
   400-800 (it was Inter until Sep 2026 - the ramp is identical, which is why the
-  weight gate moved not at all) and Sora 600-800. Never declare a weight the link
-  does not load - the browser fakes it with synthetic bold.
+  weight gate moved not at all) and Sora 600-800. Plus Jakarta Sans alone loads
+  400, so never set 400 on Sora. Never declare a weight the link does not load -
+  the browser fakes it with synthetic bold.
 - **Micro-labels ("kickers"):** the incumbent recipe is 10.5px / 700 / `.06em` /
   uppercase via CSS `text-transform`; keep source text sentence case. Each of
   `--kicker-size`, `--kicker-weight`, `--kicker-tracking` has one declaration
@@ -262,6 +263,11 @@ already resolved to `#2BB8AC` in both families, so nothing there changes.
   is new. A pin in `tests/design-system.test.ts` fails the build if the ramp and
   the gate's ladder drift apart, and the literal-padding inventory below is a
   dated snapshot of what has not yet moved.
+
+### Icon stroke
+
+- Stroke comes from the `--icon-stroke` tokens in `src/styles.css`. Do not set stroke with a `strokeWidth` prop. The CSS rule overrides the SVG attribute, so the prop has no effect.
+- Glyphs at 12px and under use `--icon-stroke-sm`, through the `.ic-sm` class.
 
 ### Radii
 

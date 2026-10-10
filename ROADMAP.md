@@ -471,6 +471,11 @@ Neither decision touches a colour value, per [ADR 0002](docs/adr/0002-mockup-pal
     [`docs/screenshots/mr1-task-row-1440.png`](docs/screenshots/mr1-task-row-1440.png) and
     [`mr1-task-row-390.png`](docs/screenshots/mr1-task-row-390.png). All six cards read
     "N of M days with activities" at both widths. No card claimed "Ready to travel".
+  - **The row has its own capture now (2026-10-10).** The pair above was MR1's. This row's own
+    evidence is [`mr2-progress-1440.png`](docs/screenshots/mr2-progress-1440.png) and
+    [`mr2-progress-390.png`](docs/screenshots/mr2-progress-390.png), both of the featured card
+    that carries the meter: `role="progressbar"`, the label "Days with activities", and the
+    2/2 count on the fixture account.
 - [x] **MR3. Status filter tabs with counts.** `src/pages/TripsList.tsx`. Five filters with live
   counts. Persist the choice through `src/lib/uiPrefs.ts`, which already stores per-day collapse.
   - **Landed 2026-10-05, review still owed.** The five filters are all trips, needs dates, needs
@@ -482,6 +487,11 @@ Neither decision touches a colour value, per [ADR 0002](docs/adr/0002-mockup-pal
     widths: [`docs/screenshots/mr4-viewbar-1440.png`](docs/screenshots/mr4-viewbar-1440.png) and
     [`mr4-viewbar-390.png`](docs/screenshots/mr4-viewbar-390.png). Six trips were on screen, and
     the counts matched the trips under each tab.
+  - **The tabs have their own capture now (2026-10-10).**
+    [`mr3-status-tabs-1440.png`](docs/screenshots/mr3-status-tabs-1440.png) and
+    [`mr3-status-tabs-390.png`](docs/screenshots/mr3-status-tabs-390.png) hold the five tabs with
+    their live counts — All trips 2 · Needs dates 2 · Needs planning 0 · Needs booking 0 ·
+    Ready 0 on the fixture account.
 - [x] **MR4. Grid and list view toggle.** `src/pages/TripsList.tsx`. Both layouts, persisted the
   same way as MR3.
   - **Landed 2026-10-05, review still owed.** A labelled pair, not one cycling button, so the
@@ -515,6 +525,11 @@ Neither decision touches a colour value, per [ADR 0002](docs/adr/0002-mockup-pal
     render. The avatars and "Just you so far" line were already in the card foot. This row is the
     clearest case in the track of a plan being a claim about code rather than a fact: it was
     written as work and turned out to be a description.
+  - **Its own capture, and what it shows (2026-10-10).**
+    [`mr5-card-foot-1440.png`](docs/screenshots/mr5-card-foot-1440.png) and
+    [`mr5-card-foot-390.png`](docs/screenshots/mr5-card-foot-390.png) hold the card foot at both
+    widths: the traveller line and the cover state the row describes. The capture is the evidence
+    that the two halves render; the code check above is the evidence that no new work was needed.
 - [x] **MR6. Departure countdown.** `src/pages/TripsList.tsx`. "Departs in N days" on upcoming
   trips only. Compute from the trip start date, never from a stored string.
   - **Landed 2026-10-05.** `departureLabel` lives beside the other card derivations and returns
@@ -593,8 +608,24 @@ Neither decision touches a colour value, per [ADR 0002](docs/adr/0002-mockup-pal
     creator their funnels and money. A visitor has none of that and never sees the page. Discovery
     is a public surface, so it lands in Explore, which any visitor can read. `/pub/:slug` and
     `/creator/:id` stay visitor-facing and keep their current shape.
-  - **Acceptance pending:** the blocks read from a public source, and one signed-out screenshot at
-    1440px and one at 390px are saved in `docs/screenshots/`.
+  - **Built 2026-10-10, and its acceptance is BLOCKED on another branch.** The three blocks are
+    wired into Explore behind the page's own read state: `src/lib/discovery.ts` derives them (one
+    popularity score, one evidence bar, a deterministic order, so "trending" and the featured
+    card cannot disagree), `src/components/ExploreDiscovery.tsx` draws them, and each block
+    returns null until its own evidence exists. 18 cases in `tests/discovery.test.ts` pin the
+    derivations with no DOM.
+  - **The blocker, measured in a signed-out browser on 2026-10-10.** Explore never resolves for a
+    logged-out visitor on this branch: the style chips print real counts (so the catalog data
+    IS hydrated) while the page still reads its own verdict as "still reading", and the grid,
+    the discovery blocks and the share CTA all stay hidden behind a "Loading the catalog…"
+    line that never moves. The anonymous hydrate patches `published` and `users` but never
+    writes `sliceReads`, and `sliceReads` is what the page's state machine reads. The fix exists
+    on `origin/fix/explore-anon-catalog` (`94af150`, pushed 2026-10-10, **no PR open**), which
+    reports the public slices from both anonymous patches.
+  - **Acceptance pending:** the row needs that fix on its branch before it can be screened — one
+    signed-out screenshot at 1440px and one at 390px in `docs/screenshots/`, showing the three
+    blocks. Until then this row is code-complete and unverified, and it carries no CHANGELOG
+    entry: a public surface no logged-out visitor can reach is not shipped behaviour.
 - [ ] **MR11. Publications table in the owner dashboard — the public profile stays public (P8).**
   `src/pages/CreatorHubPage.tsx`. Each publication as a row with its status and its own actions.
   - **Surface corrected 2026-10-06 (P8).** The row named `src/pages/CreatorPage.tsx`, which is the
@@ -603,9 +634,24 @@ Neither decision touches a colour value, per [ADR 0002](docs/adr/0002-mockup-pal
     publication from `myPubs`, with its funnel, its window and its actions, and `hubTab` splits
     Overview from Earnings. So this row is a presentation pass over a table that exists. It is not
     a new page, and it does not replace the public profile's grid.
-  - **Acceptance pending:** a row states its publication's status and offers that row's own
-    actions, the public profile is unchanged, and one screenshot at 1440px is saved in
-    `docs/screenshots/`.
+  - **Landed 2026-10-10. A row states its status, and its action comes from the same call.**
+    `src/lib/pubRowStatus.ts` owns the rules and returns the label, the chip tone and the row's
+    action together, so a row cannot read "Live" beside a "Publish again" button. Every row now
+    states its status, live included — before this, a healthy publication said nothing at all
+    and only the two exceptions were labelled. Precedence is load-bearing: a withdrawn page is
+    `Unpublished` whatever the itinerary did afterwards, because a page that is down cannot be
+    behind. The KPI strip's Live and Behind counts read the same derivation, which is what the
+    #350 note above demands — the strip may not count a row the list below it refuses to label —
+    so that agreement is now structural rather than two copies of a rule. Eight cases in
+    `tests/pub-row-status.test.ts` pin it, and the public creator profile is untouched.
+  - **Acceptance (2026-10-10):** screened on the signed-in hub at both widths, in
+    [`docs/screenshots/mr11-publications-1440.png`](docs/screenshots/mr11-publications-1440.png)
+    and [`mr11-publications-390.png`](docs/screenshots/mr11-publications-390.png). Both fixture
+    publications drew a `Live` chip with that row's own `Edit` and `Unpublish` actions, and the
+    strip read Live 2 · Behind 0. The `Unpublished` and `Page behind itinerary` states are pinned
+    by the unit tests rather than by a screenshot: reaching them live means withdrawing or
+    editing the fixture account's publications, which is a shared-database write this pass did
+    not need to make.
 - [ ] **MR12. Mobile bottom tabbar — parked, not dropped (2026-10-06).** `src/App.tsx` and
   `src/styles.css`. Gated on `VITE_MOBILE_TABBAR`, per D2.
   - **Decision (2026-10-06): do not build this row yet.** The evidence comes from `src/`, not from
@@ -619,7 +665,20 @@ Neither decision touches a colour value, per [ADR 0002](docs/adr/0002-mockup-pal
   - **What would revive it:** a measurement, not a preference. Measure the trip list paint time
     and the Timeline's usable height at 390px with the tray, then compare against a bar. The idea
     keeps a Tier 2 row in the Idea bank, which names the dependency.
-  - **Acceptance pending:** the measurement above.
+  - **Half the measurement, taken 2026-10-10 against the production build.** `vite preview`, seven
+    signed-in loads of `/trips` per width, every timing recorded inside the page (a first pass
+    timed Playwright's own polling, which measures the harness, not the app). At **390×844** the
+    trip list paints at a median **1522 ms** (1216–1787 ms), with FCP 272 ms, DOMContentLoaded
+    216 ms, one long task, and 246 KB of JS and CSS transferred. At 1440×1000 the median is
+    1432 ms. The number is dominated by the signed-in data round trip, not by the bundle: paint
+    lands about 1.3 s after DOMContentLoaded because the trip list waits on Supabase. The sticky
+    chrome today is the top nav alone, **64 px**. A bar would take 60 px off an 844 px viewport on
+    every route, which is about 7%.
+  - **Still parked, and what is missing.** The half that decides this row is the Timeline's
+    usable day-view height with that chrome, and it could not be measured: the available fixture
+    trip carries no dates, so it has no days, no day rail and no sticky stack (the ~181 px the
+    row cites). Measuring it needs a trip with dates. Until that number exists, the row stays
+    parked.
 
 **Verification each row must pass.** The gate is `npm run verify`, which runs tsc, the lint
 ratchet, STE lint, the full test suite and the production build. Tests alone do not prove a row.

@@ -198,6 +198,15 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ### Changed
 
+- **Every publication row in the creator hub states its status, and its button follows from it.**
+  A row used to say nothing when its page was healthy, and it labelled only the two exceptions;
+  now it always states one status — Live, Unpublished, or Page behind itinerary — so a healthy
+  publication is as readable as a broken one. The row's action comes from the same derivation as
+  its label, so a row cannot read "Live" beside a "Publish again" button. A withdrawn page stays
+  Unpublished whatever its itinerary did afterwards, because a page that is down cannot be
+  behind. The hub's Live and Behind counts read the same derivation as the rows, so the strip can
+  no longer count a row the list below it refuses to label.
+
 - **My Trips puts the view switch on the status-tab row, with travel style, when and sort as
   three separate dropdowns.** The Grid/List control used to close the wrapping filter bar, so it
   wrapped onto a line of its own at every width, away from the tabs it belongs to. It now sits on

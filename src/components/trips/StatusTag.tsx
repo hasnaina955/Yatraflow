@@ -14,7 +14,7 @@ export function StatusTag({ status }: { status: TripStatus }) {
   return (
     <span className={`mt-tag mt-tag--${status}`}>
       <span className="mt-tag-dot" aria-hidden="true" />
-      {STATUS_LABEL[status]}
+      <span className="mt-tag-label">{STATUS_LABEL[status]}</span>
     </span>
   )
 }

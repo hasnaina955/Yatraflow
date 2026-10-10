@@ -321,11 +321,13 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
                   { value: 'budget-asc', label: 'Budget: low → high' },
                   { value: 'budget-desc', label: 'Budget: high → low' },
                 ]} />
-              {/* always mounted so the row doesn't shift when it appears mid-typing */}
+              {/* always mounted so the row doesn't shift when it appears mid-typing.
+                  Idle, it is taken out of flow so it reserves no space (mt-clear.is-idle).
+                  Active, it takes its own line after the selects, so the search, chips and selects never move. */}
               {/* "Clear filters" (review finding 4): the empty state's action said
                   "Clear filters" while this ghost button said "Clear" — the same
                   reset under two names, both once visible in one frame. */}
-              <button className="btn btn-ghost btn-sm" style={{ visibility: hasFilters ? 'visible' : 'hidden' }} onClick={clearFilters}>Clear filters</button>
+              <button className={`btn btn-ghost btn-sm mt-clear${hasFilters ? '' : ' is-idle'}`} style={{ visibility: hasFilters ? 'visible' : 'hidden' }} onClick={clearFilters}>Clear filters</button>
             </div>
 
             <p className="sr-only" role="status">{trips.length} {trips.length === 1 ? 'trip matches' : 'trips match'}</p>

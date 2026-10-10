@@ -8512,3 +8512,29 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
   .mt-motif, .mt-meter-bar i, .mt-seg button { transition: none; }
   .mt-tag--live .mt-tag-dot { animation: none; }
 }
+
+/* ---------- My trips fixes: toolbar row, 320 selects, phone list rows ----------
+   While no filter is active, the Clear button is out of flow, so the filter
+   box keeps no blank band. When a filter is active, it takes the next line. */
+.mt-filters .mt-clear.is-idle { position: absolute; top: 0; left: 0; pointer-events: none; }
+@media (max-width: 720px) {
+  /* Phone order: search, selects, style chips, then Clear. */
+  .mt-filters > .mt-clear { order: 4; }
+  /* Two selects share a row, equal width, from 361px up. */
+  .mt-filters .cselect { flex: 1 1 calc(50% - 5px); min-width: 0; }
+  .mt-filters .cselect .select { min-width: 0; width: 100%; }
+}
+/* At 360px and below the selects stack, each full width and equal. */
+@media (max-width: 360px) {
+  .mt-filters .cselect { flex: 1 1 100%; }
+}
+@media (max-width: 640px) {
+  /* The status tag shrinks to a dot. The word stays for screen readers. */
+  .mt-grid.is-list .mt-tag { width: 18px; height: 18px; padding: 0; justify-content: center; gap: 0; }
+  .mt-grid.is-list .mt-tag-dot { display: block; width: 8px; height: 8px; }
+  .mt-grid.is-list .mt-tag-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  /* Meta stack: budget on its own line, then travel and dates with a dot. */
+  .mt-grid.is-list .mt-stats { flex-wrap: wrap; justify-content: flex-start; gap: 0; }
+  .mt-grid.is-list .mt-stats li:first-child { flex-basis: 100%; }
+  .mt-grid.is-list .mt-stats li:last-child::before { content: '·'; margin: 0 6px; color: var(--text-3); }
+}

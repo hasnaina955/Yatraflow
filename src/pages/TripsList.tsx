@@ -1,6 +1,6 @@
 // ============ My trips ============
 import { useEffect, useId, useMemo, useState, type CSSProperties } from 'react'
-import { Compass, Plus, Rocket, ShoppingBag, Trash2 } from 'lucide-react'
+import { Compass, Plus, Rocket, ShoppingBag, Trash2, X } from 'lucide-react'
 import { InlineIcon } from '../components/icons'
 import { useTrips, useTrashedTrips, useUsers, useSessionUserId, useSliceReads, useTrashLoaded, useTrashFailed, tripsForUser, trashTrip, restoreTrashedTrip, restoreTrashedTripById, permanentlyDeleteTrip, fetchTrashedTrips, rereadTrips, addDemoTrips } from '../store/store'
 import { computeTotals, formatInrShort } from '../lib/engine'
@@ -14,10 +14,12 @@ import { ImportTripButton } from '../components/ImportTripButton'
 import { sliceState, emptyCopyFor, readState } from '../lib/readState'
 import type { Trip } from '../data/types'
 import { TRAVEL_STYLES } from '../data/types'
-import { otherTripsEmptyKind, pickUpNext, whenBucket, type WhenKey } from '../lib/tripsPage'
+import { heroHeadline, heroNote, heroPostcards, heroStats, otherTripsEmptyKind, pickUpNext, whenBucket, type WhenKey } from '../lib/tripsPage'
 import { gridShape, startOfLocalDay } from '../lib/tripsCard'
 import { TripArtSprite } from '../components/trips/TripArt'
-import { TripsBanner } from '../components/trips/TripsBanner'
+import { TripsHero } from '../components/trips/TripsHero'
+import { FilterChip } from '../components/filters/FilterChip'
+import { SearchField } from '../components/filters/SearchField'
 import { UpNextCard } from '../components/trips/UpNextCard'
 import { TripCard } from '../components/trips/TripCard'
 import { ViewSwitch, type TripsLayout } from '../components/trips/ViewSwitch'
@@ -159,6 +161,15 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
   }, [])
   const draftReady = useMemo(() => (draft ? readinessFromDraft(draft.form, draft.dests.length) : null), [draft])
 
+  // The hero reads all of the viewer's trips, not the filtered list, so a
+  // search or a filter never changes its headline, counts or postcards.
+  const tripsReady = tripsRead === 'ready'
+  const heroHeadlineText = heroHeadline({ trips: mine, today, ready: tripsReady })
+  const heroStatRow = heroStats({ trips: mine, today, meId, ready: tripsReady })
+  const heroCards = heroPostcards({ trips: mine, today })
+  const heroNoteText = heroNote({ trips: mine, today })
+  const toggleTrash = () => setView(v => v === 'trash' ? 'trips' : 'trash')
+
   function confirmDelete() {
     if (!pendingDelete) return
     const doomed = pendingDelete
@@ -172,27 +183,40 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
   return (
     <div className="container trips-page">
       <TripArtSprite />
-      <TripsBanner>
-        <div className="mt-act-secondary">
-          {/* I-20: the shelf has to be reachable from where people look for
-              their travel — a bought plan is not one of your trips, so it gets
-              its own list rather than a row among them. */}
-          <button className="btn btn-outline" onClick={() => onNavigate('/purchases')}>
-            <InlineIcon icon={ShoppingBag} size={15} gap={5} />My purchases
-          </button>
-          <button className={`btn btn-outline${view === 'trash' ? ' on-teal' : ''}`} aria-pressed={view === 'trash'} onClick={() => setView(v => v === 'trash' ? 'trips' : 'trash')}><InlineIcon icon={Trash2} size={15} gap={5} />Trash</button>
-          <ImportTripButton ownerId={meId} onNavigate={onNavigate} label="Import trip" />
-          <button className="btn btn-outline" onClick={addDemoTrips} aria-label="Load demo trips" title="Adds 3 sample trips — Kerala, Goa & Rajasthan — to your account" disabled={tripsRead === 'failed'}><InlineIcon icon={Rocket} size={15} gap={5} /><span>Load demo trips</span></button>
-        </div>
-        <button className="btn btn-primary" onClick={() => onNavigate('/new')}><InlineIcon icon={Plus} size={15} gap={4} />Plan a new trip</button>
-      </TripsBanner>
+      <TripsHero
+        headline={heroHeadlineText}
+        lede="All your plans, in one place."
+        stats={heroStatRow}
+        postcards={heroCards}
+        note={heroNoteText}
+        primary={
+          <button className="btn btn-primary ex-cta" onClick={() => onNavigate('/new')}><Plus size={18} aria-hidden />Plan a new trip</button>
+        }
+        secondary={
+          <>
+            {/* I-20: the shelf has to be reachable from where people look for
+                their travel — a bought plan is not one of your trips, so it gets
+                its own list rather than a row among them. */}
+            <button className="btn btn-quiet" onClick={() => onNavigate('/purchases')}>
+              <InlineIcon icon={ShoppingBag} size={15} gap={5} />My purchases
+            </button>
+            <ImportTripButton ownerId={meId} onNavigate={onNavigate} label="Import trip" className="btn btn-quiet" />
+            {/* The Trash button lives in the "Other trips" header. With no trips
+                that header is not drawn, so the button stays here instead. */}
+            {mine.length === 0 && (
+              <button className="btn btn-quiet" aria-pressed={view === 'trash'} onClick={toggleTrash}><InlineIcon icon={Trash2} size={15} gap={5} />Trash</button>
+            )}
+          </>
+        }
+      />
 
       {view === 'trash' && (
         <div className="card" style={{ marginBottom: 18 }}>
           <div className="row-between">
             <h3 style={{ margin: 0 }}>Trash {trashed.length > 0 && <span className="small muted">({trashed.length})</span>}</h3>
-            <span className="small muted">Deleted trips stay for 30 days, then they’re gone for good.</span>
+            <button className="btn btn-secondary" onClick={() => setView('trips')}>Back to my trips</button>
           </div>
+          <p className="small muted" style={{ margin: '8px 0 0' }}>Deleted trips stay for 30 days, then they’re gone for good.</p>
           <hr className="divider" />
           {trashRead !== 'ready' ? (
             // #387: a failed bin fetch used to render the genuine-empty copy.
@@ -261,9 +285,9 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
           body="Start from scratch with dates and budget, or copy a public itinerary from Explore."
           action={
             <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
-              <button className="btn btn-outline" onClick={() => onNavigate('/new')}>Plan your first trip</button>
-              <button className="btn btn-outline" onClick={addDemoTrips}><InlineIcon icon={Rocket} size={15} gap={5} />Load demo trips</button>
-              <button className="btn btn-outline" onClick={() => onNavigate('/explore')}>Explore itineraries</button>
+              <button className="btn btn-secondary" onClick={() => onNavigate('/new')}>Plan your first trip</button>
+              <button className="btn btn-secondary" onClick={addDemoTrips} title="Adds 3 sample trips — Kerala, Goa & Rajasthan — to your account"><InlineIcon icon={Rocket} size={15} gap={5} />Load demo trips</button>
+              <button className="btn btn-secondary" onClick={() => onNavigate('/explore')}>Explore itineraries</button>
             </div>
           }
         />
@@ -291,46 +315,58 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
           <section aria-labelledby={otherTitleId}>
             <div className="mt-section-head">
               <h2 className="mt-section-title" id={otherTitleId}>{upNext ? 'Other trips' : 'All trips'} ({otherTrips.length})</h2>
-              <ViewSwitch layout={layout} onChange={setLayout} />
+              <div className="mt-head-actions">
+                <button className="btn btn-quiet" onClick={toggleTrash}><InlineIcon icon={Trash2} size={15} gap={5} />Trash</button>
+                <ViewSwitch layout={layout} onChange={setLayout} />
+              </div>
             </div>
 
-            {/* ---- Search + style chips + when/sort selects (Explore's pattern) ---- */}
-            <div className="trips-toolbar mt-filters" role="search" aria-label="Filter your trips">
-              <input className="input trips-search" placeholder="Search places or stops…"
-                aria-label="Search your trips" value={q} onChange={e => setQ(e.target.value)} />
-              <div className="explore-chips" role="group" aria-label="Travel style">
-                <button className={`chip clickable-chip ${style === 'all' ? 'on-teal' : ''}`}
-                  aria-pressed={style === 'all'} onClick={() => setStyle('all')}>All styles</button>
-                {TRAVEL_STYLES.filter(s => styleCounts.get(s)).map(s => (
-                  <button key={s} className={`chip clickable-chip ${style === s ? 'on-teal' : ''}`}
-                    aria-pressed={style === s} onClick={() => setStyle(style === s ? 'all' : s)}>
-                    {cap(s)} <span className="chip-count">{styleCounts.get(s)}</span>
-                  </button>
-                ))}
+            {/* ---- Explore's filter bar: search, selects, then chips ---- */}
+            <div className="ex-filterbar explore-filterbar" role="search" aria-label="Filter your trips">
+              <div className="ex-filter-row">
+                <SearchField value={q} onChange={setQ} label="Search your trips"
+                  placeholder="Search places or stops…" shortPlaceholder="Search trips" />
               </div>
-              <Select value={when} onChange={v => setWhen(v as WhenKey)} aria-label="When"
-                options={[
-                  { value: 'all', label: 'Any time' },
-                  { value: 'upcoming', label: 'Upcoming & live' },
-                  { value: 'past', label: 'Past trips' },
-                  { value: 'draft', label: 'Drafts' },
-                ]} />
-              <Select value={sortKey} onChange={v => setSortKey(v as SortKey)} aria-label="Sort by"
-                options={[
-                  { value: 'recent', label: 'Recently edited' },
-                  { value: 'name', label: 'Name A–Z' },
-                  { value: 'length-desc', label: 'Longest first' },
-                  { value: 'budget-asc', label: 'Budget: low → high' },
-                  { value: 'budget-desc', label: 'Budget: high → low' },
-                ]} />
-              {/* Always mounted, so the row never gains or loses an element when a
-                  filter starts or stops. Idle, it is out of flow (mt-clear.is-idle).
-                  Active, it takes its own full-width row under the selects on every
-                  width, so the search, chips and selects do not move as it appears. */}
-              {/* "Clear filters" (review finding 4): the empty state's action said
-                  "Clear filters" while this ghost button said "Clear" — the same
-                  reset under two names, both once visible in one frame. */}
-              <button className={`btn btn-ghost btn-sm mt-clear${hasFilters ? '' : ' is-idle'}`} style={{ visibility: hasFilters ? 'visible' : 'hidden' }} onClick={clearFilters}>Clear filters</button>
+              <div className="ex-filter-row">
+                <div className="ex-select">
+                  <Select value={when} onChange={v => setWhen(v as WhenKey)} aria-label="When"
+                    options={[
+                      { value: 'all', label: 'Any time' },
+                      { value: 'upcoming', label: 'Upcoming & live' },
+                      { value: 'past', label: 'Past trips' },
+                      { value: 'draft', label: 'Drafts' },
+                    ]} />
+                </div>
+                <div className="ex-select">
+                  <Select value={sortKey} onChange={v => setSortKey(v as SortKey)} aria-label="Sort by"
+                    options={[
+                      { value: 'recent', label: 'Recently edited' },
+                      { value: 'name', label: 'Name A–Z' },
+                      { value: 'length-desc', label: 'Longest first' },
+                      { value: 'budget-asc', label: 'Budget: low → high' },
+                      { value: 'budget-desc', label: 'Budget: high → low' },
+                    ]} />
+                </div>
+              </div>
+              <div className="ex-chip-row">
+                <div className="ex-chips" role="group" aria-label="Travel style">
+                  <FilterChip pressed={style === 'all'} onClick={() => setStyle('all')}>All styles</FilterChip>
+                  {TRAVEL_STYLES.filter(s => styleCounts.get(s)).map(s => (
+                    <FilterChip key={s} pressed={style === s} count={styleCounts.get(s)}
+                      onClick={() => setStyle(style === s ? 'all' : s)}>
+                      {cap(s)}
+                    </FilterChip>
+                  ))}
+                </div>
+                {/* Always mounted, so the row never gains or loses an element when a
+                    filter starts or stops. Idle, it is hidden but keeps its place. */}
+                {/* "Clear filters" (review finding 4): the empty state's action said
+                    "Clear filters" while this ghost button said "Clear" — the same
+                    reset under two names, both once visible in one frame. */}
+                <button type="button" className="btn btn-quiet ex-clear" style={{ visibility: hasFilters ? 'visible' : 'hidden' }} onClick={clearFilters}>
+                  <X size={13} aria-hidden />Clear filters
+                </button>
+              </div>
             </div>
 
             <p className="sr-only" role="status">{trips.length} {trips.length === 1 ? 'trip matches' : 'trips match'}</p>

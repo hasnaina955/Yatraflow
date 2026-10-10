@@ -3,7 +3,7 @@
 // empty-state choice for the Explore gallery. No React, no clock reads, no
 // store reads. Every figure comes from the publication rows passed in.
 import type { PublishedItinerary, User } from '../data/types'
-import { formatInr } from './engine'
+import { formatInrShort } from './engine'
 import { livePubs } from './livePubs'
 
 /** Views a plan needs to be featured when it has no fork yet. */
@@ -159,12 +159,12 @@ function dayCount(count: number): string {
 
 /**
  * The four facts a card prints, in order: Days, Budget, Places and Forks. The
- * budget is per person, printed the way the featured card prints it.
+ * budget is per person, in the compact form My trips cards use (for example ~₹25k/person).
  */
 export function cardColumns(pub: PublishedItinerary): { label: string; value: string }[] {
   return [
     { label: 'Days', value: dayCount(pub.durationDays) },
-    { label: 'Budget', value: `~${formatInr(pub.estimatedBudgetPerPersonInr)}/person` },
+    { label: 'Budget', value: `~${formatInrShort(pub.estimatedBudgetPerPersonInr)}/person` },
     { label: 'Places', value: String(pub.routeSummary.length) },
     { label: 'Forks', value: String(pub.copies) },
   ]

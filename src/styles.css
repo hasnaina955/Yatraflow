@@ -2928,8 +2928,8 @@ main:has(.auth-wrap) .route-panel { flex: 1; display: flex; flex-direction: colu
 .explore-filters { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 .explore-filters .input, .explore-filters .select { width: auto; min-width: 140px; flex: 0 1 auto; }
 /* the custom Select wraps its trigger in a div — flex sizing moves to the wrapper */
-.explore-filters .cselect, .trips-toolbar .cselect { flex: 0 1 auto; }
-.explore-filters .cselect .select, .trips-toolbar .cselect .select { min-width: 140px; }
+.explore-filters .cselect { flex: 0 1 auto; }
+.explore-filters .cselect .select { min-width: 140px; }
 /* The filter bar's own backdrop-filter (.glass-soft) makes it a stacking
    context, so the .cselect menu opened inside it was trapped at the bar's rung
    — and every card below is positioned, so they painted over the open menu:
@@ -5562,15 +5562,6 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
   .ts-savebar .btn { flex: 1; }
 }
 
-/* ============ My Trips toolbar (search / style chips / when / sort) ============ */
-.trips-toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 18px; }
-.trips-toolbar .trips-search { flex: 1 1 240px; min-width: 200px; }
-.trips-toolbar .select { width: auto; min-width: 130px; flex: 0 1 auto; }
-.trips-toolbar .cselect .select { min-width: 130px; }
-/* the chips' own margin-bottom is for the Explore filter card — inside the
-   centered toolbar row it lifts them ~7px out of line with the search field */
-.trips-toolbar .explore-chips { margin-bottom: 0; }
-
 /* trash list rows — :last-child drops the rule so it doesn't float above the
    card's bottom padding */
 .trash-row { padding: 10px 0; border-bottom: 1px solid var(--line); }
@@ -5584,19 +5575,11 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
    pattern — and single-column cards with comfortable gutters. */
 .trips-page { padding-top: 26px; }
 @media (max-width: 720px) {
-  .trips-toolbar { align-items: stretch; }
-  .trips-toolbar .trips-search { flex-basis: 100%; }
-  .trips-toolbar .explore-chips { order: 3; flex-basis: 100%; margin-bottom: 0; }
   /* Selects pair up while the row can hold them. The 45% basis on its own let
      two share a row all the way down to 320px, where each got ~120px and the
-     label clipped to "Any bu…" — so the desktop min-widths (140px here, 130px
-     on the trips toolbar) stay in place as the floor instead of being zeroed.
-     Two selects need ~290px; below that the row wraps rather than crushing. */
-  .trips-toolbar .select { flex: 1 1 45%; }
-  .trips-toolbar .cselect { flex: 1 1 45%; }
-  .trips-toolbar .cselect .select { width: 100%; }
-  /* Explore's filter row mirrors the toolbar pairing, so its three selects
-     don't drop to one full-width stack on a phone. */
+     label clipped to "Any bu…" — so the desktop min-width (140px here) stays
+     in place as the floor instead of being zeroed. Two selects need ~290px;
+     below that the row wraps rather than crushing. */
   .explore-filters .select, .explore-filters .cselect { flex: 1 1 45%; }
   .explore-filters .cselect .select { width: 100%; }
 }
@@ -8151,7 +8134,7 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .tsx-card--identity .bench-pair { align-items: start; }
 .tsx-card--identity .cover-picker-preview { height: 72px; }
 
-/* ============ My trips: banner, Up next, filters, grid and list ============
+/* ============ My trips: Up next, grid and list ============
    Components: src/components/trips/. Every class starts with "mt-" so nothing
    here touches another page. Colours come from the app tokens only. The
    exception is the region art: each region sets its own sky and ink, the same
@@ -8159,61 +8142,15 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
    Motion comes from the motion tokens. Each animated rule has a reduced-motion
    opt-out at the end of this section. */
 
-/* ---------- Banner ---------- */
-.mt-banner {
-  --mt-art-h: 136px;
-  --mt-banner-pad-y: 32px;
-  --mt-banner-pad-x: 36px;
-  position: relative; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 16px 24px;
-  margin-bottom: 20px;
-  padding: var(--mt-banner-pad-y) var(--mt-banner-pad-x) calc(var(--mt-art-h) + 14px);
-  border: 1px solid var(--line); border-radius: var(--radius-lg);
-  background: linear-gradient(180deg, var(--yf-mist) 0%, var(--yf-peach) 100%);
-}
-/* The art sits in its own band along the bottom edge. It is first in the
-   markup and has no z-index, so the title and the buttons paint above it, and
-   the banner makes no stacking context that could trap the import dialog. */
-.mt-banner-art {
-  position: absolute; left: 0; right: 0; bottom: 0; height: var(--mt-art-h);
-  overflow: hidden; border-radius: 0 0 calc(var(--radius-lg) - 1px) calc(var(--radius-lg) - 1px);
-  color: var(--yf-teal-700); pointer-events: none;
-}
-.mt-banner-art svg { width: 100%; height: 100%; }
-.mt-banner-title { position: relative; flex: 1 1 360px; min-width: 0; }
-.mt-banner h1 {
-  margin: 0; color: var(--text); font-family: var(--font-display); font-weight: 600;
-  font-size: clamp(2.25rem, 1.4rem + 2.2vw, 3.25rem); line-height: 1.05; letter-spacing: -.02em;
-}
-.mt-lede { margin: 8px 0 0; max-width: 46ch; color: var(--text-2); font-size: 17px; line-height: 1.45; text-wrap: pretty; }
-.mt-banner-actions { position: relative; display: flex; flex-wrap: nowrap; gap: 8px; flex: 1 1 100%; }
-.mt-act-secondary { display: contents; }
-.mt-banner-actions .btn { min-height: 44px; }
-@media (max-width: 980px) {
-  .mt-banner { --mt-art-h: 112px; --mt-banner-pad-y: 28px; --mt-banner-pad-x: 28px; }
-  .mt-banner-actions { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); }
-  .mt-banner-actions > .btn-primary { order: -1; grid-column: span 3; }
-  .mt-act-secondary > .btn { grid-column: span 2; }
-  .mt-act-secondary > .btn:first-child { grid-column: span 3; }
-}
-@media (max-width: 640px) {
-  .mt-banner { --mt-art-h: 104px; --mt-banner-pad-y: 22px; --mt-banner-pad-x: 16px; gap: 14px; border-radius: var(--radius); }
-  .mt-banner-art { border-radius: 0 0 calc(var(--radius) - 1px) calc(var(--radius) - 1px); }
-  .mt-lede { font-size: 15.5px; }
-  .mt-banner-actions { display: flex; flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 10px; min-width: 0; max-width: 100%; }
-  .mt-banner-actions > .btn-primary { order: -1; width: 100%; min-height: 48px; }
-  .mt-act-secondary { display: flex; flex-wrap: wrap; gap: 8px; }
-  .mt-act-secondary > .btn, .mt-act-secondary > .btn:first-child { grid-column: auto; flex: 0 1 auto; }
-}
-
 /* ---------- Sections ---------- */
 .mt-catalog { container: mt-catalog / inline-size; }
 .mt-section-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 16px; margin: 24px 0 14px; }
 .mt-catalog > section:first-child > .mt-section-head { margin-top: 0; }
-.mt-section-title { margin: 0; color: var(--text); font-family: var(--font-display); font-size: 24px; font-weight: 700; line-height: 1.2; letter-spacing: -.02em; }
+.mt-section-title { margin: 0; color: var(--text); font-family: var(--font-body); font-size: 28px; font-weight: 800; line-height: 1.2; letter-spacing: -.02em; }
 .mt-kicker-note { color: var(--text-3); font-size: .6em; font-weight: 600; letter-spacing: 0; white-space: nowrap; }
 
 /* ---------- Grid | List switch ---------- */
-.mt-seg { display: inline-flex; gap: 2px; padding: 2px; border: 1px solid var(--line); border-radius: 999px; background: var(--card); }
+.mt-seg { display: inline-flex; gap: 2px; padding: 2px; border: 1px solid var(--line-strong); border-radius: 999px; background: var(--card); }
 .mt-seg button {
   display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 14px;
   border: 0; border-radius: 999px; background: none; color: var(--text);
@@ -8223,14 +8160,6 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .mt-seg button:hover:not([aria-pressed='true']) { background: var(--bg-soft); }
 .mt-seg button[aria-pressed='true'] { background: var(--text); color: var(--bg); }
 .mt-seg button:focus-visible { outline: none; box-shadow: var(--ring); }
-
-/* ---------- Filters ---------- */
-/* The bar is a stacking context host: the select menus open inside it and must
-   paint over the positioned cards below. */
-.mt-filters {
-  position: relative; z-index: var(--z-frost); margin-bottom: 16px; padding: 12px;
-  background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow-sm);
-}
 
 /* ---------- Grid ---------- */
 .mt-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
@@ -8257,16 +8186,12 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 /* ---------- Card ---------- */
 .mt-card {
   position: relative; display: flex; flex-direction: column; padding: 6px;
-  background: var(--card); border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm);
+  background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow-card);
   transition: transform var(--motion-med) var(--ease-out), box-shadow var(--motion-med) var(--ease-out), border-color var(--motion-med) var(--ease-out);
-  animation: mt-in var(--motion-slow) var(--ease-out) backwards;
+  animation: cardIn var(--motion-slow) var(--ease-out) backwards;
 }
-.mt-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-soft); border-color: color-mix(in srgb, var(--text) 18%, var(--line)); }
+.mt-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-card-hover); border-color: var(--line-strong); }
 .mt-card:hover .mt-motif { transform: scale(1.035); }
-@keyframes mt-in {
-  from { opacity: 0; transform: translateY(12px); }
-  to { opacity: 1; transform: none; }
-}
 
 /* ---------- Cover and region art ---------- */
 .mt-cover { position: relative; isolation: isolate; overflow: hidden; aspect-ratio: 16 / 10; border-radius: var(--radius-sm); }
@@ -8304,12 +8229,12 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .mt-card-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 .mt-card-body { flex: 1; display: flex; flex-direction: column; gap: 8px; padding: 14px 12px 8px; }
 .mt-card-title {
-  margin: 0; color: var(--text); font-family: var(--font-display); font-size: 18px; font-weight: 600; line-height: 1.28; letter-spacing: -.015em; text-wrap: balance;
+  margin: 0; color: var(--text); font-family: var(--font-body); font-size: 19px; font-weight: 700; line-height: 1.28; letter-spacing: -.015em; text-wrap: balance;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
 /* One link covers the whole card. The delete button sits above it. */
 .mt-card-link { color: inherit; text-decoration: none; border-radius: 4px; }
-.mt-card-link::after { content: ''; position: absolute; inset: 0; z-index: var(--z-content); border-radius: var(--radius-lg); }
+.mt-card-link::after { content: ''; position: absolute; inset: 0; z-index: var(--z-content); border-radius: var(--radius); }
 .mt-card-link:focus-visible { outline: none; }
 .mt-card-link:focus-visible::after { box-shadow: var(--ring); }
 .mt-route { margin: 0; color: var(--text-2); font-size: 14px; }
@@ -8321,12 +8246,12 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 }
 .mt-stats li { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; }
 .mt-stat-ico { display: none; color: var(--text-3); }
-.mt-stat-lab { color: var(--text-3); font-size: var(--kicker-size); font-weight: var(--kicker-weight); letter-spacing: var(--kicker-tracking); text-transform: uppercase; }
-.mt-stat-val { color: var(--text); font-size: 13.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.mt-stat-lab { color: var(--text-2); font-size: var(--kicker-size); font-weight: var(--kicker-weight); letter-spacing: var(--kicker-tracking); text-transform: uppercase; }
+.mt-stat-val { color: var(--text); font-size: 13.5px; font-weight: 700; font-variant-numeric: tabular-nums; }
 
 .mt-card-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto; padding-top: 2px; }
-.mt-chip { display: inline-flex; align-items: center; min-height: 26px; padding: 0 12px; border-radius: 999px; background: var(--teal-soft); color: var(--ink-teal); font-size: 12.5px; font-weight: 700; }
-.mt-chip--plain { background: var(--bg-soft); color: var(--text); }
+.mt-chip { display: inline-flex; align-items: center; min-height: 26px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 999px; color: var(--text); font-size: 12.5px; font-weight: 600; }
+.mt-chip--plain { border-color: transparent; background: var(--bg-soft); }
 
 /* No divider above the footer. */
 .mt-card-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 12px; padding: 4px 0 6px; }
@@ -8339,7 +8264,7 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .mt-feat { display: grid; grid-template-columns: minmax(0, 1fr); }
 .mt-feat .mt-cover { aspect-ratio: 16 / 9; }
 .mt-feat-body { display: flex; flex-direction: column; gap: 12px; padding: 16px 14px 14px; }
-.mt-feat .mt-card-title { display: block; overflow: visible; font-size: 24px; font-weight: 600; line-height: 1.2; }
+.mt-feat .mt-card-title { display: block; overflow: visible; font-size: 24px; font-weight: 700; line-height: 1.2; letter-spacing: -.02em; }
 .mt-feat-when { margin: 0; font-size: 15px; font-variant-numeric: tabular-nums; }
 .mt-feat-when b { color: var(--ink-teal); font-weight: 800; }
 .mt-range { color: var(--text); font-weight: 600; }
@@ -8362,7 +8287,7 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
   .mt-feat { grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); }
   .mt-feat .mt-cover { aspect-ratio: auto; height: 100%; min-height: 300px; }
   .mt-feat-body { gap: 12px; padding: 18px 20px 16px 22px; }
-  .mt-feat .mt-card-title { font-size: 28px; }
+  .mt-feat .mt-card-title { font-size: 28px; line-height: 1.18; }
 }
 
 /* ---------- List layout ---------- */
@@ -8397,15 +8322,12 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 @media (max-width: 720px), (pointer: coarse) {
   .mt-del { width: 44px; height: 44px; }
   .mt-seg button { min-height: 44px; min-width: 44px; }
-  .mt-filters .input, .mt-filters .select, .mt-filters .clickable-chip, .mt-filters .btn { min-height: 44px; }
   .mt-feat-actions .btn { min-height: 44px; }
   .draft-card .btn { min-height: 44px; }
 }
 @media (max-width: 640px) {
-  .mt-section-title { font-size: 22px; }
+  .mt-section-title { font-size: 24px; }
   .mt-section-head { margin-top: 22px; }
-  .mt-filters { padding: 8px; border-radius: var(--radius-sm); }
-  .mt-feat .mt-card-title { font-size: 22px; }
   .mt-card:hover { transform: none; }
   /* Compact rows: a small square cover, the text, and the delete button. */
   .mt-grid.is-list { gap: 8px; }
@@ -8436,21 +8358,7 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
   .mt-tag--live .mt-tag-dot { animation: none; }
 }
 
-/* ---------- My trips fixes: toolbar row, 320 selects, phone list rows ----------
-   While no filter is active, the Clear button is out of flow, so the filter
-   box keeps no blank band. When a filter is active, it takes the next line. */
-.mt-filters .mt-clear.is-idle { position: absolute; top: 0; left: 0; pointer-events: none; }
-@media (max-width: 720px) {
-  /* Phone order: search, selects, style chips, then Clear. */
-  .mt-filters > .mt-clear { order: 4; }
-  /* Two selects share a row, equal width, from 361px up. */
-  .mt-filters .cselect { flex: 1 1 calc(50% - 5px); min-width: 0; }
-  .mt-filters .cselect .select { min-width: 0; width: 100%; }
-}
-/* At 360px and below the selects stack, each full width and equal. */
-@media (max-width: 360px) {
-  .mt-filters .cselect { flex: 1 1 100%; }
-}
+/* ---------- My trips fixes: phone list rows ---------- */
 @media (max-width: 640px) {
   /* The status tag shrinks to a dot. The word stays for screen readers. */
   .mt-grid.is-list .mt-tag { width: 18px; height: 18px; padding: 0; justify-content: center; gap: 0; }
@@ -8465,40 +8373,34 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 /* ---------- Empty-state icon weight ---------- */
 .empty-state .big .lucide { stroke-width: 1.25; }
 
-/* ---------- My trips: the filter bar holds still while you type ----------
-   An active Clear button takes its own full-width row under the selects, on
-   every width. Search, chips and selects keep their place when it appears. */
-.mt-filters > .mt-clear:not(.is-idle) { flex: 0 0 100%; justify-content: flex-end; }
-
 /* ===== Explore redesign ===== */
 /* Components: src/components/explore/. Every class starts with "ex-". Colours
    come from the app tokens, so light and dark both follow the theme. The
-   papercut art is the My trips art (TripArt). Motion uses the motion tokens
+   papercut art is the My trips art (TripArt). My trips wears the same page
+   skin, so the button, hero and filter rules reach both pages. Motion uses the motion tokens
    (docs/MOTION-TOKENS.md); every animated rule has a reduced-motion opt-out in
    the last block. Type: Playfair Display for the hero line, Caveat for the
    handwritten note, the app's body font for everything else. */
 
-.container.ex-page {
-  --ex-font-serif: 'Playfair Display', Georgia, 'Times New Roman', serif;
-  --ex-font-hand: 'Caveat', 'Segoe Print', 'Bradley Hand', cursive;
-  --ex-line-strong: color-mix(in srgb, var(--text) 22%, transparent);
-  --ex-shadow-sm: 0 1px 2px rgba(var(--shadow-navy-rgb), .05), 0 4px 12px -6px rgba(var(--shadow-navy-rgb), .12);
-  --ex-shadow-md: 0 2px 4px rgba(var(--shadow-navy-rgb), .05), 0 22px 40px -20px rgba(var(--shadow-navy-rgb), .32);
+.container:is(.ex-page, .trips-page) {
+  /* One width for both catalog pages. The tokens they share (--font-serif,
+     --font-hand, --line-strong, --shadow-card, --shadow-card-hover) are on
+     :root, in the shared-tokens block at the end of this file. */
   max-width: 1240px;
 }
 
-/* ---------- Buttons on this page ----------
+/* ---------- Buttons on these pages ----------
    Squarer corners than the app's pills, a firm weight, a one-pixel press. */
-.ex-page .btn {
+:is(.ex-page, .trips-page) .btn {
   min-height: 44px; padding: 0 16px; border-radius: 12px; font-size: 15px; font-weight: 700; letter-spacing: -.005em;
   transition: background-color var(--motion-fast) var(--ease-out), border-color var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out), box-shadow var(--motion-fast) var(--ease-out), transform var(--motion-fast) var(--ease-out);
 }
-.ex-page .btn:active:not(:disabled) { transform: translateY(1px); }
-.ex-page .btn-primary { box-shadow: inset 0 1px 0 rgb(255 255 255 / .16), 0 10px 22px -12px color-mix(in srgb, var(--color-primary) 90%, transparent); }
-.ex-page .btn-secondary { background: var(--card); border-color: var(--ex-line-strong); color: var(--text); }
-.ex-page .btn-secondary:hover:not(:disabled) { border-color: var(--teal-deep); color: var(--ink-teal); }
-.ex-page .btn-quiet { background: transparent; color: var(--text); }
-.ex-page .btn-quiet:hover:not(:disabled) { background: var(--bg-soft); }
+:is(.ex-page, .trips-page) .btn:active:not(:disabled) { transform: translateY(1px); }
+:is(.ex-page, .trips-page) .btn-primary { box-shadow: inset 0 1px 0 rgb(255 255 255 / .16), 0 10px 22px -12px color-mix(in srgb, var(--color-primary) 90%, transparent); }
+:is(.ex-page, .trips-page) .btn-secondary { background: var(--card); border-color: var(--ex-line-strong); color: var(--text); }
+:is(.ex-page, .trips-page) .btn-secondary:hover:not(:disabled) { border-color: var(--teal-deep); color: var(--ink-teal); }
+:is(.ex-page, .trips-page) .btn-quiet { background: transparent; color: var(--text); }
+:is(.ex-page, .trips-page) .btn-quiet:hover:not(:disabled) { background: var(--bg-soft); }
 
 /* ---------- Hero ---------- */
 .ex-hero {
@@ -8537,7 +8439,7 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 }
 .ex-hero-lede { margin: 18px 0 0; max-width: 46ch; color: var(--text-2); font-size: 18px; line-height: 1.5; text-wrap: pretty; }
 .ex-hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 16px 24px; margin-top: 24px; }
-.ex-page .ex-cta { min-height: 52px; padding: 0 22px 0 24px; border-radius: 14px; font-size: 16px; }
+:is(.ex-page, .trips-page) .ex-cta { min-height: 52px; padding: 0 22px 0 24px; border-radius: 14px; font-size: 16px; }
 .ex-stats { display: flex; margin: 0; }
 .ex-stat { display: flex; flex-direction: column-reverse; padding: 0 18px; border-left: 1px solid var(--ex-line-strong); }
 .ex-stat:first-child { padding-left: 0; border-left: 0; }
@@ -8679,8 +8581,8 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .ex-chip-saved[aria-pressed='true'] { background: var(--saffron-soft); border-color: var(--saffron); color: var(--ink-amber); }
 .ex-chip-saved[aria-pressed='true'] .ex-chip-count { color: inherit; }
 .ex-chip-divider { width: 1px; height: 24px; margin-inline: 4px; background: var(--ex-line-strong); }
-.ex-page .ex-clear { margin-left: auto; min-height: 38px; padding: 0 10px; color: var(--ink-teal); font-size: 14px; }
-.ex-page .ex-clear:hover:not(:disabled) { background: var(--teal-soft); }
+:is(.ex-page, .trips-page) .ex-clear { margin-left: auto; min-height: 38px; padding: 0 10px; color: var(--ink-teal); font-size: 14px; }
+:is(.ex-page, .trips-page) .ex-clear:hover:not(:disabled) { background: var(--teal-soft); }
 
 /* "How forking works": a compact dashed strip, out of the grid. */
 .ex-howto {
@@ -8916,7 +8818,7 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 
 /* ---------- Touch sizes and phone layout ---------- */
 @media (max-width: 720px), (pointer: coarse) {
-  .ex-chip, .ex-page .ex-clear { min-height: 44px; }
+  .ex-chip, :is(.ex-page, .trips-page) .ex-clear { min-height: 44px; }
   .ex-page .ex-fork, .ex-byline { min-height: 44px; }
   .ex-search-clear { width: 44px; height: 44px; }
 }
@@ -8927,7 +8829,7 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
   .ex-hero { margin-top: 0; padding: 26px 20px 24px; border-radius: 22px; }
   .ex-hero-lede { font-size: 16px; }
   .ex-hero-actions { gap: 20px; margin-top: 22px; }
-  .ex-page .ex-cta { width: 100%; }
+  :is(.ex-page, .trips-page) .ex-cta { width: 100%; }
   .ex-stats { display: flex; flex-wrap: wrap; gap: 2px 14px; width: 100%; }
   .ex-stat, .ex-stat:first-child { flex-direction: row-reverse; justify-content: flex-end; align-items: baseline; gap: 4px; padding: 0; border-left: 0; }
   .ex-stat dd { font-size: 15px; }
@@ -8948,7 +8850,7 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
   .ex-chip-row::-webkit-scrollbar { display: none; }
   .ex-chips { display: flex; flex: none; gap: 8px; }
   .ex-chip-divider { display: none; }
-  .ex-page .ex-clear { flex: none; margin-left: 0; white-space: nowrap; }
+  :is(.ex-page, .trips-page) .ex-clear { flex: none; margin-left: 0; white-space: nowrap; }
   .ex-howto { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 10px 12px; }
   .ex-fork-note { flex-basis: 100%; }
   .ex-howto h3 { font-size: 14px; }
@@ -9006,6 +8908,59 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
   .ex-hero:hover .ex-pc-1 { transform: rotate(var(--ex-rot)); }
   .ex-hero:hover .ex-pc-2 { transform: rotate(var(--ex-rot)); }
   .ex-cover-img, .ex-feature-cover .ex-cover-img, .ex-save-dot, .ex-chip, .ex-search-input, .ex-search-clear, .ex-creator,
-  .ex-select .cselect-trigger, .ex-page .btn { transition: none; }
-  .ex-save:hover .ex-save-dot, .ex-save:active .ex-save-dot, .ex-chip:active, .ex-page .btn:active:not(:disabled) { transform: none; }
+  .ex-select .cselect-trigger, :is(.ex-page, .trips-page) .btn { transition: none; }
+  .ex-save:hover .ex-save-dot, .ex-save:active .ex-save-dot, .ex-chip:active, :is(.ex-page, .trips-page) .btn:active:not(:disabled) { transform: none; }
+}
+
+/* ===== Shared page tokens, and the My trips hero ===== */
+/* Explore and My trips are siblings and read as one design. The tokens they
+   share live here on :root. The --ex-* names stay as aliases. Type: Playfair
+   Display for a hero line, Caveat for the handwritten note, Plus Jakarta Sans
+   for everything else. */
+:root {
+  --font-serif: 'Playfair Display', Georgia, 'Times New Roman', serif;
+  --font-hand: 'Caveat', 'Segoe Print', 'Bradley Hand', cursive;
+  --line-strong: color-mix(in srgb, var(--text) 22%, transparent);
+  --shadow-card: 0 1px 2px rgba(var(--shadow-navy-rgb), .05), 0 4px 12px -6px rgba(var(--shadow-navy-rgb), .12);
+  --shadow-card-hover: 0 2px 4px rgba(var(--shadow-navy-rgb), .05), 0 22px 40px -20px rgba(var(--shadow-navy-rgb), .32);
+  --ex-font-serif: var(--font-serif);
+  --ex-font-hand: var(--font-hand);
+  --ex-line-strong: var(--line-strong);
+  --ex-shadow-sm: var(--shadow-card);
+  --ex-shadow-md: var(--shadow-card-hover);
+}
+
+/* The hero is Explore's hero (.ex-hero). These rules only change what a
+   headline from real data needs: a long place name must wrap, and the page can
+   have one, two or three postcards. */
+.mt-hero { margin-bottom: 24px; }
+.mt-catalog .ex-filterbar { margin-bottom: 16px; }
+.mt-hero .ex-kicker { margin-bottom: 12px; }
+.mt-hero h1 { overflow-wrap: anywhere; }
+.mt-hero h1 em { display: inline-block; max-width: 100%; white-space: normal; }
+.mt-hero-secondary { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.mt-hero-stats { margin-top: 22px; }
+.mt-hero .ex-postcards[data-count='1'] .ex-pc-1 { left: 31%; top: 6%; width: 42%; }
+.mt-hero .ex-postcards[data-count='1'] .ex-route-line { display: none; }
+.mt-hero .ex-postcards[data-count='2'] .ex-pc-2 { left: 56%; top: 14%; }
+.mt-pc-place { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mt-pc-blank {
+  position: absolute; inset: 0; display: grid; place-items: center; color: var(--ex-paper-ink);
+  border: 1.5px dashed color-mix(in srgb, var(--ex-paper-ink) 45%, transparent); border-radius: 3px;
+  background: color-mix(in srgb, var(--ex-paper-ink) 7%, transparent);
+}
+.mt-note { max-width: 100%; }
+.mt-head-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+@media (max-width: 959px) {
+  /* The postcards are hidden here. With no note either, the empty visual goes. */
+  .mt-hero .ex-hero-visual:not(:has(.mt-note)) { display: none; }
+}
+@media (max-width: 640px) {
+  .mt-hero .ex-kicker { margin-bottom: 8px; }
+  .mt-hero .ex-hero-actions { gap: 10px; margin-top: 16px; }
+  .mt-hero .ex-hero-actions > .ex-cta { flex: 1 1 100%; }
+  .mt-hero-secondary { flex: 1 1 100%; }
+  .mt-hero-secondary > .btn { flex: 1 1 0; justify-content: center; padding: 0 10px; }
+  .mt-hero-stats { margin-top: 12px; }
+  .mt-hero .ex-hero-visual { display: none; }
 }

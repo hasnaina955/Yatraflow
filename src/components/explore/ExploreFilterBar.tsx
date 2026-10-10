@@ -3,9 +3,11 @@
 // Saved toggle and Clear. The page owns the state and the URL. This bar only
 // shows it and reports taps. The bar is a stacking host, so the select menus
 // open above the cards. On a phone the selects fold behind a Filters button.
-import { useEffect, useId, useState } from 'react'
-import { ArrowDownUp, Heart, Search, SlidersHorizontal, X } from 'lucide-react'
+import { useId, useState } from 'react'
+import { ArrowDownUp, Heart, SlidersHorizontal, X } from 'lucide-react'
 import { Select } from '../Select'
+import { FilterChip } from '../filters/FilterChip'
+import { SearchField } from '../filters/SearchField'
 
 export interface StyleOption { value: string; label: string; count: number }
 
@@ -29,19 +31,6 @@ const SORT_OPTIONS = [
   { value: 'budget-desc', label: 'Budget: high → low' },
   { value: 'duration', label: 'Longest first' },
 ]
-
-/** A phone has room for a short placeholder only; the long one is cut off. */
-function useShortPlaceholder(): boolean {
-  const [short, setShort] = useState(() => typeof window !== 'undefined' && (window.matchMedia?.('(max-width: 640px)').matches ?? false))
-  useEffect(() => {
-    const query = window.matchMedia?.('(max-width: 640px)')
-    if (!query) return
-    const sync = () => setShort(query.matches)
-    query.addEventListener('change', sync)
-    return () => query.removeEventListener('change', sync)
-  }, [])
-  return short
-}
 
 export function ExploreFilterBar({
   query, onQueryChange,
@@ -68,26 +57,14 @@ export function ExploreFilterBar({
   filtersActive: boolean
   onClear: () => void
 }) {
-  const inputId = useId()
   const selectsId = useId()
-  const shortPlaceholder = useShortPlaceholder()
   const [selectsOpen, setSelectsOpen] = useState(false)
   const selectCount = (duration !== 'all' ? 1 : 0) + (maxBudget !== '' ? 1 : 0) + (sortKey !== 'popular' ? 1 : 0)
   return (
     <div className="ex-filterbar explore-filterbar" role="search" aria-label="Filter itineraries">
       <div className="ex-filter-row">
-        <div className="ex-search">
-          <label className="sr-only" htmlFor={inputId}>Search by route, place or creator</label>
-          <Search className="ex-search-icon" size={18} aria-hidden />
-          <input id={inputId} className="ex-search-input" type="search" autoComplete="off"
-            placeholder={shortPlaceholder ? 'Search routes' : 'Search a route, place or creator'} value={query}
-            onChange={e => onQueryChange(e.target.value)} />
-          {query.trim() !== '' && (
-            <button type="button" className="ex-search-clear" aria-label="Clear search" onClick={() => onQueryChange('')}>
-              <X size={16} aria-hidden />
-            </button>
-          )}
-        </div>
+        <SearchField value={query} onChange={onQueryChange} label="Search by route, place or creator"
+          placeholder="Search a route, place or creator" shortPlaceholder="Search routes" />
         <button type="button" className="btn btn-secondary ex-filters-toggle" aria-expanded={selectsOpen}
           aria-controls={selectsId} onClick={() => setSelectsOpen(open => !open)}>
           <SlidersHorizontal size={15} aria-hidden />Filters
@@ -108,12 +85,12 @@ export function ExploreFilterBar({
       </div>
       <div className="ex-chip-row">
         <div className="ex-chips" role="group" aria-label="Travel style">
-          <button type="button" className="ex-chip" aria-pressed={style === 'all'} onClick={onAllStyles}>All styles</button>
+          <FilterChip pressed={style === 'all'} onClick={onAllStyles}>All styles</FilterChip>
           {styles.map(option => (
-            <button key={option.value} type="button" className="ex-chip" aria-pressed={style === option.value}
+            <FilterChip key={option.value} pressed={style === option.value} count={option.count}
               onClick={() => onToggleStyle(option.value)}>
-              {option.label} <span className="ex-chip-count">{option.count}</span>
-            </button>
+              {option.label}
+            </FilterChip>
           ))}
         </div>
         <span className="ex-chip-divider" aria-hidden="true" />

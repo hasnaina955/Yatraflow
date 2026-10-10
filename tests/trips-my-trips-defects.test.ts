@@ -57,8 +57,10 @@ describe('#386 — the manual seed refuses duplicates and broken reads (source)'
     expect(body).toContain('demoSeedInFlight')
   })
 
-  it('both wirings call the same guarded function', () => {
-    expect(page().split('onClick={addDemoTrips}').length - 1).toBe(2)
+  it('the one button, in the zero-trips empty state, calls the guarded function', () => {
+    // The hero no longer carries a second "Load demo trips" button: the demo
+    // seed is offered only where there are no trips yet.
+    expect(page().split('onClick={addDemoTrips}').length - 1).toBe(1)
   })
 
   it('keeps the load-bearing seed mechanics it did not change', () => {
@@ -71,8 +73,12 @@ describe('#386 — the manual seed refuses duplicates and broken reads (source)'
     expect(s).toContain('seed trip member insert failed')
   })
 
-  it('the header seed button stands down while the trips read is failed', () => {
-    expect(page()).toContain(`disabled={tripsRead === 'failed'}`)
+  it('the seed button sits behind the trips verdict, so a failed read never shows it', () => {
+    const p = page()
+    const guard = p.indexOf("tripsRead !== 'ready'")
+    const button = p.indexOf('onClick={addDemoTrips}')
+    expect(guard).toBeGreaterThan(-1)
+    expect(button).toBeGreaterThan(guard)
   })
 })
 

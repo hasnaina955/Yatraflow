@@ -10,7 +10,7 @@ import {
   routeTrail,
   savedEmptyKind,
 } from '../src/lib/explorePage'
-import { formatInr } from '../src/lib/engine'
+import { formatInrShort } from '../src/lib/engine'
 import type { PublishedItinerary, User } from '../src/data/types'
 
 const pub = (over: Partial<PublishedItinerary> & { id: string }): PublishedItinerary => ({
@@ -371,9 +371,10 @@ describe('cardColumns', () => {
     expect(cardColumns(pub({ id: 'a', durationDays: 0 }))[0].value).toBe('0 days')
   })
 
-  it('prints the budget per person with formatInr, like the featured card', () => {
+  it('prints the budget per person with formatInrShort, like the My trips cards', () => {
     const [, budget] = cardColumns(pub({ id: 'a', estimatedBudgetPerPersonInr: 18000 }))
-    expect(budget.value).toBe(`~${formatInr(18000)}/person`)
+    expect(budget.value).toBe(`~${formatInrShort(18000)}/person`)
+    expect(budget.value).toBe('~₹18k/person')
     expect(budget.value.startsWith('~₹')).toBe(true)
     expect(budget.value.endsWith('/person')).toBe(true)
   })

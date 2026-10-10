@@ -205,3 +205,168 @@ export function otherTripsEmptyKind({ matchCount, otherCount, hasFilters }: {
   if (matchCount > 0) return 'none-other'
   return hasFilters ? 'no-match' : 'no-trips'
 }
+
+// ============ The My trips hero ============
+// The headline, the stat row, the postcards and the handwritten note all read
+// the user's own trips. Each helper takes `today` and the trip list, so none of
+// them reads the clock. Trips in the trash never reach these helpers.
+
+/** The parts of a Trip the hero reads. A full Trip fits. */
+export type HeroTrip = TripPlan
+  & Pick<Trip, 'id' | 'name' | 'startLocation' | 'destinations' | 'updatedAt'>
+  & Partial<Pick<Trip, 'members' | 'coverImageUrl'>>
+
+/** The first destination with a name, or null when the trip has none. */
+function firstDestination(t: Pick<Trip, 'destinations'>): string | null {
+  for (const destination of t.destinations ?? []) {
+    const name = destination.trim()
+    if (name) return name
+  }
+  return null
+}
+
+export interface HeroHeadline {
+  /** The plain part of the headline, before the accent. */
+  lead: string
+  /** The accent: set in italic, with its end stop. */
+  accent: string
+}
+
+/**
+ * The hero headline.
+ *  - A trip is up next (see pickUpNext): "Next stop, <its first destination>."
+ *  - Trips exist and none is up next: "Plan your next journey."
+ *  - Every trip is a draft: "Pick up where you left off."
+ *  - No trips: "Your first trip starts here."
+ * While the trips read is not settled (`ready` is false) the list may be
+ * empty only because it has not arrived, so the headline stays neutral.
+ */
+export function heroHeadline({ trips, today, ready }: {
+  trips: readonly HeroTrip[]
+  today: Date
+  ready: boolean
+}): HeroHeadline {
+  if (!ready) return { lead: 'Plan your', accent: 'next journey.' }
+  if (trips.length === 0) return { lead: 'Your first trip', accent: 'starts here.' }
+  const upNext = pickUpNext(trips, today)
+  if (upNext) return { lead: 'Next stop,', accent: `${firstDestination(upNext) ?? upNext.name.trim()}.` }
+  const allAreDrafts = trips.every(t => statusOf(t, today) === 'draft')
+  if (allAreDrafts) return { lead: 'Pick up', accent: 'where you left off.' }
+  return { lead: 'Plan your', accent: 'next journey.' }
+}
+
+export interface HeroStat { label: string; value: number }
+
+/**
+ * The stat row under the hero text: trips, upcoming, places and co-planners.
+ * Every figure counts real data. A stat that is zero is left out. The list is
+ * empty until the trips read has settled, so a loading or failed read never
+ * shows a row of zeros. "Upcoming" counts live and upcoming trips.
+ * "Places" counts unique destination names. "Co-planners" counts the other
+ * people on those trips.
+ */
+export function heroStats({ trips, today, meId, ready }: {
+  trips: readonly HeroTrip[]
+  today: Date
+  meId: string | null
+  ready: boolean
+}): HeroStat[] {
+  if (!ready) return []
+  const places = new Set<string>()
+  const coPlanners = new Set<string>()
+  let upcoming = 0
+  for (const t of trips) {
+    if (whenBucket(t, today) === 'upcoming') upcoming += 1
+    for (const destination of t.destinations ?? []) {
+      const key = destination.trim().toLowerCase()
+      if (key) places.add(key)
+    }
+    for (const member of t.members ?? []) {
+      if (member.userId !== meId) coPlanners.add(member.userId)
+    }
+  }
+  const plural = (count: number, one: string, many: string) => (count === 1 ? one : many)
+  const stats: HeroStat[] = [
+    { label: plural(trips.length, 'Trip', 'Trips'), value: trips.length },
+    { label: 'Upcoming', value: upcoming },
+    { label: plural(places.size, 'Place', 'Places'), value: places.size },
+    { label: plural(coPlanners.size, 'Co-planner', 'Co-planners'), value: coPlanners.size },
+  ]
+  return stats.filter(stat => stat.value > 0)
+}
+
+export interface HeroPostcard {
+  key: string
+  /** The caption: the trip's first destination, or its name. */
+  place: string
+  region: TripRegion
+  /** The trip's own cover image, when it has one. */
+  coverImageUrl?: string
+  /** True for the empty "your next trip" postcard. */
+  blank?: boolean
+}
+
+export const HERO_POSTCARD_LIMIT = 3
+
+const STATUS_RANK: Record<TripStatus, number> = { live: 0, upcoming: 1, draft: 2, past: 3 }
+
+/**
+ * The postcards on the hero, up to three, from the trips that matter most:
+ * live trips first, then upcoming ones by start day, then drafts, then past
+ * trips, newest edit first. Two trips with the same first destination give one
+ * postcard. With no trips the hero shows one blank "Your next trip" postcard.
+ */
+export function heroPostcards({ trips, today }: {
+  trips: readonly HeroTrip[]
+  today: Date
+}): HeroPostcard[] {
+  if (trips.length === 0) return [{ key: 'blank', place: 'Your next trip', region: 'generic', blank: true }]
+  const ranked = trips
+    .map((t, order) => ({ t, order, status: statusOf(t, today) }))
+    .sort((a, b) => {
+      if (STATUS_RANK[a.status] !== STATUS_RANK[b.status]) return STATUS_RANK[a.status] - STATUS_RANK[b.status]
+      const isDated = a.status === 'live' || a.status === 'upcoming'
+      const startOrder = isDated ? a.t.startDate.localeCompare(b.t.startDate) : 0
+      if (startOrder !== 0) return startOrder
+      return (b.t.updatedAt ?? 0) - (a.t.updatedAt ?? 0) || a.order - b.order
+    })
+  const cards: HeroPostcard[] = []
+  const seenPlaces = new Set<string>()
+  for (const { t } of ranked) {
+    const place = firstDestination(t) ?? t.name.trim()
+    const placeKey = place.toLowerCase()
+    if (!place || seenPlaces.has(placeKey)) continue
+    seenPlaces.add(placeKey)
+    cards.push({ key: t.id, place, region: regionFor(t), coverImageUrl: t.coverImageUrl || undefined })
+    if (cards.length === HERO_POSTCARD_LIMIT) break
+  }
+  return cards
+}
+
+/**
+ * The handwritten note by the postcards, or null when there is nothing true to
+ * say. A trip up next gives its countdown ("12 days to go!" or "Day 2 of 5!").
+ * When only drafts exist, the draft you edited last gives "3 of 5 days planned".
+ */
+export function heroNote({ trips, today }: {
+  trips: readonly HeroTrip[]
+  today: Date
+}): string | null {
+  const upNext = pickUpNext(trips, today)
+  if (upNext) {
+    const start = parseYmd(upNext.startDate)
+    if (statusOf(upNext, today) === 'live') {
+      const countdown = countdownText(upNext, today)
+      return countdown ? `${countdown}!` : null
+    }
+    if (!start) return null
+    const daysAway = diffDays(localDay(today), start)
+    return `${daysAway} ${daysAway === 1 ? 'day' : 'days'} to go!`
+  }
+  const drafts = trips
+    .filter(t => statusOf(t, today) === 'draft')
+    .sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0))
+  if (drafts.length === 0 || drafts.length !== trips.length) return null
+  const { planned, total } = planning(drafts[0])
+  return planned > 0 && total > 0 ? `${planned} of ${total} days planned` : null
+}

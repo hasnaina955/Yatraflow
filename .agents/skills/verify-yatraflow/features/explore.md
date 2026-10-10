@@ -22,7 +22,7 @@ Preconditions:
 - `start` ran and `doctor` passes.
 - Signed out.
 
-- **Direct render.** Run `MSYS_NO_PATHCONV=1 node .cursor/skills/verify-yatraflow/scripts/verify.mjs drive /explore explore --expect "DISCOVER · TRUST · FORK"`. Exit code is `0`. `finalUrl` is `http://localhost:5178/explore`. The body shows "Explore itineraries" as the heading.
+- **Direct render.** Run `MSYS_NO_PATHCONV=1 node .agents/skills/verify-yatraflow/scripts/verify.mjs drive /explore explore --expect "DISCOVER · TRUST · FORK"`. Exit code is `0`. `finalUrl` is `http://localhost:5178/explore`. The body shows "Explore itineraries" as the heading.
 - **Top bar.** Run `... drive / explore-nav --click "Explore" --expect "DISCOVER · TRUST · FORK"`. Exit code is `0`. `finalUrl` is `http://localhost:5178/explore`.
 - **Landing hero (defect).** Run `... drive / explore-hero --click "Explore itineraries" --expect "DISCOVER · TRUST · FORK"`. Expected exit `0`. Current exit is `1`: the page stays on the landing and the URL becomes `/#/explore`.
 - **Fork.** Not drivable. It needs a signed-in test account.
@@ -30,6 +30,6 @@ Preconditions:
 ## Gotchas
 
 - "Explore itineraries" is both a landing button and the Explore page heading. Use "DISCOVER · TRUST · FORK" as the `--expect` marker. A loose label passes on the wrong page.
-- The hero link is a hash href (`src/pages/Landing.tsx:54`). The bench link on the planning page is also a hash href (`src/components/PlanBench.tsx:532`). Neither is driven yet.
+- The hero link is a hash href (`src/pages/Landing.tsx`). The bench link on the planning page is also a hash href (`src/components/PlanBench.tsx`). Neither is driven yet.
 - The first drive to a route can time out while Vite compiles that route. The timeout error names the route. Run the same command again. A second run after a warm compile passes. Report both attempts.
-- Explore's own "Sign up free" button (`src/pages/Explore.tsx:344`) appears only in some states. Do not assume it is present.
+- Explore's own "Sign up free" button (`src/pages/Explore.tsx`) appears only in some states. Do not assume it is present.

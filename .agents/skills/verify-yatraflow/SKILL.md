@@ -7,7 +7,7 @@ description: Drive the running YatraFlow web app in a headless browser. Use it t
 
 Surface: the web UI. The harness drives signed-out flows today. Signed-in flows need a test account and are not drivable yet (see Gaps).
 
-Work only in this clone. Run every command from the repo root, `C:\Users\hasna\yatraflow-claude`.
+Work only in the clone you own. Run every command from that clone's repo root.
 
 Before you start, these must be true:
 
@@ -20,7 +20,7 @@ Git Bash users must prefix each command with `MSYS_NO_PATHCONV=1`. Without it, a
 The one helper is `scripts/verify.mjs`. Shown below as `V`:
 
 ```bash
-V=".cursor/skills/verify-yatraflow/scripts/verify.mjs"
+V=".agents/skills/verify-yatraflow/scripts/verify.mjs"
 ```
 
 ## Launch
@@ -29,7 +29,7 @@ V=".cursor/skills/verify-yatraflow/scripts/verify.mjs"
 node $V start
 ```
 
-Starts Vite on port 5178 with `--strictPort`. Output goes to `.verify-evidence/run/dev.log`. The command returns when `http://localhost:5178` answers 200. It refuses to proceed if port 5178 is held by a server the harness did not start. It does not kill that server.
+Starts Vite on port 5178 with `--strictPort`. Set `VERIFY_APP_PORT` to use another port. Output goes to `.verify-evidence/run/dev.log`. The command returns when `http://localhost:5178` answers 200. It refuses to proceed if port 5178 is held by a server the harness did not start. It does not kill that server.
 
 ## Doctor
 
@@ -57,7 +57,7 @@ MSYS_NO_PATHCONV=1 node $V drive <route> <name> [--click <text>] [--expect <text
 - `--expect` checks the page text. The command exits `1` if the text is missing.
 - `--width` sets the viewport width. Default is 1280. Below 720 the page renders as mobile.
 
-Each drive opens headless Edge (Chrome as fallback) on DevTools port 9333. The browser profile lives in `.verify-evidence/run/browser-profile`. A session is bound to an origin, so a sign-in on port 5178 would persist across drives.
+Each drive opens headless Edge (Chrome as fallback) on DevTools port 9333. Set `VERIFY_CDP_PORT` to change it, and `VERIFY_BROWSER` to point at a browser executable. The browser profile lives in `.verify-evidence/run/browser-profile`. A session is bound to an origin, so a sign-in on port 5178 would persist across drives.
 
 Pick `--expect` text that appears only on the destination. Some labels appear on more than one page.
 
@@ -92,7 +92,7 @@ The feature map is in [`features/`](features/README.md). Start there, pick the f
 
 ## Known defects (found by this skill)
 
-- The landing hero links use hash hrefs, so they do not reach their page on web. This affects "Start a trip plan" (`src/pages/Landing.tsx:20`) and "Explore itineraries" (`src/pages/Landing.tsx:54`). The web router reads the pathname and ignores hash-only changes. The URL changes; the page stays on the landing. The header "Start planning free" link is a path and works. Driven in [`features/start-planning.md`](features/start-planning.md) and [`features/explore.md`](features/explore.md). Two more hash links exist in `src/pages/Landing.tsx:190` and `:332`, and one in `src/components/PlanBench.tsx:532`. Those are not driven yet.
+- The landing hero links use hash hrefs, so they do not reach their page on web. This affects the hero "Start a trip plan" and "Explore itineraries" links in `src/pages/Landing.tsx`. The web router reads the pathname and ignores hash-only changes. The URL changes; the page stays on the landing. The header "Start planning free" link is a path and works. Driven in [`features/start-planning.md`](features/start-planning.md) and [`features/explore.md`](features/explore.md). Other hash links exist in `src/pages/Landing.tsx` (footer DMCA, bench sign-up) and `src/components/PlanBench.tsx`. Those are not driven yet.
 - Every landing load logs React duplicate-key warnings. The stack trace points at `PlanBench`.
 
 ## Gaps

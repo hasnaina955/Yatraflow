@@ -22,7 +22,7 @@ Preconditions:
 - `start` ran and `doctor` passes.
 - Signed out.
 
-- **Log-in form.** Run `MSYS_NO_PATHCONV=1 node .cursor/skills/verify-yatraflow/scripts/verify.mjs drive /auth sign-in --expect "Welcome back"`. Exit code is `0`. `finalUrl` is `http://localhost:5178/auth`.
+- **Log-in form.** Run `MSYS_NO_PATHCONV=1 node .agents/skills/verify-yatraflow/scripts/verify.mjs drive /auth sign-in --expect "Welcome back"`. Exit code is `0`. `finalUrl` is `http://localhost:5178/auth`.
 - **Top bar.** Run `... drive / sign-in-header --click "Log in" --expect "Welcome back"`. Exit code is `0`.
 - **Sign-up form.** Run `... drive "/auth?mode=signup" sign-up --expect "Create your account"`. Exit code is `0`. The body shows "Your name" and "Date of birth".
 - **Real sign-in.** Not drivable. It needs a test account, and the harness has no sign-in step yet.

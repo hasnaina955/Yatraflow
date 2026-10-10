@@ -21,13 +21,13 @@ Preconditions:
 - `start` ran and `doctor` passes.
 - Signed out. No session is needed.
 
-- **Render.** Run `MSYS_NO_PATHCONV=1 node .cursor/skills/verify-yatraflow/scripts/verify.mjs drive / landing --expect "Built for Indian travellers"`. Exit code is `0`. `finalUrl` is `http://localhost:5178/`. The screenshot shows "Plan trips that actually flow together".
+- **Render.** Run `MSYS_NO_PATHCONV=1 node .agents/skills/verify-yatraflow/scripts/verify.mjs drive / landing --expect "Built for Indian travellers"`. Exit code is `0`. `finalUrl` is `http://localhost:5178/`. The screenshot shows "Plan trips that actually flow together".
 - **Start link (defect).** Run `... drive / landing-start --click "Start a trip plan" --expect "Create your account"`. Expected exit `0`. Current exit is `1`: the page stays on the landing and the URL becomes `/#/auth?mode=signup&next=%2Fnew`. See [start-planning.md](start-planning.md).
 - **Explore link (defect).** Run `... drive / landing-explore --click "Explore itineraries" --expect "DISCOVER · TRUST · FORK"`. Expected exit `0`. Current exit is `1`: the page stays on the landing and the URL becomes `/#/explore`. Use this marker, not "Explore itineraries", because the landing also shows that label.
 
 ## Gotchas
 
-- The hero links use hash hrefs (`src/pages/Landing.tsx:20` and `:54`). The web router reads the pathname and ignores hash-only changes. A failing run here is a product defect, not a harness fault. Do not weaken the `--expect` to make it pass.
-- The landing also has two hash links that this map does not drive yet: the footer DMCA link (`src/pages/Landing.tsx:190`) and the bench sign-up button (`src/pages/Landing.tsx:332`).
+- The hero links use hash hrefs (`src/pages/Landing.tsx`). The web router reads the pathname and ignores hash-only changes. A failing run here is a product defect, not a harness fault. Do not weaken the `--expect` to make it pass.
+- The landing also has two hash links that this map does not drive yet: the footer DMCA link and the bench sign-up button.
 - Every landing load logs React duplicate-key warnings. The stack trace points at `PlanBench`. Record them in the evidence. Do not fail a run on them.
 - Use "Built for Indian travellers" to confirm the landing. It is a stable marker.

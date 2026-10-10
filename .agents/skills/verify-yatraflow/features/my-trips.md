@@ -19,7 +19,7 @@ Preconditions:
 - `start` ran and `doctor` passes.
 - Signed out for `trips-signed-out`.
 
-- **Signed-out result.** Run `MSYS_NO_PATHCONV=1 node .cursor/skills/verify-yatraflow/scripts/verify.mjs drive /trips my-trips-signed-out --expect "Built for Indian travellers"`. Exit code is `0`. `finalUrl` is `http://localhost:5178/trips`. The record's `title` is "Your trips · YatraFlow". The body is the landing page.
+- **Signed-out result.** Run `MSYS_NO_PATHCONV=1 node .agents/skills/verify-yatraflow/scripts/verify.mjs drive /trips my-trips-signed-out --expect "Built for Indian travellers"`. Exit code is `0`. `finalUrl` is `http://localhost:5178/trips`. The record's `title` is "Your trips · YatraFlow". The body is the landing page.
 - **Signed-in list.** Not drivable. It needs a test account. Do not report it as verified.
 
 ## Gotchas

@@ -1,10 +1,13 @@
 #!/usr/bin/env node
 // verify-yatraflow harness. Zero dependencies; needs Node 22+ (global WebSocket).
 //
-//   node .cursor/skills/verify-yatraflow/scripts/verify.mjs start
-//   node .cursor/skills/verify-yatraflow/scripts/verify.mjs doctor
-//   node .cursor/skills/verify-yatraflow/scripts/verify.mjs drive <route> <name> [--click <text>] [--expect <text>] [--width <px>] [--settle <ms>]
-//   node .cursor/skills/verify-yatraflow/scripts/verify.mjs stop
+//   node .agents/skills/verify-yatraflow/scripts/verify.mjs start
+//   node .agents/skills/verify-yatraflow/scripts/verify.mjs doctor
+//   node .agents/skills/verify-yatraflow/scripts/verify.mjs drive <route> <name> [--click <text>] [--expect <text>] [--width <px>] [--settle <ms>]
+//   node .agents/skills/verify-yatraflow/scripts/verify.mjs stop
+//
+// Overrides: VERIFY_APP_PORT (default 5178), VERIFY_CDP_PORT (default 9333),
+// VERIFY_BROWSER (path to an Edge or Chrome executable).
 //
 // Everything this harness starts is recorded under .verify-evidence/run/ and
 // is killed by PID tree on `stop`. It never kills by process name, and it never
@@ -16,9 +19,9 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..')
-const APP_PORT = 5178
+const APP_PORT = Number(process.env.VERIFY_APP_PORT ?? 5178)
 const APP_ORIGIN = `http://localhost:${APP_PORT}`
-const CDP_PORT = 9333
+const CDP_PORT = Number(process.env.VERIFY_CDP_PORT ?? 9333)
 const EVIDENCE = join(ROOT, '.verify-evidence')
 const RUN = join(EVIDENCE, 'run')
 const DEV_PID = join(RUN, 'dev.pid')
@@ -27,10 +30,15 @@ const DEV_LOG = join(RUN, 'dev.log')
 const BROWSER_PROFILE = join(RUN, 'browser-profile')
 
 const BROWSERS = [
+  process.env.VERIFY_BROWSER,
   'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
   'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
   'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-]
+  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+  '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
+  '/usr/bin/google-chrome',
+  '/usr/bin/chromium',
+].filter(Boolean)
 
 const env = readEnvFile(join(ROOT, '.env.local'))
 const PROJECT_REF = (env.VITE_SUPABASE_URL ?? '').match(/https:\/\/([a-z0-9]+)\.supabase\.co/)?.[1] ?? ''
@@ -61,7 +69,10 @@ function killTree(pid) {
   if (!alive(pid)) return
   // taskkill /T walks the child tree, so npm/vite/browser helpers die with the
   // process we started. Never by image name.
-  try { execFileSync('taskkill', ['/PID', String(pid), '/T', '/F'], { stdio: 'ignore' }) } catch { /* already gone */ }
+  try {
+    if (process.platform === 'win32') execFileSync('taskkill', ['/PID', String(pid), '/T', '/F'], { stdio: 'ignore' })
+    else process.kill(-pid, 'SIGKILL') // detached children lead their own process group
+  } catch { /* already gone */ }
 }
 
 // Plain node:http, not fetch. Undici's fetch aborts Node on Windows at exit
@@ -149,7 +160,7 @@ async function doctor() {
 // ---------- browser / CDP ----------
 function browserExecutable() {
   const found = BROWSERS.find(path => existsSync(path))
-  if (!found) throw new Error('no Edge or Chrome found at the standard install paths')
+  if (!found) throw new Error('no Edge or Chrome found at the standard install paths; set VERIFY_BROWSER to the executable')
   return found
 }
 

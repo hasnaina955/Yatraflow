@@ -51,6 +51,8 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ### Fixed
 
+- **The creator fixture script no longer writes to a remote project by accident.** The script used the Supabase project that `.env.local` named, and a run against the live project put "(fixture)" itineraries into the live sitemap. Now it writes to a local project only. A remote project needs `FIXTURE_ALLOW_REMOTE` set to the exact host of the project, and your own `FIXTURE_PASSWORD` of 12 characters or more. The default password works on a local project only. Promoting the admin on a remote project also needs `--promote-admin`. The check runs before `--apply` and before `--clean`, because `--clean` signs the fixture accounts up first. A dry run is never blocked. The rules sit in `scripts/fixtureGuard.mjs`. (#689)
+
 - **Icons drawn through the shared inline icon wrapper no longer render as solid black shapes.** The wrapper sets an empty fill, so every outline icon keeps its stroke style.
 
 - **My trips shows "No other trips yet" when the only trip is the pinned Up next card.** A sort or style filter that still matches that trip no longer shows "No trips match those filters" with a Clear filters button.

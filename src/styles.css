@@ -3936,78 +3936,11 @@ html.vt-active :where(*) {
 .day-highlight-meta { font-size: 12.5px; color: var(--text-3); }
 .pub-footer-line { text-align: center; color: var(--text-3); font-size: 13px; padding: 24px 0 12px; }
 
-/* ---------- M7: Explore editorial treatment (§6.10) ---------- */
-.explore-hero {
-  color: #fff; padding: 52px 0 44px;
-  background: linear-gradient(160deg, var(--yf-navy) 0%, #0d4b56 58%, #0b3844 100%);
-  position: relative; overflow: hidden;
-}
-.explore-hero::before {
-  content: ''; position: absolute; inset: 0; pointer-events: none;
-  background:
-    radial-gradient(60% 70% at 88% 10%, rgba(23, 110, 112, .35), transparent 60%),
-    repeating-radial-gradient(150% 100% at 10% -10%, transparent 0 42px, rgba(255, 255, 255, .045) 42px 43px);
-}
-.explore-hero-inner { position: relative; z-index: var(--z-content); }
-/* size/weight ride the global h1 ramp — this hero doesn't get a second scale */
-.explore-hero h1 { margin: 6px 0 0; }
-.explore-hero-kicker { color: #a9eadc; }
-.explore-hero-sub { color: #d9efeb; font-size: clamp(14px, 1.6vw, 16.5px); max-width: 620px; margin: 10px 0 18px; line-height: 1.6; }
-.explore-hero-search {
-  max-width: 520px; width: 100%; border-radius: 999px; padding: 13px 18px;
-  border: 1px solid rgba(255, 255, 255, .3); background: rgba(255, 255, 255, .12); color: #fff;
-  -webkit-backdrop-filter: blur(var(--yf-blur-chip)); backdrop-filter: blur(var(--yf-blur-chip));
-}
-.explore-hero-search::placeholder { color: #e2f1ef; }
-/* Own focus ring: the shared `.input:focus` teal ring reads 1.18:1 over the
-   dark hero; this surface needs a white one, declared here so box-shadow is
-   overridden (not just border-color/outline). */
-.explore-hero-search:focus { background: rgba(255, 255, 255, .18); border-color: rgba(255, 255, 255, .5); outline: none; box-shadow: 0 0 0 3px rgba(255, 255, 255, .5); }
-/* The search's clear affordance lives with its cause: q is typed HERE, but the
-   only Clear button sat in the filter card ~300px below. */
-.explore-hero-searchrow { position: relative; max-width: 520px; }
-.explore-hero-searchrow .explore-hero-search { padding-right: 44px; }
-.explore-hero-clear {
-  position: absolute; right: 7px; top: 50%; transform: translateY(-50%);
-  width: 28px; height: 28px; border-radius: 999px; border: none; cursor: pointer;
-  display: inline-flex; align-items: center; justify-content: center;
-  background: rgba(255, 255, 255, .16); color: #fff;
-  transition: background var(--motion-fast) var(--ease-out);
-}
-.explore-hero-clear:hover { background: rgba(255, 255, 255, .3); }
-.explore-hero-clear:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(255, 255, 255, .5); }
+/* ---------- M7: Explore chips (the hero and featured card moved to the Explore redesign) ---------- */
 .explore-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
 /* No opacity: .65 composited the inherited ink to 2.5–3.2:1 (it's 11px text,
    needs 4.5). Full strength = the chip's own AA-checked colour, on every surface. */
 .chip-count { font-variant-numeric: tabular-nums; font-size: 11px; margin-left: 3px; }
-
-/* featured itinerary */
-.featured-card {
-  border-radius: var(--radius-lg); padding: 20px 24px; margin-bottom: 22px; position: relative;
-  background: linear-gradient(120deg, #0e3a45, #0b2740);
-  color: #fff; box-shadow: var(--shadow-soft); overflow: hidden;
-}
-.featured-card::before {
-  content: ''; position: absolute; inset: 0; pointer-events: none;
-  background: radial-gradient(52% 90% at 90% 6%, rgba(240, 165, 63, .18), transparent 62%);
-}
-.featured-body { position: relative; z-index: var(--z-content); }
-.featured-kicker { color: #ffd79a; }
-/* One section-title ramp with .editorial-title (the public page's equivalent) —
-   they were 2px apart at every width for no stated reason. The title also takes
-   the same two-line clamp the grid cards use, so a long name stops crowding the
-   tagline beneath it. */
-.featured-body h2 { font-family: var(--font-display); font-size: clamp(24px, 3vw, 32px); margin: 6px 0 8px; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
-.featured-title-link { color: #fff; text-decoration: none; }
-.featured-title-link:hover { text-decoration: underline; }
-.featured-tagline { color: #d5e7e4; margin: 0 0 8px; max-width: 640px; line-height: 1.6; }
-/* Prose measure: the neighbouring tagline caps at 640px, but this block and
-   Explore's fork note run at 13px and 12.5px, where a 640px cap still buys
-   78-81 characters a line. `ch` self-adjusts to the font size, so one value
-   holds every block inside the 60-75ch band. */
-.featured-credibility { color: #a9d8cf; font-size: 13px; margin: 0 0 12px; max-width: 72ch; }
-.featured-meta { display: flex; gap: 18px; flex-wrap: wrap; color: #e2f1ef; font-size: 13px; margin-bottom: 16px; }
-.featured-actions { display: flex; gap: 10px; flex-wrap: wrap; }
 
 /* save heart on grid cards */
 .save-heart {
@@ -5246,8 +5179,6 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
   .pub-actions-btns { justify-content: stretch; }
   .pub-actions-btns .btn { flex: 1; }
   .day-highlight-row { grid-template-columns: 1fr; }
-  .explore-hero { padding: 36px 0 32px; }
-  .featured-actions .btn { flex: 1; }
   /* 34px sat under the 40px coarse-pointer floor; the cover has room for 40. */
   .save-heart { width: 40px; height: 40px; }
   /* Mobile bill dock: leave breathing room so it never covers the fineprint */
@@ -8538,3 +8469,331 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
    An active Clear button takes its own full-width row under the selects, on
    every width. Search, chips and selects keep their place when it appears. */
 .mt-filters > .mt-clear:not(.is-idle) { flex: 0 0 100%; justify-content: flex-end; }
+
+/* ===== Explore redesign ===== */
+/* Components: src/components/explore/. Every class starts with "ex-". Colours
+   come from the app tokens, so light and dark both follow the theme. The
+   papercut art is the My trips art (TripArt). Motion uses the motion tokens,
+   and each animated rule has a reduced-motion opt-out at the end of this block. */
+
+/* ---------- Hero ---------- */
+.ex-hero {
+  position: relative; isolation: isolate; overflow: hidden;
+  margin-top: 8px; padding: 24px 24px 7rem;
+  border: 1px solid var(--line); border-radius: var(--radius-lg);
+  background: linear-gradient(120deg, var(--yf-mist) 0%, var(--yf-peach) 100%);
+}
+.ex-hero-inner { position: relative; z-index: var(--z-content); max-width: 640px; }
+.ex-hero h1 {
+  margin: 0; color: var(--text); font-family: var(--font-display); font-weight: 600;
+  font-size: clamp(2.25rem, 1.4rem + 2.2vw, 3.25rem); line-height: 1.05; letter-spacing: -.02em;
+  text-wrap: balance;
+}
+.ex-hero h1 em { font-style: normal; color: var(--ink-teal); }
+.ex-hero-lede { margin: 12px 0 0; max-width: 46ch; color: var(--text-2); font-size: 17px; line-height: 1.45; text-wrap: pretty; }
+.ex-hero .mt-banner-art { height: 112px; }
+
+.ex-search { position: relative; max-width: 540px; margin-top: 24px; }
+.ex-search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-3); pointer-events: none; }
+.ex-search-input {
+  width: 100%; min-height: 48px; padding: 0 3rem 0 2.75rem;
+  border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--card); color: var(--text);
+  font-size: 16px; -webkit-appearance: none; appearance: none;
+  transition: border-color var(--motion-fast) var(--ease-out), box-shadow var(--motion-fast) var(--ease-out);
+}
+.ex-search-input::placeholder { color: var(--text-3); opacity: 1; }
+.ex-search-input:hover { border-color: color-mix(in srgb, var(--text) 30%, var(--line)); }
+.ex-search-input:focus-visible { outline: none; border-color: var(--teal-deep); box-shadow: var(--ring); }
+.ex-search-input::-webkit-search-cancel-button { display: none; }
+.ex-search-clear {
+  position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+  width: 40px; height: 40px; display: grid; place-items: center; padding: 0;
+  border: 0; border-radius: 50%; background: none; color: var(--text-2); cursor: pointer;
+}
+.ex-search-clear:hover { background: var(--bg-soft); }
+.ex-search-clear:focus-visible { outline: none; box-shadow: var(--ring); }
+
+/* ---------- Layout: catalog | side panels ---------- */
+.ex-layout { display: grid; grid-template-columns: minmax(0, 1fr) 288px; gap: 24px; align-items: start; margin-top: 24px; }
+.ex-layout > * { min-width: 0; }
+.ex-main { container: ex-main / inline-size; }
+.ex-aside { display: grid; gap: 20px; align-content: start; }
+@media (max-width: 1099px) {
+  .ex-layout { grid-template-columns: minmax(0, 1fr); }
+  .ex-aside { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ex-panel-places { grid-column: 1 / -1; }
+  .ex-places { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 720px) {
+  .ex-aside { grid-template-columns: minmax(0, 1fr); }
+  .ex-places { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+.ex-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 16px; margin-bottom: 8px; }
+.ex-section-title { margin: 0; color: var(--text); font-family: var(--font-display); font-size: 26px; font-weight: 700; line-height: 1.2; letter-spacing: -.02em; }
+.ex-result-count { margin: 0; color: var(--text-2); font-size: 14px; font-variant-numeric: tabular-nums; }
+.ex-intro { margin: 0 0 14px; max-width: 72ch; color: var(--text-2); font-size: 14px; }
+
+/* ---------- Filter bar ----------
+   The bar is a stacking host: the select menus open inside it and must paint
+   over the cards below. The .explore-filterbar rule sets the same rung. */
+.ex-filterbar {
+  position: relative; z-index: var(--z-frost); display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; margin-bottom: 16px; padding: 12px;
+  background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow-sm);
+}
+.ex-chip-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
+.ex-chips { display: contents; } /* Saved shares the style chips' wrapping row. */
+.ex-chip {
+  display: inline-flex; align-items: center; gap: 6px; flex: none; min-height: 40px; padding: 0 14px;
+  border: 1px solid var(--line); border-radius: 999px; background: transparent; color: var(--text);
+  font-size: 14px; font-weight: 600; white-space: nowrap; cursor: pointer;
+  transition: background-color var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out), border-color var(--motion-fast) var(--ease-out);
+}
+.ex-chip:hover { background: var(--bg-soft); }
+.ex-chip:focus-visible { outline: none; box-shadow: var(--ring); }
+.ex-chip[aria-pressed='true'] { background: var(--text); border-color: var(--text); color: var(--bg); }
+.ex-chip-count { font-size: 12px; font-weight: 700; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.ex-chip[aria-pressed='true'] .ex-chip-count { color: inherit; opacity: .8; }
+.ex-chip-saved[aria-pressed='true'] { background: var(--saffron-soft); border-color: var(--saffron); color: var(--ink-amber); }
+.ex-chip-saved[aria-pressed='true'] .ex-chip-count { color: inherit; }
+.ex-selects { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.ex-select { flex: 1 1 160px; min-width: 0; }
+.ex-select--sort { flex-basis: 200px; }
+.ex-select .cselect { width: 100%; }
+.ex-select .cselect-trigger { width: 100%; min-height: 44px; }
+.ex-clear { min-height: 40px; color: var(--teal-deep); }
+
+/* ---------- Grid ---------- */
+.ex-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; margin-top: 16px; }
+@container ex-main (min-width: 560px) {
+  .ex-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+}
+@container ex-main (min-width: 880px) {
+  .ex-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+}
+/* A lone last card takes its own row and lays out across, like the featured card. */
+@container ex-main (min-width: 560px) and (max-width: 879px) {
+  .ex-grid > .ex-card:last-child:nth-child(2n + 1):not(:first-child) { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .ex-grid > .ex-card:last-child:nth-child(2n + 1):not(:first-child) .ex-cover-wrap { aspect-ratio: auto; align-self: stretch; min-height: 180px; }
+}
+@container ex-main (min-width: 880px) {
+  .ex-grid > .ex-card:last-child:nth-child(3n + 1):not(:first-child) { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .ex-grid > .ex-card:last-child:nth-child(3n + 1):not(:first-child) .ex-cover-wrap { aspect-ratio: auto; align-self: stretch; min-height: 180px; }
+}
+
+/* ---------- Itinerary card ---------- */
+.ex-card {
+  position: relative; display: flex; flex-direction: column; min-width: 0; padding: 6px;
+  background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow-sm);
+  transition: transform var(--motion-med) var(--ease-out), box-shadow var(--motion-med) var(--ease-out), border-color var(--motion-med) var(--ease-out);
+}
+.ex-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-soft); border-color: color-mix(in srgb, var(--text) 18%, var(--line)); }
+.ex-card:hover .ex-cover-img, .ex-card:hover .mt-motif { transform: scale(1.035); }
+.ex-cover-wrap { position: relative; overflow: hidden; aspect-ratio: 16 / 10; border-radius: var(--radius-sm); }
+.ex-cover-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: transform var(--motion-slow) var(--ease-out); }
+.ex-save {
+  position: absolute; top: 4px; right: 4px; z-index: var(--z-raised);
+  width: 40px; height: 40px; display: grid; place-items: center; padding: 0;
+  border: 0; border-radius: 50%; background: none; cursor: pointer;
+}
+.ex-save-dot {
+  width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center;
+  background: rgb(255 255 255 / .96); color: var(--yf-navy); box-shadow: 0 1px 3px rgba(var(--shadow-navy-rgb), .25);
+  transition: transform var(--motion-fast) var(--ease-out), background-color var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out);
+}
+.ex-save:hover .ex-save-dot { transform: scale(1.08); }
+.ex-save:focus-visible { outline: none; border-radius: 50%; box-shadow: var(--ring); }
+.ex-save[aria-pressed='true'] .ex-save-dot { background: var(--saffron); color: var(--color-accent-foreground); }
+.ex-save[aria-pressed='true'] svg { fill: currentColor; }
+
+.ex-card-main { display: flex; flex: 1; flex-direction: column; min-width: 0; }
+.ex-card-body { display: flex; flex: 1; flex-direction: column; gap: 8px; min-width: 0; padding: 14px 12px 8px; }
+.ex-card-title {
+  margin: 0; color: var(--text); font-family: var(--font-display); font-size: 18px; font-weight: 700;
+  line-height: 1.28; letter-spacing: -.01em; text-wrap: balance;
+}
+/* The title link covers the whole card, so a tap anywhere opens the plan. */
+.ex-card-link { border-radius: 4px; }
+.ex-card-link::after { content: ''; position: absolute; inset: 0; z-index: var(--z-content); border-radius: var(--radius); }
+.ex-card-link:focus-visible { outline: none; }
+.ex-card-link:focus-visible::after { box-shadow: var(--ring); }
+.ex-card-desc {
+  margin: 0; color: var(--text-2); font-size: 14px; line-height: 1.5;
+  display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.ex-facts {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 12px;
+  margin: auto 0 0; padding-top: 12px; border-top: 1px solid var(--line);
+}
+.ex-facts > div { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; }
+.ex-facts dt { color: var(--text-3); font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; }
+.ex-facts dd { margin: 0; color: var(--text); font-size: 13.5px; font-weight: 600; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+
+.ex-card-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 0 12px 8px; }
+.ex-byline {
+  position: relative; z-index: var(--z-raised); display: inline-flex; flex: 0 1 auto; align-items: center; gap: 8px;
+  min-width: 0; min-height: 40px; border-radius: 10px; color: var(--text); font-size: 14px; font-weight: 600;
+}
+.ex-byline > span:not(.avatar) { min-width: 0; overflow-wrap: anywhere; }
+.ex-byline:hover > span:not(.avatar) { text-decoration: underline; text-underline-offset: 3px; }
+.ex-byline:focus-visible { outline: none; box-shadow: var(--ring); }
+.ex-fork { position: relative; z-index: var(--z-raised); flex: none; min-height: 40px; padding: 0 14px; font-size: 14px; }
+.ex-fork:focus-visible { outline: none; box-shadow: var(--ring); }
+.ex-inline-icon { display: inline-block; vertical-align: -1px; margin-left: 2px; }
+
+/* ---------- Featured itinerary ----------
+   Phone: cover, then text, then the route. Wider: the cover sits over the route
+   on the left and the text runs down the right. */
+.ex-feature {
+  position: relative; display: grid; grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "cover" "body" "route"; margin-top: 16px; padding: 6px;
+  border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--card); box-shadow: var(--shadow-sm);
+}
+.ex-feature-cover { grid-area: cover; position: relative; overflow: hidden; aspect-ratio: 16 / 10; border-radius: var(--radius-sm); }
+.ex-feature-body { grid-area: body; display: flex; flex-direction: column; gap: 12px; min-width: 0; padding: 16px 12px 12px; }
+.ex-feature-route { grid-area: route; display: flex; flex-direction: column; gap: 12px; min-width: 0; padding: 4px 12px 8px; }
+@container ex-main (min-width: 640px) {
+  .ex-feature { grid-template-columns: minmax(0, 1.08fr) minmax(0, 1fr); grid-template-areas: "cover body" "route body"; align-items: start; }
+  .ex-feature-body { padding: 20px 22px 16px; }
+  .ex-feature-route { padding: 4px 8px 8px; }
+  .ex-feature-title { font-size: 28px; line-height: 1.18; }
+}
+.ex-kicker {
+  display: inline-flex; align-items: center; gap: 6px; margin: 0; color: var(--ink-teal);
+  font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+}
+.ex-feature-title {
+  margin: 0; color: var(--text); font-family: var(--font-display); font-size: 24px; font-weight: 700;
+  line-height: 1.2; letter-spacing: -.015em; text-wrap: balance;
+}
+.ex-feature-link { border-radius: 4px; }
+.ex-feature-link:focus-visible { outline: none; box-shadow: var(--ring); }
+.ex-feature-link:hover { text-decoration: underline; text-underline-offset: 3px; }
+.ex-feature-tagline { margin: 0; color: var(--text-2); font-size: 15px; line-height: 1.55; max-width: 60ch; }
+.ex-credibility { margin: 0; color: var(--text-2); font-size: 14px; max-width: 72ch; }
+.ex-feature-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 4px; }
+
+/* ---------- Route trail ---------- */
+.ex-route { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.ex-route-kind { display: inline-flex; align-items: center; gap: 6px; margin: 0; color: var(--ink-teal); font-size: 13px; font-weight: 700; }
+.ex-trail {
+  display: flex; flex-wrap: wrap; align-items: center; margin: 0; padding: 0; list-style: none;
+  color: var(--text); font-size: 13px; font-weight: 600; line-height: 2; text-wrap: balance;
+}
+.ex-trail li { display: inline-flex; align-items: center; white-space: nowrap; }
+.ex-trail li:first-child::before {
+  content: ''; width: 8px; height: 8px; margin-right: 6px; border-radius: 50%; border: 2px solid var(--teal);
+}
+.ex-trail li:not(:last-child)::after {
+  content: ''; width: 12px; height: 2px; margin-inline: 5px;
+  background: repeating-linear-gradient(90deg, var(--teal) 0 3px, transparent 3px 6px);
+}
+.ex-trail li:last-child::after { content: ''; width: 8px; height: 8px; margin-left: 6px; border-radius: 50%; background: var(--saffron); }
+/* A loop ends where it began, so its last dot is hollow, like its first. */
+.ex-trail.is-loop li:last-child::after { background: none; border: 2px solid var(--teal); }
+.ex-route-more { margin: 0; color: var(--text-3); font-size: 13px; }
+
+/* ---------- Side panels ---------- */
+.ex-panel {
+  min-width: 0; padding: 20px; border: 1px solid var(--line); border-radius: var(--radius);
+  background: var(--card); box-shadow: var(--shadow-sm);
+}
+.ex-panel-title {
+  margin: 0 0 14px; color: var(--text); font-family: var(--font-display); font-size: 18px; font-weight: 700;
+  line-height: 1.25; letter-spacing: -.01em;
+}
+.ex-places { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 0; padding: 0; list-style: none; }
+.ex-place {
+  position: relative; display: block; width: 100%; aspect-ratio: 1 / 1; padding: 0; border: 0;
+  border-radius: var(--radius-sm); overflow: hidden; background: none; text-align: left; cursor: pointer;
+}
+.ex-place:focus-visible { outline: none; box-shadow: var(--ring); }
+.ex-place-art { position: absolute; inset: 0; }
+.ex-place:hover .mt-motif { transform: scale(1.06); }
+/* A band that hugs the label; the art above it stays clear. */
+.ex-place-label {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: var(--z-content); display: block;
+  padding: 22px 12px 8px; color: #fff; line-height: 1.2;
+  background: linear-gradient(to top, rgba(var(--shadow-navy-rgb), .82) 0, rgba(var(--shadow-navy-rgb), .82) calc(100% - 22px), rgba(var(--shadow-navy-rgb), 0) 100%);
+}
+.ex-place-name { display: block; font-size: 14px; font-weight: 800; letter-spacing: -.005em; overflow-wrap: anywhere; }
+.ex-place-meta { display: block; font-size: 12px; }
+
+.ex-creators { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.ex-creator {
+  display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 6px 8px; margin-inline: -8px;
+  border-radius: 12px; color: var(--text); transition: background-color var(--motion-fast) var(--ease-out);
+}
+.ex-creator:hover { background: var(--bg-soft); }
+.ex-creator:focus-visible { outline: none; box-shadow: var(--ring); }
+.ex-creator-text { display: flex; flex-direction: column; min-width: 0; }
+.ex-creator-name { display: inline-flex; align-items: center; gap: 4px; font-size: 15px; font-weight: 700; }
+.ex-creator-meta { font-size: 13px; color: var(--text-2); }
+
+.ex-share { position: relative; overflow: hidden; }
+.ex-share::before {
+  content: ''; position: absolute; right: -46px; top: -46px; width: 96px; height: 96px; border-radius: 50%;
+  background: radial-gradient(circle, var(--saffron-soft) 0 60%, transparent 61%);
+}
+.ex-share > * { position: relative; }
+.ex-share-lede { margin: -6px 0 14px; color: var(--text-2); font-size: 14px; }
+.ex-ticks { display: grid; gap: 12px; margin: 0 0 20px; padding: 0; list-style: none; }
+.ex-ticks li { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 12px; color: var(--text); font-size: 14px; }
+.ex-ticks svg { margin-top: 4px; color: var(--teal-deep); }
+.ex-share-btn { width: 100%; }
+
+/* ---------- Loading, failed and empty states ---------- */
+.ex-state {
+  display: grid; justify-items: center; gap: 12px; margin-top: 16px; padding: 2.75rem 1.5rem;
+  text-align: center; border: 1.5px dashed var(--line); border-radius: var(--radius); background: var(--card);
+}
+.ex-state-icon { display: grid; place-items: center; color: var(--teal-deep); }
+.ex-state-title {
+  margin: 0; color: var(--text); font-family: var(--font-display); font-size: 20px; font-weight: 700; line-height: 1.25;
+}
+.ex-state-body { margin: 0; max-width: 44ch; color: var(--text-2); }
+.ex-state-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 4px; }
+.ex-more { display: flex; justify-content: center; padding: 16px 0 4px; }
+
+/* ---------- Travel-style tag ----------
+   A label over the cover's top-left corner, not a control: no 40px target. The
+   solid card surface keeps it readable over any cover art, in either theme. */
+.ex-style-tag {
+  position: absolute; top: 8px; left: 8px; z-index: var(--z-content); max-width: calc(100% - 64px);
+  padding: 3px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--card); color: var(--text);
+  font-size: 12px; font-weight: 700; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  pointer-events: none;
+}
+
+/* ---------- Touch sizes and phone layout ---------- */
+@media (max-width: 720px), (pointer: coarse) {
+  .ex-chip, .ex-clear, .ex-fork, .ex-byline, .ex-search-input { min-height: 44px; }
+  .ex-search-clear { width: 44px; height: 44px; }
+}
+@media (max-width: 720px) {
+  .ex-hero { margin-top: 0; padding: 20px 16px 6rem; border-radius: var(--radius); }
+  .ex-hero .mt-banner-art { height: 96px; }
+  .ex-hero-lede { font-size: 15.5px; }
+  .ex-layout { gap: 24px; margin-top: 20px; }
+  .ex-section-title { font-size: 24px; }
+  .ex-filterbar { padding: 12px; gap: 12px; border-radius: var(--radius); }
+  .ex-selects { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .ex-select, .ex-select--sort { flex: none; min-width: 0; }
+  .ex-select--sort { grid-column: 1 / -1; }
+  .ex-clear { grid-column: 1 / -1; justify-self: start; }
+  .ex-panel { padding: 16px; }
+  .ex-places { gap: 8px; }
+  .ex-place-label { padding: 22px 8px 8px; }
+  .ex-state { padding: 2rem 1rem; }
+}
+@media (max-width: 360px) {
+  .ex-selects { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ---------- Reduced motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .ex-card, .ex-card:hover { transition: none; transform: none; }
+  .ex-card:hover .ex-cover-img, .ex-card:hover .mt-motif, .ex-place:hover .mt-motif { transform: none; }
+  .ex-cover-img, .ex-save-dot, .ex-chip, .ex-search-input, .ex-creator { transition: none; }
+  .ex-save:hover .ex-save-dot { transform: none; }
+}

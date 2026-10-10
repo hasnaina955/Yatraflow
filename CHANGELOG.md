@@ -29,6 +29,18 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 - **Icon strokes now draw at a visible weight, and small icons match them.** Empty-state icons and select arrows are rebalanced too.
 
+- **Explore has a new hero banner, one filter bar and a featured itinerary.** The hero banner holds the search box and papercut art. The filter bar holds style chips, trip length, budget and sort. The featured itinerary shows its route trail and a credibility line.
+
+- **Each Explore card shows Days, Budget, Places and Forks columns and a travel-style tag.**
+
+- **Explore side panels show Places in the community, Creators and Share a plan.** Each panel uses only published data.
+
+- **When you have no saved itineraries, Explore shows "You haven't saved any itineraries yet".**
+
+- **Save buttons keep one accessible name and report their state with aria-pressed.**
+
+- **The featured itinerary title is an h3, so the page heading order stays in sequence.**
+
 ### Fixed
 
 - **Icons drawn through the shared inline icon wrapper no longer render as solid black shapes.** The wrapper sets an empty fill, so every outline icon keeps its stroke style.
@@ -42,6 +54,8 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 - **The When filter treats an impossible date such as 2026-02-31 as a draft trip.** It now agrees with the status shown on the card.
 
 - **A destination only matches a region as a whole word.** "Goalpara" no longer takes the Goa artwork.
+
+- **A signed-out visitor no longer stays on "Loading the catalog" on Explore.** The logged-out load records whether it read profiles and itineraries. A failed read now shows Retry.
 
 ## [0.74.0] - 2026-10-07
 

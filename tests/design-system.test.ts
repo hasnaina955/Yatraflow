@@ -1055,7 +1055,7 @@ describe("a popup's host claims the rung, never the popup", () => {
     expect(bar!.body).toMatch(/z-index:\s*var\(--z-frost\)/)
     // The rule changes nothing unless the page carries the class on the bar
     // that actually holds the selects.
-    expect(source('src/pages/Explore.tsx')).toContain('card glass-soft explore-filterbar')
+    expect(source('src/components/explore/ExploreFilterBar.tsx')).toContain('ex-filterbar explore-filterbar')
   })
 
   it('keeps the card footer row clear of the corner it sits in', () => {

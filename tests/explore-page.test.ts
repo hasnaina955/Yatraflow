@@ -4,6 +4,7 @@ import {
   FEATURED_MIN_VIEWS,
   cardColumns,
   creatorList,
+  matchesQuery,
   pickFeatured,
   placeTiles,
   routeTrail,
@@ -230,10 +231,25 @@ describe('placeTiles', () => {
   it('returns the top 6 by default and honours a custom limit', () => {
     const pubs = [pub({ id: 'a', routeSummary: stopNames(10, 'place') })]
     expect(placeTiles(pubs)).toHaveLength(6)
-    expect(placeTiles(pubs, 2)).toHaveLength(2)
-    expect(placeTiles(pubs, 0)).toEqual([])
+    expect(placeTiles(pubs, [], 2)).toHaveLength(2)
+    expect(placeTiles(pubs, [], 0)).toEqual([])
   })
 
+  it('counts a tile as the live plans its click search finds, not only its exact stops', () => {
+    // The tile "Goa" is opened by searching "Goa", which also finds a plan whose
+    // title says Goa and a plan by a creator named Goa Trips.
+    const users = [user('creator-a', 'Asha'), user('creator-b', 'Goa Trips')]
+    const pubs = [
+      pub({ id: 'stop', routeSummary: ['Goa', 'Hampi'] }),
+      pub({ id: 'title', title: 'Goa in March', creatorId: 'creator-a', routeSummary: ['Pune', 'Kochi'] }),
+      pub({ id: 'creator', creatorId: 'creator-b', routeSummary: ['Pune', 'Mysore'] }),
+      pub({ id: 'gone', routeSummary: ['Goa'], unpublishedAt: 5 }),
+    ]
+    const goa = placeTiles(pubs, users).find(tile => tile.name === 'Goa')
+    expect(goa).toEqual({ name: 'Goa', count: 3 })
+    const matched = pubs.filter(p => !p.unpublishedAt && matchesQuery(p, 'Goa', users.find(u => u.id === p.creatorId)?.profile.name))
+    expect(matched.map(p => p.id).sort()).toEqual(['creator', 'stop', 'title'])
+  })
   it('ignores unpublished rows', () => {
     const pubs = [
       pub({ id: 'gone', routeSummary: ['Goa'], unpublishedAt: 5 }),
@@ -244,6 +260,24 @@ describe('placeTiles', () => {
 
   it('skips blank place names', () => {
     expect(placeTiles([pub({ id: 'a', routeSummary: ['  ', '', 'Goa'] })])).toEqual([{ name: 'Goa', count: 1 }])
+  })
+})
+
+describe('matchesQuery', () => {
+  it('matches the title, the joined route stops and the creator name, ignoring case', () => {
+    const row = pub({ id: 'a', title: 'Spice Coast', routeSummary: ['Kochi', 'Munnar'] })
+    expect(matchesQuery(row, 'spice', 'Asha')).toBe(true)
+    expect(matchesQuery(row, 'KOCHI munnar', 'Asha')).toBe(true)
+    expect(matchesQuery(row, '  asha ', 'Asha')).toBe(true)
+    expect(matchesQuery(row, 'goa', 'Asha')).toBe(false)
+  })
+
+  it('matches every plan for a blank needle', () => {
+    expect(matchesQuery(pub({ id: 'a' }), '   ')).toBe(true)
+  })
+
+  it('does not match a creator name it was not given', () => {
+    expect(matchesQuery(pub({ id: 'a', routeSummary: ['Goa'] }), 'asha')).toBe(false)
   })
 })
 

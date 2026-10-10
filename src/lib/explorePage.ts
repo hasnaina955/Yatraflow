@@ -53,6 +53,24 @@ export function routeTrail(routeSummary: string[], max = 5): { stops: string[]; 
   return { stops, hidden: total - stops.length }
 }
 
+/**
+ * Whether a live plan matches a search. The needle is trimmed and compared
+ * ignoring case. It matches the title, the route stops (joined by a space) or
+ * the creator's name. A blank needle matches every plan. Explore's search box
+ * and the place tiles both use this, so a tile's count is the list it opens.
+ */
+export function matchesQuery(
+  pub: Pick<PublishedItinerary, 'title' | 'routeSummary'>,
+  query: string,
+  creatorName?: string,
+): boolean {
+  const needle = query.trim().toLowerCase()
+  if (needle === '') return true
+  return pub.title.toLowerCase().includes(needle)
+    || pub.routeSummary.join(' ').toLowerCase().includes(needle)
+    || (creatorName?.toLowerCase().includes(needle) ?? false)
+}
+
 interface PlaceTally { count: number; spellings: Map<string, number> }
 
 /** The spelling used most often. A tie goes to the smaller spelling. */
@@ -70,12 +88,14 @@ function mostCommonSpelling(spellings: Map<string, number>): string {
 }
 
 /**
- * Place tiles: how many live plans route through each place. Names match
- * ignoring case and outer spaces, and a plan counts a place once. The tile
- * shows the spelling used most often. Sorted by count, then name. Returns the
- * top `limit` tiles.
+ * Place tiles. The tiles are chosen by how many live plans route through each
+ * place: names match ignoring case and outer spaces, and a plan counts a place
+ * once. The tile shows the spelling used most often. Each tile's count is then
+ * the number of live plans that matchesQuery() finds under that name, which is
+ * the list a click opens. Sorted by that count, then name. Returns the top
+ * `limit` tiles.
  */
-export function placeTiles(pubs: PublishedItinerary[], limit = 6): PlaceTile[] {
+export function placeTiles(pubs: PublishedItinerary[], users: User[] = [], limit = 6): PlaceTile[] {
   const tallies = new Map<string, PlaceTally>()
   for (const pub of livePubs(pubs)) {
     const keysInPlan = new Set<string>()
@@ -92,10 +112,18 @@ export function placeTiles(pubs: PublishedItinerary[], limit = 6): PlaceTile[] {
       }
     }
   }
-  const tiles = [...tallies.values()].map(tally => ({ name: mostCommonSpelling(tally.spellings), count: tally.count }))
-  return tiles
-    .sort((a, b) => b.count - a.count || compareText(a.name, b.name))
+  const chosen = [...tallies.values()]
+    .map(tally => ({ name: mostCommonSpelling(tally.spellings), tallied: tally.count }))
+    .sort((a, b) => b.tallied - a.tallied || compareText(a.name, b.name))
     .slice(0, Math.max(0, limit))
+  const usersById = new Map(users.map(user => [user.id, user] as const))
+  const live = livePubs(pubs)
+  return chosen
+    .map(tile => ({
+      name: tile.name,
+      count: live.filter(pub => matchesQuery(pub, tile.name, usersById.get(pub.creatorId)?.profile.name)).length,
+    }))
+    .sort((a, b) => b.count - a.count || compareText(a.name, b.name))
 }
 
 /**

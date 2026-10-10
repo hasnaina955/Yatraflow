@@ -3,7 +3,7 @@
 // dates). The list switch restyles the same card as a row. The whole card is
 // one link on the title; the delete button sits above it.
 import type { CSSProperties, ReactNode } from 'react'
-import { Calendar, Clock, Trash2, Wallet } from 'lucide-react'
+import { Trash2 } from 'lucide-react'
 import { appLink } from '../../lib/appLink'
 import { cap } from '../../lib/labels'
 import { routeLine, travelHoursText } from '../../lib/tripsCard'
@@ -11,6 +11,7 @@ import { rangeText, statusOf } from '../../lib/tripsPage'
 import type { Trip, User } from '../../data/types'
 import { Planners } from './Planners'
 import { TripCover } from './TripCover'
+import { TripFacts } from './TripFacts'
 
 export interface TripCardProps {
   trip: Trip
@@ -40,23 +41,7 @@ export function TripCard({ trip, today, budget, totalTravelMinutes, users, meId,
             </h3>
             <p className="mt-route">{routeLine(trip)}</p>
           </div>
-          <ul className="mt-stats">
-            <li>
-              <Wallet size={15} aria-hidden className="mt-stat-ico" />
-              <span className="mt-stat-lab">Budget</span>
-              <span className="mt-stat-val">{budget}</span>
-            </li>
-            <li>
-              <Clock size={15} aria-hidden className="mt-stat-ico" />
-              <span className="mt-stat-lab">Travel</span>
-              <span className="mt-stat-val">{travelHoursText(totalTravelMinutes)}</span>
-            </li>
-            <li>
-              <Calendar size={15} aria-hidden className="mt-stat-ico" />
-              <span className="mt-stat-lab">Dates</span>
-              <span className="mt-stat-val">{rangeText(trip, today)}</span>
-            </li>
-          </ul>
+          <TripFacts budget={budget} travel={travelHoursText(totalTravelMinutes)} dates={rangeText(trip, today)} />
           <div className="mt-card-chips">
             <span className="mt-chip">{cap(trip.travelStyle)}</span>
             {plannerCount > 1 && <span className="mt-chip mt-chip--plain">{plannerCount} planners</span>}

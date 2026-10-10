@@ -8,12 +8,18 @@ function dayCount(count: number): string {
   return `${count} ${count === 1 ? 'day' : 'days'}`
 }
 
+/** The place a trip ends at: its last destination with a name, or the start
+ *  place when no destination has a name. The route line and the hero use it, so
+ *  the card and the headline always name the same place. */
+export function lastStop(t: Pick<Trip, 'startLocation' | 'destinations'>): string {
+  const named = (t.destinations ?? []).filter(destination => destination.trim() !== '')
+  return named.length > 0 ? named[named.length - 1] : t.startLocation
+}
+
 /** Route line: "Kochi → Alleppey · 4 days". An empty destination list ends the
  *  route at the start place. */
 export function routeLine(t: Pick<Trip, 'startLocation' | 'destinations' | 'days'>): string {
-  const destinations = t.destinations ?? []
-  const lastStop = destinations.length > 0 ? destinations[destinations.length - 1] : t.startLocation
-  return `${t.startLocation} → ${lastStop} · ${dayCount(t.days.length)}`
+  return `${t.startLocation} → ${lastStop(t)} · ${dayCount(t.days.length)}`
 }
 
 /** Whole travel hours as a short value: 767 minutes gives "13h". */

@@ -1,11 +1,11 @@
 // ============ My trips — papercut art ============
-// Region motifs and the banner panorama as one inline SVG sprite. The art is
+// Region motifs as one inline SVG sprite. The art is
 // flat silhouettes in currentColor, so each region only sets a sky gradient and
 // an ink colour in CSS. There are no photos. A trip with no cover image of its
 // own gets the motif that regionFor() picks from its destinations.
 import type { TripRegion } from '../../lib/tripsPage'
 
-/** Mount once per page. Cards and the banner reference the symbols by id. */
+/** Mount once per page. Cards and the hero postcards reference the symbols by id. */
 export function TripArtSprite() {
   return (
     <svg
@@ -137,65 +137,8 @@ export function TripArtSprite() {
           <g fill="currentColor" opacity=".9"><rect x="52" y="124" width="3" height="26"/><circle cx="53.5" cy="120" r="13"/><rect x="262" y="118" width="3" height="30"/><circle cx="263.5" cy="113" r="15"/><rect x="214" y="134" width="2.4" height="18"/><circle cx="215.2" cy="131" r="9"/></g>
           <path d="M0 178c70-12 130-4 190-2s90-6 130-2v26H0z" fill="currentColor"/>
         </symbol>
-        <symbol id="mt-m-banner" viewBox="0 80 1600 180" preserveAspectRatio="xMidYMax slice">
-          <circle cx="1170" cy="112" r="22" style={{ fill: 'var(--yf-saffron)' }} opacity=".9"/>
-          <path d="M0 190C120 170 220 176 330 184S560 170 700 150 900 130 1010 150 1200 140 1290 134L1330 116 1362 98 1396 126 1440 94 1480 124 1530 108 1600 128V260H0z" fill="currentColor" opacity=".2"/>
-          <path d="M0 206C100 192 200 196 320 204S520 188 690 194 900 178 1010 188 1230 176 1290 174L1330 156 1366 168 1410 146 1460 164 1520 154 1600 166V260H0z" fill="currentColor" opacity=".38"/>
-          <path d="M1440 94l-13 17 7-3 6 7 6-7 7 3zM1362 98l-11 15 6-3 5 6 5-6 6 3zM1480 124l-8 11 5-2 3 4 3-4 5 2z" fill="#fff" opacity=".85"/>
-          <rect y="214" width="330" height="16" fill="currentColor" opacity=".24"/>
-          <g fill="currentColor" opacity=".92">
-            <rect x="186" y="168" width="16" height="46"/><rect x="244" y="168" width="16" height="46"/>
-            <path d="M186 168l8-14 8 14zM244 168l8-14 8 14z"/>
-            <rect x="202" y="184" width="42" height="30"/>
-            <path d="M202 184l21-14 21 14z"/>
-            <rect x="222" y="150" width="2" height="9"/><rect x="218.5" y="153" width="9" height="2"/>
-          </g>
-          <path d="M217 214v-12a6 6 0 0 1 12 0v12z" fill="#fff" opacity=".4"/>
-          <path d="M298 204l14 0-7-22z" fill="currentColor" opacity=".8"/><path d="M288 206h32l-5 7h-22z" fill="currentColor"/>
-          <use href="#mt-palm-shape" transform="translate(140 214) scale(.62) translate(-262 -146)"/>
-          <use href="#mt-palm-shape" transform="translate(120 214) scale(.5) translate(-262 -146)" opacity=".7"/>
-          <rect x="330" y="212" width="360" height="20" fill="currentColor" opacity=".22"/>
-          <path d="M380 226h60M520 232h90M620 224h50" stroke="#fff" strokeWidth="2" strokeLinecap="round" opacity=".5"/>
-          <g transform="translate(350 52)">
-            <path d="M114 150c10-22 74-22 84 0z" fill="currentColor" opacity=".72"/>
-            <path d="M126 150v-9M142 150v-14M158 150v-16M174 150v-14M190 150v-9" stroke="#fff" strokeWidth="1.5" opacity=".35"/>
-            <path d="M104 150h104l-12 12h-80z" fill="currentColor"/>
-          </g>
-          <use href="#mt-palm-shape" transform="translate(560 214) scale(.85) translate(-262 -146)"/>
-          <use href="#mt-palm-shape" transform="translate(660 214) scale(.6) translate(-262 -146)"/>
-          <path d="M690 214C730 178 790 172 840 190 880 176 940 178 1010 214z" fill="currentColor" opacity=".55"/>
-          <g fill="currentColor"><circle cx="722" cy="198" r="18"/><circle cx="748" cy="206" r="13"/><circle cx="985" cy="200" r="16"/></g>
-          <path d="M772 214v-50c10-8 18-10 24-10v60zM912 214v-60c6 0 14 2 24 10v50z" fill="currentColor" opacity=".9"/>
-          <g fill="none" stroke="currentColor" strokeLinecap="round" transform="translate(690 64)">
-            <path d="M100 150Q160 102 220 150" strokeWidth="6"/>
-            <path d="M104 150Q160 116 216 150" strokeWidth="3.5"/>
-            <path d="M128 130v20M146 120v30M164 118v32M182 122v28M198 132v18" strokeWidth="2" opacity=".85"/>
-          </g>
-          <g stroke="#fff" strokeLinecap="round" opacity=".7"><path d="M958 150v50" strokeWidth="5"/><path d="M968 154v44" strokeWidth="3"/></g>
-          <path d="M1010 214c60-18 120-8 180-14s100-4 140 14z" fill="currentColor" opacity=".5"/>
-          <g fill="currentColor" opacity=".88" transform="translate(1000 74)">
-            <path d="M70 140V96h8v-6h5v6h6v-6h5v6h6v-6h5v6h8v44z"/>
-            <path d="M113 140v-34h10v-5h6v5h10v-5h6v5h10v-5h6v5h10v-5h6v5h10v34z"/>
-            <path d="M187 140V92h40v48z"/><rect x="191" y="88" width="32" height="4"/>
-            <rect x="195" y="80" width="3" height="8"/><rect x="216" y="80" width="3" height="8"/>
-            <rect x="192" y="77" width="30" height="3"/><path d="M196 77a11 11 0 0 1 22 0z"/><rect x="206" y="60" width="2" height="7"/>
-          </g>
-          <g fill="currentColor"><path d="M1352 214l7-62 7 62zM1368 216l6-44 6 44zM1450 214l6-52 6 52zM1434 216l5-36 5 36z"/></g>
-          <path d="M0 226C140 218 260 228 400 224S640 214 800 224 1050 232 1200 224 1480 216 1600 226V260H0z" fill="currentColor"/>
-        </symbol>
       </defs>
     </svg>
-  )
-}
-
-/** The wide skyline along the banner's bottom edge. */
-export function BannerPanorama() {
-  return (
-    <div className="mt-banner-art" aria-hidden="true">
-      <svg focusable="false">
-        <use href="#mt-m-banner" width="100%" height="100%" />
-      </svg>
-    </div>
   )
 }
 

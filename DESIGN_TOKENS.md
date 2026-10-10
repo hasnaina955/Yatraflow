@@ -90,6 +90,13 @@ popup stops clashing.
 **Also added:** `--radius-lg: 24px` (large bento cards) and `--shadow-soft`
 (diffuse CTI depth) in both themes.
 
+**Shared page tokens (on `:root`):** Explore and My trips use the same look, so they share
+five tokens. `--font-serif` is Playfair Display for a hero headline. `--font-hand` is Caveat
+for the handwritten note. `--line-strong` is the border of a control (22% of `--text`).
+`--shadow-card` and `--shadow-card-hover` are the resting and hover shadows of a catalog card.
+The older `--ex-font-serif`, `--ex-font-hand`, `--ex-line-strong`, `--ex-shadow-sm` and
+`--ex-shadow-md` names stay as aliases of these tokens.
+
 ## Primitive palette
 
 | Token | Light | Dark |
@@ -150,6 +157,9 @@ No test change is part of this correction pass.
 - `.btn-outline` → transparent / `--text`, border `--line`
 - `.btn-ghost` → none / `--text-2`
 - `.btn-danger` → `--color-destructive-soft` / `--color-destructive`
+
+**Catalog pages:** inside `.ex-page` and `.trips-page` every `.btn` has 12px corners, weight
+700 and a one-pixel press. The rest of the app keeps the pill shape.
 
 **Sizes** (padding-y / padding-x / font):
 - `.btn-sm` → 6px / 12px / 13px
@@ -234,6 +244,10 @@ already resolved to `#2BB8AC` in both families, so nothing there changes.
 
 ### Typography policy
 
+- **Catalog pages:** Explore and My trips set a hero headline in Playfair Display 600
+  (`--font-serif`) with one italic accent phrase. They set the handwritten note in Caveat 600
+  (`--font-hand`). Their section titles are Plus Jakarta Sans 800 (28px, 24px on a phone). Their
+  card titles are Plus Jakarta Sans 700 (19px). Do not use the two hero fonts anywhere else.
 - **Weights:** only 500/600/700/800. The font link loads Plus Jakarta Sans
   400-800 (it was Inter until Sep 2026 - the ramp is identical, which is why the
   weight gate moved not at all) and Sora 600-800. Plus Jakarta Sans alone loads

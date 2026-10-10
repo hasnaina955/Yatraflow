@@ -9,6 +9,7 @@ import { countdownText, nextStep, planning, rangeText, statusOf } from '../../li
 import type { Trip, User } from '../../data/types'
 import { Planners } from './Planners'
 import { TripCover } from './TripCover'
+import { TripFacts } from './TripFacts'
 
 export interface UpNextCardProps {
   trip: Trip
@@ -35,15 +36,9 @@ export function UpNextCard({ trip, today, budget, totalTravelMinutes, users, meI
         <h3 className="mt-card-title">
           <a className="mt-card-link" {...detailHref}>{trip.name}</a>
         </h3>
-        <p className="mt-feat-when">
-          {countdown && <><b>{countdown}</b><span className="mt-sep"> · </span></>}
-          <span className="mt-range">{rangeText(trip, today)}</span>
-        </p>
+        {countdown && <p className="mt-feat-when"><b>{countdown}</b></p>}
         <p className="mt-route">{routeLine(trip)}</p>
-        <p className="mt-feat-meta">
-          <span>{budget}</span>
-          <span>{travelHoursText(totalTravelMinutes)} travel</span>
-        </p>
+        <TripFacts budget={budget} travel={travelHoursText(totalTravelMinutes)} dates={rangeText(trip, today)} />
         <div className="mt-feat-planners">
           <Planners trip={trip} users={users} meId={meId} />
           {plannerCount > 1 && <span>{plannerCount} planners</span>}
@@ -75,7 +70,7 @@ export function UpNextCard({ trip, today, budget, totalTravelMinutes, users, meI
           </p>
         )}
         <div className="mt-feat-actions">
-          <a className="btn btn-outline" {...detailHref}>Continue planning</a>
+          <a className="btn btn-primary" {...detailHref}>Continue planning</a>
           <button type="button" className="icon-btn mt-del" aria-label={`Delete ${trip.name}`} onClick={() => onDelete(trip)}>
             <Trash2 size={16} aria-hidden />
           </button>

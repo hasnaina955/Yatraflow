@@ -1,6 +1,7 @@
 // ============ My trips page — pure logic ============
 import { describe, expect, it } from 'vitest'
-import { countdownText, nextStep, otherTripsEmptyKind, pickUpNext, planning, rangeText, regionFor, statusOf, whenBucket } from '../src/lib/tripsPage'
+import { countdownText, heroHeadline, heroNote, heroPostcards, heroStats, nextStep, otherTripsEmptyKind, pickUpNext, planning, rangeText, regionFor, statusOf, whenBucket, type HeroTrip } from '../src/lib/tripsPage'
+import { routeLine } from '../src/lib/tripsCard'
 import type { ItineraryDay, StopStatus } from '../src/data/types'
 
 // Local noon on 2026-10-10: far from any day boundary.
@@ -257,5 +258,226 @@ describe('otherTripsEmptyKind', () => {
   })
   it('reports no trips at all when nothing matches and no filter is set', () => {
     expect(otherTripsEmptyKind({ matchCount: 0, otherCount: 0, hasFilters: false })).toBe('no-trips')
+  })
+})
+
+// ---- The hero ----------------------------------------------------------------
+
+let heroCounter = 0
+function heroTrip(over: Partial<HeroTrip> & { startDate: string; endDate: string }): HeroTrip {
+  heroCounter += 1
+  return {
+    id: `t${heroCounter}`,
+    name: `Trip ${heroCounter}`,
+    startLocation: 'Pune',
+    destinations: [],
+    days: emptyDays(3),
+    updatedAt: heroCounter,
+    ...over,
+  }
+}
+const goa = heroTrip({ id: 'goa', name: 'Goa break', destinations: ['Goa', 'Panjim'], startDate: '2026-10-20', endDate: '2026-10-23' })
+const kerala = heroTrip({ id: 'kerala', name: 'Backwaters', destinations: ['Kochi'], startDate: '2026-12-01', endDate: '2026-12-05' })
+const pastTrip = heroTrip({ id: 'past', name: 'Old loop', destinations: ['Jaipur'], startDate: '2026-01-02', endDate: '2026-01-05' })
+const draftTrip = heroTrip({ id: 'draft', name: 'Someday', destinations: ['Hampi'], startDate: '', endDate: '', days: [day(['Temple', 'planned']), day(), day()] })
+
+describe('heroHeadline', () => {
+  it('names the place the Up next card ends at, not the first destination', () => {
+    // goa runs Pune -> Goa -> Panjim, so its card reads "Pune → Panjim".
+    expect(routeLine(goa)).toBe('Pune → Panjim · 3 days')
+    expect(heroHeadline({ trips: [kerala, goa], today: TODAY, ready: true })).toEqual({ lead: 'Next stop,', accent: 'Panjim.' })
+  })
+  it('cuts the place at its first comma', () => {
+    const abroad = heroTrip({ destinations: ['Delhi', 'Kolkata, India'], startDate: '2026-10-20', endDate: '2026-10-21' })
+    expect(heroHeadline({ trips: [abroad], today: TODAY, ready: true }).accent).toBe('Kolkata.')
+  })
+  it('names the same place as the card for a trip with several destinations', () => {
+    const route = heroTrip({ startLocation: 'Mumbai', destinations: ['Old Goa', 'North Goa'], startDate: '2026-10-20', endDate: '2026-10-21' })
+    expect(routeLine(route)).toContain('→ North Goa')
+    expect(heroHeadline({ trips: [route], today: TODAY, ready: true }).accent).toBe('North Goa.')
+  })
+  it('keeps a long place name whole so the headline can wrap it', () => {
+    const long = heroTrip({ destinations: ['Thiruvananthapuram International Airport Road'], startDate: '2026-10-20', endDate: '2026-10-21' })
+    expect(heroHeadline({ trips: [long], today: TODAY, ready: true }).accent).toBe('Thiruvananthapuram International Airport Road.')
+  })
+  it('falls back to the trip name when the up next trip has no destination', () => {
+    const bare = heroTrip({ name: '  Weekend away ', startDate: '2026-10-20', endDate: '2026-10-21' })
+    expect(heroHeadline({ trips: [bare], today: TODAY, ready: true }).accent).toBe('Weekend away.')
+  })
+  it('skips a blank last destination', () => {
+    const blankLast = heroTrip({ destinations: ['Udaipur', '  '], startDate: '2026-10-20', endDate: '2026-10-21' })
+    expect(heroHeadline({ trips: [blankLast], today: TODAY, ready: true }).accent).toBe('Udaipur.')
+    expect(routeLine(blankLast)).toContain('→ Udaipur')
+  })
+  it('asks for the next journey when trips exist and none is up next', () => {
+    expect(heroHeadline({ trips: [pastTrip], today: TODAY, ready: true })).toEqual({ lead: 'Plan your', accent: 'next journey.' })
+    expect(heroHeadline({ trips: [pastTrip, draftTrip], today: TODAY, ready: true }).accent).toBe('next journey.')
+  })
+  it('asks the user to pick up where they left off when every trip is a draft', () => {
+    expect(heroHeadline({ trips: [draftTrip], today: TODAY, ready: true })).toEqual({ lead: 'Pick up', accent: 'where you left off.' })
+  })
+  it('says the first trip starts here when there are no trips', () => {
+    expect(heroHeadline({ trips: [], today: TODAY, ready: true })).toEqual({ lead: 'Your first trip', accent: 'starts here.' })
+  })
+  it('stays neutral until the trips read has settled', () => {
+    expect(heroHeadline({ trips: [], today: TODAY, ready: false }).accent).toBe('next journey.')
+    expect(heroHeadline({ trips: [goa], today: TODAY, ready: false }).accent).toBe('next journey.')
+  })
+})
+
+describe('heroStats', () => {
+  const withCrew = heroTrip({
+    destinations: ['Goa', 'Mumbai'], startDate: '2026-10-20', endDate: '2026-10-22',
+    members: [
+      { userId: 'me', role: 'owner', joinedAt: 1 },
+      { userId: 'asha', role: 'editor', joinedAt: 2 },
+    ],
+  })
+  const secondCrew = heroTrip({
+    destinations: ['goa ', 'Pune'], startDate: '2026-01-02', endDate: '2026-01-04',
+    members: [
+      { userId: 'me', role: 'owner', joinedAt: 1 },
+      { userId: 'asha', role: 'viewer', joinedAt: 2 },
+      { userId: 'ravi', role: 'editor', joinedAt: 3 },
+    ],
+  })
+  it('counts trips, upcoming and live trips, unique places and the other editors', () => {
+    expect(heroStats({ trips: [withCrew, secondCrew], today: TODAY, meId: 'me', ready: true })).toEqual([
+      { label: 'trips', value: 2 },
+      { label: 'upcoming & live', value: 1 },
+      { label: 'places', value: 3 },
+      { label: 'co-planners', value: 2 },
+    ])
+  })
+  it('counts a live trip in the upcoming & live stat, the rule the filter uses', () => {
+    const live = heroTrip({ startDate: '2026-10-09', endDate: '2026-10-12' })
+    expect(whenBucket(live, TODAY)).toBe('upcoming')
+    expect(heroStats({ trips: [live], today: TODAY, meId: null, ready: true })).toEqual([
+      { label: 'trip', value: 1 },
+      { label: 'upcoming & live', value: 1 },
+    ])
+  })
+  it('does not count past or draft trips as upcoming & live', () => {
+    const stats = heroStats({ trips: [pastTrip, draftTrip], today: TODAY, meId: null, ready: true })
+    expect(stats.find(stat => stat.label === 'upcoming & live')).toBeUndefined()
+  })
+  it('counts a place once however it is spelled', () => {
+    const spellings = heroTrip({ destinations: ['Kochi', 'Kochi, Kerala', ' kochi ', 'Alleppey'], startDate: '2026-10-20', endDate: '2026-10-21' })
+    const stats = heroStats({ trips: [spellings], today: TODAY, meId: null, ready: true })
+    expect(stats.find(stat => stat.label === 'places')?.value).toBe(2)
+  })
+  it('does not count viewers or commenters as co-planners', () => {
+    const crew = heroTrip({
+      startDate: '2026-10-20', endDate: '2026-10-21',
+      members: [
+        { userId: 'me', role: 'owner', joinedAt: 1 },
+        { userId: 'vik', role: 'viewer', joinedAt: 2 },
+        { userId: 'cam', role: 'commenter', joinedAt: 3 },
+      ],
+    })
+    const stats = heroStats({ trips: [crew], today: TODAY, meId: 'me', ready: true })
+    expect(stats.find(stat => stat.label.startsWith('co-planner'))).toBeUndefined()
+  })
+  it('counts an owner who is not you, and a person on two trips once', () => {
+    const first = heroTrip({ startDate: '2026-10-20', endDate: '2026-10-21', members: [
+      { userId: 'me', role: 'editor', joinedAt: 1 }, { userId: 'asha', role: 'owner', joinedAt: 2 },
+    ] })
+    const second = heroTrip({ startDate: '2026-11-20', endDate: '2026-11-21', members: [
+      { userId: 'asha', role: 'editor', joinedAt: 1 }, { userId: 'me', role: 'owner', joinedAt: 2 },
+    ] })
+    const stats = heroStats({ trips: [first, second], today: TODAY, meId: 'me', ready: true })
+    expect(stats.find(stat => stat.label === 'co-planner')?.value).toBe(1)
+  })
+  it('hides every stat that is zero', () => {
+    const stats = heroStats({ trips: [pastTrip], today: TODAY, meId: 'me', ready: true })
+    expect(stats.map(stat => stat.label)).toEqual(['trip', 'place'])
+    expect(stats.every(stat => stat.value > 0)).toBe(true)
+  })
+  it('uses singular labels for a count of one, all in lower case', () => {
+    const one = heroTrip({
+      destinations: ['Goa'], startDate: '2026-10-20', endDate: '2026-10-21',
+      members: [{ userId: 'me', role: 'owner', joinedAt: 1 }, { userId: 'asha', role: 'editor', joinedAt: 2 }],
+    })
+    const labels = heroStats({ trips: [one], today: TODAY, meId: 'me', ready: true }).map(stat => stat.label)
+    expect(labels).toEqual(['trip', 'upcoming & live', 'place', 'co-planner'])
+    expect(labels.every(label => label === label.toLowerCase())).toBe(true)
+  })
+  it('returns no stats for zero trips', () => {
+    expect(heroStats({ trips: [], today: TODAY, meId: 'me', ready: true })).toEqual([])
+  })
+  it('returns no stats while the trips read is loading or failed', () => {
+    expect(heroStats({ trips: [withCrew], today: TODAY, meId: 'me', ready: false })).toEqual([])
+  })
+})
+
+describe('heroPostcards', () => {
+  it('shows one blank postcard when there are no trips', () => {
+    const cards = heroPostcards({ trips: [], today: TODAY, ready: true })
+    expect(cards).toHaveLength(1)
+    expect(cards[0]).toMatchObject({ blank: true, place: 'Your next trip', region: 'generic' })
+  })
+  it('shows no postcard, not even the blank one, until the trips read has settled', () => {
+    expect(heroPostcards({ trips: [], today: TODAY, ready: false })).toEqual([])
+    expect(heroPostcards({ trips: [goa], today: TODAY, ready: false })).toEqual([])
+  })
+  it('captions each postcard with the place the trip ends at and picks its art region', () => {
+    const cards = heroPostcards({ trips: [goa], today: TODAY, ready: true })
+    expect(cards).toEqual([{ key: 'goa', place: 'Panjim', region: 'goa', coverImageUrl: undefined }])
+  })
+  it('cuts a caption at its first comma', () => {
+    const abroad = heroTrip({ id: 'k', destinations: ['Kolkata, India'], startDate: '2026-10-20', endDate: '2026-10-21' })
+    expect(heroPostcards({ trips: [abroad], today: TODAY, ready: true })[0].place).toBe('Kolkata')
+  })
+  it('uses the trip cover image when it has one', () => {
+    const withCover = heroTrip({ destinations: ['Goa'], startDate: '2026-10-20', endDate: '2026-10-21', coverImageUrl: 'https://example.test/c.jpg' })
+    expect(heroPostcards({ trips: [withCover], today: TODAY, ready: true })[0].coverImageUrl).toBe('https://example.test/c.jpg')
+  })
+  it('orders live, then upcoming by start day, then past trips, then drafts', () => {
+    const live = heroTrip({ id: 'live', destinations: ['Coorg'], startDate: '2026-10-09', endDate: '2026-10-12' })
+    const cards = heroPostcards({ trips: [pastTrip, draftTrip, kerala, goa, live], today: TODAY, ready: true })
+    expect(cards.map(card => card.key)).toEqual(['live', 'goa', 'kerala'])
+    const fewer = heroPostcards({ trips: [draftTrip, pastTrip], today: TODAY, ready: true })
+    expect(fewer.map(card => card.key)).toEqual(['past', 'draft'])
+  })
+  it('puts a past trip ahead of a draft when only one slot is left', () => {
+    const live = heroTrip({ id: 'live', destinations: ['Coorg'], startDate: '2026-10-09', endDate: '2026-10-12' })
+    const upcoming = heroTrip({ id: 'up', destinations: ['Goa'], startDate: '2026-10-20', endDate: '2026-10-21' })
+    const cards = heroPostcards({ trips: [draftTrip, pastTrip, live, upcoming], today: TODAY, ready: true })
+    expect(cards.map(card => card.key)).toEqual(['live', 'up', 'past'])
+  })
+  it('gives one postcard to two trips that end at the same place', () => {
+    const goaAgain = heroTrip({ id: 'goa2', destinations: [' panjim, Goa'], startDate: '2026-11-01', endDate: '2026-11-03' })
+    expect(heroPostcards({ trips: [goa, goaAgain], today: TODAY, ready: true }).map(card => card.key)).toEqual(['goa'])
+  })
+  it('never returns more than three', () => {
+    const many = ['Goa', 'Kochi', 'Jaipur', 'Shillong', 'Srinagar'].map((place, i) =>
+      heroTrip({ destinations: [place], startDate: `2026-11-0${i + 1}`, endDate: `2026-11-0${i + 2}` }))
+    expect(heroPostcards({ trips: many, today: TODAY, ready: true })).toHaveLength(3)
+  })
+})
+
+describe('heroNote', () => {
+  it('counts the days to the trip that is up next', () => {
+    expect(heroNote({ trips: [goa], today: TODAY, ready: true })).toBe('10 days to go!')
+  })
+  it('uses the singular for one day', () => {
+    const tomorrow = heroTrip({ startDate: '2026-10-11', endDate: '2026-10-12' })
+    expect(heroNote({ trips: [tomorrow], today: TODAY, ready: true })).toBe('1 day to go!')
+  })
+  it('names the day of a live trip', () => {
+    const live = heroTrip({ startDate: '2026-10-09', endDate: '2026-10-12', days: emptyDays(4) })
+    expect(heroNote({ trips: [live], today: TODAY, ready: true })).toBe('Day 2 of 4!')
+  })
+  it('reports how many days a draft has planned when only drafts exist', () => {
+    expect(heroNote({ trips: [draftTrip], today: TODAY, ready: true })).toBe('1 of 3 days planned')
+  })
+  it('says nothing when there is nothing true to say', () => {
+    expect(heroNote({ trips: [], today: TODAY, ready: true })).toBeNull()
+    expect(heroNote({ trips: [pastTrip], today: TODAY, ready: true })).toBeNull()
+    const emptyDraft = heroTrip({ startDate: '', endDate: '', days: emptyDays(3) })
+    expect(heroNote({ trips: [emptyDraft], today: TODAY, ready: true })).toBeNull()
+  })
+  it('says nothing until the trips read has settled', () => {
+    expect(heroNote({ trips: [goa], today: TODAY, ready: false })).toBeNull()
   })
 })

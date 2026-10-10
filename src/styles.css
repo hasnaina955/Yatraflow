@@ -4027,6 +4027,104 @@ html.vt-active :where(*) {
 .featured-meta { display: flex; gap: 18px; flex-wrap: wrap; color: #e2f1ef; font-size: 13px; margin-bottom: 16px; }
 .featured-actions { display: flex; gap: 10px; flex-wrap: wrap; }
 
+/* ---- MR10 discovery blocks (Explore): featured creators,
+   trending itineraries, the share-stories CTA. Geometry follows
+   the mockup's hub (creator rail, ranked rows, join bar); every
+   colour is a semantic token, per ADR 0002. ---- */
+
+.discovery-block { margin-bottom: var(--space-9); }
+.discovery-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-4); flex-wrap: wrap; margin-bottom: var(--space-5); }
+.discovery-title { font-family: var(--font-display); font-size: clamp(19px, 2vw, 24px); margin: 0; display: flex; align-items: center; gap: var(--space-2); }
+.discovery-sub { margin: 0; color: var(--text-3); font-size: var(--text-xs); max-width: 52ch; }
+
+/* Featured creators — a rail the page scrolls: four cards fit the
+   desktop container, and below that the rail keeps its beat instead
+   of crowding into a narrower grid (the mockup drew exactly four). */
+.creator-rail {
+  display: flex; gap: var(--space-6);
+  overflow-x: auto; scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+  padding: var(--space-1) var(--space-1) var(--space-4);
+}
+.creator-card {
+  scroll-snap-align: start;
+  flex: 0 0 minmax(200px, 232px);
+  display: flex; flex-direction: column; align-items: flex-start;
+  gap: var(--space-3);
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: var(--radius); box-shadow: var(--shadow-sm);
+  padding: var(--space-6);
+  color: inherit; text-decoration: none;
+  transition: transform var(--t-fast) var(--ease-out), box-shadow var(--t-fast) var(--ease-out);
+}
+.creator-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-soft); }
+.creator-card:focus-visible { outline: none; box-shadow: var(--ring); }
+.creator-name { display: flex; align-items: center; gap: var(--space-2); font-weight: 800; font-size: 15px; letter-spacing: -.01em; color: var(--text); }
+.creator-bio {
+  font-size: var(--text-xs); color: var(--text-2); line-height: 1.55;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+}
+.creator-evidence { display: flex; align-items: center; gap: var(--space-2); margin-top: auto; font-size: var(--text-xs); color: var(--text-3); }
+
+/* Trending itineraries — ranked compact rows (the Trips list-row
+   precedent), not full cards: the grid below already renders every
+   plan as a card, so a second full-card rendering would show the
+   same catalog twice. The hit is the row's first link; the
+   creator's page is the row's second, in the footer. */
+.trending-list { display: grid; gap: var(--space-4); margin: 0; padding: 0; list-style: none; }
+.trend-row {
+  display: grid; gap: var(--space-4);
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: var(--radius); box-shadow: var(--shadow-sm);
+  padding: var(--space-5);
+  transition: transform var(--t-fast) var(--ease-out), box-shadow var(--t-fast) var(--ease-out);
+}
+.trend-row:hover { transform: translateY(-2px); box-shadow: var(--shadow-soft); }
+.trend-hit {
+  all: unset; cursor: pointer;
+  display: grid; grid-template-columns: 20px 96px minmax(0, 1fr);
+  gap: var(--space-5); align-items: center;
+  border-radius: var(--radius-sm);
+}
+.trend-hit:focus-visible { outline: none; box-shadow: var(--ring); }
+.trend-rank { font-family: var(--font-display); font-weight: 800; font-size: 18px; color: var(--text-3); text-align: center; }
+.trend-body { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
+.trend-title { font-size: 15px; font-weight: 800; letter-spacing: -.01em; margin: 0; color: var(--text); }
+.trend-tagline {
+  font-size: var(--text-xs); color: var(--text-2); line-height: 1.55;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+}
+.trend-meta { display: flex; gap: var(--space-5); flex-wrap: wrap; font-size: var(--text-xs); color: var(--text-3); }
+.trend-foot { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); flex-wrap: wrap; }
+.trend-evidence { display: inline-flex; align-items: center; gap: var(--space-3); font-size: var(--text-xs); color: var(--text-3); }
+.trend-evidence-sep { opacity: .55; }
+
+/* Share your travel stories — the join bar. The counts line is the
+   card's only claim; it is derived from the catalog, never asserted. */
+.share-cta {
+  margin-top: var(--space-10);
+  background: var(--card-soft); border: 1px solid var(--line);
+  border-radius: var(--radius-lg); box-shadow: var(--shadow-soft);
+  padding: var(--space-10);
+  display: grid; justify-items: center; gap: var(--space-4);
+  text-align: center;
+}
+.share-cta-title { font-family: var(--font-display); font-size: clamp(22px, 2.6vw, 30px); margin: 0; color: var(--text); }
+.share-cta-sub { margin: 0; color: var(--text-2); font-size: 14px; line-height: 1.6; max-width: 56ch; }
+.share-cta-counts { margin: 0; font-size: var(--text-xs); color: var(--text-3); }
+.share-cta-ticks { display: flex; gap: var(--space-6); flex-wrap: wrap; justify-content: center; margin: 0; padding: 0; list-style: none; color: var(--text-2); font-size: 13px; }
+.share-cta-ticks li { display: flex; align-items: center; }
+.share-cta-actions { display: flex; align-items: center; justify-content: center; gap: var(--space-4); flex-wrap: wrap; }
+.share-cta-hint { margin: 0; font-size: var(--text-xs); color: var(--text-3); }
+
+/* The rail's cards and the list-row's cover narrow with the page,
+   the same way the Trips list rows do at 640px. */
+@media (max-width: 640px) {
+  .creator-card { flex-basis: 190px; }
+  .trend-hit { grid-template-columns: 16px 72px minmax(0, 1fr); gap: var(--space-4); }
+  .trend-meta { gap: var(--space-4); }
+}
+
 /* save heart on grid cards */
 .save-heart {
   position: absolute; top: 12px; right: 12px; z-index: var(--z-raised); cursor: pointer;

@@ -627,7 +627,7 @@ Neither decision touches a colour value, per [ADR 0002](docs/adr/0002-mockup-pal
     is 149px at 390px (a 64px nav plus the 85px stuck rail), and the one-day-mode stack is 108px
     (nav plus the 44px trip-total strip). Both numbers are recorded on the MR12 row, which is
     where the tabbar's cost is decided.
-- [ ] **MR10. Public discovery blocks — in Explore, not in the owner dashboard (P8).**
+- [x] **MR10. Public discovery blocks — in Explore, not in the owner dashboard (P8).**
   `src/pages/Explore.tsx`. Featured creators, trending itineraries, and a "Share your travel
   stories" call to action.
   - **Surface corrected 2026-10-06 (P8).** The row named `src/pages/CreatorHubPage.tsx`. That page
@@ -635,24 +635,27 @@ Neither decision touches a colour value, per [ADR 0002](docs/adr/0002-mockup-pal
     creator their funnels and money. A visitor has none of that and never sees the page. Discovery
     is a public surface, so it lands in Explore, which any visitor can read. `/pub/:slug` and
     `/creator/:id` stay visitor-facing and keep their current shape.
-  - **Built 2026-10-10, and its acceptance is BLOCKED on another branch.** The three blocks are
-    wired into Explore behind the page's own read state: `src/lib/discovery.ts` derives them (one
+  - **Built 2026-10-10.** The three blocks are wired into Explore behind the page's own read
+    state: `src/lib/discovery.ts` derives them (one
     popularity score, one evidence bar, a deterministic order, so "trending" and the featured
     card cannot disagree), `src/components/ExploreDiscovery.tsx` draws them, and each block
     returns null until its own evidence exists. 18 cases in `tests/discovery.test.ts` pin the
     derivations with no DOM.
-  - **The blocker, measured in a signed-out browser on 2026-10-10.** Explore never resolves for a
-    logged-out visitor on this branch: the style chips print real counts (so the catalog data
-    IS hydrated) while the page still reads its own verdict as "still reading", and the grid,
-    the discovery blocks and the share CTA all stay hidden behind a "Loading the catalog…"
-    line that never moves. The anonymous hydrate patches `published` and `users` but never
-    writes `sliceReads`, and `sliceReads` is what the page's state machine reads. The fix exists
-    on `origin/fix/explore-anon-catalog` (`94af150`, pushed 2026-10-10, **no PR open**), which
-    reports the public slices from both anonymous patches.
-  - **Acceptance pending:** the row needs that fix on its branch before it can be screened — one
-    signed-out screenshot at 1440px and one at 390px in `docs/screenshots/`, showing the three
-    blocks. Until then this row is code-complete and unverified, and it carries no CHANGELOG
-    entry: a public surface no logged-out visitor can reach is not shipped behaviour.
+  - **The blocker, and its fix (2026-10-10).** A signed-out browser showed Explore stuck on
+    "Loading the catalog…" with real rows behind it. The anonymous hydrate patched `published`
+    and `users`. It never wrote `sliceReads`, and the page's state machine reads that verdict.
+    Commit `94af150` on `origin/fix/explore-anon-catalog` reports the public slices from both
+    anonymous patches. This branch carries it as cherry-pick `1ebde7b`, with four cases in
+    `tests/explore-anon-catalog.test.ts`.
+  - **Acceptance (2026-10-10):** the signed-out pair in
+    [`docs/screenshots/mr10-discovery-1440.png`](docs/screenshots/mr10-discovery-1440.png) and
+    [`mr10-discovery-390.png`](docs/screenshots/mr10-discovery-390.png). A fresh browser context
+    holds no session (`authKeys: []`), and the dev server serves this tree. Both frames show the
+    three blocks. The rail holds 3 creator cards, and the shelf holds 4 trending rows. The share
+    card reads "6 itineraries from 4 creators live here". The loading line is gone. The capture
+    checks each block's content and the signed-out button copy before it shoots. The live run
+    caught "6 itinerarys" on the share card. One `plural` helper spells it now, and five render
+    cases in `tests/discovery.test.ts` pin it.
 - [ ] **MR11. Publications table in the owner dashboard — the public profile stays public (P8).**
   `src/pages/CreatorHubPage.tsx`. Each publication as a row with its status and its own actions.
   - **Surface corrected 2026-10-06 (P8).** The row named `src/pages/CreatorPage.tsx`, which is the

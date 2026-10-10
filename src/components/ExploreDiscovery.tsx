@@ -18,6 +18,13 @@ import { CoverThumb } from './CoverThumb'
 /** The creator rail's own cap — the mockup drew four. */
 const CREATOR_RAIL_CAP = 4
 
+/** A count with the right noun: `plural(6, 'itinerary', 'itineraries')`.
+ *  This exists because appending an `s` shipped "6 itinerarys" on the
+ *  share card — the noun changes shape, so both spellings are passed in. */
+function plural(n: number, one: string, many: string): string {
+  return `${n} ${n === 1 ? one : many}`
+}
+
 /** One creator in the discovery rail. The whole card is one link
  *  to the creator's public page, so no second link can nest
  *  inside it. */
@@ -36,7 +43,7 @@ function CreatorCard({ rank, index }: { rank: CreatorRank; index: number }) {
       </span>
       {bio && <span className="creator-bio">{bio}</span>}
       <span className="creator-evidence num">
-        {pubCount} itinerary{pubCount === 1 ? '' : 's'}
+        {plural(pubCount, 'itinerary', 'itineraries')}
         {forks > 0 && <> · <InlineIcon icon={GitFork} size={12} gap={2} />{forks} forks</>}
       </span>
     </a>
@@ -109,7 +116,7 @@ export function TrendingShelf({ pubs, users }: { pubs: PublishedItinerary[]; use
                 <span className="trend-evidence num">
                   <InlineIcon icon={GitFork} size={12} gap={2} />{p.copies}
                   <span className="trend-evidence-sep" aria-hidden="true">·</span>
-                  <InlineIcon icon={Eye} size={12} gap={2} />{p.views} views
+                  <InlineIcon icon={Eye} size={12} gap={2} />{plural(p.views, 'view', 'views')}
                 </span>
               </div>
             </li>
@@ -140,7 +147,7 @@ export function ShareStoriesCta({ pubCount, creatorCount, signedIn, onNavigate }
         travellers and get recognised in the YatraFlow community.
       </p>
       <p className="share-cta-counts num">
-        {pubCount} itinerary{pubCount === 1 ? '' : 's'} from {creatorCount} creator{creatorCount === 1 ? '' : 's'} live here
+        {plural(pubCount, 'itinerary', 'itineraries')} from {plural(creatorCount, 'creator', 'creators')} live here
       </p>
       <ul className="share-cta-ticks">
         <li><InlineIcon icon={Check} size={13} gap={6} />Create and publish itineraries</li>

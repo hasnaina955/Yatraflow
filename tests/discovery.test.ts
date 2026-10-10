@@ -12,11 +12,15 @@
 //
 // Node env, no DOM: the rules are pure functions over the catalog
 // slices, so the suite pins them directly.
-import { describe, expect, it } from 'vitest'
+import { beforeAll, describe, expect, it, vi } from 'vitest'
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
 import type { PublishedItinerary, User } from '../src/data/types'
 import {
   FEATURED_MIN_VIEWS, communityCounts, featuredCreators, popularity, trendingPubs,
 } from '../src/lib/discovery'
+import type { CreatorRank } from '../src/lib/discovery'
+import { FeaturedCreators, ShareStoriesCta, TrendingShelf } from '../src/components/ExploreDiscovery'
 
 const user = (id: string, name: string, over: Partial<User['profile']> = {}): User => ({
   id,
@@ -232,5 +236,59 @@ describe('communityCounts', () => {
 
   it('reads an empty catalog as empty, not as missing', () => {
     expect(communityCounts([])).toEqual({ pubCount: 0, creatorCount: 0 })
+  })
+})
+
+// The copy the discovery blocks render is part of the claim they make, and
+// the plural is where it broke: appending an `s` shipped "6 itinerarys" to
+// every visitor — the signed-out capture caught it after the derivation
+// cases above had all passed. These render the pure components through
+// `react-dom/server`, the node-env precedent the form-error suite uses, so
+// the copy is pinned by the markup a visitor actually receives. Static markup
+// (not `renderToString`) keeps React's `<!-- -->` separators out of the text,
+// and `location` is stubbed because `appLink` reads its protocol at render
+// time — the same stub shape as tests/app-link.test.ts.
+describe('the discovery copy', () => {
+  beforeAll(() => {
+    vi.stubGlobal('location', new URL('https://app.example.test/explore'))
+  })
+
+  const share = (pubCount: number, creatorCount: number, signedIn = false) =>
+    renderToStaticMarkup(createElement(ShareStoriesCta, { pubCount, creatorCount, signedIn, onNavigate: () => {} }))
+
+  it('spells the itinerary plural, which is not an `s`', () => {
+    const html = share(6, 4)
+    expect(html).toContain('6 itineraries from 4 creators live here')
+    expect(html).not.toContain('itinerarys')
+  })
+
+  it('stays singular at one of each', () => {
+    expect(share(1, 1)).toContain('1 itinerary from 1 creator live here')
+  })
+
+  it('offers the action the session can take', () => {
+    expect(share(1, 1, false)).toContain('Become a creator')
+    expect(share(1, 1, true)).toContain('Publish a trip')
+  })
+
+  it('spells the creator card counts too', () => {
+    const rank = (id: string, pubCount: number, views: number): CreatorRank => ({
+      user: user(id, id.toUpperCase()), pubCount, forks: 0, views, score: views,
+    })
+    const html = renderToStaticMarkup(createElement(FeaturedCreators, {
+      creators: [rank('a', 2, 30), rank('b', 1, 5)],
+    }))
+    expect(html).toContain('2 itineraries')
+    expect(html).toContain('1 itinerary</span>')
+    expect(html).not.toContain('itinerarys')
+  })
+
+  it('spells the views count in a trending row', () => {
+    const pubs = [pub('p1', 'c1', { views: 26 }), pub('p2', 'c2', { views: 1, copies: 1 })]
+    const html = renderToStaticMarkup(createElement(TrendingShelf, {
+      pubs, users: [user('c1', 'Arun'), user('c2', 'Bea')],
+    }))
+    expect(html).toContain('26 views')
+    expect(html).toContain('1 view</span>')
   })
 })

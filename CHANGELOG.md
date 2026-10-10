@@ -17,6 +17,13 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ### Added
 
+- **Explore now shows the community, to every visitor.** Three blocks sit between the featured
+  card and the grid. A rail names the featured creators. A shelf lists the trending itineraries.
+  A card invites visitors to share their travel stories. One module derives every claim: one
+  popularity score, one evidence bar, one deterministic order. So "trending" and the featured
+  card cannot disagree. A block appears only when its own evidence exists. A heading over an
+  empty rail would advertise a community that is not there.
+
 - **A browser check in CI fails a page block that appears between two frames.** `npm run check:motion` builds the app, serves it, opens four public routes and samples every block of the page root once per animation frame from before navigation. A block whose opacity and transform never change had no motion at all, so the run fails and names the block. The `motion` job runs beside `verify` in CI, and `npm run verify` still needs no browser.
 
 - **The pages a motion gate checks are discovered from the router, not typed into a list.** `tests/design-system.test.ts` reads `src/App.tsx` and takes every component App renders — a static import, a route-level `lazy()` binding, or a component declared in App itself — then requires each returned root to carry `page-enter`. A new page joins the set by existing, so it cannot ship motionless. A binding the walk cannot read is an error rather than a skip: an unreadable page must not pass as an empty one. The cascade behind the class is one shared rule, `.page-enter > *`, with its stagger and its reduced-motion opt-out beside it.

@@ -3,7 +3,8 @@
 // text and the destination-to-region lookup. No clock reads: every function
 // takes `today`. Dates compare as calendar days (yyyy-mm-dd), never as
 // timestamps, so a time zone cannot move a trip to another day.
-import type { Trip } from '../data/types'
+import type { Trip, TripMember } from '../data/types'
+import { lastStop } from './tripsCard'
 
 export type WhenKey = 'all' | 'upcoming' | 'past' | 'draft'
 export type TripStatus = 'live' | 'upcoming' | 'past' | 'draft'
@@ -216,13 +217,31 @@ export type HeroTrip = TripPlan
   & Pick<Trip, 'id' | 'name' | 'startLocation' | 'destinations' | 'updatedAt'>
   & Partial<Pick<Trip, 'members' | 'coverImageUrl'>>
 
-/** The first destination with a name, or null when the trip has none. */
-function firstDestination(t: Pick<Trip, 'destinations'>): string | null {
-  for (const destination of t.destinations ?? []) {
-    const name = destination.trim()
-    if (name) return name
+/** The part of a place name before the first comma: "Kolkata, India" gives
+ *  "Kolkata". Empty when the name is blank. */
+function shortPlace(name: string): string {
+  return name.split(',')[0].trim()
+}
+
+/** The key two spellings of one place share: short, trimmed, lower case. */
+function placeKey(name: string): string {
+  return shortPlace(name).toLowerCase()
+}
+
+/**
+ * The place the hero names for a trip: the place the Up next card ends at (see
+ * lastStop and routeLine), cut at its first comma. A trip with no destination
+ * uses its name, then its start place. Returns an empty string when all three
+ * are blank.
+ */
+export function heroPlace(t: Pick<Trip, 'name' | 'startLocation' | 'destinations'>): string {
+  const hasDestination = (t.destinations ?? []).some(destination => shortPlace(destination) !== '')
+  const candidates = hasDestination ? [lastStop(t), t.name, t.startLocation] : [t.name, t.startLocation]
+  for (const candidate of candidates) {
+    const place = shortPlace(candidate ?? '')
+    if (place) return place
   }
-  return null
+  return ''
 }
 
 export interface HeroHeadline {
@@ -234,7 +253,8 @@ export interface HeroHeadline {
 
 /**
  * The hero headline.
- *  - A trip is up next (see pickUpNext): "Next stop, <its first destination>."
+ *  - A trip is up next (see pickUpNext): "Next stop, <heroPlace>.", the same
+ *    place its Up next card ends at.
  *  - Trips exist and none is up next: "Plan your next journey."
  *  - Every trip is a draft: "Pick up where you left off."
  *  - No trips: "Your first trip starts here."
@@ -249,7 +269,7 @@ export function heroHeadline({ trips, today, ready }: {
   if (!ready) return { lead: 'Plan your', accent: 'next journey.' }
   if (trips.length === 0) return { lead: 'Your first trip', accent: 'starts here.' }
   const upNext = pickUpNext(trips, today)
-  if (upNext) return { lead: 'Next stop,', accent: `${firstDestination(upNext) ?? upNext.name.trim()}.` }
+  if (upNext) return { lead: 'Next stop,', accent: `${heroPlace(upNext) || 'your trip'}.` }
   const allAreDrafts = trips.every(t => statusOf(t, today) === 'draft')
   if (allAreDrafts) return { lead: 'Pick up', accent: 'where you left off.' }
   return { lead: 'Plan your', accent: 'next journey.' }
@@ -257,13 +277,21 @@ export function heroHeadline({ trips, today, ready }: {
 
 export interface HeroStat { label: string; value: number }
 
+/** Roles that can change the plan. A viewer or a commenter is not a co-planner. */
+const PLANNER_ROLES: readonly TripMember['role'][] = ['owner', 'editor']
+
 /**
- * The stat row under the hero text: trips, upcoming, places and co-planners.
- * Every figure counts real data. A stat that is zero is left out. The list is
- * empty until the trips read has settled, so a loading or failed read never
- * shows a row of zeros. "Upcoming" counts live and upcoming trips.
- * "Places" counts unique destination names. "Co-planners" counts the other
- * people on those trips.
+ * The stat row under the hero text: trips, upcoming & live, places and
+ * co-planners. Every figure counts real data. A stat that is zero is left out.
+ * The list is empty until the trips read has settled, so a loading or failed
+ * read never shows a row of zeros.
+ *  - "upcoming & live" uses the rule of the "Upcoming & live" filter
+ *    (whenBucket), so a trip in progress counts.
+ *  - "places" counts unique place names: the part before the first comma,
+ *    trimmed and lower case, so "Kochi" and "Kochi, Kerala" count once.
+ *  - "co-planners" counts the other people who can edit these trips. A viewer
+ *    or a commenter does not count, you do not count, and a person on two
+ *    trips counts once.
  */
 export function heroStats({ trips, today, meId, ready }: {
   trips: readonly HeroTrip[]
@@ -274,30 +302,31 @@ export function heroStats({ trips, today, meId, ready }: {
   if (!ready) return []
   const places = new Set<string>()
   const coPlanners = new Set<string>()
-  let upcoming = 0
+  let upcomingAndLive = 0
   for (const t of trips) {
-    if (whenBucket(t, today) === 'upcoming') upcoming += 1
+    if (whenBucket(t, today) === 'upcoming') upcomingAndLive += 1
     for (const destination of t.destinations ?? []) {
-      const key = destination.trim().toLowerCase()
+      const key = placeKey(destination)
       if (key) places.add(key)
     }
     for (const member of t.members ?? []) {
-      if (member.userId !== meId) coPlanners.add(member.userId)
+      const canPlan = PLANNER_ROLES.includes(member.role)
+      if (canPlan && member.userId !== meId) coPlanners.add(member.userId)
     }
   }
   const plural = (count: number, one: string, many: string) => (count === 1 ? one : many)
   const stats: HeroStat[] = [
-    { label: plural(trips.length, 'Trip', 'Trips'), value: trips.length },
-    { label: 'Upcoming', value: upcoming },
-    { label: plural(places.size, 'Place', 'Places'), value: places.size },
-    { label: plural(coPlanners.size, 'Co-planner', 'Co-planners'), value: coPlanners.size },
+    { label: plural(trips.length, 'trip', 'trips'), value: trips.length },
+    { label: 'upcoming & live', value: upcomingAndLive },
+    { label: plural(places.size, 'place', 'places'), value: places.size },
+    { label: plural(coPlanners.size, 'co-planner', 'co-planners'), value: coPlanners.size },
   ]
   return stats.filter(stat => stat.value > 0)
 }
 
 export interface HeroPostcard {
   key: string
-  /** The caption: the trip's first destination, or its name. */
+  /** The caption: the place the trip ends at (see heroPlace). */
   place: string
   region: TripRegion
   /** The trip's own cover image, when it has one. */
@@ -308,18 +337,22 @@ export interface HeroPostcard {
 
 export const HERO_POSTCARD_LIMIT = 3
 
-const STATUS_RANK: Record<TripStatus, number> = { live: 0, upcoming: 1, draft: 2, past: 3 }
+const STATUS_RANK: Record<TripStatus, number> = { live: 0, upcoming: 1, past: 2, draft: 3 }
 
 /**
  * The postcards on the hero, up to three, from the trips that matter most:
- * live trips first, then upcoming ones by start day, then drafts, then past
- * trips, newest edit first. Two trips with the same first destination give one
- * postcard. With no trips the hero shows one blank "Your next trip" postcard.
+ * live trips first, then upcoming ones by start day, then past trips, then
+ * drafts, newest edit first. Two trips with the same place give one postcard.
+ * With no trips the hero shows one blank "Your next trip" postcard. Until the
+ * trips read has settled (`ready` is false) it shows none, so a user who has
+ * trips never sees the blank postcard while they load.
  */
-export function heroPostcards({ trips, today }: {
+export function heroPostcards({ trips, today, ready }: {
   trips: readonly HeroTrip[]
   today: Date
+  ready: boolean
 }): HeroPostcard[] {
+  if (!ready) return []
   if (trips.length === 0) return [{ key: 'blank', place: 'Your next trip', region: 'generic', blank: true }]
   const ranked = trips
     .map((t, order) => ({ t, order, status: statusOf(t, today) }))
@@ -333,10 +366,10 @@ export function heroPostcards({ trips, today }: {
   const cards: HeroPostcard[] = []
   const seenPlaces = new Set<string>()
   for (const { t } of ranked) {
-    const place = firstDestination(t) ?? t.name.trim()
-    const placeKey = place.toLowerCase()
-    if (!place || seenPlaces.has(placeKey)) continue
-    seenPlaces.add(placeKey)
+    const place = heroPlace(t)
+    const key = place.toLowerCase()
+    if (!place || seenPlaces.has(key)) continue
+    seenPlaces.add(key)
     cards.push({ key: t.id, place, region: regionFor(t), coverImageUrl: t.coverImageUrl || undefined })
     if (cards.length === HERO_POSTCARD_LIMIT) break
   }
@@ -347,11 +380,14 @@ export function heroPostcards({ trips, today }: {
  * The handwritten note by the postcards, or null when there is nothing true to
  * say. A trip up next gives its countdown ("12 days to go!" or "Day 2 of 5!").
  * When only drafts exist, the draft you edited last gives "3 of 5 days planned".
+ * It is null until the trips read has settled.
  */
-export function heroNote({ trips, today }: {
+export function heroNote({ trips, today, ready }: {
   trips: readonly HeroTrip[]
   today: Date
+  ready: boolean
 }): string | null {
+  if (!ready) return null
   const upNext = pickUpNext(trips, today)
   if (upNext) {
     const start = parseYmd(upNext.startDate)

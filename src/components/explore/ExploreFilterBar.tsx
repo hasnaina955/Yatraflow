@@ -61,7 +61,7 @@ export function ExploreFilterBar({
   const [selectsOpen, setSelectsOpen] = useState(false)
   const selectCount = (duration !== 'all' ? 1 : 0) + (maxBudget !== '' ? 1 : 0) + (sortKey !== 'popular' ? 1 : 0)
   return (
-    <div className="ex-filterbar explore-filterbar" role="search" aria-label="Filter itineraries">
+    <div className="ex-filterbar filterbar-host" role="search" aria-label="Filter itineraries">
       <div className="ex-filter-row">
         <SearchField value={query} onChange={onQueryChange} label="Search by route, place or creator"
           placeholder="Search a route, place or creator" shortPlaceholder="Search routes" />

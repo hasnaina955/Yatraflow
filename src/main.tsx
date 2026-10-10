@@ -7,7 +7,7 @@ import { haptic } from './lib/haptics'
 // Brand fonts are self-hosted through @fontsource, so first paint never waits
 // on a font CDN. Sora 600-800 covers display; Plus Jakarta Sans 400-800 covers
 // body text. The family names match --font-display/--font-body in styles.css.
-// Playfair Display 600 (and italic) and Caveat 600 serve the Explore hero only.
+// Playfair Display 600 (and italic) and Caveat 600 serve the Explore and My trips heroes.
 import '@fontsource/sora/600.css'
 import '@fontsource/sora/700.css'
 import '@fontsource/sora/800.css'

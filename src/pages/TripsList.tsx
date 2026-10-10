@@ -1,5 +1,5 @@
 // ============ My trips ============
-import { useEffect, useId, useMemo, useState, type CSSProperties } from 'react'
+import { useEffect, useId, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { Compass, Plus, Rocket, ShoppingBag, Trash2, X } from 'lucide-react'
 import { InlineIcon } from '../components/icons'
 import { useTrips, useTrashedTrips, useUsers, useSessionUserId, useSliceReads, useTrashLoaded, useTrashFailed, tripsForUser, trashTrip, restoreTrashedTrip, restoreTrashedTripById, permanentlyDeleteTrip, fetchTrashedTrips, rereadTrips, addDemoTrips } from '../store/store'
@@ -56,6 +56,13 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
   const trashFailed = useTrashFailed()
   const trashRead = readState({ settled: trashLoaded || trashFailed, failed: trashFailed, read: trashLoaded && !trashFailed })
   const retryTrash = () => { void fetchTrashedTrips() }
+  // Entering or leaving the Trash unmounts the button that was pressed, which
+  // would drop keyboard focus to <body>. These refs let the page move focus on
+  // purpose: to the Trash heading on the way in, to a Trash toggle on the way out.
+  const trashHeadingRef = useRef<HTMLHeadingElement>(null)
+  const headerTrashToggleRef = useRef<HTMLButtonElement>(null)
+  const heroTrashToggleRef = useRef<HTMLButtonElement>(null)
+  const viewChangedByUser = useRef(false)
 
   // The Trash view is populated on demand from the owner-scoped RPC (the
   // restrictive RLS policy hides trashed trips from normal hydration).
@@ -77,6 +84,15 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
       window.removeEventListener('focus', refetch)
       document.removeEventListener('visibilitychange', onVisible)
     }
+  }, [view])
+
+  // Move focus after the new view has rendered. The first render and any change
+  // that did not come from a toggle leave focus alone.
+  useEffect(() => {
+    if (!viewChangedByUser.current) return
+    viewChangedByUser.current = false
+    if (view === 'trash') trashHeadingRef.current?.focus()
+    else (headerTrashToggleRef.current ?? heroTrashToggleRef.current)?.focus()
   }, [view])
 
   // The clock is read at the top of the render. Every date rule below works in
@@ -166,9 +182,19 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
   const tripsReady = tripsRead === 'ready'
   const heroHeadlineText = heroHeadline({ trips: mine, today, ready: tripsReady })
   const heroStatRow = heroStats({ trips: mine, today, meId, ready: tripsReady })
-  const heroCards = heroPostcards({ trips: mine, today })
-  const heroNoteText = heroNote({ trips: mine, today })
-  const toggleTrash = () => setView(v => v === 'trash' ? 'trips' : 'trash')
+  const heroCards = heroPostcards({ trips: mine, today, ready: tripsReady })
+  const heroNoteText = heroNote({ trips: mine, today, ready: tripsReady })
+  const isTrashView = view === 'trash'
+  function toggleTrash() {
+    viewChangedByUser.current = true
+    setView(v => v === 'trash' ? 'trips' : 'trash')
+  }
+  // The Trash toggle lives in the "Other trips" header. That header is drawn
+  // only when the trips read is ready and the list is not the first-run empty
+  // state, and never in the Trash view. In every other case the hero carries
+  // the toggle, so the Trash stays reachable while trips load, after a failed
+  // read, with cached trips, and with no trips at all.
+  const showsOtherTripsHeader = !isTrashView && tripsRead === 'ready' && !(trips.length === 0 && !hasFilters)
 
   function confirmDelete() {
     if (!pendingDelete) return
@@ -201,10 +227,10 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
               <InlineIcon icon={ShoppingBag} size={15} gap={5} />My purchases
             </button>
             <ImportTripButton ownerId={meId} onNavigate={onNavigate} label="Import trip" className="btn btn-quiet" />
-            {/* The Trash button lives in the "Other trips" header. With no trips
-                that header is not drawn, so the button stays here instead. */}
-            {mine.length === 0 && (
-              <button className="btn btn-quiet" aria-pressed={view === 'trash'} onClick={toggleTrash}><InlineIcon icon={Trash2} size={15} gap={5} />Trash</button>
+            {/* The Trash button lives in the "Other trips" header. When that
+                header is not drawn, the button stays here instead. */}
+            {!showsOtherTripsHeader && (
+              <button ref={heroTrashToggleRef} type="button" className="btn btn-quiet" aria-pressed={isTrashView} onClick={toggleTrash}><InlineIcon icon={Trash2} size={15} gap={5} />Trash</button>
             )}
           </>
         }
@@ -213,8 +239,8 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
       {view === 'trash' && (
         <div className="card" style={{ marginBottom: 18 }}>
           <div className="row-between">
-            <h3 style={{ margin: 0 }}>Trash {trashed.length > 0 && <span className="small muted">({trashed.length})</span>}</h3>
-            <button className="btn btn-secondary" onClick={() => setView('trips')}>Back to my trips</button>
+            <h3 ref={trashHeadingRef} tabIndex={-1} style={{ margin: 0 }}>Trash {trashed.length > 0 && <span className="small muted">({trashed.length})</span>}</h3>
+            <button className="btn btn-secondary" onClick={toggleTrash}>Back to my trips</button>
           </div>
           <p className="small muted" style={{ margin: '8px 0 0' }}>Deleted trips stay for 30 days, then they’re gone for good.</p>
           <hr className="divider" />
@@ -240,7 +266,7 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
                   <div className="small muted">{t.startLocation} → {t.destinations[t.destinations.length - 1] ?? t.startLocation} · {t.days.length} days</div>
                 </div>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  <button className="btn btn-outline" onClick={() => { void restoreTrashedTripById(t.id).then(ok => { if (ok) toast(`Restored “${t.name}”`) }) }}>Restore</button>
+                  <button className="btn btn-secondary" onClick={() => { void restoreTrashedTripById(t.id).then(ok => { if (ok) toast(`Restored “${t.name}”`) }) }}>Restore</button>
                   <button className="btn btn-danger" onClick={() => setPendingPurge(t)}>Delete forever</button>
                 </div>
               </div>
@@ -316,13 +342,13 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
             <div className="mt-section-head">
               <h2 className="mt-section-title" id={otherTitleId}>{upNext ? 'Other trips' : 'All trips'} ({otherTrips.length})</h2>
               <div className="mt-head-actions">
-                <button className="btn btn-quiet" onClick={toggleTrash}><InlineIcon icon={Trash2} size={15} gap={5} />Trash</button>
+                <button ref={headerTrashToggleRef} type="button" className="btn btn-quiet" aria-pressed={isTrashView} onClick={toggleTrash}><InlineIcon icon={Trash2} size={15} gap={5} />Trash</button>
                 <ViewSwitch layout={layout} onChange={setLayout} />
               </div>
             </div>
 
             {/* ---- Explore's filter bar: search, selects, then chips ---- */}
-            <div className="ex-filterbar explore-filterbar" role="search" aria-label="Filter your trips">
+            <div className="ex-filterbar filterbar-host" role="search" aria-label="Filter your trips">
               <div className="ex-filter-row">
                 <SearchField value={q} onChange={setQ} label="Search your trips"
                   placeholder="Search places or stops…" shortPlaceholder="Search trips" />
@@ -384,7 +410,7 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
                 icon={<Compass size={38} aria-hidden />}
                 title="No trips match those filters"
                 body="Try a different search or clear the filters to see all your trips."
-                action={<button className="btn btn-outline" onClick={clearFilters}>Clear filters</button>}
+                action={<button className="btn btn-secondary" onClick={clearFilters}>Clear filters</button>}
               />
             ) : otherEmptyKind === 'none' ? (
               <div

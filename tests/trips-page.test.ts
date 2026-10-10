@@ -7,9 +7,11 @@ import type { ItineraryDay, StopStatus } from '../src/data/types'
 const TODAY = new Date(2026, 9, 10, 12, 0, 0)
 
 type StopSpec = [title: string, status: StopStatus]
+let dayCounter = 0
 function day(...stops: StopSpec[]): ItineraryDay {
+  dayCounter += 1
   return {
-    id: `d${Math.random()}`,
+    id: `d${dayCounter}`,
     index: 0,
     stops: stops.map(([title, status]) => ({ title, status })),
   } as unknown as ItineraryDay

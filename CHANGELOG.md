@@ -21,14 +21,7 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 - **The pages a motion gate checks are discovered from the router, not typed into a list.** `tests/design-system.test.ts` reads `src/App.tsx` and takes every component App renders — a static import, a route-level `lazy()` binding, or a component declared in App itself — then requires each returned root to carry `page-enter`. A new page joins the set by existing, so it cannot ship motionless. A binding the walk cannot read is an error rather than a skip: an unreadable page must not pass as an empty one. The cascade behind the class is one shared rule, `.page-enter > *`, with its stagger and its reduced-motion opt-out beside it.
 
-- **Glass cannot be painted without its blur any more.** A rule that paints a translucent glass token must declare `backdrop-filter` in the same rule, or name its exception and its reason in the gate's list. An entry that no longer matches a rule fails too, so the list cannot outlive its reason.
-
-- **Per-repo configuration for the engineering skills.** `docs/agents/issue-tracker.md` records that issues live in this repo's GitHub Issues (driven with `gh`), alongside the three conventions that override skill defaults: one `priority: P0`–`P3` label per issue, a diagnosis posted on an issue is a claim unless it is claimed in the same breath, and merges into `test` leave issues open. `docs/agents/domain.md` sets the domain-doc layout — single-context, one root `GLOSSARY.md` and `docs/adr/` — with the consumer rules for both: look a term up before naming it, keep entries describing what the code does today, and supersede an ADR rather than rewriting its decision. `docs/agents/triage-labels.md` records the five canonical triage labels the `triage` skill applies — `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix` — and how they sit alongside this repo's own `priority: P0`–`P3` rather than replacing them: priority answers *how urgent*, the triage label answers *what state*, so an issue carries one of each. `AGENTS.md` gained the matching `## Agent skills` block.
-
-- **The domain vocabulary those skills assume now exists.** `GLOSSARY.md` defines the plan, crew, road-measurement, publishing and session terms — each entry grounded in the export that defines it, alongside the traps that have bitten readers (`day.index` vs array position, 1-based `orderInDay`, INTO-legs, unpublish-is-a-marker). `docs/adr/` holds decision records, starting with the two-branch release model that AGENTS.md already assumes. `.out-of-scope/` holds one file per rejected feature request, so `triage` stops re-litigating a decision already made — with an explicit line on what does *not* belong there (bugs, and milestone-scope deferrals, which are ROADMAP's idea bank).
-
-- **`npm run check:ui` — a gate for the mechanical design rules.** It enforces the three that can be decided with no false positives: no `transition: all`, no raw `z-index` at or above 999, and no blocked pinch-zoom in the viewport meta. Each finding names the file, the line, the offending source and why it matters. The remaining candidate rules were measured against this codebase and deliberately left out — `scale()` on hover has 9 sites that are all correct, emoji-as-icons has 403 codepoints that are mostly the weather map and user-chosen trip content, and blanket line-height normalisation would be ~25 false findings. A gate that fires on correct code gets ignored, so the exclusions are recorded in the script itself rather than quietly dropped. Pass `--json` for machine output.
-- **`docs/UI-REVIEW-CHECKLIST.md` — the review notes worth keeping.** It records the chart-type verdict for every surface that draws data (all correct, nothing to change), the five-point pre-flight for new UI, the rules this codebase deliberately deviates from, and the three ways a generic checklist reports defects that do not exist.
+- **Glass cannot be painted without its blur any more.** A rule that paints a translucent glass token must declare `backdrop-filter` in the same rule, or name its exception and its reason in the gate's list. An entry that no longer matches a rule fails too,so the list cannot outlive its reason.
 
 - **Every trip card now says what to do next, and how much of the plan exists.** My Trips
   prints the one action worth doing under each trip's chips. A chevron carries the card's own
@@ -122,6 +115,48 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
   opens nothing, and a stop that a re-split moved follows its new day. `src/lib/savedShelf.ts`
   resolves the ids against live trip data; `src/components/SavedShelf.tsx` draws them.
 
+- **A browser verification harness for agents, under `.agents/skills/verify-yatraflow/`.** It starts the dev server on port 5178. It checks the server and the Supabase project ref. It drives a headless Edge or Chrome to a route. Each run writes a screenshot and a JSON record to `.verify-evidence/`, which git ignores. The feature map covers five signed-out flows.
+
+### Changed
+
+- **Every publication row in the creator hub states its status, and its button follows from it.**
+  A row used to say nothing when its page was healthy, and it labelled only the two exceptions;
+  now it always states one status — Live, Unpublished, or Page behind itinerary — so a healthy
+  publication is as readable as a broken one. The row's action comes from the same derivation as
+  its label, so a row cannot read "Live" beside a "Publish again" button. A withdrawn page stays
+  Unpublished whatever its itinerary did afterwards, because a page that is down cannot be
+  behind. The hub's Live and Behind counts read the same derivation as the rows, so the strip can
+  no longer count a row the list below it refuses to label.
+
+- **My Trips puts the view switch on the status-tab row, with travel style, when and sort as
+  three separate dropdowns.** The Grid/List control used to close the wrapping filter bar, so it
+  wrapped onto a line of its own at every width, away from the tabs it belongs to. It now sits on
+  the status-tab row as a labelled segmented control, right-aligned, and drops below the tabs
+  when the width will not hold both. Its glider slides between the two choices instead of two
+  backgrounds swapping. Style, when and sort each get their own labelled menu, and the style menu
+  carries the count the chip row used to add up, so a filtered list still says why it is short.
+  A switch from grid to list replays the cards' own entrance cascade instead of changing every
+  card's size between two frames. The page-to-page entrance reads as motion now as well: it kept a
+  550ms clock but spent 63% of its travel in the first 55ms, which is why a navigation looked
+  like a snap, and it runs on `--motion-slow` with the fade still under way while the next page's
+  content arrives.
+
+- **The My Trips cards now use the mockup's card style, in both list and grid view.** Each
+  card has the mockup's 14px radius, its hairline resting shadow and its 16/8.4 cover. A
+  status pill sits at the cover's top left. The pill reads the same status list the filter
+  tabs render. So a pill cannot name a status the tabs would not. The body reads in the
+  mockup's order: title, route, meta row, tags, departure line, progress meter. The day count
+  left the route line for the meta row, where the mockup keeps it. A hairline separates the
+  card's foot. The foot holds the crew on the left and the next action on the right. One hover
+  moves one surface. The card lifts 3px, the border darkens, and the shadow deepens. The cover
+  zooms to 1.04. Grid and list share the card. The list view puts a 236px cover beside the body.
+  The cover runs the row's full height, as the mockup's does. That needs the cover to sit
+  outside the body's link. So the cover is a second link to the same trip. The second link
+  stays out of the tab order and out of the accessibility tree. The body link carries the
+  trip's name, and the focus ring moves to the card. Below 760px the row stacks and the cover
+  keeps its 16/8.4 shape. All of it runs on the motion tokens, with a `prefers-reduced-motion`
+  opt-out. The port is scoped to `.trips-page`, so the Explore grid keeps the card it had.
+
 ### Fixed
 
 - **Explore, the trip workspace, the creator hub and the public itinerary enter with motion now.** Every top-level block on those four pages appeared between two frames: the hero, the head, the tab bar and the body popped into place with nothing under them. They take the shared container cascade now — each block rises 8px over `--motion-slow`, staggered by `--stagger-step`, and stops under reduced motion. Sampled in the browser after the change: zero motionless blocks on the six routes checked.
@@ -196,45 +231,76 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
   count. Publishing a trip with no dates was never the defect, so the publish path is
   unchanged. Rows already in the database keep their empty dates until the fixture is re-applied.
 
+## [0.74.0] - 2026-10-07
+
+
 ### Changed
 
-- **Every publication row in the creator hub states its status, and its button follows from it.**
-  A row used to say nothing when its page was healthy, and it labelled only the two exceptions;
-  now it always states one status — Live, Unpublished, or Page behind itinerary — so a healthy
-  publication is as readable as a broken one. The row's action comes from the same derivation as
-  its label, so a row cannot read "Live" beside a "Publish again" button. A withdrawn page stays
-  Unpublished whatever its itinerary did afterwards, because a page that is down cannot be
-  behind. The hub's Live and Behind counts read the same derivation as the rows, so the strip can
-  no longer count a row the list below it refuses to label.
+- **The canonical origin is now `https://www.yatraflow.in`.** The app moved to its
+  own domain, and every surface that mints or pins an address follows it: the share
+  links the Android app mints, the Plan Bench receipt's link, the shell's Open Graph
+  and canonical defaults, the robots.txt sitemap line, and the card handlers' and
+  sitemap's fallback origin. The old `yatraflow-blond.vercel.app` alias keeps serving,
+  so every link already in the wild keeps working. The pin tests hold the literals
+  together, so the next origin change fails the build if any surface disagrees.
 
-- **My Trips puts the view switch on the status-tab row, with travel style, when and sort as
-  three separate dropdowns.** The Grid/List control used to close the wrapping filter bar, so it
-  wrapped onto a line of its own at every width, away from the tabs it belongs to. It now sits on
-  the status-tab row as a labelled segmented control, right-aligned, and drops below the tabs
-  when the width will not hold both. Its glider slides between the two choices instead of two
-  backgrounds swapping. Style, when and sort each get their own labelled menu, and the style menu
-  carries the count the chip row used to add up, so a filtered list still says why it is short.
-  A switch from grid to list replays the cards' own entrance cascade instead of changing every
-  card's size between two frames. The page-to-page entrance reads as motion now as well: it kept a
-  550ms clock but spent 63% of its travel in the first 55ms, which is why a navigation looked
-  like a snap, and it runs on `--motion-slow` with the fade still under way while the next page's
-  content arrives.
+### Fixed
 
-- **The My Trips cards now use the mockup's card style, in both list and grid view.** Each
-  card has the mockup's 14px radius, its hairline resting shadow and its 16/8.4 cover. A
-  status pill sits at the cover's top left. The pill reads the same status list the filter
-  tabs render. So a pill cannot name a status the tabs would not. The body reads in the
-  mockup's order: title, route, meta row, tags, departure line, progress meter. The day count
-  left the route line for the meta row, where the mockup keeps it. A hairline separates the
-  card's foot. The foot holds the crew on the left and the next action on the right. One hover
-  moves one surface. The card lifts 3px, the border darkens, and the shadow deepens. The cover
-  zooms to 1.04. Grid and list share the card. The list view puts a 236px cover beside the body.
-  The cover runs the row's full height, as the mockup's does. That needs the cover to sit
-  outside the body's link. So the cover is a second link to the same trip. The second link
-  stays out of the tab order and out of the accessibility tree. The body link carries the
-  trip's name, and the focus ring moves to the card. Below 760px the row stacks and the cover
-  keeps its 16/8.4 shape. All of it runs on the motion tokens, with a `prefers-reduced-motion`
-  opt-out. The port is scoped to `.trips-page`, so the Explore grid keeps the card it had.
+- **The installed app no longer serves a creator card as its offline shell.** The
+  service worker's never-cache list predated the `/c/` card endpoints, so a
+  navigation to a creator card in the installed app was intercepted: online it
+  passed through, but the successful card answer was cached under the shell key,
+  and an offline navigation would then open card HTML at every address. The cards
+  now always reach the network. This closes the routing migration's own list: the
+  address table, the router swap, the legacy-hash bridge, the crawler redo, origin
+  consolidation and the PWA and native edges all sit on real paths. (#426)
+
+- **A delete→undo no longer buries the revived publication in discovery.** The undo
+  row now carries `refreshed_at`, behind the existing capability probe. The sitemap's
+  `<lastmod>` and Explore's freshness sort read that column, so a publication brought
+  back keeps its search place instead of sinking with a null marker. (#368)
+- **A shared link's trip arrives through the same repair wall a file import runs.**
+  An old snapshot payload could decode with 0-based stop orders, hand-written leg
+  fields, and Null-Island coordinates straight into a rendered trip — the file path
+  repaired all three, the link path never did. Decode now runs the wall, and the
+  payload's own identity rides back on top, so a clean link still round-trips
+  losslessly and a dirty one arrives clean or is refused as bad data. (#368)
+- **The itinerary migration chain now does the v1 compatibility it claims.** The
+  chain was identity-only and the real repairs lived in the unversioned normalizer.
+  `MIGRATIONS[1→2]` renumbers v1's 0-based stop orders and strips the four stale leg
+  fields; the normalizer keeps only version-independent hygiene; `migrateTrip` gains
+  a to-version seam, so a future v3 lands on an exercised pattern instead of a
+  decorative table. Golden itineraries unchanged. (#368)
+- **A gallery file's publish block is checked by the publish rules on import.** The
+  parser ran a version-blind allowlist cut, so a block the publish form would refuse
+  (priced with every day free, over the gateway ceiling, coverless, premium without a
+  call-to-action) imported as broken metadata. The importer now runs the same shared
+  predicate the form and the writer answer to, and a refused block rides out with the
+  rule it broke named. (#368)
+
+### Changed
+
+- **Importing a gallery file now offers its publish block as a draft.** The old toast
+  footnote announced the loss ("its publish details were not applied") and that was
+  the whole story. The import now asks: confirm, and the publish form opens prefilled
+  in the Share tab for the creator to review and edit; decline, and the block is
+  dropped by explicit choice. Nothing publishes until the creator publishes. (#368)
+
+## [0.73.0] - 2026-10-06
+
+### Added
+
+- **Per-repo configuration for the engineering skills.** `docs/agents/issue-tracker.md` records that issues live in this repo's GitHub Issues (driven with `gh`), alongside the three conventions that override skill defaults: one `priority: P0`–`P3` label per issue, a diagnosis posted on an issue is a claim unless it is claimed in the same breath, and merges into `test` leave issues open. `docs/agents/domain.md` sets the domain-doc layout — single-context, one root `GLOSSARY.md` and `docs/adr/` — with the consumer rules for both: look a term up before naming it, keep entries describing what the code does today, and supersede an ADR rather than rewriting its decision. `docs/agents/triage-labels.md` records the five canonical triage labels the `triage` skill applies — `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix` — and how they sit alongside this repo's own `priority: P0`–`P3` rather than replacing them: priority answers *how urgent*, the triage label answers *what state*, so an issue carries one of each. `AGENTS.md` gained the matching `## Agent skills` block.
+
+- **The domain vocabulary those skills assume now exists.** `GLOSSARY.md` defines the plan, crew, road-measurement, publishing and session terms — each entry grounded in the export that defines it, alongside the traps that have bitten readers (`day.index` vs array position, 1-based `orderInDay`, INTO-legs, unpublish-is-a-marker). `docs/adr/` holds decision records, starting with the two-branch release model that AGENTS.md already assumes. `.out-of-scope/` holds one file per rejected feature request, so `triage` stops re-litigating a decision already made — with an explicit line on what does *not* belong there (bugs, and milestone-scope deferrals, which are ROADMAP's idea bank).
+
+- **`npm run check:ui` — a gate for the mechanical design rules.** It enforces the three that can be decided with no false positives: no `transition: all`, no raw `z-index` at or above 999, and no blocked pinch-zoom in the viewport meta. Each finding names the file, the line, the offending source and why it matters. The remaining candidate rules were measured against this codebase and deliberately left out — `scale()` on hover has 9 sites that are all correct, emoji-as-icons has 403 codepoints that are mostly the weather map and user-chosen trip content, and blanket line-height normalisation would be ~25 false findings. A gate that fires on correct code gets ignored, so the exclusions are recorded in the script itself rather than quietly dropped. Pass `--json` for machine output.
+- **`docs/UI-REVIEW-CHECKLIST.md` — the review notes worth keeping.** It records the chart-type verdict for every surface that draws data (all correct, nothing to change), the five-point pre-flight for new UI, the rules this codebase deliberately deviates from, and the three ways a generic checklist reports defects that do not exist.
+- **Every workflow rule now names what enforces it.** `AGENTS.md` §2 ends with a rule table. Each row pairs a rule with its gate: `verify`, a pin test, a CI workflow, or a human. "Judgment" marks the rules no gate can catch. Three repeat failures got fixes in the same pass. Sequential PRs that both append a changelog entry conflicted twice (#643, #654); `CHANGELOG.md` now merges with the union driver, which keeps both sides' lines. §6h records what the #553 and #562 break proofs each earned: a break that passes points at the fixture first, not the code. §3.1 of `docs/AGENTS-VERIFICATION.md` records the runner-queue signature: a run cancelled near 15 minutes with zero steps is infrastructure, so rerun it before diagnosing the code.
+
+### Changed
+
+- **The coding standards are navigable again: the domain entries now live in three `docs/standards/` files.** `CODING_STANDARDS.md` had grown to 1,143 lines, and its index covered only the numbered pitfall rules — the ~480 lines of convention bullets under §2 had no way in. The split (2026-10-05 review-loop retro over the repo's PR/issue review comments) moves them verbatim: `store-persistence.md` (write-through, Supabase, RLS, covers, offline, import), `maps-and-providers.md` (basemaps, quota, coordinates, route measurement) and `ui-and-design-system.md` (CSS cascade, contrast, motion, a11y, chunking). The root file keeps the numbered rules, the data-model and process entries and the index, and drops to 840 lines. Two new rules came out of the same corpus: §6ah pins the fix-ready comment contract (verified facts, root cause, patch, delivery — the four stages whose absence caused every operator correction from #43 to #181), and §6h gains the gate-first sequencing rule from #154 (extend the gate before or with an audit sweep's fixes, so every fix lands already pinned). All three new files joined `tests/doc-drift.test.ts`'s LIVE list, so their prose is now scanned for absence claims.
 
 - **Split the agent operating manual into three files.** `AGENTS.md` was 1,920 lines. Every
   turn loaded all of it, whatever the task. The workflow rules, the verification gate, the code
@@ -247,6 +313,15 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
   documentation, new rules, changelog entries and chat explanations follow one instruction per
   sentence, a 20 word limit, and a plain vocabulary. Run `npm run lint:ste` to check the lines
   you changed. Existing text is unchanged.
+- **Signup now asks for a date of birth, and the DMCA policy has a page.** Accounts are
+  adults-only. India's DPDP Act 2023 treats under-18 users as children. Their data needs
+  verifiable parental consent, and Razorpay account holders must be 18. The signup form asks
+  for a date of birth, refuses anyone younger, and stores nothing — the check runs and the
+  value is dropped. A copyright and DMCA page lives at `#/dmca`, linked from the landing page
+  footer. It tells rights holders how to report infringing content, what a report carries,
+  and how the counter-notice path works. It answers signed-out visitors too. Both unlock
+  buttons now say "One-time payment. No subscription." so the purchase shape is clear at the
+  point of payment.
 - **A hook below an early return in Profile no longer crashes the page on a full
   reload.** The theme hook and the notifications memo sat under `if (!me) return
   null`. React reported a hook count mismatch as soon as the store hydrated after
@@ -291,6 +366,26 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ### Fixed
 
+- **Brand fonts now load from the app itself, not from Google's font CDN.** Every page load
+  told Google each visitor's IP address before any consent could exist — the German courts'
+  GDPR reading of the Google Fonts embed — and added a third party whose outage or block
+  could hold the app's own typography hostage. The two families ship as vendored `@fontsource`
+  packages now: same files, same weights, same `font-display: swap`, no CDN request. Source
+  pins keep the CDN links out of `index.html` and every vendored weight imported, so a
+  re-added link fails the build instead of leaking again.
+- **Nearby suggestions no longer turn a fuel-heavy corridor into a wall of pumps.** The shared tail of every nearby search allowed 4 fuel stops — the largest allowance on the list — while both of its own comments document fuel as "capped at a couple of pit stops". With 6 slots, a corridor lined with pumps could fill most of the suggestion rail with them; the feature exists to break up a drive with sights and meals, not to re-suggest the road. Fuel is now genuinely capped at 2, harder than every other category, as the docs always said. (#565)
+- **Two same-named nearby ideas no longer share one React identity.** The empty-day suggestion chips keyed by the POI's name, and same-named results are the normal case on Indian roads — two "Indian Oil" pumps within the search radius was enough. React could attach one chip's tap to the other chip's row, so the wrong chip silently added the same-named place at the other location. The key is now the hit's coordinates plus its name — the identity the quick-stop builder consumes — through one shared, pinned helper. (#564)
+- **A deploy's stale-chunk crash can no longer reload the tab forever, and the recovery button now clears what it promises.** Three contracts disagreed. The service worker cached any 200 response under a hashed asset URL, and the host's catch-all rewrite answers a vanished chunk with 200 + the HTML shell — so one stale import filed markup under a `.js` URL and the worker served it cache-first forever. The asset branch now refuses HTML answers as the misses they are, and an offline miss resolves as a network error. The version bumps to `v2`, so `activate` sweeps already-poisoned caches off devices. The crash screen's reload guard was cleared on mount — before the crash handler read it — so every occurrence reloaded, and a recurring failure looped forever with the fallback UI unreachable. The guard is one-shot per tab session now: one automatic reload, then the fallback, whose reload button re-arms it. "Clear saved data" walked localStorage only while promising the offline copy; it now wipes Cache Storage and the offline snapshots too. Unsynced edits waiting to upload survive, and the note says so. (#575)
+- **The Android home screen no longer prints an estimated cost as fact.** The per-person figure on every trip card is an estimate until the workspace measures the real road — TripsList marks it with `~` and the public page says "estimated", but the Android home stated the same unmeasured number with no marker, on the surface where it is most likely to move (opening the trip measures the road and the total can shift). The home figure now carries the same `~` prefix, and a source pin keeps the two card surfaces on one vocabulary. (#574)
+- **The Android back button no longer exits the app on the first deliberate press after navigating.** The arm-then-exit state survived a history back: arm at the entry page, tap into a trip, walk back with the hardware button, and the next press toggled the stale arm off and killed the WebView mid-session. Any press that navigates now disarms, the same reasoning the overlay-close branch already applied. The classic two-press exit at the entry page still works. (#562)
+- **A cost recorded twice now counts once, and a stated transport cost finally reaches the budget.** A monument ticket saved on the stop (the field suggestion acceptance fills) and recorded again as an entry-fees expense showed ₹1000 in the total — the budget claimed a dedup that did not exist. The recorded expense now replaces the stop's estimate, matched by the stop it is attached to. The reverse hole: the stop's "Transport cost to reach" figure rendered on the timeline but never reached the budget, which priced every leg from per-km fuel math. The stated figure now replaces the estimate for that leg (never adds to it), and the AI's saving line reads the same number the budget does. A train fare no longer disagrees with the bill. (#573)
+- **The printed itinerary no longer lists the day's final drive twice.** On every ordinary sightseeing day the print export appended the schedule's last leg after the stops — but that leg is the drive into the last printed stop, which the schedule had already listed before it, so the same drive appeared two times with its km and cost counted in both places. The trailing drive now prints only when the day genuinely ends somewhere the stop list does not reach (the synthesized destination on a return or ride-halt day), and the opening drive is printed as the first stop's own inbound leg. (#557)
+- **Keep-mine no longer silences the conflict banner for the rest of the editing session, and the banner no longer names the wrong editor.** Choosing "Keep mine" used to null the detection baseline outright, so a teammate's next edit of the same stop arrived with no banner — and the next save overwrote it silently. Keep-mine now re-arms on the version just rejected, exactly as take-theirs already did: only a further remote edit re-flags. The "edited by \<name\>" line also picked the most recent activity entry touching the trip, so a teammate editing a different stop was named as this stop's editor; a name now appears only when an activity entry actually titles this stop on its day, and the banner otherwise says a crew member. (#553)
+- **A shared link's route now attributes only the visit it brought, not every later view and fork in the tab.** The `?ref=` parameter was read live from the address bar and nothing ever removed it, and this app routes by hash — so the first share link a browser opened stamped every later publication view and fork in that tab with its route. The admin console's route breakdown read "whatever link this browser first touched", and forks carried a route the reader did not arrive by. The page now reads the ref once, at first render, and takes it back out of the address bar; the one value serves that page's view, re-share and fork. A later page records "direct", and a genuinely new link re-attributes. Only a recognised ref is removed — the buyer card's entitlement parameter survives. (#552)
+- **An import now waits for its save, and the offline replay no longer calls a write "synced" when nothing was written.** The snapshot-link and file-import paths fired the save without awaiting it and toasted success regardless: a failed save left a zombie trip in My Trips, contradicted the failure toast a second later, and accepted edits against a row that did not exist. Both paths now go through the awaited import the create path already had — the trip retracts on any failure (a dropped connection included), the user stays put, and the retry re-uses the SAME trip object so a save that reached the server is not followed by a twin. The offline replay read a no-match update as success, because PostgREST answers a write that touched zero rows with an empty error and a zero count; such a write now fails like any other — it stays queued for the bounded retry and past the cap is dropped with the loud toast, never counted as synced. (#551)
+- **Calendar exports no longer end a late commitment before it starts, and no longer fold by character count.** A 23:00+ flight or train emitted `DTEND` on its start date at the wrapped clock. A 23:30 event ended at 00:30 the same day — 23 hours before it began. Calendar apps rejected the event or rendered a broken duration. The end date rolls to the next day whenever the hour wrap drops the end clock below the start clock. Line folding measured code points where RFC 5545 sets a byte limit. A description full of `₹` reads as 80 characters and 240 bytes, so folded lines ran past the 75-octet cap. Strict importers truncated or rejected over-long lines. The fold now measures UTF-8 bytes and never splits a multi-byte character. (#550)
+- **A trip write can no longer land out of order or delete the newer edit queued behind it.** The debounced trip write issued its row UPDATE with no per-trip ordering: a second edit during an in-flight write started a second UPDATE, the network delivered them in arrival order, and the older snapshot could win on the server — deleted stops came back on the next read. Both senders (the debounced path and the offline replay) now serialize through one lock per trip, so two UPDATEs for one trip are never in flight together. The cleanup was unconditional too: the success path dropped the queue entry BY KEY, so it deleted the newer snapshot a later edit had queued behind it, and a later failure lost that edit from both the server and the queue. The drop and the retry re-queue are generation-aware now — they act only when the key still holds the entry their writer sent (`capturedAt`), with the compare-and-act atomic inside one IndexedDB transaction. (#549)
+- **The settle-up card now nets to zero even when the traveller count and the account count differ.** A family of four travellers on two accounts used to strand a residual no transfer could settle: the fair share divided by the traveller count while the rows measured members only, so ₹20,000 sat unowed on the card after every listed transfer. The split now follows the accounts — a guardian account shoulders the share of travellers without one — and an open line whose payer has left the trip sits outside the card entirely, feeding neither the share nor a credit (the line itself stays settleable from the strip). Per-person lines still expand to the traveller count, so the card's total keeps matching the expense table, and the copy names the split's population when the two counts diverge. (#548)
 - **The prose linter now runs in the gate, and it no longer fires on source code.** `npm run lint:ste` checked only the lines an agent changed, but nothing ran it: it was memory, not a gate. It has joined `verify` and therefore CI. The checker also read real code as English — an object key named `priority` was reported as the word "prefer", a JSX prop list came back as a 45-word sentence — so correct code had to be restructured to satisfy it. Code lines are now excluded from the prose check, and three new tests pin that behaviour both ways.
 - **A type error no longer waits for the whole test suite.** `tsc -b --clean` deletes the incremental cache and exits without compiling, so the only real typecheck happened inside the production build — last. `verify` now cleans and typechecks up front, which turns a late two-minute failure into an early four-second one.
 - **The create-trip stop boxes now announce what they are.** Adding a stop and adding a return stop were the only two controls on the journey's most-used screen that reached a screen reader as a bare "combobox, edit text" — no name, because they sit outside the `Field` that labels every other control in the funnel. Both are named now, and `LocationInput` carries an optional accessible name for any future unwrapped use.
@@ -332,6 +427,7 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 - **A partial refund no longer erases the sale.** The webhook could not tell a partial refund from a full one, so a goodwill ₹50 back on a ₹500 sale deleted the buyer's entire entitlement, flipped the order to failed, and erased the whole sale from the books. The webhook now carries the cumulative refunded and captured figures to a new service-only RPC, which decides full-versus-partial against the ORDER's own amount: a full refund revokes as always, a partial one records the refund and leaves the buyer's access and the sale alive. The purchases shelf shows the returned money beside the price. The rule is recorded in `docs/commercial/REFUNDS.md`; the migration adds the order's `refunded_paise` column and the decision RPC. (#554)
 - **Refunds revoke again — the webhook now listens for events Razorpay actually sends.** It waited for `payment.refunded`, an event that does not exist in Razorpay's list, so every real refund was acknowledged as "ignored" and no refund has ever revoked an entitlement: refunded buyers kept their plan, the creator's books kept counting the sale, and the buyer's receipt chip could never appear. The real `refund.processed` delivery now runs the full-versus-partial rule (the #554 amount policy), `refund.created` is recorded as pending without revoking anything, `refund.failed` is a no-op, and a lost dispute revokes like a refund. The tests that pinned the invented event name, and the one that pinned a real refund event as ignored, now drive the real shapes. (#593)
 - **Checkout reads every live order, not just the newest — and one live order per plan becomes impossible.** With more than one open order for a (buyer, plan), a captured-but-stranded older payment was invisible while the newest pending row passed its check: the app opened a payable window for money that had already moved, and a second capture landed as an unrecorded overpayment. The recovery scan now reads all live rows and probes them oldest-first, so a stranded capture is found and finished before anything is re-served. A partial unique index makes a second pending row impossible at the database, and the race it closes is answered as "nothing was charged" rather than a payment nobody can complete. Two unfinished payments for one plan are refused and named for support instead of being resolved silently. (#594)
+- **A recovered order stores its real gateway payment id.** The recovery branch wrote the string "recovered-by-checkout" into the payment-id column — a column whose contract is a Razorpay payment id, and the very id a future refund tool will key on. The recovery now reads the captured payment's id from the gateway before marking; when the gateway answers without one, the column is left empty rather than holding an invented string. (#595)
 
 ## [0.72.0] - 2026-10-01
 

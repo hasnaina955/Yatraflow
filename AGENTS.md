@@ -52,9 +52,22 @@ git status -sb                                  # branch + dirty tree
 git log --oneline -5                            # what actually landed
 git rev-list --left-right --count origin/test...HEAD   # local vs integration
 git describe --tags --abbrev=0                  # newest release
-gh issue list --state open --limit 200          # the real queue
+gh issue list --state open --limit 500          # the real queue
 gh pr list --state open                         # in-flight PRs
 ```
+
+**`--limit` is load-bearing on every `gh` list — pass it explicitly (learned
+2026-10-08).** `gh` answers **30 rows per call** unless told otherwise, and it
+does so *silently*: a bare `gh issue list --state open` returns a well-formed
+30-row answer that looks like the whole queue. This file's own numbers were the
+casualty — an earlier revision counted "thirteen issues are open" from a
+hand-count of one such truncated list against a real queue of 98, and a sibling
+re-derivation fixed the count and the missing flag together (re-derived
+2026-09-26, kept as the rule here). The trap recurs wherever a count is derived
+from a list rather than read from a total, including `--label`/`--json` pipes
+and shell array counts of the same output — a `… | ConvertFrom-Json` result
+piped into `@(...).Count` reports the row *lines*, not the rows. Treat any
+queue number under `--limit 500` as unknown.
 
 `git log` is the release history; `CHANGELOG.md` is the user-facing record of what
 each version does. Neither is summarised here — a summary is a cache of a lookup
@@ -314,6 +327,33 @@ that notices the drift.
     the one sitting beside this machine's clone folders, not any copy inside
     a clone.
 
+### What enforces each rule
+
+A rule nobody checks fails silently. This table pairs each rule above (and the
+two moved sections) with the gate that fails when you break it. "Judgment"
+means no gate exists — only a human or an agent that reads the rule can catch
+a breach, so treat those rows as the ones most easily skipped.
+
+| Rule | What fails when you break it |
+| --- | --- |
+| §2.1 push to `main` only on confirmation | judgment — the user; Vercel serves `main` |
+| §2.2–3 changelog entry, final state, in the push | `lint:ste` on the entry's prose; review for the rest; `.gitattributes` gives `CHANGELOG.md` a union merge driver, so two sequential PRs no longer conflict on their appends |
+| §2.4 claim the work in the same breath | judgment — `git ls-remote --heads origin \| grep <n>` is the manual check |
+| §2.5 UI-audit fixes tick ROADMAP in the same commit | review; judgment |
+| §2.6 re-derive "done" from git, never from memory | `git status -sb` + `git log` — manual, on every resume |
+| §2.7 hand over exact, proven localhost URLs | judgment — the probe commands in the rule |
+| §2.8 build locally, confirm target branch, then push | judgment — the user confirms |
+| §2.9 edit CHANGELOG with editor primitives only | review of the diff stat; `lint:ste` reads every changed line |
+| §2.10 motion tokens on every new interactive surface | `npm run check:ui` (partial: `transition: all`, z-index ≥ 999, blocked pinch-zoom) |
+| §2.11 work stays local until the batch is done | judgment — the user says when to push |
+| §2.12 close the issues a `test` merge leaves open | `.github/workflows/issue-autoclose.yml`, pinned by `tests/pr-auto-close.test.ts`; fall back to `gh issue view` after every merge |
+| §2.13 new prose in Simplified Technical English | `npm run lint:ste` (runs inside `verify` too) |
+| §2.14 lint is a ratchet — never add errors | `npm run lint:ratchet` vs `eslint-baseline.json` (inside `verify`) |
+| §2.15 clear `NODE_ENV` before installs | `npm run clean:env` |
+| §2.16 work only in your own clone | judgment — the global user-level `AGENTS.md` clone table |
+| §3 gate, CI, migrations | `npm run verify` locally; `ci.yml` on push and PR (`tests/ci-workflow.test.ts` pins the triggers); `npm run check:migrations` + a live PostgREST probe for schema |
+| §4 code conventions and pitfalls | the pin tests named in each rule — `verify` runs them all |
+
 
 ### What enforces each rule
 
@@ -475,7 +515,7 @@ See [`docs/README.md`](docs/README.md) for the full doc index.
 
 - **iOS Safari never vibrates — only Capacitor native does.** `navigator.vibrate` is unsupported on all iOS browsers (WebKit). Haptics that must work on iPhone require `@capacitor/haptics` inside a Capacitor iOS shell (`Capacitor.isNativePlatform()`). Keep the web vibrate fallback for Android Chrome; never assume a pure-web PWA will taptic on iOS.
 
-- **Every open issue carries exactly one `priority: P0`–`P3` label** (scheme added Sep 2026; the definitions live in the label descriptions, read them with `gh label list` rather than guessing). P0 = data loss/corruption, security, or a broken core flow — fix before shipping. P1 = real correctness or user-visible bug with a workaround — fix this milestone. P2 = low-risk, narrow surface — slot when convenient. P3 = hygiene, cosmetics, or blocked on a product decision. Assign one at creation; re-triage only by re-reading the definitions, never by gut severity. The label is a *routing* signal only — the justification belongs in the issue body. Queue via `gh issue list --state open --label 'priority: P0'`, and re-derive counts from `gh` rather than recalling them (same rule as §2.6).
+- **Every open issue carries exactly one `priority: P0`–`P3` label** (scheme added Sep 2026; the definitions live in the label descriptions, read them with `gh label list` rather than guessing). P0 = data loss/corruption, security, or a broken core flow — fix before shipping. P1 = real correctness or user-visible bug with a workaround — fix this milestone. P2 = low-risk, narrow surface — slot when convenient. P3 = hygiene, cosmetics, or blocked on a product decision. Assign one at creation; re-triage only by re-reading the definitions, never by gut severity. The label is a *routing* signal only — the justification belongs in the issue body. Queue via `gh issue list --state open --label 'priority: P0' --limit 500`, and re-derive counts from `gh` rather than recalling them (same rule as §2.6) — **with `--limit` on every call**: a bare list answers 30 rows whatever the real queue is, so an unbounded count silently under-reports (§1.1).
 - **A recovery path that reports success must verify the thing it recovered — and a surface that can fail must not render failure as emptiness.** Two payment-rail bugs from one live incident (Sep 2026): (1) checkout's self-heal toasted "already unlocked" without checking its `claim_paid_order` result — a failed grant would strand the buyer AND let the next click mint a fresh order for money already taken (double charge). Recovery branches must treat "I ran the write" as nothing; only the write's observable result counts, and a failed recovery is a 503 that says what will NOT happen ("no second payment will be taken"). Corollary: the orphan-order guard must read the buyer's NEWEST order of ANY status, not `status=eq.pending` — a row stranded 'paid' by a failed grant otherwise vanishes from the guard's view. (2) `fetchCreatorSales` degraded a failed read to `[]`, so the Earnings tab rendered "No sales yet" over a broken read — an empty-state UI and a broken-state UI must be different renderings (error + retry), or every future read failure hides behind friendly copy. The empty-vs-error distinction cost a whole debugging session to discover.
 - **Diagnose a payment/money mismatch from the DATABASE first, not the code.** The ₹500-vs-empty-ledger incident resolved in one probe once the tables were read: the "missing" sale belonged to a DIFFERENT creator than the account being checked, and the stranded order was visible as `status=pending` + no entitlement row. `select * from purchase_orders; select * from entitlements;` answers "did the money land, did the grant land, whose ledger should show it" before any code reading. Multiple test accounts amplify this: buyer ≠ creator ≠ the account you're logged in as.
 
@@ -497,6 +537,10 @@ See [`docs/README.md`](docs/README.md) for the full doc index.
 - **A scripted source edit needs an anchor that is unique — otherwise it edits a component you never looked at.** Read [`CODING_STANDARDS.md`](CODING_STANDARDS.md) **§3 Scripted edits** before you write any script that edits a file. That section is the whole rule. Use the editor primitives instead when a file's braces are load-bearing and its components repeat each other.
 
 ## Agent skills
+
+### Browser verification
+
+`.agents/skills/verify-yatraflow/` starts the dev server and drives a headless browser to a route. It writes a screenshot and a JSON record to `.verify-evidence/`. Use it to prove a UI or routing change in the running app. Read its `SKILL.md` first.
 
 ### Issue tracker
 

@@ -41,9 +41,11 @@ import { glideOffsetPx, insertionIndexFor, rowLayoutBoxes, cancelRowSettle, canc
 import { useSuggestionCache } from '../../../hooks/useSuggestionCache'
 import { searchNearbyPois } from '../../../lib/geocode'
 import type { PlaceHit } from '../../../lib/geocode'
+import { nearbyHitKey } from '../../../lib/providers/hits'
 import { InlineIcon, MetaIcon } from '../../../components/icons'
 import { fetchDailyWeather, forecastAvailable, isoAddDays, weatherAnchor, wmoInfo } from '../../../lib/weather'
 import type { DayWeather } from '../../../lib/weather'
+import { useWeatherRefreshTick } from '../../../hooks/useWeatherRefresh'
 import { TravelPanel } from './TravelPanel'
 import { DaySpark } from './DaySpark'
 
@@ -58,6 +60,9 @@ function DayWeatherChip({ day, startDate }: { day: Trip['days'][number]; startDa
   const anchor = useMemo(() => weatherAnchor(day), [day])
   const lat = anchor?.lat
   const lng = anchor?.lng
+  // Re-pull on the refresh cadence and whenever the tab regains focus, so the
+  // chip never shows a forecast that is hours stale.
+  const tick = useWeatherRefreshTick()
   useEffect(() => {
     // Gate on THIS day's date, not the trip's start: a 15-day window that opens
     // on day 1 still leaves day 12 beyond the forecast, and Open-Meteo answers
@@ -65,11 +70,11 @@ function DayWeatherChip({ day, startDate }: { day: Trip['days'][number]; startDa
     // answer — the same rule as "no anchor, no chip".
     if (lat == null || lng == null || !forecastAvailable(date)) { setW(null); return }
     let cancelled = false
-    fetchDailyWeather(lat, lng, date, 1)
+    fetchDailyWeather(lat, lng, date, 1, { force: tick > 0 })
       .then(res => { if (!cancelled) setW(res[date] ?? null) })
       .catch(() => {})
     return () => { cancelled = true }
-  }, [lat, lng, date])
+  }, [lat, lng, date, tick])
   if (!w) return null
   const info = wmoInfo(w.code)
   return (
@@ -702,7 +707,7 @@ export const DaySection = React.memo(function DaySection({ day, trip, facts, sav
               </button>
             )}
             {nearby.map(h => (
-              <button key={h.name} className="chip-btn" onClick={() => onAddQuickStop(day.index, poiQuickStop(h))} title="Add this nearby idea">
+              <button key={nearbyHitKey(h)} className="chip-btn" onClick={() => onAddQuickStop(day.index, poiQuickStop(h))} title="Add this nearby idea">
                 <InlineIcon icon={Plus} size={12} gap={3} />{h.name}
               </button>
             ))}

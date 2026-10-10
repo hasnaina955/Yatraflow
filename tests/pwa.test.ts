@@ -54,8 +54,8 @@ describe('the manifest makes the app installable', () => {
 })
 
 describe('the service worker caches the shell and nothing private', () => {
-  it('keeps /api, the crawler preview, the sitemap and the mappls proxy out of the cache', () => {
-    for (const prefix of ["'/api/'", "'/i/'", "'/sitemap.xml'", "'/mappls/'"]) {
+  it('keeps /api, the crawler cards, the sitemap and the mappls proxy out of the cache', () => {
+    for (const prefix of ["'/api/'", "'/i/'", "'/c/'", "'/sitemap.xml'", "'/mappls/'"]) {
       expect(sw, `${prefix} must stay in the NEVER list`).toContain(prefix)
     }
     // Cross-origin is left to the network too: Supabase, tiles, fonts. A cached
@@ -95,5 +95,25 @@ describe('registration and update plumbing', () => {
     expect(rule, 'a /sw.js header rule must exist').toBeTruthy()
     const cacheControl = rule?.headers.find(header => header.key === 'Cache-Control')?.value ?? ''
     expect(cacheControl).toContain('no-cache')
+  })
+})
+
+describe('the asset branch refuses rewritten answers (#575 Face A)', () => {
+  // The host's catch-all rewrite answers a MISSING hashed asset with 200 + the
+  // HTML shell. Caching that would file markup under a .js URL and serve it
+  // cache-first until a version bump — the durable poison this guards against.
+  const assetsBranch = () => sw.slice(sw.indexOf("startsWith('/assets/')"))
+
+  it('bumps the version — the policy changed, so activate sweeps poisoned v1 caches', () => {
+    expect(sw).toContain("const SW_VERSION = 'v2'")
+  })
+
+  it('refuses to cache a text/html response under an asset URL', () => {
+    expect(assetsBranch()).toContain("type.includes('text/html')")
+    expect(assetsBranch()).toContain('return Response.error()')
+  })
+
+  it('resolves an offline asset miss as a network error, not a rejected respondWith', () => {
+    expect(assetsBranch()).toContain('.catch(() => Response.error())')
   })
 })

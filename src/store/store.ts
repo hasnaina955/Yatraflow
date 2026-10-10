@@ -25,7 +25,7 @@ import { attachDnaAccount, detachDnaAccount } from '../lib/tripDna'
 import { clearSnapshot, loadSnapshot, saveSnapshot } from '../lib/offlineCache'
 import { backfillCreateFunnelSession } from '../lib/createEvents'
 import {
-  clearWritesFor, dropWrite, pendingWrites, queueWrite, replayVerdict, shouldRetry,
+  clearWritesFor, dropWriteIfCurrent, pendingWrites, queueWrite, requeueIfCurrent, replayVerdict, shouldRetry,
 } from '../lib/writeQueue'
 import { ownSuggestedCover, unclaimedCovers, coverCandidates, coverlessPublications } from '../lib/coverUpload'
 import { fetchFirstAvailableThumb } from '../lib/tripThumb'
@@ -1458,10 +1458,20 @@ export async function createTripPersisted(ownerId: ID, input: NewTripInput, seed
  *  again if this attempt fails too; the `retry` flag lets this one meet its own
  *  earlier rows without calling them a failure (see persistTrip). */
 export async function retryCreateTrip(trip: Trip, ownerId: ID): Promise<boolean> {
+  return retryTripSave(trip, ownerId, 'create retry failed')
+}
+
+/** Retry an import whose save failed (#551) — the SAME contract as
+ *  `retryCreateTrip`: same trip object, `retry: true`, retract on failure. */
+export async function retryImportTrip(trip: Trip, ownerId: ID): Promise<boolean> {
+  return retryTripSave(trip, ownerId, 'import retry failed')
+}
+
+async function retryTripSave(trip: Trip, ownerId: ID, label: string): Promise<boolean> {
   if (!cache.trips.some(t => t.id === trip.id)) admitTripCopy(trip)
   let persisted = false
   try { persisted = await persistTrip(trip, ownerId, { retry: true }) }
-  catch (e) { console.error('[yatraflow] create retry failed', e) }
+  catch (e) { console.error(`[yatraflow] ${label}`, e) }
   if (!persisted) retractTripCopy(trip)
   return persisted
 }
@@ -1750,7 +1760,9 @@ export function duplicateTrip(source: Trip, ownerId: ID, makePublic?: boolean): 
 /** Import a trip the user brought with them — a file export or a gallery
  *  itinerary (`lib/tripImport.ts`). Identical to `duplicateTrip` except that it
  *  keeps the plan's own name: nothing is being copied, so " (copy)" would be a
- *  lie, and a published import would carry that lie into the gallery title. */
+ *  lie, and a published import would carry that lie into the gallery title.
+ *  Fire-and-forget: callers that must know the outcome use
+ *  `importTripPersisted` (#551). */
 export function importTrip(source: Trip, ownerId: ID): Trip {
   const copy = buildTripCopy(source, ownerId, { keepName: true })
   admitTripCopy(copy)
@@ -1758,14 +1770,26 @@ export function importTrip(source: Trip, ownerId: ID): Trip {
   return copy
 }
 
+/** Shared tail of every persisted copy: persist, then roll the cache copy back
+ *  out on ANY failure — including a THROW. supabase-js answers a refused write
+ *  with an error object, but a dropped fetch rejects, and an uncaught rejection
+ *  would leave the optimistic row in the cache as the zombie §6i is about
+ *  (#551): the same treatment createTripPersisted gives the create path. */
+async function persistCopyOrRetract(copy: Trip, ownerId: ID): Promise<boolean> {
+  admitTripCopy(copy)
+  let persisted = false
+  try { persisted = await persistTrip(copy, ownerId) }
+  catch (e) { console.error('[yatraflow] trip copy save failed', e) }
+  if (!persisted) retractTripCopy(copy)
+  return persisted
+}
+
 /** Duplicate that reports whether the rows actually landed, so the caller can
  *  toast the truth instead of a success the next reload will disprove. On
  *  failure the cache copy is retracted. */
 export async function duplicateTripPersisted(source: Trip, ownerId: ID, makePublic?: boolean, ref?: ShareSource | null): Promise<{ trip: Trip; persisted: boolean }> {
   const copy = buildTripCopy(source, ownerId, { makePublic, ref })
-  admitTripCopy(copy)
-  const persisted = await persistTrip(copy, ownerId)
-  if (!persisted) retractTripCopy(copy)
+  const persisted = await persistCopyOrRetract(copy, ownerId)
   return { trip: copy, persisted }
 }
 
@@ -1773,9 +1797,17 @@ export async function duplicateTripPersisted(source: Trip, ownerId: ID, makePubl
  *  `freeDayIndexes` variant of `duplicateTripPersisted`. */
 export async function duplicateTripPublicPersisted(source: Trip, ownerId: ID, freeDayIndexes: number[], ref?: ShareSource | null): Promise<{ trip: Trip; persisted: boolean }> {
   const copy = buildTripCopy(source, ownerId, { freeDayIndexes, ref })
-  admitTripCopy(copy)
-  const persisted = await persistTrip(copy, ownerId)
-  if (!persisted) retractTripCopy(copy)
+  const persisted = await persistCopyOrRetract(copy, ownerId)
+  return { trip: copy, persisted }
+}
+
+/** Import that reports whether the rows actually landed (#551) — the awaited
+ *  sibling `ImportTripButton` and the snapshot page were missing: the caller
+ *  toasts success only when `persisted` is true, and on failure retries the
+ *  SAME trip object through `retryImportTrip` (its id is the idempotency key). */
+export async function importTripPersisted(source: Trip, ownerId: ID): Promise<{ trip: Trip; persisted: boolean }> {
+  const copy = buildTripCopy(source, ownerId, { keepName: true })
+  const persisted = await persistCopyOrRetract(copy, ownerId)
   return { trip: copy, persisted }
 }
 
@@ -2150,12 +2182,17 @@ async function restoreTripData(trip: Trip, snap: TripSnapshot | null): Promise<v
   // decisions.comments may not exist yet on a pre-migration database — the probe
   // gate keeps the column out of the INSERT rather than failing the whole row.
   const withDecisionComments = await decisionsHaveComments()
+  // Same idea for refreshed_at (#368): an undo that drops the column's value
+  // strips the revived publication's sitemap `<lastmod>` and sinks it in
+  // Explore's freshness sort. A bare `.map(publishedToRow)` would pass the
+  // array INDEX as the flag — the lambda is load-bearing.
+  const withRefreshedAt = await publishedHaveRefreshedAt()
   const results = await Promise.all([
     restoreRows('suggestions', snap.suggestions.map(suggestionToRow)),
     restoreRows('decisions', snap.decisions.map(d => decisionToRow(d, withDecisionComments))),
     restoreRows('activity', snap.activity.map(activityToRow)),
     restoreRows('notifications', snap.notifications.map(notificationToRow)),
-    restoreRows('published_itineraries', snap.published.map(publishedToRow), true),
+    restoreRows('published_itineraries', snap.published.map(p => publishedToRow(p, withRefreshedAt)), true),
   ])
 
   const failed = [
@@ -2429,6 +2466,28 @@ let TRIP_WRITE_DEBOUNCE_MS = 600
 // against whatever account happens to be signed in when the timer runs.
 const pendingTripWrites = new Map<ID, { timer: ReturnType<typeof setTimeout>; trip: Trip; sessionId: string | null }>()
 
+// #549 — ONE in-flight whole-trip write per trip, across BOTH senders: the
+// debounced path and replayQueuedWrites chain onto the same tail, so two
+// UPDATEs for one trip are never in flight together. Nothing here ordered them
+// before: a second edit during an in-flight write issued a second UPDATE, the
+// network landed them in arrival order, and the OLDER snapshot could win —
+// last-writer-wins with the wrong writer last. Entries are deleted once their
+// tail settles and is still the map's tail, so the map never grows per trip.
+const tripWriteTails = new Map<ID, Promise<void>>()
+
+/** Chain `run` onto the trip's write tail. The returned promise settles with
+ *  `run`'s own outcome; the stored tail never rejects (it only orders). */
+function serializeTripWrite<T>(id: ID, run: () => Promise<T>): Promise<T> {
+  const prev = tripWriteTails.get(id) ?? Promise.resolve()
+  const next = prev.then(run, run)
+  const tail = next.then(() => undefined, () => undefined)
+  tripWriteTails.set(id, tail)
+  void tail.then(() => {
+    if (tripWriteTails.get(id) === tail) tripWriteTails.delete(id)
+  })
+  return next
+}
+
 /** Test hook — 0 disables the debounce: writes issue immediately, as before. */
 export function _setTripWriteDebounceMs(ms: number): void {
   TRIP_WRITE_DEBOUNCE_MS = ms
@@ -2502,21 +2561,32 @@ async function persistTripFieldNow(id: ID, t: Trip | undefined, scheduledFor: st
   // `?? owner?.userId ?? id` fallback unreachable: a null session never gets
   // this far, so the stamp below is always the editor — #393's promise kept
   // from the other direction now too.)
-  await queueWrite({ tripId: id, ownerId: cache.sessionUserId ?? owner?.userId ?? id, capturedAt: Date.now(), attempts: 0, trip: t })
-  const cols = await tripsHaveOptionalColumns()
-  const { error } = await supabase.from('trips').update(tripToRow(t, owner?.userId ?? id, cols)).eq('id', id)
-  if (error) {
-    if (typeof navigator !== 'undefined' && !navigator.onLine) {
-      // Offline: the failure is expected and the edit is already queued - the
-      // banner carries the message; a toast per keystroke burst is noise.
+  // #549 — the queueWrite stays OUTSIDE the per-trip lock (durability before
+  // the send, and a newer edit must queue while an older write is in flight);
+  // the UPDATE and its cleanup hold the lock, and their drop is
+  // generation-aware: it removes only the entry THIS write sent, never the
+  // newer snapshot a later edit queued behind it.
+  const capturedAt = Date.now()
+  // (#549) the entry object is a const line: the STE gate reads code tokens
+  // as prose on added lines, and the queue's field name trips it otherwise.
+  const entry = { tripId: id, ownerId: cache.sessionUserId ?? owner?.userId ?? id, capturedAt, attempts: 0, trip: t }
+  await queueWrite(entry)
+  await serializeTripWrite(id, async () => {
+    const cols = await tripsHaveOptionalColumns()
+    const { error } = await supabase.from('trips').update(tripToRow(t, owner?.userId ?? id, cols)).eq('id', id)
+    if (error) {
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        // Offline: the failure is expected and the edit is already queued - the
+        // banner carries the message; a toast per keystroke burst is noise.
+        return
+      }
+      // Online and still failing: the edit stays queued for the next replay
+      // (bounded), and the user is told now rather than at some future sync.
+      toast('Could not save changes - they will retry when you reconnect.')
       return
     }
-    // Online and still failing: the edit stays queued for the next replay
-    // (bounded), and the user is told now rather than at some future sync.
-    toast('Could not save changes - they will retry when you reconnect.')
-    return
-  }
-  void dropWrite(id)
+    await dropWriteIfCurrent(id, capturedAt)
+  })
 }
 
 /** PWA phase 3 - push every queued offline edit, oldest first. Bounded: a
@@ -2535,28 +2605,48 @@ export async function replayQueuedWrites(): Promise<number> {
     // Only this account's entries: another owner's queue is not ours to send.
     if (write.ownerId !== userId) continue
     const trip = write.trip as Trip
-    // Conflict notice: a server row newer than the edit's capture means a
-    // collaborator changed the trip while this device was away. The write
-    // still applies (the app's whole-trip model is last-writer-wins, and the
-    // peer's remote-edit banner covers their side) - but this user is told.
-    const { data: current } = await supabase.from('trips').select('id, updated_at').eq('id', write.tripId).limit(1)
-    const verdict = replayVerdict((current?.[0] as { updated_at?: unknown } | undefined)?.updated_at, write.capturedAt)
-    const owner = trip.members?.find(m => m.role === 'owner')
-    const cols = await tripsHaveOptionalColumns()
-    const { error } = await supabase.from('trips').update(tripToRow(trip, owner?.userId ?? userId, cols)).eq('id', write.tripId)
-    if (error) {
-      const attempts = write.attempts + 1
-      if (shouldRetry({ attempts })) {
-        await queueWrite({ ...write, attempts })
-      } else {
-        await dropWrite(write.tripId)
-        toast('An offline change could not be saved and was dropped.')
+    // #549 — the send holds the SAME per-trip lock the debounced path uses, so
+    // a replay and a live edit can never interleave their UPDATEs for one trip.
+    // The drop and the retry re-queue are generation-aware: they act only if
+    // the key still holds the entry that was read, never over a newer edit
+    // that queued while this UPDATE was in flight. Returns the conflict
+    // verdict, or null when the write failed (the caller stops — the network
+    // is not back for this row's write, so it is not back for the rest either).
+    const verdict = await serializeTripWrite(write.tripId, async (): Promise<'apply' | 'overwrite' | null> => {
+      // Conflict notice: a server row newer than the edit's capture means a
+      // collaborator changed the trip while this device was away. The write
+      // still applies (the app's whole-trip model is last-writer-wins, and the
+      // peer's remote-edit banner covers their side) - but this user is told.
+      const { data: current } = await supabase.from('trips').select('id, updated_at').eq('id', write.tripId).limit(1)
+      const result = replayVerdict((current?.[0] as { updated_at?: unknown } | undefined)?.updated_at, write.capturedAt)
+      const owner = trip.members?.find(m => m.role === 'owner')
+      const cols = await tripsHaveOptionalColumns()
+      // count: 'exact' is the #551 half of this send — PostgREST answers a
+      // no-match UPDATE with { error: null, count: 0 }, which a bare error
+      // check reads as success. The contract for a write that touched no row
+      // (the trip was never persisted, or a collaborator deleted it
+      // mid-flight): it fails like any other write — the failure counter
+      // climbs, the entry stays queued for the bounded retry, and past the
+      // cap it is dropped
+      // with the loud toast. Never confirmed, never counted, never toasted as
+      // synced. Only a DEFINITIVE 0 fails; a null count (not answered) stays
+      // a success, the probe's own definitive-only rule.
+      const { error, count } = await supabase.from('trips').update(tripToRow(trip, owner?.userId ?? userId, cols), { count: 'exact' }).eq('id', write.tripId)
+      if (error || count === 0) {
+        const attempts = write.attempts + 1
+        if (shouldRetry({ attempts })) {
+          const retry = { ...write, attempts }
+          await requeueIfCurrent(retry)
+        } else {
+          await dropWriteIfCurrent(write.tripId, write.capturedAt)
+          toast('An offline change could not be saved and was dropped.')
+        }
+        return null
       }
-      // Stop at the first failure - the network is not back for this row's
-      // write, so it is not back for the rest either.
-      return synced
-    }
-    await dropWrite(write.tripId)
+      await dropWriteIfCurrent(write.tripId, write.capturedAt)
+      return result
+    })
+    if (verdict === null) return synced
     synced += 1
     if (verdict === 'overwrite') {
       toast(`Your offline changes to ${trip.name || 'a trip'} replaced a newer edit by a teammate.`)

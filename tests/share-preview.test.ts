@@ -66,7 +66,7 @@ describe('share preview handler in node', () => {
     const res = await runHandler()
     const title = 'Tom &amp; Jerry&#39;s &quot;Monsoon&quot; Escape — YatraFlow'
     const description = 'Kochi &amp; back via &quot;Munnar&quot; tea hills'
-    const canonical = `https://yatraflow-blond.vercel.app/i/${publication.id}`
+    const canonical = `https://www.yatraflow.in/i/${publication.id}`
     expect(res.statusCode).toBe(200)
     expect(res.headers['content-type']).toBe('text/html; charset=utf-8')
     expect(res.headers['x-content-type-options']).toBe('nosniff')
@@ -83,7 +83,7 @@ describe('share preview handler in node', () => {
     expect(res.body).toContain(`location.replace("/pub/${publication.id}")`)
     expect(res.body).toContain(`href="/pub/${publication.id}"`)
     // No cover on this row, so the app's own asset has to carry the card.
-    const fallback = 'https://yatraflow-blond.vercel.app/og-default.png'
+    const fallback = 'https://www.yatraflow.in/og-default.png'
     expect(res.body).toContain(`og:image" content="${fallback}"`)
     expect(res.body).toContain(`twitter:image" content="${fallback}"`)
     expect(res.body).toContain('og:image:width" content="1200"')
@@ -166,7 +166,7 @@ describe('share preview handler in node', () => {
       respond([{ ...publication, cover_image_url: cover }])
       const res = await runHandler()
       expect(res.body).not.toContain('http://images.example.test/cover.jpg')
-      expect(res.body).toContain('og:image" content="https://yatraflow-blond.vercel.app/og-default.png"')
+      expect(res.body).toContain('og:image" content="https://www.yatraflow.in/og-default.png"')
       expect(res.body).toContain('twitter:card" content="summary_large_image"')
     },
   )
@@ -312,7 +312,7 @@ describe('share preview handler in node', () => {
 
 /** The buyer-thrown request: the publication row, then the gate's verdict. */
 const BUYER = '3f1a2b4c-5d6e-4f70-8a91-b2c3d4e5f601'
-const DEFAULT_ORIGIN = 'https://yatraflow-blond.vercel.app'
+const DEFAULT_ORIGIN = 'https://www.yatraflow.in'
 
 function respondBuyerCard(bought: unknown, publicationRows: unknown = [publication]) {
   fetchMock.mockResolvedValueOnce(new Response(JSON.stringify(publicationRows)))
@@ -463,7 +463,7 @@ describe('public share URLs', () => {
 
   it.each(['capacitor://localhost', 'http://localhost', 'https://preview.example.test'])('uses production https for native origin %s', async origin => {
     const { publicShareUrl } = await import(shareUrlPath)
-    expect(publicShareUrl(publication.id, origin, true)).toBe(`https://yatraflow-blond.vercel.app/i/${publication.id}`)
+    expect(publicShareUrl(publication.id, origin, true)).toBe(`https://www.yatraflow.in/i/${publication.id}`)
   })
 })
 
@@ -619,7 +619,7 @@ describe('public share source wiring', () => {
     expect(creatorShareUrl('alice', 'https://app.example.test/', false))
       .toBe('https://app.example.test/c/alice')
     expect(creatorShareUrl('alice', 'capacitor://localhost', true))
-      .toBe('https://yatraflow-blond.vercel.app/c/alice')
+      .toBe('https://www.yatraflow.in/c/alice')
   })
 })
 
@@ -798,7 +798,7 @@ describe('a shared link carries its channel', () => {
       .toBe('https://app.example.test/i/kerala-trip_1')
     // Native keeps minting the production origin, with the ref.
     expect(publicShareUrl('kerala-trip_1', 'capacitor://localhost', true, 'wa'))
-      .toBe('https://yatraflow-blond.vercel.app/i/kerala-trip_1?ref=wa')
+      .toBe('https://www.yatraflow.in/i/kerala-trip_1?ref=wa')
   })
 
   it('the send stamps its own channel by default, and the message is unchanged', async () => {
@@ -814,19 +814,22 @@ describe('a shared link carries its channel', () => {
 
   it('a second hop keeps the arrival channel instead of laundering it', () => {
     const source = readFileSync(new URL('../src/pages/PublicItinerary.tsx', import.meta.url), 'utf8')
-    // The page reads the arrival ref and passes it to its own send: a link
-    // that travelled through a post keeps that post's reference.
-    expect(source).toMatch(/const arrivalRef = shareRefFromSearch\(location\.search\)/)
+    // The page consumes the arrival ref once (#552) and passes that ONE value
+    // to its own send: a link that travelled through a post keeps that post's
+    // reference, for the whole life of the page it arrived on.
+    expect(source).toMatch(/const \[arrivalRef\] = useState\(\(\) => shareRefFromSearch\(window\.location\.search\)\)/)
     expect(source).toMatch(/sharePublicationOnWhatsApp\(pub, arrivalRef \?\? 'wa'\)/)
   })
 
-  it('no address-bar rewrite remains that could drop an arrival channel', () => {
+  it('the only address-bar writer left removes a consumed ref, nothing else (#552)', () => {
     // The sync that used to rewrite the address behind a publication page is
-    // retired (#426 slice 2): the route IS the pathname now, so nothing
-    // rewrites the query behind the page's back and the ref a link arrived
-    // with survives by construction. The one writer left is the boot bridge,
-    // and its query ride-through is pinned in the bridge describe above.
+    // retired (#426 slice 2). #552 adds back ONE deliberate writer: the
+    // consumption takes a RECOGNISED ref out of the bar after the page has
+    // read it — every other parameter survives, so it cannot drop an arrival
+    // channel the way the old sync could. The boot bridge's query ride-through
+    // stays pinned in the bridge describe above.
     expect(read('../src/lib/shareUrl.ts')).not.toContain('syncPublicAddress')
+    expect(read('../src/pages/PublicItinerary.tsx')).toContain('useEffect(() => { clearShareRefFromLocation() }, [])')
   })
 })
 describe('sending a publication on WhatsApp', () => {

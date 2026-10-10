@@ -60,15 +60,25 @@ function fail(message) {
   process.exit(1)
 }
 
-async function waitForServer(url, tries = 60) {
+// MOTION_PORT is the escape hatch for a machine where 4319 is taken. A bad
+// value must fail with a sentence, because the wait below would otherwise
+// report a malformed port as a server that never answered.
+if (!Number.isInteger(PORT) || PORT < 1024 || PORT > 65535) {
+  fail(`MOTION_PORT must be a port number from 1024 to 65535, got "${process.env.MOTION_PORT}".`)
+}
+
+/** Wait until the preview server answers. The only URL this script fetches is
+ *  the loopback constant above, and its port is a validated number — no value
+ *  from a caller ever reaches an HTTP client. */
+async function waitForServer(tries = 60) {
   for (let i = 0; i < tries; i++) {
     try {
-      const res = await fetch(url)
+      const res = await fetch(`${BASE}/`)
       if (res.ok) return
     } catch { /* not up yet */ }
     await new Promise((r) => setTimeout(r, 250))
   }
-  fail(`the preview server never answered at ${url}`)
+  fail(`the preview server never answered at ${BASE}/`)
 }
 
 async function launchChrome() {
@@ -105,14 +115,22 @@ const server = spawn(process.execPath, [viteBin, 'preview', '--port', String(POR
 })
 let serverLog = ''
 server.stderr.on('data', (d) => { serverLog += d.toString() })
+// The teardown in `finally` below is what ends this server, and `vite preview`
+// catches SIGTERM and exits 143. So an exit AFTER we asked the server to stop
+// is expected, and the code it exits with cannot tell the two cases apart.
+// Reading that 143 as a crash failed the whole run in CI after every sampled
+// block had already passed (the motion job's first CI run, 2026-10-10). Only
+// `stopping` separates "died while the check was running" from "we are done".
+let stopping = false
 server.on('exit', (code) => {
+  if (stopping) return
   if (code !== 0 && code !== null) fail(`vite preview exited with ${code}:\n${serverLog}`)
 })
 
 let browser
 let failures = 0
 try {
-  await waitForServer(`${BASE}/`)
+  await waitForServer()
   browser = await launchChrome()
 
   for (const route of ROUTES) {
@@ -176,6 +194,7 @@ try {
     await ctx.close()
   }
 } finally {
+  stopping = true
   await browser?.close().catch(() => {})
   server.kill()
 }

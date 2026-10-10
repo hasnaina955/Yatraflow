@@ -514,6 +514,10 @@ See [`docs/README.md`](docs/README.md) for the full doc index.
 
 ## Agent skills
 
+### Browser verification
+
+`.agents/skills/verify-yatraflow/` starts the dev server and drives a headless browser to a route. It writes a screenshot and a JSON record to `.verify-evidence/`. Use it to prove a UI or routing change in the running app. Read its `SKILL.md` first.
+
 ### Issue tracker
 
 Issues live in this repo's GitHub Issues, driven with the `gh` CLI. See `docs/agents/issue-tracker.md`.

@@ -547,6 +547,13 @@ Neither decision touches a colour value, per [ADR 0002](docs/adr/0002-mockup-pal
     [`docs/screenshots/mr1-task-row-1440.png`](docs/screenshots/mr1-task-row-1440.png) and
     [`mr1-task-row-390.png`](docs/screenshots/mr1-task-row-390.png). Two upcoming trips printed a
     countdown at each width: "Departs in 17 days" and "Departs in 20 days".
+  - **Its own capture, on live dates (2026-10-10).**
+    [`mr6-countdown-1440.png`](docs/screenshots/mr6-countdown-1440.png) and
+    [`mr6-countdown-390.png`](docs/screenshots/mr6-countdown-390.png) hold the card that carries
+    the line, on the signed-in account that owns the trips. The countdown read "Departs in 13
+    days" and "Departs in 16 days" at both widths, and the capture asserts the copy's shape: a
+    span is either absent or one of "Departs in N days", "today", "tomorrow" — never a
+    negative count.
 - [x] **MR7. Day strip with transit markers.** `src/pages/TripWorkspace.tsx`, timeline tab. Days as
   horizontal cards, with a marker where the city changes. Reuse the existing day-collapse state.
   - **Landed 2026-10-05 — and the row was half-written already.** The timeline's day rail already
@@ -561,6 +568,13 @@ Neither decision touches a colour value, per [ADR 0002](docs/adr/0002-mockup-pal
     a title and two chips; the `minmax(520px, …)` floor then could not shrink and held a 520px
     card in a 373px viewport, pushing the document 161px sideways; and renaming the rail chip to
     a card silently dropped the 40px mobile touch floor that `.day-rail-chip` already carried.
+  - **Acceptance (2026-10-10):** screened at both widths on the signed-in "Royal Rajasthan
+    Heritage Circuit" trip, in
+    [`mr7-day-rail-1440.png`](docs/screenshots/mr7-day-rail-1440.png) and
+    [`mr7-day-rail-390.png`](docs/screenshots/mr7-day-rail-390.png). The rail drew six day cards
+    with two transit markers, and the capture asserts the first before it fires: a rail that drew
+    no card is not evidence of a rail. Each card names its place ("Tonk Road outskirts",
+    "Jodhpur-South (M Corp.)") and its stop count.
 - [x] **MR8. Save toggles on days and experiences.** `src/pages/TripWorkspace.tsx`. A heart on each
   day and each experience, wired to the existing shortlist store in `useShortlist.ts`. This adds a
   new entry point, not a new store.
@@ -600,6 +614,19 @@ Neither decision touches a colour value, per [ADR 0002](docs/adr/0002-mockup-pal
     A warn tint cannot replace it (P4). Jumps use `scrollBehavior()`, so reduced motion is
     honoured. Pins live in `tests/rail-spy.test.ts`. The row named `TripWorkspace.tsx`. Like
     MR7, the day surfaces live in `src/pages/trip/TimelineTab.tsx`.
+  - **Acceptance (2026-10-10):** screened on the signed-in "Royal Rajasthan Heritage Circuit"
+    trip at both widths. [`mr9-sticky-rail-1440.png`](docs/screenshots/mr9-sticky-rail-1440.png)
+    and [`mr9-sticky-rail-390.png`](docs/screenshots/mr9-sticky-rail-390.png) show the rail stuck
+    while the day it names is in view, and
+    [`mr9-timeline-1440.png`](docs/screenshots/mr9-timeline-1440.png) and
+    [`mr9-timeline-390.png`](docs/screenshots/mr9-timeline-390.png) show that state in the page.
+    The spy was driven rather than assumed: review mode was engaged, a middle day was scrolled to
+    the sticky line, and the marked card was asserted — `aria-current="true"` on Day 3, at
+    scrollY 3586 (1440) and 6309 (390), with the day section under the sticky line also reading
+    `day-card-2`. **The row's own 181px figure is stale:** measured today, the review-mode stack
+    is 149px at 390px (a 64px nav plus the 85px stuck rail), and the one-day-mode stack is 108px
+    (nav plus the 44px trip-total strip). Both numbers are recorded on the MR12 row, which is
+    where the tabbar's cost is decided.
 - [ ] **MR10. Public discovery blocks — in Explore, not in the owner dashboard (P8).**
   `src/pages/Explore.tsx`. Featured creators, trending itineraries, and a "Share your travel
   stories" call to action.
@@ -665,20 +692,30 @@ Neither decision touches a colour value, per [ADR 0002](docs/adr/0002-mockup-pal
   - **What would revive it:** a measurement, not a preference. Measure the trip list paint time
     and the Timeline's usable height at 390px with the tray, then compare against a bar. The idea
     keeps a Tier 2 row in the Idea bank, which names the dependency.
-  - **Half the measurement, taken 2026-10-10 against the production build.** `vite preview`, seven
-    signed-in loads of `/trips` per width, every timing recorded inside the page (a first pass
-    timed Playwright's own polling, which measures the harness, not the app). At **390×844** the
-    trip list paints at a median **1522 ms** (1216–1787 ms), with FCP 272 ms, DOMContentLoaded
-    216 ms, one long task, and 246 KB of JS and CSS transferred. At 1440×1000 the median is
-    1432 ms. The number is dominated by the signed-in data round trip, not by the bundle: paint
-    lands about 1.3 s after DOMContentLoaded because the trip list waits on Supabase. The sticky
-    chrome today is the top nav alone, **64 px**. A bar would take 60 px off an 844 px viewport on
-    every route, which is about 7%.
-  - **Still parked, and what is missing.** The half that decides this row is the Timeline's
-    usable day-view height with that chrome, and it could not be measured: the available fixture
-    trip carries no dates, so it has no days, no day rail and no sticky stack (the ~181 px the
-    row cites). Measuring it needs a trip with dates. Until that number exists, the row stays
-    parked.
+  - **The measurement is taken, twice over (2026-10-10). Its acceptance is met; the BUILD is
+    still parked.** Both halves ran against the production build (`vite preview`), signed in, with
+    every timing recorded inside the page: a first pass timed Playwright's own polling interval,
+    which measures the harness rather than the app, and was discarded.
+    - **The trip list paints at a median 1522 ms at 390×844** (1216–1787 ms over seven loads),
+      with FCP 272 ms, DOMContentLoaded 216 ms, one long task, and 246 KB of JS and CSS
+      transferred. At 1440×1000 the median is 1432 ms. The figure is dominated by the signed-in
+      data round trip, not the bundle: paint lands about 1.3 s after DOMContentLoaded because the
+      list waits on Supabase.
+    - **The Timeline's usable day view at 390×844 is 695 px**, measured on the signed-in
+      "Royal Rajasthan Heritage Circuit" trip in review mode, the worst case. The sticky stack
+      there is **149 px** — the 64 px nav plus the 85 px stuck day rail. In one-day mode the stack
+      is **108 px** (the nav plus the 44 px trip-total strip). A 60 px bar would leave **635 px**
+      of day view in review mode, so it costs 8.6% of the usable day view and 7.1% of the
+      viewport on every route.
+    - The row's "about 181 px" stacks are stale. The number to carry forward is 149 px in review
+      mode, which is the state a phone actually reads a day in.
+  - **What the numbers say, and what is still a product call.** The chip cost is real but smaller
+    than the row assumed: about 50 px less chrome than 181 px implied, and the trip list's paint
+    time is a data-round-trip problem a tabbar neither causes nor fixes. Two things are outside a
+    measurement: whether one tap saved is worth 60 px permanently, and whether the bar replaces
+    the hamburger tray or sits beside it (either choice makes the stack taller, not shorter).
+    Those are yours. The row stays parked until you call it, but it no longer waits on a
+    number.
 
 **Verification each row must pass.** The gate is `npm run verify`, which runs tsc, the lint
 ratchet, STE lint, the full test suite and the production build. Tests alone do not prove a row.

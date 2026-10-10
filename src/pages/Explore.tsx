@@ -1,7 +1,7 @@
 // ============ Explore public itineraries — discover, trust and fork (CTI §6.10) ============
 import { useEffect, useMemo, useState } from 'react'
 import { currentQuery, onRouteChange, replaceRoute } from '../lib/router'
-import { Compass, Heart, Search, TriangleAlert } from 'lucide-react'
+import { Compass, Heart, Lock, Search, TriangleAlert } from 'lucide-react'
 import { usePublished, useUsers, useTrips, useSessionUserId, useDb, rereadPublicSlices } from '../store/store'
 import type { User } from '../data/types'
 import { computeHealth } from '../lib/engine'
@@ -9,6 +9,7 @@ import { useSavedPubs } from '../lib/savedPubs'
 import { sliceState, emptyCopyFor } from '../lib/readState'
 import { forkPublication } from '../lib/forkPub'
 import { cap } from '../lib/labels'
+import { scrollBehavior } from '../lib/motion'
 import { toast } from '../components/ui'
 import { TripArtSprite } from '../components/trips/TripArt'
 import { ExploreHero } from '../components/explore/ExploreHero'
@@ -163,6 +164,20 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
   const savedLiveCount = useMemo(() => livePubs(published).filter(p => saved.includes(p.id)).length, [published, saved])
   const places = useMemo(() => placeTiles(published, users), [published, users])
   const creators = useMemo(() => creatorList(published, users), [published, users])
+  // The hero counts the whole catalog, not the few tiles the side panels show.
+  const heroStats = useMemo(() => [
+    { label: 'itineraries', value: liveCount },
+    { label: 'creators', value: creatorList(published, users, Infinity).length },
+    { label: 'places', value: placeTiles(published, users, Infinity).length },
+    { label: 'forks', value: livePubs(published).reduce((sum, p) => sum + p.copies, 0) },
+  ], [published, users, liveCount])
+
+  /** The hero button: bring the catalog to the top and hand it focus. */
+  function jumpToResults() {
+    const target = document.getElementById('explore-results')
+    target?.scrollIntoView({ block: 'start', behavior: scrollBehavior() })
+    target?.focus({ preventScroll: true })
+  }
 
   function forkTrip(slug: string) {
     const pub = published.find(p => p.id === slug)
@@ -195,34 +210,26 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
     pubsCount: pubs.length, filtersActive, savedOnly, savedCount: savedLiveCount, signedIn: Boolean(me),
   })
 
+  // A new key remounts the grid, so its cards run their staggered entrance again
+  // each time a filter, the search or the sort changes what the grid holds.
+  const gridKey = [q, style, maxBudget, duration, sortKey, savedOnly].join('|')
+
   return (
     <div className="container ex-page">
       <TripArtSprite />
-      <ExploreHero
-        query={q}
-        onQueryChange={value => { setQ(value); syncUrl({ q: value }) }}
-        onClear={() => { setQ(''); syncUrl({ q: '' }) }}
-      />
+      <ExploreHero stats={heroStats} onExplore={jumpToResults} />
 
       <div className="ex-layout">
-        <div className="ex-main" id="explore-results">
+        <div className="ex-main" id="explore-results" tabIndex={-1}>
           <div className="ex-head">
             <h2 className="ex-section-title" id="explore-results-title">Itineraries</h2>
             {pubsRead === 'ready' && pubs.length > 0 && <p className="ex-result-count">Showing {pubs.length} of {liveCount}</p>}
           </div>
 
-          {/* "Fork" is the product's own word for copying a plan into your trips and
-              the cards never explain it, so it is said once, here, before anyone
-              meets the button that carries the name. */}
-          <p className="ex-intro">
-            Fork any itinerary to copy it into your own trips — then change whatever you like.
-            {/* Signed out, that button navigates to /auth — say so before the click,
-                not in a toast that the redirect swallows. */}
-            {!me && <> You’ll need a free account to fork trips.</>}
-          </p>
-
           {/* ---- Filter bar: travel-style chips, Saved, and the three selects ---- */}
           <ExploreFilterBar
+            query={q}
+            onQueryChange={value => { setQ(value); syncUrl({ q: value }) }}
             styles={styleOptions}
             style={style}
             onAllStyles={() => { setStyle('all'); syncUrl({ style: 'all' }) }}
@@ -252,6 +259,27 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
               ? `${pubs.length} ${pubs.length === 1 ? 'itinerary matches' : 'itineraries match'}`
               : pubsRead === 'reading' ? 'Loading the catalog' : 'The catalog could not be loaded'}
           </p>
+
+          {/* "Fork" is the product's own word for copying a plan into your trips and
+              the cards never explain it, so it is said once, here, before anyone
+              meets the button that carries the name. */}
+          <section className="ex-howto" aria-labelledby="explore-how-fork">
+            <h3 id="explore-how-fork">How forking works</h3>
+            <ol>
+              <li><span><b>Pick</b><span className="ex-howto-more"> a plan</span></span></li>
+              <li><span><b>Fork</b><span className="ex-howto-more"> it into your trips</span></span></li>
+              <li><span><b>Change</b><span className="ex-howto-more"> days, stays and stops</span></span></li>
+            </ol>
+            <p className="ex-fork-note">
+              <Lock size={15} aria-hidden />
+              <span>
+                Fork any itinerary to copy it into your own trips — then change whatever you like.
+                {/* Signed out, that button navigates to /auth — say so before the click,
+                    not in a toast that the redirect swallows. */}
+                {!me && <> You’ll need a free account to fork trips.</>}
+              </span>
+            </p>
+          </section>
 
           {/* ---- Featured itinerary: credibility explained (§6.10) ----
               #395 — gated on the READ, not only on a featured plan existing. A
@@ -297,15 +325,16 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
                   the featured card was the whole result and an empty grid would
                   just add a gap under it. */}
               {gridPubs.length > 0 && (
-                <div className="ex-grid">
-                  {gridPubs.slice(0, visibleCount).map(p => (
+                <div className="ex-grid" key={gridKey}>
+                  {gridPubs.slice(0, visibleCount).map((p, index) => (
                     <ExploreCard key={p.id} pub={p} creator={userOf(users, p.creatorId)} saved={isSaved(p.id)}
+                      enterIndex={index % PAGE_SIZE}
                       onFork={() => forkTrip(p.id)} onToggleSave={() => toggleHeart(p.id)} needsLogin={!me} />
                   ))}
                 </div>
               )}
               {gridPubs.length > visibleCount && (
-                <div className="ex-more">
+                <div className="ex-more ex-enter">
                   <button className="btn btn-secondary" type="button" onClick={() => setVisibleCount(c => c + PAGE_SIZE)}
                     aria-label={`Load more itineraries — ${gridPubs.length - visibleCount} remaining`}>
                     Load more · {gridPubs.length - visibleCount} more

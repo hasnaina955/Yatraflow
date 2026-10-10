@@ -7,6 +7,7 @@ import { Eye, GitFork, Heart, Sparkles, Star } from 'lucide-react'
 import type { PublishedItinerary, User } from '../../data/types'
 import { appLink } from '../../lib/appLink'
 import { cap } from '../../lib/labels'
+import { Avatar } from '../ui'
 import { ExploreCover } from './ExploreCover'
 import { ExploreFacts } from './ExploreFacts'
 import { RouteTrail } from './RouteTrail'
@@ -25,7 +26,7 @@ export function FeaturedCard({ pub, creator, kicker, healthScore, saved, needsLo
 }) {
   const creatorName = creator?.profile.name ?? 'a YatraFlow traveller'
   return (
-    <article className="ex-feature" data-id={pub.id}>
+    <article className="ex-feature ex-enter" data-id={pub.id}>
       <div className="ex-feature-cover">
         <ExploreCover pub={pub} />
         <span className="ex-style-tag">{cap(pub.travelStyle)}</span>
@@ -41,14 +42,22 @@ export function FeaturedCard({ pub, creator, kicker, healthScore, saved, needsLo
           {healthScore !== undefined && <> · trip health {healthScore}/100</>} — by {creatorName}
           {creator?.profile.isCreator && <> <Sparkles size={12} aria-hidden className="ex-inline-icon" /></>}.
         </p>
-        <div className="ex-feature-actions">
-          <button type="button" className="btn btn-primary ex-fork" onClick={onFork}>
-            <GitFork size={14} aria-hidden />{needsLogin ? 'Log in to fork' : 'Fork this trip'}
-          </button>
-          <button type="button" className="btn btn-secondary" aria-pressed={saved}
-            aria-label={`Save ${pub.title}`} onClick={onToggleSave}>
-            <Heart size={14} aria-hidden fill={saved ? 'currentColor' : 'none'} />{saved ? 'Saved' : 'Save'}
-          </button>
+        <div className="ex-feature-foot">
+          {creator ? (
+            <a className="ex-byline" {...appLink(`/creator/${pub.creatorId}`)} aria-label={`View ${creatorName}’s page`}>
+              <Avatar user={creator} />
+              <span>{creatorName}</span>
+            </a>
+          ) : <span />}
+          <div className="ex-feature-actions">
+            <button type="button" className="btn btn-primary ex-fork" onClick={onFork}>
+              <GitFork size={14} aria-hidden />{needsLogin ? 'Log in to fork' : 'Fork this trip'}
+            </button>
+            <button type="button" className="btn btn-secondary" aria-pressed={saved}
+              aria-label={`Save ${pub.title}`} onClick={onToggleSave}>
+              <Heart size={14} aria-hidden fill={saved ? 'currentColor' : 'none'} />{saved ? 'Saved' : 'Save'}
+            </button>
+          </div>
         </div>
       </div>
       <div className="ex-feature-route">

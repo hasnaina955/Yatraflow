@@ -2,6 +2,7 @@
 // Cover, title, tagline, four labelled facts, then the creator line and Fork.
 // The title link stretches over the whole card. The save heart and the other
 // controls sit above that link.
+import type { CSSProperties } from 'react'
 import { GitFork, Heart, Sparkles } from 'lucide-react'
 import type { PublishedItinerary, User } from '../../data/types'
 import { appLink } from '../../lib/appLink'
@@ -10,19 +11,22 @@ import { Avatar } from '../ui'
 import { ExploreCover } from './ExploreCover'
 import { ExploreFacts } from './ExploreFacts'
 
-export function ExploreCard({ pub, creator, saved, needsLogin, onFork, onToggleSave }: {
+export function ExploreCard({ pub, creator, saved, needsLogin, enterIndex, onFork, onToggleSave }: {
   pub: PublishedItinerary
   creator?: User
   saved: boolean
   /** Signed out, Fork goes to the login page, so the button says so. */
   needsLogin: boolean
+  /** Position in its page of results. It sets the card's staggered entrance. */
+  enterIndex: number
   onFork: () => void
   onToggleSave: () => void
 }) {
   const creatorName = creator?.profile.name ?? 'Creator'
   const title = pub.title
+  const enterDelay: CSSProperties = { animationDelay: `calc(var(--stagger-step) * ${Math.min(enterIndex, 8)})` }
   return (
-    <article className="ex-card" data-id={pub.id}>
+    <article className="ex-card ex-enter" data-id={pub.id} style={enterDelay}>
       <div className="ex-cover-wrap">
         <ExploreCover pub={pub} />
         <span className="ex-style-tag">{cap(pub.travelStyle)}</span>

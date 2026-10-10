@@ -302,6 +302,13 @@ that notices the drift.
     The variable is not a User or Machine setting, so it returns in every new
     shell. Clear it per command. Do not reinstall the whole tree to chase this.
 
+    **The `--exec` form does not start npm on Windows.** The wrapper spawns its
+    command without a shell, and `npm` is a `.cmd` shim there. On 2026-10-10 the
+    documented line exited 1 with no output, and the missing packages stayed
+    missing. Check the state with `npm run clean:env` first. Then run
+    `npm install` in a shell that has the variable cleared, and check the
+    result: the package is in `node_modules`, or the build passes.
+
 
    **A migration the USER must run is handed over as complete SQL, in the chat,
    with its full local path — never as a filename to go and find (user-mandated

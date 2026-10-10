@@ -159,6 +159,10 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ### Fixed
 
+- **The copyright page enters with the shared cascade.** The page arrived without
+  `page-enter`, so its blocks appeared between two frames and the motion gate failed. It now
+  carries the class its sibling auth page carries.
+
 - **Explore, the trip workspace, the creator hub and the public itinerary enter with motion now.** Every top-level block on those four pages appeared between two frames: the hero, the head, the tab bar and the body popped into place with nothing under them. They take the shared container cascade now — each block rises 8px over `--motion-slow`, staggered by `--stagger-step`, and stops under reduced motion. Sampled in the browser after the change: zero motionless blocks on the six routes checked.
 
 - **The bezel tray and the landing's feature cards carry the whole glass pair.** Both restated the glass background and border and left the `backdrop-filter` behind — the same split the popover shipped with. The bezel wears the `.glass` owner now and keeps only its own geometry and shadow. The feature card cannot wear it, because `.card`'s later background would win the cascade, so it declares the pair itself.

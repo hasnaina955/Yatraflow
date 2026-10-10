@@ -159,6 +159,8 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ### Fixed
 
+- **Explore loads for logged-out visitors again.** A first visit without an account showed "Loading the catalog…" with no end, although the itineraries had loaded. The logged-out data load now reports the catalog as loaded or failed. A failed read now shows the error with a Retry button. The bug did not affect signed-in users.
+
 - **The copyright page enters with the shared cascade.** The page arrived without
   `page-enter`, so its blocks appeared between two frames and the motion gate failed. It now
   carries the class its sibling auth page carries.

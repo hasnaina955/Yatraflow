@@ -15,6 +15,58 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ## [Unreleased]
 
+### Added
+
+- **A free Ladakh bike trip cost calculator at `/ladakh-trip-cost-calculator/`.** You get a low to high cost range in rupees, for each rider and for the group. No signup is needed. The page is plain static HTML, so a crawler can read the title, the intro, a default result and the FAQ without JavaScript. You pick one of four routes, then set days, people, bikes, stay, food and rent. A "sourced" or "assumption" tag marks each default, and a source list sits at the bottom. Each cost shows as a bar. The solid part is the low figure and the striped part is the extra up to the high figure. The page link keeps your numbers. A phone shows a short summary above the form. A bar at the bottom shows your range until the full result is on screen. The one button leads to the app. The sitemap lists the page, and the service worker never caches it.
+
+- **A browser verification harness for agents, under `.agents/skills/verify-yatraflow/`.** It starts the dev server on port 5178. It checks the server and the Supabase project ref. It drives a headless Edge or Chrome to a route. Each run writes a screenshot and a JSON record to `.verify-evidence/`, which git ignores. The feature map covers five signed-out flows.
+
+- **My trips shows a pinned Up next card for your live or soonest trip.** The card shows a countdown, Budget, Travel and Dates columns, a planning meter, the next step and a delete button. It stays pinned through sort and style filters. It hides while you search.
+
+### Changed
+
+- **My trips opens with an editorial hero built from your own trips.** The headline names the place your next trip ends at, for example "Next stop, Goa." That is the same place the Up next card shows. A row of counts shows your trips, upcoming and live trips, places and co-planners. Co-planners are the other people who can edit your trips. Up to three postcards show your trips, with a handwritten note such as "10 days to go!". While your trips load, the hero shows a neutral headline and no counts, postcards or note.
+
+- **My trips and Explore share one look.** Both pages use the same serif and handwritten fonts, 12px-corner buttons, filter bar and card skin. Budget shows in one compact format, such as "~₹12k/person". On a phone, both pages hide the postcards and the handwritten note.
+
+- **My trips has a Grid | List switch.** Phone list rows fit the screen, and the filter box no longer leaves blank space.
+
+- **The Load demo trips button shows only when you have no trips.** It sits in the first-run state, next to Plan your first trip.
+
+- **The My trips Trash button sits in the Other trips header.** If that header is not shown, the button stays in the hero. The button shows a pressed style while the Trash is open. Opening the Trash moves focus to its heading. Going back moves focus to the Trash button.
+
+- **Trip cards show a status tag and labelled Budget, Travel and Dates columns.** The tag reads Live, Upcoming, Past or Draft. A trip without a cover image shows papercut art instead.
+
+- **Icon strokes now draw at a visible weight, and small icons match them.** Empty-state icons and select arrows are rebalanced too.
+
+- **Explore has a new hero banner, one filter bar and a featured itinerary.** The hero banner shows a serif headline, counts, papercut postcards and a handwritten note. The filter bar holds the search box, style chips, trip length, budget and sort. The featured itinerary shows its route trail and a credibility line.
+
+- **Each Explore card shows Days, Budget, Places and Forks columns and a travel-style tag.**
+
+- **Explore side panels show Places in the community, Creators and Share a plan.** Each panel uses only published data.
+
+- **When you have no saved itineraries, Explore shows "You haven't saved any itineraries yet".**
+
+- **Save buttons keep one accessible name and report their state with aria-pressed.**
+
+- **The featured itinerary title is an h3, so the page heading order stays in sequence.**
+
+### Fixed
+
+- **Icons drawn through the shared inline icon wrapper no longer render as solid black shapes.** The wrapper sets an empty fill, so every outline icon keeps its stroke style.
+
+- **My trips shows "No other trips yet" when the only trip is the pinned Up next card.** A sort or style filter that still matches that trip no longer shows "No trips match those filters" with a Clear filters button.
+
+- **The Clear filters button no longer shifts the search, chips and selects.** While a filter is active, the button takes its own full-width row under the selects.
+
+- **Each My trips status tag has its own dot shape.** Upcoming is a filled circle, Live a pulsing circle, Past a square and Draft a ring. The dot uses a dark ink, so it stays readable in dark mode.
+
+- **The When filter treats an impossible date such as 2026-02-31 as a draft trip.** It now agrees with the status shown on the card.
+
+- **A destination only matches a region as a whole word.** "Goalpara" no longer takes the Goa artwork.
+
+- **A signed-out visitor no longer stays on "Loading the catalog" on Explore.** The logged-out load records whether it read profiles and itineraries. A failed read now shows Retry.
+
 ## [0.74.0] - 2026-10-07
 
 ### Changed

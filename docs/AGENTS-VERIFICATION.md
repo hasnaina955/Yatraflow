@@ -444,6 +444,14 @@ as managed in the Codacy dashboard (code-pattern ignore on that file with the
 four-layer justification) — and say so in the PR so the review trail shows the
 decision was made, not missed.
 
+**One shape does clear that rule, and it is the cheapest one to try first
+(learned 2026-10-10).** `scripts/browser-motion-check.mjs` hit the same finding
+at a helper whose URL arrived as a PARAMETER, `fetch(url)`. Drop the parameter
+and fetch the module's own loopback constant, with its port read through an
+integer range check: Codacy reported zero findings on the next run. So the
+unresolvable rounds above shared a harder shape — a URL built from application
+data — and this one is a taint path you delete rather than a value you clean.
+
 **The verify gate must GATE the push — no `;`-chained command strings.** On
 PR #224 a `npm run verify …; git commit … && git push …` one-liner pushed a
 RED tree (5 failing test files) because `;` runs every statement regardless of

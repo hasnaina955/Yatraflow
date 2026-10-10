@@ -8802,14 +8802,12 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
   .ex-selects.is-open { display: flex; flex-wrap: wrap; flex-basis: 100%; gap: 10px; }
   .ex-select, .ex-select--sort { flex: 1 1 calc(50% - 5px); min-width: 0; }
   .ex-select--sort { flex-basis: 100%; }
-  .ex-chip-row {
-    flex-wrap: nowrap; overflow-x: auto; margin-inline: -10px; padding: 4px 10px; scrollbar-width: none;
-    -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent);
-  }
-  .ex-chip-row::-webkit-scrollbar { display: none; }
-  .ex-chips { display: flex; flex: none; gap: 8px; }
+  .ex-chip-row { flex-wrap: wrap; }
+  .ex-chips { display: flex; flex: 1 1 100%; flex-wrap: wrap; gap: 8px; }
   .ex-chip-divider { display: none; }
   :is(.ex-page, .trips-page) .ex-clear { flex: none; margin-left: 0; white-space: nowrap; }
+  /* While hidden, the Clear button must not claim a wrapped line of its own. */
+  :is(.ex-page, .trips-page) .ex-clear[style*="hidden"] { position: absolute; }
   .ex-howto { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 10px 12px; }
   .ex-fork-note { flex-basis: 100%; }
   .ex-howto h3 { font-size: 14px; }

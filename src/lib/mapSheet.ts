@@ -5,12 +5,10 @@
 // line that only exists in that band.
 //
 // WHY THIS IS A MODE AND NOT A MEDIA QUERY. The obvious CSS shape -- a second
-// narrow-band block (`max-width: 1278px`) that hides the inactive rail -- breaks two
-// rules this repo already paid for: `tests/stage2-p1.test.ts` asserts there is
+// narrow-band block (`max-width: 1278px`) that hides the inactive rail -- breaks a
+// rule this repo already paid for: `tests/stage2-p1.test.ts` asserts there is
 // exactly ONE such block (the #156 reset must stay last among the folded-rail
-// rules), and the design-system ratchet is keyed on line numbers, so folding new
-// rules into that block mid-file would force a re-baseline of findings that did not
-// change. So the band is decided in JS (`sheetAppliesAt`) and the hiding class can
+// rules). So the band is decided in JS (`sheetAppliesAt`) and the hiding class can
 // never be applied at desktop width. The CSS rule for it is therefore unconditional
 // and safe: a class that never appears cannot hide a column.
 //

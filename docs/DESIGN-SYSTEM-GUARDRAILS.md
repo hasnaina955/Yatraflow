@@ -78,9 +78,10 @@ change is not drift. Three tiers, because they need different amounts of ceremon
 **Edit in place; never append around a token.** Two focus tokens that win on equal specificity is how a
 control goes invisible to a keyboard — that is exactly what `--focus-ring` was: referenced by four rules,
 defined by none, its amber fallback the only focus signal on three controls that had already removed
-their outline. Note also that the append-to-the-end habit in `src/styles.css` (and the comments that
-justify it) predates the current ratchet: entries used to be keyed by `styles.css:<line>`, and they no
-longer are, so a pure insertion above the baseline is safe and a shadowing override buys nothing.
+their outline. Note also that the append-to-the-end habit in `src/styles.css` still holds for two reasons.
+A merge conflict then stays at the file tail, where both blocks can be kept. Each feature's block also
+stays together. The comments that justified it used to cite line keys, which `e05c97f` removed. So a pure
+insertion above the baseline is safe, and a shadowing override buys nothing.
 
 ### Re-baselining
 

@@ -3603,7 +3603,7 @@ main:focus { outline: none; }
 }
 .map-ideas-map { min-width: 0; }
 /* The ≤1278px reset lives below the folded-rail rules at the end of the file.
-   Keep this space so the line-keyed design-system baseline stays unchanged. */
+   The design-system baseline keys on content, so the blank lines below are not needed. */
 
 
 
@@ -6785,16 +6785,16 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 
 
 /* ============ Creator's own funnel glance, on the plan's public page ==== */
-/* Appended at the file's end on purpose: the design-system ratchet is keyed
-   by line number, so an insertion above it re-baselines every entry (AGENTS §3). */
+/* Appended at the file's end on purpose: a merge conflict then stays at the
+   tail, where both blocks can be kept. */
 .pub-funnel-glance { display: flex; flex-direction: column; gap: 2px; margin-top: 8px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); }
 .pub-fg-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-3); }
 .pub-fg-line { font-size: 12.5px; font-variant-numeric: tabular-nums; }
 .pub-fg-prelog { font-size: 11.5px; }
 
 /* ============ Map tab review round: the rail's ring, header and numbers ===== */
-/* Appended at the file's end on purpose: the design-system ratchet is keyed by
-   line number, so an insertion above it re-baselines every entry (AGENTS 3). */
+/* Appended at the file's end on purpose: a merge conflict then stays at the
+   tail, where both blocks can be kept. */
 
 /* The rail referenced a `--focus-ring` token in four rules that was never
    defined, so every one fell back to `rgba(228,174,67,.55)`: 1.40:1 against the
@@ -7079,9 +7079,9 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 }
 /* ============================================================
    Create Trip warm start - template strip (P1)
-   Appended at the file's end on purpose: the design-system ratchet
-   is keyed by line number, so an insertion above it re-baselines
-   every entry (AGENTS 3). Same rule as the pub-funnel blocks above.
+   Appended at the file's end on purpose: a merge conflict then stays
+   at the tail, where both blocks can be kept. Same rule as the
+   pub-funnel blocks above.
    ============================================================ */
 
 /* the strip: cards + start-blank, one row that wraps */
@@ -7139,7 +7139,7 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
    Create Trip - the advanced drawer (P1)
    Fuel/vehicle economics and the #142 party dials tuck away here; the
    engine's defaults hold if nobody opens it. Appended at the file's end
-   for the same line-keyed ratchet reason as the blocks above.
+   for the same merge reason as the blocks above.
    ============================================================ */
 
 .adv-drawer { margin-top: 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--card); }
@@ -7157,7 +7157,7 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 /* ============================================================
    Create Trip - the readiness checklist (P3)
    Four required things, two that say they are optional. Appended at the
-   file's end for the line-keyed ratchet reason as with the blocks above.
+   file's end for the same merge reason as the blocks above.
    ============================================================ */
 
 .ready-block { margin: 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--card); }
@@ -7174,7 +7174,7 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 /* ============================================================
    Create Trip - the draft banner (P4)
    The unfinished trip pulls you back with the truth: how far along it is,
-   and when you left it. Appended at the file's end (line-keyed ratchet).
+   and when you left it. Appended at the file's end (same merge reason as the blocks above).
    ============================================================ */
 
 .draft-banner { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 0 0 14px; padding: 10px 14px; border: 1px solid var(--teal); border-radius: var(--radius-sm); background: var(--teal-soft); }
@@ -7185,7 +7185,7 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 /* ============================================================
    My trips - the draft card (P4)
    Above the grid, because it is not a trip yet. Appended at the file's end
-   for the line-keyed ratchet reason as with the blocks above.
+   for the same merge reason as the blocks above.
    ============================================================ */
 
 .draft-card { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 0 0 18px; padding: 12px 14px; border: 1px dashed var(--teal); border-radius: var(--radius-sm); background: var(--card); }
@@ -7197,7 +7197,7 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 /* ============================================================
    Create Trip - the crew collector (P5)
    Local only: nothing here is written to the trip or sent anywhere. Appended
-   at the file end for the line-keyed ratchet reason as with the blocks above.
+   at the file end for the same merge reason as the blocks above.
    ============================================================ */
 
 .crew-invite { margin-top: 12px; }
@@ -7210,8 +7210,8 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 .crew-chip button { display: grid; place-items: center; width: 16px; height: 16px; border: 0; border-radius: 50%; background: transparent; color: var(--text-3); font-size: 11px; cursor: pointer; }
 /* ============================================================
    Trip created - the moment after (P6)
-   Peak-end, taken seriously. Appended at the file end for the line-keyed
-   ratchet reason as with the blocks above. Every gap and pad below is on the
+   Peak-end, taken seriously. Appended at the file end for the same merge
+   reason as the blocks above. Every gap and pad below is on the
    spacing ladder; the badges use the AA-verified teal pair.
    ============================================================ */
 
@@ -7441,8 +7441,8 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
    aligns the surfaces to them: the light ticket card with its navy head bar
    and amber bill stub (the bill answers as you go), the pill name box, step
    markers that answer "done", the budget block as its own question, and the
-   moment-after two-column composition. Appended at the file end (line-keyed
-   ratchet): the v0.45 navy boarding-pass rules above lose on source order.
+   moment-after two-column composition. Appended at the file end:
+   the v0.45 navy boarding-pass rules above lose on source order.
    Every text pair is AA against its own background - accents carry borders
    and fills, text rides the --ink-* grades.
    ============================================================ */
@@ -7889,9 +7889,7 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
    The two rules below are deliberately NOT inside a media query. The band is
    decided in JS (`sheetAppliesAt` in lib/mapSheet, wired in MapTab) because this
    file must keep exactly ONE narrow-band block (`max-width: 1278px`) -- the #156 reset
-   `tests/stage2-p1.test.ts` pins -- and the design-system ratchet is keyed on line
-   numbers, so new rules folded into that block mid-file would force a re-baseline
-   of findings that did not change. `is-sheet-hidden` is therefore only ever applied
+   `tests/stage2-p1.test.ts` pins. `is-sheet-hidden` is therefore only ever applied
    when the sheet applies, which makes the hide rule safe as written: a class that
    never appears cannot hide a desktop column. The switcher's chips keep the 40px
    touch floor. Nothing here animates -- the switch is a display change -- so there
@@ -8955,9 +8953,8 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 }
 
 /* ---------- MR1/MR2 - trip card next step + planning progress ----------
-   Appended at EOF on purpose. tests/design-system.test.ts keys every finding by
-   styles.css LINE NUMBER, so an insertion above an existing rule remaps all the
-   entries beneath it and reports unchanged violations as new ones. */
+   Appended at EOF on purpose: a merge conflict then stays at the tail, where
+   both blocks can be kept. */
 .trip-plan { display: flex; align-items: center; gap: 9px; }
 .trip-plan-bar {
   flex: 1 1 auto; max-width: 170px; height: 5px; border-radius: 3px;
@@ -8989,13 +8986,13 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 }
 
 /* ---------- MR3 - status filter tabs on My Trips ----------
-   Appended at EOF with the MR1/MR2 block for the same reason: the design-system
-   baseline is keyed by styles.css line number. */
+   Appended at EOF with the MR1/MR2 block for the same reason: a merge conflict
+   stays at the tail, where both blocks can be kept. */
 .trips-status-tabs { margin: -6px 0 16px; }
 
 /* ---------- MR4/MR6 - view toggle, list rows, departure line ----------
-   Appended at EOF with the other MR blocks for the same reason: the
-   design-system baseline is keyed by styles.css line number. */
+   Appended at EOF with the other MR blocks for the same reason: a merge
+   conflict stays at the tail, where both blocks can be kept. */
 .view-toggle { display: inline-flex; gap: 2px; padding: 2px; border: 1px solid var(--line); border-radius: var(--radius-sm); }
 .view-toggle-btn {
   display: grid; place-items: center; width: 32px; height: 28px; padding: 0;
@@ -9035,7 +9032,7 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
 /* ---------- MR7 - the Timeline day strip as cards ----------
    The rail's own scroll container keeps its old class so the existing
    overflow-x and scrollbar-width rules still apply; only the inner row and the
-   button shape are new. Appended at EOF for the line-keyed baseline reason. */
+   button shape are new. Appended at EOF so a merge conflict stays at the tail. */
 .day-rail-cards { display: flex; align-items: stretch; gap: 6px; overflow-x: auto; padding: 2px; scrollbar-width: thin; }
 .day-rail-card {
   flex: 0 0 auto; display: flex; flex-direction: column; align-items: flex-start; gap: 1px;

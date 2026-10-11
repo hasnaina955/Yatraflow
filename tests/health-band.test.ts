@@ -85,12 +85,11 @@ describe('band → chip tone', () => {
 })
 
 // ============ #400 — the serialized-surface proof (styles.css) ============
-// styles.css is a SERIALIZED surface (AGENTS §1) and the design-system ratchet
-// baseline is line-keyed, so any edit here moves line numbers. The rule is to
-// re-baseline and then prove the finding NAMES are identical before/after. This
-// suite is that proof, plus the thing a line-keyed baseline cannot see: that
-// every band the mapper can EMIT has a real colour rule, and that the two
-// class names it stopped emitting are gone rather than merely unreachable.
+// styles.css is a SERIALIZED surface (AGENTS §1). The design-system ratchet keys
+// each finding by its declaration text, not by line number. So an edit that
+// changes no declaration moves no finding. This suite checks what the ratchet
+// cannot see. Every band the mapper can EMIT needs a real colour rule.
+// The two class names it stopped emitting must be gone, not merely unreachable.
 import { execSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 

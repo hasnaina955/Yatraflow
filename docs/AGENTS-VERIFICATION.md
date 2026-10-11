@@ -134,22 +134,18 @@ Hard rules (each learned the hard way — do not relearn them):
   gate is green — judge the run by the LOG's own summary lines
   (`Test Files`, `built in`), never by $LASTEXITCODE or the tool's error flag.
 - **A merge's own output lists its conflicts by omission — `tail` hides them, and the `git status` U-list is the checklist (learned 2026-09-22, queue integration).** Two merges in one run printed three conflicted files each while a fourth (`AGENTS.md` both times) conflicted *above* the `tail -8/-10` window; `git commit --no-edit` then failed with `U <file>`, and a gate started over that half-merged tree is untrustworthy. After ANY merge or rebase step: `git status --short | grep -E '^(U|.U|AA|DD)'` FIRST, resolve every row, only then commit and gate. Companion: a `grep -c` that prints 0 exits 1 and silently short-circuits the `&&` chain after it — zero matches is a fact to report, not a command failure.
-- **ANY `src/styles.css` edit moves line numbers, and the design-system
-  ratchet reads line numbers — expect `contrastLight/contrastDark/rawDurations`
-  to "fail" after every CSS change.** Before re-baselining, prove the failure
-  is ONLY a shift: re-run with `UPDATE_DESIGN_SYSTEM_BASELINE=1`, then diff the
-  baseline and confirm the finding names are identical before/after (e.g. 29
-  in → 29 out). A name that appears on only one side is a REAL new violation —
-  fix it, don't ratchet it in (Sep 2026, three label phases in a row).
-  **A comments-only CSS edit is the exception, so run the ratchet before re-baselining
-  (learned 2026-09-26).** Fixing stale prose in two `styles.css` comments — one of them
-  adding lines — left `design-system.test.ts` green: the baseline records selectors and
-  their measured ratios, not source line numbers, so a shift that moves no declaration
-  moves no finding. The reflex the rule above invites ("CSS changed, expect red, re-baseline")
-  would have rewritten the baseline to hide nothing and churned the diff for free. Order of
-  operations: change the CSS, run the ratchet, and only reach for
-  `UPDATE_DESIGN_SYSTEM_BASELINE=1` when it is actually red — then still prove the finding
-  names are identical in and out.
+- **A `src/styles.css` edit fails the ratchet only when it changes what a rule
+  declares.** The ratchet keys each finding by its own text, not by line number.
+  The change in `e05c97f` removed the line numbers from those keys. So a comment edit or a
+  shifted rule moves no finding. Run the ratchet after the CSS change. Reach for
+  `UPDATE_DESIGN_SYSTEM_BASELINE=1` only when the ratchet is actually red. Before you
+  re-baseline, compare the entry sets before and after. A name that appears on only one
+  side is a REAL new violation. Fix it, and do not ratchet it in (Sep 2026, three label
+  phases in a row).
+  **A comments-only CSS edit leaves the ratchet green (learned 2026-09-26).** Two
+  `styles.css` comment fixes, one of them adding lines, left `design-system.test.ts` green.
+  The baseline records what each rule declares, not where the rule sits. A re-baseline at
+  that point would change nothing.
 - **The ratchet parses each selector's OWN declaration pair — it never walks
   the cascade (learned 2026-09-22).** A `:root` override can fix a contrast
   finding on screen while the baseline keeps it forever: `.day-warn-pill`

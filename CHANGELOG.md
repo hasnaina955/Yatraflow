@@ -27,7 +27,7 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ### Changed
 
-- **Two more shared page parts: `SegmentedTabs` and `FilterBar`.** Later pages can now reuse one tab switch and one filter bar. Nothing changes on screen. The My trips Grid and List switch and the Explore filter bar now use them. A new test checks that each page keeps its empty, loading and header parts in line with the shared set, and that the counts only fall.
+- **Two more shared page parts: `SegmentedTabs` and `FilterBar`.** Later pages can now reuse one tab switch and one filter bar. Nothing changes on screen. The My trips Grid and List switch and the Explore filter bar now use them. A new test checks that each page keeps its empty, loading and header parts aligned with the shared set. It also checks that the counts only fall.
 
 - **My purchases now matches Explore and My trips, with creator details on plans you hold.** The page has a serif title, a back link and cards with wide covers. Its summary keeps every caveat about unreadable totals, refunds and pending payments. Loading, failed reads and empty shelves stay separate states on Purchases and My trips. Held plans show the creator's avatar, your purchase date and a "Yours" seal. Tips and season chips appear only when the creator supplied them. Refunded, pending and off-sale plans keep plain cards. Update text identifies a re-publication without claiming what changed. The desktop header carries the note "Yours to keep." The unlock screen links to My purchases, where your new card shows one fading outline. A fork keeps the creator's dates, which you can change. Motion respects your device's reduced-motion setting.
 

@@ -8,9 +8,10 @@
 //               The look is the tabbar and tab-btn rules in styles.css.
 //   'toggle'  - the choices are a pressed-state group, such as Grid and List.
 //               Each button carries aria-pressed. There is no roving focus and
-//               no glider, so the markup stays the same as the My trips switch
-//               had before this primitive existed. The caller passes the look
-//               class, such as mt-seg.
+//               no PillNav glider. The caller passes the look class, such as
+//               mt-seg, and the data attributes the look reads, such as
+//               data-layout. The markup stays the same as the My trips switch
+//               had before this primitive existed.
 //
 // The semantics prop exists so a group of pressed buttons is never announced
 // as tabs. A tab needs a panel to point at. A toggle does not have one.
@@ -42,9 +43,11 @@ export interface SegmentedTabsProps {
   label: string
   /** The look class of the row. A tablist defaults to tabbar. A toggle has no default. */
   className?: string
+  /** Data attributes for the toggle group, such as data-layout. The look reads them. Toggle only. */
+  dataAttrs?: Readonly<Record<`data-${string}`, string>>
 }
 
-export function SegmentedTabs({ semantics, items, value, onChange, label, className }: SegmentedTabsProps) {
+export function SegmentedTabs({ semantics, items, value, onChange, label, className, dataAttrs }: SegmentedTabsProps) {
   const keys = useMemo(() => items.map(item => item.key), [items])
   const activate = useCallback((key: string) => onChange(key), [onChange])
   // The hook is called for both semantics so the hook order never changes. A
@@ -53,7 +56,7 @@ export function SegmentedTabs({ semantics, items, value, onChange, label, classN
 
   if (semantics === 'toggle') {
     return (
-      <div className={className} role="group" aria-label={label}>
+      <div className={className} role="group" aria-label={label} {...dataAttrs}>
         {items.map(item => (
           <button key={item.key} type="button" aria-pressed={value === item.key} onClick={() => onChange(item.key)}>
             {item.icon}{item.label}

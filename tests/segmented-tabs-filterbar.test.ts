@@ -1,10 +1,13 @@
 // SegmentedTabs and FilterBar: the two shared page primitives, and the callers
-// that must keep their markup after the refactor. Node env, no DOM: the tests
-// read the source text. The rendered markup was compared byte for byte before
-// and after in a real browser (see the changelog entry); these pins keep the
-// shape from drifting.
+// that must keep their markup after the refactor. Node env, no DOM: most tests
+// read the source text, and the ViewSwitch markup tests render to a string.
+// The rendered markup was compared byte for byte before and after in a real
+// browser (see the changelog entry); these pins keep the shape from drifting.
 import { readFileSync } from 'node:fs'
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
+import { ViewSwitch } from '../src/components/trips/ViewSwitch'
 
 const source = (rel: string) => readFileSync(new URL('../' + rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n')
 
@@ -62,6 +65,25 @@ describe('ViewSwitch', () => {
   it('still has its look rules in styles.css', () => {
     expect(styles).toContain('.mt-seg {')
     expect(styles).toContain(".mt-seg button[aria-pressed='true']")
+  })
+})
+
+// The Grid and List switch as the My trips page rendered it before the switch
+// moved onto SegmentedTabs. Each string is the output of that original component
+// under renderToStaticMarkup. The group carries data-layout with the active
+// layout, and the mt-seg glider reads that attribute, so the render must keep it.
+const ORIGINAL_SWITCH_GRID = `<div class="mt-seg" role="group" aria-label="Layout" data-layout="grid"><button type="button" aria-pressed="true"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-layout-grid" aria-hidden="true"><rect width="7" height="7" x="3" y="3" rx="1"></rect><rect width="7" height="7" x="14" y="3" rx="1"></rect><rect width="7" height="7" x="14" y="14" rx="1"></rect><rect width="7" height="7" x="3" y="14" rx="1"></rect></svg>Grid</button><button type="button" aria-pressed="false"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-list" aria-hidden="true"><path d="M3 5h.01"></path><path d="M3 12h.01"></path><path d="M3 19h.01"></path><path d="M8 5h13"></path><path d="M8 12h13"></path><path d="M8 19h13"></path></svg>List</button></div>`
+const ORIGINAL_SWITCH_LIST = `<div class="mt-seg" role="group" aria-label="Layout" data-layout="list"><button type="button" aria-pressed="false"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-layout-grid" aria-hidden="true"><rect width="7" height="7" x="3" y="3" rx="1"></rect><rect width="7" height="7" x="14" y="3" rx="1"></rect><rect width="7" height="7" x="14" y="14" rx="1"></rect><rect width="7" height="7" x="3" y="14" rx="1"></rect></svg>Grid</button><button type="button" aria-pressed="true"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-list" aria-hidden="true"><path d="M3 5h.01"></path><path d="M3 12h.01"></path><path d="M3 19h.01"></path><path d="M8 5h13"></path><path d="M8 12h13"></path><path d="M8 19h13"></path></svg>List</button></div>`
+
+describe('ViewSwitch markup', () => {
+  const render = (layout: 'grid' | 'list') => renderToStaticMarkup(createElement(ViewSwitch, { layout, onChange: () => {} }))
+
+  it('renders the grid state byte for byte as the original switch', () => {
+    expect(render('grid')).toBe(ORIGINAL_SWITCH_GRID)
+  })
+
+  it('renders the list state byte for byte as the original switch', () => {
+    expect(render('list')).toBe(ORIGINAL_SWITCH_LIST)
   })
 })
 

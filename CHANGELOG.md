@@ -92,6 +92,7 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 - **Your flight times anchor the schedule.** Airport waiting appears before departure. Flights after midnight can start the plan on the previous evening. A warning reports activities that leave too little time for check-in.
 - **Flight edits refresh timeline facts.** Changes to airports, times, fares and traveller counts update cached routes, clocks and costs. Later days start where the previous flight journey ends.
 - **Flight days show travel time and airport waiting.** Airport transfers beside flights no longer trigger road backtracking warnings. Flight journeys no longer offer driving directions for the entire route.
+- **Live updates stop at sign-out and never reach the next account.** The store drops a realtime event that arrives after a sign-out or an account switch. The channel captures its account when it connects. (#756)
 ## [0.76.0] - 2026-10-12
 
 **This release brings the new Ribbon Y logo, clearer error states, shared page parts and working landing links.**

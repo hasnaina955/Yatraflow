@@ -63,6 +63,9 @@ const validSuggestionInsert = {
 async function connected() {
   vi.resetModules()
   const store = await import('../src/store/store')
+  // #756 — the session guard drops payloads with no live session. The suite
+  // drives the channel directly, so it signs in first.
+  store.getSnapshot().sessionUserId = 'user-a'
   store.connectRealtime('user-a')
   return store
 }

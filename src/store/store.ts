@@ -4102,6 +4102,10 @@ export function markAllNotificationsRead(userId: ID): void {
 // slice replaced wholesale) so a fresh server row never clobbers optimistic
 // local state; the rest of the tables are idempotent upserts.
 let realtimeChannel: RealtimeChannel | null = null
+/** The account the live channel belongs to. connectRealtime captures the
+ *  user id and the identity epoch beside the channel. applyRealtimeEvent
+ *  drops any event that arrives after either value moved (#756). */
+let realtimeIdentity: { userId: string; epoch: number } | null = null
 const recentLocalWrites = new Map<string, number>()
 const MAX_RECENT_WRITES = 500
 
@@ -4205,8 +4209,9 @@ export function _applyRealtimeEventForTest(table: string, payload: RealtimePostg
   dispatchRealtimeEvent(table, payload)
 }
 
-/** Start listening for row changes. Call after a successful hydration. */
-export function connectRealtime(_userId: string): void {
+/** Start listening for row changes. Call after a successful hydration. It
+ *  captures the account, so a late event cannot land in the next session. */
+export function connectRealtime(userId: string): void {
   if (!isSupabaseConfigured || realtimeChannel) return
   try {
     let everSubscribed = false
@@ -4240,6 +4245,7 @@ export function connectRealtime(_userId: string): void {
         if (!everSubscribed) { everSubscribed = true; return }
         void resyncTripsAfterReconnect()
       })
+    realtimeIdentity = { userId, epoch: identityEpoch }
   } catch (e) {
     console.error('[yatraflow] realtime subscribe failed', e)
     realtimeChannel = null
@@ -4376,7 +4382,8 @@ async function resyncTripsAfterReconnect(): Promise<void> {
   })
 }
 
-/** Tear down the channel. Call on sign-out. */
+/** Tear down the channel. Call on sign-out. The captured account stays: an
+ *  event already in flight must still fail the match below. */
 export function disconnectRealtime(): void {
   if (realtimeChannel) {
     void supabase.removeChannel(realtimeChannel)
@@ -4385,6 +4392,9 @@ export function disconnectRealtime(): void {
 }
 
 function applyRealtimeEvent(table: string, payload: RealtimePostgresChangesPayload<Record<string, unknown>>): void {
+  // #756 — the channel outlives a sign-out and an account switch. Drop any
+  // event from another session.
+  if (realtimeIdentity && (realtimeIdentity.userId !== cache.sessionUserId || realtimeIdentity.epoch !== identityEpoch)) return
   const event = payload.eventType as 'INSERT' | 'UPDATE' | 'DELETE'
   const row = payload.new as Record<string, any> | undefined
   const oldRow = payload.old as Record<string, any> | undefined

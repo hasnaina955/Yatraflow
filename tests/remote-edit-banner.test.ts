@@ -177,6 +177,8 @@ const { calls, state } = vi.hoisted(() => ({
     statusCb: undefined as undefined | ((status: string) => void),
     /** the rows the mock's select returns for the resync refetch */
     resyncRows: [] as Record<string, unknown>[],
+    /** trip ids the mock was asked about for trip_members */
+    memberTripIds: [] as string[],
   },
 }))
 
@@ -192,6 +194,7 @@ vi.mock('../src/lib/supabase', () => {
     builder.eq = () => builder
     builder.in = (_col: string, ids: string[]) => {
       calls.push({ table, method: `in(${ids.length})` })
+      if (table === 'trip_members') state.memberTripIds = ids
       return builder
     }
     builder.order = () => builder
@@ -199,7 +202,17 @@ vi.mock('../src/lib/supabase', () => {
     builder.maybeSingle = () => builder
     builder.single = () => builder
     builder.then = (res: (v: { data: unknown; error: unknown }) => unknown) =>
-      Promise.resolve({ data: table === 'trips' ? state.resyncRows : [], error: null }).then(res)
+      Promise.resolve({
+        data: table === 'trips'
+          ? state.resyncRows
+          // The reconnect scenario keeps the owner's membership on the
+          // server. The mock answers it, or the sweep reads an empty reply
+          // as a removal.
+          : table === 'trip_members'
+            ? state.memberTripIds.map(id => ({ trip_id: id, user_id: 'owner-test', role: 'owner', joined_at: 1 }))
+            : [],
+        error: null,
+      }).then(res)
     return builder
   }
   const chainObj: Record<string, unknown> = {
@@ -228,7 +241,7 @@ vi.mock('../src/lib/supabase', () => {
 
 import {
   connectRealtime, disconnectRealtime, tripById, duplicateTrip, _applyRealtimeEventForTest,
-  _clearRecentLocalWrites, _setTripWriteDebounceMs,
+  _clearRecentLocalWrites, _setTripWriteDebounceMs, getSnapshot,
 } from '../src/store/store'
 
 const keralaTrip = seedData.trips[0]
@@ -236,6 +249,10 @@ const keralaTrip = seedData.trips[0]
 beforeEach(() => {
   calls.length = 0
   state.resyncRows = []
+  state.memberTripIds = []
+  // #756 — the resync dispatch drops payloads with no live session. The suite
+  // replays a signed-in owner's channel, so it signs in first.
+  getSnapshot().sessionUserId = 'owner-test'
   _clearRecentLocalWrites()
   _setTripWriteDebounceMs(0)
 })

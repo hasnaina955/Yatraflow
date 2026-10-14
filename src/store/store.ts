@@ -572,8 +572,11 @@ export function init(): void {
     // was fetched (all 200s) but NOBODY patched it into the cache — the app
     // rendered logged-out on every refresh with a perfectly valid token.
     // hydrateGen still guards real account switches (sign-out / switch):
-    // those change userId, so they never hit the dedupe branch.
-    if (userId && activeHydrate && activeHydrate.userId === userId) {
+    // those change userId, so they never hit the dedupe branch. An A-B-A
+    // burst can still hit it. B's cold snapshot read leaves A's hydrate in
+    // flight. The second A would join that stale run (#757). The dedupe also
+    // checks the newest auth intent, so only the newest event joins a run.
+    if (userId && activeHydrate && activeHydrate.userId === userId && lastAuthUserId === userId) {
       await activeHydrate.promise
       return
     }

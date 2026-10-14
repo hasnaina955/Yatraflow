@@ -536,6 +536,17 @@ let identityEpoch = 0
  *  cache.sessionUserId, which lags behind during an account switch. */
 let lastAuthUserId: string | null = null
 
+/** Per-slice read order. identityEpoch separates accounts. Two reads for the
+ *  same user share it. A slow older read lands after a newer one and replaces
+ *  its result. Each read takes the next number for its slice and applies only
+ *  while its number is still the newest (#758). */
+const sliceReadSeq = new Map<string, number>()
+function nextSliceReadSeq(slice: string): number {
+  const seq = (sliceReadSeq.get(slice) ?? 0) + 1
+  sliceReadSeq.set(slice, seq)
+  return seq
+}
+
 /** Call once on app mount. Subscribes to auth and hydrates the cache. */
 export function init(): void {
   if (initialized) return
@@ -2013,14 +2024,15 @@ async function refreshAdminAudit(): Promise<void> {
   const userId = cache.sessionUserId
   if (!userId) return
   const epoch = identityEpoch
+  const seq = nextSliceReadSeq('adminAudit')
   try {
     const { data, error } = await fetchAdminAuditRows()
-    if (epoch !== identityEpoch || cache.sessionUserId !== userId || !isAdminCached()) return
+    if (seq !== sliceReadSeq.get('adminAudit') || epoch !== identityEpoch || cache.sessionUserId !== userId || !isAdminCached()) return
     if (error) throw error
     patch({ adminAudit: auditRowsToEntries(data), adminAuditFailed: false })
     commit()
   } catch (e) {
-    if (epoch !== identityEpoch || cache.sessionUserId !== userId || !isAdminCached()) return
+    if (seq !== sliceReadSeq.get('adminAudit') || epoch !== identityEpoch || cache.sessionUserId !== userId || !isAdminCached()) return
     // #367: surfaced, not swallowed — the tab shows a retry, because a failed
     // read rendered as "No admin actions yet" is a lie about the log, not an
     // empty log.
@@ -2517,9 +2529,10 @@ export async function fetchTrashedTrips(): Promise<void> {
   if (!isSupabaseConfigured || !cache.sessionUserId) return
   const userId = cache.sessionUserId
   const epoch = identityEpoch
+  const seq = nextSliceReadSeq('trashedTrips')
   try {
     const { data, error } = await supabase.rpc('get_trashed_trips')
-    if (epoch !== identityEpoch || cache.sessionUserId !== userId) return
+    if (seq !== sliceReadSeq.get('trashedTrips') || epoch !== identityEpoch || cache.sessionUserId !== userId) return
     if (error) {
       console.error('[yatraflow] trashed trips fetch failed', error)
       patch({ trashFailed: true })
@@ -2533,7 +2546,7 @@ export async function fetchTrashedTrips(): Promise<void> {
     patch({ trashLoaded: true, trashFailed: false })
     commit()
   } catch (e) {
-    if (epoch !== identityEpoch || cache.sessionUserId !== userId) return
+    if (seq !== sliceReadSeq.get('trashedTrips') || epoch !== identityEpoch || cache.sessionUserId !== userId) return
     console.error('[yatraflow] trashed trips fetch failed', e)
     patch({ trashFailed: true })
     commit()

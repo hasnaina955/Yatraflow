@@ -94,6 +94,7 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 - **Flight days show travel time and airport waiting.** Airport transfers beside flights no longer trigger road backtracking warnings. Flight journeys no longer offer driving directions for the entire route.
 - **Live updates stop at sign-out and never reach the next account.** The store drops a realtime event that arrives after a sign-out or an account switch. The channel captures its account when it connects. (#756)
 - **A fast switch back to your account keeps your data.** The store treats the second sign-in as a new identity. The cache belongs to the newest event. (#757)
+- **A slow read no longer overwrites a newer one.** The store drops a late older result. Each Trash and audit read carries its order. (#758)
 ## [0.76.0] - 2026-10-12
 
 **This release brings the new Ribbon Y logo, clearer error states, shared page parts and working landing links.**

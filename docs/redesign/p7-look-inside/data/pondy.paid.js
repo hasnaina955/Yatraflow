@@ -1,0 +1,3 @@
+/* PAID payload for "Pondicherry, Slowly". The page loads this only after the pretend payment. */
+window.YF_PAID = window.YF_PAID || {};
+window.YF_PAID["pondy"] = {"days":{"1":{"title":"Ashram","stops":[{"kind":"stop","t":490,"title":"Ashram","cat":"sightseeing","catLabel":"Sight","min":60,"open":null,"close":null,"fee":0,"note":null,"place":"Sri Aurobindo Ashram, Pondicherry, India","leg":{"km":1,"min":10,"mode":"road"}}]},"2":{"title":"Auroville","stops":[{"kind":"stop","t":499,"title":"Auroville","cat":"sightseeing","catLabel":"Sight","min":120,"open":null,"close":null,"fee":0,"note":null,"place":"Auroville, Pondicherry, India","leg":{"km":12,"min":19,"mode":"road"}}]}}};

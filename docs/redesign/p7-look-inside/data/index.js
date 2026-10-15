@@ -1,0 +1,2 @@
+/* Trip list for the dev switcher. Generated. */
+window.YF_INDEX = [{"id":"spiti","label":"Spiti Valley Circuit (real, priced, photo)"},{"id":"jaipur","label":"Jaipur in Two Days (2-day base, no cover)"},{"id":"longway","label":"The Long Way Round (30 days, rail)"},{"id":"air","label":"Three Cities by Air (flights, free, hot-linked cover)"},{"id":"coorg","label":"Coorg Loop (road loop, priced)"},{"id":"pondy","label":"Pondicherry, Slowly (sparse, priced)"},{"id":"purulia","label":"Purulia Escape (real, sparse, free)"}];

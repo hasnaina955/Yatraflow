@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en-IN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Look Inside</title>
+<meta name="description" content="Prototype of the YatraFlow public itinerary page: a storefront for a creator's plan.">
+<script>
+  // Prototype switches, read before first paint: ?theme=light|dark, ?dev=0, ?as=creator
+  (function () {
+    var q = new URLSearchParams(location.search), d = document.documentElement;
+    d.classList.add('js');
+    var t = q.get('theme'); try { t = t || localStorage.getItem('yf-proto-theme'); } catch (e) {}
+    if (t === 'light' || t === 'dark') d.setAttribute('data-theme', t);
+    if (q.get('dev') === '0') d.classList.add('no-dev');
+    if (q.get('as') === 'creator') d.classList.add('as-creator');
+  })();
+</script>
+<link rel="icon" href="data:,">
+<script>
+  // Font preloads only over http: a crossorigin preload fails on file://, while @font-face still loads there.
+  if (location.protocol.indexOf('http') === 0) ['plus-jakarta-sans-latin-800-normal', 'playfair-display-latin-600-normal'].forEach(function (f) {
+    var l = document.createElement('link'); l.rel = 'preload'; l.as = 'font'; l.type = 'font/woff2'; l.crossOrigin = ''; l.href = 'assets/fonts/' + f + '.woff2'; document.head.appendChild(l);
+  });
+</script>
+<link rel="stylesheet" href="assets/style.css">
+<script src="data/index.js"></script>
+<script src="data/spiti.js"></script>
+<script src="data/jaipur.js"></script>
+<script src="data/longway.js"></script>
+<script src="data/air.js"></script>
+<script src="data/coorg.js"></script>
+<script src="data/pondy.js"></script>
+<script src="data/purulia.js"></script>
+<script src="assets/app.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#inside">Skip to what is inside</a>
+<div id="app" aria-live="off"></div>
+<noscript><p style="padding:24px">This prototype draws the page from its trip data with JavaScript. Turn JavaScript on to see it.</p></noscript>
+
+<dialog class="reveal" id="reveal" aria-labelledby="reveal-title"></dialog>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<aside class="dev" id="dev" aria-label="Prototype controls">
+  <button class="dev-btn" type="button" aria-expanded="false" aria-controls="dev-panel">Prototype</button>
+  <div class="dev-panel" id="dev-panel">
+    <label>Trip<select id="dev-trip"></select></label>
+    <div class="row" role="group" aria-label="Theme">
+      <button type="button" data-theme-set="light">Light</button>
+      <button type="button" data-theme-set="dark">Dark</button>
+      <button type="button" data-theme-set="system">System</button>
+    </div>
+    <div class="row" role="group" aria-label="Access">
+      <button type="button" data-state-set="locked">Buyer, locked</button>
+      <button type="button" data-state-set="owned">Buyer, paid</button>
+    </div>
+    <div class="row">
+      <button type="button" id="dev-creator" aria-pressed="false">Creator's view</button>
+      <button type="button" id="dev-replay">Replay motion</button>
+    </div>
+    <p id="dev-note"></p>
+  </div>
+</aside>
+</body>
+</html>

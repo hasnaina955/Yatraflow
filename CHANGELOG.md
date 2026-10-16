@@ -15,6 +15,10 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ## [Unreleased]
 
+### Added
+
+- **The share page now prints the plan's own facts and its cover picture.** A visitor who opens the page sees the best season. The page prints the travel tips, the warnings and the budget per person as well. The cover image prints as a real image with a description for search. The page prints a field only when the plan holds a value for it. A locked plan still shows these facts, because the paywall withholds days alone. (#700)
+
 ### Changed
 
 - **The trip header is compact on a phone.** At 390px the header band and the tab rail took about 420px of an 844px screen. The tab panel then started below the fold. A phone now takes the compact band the Board tab already used. The band is shorter, the title is 20px and the tab rail is tighter. (#677)

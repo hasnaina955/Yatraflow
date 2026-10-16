@@ -189,7 +189,7 @@ ${imageTags}
 ${trip ? `<script type="application/ld+json">${touristTripJsonLd(publication, trip, canonical)}</script>` : ''}
 ${redirects ? `<script>location.replace(${JSON.stringify(target)})</script>` : ''}
 </head>
-<body>${trip ? renderBodyHTML(publication, trip, target) : `<p>Opening <a href="${escapeHtml(target)}">this itinerary</a>…</p>`}</body>
+<body>${trip ? renderBodyHTML(publication, trip, target, cover) : `<p>Opening <a href="${escapeHtml(target)}">this itinerary</a>…</p>`}</body>
 </html>`
 }
 
@@ -232,7 +232,10 @@ export default async function handler(req, res) {
         // missing-row fallback alone no longer reaches them).
         `${url.replace(/\/+$/, '')}/rest/v1/published_itineraries?id=eq.${encodeURIComponent(id)}` +
         '&unpublished_at=is.null' +
-        '&select=id,title,tagline,route_summary,cover_image_url,duration_days,estimated_budget_per_person_inr,premium_price_inr,free_day_indexes&limit=1',
+        // #700 — the body prints best season, tips and warnings as well, so the
+        // one read carries them; the select stays a single round trip.
+        '&select=id,title,tagline,route_summary,cover_image_url,duration_days,estimated_budget_per_person_inr,' +
+        'best_season,travel_tips,warnings_and_assumptions,premium_price_inr,free_day_indexes&limit=1',
         {
           headers: { apikey: key, authorization: `Bearer ${key}` },
           signal: AbortSignal.timeout(4000),

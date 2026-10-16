@@ -21,6 +21,10 @@ Sections:
 
 ## The gate
 
+Test analytics writes under anonymous and authenticated roles. An insert mock cannot prove RLS access.
+Run `node scripts/integration/growth-db.mjs` for the isolated growth SQL checks.
+This local fixture does not establish production migration status or the full Supabase role contract.
+
 **Run browser sampling after the test suite finishes.** Parallel test workers can cause test timeouts and missed animation frames. You must keep these checks separate on a busy machine.
 
 **The page sampler follows the final route root.** A lazy route can replace a loading screen after one frame. The sampler starts a new record for that page. It still checks every block in the final page.

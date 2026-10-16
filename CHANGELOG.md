@@ -25,6 +25,14 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 - **The Create trip phone dock no longer runs two phrases together.** The days line and the readiness line shared one inline row. "Pick your dates" and "3 things left" then printed as one phrase. The readiness line is a block now, so it sits under the days line. (#767)
 - **The trip tab rail shows that it scrolls sideways.** The rail hides its scrollbar. A tab past the right edge ("Group input") was cut with no sign that more exist. The rail now fades the edge that still holds hidden tabs. The fade clears once the end is reached. (#684)
+### Added
+
+- **A distribution pilot separates traffic, trip activation, membership, and meaningful collaboration.** Five opaque campaign slots retain source categories. A read-only scorecard uses persisted trips and product records. The six-week plan states its limits and proposed gates.
+
+### Fixed
+
+- **Create-flow events identify the signed-in caller and record successful save retries.** Database guards remove unapproved metadata. Anonymous history stays anonymous. Admin reads detect incomplete pages.
+- **Fork retries reuse one pending trip ID and return to the selected plan after sign-in.** A duplicate write needs a verified owned row. Existing paid-plan guards remain in force. Reports label separate activity ratios accurately.
 
 ## [0.77.0] - 2026-10-16
 

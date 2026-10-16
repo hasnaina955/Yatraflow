@@ -23,6 +23,9 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ### Fixed
 
+- **Live updates stop at sign-out and never reach the next account.** The store drops a realtime event that arrives after a sign-out or an account switch. The channel captures its account when it connects. (#756)
+- **A fast switch back to your account keeps your data.** The store treats the second sign-in as a new identity. The cache belongs to the newest event. (#757)
+- **A slow read no longer overwrites a newer one.** The store drops a late older result. Each Trash and audit read carries its order. (#758)
 - **The Create trip phone dock no longer runs two phrases together.** The days line and the readiness line shared one inline row. "Pick your dates" and "3 things left" then printed as one phrase. The readiness line is a block now, so it sits under the days line. (#767)
 - **The trip tab rail shows that it scrolls sideways.** The rail hides its scrollbar. A tab past the right edge ("Group input") was cut with no sign that more exist. The rail now fades the edge that still holds hidden tabs. The fade clears once the end is reached. (#684)
 
@@ -92,9 +95,7 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 - **Your flight times anchor the schedule.** Airport waiting appears before departure. Flights after midnight can start the plan on the previous evening. A warning reports activities that leave too little time for check-in.
 - **Flight edits refresh timeline facts.** Changes to airports, times, fares and traveller counts update cached routes, clocks and costs. Later days start where the previous flight journey ends.
 - **Flight days show travel time and airport waiting.** Airport transfers beside flights no longer trigger road backtracking warnings. Flight journeys no longer offer driving directions for the entire route.
-- **Live updates stop at sign-out and never reach the next account.** The store drops a realtime event that arrives after a sign-out or an account switch. The channel captures its account when it connects. (#756)
-- **A fast switch back to your account keeps your data.** The store treats the second sign-in as a new identity. The cache belongs to the newest event. (#757)
-- **A slow read no longer overwrites a newer one.** The store drops a late older result. Each Trash and audit read carries its order. (#758)
+
 ## [0.76.0] - 2026-10-12
 
 **This release brings the new Ribbon Y logo, clearer error states, shared page parts and working landing links.**

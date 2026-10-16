@@ -15,6 +15,10 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ## [Unreleased]
 
+### Added
+
+- **Creator pages show a public bio and itinerary links without JavaScript.** Search visitors can read `/c/<id>` directly. Recognised share tags still open the app. Structured data describes the public profile. Private profile fields stay out of the page. A failed itinerary read shows a message and prevents caching. (#701)
+
 ### Changed
 
 - **The trip header is compact on a phone.** At 390px the header band and the tab rail took about 420px of an 844px screen. The tab panel then started below the fold. A phone now takes the compact band the Board tab already used. The band is shorter, the title is 20px and the tab rail is tighter. (#677)

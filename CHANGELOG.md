@@ -27,7 +27,7 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 - **The trip tab rail shows that it scrolls sideways.** The rail hides its scrollbar. A tab past the right edge ("Group input") was cut with no sign that more exist. The rail now fades the edge that still holds hidden tabs. The fade clears once the end is reached. (#684)
 ### Added
 
-- **A distribution pilot separates traffic, trip activation, membership, and meaningful collaboration.** Five opaque campaign slots retain source categories. A read-only scorecard uses persisted trips and product records. The six-week plan states its limits and proposed gates.
+- **A distribution pilot separates traffic, trip activation, membership, and meaningful collaboration.** Five opaque campaign slots retain source categories. A read-only scorecard uses persisted trips and product records. The six-week plan states its limits and proposed gates. A review of the supplied strategy PDFs separates distribution evidence from paid expert success. It preserves the portfolio and manual snapshot priorities.
 
 ### Fixed
 

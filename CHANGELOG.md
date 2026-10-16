@@ -25,6 +25,7 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 - **The Create trip phone dock no longer runs two phrases together.** The days line and the readiness line shared one inline row. "Pick your dates" and "3 things left" then printed as one phrase. The readiness line is a block now, so it sits under the days line. (#767)
 - **The trip tab rail shows that it scrolls sideways.** The rail hides its scrollbar. A tab past the right edge ("Group input") was cut with no sign that more exist. The rail now fades the edge that still holds hidden tabs. The fade clears once the end is reached. (#684)
+- **My Trips moves to the next day on its own.** The page read the clock during each render. A value read that way stays on the day the page opened. A tab left open overnight kept saying "Starts tomorrow" for a trip that starts today. One shared day value now feeds the countdowns and the date filter. It moves at local midnight. It also moves on focus, and when the tab becomes visible again. (#648)
 
 ## [0.77.0] - 2026-10-16
 

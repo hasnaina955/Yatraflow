@@ -15,9 +15,10 @@ import { sliceState, emptyCopyFor, readState, rowsView } from '../lib/readState'
 import type { Trip } from '../data/types'
 import { TRAVEL_STYLES } from '../data/types'
 import { heroHeadline, heroNote, heroPostcards, heroStats, otherTripsEmptyKind, pickUpNext, whenBucket, type WhenKey } from '../lib/tripsPage'
-import { layoutFromPref, startOfLocalDay, TRIPS_LAYOUT_PREF } from '../lib/tripsCard'
+import { layoutFromPref, TRIPS_LAYOUT_PREF } from '../lib/tripsCard'
 import { loadPref, savePref } from '../lib/uiPrefs'
 import { usePresenceList, presenceAttrs } from '../lib/usePresenceList'
+import { useToday } from '../hooks/useToday'
 import { TripArtSprite } from '../components/trips/TripArt'
 import { TripsHero } from '../components/trips/TripsHero'
 import { FilterChip } from '../components/filters/FilterChip'
@@ -103,13 +104,14 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
     else (headerTrashToggleRef.current ?? heroTrashToggleRef.current)?.focus()
   }, [view])
 
-  // The clock is read at the top of the render. Every date rule below works in
-  // whole calendar days and takes `today` as an argument. `todayStart` is the
-  // memo key for the filter: the list is filtered again when the day changes.
-  // It is a separate read because the React Compiler lint rejects a memo key
-  // that is derived from a Date which later calls receive.
-  const today = new Date()
-  const todayStart = startOfLocalDay(new Date())
+  // One clock for the page (#648). The value is local midnight of the day in
+  // view, so it names a whole calendar day. It moves at local midnight, on
+  // focus, and when the tab becomes visible again. A fresh read per render
+  // cannot do that. It stays on the mount day, so a page left open overnight
+  // keeps yesterday's countdown and yesterday's buckets. Every date rule below
+  // reads this one value, so two readings can never name two days. The value
+  // keeps its identity until the day moves, so it is also the filter memo's key.
+  const today = useToday()
 
   // ---- Search / filter / sort (local view state — no URL sync needed on a
   // private page, unlike Explore's shareable links) ----
@@ -130,11 +132,10 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
 
   const trips = useMemo(() => {
     // The memo re-runs when the calendar day changes, not on every render.
-    const filterToday = new Date(todayStart)
     const needle = q.trim().toLowerCase()
     const filtered = mine.filter(t => {
       if (style !== 'all' && t.travelStyle !== style) return false
-      if (when !== 'all' && whenBucket(t, filterToday) !== when) return false
+      if (when !== 'all' && whenBucket(t, today) !== when) return false
       if (!needle) return true
       const hay = [
         t.name, t.startLocation, ...t.destinations,
@@ -152,7 +153,7 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
         default: return b.updatedAt - a.updatedAt
       }
     })
-  }, [mine, q, style, when, sortKey, todayStart])
+  }, [mine, q, style, when, sortKey, today])
 
   // style chips carry counts of the *unfiltered-by-style* set so they stay
   // stable while toggling (same behavior as Explore's style chips).

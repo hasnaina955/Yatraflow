@@ -24,6 +24,8 @@ const { state, toast, queue } = vi.hoisted(() => ({
     /** what every UPDATE answers — count models PostgREST's no-match reply */
     updateAnswer: { error: null as unknown, count: null as number | null },
     writes: [] as Array<{ table: string; method: string; payload: any }>,
+    savedTrip: null as any,
+    savedOwner: null as any,
   },
   toast: vi.fn(),
   queue: { map: new Map<string, any>() },
@@ -58,10 +60,11 @@ vi.mock('../src/lib/writeQueue', async importOriginal => {
 })
 
 vi.mock('../src/lib/supabase', () => {
-  function query() {
+  function query(table: string) {
     const qb: any = {}
+    const filters = new Map<string, unknown>()
     qb.select = () => qb
-    qb.eq = () => qb
+    qb.eq = (key: string, value: unknown) => { filters.set(key, value); return qb }
     qb.in = () => qb
     qb.order = () => qb
     qb.limit = () => qb
@@ -69,7 +72,10 @@ vi.mock('../src/lib/supabase', () => {
       Promise.resolve({ data: [], error: null }).then(res)
     qb.maybeSingle = () => ({
       then: (res: (v: { data: unknown; error: null }) => unknown) =>
-        Promise.resolve({ data: null, error: null }).then(res),
+        Promise.resolve({ data: (() => {
+          const row = table === 'trips' ? state.savedTrip : state.savedOwner
+          return row && [...filters].every(([key, value]) => row[key] === value) ? row : null
+        })(), error: null }).then(res),
     })
     return qb
   }
@@ -104,7 +110,7 @@ vi.mock('../src/lib/supabase', () => {
     isSupabaseConfigured: () => true,
     supabase: {
       from: (table: string) => {
-        const qb = query()
+        const qb = query(table)
         qb.insert = (p: any) => write(table, 'insert', p)
         qb.update = (p: any) => write(table, 'update', p)
         qb.upsert = (p: any) => write(table, 'upsert', p)
@@ -142,6 +148,8 @@ beforeEach(() => {
   state.throwOn = null
   state.updateAnswer = { error: null, count: null }
   state.writes.length = 0
+  state.savedTrip = null
+  state.savedOwner = null
   toast.mockClear()
   queue.map.clear()
   getSnapshot().sessionUserId = IMPORTER
@@ -202,6 +210,9 @@ describe('#551 — the import retry re-uses the trip instead of minting a twin',
     const { trip } = await importTripPersisted(source(), IMPORTER)
     state.tripErrors.push({ code: '23505', message: 'duplicate key' })
     state.memberErrors.push({ code: '23505', message: 'duplicate key' })
+    const row = state.writes.find(write => write.table === 'trips')!.payload
+    state.savedTrip = { ...row, created_at: trip.createdAt, updated_at: trip.updatedAt }
+    state.savedOwner = { trip_id: trip.id, user_id: IMPORTER, role: 'owner', joined_at: trip.createdAt }
     expect(await retryImportTrip(trip, IMPORTER)).toBe(true)
     expect(tripById(trip.id)).toBeDefined()
   })

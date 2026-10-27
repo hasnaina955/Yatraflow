@@ -74,9 +74,9 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .app-nav-stub em { font-style: normal; font-weight: 500; margin-left: auto; font-size: 12px; }
 
 /* ---- Product: container (existing rules, unchanged) ---- */
-.container { width: 100%; max-width: 1180px; margin: 0 auto; padding: 0 20px; }
-.container--board { max-width: 1680px; }
-.container--map { max-width: 1760px; }
+.container { width: 100%; max-width: 1400px; margin: 0 auto; padding: 0 20px; }
+.container--board { max-width: 1720px; }
+.container--map { max-width: 1720px; }
 .container { padding-top: 22px; transition: max-width var(--motion-slow) var(--ease-glide); }
 body.guides .container { outline: 2px solid var(--yf-purple); outline-offset: -2px; position: relative; }
 body.guides .container::before {
@@ -283,9 +283,9 @@ body.guides .yf-page::before {
   <b>P2 Trip workspace header and tab bar</b>
   <span>Sample data only.</span>
   <span class="seg" role="group" aria-label="Scenario">
-    <button type="button" data-tab="overview" aria-pressed="true">Overview (1180px)</button>
-    <button type="button" data-tab="board" aria-pressed="false">Board (1680px)</button>
-    <button type="button" data-tab="map" aria-pressed="false">Map (1760px)</button>
+    <button type="button" data-tab="overview" aria-pressed="true">Overview (1400px)</button>
+    <button type="button" data-tab="board" aria-pressed="false">Board (1720px)</button>
+    <button type="button" data-tab="map" aria-pressed="false">Map (1720px)</button>
   </span>
   <span class="seg" role="group" aria-label="View options">
     <button type="button" id="themeBtn" aria-pressed="false">Dark</button>
@@ -296,7 +296,7 @@ body.guides .yf-page::before {
 
 <div class="app-nav-stub" aria-hidden="true"><span class="brand">YatraFlow</span><span>My trips</span><span>Plan a trip</span><span>Explore</span><em>Top nav stub: unchanged by P2</em></div>
 
-<div class="container page-enter" id="container" data-guide="div.container (max-width 1180px)">
+<div class="container page-enter" id="container" data-guide="div.container (max-width 1400px)">
 
   <!-- R15: header and tab bar sit in their own yf-page wrapper. .container does NOT carry yf-page. -->
   <div class="yf-page" id="yfwrap" data-compact="false">
@@ -362,7 +362,7 @@ body.guides .yf-page::before {
     <h2>What this mockup shows</h2>
     <ul>
       <li>The <code>yf-page</code> wrapper holds the header and the tab bar only. The tab panel keeps the old look.</li>
-      <li>Board uses 1680px and Map uses 1760px. The wrapper does not change the container width.</li>
+      <li>Board and Map use 1720px. Overview and the other tabs use 1400px. The wrapper does not change the container width.</li>
       <li>Board and Map compact the header. The member row and route line collapse, and the padding glides.</li>
       <li>Colours, radii and motion come from <code>src/styles.css</code>. The serif font appears on the h1 only (R14).</li>
     </ul>
@@ -441,7 +441,7 @@ body.guides .yf-page::before {
     var wide = key === 'board' || key === 'map';
     wrap.setAttribute('data-compact', String(wide));
     container.className = 'container page-enter' + (key === 'board' ? ' container--board' : '') + (key === 'map' ? ' container--map' : '');
-    container.setAttribute('data-guide', 'div.container' + (key === 'board' ? '--board (max-width 1680px)' : key === 'map' ? '--map (max-width 1760px)' : ' (max-width 1180px)'));
+    container.setAttribute('data-guide', 'div.container' + (key === 'board' ? '--board (max-width 1720px)' : key === 'map' ? '--map (max-width 1720px)' : ' (max-width 1400px)'));
     panel.id = 'panel'; panel.setAttribute('aria-labelledby', 'tab-' + key);
     panel.innerHTML = (PH[key] || function () { return '<p class="ph-note">Tab panel placeholder: ' + key + '</p><div class="ph-card ph-tall">Old look until its P12 PR opts in.</div>'; })();
     document.querySelectorAll('.mock-bar [data-tab]').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.tab === key)); });

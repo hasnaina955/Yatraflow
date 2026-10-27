@@ -63,7 +63,7 @@ body {
 button { font: inherit; color: inherit; cursor: pointer; }
 h1, h2, h3, p, ul, ol { margin: 0; }
 ul, ol { padding: 0; list-style: none; }
-:focus-visible { outline: none; box-shadow: var(--ring); }
+:focus-visible { outline: 2px solid transparent; outline-offset: 2px; box-shadow: var(--ring); }
 .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
 /* ---- Mockup chrome (not part of the product) ---- */
@@ -111,9 +111,9 @@ ul, ol { padding: 0; list-style: none; }
 
 /* ================= P12 Overview (all new rules; ovw- prefix) =================
    Spacing steps come from the --space-* tokens (styles.css:181). Every gap is one step below the first draft. */
-.ovw { display: grid; gap: var(--space-5); padding-bottom: var(--space-8); }
+.ovw { display: grid; gap: var(--space-5); padding-bottom: var(--space-8); font-variant-numeric: tabular-nums; --mx-tint: 16%; --mx-ring: 55%; --mx-edge: color-mix(in srgb, var(--text-3) 80%, var(--card)); }
 .ovw-card { background: var(--card); border: 1px solid var(--yf-border); border-radius: var(--radius); box-shadow: var(--shadow-card); padding: var(--space-7); min-width: 0; }
-.ovw-title { font-family: var(--font-body); font-size: 16px; font-weight: 800; line-height: 1.3; color: var(--text); }
+.ovw-title { font-family: var(--font-body); font-size: 18px; font-weight: 800; line-height: 1.3; color: var(--text); }
 .ovw-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-5); margin-bottom: var(--space-4); min-height: 28px; }
 .ovw-head-meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--space-3) var(--space-5); font-size: 12px; color: var(--text-2); }
 
@@ -129,9 +129,6 @@ ul, ol { padding: 0; list-style: none; }
 
 /* 1. Verdict: one slim band */
 .ovw-verdict { position: relative; overflow: hidden; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--space-7); padding: var(--space-5) var(--space-8) var(--space-5) var(--space-9); }
-.ovw-verdict::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 6px; background: var(--band-fill); }
-.ovw-verdict::after { content: ''; position: absolute; right: -70px; top: -120px; width: 220px; height: 220px; border-radius: 50%; background: var(--yf-saffron-100); opacity: .7; pointer-events: none; }
-:root[data-theme='dark'] .ovw-verdict::after { opacity: .3; }
 .ovw-verdict > * { position: relative; z-index: 1; }
 .ovw-verdict[data-band='ok'] { --band-fill: var(--ok); --band-ink: var(--ink-green); --band-soft: var(--ok-soft); }
 .ovw-verdict[data-band='teal'] { --band-fill: var(--yf-teal-600); --band-ink: var(--ink-teal); --band-soft: var(--teal-soft); }
@@ -142,20 +139,20 @@ ul, ol { padding: 0; list-style: none; }
 .ovw-score-of { font-size: 12px; font-weight: 700; color: var(--text-3); }
 .ovw-band { grid-column: 1 / -1; display: inline-flex; align-items: center; justify-self: start; min-height: 22px; margin-top: var(--space-3); padding: 0 10px; border-radius: 999px; font-size: 12px; font-weight: 800; background: var(--band-soft); color: var(--band-ink); }
 .ovw-verdict-text { min-width: 0; display: grid; gap: var(--space-2); }
-.ovw-verdict-line { font-family: var(--font-body); font-size: 19px; font-weight: 800; line-height: 1.25; letter-spacing: -.01em; text-wrap: balance; }
+.ovw-verdict-line { font-family: var(--font-body); font-size: 18px; font-weight: 800; line-height: 1.25; letter-spacing: -.01em; text-wrap: balance; }
 .ovw-verdict-sub { color: var(--text-2); font-size: 13px; }
-.ovw-bar { height: 6px; border-radius: 999px; background: var(--info-soft); overflow: hidden; margin-top: var(--space-2); max-width: 380px; }
+.ovw-bar { height: 6px; border-radius: 999px; background: var(--info-soft); overflow: hidden; margin-top: var(--space-2); }
 .ovw-bar i { display: block; height: 100%; border-radius: 999px; background: var(--band-fill); transform-origin: 0 50%; animation: growX calc(var(--motion-slow) * 2) var(--ease-out) backwards; animation-delay: calc(var(--stagger-step) * 2); }
 
 /* 2. Stat row: three slim tiles, label and value on one line */
 .ovw-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-5); }
 .ovw-stat { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: var(--space-5); padding: var(--space-4) var(--space-7); }
 .ovw-stat-label { grid-column: 1; font-size: 11px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: .06em; }
-.ovw-stat-val { grid-column: 2; grid-row: 1 / span 2; font-family: var(--font-display); font-size: 22px; font-weight: 800; line-height: 1.15; font-variant-numeric: tabular-nums; text-align: right; }
+.ovw-stat-val { grid-column: 2; grid-row: 1 / span 2; font-family: var(--font-display); font-size: 18px; font-weight: 800; line-height: 1.15; font-variant-numeric: tabular-nums; text-align: right; }
 .ovw-stat-sub { grid-column: 1; font-size: 12px; color: var(--text-2); }
 
 /* 3. What needs you (left) beside the route (right) */
-.ovw-split { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: var(--space-5); align-items: stretch; }
+.ovw-split { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: var(--space-5); align-items: stretch; grid-template-areas: 'needs route' 'stats stats'; }
 .ovw-needs { display: flex; flex-direction: column; }
 .ovw-count { display: inline-flex; align-items: center; min-height: 22px; padding: 0 10px; border-radius: 999px; font-size: 12px; font-weight: 800; background: var(--warn-soft); color: var(--ink-amber); }
 .ovw-need-list { display: grid; }
@@ -171,7 +168,13 @@ ul, ol { padding: 0; list-style: none; }
 .ovw-sev[data-sev='low'] { background: var(--info-soft); color: var(--text-2); }
 .ovw-need-title { font-weight: 800; font-size: 14px; line-height: 1.3; }
 .ovw-need-fix { color: var(--text-2); font-size: 13px; line-height: 1.35; }
-.ovw-more { margin-top: auto; padding-top: var(--space-3); font-size: 12px; color: var(--text-2); }
+.ovw-more-btn { align-self: flex-start; margin-top: auto; min-height: 44px; padding: 0; border: 0; background: none; font-size: 13px; font-weight: 800; color: var(--ink-teal); text-decoration: underline; text-underline-offset: 3px; }
+.ovw-need-list[hidden] { display: none; }
+.ovw-btn--review { min-height: 44px; }
+@media (pointer: fine) { .ovw-btn--review { min-height: 40px; } }
+.ovw-split > .ovw-needs { grid-area: needs; }
+.ovw-split > .ovw-route { grid-area: route; }
+.ovw-split > .ovw-stats { grid-area: stats; }
 
 /* 4. Route card: schematic SVG map, day bands, stop list for small screens */
 .ovw-route { display: flex; flex-direction: column; gap: var(--space-4); }
@@ -188,25 +191,23 @@ ul, ol { padding: 0; list-style: none; }
 .is-start .rm-num { fill: var(--card); }
 :root[data-theme='dark'] .is-start .rm-num { fill: var(--yf-cream); }
 .is-end .rm-num { fill: #0B2545; }
-.rm-name { font: 800 12.5px var(--font-body); fill: var(--text); paint-order: stroke; stroke: var(--yf-mist); stroke-width: 4px; stroke-linejoin: round; }
-.rm-tag { font: 800 9.5px var(--font-body); fill: var(--text-3); letter-spacing: .06em; paint-order: stroke; stroke: var(--yf-mist); stroke-width: 3px; }
+.rm-name { font: 800 12px var(--font-body); fill: var(--text); paint-order: stroke; stroke: var(--yf-mist); stroke-width: 4px; stroke-linejoin: round; }
+.rm-tag { font: 800 11px var(--font-body); fill: var(--text-3); letter-spacing: .06em; paint-order: stroke; stroke: var(--yf-mist); stroke-width: 3px; }
 .rm-leglabel rect { fill: var(--card); stroke: var(--yf-border); stroke-width: 1; }
 .rm-leglabel text { font: 700 11px var(--font-body); fill: var(--text-2); text-anchor: middle; dominant-baseline: central; }
-.ovw-bands { display: flex; gap: 3px; }
 .ovw-verdict-act { display: grid; justify-items: end; }
-.ovw-band-seg { flex: var(--w) 1 0; min-width: 0; display: grid; gap: 3px; font-size: 11px; font-weight: 700; color: var(--text-2); white-space: nowrap; }
-.ovw-band-seg::before { content: ''; height: 6px; border-radius: 999px; background: var(--c); }
-.ovw-band-seg span { overflow: hidden; text-overflow: ellipsis; }
 .ovw-sample { font-size: 11px; color: var(--text-3); }
 .ovw-route-empty { display: grid; align-content: center; flex: 1; }
-.ovw-stoplist { display: none; }
+.ovw-stoplist { display: block; }
+.ovw-stoplist.is-long { max-height: 320px; overflow-y: auto; padding-right: var(--space-2); -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 32px), transparent); mask-image: linear-gradient(to bottom, #000 calc(100% - 32px), transparent); }
+@media (min-width: 721px) { .ovw-route[data-view='map'] .ovw-stoplist { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; } .ovw-route { position: relative; } }
 .ovw-stoplist > li { display: grid; grid-template-columns: 28px minmax(0, 1fr); column-gap: var(--space-5); }
 .ovw-stop-pin { width: 24px; height: 24px; margin: 2px; border-radius: 50%; display: grid; place-items: center; font: 800 11px var(--font-display); background: var(--card); border: 3px solid var(--yf-teal-600); color: var(--ink-teal); }
 .ovw-stoplist .is-start .ovw-stop-pin { background: var(--yf-teal-600); color: var(--card); }
 :root[data-theme='dark'] .ovw-stoplist .is-start .ovw-stop-pin { color: var(--yf-cream); }
 .ovw-stoplist .is-end .ovw-stop-pin { background: var(--yf-saffron); color: #0B2545; border-color: var(--card); }
 .ovw-stop-name { font-weight: 800; font-size: 14px; line-height: 28px; }
-.ovw-stop-name small { margin-left: 6px; font-size: 10px; font-weight: 800; color: var(--text-3); letter-spacing: .06em; }
+.ovw-stop-name small { margin-left: 6px; font-size: 11px; font-weight: 800; color: var(--text-3); letter-spacing: .06em; }
 .ovw-stoplist .is-leg::before { content: ''; justify-self: center; width: 4px; min-height: 40px; border-radius: 2px; background: var(--c); }
 .ovw-leg-text { align-self: center; padding: var(--space-2) 0; font-size: 12px; color: var(--text-2); }
 .ovw-leg-text b { color: var(--text); font-variant-numeric: tabular-nums; }
@@ -215,43 +216,43 @@ ul, ol { padding: 0; list-style: none; }
 
 /* 5. Day matrix: a grid, days as rows, parts as columns */
 .ovw-block { background: var(--card); border: 1px solid var(--yf-border); border-radius: var(--radius-sm); padding: var(--space-6) var(--space-7); display: flex; flex-direction: column; min-width: 0; }
-.ovw-block .ovw-title { font-size: 15px; }
 .ovw-lower { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: var(--space-5); align-items: start; }
 .ovw-stack { display: grid; gap: var(--space-5); min-width: 0; }
 .ovw-block-foot { margin-top: auto; padding-top: var(--space-2); }
 .mx-wrap { position: relative; }
-.mx-scroll { overflow-x: auto; border: 1px solid var(--yf-border); border-radius: var(--radius-sm); scrollbar-width: thin; }
-.mx { min-width: 760px; }
-.mx-row { display: grid; grid-template-columns: 104px repeat(6, minmax(0, 1fr)) 52px; align-items: stretch; border-top: 1px solid var(--line); }
+.mx-scroll { overflow: auto; max-height: 560px; border: 1px solid var(--yf-border); border-radius: var(--radius-sm); scrollbar-width: thin; }
+.mx { min-width: 780px; }
+.mx-row { display: grid; grid-template-columns: 116px repeat(6, minmax(0, 1fr)) 52px; align-items: stretch; border-top: 1px solid var(--line); }
 .mx-row:first-child { border-top: 0; }
-.mx-row.is-head { background: var(--info-soft); }
+.mx-row.is-head { background: var(--info-soft); position: sticky; top: 0; z-index: 3; }
 .mx-th { display: flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 var(--space-4); font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--text-2); }
 .mx-th svg { width: 14px; height: 14px; flex: 0 0 auto; color: var(--k); }
 .mx-daycol { position: sticky; left: 0; z-index: 2; background: var(--card); box-shadow: 1px 0 0 var(--line); }
-.mx-row.is-head .mx-daycol { background: var(--info-soft); }
+.mx-row.is-head .mx-daycol { background: var(--info-soft); z-index: 4; }
 .mx-day { display: flex; align-items: center; min-height: 44px; padding: 0; }
 .mx-day button { all: unset; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; width: 100%; min-height: 44px; padding: 0 var(--space-4); font-weight: 800; font-size: 13px; line-height: 1.25; color: var(--text); cursor: pointer; }
 .mx-day button small { font-size: 11px; font-weight: 600; color: var(--text-3); }
-.mx-day button:focus-visible { box-shadow: inset 0 0 0 3px var(--yf-teal-600); }
-.mx-today { display: inline-flex; align-items: center; min-height: 16px; margin-left: 6px; padding: 0 6px; border-radius: 999px; font-size: 10px; font-weight: 800; background: var(--yf-teal-600); color: var(--card); vertical-align: 1px; }
+.mx-day button:focus-visible { outline: 2px solid transparent; box-shadow: inset 0 0 0 3px var(--yf-teal-600); }
+.mx-today { display: inline-flex; align-items: center; min-height: 18px; margin-left: 0; padding: 0 7px; border-radius: 999px; font-size: 11px; font-weight: 800; background: var(--ink-teal); color: var(--card); vertical-align: 1px; }
 :root[data-theme='dark'] .mx-today { color: var(--yf-cream); }
 .mx-row.is-today .mx-daycol { box-shadow: inset 3px 0 0 var(--yf-teal-600), 1px 0 0 var(--line); }
 .mx-cell { min-width: 0; min-height: 44px; display: flex; align-items: stretch; }
 .mx-btn { all: unset; box-sizing: border-box; flex: 1; min-width: 0; min-height: 44px; display: flex; align-items: stretch; padding: 5px 4px; cursor: pointer; }
-.mx-chip { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; padding: 0 8px; border-radius: 8px; font-size: 12.5px; font-weight: 700; color: var(--text); transition: background-color var(--motion-fast) var(--ease-out), box-shadow var(--motion-fast) var(--ease-out); }
+.mx-chip { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; padding: 0 8px; border-radius: 8px; font-size: 12px; font-weight: 700; color: var(--text); transition: background-color var(--motion-fast) var(--ease-out), box-shadow var(--motion-fast) var(--ease-out); }
 .mx-chip svg { width: 15px; height: 15px; flex: 0 0 auto; color: var(--k); }
 .mx-chip > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
-.mx-btn:focus-visible { box-shadow: none; }
+.mx-btn:focus-visible { box-shadow: none; outline: 2px solid transparent; outline-offset: 2px; }
 .mx-btn:focus-visible .mx-chip { box-shadow: var(--ring); }
-.mx-cell[data-state='filled'] .mx-chip { background: color-mix(in srgb, var(--k) 14%, var(--card)); }
+.mx-cell[data-state='filled'] .mx-chip { background: color-mix(in srgb, var(--k) var(--mx-tint), var(--card)); }
 .mx-cell[data-state='filled'] .mx-btn:hover .mx-chip { background: color-mix(in srgb, var(--k) 26%, var(--card)); }
-.mx-cell[data-state='auto'] .mx-chip { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--k) 55%, var(--card)); color: var(--text-2); font-weight: 600; font-style: italic; }
+.mx-cell[data-state='auto'] .mx-chip { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--k) var(--mx-ring), var(--card)); color: var(--text-2); font-weight: 600; font-size: 11px; line-height: 1.15; }
+.mx-cell[data-state='auto'] .mx-chip > span { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .mx-cell[data-state='auto'] .mx-btn:focus-visible .mx-chip { box-shadow: var(--ring); }
-.mx-cell[data-state='empty'] .mx-chip { border: 1.5px dashed var(--line); color: var(--text-3); font-weight: 600; justify-content: center; padding: 0; }
+.mx-cell[data-state='empty'] .mx-chip { border: 1.5px dashed; border-color: var(--mx-edge); color: var(--text-3); font-weight: 600; justify-content: center; padding: 0; }
 .mx-cell[data-state='empty'] .mx-btn:hover .mx-chip { border-color: var(--yf-teal-600); color: var(--ink-teal); }
 .mx-cell[data-state='none'] .mx-btn { cursor: default; }
 .mx-cell[data-state='none'] .mx-chip { justify-content: center; color: var(--text-3); font-weight: 600; }
-.mx-row:not(.is-head):hover .mx-cell, .mx-row:not(.is-head):hover .mx-daycol, .mx-row:not(.is-head):hover .mx-total { background-color: color-mix(in srgb, var(--yf-teal-600) 8%, var(--card)); }
+@media (hover: hover) { .mx-row:not(.is-head):hover .mx-cell, .mx-row:not(.is-head):hover .mx-daycol, .mx-row:not(.is-head):hover .mx-total { background-color: color-mix(in srgb, var(--yf-teal-600) 8%, var(--card)); } }
 .mx-row.is-today .mx-cell, .mx-row.is-today .mx-daycol, .mx-row.is-today .mx-total { background-color: color-mix(in srgb, var(--yf-teal-600) 5%, var(--card)); }
 .mx-total { display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: var(--text-2); font-variant-numeric: tabular-nums; }
 .mx-total.is-thin { color: var(--ink-amber); font-weight: 800; }
@@ -259,9 +260,9 @@ ul, ol { padding: 0; list-style: none; }
 .mx-wrap.can-scroll .mx-fade { opacity: 1; }
 .mx-key { display: inline-flex; flex-wrap: wrap; gap: var(--space-1) var(--space-5); }
 .mx-key i { display: inline-block; width: 18px; height: 10px; border-radius: 4px; margin-right: 6px; vertical-align: -1px; }
-.mx-key .k-f { background: color-mix(in srgb, var(--yf-teal-600) 24%, var(--card)); }
-.mx-key .k-a { box-shadow: inset 0 0 0 1.5px var(--yf-teal-600); }
-.mx-key .k-e { border: 1.5px dashed var(--text-3); }
+.mx-key .k-f { background: color-mix(in srgb, var(--ink-teal) var(--mx-tint), var(--card)); }
+.mx-key .k-a { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--ink-teal) var(--mx-ring), var(--card)); }
+.mx-key .k-e { border: 1.5px dashed var(--mx-edge); }
 
 /* Small blocks */
 .ovw-pulse-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2) var(--space-5); min-height: 44px; border-top: 1px solid var(--line); }
@@ -316,13 +317,33 @@ ul, ol { padding: 0; list-style: none; }
 .guide-wide span { position: absolute; top: 4px; left: 50%; transform: translateX(-50%); font: 700 11px var(--font-body); color: var(--ink-amber); background: var(--card); padding: 1px 8px; border-radius: 999px; white-space: nowrap; }
 .guide-on .guide-wide { display: block; }
 
+/* Phone matrix: one 44px button for each day. Hidden above 720px. */
+.mx-compact { display: none; border: 1px solid var(--yf-border); border-radius: var(--radius-sm); overflow: hidden; }
+.mx-chead, .mx-crow { display: grid; grid-template-columns: minmax(0, 1fr) repeat(6, 28px) 34px; align-items: center; column-gap: 3px; padding: 0 var(--space-4); width: 100%; }
+.mx-chead { min-height: 36px; background: var(--info-soft); font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--text-2); }
+.mx-chead svg { width: 14px; height: 14px; color: var(--k); justify-self: center; }
+.mx-crow { min-height: 44px; border: 0; border-top: 1px solid var(--line); background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.mx-crow.is-today { background: color-mix(in srgb, var(--yf-teal-600) 5%, var(--card)); box-shadow: inset 3px 0 0 var(--yf-teal-600); }
+.mx-cday { display: flex; flex-direction: column; line-height: 1.2; }
+.mx-cday b { font-size: 13px; }
+.mx-cday b, .mx-day button > span:first-child { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.mx-chead span:last-child { text-transform: none; text-align: right; }
+.mx-cday small { font-size: 11px; color: var(--text-3); }
+.mx-g { display: grid; place-items: center; box-sizing: border-box; width: 28px; height: 28px; border-radius: 50%; font-size: 13px; color: var(--text-3); }
+.mx-g svg { width: 15px; height: 15px; color: var(--k); }
+.mx-g[data-state='filled'] { background: color-mix(in srgb, var(--k) var(--mx-tint), var(--card)); }
+.mx-g[data-state='auto'] { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--k) var(--mx-ring), var(--card)); }
+.mx-g[data-state='empty'] { border: 1.5px dashed var(--mx-edge); }
+.mx-ctot { font-size: 12px; font-weight: 700; color: var(--text-2); text-align: right; }
+.mx-crow:focus-visible { outline: 2px solid transparent; outline-offset: -2px; box-shadow: inset 0 0 0 3px var(--yf-teal-600); }
+
 /* ---- Narrow ---- */
 @media (max-width: 1100px) {
   .ovw-lower { grid-template-columns: minmax(0, 1fr); }
   .ovw-stack + .ovw-stack { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
 }
 @media (max-width: 960px) {
-  .ovw-split { grid-template-columns: minmax(0, 1fr); }
+  .ovw-split { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'needs' 'stats' 'route'; }
   .ovw-wx { grid-template-columns: repeat(5, minmax(120px, 1fr)); overflow-x: auto; }
 }
 @media (max-width: 720px) {
@@ -343,7 +364,6 @@ ul, ol { padding: 0; list-style: none; }
   .ovw-verdict-act { grid-column: 1 / -1; }
   .ovw-verdict-act .ovw-btn { width: 100%; }
   .ovw-score-num { font-size: 34px; }
-  .ovw-verdict-line { font-size: 17px; }
   .ovw-stats { grid-template-columns: 1fr; gap: var(--space-4); }
   .ovw-stat { padding: var(--space-3) var(--space-6); }
   .ovw { gap: var(--space-4); }
@@ -370,12 +390,10 @@ ul, ol { padding: 0; list-style: none; }
   .ovw-pulse-row { min-height: 40px; }
   .ovw-feed li { padding: var(--space-2) 0; }
   .ovw-route { gap: var(--space-3); }
-  .ovw-map, .ovw-bands { display: none; }
-  .ovw-stoplist { display: block; }
+  .ovw-map { display: none; }
+  .mx-scroll, .mx-wrap { display: none; }
+  .mx-compact { display: block; }
   .ovw-stack, .ovw-stack + .ovw-stack { grid-template-columns: minmax(0, 1fr); }
-  .mx-fade { display: block; }
-  .mx { min-width: 0; width: max-content; }
-  .mx-row { grid-template-columns: 104px repeat(6, 128px) 52px; }
   .ovw-wx { grid-template-columns: repeat(5, 132px); }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -448,16 +466,17 @@ ul, ol { padding: 0; list-style: none; }
   var root = document.documentElement;
   var STATES = ['ready', 'loading', 'failed', 'empty', 'kept'];
   var NS = 'http://www.w3.org/2000/svg';
+  /* Sample-size knobs for the review shots: ?days=N sets the day count, ?stops=N sets the route points. */
+  var DAYS = Math.max(1, Math.min(30, parseInt(qs.get('days'), 10) || 10));
+  var NPTS = qs.has('stops') ? Math.max(0, Math.min(30, parseInt(qs.get('stops'), 10) || 0)) : 6;
+  var STOPCOUNT = qs.has('stops') ? NPTS : 14;
+  var alertUsed = false;
 
   /* ---------- inline icons (decorative) ---------- */
   function ic(d, w) { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="' + (w || 2) + '" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + d + '</svg>'; }
   var I = {
     high: ic('<path d="M12 3v9"/><circle cx="12" cy="18" r="1.6"/>', 2.4),
     medium: ic('<path d="M12 3 2.5 20h19z"/><path d="M12 10v5"/>', 2.2),
-    low: ic(
-      '<path d="M9 18h6M10 21h4M12 3a6 6 0 0 ' +
-      '0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 ' +
-      '0 0 0 12 3z"/>', 2.2),
     warn: ic('<path d="M12 3 2.5 20h19z"/><path d="M12 10v4M12 17.5v.01"/>'),
     check: ic('<circle cx="12" cy="12" r="9"/><path d="m8 12.5 2.8 2.8L16 9.5"/>', 2.2),
     pin: ic('<path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>'),
@@ -483,10 +502,13 @@ ul, ol { padding: 0; list-style: none; }
     stretch: ic('<circle cx="12" cy="5" r="2"/><path d="M12 8v6M8 21l4-7 4 7M7 11l5-3 5 3"/>'),
     night: ic('<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>')
   };
+  I.low = ic('<path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z"/>', 2.2);
 
-  /* ---------- StateBlock, compact ---------- */
+  /* ---------- StateBlock, compact. Only the first failed block is an alert; the rest are status. ---------- */
   function state(kind, o) {
-    var role = kind === 'failed' ? ' role="alert"' : (kind === 'loading' || kind === 'kept') ? ' role="status"' : '';
+    var role = '';
+    if (kind === 'failed') { role = alertUsed ? ' role="status"' : ' role="alert"'; alertUsed = true; }
+    else if (kind === 'loading' || kind === 'kept') role = ' role="status"';
     var icon = o.icon ? '<div class="yf-state-icon">' + o.icon + '</div>' : '';
     return '<div class="yf-state' + (kind === 'kept' ? ' yf-state--kept' : '') + '" data-kind="' + kind + '"' + role + '>' + icon +
       '<h3 class="yf-state-title">' + o.title + '</h3>' + (o.body ? '<p class="yf-state-body">' + o.body + '</p>' : '') +
@@ -497,64 +519,82 @@ ul, ol { padding: 0; list-style: none; }
 
   /* ---------- sample data (labelled sample; engine logic is not touched) ---------- */
   var WARN = [
-    { sev: 'high', lead: 'High', title: 'Day 3 drives 11 h 40 min', fix: 'Move one stop to Day 4, or add a rest stop before Kargil.', act: 'Review Day 3' },
-    { sev: 'medium', lead: 'Medium', title: 'Day 6 arrives after sunset', fix: 'Leave 1 h earlier, or shorten the lunch break.', act: 'Review Day 6' },
-    { sev: 'low', lead: 'Low', title: 'Day 8 has no fuel stop planned', fix: 'Add a fuel stop before the long climb.', act: 'Review Day 8' }
+    { sev: 'high', lead: 'High', title: 'Day 3 drives 11 h 40 min', fix: 'Move one stop to Day 4, or add a rest stop before Kargil.', act: 'Fix Day 3' },
+    { sev: 'medium', lead: 'Medium', title: 'Day 6 arrives after sunset', fix: 'Leave 1 h earlier, or shorten the lunch break.', act: 'Fix Day 6' },
+    { sev: 'low', lead: 'Low', title: 'Day 8 has no fuel stop planned', fix: 'Add a fuel stop before the long climb.', act: 'Fix Day 8' },
+    { sev: 'low', lead: 'Low', title: 'Day 9 has a short lunch break', fix: 'Add 20 minutes so the stop is not rushed.', act: 'Fix Day 9' },
+    { sev: 'low', lead: 'Low', title: 'Day 2 has no rest stop planned', fix: 'Add a stretch break after the climb.', act: 'Fix Day 2' }
   ];
-  var TOTAL_WARN = 5;
+  function needRow(w) {
+    return '<li class="ovw-need"><span class="ovw-sev" data-sev="' + w.sev + '">' + I[w.sev] + w.lead + '</span>' +
+      '<div class="ovw-need-text"><div class="ovw-need-title">' + w.title + '</div><div class="ovw-need-fix">' + w.fix + '</div></div>' +
+      '<button type="button" class="ovw-btn ovw-btn--review">' + w.act + '</button></li>';
+  }
 
   function verdict(s) {
     var empty = s === 'empty';
-    var band = empty ? 'ok' : 'saffron', name = empty ? 'Comfortable' : 'Tight', score = empty ? 92 : 58;
-    var line = empty ? 'The plan fits these days with room to spare.' : 'The days run long. Expect late arrivals.';
-    var sub = empty ? 'No schedule issues found across 10 days.' : TOTAL_WARN + ' issues across 10 days. The button opens the Timeline at the first one, Day 3.';
-    var btn = empty ? 'Open Timeline' : 'Fix ' + TOTAL_WARN + ' issues';
+    var band = empty ? 'teal' : 'saffron', name = empty ? 'Not scored yet' : 'Tight', score = empty ? '–' : '58';
+    var line = empty ? 'Nothing is planned yet.' : 'The days run long. Expect late arrivals.';
+    var sub = empty ? 'Add a stop and the plan gets a score.' : WARN.length + ' issues in ' + DAYS + ' days. First: ' + WARN[0].title + '.';
+    var btn = empty ? 'Open Timeline' : 'Fix ' + WARN.length + ' issues';
+    var bar = empty ? '' : '<div class="ovw-bar" role="img" aria-label="Trip health 58 of 100"><i style="width:58%"></i></div>';
     return '<section class="ovw-card ovw-verdict" data-band="' + band + '" aria-labelledby="v-h">' +
-      '<div class="ovw-score"><span class="ovw-score-num">' + score + '</span><span class="ovw-score-of">of 100</span><span class="ovw-band">' + name + '</span></div>' +
-      '<div class="ovw-verdict-text">' +
-      '<h2 class="ovw-verdict-line" id="v-h">' + line + '</h2><p class="ovw-verdict-sub">' + sub + '</p>' +
-      '<div class="ovw-bar" role="img" aria-label="Trip health ' + score + ' of 100"><i style="width:' + score + '%"></i></div></div>' +
+      '<div class="ovw-score"><span class="ovw-score-num">' + score + '</span><span class="ovw-score-of">' + (empty ? 'no score' : 'of 100') + '</span><span class="ovw-band">' + name + '</span></div>' +
+      '<div class="ovw-verdict-text"><h2 class="ovw-verdict-line" id="v-h">' + line + '</h2><p class="ovw-verdict-sub">' + sub + '</p>' + bar + '</div>' +
       '<div class="ovw-verdict-act"><button type="button" class="ovw-btn ovw-btn--primary">' + btn + '</button></div></section>';
   }
 
   function needs(s) {
     if (s === 'empty') {
       return '<section class="ovw-card ovw-needs" aria-labelledby="n-h"><div class="ovw-head"><h2 class="ovw-title" id="n-h">What needs you</h2></div>' +
-        state('empty', { icon: I.check, title: 'Nothing needs fixing right now', body: 'Check back after you add a stop or change a day.' }) + '</section>';
+        state('empty', { icon: I.check, title: 'Nothing to check yet', body: 'Issues appear after you add a stop.' }) + '</section>';
     }
-    var rows = WARN.map(function (w) {
-      return '<li class="ovw-need"><span class="ovw-sev" data-sev="' + w.sev + '">' + I[w.sev] + w.lead + '</span>' +
-        '<div class="ovw-need-text"><div class="ovw-need-title">' + w.title + '</div><div class="ovw-need-fix">' + w.fix + '</div></div>' +
-        '<button type="button" class="ovw-btn">' + w.act + '</button></li>';
-    }).join('');
+    var rows = WARN.slice(0, 3).map(needRow).join('');
+    var more = WARN.slice(3).map(needRow).join('');
     return '<section class="ovw-card ovw-needs" aria-labelledby="n-h"><div class="ovw-head"><h2 class="ovw-title" id="n-h">What needs you</h2>' +
-      '<span class="ovw-count">' + TOTAL_WARN + ' warnings</span></div><ul class="ovw-need-list">' + rows + '</ul>' +
-      '<p class="ovw-more">' + (TOTAL_WARN - 3) + ' more warnings are in the Timeline, ranked by severity.</p></section>';
+      '<span class="ovw-count">' + WARN.length + ' warnings</span></div><ul class="ovw-need-list">' + rows + '</ul>' +
+      '<ul class="ovw-need-list" id="moreRows" hidden>' + more + '</ul>' +
+      '<button type="button" class="ovw-more-btn" id="moreBtn" aria-expanded="false" aria-controls="moreRows">' + (WARN.length - 3) + ' more warnings</button></section>';
   }
 
-  function stats() {
+  function stats(s) {
+    var e = s === 'empty';
     return '<section class="ovw-stats" aria-label="Trip totals">' +
-      '<div class="ovw-card ovw-stat"><span class="ovw-stat-label">Total cost</span><span class="ovw-stat-val">&#8377;1,84,500</span><span class="ovw-stat-sub">&#8377;18,450 a day &middot; estimate</span></div>' +
-      '<div class="ovw-card ovw-stat"><span class="ovw-stat-label">Per person</span><span class="ovw-stat-val">&#8377;46,125</span><span class="ovw-stat-sub">against a &#8377;50,000 target</span></div>' +
-      '<div class="ovw-card ovw-stat"><span class="ovw-stat-label">Travel effort</span><span class="ovw-stat-val">38 h 20 min</span><span class="ovw-stat-sub">2,140 km &middot; 14 stops &middot; 4 overnight bases</span></div></section>';
+      '<div class="ovw-card ovw-stat"><span class="ovw-stat-label">Total cost</span><span class="ovw-stat-val">' + (e ? '–' : '&#8377;1,84,500') + '</span><span class="ovw-stat-sub">' + (e ? 'Shows after you add a cost' : '&#8377;18,450 a day &middot; estimate') + '</span></div>' +
+      '<div class="ovw-card ovw-stat"><span class="ovw-stat-label">Per person</span><span class="ovw-stat-val">' + (e ? '–' : '&#8377;46,125') + '</span><span class="ovw-stat-sub">' + (e ? 'Shows after you add a cost' : 'against a &#8377;50,000 target') + '</span></div>' +
+      '<div class="ovw-card ovw-stat"><span class="ovw-stat-label">Travel effort</span><span class="ovw-stat-val">' + (e ? '–' : '38 h 20 min') + '</span><span class="ovw-stat-sub">' + (e ? 'Shows after you add a stop' : '4 overnight bases') + '</span></div></section>';
   }
 
   /* ---------- route map ----------
      Real data (OverviewTab.tsx): overviewRoutePoints gives the ordered points.
      road.legs gives distanceKm and durationMinutes for each leg after the road is measured.
-     Names, day ranges and totals come from the trip. The mockup projects the points onto a sketch.
+     Pins show the start, each overnight base and the end. The header counts every stop.
      The numbers below are sample numbers. */
-  var PTS = [
-    { n: 'Kolkata', x: 44, y: 104 }, { n: 'Siliguri', x: 172, y: 58 }, { n: 'Gangtok', x: 300, y: 96 },
-    { n: 'Chandigarh', x: 428, y: 50 }, { n: 'Manali', x: 556, y: 92 }, { n: 'Leh', x: 676, y: 46 }
-  ];
-  var LEGS = [
-    { km: '570 km', t: '11 h 30', d: 'Days 1–2', w: 2, c: 'var(--yf-saffron)' },
-    { km: '115 km', t: '4 h', d: 'Day 3', w: 1, c: 'var(--yf-purple)' },
-    { km: '670 km', t: '9 h 20', d: 'Days 4–6', w: 3, c: 'var(--ok)' },
-    { km: '310 km', t: '5 h', d: 'Days 7–8', w: 2, c: 'var(--text-3)' },
-    { km: '475 km', t: '8 h 30', d: 'Days 9–10', w: 2, c: 'var(--yf-teal-600)' }
-  ];
+  var COLS = ['var(--yf-saffron)', 'var(--yf-purple)', 'var(--ok)', 'var(--text-3)', 'var(--yf-teal-600)'];
+  var NAMES = ['Kolkata', 'Siliguri', 'Gangtok', 'Chandigarh', 'Manali', 'Leh'];
+  var NAMES14 = ['Kolkata', 'Siliguri', 'Gangtok', 'Pelling', 'Darjeeling', 'Kalimpong', 'Chandigarh', 'Ambala', 'Shimla', 'Manali', 'Kaza (Spiti Valley)', 'Keylong', 'Sarchu', 'Leh'];
+  var DEF_LEGS = [['570 km', '11 h 30', 'Days 1–2'], ['115 km', '4 h', 'Day 3'], ['670 km', '9 h 20', 'Days 4–6'], ['310 km', '5 h', 'Days 7–8'], ['475 km', '8 h 30', 'Days 9–10']];
+  var YS = [108, 62, 100, 54, 96, 50];
+  var W = 720, H = 170, MX0 = 44, PILL_W = 84, PILL_H = 46, PIN_R = 13;
+  function hm(min) { var h = Math.floor(min / 60), m = min % 60; return h + ' h' + (m ? ' ' + m : ''); }
+  function routeData(n) {
+    var names = n === 6 && !qs.has('stops') ? NAMES : NAMES14.slice(0, n);
+    while (names.length < n) names.push('Stop ' + (names.length + 1));
+    var pts = names.map(function (nm, i) {
+      return { n: nm, x: n === 1 ? W / 2 : MX0 + i * (W - 2 * MX0) / (n - 1), y: n === 1 ? 84 : YS[i % 6] };
+    });
+    var legs = [], total = 0;
+    for (var i = 0; i < n - 1; i++) {
+      var L;
+      if (n === 6 && !qs.has('stops')) { L = DEF_LEGS[i]; L = { km: L[0], t: L[1], d: L[2], c: COLS[i % 5] }; total += parseInt(L.km, 10); }
+      else {
+        var km = 90 + ((i * 131) % 380), a = Math.floor(i * DAYS / (n - 1)) + 1, b = Math.max(a, Math.floor((i + 1) * DAYS / (n - 1)));
+        total += km; L = { km: km + ' km', t: hm(Math.round(km * 1.15)), d: a === b ? 'Day ' + a : 'Days ' + a + '–' + b, c: COLS[i % 5] };
+      }
+      legs.push(L);
+    }
+    return { pts: pts, legs: legs, total: total };
+  }
   function el(tag, attrs, text) {
     var e = document.createElementNS(NS, tag);
     for (var k in attrs) e.setAttribute(k, attrs[k]);
@@ -562,98 +602,97 @@ ul, ol { padding: 0; list-style: none; }
     return e;
   }
   function overlap(a, b) { return a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h; }
-  function buildMap() {
-    var W = 720, H = 150;
-    var svg = el('svg', { viewBox: '0 0 ' + W + ' ' + H, role: 'img', focusable: 'false', 'aria-label': 'Schematic route from Kolkata to Leh through 6 points, 2,140 km in total. Sample data.' });
-    [38, 76, 114].forEach(function (y) { svg.appendChild(el('line', { class: 'rm-grid', x1: 8, x2: W - 8, y1: y, y2: y })); });
-    var d = 'M' + PTS[0].x + ' ' + PTS[0].y, mids = [];
-    for (var i = 1; i < PTS.length; i++) {
-      var a = PTS[i - 1], b = PTS[i], mx = (a.x + b.x) / 2;
-      d += ' C' + mx + ' ' + a.y + ' ' + mx + ' ' + b.y + ' ' + b.x + ' ' + b.y;
-      mids.push({ x: mx, y: (a.y + b.y) / 2 });
-    }
-    svg.appendChild(el('path', { class: 'rm-base', d: d }));
-    svg.appendChild(el('path', { class: 'rm-leg', d: d }));
+  function cut(nm, max) { return nm.length > max ? nm.slice(0, max - 1) + '…' : nm; }
+  function buildMap(R) {
+    var P = R.pts, n = P.length, spacing = n > 1 ? (W - 2 * MX0) / (n - 1) : W;
+    var showPills = n > 1 && spacing >= PILL_W + 2 * PIN_R;
+    var svg = el('svg', { viewBox: '0 0 ' + W + ' ' + H, 'aria-hidden': 'true', focusable: 'false' });
+    [44, 88, 132].forEach(function (y) { svg.appendChild(el('line', { class: 'rm-grid', x1: 8, x2: W - 8, y1: y, y2: y })); });
     var placed = [];
-    PTS.forEach(function (p) { placed.push({ x: p.x - 15, y: p.y - 15, w: 30, h: 30 }); });
-    /* leg pills sit on the line mid-way: two lines (distance, drive time) and a day-colour stripe */
-    mids.forEach(function (m, i) {
-      var L = LEGS[i], pw = 58, ph = 32, g = el('g', { class: 'rm-leglabel' });
-      g.appendChild(el('rect', { x: m.x - pw / 2, y: m.y - ph / 2, width: pw, height: ph, rx: 8 }));
-      g.appendChild(el('rect', { x: m.x - pw / 2 + 8, y: m.y + ph / 2 - 4, width: pw - 16, height: 3, rx: 1.5, style: 'fill:' + L.c + ';stroke:none' }));
-      g.appendChild(el('text', { x: m.x, y: m.y - 6 }, L.km));
-      g.appendChild(el('text', { x: m.x, y: m.y + 6, style: 'font-weight:600' }, L.t));
-      svg.appendChild(g);
-      placed.push({ x: m.x - pw / 2 - 2, y: m.y - ph / 2 - 2, w: pw + 4, h: ph + 4 });
-    });
-    /* stop labels: try below, above, right, left. Take the first spot that touches nothing placed. Clamp to the frame. */
-    PTS.forEach(function (p, i) {
-      var role = i === 0 ? 'is-start' : i === PTS.length - 1 ? 'is-end' : '';
-      var tag = i === 0 ? 'START' : i === PTS.length - 1 ? 'END' : '';
-      var w = Math.ceil(p.n.length * 7.4) + 4, h = tag ? 26 : 15;
-      var cand = [
-        { x: p.x - w / 2, y: p.y + 17, a: 'middle', cx: p.x },
-        { x: p.x - w / 2, y: p.y - 17 - h, a: 'middle', cx: p.x },
-        { x: p.x + 18, y: p.y - h / 2, a: 'start', cx: p.x + 18 },
-        { x: p.x - 18 - w, y: p.y - h / 2, a: 'end', cx: p.x - 18 }
-      ];
-      var pick = null;
-      for (var k = 0; k < cand.length && !pick; k++) {
-        var c = cand[k];
-        if (c.a === 'middle') { var nx = Math.min(Math.max(c.x, 6), W - 6 - w); c.cx += nx - c.x; c.x = nx; }
-        var r = { x: c.x, y: c.y, w: w, h: h };
-        if (r.x < 4 || r.x + r.w > W - 4 || r.y < 2 || r.y + r.h > H - 2) continue;
-        var hit = placed.some(function (q) { return overlap(r, q); });
-        if (!hit) pick = { c: c, r: r };
+    P.forEach(function (p) { placed.push({ x: p.x - 16, y: p.y - 16, w: 32, h: 32 }); });
+    if (n > 1) {
+      var d = 'M' + P[0].x + ' ' + P[0].y, mids = [];
+      for (var i = 1; i < n; i++) {
+        var a = P[i - 1], b = P[i], mx = (a.x + b.x) / 2;
+        d += ' C' + mx + ' ' + a.y + ' ' + mx + ' ' + b.y + ' ' + b.x + ' ' + b.y;
+        mids.push({ x: mx, y: (a.y + b.y) / 2 });
       }
-      if (!pick) { var c0 = cand[0]; pick = { c: c0, r: { x: c0.x, y: c0.y, w: w, h: h } }; }
-      placed.push(pick.r);
-      var g = el('g', {});
-      var tx = pick.c.cx, ty = pick.r.y + 11.5;
-      var name = el('text', { class: 'rm-name', x: tx, y: ty, 'text-anchor': pick.c.a }, p.n);
-      var t = el('title', {}, p.n + (tag ? ' (' + tag.toLowerCase() + ')' : '')); name.appendChild(t);
-      g.appendChild(name);
-      if (tag) g.appendChild(el('text', { class: 'rm-tag', x: tx, y: ty + 11, 'text-anchor': pick.c.a }, tag));
-      svg.appendChild(g);
+      svg.appendChild(el('path', { class: 'rm-base', d: d }));
+      svg.appendChild(el('path', { class: 'rm-leg', d: d }));
+      /* leg pills sit on the line: distance, drive time, day range and a day-colour stripe. They hide when pins sit too close. */
+      if (showPills) mids.forEach(function (m, i) {
+        var L = R.legs[i], g = el('g', { class: 'rm-leglabel' });
+        g.appendChild(el('rect', { x: m.x - PILL_W / 2, y: m.y - PILL_H / 2, width: PILL_W, height: PILL_H, rx: 8 }));
+        g.appendChild(el('rect', { x: m.x - PILL_W / 2 + 10, y: m.y + PILL_H / 2 - 5, width: PILL_W - 20, height: 3, rx: 1.5, style: 'fill:' + L.c + ';stroke:none' }));
+        g.appendChild(el('text', { x: m.x, y: m.y - 14, style: 'font-weight:800' }, L.km));
+        g.appendChild(el('text', { x: m.x, y: m.y - 2 }, L.t));
+        g.appendChild(el('text', { x: m.x, y: m.y + 10, style: 'font-weight:600' }, L.d));
+        svg.appendChild(g);
+        placed.push({ x: m.x - PILL_W / 2 - 2, y: m.y - PILL_H / 2 - 2, w: PILL_W + 4, h: PILL_H + 4 });
+      });
+    }
+    /* stop labels: names stop at 14 characters. Try the preferred side, then the others. A name that fits nowhere
+       drops to 8 characters, then to no label. The pin keeps the full name in its title. */
+    P.forEach(function (p, i) {
+      var tag = n > 1 && i === 0 ? 'START' : n > 1 && i === n - 1 ? 'END' : '';
+      var nb = [P[i - 1], P[i + 1]].filter(Boolean), avg = nb.length ? nb.reduce(function (s, q) { return s + q.y; }, 0) / nb.length : p.y + 1;
+      var peak = p.y < avg, done = false;
+      [14, 8].forEach(function (max) {
+        if (done) return;
+        var txt = cut(p.n, max), w = Math.ceil(txt.length * 6.8) + 4, h = tag ? 26 : 14;
+        var below = { x: p.x - w / 2, y: p.y + 17, a: 'middle', cx: p.x }, above = { x: p.x - w / 2, y: p.y - 17 - h, a: 'middle', cx: p.x };
+        var cand = [peak ? above : below, peak ? below : above,
+          { x: p.x + 18, y: p.y - h / 2, a: 'start', cx: p.x + 18 }, { x: p.x - 18 - w, y: p.y - h / 2, a: 'end', cx: p.x - 18 }];
+        for (var k = 0; k < cand.length && !done; k++) {
+          var c = cand[k];
+          if (c.a === 'middle') { var nx = Math.min(Math.max(c.x, 6), W - 6 - w); c.cx += nx - c.x; c.x = nx; }
+          var r = { x: c.x, y: c.y, w: w, h: h };
+          if (r.x < 4 || r.x + r.w > W - 4 || r.y < 2 || r.y + r.h > H - 2) continue;
+          if (placed.some(function (q) { return overlap(r, q); })) continue;
+          placed.push(r); done = true;
+          var g = el('g', {}), ty = r.y + 11;
+          g.appendChild(el('text', { class: 'rm-name', x: c.cx, y: ty, 'text-anchor': c.a }, txt));
+          if (tag) g.appendChild(el('text', { class: 'rm-tag', x: c.cx, y: ty + 12, 'text-anchor': c.a }, tag));
+          svg.appendChild(g);
+        }
+      });
     });
-    PTS.forEach(function (p, i) {
-      var role = i === 0 ? 'is-start' : i === PTS.length - 1 ? 'is-end' : '';
+    P.forEach(function (p, i) {
+      var role = i === 0 ? 'is-start' : (i === n - 1 ? 'is-end' : '');
       var g = el('g', { class: 'rm-pin ' + role });
-      g.appendChild(el('circle', { class: 'rm-dot', cx: p.x, cy: p.y, r: role ? 13 : 11 }));
+      g.appendChild(el('title', {}, (i + 1) + '. ' + p.n));
+      g.appendChild(el('circle', { class: 'rm-dot', cx: p.x, cy: p.y, r: role ? PIN_R : 11 }));
       g.appendChild(el('text', { class: 'rm-num', x: p.x, y: p.y + 0.5 }, String(i + 1)));
       svg.appendChild(g);
     });
     return svg;
   }
-  function stopList() {
-    var out = '<ol class="ovw-stoplist" aria-label="Route stops and legs">';
-    PTS.forEach(function (p, i) {
-      var role = i === 0 ? 'is-start' : i === PTS.length - 1 ? 'is-end' : '';
-      var tag = i === 0 ? '<small>START</small>' : i === PTS.length - 1 ? '<small>END</small>' : '';
-      out += '<li class="' + role + '"><span class="ovw-stop-pin">' + (i + 1) + '</span><span class="ovw-stop-name">' + p.n + tag + '</span></li>';
-      if (i < LEGS.length) {
-        var L = LEGS[i];
+  function stopList(R, long) {
+    var P = R.pts, n = P.length;
+    var out = '<ol class="ovw-stoplist' + (long ? ' is-long' : '') + '" aria-label="Route: ' + STOPCOUNT + (STOPCOUNT === 1 ? ' stop' : ' stops') + ', ' + R.total.toLocaleString('en-IN') + ' km"' + (long ? ' tabindex="0"' : '') + '>';
+    P.forEach(function (p, i) {
+      var role = i === 0 ? 'is-start' : (i === n - 1 && n > 1 ? 'is-end' : '');
+      var tag = n > 1 && i === 0 ? '<small>START</small>' : (n > 1 && i === n - 1 ? '<small>END</small>' : '');
+      out += '<li class="' + role + '"><span class="ovw-stop-pin" aria-hidden="true">' + (i + 1) + '</span><span class="ovw-stop-name">' + p.n + tag + '</span></li>';
+      if (i < R.legs.length) {
+        var L = R.legs[i];
         out += '<li class="is-leg" style="--c:' + L.c + '"><span class="ovw-leg-text"><b>' + L.km + '</b> &middot; ' + L.t + '<i>' + L.d + '</i></span></li>';
       }
     });
     return out + '</ol>';
   }
-  function bands() {
-    return '<div class="ovw-bands" aria-hidden="true">' + LEGS.map(function (L) {
-      return '<div class="ovw-band-seg" style="--w:' + L.w + ';--c:' + L.c + '"><span>' + L.d + '</span></div>';
-    }).join('') + '</div>';
-  }
 
   function route(s) {
     var open = '<button type="button" class="ovw-btn">Open map</button>';
-    if (s === 'empty') {
+    if (s === 'empty' || NPTS === 0) {
       return '<section class="ovw-card ovw-route" aria-labelledby="r-h"><div class="ovw-head"><h2 class="ovw-title" id="r-h">Route</h2></div><div class="ovw-route-empty">' +
         state('empty', { icon: I.pin, title: 'No route to draw yet', body: 'This plan needs at least two places with confirmed coordinates. Add a stop, or pin the missing ones.' }) + '</div></section>';
     }
-    return '<section class="ovw-card ovw-route" aria-labelledby="r-h"><div class="ovw-head"><h2 class="ovw-title" id="r-h">Route</h2>' +
-      '<div class="ovw-head-meta"><span><b>10</b> days &middot; <b>2,140</b> km &middot; <b>14</b> stops</span>' + open + '</div></div>' +
-      '<div class="ovw-map" id="rmap"></div>' + stopList() + bands() +
-      '<p class="ovw-sample">Sample route, schematic and not to scale.</p></section>';
+    var R = routeData(NPTS), asList = NPTS > 8;
+    return '<section class="ovw-card ovw-route" data-view="' + (asList ? 'list' : 'map') + '" aria-labelledby="r-h"><div class="ovw-head"><h2 class="ovw-title" id="r-h">Route</h2>' +
+      '<div class="ovw-head-meta"><span><b>' + DAYS + '</b> ' + (DAYS === 1 ? 'day' : 'days') + ' &middot; ' + (R.total ? '<b>' + R.total.toLocaleString('en-IN') + '</b> km &middot; ' : '') + '<b>' + STOPCOUNT + '</b> ' + (STOPCOUNT === 1 ? 'stop' : 'stops') + '</span>' + open + '</div></div>' +
+      (asList ? '' : '<div class="ovw-map" id="rmap"></div>') + stopList(R, asList) +
+      '<p class="ovw-sample">Sample route, schematic and not to scale. Pins show the start, the overnight bases and the end.</p></section>';
   }
 
   /* ---------- day matrix ---------- */
@@ -667,63 +706,87 @@ ul, ol { padding: 0; list-style: none; }
   ];
   /* f = planned (stop title), a = added by the app, e = still open, n = not part of this day */
   var MX = [
-    ['Tue 1 Sep', ['n', ['f', 'Barasat'], 'a', 'e', ['f', 'Hotel'], ['f', 'Siliguri']]],
-    ['Wed 2 Sep', [['f', 'Buffet'], 'e', ['f', 'HP, Mirik'], 'a', ['f', 'Thali'], ['f', 'Siliguri']]],
-    ['Thu 3 Sep', ['e', ['f', 'Momo stop'], 'e', 'e', 'e', ['f', 'Gangtok']]],
-    ['Fri 4 Sep', [['f', 'Rumtek'], ['f', 'Singtam'], ['f', 'IOC pump'], 'a', ['f', 'Rooftop'], ['f', 'Gangtok']]],
-    ['Sat 5 Sep', [['f', 'Buffet'], 'e', 'a', 'e', ['f', 'Thali'], ['f', 'Ambala']]],
-    ['Sun 6 Sep', [['f', 'Karnal'], ['f', 'Ambala'], 'e', 'a', ['f', 'Hotel'], ['f', 'Chandigarh']]],
-    ['Mon 7 Sep', [['f', 'Buffet'], 'a', ['f', 'HP, Mandi'], 'e', ['f', 'Riverside'], ['f', 'Manali']]],
-    ['Tue 8 Sep', [['f', 'Manali'], ['f', 'Keylong'], 'a', 'a', 'e', ['f', 'Jispa camp']]],
-    ['Wed 9 Sep', [['f', 'Camp'], ['f', 'Pang tea'], ['f', 'Sarchu'], 'e', ['f', 'Leh'], ['f', 'Leh']]],
-    ['Thu 10 Sep', [['f', 'Buffet'], 'e', 'n', 'n', 'n', 'n']]
+    ['n', ['f', 'Barasat'], 'a', 'e', ['f', 'Hotel'], ['f', 'Siliguri']],
+    [['f', 'Buffet'], 'e', ['f', 'HP, Mirik'], 'a', ['f', 'Thali'], ['f', 'Siliguri']],
+    ['e', ['f', 'Momo stop'], 'e', 'e', 'e', ['f', 'Gangtok']],
+    [['f', 'Rumtek'], ['f', 'Singtam'], ['f', 'IOC pump'], 'a', ['f', 'Rooftop'], ['f', 'Gangtok']],
+    [['f', 'Buffet'], 'e', 'a', 'e', ['f', 'Thali'], ['f', 'Ambala']],
+    [['f', 'Karnal'], ['f', 'Ambala'], 'e', 'a', ['f', 'Hotel'], ['f', 'Chandigarh']],
+    [['f', 'Buffet'], 'a', ['f', 'HP, Mandi'], 'e', ['f', 'Riverside'], ['f', 'Manali']],
+    [['f', 'Manali'], ['f', 'Keylong'], 'a', 'a', 'e', ['f', 'Jispa camp']],
+    [['f', 'Camp'], ['f', 'Pang tea'], ['f', 'Sarchu'], 'e', ['f', 'Leh'], ['f', 'Leh']],
+    [['f', 'Buffet'], 'e', 'n', 'n', 'n', 'n']
   ];
-  var TODAY = 3; /* index: Fri 4 Sep, Day 4 */
+  var WD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'], MO = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  function dateOf(i) { var d = new Date(2026, 8, 1 + i); return WD[d.getDay()] + ' ' + d.getDate() + ' ' + MO[d.getMonth()]; }
+  var TODAY = Math.min(3, DAYS - 1);
+  function matrixRows() {
+    var out = [];
+    for (var di = 0; di < DAYS; di++) {
+      var cells = MX[di % MX.length], filled = 0, total = 0;
+      var cs = cells.map(function (c, ki) {
+        var k = KINDS[ki], st = typeof c === 'string' ? c : c[0], title = typeof c === 'string' ? '' : c[1];
+        if (st === 'n') return { st: 'n', k: k, html: '<div class="mx-cell" role="gridcell" data-state="none" style="--k:' + k.k + '" aria-label="Day ' + (di + 1) + ' ' + k.name + ': not part of this day"><span class="mx-btn"><span class="mx-chip" aria-hidden="true">&ndash;</span></span></div>', g: '<span class="mx-g" data-state="none" style="--k:' + k.k + '" aria-hidden="true">&ndash;</span>' };
+        total++; if (st === 'f') filled++;
+        var label = st === 'f' ? title : st === 'a' ? 'Auto-added by the app' : 'Open';
+        var aria = 'Day ' + (di + 1) + ' ' + k.name + ': ' + (st === 'f' ? title : st === 'a' ? 'added by the app' : 'still open') + '. Opens the Timeline.';
+        var inner = st === 'e' ? '<span>Open</span>' : I[k.ic] + '<span>' + label + '</span>';
+        var name = { f: 'filled', a: 'auto', e: 'empty' }[st];
+        return { st: st, k: k, title: title, html: '<div class="mx-cell" role="gridcell" data-state="' + name + '" style="--k:' + k.k + '"><button type="button" class="mx-btn" tabindex="-1" title="' + k.name + ': ' + label + '" aria-label="' + aria + '"><span class="mx-chip">' + inner + '</span></button></div>',
+          g: '<span class="mx-g" data-state="' + name + '" style="--k:' + k.k + '" aria-hidden="true">' + (st === 'e' ? '' : I[k.ic]) + '</span>' };
+      });
+      out.push({ di: di, filled: filled, total: total, cs: cs, html: cs.map(function (c) { return c.html; }).join('') });
+    }
+    return out;
+  }
+  function compactRow(r) {
+    var today = r.di === TODAY, lists = { f: [], a: [], e: [], n: [] };
+    r.cs.forEach(function (c) { lists[c.st].push(c.k.name.toLowerCase()); });
+    var aria = 'Day ' + (r.di + 1) + ', ' + dateOf(r.di) + (today ? ', today' : '') + '. ' + r.filled + ' of ' + r.total + ' planned.' +
+      (lists.f.length ? ' Planned: ' + lists.f.join(', ') + '.' : '') + (lists.a.length ? ' Added by the app: ' + lists.a.join(', ') + '.' : '') +
+      (lists.e.length ? ' Still open: ' + lists.e.join(', ') + '.' : '') + (lists.n.length ? ' Not part of this day: ' + lists.n.join(', ') + '.' : '') + ' Opens the Timeline at this day.';
+    return '<li><button type="button" class="mx-crow' + (today ? ' is-today' : '') + '" aria-label="' + aria + '"><span class="mx-cday"><b>Day ' + (r.di + 1) + (today ? '<span class="mx-today">Today</span>' : '') + '</b><small>' + dateOf(r.di) + '</small></span>' +
+      r.cs.map(function (c) { return c.g; }).join('') + '<span class="mx-ctot">' + r.filled + '/' + r.total + '</span></button></li>';
+  }
   function matrix(s) {
     var head = '<section class="ovw-block" aria-labelledby="m-h"><div class="ovw-head"><h2 class="ovw-title" id="m-h">What each day holds</h2>';
     if (s === 'empty') return head + '</div>' + state('empty', { title: 'Nothing planned yet', body: 'Add a stop and each day shows its meals, fuel, stretch breaks and night.' }) + '</section>';
-    var rows = MX.map(function (r, di) {
-      var cells = r[1], filled = 0, total = 0;
-      var cs = cells.map(function (c, ki) {
-        var k = KINDS[ki], st = typeof c === 'string' ? c : c[0], title = typeof c === 'string' ? '' : c[1];
-        if (st === 'n') return { st: 'n', html: '<div class="mx-cell" role="gridcell" data-state="none" style="--k:' + k.k + '"><span class="mx-btn" aria-label="Day ' + (di + 1) + ' ' + k.name + ': not part of this day"><span class="mx-chip" aria-hidden="true">&ndash;</span></span></div>' };
-        total++; if (st === 'f') filled++;
-        var label = st === 'f' ? title : st === 'a' ? 'Auto-added' : 'Open';
-        var aria = 'Day ' + (di + 1) + ' ' + k.name + ': ' + (st === 'f' ? title : st === 'a' ? 'added by the app' : 'still open') + '. Opens the Timeline.';
-        var inner = st === 'e' ? '<span>Open</span>' : I[k.ic] + '<span>' + label + '</span>';
-        return { st: st, html: '<div class="mx-cell" role="gridcell" data-state="' + { f: 'filled', a: 'auto', e: 'empty' }[st] + '" style="--k:' + k.k + '"><button type="button" class="mx-btn" tabindex="-1" title="' + k.name + ': ' + (st === 'a' ? 'added by the app' : label) + '" aria-label="' + aria + '"><span class="mx-chip">' + inner + '</span></button></div>' };
-      });
-      return { di: di, filled: filled, total: total, html: cs.map(function (c) { return c.html; }).join('') };
-    });
-    var thin = rows.slice().sort(function (a, b) { return a.filled / a.total - b.filled / b.total; })[0];
-    var heads = KINDS.map(function (k) {
-      return '<div class="mx-th" role="columnheader" style="--k:' + k.k + '">' + I[k.ic] + k.name + '</div>';
-    }).join('');
+    var rows = matrixRows();
+    var ratio = function (r) { return r.total ? r.filled / r.total : 1; };
+    var thin = rows.slice().sort(function (a, b) { return ratio(a) - ratio(b); })[0];
+    var tie = rows.every(function (r) { return ratio(r) === ratio(rows[0]); });
+    var thinTxt = (rows.length < 2 || tie) ? '' : '<span>Thinnest: <b>Day ' + (thin.di + 1) + '</b>, ' + thin.filled + ' of ' + thin.total + '</span>';
+    var heads = KINDS.map(function (k) { return '<div class="mx-th" role="columnheader" style="--k:' + k.k + '">' + I[k.ic] + k.name + '</div>'; }).join('');
     var body = rows.map(function (r) {
       var today = r.di === TODAY;
-      return '<div class="mx-row' + (today ? ' is-today' : '') + '" role="row"><div class="mx-daycol mx-day" role="rowheader"><button type="button" tabindex="-1" aria-label="Day ' + (r.di + 1) + ', ' + MX[r.di][0] + (today ? ', today' : '') + '. Opens the Timeline at this day."><span>Day ' + (r.di + 1) + (today ? '<span class="mx-today">Today</span>' : '') + '</span><small>' + MX[r.di][0] + '</small></button></div>' +
-        r.html + '<div class="mx-total' + (r === thin ? ' is-thin' : '') + '" role="gridcell" aria-label="' + r.filled + ' of ' + r.total + ' planned">' + r.filled + '/' + r.total + '</div></div>';
+      return '<div class="mx-row' + (today ? ' is-today' : '') + '" role="row"><div class="mx-daycol mx-day" role="rowheader"><button type="button" tabindex="-1" aria-label="Day ' + (r.di + 1) + ', ' + dateOf(r.di) + (today ? ', today' : '') + '. Opens the Timeline at this day."><span>Day ' + (r.di + 1) + (today ? '<span class="mx-today">Today</span>' : '') + '</span><small>' + dateOf(r.di) + '</small></button></div>' +
+        r.html + '<div class="mx-total' + (!tie && rows.length > 1 && r === thin ? ' is-thin' : '') + '" role="gridcell" aria-label="' + r.filled + ' of ' + r.total + ' planned">' + r.filled + '/' + r.total + '</div></div>';
     }).join('');
-    return head + '<div class="ovw-head-meta"><span>Thinnest: <b>Day ' + (thin.di + 1) + '</b>, ' + thin.filled + ' of ' + thin.total + '</span><span class="mx-key"><span><i class="k-f"></i>Planned</span><span><i class="k-a"></i>Auto-added</span><span><i class="k-e"></i>Open</span></span></div></div>' +
+    var key = '<span class="mx-key"><span><i class="k-f"></i>Planned</span><span><i class="k-a"></i>Auto-added</span><span><i class="k-e"></i>Open</span></span>';
+    var chead = '<li class="mx-chead" aria-hidden="true"><span>Day</span>' + KINDS.map(function (k) { return '<span style="--k:' + k.k + '" title="' + k.name + '">' + I[k.ic] + '</span>'; }).join('') + '<span>n/6</span></li>';
+    return head + '<div class="ovw-head-meta">' + thinTxt + key + '</div></div>' +
       '<div class="mx-wrap" id="mxwrap"><div class="mx-scroll" id="mxscroll"><div class="mx" role="grid" id="mxgrid" aria-label="Planned parts per day. Use the arrow keys to move between cells.">' +
-      '<div class="mx-row is-head" role="row"><div class="mx-th mx-daycol" role="columnheader">Day</div>' + heads + '<div class="mx-th" role="columnheader" style="justify-content:center">Filled</div></div>' + body + '</div></div><div class="mx-fade" aria-hidden="true"></div></div></section>';
+      '<div class="mx-row is-head" role="row"><div class="mx-th mx-daycol" role="columnheader">Day</div>' + heads + '<div class="mx-th" role="columnheader" style="justify-content:center">Filled</div></div>' + body + '</div></div><div class="mx-fade" aria-hidden="true"></div></div>' +
+      '<ul class="mx-compact" aria-label="Planned parts per day">' + chead + rows.map(compactRow).join('') + '</ul></section>';
   }
   function wireMatrix() {
     var grid = document.getElementById('mxgrid'); if (!grid) return;
     var scroll = document.getElementById('mxscroll'), wrap = document.getElementById('mxwrap');
     function fade() { wrap.classList.toggle('can-scroll', scroll.scrollLeft + scroll.clientWidth < scroll.scrollWidth - 2); }
     scroll.addEventListener('scroll', fade); window.addEventListener('resize', fade); fade();
-    var rows = Array.prototype.map.call(grid.querySelectorAll('[role=row]'), function (r) { return Array.prototype.slice.call(r.querySelectorAll('[role=rowheader] button, [role=gridcell] button')); }).filter(function (r) { return r.length; });
+    var rowEls = Array.prototype.slice.call(grid.querySelectorAll('[role=row]'));
+    var rows = rowEls.map(function (r) { return Array.prototype.slice.call(r.querySelectorAll('[role=rowheader] button, [role=gridcell] button')); }).filter(function (r) { return r.length; });
     function colOf(btn) { var cell = btn.closest('[role=gridcell],[role=rowheader]'); return Array.prototype.indexOf.call(cell.parentNode.children, cell); }
     function at(r, c) { var row = rows[r]; if (!row) return null; for (var i = 0; i < row.length; i++) if (colOf(row[i]) === c) return row[i]; return null; }
-    var cur = rows[0][0]; cur.tabIndex = 0;
+    var start = 0; rows.forEach(function (row, i) { if (row[0].closest('[role=row]').classList.contains('is-today')) start = i; });
+    var cur = rows[start][0]; cur.tabIndex = 0;
     function go(btn) { if (!btn) return; cur.tabIndex = -1; cur = btn; cur.tabIndex = 0; cur.focus(); }
     grid.addEventListener('focusin', function (e) { var b = e.target.closest('button'); if (b && b !== cur) { cur.tabIndex = -1; cur = b; b.tabIndex = 0; } });
     grid.addEventListener('keydown', function (e) {
       var b = e.target.closest('button'); if (!b) return;
       var r = 0, c = colOf(b); rows.forEach(function (row, i) { if (row.indexOf(b) >= 0) r = i; });
       var d = { ArrowRight: [0, 1], ArrowLeft: [0, -1], ArrowDown: [1, 0], ArrowUp: [-1, 0] }[e.key];
-      if (d) { e.preventDefault(); var rr = r + d[0], cc = c + d[1], t = null; while (!t && rr >= 0 && rr < rows.length && cc >= 0 && cc <= 6) { t = at(rr, cc); rr += d[0]; cc += d[1]; if (!d[0] && !d[1]) break; } go(t); }
+      if (d) { e.preventDefault(); var rr = r + d[0], cc = c + d[1], t = null; while (!t && rr >= 0 && rr < rows.length && cc >= 0 && cc <= 6) { t = at(rr, cc); rr += d[0]; cc += d[1]; } go(t); }
       else if (e.key === 'Home') { e.preventDefault(); go(rows[r][0]); }
       else if (e.key === 'End') { e.preventDefault(); go(rows[r][rows[r].length - 1]); }
     });
@@ -774,25 +837,32 @@ ul, ol { padding: 0; list-style: none; }
     else if (s === 'empty') body = state('empty', { title: 'No forecast yet', body: 'A forecast appears when a day comes close enough.' });
     else if (s === 'kept') body = state('kept', { icon: I.warn, title: 'Couldn’t refresh the forecast', body: 'Showing the last one.', actions: retry }) + grid;
     else { body = grid; meta = '<div class="ovw-head-meta">Rain is likely on Day 2 and Day 3. Pack rain gear.</div>'; }
-    return '<section class="ovw-block" aria-labelledby="w-h"><div class="ovw-head"><h2 class="ovw-title" id="w-h">Weather along the route</h2>' + meta + '</div>' + body + '</section>';
+    return '<section class="ovw-block ovw-weather" aria-labelledby="w-h"><div class="ovw-head"><h2 class="ovw-title" id="w-h">Weather along the route</h2>' + meta + '</div>' + body + '</section>';
   }
 
   var notes = {
     ready: 'Ready: every panel has data.',
     loading: 'Loading: weather, group pulse and recent activity wait for a read. The verdict, issues, totals, route, commitments and day matrix come from the plan already on screen, so they stay as they are.',
     failed: 'Failed: three reads failed and each says so with Try again. A failed read never shows as empty.',
-    empty: 'Empty: a trip with no issues and no activity. The verdict reads Comfortable and the primary action opens the Timeline.',
+    empty: 'Empty: a trip with nothing planned. The score reads a dash, the totals read a dash, and nothing is invented.',
     kept: 'Kept: a refresh failed, so the last loaded rows stay on screen with a note.'
   };
 
   function render(s) {
-    document.getElementById('ovw').innerHTML = verdict(s) + stats() +
-      '<div class="ovw-split">' + needs(s) + route(s) + '</div>' +
-      '<div class="ovw-lower"><div class="ovw-stack">' + matrix(s) + weather(s) + '</div><div class="ovw-stack">' + pulse(s) + commitments(s) + activity(s) + '</div></div>';
-    var m = document.getElementById('rmap'); if (m) m.appendChild(buildMap());
+    alertUsed = false;
+    /* The strings build in page order, so the first failed block on the page is the one alert. */
+    var html = verdict(s) + '<div class="ovw-split">' + needs(s) + route(s) + stats(s) + '</div>' +
+      '<div class="ovw-lower">' + matrix(s) + '<div class="ovw-stack">' + pulse(s) + commitments(s) + activity(s) + '</div></div>' + weather(s);
+    document.getElementById('ovw').innerHTML = html;
+    var m = document.getElementById('rmap'); if (m) m.appendChild(buildMap(routeData(NPTS)));
+    var mb = document.getElementById('moreBtn');
+    if (mb) mb.addEventListener('click', function () {
+      var rows = document.getElementById('moreRows'), open = rows.hidden;
+      rows.hidden = !open; mb.setAttribute('aria-expanded', String(open)); mb.textContent = open ? 'Show fewer' : (WARN.length - 3) + ' more warnings';
+    });
     wireMatrix();
     document.getElementById('note').innerHTML = '<p class="mock-note">' + notes[s] + '</p>';
-    Array.prototype.forEach.call(document.querySelectorAll('[data-state]'), function (b) { if (b.tagName === 'BUTTON') b.setAttribute('aria-pressed', String(b.getAttribute('data-state') === s)); });
+    Array.prototype.forEach.call(document.querySelectorAll('.mock-bar [data-state]'), function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-state') === s)); });
   }
 
   /* ---------- theme, guides and state from the URL ---------- */

@@ -31,3 +31,24 @@ One file shows two designs together. The Trip workspace header and tab bar (P2) 
 - You must keep `yf-page` on the header and tab bar wrapper only. You must not put it on `.container` (R15).
 - You must keep one definition of each token. The mockup adds `--ease-glide` to the P12 token list.
 - The mockup re-uses the P12 sample data. The Board and Map panels are placeholders, not designs.
+
+## Route card: terrain journey strip
+
+The route card draws the trip over a stylised landscape. It replaces the flat navy grid plate.
+
+- The road follows the true shape of the stops. The mockup projects real latitude and longitude with an equirectangular fit and a cosine of the latitude. North is up. The drawn bounds are centred. Catmull-Rom curves smooth the line, as RouteSnapshot does.
+- The sample trips use real place coordinates. They are approximate and labelled as a sample. Use `?route=north-south` (default), `ladakh`, `bengal-sikkim` or `goa-coast`. The old names winding, straight and loop still map to the first three.
+- The landscape has no tiles. It has a sky wash, a sun or moon, three ridge layers and soft contour lines. High peaks get snow caps. Water sits low. The sea or a river sits where the trip names it. Light mode is a morning landscape. Dark mode is a dusk landscape.
+- The ridges rise where the stops are high. A stop at 3,500 m lifts the ridge under it. The mockup stores an elevation for each stop.
+- The road is one thick line with a casing and a cream dashed centre. It stays the hero. Light mode uses a navy casing. Dark mode uses a bright saffron body. All colours are tokens or mixes of tokens.
+- The road draws in once. The ridges settle by 1 to 2 px. `prefers-reduced-motion` turns both off.
+- Pins that sit closer than a tap target shrink and lose their number. The stop list below carries the detail. Pins still open the Map at that stop.
+- On a phone the plate is 420 by 320 units, so the map is about 250px high at 390px.
+
+### What the real data supplies
+
+- `overviewRoutePoints` gives ordered points `{ lat, lng, day | null }`. It is enough for the road, the pins and the stop list.
+- The landscape needs more. It needs an elevation for each point and a flag for sea or river. Today the data has neither.
+- You must choose one source before you port the landscape. Use an elevation read for each point, or a small fixed region table.
+- Without either source, draw the flat plain kind. The road is not affected.
+- Leg distance and time come from `road.legs` only after the road is measured.

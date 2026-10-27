@@ -1,6 +1,6 @@
 # Implementation spec: Trip workspace header (P2) and Overview tab (P12)
 
-Status: draft for the user. Written against `origin/test` at `dc897c4e` (2026-10-27).
+Status: implementation-ready. The foundation commit lands before the header and Overview lanes.
 Source design: `MOCKUP.html` and `NOTES.md` in this folder. The mockup is sample data only.
 Read this file top to bottom. It needs no other context. The last section, "Porting map", holds the file paths.
 
@@ -64,7 +64,7 @@ The mockup sets all of this out. This spec turns the mockup into a build plan. I
 23. As a traveller, I want a loading message while the trip loads, so that I know the page works.
 24. As a traveller, I want the Overview to open on one verdict, so that I know the plan state.
 25. As a traveller, I want one score, one band word and one sentence, so that I read each fact once.
-26. As a traveller, I want the verdict to point me to the issues, so that I know where to start. (Open question 15 asks if it names the first issue.)
+26. As a traveller, I want the verdict to point me to the issues, so that I know where to start.
 27. As a traveller, I want one primary button on the verdict, so that the next step is clear.
 28. As a traveller with issues, I want the button to read "Fix N issues", so that I see the job.
 29. As a traveller with no issues, I want the button to read "Open Timeline", so that I can carry on.
@@ -130,24 +130,24 @@ The mockup sets all of this out. This spec turns the mockup into a build plan. I
 
 ### Page states
 
-Today `TripWorkspace` returns raw `loading-block` markup for two states (lines 337-342). The Board fallback is a third (line 449). One branch also joins two causes. It tests `(!trip && fetchMissed) || !me`, so a signed-out viewer reads "Trip not found". Also, `fetchSharedTrip` (`src/store/store.ts` line 1327) returns `null` for a missing row. It returns `null` for a failed read too. So a failed read reads as "not found".
+The foundation branch replaces `fetchSharedTrip` on these surfaces with `readSharedTrip`. The reader returns `found`, `unavailable`, `failed` or `cancelled`. A cancelled read does not render. An identity change starts a new read.
 
-The page keeps three states. Each one is a `StateBlock` with `size="full"` inside `div.container.page-enter`, because the block fills the page (R22):
+The page keeps four states. Each state uses a `StateBlock` with `size="full"` and `titleLevel="h1"` inside `div.container.page-enter`, because the block fills the page (R22):
 
-- Loading. `kind="loading"`, title "Loading trip". No actions. The Board fallback uses `kind="loading"` with `size="compact"` and the title "Loading board".
-- Not found. `kind="empty"`, title "Trip not found". The body says the trip may be deleted, private or a wrong link. One action: "Back to my trips" (the existing `onNavigate('trips')`). The state shows no retry, because the read gave a definite answer.
-- Signed out. See open question 19. Until the user decides, the signed-out viewer keeps today's outcome with the not-found copy. The builder adds no new route rule.
-- A failed read must not read as not found (R23). The honesty fix is a small separate pull request that lands first: `fetchSharedTrip` must tell "no row" from "read failed". The page then shows `kind="failed"` with the title "Could not open this trip". A "Try again" button clears `missedFetchFor`, so the effect (line 147) reads again. If the user does not want that fix first, the page shows the not-found state for both causes. This stays a known gap.
+- Loading. `kind="loading"`, title "Loading trip". The state has no actions. The Board fallback uses `kind="loading"` with `size="compact"` and the title "Loading board".
+- Not found. `kind="empty"`, title "Trip not found". The body says the trip may be deleted, private or a wrong link. The state has one action: "Back to my trips" (the existing `onNavigate('trips')`). The state shows no retry, because the read gave a definite answer.
+- Signed out. The trip route shows a `StateBlock` with `kind="empty"` and title "Sign in to open this trip". The action builds `/auth?next=...` with `authNext`. The `next` value must be the validated trip path.
+- Failed read. `kind="failed"`, title "Could not open this trip". The "Try again" action clears the stored read result. The effect then reads again.
 - The baseline effect is in "Page structure": `loadingBlock` falls from 3 to 0.
 
 ### Header content
 
 - The header shows the same facts as today. These are the name, the route, the dates, the party size, the transport mode and the travel style. It also shows the members, the viewer's role and presence.
 - The title is the only serif text on the page (R14). The facts line and all other text use the body face.
-- The cover slot shows the trip cover. See open question 5 for the choice of source.
+- The cover slot uses this order: the uploaded cover image, the saved emoji, then `TripArt`.
 - The "Invite & share" button shows only to editors. It opens the Share tab.
 - The button is an outline pill (P12 decision). The verdict button is the only saffron pill on the Overview.
-- On a phone the button sits in the members row while the header is open. It moves to the top right when the header is folded. One copy is reachable at a time.
+- The header uses one responsive "Invite & share" button. On a phone the button sits in the members row while the header is open. It moves to the top right when the header is folded.
 - Each avatar is a focus stop with a tooltip. The tooltip names the person and the state.
 
 ### Header fold
@@ -157,18 +157,22 @@ The page keeps three states. Each one is a `StateBlock` with `size="full"` insid
 - The fold uses one duration (`--motion-slow`) and one curve (`--ease-glide`).
 - Height changes use the grid-rows technique (one fraction to zero). All other changes use transform and opacity. No layout box of the title or the cover changes size, so text does not reflow during the move.
 - Overflow stays visible when the header is open, so tooltips can show. It clips only while the header folds.
+- Folded content becomes inert only after focus moves to the active tab.
 - Reduced motion turns every animation and transition off.
 
 ### Widths
 
 - The Overview and the other normal tabs use a 1400 px container. Board and Map use a 1720 px container.
 - The container width change animates with a max-width transition.
-- See open question 2. The widths differ from today.
+- The width uses the mockup values. The Map tab must pass its rail-overflow check at 1720 px.
 
 ### Tab bar
 
 - The bar is a glass pill with a teal glider behind the active tab.
-- It keeps the full tab contract. This covers the tablist role, one panel per tab, roving focus, arrow keys, Home, End and the group count.
+- Use `SegmentedTabs` with `semantics="tablist"`.
+- The tab list has eight stable panel shells. Each tab has an `aria-controls` value that names its shell.
+- Only the active shell mounts content. The other seven shells stay hidden and empty.
+- It keeps the full tab contract. This covers roving focus, arrow keys, Home, End and the group count.
 - The tab order stays as today: Overview, Board, Map, Timeline, Group input, Budget, Share, Settings.
 - On a narrow screen the bar scrolls sideways. A mask fades the edge that has more tabs. The mask states are start, middle and end.
 - Every tab is 44 px tall.
@@ -188,8 +192,8 @@ Below 1100 px the lower row becomes one column. Below 960 px the order becomes v
 
 - It shows the score, the band word, a bar, one sentence and one button.
 - The band comes from the existing band helpers. The sentence comes from the existing band sentence helper. The sample text in the mockup is not product copy.
-- The sub-line is a summary. It states the issue count and the severity of the worst issue, for example "3 issues, 1 high severity". It never repeats a warning title. This keeps the one-copy rule (each warning appears once on the page): the title appears only in "What needs you". This is a recommendation. See open question 15 for the alternative (one explicit cross-reference).
-- The button reads "Fix N issues" when warnings exist. It opens the Timeline at the first issue in the existing warning rank. It reads "Open Timeline" when none exist. If the first ranked warning is trip-wide, see "Focus wiring" and open question 16.
+- The sub-line is a summary. It states the issue count and the severity of the worst issue, for example "3 issues, 1 high severity". It never repeats a warning title. This keeps the one-copy rule: each warning title appears only in "What needs you".
+- The button reads "Fix N issues" when warnings exist. It opens the Timeline at the first issue in the existing warning rank. It reads "Open Timeline" when none exist. If the first ranked warning is trip-wide, the button uses the trip-wide focus target.
 - The empty plan shows a dash for the score, the chip "Not scored yet" and no bar.
 - The verdict has no decorative blob and no side stripe. The band shows in the score, the chip and the bar.
 
@@ -197,7 +201,7 @@ Below 1100 px the lower row becomes one column. Below 960 px the order becomes v
 
 - One card replaces "Trip health" and the old actions card.
 - Each row has a severity label, a title, a fix sentence and a "Fix Day N" button.
-- A warning that has no day (`dayIndex` is `null` or missing) is trip-wide. Its button reads "Fix" with no day. The current day focus cannot address it, because `canFocusDay` (`src/lib/tripFocus.ts` line 85) accepts only a day that exists. The Timeline shows trip-wide warnings in their own block (`TimelineTab.tsx` lines 733-745). So the button needs the trip-wide target defined in "Focus wiring". The options are in open question 16.
+- A warning that has no day (`dayIndex` is `null` or missing) is trip-wide. Its button reads "Fix" with no day. The current day focus cannot address it, because `canFocusDay` (`src/lib/tripFocus.ts` line 85) accepts only a day that exists. The Timeline shows trip-wide warnings in their own block (`TimelineTab.tsx` lines 733-745). The button uses the one-shot trip-wide target in "Focus wiring".
 - The card shows three rows. A text button opens the rest in place and changes to "Show fewer".
 - The empty card says "Nothing to check yet" when the plan has no stops. It says the plan flows when the plan has stops and no warnings.
 - Every issue button uses the same verb, "Fix".
@@ -205,25 +209,26 @@ Below 1100 px the lower row becomes one column. Below 960 px the order becomes v
 ### Route card
 
 - The card draws the trip as an SVG with no external tiles.
-- The road follows the true shape of the stops. The projection is the one the existing route snapshot uses. It scales to fit and uses the cosine of the latitude. North is up. The drawn bounds are centred. The curves are smooth.
+- The route follows the true shape of the stops. The projection is the one the existing route snapshot uses. It scales to fit and uses the cosine of the latitude. North is up. The drawn bounds are centred. The curves are smooth.
+- The caption says "Schematic route" when the drawing is not measured road geometry. It says "Measured road" only when a routing service supplies the drawn geometry.
+- A flight or train trip uses neutral schematic connectors. Do not call the connectors a road. Do not show road distance or drive time for these trips.
 - The road is one thick line with a casing and a cream dashed centre. It is the hero.
 - Each leg is its own path, so each leg can draw in and light up alone.
-- The plate is a stylised landscape: a sky wash, a sun or moon, three ridge layers and soft contour lines.
-- Ridges rise where the stops are high. High peaks get snow caps. Water sits low. Sea or river sits where the trip names it.
+- The plate is a flat stylised landscape. It has a sky wash, a sun or moon, one quiet ground layer and soft contour lines.
+- This release draws no ridges, snow caps, sea or river. The product has no reliable point-elevation or water data.
 - Light mode is a morning landscape. Dark mode is a dusk landscape.
-- The landscape needs data that no API gives today (the elevation of a point, and a sea or river flag). Without that data the card draws a flat plain and the road is not affected. See "Terrain data" in the Porting map.
 - The card reads one route view model (see "Route view model" in the Porting map). A point is not only a coordinate and a day. It has a kind, a stop id, a title and an arriving leg.
 - Pins are numbered dots. Only the start and the end carry a tag and a city name.
 - A pin is a small face over a 44 px transparent hit circle.
 - A pin is a button only when its hit circle fits between its neighbours. The start and the end always are.
-- Points that sit within one hit-circle diameter of each other after projection share one pin group. A round trip is the main case: the return point has the same coordinate as the start (`tripRoad.ts` lines 66-71). The group draws one pin and one 44 px hit circle, so two targets never overlap. Its tag reads "Start and end". Its tooltip names both rows. The return row in the stop list has no pin of its own. It lights the group pin on hover or focus. The same rule covers a destination point that falls within the hit-circle diameter of another point. This is a recommendation. See open question 18 for the alternatives.
+- Points that sit within one hit-circle diameter of each other after projection share one pin group. A round trip is the main case: the return point has the same coordinate as the start (`tripRoad.ts` lines 66-71). The group draws one pin and one 44 px hit circle, so two targets never overlap. Its tag reads "Start and end". Its tooltip names both rows. The return row in the stop list has no pin of its own. It lights the group pin on hover or focus. The same rule covers a destination point that falls within the hit-circle diameter of another point.
 - A pin without room loses its number. The stop list carries the detail.
 - A tooltip opens on hover and on keyboard focus. It names the stop and the day. It gives the arriving leg when the road is measured. Escape closes it.
 - Under the map sits one summary line: distance, drive time, days and stops. The road states are:
   - Pending: days and stops only. No distance, no time.
   - Failed: days and stops only. A note reads "Road not measured". A "Try again" button calls the road view's `retry`. This state is separate from pending.
   - Measured with every leg from a real router: distance and time of the whole chain.
-  - Measured with some legs on the straight-line fallback: `resolvedLegs` accepts a chain when any leg is measured (`tripRoad.ts` line 162). The aggregate then reads "about N km" and "about H h M min". A note reads "K of M legs estimated". The summary never claims a measured road for a chain that holds estimates. A strict alternative is open question 17.
+  - Measured with some legs on the straight-line fallback: `resolvedLegs` accepts a chain when any leg is measured (`tripRoad.ts` line 162). The aggregate then reads "about N km" and "about H h M min". A note reads "K of M legs estimated". The summary never claims a measured road for a chain that holds estimates.
 - Each leg figure on a row or in a tooltip follows the leg's `source`. A leg with `source` equal to `estimate` carries the existing `estimated` flag (as `correctionsFromLegs` sets it, `tripRoad.ts` line 269). Its figures end with "(est.)", the suffix the Map pins use. Its tooltip adds "Straight-line estimate, not a measured road." A leg without a flag shows plain figures.
 - Under the summary sits a stop list with one row per route view model row. The rows are the start, every stop, the return point of a round trip and the destination tail. A day with three stops gives three rows. The list scrolls above eight rows and fades at the foot.
   - The start row reads "Start" and the start name. It has no arriving leg and no day.
@@ -308,14 +313,14 @@ New logic must go into pure functions that the seam can call. Examples are the r
 - Each warning appears once on the page. The first three show and the rest sit behind the toggle.
 - Failed, loading, empty and kept are separate branches for activity, decisions and weather.
 - Only one alert role exists for failed blocks. The pure alert function returns the first failed key in page order. It returns a later key when the first block recovers. `stateBlockRole` with an override returns that override. Without an override it returns today's roles.
-- The verdict sub-line contains no warning title (or, if open question 15 picks the cross-reference, exactly one title).
+- The verdict sub-line contains no warning title.
 - The route view model keeps the order and count of `overviewRoutePoints`. Each row has a kind, a stop id for stop rows, a title and an arriving leg. Rows for a round trip, a destination tail and a point with an invalid coordinate follow the row rules above.
 - The projection keeps north up and centres the bounds.
 - A pin is a button only when its hit circle fits. The start and the end always are. Co-located points merge into one pin group with one hit circle.
 - A leg with `source` equal to `estimate` shows the estimated flag. The aggregate summary follows the road states above.
 - A trip-wide warning, a stop-less cell and a filled cell each map to the target in "Focus wiring".
-- The page states: loading, not found and (if the honesty fix lands) failed are three separate branches. None uses `loading-block`.
-- With no terrain data the terrain model returns the flat plain.
+- The page states loading, not found, signed out and failed as four separate branches. None uses `loading-block`.
+- The terrain model returns the flat plain. It accepts no invented elevation or water input.
 - The new click props are optional. A caller that omits them renders no button.
 - The public itinerary page does not pass the new props.
 
@@ -338,7 +343,7 @@ These checks are not tests. They are proof the builder must attach:
 - A change to the health score, the warning rank or any engine rule.
 - A change to the Board, Map, Timeline, Group input, Budget, Share or Settings content.
 - The Create trip flow and the public itinerary page.
-- A new data source or a new network read for elevation or water. This spec names the need. A user decision must come first (open questions 9 and 10).
+- A new data source or a new network read for elevation or water. This release uses the flat plain.
 - Real road measurement changes. The leg figures show only when the road is measured.
 - Generated region art. The header cover uses the existing art component until generated art lands.
 - A change to routing, deep-link grammar or tab slugs.
@@ -354,14 +359,14 @@ A code review read this spec against `origin/test` at `dc897c4e`. The spec needs
 - The Overview has one alert for failed blocks. `StateBlock` gets a role override, and a test pins first-failed and later-failed behaviour.
 - The route card reads a route view model. Each point has a kind, a stop id, a title and an arriving leg. A bare coordinate and day is not enough.
 - Focus from the Overview uses new workspace signals: a Timeline target (day, stop, trip-wide block) and a Map stop target. The matrix passes no slot key.
-- The verdict sub-line summarises the issues and does not repeat a warning title. Open question 15 holds the alternative.
-- A trip-wide warning has a defined target (open question 16).
+- The verdict sub-line summarises the issues and does not repeat a warning title.
+- A trip-wide warning has a one-shot Timeline block target.
 - The road summary has four states: pending, failed, measured and partly estimated. A leg estimate shows the existing `estimated` flag.
 - The page-consistency ratchet has stated targets and the root element structure is fixed. `TripWorkspace.tsx` leaves the page root allowlist.
 - The workspace loading and not-found states use `StateBlock`. A failed read must not read as not found.
-- The Map already loads a DEM. The missing item is a point-elevation API. Open question 9 lists the DEM sampling option.
+- The Map already loads a DEM. The Overview still cannot sample it without a new read. This release uses the flat plain.
 - A round trip draws one pin group for the start and the return point.
-- There are 20 open questions. Questions 15 to 20 are new.
+- The 20 decisions below close the implementation questions.
 
 ### Known weaknesses of the mockup
 
@@ -371,7 +376,7 @@ Read these before you trust a pixel.
 - Tall and thin routes. A straight north-south route fills only 47% of the plate height. A route that is much taller than wide leaves empty sky at the sides. The mockup has no rule for it.
 - Fourteen stops. At 390 px only the start and the end pins stay interactive. The other twelve rely on the stop list. A trip with a loop and many stops is the hardest case. The mockup has no true round trip sample. The `loop` alias maps to a straight coast route, not a loop. The round-trip note of the real component is not drawn.
 - Sample-data oddities. Stops are picked by a fixed list, so the default route jumps from Gangtok to Chandigarh. The 14-stop trip zig-zags between Gangtok, Pelling, Darjeeling and Kalimpong. Leg time uses one speed for every trip. Leg distance is a straight line times 1.18. The header says 4 travellers and shows 3 members. These are sample facts. Real values come from the trip.
-- Terrain data. Elevations, the sea flag and the river flag are mockup constants. No API in the app returns the elevation of a point, and no data holds a sea or river flag. The Map does load terrain data. It uses AWS Terrain Tiles as a DEM source (`src/lib/mapViewModes.ts` lines 26-32). The map adds it in terrain and 3D modes (line 134). The Overview has no map instance, so it cannot read that source today. Open question 9 lists the options.
+- Terrain data. Elevations, the sea flag and the river flag are mockup constants. No API in the app returns the elevation of a point, and no data holds a sea or river flag. The Map does load terrain data. It uses AWS Terrain Tiles as a DEM source (`src/lib/mapViewModes.ts` lines 26-32). The map adds it in terrain and 3D modes (line 134). The Overview has no map instance, so it cannot read that source today. This release uses the flat plain.
 - Page height. At 390 px the Overview is 22.5% shorter, not the 25% goal. At 1440 px it is 18.9% shorter. The route card stop list adds about 230 px.
 - The Board and Map panels in the mockup are placeholders. The mockup does not prove the real Map tab keeps its height under a folded header at 1280 by 800.
 - The mockup uses a literal blur value on the tab bar. The product has a blur token.
@@ -397,34 +402,41 @@ These are facts, not decisions. The Porting map lists the code lines.
 - Click targets other than "Open map" do not exist today. Every new target needs a new optional prop.
 - Existing Overview rules use the `ovw-` prefix. Some names collide with the mockup names. See the Porting map.
 
-### Open questions for the user
+### Resolved implementation decisions
 
-The builder must not decide these. Ask in chat and wait. There are 20 open questions. Some questions carry a recommendation. The spec text above follows it so that the build plan reads in full. The answer of the user replaces it.
+The decisions below close all 20 open questions.
 
-1. Header fold trigger. Fold on the Board and Map tabs (mockup), or fold on scroll (consistency plan), or both?
-2. Container widths. Move from 1180/1680/1760 px to 1400/1720/1720 px? The Map tab loses 40 px, and its three-column rail layout may need a check.
-3. Tab bar component. Build the glider bar with the shared segmented tabs component (plan, R16)? Or keep the current tab bar component and restyle it?
-4. Serif title class. Rename the mockup class to the one R14 allows, or extend the R14 allow list?
-5. Header cover. Show the existing generated art component only, or the uploaded cover (or the emoji) first and the art as fallback?
-6. Where "Fix N issues" opens. Open the Timeline at the first issue's day, or at the top of the Timeline? (P12 question 1.)
-7. Day matrix. Keep it on the Overview or move it to the Timeline? (P12 question 2.)
-8. Phone page height. Accept 22.5% shorter at 390 px, or collapse the group blocks? (P12 question 3.)
-9. Terrain data source. The app has no point-elevation API, but the Map already loads AWS Terrain Tiles as a DEM source. Choose one:
-   - (a) Sample the existing DEM tiles for each route point. This adds a tile fetch and a PNG decode on the Overview, from the source the Map already uses.
-   - (b) Add a point-elevation read.
-   - (c) Use a small fixed region table.
-   - (d) Ship only the flat plain first.
-10. Water data source. Where does the sea or river flag come from?
-11. Presence. Keep the separate presence stack, or merge presence into the member avatars as the mockup shows?
-12. Browser motion check. Extend `check:motion` to the workspace route? It needs a signed-in session in CI.
-13. Release. Does the work ship as one pull request or as two (header first, Overview second)? What version bump does the user want?
-14. Old Overview rules. Delete the dead rules in this change, or in a later change (P16)? A deletion also removes the exact-rule pins in `tests/overview-tab-classes.test.ts` (lines 18-25) in the same commit.
-15. Verdict sub-line and the one-copy rule. Recommended: the sub-line summarises ("3 issues, 1 high severity") and never repeats a title. Alternative: the sub-line names the first issue as one explicit cross-reference. The first row in "What needs you" then carries a "Start here" marker. The one-copy rule then reads "once, plus one named pointer".
-16. Target of a trip-wide warning button. Recommended: a new one-shot Timeline block target scrolls to the trip-wide warning block and moves focus to it. Alternative (a): open the Timeline at the top with no focus. Alternative (b): hide the button on trip-wide rows.
-17. Road aggregate with some estimated legs. Recommended: show "about N km" and "about H h M min" with "K of M legs estimated". Strict alternative: show the aggregate only when every leg is measured, and show days and stops otherwise.
-18. Co-located pins (round trip start and return, or a destination on another pin). Recommended: one combined pin and one 44 px target, tagged "Start and end". Alternative: offset the two pins and keep two targets. Stacked targets are not an option, because the upper one must be under 44 px.
-19. Page shell for a signed-out viewer and for a failed trip read. Should a signed-out viewer see a sign-in prompt, or the not-found state? Does the `fetchSharedTrip` honesty fix (separate pull request, R23) land first?
-20. Map stop focus and the shared day filter. Recommended: a pin that opens the Map sets the shared day focus to the stop's day (#425). The Board and the Map then agree. Alternative: the Map selects the stop and keeps its day filter. That filter may hide the stop.
+1. Header fold. The header folds on Board and Map only. It stays open on the other six tabs.
+2. Container widths. Normal tabs use 1400 px. Board and Map use 1720 px. Check the Map rail at 1720 px.
+3. Tab bar. Use `SegmentedTabs` with `semantics="tablist"`. Keep the existing tab order and keyboard contract.
+4. Serif title. Use `.yf-header-title`. Do not add another serif class.
+5. Cover. Use the uploaded image first. Use the saved emoji second. Use `TripArt` last.
+6. Verdict action. Open the first ranked issue. A trip-wide issue opens the trip-wide Timeline target.
+7. Day matrix. Keep the matrix on the Overview.
+8. Phone height. Accept the 22.5% height reduction at 390 px. Keep all four quiet blocks.
+9. Terrain. Ship the flat plain. Do not add a DEM read in this release.
+10. Water. Draw no sea or river.
+11. Presence. Keep members and presence as separate rows. Presence can name a viewer who is not a member.
+12. Browser motion check. Keep the signed-in workspace out of CI `check:motion`. Run the existing check and a local browser check.
+13. Release split. Use three local commits for three PRs. The honesty foundation lands first. The header lands second. The Overview lands third.
+14. Old Overview rules. Leave dead rules to P16. This release removes no old CSS.
+15. Verdict sub-line. Summarise the issue count and the worst severity. Never repeat a warning title.
+16. Trip-wide issue. Add a one-shot Timeline block target. Move focus to the trip-wide block after the Timeline opens.
+17. Estimated legs. Show "about" figures and "K of M legs estimated". Mark each estimated row with "(est.)".
+18. Co-located pins. Merge points within one hit circle into one pin group. Give the group one 44 px target.
+19. Signed out and failed reads. A signed-out trip link shows a sign-in prompt. The `next` value must be a validated trip path. `readSharedTrip` keeps `failed`, `unavailable` and `cancelled` separate.
+20. Map targets. A stop target selects its stop and sets the shared day. A coordinate or bounds target clears the day filter.
+
+### Additional contracts
+
+- `readSharedTrip` returns `found`, `unavailable`, `failed` or `cancelled`. The compatibility `fetchSharedTrip` returns a trip or `null`.
+- A failed, loading or empty read has its own state. Failure never renders as empty.
+- `StateBlock.titleLevel` accepts `h1`, `h2` or `h3`. `StateBlock` accepts an optional `role` of `alert` or `status`.
+- A flight or train trip uses neutral schematic connectors. It shows no road distance or drive time.
+- The eight tabpanel shells stay stable. Only the active shell mounts content.
+- Folded header content becomes inert only after focus moves to the active tab.
+- The header has one responsive invite button. Do not render a second copy.
+- The route caption reads "Schematic route" unless measured road geometry is drawn.
 
 ### Process rules
 
@@ -432,7 +444,7 @@ The builder must not decide these. Ask in chat and wait. There are 20 open quest
 - After the user agrees, open one pull request into `test`. Do not merge it. Close the issues it names by hand after the merge (section 2.12).
 - Work only in your own clone (section 2.16). Cut the branch from `origin/test`. Run `git fetch origin` with no wildcard refspec.
 - Claim the work before you start: assign the issue and run `git ls-remote --heads origin` for the issue number (section 2.4).
-- Honesty fixes land before the visual pass (R23). If a read renders failure as empty on these surfaces, fix that in a small separate pull request first. One known case: `fetchSharedTrip` returns `null` for a failed read, and the page shows "Trip not found" (open question 19).
+- The honesty foundation lands before the visual pass (R23). `readSharedTrip` keeps failure separate from an unavailable trip.
 - Write all new prose in Simplified Technical English (section 2.13).
 
 ---
@@ -451,7 +463,7 @@ Line numbers are for `origin/test` at `dc897c4e`. Re-derive them before you edit
 | `src/lib/overviewTruth.ts` | `overviewRoutePoints` 43-54 | Source of route points. Keep its return value. Add a sibling that returns the route view model. See below. |
 | `src/lib/overviewWarnings.ts` | `rankWarnings` 18, `warningKey` 28, `severityLead` 42 | Reuse. `ScheduleWarning` carries `dayIndex`. |
 | `src/lib/healthBand.ts` | helpers | Reuse for the verdict band, tone and sentence. |
-| `src/components/page/SegmentedTabs.tsx` | tablist variant | Use if open question 3 says so. |
+| `src/components/page/SegmentedTabs.tsx` | tablist variant | Use it with `semantics="tablist"`. Keep the shared tab-bar look. |
 | `src/components/PillNav.tsx` | glider | Today's glider. |
 | `src/hooks/useTablist.ts` | roving focus | Keep. |
 | `src/components/page/StateBlock.tsx` | `stateBlockRole` 17-21, root 50 | Add the optional `role` override. Use `size="compact"` for every state in a tab. Use `size="full"` for the page states. |
@@ -460,7 +472,7 @@ Line numbers are for `origin/test` at `dc897c4e`. Re-derive them before you edit
 | `src/pages/trip/MapTab.tsx`, `src/components/TripMap.tsx` | MapTab props 147-180; TripMap `selectedStop` 570 | Optional one-shot stop focus prop that selects the stop. |
 | `tests/page-consistency-baseline.json` | `pageRootAllowlist`, `pageFiles` | Remove `TripWorkspace.tsx` from the allowlist. Regenerate the counts. See "Page structure". |
 | `tests/state-block.test.ts` | role cases | Add the override cases. |
-| `src/store/store.ts` | `fetchSharedTrip` 1327 | Only in the separate honesty pull request (open question 19). |
+| `src/store/store.ts` | `readSharedTrip` | The foundation commit supplies this reader. The visual lanes consume it. |
 | `src/components/trips/TripArt.tsx` | `TripArt({ region })` line 146 | Header cover art. |
 | `src/styles.css` | 12,275 lines. Append at the end. | New rules. See below. |
 | `tests/overview-tab-classes.test.ts` | pins `Surface` class strings and counts | Must change. |
@@ -476,20 +488,20 @@ New files are allowed. Suggested names: a pure route and terrain module under `s
 | `div.yf-page` wrapper | New wrapper in `TripWorkspace` around header and tab bar | Wrapper only. `.container` must not carry `yf-page` (R15). |
 | `header.yf-trip-head` with `data-compact` on the wrapper | Replaces `.trip-head-card` | The fold flag is `tab === 'board' \|\| tab === 'map'`. |
 | `.yf-back` | The existing "All trips" button | Keeps `onNavigate('trips')`. 44 px tall. |
-| `.yf-thumb-slot`, `.yf-thumb` | Cover slot with `TripArt` | Replaces `.trip-cover-badge`. Open question 5. |
-| `h1.yf-head-title` | The trip name | Serif, R14. Open question 4. |
+| `.yf-thumb-slot`, `.yf-thumb` | Cover slot with the image, emoji or `TripArt` | Replaces `.trip-cover-badge`. Use the stated fallback order. |
+| `h1.yf-header-title` | The trip name | Serif, R14. Do not add a second serif class. |
 | `.yf-fold`, `.yf-fold-in`, `.yf-fade` | Facts line wrapper | Keeps the existing facts string (lines 387-389). |
-| `.yf-head-actions` and `.yf-act-extra` | The "Invite & share" button, twice | Keep the `editable` gate. Outline pill. |
+| `.yf-head-actions` | One responsive "Invite & share" button | Keep the `editable` gate. Use an outline pill. |
 | `.yf-extra`, `.yf-members` | Member stack, count note, presence | Reuse `Avatar`, `presenceRow`, `userById`. Keep the role text. |
-| `.yf-avatar` with `.dot` and `.tip` | Existing `.presence-peer`, `.presence-dot`, `.presence-tip` | Do not copy the mockup avatar colours. Open question 11. |
-| `.yf-tabbar`, `.yf-glider`, `.yf-tab`, `.yf-count` | `PillNav` or `SegmentedTabs` with `.tabbar`, `.tab-btn`, `.tab-count` | Open question 3. Keep `id`, `aria-controls`, `data-pill-key`, `useTablist`. |
-| `.container` with width variants | `.container`, `.container--board`, `.container--map` | Open question 2. |
+| `.yf-avatar` with `.dot` and `.tip` | Existing `.presence-peer`, `.presence-dot`, `.presence-tip` | Keep members and presence separate. Do not copy the mockup avatar colours. |
+| `.yf-tabbar`, `.yf-glider`, `.yf-tab`, `.yf-count` | `SegmentedTabs` with `.tabbar`, `.tab-btn`, `.tab-count` | Use `semantics="tablist"`. Keep `id`, `aria-controls`, `data-pill-key`, `useTablist`. |
+| `.container` with width variants | `.container`, `.container--board`, `.container--map` | Normal tabs use 1400 px. Board and Map use 1720 px. |
 | `.tab-panel` | Existing `tab-panel` div | Keep `key={tab}` and the ARIA ids. |
 | `.ovw-verdict` | New markup in `OverviewTab` | Replaces "Trip briefing" and "Trip health". |
 | `.ovw-needs`, `.ovw-need`, `.ovw-sev`, `.ovw-more-btn` | Replaces "Priority actions" | Keep `rankWarnings`, `warningKey`, `severityLead`. |
 | `.ovw-stats`, `.ovw-stat` | Three `StatTile` replacements | Merge "Travel effort" and "Stops planned". |
 | `.ovw-route`, `.ovw-map`, `.ovw-stoplist` | New route card component | Same empty branch. `PublicItinerary` keeps `RouteSnapshot`. |
-| `.tr-*` layers | Terrain layer of the route card | Draws only when terrain data exists. |
+| `.tr-*` layers | Flat landscape layer of the route card | Draw no ridges, snow, sea or river. |
 | `.rm-*` road, pins, tooltip | Road layer of the route card | One path per leg. |
 | `.mx-*` | `SlotMatrix` | New grid markup and keyboard handler. Keep `daySlots` and `matrixFreshness`. |
 | `.ovw-block` group pulse, commitments, activity | Existing `Surface` blocks | Quiet class. Pass `onOpenDecisions` through. |
@@ -535,26 +547,23 @@ New props and handlers:
 | `TripWorkspace` | `openTimeline(target)` | Validates `dayIndex` with `canFocusDay(focusDayRequest(dayIndex), trip)`. Sets `timelineFocusDay`. Sets `timelineFocusStop` only when the stop sits on that day (the rule at lines 285-287). For `block: 'trip-wide'` sets a new `timelineFocusBlock`. Then calls `setTab('timeline')`. A failed validation opens the Timeline with no focus. |
 | `TripWorkspace` | `timelineFocusBlock` state | One shot. `clearTimelineFocus` clears it with the other two. |
 | `TimelineTab` | `focusBlock?: 'trip-wide' \| null` | A second one-shot effect scrolls to the trip-wide warning block, gives it an id and `tabIndex={-1}`, moves focus to it, then calls `onFocusConsumed`. The existing effect at lines 534-547 returns when `focusDay` is null, so it cannot carry this request. |
-| `TripWorkspace` | `openMap(target)` | Validates the day. Sets the shared day focus to the stop's day (open question 20). Sets a new one-shot `mapFocusStop`. Then calls `setTab('map')`. A target with no stop id and no day (the start, the return and the destination rows) opens the Map with no day change and no stop. |
+| `TripWorkspace` | `openMap(target)` | A stop target sets the shared day focus and a one-shot `mapFocusStop`. A coordinate or bounds target clears the day filter. Then it calls `setTab('map')`. |
 | `MapTab` | `focusStopId?: string \| null`, `onFocusConsumed?: () => void` | When set, the Map selects that stop and calls `onFocusConsumed`. `TripMap` owns the selection (`selectedStop`, line 570), so it gets a matching optional prop that selects the stop and flies to it. |
 | Route card | `onSelectStop?(row)` | A pin or row for a stop calls `onOpenMap({ dayIndex, stopId })`. Other rows call `onOpenMap()`. |
 | `SlotMatrix` | `onSelectCell?(dayIndex, stopId \| null)` | A filled cell passes `DaySlot.filledStop.id`. An open or auto-added cell passes `null`. The Overview calls `onOpenTimeline({ dayIndex, stopId })`. |
 | `SlotMatrix` | `onSelectDay?(dayIndex)` | The Overview calls `onOpenTimeline({ dayIndex })`. |
-| Verdict and issue buttons | `onOpenTimeline({ dayIndex })` | A trip-wide warning calls `onOpenTimeline({ block: 'trip-wide' })` (open question 16). |
+| Verdict and issue buttons | `onOpenTimeline({ dayIndex })` | A trip-wide warning calls `onOpenTimeline({ block: 'trip-wide' })`. |
 
 Every new prop is optional. A caller that omits a prop renders no button. The public itinerary page passes none of them and keeps `RouteSnapshot`.
 
 ### Terrain data
 
-The route view model and the road are enough for the road, the pins and the stop list. The landscape needs more:
+The route view model and the road are enough for the road, the pins and the stop list. This release draws a flat landscape.
 
-- Per-point elevation in metres. No API in the app returns it. The Map loads AWS Terrain Tiles as a DEM source (`src/lib/mapViewModes.ts` lines 26-32). It adds the source at line 134, in terrain and 3D modes only. The Overview has no map instance. Open question 9 lists the options, including sampling that DEM.
-- A sea flag and a river flag for the trip, or for each leg. No data holds them (open question 10).
-- The order and count of points must not change. The existing tests pin them.
-- A pure function that turns those inputs into a terrain model. The model holds ridge control points, peaks, snow caps, sea edge and river path. The seam can test it.
-- When any point has no elevation, or no source exists, the function returns `null`. The card then draws the flat plain.
-
-Pick the source only after open questions 9 and 10 are answered. Do not call a new network service from the Overview without that answer. Do not invent elevation.
+- The terrain model has one `flat` kind. It carries no ridge, peak, snow, sea or river.
+- The order and count of route points do not change.
+- The model uses no elevation read and no water flag.
+- A later release can add a terrain source and a richer model. Do not invent elevation.
 
 ### CSS to append
 
@@ -563,14 +572,14 @@ Append at the very end of `src/styles.css`, under one section comment per area. 
 Groups, with the prefixes from the mockup:
 
 - Header.
-  Names: `yf-trip-head`, `yf-back`, `yf-head-row`, `yf-thumb-slot`, `yf-thumb`, `yf-head-text`, `yf-head-title`, `yf-fold`, `yf-fold-in`, `yf-fade`, `yf-head-meta`, `yf-head-actions`, `yf-act-extra`, `yf-extra`, `yf-members`, `yf-member-note`, `yf-viewing`, the 720 px phone block.
-- Tab bar (only if open question 3 says restyle with new classes): `yf-tabbar`, `yf-glider`, `yf-tab`, `yf-count`. Otherwise restyle `.tabbar` in a way that keeps `tests/rail-overflow.test.ts` green.
+  Names: `yf-trip-head`, `yf-back`, `yf-head-row`, `yf-thumb-slot`, `yf-thumb`, `yf-head-text`, `yf-trip-title`, `yf-fold`, `yf-fold-in`, `yf-fade`, `yf-head-meta`, `yf-head-actions`, `yf-extra`, `yf-members`, `yf-member-note`, `yf-viewing`, the 720 px phone block. The h1 also carries the existing `.yf-header-title`.
+- Tab bar. Use `SegmentedTabs` with the existing `.tabbar`, `.pill-glider`, `.tab-btn` and `.tab-count`. Add `yf-tabbar` only for workspace spacing. Keep `tests/rail-overflow.test.ts` green.
 - Overview.
   Names: `ovw-card`, `ovw-title`, `ovw-head`, `ovw-head-meta`, `ovw-btn` (primary, quiet, review), `ovw-link`, `ovw-verdict`, `ovw-score`, `ovw-score-num`, `ovw-score-of`, `ovw-band`, `ovw-verdict-text`, `ovw-verdict-line`, `ovw-verdict-sub`, `ovw-bar`, `ovw-split`, `ovw-needs`, `ovw-count`, `ovw-need-list`, `ovw-need`, `ovw-sev`, `ovw-need-title`, `ovw-need-fix`, `ovw-need-text`, `ovw-more-btn`, `ovw-stats`, `ovw-stat`, `ovw-stat-label`, `ovw-stat-val`, `ovw-stat-sub`, `ovw-lower`, `ovw-stack`, `ovw-block`, `ovw-block-foot`, `ovw-pulse-row`, `ovw-commit`, `ovw-commit-when`, `ovw-feed`, `ovw-wx`, `ovw-wx-cell`, `ovw-legend`.
 - Route card.
   Names: `ovw-route`, `ovw-route-empty`, `ovw-map`, `ovw-rsum`, `ovw-stoplist`, `ovw-stop-btn`, `ovw-stop-pin`, `ovw-stop-name`, `ovw-stop-d`, `ovw-stop-km`, `ovw-stop-t`, `ovw-sample` (drop it; it labels sample data), `rm-case`, `rm-hl`, `rm-road`, `rm-dash`, `rm-leghit`, `rm-pin`, `rm-hit`, `rm-ring`, `rm-dot`, `rm-num`, `rm-tag`, `rm-name`, `rm-tip`, `rm-leg`.
 - Terrain.
-  Names: `tr-sky`, `tr-glow`, `tr-orb`, `tr-sea`, `tr-foam`, `tr-wave`, `tr-river`, `tr-river-hi`, `tr-ridge`, `tr-far`, `tr-mid`, `tr-near`, `tr-rim`, `tr-snow`, `tr-contour`, `tr-l`, and the `trSettle`, `rmDraw` and `rmFade` keyframes.
+  Names: `tr-sky`, `tr-glow`, `tr-orb`, `tr-ground`, `tr-contour`, `tr-l`, and the `rmDraw` and `rmFade` keyframes. Do not add ridge, snow, sea or river rules.
 - Matrix.
   Names: `mx-scroll`, `mx-wrap`, `mx-th`, `mx-day`, `mx-daycol`, `mx-row`, `mx-cell`, `mx-chip`, `mx-btn`, `mx-g`, `mx-key`, `mx-bar`, `mx-total`, `mx-today`, `mx-fade`, and the phone list `mx-compact`, `mx-crow`, `mx-cday`, `mx-chead`, `mx-ctot`.
 
@@ -621,7 +630,7 @@ The terrain colours are mixes of tokens with `color-mix`. The dark theme needs i
 
 | Test | Action |
 | --- | --- |
-| `tests/overview-tab-classes.test.ts` | Update. It pins `<Surface className="card` counts (10), `enterIndex` counts, 11 title headings, the "Group pulse" heading, five `kind="empty"` uses, the empty-state titles and one inline `style=`. Rewrite to the new markup. Derive each new count from the final markup and change it in the same commit. Keep these true: every card root is a `Surface` with an `enterIndex`; every card heading uses one title class (keep `ovw-card-title` so the pin at line 22 holds; renaming it to the mockup's `ovw-title` means changing the CSS and the pin together); the empty states use the compact `StateBlock`; only the verdict bar width stays inline (`style=` count 1, matching the page-consistency target). The pins on `.yf-surface.ovw-panel` and `.ovw-route-snap svg > text` (lines 18-25) fall with any rule you delete (open question 14). |
+| `tests/overview-tab-classes.test.ts` | Update. It pins `<Surface className="card` counts (10), `enterIndex` counts, 11 title headings, the "Group pulse" heading, five `kind="empty"` uses, the empty-state titles and one inline `style=`. Rewrite to the new markup. Derive each new count from the final markup and change it in the same commit. Keep these true: every card root is a `Surface` with an `enterIndex`; every card heading uses one title class; the empty states use the compact `StateBlock`; only the verdict bar width stays inline (`style=` count 1, matching the page-consistency target). Keep the two exact-rule pins because this release removes no old CSS. |
 | `tests/state-block.test.ts` | Update. Add cases for the role override: `alert` on a failed block, `status` on a failed block, and no override. The default roles for all five kinds stay as today. |
 | New: route view model test | Pin the rows for a one-way trip, a round trip (start, stops, return), a destination tail, a trip with an invalid coordinate (the arriving leg is `null` for the next row), and an unmeasured road (no arriving legs). Pin the co-located merge rule. Pin the estimated flag. |
 | New: alert function test | Pin first-failed alert, later-failed status, and the switch when the first block recovers. |
@@ -691,7 +700,7 @@ Every row must pass in four views: 1440 px light, 1440 px dark, 390 px light, 39
 | Route card, partly estimated | A chain with at least one `estimate` leg | "about" before the aggregate, "K of M legs estimated", "(est.)" on each estimated row and the tooltip note. | A plain figure on an estimated leg. |
 | Route card, round trip | Start and return at one coordinate | One combined pin tagged "Start and end" with one 44 px target. A return row in the list that lights that pin. | Two overlapping targets. A return row with a pin of its own. |
 | Route card, many stops on one day | A day with three stops | Three rows and three pins, each with its own title and "Day N". A pin opens the Map at its own stop. | One row for the day. A pin that opens the wrong stop. |
-| Warning button, trip-wide | A warning with no day | "Fix" with no day. The Timeline opens at the trip-wide block (or the option the user picks for question 16). | A button that opens a stranger day. |
+| Warning button, trip-wide | A warning with no day | "Fix" with no day. The Timeline opens and focuses the trip-wide block. | A button that opens a stranger day. |
 | Matrix cell | A filled cell and an open cell | A filled cell opens its day and its stop. An open cell opens its day. | A slot-level scroll that does not exist. |
 | Route card, fewer than two points | Fewer than two valid coordinates | The existing empty state with its text. | One pin or a line. |
 | Header, open | Overview, Timeline, Group input, Budget, Share, Settings | Back control, cover, serif title, facts line, members row, outline invite button for editors. | Invite button for a viewer without edit rights. |
@@ -701,7 +710,7 @@ Every row must pass in four views: 1440 px light, 1440 px dark, 390 px light, 39
 | Width | Overview and Board and Map | 1400 px container on Overview. Wide container on Board and Map. Width change animates. | Horizontal page scroll at 390 px. |
 | Page not found | Trip missing | A full `StateBlock` (`empty`): "Trip not found" and a "Back to my trips" action. No retry. | A bare text line (today's state). `loading-block`. |
 | Page loading | Trip loading | A full `StateBlock` (`loading`): "Loading trip". The Board fallback is a compact `StateBlock`. | A bare spinner line. `loading-block`. |
-| Page failed read | The trip read failed (only if the honesty fix lands) | A full `StateBlock` (`failed`) with "Try again". | The not-found copy for a failed read. |
-| Page signed out | No signed-in user | The outcome the user picks for question 19. | A silent change of today's outcome. |
+| Page failed read | The trip read failed | A full `StateBlock` (`failed`) with "Try again". | The not-found copy for a failed read. |
+| Page signed out | No signed-in user | A full `StateBlock` with "Sign in to open this trip". The action keeps a validated trip path in `next`. | A not-found message for a signed-out viewer. |
 | Reduced motion | `prefers-reduced-motion: reduce` | Final picture at once. No fold animation. No road draw-in. | Any running animation. |
 | Keyboard | Tab bar, matrix, pins | Arrow keys, Home, End and Enter work. Focus ring visible. Escape closes a tooltip. | A focus trap. A pin that is a button without a 44 px target. |

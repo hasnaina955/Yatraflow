@@ -89,6 +89,8 @@ ul, ol { padding: 0; list-style: none; }
 .yf-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 20px; border: 0; border-radius: 999px; font-weight: 800; font-size: 14px; white-space: nowrap; background: var(--btn-accent); color: var(--btn-accent-fg); box-shadow: 0 1px 2px rgba(var(--shadow-navy-rgb),.12); transition: filter var(--motion-fast) var(--ease-out), transform var(--motion-fast) var(--ease-out); }
 .yf-btn:hover { filter: brightness(1.06); transform: translateY(-1px); }
 .yf-btn:active { transform: translateY(0); }
+.yf-btn--quiet { background: transparent; color: var(--ink-teal); border: 1px solid var(--line); box-shadow: none; transition: background-color var(--motion-fast) var(--ease-out), border-color var(--motion-fast) var(--ease-out), transform var(--motion-fast) var(--ease-out); }
+.yf-btn--quiet:hover { background: var(--teal-soft); filter: none; }
 .yf-act-extra { display: none; }
 .yf-members { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding-top: 14px; }
 .yf-avatars { display: flex; align-items: center; }
@@ -318,9 +320,9 @@ ul, ol { padding: 0; list-style: none; }
         <h1 class="yf-head-title">North South</h1>
         <p class="yf-head-meta">Kolkata, West Bengal &rarr; Leh, Ladakh &middot; 1 Sep &ndash; 10 Sep 2026 &middot; 4 travellers &middot; Motorcycle &middot; Relaxed</p>
       </div>
-      <div class="yf-head-actions"><button type="button" class="yf-btn">Invite &amp; share</button></div>
+      <div class="yf-head-actions"><button type="button" class="yf-btn yf-btn--quiet">Invite &amp; share</button></div>
     </div>
-    <div class="yf-act-extra"><button type="button" class="yf-btn">Invite &amp; share</button></div>
+    <div class="yf-act-extra"><button type="button" class="yf-btn yf-btn--quiet">Invite &amp; share</button></div>
     <div class="yf-members" aria-label="Members">
       <span class="yf-avatars"><span class="avatar">A</span><span class="avatar">B</span><span class="avatar">C</span></span>
       <span class="yf-member-note"><b>3 members</b> &middot; you are owner</span>

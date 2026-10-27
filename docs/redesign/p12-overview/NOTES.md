@@ -22,6 +22,7 @@ The data is sample data. The health score logic is not changed. The mockup only 
 - Serif font on the page h1 only (R14). Card titles use Plus Jakarta Sans 800 (R20).
 - Compact `StateBlock` inside cards (R22). Failed stays separate from empty (R23).
 - Buttons are pills at 44px height. The skin stays inside the page scope (R15).
+- The header "Invite & share" button is an outline button. The verdict button is the only saffron pill on the Overview.
 - Motion uses `--motion-*`, `--ease-out` and `--stagger-step`. A reduced-motion rule turns it off.
 
 ## Port map
@@ -51,6 +52,6 @@ The one inline style (health bar `width`, line 159) stays. It is a dynamic value
 
 ## Open design questions
 
-1. The verdict button and the P2 header button "Invite & share" are both saffron pills. Should the header button turn quiet on the Overview?
+1. Answered. The header button "Invite & share" is now an outline button. The verdict button is the only saffron pill.
 2. "Fix 5 issues" opens the Timeline at the first issue. Is that the right target when the first issue is on a later day?
 3. Should the day matrix stay on the Overview, or move to the Timeline?

@@ -97,8 +97,8 @@ ul, ol { padding: 0; list-style: none; }
 .yf-act-extra { display: none; }
 .yf-members { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding-top: var(--space-4); }
 .yf-avatars { display: flex; align-items: center; }
-.avatar { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 32px; height: 32px; margin-left: -8px; border-radius: 50%; border: 2px solid var(--card); background: var(--teal-soft); color: var(--ink-teal); font-weight: 800; font-size: 12px; }
-.avatar:first-child { margin-left: 0; }
+.avatar { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 32px; height: 32px; margin-inline-start: -8px; border-radius: 50%; border: 2px solid var(--card); background: var(--teal-soft); color: var(--ink-teal); font-weight: 800; font-size: 12px; }
+.avatar:first-child { margin-inline-start: 0; }
 .avatar:nth-child(2) { background: var(--yf-saffron); color: #0B2545; }
 .avatar:nth-child(3) { background: var(--yf-purple); color: #0B2545; }
 .yf-member-note { font-size: 13px; color: var(--text-2); }
@@ -123,8 +123,13 @@ ul, ol { padding: 0; list-style: none; }
 .ovw-btn:active { transform: translateY(1px); }
 .ovw-btn--primary { border: 0; background: var(--btn-accent); color: var(--btn-accent-fg); box-shadow: 0 1px 2px rgba(var(--shadow-navy-rgb),.12); padding: 0 22px; font-size: 15px; }
 .ovw-btn--primary:hover { background: var(--btn-accent); filter: brightness(1.06); transform: translateY(-1px); }
-.ovw-btn--quiet { border-color: transparent; padding: 0 12px; margin-left: -12px; }
-.ovw-head-btn { margin: -8px -12px -8px 0; }
+.ovw-btn--quiet { border-color: transparent; padding: 0 12px; margin-inline-start: -12px; }
+.ovw-head-btn { margin-block: -8px; margin-inline: 0 -12px; }
+/* Text link that opens another tab: 44px target, 40px with a fine pointer. */
+.ovw-link { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; min-height: 44px; padding: 0 4px; font-size: 13px; font-weight: 800; color: var(--ink-teal); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; border-radius: 8px; }
+.ovw-link:hover { color: var(--text); }
+.ovw-link:focus-visible { outline: 2px solid transparent; box-shadow: var(--ring); }
+@media (pointer: fine) { .ovw-link { min-height: 40px; } }
 .yf-head-foot { display: block; }
 
 /* 1. Verdict: one slim band */
@@ -183,35 +188,48 @@ ul, ol { padding: 0; list-style: none; }
 .ovw-map svg { display: block; width: 100%; height: auto; }
 .rm-grid { stroke: var(--line); stroke-width: 1; stroke-dasharray: 2 6; opacity: .8; }
 .rm-base { fill: none; stroke: var(--line); stroke-width: 9; stroke-linecap: round; stroke-linejoin: round; }
-.rm-leg { fill: none; stroke: var(--yf-teal-600); stroke-width: 3.5; stroke-linecap: round; stroke-linejoin: round; }
+/* Each leg is its own path. pathLength 1 lets one dash value draw every leg in. The draw-in runs once, one leg after another. */
+.rm-leghit { fill: none; stroke: transparent; stroke-width: 16; pointer-events: stroke; }
+.rm-leg { fill: none; stroke: var(--yf-teal-600); stroke-width: 3.5; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; stroke-dashoffset: 0; transition: stroke-width var(--motion-fast) var(--ease-out); animation: rmDraw var(--motion-slow) var(--ease-out) backwards; animation-delay: calc(var(--stagger-step) * var(--i, 0)); }
+.rm-legg:hover .rm-leg { stroke-width: 5; }
+@keyframes rmDraw { from { stroke-dashoffset: 1; } }
+/* Pin: a 28px face over a transparent 44px hit circle. Hover and keyboard focus draw a 2px ring 2px outside the face. */
+.rm-pin { cursor: pointer; outline: none; }
+.rm-hit { fill: transparent; }
+.rm-ring { fill: none; stroke: var(--yf-teal-600); stroke-width: 2; opacity: 0; pointer-events: none; transition: opacity var(--motion-fast) var(--ease-out); }
+.rm-pin:hover .rm-ring, .rm-pin:focus-visible .rm-ring { opacity: 1; }
 .rm-dot { fill: var(--card); stroke: var(--yf-teal-600); stroke-width: 3; }
 .is-start .rm-dot { fill: var(--yf-teal-600); stroke: var(--card); }
 .is-end .rm-dot { fill: var(--yf-saffron); stroke: var(--card); }
 .rm-num { font: 800 11px var(--font-display); text-anchor: middle; dominant-baseline: central; fill: var(--ink-teal); }
 .is-start .rm-num { fill: var(--card); }
 :root[data-theme='dark'] .is-start .rm-num { fill: var(--yf-cream); }
-.is-end .rm-num { fill: #0B2545; }
+.is-end .rm-num { fill: var(--btn-accent-fg); }
 .rm-name { font: 800 12px var(--font-body); fill: var(--text); paint-order: stroke; stroke: var(--yf-mist); stroke-width: 4px; stroke-linejoin: round; }
-.rm-tag { font: 800 11px var(--font-body); fill: var(--text-3); letter-spacing: .06em; paint-order: stroke; stroke: var(--yf-mist); stroke-width: 3px; }
+.rm-tag { font: 700 12px var(--font-body); fill: var(--text-2); paint-order: stroke; stroke: var(--yf-mist); stroke-width: 3px; }
 .rm-leglabel rect { fill: var(--card); stroke: var(--yf-border); stroke-width: 1; }
 .rm-leglabel text { font: 700 11px var(--font-body); fill: var(--text-2); text-anchor: middle; dominant-baseline: central; }
 .ovw-verdict-act { display: grid; justify-items: end; }
 .ovw-sample { font-size: 11px; color: var(--text-3); }
 .ovw-route-empty { display: grid; align-content: center; flex: 1; }
 .ovw-stoplist { display: block; }
-.ovw-stoplist.is-long { max-height: 320px; overflow-y: auto; padding-right: var(--space-2); -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 32px), transparent); mask-image: linear-gradient(to bottom, #000 calc(100% - 32px), transparent); }
+.ovw-stoplist.is-long { max-height: 320px; overflow-y: auto; padding-inline-end: var(--space-2); -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 32px), transparent); mask-image: linear-gradient(to bottom, #000 calc(100% - 32px), transparent); }
 @media (min-width: 721px) { .ovw-route[data-view='map'] .ovw-stoplist { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; } .ovw-route { position: relative; } }
-.ovw-stoplist > li { display: grid; grid-template-columns: 28px minmax(0, 1fr); column-gap: var(--space-5); }
+.ovw-stoplist > li.is-leg { display: grid; grid-template-columns: 28px minmax(0, 1fr); column-gap: var(--space-5); }
+/* Each stop is one 44px button: it opens the Map at that stop. */
+.ovw-stop-btn { all: unset; box-sizing: border-box; display: grid; grid-template-columns: 28px minmax(0, 1fr); column-gap: var(--space-5); align-items: center; width: 100%; min-height: 44px; cursor: pointer; border-radius: 8px; }
+.ovw-stop-btn:hover .ovw-stop-name { color: var(--ink-teal); text-decoration: underline; text-underline-offset: 3px; }
+.ovw-stop-btn:focus-visible { outline: 2px solid transparent; box-shadow: var(--ring); }
 .ovw-stop-pin { width: 24px; height: 24px; margin: 2px; border-radius: 50%; display: grid; place-items: center; font: 800 11px var(--font-display); background: var(--card); border: 3px solid var(--yf-teal-600); color: var(--ink-teal); }
 .ovw-stoplist .is-start .ovw-stop-pin { background: var(--yf-teal-600); color: var(--card); }
 :root[data-theme='dark'] .ovw-stoplist .is-start .ovw-stop-pin { color: var(--yf-cream); }
-.ovw-stoplist .is-end .ovw-stop-pin { background: var(--yf-saffron); color: #0B2545; border-color: var(--card); }
+.ovw-stoplist .is-end .ovw-stop-pin { background: var(--yf-saffron); color: var(--btn-accent-fg); border-color: var(--card); }
 .ovw-stop-name { font-weight: 800; font-size: 14px; line-height: 28px; }
-.ovw-stop-name small { margin-left: 6px; font-size: 11px; font-weight: 800; color: var(--text-3); letter-spacing: .06em; }
+.ovw-stop-name small { margin-inline-start: 6px; font-size: 12px; font-weight: 700; color: var(--text-2); }
 .ovw-stoplist .is-leg::before { content: ''; justify-self: center; width: 4px; min-height: 40px; border-radius: 2px; background: var(--c); }
-.ovw-leg-text { align-self: center; padding: var(--space-2) 0; font-size: 12px; color: var(--text-2); }
+.ovw-leg-text { align-self: center; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-5); padding: var(--space-2) 0; font-size: 12px; color: var(--text-2); }
 .ovw-leg-text b { color: var(--text); font-variant-numeric: tabular-nums; }
-.ovw-leg-text i { font-style: normal; display: inline-flex; align-items: center; gap: 6px; min-height: 20px; margin-left: 6px; padding: 0 8px; border-radius: 999px; font-size: 11px; font-weight: 800; color: var(--text-2); background: var(--info-soft); }
+.ovw-leg-text i { font-style: normal; display: inline-flex; align-items: center; gap: 6px; min-height: 20px; padding: 0 8px; border-radius: 999px; font-size: 11px; font-weight: 800; color: var(--text-2); background: var(--info-soft); }
 .ovw-leg-text i::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--c); }
 
 /* 5. Day matrix: a grid, days as rows, parts as columns */
@@ -221,41 +239,45 @@ ul, ol { padding: 0; list-style: none; }
 .ovw-block-foot { margin-top: auto; padding-top: var(--space-2); }
 .mx-wrap { position: relative; }
 .mx-scroll { overflow: auto; max-height: 560px; border: 1px solid var(--yf-border); border-radius: var(--radius-sm); scrollbar-width: thin; }
-.mx { min-width: 780px; }
-.mx-row { display: grid; grid-template-columns: 116px repeat(6, minmax(0, 1fr)) 52px; align-items: stretch; border-top: 1px solid var(--line); }
+.mx { min-width: 820px; }
+.mx-row { display: grid; grid-template-columns: 116px repeat(6, minmax(0, 1fr)) 76px; align-items: stretch; border-top: 1px solid var(--line); }
 .mx-row:first-child { border-top: 0; }
 .mx-row.is-head { background: var(--info-soft); position: sticky; top: 0; z-index: 3; }
-.mx-th { display: flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 var(--space-4); font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--text-2); }
+.mx-th { display: flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 var(--space-4); font-size: 12px; font-weight: 700; color: var(--text-2); }
 .mx-th svg { width: 14px; height: 14px; flex: 0 0 auto; color: var(--k); }
-.mx-daycol { position: sticky; left: 0; z-index: 2; background: var(--card); box-shadow: 1px 0 0 var(--line); }
+.mx-daycol { position: sticky; inset-inline-start: 0; z-index: 2; transition: background-color var(--motion-fast) var(--ease-out); background: var(--card); box-shadow: 1px 0 0 var(--line); }
 .mx-row.is-head .mx-daycol { background: var(--info-soft); z-index: 4; }
 .mx-day { display: flex; align-items: center; min-height: 44px; padding: 0; }
 .mx-day button { all: unset; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; width: 100%; min-height: 44px; padding: 0 var(--space-4); font-weight: 800; font-size: 13px; line-height: 1.25; color: var(--text); cursor: pointer; }
 .mx-day button small { font-size: 11px; font-weight: 600; color: var(--text-3); }
 .mx-day button:focus-visible { outline: 2px solid transparent; box-shadow: inset 0 0 0 3px var(--yf-teal-600); }
-.mx-today { display: inline-flex; align-items: center; min-height: 18px; margin-left: 0; padding: 0 7px; border-radius: 999px; font-size: 11px; font-weight: 800; background: var(--ink-teal); color: var(--card); vertical-align: 1px; }
+@media (hover: hover) { .mx-day button:hover { color: var(--ink-teal); } }
+.mx-today { display: inline-flex; align-items: center; min-height: 18px; padding: 0 7px; border-radius: 999px; font-size: 11px; font-weight: 800; background: var(--ink-teal); color: var(--card); vertical-align: 1px; }
 :root[data-theme='dark'] .mx-today { color: var(--yf-cream); }
 .mx-row.is-today .mx-daycol { box-shadow: inset 3px 0 0 var(--yf-teal-600), 1px 0 0 var(--line); }
-.mx-cell { min-width: 0; min-height: 44px; display: flex; align-items: stretch; }
-.mx-btn { all: unset; box-sizing: border-box; flex: 1; min-width: 0; min-height: 44px; display: flex; align-items: stretch; padding: 5px 4px; cursor: pointer; }
-.mx-chip { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; padding: 0 8px; border-radius: 8px; font-size: 12px; font-weight: 700; color: var(--text); transition: background-color var(--motion-fast) var(--ease-out), box-shadow var(--motion-fast) var(--ease-out); }
+.mx-cell { min-width: 0; min-height: 44px; display: flex; align-items: stretch; transition: background-color var(--motion-fast) var(--ease-out); }
+/* The chip radius is 8px inside 8px of padding, so the cell radius is 16px. The focus ring follows the cell. */
+.mx-btn { all: unset; box-sizing: border-box; flex: 1; min-width: 0; min-height: 44px;
+  display: flex; align-items: stretch; padding: 8px; border-radius: 16px; cursor: pointer; }
+.mx-chip { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; padding: 0 8px; border-radius: 8px; font-size: 12px; font-weight: 700; color: var(--text); transition: background-color var(--motion-fast) var(--ease-out), border-color var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out), box-shadow var(--motion-fast) var(--ease-out); }
 .mx-chip svg { width: 15px; height: 15px; flex: 0 0 auto; color: var(--k); }
 .mx-chip > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
-.mx-btn:focus-visible { box-shadow: none; outline: 2px solid transparent; outline-offset: 2px; }
-.mx-btn:focus-visible .mx-chip { box-shadow: var(--ring); }
+.mx-btn:focus-visible { outline: 2px solid transparent; box-shadow: inset 0 0 0 2px var(--yf-teal-600); }
 .mx-cell[data-state='filled'] .mx-chip { background: color-mix(in srgb, var(--k) var(--mx-tint), var(--card)); }
-.mx-cell[data-state='filled'] .mx-btn:hover .mx-chip { background: color-mix(in srgb, var(--k) 26%, var(--card)); }
-.mx-cell[data-state='auto'] .mx-chip { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--k) var(--mx-ring), var(--card)); color: var(--text-2); font-weight: 600; font-size: 11px; line-height: 1.15; }
-.mx-cell[data-state='auto'] .mx-chip > span { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-.mx-cell[data-state='auto'] .mx-btn:focus-visible .mx-chip { box-shadow: var(--ring); }
+@media (hover: hover) { .mx-cell[data-state='filled'] .mx-btn:hover .mx-chip { background: color-mix(in srgb, var(--k) 26%, var(--card)); } }
+.mx-cell[data-state='auto'] .mx-chip { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--k) var(--mx-ring), var(--card)); color: var(--text-2); font-weight: 600; }
 .mx-cell[data-state='empty'] .mx-chip { border: 1.5px dashed; border-color: var(--mx-edge); color: var(--text-3); font-weight: 600; justify-content: center; padding: 0; }
-.mx-cell[data-state='empty'] .mx-btn:hover .mx-chip { border-color: var(--yf-teal-600); color: var(--ink-teal); }
+@media (hover: hover) { .mx-cell[data-state='empty'] .mx-btn:hover .mx-chip { border-color: var(--yf-teal-600); color: var(--ink-teal); background: color-mix(in srgb, var(--yf-teal-600) 8%, var(--card)); } }
 .mx-cell[data-state='none'] .mx-btn { cursor: default; }
 .mx-cell[data-state='none'] .mx-chip { justify-content: center; color: var(--text-3); font-weight: 600; }
 @media (hover: hover) { .mx-row:not(.is-head):hover .mx-cell, .mx-row:not(.is-head):hover .mx-daycol, .mx-row:not(.is-head):hover .mx-total { background-color: color-mix(in srgb, var(--yf-teal-600) 8%, var(--card)); } }
 .mx-row.is-today .mx-cell, .mx-row.is-today .mx-daycol, .mx-row.is-today .mx-total { background-color: color-mix(in srgb, var(--yf-teal-600) 5%, var(--card)); }
-.mx-total { display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.mx-total { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 12px; font-weight: 700; color: var(--text-2); font-variant-numeric: tabular-nums; transition: background-color var(--motion-fast) var(--ease-out); }
+.mx-total em { font-style: normal; font-weight: 800; }
 .mx-total.is-thin { color: var(--ink-amber); font-weight: 800; }
+.mx-bar { display: block; width: 48px; height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; }
+.mx-bar b { display: block; height: 100%; border-radius: 2px; background: var(--yf-teal-600); }
+.mx-total.is-thin .mx-bar b { background: var(--ink-amber); }
 .mx-fade { display: none; position: absolute; top: 1px; right: 1px; bottom: 1px; width: 36px; pointer-events: none; border-radius: 0 var(--radius-sm) var(--radius-sm) 0; background: linear-gradient(to right, transparent, var(--card)); opacity: 0; transition: opacity var(--motion-fast) var(--ease-out); }
 .mx-wrap.can-scroll .mx-fade { opacity: 1; }
 .mx-key { display: inline-flex; flex-wrap: wrap; gap: var(--space-1) var(--space-5); }
@@ -320,22 +342,26 @@ ul, ol { padding: 0; list-style: none; }
 /* Phone matrix: one 44px button for each day. Hidden above 720px. */
 .mx-compact { display: none; border: 1px solid var(--yf-border); border-radius: var(--radius-sm); overflow: hidden; }
 .mx-chead, .mx-crow { display: grid; grid-template-columns: minmax(0, 1fr) repeat(6, 28px) 34px; align-items: center; column-gap: 3px; padding: 0 var(--space-4); width: 100%; }
-.mx-chead { min-height: 36px; background: var(--info-soft); font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--text-2); }
+.mx-chead { min-height: 36px; background: var(--info-soft); font-size: 12px; font-weight: 700; color: var(--text-2); }
 .mx-chead svg { width: 14px; height: 14px; color: var(--k); justify-self: center; }
 .mx-crow { min-height: 44px; border: 0; border-top: 1px solid var(--line); background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; }
 .mx-crow.is-today { background: color-mix(in srgb, var(--yf-teal-600) 5%, var(--card)); box-shadow: inset 3px 0 0 var(--yf-teal-600); }
 .mx-cday { display: flex; flex-direction: column; line-height: 1.2; }
 .mx-cday b { font-size: 13px; }
 .mx-cday b, .mx-day button > span:first-child { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
-.mx-chead span:last-child { text-transform: none; text-align: right; }
+.mx-chead span:last-child { text-align: end; }
 .mx-cday small { font-size: 11px; color: var(--text-3); }
 .mx-g { display: grid; place-items: center; box-sizing: border-box; width: 28px; height: 28px; border-radius: 50%; font-size: 13px; color: var(--text-3); }
 .mx-g svg { width: 15px; height: 15px; color: var(--k); }
 .mx-g[data-state='filled'] { background: color-mix(in srgb, var(--k) var(--mx-tint), var(--card)); }
 .mx-g[data-state='auto'] { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--k) var(--mx-ring), var(--card)); }
 .mx-g[data-state='empty'] { border: 1.5px dashed var(--mx-edge); }
-.mx-ctot { font-size: 12px; font-weight: 700; color: var(--text-2); text-align: right; }
+.mx-ctot { font-size: 12px; font-weight: 700; color: var(--text-2); text-align: end; }
 .mx-crow:focus-visible { outline: 2px solid transparent; outline-offset: -2px; box-shadow: inset 0 0 0 3px var(--yf-teal-600); }
+
+/* Mockup only: shows where a click would go. The real tabs navigate. */
+.mock-toast { position: fixed; inset-inline: 16px; bottom: 16px; z-index: 50; width: fit-content; max-width: calc(100vw - 32px); margin-inline: auto; padding: 10px 18px; border-radius: 999px; background: var(--text); color: var(--card); font-size: 13px; font-weight: 700; pointer-events: none; opacity: 0; transform: translateY(8px); transition: opacity var(--motion-med) var(--ease-out), transform var(--motion-med) var(--ease-out); }
+.mock-toast.is-on { opacity: 1; transform: none; }
 
 /* ---- Narrow ---- */
 @media (max-width: 1100px) {
@@ -347,7 +373,7 @@ ul, ol { padding: 0; list-style: none; }
   .ovw-wx { grid-template-columns: repeat(5, minmax(120px, 1fr)); overflow-x: auto; }
 }
 @media (max-width: 720px) {
-  .container { padding-left: 16px; padding-right: 16px; }
+  .container { padding-inline: 16px; }
   .yf-trip-head { padding: 14px; border-radius: 20px; }
   .yf-head-row { grid-template-columns: 56px minmax(0, 1fr); column-gap: 12px; }
   .yf-thumb { width: 56px; height: 56px; }
@@ -398,6 +424,7 @@ ul, ol { padding: 0; list-style: none; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
+  .rm-leg { stroke-dashoffset: 0; }
 }
 </style>
 </head>
@@ -457,6 +484,7 @@ ul, ol { padding: 0; list-style: none; }
   </div>
 
   <div id="note"></div>
+  <div id="toast" class="mock-toast" role="status" aria-live="polite"></div>
   <main class="ovw" id="ovw" role="tabpanel" aria-label="Overview"></main>
 </div>
 
@@ -560,7 +588,7 @@ ul, ol { padding: 0; list-style: none; }
   function stats(s) {
     var e = s === 'empty';
     return '<section class="ovw-stats" aria-label="Trip totals">' +
-      '<div class="ovw-card ovw-stat"><span class="ovw-stat-label">Total cost</span><span class="ovw-stat-val">' + (e ? '–' : '&#8377;1,84,500') + '</span><span class="ovw-stat-sub">' + (e ? 'Shows after you add a cost' : '&#8377;18,450 a day &middot; estimate') + '</span></div>' +
+      '<div class="ovw-card ovw-stat"><span class="ovw-stat-label">Total cost</span><span class="ovw-stat-val">' + (e ? '–' : '&#8377;1,84,500') + '</span><span class="ovw-stat-sub">' + (e ? 'Shows after you add a cost' : '&#8377;18,450 a day, estimate') + '</span></div>' +
       '<div class="ovw-card ovw-stat"><span class="ovw-stat-label">Per person</span><span class="ovw-stat-val">' + (e ? '–' : '&#8377;46,125') + '</span><span class="ovw-stat-sub">' + (e ? 'Shows after you add a cost' : 'against a &#8377;50,000 target') + '</span></div>' +
       '<div class="ovw-card ovw-stat"><span class="ovw-stat-label">Travel effort</span><span class="ovw-stat-val">' + (e ? '–' : '38 h 20 min') + '</span><span class="ovw-stat-sub">' + (e ? 'Shows after you add a stop' : '4 overnight bases') + '</span></div></section>';
   }
@@ -575,7 +603,7 @@ ul, ol { padding: 0; list-style: none; }
   var NAMES14 = ['Kolkata', 'Siliguri', 'Gangtok', 'Pelling', 'Darjeeling', 'Kalimpong', 'Chandigarh', 'Ambala', 'Shimla', 'Manali', 'Kaza (Spiti Valley)', 'Keylong', 'Sarchu', 'Leh'];
   var DEF_LEGS = [['570 km', '11 h 30', 'Days 1–2'], ['115 km', '4 h', 'Day 3'], ['670 km', '9 h 20', 'Days 4–6'], ['310 km', '5 h', 'Days 7–8'], ['475 km', '8 h 30', 'Days 9–10']];
   var YS = [108, 62, 100, 54, 96, 50];
-  var W = 720, H = 170, MX0 = 44, PILL_W = 84, PILL_H = 46, PIN_R = 13;
+  var W = 720, H = 170, MX0 = 44, PILL_W = 84, PILL_H = 46, PIN_R = 14, HIT_R = 22;
   function hm(min) { var h = Math.floor(min / 60), m = min % 60; return h + ' h' + (m ? ' ' + m : ''); }
   function routeData(n) {
     var names = n === 6 && !qs.has('stops') ? NAMES : NAMES14.slice(0, n);
@@ -591,8 +619,12 @@ ul, ol { padding: 0; list-style: none; }
         var km = 90 + ((i * 131) % 380), a = Math.floor(i * DAYS / (n - 1)) + 1, b = Math.max(a, Math.floor((i + 1) * DAYS / (n - 1)));
         total += km; L = { km: km + ' km', t: hm(Math.round(km * 1.15)), d: a === b ? 'Day ' + a : 'Days ' + a + '–' + b, c: COLS[i % 5] };
       }
+      var dm = L.d.match(/(\d+)(?:–(\d+))?/);
+      L.a = +dm[1]; L.b = +(dm[2] || dm[1]);
       legs.push(L);
     }
+    /* A pin's day is the day the leg before it ends. The start pin is Day 1. */
+    pts.forEach(function (p, i) { p.day = i === 0 ? 1 : legs[i - 1].b; });
     return { pts: pts, legs: legs, total: total };
   }
   function el(tag, attrs, text) {
@@ -606,43 +638,53 @@ ul, ol { padding: 0; list-style: none; }
   function buildMap(R) {
     var P = R.pts, n = P.length, spacing = n > 1 ? (W - 2 * MX0) / (n - 1) : W;
     var showPills = n > 1 && spacing >= PILL_W + 2 * PIN_R;
-    var svg = el('svg', { viewBox: '0 0 ' + W + ' ' + H, 'aria-hidden': 'true', focusable: 'false' });
-    [44, 88, 132].forEach(function (y) { svg.appendChild(el('line', { class: 'rm-grid', x1: 8, x2: W - 8, y1: y, y2: y })); });
+    /* The pins are buttons, so the map is a labelled group. The drawing around them is decoration. */
+    var svg = el('svg', { viewBox: '0 0 ' + W + ' ' + H, role: 'group', 'aria-label': 'Route map. Each pin opens the Map at that stop.', focusable: 'false' });
+    var deco = function (e) { e.setAttribute('aria-hidden', 'true'); return e; };
+    [44, 88, 132].forEach(function (y) { svg.appendChild(deco(el('line', { class: 'rm-grid', x1: 8, x2: W - 8, y1: y, y2: y }))); });
     var placed = [];
-    P.forEach(function (p) { placed.push({ x: p.x - 16, y: p.y - 16, w: 32, h: 32 }); });
+    P.forEach(function (p) { placed.push({ x: p.x - 19, y: p.y - 19, w: 38, h: 38 }); });
     if (n > 1) {
-      var d = 'M' + P[0].x + ' ' + P[0].y, mids = [];
+      var d = 'M' + P[0].x + ' ' + P[0].y, mids = [], segs = [];
       for (var i = 1; i < n; i++) {
         var a = P[i - 1], b = P[i], mx = (a.x + b.x) / 2;
-        d += ' C' + mx + ' ' + a.y + ' ' + mx + ' ' + b.y + ' ' + b.x + ' ' + b.y;
+        var seg = ' C' + mx + ' ' + a.y + ' ' + mx + ' ' + b.y + ' ' + b.x + ' ' + b.y;
+        d += seg; segs.push('M' + a.x + ' ' + a.y + seg);
         mids.push({ x: mx, y: (a.y + b.y) / 2 });
       }
-      svg.appendChild(el('path', { class: 'rm-base', d: d }));
-      svg.appendChild(el('path', { class: 'rm-leg', d: d }));
+      svg.appendChild(deco(el('path', { class: 'rm-base', d: d })));
+      /* One path for each leg. A hover on a leg thickens it. The draw-in delay grows by one stagger step for each leg, up to eight. */
+      var lgs = [];
+      segs.forEach(function (sd, i) {
+        var lg = deco(el('g', { class: 'rm-legg' })); lgs.push(lg);
+        lg.appendChild(el('path', { class: 'rm-leghit', d: sd }));
+        lg.appendChild(el('path', { class: 'rm-leg', d: sd, pathLength: '1', style: '--i:' + Math.min(i, 8) }));
+        svg.appendChild(lg);
+      });
       /* leg pills sit on the line: distance, drive time, day range and a day-colour stripe. They hide when pins sit too close. */
       if (showPills) mids.forEach(function (m, i) {
-        var L = R.legs[i], g = el('g', { class: 'rm-leglabel' });
+        var L = R.legs[i], g = deco(el('g', { class: 'rm-leglabel' }));
         g.appendChild(el('rect', { x: m.x - PILL_W / 2, y: m.y - PILL_H / 2, width: PILL_W, height: PILL_H, rx: 8 }));
         g.appendChild(el('rect', { x: m.x - PILL_W / 2 + 10, y: m.y + PILL_H / 2 - 5, width: PILL_W - 20, height: 3, rx: 1.5, style: 'fill:' + L.c + ';stroke:none' }));
         g.appendChild(el('text', { x: m.x, y: m.y - 14, style: 'font-weight:800' }, L.km));
         g.appendChild(el('text', { x: m.x, y: m.y - 2 }, L.t));
         g.appendChild(el('text', { x: m.x, y: m.y + 10, style: 'font-weight:600' }, L.d));
-        svg.appendChild(g);
+        lgs[i].appendChild(g);
         placed.push({ x: m.x - PILL_W / 2 - 2, y: m.y - PILL_H / 2 - 2, w: PILL_W + 4, h: PILL_H + 4 });
       });
     }
     /* stop labels: names stop at 14 characters. Try the preferred side, then the others. A name that fits nowhere
        drops to 8 characters, then to no label. The pin keeps the full name in its title. */
     P.forEach(function (p, i) {
-      var tag = n > 1 && i === 0 ? 'START' : n > 1 && i === n - 1 ? 'END' : '';
+      var tag = n > 1 && i === 0 ? 'Start' : n > 1 && i === n - 1 ? 'End' : '';
       var nb = [P[i - 1], P[i + 1]].filter(Boolean), avg = nb.length ? nb.reduce(function (s, q) { return s + q.y; }, 0) / nb.length : p.y + 1;
       var peak = p.y < avg, done = false;
       [14, 8].forEach(function (max) {
         if (done) return;
         var txt = cut(p.n, max), w = Math.ceil(txt.length * 6.8) + 4, h = tag ? 26 : 14;
-        var below = { x: p.x - w / 2, y: p.y + 17, a: 'middle', cx: p.x }, above = { x: p.x - w / 2, y: p.y - 17 - h, a: 'middle', cx: p.x };
+        var below = { x: p.x - w / 2, y: p.y + 21, a: 'middle', cx: p.x }, above = { x: p.x - w / 2, y: p.y - 21 - h, a: 'middle', cx: p.x };
         var cand = [peak ? above : below, peak ? below : above,
-          { x: p.x + 18, y: p.y - h / 2, a: 'start', cx: p.x + 18 }, { x: p.x - 18 - w, y: p.y - h / 2, a: 'end', cx: p.x - 18 }];
+          { x: p.x + 22, y: p.y - h / 2, a: 'start', cx: p.x + 22 }, { x: p.x - 22 - w, y: p.y - h / 2, a: 'end', cx: p.x - 22 }];
         for (var k = 0; k < cand.length && !done; k++) {
           var c = cand[k];
           if (c.a === 'middle') { var nx = Math.min(Math.max(c.x, 6), W - 6 - w); c.cx += nx - c.x; c.x = nx; }
@@ -650,19 +692,24 @@ ul, ol { padding: 0; list-style: none; }
           if (r.x < 4 || r.x + r.w > W - 4 || r.y < 2 || r.y + r.h > H - 2) continue;
           if (placed.some(function (q) { return overlap(r, q); })) continue;
           placed.push(r); done = true;
-          var g = el('g', {}), ty = r.y + 11;
+          var g = deco(el('g', {})), ty = r.y + 11;
           g.appendChild(el('text', { class: 'rm-name', x: c.cx, y: ty, 'text-anchor': c.a }, txt));
           if (tag) g.appendChild(el('text', { class: 'rm-tag', x: c.cx, y: ty + 12, 'text-anchor': c.a }, tag));
           svg.appendChild(g);
         }
       });
     });
+    /* Pins draw last so they sit above the labels. Each pin is a button: a 44px transparent hit circle, a 28px face and a ring. */
     P.forEach(function (p, i) {
-      var role = i === 0 ? 'is-start' : (i === n - 1 ? 'is-end' : '');
-      var g = el('g', { class: 'rm-pin ' + role });
-      g.appendChild(el('title', {}, (i + 1) + '. ' + p.n));
-      g.appendChild(el('circle', { class: 'rm-dot', cx: p.x, cy: p.y, r: role ? PIN_R : 11 }));
-      g.appendChild(el('text', { class: 'rm-num', x: p.x, y: p.y + 0.5 }, String(i + 1)));
+      var role = i === 0 ? 'is-start' : (i === n - 1 && n > 1 ? 'is-end' : '');
+      var L = i > 0 ? R.legs[i - 1] : null;
+      var label = 'Stop ' + (i + 1) + ' of ' + n + ', ' + p.n + ', Day ' + p.day + (L ? '. ' + L.km + ', ' + L.t + ' from stop ' + i : '') + '. Opens the Map at this stop.';
+      var g = el('g', { class: 'rm-pin ' + role, role: 'button', tabindex: '0', 'aria-label': label, 'data-open': 'Map at ' + p.n });
+      g.appendChild(el('title', {}, p.n + ', Day ' + p.day));
+      g.appendChild(el('circle', { class: 'rm-hit', cx: p.x, cy: p.y, r: HIT_R }));
+      g.appendChild(el('circle', { class: 'rm-ring', cx: p.x, cy: p.y, r: PIN_R + 4.5 }));
+      g.appendChild(el('circle', { class: 'rm-dot', cx: p.x, cy: p.y, r: PIN_R }));
+      g.appendChild(el('text', { class: 'rm-num', x: p.x, y: p.y + 0.5, 'aria-hidden': 'true' }, String(i + 1)));
       svg.appendChild(g);
     });
     return svg;
@@ -672,25 +719,26 @@ ul, ol { padding: 0; list-style: none; }
     var out = '<ol class="ovw-stoplist' + (long ? ' is-long' : '') + '" aria-label="Route: ' + STOPCOUNT + (STOPCOUNT === 1 ? ' stop' : ' stops') + ', ' + R.total.toLocaleString('en-IN') + ' km"' + (long ? ' tabindex="0"' : '') + '>';
     P.forEach(function (p, i) {
       var role = i === 0 ? 'is-start' : (i === n - 1 && n > 1 ? 'is-end' : '');
-      var tag = n > 1 && i === 0 ? '<small>START</small>' : (n > 1 && i === n - 1 ? '<small>END</small>' : '');
-      out += '<li class="' + role + '"><span class="ovw-stop-pin" aria-hidden="true">' + (i + 1) + '</span><span class="ovw-stop-name">' + p.n + tag + '</span></li>';
+      var tag = n > 1 && i === 0 ? '<small>Start</small>' : (n > 1 && i === n - 1 ? '<small>End</small>' : '');
+      out += '<li class="' + role + '"><button type="button" class="ovw-stop-btn" data-open="Map at ' + p.n + '" aria-label="Stop ' + (i + 1) + ', ' + p.n + ', Day ' + p.day + '. Opens the Map at this stop.">' +
+        '<span class="ovw-stop-pin" aria-hidden="true">' + (i + 1) + '</span><span class="ovw-stop-name">' + p.n + tag + '</span></button></li>';
       if (i < R.legs.length) {
         var L = R.legs[i];
-        out += '<li class="is-leg" style="--c:' + L.c + '"><span class="ovw-leg-text"><b>' + L.km + '</b> &middot; ' + L.t + '<i>' + L.d + '</i></span></li>';
+        out += '<li class="is-leg" style="--c:' + L.c + '"><span class="ovw-leg-text"><b>' + L.km + '</b><span>' + L.t + '</span><i>' + L.d + '</i></span></li>';
       }
     });
     return out + '</ol>';
   }
 
   function route(s) {
-    var open = '<button type="button" class="ovw-btn">Open map</button>';
+    var open = '<button type="button" class="ovw-link" data-open="Map">Open map</button>';
     if (s === 'empty' || NPTS === 0) {
       return '<section class="ovw-card ovw-route" aria-labelledby="r-h"><div class="ovw-head"><h2 class="ovw-title" id="r-h">Route</h2></div><div class="ovw-route-empty">' +
         state('empty', { icon: I.pin, title: 'No route to draw yet', body: 'This plan needs at least two places with confirmed coordinates. Add a stop, or pin the missing ones.' }) + '</div></section>';
     }
     var R = routeData(NPTS), asList = NPTS > 8;
     return '<section class="ovw-card ovw-route" data-view="' + (asList ? 'list' : 'map') + '" aria-labelledby="r-h"><div class="ovw-head"><h2 class="ovw-title" id="r-h">Route</h2>' +
-      '<div class="ovw-head-meta"><span><b>' + DAYS + '</b> ' + (DAYS === 1 ? 'day' : 'days') + ' &middot; ' + (R.total ? '<b>' + R.total.toLocaleString('en-IN') + '</b> km &middot; ' : '') + '<b>' + STOPCOUNT + '</b> ' + (STOPCOUNT === 1 ? 'stop' : 'stops') + '</span>' + open + '</div></div>' +
+      '<div class="ovw-head-meta"><span><b>' + DAYS + '</b> ' + (DAYS === 1 ? 'day' : 'days') + '</span>' + (R.total ? '<span><b>' + R.total.toLocaleString('en-IN') + '</b> km</span>' : '') + '<span><b>' + STOPCOUNT + '</b> ' + (STOPCOUNT === 1 ? 'stop' : 'stops') + '</span>' + open + '</div></div>' +
       (asList ? '' : '<div class="ovw-map" id="rmap"></div>') + stopList(R, asList) +
       '<p class="ovw-sample">Sample route, schematic and not to scale. Pins show the start, the overnight bases and the end.</p></section>';
   }
@@ -728,11 +776,12 @@ ul, ol { padding: 0; list-style: none; }
         var k = KINDS[ki], st = typeof c === 'string' ? c : c[0], title = typeof c === 'string' ? '' : c[1];
         if (st === 'n') return { st: 'n', k: k, html: '<div class="mx-cell" role="gridcell" data-state="none" style="--k:' + k.k + '" aria-label="Day ' + (di + 1) + ' ' + k.name + ': not part of this day"><span class="mx-btn"><span class="mx-chip" aria-hidden="true">&ndash;</span></span></div>', g: '<span class="mx-g" data-state="none" style="--k:' + k.k + '" aria-hidden="true">&ndash;</span>' };
         total++; if (st === 'f') filled++;
-        var label = st === 'f' ? title : st === 'a' ? 'Auto-added by the app' : 'Open';
-        var aria = 'Day ' + (di + 1) + ' ' + k.name + ': ' + (st === 'f' ? title : st === 'a' ? 'added by the app' : 'still open') + '. Opens the Timeline.';
-        var inner = st === 'e' ? '<span>Open</span>' : I[k.ic] + '<span>' + label + '</span>';
+        /* The auto chip reads "Auto" on one line. The full words sit in the title and the label. */
+        var full = st === 'f' ? title : st === 'a' ? 'Auto-added by the app' : 'Open';
+        var aria = 'Day ' + (di + 1) + ' ' + k.name + ': ' + (st === 'f' ? title : st === 'a' ? 'Auto-added by the app' : 'still open') + '. Opens the Timeline at this slot.';
+        var inner = st === 'e' ? '<span>Open</span>' : I[k.ic] + '<span>' + (st === 'a' ? 'Auto' : title) + '</span>';
         var name = { f: 'filled', a: 'auto', e: 'empty' }[st];
-        return { st: st, k: k, title: title, html: '<div class="mx-cell" role="gridcell" data-state="' + name + '" style="--k:' + k.k + '"><button type="button" class="mx-btn" tabindex="-1" title="' + k.name + ': ' + label + '" aria-label="' + aria + '"><span class="mx-chip">' + inner + '</span></button></div>',
+        return { st: st, k: k, title: title, html: '<div class="mx-cell" role="gridcell" data-state="' + name + '" style="--k:' + k.k + '"><button type="button" class="mx-btn" tabindex="-1" data-open="Timeline at Day ' + (di + 1) + ', ' + k.name + '" title="' + k.name + ': ' + full + '" aria-label="' + aria + '"><span class="mx-chip">' + inner + '</span></button></div>',
           g: '<span class="mx-g" data-state="' + name + '" style="--k:' + k.k + '" aria-hidden="true">' + (st === 'e' ? '' : I[k.ic]) + '</span>' };
       });
       out.push({ di: di, filled: filled, total: total, cs: cs, html: cs.map(function (c) { return c.html; }).join('') });
@@ -745,7 +794,7 @@ ul, ol { padding: 0; list-style: none; }
     var aria = 'Day ' + (r.di + 1) + ', ' + dateOf(r.di) + (today ? ', today' : '') + '. ' + r.filled + ' of ' + r.total + ' planned.' +
       (lists.f.length ? ' Planned: ' + lists.f.join(', ') + '.' : '') + (lists.a.length ? ' Added by the app: ' + lists.a.join(', ') + '.' : '') +
       (lists.e.length ? ' Still open: ' + lists.e.join(', ') + '.' : '') + (lists.n.length ? ' Not part of this day: ' + lists.n.join(', ') + '.' : '') + ' Opens the Timeline at this day.';
-    return '<li><button type="button" class="mx-crow' + (today ? ' is-today' : '') + '" aria-label="' + aria + '"><span class="mx-cday"><b>Day ' + (r.di + 1) + (today ? '<span class="mx-today">Today</span>' : '') + '</b><small>' + dateOf(r.di) + '</small></span>' +
+    return '<li><button type="button" class="mx-crow' + (today ? ' is-today' : '') + '" data-open="Timeline at Day ' + (r.di + 1) + '" aria-label="' + aria + '"><span class="mx-cday"><b>Day ' + (r.di + 1) + (today ? '<span class="mx-today">Today</span>' : '') + '</b><small>' + dateOf(r.di) + '</small></span>' +
       r.cs.map(function (c) { return c.g; }).join('') + '<span class="mx-ctot">' + r.filled + '/' + r.total + '</span></button></li>';
   }
   function matrix(s) {
@@ -755,12 +804,14 @@ ul, ol { padding: 0; list-style: none; }
     var ratio = function (r) { return r.total ? r.filled / r.total : 1; };
     var thin = rows.slice().sort(function (a, b) { return ratio(a) - ratio(b); })[0];
     var tie = rows.every(function (r) { return ratio(r) === ratio(rows[0]); });
-    var thinTxt = (rows.length < 2 || tie) ? '' : '<span>Thinnest: <b>Day ' + (thin.di + 1) + '</b>, ' + thin.filled + ' of ' + thin.total + '</span>';
+    var showThin = rows.length > 1 && !tie;
+    var thinTxt = showThin ? '<span class="ovw-item">Thinnest: <b>Day ' + (thin.di + 1) + ', ' + thin.filled + ' of ' + thin.total + '</b></span>' : '';
     var heads = KINDS.map(function (k) { return '<div class="mx-th" role="columnheader" style="--k:' + k.k + '">' + I[k.ic] + k.name + '</div>'; }).join('');
     var body = rows.map(function (r) {
-      var today = r.di === TODAY;
-      return '<div class="mx-row' + (today ? ' is-today' : '') + '" role="row"><div class="mx-daycol mx-day" role="rowheader"><button type="button" tabindex="-1" aria-label="Day ' + (r.di + 1) + ', ' + dateOf(r.di) + (today ? ', today' : '') + '. Opens the Timeline at this day."><span>Day ' + (r.di + 1) + (today ? '<span class="mx-today">Today</span>' : '') + '</span><small>' + dateOf(r.di) + '</small></button></div>' +
-        r.html + '<div class="mx-total' + (!tie && rows.length > 1 && r === thin ? ' is-thin' : '') + '" role="gridcell" aria-label="' + r.filled + ' of ' + r.total + ' planned">' + r.filled + '/' + r.total + '</div></div>';
+      var today = r.di === TODAY, isThin = showThin && r === thin;
+      return '<div class="mx-row' + (today ? ' is-today' : '') + '" role="row"><div class="mx-daycol mx-day" role="rowheader"><button type="button" tabindex="-1" data-open="Timeline at Day ' + (r.di + 1) + '" aria-label="Day ' + (r.di + 1) + ', ' + dateOf(r.di) + (today ? ', today' : '') + '. Opens the Timeline at this day."><span>Day ' + (r.di + 1) + (today ? '<span class="mx-today">Today</span>' : '') + '</span><small>' + dateOf(r.di) + '</small></button></div>' +
+        r.html + '<div class="mx-total' + (isThin ? ' is-thin' : '') + '" role="gridcell" aria-label="' + r.filled + ' of ' + r.total + ' planned' + (isThin ? '. Thin day.' : '') + '"><span>' + r.filled + '/' + r.total + (isThin ? ' <em>Thin</em>' : '') + '</span>' +
+        '<i class="mx-bar" aria-hidden="true"><b style="width:' + (r.total ? Math.round(r.filled / r.total * 100) : 0) + '%"></b></i></div></div>';
     }).join('');
     var key = '<span class="mx-key"><span><i class="k-f"></i>Planned</span><span><i class="k-a"></i>Auto-added</span><span><i class="k-e"></i>Open</span></span>';
     var chead = '<li class="mx-chead" aria-hidden="true"><span>Day</span>' + KINDS.map(function (k) { return '<span style="--k:' + k.k + '" title="' + k.name + '">' + I[k.ic] + '</span>'; }).join('') + '<span>n/6</span></li>';
@@ -848,13 +899,49 @@ ul, ol { padding: 0; list-style: none; }
     kept: 'Kept: a refresh failed, so the last loaded rows stay on screen with a note.'
   };
 
+  /* The map shrinks with its card. Below full size the hit circle grows in map units so a pin stays a 44px target.
+     It stops at 44 units, because eight pins sit 90 units apart at the least. */
+  var pinWatch = null;
+  function fitPins(m) {
+    if (pinWatch) pinWatch.disconnect();
+    if (!window.ResizeObserver) return;
+    pinWatch = new ResizeObserver(function () {
+      var scale = m.clientWidth / W; if (!scale) return;
+      var r = Math.min(44, Math.max(HIT_R, 22 / scale));
+      Array.prototype.forEach.call(m.querySelectorAll('.rm-hit'), function (c) { c.setAttribute('r', String(r)); });
+    });
+    pinWatch.observe(m);
+  }
+  /* Above 720px the map shows and the stop list is only a text alternative, so it leaves the tab order. */
+  var wide = window.matchMedia('(min-width: 721px)');
+  function syncList() {
+    Array.prototype.forEach.call(document.querySelectorAll('.ovw-route[data-view="map"] .ovw-stoplist'), function (l) { l.inert = wide.matches; });
+  }
+  wide.addEventListener('change', syncList);
+
+  /* Mockup only: a click shows where the real tab would go. */
+  var toastEl = document.getElementById('toast'), toastTimer = 0;
+  function toast(msg) {
+    toastEl.textContent = msg; toastEl.classList.add('is-on');
+    clearTimeout(toastTimer); toastTimer = setTimeout(function () { toastEl.classList.remove('is-on'); }, 2600);
+  }
+  var ovwEl = document.getElementById('ovw');
+  ovwEl.addEventListener('click', function (e) {
+    var t = e.target.closest('[data-open]'); if (t) toast('Would open: ' + t.getAttribute('data-open'));
+  });
+  ovwEl.addEventListener('keydown', function (e) {
+    var p = e.target.closest && e.target.closest('.rm-pin');
+    if (p && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); toast('Would open: ' + p.getAttribute('data-open')); }
+  });
+
   function render(s) {
     alertUsed = false;
     /* The strings build in page order, so the first failed block on the page is the one alert. */
     var html = verdict(s) + '<div class="ovw-split">' + needs(s) + route(s) + stats(s) + '</div>' +
       '<div class="ovw-lower">' + matrix(s) + '<div class="ovw-stack">' + pulse(s) + commitments(s) + activity(s) + '</div></div>' + weather(s);
     document.getElementById('ovw').innerHTML = html;
-    var m = document.getElementById('rmap'); if (m) m.appendChild(buildMap(routeData(NPTS)));
+    var m = document.getElementById('rmap'); if (m) { m.appendChild(buildMap(routeData(NPTS))); fitPins(m); }
+    syncList();
     var mb = document.getElementById('moreBtn');
     if (mb) mb.addEventListener('click', function () {
       var rows = document.getElementById('moreRows'), open = rows.hidden;

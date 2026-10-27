@@ -24,6 +24,7 @@ import { titleCase } from '../lib/labels'
 import { haptic } from '../lib/haptics'
 import { nativeWatch } from '../lib/native'
 import { loadFlag, saveFlag } from '../lib/uiPrefs'
+import { normalizeMapTarget, validMapCoordinate, type MapTarget } from '../lib/mapTarget'
 import {
   applyViewModeOnMap, HERO_3D_CAMERA, MAP_VIEW_MODES, MAP_VIEW_MODE_META,
   heroBearingForRoute, heroCameraMove,
@@ -432,7 +433,7 @@ const SLOT_PIN_GLYPH: Record<string, string> = {
   breakfast: 'B', lunch: 'L', fuel: 'F', stretch: 'S', dinner: 'D', stay: 'N',
 }
 
-export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusDay, onDayFilterChange, tripReadinessRows = [], showToolbar = true, enableMapViewModes = false, dedicated = false, activeHitId = null, onActivateHit, onOpenInTimeline, onOpenInBoard, onDeleteStop, mainRouteGeometry = null, returnRouteGeometry = null, allowSelfMeasurement = true, clockMilestones = null, onOpenHaltDay, onShowReturnChange, slotPins = [], onOpenSlot, hitCosts, searchHitIds, legCorrections }: {
+export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusDay, onDayFilterChange, tripReadinessRows = [], showToolbar = true, enableMapViewModes = false, dedicated = false, activeHitId = null, onActivateHit, onOpenInTimeline, onOpenInBoard, onDeleteStop, mainRouteGeometry = null, returnRouteGeometry = null, allowSelfMeasurement = true, clockMilestones = null, onOpenHaltDay, onShowReturnChange, slotPins = [], onOpenSlot, hitCosts, searchHitIds, legCorrections, mapTarget = null, onMapTargetConsumed }: {
   trip: Trip
   onOpenStop?: (stopId: string) => void
   /** potential POIs to show as gold "idea" markers */
@@ -509,6 +510,10 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
    *  rails read the same road the map shows (#polylines): on = the loop (out +
    *  back, the plan's road), off = the outbound road alone. */
   onShowReturnChange?: (show: boolean) => void
+  /** One-shot Overview request: select a stop, centre a point, or fit bounds. */
+  mapTarget?: MapTarget | null
+  /** Clears the one-shot request after the camera and selection settle. */
+  onMapTargetConsumed?: () => void
 }) {
   const [dayFilter, setDayFilter] = useState<number | 'all'>('all')
   // A host drives the day filter through the prop (Board columns, the slots
@@ -702,6 +707,10 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   )
   const mapRef = useRef<MapRef | null>(null)
   const [mapLoaded, setMapLoaded] = useState(false)
+  // A target camera stays authoritative for its day until the user moves the
+  // map or chooses another day. Late road geometry must not steal the camera.
+  const targetCameraActive = useRef(false)
+  const targetCameraDay = useRef<number | 'all' | null>(null)
 
   // follow the app's theme toggle
   useEffect(() => {
@@ -876,10 +885,29 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     [fitPoints],
   )
 
+  // A deliberate map gesture releases the target camera. Programmatic camera
+  // moves use MapLibre events, so they do not clear this guard.
+  useEffect(() => {
+    if (!mapLoaded || !mapRef.current) return
+    const canvas = mapRef.current.getCanvas()
+    const releaseTargetCamera = () => { targetCameraActive.current = false }
+    canvas.addEventListener('pointerdown', releaseTargetCamera)
+    canvas.addEventListener('wheel', releaseTargetCamera, { passive: true })
+    return () => {
+      canvas.removeEventListener('pointerdown', releaseTargetCamera)
+      canvas.removeEventListener('wheel', releaseTargetCamera)
+    }
+  }, [mapLoaded])
+
   // fit the viewport to everything the view draws, whenever the map is ready
   // and that extent changes
   useEffect(() => {
     if (!mapLoaded || !mapRef.current) return
+    if (mapTarget) return
+    if (targetCameraActive.current) {
+      if (targetCameraDay.current === dayFilter) return
+      targetCameraActive.current = false
+    }
     const bounds = boundsOf(fitPoints)
     if (!bounds) return
     const m = mapRef.current
@@ -891,7 +919,59 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
       )
     }
     requestAnimationFrame(run)
-  }, [fitPointsKey, mapLoaded]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [fitPointsKey, mapLoaded, mapTarget, dayFilter]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!mapTarget || !mapLoaded || !mapRef.current) return
+    const normalized = normalizeMapTarget(mapTarget)
+    const m = mapRef.current
+    if (!normalized) {
+      onMapTargetConsumed?.()
+      return
+    }
+    if (normalized.kind === 'stop') {
+      const sourceStop = trip.days
+        .flatMap(day => day.stops)
+        .find(stop => stop.id === normalized.stopId)
+      if (!sourceStop || !validMapCoordinate(sourceStop) || sourceStop.lat === 0) {
+        onMapTargetConsumed?.()
+        return
+      }
+      const stop = allPoints.find(point => point.id === normalized.stopId)
+      // The day filter has not caught up to the request yet.
+      if (!stop) return
+      // The map target is an imperative camera request. Selection follows only
+      // after the requested day filter and rendered points agree on the stop.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSelectedStop({ id: stop.id, title: stop.title, dayIndex: stop.dayIndex })
+      m.easeTo({
+        center: [stop.lng, stop.lat],
+        zoom: Math.max(m.getZoom(), 14),
+        duration: prefersReducedMotion() ? 0 : motionTiming('--motion-med').duration,
+      })
+    } else if (normalized.kind === 'coordinate') {
+      m.easeTo({
+        center: [normalized.coordinate.lng, normalized.coordinate.lat],
+        zoom: Math.max(m.getZoom(), 12),
+        duration: prefersReducedMotion() ? 0 : motionTiming('--motion-med').duration,
+      })
+    } else {
+      const bounds = boundsOf(normalized.points)
+      if (!bounds) {
+        onMapTargetConsumed?.()
+        return
+      }
+      m.resize()
+      m.fitBounds(bounds, {
+        padding: 70,
+        maxZoom: 12,
+        duration: prefersReducedMotion() ? 0 : motionTiming('--motion-slow').duration,
+      })
+    }
+    targetCameraActive.current = true
+    targetCameraDay.current = dayFilter
+    onMapTargetConsumed?.()
+  }, [mapTarget, mapLoaded, allPoints, trip.days, dayFilter, onMapTargetConsumed])
 
   // Panel → map highlight: when a suggestion card is hovered/selected in the
   // side panels, glide the camera to its pin so the user sees where it is.

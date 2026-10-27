@@ -157,6 +157,26 @@ function ProfileLookupPage({ state }: { state: ProfileLookupState }) {
   )
 }
 
+function SignedOutTripPage({ route, navigate }: { route: string; navigate: (to: string) => void }) {
+  return (
+    <div className="container page-enter yf-page">
+      <StateBlock
+        kind="empty"
+        titleLevel="h1"
+        title="Sign in to open this trip"
+        actions={
+          <button
+            className="btn btn-primary"
+            onClick={() => navigate(`/auth?next=${encodeURIComponent(authNext(route.split('?')[0]))}`)}
+          >
+            Sign in
+          </button>
+        }
+      />
+    </div>
+  )
+}
+
 export function NotificationReadNotice({ view, onRetry }: { view: RowsView; onRetry: () => void }) {
   if (view === 'rows' || view === 'empty') return null
   if (view === 'reading') {
@@ -511,7 +531,7 @@ export default function App() {
     else if (parts[0] === 'explore') page = <Suspense fallback={lazyRouteFallback}><ExplorePage onNavigate={navigate} /></Suspense>
     else if (parts[0] === 'auth' && !sessionUserId) page = <Suspense fallback={lazyRouteFallback}><AuthPage onNavigate={navigate} /></Suspense>
     else if (profileLookupBlocksRoute(sessionUserId, !!me, profileState, bareRoute, isNative)) page = <ProfileLookupPage state={profileState} />
-    else if (parts[0] === 'trip' && parts[1]) page = <div className="container page-enter"><StateBlock kind="empty" titleLevel="h1" title="Sign in to open this trip" actions={<button className="btn btn-primary" onClick={() => navigate(`/auth?next=${encodeURIComponent(authNext(route.split('?')[0]))}`)}>Sign in</button>} /></div>
+    else if (parts[0] === 'trip' && parts[1]) page = <SignedOutTripPage route={route} navigate={navigate} />
     else page = <LandingPage onNavigate={navigate} />
   } else {
     switch (parts[0]) {

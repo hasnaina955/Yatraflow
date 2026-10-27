@@ -787,6 +787,7 @@ The strategy freezes this track for six weeks, so pick it up after the creator g
 | Page | The shared page parts are in it |
 | --- | --- |
 | P1 | The app shell — the route fallback, the dialogs and `ErrorBoundary` |
+| P2 | The workspace header and tab bar |
 | P3 | Purchases |
 | P5 | Trip created |
 | P6 | The invite gate and the shared plan |
@@ -800,7 +801,6 @@ The strategy freezes this track for six weeks, so pick it up after the creator g
 
 | Page | Still on the old markup |
 | --- | --- |
-| P2 | The workspace header and tab bar (a mockup is required) |
 | P4 | The creator page |
 | P7 | The public itinerary |
 | P13 | Landing (a mockup is required) |

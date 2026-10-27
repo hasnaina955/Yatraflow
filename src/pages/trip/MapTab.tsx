@@ -10,6 +10,7 @@ import { removeStopWithUndo } from '../../lib/mutationLifecycle'
 import { mapRoadViewFromLegs, mapReturnGeometryFromLegs, outboundLegs, type TripRoadView } from '../../lib/tripRoad'
 import { buildJourney, minutesToHM, fmtDur, computeCategoryBias, MODE_SPEED, isRoundTrip, isAirMode, tripJourneyGeometry, type LegEstimate } from '../../lib/engine'
 import { useTimeFormat, formatHM, formatHMRange } from '../../lib/timefmt'
+import type { MapTarget } from '../../lib/mapTarget'
 import { loadPref, savePref, loadHaltPinsForTrip, saveHaltPin, clearHaltPin, clearHaltPinsForTrip } from '../../lib/uiPrefs'
 import { DEBOUNCE_MS } from '../../lib/geocode'
 import { Modal, Field, toast, undoToast, useInView, useMedia, usePageVisible } from '../../components/ui'
@@ -144,7 +145,7 @@ function SlotGlyph({ kind, label }: { kind: DaySlotKind; label: string }) {
   const G = label === 'Breakfast' ? Coffee : KIND_GLYPH[kind]
   return G ? <InlineIcon icon={G} size={12} /> : null
 }
-export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsHash, crewSuggestions, decisions, road, onOpenTimeline, onOpenBoard, onOpenDay, onOpenGroupInput, previewOpen, dayFocus, onDayFocusChange, legCorrections }: {
+export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsHash, crewSuggestions, decisions, road, onOpenTimeline, onOpenBoard, onOpenDay, onOpenGroupInput, previewOpen, dayFocus, onDayFocusChange, mapTarget, onMapTargetConsumed, legCorrections }: {
   trip: Trip
   editable: boolean
   applyChange: (mutator: (d: Trip) => void, kind: ImpactResult['kind'], dayIndex: number, onKept?: () => void) => void
@@ -177,6 +178,10 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   dayFocus?: number | 'all'
   /** reports the tab's day-axis choice back up to the workspace. */
   onDayFocusChange?: (day: number | 'all') => void
+  /** A one-shot request from the Overview route card. */
+  mapTarget?: MapTarget | null
+  /** Clears the request after TripMap selects or frames the target. */
+  onMapTargetConsumed?: () => void
   /** The workspace's measured road data — pin clocks read it (#611). */
   legCorrections?: Record<string, LegEstimate>
 }) {
@@ -1780,6 +1785,8 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
               onOpenHaltDay={onOpenDay}
               clockMilestones={clockMilestones}
               onDeleteStop={editable ? removeStopFromMap : undefined}
+              mapTarget={mapTarget}
+              onMapTargetConsumed={onMapTargetConsumed}
               enableMapViewModes
               mainRouteGeometry={routeGeometry}
               returnRouteGeometry={returnRouteGeometry}

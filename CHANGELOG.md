@@ -16,6 +16,10 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ## [Unreleased]
 
+### Changed
+
+- **Trip workspaces now use the same cream editorial card as My trips.** The header shows the cover, serif trip name, route facts, members, presence, and one invite action for editors. It folds on Board and Map so the canvas gets more room. The eight tabs keep their keyboard contract, stable panel names, and deep links. Loading, missing-trip, signed-out, and failed reads now show honest page states.
+
 ## [0.80.0] - 2026-10-27
 
 **This minor release joins the trip collaboration, driving-plan and destination-art work already on `test`.** It preserves main's dependency security updates. Production deployment is pending. The companion stays off under #236. Stages E and F remain open.

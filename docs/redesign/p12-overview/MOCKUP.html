@@ -26,6 +26,8 @@
   --font-serif: 'Playfair Display', Georgia, 'Times New Roman', serif;
   --font-body: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-display: 'Sora', 'Plus Jakarta Sans', system-ui, sans-serif;
+  --space-1: 2px; --space-2: 4px; --space-3: 6px; --space-4: 8px; --space-5: 12px; --space-6: 14px; --space-7: 16px; --space-8: 20px; --space-9: 22px; --space-10: 24px;
+  --container-w: 1400px; --container-wide: 1720px;
   --motion-fast: 120ms; --motion-med: 180ms; --motion-slow: 240ms;
   --ease-out: cubic-bezier(.22, .61, .36, 1);
   --stagger-step: 60ms;
@@ -70,29 +72,30 @@ ul, ol { padding: 0; list-style: none; }
 .mock-bar .seg { display: inline-flex; flex-wrap: wrap; gap: 4px; }
 .mock-bar button { min-height: 44px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--line); background: transparent; font-size: 12px; font-weight: 700; color: var(--text-2); }
 .mock-bar button[aria-pressed='true'] { background: var(--teal-soft); color: var(--ink-teal); border-color: var(--yf-teal-600); }
-.mock-note { margin: 0 0 12px; padding: 8px 12px; border: 1px dashed var(--line); border-radius: 10px; font-size: 12px; color: var(--text-2); background: color-mix(in srgb, var(--card) 60%, transparent); }
-.app-nav-stub { display: flex; align-items: center; gap: 16px; min-height: 56px; padding: 0 20px; font-size: 13px; font-weight: 700; color: var(--text-3); }
+.mock-note { margin: 0 0 var(--space-5); padding: 8px 12px; border: 1px dashed var(--line); border-radius: 10px; font-size: 12px; color: var(--text-2); background: color-mix(in srgb, var(--card) 60%, transparent); }
+.app-nav-stub { display: flex; align-items: center; gap: 16px; min-height: 44px; padding: 0 20px; font-size: 13px; font-weight: 700; color: var(--text-3); }
 .app-nav-stub .brand { color: var(--ink-teal); font-weight: 800; font-size: 16px; }
 
 /* ---- Container and P2 header (unchanged by P12, shown for context) ---- */
-.container { width: 100%; max-width: 1180px; margin: 0 auto; padding: 22px 20px 0; }
-.yf-trip-head { position: relative; overflow: hidden; margin-bottom: 14px; padding: 22px 24px; background: var(--card); border: 1px solid var(--yf-border); border-radius: var(--radius-lg); box-shadow: var(--shadow-soft); }
+.container { position: relative; width: 100%; max-width: var(--container-w); margin: 0 auto; padding: var(--space-7) var(--space-8) 0; }
+.guide-on .container::before { content: attr(data-w); position: absolute; top: 2px; left: 50%; transform: translateX(-50%); z-index: 41; padding: 1px 8px; border-radius: 999px; font: 700 11px var(--font-body); background: var(--yf-teal-600); color: var(--card); white-space: nowrap; }
+.yf-trip-head { position: relative; overflow: hidden; margin-bottom: var(--space-5); padding: var(--space-6) var(--space-8); background: var(--card); border: 1px solid var(--yf-border); border-radius: var(--radius-lg); box-shadow: var(--shadow-soft); }
 .yf-trip-head::after { content: ''; position: absolute; right: -70px; top: -90px; width: 240px; height: 240px; border-radius: 50%; background: var(--yf-saffron-100); opacity: .9; pointer-events: none; }
 :root[data-theme='dark'] .yf-trip-head::after { opacity: .4; }
 .yf-trip-head > * { position: relative; z-index: 1; }
-.yf-back { display: inline-flex; align-items: center; min-height: 44px; margin: -10px 0 -4px -12px; padding: 0 12px; border: 0; background: none; border-radius: 10px; font-size: 13px; font-weight: 700; color: var(--text-3); }
-.yf-head-row { display: grid; grid-template-columns: 96px minmax(0, 1fr) auto; column-gap: 18px; align-items: start; }
-.yf-thumb { width: 96px; height: 96px; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--yf-border); background: var(--yf-mist); }
+.yf-back { display: inline-flex; align-items: center; min-height: 44px; margin: -10px 0 -8px -12px; padding: 0 12px; border: 0; background: none; border-radius: 10px; font-size: 13px; font-weight: 700; color: var(--text-3); }
+.yf-head-row { display: grid; grid-template-columns: 72px minmax(0, 1fr) auto; column-gap: var(--space-7); align-items: start; }
+.yf-thumb { width: 72px; height: 72px; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--yf-border); background: var(--yf-mist); }
 .yf-thumb svg { display: block; width: 100%; height: 100%; }
-.yf-head-title { margin: 0; min-height: 44px; display: flex; align-items: center; font-family: var(--font-serif); font-weight: 600; color: var(--text); font-size: clamp(1.75rem, 1.2rem + 1.6vw, 2.5rem); line-height: 1.1; letter-spacing: -.015em; }
-.yf-head-meta { padding-top: 8px; color: var(--text-2); font-size: 14px; }
+.yf-head-title { margin: 0; min-height: 40px; display: flex; align-items: center; font-family: var(--font-serif); font-weight: 600; color: var(--text); font-size: clamp(1.5rem, 1.1rem + 1.2vw, 2rem); line-height: 1.1; letter-spacing: -.015em; }
+.yf-head-meta { padding-top: 0; color: var(--text-2); font-size: 14px; }
 .yf-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 20px; border: 0; border-radius: 999px; font-weight: 800; font-size: 14px; white-space: nowrap; background: var(--btn-accent); color: var(--btn-accent-fg); box-shadow: 0 1px 2px rgba(var(--shadow-navy-rgb),.12); transition: filter var(--motion-fast) var(--ease-out), transform var(--motion-fast) var(--ease-out); }
 .yf-btn:hover { filter: brightness(1.06); transform: translateY(-1px); }
 .yf-btn:active { transform: translateY(0); }
 .yf-btn--quiet { background: transparent; color: var(--ink-teal); border: 1px solid var(--line); box-shadow: none; transition: background-color var(--motion-fast) var(--ease-out), border-color var(--motion-fast) var(--ease-out), transform var(--motion-fast) var(--ease-out); }
 .yf-btn--quiet:hover { background: var(--teal-soft); filter: none; }
 .yf-act-extra { display: none; }
-.yf-members { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding-top: 14px; }
+.yf-members { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding-top: var(--space-4); }
 .yf-avatars { display: flex; align-items: center; }
 .avatar { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 32px; height: 32px; margin-left: -8px; border-radius: 50%; border: 2px solid var(--card); background: var(--teal-soft); color: var(--ink-teal); font-weight: 800; font-size: 12px; }
 .avatar:first-child { margin-left: 0; }
@@ -100,134 +103,199 @@ ul, ol { padding: 0; list-style: none; }
 .avatar:nth-child(3) { background: var(--yf-purple); color: #0B2545; }
 .yf-member-note { font-size: 13px; color: var(--text-2); }
 .yf-member-note b { color: var(--text); }
-.yf-tabbar { position: relative; display: flex; gap: 2px; padding: 4px; margin-bottom: 20px; border-radius: 999px; overflow-x: auto; scrollbar-width: none; background: var(--yf-nav-glass); border: 1px solid var(--yf-glass-border); -webkit-backdrop-filter: blur(14px) saturate(1.2); backdrop-filter: blur(14px) saturate(1.2); box-shadow: var(--shadow-soft); }
+.yf-tabbar { position: relative; display: flex; gap: 2px; padding: 4px; margin-bottom: var(--space-5); border-radius: 999px; overflow-x: auto; scrollbar-width: none; background: var(--yf-nav-glass); border: 1px solid var(--yf-glass-border); -webkit-backdrop-filter: blur(14px) saturate(1.2); backdrop-filter: blur(14px) saturate(1.2); box-shadow: var(--shadow-soft); }
 .yf-tabbar::-webkit-scrollbar { display: none; }
 .yf-tab { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 16px; border: 0; background: none; border-radius: 999px; font-size: 14px; font-weight: 600; color: var(--text-3); white-space: nowrap; }
 .yf-tab[aria-selected='true'] { color: var(--ink-teal); font-weight: 700; background: var(--teal-soft); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--yf-teal-600) 28%, transparent); }
 .yf-count { background: var(--card); color: var(--ink-teal); font-size: 11px; font-weight: 700; border-radius: 999px; padding: 1px 7px; border: 1px solid var(--yf-border); }
 
-/* ================= P12 Overview (all new rules; ovw- prefix) ================= */
-.ovw { display: grid; gap: 16px; padding-bottom: 32px; }
-.ovw-card { background: var(--card); border: 1px solid var(--yf-border); border-radius: var(--radius); box-shadow: var(--shadow-card); padding: 24px; }
-.ovw-title { font-family: var(--font-body); font-size: 18px; font-weight: 800; line-height: 1.3; color: var(--text); }
-.ovw-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; min-height: 28px; }
+/* ================= P12 Overview (all new rules; ovw- prefix) =================
+   Spacing steps come from the --space-* tokens (styles.css:181). Every gap is one step below the first draft. */
+.ovw { display: grid; gap: var(--space-5); padding-bottom: var(--space-8); }
+.ovw-card { background: var(--card); border: 1px solid var(--yf-border); border-radius: var(--radius); box-shadow: var(--shadow-card); padding: var(--space-7); min-width: 0; }
+.ovw-title { font-family: var(--font-body); font-size: 16px; font-weight: 800; line-height: 1.3; color: var(--text); }
+.ovw-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-5); margin-bottom: var(--space-4); min-height: 28px; }
+.ovw-head-meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--space-3) var(--space-5); font-size: 12px; color: var(--text-2); }
 
 /* Buttons: one primary (accent pill), one secondary (outline pill), one quiet (text). All 44px tall. */
-.ovw-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 18px; border-radius: 999px; font-size: 14px; font-weight: 800; white-space: nowrap; border: 1.5px solid var(--line); background: transparent; color: var(--ink-teal); transition: background-color var(--motion-fast) var(--ease-out), border-color var(--motion-fast) var(--ease-out), filter var(--motion-fast) var(--ease-out), transform var(--motion-fast) var(--ease-out); }
+.ovw-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 16px; border-radius: 999px; font-size: 14px; font-weight: 800; white-space: nowrap; border: 1.5px solid var(--line); background: transparent; color: var(--ink-teal); transition: background-color var(--motion-fast) var(--ease-out), border-color var(--motion-fast) var(--ease-out), filter var(--motion-fast) var(--ease-out), transform var(--motion-fast) var(--ease-out); }
 .ovw-btn:hover { background: var(--teal-soft); border-color: var(--yf-teal-600); }
 .ovw-btn:active { transform: translateY(1px); }
-.ovw-btn--primary { border: 0; background: var(--btn-accent); color: var(--btn-accent-fg); box-shadow: 0 1px 2px rgba(var(--shadow-navy-rgb),.12); padding: 0 24px; font-size: 15px; }
+.ovw-btn--primary { border: 0; background: var(--btn-accent); color: var(--btn-accent-fg); box-shadow: 0 1px 2px rgba(var(--shadow-navy-rgb),.12); padding: 0 22px; font-size: 15px; }
 .ovw-btn--primary:hover { background: var(--btn-accent); filter: brightness(1.06); transform: translateY(-1px); }
 .ovw-btn--quiet { border-color: transparent; padding: 0 12px; margin-left: -12px; }
+.ovw-head-btn { margin: -8px -12px -8px 0; }
+.yf-head-foot { display: block; }
 
-/* 1. Verdict: one band, one score, one sentence, one primary action */
-.ovw-verdict { position: relative; overflow: hidden; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 24px; padding: 28px 32px; }
+/* 1. Verdict: one slim band */
+.ovw-verdict { position: relative; overflow: hidden; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--space-7); padding: var(--space-5) var(--space-8) var(--space-5) var(--space-9); }
 .ovw-verdict::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 6px; background: var(--band-fill); }
-.ovw-verdict::after { content: ''; position: absolute; right: -80px; top: -110px; width: 260px; height: 260px; border-radius: 50%; background: var(--yf-saffron-100); opacity: .7; pointer-events: none; }
+.ovw-verdict::after { content: ''; position: absolute; right: -70px; top: -120px; width: 220px; height: 220px; border-radius: 50%; background: var(--yf-saffron-100); opacity: .7; pointer-events: none; }
 :root[data-theme='dark'] .ovw-verdict::after { opacity: .3; }
 .ovw-verdict > * { position: relative; z-index: 1; }
 .ovw-verdict[data-band='ok'] { --band-fill: var(--ok); --band-ink: var(--ink-green); --band-soft: var(--ok-soft); }
 .ovw-verdict[data-band='teal'] { --band-fill: var(--yf-teal-600); --band-ink: var(--ink-teal); --band-soft: var(--teal-soft); }
 .ovw-verdict[data-band='saffron'] { --band-fill: var(--yf-saffron); --band-ink: var(--ink-amber); --band-soft: var(--warn-soft); }
 .ovw-verdict[data-band='danger'] { --band-fill: var(--danger); --band-ink: var(--ink-coral); --band-soft: var(--danger-soft); }
-.ovw-score { text-align: center; min-width: 96px; }
-.ovw-score-num { display: block; font-family: var(--font-display); font-size: 54px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; color: var(--band-ink); }
-.ovw-score-of { display: block; margin-top: 4px; font-size: 12px; font-weight: 700; color: var(--text-3); }
-.ovw-band { display: inline-flex; align-items: center; min-height: 24px; padding: 0 10px; border-radius: 999px; font-size: 12px; font-weight: 800; background: var(--band-soft); color: var(--band-ink); }
-.ovw-verdict-text { min-width: 0; display: grid; gap: 8px; }
-.ovw-verdict-line { font-family: var(--font-body); font-size: 24px; font-weight: 800; line-height: 1.25; letter-spacing: -.01em; text-wrap: balance; }
-.ovw-verdict-sub { color: var(--text-2); font-size: 14px; }
-.ovw-bar { height: 8px; border-radius: 999px; background: var(--info-soft); overflow: hidden; margin-top: 4px; max-width: 420px; }
+.ovw-score { display: grid; grid-template-columns: auto auto; justify-content: start; align-items: baseline; gap: 0 var(--space-3); }
+.ovw-score-num { font-family: var(--font-display); font-size: 40px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; color: var(--band-ink); }
+.ovw-score-of { font-size: 12px; font-weight: 700; color: var(--text-3); }
+.ovw-band { grid-column: 1 / -1; display: inline-flex; align-items: center; justify-self: start; min-height: 22px; margin-top: var(--space-3); padding: 0 10px; border-radius: 999px; font-size: 12px; font-weight: 800; background: var(--band-soft); color: var(--band-ink); }
+.ovw-verdict-text { min-width: 0; display: grid; gap: var(--space-2); }
+.ovw-verdict-line { font-family: var(--font-body); font-size: 19px; font-weight: 800; line-height: 1.25; letter-spacing: -.01em; text-wrap: balance; }
+.ovw-verdict-sub { color: var(--text-2); font-size: 13px; }
+.ovw-bar { height: 6px; border-radius: 999px; background: var(--info-soft); overflow: hidden; margin-top: var(--space-2); max-width: 380px; }
 .ovw-bar i { display: block; height: 100%; border-radius: 999px; background: var(--band-fill); transform-origin: 0 50%; animation: growX calc(var(--motion-slow) * 2) var(--ease-out) backwards; animation-delay: calc(var(--stagger-step) * 2); }
-.ovw-verdict-act { display: grid; justify-items: end; gap: 6px; }
-.ovw-verdict-hint { font-size: 12px; color: var(--text-3); }
 
-/* 2. What needs you: one card. One action for each warning. */
-.ovw-count { display: inline-flex; align-items: center; min-height: 24px; padding: 0 10px; border-radius: 999px; font-size: 12px; font-weight: 800; background: var(--warn-soft); color: var(--ink-amber); }
+/* 2. Stat row: three slim tiles, label and value on one line */
+.ovw-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-5); }
+.ovw-stat { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: var(--space-5); padding: var(--space-4) var(--space-7); }
+.ovw-stat-label { grid-column: 1; font-size: 11px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: .06em; }
+.ovw-stat-val { grid-column: 2; grid-row: 1 / span 2; font-family: var(--font-display); font-size: 22px; font-weight: 800; line-height: 1.15; font-variant-numeric: tabular-nums; text-align: right; }
+.ovw-stat-sub { grid-column: 1; font-size: 12px; color: var(--text-2); }
+
+/* 3. What needs you (left) beside the route (right) */
+.ovw-split { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: var(--space-5); align-items: stretch; }
+.ovw-needs { display: flex; flex-direction: column; }
+.ovw-count { display: inline-flex; align-items: center; min-height: 22px; padding: 0 10px; border-radius: 999px; font-size: 12px; font-weight: 800; background: var(--warn-soft); color: var(--ink-amber); }
 .ovw-need-list { display: grid; }
-.ovw-need { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px 14px; align-items: center; padding: 14px 0; border-top: 1px solid var(--line); }
-.ovw-need:first-child { border-top: 0; padding-top: 4px; }
+.ovw-need { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--space-2) var(--space-5); align-items: center; padding: var(--space-5) 0; border-top: 1px solid var(--line); }
+.ovw-need:first-child { border-top: 0; padding-top: 0; }
 .ovw-sev {
-  display: inline-flex; align-items: center; gap: 6px; min-height: 24px; padding: 0 10px 0 8px;
+  display: inline-flex; align-items: center; gap: 6px; min-height: 22px; padding: 0 10px 0 8px;
   border-radius: 999px; font-size: 12px; font-weight: 800; white-space: nowrap;
 }
 .ovw-sev svg { width: 14px; height: 14px; flex: 0 0 auto; }
 .ovw-sev[data-sev='high'] { background: var(--danger-soft); color: var(--ink-coral); }
 .ovw-sev[data-sev='medium'] { background: var(--warn-soft); color: var(--ink-amber); }
 .ovw-sev[data-sev='low'] { background: var(--info-soft); color: var(--text-2); }
-.ovw-need-title { font-weight: 800; font-size: 15px; line-height: 1.35; }
-.ovw-need-fix { color: var(--text-2); font-size: 14px; }
-.ovw-more { margin-top: 4px; font-size: 13px; color: var(--text-2); }
+.ovw-need-title { font-weight: 800; font-size: 14px; line-height: 1.3; }
+.ovw-need-fix { color: var(--text-2); font-size: 13px; line-height: 1.35; }
+.ovw-more { margin-top: auto; padding-top: var(--space-3); font-size: 12px; color: var(--text-2); }
 
-/* 3. Stat row: three tiles */
-.ovw-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
-.ovw-stat { padding: 18px 22px; }
-.ovw-stat-label { font-size: 12px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: .06em; }
-.ovw-stat-val { display: block; margin: 4px 0 2px; font-family: var(--font-display); font-size: 28px; font-weight: 800; line-height: 1.15; font-variant-numeric: tabular-nums; }
-.ovw-stat-sub { font-size: 13px; color: var(--text-2); }
+/* 4. Route card: schematic SVG map, day bands, stop list for small screens */
+.ovw-route { display: flex; flex-direction: column; gap: var(--space-4); }
+.ovw-route .ovw-head { margin-bottom: 0; }
+.ovw-map { border-radius: var(--radius-sm); background: var(--yf-mist); border: 1px solid var(--yf-border); overflow: hidden; }
+.ovw-map svg { display: block; width: 100%; height: auto; }
+.rm-grid { stroke: var(--line); stroke-width: 1; stroke-dasharray: 2 6; opacity: .8; }
+.rm-base { fill: none; stroke: var(--line); stroke-width: 9; stroke-linecap: round; stroke-linejoin: round; }
+.rm-leg { fill: none; stroke: var(--yf-teal-600); stroke-width: 3.5; stroke-linecap: round; stroke-linejoin: round; }
+.rm-dot { fill: var(--card); stroke: var(--yf-teal-600); stroke-width: 3; }
+.is-start .rm-dot { fill: var(--yf-teal-600); stroke: var(--card); }
+.is-end .rm-dot { fill: var(--yf-saffron); stroke: var(--card); }
+.rm-num { font: 800 11px var(--font-display); text-anchor: middle; dominant-baseline: central; fill: var(--ink-teal); }
+.is-start .rm-num { fill: var(--card); }
+:root[data-theme='dark'] .is-start .rm-num { fill: var(--yf-cream); }
+.is-end .rm-num { fill: #0B2545; }
+.rm-name { font: 800 12.5px var(--font-body); fill: var(--text); paint-order: stroke; stroke: var(--yf-mist); stroke-width: 4px; stroke-linejoin: round; }
+.rm-tag { font: 800 9.5px var(--font-body); fill: var(--text-3); letter-spacing: .06em; paint-order: stroke; stroke: var(--yf-mist); stroke-width: 3px; }
+.rm-leglabel rect { fill: var(--card); stroke: var(--yf-border); stroke-width: 1; }
+.rm-leglabel text { font: 700 11px var(--font-body); fill: var(--text-2); text-anchor: middle; dominant-baseline: central; }
+.ovw-bands { display: flex; gap: 3px; }
+.ovw-verdict-act { display: grid; justify-items: end; }
+.ovw-band-seg { flex: var(--w) 1 0; min-width: 0; display: grid; gap: 3px; font-size: 11px; font-weight: 700; color: var(--text-2); white-space: nowrap; }
+.ovw-band-seg::before { content: ''; height: 6px; border-radius: 999px; background: var(--c); }
+.ovw-band-seg span { overflow: hidden; text-overflow: ellipsis; }
+.ovw-sample { font-size: 11px; color: var(--text-3); }
+.ovw-route-empty { display: grid; align-content: center; flex: 1; }
+.ovw-stoplist { display: none; }
+.ovw-stoplist > li { display: grid; grid-template-columns: 28px minmax(0, 1fr); column-gap: var(--space-5); }
+.ovw-stop-pin { width: 24px; height: 24px; margin: 2px; border-radius: 50%; display: grid; place-items: center; font: 800 11px var(--font-display); background: var(--card); border: 3px solid var(--yf-teal-600); color: var(--ink-teal); }
+.ovw-stoplist .is-start .ovw-stop-pin { background: var(--yf-teal-600); color: var(--card); }
+:root[data-theme='dark'] .ovw-stoplist .is-start .ovw-stop-pin { color: var(--yf-cream); }
+.ovw-stoplist .is-end .ovw-stop-pin { background: var(--yf-saffron); color: #0B2545; border-color: var(--card); }
+.ovw-stop-name { font-weight: 800; font-size: 14px; line-height: 28px; }
+.ovw-stop-name small { margin-left: 6px; font-size: 10px; font-weight: 800; color: var(--text-3); letter-spacing: .06em; }
+.ovw-stoplist .is-leg::before { content: ''; justify-self: center; width: 4px; min-height: 40px; border-radius: 2px; background: var(--c); }
+.ovw-leg-text { align-self: center; padding: var(--space-2) 0; font-size: 12px; color: var(--text-2); }
+.ovw-leg-text b { color: var(--text); font-variant-numeric: tabular-nums; }
+.ovw-leg-text i { font-style: normal; display: inline-flex; align-items: center; gap: 6px; min-height: 20px; margin-left: 6px; padding: 0 8px; border-radius: 999px; font-size: 11px; font-weight: 800; color: var(--text-2); background: var(--info-soft); }
+.ovw-leg-text i::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--c); }
 
-/* 4. Route card: papercut art beside the route summary */
-.ovw-route { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); padding: 0; overflow: hidden; }
-.ovw-art { position: relative; min-height: 240px; background: var(--yf-mist); border-right: 1px solid var(--yf-border); }
-.ovw-art svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-.ovw-route-line { fill: none; stroke: #FFFFFF; stroke-width: 4; stroke-linecap: round; stroke-dasharray: 2 11; }
-.ovw-route-body { padding: 24px 28px; display: grid; align-content: center; gap: 14px; }
-.ovw-stops { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 0; }
-.ovw-stops li { display: inline-flex; align-items: center; font-size: 15px; font-weight: 800; }
-.ovw-stops li + li::before { content: ''; width: 18px; height: 2px; margin: 0 8px; background: var(--yf-teal-600); border-radius: 2px; }
-.ovw-stops li:last-child { color: var(--ink-teal); }
-.ovw-route-meta { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--text-2); font-size: 14px; }
-.ovw-route-meta b { color: var(--text); font-variant-numeric: tabular-nums; }
-.ovw-route-empty { padding: 24px 28px; align-self: center; }
+/* 5. Day matrix: a grid, days as rows, parts as columns */
+.ovw-block { background: var(--card); border: 1px solid var(--yf-border); border-radius: var(--radius-sm); padding: var(--space-6) var(--space-7); display: flex; flex-direction: column; min-width: 0; }
+.ovw-block .ovw-title { font-size: 15px; }
+.ovw-lower { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: var(--space-5); align-items: start; }
+.ovw-stack { display: grid; gap: var(--space-5); min-width: 0; }
+.ovw-block-foot { margin-top: auto; padding-top: var(--space-2); }
+.mx-wrap { position: relative; }
+.mx-scroll { overflow-x: auto; border: 1px solid var(--yf-border); border-radius: var(--radius-sm); scrollbar-width: thin; }
+.mx { min-width: 760px; }
+.mx-row { display: grid; grid-template-columns: 104px repeat(6, minmax(0, 1fr)) 52px; align-items: stretch; border-top: 1px solid var(--line); }
+.mx-row:first-child { border-top: 0; }
+.mx-row.is-head { background: var(--info-soft); }
+.mx-th { display: flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 var(--space-4); font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--text-2); }
+.mx-th svg { width: 14px; height: 14px; flex: 0 0 auto; color: var(--k); }
+.mx-daycol { position: sticky; left: 0; z-index: 2; background: var(--card); box-shadow: 1px 0 0 var(--line); }
+.mx-row.is-head .mx-daycol { background: var(--info-soft); }
+.mx-day { display: flex; align-items: center; min-height: 44px; padding: 0; }
+.mx-day button { all: unset; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; width: 100%; min-height: 44px; padding: 0 var(--space-4); font-weight: 800; font-size: 13px; line-height: 1.25; color: var(--text); cursor: pointer; }
+.mx-day button small { font-size: 11px; font-weight: 600; color: var(--text-3); }
+.mx-day button:focus-visible { box-shadow: inset 0 0 0 3px var(--yf-teal-600); }
+.mx-today { display: inline-flex; align-items: center; min-height: 16px; margin-left: 6px; padding: 0 6px; border-radius: 999px; font-size: 10px; font-weight: 800; background: var(--yf-teal-600); color: var(--card); vertical-align: 1px; }
+:root[data-theme='dark'] .mx-today { color: var(--yf-cream); }
+.mx-row.is-today .mx-daycol { box-shadow: inset 3px 0 0 var(--yf-teal-600), 1px 0 0 var(--line); }
+.mx-cell { min-width: 0; min-height: 44px; display: flex; align-items: stretch; }
+.mx-btn { all: unset; box-sizing: border-box; flex: 1; min-width: 0; min-height: 44px; display: flex; align-items: stretch; padding: 5px 4px; cursor: pointer; }
+.mx-chip { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; padding: 0 8px; border-radius: 8px; font-size: 12.5px; font-weight: 700; color: var(--text); transition: background-color var(--motion-fast) var(--ease-out), box-shadow var(--motion-fast) var(--ease-out); }
+.mx-chip svg { width: 15px; height: 15px; flex: 0 0 auto; color: var(--k); }
+.mx-chip > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.mx-btn:focus-visible { box-shadow: none; }
+.mx-btn:focus-visible .mx-chip { box-shadow: var(--ring); }
+.mx-cell[data-state='filled'] .mx-chip { background: color-mix(in srgb, var(--k) 14%, var(--card)); }
+.mx-cell[data-state='filled'] .mx-btn:hover .mx-chip { background: color-mix(in srgb, var(--k) 26%, var(--card)); }
+.mx-cell[data-state='auto'] .mx-chip { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--k) 55%, var(--card)); color: var(--text-2); font-weight: 600; font-style: italic; }
+.mx-cell[data-state='auto'] .mx-btn:focus-visible .mx-chip { box-shadow: var(--ring); }
+.mx-cell[data-state='empty'] .mx-chip { border: 1.5px dashed var(--line); color: var(--text-3); font-weight: 600; justify-content: center; padding: 0; }
+.mx-cell[data-state='empty'] .mx-btn:hover .mx-chip { border-color: var(--yf-teal-600); color: var(--ink-teal); }
+.mx-cell[data-state='none'] .mx-btn { cursor: default; }
+.mx-cell[data-state='none'] .mx-chip { justify-content: center; color: var(--text-3); font-weight: 600; }
+.mx-row:not(.is-head):hover .mx-cell, .mx-row:not(.is-head):hover .mx-daycol, .mx-row:not(.is-head):hover .mx-total { background-color: color-mix(in srgb, var(--yf-teal-600) 8%, var(--card)); }
+.mx-row.is-today .mx-cell, .mx-row.is-today .mx-daycol, .mx-row.is-today .mx-total { background-color: color-mix(in srgb, var(--yf-teal-600) 5%, var(--card)); }
+.mx-total { display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.mx-total.is-thin { color: var(--ink-amber); font-weight: 800; }
+.mx-fade { display: none; position: absolute; top: 1px; right: 1px; bottom: 1px; width: 36px; pointer-events: none; border-radius: 0 var(--radius-sm) var(--radius-sm) 0; background: linear-gradient(to right, transparent, var(--card)); opacity: 0; transition: opacity var(--motion-fast) var(--ease-out); }
+.mx-wrap.can-scroll .mx-fade { opacity: 1; }
+.mx-key { display: inline-flex; flex-wrap: wrap; gap: var(--space-1) var(--space-5); }
+.mx-key i { display: inline-block; width: 18px; height: 10px; border-radius: 4px; margin-right: 6px; vertical-align: -1px; }
+.mx-key .k-f { background: color-mix(in srgb, var(--yf-teal-600) 24%, var(--card)); }
+.mx-key .k-a { box-shadow: inset 0 0 0 1.5px var(--yf-teal-600); }
+.mx-key .k-e { border: 1.5px dashed var(--text-3); }
 
-/* 5. Compact blocks: quieter than the cards above (border only, smaller padding) */
-.ovw-blocks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
-.ovw-block { background: var(--card); border: 1px solid var(--yf-border); border-radius: var(--radius-sm); padding: 18px 20px; display: flex; flex-direction: column; min-width: 0; }
-.ovw-block--wide { grid-column: 1 / -1; }
-.ovw-block .ovw-title { font-size: 16px; }
-.ovw-block-foot { margin-top: auto; padding-top: 6px; }
-.ovw-pulse-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; min-height: 44px; border-top: 1px solid var(--line); }
+/* Small blocks */
+.ovw-pulse-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2) var(--space-5); min-height: 44px; border-top: 1px solid var(--line); }
 .ovw-pulse-row:first-of-type { border-top: 0; }
 .ovw-pulse-row b { font-variant-numeric: tabular-nums; }
 .ovw-feed { display: grid; }
-.ovw-feed li { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); font-size: 14px; }
+.ovw-feed li { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; gap: var(--space-4); align-items: center; padding: var(--space-3) 0; border-top: 1px solid var(--line); font-size: 13px; }
 .ovw-feed li:first-child { border-top: 0; }
 .ovw-feed time { font-size: 12px; color: var(--text-3); white-space: nowrap; }
-.ovw-next { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; padding: 12px 14px; border-radius: 10px; background: var(--info-soft); }
+.ovw-feed .avatar { width: 28px; height: 28px; margin: 0; font-size: 11px; }
+.ovw-next { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--space-4); padding: var(--space-4) var(--space-5); border-radius: 10px; background: var(--info-soft); }
 .ovw-next svg { width: 16px; height: 16px; margin-top: 3px; color: var(--ink-teal); }
-.ovw-next b { display: block; font-size: 15px; }
-.ovw-next span { font-size: 13px; color: var(--text-2); }
-.ovw-commit { display: flex; justify-content: space-between; align-items: center; gap: 10px; min-height: 44px; border-top: 1px solid var(--line); font-size: 14px; }
+.ovw-next b { display: block; font-size: 14px; }
+.ovw-next span { font-size: 12px; color: var(--text-2); }
+.ovw-commit { display: flex; justify-content: space-between; align-items: center; gap: var(--space-4); min-height: 40px; border-top: 1px solid var(--line); font-size: 13px; }
 .ovw-commit-when { color: var(--text-2); }
-.ovw-avatar-solo { margin: 0; }
-.ovw-commit:first-of-type { border-top: 0; }
-.ovw-chip { display: inline-flex; align-items: center; min-height: 24px; padding: 0 10px; border-radius: 999px; font-size: 12px; font-weight: 700; background: var(--info-soft); color: var(--text-2); }
-.ovw-wx { display: grid; grid-template-columns: repeat(5, minmax(72px, 1fr)); gap: 8px; overflow-x: auto; padding-bottom: 2px; }
-.ovw-wx-cell { display: grid; justify-items: center; gap: 2px; padding: 10px 4px; border-radius: 10px; background: var(--info-soft); font-size: 12px; color: var(--text-2); text-align: center; }
+.ovw-chip { display: inline-flex; align-items: center; min-height: 22px; padding: 0 10px; border-radius: 999px; font-size: 12px; font-weight: 700; background: var(--info-soft); color: var(--text-2); }
+.ovw-wx { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--space-4); }
+.ovw-wx-cell { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 0 var(--space-4); padding: var(--space-4) var(--space-5); border-radius: 10px; background: var(--info-soft); font-size: 12px; color: var(--text-2); }
 .ovw-wx-cell.wet { background: var(--teal-soft); }
+.ovw-wx-cell > svg { grid-row: 1 / span 3; width: 22px; height: 22px; color: var(--ink-amber); }
+.ovw-wx-cell.wet > svg { color: var(--ink-teal); }
 .ovw-wx-cell b { color: var(--text); font-size: 13px; font-variant-numeric: tabular-nums; }
-.ovw-wx-cell svg { width: 22px; height: 22px; color: var(--ink-amber); }
-.ovw-wx-cell.wet svg { color: var(--ink-teal); }
-.ovw-matrix { display: grid; gap: 2px; font-size: 13px; overflow-x: auto; max-width: 640px; }
-.ovw-matrix-row { display: grid; grid-template-columns: 56px repeat(6, minmax(32px, 1fr)) 48px; align-items: center; min-height: 36px; }
-.ovw-matrix-row.head { font-size: 11px; font-weight: 800; color: var(--text-3); letter-spacing: .06em; }
-.ovw-matrix-row span { text-align: center; }
-.ovw-matrix-row span:first-child { text-align: left; font-weight: 700; }
-.ovw-matrix-row .tot { font-variant-numeric: tabular-nums; color: var(--text-2); }
-.ovw-matrix .is-filled { color: var(--ink-teal); }
-.ovw-matrix .is-auto { color: var(--ink-amber); }
-.ovw-matrix .is-empty { color: var(--text-3); }
-.ovw-legend { margin-top: 8px; font-size: 13px; color: var(--text-2); }
+.ovw-legend { margin-top: var(--space-4); font-size: 12px; color: var(--text-2); }
 
 /* StateBlock, compact (R22): same roles, no dashed border. Copy of .yf-state rules. */
-.yf-state { display: grid; justify-items: center; gap: 8px; padding: 12px 8px; text-align: center; }
+.yf-state { display: grid; justify-items: center; gap: var(--space-3); padding: var(--space-4) var(--space-2); text-align: center; }
 .yf-state-icon { display: grid; place-items: center; color: var(--ink-teal); }
 .yf-state-icon svg { width: 20px; height: 20px; }
 .yf-state[data-kind='failed'] .yf-state-icon { color: var(--ink-coral); }
-.yf-state-title { font-family: var(--font-body); font-size: 16px; font-weight: 800; line-height: 1.3; color: var(--text); }
-.yf-state-body { max-width: 44ch; color: var(--text-2); font-size: 14px; }
-.yf-state-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 2px; }
-.yf-state--kept { justify-items: start; text-align: left; grid-template-columns: auto 1fr; padding: 10px 12px; margin-bottom: 6px; border-radius: 10px; background: var(--warn-soft); }
+.yf-state-title { font-family: var(--font-body); font-size: 15px; font-weight: 800; line-height: 1.3; color: var(--text); }
+.yf-state-body { max-width: 44ch; color: var(--text-2); font-size: 13px; }
+.yf-state-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-4); margin-top: var(--space-1); }
+.yf-state--kept { justify-items: start; text-align: left; grid-template-columns: auto 1fr; padding: var(--space-4) var(--space-5); margin-bottom: var(--space-3); border-radius: 10px; background: var(--warn-soft); }
 .yf-state--kept .yf-state-title { font-size: 14px; }
 .yf-state--kept .yf-state-body { grid-column: 2; font-size: 13px; }
 .yf-state--kept .yf-state-actions { grid-column: 2; justify-content: flex-start; }
@@ -241,45 +309,74 @@ ul, ol { padding: 0; list-style: none; }
 .ovw > *:nth-child(2) { animation-delay: var(--stagger-step); }
 .ovw > *:nth-child(3) { animation-delay: calc(var(--stagger-step) * 2); }
 .ovw > *:nth-child(4) { animation-delay: calc(var(--stagger-step) * 3); }
-.ovw > *:nth-child(5) { animation-delay: calc(var(--stagger-step) * 4); }
+
+/* Guide overlay: ?guides=1 draws the 1400px container and the 1720px Board and Map width */
+.guide-on .container { outline: 1px dashed var(--yf-teal-600); outline-offset: -1px; }
+.guide-wide { display: none; position: fixed; top: 0; bottom: 0; left: 50%; width: var(--container-wide); max-width: 100vw; transform: translateX(-50%); border-left: 1px dashed var(--yf-saffron); border-right: 1px dashed var(--yf-saffron); pointer-events: none; z-index: 40; }
+.guide-wide span { position: absolute; top: 4px; left: 50%; transform: translateX(-50%); font: 700 11px var(--font-body); color: var(--ink-amber); background: var(--card); padding: 1px 8px; border-radius: 999px; white-space: nowrap; }
+.guide-on .guide-wide { display: block; }
 
 /* ---- Narrow ---- */
+@media (max-width: 1100px) {
+  .ovw-lower { grid-template-columns: minmax(0, 1fr); }
+  .ovw-stack + .ovw-stack { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+}
 @media (max-width: 960px) {
-  .ovw-verdict { grid-template-columns: auto minmax(0, 1fr); }
-  .ovw-verdict-act { grid-column: 1 / -1; justify-items: stretch; }
-  .ovw-route { grid-template-columns: 1fr; }
-  .ovw-art { min-height: 180px; border-right: 0; border-bottom: 1px solid var(--yf-border); }
+  .ovw-split { grid-template-columns: minmax(0, 1fr); }
+  .ovw-wx { grid-template-columns: repeat(5, minmax(120px, 1fr)); overflow-x: auto; }
 }
 @media (max-width: 720px) {
   .container { padding-left: 16px; padding-right: 16px; }
-  .yf-trip-head { padding: 16px; border-radius: 20px; }
-  .yf-head-row { grid-template-columns: 64px minmax(0, 1fr); column-gap: 14px; }
-  .yf-thumb { width: 64px; height: 64px; }
-  .yf-head-title { font-size: 1.75rem; }
-  .yf-head-meta { font-size: 13px; }
+  .yf-trip-head { padding: 14px; border-radius: 20px; }
+  .yf-head-row { grid-template-columns: 56px minmax(0, 1fr); column-gap: 12px; }
+  .yf-thumb { width: 56px; height: 56px; }
+  .yf-head-title { font-size: 1.5rem; }
+  .yf-head-meta { font-size: 12px; }
   .yf-head-actions { display: none; }
-  .yf-act-extra { display: block; padding-top: 12px; }
+  .yf-act-extra { display: block; padding-top: 8px; }
   .yf-act-extra .yf-btn { width: 100%; }
   .yf-trip-head::after { width: 160px; height: 160px; right: -60px; top: -80px; }
   .app-nav-stub { gap: 12px; white-space: nowrap; overflow: hidden; padding: 0 16px; }
-  .mock-bar { padding: 10px 16px; }
-  .ovw-card { padding: 18px; }
-  .ovw-verdict { padding: 22px 20px 20px 24px; gap: 14px 16px; }
-  .ovw-score { min-width: 76px; }
-  .ovw-score-num { font-size: 44px; }
-  .ovw-verdict-line { font-size: 20px; }
-  .ovw-stats { grid-template-columns: 1fr; gap: 10px; }
-  .ovw-stat { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 0 12px; padding: 14px 18px; }
-  .ovw-stat-label { grid-column: 1; }
-  .ovw-stat-val { grid-column: 2; grid-row: 1 / span 2; margin: 0; font-size: 24px; text-align: right; }
-  .ovw-stat-sub { grid-column: 1; }
-  .ovw-route-body { padding: 18px; }
-  .ovw-route-empty { padding: 18px; }
-  .ovw-blocks { grid-template-columns: 1fr; gap: 12px; }
-  .ovw-need { grid-template-columns: minmax(0, 1fr); gap: 6px; }
-  .ovw-need .ovw-sev { justify-self: start; }
-  .ovw-need .ovw-btn { justify-self: stretch; margin-top: 4px; }
-  .ovw-matrix-row { grid-template-columns: 50px repeat(6, minmax(28px, 1fr)) 40px; }
+  .mock-bar { padding: 8px 16px; }
+  .ovw-card { padding: var(--space-6); }
+  .ovw-verdict { padding: var(--space-4) var(--space-6) var(--space-4) var(--space-8); gap: var(--space-3) var(--space-6); grid-template-columns: auto minmax(0, 1fr); }
+  .ovw-verdict-act { grid-column: 1 / -1; }
+  .ovw-verdict-act .ovw-btn { width: 100%; }
+  .ovw-score-num { font-size: 34px; }
+  .ovw-verdict-line { font-size: 17px; }
+  .ovw-stats { grid-template-columns: 1fr; gap: var(--space-4); }
+  .ovw-stat { padding: var(--space-3) var(--space-6); }
+  .ovw { gap: var(--space-4); }
+  .ovw-need { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: 'sev btn' 'txt btn'; gap: var(--space-2) var(--space-5); }
+  .ovw-need .ovw-sev { grid-area: sev; justify-self: start; }
+  .ovw-need-text { grid-area: txt; }
+  .ovw-need .ovw-btn { grid-area: btn; align-self: center; padding: 0 12px; }
+  .mock-note, .app-nav-stub { display: none; }
+  .mock-bar { flex-wrap: nowrap; overflow-x: auto; white-space: nowrap; }
+  .mock-bar .seg { flex-wrap: nowrap; }
+  .mock-bar > b { display: none; }
+  .yf-head-foot { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); padding-top: var(--space-3); }
+  .yf-head-foot .yf-members { padding-top: 0; }
+  .yf-act-extra { order: 2; padding-top: 0; }
+  .yf-act-extra .yf-btn { width: auto; padding: 0 14px; }
+  .ovw-stats { gap: 0; padding: 0; border-radius: var(--radius); background: var(--card); border: 1px solid var(--yf-border); box-shadow: var(--shadow-card); }
+  .ovw-stats .ovw-card { border: 0; box-shadow: none; border-radius: 0; background: none; border-top: 1px solid var(--line); padding: var(--space-3) var(--space-6); }
+  .ovw-stats .ovw-card:first-child { border-top: 0; }
+  .ovw-block { padding: var(--space-5) var(--space-6); }
+  .ovw-head { min-height: 24px; margin-bottom: var(--space-3); }
+  .ovw-wx-cell { padding: var(--space-3) var(--space-4); }
+  .ovw-stoplist .is-leg::before { min-height: 28px; }
+  .ovw-leg-text { padding: 0; }
+  .ovw-pulse-row { min-height: 40px; }
+  .ovw-feed li { padding: var(--space-2) 0; }
+  .ovw-route { gap: var(--space-3); }
+  .ovw-map, .ovw-bands { display: none; }
+  .ovw-stoplist { display: block; }
+  .ovw-stack, .ovw-stack + .ovw-stack { grid-template-columns: minmax(0, 1fr); }
+  .mx-fade { display: block; }
+  .mx { min-width: 0; width: max-content; }
+  .mx-row { grid-template-columns: 104px repeat(6, 128px) 52px; }
+  .ovw-wx { grid-template-columns: repeat(5, 132px); }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
@@ -322,10 +419,12 @@ ul, ol { padding: 0; list-style: none; }
       </div>
       <div class="yf-head-actions"><button type="button" class="yf-btn yf-btn--quiet">Invite &amp; share</button></div>
     </div>
+    <div class="yf-head-foot">
     <div class="yf-act-extra"><button type="button" class="yf-btn yf-btn--quiet">Invite &amp; share</button></div>
     <div class="yf-members" aria-label="Members">
       <span class="yf-avatars"><span class="avatar">A</span><span class="avatar">B</span><span class="avatar">C</span></span>
       <span class="yf-member-note"><b>3 members</b> &middot; you are owner</span>
+    </div>
     </div>
   </header>
   <div class="yf-tabbar" role="tablist" aria-label="Trip sections">
@@ -348,17 +447,41 @@ ul, ol { padding: 0; list-style: none; }
   var qs = new URLSearchParams(location.search);
   var root = document.documentElement;
   var STATES = ['ready', 'loading', 'failed', 'empty', 'kept'];
+  var NS = 'http://www.w3.org/2000/svg';
 
   /* ---------- inline icons (decorative) ---------- */
+  function ic(d, w) { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="' + (w || 2) + '" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + d + '</svg>'; }
   var I = {
-    high: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v9"/><circle cx="12" cy="18" r="1.6"/></svg>',
-    medium: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2.5 20h19z"/><path d="M12 10v5"/></svg>',
-    low: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z"/></svg>',
-    warn: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2.5 20h19z"/><path d="M12 10v4M12 17.5v.01"/></svg>',
-    check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8 12.5 2.8 2.8L16 9.5"/></svg>',
-    pin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>',
-    sun: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>',
-    rain: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 15a4.5 4.5 0 1 1 1.2-8.8A5.5 5.5 0 0 1 18.8 8 3.5 3.5 0 0 1 18 15"/><path d="M9 18l-1 3M13 18l-1 3M17 18l-1 3"/></svg>'
+    high: ic('<path d="M12 3v9"/><circle cx="12" cy="18" r="1.6"/>', 2.4),
+    medium: ic('<path d="M12 3 2.5 20h19z"/><path d="M12 10v5"/>', 2.2),
+    low: ic(
+      '<path d="M9 18h6M10 21h4M12 3a6 6 0 0 ' +
+      '0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 ' +
+      '0 0 0 12 3z"/>', 2.2),
+    warn: ic('<path d="M12 3 2.5 20h19z"/><path d="M12 10v4M12 17.5v.01"/>'),
+    check: ic('<circle cx="12" cy="12" r="9"/><path d="m8 12.5 2.8 2.8L16 9.5"/>', 2.2),
+    pin: ic('<path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>'),
+    sun: ic('<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>'),
+    rain: ic(
+      '<path d="M7 15a4.5 4.5 0 1 1 1.2-8.8A5.5 ' +
+      '5.5 0 0 1 18.8 8 3.5 3.5 ' +
+      '0 0 1 18 15"/><path d="M9 18l-1 3M13 ' +
+      '18l-1 3M17 18l-1 3"/>'),
+    breakfast: ic(
+      '<path d="M4 8h12v6a5 5 0 0 1-5 5H9a5 ' +
+      '5 0 0 1-5-5V8z"/><path d="M16 10h2a2 2 0 ' +
+      '0 1 0 4h-2M8 3v2M12 3v2"/>'),
+    meal: ic(
+      '<path d="M6 3v7a2 2 0 0 0 4 ' +
+      '0V3M8 3v18M17 3c-2 2-3 4-3 7 0 1.5 ' +
+      '1 2 3 2V3zM17 12v9"/>'),
+    fuel: ic(
+      '<path d="M5 21V5a2 2 0 0 1 2-2h6a2 ' +
+      '2 0 0 1 2 2v16M3 21h14M8 8h4M15 ' +
+      '10h2a2 2 0 0 1 2 2v4a1.5 1.5 ' +
+      '0 0 0 3 0V9l-3-3"/>'),
+    stretch: ic('<circle cx="12" cy="5" r="2"/><path d="M12 8v6M8 21l4-7 4 7M7 11l5-3 5 3"/>'),
+    night: ic('<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>')
   };
 
   /* ---------- StateBlock, compact ---------- */
@@ -384,28 +507,27 @@ ul, ol { padding: 0; list-style: none; }
     var empty = s === 'empty';
     var band = empty ? 'ok' : 'saffron', name = empty ? 'Comfortable' : 'Tight', score = empty ? 92 : 58;
     var line = empty ? 'The plan fits these days with room to spare.' : 'The days run long. Expect late arrivals.';
-    var sub = empty ? 'No schedule issues found across 10 days.' : TOTAL_WARN + ' issues found across 10 days. Fix them in the Timeline.';
+    var sub = empty ? 'No schedule issues found across 10 days.' : TOTAL_WARN + ' issues across 10 days. The button opens the Timeline at the first one, Day 3.';
     var btn = empty ? 'Open Timeline' : 'Fix ' + TOTAL_WARN + ' issues';
-    var hint = empty ? '' : '<span class="ovw-verdict-hint">Opens the Timeline at Day 3</span>';
     return '<section class="ovw-card ovw-verdict" data-band="' + band + '" aria-labelledby="v-h">' +
-      '<div class="ovw-score"><span class="ovw-score-num">' + score + '</span><span class="ovw-score-of">of 100</span></div>' +
-      '<div class="ovw-verdict-text"><span><span class="ovw-band">' + name + '</span></span>' +
+      '<div class="ovw-score"><span class="ovw-score-num">' + score + '</span><span class="ovw-score-of">of 100</span><span class="ovw-band">' + name + '</span></div>' +
+      '<div class="ovw-verdict-text">' +
       '<h2 class="ovw-verdict-line" id="v-h">' + line + '</h2><p class="ovw-verdict-sub">' + sub + '</p>' +
       '<div class="ovw-bar" role="img" aria-label="Trip health ' + score + ' of 100"><i style="width:' + score + '%"></i></div></div>' +
-      '<div class="ovw-verdict-act"><button type="button" class="ovw-btn ovw-btn--primary">' + btn + '</button>' + hint + '</div></section>';
+      '<div class="ovw-verdict-act"><button type="button" class="ovw-btn ovw-btn--primary">' + btn + '</button></div></section>';
   }
 
   function needs(s) {
     if (s === 'empty') {
-      return '<section class="ovw-card" aria-labelledby="n-h"><div class="ovw-head"><h2 class="ovw-title" id="n-h">What needs you</h2></div>' +
+      return '<section class="ovw-card ovw-needs" aria-labelledby="n-h"><div class="ovw-head"><h2 class="ovw-title" id="n-h">What needs you</h2></div>' +
         state('empty', { icon: I.check, title: 'Nothing needs fixing right now', body: 'Check back after you add a stop or change a day.' }) + '</section>';
     }
     var rows = WARN.map(function (w) {
       return '<li class="ovw-need"><span class="ovw-sev" data-sev="' + w.sev + '">' + I[w.sev] + w.lead + '</span>' +
-        '<div><div class="ovw-need-title">' + w.title + '</div><div class="ovw-need-fix">' + w.fix + '</div></div>' +
+        '<div class="ovw-need-text"><div class="ovw-need-title">' + w.title + '</div><div class="ovw-need-fix">' + w.fix + '</div></div>' +
         '<button type="button" class="ovw-btn">' + w.act + '</button></li>';
     }).join('');
-    return '<section class="ovw-card" aria-labelledby="n-h"><div class="ovw-head"><h2 class="ovw-title" id="n-h">What needs you</h2>' +
+    return '<section class="ovw-card ovw-needs" aria-labelledby="n-h"><div class="ovw-head"><h2 class="ovw-title" id="n-h">What needs you</h2>' +
       '<span class="ovw-count">' + TOTAL_WARN + ' warnings</span></div><ul class="ovw-need-list">' + rows + '</ul>' +
       '<p class="ovw-more">' + (TOTAL_WARN - 3) + ' more warnings are in the Timeline, ranked by severity.</p></section>';
   }
@@ -414,43 +536,209 @@ ul, ol { padding: 0; list-style: none; }
     return '<section class="ovw-stats" aria-label="Trip totals">' +
       '<div class="ovw-card ovw-stat"><span class="ovw-stat-label">Total cost</span><span class="ovw-stat-val">&#8377;1,84,500</span><span class="ovw-stat-sub">&#8377;18,450 a day &middot; estimate</span></div>' +
       '<div class="ovw-card ovw-stat"><span class="ovw-stat-label">Per person</span><span class="ovw-stat-val">&#8377;46,125</span><span class="ovw-stat-sub">against a &#8377;50,000 target</span></div>' +
-      '<div class="ovw-card ovw-stat"><span class="ovw-stat-label">Travel effort</span><span class="ovw-stat-val">38 h 20 min</span><span class="ovw-stat-sub">about 2,140 km &middot; 14 stops &middot; 5 overnight bases</span></div></section>';
+      '<div class="ovw-card ovw-stat"><span class="ovw-stat-label">Travel effort</span><span class="ovw-stat-val">38 h 20 min</span><span class="ovw-stat-sub">2,140 km &middot; 14 stops &middot; 4 overnight bases</span></div></section>';
   }
 
-  function art() {
-    return '<div class="ovw-art" aria-hidden="true"><svg viewBox="0 0 800 240" preserveAspectRatio="xMidYMid slice" focusable="false">' +
-      '<rect width="800" height="240" fill="var(--yf-mist)"/><circle cx="560" cy="62" r="30" fill="var(--yf-saffron)"/>' +
-      '<g style="filter: drop-shadow(0 3px 2px rgba(11,37,69,.28))"><path d="M0 150 L120 86 L190 130 L300 58 L430 134 L520 96 L640 140 L800 100 V240 H0Z" fill="var(--yf-purple)"/></g>' +
-      '<g style="filter: drop-shadow(0 3px 2px rgba(11,37,69,.32))"><path d="M0 178 Q130 126 270 170 T560 164 T800 160 V240 H0Z" fill="var(--yf-teal-600)"/></g>' +
-      '<g style="filter: drop-shadow(0 3px 2px rgba(11,37,69,.36))"><path d="M0 212 Q160 184 320 210 T640 204 T800 208 V240 H0Z" fill="var(--yf-navy)"/></g>' +
-      '<path class="ovw-route-line" d="M210 196 C 270 140, 340 190, 400 150 S 520 120, 590 122"/>' +
-      '<circle cx="210" cy="196" r="9" fill="var(--yf-teal-600)" stroke="var(--card)" stroke-width="3"/>' +
-      '<circle cx="590" cy="122" r="9" fill="var(--yf-saffron)" stroke="var(--card)" stroke-width="3"/></svg></div>';
+  /* ---------- route map ----------
+     Real data (OverviewTab.tsx): overviewRoutePoints gives the ordered points.
+     road.legs gives distanceKm and durationMinutes for each leg after the road is measured.
+     Names, day ranges and totals come from the trip. The mockup projects the points onto a sketch.
+     The numbers below are sample numbers. */
+  var PTS = [
+    { n: 'Kolkata', x: 44, y: 104 }, { n: 'Siliguri', x: 172, y: 58 }, { n: 'Gangtok', x: 300, y: 96 },
+    { n: 'Chandigarh', x: 428, y: 50 }, { n: 'Manali', x: 556, y: 92 }, { n: 'Leh', x: 676, y: 46 }
+  ];
+  var LEGS = [
+    { km: '570 km', t: '11 h 30', d: 'Days 1–2', w: 2, c: 'var(--yf-saffron)' },
+    { km: '115 km', t: '4 h', d: 'Day 3', w: 1, c: 'var(--yf-purple)' },
+    { km: '670 km', t: '9 h 20', d: 'Days 4–6', w: 3, c: 'var(--ok)' },
+    { km: '310 km', t: '5 h', d: 'Days 7–8', w: 2, c: 'var(--text-3)' },
+    { km: '475 km', t: '8 h 30', d: 'Days 9–10', w: 2, c: 'var(--yf-teal-600)' }
+  ];
+  function el(tag, attrs, text) {
+    var e = document.createElementNS(NS, tag);
+    for (var k in attrs) e.setAttribute(k, attrs[k]);
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function overlap(a, b) { return a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h; }
+  function buildMap() {
+    var W = 720, H = 150;
+    var svg = el('svg', { viewBox: '0 0 ' + W + ' ' + H, role: 'img', focusable: 'false', 'aria-label': 'Schematic route from Kolkata to Leh through 6 points, 2,140 km in total. Sample data.' });
+    [38, 76, 114].forEach(function (y) { svg.appendChild(el('line', { class: 'rm-grid', x1: 8, x2: W - 8, y1: y, y2: y })); });
+    var d = 'M' + PTS[0].x + ' ' + PTS[0].y, mids = [];
+    for (var i = 1; i < PTS.length; i++) {
+      var a = PTS[i - 1], b = PTS[i], mx = (a.x + b.x) / 2;
+      d += ' C' + mx + ' ' + a.y + ' ' + mx + ' ' + b.y + ' ' + b.x + ' ' + b.y;
+      mids.push({ x: mx, y: (a.y + b.y) / 2 });
+    }
+    svg.appendChild(el('path', { class: 'rm-base', d: d }));
+    svg.appendChild(el('path', { class: 'rm-leg', d: d }));
+    var placed = [];
+    PTS.forEach(function (p) { placed.push({ x: p.x - 15, y: p.y - 15, w: 30, h: 30 }); });
+    /* leg pills sit on the line mid-way: two lines (distance, drive time) and a day-colour stripe */
+    mids.forEach(function (m, i) {
+      var L = LEGS[i], pw = 58, ph = 32, g = el('g', { class: 'rm-leglabel' });
+      g.appendChild(el('rect', { x: m.x - pw / 2, y: m.y - ph / 2, width: pw, height: ph, rx: 8 }));
+      g.appendChild(el('rect', { x: m.x - pw / 2 + 8, y: m.y + ph / 2 - 4, width: pw - 16, height: 3, rx: 1.5, style: 'fill:' + L.c + ';stroke:none' }));
+      g.appendChild(el('text', { x: m.x, y: m.y - 6 }, L.km));
+      g.appendChild(el('text', { x: m.x, y: m.y + 6, style: 'font-weight:600' }, L.t));
+      svg.appendChild(g);
+      placed.push({ x: m.x - pw / 2 - 2, y: m.y - ph / 2 - 2, w: pw + 4, h: ph + 4 });
+    });
+    /* stop labels: try below, above, right, left. Take the first spot that touches nothing placed. Clamp to the frame. */
+    PTS.forEach(function (p, i) {
+      var role = i === 0 ? 'is-start' : i === PTS.length - 1 ? 'is-end' : '';
+      var tag = i === 0 ? 'START' : i === PTS.length - 1 ? 'END' : '';
+      var w = Math.ceil(p.n.length * 7.4) + 4, h = tag ? 26 : 15;
+      var cand = [
+        { x: p.x - w / 2, y: p.y + 17, a: 'middle', cx: p.x },
+        { x: p.x - w / 2, y: p.y - 17 - h, a: 'middle', cx: p.x },
+        { x: p.x + 18, y: p.y - h / 2, a: 'start', cx: p.x + 18 },
+        { x: p.x - 18 - w, y: p.y - h / 2, a: 'end', cx: p.x - 18 }
+      ];
+      var pick = null;
+      for (var k = 0; k < cand.length && !pick; k++) {
+        var c = cand[k];
+        if (c.a === 'middle') { var nx = Math.min(Math.max(c.x, 6), W - 6 - w); c.cx += nx - c.x; c.x = nx; }
+        var r = { x: c.x, y: c.y, w: w, h: h };
+        if (r.x < 4 || r.x + r.w > W - 4 || r.y < 2 || r.y + r.h > H - 2) continue;
+        var hit = placed.some(function (q) { return overlap(r, q); });
+        if (!hit) pick = { c: c, r: r };
+      }
+      if (!pick) { var c0 = cand[0]; pick = { c: c0, r: { x: c0.x, y: c0.y, w: w, h: h } }; }
+      placed.push(pick.r);
+      var g = el('g', {});
+      var tx = pick.c.cx, ty = pick.r.y + 11.5;
+      var name = el('text', { class: 'rm-name', x: tx, y: ty, 'text-anchor': pick.c.a }, p.n);
+      var t = el('title', {}, p.n + (tag ? ' (' + tag.toLowerCase() + ')' : '')); name.appendChild(t);
+      g.appendChild(name);
+      if (tag) g.appendChild(el('text', { class: 'rm-tag', x: tx, y: ty + 11, 'text-anchor': pick.c.a }, tag));
+      svg.appendChild(g);
+    });
+    PTS.forEach(function (p, i) {
+      var role = i === 0 ? 'is-start' : i === PTS.length - 1 ? 'is-end' : '';
+      var g = el('g', { class: 'rm-pin ' + role });
+      g.appendChild(el('circle', { class: 'rm-dot', cx: p.x, cy: p.y, r: role ? 13 : 11 }));
+      g.appendChild(el('text', { class: 'rm-num', x: p.x, y: p.y + 0.5 }, String(i + 1)));
+      svg.appendChild(g);
+    });
+    return svg;
+  }
+  function stopList() {
+    var out = '<ol class="ovw-stoplist" aria-label="Route stops and legs">';
+    PTS.forEach(function (p, i) {
+      var role = i === 0 ? 'is-start' : i === PTS.length - 1 ? 'is-end' : '';
+      var tag = i === 0 ? '<small>START</small>' : i === PTS.length - 1 ? '<small>END</small>' : '';
+      out += '<li class="' + role + '"><span class="ovw-stop-pin">' + (i + 1) + '</span><span class="ovw-stop-name">' + p.n + tag + '</span></li>';
+      if (i < LEGS.length) {
+        var L = LEGS[i];
+        out += '<li class="is-leg" style="--c:' + L.c + '"><span class="ovw-leg-text"><b>' + L.km + '</b> &middot; ' + L.t + '<i>' + L.d + '</i></span></li>';
+      }
+    });
+    return out + '</ol>';
+  }
+  function bands() {
+    return '<div class="ovw-bands" aria-hidden="true">' + LEGS.map(function (L) {
+      return '<div class="ovw-band-seg" style="--w:' + L.w + ';--c:' + L.c + '"><span>' + L.d + '</span></div>';
+    }).join('') + '</div>';
   }
 
   function route(s) {
-    var head = '<section class="ovw-card ovw-route" aria-labelledby="r-h">';
+    var open = '<button type="button" class="ovw-btn">Open map</button>';
     if (s === 'empty') {
-      return head + art() + '<div class="ovw-route-empty"><h2 class="ovw-title" id="r-h">Route</h2>' +
+      return '<section class="ovw-card ovw-route" aria-labelledby="r-h"><div class="ovw-head"><h2 class="ovw-title" id="r-h">Route</h2></div><div class="ovw-route-empty">' +
         state('empty', { icon: I.pin, title: 'No route to draw yet', body: 'This plan needs at least two places with confirmed coordinates. Add a stop, or pin the missing ones.' }) + '</div></section>';
     }
-    return head + art() + '<div class="ovw-route-body"><h2 class="ovw-title" id="r-h">Route</h2>' +
-      '<ol class="ovw-stops" aria-label="Route stops"><li>Kolkata</li><li>Siliguri</li><li>Gangtok</li><li>Leh</li></ol>' +
-      '<p class="ovw-route-meta"><span><b>10</b> days</span><span><b>2,140</b> km</span><span><b>14</b> stops</span></p>' +
-      '<div><button type="button" class="ovw-btn">Open map</button></div></div></section>';
+    return '<section class="ovw-card ovw-route" aria-labelledby="r-h"><div class="ovw-head"><h2 class="ovw-title" id="r-h">Route</h2>' +
+      '<div class="ovw-head-meta"><span><b>10</b> days &middot; <b>2,140</b> km &middot; <b>14</b> stops</span>' + open + '</div></div>' +
+      '<div class="ovw-map" id="rmap"></div>' + stopList() + bands() +
+      '<p class="ovw-sample">Sample route, schematic and not to scale.</p></section>';
   }
 
-  /* data panels */
+  /* ---------- day matrix ---------- */
+  var KINDS = [
+    { key: 'breakfast', name: 'Breakfast', ic: 'breakfast', k: 'var(--ink-amber)' },
+    { key: 'lunch', name: 'Lunch', ic: 'meal', k: 'var(--ink-green)' },
+    { key: 'fuel', name: 'Fuel', ic: 'fuel', k: 'var(--yf-purple)' },
+    { key: 'stretch', name: 'Stretch', ic: 'stretch', k: 'var(--ink-teal)' },
+    { key: 'dinner', name: 'Dinner', ic: 'meal', k: 'var(--ink-amber)' },
+    { key: 'stay', name: 'Night', ic: 'night', k: 'var(--text-2)' }
+  ];
+  /* f = planned (stop title), a = added by the app, e = still open, n = not part of this day */
+  var MX = [
+    ['Tue 1 Sep', ['n', ['f', 'Barasat'], 'a', 'e', ['f', 'Hotel'], ['f', 'Siliguri']]],
+    ['Wed 2 Sep', [['f', 'Buffet'], 'e', ['f', 'HP, Mirik'], 'a', ['f', 'Thali'], ['f', 'Siliguri']]],
+    ['Thu 3 Sep', ['e', ['f', 'Momo stop'], 'e', 'e', 'e', ['f', 'Gangtok']]],
+    ['Fri 4 Sep', [['f', 'Rumtek'], ['f', 'Singtam'], ['f', 'IOC pump'], 'a', ['f', 'Rooftop'], ['f', 'Gangtok']]],
+    ['Sat 5 Sep', [['f', 'Buffet'], 'e', 'a', 'e', ['f', 'Thali'], ['f', 'Ambala']]],
+    ['Sun 6 Sep', [['f', 'Karnal'], ['f', 'Ambala'], 'e', 'a', ['f', 'Hotel'], ['f', 'Chandigarh']]],
+    ['Mon 7 Sep', [['f', 'Buffet'], 'a', ['f', 'HP, Mandi'], 'e', ['f', 'Riverside'], ['f', 'Manali']]],
+    ['Tue 8 Sep', [['f', 'Manali'], ['f', 'Keylong'], 'a', 'a', 'e', ['f', 'Jispa camp']]],
+    ['Wed 9 Sep', [['f', 'Camp'], ['f', 'Pang tea'], ['f', 'Sarchu'], 'e', ['f', 'Leh'], ['f', 'Leh']]],
+    ['Thu 10 Sep', [['f', 'Buffet'], 'e', 'n', 'n', 'n', 'n']]
+  ];
+  var TODAY = 3; /* index: Fri 4 Sep, Day 4 */
+  function matrix(s) {
+    var head = '<section class="ovw-block" aria-labelledby="m-h"><div class="ovw-head"><h2 class="ovw-title" id="m-h">What each day holds</h2>';
+    if (s === 'empty') return head + '</div>' + state('empty', { title: 'Nothing planned yet', body: 'Add a stop and each day shows its meals, fuel, stretch breaks and night.' }) + '</section>';
+    var rows = MX.map(function (r, di) {
+      var cells = r[1], filled = 0, total = 0;
+      var cs = cells.map(function (c, ki) {
+        var k = KINDS[ki], st = typeof c === 'string' ? c : c[0], title = typeof c === 'string' ? '' : c[1];
+        if (st === 'n') return { st: 'n', html: '<div class="mx-cell" role="gridcell" data-state="none" style="--k:' + k.k + '"><span class="mx-btn" aria-label="Day ' + (di + 1) + ' ' + k.name + ': not part of this day"><span class="mx-chip" aria-hidden="true">&ndash;</span></span></div>' };
+        total++; if (st === 'f') filled++;
+        var label = st === 'f' ? title : st === 'a' ? 'Auto-added' : 'Open';
+        var aria = 'Day ' + (di + 1) + ' ' + k.name + ': ' + (st === 'f' ? title : st === 'a' ? 'added by the app' : 'still open') + '. Opens the Timeline.';
+        var inner = st === 'e' ? '<span>Open</span>' : I[k.ic] + '<span>' + label + '</span>';
+        return { st: st, html: '<div class="mx-cell" role="gridcell" data-state="' + { f: 'filled', a: 'auto', e: 'empty' }[st] + '" style="--k:' + k.k + '"><button type="button" class="mx-btn" tabindex="-1" title="' + k.name + ': ' + (st === 'a' ? 'added by the app' : label) + '" aria-label="' + aria + '"><span class="mx-chip">' + inner + '</span></button></div>' };
+      });
+      return { di: di, filled: filled, total: total, html: cs.map(function (c) { return c.html; }).join('') };
+    });
+    var thin = rows.slice().sort(function (a, b) { return a.filled / a.total - b.filled / b.total; })[0];
+    var heads = KINDS.map(function (k) {
+      return '<div class="mx-th" role="columnheader" style="--k:' + k.k + '">' + I[k.ic] + k.name + '</div>';
+    }).join('');
+    var body = rows.map(function (r) {
+      var today = r.di === TODAY;
+      return '<div class="mx-row' + (today ? ' is-today' : '') + '" role="row"><div class="mx-daycol mx-day" role="rowheader"><button type="button" tabindex="-1" aria-label="Day ' + (r.di + 1) + ', ' + MX[r.di][0] + (today ? ', today' : '') + '. Opens the Timeline at this day."><span>Day ' + (r.di + 1) + (today ? '<span class="mx-today">Today</span>' : '') + '</span><small>' + MX[r.di][0] + '</small></button></div>' +
+        r.html + '<div class="mx-total' + (r === thin ? ' is-thin' : '') + '" role="gridcell" aria-label="' + r.filled + ' of ' + r.total + ' planned">' + r.filled + '/' + r.total + '</div></div>';
+    }).join('');
+    return head + '<div class="ovw-head-meta"><span>Thinnest: <b>Day ' + (thin.di + 1) + '</b>, ' + thin.filled + ' of ' + thin.total + '</span><span class="mx-key"><span><i class="k-f"></i>Planned</span><span><i class="k-a"></i>Auto-added</span><span><i class="k-e"></i>Open</span></span></div></div>' +
+      '<div class="mx-wrap" id="mxwrap"><div class="mx-scroll" id="mxscroll"><div class="mx" role="grid" id="mxgrid" aria-label="Planned parts per day. Use the arrow keys to move between cells.">' +
+      '<div class="mx-row is-head" role="row"><div class="mx-th mx-daycol" role="columnheader">Day</div>' + heads + '<div class="mx-th" role="columnheader" style="justify-content:center">Filled</div></div>' + body + '</div></div><div class="mx-fade" aria-hidden="true"></div></div></section>';
+  }
+  function wireMatrix() {
+    var grid = document.getElementById('mxgrid'); if (!grid) return;
+    var scroll = document.getElementById('mxscroll'), wrap = document.getElementById('mxwrap');
+    function fade() { wrap.classList.toggle('can-scroll', scroll.scrollLeft + scroll.clientWidth < scroll.scrollWidth - 2); }
+    scroll.addEventListener('scroll', fade); window.addEventListener('resize', fade); fade();
+    var rows = Array.prototype.map.call(grid.querySelectorAll('[role=row]'), function (r) { return Array.prototype.slice.call(r.querySelectorAll('[role=rowheader] button, [role=gridcell] button')); }).filter(function (r) { return r.length; });
+    function colOf(btn) { var cell = btn.closest('[role=gridcell],[role=rowheader]'); return Array.prototype.indexOf.call(cell.parentNode.children, cell); }
+    function at(r, c) { var row = rows[r]; if (!row) return null; for (var i = 0; i < row.length; i++) if (colOf(row[i]) === c) return row[i]; return null; }
+    var cur = rows[0][0]; cur.tabIndex = 0;
+    function go(btn) { if (!btn) return; cur.tabIndex = -1; cur = btn; cur.tabIndex = 0; cur.focus(); }
+    grid.addEventListener('focusin', function (e) { var b = e.target.closest('button'); if (b && b !== cur) { cur.tabIndex = -1; cur = b; b.tabIndex = 0; } });
+    grid.addEventListener('keydown', function (e) {
+      var b = e.target.closest('button'); if (!b) return;
+      var r = 0, c = colOf(b); rows.forEach(function (row, i) { if (row.indexOf(b) >= 0) r = i; });
+      var d = { ArrowRight: [0, 1], ArrowLeft: [0, -1], ArrowDown: [1, 0], ArrowUp: [-1, 0] }[e.key];
+      if (d) { e.preventDefault(); var rr = r + d[0], cc = c + d[1], t = null; while (!t && rr >= 0 && rr < rows.length && cc >= 0 && cc <= 6) { t = at(rr, cc); rr += d[0]; cc += d[1]; if (!d[0] && !d[1]) break; } go(t); }
+      else if (e.key === 'Home') { e.preventDefault(); go(rows[r][0]); }
+      else if (e.key === 'End') { e.preventDefault(); go(rows[r][rows[r].length - 1]); }
+    });
+  }
+
+  /* ---------- small data blocks ---------- */
   function pulse(s) {
     var dec;
     if (s === 'loading') dec = state('loading', { icon: spin, title: 'Loading decisions' });
     else if (s === 'failed') dec = state('failed', { icon: I.warn, title: 'Couldn’t load decisions', body: 'The request failed. It does not mean there are no open decisions.', actions: retry });
     else if (s === 'empty') dec = state('empty', { title: 'No open decisions', body: 'Nothing is waiting for a vote.' });
-    else dec = (s === 'kept' ? state('kept', { icon: I.warn, title: 'Couldn’t refresh decisions', body: 'Showing the decisions that were loaded.', actions: '<button type="button" class="ovw-btn">Try again</button>' }) : '') +
+    else dec = (s === 'kept' ? state('kept', { icon: I.warn, title: 'Couldn’t refresh decisions', body: 'Showing the decisions that were loaded.', actions: retry }) : '') +
       '<div class="ovw-pulse-row"><span><b>2</b> open decisions</span><button type="button" class="ovw-btn ovw-btn--quiet">Review decisions</button></div>';
-    return '<section class="ovw-block" aria-labelledby="p-h"><div class="ovw-head"><h2 class="ovw-title" id="p-h">Group pulse</h2></div>' +
-      '<div class="ovw-pulse-row"><span><b>3</b> members</span><span class="yf-avatars"><span class="avatar">A</span><span class="avatar">B</span><span class="avatar">C</span></span></div>' + dec +
-      '<div class="ovw-block-foot"><button type="button" class="ovw-btn ovw-btn--quiet">Invite travellers</button></div></section>';
+    return '<section class="ovw-block" aria-labelledby="p-h"><div class="ovw-head"><h2 class="ovw-title" id="p-h">Group pulse</h2><button type="button" class="ovw-btn ovw-btn--quiet ovw-head-btn">Invite travellers</button></div>' +
+      '<div class="ovw-pulse-row"><span><b>3</b> members</span><span class="yf-avatars"><span class="avatar">A</span><span class="avatar">B</span><span class="avatar">C</span></span></div>' + dec + '</section>';
   }
 
   function commitments(s) {
@@ -464,13 +752,13 @@ ul, ol { padding: 0; list-style: none; }
   }
 
   function activity(s) {
-    var body, rows = '<ul class="ovw-feed"><li><span class="avatar ovw-avatar-solo">A</span><span><b>Sample member A</b> moved a stop to Day 4</span><time>2 h ago</time></li>' +
-      '<li><span class="avatar ovw-avatar-solo">B</span><span><b>Sample member B</b> voted on a stay</span><time>5 h ago</time></li>' +
-      '<li><span class="avatar ovw-avatar-solo">C</span><span><b>Sample member C</b> added a fuel stop</span><time>1 d ago</time></li></ul>';
+    var body, rows = '<ul class="ovw-feed"><li><span class="avatar">A</span><span><b>Sample member A</b> moved a stop to Day 4</span><time>2 h ago</time></li>' +
+      '<li><span class="avatar">B</span><span><b>Sample member B</b> voted on a stay</span><time>5 h ago</time></li>' +
+      '<li><span class="avatar">C</span><span><b>Sample member C</b> added a fuel stop</span><time>1 d ago</time></li></ul>';
     if (s === 'loading') body = state('loading', { icon: spin, title: 'Loading activity' });
     else if (s === 'failed') body = state('failed', { icon: I.warn, title: 'Couldn’t load activity', body: 'The request failed. It does not mean there is no activity.', actions: retry });
     else if (s === 'empty') body = state('empty', { title: 'No recent activity yet', body: 'Updates from your group will appear here.' });
-    else if (s === 'kept') body = state('kept', { icon: I.warn, title: 'Couldn’t refresh recent activity', body: 'Showing the activity that was loaded.', actions: '<button type="button" class="ovw-btn">Try again</button>' }) + rows;
+    else if (s === 'kept') body = state('kept', { icon: I.warn, title: 'Couldn’t refresh recent activity', body: 'Showing the activity that was loaded.', actions: retry }) + rows;
     else body = rows;
     return '<section class="ovw-block" aria-labelledby="a-h"><div class="ovw-head"><h2 class="ovw-title" id="a-h">Recent activity</h2></div>' + body + '</section>';
   }
@@ -478,34 +766,15 @@ ul, ol { padding: 0; list-style: none; }
   function weather(s) {
     var cells = [['Day 1', 'sun', '31° / 22°', 'Dry', 0], ['Day 2', 'rain', '27° / 20°', 'Rain 70%', 1], ['Day 3', 'rain', '24° / 18°', 'Rain 50%', 1], ['Day 4', 'sun', '22° / 14°', 'Dry', 0], ['Day 5', 'sun', '19° / 9°', 'Dry', 0]];
     var grid = '<div class="ovw-wx">' + cells.map(function (c) {
-      return '<div class="ovw-wx-cell' + (c[4] ? ' wet' : '') + '">' + c[0] + I[c[1]] + '<b>' + c[2] + '</b><span>' + c[3] + '</span></div>';
+      return '<div class="ovw-wx-cell' + (c[4] ? ' wet' : '') + '">' + I[c[1]] + '<span>' + c[0] + '</span><b>' + c[2] + '</b><span>' + c[3] + '</span></div>';
     }).join('') + '</div>';
-    var body;
+    var body, meta = '';
     if (s === 'loading') body = state('loading', { icon: spin, title: 'Loading forecast' });
     else if (s === 'failed') body = state('failed', { icon: I.warn, title: 'Couldn’t load the forecast', body: 'The request failed. It does not mean the weather is clear.', actions: retry });
     else if (s === 'empty') body = state('empty', { title: 'No forecast yet', body: 'A forecast appears when a day comes close enough.' });
-    else if (s === 'kept') body = state('kept', { icon: I.warn, title: 'Couldn’t refresh the forecast', body: 'Showing the last one.', actions: '<button type="button" class="ovw-btn">Try again</button>' }) + grid;
-    else body = grid + '<p class="ovw-legend">Rain is likely on Day 2 and Day 3. Pack rain gear.</p>';
-    return '<section class="ovw-block" aria-labelledby="w-h"><div class="ovw-head"><h2 class="ovw-title" id="w-h">Weather along the route</h2></div>' + body + '</section>';
-  }
-
-  function matrix(s) {
-    var head = '<section class="ovw-block ovw-block--wide" aria-labelledby="m-h"><div class="ovw-head"><h2 class="ovw-title" id="m-h">What each day holds</h2></div>';
-    if (s === 'empty') return head + state('empty', { title: 'Nothing planned yet', body: 'Add a stop and each day shows its meals, fuel, stretch breaks and night.' }) + '</section>';
-    var F = '●', A = '○', E = '·';
-    var data = [['Day 1', [F, F, A, E, F, F]], ['Day 2', [F, E, F, A, F, F]], ['Day 3', [E, F, E, E, E, F]], ['Day 4', [F, F, F, A, F, F]], ['Day 5', [F, E, A, E, E, F]]];
-    var cls = function (g) { return g === F ? 'is-filled' : g === A ? 'is-auto' : 'is-empty'; };
-    var rows = data.map(function (d) {
-      var n = d[1].filter(function (g) { return g === F; }).length;
-      return '<div class="ovw-matrix-row" role="row"><span role="rowheader">' + d[0] + '</span>' + d[1].map(function (g, i) {
-        var k = ['breakfast', 'lunch', 'fuel', 'stretch', 'dinner', 'night'][i];
-        return '<span role="cell" class="' + cls(g) + '" aria-label="' + d[0] + ' ' + k + ': ' + (g === F ? 'planned' : g === A ? 'added by the app' : 'still open') + '">' + g + '</span>';
-      }).join('') + '<span class="tot" role="cell">' + n + '/6</span></div>';
-    }).join('');
-    return head + '<div class="ovw-matrix" role="table" aria-label="Planned parts per day"><div class="ovw-matrix-row head" role="row"><span role="columnheader"><span class="sr-only">Day</span></span>' +
-      ['B', 'L', 'F', 'S', 'D', 'N'].map(function (c) { return '<span role="columnheader">' + c + '</span>'; }).join('') + '<span role="columnheader">filled</span></div>' + rows + '</div>' +
-      '<p class="ovw-legend">Solid is planned. Hollow is a break the app added. Dot is still open. Columns: breakfast, lunch, fuel, stretch, dinner, night. Thinnest day: Day 3, 2 of 6.</p>' +
-      '<div class="ovw-block-foot"><button type="button" class="ovw-btn ovw-btn--quiet">Open Timeline</button></div></section>';
+    else if (s === 'kept') body = state('kept', { icon: I.warn, title: 'Couldn’t refresh the forecast', body: 'Showing the last one.', actions: retry }) + grid;
+    else { body = grid; meta = '<div class="ovw-head-meta">Rain is likely on Day 2 and Day 3. Pack rain gear.</div>'; }
+    return '<section class="ovw-block" aria-labelledby="w-h"><div class="ovw-head"><h2 class="ovw-title" id="w-h">Weather along the route</h2>' + meta + '</div>' + body + '</section>';
   }
 
   var notes = {
@@ -517,13 +786,16 @@ ul, ol { padding: 0; list-style: none; }
   };
 
   function render(s) {
-    document.getElementById('ovw').innerHTML = verdict(s) + needs(s) + stats() + route(s) +
-      '<div class="ovw-blocks">' + pulse(s) + commitments(s) + activity(s) + weather(s) + matrix(s) + '</div>';
+    document.getElementById('ovw').innerHTML = verdict(s) + stats() +
+      '<div class="ovw-split">' + needs(s) + route(s) + '</div>' +
+      '<div class="ovw-lower"><div class="ovw-stack">' + matrix(s) + weather(s) + '</div><div class="ovw-stack">' + pulse(s) + commitments(s) + activity(s) + '</div></div>';
+    var m = document.getElementById('rmap'); if (m) m.appendChild(buildMap());
+    wireMatrix();
     document.getElementById('note').innerHTML = '<p class="mock-note">' + notes[s] + '</p>';
-    Array.prototype.forEach.call(document.querySelectorAll('[data-state]'), function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-state') === s)); });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-state]'), function (b) { if (b.tagName === 'BUTTON') b.setAttribute('aria-pressed', String(b.getAttribute('data-state') === s)); });
   }
 
-  /* ---------- theme and state from the URL ---------- */
+  /* ---------- theme, guides and state from the URL ---------- */
   function setTheme(t) {
     root.setAttribute('data-theme', t);
     var b = document.getElementById('themeBtn'); b.setAttribute('aria-pressed', String(t === 'dark')); b.textContent = t === 'dark' ? 'Dark (on)' : 'Dark';
@@ -531,13 +803,19 @@ ul, ol { padding: 0; list-style: none; }
   var t0 = qs.get('theme');
   if (t0 !== 'light' && t0 !== 'dark') t0 = (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
   setTheme(t0);
+  if (qs.get('guides') === '1') {
+    document.body.classList.add('guide-on');
+    var cont = document.querySelector('.container'); cont.setAttribute('data-w', 'Container ' + getComputedStyle(cont).maxWidth + ' (normal tabs)');
+    var gw = document.createElement('div'); gw.className = 'guide-wide'; gw.setAttribute('aria-hidden', 'true');
+    gw.innerHTML = '<span>Board and Map ' + getComputedStyle(root).getPropertyValue('--container-wide').trim() + '</span>'; document.body.appendChild(gw);
+  }
   document.getElementById('themeBtn').addEventListener('click', function () {
     var n = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
     setTheme(n); qs.set('theme', n); history.replaceState(null, '', '?' + qs.toString());
   });
   var s0 = qs.get('state'); if (STATES.indexOf(s0) < 0) s0 = 'ready';
   render(s0);
-  Array.prototype.forEach.call(document.querySelectorAll('[data-state]'), function (b) {
+  Array.prototype.forEach.call(document.querySelectorAll('.mock-bar [data-state]'), function (b) {
     b.addEventListener('click', function () {
       var n = b.getAttribute('data-state'); qs.set('state', n); history.replaceState(null, '', '?' + qs.toString()); render(n);
     });

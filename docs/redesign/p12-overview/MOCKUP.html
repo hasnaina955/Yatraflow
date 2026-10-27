@@ -181,56 +181,78 @@ ul, ol { padding: 0; list-style: none; }
 .ovw-split > .ovw-route { grid-area: route; }
 .ovw-split > .ovw-stats { grid-area: stats; }
 
-/* 4. Route card: schematic SVG map, day bands, stop list for small screens */
+/* 4. Route card: the route is the picture. Names and numbers sit in the tooltip and the stop list. */
 .ovw-route { display: flex; flex-direction: column; gap: var(--space-4); }
 .ovw-route .ovw-head { margin-bottom: 0; }
-.ovw-map { border-radius: var(--radius-sm); background: var(--yf-mist); border: 1px solid var(--yf-border); overflow: hidden; }
+/* The map plate follows the dark route plate of RouteSnapshot. The road colours come from the saffron and danger tokens. */
+.ovw-map {
+  --rm-a: var(--yf-saffron);
+  --rm-b: color-mix(in srgb, var(--yf-saffron) 45%, #fff);
+  --rm-c: color-mix(in srgb, var(--danger) 60%, var(--yf-saffron));
+  --rm-cream: color-mix(in srgb, var(--yf-saffron) 14%, #fff);
+  position: relative; border-radius: var(--radius-sm); overflow: hidden; color: #fff;
+  background-color: var(--yf-navy);
+  background-image: linear-gradient(rgba(255,255,255,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px), linear-gradient(150deg, var(--yf-navy), var(--btn-accent-fg) 88%);
+  background-size: 26px 26px, 26px 26px, auto;
+}
 .ovw-map svg { display: block; width: 100%; height: auto; }
-.rm-grid { stroke: var(--line); stroke-width: 1; stroke-dasharray: 2 6; opacity: .8; }
-.rm-base { fill: none; stroke: var(--line); stroke-width: 9; stroke-linecap: round; stroke-linejoin: round; }
-/* Each leg is its own path. pathLength 1 lets one dash value draw every leg in. The draw-in runs once, one leg after another. */
-.rm-leghit { fill: none; stroke: transparent; stroke-width: 16; pointer-events: stroke; }
-.rm-leg { fill: none; stroke: var(--yf-teal-600); stroke-width: 3.5; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; stroke-dashoffset: 0; transition: stroke-width var(--motion-fast) var(--ease-out); animation: rmDraw var(--motion-slow) var(--ease-out) backwards; animation-delay: calc(var(--stagger-step) * var(--i, 0)); }
-.rm-legg:hover .rm-leg { stroke-width: 5; }
+/* The line widths are custom properties, so the script can widen them when the map shrinks on a phone. */
+.rm-case { fill: none; stroke: rgba(var(--shadow-navy-rgb), .6); stroke-width: var(--cw, 15px); stroke-linecap: round; stroke-linejoin: round; }
+.rm-hl { fill: none; stroke: var(--rm-b); stroke-width: var(--gw, 24px); stroke-linecap: round; stroke-linejoin: round; opacity: 0; transition: opacity var(--motion-fast) var(--ease-out); }
+.rm-hl.is-hl { opacity: .4; }
+.rm-road { fill: none; stroke-width: var(--rw, 8px); stroke-linecap: round; stroke-linejoin: round; transition: stroke-width var(--motion-fast) var(--ease-out); }
+.rm-road.is-hl { stroke-width: calc(var(--rw, 8px) * 1.35); }
+.rm-dash { fill: none; stroke: var(--rm-cream); stroke-width: var(--dw, 2px); stroke-dasharray: var(--dd, 7 9); stroke-linecap: round; }
+.rm-leghit { fill: none; stroke: transparent; stroke-width: var(--hw, 18px); pointer-events: stroke; }
+/* Draw-in: each leg draws once, one stagger step after the leg before it. The dashes fade in with the road. */
+.rm-case, .rm-road { stroke-dasharray: 1; stroke-dashoffset: 0; animation: rmDraw var(--motion-slow) var(--ease-out) backwards; animation-delay: calc(var(--stagger-step) * var(--i, 0)); }
+.rm-dash { animation: rmFade var(--motion-slow) var(--ease-out) backwards; animation-delay: calc(var(--stagger-step) * var(--i, 0)); }
 @keyframes rmDraw { from { stroke-dashoffset: 1; } }
-/* Pin: a 28px face over a transparent 44px hit circle. Hover and keyboard focus draw a 2px ring 2px outside the face. */
+@keyframes rmFade { from { opacity: 0; } }
+/* Pin: a small face over a transparent hit circle of 44px. Hover, focus and a matching list row draw a 2px ring. */
 .rm-pin { cursor: pointer; outline: none; }
+.rm-pin[data-inert] { pointer-events: none; }
 .rm-hit { fill: transparent; }
-.rm-ring { fill: none; stroke: var(--yf-teal-600); stroke-width: 2; opacity: 0; pointer-events: none; transition: opacity var(--motion-fast) var(--ease-out); }
-.rm-pin:hover .rm-ring, .rm-pin:focus-visible .rm-ring { opacity: 1; }
-.rm-dot { fill: var(--card); stroke: var(--yf-teal-600); stroke-width: 3; }
-.is-start .rm-dot { fill: var(--yf-teal-600); stroke: var(--card); }
-.is-end .rm-dot { fill: var(--yf-saffron); stroke: var(--card); }
-.rm-num { font: 800 11px var(--font-display); text-anchor: middle; dominant-baseline: central; fill: var(--ink-teal); }
+.rm-ring { fill: none; stroke: #fff; stroke-width: 2px; opacity: 0; pointer-events: none; transition: opacity var(--motion-fast) var(--ease-out); }
+.rm-pin:hover .rm-ring, .rm-pin:focus-visible .rm-ring, .rm-pin.is-hl .rm-ring { opacity: 1; }
+.rm-dot { fill: #fff; stroke: var(--yf-teal-600); stroke-width: var(--pw, 2px); }
+.is-start .rm-dot { fill: var(--teal-deep); stroke: #fff; }
+.is-end .rm-dot { fill: var(--yf-saffron); stroke: #fff; }
+.rm-num { font-family: var(--font-display); font-weight: 800; text-anchor: middle; dominant-baseline: central; fill: var(--yf-navy); pointer-events: none; }
 .is-start .rm-num { fill: var(--card); }
 :root[data-theme='dark'] .is-start .rm-num { fill: var(--yf-cream); }
 .is-end .rm-num { fill: var(--btn-accent-fg); }
-.rm-name { font: 800 12px var(--font-body); fill: var(--text); paint-order: stroke; stroke: var(--yf-mist); stroke-width: 4px; stroke-linejoin: round; }
-.rm-tag { font: 700 12px var(--font-body); fill: var(--text-2); paint-order: stroke; stroke: var(--yf-mist); stroke-width: 3px; }
-.rm-leglabel rect { fill: var(--card); stroke: var(--yf-border); stroke-width: 1; }
-.rm-leglabel text { font: 700 11px var(--font-body); fill: var(--text-2); text-anchor: middle; dominant-baseline: central; }
+.rm-name { font-family: var(--font-body); font-weight: 800; fill: #fff; paint-order: stroke; stroke: var(--yf-navy); stroke-width: 3.5px; stroke-linejoin: round; }
+.rm-tag { font-family: var(--font-body); font-weight: 700; fill: rgba(255,255,255,.8); paint-order: stroke; stroke: var(--yf-navy); stroke-width: 3px; stroke-linejoin: round; }
+/* Tooltip: names the stop and the day, plus the leg. It opens on hover and on keyboard focus. */
+.rm-tip { position: absolute; z-index: 2; pointer-events: none; display: grid; gap: 1px; padding: 6px 10px; border-radius: 10px; background: var(--card); color: var(--text); border: 1px solid var(--yf-border); box-shadow: var(--shadow-soft); font-size: 12px; line-height: 1.3; white-space: nowrap; opacity: 0; transform: translate(-50%, calc(-100% - 14px)); transition: opacity var(--motion-fast) var(--ease-out); }
+.rm-tip.is-below { transform: translate(-50%, 14px); }
+.rm-tip.is-on { opacity: 1; }
+.rm-tip b { font-size: 13px; font-weight: 800; }
+.rm-tip span { color: var(--text-2); font-variant-numeric: tabular-nums; }
 .ovw-verdict-act { display: grid; justify-items: end; }
-.ovw-sample { font-size: 11px; color: var(--text-3); }
+.ovw-sample { margin: 0; font-size: 11px; color: var(--text-3); }
 .ovw-route-empty { display: grid; align-content: center; flex: 1; }
-.ovw-stoplist { display: block; }
-.ovw-stoplist.is-long { max-height: 320px; overflow-y: auto; padding-inline-end: var(--space-2); -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 32px), transparent); mask-image: linear-gradient(to bottom, #000 calc(100% - 32px), transparent); }
-@media (min-width: 721px) { .ovw-route[data-view='map'] .ovw-stoplist { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; } .ovw-route { position: relative; } }
-.ovw-stoplist > li.is-leg { display: grid; grid-template-columns: 28px minmax(0, 1fr); column-gap: var(--space-5); }
-/* Each stop is one 44px button: it opens the Map at that stop. */
-.ovw-stop-btn { all: unset; box-sizing: border-box; display: grid; grid-template-columns: 28px minmax(0, 1fr); column-gap: var(--space-5); align-items: center; width: 100%; min-height: 44px; cursor: pointer; border-radius: 8px; }
-.ovw-stop-btn:hover .ovw-stop-name { color: var(--ink-teal); text-decoration: underline; text-underline-offset: 3px; }
+.ovw-rsum { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-5); margin: 0; font-size: 13px; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.ovw-rsum b { color: var(--text); font-weight: 800; }
+/* Stop list: one compact row for each stop, two columns on a wide card. It is the text version of the route. */
+.ovw-stoplist { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--space-9); margin: 0; padding: 0; list-style: none; }
+.ovw-stoplist > li { border-top: 1px solid var(--line); }
+.ovw-stoplist > li:nth-child(-n + 2) { border-top: 0; }
+.ovw-stoplist.is-long { max-height: 176px; overflow-y: auto; align-content: start; padding-inline-end: var(--space-2); -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent); }
+.ovw-stoplist.is-long:focus-visible { outline: 2px solid transparent; box-shadow: var(--ring); border-radius: 8px; }
+.ovw-stop-btn { all: unset; box-sizing: border-box; display: grid; grid-template-columns: 24px minmax(0, 1fr) auto auto auto; column-gap: var(--space-4); align-items: center; width: 100%; min-height: 44px; padding-inline: var(--space-2); cursor: pointer; border-radius: 8px; transition: background-color var(--motion-fast) var(--ease-out); }
+.ovw-stop-btn:hover, .ovw-stop-btn.is-hl { background-color: color-mix(in srgb, var(--yf-teal-600) 8%, var(--card)); }
 .ovw-stop-btn:focus-visible { outline: 2px solid transparent; box-shadow: var(--ring); }
-.ovw-stop-pin { width: 24px; height: 24px; margin: 2px; border-radius: 50%; display: grid; place-items: center; font: 800 11px var(--font-display); background: var(--card); border: 3px solid var(--yf-teal-600); color: var(--ink-teal); }
-.ovw-stoplist .is-start .ovw-stop-pin { background: var(--yf-teal-600); color: var(--card); }
+.ovw-stop-pin { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font: 800 11px var(--font-display); background: var(--card); border: 2px solid var(--yf-teal-600); color: var(--ink-teal); }
+.ovw-stoplist .is-start .ovw-stop-pin { background: var(--teal-deep); border-color: var(--teal-deep); color: var(--card); }
 :root[data-theme='dark'] .ovw-stoplist .is-start .ovw-stop-pin { color: var(--yf-cream); }
-.ovw-stoplist .is-end .ovw-stop-pin { background: var(--yf-saffron); color: var(--btn-accent-fg); border-color: var(--card); }
-.ovw-stop-name { font-weight: 800; font-size: 14px; line-height: 28px; }
+.ovw-stoplist .is-end .ovw-stop-pin { background: var(--yf-saffron); border-color: var(--yf-saffron); color: var(--btn-accent-fg); }
+.ovw-stop-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 800; font-size: 13px; }
 .ovw-stop-name small { margin-inline-start: 6px; font-size: 12px; font-weight: 700; color: var(--text-2); }
-.ovw-stoplist .is-leg::before { content: ''; justify-self: center; width: 4px; min-height: 40px; border-radius: 2px; background: var(--c); }
-.ovw-leg-text { align-self: center; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-5); padding: var(--space-2) 0; font-size: 12px; color: var(--text-2); }
-.ovw-leg-text b { color: var(--text); font-variant-numeric: tabular-nums; }
-.ovw-leg-text i { font-style: normal; display: inline-flex; align-items: center; gap: 6px; min-height: 20px; padding: 0 8px; border-radius: 999px; font-size: 11px; font-weight: 800; color: var(--text-2); background: var(--info-soft); }
-.ovw-leg-text i::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--c); }
+.ovw-stop-d, .ovw-stop-km, .ovw-stop-t { font-size: 12px; color: var(--text-2); white-space: nowrap; text-align: end; font-variant-numeric: tabular-nums; }
+.ovw-stop-km { min-width: 52px; }
+.ovw-stop-t { min-width: 66px; }
 
 /* 5. Day matrix: a grid, days as rows, parts as columns */
 .ovw-block { background: var(--card); border: 1px solid var(--yf-border); border-radius: var(--radius-sm); padding: var(--space-6) var(--space-7); display: flex; flex-direction: column; min-width: 0; }
@@ -411,12 +433,15 @@ ul, ol { padding: 0; list-style: none; }
   .ovw-block { padding: var(--space-5) var(--space-6); }
   .ovw-head { min-height: 24px; margin-bottom: var(--space-3); }
   .ovw-wx-cell { padding: var(--space-3) var(--space-4); }
-  .ovw-stoplist .is-leg::before { min-height: 28px; }
-  .ovw-leg-text { padding: 0; }
+  .ovw-stoplist { grid-template-columns: minmax(0, 1fr); }
+  .ovw-stoplist > li:nth-child(2) { border-top: 1px solid var(--line); }
+  .ovw-stoplist.is-long { max-height: 264px; }
+  .ovw-stop-t { min-width: 0; }
+  .ovw-stop-km { min-width: 0; }
+  .ovw-stop-btn { column-gap: var(--space-3); }
   .ovw-pulse-row { min-height: 40px; }
   .ovw-feed li { padding: var(--space-2) 0; }
   .ovw-route { gap: var(--space-3); }
-  .ovw-map { display: none; }
   .mx-scroll, .mx-wrap { display: none; }
   .mx-compact { display: block; }
   .ovw-stack, .ovw-stack + .ovw-stack { grid-template-columns: minmax(0, 1fr); }
@@ -497,7 +522,6 @@ ul, ol { padding: 0; list-style: none; }
   /* Sample-size knobs for the review shots: ?days=N sets the day count, ?stops=N sets the route points. */
   var DAYS = Math.max(1, Math.min(30, parseInt(qs.get('days'), 10) || 10));
   var NPTS = qs.has('stops') ? Math.max(0, Math.min(30, parseInt(qs.get('stops'), 10) || 0)) : 6;
-  var STOPCOUNT = qs.has('stops') ? NPTS : 14;
   var alertUsed = false;
 
   /* ---------- inline icons (decorative) ---------- */
@@ -594,38 +618,75 @@ ul, ol { padding: 0; list-style: none; }
   }
 
   /* ---------- route map ----------
-     Real data (OverviewTab.tsx): overviewRoutePoints gives the ordered points.
-     road.legs gives distanceKm and durationMinutes for each leg after the road is measured.
-     Pins show the start, each overnight base and the end. The header counts every stop.
-     The numbers below are sample numbers. */
-  var COLS = ['var(--yf-saffron)', 'var(--yf-purple)', 'var(--ok)', 'var(--text-3)', 'var(--yf-teal-600)'];
+     Geometry first: the road is the picture. It fills the plate, so the shape of the trip reads at a glance.
+     Real data (OverviewTab.tsx): overviewRoutePoints gives ordered points { lat, lng, day | null }.
+     The mockup builds sample points that look like lat and lng, then projects them like RouteSnapshot does:
+     fit scale, north up, drawn bounds centred, Catmull-Rom curves.
+     road.legs gives distanceKm and durationMinutes for each leg, but only after the road is measured.
+     ?route=winding|straight|loop picks the sample shape. ?road=pending shows the route before the road is measured. */
+  var W = 720, H = 240, PAD = 26, ROAD_FACTOR = 1.18;
+  var PRESETS = ['winding', 'straight', 'loop'];
+  var PRESET = PRESETS.indexOf(qs.get('route')) >= 0 ? qs.get('route') : 'winding';
+  var ROAD_OK = qs.get('road') !== 'pending';
   var NAMES = ['Kolkata', 'Siliguri', 'Gangtok', 'Chandigarh', 'Manali', 'Leh'];
   var NAMES14 = ['Kolkata', 'Siliguri', 'Gangtok', 'Pelling', 'Darjeeling', 'Kalimpong', 'Chandigarh', 'Ambala', 'Shimla', 'Manali', 'Kaza (Spiti Valley)', 'Keylong', 'Sarchu', 'Leh'];
-  var DEF_LEGS = [['570 km', '11 h 30', 'Days 1–2'], ['115 km', '4 h', 'Day 3'], ['670 km', '9 h 20', 'Days 4–6'], ['310 km', '5 h', 'Days 7–8'], ['475 km', '8 h 30', 'Days 9–10']];
-  var YS = [108, 62, 100, 54, 96, 50];
-  var W = 720, H = 170, MX0 = 44, PILL_W = 84, PILL_H = 46, PIN_R = 14, HIT_R = 22;
-  function hm(min) { var h = Math.floor(min / 60), m = min % 60; return h + ' h' + (m ? ' ' + m : ''); }
+  function hm(min) { min = Math.round(min); var h = Math.floor(min / 60), m = min % 60; return h + ' h' + (m ? ' ' + m + ' min' : ''); }
+  /* Sample points in kilometres, east and north of a corner. Each preset is a different shape. */
+  function kmPoints(preset, n) {
+    var out = [];
+    for (var i = 0; i < n; i++) {
+      var t = n === 1 ? 0 : i / (n - 1), x, y;
+      if (preset === 'straight') { x = 1800 * t + 40 * Math.sin(i * 2.3); y = 330 * t + 34 * Math.sin(i * 1.7 + 1); }
+      else if (preset === 'loop') { var th = 2 * Math.PI * 0.955 * t + 0.35; x = 900 + 900 * Math.cos(th); y = 280 + 280 * Math.sin(th); }
+      else { var per = n <= 7 ? 1.25 : 1.75; x = 1780 * t + 45 * Math.sin(i * 2.1); y = 260 + 250 * Math.sin(2 * Math.PI * per * t + 0.2); }
+      out.push([x, y]);
+    }
+    return out;
+  }
+  function chainKm(xy) { var t = 0; for (var i = 1; i < xy.length; i++) t += Math.hypot(xy[i][0] - xy[i - 1][0], xy[i][1] - xy[i - 1][1]) * ROAD_FACTOR; return t; }
+  /* One speed for every preset. The default sample reads 38 h 20 min, the same as the stat row. */
+  var SPEED = chainKm(kmPoints('winding', 6)) / (38 + 20 / 60);
+  function dayOf(i, n) { return n < 2 ? 1 : 1 + Math.round(i * (DAYS - 1) / (n - 1)); }
+  function f1(v) { return v.toFixed(1); }
   function routeData(n) {
     var names = n === 6 && !qs.has('stops') ? NAMES : NAMES14.slice(0, n);
     while (names.length < n) names.push('Stop ' + (names.length + 1));
-    var pts = names.map(function (nm, i) {
-      return { n: nm, x: n === 1 ? W / 2 : MX0 + i * (W - 2 * MX0) / (n - 1), y: n === 1 ? 84 : YS[i % 6] };
+    var xy = kmPoints(PRESET, n);
+    var ll = xy.map(function (p) { return { lat: 20 + p[1] / 111, lng: 78 + p[0] / (111 * Math.cos(23 * Math.PI / 180)) }; });
+    var lats = ll.map(function (p) { return p.lat; }), lngs = ll.map(function (p) { return p.lng; });
+    var minLat = Math.min.apply(null, lats), maxLat = Math.max.apply(null, lats), minLng = Math.min.apply(null, lngs), maxLng = Math.max.apply(null, lngs);
+    var kcos = Math.max(0.2, Math.cos(((minLat + maxLat) / 2) * Math.PI / 180));
+    var wKm = Math.max((maxLng - minLng) * kcos * 111, 1e-4), hKm = Math.max((maxLat - minLat) * 111, 1e-4);
+    var s = Math.min((W - 2 * PAD) / wKm, (H - 2 * PAD) / hKm);
+    var raw = ll.map(function (p) { return { x: (p.lng - minLng) * kcos * 111 * s, y: -p.lat * 111 * s }; });
+    var xs = raw.map(function (r) { return r.x; }), ys = raw.map(function (r) { return r.y; });
+    var dx = (W - (Math.max.apply(null, xs) - Math.min.apply(null, xs))) / 2 - Math.min.apply(null, xs);
+    var dy = (H - (Math.max.apply(null, ys) - Math.min.apply(null, ys))) / 2 - Math.min.apply(null, ys);
+    var pts = raw.map(function (r, i) { return { n: names[i], x: r.x + dx, y: r.y + dy, day: dayOf(i, n) }; });
+    pts.forEach(function (p, i) {
+      p.nn = Infinity;
+      pts.forEach(function (q, j) { if (i !== j) p.nn = Math.min(p.nn, Math.hypot(p.x - q.x, p.y - q.y)); });
     });
-    var legs = [], total = 0;
-    for (var i = 0; i < n - 1; i++) {
-      var L;
-      if (n === 6 && !qs.has('stops')) { L = DEF_LEGS[i]; L = { km: L[0], t: L[1], d: L[2], c: COLS[i % 5] }; total += parseInt(L.km, 10); }
-      else {
-        var km = 90 + ((i * 131) % 380), a = Math.floor(i * DAYS / (n - 1)) + 1, b = Math.max(a, Math.floor((i + 1) * DAYS / (n - 1)));
-        total += km; L = { km: km + ' km', t: hm(Math.round(km * 1.15)), d: a === b ? 'Day ' + a : 'Days ' + a + '–' + b, c: COLS[i % 5] };
-      }
-      var dm = L.d.match(/(\d+)(?:–(\d+))?/);
-      L.a = +dm[1]; L.b = +(dm[2] || dm[1]);
-      legs.push(L);
+    var legs = [], total = 0, mins = 0, kmX = 0;
+    for (var i = 1; i < n; i++) {
+      var km = Math.hypot(xy[i][0] - xy[i - 1][0], xy[i][1] - xy[i - 1][1]) * ROAD_FACTOR, mn = km / SPEED * 60;
+      legs.push({ km: Math.round(km), min: Math.round(mn), a: pts[i - 1].day, b: pts[i].day, from: names[i - 1], to: names[i] });
+      total += Math.round(km); kmX += km;
     }
-    /* A pin's day is the day the leg before it ends. The start pin is Day 1. */
-    pts.forEach(function (p, i) { p.day = i === 0 ? 1 : legs[i - 1].b; });
-    return { pts: pts, legs: legs, total: total };
+    mins = kmX / SPEED * 60;
+    /* Catmull-Rom, one cubic for each leg: the same smoothing as catmullRomPath in ui.tsx. */
+    var at = function (i) { return pts[Math.max(0, Math.min(i, n - 1))]; };
+    var segs = [], samples = [];
+    for (var k = 1; k < n; k++) {
+      var p0 = at(k - 2), p1 = at(k - 1), p2 = at(k), p3 = at(k + 1);
+      var c1x = p1.x + (p2.x - p0.x) / 6, c1y = p1.y + (p2.y - p0.y) / 6, c2x = p2.x - (p3.x - p1.x) / 6, c2y = p2.y - (p3.y - p1.y) / 6;
+      segs.push('M' + f1(p1.x) + ' ' + f1(p1.y) + ' C' + f1(c1x) + ' ' + f1(c1y) + ', ' + f1(c2x) + ' ' + f1(c2y) + ', ' + f1(p2.x) + ' ' + f1(p2.y));
+      for (var q = 0; q <= 10; q++) {
+        var t = q / 10, u = 1 - t;
+        samples.push([u * u * u * p1.x + 3 * u * u * t * c1x + 3 * u * t * t * c2x + t * t * t * p2.x, u * u * u * p1.y + 3 * u * u * t * c1y + 3 * u * t * t * c2y + t * t * t * p2.y]);
+      }
+    }
+    return { pts: pts, legs: legs, segs: segs, samples: samples, total: total, mins: mins };
   }
   function el(tag, attrs, text) {
     var e = document.createElementNS(NS, tag);
@@ -635,112 +696,124 @@ ul, ol { padding: 0; list-style: none; }
   }
   function overlap(a, b) { return a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h; }
   function cut(nm, max) { return nm.length > max ? nm.slice(0, max - 1) + '…' : nm; }
+  function legFacts(R, i) { var L = R.legs[i - 1]; return L && ROAD_OK ? L.km.toLocaleString('en-IN') + ' km, ' + hm(L.min) : ''; }
+
+  /* The static drawing: casing, glow, road, centre line, hit paths, label slot, pins. The script sizes it in layoutMap. */
   function buildMap(R) {
-    var P = R.pts, n = P.length, spacing = n > 1 ? (W - 2 * MX0) / (n - 1) : W;
-    var showPills = n > 1 && spacing >= PILL_W + 2 * PIN_R;
-    /* The pins are buttons, so the map is a labelled group. The drawing around them is decoration. */
+    var P = R.pts, n = P.length;
     var svg = el('svg', { viewBox: '0 0 ' + W + ' ' + H, role: 'group', 'aria-label': 'Route map. Each pin opens the Map at that stop.', focusable: 'false' });
-    var deco = function (e) { e.setAttribute('aria-hidden', 'true'); return e; };
-    [44, 88, 132].forEach(function (y) { svg.appendChild(deco(el('line', { class: 'rm-grid', x1: 8, x2: W - 8, y1: y, y2: y }))); });
-    var placed = [];
-    P.forEach(function (p) { placed.push({ x: p.x - 19, y: p.y - 19, w: 38, h: 38 }); });
-    if (n > 1) {
-      var d = 'M' + P[0].x + ' ' + P[0].y, mids = [], segs = [];
-      for (var i = 1; i < n; i++) {
-        var a = P[i - 1], b = P[i], mx = (a.x + b.x) / 2;
-        var seg = ' C' + mx + ' ' + a.y + ' ' + mx + ' ' + b.y + ' ' + b.x + ' ' + b.y;
-        d += seg; segs.push('M' + a.x + ' ' + a.y + seg);
-        mids.push({ x: mx, y: (a.y + b.y) / 2 });
-      }
-      svg.appendChild(deco(el('path', { class: 'rm-base', d: d })));
-      /* One path for each leg. A hover on a leg thickens it. The draw-in delay grows by one stagger step for each leg, up to eight. */
-      var lgs = [];
-      segs.forEach(function (sd, i) {
-        var lg = deco(el('g', { class: 'rm-legg' })); lgs.push(lg);
-        lg.appendChild(el('path', { class: 'rm-leghit', d: sd }));
-        lg.appendChild(el('path', { class: 'rm-leg', d: sd, pathLength: '1', style: '--i:' + Math.min(i, 8) }));
-        svg.appendChild(lg);
+    var defs = el('defs', {}), gr = el('linearGradient', { id: 'rmgrad', gradientUnits: 'userSpaceOnUse', x1: PAD, y1: 0, x2: W - PAD, y2: 0 });
+    [['0', 'var(--rm-a)'], ['.5', 'var(--rm-b)'], ['1', 'var(--rm-c)']].forEach(function (st) { gr.appendChild(el('stop', { offset: st[0], style: 'stop-color:' + st[1] })); });
+    defs.appendChild(gr); svg.appendChild(defs);
+    /* Each layer draws for all legs first. A casing never covers the road of the leg before it. */
+    var layers = ['rm-case', 'rm-hl', 'rm-road', 'rm-dash', 'rm-leghit'].map(function (cls) {
+      var g = el('g', { 'aria-hidden': 'true' });
+      R.segs.forEach(function (d, i) {
+        var a = { class: cls, d: d, 'data-to': String(i + 1), style: '--i:' + Math.min(i, 8) };
+        if (cls === 'rm-case' || cls === 'rm-road') a.pathLength = '1';
+        if (cls === 'rm-road') a.stroke = 'url(#rmgrad)';
+        g.appendChild(el('path', a));
       });
-      /* leg pills sit on the line: distance, drive time, day range and a day-colour stripe. They hide when pins sit too close. */
-      if (showPills) mids.forEach(function (m, i) {
-        var L = R.legs[i], g = deco(el('g', { class: 'rm-leglabel' }));
-        g.appendChild(el('rect', { x: m.x - PILL_W / 2, y: m.y - PILL_H / 2, width: PILL_W, height: PILL_H, rx: 8 }));
-        g.appendChild(el('rect', { x: m.x - PILL_W / 2 + 10, y: m.y + PILL_H / 2 - 5, width: PILL_W - 20, height: 3, rx: 1.5, style: 'fill:' + L.c + ';stroke:none' }));
-        g.appendChild(el('text', { x: m.x, y: m.y - 14, style: 'font-weight:800' }, L.km));
-        g.appendChild(el('text', { x: m.x, y: m.y - 2 }, L.t));
-        g.appendChild(el('text', { x: m.x, y: m.y + 10, style: 'font-weight:600' }, L.d));
-        lgs[i].appendChild(g);
-        placed.push({ x: m.x - PILL_W / 2 - 2, y: m.y - PILL_H / 2 - 2, w: PILL_W + 4, h: PILL_H + 4 });
-      });
-    }
-    /* stop labels: names stop at 14 characters. Try the preferred side, then the others. A name that fits nowhere
-       drops to 8 characters, then to no label. The pin keeps the full name in its title. */
-    P.forEach(function (p, i) {
-      var tag = n > 1 && i === 0 ? 'Start' : n > 1 && i === n - 1 ? 'End' : '';
-      var nb = [P[i - 1], P[i + 1]].filter(Boolean), avg = nb.length ? nb.reduce(function (s, q) { return s + q.y; }, 0) / nb.length : p.y + 1;
-      var peak = p.y < avg, done = false;
-      [14, 8].forEach(function (max) {
-        if (done) return;
-        var txt = cut(p.n, max), w = Math.ceil(txt.length * 6.8) + 4, h = tag ? 26 : 14;
-        var below = { x: p.x - w / 2, y: p.y + 21, a: 'middle', cx: p.x }, above = { x: p.x - w / 2, y: p.y - 21 - h, a: 'middle', cx: p.x };
-        var cand = [peak ? above : below, peak ? below : above,
-          { x: p.x + 22, y: p.y - h / 2, a: 'start', cx: p.x + 22 }, { x: p.x - 22 - w, y: p.y - h / 2, a: 'end', cx: p.x - 22 }];
-        for (var k = 0; k < cand.length && !done; k++) {
-          var c = cand[k];
-          if (c.a === 'middle') { var nx = Math.min(Math.max(c.x, 6), W - 6 - w); c.cx += nx - c.x; c.x = nx; }
-          var r = { x: c.x, y: c.y, w: w, h: h };
-          if (r.x < 4 || r.x + r.w > W - 4 || r.y < 2 || r.y + r.h > H - 2) continue;
-          if (placed.some(function (q) { return overlap(r, q); })) continue;
-          placed.push(r); done = true;
-          var g = deco(el('g', {})), ty = r.y + 11;
-          g.appendChild(el('text', { class: 'rm-name', x: c.cx, y: ty, 'text-anchor': c.a }, txt));
-          if (tag) g.appendChild(el('text', { class: 'rm-tag', x: c.cx, y: ty + 12, 'text-anchor': c.a }, tag));
-          svg.appendChild(g);
-        }
-      });
+      svg.appendChild(g); return g;
     });
-    /* Pins draw last so they sit above the labels. Each pin is a button: a 44px transparent hit circle, a 28px face and a ring. */
+    svg.appendChild(el('g', { class: 'rm-labels', 'aria-hidden': 'true' }));
     P.forEach(function (p, i) {
       var role = i === 0 ? 'is-start' : (i === n - 1 && n > 1 ? 'is-end' : '');
-      var L = i > 0 ? R.legs[i - 1] : null;
-      var label = 'Stop ' + (i + 1) + ' of ' + n + ', ' + p.n + ', Day ' + p.day + (L ? '. ' + L.km + ', ' + L.t + ' from stop ' + i : '') + '. Opens the Map at this stop.';
-      var g = el('g', { class: 'rm-pin ' + role, role: 'button', tabindex: '0', 'aria-label': label, 'data-open': 'Map at ' + p.n });
-      g.appendChild(el('title', {}, p.n + ', Day ' + p.day));
-      g.appendChild(el('circle', { class: 'rm-hit', cx: p.x, cy: p.y, r: HIT_R }));
-      g.appendChild(el('circle', { class: 'rm-ring', cx: p.x, cy: p.y, r: PIN_R + 4.5 }));
-      g.appendChild(el('circle', { class: 'rm-dot', cx: p.x, cy: p.y, r: PIN_R }));
+      var facts = legFacts(R, i);
+      var label = 'Stop ' + (i + 1) + ' of ' + n + ', ' + p.n + ', Day ' + p.day + (facts ? ', ' + facts + ' from stop ' + i : '') + '. Opens the Map at this stop.';
+      var g = el('g', { class: 'rm-pin ' + role, role: 'button', tabindex: '0', 'aria-label': label, 'data-stop': String(i), 'data-open': 'Map at ' + p.n });
+      g.appendChild(el('circle', { class: 'rm-hit', cx: p.x, cy: p.y, r: 22 }));
+      g.appendChild(el('circle', { class: 'rm-ring', cx: p.x, cy: p.y, r: 18 }));
+      g.appendChild(el('circle', { class: 'rm-dot', cx: p.x, cy: p.y, r: 10 }));
       g.appendChild(el('text', { class: 'rm-num', x: p.x, y: p.y + 0.5, 'aria-hidden': 'true' }, String(i + 1)));
       svg.appendChild(g);
     });
     return svg;
   }
-  function stopList(R, long) {
-    var P = R.pts, n = P.length;
-    var out = '<ol class="ovw-stoplist' + (long ? ' is-long' : '') + '" aria-label="Route: ' + STOPCOUNT + (STOPCOUNT === 1 ? ' stop' : ' stops') + ', ' + R.total.toLocaleString('en-IN') + ' km"' + (long ? ' tabindex="0"' : '') + '>';
+
+  /* Size the drawing for the width it has. On a phone the map shrinks, so lines, dots and text grow in map units
+     and keep their size on screen. Only the Start and End names stay on the map. */
+  function layoutMap(svg, R, scale) {
+    if (!scale) return;
+    var P = R.pts, n = P.length, small = n > 8;
+    var c = Math.max(1, 0.625 / scale), tc = Math.max(1, 0.92 / scale), S = svg.style;
+    S.setProperty('--rw', (8 * c) + 'px'); S.setProperty('--cw', (15 * c) + 'px'); S.setProperty('--gw', (24 * c) + 'px');
+    S.setProperty('--dw', (2 * c) + 'px'); S.setProperty('--dd', (7 * c) + ' ' + (9 * c)); S.setProperty('--hw', (18 * c) + 'px'); S.setProperty('--pw', (2 * c) + 'px');
+    var rects = [], radii = [];
+    Array.prototype.forEach.call(svg.querySelectorAll('.rm-pin'), function (g, i) {
+      var p = P[i], end = n > 1 && (i === 0 || i === n - 1);
+      var r = end ? Math.max(12.5, 9 / scale) : Math.max(small ? 5.5 : 10.5, 6.5 / scale), hit = Math.max(22, 22 / scale);
+      g.querySelector('.rm-hit').setAttribute('r', f1(hit));
+      g.querySelector('.rm-ring').setAttribute('r', f1(r + 4.5 * Math.max(1, 0.5 / scale)));
+      g.querySelector('.rm-dot').setAttribute('r', f1(r));
+      var num = g.querySelector('.rm-num'); num.setAttribute('font-size', f1(r * 0.95)); num.style.display = r * scale >= 9.5 ? '' : 'none';
+      /* A pin is a target only when its 44px circle fits between its neighbours. The stop list carries the rest. */
+      if (end || hit <= p.nn / 2 + 0.5) { g.removeAttribute('data-inert'); g.setAttribute('tabindex', '0'); g.setAttribute('role', 'button'); g.removeAttribute('aria-hidden'); }
+      else { g.setAttribute('data-inert', ''); g.setAttribute('tabindex', '-1'); g.removeAttribute('role'); g.setAttribute('aria-hidden', 'true'); }
+      radii.push(r); rects.push({ x: p.x - r - 3, y: p.y - r - 3, w: 2 * r + 6, h: 2 * r + 6 });
+    });
+    var lab = svg.querySelector('.rm-labels'); while (lab.firstChild) lab.removeChild(lab.firstChild);
+    var placed = rects.slice(), half = 4 * c + 1;
+    var onRoad = function (r) { return R.samples.some(function (q) { return q[0] > r.x - half && q[0] < r.x + r.w + half && q[1] > r.y - half && q[1] < r.y + r.h + half; }); };
+    (n === 1 ? [0] : [0, n - 1]).forEach(function (i) {
+      var p = P[i], r0 = radii[i], tag = n > 1 ? (i === 0 ? 'Start' : 'End') : '';
+      var txt = cut(p.n, 16), fs = 12 * tc, ts = 11 * tc, w = Math.ceil(txt.length * 0.6 * fs) + 6, h = tag ? fs + ts + 6 : fs + 4, gap = r0 + 6 * c;
+      var below = { x: p.x - w / 2, y: p.y + gap, a: 'middle' }, above = { x: p.x - w / 2, y: p.y - gap - h, a: 'middle' };
+      var right = { x: p.x + gap, y: p.y - h / 2, a: 'start' }, left = { x: p.x - gap - w, y: p.y - h / 2, a: 'end' };
+      var BL = { x: 6, y: H - h - 4, a: 'start', c: 1 }, TL = { x: 6, y: 4, a: 'start', c: 1 }, BR = { x: W - 6 - w, y: H - h - 4, a: 'end', c: 1 }, TR = { x: W - 6 - w, y: 4, a: 'end', c: 1 };
+      var adj = i === 0 ? [below, above, right, left] : [above, below, left, right];
+      var corners = (i === 0 ? [BL, TL, BR, TR] : [TR, BR, TL, BL]);
+      var near = corners.filter(function (q) { return Math.hypot(q.x + w / 2 - p.x, q.y + h / 2 - p.y) < 150; });
+      /* Try these places: beside the pin, clear of the road; a near corner; beside the pin; any corner. */
+      var tiers = [[adj, false], [near, false], [adj, true], [corners, false]], pick = null;
+      for (var ti = 0; ti < tiers.length && !pick; ti++) {
+        var list = tiers[ti][0], loose = tiers[ti][1];
+        for (var k = 0; k < list.length && !pick; k++) {
+          var c0 = list[k], x = c0.a === 'middle' ? Math.min(Math.max(c0.x, 4), W - 4 - w) : c0.x;
+          var r = { x: x, y: c0.y, w: w, h: h, a: c0.a };
+          if (r.x < 4 || r.x + r.w > W - 4 || r.y < 2 || r.y + r.h > H - 2) continue;
+          var others = placed.filter(function (q) { return c0.c || q !== rects[i]; });
+          if (others.some(function (q) { return overlap(r, q); }) || (!loose && onRoad(r))) continue;
+          pick = r;
+        }
+      }
+      if (!pick) pick = { x: BL.x, y: BL.y, w: w, h: h, a: BL.a };
+      placed.push(pick);
+      var cx = pick.a === 'middle' ? pick.x + w / 2 : (pick.a === 'start' ? pick.x : pick.x + w);
+      lab.appendChild(el('text', { class: 'rm-name', x: f1(cx), y: f1(pick.y + fs * 0.9), 'font-size': f1(fs), 'text-anchor': pick.a }, txt));
+      if (tag) lab.appendChild(el('text', { class: 'rm-tag', x: f1(cx), y: f1(pick.y + fs + ts * 0.95 + 2), 'font-size': f1(ts), 'text-anchor': pick.a }, tag));
+    });
+  }
+
+  function stopList(R) {
+    var P = R.pts, n = P.length, long = n > 8;
+    var out = '<ol class="ovw-stoplist' + (long ? ' is-long' : '') + '" aria-label="Stops on the route"' + (long ? ' tabindex="0"' : '') + '>';
     P.forEach(function (p, i) {
       var role = i === 0 ? 'is-start' : (i === n - 1 && n > 1 ? 'is-end' : '');
       var tag = n > 1 && i === 0 ? '<small>Start</small>' : (n > 1 && i === n - 1 ? '<small>End</small>' : '');
-      out += '<li class="' + role + '"><button type="button" class="ovw-stop-btn" data-open="Map at ' + p.n + '" aria-label="Stop ' + (i + 1) + ', ' + p.n + ', Day ' + p.day + '. Opens the Map at this stop.">' +
-        '<span class="ovw-stop-pin" aria-hidden="true">' + (i + 1) + '</span><span class="ovw-stop-name">' + p.n + tag + '</span></button></li>';
-      if (i < R.legs.length) {
-        var L = R.legs[i];
-        out += '<li class="is-leg" style="--c:' + L.c + '"><span class="ovw-leg-text"><b>' + L.km + '</b><span>' + L.t + '</span><i>' + L.d + '</i></span></li>';
-      }
+      var L = i > 0 && ROAD_OK ? R.legs[i - 1] : null, facts = legFacts(R, i);
+      out += '<li class="' + role + '"><button type="button" class="ovw-stop-btn" data-stop="' + i + '" data-open="Map at ' + p.n + '" aria-label="Stop ' + (i + 1) + ', ' + p.n + ', Day ' + p.day + (facts ? ', ' + facts + ' from stop ' + i : '') + '. Opens the Map at this stop.">' +
+        '<span class="ovw-stop-pin" aria-hidden="true">' + (i + 1) + '</span><span class="ovw-stop-name">' + p.n + tag + '</span><span class="ovw-stop-d">Day ' + p.day + '</span>' +
+        '<span class="ovw-stop-km">' + (L ? L.km.toLocaleString('en-IN') + ' km' : '') + '</span><span class="ovw-stop-t">' + (L ? hm(L.min) : '') + '</span></button></li>';
     });
     return out + '</ol>';
   }
 
+  var curR = null;
   function route(s) {
     var open = '<button type="button" class="ovw-link" data-open="Map">Open map</button>';
     if (s === 'empty' || NPTS === 0) {
+      curR = null;
       return '<section class="ovw-card ovw-route" aria-labelledby="r-h"><div class="ovw-head"><h2 class="ovw-title" id="r-h">Route</h2></div><div class="ovw-route-empty">' +
         state('empty', { icon: I.pin, title: 'No route to draw yet', body: 'This plan needs at least two places with confirmed coordinates. Add a stop, or pin the missing ones.' }) + '</div></section>';
     }
-    var R = routeData(NPTS), asList = NPTS > 8;
-    return '<section class="ovw-card ovw-route" data-view="' + (asList ? 'list' : 'map') + '" aria-labelledby="r-h"><div class="ovw-head"><h2 class="ovw-title" id="r-h">Route</h2>' +
-      '<div class="ovw-head-meta"><span><b>' + DAYS + '</b> ' + (DAYS === 1 ? 'day' : 'days') + '</span>' + (R.total ? '<span><b>' + R.total.toLocaleString('en-IN') + '</b> km</span>' : '') + '<span><b>' + STOPCOUNT + '</b> ' + (STOPCOUNT === 1 ? 'stop' : 'stops') + '</span>' + open + '</div></div>' +
-      (asList ? '' : '<div class="ovw-map" id="rmap"></div>') + stopList(R, asList) +
-      '<p class="ovw-sample">Sample route, schematic and not to scale. Pins show the start, the overnight bases and the end.</p></section>';
+    var R = routeData(NPTS), n = R.pts.length; curR = R;
+    var sum = '<p class="ovw-rsum">' + (ROAD_OK && n > 1 ? '<span><b>' + R.total.toLocaleString('en-IN') + '</b> km</span><span><b>' + hm(R.mins) + '</b> driving</span>' : '') +
+      '<span><b>' + DAYS + '</b> ' + (DAYS === 1 ? 'day' : 'days') + '</span><span><b>' + n + '</b> ' + (n === 1 ? 'stop' : 'stops') + '</span>' +
+      (!ROAD_OK && n > 1 ? '<span>Distance and drive time show after the road is measured.</span>' : '') + '</p>';
+    return '<section class="ovw-card ovw-route" aria-labelledby="r-h"><div class="ovw-head"><h2 class="ovw-title" id="r-h">Route</h2><div class="ovw-head-meta">' + open + '</div></div>' +
+      '<div class="ovw-map" id="rmap"><div class="rm-tip" id="rmTip" aria-hidden="true"></div></div>' + sum + stopList(R) +
+      '<p class="ovw-sample">Sample route, schematic and not to scale.</p></section>';
   }
 
   /* ---------- day matrix ---------- */
@@ -899,25 +972,48 @@ ul, ol { padding: 0; list-style: none; }
     kept: 'Kept: a refresh failed, so the last loaded rows stay on screen with a note.'
   };
 
-  /* The map shrinks with its card. Below full size the hit circle grows in map units so a pin stays a 44px target.
-     It stops at 44 units, because eight pins sit 90 units apart at the least. */
-  var pinWatch = null;
-  function fitPins(m) {
-    if (pinWatch) pinWatch.disconnect();
-    if (!window.ResizeObserver) return;
-    pinWatch = new ResizeObserver(function () {
-      var scale = m.clientWidth / W; if (!scale) return;
-      var r = Math.min(44, Math.max(HIT_R, 22 / scale));
-      Array.prototype.forEach.call(m.querySelectorAll('.rm-hit'), function (c) { c.setAttribute('r', String(r)); });
-    });
-    pinWatch.observe(m);
+  /* The map shrinks with its card, so the drawing is sized again whenever its width changes. */
+  var mapWatch = null;
+  function fitMap(m, svg, R) {
+    if (mapWatch) mapWatch.disconnect();
+    var run = function () { layoutMap(svg, R, svg.getBoundingClientRect().width / W); };
+    run();
+    if (window.ResizeObserver) { mapWatch = new ResizeObserver(run); mapWatch.observe(m); }
   }
-  /* Above 720px the map shows and the stop list is only a text alternative, so it leaves the tab order. */
-  var wide = window.matchMedia('(min-width: 721px)');
-  function syncList() {
-    Array.prototype.forEach.call(document.querySelectorAll('.ovw-route[data-view="map"] .ovw-stoplist'), function (l) { l.inert = wide.matches; });
+
+  /* Pin, list row and the leg that arrives at the stop share one index. Hover or focus on any of them lights the other two
+     and opens the tooltip on the map. Escape closes the tooltip. */
+  function setHl(i, on) {
+    Array.prototype.forEach.call(document.querySelectorAll('#ovw [data-stop="' + i + '"], #ovw [data-to="' + i + '"]'), function (e) { e.classList.toggle('is-hl', on); });
   }
-  wide.addEventListener('change', syncList);
+  var hlIndex = -1;
+  function clearHl() {
+    if (hlIndex >= 0) setHl(hlIndex, false);
+    hlIndex = -1;
+    var tip = document.getElementById('rmTip'); if (tip) tip.classList.remove('is-on');
+  }
+  function showTip(R, i, leg) {
+    var m = document.getElementById('rmap'), tip = document.getElementById('rmTip'), svg = m && m.querySelector('svg');
+    if (!tip || !svg) return;
+    var p = R.pts[i], L = R.legs[i - 1], sc = svg.getBoundingClientRect().width / W, x = p.x, y = p.y, html;
+    if (leg && L) {
+      var mid = R.samples[(i - 1) * 11 + 5]; x = mid[0]; y = mid[1];
+      html = '<b>' + L.from + ' to ' + L.to + '</b>' + (ROAD_OK ? '<span>' + L.km.toLocaleString('en-IN') + ' km, ' + hm(L.min) + '</span>' : '<span>Road not measured yet</span>') + '<span>' + (L.a === L.b ? 'Day ' + L.a : 'Days ' + L.a + '–' + L.b) + '</span>';
+    } else {
+      var tag = R.pts.length > 1 && i === 0 ? 'Start' : (R.pts.length > 1 && i === R.pts.length - 1 ? 'End' : '');
+      html = '<b>' + p.n + '</b><span>Day ' + p.day + (tag ? ', ' + tag.toLowerCase() : '') + '</span>' + (L ? (ROAD_OK ? '<span>' + L.km.toLocaleString('en-IN') + ' km, ' + hm(L.min) + ' from ' + L.from + '</span>' : '<span>Road not measured yet</span>') : '');
+    }
+    tip.innerHTML = html; tip.classList.toggle('is-below', y * sc < 96); tip.classList.add('is-on');
+    var w = tip.offsetWidth;
+    tip.style.left = Math.min(Math.max(x * sc, w / 2 + 6), m.clientWidth - w / 2 - 6) + 'px'; tip.style.top = (y * sc) + 'px';
+  }
+  function activate(t) {
+    if (!curR || !t) return;
+    var leg = t.hasAttribute('data-to') && !t.hasAttribute('data-stop');
+    var i = +(t.getAttribute('data-stop') || t.getAttribute('data-to'));
+    if (i === hlIndex && !leg) return;
+    clearHl(); hlIndex = i; setHl(i, true); showTip(curR, i, leg);
+  }
 
   /* Mockup only: a click shows where the real tab would go. */
   var toastEl = document.getElementById('toast'), toastTimer = 0;
@@ -933,6 +1029,12 @@ ul, ol { padding: 0; list-style: none; }
     var p = e.target.closest && e.target.closest('.rm-pin');
     if (p && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); toast('Would open: ' + p.getAttribute('data-open')); }
   });
+  var LINKED = '[data-stop], .rm-leghit';
+  ovwEl.addEventListener('mouseover', function (e) { var t = e.target.closest && e.target.closest(LINKED); if (t) activate(t); });
+  ovwEl.addEventListener('mouseout', function (e) { var t = e.target.closest && e.target.closest(LINKED); if (t && !t.contains(e.relatedTarget)) clearHl(); });
+  ovwEl.addEventListener('focusin', function (e) { var t = e.target.closest && e.target.closest('[data-stop]'); if (t) activate(t); });
+  ovwEl.addEventListener('focusout', function () { clearHl(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') clearHl(); });
 
   function render(s) {
     alertUsed = false;
@@ -940,8 +1042,8 @@ ul, ol { padding: 0; list-style: none; }
     var html = verdict(s) + '<div class="ovw-split">' + needs(s) + route(s) + stats(s) + '</div>' +
       '<div class="ovw-lower">' + matrix(s) + '<div class="ovw-stack">' + pulse(s) + commitments(s) + activity(s) + '</div></div>' + weather(s);
     document.getElementById('ovw').innerHTML = html;
-    var m = document.getElementById('rmap'); if (m) { m.appendChild(buildMap(routeData(NPTS))); fitPins(m); }
-    syncList();
+    var m = document.getElementById('rmap'); if (m && curR) { var msvg = buildMap(curR); m.insertBefore(msvg, m.firstChild); fitMap(m, msvg, curR); }
+    hlIndex = -1;
     var mb = document.getElementById('moreBtn');
     if (mb) mb.addEventListener('click', function () {
       var rows = document.getElementById('moreRows'), open = rows.hidden;

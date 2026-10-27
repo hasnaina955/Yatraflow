@@ -1,7 +1,7 @@
 # P12 Overview tab (Workspace tabs) - redesign notes
 
 Open `MOCKUP.html` in a browser. Use `?theme=light|dark`, `?state=ready|loading|failed|empty|kept` and `?guides=1`.
-For review shots, `?stops=N` sets the route points (0 to 30) and `?days=N` sets the day count (1 to 30).
+For review shots, `?stops=N` sets the route points (0 to 30). `?route=winding|straight|loop` sets the route shape. `?road=pending` hides distance and time and `?days=N` sets the day count (1 to 30).
 The data is sample data. The health score logic is not changed. The mockup only shows it.
 `?guides=1` draws the 1400px container (normal tabs) and the 1720px width (Board and Map).
 
@@ -34,39 +34,41 @@ The data is sample data. The health score logic is not changed. The mockup only 
 
 | Width | Before | After | Change |
 | --- | --- | --- | --- |
-| 1440 | 2319 px | 1651 px | -28.8% |
-| 390 | 3664 px | 2911 px | -20.6% |
+| 1440 | 2319 px | 1881 px | -18.9% |
+| 390 | 3664 px | 2900 px | -20.9% |
 
 At 390 the 25% target is not met. Ten day rows of 44px need 440px. The group blocks cannot shrink more without dropping data.
-The last round measured 2841 px at 390. The stop rows are now 44px buttons, so the phone list is 70 px taller. The 1440 height did not change.
+The route card now holds the map, a summary line and a stop list. This adds 230 px at 1440. The 1440 page is now 18.9% shorter, not 28.8%. The map is the main thing on the card. The stop list is the cost.
 
 ## Route card
 
-The card shows a schematic SVG with no external tiles. The SVG is a labelled group. The pins are buttons. The drawing around them is hidden from assistive tech.
+The route is the picture. The card shows the shape of the road and almost no text on it. The map is an SVG with no external tiles. The pins are buttons. The drawing around them is hidden from assistive tech.
 
-- A calm grey base line runs under the route. The route is brand teal on top. Each leg is its own path.
-- Pins mark the start, each overnight base and the end. The header counts every stop, so it can read 14 stops while the map shows 6 pins.
-- Numbered pins: the start pin is solid teal and the end pin is saffron. Both carry a "Start" or "End" tag in sentence case. One stop gives one centred pin and no leg labels.
-- A pin is a 28px face over a transparent hit circle of r=22 (44px). Hover and keyboard focus draw a 2px ring, 2px outside the face. The cursor is a pointer. The tooltip names the stop and the day.
-- When the card is narrower than 720px, the hit circle grows in map units. The pin stays a 44px target. It stops at 44 units, because eight pins sit 90 units apart at the least.
-- Each pin opens the Map at that stop. The mockup shows a small status line: "Would open: Map at Gangtok". The label of the pin names the stop, the day and the leg before it.
-- Each leg has an 84-unit label on the line. It shows distance, drive time, day range and a stripe in the day colour (tokens). The day band strip is gone.
-- Hover on a leg or its label thickens the leg from 3.5 to 5. Only `stroke-width` moves, with `--motion-fast`.
+- The map follows the dark plate of `RouteSnapshot`. Sample points are projected with the same maths: scale to fit, north up, and the drawn bounds centred. The viewBox is 720 x 240.
+- The road is a thick line (8 units, round caps) with a soft casing. A cream dashed centre line (2 units, dash 7 9) runs on top. Each leg is its own path. Catmull-Rom smoothing joins the legs.
+- The road gradient runs from saffron to a warm red. Both colours come from tokens (`--yf-saffron` and `--danger`). The mockup mixes them with `color-mix`. The plate stays dark navy in light and dark themes.
+- The shape fills 93% of the width and 78% of the height for the default route. The loop fills 87% and 81%. The straight route fills 93% of the width and 47% of the height.
+- Add `?route=winding|straight|loop` to review the three shapes. Add `?road=pending` to see the route before the road is measured.
+- The map has almost no text. Pins are small numbered dots with no names. Only the Start and the End carry a tag ("Start", "End") and the city name, one time each. There are no leg pills, no distance or time on the line, and no day strip.
+- Detail sits in a tooltip. It opens on hover and on keyboard focus of a pin. It names the stop and the day. It also gives the leg that arrives there ("520 km, 7 h 58 min from Kolkata"). Hover on a leg shows the same facts for that leg. Escape closes the tooltip.
+- Under the map, one summary line gives total distance, drive time, days and stops. Under it, a compact stop list shows one row for each stop: pin number, name, day, distance and time. The list is the screen reader path.
+- A pin, its list row and the leg that arrives at it highlight together. Hover or focus on any one of them lights the other two. The highlight uses a 2px ring on the pin and a wider glow on the leg.
+- A pin is a small face over a transparent hit circle of 44px. Each pin and each row opens the Map at that stop. The mockup shows a small status line: "Would open: Map at Gangtok".
+- When the card is narrower than 720px, the map keeps the same shape. Lines, dots and text grow in map units, so the pins stay readable at 328px wide. The stop list sits below the map in one column.
+- A pin is a button only when its 44px circle fits between its neighbours. The Start and the End always are. With 14 stops at 390, only those two stay interactive. The rows in the list stay the way to reach every stop.
+- Above 8 stops the list scrolls inside the card and fades at the foot.
+- Legs are not focusable. The tooltip of the pin at the end of a leg carries the leg facts. A keyboard user loses nothing.
+- Zero points keep the empty state. One point shows one pin and one row. Before the road is measured, the summary and the rows show no distance or time.
 - The route draws in once, with `stroke-dashoffset`. Each leg uses `--motion-slow` (240ms) and `--ease-out`. The delay grows by one `--stagger-step` (60ms) for each leg, up to eight legs. With reduced motion the route shows at once.
-- Leg labels hide when the pins sit closer than 112 units (more than 6 pins). The 84-unit label needs 84 units plus the 28-unit pin face.
-- The summary shows days, kilometres and stops as three separate items in a row with a 12px gap. It has no arrows and no dots. "Open map" is a text link with a 44px target (40px with a fine pointer).
-- Names stop at 14 characters. The full name is in the pin title. The script tries the preferred side, then the others. A name that fits nowhere drops to 8 characters, then to no label.
-- Above 8 pins the card shows the stop list at all widths. The list scrolls and fades at the foot.
-- At 720px or less the map becomes the same vertical stop list. It shows pins, a coloured bar for each leg, distance, time and the day range. Each stop is a 44px button that opens the Map at that stop.
-- Zero points keep the empty state.
-- Above 720px the stop list is only a text alternative. It is visually hidden and `inert`, so it adds no tab stops. The pins carry the actions.
+- Colour contrast, measured: the road on the plate is 5.8:1 or more. The red end in light is 3.27:1, above the 3:1 graphic limit. White labels are 11.5:1 or more. Pin numbers are 5.19:1 or more. The tooltip and the list text are 6.8:1 or more.
 
 What the real data can supply (`OverviewTab.tsx`, route snapshot):
 
 - `overviewRoutePoints(trip)` gives an ordered list of `{ lat, lng, day | null }`. It gives an empty list when fewer than two points have valid coordinates. That case shows the empty state.
 - A point with `day: null` is a start, a return leg or a destination tail. It has no day badge.
-- Distance and drive time per leg come from `road.legs` (`distanceKm`, `durationMinutes`). They exist only after the app measured the road. Before that, the map must show pins and names without leg labels.
-- The code must project latitude and longitude to the sketch. The mockup uses fixed positions.
+- Distance and drive time per leg come from `road.legs` (`distanceKm`, `durationMinutes`). They exist only after the app measured the road. Before that, the map and the list show pins and names with no distance or time.
+- The port can reuse the projection and `catmullRomPath` from `RouteSnapshot`. The mockup uses sample points.
+- The mockup sample total (2,500 km) differs from the 2,140 km text in other sample blocks. Both are sample data.
 
 ## Day matrix
 
@@ -108,7 +110,7 @@ The real card has three notes that the mockup does not draw: stale (numbers hidd
 | Verdict | `Surface` + `Chip`, `healthBandClass`, `healthBandSentence`, `healthBandTone` (OverviewTab.tsx:147-175) | New `ovw-verdict` markup. Same band helpers. |
 | What needs you | `rankWarnings`, `warningKey`, `severityLead`, `StateBlock` (:186-210) | One `Surface`. Rows keep `.warn-item` content. Add a per-row action. |
 | Stat row | `StatTile` (:178-183) | Three slim `StatTile`. Merge the last two. |
-| Route card | `RouteSnapshot`, `overviewRoutePoints`, `StateBlock` (:214-249) | New SVG map with leg labels and a stop list. Same empty branch. `PublicItinerary` keeps the old component. |
+| Route card | `RouteSnapshot`, `overviewRoutePoints`, `StateBlock` (:214-249) | New SVG map (geometry first), tooltip, summary line and stop list. Same empty branch. `PublicItinerary` keeps the old component. |
 | Group pulse | `Surface.ovw-strip` (:310-337) | Pass `onOpenDecisions` through. |
 | Fixed commitments | `Surface` (:253-277) | Quiet block class. |
 | Recent activity | `overviewSliceView`, `StateBlock` (:279-305) | Quiet block class. |
@@ -126,7 +128,7 @@ The port adds these props. All of them are optional.
 | --- | --- | --- |
 | `OverviewTab` | `onOpenTimeline(dayIndex?, slotKey?)` | The Timeline at that day or slot. |
 | `OverviewTab` | `onOpenMap(focus?: { dayIndex?, stopId? })` | The Map tab at that stop. |
-| `RouteSnapshot` | `onPointSelect?(dayIndex)` | The Map at the stop for that day. |
+| `RouteSnapshot` | `onPointSelect?(dayIndex)` | The Map at the stop for that day. Pins and stop rows both call it. |
 | `SlotMatrix` | `onSelectCell?(dayIndex, kind)` | The Timeline at that slot. |
 | `SlotMatrix` | `onSelectDay?(dayIndex)` | The Timeline at that day. |
 

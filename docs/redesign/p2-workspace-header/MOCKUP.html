@@ -1,0 +1,454 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>P2 Trip workspace header and tab bar mockup</title>
+<style>
+/* Tokens copied from src/styles.css (:root and [data-theme='dark']). No invented palette. */
+:root {
+  --yf-cream: #F8F7EF; --yf-mist: #ECF8F4; --yf-peach: #FFF2E8;
+  --yf-navy: #123F49; --yf-teal-600: #0D8D82; --yf-teal-100: #E5F4EE;
+  --yf-saffron-100: #FFF4E4; --yf-saffron: #F3AA3D; --yf-purple: #897ABB; --yf-amber: #E4AE43;
+  --card: #FFFFFF; --text: #0B2545; --text-2: #45566E; --text-3: #5A6A80;
+  --line: #E4DCCC; --yf-border: #DCE7E1;
+  --teal-deep: #0E7A72; --ink-teal: #0B6B63; --teal-soft: #E5F4EE;
+  --ok: #2E8B57; --btn-accent: #F3AA3D; --btn-accent-fg: #0B2545;
+  --yf-nav-glass: rgba(255,255,255,.58); --yf-glass-border: rgba(255,255,255,.65);
+  --shadow-navy-rgb: 11, 37, 69;
+  --shadow-soft: 0 2px 6px rgba(var(--shadow-navy-rgb),.04), 0 16px 40px rgba(var(--shadow-navy-rgb),.10);
+  --radius: 18px; --radius-sm: 12px; --radius-lg: 24px;
+  --ring: 0 0 0 3px var(--yf-teal-600);
+  --font-serif: 'Playfair Display', Georgia, 'Times New Roman', serif;
+  --font-body: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --motion-fast: 120ms; --motion-med: 180ms; --motion-slow: 240ms;
+  --ease-out: cubic-bezier(.22, .61, .36, 1);
+  --stagger-step: 60ms;
+  --z-frost: 5;
+  --atmos-mint: rgba(124,225,207,.20); --atmos-peach: rgba(255,179,107,.16);
+  color-scheme: light;
+}
+:root[data-theme='dark'] {
+  --yf-cream: #0C1420; --yf-mist: #0F1B2B; --yf-peach: #1A2030;
+  --yf-navy: #0F2A33; --yf-teal-600: #2BB8AC; --yf-teal-100: #12332F;
+  --yf-saffron-100: #3A2C15; --yf-saffron: #F5A94A; --yf-purple: #A99BD6; --yf-amber: #D99A2B;
+  --card: #16233A; --text: #ECF1F8; --text-2: #ADBCCF; --text-3: #8FA0B5;
+  --line: #27395A; --yf-border: #27395A;
+  --teal-deep: #35C9BC; --ink-teal: #35C9BC; --teal-soft: #12332F;
+  --ok: #52BE80; --btn-accent: #F5A94A; --btn-accent-fg: #0C1420;
+  --yf-nav-glass: rgba(16,27,43,.58); --yf-glass-border: rgba(255,255,255,.14);
+  --atmos-mint: rgba(43,184,172,.10); --atmos-peach: rgba(245,169,74,.08);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { scrollbar-gutter: stable; }
+body {
+  margin: 0; font-family: var(--font-body); color: var(--text); background: var(--yf-cream);
+  background-image:
+    radial-gradient(900px 420px at 8% -80px, var(--atmos-mint), transparent 70%),
+    radial-gradient(800px 380px at 96% -60px, var(--atmos-peach), transparent 70%);
+  background-repeat: no-repeat; font-size: 15px; line-height: 1.5;
+}
+button { font: inherit; color: inherit; cursor: pointer; }
+:focus-visible { outline: none; box-shadow: var(--ring); }
+
+/* ---- Mockup chrome (not part of the product) ---- */
+.mock-bar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 10px 20px;
+  background: var(--card); border-bottom: 1px dashed var(--line); font-size: 12px; color: var(--text-2);
+}
+.mock-bar b { color: var(--text); }
+.mock-bar .seg { display: inline-flex; gap: 4px; }
+.mock-bar button {
+  min-height: 44px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--line);
+  background: transparent; font-size: 12px; font-weight: 700; color: var(--text-2);
+}
+.mock-bar button[aria-pressed='true'] { background: var(--teal-soft); color: var(--ink-teal); border-color: var(--yf-teal-600); }
+.mock-bar .readout { margin-left: auto; font-variant-numeric: tabular-nums; }
+.app-nav-stub {
+  display: flex; align-items: center; gap: 16px; min-height: 56px; padding: 0 20px;
+  font-size: 13px; font-weight: 700; color: var(--text-3);
+}
+.app-nav-stub .brand { color: var(--ink-teal); font-weight: 800; font-size: 16px; }
+.app-nav-stub em { font-style: normal; font-weight: 500; margin-left: auto; font-size: 12px; }
+
+/* ---- Product: container (existing rules, unchanged) ---- */
+.container { width: 100%; max-width: 1180px; margin: 0 auto; padding: 0 20px; }
+.container--board { max-width: 1680px; }
+.container--map { max-width: 1760px; }
+.container { padding-top: 22px; }
+body.guides .container { outline: 2px solid var(--yf-purple); outline-offset: -2px; position: relative; }
+body.guides .container::before {
+  content: attr(data-guide); position: absolute; right: 8px; top: 2px;
+  font-size: 11px; font-weight: 700; color: var(--yf-purple); background: var(--card); padding: 2px 8px; border-radius: 6px;
+}
+
+/* ---- Product: the new yf-page wrapper around header + tab bar only (R15) ---- */
+.yf-page { position: relative; }
+body.guides .yf-page { outline: 2px dashed var(--yf-teal-600); outline-offset: 4px; }
+body.guides .yf-page::before {
+  content: 'div.yf-page (header + tab bar only)'; position: absolute; left: 8px; top: -2px; transform: translateY(-100%);
+  font-size: 11px; font-weight: 700; color: var(--ink-teal); background: var(--card); padding: 2px 8px; border-radius: 6px; z-index: 2;
+}
+
+/* ---- Editorial header ---- */
+.yf-trip-head {
+  --thumb: 96px;
+  position: relative; overflow: hidden; margin-bottom: 14px; padding: 22px 24px;
+  background: var(--card); border: 1px solid var(--yf-border); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-soft);
+  transition: padding var(--motion-med) var(--ease-out), background-color var(--motion-slow) var(--ease-out), border-color var(--motion-slow) var(--ease-out);
+}
+.yf-trip-head::after { /* faint saffron paper circle, same idea as the old band */
+  content: ''; position: absolute; right: -70px; top: -90px; width: 240px; height: 240px; border-radius: 50%;
+  background: var(--yf-saffron-100); opacity: .9; pointer-events: none;
+}
+:root[data-theme='dark'] .yf-trip-head::after { opacity: .4; }
+.yf-trip-head > * { position: relative; z-index: 1; }
+.yf-back {
+  display: inline-flex; align-items: center; min-height: 44px; margin: -10px 0 0 -12px; padding: 0 12px;
+  border: 0; background: none; border-radius: 10px; font-size: 13px; font-weight: 700; color: var(--text-3);
+  transition: color var(--motion-fast) var(--ease-out), background-color var(--motion-fast) var(--ease-out);
+}
+.yf-back:hover { color: var(--ink-teal); background: var(--teal-soft); }
+.yf-head-row { display: flex; align-items: center; gap: 18px; }
+.yf-thumb {
+  flex: 0 0 auto; width: var(--thumb); height: var(--thumb); border-radius: var(--radius); overflow: hidden;
+  border: 1px solid var(--yf-border); background: var(--yf-mist);
+  transition: width var(--motion-med) var(--ease-out), height var(--motion-med) var(--ease-out), border-radius var(--motion-med) var(--ease-out);
+}
+.yf-thumb svg { display: block; width: 100%; height: 100%; }
+.yf-head-main { min-width: 0; flex: 1 1 auto; }
+.yf-head-title {
+  margin: 0; font-family: var(--font-serif); font-weight: 600; color: var(--text);
+  font-size: clamp(1.75rem, 1.2rem + 1.6vw, 2.5rem); line-height: 1.1; letter-spacing: -.015em; text-wrap: balance;
+  transition: font-size var(--motion-med) var(--ease-out);
+}
+.yf-collapse { overflow: hidden; max-height: 120px; opacity: 1;
+  transition: max-height var(--motion-med) var(--ease-out), opacity var(--motion-med) var(--ease-out), margin var(--motion-med) var(--ease-out); }
+.yf-head-meta { margin: 8px 0 0; color: var(--text-2); font-size: 14px; }
+.yf-head-actions { flex: 0 0 auto; }
+.yf-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 20px;
+  border: 0; border-radius: 999px; font-weight: 800; font-size: 14px; white-space: nowrap;
+  background: var(--btn-accent); color: var(--btn-accent-fg);
+  box-shadow: 0 1px 2px rgba(var(--shadow-navy-rgb),.12);
+  transition: filter var(--motion-fast) var(--ease-out), transform var(--motion-fast) var(--ease-out);
+}
+.yf-btn:hover { filter: brightness(1.06); transform: translateY(-1px); }
+.yf-btn:active { transform: translateY(0); }
+
+/* member stack with presence dots */
+.yf-members { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin-top: 14px; }
+.yf-avatars { display: flex; align-items: center; }
+.yf-avatar {
+  position: relative; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto;
+  width: 32px; height: 32px; margin-left: -8px; border-radius: 50%; border: 2px solid var(--card);
+  background: var(--teal-soft); color: var(--ink-teal); font-weight: 800; font-size: 12px;
+}
+.yf-avatar:first-child { margin-left: 0; z-index: 3; }
+.yf-avatar:nth-child(2) { z-index: 2; }
+.yf-avatar:nth-child(3) { z-index: 1; }
+.yf-avatar:nth-child(2) { background: var(--yf-saffron); color: #0B2545; }
+.yf-avatar:nth-child(3) { background: var(--yf-purple); color: #0B2545; }
+.yf-avatar::after { content: ''; position: absolute; inset: -6px; } /* 44px hit area */
+.yf-avatar .dot { position: absolute; right: -2px; bottom: -2px; width: 11px; height: 11px; border-radius: 50%; background: var(--ok); border: 2px solid var(--card); }
+.yf-avatar .tip {
+  position: absolute; left: 50%; bottom: calc(100% + 8px); transform: translateX(-50%) translateY(4px);
+  background: var(--card); color: var(--text); border: 1px solid var(--line); border-radius: 8px;
+  padding: 4px 9px; font-size: 12px; font-weight: 600; white-space: nowrap; box-shadow: var(--shadow-soft);
+  opacity: 0; pointer-events: none; z-index: 3;
+  transition: opacity var(--motion-med) var(--ease-out), transform var(--motion-med) var(--ease-out);
+}
+.yf-avatar:hover .tip, .yf-avatar:focus-visible .tip { opacity: 1; transform: translateX(-50%) translateY(0); }
+.yf-member-note { font-size: 13px; color: var(--text-2); }
+.yf-member-note b { color: var(--text); }
+.yf-viewing { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-2); }
+.yf-viewing i { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); }
+
+/* compact state (Board and Map tabs): same fade+collapse idea as the old band */
+[data-compact='true'] .yf-trip-head { padding: 12px 20px; --thumb: 40px; }
+[data-compact='true'] .yf-thumb { border-radius: 12px; }
+[data-compact='true'] .yf-head-title { font-size: 20px; }
+[data-compact='true'] .yf-collapse { max-height: 0; opacity: 0; margin-top: 0 !important; }
+[data-compact='true'] .yf-back { min-height: 44px; margin-top: -10px; margin-bottom: -10px; }
+
+/* ---- SegmentedTabs-style tab bar (tablist semantics, glass bar, teal glider) ---- */
+.yf-tabbar {
+  position: relative; display: flex; gap: 2px; padding: 4px; margin-bottom: 20px; border-radius: 999px;
+  overflow-x: auto; scrollbar-width: none; overscroll-behavior-x: contain;
+  background: var(--yf-nav-glass); border: 1px solid var(--yf-glass-border);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2); backdrop-filter: blur(14px) saturate(1.2);
+  box-shadow: var(--shadow-soft);
+  transition: margin var(--motion-med) var(--ease-out);
+}
+.yf-tabbar::-webkit-scrollbar { display: none; }
+[data-compact='true'] .yf-tabbar { margin-bottom: 12px; }
+.yf-tabbar[data-overflow='start'] { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent); }
+.yf-tabbar[data-overflow='middle'] { -webkit-mask-image: linear-gradient(90deg, transparent, #000 28px, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(90deg, transparent, #000 28px, #000 calc(100% - 28px), transparent); }
+.yf-tabbar[data-overflow='end'] { -webkit-mask-image: linear-gradient(90deg, transparent, #000 28px); mask-image: linear-gradient(90deg, transparent, #000 28px); }
+.yf-glider {
+  position: absolute; left: 0; top: 4px; bottom: 4px; width: 0; border-radius: 999px;
+  background: var(--teal-soft); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--yf-teal-600) 28%, transparent);
+  transform: translateX(0); pointer-events: none;
+}
+.yf-glider.on { transition: transform var(--motion-med) var(--ease-out), width var(--motion-med) var(--ease-out); }
+.yf-tab {
+  position: relative; z-index: 1; flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px;
+  min-height: 44px; padding: 0 16px; border: 0; background: none; border-radius: 999px;
+  font-size: 14px; font-weight: 600; color: var(--text-3); white-space: nowrap;
+  transition: color var(--motion-fast) var(--ease-out), background-color var(--motion-fast) var(--ease-out);
+}
+.yf-tab:hover { color: var(--text); }
+.yf-tab[aria-selected='true'] { color: var(--ink-teal); font-weight: 700; }
+.yf-count { background: var(--card); color: var(--ink-teal); font-size: 11px; font-weight: 700; border-radius: 999px; padding: 1px 7px; border: 1px solid var(--yf-border); }
+
+/* ---- Tab panel placeholders (old look until each P12 PR opts in) ---- */
+.tab-panel { margin-top: 0; padding-bottom: 28px; }
+.ph-note { margin: 0 0 12px; font-size: 12px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: .06em; }
+.ph-grid { display: grid; gap: 14px; grid-template-columns: repeat(3, 1fr); }
+.ph-card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; min-height: 120px; padding: 16px; color: var(--text-3); font-size: 13px; }
+.ph-board { display: grid; gap: 14px; grid-template-columns: repeat(4, 1fr); }
+.ph-col { background: color-mix(in srgb, var(--card) 70%, transparent); border: 1px dashed var(--line); border-radius: 14px; min-height: 280px; padding: 12px; font-size: 13px; color: var(--text-3); }
+.ph-map {
+  position: relative; border-radius: 14px; border: 1px solid var(--line); overflow: hidden;
+  height: calc(100dvh - var(--above, 300px) - 12px); min-height: 360px;
+  background:
+    linear-gradient(0deg, color-mix(in srgb, var(--yf-teal-600) 8%, transparent), transparent),
+    repeating-linear-gradient(45deg, transparent 0 22px, color-mix(in srgb, var(--text-3) 10%, transparent) 22px 23px),
+    var(--yf-mist);
+  display: grid; place-items: center; color: var(--text-3); font-size: 13px; text-align: center; padding: 16px;
+}
+.ph-tall { height: 360px; }
+.notes { margin-top: 24px; padding: 18px 20px; border: 1px dashed var(--line); border-radius: 14px; background: color-mix(in srgb, var(--card) 60%, transparent); font-size: 13px; color: var(--text-2); }
+.notes h2 { margin: 0 0 8px; font-size: 14px; font-weight: 800; color: var(--text); }
+.notes ul { margin: 0; padding-left: 18px; }
+.notes li { margin: 4px 0; }
+.notes code { font-size: 12px; background: var(--yf-mist); padding: 1px 5px; border-radius: 5px; }
+
+/* ---- Entrance: page blocks rise in with a stagger, tokens only ---- */
+@keyframes riseIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.page-enter > * { animation: riseIn var(--motion-slow) var(--ease-out) backwards; }
+.page-enter > *:nth-child(2) { animation-delay: var(--stagger-step); }
+.page-enter > *:nth-child(3) { animation-delay: calc(var(--stagger-step) * 2); }
+.tab-panel > * { animation: riseIn var(--motion-slow) var(--ease-out) backwards; }
+
+/* ---- Narrow ---- */
+@media (max-width: 720px) {
+  .container { padding-left: 16px; padding-right: 16px; }
+  .yf-trip-head { --thumb: 64px; padding: 16px; border-radius: 20px; }
+  .yf-head-row { flex-wrap: wrap; gap: 12px 14px; }
+  .yf-head-main { flex: 1 1 0; }
+  .yf-head-title { font-size: 1.75rem; }
+  .yf-head-actions { flex: 1 1 100%; }
+  .yf-head-actions .yf-btn { width: 100%; }
+  .yf-head-meta { font-size: 13px; }
+  .ph-grid, .ph-board { grid-template-columns: 1fr; }
+  [data-compact='true'] .yf-trip-head { padding: 10px 14px; --thumb: 36px; }
+  [data-compact='true'] .yf-head-title { font-size: 18px; }
+  [data-compact='true'] .yf-head-row { flex-wrap: nowrap; gap: 10px; }
+  [data-compact='true'] .yf-head-actions { flex: 0 0 auto; }
+  [data-compact='true'] .yf-head-actions .yf-btn { width: auto; padding: 0 14px; }
+  .yf-trip-head::after { width: 160px; height: 160px; right: -60px; top: -80px; }
+  .mock-bar .readout { margin-left: 0; flex-basis: 100%; }
+  .app-nav-stub { gap: 12px; white-space: nowrap; overflow: hidden; padding: 0 16px; }
+  .app-nav-stub em { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+</style>
+</head>
+<body>
+
+<div class="mock-bar" role="group" aria-label="Mockup controls">
+  <b>P2 Trip workspace header and tab bar</b>
+  <span>Sample data only.</span>
+  <span class="seg" role="group" aria-label="Scenario">
+    <button type="button" data-tab="overview" aria-pressed="true">Overview (1180px)</button>
+    <button type="button" data-tab="board" aria-pressed="false">Board (1680px)</button>
+    <button type="button" data-tab="map" aria-pressed="false">Map (1760px)</button>
+  </span>
+  <span class="seg" role="group" aria-label="View options">
+    <button type="button" id="themeBtn" aria-pressed="false">Dark</button>
+    <button type="button" id="guideBtn" aria-pressed="false">Guides</button>
+  </span>
+  <span class="readout" id="readout" aria-live="off"></span>
+</div>
+
+<div class="app-nav-stub" aria-hidden="true"><span class="brand">YatraFlow</span><span>My trips</span><span>Plan a trip</span><span>Explore</span><em>Top nav stub: unchanged by P2</em></div>
+
+<div class="container page-enter" id="container" data-guide="div.container (max-width 1180px)">
+
+  <!-- R15: header and tab bar sit in their own yf-page wrapper. .container does NOT carry yf-page. -->
+  <div class="yf-page" id="yfwrap" data-compact="false">
+    <header class="yf-trip-head" id="head">
+      <button type="button" class="yf-back">&larr; All trips</button>
+      <div class="yf-head-row">
+        <span class="yf-thumb" aria-hidden="true">
+          <!-- Papercut placeholder. The real header uses TripArt, then the generated region art. -->
+          <svg viewBox="0 0 96 96" preserveAspectRatio="xMidYMid slice" focusable="false">
+            <rect width="96" height="96" fill="var(--yf-mist)"/>
+            <circle cx="68" cy="26" r="11" fill="var(--yf-saffron)"/>
+            <g style="filter: drop-shadow(0 2px 1.5px rgba(11,37,69,.28))">
+              <path d="M0 58 L18 38 L30 50 L48 28 L70 52 L84 42 L96 54 V96 H0Z" fill="var(--yf-purple)"/>
+            </g>
+            <g style="filter: drop-shadow(0 2px 1.5px rgba(11,37,69,.32))">
+              <path d="M0 70 Q22 54 44 68 T96 62 V96 H0Z" fill="var(--yf-teal-600)"/>
+            </g>
+            <g style="filter: drop-shadow(0 2px 1.5px rgba(11,37,69,.36))">
+              <path d="M0 82 Q28 70 52 82 T96 78 V96 H0Z" fill="var(--yf-navy)"/>
+            </g>
+          </svg>
+        </span>
+        <div class="yf-head-main">
+          <h1 class="yf-head-title">North South</h1>
+          <p class="yf-head-meta yf-collapse">Kolkata, West Bengal &rarr; Leh, Ladakh &middot; 1 Sep &ndash; 10 Sep 2026 &middot; 4 travellers &middot; Motorcycle &middot; Relaxed</p>
+        </div>
+        <div class="yf-head-actions">
+          <button type="button" class="yf-btn">Invite &amp; share</button>
+        </div>
+      </div>
+      <div class="yf-members yf-collapse" aria-label="Members">
+        <span class="yf-avatars">
+          <span class="yf-avatar" tabindex="0" aria-label="Sample member A, viewing now">A<span class="dot" aria-hidden="true"></span><span class="tip" role="tooltip">Sample member A &middot; viewing now</span></span>
+          <span class="yf-avatar" tabindex="0" aria-label="Sample member B, viewing now">B<span class="dot" aria-hidden="true"></span><span class="tip" role="tooltip">Sample member B &middot; viewing now</span></span>
+          <span class="yf-avatar" tabindex="0" aria-label="Sample member C">C<span class="tip" role="tooltip">Sample member C &middot; away</span></span>
+        </span>
+        <span class="yf-member-note"><b>3 members</b> &middot; you are owner</span>
+        <span class="yf-viewing"><i aria-hidden="true"></i>2 viewing now</span>
+      </div>
+    </header>
+
+    <div class="yf-tabbar" role="tablist" aria-label="Trip sections" id="tabbar" data-overflow="none">
+      <span class="yf-glider" id="glider" aria-hidden="true"></span>
+      <button class="yf-tab" role="tab" id="tab-overview" aria-controls="panel-overview" data-key="overview">Overview</button>
+      <button class="yf-tab" role="tab" id="tab-board" aria-controls="panel-board" data-key="board">Board</button>
+      <button class="yf-tab" role="tab" id="tab-map" aria-controls="panel-map" data-key="map">Map</button>
+      <button class="yf-tab" role="tab" id="tab-timeline" aria-controls="panel-timeline" data-key="timeline">Timeline</button>
+      <button class="yf-tab" role="tab" id="tab-group" aria-controls="panel-group" data-key="group">Group input<span class="yf-count">3</span></button>
+      <button class="yf-tab" role="tab" id="tab-budget" aria-controls="panel-budget" data-key="budget">Budget</button>
+      <button class="yf-tab" role="tab" id="tab-share" aria-controls="panel-share" data-key="share">Share</button>
+      <button class="yf-tab" role="tab" id="tab-settings" aria-controls="panel-settings" data-key="settings">Settings</button>
+    </div>
+  </div>
+
+  <div class="tab-panel" id="panel" role="tabpanel" aria-labelledby="tab-overview"></div>
+
+  <aside class="notes">
+    <h2>What this mockup shows</h2>
+    <ul>
+      <li>The <code>yf-page</code> wrapper holds the header and the tab bar only. The tab panel keeps the old look.</li>
+      <li>Board uses 1680px and Map uses 1760px. The wrapper does not change the container width.</li>
+      <li>Board and Map compact the header. The member row and route line collapse, and the padding glides.</li>
+      <li>Colours, radii and motion come from <code>src/styles.css</code>. The serif font appears on the h1 only (R14).</li>
+    </ul>
+  </aside>
+</div>
+
+<script>
+(function () {
+  var qs = new URLSearchParams(location.search);
+  var root = document.documentElement;
+  var wrap = document.getElementById('yfwrap');
+  var tabbar = document.getElementById('tabbar');
+  var glider = document.getElementById('glider');
+  var panel = document.getElementById('panel');
+  var container = document.getElementById('container');
+  var tabs = Array.prototype.slice.call(tabbar.querySelectorAll('[role=tab]'));
+  var current = null;
+
+  // Theme: ?theme=light|dark, else the system preference.
+  function setTheme(t) {
+    root.setAttribute('data-theme', t);
+    var b = document.getElementById('themeBtn');
+    b.setAttribute('aria-pressed', String(t === 'dark')); b.textContent = t === 'dark' ? 'Dark (on)' : 'Dark';
+  }
+  var t0 = qs.get('theme');
+  if (t0 !== 'light' && t0 !== 'dark') t0 = (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+  setTheme(t0);
+  document.getElementById('themeBtn').addEventListener('click', function () {
+    var n = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    setTheme(n); qs.set('theme', n); history.replaceState(null, '', '?' + qs.toString());
+  });
+  var gb = document.getElementById('guideBtn');
+  function setGuides(on) { document.body.classList.toggle('guides', on); gb.setAttribute('aria-pressed', String(on)); }
+  setGuides(qs.get('guides') === '1');
+  gb.addEventListener('click', function () { var on = !document.body.classList.contains('guides'); setGuides(on); qs.set('guides', on ? '1' : '0'); history.replaceState(null, '', '?' + qs.toString()); });
+
+  function placeGlider(animate) {
+    var sel = tabs.filter(function (t) { return t.getAttribute('aria-selected') === 'true'; })[0];
+    if (!sel) return;
+    glider.classList.toggle('on', !!animate);
+    glider.style.width = sel.offsetWidth + 'px';
+    glider.style.transform = 'translateX(' + sel.offsetLeft + 'px)';
+  }
+  function overflowState() {
+    var max = tabbar.scrollWidth - tabbar.clientWidth;
+    var st = 'none';
+    if (max > 2) st = tabbar.scrollLeft < 2 ? 'start' : (tabbar.scrollLeft > max - 2 ? 'end' : 'middle');
+    tabbar.setAttribute('data-overflow', st);
+  }
+  function readout() {
+    var top = panel.getBoundingClientRect().top + window.scrollY;
+    document.getElementById('readout').textContent =
+      'Viewport ' + innerWidth + '×' + innerHeight + ' · container ' + container.offsetWidth + 'px · panel starts ' + Math.round(top) + 'px from page top';
+    panel.style.setProperty('--above', Math.round(top - window.scrollY) + 'px');
+  }
+
+  var PH = {
+    overview: function () {
+      return '<p class="ph-note">Placeholder: Overview. Old look.</p>' +
+        '<div class="ph-grid"><div class="ph-card">Trip briefing card</div>' +
+        '<div class="ph-card">Cost card</div><div class="ph-card">Route card</div></div>';
+    },
+    board: function () {
+      return '<p class="ph-note">Placeholder: Board. Wide container.</p>' +
+        '<div class="ph-board"><div class="ph-col">Day 1 column</div><div class="ph-col">Day 2 column</div>' +
+        '<div class="ph-col">Day 3 column</div><div class="ph-col">Day 4 column</div></div>';
+    },
+    map: function () { return '<div class="ph-map">Map placeholder (wide container). It fills the viewport below the compact header and tab bar.</div>'; }
+  };
+  function setTab(key, focus) {
+    current = key;
+    tabs.forEach(function (t) {
+      var on = t.dataset.key === key;
+      t.setAttribute('aria-selected', String(on)); t.tabIndex = on ? 0 : -1;
+    });
+    var wide = key === 'board' || key === 'map';
+    wrap.setAttribute('data-compact', String(wide));
+    container.className = 'container page-enter' + (key === 'board' ? ' container--board' : '') + (key === 'map' ? ' container--map' : '');
+    container.setAttribute('data-guide', 'div.container' + (key === 'board' ? '--board (max-width 1680px)' : key === 'map' ? '--map (max-width 1760px)' : ' (max-width 1180px)'));
+    panel.id = 'panel'; panel.setAttribute('aria-labelledby', 'tab-' + key);
+    panel.innerHTML = (PH[key] || function () { return '<p class="ph-note">Tab panel placeholder: ' + key + '</p><div class="ph-card ph-tall">Old look until its P12 PR opts in.</div>'; })();
+    document.querySelectorAll('.mock-bar [data-tab]').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.tab === key)); });
+    placeGlider(true);
+    if (focus) { var s = document.getElementById('tab-' + key); s.focus(); s.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }
+    qs.set('tab', key); history.replaceState(null, '', '?' + qs.toString());
+    setTimeout(readout, 260);
+  }
+
+  tabs.forEach(function (t, i) {
+    t.addEventListener('click', function () { setTab(t.dataset.key, false); });
+    t.addEventListener('keydown', function (e) {
+      var n = null;
+      if (e.key === 'ArrowRight') n = (i + 1) % tabs.length;
+      else if (e.key === 'ArrowLeft') n = (i - 1 + tabs.length) % tabs.length;
+      else if (e.key === 'Home') n = 0;
+      else if (e.key === 'End') n = tabs.length - 1;
+      if (n !== null) { e.preventDefault(); setTab(tabs[n].dataset.key, true); }
+    });
+  });
+  document.querySelectorAll('.mock-bar [data-tab]').forEach(function (b) { b.addEventListener('click', function () { setTab(b.dataset.tab, false); }); });
+  tabbar.addEventListener('scroll', overflowState, { passive: true });
+  window.addEventListener('resize', function () { placeGlider(false); overflowState(); readout(); });
+
+  var start = qs.get('tab'); if (!document.getElementById('tab-' + start)) start = 'overview';
+  setTab(start, false);
+  placeGlider(false); overflowState(); readout();
+  if (qs.get('tabscroll') === 'end') { tabbar.scrollLeft = tabbar.scrollWidth; overflowState(); }
+  window.__ready = true;
+})();
+</script>
+</body>
+</html>

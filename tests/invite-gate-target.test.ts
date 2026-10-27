@@ -81,7 +81,7 @@ function mountGate(join: (tripId: string) => Promise<gate.JoinResult>, overrides
       events.push(['resolve', code])
       return code === 'SECOND' ? trip(TRIP_B) : trip(TRIP_A)
     },
-    fetchSharedTrip: async (id: string) => trip(id),
+    readSharedTrip: async (id: string) => ({ kind: 'found', trip: trip(id) }),
     viewerIsMemberOf: async () => false,
     ...overrides,
     joinViaInvite: (tripId: string) => {

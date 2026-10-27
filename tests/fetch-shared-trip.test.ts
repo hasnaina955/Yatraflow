@@ -8,7 +8,7 @@
 import { describe, it, expect, vi } from 'vitest'
 
 const { state } = vi.hoisted(() => ({
-  state: { tripRow: null as unknown, rpcRows: null as unknown },
+  state: { tripRow: null as unknown, rpcRows: null as unknown, error: null as unknown, pending: null as Promise<{ data: unknown; error: unknown }> | null },
 }))
 
 vi.mock('../src/lib/supabase', () => {
@@ -19,9 +19,9 @@ vi.mock('../src/lib/supabase', () => {
     builder.maybeSingle = () => builder
     builder.single = () => builder
     builder.then = (res: (v: { data: unknown; error: unknown }) => unknown) =>
-      new Promise(resolve => {
-        resolve({ data: table === 'trips' ? state.tripRow : null, error: null })
-      }).then(res)
+      (state.pending ?? new Promise(resolve => {
+        resolve({ data: table === 'trips' ? state.tripRow : null, error: state.error })
+      })).then(res)
     return builder
   }
   return {
@@ -29,11 +29,12 @@ vi.mock('../src/lib/supabase', () => {
     supabase: {
       from: (t: string) => makeBuilder(t),
       rpc: () => Promise.resolve({ data: state.rpcRows, error: null }),
+      auth: { signOut: async () => ({ error: null }) },
     },
   }
 })
 
-import { fetchSharedTrip, tripById } from '../src/store/store'
+import { fetchSharedTrip, readSharedTrip, tripById, logout } from '../src/store/store'
 import type { TripRow } from '../src/lib/tripRow'
 
 function row(overrides: Partial<TripRow> = {}): TripRow {
@@ -63,6 +64,23 @@ function row(overrides: Partial<TripRow> = {}): TripRow {
 }
 
 describe('fetchSharedTrip', () => {
+  it('cancels a read when the identity changes before it settles', async () => {
+    let finish!: (value: { data: unknown; error: unknown }) => void
+    state.pending = new Promise(resolve => { finish = resolve })
+    const reading = readSharedTrip('pending')
+    await logout()
+    finish({ data: null, error: null })
+    expect(await reading).toEqual({ kind: 'cancelled' })
+    state.pending = null
+  })
+  it('distinguishes a failed read from an unavailable row', async () => {
+    state.tripRow = null
+    state.error = null
+    expect(await readSharedTrip('missing')).toEqual({ kind: 'unavailable' })
+    state.error = { message: 'offline' }
+    expect(await readSharedTrip('failed')).toEqual({ kind: 'failed' })
+    state.error = null
+  })
   it('returns a directly-readable trip and merges it into the cache', async () => {
     state.tripRow = row()
     state.rpcRows = null

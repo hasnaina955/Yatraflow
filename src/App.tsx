@@ -13,7 +13,8 @@ import {
   shouldBrowserNotify,
 } from './lib/browserNotifications'
 import type { Notification, Trip } from './data/types'
-import { useDb, currentUser, useUsers, useNotifications, useSessionUserId, useIdentityGeneration, useSliceReads, logout, markAllNotificationsRead, tripById, joinViaInvite, reloadJoinedTrip, importTripPersisted, retryImportTrip, init, resumeSync, useStoreReady, fetchSharedTrip, fetchTripByInviteCode, viewerIsMemberOf, collectUnclaimedCovers } from './store/store'
+import { useDb, currentUser, useUsers, useNotifications, useSessionUserId, useIdentityGeneration, useSliceReads, logout, markAllNotificationsRead, tripById, joinViaInvite, reloadJoinedTrip, importTripPersisted, retryImportTrip, init, resumeSync, useStoreReady, readSharedTrip, fetchTripByInviteCode, viewerIsMemberOf, collectUnclaimedCovers } from './store/store'
+import { authNext } from './lib/authNext'
 import { Avatar, BrandMark, ToastZone, useClickOutside, toast } from './components/ui'
 import { BottomNav } from './components/BottomNav'
 import { OfflineBanner } from './components/OfflineBanner'
@@ -510,6 +511,7 @@ export default function App() {
     else if (parts[0] === 'explore') page = <Suspense fallback={lazyRouteFallback}><ExplorePage onNavigate={navigate} /></Suspense>
     else if (parts[0] === 'auth' && !sessionUserId) page = <Suspense fallback={lazyRouteFallback}><AuthPage onNavigate={navigate} /></Suspense>
     else if (profileLookupBlocksRoute(sessionUserId, !!me, profileState, bareRoute, isNative)) page = <ProfileLookupPage state={profileState} />
+    else if (parts[0] === 'trip' && parts[1]) page = <div className="container page-enter"><StateBlock kind="empty" titleLevel="h1" title="Sign in to open this trip" actions={<button className="btn btn-primary" onClick={() => navigate(`/auth?next=${encodeURIComponent(authNext(route.split('?')[0]))}`)}>Sign in</button>} /></div>
     else page = <LandingPage onNavigate={navigate} />
   } else {
     switch (parts[0]) {
@@ -1027,29 +1029,30 @@ function InviteGate({ codeOrTripId, onNavigate }: { codeOrTripId: string; onNavi
   // decodeURIComponent first: the landing page's code box navigates with
   // encodeURIComponent, and a code typed with a space would otherwise arrive
   // as a %20 inside the segment.
+  const identityGen = useIdentityGeneration()
   useEffect(() => {
     let alive = true
     const resolve = isTripIdLink
-      ? fetchSharedTrip(linkTarget, true)
-      : fetchTripByInviteCode(linkTarget)
-    void resolve.then(t => {
+      ? readSharedTrip(linkTarget, true)
+      : fetchTripByInviteCode(linkTarget).then(trip => trip ? { kind: 'found' as const, trip } : { kind: 'failed' as const })
+    void resolve.then(result => {
       if (!alive) return
       // B2 — a successful resolve MUST leave the loading status. It was only ever
       // set on failure, so every later branch (the three join screens, the retry
       // buttons, the signed-out preview) fell through to the 'loading' render and
       // was unreachable. The read succeeded, so the gate says ready and the join
       // machine drives from there.
-      if (t) { setResolved({ target: linkTarget, trip: t }); setStatus('ready') }
-      else { setResolved({ target: linkTarget, trip: null }); setStatus('broken') }
+      if (result.kind === 'cancelled') return
+      if (result.kind === 'found') { setResolved({ target: linkTarget, trip: result.trip }); setStatus('ready') }
+      else { setResolved({ target: linkTarget, trip: null }); setStatus(result.kind === 'unavailable' ? 'retired' : 'broken') }
     })
     return () => { alive = false }
-  }, [linkTarget, isTripIdLink, retryTick])
+  }, [linkTarget, isTripIdLink, retryTick, identityGen])
 
   // #804 — the join flow owns its state in ONE place (the machine above). This
   // component dispatches events and renders the phase. Every continuation quotes
   // the try id, identity and target it started with, and the machine ignores it
   // unless they still match.
-  const identityGen = useIdentityGeneration()
   const phase = machine.phase
 
   // Reset stale identity state before the begin effect can allocate a new owner.

@@ -4,7 +4,24 @@ import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createElement } from 'react'
-import { stateBlockHasBody, stateBlockRole, stateBlockRootClass } from '../src/components/page/StateBlock'
+import { renderToStaticMarkup } from 'react-dom/server'
+import { StateBlock, stateBlockHasBody, stateBlockRole, stateBlockRootClass } from '../src/components/page/StateBlock'
+
+it('allows the caller to override the announcement role', () => {
+  expect(stateBlockRole('failed', 'status')).toBe('status')
+  expect(stateBlockRole('empty', 'alert')).toBe('alert')
+})
+
+it('renders the requested heading and role while retaining defaults', () => {
+  for (const level of ['h1', 'h2', 'h3'] as const) {
+    const html = renderToStaticMarkup(createElement(StateBlock, { kind: 'failed', title: 'Error', titleLevel: level, role: 'status' }))
+    expect(html).toContain(`<${level} class="yf-state-title">Error</${level}>`)
+    expect(html).toContain('role="status"')
+  }
+  const html = renderToStaticMarkup(createElement(StateBlock, { kind: 'failed', title: 'Error' }))
+  expect(html).toContain('<h3 class="yf-state-title">')
+  expect(html).toContain('role="alert"')
+})
 
 const SOURCE = readFileSync(join(process.cwd(), 'src/components/page/StateBlock.tsx'), 'utf8').replace(/\r\n/g, '\n')
 
@@ -105,9 +122,10 @@ describe('compact state block styles', () => {
 
 describe('StateBlock source contract', () => {
   it('handles role and aria-live in the markup', () => {
-    expect(SOURCE).toContain('role={role}')
-    expect(SOURCE).toContain("aria-live={isLoading ? 'polite' : undefined}")
-    expect(SOURCE).toContain('stateBlockRole(kind)')
+    expect(SOURCE).toContain('role={resolvedRole}')
+    expect(SOURCE).toContain("aria-live={isLoading && resolvedRole === 'status' ? 'polite' : undefined}")
+    expect(SOURCE).toContain('stateBlockRole(kind, role)')
+    expect(SOURCE).toContain("titleLevel?: 'h1' | 'h2' | 'h3'")
   })
 
   it('names all three kinds', () => {

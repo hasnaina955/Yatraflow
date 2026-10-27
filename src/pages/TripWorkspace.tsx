@@ -5,7 +5,7 @@
 // Suggestions and Decisions tabs merged into `group` (old slugs redirect).
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Trip } from '../data/types'
-import { useDb, tripById, currentUser, roleOf, canEdit, updateTrip, userById, fetchSharedTrip } from '../store/store'
+import { useDb, tripById, currentUser, roleOf, canEdit, updateTrip, userById, readSharedTrip, useIdentityGeneration } from '../store/store'
 import { PillNav } from '../components/PillNav'
 import { computeHealth, computeTotals, getAssumptions, isRoadMeasuredMode } from '../lib/engine'
 import type { LegEstimate } from '../lib/engine'
@@ -136,22 +136,18 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
   const db = useDb()
   const me = currentUser(db)
   const trip = tripById(tripId)
-  // A cache miss is not final: hydration is membership-scoped and can come
-  // back partial (a failed trips read keeps last-known data but a first-load
-  // blip leaves the cache cold), and a direct link can land before hydration
-  // finishes. fetchSharedTrip reads the row directly (owner / member / public)
-  // and merges it into the cache — the commit re-renders this component. Only
-  // a null fetch (unreadable / trashed / bad id) is "Trip not found".
-  const [missedFetchFor, setMissedFetchFor] = useState<string | null>(null)
-  const fetchMissed = missedFetchFor === tripId
+  // A cache miss can precede hydration. Read the row before showing a result.
+  const identityGeneration = useIdentityGeneration()
+  const [readResult, setReadResult] = useState<{ tripId: string; identityGeneration: number; kind: 'failed' | 'unavailable' } | null>(null)
+  const readState = readResult?.tripId === tripId && readResult.identityGeneration === identityGeneration ? readResult.kind : null
   useEffect(() => {
-    if (trip || fetchMissed) return
+    if (trip || readState || !me) return
     let cancelled = false
-    void fetchSharedTrip(tripId).then(t => {
-      if (!cancelled && !t) setMissedFetchFor(tripId)
+    void readSharedTrip(tripId).then(result => {
+      if (!cancelled && (result.kind === 'failed' || result.kind === 'unavailable')) setReadResult({ tripId, identityGeneration, kind: result.kind })
     })
     return () => { cancelled = true }
-  }, [trip, fetchMissed, tripId])
+  }, [trip, readState, tripId, me, identityGeneration])
   const [tab, setTabState] = useState<TabKey>(() => sanitizeTab(initialTab))
   // Normalize a legacy slug in the URL once on mount so existing
   // /trip/<id>/suggestions|decisions links keep working but self-heal to `group`.
@@ -334,7 +330,11 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
     }
   }
 
-  if ((!trip && fetchMissed) || !me) {
+  if (!me) return <div className="container page-enter">Sign in to open this trip.</div>
+  if (!trip && readState === 'failed') {
+    return <div className="container loading-block page-enter">Could not open this trip. <button className="btn btn-outline btn-sm" onClick={() => setReadResult(null)}>Try again</button></div>
+  }
+  if (!trip && readState === 'unavailable') {
     return <div className="container loading-block page-enter">Trip not found. <button className="btn btn-outline btn-sm" onClick={() => onNavigate('trips')}>Back to my trips</button></div>
   }
   if (!trip) {

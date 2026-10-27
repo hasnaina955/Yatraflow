@@ -23,6 +23,7 @@
   --font-body: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --motion-fast: 120ms; --motion-med: 180ms; --motion-slow: 240ms;
   --ease-out: cubic-bezier(.22, .61, .36, 1);
+  --ease-glide: cubic-bezier(.3, .86, .48, 1);
   --stagger-step: 60ms;
   --z-frost: 5;
   --atmos-mint: rgba(124,225,207,.20); --atmos-peach: rgba(255,179,107,.16);
@@ -76,7 +77,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .container { width: 100%; max-width: 1180px; margin: 0 auto; padding: 0 20px; }
 .container--board { max-width: 1680px; }
 .container--map { max-width: 1760px; }
-.container { padding-top: 22px; }
+.container { padding-top: 22px; transition: max-width var(--motion-slow) var(--ease-glide); }
 body.guides .container { outline: 2px solid var(--yf-purple); outline-offset: -2px; position: relative; }
 body.guides .container::before {
   content: attr(data-guide); position: absolute; right: 8px; top: 2px;
@@ -91,14 +92,19 @@ body.guides .yf-page::before {
   font-size: 11px; font-weight: 700; color: var(--ink-teal); background: var(--card); padding: 2px 8px; border-radius: 6px; z-index: 2;
 }
 
-/* ---- Editorial header ---- */
+/* ---- Editorial header ----
+   Compact motion: one duration (--motion-slow), one curve (--ease-glide).
+   Height changes use grid-template-rows (1fr to 0fr, px to px). Everything else uses transform and opacity.
+   Layout boxes of the title, thumb and text column never change size, so text cannot reflow mid-motion. */
 .yf-trip-head {
-  --thumb: 96px;
-  position: relative; overflow: hidden; margin-bottom: 14px; padding: 22px 24px;
+  --slot: 96px; --ty: 2px; --thumb-c: .4167; --shift: -56px; --title-c: .55; --pt: 22px; --pt-c: 12px; --meta-min: 52px;
+  position: relative; overflow: hidden; margin-bottom: 14px; padding: 0 24px;
+  display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: var(--pt) auto auto 1fr var(--pt);
   background: var(--card); border: 1px solid var(--yf-border); border-radius: var(--radius-lg);
   box-shadow: var(--shadow-soft);
-  transition: padding var(--motion-med) var(--ease-out), background-color var(--motion-slow) var(--ease-out), border-color var(--motion-slow) var(--ease-out);
+  transition: grid-template-rows var(--motion-slow) var(--ease-glide), background-color var(--motion-slow) var(--ease-out), border-color var(--motion-slow) var(--ease-out);
 }
+[data-compact='true'] .yf-trip-head { grid-template-rows: var(--pt-c) auto auto 0fr var(--pt-c); }
 .yf-trip-head::after { /* faint saffron paper circle, same idea as the old band */
   content: ''; position: absolute; right: -70px; top: -90px; width: 240px; height: 240px; border-radius: 50%;
   background: var(--yf-saffron-100); opacity: .9; pointer-events: none;
@@ -106,28 +112,46 @@ body.guides .yf-page::before {
 :root[data-theme='dark'] .yf-trip-head::after { opacity: .4; }
 .yf-trip-head > * { position: relative; z-index: 1; }
 .yf-back {
-  display: inline-flex; align-items: center; min-height: 44px; margin: -10px 0 0 -12px; padding: 0 12px;
+  grid-row: 2; justify-self: start; display: inline-flex; align-items: center; min-height: 44px; margin: -10px 0 -10px -12px; padding: 0 12px;
   border: 0; background: none; border-radius: 10px; font-size: 13px; font-weight: 700; color: var(--text-3);
   transition: color var(--motion-fast) var(--ease-out), background-color var(--motion-fast) var(--ease-out);
 }
 .yf-back:hover { color: var(--ink-teal); background: var(--teal-soft); }
-.yf-head-row { display: flex; align-items: center; gap: 18px; }
+.yf-head-row { grid-row: 3; position: relative; display: grid; grid-template-columns: var(--slot) minmax(0, 1fr) auto; column-gap: 18px; align-items: start; }
+.yf-thumb-slot { position: relative; height: 0; width: var(--slot); }
 .yf-thumb {
-  flex: 0 0 auto; width: var(--thumb); height: var(--thumb); border-radius: var(--radius); overflow: hidden;
+  position: absolute; left: 0; top: 0; width: var(--slot); height: var(--slot); border-radius: var(--radius); overflow: hidden;
   border: 1px solid var(--yf-border); background: var(--yf-mist);
-  transition: width var(--motion-med) var(--ease-out), height var(--motion-med) var(--ease-out), border-radius var(--motion-med) var(--ease-out);
+  transform-origin: 0 0; transform: none;
+  transition: transform var(--motion-slow) var(--ease-glide);
 }
 .yf-thumb svg { display: block; width: 100%; height: 100%; }
-.yf-head-main { min-width: 0; flex: 1 1 auto; }
+[data-compact='true'] .yf-thumb { transform: translateY(var(--ty)) scale(var(--thumb-c)); }
+.yf-head-text { min-width: 0; transition: transform var(--motion-slow) var(--ease-glide); }
+[data-compact='true'] .yf-head-text { transform: translateX(var(--shift)); }
 .yf-head-title {
-  margin: 0; font-family: var(--font-serif); font-weight: 600; color: var(--text);
-  font-size: clamp(1.75rem, 1.2rem + 1.6vw, 2.5rem); line-height: 1.1; letter-spacing: -.015em; text-wrap: balance;
-  transition: font-size var(--motion-med) var(--ease-out);
+  margin: 0; min-height: 44px; display: flex; align-items: center; white-space: nowrap;
+  font-family: var(--font-serif); font-weight: 600; color: var(--text);
+  font-size: clamp(1.75rem, 1.2rem + 1.6vw, 2.5rem); line-height: 1.1; letter-spacing: -.015em;
+  transform-origin: 0 50%;
+  transition: transform var(--motion-slow) var(--ease-glide);
 }
-.yf-collapse { overflow: hidden; max-height: 120px; opacity: 1;
-  transition: max-height var(--motion-med) var(--ease-out), opacity var(--motion-med) var(--ease-out), margin var(--motion-med) var(--ease-out); }
-.yf-head-meta { margin: 8px 0 0; color: var(--text-2); font-size: 14px; }
-.yf-head-actions { flex: 0 0 auto; }
+[data-compact='true'] .yf-head-title { transform: scale(var(--title-c)); }
+/* fold: a wrapper that goes 1fr to 0fr. The inner box clips only while it folds. */
+.yf-fold { display: grid; grid-template-rows: 1fr; transition: grid-template-rows var(--motion-slow) var(--ease-glide); }
+[data-compact='true'] .yf-fold { grid-template-rows: 0fr; }
+.yf-fold-in { min-height: 0; overflow: hidden; }
+/* fade and slide together with the height change */
+.yf-fade { opacity: 1; transform: none; visibility: visible;
+  transition: opacity var(--motion-slow) var(--ease-glide), transform var(--motion-slow) var(--ease-glide), visibility 0s linear 0s; }
+[data-compact='true'] .yf-fade { opacity: 0; transform: translateY(-10px); visibility: hidden;
+  transition: opacity var(--motion-slow) var(--ease-glide), transform var(--motion-slow) var(--ease-glide), visibility 0s linear var(--motion-slow); }
+.yf-head-meta { margin: 0; padding-top: 8px; min-height: var(--meta-min); color: var(--text-2); font-size: 14px; }
+.yf-head-actions { align-self: start; }
+.yf-act-extra { display: none; }
+/* members row is header row 4; it folds with the same clock. Overflow opens again after the expand ends, so the tooltips can show. */
+.yf-extra { grid-row: 4; min-height: 0; overflow: visible; transition: overflow 0s linear var(--motion-slow) allow-discrete; }
+[data-compact='true'] .yf-extra { overflow: hidden; transition: overflow 0s linear 0s allow-discrete; }
 .yf-btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 20px;
   border: 0; border-radius: 999px; font-weight: 800; font-size: 14px; white-space: nowrap;
@@ -139,7 +163,7 @@ body.guides .yf-page::before {
 .yf-btn:active { transform: translateY(0); }
 
 /* member stack with presence dots */
-.yf-members { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin-top: 14px; }
+.yf-members { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding-top: 14px; }
 .yf-avatars { display: flex; align-items: center; }
 .yf-avatar {
   position: relative; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto;
@@ -166,13 +190,6 @@ body.guides .yf-page::before {
 .yf-viewing { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-2); }
 .yf-viewing i { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); }
 
-/* compact state (Board and Map tabs): same fade+collapse idea as the old band */
-[data-compact='true'] .yf-trip-head { padding: 12px 20px; --thumb: 40px; }
-[data-compact='true'] .yf-thumb { border-radius: 12px; }
-[data-compact='true'] .yf-head-title { font-size: 20px; }
-[data-compact='true'] .yf-collapse { max-height: 0; opacity: 0; margin-top: 0 !important; }
-[data-compact='true'] .yf-back { min-height: 44px; margin-top: -10px; margin-bottom: -10px; }
-
 /* ---- SegmentedTabs-style tab bar (tablist semantics, glass bar, teal glider) ---- */
 .yf-tabbar {
   position: relative; display: flex; gap: 2px; padding: 4px; margin-bottom: 20px; border-radius: 999px;
@@ -180,7 +197,7 @@ body.guides .yf-page::before {
   background: var(--yf-nav-glass); border: 1px solid var(--yf-glass-border);
   -webkit-backdrop-filter: blur(14px) saturate(1.2); backdrop-filter: blur(14px) saturate(1.2);
   box-shadow: var(--shadow-soft);
-  transition: margin var(--motion-med) var(--ease-out);
+  transition: margin var(--motion-slow) var(--ease-glide);
 }
 .yf-tabbar::-webkit-scrollbar { display: none; }
 [data-compact='true'] .yf-tabbar { margin-bottom: 12px; }
@@ -213,6 +230,7 @@ body.guides .yf-page::before {
 .ph-map {
   position: relative; border-radius: 14px; border: 1px solid var(--line); overflow: hidden;
   height: calc(100dvh - var(--above, 300px) - 12px); min-height: 360px;
+  transition: height var(--motion-slow) var(--ease-glide);
   background:
     linear-gradient(0deg, color-mix(in srgb, var(--yf-teal-600) 8%, transparent), transparent),
     repeating-linear-gradient(45deg, transparent 0 22px, color-mix(in srgb, var(--text-3) 10%, transparent) 22px 23px),
@@ -236,19 +254,18 @@ body.guides .yf-page::before {
 /* ---- Narrow ---- */
 @media (max-width: 720px) {
   .container { padding-left: 16px; padding-right: 16px; }
-  .yf-trip-head { --thumb: 64px; padding: 16px; border-radius: 20px; }
-  .yf-head-row { flex-wrap: wrap; gap: 12px 14px; }
-  .yf-head-main { flex: 1 1 0; }
+  .yf-trip-head { --slot: 64px; --ty: 4px; --thumb-c: .5625; --shift: -28px; --title-c: .643; --pt: 16px; --pt-c: 10px; --meta-min: 20px; padding: 0 16px; border-radius: 20px; }
+  .yf-head-row { grid-template-columns: var(--slot) minmax(0, 1fr); column-gap: 14px; }
   .yf-head-title { font-size: 1.75rem; }
-  .yf-head-actions { flex: 1 1 100%; }
-  .yf-head-actions .yf-btn { width: 100%; }
   .yf-head-meta { font-size: 13px; }
+  .yf-head-actions { position: absolute; right: 0; top: 0; opacity: 0; visibility: hidden;
+    transition: opacity var(--motion-slow) var(--ease-glide), visibility 0s linear var(--motion-slow); }
+  [data-compact='true'] .yf-head-actions { opacity: 1; visibility: visible;
+    transition: opacity var(--motion-slow) var(--ease-glide), visibility 0s linear 0s; }
+  .yf-head-actions .yf-btn { padding: 0 14px; }
+  .yf-act-extra { display: block; padding-top: 12px; }
+  .yf-act-extra .yf-btn { width: 100%; }
   .ph-grid, .ph-board { grid-template-columns: 1fr; }
-  [data-compact='true'] .yf-trip-head { padding: 10px 14px; --thumb: 36px; }
-  [data-compact='true'] .yf-head-title { font-size: 18px; }
-  [data-compact='true'] .yf-head-row { flex-wrap: nowrap; gap: 10px; }
-  [data-compact='true'] .yf-head-actions { flex: 0 0 auto; }
-  [data-compact='true'] .yf-head-actions .yf-btn { width: auto; padding: 0 14px; }
   .yf-trip-head::after { width: 160px; height: 160px; right: -60px; top: -80px; }
   .mock-bar .readout { margin-left: 0; flex-basis: 100%; }
   .app-nav-stub { gap: 12px; white-space: nowrap; overflow: hidden; padding: 0 16px; }
@@ -285,7 +302,7 @@ body.guides .yf-page::before {
     <header class="yf-trip-head" id="head">
       <button type="button" class="yf-back">&larr; All trips</button>
       <div class="yf-head-row">
-        <span class="yf-thumb" aria-hidden="true">
+        <span class="yf-thumb-slot" aria-hidden="true"><span class="yf-thumb">
           <!-- Papercut placeholder. The real header uses TripArt, then the generated region art. -->
           <svg viewBox="0 0 96 96" preserveAspectRatio="xMidYMid slice" focusable="false">
             <rect width="96" height="96" fill="var(--yf-mist)"/>
@@ -300,16 +317,20 @@ body.guides .yf-page::before {
               <path d="M0 82 Q28 70 52 82 T96 78 V96 H0Z" fill="var(--yf-navy)"/>
             </g>
           </svg>
-        </span>
-        <div class="yf-head-main">
+        </span></span>
+        <div class="yf-head-text">
           <h1 class="yf-head-title">North South</h1>
-          <p class="yf-head-meta yf-collapse">Kolkata, West Bengal &rarr; Leh, Ladakh &middot; 1 Sep &ndash; 10 Sep 2026 &middot; 4 travellers &middot; Motorcycle &middot; Relaxed</p>
+          <div class="yf-fold"><div class="yf-fold-in">
+            <p class="yf-head-meta yf-fade">Kolkata, West Bengal &rarr; Leh, Ladakh &middot; 1 Sep &ndash; 10 Sep 2026 &middot; 4 travellers &middot; Motorcycle &middot; Relaxed</p>
+          </div></div>
         </div>
         <div class="yf-head-actions">
           <button type="button" class="yf-btn">Invite &amp; share</button>
         </div>
       </div>
-      <div class="yf-members yf-collapse" aria-label="Members">
+      <div class="yf-extra"><div class="yf-fade">
+      <div class="yf-act-extra"><button type="button" class="yf-btn">Invite &amp; share</button></div>
+      <div class="yf-members" aria-label="Members">
         <span class="yf-avatars">
           <span class="yf-avatar" tabindex="0" aria-label="Sample member A, viewing now">A<span class="dot" aria-hidden="true"></span><span class="tip" role="tooltip">Sample member A &middot; viewing now</span></span>
           <span class="yf-avatar" tabindex="0" aria-label="Sample member B, viewing now">B<span class="dot" aria-hidden="true"></span><span class="tip" role="tooltip">Sample member B &middot; viewing now</span></span>
@@ -318,6 +339,7 @@ body.guides .yf-page::before {
         <span class="yf-member-note"><b>3 members</b> &middot; you are owner</span>
         <span class="yf-viewing"><i aria-hidden="true"></i>2 viewing now</span>
       </div>
+      </div></div>
     </header>
 
     <div class="yf-tabbar" role="tablist" aria-label="Trip sections" id="tabbar" data-overflow="none">

@@ -11,7 +11,7 @@ Branch `chore/css-1-extract`, based on checkpoint
 |---|---|
 | Implemented | Yes. The sheet is now an entry with 17 ordered modules. |
 | Focused checks passed | Yes. |
-| Browser acceptance | Not applicable. The production stylesheet is byte-identical. |
+| Browser acceptance | No screenshot comparison. The dev server serves one graph, and the production CSS is byte-identical. |
 | Full gate passed | Typecheck, ratchet, tests and build pass. `lint:ste` passes on this stage's own diff. See the gate note below. |
 
 ## Input
@@ -59,7 +59,7 @@ graph has 18 files and fingerprint
 | Check | Result |
 |---|---|
 | Rules and declarations | 5,388 records before and after. Same order, selector, conditional context and declarations. |
-| Assets | 10 before and after. Same url, resolution and existence for each. |
+| Assets | 10 before and after. Same url, resolution and existence for each. No target is relative, so a move cannot change an asset base. The two file targets are root-relative `/img/` paths. |
 | Normalized source text | Equal at 775,577 characters. |
 | Built CSS | Byte-identical. `index-DOMFeFQt.css` is `7778787239…` and `TripMap-CKRTiAqP.css` is `a44e9c8519…` in both runs. |
 
@@ -82,10 +82,11 @@ frozen input.
 | `npx vite build` | 0 | Captured the input built CSS, then the output built CSS |
 | `npx vitest run --maxWorkers=2` | 0 | 450 files passed, 1 skipped; 450 before the split too |
 | `npm run check:ui` | 0 | 3 rules, 0 findings |
-| `node scripts/lint-ste.mjs --base f6a549f1` | 0 | 522 prose lines changed by this stage, no problem |
+| `node scripts/lint-ste.mjs --base f6a549f1` | 0 | 524 prose lines changed by this stage, no problem |
 | `npm run lint:ste` | 1 | 41 problems in 14 checkpoint files; none in a file this stage changed |
 | `npx vitest run tests/lint-ste.test.ts` | 0 | Includes the new exemption test |
 | probe: bad rule appended to module 03, then reverted | 1 | Reports `src/styles/legacy/03-maplibre.css:255` for U1 and U2, and the module hash returns to its committed value |
+| `npx vite --port 5199 --strictPort` | 0 | Serves the entry, a module and a root-relative asset, each with status 200 |
 
 `lint:ste` was red before this stage on the same checkpoint. It scans the whole
 merge-base diff, and the checkpoint carries prose that breaks the rules. The
@@ -105,6 +106,15 @@ path that must still fail.
 
 With the exemption in place, `node scripts/lint-ste.mjs --base f6a549f1` passes.
 The default run still exits 1 on the checkpoint's own prose.
+
+## Dev server
+
+`npx vite --port 5199 --strictPort` bound `[::1]:5199` alone, so the probe used
+`localhost`. The entry served 816,277 bytes with status 200. It carried all 10
+`url()` targets, and `.cover-picker-img` from module 17 twice, as the module
+does. One module served 46,414 bytes, which is its file size. The asset
+`/img/landing-open-road.jpg` served 200 as `image/jpeg`, 190,908 bytes. The
+server stopped after the probe.
 
 ## Live probe on the split sheet
 

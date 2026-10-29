@@ -3,6 +3,13 @@
   "entry": "src/styles.css",
   "owners": [
     {
+      "id": "tokens",
+      "file": "src/styles/tokens.css",
+      "owned": [],
+      "configClasses": [],
+      "variables": []
+    },
+    {
       "id": "select",
       "file": "src/styles/components/select.css",
       "owned": [
@@ -52,15 +59,7 @@
   ],
   "baselines": {
     "$comment": "Grandfathered debt, measured at 699fbe28. A batch lowers its own numbers. Nothing may rise.",
-    "customPropertyFiles": {
-      "src/styles/legacy/01-foundations.css": 141,
-      "src/styles/legacy/04-mobile-usability.css": 2,
-      "src/styles/legacy/06-shell-and-consistency.css": 16,
-      "src/styles/legacy/11-shared-page.css": 10,
-      "src/styles/legacy/13-phone-polish-and-guided-create.css": 44,
-      "src/styles/legacy/15-overview.css": 213,
-      "src/styles/legacy/16-motion-and-cover-v2.css": 6
-    },
+    "customPropertyFiles": {},
     "importantByFile": {
       "src/styles/legacy/02-select-and-print.css": 8,
       "src/styles/legacy/04-mobile-usability.css": 14,

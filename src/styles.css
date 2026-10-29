@@ -1,6 +1,7 @@
 /* YatraFlow stylesheet entry.
    The cascade order is this import order.
    Do not reorder these imports. */
+@import './styles/tokens.css';
 @import './styles/legacy/01-foundations.css';
 @import './styles/legacy/02-select-and-print.css';
 @import './styles/legacy/03-maplibre.css';

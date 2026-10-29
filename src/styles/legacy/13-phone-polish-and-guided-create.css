@@ -83,67 +83,6 @@
 @media (max-width: 360px) {
   .dob-picker { gap: 6px; grid-template-columns: 1fr 1.4fr 0.85fr; }
 }
-/* ---- P7 storefront (Look Inside) ----
-   The public page for one plan.
-   Each stop kind has one colour.
-   The colour paints the icon and tints the chip.
-   The pair holds 4.5:1 for the text on its own tint, in both themes.
-   The lowest light pair is evening at 5.01:1.
-   Saffron means paid. Only the Locked tag and the Unlock button use it.
-   Every duration and easing comes from the motion tokens.
-   The motion moves transform and opacity only. */
-
-/* One token pair per kind. A modifier sets --sf-c and --sf-c-bg on the element. */
-:root {
-  --sf-kind-sight: #1A54A8;
-  --sf-kind-sight-bg: #DFE7F3;
-  --sf-kind-nature: #166534;
-  --sf-kind-nature-bg: #DEE9E3;
-  --sf-kind-food: #B91C1C;
-  --sf-kind-food-bg: #F5DFDF;
-  --sf-kind-temple: #6D28D9;
-  --sf-kind-temple-bg: #EBE1FA;
-  --sf-kind-museum: #4338CA;
-  --sf-kind-museum-bg: #E5E3F8;
-  --sf-kind-beach: #155E75;
-  --sf-kind-beach-bg: #DEE8EC;
-  --sf-kind-market: #9D174D;
-  --sf-kind-market-bg: #F1DFE6;
-  --sf-kind-outdoors: #3F6212;
-  --sf-kind-outdoors-bg: #E4E9DE;
-  --sf-kind-evening: #A21CAF;
-  --sf-kind-evening-bg: #F2DFF4;
-  /* A stay and a travel leg share one slate pair. */
-  --sf-kind-stay: #475569;
-  --sf-kind-stay-bg: #E5E7EA;
-  --sf-kind-travel: #475569;
-  --sf-kind-travel-bg: #E5E7EA;
-}
-
-:root[data-theme='dark'] {
-  --sf-kind-sight: #8DB8F2;
-  --sf-kind-sight-bg: #273854;
-  --sf-kind-nature: #6BD08F;
-  --sf-kind-nature-bg: #223B46;
-  --sf-kind-food: #F59595;
-  --sf-kind-food-bg: #353347;
-  --sf-kind-temple: #B9A2F8;
-  --sf-kind-temple-bg: #2D3555;
-  --sf-kind-museum: #A5A8F8;
-  --sf-kind-museum-bg: #2A3655;
-  --sf-kind-beach: #5FD0E6;
-  --sf-kind-beach-bg: #203B52;
-  --sf-kind-market: #F48FB8;
-  --sf-kind-market-bg: #35324C;
-  --sf-kind-outdoors: #A9D46A;
-  --sf-kind-outdoors-bg: #2B3C41;
-  --sf-kind-evening: #EE9BF5;
-  --sf-kind-evening-bg: #343454;
-  --sf-kind-stay: #A3B1C2;
-  --sf-kind-stay-bg: #2A374D;
-  --sf-kind-travel: #A3B1C2;
-  --sf-kind-travel-bg: #2A374D;
-}
 /* ---------- kind modifiers: one local pair for every consumer ---------- */
 .sf-kind--sight { --sf-c: var(--sf-kind-sight); --sf-c-bg: var(--sf-kind-sight-bg); }
 .sf-kind--nature { --sf-c: var(--sf-kind-nature); --sf-c-bg: var(--sf-kind-nature-bg); }

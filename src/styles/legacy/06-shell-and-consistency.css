@@ -186,54 +186,6 @@ html.native-shell {
 
 /* ============ v0.48 design-system consistency pass ============ */
 /* ---------- Ordering: this design-system layer is deliberately the LAST section in the file. It is the global override layer (one kicker recipe, one set of blur tiers, the <=720px touch-target floor), so it must win the cascade over every earlier block — including the page-scoped .app-home rules above. New sections belong above it. ---------- */
-/* Type/spacing scales (SYS-2 decision, #107): the unused steps were DELETED
-   rather than adopted — with 340+ literal sizes in the cascade, a parallel
-   scale nobody routed through was a trap, not a tool. `--text-xs` stays (the
-   bottom-nav label uses it); sizes stay literal elsewhere by design. */
-:root {
-  --text-xs: 11px;
-  --kicker-size: 11px; --kicker-weight: 700; --kicker-tracking: .06em;
-}
-/* Glass blur tiers: chrome 18, panel 14, chip 8, scrim 3. */
-:root {
-  --yf-blur-nav: 18px; --yf-blur-panel: 14px; --yf-blur-chip: 8px; --yf-blur-scrim: 3px;
-}
-/* Motion tokens (docs/MOTION-TOKENS.md, AGENTS rule 10): four duration steps
-   + three easings. New interactive surfaces pick from here — a raw ms value in
-   a new rule is a review flag. --ease-out lives with the base tokens.
-   Both --ease-glide and --ease-out are DECELERATE curves — within .015 of each
-   other at every sampled point, 86% of the distance inside the first 44% of the
-   time. That is right for a 60px dropdown and a pop on a 1000px surface, where
-   it moves a quarter of the height in the first 6ms; --ease-resize is the
-   both-ends curve those in-place resizes use instead.
-   --ease-resize is symmetric on purpose. On a ~920px resize the asymmetric
-   Material standard curve carries a peak slope of 2.73x its average (it spends
-   its middle covering ground), which on a 60Hz screen is 96px of movement in
-   one frame; the symmetric curve peaks at 1.72x — 60px, a 37% softer middle —
-   for the same end-to-end time and the same 3px first frame. A large surface is
-   felt in its middle, so that is where the speed has to come out.
-   --motion-slower is the fourth step, for travel measured in hundreds of px
-   (a day body is ~950px). Peak frame speed is distance ÷ duration, so the same
-   gesture at --motion-slow moved the rows below a folding day ~176px inside one
-   60Hz frame; at 560ms it is ~47px and the eye tracks the edge instead of being
-   hit by it. Nothing above this step: longer reads sluggish — and this one is
-   already above Material's guidance for a large expansion (375–500ms), which is
-   only defensible because the thing moving is ~950px, not a panel. */
-:root {
-  --motion-fast: 120ms; --motion-med: 180ms; --motion-slow: 240ms; --motion-slower: 560ms;
-  --ease-glide: cubic-bezier(.3, .86, .48, 1);
-  --ease-resize: cubic-bezier(.42, 0, .58, 1);
-}
-/* One dropdown/popover surface for the whole app — the navbar's exact glass
-   treatment (nav glass + blur-nav + saturate, the same tint as the rails).
-   Rule 10 pattern: entrance = fade + 4px rise. If this still reads too airy,
-   flipping --popover-bg to var(--card) takes the whole family solid in one
-   line (the blur route is kept because the user asked for the navbar recipe
-   first; the design-system test holds every blur to a tier token). */
-:root {
-  --popover-bg: var(--yf-nav-glass);
-  --popover-border: var(--yf-glass-border);
-}
 .popover {
   background: var(--popover-bg);
   border: 1px solid var(--popover-border);

@@ -244,10 +244,16 @@ describe('css ownership: the real repository is clean', () => {
     expect(formatFindings(findings)).toBe('')
   })
 
-  it('registers both CSS-2 owner modules', () => {
+  it('registers the token owner and both CSS-2 component owners', () => {
     const map = loadOwnershipMap(process.cwd())
-    expect(map.owners.map((o) => o.id)).toEqual(['select', 'search-field'])
+    expect(map.owners.map((o) => o.id)).toEqual(['tokens', 'select', 'search-field'])
+    expect(map.ownerFiles.has('src/styles/tokens.css')).toBe(true)
     expect(map.ownerFiles.has('src/styles/components/select.css')).toBe(true)
+  })
+
+  it('leaves no root token definitions in the legacy modules', () => {
+    const map = loadOwnershipMap(process.cwd())
+    expect(map.baselines.customPropertyFiles).toEqual({})
   })
 })
 

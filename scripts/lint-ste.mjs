@@ -527,13 +527,43 @@ function checkAdded(added, staged) {
 // Compare extracted files with the immutable extraction commit as well. Only
 // lines still identical to that extraction are historical. If the commit is
 // missing, check all lines rather than silently granting an exemption.
+//
+// A token module inherits comments from the frozen legacy sections when a move
+// carries them out of `legacy/`. Its line numbers differ, so a positional
+// compare cannot work. A line is historical there only when the same text
+// exists in the extraction commit, which keeps the exemption to prose that was
+// never written under the current rules.
 function excludeExtractedLines(added) {
   const extraction = '6d356f84b6a6d97d327a651b8295eeee6a38a3b9'
   const sha = commitOf(extraction)
   if (!sha) return added
   const prefix = 'src/styles/legacy/'
+  const movedModules = ['src/styles/tokens.css']
   const changed = new Set(addedLines([sha, '--', prefix]).map(a => `${a.file}:${a.lineno}:${a.text}`))
-  return added.filter(a => !a.file.startsWith(prefix) || changed.has(`${a.file}:${a.lineno}:${a.text}`))
+
+  let extractionText = null
+  const loadExtraction = () => {
+    if (extractionText !== null) return extractionText
+    try {
+      const files = execFileSync('git', ['ls-tree', '-r', '--name-only', sha, '--', prefix], { encoding: 'utf8' })
+        .trim()
+        .split('\n')
+        .filter(Boolean)
+      extractionText = files
+        .map((f) => execFileSync('git', ['show', `${sha}:${f}`], { encoding: 'utf8', maxBuffer: 1 << 26 }))
+        .join('\n')
+    } catch {
+      extractionText = ''
+    }
+    return extractionText
+  }
+  const textInExtraction = (text) => text.trim() !== '' && loadExtraction().includes(text)
+
+  return added.filter((a) => {
+    if (a.file.startsWith(prefix)) return changed.has(`${a.file}:${a.lineno}:${a.text}`)
+    if (movedModules.includes(a.file)) return !textInExtraction(a.text)
+    return true
+  })
 }
 
 const argv = process.argv.slice(2)

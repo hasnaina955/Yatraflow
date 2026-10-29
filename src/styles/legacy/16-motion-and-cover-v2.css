@@ -143,14 +143,6 @@
 /* Reduced motion is immediate. Route paths, pins, covers and numbers stay
    outside this group, so they appear in their final state. */
 @media (prefers-reduced-motion: reduce) {
-  :root:root {
-    --motion-instant: 0ms;
-    --motion-fast: 0ms;
-    --motion-med: 0ms;
-    --motion-slow: 0ms;
-    --motion-slower: 0ms;
-    --stagger-step: 0ms;
-  }
   :is(
     .page-enter > *,
     .empty-state > *,

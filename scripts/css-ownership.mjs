@@ -86,16 +86,20 @@ function normalizeMap(raw) {
 const isCustomProp = (prop) => prop.startsWith('--')
 
 /**
- * True for a selector that defines theme or primitive tokens, such as `:root`
- * or `html[data-theme='dark']`.
+ * True for a selector that defines theme or primitive tokens.
+ *
+ * That covers `:root`, `html`, and a theme block such as `[data-theme='dark']`.
+ * A theme block is a token definition, not a page rule. The contract gives
+ * theme mappings to the token module. A theme block left behind moves every
+ * `:root` block ahead of it, which silently changes which value wins in dark
+ * mode.
  *
  * A custom property on a component class is a configuration variable, not a
- * token definition. Pages are allowed to set those, so the token rule must not
- * see them.
+ * token definition. Pages may set those, so this must not see them.
  */
 export function isRootSelector(selector) {
   if (classTokens(selector).length) return false
-  return /(^|[\s,])(:root|html)(?![\w-])/.test(String(selector ?? ''))
+  return /(^|[\s,>+~(])(:root|html|\[data-theme)/.test(String(selector ?? ''))
 }
 
 /**

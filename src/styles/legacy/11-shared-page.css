@@ -1,20 +1,4 @@
 /* ===== Shared page tokens, and the My trips hero ===== */
-/* Explore and My trips are siblings and read as one design. The tokens they
-   share live here on :root. The --ex-* names stay as aliases. Type: Playfair
-   Display for a hero line, Caveat for the handwritten note, Plus Jakarta Sans
-   for everything else. */
-:root {
-  --font-serif: 'Playfair Display', Georgia, 'Times New Roman', serif;
-  --font-hand: 'Caveat', 'Segoe Print', 'Bradley Hand', cursive;
-  --line-strong: color-mix(in srgb, var(--text) 22%, transparent);
-  --shadow-card: 0 1px 2px rgba(var(--shadow-navy-rgb), .05), 0 4px 12px -6px rgba(var(--shadow-navy-rgb), .12);
-  --shadow-card-hover: 0 2px 4px rgba(var(--shadow-navy-rgb), .05), 0 22px 40px -20px rgba(var(--shadow-navy-rgb), .32);
-  --ex-font-serif: var(--font-serif);
-  --ex-font-hand: var(--font-hand);
-  --ex-line-strong: var(--line-strong);
-  --ex-shadow-sm: var(--shadow-card);
-  --ex-shadow-md: var(--shadow-card-hover);
-}
 
 /* The hero is Explore's hero (.ex-hero). These rules only change what a
    headline from real data needs: a long place name must wrap, and the page can

@@ -1726,9 +1726,6 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
    38px, so it loosens as the type shrinks. Done through the tokens rather than
    a .hero-title rule so the size, leading and tracking stay one declaration and
    cannot drift apart one edit at a time. */
-@media (max-width: 720px) {
-  :root { --landing-hero-leading: 1.14; --landing-hero-tracking: -.012em; }
-}
 
 /* ---- <=720px: steps route becomes a vertical timeline ----
    Under 720 the steps become a vertical timeline: the dashed road turns the

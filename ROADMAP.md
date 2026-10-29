@@ -922,8 +922,8 @@ Each batch removes the rules it supersedes and validates its consumers before th
 
 | Batch | Scope | Owner | Why this position |
 |---|---|---|---|
-| B0 | Ownership enforcement and its fixtures | `scripts/css-ownership.mjs` | Guards every later batch |
-| B1 | Token definitions that sit in 7 `:root` blocks | `styles/tokens/` | Every other batch reads these tokens |
+| B0 | Ownership enforcement and its fixtures | `scripts/css-ownership.mjs` | Guards every later batch. Done in `2bfe51c5`. |
+| B1 | Token definitions that sit in 7 `:root` blocks | `styles/tokens.css` | Every other batch reads these tokens. Done: 13 blocks, 432 declarations, signature equal. |
 | B2 | `.btn` — 57 rules over 12 files, 54 consumers | `components/button.css` | Largest cross-owner surface |
 | B3 | `.input` and `.field` — 93 consumers | `components/input.css` | High reach, 6 files |
 | B4 | `.card` — 109 consumers | `components/card.css` | Highest reach |

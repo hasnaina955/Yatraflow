@@ -41,13 +41,23 @@ const failureOf = (path: string): CssGraphError => {
   throw new Error(`${path} was expected to fail, and did not`)
 }
 
-describe('the application sheet flattens to its own bytes', () => {
-  it('reproduces src/styles.css exactly, with no import graph yet', () => {
+describe('the application entry resolves its modules', () => {
+  it('reads the entry and every legacy module into one cascade', () => {
     const graph = loadCssGraph('src/styles.css')
-    expect(graph.files.map((f) => f.path)).toEqual(['src/styles.css'])
-    expect(graph.rawText).toBe(readFileSync('src/styles.css', 'utf8'))
+    expect(graph.files[0].path).toBe('src/styles.css')
+    expect(graph.files.length).toBeGreaterThan(10)
+    for (const file of graph.files.slice(1)) {
+      expect(file.path, `${file.path} is not a legacy module`).toMatch(/^src\/styles\/legacy\/\d\d-[a-z0-9-]+\.css$/)
+    }
     expect(graph.text.split('\n').length).toBeGreaterThan(12000)
     expect(graph.fingerprint).toMatch(/^[0-9a-f]{64}$/)
+  })
+
+  it('still reproduces a single-file graph byte for byte', () => {
+    const file = fixture('relocate/inline.css')
+    const graph = loadCssGraph(file)
+    expect(graph.files.map((f) => f.path)).toHaveLength(1)
+    expect(graph.rawText).toBe(readFileSync(file, 'utf8'))
   })
 
   it('resolves a root-relative asset through the public directory', () => {

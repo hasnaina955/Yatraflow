@@ -1,0 +1,826 @@
+/* ============ YatraFlow Design System ============ */
+/* Token architecture (3 layers, per ui-ux-pro-max-skill design-system ref):
+ *   1. PRIMITIVES  — raw palette values (brand + neutral ramp)
+ *   2. SEMANTICS   — purpose aliases (--color-*) mapped from primitives; carry
+ *                    hover/active/foreground so interactive states stay consistent
+ *   3. COMPONENTS  — consume semantics only (see DESIGN_TOKENS.md state matrix)
+ * Existing flat names (--teal, --saffron, …) are KEPT as legacy aliases so the
+ * ~200 existing references keep working; new code should use --color-*.
+ */
+:root {
+  /* Native UA chrome (scrollbars, <select> popups, date/time pickers, autofill)
+     must follow the active theme, and native checkboxes/radios/range sliders
+     pick up the brand accent. --teal-500 re-resolves per theme below. */
+  color-scheme: light;
+  accent-color: var(--yf-teal-600);
+  /* The scrollbar's gutter is always reserved, so a page that grows past the
+     fold (the budget block, the advanced drawer) no longer shifts every
+     centred layout sideways when the vertical scrollbar appears. */
+  scrollbar-gutter: stable;
+
+  /* ---- 1. PRIMITIVES: brand ---- */
+  --teal-500: #0D8D82;
+  --teal-600: #0E7A72;
+  --teal-700: #0B6B63;
+  --saffron-500: #F59E2D;
+  --saffron-600: #E0860F;
+  --danger-500: #C93B3B;
+  --danger-600: #A82E2E;
+  --ok-500: #2E8B57;
+  --warn-600: #B47207;
+  /* ---- 1. PRIMITIVES: neutral ramp (cool slate, for shadows/disabled) ---- */
+  --gray-50: #FAF7F2;
+  --gray-100: #F3EEE5;
+  --gray-200: #E4DCCC;
+  --gray-400: #8291A6;
+  --gray-500: #5A6A80;
+  --gray-700: #45566E;
+  --gray-900: #0B2545;
+
+  /* ---- 1b. PRIMITIVES: Calm Travel Intelligence palette (design refresh;
+        docs/redesign/YATRAFLOW_DESIGN_DIRECTION.md §4.1) ---- */
+  --yf-navy: #123F49;          /* header bands, dark cards, AI anchor surfaces */
+  --yf-teal-600: #0D8D82;      /* CTI primary */
+  --yf-teal-700: #0C716D;      /* CTI primary hover/pressed */
+  --yf-teal-100: #E5F4EE;      /* selected backgrounds */
+  --yf-saffron: #F3AA3D;       /* invite / share / publish / explore */
+  --yf-saffron-100: #FFF4E4;
+  --yf-amber: #E4AE43;         /* attention / trade-offs / pending */
+  --yf-amber-100: #FFF7E9;
+  --yf-coral: #D6534D;         /* critical risk / destructive */
+  --yf-coral-100: #FFF0EC;
+  --yf-purple: #897ABB;        /* scenic / creative discovery */
+  --yf-purple-100: #F0EAFA;
+  --yf-poi-see: #db4cf0;       /* "places to see" lane + viewpoint spine — scenic magenta-violet, 292°: 40° clear of DAY_COLORS[2]'s 252° and 38° of the activity purple */
+  --yf-poi-see-ink: #8a2999;   /* its text ink, light theme */
+  /* Expense-category bar colors (Budget tab "Where the money goes") — one
+     hue per spend category, reused by the per-line icon chips. */
+  /* A dedicated categorical family, NOT the status palette: the first version
+     borrowed warn/ok/coral verbatim (entry fees wore the critical coral), so a
+     money bar read as an alert. Every hue sits >=15° from its siblings — the
+     hue gate reads the first four. */
+  --cat-transport: #2D61A9;        /* steel blue */
+  --cat-accommodation: #237895;    /* cerulean */
+  --cat-food: #B24F24;             /* terracotta */
+  --cat-activities: #378637;       /* leaf green (NOT the ok green) */
+  --cat-entry-fees: #AB367A;       /* rose (NOT the critical coral) */
+  --cat-tolls-parking: var(--gray-500);
+  --cat-local-travel: #747722;     /* olive — the auto-rickshaw hue */
+  --cat-emergency-buffer: #9E6D1A; /* deep honey — caution-family, not the token */
+  --yf-cream: #F8F7EF;         /* main app canvas */
+  --yf-mist: #ECF8F4;          /* atmospheric gradient edge */
+  --yf-peach: #FFF2E8;         /* atmospheric gradient edge */
+  --yf-atmos-mint: rgba(124, 225, 207, 0.20);
+  --yf-atmos-peach: rgba(255, 179, 107, 0.16);
+  --yf-surface: #FFFFFF;
+  --yf-border: #DCE7E1;
+  --yf-text-muted: #566A6C;
+  --yf-glass: rgba(255, 255, 255, 0.58);        /* level-2 overlay (map/board panels) */
+  --yf-nav-glass: rgba(255, 255, 255, 0.58);    /* nav pill — user-decided (AGENTS rule 9) */
+  --yf-glass-border: rgba(255, 255, 255, 0.65);
+  --yf-glass-sheen: rgba(255, 255, 255, 0.35);  /* top-edge highlight on glass panels */
+  /* backdrop blur tiers live in the v0.48 block at the end of this file:
+     --yf-blur-nav / -panel / -chip / -scrim. */
+  /* ---- z-index ladder (M4.4) — every fixed/absolute layer maps to a rung;
+     values are the historical literals so no stacking outcome changes ---- */
+  --z-under: 0;         /* decorative layers behind content (blobs, motifs, board-map canvas, pub-hero photo) */
+  --z-content: 1;       /* page content above in-card decor (hero-split, pub-hero-inner, itin-cover-route) */
+  --z-raised: 2;        /* second local layer (nav-right tray, pub-stats card, save-heart, bench bubble) */
+  --z-topbar: 3;        /* board topbar above its columns */
+  --z-frost: 5;         /* frosted locals above page content (map-legend, locked-overlay) */
+  --z-strip: 40;        /* sticky trip-total strip */
+  --z-dock: 55;         /* fixed mobile chrome below the nav pill (mobile-menu) */
+  --z-nav-glass: 60;    /* floating glass chrome: topnav, user-menu, loc-dropdown/loc-empty, bench-dock.
+                           Ties at 60 resolve by DOM order exactly as before: the user-menu is a portaled
+                           fixed panel (paints after the sticky nav); the others never share its space. */
+  --z-map-expanded: 70; /* expanded map shell — must sit BELOW the dialogs it can spawn (AGENTS ladder) */
+  --z-ai-fab: 70;       /* ties with --z-map-expanded on purpose — DOM order decides, unchanged */
+  --z-notif: 80;        /* notification popover */
+  --z-drawer: 90;       /* ai-drawer (opens over everything up to modals) */
+  --z-modal: 100;       /* modal overlay */
+  --z-toast: 200;       /* toast zone */
+  --z-impact: 210;      /* impact sheet + its top strip — deliberately ABOVE toasts (recent fix) */
+
+  /* ---- motion (subtle & premium): one easing family, three speeds ---- */
+  --ease-out: cubic-bezier(.22, .61, .36, 1);
+  --ease-soft: cubic-bezier(.3, .7, .4, 1);
+  --t-fast: 180ms;
+  --t-med: 300ms;
+  --t-slow: 440ms;
+  /* the one entrance-stagger step (board columns, trip cards, create blocks) */
+  --stagger-step: 60ms;
+
+  /* Brand teal glow for selected/primary pill states — one triplet, not three. */
+  --shadow-glow-teal: 0 2px 10px rgba(13, 141, 130, .35);
+
+  /* ---- 2. SEMANTICS (light) ---- */
+  /* SYS-3: the primary fill steps off teal-500 so its white label clears AA
+     (4.08 → 5.19 at rest); the whole ladder deepens one notch to keep hover
+     darker than rest. Dark re-declares these + uses #06251F ink, untouched. */
+  --color-primary: var(--teal-600);
+  --color-primary-hover: var(--teal-700);
+  --color-primary-active: #095750;
+  --color-primary-foreground: #FFFFFF;
+  --color-accent: var(--saffron-500);
+  --color-accent-hover: var(--saffron-600);
+  --color-accent-foreground: #3A2506;
+  --color-destructive: var(--danger-500);
+  --color-destructive-soft: #F9E7E7;
+  /* The focus indicator, at full strength. As a 35% tint the teal measured
+     1.50:1 against --bg and 1.57:1 against --card — under the 3:1 WCAG 1.4.11
+     asks of a focus indicator, and it is the ONLY signal on the controls that
+     remove their outline (the slots rail's day chips, its Fill buttons and the
+     ledger's rows all set `outline: none`). Solid --yf-teal-600 measures 3.80:1
+     on --bg and 4.08:1 on --card, and the token is theme-aware, so the dark
+     block needs no second recipe — one focus token, both themes. */
+  --ring: 0 0 0 3px var(--yf-teal-600);
+  /* SYS-3a: deepened amber/green TEXT inks. The raw --warn/--ok pass only ~3.5–
+     4.25:1 on light tints; these clear AA on every light surface (#8F5B06:
+     5.08–5.73; #1F6B41: 5.61–6.49). Text/label roles consume these; decorative
+     fills/tints keep the raw primitives. Dark re-declares them to the raw
+     tokens (its lightened --warn/--ok already pass on dark surfaces). */
+  --ink-amber: #8F5B06;
+  --ink-ok: #1F6B41;
+  --ink-coral: #A82E2E;  /* AA on the soft danger tints (5.16–5.69): #C93B3B read 4.22 */
+  --ink-teal: #0B6B63;   /* teal ink for tint chips/hovers: teal-deep reads 4.0–4.5 there */
+
+  /* ---- 3. LEGACY flat aliases (do not remove; new code uses --color-*) ---- */
+  --bg: var(--yf-cream);   /* CTI canvas (was --gray-50) */
+  --bg-soft: var(--gray-100);
+  --card: #FFFFFF;
+  --card-soft: #FDFBF7;
+  --text: var(--gray-900);
+  --text-2: var(--gray-700);
+  --text-3: var(--gray-500);
+  --line: var(--gray-200);
+  --teal: var(--teal-500);
+  --teal-deep: var(--teal-600);
+  --teal-soft: var(--yf-teal-100);
+  --saffron: var(--saffron-500);
+  --saffron-soft: #FCF0DC;
+  --coral: var(--yf-coral);
+  --danger: var(--danger-500);
+  --danger-soft: #F9E7E7;
+  --ok: var(--ok-500);
+  --ok-soft: #E3F2EA;
+  --warn: var(--warn-600);
+  --warn-soft: #FBF1DD;
+  --info-soft: #E8EEF6;
+  --shadow-navy-rgb: 11, 37, 69;  /* shared shadow/shade navy — keep alphas on the consumers */
+  --shadow: 0 1px 2px rgba(var(--shadow-navy-rgb),.05), 0 8px 28px rgba(var(--shadow-navy-rgb),.08);
+  --shadow-sm: 0 1px 2px rgba(var(--shadow-navy-rgb),.07);
+  --shadow-soft: 0 2px 6px rgba(var(--shadow-navy-rgb),.04), 0 16px 40px rgba(var(--shadow-navy-rgb),.10);  /* CTI diffuse depth */
+  --shadow-carry: 0 6px 18px rgba(var(--shadow-navy-rgb),.14), 0 24px 48px rgba(var(--shadow-navy-rgb),.18);  /* carried drag row lift */
+  --shadow-carry-dark: 0 6px 18px rgba(0,0,0,.45), 0 24px 48px rgba(0,0,0,.5);
+  --radius: 18px;
+  --radius-sm: 12px;
+  --radius-lg: 24px;   /* CTI large bento cards */
+  /* ---- Spacing ladder: the ratchet's law for new code (tests/design-system
+     .test.ts' spacing gate), tokenised so surfaces route through it. Matches
+     the gate's LADDER set exactly — change one side and the pin fails. */
+  --space-1: 2px; --space-2: 4px; --space-3: 6px; --space-4: 8px;
+  --space-5: 12px; --space-6: 14px; --space-7: 16px; --space-8: 20px;
+  --space-9: 22px; --space-10: 24px;
+  --nav-h: 62px;
+  /* ---- bottom chrome (mobile / native shell) ----
+     One offset every fixed/sticky bottom layer clears: the shell's own
+     navigation row (--shell-nav-h, 0px on the web so both the offset and any
+     consumer of it collapse to exactly the old gesture-bar inset) plus the
+     device's bottom safe area. Consume --bottom-ui-offset, never the raw
+     inset, so a new bottom layer can't forget the nav sitting on top of it.
+     Overlays that intentionally own the true bottom edge (modals, the impact
+     sheet, the AI drawer, the expanded map) keep the raw inset. */
+  --safe-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
+  --shell-nav-h: 0px;
+  /* The mobile dock's footprint. Stays 0 unless a surface actually shows the
+     dock — see the :has() rule beside .toast-zone. Deliberately NOT folded into
+     --bottom-ui-offset, because the dock consumes that offset itself. */
+  --dock-h: 0px;
+  --bottom-ui-offset: calc(var(--shell-nav-h) + var(--safe-bottom));
+  --font-display: 'Sora', 'Plus Jakarta Sans', system-ui, sans-serif;
+  --font-body: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  /* Icon stroke weight. Lucide ships 2 as a presentation attribute on every
+     glyph. At the 13-15px the UI renders at, 1.5 drew under 1px and looked faint,
+     so 1.9 draws about 1.0-1.2px there (stroke x size / 24). One token, consumed by the
+     .lucide base rule near the type rules, so a denser surface can step it deliberately. */
+  --icon-stroke: 1.9;
+  /* Small-glyph step, matched to the base step: at 12px a 1.25 stroke drew under
+     0.7px and read as faint, so the shared inline wrappers keep 1.9 through .ic-sm
+     below (about 0.95px at 12px). */
+  --icon-stroke-sm: 1.9;
+  /* ---- Landing display scale + macro-whitespace ----
+     The marketing page is the one surface that is deliberately editorial rather
+     than app-scale: its headline is the largest type on the site and its
+     sections breathe in tens of px, not the 8-24 ladder. The hero's size,
+     leading and tracking were an inline clamp() in the page, which invited
+     exactly the drift the three values now can't have; the section gaps were
+     inline 60/70 literals. Kept in tokens because the spacing gate reads
+     literals - a `padding: 132px` would be a ratchet violation, a token
+     consumed by var() is not, which is how the ladder's law is scoped. */
+  /* Ceilings are deliberately moderate. The real hero headline is a long
+     sentence ("Plan trips that actually flow together") in a ~570px column, so a
+     5rem-class display size wraps to five lines and pushes the whole hero tall.
+     These keep the mobile floor and the leading exactly as they were and lift
+     the desktop ceiling only - the safe half of the scale change. */
+  --landing-hero-size: clamp(2.4rem, 5.4vw, 4.35rem);
+  --landing-hero-leading: 1.02;
+  --landing-hero-tracking: -.03em;
+  --landing-title-size: clamp(1.8rem, 3.2vw, 2.7rem);
+  --landing-section-pad: 132px;
+  /* The rhythm INSIDE a public surface - between its editorial blocks and between
+     its day blocks - as opposed to the section pad BETWEEN surfaces. One token
+     so Tier A surfaces share a beat. A token, not a literal: the spacing ratchet
+     reads literals and would reject a raw 40px; it ignores custom properties.
+     (The plan's `--landing-*` -> `--surface-*` rename is deliberately NOT done
+     here: it churns the landed Landing commit for no behaviour change, and it is
+     still an open question for the owner.) */
+  --surface-block-gap: 40px;
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  /* ---- 1. PRIMITIVES: brand (dark) ---- */
+  --teal-500: #2BB8AC;
+  --teal-600: #35C9BC;
+  --teal-700: #1E9D92;
+  --saffron-500: #F5A94A;
+  --saffron-600: #E0860F;
+  --danger-500: #E06C6C;
+  --danger-600: #C95050;
+  --ok-500: #52BE80;
+  --warn-600: #D99A2B;
+  --gray-50: #0C1420;
+  --gray-100: #101B2B;
+  --gray-200: #27395A;
+  --gray-400: #74879E;
+  --gray-500: #8FA0B5;
+  --gray-700: #ADBCCF;
+  --gray-900: #ECF1F8;
+
+  /* ---- 1b. PRIMITIVES: CTI palette (dark mirror) ---- */
+  --yf-navy: #0F2A33;
+  --yf-teal-600: #2BB8AC;
+  --yf-teal-700: #1E9D92;
+  --yf-teal-100: #12332F;
+  --yf-saffron: #F5A94A;
+  --yf-saffron-100: #3A2C15;
+  --yf-amber: #D99A2B;
+  --yf-amber-100: #36290F;
+  --yf-coral: #E06C6C;
+  --yf-coral-100: #3A2020;
+  --yf-purple: #A99BD6;
+  --yf-purple-100: #2A2440;
+  --yf-poi-see: #e488f2;       /* scenic base lifts in dark (spine 7.6:1 on the dark card) */
+  --yf-poi-see-ink: #f0a7fb;   /* POI-see text ink lifts in dark */
+  --cat-transport: #689ADF;
+  --cat-accommodation: #68C1DF;
+  --cat-food: #DF8C68;
+  --cat-activities: #6BC76B;
+  --cat-entry-fees: #DF68AD;
+  --cat-tolls-parking: #93A6BC;
+  --cat-local-travel: #D0D454;
+  --cat-emergency-buffer: #DFB368;
+  --yf-cream: #0C1420;
+  --yf-mist: #0F1B2B;
+  --yf-peach: #1A2030;
+  --yf-atmos-mint: rgba(43, 184, 172, 0.10);
+  --yf-atmos-peach: rgba(245, 169, 74, 0.08);
+  --yf-surface: #16233A;
+  --yf-border: #27395A;
+  --yf-text-muted: #8FA0B5;
+  --yf-glass: rgba(16, 27, 43, 0.58);
+  --yf-nav-glass: rgba(16, 27, 43, 0.58);
+  --yf-glass-border: rgba(255, 255, 255, 0.14);
+  --yf-glass-sheen: rgba(255, 255, 255, 0.08);
+
+  /* ---- 2. SEMANTICS (dark) ---- */
+  --color-primary: var(--teal-500);
+  --color-primary-hover: var(--teal-600);
+  --color-primary-active: var(--teal-700);
+  --color-primary-foreground: #06251F;
+  --color-accent: var(--saffron-500);
+  --color-accent-hover: var(--saffron-600);
+  --color-accent-foreground: #3A2506;
+  --color-destructive: var(--danger-500);
+  --color-destructive-soft: #3A2020;
+  /* Same single recipe: --yf-teal-600 is the dark mirror (#2BB8AC), so the
+     indicator measures 6.43:1 on --card and 7.61:1 on --bg here. The 40% tint
+     this used to carry measured 2.17:1 on the dark card. */
+  --ring: 0 0 0 3px var(--yf-teal-600);
+  /* SYS-3a: dark re-declares the ink tokens to the raw aliases — the darkened
+     --warn/--ok (#D99A2B/#52BE80) already clear AA on dark surfaces. */
+  --ink-amber: var(--warn);
+  --ink-ok: var(--ok);
+  --ink-coral: var(--danger);
+  --ink-teal: var(--teal-deep);
+
+  /* ---- 3. LEGACY flat aliases (dark) ---- */
+  --bg: var(--gray-50);
+  --bg-soft: var(--gray-100);
+  --card: #16233A;
+  --card-soft: #1A2A44;
+  --text: var(--gray-900);
+  --text-2: var(--gray-700);
+  --text-3: var(--gray-500);
+  --line: var(--gray-200);
+  --teal: var(--teal-500);
+  --teal-deep: var(--teal-600);
+  --teal-soft: var(--yf-teal-100);
+  --saffron: var(--saffron-500);
+  --saffron-soft: #3A2C15;
+  --coral: var(--yf-coral);
+  --danger: var(--danger-500);
+  --danger-soft: #3A2020;
+  --ok: var(--ok-500);
+  --ok-soft: #16301F;
+  --warn: var(--warn-600);
+  --warn-soft: #36290F;
+  --info-soft: #1B2B45;
+  --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);
+  --shadow-sm: 0 1px 3px rgba(0,0,0,.35);
+  --shadow-soft: 0 2px 8px rgba(0,0,0,.4), 0 18px 44px rgba(0,0,0,.5);
+}
+
+/* ---- Calm Travel Intelligence utilities (design refresh M1) ---- */
+/* Level-1 atmospheric canvas (doc §4.2): Landing, Explore, Public Itinerary,
+   workspace outer shell. Two soft gradient blobs over the mist→cream→peach ramp. */
+.atmos {
+  background:
+    radial-gradient(circle at 18% 12%, var(--yf-atmos-mint), transparent 32%),
+    radial-gradient(circle at 88% 28%, var(--yf-atmos-peach), transparent 30%),
+    linear-gradient(135deg, var(--yf-mist) 0%, var(--yf-cream) 52%, var(--yf-peach) 100%);
+}
+/* Native shell: the nav pill is 58%-opaque glass, and the peach radial
+   (88% x / 28% y) sits exactly behind the logo area — on a small screen it
+   reads as a yellow smudge bleeding through the nav, not the soft wash it
+   paints on desktop. Flat cream ramp under the app UI; the web keeps the
+   full atmosphere. */
+html.native-shell .atmos {
+  background: linear-gradient(135deg, var(--yf-mist) 0%, var(--yf-cream) 52%, var(--yf-peach) 100%);
+}
+/* Level-2 expressive overlay (doc §3.3): translucent nav, map panels, hero
+   support cards. Content that must be read/edited stays on --color-card.
+   Dialled up for the glass-first look: deep blur + saturation + a top sheen. */
+.glass {
+  background: var(--yf-glass);
+  border: 1px solid var(--yf-glass-border);
+  -webkit-backdrop-filter: blur(var(--yf-blur-nav)) saturate(1.2);
+  backdrop-filter: blur(var(--yf-blur-nav)) saturate(1.2);
+  box-shadow: inset 0 1px 0 var(--yf-glass-sheen);
+}
+
+/* ---------- Mobile / native-shell performance budget ----------
+   The landing page runs layered backdrop-blur glass, two 340–380px blobs
+   blurred at 70–80px, an infinite ticker, a dash-animated SVG road and the
+   odometer — all cheap on a desktop GPU, a jank farm in a phone WebView
+   (observed on the Android app: the homepage lagged badly). Phones report
+   a coarse pointer, so that's the gate; the class targets the packaged app
+   specifically and overrides anything the media query loosens. */
+@media (pointer: coarse) {
+  /* Halve the blur radius: the glass keeps its frosted identity, the
+     compositor keeps its frame time. Every surface that hardcodes an
+     oversized blur (18px tabbar, 14px strips, 12px glass-soft) comes down
+     to the same 8px budget in one sweep — spelled var(--yf-blur-chip) so
+     the reduced budget still routes through the design-system blur tiers. */
+  .topnav,
+  .glass,
+  .bottom-nav,
+  .tabbar,
+  .glass-soft,
+  .filter-pillbar,
+  .tl-total-strip,
+  .board-info, .board-pulse {
+    -webkit-backdrop-filter: blur(var(--yf-blur-chip)) saturate(1.1);
+    backdrop-filter: blur(var(--yf-blur-chip)) saturate(1.1);
+  }
+  /* Frozen atmosphere: drifting 80px-blurred blobs repaint large layers
+     every frame; as static washes they cost one paint. */
+  .hero-blob-a, .hero-blob-b,
+  .bench-blob-a, .bench-blob-b { animation: none; }
+  /* The continuous ticker is a second infinite compositor loop. */
+  .ticker-track { animation: none; }
+}
+/* The native shell is a phone WebView even when a mouse is attached via
+   desktop mode — apply the same budget there, unconditionally.
+   (.native-shell is <html>; the descendant selectors stay simple.) */
+html.native-shell .topnav,
+html.native-shell .glass,
+html.native-shell .bottom-nav {
+  -webkit-backdrop-filter: blur(var(--yf-blur-chip)) saturate(1.1);
+  backdrop-filter: blur(var(--yf-blur-chip)) saturate(1.1);
+}
+html.native-shell .hero-blob-a, html.native-shell .hero-blob-b,
+html.native-shell .bench-blob-a, html.native-shell .bench-blob-b { animation: none; }
+html.native-shell .ticker-track { animation: none; }
+/* App-bar solidity: a near-opaque pill reads as an Android top bar; any
+   background tint that survives the reduced blur can't bleed through. */
+html.native-shell .topnav {
+  background: var(--app-bar, rgba(250, 247, 242, 0.92));
+}
+html.native-shell[data-theme='dark'] .topnav {
+  background: var(--app-bar-dark, rgba(12, 20, 32, 0.92));
+}
+/* The bottom navigation is the same chrome as the top bar and reads the same
+   way: content scrolls under it, so 58% glass would smear the row behind it.
+   Same near-opaque pair, opposite edge. */
+html.native-shell .bottom-nav {
+  background: var(--app-bar, rgba(250, 247, 242, 0.92));
+}
+html.native-shell[data-theme='dark'] .bottom-nav {
+  background: var(--app-bar-dark, rgba(12, 20, 32, 0.92));
+}
+
+* { box-sizing: border-box; }
+
+/* Root-level horizontal clip. The hero/bench atmosphere blobs and the full-bleed
+   destination ticker deliberately paint past the 100vw edge for a soft diffused
+   glow. `clip` (unlike `hidden`) prunes that overflow to a clean page width
+   WITHOUT becoming a scroll container — so no horizontal scrollbar appears AND
+   the floating `position: sticky` topnav keeps working. */
+html { overflow-x: clip; }
+
+/* ---------- Overview Bento briefing (CTI §6.2) ---------- */
+/* Large-radius, softly-shadowed cards; the briefing reads as tiles, not a form. */
+.bento .card, .bento .stat-tile { border-radius: var(--radius-lg); box-shadow: var(--shadow-soft); }
+
+/* Trip Health big-number layout (mockup): number, horizontal bar, reasons */
+.health-big { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
+.health-num-big { font-size: 54px; font-weight: 800; font-family: var(--font-display); line-height: 1; font-variant-numeric: tabular-nums; }
+.health-num-big.ok { color: var(--ok); }
+/* #400: the band's FOUR-WAY palette, so the number agrees with the chip beside
+   it. `teal` is the missing middle band — before this a 70–84 trip printed
+   "Manageable" in Comfortable-green because the number read a 3-bucket class
+   while the chip read a 4-way tone. The `ink-teal` family, not the raw brand
+   teal, so 54px text keeps AA on both themes.
+   These four REPLACE the old `.mid`/`.bad` pair: `healthBandClass` no longer
+   emits either name, so keeping them would be a rule nothing can reach. */
+.health-num-big.teal { color: var(--ink-teal); }
+.health-num-big.saffron { color: var(--ink-amber); }
+.health-num-big.danger { color: var(--yf-coral); }
+.health-bar { height: 8px; border-radius: 999px; background: var(--yf-amber-100); overflow: hidden; }
+.health-bar > i { display: block; height: 100%; border-radius: 999px; transition: width var(--t-slow) var(--ease-out); }
+.health-bar > i.ok { background: var(--ok); }
+/* The bar is a FILL, not text — it takes the band hue at full strength, the
+   same move `.clickable-chip.on-teal` makes. */
+.health-bar > i.teal { background: var(--teal); }
+.health-bar > i.saffron { background: var(--saffron); }
+.health-bar > i.danger { background: var(--yf-coral); }
+.health-reasons { list-style: none; margin: 9px 0 0; padding: 0; display: grid; gap: 3px; font-size: 13px; color: var(--text-2); }
+.health-rec {
+  display: block; width: 100%; margin-top: 12px;
+  background: var(--yf-amber-100); color: var(--text);
+  border: none; border-radius: 10px; padding: 10px 13px;
+  font-weight: 700; font-size: 13px; cursor: pointer; text-align: left; font-family: var(--font-body);
+}
+.health-rec:hover { filter: brightness(.97); }
+.health-rec:focus-visible { outline: none; box-shadow: var(--ring); }
+
+/* Route snapshot dark card (mockup) — same rich treatment as the landing hero:
+   navy gradient + faint cartographic grid + ambient saffron/coral glows.
+   .card.route-snap (0,2,0) on purpose: `.card`'s `background: var(--card)`
+   shorthand is declared LATER in this file and would otherwise strip the
+   gradient — light theme rendered a cream card under light-on-light SVG labels. */
+.card.route-snap {
+  position: relative; overflow: hidden;
+  background: linear-gradient(150deg, var(--yf-navy), #0B2545 88%);
+  color: #fff;
+  box-shadow: 0 30px 60px rgba(var(--shadow-navy-rgb),.28);
+  /* The generic `.card` border is a warm light grey (--line, #E4DCCC). On the
+     white cards around it that reads as a normal card edge; on THIS dark navy
+     plate the same hairline reads as an unwanted grey outline hugging the card.
+     The rule above already exists at (0,2,0) because `.card`'s background
+     shorthand is declared later and would strip the gradient - the border was
+     the other half of that inheritance and was overlooked. Transparent rather
+     than removed so the box model (and the 1px the card's size accounts for) is
+     unchanged; the gradient and the shadow define this card's edge. */
+  border-color: transparent;
+}
+.route-snap::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background-image:
+    radial-gradient(420px 180px at 8% 0%, rgba(239,173,84,.14), transparent 70%),
+    radial-gradient(380px 200px at 96% 100%, rgba(232,104,76,.13), transparent 70%),
+    linear-gradient(rgba(255,255,255,.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px);
+  background-size: auto, auto, 26px 26px, 26px 26px;
+}
+.route-snap > * { position: relative; }
+.route-snap h3 { color: #fff; }
+.route-snap .divider { border-top-color: rgba(255,255,255,.16); }
+.route-snap-meta { font-variant-numeric: tabular-nums; display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 6px; font-size: 13px; font-weight: 600; flex-wrap: wrap; }
+.link-btn { background: none; border: none; padding: 0; color: var(--yf-saffron); font-weight: 700; font-size: 13px; cursor: pointer; font-family: var(--font-body); }
+.link-btn:hover { text-decoration: underline; }
+.link-btn.teal { color: var(--teal-deep); }
+.link-btn:focus-visible { outline: none; box-shadow: var(--ring); border-radius: 6px; }
+
+/* Group pulse full-width strip (mockup) */
+.pulse-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 14px 18px; grid-column: 1 / -1; }
+.pulse-bar .pulse-label { font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--yf-text-muted); }
+.pulse-bar .pulse-item { font-size: 13.5px; color: var(--text-2); }
+.pulse-bar .pulse-item b { color: var(--text); }
+.pulse-bar .pulse-dot { color: var(--yf-border); }
+.pulse-bar .pulse-link { margin-left: auto; }
+html {
+  -webkit-text-size-adjust: 100%;
+  /* No grey UA tap-flash on touch devices. */
+  -webkit-tap-highlight-color: transparent;
+  /* Anchor/scrollIntoView targets land clear of the floating pill topnav
+     (12px top gap + nav height + breathing room). */
+  scroll-padding-top: calc(12px + var(--nav-h) + 16px);
+  /* The bottom half of the same rule. --bottom-ui-offset already resolves to
+     just the gesture inset outside the shell, so this is correct on both
+     platforms and no longer needs to be re-declared inside html.native-shell. */
+  scroll-padding-bottom: calc(var(--bottom-ui-offset) + 12px);
+}
+/* Native app feel: pages scroll with a finger, so the WebView's chunky
+   desktop scrollbar (a thick bar hugging the right edge) is pure chrome —
+   Android apps never draw one on the page itself. Web keeps it. The class
+   lives on <html> itself (main.tsx), so selectors start there. */
+html.native-shell, html.native-shell body {
+  scrollbar-width: none;
+}
+html.native-shell ::-webkit-scrollbar { width: 0; height: 0; display: none; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 15px;
+  /* Jakarta 400 reads faded at body and secondary sizes (the Inter it
+     replaced carried more ink at the same weight), so the unweighted base
+     is 500; explicit 600/700/800 declarations are untouched. */
+  font-weight: 500;
+  line-height: 1.55;
+  /* Drops the double-tap-zoom delay on rapid taps (pan + pinch still allowed).
+     touchDnd's touchstart/touchmove preventDefault still vetoes browser
+     gestures during long-press drag, and MapLibre's canvas container sets its
+     own touch-action: none. */
+  touch-action: manipulation;
+}
+h1,h2,h3,h4 { font-family: var(--font-display); line-height: 1.22; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+h1 { font-size: clamp(26px, 4.5vw, 40px); font-weight: 800; }
+h2 { font-size: 21px; font-weight: 700; }
+h3 { font-size: 16px; font-weight: 700; }
+/* h4 is named in the display-family rule above but had no weight of its own,
+   so it resolved to Sora 400 — a weight the font link does not load
+   (Sora is 600/700/800 only), which the browser then synthesised. */
+h4 { font-weight: 700; }
+p { margin: 0; }
+/* Wrap tuning: headings balance (in the h1–h4 rule above), prose pretty. The
+   pair is the type reference's recipe; pretty trims a last-line orphan and is
+   a no-op on copy that fits one line. */
+p, .hint-text { text-wrap: pretty; }
+a { color: var(--teal-deep); text-decoration: none; }
+button { font-family: var(--font-body); cursor: pointer; color: inherit; }
+input, select, textarea { font-family: var(--font-body); font-size: 14.5px; color: var(--text); }
+/* ---------- Icon weight: one rule, every glyph ---------- */
+/* Lucide emits `stroke-width="2"` as a PRESENTATION ATTRIBUTE, and a CSS
+   declaration outranks a presentation attribute - so this single rule re-inks
+   all ~291 icon tags in the app instead of carrying a prop on each usage.
+   Hand-authored decorative SVG (road lines, gauges, travel motifs) sets its own
+   literal weight and is deliberately untouched. Pinned in
+   tests/design-system.test.ts ("icon stroke weight is a token, not a library
+   default") so it cannot silently drift back to the stock weight. */
+.lucide { stroke-width: var(--icon-stroke); }
+/* Small inline glyphs (InlineIcon/MetaIcon/KindIcon at 12px and under) render
+   through this class from the shared wrappers in components/icons.tsx. */
+.lucide.ic-sm { stroke-width: var(--icon-stroke-sm); }
+
+.app-shell { min-height: 100vh; display: flex; flex-direction: column;
+  /* Edge-to-edge (Android 15, iPhone): the gesture bar overlays the last
+     row otherwise — and in the shell the bottom navigation sits on top of
+     that. --bottom-ui-offset is exactly the gesture-bar inset on the web,
+     so this line is unchanged there. */
+  padding-bottom: var(--bottom-ui-offset); }
+.container { width: 100%; max-width: 1180px; margin: 0 auto; padding: 0 20px;
+  /* the Board tab widens the canvas to 1680px — glide it (both directions) */
+  transition: max-width var(--t-slow) var(--ease-out); }
+
+/* ---------- Top navigation ---------- */
+.topnav {
+  /* Float on scroll: sticky pins the pill to the top of the viewport once the
+     page scrolls, so the glass pill nav "follows" alongside the trip-total
+     strip the way the user asked. It keeps the CTI floating-pill look. */
+  position: sticky; top: calc(12px + var(--safe-area-inset-top, env(safe-area-inset-top, 0px))); z-index: var(--z-nav-glass);
+  /* CTI nav language: a floating pill detached from the viewport edges,
+     not a full-bleed bar — the page atmosphere shows around it. */
+  width: min(1180px, calc(100% - 28px));
+  margin: calc(12px + var(--safe-area-inset-top, env(safe-area-inset-top, 0px))) auto 0;
+  background: var(--yf-nav-glass);
+  -webkit-backdrop-filter: blur(var(--yf-blur-nav)) saturate(1.2);
+  backdrop-filter: blur(var(--yf-blur-nav)) saturate(1.2);
+  border: 1px solid var(--yf-glass-border);
+  border-radius: 999px;
+  box-shadow: var(--shadow-soft);
+}
+.topnav .container.topnav-inner { max-width: none; padding: 0 10px 0 22px; }
+.topnav-inner { display: flex; align-items: center; gap: 14px; height: var(--nav-h); }
+.brand { display: flex; align-items: center; gap: 9px; font-family: var(--font-display); font-weight: 800; font-size: 19px; color: var(--text); cursor: pointer; background:none;border:none;padding:0; }
+.brand svg { flex: 0 0 auto; }
+.nav-links { margin-left: 10px; }
+/* PillNav: one sliding "glider" pill behind the active item — switching reads
+   as one continuous motion instead of two backgrounds cross-fading.
+   `--pill-gap` is the row's own gap, named so the clipped ink copy (`.pill-ink-row`)
+   can lay out with the SAME spacing instead of restating the number. */
+.pill-nav { position: relative; display: flex; gap: 2px; --pill-gap: 2px; }
+.pill-nav > * { position: relative; z-index: 1; }
+.pill-glider {
+  position: absolute; left: 0; top: 0; width: 0; z-index: 0;
+  border-radius: 999px; background: var(--teal-soft);
+  /* The glide animates this element's own BOX, and deliberately NOT a transform.
+     A `scaleX` FLIP cannot resize a rounded pill without stretching its ends into
+     ellipses - at a 76px -> 146px tab change that is scaleX 1.93 - which reads as
+     the animation breaking rather than the pill gliding.
+     The box is also not the layout cost it looks like: the glider is absolutely
+     positioned, so its own box cannot reflow its siblings; the work is this one
+     element's layout and paint.
+     MOTION-TOKENS.md's catalog row described this as a "thumb `transform` slide";
+     that was wrong about the implementation, and is corrected there rather than
+     making the pill pay for the doc. */
+  transition: left var(--motion-med) var(--ease-glide), top var(--motion-med) var(--ease-glide),
+    width var(--motion-med) var(--ease-glide), height var(--motion-med) var(--ease-glide),
+    opacity var(--motion-fast) var(--ease-glide), background var(--motion-fast) var(--ease-glide);
+  pointer-events: none;
+}
+[data-theme='dark'] .pill-glider { background: var(--teal); }
+/* inside a pill nav the glider paints the active background — the items don't
+   (no background AND no glow on the item itself: a shadow that pops on/off on
+   the chip while the glider glides is exactly the two-step switch feel the
+   tabbar doesn't have) */
+.pill-nav .nav-link.active, .pill-nav .tab-btn.active,
+.pill-nav .clickable-chip.on-teal,
+.pill-nav .nav-link.active:hover, .pill-nav .tab-btn.active:hover,
+.pill-nav .clickable-chip.on-teal:hover { background: transparent; box-shadow: none; }
+/* Ink on the glider: light mode paints a PALE teal glider, so the active chip
+   keeps deep-teal ink — it would otherwise inherit #fff from .on-teal and
+   vanish against the pale background (1.2:1). Dark mode paints a saturated
+   glider and wants dark ink (kept from the original fix). */
+.pill-nav .clickable-chip.on-teal { color: var(--yf-teal-700); }
+[data-theme='dark'] .pill-nav .nav-link.active, [data-theme='dark'] .pill-nav .tab-btn.active,
+[data-theme='dark'] .pill-nav .clickable-chip.on-teal { color: #06251f; }
+/* Saffron active state, for any pillbar chip that wants it: same rule — the
+   glider paints the highlight, the chip only supplies ink (dark amber: 4.8:1
+   on solid saffron, where white ink was 2:1). The glider recolours while it
+   slides via the :has() below. */
+.pill-nav .clickable-chip.on-saffron { background: transparent; box-shadow: none; color: #5C3600; }
+.pill-nav:has(.clickable-chip.on-saffron) .pill-glider { background: var(--saffron); }
+.auth-tabs { margin: 18px 0; }
+.nav-link {
+  border: none; background: none; padding: 8px 13px; border-radius: 999px;
+  font-size: 14px; font-weight: 600; color: var(--text-2);
+  text-decoration: none; /* real <a> since F-06 */
+}
+.nav-link:hover { background: var(--bg-soft); color: var(--text); }
+.nav-link.active { background: var(--teal-soft); color: var(--teal-deep); }
+
+/* ---------- Buttons ---------- */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  border-radius: 999px; border: 1.5px solid transparent;
+  font-weight: 600; font-size: 14px; padding: 9px 17px;
+  transition: transform .06s ease, box-shadow var(--t-fast) var(--ease-out), background var(--t-fast) var(--ease-out);
+  white-space: nowrap;
+}
+/* Button state matrix (sizes + variants + states): see DESIGN_TOKENS.md */
+.btn:active { transform: scale(.97); }
+.btn:disabled { opacity: .55; cursor: not-allowed; }
+/* anchors styled as buttons (hero CTAs, auth links) drop the underline (F-06) */
+a.btn { text-decoration: none; }
+.btn:focus-visible { outline: none; box-shadow: var(--ring); }
+.btn-primary { background: var(--color-primary); color: var(--color-primary-foreground); box-shadow: var(--shadow-sm); }
+.btn-primary:hover:not(:disabled) { background: var(--color-primary-hover); }
+.btn-primary:active:not(:disabled) { background: var(--color-primary-active); }
+[data-theme='dark'] .btn-primary { color: var(--color-primary-foreground); }
+.btn-saffron { background: var(--color-accent); color: var(--color-accent-foreground); box-shadow: var(--shadow-sm); }
+.btn-saffron:hover:not(:disabled) { background: var(--color-accent-hover); }
+.btn-navy { background: var(--text); color: var(--bg); }
+.btn-outline { background: transparent; border-color: var(--line); color: var(--text); }
+.btn-outline:hover { background: var(--bg-soft); }
+.btn-ghost { background: none; border: none; color: var(--text-2); padding: 8px 10px; border-radius: 999px; }
+.btn-ghost:hover { background: var(--bg-soft); color: var(--text); }
+.btn-danger { background: var(--color-destructive-soft); color: var(--ink-coral); }
+.btn-danger:hover:not(:disabled) { background: color-mix(in srgb, var(--color-destructive) 14%, transparent); }
+.btn-sm { padding: 6px 12px; font-size: 13px; min-height: 24px; }
+/* The LARGE size is the one that carries a sentence, so it is the one that may
+   wrap. `.btn`'s global `white-space: nowrap` keeps pill labels single-line,
+   but it also makes a sentence-length label's MIN-CONTENT equal to the whole
+   label — and that floor then propagates through every flex/grid ancestor whose
+   item has `min-width: auto`. Two real defects came from exactly that: the
+   landing CTA measured 400px inside a 316px band at 390px, and the receipt's
+   CTA floored the Plan Bench grid at 366px inside a 360px viewport (so the
+   whole calculator overflowed on a common Android width). Word-pair labels at
+   `lg` are unaffected — they never reach the wrap point. */
+.btn-lg { padding: 12px 24px; font-size: 15.5px; white-space: normal; }
+/* Button-in-button (landing hero): the trailing glyph rides its own circular
+   housing, flush with the button's right inner padding, and shifts diagonally on
+   hover so the button carries internal kinetic tension instead of only a fill
+   change. Declared after .btn-lg so it owns the right padding at equal
+   specificity rather than needing !important. */
+.btn-trail { padding-right: 6px; }
+.btn-trail-icon { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 50%; background: rgba(255, 255, 255, .18); transition: transform var(--motion-med) var(--ease-out), background var(--motion-fast) var(--ease-out); }
+.btn-trail:hover .btn-trail-icon { transform: translate3d(2px, -2px, 0) scale(1.06); background: rgba(255, 255, 255, .28); }
+.icon-btn {
+  display:inline-flex; align-items:center; justify-content:center;
+  width: 40px; height: 40px; border-radius: 50%;
+  border: none; background: none; color: var(--text-2); font-size: 17px;
+}
+.icon-btn:hover { background: var(--bg-soft); color: var(--text); }
+
+/* ---------- Android touch-target budget (48dp) ----------
+   Material requires a 48dp minimum hit area; our compact controls (.btn-sm
+   ~33px, .icon-btn 40px, chips ~28px) undercut it. On coarse pointers the
+   VISUALS stay identical — only the hit area grows, via negative-margin
+   pseudo-extensions that draw nothing and block nothing nearby (they sit
+   under siblings, never over them, because they're only 4-8px past the
+   edge and the surrounding layout has real gaps). */
+@media (pointer: coarse) {
+  .btn, .icon-btn, .chip, .clickable-chip, .toast-action, .tab-btn,
+  .map-legend-toggle, .nav-link, .filter-pillbar .clickable-chip,
+  .link-btn, .move-btn, .board-pulse-link, .cal-day, .cal-nav, .route-btn, .vote-btn, .yf-map-idea-add, .poi-short, .poi-cand-add, .poi-fold, .save-heart, .yf-maplibre .yf-map-ctrls button,
+  .day-collapse {
+    position: relative;
+  }
+  .btn::after, .icon-btn::after, .chip::after, .clickable-chip::after,
+  .toast-action::after, .tab-btn::after, .map-legend-toggle::after,
+  .nav-link::after, .link-btn::after, .move-btn::after, .board-pulse-link::after,
+  .cal-day::after, .cal-nav::after, .route-btn::after, .vote-btn::after, .yf-map-idea-add::after, .poi-short::after, .poi-cand-add::after, .poi-fold::after, .save-heart::after, .yf-maplibre .yf-map-ctrls button::after,
+  /* the day accordion's 28px chevron was the one compact control left out of
+     this budget: its only neighbour inside 14px is the day badge, 12px away,
+     so a 6px expansion stays clear of it. The collapsed route line needs no
+     expander — it wraps to 2+ lines (41-62px) at phone widths. */
+  .day-collapse::after {
+    content: ''; position: absolute; inset: -6px; border-radius: inherit;
+  }
+}
+
+/* ---------- Cards ---------- */
+.card {
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: var(--radius); box-shadow: var(--shadow);
+  padding: var(--space-8);
+}
+.card + .card { margin-top: 14px; }
+/* …except inside a grid, which already spaces its own items with `gap`. The
+   stacked-card beat double-applied there: the 14px margin pushed every card
+   after the first DOWN 14px and shrank it by the same amount, so a row of peers
+   rendered with ragged tops, unequal heights and a 26px gap where the grid said
+   12 (Explore shelf, creator page, My Trips, and the public itinerary's
+   Travel-tips / Warnings row). */
+/* The inventory below is the answer to "which grids hold `.card`s?" — a sweep
+   found three (Explore/CreatorPage/TripsList share one, the public page's
+   content grid, and the landing feature strip). Add the next one here. */
+.explore-grid > .card + .card,
+.two-col > .card + .card,
+.feature-strip > .card + .card { margin-top: 0; }
+/* Explicit card spacing where the sibling selector can't express the intent
+   (Profile stacks its cards with a wider 16px beat — was inline style). */
+.stack-gap { margin-top: 16px; }
+
+/* ---------- Forms ---------- */
+.field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+.label { font-size: 13px; font-weight: 600; color: var(--text-2); }
+.input, .select, .textarea {
+  width: 100%; padding: 10px 13px;
+  border: 1.5px solid var(--line); border-radius: var(--radius-sm);
+  background: var(--card-soft); outline: none;
+  transition: border-color var(--motion-fast) var(--ease-out), box-shadow var(--motion-fast) var(--ease-out);
+  color: var(--text);
+}
+.input:focus, .select:focus, .textarea:focus {
+  border-color: var(--teal); box-shadow: 0 0 0 3px color-mix(in srgb, var(--teal) 18%, transparent);
+}
+/* A disabled form control must look disabled — three selects shipped identical
+   to enabled ones (Create-Trip Day, TripSettings vehicle rows). Same shape as
+   .btn:disabled. */
+.input:disabled, .select:disabled, .textarea:disabled {
+  opacity: .55; cursor: not-allowed;
+}
+.textarea { resize: vertical; min-height: 74px; }
+/* Inline-row variant — the .input surface at a size that fits beside a label
+   on one line (travel-panel departure / halt-planner fields), with the same
+   focus ring instead of the hand-styled borders those fields used to have. */
+.input--compact { width: auto; padding: 5px 8px; font-size: 13px; }
+/* Dropdown (select) — the exact .input surface; the only tell is the chevron.
+   (Was a glass pill with its own background/weight, which read as a different
+   component family next to text inputs in the same form.) */
+.select {
+  appearance: none;
+  padding: 10px 32px 10px 13px;
+  cursor: pointer;
+  /* soft teal chevron (clean SVG stroke), vertically centred, clear of the text */
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path d='M1.5 1.5L6 6l4.5-4.5' fill='none' stroke='%230E7A72' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 11px 7px;
+  transition: border-color var(--motion-fast) var(--ease-out), box-shadow var(--motion-fast) var(--ease-out), background-color var(--motion-fast) var(--ease-out);
+}
+.select:hover:not(:disabled) { border-color: var(--teal); }
+/* Theme the native popup rows (Chromium/Edge honour this; the system highlight
+   stays but stops clashing with the palette). */
+.select option { background: var(--card); color: var(--text); }
+/* The custom Select already turns red on aria-invalid (see .cselect-trigger);
+   native controls declared no invalid style at all, so one invalid state had two
+   looks depending on which control carried it. */
+.input[aria-invalid='true'], .select[aria-invalid='true'], .textarea[aria-invalid='true'] { border-color: var(--danger); }
+

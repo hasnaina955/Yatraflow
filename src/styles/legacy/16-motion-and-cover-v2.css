@@ -1,0 +1,1699 @@
+/* ===== Papercut motion foundation ===== */
+/* Six items take the 60ms stagger. Later items share the sixth step. */
+
+:is(
+  .page-enter > *,
+  .empty-state > *,
+  .board-col,
+  .unlock-reveal > *,
+  .unlock-reveal-facts > *,
+  .purchase-list > *,
+  .ex-aside > *,
+  .inv-preview-row,
+  .nh-trip-row,
+  .yf-surface.tsx-card
+) {
+  --stagger-index: 0;
+  animation-delay: calc(var(--stagger-step) * var(--stagger-index));
+}
+
+:is(
+  .page-enter > *,
+  .empty-state > *,
+  .board-col,
+  .unlock-reveal > *,
+  .unlock-reveal-facts > *,
+  .purchase-list > *,
+  .ex-aside > *,
+  .inv-preview-row,
+  .nh-trip-row,
+  .yf-surface.tsx-card
+):nth-child(2) {
+  --stagger-index: 1;
+}
+
+:is(
+  .page-enter > *,
+  .empty-state > *,
+  .board-col,
+  .unlock-reveal > *,
+  .unlock-reveal-facts > *,
+  .purchase-list > *,
+  .ex-aside > *,
+  .inv-preview-row,
+  .nh-trip-row,
+  .yf-surface.tsx-card
+):nth-child(3) {
+  --stagger-index: 2;
+}
+
+:is(
+  .page-enter > *,
+  .empty-state > *,
+  .board-col,
+  .unlock-reveal > *,
+  .unlock-reveal-facts > *,
+  .purchase-list > *,
+  .ex-aside > *,
+  .inv-preview-row,
+  .nh-trip-row,
+  .yf-surface.tsx-card
+):nth-child(4) {
+  --stagger-index: 3;
+}
+
+:is(
+  .page-enter > *,
+  .empty-state > *,
+  .board-col,
+  .unlock-reveal > *,
+  .unlock-reveal-facts > *,
+  .purchase-list > *,
+  .ex-aside > *,
+  .inv-preview-row,
+  .nh-trip-row,
+  .yf-surface.tsx-card
+):nth-child(5) {
+  --stagger-index: 4;
+}
+
+:is(
+  .page-enter > *,
+  .empty-state > *,
+  .board-col,
+  .unlock-reveal > *,
+  .unlock-reveal-facts > *,
+  .purchase-list > *,
+  .ex-aside > *,
+  .inv-preview-row,
+  .nh-trip-row,
+  .yf-surface.tsx-card
+):nth-child(6) {
+  --stagger-index: 5;
+}
+
+:is(
+  .page-enter > *,
+  .empty-state > *,
+  .board-col,
+  .unlock-reveal > *,
+  .unlock-reveal-facts > *,
+  .purchase-list > *,
+  .ex-aside > *,
+  .inv-preview-row,
+  .nh-trip-row,
+  .yf-surface.tsx-card
+):nth-child(n+7) {
+  --stagger-index: 5;
+}
+
+:is(.sf-daygrid) > .sf-day,
+:is(.sf-cover-pattern) .sf-cover-dot,
+:is(.rm-case),
+:is(.rm-road),
+:is(.rm-dash) {
+  animation-delay: calc(var(--stagger-step) * min(var(--i, 0), 5));
+}
+
+/* Exits use their named token lifetime and never stagger. */
+.yf-surface.tsx-card:nth-of-type(n) { animation-delay: calc(var(--stagger-step) * var(--stagger-index)); }
+:is([data-presence='exit']):is([data-presence='exit']):is([data-presence='exit']) {
+  pointer-events: none;
+  animation: presence-out var(--motion-med) var(--ease-exit) 0s forwards;
+}
+
+:is(.ex-page, .trips-page) .ex-clear:is([data-presence='exit']) {
+  animation: ex-clear-out var(--motion-med) var(--ease-exit) 0s forwards;
+}
+
+.trips-page .ex-clear[style*='hidden']:is(.ex-clear) {
+  transform: translateX(-6px);
+  pointer-events: none;
+  transition:
+    opacity var(--motion-med) var(--ease-exit),
+    transform var(--motion-med) var(--ease-exit),
+    visibility 0s linear var(--motion-med);
+}
+
+.map-shell--closing:is(.map-shell--closing) {
+  animation: mapCollapse var(--motion-slow) var(--ease-exit) 0s both;
+  pointer-events: none;
+}
+
+/* Reduced motion is immediate. Route paths, pins, covers and numbers stay
+   outside this group, so they appear in their final state. */
+@media (prefers-reduced-motion: reduce) {
+  :root:root {
+    --motion-instant: 0ms;
+    --motion-fast: 0ms;
+    --motion-med: 0ms;
+    --motion-slow: 0ms;
+    --motion-slower: 0ms;
+    --stagger-step: 0ms;
+  }
+  :is(
+    .page-enter > *,
+    .empty-state > *,
+    .board-col,
+    .tab-panel,
+    .route-panel,
+    .trip-enter,
+    .ex-enter:not([data-presence='exit']),
+    .ex-hero-copy,
+    .ex-hero-visual,
+    .ex-aside > *,
+    .ex-selects.is-open,
+    .mt-card:not([data-presence='exit']),
+    .mt-shelf-item:not([data-presence='exit']),
+    .yf-surface.is-entering:not([data-presence='exit']),
+    .yf-surface.tsx-card,
+    .unlock-reveal > *,
+    .unlock-reveal-facts > *,
+    .purchase-list > *,
+    .sf-daygrid > .sf-day,
+    .sf-cover-pattern .sf-cover-dot,
+    .popover,
+    .map-legend-body,
+    .tl-mode-copy,
+    .engine-tips-text,
+    .gin-followup,
+    .err-text,
+    .auth-submit-notice,
+    .remote-edit-banner,
+    .ovw-weather-failed,
+    .ovw-weather-kept,
+    .shr-read-failed,
+    .shr-read-kept,
+    .shr-read-loading,
+    .hub-read-failed,
+    .hub-read-kept,
+    .shr-state,
+    .tl-state,
+    .tm-state,
+    .bud-state,
+    .ex-page .ex-clear:not([data-presence='exit']),
+    .trips-page .ex-clear[style*='visible']:not([data-presence='exit'])
+  ):not([data-presence='exit']) {
+    animation: none !important;
+    animation-delay: 0s !important;
+  }
+}
+
+/* Reduced exits keep the existing immediate unmount contract. */
+@media (prefers-reduced-motion: reduce) {
+  :is([data-presence='exit']),
+  :is(.ex-page, .trips-page) .ex-clear:is([data-presence='exit']) {
+    animation: none !important;
+  }
+
+  .trips-page .ex-clear[style*='hidden']:is(.ex-clear) {
+    transform: none;
+    transition: none !important;
+  }
+
+  .map-shell--closing:is(.map-shell--closing) {
+    animation: none !important;
+  }
+}
+
+/* ===== P2/P12 v2: cover header, compact Overview and schematic route ===== */
+/* The Overview uses the established 1180px content width. Board and Map keep
+   the wider canvas for their work surfaces. */
+.container.yf-workspace.yf-workspace {
+  max-width: 1180px;
+}
+
+.container.yf-workspace.yf-workspace[data-wide='true'] {
+  max-width: 1720px;
+}
+
+/* The cover is one full-width sheet. Its media is clipped inside the sheet,
+   while the sheet itself keeps tooltips visible above it. */
+.yf-page .yf-trip-head {
+  --pw-cover-ink: #FCFEFD;
+  --pw-cover-ink-soft: rgb(252 254 253 / .9);
+  position: relative;
+  display: block;
+  height: 260px;
+  margin: 0 0 var(--space-7);
+  padding: 0;
+  overflow: visible;
+  border: 0;
+  border-radius: var(--radius-xl);
+  background: var(--pw-sea-700);
+  box-shadow: var(--elev-3);
+  transition:
+    height var(--motion-slow) var(--ease-glide),
+    box-shadow var(--motion-slow) var(--ease-glide);
+}
+
+.yf-page .yf-trip-head::after {
+  display: none;
+}
+
+.yf-page .yf-trip-head > .yf-cover-media {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  background: var(--pw-sea-700);
+  animation: yfCoverSettle calc(var(--motion-slower) * 3) var(--ease-glide) backwards;
+}
+
+.yf-page .yf-cover-photo,
+.yf-page .yf-cover-media .mt-art {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.yf-page .yf-cover-photo {
+  background-position: center 45%;
+  background-size: cover;
+}
+
+.yf-page .yf-cover-emoji {
+  position: absolute;
+  right: var(--space-11);
+  top: 50%;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  background: transparent;
+  font-size: 28px;
+  line-height: 1;
+  transform: translateY(-50%);
+}
+
+.yf-page .yf-cover-media .mt-motif {
+  transform: scale(1.03);
+}
+
+/* The source veil: one soft run from the left edge to nothing at the right, so
+   the artwork stays visible. The title, facts and members all sit in the shaded
+   left third, which is what keeps the text readable without dimming the scene. */
+.yf-page .yf-trip-head > .yf-cover-veil {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  background: linear-gradient(
+    90deg,
+    rgb(8 24 34 / .8) 0%,
+    rgb(8 24 34 / .45) 50%,
+    rgb(8 24 34 / 0) 100%
+  );
+  pointer-events: none;
+}
+
+.yf-page .yf-trip-head > .yf-cover-content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  padding: var(--space-7) var(--space-11) var(--space-7a);
+  color: var(--pw-cover-ink);
+}
+
+.yf-page .yf-cover-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-7);
+}
+
+.yf-page .yf-cover-top .yf-back {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin: calc(-1 * var(--space-4a)) 0 0 calc(-1 * var(--space-5));
+  padding: 0 var(--space-5);
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: color-mix(in srgb, var(--pw-cover-ink) 84%, transparent);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.yf-page .yf-cover-top .yf-back:hover {
+  background: color-mix(in srgb, var(--pw-cover-ink) 14%, transparent);
+  color: var(--pw-cover-ink);
+}
+
+.yf-page .yf-cover-top .yf-invite {
+  min-height: 44px;
+  padding: 0 var(--space-7a);
+  border: 1.5px solid rgb(252 254 253 / .8);
+  border-radius: var(--radius-pill);
+  /* The source veil reaches zero at the right edge, where this control sits, so
+     the button carries its own dark glass. White text stays readable over a
+     white sky, and the cover keeps the source's light veil. */
+  background: rgb(8 24 34 / .62);
+  -webkit-backdrop-filter: blur(var(--yf-blur-chip));
+  backdrop-filter: blur(var(--yf-blur-chip));
+  color: var(--pw-cover-ink);
+  font-size: 14px;
+  font-weight: 700;
+  text-shadow: 0 1px 2px rgb(8 24 34 / .45);
+}
+
+.yf-page .yf-cover-top .yf-invite:hover {
+  background: rgb(8 24 34 / .74);
+  border-color: var(--pw-card);
+  color: var(--pw-cover-ink);
+}
+
+.yf-page .yf-cover-top .yf-back:focus-visible,
+.yf-page .yf-cover-top .yf-invite:focus-visible,
+.yf-page .yf-member:focus-visible {
+  outline: 3px solid var(--pw-cover-ink);
+  outline-offset: 3px;
+  box-shadow: none;
+}
+
+.yf-page .yf-head-row {
+  display: block;
+  margin-top: var(--space-1);
+}
+
+.yf-page .yf-head-text {
+  min-width: 0;
+  transform: none;
+  transition: none;
+}
+
+.yf-page .yf-trip-head .yf-trip-title {
+  display: block;
+  width: min(100%, 760px);
+  height: auto;
+  min-height: 0;
+  margin: 0;
+  overflow: hidden;
+  color: var(--pw-cover-ink);
+  font-family: var(--font-display);
+  font-size: 40px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -.02em;
+  text-overflow: ellipsis;
+  text-wrap: nowrap;
+  white-space: nowrap;
+  transform: none;
+}
+
+.yf-page[data-compact='true'] .yf-trip-head .yf-trip-title {
+  font-size: 32px;
+  transform: none;
+}
+
+.yf-page .yf-cover-content > .yf-head-row + .yf-extra {
+  margin-top: var(--space-1);
+}
+
+.yf-page .yf-head-meta {
+  min-height: 0;
+  margin: 0;
+  padding-top: var(--space-2);
+  color: var(--pw-cover-ink-soft);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.yf-page .yf-extra {
+  grid-row: auto;
+  margin-top: 0;
+}
+
+.yf-page .yf-extra > .yf-fade {
+  min-height: 0;
+}
+
+.yf-page .yf-members {
+  min-height: 36px;
+  padding: 0;
+  /* The stack sat 4px under the metadata line but 22.41px above the rail, so
+     the two gaps the eye compares ran 5.6:1 (measured from the text ink) and
+     the row read as stuck to the paragraph. Most of the lower number is the
+     member target's own padding: the 32px circle is centred in a 44px hit box,
+     so 6px above and 6px below the circle are target, not space.
+     `--space-4` (8px) is where the two gaps meet on the desktop cover, which is
+     the layout this row is drawn for: from the metadata ink 5.59 -> 13.59, and
+     to the rail 22.41 -> 14.41 — a 0.8px difference. Both themes agree.
+     The phone cover needs its own step: it is taller (296px against 260px) and
+     wraps, so the same 8px left the row 13.80 under the metadata ink and 27.81
+     above the rail. `--space-7` on the ≤720px breakpoint closes that to
+     19.80 / 19.81 — the two gaps now match, and the header height does not
+     change because the rail is absolutely positioned and the 8px comes out of
+     the slack below the row. Measured 296px before and after; the desktop rule
+     is untouched.
+     The header does not grow: the members row is the last child before the
+     rail, and the rail is absolutely positioned in the non-compact cover, so
+     the 8px comes out of the slack below the row. Measured header height is
+     260px desktop / 296px phone before and after.
+     A margin, not a transform: the row is a real box in a flex column, so
+     nothing fakes its position, and the fold still collapses the same box. */
+  margin-top: var(--space-4);
+  color: var(--pw-cover-ink-soft);
+}
+
+/* The circle and its target are the same width — 32px, the mockup's stack
+   geometry — and the 44px is HEIGHT only, which is where the tap room comes
+   from. That split matters: the stack's overlap is a negative margin, so a
+   44px-wide target would either cancel the overlap (circles touching, which is
+   the flat block this replaced) or push 20px of each target under its
+   neighbour and steal that neighbour's hits. The width stays at the circle's
+   own 32px, so the advance is 24px — the mockup's 8px overlap — and every
+   circle's centre stays inside its own target. */
+.yf-page .yf-member {
+  width: 32px;
+  height: 44px;
+  margin-top: calc(-1 * var(--space-2));
+  margin-bottom: calc(-1 * var(--space-2));
+  margin-left: calc(-1 * var(--space-4));
+  align-items: center;
+  justify-content: center;
+}
+
+.yf-page .yf-member:first-child {
+  margin-left: 0;
+}
+
+/* The focus ring paints in the member's own layer, so an overlapping neighbour
+   painted later would cover it. Lift the focused member instead of widening the
+   ring's offset, which would push it under the next circle again. */
+.yf-page .yf-member:focus-visible {
+  z-index: 2;
+}
+
+.yf-page .yf-member::after {
+  inset: 0;
+}
+
+/* The circle fills its target's width and centres in its height, so no margin
+   of its own — that margin was what cancelled the stack's overlap. */
+.yf-page .yf-member .avatar {
+  width: 32px;
+  height: 32px;
+  /* ONE edge, not two. This circle carried a 2px `border` AND the stack's 2px
+     `box-shadow` ring below, so the light edge read 4px wide — a heavy white
+     halo the source does not have. The ring is the part that separates
+     overlapping circles, so it keeps its 2px and the border drops to the
+     hairline the source actually draws. The ring still paints in the cover's
+     ink, which is what makes a circle read against the photo. */
+  border: 1px solid color-mix(in srgb, var(--pw-cover-ink) 92%, transparent);
+  font-size: 12px;
+}
+
+.yf-page .yf-member-dot {
+  right: var(--space-2);
+  bottom: var(--space-2);
+  width: 11px;
+  height: 11px;
+  border-color: color-mix(in srgb, var(--pw-cover-ink) 92%, transparent);
+  background: var(--pw-lagoon-300);
+}
+
+.yf-page .yf-member-note,
+.yf-page .yf-viewing {
+  color: var(--pw-cover-ink-soft);
+}
+
+.yf-page .yf-member-note b {
+  color: var(--pw-cover-ink);
+}
+
+.yf-page .yf-viewing i {
+  background: var(--pw-lagoon-300);
+}
+
+.yf-page .yf-tip {
+  border-color: var(--pw-line);
+  background: var(--pw-card);
+  color: var(--pw-ink);
+  box-shadow: var(--elev-2);
+}
+
+.yf-page .yf-cover-content > .yf-tabbar {
+  position: absolute;
+  left: var(--space-9);
+  right: auto;
+  bottom: var(--space-7a);
+  width: max-content;
+  max-width: calc(100% - (2 * var(--space-9)));
+  margin: 0;
+  padding: var(--space-3);
+  overflow-x: auto;
+  border-color: var(--yf-glass-border);
+  border-radius: var(--radius-pill);
+  /* The source pill: a near-white glass at 86%, so the tabs read on the photo
+     instead of inheriting the page's lighter nav glass. */
+  background: color-mix(in srgb, var(--pw-card) 86%, transparent);
+  -webkit-backdrop-filter: blur(var(--yf-blur-nav)) saturate(1.2);
+  backdrop-filter: blur(var(--yf-blur-nav)) saturate(1.2);
+  box-shadow: var(--elev-2);
+}
+
+.yf-page .yf-tabbar .tab-btn {
+  min-height: 44px;
+  padding: 0 var(--space-6);
+  color: var(--pw-ink);
+  font-size: 14px;
+  font-weight: 600;
+  /* The label keeps the RAIL's ink, always. The fill is a sea capsule with white
+     ink on it; the rail is light glass with dark ink. One `color` cannot be
+     right for both, so a second copy of the label in the fill's ink is painted
+     by `.pill-ink` and clipped to the fill's own moving box. So the label
+     changes ink exactly where the fill has arrived, per pixel, with no timing
+     assumption at all.
+
+     A timed swap was tried first and is removed. It held the rail ink for
+     `--motion-med` and swapped on the frame the capsule landed, which fails for
+     a reason no delay can fix: a fixed moment cannot describe a moving edge. A
+     controlled capture on this rail measured the fill fully covering the label
+     180ms before the swap, at 2.19:1 light / 2.09:1 dark, and a 120ms reversal
+     moved the ink while the fill still covered it. The paint has to follow the
+     geometry, not a clock. */
+  transition:
+    background var(--motion-fast) var(--ease-out),
+    border-color var(--motion-fast) var(--ease-out),
+    box-shadow var(--motion-fast) var(--ease-out),
+    transform var(--motion-fast) var(--ease-out),
+    filter var(--motion-fast) var(--ease-out);
+}
+
+.yf-page .yf-tabbar .tab-btn:hover {
+  background: color-mix(in srgb, var(--pw-ink) 8%, transparent);
+  color: var(--pw-ink);
+}
+
+.yf-page .yf-tabbar .pill-glider {
+  background: var(--pw-sea-700);
+}
+
+.yf-page .yf-tabbar .tab-btn.active,
+.yf-page .yf-tabbar .tab-btn.active:hover {
+  background: transparent;
+  /* The label keeps the RAIL ink even while selected. The fill ink is supplied
+     by the copy inside `.pill-ink`, so nothing about this label changes when the
+     fill arrives — which is why no transition leg is needed here. This line also
+     holds the ink against the older `[data-theme='dark'] .pill-nav
+     .tab-btn.active` rule at the same specificity. */
+  color: var(--pw-ink);
+  box-shadow: none;
+}
+
+.yf-page .yf-tabbar .tab-btn.active .tab-count {
+  background: var(--pw-card);
+  color: var(--pw-sea-900);
+}
+
+/* Focus has to survive selection. The active rule above sets `box-shadow: none`
+   so the glider owns the fill, and at (0,5,0) — `:hover` included — it outranks
+   the shared `:focus-visible` ring at (0,2,0). A keyboard user who tabbed onto
+   the selected tab got `outline: none` AND `box-shadow: none`: no focus sign at
+   all, while the inactive tabs kept theirs. The fix restates the ring here, and
+   this rule has to sit AFTER the selection rules and carry a specificity that
+   wins on its own, because a tie is decided by source order and an unrelated
+   edit could move it. List all three states the selected tab can be in: focused,
+   and focused while hovered.
+
+   The ring is `box-shadow` spread, which paints OUTSIDE the border box — over
+   the rail's glass, where `--ring` is measured to clear 3:1 (4.03 light, 3.86
+   dark). Painting it over the glider's sea fill instead would be 1.8:1, so do
+   not replace this with a background or an inset shadow. Background stays
+   untouched: the glider still owns the fill. */
+.yf-page .yf-tabbar .tab-btn:focus-visible,
+.yf-page .yf-tabbar .tab-btn.active:focus-visible,
+.yf-page .yf-tabbar .tab-btn.active:hover:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+
+.yf-page.yf-page[data-compact='true'] .yf-trip-head {
+  height: auto;
+  min-height: 180px;
+}
+
+.yf-page.yf-page[data-compact='true'] .yf-cover-content {
+  height: auto;
+  min-height: inherit;
+  padding-bottom: var(--space-7a);
+}
+
+.yf-page.yf-page[data-compact='true'] .yf-head-row {
+  margin-top: var(--space-1);
+}
+
+.yf-page.yf-page[data-compact='true'] .yf-cover-content > .yf-tabbar {
+  position: relative;
+  inset: auto;
+  flex-shrink: 0;
+  margin-top: var(--space-7);
+}
+
+@keyframes yfCoverSettle {
+  from {
+    transform: scale(1.035);
+  }
+}
+
+/* Overview: the briefing row, two-column body and quiet follow-up row. */
+.ovw.ovw2 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-7a);
+  padding-bottom: var(--space-11);
+  background: transparent;
+}
+
+.ovw2-brief,
+.ovw2-main,
+.ovw.ovw2 > .ovw-weather {
+  grid-column: 1 / -1;
+}
+
+.ovw2-brief {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: var(--space-7a);
+  align-items: stretch;
+}
+
+.ovw2 .ovw-title {
+  margin: 0;
+  color: var(--pw-ink);
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -.01em;
+}
+
+.ovw2 .ovw-head {
+  min-height: 28px;
+  margin-bottom: var(--space-4a);
+}
+
+.ovw2 .ovw-link,
+.ovw2 .ovw-btn--review {
+  min-height: 44px;
+}
+
+.ovw2 .ovw-link {
+  padding-inline: var(--space-4);
+}
+
+.yf-surface.ovw-card.ovw2-health {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--space-6);
+  min-height: 236px;
+  padding: var(--space-8) var(--space-9);
+  border-color: var(--pw-line-soft);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--elev-1);
+}
+
+.ovw2-health[data-band='ok'] {
+  --ovw-health: var(--pw-ok);
+  --ovw-health-soft: var(--pw-ok-100);
+  --ovw-health-ink: var(--pw-ok);
+}
+
+.ovw2-health[data-band='teal'] {
+  --ovw-health: var(--pw-lagoon-600);
+  --ovw-health-soft: var(--pw-lagoon-100);
+  --ovw-health-ink: var(--pw-sea-700);
+}
+
+.ovw2-health[data-band='saffron'] {
+  --ovw-health: var(--pw-marigold-500);
+  --ovw-health-soft: var(--pw-marigold-100);
+  --ovw-health-ink: var(--pw-marigold-ink);
+}
+
+.ovw2-health[data-band='danger'] {
+  --ovw-health: var(--pw-risk);
+  --ovw-health-soft: var(--pw-risk-100);
+  --ovw-health-ink: var(--pw-risk);
+}
+
+.ovw2-health-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-5);
+}
+
+.ovw2-kicker,
+.ovw2-metric-label {
+  color: var(--pw-ink-3);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  line-height: 1.3;
+  text-transform: uppercase;
+}
+
+.ovw2-health .ovw-band {
+  display: inline-flex;
+  grid-column: auto;
+  align-items: center;
+  justify-self: auto;
+  min-height: 24px;
+  margin: 0;
+  padding: 0 var(--space-4a);
+  border-radius: var(--radius-pill);
+  background: var(--ovw-health-soft);
+  color: var(--ovw-health-ink);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.ovw2-health-main {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-7a);
+}
+
+.ovw2-score-ring {
+  display: grid;
+  place-items: center;
+  width: 74px;
+  height: 74px;
+  flex: none;
+  border-radius: var(--radius-pill);
+  background:
+    conic-gradient(
+      var(--ovw-health) 0 var(--ovw-score),
+      var(--pw-sunken) var(--ovw-score) 100%
+    );
+}
+
+.ovw2-score-core {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 58px;
+  height: 58px;
+  border-radius: var(--radius-pill);
+  background: var(--pw-card);
+  line-height: 1;
+}
+
+.ovw2-score-core b {
+  color: var(--ovw-health-ink);
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -.02em;
+}
+
+.ovw2-score-core small {
+  color: var(--pw-ink-3);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.ovw2-health-copy {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.ovw2 .ovw2-health-line {
+  color: var(--pw-ink);
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -.01em;
+  text-wrap: balance;
+}
+
+.ovw2-health-issues {
+  margin: 0;
+  color: var(--pw-ink-2);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.ovw2-health-act {
+  display: flex;
+  align-items: center;
+}
+
+.ovw2-health-act .ovw-btn--primary {
+  min-height: 44px;
+  padding: 0 var(--space-8);
+  border: 0;
+  background: var(--pw-marigold-500);
+  color: var(--pw-on-marigold);
+  box-shadow: var(--glow-marigold);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.ovw2-health-act .ovw-btn--primary:hover {
+  background: var(--pw-marigold-500);
+  filter: brightness(1.04);
+  transform: translateY(-1px);
+}
+
+.ovw2-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-5);
+}
+
+.yf-surface.ovw-card.ovw2-metric {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-1);
+  min-height: 112px;
+  padding: var(--space-7) var(--space-7a);
+  border-color: var(--pw-line-soft);
+  border-radius: var(--radius-lg);
+  background: var(--pw-card);
+  box-shadow: var(--elev-1);
+}
+
+.yf-surface.ovw-card.ovw2-metric.is-teal {
+  border-color: var(--pw-route);
+  background: var(--pw-lagoon-50);
+}
+
+.ovw2-metric.is-teal .ovw2-metric-label {
+  color: var(--pw-sea-700);
+}
+
+.ovw2-metric-value {
+  color: var(--pw-ink);
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.ovw2-metric-sub {
+  color: var(--pw-ink-2);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.ovw2-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: var(--space-7a);
+  align-items: start;
+}
+
+.ovw2-left {
+  display: grid;
+  gap: var(--space-7a);
+  min-width: 0;
+}
+
+.yf-surface.ovw-card.ovw2-issues {
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-8);
+  border-color: var(--pw-line-soft);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--elev-1);
+}
+
+.ovw2-issues .ovw-head {
+  margin-bottom: var(--space-4a);
+}
+
+.ovw2 .ovw-count {
+  min-height: 24px;
+  padding-inline: var(--space-4a);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.ovw2 .ovw-need-list {
+  gap: var(--space-4);
+}
+
+.ovw2 .ovw2-issue {
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  gap: var(--space-5) var(--space-6);
+  margin: 0;
+  padding: var(--space-5) var(--space-6);
+  border: 0;
+  border-radius: var(--radius);
+}
+
+.ovw2 .ovw2-issue:first-child {
+  padding-top: var(--space-5);
+}
+
+.ovw2-issue.is-high {
+  background: var(--pw-risk-100);
+}
+
+.ovw2-issue.is-medium {
+  background: var(--pw-marigold-100);
+}
+
+.ovw2-issue.is-low {
+  background: var(--pw-soft);
+}
+
+.ovw2-issue-icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, currentColor 16%, var(--pw-card));
+}
+
+.ovw2-issue.is-high .ovw2-issue-icon {
+  color: var(--pw-risk);
+}
+
+.ovw2-issue.is-medium .ovw2-issue-icon {
+  color: var(--pw-marigold-ink);
+}
+
+.ovw2-issue.is-low .ovw2-issue-icon {
+  color: var(--pw-ink-2);
+}
+
+.ovw2-issue .ovw-need-title {
+  color: var(--pw-ink);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.ovw2-issue .ovw-need-fix {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--space-2);
+  color: var(--pw-ink-2);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.ovw2-issue .ovw-sev {
+  min-height: 0;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.ovw2-issue .ovw-sev::after {
+  color: var(--pw-ink-2);
+  content: ' /';
+}
+
+.ovw2-issue.is-high .ovw-sev {
+  color: var(--pw-risk);
+}
+
+.ovw2-issue.is-medium .ovw-sev {
+  color: var(--pw-marigold-ink);
+}
+
+.ovw2-issue.is-low .ovw-sev {
+  color: var(--pw-ink-2);
+}
+
+.ovw2 .ovw2-fix {
+  min-height: 44px;
+  padding: 0 var(--space-5);
+  border: 0;
+  background: var(--pw-sea-700);
+  color: var(--pw-on-sea);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.ovw2 .ovw2-fix.is-high {
+  background: var(--pw-risk);
+  color: var(--pw-card);
+}
+
+.ovw2 .ovw2-fix.is-medium {
+  background: var(--pw-sea-700);
+  color: var(--pw-on-sea);
+}
+
+.ovw2 .ovw2-fix.is-low {
+  border: 1px solid var(--pw-line);
+  background: var(--pw-card);
+  color: var(--pw-ink);
+}
+
+.ovw2 .ovw-more-btn {
+  margin-top: var(--space-5);
+}
+
+.yf-surface.ovw-block.ovw-matrix {
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-8);
+  border-color: var(--pw-line-soft);
+  border-radius: var(--radius-lg);
+  background: var(--pw-card);
+  box-shadow: var(--elev-1);
+}
+
+.ovw2 .ovw-matrix .ovw-head {
+  margin-bottom: var(--space-4a);
+}
+
+.ovw2 .ovw-matrix-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-5);
+  margin-top: var(--space-4a);
+  color: var(--pw-ink-2);
+  font-size: 12px;
+}
+
+.ovw2 .mx-tap {
+  margin-inline-start: auto;
+  color: var(--pw-ink-3);
+}
+
+.yf-surface.ovw-card.ovw2-route {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4a);
+  min-width: 0;
+  padding: var(--space-8);
+  border-color: var(--pw-line-soft);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--elev-1);
+}
+
+.ovw2-route .ovw-head {
+  align-items: baseline;
+  margin-bottom: 0;
+}
+
+.ovw2-route .ovw-head-meta {
+  gap: var(--space-2) var(--space-5);
+}
+
+.ovw2-route .ovw-route-caption {
+  min-height: 24px;
+  padding-inline: var(--space-4a);
+  background: var(--pw-sunken);
+  color: var(--pw-ink-2);
+  font-size: 11px;
+}
+
+.ovw2-route .ovw-route-caption.is-measured {
+  background: var(--pw-ok-100);
+  color: var(--pw-ok);
+}
+
+.ovw2-route .ovw-route-caption.is-estimated,
+.ovw2-route .ovw-route-caption.is-incomplete {
+  background: var(--pw-marigold-100);
+  color: var(--pw-marigold-ink);
+}
+
+.ovw2-route .ovw-route-caption.is-failed {
+  background: var(--pw-risk-100);
+  color: var(--pw-risk);
+}
+
+.ovw2 .ovw-map {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--pw-line-soft);
+  border-radius: var(--radius);
+  background: var(--pw-paper);
+}
+
+.ovw2 .ovw-map .ovw-map-atmosphere {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 80% 14%, color-mix(in srgb, var(--pw-marigold-500) 22%, transparent), transparent 26%),
+    linear-gradient(180deg, var(--pw-lagoon-50), var(--pw-paper) 58%, var(--pw-sunken));
+  pointer-events: none;
+}
+
+.ovw2 .ovw-map-atmosphere::before {
+  position: absolute;
+  inset: calc(-1 * var(--space-7a));
+  background: var(--ovw-cover, none) center / cover no-repeat;
+  filter: blur(12px);
+  opacity: .28;
+  content: '';
+}
+
+.ovw2 .ovw-map-atmosphere::after {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(120deg, color-mix(in srgb, var(--pw-card) 74%, transparent), color-mix(in srgb, var(--pw-paper) 64%, transparent));
+  content: '';
+}
+
+:root[data-theme='dark'] .ovw2 .ovw-map-atmosphere::after {
+  background:
+    linear-gradient(120deg, color-mix(in srgb, var(--pw-card) 72%, transparent), color-mix(in srgb, var(--pw-paper) 62%, transparent));
+}
+
+.ovw2 .ovw-map .ovw-map-svg {
+  position: relative;
+  z-index: 1;
+}
+
+.ovw2 .ovw-map .ovw-survey {
+  fill: none;
+  stroke: var(--pw-sea-700);
+  stroke-width: 1;
+  stroke-dasharray: 2 7;
+  stroke-linecap: round;
+  opacity: .16;
+}
+
+.ovw2 .ovw-map .rm-case {
+  stroke: var(--pw-card);
+  stroke-width: 7px;
+  opacity: .82;
+}
+
+.ovw2 .ovw-map .rm-road {
+  stroke: var(--pw-sea-700);
+  stroke-width: 3.5px;
+  stroke-dasharray: 1;
+}
+
+.ovw2 .ovw-map .rm-dot {
+  fill: var(--pw-card);
+  stroke: var(--pw-sea-700);
+  stroke-width: 2px;
+}
+
+.ovw2 .ovw-map .rm-ring {
+  stroke: var(--pw-sea-700);
+}
+
+.ovw2 .ovw-map .rm-leghit.is-hl {
+  stroke: var(--pw-sea-700);
+  opacity: .18;
+}
+
+.ovw2 .ovw-map .rm-name,
+.ovw2 .ovw-map .rm-tag {
+  stroke: var(--pw-paper);
+}
+
+.ovw2 .rm-pin.is-start .rm-num {
+  fill: var(--pw-on-sea);
+}
+
+.ovw2 .rm-pin.is-end .rm-num {
+  fill: var(--pw-on-marigold);
+}
+
+.ovw2 .rm-tip-box {
+  fill: var(--pw-card);
+  stroke: var(--pw-line);
+}
+
+.ovw2-map-north {
+  position: absolute;
+  top: var(--space-5);
+  right: var(--space-5);
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--pw-line-soft);
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--pw-card) 88%, transparent);
+  color: var(--pw-ink-2);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.ovw2-map-basis {
+  position: absolute;
+  top: calc(var(--space-5) + 28px);
+  right: var(--space-5);
+  z-index: 2;
+  color: var(--pw-ink-3);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.ovw2 .ovw-rsum {
+  gap: var(--space-1) var(--space-7);
+  color: var(--pw-ink-2);
+}
+
+.ovw2 .ovw-rsum b {
+  color: var(--pw-ink);
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.ovw2 .ovw-road-note {
+  padding: var(--space-4a) var(--space-5);
+  border-radius: var(--radius-sm);
+  background: var(--pw-soft);
+  color: var(--pw-ink-2);
+}
+
+.ovw2 .ovw-road-note.is-failed {
+  background: var(--pw-risk-100);
+  color: var(--pw-risk);
+}
+
+.ovw2 .ovw-stoplist {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: var(--space-8);
+}
+
+.ovw2 .ovw-stoplist > li {
+  border-top: 1px dashed var(--pw-line-soft);
+}
+
+.ovw2 .ovw-stoplist > li:nth-child(-n + 2) {
+  border-top: 0;
+}
+
+.ovw2 .ovw-stop-btn {
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+  min-height: 44px;
+  column-gap: var(--space-4);
+  border-radius: var(--radius-sm);
+}
+
+.ovw2 .ovw-stop-km,
+.ovw2 .ovw-stop-t {
+  grid-column: 3;
+}
+
+.ovw2 .ovw-stop-km {
+  min-width: 0;
+}
+
+.ovw2 .ovw-stop-t {
+  display: none;
+}
+
+.ovw2 .ovw-stop-name {
+  font-size: 13px;
+}
+
+.ovw2 .ovw-stop-name small {
+  margin-inline-start: var(--space-2);
+  font-size: 11px;
+}
+
+.ovw2 .ovw-stop-pin {
+  border-color: var(--pw-route);
+  color: var(--pw-sea-700);
+}
+
+.yf-surface.ovw-block.ovw2-quiet,
+.ovw.ovw2 > .ovw-weather {
+  min-width: 0;
+  padding: var(--space-7a) var(--space-8);
+  border-color: var(--pw-line-soft);
+  border-radius: var(--radius-lg);
+  background: var(--pw-card);
+  box-shadow: none;
+}
+
+.ovw2 .ovw2-quiet .ovw-head {
+  margin-bottom: var(--space-5);
+}
+
+.ovw2 .ovw-commitments {
+  gap: var(--space-4);
+}
+
+.ovw2 .ovw-next {
+  align-items: center;
+  gap: var(--space-5);
+  padding: var(--space-4a) var(--space-5);
+  border: 1px solid var(--pw-route);
+  border-radius: var(--radius);
+  background: var(--pw-lagoon-50);
+}
+
+.ovw2 .ovw-next svg {
+  width: 18px;
+  height: 18px;
+  margin-top: 0;
+  color: var(--pw-sea-700);
+}
+
+.ovw2 .ovw-next b {
+  color: var(--pw-ink);
+  font-size: 14px;
+}
+
+.ovw2 .ovw-next span {
+  color: var(--pw-ink-2);
+  font-size: 12px;
+}
+
+.ovw2 .ovw-commit {
+  min-height: 40px;
+  border-top: 1px dashed var(--pw-line-soft);
+}
+
+.ovw2 .ovw-chip {
+  min-height: 22px;
+  padding-inline: var(--space-4);
+  background: var(--pw-sunken);
+  color: var(--pw-ink-2);
+  font-size: 11px;
+}
+
+.ovw2 .ovw-crew-row {
+  min-height: 44px;
+  border-top: 1px dashed var(--pw-line-soft);
+}
+
+.ovw2 .ovw-crew-row:first-of-type {
+  border-top: 0;
+}
+
+.ovw2 .ovw-avatars .avatar + .avatar {
+  margin-left: calc(-1 * var(--space-3));
+}
+
+.ovw2 .ovw-feed li {
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  padding: var(--space-4) 0;
+  border-top: 1px dashed var(--pw-line-soft);
+}
+
+.ovw2 .ovw-feed li:first-child {
+  border-top: 0;
+}
+
+.ovw2 .ovw-feed time {
+  font-size: 11px;
+}
+
+.ovw2 .ovw-wx {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--space-4a);
+}
+
+.ovw2 .ovw-wx-cell {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid var(--pw-line-soft);
+  border-radius: var(--radius);
+  background: var(--pw-lagoon-50);
+}
+
+.ovw-wx-copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.2;
+}
+
+.ovw-wx-day {
+  color: var(--pw-ink-2);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ovw-wx-temp {
+  color: var(--pw-ink);
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.ovw2 .ovw-wx-cell.wet {
+  background: var(--pw-marigold-100);
+}
+
+.ovw2 .ovw-wx-cell > svg {
+  color: var(--pw-marigold-ink);
+}
+
+.ovw2 .ovw-wx-cell.wet > svg {
+  color: var(--pw-marigold-ink);
+}
+
+@media (max-width: 960px) {
+  .ovw.ovw2 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ovw2-brief,
+  .ovw2-main,
+  .ovw.ovw2 > .ovw-weather {
+    grid-column: 1;
+  }
+
+  .ovw2-brief,
+  .ovw2-main {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 720px) {
+  .container.yf-workspace.yf-workspace {
+    padding-top: var(--space-7);
+  }
+
+  .yf-page .yf-trip-head {
+    height: 288px;
+    margin-bottom: var(--space-5);
+    border-radius: var(--radius-lg);
+  }
+
+  .yf-page .yf-trip-head > .yf-cover-content {
+    padding: var(--space-7) var(--space-7) var(--space-7a);
+  }
+
+  .yf-page .yf-cover-top {
+    gap: var(--space-5);
+  }
+
+  .yf-page .yf-cover-top .yf-back {
+    margin-top: calc(-1 * var(--space-4a));
+    margin-left: calc(-1 * var(--space-4));
+    padding-inline: var(--space-4);
+  }
+
+  .yf-page .yf-cover-top .yf-invite {
+    padding-inline: var(--space-6);
+    font-size: 13px;
+  }
+
+  .yf-page .yf-trip-head .yf-trip-title {
+    width: 100%;
+    font-size: 32px;
+  }
+
+  .yf-page .yf-head-meta {
+    max-width: 100%;
+    padding-top: var(--space-2);
+    font-size: 12px;
+  }
+
+  .yf-page .yf-members {
+    gap: var(--space-2) var(--space-4a);
+  }
+
+  .yf-page .yf-member-note,
+  .yf-page .yf-viewing {
+    font-size: 12px;
+  }
+
+  .yf-page .yf-cover-content > .yf-tabbar {
+    left: var(--space-7);
+    bottom: var(--space-5);
+    max-width: calc(100% - (2 * var(--space-7)));
+  }
+
+  .yf-page .yf-tabbar .tab-btn {
+    padding-inline: var(--space-5);
+  }
+
+  .yf-page.yf-page[data-compact='true'] .yf-trip-head {
+    min-height: 188px;
+  }
+
+  .ovw.ovw2 {
+    gap: var(--space-5);
+  }
+
+  .yf-surface.ovw-card.ovw2-health,
+  .yf-surface.ovw-card.ovw2-issues,
+  .yf-surface.ovw-block.ovw-matrix,
+  .yf-surface.ovw-card.ovw2-route,
+  .yf-surface.ovw-block.ovw2-quiet,
+  .ovw.ovw2 > .ovw-weather {
+    padding: var(--space-6);
+  }
+
+  .yf-surface.ovw-card.ovw2-health {
+    min-height: 0;
+  }
+
+  .ovw2-health-main {
+    gap: var(--space-5);
+  }
+
+  .ovw2 .ovw2-health-line {
+    font-size: 20px;
+  }
+
+  .ovw2-health-act .ovw-btn--primary {
+    width: 100%;
+  }
+
+  .yf-surface.ovw-card.ovw2-metric {
+    min-height: 104px;
+    padding: var(--space-5) var(--space-6);
+  }
+
+  .ovw2-metric-value {
+    font-size: 22px;
+  }
+
+  .ovw2 .ovw2-issue {
+    grid-template-columns: 44px minmax(0, 1fr);
+    grid-template-areas: none;
+    gap: var(--space-4) var(--space-5);
+    padding: var(--space-5);
+  }
+
+  .ovw2 .ovw2-issue .ovw2-issue-icon {
+    grid-area: auto;
+  }
+
+  .ovw2 .ovw2-issue .ovw-need-text {
+    grid-area: auto;
+  }
+
+  .ovw2 .ovw2-issue .ovw2-fix {
+    grid-area: auto;
+    grid-column: 2;
+    justify-self: start;
+  }
+
+  .ovw2 .mx-row {
+    grid-template-columns: 96px repeat(6, minmax(0, 1fr)) 58px;
+  }
+
+  .ovw2 .ovw-stoplist {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ovw2 .ovw-stoplist > li:nth-child(2) {
+    border-top: 1px dashed var(--pw-line-soft);
+  }
+
+  .ovw2-map-north {
+    top: var(--space-4);
+    right: var(--space-4);
+  }
+
+  .ovw2-map-basis {
+    top: calc(var(--space-4) + 28px);
+    right: var(--space-4);
+  }
+}
+
+@media (max-width: 440px) {
+  .yf-page .yf-trip-head {
+    height: 296px;
+  }
+
+  .yf-page .yf-cover-top .yf-back {
+    font-size: 11px;
+  }
+
+  .yf-page .yf-cover-top .yf-invite {
+    padding-inline: var(--space-5);
+  }
+
+  .yf-page .yf-trip-head .yf-trip-title {
+    font-size: 30px;
+  }
+
+  .yf-page.yf-page[data-compact='true'] .yf-trip-head {
+    min-height: 188px;
+  }
+
+  .ovw2-score-ring {
+    width: 68px;
+    height: 68px;
+  }
+
+  .ovw2-score-core {
+    width: 52px;
+    height: 52px;
+  }
+
+  .ovw2-score-core b {
+    font-size: 22px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yf-page .yf-trip-head,
+  .yf-page .yf-trip-head > .yf-cover-media,
+  .yf-page .yf-cover-content > .yf-tabbar {
+    animation: none;
+    transition: none;
+  }
+
+  .yf-page .yf-tabbar .pill-glider {
+    transition: none;
+  }
+}
+
+/* The compact day list is a full-row button, not an inline reset. */
+@media (max-width: 720px) {
+  .ovw2 .mx-compact .mx-crow:focus-visible {
+    outline: none;
+    box-shadow: inset 0 0 0 3px var(--pw-lagoon-600);
+  }
+}
+

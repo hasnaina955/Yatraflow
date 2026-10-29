@@ -1,0 +1,2239 @@
+/* ============ Mobile usability ============ */
+/* Hamburger is desktop-hidden; .nav-links is mobile-hidden (existing rule). */
+.mobile-nav-btn {
+  display: none;
+  align-items: center; justify-content: center;
+  width: 40px; height: 40px; border-radius: 50%;
+  background: var(--bg-soft); border: 1.5px solid var(--line);
+  font-size: 18px; line-height: 1; color: var(--text);
+}
+.mobile-menu {
+  position: fixed; top: calc(var(--nav-h) + 22px + var(--safe-area-inset-top, env(safe-area-inset-top, 0px))); left: 0; right: 0; z-index: var(--z-dock);
+  background: var(--card); border-bottom: 1px solid var(--line);
+  box-shadow: var(--shadow); padding: 8px 14px 14px;
+  display: flex; flex-direction: column; gap: 2px;
+  animation: slideUp var(--t-fast) var(--ease-out);
+  /* The tray is fixed and grows with its item count, so on a short viewport
+     (landscape phone, small window) the last row — Profile & settings — fell
+     below the fold with no way to reach it. Cap it to the space actually
+     left under the pill and let it scroll. vh first, dynamic unit second:
+     the same pairing the map shell uses (100vh does not shrink for mobile
+     browser chrome). */
+  max-height: calc(100vh - var(--nav-h) - 32px - var(--safe-area-inset-top, env(safe-area-inset-top, 0px)) - var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
+  max-height: calc(100dvh - var(--nav-h) - 32px - var(--safe-area-inset-top, env(safe-area-inset-top, 0px)) - var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.mobile-menu .nav-link {
+  padding: 13px 14px; border-radius: 10px; font-size: 15px; text-align: left;
+}
+
+/* (The old drag-start wiggle and dashed ghost slot are retired: the carried
+   row itself follows the finger now — a wiggle on every other row and a
+   hollow slot behind it only fought the carry for attention.) */
+.loc-pin { flex: none; font-size: 13px; }
+.loc-thumb { width: 100%; height: 100%; object-fit: cover; }
+.loc-name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.loc-region { font-size: 12px; opacity: .65; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* provider footer: one quiet row inside the dropdown (was a detached
+   floating caption below it, which read as stray UI outside the panel) */
+.loc-foot {
+  margin-top: 4px; padding: 7px 10px 3px;
+  border-top: 1px solid var(--line);
+  font-size: 10.5px; font-weight: 600; letter-spacing: .02em;
+  color: var(--text-3); text-align: right;
+}
+.loc-spinner {
+  position: absolute; right: 12px; top: 50%;
+  width: 15px; height: 15px;
+  margin-top: -7.5px;
+  border: 2px solid var(--line);
+  border-top-color: var(--accent, #0D8D82);
+  border-radius: 50%;
+  animation: locspin .7s linear infinite;
+  pointer-events: none;
+}
+@keyframes locspin { to { transform: rotate(360deg) } }
+
+/* destination chips (CreateTrip) */
+.dest-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.dest-chip {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 6px 8px 6px 11px;
+  background: color-mix(in srgb, var(--teal-500) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--yf-teal-600) 35%, transparent);
+  border-radius: 999px;
+  font-size: 13px; font-weight: 600;
+}
+.dest-chip button {
+  border: none; background: none; cursor: pointer;
+  font-size: 13px; line-height: 1; padding: 4px;
+  min-width: 24px; min-height: 24px;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: inherit; opacity: .65;
+}
+.dest-chip button:hover { opacity: 1; }
+.dest-order {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: var(--teal-600);
+  color: var(--color-primary-foreground);
+  font-size: 11px; font-weight: 700;
+}
+.loc-empty {
+  position: absolute;
+  top: calc(100% + 6px); left: 0; right: 0;
+  z-index: var(--z-nav-glass);
+  padding: 10px 12px;
+  font-size: 13px;
+}
+
+
+/* Skip-to-content link (F-08): parked above the viewport until keyboard focus
+   drops it in; z-index 210 sits above the toast zone (200) so it's always seen.
+   main:focus below stops the whole page flashing an outline when focused. */
+.skip-link {
+  position: fixed; top: -48px; left: 12px; z-index: var(--z-impact);
+  padding: 10px 16px;
+  background: var(--color-primary); color: var(--color-primary-foreground);
+  border-radius: 0 0 10px 10px;
+  transition: top var(--t-fast) var(--ease-out);
+}
+.skip-link:focus-visible { top: 0; box-shadow: var(--ring); }
+main:focus { outline: none; }
+/* screen-reader-only utility (F-04 status lines) */
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+/* Smooth focus visibility for keyboard users — one shared teal ring for every
+   interactive control (UI audit F-12; state matrix in DESIGN_TOKENS.md).
+   .skip-link is pre-wired for the F-08 skip link; .yf-map-pin gets an extra
+   outline-offset below so the ring clears the map tiles. */
+.input:focus-visible, .select:focus-visible, .textarea:focus-visible,
+.btn:focus-visible, .icon-btn:focus-visible,
+.theme-toggle:focus-visible, .avatar-btn:focus-visible, .user-menu-item:focus-visible,
+.nav-link:focus-visible, .tab-btn:focus-visible, .brand:focus-visible,
+.mobile-nav-btn:focus-visible, .bottom-nav-item:focus-visible,
+.day-collapse:focus-visible, .day-route:focus-visible, .move-btn:focus-visible, .vote-btn:focus-visible,
+.chip-btn:focus-visible, .clickable-chip:focus-visible, .toast-action:focus-visible,
+.day-rail-chip:focus-visible,
+.map-day-chip:focus-visible, .map-idea-chip:focus-visible, .map-legend-toggle:focus-visible,
+.map-expand-chip:focus-visible, .loc-option:focus-visible, .ai-fab:focus-visible,
+.trip-card-hit:focus-visible, .trip-task-row:focus-visible, .skip-link:focus-visible, .yf-map-pin:focus-visible,
+.clamp-toggle:focus-visible, .board-fit:focus-visible, .save-heart:focus-visible,
+.dest-chip button:focus-visible, .role-select:focus-visible, .day-title-btn:focus-visible,
+.trip-hero-back:focus-visible, .health-rec:focus-visible, .link-btn:focus-visible,
+.yf-range:focus-visible, .bench-mode-btn:focus-visible, .bench-stay-row:focus-visible,
+.hero-bench-cta:focus-visible,
+.bench-toggle:focus-visible, .bench-preset-chip:focus-visible,
+.bench-crew-btn:focus-visible,
+.bench-receipt-actions .chip:focus-visible, .bench-surprise:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+.yf-map-pin:focus-visible { outline-offset: 2px; }
+/* The route line wraps to several lines; a bare box-shadow ring would trace
+   every one of them, so it takes the same small radius as .link-btn. */
+.day-route:focus-visible { border-radius: 6px; }
+
+/* ---- Location dropdown: two-line rows with POI thumbnails ---- */
+.loc-option { align-items: center; }
+.loc-texts { display: grid; gap: 1px; min-width: 0; flex: 1; }
+.loc-kind {
+  flex: none; font-size: 9.5px; font-weight: 800; letter-spacing: .05em;
+  padding: 3px 7px; border-radius: 999px; text-transform: uppercase;
+}
+.loc-kind.poi { background: color-mix(in srgb, var(--saffron) 16%, transparent); color: #9A6206; }
+.loc-kind.place { background: color-mix(in srgb, var(--teal) 14%, transparent); color: var(--teal-deep); }
+[data-theme='dark'] .loc-kind.poi { color: #F5B85C; }
+[data-theme='dark'] .loc-kind.place { color: #4FD1C5; }
+
+/* ---- Nearby POI suggestions (Map tab) ---- */
+.yf-map-pin-idea {
+  background: linear-gradient(135deg, #FBBF3C, #F59E2D);
+  border-style: dashed;
+  font-size: 14px;
+  animation: yf-idea-pulse 2.2s ease-in-out infinite;
+}
+/* soft gold attention pulse so ideas read as "not part of the plan yet" */
+@keyframes yf-idea-pulse {
+  0%, 100% { box-shadow: 0 2px 4px rgba(var(--shadow-navy-rgb),.28), 0 0 0 0 rgba(245,158,45,.45); }
+  50% { box-shadow: 0 2px 4px rgba(var(--shadow-navy-rgb),.28), 0 0 0 9px rgba(245,158,45,0); }
+}
+/* Honour the OS reduce-motion setting globally (UI audit F-17): collapse all
+   animations and transitions to a single frame instead of guarding each one —
+   spinners/typing dots freeze, hover lifts become instant, sheets appear
+   without sliding. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    /* Remove both entrance staggers and transition waits under reduced motion. */
+    animation-delay: 0s !important;
+    transition-delay: 0s !important;
+  }
+  /* keep the idea-pin visible but static (it already keeps its dashed gold style) */
+  .yf-map-pin-idea { animation: none; }
+}
+.poi-thumb {
+  width: 52px; height: 52px; border-radius: 10px; object-fit: cover; flex-shrink: 0;
+  border: 1px solid var(--line);
+}
+.poi-desc { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* ---- Weather layer ---- */
+.weather-strip { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
+.weather-cell {
+  min-width: 86px; text-align: center; padding: 9px 7px;
+  border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg);
+}
+.weather-cell.wet { border-color: var(--saffron); background: color-mix(in srgb, var(--saffron) 9%, transparent); }
+.weather-day { font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; }
+.weather-icon { font-size: 24px; margin: 3px 0; }
+.weather-temp { font-variant-numeric: tabular-nums; font-size: 13px; font-weight: 700; }
+.weather-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  margin-top: 5px; padding: 2.5px 9px;
+  border: 1px solid var(--line); border-radius: 999px;
+  font-size: 12px; font-weight: 600; background: var(--card);
+}
+/* ---------- Halt spot rows (unified travel panel) ---------- */
+/* Formatted 12h/24h preview under native <input type="time"> fields — the
+   browser controls the input's own display format, so we echo the app pref. */
+.time-preview { margin-top: 3px; font-variant-numeric: tabular-nums; }
+.ride-spot {
+  display: flex; gap: 10px; align-items: center; justify-content: space-between;
+  width: 100%; flex-wrap: wrap;
+  background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+  padding: 8px 10px;
+}
+.ride-spot-main { flex: 1; min-width: 180px; }
+.ride-spot-actions { display: flex; gap: 8px; align-items: center; }
+.ride-spot-title { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+
+/* ---- Halt planner (user-chosen km points + durations) ---- */
+.halt-planner-inputs { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.hp-field { display: inline-flex; align-items: center; gap: 5px; }
+.hp-field input[type="number"] { font-variant-numeric: tabular-nums; }
+.halt-plan-list { display: flex; flex-direction: column; gap: 6px; }
+.halt-plan-row { align-items: flex-start; }
+.hp-pin { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.hp-pin input { accent-color: var(--teal); }
+
+/* Ride-plan purpose chips — colour-coded stop type on suggested halt cards */
+.ride-purpose {
+  display: inline-flex; align-items: center;
+  font-size: 10.5px; font-weight: 800; letter-spacing: .3px; text-transform: uppercase;
+  padding: 2px 8px; border-radius: 999px; white-space: nowrap;
+  background: var(--line); color: var(--text-2);
+}
+.ride-purpose-meal { background: color-mix(in srgb, var(--saffron) 16%, transparent); color: var(--ink-teal); }
+.ride-purpose-fuel { background: var(--info-soft); color: var(--ink-teal); }
+.ride-purpose-stretch { background: color-mix(in srgb, var(--teal) 14%, transparent); color: var(--ink-teal); }
+.ride-purpose-rest { background: color-mix(in srgb, var(--teal) 14%, transparent); color: var(--ink-teal); }
+.ride-purpose-overnight { background: var(--text); color: var(--bg); }
+.ride-purpose-sight { background: color-mix(in srgb, var(--saffron) 22%, transparent); color: var(--text); }
+.ride-purpose-muted { background: transparent; border: 1px dashed var(--line); color: var(--text-3); }
+
+/* Whole-trip segmented suggestion list (Map tab) */
+.poi-plan-list { display: flex; flex-direction: column; gap: 9px; }
+.poi-plan-row {
+  border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 9px 12px; background: var(--bg);
+  display: flex; flex-direction: column; gap: 4px;
+}
+.poi-plan-gap { border-style: dashed; opacity: .85; }
+.poi-plan-row { cursor: pointer; }
+.poi-plan-row .poi-desc { -webkit-line-clamp: unset; -webkit-box-orient: unset; overflow: visible; }
+.poi-plan-row .poi-thumb { width: 34px; height: 34px; border-radius: 8px; }
+
+/* ---- Day Planner surfaces (PLAN-DAY-PLANNER P1-B..P1-F) ----
+   The proposal banners sit above the suggestion strip: the split the route
+   demands, the defer/hop verdict for the real start time. Chips on rows read
+   the derived day + return-leg position. */
+.dayplanner-banner {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px;
+  border: 1px solid color-mix(in srgb, var(--teal) 45%, var(--line));
+  background: color-mix(in srgb, var(--teal-soft) 55%, var(--bg));
+  border-radius: var(--radius); padding: 10px 12px; margin-top: 10px;
+}
+.dayplanner-red { color: var(--danger); font-weight: 600; }
+.ride-day-chip {
+  display: inline-block; font-size: 10.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+  color: var(--teal-deep); background: var(--teal-soft);
+  padding: 1px 8px; border-radius: 999px; margin-right: 6px; white-space: nowrap;
+}
+
+/* ---- Cross-highlight (panel ↔ map): the suggestion hovered or selected on
+   one surface lights up on the other, so a card answers "where is this?" and
+   a pin answers "which card is this?" ---- */
+.poi-plan-row--active {
+  border-color: var(--teal);
+  background: var(--teal-soft);
+  box-shadow: var(--shadow-glow-teal);
+}
+[data-theme='dark'] .poi-plan-row--active { background: rgba(13, 141, 130, .16); }
+
+/* map idea pin: active state — steady (pulse paused), teal focus ring, lifted */
+.yf-map-pin-idea--active {
+  animation: none;
+  border-style: solid;
+  box-shadow: 0 0 0 2px var(--card), 0 0 0 5px var(--teal);
+  transform: scale(1.15);
+}
+/* idea marker layout: pin + quick-add chip stacked as one unit */
+.yf-map-idea { position: relative; display: inline-flex; flex-direction: column; align-items: center; gap: 3px; }
+.yf-map-pin-idea { cursor: pointer; }
+.yf-map-idea-add {
+  width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid #fff;
+  /* Ink through the semantic pair, not a literal white: --teal-deep lightens to
+     #35C9BC in dark mode, where white measured 2.05:1. The primary-foreground
+     token already resolves to the dark ink that surface needs. */
+  background: var(--teal-deep); color: var(--color-primary-foreground);
+  font-size: 13px; font-weight: 700; line-height: 1;
+  display: inline-flex; align-items: center; justify-content: center;
+  cursor: pointer; box-shadow: 0 2px 6px rgba(var(--shadow-navy-rgb), .35);
+  padding: 0;
+}
+.yf-map-idea-add:hover { background: var(--teal-700); transform: scale(1.1); }
+
+/* ---- Engine tips: a subtle rotating guide to what the suggestion engine ----
+   ---- does, so the intelligence is discoverable from the Map tab itself. ---- */
+.engine-tips {
+  grid-column: 1 / -1;
+  display: flex; align-items: center; gap: 9px;
+  padding: 8px 13px; border-radius: 999px;
+  border: 1px solid var(--yf-purple-100);
+  background: var(--yf-purple-100);
+  font-size: 12.3px; color: var(--text-2);
+}
+[data-theme='dark'] .engine-tips { border-color: rgba(137, 122, 187, .35); background: rgba(137, 122, 187, .14); }
+.engine-tips-ico { color: var(--yf-purple); display: inline-flex; flex-shrink: 0; }
+.engine-tips-text { flex: 1; min-width: 0; animation: engineTipIn var(--motion-med) var(--ease-out); }
+@keyframes engineTipIn { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+.engine-tips-dots { display: inline-flex; gap: 4px; flex-shrink: 0; }
+.engine-tips-dot {
+  width: 6px; height: 6px; border-radius: 50%; border: none; padding: 0;
+  background: color-mix(in srgb, var(--yf-purple) 30%, transparent); cursor: pointer;
+  transition: background var(--motion-fast) var(--ease-out);
+}
+.engine-tips-dot.on { background: var(--yf-purple); }
+@media (max-width: 720px) { .engine-tips-dots { display: none; } }
+[data-theme='dark'] .ride-purpose-overnight { background: #fff; color: #06251f; }
+
+/* Map-tab corridor suggestions — two curated columns (§6.10 tone coding):
+   need-based halts (fuel/food/rest/stretch/overnight) LEFT in teal, and
+   see-&-do / detours / scenic stops RIGHT in scenic purple. The tinted
+   wash makes each lane read as its own category at a glance while the
+   cards inside stay neutral for readable text. */
+.poi-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-top: 12px;
+  align-items: start;
+}
+.poi-col {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  background: var(--bg);
+  min-width: 0;
+}
+.poi-col--needs {
+  background: color-mix(in srgb, var(--teal) 5%, var(--bg));
+  border-color: color-mix(in srgb, var(--teal) 22%, var(--line));
+}
+.poi-col--see {
+  background: color-mix(in srgb, var(--yf-poi-see) 5%, var(--bg));
+  border-color: color-mix(in srgb, var(--yf-poi-see) 24%, var(--line));
+}
+[data-theme='dark'] .poi-col--needs { background: color-mix(in srgb, var(--teal) 10%, var(--bg)); }
+[data-theme='dark'] .poi-col--see { background: color-mix(in srgb, var(--yf-poi-see) 12%, var(--bg)); }
+.poi-col-head { display: flex; align-items: center; gap: 9px; margin-bottom: 10px; }
+.poi-col-head-ico {
+  width: 30px; height: 30px; border-radius: 10px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 15px; flex: 0 0 auto;
+}
+.poi-col--needs .poi-col-head-ico { background: var(--teal-soft); }
+.poi-col--see .poi-col-head-ico { background: color-mix(in srgb, var(--yf-poi-see) 16%, transparent); }
+.poi-col-head b { display: block; font-size: 14px; font-family: var(--font-display); }
+.poi-col--needs .poi-col-head b { color: var(--teal-deep); }
+.poi-col--see .poi-col-head b { color: var(--yf-poi-see-ink); }
+/* tint the purpose chips inside their lane — sightseeing reads scenic violet.
+   (Composited over the tint the ink measures ~5.8 light / ~8.0 dark.) */
+.poi-col--see .ride-purpose-sight { background: color-mix(in srgb, var(--yf-poi-see) 16%, transparent); color: var(--yf-poi-see-ink); }
+
+/* Map-tab ideas grid — need rail LEFT, map CENTER, see-&-do rail RIGHT, so both
+   suggestion lanes sit beside the map with no page scroll between them. Rails
+   scroll internally; on mobile everything stacks with the map first. */
+.map-ideas-grid {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr) 320px;
+  gap: 14px;
+  margin-top: 12px;
+  align-items: start;
+  /* The fold is an in-place resize of both rails (~270px) with the map re-fitting
+     beside them — a day-collapse in miniature, so it rides the resize clock
+     (both ends at rest; a decelerate curve would snap the columns open). */
+  transition: grid-template-columns var(--motion-slow) var(--ease-resize);
+}
+.map-ideas-grid .poi-col {
+  max-height: 72vh;
+  overflow-y: auto;
+  position: sticky;
+  top: 12px;
+}
+.map-ideas-map { min-width: 0; }
+/* The ≤1278px reset lives below the folded-rail rules at the end of the file.
+   Keep this space so the line-keyed design-system baseline stays unchanged. */
+
+
+
+
+
+
+
+
+/* ---------- Motion system (subtle & premium, CTI §9) ----------
+   One easing family + three speeds (--ease-out / --t-fast|med|slow). Only
+   transform and opacity animate — compositor-friendly, no layout thrash.
+   The global prefers-reduced-motion block above freezes all of this. */
+@keyframes panelIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+/* page-change entrance: slow, gentle rise — no jerk between hash routes */
+@keyframes routeIn {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: none; }
+}
+.tab-panel { animation: panelIn var(--t-med) var(--ease-out); }
+
+/* Board choreography: day columns drift in with a light stagger on mount. */
+.board-col { animation: panelIn var(--t-slow) var(--ease-out) backwards; }
+.board-col:nth-child(2) { animation-delay: calc(var(--stagger-step) * 1); }
+.board-col:nth-child(3) { animation-delay: calc(var(--stagger-step) * 2); }
+.board-col:nth-child(4) { animation-delay: calc(var(--stagger-step) * 3); }
+.board-col:nth-child(5) { animation-delay: calc(var(--stagger-step) * 4); }
+.board-col:nth-child(6) { animation-delay: calc(var(--stagger-step) * 5); }
+.board-col:nth-child(7) { animation-delay: calc(var(--stagger-step) * 6); }
+.board-col:nth-child(8) { animation-delay: calc(var(--stagger-step) * 7); }
+/* Drag/focus states glide instead of snapping. */
+.board-stop, .board-col-zone, .board-col--focused { transition: border-color var(--t-med) var(--ease-out), background var(--t-med) var(--ease-out), transform var(--t-fast) var(--ease-out); }
+.board-stop:hover { transform: translateY(-1px); }
+/* sibling glide for the board's position layer (the .board-row wrapper) */
+.board-row { transition: transform var(--motion-fast) var(--ease-glide); min-width: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .board-row { transition: none; }
+}
+
+/* ---- Map-focus ("peek") mode: columns glide ~88% off the board's bottom
+   edge so the map owns the board, and slide back with a staggered settle. The
+   surviving sliver is 12% of a column's own height, so it varies with column
+   height — it is not a fixed 48px. */
+/* All four properties are declared here, including the theme cross-fade's three:
+   `transition` is a shorthand, so the later theme rule used to replace this one
+   outright and the peek movement snapped instead of gliding. */
+.board-col {
+  transition:
+    background-color var(--t-slow) var(--ease-out),
+    color var(--t-slow) var(--ease-out),
+    border-color var(--t-slow) var(--ease-out),
+    transform var(--t-slow) var(--ease-glide);
+}
+.board--mapfocus .board-col { transform: translateY(88%); } /* 12% sliver keeps a readable card edge */
+/* staggered choreography: the slide-off cascades left→right. The delays are not
+   reset per direction, so the return settles in the SAME ascending order — there
+   is no reverse wave. */
+.board-col:nth-child(2), .board--mapfocus .board-col:nth-child(2) { transition-delay: 40ms; }
+.board-col:nth-child(3), .board--mapfocus .board-col:nth-child(3) { transition-delay: 80ms; }
+.board-col:nth-child(4), .board--mapfocus .board-col:nth-child(4) { transition-delay: 120ms; }
+.board-col:nth-child(5), .board--mapfocus .board-col:nth-child(5) { transition-delay: 160ms; }
+.board-col:nth-child(6), .board--mapfocus .board-col:nth-child(6) { transition-delay: 200ms; }
+.board-col:nth-child(7), .board--mapfocus .board-col:nth-child(7) { transition-delay: 240ms; }
+.board-col:nth-child(8), .board--mapfocus .board-col:nth-child(8) { transition-delay: 280ms; }
+.board--mapfocus .board-topbar { opacity: .35; transform: translateY(-8px); }
+.board-topbar { transition: opacity var(--t-slow) var(--ease-out), transform var(--t-slow) var(--ease-out); }
+
+/* ---- Drag feel: while a card is carried, the column live-reorders (FLIP
+   pass in BoardView provides the up/down motion). No CSS wiggle here on
+   purpose: an infinite keyframe transform on the same cards fights the WAAPI
+   FLIP animations frame-by-frame (jitter + broken native drag). The original
+   of the carried card becomes an empty dashed slot — the browser's drag ghost
+   is then the only "copy", killing the double-ghost effect. */
+.board-col-stops.is-dragging .board-row { will-change: transform; }
+/* Insertion marker — a slim teal line that glides between cards to show where
+   the carried card will land; the cards themselves never move during a drag.
+   transform-only movement on a 3px element = pure compositor, zero churn. */
+/* Liquid drag (rule 10 pattern): siblings glide by the carried row's height
+   while a drag is live — translation only, no scale/morph; the FLIP settle
+   takes over on commit (WAAPI sits above these CSS transitions). */
+.board-col-stops { position: relative; }
+.board-stop { transition: border-color var(--t-med) var(--ease-out), background var(--t-med) var(--ease-out), transform var(--motion-fast) var(--ease-glide); }
+@media (prefers-reduced-motion: reduce) {
+  .board-stop { transition: none; }
+}
+.board-stop.dragging {
+  opacity: .45; background: transparent; box-shadow: none;
+  border: 1.5px dashed var(--teal);
+}
+.board-stop.dragging .stop-main { visibility: hidden; }
+/* Kanban cards are drag surfaces — text selection has no use here and a
+   failed/late drag gesture must never fall back to painting blue over
+   the whole board. */
+.board-cols { user-select: none; -webkit-user-select: none; }
+
+/* Unified card hover lift (cards that don't already define one). */
+.trip-card, .trip-card-hit {
+  transition: transform var(--t-fast) var(--ease-out), box-shadow var(--t-fast) var(--ease-out), border-color var(--t-fast) var(--ease-out);
+}
+.trip-card:hover, .trip-card-hit:hover { transform: translateY(-2px); box-shadow: var(--shadow-soft); }
+
+/* Button feedback: smooth state changes + a gentle press. */
+.btn, .tab-btn, .board-fit, .board-pulse-link {
+  transition: background var(--t-fast) var(--ease-out), color var(--t-fast) var(--ease-out),
+    border-color var(--t-fast) var(--ease-out), box-shadow var(--t-fast) var(--ease-out),
+    transform var(--t-fast) var(--ease-out), filter var(--t-fast) var(--ease-out);
+}
+.btn:active, .tab-btn:active { transform: scale(.97); }
+
+/* Theme cross-fade: light↔dark glides instead of snapping.
+   `.board-col` is deliberately NOT in this list — it declares its own
+   four-property transition near the peek rules, and naming it here would replace
+   that shorthand and silently kill the peek movement. */
+body, .topnav, .glass, .board, .modal, .toast {
+  transition: background-color var(--t-slow) var(--ease-out), color var(--t-slow) var(--ease-out), border-color var(--t-slow) var(--ease-out);
+}
+/* the trip band also compacts on the Board tab — include padding in its glide */
+.trip-head-card {
+  transition: background-color var(--t-slow) var(--ease-out), color var(--t-slow) var(--ease-out),
+    border-color var(--t-slow) var(--ease-out), padding var(--t-med) var(--ease-out);
+}
+
+/* Route-level entrance: every main page change (My trips ↔ Explore ↔ a trip)
+   replays the same gentle fade+rise as workspace tab switches.
+   The duration is a token now, not the raw `.55s` this rule shipped with. That
+   rule kept its 550ms clock but paired it with cubic-bezier(.22, 1, .36, 1),
+   a curve whose peak slope puts 63% of the travel into the first 55ms — so the
+   navigation read as an instant snap. Frame samples of /trips -> /trip/:id
+   agreed: the trip page's own content lands ~217ms after the click, past the
+   point where the old curve had already finished. The arrival looked like a
+   pop. On --motion-slow the fade is still running when the content arrives,
+   and the rise is part of one motion instead of ahead of it. */
+.route-panel { animation: routeIn var(--motion-slow) var(--ease-out) backwards; }
+
+/* Drag-and-drop feedback: the carried card's original becomes a dashed slot
+   (above), while any valid drop target breathes a teal ring so the landing
+   zone is unmistakable on both the HTML5 and touch paths. The ring is a
+   scaling ::after — transform+opacity only, compositor-friendly (a pulsing
+   box-shadow repaints every frame and stutters on big lists). */
+@keyframes dropPulse {
+  0%, 100% { transform: scale(1); opacity: .9; }
+  50% { transform: scale(1.05); opacity: .35; }
+}
+.stop-card.drag-over, .stop-card.foreign-over,
+.board-col-zone.foreign-over, .travel-leg.foreign-over { position: relative; }
+.stop-card.drag-over::after, .stop-card.foreign-over::after,
+.board-col-zone.foreign-over::after, .travel-leg.foreign-over::after {
+  content: ''; position: absolute; inset: -2px; border-radius: inherit;
+  border: 3px solid var(--teal-soft); pointer-events: none;
+  animation: dropPulse 1.1s var(--ease-out) infinite;
+}
+.stop-card.drag-over, .stop-card.foreign-over { border-color: var(--teal); }
+
+/* ---------- M7: editorial paper sheet + actions (public itinerary) ---------- */
+.pub-body { padding-top: 0; position: relative; }
+/* ---------- Double-Bezel as a ring tray ----------
+   A machined card is a PLATE sitting in a TRAY. Here the tray is drawn with
+   box-shadow SPREAD instead of a nested wrapper element:
+
+     0 0 0 6px   the tray fill      (what a wrapper's `padding: 6px` band does)
+     0 0 0 7px   the tray hairline  (what a wrapper's `border: 1px` does)
+     inset ...   the plate's own top highlight
+
+   A spread shadow grows a rounded rect CONCENTRICALLY - the browser expands the
+   corner radius by the spread - so the two curves stay parallel exactly as the
+   nested version's `calc(tray radius - inset)` does.
+   What this avoids is wrapping five cards in a new element: that would re-indent
+   ~70 lines of a 617-line page another branch may still be touching, and it would
+   break the sidebar card's `position: sticky` (a sticky element sticks within its
+   containing block, so a wrapper the same height as the card leaves it no room
+   to move). Zero markup restructuring, one class name per card.
+   The landing's `.feature-card`/`.feature-core` uses true nesting because its
+   photo fill must not be covered by a plate. If a later surface wants nesting,
+   promote THAT pair rather than growing a third variant. */
+/* The Double-Bezel was tried here as a ring tray (a 6px + 1px box-shadow band)
+   on the five content cards, and REVERTED - it is canvas-dependent and this
+   canvas defeats it. On the landing the tray sits on a mint/peach gradient, so
+   the band reads as a machined tray; on this near-white paper sheet the same
+   5% navy band reads as a grey WIREFRAME OUTLINE around every card, and because
+   these cards already carry their own border and soft shadow the eye got two
+   outlines per card. In the two-column gutters two 7px rings also left only 4px
+   of clear space (left column ended 1154, sidebar began 1172), so the rings
+   nearly merged. A bezel needs a tinted canvas to sit on; on a white sheet the
+   card's own shadow is the better depth cue. Do not re-add it here without
+   changing the canvas. */
+/* The rhythm INSIDE the surface is what this surface actually gained. Every
+   selector is scoped (`.pub-body ...`) rather than bare, because two of these
+   classes are shared with dense in-app editors: `.day-section` is the in-app
+   timeline's own class (trip/timeline/DaySection.tsx) and keeps its tighter 22px
+   beat, and `.pub-editorial` already declares a margin-bottom that a
+   same-specificity rule could not outrank. */
+.pub-body > .two-col { margin-top: var(--surface-block-gap); }
+.pub-body .day-section + .day-section { margin-top: var(--surface-block-gap); }
+.pub-body .pub-editorial { margin-bottom: var(--surface-block-gap); }
+.paper-sheet {
+  border-radius: var(--radius-lg); margin-top: 0; padding: 20px 24px 24px; position: relative;
+  background: linear-gradient(180deg, var(--yf-surface), color-mix(in srgb, var(--yf-cream) 70%, var(--yf-surface)));
+  border: 1px solid var(--yf-glass-border); box-shadow: var(--shadow-soft);
+}
+.pub-actions {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;
+  border-radius: var(--radius); padding: 12px 16px; margin-bottom: 22px;
+  background: color-mix(in srgb, var(--card) 80%, transparent);
+  border: 1px solid var(--yf-glass-border);
+}
+.pub-actions > b { font-size: 14px; color: var(--text); }
+.pub-actions-btns { display: flex; gap: 10px; }
+.save-btn {
+  background: var(--yf-saffron-100); color: #a25f25; border: 1px solid #ead9bd; font-weight: 800;
+  border-radius: 999px; padding: 9px 17px;
+}
+.save-btn:hover { filter: brightness(.97); }
+[data-theme='dark'] .save-btn { background: rgba(240, 165, 63, .12); color: #ffcf96; border-color: rgba(240, 165, 63, .25); }
+.fork-btn {
+  background: linear-gradient(120deg, var(--yf-teal-600), var(--yf-teal-700)); color: #fff; border: none; font-weight: 800;
+  border-radius: 999px; padding: 9px 17px; box-shadow: 0 6px 16px rgba(13, 141, 130, .28);
+}
+.fork-btn:hover { filter: brightness(1.05); }
+/* One press scale (.97, matching .btn) and one hover lift (-2px cards, -1px
+   chips) across every clickable control — no more three languages. */
+.icon-btn:active, .move-btn:active, .vote-btn:active, .clickable-chip:active,
+.chip-btn:active, .map-day-chip:active, .map-legend-toggle:active, .tab-btn:active { transform: scale(.97); }
+.save-heart:hover { transform: scale(1.08); }
+/* The heart belongs to the press-scale group above too — it was the one
+   clickable control left out, so a press gave no feedback at all. Declared
+   after :hover so the press scale wins while the pointer is down. */
+.save-heart:active { transform: scale(.97); }
+
+/* editorial narrative + route glance */
+.pub-editorial { align-items: start; margin-bottom: 8px; }
+/* --yf-teal-700 (not -600): 12px/800 normal text, and teal-600 on the paper/
+   white sheet is 4.08:1 — same fix already applied to .bench-receipt-kicker.
+   font-size/weight/tracking here are dead (overridden by the kicker block); the
+   colour is not, so it stays on this rule. */
+/* type specs come from the kicker unification block — colour only here */
+.editorial-kicker { color: var(--yf-teal-700); }
+[data-theme='dark'] .editorial-kicker { color: #57c4b8; }
+.editorial-title { font-family: var(--font-display); font-size: clamp(24px, 3vw, 32px); font-weight: 800; color: var(--text); margin: 6px 0 12px; }
+.editorial-body { font-size: 15px; line-height: 1.75; color: var(--text-2); max-width: 560px; }
+.editorial-sub { font-size: 14px; font-weight: 800; color: var(--text); margin: 16px 0 8px; }
+.editorial-list { padding-left: 18px; margin: 0; color: var(--text-2); line-height: 1.85; font-size: 14px; }
+.route-glance { padding: 16px; }
+.route-glance .route-glance-label { font-size: 11px; font-weight: 800; letter-spacing: .12em; color: #bbe0d9; }
+.route-glance-list { color: #d5e7e4; font-size: 12.5px; margin-top: 8px; line-height: 1.6; }
+.route-glance-meta { color: #9fc4bf; font-size: 12px; display: block; margin-top: 6px; }
+
+/* day highlight cards */
+.pub-highlights { margin: 22px 0 4px; }
+
+/* ---- Theme radiate via View Transitions (driven from App.tsx) ----
+   The real UI of the incoming theme is revealed by a clip-path circle anchored
+   at the theme-toggle button (--vt-x/--vt-y/--vt-r, set before the transition
+   starts). Classes select direction: vt-radiate-out = dark→light (the new view
+   radiates from the icon), vt-radiate-in = light→dark (the old view collapses
+   into the icon). While the transition runs, vt-active suppresses
+   backdrop-filter everywhere — Chromium renders glass inside VT snapshots
+   without its backdrop, which otherwise turns the whole page into a gray veil.
+   Reduced-motion users skip the whole JS path (instant swap). */
+::view-transition-old(root),
+::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
+html.vt-active :where(*) {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+:root.vt-radiate-out::view-transition-new(root) {
+  animation: vt-radiate-out 780ms cubic-bezier(.55, 0, .85, .36) both;
+}
+@keyframes vt-radiate-out {
+  from { clip-path: circle(0px at var(--vt-x, 50%) var(--vt-y, 50%)); }
+  to { clip-path: circle(var(--vt-r, 120vmax) at var(--vt-x, 50%) var(--vt-y, 50%)); }
+}
+:root.vt-radiate-in::view-transition-old(root) {
+  /* light→dark: start slow, accelerate home (mirror of the bloom) */
+  animation: vt-radiate-in 680ms cubic-bezier(.55, 0, .85, .36) both;
+}
+/* Collapse direction needs the OLD snapshot painted on top of the new one
+   (UA default stacks new above old) — otherwise the imploding light is
+   hidden beneath the already-dark new view and nothing animates. */
+:root.vt-radiate-in::view-transition-old(root) { z-index: 2; }
+:root.vt-radiate-in::view-transition-new(root) { z-index: 1; }
+@keyframes vt-radiate-in {
+  from { clip-path: circle(var(--vt-r, 120vmax) at var(--vt-x, 50%) var(--vt-y, 50%)); }
+  to { clip-path: circle(0px at var(--vt-x, 50%) var(--vt-y, 50%)); }
+}
+
+/* ---- My Trips staggered card entrance ---- */
+/* `backwards`, not `both`: the entrance ends on the card's own resting state, so
+   retaining the keyframe's `to` was pinning `transform: none` over
+   `.itin-card:hover`'s -2px lift — a shelf card answered hover with a shadow
+   twitch and no movement, while the same component on a creator page (no
+   `enterIndex`, no entrance) lifted properly. */
+.trip-enter { animation: cardIn var(--t-slow) var(--ease-out) backwards; }
+@keyframes cardIn {
+  from { opacity: 0; transform: translateY(14px) scale(.98); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .trip-enter { animation: none; }
+}
+.day-highlight-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-top: 12px; }
+.day-highlight-card {
+  background: var(--card); border: 1px solid var(--yf-border); border-radius: var(--radius); padding: 16px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.day-highlight-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.day-highlight-title { font-size: 17px; font-family: var(--font-display); color: var(--text); }
+.day-highlight-meta { font-size: 12.5px; color: var(--text-3); }
+.pub-footer-line { text-align: center; color: var(--text-3); font-size: 13px; padding: 24px 0 12px; }
+
+/* ---------- Chip counts ---------- */
+/* No opacity: .65 composited the inherited ink to 2.5–3.2:1 (it's 11px text,
+   needs 4.5). Full strength = the chip's own AA-checked colour, on every surface. */
+.chip-count { font-variant-numeric: tabular-nums; font-size: 11px; margin-left: 3px; }
+
+/* featured itinerary */
+.featured-card {
+  border-radius: var(--radius-lg); padding: 20px 24px; margin-bottom: 22px; position: relative;
+  background: linear-gradient(120deg, #0e3a45, #0b2740);
+  color: #fff; box-shadow: var(--shadow-soft); overflow: hidden;
+}
+.featured-card::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(52% 90% at 90% 6%, rgba(240, 165, 63, .18), transparent 62%);
+}
+.featured-body { position: relative; z-index: var(--z-content); }
+.featured-kicker { color: #ffd79a; }
+/* One section-title ramp with .editorial-title (the public page's equivalent) —
+   they were 2px apart at every width for no stated reason. The title also takes
+   the same two-line clamp the grid cards use, so a long name stops crowding the
+   tagline beneath it. */
+.featured-body h2 { font-family: var(--font-display); font-size: clamp(24px, 3vw, 32px); margin: 6px 0 8px; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.featured-title-link { color: #fff; text-decoration: none; }
+.featured-title-link:hover { text-decoration: underline; }
+.featured-tagline { color: #d5e7e4; margin: 0 0 8px; max-width: 640px; line-height: 1.6; }
+/* Prose measure: the neighbouring tagline caps at 640px, but this block and
+   Explore's fork note run at 13px and 12.5px, where a 640px cap still buys
+   78-81 characters a line. `ch` self-adjusts to the font size, so one value
+   holds every block inside the 60-75ch band. */
+.featured-credibility { color: #a9d8cf; font-size: 13px; margin: 0 0 12px; max-width: 72ch; }
+.featured-meta { display: flex; gap: 18px; flex-wrap: wrap; color: #e2f1ef; font-size: 13px; margin-bottom: 16px; }
+.featured-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+/* save heart on grid cards */
+.save-heart {
+  position: absolute; top: 12px; right: 12px; z-index: var(--z-raised); cursor: pointer;
+  background: rgba(255, 255, 255, .9); color: #c25b4a; border: 1px solid rgba(194, 91, 74, .25);
+  border-radius: 999px; width: 34px; height: 34px; font-size: 16px; line-height: 1;
+  /* The save heart lifts on hover and presses like every other control, but it
+     was the one clickable that declared no transition, so both snapped while
+     .btn and .clickable-chip eased. Same token and curve they use. */
+  transition: transform var(--t-fast) var(--ease-out);
+}
+[data-theme='dark'] .save-heart { background: rgba(20, 32, 46, .85); color: #e58875; }
+.itin-card { position: relative; }
+
+/* ---------- Plan Bench (issue #37) — homepage cost calculator ---------- */
+.plan-bench {
+  padding-top: 14px; scroll-margin-top: 76px;
+  --bench-mono: ui-monospace, 'SF Mono', 'Cascadia Mono', 'Roboto Mono', Consolas, monospace;
+}
+.bench-grid {
+  display: grid; grid-template-columns: minmax(320px, 1.05fr) minmax(300px, 0.95fr);
+  gap: 18px; align-items: start; margin-top: 8px;
+}
+/* Left controls: one cream card holding every dial, split into labelled blocks. */
+.bench-controls {
+  display: flex; flex-direction: column; gap: 12px;
+  background: var(--card-soft); border: 1px solid var(--line);
+  border-radius: var(--radius-lg); padding: 16px;
+  box-shadow: var(--shadow-soft);
+}
+.bench-block { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+/* two related blocks share a row (modes+stay, crew+trip length) */
+.bench-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: start; }
+.bench-eyebrow { color: var(--text-3); }
+.bench-block-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+/* crew size / trip length heads — value rides the eyebrow row at label scale
+   so the two blocks in the pair align with Getting There / Stay Style above */
+.bench-block-value {
+  font-size: 13px; font-weight: 700; color: var(--text);
+  font-family: var(--bench-mono, monospace); font-variant-numeric: tabular-nums;
+  white-space: nowrap; text-align: right;
+}
+
+/* header row: identity badge left, return-leg toggle + surprise + reset right */
+.bench-head-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.bench-head-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.bench-toggle {
+  border: 1.5px solid var(--line); background: var(--card); cursor: pointer;
+  padding: 8px 13px; border-radius: 999px;
+  font-size: 12.5px; font-weight: 700; color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+  transition: border-color .12s var(--ease-out), background .12s var(--ease-out), color .12s var(--ease-out);
+}
+.bench-toggle.on { border-color: var(--yf-teal-600); background: var(--yf-teal-100); color: var(--yf-teal-700); }
+
+/* range sliders — filled track + brand thumb (webkit first per lightningcss) */
+.yf-range {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 28px; background: transparent; cursor: pointer;
+}
+.yf-range::-webkit-slider-runnable-track {
+  height: 8px; border-radius: 999px;
+  background: linear-gradient(90deg, var(--yf-teal-600) var(--fill, 50%), var(--line) var(--fill, 50%));
+}
+.yf-range::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 22px; height: 22px; margin-top: -7px; border-radius: 50%;
+  background: var(--card); border: 3.5px solid var(--yf-teal-600);
+  box-shadow: 0 3px 10px rgba(14, 33, 30, .28);
+  transition: transform var(--t-fast) var(--ease-out), border-color var(--t-fast) var(--ease-out), box-shadow var(--t-fast) var(--ease-out);
+}
+.yf-range:hover::-webkit-slider-thumb { transform: scale(1.12); border-color: var(--yf-teal-700); }
+.yf-range:active::-webkit-slider-thumb {
+  transform: scale(1.3); border-color: var(--yf-coral);
+  box-shadow: 0 0 0 8px color-mix(in srgb, var(--yf-teal-600) 18%, transparent);
+}
+.yf-range::-moz-range-track { height: 8px; border-radius: 999px; background: var(--line); }
+.yf-range::-moz-range-progress { height: 8px; border-radius: 999px; background: var(--yf-teal-600); }
+.yf-range::-moz-range-thumb {
+  width: 16px; height: 16px; border-radius: 50%;
+  background: var(--card); border: 3.5px solid var(--yf-teal-600);
+  transition: transform var(--t-fast) var(--ease-out);
+}
+.yf-range:hover::-moz-range-thumb { transform: scale(1.12); }
+
+/* quick-route preset chips — wrapping chip group, selected = dark filled */
+.bench-chip-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.bench-preset-chip {
+  display: inline-flex; align-items: center; gap: 5px; cursor: pointer;
+  border: 1.5px solid var(--line); background: var(--card); border-radius: 999px;
+  padding: 7px 13px; font-size: 12px; font-weight: 600; color: var(--text-2);
+  transition: border-color .12s var(--ease-out), background .12s var(--ease-out), color .12s var(--ease-out);
+}
+.bench-preset-chip:hover { border-color: var(--yf-teal-600); }
+.bench-preset-chip.on { border-color: var(--yf-navy); background: var(--yf-navy); color: #fff; }
+
+/* route distance card: huge number top-right, scale under the slider */
+.bench-distance-card {
+  border: 1px solid var(--line); border-radius: 16px; padding: 11px 12px 9px;
+  background: var(--bg-soft);
+}
+.bench-distance-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.bench-distance-big {
+  font-size: 28px; font-weight: 800; line-height: 1; color: var(--text);
+  font-family: var(--bench-mono); font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.bench-scale { display: flex; justify-content: space-between; font-size: 10px; font-weight: 600; color: var(--text-3); font-family: var(--bench-mono); font-variant-numeric: tabular-nums; }
+.bench-derived { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; font-size: 12px; color: var(--text-2); }
+.bench-derived-cost { font-weight: 700; color: var(--yf-teal-700); font-variant-numeric: tabular-nums; font-family: var(--bench-mono); }
+
+/* getting there: 2×2 mode grid, speed badge, selected = filled */
+.bench-mode-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.bench-mode-btn {
+  display: flex; align-items: center; gap: 7px; min-width: 0; cursor: pointer;
+  border: 1.5px solid var(--line); background: var(--card); border-radius: 12px;
+  padding: 8px 10px; font-size: 12.5px; font-weight: 700; color: var(--text-2); text-transform: capitalize;
+  transition: border-color .12s var(--ease-out), background .12s var(--ease-out), color .12s var(--ease-out), transform .12s var(--ease-out);
+}
+.bench-mode-btn:hover { transform: translateY(-1px); border-color: var(--yf-teal-600); }
+.bench-mode-btn.on { border-color: var(--yf-teal-700); background: var(--yf-teal-700); color: #fff; }
+.bench-mode-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bench-mode-speed {
+  margin-left: auto; flex-shrink: 0; font-size: 10.5px; font-weight: 800;
+  font-family: var(--bench-mono); font-variant-numeric: tabular-nums;
+  padding: 2px 7px; border-radius: 999px;
+  background: var(--bg-soft); color: var(--text-2);
+}
+.bench-mode-btn.on .bench-mode-speed { background: transparent; color: #fff; }
+/* A full mode row (icon + name + speed pill) needs ~110px of button. Inside the
+   bench's half-card that is only a problem in the 721-1000px band, where each
+   button is a QUARTER of the card (78.7px at 768) and the name — the row's only
+   flexible part — ellipsized to a single letter ("T…") while the icon squashed
+   from 15px to 3px. The query measures the BLOCK's own width, not the viewport:
+   the grid's space is a fraction of the window here, and the Trip Settings tab
+   hosts the same grid under a different parent, so a viewport band would have to
+   restate this geometry and rot the first time the bench ratio moved. 230px is
+   2 x (15 icon + 7 gap + 31 for the longest name + 7 gap + 26 pill + 23 padding)
+   + 6 gap = 224.6, rounded up. Below it the modes stack full-width: nothing is
+   dropped (the pill and the label both survive) at a cost of 80px in a band that
+   already overflowed the one-screen budget. Dropping the pill instead — the
+   other cheap answer — was measured and still leaves "Train" clipped from 721px
+   to ~755px, where a quarter-card is under the 76px an icon + name row needs. */
+.bench-mode-block { container-type: inline-size; }
+@container (max-width: 230px) {
+  .bench-mode-grid { grid-template-columns: 1fr; }
+}
+/* An inline SVG is a flex item like any other, so without this the icon is what
+   gives first — a 15px glyph squashed to 3px reads as a rendering glitch. */
+.bench-mode-btn > svg { flex: none; }
+.bench-hint { font-size: 12px; color: var(--text-3); margin: 0; }
+
+/* stay style: vertical rate rows, selected = teal outline + tint */
+.bench-stay-list { display: flex; flex-direction: column; gap: 5px; }
+.bench-stay-row {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 10px; cursor: pointer;
+  border: 1.5px solid var(--line); background: var(--card); border-radius: 12px;
+  padding: 8px 12px; font-size: 12.5px; font-weight: 700; color: var(--text-2); text-transform: capitalize;
+  transition: border-color .12s var(--ease-out), background .12s var(--ease-out), color .12s var(--ease-out);
+}
+.bench-stay-row:hover { border-color: var(--yf-teal-600); }
+.bench-stay-row.on { border-color: var(--yf-teal-600); background: var(--yf-teal-100); color: var(--yf-teal-700); }
+.bench-stay-rate { font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; font-family: var(--bench-mono); }
+.bench-stay-row.on .bench-stay-rate { color: var(--yf-teal-700); }
+
+/* crew size + trip length share the big-number header pattern */
+.bench-fuel-pair { flex-direction: row; gap: 12px; }
+.bench-fuel-col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+.bench-fuel-value { font-size: 17px; font-weight: 800; color: var(--text); font-family: var(--bench-mono); font-variant-numeric: tabular-nums; }
+.bench-scale-ends { display: flex; justify-content: space-between; font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); }
+
+/* crew avatar buttons */
+.bench-crew { display: flex; flex-wrap: wrap; gap: 6px; }
+.bench-crew-btn {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+  min-width: 40px; height: 42px; padding: 3px 6px; border-radius: 12px;
+  border: 1.5px solid var(--line); background: var(--card); cursor: pointer;
+  font-size: 12px; font-weight: 700; color: var(--text-2);
+  transition: transform .12s var(--ease-out), border-color .12s var(--ease-out), background .12s var(--ease-out);
+}
+.bench-crew-btn:hover { transform: translateY(-1px); }
+.bench-crew-btn.on { border-color: var(--yf-teal-700); background: var(--yf-teal-700); color: #fff; }
+/* Disabled affordances must not look live. All four of these are disabled for a
+   viewer (TripSettingsForm passes `disabled={!editable}`), yet they kept full
+   opacity, the pointer cursor and their hover lift — so a viewer saw an editable
+   form that silently ignored every press. The `:not(.on)` guard leaves a
+   locked-but-selected option showing the state it is locked to. */
+.bench-toggle:disabled, .bench-crew-btn:disabled, .bench-mode-btn:disabled,
+.yf-range:disabled { opacity: .55; cursor: not-allowed; }
+.bench-crew-btn:disabled:hover, .bench-mode-btn:disabled:hover { transform: none; }
+.bench-mode-btn:disabled:not(.on):hover { border-color: var(--line); }
+/* Split by vendor deliberately: a selector list containing a pseudo-element the
+   engine does not recognise invalidates the WHOLE rule, so pairing the WebKit and
+   Firefox thumbs in one list made Chrome discard this fix outright. */
+.yf-range:disabled:hover::-webkit-slider-thumb { transform: none; }
+.yf-range:disabled:hover::-moz-range-thumb { transform: none; }
+@media (prefers-reduced-motion: reduce) {
+  /* Keep border/shadow feedback, but no thumb enlargement; split by vendor. */
+  .yf-range::-webkit-slider-thumb { transform: none !important; transition-duration: .01ms !important; }
+  .yf-range::-moz-range-thumb { transform: none !important; transition-duration: .01ms !important; }
+}
+/* Dark theme: teal-700 is the BRIGHT shade here (#1E9D92), so white ink on a
+   saturated fill drops to 3.3:1. Use the near-black ink the pill-nav glider
+   already uses (#06251f) — 6.6:1 on #2BB8AC. The pale-tinted `.on` states flip
+   teal-700 text to teal-600 (4.1:1 -> 5.6:1 on #12332F). Light theme passes as
+   authored: #fff on teal-700 = 5.8:1, teal-700 on teal-100 = 5.1:1. */
+[data-theme='dark'] .bench-mode-btn.on,
+[data-theme='dark'] .bench-crew-btn.on {
+  border-color: var(--yf-teal-600); background: var(--yf-teal-600); color: #06251f;
+}
+[data-theme='dark'] .bench-mode-btn.on .bench-mode-speed { background: rgba(6, 37, 31, .22); color: #06251f; }
+[data-theme='dark'] .bench-toggle.on,
+[data-theme='dark'] .bench-stay-row.on,
+[data-theme='dark'] .bench-stay-row.on .bench-stay-rate { color: var(--yf-teal-600); }
+.bench-crew-emoji { font-size: 15px; line-height: 1; }
+
+/* receipt v3 — theme-aware bill: torn bottom edge, stamp, barcode, mono numerals.
+   Light theme = cream paper with ink text; dark theme = navy till-roll. Every
+   receipt surface/text pair reads from these scoped props so the two themes
+   cannot drift out of contrast. */
+.bench-receipt {
+  --receipt-ink: var(--text);
+  --receipt-ink-soft: var(--text-2);
+  --receipt-ink-faint: var(--text-3);
+  --receipt-accent: var(--yf-teal-700);  /* teal-600 read 4.08:1 on paper — under AA for the 11px kicker */
+  --receipt-line: var(--line);
+  --receipt-barcode: rgba(13, 43, 38, .5);
+  --receipt-fatigue-bg: var(--card-soft);
+  --receipt-hero: color-mix(in srgb, var(--saffron-600) 90%, black);  /* saffron dark enough for AA-large on paper */
+  position: relative;
+  display: flex; flex-direction: column; gap: 14px;
+  color: var(--receipt-ink);
+  background:
+    radial-gradient(120% 90% at 100% 0%, var(--yf-atmos-peach), transparent 55%),
+    radial-gradient(120% 90% at 0% 100%, var(--yf-atmos-mint), transparent 55%),
+    var(--card);
+  clip-path: polygon(
+    0 0, 100% 0, 100% calc(100% - 9px),
+    96.875% 100%, 93.75% calc(100% - 9px), 90.625% 100%, 87.5% calc(100% - 9px),
+    84.375% 100%, 81.25% calc(100% - 9px), 78.125% 100%, 75% calc(100% - 9px),
+    71.875% 100%, 68.75% calc(100% - 9px), 65.625% 100%, 62.5% calc(100% - 9px),
+    59.375% 100%, 56.25% calc(100% - 9px), 53.125% 100%, 50% calc(100% - 9px),
+    46.875% 100%, 43.75% calc(100% - 9px), 40.625% 100%, 37.5% calc(100% - 9px),
+    34.375% 100%, 31.25% calc(100% - 9px), 28.125% 100%, 25% calc(100% - 9px),
+    21.875% 100%, 18.75% calc(100% - 9px), 15.625% 100%, 12.5% calc(100% - 9px),
+    9.375% 100%, 6.25% calc(100% - 9px), 3.125% 100%, 0 calc(100% - 9px)
+  );
+}
+[data-theme='dark'] .bench-receipt {
+  --receipt-ink: #EAF4F1;
+  --receipt-ink-soft: rgba(234, 244, 241, .8);
+  --receipt-ink-faint: rgba(234, 244, 241, .68);
+  --receipt-accent: #8ADBCA;
+  --receipt-line: rgba(255, 255, 255, .18);
+  --receipt-barcode: rgba(234, 244, 241, .55);
+  --receipt-fatigue-bg: rgba(255, 255, 255, .06);
+  --receipt-hero: var(--yf-saffron);
+  background:
+    radial-gradient(120% 70% at 100% 0%, rgba(243, 170, 61, .14), transparent 55%),
+    radial-gradient(120% 70% at 0% 100%, rgba(15, 158, 144, .2), transparent 55%),
+    linear-gradient(165deg, var(--yf-navy), #0A222B 82%);
+}
+/* capture override — the shared PNG always ships the dark till-roll look.
+   Mirrors the dark-theme block above but scoped to the receipt node itself,
+   so lib/billCapture.ts can force it for one frame without touching the
+   user's theme (also pins --bg/--line for the perforation dots). */
+.bench-receipt.capture-dark {
+  --receipt-ink: #EAF4F1;
+  --receipt-ink-soft: rgba(234, 244, 241, .8);
+  --receipt-ink-faint: rgba(234, 244, 241, .68);
+  --receipt-accent: #8ADBCA;
+  --receipt-line: rgba(255, 255, 255, .18);
+  --receipt-barcode: rgba(234, 244, 241, .55);
+  --receipt-fatigue-bg: rgba(255, 255, 255, .06);
+  --receipt-hero: var(--yf-saffron);
+  --bg: #0A222B;
+  --line: rgba(255, 255, 255, .18);
+  background:
+    radial-gradient(120% 70% at 100% 0%, rgba(243, 170, 61, .14), transparent 55%),
+    radial-gradient(120% 70% at 0% 100%, rgba(15, 158, 144, .2), transparent 55%),
+    linear-gradient(165deg, var(--yf-navy), #0A222B 82%);
+}
+.bench-stamp {
+  position: absolute; top: 46px; right: 14px; z-index: var(--z-content);
+  transform: rotate(7deg);
+  border: 2px solid var(--receipt-accent); color: var(--receipt-accent);
+  border-radius: 6px; padding: 2px 9px;
+  font-size: 11px; font-weight: 800; letter-spacing: .18em;
+  opacity: .68; pointer-events: none; user-select: none;
+}
+/* barcode strip — pure CSS, decorative */
+.bench-barcode {
+  position: absolute; top: 14px; right: 14px; width: 68px; height: 22px;
+  color: var(--receipt-barcode); pointer-events: none;
+  background: repeating-linear-gradient(90deg,
+    currentColor 0 2px, transparent 2px 4px,
+    currentColor 4px 5px, transparent 5px 9px,
+    currentColor 9px 12px, transparent 12px 14px);
+}
+.bench-receipt-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 2px 10px; padding-right: 92px; }
+.bench-receipt-kicker { font-size: 11px; font-weight: 800; letter-spacing: .14em; color: var(--receipt-accent); white-space: nowrap; text-transform: uppercase; }
+.bench-receipt-date { font-size: 11px; color: var(--receipt-ink-faint); white-space: nowrap; }
+/* crew + transport meta row — right under the kicker: who and how, at a
+   glance. More prominent than a footnote, quieter than the per-head hero. */
+.bench-meta-row {
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  width: fit-content; margin: -6px auto 0; padding: 5px 12px;
+  border: 1px dashed var(--receipt-line); border-radius: 999px;
+  font-size: 12.5px; font-weight: 700; color: var(--receipt-ink-soft);
+}
+.bench-meta-row svg { color: var(--receipt-accent); flex: none; }
+.bench-total { text-align: center; padding: 4px 0 2px; }
+.bench-total-label { display: block; font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--receipt-ink-faint); }
+.bench-total-main {
+  display: block; font-size: clamp(30px, 4.5vw, 42px); font-weight: 800; color: var(--receipt-ink);
+  font-variant-numeric: tabular-nums; font-family: var(--bench-mono);
+}
+/* per-head is the hero figure on the v2 receipt — saffron, unit rides baseline */
+.bench-total-perhead { color: var(--receipt-hero); display: flex; justify-content: center; align-items: baseline; gap: 7px; flex-wrap: wrap; }
+.bench-perhead-unit { font-size: 15px; font-weight: 700; color: var(--receipt-ink-soft); letter-spacing: .02em; }
+.bench-total-sub { display: block; font-size: 13px; color: var(--receipt-ink-soft); margin-top: 4px; font-variant-numeric: tabular-nums; }
+
+/* split bar */
+.bench-split { display: flex; height: 10px; border-radius: 999px; overflow: hidden; border: 1px solid var(--receipt-line); }
+.bench-split-bar {
+  height: 100%; transition: width .35s var(--ease-out);
+  min-width: 0; overflow: hidden;
+}
+.bench-split-transport { background: var(--yf-teal-600); }
+.bench-split-stay { background: var(--yf-saffron); }
+.bench-split-meal { background: var(--yf-purple); }
+.bench-split-legend { display: flex; flex-wrap: wrap; gap:  12px; font-size: 12px; font-weight: 600; color: var(--receipt-ink-soft); }
+.bench-split-legend .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; vertical-align: baseline; }
+.dot-transport { background: var(--yf-teal-600); }
+.dot-stay { background: var(--yf-saffron); }
+.dot-meal { background: var(--yf-purple); }
+
+/* receipt lines + perforated divider */
+.bench-receipt-lines { display: flex; flex-direction: column; gap:  8px; }
+.bench-line { display: flex; flex-direction: column; gap:  1px; padding: 8px 0; border-top: 1px dashed var(--receipt-line); }
+.bench-line-head { display: flex; justify-content: space-between; align-items: baseline; gap:  10px; font-size: 13.5px; }
+.bench-line-head b { font-variant-numeric: tabular-nums; font-family: var(--bench-mono); }
+.bench-line-formula { font-size:  11.5px; color: var(--receipt-ink-faint); }
+.bench-receipt-rules {
+  border-top: 2px dashed var(--receipt-line); position: relative; height: 0; margin: 2px 0;
+}
+.bench-receipt-rules::before, .bench-receipt-rules::after {
+  content: ''; position: absolute; top: -5px; width: 11px; height: 11px; border-radius: 50%;
+  background: var(--bg); border: 1px solid var(--line);
+}
+.bench-receipt-rules::before { left: -14px; }
+.bench-receipt-rules::after { right: -10px; }
+
+/* fatigue gauge */
+.bench-fatigue { display: flex; align-items: center; gap:  12px; padding: 10px 12px; border-radius: 14px; border:  1px solid var(--receipt-line); background: var(--receipt-fatigue-bg); }
+.bench-fatigue-title { display: block; font-size:  13px; font-weight: 700; color: var(--receipt-ink); }
+
+.bench-cta-row { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-top: 2px; }
+.bench-cta { width: 100%; }
+.bench-alt-link { font-size: 13px; font-weight: 600; color: var(--receipt-accent); text-decoration: none; }
+.bench-alt-link:hover { text-decoration: underline; }
+.bench-receipt-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.bench-receipt-actions .chip { cursor: pointer; font-size: 12px; font-weight: 600; }
+.bench-receipt-actions .chip:disabled { opacity: .65; cursor: default; }
+/* Capture frame: the share-image snapshot must not include the busy chip —
+   the actions row is hidden (visibility keeps the layout stable) while the
+   receipt renders its capture-safe form. */
+.bench-receipt.bench-capturing .bench-receipt-actions { visibility: hidden; }
+/* html-to-image clones the node and copies computed styles — any surviving
+   transition re-runs in the clone, capturing the fatigue needle mid-sweep and
+   the gauge arc near-empty. Freeze every transition in the capture frame. */
+.bench-receipt.bench-capturing *,
+.bench-receipt.bench-capturing *::before,
+.bench-receipt.bench-capturing *::after { transition: none !important; }
+.bench-fineprint { font-size: 11px; color: var(--receipt-ink-faint); text-align: center; margin: 0; line-height: 1.5; }
+
+/* ---------- Plan Bench 3.0 — motion system (transform/opacity only) ---------- */
+
+/* identity badge — the tool finally wears its name */
+.bench-badge {
+  display: flex; align-items: center; gap: 8px; width: fit-content;
+  margin: 0; padding: 7px 16px; border-radius: 999px;
+  font-size: 12.5px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase;
+  color: var(--yf-teal-700);
+  background: linear-gradient(var(--card), var(--card)) padding-box,
+    linear-gradient(90deg, var(--yf-teal-600), var(--yf-saffron)) border-box;
+  border: 1.5px solid transparent;
+  box-shadow: 0 4px 18px rgba(13, 141, 130, .16);
+}
+.bench-badge-dot { position: relative; width: 8px; height: 8px; border-radius: 50%; background: var(--yf-teal-600); }
+@media (prefers-reduced-motion: no-preference) {
+  .bench-badge-dot::after {
+    content: ''; position: absolute; inset: -3px; border-radius: 50%;
+    border: 2px solid var(--yf-teal-600); opacity: 0;
+    animation: bench-ping 2.4s ease-out infinite;
+  }
+}
+@keyframes bench-ping { 0% { transform: scale(.5); opacity: .8; } 70%, 100% { transform: scale(1.7); opacity: 0; } }
+
+/* saffron underline draws itself when the section scrolls into view */
+.bench-underline { position: relative; white-space: nowrap; }
+.bench-underline svg { position: absolute; left: -2%; bottom: -.16em; width: 104%; height: .3em; overflow: visible; }
+.bench-underline path {
+  fill: none; stroke: var(--yf-saffron); stroke-width: 6; stroke-linecap: round;
+  stroke-dasharray: 230; stroke-dashoffset: 230;
+}
+.bench-live .bench-underline path { stroke-dashoffset: 0; transition: stroke-dashoffset .9s cubic-bezier(.22, 1, .36, 1) .45s; }
+
+.bench-sub { text-align: center; max-width: 560px; margin: 0 auto 18px; }
+
+/* drifting atmosphere blobs behind the section */
+/* No overflow on the section itself — the blobs blur freely across the section
+   bounds onto the shared fixed canvas, so there is no hard clipped edge (the
+   "bench seam"). Beware the pair rule: even `overflow-x: clip` alone makes the
+   OTHER axis compute to clip too, which slices the blobs' top/bottom bleed
+   into hard lines. Horizontal page blowout is handled once at the root
+   (html { overflow-x: clip }), which is not a scroll container. */
+.plan-bench { position: relative; }
+.bench-blob { position: absolute; z-index: var(--z-under); width: 340px; height: 340px; border-radius: 50%; filter: blur(80px); opacity: .5; pointer-events: none; }
+.bench-blob-a { top: -90px; left: -130px; background: var(--yf-atmos-peach); }
+.bench-blob-b { bottom: -70px; right: -150px; background: var(--yf-atmos-mint); }
+.plan-bench > *:not(.bench-blob) { position: relative; z-index: var(--z-content); }
+@media (prefers-reduced-motion: no-preference) {
+  .bench-blob-a { animation: blob-drift 15s ease-in-out infinite alternate; }
+  .bench-blob-b { animation: blob-drift 22s ease-in-out infinite alternate-reverse; }
+}
+@keyframes blob-drift {
+  from { transform: translate(0, 0) scale(1); }
+  50%  { transform: translate(-26px, 18px) scale(1.08); }
+  to   { transform: translate(34px, -24px) scale(1.16); }
+}
+
+/* scroll-in choreography */
+@media (prefers-reduced-motion: no-preference) {
+  .bench-live .bench-badge, .bench-live .bench-title, .bench-live .bench-sub { animation: bench-rise .55s cubic-bezier(.22, 1, .36, 1) backwards; }
+  .bench-live .bench-title { animation-delay: .07s; }
+  .bench-live .bench-sub { animation-delay: .14s; }
+  .bench-live .bench-controls > * { animation: bench-rise .5s cubic-bezier(.22, 1, .36, 1) backwards; }
+  .bench-live .bench-controls > :nth-child(1) { animation-delay: .22s; }
+  .bench-live .bench-controls > :nth-child(2) { animation-delay: .27s; }
+  .bench-live .bench-controls > :nth-child(3) { animation-delay: .32s; }
+  .bench-live .bench-controls > :nth-child(4) { animation-delay: .37s; }
+  .bench-live .bench-controls > :nth-child(5) { animation-delay: .42s; }
+  .bench-live .bench-controls > :nth-child(6) { animation-delay: .47s; }
+  .bench-live .bench-controls > :nth-child(7) { animation-delay: .52s; }
+  .bench-live .bench-controls > :nth-child(8) { animation-delay: .57s; }
+  .bench-live .bench-receipt { animation: bench-receipt-in .65s cubic-bezier(.22, 1, .36, 1) .24s backwards; }
+}
+@keyframes bench-rise { from { opacity: 0; transform: translateY(16px); } }
+@keyframes bench-receipt-in { from { opacity: 0; transform: translateY(26px) rotate(-1.4deg); } }
+
+/* odometer money figures — per-digit vertical strips */
+.odo { display: inline-flex; line-height: 1; vertical-align: baseline; }
+.odo-char { display: inline-block; height: 1em; line-height: 1; }
+.odo-digit {
+  position: relative; display: inline-block; height: 1em; overflow: hidden;
+  -webkit-mask-image: linear-gradient(transparent 0, #000 16%, #000 84%, transparent 100%);
+  mask-image: linear-gradient(transparent 0, #000 16%, #000 84%, transparent 100%);
+}
+.odo-strip { display: flex; flex-direction: column; transition: transform .55s cubic-bezier(.22, 1.35, .36, 1); }
+.odo-num { display: block; height: 1em; line-height: 1; text-align: center; }
+@media (prefers-reduced-motion: reduce) { .odo-strip { transition: none; } }
+
+/* slider drag bubble */
+.bench-slider { position: relative; }
+.bench-bubble {
+  position: absolute; top: -37px; transform: translateX(-50%); z-index: var(--z-raised);
+  background: var(--yf-teal-700); color: #fff; font-size: 12px; font-weight: 800;
+  padding: 4px 10px; border-radius: 9px; white-space: nowrap; pointer-events: none;
+  font-variant-numeric: tabular-nums; animation: bench-pop .16s ease-out;
+}
+.bench-bubble::after {
+  content: ''; position: absolute; left: 50%; bottom: -4px; transform: translateX(-50%);
+  border: 4px solid transparent; border-top-color: var(--yf-teal-700); border-bottom: none;
+}
+/* Dark: --yf-teal-700 is the bright end of the scale (#1E9D92), so the bubble's
+   white 12px/800 label is only 3.34:1. Same near-black ink the rest of the
+   solid-teal-fill family takes (see .ai-bubble.user above). */
+[data-theme='dark'] .bench-bubble { color: #06251f; }
+@keyframes bench-pop { from { opacity: 0; } }
+
+/* fatigue needle gauge */
+.bench-gauge { width: 74px; height: 40px; flex-shrink: 0; color: var(--receipt-accent); }
+.bench-gauge.tone-warn { color: var(--yf-saffron); }
+.bench-gauge.tone-hot { color: #e05656; }
+.bench-gauge-needle { transform-origin: 60px 58px; }
+@media (prefers-reduced-motion: no-preference) {
+  .bench-gauge-needle { transition: transform .7s cubic-bezier(.22, 1.35, .36, 1); }
+}
+
+/* stamp thud — hidden until the section lives, restamps on preset apply */
+.plan-bench .bench-stamp { opacity: 0; }
+.bench-live .bench-stamp { animation: bench-stamp-in .5s cubic-bezier(.2, 2, .4, 1) .6s both; }
+@keyframes bench-stamp-in {
+  0% { opacity: 0; transform: rotate(16deg) scale(2.1); }
+  60% { opacity: .85; }
+  100% { opacity: .68; transform: rotate(7deg) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) { .plan-bench .bench-stamp { opacity: .68; } }
+
+/* receipt tilt (pointer-follow, desktop only) + tear-off + reprint flicker */
+.bench-receipt {
+  transform: perspective(1100px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+  transition: transform .18s ease-out;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .bench-receipt.tearing { animation: bench-tear .38s ease-in both; }
+  .bench-receipt-lines { animation: bench-reprint .32s ease-out backwards; }
+}
+@keyframes bench-tear { to { transform: rotate(-2deg) translateY(14px); opacity: .4; } }
+@keyframes bench-reprint { from { opacity: 0; transform: translateY(-7px); } }
+
+/* dice roll + disabled surprise */
+.bench-dice { display: inline-block; }
+@media (prefers-reduced-motion: no-preference) {
+  .bench-surprise.rolling .bench-dice { animation: dice-roll .6s cubic-bezier(.22, 1, .36, 1); }
+}
+@keyframes dice-roll { 0% { transform: rotate(0) scale(1); } 60% { transform: rotate(300deg) scale(1.25); } 100% { transform: rotate(360deg) scale(1); } }
+.bench-surprise:disabled { opacity: .65; cursor: default; }
+/* Surprise sits beside the preset chips as a tertiary action — outline with an
+   amber accent instead of a filled pill that out-shouts its neighbours. */
+.bench-surprise { border-color: var(--yf-amber); color: var(--ink-amber); }
+.bench-surprise .bench-dice { color: var(--yf-amber); }
+
+/* copy celebration — confetti + copied tint */
+.bench-receipt-actions { position: relative; }
+.chip-copied { border-color: var(--yf-teal-600) !important; color: var(--yf-teal-700) !important; }
+.bench-confetti { position: absolute; left: 50%; top: 0; pointer-events: none; }
+.cf-bit { position: absolute; width: 7px; height: 7px; border-radius: 2px; background: var(--c); opacity: 0; }
+@media (prefers-reduced-motion: no-preference) {
+  .cf-bit { animation: cf-pop .7s ease-out forwards; }
+}
+@keyframes cf-pop {
+  0% { opacity: 1; transform: translate(0, 0) rotate(0) scale(1); }
+  100% { opacity: 0; transform: translate(var(--dx), var(--dy)) rotate(var(--rot)) scale(.7); }
+}
+
+/* CTA shine sweep + press feedback (transform-only) */
+.bench-cta { position: relative; overflow: hidden; }
+.bench-cta:active { transform: scale(.97); }
+@media (prefers-reduced-motion: no-preference) {
+  .bench-cta::after {
+    content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 55%;
+    background: linear-gradient(105deg, transparent, rgba(255, 255, 255, .35), transparent);
+    transform: translateX(-140%) skewX(-18deg);
+    animation: bench-shine 4.2s ease-in-out infinite;
+  }
+}
+@keyframes bench-shine {
+  0%, 55% { transform: translateX(-140%) skewX(-18deg); }
+  80%, 100% { transform: translateX(330%) skewX(-18deg); }
+}
+
+/* Pause decorative loops until the bench is live and currently visible. */
+.plan-bench:not(.bench-live) .bench-blob, .plan-bench:not(.bench-inview) .bench-blob,
+.plan-bench:not(.bench-live) .bench-badge-dot::after, .plan-bench:not(.bench-inview) .bench-badge-dot::after,
+.plan-bench:not(.bench-live) .bench-cta::after, .plan-bench:not(.bench-inview) .bench-cta::after { animation-play-state: paused; }
+
+/* hero CTA — boarding-pass ticket: stub + tear line + flight code */
+.hero-bench-cta {
+  position: relative; display: flex; align-items: stretch; width: min(100%, 460px);
+  margin-top: 14px; padding: 0; border: none; border-radius: var(--radius); cursor: pointer;
+  background: var(--card); color: var(--text); text-align: left;
+  box-shadow: 0 16px 38px -14px rgba(var(--shadow-navy-rgb), .35);
+  transition: transform .2s var(--ease-out), box-shadow .2s var(--ease-out);
+}
+.hero-bench-cta:hover { transform: translateY(-2px); box-shadow: 0 22px 48px -14px rgba(var(--shadow-navy-rgb), .42); }
+/* animated brand strip along the top edge (ticket stripe) */
+.hero-bench-cta::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px;
+  border-radius: var(--radius) var(--radius) 0 0;
+  background: linear-gradient(90deg, var(--yf-teal-600), var(--yf-saffron), var(--yf-teal-600));
+  background-size: 220% 100%;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .hero-bench-cta::before { animation: hbc-slide 3.5s linear infinite; }
+  .hero-bench-cta .hbc-arrow { animation: hbc-nudge 1.6s ease-in-out infinite; }
+}
+@keyframes hbc-slide { to { background-position: 220% 0; } }
+@keyframes hbc-nudge { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(4px); } }
+/* left stub: plane roundel, teal wash */
+.hbc-stub {
+  flex-shrink: 0; display: grid; place-items: center; align-self: center;
+  width: 58px; height: 58px; margin: 12px; border-radius: 14px;
+  background: linear-gradient(135deg, var(--yf-teal-100), #fff);
+  border: 1px solid color-mix(in srgb, var(--yf-teal-600) 25%, transparent);
+  font-size: 24px;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .hbc-plane { display: inline-block; animation: hbc-plane 5.5s ease-in-out infinite; }
+}
+@keyframes hbc-plane {
+  0%, 100% { transform: translate(0, 0) rotate(-8deg); }
+  40%      { transform: translate(6px, -5px) rotate(-2deg); }
+  70%      { transform: translate(-3px, 2px) rotate(-12deg); }
+}
+.hbc-text { display: flex; flex-direction: column; justify-content: center; gap: 2px; padding: 14px 0; min-width: 0; }
+.hbc-label { font-size: 16.5px; font-weight: 800; letter-spacing: -.01em; }
+.hbc-sub { font-size: 11.5px; font-weight: 600; color: var(--text-3); letter-spacing: .04em; text-transform: uppercase; }
+/* perforated tear line before the stub code */
+.hbc-tear {
+  align-self: stretch; width: 0; margin: 10px 2px;
+  border-left: 2px dashed color-mix(in srgb, var(--text-3) 45%, transparent);
+}
+/* right stub: "flight" code */
+.hbc-code {
+  flex-shrink: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 1px; padding: 0 14px;
+}
+.hbc-code b { font-size: 14px; font-variant-numeric: tabular-nums; letter-spacing: .06em; color: var(--yf-teal-700); }
+.hbc-code span { font-size: 9px; font-weight: 800; letter-spacing: .14em; color: var(--text-3); text-transform: uppercase; }
+.hbc-arrow { font-size: 15px; color: var(--yf-teal-600); margin-top: 3px; display: inline-block; }
+
+/* ============================================================
+   Homepage motion & one-screen Plan Bench (homepage-build)
+   ============================================================ */
+
+/* ---------- Living atmosphere: one continuous page canvas ---------- */
+/* The whole landing page sits on a single fixed-attachment atmospheric ramp:
+   the mint→cream→peach gradient never scrolls or restarts per section, so the
+   topnav area, hero and bench read as one seamless surface (no white band
+   above the nav pill, no hard edge where the hero section ends). */
+.landing-canvas {
+  margin-top: calc(-1 * (var(--nav-h) + 12px));   /* pull up behind the floating pill */
+  padding-top: calc(var(--nav-h) + 12px);
+  background:
+    radial-gradient(circle at 18% 12%, var(--yf-atmos-mint), transparent 34%),
+    radial-gradient(circle at 88% 28%, var(--yf-atmos-peach), transparent 32%),
+    linear-gradient(135deg, var(--yf-mist) 0%, var(--yf-cream) 52%, var(--yf-peach) 100%);
+  background-attachment: fixed;
+}
+/* Touch repaint cost (#107 Landing flag): fixed attachment forces a full-page
+   repaint every scroll frame on the Android WebView. On coarse pointers the
+   canvas scrolls with the page instead — it's one continuous wash, so the
+   seamlessness barely changes; desktop keeps the pinned ramp. Needs a
+   low-end device check to confirm the win. */
+@media (pointer: coarse) {
+  .landing-canvas { background-attachment: scroll; }
+}
+.hero { position: relative; }
+.hero-split { position: relative; z-index: var(--z-content); }
+.hero-blob { position: absolute; z-index: var(--z-under); border-radius: 50%; filter: blur(70px); opacity: .5; pointer-events: none; }
+.hero-blob-a { width: 380px; height: 380px; top: -110px; left: -140px; background: var(--yf-atmos-mint); }
+.hero-blob-b { width: 340px; height: 340px; bottom: -130px; right: -120px; background: var(--yf-atmos-peach); }
+
+/* ---------- Hero load choreography: one orchestrated stagger ---------- */
+@keyframes hero-rise { from { opacity: 0; transform: translateY(16px); } }
+.rise-d1 { animation-delay: .07s; } .rise-d2 { animation-delay: .14s; }
+.rise-d3 { animation-delay: .21s; } .rise-d4 { animation-delay: .28s; }
+.rise-d5 { animation-delay: .35s; }
+
+/* ---------- RouteSquiggle: draw → flow → pop → traveller (calm timeline) ---------- */
+/* Smooth programmatic scrolling everywhere (bench CTA, route changes) — reduced
+   motion users keep instant jumps. */
+@media (prefers-reduced-motion: no-preference) {
+  html { scroll-behavior: smooth; }
+}
+/* Scenario cycle is 8s; everything below is choreographed inside it:
+   0.3–2.3s road draws · 1.6s+ badges pop · 2.3–7.5s dot glides · 7.0–8.0s crossfade */
+.rs-road {
+  stroke-dasharray: 1; stroke-dashoffset: 1;
+  animation: rs-draw 2s cubic-bezier(.45, .05, .35, 1) .3s forwards;
+}
+@keyframes rs-draw { to { stroke-dashoffset: 0; } }
+/* centreline flow: offset shifts by 7+9=16 per dash cycle; -160 = 10 cycles.
+   Delayed to begin as the road finishes drawing — flow never outruns the draw. */
+.rs-dash { animation: rs-flow 4.5s linear infinite 1.9s; }
+.rs-paused .rs-dash { animation-play-state: paused; }
+@keyframes rs-flow { to { stroke-dashoffset: -160; } }
+/* per-scenario live figures: staggered rise-in on every trip switch */
+@media (prefers-reduced-motion: no-preference) {
+  .rs-stat { animation: rs-pop .45s var(--ease-soft) backwards; }
+  .rs-stat-d1 { animation-delay: .1s; }
+  .rs-stat-d2 { animation-delay: .2s; }
+}
+.rs-stop {
+  transform-box: fill-box; transform-origin: center; opacity: 0;
+  animation: rs-pop .5s var(--ease-soft) forwards;
+}
+@keyframes rs-pop {
+  0% { opacity: 0; transform: scale(.3); }
+  70% { opacity: 1; transform: scale(1.14); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+/* ---------- One-screen bench: controls + receipt share the viewport ---------- */
+/* Height = viewport minus the floating nav (and its gap), so scrolling to the
+   bench fits the ENTIRE calculator on screen — nothing cropped below the fold. */
+.plan-bench { scroll-margin-top: calc(var(--nav-h, 64px) + 8px); }
+@media (min-width: 721px) {
+  .plan-bench {
+    min-height: calc(100vh - var(--nav-h, 64px) - 24px);
+    min-height: calc(100svh - var(--nav-h, 64px) - 24px);
+    scroll-margin-top: calc(var(--nav-h, 64px) + 12px);
+    display: flex; flex-direction: column; justify-content: center;
+    padding-block: clamp(24px, 3.5vh, 48px);
+  }
+  /* The same ramp as .section-title, rather than a second clamp. This override
+   kept the pre-token values when .section-title moved onto
+   `--landing-title-size`, and being two classes it outranked the token - so of
+   the three section titles on the landing, this one alone stayed at ~30% smaller
+   (30.4px against 43.2px at 1440). The duplicate-selector gate could not see it:
+   it only checks top-level selectors, and this one is scoped to .plan-bench. */
+.plan-bench .bench-title { font-size: var(--landing-title-size); }
+  .plan-bench .bench-sub { margin: 6px auto 14px; }
+  .plan-bench .bench-controls { gap: 10px; padding: 14px 16px; }
+  .plan-bench .bench-block { gap: 6px; }
+  /* If the viewport is still too short, the receipt pins while controls scroll. */
+  .plan-bench .bench-receipt { position: sticky; top: calc(var(--nav-h, 64px) + 12px); }
+}
+/* Short laptops: reclaim vertical space instead of scrolling */
+@media (min-width: 721px) and (max-height: 860px) {
+  .plan-bench .bench-sub { display: none; }
+  .plan-bench .bench-receipt { padding: 16px 18px; }
+  .plan-bench .bench-controls { gap: 10px; }
+}
+@media (min-width: 721px) and (max-height: 760px) {
+  .plan-bench .bench-fineprint { display: none; }
+  .plan-bench .bench-total { padding: 2px 0 0; }
+}
+
+/* ---------- Mobile bill dock: the total follows the user while tuning ---------- */
+.bench-dock {
+  position: fixed; left: 12px; right: 12px;
+  bottom: calc(12px + var(--bottom-ui-offset));
+  z-index: var(--z-nav-glass); /* below --z-notif / --z-drawer / --z-modal / --z-toast / --z-impact */
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  background: var(--surface, #fff); border: 1px solid var(--line, #dce7e1);
+  border-radius: 16px; padding: 10px 14px;
+  box-shadow: 0 14px 34px -14px rgba(var(--shadow-navy-rgb), .4);
+  opacity: 0; transform: translateY(130%); visibility: hidden;
+  transition: opacity .3s var(--ease-out), transform .3s var(--ease-out), visibility 0s .3s;
+}
+.bench-inview .bench-dock { opacity: 1; transform: none; visibility: visible; transition-delay: 0s; }
+.bench-dock-figures { display: flex; flex-direction: column; line-height: 1.2; min-width: 0; }
+.bench-dock-figures b { font-size: 17px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.bench-dock-figures span { font-size: 11.5px; color: var(--text-3, #637b7d); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bench-dock .btn { min-height: 40px; padding: 0 16px; flex-shrink: 0; }
+@media (min-width: 721px) { .bench-dock { display: none; } }
+
+@media (prefers-reduced-motion: no-preference) {
+  .hero-rise { animation: hero-rise .65s var(--ease-out) both; }
+  .hero-blob-a { animation: blob-drift 16s ease-in-out infinite alternate; }
+  .hero-blob-b { animation: blob-drift 22s ease-in-out infinite alternate-reverse; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rs-road { stroke-dasharray: none; stroke-dashoffset: 0; animation: none; }
+  .rs-dash, .rs-stop { animation: none; opacity: 1; }
+  .rs-vehicle { display: none; }
+  .rs-layer-out { opacity: 0; }
+  .rs-caption-name, .rs-caption-meta { animation: none; }
+  .hero-rise { animation: none; }
+  .hero-blob-a, .hero-blob-b, .bench-blob-a, .bench-blob-b { animation: none; }
+  .ticker-track { animation: none; }
+  .ticker-track > * { animation: none; }
+  .hero .btn, .hero .btn::after { animation: none; box-shadow: none; }
+  .motif-compass, .motif-bob, .motif-float, .motif-sway, .motif-rise, .motif-birds { animation: none; }
+  .hbc-plane { animation: none; }
+  .hero-bench-cta::before { animation: none; }
+  .reveal-underline::after { transform: scaleX(1); }
+}
+/* ============================================================
+   Homepage "wow" pass (build 2):
+   live destination ticker · multi-trip route carousel crossfade ·
+   glass glowing CTAs · scroll-reveal choreography · travel SVG motifs
+   ============================================================ */
+
+/* ---------- Infinite destination ticker (hero → Plan Bench band) ---------- */
+.dest-ticker {
+  position: relative; overflow: hidden; padding: 18px 0;
+  border-top: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
+  background: color-mix(in srgb, var(--yf-glass) 42%, var(--bg));
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+}
+.ticker-track { display: flex; width: max-content; animation: ticker-scroll 38s linear infinite; }
+.ticker-track:hover { animation-play-state: paused; }
+.ticker-set { display: flex; align-items: center; flex-shrink: 0; }
+.ticker-item {
+  display: inline-flex; align-items: center; gap: 8px; white-space: nowrap;
+  padding: 6px 18px; margin: 0 6px; font-size: 13px; font-weight: 600; color: var(--text-2);
+  border-radius: 999px; background: var(--card); border: 1px solid var(--line);
+  box-shadow: 0 1px 0 rgba(255,255,255,.5) inset;
+}
+.ticker-item .t-ico { font-size: 14px; line-height: 1; }
+.ticker-item .t-tag { font-size: 10px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase;
+  color: var(--yf-teal-700); background: color-mix(in srgb, var(--yf-teal-600) 12%, transparent);
+  padding: 1px 7px; border-radius: 999px; }
+.ticker-sep { color: var(--yf-saffron); font-size: 12px; margin: 0 4px; opacity: .7; }
+@keyframes ticker-scroll { to { transform: translateX(-50%); } }
+/* offbeat items get a purple tag tint to separate "common" from "offbeat" */
+.t-off { color: var(--yf-purple); background: color-mix(in srgb, var(--yf-purple) 12%, transparent); }
+/* AA contrast on the 10px tags: light-theme lavender reads 3.31:1 on its own
+   tint — deeper violet for light (dark's #A99BD6 passes). Dark theme's teal tag
+   (#1E9D92, 3.83:1) gets a brighter mint-teal instead. */
+:root:not([data-theme='dark']) .ticker-item .t-off { color: #6F60A6; }
+[data-theme='dark'] .ticker-item .t-tag { color: #26B3A6; }
+
+/* ---------- RouteSquiggle → multi-trip scenario carousel ---------- */
+.rs-shell { position: relative; margin: 14px 0 4px; }
+.rs-svg { width: 100%; height: auto; display: block; }
+.rs-layer { opacity: 0; }
+.rs-layer-active { opacity: 1; }
+/* Incoming road: slow eased draw-in; outgoing: whisper back out (crossfade pair). */
+@media (prefers-reduced-motion: no-preference) {
+  .rs-layer-active { opacity: 1; animation: rs-in 1s cubic-bezier(.22, 1, .36, 1) both; }
+  .rs-layer-out { animation: rs-out 1s cubic-bezier(.45, .05, .35, 1) both; }
+}
+@keyframes rs-in {
+  0% { opacity: 0; transform: translateY(8px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+@keyframes rs-out {
+  from { opacity: .55; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(-8px); }
+}
+.rs-caption { display: flex; flex-direction: column; gap: 2px; margin-top: 8px; line-height: 1.25; }
+.rs-caption-name { font-weight: 800; font-size: 13.5px; color: #fff; display: inline-flex; align-items: center; gap: 6px; }
+.rs-caption-name svg { flex: none; opacity: .9; }
+.rs-caption-meta { font-size: 11px; opacity: .66; color: #fff; letter-spacing: .01em; display: flex; flex-wrap: wrap; gap: 4px 10px; }
+/* Hairline separators, not a row of middle dots: one rule for every gap. */
+.rs-meta-field { display: inline-flex; align-items: center; gap: 10px; }
+.rs-meta-field + .rs-meta-field::before { content: ''; width: 1px; height: 9px; background: currentColor; opacity: .5; }
+/* caption is remounted with the scenario (key=cap-idx), so it fades in exactly
+   when the new road starts drawing — no independent loop to drift out of sync */
+@media (prefers-reduced-motion: no-preference) {
+  .rs-caption-name { animation: rs-cap-in .8s cubic-bezier(.22, 1, .36, 1) both; }
+  .rs-caption-meta { animation: rs-cap-in .8s cubic-bezier(.22, 1, .36, 1) .12s both; }
+}
+@keyframes rs-cap-in {
+  0% { opacity: 0; transform: translateY(6px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+/* ---------- Rich, solid CTAs (hero) — colour must not be washed by glass ---------- */
+.hero .btn-lg {
+  position: relative; overflow: hidden; letter-spacing: .01em;
+}
+/* solid brand gradients (the old translucent glass face washed the colour out);
+   depth comes from the glow shadow instead of transparency */
+.hero .btn-primary {
+  background: linear-gradient(120deg, #0D8D82, #0C716D);
+  color: #fff; border-color: rgba(255,255,255,.28);
+  box-shadow: 0 10px 26px rgba(13,141,130,.42), inset 0 1px 0 rgba(255,255,255,.28);
+}
+.hero .btn-saffron {
+  background: linear-gradient(120deg, #F8B14E, #EE8F33);
+  /* same AA ink as the base saffron variant — white on light saffron was ~1.9:1 */
+  color: var(--color-accent-foreground); border-color: rgba(255,255,255,.3);
+  box-shadow: 0 10px 26px rgba(243,170,61,.44), inset 0 1px 0 rgba(255,255,255,.3);
+}
+[data-theme='dark'] .hero .btn-primary,
+[data-theme='dark'] .hero .btn-saffron { border-color: rgba(255,255,255,.2); }
+/* The sheen ::after is absolute and resolves against the hero (no positioned
+   ancestor closer), so the sweep crossed the whole hero face — a stray grey
+   bar sliding across empty space beside the buttons. Each button is its own
+   clipping box; the breathing glow is a box-shadow and survives the clip. */
+.hero .btn { position: relative; overflow: hidden; }
+@media (prefers-reduced-motion: no-preference) {
+  /* soft breathing outer glow — box-shadow only, transform-free */
+  .hero .btn-primary { animation: glow-breathe-teal 3.2s ease-in-out infinite; }
+  .hero .btn-saffron { animation: glow-breathe-saffron 3.2s ease-in-out infinite; }
+  /* keyboard focus must win over the breathing glow (focus ring, not glow) */
+  .hero .btn:focus-visible { animation: none; box-shadow: var(--ring); }
+  /* glass sheen sweep across the button face */
+  .hero .btn::after {
+    content: ''; position: absolute; top: 0; bottom: 0; left: -45%; width: 40%;
+    background: linear-gradient(105deg, transparent, rgba(255,255,255,.35), transparent);
+    transform: skewX(-20deg); pointer-events: none;
+    animation: glass-sheen 4.6s ease-in-out infinite;
+  }
+}
+@keyframes glow-breathe-teal {
+  0%, 100% { box-shadow: 0 10px 26px rgba(13,141,130,.42), inset 0 1px 0 rgba(255,255,255,.28); }
+  50%      { box-shadow: 0 14px 40px rgba(13,141,130,.62), inset 0 1px 0 rgba(255,255,255,.28); }
+}
+@keyframes glow-breathe-saffron {
+  0%, 100% { box-shadow: 0 10px 26px rgba(243,170,61,.44), inset 0 1px 0 rgba(255,255,255,.3); }
+  50%      { box-shadow: 0 14px 40px rgba(243,170,61,.64), inset 0 1px 0 rgba(255,255,255,.3); }
+}
+@keyframes glass-sheen { 0%, 55% { transform: skewX(-20deg) translateX(-130%); } 85%, 100% { transform: skewX(-20deg) translateX(380%); } }
+
+/* ---------- Scroll-reveal choreography ---------- */
+.reveal-d1 { transition-delay: .06s; } .reveal-d2 { transition-delay: .12s; }
+.reveal-d3 { transition-delay: .18s; }
+/* Hidden state is only applied once the observer is live (body.reveal-armed), so
+   content stays visible if JS is off or JS hasn't run yet. */
+@media (prefers-reduced-motion: no-preference) {
+  /* The entrance resolves out of a blur rather than only fading: over 36px of
+     travel a bare rise reads as a slide, and the defocus is what gives it mass.
+     The duration is --motion-slower, the largest step in the catalog - an
+     entrance that spans a whole section is the one move here meant to be slow.
+     (It was a raw .75s, outside the token set.) */
+  body.reveal-armed .reveal {
+    opacity: 0; transform: translateY(36px) scale(.97); filter: blur(8px);
+    transition: opacity var(--motion-slower) var(--ease-out), transform var(--motion-slower) var(--ease-out),
+      filter var(--motion-slower) var(--ease-out);
+  }
+  body.reveal-armed .reveal.io-inview { opacity: 1; transform: none; filter: blur(0); }
+}
+/* The defocus is a filter pass over a whole section - the only part of this
+   entrance that costs the compositor real work - so a coarse pointer keeps the
+   rise and drops the blur, the same trade the atmosphere blobs and the ticker
+   already make on phones. Both states are neutralised so the element never
+   becomes a filter layer there at all. */
+@media (pointer: coarse) {
+  body.reveal-armed .reveal,
+  body.reveal-armed .reveal.io-inview { filter: none; }
+}
+/* heading underline draws itself past the fold */
+.reveal-underline { position: relative; display: inline-block; }
+.reveal-underline::after {
+  content: ''; position: absolute; left: 0; right: 0; bottom: -6px; height: 3px; border-radius: 3px;
+  background: linear-gradient(90deg, var(--yf-teal-600), var(--yf-saffron));
+  transform: scaleX(0); transform-origin: left;
+  /* the trailing .15s is a hover-cascade DELAY, not a duration — the stagger
+     vocabulary (--stagger-step) is for entrance choreography only. */
+  transition: transform .8s var(--ease-out) .15s;
+}
+body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
+
+/* ---------- Travel motif accents (feature + steps sections) ---------- */
+.motif { position: absolute; pointer-events: none; opacity: .9; z-index: var(--z-under); color: var(--yf-teal-600); filter: drop-shadow(0 6px 14px rgba(13,141,130,.35)); }
+/* Read as illustration, not specks: the inline SVGs render small. */
+.motif svg { transform: scale(1.3); transform-origin: center; }
+.motif-compass { animation: spin 22s linear infinite; transform-origin: 50% 50%; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.motif-bob { animation: bob 3.4s ease-in-out infinite; }
+@keyframes bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+.motif-float { animation: floatPath 8s ease-in-out infinite; }
+@keyframes floatPath {
+  0%   { transform: translate(0, 0); }
+  25%  { transform: translate(38px, -10px); }
+  50%  { transform: translate(74px, 2px); }
+  75%  { transform: translate(38px, 12px); }
+  100% { transform: translate(0, 0); }
+}
+/* boat: gentle rocking on the spot */
+.motif-sway { animation: sway 5.5s ease-in-out infinite; transform-origin: 50% 80%; }
+@keyframes sway { 0%,100% { transform: rotate(-6deg) translateY(0); } 50% { transform: rotate(6deg) translateY(-4px); } }
+/* hot-air balloon: slow vertical drift with a hint of horizontal wander */
+.motif-rise { animation: balloonRise 11s ease-in-out infinite; }
+@keyframes balloonRise {
+  0%, 100% { transform: translate(0, 0) rotate(-2deg); }
+  35%      { transform: translate(10px, -26px) rotate(3deg); }
+  70%      { transform: translate(-8px, -6px) rotate(-3deg); }
+}
+/* bird flock: glides across and loops back, wings implied by opacity shimmer */
+.motif-birds { animation: glide 13s ease-in-out infinite; }
+@keyframes glide {
+  0%, 100% { transform: translate(0, 0); }
+  45%      { transform: translate(-46px, -14px); }
+  60%      { transform: translate(-50px, -16px); }
+}
+
+/* ============================================================
+   Narrow-viewport blocks — consolidated at end of file (M4.2)
+   ------------------------------------------------------------
+   Every @media (max-width: ...) block used to be scattered through
+   the file, and a few contradicted each other (.map-day-chip was
+   sized in two different 720px blocks). They are now grouped here,
+   wide -> narrow. Cascade notes (position matters — media queries
+   add no specificity):
+   - Each rule below sits LATER in the file than (or in the same spot
+     relative to) the unmedia'd base rules it must beat; a per-selector
+     audit found no unmedia'd rule after any old block position that
+     sets the same property, so no winner flips on any viewport.
+   - Inside the 720px block, the one genuine duplicate (.map-day-chip,
+     padding 9px 14px / font-size 13px here vs 8px 13px / 12.5px in the
+     workspace rules below) is resolved to the later values;
+     .map-legend-toggle keeps 9px 14px / 13px.
+   ============================================================ */
+
+/* ---- <=980px: tablet collapses ---- */
+@media (max-width: 980px) { .hero-split { grid-template-columns: 1fr; gap: 30px; } }
+@media (max-width: 980px) { .two-col, .two-col--even { grid-template-columns: minmax(0, 1fr); } }
+/* Landing: the bento stacks (photo cell keeps a floor height), the handoff
+   strip goes one column, the steps drop to two. The dashed road line only
+   makes sense across the four-column row, so it retires here. */
+@media (max-width: 980px) {
+  .feature-bento { grid-template-columns: 1fr; }
+  .feature-bento > .feature-card:first-child { grid-row: auto; min-height: 340px; }
+  .handoff { grid-template-columns: 1fr; }
+  .handoff .hero-bench-cta { justify-self: start; }
+  .steps-route { grid-template-columns: repeat(2, 1fr); gap: 24px 14px; }
+  .steps-route::before { display: none; }
+}
+/* ---- hero display type at phone width ----
+   The hero's leading is calibrated for its 4.35rem desktop size. At phone width
+   the same clamp() bottoms out on the 2.4rem floor while the RATIO is unchanged,
+   so 38.4px type received 39.17px line boxes against 48px glyph boxes and the
+   three headline lines collided (measured at 390px: 38.4px / 39.168px / -1.152px).
+   Tight display leading reads as editorial at 70px and as a rendering bug at
+   38px, so it loosens as the type shrinks. Done through the tokens rather than
+   a .hero-title rule so the size, leading and tracking stay one declaration and
+   cannot drift apart one edit at a time. */
+@media (max-width: 720px) {
+  :root { --landing-hero-leading: 1.14; --landing-hero-tracking: -.012em; }
+}
+
+/* ---- <=720px: steps route becomes a vertical timeline ----
+   Under 720 the steps become a vertical timeline: the dashed road turns the
+   corner and runs down the left edge, through the roundels. */
+@media (max-width: 720px) {
+  .steps-route { grid-template-columns: 1fr; gap: 22px; margin-top: 24px; }
+  .steps-route::before {
+    display: block; left: 15px; right: auto; top: 12px; bottom: 12px; width: 0; height: auto;
+    border-top: none; border-left: 2px dashed color-mix(in srgb, var(--yf-teal-600) 45%, transparent);
+  }
+  .step-card { display: flex; align-items: flex-start; gap: 14px; }
+  .step-card .step-num { flex: none; margin-bottom: 0; }
+}
+
+/* ---- <=900px ---- */
+@media (max-width: 900px) { .poi-split { grid-template-columns: 1fr; } }
+
+/* ---- <=640px ---- */
+@media (max-width: 640px) { .container { padding: 0 14px; } }
+@media (max-width: 640px) {
+  .tl-row, .tl-legrow, .tl-end { grid-template-columns: 52px 1fr; gap: 8px; }
+  .tl-time { font-size: 10px; padding: 1px 4px; }
+  .tl-time.tl-dep { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+}
+@media (max-width: 640px) { .cta-band { padding: 32px 18px; } }
+
+/* ---- <=560px: the header's tightening rung (content-derived; was ≤480) ----
+   Measured 2026-09-23 during the landing break run: with desktop spacings the
+   signed-out row overflows its pill below ~542px — at 500px the content ran
+   past the 472px pill and `html { overflow-x: clip }` cut "Start planning
+   free" mid-label, because the 481–540px band had NO rung (every tightening
+   rule was ≤480). At 560px the same row renders whole inside the 532px box
+   (content ≤ 532px, probe render), so the tightened spacings now run up to
+   the width where the desktop row provably fits. The ≤440/:has, ≤350 and
+   ≤360 rungs below follow in the file and still win on specificity/order
+   where they overlap. */
+@media (max-width: 560px) {
+  .topnav .container.topnav-inner { padding: 0 8px 0 14px; gap: 8px; }
+  .brand { font-size: 16px; gap: 7px; }
+  .nav-right { gap: 6px; }
+  .nav-right .btn { padding: 9px 11px; font-size: 13px; }
+  .nav-pill-group { padding: 3px; gap: 1px; }
+}
+/* ---- <=480px: narrow phones ----
+   (The header's gap-tightening above now covers this band's nav rows too;
+   what stays here is the bench column and the wordmark.) */
+@media (max-width: 480px) {
+  .bench-pair { grid-template-columns: 1fr; }
+  /* The pill is a single flex row, every icon control holds the 40px touch
+     floor, and the auth pair is the only path to an account — so the wordmark
+     is the one part that can give. Tightening gaps (above) was not enough: at
+     390px the row ran 38px past the pill and 28px past the viewport, and
+     `html { overflow-x: clip }` cut "Sign up free" off mid-label instead of
+     scrolling. The brand anchor carries `aria-label="YatraFlow home"`, so the
+     mark alone still names the link and nothing loses its label. */
+  .brand span { display: none; }
+}
+/* The signed-OUT header still outgrew the smallest phones even after the
+   tightening above: at 390px the brand (121.9px) + gap (8) + control tray +
+   Log in + Sign up free (262.9) needs 392.8px against a 346px content box, so
+   the signup CTA rendered past the right edge (measured, 2026-09-17). The
+   wordmark is what gives way — the 32px mark keeps the identity, and the
+   anchor's own aria-label ("YatraFlow home") keeps the name for assistive
+   tech — while both auth actions stay visible at their full 44px targets.
+   :has() scopes this to the logged-out header: with an avatar in place of the
+   auth pair the same widths fit (296px at 360px), so a signed-in header keeps
+   its wordmark. */
+@media (max-width: 440px) {
+  .topnav-inner:has(.nav-right > .btn) .brand span { display: none; }
+  .nav-right:has(> .btn) { gap: 5px; }
+}
+/* The WCAG 1.4.10 reflow floor (320px). Reclaim the last pixels from
+   horizontal padding, never from the target height. */
+@media (max-width: 350px) {
+  .nav-right:has(> .btn) .btn { padding: 9px 8px; font-size: 12.5px; }
+  /* The reflow rung's last gap, found in the 2026-09-23 entry-path review:
+     even after every tightening above, the logged-out pair (Log in + Start
+     planning free) measured 335px against a 303px content box at 320px, and
+     the root's overflow-x: clip cut the CTA mid-label. The hamburger tray
+     (App.tsx mobile-menu) carries Log in at these widths, so the chrome copy
+     yields and the primary CTA fits whole. Signed-in headers have no outline
+     button in .nav-right, so this is a no-op for them. */
+  .nav-right > .btn-outline { display: none; }
+}
+
+/* ---- <=360px: the last few pixels ---- */
+/* Placed AFTER the <=480 block on purpose — the cascade here is order-sensitive
+   and an earlier rung loses to it (the first attempt at this rule sat above and
+   only its one declaration the later blocks don't touch took effect). Every
+   control already holds the 40px touch floor and the wordmark is hidden above,
+   so what is left to give is chrome: the pill's gutters, the tray's padding, the
+   gaps, and the logo mark. Without it the sign-up CTA still ran 18px past the
+   pill at 320px. The pill's own width is deliberately NOT touched here — the
+   <=720 block sets it later in the file and would win. */
+@media (max-width: 360px) {
+  .topnav .container.topnav-inner { padding: 0 6px 0 10px; gap: 6px; }
+  .brand svg { width: 26px; height: 26px; }
+  .nav-right { gap: 4px; }
+  .nav-pill-group { padding: 2px; }
+}
+
+/* ---- <=720px: THE mobile block (single consolidated block, rules in
+   their original file order) ---- */
+@media (max-width: 720px) {
+  /* forms */
+  .select { padding: 10px 32px 10px 13px; }
+
+  /* timeline extras */
+  .day-spark { display: none; }
+
+  /* map chips, legend & expanded shell */
+  .map-day-filter {
+    flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none;
+    top: 8px; left: 8px; max-width: calc(100% - 16px);
+  }
+  .map-day-filter::-webkit-scrollbar { display: none; }
+  .map-legend-toggle { padding: 9px 14px; font-size: 13px; }
+  .map-expand-chip { margin-left: 4px; }
+  .map-shell--expanded { inset: 6px; }
+
+  /* top navigation */
+  .nav-links { display: none; }
+  /* Smaller float gap on phones; the tray keeps the hamburger reachable. */
+  .topnav { width: calc(100% - 20px); margin-top: 10px; }
+
+  /* workspace: mobile nav button, form controls, map & stop cards */
+  .mobile-nav-btn { display: inline-flex; }
+  /* iOS Safari zooms the viewport when an input with font-size < 16px gains
+     focus — bump form controls to 16px to stop the page jumping. `.role-select`
+     is named explicitly because its own class rule outranks the bare `select`
+     element selector, so it would otherwise keep its 12.5px. */
+  input, select, textarea, .role-select { font-size: 16px; }
+  /* Map: viewport-relative height so it doesn't eat the whole screen, but
+     never collapses below a usable canvas. */
+  .map-frame { height: 52vh; min-height: 300px; }
+  .map-skel-map { height: 52vh; min-height: 300px; }
+  .map-legend { right: 8px; bottom: 8px; max-width: 46%; }
+  /* Stop cards: the 5-button action cluster sits beside the content on
+     desktop, which strangles the title on a 360px screen. Wrap it to its own
+     full-width row below the content instead. */
+  .stop-card { flex-wrap: wrap; gap: 8px 10px; padding: 12px 12px 8px; }
+  .stop-main { flex: 1 1 calc(100% - 40px); } /* number badge + content share the row */
+  .stop-actions {
+    flex: 1 1 100%;
+    justify-content: flex-end; gap: 4px;
+    border-top: 1px dashed var(--line);
+    padding-top: 6px; margin-top: 2px;
+    align-self: auto;
+  }
+  .move-btn { width: 40px; height: 40px; font-size: 13px; }
+  .stop-actions .icon-btn { width: 40px; height: 40px; }
+  /* Comfortable touch targets (>=40px) for the small interactive bits. */
+  .chip-btn { padding: 9px 14px; font-size: 13px; }
+  .map-day-chip { padding: 8px 13px; font-size: 12.5px; }
+  .tab-btn { padding: 12px 15px; }
+  .vote-btn { width: 44px; height: 38px; min-width: 40px; min-height: 40px; }
+  .day-badge { width: 40px; height: 40px; }
+  /* M4: a sticky trip-total strip would eat the small viewport — flatten it. */
+  .tl-total-strip { position: static; }
+  .day-rail-chip { padding: 9px 14px; }
+  .day-section { padding: 14px 14px 10px; }
+  .modal {
+    padding: 18px 16px 22px; max-height: 92vh; max-height: 92dvh; border-radius: 16px 16px 0 0;
+    /* Edge-to-edge: bottom sheets must stop short of the gesture bar, and
+       their internal scroll ends above it. The dvh pair has to be repeated here
+       because this later block re-declares the base rule's max-height and would
+       otherwise put the sheet back on a viewport the mobile toolbar occupies. */
+    padding-bottom: calc(22px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
+    max-height: calc(92vh - var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
+    max-height: calc(92dvh - var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
+  }
+  /* Long-press drag & drop: the row must not text-select or pop the OS
+     callout while the hold timer runs; a pressing row reads as "grabbed". */
+  .tl-row { -webkit-user-select: none; -webkit-touch-callout: none; user-select: none; }
+  .tl-row.yf-pressing { transform: scale(.98); opacity: .8; }
+  /* Workspace header: let long trip names wrap instead of forcing overflow. */
+  .trip-head-card { padding: 16px; }
+  .trip-head-card h1 { font-size: clamp(22px, 6vw, 30px); }
+
+  /* comfortable tap sizes on primary controls */
+  .btn { min-height: 44px; }
+  .input, .select, .textarea { min-height: 44px; font-size: 16px; } /* 16px prevents iOS zoom-on-focus */
+  .icon-btn { min-width: 40px; min-height: 40px; }
+  .loc-dropdown { max-height: 240px; }
+
+  /* Board stacks instead of overlaying — the map becomes a fixed landscape
+     block, the info/pulse cards stack above it, and the day columns scroll
+     below in normal flow (nothing fights the small viewport). */
+  .board-head { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .board { height: auto; overflow: visible; border: none; background: transparent; box-shadow: none; }
+  .board-map {
+    position: relative; inset: auto; height: 240px;
+    border-radius: var(--radius-lg); overflow: hidden;
+    border: 1px solid var(--yf-glass-border);
+    box-shadow: var(--shadow-soft); margin-bottom: 12px;
+  }
+  .board-map .map-frame { min-height: 0; }
+  .board-topbar { position: static; inset: auto; flex-direction: column; margin: 0 0 8px; gap: 8px; }
+  .board-info { max-width: none; }
+  .board-pulse { width: 100%; }
+  /* column-direction topbar: the desktop equal-size flex basis would become a
+     560px height here — stack panels at natural size instead */
+  .board-topbar .board-info, .board-topbar .board-pulse { flex: 0 0 auto; }
+  .board-cols { position: static; inset: auto; margin-top: 4px; padding-bottom: 10px; }
+  .board-col { flex: 0 0 264px; height: auto; min-height: 0; }
+  .board-col-head { min-height: 52px; }
+  .dec-strip { grid-template-columns: 1fr; gap: 8px; }
+  .budget-hero-num { font-size: 32px; }
+  .board-col-zone { min-height: 48px; justify-content: center; }
+
+  /* hero bench CTA */
+  .hero-bench-cta { width: 100%; }
+  .hbc-label { font-size: 15px; }
+
+  /* Plan Bench + public itinerary + explore (single-screen layouts) */
+  /* v2 stack: controls card first, receipt bill below it (reading order). */
+  .bench-grid { grid-template-columns: 1fr; }
+  .bench-controls { padding: 14px; gap: 12px; }
+  .bench-pair { gap: 10px; }
+  .bench-block-big { font-size: 18px; }
+  .bench-distance-big { font-size: 26px; }
+  .bench-fuel-pair { flex-direction: column; gap: 10px; }
+  .bench-crew-btn { min-width:  40px; height:  40px; }
+  .bench-mode-btn, .bench-stay-row { min-height: 40px; }
+  .bench-toggle { min-height: 40px; }
+  .bench-preset-chip, .bench-receipt-actions .chip { min-height: 40px; }
+  .bench-receipt-head { padding-right: 88px; }
+  .bench-receipt-rules::before { left: -8px; }
+  .bench-badge { font-size: 11.5px; padding: 6px 13px; }
+  .bench-gauge { width: 60px; height: 33px; }
+  .bench-receipt-rules::after { right: -10px; }
+  .bench-total-main { font-size:  30px; }
+  .bench-barcode { top: 12px; right: 12px; width: 60px; }
+  .pub-hero { padding: 64px 0 120px; }
+  .pub-hero-stats { position: static; width: auto; margin: 0 16px; }
+  .pub-body { padding-top: 16px; }
+  .paper-sheet { padding: 14px 14px 20px; }
+  .pub-actions { flex-direction: column; align-items: stretch; }
+  .pub-actions-btns { justify-content: stretch; }
+  .pub-actions-btns .btn { flex: 1; }
+  .day-highlight-row { grid-template-columns: 1fr; }
+  /* 34px sat under the 40px coarse-pointer floor; the cover has room for 40. */
+  .save-heart { width: 40px; height: 40px; }
+  /* Mobile bill dock: leave breathing room so it never covers the fineprint */
+  .plan-bench { padding-bottom: 92px; }
+  .bench-dock { left: 10px; right: 10px; padding: 9px 12px; }
+}
+
+/* ============================================================
+   v0.36 — Budget + Group input redesigns
+   ============================================================ */
+
+/* ---- Budget: metric strip (5 tiles since the safe-to-spend pacing tile) ---- */
+.metric-strip { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 16px; }
+.metric-bad { color: var(--danger); }
+.metric-good { color: var(--ink-ok); }
+
+/* ---- Budget: per-day cost bars ---- */
+.daybars { display: flex; flex-direction: column; gap: 10px; }
+.daybar-row { display: grid; grid-template-columns: 52px 1fr auto; gap: 10px; align-items: center; font-size: 13.5px; }
+.daybar-label { font-weight: 700; color: var(--text-2); white-space: nowrap; }
+.daybar-track { position: relative; height: 12px; background: var(--bg-soft); border-radius: 999px; }
+.daybar-fill {
+  height: 100%; border-radius: 999px; transition: width var(--t-med) var(--ease-out);
+  position: relative; overflow: hidden;
+}
+/* Same calm sheen the category bars wear (barSheen) — the per-day bars were the
+   only budget bars without it. Reduced motion removes the decorative layer. */
+.daybar-fill::after {
+  content: ''; position: absolute; top: 0; bottom: 0; width: 42%;
+  background: linear-gradient(105deg, transparent, rgba(255,255,255,.45), transparent);
+  animation: barSheen 2.6s var(--ease-out) infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .budget-bar-fill::after, .daybar-fill::after { content: none; animation: none; }
+}
+/* the daily-average tick — amber line crossing every bar */
+.daybar-avg { position: absolute; top: -3px; bottom: -3px; width: 2px; border-radius: 1px; background: var(--warn-600); }
+/* shape marker on days over the average — "over" used to be fill-colour-only */
+.daybar-over { color: var(--warn-600); font-size: 10px; line-height: 1; }
+.daybar-meta { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.3; font-variant-numeric: tabular-nums; }
+.daybar-meta .muted { font-size: 11.5px; }
+.avg-key { display: inline-block; width: 2px; height: 10px; background: var(--saffron-600); vertical-align: -1px; margin: 0 3px; border-radius: 1px; }
+
+/* ---- Budget: category bars with icon chips ---- */
+.catbars .budget-bar-row { grid-template-columns: 172px 1fr auto; }
+.cat-name { display: inline-flex; align-items: center; gap: 8px; }
+.cat-chip { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 7px; flex: none; }
+.cat-chip.sm { width: 20px; height: 20px; border-radius: 6px; }
+
+/* ---- Budget: quick-add + inline edit ---- */
+.quick-add {
+  background: color-mix(in srgb, var(--teal-500) 6%, transparent);
+  border: 1.5px dashed color-mix(in srgb, var(--teal-500) 45%, transparent);
+  border-radius: var(--radius); padding: 10px 12px; margin-bottom: 14px;
+}
+/* the tab-level capture bar (above the two columns) */
+.quick-add.topline { margin-bottom: 16px; }
+.quick-add-row { display: grid; grid-template-columns: 1fr 110px auto auto; gap: 8px; align-items: center; }
+.quick-add-row .qa-amount { text-align: right; }
+.quick-add-more { margin-top: 10px; }
+.expense-edit { border: 1.5px solid var(--line); border-radius: var(--radius); padding: 10px 12px; background: var(--bg-soft); }
+.expense-table td { vertical-align: middle; }
+.exp-line { display: inline-flex; align-items: center; gap: 7px; font-weight: 600; }
+.payer-cell { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
+.row-actions { display: inline-flex; gap: 2px; }
+
+/* ---- Budget: hero action chip (sits on the dark navy hero in both themes) ---- */
+.budget-hero-action { display: inline-block; margin-top: 10px; font-size: 12px; font-weight: 800; padding: 5px 11px; border-radius: 999px; }
+.budget-hero-action.warn { background: rgba(214, 83, 77, 0.22); color: #ffb3ae; }
+.budget-hero-action.ok { background: rgba(124, 225, 207, 0.16); color: #9fe8dc; }
+
+/* ---- Budget: who paid · who owes ---- */
+.balances { display: flex; flex-direction: column; }
+.balance-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 0; border-bottom: 1px dashed var(--line); font-size: 13.5px; }
+.balance-row:last-child { border-bottom: none; }
+.balance-who { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; min-width: 0; }
+.balance-who .avatar { width: 22px; height: 22px; font-size: 10px; }
+.balance-pos { color: var(--ink-ok); font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.balance-neg { color: var(--danger); font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* ---- M6 B4: settle-up strip (mark settled / reopen) ---- */
+.settled-strip { border-top: 1px dashed var(--line); padding-top: 8px; }
+.settled-list { display: flex; flex-direction: column; }
+.settled-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 0; border-bottom: 1px dashed var(--line); font-size: 13.5px; }
+.settled-row:last-child { border-bottom: none; }
+.settled-row.is-done .settled-label { color: var(--text-3); text-decoration: line-through; text-decoration-thickness: 1px; }
+.settled-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.settled-btn { flex: none; }
+.settled-history { margin-top: 10px; font-size: 13px; }
+.settled-history summary { cursor: pointer; color: var(--text-3); font-weight: 600; padding: 4px 0; }
+.settled-history summary:hover { color: var(--text-2); }
+
+/* ---- Group input: the count-pill stat strip retired 2026-09 — counts live in the filter pillbar badges ----
+
+/* ---- Group input: needs-you emphasis + digest ---- */
+.gi-needs-you { border-left: 4px solid var(--saffron); }
+.gi-flash { animation: gi-flash 1.6s cubic-bezier(0.2, 0, 0, 1); }
+@media (prefers-reduced-motion: reduce) {
+  .gi-flash { animation: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--saffron-500) 50%, transparent); }
+}
+@keyframes gi-flash {
+  0%, 55% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--saffron-500) 50%, transparent); }
+  100% { box-shadow: 0 0 0 3px transparent; }
+}
+.digest-row {
+  display: flex; align-items: center; gap: 9px; width: 100%; text-align: left;
+  background: none; border: none; padding: 9px 2px; border-bottom: 1px dashed var(--line);
+  font-size: 13.5px; color: var(--text); cursor: pointer; border-radius: 6px;
+}
+.digest-row:last-of-type { border-bottom: none; }
+.digest-row:hover { background: var(--bg-soft); }
+.digest-row > svg { color: var(--warn); flex: none; }
+.digest-title { font-weight: 700; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.digest-sub { color: var(--text-3); font-size: 11.5px; white-space: nowrap; }
+
+/* ---- Group input: who-voted avatar stack + tally verdict ---- */
+.who-voted { display: inline-flex; align-items: center; }
+.who-voted .avatar { width: 22px; height: 22px; font-size: 10px; margin-left: -7px; box-shadow: 0 0 0 2px var(--card); }
+.who-voted .avatar:first-child { margin-left: 0; }
+.who-more { margin-left: 4px; font-size: 11px; font-weight: 700; color: var(--text-3); }
+.decision-option-row.leading { background: var(--yf-teal-100); border-radius: 10px; padding: 7px 9px; margin: 0 -9px; }
+.verdict-line { margin: 2px 0 8px; }
+.verdict-line b { color: var(--text); }
+
+/* ---- Group input: composer option rows ---- */
+.opt-row { display: grid; grid-template-columns: 1fr 92px auto; gap: 7px; align-items: center; }
+.opt-row .opt-cost { text-align: right; }
+
+/* ---- v0.36 responsive ---- */
+@media (max-width: 1400px) { .metric-strip { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 1100px) { .metric-strip { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 700px) {
+  .daybar-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .daybar-meta { grid-column: 2; grid-row: 1; flex-direction: row; flex-wrap: wrap; justify-content: flex-end; align-items: baseline; gap: 8px; }
+  .budget-bar-row, .catbars .budget-bar-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .catbars .cat-name span.cat-chip { display: none; }
+  /* Labels and amounts share the first row; tracks span the second row.
+     Keep the existing palette and gaps, without clipping category names.
+     */
+  .catbars .cat-name { display: block; min-width: 0; overflow-wrap: anywhere; } .budget-bar-row > b { grid-column: 2; grid-row: 1; } .budget-bar-track, .daybar-track { grid-column: 1 / -1; grid-row: 2; }
+  .quick-add-row { grid-template-columns: 1fr 90px auto auto; }
+}
+
+/* lucide icons inside the suggestion meta row align with their text */
+.stop-meta span { display: inline-flex; align-items: center; gap: 4px; }
+
+/* ============================================================
+   v0.37 — Creator page + dashboard
+   ============================================================ */
+
+/* ---- Public creator hero (#/creator/:id) — mirrors the Explore hero band ---- */
+.creator-hero {
+  color: #fff; padding: 40px 0 34px;
+  background: linear-gradient(160deg, var(--yf-navy) 0%, #0d4b56 58%, #0b3844 100%);
+  position: relative; overflow: hidden;
+}
+.creator-hero::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(60% 70% at 88% 10%, rgba(23, 110, 112, .35), transparent 60%);
+}
+.creator-hero-inner { position: relative; z-index: var(--z-content); display: flex; gap: 18px; align-items: flex-start; flex-wrap: wrap; }
+.creator-hero .avatar { width: 64px; height: 64px; font-size: 24px; box-shadow: 0 0 0 3px rgba(255, 255, 255, .25); }
+.creator-hero-id { flex: 1; min-width: 220px; }
+.creator-hero-id h1 { font-family: var(--font-display); font-size: clamp(24px, 3.4vw, 34px); font-weight: 800; margin: 0; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.creator-badge {
+  display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 800;
+  letter-spacing: .06em; text-transform: uppercase; border-radius: 999px; padding: 4px 10px;
+  background: rgba(243, 170, 61, .18); color: #ffcc74;
+}
+.creator-hero-meta { color: #d9efeb; font-size: 13px; margin: 4px 0 0; }
+.creator-hero-bio { color: #c5e1dc; font-size: 14.5px; line-height: 1.55; margin: 8px 0 0; max-width: 560px; }
+.creator-hero-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+/* the hero is navy in BOTH themes — outline/ghost buttons need light text */
+.creator-hero-actions .btn-outline { border-color: rgba(255, 255, 255, .4); color: #fff; background: rgba(255, 255, 255, .08); }
+.creator-hero-actions .btn-outline:hover { background: rgba(255, 255, 255, .16); }
+.creator-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; }
+.creator-stats .stat-value { display: flex; align-items: center; }
+
+/* ---- Publications manager rows (Profile) ---- */
+.pub-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px dashed var(--line); }
+.pub-row:last-child { border-bottom: none; }
+.pub-row-main { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.pub-row-title { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; font-weight: 600; font-size: 14px; }
+.pub-row-title a { color: var(--text); }
+.pub-row-actions { display: inline-flex; gap: 6px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
+
+@media (max-width: 720px) {
+  .creator-hero-inner { flex-direction: column; }
+  .creator-stats { grid-template-columns: 1fr; }
+  .pub-row { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .pub-row-actions { justify-content: flex-start; }
+}
+
+/* ============================================================
+   v0.38 — Creator hub, which after the v0.66 dashboard rebuild is: the payout
+   ledger, the hub note, and the publication-row pattern the new page reuses.
+   The hub's own rules now live in the v0.66 block at the file's end.
+   ============================================================ */
+
+/* the payout ledger (and its projection twin) */
+.pub-ledger th { font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); }
+.pub-ledger .empty-ledger { text-align: center; color: var(--text-3); padding: 18px 0; }
+.pub-ledger td, .pub-ledger th { font-variant-numeric: tabular-nums; }
+/* The scroll is a RESIDUAL path, not the answer: at ≤720px these tables drop
+   their explanatory money columns so the deciding ones fit (see the media block
+   at the foot of this file). When a long title or a zoomed viewport does push
+   one wider, the scrollbar itself is the cue — `thin`, and visible only while
+   there is something to scroll. The file's other convention for horizontal
+   scrollers (`.share-tablist`) also paints edge fades; not repeated here,
+   because a fade on a `scroll` layer would tint the first and last DATA cells
+   whether or not anything is hidden. */
+.pub-ledger { scrollbar-width: thin; scrollbar-color: var(--text-3) transparent; }
+/* `Show amounts as` governs the whole TABLE, not just the headline tile: the
+   chosen basis keeps full ink and the other money column drops to the muted
+   rank. Emphasis only — no figure is hidden, which is the rule the tile follows
+   and the one the suite names. Columns are counted from the END because each
+   table's Total row opens with a `colSpan` label that shifts every forward index
+   by one; the last cell is Net everywhere, and the gross column is a fixed
+   distance from it. NOTE: the basis and ledger classes must stay COMPOUND on the
+   table (`.pub-ledger.basis-net.ledger-sales`). Written with a space between them
+   the selector asks for a descendant that does not exist, matches nothing, and
+   goes inert without an error — which is how this rule first shipped. */
+.pub-ledger.basis-net.ledger-sales tr > :nth-last-child(3),
+.pub-ledger.basis-net.ledger-runs tr > :nth-last-child(4),
+.pub-ledger.basis-net.ledger-projection tr > :nth-last-child(3),
+.pub-ledger.basis-gross.ledger-sales tr > :last-child,
+.pub-ledger.basis-gross.ledger-runs tr > :nth-last-child(2),
+.pub-ledger.basis-gross.ledger-projection tr > :last-child { color: var(--text-3); }
+
+/* explainer/empty-state note (teal tint, both themes) */
+.hub-note { background: var(--yf-teal-100); border-radius: 12px; padding: 12px 14px; font-size: 12.5px; margin-top: 12px; line-height: 1.55; }
+.hub-note b { color: var(--teal-deep); }
+/* A FAILED read is not a confirmation. The default tint is the teal DESIGN.md
+   itself calls a "low-emphasis success surface" (DESIGN.md:143-144), so the
+   failure alert and the kept-ledger notice wore the same calm as the
+   informational note beside them and the only signal left was prose — the exact
+   reading the Semantic Colour Rule exists to prevent. This reuses the repo's own
+   soft-danger pair (the `.chip-danger` / `.btn-danger` tint with the AA coral
+   ink, both theme-folded through `--ink-coral`), and the inline-start rule keeps
+   the variant legible in greyscale. Informational notes keep the teal. */
+.hub-note.is-failure, .hub-panel-note.is-failure { background: var(--danger-soft); border-inline-start: 3px solid var(--ink-coral); }
+.hub-note.is-failure b { color: var(--ink-coral); }
+/* `.hub-note` already owns this padding; `.hub-panel-note` is a bare status line
+   and owns none — so the shared variant above left its new fill hugging the text
+   with the 3px rule FLUSH against it (measured: a 3.0px left inset, against the
+   teal note's 17px). A filled state gets the same callout box as every other note
+   on the page. The unfilled states keep the bare sentence they were: padding them
+   permanently would indent a status line under a heading that is not indented. */
+.hub-panel-note.is-failure { padding: 12px 14px; border-radius: 12px; }
+/* The sentence lives inside `.small muted`, so the fill said "failure" while the
+   ink said "secondary". Coral is the AA pair for this tint (DESIGN.md:144) and is
+   what the other failure notes paint their lead with. */
+.hub-panel-note.is-failure > span { color: var(--ink-coral); }
+/* `:not(.is-failure)` is load-bearing. Without it this rule has the SAME
+   specificity as `.hub-note.is-failure b` above and comes later in the file, so
+   dark mode repainted the failure's lead teal on the dark-red fill — a hue
+   carrying two meanings, which is the exact failure the variant exists to stop
+   looking like. Found by the fourth critique pass, one pass after it shipped. */
+[data-theme='dark'] .hub-note:not(.is-failure) b { color: var(--yf-teal-600); }
+
+/* ---- Semantic meta-icon tints (v0.40) — colour-coded icons app-wide ---- */
+.mi-money { color: var(--yf-saffron); }
+.mi-time { color: var(--yf-teal-600); }
+.mi-place { color: var(--yf-purple); }
+.mi-ticket { color: var(--ok-500); }
+[data-theme='dark'] .mi-time { color: var(--teal-600); }
+

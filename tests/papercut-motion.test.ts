@@ -1,8 +1,9 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
+import { readCssSource } from '../scripts/css-source-graph.mjs'
 
 const read = (path: string) => readFileSync(new URL('../' + path, import.meta.url), 'utf8').replace(/\r\n/g, '\n')
-const css = read('src/styles.css')
+const css = readCssSource('src/styles.css')
 const sourceCss = read('docs/redesign/papercut-warmth/sources/papercut-tokens.css')
 const gallery = read('dev/papercut-tokens.html')
 const browserCheck = read('scripts/papercut-motion-check.mjs')

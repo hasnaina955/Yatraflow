@@ -300,7 +300,8 @@ The web app routes on real paths (`/trip/<id>`, `/pub/<slug>`, `/creator/<id>`, 
 src/
 ├── main.tsx           # Entry — mounts <App/> inside <ErrorBoundary/>
 ├── App.tsx            # Path router, nav shell, footer, notifications
-├── styles.css         # Single hand-written stylesheet (light+dark via data-theme)
+├── styles.css         # Entry: the ordered imports of the section modules
+├── styles/legacy/     # The pre-split sections, one contiguous range per file
 ├── data/              # types.ts domain model · seed.ts demo content
 ├── store/store.ts     # Supabase-backed reactive cache + all mutations
 ├── lib/               # engine.ts · impact.ts · ai.ts · ridePlan.ts · geocode.ts

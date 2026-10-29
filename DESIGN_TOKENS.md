@@ -1,7 +1,8 @@
 # YatraFlow Design Tokens
 
-`src/styles.css` is authoritative; correct this reference when the two disagree,
-never change CSS to honour an obsolete table. Reconciliation evidence below uses
+`src/styles.css` and its `src/styles/legacy/` modules are authoritative.
+Correct this reference when the two disagree. Never change CSS to honour an
+obsolete table. Reconciliation evidence below uses
 one measured CSS snapshot (SHA-256 in the appendix); line numbers may move during
 concurrent CSS work. Counts describe source declarations, not computed rendering.
 

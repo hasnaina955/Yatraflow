@@ -912,13 +912,14 @@ four stages follow one another.
 | Stage | Scope | Status |
 |---|---|---|
 | CSS-0 | One shared reader resolves the stylesheet import graph. Every CSS check reads it. | Done, 2026-10-29: `scripts/css-source-graph.mjs`, branch `chore/css-0-source-graph` |
-| CSS-1 | Move contiguous sections into ordered files under `src/styles/legacy/`. Keep the cascade equivalent. | Blocked. The accepted redesign holds 4,343 uncommitted CSS lines on `feat/p2-p12-combined-mockup`. |
+| CSS-1 | Move contiguous sections into ordered files under `src/styles/legacy/`. Keep the cascade equivalent. | Done, 2026-10-29: 17 modules, built CSS byte-identical, on `chore/css-1-extract` |
 | CSS-2 | Give `SearchField` and `Select` their own modules on My trips and Explore. | Waits for CSS-1. |
 | CSS-3 | Migrate the other component and page families. Add the ownership checks. | Waits for CSS-2. |
 
-CSS-1 needs one frozen fingerprint of the accepted tree. The redesign worker
-writes `src/styles.css` while this stage runs. CSS-1 starts after that worker
-commits. It never runs against a moving file.
+CSS-1 ran on committed checkpoint `f6a549f1`. Two graph runs gave one
+fingerprint, and the working file matched the commit. The production CSS is
+byte-identical after the split. The evidence is
+[css-1-extraction.md](docs/evidence/css-1-extraction.md).
 
 The reader keeps import order, declaration order, duplicate rules and every
 conditional context. It also keeps each rule's own file and line. A remote

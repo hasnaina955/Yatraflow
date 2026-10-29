@@ -11,6 +11,7 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { AVATAR_TONES, assignAvatarTones, avatarToneFor } from '../src/lib/avatarTone'
+import { readCssSource } from '../scripts/css-source-graph.mjs'
 
 const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8')
 
@@ -180,7 +181,7 @@ describe('the rendered stack carries the rule', () => {
   })
 
   it('each tone pairs a fill with an ink in the stylesheet', () => {
-    const css = read('../src/styles.css')
+    const css = readCssSource('src/styles.css')
     for (const tone of AVATAR_TONES) {
       const rule = css.split(/\r?\n/).find(line => line.startsWith(`.avatar.tone-${tone} {`))
       expect(rule, `.avatar.tone-${tone} is missing from styles.css`).toBeTruthy()
@@ -196,7 +197,7 @@ describe('the rendered stack carries the rule', () => {
   // 1.62:1 in dark mode — initials that are technically painted and practically
   // invisible. Only the numbers show it.
   it('keeps initials readable in both themes, measured from the real tokens', () => {
-    const css = stripCssComments(read('../src/styles.css'))
+    const css = stripCssComments(readCssSource('src/styles.css'))
 
     // The tokens are read the way the cascade resolves them: every block that
     // declares `--pw-*` and is not theme-scoped feeds the light map, then the
@@ -264,7 +265,7 @@ describe('the rendered stack carries the rule', () => {
     // `--pw-on-*` exists precisely to be the ink for its own fill. Borrowing
     // another role's token is how the dark-mode regression happened: the value
     // is correct for the role it was named for and wrong here.
-    const css = stripCssComments(read('../src/styles.css'))
+    const css = stripCssComments(readCssSource('src/styles.css'))
     for (const tone of AVATAR_TONES) {
       const rule = css.split(/\r?\n/).find(line => line.startsWith(`.avatar.tone-${tone} {`))!
       expect(rule, `${tone} must ink from --pw-on-${tone}`).toMatch(new RegExp(`color:\\s*var\\(--pw-on-${tone}\\b`))

@@ -1,0 +1,499 @@
+/* ============ Share tab (tabbed layout) ============ */
+/* Replaces the cramped .two-col grid: each share concern gets its own surface
+   behind an ARIA tablist. Tokens are theme-aware so this works in dark mode. */
+.share-tabbed { margin-top: 4px; }
+.share-tablist {
+  display: flex;
+  gap: 2px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 18px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  /* scroll affordance: edge fades painted on the `scroll` layer show only on
+     the side that still has content; `local` covers slide over them at the
+     ends so the fade never sits under a reached edge. */
+  background:
+    linear-gradient(90deg, var(--card) 25%, transparent) left / 22px 100% no-repeat local,
+    linear-gradient(270deg, var(--card) 25%, transparent) right / 22px 100% no-repeat local,
+    linear-gradient(90deg, var(--card), transparent) left / 22px 100% no-repeat scroll,
+    linear-gradient(270deg, var(--card), transparent) right / 22px 100% no-repeat scroll;
+}
+.share-tab {
+  appearance: none;
+  -webkit-appearance: none;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-3);
+  padding: 11px 14px;
+  cursor: pointer;
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  border-radius: 8px 8px 0 0;
+  transition: color var(--t-fast) var(--ease-out), border-color var(--t-fast) var(--ease-out);
+}
+.share-tab:hover { color: var(--text-2); }
+.share-tab.is-active {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+}
+.share-tab:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+.share-panel { display: block; }
+/* Guard: keep [hidden] authoritative so inactive panels leave the a11y tree. */
+.share-panel[hidden] { display: none; }
+
+/* Trip settings (Share tab) — Plan Bench fidelity. The controls reuse the bench's
+   own classes (blocks, eyebrow, mode grid, crew buttons, slider dials, receipt) at
+   their exact homepage proportions, so the workspace and the landing speak one
+   language; only the two-column layout and the sticky live preview are
+   settings-specific. Do not add size overrides here — tune the bench classes. */
+.ts-form { display: flex; flex-direction: column; gap: 12px; }
+.ts-form .field { margin-bottom: 0; }
+.ts-layout {
+  display: grid; align-items: start; gap: 22px;
+  grid-template-columns: minmax(0, 1.55fr) minmax(300px, .95fr);
+}
+.ts-controls { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+/* The travel-style rail reuses the workspace tab bar verbatim (.tabbar + .tab-btn);
+   inside a form its 20px bottom margin and enabled-looking disabled state are wrong. */
+.ts-form .tabbar { margin-bottom: 0; }
+.ts-form .tab-btn:disabled { opacity: .55; cursor: not-allowed; }
+.ts-receiptcol {
+  position: sticky;
+  top: calc(var(--nav-h) + 18px + var(--safe-area-inset-top, env(safe-area-inset-top, 0px)));
+  min-width: 0;
+}
+.ts-receipt-name {
+  margin: 2px 0 10px; font-size: 16px; font-weight: 800; letter-spacing: -.015em;
+  color: var(--text); overflow-wrap: anywhere;
+}
+/* Below the workspace's two-pane width the receipt follows the controls instead of
+   floating beside them (sticky would fight the stacked scroll). */
+@media (max-width: 980px) {
+  .ts-layout { grid-template-columns: minmax(0, 1fr); gap: 18px; }
+  .ts-receiptcol { position: static; }
+}
+
+/* warning note (implausible fuel economy) — replaces an inline style */
+/* --warn-600 is a mid amber: fine as a fill, too light as text (3.93:1 on the
+   light canvas). --ink-amber is the deepened ink this app already uses for
+   warning TEXT. Scoped here rather than darkened globally so no fill moves. */
+.ts-warn-note:not(.err-text) { margin: 5px 0 0; color: var(--ink-amber); }
+
+/* share/publish editor compaction: subhead + 2-col free-preview day grid */
+.ts-subhead { display: flex; align-items: baseline; gap: 8px; margin: 2px 0; font-size: 12.5px; font-weight: 800; color: var(--text); }
+.ts-subhead .muted { font-weight: 500; }
+.ts-dayrows { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 20px; }
+.ts-dayrows .row-between { padding: 3px 0; }
+.ts-note { margin: 0; }
+
+/* sticky save bar — bottom-ui-offset aware (nav + gesture bar; viewport-fit=cover is on) */
+/* z: the calendar and location popups sit on the nav-glass rung, so a raw 5 let
+   an open popup paint over the primary Save action. This bar is the form's last
+   child, so sharing the rung and winning on document order is the tie-break the
+   ladder already documents. (It does not outrank the native bottom nav, which
+   also sits on 60 and comes later in the DOM — by design: this bar's own padding
+   reserves that space rather than competing with it.) */
+.ts-savebar {
+  position: sticky; bottom: 0; z-index: var(--z-nav-glass);
+  display: flex; justify-content: flex-end; align-items: center; gap: 10px;
+  margin-top: 16px; padding: 8px 0 calc(8px + var(--bottom-ui-offset));
+  background: var(--bg); border-top: 1px solid var(--line);
+}
+
+@media (max-width: 720px) {
+  .ts-dayrows { grid-template-columns: 1fr; }
+  .ts-savebar { justify-content: stretch; }
+  .ts-savebar .btn { flex: 1; }
+}
+
+/* trash list rows — :last-child drops the rule so it doesn't float above the
+   card's bottom padding */
+.trash-row { padding: 10px 0; border-bottom: 1px solid var(--line); }
+.trash-row:last-child { border-bottom: none; }
+
+/* ============ My Trips — phone layout (Android app + mobile web) ============
+   The overview is the app's home screen after login; on a phone the desktop
+   header (title + two wide buttons in one row) cramps into a squeeze, the
+   toolbar wraps mid-row and the 290px cards ride the edges. Reworked as a
+   vertical page-header stack with a full-width primary CTA — the Android
+   pattern — and single-column cards with comfortable gutters. */
+.trips-page { padding-top: 26px; }
+
+@media (max-width: 720px) {
+  .trips-page { padding-top: 8px; }
+  /* cards: single column, softer radius, no hover-lift (touch has no hover) */
+  .explore-grid { grid-template-columns: 1fr; gap: 12px; }
+  .itin-card { border-radius: var(--radius-sm); }
+  .itin-card:hover { transform: none; }
+}
+
+/* ============ Trip Starter — CreateTrip "Trip Ticket" (Sep 2026) ============ */
+/* Bento-compact form blocks on the left, a live boarding-pass ticket on the
+   right; the rough bill prints out of a minimal printer slot on demand. All
+   colours ride the CTI tokens so both themes mirror for free; the ticket's
+   navy paper uses --yf-navy directly. */
+
+.trip-starter { padding-top: 26px; }
+.ts-head { margin-bottom: 18px; }
+.ts-head .eyebrow { margin: 0 0 2px; }
+.ts-head h1 { margin: 0; font-size: 28px; letter-spacing: -0.02em; }
+.ts-head .small { margin: 6px 0 0; font-size: 13.5px; }
+
+.ts-blocks { display: grid; grid-template-columns: repeat(12, 1fr); gap: 12px; min-width: 0; }
+.ts-block {
+  background: var(--yf-surface); border: 1px solid var(--yf-border); border-radius: 20px;
+  padding: 14px 16px 16px; box-shadow: 0 10px 26px rgba(18, 63, 73, 0.07), 0 2px 5px rgba(18, 63, 73, 0.05);
+  min-width: 0; position: relative;
+}
+/* Elevate the block that owns an OPEN popover, for as long as it exists.
+   Two reasons, one rung:
+   · the entrance animation (transform only, fill: backwards) gives every block
+     a stacking context WHILE it runs, so a later block could paint over an open
+     location dropdown / calendar inside an earlier one during that half-second;
+   · this rule sets a z-index on a `position: relative` block, which makes it a
+     stacking context permanently — so the block's own rung, not the popup's,
+     decides where its descendants paint. At `2` the whole calendar painted
+     UNDER the fixed bottom dock (--z-dock 55) and its lower rows were
+     unreachable on a phone. The floating-chrome rung clears the dock. */
+.ts-block:has(.loc-dropdown), .ts-block:has(.cal-pop) { z-index: var(--z-nav-glass); }
+[data-theme='dark'] .ts-block { box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35), 0 2px 6px rgba(0, 0, 0, 0.25); }
+.span7 { grid-column: span 7; }
+.span5 { grid-column: span 5; }
+.span12 { grid-column: span 12; }
+.ts-block-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+.ts-block-head .eyebrow { margin: 0; }
+.ts-block-value { margin-left: auto; font-size: 12.5px; font-weight: 700; color: var(--yf-teal-700); white-space: nowrap; }
+[data-theme='dark'] .ts-block-value { color: var(--yf-teal-600); }
+
+.ts-block .field { margin-bottom: 10px; }
+.ts-block .field:last-child { margin-bottom: 0; }
+/* The original .form-row intent (and .commitment-row's grid tracks) was a
+   RESPONSIVE row; the flex override that won globally dropped that, so 4-field
+   rows compressed instead of wrapping. flex-basis 160px mirrors the dead grid's
+   minmax(160px,1fr): fields grow to fill, wrap when they can't each keep 160px. */
+.form-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-start; }
+.form-row .field { flex: 1 1 160px; min-width: 0; }
+/* Weight by content (the grid's 2fr/1fr/.8fr intent, in flex terms): the
+   commitment name gets the grow; "Day" holds 1–2 digits, not half the row. */
+.commitment-row > .field:first-child { flex: 2 1 200px; }
+.commitment-row > .field:nth-child(2) { flex: 1.2 1 150px; }
+.commitment-row > .field:nth-child(3), .commitment-row > .field:nth-child(4) { flex: .6 1 96px; }
+
+/* Return-stops switch (on/off configuration → role="switch" is honest here) */
+.ts-switch { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12px; font-weight: 600; color: var(--yf-text-muted); }
+.ts-switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+.ts-switch-track { width: 34px; height: 20px; border-radius: 999px; background: var(--yf-border); position: relative; transition: background var(--t-fast) var(--ease-out); flex: none; }
+.ts-switch-track::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 999px; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25); transition: transform var(--t-fast) var(--ease-out); }
+.ts-switch input:checked + .ts-switch-track { background: var(--yf-teal-600); }
+.ts-switch input:checked + .ts-switch-track::after { transform: translateX(14px); }
+/* White knob on the lightened dark-teal track = 2.05:1 (needs 3). Dark ink knob. */
+[data-theme='dark'] .ts-switch input:checked + .ts-switch-track::after { background: #06251f; }
+.ts-switch input:focus-visible + .ts-switch-track { box-shadow: var(--ring); }
+.ts-switch input:checked ~ .ts-switch-label { color: var(--yf-teal-700); }
+[data-theme='dark'] .ts-switch input:checked ~ .ts-switch-label { color: var(--yf-teal-600); }
+
+/* Route line: dashed spine + numbered dots; the start dot wears the navy */
+.route-line { position: relative; margin: 4px 0 10px 2px; }
+.route-line::before { content: ""; position: absolute; left: 12px; top: 16px; bottom: 16px; border-left: 2px dashed color-mix(in srgb, var(--yf-teal-600) 38%, transparent); }
+.route-row { position: relative; display: flex; align-items: center; gap: 10px; padding: 4px 0; }
+.route-dot {
+  width: 26px; height: 26px; border-radius: 999px; flex: none; z-index: 1;
+  display: grid; place-items: center; font-size: 11px; font-weight: 800;
+  background: var(--teal-deep); color: #fff; box-shadow: 0 0 0 4px var(--yf-surface);
+}
+.route-row--start .route-dot, .route-line > .route-row:first-child .route-dot { background: var(--yf-navy); }
+.route-name { font-weight: 600; font-size: 13.5px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.route-tag { color: var(--yf-text-muted); flex: none; }
+.route-acts { margin-left: auto; display: inline-flex; gap: 2px; flex: none; }
+.route-btn {
+  width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center;
+  color: var(--yf-text-muted); border: 1px solid transparent; background: none; padding: 0;
+}
+.route-btn:hover:not(:disabled) { background: var(--yf-teal-100); color: var(--yf-teal-700); border-color: color-mix(in srgb, var(--yf-teal-600) 35%, transparent); }
+/* Dark: teal-700 ink on the dark pale-tinted hover fill is 4.09:1. Same flip as
+   the bench pills documented above — teal-600 on --yf-teal-100 (5.6:1). Light
+   passes as authored (teal-700 on teal-100 = 5.1:1). */
+[data-theme='dark'] .route-btn:hover:not(:disabled) { color: var(--yf-teal-600); }
+.route-btn:disabled { cursor: default; }
+.return-section { margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--yf-border); }
+.return-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; }
+.return-head .eyebrow { margin: 0; }
+.return-note { font-size: 11px; color: var(--yf-text-muted); }
+.route-line--return::before { opacity: 0.45; }
+.route-line--return .route-dot { background: var(--yf-surface); color: var(--yf-teal-700); border: 1.5px solid var(--yf-teal-600); }
+.route-line--return .route-row:first-child .route-dot { color: var(--yf-navy); border-color: var(--yf-navy); }
+[data-theme='dark'] .route-line--return .route-dot { color: var(--yf-teal-600); }
+
+/* Dates pill */
+.trip-starter .pill {
+  display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 11px;
+  border-radius: 999px; background: var(--yf-teal-100); border: 1px solid color-mix(in srgb, var(--yf-teal-600) 35%, transparent);
+  color: var(--yf-teal-700); font-size: 12px; font-weight: 700; white-space: nowrap;
+}
+[data-theme='dark'] .trip-starter .pill { color: var(--yf-teal-600); }
+
+/* Crew & transport: mode tiles | fuel stack | crew circles */
+.ct-grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.85fr) minmax(0, 0.85fr); gap: 18px; align-items: start; }
+.group-lab { display: block; color: var(--yf-text-muted); margin-bottom: 7px; }
+.mode-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.mode-btn {
+  display: flex; align-items: center; gap: 9px; padding: 9px 10px; border-radius: 13px; min-height: 48px;
+  border: 1px solid var(--yf-border); background: var(--yf-surface); text-align: left; min-width: 0; color: inherit;
+}
+.mode-btn:hover { border-color: color-mix(in srgb, var(--yf-teal-600) 45%, transparent); background: var(--yf-teal-100); }
+.mode-btn .nm { display: block; font-weight: 700; font-size: 12.5px; line-height: 1.2; white-space: nowrap; }
+.mode-btn .hint { display: block; font-size: 10.5px; line-height: 1.3; color: var(--yf-text-muted); font-weight: 500; }
+.mode-btn.on { background: var(--teal-deep); border-color: var(--teal-deep); color: #fff; box-shadow: var(--shadow-glow-teal); }
+.mode-btn.on .hint { color: rgba(255, 255, 255, 0.92); }
+/* Train tile hosts the inline local-fare switch — the wrapper is the grid
+   cell; the switch is a sibling of the select button, not a nested control.
+   It docks bottom-right and the button reserves the row, so the tile text
+   keeps its full width (the tiles are far too narrow for a corner overlay). */
+.mode-tile { position: relative; min-width: 0; }
+.mode-tile .mode-btn { width: 100%; height: 100%; }
+.mode-tile:has(.mode-local-switch) .mode-btn { padding-bottom: 34px; }
+.mode-local-switch {
+  position: absolute; bottom: 5px; right: 6px; gap: 4px; font-size: 9.5px;
+  background: var(--yf-surface); border: 1px solid var(--yf-border); border-radius: 999px;
+  padding: 2px 6px 2px 4px; box-shadow: 0 1px 4px rgba(18, 63, 73, 0.14);
+}
+.mode-local-switch .ts-switch-track { width: 24px; height: 14px; }
+.mode-local-switch .ts-switch-track::after { width: 10px; height: 10px; }
+.mode-local-switch input:checked + .ts-switch-track::after { transform: translateX(10px); }
+.mode-local-switch input:checked ~ .ts-switch-label { color: var(--yf-teal-700); }
+[data-theme='dark'] .mode-local-switch input:checked ~ .ts-switch-label { color: var(--yf-teal-600); }
+.fuel-stack { display: grid; gap: 8px; align-content: start; }
+.mini-field { display: grid; gap: 4px; }
+.mini-lab { color: var(--yf-text-muted); }
+.unit-input { position: relative; display: flex; align-items: center; }
+.unit-input .input { width: 100%; height: 36px; padding-right: 48px; font-size: 13px; font-weight: 600; }
+/* The compact 13px above outranks the ≤720px `.input { font-size: 16px }` on
+   both specificity (0-2-0 vs 0-1-0) and source order, so these fuel fields
+   kept re-triggering iOS Safari's zoom-on-focus. Restated here, after the rule
+   it overrides — the media block earlier in the file cannot win on order. */
+@media (max-width: 720px) { .unit-input .input { font-size: 16px; } }
+.unit-input .unit { position: absolute; right: 10px; font-size: 11px; color: var(--yf-text-muted); pointer-events: none; }
+.crew-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.crew-btn {
+  min-width: 36px; height: 36px; border-radius: 999px; border: 1px solid var(--yf-border);
+  display: grid; place-items: center; font-weight: 700; font-size: 13px; background: var(--yf-surface); color: inherit; padding: 0 8px;
+}
+.crew-btn:hover { border-color: color-mix(in srgb, var(--yf-teal-600) 45%, transparent); background: var(--yf-teal-100); }
+.crew-btn.on { background: var(--teal-deep); border-color: var(--teal-deep); color: #fff; }
+.crew-btn--custom { border-radius: 999px; font-size: 12px; }
+.crew-custom { margin-top: 8px; max-width: 140px; }
+
+/* Quick budget chips (raw buttons — .chip base is global; state here) */
+.quick-budget { display: flex; gap: 6px; flex-wrap: wrap; padding-top: 24px; }
+.quick-budget .chip { height: 36px; border-radius: 999px; border: 1px solid var(--yf-border); background: var(--yf-surface); font-weight: 600; }
+.quick-budget .chip:hover { border-color: color-mix(in srgb, var(--yf-teal-600) 45%, transparent); background: var(--yf-teal-100); }
+.quick-budget .chip.on { background: var(--yf-teal-100); border-color: var(--yf-teal-600); color: var(--yf-teal-700); }
+[data-theme='dark'] .quick-budget .chip.on { color: var(--yf-teal-600); }
+
+/* Style carousel: all styles visible on desktop (wraps, glider tracks rows);
+   ≤720px falls back to the horizontal scroll-snap strip. The tab bar class
+   it reuses paints a glass stadium around the rail — right for a single-row
+   tab bar, but once the pills wrap it reads as one giant blob, so the create
+   page strips the container chrome and lets the glider carry the state. */
+.style-carousel {
+  width: 100%; overflow-x: auto; scrollbar-width: none;
+  background: none; border: none; box-shadow: none; padding: 0; border-radius: 14px; margin-bottom: 2px;
+}
+.style-carousel::-webkit-scrollbar { display: none; }
+.style-carousel .tab-btn { white-space: nowrap; flex: none; }
+.style-copy { min-height: 2.4em; margin-top: 8px; }
+@media (min-width: 721px) {
+  .style-carousel { flex-wrap: wrap; overflow: visible; row-gap: 2px; }
+}
+
+/* Single range calendar (replaces the two raw date inputs) */
+.cal-wrap { position: relative; }
+.cal-trigger { position: relative; display: flex; align-items: center; gap: 8px; text-align: left; cursor: pointer; }
+.cal-trigger > span:first-of-type { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cal-trigger .muted { color: var(--yf-text-muted); font-weight: 500; }
+.cal-trigger .cal-caret { position: absolute; right: 10px; color: var(--yf-text-muted); flex: none; }
+.cal-pop {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: var(--z-nav-glass);
+  width: min(278px, 100%); padding: 10px 12px 12px;
+}
+.cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; font-size: 13px; font-weight: 700; }
+.cal-nav {
+  width: 26px; height: 26px; border-radius: 999px; border: none; background: none;
+  display: grid; place-items: center; cursor: pointer; color: var(--text-2);
+  transition: background var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out);
+}
+.cal-nav:hover { background: var(--bg-soft); color: var(--text); }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.cal-wd { text-align: center; color: var(--yf-text-muted); padding: 3px 0 4px; }
+.cal-day {
+  height: 32px; border-radius: 9px; border: none; background: none; cursor: pointer;
+  font: inherit; font-size: 12px; font-weight: 600; color: var(--text); display: grid; place-items: center; padding: 0;
+  transition: background var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out);
+}
+.cal-day:hover { background: var(--yf-teal-100); }
+.cal-day.in-range { background: var(--yf-teal-100); border-radius: 0; color: var(--yf-teal-700); }
+[data-theme='dark'] .cal-day.in-range { color: var(--yf-teal-600); }
+.cal-day.edge { background: var(--teal-deep); color: #fff; }
+/* the range is one capsule: start day rounds left, end day rounds right, a
+   single-day range is a full pill */
+.cal-day.edge-start { border-radius: 9px 0 0 9px; }
+.cal-day.edge-end { border-radius: 0 9px 9px 0; }
+.cal-day.edge-start.edge-end { border-radius: 9px; }
+.cal-day.today { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--yf-teal-600) 55%, transparent); }
+.cal-hint { margin: 8px 0 0; font-size: 11px; color: var(--yf-text-muted); text-align: center; }
+
+/* ============ The Trip Ticket (right rail) ============ */
+/* Rail ink follows the theme: the rail's own background is color-mix(..var(--bg)),
+   so the old navy-pass whites (#F2F7F5 on white wash) went invisible on the
+   mockup's light ticket — the readiness block read only in dark. The dark
+   values re-declare below. */
+.ts-rail { --rail-ink: var(--text); --rail-ink-dim: var(--text-2); --rail-line: var(--line); display: flex; flex-direction: column; gap: 13px; padding: 20px 20px 22px; border-left: 1px solid var(--line); background: color-mix(in srgb, var(--teal) 3%, var(--bg)); position: sticky; top: calc(var(--nav-h, 64px) + 16px); }
+[data-theme='dark'] .ts-rail { --rail-ink: #F2F7F5; --rail-ink-dim: rgba(242, 247, 245, 0.74); --rail-line: rgba(255, 255, 255, 0.16); }
+.ticket {
+  position: relative; border-radius: 18px; overflow: hidden;
+  background: var(--card); border: 1px solid var(--line);
+  color: var(--text); box-shadow: 0 14px 34px rgba(16, 46, 75, 0.1);
+}
+.ticket::after { content: none; }
+.tk-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: var(--yf-navy); }
+.tk-brand { font-family: var(--font-display); font-size: 13px; font-weight: 700; color: #fff; }
+.tk-kind { font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(255, 255, 255, 0.72); }
+.tk-cover { position: relative; margin: 0; height: 86px; border-radius: 0; overflow: hidden; background: linear-gradient(135deg, var(--teal-soft), color-mix(in srgb, var(--yf-saffron) 18%, var(--card)) 60%, color-mix(in srgb, var(--yf-saffron) 26%, var(--card))); }
+.tk-cover .tk-scenery { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.tk-cover .emoji-chip {
+  position: absolute; right: 9px; bottom: 9px; width: 31px; height: 31px; border-radius: 9px;
+  display: grid; place-items: center; font-size: 15px;
+  background: color-mix(in srgb, var(--card) 88%, transparent);
+  border: 1px solid var(--line);
+  color: var(--text);
+}
+.tk-body { padding: 13px 15px 11px; }
+.tk-title { font-family: var(--font-display); font-size: 17px; font-weight: 800; letter-spacing: -0.01em; line-height: 1.15; overflow-wrap: anywhere; color: var(--text); }
+.tk-route { margin: 8px 0 0; font-size: 11.5px; color: var(--text-2); }
+.tk-return-chip { display: inline-block; margin-left: 6px; padding: 1px 8px; border: 1px solid var(--line); border-radius: 999px; font-size: 10px; color: var(--violet-ink); font-weight: 600; }
+.tk-rows { margin: 9px 0 0; display: grid; gap: 5px; }
+.tk-row { display: flex; align-items: center; gap: 9px; font-size: 12px; min-width: 0; color: var(--text-2); }
+.tk-row .ic { width: 20px; height: 20px; border-radius: 7px; display: grid; place-items: center; background: var(--bg); border: 0; color: var(--ink-teal); font-size: 11.5px; flex: none; }
+.tk-row .lab { color: var(--text-3); flex: none; }
+.tk-row b { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+.tear { position: relative; margin: 12px 0 0; border-top: 1.5px dashed var(--line); }
+.tear::before, .tear::after { content: ""; position: absolute; top: -10px; width: 20px; height: 20px; border-radius: 999px; background: color-mix(in srgb, var(--teal) 3%, var(--bg)); }
+.tear::before { left: -10px; }
+.tear::after { right: -10px; }
+.tk-stub { padding: 12px 18px 18px; }
+
+/* Hidden bill → printer slot → textured paper */
+.tk-print-btn {
+  width: 100%; height: 46px; border-radius: 13px; display: flex; align-items: center; justify-content: center; gap: 8px;
+  background: rgba(255, 255, 255, 0.1); border: 1px dashed rgba(255, 255, 255, 0.38);
+  color: #F2F7F5; font-weight: 700; font-size: 14px; cursor: pointer;
+}
+.tk-print-btn:hover { background: rgba(255, 255, 255, 0.18); border-style: solid; }
+.tk-fine { margin: 10px 0 0; font-size: 11px; line-height: 1.5; color: var(--text-3); }
+.tk-cancel { margin-top: 9px; width: 100%; text-align: center; font-size: 12.5px; color: var(--text-3); background: none; border: none; cursor: pointer; padding: 4px; min-height: 24px; text-decoration: underline; text-underline-offset: 3px; }
+.tk-cancel:hover { color: var(--text-2); }
+.tk-subrow { display: flex; justify-content: center; gap: 18px; margin-top: 9px; }
+.tk-subrow .tk-cancel { margin-top: 0; width: auto; }
+
+.bill-printer { position: relative; }
+.bill-slot {
+  width: 72%; height: 12px; margin: 0 auto -3px; border-radius: 7px;
+  background: rgba(0, 0, 0, 0.38); box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5), 0 1px 0 rgba(255, 255, 255, 0.08);
+  display: flex; align-items: center; justify-content: center;
+}
+.bill-slot span { width: 46%; height: 3px; border-radius: 2px; background: rgba(0, 0, 0, 0.55); }
+.bill-reveal {
+  background: #FBF7EC; color: #3A3020; border-radius: 0 0 10px 10px;
+  padding: 12px 14px 16px; box-shadow: 0 14px 30px rgba(0, 0, 0, 0.35);
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 5px), 96% 100%, 92% calc(100% - 4px), 88% 100%, 84% calc(100% - 4px), 80% 100%, 76% calc(100% - 5px), 72% 100%, 68% calc(100% - 4px), 64% 100%, 60% calc(100% - 4px), 56% 100%, 52% calc(100% - 5px), 48% 100%, 44% calc(100% - 4px), 40% 100%, 36% calc(100% - 4px), 32% 100%, 28% calc(100% - 5px), 24% 100%, 20% calc(100% - 4px), 16% 100%, 12% calc(100% - 4px), 8% 100%, 4% calc(100% - 5px), 0 100%);
+  background-image:
+    repeating-linear-gradient(0deg, rgba(120, 100, 60, 0.045) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(90deg, rgba(120, 100, 60, 0.03) 0 1px, transparent 1px 4px);
+}
+.bill-brand { margin: 0 0 8px; font-size: 9.5px; font-weight: 800; letter-spacing: 0.16em; color: #8A7A58; text-align: center; }
+.bill-row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; font-size: 12px; padding: 3px 0; }
+.bill-row span { color: #6B5E42; }
+.bill-row b { font-weight: 700; }
+.bill-formula { margin: 0 0 4px; font-size: 10px; color: #9A8C6C; font-style: italic; }
+.bill-total { margin-top: 6px; padding-top: 7px; border-top: 1px dashed #C9BC9C; font-size: 13px; }
+.bill-perhead { display: flex; align-items: baseline; justify-content: space-between; margin-top: 4px; }
+.bill-perhead .mono { font-size: 21px; font-weight: 800; letter-spacing: -0.02em; color: #2E4A3A; }
+.bill-perhead .per { font-size: 11px; color: #6B5E42; font-weight: 600; }
+.bill-note { margin: 8px 0 0; font-size: 9.5px; line-height: 1.5; color: #9A8C6C; }
+/* The CTA pill: filled teal carries var(--card) ink, never #fff - dark theme
+   flips --teal-deep to a LIGHT teal where white text is 2.05:1; the flipped
+   pair reads 5.84 in light and 7.66 in dark (the .ct-n idiom). */
+.tk-cta {
+  margin-top: 12px; width: 100%; height: 46px; border-radius: 999px; border: none; cursor: pointer;
+  background: var(--teal-deep); color: var(--card); font-weight: 700; font-size: 14.5px;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  font-family: var(--font-display); box-shadow: 0 6px 18px rgba(13, 141, 130, 0.3);
+}
+.tk-cta:hover { filter: brightness(1.05); }
+
+/* Bill print animation: a 0.45s slot warm-up (the slot light blinks twice),
+   then the paper feeds out in small mechanical increments — clip-path and
+   translate share the same steps() timing so the reveal and the feed jitter
+   in lockstep like real printer rollers. Sway starts once the sheet is out.
+   translate and rotate are independent CSS properties, so keyframes never fight. */
+@media (prefers-reduced-motion: no-preference) {
+  .bill-reveal { animation: bill-reveal 2.5s steps(28, end) 0.45s both; }
+  .bill-paper-sway { animation: bill-drop 2.5s steps(28, end) 0.45s both, bill-sway 5.4s ease-in-out 2.95s infinite; }
+  .bill-slot span { animation: bill-slot-live 1.4s steps(2, jump-none) 2; }
+  @keyframes bill-reveal { from { clip-path: inset(0 0 100% 0); } to { clip-path: inset(0 0 -9px 0); } }
+  @keyframes bill-drop { from { translate: 0 -18px; } to { translate: 0 0; } }
+  @keyframes bill-sway { 0%, 100% { rotate: 0deg; } 25% { rotate: 0.55deg; } 75% { rotate: -0.55deg; } }
+  @keyframes bill-slot-live { 50% { opacity: 0.2; } }
+}
+
+/* Theme-aware printer + paper: the ticket stays navy in both themes, but the
+   slot hardware and the printed sheet follow the app theme — dark mode prints
+   on warm charcoal paper instead of glaring cream. */
+[data-theme='dark'] .bill-slot {
+  background: rgba(0, 0, 0, 0.52);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.7), 0 1px 0 rgba(255, 255, 255, 0.14);
+}
+[data-theme='dark'] .bill-reveal {
+  background-color: #241F19;
+  color: #E6DCC0;
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.55);
+  background-image:
+    repeating-linear-gradient(0deg, rgba(206, 180, 124, 0.05) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(90deg, rgba(206, 180, 124, 0.035) 0 1px, transparent 1px 4px);
+}
+[data-theme='dark'] .bill-brand { color: #A68F66; }
+[data-theme='dark'] .bill-row span { color: #BCAE8C; }
+[data-theme='dark'] .bill-formula { color: #998B6D; }
+[data-theme='dark'] .bill-total { border-top-color: #4E4433; }
+[data-theme='dark'] .bill-perhead .mono { color: #93D3AC; }
+[data-theme='dark'] .bill-perhead .per { color: #BCAE8C; }
+[data-theme='dark'] .bill-note { color: #998B6D; }
+
+/* Trip Ticket entrance + bento stagger (transform/opacity only).
+   Fill mode MUST be `backwards`, never `forwards`: a forwards-filled
+   opacity/transform animation keeps the block a compositor group after it
+   ends, which blinds backdrop-filter on descendants — the location dropdown
+   and calendar popover lost their frost exactly this way (they rendered as
+   plain translucent sheets while the same .popover recipe frosted fine on
+   the navbar). `backwards` fills only the pre-animation delay; base state is
+   the final frame, so nothing sticks after the entrance. */
+@media (prefers-reduced-motion: no-preference) {
+  .ts-block, .ticket { animation: ts-rise 0.5s var(--ease-out) backwards; }
+  .ts-blocks > .ts-block:nth-child(1) { animation-delay: calc(var(--stagger-step) * 1); }
+  .ts-blocks > .ts-block:nth-child(2) { animation-delay: calc(var(--stagger-step) * 2); }
+  .ts-blocks > .ts-block:nth-child(3) { animation-delay: calc(var(--stagger-step) * 3); }
+  .ts-blocks > .ts-block:nth-child(4) { animation-delay: calc(var(--stagger-step) * 4); }
+  .ts-blocks > .ts-block:nth-child(5) { animation-delay: calc(var(--stagger-step) * 5); }
+  .ts-blocks > .ts-block:nth-child(6) { animation-delay: calc(var(--stagger-step) * 6); }
+  .ticket { animation-delay: 0.24s; }
+  @keyframes ts-rise { from { opacity: 0; transform: translateY(10px); } }
+}
+

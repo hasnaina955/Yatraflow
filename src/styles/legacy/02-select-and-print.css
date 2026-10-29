@@ -1,0 +1,2176 @@
+/* ============ Custom listbox Select (components/Select.tsx) =====}
+
+   Same `.select` trigger recipe (it's on the button below), a real DOM popup
+   instead of the OS one. High-traffic surfaces use this; low-traffic selects
+   keep the native control — the trigger look is identical. */
+.cselect { position: relative; }
+.cselect-trigger {
+  display: flex; align-items: center; gap: 8px;
+  text-align: left; background-color: var(--card-soft); color: var(--text);
+}
+.cselect-trigger.compact { width: auto; padding: 5px 26px 5px 10px; font-size: 13px; }
+.cselect-trigger:disabled { opacity: .55; cursor: not-allowed; }
+.cselect-trigger[aria-invalid='true'] { border-color: var(--danger); }
+.cselect-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cselect-ico { display: inline-flex; flex: none; color: var(--text-2); }
+.cselect-pop {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: var(--z-frost);
+  margin: 0; padding: 5px; list-style: none;
+  width: max(100%, 200px); max-height: 280px; overflow-y: auto;
+}
+.cselect-option {
+  display: flex; align-items: center; gap: 8px; width: 100%; text-align: left;
+  padding: 8px 10px; border-radius: 8px; border: none; background: none;
+  color: var(--text); font-size: 14px; cursor: pointer;
+  transition: background var(--motion-fast) var(--ease-out);
+}
+.cselect-option.active { background: var(--bg-soft); }
+.cselect-option[aria-selected='true'] { font-weight: 600; }
+.cselect-check { margin-left: auto; color: var(--teal-deep); flex: none; }
+/* tone dot for Select options (priority/status in StopEditor) — always beside
+   a text label, never the only carrier of the meaning */
+.opt-dot { width: 8px; height: 8px; border-radius: 999px; flex: none; }
+/* The chevron is baked into a background-image, so it can't follow a token —
+   re-declare it for dark mode or it lands ~1.8:1 on the dark pill. */
+[data-theme='dark'] .select {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path d='M1.5 1.5L6 6l4.5-4.5' fill='none' stroke='%238FA0B5' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+}
+.form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+/* Commitments: deliberate 5-track layout on wide screens, but it collapses
+   instead of squeezing selects into ~60px columns on phones. */
+.commitment-row { grid-template-columns: 2fr 1fr .8fr .8fr auto; align-items: end; gap: 10px; }
+/* An error is new information and it also shifts everything below it, so it
+   arrives rather than pops — briefly, and from the field it belongs to. The
+   global reduced-motion switch collapses the duration to .01ms. */
+.err-text { color: var(--danger); font-size: 12.5px; font-weight: 500; animation: errIn var(--motion-med) var(--ease-out); }
+/* #374 - a create whose write failed: the message stands beside the action it
+   belongs to (and beside the form's own error summary), not in a toast that
+   scrolls away. Layout only - the chip's measured colour pair paints it, so no
+   new colour pair enters the ratchet. */
+.ct-save-err { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
+@keyframes errIn { from { opacity: 0; transform: translateY(-4px); } }
+.hint-text { color: var(--text-3); font-size: 12.5px; }
+
+/* ---------- Chips & badges ---------- */
+.chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 5px 12px; border-radius: 999px;
+  font-size: 12px; font-weight: 600;
+  background: var(--bg-soft); color: var(--text-2);
+  border: 1px solid transparent;
+}
+.chip-teal { background: var(--teal-soft); color: var(--teal-deep); }
+.chip-outline { background: var(--card); color: var(--text-2); border-color: var(--line); }
+.chip-saffron { background: var(--saffron-soft); color: var(--ink-amber); }
+/* AA contrast: the warn-amber-on-tint pair (3.48–3.69:1 in light) is folded
+   INTO the base rules — each declares --ink-amber directly (5.08–5.38:1), and
+   dark re-resolves --ink-amber to --warn, so one declaration is correct in
+   both themes. The danger pair folds the same way through --ink-coral. */
+/* SYS-2 dark-foreground swap: these solid-teal-fill surfaces take `#06251f`
+   ink in dark (the lightened --teal-500 can't carry white — 2.0–2.5:1). One
+   block for the whole family; base rules now use --teal-deep (5.19:1 light).
+   Same pattern as .map-legend-toggle.map-live-on / .bench-mode-btn.on above. */
+[data-theme='dark'] .step-num,
+[data-theme='dark'] .vote-btn.on,
+[data-theme='dark'] .mode-btn.on,
+[data-theme='dark'] .crew-btn.on,
+[data-theme='dark'] .cal-day.edge,
+[data-theme='dark'] .route-dot {
+  background: var(--teal); border-color: var(--teal); color: #06251f;
+}
+[data-theme='dark'] .mode-btn.on .hint { color: rgba(6, 37, 31, .85); }
+.chip-danger { background: var(--danger-soft); color: var(--ink-coral); }
+.chip-ok { background: var(--ok-soft); color: var(--ink-ok); }
+.chip-info { background: var(--info-soft); color: var(--text-2); }
+.clickable-chip { cursor: pointer; border: 1.5px solid var(--line); background: var(--card); user-select: none;
+  border-radius: 999px; padding: 5px 13px; font-size: 12.5px; font-weight: 600;
+  /* ONE declaration: the old pair fought — the survivor dropped colour and
+     box-shadow, so the selected chip's text/glow popped while its fill eased. */
+  transition: transform var(--t-fast) var(--ease-out), background var(--t-fast) var(--ease-out), border-color var(--t-fast) var(--ease-out), color var(--t-fast) var(--ease-out), box-shadow var(--t-fast) var(--ease-out); }
+.clickable-chip.on-teal { border-color: var(--teal); background: var(--teal-soft); color: var(--teal-deep); }
+/* AA: the base rules below used raw --warn on a light tint (3.48–3.69:1 as
+   the design-system ratchet reads them — and 3.48:1 rendered on
+   .clickable-chip.on-saffron OUTSIDE a pill-nav, where the glider's own
+   #5C3600 ink does not reach). SYS-3a's --ink-amber is the text ink for this
+   exact hue: 5.08–5.38:1 light; dark re-declares it to --warn, so dark is
+   byte-identical. Fixed at the SOURCE rule — the ratchet computes each
+   selector's own declaration pair. */
+.clickable-chip.on-saffron { border-color: var(--saffron); background: var(--saffron-soft); color: var(--ink-amber); }
+.clickable-chip:hover { transform: translateY(-1px); }
+.chip-row { display: flex; flex-wrap: wrap; gap: 7px; }
+/* Segmented pill bars — ONE recipe for every pill-style toggle/filter rail
+   (Group Input filters, composer mode, Timeline Plan/Inspect): the workspace
+   .tabbar's exact glass capsule, so every rail animates and reads the same.
+   The active state is painted solely by the sliding glider (PillNav). */
+.filter-pillbar,
+.mode-pillbar,
+.view-pillbar {
+  display: inline-flex; gap: 2px; padding: 4px; flex-wrap: wrap;
+  background: var(--yf-nav-glass); border: 1px solid var(--yf-glass-border);
+  -webkit-backdrop-filter: blur(var(--yf-blur-nav)) saturate(1.2); backdrop-filter: blur(var(--yf-blur-nav)) saturate(1.2);
+  border-radius: 999px; box-shadow: var(--shadow-soft);
+}
+.filter-pillbar .clickable-chip,
+.mode-pillbar .clickable-chip { border: none; background: transparent; }
+.filter-pillbar .clickable-chip:hover,
+.mode-pillbar .clickable-chip:hover { transform: none; }
+/* Count badges inside filter pills (All · n open / Need you / Resolved) */
+.tab-count--hot { background: var(--yf-amber-100); color: var(--ink-amber); }
+.tab-count--muted { background: var(--bg-soft); color: var(--text-2); }
+/* Decision guide box (context line + the offline recommender's pick) */
+.gi-guide { background: var(--bg-soft); border: 1px solid var(--line); border-radius: 10px; padding: 8px 11px; }
+/* one selected-state pattern for every clickable chip, pillbar or not.
+   Inside a PillNav the glider owns the paint entirely (see .pill-nav rules). */
+.clickable-chip.on-teal { background: var(--teal-deep); color: #fff; box-shadow: var(--shadow-glow-teal); }
+[data-theme='dark'] .clickable-chip.on-teal { background: var(--teal); color: #06251f; }
+/* SYS-7a: these change background/border/colour on hover and selection but
+   declared no transition at all — they snapped while every chip eased. */
+.route-btn, .mode-btn, .crew-btn, .cal-day, .quick-budget .chip,
+.move-btn, .board-fit, .board-pulse-link, .vote-btn {
+  transition: background var(--t-fast) var(--ease-out), border-color var(--t-fast) var(--ease-out), color var(--t-fast) var(--ease-out);
+}
+
+/* Reusable CTI glass surface (nav-level blur, diffuse depth). Drop onto any
+   panel to lift it off the page with a frosted edge. */
+.glass-soft {
+  background: var(--yf-glass);
+  border: 1px solid var(--yf-glass-border);
+  -webkit-backdrop-filter: blur(var(--yf-blur-panel)) saturate(1.15); backdrop-filter: blur(var(--yf-blur-panel)) saturate(1.15);
+  box-shadow: var(--shadow-soft);
+}
+
+/* Selected states paint through box-shadow — a glow here, and `box-shadow: none`
+   in the pill nav so the glider owns the fill. Both outrank the shared
+   `:focus-visible` ring on specificity, so a focused *selected* chip lost its
+   focus indicator entirely. Restate the ring wherever selection wins. */
+.pill-nav .clickable-chip.on-teal:focus-visible,
+.pill-nav .tab-btn.active:focus-visible,
+.pill-nav .nav-link.active:focus-visible {
+  outline: none; box-shadow: var(--ring);
+}
+/* ---------- Stat tiles ---------- */
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.stat-tile { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 15px 17px; box-shadow: var(--shadow-sm); }
+.stat-label { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--text-3); }
+.stat-value { font-family: var(--font-display); font-size: 23px; font-weight: 800; margin-top: 3px; font-variant-numeric: tabular-nums; }
+.stat-sub { font-size: 12px; color: var(--text-3); margin-top: 2px; }
+
+/* ---------- Health score ring ---------- */
+
+/* ---------- Warnings ---------- */
+.warn-item { display: flex; gap: 11px; padding: 12px 14px; border-radius: var(--radius-sm); background: var(--warn-soft); align-items: flex-start; }
+.warn-item.sev-high { background: var(--danger-soft); }
+.warn-item.sev-low { background: var(--bg-soft); }
+.warn-icon { font-size: 16px; line-height: 1.4; }
+.warn-title { font-weight: 700; font-size: 13.5px; }
+.warn-fix { font-size: 13px; color: var(--text-2); margin-top: 2px; }
+.warn-list { display: flex; flex-direction: column; gap: 9px; }
+
+/* ---------- Timeline ---------- */
+/* M4: the day is a near-opaque soft card (doc §6.3 — readability before transparency). */
+.day-section {
+  margin-bottom: 22px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 18px 20px 14px;
+  box-shadow: var(--shadow-soft);
+}
+/* Items align to the TOP of the row, never to its centre. The middle block's
+   height changes with the collapse — the route chain is collapsed-only and the
+   stats line re-wraps as the chips come and go — and a centred sibling is
+   re-positioned by every one of those changes: the chevron and the day badge
+   jumped up to 32px on the click, before the body had moved a pixel. Each item's
+   position must be independent of its siblings'. */
+.day-header { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+.day-badge {
+  width: 46px; height: 46px; border-radius: 16px; flex: 0 0 auto;
+  background: var(--yf-navy); color: #fff;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  font-family: var(--font-display);
+}
+.day-badge small { font-size: 9px; text-transform: uppercase; opacity: .75; letter-spacing: .08em; }
+.day-badge b { font-size: 18px; font-weight: 800; line-height: 1.1; }
+.stop-card {
+  display: flex; gap: 12px;
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 14px 15px;
+  box-shadow: var(--shadow-sm);
+  transition: border-color var(--t-fast) var(--ease-out), box-shadow var(--t-fast) var(--ease-out);
+}
+.stop-card:hover { border-color: color-mix(in srgb, var(--teal) 45%, var(--line)); }
+/* (dead: the HTML5-drag ghost slot styling this served is retired — the
+   pointer engine carries the real row instead) */
+.stop-card.status-rejected { border-style: dashed; }
+.stop-card.status-maybe { background: var(--card-soft); }
+.stop-num {
+  width: 30px; height: 30px; border-radius: 50%; flex: 0 0 auto; margin-top: 2px;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 13.5px; font-family: var(--font-display);
+  background: var(--teal-soft); color: var(--teal-deep);
+}
+.stop-num.cat-travel { background: var(--info-soft); color: var(--text-2); }
+.stop-num.cat-food { background: var(--saffron-soft); color: var(--ink-amber); }
+.stop-num.cat-hotel { background: var(--info-soft); color: var(--text-2); }
+.stop-main { flex: 1; min-width: 0; }
+.stop-toprow { display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap; }
+.stop-title { font-weight: 700; font-size: 15px; font-family: var(--font-display); }
+.stop-meta { font-variant-numeric: tabular-nums; display: flex; flex-wrap: wrap; gap: 5px 12px; margin-top: 5px; font-size: 12.5px; color: var(--text-3); font-weight: 500; }
+.stop-desc { font-size: 13.5px; color: var(--text-2); margin-top: 6px; }
+/* Clamped stop-card descriptions (issue #3): clamp to 2 lines + "Show more" toggle. */
+.clamp-wrap { position: relative; }
+.clamp-lines {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+.clamp-measure {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  visibility: hidden;
+  pointer-events: none;
+}
+.clamp-toggle {
+  background: none;
+  border: none;
+  margin: 2px 0 0;
+  padding: 0;
+  color: var(--teal-deep);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.clamp-toggle:hover { text-decoration: underline; }
+.stop-actions { display: flex; flex-direction: row; gap: 2px; align-items: center; align-self: flex-start; }
+/* Board cards: the keyboard alternative to dragging sits under the card body. */
+.board-stop-actions { margin-top: 6px; padding-top: 4px; border-top: 1px dashed var(--line); }
+.move-btns { display: flex; flex-direction: row; gap: 0; }
+.move-btn {
+  width: 22px; height: 24px; border: none; background: none; color: var(--text-3);
+  font-size: 11px; border-radius: 6px; line-height: 1;
+}
+.move-btn:hover:not(:disabled) { background: var(--bg-soft); color: var(--text); }
+.move-btn:disabled { opacity: .3; cursor: default; }
+/* Delete on a board card: the same 22×24 tap target as its siblings, but the
+   hover/active tint reads as destructive so it can't be mistaken for reorder.
+   The click is not the end of the story — it routes through the impact
+   preview, whose Keep/Remove is the real confirmation step. */
+.move-btn--danger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--danger, #C93B3B) 14%, transparent);
+  color: var(--danger, #C93B3B);
+}
+.move-btn--danger:active:not(:disabled) { color: var(--danger, #C93B3B); }
+/* The stop title on an editable board card doubles as the edit affordance —
+   styled as text until hovered, so the card still reads as a card, not a row
+   of buttons. */
+.board-stop-title-btn {
+  border: none; background: none; padding: 0; text-align: inherit; color: inherit;
+  font: inherit; cursor: pointer; display: block; width: 100%;
+  border-radius: 6px;
+}
+.board-stop-title-btn .stop-title { display: inline-block; max-width: 100%; }
+.board-stop-title-btn:hover .stop-title, .board-stop-title-btn:focus-visible .stop-title {
+  text-decoration: underline dotted;
+  text-decoration-color: color-mix(in srgb, var(--text-3) 60%, transparent);
+  text-underline-offset: 3px;
+}
+.board-stop-title-btn:focus-visible { outline: 2px solid var(--teal); outline-offset: 1px; }
+.travel-leg {
+  display: flex; align-items: center; gap: 9px;
+  margin: 3px 0 3px 0; padding: 2px 0 2px 0;
+  color: var(--text-3); font-size: 12px; font-weight: 600;
+}
+.travel-leg::before { content: none; }
+.travel-leg.foreign-over {
+  color: var(--ink-amber); background: var(--warn-soft);
+  border-radius: var(--radius-sm); padding: 4px 8px;
+}
+
+/* Auto travel anchors (trip start/end, route waypoints) render as a compact
+   "travelling" strip — the drive itself (times, duration, distance, cost),
+   not a fake stop/activity card with nothing in it. */
+.travel-anchor {
+  display: flex; flex-direction: column; gap: 3px;
+  background: var(--card-soft);
+  border: 1px dashed var(--line);
+  border-radius: var(--radius);
+  padding: 10px 13px;
+  width: 100%;
+}
+/* Plan / Inspect segmented toggle (Phase 3): built on PillNav (.mode-pillbar
+   glider). The copy line reserves two rows so a mode switch never reflows. */
+.tl-mode-copy { min-height: 2.4em; max-width: 72ch; animation: popover-in var(--motion-fast) var(--ease-glide); }
+@media (prefers-reduced-motion: reduce) { .tl-mode-copy { animation: none; } }
+/* The header tools must not reflow when the mode copy changes length (the Plan
+   copy's max-content used to push the whole tools row into a left-aligned
+   wrap). The copy is the flexible item; the tools pin right, and margin-left
+   auto keeps them right-aligned even on the rare wrapped line. */
+.tl-head-copy { flex: 1 1 320px; min-width: 0; }
+.tl-head-tools { margin-left: auto; }
+
+/* Liquid drag (rule 10 pattern): rows glide by the carried row's height while
+   a drag is live; rows carry data-stop-id for the FLIP settle on commit. */
+.tl { position: relative; }
+.tl-row { transition: transform var(--motion-fast) var(--ease-glide); }
+@media (prefers-reduced-motion: reduce) {
+  .tl-row { transition: none; }
+}
+/* ---- bencho carry mechanics: two transforms, never one ----
+   The carried ROW (position layer) is pinned to the pointer through
+   --carry-x/--carry-y with NO transition — the finger is the truth. The
+   card inside (the skin) carries the velocity warp through --warp-x/-y/-tilt
+   and eases back the moment the finger stops (90ms calm timer in
+   lib/touchDnd.ts sets the vars to 0; this transition does the easing). */
+.tl-row.is-carried, .board-row.is-carried {
+  position: relative; z-index: 6;
+  pointer-events: none; /* elementFromPoint must see through it to hit-test */
+  transition: none;
+  transform: translate3d(var(--carry-x, 0px), var(--carry-y, 0px), 0);
+  will-change: transform;
+}
+.is-carried .stop-card, .is-carried .travel-endpoint {
+  transform: rotate(calc(var(--warp-tilt, 0) * 1deg))
+    scale(calc(1 + var(--warp-x, 0) - var(--warp-y, 0) * 0.55), calc(1 + var(--warp-y, 0) - var(--warp-x, 0) * 0.55));
+  transition: transform var(--motion-fast) var(--ease-glide);
+  box-shadow: var(--shadow-carry);
+}
+[data-theme='dark'] .is-carried .stop-card,
+[data-theme='dark'] .is-carried .travel-endpoint { box-shadow: var(--shadow-carry-dark); }
+/* The carried row must clear its own day card: the collapse clip normally
+   crops everything to the day body, so a row dragged toward another day got
+   cut off at the card edge. drag-live unclips the body for the duration of a
+   drag (every open section gets it at once; closed ones stay invisible via
+   visibility:hidden, so the looser overflow costs nothing there). */
+.day-section.drag-live .day-body-clip-inner { overflow: visible; }
+/* Board parity: the columns clip at the same boundary, so the same unclip
+   applies there while a carry is live. */
+.board-col.drag-live { overflow: visible; }
+@media (prefers-reduced-motion: reduce) {
+  .is-carried .stop-card, .is-carried .travel-endpoint { transform: none; transition: none; }
+}
+/* drag rows are gesture surfaces, not text selections (a press-drag on the
+   card body is a reorder, never a selection) */
+.tl-row, .board-row { user-select: none; -webkit-user-select: none; }
+.tl-anchor { margin-bottom: 8px; }
+.travel-anchor-title {
+  display: flex; align-items: center; gap: 7px;
+  font-weight: 700; font-size: 13px; color: var(--text-2);
+  font-family: var(--font-display);
+}
+.travel-anchor-ico { font-size: 14px; line-height: 1; }
+.travel-anchor-meta {
+  display: flex; flex-wrap: wrap; gap: 5px 12px;
+  font-size: 12px; color: var(--text-3); font-weight: 600;
+}
+
+/* Compact route-endpoint marker used in the workspace Timeline (the rich
+   travel summary lives in .travel-panel above the timeline). */
+.travel-endpoint {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--card-soft);
+  border: 1px dashed var(--line);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  font-size: 13px; font-weight: 600; color: var(--text-2);
+  width: 100%;
+}
+
+/* ---------- Travel panel ---------- */
+.travel-panel {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px 15px;
+  margin-bottom: 12px;
+  box-shadow: var(--shadow-sm);
+}
+.travel-panel-head { display: flex; flex-direction: column; gap: 2px; margin-bottom: 10px; }
+/* title + Directions share the first line; the stats line runs full-width under
+   them (the button used to drop to its own row and left a dead gap) */
+.travel-panel-toprow { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.travel-panel-title { font-weight: 800; font-size: 15px; font-family: var(--font-display); color: var(--text); min-width: 0; }
+.travel-panel-stats { display: flex; flex-wrap: wrap; gap: 10px 26px; }
+.tps-stat { display: flex; flex-direction: column; gap: 1px; }
+.tps-label { font-size: 11px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: .03em; }
+.tps-stat b { font-variant-numeric: tabular-nums; font-size: 16px; font-family: var(--font-display); color: var(--text); }
+.travel-panel-fuel { margin-top: 8px; font-size: 12.5px; color: var(--text-2); }
+.travel-panel-fuel b { color: var(--teal-deep); }
+.travel-panel-eta {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px;
+  margin-top: 12px; padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.tps-dep { display: inline-flex; align-items: center; gap: 6px; }
+.tps-arrow { font-size: 18px; color: var(--text-3); }
+.tps-eta { display: flex; flex-direction: column; gap: 1px; }
+.tps-eta b { font-size: 16px; color: var(--teal-deep); font-family: var(--font-display); }
+.travel-panel-halts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.tp-halt-chip {
+  background: var(--info-soft); color: var(--text-2);
+  border-radius: var(--radius-sm); padding: 3px 9px;
+  font-size: 12px; font-weight: 600;
+}
+.travel-panel-add {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
+  margin-top: 12px; padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+/* ---------- Flight card (flight-mode trips only) ---------- */
+.flight-card {
+  margin-top: 12px; padding: 12px;
+  background: var(--surface-2, var(--info-soft));
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md, var(--radius-sm));
+}
+.flight-card-head { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.flight-card-title {
+  font-weight: 800; font-size: 13px; font-family: var(--font-display);
+  color: var(--text); min-width: 0;
+}
+.flight-route {
+  font-size: 13px; font-weight: 700; color: var(--teal-deep);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.flight-card-body { display: flex; flex-wrap: wrap; gap: 10px 26px; margin-top: 10px; }
+/* The assumption sentence printed beside a modelled number — the transparency
+   promise's "no estimate without its assumptions on screen". */
+.flight-note {
+  margin-top: 8px; font-size: 11.5px; line-height: 1.45; color: var(--text-3);
+}
+.flight-form { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: flex-end; margin-top: 12px; }
+.flight-empty {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
+  margin-top: 12px; padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.flight-edit { margin-left: auto; flex: none; }
+.flight-w-airline { width: 140px; }
+.flight-w-flight { width: 96px; }
+.flight-w-fare { width: 110px; }
+.flight-w-ref { width: 120px; }
+
+/* ---------- Timeline time rail ---------- */
+/* one shared rail geometry — these three used to redeclare 74px/12px each,
+   so widening the rail meant finding all of them */
+.tl-row, .tl-legrow, .tl-end { display: grid; grid-template-columns: 74px 1fr; gap: 12px; }
+.tl-row { margin-bottom: 8px; align-items: center; }
+.tl-legrow { align-items: center; margin-bottom: 8px; }
+.tl-end { min-height: 12px; margin-bottom: 4px; }
+.tl-row .stop-card { margin-bottom: 0; }
+.tl-gutter {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 14px 0 10px; min-width: 0;
+}
+.tl-time {
+  font-size: 11.5px; font-weight: 700; color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: 8px; padding: 2px 6px; white-space: nowrap;
+  box-shadow: var(--shadow-sm);
+}
+.tl-time.tl-dep { color: var(--teal-deep); background: var(--teal-soft); border-color: transparent; }
+.tl-line { flex: 1; width: 2px; min-height: 12px; border-radius: 2px; background: repeating-linear-gradient(var(--line) 0 4px, transparent 4px 8px); }
+.tl-gutter-leg { padding: 0; min-height: 26px; }
+.tl-line-leg { flex: none; width: 2px; height: 100%; min-height: 26px; }
+.tl-end { min-height: 12px; margin-bottom: 4px; }
+.tl-drop-line {
+  grid-column: 2; color: var(--ink-amber); background: var(--warn-soft);
+  border: 1.5px dashed var(--saffron); border-radius: var(--radius-sm);
+  font-size: 12px; font-weight: 700; text-align: center; padding: 5px 0;
+}
+.stop-card.foreign-over {
+  border: 1.5px dashed var(--saffron);
+  box-shadow: 0 0 0 3px var(--saffron-soft);
+}
+
+/* ---------- Day header: collapse, rename, progress, sparkline, suggestions ---------- */
+.day-collapse {
+  border: 1px solid var(--line); background: var(--bg-soft); cursor: pointer; flex: 0 0 auto;
+  color: var(--text-2); width: 28px; height: 28px; padding: 0; border-radius: 999px;
+  display: grid; place-items: center;
+  transition: background var(--t-fast) var(--ease-out), color var(--t-fast) var(--ease-out);
+}
+.day-collapse:hover { background: var(--teal-soft); color: var(--teal-deep); }
+/* The chevron and the body are one gesture: at --t-fast/180ms the arrow settled
+   ~90ms before the body did, so the row read as two separate movements. */
+.day-collapse-icon { transition: transform var(--motion-slower) var(--ease-resize); }
+.day-closed .day-collapse-icon { transform: rotate(-90deg); }
+.day-header h3[style*='pointer'] { text-decoration: transparent; }
+.day-progress {
+  height: 5px; border-radius: 3px; background: var(--bg-soft);
+  max-width: 320px; margin-top: 7px; overflow: hidden;
+}
+.day-progress.compact { margin-top: 5px; }
+.day-progress-fill { height: 100%; border-radius: 3px; transition: width var(--t-med) var(--ease-out); }
+.day-progress-fill.sev-ok { background: var(--ok); }
+.day-progress-fill.sev-medium { background: var(--warn-600); }
+.day-progress-fill.sev-high { background: var(--danger); }
+.day-spark { flex: 0 0 auto; opacity: .92; }
+
+/* --- Collapsed day summary (docs/TIMELINE-PLAN.md Phase 1) --- */
+/* Title row carries a tinted kind chip; below it, an optional route chain
+   (only when the day's planned stops add something the stats line doesn't
+   already say). Names wrap instead of truncating; the full chain rides in
+   the title tooltip. */
+.day-title-row { display: flex; align-items: center; gap: 8px; min-width: 0; flex-wrap: wrap; }
+.day-kind {
+  flex: 0 0 auto; font-size: 10.5px; font-weight: 600; letter-spacing: .07em;
+  text-transform: uppercase; padding: 2px 9px; border-radius: 999px; white-space: nowrap;
+}
+/* teal on teal tint: 4.57:1 light / 6.64:1 dark — passes AA at 10.5px semibold */
+.day-kind.drive { background: var(--teal-soft); color: var(--teal-deep); }
+.day-kind.stay { background: var(--bg-soft); color: var(--text-2); }
+/* mixed (short hop + local time): saffron tint reads warm without crying warn */
+.day-kind.mixed { background: color-mix(in srgb, var(--yf-saffron) 14%, transparent); color: var(--ink-amber); }
+.day-route {
+  display: flex; align-items: baseline; flex-wrap: wrap; gap: 2px 6px;
+  min-width: 0; max-width: 100%; margin-top: 3px;
+  border: none; background: none; cursor: pointer; padding: 0; text-align: left;
+  font: inherit; font-size: 12.5px; color: var(--text-2);
+}
+.day-route:hover .day-route-stop, .day-route:hover .day-route-text { color: var(--teal-deep); }
+/* The chain wraps BETWEEN names, but every name was nowrap — so one long stop
+   name could not break and pushed the row instead. Separators and the "+ more"
+   counter stay nowrap; a name may wrap. */
+.day-route-stop { white-space: normal; overflow-wrap: anywhere; }
+.day-route-text { white-space: nowrap; }
+.day-route-sep, .day-route-more { color: var(--text-3); white-space: nowrap; }
+/* Dimmed pipe for the day-header stats line — quieter than a mid-dot at
+   12px and easier to track across a long line. (Separator is a graphic:
+   text-3 at .65 stays above the 3:1 non-text floor on both themes.) */
+.stat-sep { color: var(--text-3); opacity: .65; padding: 0 5px; }
+/* Stay days retain full text contrast; their kind chip carries the distinction. */
+
+
+
+/* Smooth day open/close: the body animates grid rows 0fr→1fr (height-agnostic
+   — no max-height guessing), and SmoothCollapse unmounts it after the collapse
+   so a closed day still costs nothing. visibility lags the collapse so the
+   content stays paintable through the animation but leaves the tab order.
+   The easing is the both-ends --ease-resize, NOT the decelerate family: a day
+   body runs up to ~1000px, and a decelerate curve throws 24% of that distance
+   away in the first 6ms (measured: 0 → 930px of 967 inside 45% of the
+   duration) — a pop followed by a 150ms dribble, which is exactly what "the
+   collapse is not smooth" looked like. Both ends at rest, and symmetric rather
+   than the asymmetric Material standard curve: on this ~920px of travel the
+   symmetric peak slope is 1.72x its average against 2.73x — 60px inside a 60Hz
+   frame instead of 96px — for the same total time and the same ~3px first
+   frame. The eye reads a large surface in its middle, so that is where the
+   speed has to come out.
+   Duration is the large-surface step. Peak speed is distance ÷ duration (times
+   the curve's peak slope): the same gesture at --motion-slow/240ms peaked at
+   ~10.5px/ms, i.e. 176px inside a 60Hz frame, which is the "the cards look
+   like they collide" report; at 560ms it peaks at ~2.8px/ms (47px per 60Hz
+   frame). The board's own hide-cards glide is quick because it moves 88px — a
+   day body is 10x that, so the accordion cannot borrow its feel, only its
+   softness. */
+.day-body-clip { display: grid; grid-template-rows: 0fr; transition: grid-template-rows var(--motion-slower) var(--ease-resize); }
+.day-body-clip.open { grid-template-rows: 1fr; }
+.day-body-clip-inner { overflow: hidden; min-height: 0; visibility: hidden; transition: visibility 0s var(--motion-slower); }
+.day-body-clip.open .day-body-clip-inner { visibility: visible; transition: visibility 0s; }
+@media (prefers-reduced-motion: reduce) {
+  .day-body-clip, .day-body-clip-inner { transition: none; }
+}
+/* per-stop dwell bars, amber on the busiest stop. The saffron fill alone is
+   2.14:1 on the white card — below the 3:1 non-text floor — so the busiest
+   bar carries a warn-600 boundary (3.92:1) that marks it as the meaningful
+   graphic. Dark theme passes on the fill alone; the border stays harmless. */
+.dwell-bars { display: inline-flex; align-items: flex-end; gap: 2px; height: 14px; flex: 0 0 auto; min-width: 0; max-width: 120px; }
+.dwell-bar {
+  display: inline-block; width: 5px; min-width: 2px; height: 8px; border-radius: 2px 2px 0 0;
+  background: var(--bg-soft); border: 1px solid var(--line);
+}
+.dwell-bar.busiest { height: 14px; background: var(--saffron); border-color: var(--warn-600); }
+
+.day-suggest { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; align-items: center; }
+.chip-btn {
+  border: 1px dashed var(--line); background: var(--card-soft); color: var(--text-2);
+  border-radius: 999px; padding: 5px 12px; font-size: 12.5px; font-weight: 600; cursor: pointer;
+  transition: border-color var(--t-fast) var(--ease-out), color var(--t-fast) var(--ease-out), background var(--t-fast) var(--ease-out);
+}
+.chip-btn:hover { border-color: var(--teal); color: var(--teal-deep); background: var(--teal-soft); }
+
+/* ---------- M4: trip-total strip, day-jump rail, stop-kind markers ---------- */
+/* Sticky glass strip mirroring the floating pill nav — the trip's totals stay
+   in view while scrolling long timelines. */
+.tl-total-strip {
+  position: sticky;
+  top: calc(12px + var(--nav-h) + 10px + var(--safe-area-inset-top, env(safe-area-inset-top, 0px)));
+  z-index: var(--z-strip);
+  display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px;
+  background: var(--yf-glass);
+  border: 1px solid var(--yf-glass-border);
+  -webkit-backdrop-filter: blur(var(--yf-blur-panel)) saturate(1.15); backdrop-filter: blur(var(--yf-blur-panel)) saturate(1.15);
+  border-radius: var(--radius); padding: 9px 16px; margin-bottom: 16px;
+  box-shadow: var(--shadow-soft);
+  font-size: 12.5px; font-weight: 600; color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+.tl-total-label { font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--teal-deep); }
+.tl-total-dot { color: var(--text-3); }
+.tl-total-warn {
+  margin-left: auto;
+  background: var(--yf-amber-100); color: var(--ink-amber);
+  border-radius: 999px; padding: 3px 11px;
+  font-size: 11.5px; font-weight: 700;
+}
+.day-rail { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+.day-rail-label { font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); flex: 0 0 auto; }
+.day-rail-chips { display: flex; gap: 8px; overflow-x: auto; padding: 2px; scrollbar-width: thin; }
+.day-rail-chip {
+  border: 1px solid var(--line); background: var(--card); color: var(--text-2);
+  border-radius: 12px; padding: 7px 14px; font-size: 12.5px; font-weight: 600;
+  cursor: pointer; white-space: nowrap; flex: 0 0 auto;
+  transition: border-color var(--t-fast) var(--ease-out), background var(--t-fast) var(--ease-out), color var(--t-fast) var(--ease-out);
+}
+.day-rail-chip:hover { border-color: var(--teal); color: var(--teal-deep); background: var(--teal-soft); }
+.day-rail-chip.warn { background: var(--yf-amber-100); border-color: transparent; color: var(--ink-amber); font-weight: 700; }
+.day-rail-chip.warn:hover { background: var(--saffron-soft); color: var(--ink-amber); }
+/* Warning state inside the affected day's header (doc §6.3). */
+.day-warn-pill {
+  align-self: flex-start;
+  border-radius: var(--radius-sm); padding: var(--space-3) var(--space-5);
+  font-size: 11.5px; font-weight: 700;
+  background: var(--yf-amber-100); color: var(--ink-amber);
+  max-width: 340px;
+}
+.day-warn-pill.sev-high { background: var(--yf-coral-100); color: var(--ink-coral); }
+/* Low-severity days read QUIET: the warning is worth counting, not an alarm.
+   Without this the base amber tint made “Day 3: route backtracking” as loud as
+   an over-packed day (#369). */
+.day-warn-pill.sev-low { background: var(--bg-soft); color: var(--text-2); }
+/* Per-day cost + dwell chips in the day header — quiet metadata pills that
+   mirror the stop-kind tag treatment (soft tint, no border) so they read as
+   engine-derived context, not actions. */
+/* The other toggle-only extras (cost, dwell, weather, the collapsed dwell chart)
+   mount in a single state, so they used to arrive in one frame while the row
+   around them was somewhere else. They take the catalog's entrance pattern —
+   fade + 4px rise — instead of popping. The route chain is deliberately NOT
+   here: it is the one that changes the row's height, so it collapses (see
+   SmoothCollapse) rather than appearing at full height. */
+.day-cost-chip, .day-dwell-chip, .weather-chip, .dwell-bars {
+  animation: popover-in var(--motion-med) var(--ease-out);
+}
+@media (prefers-reduced-motion: reduce) {
+  .day-cost-chip, .day-dwell-chip, .weather-chip, .dwell-bars { animation: none; }
+}
+.day-cost-chip, .day-dwell-chip {
+  align-self: flex-start;
+  border-radius: 999px; padding: 4px 11px;
+  font-size: 11.5px; font-weight: 700; line-height: 1.5;
+  white-space: nowrap;
+  color: var(--text-2); background: var(--bg-soft);
+}
+.day-cost-chip { color: var(--teal-deep); background: var(--teal-soft); }
+[data-theme='dark'] .day-cost-chip { color: var(--teal); }
+@media (max-width: 720px) { .day-dwell-chip { display: none; } }
+
+/* ---------- Review mode: every day open, one continuous scroll (#421) ---------- */
+/* Orientation comes from the day-jump rail, which is sticky here and marks the
+   day at the top of the viewport — NOT from the day header: measured at 390 /
+   900 / 1440 px, a header carrying the day's clocks, chips, warnings and its
+   own actions is 193–309 px tall, and a control panel stuck to the viewport
+   costs a fifth of a phone's screen to say one word. So the header stays in
+   flow, continuity carries the boundaries, and the compact rail (one row, the
+   mode's own navigation) takes the sticky rung from the trip-total strip. */
+.tl-root-review .tl-total-strip { position: static; }
+.tl-root-review .day-rail {
+  position: sticky;
+  top: calc(12px + var(--nav-h) + 10px + var(--safe-area-inset-top, env(safe-area-inset-top, 0px)));
+  /* above the day cards, below a carried row (.tl-row.is-carried is 6) */
+  z-index: 2;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  box-shadow: var(--shadow-soft);
+}
+/* Which day you are in: the card whose day has scrolled past the sticky
+   line. The marker is the BORDER plus the weight, so the warn tint cannot
+   replace it — the tint is the day's own state and stays next to the marker. */
+.day-rail-card.warn[aria-current='true'] {
+  border-color: var(--teal);
+  background: var(--yf-amber-100);
+  color: var(--ink-amber);
+  font-weight: 800;
+}
+
+/* ---------- Between-stop insertion (#422) ---------- */
+/* The control belongs to the leg between two stops and is revealed on hover
+   and on keyboard focus; it stays visible on touch, where there is no hover to
+   reveal it (a hover-only control is unreachable there). */
+.tl-leg-cell { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.tl-leg-cell .travel-leg { flex: 1; min-width: 0; }
+.leg-insert {
+  display: inline-flex; align-items: center; gap: 4px; flex: 0 0 auto;
+  border: 1px dashed var(--line); background: var(--card-soft); color: var(--text-2);
+  border-radius: 999px; padding: 4px 10px; font-size: 12px; font-weight: 700; cursor: pointer;
+  opacity: 0; pointer-events: none;
+  transition: opacity var(--motion-fast) var(--ease-out), border-color var(--t-fast) var(--ease-out), color var(--t-fast) var(--ease-out), background var(--t-fast) var(--ease-out);
+}
+.tl-legrow:hover .leg-insert, .tl-legrow:focus-within .leg-insert { opacity: 1; pointer-events: auto; }
+.leg-insert:hover { border-color: var(--teal); color: var(--teal-deep); background: var(--teal-soft); }
+@media (hover: none), (pointer: coarse) {
+  .leg-insert { opacity: 1; pointer-events: auto; min-height: 40px; padding: 0 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .leg-insert { transition: none; }
+}
+/* Stop-kind markers: a coloured spine on the card + a small type tag.
+   Tag text stays --text-2 on soft tinted backgrounds so both themes keep
+   AA contrast; the spine carries the hue. */
+.stop-card[class*='kind-'] { border-left: 4px solid var(--kind-c, var(--line)); padding-left: 12px; }
+.stop-card.kind-drive { --kind-c: var(--yf-coral); }
+.stop-card.kind-stay { --kind-c: var(--ok-500); }
+.stop-card.kind-food { --kind-c: var(--yf-amber); }
+.stop-card.kind-fuel { --kind-c: var(--gray-400); }
+.stop-card.kind-rest { --kind-c: var(--yf-saffron); }
+.stop-card.kind-activity { --kind-c: var(--yf-purple); }
+/* viewpoint joins the scenic hue (292°) — teal was the interactive/selection
+   colour, so the spine claimed "selected" on every viewpoint card */
+.stop-card.kind-viewpoint { --kind-c: var(--yf-poi-see); }
+/* food/rest were 3.9deg apart (the same colour) and ~2:1 on a light card as the 4px
+   spine. Light theme separates them to 18deg AND clears 3:1 (burnt orange 5.18 /
+   gold 4.92 on white); dark keeps the flipping primitives (7.8/8.0 there). */
+:root:not([data-theme='dark']) .stop-card.kind-food { --kind-c: #C2410C; }
+:root:not([data-theme='dark']) .stop-card.kind-rest { --kind-c: #A16207; }
+.stop-kind-tag {
+  font-size: 10.5px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase;
+  border-radius: 999px; padding: 2px 9px; line-height: 1.6;
+  color: var(--text-2); background: var(--bg-soft);
+}
+.stop-kind-tag.kind-drive { background: var(--yf-coral-100); }
+.stop-kind-tag.kind-stay { background: var(--ok-soft); }
+.stop-kind-tag.kind-food { background: var(--yf-amber-100); }
+.stop-kind-tag.kind-fuel { background: var(--info-soft); }
+.stop-kind-tag.kind-rest { background: var(--saffron-soft); }
+.stop-kind-tag.kind-activity { background: var(--yf-purple-100); }
+.stop-kind-tag.kind-viewpoint { background: var(--teal-soft); }
+
+/* ---------- Board — spatial group coordination (CTI §6.4) ---------- */
+/* Pinned route map with day columns floating over it. The floats live inside
+   .board (a stacking context of its own), so nothing here fights the app's
+   fixed-overlay ladder: map, columns and panels all layer below modals (--z-modal
+   100) / the impact sheet (--z-impact 210 — deliberately above toasts) /
+   notifications (--z-notif 80) — the impact preview opened by a card drop still
+   lands on top of everything. Read the numbers from the ladder tokens at the top
+   of this file, not from this sentence. */
+.board-head { margin-bottom: 14px; }
+/* ---- Board tab canvas: the kanban wants the whole viewport. The default page
+   container caps at 1180px and the trip band + tabs eat ~440px of height, which
+   squeezed columns into fixed 272px strips with both scrollbars going at once.
+   On the Board tab the container widens, the trip band compacts (members row
+   lives on Overview/Share), and the board claims what's left of the viewport. */
+.container--board { max-width: 1680px; }
+/* Map tab runs a 3-column rail layout — widen the shell so the map keeps its
+   full size and the two idea rails fit beside it. */
+.container--map { max-width: 1760px; }
+.container--board .trip-head-card { padding: 13px 20px; }
+.container--board .trip-head-card h1 { font-size: 20px; margin-top: 4px; }
+.container--board .trip-head-card p { margin-top: 3px; }
+/* fade+collapse the member row on the Board tab (display:none would snap) */
+.member-stack { max-height: 48px; overflow: hidden; transition: opacity var(--t-med) var(--ease-out), max-height var(--t-med) var(--ease-out); }
+.container--board .member-stack { opacity: 0; max-height: 0; margin-top: 0 !important; }
+.container--board .tabbar { margin-top: 12px; margin-bottom: 12px; }
+.container--board .board-head { margin-bottom: 10px; }
+.container--board .board-head h2 { font-size: 19px; margin: 0 0 2px; }
+.board {
+  position: relative; /* a wide 640px letterbox squeezed tall routes into a thin squiggle
+     band — give the pinned map real vertical room (CTI mockup). 292px = compact
+     board-tab chrome (nav pill + band + tabs + board head) above it. The board is a
+     FLOOR, not a cap: it grows with column content so cards never need internal
+     scrollbars — the map backdrop stretches with it. */
+  height: auto;
+  min-height: clamp(540px, calc(100vh - 292px), 1200px);
+  min-height: clamp(540px, calc(100dvh - 292px), 1200px); overflow: hidden;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--yf-glass-border);
+  box-shadow: var(--shadow-soft);
+  background: var(--yf-mist);
+  /* The map is an absolute backdrop; the top bar and columns sit in normal
+     flow above it, so no floating panel can ever overlap a column — at any
+     width, and even if the top bar wraps on narrower screens. */
+  display: flex; flex-direction: column;
+}
+.board-map { position: absolute; inset: 0; z-index: var(--z-under); }
+/* Cream wash so the real map recedes behind the columns like the mockup's
+   calm sage backdrop — pointer-events pass through, map stays interactive. */
+.board-map::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: color-mix(in srgb, var(--yf-mist) 45%, transparent);
+}
+.board-map .map-shell { height: 100%; display: flex; flex-direction: column; }
+.board-map .map-frame { flex: 1 1 auto; height: auto; min-height: 0; border: none; border-radius: 0; }
+.board-topbar {
+  position: relative; z-index: var(--z-topbar);
+  display: flex; justify-content: space-between; align-items: stretch; gap: 12px; flex-wrap: wrap;
+  margin: 14px 16px 4px;
+}
+/* Compact corner pair (mockup): small equal glass cards in the board's top
+   corners — most of the map stays visible between and above them. They use the
+   shared .glass treatment (deep blur + sheen) so the map visibly reads through. */
+.board-info, .board-pulse {
+  -webkit-backdrop-filter: blur(var(--yf-blur-nav)) saturate(1.2);
+  backdrop-filter: blur(var(--yf-blur-nav)) saturate(1.2);
+}
+.board-info { flex: 0 1 264px; border-radius: var(--radius); padding: 10px 12px; max-width: 264px; box-shadow: inset 0 1px 0 var(--yf-glass-sheen), var(--shadow-soft); }
+.board-fit {
+  margin-top: 7px; border: none; background: var(--teal-soft); color: var(--teal-deep);
+  border-radius: 999px; font-size: 11px; font-weight: 800; padding: 5px 11px; cursor: pointer;
+}
+.board-fit:hover { filter: brightness(.96); }
+.board-pulse { flex: 0 1 264px; border-radius: var(--radius); padding: 10px 12px; max-width: 264px; box-shadow: inset 0 1px 0 var(--yf-glass-sheen), var(--shadow-soft); }
+.board-pulse .pulse-label { font-size: 10.5px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--yf-text-muted); }
+.board-pulse-row { display: flex; align-items: center; gap: 10px; margin-top: 3px; }
+.board-pulse-row .health-num-big { font-size: 28px; }
+.board-pulse-band { font-size: 12px; font-weight: 700; }
+.board-pulse-band.ok { color: var(--ink-ok); }
+/* #400: the band word now arrives as a FOUR-way class, so the pulse's own band
+   label needs the classes that used to be folded away. Same inks the big
+   number uses, so the number and the word cannot disagree here either. */
+.board-pulse-band.teal { color: var(--ink-teal); }
+.board-pulse-band.saffron { color: var(--ink-amber); }
+.board-pulse-band.danger { color: var(--yf-coral); }
+/* 12px text on glass: coral reads 3.83 — light gets the deep red (6.43); dark passes as authored. */
+:root:not([data-theme='dark']) .board-pulse-band.danger { color: var(--danger-600); }
+.board-pulse .health-bar { margin-top: 5px; }
+.board-pulse-lines { display: grid; gap: 3px; margin-top: 8px; font-size: 12px; color: var(--text-2); }
+.board-pulse-link {
+  margin-top: 8px; background: none; border: none; padding: 0; cursor: pointer;
+  color: var(--teal-deep); font-weight: 800; font-size: 12px; font-family: var(--font-body);
+}
+.board-cols {
+  position: relative; z-index: var(--z-raised); flex: 1 1 auto; min-height: 0;
+  display: flex; align-items: stretch; gap: 14px; overflow-x: auto;
+  justify-content: center; /* centre short trips; `safe` keeps long-trip scroll from clipping */
+  justify-content: safe center;
+  padding: 6px 16px 14px; scrollbar-width: thin;
+}
+.board-col {
+  /* Fill the row: columns share the spare width (capped so a 3-day trip doesn't
+     stretch into billboards); long trips fall back to the min-width scroll.
+     Height fits the column's own content — no internal scrollbar in realistic
+     days; the board floor grows with the tallest column. 760px cap is a safety
+     net so a monster day scrolls internally instead of stretching the page. */
+  flex: 1 1 264px; min-width: 250px; max-width: 424px;
+  height: auto; max-height: 760px; min-height: 340px;
+  display: flex; flex-direction: column;
+  border-radius: var(--radius-lg); overflow: hidden;
+  background: color-mix(in srgb, var(--card) 97%, transparent);
+  border: 1px solid var(--yf-glass-border);
+  box-shadow: var(--shadow-soft);
+}
+.board-col--focused { outline: 2px solid var(--yf-teal-600); outline-offset: -2px; }
+/* Compact header per the board mockup: "Day N" + stops chip on one row, the
+   day title as a one-line ellipsised subtitle, warning pill on its own row —
+   so long titles can never wrap the header into a jumble. */
+.board-col-head {
+  display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 2px 10px;
+  padding: 9px 12px 7px; text-align: left;
+  background: transparent; border: none; border-bottom: 1px solid var(--line); cursor: pointer;
+  font-family: var(--font-body);
+}
+.board-col-head:hover { background: var(--card-soft); }
+.board-col-day { font-size: 12px; font-weight: 800; color: var(--text); }
+.board-col-count {
+  font-size: 10.5px; font-weight: 800; padding: 2px 8px; border-radius: 999px;
+  background: var(--teal-soft); color: var(--teal-deep); white-space: nowrap;
+}
+.board-col-subtitle {
+  grid-column: 1 / -1; font-size: 11.5px; color: var(--text-3);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.board-col-head .day-warn-pill { grid-column: 1 / -1; justify-self: start; margin-top: 3px; max-width: 100%; }
+.board-col-stops {
+  flex: 1 1 auto; overflow-y: auto; padding: 9px; min-height: 0;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.board-stop { padding: 7px 10px 7px 13px; box-shadow: var(--shadow-soft); }
+/* Kind-tinted cards (mockup): the whole card washes with its kind colour, not
+   just the spine — soft gradient + tinted border; the spine stays saturated. */
+.board-stop.stop-card {
+  border-color: color-mix(in srgb, var(--kind-c, var(--line)) 25%, var(--line));
+  background: linear-gradient(to right,
+    color-mix(in srgb, var(--kind-c, var(--line)) 9%, var(--card)) 0%,
+    color-mix(in srgb, var(--kind-c, var(--line)) 4%, var(--card)) 55%,
+    var(--card) 100%);
+}
+/* Mockup card anatomy: accent bar (from kind-*) → kicker → title → one meta line. */
+.board-stop-kicker {
+  display: block; color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+  /* size/weight/tracking/casing come from the kicker-unification block
+     (var(--kicker-*), later in this file) — nothing local left to drift. */
+}
+/* The kind glyph leads its label in the kicker. 11px sits optical-centre on
+   the 9.5px caps; the offset mirrors InlineIcon's baseline rule so every
+   inline glyph in the app lands on the same line — and the gap is 4, the
+   helper's own default (on the spacing ladder, unlike the 3px drift). */
+.board-stop-kicker svg { vertical-align: -1.5px; margin-right: 4px; }
+.board-stop .stop-title {
+  display: block; font-size: 13px; margin-top: 2px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.board-stop-meta {
+  display: block; margin-top: 2px; font-size: 11px; color: var(--text-3); font-weight: 500;
+  /* Duration and cost share this line — the same data role already uses tabular
+     figures in .stop-meta, so the board's columns should line up too. */
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.board-flight .stop-title, .board-flight .board-stop-meta {
+  white-space: normal; overflow: visible; text-overflow: clip;
+}
+.board-col-zone {
+  border: 1.5px dashed color-mix(in srgb, var(--yf-teal-600) 40%, var(--yf-border));
+  border-radius: 13px;
+  padding: 9px 9px; text-align: center; color: var(--yf-text-muted);
+  display: flex; flex-direction: column; gap: 2px; flex: 0 0 auto;
+  background: color-mix(in srgb, var(--card) 55%, transparent);
+}
+.board-col-zone b { font-size: 12px; color: var(--teal-deep); }
+.board-col-zone.foreign-over { border-color: var(--teal); background: var(--teal-soft); }
+.board-col-zone.foreign-over b { color: var(--teal-deep); }
+/* Editable zone is now a real button (click = add a stop to this day) while
+   still signalling the drop target it always was — drag events fire on
+   buttons as well as divs, so the same handlers ride on the button. Inherit
+   the dash-border look; add the press feedback a button promises. */
+button.board-col-zone--add { cursor: pointer; font: inherit; width: 100%; }
+button.board-col-zone--add b { font-weight: 600; }
+button.board-col-zone--add:hover { border-color: var(--teal); background: color-mix(in srgb, var(--teal-soft, #e6f4f2) 60%, transparent); }
+button.board-col-zone--add:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+button.board-col-zone--add:active { transform: translateY(1px); }
+
+/* ---------- M6: Budget / Decisions / Share / Suggestions hierarchy (CTI §6.6–6.9) ---------- */
+.budget-hero {
+  background: linear-gradient(120deg, #143f4c, #112c4c);
+  color: #fff; border-radius: var(--radius-lg); padding: 18px 20px;
+  box-shadow: var(--shadow-soft); margin-bottom: 14px;
+}
+.budget-hero-label { font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: #bde1da; }
+.budget-hero-num { font-variant-numeric: tabular-nums; font-size: 40px; font-weight: 800; font-family: var(--font-display); margin-top: 2px; }
+.budget-hero-sub { font-size: 13px; color: #d2e7e3; margin-top: 2px; }
+.budget-hero-pct { font-size: 12.5px; font-weight: 700; color: #ffcc74; margin-top: 8px; }
+.gi-strip { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.share-intent {
+  display: inline-block; font-size: 10.5px; font-weight: 800; letter-spacing: .08em;
+  text-transform: uppercase; padding: 4px 10px; border-radius: 999px; margin-bottom: 8px;
+}
+.share-intent--teal { background: var(--teal-soft); color: var(--teal-deep); }
+.share-intent--saffron { background: var(--saffron-soft); color: var(--ink-amber); }
+.share-intent--info { background: var(--info-soft); color: var(--text-2); }
+[data-theme='dark'] .budget-hero { background: linear-gradient(120deg, #0e2f39, #0c1e35); }
+[data-theme='dark'] .budget-hero-sub { color: #9fc4bf; }
+
+
+/* ---------- Impact preview ---------- */
+.impact-sheet {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  /* Above the toast zone (200): a transient toast must never cover the
+     Keep / Remove decision controls on the sheet while it is open. */
+  z-index: var(--z-impact);
+  background: rgba(0,0,0,0.35);
+  padding: 10px 12px calc(10px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
+  display: flex; justify-content: center; align-items: flex-start;
+  /* A 390x664 phone needs ~750px of sheet content: with no height cap the top
+     of the panel sat above the viewport and the panel's own `overflow: hidden`
+     left no scroll path to the warning list. The bounds .modal already uses,
+     plus the start alignment that keeps the panel at its natural height so the
+     SHEET scrolls rather than the panel clipping. */
+  max-height: 100dvh; overflow-y: auto; overscroll-behavior: contain;
+}
+.impact-panel {
+  border: 1.5px solid var(--saffron); border-radius: var(--radius);
+  background: var(--card); overflow: hidden; margin-top: 0;
+  animation: slideUp var(--t-med) var(--ease-out);
+  width: 100%; max-width: 720px;
+}
+@keyframes slideUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes popIn { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: none; } }
+.impact-head {
+  display: flex; align-items: center; gap: 9px;
+  padding: 11px 16px; background: var(--saffron-soft);
+  font-weight: 700; font-size: 13.5px; color: var(--ink-amber);
+  font-family: var(--font-display);
+}
+.impact-body { padding: 15px 16px; }
+.impact-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 9px; margin-bottom: 12px; }
+.impact-cell { background: var(--bg-soft); border-radius: 10px; padding: 9px 12px; }
+.impact-cell .k { font-size: 11px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: .04em; }
+.impact-cell .v { font-weight: 800; font-size: 14.5px; margin-top: 1px; font-family: var(--font-display); font-variant-numeric: tabular-nums; }
+.delta-pos { color: var(--danger); } .delta-neg { color: var(--ink-ok); } .delta-zero { color: var(--text-2); }
+/* The delta inks sit on the --bg-soft cell fill, so light theme needs the same
+   deepen as the map rail: raw --danger is 4.36:1 there (dark's #E06C6C is
+   5.38:1 and passes, which is why only light is overridden). */
+:root:not([data-theme='dark']) .delta-pos { color: var(--danger-600); }
+/* "Too busy?" verdict. Same --bg-soft surface: light --ok is 3.67:1 and --danger
+   4.36:1, so light takes the deepened inks (--ink-ok 5.61:1, --danger-600
+   5.87:1). Dark keeps --danger as authored — --danger-600 would be 3.91:1
+   there — and --ink-ok already resolves to --ok in dark. */
+.impact-busy { color: var(--danger); }
+:root:not([data-theme='dark']) .impact-busy { color: var(--danger-600); }
+.impact-ok { color: var(--ink-ok); }
+.assumptions { font-size: 12px; color: var(--text-3); background: var(--bg-soft); padding: 9px 12px; border-radius: 10px; line-height: 1.6; }
+.impact-actions { display: flex; gap: 8px; margin-top: 13px; flex-wrap: wrap; }
+
+.suggestion-refresh-btn { white-space: nowrap; }
+
+.vehicle-profile-form .form-row { gap: 12px; margin-bottom: 10px; }
+.vehicle-profile-form .form-row:last-child { margin-bottom: 0; }
+
+/* ---------- Tabs ---------- */
+/* Same floating glass pill as the top nav — the workspace's own section nav. */
+.tabbar {
+  padding: 4px; border-radius: 999px; overflow-x: auto; scrollbar-width: none;
+  background: var(--yf-nav-glass); border: 1px solid var(--yf-glass-border);
+  -webkit-backdrop-filter: blur(var(--yf-blur-nav)) saturate(1.2); backdrop-filter: blur(var(--yf-blur-nav)) saturate(1.2);
+  box-shadow: var(--shadow-soft); margin-bottom: 20px;
+  transition: margin var(--t-med) var(--ease-out);
+}
+.tabbar::-webkit-scrollbar { display: none; }
+.tab-btn {
+  border: none; background: none; padding: 9px 15px; font-size: 14px; font-weight: 600;
+  color: var(--text-3); border-radius: 999px; white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.tab-btn:hover { color: var(--text); background: var(--bg-soft); }
+[data-theme='dark'] .tab-btn:hover { background: rgba(255, 255, 255, .06); }
+.tab-btn.active { color: var(--teal-deep); }
+
+.tab-count { background: var(--teal-soft); color: var(--teal-deep); font-size: 11px; font-weight: 700; border-radius: 999px; padding: 1px 7px; }
+/* In light mode the pill nav's glider paints --teal-soft too, so a count badge
+   inside the active pill was the same fill on the same fill (1:1) — the shape
+   vanished and the active tab read as a bare label. --card reads on either
+   glider, in both themes. */
+.pill-nav .clickable-chip.on-teal .tab-count { background: var(--card); }
+/* Editable day title — a real button (keyboard-reachable rename), styled as
+   the heading it replaces. */
+.day-title-btn { border: none; background: none; padding: 0; cursor: pointer;
+  font: inherit; font-weight: 700; color: var(--text); border-radius: 6px; text-align: left; }
+.day-title-btn:hover { color: var(--teal-deep); text-decoration: underline; text-underline-offset: 3px; }
+[data-theme='dark'] .day-title-btn:hover { color: var(--teal); }
+
+/* ---------- Modal / drawer / toast ---------- */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: var(--z-modal);
+  background: rgba(var(--shadow-navy-rgb),.42);
+  display: flex; align-items: flex-end; justify-content: center;
+  -webkit-backdrop-filter: blur(var(--yf-blur-scrim)); backdrop-filter: blur(var(--yf-blur-scrim));
+  animation: fadeIn var(--t-fast) var(--ease-out);
+}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+.modal {
+  background: var(--card); border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  width: 100%; max-width: 620px; max-height: 92vh; max-height: 92dvh; overflow-y: auto;
+  /* Below 640px this is a bottom sheet, so two device facts matter: its last
+     control has to clear the home indicator, and 92vh measures a viewport the
+     mobile toolbar is still occupying (92dvh is the same pairing the map shell
+     and the header tray use). Desktop is unaffected — the insets resolve to 0. */
+  padding: 22px; padding-bottom: calc(22px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
+  animation: slideUp var(--t-med) var(--ease-out);
+  /* Stop the sheet's scroll from chaining to the page behind it. */
+  overscroll-behavior: contain;
+}
+@media (min-width: 640px) {
+  .modal-overlay { align-items: center; padding: 20px; }
+  .modal { border-radius: var(--radius-lg); }
+}
+.modal-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; gap: 10px; }
+
+/* ---- M6 B3: remote-edit conflict banner (inside the stop editor modal) ---- */
+.remote-edit-banner {
+  display: flex; align-items: flex-start; gap: 10px;
+  background: var(--saffron-soft); border: 1px solid color-mix(in srgb, var(--warn) 35%, transparent);
+  border-radius: 10px; padding: 10px 12px; margin-bottom: 14px;
+  animation: slideUp var(--t-fast) var(--ease-out);
+}
+.remote-edit-icon { color: var(--ink-amber); flex: none; margin-top: 1px; }
+.remote-edit-copy { display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: 13px; }
+.remote-edit-sub { color: var(--text-3); font-size: 12px; }
+.remote-edit-actions { display: flex; gap: 8px; flex: none; flex-wrap: wrap; }
+@media (prefers-reduced-motion: reduce) { .remote-edit-banner { animation: none; } }
+.toast-zone { position: fixed; bottom: calc(18px + var(--bottom-ui-offset) + var(--dock-h)); left: 0; right: 0; display: flex; flex-direction: column; align-items: center; gap: 8px; z-index: var(--z-toast); pointer-events: none; padding: 0 14px; }
+/* The trip dock is fixed to the same bottom edge and wins on z-index (200 vs
+   55), so a toast landed on top of its CTA and swallowed the tap — measured on
+   #/new at 320px: toast 818–882 × 14–291 over the CTA 818–864 × 171–280, with
+   elementFromPoint at the button's centre returning the toast's own span. The
+   dock is the only way to commit on that surface, so this blocked the primary
+   action for the toast's lifetime. Gated to the width where the dock actually
+   shows, because :has() matches DOM presence and the dock element is always
+   rendered (just display:none above 900px). 118px is the same footprint the
+   trip page already reserves for it — see .trip-starter's padding-bottom. */
+@media (max-width: 900px) {
+  .app-shell:has(.trip-dock) { --dock-h: 118px; }
+}
+.toast {
+  pointer-events: auto; background: var(--text); color: var(--bg);
+  padding: 11px 20px; border-radius: 999px; font-size: 13.5px; font-weight: 600;
+  box-shadow: var(--shadow); animation: slideUp var(--t-med) var(--ease-out); max-width: 100%;
+  /* Undo button inside a toast */
+  display: inline-flex; align-items: center; gap: 12px;
+}
+.toast.ok { background: var(--teal-deep); color: #fff; }
+.toast.err { background: var(--danger); color: #fff; }
+/* The blanket dark rule below has the same specificity as .toast.ok/.toast.err
+   and comes later, so on its own it wiped the success/error fill: in dark mode
+   every toast rendered as the same neutral pill and the two outcomes became
+   visually identical. The semantic pairs keep their own fills and take the dark
+   ink this codebase already uses wherever a lightened teal carries text
+   (see .ai-bubble.user, .notif-badge) — 7.9:1 on the teal and 5.1:1 on the soft
+   red, against 2.05:1 and 3.22:1 for white. */
+[data-theme='dark'] .toast { background: var(--gray-900); color: var(--gray-50); }
+[data-theme='dark'] .toast.ok { background: var(--teal-deep); color: #06251f; }
+[data-theme='dark'] .toast.err { background: var(--danger); color: #06251f; }
+.toast-action {
+  border: none; background: rgba(255,255,255,.18); color: inherit;
+  font-weight: 700; font-size: 12.5px; padding: 8px 16px; border-radius: 999px;
+  cursor: pointer; text-transform: uppercase; letter-spacing: .04em;
+}
+.toast-action:hover { background: rgba(255,255,255,.32); }
+
+/* ---------- Confirm dialog ---------- */
+.confirm-actions { display: flex; gap: 9px; margin-top: 16px; flex-wrap: wrap; }
+
+/* ---------- Auth ---------- */
+.auth-card { width: 100%; max-width: 430px; }
+/* contained heading — the card is a 430px panel, not a full-width page (was
+   an inline fontSize that bypassed every scale) */
+.auth-card h1 { font-size: 26px; }
+/* Dark inputs otherwise sit nearly flush with the card surface — lift them. */
+[data-theme='dark'] .auth-card .input { background: rgba(255, 255, 255, .06); }
+
+/* ---------- Hero (landing) — split layout per CTI homepage mockup ---------- */
+/* The hero itself is transparent: the atmospheric ramp lives on the page-level
+   .landing-canvas (fixed attachment), so no hard gradient edge can appear at
+   the hero/bench boundary or behind the floating nav pill. */
+.hero {
+  padding: 26px 0 8px; text-align: center;
+}
+.hero-split { display: grid; grid-template-columns: 1.05fr .95fr; gap: 44px; align-items: center; text-align: left; }
+.hero-copy .hero-sub { margin-left: 0; }
+.hero-copy .hero-ctas { justify-content: flex-start; }
+.hero-adventure {
+  /* forced-dark in both themes — the bottom stop must be a literal
+     (--gray-900 flips near-white in dark mode) */
+  background: linear-gradient(150deg, var(--yf-navy), #0c1e35 88%);
+  color: #fff; border-radius: var(--radius-lg); padding: 22px;
+  box-shadow: 0 30px 60px rgba(var(--shadow-navy-rgb),.28);
+  position: relative; overflow: hidden;
+}
+.hero-adventure::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255,255,255,.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px);
+  background-size: 26px 26px;
+}
+.hero-adventure > * { position: relative; }
+.ha-kicker { opacity: .75; /* type specs: the kicker-unification block (var(--kicker-*)) */ }
+.ha-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 14px 0 8px; }
+/* The stat tiles read as MACHINED PANELS, not wireframe boxes. They used
+   `border: 1px solid rgba(255,255,255,.14)` on a 9% white fill: because the fill
+   is barely visible on the forced-dark navy, the hairline floated free as a grey
+   outline around each tile - the generic 1px border the high-end standard bans
+   outright. The border is now transparent (same box model, so nothing reflows),
+   the fill carries the shape, and an inset top sheen supplies the machined edge
+   that the outline was faking. */
+.ha-stats > div { background: rgba(255,255,255,.11); border: 1px solid transparent; border-radius: 10px; padding: 8px 10px; box-shadow: inset 0 1px 0 rgba(255,255,255,.16); }
+.ha-stats b { display: block; font-family: var(--font-display); font-size: 15px; font-variant-numeric: tabular-nums; }
+/* The three tiles must read as one row, so the label block is a consistent two
+   lines. "est. per person" cannot fit on one line in a 79px content box at the
+   shared 10.5px kicker size - it measures ~100px - and it is the only label that
+   wraps, which made its tile read as a different kind of cell from its two
+   neighbours. Reserving the same two-line block on all three evens the row
+   without touching the copy and without overriding the kicker recipe: the
+   "estimated" qualifier is load-bearing (this product sells honest numbers, and
+   the public page's own stats card says "estimated per traveller"), and a local
+   px size would break the kicker unification the design-system gate pins.
+   `line-height: 1.6` and `min-height: 3.2em` are those two lines made explicit:
+   the em is font-relative so it tracks the token, and the leading is declared
+   here because the kicker recipe pins only size, weight and tracking - it says
+   nothing about line-height, so this adds rather than overrides. (A first attempt
+   used min-height: 2.4em off an assumed 1.2 leading; the measured label was
+   33px tall, so the block still did not match and the row stayed uneven.) It
+   costs no height: the wrapping tile already set this row's height, so the other
+   two simply fill their share of it. */
+.ha-stats span { font-size: 9.5px; letter-spacing: .06em; text-transform: uppercase; opacity: .72; font-weight: 700; display: block; line-height: 1.6; min-height: 3.2em; }
+.ha-row { display: grid; grid-template-columns: 1.4fr 1fr; gap: 8px; margin-top: 8px; }
+.ha-warn { background: #FFF4E4; color: #3A2506; border-radius: 10px; padding: 8px 11px; font-size: 12px; font-weight: 700; }
+.ha-warn span { display: block; font-weight: 500; font-size: 11px; opacity: .8; }
+.ha-sync { background: var(--yf-teal-100); color: #0C4A42; border-radius: 10px; padding: 8px 11px; font-size: 12px; font-weight: 700; }
+.ha-sync span { display: block; font-weight: 500; font-size: 11px; opacity: .75; }
+/* Dark mirrors — the light literals above sit on tokens that flip to near-black
+   in dark mode, leaving dark-on-dark ghost text (UI audit contrast finding). */
+[data-theme='dark'] .ha-warn { background: #3B2B12; color: #FFD9A0; }
+[data-theme='dark'] .ha-warn span { opacity: .85; }
+[data-theme='dark'] .ha-sync { background: #123A33; color: #8CE8D8; }
+[data-theme='dark'] .ha-sync span { opacity: .8; }
+.hero-sub { font-size: 17px; color: var(--text-2); max-width: 640px; margin: 14px auto 26px; }
+.hero-ctas { display: flex; gap: 11px; justify-content: center; flex-wrap: wrap; }
+
+/* Landing section headings & grids */
+.section-title { font-size: var(--landing-title-size); line-height: 1.08; letter-spacing: -.02em; text-align: center; margin: 46px auto 6px; max-width: 620px; }
+/* The hero headline is the largest type on the site. It reads size, leading and
+   tracking from the landing tokens rather than carrying an inline clamp(), so
+   the three can no longer drift apart one edit at a time. */
+.hero-title { font-size: var(--landing-hero-size); line-height: var(--landing-hero-leading); letter-spacing: var(--landing-hero-tracking); margin: 18px 0 14px; }
+/* Bento, not three equal cards: one tall photo cell beside two stacked cells.
+   Three items, three cells, no empty tile. Collapses to one column at 980px. */
+.feature-strip { display: grid; grid-template-columns: 1.2fr 1fr; gap: 14px; margin: 0 0 44px; }
+.feature-bento > .feature-card:first-child { grid-row: span 2; }
+/* ---------- Double-Bezel: the shared tray + plate ----------
+   A machined card is a PLATE sitting in a TRAY. This is the pair used by the
+   surfaces whose plate is a `.card` (Explore's grid and the creator pages via
+   PubCard) - the landing's `.feature-card`/`.feature-core` below is the same
+   idea written bespoke for its photo cell.
+   CONCENTRIC is the whole point: the plate's radius is the tray's minus the
+   tray's inset (6px padding + 1px border = 7px), so the two curves stay
+   parallel rather than merely both being round. `border-color: transparent`
+   because the tray's own hairline is the only line the eye should read - the
+   plate inheriting `.card`'s border is what produced a grey outline on the
+   public itinerary.
+   CANVAS CAVEAT, learned the hard way on that page: this reads as a tray when
+   the tray's fill differs from what is behind it. `--yf-glass` is white/58 over
+   the cream canvas, so the band is subtle here; on the near-white paper sheet a
+   tray had to be a darker tint and then read as a wireframe outline instead, so
+   the bezel was dropped there rather than forced. */
+.bezel {
+  display: flex; flex-direction: column;
+  padding: 6px; border-radius: 2rem;
+  /* The glass itself comes from `.glass` — this tray RESTATED that recipe's
+     background and border while leaving its backdrop-filter behind, which is
+     the split the popover shipped with. It wears the owner instead and keeps
+     only its own geometry and shadow (its own `box-shadow` below also wins the
+     cascade over the owner's inset sheen, so the tray keeps the depth it was
+     measured with).
+     NO outer hairline, deliberately. The first cut carried the landing's
+     `0 0 0 1px rgba(navy,.05)` ring; measured against this canvas the tray FILL
+     is imperceptible - cream #F8F7EF -> 58% white = #FBFAF7, a 1.3% step, then
+     the plate adds another 1.3% to pure white - so the only part of the tray the
+     eye actually caught was that 1px line, which is the "grey outline" reading
+     we already rejected on the public itinerary. On a light canvas a tray has to
+     be defined by DEPTH, not by tone or by a line: the diffuse ambient shadow
+     below is what makes it read as a slab the plate sits in. */
+  box-shadow: var(--shadow-soft);
+}
+/* Two plate classes, one rule: `.card` (Explore / creator / public-itinerary
+   cards) and `.created-card` (TripCreated's two generic cards - the billcard is
+   deliberately not one of them). A surface that wants the bezel adds its plate
+   class here rather than restating the recipe. */
+.bezel > .card,
+.bezel > .created-card {
+  flex: 1;
+  border-color: transparent;
+  border-radius: calc(2rem - 7px);
+  box-shadow: inset 0 1px 0 var(--yf-glass-sheen);
+}
+
+/* ---------- Double-Bezel feature card (landing) ----------
+   The cell is machined hardware rather than a flat tile: an outer tray
+   (translucent fill, hairline ring, oversized radius, diffuse depth) holding an
+   inner plate with its own surface and its own top highlight. The plate's radius
+   is the tray's MINUS the tray's inset, so the two curves stay concentric -
+   that relationship is the whole point of the pattern, and it is why the radius
+   is a calc() rather than a second literal. A 1px-border card on a single
+   shadow is the template look this replaces.
+   The tray fill and the plate's highlight are the existing glass tokens, NOT
+   light literals: --yf-glass is white/58 in light and #101B2B/58 in dark, so the
+   tray is correct in both themes without a second [data-theme] rule. */
+/* `.feature-card` cannot wear the `.glass` owner: it also carries `.card`, and
+   `.card`'s background rule sits LATER in this file, so the owner's background
+   would lose the cascade and the tray would turn opaque. So it declares
+   the glass PAIR itself — background and backdrop-filter together, never one
+   without the other (the popover's split). */
+.feature-card { display: flex; flex-direction: column; background: var(--yf-glass); border: 1px solid var(--yf-glass-border); -webkit-backdrop-filter: blur(var(--yf-blur-nav)) saturate(1.2); backdrop-filter: blur(var(--yf-blur-nav)) saturate(1.2); border-radius: var(--radius-lg); padding: 6px; box-shadow: 0 0 0 1px rgba(var(--shadow-navy-rgb), .05), var(--shadow-soft); transition: transform var(--t-fast) var(--ease-out), box-shadow var(--t-fast) var(--ease-out); }
+.feature-card:hover { transform: translateY(-2px); box-shadow: 0 0 0 1px rgba(var(--shadow-navy-rgb), .05), 0 4px 8px rgba(var(--shadow-navy-rgb), .06), 0 20px 48px rgba(var(--shadow-navy-rgb), .16); }
+.feature-core { display: flex; flex-direction: column; height: 100%; padding: 16px; border-radius: calc(var(--radius-lg) - 7px); background: var(--card); box-shadow: inset 0 1px 0 var(--yf-glass-sheen); }
+.feature-card h3 { font-size: 15.5px; }
+.feature-ico { width: 42px; height: 42px; border-radius: 12px; background: var(--teal-soft); display: flex; align-items: center; justify-content: center; font-size: 20px; margin-bottom: 12px; }
+.feature-card p { font-size: 13.5px; color: var(--text-2); margin-top: 6px; line-height: 1.55; }
+
+/* Steps */
+/* A route, not a card grid: four stops along one dashed road line. The line
+   runs behind the roundels (they carry the page canvas as their own fill), and
+   the whole thing collapses to a vertical timeline at 720px. */
+.steps-route {
+  position: relative; display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 14px; margin-top: 24px;
+  content-visibility: auto; contain-intrinsic-size: auto 300px;
+}
+.steps-route::before {
+  content: ''; position: absolute; left: 7%; right: 7%; top: 15px; height: 0;
+  border-top: 2px dashed color-mix(in srgb, var(--yf-teal-600) 45%, transparent);
+}
+/* Below-the-fold landing sections skip layout/paint entirely until the
+   scroll approaches (content-visibility). The size estimate keeps the
+   scrollbar honest — measured ~600px per section. Big win on first paint
+   in the phone WebView, invisible on desktop. */
+.cta-band { content-visibility: auto; contain-intrinsic-size: auto 620px; }
+.feature-strip { content-visibility: auto; contain-intrinsic-size: auto 400px; }
+.step-card { position: relative; padding: 0; }
+.step-body { min-width: 0; }
+.step-num {
+  display: inline-flex; align-items: center; justify-content: center;
+  position: relative; z-index: var(--z-content);
+  width: 30px; height: 30px; border-radius: 50%;
+  background: var(--teal-deep); color: #fff; font-weight: 800; font-size: 14px;
+  font-family: var(--font-display); margin-bottom: 11px;
+}
+.step-card h3 { font-size: 15px; }
+.step-card p { margin-top: 5px; line-height: 1.55; }
+
+/* Demo CTA band — a forced-dark surface in BOTH themes: its gradient stops
+   must be literals, not theme-flipping tokens (--gray-900 turns near-white in
+   dark mode and stranded the white text). Same rule as .budget-hero. The
+   open-road photo sits under a .92 navy scrim (and under the base gradient as
+   the load-failure floor), so white copy stays AA over any underlying image. */
+.cta-band {
+  text-align: center; padding: 42px 26px; border-radius: 22px;
+  background:
+    radial-gradient(ellipse 90% 130% at 50% -30%, color-mix(in srgb, var(--saffron) 20%, transparent), transparent),
+    linear-gradient(150deg, rgba(20, 63, 76, .84), rgba(17, 44, 76, .9)),
+    url('/img/landing-open-road.jpg'),
+    linear-gradient(150deg, #143f4c, #112c4c);
+  background-size: cover, cover, cover, auto;
+  background-position: center, center, center, 0 0;
+  color: #fff;
+}
+.cta-band h2 { color: #fff; }
+.cta-band p { max-width: 560px; margin: 10px auto 22px; opacity: .92; }
+.cta-buttons { display: flex; gap: 14px; justify-content: center; align-items: center; flex-wrap: wrap; }
+.cta-hint { opacity: .85; }
+.cta-hint code { background: rgba(255,255,255,.14); padding: 2px 7px; border-radius: 6px; }
+
+/* ---------- Handoff strip (directly below the hero) ----------
+   The boarding-pass ticket and the trip-code join form live here, not in the
+   hero: the hero stays chip + headline + subtext + two CTAs, and a visitor who
+   skipped those still finds a next step one scroll-length below. Ticket first
+   (the product-led entry, under the headline column), form second; both top-
+   aligned so the ticket's top edge lines up with the form's label instead of
+   floating centered against it. */
+.handoff {
+  position: relative; z-index: var(--z-content);
+  display: grid; grid-template-columns: 1fr auto; gap: 18px 24px;
+  align-items: start; padding: 20px 0 24px;
+}
+.handoff-lead { font-weight: 800; font-size: 14px; margin-bottom: 8px; }
+.invite-entry { display: flex; gap: 8px; max-width: 400px; }
+.invite-entry .input { flex: 1; min-width: 0; }
+.handoff-note { margin-top: 10px; }
+
+/* Bento surfaces: photo cell, tinted cell, plain cell. The photo is a local
+   asset under a navy scrim so white copy clears AA over any underlying image
+   (measured: the scrim holds the composite near #0F2A33 even over a bright
+   sky). */
+.feature-bento .feature-photo {
+  display: flex; flex-direction: column;
+  background-image:
+    linear-gradient(165deg, rgba(18, 63, 73, .88), rgba(12, 30, 53, .94)),
+    url('/img/landing-high-route.jpg');
+  background-size: cover, cover;
+  background-position: center, center;
+  border-color: transparent;
+  color: #fff;
+}
+/* The photo IS the tray's fill, so this card's plate must not paint over it:
+   the core keeps its layout and its inset and drops only its surface. */
+.feature-bento .feature-photo .feature-core { background: transparent; box-shadow: none; }
+.feature-bento .feature-photo h3 { color: #fff; }
+.feature-bento .feature-photo p { color: rgba(255, 255, 255, .85); }
+.feature-bento .feature-photo .feature-ico { background: rgba(255, 255, 255, .16); color: #fff; }
+/* The impact-preview echo inside the photo cell: a forced-light mini panel
+   (light literals, no dark mirror) so it reads as the product's own dialog
+   artifact on the dark photo in BOTH themes. Pins to the cell's bottom. */
+.feature-preview {
+  margin-top: auto;
+  background: #FFFDF7;
+  color: #0B2545;
+  border-radius: 12px;
+  padding: 12px;
+  box-shadow: 0 10px 24px -8px rgba(12, 30, 53, .35);
+}
+.feature-preview-head { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 800; }
+.fp-chip {
+  margin-left: auto; background: #FFE3B8; color: #6B3D05;
+  border-radius: 999px; padding: 2px 8px; font-size: 9.5px; font-weight: 800; letter-spacing: .04em;
+}
+.fp-deltas { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 8px; }
+.fp-delta { background: rgba(18, 63, 73, .07); border-radius: 8px; padding: 6px 8px; }
+.fp-delta b { display: block; font-family: var(--font-display); font-size: 13px; font-variant-numeric: tabular-nums; }
+.fp-delta span { display: block; font-size: 8.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; opacity: .62; margin-top: 1px; }
+.fp-warn { background: #FFF4E4; color: #3A2506; border-radius: 8px; padding: 6px 8px; font-size: 11px; font-weight: 800; margin-top: 6px; line-height: 1.3; }
+.fp-warn span { display: block; font-weight: 500; font-size: 10.5px; opacity: .85; margin-top: 1px; }
+.fp-tip { background: #E5F4EE; color: #0C4A42; border-radius: 8px; padding: 6px 8px; font-size: 11px; font-weight: 800; margin-top: 6px; line-height: 1.3; }
+.fp-tip span { display: block; font-weight: 500; font-size: 10.5px; opacity: .85; margin-top: 1px; }
+/* The tint belongs to the PLATE, not the tray. `.feature-bento .feature-tint`
+   out-specifies `.feature-card`, so painting it on the tray would fill the tray
+   and leave a white plate inside a mint frame - losing the per-cell surface
+   variety this strip is built on (photo / tinted / plain). Every tray stays
+   glass; only the plate's surface changes. */
+.feature-bento .feature-tint .feature-core { background: var(--yf-teal-100); }
+[data-theme='dark'] .feature-bento .feature-tint .feature-core { background: #12332F; }
+
+/* ---------- Explore cards ---------- */
+.explore-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 16px; }
+.itin-card { overflow: hidden; padding: 0; display: flex; flex-direction: column; transition: transform var(--t-fast) var(--ease-out), box-shadow var(--t-fast) var(--ease-out); }
+/* Lift convention: card/hero surfaces rise -2px (itin/feature/trip-card),
+   control-sized things -1px (clickable-chip, board-stop, bench buttons). */
+.itin-card:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(var(--shadow-navy-rgb),.06), 0 16px 40px rgba(var(--shadow-navy-rgb),.12); }
+.itin-cover { position: relative; aspect-ratio: 16/9; background: linear-gradient(135deg, var(--teal-deep), var(--text)); overflow: hidden; }
+.itin-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.itin-cover-route {
+  position: absolute; left: 12px; bottom: 12px; right: 12px; z-index: var(--z-content);
+  color: rgba(255,255,255,.95); font-size: 12.5px; font-weight: 700;
+  text-shadow: 0 1px 4px rgba(var(--shadow-navy-rgb),.5); white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+}
+.itin-cover-fallback { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 44px; opacity: .9; }
+.itin-cover .chip { position: absolute; top: 12px; left: 12px; background: var(--yf-surface); color: var(--text); -webkit-backdrop-filter: blur(var(--yf-blur-chip)); backdrop-filter: blur(var(--yf-blur-chip)); }
+.itin-body { padding: 16px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+/* Trip names can be long — cap at two lines so card grids stay aligned. */
+.itin-body .card-title {
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+/* Card titles are heading-level h2 for outline correctness — sized as the h3
+   they replace so the grids don't shift. */
+/* Declares no family of its own, so an `<h3 class="card-title">` inherited Sora
+   from the heading rule while a `<span class="card-title">` inherited Plus
+   Jakarta Sans — one class, one size, two faces. Stated once, here, for both. */
+.card-title { font-family: var(--font-display); font-size: 16px; font-weight: 700; }
+.itin-meta { display: flex; flex-wrap: wrap; gap: 4px 13px; font-size: var(--text-xs); color: var(--text-3); font-weight: 600; }
+/* Explore card footer: full-width divider to the card edges, content inset to
+   align with .itin-body's 16px side padding (separate from itin-body above). */
+.itin-card > .itin-meta { position: relative; padding: 12px 16px 16px; margin-top: 4px; }
+.itin-card > .itin-meta::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0;
+  border-top: 1px solid var(--line);
+}
+/* The creator line + its channel icons are the card's LAST row whenever the
+   creator has a bio or a social link, and that row owns the card's bottom
+   padding: unpadded it sat 1px from the bottom edge, inside the 12px corner
+   radius, so the icons read as if the card had cut them off. */
+.itin-foot { padding: 0 16px 14px; margin-top: 6px; }
+.creator-line { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-2); font-weight: 600; }
+/* The anchor variant (PubCard) overrode the global link colour with --text-2,
+   so it read as plain text. Keep the quiet look at rest, but answer hover and
+   give keyboard users a visible ring. */
+a.creator-line { transition: color var(--motion-fast) var(--ease-out); }
+a.creator-line:hover { color: var(--teal-deep); }
+a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; border-radius: 8px; }
+/* Icon-only anchors (PubCard socials) copied `.muted` — interactive elements
+   rendered as static text. */
+.icon-link {
+  color: var(--text-2); display: inline-flex; padding: 3px; border-radius: 7px;
+  transition: color var(--motion-fast) var(--ease-out), background var(--motion-fast) var(--ease-out);
+}
+.icon-link:hover { color: var(--ink-teal); background: var(--bg-soft); }
+.icon-link:focus-visible { outline: 2px solid var(--teal); outline-offset: 1px; }
+/* Inline text links in body copy — the teal colour alone didn't read as
+   clickable. */
+.text-link { text-decoration: underline; text-underline-offset: 2px; }
+.avatar { width: 26px; height: 26px; border-radius: 50%; object-fit: cover; background: var(--teal-soft); color: var(--teal-deep); display: inline-flex; align-items: center; justify-content: center; font-weight: 800; font-size: 11px; flex: 0 0 auto; }
+.avatar.lg { width: 44px; height: 44px; font-size: 16px; }
+
+/* ---------- Map (demo SVG) ---------- */
+.map-frame { position: relative; width: 100%; height: 480px; min-height: 320px; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--line); background: var(--card); }
+/* MapLibre canvas must inherit the wrapper's height — a bare `height: 100%`
+   on the map with no explicit height on .map-frame collapses the map to the
+   height of the control strip above it. The rules below pin every canvas/container
+   layer to fill the absolute-positioned .yf-maplibre wrapper. */
+.yf-maplibre { position: absolute; inset: 0; width: 100%; height: 100%; }
+.yf-maplibre .maplibregl-map { position: absolute; inset: 0; width: 100%; height: 100%; }
+.yf-maplibre .maplibregl-canvas { width: 100% !important; height: 100% !important; }
+/* Basemap attribution — legally required credit (OSM/OpenMapTiles), so keep it,
+   but keep it unobtrusive: compact mode collapses it into the ⓘ button and this
+   shrinks the expanded strip. Never remove the control itself. */
+.maplibregl-ctrl-attrib { font-size: 10px; }
+.maplibregl-ctrl-attrib.maplibregl-compact-show { background: rgba(255,255,255,.8); }
+[data-theme='dark'] .maplibregl-ctrl-attrib.maplibregl-compact-show { background: rgba(22,35,58,.8); }
+/* mapcn's MapControls and popups ship Tailwind utility classes this app doesn't
+   compile (no Tailwind here). Without hand-ported rules the zoom/fullscreen
+   group renders as static flow UNDER the absolutely-positioned canvas —
+   invisible in 2D, stray and clipped otherwise — and popups keep maplibre's
+   stock bare-white chrome, which light text goes unreadable on in dark mode. */
+.yf-maplibre .yf-map-ctrls {
+  position: absolute; top: 10px; right: 10px; z-index: var(--z-frost);
+  display: flex; flex-direction: column; gap: 6px;
+}
+.yf-maplibre .yf-map-ctrls > div {
+  display: flex; flex-direction: column; overflow: hidden;
+  border-radius: 10px; border: 1px solid var(--line);
+  background: var(--card); box-shadow: var(--shadow-soft);
+}
+.yf-maplibre .yf-map-ctrls button {
+  display: flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; padding: 0; border: none;
+  border-bottom: 1px solid var(--line); background: transparent;
+  color: var(--text); cursor: pointer;
+}
+.yf-maplibre .yf-map-ctrls button:last-child { border-bottom: none; }
+.yf-maplibre .yf-map-ctrls button:hover { background: var(--bg-soft); }
+.yf-maplibre .yf-map-ctrls button svg { width: 16px; height: 16px; }
+/* popup chrome in app tokens (extra class keeps it ahead of maplibre's own
+   anchor-specific rules regardless of stylesheet order) */
+.yf-maplibre .maplibregl-popup .maplibregl-popup-content {
+  background: var(--card); color: var(--text); border: 1px solid var(--line);
+  border-radius: 12px; padding: 10px 12px; box-shadow: var(--shadow-soft);
+  font-family: var(--font-body); font-size: 13px;
+}
+.yf-maplibre .maplibregl-popup-anchor-top .maplibregl-popup-tip { border-bottom-color: var(--card); }
+.yf-maplibre .maplibregl-popup-anchor-bottom .maplibregl-popup-tip { border-top-color: var(--card); }
+.yf-maplibre .maplibregl-popup-anchor-left .maplibregl-popup-tip { border-right-color: var(--card); }
+.yf-maplibre .maplibregl-popup-anchor-right .maplibregl-popup-tip { border-left-color: var(--card); }
+/* Filter pills live in a static toolbar ABOVE the canvas — they used to be an
+   absolute overlay (top-left, z-index 5) that covered the map itself. The row
+   wraps on desktop and scrolls horizontally on mobile (media query below). */
+.map-toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }
+.map-day-filter { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; background: var(--yf-surface); border: 1px solid var(--yf-glass-border); border-radius: 999px; padding: 3px 4px; }
+.map-day-chip {
+  border: 1px solid var(--yf-glass-border); background: var(--yf-glass);
+  -webkit-backdrop-filter: blur(var(--yf-blur-chip)); backdrop-filter: blur(var(--yf-blur-chip));
+  color: var(--text-2); border-radius: 999px; font-size: 12px; font-weight: 700;
+  padding: 5px 12px; white-space: nowrap; transition: background var(--motion-fast) var(--ease-out),
+    color var(--motion-fast) var(--ease-out), border-color var(--motion-fast) var(--ease-out), box-shadow var(--motion-fast) var(--ease-out), transform var(--motion-fast) var(--ease-out);
+}
+.map-day-chip:hover { color: var(--text); border-color: var(--teal); }
+.map-day-chip.on { background: var(--teal-deep); color: #fff; border-color: var(--teal-deep); box-shadow: var(--shadow-glow-teal); }
+/* Map view modes (2D · Terrain · 3D) — the same glass chips, held apart from
+   the day filter by a hairline so the two control families read as separate. */
+.map-mode-group { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding-left: 9px; border-left: 1px solid var(--yf-glass-border); }
+[data-theme='dark'] .map-day-chip { background: rgba(22,35,58,.72); color: var(--text); }
+[data-theme='dark'] .map-day-chip:hover { background: rgba(22,35,58,.95); }
+[data-theme='dark'] .map-day-chip.on { background: var(--teal); color: #06251f; border-color: var(--teal); box-shadow: 0 2px 12px rgba(13,141,130,.4); }
+/* Touch targets: the toolbar holds ~8 of these chips over a moving map — on
+   coarse pointers each must reach the 40px floor (WCAG 2.5.8) without
+   changing the desktop silhouette. */
+@media (pointer: coarse) {
+  .map-day-chip { display: inline-flex; align-items: center; min-height: 40px; padding: 4px 16px; }
+}
+/* Map key: hidden behind a small ⓘ chip by default (it used to blanket the
+   bottom-right corner); the body card reopens above the same corner. */
+.map-legend { position: absolute; right: 12px; bottom: 12px; z-index: var(--z-frost); display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.map-legend-toggle { border: 1px solid var(--yf-glass-border); background: var(--yf-glass); -webkit-backdrop-filter: blur(var(--yf-blur-chip)); backdrop-filter: blur(var(--yf-blur-chip)); color: var(--text); border-radius: 999px; font-size: 12px; font-weight: 700; padding: 5px 12px; white-space: nowrap; transition: background var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out), border-color var(--motion-fast) var(--ease-out), transform var(--motion-fast) var(--ease-out); }
+/* Readable-content overlay (level 3): near-opaque surface, glass border, light frost. */
+.map-legend-body { background: var(--yf-surface); border: 1px solid var(--yf-glass-border); -webkit-backdrop-filter: blur(var(--yf-blur-chip)); backdrop-filter: blur(var(--yf-blur-chip)); border-radius: 12px; padding: 8px 12px; font-size: 11.5px; color: var(--text-2); font-weight: 600; max-width: min(440px, 78vw); animation: popover-in var(--motion-med) var(--ease-glide); }
+[data-theme='dark'] .map-legend-toggle { background: var(--yf-glass); color: var(--text); }
+[data-theme='dark'] .map-legend-body { background: rgba(22,35,58,.92); }
+/* "Locate me" chip — the live-location toggle. ON state reads as the blue
+   location-teal pair every maps app uses; the chip itself stays in the
+   legend's glass language. */
+.map-legend-toggle.map-live-on {
+  background: var(--teal-deep, #0E7A72); color: #fff; border-color: transparent;
+}
+[data-theme='dark'] .map-legend-toggle.map-live-on { background: var(--teal, #0D8D82); color: #06251f; }
+/* The live user dot: a solid core inside a soft pulse ring (animations
+   frozen under prefers-reduced-motion and in the coarse-pointer budget via
+   the no-preference gate). Blue = "you", distinct from every trip color. */
+.yf-live-dot { position: relative; width: 22px; height: 22px; display: grid; place-items: center; }
+.yf-live-core {
+  width: 12px; height: 12px; border-radius: 50%;
+  background: #2A6FDB; border: 2.5px solid #fff;
+  box-shadow: 0 1px 4px rgba(10, 30, 60, .45);
+}
+.yf-live-pulse {
+  position: absolute; inset: 0; border-radius: 50%;
+  background: rgba(42, 111, 219, .28);
+  animation: yf-live-ping 1.8s var(--ease-out) infinite;
+}
+.yf-live-dot--denied .yf-live-core { background: #C93B3B; }
+@keyframes yf-live-ping {
+  0% { transform: scale(.45); opacity: .9; }
+  80%, 100% { transform: scale(1.25); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) { .yf-live-pulse { animation: none; opacity: .5; } .map-shell--expanded, .map-shell--closing { animation: none; } .map-legend-body { animation: none; } }
+/* Expand mode — the map shell breaks out into a fixed overlay so the canvas
+   gets the viewport. Sits BELOW the modal (--z-modal 100) and the impact sheet
+   (--z-impact 210, deliberately above toasts) so dialogs opened from the expanded
+   map still layer on top, and above notifications (--z-notif 80); mapcn's
+   ResizeObserver re-fits the canvas on the size change. Escape or the ⤡ Collapse
+   chip reverts. */
+.map-shell--expanded {
+  position: fixed; inset: 10px; z-index: var(--z-map-expanded);
+  background: var(--bg); padding: 2px;
+  /* This shell paints above the nav, so it owns the real bottom edge — meaning
+     it must also clear the gesture strip itself, or anything pinned to the
+     map's bottom edge (the legend, for one) sits under the system bar. Raw
+     inset by design: the shell must NOT be lifted by the nav's offset. */
+  padding-bottom: calc(2px + var(--safe-bottom));
+  display: flex; flex-direction: column;
+  animation: mapExpand var(--motion-slow) var(--ease-out);
+}
+/* Collapse plays the reverse scale-down first; the shell is removed from the
+   fixed overlay only after it finishes (TripMap keeps a `closing` state). */
+.map-shell--closing { animation: mapCollapse var(--motion-slow) var(--ease-out) both; pointer-events: none; }
+@keyframes mapExpand {
+  from { opacity: .25; transform: scale(.94); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes mapCollapse {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: scale(.94); }
+}
+.map-shell--expanded .map-frame { flex: 1 1 auto; height: auto; min-height: 0; }
+/* Nearby-idea category filter chips — same pill as day chips, with the
+   category icon inline and a small count. "on" = category visible. */
+.map-idea-chip { display: inline-flex; align-items: center; gap: 5px; }
+.map-idea-chip .yf-idea-chip-ico { opacity: .85; flex: 0 0 auto; }
+.map-idea-chip .yf-idea-chip-count {
+  background: rgba(var(--shadow-navy-rgb),.12); border-radius: 999px;
+  font-size: 10.5px; font-weight: 800; padding: 1px 6px;
+  font-variant-numeric: tabular-nums;
+}
+.map-idea-chip.on .yf-idea-chip-count { background: rgba(255,255,255,.35); }
+[data-theme='dark'] .map-idea-chip .yf-idea-chip-count { background: rgba(255,255,255,.14); }
+[data-theme='dark'] .map-idea-chip.on .yf-idea-chip-count { background: rgba(6,37,31,.28); }
+
+/* ---------- Suggestions & votes ---------- */
+.vote-col { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 46px; }
+.vote-btn { width: 34px; height: 30px; border-radius: 9px; border: 1.5px solid var(--line); background: var(--card); font-size: 14px; color: var(--text-2); }
+.vote-btn:hover { border-color: var(--teal); color: var(--teal-deep); }
+.vote-btn.on { background: var(--teal-deep); border-color: var(--teal-deep); color: #fff; }
+.vote-count { font-weight: 800; font-size: 15px; font-family: var(--font-display); font-variant-numeric: tabular-nums; }
+.consensus-bar { height: 7px; border-radius: 999px; background: var(--bg-soft); overflow: hidden; display: flex; }
+.consensus-bar > div { height: 100%; }
+.comment { display: flex; gap: 9px; padding: 9px 0; border-top: 1px dashed var(--line); }
+.comment-body { font-size: 13.5px; }
+.comment-author { font-weight: 700; font-size: 12.5px; }
+.comment-time { color: var(--text-3); font-size: 11.5px; font-weight: 500; margin-left: 6px; }
+
+/* ---------- Feed ---------- */
+.feed-item { display: flex; gap: 10px; padding: 10px 0; border-bottom: 1px dashed var(--line); font-size: 13.5px; align-items: flex-start; }
+.feed-item:last-child { border-bottom: none; }
+.feed-time { color: var(--text-3); font-size: 11.5px; white-space: nowrap; margin-left: auto; flex-shrink: 0; }
+
+/* ---------- Budget ---------- */
+.budget-bars { display: flex; flex-direction: column; gap: 11px; }
+.budget-bar-row { display: grid; grid-template-columns: 120px 1fr auto; gap: 10px; align-items: center; font-size: 13.5px; }
+.budget-bar-track { height: 10px; background: var(--bg-soft); border-radius: 999px; overflow: hidden; }
+.budget-bar-fill {
+  height: 100%; border-radius: 999px; transition: width var(--t-slow) var(--ease-out);
+  position: relative; overflow: hidden;
+}
+/* A sheen sweeping across each budget bar via left-position keyframes.
+   Rendering cost is unmeasured. Reduced-motion users get a static bar. */
+.budget-bar-fill::after {
+  content: ''; position: absolute; top: 0; bottom: 0; width: 42%;
+  background: linear-gradient(105deg, transparent, rgba(255,255,255,.45), transparent);
+  animation: barSheen 2.6s var(--ease-out) infinite;
+}
+@keyframes barSheen { from { left: -42%; } to { left: 108%; } }
+/* display:block + overflow-x keeps the tabular layout (anonymous table box)
+   but lets 5–6-column tables scroll on a phone instead of clipping the page. */
+.compare-table { display: block; width: 100%; border-collapse: collapse; font-size: 13.5px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.compare-table th, .compare-table td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line); }
+.compare-table th { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--text-3); }
+/* Global numeric utility: tabular digits for any changing figure. Tables keep
+   their right-alignment rule; outside tables .num is digits-only. */
+.num { font-variant-numeric: tabular-nums; }
+.compare-table td.num, .compare-table th.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* ============ Printable day cards (offline PDF export) ============ */
+/* The sheet renders in the DOM at all times (so print sees it without a
+   React round-trip) but is clipped away on screen. Under @media print the
+   whole app is hidden and ONLY the sheet shows. Colors are forced on — the
+   teal accents are what make the cards readable on paper.
+   Width is deliberately UNSET: @page owns the paper. A fixed 210mm here
+   overflowed the printable area (210 - 2×12mm margins) and cropped the
+   right edge of every card in the printed output. */
+.pr-sheet-portal {
+  position: absolute; left: -99999px; top: 0;
+  max-width: 190mm;
+}
+
+/* Same type system as the app - Sora headings, Plus Jakarta Sans body - so the printed
+   cards read as YatraFlow. system-ui fallbacks cover offline printing where
+   the Google-Fonts files aren't cached. */
+.pr-sheet { font: 10.5pt/1.5 var(--font-body); color: #1a2433; }
+.pr-sheet h1, .pr-sheet h2 { font-family: var(--font-display); letter-spacing: -0.01em; }
+.pr-sheet h1 { font-size: 17pt; margin: 0 0 2pt; }
+.pr-sheet h2 { font-size: 12.5pt; margin: 0; }
+.pr-trip { border-bottom: 2.5pt solid var(--teal-600); padding-bottom: 8pt; margin-bottom: 10pt; }
+.pr-trip-meta { margin: 1pt 0; font-size: 10pt; color: #445; }
+
+.pr-day { border: 1pt solid #b9c6d2; border-radius: 6pt; padding: 8pt 10pt; margin-bottom: 9pt; }
+.pr-day-head { border-bottom: 0.75pt solid #d6dee8; padding-bottom: 4pt; margin-bottom: 5pt; }
+.pr-day-route { font-size: 10.5pt; font-weight: 700; margin-right: 8pt; }
+.pr-day-meta { font-size: 9.5pt; color: #445; }
+
+.pr-stop { padding: 2.5pt 0; border-bottom: 0.5pt dotted #ccd6e0; }
+.pr-stop-title { font-weight: 700; }
+.pr-stop-meta { font-size: 9.5pt; color: #445; margin-left: 8pt; }
+.pr-badge { font-size: 8.5pt; font-weight: 700; margin-left: 4pt; padding: 0 3pt; border-radius: 3pt; }
+.pr-badge--ok { color: #0a7d55; border: 0.75pt solid #0a7d55; }
+.pr-badge--warn { color: #a35a00; border: 0.75pt solid #a35a00; }
+
+.pr-leg { padding: 2pt 0 2pt 10pt; font-size: 9.5pt; color: #57677a; font-style: italic; }
+.pr-leg-route { font-style: italic; }
+.pr-leg-meta { margin-left: 6pt; }
+
+.pr-warns { margin: 3pt 0 0; padding-left: 14pt; font-size: 9.5pt; color: #8a4a00; }
+.pr-warns li { margin: 0; }
+
+.pr-expenses h2 { margin-bottom: 4pt; }
+.pr-expenses table { width: 100%; border-collapse: collapse; font-size: 9.5pt; }
+.pr-expenses td, .pr-expenses th { border-top: 0.5pt solid #d6dee8; padding: 2pt 4pt; }
+/* th centres by UA default; only the label headers need aligning with their
+   cells — the amount one keeps .pr-num's right alignment. */
+.pr-expenses th:not(.pr-num) { text-align: left; }
+.pr-num { text-align: right; white-space: nowrap; }
+
+.pr-foot { display: flex; justify-content: space-between; gap: 12pt;
+  border-top: 0.75pt solid #b9c6d2; margin-top: 8pt; padding-top: 4pt;
+  font-size: 8.5pt; color: #67788c; }
+
+/* On-screen preview inside the modal: the same sheet, scaled into a scrollable page. */
+.pr-preview { max-height: 55vh; overflow: auto; border: 1px solid var(--line); border-radius: 12px;
+  background: #fff; padding: 18px 22px; }
+.pr-preview .pr-sheet { transform: scale(0.82); transform-origin: top left; width: 122%; }
+[data-theme='dark'] .pr-preview { background: #e9edf3; }
+
+@media print {
+  /* hide the whole app; the portal sheet is a sibling overlay, so it survives */
+  body > #root { display: none !important; }
+  .pr-sheet-portal {
+    position: static !important; left: auto !important;
+    overflow: visible !important; max-width: none !important;
+  }
+  .pr-sheet { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .pr-day { break-inside: avoid; page-break-inside: avoid; }
+  .pr-expenses { break-inside: avoid; page-break-inside: avoid; }
+  .pr-trip { break-inside: avoid; }
+  @page { size: A4; margin: 12mm; }
+}
+
+/* ---------- AI panel ---------- */
+.ai-fab {
+  position: fixed;
+  right: calc(18px + var(--safe-area-inset-right, env(safe-area-inset-right, 0px)));
+  bottom: calc(18px + var(--bottom-ui-offset));
+  z-index: var(--z-ai-fab);
+  width: 56px; height: 56px; border-radius: 50%; border: none;
+  background: linear-gradient(135deg, var(--yf-teal-600), var(--yf-navy));
+  color: #fff; font-size: 24px;
+  box-shadow: var(--shadow-glow-teal); display: flex; align-items: center; justify-content: center;
+  transition: transform var(--motion-fast) var(--ease-out);
+}
+@media (hover: hover) {
+  .ai-fab:hover { transform: scale(1.06); }
+}
+.ai-drawer {
+  position: fixed; z-index: var(--z-drawer); right: 0; top: 0; bottom: 0;
+  width: min(420px, 100vw); background: var(--card);
+  border-left: 1px solid var(--line); box-shadow: -12px 0 40px rgba(var(--shadow-navy-rgb),.14);
+  display: flex; flex-direction: column; animation: drawerIn var(--motion-slow) var(--ease-out);
+  /* Edge-to-edge: keep content clear of the landscape home-indicator edge. */
+  padding-right: var(--safe-area-inset-right, env(safe-area-inset-right, 0px));
+}
+.ai-drawer:not(.open) {
+  display: none;
+}
+@keyframes drawerIn { from { transform: translateX(40px); opacity: 0; } to { transform: none; opacity: 1; } }
+/* Header: the trip-hero navy→teal band, so the companion reads as part of the
+   product rather than a bolted-on chat widget. Padding-top is the status-bar inset. */
+.ai-head {
+  display: flex; align-items: center; gap: 11px; padding: 14px 16px; padding-top: calc(14px + var(--safe-area-inset-top, env(safe-area-inset-top, 0px)));
+  background: linear-gradient(135deg, var(--yf-navy) 0%, var(--yf-teal-700) 100%);
+  color: #fff;
+}
+.ai-head-icon {
+  width: 36px; height: 36px; border-radius: 12px; flex: 0 0 auto;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: rgba(255, 255, 255, .16);
+}
+.ai-head b { display: block; font-family: var(--font-display); font-size: 14.5px; letter-spacing: -0.01em; }
+.ai-head-sub { font-size: 12px; color: rgba(255, 255, 255, .78); }
+.ai-head .icon-btn { margin-left: auto; color: #fff; }
+.ai-head .icon-btn:hover { background: rgba(255, 255, 255, .14); }
+.ai-msgs { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 17px 16px; display: flex; flex-direction: column; gap: 11px; scrollbar-width: thin; scrollbar-color: var(--text-3) transparent; }
+.ai-bubble { max-width: 88%; padding: 10px 14px; border-radius: 16px; font-size: 13.5px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: break-word; }
+.ai-bubble.user { align-self: flex-end; background: var(--teal-deep); color: #fff; border-bottom-right-radius: 6px; }
+/* dark lightens --teal-deep to #35C9BC — white on it is 2.11:1; ink passes 7.9 */
+[data-theme='dark'] .ai-bubble.user { color: #06251f; }
+.ai-bubble.bot { align-self: flex-start; background: var(--bg-soft); color: var(--text); border: 1px solid var(--line); border-bottom-left-radius: 6px; }
+.ai-assumption { margin-top: 9px; font-size: 12px; color: var(--text-3); border-top: 1px dashed var(--line); padding-top: 7px; }
+.ai-quick { padding: 10px 14px 8px; border-top: 1px solid var(--line); }
+.ai-quick-scroll { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 5px; scrollbar-width: thin; scrollbar-color: var(--text-3) transparent; -webkit-overflow-scrolling: touch; }
+/* Quick prompts: single-line pills on a scroll rail — never the wrapped
+   ovals a long label used to become inside the pill radius. */
+.ai-quick-scroll .clickable-chip {
+  flex: 0 0 auto; white-space: nowrap;
+  padding: 7px 14px; font-size: 12.5px; line-height: 1.4;
+}
+.ai-input-row { display: flex; gap: 8px; padding: 12px 14px; border-top: 1px solid var(--line); padding-bottom: calc(12px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px))); }
+.typing-dots { display: inline-flex; gap: 4px; padding: 4px 2px; }
+.typing-dots span { width: 6px; height: 6px; border-radius: 50%; background: var(--text-3); animation: blink 1.2s infinite; }
+.typing-dots span:nth-child(2) { animation-delay: .2s; } .typing-dots span:nth-child(3) { animation-delay: .4s; }
+@keyframes blink { 0%,80%,100% { opacity: .25; } 40% { opacity: 1; } }
+/* The companion's two looping/entering motions opt out under reduced motion,
+   like every other animated surface (AGENTS §10). */
+@media (prefers-reduced-motion: reduce) {
+  .typing-dots span { animation: none; opacity: .6; }
+  .ai-drawer { animation: none; }
+}
+
+/* ---------- Notifications ---------- */
+/* Entrance is owned by .popover (the shared family rule at the end of the
+   file). This element carries both classes, they have equal specificity, and
+   .popover comes later — so a local `animation` here loses silently. Declaring
+   none keeps the panel on the house entrance (fade + 4px rise, 180ms). */
+.notif-pop {
+  position: fixed; width: min(360px, 92vw); color: var(--text);
+  overflow: hidden; z-index: var(--z-notif);
+}
+/* The panels receive programmatic focus on open (keyboard tab order); the
+   interactive children carry the visible ring, the container stays clean. */
+.notif-pop:focus, .user-menu:focus { outline: none; }
+.notif-item { padding: 11px 15px; border-bottom: 1px dashed var(--line); font-size: 13px; display: flex; gap: 9px; color: var(--text); }
+.notif-item:hover { background: var(--bg-soft); }
+.notif-item:last-child { border-bottom: none; }
+.notif-item.unread { background: var(--teal-soft); }
+/* #84: the disclosure row under the capped list — full-width, quiet, and
+   separated from the last item by the same dashed rhythm. */
+.notif-showall {
+  display: block; width: 100%; padding: 10px 14px; text-align: center;
+  border: none; border-top: 1px dashed var(--line); background: none;
+  color: var(--teal-deep); font-weight: 700; font-size: 12.5px; cursor: pointer;
+}
+.notif-showall:hover { background: var(--bg-soft); }
+[data-theme='dark'] .notif-showall { color: var(--teal); }
+
+/* ---------- Decisions ---------- */
+.decision-option-row { display: flex; align-items: center; gap: 9px; padding: 7px 0; font-size: 13.5px; }
+.resolve-btns { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+
+/* ---------- Public page ---------- */
+/* ---------- M7: public itinerary editorial hero (§6.11, editorial mockup) ---------- */
+.pub-hero {
+  position: relative; color: #fff; overflow: hidden;
+  /* Room for the practical-bit card, which sits fully INSIDE the hero
+     (`bottom: 16px`) rather than hanging past its edge: the hero's own
+     `overflow: hidden` was clipping a 66px hang away, so two of the four
+     evidence rows ("28h 09m on the road", "10 days") were never painted. */
+  padding: 96px 0 148px;
+  background: linear-gradient(168deg, var(--yf-navy) 0%, #0d4b56 46%, #176e70 74%, #b97a3f 118%);
+}
+.pub-hero-bg {
+  position: absolute; inset: 0; pointer-events: none;
+  /* topographic contour lines + mountain silhouettes, drawn with gradients only.
+     The FIRST layer is a flat scrim over the text zone: `.pub-hero-photo` is a
+     creator's upload, so without it the kicker/title/story/byline contrast is
+     whatever the photo happens to be (measured 2.6-3.1:1 over the Chandratal
+     cover). Worst case is a white photo — rgba(8,22,32,.72) over white clears
+     AA for all three text colours (min 5.43:1); tests/hero-contrast.test.ts
+     pins that from these values. The two radials below stay as the bottom
+     painting: they only reach the stats card, never the text. */
+  background:
+    linear-gradient(180deg, rgba(8, 22, 32, .74) 0%, rgba(8, 22, 32, .72) 62%, rgba(8, 22, 32, 0) 92%),
+    radial-gradient(120% 56% at 50% 118%, rgba(16, 47, 67, .73) 0%, transparent 62%),
+    radial-gradient(96% 48% at 30% 122%, rgba(20, 60, 74, .44) 0%, transparent 58%),
+    repeating-radial-gradient(140% 90% at 78% 8%, transparent 0 38px, rgba(255, 255, 255, .05) 38px 39px);
+}
+.pub-hero-inner { position: relative; z-index: var(--z-content); }
+.pub-hero-back { color: #dff0ec; border-color: rgba(255,255,255,.25); margin-bottom: 12px; }
+.pub-hero-badge {
+  display: inline-block;
+  background: #fff7e6; color: #8e5b21; border-radius: 999px; padding: 5px 12px; margin-bottom: 12px;
+}
+.pub-hero-kicker { font-size: 13px; font-weight: 700; letter-spacing: .04em; color: #a9eadc; margin: 0 0 8px; }
+.pub-hero-title {
+  font-family: var(--font-display); font-size: clamp(28px, 5vw, 52px); font-weight: 800;
+  line-height: 1.12; max-width: 720px; margin: 0;
+}
+.pub-hero-story { font-size: clamp(15px, 1.6vw, 18px); color: #e2f1ef; max-width: 640px; margin: 12px 0 0; line-height: 1.6; }
+/* type specs come from the kicker unification block — colour/margin only here */
+.pub-hero-byline { color: #cfe8e4; margin: 12px 0 0; }
+/* Mid widths only: above 1280px the container is wide enough that the text
+   column and the evidence card's 300px + 24px gutter cannot meet, but between
+   721 and 1279 the title's 720px max-width ran into the card (the byline is
+   capped with it so a long creator name cannot either). */
+@media (max-width: 1279px) {
+  /* Each keeps its own measure and is only ever NARROWED — a plain
+     `min(100%, …)` here would hand the title 816px at a 1200px viewport, wider
+     than the 720px its own rule asks for. */
+  .pub-hero-title { max-width: min(720px, calc(100% - 324px)); }
+  .pub-hero-story { max-width: min(640px, calc(100% - 324px)); }
+  .pub-hero-byline { max-width: calc(100% - 324px); }
+}
+/* "The practical bit" — evidence card floating over the hero's right edge */
+.pub-hero-stats {
+  position: absolute; z-index: var(--z-raised); right: max(20px, calc((100% - 1180px) / 2 + 20px)); bottom: 16px;
+  width: 300px; border-radius: var(--radius-lg); padding: 15px 18px;
+  background: rgba(255, 253, 245, .96); color: var(--text); box-shadow: var(--shadow-soft);
+}
+.pub-stats-label { display: block; font-size: 10.5px; font-weight: 800; letter-spacing: .1em; color: #6b8080; }
+.pub-stats-figure { display: block; font-family: var(--font-display); font-size: 26px; font-weight: 800; color: #14344b; margin-top: 2px; }
+.pub-stats-sub { display: block; font-size: 12px; color: #5c7172; }
+.pub-stats-divider { border: none; border-top: 1px solid #e2e7df; margin: 10px 0 8px; }
+.pub-stats-row { display: grid; gap: 4px; font-size: 12px; color: #607778; }
+/* Dark variant: the floating stats card used to be hardcoded near-white in
+   both themes — the only surface on the page ignoring the theme. */
+[data-theme='dark'] .pub-hero-stats { background: rgba(13, 40, 47, .96); color: #e2f1ef; }
+[data-theme='dark'] .pub-stats-label { color: #8fb5ae; }
+[data-theme='dark'] .pub-stats-figure { color: #e2f1ef; }
+[data-theme='dark'] .pub-stats-sub, [data-theme='dark'] .pub-stats-row { color: #a9c3be; }
+[data-theme='dark'] .pub-stats-divider { border-top-color: rgba(255, 255, 255, .14); }
+/* Locked premium overlay (public itinerary) — single merged rule. The old pair
+   declared `position: absolute; inset: 0` here and `position: relative` later in
+   the file; the later `relative` won the cascade, so this keeps `relative` (the
+   overlay renders in flow). `z-index: 5` is retained — the overlay must stack
+   above sibling stop-cards. `inset: 0` was dropped: a zero offset is a no-op on
+   `position: relative`. */
+.locked-overlay {
+  position: relative; z-index: var(--z-frost);
+  background: color-mix(in srgb, var(--bg) 72%, transparent);
+  -webkit-backdrop-filter: blur(var(--yf-blur-scrim)); backdrop-filter: blur(var(--yf-blur-scrim));
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 11px;
+  border-radius: var(--radius); text-align: center; padding: 20px;
+}
+
+/* ---------- Misc ---------- */
+.empty-state { text-align: center; padding: 44px 20px; color: var(--text-3); }
+.empty-state .big { font-size: 38px; margin-bottom: 10px; }
+.empty-state h2 { font-size: 18px; margin: 0; color: var(--text); }
+/* Empty states get a staged entrance: the one arrival a reader works through
+   rather than around, infrequent enough to earn choreography, and it carries
+   the route out. The markup already carries the chunks (icon, title, body,
+   action), so they cascade on the shared stagger vocabulary. `backwards` fill,
+   per the ticket block's note — a forwards-filled transform leaves a
+   compositor group behind, which blinds backdrop-filter on descendants. */
+@media (prefers-reduced-motion: no-preference) {
+  .empty-state > * { animation: emptyRise var(--motion-slow) var(--ease-out) backwards; }
+  .empty-state > *:nth-child(2) { animation-delay: calc(var(--stagger-step) * 1); }
+  .empty-state > *:nth-child(3) { animation-delay: calc(var(--stagger-step) * 2); }
+  .empty-state > *:nth-child(4) { animation-delay: calc(var(--stagger-step) * 3); }
+  @keyframes emptyRise { from { opacity: 0; transform: translateY(8px); } }
+}
+.section-gap { margin-top: 26px; }
+.row-between { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.muted { color: var(--text-3); }
+.small { font-size: 12.5px; }
+.spinner {
+  width: 26px; height: 26px; border-radius: 50%;
+  border: 3px solid var(--teal-soft); border-top-color: var(--teal);
+  animation: spin .8s linear infinite; margin: 0 auto;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-block { padding: 60px 0; text-align: center; color: var(--text-3); font-weight: 600; }
+.page-head { margin: 26px 0 20px; }
+.page-head h2 { font-family: var(--font-display); font-size: 26px; margin: 0 0 4px; }
+/* The global h1 floors at 26px, so under ~578px the trip-name h1 and this h2
+   rendered the same size — adjacent heading levels, indistinguishable. */
+@media (max-width: 578px) {
+  .page-head h2 { font-size: 21px; }
+}
+.page-head-sub { color: var(--text-2); margin-top: 6px; font-size: 14.5px; max-width: 640px; }
+.divider { border: none; border-top: 1px solid var(--line); margin: 18px 0; }
+/* Heading→body gap without a hairline — the overview cards ran a divider
+   under every heading, which stopped carrying information. */
+.card-head { margin-bottom: 14px; }
+/* `minmax(0, 1fr)`, not a bare `1fr`: a `1fr` track carries `min-width: auto`, so a
+   child with any intrinsic width (a nowrap label, a fixed-width table, an
+   inline-flex chip row) pushes the track past its container and the PAGE scrolls
+   sideways — measured at 390px on Group input, Budget and the public itinerary.
+   `min-width: 0` on the items repeats the guarantee for nested grids. */
+.two-col { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 18px; align-items: start; }
+.two-col > * { min-width: 0; }
+/* Two PEER cards in a row are equal halves — the 340px sidebar column belongs
+   only to a two-col that actually has a sidebar. Nested inside a content
+   column, the sidebar width made the row 424/340 instead of 382/382. */
+.two-col--even { grid-template-columns: 1fr 1fr; }
+.trip-head-card {
+  transition: padding var(--t-med) var(--ease-out);
+  border-radius: var(--radius-lg); padding: 26px 28px; color: #fff;
+  background:
+    radial-gradient(circle at 86% 12%, rgba(245,158,45,.15), transparent 42%),
+    linear-gradient(115deg, var(--yf-navy) 0%, #0B2545 78%);
+  position: relative; overflow: hidden;
+  box-shadow: var(--shadow-soft);
+}
+.trip-head-card::after { content: ''; position: absolute; right: -60px; top: -60px; width: 220px; height: 220px; border-radius: 50%; background: rgba(245,158,45,.10); }
+.trip-head-card h1 { font-family: var(--font-display); transition: font-size var(--t-med) var(--ease-out); }
+.trip-hero-back {
+  border: none; background: none; padding: 0; cursor: pointer;
+  color: rgba(255,255,255,.75); font-size: 11.5px; font-weight: 800;
+  letter-spacing: .08em; text-transform: uppercase; font-family: var(--font-body);
+}
+.trip-hero-back:hover { color: #fff; }
+.trip-hero-back:focus-visible { outline: none; box-shadow: var(--ring); border-radius: 6px; }
+.member-stack { display: flex; align-items: center; }
+.member-stack .avatar { margin-left: -8px; border: 2px solid var(--card); }
+.member-stack .avatar:first-child { margin-left: 0; }
+
+/* ---- M6 B1: presence (who's viewing now) ----
+   Sits inside .member-stack after the count line. Tooltip shows on hover AND
+   keyboard focus (tabIndex=0 on the peer chip), so the name is reachable
+   without a pointer. Entrance rides the motion tokens (dropdown pattern). */
+.presence-stack { display: inline-flex; align-items: center; margin-left: 14px; }
+/* Empty presence room: inherits the head card's text colour at the same opacity
+   as the member count beside it, so it needs no token of its own. */
+.presence-solo { opacity: .85; }
+.presence-peer { position: relative; display: inline-flex; align-items: center; margin-left: -8px; }
+.presence-peer:first-child { margin-left: 0; }
+.presence-peer .avatar { border: 2px solid var(--card); }
+.presence-peer:focus-visible { outline: none; border-radius: 999px; box-shadow: var(--ring); }
+.presence-dot { position: absolute; right: -1px; bottom: -1px; width: 9px; height: 9px; border-radius: 999px; background: var(--ok); border: 2px solid var(--card); }
+.presence-tip {
+  position: absolute; left: 50%; bottom: calc(100% + 7px); transform: translateX(-50%) translateY(2px);
+  background: var(--card); color: var(--text); border: 1px solid var(--line);
+  border-radius: 8px; padding: 4px 9px; font-size: 12px; font-weight: 600; white-space: nowrap;
+  box-shadow: 0 6px 20px rgba(0,0,0,.18);
+  opacity: 0; pointer-events: none; z-index: 80;
+  transition: opacity var(--motion-fast) var(--ease-out), transform var(--motion-fast) var(--ease-out);
+}
+.presence-peer:hover .presence-tip, .presence-peer:focus-visible .presence-tip { opacity: 1; transform: translateX(-50%) translateY(0); }
+@media (prefers-reduced-motion: reduce) { .presence-tip { transition: none; } }
+/* The compact glass variant of `.select` (member rows on Share): same
+   appearance:none + custom-chevron technique, pill-shaped and sized for
+   inline use. The chevron is a gradient pair rather than `.select`'s SVG
+   because it scales with the 5px pill row. */
+.role-select {
+  appearance: none; -webkit-appearance: none;
+  padding: 5px 26px 5px 10px; border-radius: 999px;
+  border: 1px solid var(--yf-glass-border); background-color: var(--yf-glass);
+  -webkit-backdrop-filter: blur(var(--yf-blur-chip)); backdrop-filter: blur(var(--yf-blur-chip));
+  /* soft teal chevron replacing the native OS arrow */
+  background-image:
+    linear-gradient(45deg, transparent 49%, var(--teal-deep) 50%),
+    linear-gradient(-135deg, transparent 49%, var(--teal-deep) 50%);
+  background-position: calc(100% - 15px) 55%, calc(100% - 11px) 55%;
+  background-size: 5px 5px; background-repeat: no-repeat;
+  font-size: 12.5px; font-weight: 600; color: var(--text-2); cursor: pointer;
+  box-shadow: var(--shadow-sm); transition: border-color var(--t-fast) var(--ease-out), box-shadow var(--t-fast) var(--ease-out);
+}
+.role-select:hover { border-color: var(--teal); }
+.share-link-box { display: flex; gap: 8px; align-items: center; background: var(--bg-soft); border-radius: var(--radius-sm); padding: 9px 12px; font-size: 13px; overflow: hidden; }
+.share-link-box code { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; font-size: 12px; }
+/* Invite code chip: the short "GOA-K7QF" code, styled like a boarding-pass
+   stub — big, letter-spaced, with a copy button right next to it. */
+.invite-code-chip { display: inline-flex; gap: 10px; align-items: center; background: var(--bg-soft); border: 1px dashed var(--teal); border-radius: var(--radius-sm); padding: 8px 12px; }
+.invite-code-text { font-size: 17px; font-weight: 700; letter-spacing: 0.12em; }
+.footer { position: relative; border-top: 1px solid var(--line); padding: 26px 0 34px; margin-top: 50px; color: var(--text-3); font-size: 13px; }
+
+/* ---------- App shell / nav extras ---------- */
+/* .topnav-inner and .topnav .container.topnav-inner are declared once, in the
+   topnav block at the top of the file. Restating them here duplicated both
+   selectors (a ratchet entry) without changing a single computed value. */
+.nav-right { margin-left: auto; display: flex; align-items: center; gap: 9px; position: relative; z-index: var(--z-raised); }
+/* CTI control tray: theme / bell / avatar (and the mobile hamburger) cluster
+   inside one soft pill, echoing the nav pill itself. */
+.nav-pill-group {
+  display: flex; align-items: center; gap: 2px; padding: 4px;
+  background: var(--yf-cream);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+}
+.nav-pill-group .theme-toggle,
+.nav-pill-group .icon-btn,
+.nav-pill-group .mobile-nav-btn { background: transparent; border-color: transparent; }
+.nav-pill-group .theme-toggle:hover,
+.nav-pill-group .icon-btn:hover,
+.nav-pill-group .mobile-nav-btn:hover { background: rgba(15, 40, 35, .06); }
+[data-theme='dark'] .nav-pill-group .theme-toggle:hover,
+[data-theme='dark'] .nav-pill-group .icon-btn:hover,
+[data-theme='dark'] .nav-pill-group .mobile-nav-btn:hover { background: rgba(255, 255, 255, .08); }
+.theme-toggle { background: var(--bg-soft); border: 1.5px solid var(--line); border-radius: 50%;
+  width: 40px; height: 40px; cursor: pointer; font-size: 17px; flex: 0 0 auto; }
+.avatar-btn { background: none; border: none; cursor: pointer; padding: 0; border-radius: 50%; flex: 0 0 auto;
+  min-width: 40px; min-height: 40px; display: inline-flex; align-items: center; justify-content: center; }
+.user-menu { position: fixed; color: var(--text);
+  min-width: 220px; z-index: var(--z-nav-glass); overflow: hidden; }
+/* Glass is translucent, so mid-gray text that reads fine on solid cards goes
+   muddy here — lift panel text one step (email/empty-state use .muted). */
+.user-menu .muted, .notif-pop .muted { color: var(--text-2); }
+.user-menu-item { display: block; width: 100%; text-align: left; background: none; border: none;
+  cursor: pointer; padding: 11px 15px; font-size: 13.5px; font-weight: 600; color: var(--text); }
+.user-menu-item:hover { background: var(--bg-soft); color: var(--text); }
+.user-menu-item.danger { color: var(--danger-600); }
+[data-theme='dark'] .user-menu-item.danger { color: var(--danger-500); }
+/* #90: white on saffron measured 2.14:1 (light) / 1.97:1 (dark) — both fail.
+   Dark ink on the same bright fill (5.5:1+) fixes both themes in one rule;
+   same lightness-not-hue move as .clickable-chip.on-teal. */
+.notif-badge { position: absolute; top: -4px; right: -4px; background: var(--saffron); color: #06251F;
+  border-radius: 999px; font-size: 10px; font-weight: 800; min-width: 17px; height: 17px; line-height: 17px; }
+
+/* ---------- Footer ---------- */
+.footer-inner { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+
+/* ---------- Pages ---------- */
+/* Auth composes its own canvas rather than parking a card at the top of one.
+   #main already stretches (inline flex:1 on <main>), but it is a plain block
+   and the page sits one level deeper inside .route-panel — so the height has
+   to be handed down the chain, and a percentage on the wrap resolves against
+   nothing. Scoped with :has() to the one route that owns an .auth-wrap, so no
+   other page's flow is touched. */
+main:has(.auth-wrap) { display: flex; flex-direction: column; }
+main:has(.auth-wrap) .route-panel { flex: 1; display: flex; flex-direction: column; }
+.auth-wrap { display: flex; justify-content: center; align-items: center; flex: 1; padding: 54px 18px; }
+.form-page { max-width: 1080px; padding-top: 26px; padding-bottom: 30px; }
+/* #86: Profile's single-column content — readable measure, no empty grid gutter. */
+.profile-col { max-width: 720px; }
+/* The filter bar's own backdrop-filter (.glass-soft) makes it a stacking
+   context, so the .cselect menu opened inside it was trapped at the bar's rung
+   — and every card below is positioned, so they painted over the open menu:
+   the last two budget options hit-tested into .featured-body, invisible and
+   unclickable, while the menu's first three rows stayed reachable. The HOST
+   claims a rung; raising the popup cannot escape its ancestor's context. */
+.filterbar-host { position: relative; z-index: var(--z-frost); }
+.trip-card-hit { all: unset; cursor: pointer; display: block; border-radius: inherit; }
+
+/* Trip card emoji cover */
+/* `position: relative` + `overflow: hidden` mirror .itin-cover: the shared
+   .itin-cover-fallback is absolutely positioned, so without a positioned
+   ancestor here the short-variant card's emoji escaped its cover box and
+   painted over the trip title below it. */
+.itin-emoji {
+  position: relative; overflow: hidden;
+  aspect-ratio: 16 / 7; display: flex; align-items: center; justify-content: center;
+  font-size: 52px; background: linear-gradient(135deg, var(--teal-soft), var(--bg-soft));
+  border-bottom: 1px solid var(--line);
+}
+[data-theme='dark'] .itin-emoji { background: linear-gradient(135deg, var(--teal-soft), var(--info-soft)); }
+
+/* ---- Cover image picker (trip settings + create) ---- */
+.cover-picker { display: flex; flex-direction: column; gap: 10px; }
+.cover-picker-preview {
+  width: 100%; aspect-ratio: 16 / 7; border-radius: 14px; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, var(--teal-soft), var(--bg-soft));
+  border: 1px solid var(--line);
+}
+[data-theme='dark'] .cover-picker-preview { background: linear-gradient(135deg, var(--teal-soft), var(--info-soft)); }
+.cover-picker-emoji { font-size: 46px; }
+.cover-picker-controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.cover-picker-custom { display: flex; gap: 6px; flex: 1; min-width: 220px; }
+
+/* ---- Workspace header cover badge ---- */
+.trip-cover-badge {
+  width: 46px; height: 46px; border-radius: 12px; flex: 0 0 auto;
+  background: var(--teal-soft); border: 1px solid var(--line);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 24px; overflow: hidden;
+}
+.trip-cover-badge--emoji { background: linear-gradient(135deg, var(--teal-soft), var(--bg-soft)); }
+
+/* ---- Public itinerary hero photo ---- */
+.pub-hero-photo {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: cover; opacity: .42; z-index: var(--z-under);
+}
+
+/* Locked premium CTA (public itinerary) — rule merged into .locked-overlay above */
+.locked-cta { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; text-align: center; gap: 6px; background: rgba(250,247,242,.55); -webkit-backdrop-filter: blur(1.5px); backdrop-filter: blur(1.5px); padding: 16px; }
+[data-theme='dark'] .locked-cta { background: rgba(11,20,35,.55); }
+
+/* Consistent vertical rhythm between stacked cards & sections */
+.day-section + .day-section { margin-top: 22px; }
+.card h3 + hr.divider, .card h2 + hr.divider { margin-top: 12px; }
+

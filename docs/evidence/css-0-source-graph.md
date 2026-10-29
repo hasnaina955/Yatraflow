@@ -108,9 +108,8 @@ relocation fixture proves this directly.
 
 - The reader costs about 100 ms per load on the current sheet. Checks pay it
   once per file.
-- CSS-1 to CSS-3 are not started. The accepted appearance lives in an
-  uncommitted redesign tree, and that tree writes `src/styles.css` while this
-  stage runs. A migration needs one frozen fingerprint first.
+- CSS-1 landed after this stage on the committed checkpoint. See
+  [css-1-extraction.md](css-1-extraction.md). CSS-2 and CSS-3 are not started.
 - Empty imported files contribute no whitespace to the flattened text.
 
 ## Rollback

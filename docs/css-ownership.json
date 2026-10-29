@@ -33,7 +33,11 @@
       "configClasses": [
         "card"
       ],
-      "variables": []
+      "variables": [
+        "--card-surface",
+        "--card-border-color",
+        "--card-radius"
+      ]
     },
     {
       "id": "button",
@@ -122,13 +126,10 @@
     },
     "reducedMotionRules": 226,
     "configAppearanceKeys": [
-      "src/styles/legacy/01-foundations.css::.bento .card, .bento .stat-tile::border-radius",
-      "src/styles/legacy/01-foundations.css::.bento .card, .bento .stat-tile::box-shadow",
+      "src/styles/legacy/01-foundations.css::.bento .card::box-shadow",
       "src/styles/legacy/01-foundations.css::.btn::after, .icon-btn::after, .chip::after, .clickable-chip::after, .toast-action::after, .tab-btn::after, .map-legend-toggle::after, .nav-link::after, .link-btn::after, .move-btn::after, .board-pulse-link::after, .cal-day::after, .cal-nav::after, .route-btn::after, .vote-btn::after, .yf-map-idea-add::after, .poi-short::after, .poi-cand-add::after, .poi-fold::after, .save-heart::after, .yf-maplibre .yf-map-ctrls button::after, .day-collapse::after::border-radius",
       "src/styles/legacy/01-foundations.css::.btn::after, .icon-btn::after, .chip::after, .clickable-chip::after, .toast-action::after, .tab-btn::after, .map-legend-toggle::after, .nav-link::after, .link-btn::after, .move-btn::after, .board-pulse-link::after, .cal-day::after, .cal-nav::after, .route-btn::after, .vote-btn::after, .yf-map-idea-add::after, .poi-short::after, .poi-cand-add::after, .poi-fold::after, .save-heart::after, .yf-maplibre .yf-map-ctrls button::after, .day-collapse::after::content",
-      "src/styles/legacy/02-select-and-print.css::.bezel > .card, .bezel > .created-card::border-color",
-      "src/styles/legacy/02-select-and-print.css::.bezel > .card, .bezel > .created-card::border-radius",
-      "src/styles/legacy/02-select-and-print.css::.bezel > .card, .bezel > .created-card::box-shadow",
+      "src/styles/legacy/02-select-and-print.css::.bezel > .card::box-shadow",
       "src/styles/legacy/04-mobile-usability.css::.bench-dock .btn::padding",
       "src/styles/legacy/04-mobile-usability.css::.hero .btn, .hero .btn::after::animation",
       "src/styles/legacy/04-mobile-usability.css::.hero .btn, .hero .btn::after::box-shadow",

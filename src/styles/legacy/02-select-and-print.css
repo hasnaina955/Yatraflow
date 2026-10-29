@@ -1231,7 +1231,12 @@ button.board-col-zone--add:active { transform: translateY(1px); }
    cards) and `.created-card` (TripCreated's two generic cards - the billcard is
    deliberately not one of them). A surface that wants the bezel adds its plate
    class here rather than restating the recipe. */
-.bezel > .card,
+.bezel > .card {
+  flex: 1;
+  --card-border-color: transparent;
+  --card-radius: calc(2rem - 7px);
+  box-shadow: inset 0 1px 0 var(--yf-glass-sheen);
+}
 .bezel > .created-card {
   flex: 1;
   border-color: transparent;

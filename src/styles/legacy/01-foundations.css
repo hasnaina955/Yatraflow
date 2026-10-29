@@ -98,7 +98,8 @@ html { overflow-x: clip; }
 
 /* ---------- Overview Bento briefing (CTI §6.2) ---------- */
 /* Large-radius, softly-shadowed cards; the briefing reads as tiles, not a form. */
-.bento .card, .bento .stat-tile { border-radius: var(--radius-lg); box-shadow: var(--shadow-soft); }
+.bento .card { --card-radius: var(--radius-lg); box-shadow: var(--shadow-soft); }
+.bento .stat-tile { border-radius: var(--radius-lg); box-shadow: var(--shadow-soft); }
 
 /* Trip Health big-number layout (mockup): number, horizontal bar, reasons */
 .health-big { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }

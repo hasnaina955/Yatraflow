@@ -303,18 +303,42 @@ The real figure is 60, down from 89.
 
 The audit compares the current keys against the frozen pre-B3 commit `e2048a1e`. It reads each declaration out of that commit, so "unchanged" is proven rather than assumed.
 
-| Measure | Count |
-|---|---|
-| Keys at `e2048a1e` | 89 |
-| Keys now | 60 |
-| Added | 7 |
-| Removed as stale | 36 |
-| Added keys whose value changed | 0 |
-| Added keys absent at the frozen commit | 0 |
+| Measure | After B3 | After B4 |
+|---|---|---|
+| Keys at `e2048a1e` | 89 | 89 |
+| Keys now | 60 | 65 |
+| Added | 7 | 12 |
+| Removed as stale | 36 | 36 |
+| Added keys whose value changed | 0 | 0 |
+| Added keys absent at the frozen commit | 0 | 0 |
 
-All 7 added keys are unchanged, pre-existing declarations in legacy files. Six are `font-size` and `font-weight` that stay declared by design, because the sheet sets type on the element selector. The other two are `appearance: textfield` and `border: 0` on the fuel grid input.
+### The seven keys B3 added
 
-No declaration changed value, so the batch introduced no violation and none was grandfathered.
+Five are typography declarations that stay declared by design, because the sheet sets type on the element selector `input, select, textarea`. Two are other properties on one input.
+
+| File | Selector | Property | Value |
+|---|---|---|---|
+| `05-share-and-trip-ticket.css` | `.unit-input .input` | `font-size` | `16px` |
+| `05-share-and-trip-ticket.css` | `.unit-input .input` | `font-weight` | `600` |
+| `08-map-review.css` | `.day-slot-search .input` | `font-size` | `13px` |
+| `13-phone-polish-and-guided-create.css` | `.gcf :is(.input, .loc-input, .namebox-in)` | `font-size` | `15px` |
+| `13-phone-polish-and-guided-create.css` | `.gcf :is(.input, .loc-input, .namebox-input)` | `font-size` | `16px` |
+| `13-phone-polish-and-guided-create.css` | `.gcf-fuel-grid .input` | `appearance` | `textfield` |
+| `13-phone-polish-and-guided-create.css` | `.gcf-fuel-grid .input` | `border` | `0` |
+
+### The five keys B4 added
+
+The `.card` registration in B4 brought its page rules under the rule. All five are unchanged pre-existing declarations.
+
+| File | Selector | Property | Value |
+|---|---|---|---|
+| `01-foundations.css` | `.bento .card, .bento .stat-tile` | `border-radius` | `var(--radius-lg)` |
+| `01-foundations.css` | `.bento .card, .bento .stat-tile` | `box-shadow` | `var(--shadow-soft)` |
+| `02-select-and-print.css` | `.bezel > .card, .bezel > .created-card` | `border-color` | `transparent` |
+| `02-select-and-print.css` | `.bezel > .card, .bezel > .created-card` | `border-radius` | `calc(2rem - 7px)` |
+| `02-select-and-print.css` | `.bezel > .card, .bezel > .created-card` | `box-shadow` | `inset 0 1px 0 var(--yf-glass-sheen)` |
+
+No declaration changed value in either stage, so no batch introduced a violation and none was grandfathered.
 
 ## Painted comparison
 

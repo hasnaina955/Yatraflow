@@ -212,7 +212,12 @@
       "src/styles/legacy/17-overview-tiles-and-cover.css::.ovw2 .btn.btn-sm, .ovw-weather .btn.btn-sm::padding-inline"
     ],
     "configVariableDebt": [
-      "src/styles/legacy/13-phone-polish-and-guided-create.css::.container.trip-starter::--choice-tint"
+      {
+        "file": "src/styles/legacy/13-phone-polish-and-guided-create.css",
+        "selector": ".container.trip-starter",
+        "variable": "--choice-tint",
+        "reason": "Page token consumed by .trip-starter descendants. The container never reads it. It is assigned on the container because the container is the page root, so it is not container configuration."
+      }
     ]
   }
 }

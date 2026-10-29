@@ -288,7 +288,7 @@ describe('css ownership: a page cannot restyle the button', () => {
   const ENTRY_BTN = `@import './styles/components/button.css';\n@import './styles/legacy/12-pages.css';\n`
   const RECIPE = `.btn { display: inline-flex; padding: 9px 17px; border-radius: 999px; }\n`
 
-  function buttonRun(pageCss, keys = []) {
+  function buttonRun(pageCss, keys = [], variableDebt = []) {
     const root = fixture({
       'docs/css-ownership.json': JSON.stringify({
         entry: 'src/styles.css',
@@ -296,7 +296,7 @@ describe('css ownership: a page cannot restyle the button', () => {
           { id: 'button', file: BUTTON, owned: [], configClasses: ['btn', 'btn-sm'], variables: ['--btn-radius'] },
         ],
         legacy: [PAGE],
-        baselines: { configAppearanceKeys: keys },
+        baselines: { configAppearanceKeys: keys, configVariableDebt: variableDebt },
       }),
       'src/styles.css': ENTRY_BTN,
       [BUTTON]: RECIPE,
@@ -326,6 +326,37 @@ describe('css ownership: a page cannot restyle the button', () => {
     expect(findings[0].code).toBe('config-variable')
     expect(findings[0].prop).toBe('--btn-anything')
     expect(findings[0].message).toContain('does not document')
+  })
+
+  it('rejects a variable exception that matches nothing', () => {
+    const stale = {
+      file: PAGE,
+      selector: '.hero .btn',
+      variable: '--btn-retired',
+      reason: 'was needed once',
+    }
+    const findings = buttonRun(`.hero .btn { flex: 1; }\n`, [], [stale])
+    expect(findings).toHaveLength(1)
+    expect(findings[0].code).toBe('config-variable-stale')
+  })
+
+  it('rejects a variable exception that does not name its target', () => {
+    const findings = buttonRun(`.hero .btn { flex: 1; }\n`, [], [{ file: PAGE }])
+    expect(findings).toHaveLength(1)
+    expect(findings[0].code).toBe('config-variable-malformed')
+  })
+
+  it('still fails an unlisted variable when another one is excepted', () => {
+    const excepted = {
+      file: PAGE,
+      selector: '.hero .btn',
+      variable: '--btn-anything',
+      reason: 'documented exception for this fixture',
+    }
+    const findings = buttonRun(`.hero .btn { --btn-anything: 1px; --btn-other: 2px; }\n`, [], [excepted])
+    expect(findings).toHaveLength(1)
+    expect(findings[0].code).toBe('config-variable')
+    expect(findings[0].prop).toBe('--btn-other')
   })
 
   it('accepts a registered historical repair and rejects one more', () => {

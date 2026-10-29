@@ -231,20 +231,41 @@ export function checkOwnership(graph, map, root = process.cwd()) {
  * in the map forever and quietly inflate the debt figure.
  */
 export function applyAppearanceBaseline(findings, baselines = {}) {
-  const allowed = new Set(baselines.configAppearanceKeys ?? [])
-  const variableDebt = new Set(baselines.configVariableDebt ?? [])
-  const used = new Set()
+  const appearanceAllowed = new Set(baselines.configAppearanceKeys ?? [])
+
+  // A variable exception names its file, selector and variable, and says why.
+  // A bare key would let an exception hide which part of it is the exception.
+  const variableAllowed = new Map()
+  const malformed = []
+  for (const entry of baselines.configVariableDebt ?? []) {
+    const ok =
+      entry && typeof entry === 'object' && entry.file && entry.selector && entry.variable && entry.reason
+    if (!ok) {
+      malformed.push(entry)
+      continue
+    }
+    variableAllowed.set(`${entry.file}::${entry.selector}::${entry.variable}`, entry)
+  }
+
+  const usedAppearance = new Set()
+  const usedVariable = new Set()
 
   const kept = findings.filter((f) => {
-    if (f.code === 'config-variable' && variableDebt.has(f.key)) return false
-    if (f.code !== 'config-appearance') return true
-    if (!allowed.has(f.key)) return true
-    used.add(f.key)
-    return false
+    if (f.code === 'config-appearance') {
+      if (!appearanceAllowed.has(f.key)) return true
+      usedAppearance.add(f.key)
+      return false
+    }
+    if (f.code === 'config-variable') {
+      if (!variableAllowed.has(f.key)) return true
+      usedVariable.add(f.key)
+      return false
+    }
+    return true
   })
 
-  for (const key of allowed) {
-    if (used.has(key)) continue
+  for (const key of appearanceAllowed) {
+    if (usedAppearance.has(key)) continue
     const [file] = key.split('::')
     kept.push({
       code: 'config-baseline-stale',
@@ -253,6 +274,29 @@ export function applyAppearanceBaseline(findings, baselines = {}) {
       selector: '',
       key,
       message: `"${key}" is registered as appearance debt but matches no declaration. Delete it from the map.`,
+    })
+  }
+
+  for (const [key, entry] of variableAllowed) {
+    if (usedVariable.has(key)) continue
+    kept.push({
+      code: 'config-variable-stale',
+      file: entry.file,
+      line: 1,
+      selector: entry.selector,
+      key,
+      message: `"${key}" is registered as a variable exception but matches no declaration. Delete it from the map.`,
+    })
+  }
+
+  for (const entry of malformed) {
+    kept.push({
+      code: 'config-variable-malformed',
+      file: 'docs/css-ownership.json',
+      line: 1,
+      selector: '',
+      key: JSON.stringify(entry ?? null),
+      message: 'A configVariableDebt entry needs file, selector, variable and reason. Each exception must name its exact target.',
     })
   }
 

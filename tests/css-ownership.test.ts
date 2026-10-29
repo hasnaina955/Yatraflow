@@ -309,6 +309,15 @@ describe('css ownership: a page cannot restyle the button', () => {
     expect(findings).toEqual([])
   })
 
+  it('rejects an arbitrary custom property that the owner does not document', () => {
+    // A custom property must not be a free pass around the ownership rule.
+    const findings = buttonRun(`.hero .btn { --btn-anything: 1px; }\n`)
+    expect(findings).toHaveLength(1)
+    expect(findings[0].code).toBe('config-variable')
+    expect(findings[0].prop).toBe('--btn-anything')
+    expect(findings[0].message).toContain('does not document')
+  })
+
   it('accepts a registered historical repair and rejects one more', () => {
     const key = `${PAGE}::.hero .btn::border-radius`
     const one = buttonRun(`.hero .btn { border-radius: 0; }\n`, [key])

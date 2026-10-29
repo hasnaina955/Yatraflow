@@ -37,7 +37,8 @@
         "--btn-font-size",
         "--btn-weight",
         "--btn-tracking",
-        "--btn-transition"
+        "--btn-transition",
+        "--btn-active-transform"
       ]
     },
     {

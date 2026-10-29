@@ -133,7 +133,18 @@ export function checkOwnership(graph, map, root = process.cwd()) {
       const config = map.configByClass.get(token)
       if (config && file !== config.file) {
         for (const decl of rule.declarations ?? []) {
-          if (isCustomProp(decl.prop)) continue
+          // A page may set a variable only when the owner documents it. Without
+          // this, any custom property would be a free pass around the rule.
+          if (isCustomProp(decl.prop)) {
+            const allowed = config.variables ?? []
+            if (allowed.includes(decl.prop)) continue
+            add(
+              'config-variable', file, decl.line ?? rule.line, rule.selectorNormalized,
+              `.${token} does not document "${decl.prop}". A page may set only ${allowed.join(', ') || 'no variables'}. Add the variable to ${config.file} and to the map first.`,
+              { prop: decl.prop, key: `${file}::${rule.selectorNormalized}::${decl.prop}` },
+            )
+            continue
+          }
           if (ALLOWED_ON_CONFIG.has(decl.prop)) continue
           add(
             'config-appearance', file, decl.line ?? rule.line, rule.selectorNormalized,

@@ -147,3 +147,24 @@ No browser check has run for B1.
 Both themes and the reduced-motion path are proven at the declaration level only.
 
 Rollback: move the fourteen blocks back to their source files. Restore the entry import. Restore the token baseline in the ownership map.
+
+## B2 inventory: .btn is three things, not one
+
+Fifty-seven rules name `.btn`. They split three ways.
+
+**The shared recipe.** `legacy/01-foundations.css:334-346` holds the base appearance and its states. It declares display, gap, radius, border, type, padding and transition, then `:active`, `:disabled`, `a.btn` and `:focus-visible`. This is the component.
+
+**Duplicated page-scale recipes.** `legacy/10-explore.css:23` and `legacy/11-shared-page.css:1037` declare the same seven properties. One is scoped to `:is(.ex-page, .trips-page)`. The other is scoped to `:is(.yf-page)`. Both exclude `.btn-sm` and modal descendants through `:where()`. The same recipe is written twice under two page scopes.
+
+**Page placement.** The other rules place a button inside a page. Examples are `.hero .btn`, `.nav-right .btn`, `.bench-dock .btn`, `.gcf .btn`, `.mt-hero-secondary > .btn` and `.offline-recovery-actions .btn`. About twenty more do the same. These are page composition. They may stay.
+
+Variants are small. `.btn-sm` has 4 rules, `.btn-primary` 2 and `.btn-saffron` 2.
+
+Conditional contexts on `.btn`: reduced motion 8 rules, `max-width: 720px` 3, coarse pointer 2. The rest cover 560, 640, 440 and 350 pixels, plus one `min-width: 720px` case.
+
+### What this means for the batch
+
+A move of all 57 rules into a component module would drag page layout into the component. That breaks the boundary the check enforces. The batch moves only the recipe and its states. Page placement stays where it is. The check then stops a page from setting appearance on `.btn`.
+
+One rule needs care. `legacy/04-mobile-usability.css:496` sets `transition` on a shared list: `.btn, .tab-btn, .board-fit, .board-pulse-link`. That list spans three families. It must split without changing which declarations each selector receives.
+

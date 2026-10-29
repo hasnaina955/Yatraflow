@@ -552,9 +552,6 @@
    as a fallback: a stack on a page outside those scopes still tones instead of
    painting transparent. Both themes clear AA — see the ratio table in
    DESIGN_TOKENS.md, and tests/avatar-tone.test.ts computes them from the tokens. */
-.avatar.tone-sea { background: var(--pw-sea-700, #0B5F67); color: var(--pw-on-sea, #FFFFFF); }
-.avatar.tone-marigold { background: var(--pw-marigold-500, #F2A33A); color: var(--pw-on-marigold, #142329); }
-.avatar.tone-bloom { background: var(--pw-bloom-500, #C9475E); color: var(--pw-on-bloom, #FFFFFF); }
 
 /* The stack's cut: a ring in the surface colour, so overlapping circles stay
    separate without a hard outline. The 8px overlap is the mockup's own

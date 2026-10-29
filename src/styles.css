@@ -7,6 +7,7 @@
 @import './styles/components/card.css';
 @import './styles/legacy/02-select-and-print.css';
 @import './styles/components/chip.css';
+@import './styles/components/avatar.css';
 @import './styles/legacy/03-maplibre.css';
 @import './styles/legacy/04-mobile-usability.css';
 @import './styles/components/select.css';

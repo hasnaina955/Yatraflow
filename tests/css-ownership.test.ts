@@ -255,6 +255,7 @@ describe('css ownership: the real repository is clean', () => {
       'button',
       'select',
       'search-field',
+      'avatar',
     ])
     for (const file of [
       'src/styles/tokens.css',
@@ -265,6 +266,7 @@ describe('css ownership: the real repository is clean', () => {
       'src/styles/components/button.css',
       'src/styles/components/select.css',
       'src/styles/components/search-field.css',
+      'src/styles/components/avatar.css',
     ]) {
       expect(map.ownerFiles.has(file), `${file} is not registered`).toBe(true)
     }

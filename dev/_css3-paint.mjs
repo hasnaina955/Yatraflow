@@ -109,6 +109,13 @@ const CASES = [
     theme: 'dark',
     width: 640,
   },
+  {
+    id: 'avatar-tones-and-stack',
+    risk: 'circular clip, tone fill and ink, and the overlapped member stack',
+    html: `<div class="wrap"><div class="member-stack"><span class="avatar tone-sea">AB</span><span class="avatar tone-marigold">CD</span><span class="avatar tone-bloom">EF</span><span class="avatar lg">GH</span></div></div>`,
+    theme: 'dark',
+    width: 640,
+  },
 ]
 
 const page = (css, c) =>

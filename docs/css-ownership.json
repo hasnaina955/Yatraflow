@@ -150,7 +150,11 @@
         "modal-overlay",
         "modal-full"
       ],
-      "variables": []
+      "variables": [
+        "--dialog-max-width",
+        "--dialog-max-height",
+        "--dialog-max-height-dvh"
+      ]
     }
   ],
   "legacy": [

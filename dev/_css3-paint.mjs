@@ -116,6 +116,13 @@ const CASES = [
     theme: 'dark',
     width: 640,
   },
+  {
+    id: 'dialog-sheet-phone',
+    risk: 'bottom-sheet radius, scrim and stacked layering at phone width',
+    html: `<div class="modal-overlay"><div class="modal" role="dialog" aria-modal="true"><div class="modal-head"><h2>Dialog title</h2><button class="icon-btn" aria-label="Close">×</button></div><div><p>First paragraph inside the body.</p><div style="display:flex;gap:8px;margin-top:12px"><button class="btn btn-primary">Confirm</button><button class="btn btn-outline">Cancel</button></div></div></div></div>`,
+    theme: 'dark',
+    width: 390,
+  },
 ]
 
 const page = (css, c) =>

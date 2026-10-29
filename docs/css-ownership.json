@@ -1,0 +1,72 @@
+{
+  "$comment": "CSS ownership map. Read by scripts/css-ownership.mjs. One responsibility, one owner. Register a family here when its batch lands, and lower the matching baseline in the same commit.",
+  "entry": "src/styles.css",
+  "owners": [
+    {
+      "id": "select",
+      "file": "src/styles/components/select.css",
+      "owned": [
+        "select",
+        "cselect",
+        "cselect-trigger",
+        "cselect-label",
+        "cselect-ico",
+        "cselect-pop",
+        "cselect-option",
+        "cselect-check"
+      ],
+      "configClasses": ["ex-select", "ex-select--sort"],
+      "variables": ["--select-leading-space"]
+    },
+    {
+      "id": "search-field",
+      "file": "src/styles/components/search-field.css",
+      "owned": [
+        "ex-search",
+        "ex-search-icon",
+        "ex-search-input",
+        "ex-search-clear"
+      ],
+      "configClasses": [],
+      "variables": ["--search-field-flex"]
+    }
+  ],
+  "legacy": [
+    "src/styles/legacy/01-foundations.css",
+    "src/styles/legacy/02-select-and-print.css",
+    "src/styles/legacy/03-maplibre.css",
+    "src/styles/legacy/04-mobile-usability.css",
+    "src/styles/legacy/05-share-and-trip-ticket.css",
+    "src/styles/legacy/06-shell-and-consistency.css",
+    "src/styles/legacy/07-workspace-and-unlock.css",
+    "src/styles/legacy/08-map-review.css",
+    "src/styles/legacy/09-trips-list.css",
+    "src/styles/legacy/10-explore.css",
+    "src/styles/legacy/11-shared-page.css",
+    "src/styles/legacy/12-pages.css",
+    "src/styles/legacy/13-phone-polish-and-guided-create.css",
+    "src/styles/legacy/14-art-and-workspace-header.css",
+    "src/styles/legacy/15-overview.css",
+    "src/styles/legacy/16-motion-and-cover-v2.css",
+    "src/styles/legacy/17-overview-tiles-and-cover.css"
+  ],
+  "baselines": {
+    "$comment": "Grandfathered debt, measured at 699fbe28. A batch lowers its own numbers. Nothing may rise.",
+    "customPropertyFiles": {
+      "src/styles/legacy/01-foundations.css": 141,
+      "src/styles/legacy/04-mobile-usability.css": 2,
+      "src/styles/legacy/06-shell-and-consistency.css": 16,
+      "src/styles/legacy/11-shared-page.css": 10,
+      "src/styles/legacy/13-phone-polish-and-guided-create.css": 44,
+      "src/styles/legacy/15-overview.css": 213,
+      "src/styles/legacy/16-motion-and-cover-v2.css": 6
+    },
+    "importantByFile": {
+      "src/styles/legacy/02-select-and-print.css": 8,
+      "src/styles/legacy/04-mobile-usability.css": 14,
+      "src/styles/legacy/13-phone-polish-and-guided-create.css": 4,
+      "src/styles/legacy/16-motion-and-cover-v2.css": 5
+    },
+    "reducedMotionRules": 226
+  }
+}

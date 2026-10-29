@@ -14,6 +14,7 @@
     "check:migrations": "node scripts/checkMigrations.mjs",
     "clean:env": "node scripts/clean-env.mjs",
     "check:ui": "node scripts/uiAntipatterns.mjs",
+    "check:css": "node scripts/css-ownership.mjs",
     "art:build": "node scripts/build-art.mjs",
     "check:motion": "npm run build && node scripts/browser-motion-check.mjs",
     "probe:landing-overflow": "node scripts/landing-overflow-probe.mjs",
@@ -21,7 +22,7 @@
     "lint": "eslint src",
     "lint:ratchet": "node scripts/lint-ratchet.mjs",
     "lint:ste": "node scripts/lint-ste.mjs",
-    "verify": "tsc -b --clean && tsc -b && npm run lint:ratchet && npm run lint:ste && npm test && vite build",
+    "verify": "tsc -b --clean && tsc -b && npm run lint:ratchet && npm run lint:ste && npm run check:css && npm test && vite build",
     "verify:typecheck": "tsc -b --clean && tsc -b"
   },
   "allowScripts": {

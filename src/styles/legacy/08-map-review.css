@@ -193,7 +193,7 @@
    sub-pixel ratchet), no colour pair declared in these rules, and no motion
    added - rows answer instantly like the rail's own list. */
 .day-slot-search { display: flex; gap: 6px; margin: 0 10px 8px; }
-.day-slot-search .input { flex: 1; min-width: 0; font-size: 13px; padding: 5px 8px; }
+.day-slot-search .input { flex: 1; min-width: 0; font-size: 13px; --input-padding: 5px 8px; }
 .day-slot-search-hits {
   margin: 0 10px 8px; padding: 4px; max-height: 156px; overflow-y: auto;
   border: 1px dashed var(--line); border-radius: 8px;

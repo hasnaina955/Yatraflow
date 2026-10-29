@@ -1161,7 +1161,7 @@ html.native-shell .app-shell:not(:has(> .topnav)) > main {
 .gcf .ct-hint { margin: 4px 0 16px; }
 .gcf :is(.ct-lbl, .field-label, .mini-lab) { font-size: 13px; font-weight: 700; color: var(--text-2); letter-spacing: 0; text-transform: none; }
 .gcf .ct-q-field { margin-top: 16px; }
-.gcf :is(.input, .loc-input, .namebox-in) { min-height: 46px; border-radius: 12px; background: var(--card); font-size: 15px; color: var(--text); }
+.gcf :is(.input, .loc-input, .namebox-in) { min-height: 46px; --input-radius: 12px; --input-background: var(--card); font-size: 15px; --input-color: var(--text); }
 .gcf :is(input, textarea) { caret-color: var(--teal-deep); }
 .gcf ::selection { background: var(--teal-soft); color: var(--text); }
 .gcf :is(button, input, summary):focus-visible { outline: 2px solid var(--teal-deep); outline-offset: 3px; }
@@ -1198,7 +1198,7 @@ html.native-shell .app-shell:not(:has(> .topnav)) > main {
 .gcf-fuel-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .gcf-fuel-grid label { min-width: 0; font-size: 13px; font-weight: 700; color: var(--text-2); }
 .gcf-fuel-grid .unit-input { display: flex; align-items: center; margin-top: 6px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg); }
-.gcf-fuel-grid .input { width: 100%; min-width: 0; padding: 8px; border: 0; background: transparent; appearance: textfield; }
+.gcf-fuel-grid .input { width: 100%; min-width: 0; --input-padding: 8px; border: 0; --input-background: transparent; appearance: textfield; }
 .gcf-fuel-grid input::-webkit-inner-spin-button { appearance: none; }
 .gcf-fuel-grid .unit { position: static; flex-shrink: 0; padding-right: 8px; font-size: 12px; transform: none; }
 .gcf-round-trip { display: flex; justify-content: space-between; margin-top: 20px; font-size: 14px; font-weight: 600; }

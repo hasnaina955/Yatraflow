@@ -13,12 +13,18 @@
 
 /* from src/styles/legacy/01-foundations.css */
 .input, .textarea {
-  width: 100%; padding: 10px 13px;
-  border: 1.5px solid var(--line); border-radius: var(--radius-sm);
-  background: var(--card-soft); outline: none;
+  width: 100%; padding: var(--input-padding, 10px 13px);
+  border: 1.5px solid var(--input-border-color, var(--line));
+  border-radius: var(--input-radius, var(--radius-sm));
+  background: var(--input-background, var(--card-soft)); outline: none;
   transition: border-color var(--motion-fast) var(--ease-out), box-shadow var(--motion-fast) var(--ease-out);
-  color: var(--text);
+  color: var(--input-color, var(--text));
 }
+/* Size and appearance are NOT declared here. The sheet sets type on the
+   element selector `input, select, textarea`, so a declaration on `.input`
+   would have to beat that rule. `revert` measured 13.3333px against the
+   real 14.5px, which is how that was found. A page that changes the size
+   still declares font-size itself, and that is recorded as debt. */
 
 /* from src/styles/legacy/01-foundations.css */
 .input:focus, .textarea:focus {

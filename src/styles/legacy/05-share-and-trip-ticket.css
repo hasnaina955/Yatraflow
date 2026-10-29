@@ -274,7 +274,7 @@
 .mini-field { display: grid; gap: 4px; }
 .mini-lab { color: var(--yf-text-muted); }
 .unit-input { position: relative; display: flex; align-items: center; }
-.unit-input .input { width: 100%; height: 36px; padding-right: 48px; font-size: 13px; font-weight: 600; }
+.unit-input .input { width: 100%; height: 36px; --input-padding: 10px 48px 10px 13px; font-size: 13px; font-weight: 600; }
 /* The compact 13px above outranks the ≤720px `.input { font-size: 16px }` on
    both specificity (0-2-0 vs 0-1-0) and source order, so these fuel fields
    kept re-triggering iOS Safari's zoom-on-focus. Restated here, after the rule

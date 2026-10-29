@@ -1111,7 +1111,7 @@ button.board-col-zone--add:active { transform: translateY(1px); }
    an inline fontSize that bypassed every scale) */
 .auth-card h1 { font-size: 26px; }
 /* Dark inputs otherwise sit nearly flush with the card surface — lift them. */
-[data-theme='dark'] .auth-card .input { background: rgba(255, 255, 255, .06); }
+[data-theme='dark'] .auth-card .input { --input-background: rgba(255, 255, 255, .06); }
 
 /* ---------- Hero (landing) — split layout per CTI homepage mockup ---------- */
 /* The hero itself is transparent: the atmospheric ramp lives on the page-level

@@ -9,7 +9,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { CssGraphError, loadCssGraph, parseImportParams } from '../scripts/css-source-graph.mjs'
-import { check } from '../scripts/uiAntipatterns.mjs'
+import { check, withSources } from '../scripts/uiAntipatterns.mjs'
 
 const FIXTURES = fileURLToPath(new URL('./fixtures/css-graph/', import.meta.url))
 const fixture = (path: string) => join(FIXTURES, path)
@@ -148,6 +148,9 @@ describe('a violation inside an imported module still fails the ui gate', () => 
     const located = bad.sourceAt(transition!.line)
     // The finding is the declaration, which sits on line 2 of a.css.
     expect(located).toEqual({ file: 'tests/fixtures/css-graph/ordered/a.css', line: 2 })
+    // The CLI path must name the module, not the flattened entry line.
+    const sourced = withSources(check({ 'src/styles.css': bad.text }), bad)
+    expect(sourced.find((f) => f.rule === 'U1')!.source).toBe('tests/fixtures/css-graph/ordered/a.css:2')
     expect(bad.sourceAt(stacking!.line)?.file).toBe('tests/fixtures/css-graph/ordered/nested/conditions.css')
 
     const clean = graphOf('relocate/inline.css')

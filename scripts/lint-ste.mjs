@@ -414,6 +414,11 @@ function sqlLineKinds(lines) {
 const EXCLUDED_PATH_PREFIXES = [
   'docs/consistency/', // planning notes written before the STE rules applied
   'docs/agents/AGENTS-FULL.md', // verbatim copy of AGENTS.md written before the STE rules applied
+  // Verbatim slices of the pre-split src/styles.css. A move puts accepted prose
+  // on new lines, and this gate reads new lines. No new prose goes in these
+  // files: CSS-2 and CSS-3 write owned modules, and the legacy split is deleted
+  // when the migration ends. A diff run skips them; --file still checks one.
+  'src/styles/legacy/',
 ]
 
 function isExcludedPath(file) {

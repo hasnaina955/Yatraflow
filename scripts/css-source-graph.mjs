@@ -157,7 +157,7 @@ export function loadCssGraph(entry = DEFAULT_ENTRY, options = {}) {
   const files = new Map()
   const records = []
   const assets = []
-  // The ancestors currently being walked. `parse` pushes, the import branch pops.
+  // The ancestor chain of the file being read. `parse` pushes, the import branch pops.
   const stack = []
   let order = 0
 

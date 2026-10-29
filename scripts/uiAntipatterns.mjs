@@ -111,6 +111,21 @@ export function check(files) {
   return findings.sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line)
 }
 
+/**
+ * Point each stylesheet finding at the file it lives in now.
+ * The rules read the flattened cascade, so a finding's line is a line of the
+ * entry. `sourceAt` turns it back into `module:line`. A reader needs that after
+ * a rule moves into an imported module, and the JSON output carries both.
+ */
+export function withSources(findings, graph) {
+  for (const finding of findings) {
+    if (finding.file !== 'src/styles.css' || !graph) continue
+    const origin = graph.sourceAt(finding.line)
+    if (origin) finding.source = `${origin.file}:${origin.line}`
+  }
+  return findings
+}
+
 function main() {
   const args = process.argv.slice(2)
   const json = args.includes('--json')
@@ -122,7 +137,6 @@ function main() {
   // The stylesheet is read through the shared source graph, so the rules keep
   // firing on rules that have moved into an imported module.
   let files
-  /** Flattened line -> real source line, so a finding names where it lives. */
   let cssGraph = null
   try {
     cssGraph = loadCssGraph('src/styles.css')
@@ -142,14 +156,7 @@ function main() {
     process.exit(2)
   }
 
-  const findings = check(files)
-  if (cssGraph) {
-    for (const finding of findings) {
-      if (finding.file !== 'src/styles.css') continue
-      const origin = cssGraph.sourceAt(finding.line)
-      if (origin) finding.source = `${origin.file}:${origin.line}`
-    }
-  }
+  const findings = withSources(check(files), cssGraph)
 
   if (json) {
     console.log(JSON.stringify({ ok: findings.length === 0, findings }, null, 2))

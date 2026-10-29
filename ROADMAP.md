@@ -929,7 +929,7 @@ Each batch removes the rules it supersedes and validates its consumers before th
 | B4 | `.card` surface, sibling rhythm and the route-snap variant | `components/card.css` | Done in `537d2a71` and `0ec35172`. Radius and border are variables. Shadow stays declared and is recorded as ownership debt. Re-verified in `6b83e32e`: 3,024 comparisons, 0 differences. |
 | B5 | `.container` width, centring and padding | `layouts/container.css` | Done in `a4385dff` and `f497c0ca`, repaired in `6b83e32e`. The phone step lives in `container-phone.css` to keep its cascade position. Re-verified: 2,016 comparisons, 0 differences. |
 | B6 | `.chip` surface and colour variants | `components/chip.css` | Done in `2ef6397b`. Four of 17 rules are the surface. Checkpoint 2 found nothing to consolidate: every page property carries a different value. 490 comparisons, 0 differences. |
-| B7 | `.avatar` — 22 rules over 6 files | `components/avatar.css` | Shared control |
+| B7 | `.avatar` surface, two sizes and three tone variants | `components/avatar.css` | Done in `e80111fe`. Five of 22 rules are the surface; 17 size or stack an avatar in a page. Seed proof ran before the comparison was trusted. 13,520 comparisons, 0 differences. |
 | B8 | `.modal` — 24 rules over 5 files | `components/dialog.css` | Shared control, stacking risk |
 | B9 | `.toast` — 50 consumers | `components/toast.css` | Shared control |
 | B10 | `.itin-card`, `.trip-head-card`, `.hero`, `.board*` | page stylesheets | Page-private cards |

@@ -914,7 +914,30 @@ four stages follow one another.
 | CSS-0 | One shared reader resolves the stylesheet import graph. Every CSS check reads it. | Done, 2026-10-29: `scripts/css-source-graph.mjs`, branch `chore/css-0-source-graph` |
 | CSS-1 | Move contiguous sections into ordered files under `src/styles/legacy/`. Keep the cascade equivalent. | Done, 2026-10-29: 17 modules, built CSS byte-identical, on `chore/css-1-extract` |
 | CSS-2 | Give `SearchField` and `Select` their own modules on My trips and Explore. | Implemented. Explore passed live checks. Native and compact variants match CSS-1. My trips uses a fixture. Default STE has prior findings. |
-| CSS-3 | Migrate the other component and page families. Add the ownership checks. | Waits for CSS-2. |
+| CSS-3 | Migrate the other component and page families. Add the ownership checks. | In progress on `chore/css-3-ownership` from `699fbe28`. Inventory done. Batches below. |
+
+The inventory is [css-3-inventory.md](docs/evidence/css-3-inventory.md).
+The batches run in this order. Each batch is one bounded migration.
+Each batch removes the rules it supersedes and validates its consumers before the next batch starts.
+
+| Batch | Scope | Owner | Why this position |
+|---|---|---|---|
+| B0 | Ownership enforcement and its fixtures | `scripts/css-ownership.mjs` | Guards every later batch |
+| B1 | Token definitions that sit in 7 `:root` blocks | `styles/tokens/` | Every other batch reads these tokens |
+| B2 | `.btn` — 57 rules over 12 files, 54 consumers | `components/button.css` | Largest cross-owner surface |
+| B3 | `.input` and `.field` — 93 consumers | `components/input.css` | High reach, 6 files |
+| B4 | `.card` — 109 consumers | `components/card.css` | Highest reach |
+| B5 | `.container` — 24 rules over 9 files | `layouts/container.css` | Shared layout |
+| B6 | `.chip` and `.chip-btn` — 47 consumers | `components/chip.css` | Shared control |
+| B7 | `.avatar` — 22 rules over 6 files | `components/avatar.css` | Shared control |
+| B8 | `.modal` — 24 rules over 5 files | `components/dialog.css` | Shared control, stacking risk |
+| B9 | `.toast` — 50 consumers | `components/toast.css` | Shared control |
+| B10 | `.itin-card`, `.trip-head-card`, `.hero`, `.board*` | page stylesheets | Page-private cards |
+| B11 | `.pill-nav` | `components/pill-nav.css` | Waits for its product repair to stay frozen |
+
+A batch is not complete until its rollback is written down.
+The rollback restores the moved rules in their source files and removes the module and its import.
+No batch needs a checkout reset.
 
 CSS-1 ran on committed checkpoint `f6a549f1`. Two graph runs gave one
 fingerprint, and the working file matched the commit. The production CSS is

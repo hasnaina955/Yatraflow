@@ -780,20 +780,20 @@ a.btn { text-decoration: none; }
 /* ---------- Forms ---------- */
 .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
 .label { font-size: 13px; font-weight: 600; color: var(--text-2); }
-.input, .select, .textarea {
+.input, .textarea {
   width: 100%; padding: 10px 13px;
   border: 1.5px solid var(--line); border-radius: var(--radius-sm);
   background: var(--card-soft); outline: none;
   transition: border-color var(--motion-fast) var(--ease-out), box-shadow var(--motion-fast) var(--ease-out);
   color: var(--text);
 }
-.input:focus, .select:focus, .textarea:focus {
+.input:focus, .textarea:focus {
   border-color: var(--teal); box-shadow: 0 0 0 3px color-mix(in srgb, var(--teal) 18%, transparent);
 }
 /* A disabled form control must look disabled — three selects shipped identical
    to enabled ones (Create-Trip Day, TripSettings vehicle rows). Same shape as
    .btn:disabled. */
-.input:disabled, .select:disabled, .textarea:disabled {
+.input:disabled, .textarea:disabled {
   opacity: .55; cursor: not-allowed;
 }
 .textarea { resize: vertical; min-height: 74px; }
@@ -801,26 +801,5 @@ a.btn { text-decoration: none; }
    on one line (travel-panel departure / halt-planner fields), with the same
    focus ring instead of the hand-styled borders those fields used to have. */
 .input--compact { width: auto; padding: 5px 8px; font-size: 13px; }
-/* Dropdown (select) — the exact .input surface; the only tell is the chevron.
-   (Was a glass pill with its own background/weight, which read as a different
-   component family next to text inputs in the same form.) */
-.select {
-  appearance: none;
-  padding: 10px 32px 10px 13px;
-  cursor: pointer;
-  /* soft teal chevron (clean SVG stroke), vertically centred, clear of the text */
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path d='M1.5 1.5L6 6l4.5-4.5' fill='none' stroke='%230E7A72' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>");
-  background-repeat: no-repeat;
-  background-position: right 12px center;
-  background-size: 11px 7px;
-  transition: border-color var(--motion-fast) var(--ease-out), box-shadow var(--motion-fast) var(--ease-out), background-color var(--motion-fast) var(--ease-out);
-}
-.select:hover:not(:disabled) { border-color: var(--teal); }
-/* Theme the native popup rows (Chromium/Edge honour this; the system highlight
-   stays but stops clashing with the palette). */
-.select option { background: var(--card); color: var(--text); }
-/* The custom Select already turns red on aria-invalid (see .cselect-trigger);
-   native controls declared no invalid style at all, so one invalid state had two
-   looks depending on which control carried it. */
-.input[aria-invalid='true'], .select[aria-invalid='true'], .textarea[aria-invalid='true'] { border-color: var(--danger); }
+.input[aria-invalid='true'], .textarea[aria-invalid='true'] { border-color: var(--danger); }
 

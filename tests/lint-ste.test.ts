@@ -645,13 +645,23 @@ describe('STE100 default run (fixture repositories, real git)', () => {
     expect(runScript(sibling).code).toBe(1)
   }, SLOW)
 
-  it('exempts src/styles/legacy/ from the diff runs, and still checks the same line elsewhere', () => {
-    // The legacy modules are verbatim slices of the pre-split src/styles.css, so
-    // their prose was accepted before the rules applied. A move must not report it.
+  it('checks edits to extracted legacy files and exempts only the historical lines', () => {
     const exempt = fixtureRepo(GOOD)
-    commitFile(exempt, 'src/styles/legacy/01-foundations.css', GOOD + BAD_LINE)
+    const extraction = '6d356f84b6a6d97d327a651b8295eeee6a38a3b9'
+    const repo = path.resolve(path.dirname(SCRIPT), '..')
+    git(exempt, ['fetch', '-q', repo, extraction])
+    const file = 'src/styles/legacy/01-foundations.css'
+    const original = git(exempt, ['show', `${extraction}:${file}`])
+    commitFile(exempt, file, original)
     expect(runScript(exempt).code).toBe(0)
-    expect(runScript(exempt, ['--file', 'src/styles/legacy/01-foundations.css']).code).toBe(1)
+    expect(runScript(exempt, ['--file', file]).code).toBe(1)
+    writeFileSync(path.join(exempt, file), original + `/* ${BAD_LINE.trim()} */\n`)
+    expect(runScript(exempt).code).toBe(1)
+    expect(runScript(exempt, ['--file', file]).code).toBe(1)
+    git(exempt, ['add', file])
+    expect(runScript(exempt, ['--staged']).code).toBe(1)
+    writeFileSync(path.join(exempt, file), original.replace(/\/\*[^\r\n]*/, `/* ${BAD_LINE.trim()}`))
+    expect(runScript(exempt).code).toBe(1)
     const checked = fixtureRepo(GOOD)
     commitFile(checked, 'src/styles/00-entry.css', GOOD + BAD_LINE)
     expect(runScript(checked).code).toBe(1)

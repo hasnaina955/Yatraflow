@@ -98,11 +98,10 @@ no new problem and touches none of those files.
 The split reported 22 comment lines to `lint:ste`. Each one was written and
 accepted before this stage; the move put it on a new line. Rewording them would
 break the verbatim slices that make the extraction auditable, so the fix is in
-the gate. `src/styles/legacy/` is now exempt from the diff runs, with its reason
-beside the entry. No new prose goes in those files: CSS-2 and CSS-3 write owned
-modules, and the legacy split is deleted when the migration ends. `--file` still
-checks a named module. `tests/lint-ste.test.ts` pins both halves, plus a sibling
-path that must still fail.
+the gate. CSS-1 exempted `src/styles/legacy/` from diff runs. CSS-2 narrowed that
+exemption to lines unchanged from the extraction commit. New and edited comments
+now pass through the gate. `--file` checks a named module. The tests cover both
+paths and a sibling path.
 
 With the exemption in place, `node scripts/lint-ste.mjs --base f6a549f1` passes.
 The default run still exits 1 on the checkpoint's own prose.

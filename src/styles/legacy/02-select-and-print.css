@@ -1,40 +1,6 @@
-/* ============ Custom listbox Select (components/Select.tsx) =====}
-
-   Same `.select` trigger recipe (it's on the button below), a real DOM popup
-   instead of the OS one. High-traffic surfaces use this; low-traffic selects
-   keep the native control — the trigger look is identical. */
-.cselect { position: relative; }
-.cselect-trigger {
-  display: flex; align-items: center; gap: 8px;
-  text-align: left; background-color: var(--card-soft); color: var(--text);
-}
-.cselect-trigger.compact { width: auto; padding: 5px 26px 5px 10px; font-size: 13px; }
-.cselect-trigger:disabled { opacity: .55; cursor: not-allowed; }
-.cselect-trigger[aria-invalid='true'] { border-color: var(--danger); }
-.cselect-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cselect-ico { display: inline-flex; flex: none; color: var(--text-2); }
-.cselect-pop {
-  position: absolute; top: calc(100% + 6px); left: 0; z-index: var(--z-frost);
-  margin: 0; padding: 5px; list-style: none;
-  width: max(100%, 200px); max-height: 280px; overflow-y: auto;
-}
-.cselect-option {
-  display: flex; align-items: center; gap: 8px; width: 100%; text-align: left;
-  padding: 8px 10px; border-radius: 8px; border: none; background: none;
-  color: var(--text); font-size: 14px; cursor: pointer;
-  transition: background var(--motion-fast) var(--ease-out);
-}
-.cselect-option.active { background: var(--bg-soft); }
-.cselect-option[aria-selected='true'] { font-weight: 600; }
-.cselect-check { margin-left: auto; color: var(--teal-deep); flex: none; }
 /* tone dot for Select options (priority/status in StopEditor) — always beside
    a text label, never the only carrier of the meaning */
 .opt-dot { width: 8px; height: 8px; border-radius: 999px; flex: none; }
-/* The chevron is baked into a background-image, so it can't follow a token —
-   re-declare it for dark mode or it lands ~1.8:1 on the dark pill. */
-[data-theme='dark'] .select {
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path d='M1.5 1.5L6 6l4.5-4.5' fill='none' stroke='%238FA0B5' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>");
-}
 .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
 /* Commitments: deliberate 5-track layout on wide screens, but it collapses
    instead of squeezing selects into ~60px columns on phones. */

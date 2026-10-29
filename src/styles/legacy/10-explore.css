@@ -158,27 +158,6 @@
   background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--ex-shadow-sm);
 }
 .ex-filter-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; min-width: 0; }
-.ex-search { position: relative; flex: 1 1 100%; min-width: 0; }
-.ex-search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-2); pointer-events: none; }
-.ex-search-input {
-  width: 100%; min-height: 44px; padding: 0 3rem 0 2.75rem;
-  border: 1px solid var(--ex-line-strong); border-radius: 12px; background: var(--card-soft); color: var(--text);
-  font-size: 15px; -webkit-appearance: none; appearance: none;
-  transition: border-color var(--motion-fast) var(--ease-out), background-color var(--motion-fast) var(--ease-out), box-shadow var(--motion-fast) var(--ease-out);
-}
-.ex-search-input::placeholder { color: var(--text-2); opacity: 1; }
-.ex-search-input:hover { border-color: color-mix(in srgb, var(--text) 40%, transparent); }
-.ex-search-input:focus-visible { outline: none; border-color: var(--teal-deep); box-shadow: var(--ring); }
-.ex-search-input::-webkit-search-cancel-button { display: none; }
-.ex-search-clear {
-  position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
-  width: 40px; height: 40px; display: grid; place-items: center; padding: 0;
-  border: 0; border-radius: 50%; background: none; color: var(--text-2); cursor: pointer;
-  transition: background-color var(--motion-fast) var(--ease-out);
-}
-.ex-search-clear:hover { background: var(--bg-soft); }
-.ex-search-clear:focus-visible { outline: none; box-shadow: var(--ring); }
-
 .ex-selects { display: contents; }
 .ex-filters-toggle { display: none; }
 .ex-filters-count {
@@ -186,16 +165,8 @@
   background: var(--text); color: var(--bg); font-size: 12px; font-weight: 700;
 }
 .ex-select { position: relative; flex: 1 1 0; min-width: 150px; }
-.ex-select--sort { min-width: 210px; }
-.ex-select .cselect { width: 100%; }
-.ex-select .cselect-trigger {
-  width: 100%; min-height: 44px; padding: 0 40px 0 14px; border: 1px solid var(--ex-line-strong); border-radius: 12px;
-  background-color: var(--card-soft); font-size: 14px; font-weight: 600;
-}
-.ex-select .cselect-trigger:hover:not(:disabled) { border-color: color-mix(in srgb, var(--text) 40%, transparent); }
-.ex-select .cselect-trigger:focus-visible { border-color: var(--teal-deep); box-shadow: var(--ring); }
+.ex-select--sort { min-width: 210px; --select-leading-space: 2.25rem; }
 .ex-select-icon { position: absolute; left: 12px; top: 50%; z-index: var(--z-content); transform: translateY(-50%); color: var(--text-2); pointer-events: none; }
-.ex-select--sort .cselect-trigger { padding-left: 2.25rem; }
 
 .ex-chip-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
 .ex-chips { display: contents; } /* Saved shares the style chips' wrapping row. */
@@ -445,7 +416,6 @@
 @media (max-width: 720px), (pointer: coarse) {
   .ex-chip, :is(.ex-page, .trips-page) .ex-clear { min-height: 44px; }
   .ex-page .ex-fork, .ex-byline { min-height: 44px; }
-  .ex-search-clear { width: 44px; height: 44px; }
 }
 @media (max-width: 760px) {
   .ex-howto { grid-template-columns: minmax(0, 1fr); }
@@ -463,8 +433,7 @@
   .ex-note { font-size: 26px; }
   .ex-layout { gap: 24px; margin-top: 20px; }
   .ex-section-title { font-size: 24px; }
-  .ex-filterbar { padding: 10px; border-radius: 18px; }
-  .ex-search { flex: 1 1 0; }
+  .ex-filterbar { padding: 10px; border-radius: 18px; --search-field-flex: 1 1 0; }
   .ex-filters-toggle { display: inline-flex; flex: none; }
   .ex-selects { display: none; }
   .ex-selects.is-open { display: flex; flex-wrap: wrap; flex-basis: 100%; gap: 10px; }
@@ -532,8 +501,8 @@
   .ex-feature:hover .ex-feature-cover .ex-cover-img, .ex-feature:hover .mt-motif, .ex-hero:hover .ex-postcard .mt-motif { transform: none; }
   .ex-hero:hover .ex-pc-1 { transform: rotate(var(--ex-rot)); }
   .ex-hero:hover .ex-pc-2 { transform: rotate(var(--ex-rot)); }
-  .ex-cover-img, .ex-feature-cover .ex-cover-img, .ex-save-dot, .ex-chip, .ex-search-input, .ex-search-clear, .ex-creator,
-  .ex-select .cselect-trigger, :is(.ex-page, .trips-page) .btn { transition: none; }
+  .ex-cover-img, .ex-feature-cover .ex-cover-img, .ex-save-dot, .ex-chip, .ex-creator,
+  :is(.ex-page, .trips-page) .btn { transition: none; }
   .ex-save:hover .ex-save-dot, .ex-save:active .ex-save-dot, .ex-chip:active, :is(.ex-page, .trips-page) .btn:where(:not(.modal *)):active:not(:disabled) { transform: none; }
 }
 

@@ -4,6 +4,13 @@ CSS cascade, contrast, motion, a11y, chunking. Extracted from
 `CODING_STANDARDS.md` §2 on 2026-10-05; entries are verbatim. The root
 file's index says when to read here; pitfall rules `6a`–`6ag` stay there.
 
+`src/styles/components/search-field.css` owns the shared search control.
+`src/styles/components/select.css` owns native and custom select appearance.
+The shared catalog layout remains in `src/styles/legacy/10-explore.css`.
+That layout sets `--search-field-flex` and `--select-leading-space` for composition.
+The entry imports select after legacy section 04 and search before section 10.
+Other legacy sections keep their order. Shared tokens and motion remain in legacy files.
+
 - Give segmented answer controls a dedicated class.
   Shared form layout classes must not generate selection decoration.
 

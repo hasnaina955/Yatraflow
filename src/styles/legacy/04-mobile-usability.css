@@ -109,7 +109,7 @@ main:focus { outline: none; }
    interactive control (UI audit F-12; state matrix in DESIGN_TOKENS.md).
    .skip-link is pre-wired for the F-08 skip link; .yf-map-pin gets an extra
    outline-offset below so the ring clears the map tiles. */
-.input:focus-visible, .select:focus-visible, .textarea:focus-visible,
+.input:focus-visible, .textarea:focus-visible,
 .btn:focus-visible, .icon-btn:focus-visible,
 .theme-toggle:focus-visible, .avatar-btn:focus-visible, .user-menu-item:focus-visible,
 .nav-link:focus-visible, .tab-btn:focus-visible, .brand:focus-visible,
@@ -1834,7 +1834,6 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
    their original file order) ---- */
 @media (max-width: 720px) {
   /* forms */
-  .select { padding: 10px 32px 10px 13px; }
 
   /* timeline extras */
   .day-spark { display: none; }
@@ -1910,7 +1909,7 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 
   /* comfortable tap sizes on primary controls */
   .btn { min-height: 44px; }
-  .input, .select, .textarea { min-height: 44px; font-size: 16px; } /* 16px prevents iOS zoom-on-focus */
+  .input, .textarea { min-height: 44px; font-size: 16px; } /* 16px prevents iOS zoom-on-focus */
   .icon-btn { min-width: 40px; min-height: 40px; }
   .loc-dropdown { max-height: 240px; }
 

@@ -414,11 +414,6 @@ function sqlLineKinds(lines) {
 const EXCLUDED_PATH_PREFIXES = [
   'docs/consistency/', // planning notes written before the STE rules applied
   'docs/agents/AGENTS-FULL.md', // verbatim copy of AGENTS.md written before the STE rules applied
-  // Verbatim slices of the pre-split src/styles.css. A move puts accepted prose
-  // on new lines, and this gate reads new lines. No new prose goes in these
-  // files: CSS-2 and CSS-3 write owned modules, and the legacy split is deleted
-  // when the migration ends. A diff run skips them; --file still checks one.
-  'src/styles/legacy/',
 ]
 
 function isExcludedPath(file) {
@@ -529,6 +524,18 @@ function checkAdded(added, staged) {
   }
 }
 
+// Compare extracted files with the immutable extraction commit as well. Only
+// lines still identical to that extraction are historical. If the commit is
+// missing, check all lines rather than silently granting an exemption.
+function excludeExtractedLines(added) {
+  const extraction = '6d356f84b6a6d97d327a651b8295eeee6a38a3b9'
+  const sha = commitOf(extraction)
+  if (!sha) return added
+  const prefix = 'src/styles/legacy/'
+  const changed = new Set(addedLines([sha, '--', prefix]).map(a => `${a.file}:${a.lineno}:${a.text}`))
+  return added.filter(a => !a.file.startsWith(prefix) || changed.has(`${a.file}:${a.lineno}:${a.text}`))
+}
+
 const argv = process.argv.slice(2)
 const argValue = (name) => (argv.includes(name) ? argv[argv.indexOf(name) + 1] : undefined)
 
@@ -602,7 +609,7 @@ function main() {
   const base = chooseBase()
   if (base.warning) console.error(base.warning)
   const added = addedLines([base.sha])
-  checkAdded(added, false)
+  checkAdded(excludeExtractedLines(added), false)
   return report(base.label, rangeNote(base, added))
 }
 

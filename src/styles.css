@@ -5,11 +5,13 @@
 @import './styles/legacy/02-select-and-print.css';
 @import './styles/legacy/03-maplibre.css';
 @import './styles/legacy/04-mobile-usability.css';
+@import './styles/components/select.css';
 @import './styles/legacy/05-share-and-trip-ticket.css';
 @import './styles/legacy/06-shell-and-consistency.css';
 @import './styles/legacy/07-workspace-and-unlock.css';
 @import './styles/legacy/08-map-review.css';
 @import './styles/legacy/09-trips-list.css';
+@import './styles/components/search-field.css';
 @import './styles/legacy/10-explore.css';
 @import './styles/legacy/11-shared-page.css';
 @import './styles/legacy/12-pages.css';

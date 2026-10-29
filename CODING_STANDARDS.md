@@ -1056,16 +1056,9 @@ Row policies cannot protect authors or ballots inside JSON arrays. Check stored 
    pick through the real seam (facade + provider + draft, fixture HTTP) and prove the
    rejections still reject, in the same run.
 
-6bf. **A move looks like new prose to the STE gate (learned 2026-10-29, the
-   CSS-1 split).** `npm run lint:ste` measures the lines a branch changed. It
-   cannot tell a move from new text. The split of `src/styles.css` into 17
-   modules reported 22 comment lines. Those lines were written and accepted
-   months before. Do not reword them. A rewrite breaks the byte-for-byte proof
-   that keeps the split auditable. Add the directory to `EXCLUDED_PATH_PREFIXES`
-   in `scripts/lint-ste.mjs`. State the reason beside the entry. State that no
-   new prose goes there. Pin both halves in `tests/lint-ste.test.ts`. The
-   directory must pass the diff run. `--file` must still check it. A sibling
-   path must still fail. Delete the entry when the moved files are gone.
+6bf. **A move looks like new prose to the STE gate.** The CSS split moved accepted comments.
+   The gate compares legacy files with the extraction commit. It checks new and edited lines.
+   If that commit is missing, the gate checks all changed lines. `--file` checks the whole file.
 
 ## 2. Conventions (`AGENTS.md` §4)
 

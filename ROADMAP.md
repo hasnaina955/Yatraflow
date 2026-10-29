@@ -913,7 +913,7 @@ four stages follow one another.
 |---|---|---|
 | CSS-0 | One shared reader resolves the stylesheet import graph. Every CSS check reads it. | Done, 2026-10-29: `scripts/css-source-graph.mjs`, branch `chore/css-0-source-graph` |
 | CSS-1 | Move contiguous sections into ordered files under `src/styles/legacy/`. Keep the cascade equivalent. | Done, 2026-10-29: 17 modules, built CSS byte-identical, on `chore/css-1-extract` |
-| CSS-2 | Give `SearchField` and `Select` their own modules on My trips and Explore. | Waits for CSS-1. |
+| CSS-2 | Give `SearchField` and `Select` their own modules on My trips and Explore. | Implemented. Explore passed live checks. Native and compact variants match CSS-1. My trips uses a fixture. Default STE has prior findings. |
 | CSS-3 | Migrate the other component and page families. Add the ownership checks. | Waits for CSS-2. |
 
 CSS-1 ran on committed checkpoint `f6a549f1`. Two graph runs gave one

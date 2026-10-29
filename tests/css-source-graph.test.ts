@@ -42,13 +42,15 @@ const failureOf = (path: string): CssGraphError => {
 }
 
 describe('the application entry resolves its modules', () => {
-  it('reads the entry and every legacy module into one cascade', () => {
+  it('reads the entry and every owned and legacy module into one cascade', () => {
     const graph = loadCssGraph('src/styles.css')
     expect(graph.files[0].path).toBe('src/styles.css')
     expect(graph.files.length).toBeGreaterThan(10)
     for (const file of graph.files.slice(1)) {
-      expect(file.path, `${file.path} is not a legacy module`).toMatch(/^src\/styles\/legacy\/\d\d-[a-z0-9-]+\.css$/)
+      expect(file.path, `${file.path} is not a stylesheet module`).toMatch(/^src\/styles\/(?:legacy\/\d\d-[a-z0-9-]+|components\/[a-z0-9-]+)\.css$/)
     }
+    expect(graph.files.map(file => file.path)).toContain('src/styles/components/select.css')
+    expect(graph.files.map(file => file.path)).toContain('src/styles/components/search-field.css')
     expect(graph.text.split('\n').length).toBeGreaterThan(12000)
     expect(graph.fingerprint).toMatch(/^[0-9a-f]{64}$/)
   })

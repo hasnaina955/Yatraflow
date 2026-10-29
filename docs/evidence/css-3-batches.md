@@ -232,4 +232,64 @@ The 103 appearance declarations that already existed were grandfathered by exact
 
 Rollback: move the recipe, scale, variants and states back to sections 01 and 04. Restore the two page recipes as declarations. Remove the module and its import. Restore the appearance baseline.
 
+## B3: input, textarea and field composition
+
+Checkpoint 1 is `bab73488`. Checkpoint 2 is `1f5cc770`. The variable allowlist is `cdfe71a1`.
+
+### What the inventory found
+
+`.field` is a shared component, not page layout. `src/components/ui.tsx` renders it as the wrapper that stacks a label, a control and a hint, and it wires `aria-describedby` and `aria-invalid`. It is registered as a configuration class, so a page may place a field but may not restyle the control.
+
+`.label` and `.hint-text` stayed where they are. Both are shared text utilities with many page modifiers: `.shr-*`, `.ovw-*`, `.auth-*`, `.gcf`. Neither belongs to the field component.
+
+The search field and the select keep their own modules. No second recipe for either was introduced.
+
+### Checkpoint 1
+
+Nine rules moved into src/styles/components/input.css. They are field composition, the two controls, focus, disabled, textarea sizing and the invalid state. They also include the two focus-visible rules split out of the 49-selector list. The last is the phone sizing rule with its media context.
+
+### Checkpoint 2
+
+Five values became variables: `--input-padding`, `--input-border-color`, `--input-radius`, `--input-background` and `--input-color`. Seven page overrides became assignments.
+
+One property deliberately stays a declaration. The sheet sets type on the element selector `input, select, textarea`, not on `.input`. A `font-size` declaration in the module would have to beat that rule.
+
+The first try used `font-size: var(--input-font-size, revert)`. The computed comparison measured 13.3333px against the real 14.5px on every variant, because `revert` rolls back past the element rule. So `font-size`, `font-weight` and `appearance` are not routed through variables. A page that changes the size still declares it, and those keys stay in the recorded debt.
+
+That defect was caught by the computed comparison, not by reading the CSS.
+
+### Verification
+
+| Measure | Value |
+|---|---|
+| Elements | 180: 15 scopes by 12 variants |
+| Variants | text, email, number, search, date, disabled, read-only, invalid, empty, textarea, textarea-invalid, field with label and hint |
+| Scopes | plain, both page recipes, auth-card, invite-entry, unit-input, day-slot-search, tpl-name, crew-invite-row, ct-day-start, gcf, modal, ts-form, form-row |
+| Environments | light and dark at 1440, light and dark at 390, light with reduced motion |
+| Comparisons | 1,800 |
+| Differences | 0 |
+
+### Enforcement
+
+A custom property on a configuration class is now checked against the owner's documented list. Before this, every `--` declaration was skipped, so `--btn-anything` was a free pass.
+
+The rule found a real omission at once. --btn-active-transform is declared and used in utton.css from B2 checkpoint 2. It was missing from the map, so the two page scopes that assign it were failing.
+
+Proven: `.hero .btn { --btn-anything: 1px }` fails with code `config-variable` and names `12-pages.css:518`. `.hero .btn { --btn-radius: 12px }` passes. The fixture is permanent.
+
+### Two suite failures fixed with this batch
+
+`tests/script-exit-pins.test.ts` pins every `process.exit` call site under `scripts/`. `css-ownership.mjs` is registered with its two sites.
+
+`tests/page-header.test.ts` sliced a stylesheet section up to the Papercut marker. The token batch moved that section into `tokens.css`, which the graph imports first, so the marker sits before the section and the slice came back empty. The slice now ends at the next `=====` section banner, which is what the test always meant. The helper was also inside one `describe` block while a later test used it, so it moved to module scope.
+
+### Limits
+
+No browser paint check has run. The comparison reads computed values, not painted pixels.
+
+`font-size` on `.input` remains recorded debt, for the reason above.
+
+Rollback: move the nine rules back to sections 01 and 04. Restore the seven page overrides as declarations. Remove the module and its import. Restore the appearance baseline.
+
+
 

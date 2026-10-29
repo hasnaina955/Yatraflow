@@ -926,7 +926,7 @@ Each batch removes the rules it supersedes and validates its consumers before th
 | B1 | Token definitions that sit in 7 `:root` blocks | `styles/tokens.css` | Every other batch reads these tokens. Done: 13 blocks, 432 declarations, signature equal. |
 | B2 | `.btn` recipe, scale and states; the duplicated page recipe becomes variables | `components/button.css` | Done in `77af76d8` and `2ca2fb13`. 1,200 computed comparisons, 0 differences. Page placement stays. Baseline 103 keys to 89. |
 | B3 | `.input`, `.textarea` and `.field` composition | `components/input.css` | Done in `bab73488` and `1f5cc770`. `.field` is a shared component, not page layout. 1,800 computed comparisons, 0 differences. `font-size` stays declared by design. |
-| B4 | `.card` — 109 consumers | `components/card.css` | Highest reach |
+| B4 | `.card` surface, sibling rhythm and the route-snap variant | `components/card.css` | Checkpoint 1 in `537d2a71`. Only three of the seven `.card` rules are the surface; four are page placement or nested content. Cards are static; `.itin-card` and `.trip-card-hit` are separate families. 120 comparisons, 0 differences. |
 | B5 | `.container` — 24 rules over 9 files | `layouts/container.css` | Shared layout |
 | B6 | `.chip` and `.chip-btn` — 47 consumers | `components/chip.css` | Shared control |
 | B7 | `.avatar` — 22 rules over 6 files | `components/avatar.css` | Shared control |

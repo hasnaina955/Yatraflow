@@ -332,6 +332,47 @@ All five are pixel-identical. The captures are non-blank and carry real variance
 
 The instrument is `dev/_css3-paint.mjs`. It is a scratch tool and is not part of the gate.
 
+## B4: the static card
+
+Checkpoint 1 is `537d2a71`.
+
+The first inventory said `.card` had 109 consumers. That number counted source occurrences, not rules. Seven rules name `.card`, and only three are the surface.
+
+| Rule | Class | Outcome |
+|---|---|---|
+| `01 .card` | shared appearance | moved |
+| `01 .card + .card` | shared sibling rhythm | moved |
+| `01 .card.route-snap` | variant of the surface | moved |
+| `01 .bento .card` | page placement plus appearance | stayed |
+| `01 .explore-grid > .card + .card` | page placement | stayed |
+| `02 .bezel > .card` | page placement plus appearance | stayed |
+| `02 .card h3 + hr.divider` | nested content | stayed |
+
+The three page rules carry higher specificity than the surface, so their position is unchanged.
+
+A card in this product is static. There is no `.card:hover`, `.card:focus` or interactive modifier. The interactive cards are `.itin-card` and `.trip-card-hit`, which are separate families with their own hover and focus behaviour. The module header records that, so a later batch does not fold them in.
+
+`.card-title` and `.card-head` stayed. Both are shared sub-components with page modifiers, including use inside `.itin-body`.
+
+The module is imported before section 02. Every moved rule came from section 01, so its order relative to section 02 is unchanged.
+
+### Verification
+
+| Measure | Value |
+|---|---|
+| Elements | 30: 6 scopes by 5 variants |
+| Variants | card, route-snap, stacked pair, nested content, overflow |
+| Scopes | plain, bento, bezel, explore-grid, two-col, feature-strip |
+| Environments | light and dark at 1440, light and dark at 390 |
+| Properties | 22, including shadow, border, radius, padding, overflow and background image |
+| Comparisons | 120 |
+| Differences | 0 |
+
+Three card cases joined the painted set. They are shadow and hairline border, the route-snap gradient in dark, and nested content with overflow at 390px. The route-snap case also covers its transparent border. All eight painted cases are pixel-identical.
+
+Rollback: move the three rules back to section 01, remove the module and its import, and restore the appearance baseline.
+
+
 
 
 

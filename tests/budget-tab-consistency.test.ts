@@ -106,13 +106,18 @@ describe('P12 — the motion is on the tokens, with the opt-out', () => {
     expect(optOut).toContain('.bud-state { animation: none; }')
     expect(optOut).toContain('.budget-bar-fill, .daybar-fill { transition: none; }')
     // The opt-out adds nothing else: the durations the bars already use stay.
-    expect(css).toMatch(/--motion-med: 180ms; --motion-slow: 240ms;/)
+    const foundation = css.slice(
+      css.indexOf('/* Papercut foundations */'),
+      css.indexOf('/* ===== Papercut motion foundation ===== */'),
+    )
+    expect(foundation).toMatch(/--motion-med: 240ms;/)
+    expect(foundation).toMatch(/--motion-slow: 360ms;/)
   })
 
   it('the new section names no raw duration', () => {
     // Comments are stripped, so a note that names a duration cannot trip the
     // check - the rule the other page passes scan under.
-    const section = css.slice(css.indexOf('/* ===== P12: Budget tab')).replace(/\/\*[\s\S]*?\*\//g, '')
+    const section = css.slice(css.indexOf('/* ===== P12: Budget tab'), css.indexOf('/* Papercut foundations */')).replace(/\/\*[\s\S]*?\*\//g, '')
     expect(section).not.toMatch(/\d+ms/)
   })
 })

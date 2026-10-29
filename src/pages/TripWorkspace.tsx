@@ -17,6 +17,7 @@ import { routeParts } from '../lib/pageTitle'
 import { currentQuery, currentRoute, replaceRoute } from '../lib/router'
 import { scrollBehavior } from '../lib/motion'
 import { Avatar, toast } from '../components/ui'
+import { assignAvatarTones } from '../lib/avatarTone'
 import { useTripPresence } from '../hooks/useTripPresence'
 import { presenceView } from '../lib/presence'
 import { ImpactPreviewPanel } from '../components/ImpactPreview'
@@ -30,7 +31,10 @@ import { AI_COMPANION_ENABLED } from '../lib/featureFlags'
 import { OverviewTab } from './trip/OverviewTab'
 import { TimelineTab } from './trip/TimelineTab'
 import { MapTabSkeleton } from './trip/MapTabSkeleton'
-import { TripArt, TripArtSprite } from '../components/trips/TripArt'
+import { TripArtSprite } from '../components/trips/TripArt'
+import { CoverMedia } from '../components/CoverMedia'
+import { coverPlanFor } from '../lib/regionArt'
+import { sizedCoverUrl } from '../lib/tripThumb'
 import { regionFor } from '../lib/tripsPage'
 import type { MapTarget } from '../lib/mapTarget'
 import {
@@ -38,7 +42,6 @@ import {
   foldWorkspaceHeader,
   resolveMapFocus,
   resolveTimelineFocus,
-  tripHeaderCover,
   workspacePanelId,
   workspaceTabId,
   type TimelineFocusTarget,
@@ -415,8 +418,19 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
     toast(`Moved “${last.title}” to Day ${dayIndex + 2} — review and keep`)
   }
 
-  const headerCover = tripHeaderCover(trip)
-  const headerRegion = regionFor(trip)
+  // The header's cover is the same plan every card draws: the traveller's
+  // upload, else the scene that fits the trip's own places, else their emoji.
+  const headerPlan = coverPlanFor({
+    // Sized on the way in, like every other cover surface, so a Wikimedia
+    // original stored before sizing existed is requested at 1200px here too.
+    userCover: trip.coverImageUrl ? sizedCoverUrl(trip.coverImageUrl) : '',
+    fallbackEmoji: trip.coverEmoji,
+    region: regionFor(trip),
+    seed: trip.id,
+    placeCount: trip.destinations?.length ?? 0,
+    destinations: trip.destinations,
+    startLocation: trip.startLocation,
+  })
   const members = trip.members ?? []
   const viewingMemberIds = new Set(presenceRow.kind === 'peers'
     ? presenceRow.peers.map(peer => peer.userId)
@@ -427,79 +441,85 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
       <div className="yf-page" data-compact={headerFolded ? 'true' : 'false'}>
         <TripArtSprite />
         <header className="yf-trip-head">
-          <button type="button" className="yf-back" onClick={() => onNavigate('trips')}>← All trips</button>
-          <div className="yf-head-row">
-            <span className="yf-thumb-slot" aria-hidden="true">
-              <span className="yf-thumb">
-                {headerCover.kind === 'image' && (
-                  <span className="yf-thumb-photo" style={{ backgroundImage: `url("${headerCover.url}")` }} />
-                )}
-                {headerCover.kind === 'emoji' && <span className="yf-thumb-emoji">{headerCover.emoji}</span>}
-                {headerCover.kind === 'art' && <TripArt region={headerRegion} />}
-              </span>
-            </span>
-            <div className="yf-head-text">
-              <h1 className="yf-header-title yf-trip-title">{trip.name}</h1>
-              <div className="yf-fold">
-                <div className="yf-fold-in">
-                  <p className="yf-head-meta yf-fade">
-                    {trip.startLocation} → {trip.destinations.join(' → ')} · {fmtDateRange(trip.startDate, trip.endDate)} · {trip.travellers} travellers · {cap(trip.transportMode)} · {cap(trip.travelStyle)}
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="yf-head-actions">
+          <div className="yf-cover-media" aria-hidden="true">
+            <CoverMedia
+              plan={headerPlan}
+              ratio="16:9"
+              sizes="100vw"
+              eager
+              className="yf-cover-img"
+              emojiClassName="yf-cover-emoji"
+            />
+          </div>
+          <div className="yf-cover-veil" aria-hidden="true" />
+          <div className="yf-cover-content">
+            <div className="yf-cover-top">
+              <button type="button" className="yf-back" onClick={() => onNavigate('trips')}>← All trips</button>
               {editable && (
                 <button type="button" className="btn btn-outline btn-sm yf-invite" onClick={() => setTab('share')}>Invite & share</button>
               )}
             </div>
-          </div>
-          <div className="yf-extra" ref={headerExtraRef}>
-            <div className="yf-fade">
-              <div className="yf-members" aria-label="Members">
-                <span className="yf-avatars">
-                  {members.map(member => {
-                    const person = userById(member.userId)
-                    const name = person?.profile.name ?? 'Member'
-                    const viewing = viewingMemberIds.has(member.userId)
-                    const state = viewing ? 'viewing now' : 'member'
-                    return (
-                      <span key={member.userId} className="yf-member" tabIndex={0}
-                        aria-label={`${name}, ${state}`}>
-                        <Avatar user={person} />
-                        {viewing && <span className="yf-member-dot" aria-hidden="true" />}
-                        <span className="yf-tip" role="tooltip">{name} · {state}</span>
-                      </span>
-                    )
-                  })}
-                </span>
-                <span className="yf-member-note">
-                  <b>{members.length} member{members.length === 1 ? '' : 's'}</b>{role ? ` · you are ${role}` : ''}
-                </span>
-                {presenceRow.kind === 'peers' ? (
-                  <span className="yf-viewing" aria-label={`${presenceRow.peers.length} viewing now`}>
-                    <i aria-hidden="true" />{presenceRow.peers.length} viewing now
-                  </span>
-                ) : presenceRow.kind === 'solo' ? (
-                  <span className="yf-viewing" aria-label="Only you are viewing this trip right now">
-                    <i aria-hidden="true" />Just you viewing
-                  </span>
-                ) : null}
+            <div className="yf-head-row">
+              <div className="yf-head-text">
+                <h1 className="yf-header-title yf-trip-title">{trip.name}</h1>
+                <div className="yf-fold">
+                  <div className="yf-fold-in">
+                    <p className="yf-head-meta yf-fade">
+                      {trip.startLocation} → {trip.destinations.join(' → ')} · {fmtDateRange(trip.startDate, trip.endDate)} · {trip.travellers} travellers · {cap(trip.transportMode)} · {cap(trip.travelStyle)}
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
+            <div className="yf-extra" ref={headerExtraRef}>
+              <div className="yf-fade">
+                <div className="yf-members" aria-label="Members">
+                  <span className="yf-avatars">
+                    {(() => {
+                      const tones = assignAvatarTones(members.map(member => member.userId))
+                      return members.map((member, index) => {
+                        const person = userById(member.userId)
+                        const name = person?.profile.name ?? 'Member'
+                        const viewing = viewingMemberIds.has(member.userId)
+                        const state = viewing ? 'viewing now' : 'member'
+                        return (
+                          <span key={member.userId} className="yf-member" tabIndex={0}
+                            aria-label={`${name}, ${state}`}>
+                            <Avatar user={person} tone={tones[index]} />
+                            {viewing && <span className="yf-member-dot" aria-hidden="true" />}
+                            <span className="yf-tip" role="tooltip">{name} · {state}</span>
+                          </span>
+                        )
+                      })
+                    })()}
+                  </span>
+                  <span className="yf-member-note">
+                    <b>{members.length} member{members.length === 1 ? '' : 's'}</b>{role ? ` · you are ${role}` : ''}
+                  </span>
+                  {presenceRow.kind === 'peers' ? (
+                    <span className="yf-viewing" aria-label={`${presenceRow.peers.length} viewing now`}>
+                      <i aria-hidden="true" />{presenceRow.peers.length} viewing now
+                    </span>
+                  ) : presenceRow.kind === 'solo' ? (
+                    <span className="yf-viewing" aria-label="Only you are viewing this trip right now">
+                      <i aria-hidden="true" />Just you viewing
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+            <SegmentedTabs className="tabbar yf-tabbar" semantics="tablist" label="Trip sections" value={tab} ink
+              onChange={key => { if (isTabKey(key)) setTab(key) }}
+              items={TABS.map(([key, label]) => ({
+                key,
+                label,
+                id: workspaceTabId(key),
+                controls: workspacePanelId(key),
+                count: key === 'group' ? db.suggestions.filter(s => s.tripId === trip.id && s.status === 'open').length
+                  + db.decisions.filter(d => d.tripId === trip.id && d.status === 'open').length : undefined,
+              }))} />
           </div>
         </header>
-
-        <SegmentedTabs className="tabbar yf-tabbar" semantics="tablist" label="Trip sections" value={tab}
-          onChange={key => { if (isTabKey(key)) setTab(key) }}
-          items={TABS.map(([key, label]) => ({
-            key,
-            label,
-            id: workspaceTabId(key),
-            controls: workspacePanelId(key),
-            count: key === 'group' ? db.suggestions.filter(s => s.tripId === trip.id && s.status === 'open').length
-              + db.decisions.filter(d => d.tripId === trip.id && d.status === 'open').length : undefined,
-          }))} />
       </div>
 
       {TABS.map(([key]) => <div className="tab-panel" key={key} role="tabpanel" id={workspacePanelId(key)} aria-labelledby={workspaceTabId(key)} hidden={tab !== key}>

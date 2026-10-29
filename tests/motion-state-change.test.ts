@@ -149,7 +149,7 @@ describe('a control that changes state carries motion (AGENTS §2.10)', () => {
         const transition = body.match(/transition\s*:([^;]*);/)?.[1] ?? ''
         expect(transition, `.${cls} glider transition`).toMatch(/var\(--motion-(fast|med|slow)\)/)
         expect(transition, `.${cls} glider transition`).toMatch(/var\(--ease-/)
-        expect(transition, `.${cls} glider transition must not use a raw duration`).not.toMatch(/\d+m?s\b/)
+        expect(transition, `.${cls} glider transition must not use a positive raw duration`).not.toMatch(/[1-9]\d*m?s\b/)
       }
       // The glider must have somewhere to go: a rule that moves it for the other
       // choice (a data attribute on the group).
@@ -206,19 +206,19 @@ describe('a list item that leaves plays an exit (AGENTS §2.10)', () => {
 
   it('plays the exit on motion tokens, never a raw duration', () => {
     expect(css).toMatch(/@keyframes presence-out\s*\{[\s\S]*?to\s*\{[^}]*opacity:\s*0/)
-    const rule = css.match(/\[data-presence='exit'\]\s*\{([^}]*)\}/)?.[1] ?? ''
+    const rule = css.match(/:is\(\[data-presence='exit'\]\)\s*\{([^}]*)\}/)?.[1] ?? ''
     expect(rule, 'no [data-presence="exit"] rule').not.toBe('')
-    expect(rule).toMatch(/animation:\s*presence-out var\(--motion-med\) var\(--ease-out\)/)
+    expect(rule).toMatch(/animation:\s*presence-out var\(--motion-med\) var\(--ease-exit\) 0s forwards/)
     expect(rule, 'a leaving item must not take clicks').toMatch(/pointer-events:\s*none/)
-    expect(rule).not.toMatch(/\d+m?s\b/)
-    const clearRule = css.match(/\.ex-clear\[data-presence='exit'\]\s*\{([^}]*)\}/)?.[1] ?? ''
-    expect(clearRule).toMatch(/animation:\s*ex-clear-out var\(--motion-med\) var\(--ease-out\)/)
+    expect(rule, 'the exit must not use a positive raw duration').not.toMatch(/[1-9]\d*m?s\b/)
+    const clearRule = css.match(/:is\(\.ex-page, \.trips-page\) \.ex-clear:is\(\[data-presence='exit'\]\)\s*\{([^}]*)\}/)?.[1] ?? ''
+    expect(clearRule).toMatch(/animation:\s*ex-clear-out var\(--motion-med\) var\(--ease-exit\) 0s forwards/)
   })
 
   it('fades the My trips Clear filters button out on the same tokens', () => {
-    const rule = css.match(/\.trips-page \.ex-clear\[style\*='hidden'\]\s*\{([^}]*)\}/)?.[1] ?? ''
+    const rule = css.match(/\.trips-page \.ex-clear\[style\*='hidden'\]:is\(\.ex-clear\)\s*\{([^}]*)\}/)?.[1] ?? ''
     expect(rule, 'no hidden-state rule for the My trips Clear filters button').not.toBe('')
-    expect(rule).toMatch(/opacity var\(--motion-med\) var\(--ease-out\)/)
+    expect(rule).toMatch(/opacity var\(--motion-med\) var\(--ease-exit\)/)
     expect(rule, 'the button must turn hidden only when the fade ends').toMatch(/visibility 0s linear var\(--motion-med\)/)
   })
 
@@ -231,7 +231,7 @@ describe('a list item that leaves plays an exit (AGENTS §2.10)', () => {
   it('skips the exit for reduced motion and a hidden tab, and times it on the token', () => {
     const hook = read('src/lib/usePresenceList.ts')
     expect(hook).toMatch(/!prefersReducedMotion\(\)\s*&&\s*document\.visibilityState === 'visible'/)
-    expect(hook).toContain("motionTiming('--motion-med')")
+    expect(hook).toContain("motionExitTiming('--motion-med')")
     expect(hook).toMatch(/toggleAttribute\('inert'/)
     expect(hook, 'focus must leave the item before it goes inert').toMatch(/target\.focus\(/)
     expect(hook).not.toMatch(/setTimeout\([^)]*,\s*\d+\s*\)/)

@@ -12,6 +12,20 @@ export function prefersReducedMotion(): boolean {
 export function scrollBehavior(): 'auto' | 'smooth' {
   return prefersReducedMotion() ? 'auto' : 'smooth'
 }
+
+/** Six items take the stagger. Every later item shares the sixth step. */
+export const MOTION_STAGGER_STEPS = 6
+export const MOTION_STAGGER_MAX_STEP = MOTION_STAGGER_STEPS - 1
+
+export function staggerStep(index: number): number {
+  const whole = Number.isFinite(index) ? Math.floor(index) : 0
+  return Math.min(Math.max(whole, 0), MOTION_STAGGER_MAX_STEP)
+}
+
+export function staggerDelay(index: number): string {
+  return `calc(var(--stagger-step) * ${staggerStep(index)})`
+}
+
 /**
  * Timing for the few JS-driven animations (the Board's FLIP settle, the day
  * collapse's unmount), resolved from the CSS motion tokens so JS and CSS can't
@@ -24,9 +38,10 @@ export function scrollBehavior(): 'auto' | 'smooth' {
  * fires while the CSS is still moving.
  */
 const MOTION_DURATION_FALLBACK: Record<string, number> = {
-  '--motion-fast': 120,
-  '--motion-med': 180,
-  '--motion-slow': 240,
+  '--motion-instant': 90,
+  '--motion-fast': 160,
+  '--motion-med': 240,
+  '--motion-slow': 360,
   '--motion-slower': 560,
 }
 
@@ -38,7 +53,17 @@ export function motionTiming(token: keyof typeof MOTION_DURATION_FALLBACK | stri
   const duration = parseFloat(cssDuration) * (cssDuration.endsWith('ms') ? 1 : cssDuration.endsWith('s') ? 1000 : NaN)
   const easing = s.getPropertyValue('--ease-glide').trim()
   return {
-    duration: Number.isFinite(duration) && duration > 0 ? duration : fallback.duration,
+    duration: Number.isFinite(duration) && duration >= 0 ? duration : fallback.duration,
     easing: easing || fallback.easing,
   }
+}
+
+const EXIT_EASING_FALLBACK = 'cubic-bezier(.4, 0, 1, 1)'
+
+/** CSS and JS share one named exit lifetime. A zero entrance stays a zero exit. */
+export function motionExitTiming(token: keyof typeof MOTION_DURATION_FALLBACK | string = '--motion-med'): { duration: number; easing: string } {
+  const { duration } = motionTiming(token)
+  if (typeof window === 'undefined') return { duration, easing: EXIT_EASING_FALLBACK }
+  const easing = getComputedStyle(document.documentElement).getPropertyValue('--ease-exit').trim()
+  return { duration, easing: easing || EXIT_EASING_FALLBACK }
 }

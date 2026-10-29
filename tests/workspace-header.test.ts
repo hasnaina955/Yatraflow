@@ -7,10 +7,10 @@ import {
   foldWorkspaceHeader,
   resolveMapFocus,
   resolveTimelineFocus,
-  tripHeaderCover,
   workspacePanelId,
   workspaceTabId,
 } from '../src/lib/workspaceHeader'
+import { DEFAULT_COVER_EMOJI, coverPlanFor, isChosenCoverEmoji } from '../src/lib/regionArt'
 
 function tripFixture(): Trip {
   return {
@@ -49,12 +49,71 @@ describe('P2 workspace header rules', () => {
     ])
   })
 
-  it('uses the approved cover order', () => {
-    expect(tripHeaderCover({ coverImageUrl: 'https://img.test/cover.jpg', coverEmoji: '🏔️' }))
-      .toEqual({ kind: 'image', url: 'https://img.test/cover.jpg' })
-    expect(tripHeaderCover({ coverImageUrl: '  ', coverEmoji: '🏔️' }))
-      .toEqual({ kind: 'emoji', emoji: '🏔️' })
-    expect(tripHeaderCover({ coverImageUrl: '', coverEmoji: '' })).toEqual({ kind: 'art' })
+  it('gives the header the shared cover plan, not a photo-or-emoji switch', () => {
+    // The header used to pick ONE thing: the photo, else the emoji, else art.
+    // That is why a saved emoji hid the artwork. It now asks the same resolver
+    // every card asks, so the artwork is the default and the emoji is last.
+    const goa = coverPlanFor({
+      region: 'goa',
+      seed: 'trip-1',
+      placeCount: 2,
+      destinations: ['Candolim', 'Colva'],
+      startLocation: 'Panaji, Goa',
+      fallbackEmoji: '🏖',
+    })
+    expect(goa.candidates[0]).toEqual({ kind: 'generated', id: expect.stringMatching(/^goa-/) })
+    expect(goa.fallbackEmoji).toBe('🏖')
+
+    // An upload still comes first, and the emoji still never joins the images.
+    const uploaded = coverPlanFor({
+      userCover: 'https://img.test/cover.jpg',
+      region: 'goa',
+      seed: 'trip-1',
+      placeCount: 2,
+      destinations: ['Candolim'],
+      startLocation: 'Panaji, Goa',
+      fallbackEmoji: '🏖',
+    })
+    expect(uploaded.candidates[0]).toEqual({ kind: 'user', url: 'https://img.test/cover.jpg' })
+  })
+
+  it('reads the create form’s compass as no saved emoji', () => {
+    // This is the row the store writes for a trip created without touching the
+    // emoji picker. It is a default marker, not a choice, so it must never be
+    // what the cover falls back to while real artwork exists.
+    expect(DEFAULT_COVER_EMOJI).toBe('🧭')
+    expect(isChosenCoverEmoji('🧭')).toBe(false)
+    expect(coverPlanFor({
+      region: 'goa',
+      seed: 'trip-1',
+      placeCount: 2,
+      destinations: ['Candolim'],
+      startLocation: 'Panaji, Goa',
+      fallbackEmoji: '🧭',
+    }).fallbackEmoji).toBe('🧭')
+  })
+
+  it('keeps every emoji the traveller picks as the terminal fallback', () => {
+    for (const emoji of ['🏔️', '🏖️', '🛕', '🚗', '🚂', '🌴', '🎒']) {
+      expect(isChosenCoverEmoji(emoji)).toBe(true)
+      const plan = coverPlanFor({
+        region: 'generic',
+        seed: 'trip-1',
+        placeCount: 1,
+        destinations: [],
+        fallbackEmoji: emoji,
+      })
+      expect(plan.fallbackEmoji).toBe(emoji)
+      // …and never as an image candidate.
+      expect(plan.candidates.every(candidate => candidate.kind !== 'user')).toBe(true)
+    }
+    expect(isChosenCoverEmoji('')).toBe(false)
+    expect(isChosenCoverEmoji(undefined)).toBe(false)
+  })
+
+  it('stores no cover emoji when the traveller leaves the picker alone', () => {
+    const create = codeOf('../src/pages/CreateTrip.tsx')
+    expect(create).toContain('coverEmoji: isChosenCoverEmoji(f.coverEmoji) ? f.coverEmoji : \'\',')
   })
 })
 

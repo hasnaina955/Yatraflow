@@ -4,6 +4,145 @@ Status: implementation-ready. The foundation commit lands before the header and 
 Source design: `MOCKUP.html` and `NOTES.md` in this folder. The mockup is sample data only.
 Read this file top to bottom. It needs no other context. The last section, "Porting map", holds the file paths.
 
+## 28 October 2026 direction update
+
+The current visual sources are under `E:\YatraFlow\Redesign`.
+`P12Warm2.dc.html` is the authority for the workspace header and compact Overview.
+`FlatRoute.dc.html` is the fallback authority for the route-card frame.
+The source boards are fixed at 1440px and show no phone layout.
+The product keeps 44 CSS px controls and adds its own phone fold and scroll rules.
+The header uses one full-width cover about 250px high.
+The cover holds the dark left veil, back control, title, trip facts and members.
+The invite action sits at the top right.
+The glass tab pill sits inside the cover bottom.
+The Overview briefing row puts the health card on the left.
+The health card shows the score ring, band, sentence, issue summary and action.
+The metric grid on the right has four real metrics.
+The fourth metric is the highest stop when place heights are available.
+It falls back to the planned stop count when the trip is not a road trip.
+The body puts issues and the day matrix in the left column.
+The route card and fixed commitments sit in the right column.
+The group strip and per-day weather follow below both columns.
+The route must use real coordinates and chain order.
+An invalid coordinate must leave a visible gap.
+The route card says "Schematic route" until provider road geometry is drawn.
+Do not add landcover, coastline or acclimatisation advice.
+
+## Elevation and the health checks (2026-10-28)
+
+The route card reads real terrain from the keyless AWS Terrain Tiles bucket.
+It is the same source the Map tab uses for its terrain mode.
+The tiles use Terrarium encoding: height = (R * 256 + G + B / 256) - 32768.
+The bucket sends `Access-Control-Allow-Origin: *`, so no proxy and no key are needed.
+The Data sources disclosure holds the full credits and source link.
+The card reads one height at each route place.
+It joins known heights with a bounded illustrative curve.
+It does not measure the road between places.
+
+Failure rule:
+
+- A missing tile leaves a null height. The line breaks. It never reads zero.
+- A total failure keeps the schematic route and offers one retry.
+- A flown or railed trip keeps the schematic route, because no road exists.
+
+The metric row shows "Highest stop" while place heights are available.
+It says "Unavailable" when the read fails.
+It keeps "Planned stops" when the trip is not a road trip.
+
+The health card carries three checks:
+
+- Drive load uses the engine's own 210 and 300 minute travel thresholds.
+- Days with stops counts days that have at least one non-rejected stop.
+- Budget compares cost per person with the stated target. It is an estimate.
+
+The health card does not include a daylight check.
+
+## Corrections from the source review (2026-10-28)
+
+The user compared the live surfaces with `P12Warm2.dc.html` and
+`FlatRoute.dc.html`. These five corrections control the current build.
+
+1. The route map and the height curve stay calm. The curve keeps each run's
+   endpoints and turns. It never overshoots its neighbour. The list retains all heights.
+   The chart omits the inset so it cannot cover the curve or leader.
+2. The day matrix follows the source composition. It shows text part labels.
+   It shows a day thumbnail under its number. It shows four state marks, one
+   Filled total per row, the four-mark key and the tap hint. The product type
+   floor raises the source's 10px labels to 11px. Each row keeps the 44px hit
+   floor.
+3. The cover draws one shared cover plan. The order is the traveller's upload,
+   then the artwork that fits the trip's own places, then their saved emoji.
+   The emoji is the last resort: it shows only when every image is gone, and it
+   never paints over one.
+4. The tab pill and the workspace nav take the source near-white glass. Every
+   other surface keeps its own glass.
+5. The cover veil is one run from the left edge to nothing at the right. The
+   artwork stays visible. The text sits in the shaded left third.
+
+### Follow-up findings (2026-10-28)
+
+A second review found four defects. These rules control the repair.
+
+- The create form's compass is the "no cover chosen" marker. The create path
+  stores an empty emoji unless the traveller picks another one. So a normal new
+  trip shows its own artwork.
+- The cover plan decides the picture, and the emoji is its last resort. A saved
+  emoji never hides artwork, and a chosen one shows only when every image is
+  gone. See "Cover plan" below.
+- The height stroke is illustrative. Nearby places share a representative mark.
+  Each mark uses a real height and sits on the curve. The highest place stays
+  visible. The path keeps each endpoint and turn. A gap still breaks the line.
+  Places at one distance can create a vertical step when their heights differ.
+  The vertical scale starts at sea level and has a 1000 metre minimum top.
+- The route's two handles at a shared point run along one tangent. An axis
+  whose two legs disagree keeps no component there, so the join rounds instead
+  of kinking. Every handle stays inside its own leg's box.
+- Each matrix heading fits its own column at the 11px floor. The part tracks
+  are 50px, and the day column keeps a two-place route name whole.
+- The invite control carries its own dark glass. The cover keeps the source's
+  light veil, and the white label clears 4.5:1 over the brightest artwork.
+
+### Cover plan
+
+Every cover surface draws one plan. The header, the My trips card, the hero
+postcards, the Explore card, the purchase rows, the unlock reveal, the create
+ticket and the cover picker all read it, so no two surfaces can disagree about
+what a trip's cover is.
+
+The order is fixed:
+
+1. The traveller's own upload. It is the first candidate, and it is the only
+   thing the slot shows while it works.
+2. The generated scene that fits the trip's own places. The place layer answers
+   first, then the seven-region scene, then the road or city family. A scene
+   that fits adds its own family after it, so a refused file has siblings.
+3. The traveller's saved emoji. It shows only when every image is gone. It is
+   never a badge over an image.
+
+Two rules keep the order honest:
+
+- The trip's start place is cover evidence only when its stops name no
+  supported place. A recognised destination is the stronger claim. Do not mix
+  a recognised origin into it. That would invent a cross-state trip that
+  nobody planned.
+- An upload that cannot load is not a usable cover, so the artwork follows it.
+  A scene never paints over an upload that does load, because the renderer stops
+  at the first image that succeeds.
+
+`coverPlanFor` in `src/lib/regionArt.ts` is the pure resolver. It returns the
+ordered candidates and the emoji. It lists no scene twice. It never mutates its
+input. `coverAttemptsFor` in `src/lib/coverAttempts.ts` turns that plan into
+the URLs a renderer may use. It skips a scene with no bundled file. It offers
+AVIF then WebP for each scene, as two separate images. `CoverMedia` in
+`src/components/CoverMedia.tsx` walks that list. It mounts one image. It moves
+to the next image on a network or decode failure. It resets its failure memory
+when the plan's own content changes.
+
+## Earlier design record
+
+The sections below record the earlier flat-route proposal.
+The direction update above controls the current implementation.
+
 ## Problem Statement
 
 A traveller opens a trip from My trips. My trips shows cream editorial cards. The trip workspace then opens on a dark navy band with a Sora title. This is the largest visual break in the app.
@@ -31,7 +170,7 @@ Rebuild the Overview tab as one calm page:
 
 - One slim verdict block. It shows one score, one band and one sentence. It has one primary button.
 - One "What needs you" card. It shows each warning once, with a severity label, a fix and one action.
-- A route card that draws the trip as a road over a stylised landscape. Pins, a stop list and a tooltip give the detail.
+- A route card draws the trip over a quiet cover image. Pins, a stop list and a tooltip give the detail.
 - Three slim totals tiles.
 - The day matrix and the quiet blocks (group pulse, fixed commitments, recent activity, weather).
 
@@ -40,7 +179,7 @@ The mockup sets all of this out. This spec turns the mockup into a build plan. I
 ## User Stories
 
 1. As a traveller, I want the workspace to match the app, so that opening a trip feels calm.
-2. As a traveller, I want the trip name in a serif title, so that I know my trip.
+2. As a traveller, I want a clear trip title, so that I know my trip.
 3. As a traveller, I want route, dates, party and style under the title, so that I confirm the trip.
 4. As a traveller, I want a back control above the title, so that I can leave in one tap.
 5. As a traveller, I want a cover picture beside the title, so that I can tell my trips apart.
@@ -125,7 +264,7 @@ The mockup sets all of this out. This spec turns the mockup into a build plan. I
 - Prove that the baseline diff holds falls only (and the allowlist removal). A rise is a regression, not a baseline update.
 - The header is one card. Its rows are: the back control, the title row, and the members row.
 - The title row holds the cover slot, the text column and the actions.
-- The text column holds the serif title and the facts line.
+- The text column holds the title and the facts line.
 - The members row holds the member stack, the member note and the presence text.
 
 ### Page states
@@ -143,8 +282,9 @@ The page keeps four states. Each state uses a `StateBlock` with `size="full"` an
 ### Header content
 
 - The header shows the same facts as today. These are the name, the route, the dates, the party size, the transport mode and the travel style. It also shows the members, the viewer's role and presence.
-- The title is the only serif text on the page (R14). The facts line and all other text use the body face.
-- The cover slot uses this order: the uploaded cover image, the saved emoji, then `TripArt`.
+- The title and facts line use the body face.
+- The cover slot draws the shared cover plan: the traveller's upload, then the
+  scene that fits the trip's own places, then their saved emoji.
 - The "Invite & share" button shows only to editors. It opens the Share tab.
 - The button is an outline pill (P12 decision). The verdict button is the only saffron pill on the Overview.
 - The header uses one responsive "Invite & share" button. On a phone the button sits in the members row while the header is open. It moves to the top right when the header is folded.
@@ -212,11 +352,13 @@ Below 1100 px the lower row becomes one column. Below 960 px the order becomes v
 - The route follows the true shape of the stops. The projection is the one the existing route snapshot uses. It scales to fit and uses the cosine of the latitude. North is up. The drawn bounds are centred. The curves are smooth.
 - The caption says "Schematic route" when the drawing is not measured road geometry. It says "Measured road" only when a routing service supplies the drawn geometry.
 - A flight or train trip uses neutral schematic connectors. Do not call the connectors a road. Do not show road distance or drive time for these trips.
-- The road is one thick line with a casing and a cream dashed centre. It is the hero.
+- A single teal stroke draws the route. A light halo keeps it clear over the cover.
 - Each leg is its own path, so each leg can draw in and light up alone.
-- The plate is a flat stylised landscape. It has a sky wash, a sun or moon, one quiet ground layer and soft contour lines.
-- This release draws no ridges, snow caps, sea or river. The product has no reliable point-elevation or water data.
-- Light mode is a morning landscape. Dark mode is a dusk landscape.
+- The trip cover provides a blurred, translucent atmosphere beneath a cream and mint veil.
+- A paper ground and faint survey lines remain when the cover is missing or invalid.
+- The background is illustrative. It does not represent terrain or map data.
+- Curves use chord-aware handles. Each handle stays inside its leg bounds and respects short adjacent legs.
+- The workspace title uses Plus Jakarta Sans at weight 800. It is 32 px on desktop and 28 px on mobile.
 - The card reads one route view model (see "Route view model" in the Porting map). A point is not only a coordinate and a day. It has a kind, a stop id, a title and an arriving leg.
 - Pins are numbered dots. Only the start and the end carry a tag and a city name.
 - A pin is a small face over a 44 px transparent hit circle.
@@ -237,7 +379,7 @@ Below 1100 px the lower row becomes one column. Below 960 px the order becomes v
   - The destination row reads "End" and the last destination name. It has an arriving leg. It opens the Map with no stop.
   - A row whose previous chain point has an invalid coordinate shows no arriving leg. The leg index would no longer match.
 - The pin, the list row and the arriving leg highlight together on hover or focus.
-- The road draws in once. The ridges settle by one or two pixels. Reduced motion shows the final picture at once.
+- The route draws in once. Reduced motion shows the final picture at once.
 - Zero or one mapped point keeps the existing empty state. The route needs two valid points.
 - On a phone the plate changes to a taller aspect. Lines and text grow in plate units so they stay readable.
 - The public itinerary page keeps the old route component with inert pins.
@@ -409,12 +551,12 @@ The decisions below close all 20 open questions.
 1. Header fold. The header folds on Board and Map only. It stays open on the other six tabs.
 2. Container widths. Normal tabs use 1400 px. Board and Map use 1720 px. Check the Map rail at 1720 px.
 3. Tab bar. Use `SegmentedTabs` with `semantics="tablist"`. Keep the existing tab order and keyboard contract.
-4. Serif title. Use `.yf-header-title`. Do not add another serif class.
-5. Cover. Use the uploaded image first. Use the saved emoji second. Use `TripArt` last.
+4. Title. Use `.yf-trip-title` with the body face at weight 800.
+5. Cover. Draw the shared cover plan: the upload, then the artwork, then the emoji.
 6. Verdict action. Open the first ranked issue. A trip-wide issue opens the trip-wide Timeline target.
 7. Day matrix. Keep the matrix on the Overview.
 8. Phone height. Accept the 22.5% height reduction at 390 px. Keep all four quiet blocks.
-9. Terrain. Ship the flat plain. Do not add a DEM read in this release.
+9. Background. Use the trip cover or the paper fallback. Do not add a DEM read.
 10. Water. Draw no sea or river.
 11. Presence. Keep members and presence as separate rows. Presence can name a viewer who is not a member.
 12. Browser motion check. Keep the signed-in workspace out of CI `check:motion`. Run the existing check and a local browser check.
@@ -488,8 +630,8 @@ New files are allowed. Suggested names: a pure route and terrain module under `s
 | `div.yf-page` wrapper | New wrapper in `TripWorkspace` around header and tab bar | Wrapper only. `.container` must not carry `yf-page` (R15). |
 | `header.yf-trip-head` with `data-compact` on the wrapper | Replaces `.trip-head-card` | The fold flag is `tab === 'board' \|\| tab === 'map'`. |
 | `.yf-back` | The existing "All trips" button | Keeps `onNavigate('trips')`. 44 px tall. |
-| `.yf-thumb-slot`, `.yf-thumb` | Cover slot with the image, emoji or `TripArt` | Replaces `.trip-cover-badge`. Use the stated fallback order. |
-| `h1.yf-header-title` | The trip name | Serif, R14. Do not add a second serif class. |
+| `.yf-thumb-slot`, `.yf-thumb` | Cover slot with the image, scene and emoji accent | Replaces `.trip-cover-badge`. |
+| `h1.yf-trip-title` | The trip name | Body face, weight 800. |
 | `.yf-fold`, `.yf-fold-in`, `.yf-fade` | Facts line wrapper | Keeps the existing facts string (lines 387-389). |
 | `.yf-head-actions` | One responsive "Invite & share" button | Keep the `editable` gate. Use an outline pill. |
 | `.yf-extra`, `.yf-members` | Member stack, count note, presence | Reuse `Avatar`, `presenceRow`, `userById`. Keep the role text. |
@@ -501,8 +643,8 @@ New files are allowed. Suggested names: a pure route and terrain module under `s
 | `.ovw-needs`, `.ovw-need`, `.ovw-sev`, `.ovw-more-btn` | Replaces "Priority actions" | Keep `rankWarnings`, `warningKey`, `severityLead`. |
 | `.ovw-stats`, `.ovw-stat` | Three `StatTile` replacements | Merge "Travel effort" and "Stops planned". |
 | `.ovw-route`, `.ovw-map`, `.ovw-stoplist` | New route card component | Same empty branch. `PublicItinerary` keeps `RouteSnapshot`. |
-| `.tr-*` layers | Flat landscape layer of the route card | Draw no ridges, snow, sea or river. |
-| `.rm-*` road, pins, tooltip | Road layer of the route card | One path per leg. |
+| `.ovw-map-atmosphere`, `.ovw-survey` | Illustrative cover and survey lines | Do not depict map data. |
+| `.rm-*` route, pins, tooltip | Route layer of the card | One path per leg. |
 | `.mx-*` | `SlotMatrix` | New grid markup and keyboard handler. Keep `daySlots` and `matrixFreshness`. |
 | `.ovw-block` group pulse, commitments, activity | Existing `Surface` blocks | Quiet class. Pass `onOpenDecisions` through. |
 | `.ovw-weather`, `.ovw-wx` | `WeatherCard` | State logic stays. |
@@ -536,29 +678,31 @@ How to build it:
 
 ### Focus wiring
 
-The workspace owns all focus state. Today it holds `timelineFocusDay` and `timelineFocusStop` (lines 255-260), cleared by `clearTimelineFocus`. It also holds the shared `focus` and `sharedDay` (lines 294-304). `TimelineTab` takes `focusDay` and `focusStopId` (lines 101-126). It has no slot key. `MapTab` takes `dayFocus` only (lines 147-180). It has no stop focus.
+The workspace owns all focus state. P2 already supplies `TimelineFocusTarget`, `MapTarget`, `mapTarget`, and `onMapTargetConsumed`. Overview uses those contracts. It does not add a parallel stop-focus path.
 
-New props and handlers:
+The Overview props and call shapes are:
 
 | Where | Addition | Behaviour |
 | --- | --- | --- |
-| `OverviewTab` | `onOpenTimeline?: (target?: { dayIndex?: number; stopId?: string; block?: 'trip-wide' }) => void` | Today the prop is `() => void`. With no argument the Timeline opens with no focus. |
-| `OverviewTab` | `onOpenMap?: (target?: { dayIndex?: number; stopId?: string }) => void` | With no argument the Map opens with no focus. |
-| `TripWorkspace` | `openTimeline(target)` | Validates `dayIndex` with `canFocusDay(focusDayRequest(dayIndex), trip)`. Sets `timelineFocusDay`. Sets `timelineFocusStop` only when the stop sits on that day (the rule at lines 285-287). For `block: 'trip-wide'` sets a new `timelineFocusBlock`. Then calls `setTab('timeline')`. A failed validation opens the Timeline with no focus. |
-| `TripWorkspace` | `timelineFocusBlock` state | One shot. `clearTimelineFocus` clears it with the other two. |
-| `TimelineTab` | `focusBlock?: 'trip-wide' \| null` | A second one-shot effect scrolls to the trip-wide warning block, gives it an id and `tabIndex={-1}`, moves focus to it, then calls `onFocusConsumed`. The existing effect at lines 534-547 returns when `focusDay` is null, so it cannot carry this request. |
-| `TripWorkspace` | `openMap(target)` | A stop target sets the shared day focus and a one-shot `mapFocusStop`. A coordinate or bounds target clears the day filter. Then it calls `setTab('map')`. |
-| `MapTab` | `focusStopId?: string \| null`, `onFocusConsumed?: () => void` | When set, the Map selects that stop and calls `onFocusConsumed`. `TripMap` owns the selection (`selectedStop`, line 570), so it gets a matching optional prop that selects the stop and flies to it. |
-| Route card | `onSelectStop?(row)` | A pin or row for a stop calls `onOpenMap({ dayIndex, stopId })`. Other rows call `onOpenMap()`. |
-| `SlotMatrix` | `onSelectCell?(dayIndex, stopId \| null)` | A filled cell passes `DaySlot.filledStop.id`. An open or auto-added cell passes `null`. The Overview calls `onOpenTimeline({ dayIndex, stopId })`. |
+| `OverviewTab` | `onOpenTimeline?: (target?: TimelineFocusTarget) => void` | With no target the Timeline opens with no focus. |
+| `OverviewTab` | `onOpenMap?: (target?: MapTarget) => void` | With no target the Map opens with no focus. |
+| `TripWorkspace` | `openTimeline(target)` | Validate the target with the existing P2 resolver. Set the one-shot day, stop, or trip-wide block. Open the Timeline. |
+| `TripWorkspace` | `openMap(target)` | Resolve `MapTarget` with the existing P2 resolver. Set `mapTarget` and the day focus. Open the Map. |
+| `MapTab` | `mapTarget`, `onMapTargetConsumed` | Consume the one-shot target. A stop target waits for its day filter. Then the Map selects and flies to the stop. |
+| Route card | `onOpenMap?(target?: MapTarget)` | A stop row or pin calls `onOpenMap({ kind: 'stop', stopId })`. A start, return, or destination row calls `onOpenMap()`. |
+| `SlotMatrix` | `onSelectCell?(dayIndex, stopId \| null)` | A filled cell calls `onOpenTimeline({ dayIndex, stopId })`. An open or auto-added cell calls `onOpenTimeline({ dayIndex })`. |
 | `SlotMatrix` | `onSelectDay?(dayIndex)` | The Overview calls `onOpenTimeline({ dayIndex })`. |
-| Verdict and issue buttons | `onOpenTimeline({ dayIndex })` | A trip-wide warning calls `onOpenTimeline({ block: 'trip-wide' })`. |
+| Verdict and issue buttons | `onOpenTimeline(target)` | A day warning calls `onOpenTimeline({ dayIndex })`. A trip-wide warning calls `onOpenTimeline({ block: 'trip-wide' })`. |
 
 Every new prop is optional. A caller that omits a prop renders no button. The public itinerary page passes none of them and keeps `RouteSnapshot`.
 
+Every generic Map or Timeline button uses an arrow wrapper. A React event must never become the target argument. A missing stop clears focus. An unplottable stop selects its day without a camera target.
+
+The Overview can render a staged `effective` trip, but the workspace resolver reads the saved `trip`. A stop that exists only in the preview can fail to resolve. Test this case.
+
 ### Terrain data
 
-The route view model and the road are enough for the road, the pins and the stop list. This release draws a flat landscape.
+The route view model supplies the route, pins and stop list. The background is illustrative.
 
 - The terrain model has one `flat` kind. It carries no ridge, peak, snow, sea or river.
 - The order and count of route points do not change.
@@ -694,7 +838,7 @@ Every row must pass in four views: 1440 px light, 1440 px dark, 390 px light, 39
 | Overview `state=failed`, three reads | Group pulse, activity and weather all failed | Exactly one `role="alert"` on the page (group pulse). Two `role="status"` failed blocks. After the first retry succeeds, the activity block becomes the alert. | Three alerts. |
 | Overview `state=empty` | A trip with no stops | Dash score, "Not scored yet", "Open Timeline", "Nothing to check yet", the route empty state, dash totals, the matrix empty state. | Any number above "Nothing planned yet". A zero total. |
 | Overview `state=kept` | A read failed after a good read | The last rows with a note and a retry. | The note without the rows. A blank block. |
-| Route card, no terrain data | Elevation or water missing | The road, pins and stop list on a flat plain. | Invented ridges, sea or river. |
+| Route card, no terrain data | Elevation or water missing | The route, pins and stop list over an illustrative background. | Invented ridges, sea or river. |
 | Route card, road pending | Road not measured yet | Days and stops in the summary. No distance or time on rows. | A guessed distance or time. |
 | Route card, road failed | `road.status` is `failed` | Days and stops in the summary. "Road not measured" and a "Try again" button. | A distance or time. A note that reads as pending. |
 | Route card, partly estimated | A chain with at least one `estimate` leg | "about" before the aggregate, "K of M legs estimated", "(est.)" on each estimated row and the tooltip note. | A plain figure on an estimated leg. |
@@ -703,7 +847,7 @@ Every row must pass in four views: 1440 px light, 1440 px dark, 390 px light, 39
 | Warning button, trip-wide | A warning with no day | "Fix" with no day. The Timeline opens and focuses the trip-wide block. | A button that opens a stranger day. |
 | Matrix cell | A filled cell and an open cell | A filled cell opens its day and its stop. An open cell opens its day. | A slot-level scroll that does not exist. |
 | Route card, fewer than two points | Fewer than two valid coordinates | The existing empty state with its text. | One pin or a line. |
-| Header, open | Overview, Timeline, Group input, Budget, Share, Settings | Back control, cover, serif title, facts line, members row, outline invite button for editors. | Invite button for a viewer without edit rights. |
+| Header, open | Overview, Timeline, Group input, Budget, Share, Settings | Back control, cover, title, facts line, members row, outline invite button for editors. | Invite button for a viewer without edit rights. |
 | Header, folded | Board, Map | Back control, small cover, small title. Members row and facts line hidden and not focusable. On a phone the invite button sits top right. | A hidden control that still takes focus. Layout jump during the fold. |
 | Header, presence | Peers, solo, none | Peer names in tooltips. "Just you viewing" when alone. | A peer shown as a member when they are not one. |
 | Tab bar | Any tab | One active tab with the glider. Count badge on Group input when items are open. Edge fade when the bar scrolls. | A tab without `aria-controls`. A tab stop on every tab. |

@@ -4,6 +4,9 @@ Start here. The codebase is documented across the files below — read the ones 
 
 | Doc | What's in it |
 |---|---|
+| [`redesign/papercut-warmth/REFERENCES.md`](redesign/papercut-warmth/REFERENCES.md) | Papercut source manifest, authority and conflicts. The execution plan is in ROADMAP. |
+| [`redesign/p2-p12-combined/IMPLEMENTATION-SPEC.md`](redesign/p2-p12-combined/IMPLEMENTATION-SPEC.md) | Trip workspace header and Overview implementation spec. It records the 28 October source direction and the P2 behavior contracts. |
+| [`dev/evidence/README.md`](../dev/evidence/README.md) | Overview fixture evidence and its signed-in verification limits. |
 | [`redesign/create-flow/SPEC.md`](redesign/create-flow/SPEC.md) | Guided Create trip specification and the 53 approved reference images. |
 | [`README.md`](../README.md) | Project overview, features, MVP scope, roadmap, quick start. The front door. |
 | [`ARCHITECTURE.md`](ARCHITECTURE.md) | How the pieces fit: data model, store, engine math, AI, geocoding, routing, maps, theming, extension points, gotchas. Read before changing core logic. |

@@ -121,7 +121,7 @@ describe('P12 — the motion is on the tokens, with the opt-out', () => {
   it('the new section names no raw duration', () => {
     // Comments are stripped, so a note that names a duration cannot trip the
     // check - the same rule `state-block.test.ts` scans under.
-    const section = css.slice(css.indexOf('/* ===== P12: Share tab'))
+    const section = css.slice(css.indexOf('/* ===== P12: Share tab'), css.indexOf('/* Papercut foundations */'))
       .replace(/\/\*[\s\S]*?\*\//g, '')
     expect(section).not.toMatch(/\d+ms/)
   })

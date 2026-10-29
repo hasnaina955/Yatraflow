@@ -3,14 +3,12 @@
 import { useState } from 'react'
 import type { CSSProperties } from 'react'
 import type { CoverPlan } from '../../lib/publicStorefront'
+import { staggerStep } from '../../lib/motion'
 import { KindChip, KIND_CATEGORY } from './KindChip'
 import { CatIcon } from '../icons'
 
 /** How many round tiles the pattern draws. The grid hides the ones that do not fit. */
 const PATTERN_TILES = 40
-/** The entrance delay stops growing here, so the last tile never starts late. */
-const STAGGER_CAP = 8
-
 type TicketPlan = Extract<CoverPlan, { kind: 'ticket' }>
 
 export function CoverPlate(p: {
@@ -38,7 +36,7 @@ export function CoverPlate(p: {
         {ticket.kinds.length > 0 && Array.from({ length: PATTERN_TILES }, (_, i) => {
           const k = ticket.kinds[i % ticket.kinds.length]
           return (
-            <span key={i} className={'sf-cover-dot sf-kind--' + k.kind} style={{ '--i': Math.min(i, STAGGER_CAP) } as CSSProperties}>
+            <span key={i} className={'sf-cover-dot sf-kind--' + k.kind} style={{ '--i': staggerStep(i) } as CSSProperties}>
               <CatIcon category={KIND_CATEGORY[k.kind]} />
             </span>
           )

@@ -11,6 +11,7 @@ import { useId, type CSSProperties } from 'react'
 import { Eye } from 'lucide-react'
 import type { PublishedItinerary, User } from '../../data/types'
 import { appLink } from '../../lib/appLink'
+import { staggerDelay } from '../../lib/motion'
 import { Avatar } from '../ui'
 import { ExploreCover, EX_TREND_SIZES } from './ExploreCover'
 import { ExploreFacts } from './ExploreFacts'
@@ -39,7 +40,7 @@ export function TrendingShelf({ pubs, users, isSaved, onToggleSave }: {
         {pubs.map((pub, index) => {
           const creator = users.find(user => user.id === pub.creatorId)
           const creatorName = creator?.profile.name ?? 'Creator'
-          const enterDelay: CSSProperties = { animationDelay: `calc(var(--stagger-step) * ${Math.min(index, 4)})` }
+          const enterDelay: CSSProperties = { animationDelay: staggerDelay(index) }
           return (
             <li key={pub.id} className="ex-trend-item ex-enter" style={enterDelay}>
               <article className="ex-trend-card" data-id={pub.id}>

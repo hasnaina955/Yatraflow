@@ -8,6 +8,7 @@ import type { PublishedItinerary, User } from '../../data/types'
 import { appLink } from '../../lib/appLink'
 import type { PresenceAttrs } from '../../lib/usePresenceList'
 import { cap } from '../../lib/labels'
+import { staggerDelay } from '../../lib/motion'
 import { Avatar } from '../ui'
 import { ExploreCover } from './ExploreCover'
 import { ExploreFacts } from './ExploreFacts'
@@ -28,7 +29,7 @@ export function ExploreCard({ pub, creator, saved, needsLogin, enterIndex, prese
 }) {
   const creatorName = creator?.profile.name ?? 'Creator'
   const title = pub.title
-  const enterDelay: CSSProperties = { animationDelay: `calc(var(--stagger-step) * ${Math.min(enterIndex, 8)})` }
+  const enterDelay: CSSProperties = { animationDelay: staggerDelay(enterIndex) }
   return (
     <article className="ex-card ex-enter" data-id={pub.id} style={enterDelay} {...presence}>
       <div className="ex-cover-wrap">

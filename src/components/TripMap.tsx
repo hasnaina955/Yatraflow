@@ -36,7 +36,7 @@ import {
   Box, CircleDot, Clock, Flag, Home, Info, Lightbulb, LocateFixed, Map as MapIcon, Mountain, Navigation, PlaneTakeoff,
   RotateCcw, Search, TriangleAlert, X,
 } from 'lucide-react'
-import { prefersReducedMotion, motionTiming } from '../lib/motion'
+import { prefersReducedMotion, motionExitTiming, motionTiming } from '../lib/motion'
 import { StateBlock } from './page/StateBlock'
 import {
   Map as MapLibreMap,
@@ -582,7 +582,10 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     setClosing(true)
     // The unmount rides the same token as mapCollapse's animation, so retiming
     // the CSS retimes the timer; reduced motion skips the glide entirely.
-    collapseTimer.current = window.setTimeout(() => { setExpanded(false); setClosing(false) }, prefersReducedMotion() ? 0 : motionTiming('--motion-slow').duration)
+    collapseTimer.current = window.setTimeout(
+      () => { setExpanded(false); setClosing(false) },
+      prefersReducedMotion() ? 0 : motionExitTiming('--motion-slow').duration,
+    )
   }
   useEffect(() => () => window.clearTimeout(collapseTimer.current), [])
   useEffect(() => {

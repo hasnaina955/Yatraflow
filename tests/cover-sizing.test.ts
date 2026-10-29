@@ -56,8 +56,12 @@ describe('every stored-cover surface is wired to the sizer', () => {
 
   it('the shared card sizes an explicit cover', () => {
     const card = read('../src/components/CoverThumb.tsx')
-    expect(card).toMatch(/sizedCoverUrl\(explicitUrl \?\? ''\)/)
-    expect(card).not.toMatch(/const url = explicitUrl \|\|/)
+    // The explicit URL is the first candidate, sized on the way in.
+    expect(card).toMatch(/const userCover = explicitUrl \? sizedCoverUrl\(explicitUrl\) : ''/)
+    expect(card).toMatch(/userCover,/)
+    // …and it reaches the renderer through the shared plan, never as a raw src.
+    expect(card).toContain('coverPlanFor({')
+    expect(card).toContain('<CoverMedia')
   })
 
   it('the owner control sizes a cover on the way into the row', () => {
@@ -65,5 +69,19 @@ describe('every stored-cover surface is wired to the sizer', () => {
     expect(picker).toMatch(/coverImageUrl: url \? sizedCoverUrl\(url\) : undefined/)
     // and previews it sized, so the control itself is not the heavy view
     expect(picker).toMatch(/trip\.coverImageUrl \? sizedCoverUrl\(trip\.coverImageUrl\)/)
+  })
+
+  // The plan is built from the cover URL, so a surface that hands it a RAW
+  // stored address re-introduces the 1.3 MB original the sizer exists to stop.
+  // Each adapter below passes the sizer's own output, never the column.
+  it.each([
+    ['../src/components/trips/TripCover.tsx', 'trip.coverImageUrl'],
+    ['../src/pages/TripWorkspace.tsx', 'trip.coverImageUrl'],
+    ['../src/pages/CreateTrip.tsx', 'f.coverImageUrl'],
+  ])('%s sizes the stored cover before building the plan', (path, field) => {
+    const source = read(path)
+    expect(source).toContain(`sizedCoverUrl(${field})`)
+    // The raw column must never be handed straight to the resolver.
+    expect(source).not.toMatch(new RegExp(`userCover: ${field.replace('.', '\\.')}[,\\n]`))
   })
 })

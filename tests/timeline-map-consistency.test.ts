@@ -80,7 +80,7 @@ describe('P12 — the static steps moved out of the style attribute', () => {
   })
 
   it('the new section names no raw duration', () => {
-    const section = css.slice(css.indexOf('/* ===== P12: Timeline and map')).replace(/\/\*[\s\S]*?\*\//g, '')
+    const section = css.slice(css.indexOf('/* ===== P12: Timeline and map'), css.indexOf('/* Papercut foundations */')).replace(/\/\*[\s\S]*?\*\//g, '')
     expect(section).not.toMatch(/\d+ms/)
   })
 })

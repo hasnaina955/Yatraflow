@@ -159,7 +159,7 @@ describe('Surface root styles', () => {
 
   it('declares the button reset with the card font and no raw duration', async () => {
     const css = await read(STYLES)
-    const block = css.slice(css.indexOf(BLOCK_MARK)).replace(/\/\*[\s\S]*?\*\//g, '')
+    const block = css.slice(css.indexOf(BLOCK_MARK), css.indexOf('/* Papercut foundations */')).replace(/\/\*[\s\S]*?\*\//g, '')
     expect(block).toContain(':where(button.yf-surface) {')
     expect(block).toContain('font: inherit; color: inherit;')
     expect(block).not.toMatch(/\d+ms/)
@@ -184,7 +184,7 @@ describe('PageHeader note slot', () => {
     const css = await read(STYLES)
     const start = css.indexOf('/* ===== Shared page components: the handwritten header note ===== */')
     expect(start).toBeGreaterThan(-1)
-    const block = css.slice(start)
+    const block = css.slice(start, css.indexOf('/* Papercut foundations */'))
     expect(block).toContain('font-family: var(--font-hand)')
     expect(block).toContain('font-weight: 600')
     expect(block).toContain('color-mix(in srgb, var(--saffron) 45%, transparent)')

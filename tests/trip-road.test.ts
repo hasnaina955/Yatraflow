@@ -317,7 +317,9 @@ describe('the wiring: one measurement site, no second caller (#188)', () => {
   it('tripRoad.ts is the single owner of the whole-trip chain', () => {
     const tripRoad = read('../src/lib/tripRoad.ts')
     const calls = tripRoad.match(/routePath\(/g) ?? []
-    expect(calls.length).toBe(2) // measureRoadChain + measureDayRide (the map's day line)
+    // ONE shared default in `activeMeasure` serves both entry points, so the
+    // file holds a single call site. A stray second one still fails this pin.
+    expect(calls.length).toBe(1)
   })
 
   // The reported defect: a flight trip was measured as a ROAD. Google Routes has

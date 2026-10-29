@@ -35,9 +35,70 @@ M6. The `vX.Y.Z` in each M-heading is therefore **historical intent only and is 
 the ledger tracks content, and only the ledger's version numbers are real. Where a heading's
 number collides with a shipped release, the ledger wins.
 
-> **Strategy (2026-10-12):** the order of work is set by [`docs/commercial/STRATEGY.md`](docs/commercial/STRATEGY.md) — a six-week feature freeze and distribution sprint with a written gate.
+> **Strategy (2026-10-12):** [`docs/commercial/STRATEGY.md`](docs/commercial/STRATEGY.md) sets the distribution sprint. The Papercut track below has separate user authorization.
 
 ---
+
+## Papercut warmth execution track
+
+This track is the plan of record for the 28 October design sources.
+The [source index](docs/redesign/papercut-warmth/REFERENCES.md) maps archives to tasks and records conflicts.
+Mockups show visual intent. They do not authorize new data or product features.
+The PW-03 and PW-15 foundation scopes are complete.
+The current source audit confirms the adopted foundation values.
+All page and component slices remain pending unless their status says otherwise.
+On 2026-10-28, the user approved the motion board, including its small bounce effects.
+The Papercut foundation now uses the completed cool-palette sources.
+
+### Common task contract
+
+Each task owns only its named paths and related tests. One owner controls `src/styles.css`.
+Record decisions and changed source paths in this track before dependent work starts.
+Use existing behavior and permissions unless a later ruling explicitly changes them.
+Use real data. Do not copy example values from a board.
+Keep loading, failed, empty, retained and ready states distinct where they apply.
+For each UI task, exercise its named interaction in a real browser.
+Check light and dark themes at 1440px and 390px.
+Check keyboard focus, reduced motion, and the relevant error and recovery paths.
+Sign in on the exact origin under test. A session on another port does not count.
+Record evidence and any unavailable state. Do not mark a task complete without its checks.
+Run relevant tests and UI gates for each slice. Add meaningful tests for changed behavior.
+For meaningful behavior changes, an independent reviewer must check Standards and Spec.
+Resolve accepted findings and record the review before the task checkpoint.
+Never raise a lint baseline. Follow motion tokens and reduced-motion rules.
+Use STE for new prose. Run `npm run lint:ste`.
+Before release, run `npm run verify` and applicable browser motion checks.
+Before sharing a localhost URL, prove the server serves this tree and its backend is compiled in.
+Give the exact URL and the interactions to check.
+Revert only the affected task's changes if its checkpoint fails. Preserve prior accepted slices.
+Commit only when authorized for that work. Ask before any push or PR.
+Every PR targets `test`. Check its diff for unrelated work first.
+
+### Task graph and acceptance
+
+- [ ] **PW-01: Freeze and preserve the baseline.** Dependencies: none. Own `docs/redesign/p2-p12-combined/IMPLEMENTATION-SPEC.md`, `src/pages/trip/OverviewTab.tsx`, `src/components/trips/OverviewRouteCard.tsx`, `src/lib/overviewReads.ts`, `src/lib/overviewRouteMap.ts`, `src/lib/overviewTruth.ts`, `src/styles.css` and their existing tests. Inventory the dirty P2/P12 diff and archive hashes. Preserve it before integration without a commit. P2 starts at `69094cd7`. P12 is local and uncommitted. Its existing Overview color and shadow pass uses the original layout. The compact v2 layout remains pending. The earlier report of 6733 passing tests, one skip, and a build is historical. It is not a fresh run. At that baseline, no authenticated Overview browser evidence existed. Acceptance: compare the saved diff and current tree. Run relevant Overview tests. Exercise route, failure and recovery on the signed-in origin. Rollback: restore only an approved preserved copy; never discard the dirty work.
+- [ ] **PW-02: Set authority and decisions.** Depends on PW-01. Own `ROADMAP.md` and `docs/redesign/papercut-warmth/REFERENCES.md`. Record token mappings, source conflicts, ownership and unresolved choices. Existing behavioral rulings remain in force. Acceptance: trace each board to a task and each conflict to a decision. Rollback: revert this decision record only. Reference: all manifest entries.
+- [x] **PW-03: Adopt shared visual foundations (foundation scope).** Depends on PW-02. Own `src/styles.css`, `src/lib/theme.ts`, `DESIGN_TOKENS.md` and the Papercut source manifest. This scope is complete. It adopts the cool light and navy dark palettes. It adopts the Sora and Jakarta type roles, radius, spacing, elevation and supplied glows. It removes the foundation's warm paper aliases and shared grain. The `--yf-cream` alias now resolves to cool paper. Legacy page-specific warm gradients remain in `.landing-canvas` and `.ex-hero`. They use `--yf-mist`, `--yf-peach` and `--ex-paper`. PW-10 and PW-16 own those page migrations. It keeps real covers and art. Component and page layouts remain deferred. Acceptance: the design tests pass. The gallery proves palette, fonts, contrast and overflow in both themes. The theme meta colour follows the paper ground. Rollback: revert the foundation aliases and coupled tokens together. References: the six supplied source files and `WarmSystem.dc.html`.
+- [ ] **PW-04: Build a component vertical slice.** Depends on PW-03 and PW-15. Own `src/components/page/`, `src/components/ui.tsx` and `src/styles.css`. Adopt controls and cards with one real consumer. Preserve focus, disabled and error states. Acceptance: operate each adopted control by keyboard and touch. Run relevant component and design-system tests. Rollback: revert the slice and its consumer together. Reference: ComponentKit.dc.html. **Working claim (2026-10-28):** the Overview uses the shared `Surface`, `StateBlock` and button skin as its component consumer. The wider component slice stays open.
+- [ ] **PW-05: Reconcile shell and workspace header.** Depends on PW-01, PW-04. Own `src/App.tsx`, `src/pages/TripWorkspace.tsx`, `src/components/PillNav.tsx` and `src/styles.css`. Use the full cover header in P12Warm2.dc.html as visual authority. Preserve the P2 spec's behavioral contracts, cover behavior, header fold and routed tab focus. Acceptance: change cover, fold header, navigate tabs and restore focus at both widths. Check Board and Map regressions. Rollback: revert header and shell slice only. Reference: P12Warm2.dc.html. **Working claim (2026-10-28):** the full-cover workspace header and the in-cover tab pill are implemented. The parent's live reads confirm the Board and Map fold at both widths. The tabs are 44px, the member row is inert and nothing overflows. The Overview restores the open cover at 296px on a phone and 260px on a desktop. The parent also confirmed the focus handoff: a focused member moves to the Board tab when the header folds. The cover draws one shared cover plan. The order is the traveller's upload, then the artwork that fits the trip's own places, then their saved emoji. The compass means no cover was chosen. The emoji is the last resort. It shows only when every image is gone, and it never paints over one. The veil fades from the left edge to nothing at the right, so the artwork stays visible. The tab pill uses the source near-white glass, and the workspace nav takes the same fill. The invite control carries its own dark glass, so its white label reads over bright artwork. The independent review findings are fixed. The parent's signed-in acceptance stays open.
+- [ ] **PW-06: Compact Overview v2.** Depends on PW-01, PW-04, PW-05. Own `src/pages/trip/OverviewTab.tsx`, `src/components/trips/OverviewRouteCard.tsx` and `src/styles.css`. Use real metrics and the existing route fallback. PW-14 supplies place heights. Acceptance: exercise ready, empty, retained and failed reads and route fallback. Check the signed-in Overview in both themes and widths. Rollback: revert the v2 layout while retaining the preserved P12 baseline. Reference: P12Warm2.dc.html. **Working claim (2026-10-28):** the compact briefing, issues and route composition is implemented. The health card carries three checks with honest derivations. The route card draws a route-height curve and falls back to the schematic route. The body stacks the route and commitments on the right, with a group strip and a weather row beneath. The day matrix follows the source. It uses text part labels, a day thumbnail with its number, four state marks and a Filled total. Each heading fits its own 50px part track at the 11px floor. The day column keeps a two-place route name whole. The height stroke is illustrative. Nearby places share a representative mark on the curve. The list keeps every place height. The chart omits the inset so it cannot cover data. The route's two handles at a join run along one tangent. A leg of zero length draws no needle. The product type floor raises the source's 10px labels to 11px. The local checks cover the ready, partial, retained and failed states, the matrix keyboard and both widths. The parent's signed-in acceptance stays open.
+- [ ] **PW-07: Timeline stay day.** Depends on PW-04, PW-05. Own `src/pages/trip/TimelineTab.tsx`, `src/pages/trip/timeline/DaySection.tsx` and `src/styles.css`. Restyle an open stay day and preserve edit and collapse behavior. Acceptance: open, edit, save and collapse a day; test failure and retained data. Rollback: revert this day slice only. References: Main.dc.html and WarmSystem.dc.html.
+- [ ] **PW-08: Timeline drive day.** Depends on PW-07. Own `src/pages/trip/timeline/DaySection.tsx`, `src/pages/trip/timeline/TravelPanel.tsx` and `src/styles.css`. Preserve fixed times and existing scheduling rules. Acceptance: edit fixed and flexible stops, reload, and verify their times. Check conflicts and failed saves. Rollback: revert the drive slice only. Reference: DriveDay.dc.html.
+- [ ] **PW-09a: Trip settings.** Depends on PW-04. Own `src/pages/trip/TripSettingsForm.tsx` and `src/styles.css`. Preserve validation and saved values. Acceptance: edit settings, check invalid fields, save and reload, and retry a failed save. Rollback: revert the settings slice. Reference: TripSettings.dc.html.
+- [ ] **PW-09b: Guided creation.** Depends on PW-04. Own `src/pages/CreateTrip.tsx`, `src/components/CreateFlowShell.tsx`, `src/components/CreateFlowCalendar.tsx`, `src/components/CreateFlowTicket.tsx` and `src/styles.css`. Preserve the create flag, validation and draft values. Acceptance: navigate forward and back, check invalid fields, create a trip and retry a failed save. Rollback: revert the creation slice. Reference: PlanTrip.dc.html.
+- [ ] **PW-10: Explore and publication card.** Depends on PW-04. Own `src/pages/Explore.tsx`, `src/components/explore/`, `src/components/PubCard.tsx` and `src/styles.css`. Reuse one publication card without changing publication behavior. Acceptance: filter, open and save a real card; check empty and failed searches. Rollback: revert the card and Explore consumer together. Reference: Explore.dc.html.
+- [ ] **PW-11a: Public Look inside.** Depends on PW-10. Own `src/pages/PublicItinerary.tsx`, `src/components/storefront/` and `src/styles.css`. Preserve paid gating, ownership and access checks. Acceptance: exercise anonymous, owner, unpaid and entitled views. Verify locked content and check failed and retained reads. Rollback: revert the Look inside slice. Reference: LookInside.dc.html.
+- [ ] **PW-11b: Public Ride along.** Depends on PW-11a. Own `src/pages/PublicItinerary.tsx`, `src/components/storefront/` and `src/styles.css`. Preserve paid gating and owned access. Acceptance: navigate the route as anonymous, unpaid, owner and entitled users. Check failed and retained reads. Rollback: revert the Ride along slice. Reference: PublicRide.dc.html.
+- [ ] **PW-12a: Creator public storefront.** Depends on PW-10 and PW-11b. Own `src/pages/CreatorPage.tsx` and `src/styles.css`. Preserve public access and publication behavior. Acceptance: open a creator page as a visitor and check empty and failed reads. Rollback: revert the public storefront slice. Reference: Creator.dc.html.
+- [ ] **PW-12b: Creator owner view.** Depends on PW-12a. Own `src/pages/CreatorPage.tsx` and `src/styles.css`. Preserve existing owner permission gates. Acceptance: compare owner and non-owner controls; exercise edits and failed saves. Check Creator Hub for regressions without inventing a new design. Rollback: revert the owner view slice. Reference: Creator.dc.html.
+- [ ] **PW-13: Budget.** Depends on PW-04, PW-05. Own `src/pages/trip/BudgetTab.tsx` and `src/styles.css`. Read `src/lib/expenseAmount.ts`, `src/lib/payments.ts` and `src/lib/settlement.ts` as regression evidence. A cosmetic port must not rewrite money logic. A named bug needs a separate justified change. Acceptance: add and edit an expense, inspect balances and settlement, and retry a failed write. Run the existing money tests. Rollback: revert the Budget slice without changing ledger data. Reference: Budget.dc.html.
+- [ ] **PW-14: Route heights from public terrain.** Depends on PW-06 and a verified data source decision. The source is the keyless AWS Terrain Tiles bucket the Map tab already uses. The card reads one height per trip place: the start, every stop, the return and the destination. The illustrative curve joins selected place heights. Nearby places share a representative mark. The list keeps every place height. The curve does not overshoot its neighbours. A missing tile leaves a gap. A failed read keeps the schematic route and offers one retry. The full source credit sits behind a Data sources link. Own `src/lib/elevation.ts`, `src/lib/elevationTiles.ts`, `src/hooks/useTripElevation.ts`, `src/lib/elevationPlot.ts`, `src/components/trips/OverviewElevationProfile.tsx` and `src/styles.css`. Never invent heights or acclimatisation advice. Acceptance: verify real place heights on the signed-in trip. The fixture uses synthetic heights. The cache, source-failure and flown cases are covered. Rollback: remove the card while keeping PW-06. Reference: P12Warm2.dc.html.
+- [x] **PW-15: Approved motion foundation migration (foundation scope).** Depends on PW-02. Own `docs/MOTION-TOKENS.md`, `src/styles.css`, `src/lib/motion.ts`, the gallery and timing tests. This foundation scope is complete. It adopts 90, 160, 240, 360 and 560ms. It caps shared entrance stagger at six items with 60ms steps. It maps `--t-fast` to fast. It maps `--t-med` and `--t-slow` to slow. It uses full named exits with no stagger: list 240ms and map 360ms. It records menu and toast at 160ms and drawer at 240ms for their owning slices. It uses immediate reduced motion and keeps charts, covers, routes, pins and numbers final. It aligns list and map JS timers with the CSS. The gallery and browser check cover entrance, exit, replay, reduced motion and the real Surface cascade. Menu, toast and drawer exit lifecycles remain deferred. The wider legacy animation sweep is outside this scope. Rollback: revert the motion foundation and coupled timings together. Reference: Motion.dc.html.
+- [ ] **PW-16: Remaining pages and rollout.** Depends on PW-03 through PW-13, including each lettered slice, and PW-15. Own `src/pages/`, `src/components/` and `src/styles.css` only for shared-token regressions. Check Board, Map, Group input, Share, My trips, Purchases, Profile, Creator Hub, auth, landing, native and admin. Their distinct redesigns are deferred unless a source and scope are approved. Exercise navigation and primary actions in both themes and widths. Run full verification and motion checks. Rollback: revert a failing shared-token consumer without undoing accepted pages. References: shared kit and dark theme; no new mockup is assumed.
+
+The page and component slices remain pending. After PW-04, independent page slices may proceed in parallel.
+Assign disjoint page files. The single styles owner integrates shared CSS in sequence.
+PW-14 may wait without blocking the compact Overview. Record its source decision before work.
 
 ## Open issues
 
@@ -465,7 +526,8 @@ one `platform_invites` entity — detailed execution guide in
 **Origin.** A four-page static mockup folder, built outside the repo and never reconciled with
 `docs/redesign/ALIGNMENT.md`. It proposes new layout, new interactions and a second palette.
 
-**The palette is out of scope.** You ruled it out. Its ten swatches have zero occurrences in
+**Historical ruling.** The Papercut track supersedes this palette exclusion for its own sources.
+The earlier mockup's palette remains out of scope. Its ten swatches have zero occurrences in
 `src/styles.css`, and the shipped `--yf-*` layer stays authoritative. Every row below adopts a
 layout or interaction idea and re-points it at the existing tokens. No row changes a colour value.
 
@@ -782,7 +844,7 @@ imagery in `assets/` is AI-generated per `_gen3.json`, so no row may ship those 
 The plan is [`docs/consistency/app-consistency-plan.md`](docs/consistency/app-consistency-plan.md), with rulings R1–R23 in [`docs/consistency/consistency-rulings.md`](docs/consistency/consistency-rulings.md).
 The reference standard is the redesigned Explore and My trips pages.
 
-The strategy freezes this track for six weeks, so pick it up after the creator gate.
+The Papercut track has separate user authorization. Keep these behavioral rulings unless a recorded decision supersedes them.
 
 | Page | The shared page parts are in it |
 | --- | --- |
@@ -844,6 +906,11 @@ get a row here again.
 
 ---
 ## Idea bank
+
+Papercut deferred work needs a source and scope decision before a separate redesign.
+This covers Board, Map, Group input, Share, My trips, Purchases, Profile and Creator Hub.
+It also covers auth, landing, native and admin pages. PW-16 checks shared-token regressions.
+Route heights from public terrain ship in PW-14.
 
 ### Transport-aware options (2026-10-19)
 

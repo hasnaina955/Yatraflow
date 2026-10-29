@@ -247,19 +247,14 @@ export function PurchasesPage({ onNavigate }: { onNavigate: (r: string) => void 
               return (
               <Surface as="article" className={isHighlighted ? 'pur-row is-new' : 'pur-row'} key={row.pubId} id={purchaseCardId(row.pubId)} enterIndex={rowIndex}>
                 <div className="pur-thumb">
-                  {/* #409 — a row that is not on sale gets NO auto lookup.
-                      `CoverThumb` resolves a missing cover through
-                      `pickTripQueryCandidates`, which for this caller degrades to
-                      the purchase TITLE, and a title is not a destination:
-                      "Spiti Valley Circuit" resolves to a plausible photo the
-                      creator never chose, presented in the authoritative cover
-                      slot. A neutral emoji is the honest fallback for a plan
-                      taken off sale (#570 — its own page no longer shows any
-                      photo to agree with). A row still ON SALE keeps the lookup,
-                      because there its own public page shows the same photo and
-                      the two agree. */}
-                  <CoverThumb variant="short" explicitUrl={row.coverImageUrl}
-                    trip={row.onSale ? { name: row.title } : null} emoji="🧭" />
+                  {/* A purchase row carries the cover and a place COUNT, not the
+                      place names, so there is no destination evidence here. So
+                      the card shows the neutral artwork, a real scene and not a
+                      blank. It shows the emoji only if that artwork cannot load.
+                      The purchase TITLE was the #409 bug: "Spiti Valley Circuit"
+                      is not a place, so resolving it to a photo put a claim the
+                      creator never made in the authoritative cover slot. */}
+                  <CoverThumb variant="short" explicitUrl={row.coverImageUrl} emoji="🧭" />
                 </div>
                 <div className="pur-body">
                   <div className="pur-head">

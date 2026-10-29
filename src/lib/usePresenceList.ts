@@ -26,7 +26,7 @@
 // around it would not move until the item was gone.
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
-import { motionTiming, prefersReducedMotion } from './motion'
+import { motionExitTiming, motionTiming, prefersReducedMotion } from './motion'
 
 export interface PresenceEntry<T> {
   key: string
@@ -265,7 +265,7 @@ export function usePresenceList<T>(
       // commit, then let the layout effect glide the stayers into the gap.
       reflowFrom.current = livePositions(listElement.current)
       flushSync(() => setEntries(current => dropExited(current, [...batch.keys])))
-    }, motionTiming('--motion-med').duration)
+    }, motionExitTiming('--motion-med').duration)
     pending.add(batch)
   }, [entries])
 

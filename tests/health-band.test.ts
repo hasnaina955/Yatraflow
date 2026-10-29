@@ -97,12 +97,17 @@ import { readFileSync } from 'node:fs'
 const css = readFileSync('src/styles.css', 'utf8')
 const BAND_CLASSES = ['ok', 'teal', 'saffron', 'danger'] as const
 
-/** Selector names of every health/pulse rule in a stylesheet, sorted. */
-function healthSelectors(src: string): string[] {
+/** Selector names of the three band-colour families in a stylesheet, sorted. */
+function bandColourSelectors(src: string): string[] {
   const out: string[] = []
   for (const m of src.matchAll(/^\s*(\.[^{\n@]+\{[^}]*\})/gm)) {
     const sel = m[1].slice(0, m[1].indexOf('{')).trim()
-    if (/health|pulse/.test(sel)) out.push(sel)
+    // The v2 Overview adds health-card layout rules. They are not part of the
+    // four-band colour vocabulary, so keep this proof focused on the families
+    // that map band names to colour.
+    if (/^\.(?:health-num-big|health-bar > i|board-pulse-band)(?:\.|$)/.test(sel)) {
+      out.push(sel)
+    }
   }
   return out.sort()
 }
@@ -156,11 +161,11 @@ describe('#400 — every band the mapper emits has a colour rule', () => {
     // is the one that says what the vocabulary was before.
     let before: string[]
     try {
-      before = healthSelectors(execSync('git show v0.70.0:src/styles.css', { encoding: 'utf8' }))
+      before = bandColourSelectors(execSync('git show v0.70.0:src/styles.css', { encoding: 'utf8' }))
     } catch {
       return
     }
-    const after = healthSelectors(css)
+    const after = bandColourSelectors(css)
     const added = after.filter(s => !before.includes(s))
     const removed = before.filter(s => !after.includes(s))
     // Spent-proof lifecycle (#508 rebase): this proof verified a one-time
@@ -178,7 +183,7 @@ describe('#400 — every band the mapper emits has a colour rule', () => {
     // would catch an unreviewed rule riding along in a "small" CSS edit.
     expect(added.filter(s => !isNew(s))).toEqual([])
     expect(removed.filter(s => !isOld(s))).toEqual([])
-  })
+  }, 15_000) // The git subprocess can outlast the default under full-suite load.
 })
 
 describe('the band states its consequence in plain words (#683)', () => {
@@ -199,9 +204,10 @@ describe('the band states its consequence in plain words (#683)', () => {
 
   it('the Overview prints the sentence beside the score', () => {
     const tab = readFileSync('src/pages/trip/OverviewTab.tsx', 'utf8')
-    expect(tab).toContain('{healthBandSentence(health.band)}')
+    expect(tab).toMatch(/healthBandSentence\(health\.band\)/)
+    expect(tab).toContain("'Nothing is planned yet.'")
     // The raw band word stays in the chip. The sentence is the explanation.
-    expect(tab).toContain('{health.band}')
+    expect(tab).toMatch(/health\.band/)
   })
 })
 

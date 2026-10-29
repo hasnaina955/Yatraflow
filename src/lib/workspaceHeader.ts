@@ -111,17 +111,3 @@ export function resolveMapFocus(
   if (!plottable) return { dayIndex: day.index, target: null }
   return { dayIndex: day.index, target: normalized }
 }
-
-export type TripHeaderCover =
-  | { kind: 'image'; url: string }
-  | { kind: 'emoji'; emoji: string }
-  | { kind: 'art' }
-
-/** The approved cover order: the traveller's image, then the saved emoji, then TripArt. */
-export function tripHeaderCover(trip: Pick<Trip, 'coverImageUrl' | 'coverEmoji'>): TripHeaderCover {
-  const url = trip.coverImageUrl?.trim()
-  if (url) return { kind: 'image', url }
-  const emoji = trip.coverEmoji?.trim()
-  if (emoji) return { kind: 'emoji', emoji }
-  return { kind: 'art' }
-}

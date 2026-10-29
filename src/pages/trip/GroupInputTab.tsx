@@ -25,6 +25,7 @@ import { formatInr, minutesToHM } from '../../lib/engine'
 import { decisionContext, contextLine, recommendForDecision } from '../../lib/decisionGuide'
 import { emptyCopyFor, sliceState } from '../../lib/readState'
 import { Avatar, Chip, Field, toast } from '../../components/ui'
+import { assignAvatarTones } from '../../lib/avatarTone'
 import { StateBlock } from '../../components/page/StateBlock'
 import { Surface } from '../../components/page/Surface'
 import { refuseWhileStaged } from '../../lib/mutationLifecycle'
@@ -642,7 +643,13 @@ function DecisionCard({ d, me, editable, needsMe, trip, previewOpen }: {
               </span>
               {voters.length > 0 && (
                 <span className="who-voted" role="img" aria-label={`Voted for this: ${voters.map(v => userById(v)?.profile.name ?? 'Traveller').join(', ')}`}>
-                  {voters.slice(0, 4).map(v => <Avatar key={v} user={userById(v)} />)}
+                  {(() => {
+                    const shown = voters.slice(0, 4)
+                    const tones = assignAvatarTones(shown)
+                    return shown.map((v, index) => (
+                      <Avatar key={v} user={userById(v)} tone={tones[index]} />
+                    ))
+                  })()}
                   {voters.length > 4 && <span className="who-more">+{voters.length - 4}</span>}
                 </span>
               )}

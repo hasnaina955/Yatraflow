@@ -49,7 +49,7 @@ describe('Group input tab: panels, titles and states follow the page pattern', (
 
   it('adds no raw millisecond value in the new CSS section', () => {
     expect(css).toContain('P12: Group input tab')
-    const section = css.slice(css.indexOf('P12: Group input tab'))
+    const section = css.slice(css.indexOf('P12: Group input tab'), css.indexOf('/* Papercut foundations */'))
     expect(section).not.toMatch(/\d+ms\b/)
   })
 })

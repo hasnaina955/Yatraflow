@@ -204,13 +204,11 @@
     "src/pages/TripWorkspace.tsx": {
       "EmptyState": 0,
       "loadingBlock": 0,
-      "inlineStyle": 1,
+      "inlineStyle": 0,
       "rawH1": 1
     }
   },
   "cardHoverViolations": 8,
   "fontScopeViolations": 0,
-  "fontNameFiles": {
-    "src/main.tsx": 1
-  }
+  "fontNameFiles": {}
 }

@@ -307,7 +307,7 @@ export default function App() {
     if (root.dataset.theme !== (dark ? 'dark' : 'light')) {
       root.dataset.theme = dark ? 'dark' : 'light'
       document.querySelectorAll('meta[name="theme-color"]').forEach(m =>
-        m.setAttribute('content', dark ? '#0C1420' : '#FAF7F2'))
+        m.setAttribute('content', dark ? '#0C1420' : '#F0F8F6'))
       void setNativeTheme(dark)
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps

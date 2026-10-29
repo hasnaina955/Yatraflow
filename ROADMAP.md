@@ -928,7 +928,7 @@ Each batch removes the rules it supersedes and validates its consumers before th
 | B3 | `.input`, `.textarea` and `.field` composition | `components/input.css` | Done in `bab73488` and `1f5cc770`. `.field` is a shared component, not page layout. 1,800 computed comparisons, 0 differences. `font-size` stays declared by design. |
 | B4 | `.card` surface, sibling rhythm and the route-snap variant | `components/card.css` | Done in `537d2a71` and `0ec35172`. Radius and border are variables; shadow is not, because the variant overrides its scope both ways. 120 comparisons, 0 differences. Baseline 65 to 62. |
 | B5 | `.container` width, centring and padding | `layouts/container.css` | Done in `a4385dff` and `f497c0ca`. First layout owner. Two of 24 rules are the recipe; 22 are page variants. `--container-max` replaces three duplicated 1240px declarations. 84 comparisons, 0 differences. |
-| B6 | `.chip` and `.chip-btn` — 47 consumers | `components/chip.css` | Shared control |
+| B6 | `.chip` surface and colour variants | `components/chip.css` | Done in `2ef6397b`. Four of 17 rules are the surface. Checkpoint 2 found nothing to consolidate: every page property carries a different value. 490 comparisons, 0 differences. |
 | B7 | `.avatar` — 22 rules over 6 files | `components/avatar.css` | Shared control |
 | B8 | `.modal` — 24 rules over 5 files | `components/dialog.css` | Shared control, stacking risk |
 | B9 | `.toast` — 50 consumers | `components/toast.css` | Shared control |

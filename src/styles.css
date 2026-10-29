@@ -3,6 +3,7 @@
    Do not reorder these imports. */
 @import './styles/tokens.css';
 @import './styles/legacy/01-foundations.css';
+@import './styles/layouts/container.css';
 @import './styles/components/card.css';
 @import './styles/legacy/02-select-and-print.css';
 @import './styles/components/chip.css';
@@ -11,7 +12,7 @@
 @import './styles/components/select.css';
 @import './styles/components/button.css';
 @import './styles/components/input.css';
-@import './styles/layouts/container.css';
+@import './styles/layouts/container-phone.css';
 @import './styles/legacy/05-share-and-trip-ticket.css';
 @import './styles/legacy/06-shell-and-consistency.css';
 @import './styles/legacy/07-workspace-and-unlock.css';

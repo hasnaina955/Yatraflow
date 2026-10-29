@@ -18,6 +18,10 @@
       ],
       "variables": [
         "--container-max"
+      ],
+      "files": [
+        "src/styles/layouts/container.css",
+        "src/styles/layouts/container-phone.css"
       ]
     },
     {
@@ -68,8 +72,15 @@
       "configClasses": [
         "btn",
         "btn-sm",
+        "btn-lg",
         "btn-primary",
-        "btn-saffron"
+        "btn-saffron",
+        "btn-navy",
+        "btn-outline",
+        "btn-ghost",
+        "btn-danger",
+        "btn-trail",
+        "btn-trail-icon"
       ],
       "variables": [
         "--btn-min-height",
@@ -164,8 +175,13 @@
       "src/styles/legacy/04-mobile-usability.css::.bench-receipt-actions .chip::font-weight",
       "src/styles/legacy/04-mobile-usability.css::.bench-receipt-actions .chip:disabled::cursor",
       "src/styles/legacy/04-mobile-usability.css::.bench-receipt-actions .chip:disabled::opacity",
+      "src/styles/legacy/04-mobile-usability.css::.creator-hero-actions .btn-outline::background",
+      "src/styles/legacy/04-mobile-usability.css::.creator-hero-actions .btn-outline::border-color",
+      "src/styles/legacy/04-mobile-usability.css::.creator-hero-actions .btn-outline::color",
+      "src/styles/legacy/04-mobile-usability.css::.creator-hero-actions .btn-outline:hover::background",
       "src/styles/legacy/04-mobile-usability.css::.hero .btn, .hero .btn::after::animation",
       "src/styles/legacy/04-mobile-usability.css::.hero .btn, .hero .btn::after::box-shadow",
+      "src/styles/legacy/04-mobile-usability.css::.hero .btn-lg::letter-spacing",
       "src/styles/legacy/04-mobile-usability.css::.hero .btn-primary::animation",
       "src/styles/legacy/04-mobile-usability.css::.hero .btn-primary::background",
       "src/styles/legacy/04-mobile-usability.css::.hero .btn-primary::border-color",

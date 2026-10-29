@@ -386,3 +386,68 @@ describe('css ownership: a page cannot restyle the button', () => {
     expect(findings[0].key).toBe(stale)
   })
 })
+
+describe('css ownership: the bypasses that hid a regression', () => {
+  const BUTTON = 'src/styles/components/button.css'
+  const PAGE = 'src/styles/legacy/12-pages.css'
+  const TOKENS = 'src/styles/tokens.css'
+  const ENTRY = [
+    "@import './styles/tokens.css';",
+    "@import './styles/components/button.css';",
+    "@import './styles/legacy/12-pages.css';",
+    '',
+  ].join('\n')
+
+  function run(files) {
+    const root = fixture({
+      'docs/css-ownership.json': JSON.stringify({
+        entry: 'src/styles.css',
+        owners: [
+          { id: 'tokens', file: TOKENS, owned: [], configClasses: [], variables: [] },
+          {
+            id: 'button',
+            file: BUTTON,
+            owned: [],
+            configClasses: ['btn', 'btn-ghost', 'btn-outline', 'btn-lg'],
+            variables: ['--btn-radius'],
+          },
+        ],
+        legacy: [PAGE],
+        baselines: {},
+      }),
+      ...files,
+    })
+    const graph = loadCssGraph('src/styles.css', { root })
+    const map = loadOwnershipMap(root)
+    return applyAppearanceBaseline(checkOwnership(graph, map, root), map.baselines)
+  }
+
+  it('rejects a repair on a variant that used to be unregistered', () => {
+    // Before the fix, only btn, btn-sm, btn-primary and btn-saffron were
+    // registered, so a page could restyle the other variants and pass.
+    for (const variant of ['btn-ghost', 'btn-outline', 'btn-lg']) {
+      const findings = run({
+        'src/styles.css': ENTRY,
+        [TOKENS]: ':root { --line: #ccc; }\n',
+        [BUTTON]: '.btn { padding: 9px 17px; }\n',
+        [PAGE]: `.hero .${variant} { padding: 20px; }\n`,
+      })
+      expect(findings.map((f) => f.code), variant).toContain('config-appearance')
+      expect(findings[0].file, variant).toBe(PAGE)
+    }
+  })
+
+  it('rejects a root token defined inside a component owner', () => {
+    // The token rule used to skip every owner module, so a component could
+    // define :root tokens and pass.
+    const findings = run({
+      'src/styles.css': ENTRY,
+      [TOKENS]: ':root { --line: #ccc; }\n',
+      [BUTTON]: '.btn { padding: 9px 17px; }\n:root { --rogue: red; }\n',
+      [PAGE]: '.hero { display: flex; }\n',
+    })
+    const token = findings.filter((f) => f.code === 'token-context')
+    expect(token).toHaveLength(1)
+    expect(token[0].file).toBe(BUTTON)
+  })
+})

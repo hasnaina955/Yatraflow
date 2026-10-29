@@ -1731,6 +1731,10 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
   .tl-time { font-size: 10px; padding: 1px 4px; }
   .tl-time.tl-dep { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 }
+/* The container's narrow-width step stays here, not in the layout module. It
+   must keep winning over `.form-page`'s vertical padding at this width, which
+   is the position it has always had. */
+
 @media (max-width: 640px) { .cta-band { padding: 32px 18px; } }
 
 /* ---- <=560px: the header's tightening rung (content-derived; was ≤480) ----

@@ -65,9 +65,11 @@ function normalizeMap(raw) {
   const ownedByClass = new Map()
   const configByClass = new Map()
   const ownerFiles = new Set()
+  const ownerFileList = new Set()
   const owners = raw.owners ?? []
   for (const owner of owners) {
     ownerFiles.add(owner.file)
+    for (const extra of owner.files ?? []) ownerFiles.add(extra)
     for (const cls of owner.owned ?? []) ownedByClass.set(cls, owner)
     for (const cls of owner.configClasses ?? []) configByClass.set(cls, owner)
   }
@@ -106,6 +108,8 @@ export function isRootSelector(selector) {
  * Check one graph against one ownership map.
  * Returns findings sorted by file then line. An empty array means clean.
  */
+const isOwnerFile = (owner, file) => owner.file === file || (owner.files ?? []).includes(file)
+
 export function checkOwnership(graph, map, root = process.cwd()) {
   const findings = []
   const add = (code, file, line, selector, message, extra = {}) =>
@@ -121,7 +125,7 @@ export function checkOwnership(graph, map, root = process.cwd()) {
     for (const token of tokens) {
       const owner = map.ownedByClass.get(token)
       if (owner) {
-        if (file !== owner.file) {
+        if (!isOwnerFile(owner, file)) {
           add(
             'owner-scope', file, rule.line, rule.selectorNormalized,
             `.${token} belongs to ${owner.id} (${owner.file}). A shared control is not patched from another file.`,
@@ -131,7 +135,7 @@ export function checkOwnership(graph, map, root = process.cwd()) {
       }
 
       const config = map.configByClass.get(token)
-      if (config && file !== config.file) {
+      if (config && !isOwnerFile(config, file)) {
         for (const decl of rule.declarations ?? []) {
           // A page may set a variable only when the owner documents it. Without
           // this, any custom property would be a free pass around the rule.
@@ -164,9 +168,13 @@ export function checkOwnership(graph, map, root = process.cwd()) {
     add('unregistered-file', file, 1, '', 'Add this file to docs/css-ownership.json as an owner module or a legacy file.')
   }
 
-  // Token definitions are grandfathered per file until the token batch moves them.
-  // Only root selectors count: a custom property on a component class is a
-  // configuration variable, and pages are allowed to set those.
+  // Root token definitions belong to the registered token owner and nowhere
+  // else. The old rule skipped every owner module, so a component could define
+  // `:root` tokens and pass. That was a hole straight through the ownership
+  // rule.
+  const tokenOwnerFiles = new Set(
+    (map.owners ?? []).filter((o) => (o.tokenOwner ?? false) || o.id === 'tokens').map((o) => o.file),
+  )
   const tokenBaseline = map.baselines.customPropertyFiles ?? {}
   const tokenCounts = new Map()
   for (const rule of rules) {
@@ -175,10 +183,10 @@ export function checkOwnership(graph, map, root = process.cwd()) {
     if (n) tokenCounts.set(rule.file, (tokenCounts.get(rule.file) ?? 0) + n)
   }
   for (const [file, n] of tokenCounts) {
-    if (map.ownerFiles.has(file)) continue
+    if (tokenOwnerFiles.has(file)) continue
     const allowed = tokenBaseline[file] ?? 0
     if (n > allowed) {
-      add('token-context', file, 1, '', `Defines ${n} custom properties; ${allowed} registered. Token definitions belong in a token module.`)
+      add('token-context', file, 1, '', `Defines ${n} root custom properties; ${allowed} registered. Root token definitions belong to ${[...tokenOwnerFiles].join(', ') || 'a registered token owner'}.`)
     }
   }
 

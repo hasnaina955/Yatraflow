@@ -551,7 +551,7 @@
    Values are the mockup's own, expressed in the app's tokens.
    ============================================================ */
 
-.container.form-page { --container-max: 1240px; }
+.container.form-page { max-width: 1240px; }
 /* the mockup fixes the pass at 380px and lets the flow take the rest - but the
    pass yields down to 340px on a tight window rather than squeezing the flow.
    Wide layout only: the ≤980px single-column collapse (line ~5216) must win

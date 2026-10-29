@@ -41,7 +41,11 @@ a.btn { text-decoration: none; }
    CTA floored the Plan Bench grid at 366px inside a 360px viewport (so the
    whole calculator overflowed on a common Android width). Word-pair labels at
    `lg` are unaffected — they never reach the wrap point. */
-.btn-lg { padding: 12px 24px; font-size: 15.5px; white-space: normal; }
+.btn-lg {
+  padding: var(--btn-padding, 12px 24px);
+  font-size: var(--btn-font-size, 15.5px);
+  white-space: normal;
+}
 /* Button-in-button (landing hero): the trailing glyph rides its own circular
    housing, flush with the button's right inner padding, and shifts diagonally on
    hover so the button carries internal kinetic tension instead of only a fill
@@ -60,11 +64,23 @@ a.btn { text-decoration: none; }
 .btn-primary { background: var(--color-primary); color: var(--color-primary-foreground); box-shadow: var(--shadow-sm); }
 .btn-primary:hover:not(:disabled) { background: var(--color-primary-hover); }
 .btn-primary:active:not(:disabled) { background: var(--color-primary-active); }
-[data-theme='dark'] .btn-primary { color: var(--color-primary-foreground); }
+/* No dark-mode colour rule here. `[data-theme='dark'] .btn-primary` is an
+   attribute selector plus a class, so it is 0,2,0 — the same as
+   `.hero .btn-primary` — and it only ever won on order. It set exactly what
+   `.btn-primary` already sets, so it was a redundant rule that beat the hero
+   override once this module loaded after section 04. */
 .btn-saffron { background: var(--color-accent); color: var(--color-accent-foreground); box-shadow: var(--shadow-sm); }
 .btn-saffron:hover:not(:disabled) { background: var(--color-accent-hover); }
 .btn-navy { background: var(--text); color: var(--bg); }
 .btn-outline { background: transparent; border-color: var(--line); color: var(--text); }
 .btn-outline:hover { background: var(--bg-soft); }
-.btn-ghost { background: none; border: none; color: var(--text-2); padding: 8px 10px; border-radius: 999px; }
+/* Ghost reads the same scale variables as the base recipe. Without this it wins
+   on order instead: a page scope sets --btn-padding, the base rule reads it, and
+   a variant that hardcodes padding overrides the result. The fallback is the
+   variant's own value, so an unscoped button is unchanged. */
+.btn-ghost {
+  background: none; border: none; color: var(--text-2);
+  padding: var(--btn-padding, 8px 10px);
+  border-radius: var(--btn-radius, 999px);
+}
 .btn-ghost:hover { background: var(--bg-soft); }

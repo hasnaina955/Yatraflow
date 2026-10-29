@@ -291,5 +291,47 @@ No browser paint check has run. The comparison reads computed values, not painte
 
 Rollback: move the nine rules back to sections 01 and 04. Restore the seven page overrides as declarations. Remove the module and its import. Restore the appearance baseline.
 
+## Ownership debt audit
+
+The B3 report said the recorded debt rose from 89 keys to 114. That was wrong.
+
+54 of the 114 keys named declarations inside owner modules. The rule never reports on an owner module, so those keys could never match a finding. They came from the baseline generator, which walked every file instead of skipping the owners. They inflated the figure and would have stayed in the map.
+
+Two fixes landed in `1c101083`. The generator skips owner modules and skips a documented variable. The check now fails on a registered key that matches nothing, so the figure cannot drift again.
+
+The real figure is 60, down from 89.
+
+The audit compares the current keys against the frozen pre-B3 commit `e2048a1e`. It reads each declaration out of that commit, so "unchanged" is proven rather than assumed.
+
+| Measure | Count |
+|---|---|
+| Keys at `e2048a1e` | 89 |
+| Keys now | 60 |
+| Added | 7 |
+| Removed as stale | 36 |
+| Added keys whose value changed | 0 |
+| Added keys absent at the frozen commit | 0 |
+
+All 7 added keys are unchanged, pre-existing declarations in legacy files. Six are `font-size` and `font-weight` that stay declared by design, because the sheet sets type on the element selector. The other two are `appearance: textfield` and `border: 0` on the fuel grid input.
+
+No declaration changed value, so the batch introduced no violation and none was grandfathered.
+
+## Painted comparison
+
+Computed values cannot prove clipping, stacking, focus visibility or the final appearance. Five cases were captured before and after with fonts loaded. Each used an identical viewport, theme, content and state. Each carries visible keyboard focus where focus is the risk.
+
+| Case | Risk it covers | Result |
+|---|---|---|
+| `button-focus-visible` | focus ring visibility on a filled control | identical |
+| `button-phone-sm` | scale and tap target at 390px | identical |
+| `input-invalid-focus` | invalid border plus focus ring stacking | identical |
+| `field-dark-disabled` | disabled opacity and contrast in dark | identical |
+| `input-clipping-phone` | text clipping and overflow at 320px | identical |
+
+All five are pixel-identical. The captures are non-blank and carry real variance, so the comparison is not a pair of empty frames.
+
+The instrument is `dev/_css3-paint.mjs`. It is a scratch tool and is not part of the gate.
+
+
 
 

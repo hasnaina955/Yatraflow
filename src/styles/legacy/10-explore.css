@@ -21,10 +21,16 @@
    the small button size (.btn-sm) keeps its own height and corner. :where adds
    no specificity, so .ex-cta and the hero rules still win over the base. */
 :is(.ex-page, .trips-page) .btn:where(:not(.btn-sm, .modal *)) {
-  min-height: 44px; padding: 0 16px; border-radius: 12px; font-size: 15px; font-weight: 700; letter-spacing: -.005em;
-  transition: background-color var(--motion-fast) var(--ease-out), border-color var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out), box-shadow var(--motion-fast) var(--ease-out), transform var(--motion-fast) var(--ease-out);
+  --btn-min-height: 44px;
+  --btn-padding: 0 16px;
+  --btn-radius: 12px;
+  --btn-font-size: 15px;
+  --btn-weight: 700;
+  --btn-tracking: -.005em;
+  --btn-transition: background-color var(--motion-fast) var(--ease-out), border-color var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out), box-shadow var(--motion-fast) var(--ease-out), transform var(--motion-fast) var(--ease-out);
+  --btn-active-transform: translateY(1px);
 }
-:is(.ex-page, .trips-page) .btn:where(:not(.modal *)):active:not(:disabled) { transform: translateY(1px); }
+:is(.ex-page, .trips-page) .btn:where(:not(.modal *)):active:not(:disabled) { transform: var(--btn-active-transform, translateY(1px)); }
 :is(.ex-page, .trips-page) .btn-primary:where(:not(.modal *)) { box-shadow: inset 0 1px 0 rgb(255 255 255 / .16), 0 10px 22px -12px color-mix(in srgb, var(--color-primary) 90%, transparent); }
 :is(.ex-page, .trips-page) .btn-secondary:where(:not(.modal *)) { background: var(--card); border-color: var(--ex-line-strong); color: var(--text); }
 :is(.ex-page, .trips-page) .btn-secondary:where(:not(.modal *)):hover:not(:disabled) { border-color: var(--teal-deep); color: var(--ink-teal); }
@@ -502,7 +508,8 @@
   .ex-hero:hover .ex-pc-1 { transform: rotate(var(--ex-rot)); }
   .ex-hero:hover .ex-pc-2 { transform: rotate(var(--ex-rot)); }
   .ex-cover-img, .ex-feature-cover .ex-cover-img, .ex-save-dot, .ex-chip, .ex-creator,
-  :is(.ex-page, .trips-page) .btn { transition: none; }
-  .ex-save:hover .ex-save-dot, .ex-save:active .ex-save-dot, .ex-chip:active, :is(.ex-page, .trips-page) .btn:where(:not(.modal *)):active:not(:disabled) { transform: none; }
+  :is(.ex-page, .trips-page) .btn { --btn-transition: none; }
+  .ex-save:hover .ex-save-dot, .ex-save:active .ex-save-dot, .ex-chip:active { transform: none; }
+  :is(.ex-page, .trips-page) .btn:where(:not(.modal *)):active:not(:disabled) { --btn-active-transform: none; }
 }
 

@@ -4,18 +4,24 @@
    documented variables. A page does not restyle the control from here. */
 
 /* ---------- Buttons ---------- */
-/* The base recipe. The transition is the later of the two declarations that
-   used to live in sections 01 and 04, so the effective value is unchanged. */
+/* The base recipe. Every value a page may select is read from a documented
+   variable, so a page supplies settings instead of redeclaring the control.
+   The fallbacks are the default scale, which is what a button outside a page
+   scope already used. */
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 7px;
-  border-radius: 999px; border: 1.5px solid transparent;
-  font-weight: 600; font-size: 14px; padding: 9px 17px;
-  transition: background var(--t-fast) var(--ease-out), color var(--t-fast) var(--ease-out),
+  border-radius: var(--btn-radius, 999px); border: 1.5px solid transparent;
+  font-weight: var(--btn-weight, 600); font-size: var(--btn-font-size, 14px);
+  padding: var(--btn-padding, 9px 17px);
+  min-height: var(--btn-min-height, auto);
+  letter-spacing: var(--btn-tracking, normal);
+  transition: var(--btn-transition,
+    background var(--t-fast) var(--ease-out), color var(--t-fast) var(--ease-out),
     border-color var(--t-fast) var(--ease-out), box-shadow var(--t-fast) var(--ease-out),
-    transform var(--t-fast) var(--ease-out), filter var(--t-fast) var(--ease-out);
+    transform var(--t-fast) var(--ease-out), filter var(--t-fast) var(--ease-out));
   white-space: nowrap;
 }
-.btn:active { transform: scale(.97); }
+.btn:active { transform: var(--btn-active-transform, scale(.97)); }
 .btn:disabled { opacity: .55; cursor: not-allowed; }
 a.btn { text-decoration: none; }
 .btn:focus-visible { outline: none; box-shadow: var(--ring); }

@@ -13,6 +13,23 @@ const PAGE_HEADER = 'src/components/page/PageHeader.tsx'
 const SURFACE = 'src/components/page/Surface.tsx'
 const STYLES_TEXT = readCssSource('src/styles.css')
 
+/**
+ * The slice from a section mark to the next section banner.
+ *
+ * These tests used to end the slice at `/* Papercut foundations *\/`, which was
+ * the following section while the sheet was one file. The token batch moved
+ * that section into `tokens.css`, which the graph imports first, so the marker
+ * now sits before the section mark and the slice came back empty. A section in
+ * this sheet starts with a `=====` banner, so the slice ends at the next one.
+ */
+function blockAfterMark(css: string, mark: string): string {
+  const start = css.indexOf(mark)
+  if (start < 0) return ''
+  const after = css.slice(start + mark.length)
+  const next = after.search(/\n\/\* =+/)
+  return next < 0 ? css.slice(start) : css.slice(start, start + mark.length + next)
+}
+
 describe('PageHeader component contract', () => {
   it('exports a PageHeader component', async () => {
     const source = await read(PAGE_HEADER)
@@ -146,7 +163,7 @@ describe('Surface root styles', () => {
 
   it('rings a focused button surface with the shared ring, not a new recipe', async () => {
     const css = STYLES_TEXT
-    const block = css.slice(css.indexOf(BLOCK_MARK))
+    const block = blockAfterMark(css, BLOCK_MARK)
     expect(css.indexOf(BLOCK_MARK)).toBeGreaterThan(-1)
     expect(block).toContain('.yf-surface.is-interactive:focus-visible { outline: none; box-shadow: var(--ring); }')
   })
@@ -160,7 +177,7 @@ describe('Surface root styles', () => {
 
   it('declares the button reset with the card font and no raw duration', async () => {
     const css = STYLES_TEXT
-    const block = css.slice(css.indexOf(BLOCK_MARK), css.indexOf('/* Papercut foundations */')).replace(/\/\*[\s\S]*?\*\//g, '')
+    const block = blockAfterMark(css, BLOCK_MARK).replace(/\/\*[\s\S]*?\*\//g, '')
     expect(block).toContain(':where(button.yf-surface) {')
     expect(block).toContain('font: inherit; color: inherit;')
     expect(block).not.toMatch(/\d+ms/)
@@ -185,7 +202,7 @@ describe('PageHeader note slot', () => {
     const css = STYLES_TEXT
     const start = css.indexOf('/* ===== Shared page components: the handwritten header note ===== */')
     expect(start).toBeGreaterThan(-1)
-    const block = css.slice(start, css.indexOf('/* Papercut foundations */'))
+    const block = blockAfterMark(css, '/* ===== Shared page components: the handwritten header note ===== */')
     expect(block).toContain('font-family: var(--font-hand)')
     expect(block).toContain('font-weight: 600')
     expect(block).toContain('color-mix(in srgb, var(--saffron) 45%, transparent)')

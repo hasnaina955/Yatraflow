@@ -385,30 +385,12 @@ input, select, textarea { font-family: var(--font-body); font-size: 14.5px; colo
 /* Explicit card spacing where the sibling selector can't express the intent
    (Profile stacks its cards with a wider 16px beat — was inline style). */
 .stack-gap { margin-top: 16px; }
-
-/* ---------- Forms ---------- */
-.field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
 .label { font-size: 13px; font-weight: 600; color: var(--text-2); }
-.input, .textarea {
-  width: 100%; padding: 10px 13px;
-  border: 1.5px solid var(--line); border-radius: var(--radius-sm);
-  background: var(--card-soft); outline: none;
-  transition: border-color var(--motion-fast) var(--ease-out), box-shadow var(--motion-fast) var(--ease-out);
-  color: var(--text);
-}
-.input:focus, .textarea:focus {
-  border-color: var(--teal); box-shadow: 0 0 0 3px color-mix(in srgb, var(--teal) 18%, transparent);
-}
 /* A disabled form control must look disabled — three selects shipped identical
    to enabled ones (Create-Trip Day, TripSettings vehicle rows). Same shape as
    .btn:disabled. */
-.input:disabled, .textarea:disabled {
-  opacity: .55; cursor: not-allowed;
-}
-.textarea { resize: vertical; min-height: 74px; }
 /* Inline-row variant — the .input surface at a size that fits beside a label
    on one line (travel-panel departure / halt-planner fields), with the same
    focus ring instead of the hand-styled borders those fields used to have. */
 .input--compact { width: auto; padding: 5px 8px; font-size: 13px; }
-.input[aria-invalid='true'], .textarea[aria-invalid='true'] { border-color: var(--danger); }
 

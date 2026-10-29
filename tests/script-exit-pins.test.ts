@@ -18,6 +18,9 @@ const SCRIPTS = fileURLToPath(new URL('../scripts', import.meta.url))
 // lines that may still call process.exit.
 const ALLOWED: Record<string, string[]> = {
   'browser-motion-check.mjs': ['process.exit(1)'],
+  // The CSS ownership check fails the gate on a finding, and exits 0 when the
+  // stylesheet is clean. Both are the script's own verdict.
+  'css-ownership.mjs': ['process.exit(1)', 'process.exit(findings.length ? 1 : 0)'],
   'gallery-geocode.mjs': ['process.exit(2)'],
   'integration/cleanupHarness.mjs': [
     "if (auth.error) { console.log('FATAL: no session for cleanup pass:', auth.error.message); process.exit(1); }",

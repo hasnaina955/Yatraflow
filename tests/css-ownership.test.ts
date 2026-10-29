@@ -244,10 +244,11 @@ describe('css ownership: the real repository is clean', () => {
     expect(formatFindings(findings)).toBe('')
   })
 
-  it('registers the token, button and both CSS-2 component owners', () => {
+  it('registers the token, input, button and both CSS-2 component owners', () => {
     const map = loadOwnershipMap(process.cwd())
-    expect(map.owners.map((o) => o.id)).toEqual(['tokens', 'button', 'select', 'search-field'])
+    expect(map.owners.map((o) => o.id)).toEqual(['tokens', 'input', 'button', 'select', 'search-field'])
     expect(map.ownerFiles.has('src/styles/tokens.css')).toBe(true)
+    expect(map.ownerFiles.has('src/styles/components/input.css')).toBe(true)
     expect(map.ownerFiles.has('src/styles/components/button.css')).toBe(true)
     expect(map.ownerFiles.has('src/styles/components/select.css')).toBe(true)
   })

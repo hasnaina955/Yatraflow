@@ -260,8 +260,6 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
    reusing that name silently re-lays-out every Landing card and step. See
    AGENTS §4 — check a name against the pre-existing stylesheet before taking
    a single-word class. */
-.modal-full { max-width: 720px; padding: 0; }
-.modal-full .modal-head { padding: 14px 18px 0; margin-bottom: 0; }
 .unlock-reveal { display: flex; flex-direction: column; gap: 10px; padding: 10px 18px calc(20px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px))); }
 .unlock-reveal-hero { border-radius: var(--radius); overflow: hidden; border: 1px solid var(--line); }
 .unlock-reveal-kicker { margin: 4px 0 0; font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--teal-deep); }
@@ -307,7 +305,6 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
    under no-preference, the same way the empty states do it (a forwards-filled
    transform leaves a compositor group behind, hence `backwards`). */
 @media (prefers-reduced-motion: no-preference) {
-  .modal-full { animation: slideUp var(--motion-slow) var(--ease-out); }
   .unlock-reveal > * { animation: revealRise var(--motion-slow) var(--ease-out) backwards; }
   .unlock-reveal > *:nth-child(2) { animation-delay: calc(var(--stagger-step) * 1); }
   .unlock-reveal > *:nth-child(3) { animation-delay: calc(var(--stagger-step) * 2); }
@@ -323,9 +320,6 @@ button.day-slot-top { background: none; border: 0; cursor: pointer; font: inheri
   .purchase-list > *:nth-child(2) { animation-delay: calc(var(--stagger-step) * 1); }
   .purchase-list > *:nth-child(3) { animation-delay: calc(var(--stagger-step) * 2); }
   @keyframes revealRise { from { opacity: 0; transform: translateY(8px); } }
-}
-@media (prefers-reduced-motion: reduce) {
-  .modal-full { animation: none; }
 }
 
 /* ============================================================

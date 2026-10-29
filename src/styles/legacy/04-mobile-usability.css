@@ -1871,16 +1871,6 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
   .tl-total-strip { position: static; }
   .day-rail-chip { padding: 9px 14px; }
   .day-section { padding: 14px 14px 10px; }
-  .modal {
-    padding: 18px 16px 22px; max-height: 92vh; max-height: 92dvh; border-radius: 16px 16px 0 0;
-    /* Edge-to-edge: bottom sheets must stop short of the gesture bar, and
-       their internal scroll ends above it. The dvh pair has to be repeated here
-       because this later block re-declares the base rule's max-height and would
-       otherwise put the sheet back on a viewport the mobile toolbar occupies. */
-    padding-bottom: calc(22px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
-    max-height: calc(92vh - var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
-    max-height: calc(92dvh - var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
-  }
   /* Long-press drag & drop: the row must not text-select or pop the OS
      callout while the hold timer runs; a pressing row reads as "grabbed". */
   .tl-row { -webkit-user-select: none; -webkit-touch-callout: none; user-select: none; }

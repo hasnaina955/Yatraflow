@@ -611,12 +611,26 @@ function excludeExtractedLines(added) {
       const text = files
         .map((f) => execFileSync('git', ['show', `${sha}:${f}`], { encoding: 'utf8', maxBuffer: 1 << 26 }))
         .join('\n')
-      extractionComments = new Set(
-        text
-          .split(/\r?\n/)
-          .map((l) => l.trim())
-          .filter((l) => l.startsWith('/*') || l.startsWith('*') || l.endsWith('*/')),
-      )
+      // Every line inside a block comment, not only the ones that carry the
+      // delimiters. A moved multi-line comment keeps its continuation lines
+      // verbatim, and those lines have no `/*` or `*/` to recognise them by.
+      const collected = new Set()
+      let inComment = false
+      for (const raw of text.split(/\r?\n/)) {
+        const l = raw.trim()
+        if (!inComment && l.startsWith('/*')) {
+          collected.add(l)
+          if (!l.includes('*/')) inComment = true
+          continue
+        }
+        if (inComment) {
+          collected.add(l)
+          if (l.includes('*/')) inComment = false
+          continue
+        }
+        if (l.startsWith('*') || l.endsWith('*/')) collected.add(l)
+      }
+      extractionComments = collected
     } catch {
       extractionComments = new Set()
     }
@@ -625,7 +639,7 @@ function excludeExtractedLines(added) {
 
   const isHistoricalComment = (text) => {
     const t = String(text).trim()
-    if (!t.startsWith('/*') && !t.startsWith('*') && !t.endsWith('*/')) return false
+    if (!t) return false
     return loadExtractionComments().has(t)
   }
 

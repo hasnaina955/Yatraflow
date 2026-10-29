@@ -140,6 +140,17 @@
         "lg"
       ],
       "variables": []
+    },
+    {
+      "id": "dialog",
+      "file": "src/styles/components/dialog.css",
+      "owned": [],
+      "configClasses": [
+        "modal",
+        "modal-overlay",
+        "modal-full"
+      ],
+      "variables": []
     }
   ],
   "legacy": [
@@ -227,6 +238,7 @@
       "src/styles/legacy/04-mobile-usability.css::.who-voted .avatar::box-shadow",
       "src/styles/legacy/04-mobile-usability.css::.who-voted .avatar::font-size",
       "src/styles/legacy/04-mobile-usability.css::[data-theme='dark'] .hero .btn-primary, [data-theme='dark'] .hero .btn-saffron::border-color",
+      "src/styles/legacy/04-mobile-usability.css::body, .topnav, .glass, .board, .modal, .toast::transition",
       "src/styles/legacy/05-share-and-trip-ticket.css::.quick-budget .chip.on::background",
       "src/styles/legacy/05-share-and-trip-ticket.css::.quick-budget .chip.on::border-color",
       "src/styles/legacy/05-share-and-trip-ticket.css::.quick-budget .chip.on::color",
@@ -251,10 +263,6 @@
       "src/styles/legacy/08-map-review.css::.day-slot-search .input::font-size",
       "src/styles/legacy/08-map-review.css::.offline-recovery-actions .btn::white-space",
       "src/styles/legacy/10-explore.css::.ex-byline .avatar::box-shadow",
-      "src/styles/legacy/10-explore.css::.ex-byline > span:not(.avatar)::text-overflow",
-      "src/styles/legacy/10-explore.css::.ex-byline > span:not(.avatar)::white-space",
-      "src/styles/legacy/10-explore.css::.ex-byline:hover > span:not(.avatar)::text-decoration",
-      "src/styles/legacy/10-explore.css::.ex-byline:hover > span:not(.avatar)::text-underline-offset",
       "src/styles/legacy/10-explore.css::.ex-creator .avatar::font-size",
       "src/styles/legacy/10-explore.css::.ex-enter, .ex-hero-copy, .ex-hero-visual, .ex-aside > :nth-child(n), .ex-selects.is-open, .ex-save[aria-pressed='true'] .ex-save-dot, .ex-chip-saved[aria-pressed='true'] svg, .ex-feature-actions .btn[aria-pressed='true'] svg::animation",
       "src/styles/legacy/10-explore.css::.ex-save[aria-pressed='true'] .ex-save-dot, .ex-chip-saved[aria-pressed='true'] svg, .ex-feature-actions .btn[aria-pressed='true'] svg::animation",
@@ -276,6 +284,8 @@
       "src/styles/legacy/13-phone-polish-and-guided-create.css::.gcf .gcf-presets .btn::border-radius",
       "src/styles/legacy/13-phone-polish-and-guided-create.css::.gcf .gcf-presets .btn::font-size",
       "src/styles/legacy/13-phone-polish-and-guided-create.css::.gcf .gcf-presets .btn::padding",
+      "src/styles/legacy/13-phone-polish-and-guided-create.css::.gcf .modal-overlay::padding",
+      "src/styles/legacy/13-phone-polish-and-guided-create.css::.gcf .modal::border-radius",
       "src/styles/legacy/13-phone-polish-and-guided-create.css::.gcf :is(.input, .loc-input, .namebox-in)::font-size",
       "src/styles/legacy/13-phone-polish-and-guided-create.css::.gcf :is(.input, .loc-input, .namebox-input)::font-size",
       "src/styles/legacy/13-phone-polish-and-guided-create.css::.gcf-fuel-grid .input::appearance",

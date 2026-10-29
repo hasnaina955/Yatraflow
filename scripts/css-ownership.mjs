@@ -48,9 +48,18 @@ export const ALLOWED_ON_CONFIG = new Set([
 const CLASS_RE = /\.(-?[A-Za-z_][\w-]*)/g
 
 /** Every class token named by a selector, in order, without duplicates. */
+/**
+ * Every class token a selector targets, without duplicates.
+ *
+ * A class inside `:not(...)` is excluded, not targeted. `.btn:where(:not(.modal *))`
+ * styles a button that is not inside a modal; it does not style `.modal`. Counting
+ * that as a modal rule made the checker treat every page button recipe as a dialog
+ * patch, and the dialog owner's own variables as undocumented.
+ */
 export function classTokens(selector) {
+  const text = String(selector ?? '').replace(/:not\([^)]*(?:\([^)]*\)[^)]*)*\)/g, '')
   const out = new Set()
-  for (const m of String(selector ?? '').matchAll(CLASS_RE)) out.add(m[1])
+  for (const m of text.matchAll(CLASS_RE)) out.add(m[1])
   return [...out]
 }
 

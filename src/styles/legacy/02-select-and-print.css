@@ -1011,32 +1011,7 @@ button.board-col-zone--add:active { transform: translateY(1px); }
   font: inherit; font-weight: 700; color: var(--text); border-radius: 6px; text-align: left; }
 .day-title-btn:hover { color: var(--teal-deep); text-decoration: underline; text-underline-offset: 3px; }
 [data-theme='dark'] .day-title-btn:hover { color: var(--teal); }
-
-/* ---------- Modal / drawer / toast ---------- */
-.modal-overlay {
-  position: fixed; inset: 0; z-index: var(--z-modal);
-  background: rgba(var(--shadow-navy-rgb),.42);
-  display: flex; align-items: flex-end; justify-content: center;
-  -webkit-backdrop-filter: blur(var(--yf-blur-scrim)); backdrop-filter: blur(var(--yf-blur-scrim));
-  animation: fadeIn var(--t-fast) var(--ease-out);
-}
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-.modal {
-  background: var(--card); border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-  width: 100%; max-width: 620px; max-height: 92vh; max-height: 92dvh; overflow-y: auto;
-  /* Below 640px this is a bottom sheet, so two device facts matter: its last
-     control has to clear the home indicator, and 92vh measures a viewport the
-     mobile toolbar is still occupying (92dvh is the same pairing the map shell
-     and the header tray use). Desktop is unaffected — the insets resolve to 0. */
-  padding: 22px; padding-bottom: calc(22px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
-  animation: slideUp var(--t-med) var(--ease-out);
-  /* Stop the sheet's scroll from chaining to the page behind it. */
-  overscroll-behavior: contain;
-}
-@media (min-width: 640px) {
-  .modal-overlay { align-items: center; padding: 20px; }
-  .modal { border-radius: var(--radius-lg); }
-}
 .modal-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; gap: 10px; }
 
 /* ---- M6 B3: remote-edit conflict banner (inside the stop editor modal) ---- */

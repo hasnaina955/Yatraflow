@@ -246,30 +246,26 @@ describe('css ownership: the real repository is clean', () => {
 
   it('registers every owner module the sheet has', () => {
     const map = loadOwnershipMap(process.cwd())
-    expect(map.owners.map((o) => o.id)).toEqual([
-      'tokens',
-      'container',
-      'input',
-      'card',
-      'chip',
-      'button',
-      'select',
-      'search-field',
-      'avatar',
-    ])
-    for (const file of [
-      'src/styles/tokens.css',
-      'src/styles/layouts/container.css',
-      'src/styles/components/input.css',
-      'src/styles/components/card.css',
-      'src/styles/components/chip.css',
-      'src/styles/components/button.css',
-      'src/styles/components/select.css',
-      'src/styles/components/search-field.css',
-      'src/styles/components/avatar.css',
-    ]) {
-      expect(map.ownerFiles.has(file), `${file} is not registered`).toBe(true)
+    // Every owner file must be a real stylesheet in the graph, and every graph
+    // file is either an owner or a legacy module. An exact pinned list needed an
+    // edit on every batch; this invariant catches the same mistakes.
+    const graph = loadCssGraph('src/styles.css', { root: process.cwd() })
+    const paths = new Set(graph.files.map((f) => f.path))
+    for (const owner of map.owners) {
+      const files = [owner.file, ...(owner.files ?? [])]
+      for (const file of files) {
+        expect(paths.has(file), `${owner.id} names ${file}, which is not in the graph`).toBe(true)
+      }
     }
+    for (const file of paths) {
+      if (file === graph.entry) continue
+      expect(
+        map.ownerFiles.has(file) || map.legacyFiles.has(file),
+        `${file} is neither an owner nor a legacy module`,
+      ).toBe(true)
+    }
+    expect(map.owners.length).toBeGreaterThanOrEqual(10)
+    expect(map.owners.map((o) => o.id)).toContain('dialog')
   })
 
   it('leaves no root token definitions in the legacy modules', () => {

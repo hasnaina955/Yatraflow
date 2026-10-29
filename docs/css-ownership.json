@@ -165,7 +165,9 @@
         "toast-zone",
         "toast-action"
       ],
-      "variables": []
+      "variables": [
+        "--toast-radius"
+      ]
     }
   ],
   "legacy": [

@@ -14,7 +14,7 @@
 
 .toast {
   pointer-events: auto; background: var(--text); color: var(--bg);
-  padding: 11px 20px; border-radius: 999px; font-size: 13.5px; font-weight: 600;
+  padding: 11px 20px; border-radius: var(--toast-radius, 999px); font-size: 13.5px; font-weight: 600;
   box-shadow: var(--shadow); animation: slideUp var(--t-med) var(--ease-out); max-width: 100%;
   /* Undo button inside a toast */
   display: inline-flex; align-items: center; gap: 12px;
@@ -39,7 +39,7 @@
 
 .toast-action {
   border: none; background: rgba(255,255,255,.18); color: inherit;
-  font-weight: 700; font-size: 12.5px; padding: 8px 16px; border-radius: 999px;
+  font-weight: 700; font-size: 12.5px; padding: 8px 16px; border-radius: var(--toast-radius, 999px);
   cursor: pointer; text-transform: uppercase; letter-spacing: .04em;
 }
 

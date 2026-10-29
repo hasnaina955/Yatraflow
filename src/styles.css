@@ -10,6 +10,7 @@
 @import './styles/components/select.css';
 @import './styles/components/button.css';
 @import './styles/components/input.css';
+@import './styles/layouts/container.css';
 @import './styles/legacy/05-share-and-trip-ticket.css';
 @import './styles/legacy/06-shell-and-consistency.css';
 @import './styles/legacy/07-workspace-and-unlock.css';

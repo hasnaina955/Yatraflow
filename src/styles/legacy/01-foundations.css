@@ -235,9 +235,6 @@ input, select, textarea { font-family: var(--font-body); font-size: 14.5px; colo
      that. --bottom-ui-offset is exactly the gesture-bar inset on the web,
      so this line is unchanged there. */
   padding-bottom: var(--bottom-ui-offset); }
-.container { width: 100%; max-width: 1180px; margin: 0 auto; padding: 0 20px;
-  /* the Board tab widens the canvas to 1680px — glide it (both directions) */
-  transition: max-width var(--t-slow) var(--ease-out); }
 
 /* ---------- Top navigation ---------- */
 .topnav {

@@ -246,8 +246,17 @@ describe('css ownership: the real repository is clean', () => {
 
   it('registers every owner module the sheet has', () => {
     const map = loadOwnershipMap(process.cwd())
-    expect(map.owners.map((o) => o.id)).toEqual(['tokens', 'input', 'card', 'button', 'select', 'search-field'])
+    expect(map.owners.map((o) => o.id)).toEqual([
+      'tokens',
+      'container',
+      'input',
+      'card',
+      'button',
+      'select',
+      'search-field',
+    ])
     expect(map.ownerFiles.has('src/styles/tokens.css')).toBe(true)
+    expect(map.ownerFiles.has('src/styles/layouts/container.css')).toBe(true)
     expect(map.ownerFiles.has('src/styles/components/input.css')).toBe(true)
     expect(map.ownerFiles.has('src/styles/components/card.css')).toBe(true)
     expect(map.ownerFiles.has('src/styles/components/button.css')).toBe(true)

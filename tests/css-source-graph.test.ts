@@ -47,7 +47,7 @@ describe('the application entry resolves its modules', () => {
     expect(graph.files[0].path).toBe('src/styles.css')
     expect(graph.files.length).toBeGreaterThan(10)
     for (const file of graph.files.slice(1)) {
-      expect(file.path, `${file.path} is not a stylesheet module`).toMatch(/^src\/styles\/(?:legacy\/\d\d-[a-z0-9-]+|components\/[a-z0-9-]+|tokens)\.css$/)
+      expect(file.path, `${file.path} is not a stylesheet module`).toMatch(/^src\/styles\/(?:legacy\/\d\d-[a-z0-9-]+|components\/[a-z0-9-]+|layouts\/[a-z0-9-]+|tokens)\.css$/)
     }
     expect(graph.files.map(file => file.path)).toContain('src/styles/components/select.css')
     expect(graph.files.map(file => file.path)).toContain('src/styles/components/search-field.css')

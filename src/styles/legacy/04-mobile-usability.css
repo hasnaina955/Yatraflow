@@ -1726,7 +1726,6 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 @media (max-width: 900px) { .poi-split { grid-template-columns: 1fr; } }
 
 /* ---- <=640px ---- */
-@media (max-width: 640px) { .container { padding: 0 14px; } }
 @media (max-width: 640px) {
   .tl-row, .tl-legrow, .tl-end { grid-template-columns: 52px 1fr; gap: 8px; }
   .tl-time { font-size: 10px; padding: 1px 4px; }

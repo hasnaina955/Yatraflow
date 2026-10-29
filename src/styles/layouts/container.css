@@ -1,0 +1,17 @@
+/* Shared page container.
+   Owns the width cap, the centring and the horizontal padding of a page
+   container, and the narrow-width padding step. It owns nothing about what a
+   page puts inside it.
+
+   A page selects a width through --container-max. A page that needs its own
+   layout keeps that layout in its own module. */
+
+/* from src/styles/legacy/01-foundations.css */
+.container { width: 100%; max-width: 1180px; margin: 0 auto; padding: 0 20px;
+  /* the Board tab widens the canvas to 1680px — glide it (both directions) */
+  transition: max-width var(--t-slow) var(--ease-out); }
+
+/* from src/styles/legacy/04-mobile-usability.css */
+@media (max-width: 640px) {
+.container { padding: 0 14px; }
+}

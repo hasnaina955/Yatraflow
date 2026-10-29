@@ -232,9 +232,11 @@ export function checkOwnership(graph, map, root = process.cwd()) {
  */
 export function applyAppearanceBaseline(findings, baselines = {}) {
   const allowed = new Set(baselines.configAppearanceKeys ?? [])
+  const variableDebt = new Set(baselines.configVariableDebt ?? [])
   const used = new Set()
 
   const kept = findings.filter((f) => {
+    if (f.code === 'config-variable' && variableDebt.has(f.key)) return false
     if (f.code !== 'config-appearance') return true
     if (!allowed.has(f.key)) return true
     used.add(f.key)

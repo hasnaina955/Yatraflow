@@ -10,6 +10,15 @@
       "variables": []
     },
     {
+      "id": "container",
+      "file": "src/styles/layouts/container.css",
+      "owned": [],
+      "configClasses": [
+        "container"
+      ],
+      "variables": []
+    },
+    {
       "id": "input",
       "file": "src/styles/components/input.css",
       "owned": [],
@@ -128,6 +137,7 @@
       "src/styles/legacy/01-foundations.css::.bento .card::box-shadow",
       "src/styles/legacy/01-foundations.css::.btn::after, .icon-btn::after, .chip::after, .clickable-chip::after, .toast-action::after, .tab-btn::after, .map-legend-toggle::after, .nav-link::after, .link-btn::after, .move-btn::after, .board-pulse-link::after, .cal-day::after, .cal-nav::after, .route-btn::after, .vote-btn::after, .yf-map-idea-add::after, .poi-short::after, .poi-cand-add::after, .poi-fold::after, .save-heart::after, .yf-maplibre .yf-map-ctrls button::after, .day-collapse::after::border-radius",
       "src/styles/legacy/01-foundations.css::.btn::after, .icon-btn::after, .chip::after, .clickable-chip::after, .toast-action::after, .tab-btn::after, .map-legend-toggle::after, .nav-link::after, .link-btn::after, .move-btn::after, .board-pulse-link::after, .cal-day::after, .cal-nav::after, .route-btn::after, .vote-btn::after, .yf-map-idea-add::after, .poi-short::after, .poi-cand-add::after, .poi-fold::after, .save-heart::after, .yf-maplibre .yf-map-ctrls button::after, .day-collapse::after::content",
+      "src/styles/legacy/01-foundations.css::.topnav .container.topnav-inner::padding",
       "src/styles/legacy/02-select-and-print.css::.bezel > .card::box-shadow",
       "src/styles/legacy/04-mobile-usability.css::.bench-dock .btn::padding",
       "src/styles/legacy/04-mobile-usability.css::.hero .btn, .hero .btn::after::animation",
@@ -153,6 +163,7 @@
       "src/styles/legacy/04-mobile-usability.css::.nav-right .btn::padding",
       "src/styles/legacy/04-mobile-usability.css::.nav-right:has(> .btn) .btn::font-size",
       "src/styles/legacy/04-mobile-usability.css::.nav-right:has(> .btn) .btn::padding",
+      "src/styles/legacy/04-mobile-usability.css::.topnav .container.topnav-inner::padding",
       "src/styles/legacy/04-mobile-usability.css::[data-theme='dark'] .hero .btn-primary, [data-theme='dark'] .hero .btn-saffron::border-color",
       "src/styles/legacy/05-share-and-trip-ticket.css::.unit-input .input::font-size",
       "src/styles/legacy/05-share-and-trip-ticket.css::.unit-input .input::font-weight",
@@ -171,6 +182,10 @@
       "src/styles/legacy/11-shared-page.css::.mt-hero-secondary > .btn::padding",
       "src/styles/legacy/11-shared-page.css:::is(.yf-page) .btn-primary:where(:not(.modal *))::box-shadow",
       "src/styles/legacy/11-shared-page.css:::is(.yf-page) .btn:where(:not(.modal *)):active:not(:disabled)::transform",
+      "src/styles/legacy/12-pages.css::.container.dmca-page::padding-left",
+      "src/styles/legacy/12-pages.css::.container.dmca-page::padding-right",
+      "src/styles/legacy/13-phone-polish-and-guided-create.css::.container.form-page.gcf::padding",
+      "src/styles/legacy/13-phone-polish-and-guided-create.css::.container.form-page.gcf::padding-bottom",
       "src/styles/legacy/13-phone-polish-and-guided-create.css::.gcf .ct-nav .btn::border-radius",
       "src/styles/legacy/13-phone-polish-and-guided-create.css::.gcf .ct-nav .btn::font-size",
       "src/styles/legacy/13-phone-polish-and-guided-create.css::.gcf .ct-nav .btn::font-weight",
@@ -183,10 +198,19 @@
       "src/styles/legacy/13-phone-polish-and-guided-create.css::.gcf-fuel-grid .input::appearance",
       "src/styles/legacy/13-phone-polish-and-guided-create.css::.gcf-fuel-grid .input::border",
       "src/styles/legacy/13-phone-polish-and-guided-create.css::.gcf-review-actions > .btn::border-radius",
+      "src/styles/legacy/14-art-and-workspace-header.css::.container.yf-workspace, .yf-trip-head, .yf-back, .yf-thumb, .yf-head-text, .yf-trip-title, .yf-fold, .yf-fade, .yf-extra, .yf-tip, .yf-tabbar::transition",
+      "src/styles/legacy/14-art-and-workspace-header.css::.container.yf-workspace::padding-left",
+      "src/styles/legacy/14-art-and-workspace-header.css::.container.yf-workspace::padding-right",
+      "src/styles/legacy/14-art-and-workspace-header.css::.container.yf-workspace::padding-top",
+      "src/styles/legacy/14-art-and-workspace-header.css::.container.yf-workspace::transition",
       "src/styles/legacy/15-overview.css::.btn.btn-primary::box-shadow",
       "src/styles/legacy/15-overview.css::.btn.btn-primary:focus-visible, .btn.btn-saffron:focus-visible::box-shadow",
       "src/styles/legacy/15-overview.css::.btn.btn-saffron::box-shadow",
+      "src/styles/legacy/16-motion-and-cover-v2.css::.container.yf-workspace.yf-workspace::padding-top",
       "src/styles/legacy/17-overview-tiles-and-cover.css::.ovw2 .btn.btn-sm, .ovw-weather .btn.btn-sm::padding-inline"
+    ],
+    "configVariableDebt": [
+      "src/styles/legacy/13-phone-polish-and-guided-create.css::.container.trip-starter::--choice-tint"
     ]
   }
 }

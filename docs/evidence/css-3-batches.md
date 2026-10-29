@@ -396,6 +396,38 @@ Three card cases joined the painted set. They are shadow and hairline border, th
 
 Rollback: move the three rules back to section 01, remove the module and its import, and restore the appearance baseline.
 
+### B4 checkpoint 2
+
+Commit `0ec35172`.
+
+Three variables are documented: `--card-surface`, `--card-border-color` and `--card-radius`. Only two are used. `--card-surface` is a hook, because no consumer sets it yet.
+
+Both card page rules shared a selector list with a different component. Each was split rather than converted. A conversion would push a card variable onto .stat-tile and .created-card. Both have their own base rules at 02:119 and 08:426.
+
+Spacing, grid placement and surrounding layout stayed page-owned. `.card + .card` and `.explore-grid > .card + .card` keep their margins, and `.bezel > .card` keeps `flex: 1`.
+
+#### Shadow is deliberately not a variable
+
+It was tried and failed in both directions.
+
+With --card-shadow, .card.route-snap inside .bezel lost the bezel inset. The variant declaration beat the base rule that reads the variable. The bezel rule used to win by order at equal specificity.
+
+The variant then read the variable and picked up the bento shadow, where it used to lose.
+
+The variant deliberately overrides its surrounding scope, so that value is not a configuration point. Both scopes keep a direct shadow declaration, and the module comment records why.
+
+The computed comparison caught this twice. Nothing else did.
+
+| Measure | Value |
+|---|---|
+| Comparisons | 120 across 30 elements in four environments |
+| Differences | 0 |
+| Painted cases | 8, all pixel-identical |
+| Appearance keys | 65 down to 62 |
+
+Rollback: restore the direct border and border-radius in the base recipe. Merge the two split selector lists back. Remove the card variables from the map.
+
+
 
 
 

@@ -931,7 +931,7 @@ Each batch removes the rules it supersedes and validates its consumers before th
 | B6 | `.chip` surface and colour variants | `components/chip.css` | Done in `2ef6397b`. Four of 17 rules are the surface. Checkpoint 2 found nothing to consolidate: every page property carries a different value. 490 comparisons, 0 differences. |
 | B7 | `.avatar` surface, two sizes and three tone variants | `components/avatar.css` | Done in `e80111fe`. Five of 22 rules are the surface; 17 size or stack an avatar in a page. Seed proof ran before the comparison was trusted. 13,520 comparisons, 0 differences. |
 | B8 | `.modal` sheet, overlay and the `full` variant | `components/dialog.css` | Done in `5a52844f` and `faa33b47`. Nine of 24 rules are the surface; the rest are `:not(.modal *)` exclusions in button recipes. Fixture mounts the real `Modal`. Stacking and clipping seeds both detected. 1,350 comparisons, 12 behaviour checks, 0 differences. |
-| B9 | `.toast` — 50 consumers | `components/toast.css` | Shared control |
+| B9 | `.toast` zone, pill, semantic variants and action | `components/toast.css` | Done in `b9bc29cb` and `9ea17e30`. First family with no page variants: all 9 surface rules belong to the component. Semantic-fill and ink-contrast seeds both detected. 1,680 comparisons, 0 differences. |
 | B10 | `.itin-card`, `.trip-head-card`, `.hero`, `.board*` | page stylesheets | Page-private cards |
 | B11 | `.pill-nav` | `components/pill-nav.css` | Waits for its product repair to stay frozen |
 

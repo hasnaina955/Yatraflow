@@ -214,8 +214,8 @@ One page per environment holds all 120 elements. Each is measured at rest and fo
 | Scopes | 12, including both page recipes, the modal exclusion and the placement exceptions |
 | Variants | 10: base, link, sm, primary, saffron, outline, ghost, icon-only, disabled, loading |
 | Environments | light and dark at 1440, light and dark at 390, light with reduced motion |
-| Comparisons | 1,200 |
-| Differences | 0 |
+| Comparisons | 1,200 claimed. The fixture dropped its page scope, so this count did not measure what it named. See the repair section. |
+| Differences | 0, not a valid result |
 
 The same comparison against the first try reported `.btn-sm` differences in every scope. That is how the scale defect was found.
 
@@ -266,8 +266,8 @@ That defect was caught by the computed comparison, not by reading the CSS.
 | Variants | text, email, number, search, date, disabled, read-only, invalid, empty, textarea, textarea-invalid, field with label and hint |
 | Scopes | plain, both page recipes, auth-card, invite-entry, unit-input, day-slot-search, tpl-name, crew-invite-row, ct-day-start, gcf, modal, ts-form, form-row |
 | Environments | light and dark at 1440, light and dark at 390, light with reduced motion |
-| Comparisons | 1,800 |
-| Differences | 0 |
+| Comparisons | 1,800 claimed. The fixture wrote two `class` attributes, so every scoped row measured an unscoped control. See the repair section. |
+| Differences | 0, not a valid result |
 
 ### Enforcement
 
@@ -389,7 +389,7 @@ The module is imported before section 02. Every moved rule came from section 01,
 | Scopes | plain, bento, bezel, explore-grid, two-col, feature-strip |
 | Environments | light and dark at 1440, light and dark at 390 |
 | Properties | 22, including shadow, border, radius, padding, overflow and background image |
-| Comparisons | 120 |
+| Comparisons | 120 claimed, 120 valid. This tool had unique keys and no page scope to drop, and it was re-run after the repair with the same result. |
 | Differences | 0 |
 
 Three card cases joined the painted set. They are shadow and hairline border, the route-snap gradient in dark, and nested content with overflow at 390px. The route-snap case also covers its transparent border. All eight painted cases are pixel-identical.
@@ -473,8 +473,8 @@ The risk in this conversion is an element carrying two scopes. A direct declarat
 | Variants | 14, including three combined-class cases |
 | Environments | 1440, 980, 640, 390 in light; 390 in dark; reduced motion |
 | Properties | 14, covering width, padding, margins and transition |
-| Comparisons | 84 |
-| Differences | 0 |
+| Comparisons | 84 claimed. Every case reused `data-key="K"`, so fourteen cases collapsed into one row. See the repair section. |
+| Differences | 0, not a valid result |
 | Appearance keys | 74 |
 
 No new painted case was added. The batch introduced no risk the existing eight do not already cover.
@@ -530,3 +530,102 @@ This entry exists so a later batch does not add chip variables for values that o
 Against the frozen pre-B3 commit the audit reports 48 added keys. 44 are unchanged pre-existing declarations. 4 are the same declaration under a narrowed selector, from the card list split and the focus-list split. None changed value, and none was introduced.
 
 Rollback: move the four rules back to section 02, remove the module and its import, and restore the appearance baseline.
+
+## Repair: regressions the earlier comparisons could not see
+
+Commit `6b83e32e`. Raised against `147b47b2` and `da9715f2`.
+
+Three appearance regressions were present, and the comparison tools could not detect them. Passing unit tests did not close any of them.
+
+### The tools were the reason the regressions survived
+
+| Tool | Defect | Effect |
+|---|---|---|
+| Buttons | The wrapper carried two `class` attributes | Chrome kept the first and discarded the page scope, so every scoped row measured an unscoped control |
+| Container | Every case reused `data-key="K"` | Fourteen cases collapsed into one row per environment |
+| Container | Page classes sat on a wrapper | Production puts them on the `.container` element, so `.container.ex-page` never matched |
+| Card | The stacked pair reused key `K2` across scopes | The second card was never compared |
+
+Three appearance regressions were present. The comparison tools could not detect any of them. Passing unit tests did not close any of them.
+
+### The regressions
+
+**Ghost and large buttons lost their page scale.** The page recipe used to win at 0,2,0 over the 0,1,0 variant rules. After B2 the variants beat the base rule that reads the variables.
+
+| Variant | Property | Accepted | After B2 |
+|---|---|---|---|
+| `.btn-ghost` | radius | 12px | 999px |
+| `.btn-ghost` | padding | 0 16px | 8px 10px |
+| `.btn-lg` | padding | 0 16px | 12px 24px |
+| `.btn-lg` | font-size | 15px | 15.5px |
+
+Both now read `--btn-padding`, `--btn-radius` and `--btn-font-size`, with their own values as fallbacks. No page-level repair was added.
+
+**The dark primary colour rule beat the hero override.** `[data-theme='dark']` is an attribute selector, so that rule is 0,2,0, the same as `.hero .btn-primary`. It won only on order once the module loaded after section 04. It set exactly what `.btn-primary` already sets, so it was removed rather than reordered.
+
+One shared harness now serves every tool. It assigns unique keys and fails on a duplicate or a missing key. It asserts that each scope selector matches an element. It checks that focus reaches every focusable element. Normalisation removes animated sub-pixel shadow drift and treats `none` as a zero shadow.
+
+### Two ownership bypasses
+
+**Seven button classes were unregistered.** A page repair on `.btn-ghost`, `.btn-outline` or `.btn-lg` passed with no finding. All eleven classes are registered now.
+
+**Root tokens were allowed inside any owner.** The token rule skipped every owner module, so `:root { --rogue: red }` inside `button.css` passed. Only the registered token owner may define root tokens now.
+
+### Verification against the frozen pre-B2 build
+
+Frozen input is `8cc2dbc9`, built to `dev/_css3-frozen-b1.css`. The repair build is `dev/_css3-final.css`.
+
+| Family | Elements | Environments | Comparisons | Differences |
+|---|---|---|---|---|
+| Buttons | 132 | 5 | 46,800 | 0 |
+| Container | 24 | 6 | 2,016 | 0 |
+| Card | 36 | 4 | 3,024 | 0 |
+| Chip | 49 | 5 | 490 | 0 |
+
+The button run also performed 990 focus checks. It reported 9 hidden elements, all `.bench-dock` at desktop width, where that dock is `display: none` by design.
+
+Commands:
+
+```
+git checkout 8cc2dbc9 && npm run build
+git checkout chore/css-3-ownership && npm run build
+node dev/_css3-btn-compare2.mjs dev/_css3-frozen-b1.css dev/_css3-final.css
+node dev/_css3-container-compare2.mjs dev/_css3-frozen-b1.css dev/_css3-final.css
+node dev/_css3-card-compare2.mjs dev/_css3-frozen-b1.css dev/_css3-final.css
+node dev/_css3-chip-compare.mjs dev/_css3-frozen-b1.css dev/_css3-final.css
+node dev/_css3-paint.mjs dev/_css3-frozen-b1.css dev/_css3-final.css dev/_css3-paint-final
+```
+
+### Painted comparison
+
+Ten cases, all pixel-identical. Two are new, because the existing eight did not cover the regressions:
+
+| Case | Risk |
+|---|---|
+| `ghost-in-page-scope` | page-scoped ghost, outline and large keep their page padding and radius |
+| `hero-primary-dark-ink` | hero primary keeps white ink in dark mode |
+
+Motion is frozen before capture. Without that, the hero breathing glow lands at a different phase in each build. It then reads as a one-step colour change. The first two runs reported 17,174 and 14,082 differing pixels, with a maximum delta of 2 and 1.
+
+### Known-bad fixtures added
+
+| Fixture | Fails on |
+|---|---|
+| duplicate result keys | two elements collapsing into one row |
+| dropped page scope | a fixture that silently loses its class |
+| unregistered variant repair | a page restyling `.btn-ghost`, `.btn-outline` or `.btn-lg` |
+| root token in a component owner | `:root` inside `button.css` |
+
+### Gate status
+
+Focused checks pass: 160 tests, `check:css` with 8 owner modules, `check:ui`, build.
+
+`npm run verify` did not run. It is still blocked by inherited STE findings that predate this work. The manual sequence is not a substitute for it and this document does not claim that command passed.
+
+### Remaining limits
+
+The comparison reads computed values and painted pixels for the fixtures listed. It does not sweep the product.
+
+`.btn-trail` keeps a direct `padding-right`, which beats the base rule at equal specificity inside a page scope. It is only used on the landing hero, which carries no page scope, so it is not exercised here and is not claimed safe.
+
+The container owner now spans two files. That records where each rule must sit in the cascade, not a second owner.

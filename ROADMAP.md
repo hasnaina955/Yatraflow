@@ -924,10 +924,10 @@ Each batch removes the rules it supersedes and validates its consumers before th
 |---|---|---|---|
 | B0 | Ownership enforcement and its fixtures | `scripts/css-ownership.mjs` | Guards every later batch. Done in `2bfe51c5`. |
 | B1 | Token definitions that sit in 7 `:root` blocks | `styles/tokens.css` | Every other batch reads these tokens. Done: 13 blocks, 432 declarations, signature equal. |
-| B2 | `.btn` recipe, scale and states; the duplicated page recipe becomes variables | `components/button.css` | Done in `77af76d8` and `2ca2fb13`. 1,200 computed comparisons, 0 differences. Page placement stays. Baseline 103 keys to 89. |
+| B2 | `.btn` recipe, scale and states; the duplicated page recipe becomes variables | `components/button.css` | Done in `77af76d8` and `2ca2fb13`. Repaired in `6b83e32e`: ghost and large lost their page scale and the dark primary rule beat the hero override. Re-verified against `8cc2dbc9`: 46,800 comparisons, 0 differences. |
 | B3 | `.input`, `.textarea` and `.field` composition | `components/input.css` | Done in `bab73488` and `1f5cc770`. `.field` is a shared component, not page layout. 1,800 computed comparisons, 0 differences. `font-size` stays declared by design. |
-| B4 | `.card` surface, sibling rhythm and the route-snap variant | `components/card.css` | Done in `537d2a71` and `0ec35172`. Radius and border are variables; shadow is not, because the variant overrides its scope both ways. 120 comparisons, 0 differences. Baseline 65 to 62. |
-| B5 | `.container` width, centring and padding | `layouts/container.css` | Done in `a4385dff` and `f497c0ca`. First layout owner. Two of 24 rules are the recipe; 22 are page variants. `--container-max` replaces three duplicated 1240px declarations. 84 comparisons, 0 differences. |
+| B4 | `.card` surface, sibling rhythm and the route-snap variant | `components/card.css` | Done in `537d2a71` and `0ec35172`. Radius and border are variables. Shadow stays declared and is recorded as ownership debt. Re-verified in `6b83e32e`: 3,024 comparisons, 0 differences. |
+| B5 | `.container` width, centring and padding | `layouts/container.css` | Done in `a4385dff` and `f497c0ca`, repaired in `6b83e32e`. The phone step lives in `container-phone.css` to keep its cascade position. Re-verified: 2,016 comparisons, 0 differences. |
 | B6 | `.chip` surface and colour variants | `components/chip.css` | Done in `2ef6397b`. Four of 17 rules are the surface. Checkpoint 2 found nothing to consolidate: every page property carries a different value. 490 comparisons, 0 differences. |
 | B7 | `.avatar` — 22 rules over 6 files | `components/avatar.css` | Shared control |
 | B8 | `.modal` — 24 rules over 5 files | `components/dialog.css` | Shared control, stacking risk |

@@ -16,18 +16,6 @@
 .ct-save-err { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
 @keyframes errIn { from { opacity: 0; transform: translateY(-4px); } }
 .hint-text { color: var(--text-3); font-size: 12.5px; }
-
-/* ---------- Chips & badges ---------- */
-.chip {
-  display: inline-flex; align-items: center; gap: 5px;
-  padding: 5px 12px; border-radius: 999px;
-  font-size: 12px; font-weight: 600;
-  background: var(--bg-soft); color: var(--text-2);
-  border: 1px solid transparent;
-}
-.chip-teal { background: var(--teal-soft); color: var(--teal-deep); }
-.chip-outline { background: var(--card); color: var(--text-2); border-color: var(--line); }
-.chip-saffron { background: var(--saffron-soft); color: var(--ink-amber); }
 /* AA contrast: the warn-amber-on-tint pair (3.48–3.69:1 in light) is folded
    INTO the base rules — each declares --ink-amber directly (5.08–5.38:1), and
    dark re-resolves --ink-amber to --warn, so one declaration is correct in

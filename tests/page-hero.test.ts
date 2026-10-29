@@ -75,6 +75,9 @@ describe('yf-page scope in styles.css', () => {
     expect(start, 'the yf-page section comment').toBeGreaterThan(-1)
     const block = css.slice(start)
     expect(block).toMatch(/:is\(\.yf-page\) \.btn:where\(:not\(\.btn-sm, \.modal \*\)\) \{/)
-    expect(block).toMatch(/\.container:is\(\.yf-page\) \{\s*max-width: 1240px;/)
+    // The width moved from a direct declaration to the container's documented
+    // variable, so a page selects it instead of restating the property. The
+    // value the page asks for is unchanged.
+    expect(block).toMatch(/\.container:is\(\.yf-page\) \{\s*--container-max: 1240px;/)
   })
 })

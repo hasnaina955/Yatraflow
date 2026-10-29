@@ -251,16 +251,23 @@ describe('css ownership: the real repository is clean', () => {
       'container',
       'input',
       'card',
+      'chip',
       'button',
       'select',
       'search-field',
     ])
-    expect(map.ownerFiles.has('src/styles/tokens.css')).toBe(true)
-    expect(map.ownerFiles.has('src/styles/layouts/container.css')).toBe(true)
-    expect(map.ownerFiles.has('src/styles/components/input.css')).toBe(true)
-    expect(map.ownerFiles.has('src/styles/components/card.css')).toBe(true)
-    expect(map.ownerFiles.has('src/styles/components/button.css')).toBe(true)
-    expect(map.ownerFiles.has('src/styles/components/select.css')).toBe(true)
+    for (const file of [
+      'src/styles/tokens.css',
+      'src/styles/layouts/container.css',
+      'src/styles/components/input.css',
+      'src/styles/components/card.css',
+      'src/styles/components/chip.css',
+      'src/styles/components/button.css',
+      'src/styles/components/select.css',
+      'src/styles/components/search-field.css',
+    ]) {
+      expect(map.ownerFiles.has(file), `${file} is not registered`).toBe(true)
+    }
   })
 
   it('leaves no root token definitions in the legacy modules', () => {

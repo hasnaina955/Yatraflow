@@ -224,11 +224,37 @@ export function checkOwnership(graph, map, root = process.cwd()) {
  * The key is the file, the exact selector and the property. A key that is not
  * registered is new, so one page-level repair is always caught. A batch
  * converts its own keys to variables and deletes them from the map, so the
- * recorded debt only shrinks and a stale key fails.
+ * recorded debt only shrinks.
+ *
+ * A registered key that no longer matches a finding is stale and fails. Without
+ * that, a key for an owner module — which the rule never reports on — would sit
+ * in the map forever and quietly inflate the debt figure.
  */
 export function applyAppearanceBaseline(findings, baselines = {}) {
   const allowed = new Set(baselines.configAppearanceKeys ?? [])
-  return findings.filter((f) => f.code !== 'config-appearance' || !allowed.has(f.key))
+  const used = new Set()
+
+  const kept = findings.filter((f) => {
+    if (f.code !== 'config-appearance') return true
+    if (!allowed.has(f.key)) return true
+    used.add(f.key)
+    return false
+  })
+
+  for (const key of allowed) {
+    if (used.has(key)) continue
+    const [file] = key.split('::')
+    kept.push({
+      code: 'config-baseline-stale',
+      file,
+      line: 1,
+      selector: '',
+      key,
+      message: `"${key}" is registered as appearance debt but matches no declaration. Delete it from the map.`,
+    })
+  }
+
+  return kept
 }
 
 /** Format findings the way the other repo checks do. */

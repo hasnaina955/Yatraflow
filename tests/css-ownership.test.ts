@@ -326,4 +326,15 @@ describe('css ownership: a page cannot restyle the button', () => {
     expect(two).toHaveLength(1)
     expect(two[0].prop).toBe('background')
   })
+
+  it('rejects a registered key that matches nothing', () => {
+    // A key for a declaration that no longer exists must be deleted, or the
+    // recorded debt figure drifts away from the real one. This is how an owner
+    // module's own declarations were inflating the count.
+    const stale = `${PAGE}::.hero .btn::border-radius`
+    const findings = buttonRun(`.hero .btn { flex: 1; }\n`, [stale])
+    expect(findings).toHaveLength(1)
+    expect(findings[0].code).toBe('config-baseline-stale')
+    expect(findings[0].key).toBe(stale)
+  })
 })

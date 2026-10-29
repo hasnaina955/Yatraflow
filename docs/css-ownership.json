@@ -10,6 +10,26 @@
       "variables": []
     },
     {
+      "id": "button",
+      "file": "src/styles/components/button.css",
+      "owned": [],
+      "configClasses": [
+        "btn",
+        "btn-sm",
+        "btn-primary",
+        "btn-saffron"
+      ],
+      "variables": [
+        "--btn-min-height",
+        "--btn-padding",
+        "--btn-radius",
+        "--btn-font-size",
+        "--btn-weight",
+        "--btn-tracking",
+        "--btn-transition"
+      ]
+    },
+    {
       "id": "select",
       "file": "src/styles/components/select.css",
       "owned": [
@@ -22,8 +42,13 @@
         "cselect-option",
         "cselect-check"
       ],
-      "configClasses": ["ex-select", "ex-select--sort"],
-      "variables": ["--select-leading-space"]
+      "configClasses": [
+        "ex-select",
+        "ex-select--sort"
+      ],
+      "variables": [
+        "--select-leading-space"
+      ]
     },
     {
       "id": "search-field",
@@ -35,7 +60,9 @@
         "ex-search-clear"
       ],
       "configClasses": [],
-      "variables": ["--search-field-flex"]
+      "variables": [
+        "--search-field-flex"
+      ]
     }
   ],
   "legacy": [
@@ -66,6 +93,111 @@
       "src/styles/legacy/13-phone-polish-and-guided-create.css": 4,
       "src/styles/legacy/16-motion-and-cover-v2.css": 5
     },
-    "reducedMotionRules": 226
+    "reducedMotionRules": 226,
+    "configAppearanceKeys": [
+      "src/styles/components/button.css::.btn-primary::background",
+      "src/styles/components/button.css::.btn-primary::box-shadow",
+      "src/styles/components/button.css::.btn-primary::color",
+      "src/styles/components/button.css::.btn-primary:active:not(:disabled)::background",
+      "src/styles/components/button.css::.btn-primary:hover:not(:disabled)::background",
+      "src/styles/components/button.css::.btn-saffron::background",
+      "src/styles/components/button.css::.btn-saffron::box-shadow",
+      "src/styles/components/button.css::.btn-saffron::color",
+      "src/styles/components/button.css::.btn-saffron:hover:not(:disabled)::background",
+      "src/styles/components/button.css::.btn::border",
+      "src/styles/components/button.css::.btn::border-radius",
+      "src/styles/components/button.css::.btn::font-size",
+      "src/styles/components/button.css::.btn::font-weight",
+      "src/styles/components/button.css::.btn::padding",
+      "src/styles/components/button.css::.btn::transition",
+      "src/styles/components/button.css::.btn::white-space",
+      "src/styles/components/button.css::.btn:active::transform",
+      "src/styles/components/button.css::.btn:disabled::cursor",
+      "src/styles/components/button.css::.btn:disabled::opacity",
+      "src/styles/components/button.css::.btn:focus-visible::box-shadow",
+      "src/styles/components/button.css::.btn:focus-visible::outline",
+      "src/styles/components/button.css::[data-theme='dark'] .btn-primary::color",
+      "src/styles/components/button.css::a.btn::text-decoration",
+      "src/styles/components/select.css::.ex-select .cselect-trigger::background-color",
+      "src/styles/components/select.css::.ex-select .cselect-trigger::border",
+      "src/styles/components/select.css::.ex-select .cselect-trigger::border-radius",
+      "src/styles/components/select.css::.ex-select .cselect-trigger::font-size",
+      "src/styles/components/select.css::.ex-select .cselect-trigger::font-weight",
+      "src/styles/components/select.css::.ex-select .cselect-trigger::padding",
+      "src/styles/components/select.css::.ex-select .cselect-trigger::transition",
+      "src/styles/components/select.css::.ex-select .cselect-trigger:focus-visible::border-color",
+      "src/styles/components/select.css::.ex-select .cselect-trigger:focus-visible::box-shadow",
+      "src/styles/components/select.css::.ex-select .cselect-trigger:hover:not(:disabled)::border-color",
+      "src/styles/legacy/01-foundations.css::.btn-sm::font-size",
+      "src/styles/legacy/01-foundations.css::.btn-sm::padding",
+      "src/styles/legacy/01-foundations.css::.btn::after, .icon-btn::after, .chip::after, .clickable-chip::after, .toast-action::after, .tab-btn::after, .map-legend-toggle::after, .nav-link::after, .link-btn::after, .move-btn::after, .board-pulse-link::after, .cal-day::after, .cal-nav::after, .route-btn::after, .vote-btn::after, .yf-map-idea-add::after, .poi-short::after, .poi-cand-add::after, .poi-fold::after, .save-heart::after, .yf-maplibre .yf-map-ctrls button::after, .day-collapse::after::border-radius",
+      "src/styles/legacy/01-foundations.css::.btn::after, .icon-btn::after, .chip::after, .clickable-chip::after, .toast-action::after, .tab-btn::after, .map-legend-toggle::after, .nav-link::after, .link-btn::after, .move-btn::after, .board-pulse-link::after, .cal-day::after, .cal-nav::after, .route-btn::after, .vote-btn::after, .yf-map-idea-add::after, .poi-short::after, .poi-cand-add::after, .poi-fold::after, .save-heart::after, .yf-maplibre .yf-map-ctrls button::after, .day-collapse::after::content",
+      "src/styles/legacy/04-mobile-usability.css::.bench-dock .btn::padding",
+      "src/styles/legacy/04-mobile-usability.css::.hero .btn, .hero .btn::after::animation",
+      "src/styles/legacy/04-mobile-usability.css::.hero .btn, .hero .btn::after::box-shadow",
+      "src/styles/legacy/04-mobile-usability.css::.hero .btn-primary::animation",
+      "src/styles/legacy/04-mobile-usability.css::.hero .btn-primary::background",
+      "src/styles/legacy/04-mobile-usability.css::.hero .btn-primary::border-color",
+      "src/styles/legacy/04-mobile-usability.css::.hero .btn-primary::box-shadow",
+      "src/styles/legacy/04-mobile-usability.css::.hero .btn-primary::color",
+      "src/styles/legacy/04-mobile-usability.css::.hero .btn-saffron::animation",
+      "src/styles/legacy/04-mobile-usability.css::.hero .btn-saffron::background",
+      "src/styles/legacy/04-mobile-usability.css::.hero .btn-saffron::border-color",
+      "src/styles/legacy/04-mobile-usability.css::.hero .btn-saffron::box-shadow",
+      "src/styles/legacy/04-mobile-usability.css::.hero .btn-saffron::color",
+      "src/styles/legacy/04-mobile-usability.css::.hero .btn::after::animation",
+      "src/styles/legacy/04-mobile-usability.css::.hero .btn::after::background",
+      "src/styles/legacy/04-mobile-usability.css::.hero .btn::after::content",
+      "src/styles/legacy/04-mobile-usability.css::.hero .btn::after::pointer-events",
+      "src/styles/legacy/04-mobile-usability.css::.hero .btn::after::transform",
+      "src/styles/legacy/04-mobile-usability.css::.hero .btn:focus-visible::animation",
+      "src/styles/legacy/04-mobile-usability.css::.hero .btn:focus-visible::box-shadow",
+      "src/styles/legacy/04-mobile-usability.css::.nav-right .btn::font-size",
+      "src/styles/legacy/04-mobile-usability.css::.nav-right .btn::padding",
+      "src/styles/legacy/04-mobile-usability.css::.nav-right:has(> .btn) .btn::font-size",
+      "src/styles/legacy/04-mobile-usability.css::.nav-right:has(> .btn) .btn::padding",
+      "src/styles/legacy/04-mobile-usability.css::[data-theme='dark'] .hero .btn-primary, [data-theme='dark'] .hero .btn-saffron::border-color",
+      "src/styles/legacy/06-shell-and-consistency.css::.poi-actions .btn-ghost.btn-sm::border-color",
+      "src/styles/legacy/06-shell-and-consistency.css::.poi-actions .btn-ghost.btn-sm::color",
+      "src/styles/legacy/06-shell-and-consistency.css::.poi-actions .btn-ghost.btn-sm:hover::border-color",
+      "src/styles/legacy/06-shell-and-consistency.css::.poi-actions .btn-ghost.btn-sm:hover::color",
+      "src/styles/legacy/06-shell-and-consistency.css::.poi-actions .btn-sm::font-size",
+      "src/styles/legacy/06-shell-and-consistency.css::.poi-actions .btn-sm::padding",
+      "src/styles/legacy/08-map-review.css::.offline-recovery-actions .btn::white-space",
+      "src/styles/legacy/10-explore.css::.ex-cover-img, .ex-feature-cover .ex-cover-img, .ex-save-dot, .ex-chip, .ex-creator, :is(.ex-page, .trips-page) .btn::transition",
+      "src/styles/legacy/10-explore.css::.ex-enter, .ex-hero-copy, .ex-hero-visual, .ex-aside > :nth-child(n), .ex-selects.is-open, .ex-save[aria-pressed='true'] .ex-save-dot, .ex-chip-saved[aria-pressed='true'] svg, .ex-feature-actions .btn[aria-pressed='true'] svg::animation",
+      "src/styles/legacy/10-explore.css::.ex-save:hover .ex-save-dot, .ex-save:active .ex-save-dot, .ex-chip:active, :is(.ex-page, .trips-page) .btn:where(:not(.modal *)):active:not(:disabled)::transform",
+      "src/styles/legacy/10-explore.css::.ex-save[aria-pressed='true'] .ex-save-dot, .ex-chip-saved[aria-pressed='true'] svg, .ex-feature-actions .btn[aria-pressed='true'] svg::animation",
+      "src/styles/legacy/10-explore.css:::is(.ex-page, .trips-page) .btn-primary:where(:not(.modal *))::box-shadow",
+      "src/styles/legacy/10-explore.css:::is(.ex-page, .trips-page) .btn:where(:not(.btn-sm, .modal *))::border-radius",
+      "src/styles/legacy/10-explore.css:::is(.ex-page, .trips-page) .btn:where(:not(.btn-sm, .modal *))::font-size",
+      "src/styles/legacy/10-explore.css:::is(.ex-page, .trips-page) .btn:where(:not(.btn-sm, .modal *))::font-weight",
+      "src/styles/legacy/10-explore.css:::is(.ex-page, .trips-page) .btn:where(:not(.btn-sm, .modal *))::letter-spacing",
+      "src/styles/legacy/10-explore.css:::is(.ex-page, .trips-page) .btn:where(:not(.btn-sm, .modal *))::padding",
+      "src/styles/legacy/10-explore.css:::is(.ex-page, .trips-page) .btn:where(:not(.btn-sm, .modal *))::transition",
+      "src/styles/legacy/10-explore.css:::is(.ex-page, .trips-page) .btn:where(:not(.modal *)):active:not(:disabled)::transform",
+      "src/styles/legacy/11-shared-page.css::.mt-hero-secondary > .btn::padding",
+      "src/styles/legacy/11-shared-page.css:::is(.yf-page) .btn-primary:where(:not(.modal *))::box-shadow",
+      "src/styles/legacy/11-shared-page.css:::is(.yf-page) .btn:where(:not(.btn-sm, .modal *))::border-radius",
+      "src/styles/legacy/11-shared-page.css:::is(.yf-page) .btn:where(:not(.btn-sm, .modal *))::font-size",
+      "src/styles/legacy/11-shared-page.css:::is(.yf-page) .btn:where(:not(.btn-sm, .modal *))::font-weight",
+      "src/styles/legacy/11-shared-page.css:::is(.yf-page) .btn:where(:not(.btn-sm, .modal *))::letter-spacing",
+      "src/styles/legacy/11-shared-page.css:::is(.yf-page) .btn:where(:not(.btn-sm, .modal *))::padding",
+      "src/styles/legacy/11-shared-page.css:::is(.yf-page) .btn:where(:not(.btn-sm, .modal *))::transition",
+      "src/styles/legacy/11-shared-page.css:::is(.yf-page) .btn:where(:not(.modal *))::transition",
+      "src/styles/legacy/11-shared-page.css:::is(.yf-page) .btn:where(:not(.modal *)):active:not(:disabled)::transform",
+      "src/styles/legacy/13-phone-polish-and-guided-create.css::.gcf .ct-nav .btn::border-radius",
+      "src/styles/legacy/13-phone-polish-and-guided-create.css::.gcf .ct-nav .btn::font-size",
+      "src/styles/legacy/13-phone-polish-and-guided-create.css::.gcf .ct-nav .btn::font-weight",
+      "src/styles/legacy/13-phone-polish-and-guided-create.css::.gcf .ct-nav .btn::padding",
+      "src/styles/legacy/13-phone-polish-and-guided-create.css::.gcf .gcf-presets .btn::border-radius",
+      "src/styles/legacy/13-phone-polish-and-guided-create.css::.gcf .gcf-presets .btn::font-size",
+      "src/styles/legacy/13-phone-polish-and-guided-create.css::.gcf .gcf-presets .btn::padding",
+      "src/styles/legacy/13-phone-polish-and-guided-create.css::.gcf-review-actions > .btn::border-radius",
+      "src/styles/legacy/15-overview.css::.btn.btn-primary::box-shadow",
+      "src/styles/legacy/15-overview.css::.btn.btn-primary:focus-visible, .btn.btn-saffron:focus-visible::box-shadow",
+      "src/styles/legacy/15-overview.css::.btn.btn-saffron::box-shadow",
+      "src/styles/legacy/17-overview-tiles-and-cover.css::.ovw2 .btn.btn-sm, .ovw-weather .btn.btn-sm::padding-inline"
+    ]
   }
 }

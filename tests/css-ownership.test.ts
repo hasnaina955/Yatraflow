@@ -3,7 +3,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { loadCssGraph, CssGraphError } from '../scripts/css-source-graph.mjs'
-import { checkOwnership, loadOwnershipMap, formatFindings, ALLOWED_ON_CONFIG, classTokens } from '../scripts/css-ownership.mjs'
+import { checkOwnership, loadOwnershipMap, formatFindings, ALLOWED_ON_CONFIG, classTokens, applyAppearanceBaseline } from '../scripts/css-ownership.mjs'
 
 /**
  * These tests exist to prove the ownership check can fail.
@@ -240,14 +240,15 @@ describe('css ownership: the real repository is clean', () => {
     const root = process.cwd()
     const graph = loadCssGraph('src/styles.css', { root })
     const map = loadOwnershipMap(root)
-    const findings = checkOwnership(graph, map, root)
+    const findings = applyAppearanceBaseline(checkOwnership(graph, map, root), map.baselines)
     expect(formatFindings(findings)).toBe('')
   })
 
-  it('registers the token owner and both CSS-2 component owners', () => {
+  it('registers the token, button and both CSS-2 component owners', () => {
     const map = loadOwnershipMap(process.cwd())
-    expect(map.owners.map((o) => o.id)).toEqual(['tokens', 'select', 'search-field'])
+    expect(map.owners.map((o) => o.id)).toEqual(['tokens', 'button', 'select', 'search-field'])
     expect(map.ownerFiles.has('src/styles/tokens.css')).toBe(true)
+    expect(map.ownerFiles.has('src/styles/components/button.css')).toBe(true)
     expect(map.ownerFiles.has('src/styles/components/select.css')).toBe(true)
   })
 
@@ -267,5 +268,52 @@ describe('css ownership: helpers', () => {
     expect(ALLOWED_ON_CONFIG.has('padding')).toBe(false)
     expect(ALLOWED_ON_CONFIG.has('margin')).toBe(true)
     expect(ALLOWED_ON_CONFIG.has('flex')).toBe(true)
+  })
+})
+
+describe('css ownership: a page cannot restyle the button', () => {
+  const BUTTON = 'src/styles/components/button.css'
+  const PAGE = 'src/styles/legacy/12-pages.css'
+  const ENTRY_BTN = `@import './styles/components/button.css';\n@import './styles/legacy/12-pages.css';\n`
+  const RECIPE = `.btn { display: inline-flex; padding: 9px 17px; border-radius: 999px; }\n`
+
+  function buttonRun(pageCss, keys = []) {
+    const root = fixture({
+      'docs/css-ownership.json': JSON.stringify({
+        entry: 'src/styles.css',
+        owners: [
+          { id: 'button', file: BUTTON, owned: [], configClasses: ['btn', 'btn-sm'], variables: ['--btn-radius'] },
+        ],
+        legacy: [PAGE],
+        baselines: { configAppearanceKeys: keys },
+      }),
+      'src/styles.css': ENTRY_BTN,
+      [BUTTON]: RECIPE,
+      [PAGE]: pageCss,
+    })
+    const graph = loadCssGraph('src/styles.css', { root })
+    const map = loadOwnershipMap(root)
+    return applyAppearanceBaseline(checkOwnership(graph, map, root), map.baselines)
+  }
+
+  it('rejects a page-level appearance repair', () => {
+    const findings = buttonRun(`.hero .btn { border-radius: 0; background: red; }\n`)
+    expect(findings.map((f) => f.code)).toEqual(['config-appearance', 'config-appearance'])
+    expect(findings[0].file).toBe(PAGE)
+    expect(findings.map((f) => f.prop).sort()).toEqual(['background', 'border-radius'])
+  })
+
+  it('accepts placement and a documented variable', () => {
+    const findings = buttonRun(`.hero .btn { flex: 1 1 auto; margin-top: 8px; --btn-radius: 12px; }\n`)
+    expect(findings).toEqual([])
+  })
+
+  it('accepts a registered historical repair and rejects one more', () => {
+    const key = `${PAGE}::.hero .btn::border-radius`
+    const one = buttonRun(`.hero .btn { border-radius: 0; }\n`, [key])
+    expect(one).toEqual([])
+    const two = buttonRun(`.hero .btn { border-radius: 0; background: red; }\n`, [key])
+    expect(two).toHaveLength(1)
+    expect(two[0].prop).toBe('background')
   })
 })

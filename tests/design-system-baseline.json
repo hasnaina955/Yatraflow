@@ -44,7 +44,6 @@
     ".bench-split-bar — transition: .35s",
     ".bench-stay-row — transition: .12s",
     ".bench-toggle — transition: .12s",
-    ".btn — transition: .06s",
     ".gi-flash — animation: 1.6s",
     ".hero-bench-cta — transition: .2s",
     ".odo-strip — transition: .55s",

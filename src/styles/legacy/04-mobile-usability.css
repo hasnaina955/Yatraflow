@@ -109,25 +109,7 @@ main:focus { outline: none; }
    interactive control (UI audit F-12; state matrix in DESIGN_TOKENS.md).
    .skip-link is pre-wired for the F-08 skip link; .yf-map-pin gets an extra
    outline-offset below so the ring clears the map tiles. */
-.input:focus-visible, .textarea:focus-visible,
-.btn:focus-visible, .icon-btn:focus-visible,
-.theme-toggle:focus-visible, .avatar-btn:focus-visible, .user-menu-item:focus-visible,
-.nav-link:focus-visible, .tab-btn:focus-visible, .brand:focus-visible,
-.mobile-nav-btn:focus-visible, .bottom-nav-item:focus-visible,
-.day-collapse:focus-visible, .day-route:focus-visible, .move-btn:focus-visible, .vote-btn:focus-visible,
-.chip-btn:focus-visible, .clickable-chip:focus-visible, .toast-action:focus-visible,
-.day-rail-chip:focus-visible,
-.map-day-chip:focus-visible, .map-idea-chip:focus-visible, .map-legend-toggle:focus-visible,
-.map-expand-chip:focus-visible, .loc-option:focus-visible, .ai-fab:focus-visible,
-.trip-card-hit:focus-visible, .trip-task-row:focus-visible, .skip-link:focus-visible, .yf-map-pin:focus-visible,
-.clamp-toggle:focus-visible, .board-fit:focus-visible, .save-heart:focus-visible,
-.dest-chip button:focus-visible, .role-select:focus-visible, .day-title-btn:focus-visible,
-.trip-hero-back:focus-visible, .health-rec:focus-visible, .link-btn:focus-visible,
-.yf-range:focus-visible, .bench-mode-btn:focus-visible, .bench-stay-row:focus-visible,
-.hero-bench-cta:focus-visible,
-.bench-toggle:focus-visible, .bench-preset-chip:focus-visible,
-.bench-crew-btn:focus-visible,
-.bench-receipt-actions .chip:focus-visible, .bench-surprise:focus-visible {
+.input:focus-visible, .textarea:focus-visible, .icon-btn:focus-visible, .theme-toggle:focus-visible, .avatar-btn:focus-visible, .user-menu-item:focus-visible, .nav-link:focus-visible, .tab-btn:focus-visible, .brand:focus-visible, .mobile-nav-btn:focus-visible, .bottom-nav-item:focus-visible, .day-collapse:focus-visible, .day-route:focus-visible, .move-btn:focus-visible, .vote-btn:focus-visible, .chip-btn:focus-visible, .clickable-chip:focus-visible, .toast-action:focus-visible, .day-rail-chip:focus-visible, .map-day-chip:focus-visible, .map-idea-chip:focus-visible, .map-legend-toggle:focus-visible, .map-expand-chip:focus-visible, .loc-option:focus-visible, .ai-fab:focus-visible, .trip-card-hit:focus-visible, .trip-task-row:focus-visible, .skip-link:focus-visible, .yf-map-pin:focus-visible, .clamp-toggle:focus-visible, .board-fit:focus-visible, .save-heart:focus-visible, .dest-chip button:focus-visible, .role-select:focus-visible, .day-title-btn:focus-visible, .trip-hero-back:focus-visible, .health-rec:focus-visible, .link-btn:focus-visible, .yf-range:focus-visible, .bench-mode-btn:focus-visible, .bench-stay-row:focus-visible, .hero-bench-cta:focus-visible, .bench-toggle:focus-visible, .bench-preset-chip:focus-visible, .bench-crew-btn:focus-visible, .bench-receipt-actions .chip:focus-visible, .bench-surprise:focus-visible {
   outline: none;
   box-shadow: var(--ring);
 }
@@ -493,12 +475,12 @@ main:focus { outline: none; }
 .trip-card:hover, .trip-card-hit:hover { transform: translateY(-2px); box-shadow: var(--shadow-soft); }
 
 /* Button feedback: smooth state changes + a gentle press. */
-.btn, .tab-btn, .board-fit, .board-pulse-link {
+.tab-btn, .board-fit, .board-pulse-link {
   transition: background var(--t-fast) var(--ease-out), color var(--t-fast) var(--ease-out),
     border-color var(--t-fast) var(--ease-out), box-shadow var(--t-fast) var(--ease-out),
     transform var(--t-fast) var(--ease-out), filter var(--t-fast) var(--ease-out);
 }
-.btn:active, .tab-btn:active { transform: scale(.97); }
+.tab-btn:active { transform: scale(.97); }
 
 /* Theme cross-fade: light↔dark glides instead of snapping.
    `.board-col` is deliberately NOT in this list — it declares its own
@@ -1905,7 +1887,6 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
   .trip-head-card h1 { font-size: clamp(22px, 6vw, 30px); }
 
   /* comfortable tap sizes on primary controls */
-  .btn { min-height: 44px; }
   .input, .textarea { min-height: 44px; font-size: 16px; } /* 16px prevents iOS zoom-on-focus */
   .icon-btn { min-width: 40px; min-height: 40px; }
   .loc-dropdown { max-height: 240px; }

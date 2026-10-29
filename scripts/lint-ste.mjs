@@ -426,6 +426,7 @@ function isExcludedPath(file) {
 function checkIfProse(file, lineno, text, kind = 'text', prose) {
   const name = kind && typeof kind === 'object' ? kind.kind : kind
   if (name === 'indented') return
+  if (name === 'code') return
   if (name === 'fenced' && LIST_MARKER.test(text)) return
   if (name === 'comment' || name === 'statement') {
     if (!prose) return
@@ -442,7 +443,48 @@ function checkIfProse(file, lineno, text, kind = 'text', prose) {
 // statements, so a block-comment body and a RAISE message are prose while the
 // statements stay code.
 function kindsFor(file, lines) {
-  return file.endsWith('.sql') ? sqlLineKinds(lines) : lineKinds(lines)
+  if (file.endsWith('.sql')) return sqlLineKinds(lines)
+  if (file.endsWith('.css')) return cssLineKinds(lines)
+  return lineKinds(lines)
+}
+
+/**
+ * Classify one stylesheet line.
+ *
+ * A line is code when it carries CSS syntax: a declaration, a brace, an
+ * at-rule, or a selector list. A line is prose when it is a comment body or
+ * bare text, which is where a stylesheet's own prose lives.
+ *
+ * The distinction is by line shape, not by file extension. An explicit
+ * `--file` check on a stylesheet must still report bad prose, which is the
+ * contract the extraction guard already pins.
+ */
+function cssLineKinds(lines) {
+  const kinds = []
+  let inComment = false
+  for (const line of lines) {
+    const t = line.trim()
+    if (inComment) {
+      kinds.push('text')
+      if (t.includes('*/')) inComment = false
+      continue
+    }
+    if (t.startsWith('/*')) {
+      kinds.push('text')
+      if (!t.includes('*/')) inComment = true
+      continue
+    }
+    if (!t) {
+      kinds.push('blank')
+      continue
+    }
+    const looksLikeCss =
+      t.endsWith('{') || t.endsWith('}') || t.endsWith(';') || t.endsWith(',') ||
+      t.startsWith('@') || t.startsWith('}') || t.includes('{') ||
+      /^[.#:\[*]|^[a-zA-Z][\w-]*\s*[>+~]/.test(t)
+    kinds.push(looksLikeCss ? 'code' : 'text')
+  }
+  return kinds
 }
 
 function proseOf(kind) {
@@ -528,40 +570,68 @@ function checkAdded(added, staged) {
 // lines still identical to that extraction are historical. If the commit is
 // missing, check all lines rather than silently granting an exemption.
 //
-// A token module inherits comments from the frozen legacy sections when a move
+// A module can inherit comments from the frozen legacy sections when a move
 // carries them out of `legacy/`. Its line numbers differ, so a positional
-// compare cannot work. A line is historical there only when the same text
-// exists in the extraction commit, which keeps the exemption to prose that was
-// never written under the current rules.
+// compare cannot work.
+//
+// The exemption is deliberately narrow. It applies only to a module that the
+// ownership map registers as a migration destination, and only to a line that
+// is a comment and whose text exists in the extraction commit. New prose
+// written in the same file is checked, and an identical sentence pasted into a
+// file that is not a registered destination is checked too.
+// Modules that a migration may have moved historical comments into. They come
+// from the ownership map, so the list cannot drift away from what the CSS
+// ownership check considers an owner module.
+function migrationDestinations() {
+  try {
+    const mapPath = path.join(process.cwd(), 'docs/css-ownership.json')
+    const map = JSON.parse(readFileSync(mapPath, 'utf8'))
+    return new Set((map.owners ?? []).map((o) => o.file).filter(Boolean))
+  } catch {
+    return new Set()
+  }
+}
+
 function excludeExtractedLines(added) {
   const extraction = '6d356f84b6a6d97d327a651b8295eeee6a38a3b9'
   const sha = commitOf(extraction)
   if (!sha) return added
   const prefix = 'src/styles/legacy/'
-  const movedModules = ['src/styles/tokens.css']
+  const destinations = migrationDestinations()
   const changed = new Set(addedLines([sha, '--', prefix]).map(a => `${a.file}:${a.lineno}:${a.text}`))
 
-  let extractionText = null
-  const loadExtraction = () => {
-    if (extractionText !== null) return extractionText
+  let extractionComments = null
+  const loadExtractionComments = () => {
+    if (extractionComments !== null) return extractionComments
     try {
       const files = execFileSync('git', ['ls-tree', '-r', '--name-only', sha, '--', prefix], { encoding: 'utf8' })
         .trim()
         .split('\n')
         .filter(Boolean)
-      extractionText = files
+      const text = files
         .map((f) => execFileSync('git', ['show', `${sha}:${f}`], { encoding: 'utf8', maxBuffer: 1 << 26 }))
         .join('\n')
+      extractionComments = new Set(
+        text
+          .split(/\r?\n/)
+          .map((l) => l.trim())
+          .filter((l) => l.startsWith('/*') || l.startsWith('*') || l.endsWith('*/')),
+      )
     } catch {
-      extractionText = ''
+      extractionComments = new Set()
     }
-    return extractionText
+    return extractionComments
   }
-  const textInExtraction = (text) => text.trim() !== '' && loadExtraction().includes(text)
+
+  const isHistoricalComment = (text) => {
+    const t = String(text).trim()
+    if (!t.startsWith('/*') && !t.startsWith('*') && !t.endsWith('*/')) return false
+    return loadExtractionComments().has(t)
+  }
 
   return added.filter((a) => {
     if (a.file.startsWith(prefix)) return changed.has(`${a.file}:${a.lineno}:${a.text}`)
-    if (movedModules.includes(a.file)) return !textInExtraction(a.text)
+    if (destinations.has(a.file)) return !isHistoricalComment(a.text)
     return true
   })
 }

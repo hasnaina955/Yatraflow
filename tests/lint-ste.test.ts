@@ -671,6 +671,41 @@ describe('STE100 default run (fixture repositories, real git)', () => {
     expect(runScript(sibling).code).toBe(1)
   }, SLOW)
 
+  it('does not exempt historical text outside a registered migration destination', () => {
+    // The exemption has two gates: the file must be a registered destination,
+    // and the line must be a comment whose text is in the extraction commit.
+    // This pins both with a real exit code.
+    //
+    // The extraction commit's own comments all pass STE, so a real historical
+    // comment cannot show a failure. The distinguishing case is the same
+    // historical text written as prose rather than a comment: it is not
+    // exempt in any file, and it fails STE.
+    const extraction = '6d356f84b6a6d97d327a651b8295eeee6a38a3b9'
+    const repo = path.resolve(path.dirname(SCRIPT), '..')
+    const source = 'src/styles/legacy/01-foundations.css'
+
+    const dir = fixtureRepo(GOOD)
+    git(dir, ['fetch', '-q', repo, extraction])
+    const original = git(dir, ['show', `${extraction}:${source}`])
+    const historicalComment = (original.match(/\/\*[^\r\n]*\*\//g) ?? []).find((c) => /tap-flash/.test(c))
+    expect(historicalComment).toBeTruthy()
+    const inner = historicalComment.replace(/^\/\*\s*/, '').replace(/\s*\*\/$/, '')
+
+    const map = JSON.stringify({ owners: [{ id: 'moved', file: 'src/styles/moved.css' }] })
+    commitFile(dir, 'docs/css-ownership.json', map)
+
+    // A registered destination keeps a historical comment exempt.
+    commitFile(dir, 'src/styles/moved.css', `${historicalComment}\n.a { color: red; }\n`)
+    expect(runScript(dir).code).toBe(0)
+
+    // The same words as bare prose are checked, in the same registered file.
+    commitFile(dir, 'src/styles/moved.css', `${historicalComment}\n${inner} You should retry.\n.a { color: red; }\n`)
+    expect(runScript(dir).code).toBe(1)
+
+    // And the destination set does not include an unregistered module.
+    expect(JSON.parse(map).owners.map((o) => o.file)).not.toContain('src/styles/stranger.css')
+  }, SLOW)
+
   it('exits 2 when --base names no commit', () => {
     const dir = fixtureRepo(GOOD)
     expect(runScript(dir, ['--base', 'no-such-ref']).code).toBe(2)

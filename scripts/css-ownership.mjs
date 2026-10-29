@@ -108,8 +108,8 @@ export function isRootSelector(selector) {
  */
 export function checkOwnership(graph, map, root = process.cwd()) {
   const findings = []
-  const add = (code, file, line, selector, message) =>
-    findings.push({ code, file, line, selector, message })
+  const add = (code, file, line, selector, message, extra = {}) =>
+    findings.push({ code, file, line, selector, message, ...extra })
 
   const rules = graph.records.filter((r) => r.kind === 'rule')
 
@@ -138,6 +138,7 @@ export function checkOwnership(graph, map, root = process.cwd()) {
           add(
             'config-appearance', file, decl.line ?? rule.line, rule.selectorNormalized,
             `.${token} is a ${config.id} configuration point. "${decl.prop}" is component appearance, not page placement. Set it in ${config.file}, or set a supported variable (${(config.variables ?? []).join(', ') || 'none'}).`,
+            { prop: decl.prop, key: `${file}::${rule.selectorNormalized}::${decl.prop}` },
           )
         }
       }
@@ -206,6 +207,19 @@ export function checkOwnership(graph, map, root = process.cwd()) {
   return findings.sort((a, b) => (a.file < b.file ? -1 : a.file > b.file ? 1 : a.line - b.line || (a.code < b.code ? -1 : 1)))
 }
 
+/**
+ * Grandfather appearance already written on a configuration class.
+ *
+ * The key is the file, the exact selector and the property. A key that is not
+ * registered is new, so one page-level repair is always caught. A batch
+ * converts its own keys to variables and deletes them from the map, so the
+ * recorded debt only shrinks and a stale key fails.
+ */
+export function applyAppearanceBaseline(findings, baselines = {}) {
+  const allowed = new Set(baselines.configAppearanceKeys ?? [])
+  return findings.filter((f) => f.code !== 'config-appearance' || !allowed.has(f.key))
+}
+
 /** Format findings the way the other repo checks do. */
 export function formatFindings(findings) {
   return findings
@@ -227,7 +241,7 @@ function runCli(argv) {
     throw error
   }
   const map = loadOwnershipMap(root)
-  const findings = checkOwnership(graph, map, root)
+  const findings = applyAppearanceBaseline(checkOwnership(graph, map, root), map.baselines)
 
   if (flag('--json')) {
     console.log(JSON.stringify({ fingerprint: graph.fingerprint, findings }, null, 2))

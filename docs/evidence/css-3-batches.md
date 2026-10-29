@@ -168,3 +168,68 @@ A move of all 57 rules into a component module would drag page layout into the c
 
 One rule needs care. `legacy/04-mobile-usability.css:496` sets `transition` on a shared list: `.btn, .tab-btn, .board-fit, .board-pulse-link`. That list spans three families. It must split without changing which declarations each selector receives.
 
+## B2 checkpoint 1: the recipe and its scale
+
+Commits `77af76d8`. Input `2e2a19d3`.
+
+Nine rules moved from section 01 and 04 into `src/styles/components/button.css`, plus the variant block and the size scale.
+
+The size scale had to move with the recipe. .btn-sm and .btn-lg compete with .btn at equal specificity. Section 01 declared them after it. A recipe-only move put the base after the scale, so .btn-sm lost its 13px type and 6px padding.
+
+The first computed comparison found it: `.btn-sm` height moved 31px to 39px in every scope. The scale now sits after the base inside the module, which is its original relationship.
+
+Two duplicates were consolidated inside the new owner. `.btn` appeared twice, as the base recipe and as a later transition. `.btn:focus-visible` appeared twice with identical declarations. The merged rule keeps the later transition value, so the effective value is unchanged. That removes a raw `.06s` duration, so its design-system baseline entry is deleted. The set only shrinks.
+
+## B2 checkpoint 2: the duplicated scale becomes variables
+
+Commit `2ca2fb13`.
+
+`legacy/10-explore.css:23` and `legacy/11-shared-page.css:1037` were byte-identical apart from their scope. Both declared the control.
+
+The base recipe now reads every value a page may select from a variable. Each fallback is the default scale, so a button outside a page scope is unchanged.
+
+| Variable | Default | Catalog and yf-page |
+|---|---|---|
+| `--btn-min-height` | `auto` | `44px` |
+| `--btn-padding` | `9px 17px` | `0 16px` |
+| `--btn-radius` | `999px` | `12px` |
+| `--btn-font-size` | `14px` | `15px` |
+| `--btn-weight` | `600` | `700` |
+| `--btn-tracking` | `normal` | `-.005em` |
+| `--btn-transition` | the default six-property list | the five-property catalog list |
+| `--btn-active-transform` | `scale(.97)` | `translateY(1px)` |
+
+`min-height` falls back to `auto` and `letter-spacing` to `normal`, which are the initial values, so adding those declarations changes nothing.
+
+Both page scopes keep their exact selectors, specificity and order. They now assign variables instead of redeclaring appearance. The `:active` transform and both reduced-motion rules became assignments too, so a page no longer declares component behaviour.
+
+Page placement rules are untouched. `.hero .btn`, `.nav-right .btn`, `.bench-dock .btn` and the rest still own their own layout.
+
+### Computed-style comparison
+
+One page per environment holds all 120 elements. Each is measured at rest and focused, over 39 properties.
+
+| Measure | Value |
+|---|---|
+| Scopes | 12, including both page recipes, the modal exclusion and the placement exceptions |
+| Variants | 10: base, link, sm, primary, saffron, outline, ghost, icon-only, disabled, loading |
+| Environments | light and dark at 1440, light and dark at 390, light with reduced motion |
+| Comparisons | 1,200 |
+| Differences | 0 |
+
+The same comparison against the first try reported `.btn-sm` differences in every scope. That is how the scale defect was found.
+
+### Enforcement
+
+`.btn`, `.btn-sm`, `.btn-primary` and `.btn-saffron` are registered as button configuration classes. A page may set placement and a documented variable. A page may not set appearance.
+
+Proven with a real exit code:
+
+- `.hero .btn { border-radius: 0 }` reintroduced into `12-pages.css` fails with exit 1 and names `12-pages.css:518`.
+- `.hero .btn { flex: 1 1 auto; margin-top: 8px; --btn-radius: 12px }` passes.
+
+The 103 appearance declarations that already existed were grandfathered by exact file, selector and property key. Checkpoint 2 removed 17 of them. It added 3 inside a scope that now assigns variables. The baseline is 89.
+
+Rollback: move the recipe, scale, variants and states back to sections 01 and 04. Restore the two page recipes as declarations. Remove the module and its import. Restore the appearance baseline.
+
+

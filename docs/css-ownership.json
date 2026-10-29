@@ -155,6 +155,17 @@
         "--dialog-max-height",
         "--dialog-max-height-dvh"
       ]
+    },
+    {
+      "id": "toast",
+      "file": "src/styles/components/toast.css",
+      "owned": [],
+      "configClasses": [
+        "toast",
+        "toast-zone",
+        "toast-action"
+      ],
+      "variables": []
     }
   ],
   "legacy": [
@@ -261,6 +272,10 @@
       "src/styles/legacy/06-shell-and-consistency.css::.poi-actions .btn-ghost.btn-sm:hover::color",
       "src/styles/legacy/06-shell-and-consistency.css::.poi-actions .btn-sm::font-size",
       "src/styles/legacy/06-shell-and-consistency.css::.poi-actions .btn-sm::padding",
+      "src/styles/legacy/06-shell-and-consistency.css::.pulse-bar .pulse-label, .day-badge small, .tps-label, .tl-total-label, .day-rail-label, .stop-kind-tag, .board-pulse .pulse-label, .budget-hero-label, .share-intent, .impact-cell .k, .ha-kicker, .ha-stats span, .hbc-code span, .hbc-sub, .loc-kind, .weather-day, .ride-purpose, .bench-eyebrow, .bench-scale-ends, .bench-receipt-kicker, .bench-total-label, .bench-badge, .ticker-item .t-tag, .board-stop-kicker, .creator-badge, .pub-ledger th, .route-tag, .group-lab, .mini-lab, .compare-table th, .toast-action, .editorial-kicker, .pub-stats-label, .pub-hero-badge, .pub-hero-byline, .eyebrow, .cal-wd, .route-glance .route-glance-label, .stat-label, .app-home-section, .poi-grp-k, .poi-reason-k::font-size",
+      "src/styles/legacy/06-shell-and-consistency.css::.pulse-bar .pulse-label, .day-badge small, .tps-label, .tl-total-label, .day-rail-label, .stop-kind-tag, .board-pulse .pulse-label, .budget-hero-label, .share-intent, .impact-cell .k, .ha-kicker, .ha-stats span, .hbc-code span, .hbc-sub, .loc-kind, .weather-day, .ride-purpose, .bench-eyebrow, .bench-scale-ends, .bench-receipt-kicker, .bench-total-label, .bench-badge, .ticker-item .t-tag, .board-stop-kicker, .creator-badge, .pub-ledger th, .route-tag, .group-lab, .mini-lab, .compare-table th, .toast-action, .editorial-kicker, .pub-stats-label, .pub-hero-badge, .pub-hero-byline, .eyebrow, .cal-wd, .route-glance .route-glance-label, .stat-label, .app-home-section, .poi-grp-k, .poi-reason-k::font-weight",
+      "src/styles/legacy/06-shell-and-consistency.css::.pulse-bar .pulse-label, .day-badge small, .tps-label, .tl-total-label, .day-rail-label, .stop-kind-tag, .board-pulse .pulse-label, .budget-hero-label, .share-intent, .impact-cell .k, .ha-kicker, .ha-stats span, .hbc-code span, .hbc-sub, .loc-kind, .weather-day, .ride-purpose, .bench-eyebrow, .bench-scale-ends, .bench-receipt-kicker, .bench-total-label, .bench-badge, .ticker-item .t-tag, .board-stop-kicker, .creator-badge, .pub-ledger th, .route-tag, .group-lab, .mini-lab, .compare-table th, .toast-action, .editorial-kicker, .pub-stats-label, .pub-hero-badge, .pub-hero-byline, .eyebrow, .cal-wd, .route-glance .route-glance-label, .stat-label, .app-home-section, .poi-grp-k, .poi-reason-k::letter-spacing",
+      "src/styles/legacy/06-shell-and-consistency.css::.pulse-bar .pulse-label, .day-badge small, .tps-label, .tl-total-label, .day-rail-label, .stop-kind-tag, .board-pulse .pulse-label, .budget-hero-label, .share-intent, .impact-cell .k, .ha-kicker, .ha-stats span, .hbc-code span, .hbc-sub, .loc-kind, .weather-day, .ride-purpose, .bench-eyebrow, .bench-scale-ends, .bench-receipt-kicker, .bench-total-label, .bench-badge, .ticker-item .t-tag, .board-stop-kicker, .creator-badge, .pub-ledger th, .route-tag, .group-lab, .mini-lab, .compare-table th, .toast-action, .editorial-kicker, .pub-stats-label, .pub-hero-badge, .pub-hero-byline, .eyebrow, .cal-wd, .route-glance .route-glance-label, .stat-label, .app-home-section, .poi-grp-k, .poi-reason-k::text-transform",
       "src/styles/legacy/08-map-review.css::.chip-row .chip.on::background",
       "src/styles/legacy/08-map-review.css::.chip-row .chip.on::border-color",
       "src/styles/legacy/08-map-review.css::.chip-row .chip.on::color",

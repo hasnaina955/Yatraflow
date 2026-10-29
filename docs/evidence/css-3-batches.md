@@ -400,23 +400,25 @@ Rollback: move the three rules back to section 01, remove the module and its imp
 
 Commit `0ec35172`.
 
-Three variables are documented: `--card-surface`, `--card-border-color` and `--card-radius`. Only two are used. `--card-surface` is a hook, because no consumer sets it yet.
+Three variables were documented at first. `--card-surface` was withdrawn because no consumer sets it. A configuration hook with no consumer is not part of the API. Two remain: `--card-border-color` and `--card-radius`.
 
 Both card page rules shared a selector list with a different component. Each was split rather than converted. A conversion would push a card variable onto .stat-tile and .created-card. Both have their own base rules at 02:119 and 08:426.
 
 Spacing, grid placement and surrounding layout stayed page-owned. `.card + .card` and `.explore-grid > .card + .card` keep their margins, and `.bezel > .card` keeps `flex: 1`.
 
-#### Shadow is deliberately not a variable
+#### Shadow stays declared, and it is debt
 
-It was tried and failed in both directions.
+It was tried as a variable and failed in both directions.
 
 With --card-shadow, .card.route-snap inside .bezel lost the bezel inset. The variant declaration beat the base rule that reads the variable. The bezel rule used to win by order at equal specificity.
 
 The variant then read the variable and picked up the bento shadow, where it used to lose.
 
-The variant deliberately overrides its surrounding scope, so that value is not a configuration point. Both scopes keep a direct shadow declaration, and the module comment records why.
+So three rules keep a direct box-shadow: .bento .card, .bezel > .card and .card.route-snap. What they depend on is order and specificity between equal-specificity selectors. That precedence is existing behaviour. Nothing in the source shows it was chosen on purpose, and this document does not claim it was.
 
-The computed comparison caught this twice. Nothing else did.
+So three rules keep a direct box-shadow: .bento .card, .bezel > .card and .card.route-snap. They depend on order and specificity between equal-specificity selectors. That precedence is existing behaviour. Nothing in the source shows it was chosen on purpose, and this document does not claim it was.
+
+The computed comparison caught both tries. Nothing else did.
 
 | Measure | Value |
 |---|---|

@@ -34,7 +34,6 @@
         "card"
       ],
       "variables": [
-        "--card-surface",
         "--card-border-color",
         "--card-radius"
       ]

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { readCssSource } from '../scripts/css-source-graph.mjs'
 
 /** Strip comment lines so prose about the contract cannot impersonate it
  *  (§6x: a negative source assertion judges code, never comments). */
@@ -48,7 +49,7 @@ describe('MR9 — the one nav tracks the section in view', () => {
 })
 
 describe('P4 — the current-day marker survives the warn skin', () => {
-  const css = readFileSync(resolve(__dirname, '../src/styles.css'), 'utf8')
+  const css = readCssSource('src/styles.css')
 
   it('gives the warned current card a border marker warn cannot replace', () => {
     const rule = /\.day-rail-card\.warn\[aria-current='true'\] \{([^}]*)\}/.exec(css)

@@ -5,13 +5,14 @@
 // The scan folds CRLF to LF, so it reads the same on a Windows checkout and in CI.
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
+import { readCssSource } from '../scripts/css-source-graph.mjs'
 
 const source = (rel: string) =>
   readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n')
 
 const auth = source('../src/pages/Auth.tsx')
 const store = source('../src/store/store.ts')
-const css = source('../src/styles.css')
+const css = readCssSource('src/styles.css')
 
 describe('the store reports the waiting state as a field', () => {
   it('signup types the field and returns it when no session exists', () => {

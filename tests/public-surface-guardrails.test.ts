@@ -10,6 +10,7 @@
 // the same pattern tests/trip-road.test.ts uses for the road measurement.
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
+import { readCssSource } from '../scripts/css-source-graph.mjs'
 
 const read = (p: string) => readFileSync(new URL(p, import.meta.url), 'utf8')
 
@@ -27,7 +28,7 @@ describe('the public itinerary page sells what it can deliver', () => {
 
   it('keeps every section class it styles itself with in the stylesheet', () => {
     const page = read('../src/pages/PublicItinerary.tsx')
-    const css = read('../src/styles.css')
+    const css = readCssSource('src/styles.css')
     const used = [...page.matchAll(/className="(pub-[a-z-]+)"/g)].map(m => m[1]).sort()
     expect(used.length).toBeGreaterThan(5)
     expect(used.filter(c => !css.includes(`.${c}`))).toEqual([])
@@ -140,7 +141,7 @@ describe('the public page names no cause it cannot know', () => {
 //     `transform: none` over `.itin-card:hover`'s lift forever — the shelf's
 //     hover answered with a shadow change and no movement.
 describe('grid cards are laid out by the grid, not by the stacked-card beat', () => {
-  const css = read('../src/styles.css')
+  const css = readCssSource('src/styles.css')
 
   it('zeroes the stacked-card margin inside every grid container that holds cards', () => {
     // The list is an inventory, not a sample: a DOM sweep of every reachable
@@ -168,7 +169,7 @@ describe('grid cards are laid out by the grid, not by the stacked-card beat', ()
 })
 
 describe('the published hero keeps its evidence card inside itself', () => {
-  const css = read('../src/styles.css')
+  const css = readCssSource('src/styles.css')
 
   it('never hangs the floating card into an overflow:hidden clip', () => {
     const hero = css.match(/\.pub-hero \{[\s\S]*?\}/)?.[0] ?? ''
@@ -191,7 +192,7 @@ describe('the published hero keeps its evidence card inside itself', () => {
 })
 
 describe('one kicker recipe, and no capitals typed in components', () => {
-  const css = read('../src/styles.css')
+  const css = readCssSource('src/styles.css')
 
   /**
    * The declaration block of a rule whose selector starts its own line. The

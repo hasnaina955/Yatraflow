@@ -7,9 +7,10 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { stateBlockRole } from '../src/components/page/StateBlock'
+import { readCssSource } from '../scripts/css-source-graph.mjs'
 
 const tab = readFileSync(new URL('../src/pages/trip/ShareTab.tsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n')
-const css = readFileSync(new URL('../src/styles.css', import.meta.url), 'utf8').replace(/\r\n/g, '\n')
+const css = readCssSource('src/styles.css')
 const baseline = JSON.parse(
   readFileSync(new URL('./page-consistency-baseline.json', import.meta.url), 'utf8'),
 ) as { pageFiles: Record<string, Record<string, number>> }

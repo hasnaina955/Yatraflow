@@ -904,6 +904,28 @@ get a row here again.
 | A7 / #613 | Stopless driving day loses its map | ✅ |
 | A8 / #614 | Snapshot prints zero-based days | ✅ |
 
+### CSS system migration (CSS-0 → CSS-3)
+
+Each styling responsibility gets one owner. The styling stays plain CSS. The
+four stages follow one another.
+
+| Stage | Scope | Status |
+|---|---|---|
+| CSS-0 | One shared reader resolves the stylesheet import graph. Every CSS check reads it. | Done, 2026-10-29: `scripts/css-source-graph.mjs`, branch `chore/css-0-source-graph` |
+| CSS-1 | Move contiguous sections into ordered files under `src/styles/legacy/`. Keep the cascade equivalent. | Blocked. The accepted redesign holds 4,343 uncommitted CSS lines on `feat/p2-p12-combined-mockup`. |
+| CSS-2 | Give `SearchField` and `Select` their own modules on My trips and Explore. | Waits for CSS-1. |
+| CSS-3 | Migrate the other component and page families. Add the ownership checks. | Waits for CSS-2. |
+
+CSS-1 needs one frozen fingerprint of the accepted tree. The redesign worker
+writes `src/styles.css` while this stage runs. CSS-1 starts after that worker
+commits. It never runs against a moving file.
+
+The reader keeps import order, declaration order, duplicate rules and every
+conditional context. It also keeps each rule's own file and line. A remote
+import is refused and never fetched. A missing import or a cycle fails with its
+path. The fingerprint covers every file in the graph.
+
+
 ---
 ## Idea bank
 

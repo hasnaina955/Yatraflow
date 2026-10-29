@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import type { DayWeather } from '../src/lib/weather'
+import { readCssSource } from '../scripts/css-source-graph.mjs'
 import {
   filterOverviewWeather,
   mergeOverviewWeather,
@@ -16,7 +17,7 @@ import {
 
 const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8').replace(/\r\n/g, '\n')
 const tab = read('../src/pages/trip/OverviewTab.tsx')
-const css = read('../src/styles.css')
+const css = readCssSource('src/styles.css')
 const count = (source: string, needle: string) => source.split(needle).length - 1
 const PRIOR_SECTION = '/* ===== P10: Creator hub — panel titles and moved margins ===== */'
 const SECTION = '/* ===== P12: Overview panels and titles ===== */'

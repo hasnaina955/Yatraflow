@@ -12,8 +12,9 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync, readdirSync } from 'node:fs'
 import ts from 'typescript'
+import { readCssSource } from '../scripts/css-source-graph.mjs'
 
-const css = readFileSync(new URL('../src/styles.css', import.meta.url), 'utf8').replace(/\r\n/g, '\n')
+const css = readCssSource('src/styles.css')
 
 const srcRoot = new URL('../src/', import.meta.url)
 const tsxFiles = readdirSync(srcRoot, { recursive: true })

@@ -179,6 +179,14 @@ Hard rules (each learned the hard way — do not relearn them):
   operations: change the CSS, run the ratchet, and only reach for
   `UPDATE_DESIGN_SYSTEM_BASELINE=1` when it is actually red — then still prove the finding
   names are identical in and out.
+- **A CSS check reads the source graph, never the entry file alone (learned
+  2026-10-29).** `src/styles.css` imports modules during the CSS migration. A
+  check that reads only the entry file stops seeing moved rules, and it stays
+  green while it does. Use `scripts/css-source-graph.mjs`: `readCssSource()`
+  returns the flattened cascade, and `loadCssGraph()` returns records with
+  file, line and conditional context. `node scripts/css-source-graph.mjs`
+  prints the fingerprint over every file in the graph. A remote import is
+  refused. A missing import or a cycle fails with its path.
 - **The ratchet parses each selector's OWN declaration pair — it never walks
   the cascade (learned 2026-09-22).** A `:root` override can fix a contrast
   finding on screen while the baseline keeps it forever: `.day-warn-pill`

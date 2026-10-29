@@ -10,6 +10,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { seedData } from '../src/data/seed'
 import { tripToRow } from '../src/lib/tripRow'
+import { readCssSource } from '../scripts/css-source-graph.mjs'
 
 const src = (rel: string) => readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n')
 const page = () => src('../src/pages/TripsList.tsx')
@@ -102,7 +103,7 @@ describe('#386 — the manual seed refuses duplicates and broken reads (source)'
 })
 
 describe('My trips Trash toggle and hero wiring (source)', () => {
-  const css = () => src('../src/styles.css')
+  const css = () => readCssSource('src/styles.css')
 
   it('both Trash toggles and the Back button report the view through one handler', () => {
     const p = page()

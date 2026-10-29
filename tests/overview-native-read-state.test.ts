@@ -9,6 +9,7 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { stateBlockRole } from '../src/components/page/StateBlock'
+import { readCssSource } from '../scripts/css-source-graph.mjs'
 
 const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8').replace(/\r\n/g, '\n')
 
@@ -111,7 +112,7 @@ describe('#704 — the Overview weather card says when the forecast read failed'
   })
 
   it('the failed line and the kept note enter like the error line, with the reduced-motion opt-out', () => {
-    const css = read('../src/styles.css')
+    const css = readCssSource('src/styles.css')
     expect(css).toMatch(/\.ovw-weather-failed, \.ovw-weather-kept \{ animation: errIn var\(--motion-med\) var\(--ease-out\); \}/)
     expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\) \{ \.ovw-weather-failed, \.ovw-weather-kept \{ animation: none; \} \}/)
   })

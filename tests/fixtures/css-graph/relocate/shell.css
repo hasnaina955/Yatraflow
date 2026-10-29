@@ -1,0 +1,5 @@
+.shell {
+  display: grid;
+  gap: 12px;
+  transition: opacity 160ms ease;
+}

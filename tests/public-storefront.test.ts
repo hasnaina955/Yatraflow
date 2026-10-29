@@ -13,6 +13,7 @@ import {
 import { originOf, simulateDay } from '../src/lib/engine'
 import { DayCard } from '../src/components/storefront/DayCard'
 import { WhatIsInside } from '../src/components/storefront/WhatIsInside'
+import { readCssSource } from '../scripts/css-source-graph.mjs'
 
 /** A stand-in stop that carries secret data everywhere a name must never leak. */
 function secretStop(category: string, visitMinutes = 60): ItineraryStop {
@@ -421,7 +422,7 @@ describe('road minutes (F1)', () => {
 })
 
 describe('unbroken text (F2)', () => {
-  const css = readFileSync(new URL('../src/styles.css', import.meta.url), 'utf8').replace(/\r\n/g, '\n')
+  const css = readCssSource('src/styles.css')
 
   it('lets the day title break inside the card', () => {
     expect(css).toMatch(/\.sf-day > \.sf-day-title \{[^}]*overflow-wrap: anywhere;/)

@@ -4,8 +4,9 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import ts from 'typescript'
+import { readCssSource } from '../scripts/css-source-graph.mjs'
 
-const css = readFileSync(new URL('../src/styles.css', import.meta.url), 'utf8')
+const css = readCssSource('src/styles.css')
 const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8')
 const main = readFileSync(new URL('../src/main.tsx', import.meta.url), 'utf8')
 

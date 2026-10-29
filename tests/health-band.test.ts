@@ -93,8 +93,9 @@ describe('band → chip tone', () => {
 // class names it stopped emitting are gone rather than merely unreachable.
 import { execSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
+import { readCssSource } from '../scripts/css-source-graph.mjs'
 
-const css = readFileSync('src/styles.css', 'utf8')
+const css = readCssSource('src/styles.css')
 const BAND_CLASSES = ['ok', 'teal', 'saffron', 'danger'] as const
 
 /** Selector names of the three band-colour families in a stylesheet, sorted. */
@@ -159,6 +160,9 @@ describe('#400 — every band the mapper emits has a colour rule', () => {
     // "before" from it measured the pinned change against itself. A tag is a
     // pinned pre-change tree; this is the one place the ref matters, and the tag
     // is the one that says what the vocabulary was before.
+    // The historical source is read as its own blob, never through the live
+    // source graph. v0.70.0 predates the import graph, so its one file is its
+    // whole cascade. A later ref would need its own historical graph.
     let before: string[]
     try {
       before = bandColourSelectors(execSync('git show v0.70.0:src/styles.css', { encoding: 'utf8' }))

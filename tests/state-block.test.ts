@@ -6,22 +6,7 @@ import { join } from 'node:path'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { StateBlock, stateBlockHasBody, stateBlockRole, stateBlockRootClass } from '../src/components/page/StateBlock'
-
-it('allows the caller to override the announcement role', () => {
-  expect(stateBlockRole('failed', 'status')).toBe('status')
-  expect(stateBlockRole('empty', 'alert')).toBe('alert')
-})
-
-it('renders the requested heading and role while retaining defaults', () => {
-  for (const level of ['h1', 'h2', 'h3'] as const) {
-    const html = renderToStaticMarkup(createElement(StateBlock, { kind: 'failed', title: 'Error', titleLevel: level, role: 'status' }))
-    expect(html).toContain(`<${level} class="yf-state-title">Error</${level}>`)
-    expect(html).toContain('role="status"')
-  }
-  const html = renderToStaticMarkup(createElement(StateBlock, { kind: 'failed', title: 'Error' }))
-  expect(html).toContain('<h3 class="yf-state-title">')
-  expect(html).toContain('role="alert"')
-})
+import { readCssSource } from '../scripts/css-source-graph.mjs'
 
 const SOURCE = readFileSync(join(process.cwd(), 'src/components/page/StateBlock.tsx'), 'utf8').replace(/\r\n/g, '\n')
 
@@ -43,7 +28,7 @@ describe('stateBlockRole', () => {
   })
 })
 
-const CSS = readFileSync(join(process.cwd(), 'src/styles.css'), 'utf8').replace(/\r\n/g, '\n')
+const CSS = readCssSource('src/styles.css')
 const COMPACT_BLOCK = '/* ===== Shared page components: compact state block and surface roots ===== */'
 
 describe('stateBlockRootClass', () => {

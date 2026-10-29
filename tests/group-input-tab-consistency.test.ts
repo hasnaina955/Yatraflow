@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
+import { readCssSource } from '../scripts/css-source-graph.mjs'
 
 // P12 consistency pins for the Group input tab. The panels and item cards sit
 // on Surface, the card titles use the shared title class, and each state is its
@@ -9,7 +10,7 @@ import { describe, expect, it } from 'vitest'
 // nothing.
 const read = (rel: string) => readFileSync(new URL(`../${rel}`, import.meta.url), 'utf8').replace(/\r\n/g, '\n')
 const tab = read('src/pages/trip/GroupInputTab.tsx')
-const css = read('src/styles.css')
+const css = readCssSource('src/styles.css')
 
 describe('Group input tab: panels, titles and states follow the page pattern', () => {
   it('puts every panel and item card on Surface, and leaves no bare card div', () => {

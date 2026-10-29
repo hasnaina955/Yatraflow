@@ -52,6 +52,7 @@
 // ============================================================================
 
 import { readFileSync } from 'node:fs'
+import { CssGraphError, loadCssGraph } from './css-source-graph.mjs'
 
 export const RULES = [
   {
@@ -118,18 +119,37 @@ function main() {
     process.exit(2)
   }
 
+  // The stylesheet is read through the shared source graph, so the rules keep
+  // firing on rules that have moved into an imported module.
   let files
+  /** Flattened line -> real source line, so a finding names where it lives. */
+  let cssGraph = null
   try {
+    cssGraph = loadCssGraph('src/styles.css')
     files = {
-      'src/styles.css': readFileSync('src/styles.css', 'utf8'),
+      'src/styles.css': cssGraph.text,
       'index.html': readFileSync('index.html', 'utf8'),
     }
-  } catch {
+  } catch (error) {
+    if (error instanceof CssGraphError) {
+      // An error path sets the code and returns (#656): a direct exit can
+      // truncate this diagnostic on Windows.
+      console.error(`check:ui cannot resolve the stylesheet: ${error.code}: ${error.message}`)
+      process.exitCode = 1
+      return
+    }
     console.error('check:ui must run from the repo root (src/styles.css or index.html not found)')
     process.exit(2)
   }
 
   const findings = check(files)
+  if (cssGraph) {
+    for (const finding of findings) {
+      if (finding.file !== 'src/styles.css') continue
+      const origin = cssGraph.sourceAt(finding.line)
+      if (origin) finding.source = `${origin.file}:${origin.line}`
+    }
+  }
 
   if (json) {
     console.log(JSON.stringify({ ok: findings.length === 0, findings }, null, 2))
@@ -143,7 +163,7 @@ function main() {
 
   console.error(`ui anti-patterns: ${findings.length} finding(s)\n`)
   for (const f of findings) {
-    console.error(`  ${f.rule}  ${f.file}:${f.line}  ${f.title}`)
+    console.error(`  ${f.rule}  ${f.source ?? `${f.file}:${f.line}`}  ${f.title}`)
     console.error(`      ${f.text}`)
     console.error(`      ${f.why}\n`)
   }

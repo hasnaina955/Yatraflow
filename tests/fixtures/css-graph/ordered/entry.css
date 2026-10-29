@@ -1,0 +1,8 @@
+/* fixture: ordered imports, one duplicate */
+@import './a.css';
+@import './nested/conditions.css';
+@import './a.css';
+
+.entry-only {
+  color: #123456;
+}

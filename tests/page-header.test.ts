@@ -4,13 +4,14 @@ import { describe, expect, it } from 'vitest'
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { surfaceButtonType, surfaceIsInteractive } from '../src/components/page/Surface'
+import { readCssSource } from '../scripts/css-source-graph.mjs'
 
 const read = async (relativePath: string) =>
   (await readFile(join(process.cwd(), relativePath), 'utf8')).replace(/\r\n/g, '\n')
 
 const PAGE_HEADER = 'src/components/page/PageHeader.tsx'
 const SURFACE = 'src/components/page/Surface.tsx'
-const STYLES = 'src/styles.css'
+const STYLES_TEXT = readCssSource('src/styles.css')
 
 describe('PageHeader component contract', () => {
   it('exports a PageHeader component', async () => {
@@ -60,7 +61,7 @@ describe('PageHeader component contract', () => {
 
 describe('PageHeader styles', () => {
   it('uses the yf-header rules and the serif title, and declares no entrance of its own', async () => {
-    const css = await read(STYLES)
+    const css = STYLES_TEXT
     const start = css.indexOf('/* ===== Shared page components: header ===== */')
     expect(start).toBeGreaterThan(-1)
     const block = css.slice(start, css.indexOf('/* ===== Shared page components: surface ===== */'))
@@ -90,7 +91,7 @@ describe('Surface component contract', () => {
   })
 
   it('lifts on hover only when interactive, with token motion and a reduced-motion opt-out', async () => {
-    const css = await read(STYLES)
+    const css = STYLES_TEXT
     const start = css.indexOf('/* ===== Shared page components: surface ===== */')
     expect(start).toBeGreaterThan(-1)
     const block = css.slice(start, css.indexOf('/* ===== My purchases (page rules) ===== */'))
@@ -102,7 +103,7 @@ describe('Surface component contract', () => {
   })
 
   it('keeps the list-row entrance with its opt-out, because the page cascade reaches direct children only', async () => {
-    const css = await read(STYLES)
+    const css = STYLES_TEXT
     const start = css.indexOf('/* ===== Shared page components: surface ===== */')
     expect(start).toBeGreaterThan(-1)
     const block = css.slice(start, css.indexOf('/* ===== My purchases (page rules) ===== */'))
@@ -144,21 +145,21 @@ describe('Surface root styles', () => {
   const BLOCK_MARK = '/* ===== Shared page components: compact state block and surface roots ===== */'
 
   it('rings a focused button surface with the shared ring, not a new recipe', async () => {
-    const css = await read(STYLES)
+    const css = STYLES_TEXT
     const block = css.slice(css.indexOf(BLOCK_MARK))
     expect(css.indexOf(BLOCK_MARK)).toBeGreaterThan(-1)
     expect(block).toContain('.yf-surface.is-interactive:focus-visible { outline: none; box-shadow: var(--ring); }')
   })
 
   it('presses on the fast clock and turns the press off under reduced motion', async () => {
-    const css = await read(STYLES)
+    const css = STYLES_TEXT
     const block = css.slice(css.indexOf(BLOCK_MARK))
     expect(block).toContain('.yf-surface.is-interactive:active { transform: translateY(1px); transition-duration: var(--motion-fast); }')
     expect(block).toMatch(/prefers-reduced-motion: reduce\) \{\s*\.yf-surface\.is-interactive:active \{ transform: none; transition: none; \}/)
   })
 
   it('declares the button reset with the card font and no raw duration', async () => {
-    const css = await read(STYLES)
+    const css = STYLES_TEXT
     const block = css.slice(css.indexOf(BLOCK_MARK), css.indexOf('/* Papercut foundations */')).replace(/\/\*[\s\S]*?\*\//g, '')
     expect(block).toContain(':where(button.yf-surface) {')
     expect(block).toContain('font: inherit; color: inherit;')
@@ -181,7 +182,7 @@ describe('PageHeader note slot', () => {
   })
 
   it('copies the hero note look: hand font, saffron highlight and the hand-drawn arrow', async () => {
-    const css = await read(STYLES)
+    const css = STYLES_TEXT
     const start = css.indexOf('/* ===== Shared page components: the handwritten header note ===== */')
     expect(start).toBeGreaterThan(-1)
     const block = css.slice(start, css.indexOf('/* Papercut foundations */'))

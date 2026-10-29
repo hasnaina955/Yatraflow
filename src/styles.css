@@ -3,6 +3,7 @@
    Do not reorder these imports. */
 @import './styles/tokens.css';
 @import './styles/legacy/01-foundations.css';
+@import './styles/components/card.css';
 @import './styles/legacy/02-select-and-print.css';
 @import './styles/legacy/03-maplibre.css';
 @import './styles/legacy/04-mobile-usability.css';

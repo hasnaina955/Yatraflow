@@ -1,0 +1,37 @@
+/* Shared card.
+   Owns the static card surface: fill, border, radius, shadow, padding and the
+   sibling rhythm between stacked cards. It also owns the route-snap variant.
+   A page places a card and sets the documented variables. A page does not
+   restyle the surface from here.
+
+   A card is a static container. The interactive cards in this product are
+   .itin-card and .trip-card-hit, which are separate families with their own
+   hover and focus behaviour. Do not fold them into this file. */
+
+/* from src/styles/legacy/01-foundations.css */
+.card.route-snap {
+  position: relative; overflow: hidden;
+  background: linear-gradient(150deg, var(--yf-navy), #0B2545 88%);
+  color: #fff;
+  box-shadow: 0 30px 60px rgba(var(--shadow-navy-rgb),.28);
+  /* The generic `.card` border is a warm light grey (--line, #E4DCCC). On the
+     white cards around it that reads as a normal card edge; on THIS dark navy
+     plate the same hairline reads as an unwanted grey outline hugging the card.
+     The rule above already exists at (0,2,0) because `.card`'s background
+     shorthand is declared later and would strip the gradient - the border was
+     the other half of that inheritance and was overlooked. Transparent rather
+     than removed so the box model (and the 1px the card's size accounts for) is
+     unchanged; the gradient and the shadow define this card's edge. */
+  border-color: transparent;
+}
+
+/* from src/styles/legacy/01-foundations.css */
+/* ---------- Cards ---------- */
+.card {
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: var(--radius); box-shadow: var(--shadow);
+  padding: var(--space-8);
+}
+
+/* from src/styles/legacy/01-foundations.css */
+.card + .card { margin-top: 14px; }

@@ -11,7 +11,7 @@
   /* One width for both catalog pages. The tokens they share (--font-serif,
      --font-hand, --line-strong, --shadow-card, --shadow-card-hover) are on
      :root, in the shared-tokens block at the end of this file. */
-  max-width: 1240px;
+  --container-max: 1240px;
 }
 
 /* ---------- Buttons on these pages ----------

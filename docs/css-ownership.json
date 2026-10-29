@@ -16,7 +16,9 @@
       "configClasses": [
         "container"
       ],
-      "variables": []
+      "variables": [
+        "--container-max"
+      ]
     },
     {
       "id": "input",

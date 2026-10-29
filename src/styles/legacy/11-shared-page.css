@@ -1030,7 +1030,7 @@
    yf-page, so the catalog pages keep their own rules unchanged. No page carries
    yf-page yet. */
 .container:is(.yf-page) {
-  max-width: 1240px;
+  --container-max: 1240px;
 }
 
 /* Buttons on yf-page pages: the same skin as the catalog buttons. */

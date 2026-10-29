@@ -7,7 +7,7 @@
    layout keeps that layout in its own module. */
 
 /* from src/styles/legacy/01-foundations.css */
-.container { width: 100%; max-width: 1180px; margin: 0 auto; padding: 0 20px;
+.container { width: 100%; max-width: var(--container-max, 1180px); margin: 0 auto; padding: 0 20px;
   /* the Board tab widens the canvas to 1680px — glide it (both directions) */
   transition: max-width var(--t-slow) var(--ease-out); }
 

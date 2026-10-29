@@ -429,6 +429,59 @@ The computed comparison caught both tries. Nothing else did.
 
 Rollback: restore the direct border and border-radius in the base recipe. Merge the two split selector lists back. Remove the card variables from the map.
 
+## B5: the page container
+
+Checkpoint 1 is `a4385dff`. Checkpoint 2 is `f497c0ca`.
+
+This is the first layout owner. The module is `src/styles/layouts/container.css`, and the naming pin now accepts `layouts/name.css` as an explicit alternative.
+
+### Classification
+
+Twenty-four rules name `.container`. Two are the shared recipe and twenty-two are page variants.
+
+| Rule | Class | Outcome |
+|---|---|---|
+| `01 .container` | shared recipe | moved |
+| `04 .container` in `@media (max-width: 640px)` | shared responsive step | moved |
+| `.topnav .container.topnav-inner` | page placement | stayed |
+| `.container.form-page` | page width | stayed, then converted |
+| `.container:is(.ex-page, .trips-page)` | page width | stayed, then converted |
+| `.container:is(.yf-page)` | page width | stayed, then converted |
+| `.container.dmca-page` | page padding | stayed |
+| `.container.form-page.gcf` | page layout | stayed |
+| `.container.trip-starter` | page token | stayed |
+| `.container.yf-workspace` | workspace width | stayed |
+
+Every page rule carries a higher specificity than the recipe, so its position relative to it is unchanged.
+
+### One custom property needed a decision
+
+`.container.trip-starter` sets `--choice-tint`, which the container never reads. It is a page token consumed by `.trip-starter` descendants, assigned on the container because the container is the page root.
+
+It is not container configuration. Adding it to the container's documented variables would make the container claim a setting it does not own. It is recorded in a new `configVariableDebt` ledger with that reason.
+
+### Checkpoint 2
+
+Three scopes declared the same `1240px`. The recipe reads `--container-max` and each scope assigns it.
+
+Four declarations stay direct, because each is a different width or a deliberate override. They are 1400px for .yf-workspace, 1720px for [data-wide=true], 1180px for the .yf-workspace.yf-workspace override, and 1248px for .gcf.
+
+The risk in this conversion is an element carrying two scopes. A direct declaration used to compete by order at equal specificity. A variable now always feeds the base recipe. Three combined-class cases were added to the comparison for that reason.
+
+| Measure | Value |
+|---|---|
+| Variants | 14, including three combined-class cases |
+| Environments | 1440, 980, 640, 390 in light; 390 in dark; reduced motion |
+| Properties | 14, covering width, padding, margins and transition |
+| Comparisons | 84 |
+| Differences | 0 |
+| Appearance keys | 74 |
+
+No new painted case was added. The batch introduced no risk the existing eight do not already cover.
+
+Rollback: restore max-width 1180px in the recipe. Restore the three direct 1240px declarations. Remove the variable from the map. Move the two rules back to sections 01 and 04.
+
+
 
 
 

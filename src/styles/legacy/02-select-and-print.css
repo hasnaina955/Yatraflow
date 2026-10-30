@@ -117,11 +117,11 @@
 /* M4: the day is a near-opaque soft card (doc §6.3 — readability before transparency). */
 .day-section {
   margin-bottom: 22px;
-  background: var(--card);
-  border: 1px solid var(--line);
+  background: var(--pw-card);
+  border: 1.5px solid var(--pw-line);
   border-radius: var(--radius-lg);
   padding: 18px 20px 14px;
-  box-shadow: var(--shadow-soft);
+  box-shadow: var(--elev-1);
 }
 /* Items align to the TOP of the row, never to its centre. The middle block's
    height changes with the collapse — the route chain is collapsed-only and the
@@ -1951,4 +1951,83 @@ main:has(.auth-wrap) .route-panel { flex: 1; display: flex; flex-direction: colu
 /* Consistent vertical rhythm between stacked cards & sections */
 .day-section + .day-section { margin-top: 22px; }
 .card h3 + hr.divider, .card h2 + hr.divider { margin-top: 12px; }
+
+/* ===== PW-07: the open day reads as one Papercut card =====
+   The date badge replaces the navy "Day N" tile, and the header gains the
+   mockup's time-budget bar. Values come from the day simulation; the bar never
+   invents a "waiting" segment the engine does not measure. */
+.day-section:not(.day-closed) { border-color: var(--pw-route); }
+.day-badge-date {
+  width: 56px;
+  height: 66px;
+  gap: 1px;
+  border: 1px solid var(--pw-line);
+  border-radius: var(--radius);
+  background: var(--pw-raised);
+  color: var(--pw-ink);
+  box-shadow: var(--elev-press);
+}
+.day-badge-date .day-badge-wd {
+  font: var(--pw-kicker);
+  letter-spacing: .12em;
+  color: var(--pw-marigold-ink);
+}
+.day-badge-date b {
+  font: var(--pw-display-m);
+  line-height: 1;
+}
+.day-badge-date .day-badge-mon {
+  font: var(--pw-kicker);
+  font-weight: 600;
+  color: var(--pw-ink-2);
+}
+.day-number {
+  font: var(--pw-caption);
+  color: var(--pw-sea-700);
+  white-space: nowrap;
+}
+.day-title-row h3,
+.day-title-btn {
+  font: var(--pw-display-s);
+  letter-spacing: -.01em;
+}
+.day-budget {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: var(--space-1) 0 var(--space-7) calc(var(--space-16) + var(--space-2));
+}
+.day-budget-bar {
+  display: grid;
+  gap: var(--space-2);
+  height: 12px;
+}
+.day-budget-bar > span {
+  min-width: 4px;
+  border-radius: var(--radius-pill);
+}
+.db-drive { background: var(--pw-time-drive); }
+.db-dwell { background: var(--pw-time-stop); }
+.db-free { background: var(--pw-time-free); border: 1px solid var(--pw-route); }
+.day-budget-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3) var(--space-7);
+  font: var(--pw-meta);
+  color: var(--pw-ink-2);
+}
+.day-budget-key .db-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  flex: none;
+  margin-inline-end: var(--space-3);
+  border-radius: var(--radius-pill);
+  vertical-align: 0;
+}
+.day-section:not(.day-closed) .day-progress { display: none; }
+@media (max-width: 720px) {
+  .day-budget { margin-inline-start: 0; }
+  .day-badge-date { width: 50px; height: 60px; }
+}
 

@@ -544,6 +544,32 @@ export const DaySection = React.memo(function DaySection({ day, trip, facts, sav
   // anchors and single-stop days would just repeat it back.
   const chainStops = visibleStops(day).filter(s => !s.auto)
 
+  // PW-07: the day's own date, derived from the trip start. Manual weekday and
+  // month names keep the label stable across locales; the timeline is English.
+  const dayDate = (() => {
+    const raw = facts.startDate
+    if (!raw) return null
+    const base = new Date(`${raw}T00:00:00`)
+    if (Number.isNaN(base.getTime())) return null
+    base.setDate(base.getDate() + day.index)
+    const WD = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']
+    const MO = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    return { wd: WD[base.getDay()], d: base.getDate(), mon: MO[base.getMonth()] }
+  })()
+  // The mockup's time budget, from real minutes: wheel time, time at the
+  // stops, and the free remainder of the day window. The simulation has no
+  // separate "waiting" total, so the bar does not invent one.
+  const budgetWindow = Math.max(1, hmToMinutes(A.dayEnd) - hmToMinutes(dayStartHM))
+  const budgetDrive = Math.max(0, Math.min(budgetWindow, sim.totalTravelMinutes))
+  const budgetDwell = Math.max(0, Math.min(budgetWindow - budgetDrive, sim.dwellMinutes))
+  const budgetFree = Math.max(0, budgetWindow - budgetDrive - budgetDwell)
+  // Only real segments get a column; a zero-minute drive must not leave a gap.
+  const budgetSegments = [
+    { cls: 'db-drive', minutes: budgetDrive },
+    { cls: 'db-dwell', minutes: budgetDwell },
+    { cls: 'db-free', minutes: budgetFree },
+  ].filter(s => s.minutes > 0)
+
   return (
     <div className={`day-section${collapsed ? ' day-closed' : ''}${collapsed && isStayDay ? ' day-stay-collapsed' : ''}${dragging !== null ? ' drag-live' : ''}${reviewMode ? ' day-review' : ''}`} id={`day-card-${day.index}`}>
       <div className={`day-header${foreignOver === ordered.length && dragging === null ? ' foreign-over' : ''}`} {...(editable ? dayDropHandlers(ordered.length) : {})}>
@@ -558,9 +584,20 @@ export const DaySection = React.memo(function DaySection({ day, trip, facts, sav
           <ChevronDown size={16} aria-hidden className="day-collapse-icon" />
         </button>
         )}
-        <div className="day-badge"><small>Day</small><b>{day.index + 1}</b></div>
+        <div className={`day-badge${dayDate ? ' day-badge-date' : ''}`}>
+          {dayDate ? (
+            <>
+              <span className="day-badge-wd">{dayDate.wd}</span>
+              <b>{dayDate.d}</b>
+              <span className="day-badge-mon">{dayDate.mon}</span>
+            </>
+          ) : (
+            <><small>Day</small><b>{day.index + 1}</b></>
+          )}
+        </div>
         <div className="tl-stop-flex">
           <div className="day-title-row">
+            {dayDate && <span className="day-number">Day {day.index + 1}</span>}
             {editingTitle ? (
               <input
                 autoFocus
@@ -704,6 +741,24 @@ export const DaySection = React.memo(function DaySection({ day, trip, facts, sav
           </div>
         )}
       </div>
+
+      {!collapsed && (
+        <div className="day-budget">
+          <div
+            className="day-budget-bar"
+            style={{ gridTemplateColumns: budgetSegments.map(s => `${s.minutes}fr`).join(' ') }}
+            role="img"
+            aria-label={`Day ${day.index + 1} time budget, ${formatHM(dayStartHM, timeFormat)} to ${formatHM(A.dayEnd, timeFormat)}: driving ${minutesToHM(budgetDrive)}, at stops ${minutesToHM(budgetDwell)}, free ${minutesToHM(budgetFree)}`}
+          >
+            {budgetSegments.map(s => <span key={s.cls} className={s.cls} />)}
+          </div>
+          <div className="day-budget-key">
+            {budgetDrive > 0 && <span><i className="db-dot db-drive" aria-hidden="true" />Driving {minutesToHM(budgetDrive)}</span>}
+            {budgetDwell > 0 && <span><i className="db-dot db-dwell" aria-hidden="true" />At stops {minutesToHM(budgetDwell)}</span>}
+            <span><i className="db-dot db-free" aria-hidden="true" />Free {minutesToHM(budgetFree)}</span>
+          </div>
+        </div>
+      )}
 
       <SmoothCollapse open={!collapsed} fallbackFocus={collapseRef}>
       {commitmentsToday.map(fc => (

@@ -1128,15 +1128,33 @@ These files are unowned on purpose. Each entry names what still lives there and 
 
 | Responsibility | Where | Why it stays |
 |---|---|---|
-| `.board*`, 150 rules over 29 classes | `01`, `02`, `04`, `06`, `16` | Five cascade positions, and no signed-out route renders the Board. |
-| `.pill-nav` and `.pill-glider`, 26 matches | `01`, `02`, `16`, `17` | The states that define it need a workspace session. |
-| `.trip-head-card`, 13 rules | `02`, `04`, `13` | No source file renders it. The family is unreachable. |
-| Unreachable `.itin-card` overrides, 18 rules | `11` | `.trips-page` renders `.mt-card`. No file applies `.explore-grid.as-list`. |
+| Board rules that share a selector list | `01`, `02`, `04`, `06`, `16` | 20 rules. Each names `.board-*` beside another family, up to forty in one stagger rule. One extraction would claim another family's styling. |
+| `.trip-head-card`, 13 rules | `02`, `04`, `13` | No source file renders it. The family is unreachable, so it has no responsibility to own. |
+| Unreachable `.itin-card` overrides, 18 rules | `components/itin-card-legacy.css` | They stay inside the owner, not deleted. Removal needs proof of its own. |
 | Page cards and grids, `.mt-card` and `.mt-grid` | `09` | Not yet a batch. |
 | The trip workspace, `.yf-*` | `14`, `16` | Not yet a batch. |
 | Explore page furniture, `.ex-*` | `10`, `11` | Not yet a batch. |
 | Print, map and MapLibre surfaces | `02`, `03`, `08` | Not yet a batch. |
 
-The styling exceptions stay recorded in the map, not in this table: 128 appearance keys and one variable exception. `check:css` fails on a stale key, so the figure cannot drift.
+Nothing was deleted in these batches. The 18 unreachable `.itin-card` rules and the 13 `.trip-head-card` rules are kept. Removal needs proof that no consumer exists, and that proof belongs to a separate change with its own review.
+
+The styling exceptions stay recorded in the map, not in this table. `check:css` fails on a stale key, so the figure cannot drift.
+
+## Authenticated routes, measured and not measured
+
+Two instruments exist, and they cover different ground. Keeping them apart matters, because a fixture pass is not a route pass.
+
+| Surface | Covered by | Status |
+|---|---|---|
+| Landing hero | the real `/` route | measured |
+| The card on a creator page | the real `/creator/:id` route | measured |
+| Pill nav: rail, glider, tablist, counts, ink copies, focus, overflow, reduced motion | real components in a fixture | measured |
+| Board: columns, stops, topbar, fit control, pulse, phone stacking | the real `TripWorkspace` in a fixture | measured |
+| Signed-in `/trips` and `/trip/:id` as **routes** | nothing yet | not measured |
+| My trips list, sidebar and nav pill on a signed-in page | nothing yet | not measured |
+
+The fixture passes prove the component styling. They do not prove that a signed-in route composes the same way. Its ancestors, its wrapper classes and its real data are all different. That acceptance stays open and is named here rather than assumed.
+
+No dev sign-in path was added, and no session was exported. The fixture reaches the workspace by mounting the component with synthetic data. That is the technique `overview-fixture.tsx` already used for the Overview tab.
 
 

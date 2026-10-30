@@ -212,7 +212,9 @@
    rule above is not enough on its own: it clips painting, but the section's own
    box still reported the wider scroll width. Clipping at the section that holds
    each blob is what removes the overflow from the document's scroll width. */
-.hero,
+/* The hero half of this clip is owned by pages/landing.css. Only .plan-bench
+   is left here: the two selectors shared one rule, and one responsibility cannot
+   live in two owners. */
 .plan-bench {
   overflow-x: clip;
 }

@@ -1051,12 +1051,10 @@ button.board-col-zone--add:active { transform: translateY(1px); }
 [data-theme='dark'] .auth-card .input { --input-background: rgba(255, 255, 255, .06); }
 
 /* ---------- Hero (landing) — split layout per CTI homepage mockup ---------- */
-/* The hero itself is transparent: the atmospheric ramp lives on the page-level
+/* The hero is transparent: the atmospheric ramp lives on the page-level
    .landing-canvas (fixed attachment), so no hard gradient edge can appear at
-   the hero/bench boundary or behind the floating nav pill. */
-.hero {
-  padding: 26px 0 8px; text-align: center;
-}
+   the hero/bench boundary or behind the floating nav pill.
+   The `.hero` box itself is owned by pages/landing.css. */
 .hero-split { display: grid; grid-template-columns: 1.05fr .95fr; gap: 44px; align-items: center; text-align: left; }
 .hero-copy .hero-sub { margin-left: 0; }
 .hero-copy .hero-ctas { justify-content: flex-start; }

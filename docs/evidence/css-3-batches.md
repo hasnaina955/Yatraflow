@@ -875,3 +875,87 @@ The dark overrides repeat the semantic fills on purpose. Folding them back into 
 `npm run verify` did not run. The default STE run still exits 1 against the inherited merge base `f68b3d9`, which predates this work.
 
 Rollback: move the nine rules back to section 02, remove the module and its import, and restore the appearance baseline.
+
+## B10: the page families
+
+Checkpoint 1 is the `.hero` extraction. The other three families are traced and recorded below, and only one of them moved.
+
+### The plan listed four families. Measurement reclassified three.
+
+The batch table named `.itin-card`, `.trip-head-card`, `.hero` and `.board*`. A full cascade trace of each one gave a different shape for three of them.
+
+| Family | Selector matches | Reachable | What it is |
+|---|---|---|---|
+| `.hero` | 15 | 15 | The Landing page's own surface. `Landing.tsx` is the only consumer. |
+| `.itin-card` | 25 | 7 | A shared component's card, rendered by `PubCard`. 18 rules reach no element. |
+| `.trip-head-card` | 13 | 0 | No source file renders it. |
+| `.board*` | 150 (29 classes) | 150 | The Board tab's surface, spread over five legacy files. |
+
+`dev/_css3-b10-trace.mjs` produced the trace. It reads the graph the gate reads and reports each rule with its conditional context and the ancestor scope that constrains it. File position alone does not make a page override. A bare `.itin-card` rule in a late file still applies everywhere, and an `.explore-grid.as-list` prefix never applies at all.
+
+The trace output also answers what a count cannot. `.trip-head-card` has no consumer: no `.tsx`, `.ts` or `.html` file names it. `.trips-page` renders `.mt-card`, not `.itin-card`, so nine `.trips-page .itin-card` rules reach nothing. No file applies `.explore-grid.as-list`, so seven more rules reach nothing. No file renders `.trip-next-chevron`, so two more reach nothing.
+
+A family with no consumer has no styling responsibility. Giving it an owner would record a false claim. These 18 rules stay where they are, and stay listed as remaining legacy.
+
+### `.hero` moved to `pages/landing.css`
+
+Thirteen rules carry the fifteen selector matches. They came from three files.
+
+| Source | Rules | Content |
+|---|---|---|
+| `02-select-and-print.css` | 1 | the hero box: padding and centred text |
+| `04-mobile-usability.css` | 11 | positioning, the CTA treatment, the glow and sheen animations |
+| `12-pages.css` | 1 | `overflow-x: clip`, shared with `.plan-bench` |
+
+The entry imports the module directly after `04-mobile-usability.css`. The eleven rules from that file then keep their exact cascade position. The other two gain no competitor: no other rule sets `padding` or `overflow-x` on `.hero`.
+
+One rule was shared. `.hero, .plan-bench { overflow-x: clip }` names two families, and one responsibility cannot sit in two owners. The rule is now two rules, one in each owner, with the same declarations.
+
+The three `.hero` box rules stay separate on purpose. Extraction is one checkpoint. Merging them is the next one. One commit that does both hides which change caused a difference.
+
+### Detection proven before the result
+
+The instrument is `dev/_css3-page-compare.mjs`. It drives the real app, enumerates the live DOM under each family root, and reads computed styles. It then swaps the stylesheet on the same DOM and reads again. No fixture markup is invented, so the ancestors are the ones the product renders.
+
+| Proof | Setup | Result |
+|---|---|---|
+| Self-comparison | the same stylesheet on both sides | 0 differences |
+| Seed: CTA fill | `.hero .btn-primary` background forced to `rgb(1, 2, 3)` | 12 differences, all six viewport and theme pairs |
+
+The seed also caught the gradient it displaced. A tool that reported "no change" would have passed an extraction that broke the hero.
+
+### Verification
+
+| Measure | Value |
+|---|---|
+| Pages | the real Landing page, plus a real creator page for the card |
+| Widths | 390, 768, 1440 |
+| Themes | light and dark |
+| Case runs | 36 |
+| Element reads | 2,304 |
+| Properties per element | 94 |
+| Compared values | 108,288 |
+| Differences | 0 |
+
+The page root must render the family before any reading counts. The tool fails when a root matches no element, so an empty page cannot pass as a match. The Board case reported that it skipped, with its reason, rather than reporting a pass.
+
+### The three families that did not move
+
+`.board*` is the largest family and the one this batch cannot prove. Its 150 rules sit at five cascade positions across `01-foundations`, `02-select-and-print`, `04-mobile-usability`, `06-shell-and-consistency` and `16-motion-and-cover-v2`. Two of those files hold Board rules before and after other rules, so one module cannot keep both positions.
+
+The reachability gap is the harder one. `/trips` sends a signed-out visitor to the Landing page, so the Board never renders in this environment. No trip data reaches the page without a session. The instrument reported its skip and named the cause. Moving 150 unmeasured rules is a guess, and this batch does not record guesses as results.
+
+`.trip-head-card` and the unreachable half of `.itin-card` stay listed as remaining legacy. Removing them is a separate change with its own proof, and one that would lower the reduced-motion floor.
+
+### Reduced motion
+
+The hero's reduced-motion rule moved with the family. It still declares `animation: none` and `box-shadow: none` on both the button and its sheen. The glow and sheen block keeps its `prefers-reduced-motion: no-preference` guard. The graph reports 227 rules inside a reduced-motion query, one above the recorded floor of 226. The move split one shared block into two, so the count rose by one while every declaration stayed.
+
+### Gate
+
+`check:css` passes with 12 owner modules. The ownership map re-keys 21 appearance entries from the legacy file to the module. The total stays 128, so the debt is moved and not grown. `design-system` and `css-ownership` suites pass, 118 tests. Typecheck passes. The lint ratchet stays at its 134 and 27 baseline. `check:ui` reports no finding. Scoped STE passes on the changed lines.
+
+`npm run verify` did not run. The default STE run still exits 1 against the inherited merge base `f68b3d9`, which predates this work. That failure is not part of this batch and this batch does not clear it.
+
+Rollback: move the thirteen rules back to sections 02, 04 and 12. Restore the shared `.hero, .plan-bench` selector. Remove the module and its import. Re-key the appearance baseline to the legacy file.
+

@@ -168,6 +168,15 @@
       "variables": [
         "--toast-radius"
       ]
+    },
+    {
+      "id": "landing",
+      "file": "src/styles/pages/landing.css",
+      "owned": [
+        "hero"
+      ],
+      "configClasses": [],
+      "variables": []
     }
   ],
   "legacy": [
@@ -225,26 +234,6 @@
       "src/styles/legacy/04-mobile-usability.css::.creator-hero-actions .btn-outline::border-color",
       "src/styles/legacy/04-mobile-usability.css::.creator-hero-actions .btn-outline::color",
       "src/styles/legacy/04-mobile-usability.css::.creator-hero-actions .btn-outline:hover::background",
-      "src/styles/legacy/04-mobile-usability.css::.hero .btn, .hero .btn::after::animation",
-      "src/styles/legacy/04-mobile-usability.css::.hero .btn, .hero .btn::after::box-shadow",
-      "src/styles/legacy/04-mobile-usability.css::.hero .btn-lg::letter-spacing",
-      "src/styles/legacy/04-mobile-usability.css::.hero .btn-primary::animation",
-      "src/styles/legacy/04-mobile-usability.css::.hero .btn-primary::background",
-      "src/styles/legacy/04-mobile-usability.css::.hero .btn-primary::border-color",
-      "src/styles/legacy/04-mobile-usability.css::.hero .btn-primary::box-shadow",
-      "src/styles/legacy/04-mobile-usability.css::.hero .btn-primary::color",
-      "src/styles/legacy/04-mobile-usability.css::.hero .btn-saffron::animation",
-      "src/styles/legacy/04-mobile-usability.css::.hero .btn-saffron::background",
-      "src/styles/legacy/04-mobile-usability.css::.hero .btn-saffron::border-color",
-      "src/styles/legacy/04-mobile-usability.css::.hero .btn-saffron::box-shadow",
-      "src/styles/legacy/04-mobile-usability.css::.hero .btn-saffron::color",
-      "src/styles/legacy/04-mobile-usability.css::.hero .btn::after::animation",
-      "src/styles/legacy/04-mobile-usability.css::.hero .btn::after::background",
-      "src/styles/legacy/04-mobile-usability.css::.hero .btn::after::content",
-      "src/styles/legacy/04-mobile-usability.css::.hero .btn::after::pointer-events",
-      "src/styles/legacy/04-mobile-usability.css::.hero .btn::after::transform",
-      "src/styles/legacy/04-mobile-usability.css::.hero .btn:focus-visible::animation",
-      "src/styles/legacy/04-mobile-usability.css::.hero .btn:focus-visible::box-shadow",
       "src/styles/legacy/04-mobile-usability.css::.icon-btn:focus-visible, .theme-toggle:focus-visible, .avatar-btn:focus-visible, .user-menu-item:focus-visible, .nav-link:focus-visible, .tab-btn:focus-visible, .brand:focus-visible, .mobile-nav-btn:focus-visible, .bottom-nav-item:focus-visible, .day-collapse:focus-visible, .day-route:focus-visible, .move-btn:focus-visible, .vote-btn:focus-visible, .chip-btn:focus-visible, .clickable-chip:focus-visible, .toast-action:focus-visible, .day-rail-chip:focus-visible, .map-day-chip:focus-visible, .map-idea-chip:focus-visible, .map-legend-toggle:focus-visible, .map-expand-chip:focus-visible, .loc-option:focus-visible, .ai-fab:focus-visible, .trip-card-hit:focus-visible, .trip-task-row:focus-visible, .skip-link:focus-visible, .yf-map-pin:focus-visible, .clamp-toggle:focus-visible, .board-fit:focus-visible, .save-heart:focus-visible, .dest-chip button:focus-visible, .role-select:focus-visible, .day-title-btn:focus-visible, .trip-hero-back:focus-visible, .health-rec:focus-visible, .link-btn:focus-visible, .yf-range:focus-visible, .bench-mode-btn:focus-visible, .bench-stay-row:focus-visible, .hero-bench-cta:focus-visible, .bench-toggle:focus-visible, .bench-preset-chip:focus-visible, .bench-crew-btn:focus-visible, .bench-receipt-actions .chip:focus-visible, .bench-surprise:focus-visible::box-shadow",
       "src/styles/legacy/04-mobile-usability.css::.icon-btn:focus-visible, .theme-toggle:focus-visible, .avatar-btn:focus-visible, .user-menu-item:focus-visible, .nav-link:focus-visible, .tab-btn:focus-visible, .brand:focus-visible, .mobile-nav-btn:focus-visible, .bottom-nav-item:focus-visible, .day-collapse:focus-visible, .day-route:focus-visible, .move-btn:focus-visible, .vote-btn:focus-visible, .chip-btn:focus-visible, .clickable-chip:focus-visible, .toast-action:focus-visible, .day-rail-chip:focus-visible, .map-day-chip:focus-visible, .map-idea-chip:focus-visible, .map-legend-toggle:focus-visible, .map-expand-chip:focus-visible, .loc-option:focus-visible, .ai-fab:focus-visible, .trip-card-hit:focus-visible, .trip-task-row:focus-visible, .skip-link:focus-visible, .yf-map-pin:focus-visible, .clamp-toggle:focus-visible, .board-fit:focus-visible, .save-heart:focus-visible, .dest-chip button:focus-visible, .role-select:focus-visible, .day-title-btn:focus-visible, .trip-hero-back:focus-visible, .health-rec:focus-visible, .link-btn:focus-visible, .yf-range:focus-visible, .bench-mode-btn:focus-visible, .bench-stay-row:focus-visible, .hero-bench-cta:focus-visible, .bench-toggle:focus-visible, .bench-preset-chip:focus-visible, .bench-crew-btn:focus-visible, .bench-receipt-actions .chip:focus-visible, .bench-surprise:focus-visible::outline",
       "src/styles/legacy/04-mobile-usability.css::.nav-right .btn::font-size",
@@ -254,7 +243,6 @@
       "src/styles/legacy/04-mobile-usability.css::.topnav .container.topnav-inner::padding",
       "src/styles/legacy/04-mobile-usability.css::.who-voted .avatar::box-shadow",
       "src/styles/legacy/04-mobile-usability.css::.who-voted .avatar::font-size",
-      "src/styles/legacy/04-mobile-usability.css::[data-theme='dark'] .hero .btn-primary, [data-theme='dark'] .hero .btn-saffron::border-color",
       "src/styles/legacy/04-mobile-usability.css::body, .topnav, .glass, .board, .modal, .toast::transition",
       "src/styles/legacy/05-share-and-trip-ticket.css::.quick-budget .chip.on::background",
       "src/styles/legacy/05-share-and-trip-ticket.css::.quick-budget .chip.on::border-color",
@@ -327,7 +315,28 @@
       "src/styles/legacy/16-motion-and-cover-v2.css::.yf-page .yf-member .avatar::font-size",
       "src/styles/legacy/17-overview-tiles-and-cover.css::.member-stack .avatar, .yf-avatars .avatar::box-shadow",
       "src/styles/legacy/17-overview-tiles-and-cover.css::.ovw2 .btn.btn-sm, .ovw-weather .btn.btn-sm::padding-inline",
-      "src/styles/legacy/17-overview-tiles-and-cover.css::.yf-page .yf-avatars .avatar::box-shadow"
+      "src/styles/legacy/17-overview-tiles-and-cover.css::.yf-page .yf-avatars .avatar::box-shadow",
+      "src/styles/pages/landing.css::.hero .btn, .hero .btn::after::animation",
+      "src/styles/pages/landing.css::.hero .btn, .hero .btn::after::box-shadow",
+      "src/styles/pages/landing.css::.hero .btn-lg::letter-spacing",
+      "src/styles/pages/landing.css::.hero .btn-primary::animation",
+      "src/styles/pages/landing.css::.hero .btn-primary::background",
+      "src/styles/pages/landing.css::.hero .btn-primary::border-color",
+      "src/styles/pages/landing.css::.hero .btn-primary::box-shadow",
+      "src/styles/pages/landing.css::.hero .btn-primary::color",
+      "src/styles/pages/landing.css::.hero .btn-saffron::animation",
+      "src/styles/pages/landing.css::.hero .btn-saffron::background",
+      "src/styles/pages/landing.css::.hero .btn-saffron::border-color",
+      "src/styles/pages/landing.css::.hero .btn-saffron::box-shadow",
+      "src/styles/pages/landing.css::.hero .btn-saffron::color",
+      "src/styles/pages/landing.css::.hero .btn::after::animation",
+      "src/styles/pages/landing.css::.hero .btn::after::background",
+      "src/styles/pages/landing.css::.hero .btn::after::content",
+      "src/styles/pages/landing.css::.hero .btn::after::pointer-events",
+      "src/styles/pages/landing.css::.hero .btn::after::transform",
+      "src/styles/pages/landing.css::.hero .btn:focus-visible::animation",
+      "src/styles/pages/landing.css::.hero .btn:focus-visible::box-shadow",
+      "src/styles/pages/landing.css::[data-theme='dark'] .hero .btn-primary, [data-theme='dark'] .hero .btn-saffron::border-color"
     ],
     "configVariableDebt": [
       {

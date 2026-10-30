@@ -1,0 +1,69 @@
+/* Landing hero.
+   The hero is the Landing page's own surface: nothing else in the product
+   renders `.hero`. Its geometry, its blobs' clipping and the rich CTA treatment
+   belong here.
+
+   The three `.hero` base rules stay separate on purpose. Extraction is one
+   checkpoint and merging them is the next one; merging here would change two
+   things in one commit and hide which one caused a difference.
+
+   The CTA rules below override the button component's appearance from a page.
+   That is recorded debt in docs/css-ownership.json, not a supported page
+   configuration: a page may set placement on a component root, not its paint. */
+
+.hero {
+  padding: 26px 0 8px; text-align: center;
+}
+.hero { position: relative; }
+
+/* Clipping lives on the section that holds the blobs, so the wider scroll width
+   leaves the document. The root html { overflow-x: clip } rule clips painting
+   but not the section's own reported box. */
+.hero {
+  overflow-x: clip;
+}
+
+/* ---------- Rich, solid CTAs — colour must not be washed by glass ---------- */
+.hero .btn-lg {
+  position: relative; overflow: hidden; letter-spacing: .01em;
+}
+/* Solid brand gradients: the old translucent glass face washed the colour out,
+   so depth comes from the glow shadow instead of transparency. */
+.hero .btn-primary {
+  background: linear-gradient(120deg, #0D8D82, #0C716D);
+  color: #fff; border-color: rgba(255,255,255,.28);
+  box-shadow: 0 10px 26px rgba(13,141,130,.42), inset 0 1px 0 rgba(255,255,255,.28);
+}
+.hero .btn-saffron {
+  background: linear-gradient(120deg, #F8B14E, #EE8F33);
+  /* same AA ink as the base saffron variant — white on light saffron was ~1.9:1 */
+  color: var(--color-accent-foreground); border-color: rgba(255,255,255,.3);
+  box-shadow: 0 10px 26px rgba(243,170,61,.44), inset 0 1px 0 rgba(255,255,255,.3);
+}
+[data-theme='dark'] .hero .btn-primary,
+[data-theme='dark'] .hero .btn-saffron { border-color: rgba(255,255,255,.2); }
+/* The sheen ::after is absolute and resolves against the hero when no closer
+   ancestor is positioned, so the sweep crossed the whole hero face — a stray
+   grey bar sliding across empty space beside the buttons. Each button is its own
+   clipping box; the breathing glow is a box-shadow and survives the clip. */
+.hero .btn { position: relative; overflow: hidden; }
+
+@media (prefers-reduced-motion: no-preference) {
+  /* soft breathing outer glow — box-shadow only, transform-free */
+  .hero .btn-primary { animation: glow-breathe-teal 3.2s ease-in-out infinite; }
+  .hero .btn-saffron { animation: glow-breathe-saffron 3.2s ease-in-out infinite; }
+  /* keyboard focus must win over the breathing glow (focus ring, not glow) */
+  .hero .btn:focus-visible { animation: none; box-shadow: var(--ring); }
+  /* glass sheen sweep across the button face */
+  .hero .btn::after {
+    content: ''; position: absolute; top: 0; bottom: 0; left: -45%; width: 40%;
+    background: linear-gradient(105deg, transparent, rgba(255,255,255,.35), transparent);
+    transform: skewX(-20deg); pointer-events: none;
+    animation: glass-sheen 4.6s ease-in-out infinite;
+  }
+}
+
+/* Reduced motion: no breathing glow and no sheen on the hero CTAs. */
+@media (prefers-reduced-motion: reduce) {
+  .hero .btn, .hero .btn::after { animation: none; box-shadow: none; }
+}

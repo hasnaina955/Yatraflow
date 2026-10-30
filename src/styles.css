@@ -12,6 +12,7 @@
 @import './styles/components/avatar.css';
 @import './styles/legacy/03-maplibre.css';
 @import './styles/legacy/04-mobile-usability.css';
+@import './styles/pages/landing.css';
 @import './styles/components/select.css';
 @import './styles/components/button.css';
 @import './styles/components/input.css';

@@ -1351,7 +1351,6 @@ html.vt-active :where(*) {
 @media (pointer: coarse) {
   .landing-canvas { background-attachment: scroll; }
 }
-.hero { position: relative; }
 .hero-split { position: relative; z-index: var(--z-content); }
 .hero-blob { position: absolute; z-index: var(--z-under); border-radius: 50%; filter: blur(70px); opacity: .5; pointer-events: none; }
 .hero-blob-a { width: 380px; height: 380px; top: -110px; left: -140px; background: var(--yf-atmos-mint); }
@@ -1467,7 +1466,6 @@ html.vt-active :where(*) {
   .hero-blob-a, .hero-blob-b, .bench-blob-a, .bench-blob-b { animation: none; }
   .ticker-track { animation: none; }
   .ticker-track > * { animation: none; }
-  .hero .btn, .hero .btn::after { animation: none; box-shadow: none; }
   .motif-compass, .motif-bob, .motif-float, .motif-sway, .motif-rise, .motif-birds { animation: none; }
   .hbc-plane { animation: none; }
   .hero-bench-cta::before { animation: none; }
@@ -1547,43 +1545,9 @@ html.vt-active :where(*) {
   100% { opacity: 1; transform: translateY(0); }
 }
 /* ---------- Rich, solid CTAs (hero) — colour must not be washed by glass ---------- */
-.hero .btn-lg {
-  position: relative; overflow: hidden; letter-spacing: .01em;
-}
-/* solid brand gradients (the old translucent glass face washed the colour out);
-   depth comes from the glow shadow instead of transparency */
-.hero .btn-primary {
-  background: linear-gradient(120deg, #0D8D82, #0C716D);
-  color: #fff; border-color: rgba(255,255,255,.28);
-  box-shadow: 0 10px 26px rgba(13,141,130,.42), inset 0 1px 0 rgba(255,255,255,.28);
-}
-.hero .btn-saffron {
-  background: linear-gradient(120deg, #F8B14E, #EE8F33);
-  /* same AA ink as the base saffron variant — white on light saffron was ~1.9:1 */
-  color: var(--color-accent-foreground); border-color: rgba(255,255,255,.3);
-  box-shadow: 0 10px 26px rgba(243,170,61,.44), inset 0 1px 0 rgba(255,255,255,.3);
-}
-[data-theme='dark'] .hero .btn-primary,
-[data-theme='dark'] .hero .btn-saffron { border-color: rgba(255,255,255,.2); }
-/* The sheen ::after is absolute and resolves against the hero (no positioned
-   ancestor closer), so the sweep crossed the whole hero face — a stray grey
-   bar sliding across empty space beside the buttons. Each button is its own
-   clipping box; the breathing glow is a box-shadow and survives the clip. */
-.hero .btn { position: relative; overflow: hidden; }
-@media (prefers-reduced-motion: no-preference) {
-  /* soft breathing outer glow — box-shadow only, transform-free */
-  .hero .btn-primary { animation: glow-breathe-teal 3.2s ease-in-out infinite; }
-  .hero .btn-saffron { animation: glow-breathe-saffron 3.2s ease-in-out infinite; }
-  /* keyboard focus must win over the breathing glow (focus ring, not glow) */
-  .hero .btn:focus-visible { animation: none; box-shadow: var(--ring); }
-  /* glass sheen sweep across the button face */
-  .hero .btn::after {
-    content: ''; position: absolute; top: 0; bottom: 0; left: -45%; width: 40%;
-    background: linear-gradient(105deg, transparent, rgba(255,255,255,.35), transparent);
-    transform: skewX(-20deg); pointer-events: none;
-    animation: glass-sheen 4.6s ease-in-out infinite;
-  }
-}
+/* The CTA treatment that used to sit here now belongs to pages/landing.css,
+   with the hero it styles. The keyframes below are shared: they are named by
+   animation, not scoped to a selector, so they stay in this file. */
 @keyframes glow-breathe-teal {
   0%, 100% { box-shadow: 0 10px 26px rgba(13,141,130,.42), inset 0 1px 0 rgba(255,255,255,.28); }
   50%      { box-shadow: 0 14px 40px rgba(13,141,130,.62), inset 0 1px 0 rgba(255,255,255,.28); }

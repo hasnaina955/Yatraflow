@@ -63,12 +63,15 @@ A consumer is a source file that names the class token.
 | `.toast` | 7 | 2 | 50 | 0 | `components/toast.css` |
 | `.avatar` | 22 | 6 | 5 | 0 | `components/avatar.css` |
 | `.modal` | 24 | 5 | 16 | 0 | `components/dialog.css` |
-| `.hero` | 13 | 3 | 22 | 0 | page owner |
+| `.hero` | 13 | 3 | 22 | 0 | `pages/landing.css` |
 | `.itin-card` | 25 | 4 | 1 | 0 | page owner |
-| `.pill-nav` | 11 | 3 | 1 | 0 | `components/pill-nav.css` |
+| `.pill-nav` | 21 | 3 | 1 | 0 | `components/pill-nav.css` |
 | `.chip-btn` | 6 | 3 | 1 | 0 | `components/chip.css` |
-| `.trip-head-card` | 13 | 3 | 0 | 3 | page owner |
+| `.trip-head-card` | 13 | 3 | 0 | 3 | no consumer |
 | `.popover` | 3 | 2 | 6 | 2 | `components/popover.css` |
+
+Two counts in this table were wrong when B10 read them again. `.pill-nav` carries 21 rules, not 11, and `.pill-glider` adds 5 more. `.board*` is 29 classes over 150 rules in 5 files, not 2 files. `node dev/_css3-b10-scale.mjs <family>` reproduces every figure here.
+
 
 ## Cross-file duplication
 
@@ -90,7 +93,7 @@ The defects are these:
 | `.avatar` | 6 | One control, six owners |
 | `.modal` | 5 | One control, five owners |
 | `.itin-card` | 4 | One card, four owners |
-| `.board*` | 2 | Board family split over 2 files |
+| `.board*` | 5 | Board family split over 5 files, 29 classes |
 | `.trip-head-card` | 3 | One card, three owners |
 
 The `:root` duplication is the largest single ownership defect.

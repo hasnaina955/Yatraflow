@@ -973,6 +973,8 @@ The hero's reduced-motion rule moved with the family. It still declares `animati
 
 `check:css` passes with 12 owner modules. The ownership map re-keys 21 appearance entries from the legacy file to the module. The total stays 128, so the debt is moved and not grown. `design-system` and `css-ownership` suites pass, 118 tests. Typecheck passes. The lint ratchet stays at its 134 and 27 baseline. `check:ui` reports no finding. Scoped STE passes on the changed lines.
 
+The full suite caught one thing the targeted runs could not. `tests/css-source-graph.test.ts` pins the module path shape, and it did not accept `pages/`. The pattern now accepts `pages/name.css`, which is the same extension B5 made for `layouts/`. The fixture paths in `css-ownership` already used `pages/`, so the directory was anticipated and only the pin was behind.
+
 `npm run verify` did not run. The default STE run still exits 1 against the inherited merge base `f68b3d9`, which predates this work. That failure is not part of this batch and this batch does not clear it.
 
 Rollback: move the thirteen rules back to sections 02, 04 and 12. Restore the shared `.hero, .plan-bench` selector. Remove the module and its import. Re-key the appearance baseline to the legacy file.
